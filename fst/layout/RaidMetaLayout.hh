@@ -77,7 +77,7 @@ class RaidMetaLayout : public Layout
 
 
     //--------------------------------------------------------------------------
-    //! Open file
+    //! Open file using a gateway
     //!
     //! @param path path to the file
     //! @param flags flags O_RDWR/O_RDONLY/O_WRONLY
@@ -92,6 +92,23 @@ class RaidMetaLayout : public Layout
                       mode_t             mode,
                       const char*        opaque );
 
+
+    //--------------------------------------------------------------------------
+    //! Open file using parallel IO
+    //!
+    //! @param flags flags O_RDWR/O_RDONLY/O_WRONLY
+    //! @param mode creation permissions
+    //! @param opaque opaque information
+    //!
+    //! @return 0 if successful, -1 otherwise and error code is set
+    //!
+    //--------------------------------------------------------------------------
+    virtual int OpenPio( std::vector<std::string>&& stripeUrls,
+                         XrdSfsFileOpenMode         flags,  
+                         mode_t                     mode = 0,
+                         const char*                opaque = "fst.pio" );
+
+  
 
     //--------------------------------------------------------------------------
     //! Read from file
@@ -205,6 +222,7 @@ class RaidMetaLayout : public Layout
 
     bool mIsRw;                        ///< mark for writing
     bool mIsOpen;                      ///< mark if open
+    bool mIsPio;                       ///< mark if opened for parallel IO access
     bool mDoTruncate;                  ///< mark if there is a need to truncate
     bool mUpdateHeader;                ///< mark if header updated
     bool mDoneRecovery;                ///< mark if recovery done
@@ -236,6 +254,7 @@ class RaidMetaLayout : public Layout
     std::vector<char*> mDataBlocks;                 ///< vector containing the data in a group
     std::vector<FileIo*> mStripeFiles;              ///< vector containing the file IO layout
     std::vector<HeaderCRC*> mHdrInfo;               ///< headers of the stripe files
+    std::vector<std::string> mStripeUrls;           ///< the urls of the files
     std::vector<AsyncMetaHandler*> mMetaHandlers;   ///< rd/wr handlers for each stripe
     std::map<unsigned int, unsigned int> mapLP;     ///< map of url to stripes
     std::map<unsigned int, unsigned int> mapPL;     ///< map of stripes to url

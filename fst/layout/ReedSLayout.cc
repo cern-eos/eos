@@ -534,7 +534,11 @@ ReedSLayout::Truncate( XrdSfsFileOffset offset )
   // *!!!* Reset the maxOffsetWritten from XrdFstOfsFile to logical offset
   //............................................................................
   mFileSize = offset;
-  mOfsFile->maxOffsetWritten  = offset;
+
+  if ( !mIsPio ) {
+    mOfsFile->maxOffsetWritten  = offset;
+  }
+  
   return rc;
 }
 

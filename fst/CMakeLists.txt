@@ -211,11 +211,6 @@ add_executable( eos-raid-recover
 
 add_executable( eoscp 
                 txqueue/eoscp.cc
-
-		io/RaidMetaPio.cc              io/RaidMetaPio.hh
-		io/RaidDpPio.cc                io/RaidDpPio.hh
-		io/ReedSPio.cc                 io/ReedSPio.hh
-	
 		../common/Logging.cc
 		../common/Attr.cc
 )

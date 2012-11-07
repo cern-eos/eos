@@ -48,6 +48,7 @@ RaidMetaLayout::RaidMetaLayout( XrdFstOfsFile*      file,
   Layout( file, lid, client, outError ),
   mIsRw( false ),
   mIsOpen( false ),
+  mIsPio( false ),
   mDoTruncate( false ),
   mUpdateHeader( false ),
   mDoneRecovery( false ),
@@ -61,6 +62,7 @@ RaidMetaLayout::RaidMetaLayout( XrdFstOfsFile*      file,
   mNbTotalFiles = eos::common::LayoutId::GetStripeNumber( lid ) + 1;
   mNbParityFiles = 2;         //TODO: fix this, by adding more info to the layout ?!
   mNbDataFiles = mNbTotalFiles - mNbParityFiles;
+  mSizeHeader = mStripeWidth;
   mOffGroupParity = -1;
   mPhysicalStripeIndex = -1;
   mIsEntryServer = false;
@@ -186,7 +188,6 @@ RaidMetaLayout::Open( const std::string& path,
   mStripeFiles.push_back( file );
   mHdrInfo.push_back( new HeaderCRC( mStripeWidth ) );
   mMetaHandlers.push_back( new AsyncMetaHandler() );
-  mSizeHeader = mStripeWidth;
   
   //......................................................................
   // Read header information for the local file
@@ -344,13 +345,118 @@ RaidMetaLayout::Open( const std::string& path,
   //............................................................................
   // Get the size of the file
   //............................................................................
-  if ( !mHdrInfo[0]->IsValid() ) {
-    mFileSize = -1;
-  } else {
-    mFileSize = mHdrInfo[0]->GetSizeFile();
+  mFileSize = -1;
+  
+  for ( unsigned int i = 0; i < mHdrInfo.size(); i++ ) {
+    if ( mHdrInfo[i]->IsValid() ) {
+      mFileSize = mHdrInfo[i]->GetSizeFile();
+      break;
+    }
   }
 
   mIsOpen = true;
+  return SFS_OK;
+}
+
+
+//------------------------------------------------------------------------------
+// Open file using paralled IO
+//------------------------------------------------------------------------------
+int
+RaidMetaLayout::OpenPio( std::vector<std::string>&& stripeUrls,
+                         XrdSfsFileOpenMode flags,  
+                         mode_t             mode,
+                         const char*        opaque )
+    
+{
+  mStripeUrls = stripeUrls;
+  
+  //............................................................................
+  // Do some minimal checkups
+  //............................................................................
+  if ( mNbTotalFiles < 2 ) {
+    eos_err( "error=failed open layout - stripe size at least 2" );
+    return SFS_ERROR;
+  }
+
+  if ( mStripeWidth < 64 ) {
+    eos_err( "error=failed open layout - stripe width at least 64" );
+    return SFS_ERROR;
+  }
+
+  //..........................................................................
+  // Open stripes
+  //..........................................................................
+  for ( unsigned int i = 0; i < mStripeUrls.size(); i++ ) {
+    int ret = -1;
+    FileIo* file = FileIoPlugin::GetIoObject( eos::common::LayoutId::kXrdCl );
+   
+    if ( flags & O_WRONLY ) {
+      //....................................................................
+      // Write case
+      //....................................................................
+      mIsRw = true;
+      ret = file->Open( mStripeUrls[i],
+                        XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update,
+                        XrdCl::Access::UR | XrdCl::Access::UW |
+                        XrdCl::Access::GR | XrdCl::Access::GW |
+                        XrdCl::Access::OR );
+    } else {
+      //....................................................................
+      // Read case - we always open in RDWR mode
+      //....................................................................
+      ret = file->Open( mStripeUrls[i], XrdCl::OpenFlags::Update );
+    }
+    
+    if ( ret == SFS_ERROR ) {
+      eos_err( "error=failed to open remote stripes", mStripeUrls[i].c_str() );
+      delete file;
+      file = NULL;
+    }
+    
+    mStripeFiles.push_back( file );
+    mHdrInfo.push_back( new HeaderCRC( mStripeWidth ) );
+    mMetaHandlers.push_back( new AsyncMetaHandler() );
+    
+    //......................................................................
+    // Read header information for remote files
+    //......................................................................
+    unsigned int pos = mHdrInfo.size() - 1;
+    HeaderCRC* hd = mHdrInfo.back();
+    file = mStripeFiles.back();
+    
+    if ( file &&  hd->ReadFromFile( file ) ) {
+      mapPL.insert( std::make_pair( pos, hd->GetIdStripe() ) );
+      mapLP.insert( std::make_pair( hd->GetIdStripe(), pos ) );
+    } else {
+      mapPL.insert( std::make_pair( pos, pos ) );
+      mapLP.insert( std::make_pair( pos, pos ) );
+    }
+  }
+
+  //..........................................................................
+  // Only the head node does the validation of the headers
+  //..........................................................................
+  if ( !ValidateHeader() ) {
+    eos_err( "error=headers invalid - can not continue" );
+    return SFS_ERROR;
+  }
+
+  //............................................................................
+  // Get the size of the file
+  //............................................................................
+  mFileSize = -1;
+  
+  for ( unsigned int i = 0; i < mHdrInfo.size(); i++ ) {
+    if ( mHdrInfo[i]->IsValid() ) {
+      mFileSize = mHdrInfo[i]->GetSizeFile();
+      break;
+    }
+  }
+
+  mIsPio = true;
+  mIsOpen = true;
+  mIsEntryServer = true;
   return SFS_OK;
 }
 
@@ -485,7 +591,7 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
     //..........................................................................
     if ( offset >  mFileSize ) {
       eos_err( "error=offset is larger then file size" );
-      return 0;
+      return read_length;
     }
 
     if ( end_raw_offset > mFileSize ) {
@@ -1031,7 +1137,7 @@ RaidMetaLayout::Sync()
     //..........................................................................
     // Sync local file
     //..........................................................................
-    if ( mStripeFiles[0]->Sync() ) {
+    if ( mStripeFiles[0] && mStripeFiles[0]->Sync() ) {
       eos_err( "error=local file could not be synced" );
       ret = SFS_ERROR;
     }
@@ -1094,7 +1200,7 @@ RaidMetaLayout::Remove()
   //..........................................................................
   // Unlink local stripe
   //..........................................................................
-  if ( mStripeFiles[0]->Remove() ) {
+  if ( mStripeFiles[0] &&  mStripeFiles[0]->Remove() ) {
     eos_err( "error=failed to remove local stripe" );
     ret = SFS_ERROR;
   }
@@ -1112,9 +1218,13 @@ RaidMetaLayout::Stat( struct stat* buf )
   int rc = SFS_OK;
 
   if ( mIsOpen ) {
-    if ( mStripeFiles[0]->Stat( buf ) ) {
-      eos_err( "stat error=error in stat" );
-      return SFS_ERROR;
+    for ( unsigned int i = 0; i < mStripeFiles.size(); i++ ) {
+      if ( mStripeFiles[i] && mStripeFiles[i]->Stat( buf ) ) {
+        eos_err( "stat error=error in stat" );
+      }
+      else {
+        break;
+      }
     }
 
     // Obs: when we can not compute the file size, we take it from fmd
@@ -1204,7 +1314,7 @@ RaidMetaLayout::Close()
     //..........................................................................
     // Close local file
     //..........................................................................
-    if ( mStripeFiles[0]->Close() ) {
+    if ( mStripeFiles[0] && mStripeFiles[0]->Close() ) {
       eos_err( "error=failed to close local file" );
       rc = SFS_ERROR;
     }

@@ -41,8 +41,8 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "fst/io/RaidDpPio.hh"
-#include "fst/io/ReedSPio.hh"
+#include "fst/layout/RaidDpLayout.hh"
+#include "fst/layout/ReedSLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/io/ChunkHandler.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
@@ -51,6 +51,8 @@
 #define PROGRAM "eoscp"
 #define DEFAULTBUFFERSIZE 4*1024*1024
 #define MAXSRCDST    16
+
+using eos::common::LayoutId;
 
 typedef std::vector<std::pair<int, XrdCl::File*> > VectHandlerType;
 typedef std::vector<std::pair<std::string, std::string> > VectLocationType;
@@ -133,7 +135,7 @@ bool isStreamFile    = false;     ///< the file is streamed
 bool doStoreRecovery = false;     ///< store recoveries if the file is corrupted
 
 std::string replicationType = "";
-eos::fst::RaidMetaPio* redundancyObj = NULL;
+eos::fst::RaidMetaLayout* redundancyObj = NULL;
 
 //..............................................................................
 // Checksum variables
@@ -522,15 +524,15 @@ int main( int argc, char* argv[] )
       unsigned long layoutId = 0;
       
       if ( xsString == "adler" ) {
-	layoutId = eos::common::LayoutId::GetId( layout, eos::common::LayoutId::kAdler );
+	layoutId = LayoutId::GetId( layout, LayoutId::kAdler );
       } else if ( xsString == "crc32" ) {
-	layoutId = eos::common::LayoutId::GetId( layout, eos::common::LayoutId::kCRC32 );
+	layoutId = LayoutId::GetId( layout, LayoutId::kCRC32 );
       } else if ( xsString == "md5" ) {
-	layoutId = eos::common::LayoutId::GetId( layout, eos::common::LayoutId::kMD5 );
+	layoutId = LayoutId::GetId( layout, LayoutId::kMD5 );
       } else if ( xsString == "sha1" ) {
-	layoutId = eos::common::LayoutId::GetId( layout, eos::common::LayoutId::kSHA1 );
+	layoutId = LayoutId::GetId( layout, LayoutId::kSHA1 );
       } else if ( xsString == "crc32c" ) {
-	layoutId = eos::common::LayoutId::GetId( layout, eos::common::LayoutId::kCRC32C );
+	layoutId = LayoutId::GetId( layout, LayoutId::kCRC32C );
       }
       
       xsObj = eos::fst::ChecksumPlugins::GetChecksumObject(layoutId);
@@ -1111,21 +1113,35 @@ int main( int argc, char* argv[] )
               vectUrl.push_back( location );
             }
 
+            LayoutId::layoutid_t layout = 0;
+  
             if ( replicationType == "raidDP" ) {
-              redundancyObj = new eos::fst::RaidDpPio( vectUrl, nparitystripes,
-                                                       doStoreRecovery,
-                                                       isStreamFile, stripeWidth );
+              layout = LayoutId::GetId( LayoutId::kRaidDP,
+                                                     1, nsrc,
+                                                     LayoutId::BlockSizeEnum( stripeWidth ),
+                                                     LayoutId::OssXsBlockSize,
+                                                     0, nparitystripes );
+              
+              redundancyObj = new eos::fst::RaidDpLayout( NULL, layout, NULL, NULL,
+                                                          doStoreRecovery,
+                                                          isStreamFile);
             } else if ( replicationType == "reedS" ) {
-              redundancyObj = new eos::fst::ReedSPio( vectUrl, nparitystripes,
-                                                      doStoreRecovery,
-                                                      isStreamFile, stripeWidth );
+              layout = LayoutId::GetId( LayoutId::kReedS,
+                                                     1, nsrc,
+                                                     LayoutId::BlockSizeEnum( stripeWidth ),
+                                                     LayoutId::OssXsBlockSize,
+                                                     0, nparitystripes );
+              
+              redundancyObj = new eos::fst::ReedSLayout( NULL, layout, NULL, NULL,
+                                                         doStoreRecovery,
+                                                         isStreamFile);
             }
 
             if ( debug ) {
               fprintf( stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags );
             }
                         
-            if ( redundancyObj->Open( flags ) ) {
+            if ( redundancyObj->OpenPio( std::move( vectUrl ), flags ) ) {
               fprintf( stderr, "error: can not open RAID object for read/write\n" );
               exit( -EIO );
             }
@@ -1252,22 +1268,36 @@ int main( int argc, char* argv[] )
               location = dst_location[i].first + dst_location[i].second;
               vectUrl.push_back( location );
             }
-
+            
+            LayoutId::layoutid_t layout = 0;
+  
             if ( replicationType == "raidDP" ) {
-              redundancyObj = new eos::fst::RaidDpPio( vectUrl, nparitystripes,
-                                                       doStoreRecovery,
-                                                       isStreamFile, stripeWidth );
+              layout = LayoutId::GetId( LayoutId::kRaidDP,
+                                        1, ndst,
+                                        LayoutId::BlockSizeEnum( stripeWidth ),
+                                        LayoutId::OssXsBlockSize,
+                                        0, nparitystripes );
+              
+              redundancyObj = new eos::fst::RaidDpLayout( NULL, layout, NULL, NULL,
+                                                          doStoreRecovery,
+                                                          isStreamFile);
             } else if ( replicationType == "reedS" ) {
-              redundancyObj = new eos::fst::ReedSPio( vectUrl, nparitystripes,
-                                                      doStoreRecovery,
-                                                      isStreamFile, stripeWidth );
+              layout = LayoutId::GetId( LayoutId::kReedS,
+                                        1, ndst,
+                                        stripeWidth,
+                                        LayoutId::OssXsBlockSize,
+                                        0, nparitystripes );
+              
+              redundancyObj = new eos::fst::ReedSLayout( NULL, layout, NULL, NULL,
+                                                         doStoreRecovery,
+                                                         isStreamFile);
             }
 
             if ( debug ) {
               fprintf( stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags );
             }
                         
-            if ( redundancyObj->Open( flags ) ) {
+            if ( redundancyObj->OpenPio( std::move( vectUrl ), flags ) ) {
               fprintf( stderr, "error: can not open RAID object for write\n" );
               exit( -EIO );
             }
