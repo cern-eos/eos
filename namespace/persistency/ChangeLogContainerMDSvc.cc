@@ -23,9 +23,171 @@
 
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogConstants.hh"
+#include "namespace/utils/Locking.hh"
 
-#include <iostream>
+#include <set>
 #include <memory>
+
+//------------------------------------------------------------------------------
+// Follower
+//------------------------------------------------------------------------------
+namespace eos
+{
+  class ContainerMDFollower: public eos::ILogRecordScanner
+  {
+    public:
+      ContainerMDFollower( eos::ChangeLogContainerMDSvc *contSvc ):
+        pContSvc( contSvc ) {}
+
+      //------------------------------------------------------------------------
+      // Unpack new data and put it in the queue
+      //------------------------------------------------------------------------
+      virtual bool processRecord( uint64_t offset, char type,
+                                  const eos::Buffer &buffer )
+      {
+        //----------------------------------------------------------------------
+        // Update
+        //----------------------------------------------------------------------
+        if( type == UPDATE_RECORD_MAGIC )
+        {
+          ContainerMD *container = new ContainerMD( 0 );
+          container->deserialize( (Buffer&)buffer );
+          ContMap::iterator it = pUpdated.find( container->getId() );
+          if( it != pUpdated.end() )
+          {
+            delete it->second;
+            it->second = container;
+          }
+          else
+            pUpdated[container->getId()] = container;
+
+          pDeleted.erase( container->getId() );
+        }
+
+        //----------------------------------------------------------------------
+        // Deletion
+        //----------------------------------------------------------------------
+        else if( type == DELETE_RECORD_MAGIC )
+        {
+          ContainerMD::id_t id;
+          buffer.grabData( 0, &id, sizeof( ContainerMD::id_t ) );
+          ContMap::iterator it = pUpdated.find( id );
+          if( it != pUpdated.end() )
+          {
+            delete it->second;
+            pUpdated.erase( it );
+          }
+          pDeleted.insert( id );
+        }
+        return true;
+      }
+
+      //------------------------------------------------------------------------
+      // Try to commit the data in the queue to the service
+      //------------------------------------------------------------------------
+      void commit()
+      {
+        pContSvc->getSlaveLock()->writeLock();
+        ChangeLogContainerMDSvc::IdMap *idMap = &pContSvc->pIdMap;
+
+        //----------------------------------------------------------------------
+        // Handle deletions
+        //----------------------------------------------------------------------
+        std::set<eos::ContainerMD::id_t>::iterator itD;
+        std::list<ContainerMD::id_t> processed;
+        for( itD = pDeleted.begin(); itD != pDeleted.end(); ++itD )
+        {
+          ChangeLogContainerMDSvc::IdMap::iterator it;
+          it = idMap->find( *itD );
+          if( it == idMap->end() )
+          {
+            processed.push_back( *itD );
+            continue;
+          }
+
+          if( it->second.ptr->getNumContainers() ||
+              it->second.ptr->getNumFiles() )
+            continue;
+
+          ChangeLogContainerMDSvc::IdMap::iterator itP;
+          itP = idMap->find( it->second.ptr->getParentId() );
+          if( itP != idMap->end() )
+          {
+            // make sure it's the same pointer - cover name conflicts
+            ContainerMD *cont = itP->second.ptr->findContainer( it->second.ptr->getName() );
+            if( cont == it->second.ptr )
+              itP->second.ptr->removeContainer( it->second.ptr->getName() );
+          }
+          delete it->second.ptr;
+          idMap->erase( it );
+          processed.push_back( *itD );
+        }
+
+        std::list<ContainerMD::id_t>::iterator itPro;
+        for( itPro = processed.begin(); itPro != processed.end(); ++itPro )
+          pDeleted.erase( *itPro );
+
+        //----------------------------------------------------------------------
+        // Handle updates
+        //----------------------------------------------------------------------
+        ContMap::iterator itU;
+        for( itU = pUpdated.begin(); itU != pUpdated.end(); ++itU )
+        {
+          ChangeLogContainerMDSvc::IdMap::iterator it;
+          ChangeLogContainerMDSvc::IdMap::iterator itP;
+          ContainerMD *currentCont = itU->second;
+          it = idMap->find( currentCont->getId() );
+          if( it == idMap->end() )
+          {
+            (*idMap)[currentCont->getId()] =
+              ChangeLogContainerMDSvc::DataInfo( 0, currentCont );
+            itP = idMap->find( currentCont->getParentId() );
+            if( itP != idMap->end() )
+              itP->second.ptr->addContainer( currentCont );
+          }
+          else
+          {
+            (*it->second.ptr) = *currentCont;
+            delete currentCont;
+          }
+        }
+        pUpdated.clear();
+        pContSvc->getSlaveLock()->unLock();
+      }
+
+    private:
+      typedef std::map<eos::ContainerMD::id_t, eos::ContainerMD*> ContMap;
+      ContMap                           pUpdated;
+      std::set<eos::ContainerMD::id_t>  pDeleted;
+      eos::ChangeLogContainerMDSvc     *pContSvc;
+  };
+}
+
+extern "C"
+{
+  //----------------------------------------------------------------------------
+  // Follow the change log
+  //----------------------------------------------------------------------------
+  static void *followerThread( void *data )
+  {
+    eos::ChangeLogContainerMDSvc *contSvc = reinterpret_cast<eos::ChangeLogContainerMDSvc*>( data );
+    uint64_t                      offset  = contSvc->getFollowOffset();
+    eos::ChangeLogFile           *file    = contSvc->getChangeLog();
+    uint32_t                      pollInt = contSvc->getFollowPollInterval();
+
+    eos::ContainerMDFollower f( contSvc );
+    pthread_setcanceltype( PTHREAD_CANCEL_ASYNCHRONOUS, 0 );
+    while( 1 )
+    {
+      pthread_setcancelstate( PTHREAD_CANCEL_DISABLE, 0 );
+      offset = file->follow( &f, offset );
+      f.commit();
+      pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
+      usleep( pollInt );
+    }
+    return 0;
+  }
+}
 
 namespace eos
 {
@@ -35,33 +197,61 @@ namespace eos
   void ChangeLogContainerMDSvc::initialize() throw( MDException )
   {
     //--------------------------------------------------------------------------
-    // Rescan the changelog
+    // Decide on how to open the change log
     //--------------------------------------------------------------------------
-    pChangeLog->open( pChangeLogPath,
-                      ChangeLogFile::Create | ChangeLogFile::Append,
-                      CONTAINER_LOG_MAGIC );
-    ContainerMDScanner scanner( pIdMap );
-    pChangeLog->scanAllRecords( &scanner );
-    pFirstFreeId = scanner.getLargestId()+1;
-
-    //--------------------------------------------------------------------------
-    // Recreate the container structure
-    //--------------------------------------------------------------------------
-    IdMap::iterator it;
-    ContainerList   orphans;
-    ContainerList   nameConflicts;
-    for( it = pIdMap.begin(); it != pIdMap.end(); ++it )
+    int logOpenFlags = 0;
+    if( pSlaveMode )
     {
-      if( it->second.ptr )
-        continue;
-      recreateContainer( it, orphans, nameConflicts );
+      if( !pSlaveLock )
+      {
+        MDException e( EINVAL );
+        e.getMessage() << "ContainerMDSvc: slave lock not set";
+        throw e;
+      }
+      logOpenFlags = ChangeLogFile::ReadOnly;
     }
+    else
+      logOpenFlags = ChangeLogFile::Create | ChangeLogFile::Append;
 
     //--------------------------------------------------------------------------
-    // Deal with broken containers
+    // Rescan the change log if needed
+    //
+    // In the master mode we go throug the entire file
+    // In the slave mode up untill the compaction mark or not at all
+    // if the compaction mark is not present
     //--------------------------------------------------------------------------
-    attachBroken( getLostFoundContainer( "orphans" ), orphans );
-    attachBroken( getLostFoundContainer( "name_conflicts" ), nameConflicts );
+    pChangeLog->open( pChangeLogPath, logOpenFlags, CONTAINER_LOG_MAGIC );
+    bool logIsCompacted = (pChangeLog->getUserFlags() & LOG_FLAG_COMPACTED);
+    pFollowStart = pChangeLog->getFirstOffset();
+
+    if( !pSlaveMode || logIsCompacted )
+    {
+      ContainerMDScanner scanner( pIdMap, pSlaveMode );
+      pFollowStart = pChangeLog->scanAllRecords( &scanner );
+      pFirstFreeId = scanner.getLargestId()+1;
+
+      //------------------------------------------------------------------------
+      // Recreate the container structure
+      //------------------------------------------------------------------------
+      IdMap::iterator it;
+      ContainerList   orphans;
+      ContainerList   nameConflicts;
+      for( it = pIdMap.begin(); it != pIdMap.end(); ++it )
+      {
+        if( it->second.ptr )
+          continue;
+        recreateContainer( it, orphans, nameConflicts );
+      }
+
+      //------------------------------------------------------------------------
+      // Deal with broken containers if we're not in the slave mode
+      //------------------------------------------------------------------------
+      if( !pSlaveMode )
+      {
+        attachBroken( getLostFoundContainer( "orphans" ), orphans );
+        attachBroken( getLostFoundContainer( "name_conflicts" ), nameConflicts );
+      }
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -83,6 +273,22 @@ namespace eos
       throw e;
     }
     pChangeLogPath = it->second;
+
+    //--------------------------------------------------------------------------
+    // Check whether we should run in the slave mode
+    //--------------------------------------------------------------------------
+    it = config.find( "slave_mode" );
+    if( it != config.end() && it->second == "true" )
+    {
+      pSlaveMode = true;
+      int32_t pollInterval = 1000;
+      it = config.find( "poll_interval_us" );
+      if( it != config.end() )
+      {
+        pollInterval = strtol( it->second.c_str(), 0, 0 );
+        if( pollInterval == 0 ) pollInterval = 1000;
+      }
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -196,6 +402,65 @@ namespace eos
                                      IContainerMDChangeListener *listener )
   {
     pListeners.push_back( listener );
+  }
+
+  //----------------------------------------------------------------------------
+  // Start the slave
+  //----------------------------------------------------------------------------
+  void ChangeLogContainerMDSvc::startSlave() throw( MDException )
+  {
+    if( !pSlaveMode )
+    {
+      MDException e( errno );
+      e.getMessage() << "ContainerMDSvc: not in slave mode";
+      throw e;
+    }
+
+    if( pthread_create( &pFollowerThread, 0, followerThread, this ) != 0 )
+    {
+      MDException e( errno );
+      e.getMessage() << "ContainerMDSvc: unable to start the slave follower: ";
+      e.getMessage() << strerror( errno );
+      throw e;
+    }
+    pSlaveStarted = true;
+  }
+
+  //----------------------------------------------------------------------------
+  // Stop the slave mode
+  //----------------------------------------------------------------------------
+  void ChangeLogContainerMDSvc::stopSlave() throw( MDException )
+  {
+    if( !pSlaveMode )
+    {
+      MDException e( errno );
+      e.getMessage() << "ContainerMDSvc: not in slave mode";
+      throw e;
+    }
+
+    if( !pSlaveStarted )
+    {
+      MDException e( errno );
+      e.getMessage() << "ContainerMDSvc: the slave follower is not started";
+      throw e;
+    }
+
+    if( pthread_cancel( pFollowerThread ) != 0 )
+    {
+      MDException e( errno );
+      e.getMessage() << "ContainerMDSvc: unable to cancel the slave follower: ";
+      e.getMessage() << strerror( errno );
+      throw e;
+    }
+
+    if( pthread_join( pFollowerThread, 0 ) != 0 )
+    {
+      MDException e( errno );
+      e.getMessage() << "ContainerMDSvc: unable to join the slave follower: ";
+      e.getMessage() << strerror( errno );
+      throw e;
+    }
+    pSlaveStarted = false;
   }
 
   //----------------------------------------------------------------------------
@@ -349,6 +614,15 @@ namespace eos
       if( it != pIdMap.end() )
         pIdMap.erase( it );
       if( pLargestId < id ) pLargestId = id;
+    }
+
+    //--------------------------------------------------------------------------
+    // Compaction mark - we stop scanning here
+    //--------------------------------------------------------------------------
+    else if( type == COMPACT_STAMP_RECORD_MAGIC )
+    {
+      if( pSlaveMode )
+        return false;
     }
     return true;
   }

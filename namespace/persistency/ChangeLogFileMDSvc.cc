@@ -22,10 +22,177 @@
 //------------------------------------------------------------------------------
 
 #include "ChangeLogFileMDSvc.hh"
+#include "ChangeLogContainerMDSvc.hh"
 #include "ChangeLogConstants.hh"
+#include "namespace/utils/Locking.hh"
 
 #include <algorithm>
 #include <utility>
+#include <set>
+
+//------------------------------------------------------------------------------
+// Follower
+//------------------------------------------------------------------------------
+namespace eos
+{
+  class FileMDFollower: public eos::ILogRecordScanner
+  {
+    public:
+      FileMDFollower( eos::ChangeLogFileMDSvc *fileSvc ):
+        pFileSvc( fileSvc )
+      {
+        pContSvc = pFileSvc->pContSvc;
+      }
+
+      //------------------------------------------------------------------------
+      // Unpack new data and put it in the queue
+      //------------------------------------------------------------------------
+      virtual bool processRecord( uint64_t offset, char type,
+                                  const eos::Buffer &buffer )
+      {
+        //----------------------------------------------------------------------
+        // Update
+        //----------------------------------------------------------------------
+        if( type == UPDATE_RECORD_MAGIC )
+        {
+          FileMD *file = new FileMD( 0, 0 );
+          file->deserialize( (Buffer&)buffer );
+          FileMap::iterator it = pUpdated.find( file->getId() );
+          if( it != pUpdated.end() )
+          {
+            delete it->second;
+            it->second = file;
+          }
+          else
+            pUpdated[file->getId()] = file;
+
+          pDeleted.erase( file->getId() );
+        }
+
+        //----------------------------------------------------------------------
+        // Deletion
+        //----------------------------------------------------------------------
+        else if( type == DELETE_RECORD_MAGIC )
+        {
+          FileMD::id_t id;
+          buffer.grabData( 0, &id, sizeof( FileMD::id_t ) );
+          FileMap::iterator it = pUpdated.find( id );
+          if( it != pUpdated.end() )
+          {
+            delete it->second;
+            pUpdated.erase( it );
+          }
+          pDeleted.insert( id );
+        }
+        return true;
+      }
+
+      //------------------------------------------------------------------------
+      // Try to commit the data in the queue to the service
+      //------------------------------------------------------------------------
+      void commit()
+      {
+        pFileSvc->getSlaveLock()->writeLock();
+        ChangeLogFileMDSvc::IdMap      *fileIdMap = &pFileSvc->pIdMap;
+        ChangeLogContainerMDSvc::IdMap *contIdMap = &pContSvc->pIdMap;
+
+        //----------------------------------------------------------------------
+        // Handle deletions
+        //----------------------------------------------------------------------
+        std::set<FileMD::id_t>::iterator itD;
+        for( itD = pDeleted.begin(); itD != pDeleted.end(); ++itD )
+        {
+          ChangeLogFileMDSvc::IdMap::iterator it;
+          it = fileIdMap->find( *itD );
+          if( it == fileIdMap->end() )
+            continue;
+
+          ChangeLogContainerMDSvc::IdMap::iterator itP;
+          itP = contIdMap->find( it->second.ptr->getContainerId() );
+          if( itP != contIdMap->end() )
+          {
+            // make sure it's the same pointer - cover name conflicts
+            FileMD *file = itP->second.ptr->findFile( it->second.ptr->getName() );
+            if( file == it->second.ptr )
+              itP->second.ptr->removeFile( it->second.ptr->getName() );
+          }
+          delete it->second.ptr;
+          fileIdMap->erase( it );
+        }
+
+        pDeleted.clear();
+
+        //----------------------------------------------------------------------
+        // Handle updates
+        //----------------------------------------------------------------------
+        FileMap::iterator itU;
+        std::list<FileMD::id_t> processed;
+        for( itU = pUpdated.begin(); itU != pUpdated.end(); ++itU )
+        {
+          ChangeLogFileMDSvc::IdMap::iterator it;
+          ChangeLogContainerMDSvc::IdMap::iterator itP;
+          FileMD *currentFile = itU->second;
+          it = fileIdMap->find( currentFile->getId() );
+          if( it == fileIdMap->end() )
+          {
+            itP = contIdMap->find( currentFile->getContainerId() );
+            if( itP != contIdMap->end() )
+            {
+              itP->second.ptr->addFile( currentFile );
+              (*fileIdMap)[currentFile->getId()] =
+                ChangeLogFileMDSvc::DataInfo( 0, currentFile );
+
+              processed.push_back( currentFile->getId() );
+            }
+          }
+          else
+          {
+            (*it->second.ptr) = *currentFile;
+            processed.push_back( currentFile->getId() );
+            delete currentFile;
+          }
+        }
+
+        std::list<FileMD::id_t>::iterator itPro;
+        for( itPro = processed.begin(); itPro != processed.end(); ++itPro )
+          pUpdated.erase( *itPro );
+        pContSvc->getSlaveLock()->unLock();
+      }
+
+    private:
+      typedef std::map<eos::FileMD::id_t, eos::FileMD*> FileMap;
+      FileMap                       pUpdated;
+      std::set<eos::FileMD::id_t>   pDeleted;
+      eos::ChangeLogFileMDSvc      *pFileSvc;
+      eos::ChangeLogContainerMDSvc *pContSvc;
+  };
+}
+
+extern "C"
+{
+  //----------------------------------------------------------------------------
+  // Follow the change log
+  //----------------------------------------------------------------------------
+  static void *followerThread( void *data )
+  {
+    eos::ChangeLogFileMDSvc *fileSvc = reinterpret_cast<eos::ChangeLogFileMDSvc*>( data );
+    uint64_t                 offset  = fileSvc->getFollowOffset();
+    eos::ChangeLogFile      *file    = fileSvc->getChangeLog();
+    uint32_t                 pollInt = fileSvc->getFollowPollInterval();
+
+    eos::FileMDFollower f( fileSvc );
+    pthread_setcanceltype( PTHREAD_CANCEL_ASYNCHRONOUS, 0 );
+    while( 1 )
+    {
+      pthread_setcancelstate( PTHREAD_CANCEL_DISABLE, 0 );
+      offset = file->follow( &f, offset );
+      f.commit();
+      pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
+      usleep( pollInt );
+    }
+    return 0;
+  }
+}
 
 //------------------------------------------------------------------------------
 // Helper structures for online compacting
@@ -131,30 +298,92 @@ namespace eos
   //------------------------------------------------------------------------
   void ChangeLogFileMDSvc::initialize() throw( MDException )
   {
-    //--------------------------------------------------------------------------
-    // Rescan the changelog
-    //--------------------------------------------------------------------------
-    pChangeLog->open( pChangeLogPath,
-                      ChangeLogFile::Create | ChangeLogFile::Append,
-                      FILE_LOG_MAGIC );
-    FileMDScanner scanner( pIdMap );
-    pChangeLog->scanAllRecords( &scanner );
-    pFirstFreeId = scanner.getLargestId()+1;
+    if( !pContSvc )
+    {
+      MDException e( EINVAL );
+      e.getMessage() << "FileMDSvc: container service not set";
+      throw e;
+    }
 
     //--------------------------------------------------------------------------
-    // Recreate the files
+    // Decide on how to open the change log
     //--------------------------------------------------------------------------
-    IdMap::iterator it;
-    for( it = pIdMap.begin(); it != pIdMap.end(); ++it )
+    int logOpenFlags = 0;
+    if( pSlaveMode )
     {
-      FileMD *file = new FileMD( 0, this );
-      file->deserialize( *it->second.buffer );
-      it->second.ptr = file;
-      delete it->second.buffer;
-      it->second.buffer = 0;
-      ListenerList::iterator it;
-      for( it = pListeners.begin(); it != pListeners.end(); ++it )
-        (*it)->fileMDRead( file );
+      if( !pSlaveLock )
+      {
+        MDException e( EINVAL );
+        e.getMessage() << "FileMDSvc: slave lock not set";
+        throw e;
+      }
+      logOpenFlags = ChangeLogFile::ReadOnly;
+    }
+    else
+      logOpenFlags = ChangeLogFile::Create | ChangeLogFile::Append;
+
+    //--------------------------------------------------------------------------
+    // Rescan the change log if needed
+    //
+    // In the master mode we go throug the entire file
+    // In the slave mode up untill the compaction mark or not at all
+    // if the compaction mark is not present
+    //--------------------------------------------------------------------------
+    pChangeLog->open( pChangeLogPath, logOpenFlags, FILE_LOG_MAGIC );
+    bool logIsCompacted = (pChangeLog->getUserFlags() & LOG_FLAG_COMPACTED);
+    pFollowStart = pChangeLog->getFirstOffset();
+
+
+    if( !pSlaveMode || logIsCompacted )
+    {
+      FileMDScanner scanner( pIdMap, pSlaveMode );
+      pFollowStart = pChangeLog->scanAllRecords( &scanner );
+      pFirstFreeId = scanner.getLargestId()+1;
+
+      //------------------------------------------------------------------------
+      // Recreate the files
+      //------------------------------------------------------------------------
+      IdMap::iterator it;
+      for( it = pIdMap.begin(); it != pIdMap.end(); ++it )
+      {
+        //----------------------------------------------------------------------
+        // Unpack the serialized buffers
+        //----------------------------------------------------------------------
+        FileMD *file = new FileMD( 0, this );
+        file->deserialize( *it->second.buffer );
+        it->second.ptr = file;
+        delete it->second.buffer;
+        it->second.buffer = 0;
+        ListenerList::iterator it;
+        for( it = pListeners.begin(); it != pListeners.end(); ++it )
+          (*it)->fileMDRead( file );
+
+        //----------------------------------------------------------------------
+        // Attach to the hierarchy
+        //----------------------------------------------------------------------
+        if( file->getContainerId() == 0 )
+          continue;
+
+        ContainerMD *cont = 0;
+        try { cont = pContSvc->getContainerMD( file->getContainerId() ); }
+        catch( MDException &e ) {}
+
+        if( !cont )
+        {
+          if( !pSlaveMode )
+            attachBroken( "orphans", file );
+          continue;
+        }
+
+        if( cont->findFile( file->getName() ) )
+        {
+          if( !pSlaveMode )
+            attachBroken( "name_conflicts", file );
+          continue;
+        }
+        else
+          cont->addFile( file );
+      }
     }
   }
 
@@ -177,6 +406,22 @@ namespace eos
       throw e;
     }
     pChangeLogPath = it->second;
+
+    //--------------------------------------------------------------------------
+    // Check whether we should run in the slave mode
+    //--------------------------------------------------------------------------
+    it = config.find( "slave_mode" );
+    if( it != config.end() && it->second == "true" )
+    {
+      pSlaveMode = true;
+      int32_t pollInterval = 1000;
+      it = config.find( "poll_interval_us" );
+      if( it != config.end() )
+      {
+        pollInterval = strtol( it->second.c_str(), 0, 0 );
+        if( pollInterval == 0 ) pollInterval = 1000;
+      }
+    }
   }
 
   //------------------------------------------------------------------------
@@ -338,6 +583,14 @@ namespace eos
         pIdMap.erase( it );
       }
       if( pLargestId < id ) pLargestId = id;
+    }
+    //--------------------------------------------------------------------------
+    // Compaction mark - we stop scanning here
+    //--------------------------------------------------------------------------
+    else if( type == COMPACT_STAMP_RECORD_MAGIC )
+    {
+      if( pSlaveMode )
+        return false;
     }
 
     return true;
@@ -506,6 +759,84 @@ namespace eos
     data->newLog = 0;
     data->originalLog->close();
     delete data;
+  }
+
+  //----------------------------------------------------------------------------
+  // Start the slave
+  //----------------------------------------------------------------------------
+  void ChangeLogFileMDSvc::startSlave() throw( MDException )
+  {
+    if( !pSlaveMode )
+    {
+      MDException e( errno );
+      e.getMessage() << "ContainerMDSvc: not in slave mode";
+      throw e;
+    }
+
+    if( pthread_create( &pFollowerThread, 0, followerThread, this ) != 0 )
+    {
+      MDException e( errno );
+      e.getMessage() << "ContainerMDSvc: unable to start the slave follower: ";
+      e.getMessage() << strerror( errno );
+      throw e;
+    }
+    pSlaveStarted = true;
+  }
+
+  //----------------------------------------------------------------------------
+  // Stop the slave mode
+  //----------------------------------------------------------------------------
+  void ChangeLogFileMDSvc::stopSlave() throw( MDException )
+  {
+    if( !pSlaveMode )
+    {
+      MDException e( errno );
+      e.getMessage() << "ContainerMDSvc: not in slave mode";
+      throw e;
+    }
+
+    if( !pSlaveStarted )
+    {
+      MDException e( errno );
+      e.getMessage() << "ContainerMDSvc: the slave follower is not started";
+      throw e;
+    }
+
+    if( pthread_cancel( pFollowerThread ) != 0 )
+    {
+      MDException e( errno );
+      e.getMessage() << "ContainerMDSvc: unable to cancel the slave follower: ";
+      e.getMessage() << strerror( errno );
+      throw e;
+    }
+
+    if( pthread_join( pFollowerThread, 0 ) != 0 )
+    {
+      MDException e( errno );
+      e.getMessage() << "ContainerMDSvc: unable to join the slave follower: ";
+      e.getMessage() << strerror( errno );
+      throw e;
+    }
+    pSlaveStarted = false;
+  }
+
+  //----------------------------------------------------------------------------
+  // Attach a broken file to lost+found
+  //----------------------------------------------------------------------------
+  void ChangeLogFileMDSvc::attachBroken( const std::string &parent,
+                                         FileMD            *file )
+  {
+    std::ostringstream s1, s2;
+    ContainerMD *parentCont = pContSvc->getLostFoundContainer( parent );
+
+    s1 << file->getContainerId();
+    ContainerMD *cont = parentCont->findContainer( s1.str() );
+    if( !cont )
+      cont = pContSvc->createInParent( s1.str(), parentCont );
+
+    s2 << file->getName() << "." << file->getId();
+    file->setName( s2.str() );
+    cont->addFile( file );
   }
 }
 

@@ -481,45 +481,19 @@ namespace eos
   }
 
   //----------------------------------------------------------------------------
-  // Visit reconnect the files and containers on initialization
+  // Update quota
   //----------------------------------------------------------------------------
   void HierarchicalView::FileVisitor::visitFile( FileMD *file )
   {
     if( file->getContainerId() == 0 )
       return;
 
-    //--------------------------------------------------------------------------
-    // Try to attach the file to it's parent container
-    //--------------------------------------------------------------------------
     ContainerMD *cont = 0;
-    try
-    {
-      cont = pContSvc->getContainerMD( file->getContainerId() );
-    }
-    catch( MDException &e )
-    {
-    }
+    try { cont = pContSvc->getContainerMD( file->getContainerId() ); }
+    catch( MDException &e ) {}
 
-    //--------------------------------------------------------------------------
-    // Attaching failed, create an appropriate lost+found directory
-    //--------------------------------------------------------------------------
     if( !cont )
-    {
-      attachBroken( "orphans", file );
       return;
-    }
-
-    //------------------------------------------------------------------------
-    // Check if the container already has the file, if it does then move it to
-    // lost+found
-    //------------------------------------------------------------------------
-    if( cont->findFile( file->getName() ) )
-    {
-      attachBroken( "name_conflicts", file );
-      return;
-    }
-    else
-      cont->addFile( file );
 
     //--------------------------------------------------------------------------
     // Update quota stats
@@ -527,30 +501,6 @@ namespace eos
     QuotaNode *node = pView->getQuotaNode( cont );
     if( node )
       node->addFile( file );
-  }
-  //----------------------------------------------------------------------------
-  // Attach a broken file to lost+found
-  //----------------------------------------------------------------------------
-  void HierarchicalView::FileVisitor::attachBroken( const std::string &parent,
-                                                    FileMD            *file )
-  {
-    ContainerMD *cont = 0;
-    std::ostringstream s1, s2;
-    s1 << "/lost+found/" << parent << "/" << file->getContainerId();
-    try
-    {
-      cont = pView->createContainer( s1.str(), true );
-    }
-    catch( MDException &e )
-    {
-      if( e.getErrno() != EEXIST )
-        throw;
-    }
-
-    s2 << file->getName() << "." << file->getId();
-    file->setName( s2.str() );
-    cont = pView->getContainer( s1.str() );
-    cont->addFile( file );
   }
 
   //----------------------------------------------------------------------------

@@ -35,16 +35,22 @@
 
 namespace eos
 {
+  class LockHandler;
+  class ChangeLogContainerMDSvc;
+
   //----------------------------------------------------------------------------
   //! Change log based FileMD service
   //----------------------------------------------------------------------------
   class ChangeLogFileMDSvc: public IFileMDSvc
   {
+    friend class FileMDFollower;
     public:
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      ChangeLogFileMDSvc(): pFirstFreeId( 1 ), pChangeLog( 0 )
+      ChangeLogFileMDSvc(): pFirstFreeId( 1 ), pChangeLog( 0 ), pSlaveLock( 0 ),
+        pSlaveMode( false ), pSlaveStarted( false ), pSlavePoll( 1000 ),
+        pFollowStart( 0 ), pContSvc( 0 )
       {
         pIdMap.set_deleted_key( 0 );
         pIdMap.set_empty_key( 0xffffffffffffffffll );
@@ -172,6 +178,64 @@ namespace eos
       //------------------------------------------------------------------------
       void compactCommit( void *compactingData ) throw( MDException );
 
+      //------------------------------------------------------------------------
+      //! Register slave lock
+      //------------------------------------------------------------------------
+      void setSlaveLock( LockHandler *slaveLock )
+      {
+        pSlaveLock = slaveLock;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get slave lock
+      //------------------------------------------------------------------------
+      LockHandler *getSlaveLock()
+      {
+        return pSlaveLock;
+      }
+
+      //------------------------------------------------------------------------
+      //! Start the slave
+      //------------------------------------------------------------------------
+      void startSlave() throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Stop the slave mode
+      //------------------------------------------------------------------------
+      void stopSlave() throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Set container service
+      //------------------------------------------------------------------------
+      void setContainerService( ChangeLogContainerMDSvc *contSvc )
+      {
+        pContSvc = contSvc;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the change log
+      //------------------------------------------------------------------------
+      ChangeLogFile *getChangeLog()
+      {
+        return pChangeLog;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the following offset
+      //------------------------------------------------------------------------
+      uint64_t getFollowOffset() const
+      {
+        return pFollowStart;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the following poll interval
+      //------------------------------------------------------------------------
+      uint64_t getFollowPollInterval() const
+      {
+        return pSlavePoll;
+      }
+
     private:
       //------------------------------------------------------------------------
       // Placeholder for the record info
@@ -199,7 +263,8 @@ namespace eos
       class FileMDScanner: public ILogRecordScanner
       {
         public:
-          FileMDScanner( IdMap &idMap ): pIdMap( idMap ), pLargestId( 0 )
+          FileMDScanner( IdMap &idMap, bool slaveMode ):
+            pIdMap( idMap ), pLargestId( 0 ), pSlaveMode( slaveMode )
           {}
           virtual bool processRecord( uint64_t offset, char type,
                                   const Buffer &buffer );
@@ -210,7 +275,13 @@ namespace eos
         private:
           IdMap    &pIdMap;
           uint64_t  pLargestId;
+          bool      pSlaveMode;
       };
+
+      //------------------------------------------------------------------------
+      // Attach a broken file to lost+found
+      //------------------------------------------------------------------------
+      void attachBroken( const std::string &parent, FileMD *file );
 
       //------------------------------------------------------------------------
       // Data
@@ -220,6 +291,13 @@ namespace eos
       ChangeLogFile     *pChangeLog;
       IdMap              pIdMap;
       ListenerList       pListeners;
+      pthread_t          pFollowerThread;
+      LockHandler       *pSlaveLock;
+      bool               pSlaveMode;
+      bool               pSlaveStarted;
+      int32_t            pSlavePoll;
+      uint64_t           pFollowStart;
+      ChangeLogContainerMDSvc *pContSvc;
   };
 }
 

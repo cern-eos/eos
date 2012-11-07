@@ -33,19 +33,26 @@
 #include <google/sparse_hash_map>
 #include <list>
 #include <map>
+#include <pthread.h>
 
 namespace eos
 {
+  class LockHandler;
+
   //----------------------------------------------------------------------------
   //! ChangeLog based container metadata service
   //----------------------------------------------------------------------------
   class ChangeLogContainerMDSvc: public IContainerMDSvc
   {
+    friend class ContainerMDFollower;
+    friend class FileMDFollower;
     public:
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      ChangeLogContainerMDSvc(): pFirstFreeId( 0 )
+      ChangeLogContainerMDSvc(): pFirstFreeId( 0 ), pSlaveLock( 0 ),
+        pSlaveMode( false ), pSlaveStarted( false ), pSlavePoll( 1000 ),
+        pFollowStart( 0 )
       {
         pIdMap.set_deleted_key( 0 );
         pIdMap.set_empty_key( 0xffffffffffffffffll );
@@ -120,6 +127,74 @@ namespace eos
       //------------------------------------------------------------------------
       virtual void addChangeListener( IContainerMDChangeListener *listener );
 
+      //------------------------------------------------------------------------
+      //! Register slave lock
+      //------------------------------------------------------------------------
+      void setSlaveLock( LockHandler *slaveLock )
+      {
+        pSlaveLock = slaveLock;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get slave lock
+      //------------------------------------------------------------------------
+      LockHandler *getSlaveLock()
+      {
+        return pSlaveLock;
+      }
+
+      //------------------------------------------------------------------------
+      //! Start the slave
+      //------------------------------------------------------------------------
+      void startSlave() throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Stop the slave mode
+      //------------------------------------------------------------------------
+      void stopSlave() throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Create container in parent
+      //------------------------------------------------------------------------
+      ContainerMD *createInParent( const std::string &name,
+                                   ContainerMD       *parent )
+                    throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Get the lost+found container, create if necessary
+      //------------------------------------------------------------------------
+      ContainerMD *getLostFound() throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Get the orphans container
+      //------------------------------------------------------------------------
+      ContainerMD *getLostFoundContainer( const std::string &name )
+                    throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Get the change log
+      //------------------------------------------------------------------------
+      ChangeLogFile *getChangeLog()
+      {
+        return pChangeLog;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the following offset
+      //------------------------------------------------------------------------
+      uint64_t getFollowOffset() const
+      {
+        return pFollowStart;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the following poll interval
+      //------------------------------------------------------------------------
+      uint64_t getFollowPollInterval() const
+      {
+        return pSlavePoll;
+      }
+
     private:
       //------------------------------------------------------------------------
       // Placeholder for the record info
@@ -146,7 +221,8 @@ namespace eos
       class ContainerMDScanner: public ILogRecordScanner
       {
         public:
-          ContainerMDScanner( IdMap &idMap ): pIdMap( idMap ), pLargestId( 0 )
+          ContainerMDScanner( IdMap &idMap, bool slaveMode ):
+            pIdMap( idMap ), pLargestId( 0 ), pSlaveMode( slaveMode )
           {}
           virtual bool processRecord( uint64_t offset, char type,
                                       const Buffer &buffer );
@@ -157,6 +233,7 @@ namespace eos
         private:
           IdMap             &pIdMap;
           ContainerMD::id_t  pLargestId;
+          bool               pSlaveMode;
       };
 
       //------------------------------------------------------------------------
@@ -179,24 +256,6 @@ namespace eos
                               ContainerList   &nameConflicts );
 
       //------------------------------------------------------------------------
-      // Create container in parent
-      //------------------------------------------------------------------------
-      ContainerMD *createInParent( const std::string &name,
-                                   ContainerMD       *parent )
-                    throw( MDException );
-
-      //------------------------------------------------------------------------
-      // Get the lost+found container, create if necessary
-      //------------------------------------------------------------------------
-      ContainerMD *getLostFound() throw( MDException );
-
-      //------------------------------------------------------------------------
-      // Get the orphans container
-      //------------------------------------------------------------------------
-      ContainerMD *getLostFoundContainer( const std::string &name )
-                    throw( MDException );
-
-      //------------------------------------------------------------------------
       // Attach broken containers to lost+found
       //------------------------------------------------------------------------
       void attachBroken( ContainerMD *parent, ContainerList &broken );
@@ -209,7 +268,13 @@ namespace eos
       ChangeLogFile     *pChangeLog;
       IdMap              pIdMap;
       ListenerList       pListeners;
+      pthread_t          pFollowerThread;
+      LockHandler       *pSlaveLock;
+      bool               pSlaveMode;
+      bool               pSlaveStarted;
+      int32_t            pSlavePoll;
+      uint64_t           pFollowStart;
   };
 }
 
-#endif // EOS_NS_CHANGE_LOG_FILE_MD_SVC_HH
+#endif // EOS_NS_CHANGE_LOG_CONTAINER_MD_SVC_HH

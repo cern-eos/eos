@@ -32,6 +32,8 @@
 
 namespace eos
 {
+  class IContainerMDSvc;
+
   //----------------------------------------------------------------------------
   //! Interface for a listener that is notified about all of the
   //! actions performed in a IFileMDSvc
