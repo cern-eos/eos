@@ -520,8 +520,6 @@ while(1) {
 		printf "$now ___________________________________________________________________\n";
 		if ( $ENV{'EOS_NOTIFY'} ne "" ) {
 		    my $timefile=`find /var/lock/subsys/eos.mgmtimeout -mmin -10 -mmin +0 2>/dev/null`;
-		    chomp $timefile;
-		    printf ("|$timefile|\n");
 		    if ( "$timefile" eq "/var/lock/subsys/eos.mgmtimeout" ) {
 			printf "$now MGM didn't respond within $eosshtimeout seconds .. [ not sending mail notification for some time ... ]\n";
 		    } else {
