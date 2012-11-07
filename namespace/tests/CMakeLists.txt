@@ -29,6 +29,7 @@ add_library (eosNamespaceTests SHARED
       ChangeLogTest.cc
       FileSystemViewTest.cc
       HierarchicalViewTest.cc
+      HierarchicalSlaveTest.cc
       LogCompactingTest.cc
       OtherTests.cc
       TestHelpers.hh
