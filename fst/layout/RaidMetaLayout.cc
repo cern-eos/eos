@@ -410,6 +410,7 @@ RaidMetaLayout::OpenPio( std::vector<std::string>&& stripeUrls,
       // Write case
       //....................................................................
       mIsRw = true;
+      mStoreRecovery = true; // enabled by default when doing writing
       ret = file->Open( mStripeUrls[i],
                         XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update,
                         XrdCl::Access::UR | XrdCl::Access::UW |
