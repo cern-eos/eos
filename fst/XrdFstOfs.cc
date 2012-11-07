@@ -1142,8 +1142,8 @@ XrdFstOfsFile::verifychecksum()
 	return false;
       }
     } else {
-      if ( (checkSum->GetMaxOffset() != openSize) || ((!rvec.size()) && (!wvec.size()) ) ) {
-	eos_debug("info=\"skipping checksum (re-scan) for access without any IO or partial sequentail IO from the beginning...\"");
+      if ( ((!isRW) && (checkSum->GetMaxOffset() != openSize)) || ((!rvec.size()) && (!wvec.size()) ) ) {
+	eos_debug("info=\"skipping checksum (re-scan) for access without any IO or partial sequential read IO from the beginning...\"");
 	delete checkSum;
 	checkSum=0;
 	return false;
