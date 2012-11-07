@@ -519,13 +519,13 @@ while(1) {
 		printf "$now local alive test gave a timeout after $eosshtimeout seconds ...\n";
 		printf "$now ___________________________________________________________________\n";
 		if ( $ENV{'EOS_NOTIFY'} ne "" ) {
-		    my $timefile=`find /var/lock/subsys/eos.mgmtimeout -mmin +10`;
+		    my $timefile=`find /var/lock/subsys/eos.mgmtimeout -mmin -10 -mmin 0 2>/dev/null`;
 		    if ( "$timefile" eq "/var/lock/subsys/eos.mgmtimeout" ) {
-			system("echo $now MGM on $host\\(me\\) didn't reply within timeout of $eosshtimeout seconds ... | $ENV{EOS_NOTIFY}");
-			system("touch /var/lock/subsys/eos.mgmtimeout");
-			printf "$now MGM didn't respond within $eosshtimeout seconds .. [ sending mail to $ENV{'EOS_NOTIRY'} ]\n";
-		    } else {
 			printf "$now MGM didn't respond within $eosshtimeout seconds .. [ not sending mail notification for some time ... ]\n";
+		    } else {
+			system("echo $now MGM on $host\\(me\\) did not reply within timeout of $eosshtimeout seconds ... | $ENV{EOS_NOTIFY}");
+			system("touch /var/lock/subsys/eos.mgmtimeout");
+			printf "$now MGM didn't respond within $eosshtimeout seconds .. [ sending mail to $ENV{'EOS_NOTIFY'} ]\n";
 		    }
 		}
 	    }
