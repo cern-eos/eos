@@ -512,7 +512,8 @@ while(1) {
          }  
 	# check that the MGM is operational
 	if (!$mastermgm) {
-	    my $mgmdead=`eossh-timeout -t $eosshtimeout xrd localhost stat /`;
+	    my $mgmdead=system("eossh-timeout -t $eosshtimeout xrd localhost stat / >& /dev/null");
+	    $mgmdead = ($mgmdead >> 8);
 	    if ($mgmdead) {
 		now();
 		printf "$now ===================================================================\n";
