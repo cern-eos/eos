@@ -88,11 +88,11 @@ void FileSystemViewTest::fileSystemViewTest()
   srandom(time(0));
   try
   {
-    eos::IContainerMDSvc *contSvc = new eos::ChangeLogContainerMDSvc;
-    eos::IFileMDSvc      *fileSvc = new eos::ChangeLogFileMDSvc;
-    eos::IView           *view    = new eos::HierarchicalView;
-    eos::FileSystemView  *fsView  = new eos::FileSystemView;
-
+    eos::ChangeLogContainerMDSvc *contSvc = new eos::ChangeLogContainerMDSvc;
+    eos::ChangeLogFileMDSvc      *fileSvc = new eos::ChangeLogFileMDSvc;
+    eos::IView                   *view    = new eos::HierarchicalView;
+    eos::FileSystemView          *fsView  = new eos::FileSystemView;
+    fileSvc->setContainerService( contSvc );
     std::map<std::string, std::string> fileSettings;
     std::map<std::string, std::string> contSettings;
     std::map<std::string, std::string> settings;

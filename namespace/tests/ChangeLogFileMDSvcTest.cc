@@ -26,6 +26,7 @@
 #include <unistd.h>
 
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
+#include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/tests/TestHelpers.hh"
 
 //------------------------------------------------------------------------------
@@ -48,7 +49,10 @@ CPPUNIT_TEST_SUITE_REGISTRATION( ChangeLogFileMDSvcTest );
 //------------------------------------------------------------------------------
 void ChangeLogFileMDSvcTest::reloadTest()
 {
-  eos::IFileMDSvc *fileSvc = new eos::ChangeLogFileMDSvc;
+  eos::ChangeLogContainerMDSvc *contSvc = new eos::ChangeLogContainerMDSvc;
+  eos::ChangeLogFileMDSvc      *fileSvc = new eos::ChangeLogFileMDSvc;
+  fileSvc->setContainerService( contSvc );
+
   std::map<std::string, std::string> config;
   std::string fileName = getTempName( "/tmp", "eosns" );
   config["changelog_path"] = fileName;

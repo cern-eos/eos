@@ -65,10 +65,11 @@ void HierarchicalViewTest::reloadTest()
 {
   try
   {
-    eos::IContainerMDSvc *contSvc = new eos::ChangeLogContainerMDSvc;
-    eos::IFileMDSvc      *fileSvc = new eos::ChangeLogFileMDSvc;
-    eos::IView           *view    = new eos::HierarchicalView;
+    eos::ChangeLogContainerMDSvc *contSvc = new eos::ChangeLogContainerMDSvc;
+    eos::ChangeLogFileMDSvc      *fileSvc = new eos::ChangeLogFileMDSvc;
+    eos::IView                   *view    = new eos::HierarchicalView;
 
+    fileSvc->setContainerService( contSvc );
     std::map<std::string, std::string> fileSettings;
     std::map<std::string, std::string> contSettings;
     std::map<std::string, std::string> settings;
@@ -261,9 +262,11 @@ void HierarchicalViewTest::quotaTest()
   //----------------------------------------------------------------------------
   // Initialize the system
   //----------------------------------------------------------------------------
-  eos::IContainerMDSvc *contSvc = new eos::ChangeLogContainerMDSvc;
-  eos::IFileMDSvc      *fileSvc = new eos::ChangeLogFileMDSvc;
-  eos::IView           *view    = new eos::HierarchicalView;
+  eos::ChangeLogContainerMDSvc *contSvc = new eos::ChangeLogContainerMDSvc;
+  eos::ChangeLogFileMDSvc      *fileSvc = new eos::ChangeLogFileMDSvc;
+  eos::IView                   *view    = new eos::HierarchicalView;
+
+  fileSvc->setContainerService( contSvc );
 
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
@@ -548,9 +551,11 @@ void HierarchicalViewTest::lostContainerTest()
   //----------------------------------------------------------------------------
   // Initializer
   //----------------------------------------------------------------------------
-  eos::IContainerMDSvc *contSvc = new eos::ChangeLogContainerMDSvc;
-  eos::IFileMDSvc      *fileSvc = new eos::ChangeLogFileMDSvc;
-  eos::IView           *view    = new eos::HierarchicalView;
+  eos::ChangeLogContainerMDSvc *contSvc = new eos::ChangeLogContainerMDSvc;
+  eos::ChangeLogFileMDSvc      *fileSvc = new eos::ChangeLogFileMDSvc;
+  eos::IView                   *view    = new eos::HierarchicalView;
+
+  fileSvc->setContainerService( contSvc );
 
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
@@ -698,9 +703,11 @@ void HierarchicalViewTest::onlineCompactingTest()
   //----------------------------------------------------------------------------
   // Initializer
   //----------------------------------------------------------------------------
-  eos::IContainerMDSvc *contSvc = new eos::ChangeLogContainerMDSvc;
-  eos::IFileMDSvc      *fileSvc = new eos::ChangeLogFileMDSvc;
-  eos::IView           *view    = new eos::HierarchicalView;
+  eos::ChangeLogContainerMDSvc *contSvc = new eos::ChangeLogContainerMDSvc;
+  eos::ChangeLogFileMDSvc      *fileSvc = new eos::ChangeLogFileMDSvc;
+  eos::IView                   *view    = new eos::HierarchicalView;
+
+  fileSvc->setContainerService( contSvc );
 
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
