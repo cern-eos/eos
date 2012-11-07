@@ -213,11 +213,6 @@ class RaidMetaLayout : public Layout
     virtual int Stat( struct stat* buf );
 
 
-    //--------------------------------------------------------------------------
-    //! Get the total size of the file
-    //--------------------------------------------------------------------------
-    virtual uint64_t Size(); 
-
   protected:
 
     bool mIsRw;                        ///< mark for writing

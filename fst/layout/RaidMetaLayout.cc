@@ -343,17 +343,31 @@ RaidMetaLayout::Open( const std::string& path,
   }
 
   //............................................................................
-  // Get the size of the file
+  // Get file size based on the data stored in the local stripe header
   //............................................................................
   mFileSize = -1;
-  
-  for ( unsigned int i = 0; i < mHdrInfo.size(); i++ ) {
-    if ( mHdrInfo[i]->IsValid() ) {
-      mFileSize = mHdrInfo[i]->GetSizeFile();
-      break;
+
+  if ( mHdrInfo[0]->IsValid() ) {
+    mFileSize = mHdrInfo[0]->GetSizeFile();
+  }
+  else  {
+    //........................................................................
+    // For the entry server we just need to reread the header as it was
+    // recovered in the above ValidateHeader method. For the rest of the
+    // stripes it doesn't matter if they have or not the correct file size -
+    // anyway we can not recover here :D
+    //........................................................................
+    if ( mIsEntryServer ) {
+      if ( mHdrInfo[0]->IsValid() ) {
+        mFileSize = mHdrInfo[0]->GetSizeFile();
+      }
+      else {
+        eos_err( "error=the head node can not compute the file size" );
+        return SFS_ERROR;
+      }
     }
   }
-
+  
   mIsOpen = true;
   return SFS_OK;
 }
@@ -536,10 +550,12 @@ RaidMetaLayout::ValidateHeader()
         mHdrInfo[physical_id]->SetSizeLastBlock( mHdrInfo[hd_id_valid]->GetSizeLastBlock() );
 
         //......................................................................
-        // If file successfully opened and we need to store the info
+        // If file successfully opened, we need to store the info
         //......................................................................
-        if ( mStripeFiles[physical_id] && mStoreRecovery ) {
-          mHdrInfo[physical_id]->WriteToFile( mStripeFiles[physical_id] );
+        if ( mStoreRecovery ) {
+          if ( mStripeFiles[physical_id] ) {
+            mHdrInfo[physical_id]->WriteToFile( mStripeFiles[physical_id] );
+          }
         }
 
         break;
@@ -556,6 +572,7 @@ RaidMetaLayout::ValidateHeader()
     mapLP[mapPL[i]] = i;
   }
 
+  mDoneRecovery = true;
   return true;
 }
 
@@ -1163,21 +1180,6 @@ RaidMetaLayout::Sync()
 
 
 //------------------------------------------------------------------------------
-// Get size of file
-//------------------------------------------------------------------------------
-uint64_t
-RaidMetaLayout::Size()
-{
-  if ( mIsOpen ) {
-    return mFileSize;
-  } else {
-    eos_err( "size error=file is not opened" );
-    return SFS_ERROR;
-  }
-}
-
-
-//------------------------------------------------------------------------------
 // Unlink all connected pieces
 //------------------------------------------------------------------------------
 int
@@ -1215,20 +1217,36 @@ RaidMetaLayout::Remove()
 int
 RaidMetaLayout::Stat( struct stat* buf )
 {
-  int rc = SFS_OK;
+  int rc = SFS_OK;   //TODO: change this, actually change the logic in XrdFstOfsFile
+                     // concerning stat before the file is opened
+  bool found = false;
 
   if ( mIsOpen ) {
-    for ( unsigned int i = 0; i < mStripeFiles.size(); i++ ) {
-      if ( mStripeFiles[i] && mStripeFiles[i]->Stat( buf ) ) {
-        eos_err( "stat error=error in stat" );
+    if ( mIsEntryServer ) {
+      for ( unsigned int i = 0; i < mStripeFiles.size(); i++ ) {
+        if ( mStripeFiles[i] && mStripeFiles[i]->Stat( buf ) == SFS_OK ) {
+          found = true;
+          break;
+        }
+        else {
+          eos_err( "stat error=error in stat for stripe %i", i );
+        }
+      }
+    }
+    else {
+      if ( mStripeFiles[0] && mStripeFiles[0]->Stat( buf ) == SFS_ERROR ) {
+        rc = SFS_ERROR;
       }
       else {
-        break;
+        found = true;
       }
     }
 
     // Obs: when we can not compute the file size, we take it from fmd
     buf->st_size = mFileSize;
+    if ( !found ) {
+      rc = SFS_ERROR;
+    }
   }
 
   return rc;
@@ -1247,57 +1265,59 @@ RaidMetaLayout::Close()
 
   if ( mIsOpen ) {
     if ( mIsEntryServer ) {
-      if ( mDoneRecovery || mDoTruncate ) {
-        mDoTruncate = false;
-        mDoneRecovery = false;
-        eos_debug( "info=truncating after done a recovery or at end of write" );
-        Truncate( mFileSize );
-      }
-
-      if ( mIsStreaming ) {
-        if ( ( mOffGroupParity != -1 ) &&
-             ( mOffGroupParity < static_cast<off_t>( mFileSize ) ) ) {
-          DoBlockParity( mOffGroupParity );
-        }
-      } else {
-        SparseParityComputation( true );
-      }
-
-      //..........................................................................
-      // Update the header information and write it to all stripes
-      //..........................................................................
-      long int num_blocks = ceil( ( mFileSize * 1.0 ) / mStripeWidth );
-      size_t size_last_block = mFileSize % mStripeWidth;
-
-      for ( unsigned int i = 0; i < mHdrInfo.size(); i++ ) {
-        if ( num_blocks != mHdrInfo[i]->GetNoBlocks() ) {
-          mHdrInfo[i]->SetNoBlocks( num_blocks );
-          mUpdateHeader = true;
+      if ( mStoreRecovery ) {
+        if ( mDoneRecovery || mDoTruncate ) {
+          eos_debug( "info=truncating after done a recovery or at end of write" );
+          mDoTruncate = false;
+          mDoneRecovery = false;
+          Truncate( mFileSize );
         }
 
-        if ( size_last_block != mHdrInfo[i]->GetSizeLastBlock() ) {
-          mHdrInfo[i]->SetSizeLastBlock( size_last_block );
-          mUpdateHeader =  true;
+        if ( mIsStreaming ) {
+          if ( ( mOffGroupParity != -1 ) &&
+               ( mOffGroupParity < static_cast<off_t>( mFileSize ) ) ) {
+            DoBlockParity( mOffGroupParity );
+          }
+        } else {
+          SparseParityComputation( true );
         }
-      }
 
-      COMMONTIMING( "updateheader", &ct );
+        //..........................................................................
+        // Update the header information and write it to all stripes
+        //..........................................................................
+        long int num_blocks = ceil( ( mFileSize * 1.0 ) / mStripeWidth );
+        size_t size_last_block = mFileSize % mStripeWidth;
 
-      if ( mUpdateHeader ) {
-        for ( unsigned int i = 0; i < mStripeFiles.size(); i++ ) {
-          mHdrInfo[i]->SetIdStripe( mapPL[i] );
+        for ( unsigned int i = 0; i < mHdrInfo.size(); i++ ) {
+          if ( num_blocks != mHdrInfo[i]->GetNoBlocks() ) {
+            mHdrInfo[i]->SetNoBlocks( num_blocks );
+            mUpdateHeader = true;
+          }
 
-          if ( mStripeFiles[i] ) {
-            if ( !mHdrInfo[i]->WriteToFile( mStripeFiles[i] ) ) {
-              eos_err( "error=write header to file failed for stripe:%i", i );
-              return SFS_ERROR;
-            }
-          } else {
-            eos_warning( "warning=could not write header info to unopened file." );
+          if ( size_last_block != mHdrInfo[i]->GetSizeLastBlock() ) {
+            mHdrInfo[i]->SetSizeLastBlock( size_last_block );
+            mUpdateHeader =  true;
           }
         }
 
-        mUpdateHeader = false;
+        COMMONTIMING( "updateheader", &ct );
+
+        if ( mUpdateHeader ) {
+          for ( unsigned int i = 0; i < mStripeFiles.size(); i++ ) {
+            mHdrInfo[i]->SetIdStripe( mapPL[i] );
+
+            if ( mStripeFiles[i] ) {
+              if ( !mHdrInfo[i]->WriteToFile( mStripeFiles[i] ) ) {
+                eos_err( "error=write header to file failed for stripe:%i", i );
+                return SFS_ERROR;
+              }
+            } else {
+              eos_warning( "warning=could not write header info to unopened file." );
+            }
+          }
+
+          mUpdateHeader = false;
+        }
       }
 
       //........................................................................
