@@ -121,6 +121,7 @@ class XrdFstOfs : public XrdOfs, public eos::common::LogId
     int Configure( XrdSysError& error );
 
     static void xrdfstofs_shutdown( int sig );
+    static void xrdfstofs_stacktrace(int sig);
 
     //----------------------------------------------------------------------------
     //! Constructor

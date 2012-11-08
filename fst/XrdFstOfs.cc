@@ -47,6 +47,12 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <attr/xattr.h>
+
+#include <math.h>
+#include <stdio.h>
+#include <execinfo.h>
+#include <signal.h>
+#include <stdlib.h>
 /*----------------------------------------------------------------------------*/
 
   
@@ -116,9 +122,18 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 XrdFstOfs::XrdFstOfs() {
   eos::common::LogId(); Eroute = 0; Messaging = 0; Storage = 0; TransferScheduler = 0; 
+  //-------------------------------------------
+  // add Shutdown handler
+  //-------------------------------------------
   (void) signal(SIGINT,xrdfstofs_shutdown);
   (void) signal(SIGTERM,xrdfstofs_shutdown);
   (void) signal(SIGQUIT,xrdfstofs_shutdown);
+  //-------------------------------------------
+  // add SEGV handler
+  //-------------------------------------------
+  (void) signal(SIGSEGV, xrdfstofs_stacktrace);
+  (void) signal(SIGABRT, xrdfstofs_stacktrace);
+  (void) signal(SIGBUS,  xrdfstofs_stacktrace);
 }
 
 
@@ -147,6 +162,24 @@ XrdFstOfs::newFile( char* user, int MonID ) {
   return static_cast<XrdSfsFile*>( new XrdFstOfsFile( user, MonID ) );
 }
 
+
+/*----------------------------------------------------------------------------*/
+void
+XrdFstOfs::xrdfstofs_stacktrace(int sig) {
+  (void) signal(SIGINT,SIG_IGN);
+  (void) signal(SIGTERM,SIG_IGN);
+  (void) signal(SIGQUIT,SIG_IGN);
+  void *array[10];
+  size_t size;
+
+  // get void*'s for all entries on the stack
+  size = backtrace(array, 10);
+
+  // print out all the frames to stderr
+  fprintf(stderr, "Error: signal %d:\n", sig);
+  backtrace_symbols_fd(array, size, 2);
+  exit(1);
+}
 
 /*----------------------------------------------------------------------------*/
 void

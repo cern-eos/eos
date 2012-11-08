@@ -1004,7 +1004,7 @@ Storage::RunBootThread(FileSystem* fs)
     XrdSysMutexHelper bootLock(BootSetMutex);
     // check if this filesystem is currently already booting
     if (BootSet.count(fs->GetId())) {
-      eos_warning("discard boot request: filesytem id=%ld is currently booting", fs->GetId());
+      eos_warning("discard boot request: filesytem fsid=%lu is currently booting", (unsigned long) fs->GetId());
       return false;
     } else {
       // insert into the set of booting filesystems
@@ -1025,7 +1025,7 @@ Storage::RunBootThread(FileSystem* fs)
 	retc = true;
 	XrdSysMutexHelper tsLock(ThreadSetMutex);
 	ThreadSet.insert(tid);
-	eos_notice("msg=\"started boot thread\" fsid=%ld",info->filesystem->GetId());
+	eos_notice("msg=\"started boot thread\" fsid=%ld",(unsigned long) info->filesystem->GetId());
       }
     }
   }
@@ -2163,6 +2163,13 @@ Storage::Publish()
   // ---------------------------------------------------------------------
   XrdSysTimer sleeper;
   sleeper.Snooze(3);
+  
+  const char* val=0;
+  while ( !eos::fst::Config::gConfig.FstNodeConfigQueue.length()) {
+    XrdSysTimer sleeper;
+    sleeper.Snooze(5);
+    eos_static_info("Snoozing ...");
+  }
 
   eos::common::FileSystem::fsid_t fsid=0;
   std::string publish_uptime="";
@@ -2905,11 +2912,11 @@ Storage::MgmSyncer()
       if (!isopenforwrite) {
 	// now do the consistency check
 	if (gFmdSqliteHandler.ResyncMgm(fmd.fsid, fmd.fid, manager.c_str())) {
-	  eos_static_debug("msg=\"resync ok\" fsid=%lu fid=%llx", fmd.fsid,fmd.fid);
+	  eos_static_debug("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) fmd.fsid,fmd.fid);
 	  gOFS.WrittenFilesQueueMutex.Lock();
 	  gOFS.WrittenFilesQueue.pop();
 	} else {
-	  eos_static_err("msg=\"resync failed\" fsid=%lu fid=%llx", fmd.fsid,fmd.fid);
+	  eos_static_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) fmd.fsid,fmd.fid);
 	  failure = true;
 	  gOFS.WrittenFilesQueueMutex.Lock(); // put back the lock
 	  break;
