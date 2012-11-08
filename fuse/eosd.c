@@ -1032,9 +1032,9 @@ static void eosfs_ll_release(fuse_req_t req, fuse_ino_t ino,
     
     xrd_lease_open_fd((unsigned long long) ino, req->ctx.uid);
 
-    fi->fh = 0;
+    xrd_close(fi->fh,ino);
 
-    // the close is moved to flush
+    fi->fh = 0;
   }
   fuse_reply_err(req,0);
 }
@@ -1067,18 +1067,11 @@ static void eosfs_ll_forget (fuse_req_t req, fuse_ino_t ino, unsigned long nlook
 static void eosfs_ll_flush (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi) 
 {
   int errc_flush = 0;
-  int errc_close = 0;
   int errc = 0;
 
   if ( fi->fh ) {
     int fd = (int)fi->fh;
     errc_flush = xrd_flush( fi->fh, (unsigned long long) ino );
-    errc_close = xrd_close(fd, ino);
-
-    // XrdPoxis does not return anything ... sigh ... keep it for future however
-    if (errc_close) {      
-      errc = errc_close;
-    }
 
     if (errc_flush) {      
       errc = EIO;
