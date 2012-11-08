@@ -139,26 +139,37 @@ XrdFstOfs::xrdfstofs_shutdown(int sig) {
     for (it= gOFS.Storage->ThreadSet.begin(); it != gOFS.Storage->ThreadSet.end(); it++) {
       eos_static_warning("op=shutdown threadid=%llx", (unsigned long long) *it);
       XrdSysThread::Cancel(*it);
-      XrdSysThread::Join(*it,0);
+      //      XrdSysThread::Join(*it,0);
     }
   }
 
-  eos_static_warning("op=shutdown msg=\"stop messaging\""); 
-  if (gOFS.Messaging) {
-    delete gOFS.Messaging; // shutdown messaging thread
-    gOFS.Messaging=0;
-  }
+  //  eos_static_warning("op=shutdown msg=\"stop messaging\""); 
+  //  if (gOFS.Messaging) {
+  //    delete gOFS.Messaging; // shutdown messaging thread
+  //  gOFS.Messaging=0;
+  //}
 
+  pid_t watchdog;
+  if (!(watchdog = fork())) {
+    XrdSysTimer sleeper;
+    sleeper.Snooze(5);
+    eos_static_warning("%s","op=shutdown msg=\"shutdown fmdsqlite timedout\"");
+    kill(9, getppid());
+    eos_static_warning("%s","op=shutdown status=forced-complete");
+    kill(9, getpid());
+  }
   eos_static_warning("%s","op=shutdown msg=\"shutdown fmdsqlite handler\"");
   gFmdSqliteHandler.Shutdown();
-  eos_static_warning("%s","op=shutdown status=completed");
+  kill(9, watchdog);
+
+  eos_static_warning("%s","op=shutdown status=sqliteclosed");
 
   // sync & close all file descriptors
   eos::common::SyncAll::AllandClose();
   
-
-
-  exit(0);
+  eos_static_warning("%s","op=shutdown status=completed");
+  // harakiri - yes!
+  kill(9, getpid());
 }
 
 /*----------------------------------------------------------------------------*/
@@ -411,6 +422,10 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   } 
 
 
+  XrdSysTimer sleeper;
+  sleeper.Snooze(5);
+
+  eos_notice("sending broadcast's ...");
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Create a wildcard broadcast 
   XrdMqSharedHash* hash = 0;
@@ -483,6 +498,9 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
   eos_notice("FST_HOST=%s FST_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s", HostName, myPort, VERSION,RELEASE, keytabcks.c_str());
 
   eos::fst::Config::gConfig.KeyTabAdler = keytabcks.c_str();
+
+  sleeper.Snooze(5);
+  
   return 0;
 }
 
