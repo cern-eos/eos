@@ -1237,7 +1237,7 @@ static void eosfs_ll_release( fuse_req_t             req,
 
     int res = 0;
     int fd = info->fd;
-
+    
     res = xrd_close( fd, ino );
     xrd_release_read_buffer( fd );
     xrd_release_open_fd( ino, info->uid );
@@ -1303,18 +1303,11 @@ static void eosfs_ll_flush( fuse_req_t             req,
                             struct fuse_file_info* fi )
 {
   int errc_flush = 0;
-  int errc_close = 0;
   int errc = 0;
 
   if ( fi->fh ) {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     errc_flush = xrd_flush( info->fd, (unsigned long ) ino );
-    //errc_close = xrd_close(fd, ino);
-
-    // XrdPosix does not return anything ... sigh ... keep it for future however
-    //if (errc_close) {      
-    //  errc = errc_close;
-    //}
 
     if (errc_flush) {      
       errc = EIO;
