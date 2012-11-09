@@ -185,6 +185,17 @@ XrdFstOfs::xrdfstofs_shutdown( int sig )
   static XrdSysMutex ShutDownMutex;
   ShutDownMutex.Lock(); // this handler goes only one-shot .. sorry !
 
+  pid_t watchdog;
+  if (!(watchdog = fork())) {
+    eos::common::SyncAll::AllandClose();
+    XrdSysTimer sleeper;
+    sleeper.Snooze(15);
+    eos_static_warning("%s","op=shutdown msg=\"shutdown timedout after 15 seconds\"");
+    kill(getppid(),9);
+    eos_static_warning("%s","op=shutdown status=forced-complete");
+    kill(getpid(),9);
+  }
+
   // handler to shutdown the daemon for valgrinding and clean server stop (e.g. let's time to finish write operations
 
   if ( gOFS.Messaging ) {
@@ -205,21 +216,6 @@ XrdFstOfs::xrdfstofs_shutdown( int sig )
   }
   eos_static_warning( "op=shutdown msg=\"stop messaging\"" );
 
-  //  eos_static_warning("op=shutdown msg=\"stop messaging\""); 
-  //  if (gOFS.Messaging) {
-  //    delete gOFS.Messaging; // shutdown messaging thread
-  //  gOFS.Messaging=0;
-  //}
-
-  pid_t watchdog;
-  if (!(watchdog = fork())) {
-    XrdSysTimer sleeper;
-    sleeper.Snooze(5);
-    eos_static_warning("%s","op=shutdown msg=\"shutdown fmdsqlite timedout\"");
-    kill(9, getppid());
-    eos_static_warning("%s","op=shutdown status=forced-complete");
-    kill(9, getpid());
-  }
   eos_static_warning("%s","op=shutdown msg=\"shutdown fmdsqlite handler\"");
   gFmdSqliteHandler.Shutdown();
   kill(9, watchdog);
@@ -231,7 +227,7 @@ XrdFstOfs::xrdfstofs_shutdown( int sig )
   
   eos_static_warning("%s","op=shutdown status=completed");
   // harakiri - yes!
-  kill(9, getpid());
+  kill(getpid(),9);
 }
 
 /*----------------------------------------------------------------------------*/
