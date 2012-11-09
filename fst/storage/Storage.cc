@@ -2047,7 +2047,6 @@ Storage::Communicator()
 	  }
 	} else {
 	  eos_static_err("illegal subject found - no filesystem object existing for modification %s;%s", queue.c_str(),key.c_str());
-	  gOFS.ObjectManager.HashMutex.UnLockRead();
 	}
 	fsMutex.UnLockRead();
       }
@@ -2117,7 +2116,7 @@ Storage::Supervisor()
 	    eos_static_alert("found %d/%d filesystems in <down> status - committing suicide !", ndown, nfs);
 	    XrdSysTimer sleeper;
 	    sleeper.Snooze(10);	
-	    kill(SIGQUIT,getpid());
+	    kill(getpid(),SIGQUIT);
 	  }
 	}
       }
