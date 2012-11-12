@@ -31,13 +31,13 @@ size_t CacheEntry::msMaxSize = 4 * 1048576;          //1MB=1048576 512KB=524288
 //------------------------------------------------------------------------------
 // Construct a block object which is to be saved in cache
 //------------------------------------------------------------------------------
-CacheEntry::CacheEntry( XrdCl::File*&    rpFile,
-                        char*            buf,
-                        off_t            off,
-                        size_t           len,
-                        FileAbstraction& rFileAbst,
-                        bool             isWr ):
-  mpFile( rpFile ),
+CacheEntry::CacheEntry( eos::fst::Layout*& file,
+                        char*              buf,
+                        off_t              off,
+                        size_t             len,
+                        FileAbstraction&   rFileAbst,
+                        bool               isWr ):
+  mpFile( file ),
   mIsWrType( isWr ),
   mSizeData( len ),
   pParentFile( &rFileAbst )
@@ -74,17 +74,17 @@ CacheEntry::~CacheEntry()
 // Reinitialise the block attributes for the recycling process
 //------------------------------------------------------------------------------
 void
-CacheEntry::DoRecycle( XrdCl::File*&    rpFile,
-                       char*            buf,
-                       off_t            off,
-                       size_t           len,
-                       FileAbstraction& rFileAbst,
-                       bool             isWr )
+CacheEntry::DoRecycle( eos::fst::Layout*& file,
+                       char*              buf,
+                       off_t              off,
+                       size_t             len,
+                       FileAbstraction&   rFileAbst,
+                       bool               isWr )
 {
   char* pBuffer;
   off_t off_relative;
 
-  mpFile = rpFile;
+  mpFile = file;
   mIsWrType = isWr;
   mOffsetStart = ( off / GetMaxSize() ) * GetMaxSize();
   pParentFile = &rFileAbst;
@@ -419,27 +419,25 @@ CacheEntry::GetPiece( char* buf, off_t off, size_t len )
 //------------------------------------------------------------------------------
 // Write the whole part of the meaningful data to the corresponding file
 //------------------------------------------------------------------------------
-int
+int64_t
 CacheEntry::DoWrite()
 {
-  int retc = 0;
+  int64_t ret = 0;
   off_t off_relative;
-  XrdCl::XRootDStatus status;
   std::map<off_t, size_t>::iterator iCurrent = mMapPieces.begin();
   const std::map<off_t, size_t>::iterator iEnd = mMapPieces.end();
 
   for ( ; iCurrent != iEnd; iCurrent++ ) {
     off_relative = iCurrent->first % GetMaxSize();
-    status = mpFile->Write( iCurrent->first, iCurrent->second, mpBuffer + off_relative );
+    ret = mpFile->Write( iCurrent->first, mpBuffer + off_relative, iCurrent->second );
 
-    if ( !status.IsOK() ) {
-      fprintf( stderr, "\n[%s] error=error while writing using XrdCl::File\n\n",
+    if ( ret == -1 ) {
+      fprintf( stderr, "\n[%s] error=error while writing \n",
                __FUNCTION__ );
-      retc = status.errNo;
     }
   }
-
-  return retc;
+  
+  return ret;
 }
 
 

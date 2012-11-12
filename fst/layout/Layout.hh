@@ -65,12 +65,14 @@ class Layout: public eos::common::LogId
     //! @param lid layout id
     //! @param client security information
     //! @param outError error information
+    //! @param io access type informatio ( ofs/xrd )
     //!
     //--------------------------------------------------------------------------
-    Layout( XrdFstOfsFile*      file,
-            int                 lid,
-            const XrdSecEntity* client,
-            XrdOucErrInfo*      outError );
+    Layout( XrdFstOfsFile*                 file,
+            int                            lid,
+            const XrdSecEntity*            client,
+            XrdOucErrInfo*                 outError,
+            eos::common::LayoutId::eIoType io );
 
 
     //--------------------------------------------------------------------------
@@ -154,7 +156,7 @@ class Layout: public eos::common::LogId
     //!
     //--------------------------------------------------------------------------
     virtual int64_t Write( XrdSfsFileOffset offset,
-                           char*            buffer,
+                           const char*      buffer,
                            XrdSfsXferSize   length ) = 0;
 
 
@@ -245,6 +247,8 @@ class Layout: public eos::common::LogId
     std::string    mLocalPath;      ///< path to local file
     XrdOucErrInfo* mError;          ///< error information
     XrdSecEntity*  mSecEntity;      ///< security information
+
+    eos::common::LayoutId::eIoType mIoType;  ///< type of access ( ofs/xrd )
 
 };
 

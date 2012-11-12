@@ -161,7 +161,7 @@ XrdFstOfsFile::open( const char*                path,
   while ( stringOpaque.replace( "?", "&" ) ) {}
 
   while ( stringOpaque.replace( "&&", "&" ) ) {}
-
+  
   stringOpaque += "&mgm.path=";
   stringOpaque += path;
   openOpaque  = new XrdOucEnv( stringOpaque.c_str() );
@@ -249,7 +249,6 @@ XrdFstOfsFile::open( const char*                path,
   } else {
     maxsize=0;
   }
-
 
   //............................................................................
   // If we open a replica we have to take the right filesystem id and filesystem
@@ -436,7 +435,8 @@ XrdFstOfsFile::open( const char*                path,
   //............................................................................
   // Call the checksum factory function with the selected layout
   //............................................................................
-  layOut = eos::fst::LayoutPlugin::GetLayoutObject( this, lid, client, &error );
+  layOut = eos::fst::LayoutPlugin::GetLayoutObject( this, lid, client, &error,
+                                                    eos::common::LayoutId::kLocal );
   
   if ( !layOut ) {
     int envlen;
@@ -451,39 +451,6 @@ XrdFstOfsFile::open( const char*                path,
   if ( isRW || ( opaqueCheckSum != "ignore" ) ) {
       checkSum = eos::fst::ChecksumPlugins::GetChecksumObject( lid );
       eos_debug( "checksum requested %d %u", checkSum, lid );
-  }
-
-  eos_info("checksum=%llu entryserver=%d", checkSum, layOut->IsEntryServer());
-
-  if ( !isCreation ) {
-    //..........................................................................
-    // Get the real size of the file, not the local stripe size!
-    //..........................................................................
-    if ( ( retc = layOut->Stat( &statinfo ) ) ) {
-      return gOFS.Emsg( epname, error, EIO, "open - cannot stat layout to determine file size", Path.c_str() );
-    }
-
-    //........................................................................
-    // We feed the layout size, not the physical on disk!
-    //........................................................................
-    eos_info( "The layout size is: %zu, and the value stored in db is: %llu.",
-              statinfo.st_size, fMd->fMd.size );
-
-    if ( (off_t)statinfo.st_size != (off_t)fMd->fMd.size ) {
-      // in a RAID-like layout if the header is corrupted there is no way to know
-      // the size of the initial file, therefore we take the value from the DB
-      openSize = fMd->fMd.size;
-    }
-    else {
-      openSize = statinfo.st_size;
-    }
-
-    if ( checkSum && isRW ) {
-      //........................................................................
-      // Preset with the last known checksum
-      //........................................................................
-      checkSum->ResetInit( 0, openSize, fMd->fMd.checksum.c_str() );
-    }
   }
 
   //............................................................................
@@ -514,23 +481,63 @@ XrdFstOfsFile::open( const char*                path,
     XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
     if (gOFS.Storage->fileSystemFullMap[fsid]) {
       writeErrorFlag=kOfsDiskFullError;
-      
-      return gOFS.Emsg("writeofs", error, ENOSPC, "create file - disk space (headroom) exceeded fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
+      delete layOut;
+      return gOFS.Emsg("writeofs", error, ENOSPC, "create file - disk space (headroom) exceeded fn=",
+                       capOpaque ? (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path"):FName()):FName());
     }
     rc = layOut->Fallocate(bookingsize);
     if (rc) {
-      eos_crit("file allocation gave return code %d errno=%d for allocation of size=%llu" , rc, errno, bookingsize);
+      eos_crit("file allocation gave return code %d errno=%d for allocation of size=%llu" ,
+               rc, errno, bookingsize);
+      
       if (layOut->IsEntryServer()) {
 	layOut->Remove();
 	int ecode=1094;
-	eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",RedirectManager.c_str(), ecode);
+	eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
+                    RedirectManager.c_str(), ecode);
+        delete layOut;
 	return gOFS.Redirect(error,RedirectManager.c_str(),ecode);
       } else {
+        delete layOut;
 	return gOFS.Emsg(epname, error, ENOSPC, "open - cannot allocate required space", Path.c_str());
       }
     }
   }
 
+  eos_info("checksum=%llu entryserver=%d", checkSum, layOut->IsEntryServer());
+
+  if ( !isCreation ) {
+    //..........................................................................
+    // Get the real size of the file, not the local stripe size!
+    //..........................................................................
+    if ( ( retc = layOut->Stat( &statinfo ) ) ) {
+      delete layOut;
+      return gOFS.Emsg( epname, error, EIO, "open - cannot stat layout to determine file size", Path.c_str() );
+    }
+
+    //........................................................................
+    // We feed the layout size, not the physical on disk!
+    //........................................................................
+    eos_info( "The layout size is: %zu, and the value stored in db is: %llu.",
+              statinfo.st_size, fMd->fMd.size );
+
+    if ( (off_t)statinfo.st_size != (off_t)fMd->fMd.size ) {
+      // in a RAID-like layout if the header is corrupted there is no way to know
+      // the size of the initial file, therefore we take the value from the DB
+      openSize = fMd->fMd.size;
+    }
+    else {
+      openSize = statinfo.st_size;
+    }
+
+    if ( checkSum && isRW ) {
+      //........................................................................
+      // Preset with the last known checksum
+      //........................................................................
+      checkSum->ResetInit( 0, openSize, fMd->fMd.checksum.c_str() );
+    }
+  }
+  
   //.......................................................................................................
   // if we are not the entry server for ReedS & RaidDP layouts we disable the checksum object now for write
   // if we read we don't check checksums at all since we have block and parity checking
@@ -824,7 +831,8 @@ XrdFstOfsFile::verifychecksum()
       }
     } else {
       if ( ((!isRW) && (checkSum->GetMaxOffset() != openSize)) || ((!rvec.size()) && (!wvec.size()) ) ) {
-	eos_debug("info=\"skipping checksum (re-scan) for access without any IO or partial sequential read IO from the beginning...\"");
+	eos_debug("info=\"skipping checksum (re-scan) for access without any IO or "
+                  "partial sequential read IO from the beginning...\"");
 	delete checkSum;
 	checkSum=0;
 	return false;

@@ -64,16 +64,11 @@ extern XrdOssSys  *XrdOfsOss;
 extern XrdOfs     *XrdOfsFS;
 extern XrdOucTrace OfsTrace;
 
-/*extern XrdOss*              XrdOssGetSS( XrdSysLogger*, 
-                                         const char*, 
-                                         const char* );
-*/
-
-extern XrdOss*              XrdOssGetSS( XrdSysLogger*, 
-                                         const char*, 
-                                         const char*, 
-                                         const char*, 
-                                         XrdVersionInfo& );
+extern XrdOss* XrdOssGetSS( XrdSysLogger*, 
+                            const char*, 
+                            const char*, 
+                            const char*, 
+                            XrdVersionInfo& );
 
 //------------------------------------------------------------------------------
 //

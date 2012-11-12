@@ -30,9 +30,7 @@
 #include <pthread.h>
 //------------------------------------------------------------------------------
 #include "ConcurrentQueue.hh"
-#include "FileAbstraction.hh"
 #include "CacheImpl.hh"
-#include "CacheEntry.hh"
 //------------------------------------------------------------------------------
 
 class CacheImpl;
@@ -61,18 +59,18 @@ class XrdFileCache
     // -------------------------------------------------------------------------
     //! Add a write request
     //!
-    //! @param rpFile XrdCl file handler
+    //! @param file file layout type handler
     //! @param inode file inode value
     //! @param buf data to be written
     //! @param off offset
     //! @param len length
     //!
     // -------------------------------------------------------------------------
-    void SubmitWrite( XrdCl::File*& rpFile,
-                      unsigned long inode,
-                      void*         buf,
-                      off_t         off,
-                      size_t        len );
+    void SubmitWrite( eos::fst::Layout*& file,
+                      unsigned long      inode,
+                      void*              buf,
+                      off_t              off,
+                      size_t             len );
 
     // -------------------------------------------------------------------------
     //! Try to get read from cache
@@ -85,16 +83,16 @@ class XrdFileCache
     //! @return number of bytes read
     //!
     // -------------------------------------------------------------------------
-    size_t GetRead( FileAbstraction& rFileAbst,
-                    void*            buf,
-                    off_t            off,
-                    size_t           len );
-
+    int64_t GetRead( FileAbstraction& rFileAbst,
+                     void*            buf,
+                     off_t            off,
+                     size_t           len );
+  
   
     // -------------------------------------------------------------------------
     //! Add read to cache
     //!
-    //! @param rpFile XrdCl file handler
+    //! @param file file layout type handler
     //! @param rFileAbst FileAbstraction handler
     //! @param buf buffer containing the data
     //! @param off offset
@@ -103,11 +101,11 @@ class XrdFileCache
     //! @return number of bytes saved in cache
     //!
     // -------------------------------------------------------------------------
-    size_t PutRead( XrdCl::File*&    rpFile,
-                    FileAbstraction& rFileAbst,
-                    void*            buf,
-                    off_t            off,
-                    size_t           len );
+     int64_t PutRead( eos::fst::Layout*& file,
+                     FileAbstraction&   rFileAbst,
+                     void*              buf,
+                     off_t              off,
+                     size_t             len );
 
   
     //--------------------------------------------------------------------------

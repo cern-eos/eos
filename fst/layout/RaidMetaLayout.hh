@@ -54,20 +54,22 @@ class RaidMetaLayout : public Layout
     //! @param lid layout id
     //! @param client security information
     //! @param outError error information
+    //! @param io access type 
     //! @param storeRecovery force writing back the recovered blocks to the files
     //! @param isStreaming file is written in streaming mode
     //! @param targetSize initial file size
     //! @param bookingOpaque opaque information
     //!
     //--------------------------------------------------------------------------
-    RaidMetaLayout( XrdFstOfsFile*      file,
-                    int                 lid,
-                    const XrdSecEntity* client,
-                    XrdOucErrInfo*      outError,
-                    bool                storeRecovery,
-                    bool                isStreaming,
-                    off_t               targetSize,
-                    std::string         bookingOpaque );
+    RaidMetaLayout( XrdFstOfsFile*                 file,
+                    int                            lid,
+                    const XrdSecEntity*            client,
+                    XrdOucErrInfo*                 outError,
+                    eos::common::LayoutId::eIoType io,
+                    bool                           storeRecovery,
+                    bool                           isStreaming,
+                    off_t                          targetSize,
+                    std::string                    bookingOpaque );
 
 
     //--------------------------------------------------------------------------
@@ -136,7 +138,7 @@ class RaidMetaLayout : public Layout
     //!
     //--------------------------------------------------------------------------
     virtual int64_t Write( XrdSfsFileOffset offset,
-                           char*            buffer,
+                           const char*      buffer,
                            XrdSfsXferSize   length );
 
 
@@ -315,7 +317,7 @@ class RaidMetaLayout : public Layout
     //! @param length length of the data
     //!
     //--------------------------------------------------------------------------
-    virtual void AddDataBlock( off_t offset, char* buffer, size_t length ) = 0;
+    virtual void AddDataBlock( off_t offset, const char* buffer, size_t length ) = 0;
 
   
     //--------------------------------------------------------------------------

@@ -39,15 +39,16 @@ typedef long v2do __attribute__( ( vector_size( VECTOR_SIZE ) ) );
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RaidDpLayout::RaidDpLayout( XrdFstOfsFile*      file,
-                            int                 lid,
-                            const XrdSecEntity* client,
-                            XrdOucErrInfo*      outError,
-                            bool                storeRecovery,
-                            bool                isStreaming,
-                            off_t               targetSize,
-                            std::string         bookingOpaque ) :
-  RaidMetaLayout( file, lid, client, outError, storeRecovery,
+RaidDpLayout::RaidDpLayout( XrdFstOfsFile*                 file,
+                            int                            lid,
+                            const XrdSecEntity*            client,
+                            XrdOucErrInfo*                 outError,
+                            eos::common::LayoutId::eIoType io,
+                            bool                           storeRecovery,
+                            bool                           isStreaming,
+                            off_t                          targetSize,
+                            std::string                    bookingOpaque ) :
+  RaidMetaLayout( file, lid, client, outError, io, storeRecovery,
                   isStreaming, targetSize, bookingOpaque )
 {
   mNbDataBlocks = static_cast<int>( pow( mNbDataFiles, 2 ) );
@@ -496,7 +497,7 @@ RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,
 // Add a new data used to compute parity block
 //------------------------------------------------------------------------------
 void
-RaidDpLayout::AddDataBlock( off_t offset, char* buffer, size_t length )
+RaidDpLayout::AddDataBlock( off_t offset, const char* buffer, size_t length )
 {
   int indx_block;
   size_t nwrite;

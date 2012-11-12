@@ -31,9 +31,9 @@
 //------------------------------------------------------------------------------
 #include "common/Logging.hh"
 #include "common/Timing.hh"
+#include "CacheEntry.hh"
 #include "XrdFileCache.hh"
 #include "FileAbstraction.hh"
-#include "CacheEntry.hh"
 //------------------------------------------------------------------------------
 #include <XrdPosix/XrdPosixXrootd.hh>
 #include <XrdSys/XrdSysPthread.hh>
@@ -65,11 +65,13 @@ class CacheImpl
     // ---------------------------------------------------------------------------
     CacheImpl( size_t sizeMax, XrdFileCache* pMgmCache );
 
+  
     // ---------------------------------------------------------------------------
     //! Destructor
     // ---------------------------------------------------------------------------
     ~CacheImpl();
 
+  
     // ---------------------------------------------------------------------------
     //! Try to get a read request from the cache
     //!
@@ -83,10 +85,11 @@ class CacheImpl
     // ---------------------------------------------------------------------------
     bool GetRead( const long long int& k, char* buf, off_t off, size_t len );
 
+  
     // ---------------------------------------------------------------------------
     //! Add a read request to the cache
     //!
-    //! @param rpFile XrdCl file handler
+    //! @param file file layout type handler
     //! @param k key
     //! @param buf buffer containing the data
     //! @param off offset
@@ -94,13 +97,14 @@ class CacheImpl
     //! @param rFileAbst FileAbstraction handler
     //!
     // ---------------------------------------------------------------------------
-    void AddRead( XrdCl::File*&        rpFile,
+    void AddRead( eos::fst::Layout*&   file,
                   const long long int& k,
                   char*                buf,
                   off_t                off,
                   size_t               len,
                   FileAbstraction&     rFileAbst );
 
+  
     // ---------------------------------------------------------------------------
     //! Try to remove least-recently used read block from the cache
     //!
@@ -109,11 +113,13 @@ class CacheImpl
     // ---------------------------------------------------------------------------
     bool RemoveReadBlock();
 
+  
     // ---------------------------------------------------------------------------
     //! Force a write request to be done i.e send it to the writing thread
     // ---------------------------------------------------------------------------
     void ForceWrite();
 
+  
     // ---------------------------------------------------------------------------
     //! Force all the writes corresponding to the file to be executed
     //!
@@ -122,10 +128,11 @@ class CacheImpl
     // ---------------------------------------------------------------------------
     void FlushWrites( FileAbstraction& rFileAbst );
 
+  
     // ---------------------------------------------------------------------------
     //! Add a write request to the cache
     //!
-    //! @param rpFile XrdCl file handler
+    //! @param file file layout type handler
     //! @param k key
     //! @param buf buffer containing data
     //! @param off offset
@@ -133,13 +140,14 @@ class CacheImpl
     //! @param rFileAbst FileAbstraction handler
     //!
     // ---------------------------------------------------------------------------
-    void AddWrite( XrdCl::File*&        rpFile,
+    void AddWrite( eos::fst::Layout*&   file,
                    const long long int& k,
                    char*                buf,
                    off_t                off,
                    size_t               len,
                    FileAbstraction&     rFileAbst );
 
+  
     // ---------------------------------------------------------------------------
     //! Execute a write request which is pending
     //!
@@ -148,20 +156,23 @@ class CacheImpl
     // ---------------------------------------------------------------------------
     void ProcessWriteReq( CacheEntry* pEntry );
 
+  
     // ---------------------------------------------------------------------------
     //! Method executed by the thread doing the write operations
     // ---------------------------------------------------------------------------
     void RunThreadWrites();
 
+  
     // ---------------------------------------------------------------------------
     //! Kill the thread doing the write operations
     // ---------------------------------------------------------------------------
     void KillWriteThread();
 
+  
     // ---------------------------------------------------------------------------
     //! Get a block, either by recycling or allocating a new one
     //!
-    //! @param rpFile XrdCl file handler
+    //! @param file file layout type handler
     //! @param buf buffer containing the data
     //! @param off offset
     //! @param len length
@@ -171,34 +182,37 @@ class CacheImpl
     //! @return cache entry object
     //!
     // ---------------------------------------------------------------------------
-    CacheEntry* GetRecycledBlock( XrdCl::File*&     rpFile,
-                                  char*             buf,
-                                  off_t             off,
-                                  size_t            len,
-                                  bool              isWr,
-                                  FileAbstraction&  rFileAbst );
+    CacheEntry* GetRecycledBlock( eos::fst::Layout*& rpFile,
+                                  char*              buf,
+                                  off_t              off,
+                                  size_t             len,
+                                  bool               isWr,
+                                  FileAbstraction&   rFileAbst );
 
     // ---------------------------------------------------------------------------
     //! Get total size of the block in cache (rd + wr)
     // ---------------------------------------------------------------------------
     size_t GetSize();
+  
 
     // ---------------------------------------------------------------------------
     //! Increment the size of the blocks in cache
     // ---------------------------------------------------------------------------
     size_t IncrementSize( size_t value );
+  
 
     // ---------------------------------------------------------------------------
     //! Decrement the size of the blocks in cache
     // ---------------------------------------------------------------------------
     size_t DecrementSize( size_t value );
+  
 
     // ---------------------------------------------------------------------------
     //! Get the timeout value after which a thread exits from a conditional wait
     // ---------------------------------------------------------------------------
     static const int GetTimeWait() {
       return 250;  //miliseconds
-    }
+    };
 
   private:
 

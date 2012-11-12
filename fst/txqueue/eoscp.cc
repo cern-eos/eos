@@ -1117,22 +1117,24 @@ int main( int argc, char* argv[] )
   
             if ( replicationType == "raidDP" ) {
               layout = LayoutId::GetId( LayoutId::kRaidDP,
-                                                     1, nsrc,
-                                                     LayoutId::BlockSizeEnum( stripeWidth ),
-                                                     LayoutId::OssXsBlockSize,
-                                                     0, nparitystripes );
+                                        1, nsrc,
+                                        LayoutId::BlockSizeEnum( stripeWidth ),
+                                        LayoutId::OssXsBlockSize,
+                                        0, nparitystripes );
               
               redundancyObj = new eos::fst::RaidDpLayout( NULL, layout, NULL, NULL,
+                                                          eos::common::LayoutId::kXrdCl,
                                                           doStoreRecovery,
                                                           isStreamFile);
             } else if ( replicationType == "reedS" ) {
               layout = LayoutId::GetId( LayoutId::kReedS,
-                                                     1, nsrc,
-                                                     LayoutId::BlockSizeEnum( stripeWidth ),
-                                                     LayoutId::OssXsBlockSize,
-                                                     0, nparitystripes );
+                                        1, nsrc,
+                                        LayoutId::BlockSizeEnum( stripeWidth ),
+                                        LayoutId::OssXsBlockSize,
+                                        0, nparitystripes );
               
               redundancyObj = new eos::fst::ReedSLayout( NULL, layout, NULL, NULL,
+                                                         eos::common::LayoutId::kXrdCl,
                                                          doStoreRecovery,
                                                          isStreamFile);
             }
@@ -1279,6 +1281,7 @@ int main( int argc, char* argv[] )
                                         0, nparitystripes );
               
               redundancyObj = new eos::fst::RaidDpLayout( NULL, layout, NULL, NULL,
+                                                          eos::common::LayoutId::kXrdCl,
                                                           doStoreRecovery,
                                                           isStreamFile);
             } else if ( replicationType == "reedS" ) {
@@ -1289,6 +1292,7 @@ int main( int argc, char* argv[] )
                                         0, nparitystripes );
               
               redundancyObj = new eos::fst::ReedSLayout( NULL, layout, NULL, NULL,
+                                                         eos::common::LayoutId::kXrdCl,
                                                          doStoreRecovery,
                                                          isStreamFile);
             }

@@ -27,7 +27,6 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/FileIo.hh"
-#include "fst/XrdFstOfsFile.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -61,7 +60,7 @@ class LocalFileIo: public FileIo
     //--------------------------------------------------------------------------
     //! Open file
     //!
-    //! @param path file path
+    //! @param path file path to local file
     //! @param flags open flags
     //! @param mode open mode
     //! @param opaque opaque information
@@ -101,11 +100,11 @@ class LocalFileIo: public FileIo
     //!
     //--------------------------------------------------------------------------
     virtual int64_t Write( XrdSfsFileOffset offset,
-                           char*            buffer,
+                           const char*      buffer,
                            XrdSfsXferSize   length );
 
 
-      //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     //! Read from file async - falls back to synchrounous mode
     //!
     //! @param offset offset in file
@@ -135,10 +134,9 @@ class LocalFileIo: public FileIo
     //!
     //--------------------------------------------------------------------------
     virtual int64_t Write( XrdSfsFileOffset offset,
-                           char*            buffer,
+                           const char*      buffer,
                            XrdSfsXferSize   length,
                            void*            handler );
-
 
   
     //--------------------------------------------------------------------------

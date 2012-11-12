@@ -1396,13 +1396,17 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
 
   //......................................................................................................
   // Rebuild the layout ID (for read it should indicate only the number of available stripes for reading);
-  // For 'pio' mode we hand out plain layouts to the client and add the IO layout as an extra fiedl
+  // For 'pio' mode we hand out plain layouts to the client and add the IO layout as an extra field
   //......................................................................................................
+  newlayoutId = eos::common::LayoutId::GetId(
+      isPio ? eos::common::LayoutId::kPlain : eos::common::LayoutId::GetLayoutType(layoutId),
+      eos::common::LayoutId::GetChecksum(layoutId),
+      static_cast<int>( selectedfs.size() ),
+      eos::common::LayoutId::GetBlocksizeType(layoutId),
+      eos::common::LayoutId::GetBlockChecksum(layoutId) );
   
- 
-  newlayoutId = eos::common::LayoutId::GetId(isPio?eos::common::LayoutId::kPlain:eos::common::LayoutId::GetLayoutType(layoutId), eos::common::LayoutId::GetChecksum(layoutId), (int)selectedfs.size(), eos::common::LayoutId::GetBlocksizeType(layoutId), eos::common::LayoutId::GetBlockChecksum(layoutId));
   capability += "&mgm.lid=";    
-  capability += (int)newlayoutId;
+  capability += static_cast<int>( newlayoutId );
   // space to be prebooked/allocated
   capability += "&mgm.bookingsize=";
   capability += eos::common::StringConversion::GetSizeString(sizestring,bookingsize);
@@ -1428,12 +1432,12 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
   }
 
   XrdOucString infolog="";
-
   XrdOucString piolist="";
   
   if ((eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReplica) || 
       (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kRaidDP) || 
-      (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReedS)) {
+      (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReedS))
+  {
     capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
     
     eos::mgm::FileSystem* repfilesystem = 0;
@@ -1452,9 +1456,9 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
       capability += "&mgm.url"; capability += i; capability += "=root://";
       XrdOucString replicahost=""; int replicaport = 0;
 
-      // ------------------------------------------------------------------- 
-      // logic to mask 'offline' filesystems
-      // ------------------------------------------------------------------- 
+      //........................................................................
+      // Logic to mask 'offline' filesystems
+      //........................................................................
       bool exclude=false;
       for (size_t k = 0; k < unavailfs.size(); k++) {
 	if (selectedfs[i] == unavailfs[k]) {
@@ -1493,24 +1497,29 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
       infolog += ") ";
     }
   }
-  
-  // encrypt capability
+
+  //............................................................................
+  // Encrypt capability
+  //............................................................................
   XrdOucEnv  incapability(capability.c_str());
   XrdOucEnv* capabilityenv = 0;
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 
   eos_debug("capability=%s\n", capability.c_str());
   int caprc=0;
-  if ((caprc=gCapabilityEngine.Create(&incapability, capabilityenv, symkey))) {
-    return Emsg(epname, error, caprc, "sign capability", path);
+  if ( ( caprc = gCapabilityEngine.Create( &incapability, capabilityenv, symkey ) ) ) {
+    return Emsg( epname, error, caprc, "sign capability", path );
   }
   
   int caplen=0;
   if (isPio) {
     redirectionhost=piolist;
-    redirectionhost+= "&mgm.logid="; redirectionhost+=this->logId;
-    redirectionhost+= "&";
-    redirectionhost+= capabilityenv->Env(caplen);
+    redirectionhost += "&mgm.lid=";    
+    redirectionhost += static_cast<int>( layoutId );
+    redirectionhost += "&&mgm.logid=";
+    redirectionhost += this->logId;
+    redirectionhost += "&";
+    redirectionhost += capabilityenv->Env(caplen);
   } else {
     redirectionhost+=capabilityenv->Env(caplen);
     redirectionhost+= "&mgm.logid="; redirectionhost+=this->logId;
@@ -1529,11 +1538,11 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
     }
   
    
-    // for the moment we redirect only on storage nodes
+    // For the moment we redirect only on storage nodes
     redirectionhost+= "&mgm.replicaindex="; redirectionhost += (int)fsIndex;
     redirectionhost+= "&mgm.replicahead="; redirectionhost += (int)fsIndex;
   }
-  // always redirect
+  // Always redirect
   ecode = targetport;
   rcode = SFS_REDIRECT;
   error.setErrInfo(ecode,redirectionhost.c_str());
@@ -1547,9 +1556,11 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
   eos::common::StringConversion::MaskTag(predirectionhost,"cap.sym");
 
   if (isRW) {
-    eos_info("op=write path=%s info=%s %s redirection=%s:%d",path,pinfo.c_str(), infolog.c_str(), predirectionhost.c_str(),ecode);
+    eos_info("op=write path=%s info=%s %s redirection=%s:%d",
+             path, pinfo.c_str(), infolog.c_str(), predirectionhost.c_str(), ecode);
   } else {
-    eos_info("op=read  path=%s info=%s %s redirection=%s:%d",path,pinfo.c_str(), infolog.c_str(), predirectionhost.c_str(),ecode);
+    eos_info("op=read  path=%s info=%s %s redirection=%s:%d",
+             path, pinfo.c_str(), infolog.c_str(), predirectionhost.c_str(), ecode);
   }
 
   eos_info("info=\"redirection\" hostport=%s:%d", predirectionhost.c_str(), ecode);

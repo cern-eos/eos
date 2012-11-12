@@ -37,15 +37,16 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RaidMetaLayout::RaidMetaLayout( XrdFstOfsFile*      file,
-                                int                 lid,
-                                const XrdSecEntity* client,
-                                XrdOucErrInfo*      outError,
-                                bool                storeRecovery,
-                                bool                isStreaming,
-                                off_t               targetSize,
-                                std::string         bookingOpaque ) :
-  Layout( file, lid, client, outError ),
+RaidMetaLayout::RaidMetaLayout( XrdFstOfsFile*                 file,
+                                int                            lid,
+                                const XrdSecEntity*            client,
+                                XrdOucErrInfo*                 outError,
+                                eos::common::LayoutId::eIoType io,
+                                bool                           storeRecovery,
+                                bool                           isStreaming,
+                                off_t                          targetSize,
+                                std::string                    bookingOpaque ) :
+  Layout( file, lid, client, outError, io ),
   mIsRw( false ),
   mIsOpen( false ),
   mIsPio( false ),
@@ -161,14 +162,24 @@ RaidMetaLayout::Open( const std::string& path,
   enhanced_opaque += static_cast<int>( mStripeWidth );
   
   //..........................................................................
-  // Do open on local stripe - force it in RDWR mode
+  // Do open on local stripe - force it in RDWR mode if store recovery enabled
   //..........................................................................
   mLocalPath = path;
   FileIo* file = FileIoPlugin::GetIoObject( eos::common::LayoutId::kLocal,
                                             mOfsFile,
                                             mSecEntity,
                                             mError );
-  flags |= SFS_O_RDWR;
+
+  //............................................................................
+  // When recovery enabled then we open in simple RDWR mode
+  //............................................................................
+  if ( mStoreRecovery ) {
+    flags = SFS_O_RDWR;
+  }
+  else if ( flags & ( SFS_O_RDWR | SFS_O_TRUNC  ) ) {
+    mStoreRecovery = true;
+    flags = SFS_O_RDWR | SFS_O_TRUNC;
+  }
 
   if ( file && file->Open( path, flags, mode, enhanced_opaque.c_str() ) ) {
     eos_err( "error=failed to open local ", path.c_str() );
@@ -271,30 +282,42 @@ RaidMetaLayout::Open( const std::string& path,
 
         stripe_urls[i] += remoteOpenOpaque.c_str();
         int ret = -1;
+        uint16_t flags_xrdcl;
+        uint16_t mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW |
+                              XrdCl::Access::GR | XrdCl::Access::GW |
+                              XrdCl::Access::OR;
+        
         FileIo* file = FileIoPlugin::GetIoObject( eos::common::LayoutId::kXrdCl,
-                       mOfsFile,
-                       mSecEntity,
-                       mError );
-
-        if ( mOfsFile->isRW && file ) {
-          //....................................................................
-          // Write case
-          //....................................................................
+                                                  mOfsFile,
+                                                  mSecEntity,
+                                                  mError );
+        
+        //....................................................................
+        // Set the correct open flags for the stripe
+        //....................................................................
+        if ( mStoreRecovery || ( flags & ( SFS_O_RDWR | SFS_O_TRUNC ) ) ) {
           mIsRw = true;
-          ret = file->Open( stripe_urls[i],
-                            XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update,
-                            XrdCl::Access::UR | XrdCl::Access::UW |
-                            XrdCl::Access::GR | XrdCl::Access::GW |
-                            XrdCl::Access::OR , enhanced_opaque.c_str() );
-        } else {
-          //....................................................................
-          // Read case - we always open in RDWR mode
-          //TODO: maybe change this is if storeRecovery is not enabled                                        
-          //....................................................................
-          ret = file->Open( stripe_urls[i],
-                            XrdCl::OpenFlags::Update, 0,
-                            enhanced_opaque.c_str() );
+          if ( flags & SFS_O_TRUNC ) {
+            flags_xrdcl =  XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update;
+            eos_debug( "Write case." );
+          }
+          else {
+            flags_xrdcl = XrdCl::OpenFlags::Update;
+            eos_debug( "Update case." );
+          }
         }
+        else {
+          flags_xrdcl = XrdCl::OpenFlags::Read;
+          mode_xrdcl = 0;
+          eos_debug( "Read case." );
+        }
+        
+        
+        //........................................................................
+        // Doing the actual open
+        //........................................................................
+        ret = file->Open( stripe_urls[i], flags_xrdcl, mode_xrdcl,
+                          enhanced_opaque.c_str() );
 
         if ( ret == SFS_ERROR ) {
           eos_warning( "warning=failed to open remote stripes", stripe_urls[i].c_str() );
@@ -367,7 +390,8 @@ RaidMetaLayout::Open( const std::string& path,
       }
     }
   }
-  
+
+  eos_debug( "Finished open with size: %lli.", (long long int) mFileSize );
   mIsOpen = true;
   return SFS_OK;
 }
@@ -378,9 +402,9 @@ RaidMetaLayout::Open( const std::string& path,
 //------------------------------------------------------------------------------
 int
 RaidMetaLayout::OpenPio( std::vector<std::string>&& stripeUrls,
-                         XrdSfsFileOpenMode flags,  
-                         mode_t             mode,
-                         const char*        opaque )
+                         XrdSfsFileOpenMode         flags,  
+                         mode_t                     mode,
+                         const char*                opaque )
     
 {
   mStripeUrls = stripeUrls;
@@ -398,31 +422,43 @@ RaidMetaLayout::OpenPio( std::vector<std::string>&& stripeUrls,
     return SFS_ERROR;
   }
 
+  int64_t flags_xrdcl =  XrdCl::OpenFlags::Read;
+  int64_t mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW |
+                       XrdCl::Access::GR | XrdCl::Access::GW |
+                       XrdCl::Access::OR;
+
+  //....................................................................
+  // Set the correct open flags for the stripe
+  //....................................................................
+  if ( mStoreRecovery || ( flags & ( SFS_O_RDWR | SFS_O_TRUNC ) ) ) {
+    mIsRw = true;
+    if ( flags & SFS_O_TRUNC ) {
+      flags_xrdcl =  XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update;
+      eos_debug( "Write case." );
+    }
+    else {
+      flags_xrdcl = XrdCl::OpenFlags::Update;
+      eos_debug( "Update case." );
+    }
+  }
+  else {
+    flags_xrdcl = XrdCl::OpenFlags::Read;
+    mode_xrdcl = 0;
+    eos_debug( "Read case." );
+  }
+  
   //..........................................................................
   // Open stripes
   //..........................................................................
   for ( unsigned int i = 0; i < mStripeUrls.size(); i++ ) {
     int ret = -1;
     FileIo* file = FileIoPlugin::GetIoObject( eos::common::LayoutId::kXrdCl );
+    XrdOucString openOpaque = opaque;
+    openOpaque += "&&mgm.replicaindex=";
+    openOpaque += static_cast<int>( i );
    
-    if ( flags & O_WRONLY ) {
-      //....................................................................
-      // Write case
-      //....................................................................
-      mIsRw = true;
-      mStoreRecovery = true; // enabled by default when doing writing
-      ret = file->Open( mStripeUrls[i],
-                        XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update,
-                        XrdCl::Access::UR | XrdCl::Access::UW |
-                        XrdCl::Access::GR | XrdCl::Access::GW |
-                        XrdCl::Access::OR );
-    } else {
-      //....................................................................
-      // Read case - we always open in RDWR mode
-      //....................................................................
-      ret = file->Open( mStripeUrls[i], XrdCl::OpenFlags::Update );
-    }
-    
+    ret = file->Open( mStripeUrls[i], flags_xrdcl, mode_xrdcl, openOpaque.c_str() );
+       
     if ( ret == SFS_ERROR ) {
       eos_err( "error=failed to open remote stripes", mStripeUrls[i].c_str() );
       delete file;
@@ -571,6 +607,7 @@ RaidMetaLayout::ValidateHeader()
   //............................................................................
   for ( unsigned int i = 0; i < mNbTotalFiles; i++ ) {
     mapLP[mapPL[i]] = i;
+    eos_debug( "physica:%i, logical:%i", i, mapPL[i] );
   }
 
   mDoneRecovery = true;
@@ -586,6 +623,7 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
                       char*            buffer,
                       XrdSfsXferSize   length )
 {
+  eos_debug( "ofsset=%llu, length=%lu", offset, (long unsigned) length );
   eos::common::Timing rt( "read" );
   COMMONTIMING( "start", &rt );
   off_t nread = 0;
@@ -765,7 +803,7 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 int64_t
 RaidMetaLayout::Write( XrdSfsFileOffset offset,
-                       char*            buffer,
+                       const char*      buffer,
                        XrdSfsXferSize   length )
 {
   eos::common::Timing wt( "write" );
@@ -1218,6 +1256,7 @@ RaidMetaLayout::Remove()
 int
 RaidMetaLayout::Stat( struct stat* buf )
 {
+  eos_debug( "doing stat" );
   int rc = SFS_OK;   //TODO: change this, actually change the logic in XrdFstOfsFile
                      // concerning stat before the file is opened
   bool found = false;
@@ -1425,6 +1464,9 @@ RaidMetaLayout::GetMatchingPart( XrdSfsFileOffset offset,
                                  XrdSfsXferSize   length,
                                  XrdSfsFileOffset blockOffset )
 {
+  eos_debug( "offset=%lli, length=%lli, and block_off=%lli mStripeWidth=%lli.",
+             offset, (long long int) length,
+             blockOffset, (long long int) mStripeWidth);
   off_t ret_offset = blockOffset;
   size_t ret_length = mStripeWidth;
 
@@ -1432,10 +1474,20 @@ RaidMetaLayout::GetMatchingPart( XrdSfsFileOffset offset,
     ret_offset = offset;
   }
 
-  if ( blockOffset + ret_length > static_cast<size_t>( offset + length ) ) {
-    ret_length = offset + length - ret_offset;
+  if ( blockOffset + ret_length >= static_cast<size_t>( ret_offset + length ) ) {
+    if ( blockOffset >= offset ) {
+      ret_length = offset + length - blockOffset;
+    }
+    else {
+      ret_length = length;
+    }
+  }
+  else {
+    ret_length = blockOffset + ret_length - ret_offset;
   }
 
+  eos_debug( "Matching offset=%lli, length=%lli.",
+             ret_offset, (long long int )ret_length );
   return std::make_pair( ret_offset, ret_length );
 }
 
@@ -1477,8 +1529,9 @@ RaidMetaLayout::CopyExtraBlocks( char*            buffer,
       // Copy the first extra block
       //........................................................................
       match_pair = GetMatchingPart( offset, length, alignedOffset );
-      eos_debug( "Copy from the first extra block with matching offset=%lli, length=%lu",
-                match_pair.first, match_pair.second );
+      eos_debug( "Copy from the first extra block with matching offset=%lli, length=%lu"
+                 " and initial length = %lu",
+                 match_pair.first, match_pair.second, length );
       ptr_extra = mFirstBlock + ( match_pair.first - alignedOffset );
       ptr_buff = buffer;
       ptr_buff = static_cast<char*>( memcpy( ptr_buff, ptr_extra, match_pair.second ) );
@@ -1490,8 +1543,9 @@ RaidMetaLayout::CopyExtraBlocks( char*            buffer,
       //........................................................................
       XrdSfsFileOffset tmp_offset = end_aligned_offset - mStripeWidth;
       match_pair = GetMatchingPart( offset, length, tmp_offset );
-      eos_debug( "Copy from the last extra block with matching offset=%lli, length=%lu",
-                match_pair.first, match_pair.second );
+      eos_debug( "Copy from the last extra block with matching offset=%lli, length=%lu, tmp_offset=%lli"
+                 " offset=%lli, length=%lli" ,
+                 match_pair.first, match_pair.second, tmp_offset, offset, (long long int) length );
       ptr_extra = mLastBlock + ( match_pair.first - tmp_offset );
       ptr_buff = buffer + ( match_pair.first - offset );
       ptr_buff = static_cast<char*>( memcpy( ptr_buff, ptr_extra, match_pair.second ) );

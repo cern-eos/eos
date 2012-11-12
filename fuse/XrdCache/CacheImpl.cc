@@ -147,7 +147,7 @@ CacheImpl::GetRead( const long long int& k, char* buf, off_t off, size_t len )
 // Insert a read block in the cache
 //------------------------------------------------------------------------------
 void
-CacheImpl::AddRead( XrdCl::File*&        rpFile,
+CacheImpl::AddRead( eos::fst::Layout*&   file,
                     const long long int& k,
                     char*                buf,
                     off_t                off,
@@ -182,7 +182,7 @@ CacheImpl::AddRead( XrdCl::File*&        rpFile,
     //..........................................................................
     // Get new block
     //..........................................................................
-    pEntry = GetRecycledBlock( rpFile, buf, off, len, false, rFileAbst );
+    pEntry = GetRecycledBlock( file, buf, off, len, false, rFileAbst );
 
     while ( GetSize() + CacheEntry::GetMaxSize() >= mSizeMax ) {
       COMMONTIMING( "start evitc", &ar );
@@ -267,7 +267,7 @@ CacheImpl::ProcessWriteReq( CacheEntry* pEntry )
   //............................................................................
   // Put error code in error queue
   //............................................................................
-  if ( retc ) {
+  if ( retc == -1 ) {
     error = std::make_pair( retc, pEntry->GetOffsetStart() );
     pEntry->GetParentFile()->errorsQueue->push( error );
   }
@@ -296,7 +296,7 @@ CacheImpl::ProcessWriteReq( CacheEntry* pEntry )
 // Add new write request
 //------------------------------------------------------------------------------
 void
-CacheImpl::AddWrite( XrdCl::File*&        rpFile,
+CacheImpl::AddWrite( eos::fst::Layout*&   file,
                      const long long int& k,
                      char*                buf,
                      off_t                off,
@@ -371,7 +371,7 @@ CacheImpl::AddWrite( XrdCl::File*&        rpFile,
     //..........................................................................
     // Get new block
     //..........................................................................
-    pEntry = GetRecycledBlock( rpFile, buf, off, len, true, rFileAbst );
+    pEntry = GetRecycledBlock( file, buf, off, len, true, rFileAbst );
 
     while ( GetSize() + CacheEntry::GetMaxSize() >= mSizeMax ) {
       eos_static_debug( "size cache=%zu before adding write block", GetSize() );
@@ -422,12 +422,12 @@ CacheImpl::KillWriteThread()
 // Recycle an used block or create a new one if none available
 //------------------------------------------------------------------------------
 CacheEntry*
-CacheImpl::GetRecycledBlock( XrdCl::File*&    rpFile,
-                             char*            buf,
-                             off_t            off,
-                             size_t           len,
-                             bool             isWr,
-                             FileAbstraction& rFileAbst )
+CacheImpl::GetRecycledBlock( eos::fst::Layout*& file,
+                             char*              buf,
+                             off_t              off,
+                             size_t             len,
+                             bool               isWr,
+                             FileAbstraction&   rFileAbst )
 {
   CacheEntry* pRecycledObj = 0;
 
@@ -435,7 +435,7 @@ CacheImpl::GetRecycledBlock( XrdCl::File*&    rpFile,
     //..........................................................................
     // Got obj from pool
     //..........................................................................
-    pRecycledObj->DoRecycle( rpFile, buf, off, len, rFileAbst, isWr );
+    pRecycledObj->DoRecycle( file, buf, off, len, rFileAbst, isWr );
   } else {
     XrdSysMutexHelper mutex_helper( mMutexAllocSize );
 
@@ -448,7 +448,7 @@ CacheImpl::GetRecycledBlock( XrdCl::File*&    rpFile,
       //........................................................................
       mSizeAllocBlocks += CacheEntry::GetMaxSize();
       mutex_helper.UnLock();
-      pRecycledObj = new CacheEntry( rpFile, buf, off, len, rFileAbst, isWr );
+      pRecycledObj = new CacheEntry( file, buf, off, len, rFileAbst, isWr );
     }
   }
 

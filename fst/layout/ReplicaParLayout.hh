@@ -45,12 +45,15 @@ class ReplicaParLayout : public Layout
     //! @param lid layout id
     //! @param client security information
     //! @param error error information
+    //! @param io io access type ( ofs/xrd )
     //!
     //--------------------------------------------------------------------------
-    ReplicaParLayout( XrdFstOfsFile*      file,
-                      int                 lid,
-                      const XrdSecEntity* client,
-                      XrdOucErrInfo*      outError );
+    ReplicaParLayout( XrdFstOfsFile*                 file,
+                      int                            lid,
+                      const XrdSecEntity*            client,
+                      XrdOucErrInfo*                 outError,
+                      eos::common::LayoutId::eIoType io );
+
 
 
     //--------------------------------------------------------------------------
@@ -102,7 +105,7 @@ class ReplicaParLayout : public Layout
     //!
     //--------------------------------------------------------------------------
     virtual int64_t Write( XrdSfsFileOffset offset,
-                           char*            buffer,
+                           const char*      buffer,
                            XrdSfsXferSize   length );
 
 

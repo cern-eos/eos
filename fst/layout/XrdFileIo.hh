@@ -27,8 +27,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/FileIo.hh"
-#include "fst/XrdFstOfsFile.hh"
-#include "io/SimpleHandler.hh"
+#include "../io/SimpleHandler.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
 /*----------------------------------------------------------------------------*/
@@ -37,14 +36,13 @@ EOSFSTNAMESPACE_BEGIN
 
 class AsyncMetaHandler;
 
-
 //------------------------------------------------------------------------------
 //! Struct that holds a readahead buffer and corresponding handler
 //------------------------------------------------------------------------------
 struct ReadaheadBlock {
 
   static const uint64_t sDefaultBlocksize; ///< default value for readahead
-
+  
   //----------------------------------------------------------------------------
   //! Constuctor
   //!
@@ -90,6 +88,9 @@ class XrdFileIo: public FileIo
 {
 
   public:
+
+    static const uint32_t sNumRdAheadBlocks; //< no. of blocks used for readahead
+  
     //----------------------------------------------------------------------------
     //! Constructor
     //!
@@ -152,9 +153,8 @@ class XrdFileIo: public FileIo
     //!
     //--------------------------------------------------------------------------
     virtual int64_t Write( XrdSfsFileOffset offset,
-                           char*            buffer,
+                           const char*      buffer,
                            XrdSfsXferSize   length );
-
 
 
     //--------------------------------------------------------------------------
@@ -188,7 +188,7 @@ class XrdFileIo: public FileIo
     //!
     //--------------------------------------------------------------------------
     virtual int64_t Write( XrdSfsFileOffset offset,
-                           char*            buffer,
+                           const char*      buffer,
                            XrdSfsXferSize   length,
                            void*            pFileHandler );
 
@@ -270,7 +270,6 @@ class XrdFileIo: public FileIo
     //! Disable assign operator
     //--------------------------------------------------------------------------
     XrdFileIo& operator =( const XrdFileIo& ) = delete;
-
 
 };
 
