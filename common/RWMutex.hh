@@ -56,6 +56,7 @@ private:
   pthread_rwlock_t       rwlock;
   pthread_rwlockattr_t   attr;
   struct timespec        wlocktime;
+  struct timespec        rlocktime;
   bool                   blocking;
 
   ssize_t                readLockCounter;
@@ -71,6 +72,9 @@ public:
     // try to get write lock in 5 seconds, then release quickly and retry
     wlocktime.tv_sec=5; 
     wlocktime.tv_nsec=0;
+    // try to get read lock in 100ms, otherwise allow this thread to be canceled - used by LockReadCancel
+    rlocktime.tv_sec=0;
+    rlocktime.tv_nsec=1000000;
     // readers don't go ahead of writers!
     if (pthread_rwlockattr_setkind_np(&attr,PTHREAD_RWLOCK_PREFER_WRITER_NP)) { throw "pthread_rwlockattr_setkind_np failed";}
     if (pthread_rwlockattr_setpshared(&attr,PTHREAD_PROCESS_SHARED)){ throw "pthread_rwlockattr_setpshared failed";}
@@ -94,6 +98,31 @@ public:
   void LockRead() {
     AtomicInc(readLockCounter);
     if (pthread_rwlock_rdlock(&rwlock)) { throw "pthread_rwlock_rdlock failed";}
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Lock for read allowing to be canceled waiting for a lock
+  // ---------------------------------------------------------------------------
+  void LockReadCancel() {
+    AtomicInc(readLockCounter);
+    while (1) {
+      int rc = pthread_rwlock_timedrdlock(&rwlock, &rlocktime);
+      if ( rc ) {
+	if (rc == ETIMEDOUT) {
+	  fprintf(stderr,"=== READ LOCK CANCEL POINT == TID=%llu OBJECT=%llx\n", (unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
+	  XrdSysThread::SetCancelOn();
+	  XrdSysThread::CancelPoint();
+	  XrdSysTimer msSleep;
+	  msSleep.Wait(100);
+	  XrdSysThread::SetCancelOff();
+	} else {
+	  fprintf(stderr,"=== READ LOCK EXCEPTION == TID=%llu OBJECT=%llx rc=%d\n", (unsigned long long)XrdSysThread::ID(), (unsigned long long)this,rc);
+	  throw "pthread_rwlock_timedrdlock failed";
+	}
+      } else {
+	break;
+      }
+    }
   }
   
   // ---------------------------------------------------------------------------
@@ -199,6 +228,16 @@ public:
   // ---------------------------------------------------------------------------
   
   RWMutexReadLock(RWMutex &mutex) { Mutex = &mutex; Mutex->LockRead();}
+
+  RWMutexReadLock(RWMutex &mutex, bool allowcancel) { 
+    if (allowcancel) {
+      Mutex = &mutex; Mutex->LockReadCancel();
+    } else {
+      Mutex = &mutex; Mutex->LockRead();
+    }
+  }
+
+
 
   // ---------------------------------------------------------------------------
   //! Destructor

@@ -93,7 +93,8 @@ DrainJob::SetDrainer()
   //----------------------------------------------------------------
 
   FileSystem* fs = 0;
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+
   fs = 0;
   if (FsView::gFsView.mIdView.count(fsid)) 
     fs = FsView::gFsView.mIdView[fsid];
@@ -197,7 +198,7 @@ DrainJob::Drain(void)
   FileSystem* fs = 0;
 
   {
-    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex, true);
     ResetCounter();
   }
 
@@ -210,7 +211,7 @@ DrainJob::Drain(void)
   XrdSysThread::SetCancelOff();
   {
     // set status to 'prepare'
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex, true);
     fs = 0;
     if (FsView::gFsView.mIdView.count(fsid)) 
       fs = FsView::gFsView.mIdView[fsid];
@@ -270,7 +271,7 @@ DrainJob::Drain(void)
   XrdSysThread::SetCancelOff();
   {
     //------------------------------------
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex,true);
     try {
       eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
       eos::FileSystemView::FileIterator it;
@@ -291,7 +292,7 @@ DrainJob::Drain(void)
   XrdSysThread::SetCancelOff();
   // set the shared object counter
   {
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex,true);
     fs = 0;
     if (FsView::gFsView.mIdView.count(fsid)) 
       fs = FsView::gFsView.mIdView[fsid];
@@ -314,7 +315,7 @@ DrainJob::Drain(void)
     XrdSysThread::SetCancelOff();
     {
       // set status to 'waiting'
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex,true);
       fs = 0;
       if (FsView::gFsView.mIdView.count(fsid)) 
         fs = FsView::gFsView.mIdView[fsid];
@@ -342,7 +343,7 @@ DrainJob::Drain(void)
       if (now > waitreporttime) {
         XrdSysThread::SetCancelOff();
         // update stat.timeleft
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex,true);
         fs = 0;
         if (FsView::gFsView.mIdView.count(fsid)) 
           fs = FsView::gFsView.mIdView[fsid];
@@ -371,7 +372,7 @@ DrainJob::Drain(void)
 
   // set status to 'draining'
   {
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex,true);
     fs = 0;
     if (FsView::gFsView.mIdView.count(fsid)) 
       fs = FsView::gFsView.mIdView[fsid];
@@ -403,7 +404,7 @@ DrainJob::Drain(void)
     SetSpaceNode();
     
     {
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex,true);
       last_filesleft = filesleft;
       try {
 	eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
@@ -431,7 +432,7 @@ DrainJob::Drain(void)
       // ---------------------------------------------      
       
       {
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex,true);
         fs = 0;
         if (FsView::gFsView.mIdView.count(fsid)) 
           fs = FsView::gFsView.mIdView[fsid];
@@ -450,7 +451,7 @@ DrainJob::Drain(void)
       int progress = (int)(totalfiles)?(100.0*(totalfiles-filesleft)/totalfiles):100;
 
       {
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex,true);
         fs->SetLongLong("stat.drainprogress",  progress, false);
         if ( (drainendtime-time(NULL)) >0) {
           fs->SetLongLong("stat.timeleft", drainendtime-time(NULL), false);
@@ -474,7 +475,7 @@ DrainJob::Drain(void)
 
     // set timeleft
     {
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex,true);
       int progress = (int)(totalfiles)?(100.0*(totalfiles-filesleft)/totalfiles):100;
       fs = 0;
       if (FsView::gFsView.mIdView.count(fsid)) 
@@ -497,7 +498,7 @@ DrainJob::Drain(void)
       eos_static_notice("Terminating drain operation after drainperiod of %lld seconds has been exhausted", drainperiod);
       // set status to 'drainexpired'
       {
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex,true);
         fs = 0;
         if (FsView::gFsView.mIdView.count(fsid)) 
           fs = FsView::gFsView.mIdView[fsid];
@@ -537,7 +538,7 @@ DrainJob::Drain(void)
   // set status to 'drained'
   {
     XrdSysThread::SetCancelOff();      
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex,true);
     fs = 0;
     if (FsView::gFsView.mIdView.count(fsid)) 
       fs = FsView::gFsView.mIdView[fsid];

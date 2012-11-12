@@ -49,8 +49,10 @@ Balancer::~Balancer()
   //! destructor stops the balancer thread and stops all balancer processes (not used, the thread is always existing)
   //----------------------------------------------------------------
 
-  XrdSysThread::Cancel(thread);
-  if (!gOFS->Shutdown) { XrdSysThread::Join(thread,NULL); }
+  if (thread) {
+    XrdSysThread::Cancel(thread);
+    if (!gOFS->Shutdown) { XrdSysThread::Join(thread,NULL); }
+  }
 }
 
 /* ------------------------------------------------------------------------- */
@@ -100,7 +102,7 @@ Balancer::Balance(void)
 
     XrdSysThread::SetCancelOff();
     {
-      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex,true);
 
       std::set<FsGroup*>::const_iterator git;
       if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str()))
