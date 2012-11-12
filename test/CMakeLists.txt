@@ -67,6 +67,10 @@ add_executable (xrdcptruncate
  	        XrdCpTruncate.cc
 )
 
+add_executable (xrdcppartial
+ 	        XrdCpPartial.cc
+)
+
 add_executable (eoschecksumbench
  	        EosChecksumBenchmark.cc
 		../fst/checksum/Adler.cc
@@ -92,6 +96,7 @@ target_link_libraries(xrdcpbackward XrdPosix)
 target_link_libraries(xrdcpdownloadrandom XrdPosix)
 target_link_libraries(xrdcpshrink XrdPosix)
 target_link_libraries(xrdcptruncate XrdPosix)
+target_link_libraries(xrdcppartial XrdPosix)
 target_link_libraries(xrdcpposixcache XrdPosix)
 target_link_libraries(eoschecksumbench XrdPosix eosCommon)
 target_link_libraries(eos-udp-dumper)
@@ -105,10 +110,11 @@ set_target_properties ( xrdcpbackward PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_B
 set_target_properties ( xrdcpdownloadrandom PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcpshrink PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcptruncate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcppartial PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcpposixcache PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -msse4.2" )
 
-INSTALL_PROGRAMS( /sbin FILES xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcpposixcache eoschecksumbench eos-udp-dumper eos-mmap)
+INSTALL_PROGRAMS( /sbin FILES xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcptruncate xrdcppartial xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcpposixcache eoschecksumbench eos-udp-dumper eos-mmap)
 
 INSTALL ( FILES xrdstress DESTINATION ${CMAKE_INSTALL_PREFIX}/${SBIN_INSTALL_DIR}/ PERMISSIONS OWNER_EXECUTE GROUP_EXECUTE WORLD_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
 INSTALL ( FILES eos-instance-test DESTINATION ${CMAKE_INSTALL_PREFIX}/${SBIN_INSTALL_DIR}/ PERMISSIONS OWNER_EXECUTE OWNER_READ GROUP_READ WORLD_READ)

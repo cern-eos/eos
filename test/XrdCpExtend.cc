@@ -35,7 +35,7 @@ int main (int argc, char* argv[]) {
   // create a 1k file but does not close it!
   XrdOucString urlFile = argv[1];
   if (!urlFile.length()) {
-    fprintf(stderr,"usage: xrdcpabort <url>\n");
+    fprintf(stderr,"usage: xrdcpextend <url>\n");
     exit(EINVAL);
   }
   

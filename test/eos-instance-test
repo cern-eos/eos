@@ -58,11 +58,18 @@ export EOSTESTPID=$EOS_TEST_TESTSYS/eos-pid
 export FAILFILE=$EOS_TEST_TESTSYS/eos-failed
 export TIMEOUTFILE=$EOS_TEST_TESTSYS/eos-timeout
 
+export TESTSYSFILE0K=$EOS_TEST_TSETSYS/file.0K
 export TESTSYSFILE1K=$EOS_TEST_TESTSYS/file.1K
 export TESTSYSFILE1M=$EOS_TEST_TESTSYS/file.1M
 export TESTSYSFILE50M=$EOS_TEST_TESTSYS/file.50M
 
 ################################################################################################################
+echo "####################################"
+echo "### Creating Test Pattern File 0K"
+echo "####################################"
+rm -rf $TESTSYSFILE0K >& /dev/null
+touch $TESTSYSFILE0K
+
 echo "####################################"
 echo "### Creating Test Pattern File 1K"
 echo "####################################"
@@ -219,6 +226,10 @@ backward() {
     echo xrdcpbackward root://$EOS_TEST_REDIRECTOR/$1 >& $EOSLASTLOG; eval xrdcpbackward root://$EOS_TEST_REDIRECTOR/$1 >> $EOSCERTLOG 2>&1
 }
 
+partial() {
+    echo xrdcppartial root://$EOS_TEST_REDIRECTOR/$1 >& $EOSLASTLOG; eval xrdcppartial root://$EOS_TEST_REDIRECTOR/$1 >> $EOSCERTLOG 2>&1
+}
+
 downloadrandom() {
     echo xrdcpdownloadrandom root://$EOS_TEST_REDIRECTOR/$1 >& $EOSLASTLOG; eval xrdcpdownloadrandom root://$EOS_TEST_REDIRECTOR/$1 >> $EOSCERTLOG 2>&1
 }
@@ -279,7 +290,7 @@ echo "==================================================="
 #      <auth>                  : 'krb5','gsi','unix','sss' - choose krb5 or X509 authentication [ you have to create both tokens beforehand ]
 #      <env>                   : can be used to set the execution environment env <env> "
 #      <expect>                : 0 or 1 => 0 - you expect the command works , 1 - you expect that the command failes, 2 - you run the command but it can fail or not, that is expected
-#      <mode>                  : upload|download|downloadh|meta|eos|stress|abort|extend|shrink|random|truncate|holes|backward|downloadrandom : self explaining - meta executes command via xrd shell, eos via eos shell, stress runs xrdstress, abort runs xrdcpabort ...
+#      <mode>                  : upload|download|downloadh|meta|eos|stress|abort|extend|shrink|random|truncate|holes|backward|partial|downloadrandom : self explaining - meta executes command via xrd shell, eos via eos shell, stress runs xrdstress, abort runs xrdcpabort ...
 #      <srcpath,dstpath>       : is a local '/...' or remote '/eos/...' path
 #      <param>                 : opaque information passed ... '&' has to be escaped !!!!
 ################################################################################################################
@@ -320,6 +331,7 @@ runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTA
 runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
 runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
 runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" 
+runtest "### Part.Dwld " unix 0 "" partial   "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" 
 runtest "### Download  " unix 1 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
 runtest "### Dowl Lfn  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/enoent" "-OSeos.lfn=/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
 runtest "### Dowl Lfn  " unix 1 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/enoent" "-OSeos.lfn=/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
@@ -405,6 +417,8 @@ runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/insta
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=adler /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### UploadCks " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=$CKS1K"
 runtest "### FileInfo  " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k -m | grep nrep=1" 
+runtest "### UploadCks " unix 0 "" upload    "$TESTSYSFILE0K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/good-checksum0k" "-ODeos.checksum=00000001"
+runtest "### Rem       " unix 0 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/good-checksum0k"
 runtest "### UploadCks " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=00000000"
 runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k -m | grep nrep=0"
 runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k"
