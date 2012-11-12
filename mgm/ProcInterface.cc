@@ -1285,7 +1285,8 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  retc = EINVAL;
 		}
 	      }		 
-            } 
+	      stdOut += "\n";
+            }
 	    if (!nodes.size()) {
               retc = EINVAL;
               stdErr = "error: cannot find node <"; stdErr += identifier.c_str(); stdErr += ">";

@@ -5861,7 +5861,6 @@ XrdMgmOfs::FSctl(const int               cmd,
 	  XrdOucString msgbody = "mgm.cmd=drop"; 
 	  XrdOucString capability ="";
 	  XrdOucString idlist="";
-	  eos_static_info("got iterator ...");
 	  for ( it = unlinkpair.first; it != unlinkpair.second; ++it) {
 	    eos_static_info("msg=\"add to deletion message\" fxid=%08llx fsid=%lu", *it, (unsigned long)fslist[i]);
 	    
