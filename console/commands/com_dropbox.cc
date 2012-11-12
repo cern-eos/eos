@@ -115,12 +115,12 @@ com_dropbox (char *arg) {
     XrdOucString resync = subtokenizer.GetToken();    
     if (resync.length()) {
       int rc = system("eosdropboxd --resync");
-      if (!WEXITSTATUS(rc)) {
+      if (WEXITSTATUS(rc)) {
 	fprintf(stderr,"error: failed to run eosdropboxd --resync\n");
       }
     } else {
       int rc = system("eosdropboxd");
-      if (!WEXITSTATUS(rc)) {
+      if (WEXITSTATUS(rc)) {
 	fprintf(stderr,"error: failed to run eosdropboxd\n");
       }
     }
@@ -136,7 +136,7 @@ com_dropbox (char *arg) {
 
   if (subcommand == "stop") {
     int rc = system("pkill -15 eosdropboxd >& /dev/null");
-    if (!WEXITSTATUS(rc)) {
+    if (WEXITSTATUS(rc)) {
       fprintf(stderr,"warning: didn't kill any esodropboxd");
     }
     global_retc = 0;
@@ -183,7 +183,7 @@ com_dropbox (char *arg) {
   fprintf(stdout,"dropbox rm <eos-dir>                :\n");
   fprintf(stdout,"                                                  remove drop box configuration to synchronize from <eos-dir>!\n");
   fprintf(stdout,"dropbox start [--resync]             :\n");
-  fprintf(stdout,"                                                  start the drop box daemon for all configured dropbox directories! If the --resync flag is given, the local directory is resynced from scratch from the remote directory!");
+  fprintf(stdout,"                                                  start the drop box daemon for all configured dropbox directories! If the --resync flag is given, the local directory is resynced from scratch from the remote directory!\n");
   fprintf(stdout,"dropbox stop                        :\n");
   fprintf(stdout,"                                                  stop the drop box daemon for all configured dropbox directories!\n");
   fprintf(stdout,"dropbox ls                          :\n");
