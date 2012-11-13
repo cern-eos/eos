@@ -37,15 +37,16 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ReedSLayout::ReedSLayout( XrdFstOfsFile*      file,
-                          int                 lid,
-                          const XrdSecEntity* client,
-                          XrdOucErrInfo*      outError,
-                          bool                storeRecovery,
-                          bool                isStreaming,
-                          off_t               targetSize,
-                          std::string         bookingOpaque ) :
-  RaidMetaLayout( file, lid, client, outError, storeRecovery,
+ReedSLayout::ReedSLayout( XrdFstOfsFile*                 file,
+                          int                            lid,
+                          const XrdSecEntity*            client,
+                          XrdOucErrInfo*                 outError,
+                          eos::common::LayoutId::eIoType io,
+                          bool                           storeRecovery,
+                          bool                           isStreaming,
+                          off_t                          targetSize,
+                          std::string                    bookingOpaque ) :
+  RaidMetaLayout( file, lid, client, outError, io, storeRecovery,
                   isStreaming, targetSize, bookingOpaque )
 {
   mNbDataBlocks = mNbDataFiles;
@@ -399,7 +400,7 @@ ReedSLayout::Backtracking( unsigned int               k,
 // Add a new data used to compute parity block
 //------------------------------------------------------------------------------
 void
-ReedSLayout::AddDataBlock( off_t offset, char* pBuffer, size_t length )
+ReedSLayout::AddDataBlock( off_t offset, const char* pBuffer, size_t length )
 {
   int indx_block;
   size_t nwrite;
@@ -464,7 +465,8 @@ ReedSLayout::WriteParityToFiles( off_t offsetGroup )
   int ret = SFS_OK;
   int64_t nwrite = 0;
   unsigned int physical_id;
-  off_t offset_local = ( offsetGroup / mNbDataFiles ) + mStripeWidth;
+  off_t offset_local = ( offsetGroup / mNbDataFiles );
+  offset_local += mSizeHeader;
 
   for ( unsigned int i = mNbDataFiles; i < mNbTotalFiles; i++ ) {
     physical_id = mapLP[i];

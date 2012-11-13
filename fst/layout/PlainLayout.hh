@@ -45,12 +45,14 @@ class PlainLayout : public Layout
     //! @param lid layout id
     //! @param client security information
     //! @param error error information
+    //! @param io io access type ( ofs/xrd )
     //!
     //--------------------------------------------------------------------------
-    PlainLayout( XrdFstOfsFile*      file,
-                 int                 lid,
-                 const XrdSecEntity* client,
-                 XrdOucErrInfo*      outError );
+    PlainLayout( XrdFstOfsFile*                 file,
+                 int                            lid,
+                 const XrdSecEntity*            client,
+                 XrdOucErrInfo*                 outError,
+                 eos::common::LayoutId::eIoType io );
 
 
     //--------------------------------------------------------------------------
@@ -73,7 +75,7 @@ class PlainLayout : public Layout
     virtual int Open( const std::string& path,
                       XrdSfsFileOpenMode flags,
                       mode_t             mode,
-                      const char*        opaque );
+                      const char*        opaque = "" );
 
 
     //--------------------------------------------------------------------------
@@ -102,7 +104,7 @@ class PlainLayout : public Layout
     //!
     //--------------------------------------------------------------------------
     virtual int64_t Write( XrdSfsFileOffset offset,
-                           char*            buffer,
+                           const char*      buffer,
                            XrdSfsXferSize   length );
 
 

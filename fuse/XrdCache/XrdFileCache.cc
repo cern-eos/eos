@@ -26,8 +26,6 @@
 #include <cstring>
 #include <unistd.h>
 //------------------------------------------------------------------------------
-#include "common/Logging.hh"
-//------------------------------------------------------------------------------
 #include "XrdFileCache.hh"
 //------------------------------------------------------------------------------
 
@@ -153,11 +151,11 @@ XrdFileCache::GetFileObj( unsigned long inode, bool getNew )
 // Submit a write request
 //------------------------------------------------------------------------------
 void
-XrdFileCache::SubmitWrite( XrdCl::File*& rpFile,
-                           unsigned long inode,
-                           void*         buf,
-                           off_t         off,
-                           size_t        len )
+XrdFileCache::SubmitWrite( eos::fst::Layout*& file,
+                           unsigned long      inode,
+                           void*              buf,
+                           off_t              off,
+                           size_t             len )
 {
   size_t nwrite;
   long long int key;
@@ -172,7 +170,7 @@ XrdFileCache::SubmitWrite( XrdCl::File*& rpFile,
     nwrite = CacheEntry::GetMaxSize() - ( off % CacheEntry::GetMaxSize() );
     key = pAbst->GenerateBlockKey( off );
     eos_static_debug( "(1) off=%zu, len=%zu", off, nwrite );
-    mpCacheImpl->AddWrite( rpFile, key, pBuf + written_offset, off, nwrite, *pAbst );
+    mpCacheImpl->AddWrite( file, key, pBuf + written_offset, off, nwrite, *pAbst );
     off += nwrite;
     len -= nwrite;
     written_offset += nwrite;
@@ -182,7 +180,7 @@ XrdFileCache::SubmitWrite( XrdCl::File*& rpFile,
     nwrite = len;
     key = pAbst->GenerateBlockKey( off );
     eos_static_debug( "(2) off=%zu, len=%zu", off, nwrite );
-    mpCacheImpl->AddWrite( rpFile, key, pBuf + written_offset, off, nwrite, *pAbst );
+    mpCacheImpl->AddWrite( file, key, pBuf + written_offset, off, nwrite, *pAbst );
     written_offset += nwrite;
   }
 
@@ -194,16 +192,16 @@ XrdFileCache::SubmitWrite( XrdCl::File*& rpFile,
 //------------------------------------------------------------------------------
 // Try to satisfy request from cache
 //------------------------------------------------------------------------------
-size_t
+int64_t
 XrdFileCache::GetRead( FileAbstraction& rFileAbst,
                        void*            buf,
                        off_t            off,
                        size_t           len )
 {
-  size_t nread;
+  int64_t nread;
   long long int key;
   bool found = true;
-  off_t read_offset = 0;
+  int64_t read_offset = 0;
   char* pBuf = static_cast<char*>( buf );
 
   //............................................................................
@@ -244,16 +242,16 @@ XrdFileCache::GetRead( FileAbstraction& rFileAbst,
 //------------------------------------------------------------------------------
 // Save piece in cache
 //------------------------------------------------------------------------------
-size_t
-XrdFileCache::PutRead( XrdCl::File*&    file,
-                       FileAbstraction& rFileAbst,
-                       void*            buf,
-                       off_t            off,
-                       size_t           len )
+int64_t
+XrdFileCache::PutRead( eos::fst::Layout*& file,
+                       FileAbstraction&   rFileAbst,
+                       void*              buf, 
+                       off_t              off,
+                       size_t             len )
 {
-  size_t nread;
+  int64_t nread;
   long long int key;
-  off_t read_offset = 0;
+  int64_t read_offset = 0;
   char* pBuf = static_cast<char*>( buf );
 
   //............................................................................

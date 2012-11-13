@@ -61,14 +61,16 @@ class LayoutPlugin
     //! @param layoutId layout id type
     //! @param client security entity
     //! @param error error information
+    //! @param accessType access type ( ofs/xrd )
     //!
     //! @return requested layout type object
     //!
     //--------------------------------------------------------------------------
-    static Layout* GetLayoutObject( XrdFstOfsFile*      file,
-                                    unsigned int        layoutId,
-                                    const XrdSecEntity* client,
-                                    XrdOucErrInfo*      error );
+    static Layout* GetLayoutObject( XrdFstOfsFile*                 file,
+                                    unsigned int                   layoutId,
+                                    const XrdSecEntity*            client,
+                                    XrdOucErrInfo*                 error,
+                                    eos::common::LayoutId::eIoType accessType );
 };
 
 EOSFSTNAMESPACE_END

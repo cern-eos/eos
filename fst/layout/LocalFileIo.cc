@@ -24,12 +24,8 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/LocalFileIo.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOss/XrdOssApi.hh"
-/*----------------------------------------------------------------------------*/
 #include <xfs/xfs.h>
 /*----------------------------------------------------------------------------*/
-
-extern XrdOssSys* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -66,8 +62,13 @@ LocalFileIo::Open( const std::string& path,
                    mode_t             mode,
                    const std::string& opaque )
 {
-  mLocalPath = path;
-  return mLogicalFile->openofs( path.c_str(),
+  if ( !mLogicalFile ) {
+    eos_err( "error= the logical file must exist already" );
+    return SFS_ERROR;
+  }
+  
+  mFilePath = path;
+  return mLogicalFile->openofs( mFilePath.c_str(),
                                 flags,
                                 mode,
                                 mSecEntity,
@@ -95,7 +96,7 @@ LocalFileIo::Read( XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 int64_t
 LocalFileIo::Write( XrdSfsFileOffset offset,
-                    char*            buffer,
+                    const char*      buffer,
                     XrdSfsXferSize   length )
 {
   eos_debug( "offset = %lli, length = %lli",
@@ -124,7 +125,7 @@ LocalFileIo::Read( XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 int64_t
 LocalFileIo::Write( XrdSfsFileOffset offset,
-                    char*            buffer,
+                    const char*      buffer,
                     XrdSfsXferSize   length,
                     void*            handler )
 {
@@ -221,7 +222,8 @@ LocalFileIo::Sync()
 int
 LocalFileIo::Stat( struct stat* buf )
 {
-  return XrdOfsOss->Stat( mLogicalFile->GetFstPath().c_str(), buf );
+  XrdOfsFile* pOfsFile = mLogicalFile;
+  return pOfsFile->XrdOfsFile::stat( buf );
 }
 
 

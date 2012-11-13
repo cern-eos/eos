@@ -31,11 +31,11 @@
 #include <sys/time.h>
 #include <sys/types.h>
 /*----------------------------------------------------------------------------*/
-#include "XrdCl/XrdClFile.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
-/*----------------------------------------------------------------------------*/
 #include "FileAbstraction.hh"
 /*----------------------------------------------------------------------------*/
+#include "../../fst/layout/Layout.hh"
+/*----------------------------------------------------------------------------*/
+
 
 //------------------------------------------------------------------------------
 //! Class representing a block saved in cache
@@ -47,7 +47,7 @@ class CacheEntry
     //--------------------------------------------------------------------------
     //! Constructor
     //!
-    //! @param rpFile file handler
+    //! @param file file layout type handler
     //! @param buf data buffer
     //! @param off offset
     //! @param len length
@@ -55,12 +55,12 @@ class CacheEntry
     //! @param isWr set if entry is for writing
     //!
     //--------------------------------------------------------------------------
-    CacheEntry( XrdCl::File*&    rpFile,
-                char*            buf,
-                off_t            off,
-                size_t           len,
-                FileAbstraction& rFileAbst,
-                bool             isWr );
+    CacheEntry( eos::fst::Layout*& file,
+                char*              buf,
+                off_t              off,
+                size_t             len,
+                FileAbstraction&   rFileAbst,
+                bool               isWr );
 
     //--------------------------------------------------------------------------
     //! Destructor
@@ -129,7 +129,7 @@ class CacheEntry
     //--------------------------------------------------------------------------
     //! Method that does the actual writing
     //--------------------------------------------------------------------------
-    int DoWrite();
+    int64_t DoWrite();
 
     //--------------------------------------------------------------------------
     //! Add a new piece to the block
@@ -147,7 +147,7 @@ class CacheEntry
     //--------------------------------------------------------------------------
     //! Method to recycle a previously used block
     //!
-    //! @param rpFile XrdCl file handler
+    //! @param file file layout type handler
     //! @param buf data buffer
     //! @param off offset
     //! @param len length
@@ -155,18 +155,18 @@ class CacheEntry
     //! @param isWr set of entry is for writing
     //!
     //--------------------------------------------------------------------------
-    void DoRecycle( XrdCl::File*&    rpFile,
-                    char*            buf,
-                    off_t            off,
-                    size_t           len,
-                    FileAbstraction& rFileAbst,
-                    bool             isWr );
+    void DoRecycle( eos::fst::Layout*& file,
+                    char*              buf,
+                    off_t              off,
+                    size_t             len,
+                    FileAbstraction&   rFileAbst,
+                    bool               isWr );
 
   private:
 
     static size_t msMaxSize;     ///< max size of entry
 
-    XrdCl::File* mpFile;         ///< XrdCl file handler
+    eos::fst::Layout* mpFile;    ///< file layout type handler
     bool mIsWrType;              ///< is write block type
     char*  mpBuffer;             ///< buffer of the object
     size_t mCapacity;            ///< total capcity 512 KB ~ 4MB

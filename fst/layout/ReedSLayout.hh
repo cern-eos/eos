@@ -45,20 +45,22 @@ class ReedSLayout : public RaidMetaLayout
     //! @param lid layout id
     //! @param client security information
     //! @param outError error information
+    //! @param io access type 
     //! @param storeRecovery if true write back the recovered blocks to file
     //! @param isStreaming file is written in streaming mode
     //! @param targetSize expected final size
     //! @param bookingOpaque opaque information
     //!
     //--------------------------------------------------------------------------
-    ReedSLayout( XrdFstOfsFile*      file,
-                 int                 lid,
-                 const XrdSecEntity* client,
-                 XrdOucErrInfo*      outError,
-                 bool                storeRecovery = true,
-                 bool                isStreaming = false,
-                 off_t               targetSize = 0,
-                 std::string         bookingOpaque = "oss.size" );
+    ReedSLayout( XrdFstOfsFile*                 file,
+                 int                            lid,
+                 const XrdSecEntity*            client,
+                 XrdOucErrInfo*                 outError,
+                 eos::common::LayoutId::eIoType io,
+                 bool                           storeRecovery = false,
+                 bool                           isStreaming = false,
+                 off_t                          targetSize = 0,
+                 std::string                    bookingOpaque = "oss.size" );
 
 
     //--------------------------------------------------------------------------
@@ -120,7 +122,7 @@ class ReedSLayout : public RaidMetaLayout
     //! @param length data length
     //!
     //--------------------------------------------------------------------------
-    virtual void AddDataBlock( off_t offset, char* pBuffer, size_t length );
+    virtual void AddDataBlock( off_t offset, const char* pBuffer, size_t length );
 
 
     //--------------------------------------------------------------------------

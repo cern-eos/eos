@@ -31,12 +31,9 @@
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
-
-class XrdFstOfsFile;
 
 //------------------------------------------------------------------------------
 //! The truncate offset (1TB) is used to indicate that a file should be deleted
@@ -52,6 +49,7 @@ class XrdFstOfsFile;
 class FileIo: public eos::common::LogId
 {
   public:
+
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
@@ -59,7 +57,7 @@ class FileIo: public eos::common::LogId
             const XrdSecEntity* client,
             XrdOucErrInfo*      error ):
       eos::common::LogId(),
-      mLocalPath( "" ),
+      mFilePath( "" ),
       mLogicalFile( file ),
       mError( error ),
       mSecEntity( client )
@@ -119,7 +117,7 @@ class FileIo: public eos::common::LogId
     //!
     //--------------------------------------------------------------------------
     virtual int64_t Write( XrdSfsFileOffset offset,
-                           char*            buffer,
+                           const char*      buffer,
                            XrdSfsXferSize   length ) = 0;
 
 
@@ -154,7 +152,7 @@ class FileIo: public eos::common::LogId
     //!
     //--------------------------------------------------------------------------
     virtual int64_t Write( XrdSfsFileOffset offset,
-                           char*            buffer,
+                           const char*      buffer,
                            XrdSfsXferSize   length,
                            void*            handler ) = 0;
 
@@ -242,12 +240,12 @@ class FileIo: public eos::common::LogId
     //! Get path to current file
     //--------------------------------------------------------------------------
     const std::string& GetPath() {
-      return mLocalPath;
+      return mFilePath;
     }
 
   protected:
 
-    std::string         mLocalPath;   ///< path to current file
+    std::string         mFilePath;    ///< path to current physical file
     XrdFstOfsFile*      mLogicalFile; ///< handler to logical file
     XrdOucErrInfo*      mError;       ///< error information
     const XrdSecEntity* mSecEntity;   ///< security entity

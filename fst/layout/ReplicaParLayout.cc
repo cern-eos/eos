@@ -26,10 +26,6 @@
 #include "fst/layout/FileIoPlugin.hh"
 #include "fst/XrdFstOfs.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOss/XrdOssApi.hh"
-/*----------------------------------------------------------------------------*/
-
-extern XrdOssSys*  XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -37,11 +33,12 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ReplicaParLayout::ReplicaParLayout( XrdFstOfsFile*      file,
-                                    int                 lid,
-                                    const XrdSecEntity* client,
-                                    XrdOucErrInfo*      outError ):
-  Layout( file, lid, client, outError )
+ReplicaParLayout::ReplicaParLayout( XrdFstOfsFile*                 file,
+                                    int                            lid,
+                                    const XrdSecEntity*            client,
+                                    XrdOucErrInfo*                 outError,
+                                    eos::common::LayoutId::eIoType io ):
+    Layout( file, lid, client, outError, io )
 {
   mNumReplicas = eos::common::LayoutId::GetStripeNumber( lid ) + 1; // this 1=0x0 16=0xf :-)
   ioLocal = false;
@@ -183,10 +180,10 @@ ReplicaParLayout::Open( const std::string&  path,
       //........................................................................
       mLocalPath = path;
       FileIo* file = FileIoPlugin::GetIoObject( eos::common::LayoutId::kLocal,
-                     mOfsFile,
-                     mSecEntity,
-                     mError );
-
+                                                mOfsFile,
+                                                mSecEntity,
+                                                mError );
+      
       if ( file->Open( path, flags, mode, opaque ) ) {
         eos_err( "Failed to open replica - local open failed on ", path.c_str() );
         return gOFS.Emsg( "ReplicaOpen", *mError, EIO,
@@ -205,15 +202,15 @@ ReplicaParLayout::Open( const std::string&  path,
            ( is_head_server && ( i != replica_index ) ) ) {
         if ( mOfsFile->isRW ) {
           XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
-          // mask some opaque parameters to shorten the logging
+          // Mask some opaque parameters to shorten the logging
           eos::common::StringConversion::MaskTag( maskUrl, "cap.sym" );
           eos::common::StringConversion::MaskTag( maskUrl, "cap.msg" );
           eos::common::StringConversion::MaskTag( maskUrl, "authz" );
           eos_info( "Opening Layout Stripe %s\n", maskUrl.c_str() );
           FileIo* file = FileIoPlugin::GetIoObject( eos::common::LayoutId::kXrdCl,
-                         mOfsFile,
-                         mSecEntity,
-                         mError );
+                                                    mOfsFile,
+                                                    mSecEntity,
+                                                    mError );
 
           //....................................................................
           // Write case
@@ -304,7 +301,7 @@ ReplicaParLayout::Read( XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 int64_t
 ReplicaParLayout::Write( XrdSfsFileOffset offset,
-                         char*            buffer,
+                         const char*      buffer,
                          XrdSfsXferSize   length )
 {
   int64_t rc;
@@ -368,7 +365,8 @@ ReplicaParLayout::Truncate( XrdSfsFileOffset offset )
 int
 ReplicaParLayout::Stat( struct stat* buf )
 {
-  return XrdOfsOss->Stat( mOfsFile->fstPath.c_str(), buf );
+   XrdOfsFile* pOfsFile = mOfsFile;
+  return pOfsFile->XrdOfsFile::stat( buf );
 }
 
 //------------------------------------------------------------------------------

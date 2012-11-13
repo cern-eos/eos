@@ -41,13 +41,15 @@ Layout::Layout( XrdFstOfsFile* file ):
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Layout::Layout( XrdFstOfsFile*      file,
-                int                 lid,
-                const XrdSecEntity* client,
-                XrdOucErrInfo*      outError ):
+Layout::Layout( XrdFstOfsFile*                 file,
+                int                            lid,
+                const XrdSecEntity*            client,
+                XrdOucErrInfo*                 outError,
+                eos::common::LayoutId::eIoType io ):
   mLayoutId( lid ),
   mOfsFile( file ),
-  mError( outError )
+  mError( outError ),
+  mIoType( io )
 {
   mSecEntity = const_cast<XrdSecEntity*>( client );
   mName = eos::common::LayoutId::GetLayoutTypeString( mLayoutId );

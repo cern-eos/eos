@@ -32,16 +32,17 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-PlainLayout::PlainLayout( XrdFstOfsFile*      file,
-                          int                 lid,
-                          const XrdSecEntity* client,
-                          XrdOucErrInfo*      outError ) :
-  Layout( file, lid, client, outError )
+PlainLayout::PlainLayout( XrdFstOfsFile*                 file,
+                          int                            lid,
+                          const XrdSecEntity*            client,
+                          XrdOucErrInfo*                 outError,
+                          eos::common::LayoutId::eIoType io ) :
+    Layout( file, lid, client, outError, io )
 {
   //............................................................................
   // For the plain layout we use only the LocalFileIo type
   //............................................................................
-  mPlainFile = FileIoPlugin::GetIoObject( eos::common::LayoutId::kLocal,
+  mPlainFile = FileIoPlugin::GetIoObject( mIoType,
                                           mOfsFile,
                                           mSecEntity,
                                           mError );
@@ -86,7 +87,7 @@ PlainLayout::Read( XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length 
 // Write to file
 //------------------------------------------------------------------------------
 int64_t
-PlainLayout::Write( XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length )
+PlainLayout::Write( XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length )
 {
   return mPlainFile->Write( offset, buffer, length );
 }
