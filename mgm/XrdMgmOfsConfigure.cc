@@ -44,7 +44,6 @@
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlugin.hh"
-#include "XrdCms/XrdCmsFinder.hh"
 /*----------------------------------------------------------------------------*/
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
@@ -956,6 +955,8 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     eosView->setContainerMDSvc( eosDirectoryService );
     eosView->setFileMDSvc ( eosFileService );
     
+    eosFileService->setContainerService( eosDirectoryService );
+
     eosView->configure ( settings );
     
     eos_notice("%s",(char*)"eos directory view configure started");
