@@ -48,6 +48,7 @@
 /*----------------------------------------------------------------------------*/
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
+extern void xrdmgmofs_stacktrace(int sig);
 
 /*----------------------------------------------------------------------------*/
 
@@ -1303,6 +1304,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   (void) signal(SIGINT,xrdmgmofs_shutdown);
   (void) signal(SIGTERM,xrdmgmofs_shutdown);
   (void) signal(SIGQUIT,xrdmgmofs_shutdown);
+
+  // add SEGV handler                                                                                                                                                                
+  (void) signal(SIGSEGV, xrdmgmofs_stacktrace);
+  (void) signal(SIGABRT, xrdmgmofs_stacktrace);
+  (void) signal(SIGBUS,  xrdmgmofs_stacktrace);
 
   XrdSysTimer sleeper;
   sleeper.Wait(200);
