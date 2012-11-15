@@ -112,9 +112,12 @@ XrdFstOfs::xrdfstofs_stacktrace(int sig) {
   size = backtrace(array, 10);
 
   // print out all the frames to stderr
-  fprintf(stderr, "Error: signal %d:\n", sig);
+  fprintf(stderr, "error: received signal %d:\n", sig);
   backtrace_symbols_fd(array, size, 2);
-  exit(1);
+  // now we put back the initial handler and send the signal again
+  signal(sig, SIG_DFL);
+  kill(getpid(), sig);
+  wait();
 }
 
 /*----------------------------------------------------------------------------*/
