@@ -43,8 +43,7 @@ XrdFileIo::XrdFileIo( XrdFstOfsFile*      file,
   FileIo( file, client, error ),
   mIndex( 0 ),
   mDoReadahead( false ),
-  mBlocksize( ReadaheadBlock::sDefaultBlocksize ),
-  mReadahead( NULL )
+  mBlocksize( ReadaheadBlock::sDefaultBlocksize )
 {
   // empty
 }
@@ -56,11 +55,10 @@ XrdFileIo::XrdFileIo( XrdFstOfsFile*      file,
 XrdFileIo::~XrdFileIo()
 {
   if ( mDoReadahead ) {
-    for ( unsigned int i = 0; i < sNumRdAheadBlocks; i++ ) {
-      delete mReadahead[i];
+    while ( !mQueueBlocks.empty() ) {
+      delete mQueueBlocks.front();
+      mQueueBlocks.pop();
     }
-
-    delete[] mReadahead;
   }
 
   if ( mXrdFile ) {
@@ -88,9 +86,10 @@ XrdFileIo::Open( const std::string& path,
   // Decide if readahead is used and the block size
   //............................................................................
   if ( ( val = open_opaque.Get( "fst.readahead" ) ) &&
-       ( strncmp( val, "true", 4 ) == 0 ) ) {
+       ( strncmp( val, "true", 4 ) == 0 ) ) 
+  {
+    eos_debug( "Enabling the readahead." );
     mDoReadahead = true;
-    mReadahead = new ReadaheadBlock*[sNumRdAheadBlocks];
     val = 0;
 
     if ( false && ( val = open_opaque.Get( "fst.blocksize" ) ) ) {
@@ -98,7 +97,7 @@ XrdFileIo::Open( const std::string& path,
     }
 
     for ( unsigned int i = 0; i < sNumRdAheadBlocks; i++ ) {
-      mReadahead[i] = new ReadaheadBlock( mBlocksize );
+      mQueueBlocks.push( new ReadaheadBlock( mBlocksize ) );
     }
   }
 
@@ -182,15 +181,18 @@ XrdFileIo::Read( XrdSfsFileOffset offset,
                  void*            pFileHandler,
                  bool             readahead )
 {
-  eos_debug( "offset = %llu, length = %lu",
+  eos_debug( "offset = %llu, length = %li",
              static_cast<uint64_t>( offset ),
-             static_cast<uint32_t>( length ) );
-  
+             (long int)length );
+
+  int64_t nread = 0;
+  char* pBuff = buffer;
   XrdCl::XRootDStatus status;
   ChunkHandler* handler = NULL;
 
   if ( !mDoReadahead ) {
     readahead = false;
+    eos_debug( "Readahead is disabled" );
   }
 
   if ( !readahead ) {
@@ -199,58 +201,92 @@ XrdFileIo::Read( XrdSfsFileOffset offset,
                              static_cast<uint32_t>( length ),
                              buffer,
                              static_cast<XrdCl::ResponseHandler*>( handler ) );
+    nread += length;
   } else {
-    //..........................................................................
-    // Use the readahead mechanism
-    //..........................................................................
-    PrefetchBlock( offset + length, false );
+    eos_debug( "Readahead is enabled." );
+    int64_t read_length;
+    std::map<uint64_t, ReadaheadBlock*>::iterator iter;
 
-    bool done_reading = false;
-    SimpleHandler* sh = mReadahead[mIndex]->handler;
+    while ( length ) {
+      iter = mMapBlocks.find( offset );
 
-    if ( sh->HasRequest() ) {
-      eos_debug( "Have a request in block: %i , now we wait for it.", mIndex );
+      if ( iter != mMapBlocks.end() ) {
+	//......................................................................
+	// Block found in prefetched blocks
+	//......................................................................
+	eos_debug( "Found block in cache, offset=%lli.", (long long int) offset );
+	SimpleHandler* sh = iter->second->handler;
 
-      if ( sh->WaitOK() ) {
-        if ( ( static_cast<uint64_t>( offset ) >= sh->GetOffset() ) &&
-             ( static_cast<uint64_t>( offset + length ) <= sh->GetOffset() + sh->GetRespLength() ) ) {
-          eos_debug( "Got block from readahead cache ##$$##!" );
-          uint64_t shift = offset - sh->GetOffset();
-          eos_debug( "Get block from readahead cache offset=%lli, length=%lli, "
-                     "cache_offset=%lli, cache_length=%lli, shift=%lli \n",
-                     ( long long int ) offset,
-                     ( long long int ) length,
-                     ( long long int ) sh->GetOffset(),
-                     ( long long int ) sh->GetLength(),
-                     ( long long int ) shift );
-          char* ptr_buffer = mReadahead[mIndex]->buffer + shift;
-          buffer = static_cast<char*>( memcpy( buffer, ptr_buffer, length ) );
-          done_reading = true;
-        }
-      } else {
-        eos_debug( "Request corrupted offset=%lli, "
-                   "length=%lli, cache_offset=%lli, cache_length=%lli \n",
-                   ( long long int ) offset,
-                   ( long long int ) length,
-                   ( long long int ) sh->GetOffset(),
-                   ( long long int ) sh->GetLength() );
+	if ( sh->WaitOK() ) {
+	  read_length = ( length < mBlocksize ) ? length : mBlocksize;
+	  pBuff = static_cast<char*>( memcpy( pBuff,
+					      iter->second->buffer,
+					      read_length ) );
+
+	  //....................................................................
+	  // We can prefetch another block if we still have available blocks in
+	  // the queue or if first read was from second prefetched block
+	  //....................................................................
+	  if ( !mQueueBlocks.empty() ||
+	       ( ( pBuff == buffer ) && ( iter != mMapBlocks.begin() ) ) )
+	  {    
+	    eos_debug( "Prefetch new block(2)." );
+	    
+	    if ( iter != mMapBlocks.begin() ) {
+	      eos_debug( "Recycle the oldest block. " );
+	      mQueueBlocks.push( mMapBlocks.begin()->second );
+	      mMapBlocks.erase( mMapBlocks.begin() );
+	    }
+	    
+	    PrefetchBlock( offset + mBlocksize, false );
+	  }
+
+	  pBuff += read_length;
+	  offset += read_length;
+	  length -= read_length;
+	  nread += read_length;
+	}
+	else {
+	  //....................................................................
+	  // Error while prefetching, remove block from map
+	  //....................................................................
+	  mQueueBlocks.push( iter->second );
+	  mMapBlocks.erase( iter );
+	  eos_debug( "Error while prefetching, remove block from map.\n" );
+	  break;
+	}
+      }
+      else {
+	//......................................................................
+	// Remove first element from map and prefetch a new block 
+	//......................................................................
+	if ( !mMapBlocks.empty() ) {
+	  mQueueBlocks.push( mMapBlocks.begin()->second );
+	  mMapBlocks.erase( mMapBlocks.begin() );
+	}      
+	
+	if ( !mQueueBlocks.empty() ) {
+	  eos_debug( "Prefetch new block(1)." );
+	  PrefetchBlock( offset, false );
+	}
       }
     }
-
+    
     //..........................................................................
     // If readahead not useful, use the classic way to read
     //..........................................................................
-    if ( !done_reading ) {
-      eos_debug( "Readahead not useful, use the classic way. \n" );
+    if ( length ) {
+      eos_debug( "Readahead not useful, use the classic way for the rest or entire block. \n" );
       handler = static_cast<AsyncMetaHandler*>( pFileHandler )->Register( offset, length, false );
       status = mXrdFile->Read( static_cast<uint64_t>( offset ),
                                static_cast<uint32_t>( length ),
-                               buffer,
+                               pBuff,
                                handler );
+      nread += length;
     }
   }
-
-  return length;
+    
+  return nread;
 }
 
 
@@ -353,10 +389,13 @@ XrdFileIo::Close()
     //..........................................................................
     // Wait for any requests on the fly and then close
     //..........................................................................
-    for ( unsigned int i = 0; i < sNumRdAheadBlocks; i++ ) {
-      if ( mReadahead[i]->handler->HasRequest() ) {
-        tmp_resp = mReadahead[i]->handler->WaitOK();
+    while ( !mMapBlocks.empty() ) {
+      SimpleHandler* shandler = mMapBlocks.begin()->second->handler;
+      if ( shandler->HasRequest() ) {
+        tmp_resp = shandler->WaitOK();
+	delete mMapBlocks.begin()->second;
       }
+      mMapBlocks.erase( mMapBlocks.begin() );
     }
   }
 
@@ -395,17 +434,27 @@ XrdFileIo::Remove()
 // Prefetch block using the readahead mechanism
 //------------------------------------------------------------------------------
 void
-XrdFileIo::PrefetchBlock( uint64_t offsetEnd, bool isWrite )
+XrdFileIo::PrefetchBlock( int64_t offset, bool isWrite )
 {
   XrdCl::XRootDStatus status;
-  eos_debug( "Try to prefetch with end offset: %lli and in block: %i",
-             offsetEnd, mIndex );
-  mReadahead[mIndex]->handler->Update( offsetEnd, mBlocksize, isWrite );
-  status = mXrdFile->Read( offsetEnd,
+  eos_debug( "Try to prefetch with end offset: %lli.", offset );
+  ReadaheadBlock* block = NULL;
+
+  if ( !mQueueBlocks.empty() ) {
+    block = mQueueBlocks.front();
+    mQueueBlocks.pop();
+  }
+  else {
+    return;
+  }
+
+  block->handler->Update( offset, mBlocksize, isWrite );
+  status = mXrdFile->Read( offset,
                            mBlocksize,
-                           mReadahead[mIndex]->buffer,
-                           mReadahead[mIndex]->handler );
-  mIndex = ( mIndex + 1 ) % sNumRdAheadBlocks;
+                           block->buffer,
+                           block->handler );
+
+  mMapBlocks.insert( std::make_pair( offset, block ) );
 }
 
 EOSFSTNAMESPACE_END

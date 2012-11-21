@@ -454,8 +454,11 @@ RaidMetaLayout::OpenPio( std::vector<std::string>&& stripeUrls,
     int ret = -1;
     FileIo* file = FileIoPlugin::GetIoObject( eos::common::LayoutId::kXrdCl );
     XrdOucString openOpaque = opaque;
-    openOpaque += "&&mgm.replicaindex=";
+    openOpaque += "&mgm.replicaindex=";
     openOpaque += static_cast<int>( i );
+    openOpaque += "&fst.readahead=true";
+    openOpaque += "&fst.blocksize=";
+    openOpaque += static_cast<int>( mStripeWidth );
    
     ret = file->Open( mStripeUrls[i], flags_xrdcl, mode_xrdcl, openOpaque.c_str() );
        
@@ -623,7 +626,7 @@ RaidMetaLayout::Read( XrdSfsFileOffset offset,
                       char*            buffer,
                       XrdSfsXferSize   length )
 {
-  eos_debug( "ofsset=%llu, length=%lu", offset, (long unsigned) length );
+  eos_debug( "offset=%llu, length=%lu", offset, (long unsigned) length );
   eos::common::Timing rt( "read" );
   COMMONTIMING( "start", &rt );
   off_t nread = 0;

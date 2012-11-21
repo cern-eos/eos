@@ -248,16 +248,17 @@ class XrdFileIo: public FileIo
     uint32_t         mBlocksize;    ///< block size for rd/wr opertations
     std::string      mPath;         ///< path to file
     XrdCl::File*     mXrdFile;      ///< handler to xrd file
-    ReadaheadBlock** mReadahead;    ///< two blocks used for readahead
+    std::map<uint64_t, ReadaheadBlock*> mMapBlocks; ///< map of block read/prefetched
+    std::queue<ReadaheadBlock*> mQueueBlocks; ///< queue containing available blocks
 
     //--------------------------------------------------------------------------
     //! Method used to prefetch the next block using the readahead mechanism
     //!
-    //! @param offsetEnd end of the current block we are reading
+    //! @param offset begin offset of the current block we are reading
     //! @param isWrite true if block is for write, false otherwise
     //!
     //--------------------------------------------------------------------------
-    void PrefetchBlock( uint64_t offsetEnd, bool isWrite );
+    void PrefetchBlock( int64_t offset, bool isWrite );
 
 
     //--------------------------------------------------------------------------
