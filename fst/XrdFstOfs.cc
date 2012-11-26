@@ -40,6 +40,7 @@
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdCl/XrdClFileSystem.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -569,75 +570,72 @@ XrdFstOfs::CallManager( XrdOucErrInfo* error,
 {
   EPNAME( "CallManager" );
   int rc = SFS_OK;
-  int  result_size = 8192;
-  char result[result_size];
-  result[0] = 0;
-  
-  XrdOucString url = "root://";
-  url += manager;
-  url += "//dummy";
-  XrdClientAdmin* admin = new XrdClientAdmin(url.c_str());
   XrdOucString msg = "";
-      
-  if (admin) {
-    admin->Connect();
-    admin->GetClientConn()->ClearLastServerError();
-    admin->GetClientConn()->SetOpTimeLimit(10);
-    admin->Query(kXR_Qopaquf,
-                 (kXR_char *) capOpaqueFile.c_str(),
-                 (kXR_char *) result, result_size);
-    
-    if (!admin->LastServerResp()) {
-      if (error)
-        gOFS.Emsg(epname, *error, ECOMM, "commit changed filesize to meta data cache for fn=", path);
-      rc = SFS_ERROR;
-    }
-    switch (admin->LastServerResp()->status) {
-    case kXR_ok:
-      eos_debug("called MGM cache - %s", capOpaqueFile.c_str());
-      rc = SFS_OK;
-      break;
-      
-    case kXR_error:
-      if (error) {
-        gOFS.Emsg(epname, *error, ECOMM, "to call manager for fn=", path);
-      }
-      msg = (admin->LastServerError()->errmsg);
-      rc = SFS_ERROR;
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  XrdCl::XRootDStatus status;
+  XrdOucString address = "root://";
+  address += manager;
+  address += "//dummy";
 
-      if (msg.find("[EIDRM]") !=STR_NPOS)
-        rc = -EIDRM;
+  XrdCl::URL url( address.c_str() );
 
-
-      if (msg.find("[EBADE]") !=STR_NPOS)
-        rc = -EBADE;
-
-
-      if (msg.find("[EBADR]") !=STR_NPOS)
-        rc = -EBADR;
-
-      if (msg.find("[EINVAL]") != STR_NPOS)
-	rc = -EINVAL;
-      
-      if (msg.find("[EADV]") != STR_NPOS)
-	rc = -EADV;
-
-      break;
-      
-    default:
-      rc = SFS_OK;
-      break;
-    }
-  } else {
-    eos_crit("cannot get client admin to execute commit");
-    if (error)
-      gOFS.Emsg(epname, *error, ENOMEM, "allocate client admin object during close of fn=", path);
+  if ( !url.IsValid() ) {
+    eos_err( "error=URL is not valid: %s", address.c_str() );
+    return EINVAL;
   }
-  delete admin;
+
+  //.............................................................................
+  // Get XrdCl::FileSystem object
+  //.............................................................................
+  XrdCl::FileSystem* fs = new XrdCl::FileSystem( url );
+
+  if ( !fs ) {
+    eos_err( "error=failed to get new FS object" );
+    if (error) {
+      gOFS.Emsg(epname, *error, ENOMEM, "allocate FS object during close of fn=", path);
+    }
+    return EINVAL;
+  }
+
+  arg.FromString( capOpaqueFile.c_str() );
+  status = fs->Query( XrdCl::QueryCode::OpaqueFile, arg, response );
+
+  if ( status.IsOK() ) {
+    eos_debug("called MGM cache - %s", capOpaqueFile.c_str());
+    rc = SFS_OK;
+  }
+  else {
+    if (error) {
+      gOFS.Emsg(epname, *error, ECOMM, "to call manager for fn=", path);
+    }
+    
+    msg = ( status.GetErrorMessage().c_str() );
+    rc = SFS_ERROR;
+    
+    if (msg.find("[EIDRM]") !=STR_NPOS)
+      rc = -EIDRM;
+    
+    if (msg.find("[EBADE]") !=STR_NPOS)
+      rc = -EBADE;
+    
+    if (msg.find("[EBADR]") !=STR_NPOS)
+      rc = -EBADR;
+    
+    if (msg.find("[EINVAL]") != STR_NPOS)
+      rc = -EINVAL;
+      
+    if (msg.find("[EADV]") != STR_NPOS)
+      rc = -EADV;
+  }
 
   if (return_result) {
-    *return_result = result;
+    *return_result = response->GetBuffer();
   }
+
+  delete fs;
+  delete response;
+  
   return rc;
 }
 

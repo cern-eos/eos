@@ -266,7 +266,7 @@ com_file (char* arg1) {
     }
   }
 
-  if (cmd == "check") { 
+  if (cmd == "check") {
     if (!path.length())
       goto com_file_usage;
 
@@ -297,7 +297,11 @@ com_file (char* arg1) {
       XrdOucString size = newresult->Get("mgm.size");
       
       if ( (option.find("%silent") == STR_NPOS) && (!silent) ) {
-        fprintf(stdout,"path=\"%-32s\" fid=\"%4s\" size=\"%s\" nrep=\"%s\" checksumtype=\"%s\" checksum=\"%s\"\n", path.c_str(), newresult->Get("mgm.fid0"), size.c_str(), newresult->Get("mgm.nrep"), checksumtype.c_str(), newresult->Get("mgm.checksum"));
+        fprintf( stdout, "path=\"%-32s\" fid=\"%4s\" size=\"%s\" nrep=\"%s\" "
+                 "checksumtype=\"%s\" checksum=\"%s\"\n",
+                 path.c_str(), newresult->Get("mgm.fid0"),
+                 size.c_str(), newresult->Get("mgm.nrep"),
+                 checksumtype.c_str(), newresult->Get("mgm.checksum"));
       }
 
       int i=0;
@@ -359,8 +363,12 @@ com_file (char* arg1) {
 	      rsize=-1;
             }
 
-            if ((retc=eos::fst::gFmdSqliteHandler.GetRemoteFmdSqlite(newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()), fmd))) {
-              if (!silent)fprintf(stderr,"error: unable to retrieve file meta data from %s [%d]\n",  newresult->Get(repurl.c_str()),retc);
+            if ((retc = eos::fst::gFmdSqliteHandler.GetRemoteFmdSqlite(newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()), fmd))) {
+              
+              if (!silent) {
+                fprintf(stderr,"error: unable to retrieve file meta data from %s [%d]\n",
+                        newresult->Get(repurl.c_str()),retc);
+              }
               consistencyerror = true;
               inconsistencylable="NOFMD";
             } else {

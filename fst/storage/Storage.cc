@@ -2845,7 +2845,8 @@ Storage::Cleaner()
 void
 Storage::MgmSyncer()
 {
-  // this thread checks the synchronization between the local MD after a file modification/write against the MGM server
+  // this thread checks the synchronization between the local MD after a file
+  // modification/write against the MGM server
   bool knowmanager=false;
 
   while(1) {

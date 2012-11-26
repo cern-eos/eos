@@ -21,92 +21,111 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} )
-link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
+include_directories( ../ 
+		     ${XROOTD_INCLUDE_DIR} 
+		     ${SPARSEHASH_INCLUDE_DIR} )
+
+link_directories( /usr/${LIB_INSTALL_DIR}/ 
+		  ${XROOTD_LIB_DIR} )
 
 
-add_executable ( eos
-	         ConsoleMain.cc
-		 ConsoleMain.hh	
-		 ConsolePipe.cc
-		 ConsolePipe.hh
-#                 ../common/Logging.cc
-#                 ../common/Fmd.cc
-#                 ../common/SymKeys.cc
-#		 ../common/Attr.cc
-		 ../fst/FmdSqlite.cc
-		 ../fst/checksum/CheckSum.cc
-		 ../fst/checksum/Adler.cc
-		 ../checksum/crc32c.cc
-                 ../checksum/crc32ctables.cc
-		 commands/com_access.cc
-	         commands/com_attr.cc
-		 commands/com_cd.cc
-		 commands/com_chmod.cc 
-		 commands/com_chown.cc 
-		 commands/com_clear.cc         
-		 commands/com_config.cc 
-		 commands/com_console.cc 
-		 commands/com_cp.cc 
-		 commands/com_debug.cc 
-		 commands/com_dropbox.cc 
-		 commands/com_file.cc 
-		 commands/com_find.cc 
-		 commands/com_fs.cc 
-		 commands/com_fsck.cc
-                 commands/com_fuse.cc
-		 commands/com_group.cc
-                 commands/com_io.cc
-                 commands/com_json.cc
-		 commands/com_license.cc 
-		 commands/com_ls.cc 
-		 commands/com_map.cc 
-		 commands/com_mkdir.cc 
-		 commands/com_motd.cc 
-		 commands/com_node.cc
-		 commands/com_ns.cc    
-		 commands/com_print.cc 
-		 commands/com_pwd.cc 
-		 commands/com_quit.cc 
-		 commands/com_quota.cc 
-		 commands/com_reconnect.cc 
-		 commands/com_restart.cc 
-		 commands/com_rm.cc 
-		 commands/com_rmdir.cc 
-		 commands/com_role.cc 
-		 commands/com_rtlog.cc 
-		 commands/com_silent.cc 
-		 commands/com_space.cc
-		 commands/com_stat.cc
-		 commands/com_test.cc 
-		 commands/com_timing.cc
-		 commands/com_transfer.cc 
-		 commands/com_verify.cc 
-		 commands/com_version.cc 
-		 commands/com_vid.cc 
-		 commands/com_whoami.cc   
-                 commands/com_who.cc
+add_executable( eos
+	      	ConsoleMain.cc
+		ConsoleMain.hh	
+		ConsolePipe.cc
+		ConsolePipe.hh
+#                ../common/Logging.cc
+#                ../common/Fmd.cc
+#                ../common/SymKeys.cc
+#		../common/Attr.cc
+		../fst/FmdSqlite.cc
+		../fst/checksum/CheckSum.cc
+		../fst/checksum/Adler.cc
+		../checksum/crc32c.cc
+                ../checksum/crc32ctables.cc
+		commands/com_access.cc
+	        commands/com_attr.cc
+		commands/com_cd.cc
+		commands/com_chmod.cc 
+		commands/com_chown.cc 
+		commands/com_clear.cc         
+		commands/com_config.cc 
+		commands/com_console.cc 
+		commands/com_cp.cc 
+		commands/com_debug.cc 
+		commands/com_dropbox.cc 
+		commands/com_file.cc 
+		commands/com_find.cc 
+		commands/com_fs.cc 
+		commands/com_fsck.cc
+                commands/com_fuse.cc
+		commands/com_group.cc
+                commands/com_io.cc
+                commands/com_json.cc
+		commands/com_license.cc 
+		commands/com_ls.cc 
+		commands/com_map.cc 
+		commands/com_mkdir.cc 
+		commands/com_motd.cc 
+		commands/com_node.cc
+		commands/com_ns.cc    
+		commands/com_print.cc 
+		commands/com_pwd.cc 
+		commands/com_quit.cc 
+		commands/com_quota.cc 
+		commands/com_reconnect.cc 
+		commands/com_restart.cc 
+		commands/com_rm.cc 
+		commands/com_rmdir.cc 
+		commands/com_role.cc 
+		commands/com_rtlog.cc 
+		commands/com_silent.cc 
+		commands/com_space.cc
+		commands/com_stat.cc
+		commands/com_test.cc 
+		commands/com_timing.cc
+		commands/com_transfer.cc 
+		commands/com_verify.cc 
+		commands/com_version.cc 
+		commands/com_vid.cc 
+		commands/com_whoami.cc   
+                commands/com_who.cc 
 )
 
 
-add_executable ( eosdropboxd
-	         dropbox/eosdropboxd.cc
+add_executable( eosdropboxd
+	        dropbox/eosdropboxd.cc 
 )
 
 
 
 if (CLIENT)
-target_link_libraries ( eos XrdPosix XrdClient XrdUtils eosCommon-Static pthread dl crypto uuid curses z readline )
+target_link_libraries( eos 
+		       XrdPosix	        XrdClient 
+		       XrdUtils  	eosCommon-Static 
+		       ${XRDCL_LIB}	pthread 	
+		       dl 		crypto 		
+		       uuid 		curses 		
+		       z    		readline 
+)
 else (CLIENT)
-target_link_libraries ( eos XrdPosix XrdClient XrdUtils eosCommon-Static pthread dl XrdMqClient-Static crypto uuid curses z readline )
-endif (CLIENT)
+target_link_libraries( eos 
+		       XrdPosix	        XrdClient 
+		       XrdUtils 	eosCommon-Static 
+		       ${XRDCL_LIB}	XrdMqClient-Static
+		       pthread 	        crypto 
+		       uuid 		curses 
+		       z 		dl 
+		       readline 
+)
+endif(CLIENT)
 
-target_link_libraries ( eosdropboxd eosCommon-Static XrdPosix XrdClient XrdUtils pthread )
+target_link_libraries( eosdropboxd eosCommon-Static XrdPosix XrdClient XrdUtils pthread )
 
 INSTALL_PROGRAMS( /sbin FILES eosadmin )
 
-install ( TARGETS eos eosdropboxd
-          LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-          RUNTIME DESTINATION bin
-          ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+install( TARGETS eos eosdropboxd
+       	 LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+         RUNTIME DESTINATION bin
+         ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
 )

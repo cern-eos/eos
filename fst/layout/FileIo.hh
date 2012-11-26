@@ -37,7 +37,7 @@ EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! The truncate offset (1TB) is used to indicate that a file should be deleted
-//! during the close as there is no better interface usable via XrdClient to
+//! during the close as there is no better interface usable via XrdCl to
 //! communicate a deletion on a open file
 //------------------------------------------------------------------------------
 #define EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN 1024 * 1024 * 1024 * 1024ll

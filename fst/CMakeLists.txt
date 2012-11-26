@@ -31,155 +31,143 @@ link_directories( /usr/${LIB_INSTALL_DIR}/
 		  ${XROOTD_LIB_DIR} 
 		  ${XRDCL_LIB_DIR} )
 
-add_library ( EosFstOss MODULE
-	      XrdFstOss.cc XrdFstOss.hh
-	      checksum/CheckSum.cc      checksum/CheckSum.hh
-	      checksum/Adler.cc         checksum/Adler.hh
-	      ../checksum/crc32c.cc
-	      ../checksum/crc32ctables.cc
-	      ../common/LayoutId.hh	
+add_library( EosFstOss MODULE
+	     XrdFstOss.cc              XrdFstOss.hh
+	     checksum/CheckSum.cc      checksum/CheckSum.hh
+	     checksum/Adler.cc         checksum/Adler.hh
+	     ../checksum/crc32c.cc     ../checksum/crc32ctables.cc
+	     ../common/LayoutId.hh 
 )
 
 
-target_link_libraries (EosFstOss 
+target_link_libraries( EosFstOss 
       		       eosCapability-Static
 		       eosCommon-Static
 		       XrdServer	      
 		       uuid 
 )
 										       
-add_library ( XrdEosFst MODULE
-	      XrdFstOfs.cc                   XrdFstOfs.hh
-	      XrdFstOfsFile.cc               XrdFstOfsFile.hh
+add_library( XrdEosFst MODULE
+	     XrdFstOfs.cc                   XrdFstOfs.hh
+	     XrdFstOfsFile.cc               XrdFstOfsFile.hh
 
-	      io/HeaderCRC.cc                io/HeaderCRC.hh
-	      io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
-	      io/ChunkHandler.cc             io/ChunkHandler.hh
-	      io/SimpleHandler.cc            io/SimpleHandler.hh
+	     io/HeaderCRC.cc                io/HeaderCRC.hh
+	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
+	     io/ChunkHandler.cc             io/ChunkHandler.hh
+	     io/SimpleHandler.cc            io/SimpleHandler.hh
 
-  	      layout/FileIoPlugin.hh
-	      layout/FileIo.hh 
-  	      layout/LocalFileIo.cc          layout/LocalFileIo.hh
-	      layout/XrdFileIo.cc            layout/XrdFileIo.hh
+  	     layout/FileIoPlugin.hh
+	     layout/FileIo.hh 
+  	     layout/LocalFileIo.cc          layout/LocalFileIo.hh
+	     layout/XrdFileIo.cc            layout/XrdFileIo.hh
 
-	      layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
-	      layout/Layout.cc               layout/Layout.hh
-	      layout/PlainLayout.cc          layout/PlainLayout.hh
-	      layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
-	      layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
-	      layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
-	      layout/ReedSLayout.cc          layout/ReedSLayout.hh
+	     layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
+	     layout/Layout.cc               layout/Layout.hh
+	     layout/PlainLayout.cc          layout/PlainLayout.hh
+	     layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
+	     layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
+	     layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
+	     layout/ReedSLayout.cc          layout/ReedSLayout.hh
 	     
-	      checksum/Adler.cc
-	      checksum/CheckSum.cc
-	      storage/Storage.cc
-	      Config.cc
-	      Load.cc
-              ScanDir.cc
-              RaidDPScan.cc
-	      Messaging.cc
-              ../checksum/crc32c.cc
-              ../checksum/crc32ctables.cc
-              txqueue/TransferMultiplexer.cc
-              txqueue/TransferJob.cc
-              txqueue/TransferQueue.cc
-              zfec/fec.cc
-	      FmdSqlite.cc )
-
-
-add_library ( XrdEosFst-Static STATIC
-	      XrdFstOfs.cc                   XrdFstOfs.hh
-	      XrdFstOfsFile.cc               XrdFstOfsFile.hh
-
-	      io/HeaderCRC.cc                io/HeaderCRC.hh
-	      io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
-	      io/ChunkHandler.cc             io/ChunkHandler.hh
-	      io/SimpleHandler.cc            io/SimpleHandler.hh
-
-  	      layout/FileIoPlugin.hh
-	      layout/FileIo.hh 
-  	      layout/LocalFileIo.cc          layout/LocalFileIo.hh
-	      layout/XrdFileIo.cc            layout/XrdFileIo.hh
-
-	      layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
-	      layout/Layout.cc               layout/Layout.hh
-	      layout/PlainLayout.cc          layout/PlainLayout.hh
-	      layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
-	      layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
-	      layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
-	      layout/ReedSLayout.cc          layout/ReedSLayout.hh
-	     
-	      checksum/Adler.cc
-	      checksum/CheckSum.cc
-	      storage/Storage.cc
-	      Config.cc
-	      Load.cc
-              ScanDir.cc
-              RaidDPScan.cc
-	      Messaging.cc
-              ../checksum/crc32c.cc
-              ../checksum/crc32ctables.cc
-              txqueue/TransferMultiplexer.cc
-              txqueue/TransferJob.cc
-              txqueue/TransferQueue.cc
-              zfec/fec.cc
-	      FmdSqlite.cc )
-
-
-
-target_link_libraries (XrdEosFst 
-		      eosCapability-Static 
-		      eosCommon-Static 
-		      XrdMqClient-Static 
-		      XrdCl
-		      XrdUtils 
-		      XrdOfs 
-		      crypto 
-		      uuid 
-		      curses 
-		      pthread 
-		      dl 
-		      z  
-		      attr 
-		      rt)
-
-
-target_link_libraries (XrdEosFst-Static
-		      eosCapability-Static 
-		      eosCommon-Static 
-		      XrdMqClient-Static 
-		      XrdCl
-		      XrdUtils 
-		      XrdOfs 
-		      crypto 
-		      uuid 
-		      curses 
-		      pthread 
-		      dl 
-		      z  
-		      attr 
-		      rt)
-
-
-add_executable ( FstLoad
-                 Load.cc
-                 tools/FstLoad.cc
+	     checksum/Adler.cc
+	     checksum/CheckSum.cc
+	     storage/Storage.cc
+	     Config.cc
+	     Load.cc
+             ScanDir.cc
+             RaidDPScan.cc
+	     Messaging.cc
+             ../checksum/crc32c.cc
+             ../checksum/crc32ctables.cc
+             txqueue/TransferMultiplexer.cc
+             txqueue/TransferJob.cc
+             txqueue/TransferQueue.cc
+             zfec/fec.cc
+	     FmdSqlite.cc 
 )
 
-add_executable ( eos-check-blockxs
-                 tools/CheckBlockXS.cc
-		 checksum/Adler.cc
-                 checksum/CheckSum.cc
-                 ../checksum/crc32c.cc
-                 ../checksum/crc32ctables.cc
+
+add_library( XrdEosFst-Static STATIC
+	     XrdFstOfs.cc                   XrdFstOfs.hh
+	     XrdFstOfsFile.cc               XrdFstOfsFile.hh
+
+	     io/HeaderCRC.cc                io/HeaderCRC.hh
+	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
+	     io/ChunkHandler.cc             io/ChunkHandler.hh
+	     io/SimpleHandler.cc            io/SimpleHandler.hh
+
+  	     layout/FileIoPlugin.hh
+	     layout/FileIo.hh 
+  	     layout/LocalFileIo.cc          layout/LocalFileIo.hh
+	     layout/XrdFileIo.cc            layout/XrdFileIo.hh
+
+	     layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
+	     layout/Layout.cc               layout/Layout.hh
+	     layout/PlainLayout.cc          layout/PlainLayout.hh
+	     layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
+	     layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
+	     layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
+	     layout/ReedSLayout.cc          layout/ReedSLayout.hh
+	     
+	     checksum/Adler.cc
+	     checksum/CheckSum.cc
+	     storage/Storage.cc
+	     Config.cc
+	     Load.cc
+             ScanDir.cc
+             RaidDPScan.cc
+	     Messaging.cc
+             ../checksum/crc32c.cc
+             ../checksum/crc32ctables.cc
+             txqueue/TransferMultiplexer.cc
+             txqueue/TransferJob.cc
+             txqueue/TransferQueue.cc
+             zfec/fec.cc
+	     FmdSqlite.cc 
 )
 
-add_executable ( eos-compute-blockxs
-                 tools/ComputeBlockXS.cc
-		 checksum/Adler.cc
-                 checksum/CheckSum.cc
+
+target_link_libraries( XrdEosFst 
+		       eosCapability-Static    eosCommon-Static 
+		       XrdMqClient-Static      ${XRDCL_LIB}	
+		       XrdUtils                XrdOfs 
+		       crypto                  uuid 
+		       curses                  pthread 
+		       dl                      z  
+		       attr   		       rt 
+)
+
+
+target_link_libraries( XrdEosFst-Static
+		       eosCapability-Static    eosCommon-Static 
+		       XrdMqClient-Static      ${XRDCL_LIB}	
+		       XrdUtils                XrdOfs 
+		       crypto                  uuid 
+		       curses                  pthread 
+		       dl                      z  
+		       attr      	       rt 
+)
+
+
+add_executable( FstLoad
+                Load.cc
+                tools/FstLoad.cc 
+)
+
+add_executable( eos-check-blockxs
+                tools/CheckBlockXS.cc
+		checksum/Adler.cc
+                checksum/CheckSum.cc
+                ../checksum/crc32c.cc
+                ../checksum/crc32ctables.cc 
+)
+
+add_executable( eos-compute-blockxs
+                tools/ComputeBlockXS.cc
+	        checksum/Adler.cc
+                checksum/CheckSum.cc
                  ../checksum/crc32c.cc
-                 ../checksum/crc32ctables.cc
+                 ../checksum/crc32ctables.cc 
 )
 
 add_executable( eos-scan-fs 
@@ -190,7 +178,7 @@ add_executable( eos-scan-fs
                 checksum/CheckSum.cc
                 ../checksum/crc32c.cc
                 ../checksum/crc32ctables.cc
-                Load.cc
+                Load.cc 
 )
 
 
@@ -199,13 +187,13 @@ add_executable( eos-adler32
 		checksum/Adler.cc
                 checksum/CheckSum.cc
                 ../checksum/crc32c.cc
-                ../checksum/crc32ctables.cc
+                ../checksum/crc32ctables.cc 
 )
 
 
 add_executable( eos-raid-recover
                 RaidDPScan.cc
-                tools/RecoverRaidDP.cc
+                tools/RecoverRaidDP.cc 
 )
 
 
@@ -217,16 +205,13 @@ add_executable( eoscp
 
 set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 
-target_link_libraries ( FstLoad XrdUtils dl rt )
-target_link_libraries ( eos-check-blockxs eosCommon )
-target_link_libraries ( eos-compute-blockxs eosCommon )
-target_link_libraries ( eos-scan-fs eosCommon rt ) 
-target_link_libraries ( eos-adler32 eosCommon ) 
-target_link_libraries ( eoscp XrdEosFst-Static )
-
-#target_link_libraries ( eoscp XrdUtils XrdCrypto ${OPENSSL_LIBRARIES} uuid XrdCl ${LIBEVENT_LIB} )
-
-target_link_libraries ( eos-raid-recover eosCommon)
+target_link_libraries( FstLoad XrdUtils dl rt )
+target_link_libraries( eos-check-blockxs eosCommon )
+target_link_libraries( eos-compute-blockxs eosCommon )
+target_link_libraries( eos-scan-fs eosCommon rt ${XRDCL_LIB} ) 
+target_link_libraries( eos-adler32 eosCommon ) 
+target_link_libraries( eoscp XrdEosFst-Static ${XRDCL_LIB} )
+target_link_libraries( eos-raid-recover eosCommon ${XRDCL_LIB} )
 
 if (Linux)
   set_target_properties (XrdEosFst XrdEosFst-Static PROPERTIES
@@ -251,10 +236,11 @@ INSTALL_PROGRAMS( /sbin
 		  eos-check-blockxs 
 		  eos-compute-blockxs 
 		  eos-scan-fs 
-		  eos-raid-recover)
+		  eos-raid-recover
+)
 
-install ( TARGETS EosFstOss XrdEosFst eoscp
-          LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-          RUNTIME DESTINATION bin
-          ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+install( TARGETS EosFstOss XrdEosFst eoscp
+       	 LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+         RUNTIME DESTINATION bin
+         AR CHIVE DESTINATION ${LIB_INSTALL_DIR}
 )
