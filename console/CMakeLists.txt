@@ -101,7 +101,7 @@ add_executable( eosdropboxd
 
 if (CLIENT)
 target_link_libraries( eos 
-		       XrdPosix	        XrdClient 
+		       XrdPosix	        XrdCl
 		       XrdUtils  	eosCommon-Static 
 		       ${XRDCL_LIB}	pthread 	
 		       dl 		crypto 		
@@ -110,7 +110,7 @@ target_link_libraries( eos
 )
 else (CLIENT)
 target_link_libraries( eos 
-		       XrdPosix	        XrdClient 
+		       XrdPosix	        XrdCl 
 		       XrdUtils 	eosCommon-Static 
 		       ${XRDCL_LIB}	XrdMqClient-Static
 		       pthread 	        crypto 
@@ -120,7 +120,7 @@ target_link_libraries( eos
 )
 endif(CLIENT)
 
-target_link_libraries( eosdropboxd eosCommon-Static XrdPosix XrdClient XrdUtils pthread )
+target_link_libraries( eosdropboxd eosCommon-Static XrdPosix XrdCl XrdUtils pthread )
 
 INSTALL_PROGRAMS( /sbin FILES eosadmin )
 

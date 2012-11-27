@@ -370,71 +370,6 @@ void write_progress(unsigned long long bytesread, unsigned long long size) {
     }
   }
 }
-
-
-//------------------------------------------------------------------------------
-// Do reading in XROOTD mode
-//------------------------------------------------------------------------------
-int
-do_readahead( uint64_t& offset, uint32_t length, char*& pbuff )
-{
-  uint32_t nread = 0;
-  if ( first_time ) {
-    pbuff = buffer;
-    status = src_handler[0].second->Read( offset,
-                                          length,
-                                          static_cast<void *>( pbuff ),
-                                          nread );
-    offset += nread;
-    pbuff = buffer + buffersize;
-
-    handler = src_async_resp[0]->Register( offset, length, false );
-    status = src_handler[0].second->Read( offset,
-                                          length,
-                                          static_cast<void *>( pbuff ),
-                                          static_cast<XrdCl::ResponseHandler*>( handler ) );
-    offset += length;
-    pbuff = buffer;
-    first_time = false;
-  }
-  else {
-    //..........................................................................
-    // Wait for the read block and meaure this time
-    //..........................................................................
-    if( !src_async_resp[0]->WaitOK() ) {
-      if ( handler->GetErrno() != EFAULT ) {
-        fprintf( stderr, "error: read failed on file %s - destination file is incomplete!\n",
-                 src_location[0].second.c_str() );
-        exit( -EIO );
-      }
-      //........................................................................
-      // else we just received less than expected, this is not an error here
-      //........................................................................
-    }
-    src_async_resp[0]->Reset();
-
-    //..........................................................................
-    // Send the next read req asynchronously
-    //..........................................................................
-    nread = handler->GetRespLength();
-    handler = src_async_resp[0]->Register( offset, length, false );
-    status = src_handler[0].second->Read( offset,
-                                          length,
-                                          static_cast<void *>( pbuff ),
-                                          static_cast<XrdCl::ResponseHandler*>( handler ) );
-    
-    if ( pbuff == buffer ) {
-      pbuff = buffer + buffersize;
-    }
-    else {
-      pbuff = buffer;
-    }     
-    
-    offset += length;
-  }
-  
-  return nread;
-}
              
 
 //////////////////////////////////////////////////////////////////////
@@ -833,7 +768,6 @@ int main( int argc, char* argv[] )
                        src_location[i].second.c_str() );
             }
 
-            /*
             XrdCl::URL url( src_location[i].first );
 
             if ( !url.IsValid() ) {
@@ -844,14 +778,20 @@ int main( int argc, char* argv[] )
             XrdCl::FileSystem fs( url );
             XrdCl::StatInfo* response = 0;
             status = fs.Stat( src_location[i].second, response );
-            st[i].st_size = response->GetSize();
 
             if ( !status.IsOK() ) {
               stat_failed = 1;
             }
+            else {
+              stat_failed = 0;
+              st[i].st_size = response->GetSize();
+              st[i].st_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+              if ( response->TestFlags( XrdCl::StatInfo::IsWritable ) ) {
+                st[i].st_mode |= S_IWGRP;
+              }
+            }
 
             delete response;
-            */
           }
           break;
 
@@ -1265,7 +1205,7 @@ int main( int argc, char* argv[] )
             int flags;
             std::vector<std::string> vectUrl;
                        
-            flags = O_WRONLY;
+            flags = SFS_O_CREAT | SFS_O_WRONLY;
             for ( int i = 0; i < ndst; i++ ) {
               location = dst_location[i].first + dst_location[i].second;
               vectUrl.push_back( location );
@@ -1529,8 +1469,6 @@ int main( int argc, char* argv[] )
       case XRD_ACCESS:
         {
           clock_gettime(CLOCK_REALTIME, &start );
-          
-          //nread = do_readahead( offsetXrd, buffersize, ptr_buffer );
           status = src_handler[0].second->Read( offsetXrd, buffersize, ptr_buffer, nread );
 
           if ( !status.IsOK() ) {
@@ -1542,16 +1480,17 @@ int main( int argc, char* argv[] )
           wait_time = static_cast<double>( ( end.tv_sec * 1000 + end.tv_nsec / 1000000 )-
                                            ( start.tv_sec * 1000 + start.tv_nsec / 1000000 ) );
           read_wait += wait_time;
+          offsetXrd += nread;
         }
         break;
     }
-
+  
     if ( nread < 0 ) {
       fprintf( stderr, "error: read failed on file %s - destination file "
                "is incomplete!\n", src_location[0].second.c_str() );
       exit( -EIO );
     }
-
+    
     if ( nread == 0 ) {
       // end of file
       break;
@@ -1575,7 +1514,7 @@ int main( int argc, char* argv[] )
           {
             if ( i == 0 ) {
               nwrite = redundancyObj->Write( stopwritebyte, ptr_buffer, nread );
-              i = ndst - 1;
+              i = ndst;
             }
           }
           break;
@@ -1667,9 +1606,8 @@ int main( int argc, char* argv[] )
       case RAID_ACCESS:
         if ( i == 0 ) {
           redundancyObj->Close();
-          i = nsrc - 1;
+          i = nsrc;
         }
-
         break;
 
       case XRD_ACCESS:
@@ -1690,7 +1628,7 @@ int main( int argc, char* argv[] )
       case RAID_ACCESS:
         if ( i == 0 ) {
           redundancyObj->Close();
-          i = ndst - 1;
+          i = ndst;
         }
         break;
 

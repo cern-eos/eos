@@ -27,8 +27,6 @@
 #include "fst/transfer/Transfer.hh"
 #include "fst/XrdFstOfs.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdClient/XrdClient.hh"
-/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -50,20 +48,30 @@ Transfer::Do()
   replicaUrl += "?";
   replicaUrl += capability;
 
-  // ----------------------------------------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   // retrieve the file meta data from the remote server
-
   int rc=0;
-  eos_static_debug("GetRemoteFmd %s %s %s",  capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"));
-  rc = eos::common::gFmdHandler.GetRemoteFmd(capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"),fmd);
+  eos_static_debug("GetRemoteFmd %s %s %s",  capOpaque.Get("mgm.sourcehostport"),
+                   capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"));
+  
+  rc = eos::common::gFmdHandler.GetRemoteFmd( capOpaque.Get("mgm.sourcehostport"),
+                                              capOpaque.Get("mgm.fid"),
+                                              capOpaque.Get("mgm.fsid"),
+                                              fmd);
 
   if (rc) {
-    eos_static_err("Failed to get remote fmd from %s [%d] fid %s from %s %s=>%s", capOpaque.Get("mgm.sourcehostport"),rc, capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"));
+    eos_static_err( "Failed to get remote fmd from %s [%d] fid %s from %s %s=>%s",
+                    capOpaque.Get("mgm.sourcehostport"), rc,
+                    capOpaque.Get("mgm.fid"),
+                    capOpaque.Get("mgm.sourcehostport"),
+                    capOpaque.Get("mgm.fsid"),
+                    capOpaque.Get("mgm.fsidtarget") );
     return rc;
   }
 
   if (!gOFS.LockManager.TryLock(fId)) {
-    eos_static_err("File is currently locked for writing - giving up fid %s", capOpaque.Get("mgm.fid"));
+    eos_static_err("File is currently locked for writing - giving up fid %s",
+                   capOpaque.Get("mgm.fid"));
     return EBUSY;
   }
 
@@ -72,38 +80,48 @@ Transfer::Do()
 
   if (checkSum) checkSum->Reset();
 
-  // ----------------------------------------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   // open replica to pull
 
   bool failed = false; // indicates if the copy failed
-  
   off_t offset = 0;    // gives the filesize after a transfer
+  uint16_t xrdcl_flags = XrdCl::OpenFlags::Read;
+  XrdCl::File* replicaClient = new XrdCl::File();
+  XrdCl::XRootDStatus status = replicaClient->Open( replicaUrl.c_str(), xrdcl_flags );
 
-  XrdClient* replicaClient = new XrdClient(replicaUrl.c_str());
-
-  if (!replicaClient->Open(0,0,false)) {
-    eos_static_err("Failed to open replica to pull fid %llu from %s %d=>%d", capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.sourcehostport"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"));
+  if ( !status.IsOK() ) {
+    eos_static_err("Failed to open replica to pull fid %llu from %s %d=>%d",
+                   capOpaque.Get("mgm.fid"),
+                   capOpaque.Get("mgm.sourcehostport"),
+                   capOpaque.Get("mgm.fsid"),
+                   capOpaque.Get("mgm.fsidtarget"));
     delete replicaClient;
     gOFS.LockManager.UnLock(fId);
     return EIO;
-  } else {
+  }
+  else {
     // open local replica
     XrdOucString fstPath="";
-    
-    eos::common::FileId::FidPrefix2FullPath(capOpaque.Get("mgm.fid"),capOpaque.Get("mgm.localprefixtarget"),fstPath);
+    eos::common::FileId::FidPrefix2FullPath( capOpaque.Get("mgm.fid"),
+                                             capOpaque.Get("mgm.localprefixtarget"),
+                                             fstPath);
     
     XrdFstOfsFile* ofsFile = new XrdFstOfsFile(0);
 
     if (!ofsFile) {
       eos_static_err("Failed to allocate ofs file %s", fstPath.c_str());
+      replicaClient->Close();
       delete replicaClient;
       gOFS.LockManager.UnLock(fId);
       return ENOMEM;
     }
     
-    if (ofsFile->openofs(fstPath.c_str(), SFS_O_TRUNC | SFS_O_RDWR, SFS_O_MKPTH |S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, 0,0)) {
+    if (ofsFile->openofs(fstPath.c_str(),
+                         SFS_O_TRUNC | SFS_O_RDWR,
+                         SFS_O_MKPTH |S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, 0, 0)) {
       if (!errno) errno = EIO;
       eos_static_err("Failed to open local replica file %s errno=%u", fstPath.c_str(),errno);
+      replicaClient->Close();
       delete replicaClient;
       gOFS.LockManager.UnLock(fId);
       return errno;
@@ -114,21 +132,32 @@ Transfer::Do()
     char* cpbuffer = (char*)malloc(buffersize);
     if (!cpbuffer) {
       eos_static_err("Failed to allocate copy buffer");
+      replicaClient->Close();
       delete replicaClient;
       gOFS.LockManager.UnLock(fId);
       return ENOMEM;
     }
+
+    bool got_error = false;
+    uin32_t nread = 0;
     
     do {
-      int nread = replicaClient->Read(cpbuffer,offset,buffersize);
-      if (nread>0) {
+      status = replicaClient->Read( offset, buffersize, cpbuffer, nread );
+
+      if ( !status.IsOK() ) {
+        got_error = true;
+      }
+      
+      if (nread > 0) {
         if (!ofsFile->writeofs(offset, cpbuffer, nread)) {
           failed = true;
           break;
         }
       }
 
-      if (checkSum && (nread>=0)) checkSum->Add(cpbuffer,nread,offset);
+      if (checkSum && (nread>=0)) {
+        checkSum->Add(cpbuffer,nread,offset);
+      }
 
       if (nread != buffersize) {
         offset += nread;
@@ -143,9 +172,17 @@ Transfer::Do()
     ofsFile->closeofs();
     if (checkSum) checkSum->Finalize();
 
-    if ( (replicaClient->LastServerError()->errnum) && (replicaClient->LastServerError()->errnum!=kXR_noErrorYet) ) {
-      eos_static_err("transfer error during replica of %s fid=%sfrom %s=>%s xsum=%s ec=%d emsg=%s", capOpaque.Get("mgm.path"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"), checkSum?checkSum->GetHexChecksum():"none", replicaClient->LastServerError()->errnum, replicaClient->LastServerError()->errmsg);
-      eos_static_err("ile %s errno=%u", fstPath.c_str(),errno);
+    if ( got_error ) {
+      eos_static_err( "transfer error during replica of %s fid=%s from %s=>%s xsum=%s ec=%d emsg=%s",
+                      capOpaque.Get("mgm.path"),
+                      capOpaque.Get("mgm.fid"),
+                      capOpaque.Get("mgm.fsid"),
+                      capOpaque.Get("mgm.fsidtarget"),
+                      checkSum?checkSum->GetHexChecksum():"none",
+                      replicaClient->LastServerError()->errnum,
+                      replicaClient->LastServerError()->errmsg );
+      
+      eos_static_err("file %s errno=%u", fstPath.c_str(),errno);
       failed = true;
     }
     if (failed) {
@@ -153,8 +190,8 @@ Transfer::Do()
       unlink(fstPath.c_str());
     }
   }
-  replicaClient->Close();
 
+  replicaClient->Close();
   delete replicaClient;
 
   if (failed) {
@@ -165,11 +202,11 @@ Transfer::Do()
     return errno;
   }
 
-  eos::common::Fmd* newfmd = eos::common::gFmdHandler.GetFmd(fId, fsIdTarget,fmd.uid, fmd.gid, fmd.lid,1);
+  eos::common::Fmd* newfmd = eos::common::gFmdHandler.GetFmd(fId, fsIdTarget, fmd.uid, fmd.gid, fmd.lid, 1);
   // inherit the file meta data
   newfmd->Replicate(fmd);
 
-  // ----------------------------------------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   // compare remote and computed checksum
   int checksumlen;
   bool checksumerror=false;
@@ -184,17 +221,29 @@ Transfer::Do()
     }
   }
   
-  // ----------------------------------------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   // compare transfer and FMD size
   if ((long long)offset != (long long)newfmd->fMd.size) {
-    eos_static_err("size error during replica of %s fid=%sfrom %s=>%s xsum=%s txsize=%llu fmdsize=%llu", capOpaque.Get("mgm.path"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"), checkSum?checkSum->GetHexChecksum():"none", offset, newfmd->fMd.size);
+    eos_static_err("size error during replica of %s fid=%sfrom %s => %s xsum=%s txsize=%llu fmdsize=%llu",
+                   capOpaque.Get("mgm.path"),
+                   capOpaque.Get("mgm.fid"),
+                   capOpaque.Get("mgm.fsid"),
+                   capOpaque.Get("mgm.fsidtarget"),
+                   checkSum?checkSum->GetHexChecksum():"none",
+                   offset,
+                   newfmd->fMd.size);
   }
 
   if (checkSum && checksumerror) {
-    eos_static_err("checksum error during replica of %s fid=%sfrom %s=>%s xsum=%s", capOpaque.Get("mgm.path"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"), checkSum?checkSum->GetHexChecksum():"none");
+    eos_static_err("checksum error during replica of %s fid=%sfrom %s => %s xsum=%s",
+                   capOpaque.Get("mgm.path"),
+                   capOpaque.Get("mgm.fid"),
+                   capOpaque.Get("mgm.fsid"),
+                   capOpaque.Get("mgm.fsidtarget"),
+                   checkSum?checkSum->GetHexChecksum():"none");
   }
 
-  // ----------------------------------------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   // commit file meta data locally
 
   if (!eos::common::gFmdHandler.Commit(newfmd)) {
@@ -204,7 +253,7 @@ Transfer::Do()
     return EIO;
   }
 
-  // ----------------------------------------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   // commit file meta data centrally
   XrdOucString capOpaqueFile="";
   XrdOucString mTimeString="";
@@ -246,7 +295,14 @@ Transfer::Do()
     return rc;
   }
 
-  eos_static_info("successful replica of %s fid=%sfrom %s=>%s xsum=%s txsize=%llu fmdsize=%llu", capOpaque.Get("mgm.path"), capOpaque.Get("mgm.fid"), capOpaque.Get("mgm.fsid"), capOpaque.Get("mgm.fsidtarget"), checkSum?checkSum->GetHexChecksum():"none", offset, newfmd->fMd.size);
+  eos_static_info("successful replica of %s fid=%sfrom %s=>%s xsum=%s txsize=%llu fmdsize=%llu",
+                  capOpaque.Get("mgm.path"),
+                  capOpaque.Get("mgm.fid"),
+                  capOpaque.Get("mgm.fsid"),
+                  capOpaque.Get("mgm.fsidtarget"),
+                  checkSum?checkSum->GetHexChecksum():"none",
+                  offset,
+                  newfmd->fMd.size);
 
   if (checkSum) delete checkSum;
 
@@ -256,3 +312,4 @@ Transfer::Do()
 }
 
 EOSFSTNAMESPACE_END
+

@@ -430,9 +430,12 @@ RaidMetaLayout::OpenPio( std::vector<std::string>&& stripeUrls,
   //....................................................................
   // Set the correct open flags for the stripe
   //....................................................................
-  if ( mStoreRecovery || ( flags & ( SFS_O_RDWR | SFS_O_TRUNC ) ) ) {
+  if ( mStoreRecovery ||
+       ( flags & ( SFS_O_CREAT | SFS_O_WRONLY | SFS_O_RDWR | SFS_O_TRUNC ) ) )
+  {
     mIsRw = true;
-    if ( flags & SFS_O_TRUNC ) {
+    mStoreRecovery = true;
+    if ( flags & ( SFS_O_CREAT | SFS_O_TRUNC ) ) {
       flags_xrdcl =  XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update;
       eos_debug( "Write case." );
     }
@@ -442,7 +445,6 @@ RaidMetaLayout::OpenPio( std::vector<std::string>&& stripeUrls,
     }
   }
   else {
-    flags_xrdcl = XrdCl::OpenFlags::Read;
     mode_xrdcl = 0;
     eos_debug( "Read case." );
   }

@@ -41,7 +41,6 @@
 #include "mgm/txengine/TransferEngine.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdVersion.hh"
-#include "XrdClient/XrdClientAdmin.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
@@ -783,14 +782,20 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
 
   // proc filter
   if (ProcInterface::IsProcAccess(path)) {
-    if ( gOFS->Authorization && ( vid.prot != "sss") && ( vid.host != "localhost") && (vid.host != "localhost.localdomain") ) {
-      return Emsg(epname, error, EPERM, "execute proc command - you don't have the requested permissions for that operation ", path);
+    if ( gOFS->Authorization &&
+         ( vid.prot != "sss" ) &&
+         ( vid.host != "localhost" ) &&
+         ( vid.host != "localhost.localdomain" ) )
+    {
+      return Emsg(epname, error, EPERM, "execute proc command - you don't have"
+                  " the requested permissions for that operation (1)", path);
     }
 
     gOFS->MgmStats.Add("OpenProc",vid.uid,vid.gid,1);  
 
     if (!ProcInterface::Authorize(path, info, vid, client)) {
-      return Emsg(epname, error, EPERM, "execute proc command - you don't have the requested permissions for that operation ", path);      
+      return Emsg(epname, error, EPERM, "execute proc command - you don't have "
+                  "the requested permissions for that operation (2)", path);      
     } else {
       procCmd = new ProcCommand();
       procCmd->SetLogId(logId,vid, tident);

@@ -363,7 +363,7 @@ com_cp (char* argin) {
   // compute the size to copy
   std::vector<std::string> file_info;
   for (size_t nfile = 0 ; nfile < source_list.size(); nfile++) {
-    bool statok=false;
+    bool statok = false;
     // ------------------------------------------
     // EOS file
     // ------------------------------------------
@@ -375,16 +375,24 @@ com_cp (char* argin) {
       url+= source_list[nfile];
       if (!XrdPosixXrootd::Stat(url.c_str(), &buf)) {
 	if (S_ISDIR(buf.st_mode)) {
-	  fprintf(stderr,"error: %s is a directory - use '-r' to copy directories!\n", source_list[nfile].c_str());
+	  fprintf(stderr,"error: %s is a directory - use '-r' to copy directories!\n",
+                  source_list[nfile].c_str());
 	  return com_cp_usage();
 	}
-	if (debug)fprintf(stderr,"[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(), (unsigned long long)buf.st_size);
+	if (debug) {
+          fprintf(stderr,"[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(),
+                  (unsigned long long)buf.st_size);
+        }
+
+        fprintf(stderr,"[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(),
+                (unsigned long long)buf.st_size);
+        
 	copysize += buf.st_size;
 	source_size.push_back((unsigned long long)buf.st_size);
 	statok=true;
       }
     }
-    XrdOucString s3env="";
+    XrdOucString s3env = "";
     // ------------------------------------------
     // S3 file
     // ------------------------------------------
@@ -430,7 +438,9 @@ com_cp (char* argin) {
       if (!getenv("S3_ACCESS_KEY_ID") ||
 	  !getenv("S3_HOSTNAME") ||
 	  !getenv("S3_SECRET_ACCESS_KEY")) {
-	fprintf(stderr,"error: you have to set the S3 environment variables S3_ACCESS_KEY_ID | S3_ACCESS_ID, S3_HOSTNAME (or use a URI), S3_SECRET_ACCESS_KEY | S3_ACCESS_KEY\n");
+	fprintf(stderr,"error: you have to set the S3 environment variables "
+                "S3_ACCESS_KEY_ID | S3_ACCESS_ID, S3_HOSTNAME (or use a URI), "
+                "S3_SECRET_ACCESS_KEY | S3_ACCESS_KEY\n");
 	exit(-1);
       }
       s3env  = "env S3_ACCESS_KEY_ID="; s3env += getenv("S3_ACCESS_KEY_ID");
@@ -440,8 +450,15 @@ com_cp (char* argin) {
       XrdOucString s3arg= sPath.c_str();
 
       // do some bash magic ... sigh
-      XrdOucString sizecmd = "bash -c \""; sizecmd +=s3env; sizecmd += " s3 head "; sizecmd += s3arg; sizecmd += " | grep Content-Length| awk '{print \\$2}' 2>/dev/null"; sizecmd += "\"";
+      XrdOucString sizecmd = "bash -c \"";
+      sizecmd += s3env;
+      sizecmd += " s3 head ";
+      sizecmd += s3arg;
+      sizecmd += " | grep Content-Length| awk '{print \\$2}' 2>/dev/null";
+      sizecmd += "\"";
+      
       if (debug) fprintf(stderr,"[eos-cp] running %s\n", sizecmd.c_str());
+      
       long long size = eos::common::StringConversion::LongLongFromShellCmd(sizecmd.c_str());
       if ( (!size) || (size == LLONG_MAX) ) {
 	fprintf(stderr,"error: cannot obtain the size of the <s3> source file or it has 0 size!\n");
@@ -457,7 +474,7 @@ com_cp (char* argin) {
 	 source_list[nfile].beginswith("https://") || 
 	 source_list[nfile].beginswith("gsiftp://") ) {
       fprintf(stderr,"warning: disabling size check for http/https/gsidftp\n");
-      statok=true;
+      statok = true;
       source_size.push_back(0);
     }
 
@@ -468,10 +485,16 @@ com_cp (char* argin) {
       struct stat buf;
       if (!XrdPosixXrootd::Stat(source_list[nfile].c_str(), &buf)) {
 	if (S_ISDIR(buf.st_mode)) {
-	  fprintf(stderr,"error: %s is a directory - use '-r' to copy directories\n", source_list[nfile].c_str());
+	  fprintf(stderr,"error: %s is a directory - use '-r' to copy directories\n",
+                  source_list[nfile].c_str());
 	  return com_cp_usage();
 	}
-	if (debug)fprintf(stderr,"[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(),(unsigned long long)buf.st_size);
+        
+	if (debug) {
+          fprintf(stderr,"[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(),
+                  (unsigned long long)buf.st_size);
+        }
+        
 	copysize += buf.st_size;
 	source_size.push_back((unsigned long long)buf.st_size);
 	statok=true;
@@ -485,13 +508,18 @@ com_cp (char* argin) {
       struct stat buf;
       if (!stat(source_list[nfile].c_str(), &buf)) {
 	if (S_ISDIR(buf.st_mode)) {
-	  fprintf(stderr,"error: %s is a directory - use '-r' to copy directories\n", source_list[nfile].c_str());
+	  fprintf(stderr,"error: %s is a directory - use '-r' to copy directories\n",
+                  source_list[nfile].c_str());
 	  return com_cp_usage();
 	}
-	if (debug)fprintf(stderr,"[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(),(unsigned long long)buf.st_size);
+	if (debug) {
+          fprintf(stderr,"[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(),
+                  (unsigned long long)buf.st_size);
+        }
+        
 	copysize += buf.st_size;
 	source_size.push_back((unsigned long long)buf.st_size);
-	statok=true;
+	statok = true;
       }
     }
 
@@ -502,14 +530,16 @@ com_cp (char* argin) {
   }
 
   XrdOucString sizestring1;
-  if (!silent) fprintf(stderr,"[eos-cp] going to copy %d files and %s\n", (int)source_list.size(), eos::common::StringConversion::GetReadableSizeString(sizestring1, copysize, "B"));
+  if (!silent) {
+    fprintf(stderr,"[eos-cp] going to copy %d files and %s\n", (int)source_list.size(),
+            eos::common::StringConversion::GetReadableSizeString(sizestring1, copysize, "B"));
+  }
       
   gettimeofday(&tv1, &tz);
   // process the file list for wildcards
-  for (size_t nfile = 0 ; nfile < source_list.size(); nfile++) {
+  for (size_t nfile = 0; nfile < source_list.size(); nfile++) {
     XrdOucString targetfile="";
     XrdOucString transfersize=""; // used for STDIN pipes to specify the target size ot eoscp
-
 
     cmdline="";
     eos::common::Path cPath(source_list[nfile].c_str());
@@ -754,17 +784,41 @@ com_cp (char* argin) {
     if (!WEXITSTATUS(lrc)) {
       if (target.beginswith("/eos")) {
 	if (checksums) {
-	  XrdOucString adminurl=serveruri.c_str(); adminurl += "//dummy";
-	  XrdClientAdmin admin(adminurl.c_str());
-	  admin.Connect();
-	  kXR_char* answer=0;
-	  admin.GetChecksum((kXR_char*)targetfile.c_str(), &answer);
-	  if (answer) {
-	    XrdOucString sanswer=(char*)answer;
+          XrdOucString address = serveruri.c_str();
+          address += "//dummy";
+          XrdCl::URL url( address.c_str() );
+
+          if ( !url.IsValid() ) {
+            fprintf( stderr, "error: the file system URL is not valid.\n" );
+            return (0);
+          }
+
+          XrdCl::FileSystem* fs = new XrdCl::FileSystem( url );
+
+          if ( !fs ) {
+            fprintf( stderr, "erroe: failed to get new FS object. \n" );
+            return (0);
+          }
+
+          XrdCl::Buffer arg;
+          XrdCl::Buffer* response = 0;
+          XrdCl::XRootDStatus status;
+          arg.FromString( targetfile.c_str() );
+          status = fs->Query( XrdCl::QueryCode::Checksum, arg, response );
+
+          if ( status.IsOK() ) {
+            XrdOucString sanswer = response->GetBuffer();
 	    sanswer.replace("eos ","");
-	    fprintf(stdout,"path=%s size=%llu checksum=%s\n", source_list[nfile].c_str(), source_size[nfile], sanswer.c_str());
-	    free(answer);
-	  }
+	    fprintf(stdout,"path=%s size=%llu checksum=%s\n",
+                    source_list[nfile].c_str(), source_size[nfile], sanswer.c_str());
+          }
+          else {
+            fprintf(stdout,"error: getting checksum for path=%s size=%llu\n",
+                    source_list[nfile].c_str(), source_size[nfile] );
+          }                
+
+          delete response;
+          delete fs;          
 	}
       }
 
@@ -834,6 +888,14 @@ com_cp (char* argin) {
   XrdOucString sizestring2="";
   XrdOucString warningtag="";
   if (retc) warningtag="#WARNING ";
-  if (!silent) fprintf(stderr,"%s[eos-cp] copied %d/%d files and %s in %.02f seconds with %s\n", warningtag.c_str(),copiedok, (int)source_list.size(), eos::common::StringConversion::GetReadableSizeString(sizestring, copiedsize, "B"), passed, eos::common::StringConversion::GetReadableSizeString(sizestring2, (unsigned long long)crate,"B/s"));
+  if (!silent) {
+    fprintf( stderr, "%s[eos-cp] copied %d/%d files and %s in %.02f seconds with %s\n",
+             warningtag.c_str(),
+             copiedok,
+             (int)source_list.size(),
+             eos::common::StringConversion::GetReadableSizeString(sizestring, copiedsize, "B"),
+             passed,
+             eos::common::StringConversion::GetReadableSizeString(sizestring2, (unsigned long long)crate,"B/s") );
+  }
   exit(WEXITSTATUS(retc));
 }

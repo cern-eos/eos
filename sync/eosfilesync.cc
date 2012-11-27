@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------ 
 // File: eosfilesync.cc
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------ 
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,8 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#define PROGNAME "eosfilesync"
-
+/*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -30,21 +29,31 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <unistd.h>
-
+/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "common/Logging.hh"
+/*----------------------------------------------------------------------------*/
 
+#define PROGNAME "eosfilesync"
+#define TRANSFERBLOCKSIZE 1024*1024*4
+#define PAGESIZE (64*1024ll)
+
+
+//------------------------------------------------------------------------------
+// Usage
+//------------------------------------------------------------------------------
 void usage() {
   fprintf(stderr,"usage: %s <src-path> <dst-url> [--debug]\n", PROGNAME);
   exit(-1);
 }
 
-#define TRANSFERBLOCKSIZE 1024*1024*4
-#define PAGESIZE (64*1024ll)
 
+//------------------------------------------------------------------------------
+// Main function
+//------------------------------------------------------------------------------
 int main (int argc, char* argv[]) {
   if (argc < 3) {
     usage();
@@ -82,7 +91,8 @@ int main (int argc, char* argv[]) {
   struct timeval sync1;
   struct timeval sync2;
 
-  bool isdumpfile=false; // dump files are not 'follower' files in append mode, they need to be resynchroned completely
+  bool isdumpfile = false; // dump files are not 'follower' files in append mode,
+                           // they need to be resynched completely
 
   gettimeofday(&sync1,&tz);
 
@@ -102,7 +112,7 @@ int main (int argc, char* argv[]) {
       XrdSysTimer sleeper;
       sleeper.Wait(1000);
     }
-  } while(fd <0 );
+  } while( fd < 0 );
 
   XrdClient* client = new XrdClient(dsturl.c_str());
 
@@ -111,7 +121,8 @@ int main (int argc, char* argv[]) {
     exit(-1);
   }
 
-  bool isopen = client->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or , kXR_mkpath | kXR_open_updt , false) || client->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or , kXR_mkpath | kXR_new, false);
+  bool isopen = client->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or , kXR_mkpath | kXR_open_updt , false) ||
+      client->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or , kXR_mkpath | kXR_new, false);
 
   if (!isopen) {
     eos_static_err("cannot open remote file %s", dsturl.c_str());
@@ -184,16 +195,19 @@ int main (int argc, char* argv[]) {
       transfersize = TRANSFERBLOCKSIZE;
     else 
       transfersize = (localoffset - remoteoffset);
-
-    off_t mapoffset = remoteoffset - (remoteoffset %PAGESIZE);
-
-    size_t mapsize = transfersize + (remoteoffset %PAGESIZE);
+ 
+    off_t mapoffset = remoteoffset - (remoteoffset % PAGESIZE);
+    size_t mapsize = transfersize + (remoteoffset % PAGESIZE);
 
     if (!transfersize) {
       // sleep 10ms
       usleep(10000);
     } else {
-      eos_static_debug("remoteoffset=%llu module=%llu mapoffset=%llu mapsize =%lu", (unsigned long long)remoteoffset,(unsigned long long)remoteoffset%PAGESIZE, (unsigned long long)mapoffset, (unsigned long)mapsize);
+      eos_static_debug("remoteoffset=%llu module=%llu mapoffset=%llu mapsize =%lu",
+                       (unsigned long long)remoteoffset,
+                       (unsigned long long)remoteoffset%PAGESIZE,
+                       (unsigned long long)mapoffset,
+                       (unsigned long)mapsize);
     
       char* copyptr = (char*) mmap(NULL, mapsize, PROT_READ, MAP_SHARED, fd,mapoffset);
       if (!copyptr) {
@@ -201,7 +215,9 @@ int main (int argc, char* argv[]) {
         exit(-1);
       }
       if (!client->Write(copyptr + (remoteoffset %PAGESIZE), remoteoffset, transfersize)) {
-        eos_static_err("cannot write remote block at %llu/%lu", (unsigned long long)remoteoffset, (unsigned long)transfersize);
+        eos_static_err("cannot write remote block at %llu/%lu",
+                       (unsigned long long)remoteoffset,
+                       (unsigned long)transfersize);
         sleep(60);
       }
       munmap(copyptr,mapsize);

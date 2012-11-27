@@ -35,7 +35,6 @@
 #include "mq/XrdMqTiming.hh"
 
 /*----------------------------------------------------------------------------*/
-#include "XrdClient/XrdClient.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -43,6 +42,7 @@
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdCl/XrdClFile.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>

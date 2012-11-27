@@ -687,6 +687,7 @@ client_admin_command(XrdOucString &in) {
     in += global_comment;
     global_comment="";
   }
+  
   XrdMqTiming mytiming("eos");
   TIMING("start", &mytiming);
   XrdOucString out="";
@@ -695,27 +696,44 @@ client_admin_command(XrdOucString &in) {
   path += "?";
   path += in;
 
-  if (debug) 
+  if (debug) {
     printf("debug: %s\n", path.c_str());
+  }
 
-  XrdClient client(path.c_str());
-  if (client.Open(kXR_async,0,0)) {
+  printf("debug: %s\n", path.c_str());
+  
+  uint16_t xrdcl_flags = XrdCl::OpenFlags::Read;
+  XrdCl::File* client = new XrdCl::File();
+  XrdCl::XRootDStatus status = client->Open( path.c_str(), xrdcl_flags );
+  
+  if ( status.IsOK() ) {
     off_t offset = 0;
-    int nbytes=0;
+    uint32_t nbytes = 0;
     char buffer[4096+1];
-    while ((nbytes = client.Read(buffer,offset, 4096)) >0) {
+    status = client->Read( offset, 4096, buffer, nbytes );
+    
+    while ( status.IsOK() && ( nbytes > 0 ) ) {
       buffer[nbytes]=0;
       out += buffer;
       offset += nbytes;
+      status = client->Read( offset, 4096, buffer, nbytes );
     }
-    client.Close();
+    
+    client->Close();
     TIMING("stop", &mytiming);
-    if (timing) 
+    
+    if (timing) {
       mytiming.Print();
+    }
 
     CommandEnv = new XrdOucEnv(out.c_str());      
     return CommandEnv;
   }
+  else {
+    fprintf( stderr, "error: open file for reading: %s.\n", path.c_str() );
+  }
+
+  delete client;
   return 0;
 }
 
@@ -741,25 +759,35 @@ client_user_command(XrdOucString &in) {
   path += "?";
   path += in;
 
-  XrdClient client(path.c_str());
-  if (client.Open(kXR_async,0,0)) {
+  uint16_t xrdcl_flags = XrdCl::OpenFlags::Read;
+  XrdCl::File* client = new XrdCl::File();
+  XrdCl::XRootDStatus status = client->Open( path.c_str(), xrdcl_flags );
+  
+  if ( status.IsOK() ) {
     off_t offset = 0;
-    int nbytes=0;
+    uint32_t nbytes = 0;
     char buffer[4096+1];
-    while ((nbytes = client.Read(buffer,offset, 4096)) >0) {
+    status = client->Read( offset, 4096, buffer, nbytes );
+    
+    while ( status.IsOK() && ( nbytes > 0 ) ) {
       buffer[nbytes]=0;
       out += buffer;
       offset += nbytes;
+      status = client->Read( offset, 4096, buffer, nbytes );
     }
-    client.Close();
+    
+    client->Close();
     XrdMqMessage::UnSeal(out);
     TIMING("stop", &mytiming);
-    if (timing) 
+    
+    if (timing) {
       mytiming.Print();
+    }
 
-    CommandEnv = new XrdOucEnv(out.c_str());
+    CommandEnv = new XrdOucEnv(out.c_str());      
     return CommandEnv;
   }
+
   return 0;
 }
 

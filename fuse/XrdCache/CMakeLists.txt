@@ -40,4 +40,4 @@ add_library (XrdCache-static STATIC
 
 set_target_properties ( XrdCache PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64)
 set_target_properties ( XrdCache-static PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64)
-target_link_libraries(XrdCache pthread XrdClient XrdPosix)
+target_link_libraries(XrdCache pthread XrdCl XrdPosix)
