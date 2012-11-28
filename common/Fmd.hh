@@ -40,7 +40,6 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdClient/XrdClientConn.hh"
 /*----------------------------------------------------------------------------*/
 // this is needed because of some openssl definition conflict!
 #undef des_set_key
@@ -352,12 +351,6 @@ public:
     clname = cldir; clname += "/"; clname += "fmd."; char now[1024]; sprintf(now,"%u",(unsigned int) time(0)); clname += now;
     return clname.c_str();
   }
-
-  // ---------------------------------------------------------------------------
-  //! Retrieve FMD from a remote machine
-  // ---------------------------------------------------------------------------
-  int GetRemoteFmd(ClientAdmin* admin, const char* serverurl, const char* shexfid, const char* sfsid, struct Fmd::FMD &fmd);
-  int GetRemoteAttribute(ClientAdmin* admin, const char* serverurl, const char* key, const char* path, XrdOucString& attribute);
 
   // ---------------------------------------------------------------------------
   //! Constructor

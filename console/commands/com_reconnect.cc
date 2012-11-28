@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "XrdClient/XrdClientConn.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Force a reconnection/reauthentication */
