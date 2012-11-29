@@ -267,6 +267,9 @@ public:
   long long    NoMessages;
   long long    BacklogDeferred;
   long long    QueueBacklogHits;
+  long long    MaxMessageBacklog;
+  long long    MaxQueueBacklog;
+  long long    RejectQueueBacklog; 
   void         Statistics();
   XrdOucString StatisticsFile;
   char         *ConfigFN;

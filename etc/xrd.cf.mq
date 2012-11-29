@@ -18,6 +18,10 @@ xrd.port 1097
 #keepalive + idle timeout
 xrd.network keepalive
 xrd.timeout idle 120
+mq.maxmessagebacklog 100000
+mq.maxqueuebacklog 50000
+mq.rejectqueuebacklog 100000
+
 #############################################################
 # low|medium|high as trace levels
 mq.trace low

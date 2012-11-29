@@ -137,20 +137,20 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
       XrdMqMessageOut* Out = MatchedOutputQueues[i];
 
       // check for backlog on this queue and set a warning flag
-      if (Out->nQueued > MQOFSMAXQUEUEBACKLOG) {
+      if (Out->nQueued > MaxQueueBacklog ) {
         Matches.backlog =true;
         Matches.backlogqueues += Out->QueueName;
         Matches.backlogqueues += ":";
         gMqFS->QueueBacklogHits++;
-        TRACES("warning: queue " << Out->QueueName << " exceeds backlog of " << MQOFSMAXQUEUEBACKLOG << " message!");
+        TRACES("warning: queue " << Out->QueueName << " exceeds backlog of " << MaxQueueBacklog  << " message!");
       }
     
-      if (Out->nQueued > MQOFSREJECTQUEUEBACKLOG) {
+      if (Out->nQueued > RejectQueueBacklog ) {
         Matches.backlogrejected =true;
         Matches.backlogqueues += Out->QueueName;
         Matches.backlogqueues += ":";
         gMqFS->BacklogDeferred++;
-        TRACES("error: queue " << Out->QueueName << " exceeds max. accepted backlog of " << MQOFSREJECTQUEUEBACKLOG << " message!");
+        TRACES("error: queue " << Out->QueueName << " exceeds max. accepted backlog of " << RejectQueueBacklog << " message!");
       } else {
         Matches.matches++;
         if (Matches.matches == 1) {
@@ -241,7 +241,7 @@ XrdMqOfs::FSctl(const int               cmd,
   }
 
   // check for backlog
-  if (Messages.size() > MQOFSMAXMESSAGEBACKLOG) {
+  if ((long long)Messages.size() > MaxMessageBacklog ) {
     // this is not absolutely threadsafe .... better would lock
     BacklogDeferred++;
     gMqFS->Emsg(epname, error, ENOMEM, "accept message - too many pending messages", "");

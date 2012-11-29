@@ -119,6 +119,9 @@ XrdMqOfs::XrdMqOfs(XrdSysError *ep)
   UndeliverableMessages = 0;
   DiscardedMonitoringMessages = 0;
   BacklogDeferred = NoMessages = QueueBacklogHits = 0;
+  MaxMessageBacklog  = MQOFSMAXMESSAGEBACKLOG;
+  MaxQueueBacklog    = MQOFSMAXQUEUEBACKLOG;
+  RejectQueueBacklog = MQOFSREJECTQUEUEBACKLOG;
 
   (void) signal(SIGINT,xrdmqofs_shutdown);
   HostName=0;
@@ -616,6 +619,24 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
             QueuePrefix = val;
             QueueAdvisory = QueuePrefix;
             QueueAdvisory += "*";
+          }
+        }
+
+	if (!strcmp("maxmessagebacklog",var)) {
+          if (( val = Config.GetWord())) {
+	    sscanf(val,"%lld",&MaxMessageBacklog);
+	  }
+	}
+
+        if (!strcmp("maxqueuebacklog",var)) {
+          if (( val = Config.GetWord())) {
+            sscanf(val,"%lld",&MaxQueueBacklog);
+          }
+        }
+
+        if (!strcmp("rejectqueuebacklog",var)) {
+          if (( val = Config.GetWord())) {
+            sscanf(val,"%lld",&RejectQueueBacklog);
           }
         }
 
