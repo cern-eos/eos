@@ -25,8 +25,8 @@
 # Version Definition
 ######################################################################################################################
 set(VERSION_MAJOR "0" )
-set(VERSION_MINOR "3")
-set(VERSION_PATCH "0")
+set(VERSION_MINOR "3" )
+set(VERSION_PATCH "0" )
 
 ######################################################################################################################
 # main section
@@ -60,6 +60,7 @@ find_package(ncurses REQUIRED)
 find_package(readline REQUIRED)
 find_package(uuid REQUIRED)
 find_package(z REQUIRED)
+find_package(leveldb)
 find_package(CPPUnit)
 find_package(XRootD REQUIRED)
 find_package(XrdCl REQUIRED)
@@ -88,6 +89,10 @@ set(CMAKE_CXX_FLAGS "-g -Wall -O2 -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSI
 else (CLIENT)
 set(CMAKE_CXX_FLAGS "-g -Wall -O2 -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )
 endif (CLIENT)
+if (NOT LEVELDB_FOUND)
+message("  Warning: LevelDB not found, using slower Sqlite3 DbMap implentation")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_SQLITE_DBMAP=1")
+endif (NOT LEVELDB_FOUND)
 
 #set(SOFLAGS  "-m64 -dynamiclib -undefined dynamic_lookup -single_module")
 #set(CMAKE_SHARED_LINKER_FLAGS ${SOFLAGS}) 

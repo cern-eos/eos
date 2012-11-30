@@ -9,8 +9,8 @@
 
 FIND_PATH(XRDCL_INCLUDE_DIR XrdCl/XrdClFile.hh
   HINTS
-  ${XRDCL_DIR}
-  $ENV{XRDCL_DIR}
+  ${XROOTD_DIR}
+  $ENV{XROOTD_DIR}
   /usr
   /usr/local
   /opt/xrootd/
@@ -20,8 +20,8 @@ FIND_PATH(XRDCL_INCLUDE_DIR XrdCl/XrdClFile.hh
 
 FIND_LIBRARY(XRDCL_LIB XrdCl
   HINTS
-  ${XRDCL_DIR}
-  $ENV{XRDCL_DIR}
+  ${XROOTD_DIR}
+  $ENV{XROOTD_DIR}
   /usr
   /usr/local
   /opt/xrootd/
