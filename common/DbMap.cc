@@ -415,7 +415,6 @@ SqliteDbLogInterface::~SqliteDbLogInterface() {
 		archthreadstarted=false;
 		XrdSysThread::Join(archthread,NULL);
 	}
-	//pthread_mutex_unlock(&uniqmutex);
 	uniqmutex.UnLock();
 	AtomicDec(ninstances);
 }
@@ -447,13 +446,10 @@ void* SqliteDbLogInterface::ArchiveThread(void *dummy) {
 			UpdateArchiveSchedule(it);
 		}
 		// sleep untill the next archving has to happen or untill a new archive is added to the queue
-		int rc=-1;
 		now.tv_sec+=3600;// add 1 hour in case the queue is empty
-		while (rc!=0 && rc!=ETIMEDOUT) {
-		    int waketime= (int)(archqueue.empty()?&now:&archqueue.begin()->first)->tv_sec;
-			archmutex.Wait(waketime-time(0));
-		}
-		if(rc==ETIMEDOUT) sleep(5); // a timeout to let the db requests started just before the deadline complete, possible cancellation point
+		int waketime= (int)(archqueue.empty()?&now:&archqueue.begin()->first)->tv_sec;
+		int timedout=archmutex.Wait(waketime-time(0));
+		if(timedout) sleep(5); // a timeout to let the db requests started just before the deadline complete, possible cancellation point
 	}
 	pthread_cleanup_pop(0);
 	return NULL;
@@ -559,7 +555,7 @@ int SqliteDbLogInterface::SetArchivingPeriod(const string &dbname, int slicedura
 	    archmutex.Lock();
 		if(archqueue.empty()) {  // init the archiving thread
 				if(debugmode) printf("starting the archive thread\n"); fflush(stdout);
-				XrdSysThread::Run(&archthread,&ArchiveThread,NULL,PTHREAD_CREATE_JOINABLE,NULL);
+				XrdSysThread::Run(&archthread,&ArchiveThread,NULL,XRDSYSTHREAD_HOLD,NULL);
 				archthreadstarted=true;
 		}
 		archmutex.UnLock();
@@ -809,13 +805,10 @@ void* LvDbDbLogInterface::ArchiveThread(void *dummy) {
 			UpdateArchiveSchedule(it);
 		}
 		// sleep untill the next archving has to happen or untill a new archive is added to the queue
-		int rc=-1;
 		now.tv_sec+=3600;// add 1 hour in case the queue is empty
-		while (rc!=0 && rc!=ETIMEDOUT) {
-			int waketime=(int) (archqueue.empty()?&now:&archqueue.begin()->first)->tv_sec ;
-			archmutex.Wait(waketime-time(0));
-		}
-		if(rc==ETIMEDOUT) sleep(5); // a timeout to let the db requests started just before the deadline complete, possible cancellation point
+		int waketime= (int)(archqueue.empty()?&now:&archqueue.begin()->first)->tv_sec;
+		int timedout=archmutex.Wait(waketime-time(0));
+		if(timedout) sleep(5); // a timeout to let the db requests started just before the deadline complete, possible cancellation point
 	}
 	pthread_cleanup_pop(0);
 	return NULL;
@@ -932,7 +925,7 @@ int LvDbDbLogInterface::SetArchivingPeriod(const string &dbname, int slicedurati
 	    archmutex.Lock();
 		if(archqueue.empty()) {  // init the archiving thread
 				if(debugmode) printf("starting the archive thread\n"); fflush(stdout);
-				XrdSysThread::Run(&archthread,&ArchiveThread,NULL,PTHREAD_CREATE_JOINABLE,NULL);
+				XrdSysThread::Run(&archthread,&ArchiveThread,NULL,XRDSYSTHREAD_HOLD,NULL);
 				archthreadstarted=true;
 		}
 		archmutex.UnLock();
