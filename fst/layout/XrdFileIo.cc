@@ -218,7 +218,7 @@ XrdFileIo::Read( XrdSfsFileOffset offset,
 	SimpleHandler* sh = iter->second->handler;
 
 	if ( sh->WaitOK() ) {
-	  read_length = ( length < mBlocksize ) ? length : mBlocksize;
+	  read_length = ( length < (int64_t) mBlocksize ) ? length : mBlocksize;
 	  pBuff = static_cast<char*>( memcpy( pBuff,
 					      iter->second->buffer,
 					      read_length ) );

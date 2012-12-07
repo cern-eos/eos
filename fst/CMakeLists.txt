@@ -24,12 +24,10 @@
 include_directories( ../ 
 		     ./
 		     ${XROOTD_INCLUDE_DIR} 
-		     ${SPARSEHASH_INCLUDE_DIR} 
-		     ${XRDCL_INCLUDE_DIR} )
+		     ${SPARSEHASH_INCLUDE_DIR} )
 
 link_directories( /usr/${LIB_INSTALL_DIR}/ 
-		  ${XROOTD_LIB_DIR} 
-		  ${XRDCL_LIB_DIR} )
+		  ${XROOTD_LIB_DIR} )
 
 add_library( EosFstOss MODULE
 	     XrdFstOss.cc              XrdFstOss.hh
@@ -129,7 +127,7 @@ add_library( XrdEosFst-Static STATIC
 
 target_link_libraries( XrdEosFst 
 		       eosCapability-Static    eosCommon-Static 
-		       XrdMqClient-Static      ${XRDCL_LIB}	
+		       XrdMqClient-Static      XrdCl	
 		       XrdUtils                XrdOfs 
 		       crypto                  uuid 
 		       curses                  pthread 
@@ -140,7 +138,7 @@ target_link_libraries( XrdEosFst
 
 target_link_libraries( XrdEosFst-Static
 		       eosCapability-Static    eosCommon-Static 
-		       XrdMqClient-Static      ${XRDCL_LIB}	
+		       XrdMqClient-Static      XrdCl
 		       XrdUtils                XrdOfs 
 		       crypto                  uuid 
 		       curses                  pthread 
@@ -208,10 +206,10 @@ set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 target_link_libraries( FstLoad XrdUtils dl rt )
 target_link_libraries( eos-check-blockxs eosCommon )
 target_link_libraries( eos-compute-blockxs eosCommon )
-target_link_libraries( eos-scan-fs eosCommon rt ${XRDCL_LIB} ) 
+target_link_libraries( eos-scan-fs eosCommon rt XrdCl ) 
 target_link_libraries( eos-adler32 eosCommon ) 
-target_link_libraries( eoscp XrdEosFst-Static ${XRDCL_LIB} )
-target_link_libraries( eos-raid-recover eosCommon ${XRDCL_LIB} )
+target_link_libraries( eoscp XrdEosFst-Static XrdCl )
+target_link_libraries( eos-raid-recover eosCommon XrdCl )
 
 if (Linux)
   set_target_properties (XrdEosFst XrdEosFst-Static PROPERTIES

@@ -103,20 +103,19 @@ if (CLIENT)
 target_link_libraries( eos 
 		       XrdPosix	        XrdCl
 		       XrdUtils  	eosCommon-Static 
-		       ${XRDCL_LIB}	pthread 	
-		       dl 		crypto 		
-		       uuid 		curses 		
-		       z    		readline 
+		       pthread 	        dl
+		       crypto 		uuid 		
+		       curses 		z    		
+		       readline 
 )
 else (CLIENT)
 target_link_libraries( eos 
 		       XrdPosix	        XrdCl 
 		       XrdUtils 	eosCommon-Static 
-		       ${XRDCL_LIB}	XrdMqClient-Static
+		       readline         XrdMqClient-Static
 		       pthread 	        crypto 
 		       uuid 		curses 
-		       z 		dl 
-		       readline 
+		       z 		dl 		       
 )
 endif(CLIENT)
 

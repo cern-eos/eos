@@ -699,9 +699,7 @@ client_admin_command(XrdOucString &in) {
   if (debug) {
     printf("debug: %s\n", path.c_str());
   }
-
-  printf("debug: %s\n", path.c_str());
-  
+ 
   uint16_t xrdcl_flags = XrdCl::OpenFlags::Read;
   XrdCl::File* client = new XrdCl::File();
   XrdCl::XRootDStatus status = client->Open( path.c_str(), xrdcl_flags );

@@ -473,11 +473,17 @@ fi
 ################################################################################################################
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/"
 runtest "### Attr Set  " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test |grep success | wc -l | grep -w 6"
-runtest "### Stress Wp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 100 -s 1KB -n stress -c 10 -p"
-runtest "### Stress W  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 100 -s 1KB -n stress -c 10 "
-runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=2000"
-runtest "### Stress R  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -c 10"
-runtest "### Stress Rp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -c 10 -p"
+runtest "### Stress Wpc " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 100 -s 1KB -n stress -j 10 -c -p"
+runtest "### Stress Wc  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 100 -s 1KB -n stress -j 10 -c "
+runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=200"
+runtest "### Stress Rc  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -j 10 -c"
+runtest "### Stress Rpc " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -j 10 -c -p"
+#runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress"
+#runtest "### Stress Wp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 100 -s 1KB -n stress -j 10 -p"
+#runtest "### Stress W  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 100 -s 1KB -n stress -j 10 "
+#runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=2000"
+#runtest "### Stress R  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -j 10 "
+#runtest "### Stress Rp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -j 10 -p"
 ################################################################################################################
 # ATTRIBUTES
 ###################################################A#############################################################
@@ -499,8 +505,8 @@ runtest "### Ls        " unix 0 "" eos ls "/eos/$EOS_TEST_INSTANCE/test | grep [
 runtest "### Ls        " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 2"
 runtest "### Ls        " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 4"
 runtest "### Find      " unix 0 "" eos "find 2>&1 | grep error"
-runtest "### Find      " unix 0 "" eos find -f "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l |grep -w 2000"
-runtest "### Find      " unix 0 "" eos find --count "/eos/$EOS_TEST_INSTANCE/test | grep 2000"
+runtest "### Find      " unix 0 "" eos find -f "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l |grep -w 200"
+runtest "### Find      " unix 0 "" eos find --count "/eos/$EOS_TEST_INSTANCE/test | grep 200"
 runtest "### Find      " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l | grep -w 3"
 runtest "### Chmod     " unix 0 "" eos chmod 700 /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Ls        " unix 1 "EOSROLE='-r 99 99'" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
@@ -527,7 +533,7 @@ runtest "### Chmod     " unix 0 "" eos chmod 755 /eos/$EOS_TEST_INSTANCE/test/in
 # Parallel sockets (does not work currently with 3.1.0 clients)
 # --------------------------
 #runtest "### UploadP   " unix 0 "" upload  "$TESTSYSFILE50M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" "-S10"
-#runtest "### Download  " unix 0 "" download   "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" 
+#runtest "### Download  " unix 0 "" download "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" 
 #runtest "### DownloadP " unix 0 "" download "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" "-S10"
 ################################################################################################################
 # FINAL CLEANUP 

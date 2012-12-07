@@ -24,12 +24,10 @@
 include_directories( ../ 
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${FUSE_INCLUDE_DIR} 
-		     ${SPARSEHASH_INCLUDE_DIR} 
-		     ${XRDCL_INCLUDE_DIR} )
+		     ${SPARSEHASH_INCLUDE_DIR} )
 
 link_directories( /usr/${LIB_INSTALL_DIR}/ 
-		  ${XROOTD_LIB_DIR} 
-		  ${XRDCL_LIB_DIR} )
+		  ${XROOTD_LIB_DIR} )
 
 add_subdirectory(XrdCache)
 
@@ -44,7 +42,7 @@ add_executable ( eosd
 		 FuseCacheEntry.cc	FuseCacheEntry.hh)
 
 target_link_libraries ( eosfsd 
-     		      	${XRDCL_LIB}	
+		        XrdCl
 			XrdEosFst-Static
 			XrdUtils 
 			XrdCache-static 
@@ -54,7 +52,7 @@ target_link_libraries ( eosfsd
 			pthread )
 
 target_link_libraries ( eosd 
-     		      	${XRDCL_LIB}		      	     
+     		      	XrdCl
 			XrdEosFst-Static
 			XrdUtils 
 			XrdCache-static 

@@ -239,18 +239,27 @@ void xrd_store_child_p2i( unsigned long long inode,
         size_t bpos = fullpath.rfind( "/" );
 
         if ( ( spos != std::string::npos ) && ( spos != bpos ) ) {
-          fullpath.erase( spos );
+          fullpath.erase( bpos );
         }
       }
     } else {
       fullpath += "/";
+      size_t spos = fullpath.find( "//" );
+      
+      while ( spos != std::string::npos ) {
+        fullpath.replace( spos, 2, "/" );
+        spos = fullpath.find( "//" );
+      }
+      
       fullpath += name;
     }
-    
-    eos_static_debug( "sname=%s fullpath=%s inode=%llu childinode=%llu\n",
-                      sname.c_str(), fullpath.c_str(), inode, childinode );
-    path2inode[fullpath] = childinode;
-    inode2path[childinode] = fullpath;
+
+    if ( ( sname != "..") && ( fullpath != "/" ) )  {
+      eos_static_debug( "sname=%s fullpath=%s inode=%llu childinode=%llu ",
+                        sname.c_str(), fullpath.c_str(), inode, childinode );
+      path2inode[fullpath] = childinode;
+      inode2path[childinode] = fullpath;
+    }
   }
 }
 
@@ -1617,14 +1626,13 @@ int xrd_inodirlist( unsigned long long dirinode, const char* path )
 
       XrdOucString whitespacedirpath = dirpath;
       whitespacedirpath.replace( "%20", " " );
+      
       xrd_store_child_p2i( dirinode, inode, whitespacedirpath.c_str() );
       dir2inodelist[dirinode].push_back( inode );
 
       // to the next entries
       if ( ptr ) ptr = strchr( ptr + 1, ' ' );
       if ( ptr ) ptr = strchr( ptr + 1, ' ' );
-
-      eos_static_info( "name=%s inode=%llu", whitespacedirpath.c_str(), inode );
     }
 
     doinodirlist = 0;
@@ -2288,18 +2296,24 @@ void xrd_init()
   // Initialize hashes
   //............................................................................
   path2inode.set_empty_key( "" );
-  inode2path.set_empty_key( 0 );
-  dir2inodelist.set_empty_key( 0 );
-  dir2dirbuf.set_empty_key( 0 );
-  inode2cache.set_empty_key( 0 );
-  inodeuser2fd.set_empty_key( "" );
-  fd2fobj.set_empty_key( -1 );
   path2inode.set_deleted_key( "#__deleted__#" );
+  
+  inode2path.set_empty_key( 0 );
   inode2path.set_deleted_key( 0xffffffffll );
+  
+  dir2inodelist.set_empty_key( 0 );
   dir2inodelist.set_deleted_key( 0xffffffffll );
+  
+  dir2dirbuf.set_empty_key( 0 );
   dir2dirbuf.set_deleted_key( 0xffffffffll );
+  
+  inode2cache.set_empty_key( 0 );
   inode2cache.set_deleted_key( 0xffffffffll );
+  
+  inodeuser2fd.set_empty_key( "" );
   inodeuser2fd.set_deleted_key( "#__deleted__#" );
+  
+  fd2fobj.set_empty_key( -1 );
   fd2fobj.set_deleted_key( -2 );
 
   //............................................................................

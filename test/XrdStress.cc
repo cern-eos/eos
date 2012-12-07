@@ -143,7 +143,7 @@ XrdStress::XrdStress( unsigned int nChilds,
         //......................................................................
         // Jobs will run (concurrently) only on the first numFiles
         //......................................................................
-        while ( vectFilename.size() >= numFiles ) {
+        while ( vectFilename.size() > numFiles ) {
           vectFilename.pop_back();
         }
       }
