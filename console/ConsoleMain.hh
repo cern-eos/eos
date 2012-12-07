@@ -25,7 +25,6 @@
 #include "common/LayoutId.hh"
 #include "common/Fmd.hh"
 #include "common/Logging.hh"
-#include "common/ClientAdmin.hh"
 #include "common/FileSystem.hh"
 
 #ifndef CLIENT_ONLY
@@ -93,7 +92,6 @@ extern bool json;
 extern XrdOucEnv* client_user_command(XrdOucString &in);
 extern XrdOucEnv* client_admin_command(XrdOucString &in);
 extern int output_result(XrdOucEnv* result, bool highlighting=true);
-extern eos::common::ClientAdminManager CommonClientAdminManager;
 extern void command_result_stdout_to_vector(std::vector<std::string> &string_vector);
 extern XrdOucEnv* CommandEnv;
 

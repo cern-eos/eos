@@ -36,7 +36,6 @@
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
-#include "common/ClientAdmin.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
 #include "common/LayoutId.hh"

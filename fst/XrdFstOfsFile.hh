@@ -30,7 +30,6 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/Fmd.hh"
-#include "common/ClientAdmin.hh"
 #include "common/SecEntity.hh"
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"

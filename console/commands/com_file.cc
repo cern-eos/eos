@@ -24,8 +24,8 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "fst/FmdSqlite.hh"
+#include "XrdCl/XrdClFileSystem.hh"
 /*----------------------------------------------------------------------------*/
-
 
 using namespace eos::common;
 
@@ -315,22 +315,38 @@ com_file (char* arg1) {
         XrdOucString repbootstat = "mgm.fsbootstat"; repbootstat += i;
         XrdOucString repfstpath  = "mgm.fstpath"; repfstpath += i;
         if ( newresult->Get(repurl.c_str()) ) {
-          // Query 
-          ClientAdmin* admin = CommonClientAdminManager.GetAdmin(newresult->Get(repurl.c_str()));
+          // Query
+          XrdCl::StatInfo* stat_info = 0;
+          XrdCl::XRootDStatus status;
+          XrdOucString address = "root://";
+          address += newresult->Get(repurl.c_str());
+          address += "//dummy";
+          XrdCl::URL url( address.c_str() );
+
+          if ( !url.IsValid() ) {
+            fprintf( stderr, "error=URL is not valid: %s", address.c_str() );
+            return EINVAL;
+          }
+
+          //.............................................................................
+          // Get XrdCl::FileSystem object
+          //.............................................................................
+          XrdCl::FileSystem* fs = new XrdCl::FileSystem( url );
+
+          if ( !fs ) {
+            fprintf( stderr, "error=failed to get new FS object" );
+            return ECOMM;
+          }
+
           XrdOucString bs = newresult->Get(repbootstat.c_str());
           if (bs != "booted") {
             down = true;
           }  else {
             down = false;
           }
-
-          if (!admin) {
-            fprintf(stderr,"error: unable to get admin\n");
-            return ECOMM;
-          }
+          
           struct eos::fst::FmdSqlite::FMD fmd;
           int retc=0;
-
           int oldsilent=silent;
 
           if ( (option.find("%silent"))!= STR_NPOS ) {
@@ -339,32 +355,63 @@ com_file (char* arg1) {
 
           if ( down && ((option.find("%force"))== STR_NPOS ))  {
             consistencyerror = true;
-            if (!silent) fprintf(stderr,"error: unable to retrieve file meta data from %s [ status=%s ]\n",  newresult->Get(repurl.c_str()),bs.c_str());
             inconsistencylable ="DOWN";
+            
+            if (!silent) {
+              fprintf(stderr,"error: unable to retrieve file meta data from %s [ status=%s ]\n",
+                      newresult->Get(repurl.c_str()),bs.c_str());
+            }
           } else {
-            //      fprintf(stderr,"%s %s %s\n",newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()));
+            // fprintf( stderr,"%s %s %s\n",newresult->Get(repurl.c_str()),
+            //          newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()) );
             if ((option.find("%checksumattr")!= STR_NPOS)) {
               checksumattribute="";
-              if ((retc=eos::fst::gFmdSqliteHandler.GetRemoteAttribute(newresult->Get(repurl.c_str()), "user.eos.checksum",newresult->Get(repfstpath.c_str()), checksumattribute))) {
-                if (!silent)fprintf(stderr,"error: unable to retrieve extended attribute from %s [%d]\n",  newresult->Get(repurl.c_str()),retc);
+              if ((retc = eos::fst::gFmdSqliteHandler.GetRemoteAttribute(
+                      newresult->Get(repurl.c_str()),
+                      "user.eos.checksum",
+                      newresult->Get(repfstpath.c_str()),
+                      checksumattribute)))
+              {
+                if (!silent) {
+                  fprintf(stderr,"error: unable to retrieve extended attribute from %s [%d]\n",
+                          newresult->Get(repurl.c_str()),retc);
+                }
               } 
             }
 
-            // do a remote stat
-            long id;
-            long long rsize;
-            long flags;
-            long modtime;
+            //..................................................................
+            // Do a remote stat using XrdCl::FileSystem
+            //..................................................................
+            uint64_t id;
+            uint64_t rsize;
+            uint32_t flags;
+            uint64_t modtime;
 
-            admin->GetAdmin()->Connect();
-            if (!admin->GetAdmin()->Stat(newresult->Get(repfstpath.c_str()), id, rsize, flags, modtime)) {
+            status = fs->Stat( newresult->Get(repfstpath.c_str()), stat_info );
+
+            if ( !status.IsOK() ) {
               consistencyerror = true;
               inconsistencylable="STATFAILED";
 	      rsize=-1;
             }
+            else {
+              id = static_cast<uint64_t>( atoll( stat_info->GetId().c_str() ) );
+              rsize = stat_info->GetSize();
+              flags = stat_info->GetFlags();
+              modtime = stat_info->GetModTime();              
+            }
 
-            if ((retc = eos::fst::gFmdSqliteHandler.GetRemoteFmdSqlite(newresult->Get(repurl.c_str()), newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()), fmd))) {
-              
+            //..................................................................
+            // Free memory
+            //..................................................................
+            delete stat_info;
+            delete fs;
+
+            if ((retc = eos::fst::gFmdSqliteHandler.GetRemoteFmdSqlite(
+                    newresult->Get(repurl.c_str()),
+                    newresult->Get(repfid.c_str()),
+                    newresult->Get(repfsid.c_str()), fmd)))
+            {
               if (!silent) {
                 fprintf(stderr,"error: unable to retrieve file meta data from %s [%d]\n",
                         newresult->Get(repurl.c_str()),retc);
@@ -409,7 +456,16 @@ com_file (char* arg1) {
 
               nreplicaonline++;
 
-              if (!silent)fprintf(stdout,"nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" size=\"%llu\" statsize=\"%lld\" checksum=\"%s\"", i, newresult->Get(repfsid.c_str()),newresult->Get(repurl.c_str()),newresult->Get(repfstpath.c_str()),fmd.size, rsize, cx.c_str());                      
+              if (!silent) {
+                fprintf( stdout, "nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" "
+                         "size=\"%llu\" statsize=\"%llu\" checksum=\"%s\"",
+                         i, newresult->Get(repfsid.c_str()),
+                         newresult->Get(repurl.c_str()),
+                         newresult->Get(repfstpath.c_str()),
+                         fmd.size,
+                         static_cast<long long>( rsize ),
+                         cx.c_str());
+              }
               if ((option.find("%checksumattr")!= STR_NPOS)) {
                 if (!silent)fprintf(stdout," checksumattr=\"%s\"\n", checksumattribute.c_str());
               } else {

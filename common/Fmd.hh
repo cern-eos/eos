@@ -36,7 +36,6 @@
 #include "common/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
-#include "common/ClientAdmin.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"

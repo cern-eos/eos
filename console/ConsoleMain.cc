@@ -118,7 +118,6 @@ int  retcfd = 0;
 
 XrdOucEnv* CommandEnv=0; // this is a pointer to the result of client_admin... or client_user.... = it get's invalid when the output_result function is called
 
-eos::common::ClientAdminManager CommonClientAdminManager;
 
 // for static linking needed
 /*int
