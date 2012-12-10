@@ -34,9 +34,8 @@
 
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysTimer.hh"
-#include "XrdClient/XrdClient.hh"
-#include "XrdClient/XrdClientAdmin.hh"
-#include "XrdClient/XrdClientEnv.hh"
+#include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClFileSystem.hh"
 #include "common/Logging.hh"
 
 void usage() {
@@ -47,15 +46,6 @@ void usage() {
 #define TRANSFERBLOCKSIZE 1024*1024*4
 
 bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
-  EnvPutInt(NAME_READCACHESIZE,0);
-  EnvPutInt(NAME_MAXREDIRECTCOUNT,5);
-  EnvPutInt(NAME_DATASERVERCONN_TTL,3600);
-  XrdClient* client = new XrdClient(destfilename.c_str());
-
-  if (!client) {
-    eos_static_err("cannot create XrdClient object");
-    return false;
-  }
 
   XrdOucString destfile = destfilename;
   int pos1 = destfile.find("//");
@@ -65,39 +55,60 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
     exit(-1);
   }
       
-  destfile.erase(0,pos2+1);
+  destfile.erase( 0, pos2 + 1 );
 
-  XrdClientAdmin* admin = new XrdClientAdmin(destfilename.c_str());
-  if (!admin) {
-    eos_static_crit("cannot create client admin to %s\n", destfilename.c_str());
-    exit(-1);
-  } else {
-    admin->Connect();
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  XrdCl::StatInfo* stat_info = 0;
+  XrdCl::URL url( destfilename.c_str() );
+
+  if ( !url.IsValid() ) {
+    eos_static_err( "error=URL is not valid: %s", destfilename.c_str() );
+    exit( -1 );
   }
 
-  long id;
-  long long size;
-  long flags;
-  long modtime;
-  XrdClientStatInfo dststat;  
-  bool isopen = false;
-  // to check if the file exists already
-  if (!admin->Stat(destfile.c_str(), id, size, flags,modtime)) {
-    isopen = client->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or , kXR_mkpath | kXR_new, false);
-  } else {
-    isopen = client->Open(kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or , kXR_mkpath | kXR_open_updt , false);
-  }
-  delete admin;
+  //.............................................................................
+  // Get XrdCl::FileSystem object
+  //.............................................................................
+  XrdCl::FileSystem* fs = new XrdCl::FileSystem( url );
 
-  if (!isopen) {
-    delete client;
+  if ( !fs ) {
+    eos_static_crit( "cannot create FS obj to %s\n", destfilename.c_str() );
+    exit( -1 );
+  }
+  
+  //..................................................................
+  // Do a remote stat using XrdCl::FileSystem
+  //..................................................................
+  uint16_t flags_xrdcl = 0;
+  uint16_t mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::GR |
+                        XrdCl::Access::GW | XrdCl::Access::OR;
+
+  if ( !fs->Stat( destfilename.c_str(), stat_info ).IsOK() ) {
+    flags_xrdcl = XrdCl::OpenFlags::MakePath | XrdCl::OpenFlags::New;
+  }
+  else {
+    flags_xrdcl = XrdCl::OpenFlags::MakePath | XrdCl::OpenFlags::Update;
+  }
+
+  XrdCl::File* file = new XrdCl::File();
+
+  if ( !file->Open( destfile.c_str(), flags_xrdcl, mode_xrdcl ).IsOK() ) {
     eos_static_err("cannot open remote file %s\n", destfilename.c_str());
+    delete stat_info;
+    delete fs;
+    delete file;
     return false;
   }
 
+  //............................................................................
+  // Free used memory by stat
+  //............................................................................
+  delete stat_info;
+  delete fs;
+  
   struct stat srcstat;
-
-
+  XrdCl::StatInfo* dststat = 0;
   bool success=true;
 
   int fd = open(filename.c_str(),O_RDONLY);
@@ -109,21 +120,23 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
       eos_static_err("cannot stat source file %s - errno=%d ", filename.c_str(),errno);
       success = false;
     } else {
-      if (!client->Stat(&dststat, true)) {
+      if ( !file->Stat( true, dststat ).IsOK() ) {
         eos_static_err("cannot stat destination file %s", destfilename.c_str());
-        delete client;
+        delete dststat;
+        delete file;
         close(fd);
         return false;
       }
 
-      if (dststat.size == srcstat.st_size) {
+      if (dststat->GetSize() == static_cast<uint64_t>( srcstat.st_size ) ) {
         // if the file exists already with the correct size we don't need to copoy
-        delete client;
+        delete dststat;
+        delete file;
         close(fd);
         return true;
       }
 
-      if (!client->Truncate(0)) {
+      if ( !file->Truncate(0).IsOK() ) {
         eos_static_err("cannot truncate remote file");
         success = false;
       } else {
@@ -132,7 +145,10 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
           eos_static_err("cannot map source file ");
           success = false;
         } else {
-          for (unsigned long long offset = 0; offset < (unsigned long long)srcstat.st_size; offset += (TRANSFERBLOCKSIZE)) {
+          for (unsigned long long offset = 0;
+               offset < (unsigned long long)srcstat.st_size;
+               offset += (TRANSFERBLOCKSIZE))
+          {
             unsigned long long length;
             if ( (srcstat.st_size -offset) > TRANSFERBLOCKSIZE) {
               length = TRANSFERBLOCKSIZE;
@@ -140,8 +156,9 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
               length = srcstat.st_size-offset;
             }
                 
-            if (!client->Write(copyptr + offset, offset,length )) {
-              eos_static_err("cannot write remote block at %llu/%lu\n", (unsigned long long)offset, (unsigned long)length);
+            if ( !file->Write( offset, length, copyptr + offset ).IsOK() ) {
+              eos_static_err("cannot write remote block at %llu/%lu\n",
+                             (unsigned long long)offset, (unsigned long)length);
               success = false;
               break;
             }
@@ -152,7 +169,9 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
     }
     close(fd);
   }
-  delete client;
+
+  delete dststat;
+  delete file;
   return success;
 }
 

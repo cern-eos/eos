@@ -110,7 +110,7 @@ int main( int argc, char* argv[] )
   XrdCl::File* file = new XrdCl::File();
 
   if ( !file ) {
-    fprintf( stderr, "Error: cannot create XrdClient object\n" );
+    fprintf( stderr, "Error: cannot create XrdCl object\n" );
     exit( -1 );
   }
 
@@ -168,7 +168,7 @@ int main( int argc, char* argv[] )
       }
     }
 
-    if ( !file->Stat( false, dststat ).IsOK() ) {
+    if ( !file->Stat( true, dststat ).IsOK() ) {
       eos_static_crit( "cannot stat destination file %s", dsturl.c_str() );
       delete file;
       exit( -1 );
