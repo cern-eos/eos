@@ -41,6 +41,7 @@
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdCl/XrdClFileSystem.hh"
+#include "XrdVersion.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -292,7 +293,7 @@ int XrdFstOfs::Configure(XrdSysError& Eroute)
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config","argument 2 for trace missing. Can be 'client'"); NoGo=1;
           } else {
-            EnvPutInt( NAME_DEBUG, 3);
+            //EnvPutInt( NAME_DEBUG, 3);
           }
         }
         

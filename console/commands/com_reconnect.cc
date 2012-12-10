@@ -50,12 +50,14 @@ com_reconnect (char* arg1) {
 
     XrdOucString path = serveruri;
     path += "//proc/admin/";
-    
+
+    /* - NOT SUPPORTED IN THE NEW CLIENT 
     XrdClientAdmin admin(path.c_str());
     admin.Connect();
     if (admin.GetClientConn()) {
       admin.GetClientConn()->Disconnect(true);
     }
+    */
     
     if (debug)
       fprintf(stdout,"debug: %s\n", path.c_str());

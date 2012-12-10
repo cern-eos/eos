@@ -73,7 +73,6 @@ add_library( XrdEosFst MODULE
 	     Config.cc
 	     Load.cc
              ScanDir.cc
-             RaidDPScan.cc
 	     Messaging.cc
              ../checksum/crc32c.cc
              ../checksum/crc32ctables.cc
@@ -113,7 +112,6 @@ add_library( XrdEosFst-Static STATIC
 	     Config.cc
 	     Load.cc
              ScanDir.cc
-             RaidDPScan.cc
 	     Messaging.cc
              ../checksum/crc32c.cc
              ../checksum/crc32ctables.cc
@@ -189,10 +187,11 @@ add_executable( eos-adler32
 )
 
 
-add_executable( eos-raid-recover
-                RaidDPScan.cc
-                tools/RecoverRaidDP.cc 
-)
+
+#add_executable( eos-raid-recover
+#                RaidDPScan.cc
+#                tools/RecoverRaidDP.cc 
+#)
 
 
 add_executable( eoscp 
@@ -209,7 +208,7 @@ target_link_libraries( eos-compute-blockxs eosCommon )
 target_link_libraries( eos-scan-fs eosCommon rt XrdCl ) 
 target_link_libraries( eos-adler32 eosCommon ) 
 target_link_libraries( eoscp XrdEosFst-Static XrdCl )
-target_link_libraries( eos-raid-recover eosCommon XrdCl )
+#target_link_libraries( eos-raid-recover eosCommon XrdCl )
 
 if (Linux)
   set_target_properties (XrdEosFst XrdEosFst-Static PROPERTIES
@@ -234,7 +233,7 @@ INSTALL_PROGRAMS( /sbin
 		  eos-check-blockxs 
 		  eos-compute-blockxs 
 		  eos-scan-fs 
-		  eos-raid-recover
+#		  eos-raid-recover
 )
 
 install( TARGETS EosFstOss XrdEosFst eoscp

@@ -871,11 +871,6 @@ int main (int argc, char* argv[]) {
     serveruri = getenv("EOS_MGM_URL");
   }
 
-  if (getenv("EOS_SOCKS4_HOST") && getenv("EOS_SOCKS4_PORT")) {
-    EnvPutString( NAME_SOCKS4HOST, getenv("EOS_SOCKS4_HOST"));
-    EnvPutString( NAME_SOCKS4PORT, getenv("EOS_SOCKS4_PORT"));
-  }
-
   XrdOucString urole="";
   XrdOucString grole="";
   bool selectedrole= false;

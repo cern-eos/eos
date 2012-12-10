@@ -38,6 +38,7 @@
 #include "mq/XrdMqClient.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysAtomics.hh"
+#include "XrdSys/XrdSysSemWait.hh"
 /*----------------------------------------------------------------------------*/
 
 #define XRDMQSHAREDHASH_CMD       "mqsh.cmd"
