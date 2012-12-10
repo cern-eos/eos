@@ -551,10 +551,12 @@ XrdFstOfs::stat(  const char             *path,
 {
   EPNAME("stat");
   memset(buf,0,sizeof(struct stat));
-  if (!XrdOfsOss->Stat(path, buf))
+  if ( !XrdOfsOss->Stat( path, buf ) ) {
     return SFS_OK;
-  else
-    return gOFS.Emsg(epname,out_error,errno,"stat file",path);
+  }
+  else {
+    return gOFS.Emsg( epname, out_error, errno, "stat file", path);
+  }
 }
 
 

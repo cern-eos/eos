@@ -699,9 +699,9 @@ client_admin_command(XrdOucString &in) {
     printf("debug: %s\n", path.c_str());
   }
  
-  uint16_t xrdcl_flags = XrdCl::OpenFlags::Read;
+  uint16_t flags_xrdcl = XrdCl::OpenFlags::Read;
   XrdCl::File* client = new XrdCl::File();
-  XrdCl::XRootDStatus status = client->Open( path.c_str(), xrdcl_flags );
+  XrdCl::XRootDStatus status = client->Open( path.c_str(), flags_xrdcl );
   
   if ( status.IsOK() ) {
     off_t offset = 0;
@@ -756,9 +756,9 @@ client_user_command(XrdOucString &in) {
   path += "?";
   path += in;
 
-  uint16_t xrdcl_flags = XrdCl::OpenFlags::Read;
+  uint16_t flags_xrdcl = XrdCl::OpenFlags::Read;
   XrdCl::File* client = new XrdCl::File();
-  XrdCl::XRootDStatus status = client->Open( path.c_str(), xrdcl_flags );
+  XrdCl::XRootDStatus status = client->Open( path.c_str(), flags_xrdcl );
   
   if ( status.IsOK() ) {
     off_t offset = 0;

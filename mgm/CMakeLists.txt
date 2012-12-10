@@ -49,7 +49,7 @@ add_library (XrdEosMgm MODULE
 	    ZMQ.cc
 	    )
 
-target_link_libraries (XrdEosMgm XrdClient XrdPosix XrdUtils XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z )
+target_link_libraries (XrdEosMgm XrdCl XrdPosix XrdUtils XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z )
 
 add_executable ( testmgmview
 	         FsView.cc
@@ -60,7 +60,7 @@ add_executable ( eos-fst-dump
 	         FstDump.cc 
 )
 
-target_link_libraries ( testmgmview XrdClient XrdUtils eosCommon-Static XrdMqClient-Static crypto uuid curses pthread dl z)
+target_link_libraries ( testmgmview XrdCl XrdUtils eosCommon-Static XrdMqClient-Static crypto uuid curses pthread dl z)
 
 set_target_properties ( testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST" )
 
