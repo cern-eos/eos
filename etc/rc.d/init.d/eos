@@ -51,6 +51,9 @@ XRD_STAGEDIR="/var/eos/stage/"
 XRD_CONFIG="/etc/xrd.cf"
 XRD_ROLEFLAG=""
 
+EOS_MQ_MASTER_FILE="/var/eos/eos.mq.master"
+EOS_MGM_MASTER_FILE="/var/eos/eos.mgm.rw"
+
 FRETVAL=0
 RETVAL=0
 
@@ -237,8 +240,23 @@ getstatus() {
                 # Check if the xrootd daemon associated to this role running
   	        status -p /var/run/$prog.$i.pid $prog.$i >& /dev/null
                 pid=`pidofproc $prog.$i`
+                type=""
+                if [ "$i" = "mq" ]; then 
+                   if [ -e ${EOS_MQ_MASTER_FILE} ]; then
+	              type="(as master)"
+	           else
+	              type="(as slave)"
+                   fi
+		fi
+                if [ "$i" = "mgm" ]; then
+                   if [ -e ${EOS_MGM_MASTER_FILE} ]; then
+                      type="(as master)"
+                   else
+                      type="(as slave)"
+                   fi
+                fi
                 if [ -n "$pid" ]; then
-                        echo $"$prog for role: $i (pid $pid) is running..."
+                        echo $"$prog for role: $i (pid $pid) is running $type ..."
                         continue
                 else
                         # See if /var/lock/subsys/$prog.$i exists
@@ -255,13 +273,13 @@ getstatus() {
                                    RETVAL=2
 				fi
                         fi
-                fi                        
+                fi                       
         done
 
         if [ "$i" = "fed" ]; then
            /etc/rc.d/init.d/cmsd status
         fi
-
+     
         return $RETVAL
 }
 
@@ -299,6 +317,90 @@ restart() {
     if [ "$eosdoff" = "1" ]; then
         /etc/init.d/eosd start 
     fi
+}
+
+master() {
+    RETVAL=0
+    if [ "$1" = "mq" ]; then
+       if [ ! -e ${EOS_MQ_MASTER_FILE} ]; then
+              touch ${EOS_MQ_MASTER_FILE}
+       	      if [ $? = 0 ]; then
+              	 echo -n "Configured MQ on localhost as master" && success
+		 echo 
+       	      else 
+              	   echo -n "Failed to create master tag file ${EOS_MQ_MASTER_FILE}" && failure
+		   echo 
+          	   exit -1 
+       	      fi    	  
+       else 
+       	    echo -n "MQ is already configured as master" && success
+            echo
+       fi
+       return
+    fi 
+
+    if [ "$1" = "mgm" ]; then
+       if [ ! -e ${EOS_MGM_MASTER_FILE} ]; then
+              touch ${EOS_MGM_MASTER_FILE}
+       	      if [ $? = 0 ]; then
+              	 echo -n "Configured MGM on localhost as master" && success
+		 echo 
+       	      else 
+              	   echo -n "Failed to create master tag file ${EOS_MGM_MASTER_FILE}" && failure
+		   echo 
+          	   exit -1 
+       	      fi    	  
+       else 
+       	    echo -n "MGM is already configured as master" && success
+            echo
+       fi
+       return
+    fi	
+    echo -n "No action for service $1" && success
+    echo
+}
+
+slave() {
+    RETVAL=0;
+    if [ "$1" = "mq" ]; then 
+       if [ -e ${EOS_MQ_MASTER_FILE} ]; then 
+            unlink ${EOS_MQ_MASTER_FILE}
+            if [ $? = 0 ]; then
+            	 echo -n "Configured MQ on localhost as slave" && success
+                 echo
+            else 
+                 echo -n "Failed to remove master tag file ${EOS_MQ_MASTER_FILE}" && failure
+                 echo
+                 exit -1 
+ 	    fi		 
+       else 
+       	    echo -n "MQ is already configured as slave" && success
+            echo
+       fi
+       return
+    fi
+
+    if [ "$1" = "mgm" ]; then 
+       if [ -e ${EOS_MGM_MASTER_FILE} ]; then 
+            unlink ${EOS_MGM_MASTER_FILE}
+            if [ $? = 0 ]; then
+            	 echo -n "Configured MGM on localhost as slave" && success
+                 echo
+            else 
+                 echo -n "Failed to remove master tag file ${EOS_MGM_MASTER_FILE}" && failure
+                 echo
+                 exit -1 
+ 	    fi		 
+       else 
+       	    echo -n "MGM is already configured as slave" && success
+            echo
+       fi
+       return
+    fi
+
+    echo -n "No action for service $1" && success
+    echo
+
 }
 
 # Determine the role
@@ -383,6 +485,13 @@ case "$1" in
         condrestart)
                 condrestart $2
                 ;;
+	master)
+                master $2
+                ;;
+        slave)
+                slave $2
+                ;;
+
         *)
                 echo $"Usage: $0 {start|stop|status|restart|condrestart} [role]"
                 exit 1
