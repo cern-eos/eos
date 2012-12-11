@@ -506,7 +506,7 @@ Storage::Boot(FileSystem *fs)
   
   eos_info("msg=\"manager known\" manager=\"%s\"", manager.c_str());    
 
-  eos::common::FileSystem::fsid_t fsid = fs->GetId();
+  eos::cAommon::FileSystem::fsid_t fsid = fs->GetId();
   std::string uuid = fs->GetString("uuid");
 
   eos_info("booting filesystem %s id=%u uuid=%s",fs->GetQueuePath().c_str(), (unsigned int)fsid, uuid.c_str());
@@ -2544,7 +2544,9 @@ Storage::Drainer()
       }
     } else {
       // wait until we have slot's to fill
+      size_t cnt=0;
       while (1) {
+	cnt++;
 	eos::common::RWMutexReadLock lock (fsMutex);
 	nfs = fileSystemsVector.size();    
 	totalexecuted = 0;
@@ -2554,7 +2556,18 @@ Storage::Drainer()
 	    totalexecuted += fileSystemsVector[s]->GetDrainQueue()->GetQueue()->GetJobCount();
 	  }
 	}
-	nscheduled = (totalscheduled - totalexecuted);
+	if (cnt > 100) {
+	  // after 10 seconds we can just look into our queues to see the situation
+	  nscheduled = 0;
+	  for (unsigned int s=0; s < nfs; s++) {
+	    if (s < fileSystemsVector.size()) {
+	      nscheduled += fileSystemsVector[s]->GetDrainQueue()->GetRunningAndQueued();
+	    }
+	  }
+	  totalscheduled = totalexecuted + nscheduled;
+	} else {
+	  nscheduled = (totalscheduled - totalexecuted);
+	}
 	
 	if (nscheduled < (nparalleltx+1)) {
 	  // free slots, leave the loop
@@ -2769,6 +2782,7 @@ Storage::Balancer()
 	}
       }
     } else {
+      size_t cnt=0;
       // wait until we have slot's to fill
       while (1) {
 	eos::common::RWMutexReadLock lock (fsMutex);
@@ -2779,7 +2793,18 @@ Storage::Balancer()
 	    totalexecuted += fileSystemsVector[s]->GetBalanceQueue()->GetQueue()->GetJobCount();
 	  }
 	}
-	nscheduled = (totalscheduled - totalexecuted);
+	if (cnt > 100) {
+	  // after 10 seconds we can just look into our queues to see the situation
+	  nscheduled = 0;
+	  for (unsigned int s=0; s < nfs; s++) {
+	    if (s < fileSystemsVector.size()) {
+	      nscheduled += fileSystemsVector[s]->GetDrainQueue()->GetRunningAndQueued();
+	    }
+	  }
+	  totalscheduled = totalexecuted + nscheduled;
+	} else {
+	  nscheduled = (totalscheduled - totalexecuted);
+	}
 
 	if (nscheduled < (nparalleltx+1)) {
 	  // free slots, leave the loop
