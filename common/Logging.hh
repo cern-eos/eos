@@ -238,7 +238,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Log a message into the global buffer
   // ---------------------------------------------------------------------------
-  static void log(const char* func, const char* file, int line, const char* logid, const Mapping::VirtualIdentity &vid , const char* cident, int priority, const char *msg, ...);
+  static const char* log(const char* func, const char* file, int line, const char* logid, const Mapping::VirtualIdentity &vid , const char* cident, int priority, const char *msg, ...);
 
 };
 

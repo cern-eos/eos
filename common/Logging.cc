@@ -84,22 +84,23 @@ Logging::shouldlog(const char* func, int priority)
  * @param cident client identifier
  * @param priority priority level of the message
  * @param msg the actual log message
+ * @return pointer to the log message
  */
 /*----------------------------------------------------------------------------*/
 
-void
+const char*
 Logging::log(const char* func, const char* file, int line, const char* logid, const Mapping::VirtualIdentity &vid, const char* cident, int priority, const char *msg, ...) 
 {
   static int logmsgbuffersize=1024*1024;
 
   // short cut if log messages are masked
   if (!((LOG_MASK(priority) & gLogMask)))
-    return;
+    return "";
 
   // apply filter to avoid message flooding for debug messages
   if (priority >= LOG_INFO) {
     if ( (gFilter.find(func))!=STR_NPOS) {
-      return;
+      return "";
     }
   }
 
@@ -165,9 +166,13 @@ Logging::log(const char* func, const char* file, int line, const char* logid, co
   fflush(stderr);
   va_end(args);
 
+  const char* rptr;
   // store into global log memory
-  gLogMemory[priority][(gLogCircularIndex[priority]++)%gCircularIndexSize] = buffer;
+  gLogMemory[priority][(gLogCircularIndex[priority])%gCircularIndexSize] = buffer;
+  rptr = gLogMemory[priority][(gLogCircularIndex[priority])%gCircularIndexSize].c_str();
+  gLogCircularIndex[priority]++;
   gMutex.UnLock();
+  return rptr;
 }
 
 /*----------------------------------------------------------------------------*/
