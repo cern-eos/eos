@@ -58,7 +58,7 @@ void*
 Balancer::StaticBalance(void* arg)
 {
   //----------------------------------------------------------------
-  //! static thread startup function calling Run
+  //! static thread startup function calling Balance
   //----------------------------------------------------------------
   return reinterpret_cast<Balancer*>(arg)->Balance();
 }

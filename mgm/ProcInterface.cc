@@ -37,6 +37,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include "mgm/FsView.hh"
+#include "mgm/Master.hh"
 #include "mgm/txengine/TransferEngine.hh"
 #include "namespace/persistency/LogManager.hh"
 #include "namespace/utils/DataHelper.hh"
@@ -116,7 +117,38 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
        ( ( cmd == "rmdir") ) || 
        ( ( cmd == "rm") ) || 
        ( ( cmd == "chown") ) ||
-       ( ( cmd == "chmod") ) ) {
+       ( ( cmd == "chmod") ) ||
+       ( ( cmd == "fs") &&
+	 ( ( subcmd == "config" )  || 
+	   ( subcmd == "boot")  || 
+	   ( subcmd == "dropfiles" ) || 
+	   ( subcmd == "add") || 
+	   ( subcmd == "mv") || 
+	   ( subcmd == "rm") ) ) ||
+       ( ( cmd == "space") && 
+	 ( ( subcmd == "config") || 
+	   ( subcmd == "define") || 
+	   ( subcmd == "set") || 
+	   ( subcmd == "rm") ||
+	   ( subcmd == "quota") ) ) ||
+       ( ( cmd == "node") && 
+	 ( ( subcmd == "rm") ||
+	   ( subcmd == "config") ||
+	   ( subcmd == "set") ||
+	   ( subcmd == "register") || 
+	   ( subcmd == "gw") ) ) || 
+       ( ( cmd == "group") &&
+	 ( ( subcmd == "set") || 
+	   ( subcmd == "rm") ) ) ||
+       ( ( cmd == "map" ) &&
+	 ( ( subcmd == "link") || 
+	   ( subcmd == "unlink") ) ) ||
+       ( ( cmd == "quota" ) && 
+	 ( ( subcmd != "ls" ) ) ) ||
+       ( ( cmd == "vid")  && 
+	 ( ( subcmd != "ls") ) ) || 
+       ( ( cmd == "transfer") ) ) {
+    
     return true;
   }
   
@@ -555,7 +587,15 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	    if (type == "w") {
 	      Access::gRedirectionRules[std::string("w:*")] = redirect;
 	    } else {
-	      Access::gRedirectionRules[std::string("*")] = redirect;
+	      if ( type == "ENOENT" ) {
+		Access::gRedirectionRules[std::string("ENOENT:*")] = redirect;
+	      } else {
+		if ( type == "ENONET" ) {
+		  Access::gRedirectionRules[std::string("ENONET:*")] = redirect;
+		} else {
+		  Access::gRedirectionRules[std::string("*")] = redirect;
+		}
+	      }
 	    }
 	  }
 	  if (Access::StoreAccessConfig()) {
@@ -620,7 +660,15 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      if (type == "w") {
 		Access::gRedirectionRules.erase(std::string("w:*"));
 	      } else {
-		Access::gRedirectionRules.erase(std::string("*"));
+		if (type == "ENONET") {
+		  Access::gRedirectionRules.erase(std::string("ENONET:*"));
+		} else {
+		  if (type == "ENOENT") {
+		    Access::gRedirectionRules.erase(std::string("ENOENT:*"));
+		  } else {
+		    Access::gRedirectionRules.erase(std::string("*"));
+		  }
+		}
 	      }
 	    }
 	    if (Access::StoreAccessConfig()) {
@@ -2239,42 +2287,62 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  boottime = gOFS->InitializationTime;
 	}
       }
+
+      double avg=0;
+      double sigma = 0;
+
+      if (!gOFS->MgmMaster.IsMaster()) {
+	gOFS->eosFileService->getLatency(avg, sigma);
+      }
       
       if (!monitoring) {
-        stdOut+="# ------------------------------------------------------------------------------------\n";
-        stdOut+="# Namespace Statistic\n";
-        stdOut+="# ------------------------------------------------------------------------------------\n";
-
-        stdOut+="ALL      Files                            ";stdOut += files; stdOut += " ["; stdOut += bootstring;stdOut+= "] (";stdOut += (int) boottime; stdOut += "s)";stdOut+="\n";  
-
-        stdOut+="ALL      Directories                      ";stdOut += dirs;  stdOut+="\n";
-        stdOut+="# ....................................................................................\n";
-        stdOut+="ALL      File Changelog Size              ";stdOut += clfsize; stdOut += "\n";
-        stdOut+="ALL      Dir  Changelog Size              ";stdOut += cldsize; stdOut += "\n";
-        stdOut+="# ....................................................................................\n";
-        stdOut+="ALL      avg. File Entry Size             ";stdOut += clfratio; stdOut += "\n";
-        stdOut+="ALL      avg. Dir  Entry Size             ";stdOut += cldratio; stdOut += "\n";
-        stdOut+="# ------------------------------------------------------------------------------------\n";
-	stdOut+="ALL      memory virtual                   ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)mem.vmsize,"B"); stdOut += "\n";
-	stdOut+="ALL      memory resident                  ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)mem.resident,"B"); stdOut += "\n";
-	stdOut+="ALL      memory share                     ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)mem.share,"B"); stdOut += "\n";
-	if (pstat.vsize> gOFS->LinuxStatsStartup.vsize) {
-	  stdOut+="ALL      memory growths                   ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)(pstat.vsize-gOFS->LinuxStatsStartup.vsize),"B"); stdOut += "\n";
-	} else {
-	  stdOut+="ALL      memory growths                  -";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)(-pstat.vsize+gOFS->LinuxStatsStartup.vsize),"B"); stdOut += "\n";
+	if (subcmd != "master") {
+	  stdOut+="# ------------------------------------------------------------------------------------\n";
+	  stdOut+="# Namespace Statistic\n";
+	  stdOut+="# ------------------------------------------------------------------------------------\n";
+	  
+	  stdOut+="ALL      Files                            ";stdOut += files; stdOut += " ["; stdOut += bootstring;stdOut+= "] (";stdOut += (int) boottime; stdOut += "s)";stdOut+="\n";  
+	  
+	  stdOut+="ALL      Directories                      ";stdOut += dirs;  stdOut+="\n";
+	  stdOut+="# ....................................................................................\n";
+	  stdOut+="ALL      Replication                      ";gOFS->MgmMaster.PrintOut(stdOut); stdOut += "\n";
+	  if (!gOFS->MgmMaster.IsMaster()) {
+	    char slatency[1024];
+	    snprintf(slatency,sizeof(slatency)-1,"%.02f += %.02f ms", avg, sigma);
+	    stdOut+="ALL      Namespace Latency                ";stdOut += slatency; stdOut += "\n";
+	  }
+	  stdOut+="# ....................................................................................\n";
+	  stdOut+="ALL      File Changelog Size              ";stdOut += clfsize; stdOut += "\n";
+	  stdOut+="ALL      Dir  Changelog Size              ";stdOut += cldsize; stdOut += "\n";
+	  stdOut+="# ....................................................................................\n";
+	  stdOut+="ALL      avg. File Entry Size             ";stdOut += clfratio; stdOut += "\n";
+	  stdOut+="ALL      avg. Dir  Entry Size             ";stdOut += cldratio; stdOut += "\n";
+	  stdOut+="# ------------------------------------------------------------------------------------\n";
+	  stdOut+="ALL      memory virtual                   ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)mem.vmsize,"B"); stdOut += "\n";
+	  stdOut+="ALL      memory resident                  ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)mem.resident,"B"); stdOut += "\n";
+	  stdOut+="ALL      memory share                     ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)mem.share,"B"); stdOut += "\n";
+	  if (pstat.vsize> gOFS->LinuxStatsStartup.vsize) {
+	    stdOut+="ALL      memory growths                   ";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)(pstat.vsize-gOFS->LinuxStatsStartup.vsize),"B"); stdOut += "\n";
+	  } else {
+	    stdOut+="ALL      memory growths                  -";stdOut += eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)(-pstat.vsize+gOFS->LinuxStatsStartup.vsize),"B"); stdOut += "\n";
+	  }
+	  stdOut+="ALL      threads                          ";stdOut += eos::common::StringConversion::GetSizeString        (sizestring, (unsigned long long)pstat.threads);stdOut += "\n";
+	  
+	  stdOut+="# ------------------------------------------------------------------------------------\n";
 	}
-	stdOut+="ALL      threads                          ";stdOut += eos::common::StringConversion::GetSizeString        (sizestring, (unsigned long long)pstat.threads);stdOut += "\n";
-
-        stdOut+="# ------------------------------------------------------------------------------------\n";
       } else {
-        stdOut += "uid=all gid=all ns.total.files=";       stdOut += files; stdOut += "\n";
-        stdOut += "uid=all gid=all ns.total.directories="; stdOut += dirs;  stdOut += "\n";
-        stdOut += "uid=all gid=all ns.total.files.changelog.size=";       stdOut += eos::common::StringConversion::GetSizeString(clfsize, (unsigned long long)statf.st_size); stdOut += "\n";
-        stdOut += "uid=all gid=all ns.total.directories.changelog.size="; stdOut += eos::common::StringConversion::GetSizeString(cldsize, (unsigned long long)statd.st_size); stdOut += "\n";
-        stdOut += "uid=all gid=all ns.total.files.changelog.avg_entry_size=";       stdOut += eos::common::StringConversion::GetSizeString(clfratio, (unsigned long long) f?(1.0*statf.st_size)/f:0); stdOut += "\n";
+	stdOut += "uid=all gid=all ns.total.files=";       stdOut += files; stdOut += "\n";
+	stdOut += "uid=all gid=all ns.total.directories="; stdOut += dirs;  stdOut += "\n";
+	stdOut += "uid=all gid=all ns.total.files.changelog.size=";       stdOut += eos::common::StringConversion::GetSizeString(clfsize, (unsigned long long)statf.st_size); stdOut += "\n";
+	stdOut += "uid=all gid=all ns.total.directories.changelog.size="; stdOut += eos::common::StringConversion::GetSizeString(cldsize, (unsigned long long)statd.st_size); stdOut += "\n";
+	stdOut += "uid=all gid=all ns.total.files.changelog.avg_entry_size=";       stdOut += eos::common::StringConversion::GetSizeString(clfratio, (unsigned long long) f?(1.0*statf.st_size)/f:0); stdOut += "\n";
         stdOut += "uid=all gid=all ns.total.directories.changelog.avg_entry_size="; stdOut += eos::common::StringConversion::GetSizeString(cldratio, (unsigned long long) d?(1.0*statd.st_size)/d:0); stdOut += "\n";
 	stdOut += "uid=all gid=all ns.boot.status="; stdOut += bootstring; stdOut += "\n";
 	stdOut += "uid=all gid=all ns.boot.time="; stdOut += (int) boottime; stdOut += "\n";
+	stdOut += "uid=all gid=all "; gOFS->MgmMaster.PrintOut(stdOut); stdOut += "\n";
+	stdOut += "uid=all gid=all ns.latency.avg="; char savg[1024]; snprintf(savg, sizeof(savg)-1, "%.02f", avg);  stdOut += savg; stdOut += "\n";
+	stdOut += "uid=all gid=all ns.latency.sig="; char ssig[1024]; snprintf(ssig, sizeof(ssig)-1, "%.02f", sigma);stdOut += ssig; stdOut += "\n";
+	
 	stdOut += "uid=all gid=all ns.memory.virtual=";  stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mem.vmsize);stdOut += "\n";
 	stdOut += "uid=all gid=all ns.memory.resident="; stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mem.resident);stdOut += "\n";
 	stdOut += "uid=all gid=all ns.memory.share=";    stdOut +=  eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)mem.share);stdOut += "\n";
@@ -2293,7 +2361,57 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	}
         gOFS->MgmStats.PrintOutTotal(stdOut, details, monitoring,numerical);
       }
-      
+
+      if (subcmd == "master") {
+	XrdOucString masterhost = opaque.Get("mgm.master");
+	
+	if (masterhost == "--disable") {
+	  // just disable the master heart beat thread
+	  if (!gOFS->MgmMaster.DisableHeartBeat()) {
+	    stdErr+="warning: master heartbeat was already disabled!\n";
+	    retc = EINVAL;
+	  } else {
+	    stdOut+="success: disabled master heartbeat check\n";
+	  }
+	  MakeResult(false);
+	  return SFS_OK;
+	}
+
+	if (masterhost == "--enable") {
+	  // just enable the master heart beat thread
+	  if (!gOFS->MgmMaster.EnableHeartBeat()) {
+	    stdErr+="warning: master heartbeat was already enabled!\n";
+	    retc = EINVAL;
+	  } else {
+	    stdOut+="success: enabled master heartbeat check\n";
+	  }
+	  MakeResult(false);
+	  return SFS_OK;
+	}
+
+	if ( (masterhost == "--log") || (!masterhost.length()) ) {
+	  gOFS->MgmMaster.GetLog(stdOut);
+	  MakeResult(false);
+	  return SFS_OK;
+	}
+
+	if ( (masterhost == "--log-clear") ) {
+	  gOFS->MgmMaster.ResetLog();
+	  stdOut += "success: cleaned the master log";
+	  MakeResult(false);
+	  return SFS_OK;
+	}
+
+	if (!gOFS->MgmMaster.Set(masterhost,stdOut,stdErr)) {
+	  retc = EIO;
+	} else {
+	  stdOut +="success: <"; stdOut += gOFS->MgmMaster.GetMasterHost(); stdOut += "> is now the master\n";
+	}
+	MakeResult(false);
+	return SFS_OK;
+      }
+
+
       if (subcmd == "compact") {
         XrdOucString sizestring="";
 
@@ -4650,7 +4768,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      time_t filectime = (time_t) ctime.tv_sec;
 	      time_t filemtime = (time_t) mtime.tv_sec;
 	      char fid[32];
+	      char cid[32];
 	      snprintf(fid,32,"%llu",(unsigned long long) fmd->getId());
+	      snprintf(cid,32,"%llu",(unsigned long long) fmd->getContainerId());
 	      
 	      if (!Monitoring) {
 		stdOut  = "  File: '"; stdOut += spath; stdOut += "'";
@@ -4679,6 +4799,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		stdOut += "uid="; stdOut += (int)fmd->getCUid(); stdOut += " gid="; stdOut += (int)fmd->getCGid(); stdOut += " ";
 		
 		stdOut += "fxid="; stdOut += hexfidstring; stdOut+=" "; stdOut += "fid="; stdOut += fid; stdOut += " ";
+		stdOut += "cid="; stdOut += cid; stdOut += " ";
 		stdOut += "pid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getContainerId()); stdOut+=" ";
 		stdOut += "xstype="; stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()); stdOut += " ";
 		stdOut += "xs="; 
@@ -5014,10 +5135,20 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                   if (modestr[0] != 'd') 
                     dirmarker="";
 
+		  if ((option.find("i"))!=STR_NPOS) {
+		    // add inode information
+		    char sinode[16];
+		    bool isfile = (modestr[0] != 'd');
+		    snprintf(sinode,16,"%llu", (unsigned long long )(isfile?(buf.st_ino>>28):buf.st_ino));
+		    sprintf(lsline,"%-16s",sinode);
+		    stdOut += lsline;
+		  }
+
                   sprintf(lsline,"%s %3d %-8.8s %-8.8s %12s %s %s%s\n", modestr,(int)buf.st_nlink,
                           suid.c_str(),sgid.c_str(),eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)buf.st_size),t_creat, val, dirmarker.c_str());
                   if ((option.find("l"))!=STR_NPOS) 
                     stdOut += lsline;
+		    
                   else {
                     stdOut += val;
                     stdOut += dirmarker;
@@ -5342,7 +5473,13 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		    
 		    if (selectoldertime) {
                       eos::FileMD::ctime_t mtime;
-                      fmd->getMTime(mtime);
+		      // by default use the creation time
+		      if (printmtime) {
+			fmd->getMTime(mtime);
+		      } else {
+			fmd->getCTime(mtime);
+		      }
+
                       if ( mtime.tv_sec > selectoldertime ) {
                         selected = false;
                       }
@@ -5350,7 +5487,12 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
 		    if (selectyoungertime) {
                       eos::FileMD::ctime_t mtime;
-                      fmd->getMTime(mtime);
+		      // by default use the creation time
+		      if (printmtime) {
+			fmd->getMTime(mtime);
+		      } else {
+			fmd->getCTime(mtime);
+		      }
                       if ( mtime.tv_sec < selectyoungertime ) {
                         selected = false;
                       }
@@ -5555,7 +5697,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 		  childfiles = cmd->getNumFiles();
 		  childdirs  = cmd->getNumContainers();
 		  gOFS->eosViewRWMutex.UnLockRead();
-		  fprintf(fstdout,"%s ndir=%llu nfiles=%llu\n", foundit->first.c_str(), childdirs, childfiles);
+		  fprintf(fstdout,"%s ndir=%llu nfiles=%llu cid=%llu\n", foundit->first.c_str(), childdirs, childfiles, (unsigned long long)cmd->getId());
 		  //-------------------------------------------
 		} catch( eos::MDException &e ) {
 		  eos_debug("caught exception %d %s\n", e.getErrno(),e.getMessage().str().c_str());

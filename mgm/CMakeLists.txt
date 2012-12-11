@@ -47,6 +47,7 @@ add_library (XrdEosMgm MODULE
 	    txengine/TransferEngine.cc
 	    txengine/TransferFsDB.cc
 	    ZMQ.cc
+	    Master.cc
 	    )
 
 target_link_libraries (XrdEosMgm XrdCl XrdPosix XrdUtils XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z )

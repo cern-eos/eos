@@ -39,6 +39,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/Iostat.hh"
 #include "mgm/Fsck.hh"
+#include "mgm/Master.hh"
 #ifdef HAVE_ZMQ
 #include "mgm/ZMQ.hh"
 #endif
@@ -46,6 +47,7 @@
 #include "namespace/IView.hh"
 #include "namespace/IFileMDSvc.hh"
 #include "namespace/IContainerMDSvc.hh"
+#include "namespace/views/HierarchicalView.hh"
 #include "namespace/accounting/FileSystemView.hh"
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
@@ -88,10 +90,46 @@ USE_EOSMGMNAMESPACE
       XrdOucString host="";                                     \
       if (gOFS->ShouldRedirect(__FUNCTION__,__AccessMode__,vid, host,port)) \
         return gOFS->Redirect(error, host.c_str(), port);       \
-    }                                                           \
+    }								\
   }
 
+#define MAYREDIRECT_ENOENT { if (gOFS->IsRedirect) {		\
+      int port=0;						\
+      XrdOucString host="";					\
+      if (gOFS->HasRedirect(path,"ENOENT:*",host,port)) {	\
+	return gOFS->Redirect(error, host.c_str(), port) ;	\
+      }								\
+    }								\
+  }
+  
+#define MAYREDIRECT_ENONET { if (gOFS->IsRedirect) {		\
+      int port=0;						\
+      XrdOucString host="";					\
+      if (gOFS->HasRedirect(path,"ENOENT:*",host,port)) {	\
+	return gOFS->Redirect(error, host.c_str(), port) ;	\
+      }								\
+    }								\
+  }
 
+#define MAYSTALL_ENOENT { if (gOFS->IsStall) {				\
+      XrdOucString stallmsg="";						\
+      int stalltime;							\
+      if (gOFS->HasStall(path, "ENOENT:*", stalltime, stallmsg)) {	\
+	return gOFS->Stall(error, stalltime, stallmsg.c_str()) ;	\
+      }									\
+    }									\
+  }								
+
+#define MAYSTALL_ENONET { if (gOFS->IsStall) {			\
+      XrdOucString stallmsg="";					\
+      int stalltime;						\
+      if (gOFS->HasStall(path,"ENONET:*", stalltime, stallmsg)) {	\
+	return gOFS->Stall(error, stalltime, stallmsg.c_str()) ;	\
+      }									\
+    }									\
+  }
+
+  
 #define NAMESPACEMAP							\
   const char*path = inpath;						\
   const char*info = ininfo;						\
@@ -309,6 +347,7 @@ class XrdMgmOfs : public XrdSfsFileSystem , public eos::common::LogId
   friend class XrdMgmOfsFile;
   friend class XrdMgmOfsDirectory;
   friend class ProcCommand;
+
 public:
 
   // Object Allocation Functions
@@ -622,7 +661,7 @@ public:
   time_t                 InitializationTime;
   XrdSysMutex            InitializationMutex;
   bool                   Shutdown;              // true if the shutdown function was called => avoid to join some threads
-
+  bool                   RemoveStallRuleAfterBoot; // indicates that after a boot there shouldn't be a stall rule for all alias '*'
   static const char*     gNameSpaceState[];
 
   virtual bool           Init(XrdSysError &);
@@ -630,6 +669,10 @@ public:
   int            Redirect(XrdOucErrInfo &error, const char* host, int &port);
   bool           ShouldStall(const char* function, int accessmode, eos::common::Mapping::VirtualIdentity &vid, int &stalltime, XrdOucString &stallmsg);
   bool           ShouldRedirect(const char* function, int accessmode, eos::common::Mapping::VirtualIdentity &vid, XrdOucString &host, int &port);
+
+
+  bool           HasStall(const char* path, const char* rule, int &stalltime, XrdOucString &stallmsg);
+  bool           HasRedirect(const char* path, const char* rule, XrdOucString &host, int &port);
 
   void           UpdateNowInmemoryDirectoryModificationTime(eos::ContainerMD::id_t id);
   void           UpdateInmemoryDirectoryModificationTime(eos::ContainerMD::id_t id, eos::ContainerMD::ctime_t &ctime);
@@ -650,7 +693,9 @@ public:
   XrdOucString     MgmOfsQueue;        // -> our mgm queue name
   XrdOucString     MgmOfsInstanceName; // -> name of the EOS instance
   XrdOucString     MgmConfigDir;       // Directory where config files are stored 
+  XrdOucString     MgmConfigAutoLoad;  // Name of the automatically loaded configuration file
   XrdOucString     MgmProcPath;        // Directory with proc files
+  XrdOucString     MgmProcMasterPath;  // Full path to the master indication proc file
   XrdOucString     AuthLib;            // -> path to a possible authorizationn library
   XrdOucString     MgmNsFileChangeLogFile; // -> path to namespace changelog file for files
   XrdOucString     MgmNsDirChangeLogFile;  // -> path to namespace changelog file for directories
@@ -691,6 +736,7 @@ public:
   google::sparse_hash_map<unsigned long long, time_t> MgmHealMap;
   XrdSysMutex      MgmHealMapMutex;
 
+  Master           MgmMaster;          //  Master/Slave configuration/failover class
 
   std::map<eos::common::FileSystem::fsid_t, time_t> DumpmdTimeMap;     // this map stores the last time of a filesystem dump, this information is used to track filesystems which have not been checked decentral by an FST. It is filled in the 'dumpmd' function definde in Procinterface
   XrdSysMutex      DumpmdTimeMapMutex;                                 // mutex protecting the 'dumpmd' time
@@ -728,12 +774,12 @@ public:
 
   eos::common::LinuxStat::linux_stat_t LinuxStatsStartup; // => process state after namespace load time
 
-protected:
   char*            HostName;           // -> our hostname as derived in XrdOfs
   char*            HostPref;           // -> our hostname as derived in XrdOfs without domain
 
-private:
   static  XrdSysError *eDest;
+private:
+
   eos::common::Mapping::VirtualIdentity vid;
 };
 /*----------------------------------------------------------------------------*/

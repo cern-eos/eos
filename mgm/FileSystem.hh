@@ -49,6 +49,14 @@ public:
     drainJobMutex.UnLock();
   }
 
+  bool ShouldBroadCast() {
+    if (mSom) {
+      return mSom->ShouldBroadCast();
+    } else {
+      return false;
+    }
+  }
+
   bool SetConfigStatus(eos::common::FileSystem::fsstatus_t status); // this method is overwritten to catch any status change to/from 'drain' or 'draindead'
 
   bool SetString(const char* key, const char* str, bool broadcast=true); // see above

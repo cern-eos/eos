@@ -176,7 +176,7 @@ Iostat::Start()
 {
   if (!mInit) {
     XrdOucString queue = gOFS->MgmOfsBroker;
-    queue += gOFS->ManagerId;
+    queue += gOFS->HostName;
     queue += "/report";
     queue.replace("root://","root://daemon@");
     mClient.AddBroker(queue.c_str());
@@ -1364,52 +1364,52 @@ Iostat::UdpBroadCast(eos::common::Report* report)
       u += "{\"app_info\": \"";             u += report->sec_app; u += "\",\n";
       u += " \"client_domain\": \"";        u += report->sec_domain; u += "\",\n";
       u += " \"client_host\": \"";          u += report->sec_host; u += "\",\n";
-      u += " \"end_time\": \"";             u += eos::common::StringConversion::GetSizeString(sizestring, report->cts); u += "\",\n";
-      u += " \"file_lfn\": \"";             u += report->path; u += "\"\n";
-      u += " \"file_size\": \"";            u += eos::common::StringConversion::GetSizeString(sizestring, report->csize); u+= "\",\n";
-      u += " \"read_average\": \"";         u += eos::common::StringConversion::GetSizeString(sizestring, report->rb/((report->nrc)?report->nrc:999999999)); u += "\",\n";
-      u += " \"read_bytes_at_close\": \"";  u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += "\",\n";
-      u += " \"read_bytes\": \"";           u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += "\",\n";
-      u += " \"read_max\": \"";             u += eos::common::StringConversion::GetSizeString(sizestring, report->rb_max); u += "\",\n";
-      u += " \"read_min\": \"";             u += eos::common::StringConversion::GetSizeString(sizestring, report->rb_min); u += "\",\n";
-      u += " \"read_operations\": \"";      u += eos::common::StringConversion::GetSizeString(sizestring, report->nrc); u += "\",\n";
+      u += " \"end_time\": ";             u += eos::common::StringConversion::GetSizeString(sizestring, report->cts); u += ",\n";
+      u += " \"file_lfn\": \"";             u += report->path; u += "\",\n";
+      u += " \"file_size\": ";            u += eos::common::StringConversion::GetSizeString(sizestring, report->csize); u+= ",\n";
+      u += " \"read_average\": ";         u += eos::common::StringConversion::GetSizeString(sizestring, report->rb/((report->nrc)?report->nrc:999999999)); u += ",\n";
+      u += " \"read_bytes_at_close\": ";  u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += ",\n";
+      u += " \"read_bytes\": ";           u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += ",\n";
+      u += " \"read_max\": ";             u += eos::common::StringConversion::GetSizeString(sizestring, report->rb_max); u += ",\n";
+      u += " \"read_min\": ";             u += eos::common::StringConversion::GetSizeString(sizestring, report->rb_min); u += ",\n";
+      u += " \"read_operations\": ";      u += eos::common::StringConversion::GetSizeString(sizestring, report->nrc); u += ",\n";
       snprintf(fs,sizeof(fs)-1, "%.02f",report->rb_sigma);
-      u += " \"read_sigma\": \"";          u += fs; u += "\",\n";
+      u += " \"read_sigma\": ";          u += fs; u += ",\n";
       /* -- we have currently no access to this information */
-      /*      u += " \"read_single_average\": \"";  u += "0"; u += "\",\n";
-      u += " \"read_single_bytes\": \"";    u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += "\",\n";
-      u += " \"read_single_max\": \"";      u += "0"; u += "\",\n";
-      u += " \"read_single_min\": \"";      u += "0"; u += "\",\n";
-      u += " \"read_single_operations\": \"";    u += eos::common::StringConversion::GetSizeString(sizestring, report->nrc); u += "\",\n";
-      u += " \"read_single_sigma\": \"";    u += "0"; u += "\",\n";
-      u += " \"read_vector_average\": \"";  u += "0"; u += "\",\n";
-      u += " \"read_vector_bytes\": \"";    u += "0"; u += "\",\n";
-      u += " \"read_vector_count_average\": \""; u += "0"; u += "\",\n";
-      u += " \"read_vector_count_max\": \"";u += "0"; u += "\",\n";
-      u += " \"read_vector_count_min\": \"";u += "0"; u += "\",\n";
-      u += " \"read_vector_count_sigma\": \"";   u += "0"; u += "\",\n";
-      u += " \"read_vector_max\": \"";      u += "0"; u += "\",\n";
-      u += " \"read_vector_min\": \"";      u += "0"; u += "\",\n";
-      u += " \"read_vector_operations\": \""; u += "0"; u += "\",\n";
-      u += " \"read_vector_sigma\": \"";    u += "0"; u += "\",\n"; */
+      /*      u += " \"read_single_average\": ";  u += "0"; u += ",\n";
+      u += " \"read_single_bytes\": ";    u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += ",\n";
+      u += " \"read_single_max\": ";      u += "0"; u += ",\n";
+      u += " \"read_single_min\": ";      u += "0"; u += ",\n";
+      u += " \"read_single_operations\": ";    u += eos::common::StringConversion::GetSizeString(sizestring, report->nrc); u += ",\n";
+      u += " \"read_single_sigma\": ";    u += "0"; u += ",\n";
+      u += " \"read_vector_average\": ";  u += "0"; u += ",\n";
+      u += " \"read_vector_bytes\": ";    u += "0"; u += ",\n";
+      u += " \"read_vector_count_average\": "; u += "0"; u += ",\n";
+      u += " \"read_vector_count_max\": ";u += "0"; u += ",\n";
+      u += " \"read_vector_count_min\": ";u += "0"; u += ",\n";
+      u += " \"read_vector_count_sigma\": ";   u += "0"; u += ",\n";
+      u += " \"read_vector_max\": ";      u += "0"; u += ",\n";
+      u += " \"read_vector_min\": ";      u += "0"; u += ",\n";
+      u += " \"read_vector_operations\": "; u += "0"; u += ",\n";
+      u += " \"read_vector_sigma\": ";    u += "0"; u += ",\n"; */
       u += " \"server_domain\": \"";        u += report->server_domain; u += "\",\n";
       u += " \"server_host\": \"";          u += report->server_name; u += "\",\n";
       u += " \"server_username\": \"";      u += report->sec_name; u += "\",\n";
-      u += " \"start_time\": \"";           u += eos::common::StringConversion::GetSizeString(sizestring, report->ots); u += "\",\n";
+      u += " \"start_time\": ";           u += eos::common::StringConversion::GetSizeString(sizestring, report->ots); u += ",\n";
       XrdOucString stime; // stores the current time in <s>.<ns> 
       u += " \"unique_id\": \"";            u += gOFS->MgmOfsInstanceName.c_str(); u += "-"; u += eos::common::StringConversion::TimeNowAsString(stime); u += "\",\n";
       u += " \"user_dn\": \"";               u += report->sec_info;  u += "\",\n";
       u += " \"user_fqan\": \"";            u += report->sec_grps; u += "\",\n";
       u += " \"user_role\": \"";            u += report->sec_role; u += "\",\n";
       u += " \"user_vo\": \"";              u += report->sec_vorg; u += "\",\n";
-      u += " \"write_average\": \"";        u += eos::common::StringConversion::GetSizeString(sizestring, report->wb/((report->nwc)?report->nwc:999999999)); u += "\",\n";
-      u += " \"write_bytes_at_close\": \""; u += eos::common::StringConversion::GetSizeString(sizestring, report->wb); u += "\",\n";
-      u += " \"write_bytes\": \"";          u += eos::common::StringConversion::GetSizeString(sizestring, report->wb); u += "\",\n";
-      u += " \"write_max\": \"";            u += eos::common::StringConversion::GetSizeString(sizestring, report->wb_max); u += "\",\n";
-      u += " \"write_min\": \"";            u += eos::common::StringConversion::GetSizeString(sizestring, report->wb_min); u += "\",\n";
-      u += " \"write_operations\": \"";     u += eos::common::StringConversion::GetSizeString(sizestring, report->nwc); u += "\",\n";
+      u += " \"write_average\": ";        u += eos::common::StringConversion::GetSizeString(sizestring, report->wb/((report->nwc)?report->nwc:999999999)); u += ",\n";
+      u += " \"write_bytes_at_close\": "; u += eos::common::StringConversion::GetSizeString(sizestring, report->wb); u += ",\n";
+      u += " \"write_bytes\": ";          u += eos::common::StringConversion::GetSizeString(sizestring, report->wb); u += ",\n";
+      u += " \"write_max\": ";            u += eos::common::StringConversion::GetSizeString(sizestring, report->wb_max); u += ",\n";
+      u += " \"write_min\": ";            u += eos::common::StringConversion::GetSizeString(sizestring, report->wb_min); u += ",\n";
+      u += " \"write_operations\": ";     u += eos::common::StringConversion::GetSizeString(sizestring, report->nwc); u += ",\n";
       snprintf(fs,sizeof(fs)-1, "%.02f",report->wb_sigma);
-      u += " \"write_sigma\": \"";            u += fs; u += "\"}\n";
+      u += " \"write_sigma\": ";            u += fs; u += "}\n";
     } else { 
       // do default format broadcast
       u += "#begin\n";

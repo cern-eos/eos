@@ -71,6 +71,7 @@ XrdMgmOfs::InitializeFileView()
     XrdSysMutexHelper lock(InitializationMutex);
     Initialized=kBooting;
     InitializationTime=time(0);
+    RemoveStallRuleAfterBoot=false;
   }
   time_t tstart = time(0);
   std::string oldstallrule="";
@@ -80,9 +81,13 @@ XrdMgmOfs::InitializeFileView()
   {
     eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
     if (Access::gStallRules.count(std::string("*"))) {
-      oldstallrule = Access::gStallRules[std::string("*")];
-      oldstallcomment = Access::gStallComment[std::string("*")];
-      oldstallglobal = Access::gStallGlobal;
+      if (!RemoveStallRuleAfterBoot) {
+	oldstallrule = Access::gStallRules[std::string("*")];
+	oldstallcomment = Access::gStallComment[std::string("*")];
+	oldstallglobal = Access::gStallGlobal;
+      } else {
+	RemoveStallRuleAfterBoot=false;
+      }
     }
     Access::gStallRules[std::string("*")] = "100";
     Access::gStallGlobal = true;
@@ -90,69 +95,85 @@ XrdMgmOfs::InitializeFileView()
   }
 
   try {
-    eosView->initialize2();
+    gOFS->eosView->initialize2();
     {
       gOFS->eosViewRWMutex.LockWrite();
-      eosView->initialize3();    
+      gOFS->eosView->initialize3();    
+
+      if (MgmMaster.IsMaster()) {
+	// create ../proc/<x> files
+	XrdOucString procpathwhoami = MgmProcPath; procpathwhoami+= "/whoami";
+	XrdOucString procpathwho    = MgmProcPath; procpathwho   += "/who";
+	XrdOucString procpathquota  = MgmProcPath; procpathquota += "/quota";
+	XrdOucString procpathreconnect = MgmProcPath; procpathreconnect += "/reconnect";
+	XrdOucString procpathmaster = MgmProcPath; procpathmaster += "/master";
+
+	XrdOucErrInfo error;
+	eos::common::Mapping::VirtualIdentity vid;
+	eos::common::Mapping::Root(vid);
+	eos::FileMD* fmd=0;
+	
+	try {
+	  fmd = gOFS->eosView->getFile(procpathwhoami.c_str());
+	  fmd = 0;
+	} catch( eos::MDException &e ) {
+	  fmd = gOFS->eosView->createFile(procpathwhoami.c_str(),0,0);
+	}
+	
+	if (fmd) {
+	  fmd->setSize(4096);
+	  gOFS->eosView->updateFileStore(fmd);
+	}
+	
+	try {
+	  fmd = gOFS->eosView->getFile(procpathwho.c_str());
+	  fmd = 0;
+	} catch( eos::MDException &e ) {
+	  fmd = gOFS->eosView->createFile(procpathwho.c_str(),0,0);
+	}
+	
+	if (fmd) {
+	  fmd->setSize(4096);
+	  gOFS->eosView->updateFileStore(fmd);
+	}
+	
+	try {
+	  fmd = gOFS->eosView->getFile(procpathquota.c_str());
+	  fmd = 0;
+	} catch( eos::MDException &e ) {
+	  fmd = gOFS->eosView->createFile(procpathquota.c_str(),0,0);
+	}
+	
+	if (fmd) {
+	  fmd->setSize(4096);
+	  gOFS->eosView->updateFileStore(fmd);
+	}
+	
+	try {
+	  fmd = gOFS->eosView->getFile(procpathreconnect.c_str());
+	  fmd = 0;
+	} catch( eos::MDException &e ) {
+	  fmd = gOFS->eosView->createFile(procpathreconnect.c_str(),0,0);
+	}
+	
+	if (fmd) {
+	  fmd->setSize(4096);
+	  gOFS->eosView->updateFileStore(fmd);
+	}
+
+	try {
+	  fmd = gOFS->eosView->getFile(procpathmaster.c_str());
+	  fmd = 0;
+	} catch( eos::MDException &e ) {
+	  fmd = gOFS->eosView->createFile(procpathmaster.c_str(),0,0);
+	}
+	
+	if (fmd) {
+	  fmd->setSize(4096);
+	  gOFS->eosView->updateFileStore(fmd);
+	}
+      }
       
-      // create ../proc/<x> files
-      XrdOucString procpathwhoami = MgmProcPath; procpathwhoami+= "/whoami";
-      XrdOucString procpathwho    = MgmProcPath; procpathwho   += "/who";
-      XrdOucString procpathquota  = MgmProcPath; procpathquota += "/quota";
-      XrdOucString procpathreconnect = MgmProcPath; procpathreconnect += "/reconnect";
-      
-      XrdOucErrInfo error;
-      eos::common::Mapping::VirtualIdentity vid;
-      eos::common::Mapping::Root(vid);
-      eos::FileMD* fmd=0;
-
-      try {
-	fmd = gOFS->eosView->getFile(procpathwhoami.c_str());
-	fmd = 0;
-      } catch( eos::MDException &e ) {
-	fmd = gOFS->eosView->createFile(procpathwhoami.c_str(),0,0);
-      }
-      
-      if (fmd) {
-	fmd->setSize(4096);
-	gOFS->eosView->updateFileStore(fmd);
-      }
-
-      try {
-	fmd = gOFS->eosView->getFile(procpathwho.c_str());
-	fmd = 0;
-      } catch( eos::MDException &e ) {
-	fmd = gOFS->eosView->createFile(procpathwho.c_str(),0,0);
-      }
-
-      if (fmd) {
-	fmd->setSize(4096);
-	gOFS->eosView->updateFileStore(fmd);
-      }
-
-      try {
-	fmd = gOFS->eosView->getFile(procpathquota.c_str());
-	fmd = 0;
-      } catch( eos::MDException &e ) {
-	fmd = gOFS->eosView->createFile(procpathquota.c_str(),0,0);
-      }
-
-      if (fmd) {
-	fmd->setSize(4096);
-	gOFS->eosView->updateFileStore(fmd);
-      }
-
-      try {
-	fmd = gOFS->eosView->getFile(procpathreconnect.c_str());
-	fmd = 0;
-      } catch( eos::MDException &e ) {
-	fmd = gOFS->eosView->createFile(procpathreconnect.c_str(),0,0);
-      }
-
-      if (fmd) {
-	fmd->setSize(4096);
-	gOFS->eosView->updateFileStore(fmd);
-      }
       {
 	XrdSysMutexHelper lock(InitializationMutex);
 	Initialized=kBooted;
@@ -160,6 +181,12 @@ XrdMgmOfs::InitializeFileView()
     }
     time_t tstop  = time(0);
     eos_notice("eos namespace file loading stopped after %d seconds", (tstop-tstart));
+    if (!MgmMaster.IsMaster()) {
+      eos_static_info("msg=\"starting slave listener\"");
+      gOFS->eosFileService->startSlave();
+      gOFS->eosDirectoryService->startSlave();
+    }
+
     {
       eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
       if (oldstallrule.length()) {
@@ -195,6 +222,7 @@ XrdMgmOfs::InitializeFileView()
       eos_crit("failed to grab /proc/self/stat information");
     }
   }
+
   return 0;
 }
 
@@ -213,6 +241,12 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   pthread_t tid = 0;
   IssueCapability = false;
   MgmRedirector = false;
+
+  // add SEGV handler
+  signal(SIGSEGV, xrdmgmofs_stacktrace);
+  signal(SIGABRT, xrdmgmofs_stacktrace);
+  signal(SIGBUS,  xrdmgmofs_stacktrace);
+
   Shutdown = false;
 
   setenv("XrdSecPROTOCOL","sss",1);
@@ -244,7 +278,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   ErrorLog=true;
   
   bool ConfigAutoSave = false;
-  XrdOucString ConfigAutoLoad = "";
+  MgmConfigAutoLoad = "";
 
   long myPort=0;
 
@@ -441,11 +475,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 	    }
           }
           if (ErrorLog)
-            Eroute.Say("=====> mgmofs.errorlog : true");
+            Eroute.Say("=====> mgmofs.redirector : true");
           else
-            Eroute.Say("=====> mgmofs.errorlog : false");
+            Eroute.Say("=====> mgmofs.redirector : false");
         }
-        
+
         if (!strcmp("configdir",var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config","argument for configdir invalid.");NoGo=1;
@@ -476,7 +510,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config","argument for autoloadconfig invalid.");NoGo=1;
           } else {
-            ConfigAutoLoad = val;
+            MgmConfigAutoLoad = val;
           }
         }
 
@@ -651,7 +685,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     Eroute.Say("=====> mgmofs.redirector : true");
   else
     Eroute.Say("=====> mgmofs.redirector : false");
-
+  
   if (! MgmOfsBrokerUrl.endswith("/")) {
     MgmOfsBrokerUrl += "/";
   }
@@ -685,7 +719,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   MgmDefaultReceiverQueue = MgmOfsBrokerUrl; MgmDefaultReceiverQueue += "*/fst";  
 
-  MgmOfsBrokerUrl += ManagerId; MgmOfsBrokerUrl += "/mgm";
+  MgmOfsBrokerUrl += HostName; MgmOfsBrokerUrl += "/mgm";
 
   MgmOfsQueue = "/eos/"; MgmOfsQueue += ManagerId; MgmOfsQueue += "/mgm";
 
@@ -818,16 +852,15 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     MgmOfsAlias = getenv("EOS_MGM_ALIAS");
   }
 
+  // we don't put the alias we need call-back's to appear on our node
   if (MgmOfsAlias.length()) {
     Eroute.Say("=====> mgmofs.alias: ",MgmOfsAlias.c_str());
-    ManagerId=MgmOfsAlias;
-    ManagerId+= ":";
-    ManagerId+= (int)myPort;
   }
 
   XrdOucString keytabcks="unaccessible";
-  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // ----------------------------------------------------------
   // build the adler & sha1 checksum of the default keytab file
+  // ----------------------------------------------------------
   int fd = ::open("/etc/eos.keytab",O_RDONLY);
 
   XrdOucString symkey="";
@@ -863,9 +896,11 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     return 1;
   }
 
+  // ----------------------------------------------------------
   // create global visible configuration parameters
   // we create 3 queues
-  // "/eos/<instance>/
+  // "/eos/<instance>/"
+  // ----------------------------------------------------------
   XrdOucString configbasequeue = "/config/";
   configbasequeue += MgmOfsInstanceName.c_str();
 
@@ -884,7 +919,10 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
-  
+
+  // set the object manager to listener only
+  ObjectManager.EnableBroadCast(false);
+
   // setup the modifications which the fs listener thread is waiting for
   ObjectManager.SubjectsMutex.Lock();
   std::string watch_errc = "stat.errc";
@@ -907,8 +945,19 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
 
   // eventuall autoload a configuration 
   if (getenv("EOS_AUTOLOAD_CONFIG")) {
-    ConfigAutoLoad = getenv("EOS_AUTOLOAD_CONFIG");
+    MgmConfigAutoLoad = getenv("EOS_AUTOLOAD_CONFIG");
   }
+
+  XrdOucString instancepath= "/eos/";
+  MgmProcPath = "/eos/";
+  XrdOucString subpath = MgmOfsInstanceName ;
+  if (subpath.beginswith("eos")) {subpath.replace("eos","");}
+  MgmProcPath += subpath;
+  MgmProcPath += "/proc";
+  MgmProcMasterPath = MgmProcPath;
+  MgmProcMasterPath += "/master";
+  
+  instancepath += subpath;
 
   //  eos_emerg("%s",(char*)"test emerg");
   //  eos_alert("%s",(char*)"test alert");
@@ -919,147 +968,114 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   //  eos_info("%s",(char*)"test info");
   //  eos_debug("%s",(char*)"test debug");
 
+  // ----------------------------------------------------------
   // initialize user mapping
+  // ----------------------------------------------------------
   eos::common::Mapping::Init();
 
-  // configure the meta data catalog
-  eosDirectoryService = new eos::ChangeLogContainerMDSvc;
-  eosFileService      = new eos::ChangeLogFileMDSvc;
-  eosView             = new eos::HierarchicalView;
-  eosFsView           = new eos::FileSystemView;
-
-  std::map<std::string, std::string> fileSettings;
-  std::map<std::string, std::string> contSettings;
-  std::map<std::string, std::string> settings;
-
-  contSettings["changelog_path"] = MgmMetaLogDir.c_str();
-  fileSettings["changelog_path"] = MgmMetaLogDir.c_str();
-  contSettings["changelog_path"] += "/directories.";
-  fileSettings["changelog_path"] += "/files.";
-  contSettings["changelog_path"] += HostName;
-  fileSettings["changelog_path"] += HostName;
-  contSettings["changelog_path"] += ".mdlog";
-  fileSettings["changelog_path"] += ".mdlog";
-
-  MgmNsFileChangeLogFile = fileSettings["changelog_path"].c_str();
-  MgmNsDirChangeLogFile  = contSettings["changelog_path"].c_str();
-
-  time_t tstart = time(0);
-
-  gOFS->eosViewRWMutex.SetBlocking(true);
-
-  //-------------------------------------------
-  try {
-    eosFileService->configure( fileSettings );
-    eosDirectoryService->configure( contSettings );
-    
-    eosView->setContainerMDSvc( eosDirectoryService );
-    eosView->setFileMDSvc ( eosFileService );
-    
-    eosFileService->setContainerService( eosDirectoryService );
-
-    eosView->configure ( settings );
-    
-    eos_notice("%s",(char*)"eos directory view configure started");
-
-    eosFileService->addChangeListener( eosFsView );
-
-    eosView->getQuotaStats()->registerSizeMapper( Quota::MapSizeCB );
-    eosView->initialize1();
-
-    time_t tstop  = time(0);
-    eos_notice("eos directory view configure stopped after %d seconds", (tstop-tstart));
-  } catch ( eos::MDException &e ) {
-    time_t tstop  = time(0);
-    eos_crit("eos view initialization failed after %d seconds", (tstop-tstart));
-    errno = e.getErrno();
-    eos_crit("initialization returnd ec=%d %s\n", e.getErrno(),e.getMessage().str().c_str());
+  // ----------------------------------------------------------
+  // initialize the master/slave class
+  // ----------------------------------------------------------
+  if (!MgmMaster.Init()) {
     return 1;
-  };
+  }
 
-  // check the '/' directory permissions
+  // ----------------------------------------------------------
+  // configure the meta data catalog
+  // ----------------------------------------------------------
+  gOFS->eosViewRWMutex.SetBlocking(true);
+  
+  if (!MgmMaster.BootNamespace()) {
+    return 1;
+  }
+
+  { 
+    // hook to the appropiate config file
+    XrdOucString stdOut;
+    XrdOucString stdErr;
+    MgmMaster.ApplyMasterConfig(stdOut, stdErr, 0);
+  }
+
+  // ----------------------------------------------------------
+  // check the '/' directory
+  // ----------------------------------------------------------
+
   eos::ContainerMD* rootmd;
   try {
-    rootmd = eosView->getContainer("/");
+    rootmd = gOFS->eosView->getContainer("/");
   } catch ( eos::MDException &e ) {
     Eroute.Emsg("Config","cannot get the / directory meta data");
     eos_crit("eos view cannot retrieve the / directory");
     return 1;
   }
 
+  // ----------------------------------------------------------
+  // check the '/' directory permissions
+  // ----------------------------------------------------------
   if (!rootmd->getMode()) {
-    // no permissions set yet
-    try {
-      rootmd->setMode(S_IFDIR| S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP| S_IWGRP| S_IXGRP | S_ISGID);
-    } catch ( eos::MDException &e ) {
-      Eroute.Emsg("Config","cannot set the / directory mode to inital mode");
-      eos_crit("cannot set the / directory mode to 755");
+    if (MgmMaster.IsMaster()) {
+      // no permissions set yet
+      try {
+	rootmd->setMode(S_IFDIR| S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP| S_IWGRP| S_IXGRP | S_ISGID);
+      } catch ( eos::MDException &e ) {
+	Eroute.Emsg("Config","cannot set the / directory mode to inital mode");
+	eos_crit("cannot set the / directory mode to 755");
+	return 1;
+      }
+    } else {
+      Eroute.Emsg("Config","/ directory has no 755 permissions set");
+      eos_crit("cannot see / directory with mode to 755");
       return 1;
     }
   }
+
   eos_info("/ permissions are %o", rootmd->getMode());
 
-  // create /eos
-  eos::ContainerMD* eosmd=0;
-  try {
-    eosmd = eosView->getContainer("/eos/");
-  } catch ( eos::MDException &e ) {
-    // nothing in this case
-    eosmd = 0;
-  }
-  
-  if (!eosmd) {
+  if (MgmMaster.IsMaster()) {
+    // create /eos
+    eos::ContainerMD* eosmd=0;
     try {
-      eosmd = eosView->createContainer( "/eos/", true );
-      // set attribute inheritance
-      eosmd->setMode(S_IFDIR| S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP| S_IWGRP| S_IXGRP | S_ISGID);
-      // set default checksum 'adler'
-      eosmd->setAttribute("sys.forced.checksum", "adler");
-      eosView->updateContainerStore(eosmd);
-      eos_info("/eos permissions are %o checksum is set <adler>", eosmd->getMode());
+      eosmd = gOFS->eosView->getContainer("/eos/");
     } catch ( eos::MDException &e ) {
-      Eroute.Emsg("Config","cannot set the /eos/ directory mode to inital mode");
-      eos_crit("cannot set the /eos/ directory mode to 755");
-      return 1;
+      // nothing in this case
+      eosmd = 0;
     }
-  }
-
-  XrdOucString instancepath= "/eos/";
-  MgmProcPath = "/eos/";
-  XrdOucString subpath = MgmOfsInstanceName ;
-  if (subpath.beginswith("eos")) {subpath.replace("eos","");}
-  MgmProcPath += subpath;
-  MgmProcPath += "/proc";
-  instancepath += subpath;
-
-  try {
-    eosmd = eosView->getContainer(MgmProcPath.c_str());
-  } catch ( eos::MDException &e ) {
-    eosmd =0;
-  }
-
-  if (!eosmd) {
-    try {
-      eosmd = eosView->createContainer(MgmProcPath.c_str(), true );
-      // set attribute inheritance
-      eosmd->setMode(S_IFDIR| S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP);
-      eosView->updateContainerStore(eosmd);
-    } catch ( eos::MDException &e ) {
-      Eroute.Emsg("Config","cannot set the /eos/proc directory mode to inital mode");
-      eos_crit("cannot set the /eos/proc directory mode to 755");
-      return 1;
-    }
-  }
-
-  /*  try {
-    eosmd = eosView->getContainer(instancepath.c_str());
-    eosmd->setAttribute("security.selinux", "system_u:object_r:httpd_sys_content_t:s0");    
-    eosView->updateContainerStore(eosmd);
-  } catch (eos::MDException &e ) {
-    eosmd = 0;
-    } */
     
-
+    if (!eosmd) {
+      try {
+	eosmd = gOFS->eosView->createContainer( "/eos/", true );
+	// set attribute inheritance
+	eosmd->setMode(S_IFDIR| S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP| S_IWGRP| S_IXGRP | S_ISGID);
+	// set default checksum 'adler'
+	eosmd->setAttribute("sys.forced.checksum", "adler");
+	gOFS->eosView->updateContainerStore(eosmd);
+	eos_info("/eos permissions are %o checksum is set <adler>", eosmd->getMode());
+      } catch ( eos::MDException &e ) {
+	Eroute.Emsg("Config","cannot set the /eos/ directory mode to inital mode");
+	eos_crit("cannot set the /eos/ directory mode to 755");
+	return 1;
+      }
+    }
+        
+    try {
+      eosmd = gOFS->eosView->getContainer(MgmProcPath.c_str());
+    } catch ( eos::MDException &e ) {
+      eosmd =0;
+    }
+    
+    if (!eosmd) {
+      try {
+	eosmd = gOFS->eosView->createContainer(MgmProcPath.c_str(), true );
+	// set attribute inheritance
+	eosmd->setMode(S_IFDIR| S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP);
+	gOFS->eosView->updateContainerStore(eosmd);
+      } catch ( eos::MDException &e ) {
+	Eroute.Emsg("Config","cannot set the /eos/proc directory mode to inital mode");
+	eos_crit("cannot set the /eos/proc directory mode to 755");
+	return 1;
+      }
+    }
+  }    
   //-------------------------------------------
 
   XrdMqSharedHash* hash = 0;
@@ -1100,20 +1116,22 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     ObjectManager.SetAutoReplyQueueDerive(true);
   }
 
-  if (ConfigAutoLoad.length()) {
-    eos_info("autoload config=%s", ConfigAutoLoad.c_str());
+  /*
+  if (MgmConfigAutoLoad.length()) {
+    eos_info("autoload config=%s", MgmConfigAutoLoad.c_str());
     XrdOucString configloader = "mgm.config.file="; 
-    configloader += ConfigAutoLoad;
+    configloader += MgmConfigAutoLoad;
     XrdOucEnv configenv(configloader.c_str());
     XrdOucString stdErr="";
     if (!ConfEngine->LoadConfig(configenv, stdErr)) {
-      eos_crit("Unable to auto-load config %s - fix your configuration file!", ConfigAutoLoad.c_str());
+      eos_crit("Unable to auto-load config %s - fix your configuration file!", MgmConfigAutoLoad.c_str());
       eos_crit("%s\n", stdErr.c_str());
       return 1;
     } else {
-      eos_info("Successful auto-load config %s", ConfigAutoLoad.c_str());
+      eos_info("Successful auto-load config %s", MgmConfigAutoLoad.c_str());
     }
   }
+  */
 
   if (!MgmRedirector) {
     if (ErrorLog) {

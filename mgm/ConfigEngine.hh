@@ -103,7 +103,7 @@ public:
   static int DeleteConfigByMatch(const char* key, XrdOucString* def, void* Arg);
 
   ConfigEngine(const char* configdir) {
-    configDir = configdir;
+    SetConfigDir(configdir);
     changeLog.configChanges = "";
     currentConfigFile = "default";
     XrdOucString changeLogFile = configDir;
@@ -112,6 +112,11 @@ public:
     autosave=false;
   }
 
+  void SetConfigDir(const char* configdir) {
+    configDir = configdir;
+    changeLog.configChanges = "";
+    currentConfigFile = "default";
+  }
   ConfigEngineChangeLog* GetChangeLog() { return &changeLog;}
 
   bool LoadConfig(XrdOucEnv& env, XrdOucString &err);
@@ -150,7 +155,7 @@ public:
   void SetAutoSave(bool val) {autosave = val;}
   bool GetAutoSave() {return autosave;}
 
-  void AutoSave() {
+  bool AutoSave() {
     if (autosave && currentConfigFile.length()) {
       int aspos=0;
       if ( (aspos = currentConfigFile.find(".autosave")) != STR_NPOS) {
@@ -167,8 +172,11 @@ public:
       
       if (!SaveConfig(env, err)) {
         eos_static_err("%s\n", err.c_str());
+	return false;
       }
+      return true;
     }
+    return false;
   }
   
   void SetConfigValue(const char* prefix, const char* fsname, const char* def, bool tochangelog = true) {

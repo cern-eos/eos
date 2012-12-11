@@ -35,6 +35,10 @@ FileSystem::StartDrainJob()
   //! start a drain job after stat.errc!=0 (e.g. opserror)
   //----------------------------------------------------------------
 
+  if (!ShouldBroadCast()) {
+    // this is a filesystem on a ro-slave MGM e.g. it does not drain
+    return true;
+  }
   // check if there is already a drainjob
   drainJobMutex.Lock();
   if (drainJob) {
@@ -103,7 +107,11 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t status)
       delete drainJob;
       drainJob=0;
     }
-    drainJob = new DrainJob(GetId());
+    if (!ShouldBroadCast()) {
+      // this is a filesystem on a ro-slave MGM e.g. it does not drain
+    } else {
+      drainJob = new DrainJob(GetId());
+    }
     drainJobMutex.UnLock();
   } else {
     if (status == kEmpty) {

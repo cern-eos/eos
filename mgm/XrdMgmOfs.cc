@@ -53,7 +53,10 @@
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 /*----------------------------------------------------------------------------*/
+#include <stdio.h>
 #include <execinfo.h>
+#include <signal.h>
+#include <stdlib.h>
 /*----------------------------------------------------------------------------*/
 #ifdef __APPLE__
 #define ECOMM 70
@@ -126,10 +129,14 @@ xrdmgmofs_shutdown(int sig) {
   }
   // ----------------------------------------------------------------------------------------------------------------
   eos_static_warning("Shutdown:: finalizing views ... ");
-  if (gOFS->eosFsView) { gOFS->eosFsView->finalize();           delete gOFS->eosFsView;}
-  if (gOFS->eosView) { gOFS->eosView->finalize();             delete gOFS->eosView;}
-  if (gOFS->eosDirectoryService) { gOFS->eosDirectoryService->finalize(); delete gOFS->eosDirectoryService;}
-  if (gOFS->eosFileService) { gOFS->eosFileService->finalize();      delete gOFS->eosFileService;}
+  try {
+    if (gOFS->eosFsView) { gOFS->eosFsView->finalize();           delete gOFS->eosFsView;}
+    if (gOFS->eosView) { gOFS->eosView->finalize();             delete gOFS->eosView;}
+    if (gOFS->eosDirectoryService) { gOFS->eosDirectoryService->finalize(); delete gOFS->eosDirectoryService;}
+    if (gOFS->eosFileService) { gOFS->eosFileService->finalize();      delete gOFS->eosFileService;}
+  } catch ( eos::MDException &e ) {
+    // we don't really care about any exception here!
+  }
 
 #ifdef HAVE_ZMQ
   // ----------------------------------------------------------------------------------------------------------------
@@ -355,8 +362,13 @@ XrdMgmOfs::ShouldStall(const char* function,  int __AccessMode__, eos::common::M
 bool
 XrdMgmOfs::ShouldRedirect(const char* function, int __AccessMode__, eos::common::Mapping::VirtualIdentity &vid,XrdOucString &host, int &port)
 {
-  if ( (vid.host == "localhost") || (vid.host == "localhost.localdomain") || (vid.uid==0))
-    return false;
+  eos::common::RWMutexReadLock lock(Access::gAccessMutex);
+  if ( (vid.host == "localhost") || (vid.host == "localhost.localdomain") || (vid.uid==0)) {
+    if (MgmMaster.IsMaster() || (IS_ACCESSMODE_R) ) {
+      // the slave is redirected to the master for everything which sort of 'writes'
+      return false;
+    }
+  }
     
   if (Access::gRedirectionRules.size()) {
     bool c1 = Access::gRedirectionRules.count(std::string("*"));
@@ -391,6 +403,62 @@ XrdMgmOfs::ShouldRedirect(const char* function, int __AccessMode__, eos::common:
     }
   }
   return false;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+XrdMgmOfs::HasStall(const char* path, const char* rule, int &stalltime, XrdOucString &stallmsg)
+{
+  if (!rule)
+    return false;
+  eos::common::RWMutexReadLock lock(Access::gAccessMutex);
+  if (Access::gStallRules.count(std::string(rule))) {
+    stalltime = atoi(Access::gStallRules[std::string(rule)].c_str());
+    stallmsg="Attention: you are currently hold in this instance and each request is stalled for ";
+    stallmsg += (int) stalltime; stallmsg += " seconds after an errno of type: "; stallmsg += rule;
+    eos_static_info("info=\"stalling\" path=\"%s\" errno=\"%s\"", path, rule);
+    return true;
+  } else {
+    return false;
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+XrdMgmOfs::HasRedirect(const char* path, const char* rule, XrdOucString &host, int &port)
+{
+  if (!rule)
+    return false;
+  
+  std::string srule = rule;
+  eos::common::RWMutexReadLock lock(Access::gAccessMutex);
+  if (Access::gRedirectionRules.count(srule)) {
+    std::string delimiter=":";
+    std::vector<std::string> tokens;
+    eos::common::StringConversion::Tokenize(Access::gRedirectionRules[srule],tokens,delimiter);
+    if (tokens.size() == 1) {
+      host = tokens[0].c_str();
+      port = 1094;
+    } else {
+      host = tokens[0].c_str();
+      port = atoi(tokens[1].c_str());
+      if (port == 0)
+	port = 1094;
+    }
+
+    eos_static_info("info=\"redirect\" path=\"%s\" host=%s port=%d errno=%s", path, host.c_str(), port, rule);
+      
+    if (srule == "ENONET") {
+      gOFS->MgmStats.Add("RedirectENONET",0,0,1);  
+    }
+    if (srule == "ENOENT") {
+      gOFS->MgmStats.Add("redirectENOENT",0,0,1);
+    }
+
+    return true;
+  } else {
+    return false;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -912,6 +980,8 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
     // check permissions
 
     if (!dmd) {
+      MAYREDIRECT_ENOENT;
+
       if (cPath.GetSubPath(2)) {
 	eos_info("info=\"checking l2 path\" path=%s", cPath.GetSubPath(2));
 	//-------------------------------------------
@@ -1094,6 +1164,13 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
       }
     }
   } else {
+
+    if (!fmd) {
+      // check if there is a redirect or stall for missing entries
+      MAYREDIRECT_ENOENT;
+      MAYSTALL_ENOENT;
+    }
+
     if ((!fmd) && (attrmap.count("sys.redirect.enoent"))) {
       // there is a redirection setting here
       redirectionhost = "";
@@ -1294,6 +1371,11 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
   if (retc) {
     // if we don't have quota we don't bounce the client back
     if ( (retc != ENOSPC) && (retc != EDQUOT) ) {
+
+      // check if we have a global redirect or stall for offline files
+      MAYREDIRECT_ENONET;
+      MAYSTALL_ENONET;
+
       // check if we should try to heal offline replicas (rw mode only)
       if ((!isCreation) && isRW && attrmap.count("sys.heal.unavailable")) {
         int nmaxheal = atoi(attrmap["sys.heal.unavailable"].c_str());
@@ -1381,6 +1463,7 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
         gOFS->MgmStats.Add("RedirectENONET",vid.uid,vid.gid,1);  
         return rcode;
       }
+      
       gOFS->MgmStats.Add("OpenFileOffline",vid.uid,vid.gid,1);  
     } else {
       if (isCreation) {
@@ -1879,6 +1962,10 @@ XrdMgmOfs::chksum(      XrdSfsFileSystem::csFunc            Func,
     // file does not exist
     *buff = 0;
     rc = ENOENT;
+
+    MAYREDIRECT_ENOENT;
+    MAYSTALL_ENOENT;
+
     error.setErrInfo(rc, "no such file or directory");
     return SFS_ERROR;    
   }
@@ -2241,6 +2328,9 @@ int XrdMgmOfs::_exists(const char                *path,        // In
     //-------------------------------------------
     
     if (dir) {
+      MAYREDIRECT_ENOENT;
+      MAYSTALL_ENOENT;
+
       XrdOucString redirectionhost="invalid?";
       int ecode=0;
       int rcode=SFS_OK;
@@ -3272,7 +3362,13 @@ int XrdMgmOfs::stat(const char              *inpath,      // In
   MAYSTALL;
   MAYREDIRECT;
 
-  return _stat(path, buf, error, vid, info);  
+  errno = 0;
+  int rc= _stat(path, buf, error, vid, info);  
+  if (rc && (errno == ENOENT) ) {
+    MAYREDIRECT_ENOENT;
+    MAYSTALL_ENOENT;
+  }
+  return rc;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3290,12 +3386,21 @@ int XrdMgmOfs::_stat(const char                            *path,    // In
   gOFS->MgmStats.Add("Stat",vid.uid,vid.gid,1);  
 
   //-------------------------------------------
-
   // try if that is a file
   errno =0;
   eos::FileMD* fmd = 0; 
   eos::common::Path cPath(path);
+  
+  //-------------------------------------------
+  // a stat on the master proc entry succeeds
+  // only, if this MGM is in RW master mode
+  //-------------------------------------------
 
+  if (cPath.GetFullPath() == gOFS->MgmProcMasterPath) {
+    if (!gOFS->MgmMaster.IsMaster()) {
+      return Emsg(epname, error, ENOENT, "stat", cPath.GetPath());
+    }
+  }
   //-------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
