@@ -38,7 +38,27 @@ com_mkdir (char* arg1) {
   if (path == "-p") {
     path = subtokenizer.GetToken();
     in += "&mgm.option=p";
+  } else {
+    if (path.beginswith("-")) {
+      goto com_mkdir_usage;
+    }
   }
+
+  do {
+    // read space seperated names as a single directory name
+    XrdOucString param;
+    param = subtokenizer.GetToken();
+    if (param.length()) {
+      path += " ";
+      path += param;
+    } else {
+      break;
+    }
+  } while (1);
+
+  // remove escaped blanks
+  while (path.replace("\\ "," ")) {}
+
   if (!path.length()) {
     goto com_mkdir_usage;
     

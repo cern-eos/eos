@@ -51,14 +51,22 @@ com_ls (char* arg1) {
         goto com_ls_usage;
       }
     } else {
-      path = param;
-      break;
+      if (path.length()) {
+	// this allows for spaces in path names
+	path += " ";
+	path += param;
+      } else {
+	path = param;
+      }
     }
   } while(1);
 
   if (!path.length()) {
     path = pwd;
   } 
+
+  // remove escaped blanks
+  while (path.replace("\\ "," ")) {}
 
   if ( (path.beginswith("as3:")) ) {
     // extract evt. the hostname
@@ -223,9 +231,10 @@ com_ls (char* arg1) {
   return (0);
 
  com_ls_usage:
-  fprintf(stdout,"usage: ls [-lan] <path>                                                  :  list directory <path>\n");
+  fprintf(stdout,"usage: ls [-lani] <path>                                                  :  list directory <path>\n");
   fprintf(stdout,"                    -l : show long listing\n");
   fprintf(stdout,"                    -a : show hidden files\n");
+  fprintf(stdout,"                    -i : add inode information\n");
   fprintf(stdout,"                    -n : show numerical user/group ids\n");
   fprintf(stdout,"                    -s : checks only if the directory exists without listing\n");
   fprintf(stdout,"         path=file:... : list on a local file system\n");

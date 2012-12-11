@@ -32,9 +32,26 @@ com_rmdir (char* arg1) {
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString path = subtokenizer.GetToken();
-  XrdOucString selection = subtokenizer.GetToken();
-
   XrdOucString in = "mgm.cmd=rmdir&"; 
+  
+  if ( (path== "--help")  || (path == "-h") ) {
+    goto com_rmdir_usage;
+  }
+
+  do {
+    XrdOucString param;
+    param = subtokenizer.GetToken();
+    if (param.length()) {
+      path += " ";
+      path += param;
+    } else {
+      break;
+    }
+  } while (1);
+    
+  // remove escaped blanks
+  while (path.replace("\\ "," ")) {}
+
   if (!path.length()) {
     goto com_rmdir_usage;
     

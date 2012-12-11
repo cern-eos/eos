@@ -133,7 +133,7 @@ com_find (char* arg1) {
         goto com_find_usage;
     }
 
-    if (s1 == "-ctime") {
+    if ((s1 == "-ctime") || (s1 == "-mtime")) {
       XrdOucString period="";
       period = subtokenizer.GetToken();
 
@@ -167,6 +167,12 @@ com_find (char* arg1) {
       }
       if (do_youngerthan) {
 	youngerthan = snow;
+      }
+      if (s1 == "-ctime") {
+	option += "C";
+      }
+      if (s1 == "-mtime") {
+	option += "M";
       }
     }
 

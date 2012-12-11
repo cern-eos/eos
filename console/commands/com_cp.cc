@@ -655,6 +655,11 @@ com_cp (char* argin) {
 	XrdOucString url=serveruri.c_str();
 	url+="/";
 	url+= targetfile;
+	// add the 'role' switches to the URL
+	if (user_role.length() && group_role.length()) {
+	  url += "?eos.ruid="; url += user_role;
+	  url += "&eos.rgid="; url += group_role;
+	}
 	if (!XrdPosixXrootd::Stat(url.c_str(), &buf)) {
 	  fprintf(stderr,"error: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
 	  continue;
@@ -715,6 +720,14 @@ com_cp (char* argin) {
       rstdout = true;
     }
 
+    if ( !arg1.beginswith("root:")) {
+      // add the 'role' switches to the URL
+      if (user_role.length() && group_role.length()) {
+	arg1 += "?eos.ruid="; arg1 += user_role;
+	arg1 += "&eos.rgid="; arg1 += group_role;
+      }
+    }
+
     // everything goes either via a stage file or direct
     cmdline += "eoscp -p ";
     if (append) cmdline += "-a ";
@@ -757,6 +770,13 @@ com_cp (char* argin) {
       } else {
 	url+= targetfile;
       }
+
+      // add the 'role' switches to the URL
+      if (user_role.length() && group_role.length()) {
+	url += "?eos.ruid="; url += user_role;
+	url += "&eos.rgid="; url += group_role;
+      }
+      
       if (!XrdPosixXrootd::Stat(url.c_str(), &buf)) {
 	if ((source_size[nfile]) && (buf.st_size != (int)source_size[nfile])) {
 	  fprintf(stderr,"error: filesize differ between source and target file!\n");

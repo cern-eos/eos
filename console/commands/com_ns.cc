@@ -35,7 +35,7 @@ com_ns (char* arg1) {
   XrdOucString options="";
 
   XrdOucString in ="";
-  if ( ( cmd != "stat")  && ( cmd != "" ) && ( cmd != "compact" ) ) {
+  if ( ( cmd != "stat")  && ( cmd != "" ) && ( cmd != "compact" ) && ( cmd != "master" ) ) {
     goto com_ns_usage;
   }
   
@@ -46,6 +46,12 @@ com_ns (char* arg1) {
 
   if (cmd == "compact") {
     in += "mgm.subcmd=compact";
+  }
+
+  if (cmd == "master") {
+    in += "mgm.subcmd=master";
+    XrdOucString master = subtokenizer.GetToken();
+    in += "&mgm.master="; in += master;
   }
 
   do {
@@ -86,5 +92,12 @@ com_ns (char* arg1) {
   fprintf(stdout,"                -n                                                   -  print numerical uid/gids\n");
   fprintf(stdout,"                --reset                                              -  reset namespace counter\n");
   fprintf(stdout,"       ns compact                                                    -  compact the current changelogfile and reload the namespace\n");
+  fprintf(stdout,"       ns master <master-hostname>|[--log]|--log-clear            :  master/slave operation\n");
+  fprintf(stdout,"       ns master <master-hostname>                                   -  set the host name of the MGM RW master daemon\n");
+  fprintf(stdout,"       ns master                                                     -  show the master log\n");
+  fprintf(stdout,"       ns master --log                                               -  show the master log\n");
+  fprintf(stdout,"       ns master --log-clear                                         -  clean the master log\n");
+  fprintf(stdout,"       ns master --disable                                           -  disable the slave/master supervisor thread modifying stall/redirection variables\n");
+  fprintf(stdout,"       ns master --enable                                            -  enable  the slave/master supervisor thread modifying stall/redirectino variables\n");
   return (0);
 }
