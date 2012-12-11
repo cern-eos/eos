@@ -609,7 +609,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString &reportString)
       if (wvec[i]<wmin) wmin = wvec[i];
       wsum += wvec[i];
     }
-    wavg = wvec.size()?(1.0*wsum/rvec.size()):0;
+    wavg = wvec.size()?(1.0*wsum/wvec.size()):0;
     
     for (size_t i=0; i< wvec.size(); i++) {
       wsum2 += ((wvec[i]-wavg)*(wvec[i]-wavg));
