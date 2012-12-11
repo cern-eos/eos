@@ -43,6 +43,10 @@ add_executable (xrdcpextend
  	        XrdCpExtend.cc
 )
 
+add_executable (xrdcpappend
+ 	        XrdCpAppend.cc
+)
+
 add_executable (xrdcpposixcache
  	        XrdCpPosixCache.cc
 )
@@ -91,6 +95,7 @@ target_link_libraries(xrdstress.exe XrdPosix uuid)
 target_link_libraries(xrdcpabort XrdPosix)
 target_link_libraries(xrdcprandom XrdPosix)
 target_link_libraries(xrdcpextend XrdPosix)
+target_link_libraries(xrdcpappend XrdPosix)
 target_link_libraries(xrdcpholes XrdPosix)
 target_link_libraries(xrdcpbackward XrdPosix)
 target_link_libraries(xrdcpdownloadrandom XrdPosix)
@@ -105,6 +110,7 @@ set_target_properties ( xrdstress.exe PROPERTIES COMPILE_FLAGS "-std=gnu++0x -D_
 set_target_properties ( xrdcpabort PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcprandom PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcpextend PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcpappend PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcpholes PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcpbackward PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcpdownloadrandom PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
