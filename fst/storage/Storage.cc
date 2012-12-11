@@ -506,7 +506,7 @@ Storage::Boot(FileSystem *fs)
   
   eos_info("msg=\"manager known\" manager=\"%s\"", manager.c_str());    
 
-  eos::cAommon::FileSystem::fsid_t fsid = fs->GetId();
+  eos::common::FileSystem::fsid_t fsid = fs->GetId();
   std::string uuid = fs->GetString("uuid");
 
   eos_info("booting filesystem %s id=%u uuid=%s",fs->GetQueuePath().c_str(), (unsigned int)fsid, uuid.c_str());
