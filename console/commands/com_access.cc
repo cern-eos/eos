@@ -136,6 +136,15 @@ com_access (char* arg1) {
 	    if (rtype == "w") {
 	      in += "&mgm.access.type=w";
 	      ok = true;
+	    } else {
+	      if (rtype == "ENONET" ) {
+		in += "&mgm.access.type=ENONET";
+		ok = true;
+	      } else {
+		if ( rtype == "ENOENT" ) {
+		  in += "&mgm.access.type=ENOENT";
+		}
+	      }
 	    }
 	  }
 	} else {
@@ -152,7 +161,16 @@ com_access (char* arg1) {
 	    if (rtype == "w") {
 	      in += "&mgm.access.type=w";
 	      ok = true;
-	    }  
+	    }  else {
+	      if (rtype == "ENONET" ) {
+		in += "&mgm.access.type=ENONET";
+		ok = true;
+	      } else {
+		if ( rtype == "ENOENT" ) {
+		  in += "&mgm.access.type=ENOENT";
+		}
+	      }
+	    }
 	  }
 	} else {
 	  ok = true;
@@ -199,21 +217,27 @@ com_access (char* arg1) {
   fprintf(stdout,"                                                  unallows this user,group or host access\n");
   fprintf(stdout,"                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP \n");
   fprintf(stdout,"HINT:  if you add any 'allow' the instance allows only the listed users.\nA banned identifier will still overrule an allowed identifier!\n\n");
-  fprintf(stdout,"access set redirect <target-host> :\n");
+  fprintf(stdout,"access set redirect <target-host> [r|w|ENOENT|ENONET] :\n");
   fprintf(stdout,"                                                  allows to set a global redirection to <target-host>\n");
   fprintf(stdout,"                                  <target-host> : hostname to which all requests get redirected\n");
+  fprintf(stdout,"                                          [r|w] : optional set a redirect for read/write requests seperatly\n");
+  fprintf(stdout,"                                       [ENONET] : optional set a redirect if a file is offline (ENONET) \n");
+  fprintf(stdout,"                                       [ENOENT] : optional set a redirect if a file is not existing     \n");
+
   fprintf(stdout,"access rm  redirect :\n");
   fprintf(stdout,"                                                  removes global redirection\n");
-  fprintf(stdout,"access set stall <stall-time> [r|w]\n");
+  fprintf(stdout,"access set stall <stall-time> [r|w|ENOENT|ENONET]\n");
   fprintf(stdout,"                                                  allows to set a global stall time\n");
   fprintf(stdout,"                                   <stall-time> : time in seconds after which clients should rebounce\n");
   fprintf(stdout,"                                          [r|w] : optional set stall time for read/write requests seperatly\n");
+  fprintf(stdout,"                                       [ENONET] : optional set a stall if a file is offline (ENONET) \n");
+  fprintf(stdout,"                                       [ENOENT] : optional set a stall if a file is not existing     \n");
   fprintf(stdout,"access set limit <frequency> rate:{user,group}:{name}:<counter>\n");
   fprintf(stdout,"       rate:{user:group}:{name}:<counter>       : stall the defined user group for 5s if the <counter> exceeds a frequency of <frequency> in a 5s interval\n");
   fprintf(stdout,"                                                  - the instantanious rate can exceed this value by 33%%\n");
   fprintf(stdout,"                                                  rate:user:*:<counter> : apply to all users based on user counter\n");
   fprintf(stdout,"                                                  rate:group:*:<counter>: apply to all groups based on group counter\n");
-  fprintf(stdout,"access rm  stall [r|w]:\n");
+  fprintf(stdout,"access rm  stall [r|w|ENOENT|ENOENT]:\n");
   fprintf(stdout,"                                                  removes global stall time\n");
   fprintf(stdout,"                                          [r|w] : removes stall time for read or write requests\n");
   fprintf(stdout,"       rm limit rate:{user,group}:{name}:<counter\n");

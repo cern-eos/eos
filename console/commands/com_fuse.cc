@@ -80,7 +80,11 @@ com_fuse (char* arg1) {
 
   if (!mountpoint.beginswith("/")) {
     fprintf(stderr,"warning: assuming you gave a relative path with respect to current working directory => mountpoint=%s\n", mountpoint.c_str());
-    mountpoint.insert(getenv("PWD"));
+    XrdOucString pwd = getenv("PWD");
+    if (!pwd.endswith("/")) {
+      pwd += "/";
+    }
+    mountpoint.insert(pwd.c_str(),0);
   }
 
   if (cmd == "mount") {

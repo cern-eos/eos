@@ -36,6 +36,12 @@ com_rm (char* arg1) {
   XrdOucString s2 = subtokenizer.GetToken();
   XrdOucString path;
   XrdOucString option;
+  eos::common::Path* cPath = 0;
+  XrdOucString in = "mgm.cmd=rm&"; 
+
+  if ( (s1 == "--help")  || (s1 == "-h") ) {
+    goto com_rm_usage;
+  }
 
   if (s1 == "-r") {
     option ="r";
@@ -45,9 +51,20 @@ com_rm (char* arg1) {
     path = s1;
   }
   
-  eos::common::Path* cPath = 0;
 
-  XrdOucString in = "mgm.cmd=rm&"; 
+  do {
+    XrdOucString param=subtokenizer.GetToken();
+    if (param.length()) {
+      path += " ";
+      path += param;
+    } else {
+      break;
+    }
+  } while (1);
+
+  // remove escaped blanks
+  while (path.replace("\\ "," ")) {}
+
   if (!path.length()) {
     goto com_rm_usage;
     

@@ -918,12 +918,6 @@ int main (int argc, char* argv[]) {
       in1 = argv[argindex];
     }
     
-    if ( (in1 == "cp" ) ) {
-      interactive = false;
-      global_highlighting = false;
-      runpipe = false;
-    }
-
     if ( (in1 == "fuse" ) ) {
       interactive = false;
       global_highlighting = false;
@@ -970,6 +964,8 @@ int main (int argc, char* argv[]) {
 
     if ( (in1 == "cp" ) ) {
       interactive = false;
+      global_highlighting = false;
+      runpipe = false;
     }
 
     if ( (in1 == "fuse" ) ) {
