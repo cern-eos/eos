@@ -257,7 +257,7 @@ void *followerThread( void *data )
   while( 1 )
   {
     offset = file.follow( &f, offset );
-    usleep( 100 );
+    file.wait( 1 );
   }
   return 0;
 }
@@ -271,15 +271,18 @@ void ChangeLogTest::followingTest()
   // Test the file creation
   //----------------------------------------------------------------------------
   eos::ChangeLogFile file;
+  eos::ChangeLogFile fileFollow;
   std::string        fileName = getTempName( "/tmp", "eosns" );
   CPPUNIT_ASSERT_NO_THROW( file.open( fileName ) );
+  CPPUNIT_ASSERT_NO_THROW( fileFollow.open( fileName,
+                                            eos::ChangeLogFile::ReadOnly ) );
 
   //----------------------------------------------------------------------------
   // Spawn a follower thread
   //----------------------------------------------------------------------------
   pthread_t thread;
   CPPUNIT_ASSERT_MESSAGE( "Unable to spawn the follower thread",
-                   pthread_create( &thread, 0, followerThread, &file ) == 0 );
+               pthread_create( &thread, 0, followerThread, &fileFollow ) == 0 );
 
   //----------------------------------------------------------------------------
   // Store 1000 files
