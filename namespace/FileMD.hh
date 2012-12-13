@@ -432,6 +432,14 @@ namespace eos
       //------------------------------------------------------------------------
       void deserialize( const Buffer &buffer ) throw( MDException );
 
+      //------------------------------------------------------------------------
+      //! Set the FileMDSvc object
+      //------------------------------------------------------------------------
+      void setFileMDSvc( IFileMDSvc *fileMDSvc )
+      {
+        pFileMDSvc = fileMDSvc;
+      }
+
     protected:
       //------------------------------------------------------------------------
       // Data members
