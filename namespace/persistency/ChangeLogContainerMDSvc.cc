@@ -61,6 +61,12 @@ namespace eos
           else
             pUpdated[container->getId()] = container;
 
+          //--------------------------------------------------------------------
+          // Remember the largest container ID
+          //--------------------------------------------------------------------
+          if( container->getId() >= pContSvc->pFirstFreeId )
+            pContSvc->pFirstFreeId = container->getId() + 1;
+
           pDeleted.erase( container->getId() );
         }
 
@@ -183,7 +189,7 @@ extern "C"
       offset = file->follow( &f, offset );
       f.commit();
       pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
-      usleep( pollInt );
+      file->wait(pollInt);
     }
     return 0;
   }
@@ -252,6 +258,105 @@ namespace eos
         attachBroken( getLostFoundContainer( "name_conflicts" ), nameConflicts );
       }
     }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Make a transition from slave to master
+  //----------------------------------------------------------------------------
+  void ChangeLogContainerMDSvc::slave2Master(
+            std::map<std::string, std::string> &config)
+  throw( MDException )
+  {
+    //--------------------------------------------------------------------------
+    // Find the new changelog path
+    //--------------------------------------------------------------------------
+    std::map<std::string, std::string>::iterator it;
+    it = config.find( "changelog_path" );
+    if( it == config.end() )
+    {
+      MDException e( EINVAL );
+      e.getMessage() << "changelog_path not specified";
+      throw e;
+    }
+
+    if( it->second == pChangeLogPath )
+    {
+      MDException e( EINVAL );
+      e.getMessage() << "changelog_path must differ from the original ";
+      e.getMessage() << "changelog_path";
+      throw e;
+    }
+
+    //--------------------------------------------------------------------------
+    // Copy the current changelog file to the previous name
+    //--------------------------------------------------------------------------
+    std::string tmpChangeLogPath     = pChangeLogPath;
+    tmpChangeLogPath += ".tmp";
+    std::string currentChangeLogPath = pChangeLogPath;
+
+    std::string copyCmd = "cp -f ";
+    copyCmd += currentChangeLogPath.c_str();
+    copyCmd += " ";
+    copyCmd += tmpChangeLogPath.c_str();
+
+    int rc = system( copyCmd.c_str() );
+    if( WEXITSTATUS(rc) )
+    {
+      MDException e( EIO ) ;
+      e.getMessage() << "Failed to copy the current change log file <";
+      e.getMessage() << pChangeLogPath << ">";
+    }
+
+    //--------------------------------------------------------------------------
+    // redefine the valid changelog path
+    //--------------------------------------------------------------------------
+    pChangeLogPath = it->second;
+
+    //--------------------------------------------------------------------------
+    // Rename the current changelog file to the new file name
+    //--------------------------------------------------------------------------
+    if( rename( currentChangeLogPath.c_str(), pChangeLogPath.c_str() ) )
+    {
+      MDException e( EINVAL );
+      e.getMessage() << "Failed to rename changelog file from <";
+      e.getMessage() << currentChangeLogPath << "> to <" << pChangeLogPath;
+      throw e;
+    }
+
+    //--------------------------------------------------------------------------
+    // Rename the temp changelog file to the new file name
+    //--------------------------------------------------------------------------
+    if( rename( tmpChangeLogPath.c_str(), currentChangeLogPath.c_str() ) )
+    {
+      MDException e( EINVAL );
+      e.getMessage() << "Failed to rename changelog file from <";
+      e.getMessage() << tmpChangeLogPath << "> to <" << currentChangeLogPath;
+      throw e;
+    }
+
+    //--------------------------------------------------------------------------
+    // Stop the follower thread
+    //--------------------------------------------------------------------------
+    stopSlave();
+
+    //--------------------------------------------------------------------------
+    // Reopen changelog file in writable mode = close + open (append)
+    //--------------------------------------------------------------------------
+    pChangeLog->close( ) ;
+    int logOpenFlags = ChangeLogFile::Create | ChangeLogFile::Append;
+    pChangeLog->open( pChangeLogPath, logOpenFlags, CONTAINER_LOG_MAGIC );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Switch the namespace to read-only mode
+  //----------------------------------------------------------------------------
+  void ChangeLogContainerMDSvc::makeReadOnly()
+    throw( MDException )
+  {
+    pChangeLog->close( ) ;
+
+    int logOpenFlags = ChangeLogFile::ReadOnly;
+    pChangeLog->open( pChangeLogPath, logOpenFlags, CONTAINER_LOG_MAGIC );
   }
 
   //----------------------------------------------------------------------------
@@ -461,6 +566,8 @@ namespace eos
       throw e;
     }
     pSlaveStarted = false;
+    pSlaveMode = false;
+    pFollowerThread = 0;
   }
 
   //----------------------------------------------------------------------------
