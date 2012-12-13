@@ -48,6 +48,9 @@ class XrdFstOss: public XrdOssSys, public eos::common::LogId
 {
   public:
 
+    int          mFdFence;   ///< smalest file FD number allowed
+    int          mFdLimit;   ///< largest file FD number allowed
+
     //--------------------------------------------------------------------------
     //! Constuctor
     //--------------------------------------------------------------------------

@@ -708,10 +708,14 @@ void
 CheckSum::DecrementRef( bool isRW )
 {
   if ( isRW ) {
-    mNumWr-- ;
+    if ( mNumWr ) {
+      mNumWr--;
+    }
   }
   else {
-    mNumRd--;
+    if ( mNumRd ) {
+      mNumRd--;
+    }
   }
 }
   

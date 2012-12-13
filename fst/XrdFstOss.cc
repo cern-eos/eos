@@ -22,6 +22,9 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+#include <sys/time.h>
+#include <sys/resource.h>
+/*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOss.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 /*----------------------------------------------------------------------------*/
@@ -44,6 +47,8 @@ extern "C"
 
 EOSFSTNAMESPACE_BEGIN
 
+#define XrdFstOssFDMINLIM  64
+
 //! pointer to the current OSS implementation to be used by the oss files
 XrdFstOss* XrdFstSS = 0;
 
@@ -52,9 +57,11 @@ XrdFstOss* XrdFstSS = 0;
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOss::XrdFstOss():
-    eos::common::LogId()
+  eos::common::LogId(),
+  mFdFence( -1 ),
+  mFdLimit( -1 )
 {
-  OssEroute.Say( "Calling the constructor of XrdFstOss. " );
+  eos_debug( "Calling the constructor of XrdFstOss." );
 }
 
 
@@ -87,6 +94,24 @@ XrdFstOss::Init( XrdSysLogger* lp, const char* configfn )
   eos::common::Logging::SetLogPriority( LOG_DEBUG );
   eos::common::Logging::SetUnit( unit.c_str() );
   eos_debug( "info=\"oss logging configured\"" );
+  //............................................................................
+  // Establish the FD limit
+  //............................................................................
+  struct rlimit rlim;
+
+  if ( getrlimit( RLIMIT_NOFILE, &rlim ) < 0 ) {
+    eos_warning( "warning= can not get resource limits, errno=", errno );
+    mFdLimit = XrdFstOssFDMINLIM;
+  } else {
+    mFdLimit = rlim.rlim_cur;
+  }
+
+  if ( mFdFence < 0 || mFdFence >= mFdLimit ) {
+    mFdFence = mFdLimit >> 1;
+  }
+
+  // TODO::
+  //return XrdOssOK;
   return rc;
 }
 
@@ -124,14 +149,14 @@ XrdFstOss::AddMapping( const std::string& fileName,
   XrdSysRWLockHelper wr_lock( mRWMap, 0 );                  // --> wrlock map
   std::pair<XrdSysRWLock*, CheckSum*> pair_value;
   eos_debug( "Initial map size: %i and filename: %s.",
-            mMapFileXs.size(), fileName.c_str() );
+             mMapFileXs.size(), fileName.c_str() );
 
   if ( mMapFileXs.count( fileName ) ) {
     pair_value = mMapFileXs[fileName];
     XrdSysRWLockHelper wr_xslock( pair_value.first, 0 );    // --> wrlock xs obj
 
     //..........................................................................
-    // If no. ref 0 then the obj is closed and wating to be deleted so we can
+    // If no. ref 0 then the obj is closed and waiting to be deleted so we can
     // add the new one, else return old one
     //..........................................................................
     if ( pair_value.second->GetTotalRef() == 0 ) {
@@ -155,7 +180,7 @@ XrdFstOss::AddMapping( const std::string& fileName,
     blockXs->IncrementRef( isRW );
     mMapFileXs[fileName] = pair_value;
     eos_debug( "Add completely new obj, map size: %i and filename: %s.",
-              mMapFileXs.size(), fileName.c_str() );
+               mMapFileXs.size(), fileName.c_str() );
     return mutex_xs;
   }
 }

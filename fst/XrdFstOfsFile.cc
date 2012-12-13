@@ -33,7 +33,7 @@
 #include <math.h>
 /*----------------------------------------------------------------------------*/
 
-extern XrdOssSys  *XrdOfsOss;
+extern XrdOssSys*  XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -74,7 +74,7 @@ XrdFstOfsFile::XrdFstOfsFile( const char* user, int MonID ) :
   openTime.tv_sec = openTime.tv_usec = 0;
   tz.tz_dsttime = tz.tz_minuteswest = 0;
   viaDelete = remoteDelete = writeDelete = false;
-  SecString="";
+  SecString = "";
   writeErrorFlag = 0;
 }
 
@@ -161,7 +161,7 @@ XrdFstOfsFile::open( const char*                path,
   while ( stringOpaque.replace( "?", "&" ) ) {}
 
   while ( stringOpaque.replace( "&&", "&" ) ) {}
-  
+
   stringOpaque += "&mgm.path=";
   stringOpaque += path;
   openOpaque  = new XrdOucEnv( stringOpaque.c_str() );
@@ -191,12 +191,11 @@ XrdFstOfsFile::open( const char*                path,
   }
 
   int envlen;
-  XrdOucString maskOpaque = opaque?opaque:"";
+  XrdOucString maskOpaque = opaque ? opaque : "";
   // mask some opaque parameters to shorten the logging
-  eos::common::StringConversion::MaskTag(maskOpaque,"cap.sym");
-  eos::common::StringConversion::MaskTag(maskOpaque,"cap.msg");
-  eos::common::StringConversion::MaskTag(maskOpaque,"authz");
-
+  eos::common::StringConversion::MaskTag( maskOpaque, "cap.sym" );
+  eos::common::StringConversion::MaskTag( maskOpaque, "cap.msg" );
+  eos::common::StringConversion::MaskTag( maskOpaque, "authz" );
   eos_info( "path=%s info=%s capability=%s", path, maskOpaque.c_str(), capOpaque->Env( envlen ) );
   const char* hexfid = 0;
   const char* sfsid = 0;
@@ -207,12 +206,11 @@ XrdFstOfsFile::open( const char*                path,
   const char* stargetsize = 0;
   bookingsize = 0;
   targetsize = 0;
-  
   fileid = 0;
   fsid = 0;
   lid = 0;
   cid = 0;
-  const char* secinfo=0;
+  const char* secinfo = 0;
 
   if ( !( hexfid = capOpaque->Get( "mgm.fid" ) ) ) {
     return gOFS.Emsg( epname, error, EINVAL, "open - no file id in capability", path );
@@ -222,32 +220,34 @@ XrdFstOfsFile::open( const char*                path,
     return gOFS.Emsg( epname, error, EINVAL, "open - no file system id in capability", path );
   }
 
-  if (!(secinfo=capOpaque->Get("mgm.sec"))) {
-    return gOFS.Emsg(epname,error, EINVAL,"open - no security information in capability",path);
+  if ( !( secinfo = capOpaque->Get( "mgm.sec" ) ) ) {
+    return gOFS.Emsg( epname, error, EINVAL, "open - no security information in capability", path );
   } else {
     SecString = secinfo;
   }
 
-  if ((val = capOpaque->Get("mgm.minsize"))) {
-    errno=0;
-    minsize = strtoull(val,0,10);
-    if (errno) {
-      eos_err("illegal minimum file size specified <%s>- restricting to 1 byte", val);
-      minsize=1;
+  if ( ( val = capOpaque->Get( "mgm.minsize" ) ) ) {
+    errno = 0;
+    minsize = strtoull( val, 0, 10 );
+
+    if ( errno ) {
+      eos_err( "illegal minimum file size specified <%s>- restricting to 1 byte", val );
+      minsize = 1;
     }
   } else {
-    minsize=0;
+    minsize = 0;
   }
 
-  if ((val = capOpaque->Get("mgm.maxsize"))) {
-    errno=0;
-    maxsize = strtoull(val,0,10);
-    if (errno) {
-      eos_err("illegal maximum file size specified <%s>- restricting to 1 byte", val);
-      maxsize=1;
+  if ( ( val = capOpaque->Get( "mgm.maxsize" ) ) ) {
+    errno = 0;
+    maxsize = strtoull( val, 0, 10 );
+
+    if ( errno ) {
+      eos_err( "illegal maximum file size specified <%s>- restricting to 1 byte", val );
+      maxsize = 1;
     }
   } else {
-    maxsize=0;
+    maxsize = 0;
   }
 
   //............................................................................
@@ -301,9 +301,7 @@ XrdFstOfsFile::open( const char*                path,
     RedirectManager.erase( dpos );
 
   eos::common::FileId::FidPrefix2FullPath( hexfid, localPrefix.c_str(), fstPath );
-
   fileid = eos::common::FileId::Hex2Fid( hexfid );
-
   fsid   = atoi( sfsid );
   lid = atoi( slid );
   cid = strtoull( scid, 0, 10 );
@@ -331,7 +329,7 @@ XrdFstOfsFile::open( const char*                path,
 
     isReplication = true;
   }
-  
+
   open_mode |= SFS_O_MKPTH;
   create_mode |= SFS_O_MKPTH;
 
@@ -365,17 +363,19 @@ XrdFstOfsFile::open( const char*                path,
       return gOFS.Emsg( epname, error, EINVAL, "open - no booking size in capability", path );
     } else {
       bookingsize = strtoull( capOpaque->Get( "mgm.bookingsize" ), 0, 10 );
-      if (errno == ERANGE) {
-	eos_err("invalid bookingsize in capability bookingsize=%s", sbookingsize);
-	return gOFS.Emsg(epname, error, EINVAL, "open - invalid bookingsize in capability", path);
+
+      if ( errno == ERANGE ) {
+        eos_err( "invalid bookingsize in capability bookingsize=%s", sbookingsize );
+        return gOFS.Emsg( epname, error, EINVAL, "open - invalid bookingsize in capability", path );
       }
     }
-    
+
     if ( ( stargetsize = capOpaque->Get( "mgm.targetsize" ) ) ) {
       targetsize = strtoull( capOpaque->Get( "mgm.targetsize" ), 0, 10 );
-      if (errno == ERANGE) {
-	eos_err("invalid targetsize in capability targetsize=%s", stargetsize);
-	return gOFS.Emsg(epname, error, EINVAL, "open - invalid targetsize in capability", path);
+
+      if ( errno == ERANGE ) {
+        eos_err( "invalid targetsize in capability targetsize=%s", stargetsize );
+        return gOFS.Emsg( epname, error, EINVAL, "open - invalid targetsize in capability", path );
       }
     }
   }
@@ -418,7 +418,6 @@ XrdFstOfsFile::open( const char*                path,
 
   SetLogId( logId, vid, tident );
   eos_info( "fstpath=%s", fstPath.c_str() );
-
   //............................................................................
   // Attach meta data
   //............................................................................
@@ -431,13 +430,13 @@ XrdFstOfsFile::open( const char*                path,
                  RedirectManager.c_str(), ecode );
     return gOFS.Redirect( error, RedirectManager.c_str(), ecode );
   }
-  
+
   //............................................................................
   // Call the checksum factory function with the selected layout
   //............................................................................
   layOut = eos::fst::LayoutPlugin::GetLayoutObject( this, lid, client, &error,
-                                                    eos::common::LayoutId::kLocal );
-  
+           eos::common::LayoutId::kLocal );
+
   if ( !layOut ) {
     int envlen;
     eos_err( "unable to handle layout for %s", capOpaque->Env( envlen ) );
@@ -447,10 +446,10 @@ XrdFstOfsFile::open( const char*                path,
   }
 
   layOut->SetLogId( logId, vid, tident );
-  
+
   if ( isRW || ( opaqueCheckSum != "ignore" ) ) {
-      checkSum = eos::fst::ChecksumPlugins::GetChecksumObject( lid );
-      eos_debug( "checksum requested %d %u", checkSum, lid );
+    checkSum = eos::fst::ChecksumPlugins::GetChecksumObject( lid );
+    eos_debug( "checksum requested %d %u", checkSum, lid );
   }
 
   //............................................................................
@@ -459,7 +458,7 @@ XrdFstOfsFile::open( const char*                path,
   if ( eos::common::LayoutId::GetBlockChecksum( lid ) != eos::common::LayoutId::kNone ) {
     hasBlockXs = true;
   }
-  
+
   XrdOucString oss_opaque = "";
   oss_opaque += "&mgm.lid=";
   oss_opaque += slid;
@@ -467,44 +466,45 @@ XrdFstOfsFile::open( const char*                path,
   oss_opaque += static_cast<int>( bookingsize );
   oss_opaque += "&mgm.targetsize=";
   oss_opaque += static_cast<int>( targetsize );
-  
-  
   //............................................................................
   // Open layout implementation
   //............................................................................
-  int rc = layOut->Open( fstPath.c_str(), open_mode, create_mode, oss_opaque.c_str());
+  int rc = layOut->Open( fstPath.c_str(), open_mode, create_mode, oss_opaque.c_str() );
 
   if ( ( !rc ) && isCreation && bookingsize ) {
     // ----------------------------------
     // check if the file system is full
     // ----------------------------------
-    XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
-    if (gOFS.Storage->fileSystemFullMap[fsid]) {
-      writeErrorFlag=kOfsDiskFullError;
+    XrdSysMutexHelper( gOFS.Storage->fileSystemFullMapMutex );
+
+    if ( gOFS.Storage->fileSystemFullMap[fsid] ) {
+      writeErrorFlag = kOfsDiskFullError;
       delete layOut;
-      return gOFS.Emsg("writeofs", error, ENOSPC, "create file - disk space (headroom) exceeded fn=",
-                       capOpaque ? (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path"):FName()):FName());
+      return gOFS.Emsg( "writeofs", error, ENOSPC, "create file - disk space (headroom) exceeded fn=",
+                        capOpaque ? ( capOpaque->Get( "mgm.path" ) ? capOpaque->Get( "mgm.path" ) : FName() ) : FName() );
     }
-    rc = layOut->Fallocate(bookingsize);
-    if (rc) {
-      eos_crit("file allocation gave return code %d errno=%d for allocation of size=%llu" ,
-               rc, errno, bookingsize);
-      
-      if (layOut->IsEntryServer()) {
-	layOut->Remove();
-	int ecode=1094;
-	eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
-                    RedirectManager.c_str(), ecode);
+
+    rc = layOut->Fallocate( bookingsize );
+
+    if ( rc ) {
+      eos_crit( "file allocation gave return code %d errno=%d for allocation of size=%llu" ,
+                rc, errno, bookingsize );
+
+      if ( layOut->IsEntryServer() ) {
+        layOut->Remove();
+        int ecode = 1094;
+        eos_warning( "rebouncing client since we don't have enough space back to MGM %s:%d",
+                     RedirectManager.c_str(), ecode );
         delete layOut;
-	return gOFS.Redirect(error,RedirectManager.c_str(),ecode);
+        return gOFS.Redirect( error, RedirectManager.c_str(), ecode );
       } else {
         delete layOut;
-	return gOFS.Emsg(epname, error, ENOSPC, "open - cannot allocate required space", Path.c_str());
+        return gOFS.Emsg( epname, error, ENOSPC, "open - cannot allocate required space", Path.c_str() );
       }
     }
   }
 
-  eos_info("checksum=%llu entryserver=%d", checkSum, layOut->IsEntryServer());
+  eos_info( "checksum=%llu entryserver=%d", checkSum, layOut->IsEntryServer() );
 
   if ( !isCreation ) {
     //..........................................................................
@@ -521,12 +521,11 @@ XrdFstOfsFile::open( const char*                path,
     eos_info( "The layout size is: %zu, and the value stored in db is: %llu.",
               statinfo.st_size, fMd->fMd.size );
 
-    if ( (off_t)statinfo.st_size != (off_t)fMd->fMd.size ) {
+    if ( ( off_t )statinfo.st_size != ( off_t )fMd->fMd.size ) {
       // in a RAID-like layout if the header is corrupted there is no way to know
       // the size of the initial file, therefore we take the value from the DB
       openSize = fMd->fMd.size;
-    }
-    else {
+    } else {
       openSize = statinfo.st_size;
     }
 
@@ -537,18 +536,18 @@ XrdFstOfsFile::open( const char*                path,
       checkSum->ResetInit( 0, openSize, fMd->fMd.checksum.c_str() );
     }
   }
-  
+
   //.......................................................................................................
   // if we are not the entry server for ReedS & RaidDP layouts we disable the checksum object now for write
   // if we read we don't check checksums at all since we have block and parity checking
   //.......................................................................................................
   if ( ( ( eos::common::LayoutId::GetLayoutType( lid ) == eos::common::LayoutId::kRaidDP ) ||
-	 ( eos::common::LayoutId::GetLayoutType( lid ) == eos::common::LayoutId::kReedS ) ) &&
-       ( (!isRW) || (!layOut->IsEntryServer() ) ) ) {
+         ( eos::common::LayoutId::GetLayoutType( lid ) == eos::common::LayoutId::kReedS ) ) &&
+       ( ( !isRW ) || ( !layOut->IsEntryServer() ) ) ) {
     //........................................................................
     // This case we need to exclude!
     //........................................................................
-    if (checkSum) {
+    if ( checkSum ) {
       delete checkSum;
       checkSum = 0;
     }
@@ -634,7 +633,6 @@ XrdFstOfsFile::open( const char*                path,
           eos_crit( "disabling filesystem %u after IO error on path %s",
                     gOFS.Storage->fileSystemsVector[i]->GetId(),
                     gOFS.Storage->fileSystemsVector[i]->GetPath().c_str() );
-          
           XrdOucString s = "local IO error";
           gOFS.Storage->fileSystemsVector[i]->BroadcastError( EIO, s.c_str() );
           // gOFS.Storage->fileSystemsVector[i]->BroadcastError(error.getErrInfo(), "local IO error");
@@ -654,7 +652,7 @@ XrdFstOfsFile::open( const char*                path,
       return gOFS.Redirect( error, RedirectManager.c_str(), ecode );
     }
   }
-  
+
   if ( rc == SFS_OK ) {
     //..........................................................................
     // Tag this transaction as open
@@ -665,6 +663,7 @@ XrdFstOfsFile::open( const char*                path,
       }
     }
   }
+
   eos_debug( "OPEN FINISHED!\n" );
   return rc;
 }
@@ -677,7 +676,7 @@ void
 XrdFstOfsFile:: AddReadTime()
 {
   unsigned long mus = ( ( lrTime.tv_sec - cTime.tv_sec ) * 1000000 ) +
-                          lrTime.tv_usec - cTime.tv_usec;
+                      lrTime.tv_usec - cTime.tv_usec;
   rTime.tv_sec  += ( mus / 1000000 );
   rTime.tv_usec += ( mus % 1000000 );
 }
@@ -702,88 +701,93 @@ XrdFstOfsFile::AddWriteTime()
 void
 XrdFstOfsFile::MakeReportEnv( XrdOucString& reportString )
 {
-   // compute avg, min, max, sigma for read and written bytes
-  unsigned long long rmin,rmax,rsum;
-  unsigned long long wmin,wmax,wsum;
-  double ravg,wavg;
-  double rsum2,wsum2;
-  double rsigma,wsigma;
-
+  // compute avg, min, max, sigma for read and written bytes
+  unsigned long long rmin, rmax, rsum;
+  unsigned long long wmin, wmax, wsum;
+  double ravg, wavg;
+  double rsum2, wsum2;
+  double rsigma, wsigma;
   // ---------------------------------------
   // compute for read
   // ---------------------------------------
-  rmax=rsum=0;
-  rmin=0xffffffff;
-  ravg=rsum2=rsigma=0;
-
+  rmax = rsum = 0;
+  rmin = 0xffffffff;
+  ravg = rsum2 = rsigma = 0;
   {
-    XrdSysMutexHelper vecLock(vecMutex);
-    for (size_t i=0; i< rvec.size(); i++) {
-      if (rvec[i]>rmax) rmax = rvec[i];
-      if (rvec[i]<rmin) rmin = rvec[i];
+    XrdSysMutexHelper vecLock( vecMutex );
+
+    for ( size_t i = 0; i < rvec.size(); i++ ) {
+      if ( rvec[i] > rmax ) rmax = rvec[i];
+
+      if ( rvec[i] < rmin ) rmin = rvec[i];
+
       rsum += rvec[i];
     }
-    ravg = rvec.size()?(1.0*rsum/rvec.size()):0;
-    
-    for (size_t i=0; i< rvec.size(); i++) {
-      rsum2 += ((rvec[i]-ravg)*(rvec[i]-ravg));
+
+    ravg = rvec.size() ? ( 1.0 * rsum / rvec.size() ) : 0;
+
+    for ( size_t i = 0; i < rvec.size(); i++ ) {
+      rsum2 += ( ( rvec[i] - ravg ) * ( rvec[i] - ravg ) );
     }
-    rsigma = rvec.size()?( sqrt(rsum2/rvec.size()) ):0;
-    
+
+    rsigma = rvec.size() ? ( sqrt( rsum2 / rvec.size() ) ) : 0;
     // ---------------------------------------
     // compute for write
     // ---------------------------------------
-    wmax=wsum=0;
-    wmin=0xffffffff;
-    wavg=wsum2=wsigma=0;
-    
-    for (size_t i=0; i< wvec.size(); i++) {
-      if (wvec[i]>wmax) wmax = wvec[i];
-      if (wvec[i]<wmin) wmin = wvec[i];
+    wmax = wsum = 0;
+    wmin = 0xffffffff;
+    wavg = wsum2 = wsigma = 0;
+
+    for ( size_t i = 0; i < wvec.size(); i++ ) {
+      if ( wvec[i] > wmax ) wmax = wvec[i];
+
+      if ( wvec[i] < wmin ) wmin = wvec[i];
+
       wsum += wvec[i];
     }
-    wavg = wvec.size()?(1.0*wsum/rvec.size()):0;
-    
-    for (size_t i=0; i< wvec.size(); i++) {
-      wsum2 += ((wvec[i]-wavg)*(wvec[i]-wavg));
+
+    wavg = wvec.size() ? ( 1.0 * wsum / rvec.size() ) : 0;
+
+    for ( size_t i = 0; i < wvec.size(); i++ ) {
+      wsum2 += ( ( wvec[i] - wavg ) * ( wvec[i] - wavg ) );
     }
-    wsigma = wvec.size()?( sqrt(wsum2/wvec.size()) ):0;
-    
+
+    wsigma = wvec.size() ? ( sqrt( wsum2 / wvec.size() ) ) : 0;
     char report[16384];
-    snprintf(report,sizeof(report)-1, "log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&"
-             "lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&cts=%lu&ctms=%lu&rb=%llu&"
-             "rb_min=%llu&rb_max=%llu&rb_sigma=%.02f&wb=%llu&wb_min=%llu&wb_max=%llu&&"
-             "wb_sigma=%.02f&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f&"
-             "osize=%llu&csize=%llu&%s"
-	     ,this->logId
-	     ,Path.c_str()
-	     ,this->vid.uid
-	     ,this->vid.gid
-	     ,tIdent.c_str()
-	     ,hostName.c_str()
-	     ,lid, fileid
-	     ,fsid
-	     ,openTime.tv_sec
-	     ,(unsigned long)openTime.tv_usec/1000
-	     ,closeTime.tv_sec
-	     ,(unsigned long)closeTime.tv_usec/1000
-	     ,rsum
-	     ,rmin
-	     ,rmax
-	     ,rsigma
-	     ,wsum
-	     ,wmin
-	     ,wmax
-	     ,wsigma
-	     ,srBytes
-	     ,swBytes
-	     ,rCalls
-	     ,wCalls
-	     ,((rTime.tv_sec*1000.0)+(rTime.tv_usec/1000.0))
-	     ,((wTime.tv_sec*1000.0) + (wTime.tv_usec/1000.0))
-	     ,(unsigned long long) openSize
-	     ,(unsigned long long) closeSize
-	     ,eos::common::SecEntity::ToEnv(SecString.c_str()).c_str());
+    snprintf( report, sizeof( report ) - 1, "log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&"
+              "lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&cts=%lu&ctms=%lu&rb=%llu&"
+              "rb_min=%llu&rb_max=%llu&rb_sigma=%.02f&wb=%llu&wb_min=%llu&wb_max=%llu&&"
+              "wb_sigma=%.02f&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f&"
+              "osize=%llu&csize=%llu&%s"
+              , this->logId
+              , Path.c_str()
+              , this->vid.uid
+              , this->vid.gid
+              , tIdent.c_str()
+              , hostName.c_str()
+              , lid, fileid
+              , fsid
+              , openTime.tv_sec
+              , ( unsigned long )openTime.tv_usec / 1000
+              , closeTime.tv_sec
+              , ( unsigned long )closeTime.tv_usec / 1000
+              , rsum
+              , rmin
+              , rmax
+              , rsigma
+              , wsum
+              , wmin
+              , wmax
+              , wsigma
+              , srBytes
+              , swBytes
+              , rCalls
+              , wCalls
+              , ( ( rTime.tv_sec * 1000.0 ) + ( rTime.tv_usec / 1000.0 ) )
+              , ( ( wTime.tv_sec * 1000.0 ) + ( wTime.tv_usec / 1000.0 ) )
+              , ( unsigned long long ) openSize
+              , ( unsigned long long ) closeSize
+              , eos::common::SecEntity::ToEnv( SecString.c_str() ).c_str() );
     reportString = report;
   }
 }
@@ -815,27 +819,27 @@ XrdFstOfsFile::verifychecksum()
   //............................................................................
   if ( checkSum ) {
     checkSum->Finalize();
-    if (checkSum->NeedsRecalculation()) {
-      if ( (!isRW) && ( (srBytes)  || ( checkSum->GetMaxOffset() != openSize ) ) && hasBlockXs ) {
-	//............................................................................
-	// we don't rescan files if they are read non-sequential or only partially
-	//............................................................................
-	eos_debug("info=\"skipping checksum (re-scan) for non-sequential reading ...\"");
-	
-	//............................................................................
-	// remove the checksum object
-	//............................................................................
-	delete checkSum;
-	checkSum=0;
-	return false;
+
+    if ( checkSum->NeedsRecalculation() ) {
+      if ( ( !isRW ) && ( ( srBytes )  || ( checkSum->GetMaxOffset() != openSize ) ) && hasBlockXs ) {
+        //............................................................................
+        // we don't rescan files if they are read non-sequential or only partially
+        //............................................................................
+        eos_debug( "info=\"skipping checksum (re-scan) for non-sequential reading ...\"" );
+        //............................................................................
+        // remove the checksum object
+        //............................................................................
+        delete checkSum;
+        checkSum = 0;
+        return false;
       }
     } else {
-      if ( ((!isRW) && (checkSum->GetMaxOffset() != openSize)) || ((!rvec.size()) && (!wvec.size()) ) ) {
-	eos_debug("info=\"skipping checksum (re-scan) for access without any IO or "
-                  "partial sequential read IO from the beginning...\"");
-	delete checkSum;
-	checkSum=0;
-	return false;
+      if ( ( ( !isRW ) && ( checkSum->GetMaxOffset() != openSize ) ) || ( ( !rvec.size() ) && ( !wvec.size() ) ) ) {
+        eos_debug( "info=\"skipping checksum (re-scan) for access without any IO or "
+                   "partial sequential read IO from the beginning...\"" );
+        delete checkSum;
+        checkSum = 0;
+        return false;
       }
     }
 
@@ -848,21 +852,22 @@ XrdFstOfsFile::verifychecksum()
 
       if ( !fctl( SFS_FCTL_GETFD, 0, error ) ) {
         int fd = error.getErrInfo();
+
         //......................................................................
-	// rescan the file
+        // rescan the file
         //......................................................................
-	if (checkSum->ScanFile(fd, scansize, scantime)) {
-	  XrdOucString sizestring;
-	  eos_info("info=\"rescanned checksum\" size=%s time=%.02f ms rate=%.02f MB/s %x",
-                   eos::common::StringConversion::GetReadableSizeString(sizestring, scansize, "B"),
-                   scantime,
-                   1.0*scansize/1000/(scantime?scantime:99999999999999LL),
-                   checkSum->GetHexChecksum());
-	} else {
-	  eos_err("Rescanning of checksum failed");
-	}
+        if ( checkSum->ScanFile( fd, scansize, scantime ) ) {
+          XrdOucString sizestring;
+          eos_info( "info=\"rescanned checksum\" size=%s time=%.02f ms rate=%.02f MB/s %x",
+                    eos::common::StringConversion::GetReadableSizeString( sizestring, scansize, "B" ),
+                    scantime,
+                    1.0 * scansize / 1000 / ( scantime ? scantime : 99999999999999LL ),
+                    checkSum->GetHexChecksum() );
+        } else {
+          eos_err( "Rescanning of checksum failed" );
+        }
       } else {
-	eos_err("Couldn't get file descriptor");
+        eos_err( "Couldn't get file descriptor" );
       }
     } else {
       //........................................................................
@@ -879,7 +884,7 @@ XrdFstOfsFile::verifychecksum()
         return false;
       }
     }
-    
+
     if ( isRW ) {
       eos_info( "(write) checksum type: %s checksum hex: %s requested-checksum hex: %s",
                 checkSum->GetName(),
@@ -906,7 +911,7 @@ XrdFstOfsFile::verifychecksum()
       // Copy checksum into meta data
       //............................................................................
       fMd->fMd.checksum = checkSum->GetHexChecksum();
-      
+
       if ( haswrite ) {
         //............................................................................
         // If we have no write, we don't set this attributes (xrd3cp!)
@@ -929,11 +934,11 @@ XrdFstOfsFile::verifychecksum()
           if ( !attr->Set( "user.eos.filecxerror", "0" ) ) {
             eos_err( "unable to set extended attribute <eos.filecxerror> errno=%d", errno );
           }
-	  
+
           if ( !attr->Set( "user.eos.blockcxerror", "0" ) ) {
             eos_err( "unable to set extended attribute <eos.blockcxerror> errno=%d", errno );
           }
-	  
+
           delete attr;
         }
       }
@@ -946,7 +951,7 @@ XrdFstOfsFile::verifychecksum()
                 checkSum->GetHexChecksum(),
                 fMd->fMd.checksum.c_str() );
       std::string calculatedchecksum = checkSum->GetHexChecksum();
-      
+
       if ( calculatedchecksum != fMd->fMd.checksum.c_str() ) {
         checksumerror = true;
       }
@@ -968,8 +973,9 @@ XrdFstOfsFile::close()
   int brc = 0; // return code before 'close' has been called
   bool checksumerror = false;
   bool targetsizeerror = false;
-  bool committed=false;
-  bool minimumsizeerror=false;
+  bool committed = false;
+  bool minimumsizeerror = false;
+
   //............................................................................
   // We enter the close logic only once since there can be an explicit close or
   // a close via the destructor
@@ -991,22 +997,24 @@ XrdFstOfsFile::close()
     XrdOucEnv Opaque( OpaqueString.c_str() );
     capOpaqueString += OpaqueString;
 
-    if ( (viaDelete||writeDelete||remoteDelete) && isCreation) {
+    if ( ( viaDelete || writeDelete || remoteDelete ) && isCreation ) {
       //........................................................................
       // It is closed by the constructor e.g. no proper close
       // or the specified checksum does not match the computed one
       //........................................................................
-      if (viaDelete) {
-	eos_info("msg=\"(unpersist): deleting file\" reason=\"client disconnect\"  fsid=%u fxid=%08x on fsid=%u ",
-                 fMd->fMd.fsid, fMd->fMd.fid);
+      if ( viaDelete ) {
+        eos_info( "msg=\"(unpersist): deleting file\" reason=\"client disconnect\"  fsid=%u fxid=%08x on fsid=%u ",
+                  fMd->fMd.fsid, fMd->fMd.fid );
       }
-      if (writeDelete) {
-	eos_info("msg=\"(unpersist): deleting file\" reason=\"write/policy error\" fsid=%u fxid=%08x on fsid=%u ",
-                 fMd->fMd.fsid, fMd->fMd.fid);
+
+      if ( writeDelete ) {
+        eos_info( "msg=\"(unpersist): deleting file\" reason=\"write/policy error\" fsid=%u fxid=%08x on fsid=%u ",
+                  fMd->fMd.fsid, fMd->fMd.fid );
       }
-      if (remoteDelete) {
-	eos_info("msg=\"(unpersist): deleting file\" reason=\"remote deletion\"    fsid=%u fxid=%08x on fsid=%u ",
-                 fMd->fMd.fsid, fMd->fMd.fid);
+
+      if ( remoteDelete ) {
+        eos_info( "msg=\"(unpersist): deleting file\" reason=\"remote deletion\"    fsid=%u fxid=%08x on fsid=%u ",
+                  fMd->fMd.fsid, fMd->fMd.fid );
       }
 
       //........................................................................
@@ -1014,7 +1022,6 @@ XrdFstOfsFile::close()
       //........................................................................
       deleteOnClose = true;
       layOut->Remove();
-      
       //........................................................................
       // Delete the replica in the MGM
       //........................................................................
@@ -1058,46 +1065,47 @@ XrdFstOfsFile::close()
       eos_info( "calling verifychecksum" );
       checksumerror = verifychecksum();
       targetsizeerror = ( targetsize ) ? ( targetsize != ( off_t )maxOffsetWritten ) : false;
-      
-      if (isCreation) {
-	// Check that the minimum file size policy is met!
-	minimumsizeerror = (minsize)?( (off_t)maxOffsetWritten < minsize):false;
-	
-	if (minimumsizeerror) {
-	  eos_warning("written file %s is smaller than required minimum file size=%llu written=%llu",
-                      Path.c_str(), minsize, maxOffsetWritten);
-	}
+
+      if ( isCreation ) {
+        // Check that the minimum file size policy is met!
+        minimumsizeerror = ( minsize ) ? ( ( off_t )maxOffsetWritten < minsize ) : false;
+
+        if ( minimumsizeerror ) {
+          eos_warning( "written file %s is smaller than required minimum file size=%llu written=%llu",
+                       Path.c_str(), minsize, maxOffsetWritten );
+        }
       }
-      
+
       if ( ( strcmp( layOut->GetName(), "raidDP" ) == 0 ) ||
            ( strcmp( layOut->GetName(), "reedS" ) == 0 ) ) {
         //......................................................................
         // For RAID-like layouts don't do this check
         //......................................................................
         targetsizeerror = false;
-	minimumsizeerror = false;
+        minimumsizeerror = false;
       }
 
       eos_debug( "checksumerror = %i, targetsizerror= %i,"
                  "maxOffsetWritten = %zu, targetsize = %lli",
                  checksumerror, targetsizeerror, maxOffsetWritten, targetsize );
+
       //......................................................................
       // ---- add error simulation for checksum errors on read
       //......................................................................
-      if ((!isRW) && gOFS.Simulate_XS_read_error) {
-	checksumerror = true;
-	eos_warning("simlating checksum errors on read");
+      if ( ( !isRW ) && gOFS.Simulate_XS_read_error ) {
+        checksumerror = true;
+        eos_warning( "simlating checksum errors on read" );
       }
-      
+
       //......................................................................
       // ---- add error simulation for checksum errors on write
       //......................................................................
-      if (isRW && gOFS.Simulate_XS_write_error) {
-	checksumerror = true;
-	eos_warning("simlating checksum errors on write");
+      if ( isRW && gOFS.Simulate_XS_write_error ) {
+        checksumerror = true;
+        eos_warning( "simlating checksum errors on write" );
       }
 
-      if ( isCreation && ( checksumerror || targetsizeerror ) ) {
+      if ( isCreation && ( checksumerror || targetsizeerror || minimumsizeerror ) ) {
         //......................................................................
         // We have a checksum error if the checksum was preset and does not match!
         // We have a target size error, if the target size was preset and does not match!
@@ -1106,7 +1114,6 @@ XrdFstOfsFile::close()
         //......................................................................
         deleteOnClose = true;
         layOut->Remove();
-       
         //......................................................................
         // Delete the replica in the MGM
         //......................................................................
@@ -1135,7 +1142,7 @@ XrdFstOfsFile::close()
       //........................................................................
       closeSize = openSize;
 
-      if ((!checksumerror) && (haswrite || isCreation) && (!minimumsizeerror)) {
+      if ( ( !checksumerror ) && ( haswrite || isCreation ) && ( !minimumsizeerror ) ) {
         //......................................................................
         // Commit meta data
         //......................................................................
@@ -1161,9 +1168,9 @@ XrdFstOfsFile::close()
             fMd->fMd.locations   = "";             // reset locations
             fMd->fMd.filecxerror = 0;
             fMd->fMd.blockcxerror = 0;
-	    fMd->fMd.locations   = "";             // reset locations
-	    fMd->fMd.filecxerror = 0;
-	    fMd->fMd.blockcxerror= 0;
+            fMd->fMd.locations   = "";             // reset locations
+            fMd->fMd.filecxerror = 0;
+            fMd->fMd.blockcxerror = 0;
             fMd->fMd.mtime    = statinfo.st_mtime;
 #ifdef __APPLE__
             fMd->fMd.mtime_ns = 0;
@@ -1189,7 +1196,6 @@ XrdFstOfsFile::close()
             if ( capOpaque->Get( "mgm.source.rgid" ) ) {
               fMd->fMd.uid = atoi( capOpaque->Get( "mgm.source.rgid" ) );
             }
-
 
             //..................................................................
             // Commit local
@@ -1250,59 +1256,59 @@ XrdFstOfsFile::close()
             rc = gOFS.CallManager( &error, capOpaque->Get( "mgm.path" ),
                                    capOpaque->Get( "mgm.manager" ), capOpaqueFile );
 
-	    if ( rc ) {
-	      if ( ( rc == -EIDRM ) || ( rc == -EBADE ) || ( rc == -EBADR ) ) {
-		if ( !gOFS.Storage->CloseTransaction( fsid, fileid ) ) {
-		  eos_crit( "cannot close transaction for fsid=%u fid=%llu", fsid, fileid );
-		}
-		
-		if ( rc == -EIDRM ) {
-		  //..............................................................
-		  // This file has been deleted in the meanwhile ... we can
-		  // unlink that immedeatly
-		  //..............................................................
-		  eos_info( "info=\"unlinking fid=%08x path=%s - "
-			    "file has been already unlinked from the namespace\"",
-			    fMd->fMd.fid, Path.c_str() );
-		}
-		
-		if ( rc == -EBADE ) {
-		  eos_err( "info=\"unlinking fid=%08x path=%s - "
-			   "file size of replica does not match reference\"",
-			   fMd->fMd.fid, Path.c_str() );
-		}
-		
-		if ( rc == -EBADR ) {
-		  eos_err( "info=\"unlinking fid=%08x path=%s - "
-			   "checksum of replica does not match reference\"",
-			   fMd->fMd.fid, Path.c_str() );
-		}
-		
-		int retc =  gOFS._rem( Path.c_str(), error, 0, capOpaque,
-				       fstPath.c_str(), fileid, fsid );
+            if ( rc ) {
+              if ( ( rc == -EIDRM ) || ( rc == -EBADE ) || ( rc == -EBADR ) ) {
+                if ( !gOFS.Storage->CloseTransaction( fsid, fileid ) ) {
+                  eos_crit( "cannot close transaction for fsid=%u fid=%llu", fsid, fileid );
+                }
 
-		if ( !retc ) {
-                eos_debug( "<rem> returned retc=%d", retc );
-		}
-		
-		deleteOnClose = true;
-	      } else {
-		eos_crit("commit returned an uncatched error msg=%s", error.getErrText());
-	      }
-	    }
+                if ( rc == -EIDRM ) {
+                  //..............................................................
+                  // This file has been deleted in the meanwhile ... we can
+                  // unlink that immedeatly
+                  //..............................................................
+                  eos_info( "info=\"unlinking fid=%08x path=%s - "
+                            "file has been already unlinked from the namespace\"",
+                            fMd->fMd.fid, Path.c_str() );
+                }
+
+                if ( rc == -EBADE ) {
+                  eos_err( "info=\"unlinking fid=%08x path=%s - "
+                           "file size of replica does not match reference\"",
+                           fMd->fMd.fid, Path.c_str() );
+                }
+
+                if ( rc == -EBADR ) {
+                  eos_err( "info=\"unlinking fid=%08x path=%s - "
+                           "checksum of replica does not match reference\"",
+                           fMd->fMd.fid, Path.c_str() );
+                }
+
+                int retc =  gOFS._rem( Path.c_str(), error, 0, capOpaque,
+                                       fstPath.c_str(), fileid, fsid );
+
+                if ( !retc ) {
+                  eos_debug( "<rem> returned retc=%d", retc );
+                }
+
+                deleteOnClose = true;
+              } else {
+                eos_crit( "commit returned an uncatched error msg=%s", error.getErrText() );
+              }
+            }
           }
         }
       }
     }
-    
+
     if ( isRW ) {
       if ( rc == SFS_OK ) {
         gOFS.Storage->CloseTransaction( fsid, fileid );
       }
     }
 
-    int closerc =0; // return of the close
-    brc = rc;       // return before the close
+    int closerc = 0; // return of the close
+    brc = rc;        // return before the close
 
     if ( layOut ) {
       closerc = layOut->Close();
@@ -1312,13 +1318,13 @@ XrdFstOfsFile::close()
     }
 
     closed = true;
-    
-    if (closerc) {
+
+    if ( closerc ) {
       //........................................................................
       // Some (remote) replica didn't make it through ... trigger an auto-repair
       //........................................................................
-      if (!deleteOnClose) {
-	repairOnClose = true;
+      if ( !deleteOnClose ) {
+        repairOnClose = true;
       }
     }
 
@@ -1376,133 +1382,146 @@ XrdFstOfsFile::close()
       eos_debug( "<rem> returned retc=%d", retc );
     }
 
-    if (committed) {
+    if ( committed ) {
       //..................................................................................
       // if we committed the replica and an error happened remote, we have to unlink it again
       //..................................................................................
-      XrdOucString hexstring="";
-      eos::common::FileId::Fid2Hex(fileid,hexstring);
+      XrdOucString hexstring = "";
+      eos::common::FileId::Fid2Hex( fileid, hexstring );
       XrdOucErrInfo error;
-      
-      XrdOucString capOpaqueString="/?mgm.pcmd=drop";
+      XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
       XrdOucString OpaqueString = "";
-      OpaqueString+="&mgm.fsid="; OpaqueString += (int)fsid;
-      OpaqueString+="&mgm.fid=";  OpaqueString += hexstring;
-      XrdOucEnv Opaque(OpaqueString.c_str());
+      OpaqueString += "&mgm.fsid=";
+      OpaqueString += ( int )fsid;
+      OpaqueString += "&mgm.fid=";
+      OpaqueString += hexstring;
+      XrdOucEnv Opaque( OpaqueString.c_str() );
       capOpaqueString += OpaqueString;
-      
       //..................................................................................
       // delete the replica in the MGM
       //..................................................................................
-      int rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueString);
-      if (rc) {
-	if (rc != -EIDRM) {
-	  eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",hexstring.c_str(), fileid, capOpaque->Get("mgm.manager"));
-	}
+      int rcode = gOFS.CallManager( &error, capOpaque->Get( "mgm.path" ), capOpaque->Get( "mgm.manager" ), capOpaqueString );
+
+      if ( rcode ) {
+        if ( rcode != -EIDRM ) {
+          eos_warning( "(unpersist): unable to drop file id %s fsid %u at manager %s",
+                       hexstring.c_str(), fileid, capOpaque->Get( "mgm.manager" ) );
+        }
       }
-      eos_info("info=\"removing on manager\" manager=%s fid=%llu fsid=%d fn=%s fstpath=%s rc=%d", capOpaque->Get("mgm.manager"), (unsigned long long)fileid, (int)fsid, capOpaque->Get("mgm.path"), fstPath.c_str(),rc);
+
+      eos_info( "info=\"removing on manager\" manager=%s fid=%llu fsid=%d fn=%s fstpath=%s rc=%d",
+                capOpaque->Get( "mgm.manager" ),
+                ( unsigned long long )fileid,
+                ( int )fsid,
+                capOpaque->Get( "mgm.path" ),
+                fstPath.c_str(),
+                rcode );
     }
+
     rc = SFS_ERROR;
 
-    if (minimumsizeerror) {
+    if ( minimumsizeerror ) {
       //..................................................................................
       // minimum size criteria not fullfilled
       //..................................................................................
-      gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because it is smaller than the required minimum file size in that directory", Path.c_str());
-      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"minimum file size criteria\"", capOpaque->Get("mgm.path"), fstPath.c_str());    
+      gOFS.Emsg( epname, error, EIO, "store file - file has been cleaned because it is smaller than the required minimum file size in that directory", Path.c_str() );
+      eos_warning( "info=\"deleting on close\" fn=%s fstpath=%s reason=\"minimum file size criteria\"", capOpaque->Get( "mgm.path" ), fstPath.c_str() );
     } else {
-      if (checksumerror) {
-	//..................................................................................
-	// checksum error
-	//..................................................................................
-	gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a checksum error ",Path.c_str());
-	eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"checksum error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+      if ( checksumerror ) {
+        //..................................................................................
+        // checksum error
+        //..................................................................................
+        gOFS.Emsg( epname, error, EIO, "store file - file has been cleaned because of a checksum error ", Path.c_str() );
+        eos_warning( "info=\"deleting on close\" fn=%s fstpath=%s reason=\"checksum error\"", capOpaque->Get( "mgm.path" ), fstPath.c_str() );
       } else {
-	if (writeErrorFlag == kOfsSimulatedIoError) {
-	  //.................................................................................
-	  // simulted write error
-	  //..................................................................................
-	  gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a simulated IO error ",Path.c_str());
-	  eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"simulated IO error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
-	} else {
-	  if (writeErrorFlag == kOfsMaxSizeError) {
-	    //..................................................................................
-	    // maximum size criteria not fullfilled
-	    //..................................................................................	   
-	    gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because you exceeded the maximum file size settings for this namespace branch",Path.c_str());
-	    eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"maximum file size criteria\"", capOpaque->Get("mgm.path"), fstPath.c_str());
-	  } else {
-	    if (writeErrorFlag == kOfsDiskFullError) {
-	      //..................................................................................
-	      // disk full detected during write
-	      //..................................................................................
-	      gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because the target disk filesystem got full and you didn't use reservation",Path.c_str());
-	      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"filesystem full\"", capOpaque->Get("mgm.path"), fstPath.c_str());
-	    } else {
-	      if (writeErrorFlag == kOfsIoError) {
-		//..................................................................................
-		// generic IO error on the underlying device
-		//..................................................................................
-		gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of an IO error during a write operation",Path.c_str());
-	      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"write IO error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
-	      } else {
-		//..................................................................................
-		// target size is different from the uploaded file size
-		//..................................................................................
-		if (targetsizeerror) {
-		  gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because the stored file does not match the provided targetsize",Path.c_str());
-		  eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"target size mismatch\"", capOpaque->Get("mgm.path"), fstPath.c_str());
-		} else {
-		  //..................................................................................
-		  // client has disconnected and file is cleaned-up
-		  //..................................................................................
-		  gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a client disconnect",Path.c_str());
-		  eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"client disconnect\"", capOpaque->Get("mgm.path"), fstPath.c_str());
-		}
-	      }		
-	    }
-	  }
-	}
+        if ( writeErrorFlag == kOfsSimulatedIoError ) {
+          //.................................................................................
+          // simulted write error
+          //..................................................................................
+          gOFS.Emsg( epname, error, EIO, "store file - file has been cleaned because of a simulated IO error ", Path.c_str() );
+          eos_warning( "info=\"deleting on close\" fn=%s fstpath=%s reason=\"simulated IO error\"", capOpaque->Get( "mgm.path" ), fstPath.c_str() );
+        } else {
+          if ( writeErrorFlag == kOfsMaxSizeError ) {
+            //..................................................................................
+            // maximum size criteria not fullfilled
+            //..................................................................................
+            gOFS.Emsg( epname, error, EIO, "store file - file has been cleaned because you exceeded the maximum file size settings for this namespace branch", Path.c_str() );
+            eos_warning( "info=\"deleting on close\" fn=%s fstpath=%s reason=\"maximum file size criteria\"", capOpaque->Get( "mgm.path" ), fstPath.c_str() );
+          } else {
+            if ( writeErrorFlag == kOfsDiskFullError ) {
+              //..................................................................................
+              // disk full detected during write
+              //..................................................................................
+              gOFS.Emsg( epname, error, EIO, "store file - file has been cleaned because the target disk filesystem got full and you didn't use reservation", Path.c_str() );
+              eos_warning( "info=\"deleting on close\" fn=%s fstpath=%s reason=\"filesystem full\"", capOpaque->Get( "mgm.path" ), fstPath.c_str() );
+            } else {
+              if ( writeErrorFlag == kOfsIoError ) {
+                //..................................................................................
+                // generic IO error on the underlying device
+                //..................................................................................
+                gOFS.Emsg( epname, error, EIO, "store file - file has been cleaned because of an IO error during a write operation", Path.c_str() );
+                eos_crit( "info=\"deleting on close\" fn=%s fstpath=%s reason=\"write IO error\"", capOpaque->Get( "mgm.path" ), fstPath.c_str() );
+              } else {
+                //..................................................................................
+                // target size is different from the uploaded file size
+                //..................................................................................
+                if ( targetsizeerror ) {
+                  gOFS.Emsg( epname, error, EIO, "store file - file has been cleaned because the stored file does not match the provided targetsize", Path.c_str() );
+                  eos_crit( "info=\"deleting on close\" fn=%s fstpath=%s reason=\"target size mismatch\"", capOpaque->Get( "mgm.path" ), fstPath.c_str() );
+                } else {
+                  //..................................................................................
+                  // client has disconnected and file is cleaned-up
+                  //..................................................................................
+                  gOFS.Emsg( epname, error, EIO, "store file - file has been cleaned because of a client disconnect", Path.c_str() );
+                  eos_crit( "info=\"deleting on close\" fn=%s fstpath=%s reason=\"client disconnect\"", capOpaque->Get( "mgm.path" ), fstPath.c_str() );
+                }
+              }
+            }
+          }
+        }
       }
     }
   } else {
-    if (checksumerror) {
+    if ( checksumerror ) {
       //..................................................................................
       // checksum error detected
       //..................................................................................
       rc = SFS_ERROR;
-      gOFS.Emsg(epname, error, EIO, "verify checksum - checksum error for file fn=", capOpaque->Get("mgm.path"));   
-      int envlen=0;
-      eos_crit("file-xs error file=%s", capOpaque->Env(envlen));
+      gOFS.Emsg( epname, error, EIO, "verify checksum - checksum error for file fn=", capOpaque->Get( "mgm.path" ) );
+      int envlen = 0;
+      eos_crit( "file-xs error file=%s", capOpaque->Env( envlen ) );
     }
   }
 
-  if (repairOnClose) {
+  if ( repairOnClose ) {
     //..................................................................................
     // do an upcall to the MGM and ask to adjust the replica of the uploaded file
     //..................................................................................
-    XrdOucString OpaqueString="/?mgm.pcmd=adjustreplica&mgm.path=";
-    OpaqueString += capOpaque->Get("mgm.path");
-    
-    eos_info("info=\"repair on close\" path=%s",  capOpaque->Get("mgm.path"));
-    if (gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), OpaqueString)) {
-      eos_warning("failed to execute 'adjustreplica' for path=%s", capOpaque->Get("mgm.path"));
-      gOFS.Emsg(epname, error, EIO, "create all replicas - uploaded file is at risk - only one replica has been successfully stored for fn=", capOpaque->Get("mgm.path"));   
+    XrdOucString OpaqueString = "/?mgm.pcmd=adjustreplica&mgm.path=";
+    OpaqueString += capOpaque->Get( "mgm.path" );
+    eos_info( "info=\"repair on close\" path=%s",  capOpaque->Get( "mgm.path" ) );
+
+    if ( gOFS.CallManager( &error, capOpaque->Get( "mgm.path" ), capOpaque->Get( "mgm.manager" ), OpaqueString ) ) {
+      eos_warning( "failed to execute 'adjustreplica' for path=%s", capOpaque->Get( "mgm.path" ) );
+      gOFS.Emsg( epname, error, EIO, "create all replicas - uploaded file is at risk - only one replica has been successfully stored for fn=", capOpaque->Get( "mgm.path" ) );
     } else {
-      if (!brc) {
-	//..................................................................................
-	// reset the return code
-	//..................................................................................
-	rc = 0 ;
-	//..................................................................................
-	// clean error message
-	//..................................................................................
-	gOFS.Emsg(epname, error, 0, "no error");
+      if ( !brc ) {
+        //..................................................................................
+        // reset the return code
+        //..................................................................................
+        rc = 0 ;
+        //..................................................................................
+        // clean error message
+        //..................................................................................
+        gOFS.Emsg( epname, error, 0, "no error" );
       }
     }
-    eos_warning("executed 'adjustreplica' for path=%s - file is at low risk due to missing replica's", capOpaque->Get("mgm.path"));
+
+    eos_warning( "executed 'adjustreplica' for path=%s - file is at low risk due to missing replica's",
+                 capOpaque->Get( "mgm.path" ) );
   }
 
+  eos_info( "Return code rc=%i.", rc );
   return rc;
 }
 
@@ -1516,11 +1535,10 @@ XrdFstOfsFile::readofs( XrdSfsFileOffset   fileOffset,
                         XrdSfsXferSize     buffer_size )
 {
   int retc = XrdOfsFile::read( fileOffset, buffer, buffer_size );
-  
-  eos_debug("read %llu %llu %lu retc=%d", this, fileOffset, buffer_size, retc);
+  eos_debug( "read %llu %llu %lu retc=%d", this, fileOffset, buffer_size, retc );
 
-  if (gOFS.Simulate_IO_read_error) {
-    return gOFS.Emsg("readofs", error, EIO, "read file - simulated IO error fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
+  if ( gOFS.Simulate_IO_read_error ) {
+    return gOFS.Emsg( "readofs", error, EIO, "read file - simulated IO error fn=", capOpaque ? ( capOpaque->Get( "mgm.path" ) ? capOpaque->Get( "mgm.path" ) : FName() ) : FName() );
   }
 
   return retc;
@@ -1566,8 +1584,8 @@ XrdFstOfsFile::read( XrdSfsFileOffset   fileOffset,
   }
 
   if ( rc > 0 ) {
-    XrdSysMutexHelper vecLock(vecMutex);
-    rvec.push_back(rc);
+    XrdSysMutexHelper vecLock( vecMutex );
+    rvec.push_back( rc );
     rOffset += rc;
   }
 
@@ -1622,13 +1640,13 @@ XrdFstOfsFile::writeofs( XrdSfsFileOffset   fileOffset,
                          const char*        buffer,
                          XrdSfsXferSize     buffer_size )
 {
-  if (gOFS.Simulate_IO_write_error) {
-    writeErrorFlag=kOfsSimulatedIoError;
-    return gOFS.Emsg("readofs", error, EIO, "write file - simulated IO error fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
+  if ( gOFS.Simulate_IO_write_error ) {
+    writeErrorFlag = kOfsSimulatedIoError;
+    return gOFS.Emsg( "readofs", error, EIO, "write file - simulated IO error fn=", capOpaque ? ( capOpaque->Get( "mgm.path" ) ? capOpaque->Get( "mgm.path" ) : FName() ) : FName() );
   }
 
-  if (fsid) {
-    if (targetsize && (targetsize == bookingsize) ) {
+  if ( fsid ) {
+    if ( targetsize && ( targetsize == bookingsize ) ) {
       //............................................................
       // space has been successfully pre-allocated, let client write
       //............................................................
@@ -1636,30 +1654,32 @@ XrdFstOfsFile::writeofs( XrdSfsFileOffset   fileOffset,
       //............................................................
       // check if the file system is full
       //............................................................
-      XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
-      if (gOFS.Storage->fileSystemFullMap[fsid]) {
-	writeErrorFlag=kOfsDiskFullError;
-	return gOFS.Emsg("writeofs", error, ENOSPC, "write file - disk space (headroom) exceeded fn=", capOpaque?(capOpaque->Get("mgm.path")?capOpaque->Get("mgm.path"):FName()):FName());
+      XrdSysMutexHelper( gOFS.Storage->fileSystemFullMapMutex );
+
+      if ( gOFS.Storage->fileSystemFullMap[fsid] ) {
+        writeErrorFlag = kOfsDiskFullError;
+        return gOFS.Emsg( "writeofs", error, ENOSPC, "write file - disk space (headroom) exceeded fn=", capOpaque ? ( capOpaque->Get( "mgm.path" ) ? capOpaque->Get( "mgm.path" ) : FName() ) : FName() );
       }
     }
   }
 
-  if (maxsize) {
+  if ( maxsize ) {
     //...............................................................
     // check that the user didn't exceed the maximum file size policy
     //...............................................................
-    if ( (fileOffset + buffer_size) > maxsize ) {
-      writeErrorFlag=kOfsMaxSizeError;
-      return gOFS.Emsg("writeofs", error, ENOSPC, "write file - your file exceeds the maximum file size setting of bytes<=", capOpaque?(capOpaque->Get("mgm.maxsize")?capOpaque->Get("mgm.maxsize"):"<undef>"):"undef");
+    if ( ( fileOffset + buffer_size ) > maxsize ) {
+      writeErrorFlag = kOfsMaxSizeError;
+      return gOFS.Emsg( "writeofs", error, ENOSPC, "write file - your file exceeds the maximum file size setting of bytes<=", capOpaque ? ( capOpaque->Get( "mgm.maxsize" ) ? capOpaque->Get( "mgm.maxsize" ) : "<undef>" ) : "undef" );
     }
   }
-  
-  int rc = XrdOfsFile::write(fileOffset,buffer,buffer_size);
-  if (rc!=buffer_size) {
+
+  int rc = XrdOfsFile::write( fileOffset, buffer, buffer_size );
+
+  if ( rc != buffer_size ) {
     //..........................
     // tag an io error
     //..........................
-    writeErrorFlag=kOfsIoError;
+    writeErrorFlag = kOfsIoError;
   };
 
   return rc;
@@ -1679,10 +1699,10 @@ XrdFstOfsFile::write( XrdSfsFileOffset   fileOffset,
   wCalls++;
   int rc = layOut->Write( fileOffset, const_cast<char*>( buffer ), buffer_size );
 
-  if ( (rc <0) && isCreation && (error.getErrInfo() == EREMOTEIO) ) {
-    if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
+  if ( ( rc < 0 ) && isCreation && ( error.getErrInfo() == EREMOTEIO ) ) {
+    if ( eos::common::LayoutId::GetLayoutType( lid ) == eos::common::LayoutId::kReplica ) {
       //...............................................................................
-      // if we see a remote IO error, we don't fail, 
+      // if we see a remote IO error, we don't fail,
       // we just call a repair action afterwards (only for replica layouts!)
       //...............................................................................
       repairOnClose = true;
@@ -1703,8 +1723,8 @@ XrdFstOfsFile::write( XrdSfsFileOffset   fileOffset,
   }
 
   if ( rc > 0 ) {
-    XrdSysMutexHelper(vecMutex);
-    wvec.push_back(rc);
+    XrdSysMutexHelper( vecMutex );
+    wvec.push_back( rc );
     wOffset += rc;
 
     if ( static_cast<unsigned long long>( fileOffset + buffer_size ) >
@@ -1713,11 +1733,8 @@ XrdFstOfsFile::write( XrdSfsFileOffset   fileOffset,
   }
 
   gettimeofday( &lwTime, &tz );
-
   AddWriteTime();
-
   haswrite = true;
-
   eos_debug( "rc=%d offset=%lu size=%lu", rc, fileOffset,
              static_cast<unsigned long>( buffer_size ) );
 
@@ -1731,62 +1748,66 @@ XrdFstOfsFile::write( XrdSfsFileOffset   fileOffset,
               capOpaque ? capOpaque->Env( envlen ) : FName() );
   }
 
-  if (rc <0) {
-    int envlen=0;
+  if ( rc < 0 ) {
+    int envlen = 0;
     //............................................
     // indicate the deletion flag for write errors
     //............................................
     writeDelete = true;
     XrdOucString errdetail;
-    if (isCreation) {
+
+    if ( isCreation ) {
       XrdOucString newerr;
       //..........................................................................
       // add to the error message that this file has been removed after the error,
       // which happens for creations
       //..........................................................................
       newerr = error.getErrText();
-      if (writeErrorFlag == kOfsSimulatedIoError) {
-	//.................................
-	// simulated IO error
-	//.................................
-	errdetail += " => file has been removed because of a simulated IO error";
+
+      if ( writeErrorFlag == kOfsSimulatedIoError ) {
+        //.................................
+        // simulated IO error
+        //.................................
+        errdetail += " => file has been removed because of a simulated IO error";
       } else {
-	if (writeErrorFlag == kOfsDiskFullError) {
-	  //.................................
-	  // disk full error
-	  //.................................
-	  errdetail += " => file has been removed because the target filesystem  was full";
-	} else {
-	  if (writeErrorFlag == kOfsMaxSizeError) {
-	    //.................................
-	    // maximum file size error
-	    //.................................
-	    errdetail += " => file has been removed because the maximum target filesize defined for that subtree was exceeded (maxsize=";
-	    char smaxsize[16];
-	    snprintf(smaxsize,sizeof(smaxsize)-1, "%llu", (unsigned long long) maxsize);
-	    errdetail += smaxsize;
-	    errdetail += " bytes)";
-	  } else {
-	    if (writeErrorFlag == kOfsIoError) {
-	      //.................................
-	      // generic IO error
-	      //.................................
-	      errdetail += " => file has been removed due to an IO error on the target filesystem";
-	    } else {
-	      errdetail += " => file has been removed due to an IO error (unspecified)";
-	    }
-	  }
-	}
+        if ( writeErrorFlag == kOfsDiskFullError ) {
+          //.................................
+          // disk full error
+          //.................................
+          errdetail += " => file has been removed because the target filesystem  was full";
+        } else {
+          if ( writeErrorFlag == kOfsMaxSizeError ) {
+            //.................................
+            // maximum file size error
+            //.................................
+            errdetail += " => file has been removed because the maximum target filesize defined for that subtree was exceeded (maxsize=";
+            char smaxsize[16];
+            snprintf( smaxsize, sizeof( smaxsize ) - 1, "%llu", ( unsigned long long ) maxsize );
+            errdetail += smaxsize;
+            errdetail += " bytes)";
+          } else {
+            if ( writeErrorFlag == kOfsIoError ) {
+              //.................................
+              // generic IO error
+              //.................................
+              errdetail += " => file has been removed due to an IO error on the target filesystem";
+            } else {
+              errdetail += " => file has been removed due to an IO error (unspecified)";
+            }
+          }
+        }
       }
+
       newerr += errdetail.c_str();
-      error.setErrInfo(error.getErrInfo(),newerr.c_str());
+      error.setErrInfo( error.getErrInfo(), newerr.c_str() );
     }
-    eos_err("block-write error=%d offset=%llu len=%llu file=%s error=\"%s\"",
-	    error.getErrInfo(), 
-	    (unsigned long long)fileOffset, 
-	    (unsigned long long)buffer_size,FName(), 
-	    capOpaque?capOpaque->Env(envlen):FName(), 
-	    errdetail.c_str());      
+
+    eos_err( "block-write error=%d offset=%llu len=%llu file=%s error=\"%s\"",
+             error.getErrInfo(),
+             ( unsigned long long )fileOffset,
+             ( unsigned long long )buffer_size, FName(),
+             capOpaque ? capOpaque->Env( envlen ) : FName(),
+             errdetail.c_str() );
   }
 
   return rc;

@@ -38,8 +38,8 @@ extern XrdFstOss* XrdFstSS;
 // Constuctor
 //------------------------------------------------------------------------------
 XrdFstOssFile::XrdFstOssFile( const char* tid ):
-  XrdOssFile( tid ),
   eos::common::LogId(),
+  mFd( -1 ),
   mIsRW( false ),
   mRWLockXs( 0 ),
   mBlockXs( 0 )
@@ -63,10 +63,16 @@ XrdFstOssFile::~XrdFstOssFile()
 int
 XrdFstOssFile::Open( const char* path, int flags, mode_t mode, XrdOucEnv& env )
 {
+  int newfd;
   const char* val = 0;
   unsigned long lid = 0;
   off_t booking_size = 0;
   mPath = path;
+
+  //............................................................................
+  // Return an error if this object is already open
+  //............................................................................
+  if ( mFd >= 0 ) return -EBADF;
 
   if ( ( val = env.Get( "mgm.lid" ) ) ) {
     lid = atol( val );
@@ -88,7 +94,7 @@ XrdFstOssFile::Open( const char* path, int flags, mode_t mode, XrdOucEnv& env )
          ( O_RDONLY | O_WRONLY | O_RDWR | O_CREAT  | O_TRUNC ) ) != 0 ) {
     mIsRW = true;
   }
-  
+
   if ( eos::common::LayoutId::GetBlockChecksum( lid ) != eos::common::LayoutId::kNone ) {
     //..........................................................................
     // Look for a blockchecksum obj corresponding to this file
@@ -114,7 +120,7 @@ XrdFstOssFile::Open( const char* path, int flags, mode_t mode, XrdOucEnv& env )
                    xs_path.c_str() );
           return -EIO;
         }
-        
+
         //......................................................................
         // Add the new file blockchecksum mapping
         //......................................................................
@@ -126,8 +132,30 @@ XrdFstOssFile::Open( const char* path, int flags, mode_t mode, XrdOucEnv& env )
     }
   }
 
-  int retc = XrdOssFile::Open( path, flags, mode, env );
-  return retc;
+  //............................................................................
+  // Do the actual open of the file
+  //............................................................................
+  do {
+    mFd = open( path, flags | O_LARGEFILE, mode );
+  } while ( ( mFd < 0 ) && ( errno == EINTR ) );
+
+  //............................................................................
+  // Relocate the file descriptor if need be and make sure file is closed on exec
+  //............................................................................
+  if ( mFd >= 0 ) {
+    if ( mFd < XrdFstSS->mFdFence ) {
+      if ( ( newfd = fcntl( mFd, F_DUPFD, XrdFstSS->mFdFence ) ) < 0 ) {
+        eos_err( "error= unable to reloc FD for ", path );
+      } else {
+        close( mFd );
+        mFd = newfd;
+      }
+    }
+
+    fcntl( mFd, F_SETFD, FD_CLOEXEC );
+  }
+
+  return XrdOssOK;
 }
 
 
@@ -137,20 +165,28 @@ XrdFstOssFile::Open( const char* path, int flags, mode_t mode, XrdOucEnv& env )
 ssize_t
 XrdFstOssFile::Read( void* buffer, off_t offset, size_t length )
 {
-  int retc = XrdOssFile::Read( buffer, offset, length );
+  ssize_t retval;
+
+  if ( mFd < 0 ) {
+    return static_cast<ssize_t>( -EBADF );
+  }
+
+  do {
+    retval = pread( mFd, buffer, length, offset );
+  } while ( ( retval < 0 ) && ( errno == EINTR ) );
 
   if ( mBlockXs ) {
     XrdSysRWLockHelper wr_lock( mRWLockXs, 0 );
-    if ( ( retc > 0 ) &&
-         ( !mBlockXs->CheckBlockSum( offset, static_cast<const char*>( buffer ), retc ) ) )
-    {
+
+    if ( ( retval > 0 ) &&
+         ( !mBlockXs->CheckBlockSum( offset, static_cast<const char*>( buffer ), retval ) ) ) {
       eos_err( "error=read block-xs error offset=%zu, length=%zu",
                offset, length );
       return -EIO;
     }
   }
 
-  return retc;
+  return ( retval >= 0 ? retval : static_cast<ssize_t>( -errno ) );
 }
 
 
@@ -160,21 +196,7 @@ XrdFstOssFile::Read( void* buffer, off_t offset, size_t length )
 ssize_t
 XrdFstOssFile::ReadRaw( void* buffer, off_t offset, size_t length )
 {
-  ssize_t retc = XrdOssFile::ReadRaw( buffer, offset, length );
-
-  if ( mBlockXs ) {
-    XrdSysRWLockHelper wr_lock( mRWLockXs, 0 );
-
-    if ( ( retc > 0 ) &&
-         ( !mBlockXs->CheckBlockSum( offset, static_cast<const char*>( buffer ), retc ) ) )
-    {
-      eos_err( "error=read block-xs error offset=%zu, length=%zu",
-               offset, length );
-      return -EIO;
-    }
-  }
-
-  return retc;
+  return Read( buffer, offset, length );
 }
 
 
@@ -184,24 +206,93 @@ XrdFstOssFile::ReadRaw( void* buffer, off_t offset, size_t length )
 ssize_t
 XrdFstOssFile::Write( const void* buffer, off_t offset, size_t length )
 {
+  ssize_t retval;
+
+  if ( mFd < 0 ) {
+    return static_cast<ssize_t>( -EBADF );
+  }
+
   if ( mBlockXs ) {
     XrdSysRWLockHelper wr_lock( mRWLockXs, 0 );
     mBlockXs->AddBlockSum( offset, static_cast<const char*>( buffer ), length );
   }
 
-  ssize_t retc = XrdOssFile::Write( buffer, offset, length );
-  return retc;
+  do {
+    retval = pwrite( mFd, buffer, length, offset );
+  } while ( ( retval < 0 ) && ( errno == EINTR ) );
+
+  return ( retval >= 0 ? retval : static_cast<ssize_t>( -errno ) );
+}
+
+
+//------------------------------------------------------------------------------
+// Chmod function
+//------------------------------------------------------------------------------
+int
+XrdFstOssFile::Fchmod( mode_t mode )
+{
+  return ( fchmod( mFd, mode ) ? -errno : XrdOssOK );
+}
+
+
+//------------------------------------------------------------------------------
+// Get file status
+//------------------------------------------------------------------------------
+int
+XrdFstOssFile::Fstat( struct stat* statinfo )
+{
+  return ( fstat( mFd, statinfo ) ? -errno : XrdOssOK );
+}
+
+
+//------------------------------------------------------------------------------
+// Sync file to local disk
+//------------------------------------------------------------------------------
+int
+XrdFstOssFile::Fsync()
+{
+  return ( fsync( mFd ) ? -errno : XrdOssOK );
+}
+
+
+//------------------------------------------------------------------------------
+// Truncate the file
+//------------------------------------------------------------------------------
+int
+XrdFstOssFile::Ftruncate( unsigned long long flen )
+{
+  off_t newlen = flen;
+
+  if ( ( sizeof( newlen ) < sizeof( flen ) ) && ( flen >> 31 ) ) return -EOVERFLOW;
+
+  //............................................................................
+  // Note that space adjustment will occur when the file is closed, not here
+  //............................................................................
+  return ( ftruncate( fd, newlen ) ?  -errno : XrdOssOK );
+}
+
+
+//------------------------------------------------------------------------------
+// Get file descriptor
+//------------------------------------------------------------------------------
+int
+XrdFstOssFile::getFD()
+{
+  return mFd;
 }
 
 
 //------------------------------------------------------------------------------
 // Close function
 //------------------------------------------------------------------------------
+
 int
 XrdFstOssFile::Close( long long* retsz )
 {
   int retc = 0;
   bool delete_mapping = false;
+
+  if ( mFd < 0 ) return -EBADF;
 
   //............................................................................
   // Code dealing with block checksums
@@ -210,11 +301,15 @@ XrdFstOssFile::Close( long long* retsz )
     struct stat statinfo;
 
     if ( ( XrdFstSS->Stat( mPath.c_str(), &statinfo ) ) ) {
-      eos_err( "error=close - cannot stat closed file: %s", mPath.c_str() );
-      return XrdOssFile::Close( retsz );
+      eos_err( "error=close - cannot stat unlinked file: %s", mPath.c_str() );
+      //........................................................................
+      // We don't need to take care of cleaning the Xs map, as this is already
+      // handled by the XrdFstOss::Unlik.
+      //........................................................................
+      return -EIO;
     }
 
-    XrdSysRWLockHelper wr_lock( mRWLockXs );                // ---> wrlock xs obj
+    XrdSysRWLockHelper wr_lock( mRWLockXs, 0 );             // ---> wrlock xs obj
     mBlockXs->DecrementRef( mIsRW );
 
     if ( mBlockXs->GetTotalRef() >= 1 ) {
@@ -272,8 +367,15 @@ XrdFstOssFile::Close( long long* retsz )
     eos_debug( "No delete from oss map" );
   }
 
-  retc |= XrdOssFile::Close( retsz );
-  return retc;
+  //............................................................................
+  // Close the current file
+  //............................................................................
+  if ( close( mFd ) ) {
+    return -errno;
+  }
+
+  mFd = -1;
+  return XrdOssOK;
 }
 
 EOSFSTNAMESPACE_END

@@ -33,19 +33,19 @@
 #include "fst/checksum/CheckSum.hh"
 #include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdOss/XrdOssApi.hh"
+#include "XrdOss/XrdOss.hh"
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Class XrdFstOssFile built on top of XrdOssFile by adding blockxs information
+//! Class XrdFstOssFile using blockxs information
 //------------------------------------------------------------------------------
-class XrdFstOssFile : public XrdOssFile, public eos::common::LogId
+class XrdFstOssFile : public XrdOssDF, public eos::common::LogId
 {
   public:
-  
+
     //--------------------------------------------------------------------------
     //! Constuctor
     //!
@@ -115,6 +115,51 @@ class XrdFstOssFile : public XrdOssFile, public eos::common::LogId
 
 
     //--------------------------------------------------------------------------
+    //! Chmod function 
+    //!
+    //! @param mode the mode to set
+    //!
+    //! @return XrdOssOK upon success, (-errno) upon failure
+    //! 
+    //--------------------------------------------------------------------------
+    int Fchmod( mode_t mode );
+
+
+    //--------------------------------------------------------------------------
+    //! Get file status 
+    //!
+    //! @param statinfo stat info structure
+    //!
+    //! @return XrdOssOK upon success, (-errno) upon failure
+    //!
+    //--------------------------------------------------------------------------
+    int Fstat( struct stat* statinfo);
+
+
+    //--------------------------------------------------------------------------
+    //! Sync file to local disk 
+    //--------------------------------------------------------------------------
+    int Fsync();
+
+  
+    //--------------------------------------------------------------------------
+    //! Truncate the file 
+    //!
+    //! @param offset truncate offset
+    //!
+    //! @return XrdOssOK upon success, -1 upon failure
+    //!
+    //--------------------------------------------------------------------------
+    int Ftruncate( unsigned long long offset );
+
+  
+    //--------------------------------------------------------------------------
+    //! Get file descriptor
+    //--------------------------------------------------------------------------
+    int getFD(); 
+
+  
+    //--------------------------------------------------------------------------
     //! Close function
     //!
     //! @param retsz
@@ -126,6 +171,7 @@ class XrdFstOssFile : public XrdOssFile, public eos::common::LogId
 
   private:
 
+    int                 mFd;        ///< file descriptor
     XrdOucString        mPath;      ///< path of the file
     bool                mIsRW;      ///< mark if opened for rw operations
     XrdSysRWLock*       mRWLockXs;  ///< rw lock for the block xs
