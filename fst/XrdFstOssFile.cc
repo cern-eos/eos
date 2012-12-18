@@ -39,12 +39,12 @@ extern XrdFstOss* XrdFstSS;
 //------------------------------------------------------------------------------
 XrdFstOssFile::XrdFstOssFile( const char* tid ):
   eos::common::LogId(),
-  mFd( -1 ),
   mIsRW( false ),
   mRWLockXs( 0 ),
   mBlockXs( 0 )
 {
   // empty
+  fd = -1;
 }
 
 
@@ -72,7 +72,7 @@ XrdFstOssFile::Open( const char* path, int flags, mode_t mode, XrdOucEnv& env )
   //............................................................................
   // Return an error if this object is already open
   //............................................................................
-  if ( mFd >= 0 ) return -EBADF;
+  if ( fd >= 0 ) return -EBADF;
 
   if ( ( val = env.Get( "mgm.lid" ) ) ) {
     lid = atol( val );
@@ -136,23 +136,23 @@ XrdFstOssFile::Open( const char* path, int flags, mode_t mode, XrdOucEnv& env )
   // Do the actual open of the file
   //............................................................................
   do {
-    mFd = open( path, flags | O_LARGEFILE, mode );
-  } while ( ( mFd < 0 ) && ( errno == EINTR ) );
+    fd = open( path, flags | O_LARGEFILE, mode );
+  } while ( ( fd < 0 ) && ( errno == EINTR ) );
 
   //............................................................................
   // Relocate the file descriptor if need be and make sure file is closed on exec
   //............................................................................
-  if ( mFd >= 0 ) {
-    if ( mFd < XrdFstSS->mFdFence ) {
-      if ( ( newfd = fcntl( mFd, F_DUPFD, XrdFstSS->mFdFence ) ) < 0 ) {
+  if ( fd >= 0 ) {
+    if ( fd < XrdFstSS->mFdFence ) {
+      if ( ( newfd = fcntl( fd, F_DUPFD, XrdFstSS->mFdFence ) ) < 0 ) {
         eos_err( "error= unable to reloc FD for ", path );
       } else {
-        close( mFd );
-        mFd = newfd;
+        close( fd );
+        fd = newfd;
       }
     }
 
-    fcntl( mFd, F_SETFD, FD_CLOEXEC );
+    fcntl( fd, F_SETFD, FD_CLOEXEC );
   }
 
   return XrdOssOK;
@@ -167,12 +167,12 @@ XrdFstOssFile::Read( void* buffer, off_t offset, size_t length )
 {
   ssize_t retval;
 
-  if ( mFd < 0 ) {
+  if ( fd < 0 ) {
     return static_cast<ssize_t>( -EBADF );
   }
 
   do {
-    retval = pread( mFd, buffer, length, offset );
+    retval = pread( fd, buffer, length, offset );
   } while ( ( retval < 0 ) && ( errno == EINTR ) );
 
   if ( mBlockXs ) {
@@ -208,7 +208,7 @@ XrdFstOssFile::Write( const void* buffer, off_t offset, size_t length )
 {
   ssize_t retval;
 
-  if ( mFd < 0 ) {
+  if ( fd < 0 ) {
     return static_cast<ssize_t>( -EBADF );
   }
 
@@ -218,7 +218,7 @@ XrdFstOssFile::Write( const void* buffer, off_t offset, size_t length )
   }
 
   do {
-    retval = pwrite( mFd, buffer, length, offset );
+    retval = pwrite( fd, buffer, length, offset );
   } while ( ( retval < 0 ) && ( errno == EINTR ) );
 
   return ( retval >= 0 ? retval : static_cast<ssize_t>( -errno ) );
@@ -231,7 +231,7 @@ XrdFstOssFile::Write( const void* buffer, off_t offset, size_t length )
 int
 XrdFstOssFile::Fchmod( mode_t mode )
 {
-  return ( fchmod( mFd, mode ) ? -errno : XrdOssOK );
+  return ( fchmod( fd, mode ) ? -errno : XrdOssOK );
 }
 
 
@@ -241,7 +241,7 @@ XrdFstOssFile::Fchmod( mode_t mode )
 int
 XrdFstOssFile::Fstat( struct stat* statinfo )
 {
-  return ( fstat( mFd, statinfo ) ? -errno : XrdOssOK );
+  return ( fstat( fd, statinfo ) ? -errno : XrdOssOK );
 }
 
 
@@ -251,7 +251,7 @@ XrdFstOssFile::Fstat( struct stat* statinfo )
 int
 XrdFstOssFile::Fsync()
 {
-  return ( fsync( mFd ) ? -errno : XrdOssOK );
+  return ( fsync( fd ) ? -errno : XrdOssOK );
 }
 
 
@@ -278,7 +278,7 @@ XrdFstOssFile::Ftruncate( unsigned long long flen )
 int
 XrdFstOssFile::getFD()
 {
-  return mFd;
+  return fd;
 }
 
 
@@ -292,7 +292,7 @@ XrdFstOssFile::Close( long long* retsz )
   int retc = 0;
   bool delete_mapping = false;
 
-  if ( mFd < 0 ) return -EBADF;
+  if ( fd < 0 ) return -EBADF;
 
   //............................................................................
   // Code dealing with block checksums
@@ -370,11 +370,11 @@ XrdFstOssFile::Close( long long* retsz )
   //............................................................................
   // Close the current file
   //............................................................................
-  if ( close( mFd ) ) {
+  if ( close( fd ) ) {
     return -errno;
   }
 
-  mFd = -1;
+  fd = -1;
   return XrdOssOK;
 }
 

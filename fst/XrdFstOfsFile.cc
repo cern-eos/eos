@@ -70,6 +70,7 @@ XrdFstOfsFile::XrdFstOfsFile( const char* user, int MonID ) :
   closeSize = 0;
   isReplication = false;
   deleteOnClose = false;
+  repairOnClose = false;
   closeTime.tv_sec = closeTime.tv_usec = 0;
   openTime.tv_sec = openTime.tv_usec = 0;
   tz.tz_dsttime = tz.tz_minuteswest = 0;

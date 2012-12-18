@@ -62,7 +62,7 @@
 eos::fst::XrdFstOfs eos::fst::gOFS;
 
 extern XrdSysError OfsEroute;
-extern XrdOssSys*  XrdOfsOss;
+extern XrdOss*     XrdOfsOss;
 extern XrdOfs*     XrdOfsFS;
 extern XrdOucTrace OfsTrace;
 

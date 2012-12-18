@@ -3764,7 +3764,7 @@ int XrdMgmOfs::_find(const char       *path,             // In
           // check if we select by tag
           if (key) {
             std::string sval = val;
-            XrdOucString attr="";
+            XrdOucString attr = "";
             if(!gOFS->_attr_get(fpath.c_str(), out_error, vid, (const char*) 0, key, attr, true)) {
               if (attr == val) {
                 found_dirs[deepness+1].push_back(fpath.c_str());

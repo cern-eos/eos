@@ -22,9 +22,16 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+#include <fcntl.h>
+#include <strings.h>
+#include <utime.h>
 #include <sys/time.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/resource.h>
 /*----------------------------------------------------------------------------*/
+#include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "fst/XrdFstOss.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 /*----------------------------------------------------------------------------*/
@@ -49,7 +56,7 @@ EOSFSTNAMESPACE_BEGIN
 
 #define XrdFstOssFDMINLIM  64
 
-//! pointer to the current OSS implementation to be used by the oss files
+// pointer to the current OSS implementation to be used by the oss files
 XrdFstOss* XrdFstSS = 0;
 
 
@@ -80,7 +87,6 @@ XrdFstOss::~XrdFstOss()
 int
 XrdFstOss::Init( XrdSysLogger* lp, const char* configfn )
 {
-  int rc = XrdOssSys::Init( lp, configfn );
   XrdFstSS = this;
   //............................................................................
   // Set logging parameters
@@ -110,9 +116,7 @@ XrdFstOss::Init( XrdSysLogger* lp, const char* configfn )
     mFdFence = mFdLimit >> 1;
   }
 
-  // TODO::
-  //return XrdOssOK;
-  return rc;
+  return XrdOssOK;
 }
 
 
@@ -135,6 +139,339 @@ XrdFstOss::newDir( const char* tident )
 {
   eos_debug( "Calling XrdFstOss::newDir - not used in EOS." );
   return NULL;
+}
+
+
+//------------------------------------------------------------------------------
+// Unlink file and its block checksum if needed
+//------------------------------------------------------------------------------
+int
+XrdFstOss::Unlink( const char* path, int opts, XrdOucEnv* ep )
+{
+  int retc = 0;
+  struct stat statinfo;
+  //............................................................................
+  // Unlink the block checksum files - this is not the 'best' solution,
+  // but we don't have any info about block checksums
+  //............................................................................
+  Adler xs; // the type does not matter here
+  const char* xs_path = xs.MakeBlockXSPath( path );
+
+  if ( ( Stat( xs_path, &statinfo ) ) ) {
+    eos_err( "error=cannot stat closed file - probably already unlinked: %s",
+             xs_path );
+  } else {
+    if ( !xs.UnlinkXSPath() ) {
+      eos_debug( "info=\"removed block-xs\" path=%s.", path );
+    }
+  }
+
+  //............................................................................
+  // Delete also any entries in the oss file <-> blockxs map
+  //............................................................................
+  DropXs( path, true );
+  //............................................................................
+  // Unlink the file
+  //............................................................................
+  int i;
+  char local_path[MAXPATHLEN + 1 + 8];
+  strcpy( local_path, path );
+
+  if ( lstat( local_path, &statinfo ) ) {
+    retc = ( errno == ENOENT ? 0 : -errno );
+  } else if ( ( statinfo.st_mode & S_IFMT ) == S_IFLNK ) {
+    retc = BreakLink( local_path, statinfo );
+  } else if ( ( statinfo.st_mode & S_IFMT ) == S_IFDIR ) {
+    i = strlen( local_path );
+
+    if ( local_path[i - 1] != '/' ) strcpy( local_path + i, "/" );
+
+    if ( ( retc = rmdir( local_path ) ) ) retc = -errno;
+
+    return retc;
+  }
+
+  if ( !retc ) {
+    if ( unlink( local_path ) ) retc = -errno;
+    else retc = XrdOssOK;
+  }
+
+  return retc;
+}
+
+
+//------------------------------------------------------------------------------
+// Delete a link file
+//------------------------------------------------------------------------------
+int
+XrdFstOss::BreakLink( const char* local_path, struct stat& statbuff )
+{
+  char lnkbuff[MAXPATHLEN + 64];
+  int lnklen, retc = XrdOssOK;
+
+  //............................................................................
+  // Read the contents of the link
+  //............................................................................
+  if ( ( lnklen = readlink( local_path, lnkbuff, sizeof( lnkbuff ) - 1 ) ) < 0 )
+    return -errno;
+
+  //............................................................................
+  // Return the actual stat information on the target (which might not exist
+  //............................................................................
+  lnkbuff[lnklen] = '\0';
+
+  if ( stat( lnkbuff, &statbuff ) ) statbuff.st_size = 0;
+  else if ( unlink( lnkbuff ) && errno != ENOENT ) {
+    retc = -errno;
+    OssEroute.Emsg( "BreakLink", retc, "unlink symlink target", lnkbuff );
+  }
+
+  return retc;
+}
+
+
+//--------------------------------------------------------------------------
+// Chmod on a file
+//--------------------------------------------------------------------------
+int
+XrdFstOss::Chmod( const char* path, mode_t mode, XrdOucEnv* eP )
+{
+  return ( chmod( path, mode ) ? -errno : XrdOssOK );
+}
+
+
+//--------------------------------------------------------------------------
+// Create a file named 'path' with 'mode' access mode bits set
+//--------------------------------------------------------------------------
+int
+XrdFstOss::Create( const char* tident,
+                   const char* path ,
+                   mode_t      mode,
+                   XrdOucEnv&  env,
+                   int         opts )
+{
+  int retc = 0;
+  int datfd;
+  int is_link = 0;
+  int missing = 1;
+  char local_path[MAXPATHLEN + 1], *p, pc;
+  struct stat buf;
+  const int AMode = S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH; // 775
+
+  if ( strlen( path ) >= MAXPATHLEN ) return -ENAMETOOLONG;
+
+  strcpy( local_path, path );
+
+  //............................................................................
+  // Determine the state of the file. We will need this information as we go on
+  //............................................................................
+  if ( ( missing = lstat( path, &buf ) ) ) {
+    retc = errno;
+  } else {
+    if ( ( is_link = ( ( buf.st_mode & S_IFMT ) == S_IFLNK ) ) ) {
+      if ( stat( path, &buf ) ) {
+        if ( errno != ENOENT ) {
+          return -errno;
+        }
+
+        OssEroute.Emsg( "Create", "removing dangling link", path );
+
+        if ( unlink( path ) ) {
+          retc = errno;
+        }
+
+        missing = 1;
+        is_link = 0;
+      }
+    }
+  }
+
+  if ( retc && ( retc != ENOENT ) ) return -retc;
+
+  //............................................................................
+  // The file must not exist if it's declared "new". Otherwise, reuse the space
+  //............................................................................
+  if ( !missing ) {
+    if ( opts & XRDOSS_new ) return -EEXIST;
+
+    if ( ( buf.st_mode & S_IFMT ) == S_IFDIR ) return -EISDIR;
+
+    do {
+      datfd = open( local_path, opts >> 8, mode );
+    } while ( datfd < 0 && errno == EINTR );
+
+    if ( datfd < 0 ) return -errno;
+    else close( datfd );
+
+    if ( opts >> 8 & O_TRUNC && buf.st_size && is_link ) {
+      buf.st_mode = ( buf.st_mode & ~S_IFMT ) | S_IFLNK;
+    }
+
+    return XrdOssOK;
+  }
+
+  //............................................................................
+  // If the path is to be created, make sure the path exists at this point
+  //............................................................................
+  if ( ( opts & XRDOSS_mkpath ) && ( p = rindex( local_path, '/' ) ) ) {
+    p++;
+    pc = *p;
+    *p = '\0';
+    XrdOucUtils::makePath( local_path, AMode );
+    *p = pc;
+  }
+
+  //............................................................................
+  // Simply open the file in the local filesystem, creating it if need be
+  //............................................................................
+  do {
+    datfd = open( local_path, opts >> 8, mode );
+  } while ( datfd < 0 && errno == EINTR );
+
+  if ( datfd < 0 ) return -errno;
+  else close( datfd );
+    
+  return XrdOssOK;
+}
+
+
+//------------------------------------------------------------------------------
+// Create directory
+//------------------------------------------------------------------------------
+int
+XrdFstOss::Mkdir( const char* path,
+                  mode_t      mode,
+                  int         mkpath,
+                  XrdOucEnv*  eP )
+{
+  //............................................................................
+  // Operation not supported in EOS
+  //............................................................................
+  return -ENOTSUP;
+}
+
+
+//------------------------------------------------------------------------------
+// Delete a directory from the namespace
+//------------------------------------------------------------------------------
+int
+XrdFstOss::Remdir( const char* path,
+                   int         opts,
+                   XrdOucEnv*  eP )
+{
+  //............................................................................
+  // Operation not supported in EOS
+  //............................................................................
+  return -ENOTSUP;
+}
+
+
+//------------------------------------------------------------------------------
+// Renames a file with name 'old_name' to 'new_name'
+//------------------------------------------------------------------------------
+int
+XrdFstOss::Rename( const char* oldname,
+                   const char* newname,
+                   XrdOucEnv*  old_env,
+                   XrdOucEnv*  new_env )
+{
+  int retc2;
+  int retc = XrdOssOK;
+  char local_path_old[MAXPATHLEN + 8];
+  char local_path_new[MAXPATHLEN + 8];
+  char* slash_plus, sPChar;
+  struct stat statbuff;
+  static const mode_t pMode = S_IRWXU | S_IRWXG;
+  strcpy( local_path_old, oldname );
+  strcpy( local_path_new, newname );
+  //............................................................................
+  // Make sure that the target file does not exist
+  //............................................................................
+  retc2 = lstat( local_path_new, &statbuff );
+
+  if ( !retc2 ) return -EEXIST;
+
+  //............................................................................
+  // We need to create the directory path if it does not exist.
+  //............................................................................
+  if ( !( slash_plus = rindex( local_path_new, '/' ) ) ) return -EINVAL;
+
+  slash_plus++;
+  sPChar = *slash_plus;
+  *slash_plus = '\0';
+  retc2 = XrdOucUtils::makePath( local_path_new, pMode );
+  *slash_plus = sPChar;
+
+  if ( retc2 ) return retc2;
+
+  //............................................................................
+  // Check if this path is really a symbolic link elsewhere
+  //............................................................................
+  if ( lstat( local_path_old, &statbuff ) ) {
+    retc = -errno;
+  } else if ( rename( local_path_old, local_path_new ) ) {
+    retc = -errno;
+  }
+
+  return retc;
+}
+
+
+//------------------------------------------------------------------------------
+// Determine if file 'path' actually exists
+//------------------------------------------------------------------------------
+int
+XrdFstOss::Stat( const char*  path,
+                 struct stat* buff,
+                 int          opts,
+                 XrdOucEnv*   EnvP )
+{
+  int retc;
+  char local_path[MAXPATHLEN + 1];
+  strcpy( local_path, path );
+
+  //............................................................................
+  // Stat the file in the local filesystem and update access time if so requested
+  //............................................................................
+  if ( !stat( local_path, buff ) ) {
+    if ( opts & XRDOSS_updtatm && ( buff->st_mode & S_IFMT ) == S_IFREG ) {
+      struct utimbuf times;
+      times.actime  = time( 0 );
+      times.modtime = buff->st_mtime;
+      utime( local_path, &times );
+    }
+
+    retc = XrdOssOK;
+  } else {
+    retc = errno;
+  }
+
+  return retc;
+}
+
+
+//------------------------------------------------------------------------------
+// Truncate a file
+//------------------------------------------------------------------------------
+int
+XrdFstOss::Truncate( const char*        path,
+                     unsigned long long size,
+                     XrdOucEnv*         envP )
+{
+  struct stat statbuff;
+  char local_path[MAXPATHLEN + 1];
+  strcpy( local_path, path );
+
+  if ( lstat( local_path, &statbuff ) ) return -errno;
+  else if ( ( statbuff.st_mode & S_IFMT ) == S_IFDIR ) return -EISDIR;
+  else if ( ( statbuff.st_mode & S_IFMT ) == S_IFLNK ) {
+    struct stat buff;
+    if ( stat( local_path, &buff ) ) return -errno;
+  }
+
+  if ( truncate( local_path, size ) ) return -errno;
+
+  return XrdOssOK;
 }
 
 
@@ -252,38 +589,6 @@ XrdFstOss::DropXs( const std::string& fileName, bool force )
   eos_debug( "\nOss map size after drop: %i.\n", mMapFileXs.size() );
 }
 
-
-//------------------------------------------------------------------------------
-// Unlink file and its block checksum if needed
-//------------------------------------------------------------------------------
-int
-XrdFstOss::Unlink( const char* path, int opts, XrdOucEnv* ep )
-{
-  int retc;
-  struct stat statinfo;
-  //............................................................................
-  // Unlink the block checksum files - this is not the 'best' solution,
-  // but we don't have any info about block checksums
-  //............................................................................
-  Adler xs; // the type does not matter here
-  const char* xs_path = xs.MakeBlockXSPath( path );
-
-  if ( ( Stat( xs_path, &statinfo ) ) ) {
-    eos_err( "error=cannot stat closed file - probably already unlinked: %s",
-             xs_path );
-  } else {
-    if ( !xs.UnlinkXSPath() ) {
-      eos_debug( "info=\"removed block-xs\" path=%s.", path );
-    }
-  }
-
-  //............................................................................
-  // Delete also any entries in the oss file <-> blockxs map
-  //............................................................................
-  DropXs( path, true );
-  retc = XrdOssSys::Unlink( path );
-  return retc;
-}
 
 EOSFSTNAMESPACE_END
 

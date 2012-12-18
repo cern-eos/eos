@@ -5155,7 +5155,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 
       eos::common::Path cPath(spath.c_str());
       if ( cPath.GetSubPathSize()<5 ) {
-	if ( (((option.find("d")) != STR_NPOS) && ((option.find("f"))==STR_NPOS))) {
+	if ( (((option.find("d")) != STR_NPOS) && ((option.find("f")) == STR_NPOS))) {
 	  // directory queries are fine even for the complete namespace
 	  deepquery = false;
 	} else {
@@ -5288,7 +5288,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	std::set<std::string>::const_iterator fileit;
         bool nofiles=false;
 
-        if ( ((option.find("d")) != STR_NPOS) && ((option.find("f"))==STR_NPOS)){
+        if ( ((option.find("d")) != STR_NPOS) && ((option.find("f")) == STR_NPOS)){
           nofiles = true;
         }
 
@@ -5302,10 +5302,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	unsigned long long filecounter=0;
 	unsigned long long dircounter=0;
 
-        if ( ((option.find("f")) != STR_NPOS) || ((option.find("d"))==STR_NPOS)) {
+        if ( ((option.find("f")) != STR_NPOS) || ((option.find("d")) == STR_NPOS)) {
 	  for (foundit=(*found).begin(); foundit != (*found).end(); foundit++) {
 
-	    if ( (option.find("d"))==STR_NPOS) {
+	    if ( (option.find("d")) == STR_NPOS) {
 	      if (option.find("f") == STR_NPOS) {
 		if (!printcounter) fprintf(fstdout,"%s\n", foundit->first.c_str());
 		dircounter++;

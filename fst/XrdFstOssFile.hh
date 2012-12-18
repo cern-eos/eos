@@ -115,35 +115,35 @@ class XrdFstOssFile : public XrdOssDF, public eos::common::LogId
 
 
     //--------------------------------------------------------------------------
-    //! Chmod function 
+    //! Chmod function
     //!
     //! @param mode the mode to set
     //!
     //! @return XrdOssOK upon success, (-errno) upon failure
-    //! 
+    //!
     //--------------------------------------------------------------------------
     int Fchmod( mode_t mode );
 
 
     //--------------------------------------------------------------------------
-    //! Get file status 
+    //! Get file status
     //!
     //! @param statinfo stat info structure
     //!
     //! @return XrdOssOK upon success, (-errno) upon failure
     //!
     //--------------------------------------------------------------------------
-    int Fstat( struct stat* statinfo);
+    int Fstat( struct stat* statinfo );
 
 
     //--------------------------------------------------------------------------
-    //! Sync file to local disk 
+    //! Sync file to local disk
     //--------------------------------------------------------------------------
     int Fsync();
 
-  
+
     //--------------------------------------------------------------------------
-    //! Truncate the file 
+    //! Truncate the file
     //!
     //! @param offset truncate offset
     //!
@@ -152,13 +152,13 @@ class XrdFstOssFile : public XrdOssDF, public eos::common::LogId
     //--------------------------------------------------------------------------
     int Ftruncate( unsigned long long offset );
 
-  
+
     //--------------------------------------------------------------------------
     //! Get file descriptor
     //--------------------------------------------------------------------------
-    int getFD(); 
+    int getFD();
 
-  
+
     //--------------------------------------------------------------------------
     //! Close function
     //!
@@ -171,7 +171,6 @@ class XrdFstOssFile : public XrdOssDF, public eos::common::LogId
 
   private:
 
-    int                 mFd;        ///< file descriptor
     XrdOucString        mPath;      ///< path of the file
     bool                mIsRW;      ///< mark if opened for rw operations
     XrdSysRWLock*       mRWLockXs;  ///< rw lock for the block xs
