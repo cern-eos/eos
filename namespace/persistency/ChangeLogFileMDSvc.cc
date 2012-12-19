@@ -24,6 +24,7 @@
 #include "ChangeLogFileMDSvc.hh"
 #include "ChangeLogContainerMDSvc.hh"
 #include "ChangeLogConstants.hh"
+#include "namespace/Constants.hh"
 #include "namespace/utils/Locking.hh"
 
 #include <algorithm>
@@ -41,7 +42,8 @@ namespace eos
       FileMDFollower( eos::ChangeLogFileMDSvc *fileSvc ):
         pFileSvc( fileSvc )
       {
-        pContSvc = pFileSvc->pContSvc;
+        pContSvc    = pFileSvc->pContSvc;
+        pQuotaStats = pFileSvc->pQuotaStats;
       }
 
       //------------------------------------------------------------------------
@@ -58,6 +60,10 @@ namespace eos
           FileMD *file = new FileMD( 0, 0 );
           file->deserialize( (Buffer&)buffer );
           FileMap::iterator it = pUpdated.find( file->getId() );
+
+          if( file->getId() >= pFileSvc->pFirstFreeId )
+            pFileSvc->pFirstFreeId = file->getId() + 1;
+
           if( it != pUpdated.end() )
           {
             delete it->second;
@@ -65,8 +71,6 @@ namespace eos
           }
           else
             pUpdated[file->getId()] = file;
-
-          pDeleted.erase( file->getId() );
         }
 
         //----------------------------------------------------------------------
@@ -102,22 +106,52 @@ namespace eos
         std::set<FileMD::id_t>::iterator itD;
         for( itD = pDeleted.begin(); itD != pDeleted.end(); ++itD )
         {
+          //--------------------------------------------------------------------
+          // We don't have the file, nothing to delete
+          //--------------------------------------------------------------------
           ChangeLogFileMDSvc::IdMap::iterator it;
           it = fileIdMap->find( *itD );
           if( it == fileIdMap->end() )
             continue;
 
+          //--------------------------------------------------------------------
+          // We have the file but we need to check if we have a corresponding
+          // container
+          //--------------------------------------------------------------------
+          FileMD *currentFile = it->second.ptr;
           ChangeLogContainerMDSvc::IdMap::iterator itP;
-          itP = contIdMap->find( it->second.ptr->getContainerId() );
+          itP = contIdMap->find( currentFile->getContainerId() );
           if( itP != contIdMap->end() )
           {
-            // make sure it's the same pointer - cover name conflicts
-            FileMD *file = itP->second.ptr->findFile( it->second.ptr->getName() );
-            if( file == it->second.ptr )
-              itP->second.ptr->removeFile( it->second.ptr->getName() );
+            //------------------------------------------------------------------
+            // We need to check whether the pointer of the file we're trying
+            // to delete is actually the same as the pointer of the file
+            // attached to the parent container under the same file name.
+            // It may happen that the pointers differ if there was a name
+            // conflict
+            //------------------------------------------------------------------
+            ContainerMD *container    = itP->second.ptr;
+            FileMD      *existingFile = container->findFile( currentFile->getName() );
+            if( existingFile == currentFile )
+            {
+              container->removeFile( currentFile->getName() );
+              QuotaNode *node = getQuotaNode( container );
+              if( node )
+                node->removeFile( currentFile );
+            }
+
+            //------------------------------------------------------------------
+            // If the file was not attached to the container it's safe to
+            // remove it, if it had been attached it has been detached by
+            // the code above.
+            //------------------------------------------------------------------
+            delete currentFile;
+            fileIdMap->erase( it );
+
+            IFileMDChangeListener::Event e( *itD,
+                                            IFileMDChangeListener::Deleted );
+            pFileSvc->notifyListeners( &e );
           }
-          delete it->second.ptr;
-          fileIdMap->erase( it );
         }
 
         pDeleted.clear();
@@ -133,38 +167,151 @@ namespace eos
           ChangeLogContainerMDSvc::IdMap::iterator itP;
           FileMD *currentFile = itU->second;
           it = fileIdMap->find( currentFile->getId() );
+
+          //--------------------------------------------------------------------
+          // It's a new file
+          //--------------------------------------------------------------------
           if( it == fileIdMap->end() )
           {
+            //------------------------------------------------------------------
+            // We register it only if we have a corresponding container,
+            // otherwise it will need to wait for the next commit and hope that
+            // the container has been inserted
+            //------------------------------------------------------------------
             itP = contIdMap->find( currentFile->getContainerId() );
             if( itP != contIdMap->end() )
             {
-              itP->second.ptr->addFile( currentFile );
+              //----------------------------------------------------------------
+              // We check if the file with the given name already exists in
+              // the container, if it does, we have a name conflict in which
+              // case we attach the new file and remove the old one
+              //----------------------------------------------------------------
+              ContainerMD *container = itP->second.ptr;
+              FileMD *existingFile   = container->findFile( currentFile->getName() );
+              QuotaNode *node        = getQuotaNode( container );
+              if( existingFile )
+              {
+                if( node )
+                  node->removeFile( existingFile );
+                container->removeFile( existingFile->getName() );
+              }
+
+              container->addFile( currentFile );
               (*fileIdMap)[currentFile->getId()] =
                 ChangeLogFileMDSvc::DataInfo( 0, currentFile );
+
+              IFileMDChangeListener::Event e( currentFile,
+                                              IFileMDChangeListener::Created );
+              pFileSvc->notifyListeners( &e );
+
+              if( node )
+                node->addFile( currentFile );
 
               processed.push_back( currentFile->getId() );
             }
           }
+
+          //--------------------------------------------------------------------
+          // It's an update
+          //--------------------------------------------------------------------
           else
           {
+            //------------------------------------------------------------------
+            // Notify listeners about file update
+            //------------------------------------------------------------------
+            IFileMDChangeListener::Event e( currentFile,
+                                            IFileMDChangeListener::Updated );
+            pFileSvc->notifyListeners( &e );
+
+            //------------------------------------------------------------------
+            // Find the container and handle quota if the file is really
+            // attached to this container - ie. no name conflict
+            //------------------------------------------------------------------
+            ChangeLogContainerMDSvc::IdMap::iterator itP;
+            itP = contIdMap->find( currentFile->getContainerId() );
+            if( itP != contIdMap->end() )
+            {
+              ContainerMD *container    = itP->second.ptr;
+              FileMD      *existingFile = container->findFile( currentFile->getName() );
+              if( existingFile && existingFile->getId() == currentFile->getId() )
+              {
+                QuotaNode *node = getQuotaNode( container );
+                if( node )
+                {
+                  node->removeFile( existingFile );
+                  node->addFile( currentFile );
+                }
+              }
+            }
+
             (*it->second.ptr) = *currentFile;
             processed.push_back( currentFile->getId() );
             delete currentFile;
           }
         }
 
+        //----------------------------------------------------------------------
+        // Clear processed updates and leave the remaining ones for the next
+        // cycle
+        //----------------------------------------------------------------------
         std::list<FileMD::id_t>::iterator itPro;
         for( itPro = processed.begin(); itPro != processed.end(); ++itPro )
           pUpdated.erase( *itPro );
+
         pContSvc->getSlaveLock()->unLock();
       }
 
     private:
+
+      //------------------------------------------------------------------------
+      // Get quota node id concerning given container
+      //------------------------------------------------------------------------
+      QuotaNode *getQuotaNode( const ContainerMD *container )
+        throw( MDException )
+      {
+        //----------------------------------------------------------------------
+        // Initial sanity check
+        //----------------------------------------------------------------------
+        if( !container )
+        {
+          MDException ex;
+          ex.getMessage() << "Invalid container (zero pointer)";
+          throw ex;
+        }
+
+        if( !pQuotaStats )
+          return 0;
+
+        //----------------------------------------------------------------------
+        // Search for the node
+        //----------------------------------------------------------------------
+        const ContainerMD *current = container;
+
+        while( current->getId() != 1 &&
+               (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
+          current = pContSvc->getContainerMD( current->getParentId() );
+
+        //----------------------------------------------------------------------
+        // We have either found a quota node or reached root without finding one
+        // so we need to double check whether the current container has an
+        // associated quota node
+        //----------------------------------------------------------------------
+        if( (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
+          return 0;
+
+        QuotaNode *node = pQuotaStats->getQuotaNode( current->getId() );
+        if( node )
+          return node;
+
+        return pQuotaStats->registerNewNode( current->getId() );
+      }
+
       typedef std::map<eos::FileMD::id_t, eos::FileMD*> FileMap;
       FileMap                       pUpdated;
       std::set<eos::FileMD::id_t>   pDeleted;
       eos::ChangeLogFileMDSvc      *pFileSvc;
       eos::ChangeLogContainerMDSvc *pContSvc;
+      eos::QuotaStats              *pQuotaStats;
   };
 }
 
@@ -188,7 +335,7 @@ extern "C"
       offset = file->follow( &f, offset );
       f.commit();
       pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
-      usleep( pollInt );
+      file->wait(pollInt);
     }
     return 0;
   }
@@ -387,6 +534,105 @@ namespace eos
     }
   }
 
+  //----------------------------------------------------------------------------
+  //! Make a transition from slave to master
+  //----------------------------------------------------------------------------
+  void ChangeLogFileMDSvc::slave2Master(
+                              std::map<std::string, std::string> &config )
+    throw( MDException )
+  {
+    //--------------------------------------------------------------------------
+    // Find the new changelog path
+    //--------------------------------------------------------------------------
+    std::map<std::string, std::string>::iterator it;
+    it = config.find( "changelog_path" );
+    if( it == config.end() )
+    {
+      MDException e( EINVAL );
+      e.getMessage() << "changelog_path not specified" ;
+      throw e;
+    }
+
+    if( it->second == pChangeLogPath )
+    {
+      MDException e( EINVAL );
+      e.getMessage() << "changelog_path must differ from the original ";
+      e.getMessage() << "changelog_path";
+      throw e;
+    }
+
+    //--------------------------------------------------------------------------
+    // Copy the current changelog file to the previous name
+    //--------------------------------------------------------------------------
+    std::string tmpChangeLogPath     = pChangeLogPath;
+    tmpChangeLogPath += ".tmp";
+    std::string currentChangeLogPath = pChangeLogPath;
+
+    std::string copyCmd = "cp -f ";
+    copyCmd += currentChangeLogPath.c_str();
+    copyCmd += " ";
+    copyCmd += tmpChangeLogPath.c_str();
+
+    int rc = system( copyCmd.c_str() );
+    if( WEXITSTATUS(rc) )
+    {
+      MDException e( EIO ) ;
+      e.getMessage() << "Failed to copy the current change log file <";
+      e.getMessage() << pChangeLogPath << ">";
+    }
+
+    //--------------------------------------------------------------------------
+    // redefine the valid changelog path
+    //--------------------------------------------------------------------------
+    pChangeLogPath = it->second;
+
+    //--------------------------------------------------------------------------
+    // Rename the current changelog file to the new file name
+    //--------------------------------------------------------------------------
+    if( rename( currentChangeLogPath.c_str(), pChangeLogPath.c_str() ) )
+    {
+      MDException e( EINVAL );
+      e.getMessage() << "Failed to rename changelog file from <";
+      e.getMessage() << currentChangeLogPath << "> to <" << pChangeLogPath;
+      throw e;
+    }
+
+    //--------------------------------------------------------------------------
+    // Rename the temp changelog file to the new file name
+    //--------------------------------------------------------------------------
+    if( rename( tmpChangeLogPath.c_str(), currentChangeLogPath.c_str() ) )
+    {
+      MDException e( EINVAL );
+      e.getMessage() << "Failed to rename changelog file from <";
+      e.getMessage() << tmpChangeLogPath << "> to <" << currentChangeLogPath;
+      throw e;
+    }
+
+    //--------------------------------------------------------------------------
+    // Stop the follower thread
+    //--------------------------------------------------------------------------
+    stopSlave();
+
+    //--------------------------------------------------------------------------
+    // Reopen changelog file in writable mode = close + open (append)
+    //--------------------------------------------------------------------------
+    pChangeLog->close( ) ;
+    int logOpenFlags = ChangeLogFile::Create | ChangeLogFile::Append;
+    pChangeLog->open( pChangeLogPath, logOpenFlags, FILE_LOG_MAGIC );
+  }
+
+  //------------------------------------------------------------------------
+  //! Switch the namespace to read-only mode
+  //------------------------------------------------------------------------
+  void ChangeLogFileMDSvc::makeReadOnly()
+    throw( MDException )
+  {
+    pChangeLog->close( ) ;
+
+    int logOpenFlags = ChangeLogFile::ReadOnly;
+    pChangeLog->open( pChangeLogPath, logOpenFlags, FILE_LOG_MAGIC );
+  }
+
   //------------------------------------------------------------------------
   // Configure the file service
   //------------------------------------------------------------------------
@@ -448,6 +694,9 @@ namespace eos
       e.getMessage() << "File #" << id << " not found";
       throw e;
     }
+
+    it->second.ptr->setFileMDSvc(this);
+
     return it->second.ptr;
   }
 
@@ -818,6 +1067,8 @@ namespace eos
       throw e;
     }
     pSlaveStarted = false;
+    pSlaveMode = false;
+    pFollowerThread = 0;
   }
 
   //----------------------------------------------------------------------------
