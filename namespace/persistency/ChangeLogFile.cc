@@ -269,13 +269,20 @@ namespace eos
   //----------------------------------------------------------------------------
   void ChangeLogFile::close()
   {
-    ::close( pFd );
-    pIsOpen = false;
+    if( pFd != -1 )
+    {
+      ::close( pFd );
+      pIsOpen = false;
 
+    }
+
+    if( pInotifyFd != -1 )
+    {
 #ifdef __linux__
-    inotify_rm_watch( pInotifyFd, pWatchFd );
-    ::close( pInotifyFd );
+      inotify_rm_watch( pInotifyFd, pWatchFd );
+      ::close( pInotifyFd );
 #endif
+    }
   }
 
   //----------------------------------------------------------------------------
