@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <sys/inotify.h>
+#include <poll.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <cerrno>
@@ -636,8 +637,6 @@ namespace eos
     return -1;
   }
 
-#define INOTIFY_EVENT_SIZE     (sizeof (struct inotify_event))
-#define INOTIFY_EVENT_BUF_LEN  (1024*(INOTIFY_EVENT_SIZE + 16))
   //----------------------------------------------------------------------------
   // Wait for a modification event in a changelog file with inotify or if not
   // available wait <polltime> micro seconds
@@ -652,10 +651,11 @@ namespace eos
 #ifdef __linux__
     if( pInotifyFd  >= 0 && pWatchFd >=0 )
     {
-      char *inotifyBuffer = new char[INOTIFY_EVENT_BUF_LEN];
-      ssize_t length = read( pInotifyFd, inotifyBuffer, INOTIFY_EVENT_BUF_LEN );
-      delete [] inotifyBuffer;
-      if( length <= 0 )
+      pollfd pollDesc;
+      pollDesc.events |= (POLLIN | POLLPRI);
+      pollDesc.fd     = pInotifyFd;
+      int status = poll( &pollDesc, 1, 500 );
+      if( status <= 0 )
       {
         MDException ex( EFAULT );
         ex.getMessage() << "Wait: inotify read failed: ";
