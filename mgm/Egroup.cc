@@ -41,7 +41,7 @@ Egroup::Member(std::string &username, std::string &egroupname)
 
   if (Map.count(egroupname)) {
     if (Map[egroupname].count(username)) {
-      // we now that user
+      // we know that user
       if (LifeTime[egroupname][username] > now) {
         // that is ok, we can return member or not member from the cache
 	bool member = Map[egroupname][username];

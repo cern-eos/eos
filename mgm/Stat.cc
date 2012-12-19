@@ -625,16 +625,18 @@ Stat::PrintOutTotal(XrdOucString &out, bool details, bool monitoring, bool numer
       sprintf(M3600,"%6.01e", GetTotalMaxExt3600(tag));
     }
 
-    if (!monitoring) {
-      sprintf(outline,"ALL        %-32s %12s %8s %8s %8s %8s\n",tag,"spl", n5,n60,n300,n3600); out+=outline;
-      sprintf(outline,"ALL        %-32s %12s %8s %8s %8s %8s\n",tag,"min", m5,m60,m300,m3600); out+=outline;
-      sprintf(outline,"ALL        %-32s %12s %8s %8s %8s %8s\n",tag,"avg", a5,a60,a300,a3600); out+=outline;
-      sprintf(outline,"ALL        %-32s %12s %8s %8s %8s %8s\n",tag,"max", M5,M60,M300,M3600); out+=outline;
-    } else {
-      sprintf(outline,"uid=all gid=all cmd=%s:spl 5s=%s 60s=%s 300s=%s 3600s=%s\n",tag, n5,n60,n300,n3600); out+=outline;
-      sprintf(outline,"uid=all gid=all cmd=%s:min 5s=%s 60s=%s 300s=%s 3600s=%s\n",tag, m5,m60,m300,m3600); out+=outline;
-      sprintf(outline,"uid=all gid=all cmd=%s:avg 5s=%s 60s=%s 300s=%s 3600s=%s\n",tag, a5,a60,a300,a3600); out+=outline;
-      sprintf(outline,"uid=all gid=all cmd=%s:max 5s=%s 60s=%s 300s=%s 3600s=%s\n",tag, M5,M60,M300,M3600); out+=outline;
+    if (details) {
+      if (!monitoring) {
+	sprintf(outline,"ALL        %-32s %12s %8s %8s %8s %8s\n",tag,"spl", n5,n60,n300,n3600); out+=outline;
+	sprintf(outline,"ALL        %-32s %12s %8s %8s %8s %8s\n",tag,"min", m5,m60,m300,m3600); out+=outline;
+	sprintf(outline,"ALL        %-32s %12s %8s %8s %8s %8s\n",tag,"avg", a5,a60,a300,a3600); out+=outline;
+	sprintf(outline,"ALL        %-32s %12s %8s %8s %8s %8s\n",tag,"max", M5,M60,M300,M3600); out+=outline;
+      } else {
+	sprintf(outline,"uid=all gid=all cmd=%s:spl 5s=%s 60s=%s 300s=%s 3600s=%s\n",tag, n5,n60,n300,n3600); out+=outline;
+	sprintf(outline,"uid=all gid=all cmd=%s:min 5s=%s 60s=%s 300s=%s 3600s=%s\n",tag, m5,m60,m300,m3600); out+=outline;
+	sprintf(outline,"uid=all gid=all cmd=%s:avg 5s=%s 60s=%s 300s=%s 3600s=%s\n",tag, a5,a60,a300,a3600); out+=outline;
+	sprintf(outline,"uid=all gid=all cmd=%s:max 5s=%s 60s=%s 300s=%s 3600s=%s\n",tag, M5,M60,M300,M3600); out+=outline;
+      }
     }
   }
   if (details) {
@@ -810,7 +812,6 @@ Stat::PrintOutTotal(XrdOucString &out, bool details, bool monitoring, bool numer
     for (tgit_ext = StatExtGid.begin(); tgit_ext != StatExtGid.end(); tgit_ext++) {
       google::sparse_hash_map<gid_t, StatExt>::iterator it;
       for (it = tgit_ext->second.begin(); it != tgit_ext->second.end(); ++it) {
-          const char* tag = tgit_ext->first.c_str();
           double nsample;
           const char na[9]="NA";
           char n5[1024],a5[1024],m5[1024],M5[1024];
@@ -864,18 +865,6 @@ Stat::PrintOutTotal(XrdOucString &out, bool details, bool monitoring, bool numer
               snprintf(identifier, 1023, "gid=%s", groupname.c_str());
             else
               snprintf(identifier, 1023, "%s", groupname.c_str());
-          }
-
-          if (!monitoring) {
-            sprintf(outline,"%-10s %-32s %12s %8s %8s %8s %8s\n",identifier,tag,"spl", n5,n60,n300,n3600); out+=outline;
-            sprintf(outline,"%-10s %-32s %12s %8s %8s %8s %8s\n",identifier,tag,"min", m5,m60,m300,m3600); out+=outline;
-            sprintf(outline,"%-10s %-32s %12s %8s %8s %8s %8s\n",identifier,tag,"avg", a5,a60,a300,a3600); out+=outline;
-            sprintf(outline,"%-10s %-32s %12s %8s %8s %8s %8s\n",identifier,tag,"max", M5,M60,M300,M3600); out+=outline;
-          } else {
-            sprintf(outline,"%s cmd=%s:spl 5s=%s 60s=%s 300s=%s 3600s=%s\n",identifier,tag, n5,n60,n300,n3600); out+=outline;
-            sprintf(outline,"%s cmd=%s:min 5s=%s 60s=%s 300s=%s 3600s=%s\n",identifier,tag, m5,m60,m300,m3600); out+=outline;
-            sprintf(outline,"%s cmd=%s:avg 5s=%s 60s=%s 300s=%s 3600s=%s\n",identifier,tag, a5,a60,a300,a3600); out+=outline;
-            sprintf(outline,"%s cmd=%s:max 5s=%s 60s=%s 300s=%s 3600s=%s\n",identifier,tag, M5,M60,M300,M3600); out+=outline;
           }
       }
     }

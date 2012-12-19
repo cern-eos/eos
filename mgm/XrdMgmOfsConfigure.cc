@@ -929,6 +929,8 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   ObjectManager.ModificationWatchKeys.insert(watch_errc);
   ObjectManager.SubjectsMutex.UnLock();
   
+  ObjectManager.SetDebug(false);
+
   if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(MgmConfigQueue.c_str(), "/eos/*/mgm")) {
     eos_crit("Cannot add global config queue %s\n", MgmConfigQueue.c_str());
   }
@@ -987,13 +989,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   
   if (!MgmMaster.BootNamespace()) {
     return 1;
-  }
-
-  { 
-    // hook to the appropiate config file
-    XrdOucString stdOut;
-    XrdOucString stdErr;
-    MgmMaster.ApplyMasterConfig(stdOut, stdErr, 0);
   }
 
   // ----------------------------------------------------------
@@ -1115,6 +1110,14 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     ObjectManager.StartDumper(dumperfile.c_str());
     ObjectManager.SetAutoReplyQueueDerive(true);
   }
+
+  { 
+    // hook to the appropiate config file
+    XrdOucString stdOut;
+    XrdOucString stdErr;
+    MgmMaster.ApplyMasterConfig(stdOut, stdErr, 0);
+  }
+
 
   /*
   if (MgmConfigAutoLoad.length()) {
@@ -1326,6 +1329,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   // start IO ciruclate thread
   gOFS->IoStats.StartCirculate();
 
+  
   if (!MgmRedirector) {
     if (hash) {
       // ask for a broadcast from fst's

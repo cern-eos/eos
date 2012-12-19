@@ -157,9 +157,11 @@ Master::Init()
   } else {
     fMasterHost = fRemoteHost;
   }
-  
-  // start the heartbeat thread ...
-  XrdSysThread::Run(&fThread, Master::StaticHeartBeat, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "Master HeartBeat Thread");
+
+  if (fMasterHost != fRemoteHost) {
+    // start the heartbeat thread if a machine pair is configure
+    XrdSysThread::Run(&fThread, Master::StaticHeartBeat, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "Master HeartBeat Thread");
+  }
 
   // get sync up if it is not up
   int rc = system("service eos status sync || service eos start sync");
