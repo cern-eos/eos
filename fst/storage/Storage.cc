@@ -434,6 +434,8 @@ Storage::Storage(const char* metadirectory)
 
   ThreadSet.insert(tid);
 
+
+
   eos_info("starting mgm synchronization thread");
   if ((rc = XrdSysThread::Run(&tid, Storage::StartMgmSyncer, static_cast<void *>(this),
                               0, "MgmSyncer Thread"))) {
@@ -2576,12 +2578,24 @@ Storage::Drainer()
 	}
 	XrdSysTimer sleeper;
 	sleeper.Wait(100);
+	if (cnt > (4*3600*10)) {
+	  eos_static_warning("breaking out slot-wait-loop after 4 hours ...");
+	  // after 4 hours we just reset the accounting and leave this loop
+	  totalscheduled = totalexecuted;
+	  break;
+	}
       }
     }
     
     if (skiptime) {
       eos_static_debug("skiptime=%d", skiptime);
       XrdSysTimer sleeper;
+
+      // shouldn't happen
+      if (skiptime>60) {
+	skiptime=60;
+      }
+
       sleeper.Snooze(skiptime);
     }
     nscheduled=0;
@@ -2811,12 +2825,24 @@ Storage::Balancer()
 	  // free slots, leave the loop
 	  break;
 	}
-      XrdSysTimer sleeper;
-      sleeper.Wait(100);
+	XrdSysTimer sleeper;
+	sleeper.Wait(100);
+
+	if (cnt > (4*3600*10)) {
+	  eos_static_warning("breaking out slot-wait-loop after 4 hours ...");
+	  // after 4 hours we just reset the accounting and leave this loop
+	  totalscheduled = totalexecuted;
+	  break;
+	}
       }
       if (skiptime) {
 	eos_static_debug("skiptime=%d", skiptime);
 	XrdSysTimer sleeper;
+
+	// shouldn't happen
+	if (skiptime>60) {
+	  skiptime=60;
+	}
 	sleeper.Snooze(skiptime);
       }
     }
