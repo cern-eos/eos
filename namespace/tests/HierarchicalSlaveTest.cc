@@ -34,6 +34,7 @@
 #include "namespace/persistency/LogManager.hh"
 #include "namespace/utils/Locking.hh"
 #include "namespace/tests/TestHelpers.hh"
+#include "namespace/accounting/FileSystemView.hh"
 
 #include <XrdSys/XrdSysPthread.hh>
 
@@ -100,6 +101,118 @@ class RWLock: public eos::LockHandler
 };
 
 //------------------------------------------------------------------------------
+// Add some replicas to the files inside of a container
+//------------------------------------------------------------------------------
+void addReplicas( eos::IView *view, eos::ContainerMD *container )
+{
+  eos::ContainerMD::FileMap::iterator it;
+  for( it = container->filesBegin(); it != container->filesEnd(); ++it )
+  {
+    for( int i = 0; i < random()%10; ++i )
+      it->second->addLocation( random()%10 );
+    view->updateFileStore( it->second );
+  }
+}
+
+//------------------------------------------------------------------------------
+// Unlink some replicas from the files in the container
+//------------------------------------------------------------------------------
+void unlinkReplicas( eos::IView *view, eos::ContainerMD *container )
+{
+  eos::ContainerMD::FileMap::iterator it;
+  for( it = container->filesBegin(); it != container->filesEnd(); ++it )
+  {
+    eos::FileMD *file = it->second;
+    eos::FileMD::LocationVector::const_iterator itL;
+    eos::FileMD::LocationVector toUnlink;
+    int n = random()%3;
+    int i = 0;
+    for( itL = file->locationsBegin();
+         itL != file->locationsEnd() && i < n; ++itL, ++i )
+    {
+      toUnlink.push_back( *itL );
+    }
+
+    for( itL = toUnlink.begin(); itL != toUnlink.end(); ++itL )
+      file->unlinkLocation( *itL );
+    view->updateFileStore( file );
+  }
+}
+
+//------------------------------------------------------------------------------
+// Delete some replicas from the files in the container
+//------------------------------------------------------------------------------
+void deleteReplicas( eos::IView *view, eos::ContainerMD *container )
+{
+  eos::ContainerMD::FileMap::iterator it;
+  for( it = container->filesBegin(); it != container->filesEnd(); ++it )
+  {
+    eos::FileMD *file = it->second;
+    eos::FileMD::LocationVector::const_iterator itL;
+    eos::FileMD::LocationVector toDelete;
+    int n = random()%3;
+    int i = 0;
+    for( itL = file->unlinkedLocationsBegin();
+         itL != file->unlinkedLocationsEnd() && i < n; ++itL, ++i )
+    {
+      toDelete.push_back( *itL );
+    }
+
+    for( itL = toDelete.begin(); itL != toDelete.end(); ++itL )
+      file->removeLocation( *itL );
+    view->updateFileStore( file );
+  }
+}
+
+//------------------------------------------------------------------------------
+// Delete all replicas from all the files in the container recursively
+//------------------------------------------------------------------------------
+void deleteAllReplicas( eos::IView *view, eos::ContainerMD *container )
+{
+  eos::ContainerMD::FileMap::iterator it;
+  for( it = container->filesBegin(); it != container->filesEnd(); ++it )
+  {
+    eos::FileMD *file = it->second;
+    eos::FileMD::LocationVector::const_iterator itL;
+    eos::FileMD::LocationVector toDelete;
+    for( itL = file->locationsBegin();
+         itL != file->locationsEnd(); ++itL )
+    {
+      toDelete.push_back( *itL );
+    }
+
+    for( itL = toDelete.begin(); itL != toDelete.end(); ++itL )
+      file->unlinkLocation( *itL );
+    view->updateFileStore( file );
+
+    for( itL = toDelete.begin(); itL != toDelete.end(); ++itL )
+      file->removeLocation( *itL );
+    view->updateFileStore( file );
+  }
+}
+
+//------------------------------------------------------------------------------
+// Delete all replicas recursively
+//------------------------------------------------------------------------------
+void deleteAllReplicasRec( eos::IView *view, eos::ContainerMD *container )
+{
+  deleteAllReplicas( view, container );
+  eos::ContainerMD::ContainerMap::iterator itC;
+  for( itC = container->containersBegin(); itC != container->containersEnd();
+       ++itC )
+    deleteAllReplicasRec( view, itC->second );
+}
+
+//------------------------------------------------------------------------------
+// Delete all replicas recursively
+//------------------------------------------------------------------------------
+void deleteAllReplicasRec( eos::IView *view, const std::string &path )
+{
+  eos::ContainerMD *container = view->getContainer( path );
+  deleteAllReplicasRec( view, container );
+}
+
+//------------------------------------------------------------------------------
 // Create the directory subtree
 //------------------------------------------------------------------------------
 void createSubTree( eos::IView        *view,
@@ -127,6 +240,8 @@ void createSubTree( eos::IView        *view,
     eos::FileMD *file = view->createFile( o.str() );
     if( qn ) qn->addFile( file );
   }
+
+  addReplicas( view, container );
 }
 
 //------------------------------------------------------------------------------
@@ -157,8 +272,13 @@ void modifySubTree( eos::IView *view, const std::string &root )
     }
     for( itD = toDel.begin(); itD != toDel.end(); ++itD )
     {
-      if( qn ) qn->removeFile( *itD );
-      view->removeFile( *itD );
+      eos::FileMD *file = *itD;
+      file->unlinkAllLocations();
+      view->updateFileStore( file );
+      file->removeAllLocations();
+      view->updateFileStore( file );
+      if( qn ) qn->removeFile( file );
+      view->removeFile( file );
     }
   }
 }
@@ -230,6 +350,26 @@ bool compareTrees( eos::IView       *view1, eos::IView       *view2,
 }
 
 //------------------------------------------------------------------------------
+// Compare filesystems
+//------------------------------------------------------------------------------
+void compareFileSystems( eos::FileSystemView *viewMaster,
+                         eos::FileSystemView *viewSlave )
+{
+  CPPUNIT_ASSERT( viewMaster->getNumFileSystems() == viewSlave->getNumFileSystems() );
+  for( size_t i = 0; i != viewMaster->getNumFileSystems(); ++i )
+  {
+    CPPUNIT_ASSERT( viewMaster->getFileList( i ).size() ==
+                    viewSlave->getFileList( i ).size() );
+    CPPUNIT_ASSERT( viewMaster->getUnlinkedFileList( i ).size() ==
+                    viewSlave->getUnlinkedFileList( i ).size() );
+
+  }
+
+  CPPUNIT_ASSERT( viewMaster->getNoReplicasFileList().size() ==
+                  viewSlave->getNoReplicasFileList().size() );
+}
+
+//------------------------------------------------------------------------------
 // File size mapping function
 //------------------------------------------------------------------------------
 static uint64_t mapSize( const eos::FileMD *file )
@@ -278,6 +418,7 @@ void HierarchicalSlaveTest::functionalTest()
   // Modify some stuff
   //----------------------------------------------------------------------------
   modifySubTree( viewMaster, "/dir1" );
+  deleteAllReplicasRec( viewMaster, "/dir1/dir1/dir1" );
   viewMaster->removeContainer( "/dir1/dir1/dir1", true );
 
   //----------------------------------------------------------------------------
@@ -291,17 +432,24 @@ void HierarchicalSlaveTest::functionalTest()
   unlink( fileNameFileMD.c_str() );
   unlink( fileNameContMD.c_str() );
 
+  //----------------------------------------------------------------------------
+  // Reboot the master
+  //----------------------------------------------------------------------------
+  eos::FileSystemView *fsViewMaster  = new eos::FileSystemView;
+  eos::FileSystemView *fsViewSlave   = new eos::FileSystemView;
+
   contSettings1["changelog_path"] = fileNameContMD+"c";
   fileSettings1["changelog_path"] = fileNameFileMD+"c";
   fileSvcMaster->configure( fileSettings1 );
   contSvcMaster->configure( contSettings1 );
-
+  fileSvcMaster->addChangeListener( fsViewMaster );
   viewMaster->getQuotaStats()->registerSizeMapper( mapSize );
   CPPUNIT_ASSERT_NO_THROW( viewMaster->initialize() );
 
   viewMaster->createContainer( "/newdir1", true );
   createSubTree( viewMaster, "/newdir1", 2, 10, 100 );
   modifySubTree( viewMaster, "/newdir1" );
+  deleteAllReplicasRec( viewMaster, "/newdir1/dir1" );
   viewMaster->removeContainer( "/newdir1/dir1", true );
   eos::ContainerMD *contMaster2 = 0;
   eos::ContainerMD *contMaster3 = 0;
@@ -322,6 +470,7 @@ void HierarchicalSlaveTest::functionalTest()
   eos::ChangeLogFileMDSvc      *fileSvcSlave = new eos::ChangeLogFileMDSvc;
   eos::IView                   *viewSlave    = new eos::HierarchicalView;
 
+  fileSvcSlave->addChangeListener( fsViewSlave );
   fileSvcSlave->setContainerService( contSvcSlave );
   RWLock lock;
   contSvcSlave->setSlaveLock( &lock );
@@ -347,6 +496,7 @@ void HierarchicalSlaveTest::functionalTest()
   viewSlave->getQuotaStats()->registerSizeMapper( mapSize );
   fileSvcSlave->setQuotaStats( viewSlave->getQuotaStats() );
   CPPUNIT_ASSERT_NO_THROW( viewSlave->initialize() );
+
   CPPUNIT_ASSERT_NO_THROW( contSvcSlave->startSlave() );
   CPPUNIT_ASSERT_NO_THROW( fileSvcSlave->startSlave() );
 
@@ -369,6 +519,7 @@ void HierarchicalSlaveTest::functionalTest()
   CPPUNIT_ASSERT_NO_THROW( createSubTree( viewMaster, "/newdir3", 2, 10, 100 ) );
   uint64_t corrSMaster2 = calcSize( viewMaster->getContainer( "/newdir2/dir3" ) );
   uint64_t corrNMaster2 = calcFiles( viewMaster->getContainer( "/newdir2/dir3" ) );
+  deleteAllReplicasRec( viewMaster, "/newdir2/dir3" );
   CPPUNIT_ASSERT_NO_THROW( viewMaster->removeContainer( "/newdir2/dir3", true ) );
   CPPUNIT_ASSERT_NO_THROW( modifySubTree( viewMaster, "/newdir3" ) );
   CPPUNIT_ASSERT_NO_THROW( createSubTree( viewMaster, "/newdir4", 2, 10, 100 ) );
@@ -376,7 +527,14 @@ void HierarchicalSlaveTest::functionalTest()
   CPPUNIT_ASSERT_NO_THROW( modifySubTree( viewMaster, "/newdir4" ) );
   uint64_t corrSMaster3 = calcSize( viewMaster->getContainer( "/newdir3/dir1" ) );
   uint64_t corrNMaster3 = calcFiles( viewMaster->getContainer( "/newdir3/dir1" ) );
+  deleteAllReplicasRec( viewMaster, "/newdir3/dir1" );
   CPPUNIT_ASSERT_NO_THROW( viewMaster->removeContainer( "/newdir3/dir1", true ) );
+
+  deleteAllReplicasRec( viewMaster, "/newdir3/dir2" );
+  unlinkReplicas( viewMaster, viewMaster->getContainer( "/newdir1/dir2" ) );
+  unlinkReplicas( viewMaster, viewMaster->getContainer( "/newdir4/dir2" ) );
+  unlinkReplicas( viewMaster, viewMaster->getContainer( "/newdir5/dir1" ) );
+  unlinkReplicas( viewMaster, viewMaster->getContainer( "/newdir5/dir2" ) );
 
   //----------------------------------------------------------------------------
   // Check
@@ -386,6 +544,8 @@ void HierarchicalSlaveTest::functionalTest()
   compareTrees( viewMaster, viewSlave,
                 viewMaster->getContainer( "/" ),
                 viewSlave->getContainer( "/" ) );
+
+  compareFileSystems( fsViewMaster, fsViewSlave );
 
 
   eos::QuotaNode *qnSlave2 = 0;
