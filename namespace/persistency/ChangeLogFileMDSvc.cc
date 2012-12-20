@@ -145,6 +145,7 @@ namespace eos
             // remove it, if it had been attached it has been detached by
             // the code above.
             //------------------------------------------------------------------
+            handleReplicas( currentFile, 0 );
             delete currentFile;
             fileIdMap->erase( it );
 
@@ -203,6 +204,7 @@ namespace eos
               IFileMDChangeListener::Event e( currentFile,
                                               IFileMDChangeListener::Created );
               pFileSvc->notifyListeners( &e );
+              handleReplicas( 0, currentFile );
 
               if( node )
                 node->addFile( currentFile );
@@ -244,6 +246,7 @@ namespace eos
               }
             }
 
+            handleReplicas( it->second.ptr, currentFile );
             (*it->second.ptr) = *currentFile;
             processed.push_back( currentFile->getId() );
             delete currentFile;
@@ -304,6 +307,114 @@ namespace eos
           return node;
 
         return pQuotaStats->registerNewNode( current->getId() );
+      }
+
+      //------------------------------------------------------------------------
+      // Generate the replica handling events
+      //------------------------------------------------------------------------
+      void handleReplicas( eos::FileMD *file1, eos::FileMD *file2 )
+      {
+        //----------------------------------------------------------------------
+        // Prepare
+        //----------------------------------------------------------------------
+        if( file1 == file2 )
+          return;
+
+        if( file1 && file2 && file1->getId() != file2->getId() )
+          return;
+
+        FileMD *file = 0;
+
+        if( file1 ) file = file1;
+        if( file2 ) file = file2;
+        if( !file1 ) file1 = new FileMD( 0, 0 );
+        if( !file2 ) file2 = new FileMD( 0, 0 );
+
+        std::set<FileMD::location_t> toBeUnlinked;
+        std::set<FileMD::location_t> toBeRemoved;
+        std::set<FileMD::location_t> toBeAdded;
+
+        //----------------------------------------------------------------------
+        // Check if there is any replicas to be added
+        //----------------------------------------------------------------------
+        FileMD::LocationVector::const_iterator it;
+        for( it = file2->locationsBegin(); it != file2->locationsEnd(); ++it )
+        {
+          if( !file1->hasLocation( *it ) )
+            toBeAdded.insert( *it );
+        }
+
+        //----------------------------------------------------------------------
+        // Check if there is any replicas to be unlinked
+        //----------------------------------------------------------------------
+        for( it = file1->locationsBegin(); it != file1->locationsEnd(); ++it )
+        {
+          if( !file2->hasLocation( *it ) )
+            toBeUnlinked.insert( *it );
+        }
+
+        for( it = file2->unlinkedLocationsBegin();
+             it != file2->unlinkedLocationsEnd(); ++it )
+        {
+          if( !file1->hasUnlinkedLocation( *it ) )
+            toBeUnlinked.insert( *it );
+        }
+
+        //----------------------------------------------------------------------
+        // Check if there is any replicas to be removed
+        //----------------------------------------------------------------------
+        for( it = file1->unlinkedLocationsBegin();
+             it != file1->unlinkedLocationsEnd(); ++it )
+        {
+          if( !file2->hasUnlinkedLocation( *it ) )
+            toBeRemoved.insert( *it );
+        }
+
+        std::set<FileMD::location_t>::iterator itS;
+        for( itS = toBeUnlinked.begin(); itS != toBeUnlinked.end(); ++itS )
+        {
+          if( !file2->hasUnlinkedLocation( *itS ) )
+            toBeRemoved.insert( *itS );
+        }
+
+        //----------------------------------------------------------------------
+        // Commit additions
+        //----------------------------------------------------------------------
+        for( itS = toBeAdded.begin(); itS != toBeAdded.end(); ++itS )
+        {
+          IFileMDChangeListener::Event e( file,
+                                          IFileMDChangeListener::LocationAdded,
+                                          *itS );
+          pFileSvc->notifyListeners( &e );
+        }
+
+        //----------------------------------------------------------------------
+        // Commit unlinks
+        //----------------------------------------------------------------------
+        for( itS = toBeUnlinked.begin(); itS != toBeUnlinked.end(); ++itS )
+        {
+          IFileMDChangeListener::Event e( file,
+                                          IFileMDChangeListener::LocationUnlinked,
+                                          *itS );
+          pFileSvc->notifyListeners( &e );
+        }
+
+        //----------------------------------------------------------------------
+        // Commit removals
+        //----------------------------------------------------------------------
+        for( itS = toBeRemoved.begin(); itS != toBeRemoved.end(); ++itS )
+        {
+          IFileMDChangeListener::Event e( file,
+                                          IFileMDChangeListener::LocationRemoved,
+                                          *itS );
+          pFileSvc->notifyListeners( &e );
+        }
+
+        //----------------------------------------------------------------------
+        // Cleanup
+        //----------------------------------------------------------------------
+        if( file1->getId() == 0 ) delete file1;
+        if( file2->getId() == 0 ) delete file2;
       }
 
       typedef std::map<eos::FileMD::id_t, eos::FileMD*> FileMap;

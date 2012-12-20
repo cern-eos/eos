@@ -80,8 +80,7 @@ namespace eos
         resize( pFiles, e->location+1 );
         resize( pUnlinkedFiles, e->location+1 );
         pFiles[e->location].insert( e->file->getId() );
-        if( e->file->getNumLocation() == 1 )
-          pNoReplicas.erase( e->file->getId() );
+        pNoReplicas.erase( e->file->getId() );
         break;
 
       //------------------------------------------------------------------------
