@@ -74,6 +74,18 @@ namespace eos
       virtual void initialize() throw( MDException );
 
       //------------------------------------------------------------------------
+      //! Make a transition from slave to master
+      // -----------------------------------------------------------------------
+      virtual void slave2Master( std::map<std::string, std::string> &config )
+        throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Switch the namespace to read-only mode
+      //------------------------------------------------------------------------
+      virtual void makeReadOnly()
+        throw( MDException );
+
+      //------------------------------------------------------------------------
       //! Configure the container service
       //------------------------------------------------------------------------
       virtual void configure( std::map<std::string, std::string> &config )

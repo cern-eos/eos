@@ -21,10 +21,11 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ /usr/include/xrootd/ /usr/include/ ${SPARSEHASH_INCLUDE_DIR} ${XROOTD_INCLUDE_DIR})
+include_directories( ../ /usr/include/ ${SPARSEHASH_INCLUDE_DIR} ${XROOTD_INCLUDE_DIR})
+link_directories( ${XROOTD_LIB_DIR} )
 
 if(CPPUNIT_FOUND)
-add_subdirectory( tests )
+  add_subdirectory( tests )
 endif(CPPUNIT_FOUND)
 
 add_library (eosNamespace SHARED 
@@ -34,9 +35,9 @@ add_library (eosNamespace SHARED
 	    IContainerMDSvc.hh
 	    IFileMDSvc.hh
 	    IView.hh
-	    MDException.hh
-            Constants.hh
-            Constants.cc
+      MDException.hh
+      Constants.hh
+      Constants.cc
 	    persistency/Buffer.hh
 	    persistency/ChangeLogConstants.hh
 	    persistency/ChangeLogContainerMDSvc.hh
@@ -73,8 +74,8 @@ add_library (eosNamespace-Static STATIC
 	    IFileMDSvc.hh
 	    IView.hh
 	    MDException.hh
-            Constants.hh
-            Constants.cc
+      Constants.hh
+      Constants.cc
 	    persistency/Buffer.hh
 	    persistency/ChangeLogConstants.hh
 	    persistency/ChangeLogContainerMDSvc.hh
@@ -106,11 +107,11 @@ add_library (eosNamespace-Static STATIC
 )
 
 if (Linux)
-target_link_libraries( eosNamespace pthread z rt )
-target_link_libraries( eosNamespace-Static pthread z rt )
+  target_link_libraries( eosNamespace pthread z rt XrdUtils )
+  target_link_libraries( eosNamespace-Static pthread z rt XrdUtils )
 else (Linux)
-target_link_libraries( eosNamespace pthread z )
-target_link_libraries( eosNamespace-Static pthread z )
+  target_link_libraries( eosNamespace pthread z XrdUtils )
+  target_link_libraries( eosNamespace-Static pthread z XrdUtils )
 endif (Linux)
 
 add_executable ( eos-log-compact progs/EOSLogCompact.cc )

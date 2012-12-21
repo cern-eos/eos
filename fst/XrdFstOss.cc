@@ -22,11 +22,11 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include <fcntl.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 /*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOss.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-#include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
 
 extern XrdSysError OssEroute;
@@ -47,260 +47,21 @@ extern "C"
 
 EOSFSTNAMESPACE_BEGIN
 
+#define XrdFstOssFDMINLIM  64
+
 //! pointer to the current OSS implementation to be used by the oss files
 XrdFstOss* XrdFstSS = 0;
-
-
-//------------------------------------------------------------------------------
-// Constuctor
-//------------------------------------------------------------------------------
-XrdFstOssFile::XrdFstOssFile( const char* tid ):
-  XrdOssFile( tid ),
-  eos::common::LogId(),
-  mIsRW( false ),
-  mRWLockXs( 0 ),
-  mBlockXs( 0 )
-{
-  // empty
-}
-
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-XrdFstOssFile::~XrdFstOssFile()
-{
-  // empty
-}
-
-
-//------------------------------------------------------------------------------
-// Open function
-//------------------------------------------------------------------------------
-int
-XrdFstOssFile::Open( const char* path, int flags, mode_t mode, XrdOucEnv& env )
-{
-  const char* val = 0;
-  unsigned long lid = 0;
-  off_t booking_size = 0;
-  mPath = path;
-
-  if ( ( val = env.Get( "mgm.lid" ) ) ) {
-    lid = atol( val );
-  }
-
-  if ( ( val = env.Get( "mgm.bookingsize" ) ) ) {
-    booking_size = strtoull( val, 0, 10 );
-
-    if ( errno == ERANGE ) {
-      eos_err( "error=invalid bookingsize in capability: %s", val );
-      return -EINVAL;
-    }
-  }
-
-  //............................................................................
-  // Decide if file opened for rw operations
-  //............................................................................
-  if ( ( flags &
-         ( O_RDONLY | O_WRONLY | O_RDWR | O_CREAT  | O_TRUNC ) ) != 0 ) {
-    mIsRW = true;
-  }
-  
-  if ( eos::common::LayoutId::GetBlockChecksum( lid ) != eos::common::LayoutId::kNone ) {
-    //..........................................................................
-    // Look for a blockchecksum obj corresponding to this file
-    //..........................................................................
-    std::pair<XrdSysRWLock*, CheckSum*> pair_value;
-    pair_value = XrdFstSS->GetXsObj( path, mIsRW );
-    mRWLockXs = pair_value.first;
-    mBlockXs = pair_value.second;
-
-    if ( !mBlockXs ) {
-      mBlockXs = ChecksumPlugins::GetChecksumObject( lid, true );
-
-      if ( mBlockXs ) {
-        XrdOucString xs_path = mBlockXs->MakeBlockXSPath( mPath.c_str() );
-        struct stat buf;
-        int retc = XrdFstSS->Stat( mPath.c_str(), &buf );
-
-        if ( !mBlockXs->OpenMap( xs_path.c_str(),
-                                 ( retc ? booking_size : buf.st_size ),
-                                 eos::common::LayoutId::OssXsBlockSize,
-                                 false ) ) {
-          eos_err( "error=unable to open the blockchecksum file: %s",
-                   xs_path.c_str() );
-          return -EIO;
-        }
-        
-        //......................................................................
-        // Add the new file blockchecksum mapping
-        //......................................................................
-        mRWLockXs = XrdFstSS->AddMapping( path, mBlockXs, mIsRW );
-      } else {
-        eos_err( "error=unable to create the blockchecksum obj" );
-        return -EIO;
-      }
-    }
-  }
-
-  int retc = XrdOssFile::Open( path, flags, mode, env );
-  return retc;
-}
-
-
-//------------------------------------------------------------------------------
-// Read
-//------------------------------------------------------------------------------
-ssize_t
-XrdFstOssFile::Read( void* buffer, off_t offset, size_t length )
-{
-  int retc = XrdOssFile::Read( buffer, offset, length );
-
-  if ( mBlockXs ) {
-    XrdSysRWLockHelper wr_lock( mRWLockXs, 0 );
-    if ( ( retc > 0 ) &&
-         ( !mBlockXs->CheckBlockSum( offset, static_cast<const char*>( buffer ), retc ) ) )
-    {
-      eos_err( "error=read block-xs error offset=%zu, length=%zu",
-               offset, length );
-      return -EIO;
-    }
-  }
-
-  return retc;
-}
-
-
-//------------------------------------------------------------------------------
-// Read raw
-//------------------------------------------------------------------------------
-ssize_t
-XrdFstOssFile::ReadRaw( void* buffer, off_t offset, size_t length )
-{
-  ssize_t retc = XrdOssFile::ReadRaw( buffer, offset, length );
-
-  if ( mBlockXs ) {
-    XrdSysRWLockHelper wr_lock( mRWLockXs, 0 );
-
-    if ( ( retc > 0 ) &&
-         ( !mBlockXs->CheckBlockSum( offset, static_cast<const char*>( buffer ), retc ) ) )
-    {
-      eos_err( "error=read block-xs error offset=%zu, length=%zu",
-               offset, length );
-      return -EIO;
-    }
-  }
-
-  return retc;
-}
-
-
-//------------------------------------------------------------------------------
-// Write
-//------------------------------------------------------------------------------
-ssize_t
-XrdFstOssFile::Write( const void* buffer, off_t offset, size_t length )
-{
-  if ( mBlockXs ) {
-    XrdSysRWLockHelper wr_lock( mRWLockXs, 0 );
-    mBlockXs->AddBlockSum( offset, static_cast<const char*>( buffer ), length );
-  }
-
-  ssize_t retc = XrdOssFile::Write( buffer, offset, length );
-  return retc;
-}
-
-
-//------------------------------------------------------------------------------
-// Close function
-//------------------------------------------------------------------------------
-int
-XrdFstOssFile::Close( long long* retsz )
-{
-  int retc = 0;
-  bool delete_mapping = false;
-
-  //............................................................................
-  // Code dealing with block checksums
-  //............................................................................
-  if ( mBlockXs ) {
-    struct stat statinfo;
-
-    if ( ( XrdFstSS->Stat( mPath.c_str(), &statinfo ) ) ) {
-      eos_err( "error=close - cannot stat closed file: %s", mPath.c_str() );
-      return XrdOssFile::Close( retsz );
-    }
-
-    XrdSysRWLockHelper wr_lock( mRWLockXs );                // ---> wrlock xs obj
-    mBlockXs->DecrementRef( mIsRW );
-
-    if ( mBlockXs->GetTotalRef() >= 1 ) {
-      //........................................................................
-      // If multiple references
-      //........................................................................
-      if ( ( mBlockXs->GetNumRef( true ) == 0 ) && mIsRW ) {
-        //......................................................................
-        // If one last writer and this is the current one
-        //......................................................................
-        if ( !mBlockXs->ChangeMap( statinfo.st_size, true ) ) {
-          eos_err( "error=unable to change block checksum map" );
-          retc = -1;
-        } else {
-          eos_info( "info=\"adjusting block XS map\"" );
-        }
-
-        if ( !mBlockXs->AddBlockSumHoles( getFD() ) ) {
-          eos_warning( "warning=unable to fill holes of block checksum map" );
-        }
-      }
-    } else {
-      //........................................................................
-      // Just one reference left (the current one)
-      //........................................................................
-      if ( mIsRW ) {
-        if ( !mBlockXs->ChangeMap( statinfo.st_size, true ) ) {
-          eos_err( "error=Unable to change block checksum map" );
-          retc = 1;
-        } else {
-          eos_info( "info=\"adjusting block XS map\"" );
-        }
-
-        if ( !mBlockXs->AddBlockSumHoles( getFD() ) ) {
-          eos_warning( "warning=unable to fill holes of block checksum map" );
-        }
-      }
-
-      if ( !mBlockXs->CloseMap() ) {
-        eos_err( "error=unable to close block checksum map" );
-        retc = 1;
-      }
-
-      delete_mapping = true;
-    }
-  }
-
-  //............................................................................
-  // Delete the filename - xs obj mapping from Oss if required
-  //............................................................................
-  if ( delete_mapping ) {
-    eos_debug( "Delete entry from oss map" );
-    XrdFstSS->DropXs( mPath.c_str() );
-  } else {
-    eos_debug( "No delete from oss map" );
-  }
-
-  retc |= XrdOssFile::Close( retsz );
-  return retc;
-}
 
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOss::XrdFstOss():
-    eos::common::LogId()
+  eos::common::LogId(),
+  mFdFence( -1 ),
+  mFdLimit( -1 )
 {
-  OssEroute.Say( "Calling the constructor of XrdFstOss. " );
+  eos_debug( "Calling the constructor of XrdFstOss." );
 }
 
 
@@ -333,9 +94,26 @@ XrdFstOss::Init( XrdSysLogger* lp, const char* configfn )
   eos::common::Logging::SetLogPriority( LOG_DEBUG );
   eos::common::Logging::SetUnit( unit.c_str() );
   eos_debug( "info=\"oss logging configured\"" );
+  //............................................................................
+  // Establish the FD limit
+  //............................................................................
+  struct rlimit rlim;
+
+  if ( getrlimit( RLIMIT_NOFILE, &rlim ) < 0 ) {
+    eos_warning( "warning= can not get resource limits, errno=", errno );
+    mFdLimit = XrdFstOssFDMINLIM;
+  } else {
+    mFdLimit = rlim.rlim_cur;
+  }
+
+  if ( mFdFence < 0 || mFdFence >= mFdLimit ) {
+    mFdFence = mFdLimit >> 1;
+  }
+
+  // TODO::
+  //return XrdOssOK;
   return rc;
 }
-
 
 
 //------------------------------------------------------------------------------
@@ -350,6 +128,17 @@ XrdFstOss::newFile( const char* tident )
 
 
 //------------------------------------------------------------------------------
+// New directory
+//------------------------------------------------------------------------------
+XrdOssDF*
+XrdFstOss::newDir( const char* tident )
+{
+  eos_debug( "Calling XrdFstOss::newDir - not used in EOS." );
+  return NULL;
+}
+
+
+//------------------------------------------------------------------------------
 // Add new entry to file name <-> blockchecksum map
 //------------------------------------------------------------------------------
 XrdSysRWLock*
@@ -360,14 +149,14 @@ XrdFstOss::AddMapping( const std::string& fileName,
   XrdSysRWLockHelper wr_lock( mRWMap, 0 );                  // --> wrlock map
   std::pair<XrdSysRWLock*, CheckSum*> pair_value;
   eos_debug( "Initial map size: %i and filename: %s.",
-            mMapFileXs.size(), fileName.c_str() );
+             mMapFileXs.size(), fileName.c_str() );
 
   if ( mMapFileXs.count( fileName ) ) {
     pair_value = mMapFileXs[fileName];
     XrdSysRWLockHelper wr_xslock( pair_value.first, 0 );    // --> wrlock xs obj
 
     //..........................................................................
-    // If no. ref 0 then the obj is closed and wating to be deleted so we can
+    // If no. ref 0 then the obj is closed and waiting to be deleted so we can
     // add the new one, else return old one
     //..........................................................................
     if ( pair_value.second->GetTotalRef() == 0 ) {
@@ -391,7 +180,7 @@ XrdFstOss::AddMapping( const std::string& fileName,
     blockXs->IncrementRef( isRW );
     mMapFileXs[fileName] = pair_value;
     eos_debug( "Add completely new obj, map size: %i and filename: %s.",
-              mMapFileXs.size(), fileName.c_str() );
+               mMapFileXs.size(), fileName.c_str() );
     return mutex_xs;
   }
 }

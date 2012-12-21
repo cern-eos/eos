@@ -320,6 +320,14 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
+      //! Clear unlinked locations without notifying the listeners
+      //------------------------------------------------------------------------
+      void clearUnlinkedLocations()
+      {
+        pUnlinkedLocation.clear();
+      }
+
+      //------------------------------------------------------------------------
       //! Test the unlinkedlocation
       //------------------------------------------------------------------------
       bool hasUnlinkedLocation( location_t location )
@@ -341,7 +349,7 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
-      //! Clear locations
+      //! Clear locations without notifying the listeners
       //------------------------------------------------------------------------
       void clearLocations()
       {
@@ -431,6 +439,14 @@ namespace eos
       //! Deserialize the class to a buffer
       //------------------------------------------------------------------------
       void deserialize( const Buffer &buffer ) throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Set the FileMDSvc object
+      //------------------------------------------------------------------------
+      void setFileMDSvc( IFileMDSvc *fileMDSvc )
+      {
+        pFileMDSvc = fileMDSvc;
+      }
 
     protected:
       //------------------------------------------------------------------------

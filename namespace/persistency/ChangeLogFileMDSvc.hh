@@ -27,6 +27,7 @@
 #include "namespace/FileMD.hh"
 #include "namespace/MDException.hh"
 #include "namespace/IFileMDSvc.hh"
+#include "namespace/accounting/QuotaStats.hh"
 #include "namespace/persistency/ChangeLogFile.hh"
 
 #include <google/sparse_hash_map>
@@ -48,9 +49,10 @@ namespace eos
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      ChangeLogFileMDSvc(): pFirstFreeId( 1 ), pChangeLog( 0 ), pSlaveLock( 0 ),
+      ChangeLogFileMDSvc():
+        pFirstFreeId( 1 ), pChangeLog( 0 ), pSlaveLock( 0 ),
         pSlaveMode( false ), pSlaveStarted( false ), pSlavePoll( 1000 ),
-        pFollowStart( 0 ), pContSvc( 0 )
+        pFollowStart( 0 ), pContSvc( 0 ), pQuotaStats(0)
       {
         pIdMap.set_deleted_key( 0 );
         pIdMap.set_empty_key( 0xffffffffffffffffll );
@@ -70,6 +72,18 @@ namespace eos
       //! Initizlize the file service
       //------------------------------------------------------------------------
       virtual void initialize() throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Make a transition from slave to master
+      //------------------------------------------------------------------------
+      virtual void slave2Master( std::map<std::string, std::string> &config )
+        throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Switch the namespace to read-only mode
+      //------------------------------------------------------------------------
+      virtual void makeReadOnly()
+        throw( MDException );
 
       //------------------------------------------------------------------------
       //! Configure the file service
@@ -236,6 +250,14 @@ namespace eos
         return pSlavePoll;
       }
 
+      //------------------------------------------------------------------------
+      //! Set the QuotaStats object for the follower
+      //------------------------------------------------------------------------
+      void setQuotaStats( QuotaStats *quotaStats)
+      {
+        pQuotaStats = quotaStats;
+      }
+
     private:
       //------------------------------------------------------------------------
       // Placeholder for the record info
@@ -298,6 +320,7 @@ namespace eos
       int32_t            pSlavePoll;
       uint64_t           pFollowStart;
       ChangeLogContainerMDSvc *pContSvc;
+      QuotaStats        *pQuotaStats;
   };
 }
 

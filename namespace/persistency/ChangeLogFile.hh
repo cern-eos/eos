@@ -27,6 +27,7 @@
 #include <string>
 #include <stdint.h>
 #include <ctime>
+
 #include "namespace/persistency/Buffer.hh"
 #include "namespace/utils/Descriptor.hh"
 #include "namespace/MDException.hh"
@@ -109,8 +110,9 @@ namespace eos
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      ChangeLogFile(): pFd(-1), pIsOpen( false ), pVersion( 0 ), pSeqNumber( 0 ),
-                       pContentFlag( 0 ) {};
+      ChangeLogFile():
+        pFd(-1), pInotifyFd(-1), pWatchFd(-1), pIsOpen( false ), pVersion( 0 ),
+        pUserFlags(0), pSeqNumber( 0 ), pContentFlag( 0 ) {};
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -208,6 +210,15 @@ namespace eos
         throw( MDException );
 
       //------------------------------------------------------------------------
+      //! Wait for a change in the changelog file using INOTIFY,
+      //! return when a modification event happened on the file descriptor or
+      //! in case of intofiy failure pollTime has passed
+      //!
+      //! @param pollTime time to sleep if the inotify mechanism fails
+      //------------------------------------------------------------------------
+      void wait( uint32_t polltime ) throw ( MDException );
+
+      //------------------------------------------------------------------------
       //! Repair a changelog file
       //!
       //! @param filename    name of the file to be repaired (read only)
@@ -267,6 +278,8 @@ namespace eos
       // Data members
       //------------------------------------------------------------------------
       int      pFd;
+      int      pInotifyFd;
+      int      pWatchFd;
       bool     pIsOpen;
       uint8_t  pVersion;
       uint8_t  pUserFlags;

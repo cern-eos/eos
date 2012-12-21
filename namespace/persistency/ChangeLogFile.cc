@@ -25,11 +25,14 @@
 #include "namespace/utils/SmartPtrs.hh"
 #include "namespace/utils/DataHelper.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysTimer.hh"
 
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <sys/inotify.h>
+#include <poll.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <cerrno>
@@ -173,6 +176,33 @@ namespace eos
       pFd = fd;
       pIsOpen  = true;
       pVersion = version;
+
+      //------------------------------------------------------------------------
+      // Initialize inotify if needed
+      //------------------------------------------------------------------------
+#ifdef __linux__
+      if( flags & ReadOnly )
+      {
+        pInotifyFd = inotify_init();
+
+        if( pInotifyFd < 0 )
+        {
+          MDException ex( EFAULT );
+          ex.getMessage() << "Unable to initialize inotify: " << name << ": ";
+          ex.getMessage() << strerror( errno );
+          throw ex;
+        }
+
+        pWatchFd = inotify_add_watch( pInotifyFd, name.c_str(), IN_MODIFY );
+        if( pWatchFd < 0)
+        {
+          MDException ex( EFAULT );
+          ex.getMessage() << "Unable to add watch event IN_MODIFY for inotify: ";
+          ex.getMessage() << name << ": " << strerror( errno );
+          throw ex;
+        }
+      }
+#endif
       return;
     }
 
@@ -239,8 +269,20 @@ namespace eos
   //----------------------------------------------------------------------------
   void ChangeLogFile::close()
   {
-    ::close( pFd );
-    pIsOpen = false;
+    if( pFd != -1 )
+    {
+      ::close( pFd );
+      pIsOpen = false;
+
+    }
+
+    if( pInotifyFd != -1 )
+    {
+#ifdef __linux__
+      inotify_rm_watch( pInotifyFd, pWatchFd );
+      ::close( pInotifyFd );
+#endif
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -600,6 +642,39 @@ namespace eos
         return -1;
     }
     return -1;
+  }
+
+  //----------------------------------------------------------------------------
+  // Wait for a modification event in a changelog file with inotify or if not
+  // available wait <polltime> micro seconds
+  //----------------------------------------------------------------------------
+  void ChangeLogFile::wait( uint32_t polltime ) throw( MDException )
+  {
+    //--------------------------------------------------------------------------
+    // We're on linux so we can try inotify if it initialized right.
+    // We use it to wait for changes on our file, we don't really care to look
+    // at the event since we look only at a single type of event on a file
+    //--------------------------------------------------------------------------
+#ifdef __linux__
+    if( pInotifyFd  >= 0 && pWatchFd >=0 )
+    {
+      pollfd pollDesc;
+      pollDesc.events |= (POLLIN | POLLPRI);
+      pollDesc.fd     = pInotifyFd;
+      int status = poll( &pollDesc, 1, 500 );
+      if( status <= 0 )
+      {
+        MDException ex( EFAULT );
+        ex.getMessage() << "Wait: inotify read failed: ";
+        ex.getMessage() << strerror( errno );
+        throw ex;
+      }
+      return;
+    }
+#else
+    XrdSysTimer sleeper;
+    sleeper.Wait(polltime/1000);
+#endif
   }
 
   //----------------------------------------------------------------------------
