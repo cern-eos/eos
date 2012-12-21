@@ -33,6 +33,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
+#include "common/DbMap.hh"
 #include "mq/XrdMqMessage.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
@@ -54,8 +55,14 @@ EOSMGMNAMESPACE_BEGIN
 
 class ConfigEngineChangeLog : public eos::common::LogId {
 private:
+  bool IsSqliteFile  (const char* file);
+  bool IsLevelDbFile (const char* file);
+  bool IsDbMapFile   (const char* file);
+  bool LegacyFile2DbMapFile (const char* file);
+  bool ParseTextEntry(const char *entry, std::string &key, std::string &value, std::string &comment);
   XrdSysMutex Mutex;
-  int fd;
+  eos::common::DbMap map;
+  std::string changelogfile;
 public:
   XrdOucString configChanges;
 

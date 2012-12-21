@@ -34,6 +34,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <cstdio>
+#include <sys/stat.h>
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
@@ -45,51 +47,202 @@ XrdOucHash<XrdOucString> ConfigEngine::configDefinitions;
 /*----------------------------------------------------------------------------*/
 ConfigEngineChangeLog::ConfigEngineChangeLog()
 {
-  fd = 0;
+	// nothing to do here
 }
 
 void ConfigEngineChangeLog::Init(const char* changelogfile) 
 {
-  fd = open(changelogfile, O_CREAT | O_APPEND | O_RDWR, 0644);
-  if (fd<0) {
-    eos_err("failed to open config engine changelogfile %s", changelogfile);
+  if(!IsDbMapFile(changelogfile)){
+#ifndef EOS_SQLITE_DBMAP
+    if(IsSqliteFile(changelogfile)) { // case : sqlite -> leveldb
+      std::string bakname=changelogfile; bakname+=".sqlite";
+      if(eos::common::ConvertSqlite2LevelDb(changelogfile,changelogfile,bakname))
+        eos_notice("autoconverted changelogfile %s from sqlite format to leveldb format",changelogfile);
+      else {
+        eos_emerg("failed to autoconvert changelogfile %s from sqlite format to leveldb format",changelogfile);
+        exit(-1);
+      }
+    }
+    else
+#endif
+    {  // case : old plain text -> leveldb or sqlite
+      if(LegacyFile2DbMapFile(changelogfile))
+        eos_notice("autoconverted changelogfile %s from legacy txt format to %s format",changelogfile,eos::common::DbMap::GetDbType().c_str());
+      else {
+        eos_emerg("failed to autoconvert changelogfile %s from legacy txt format to %s format",changelogfile,eos::common::DbMap::GetDbType().c_str());
+        exit(-1);
+      }
+    }
   }
+	this->changelogfile=changelogfile;
+	map.AttachLog(changelogfile,eos::common::SqliteDbLogInterface::daily,0644);
 }
-
-
 
 /*----------------------------------------------------------------------------*/
 ConfigEngineChangeLog::~ConfigEngineChangeLog() 
 {
-  if (fd>0) 
-    close(fd);
+	// nothing to do
 }
 
 /*----------------------------------------------------------------------------*/
+bool
+ConfigEngineChangeLog::IsSqliteFile(const char* file)
+{
+	int fd = open(file, O_RDONLY);
+	bool result=false;
+	char buf[16];
+	if (fd>0) {
+		size_t nread=read(fd,buf,16);
+		if(nread==16) {
+			if(strncmp(buf,"SQLite format 3",16)==0)
+				result=true;
+		}
+		close(fd);
+	}
+
+	return result;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+ConfigEngineChangeLog::IsLevelDbFile(const char* file)
+{
+  XrdOucString path=file;
+  // the least we can ask to a leveldb directory is to have a "CURRENT" file
+  path+="/CURRENT";
+  struct stat ss;
+  if(stat(path.c_str(),&ss)) return false;
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+ConfigEngineChangeLog::IsDbMapFile(const char* file)
+{
+#ifdef EOS_SQLITE_DBMAP
+  return IsSqliteFifile(file);
+#else
+  return IsLevelDbFile(file);
+#endif
+}
+
+
+/*----------------------------------------------------------------------------*/
 bool 
+ConfigEngineChangeLog::LegacyFile2DbMapFile(const char *file)
+{
+	bool result = false;
+	bool renamed = false;
+
+	XrdOucString dbtype(eos::common::DbMap::GetDbType().c_str());
+
+	// stat the file to copy the permission
+	struct stat st;
+	stat(file,&st);
+	// rename the file
+	XrdOucString newname(file);
+	newname+=".oldfmt";
+
+	if(rename(file,newname.c_str())==0) {
+		renamed=true;
+		// convert the file
+		eos::common::DbMap map;
+		std::ifstream legfile(newname.c_str());
+		if(map.AttachLog(file,0,st.st_mode) && legfile.is_open()) {
+			int cnt=0,lcnt=0;
+			bool loopagain=true;
+			double timestamp,prevtimestamp; timestamp=0; timestamp=-1;
+			std::string trash,buffer,action,key,value;
+			while(loopagain) {
+				lcnt++; // update the line counter
+				prevtimestamp=timestamp;
+				timestamp=-1; legfile>>timestamp;	 // field 0 of legacy format is the timestamp
+				if(timestamp<0) {loopagain=false; break;}
+				if(floor(prevtimestamp)==floor(timestamp)) timestamp+=(++cnt)*1e-6; // a little trick to make sur that all the timestamp are different
+				else cnt=0;
+				for(int k=0;k<5;k++) legfile>>trash; // fields 1 to 5 of legacy format is the time stamp string
+				getline(legfile,buffer);
+				if(!ParseTextEntry(buffer.c_str(),key,value,action)) break;
+				map.Set(timestamp,key,value,action);
+			}
+			if(loopagain) {
+				eos_err("failed to convert changelogfile %s from legacy txt format to new DbMap (%s) format at line %d",file,dbtype.c_str(),lcnt);
+			}
+			else result=true;
+		}
+		else {
+			if(legfile.is_open())
+				eos_err("failed to open %s target DB %s to convert file format",dbtype.c_str(),file);
+			else
+				eos_err("failed to open legacy txt source file %s to convert file format",newname.c_str());
+		}
+	}
+	else {
+		eos_err("failed to rename file %s to %s to convert file format",file,newname.c_str());
+	}
+
+	// reverse rename if error
+	if(renamed && !result) {
+		remove(file); // at this point, the db file should be closed because the DbMap object should be destroyed
+		// reverting the renaming
+		rename(newname.c_str(),file);
+	}
+
+	return result;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+ConfigEngineChangeLog::ParseTextEntry(const char *entry, std::string &key, std::string &value, std::string &action) {
+	std::stringstream ss(entry);
+	std::string tmp;
+	ss>>action; ss>>tmp; (action+=" ")+=tmp;// the action is put inside the comment
+	key=value="";
+	if(action.compare("reset config")==0) {
+		// nothing specific
+	}
+	else if(action.compare("del config")==0) {
+		ss>>key;
+		if(key.empty()) return false; // error, should not happen
+	}
+	else if(action.compare("set config")==0) {
+		ss>>key;
+		ss>>tmp; // should be "=>"
+		getline(ss,value);
+		if(key.empty() || value.empty()) return false; // error, should not happen
+	}
+	else if(action.compare("loaded config")==0) {
+		ss>>key;
+		getline(ss,value);
+		if(key.empty() || value.empty()) return false; // error, should not happen
+	}
+	else if(action.compare("saved config")==0 || action.compare("autosaved config")==0) {
+		ss>>key;
+		getline(ss,value);
+		if(key.empty() || value.empty()) return false; // error, should not happen
+	}
+	else {
+		return false;
+	}
+	return true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
 ConfigEngineChangeLog::AddEntry(const char* info) 
 {
-  
-  time_t now = time(0);
-  char dtime[1024]; sprintf(dtime, "%lu ", now);
   Mutex.Lock();
-  XrdOucString stime = dtime; stime += ctime(&now);
-  stime.erase(stime.length()-1);
-  stime += " ";
-  stime += info;
-  stime += "\n";
-  if (fd>0) {
-    lseek(fd,0,SEEK_END);
-
-    if ((write(fd, stime.c_str(), stime.length())) != ((int)(stime.length()))) {
-      eos_err("failed to write config engine changelog entry");
+	std::string key,value,action;
+	if(!ParseTextEntry(info,key,value,action)) {
+		eos_warning("failed to parse new entry %s in file %s. this entry will be ignored.",info,changelogfile.c_str());
       Mutex.UnLock();
       return false;
     }
-  }
+	map.Set(key,value,action);
+	Mutex.UnLock();
 
   configChanges += info; configChanges+="\n";
-  Mutex.UnLock();
+
   return true;
 }
 
@@ -97,39 +250,24 @@ ConfigEngineChangeLog::AddEntry(const char* info)
 bool 
 ConfigEngineChangeLog::Tail(unsigned int nlines, XrdOucString &tail) 
 {
-  Mutex.Lock();
-  unsigned int nfeed=0;
-  off_t pos = lseek(fd, 0, SEEK_END);
-  off_t offset;
-  off_t goffset=0;
-  off_t roffset;
-  for ( offset = pos-1; offset>=0; offset--) {
-    goffset = offset;
-    char c;
-    if ((pread(fd, &c, 1,offset))!=1) {
-      tail = "error: cannot read changelog file (1)";
-      Mutex.UnLock();
+	eos::common::DbLog logfile;
+	eos::common::DbLog::TlogentryVec qresult;
+	if(!logfile.SetDbFile(changelogfile)) {
+		eos_err("failed to read ",changelogfile.c_str());
       return false;
     }
-    if (c == '\n') 
-      nfeed++;
-
-    if (nfeed == nlines)
-      break;
+	logfile.GetTail(nlines,qresult);
+	tail="";
+	for(eos::common::DbLog::TlogentryVec::iterator it=qresult.begin();it!=qresult.end();it++) {
+		tail+=it->timestampstr.c_str();
+		tail+=" ";
+		tail+=it->comment.c_str();
+		tail+=" ";
+		tail+=it->key.c_str();
+		tail+=" ";
+		tail+=it->value.c_str();
+		tail+="\n";
   }
-
-  for ( roffset = goffset; roffset < pos; roffset ++) {
-    char c;
-    if ((pread(fd, &c, 1, roffset))!=1) {
-      tail = "error: cannot read changelog file (2) "; tail += (int)roffset;
-      Mutex.UnLock();
-      return false;
-    }
-    tail += c;
-  }
-
-  Mutex.UnLock();
-  while(tail.replace("&"," ")) {}
   return true;
 }
 
