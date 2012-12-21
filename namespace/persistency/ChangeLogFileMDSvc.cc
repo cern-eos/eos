@@ -380,6 +380,12 @@ namespace eos
         //----------------------------------------------------------------------
         // Commit additions
         //----------------------------------------------------------------------
+        if( file2->getId() == 0 )
+        {
+          file->clearLocations();
+          file->clearUnlinkedLocations();
+        }
+
         for( itS = toBeAdded.begin(); itS != toBeAdded.end(); ++itS )
         {
           IFileMDChangeListener::Event e( file,
