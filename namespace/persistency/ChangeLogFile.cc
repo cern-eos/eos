@@ -39,6 +39,7 @@
 #include <cstring>
 #include <iomanip>
 #include <stdio.h>
+#include <fcntl.h>
 
 #define CHANGELOG_MAGIC 0x45434847
 #define RECORD_MAGIC    0x4552
@@ -168,26 +169,17 @@ namespace eos
         throw ex;
       }
 
-      //------------------------------------------------------------------------
-      // Move to the end
-      //------------------------------------------------------------------------
-      lseek( fd, 0, SEEK_END );
-      fdPtr.release();
-      pFd = fd;
-      pIsOpen  = true;
-      pVersion = version;
-
-      //------------------------------------------------------------------------
-      // Initialize inotify if needed
-      //------------------------------------------------------------------------
 #ifdef __linux__
       if( flags & ReadOnly )
       {
+        //----------------------------------------------------------------------
+        // Initialize inotify if needed
+        //----------------------------------------------------------------------
         pInotifyFd = inotify_init();
 
         if( pInotifyFd < 0 )
         {
-          MDException ex( EFAULT );
+          MDException ex( errno );
           ex.getMessage() << "Unable to initialize inotify: " << name << ": ";
           ex.getMessage() << strerror( errno );
           throw ex;
@@ -196,13 +188,44 @@ namespace eos
         pWatchFd = inotify_add_watch( pInotifyFd, name.c_str(), IN_MODIFY );
         if( pWatchFd < 0)
         {
-          MDException ex( EFAULT );
+          cleanUpInotify();
+          MDException ex( errno );
           ex.getMessage() << "Unable to add watch event IN_MODIFY for inotify: ";
           ex.getMessage() << name << ": " << strerror( errno );
           throw ex;
         }
+
+        //----------------------------------------------------------------------
+        // Make the descriptor non-blocking
+        //----------------------------------------------------------------------
+        int savedFlags = fcntl( pInotifyFd, F_GETFL );
+        if( savedFlags == -1 )
+        {
+          cleanUpInotify();
+          MDException ex( errno );
+          ex.getMessage() << "Unable to get the flags of inotify descriptor: ";
+          ex.getMessage() << strerror( errno );
+          throw ex;
+        }
+
+        if( fcntl( pInotifyFd, F_SETFL, savedFlags | O_NONBLOCK ) != 0 )
+        {
+          cleanUpInotify();
+          MDException ex( errno );
+          ex.getMessage() << "Unable to make the inotify descriptor ";
+          ex.getMessage() << "non-blocking: " << strerror( errno );
+          throw ex;;
+        }
       }
 #endif
+      //------------------------------------------------------------------------
+      // Move to the end
+      //------------------------------------------------------------------------
+      lseek( fd, 0, SEEK_END );
+      fdPtr.release();
+      pFd = fd;
+      pIsOpen  = true;
+      pVersion = version;
       return;
     }
 
@@ -275,14 +298,27 @@ namespace eos
       pIsOpen = false;
 
     }
+    cleanUpInotify();
+  }
+
+  //----------------------------------------------------------------------------
+  // Clean up inotify
+  //----------------------------------------------------------------------------
+  void ChangeLogFile::cleanUpInotify()
+  {
+#ifdef __linux__
+    if( pWatchFd != -1 )
+    {
+      inotify_rm_watch( pInotifyFd, pWatchFd );
+      pWatchFd   = -1;
+    }
 
     if( pInotifyFd != -1 )
     {
-#ifdef __linux__
-      inotify_rm_watch( pInotifyFd, pWatchFd );
       ::close( pInotifyFd );
-#endif
+      pInotifyFd = -1;
     }
+#endif
   }
 
   //----------------------------------------------------------------------------
@@ -652,24 +688,53 @@ namespace eos
   {
     //--------------------------------------------------------------------------
     // We're on linux so we can try inotify if it initialized right.
-    // We use it to wait for changes on our file, we don't really care to look
-    // at the event since we look only at a single type of event on a file
     //--------------------------------------------------------------------------
 #ifdef __linux__
     if( pInotifyFd  >= 0 && pWatchFd >=0 )
     {
+      //------------------------------------------------------------------------
+      // Wait 500 milisecs for the new data, if there is none by that time
+      // just exit
+      //------------------------------------------------------------------------
       pollfd pollDesc;
+      memset( &pollDesc, 0, sizeof( pollfd ) );
       pollDesc.events |= (POLLIN | POLLPRI);
       pollDesc.fd     = pInotifyFd;
+
       int status = poll( &pollDesc, 1, 500 );
-      if( status <= 0 )
+      if( status < 0 )
       {
         MDException ex( EFAULT );
-        ex.getMessage() << "Wait: inotify read failed: ";
+        ex.getMessage() << "Wait: inotify poll failed: ";
         ex.getMessage() << strerror( errno );
         throw ex;
       }
-      return;
+
+      if( status == 0 )
+        return;
+
+      //------------------------------------------------------------------------
+      // Read all the queued events.
+      // We configured inotify to tell us about one type of event on one
+      // descriptor so we don't really care about looking inside the event
+      // struct.
+      //------------------------------------------------------------------------
+      while( 1 )
+      {
+        inotify_event event;
+        int status = read( pInotifyFd, &event, sizeof( inotify_event ) );
+
+        if( status <= 0 )
+        {
+          if( errno == EAGAIN || errno == EWOULDBLOCK )
+            return;
+
+          MDException ex( errno );
+          ex.getMessage() << "Wait: inotify read failed: ";
+          ex.getMessage() << strerror( errno );
+          throw ex;
+        }
+      }
     }
 #else
     XrdSysTimer sleeper;
