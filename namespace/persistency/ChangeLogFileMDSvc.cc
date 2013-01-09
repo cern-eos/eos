@@ -66,11 +66,12 @@ namespace eos
 
           if( it != pUpdated.end() )
           {
-            delete it->second;
-            it->second = file;
+            delete it->second.file;
+            it->second.file   = file;
+            it->second.offset = offset;
           }
           else
-            pUpdated[file->getId()] = file;
+            pUpdated[file->getId()] = FileHelper( offset, file );
         }
 
         //----------------------------------------------------------------------
@@ -83,7 +84,7 @@ namespace eos
           FileMap::iterator it = pUpdated.find( id );
           if( it != pUpdated.end() )
           {
-            delete it->second;
+            delete it->second.file;
             pUpdated.erase( it );
           }
           pDeleted.insert( id );
@@ -166,7 +167,8 @@ namespace eos
         {
           ChangeLogFileMDSvc::IdMap::iterator it;
           ChangeLogContainerMDSvc::IdMap::iterator itP;
-          FileMD *currentFile = itU->second;
+          FileMD   *currentFile   = itU->second.file;
+          uint64_t  currentOffset = itU->second.offset;
           it = fileIdMap->find( currentFile->getId() );
 
           //--------------------------------------------------------------------
@@ -199,7 +201,7 @@ namespace eos
 
               container->addFile( currentFile );
               (*fileIdMap)[currentFile->getId()] =
-                ChangeLogFileMDSvc::DataInfo( 0, currentFile );
+                ChangeLogFileMDSvc::DataInfo( currentOffset, currentFile );
 
               IFileMDChangeListener::Event e( currentFile,
                                               IFileMDChangeListener::Created );
@@ -247,7 +249,8 @@ namespace eos
             }
 
             handleReplicas( it->second.ptr, currentFile );
-            (*it->second.ptr) = *currentFile;
+            (*it->second.ptr)    = *currentFile;
+            it->second.logOffset = currentOffset;
             processed.push_back( currentFile->getId() );
             delete currentFile;
           }
@@ -423,7 +426,15 @@ namespace eos
         if( file2->getId() == 0 ) delete file2;
       }
 
-      typedef std::map<eos::FileMD::id_t, eos::FileMD*> FileMap;
+      struct FileHelper
+      {
+        FileHelper(): offset(0), file(0) {}
+        FileHelper( uint64_t _offset, eos::FileMD *_file ):
+          offset( _offset ), file( _file ) {}
+        uint64_t      offset;
+        eos::FileMD  *file;
+      };
+      typedef std::map<eos::FileMD::id_t, FileHelper> FileMap;
       FileMap                       pUpdated;
       std::set<eos::FileMD::id_t>   pDeleted;
       eos::ChangeLogFileMDSvc      *pFileSvc;
