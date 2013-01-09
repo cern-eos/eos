@@ -229,7 +229,7 @@ ConfigEngineChangeLog::ParseTextEntry(const char *entry, std::string &key, std::
 	    ss>>key;
 	    k+=key; key=k;
 	    getline(ss,value);
-	    action=action.substr(0,12);
+	    action=action.substr(0,12); // to take into account the missing space after config when writing the old configchangelog file format
 	    if(key.empty() || value.empty()) return false; // error, should not happen
 	  }
 	}
@@ -267,25 +267,26 @@ ConfigEngineChangeLog::AddEntry(const char* info)
 bool 
 ConfigEngineChangeLog::Tail(unsigned int nlines, XrdOucString &tail) 
 {
-	eos::common::DbLog logfile;
-	eos::common::DbLog::TlogentryVec qresult;
-	if(!logfile.SetDbFile(changelogfile)) {
-		eos_err("failed to read ",changelogfile.c_str());
-      return false;
-    }
-	logfile.GetTail(nlines,qresult);
-	tail="";
-	for(eos::common::DbLog::TlogentryVec::iterator it=qresult.begin();it!=qresult.end();it++) {
-		tail+=it->timestampstr.c_str();
-		tail+=" ";
-		tail+=it->comment.c_str();
-		tail+=" ";
-		tail+=it->key.c_str();
-		tail+=" ";
-		if(it->comment.compare("set config")==0) tail+="=>  ";
-		tail+=it->value.c_str();
-		tail+="\n";
+  eos::common::DbLog logfile;
+  eos::common::DbLog::TlogentryVec qresult;
+  if(!logfile.SetDbFile(changelogfile)) {
+    eos_err("failed to read ",changelogfile.c_str());
+    return false;
   }
+  logfile.GetTail(nlines,qresult);
+  tail="";
+  for(eos::common::DbLog::TlogentryVec::iterator it=qresult.begin();it!=qresult.end();it++) {
+    tail+=it->timestampstr.c_str();
+    tail+=" ";
+    tail+=it->comment.c_str();
+    tail+=" ";
+    tail+=it->key.c_str();
+    tail+=" ";
+    if(it->comment.compare("set config")==0) tail+="=>  ";
+    tail+=it->value.c_str();
+    tail+="\n";
+  }
+  while(tail.replace("&"," ")) {}
   return true;
 }
 
