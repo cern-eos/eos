@@ -120,7 +120,7 @@ bool
 ConfigEngineChangeLog::IsDbMapFile(const char* file)
 {
 #ifdef EOS_SQLITE_DBMAP
-  return IsSqliteFifile(file);
+  return IsSqliteFile(file);
 #else
   return IsLevelDbFile(file);
 #endif
@@ -151,20 +151,25 @@ ConfigEngineChangeLog::LegacyFile2DbMapFile(const char *file)
 		if(map.AttachLog(file,0,st.st_mode) && legfile.is_open()) {
 			int cnt=0,lcnt=0;
 			bool loopagain=true;
-			double timestamp,prevtimestamp; timestamp=0; timestamp=-1;
+			size_t timestamp,prevtimestamp; timestamp=0; timestamp=-1;
 			std::string trash,buffer,action,key,value;
+			map.BeginSetSequence();
 			while(loopagain) {
 				lcnt++; // update the line counter
 				prevtimestamp=timestamp;
 				timestamp=-1; legfile>>timestamp;	 // field 0 of legacy format is the timestamp
 				if(timestamp<0) {loopagain=false; break;}
-				if(floor(prevtimestamp)==floor(timestamp)) timestamp+=(++cnt)*1e-6; // a little trick to make sur that all the timestamp are different
+				timestamp*=1000000000; // time is in nanoseconds
+				if(prevtimestamp/1000000000==timestamp/1000000000) timestamp+=(++cnt); // a little trick to make sure that all the timestamps are different
 				else cnt=0;
 				for(int k=0;k<5;k++) legfile>>trash; // fields 1 to 5 of legacy format is the time stamp string
+				buffer="";
 				getline(legfile,buffer);
+				if(buffer.size()==0) {loopagain=false; break;} // this is the end of the file
 				if(!ParseTextEntry(buffer.c_str(),key,value,action)) break;
 				map.Set(timestamp,key,value,action);
 			}
+			map.EndSetSequence();
 			if(loopagain) {
 				eos_err("failed to convert changelogfile %s from legacy txt format to new DbMap (%s) format at line %d",file,dbtype.c_str(),lcnt);
 			}
@@ -216,10 +221,22 @@ ConfigEngineChangeLog::ParseTextEntry(const char *entry, std::string &key, std::
 		getline(ss,value);
 		if(key.empty() || value.empty()) return false; // error, should not happen
 	}
-	else if(action.compare("saved config")==0 || action.compare("autosaved config")==0) {
-		ss>>key;
-		getline(ss,value);
-		if(key.empty() || value.empty()) return false; // error, should not happen
+	else if(action.size()>=12) {
+	  if(action.substr(0,12).compare("saved config")==0) { // to take into account the missing space after config when writing the old configchangelog file format
+	    std::string k;
+	    if(action.size()>12) k=action.substr(12); // if the space is missing e.g:configNAME, the name is put in this string and space is appended
+	    if(k.size()) k+=" ";
+	    ss>>key;
+	    k+=key; key=k;
+	    getline(ss,value);
+	    action=action.substr(0,12);
+	    if(key.empty() || value.empty()) return false; // error, should not happen
+	  }
+	}
+	else if(action.compare("autosaved  config")==0 || action.compare("autosaved config")==0) { // notice the double space coming from the writing procedure
+	  ss>>key;
+	  getline(ss,value);
+	  if(key.empty() || value.empty()) return false; // error, should not happen
 	}
 	else {
 		return false;
@@ -265,6 +282,7 @@ ConfigEngineChangeLog::Tail(unsigned int nlines, XrdOucString &tail)
 		tail+=" ";
 		tail+=it->key.c_str();
 		tail+=" ";
+		if(it->comment.compare("set config")==0) tail+="=>  ";
 		tail+=it->value.c_str();
 		tail+="\n";
   }
@@ -348,7 +366,7 @@ ConfigEngine::SaveConfig(XrdOucEnv &env, XrdOucString &err)
   if (autosave)
     cl += "autosaved  config "; 
   else
-    cl += "saved config";
+    cl += "saved config ";
   cl += name; cl += " "; if (force) cl += "(force)";
   eos_notice("saving config name=%s comment=%s force=%d", name, comment, force);
 
