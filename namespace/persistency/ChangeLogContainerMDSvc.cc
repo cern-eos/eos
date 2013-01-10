@@ -24,6 +24,7 @@
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogConstants.hh"
 #include "namespace/utils/Locking.hh"
+#include "namespace/utils/ThreadUtils.hh"
 
 #include <set>
 #include <memory>
@@ -176,6 +177,7 @@ extern "C"
   //----------------------------------------------------------------------------
   static void *followerThread( void *data )
   {
+    eos::ThreadUtils::blockAIOSignals();
     eos::ChangeLogContainerMDSvc *contSvc = reinterpret_cast<eos::ChangeLogContainerMDSvc*>( data );
     uint64_t                      offset  = contSvc->getFollowOffset();
     eos::ChangeLogFile           *file    = contSvc->getChangeLog();

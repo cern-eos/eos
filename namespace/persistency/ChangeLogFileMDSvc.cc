@@ -26,6 +26,7 @@
 #include "ChangeLogConstants.hh"
 #include "namespace/Constants.hh"
 #include "namespace/utils/Locking.hh"
+#include "namespace/utils/ThreadUtils.hh"
 
 #include <algorithm>
 #include <utility>
@@ -450,6 +451,7 @@ extern "C"
   //----------------------------------------------------------------------------
   static void *followerThread( void *data )
   {
+    eos::ThreadUtils::blockAIOSignals();
     eos::ChangeLogFileMDSvc *fileSvc = reinterpret_cast<eos::ChangeLogFileMDSvc*>( data );
     uint64_t                 offset  = fileSvc->getFollowOffset();
     eos::ChangeLogFile      *file    = fileSvc->getChangeLog();

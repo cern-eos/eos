@@ -61,6 +61,8 @@ add_library (eosNamespace SHARED
 	    persistency/LogManager.cc
 	    utils/DataHelper.cc
 	    utils/Descriptor.cc
+	    utils/ThreadUtils.cc
+	    utils/ThreadUtils.hh
 	    views/HierarchicalView.cc
 	    accounting/QuotaStats.hh
 	    accounting/QuotaStats.cc
@@ -101,6 +103,8 @@ add_library (eosNamespace-Static STATIC
 	    progs/EOSLogRepair.cc
 	    utils/DataHelper.cc
 	    utils/Descriptor.cc
+	    utils/ThreadUtils.cc
+	    utils/ThreadUtils.hh
 	    views/HierarchicalView.cc
 	    accounting/QuotaStats.hh
 	    accounting/QuotaStats.cc
