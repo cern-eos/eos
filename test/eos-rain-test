@@ -1,0 +1,238 @@
+#------------------------------------------------------------------------------
+#! @file eos-rain-test
+#! @author Elvin-Alin Sindrilaru - CERN
+#------------------------------------------------------------------------------
+
+#/************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2011 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************/
+
+#------------------------------------------------------------------------------
+# Description: The script is used to test the RAID-like layouts from EOS. 
+# Usage: 
+# eos-raintest raiddp/reeds/plain dir_test_files root://host//eos_raid_dir tmp_location_dir
+#  - first argument is the type of test made 
+#  - second arguments specifies the directory from which all files corresponding
+#     to the pattern *.rain will be used in the test 
+#  - third argument represents the full path to a directory in EOS which has 
+#     the proper extended attributes for the type of test specified in the 
+#     first argument
+#  - fourth argument is a temporary directory in which files read out from EOS
+#     are stored. The files put in this directory  will be deleted at the end 
+#     of the test. 
+#
+# The script copies the files in the EOS directories which are using some form
+# of RAID-layout and then tries to read them back and compares the checksum of 
+# the inital file put in EOS with the one read back. In the second stage, each
+# file system in the EOS configuration is shutdown one by one and the file is 
+# read again from EOS to verify if the single stripe recovery mechanism is 
+# working properly. In the last stage, each two file systems are shutdown and
+# again the file is read out of EOS and the mathc with the original one is tested.
+#------------------------------------------------------------------------------
+
+#! /bin/bash
+
+. /etc/init.d/functions
+
+export ERR_MSG1="The provided directory does not have the extended attributes set correctly."
+
+#-------------------------------------------------------------------------------
+# Write a file to EOS, read it back and compare the checksum
+#-------------------------------------------------------------------------------
+function write_and_read {
+    local SRC=$1
+    local DEST=$2
+    local FNAME=$3
+
+    echo "Write, read and check test, with file: $FNAME"
+    
+    # write the file in EOS 
+    /usr/local/bin/xrdcp $SRC/$FNAME $DEST/$FNAME -f 
+    
+    # read it back in a tmp folder
+    /usr/local/bin/xrdcp $DEST/$FNAME $TMP_LOCATION/$FNAME.tmp -f 
+    
+    # compute the checksum of initial file and the one read back
+    local XSINIT=$(sum $SRC/$FNAME)
+    local XSCOPY=$(sum $TMP_LOCATION/$FNAME.tmp)
+
+    # clean up the files in the TMP_LOCATION
+    rm -rf $TMP_LOCATION/$FNAME.tmp
+    
+    test "$XSINIT" = "$XSCOPY" 
+    if [[ $? -eq 0 ]]; then
+	echo_success
+    else
+	echo_failure
+	exit 1
+    fi 
+}
+
+
+#-------------------------------------------------------------------------------
+# Read a file from EOS it back and compare the checksum
+#-------------------------------------------------------------------------------
+function read_and_check {
+    local SRC=$1
+    local EOS_SRC=$2
+    local FNAME=$3
+
+    echo "Read and check test, with file: $FNAME"
+   
+    # read it back in a tmp folder
+    /usr/local/bin/xrdcp $EOS_SRC/$FNAME $TMP_LOCATION/$FNAME.tmp -f
+    
+    # compute the checksum of initial file and the one read back
+    local XSINIT=$(sum $SRC/$FNAME)
+    local XSCOPY=$(sum $TMP_LOCATION/$FNAME.tmp)
+
+    # clean up the files in the TMP_LOCATION
+    rm -rf $TMP_LOCATION/$FNAME.tmp
+    
+    test "$XSINIT" = "$XSCOPY" 
+    if [[ $? -eq 0 ]]; then
+	echo_success
+    else
+	echo_failure
+	exit 1
+    fi 
+}
+
+
+#-------------------------------------------------------------------------------
+# Main part
+#-------------------------------------------------------------------------------
+
+if [[ $# -eq 0 && $# -gt 5 ]]; 
+then 
+    echo usage: $0 raiddp/reeds/plain dir_test_files root://host//eos_raid_dir tmp_location_dir
+    exit
+fi
+
+# Type of test to be conducted
+ARG=$1
+
+# Location where the initial files reside
+ROOT_PATH=$2
+
+# EOS directory with the correct RAID extended attributes
+EOS_DEST=$3
+
+# Tmp location where files are saved when read from EOS
+TMP_LOCATION=$4
+
+#Extract the EOS directory name 
+INDX=`awk -v a="$EOS_DEST" -v b="//eos" 'BEGIN{print index(a,b)}'`
+EOS_DIR="${EOS_DEST:$INDX}"
+
+if [ "$ARG" = "raiddp" ]; then
+    sudo /usr/bin/eos -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="raidDP"' 
+    if [ $? -ne 0 ]; then
+	echo "$ERR_MSG1"
+	echo_failure
+	exit 1
+    fi
+elif [ "$ARG" = "reeds" ];
+then
+    sudo /usr/bin/eos -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="reedS"' 
+    if [ $? -ne 0 ]; then
+	echo "$ERR_MSG1"
+	echo_failure
+	exit 1
+    fi
+elif [ "$ARG" = "plain" ];
+then
+    sudo /usr/bin/eos -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="plain"'
+    if [ $? -ne 0 ]; then
+	echo "$ERR_MSG1"
+	echo_failure
+	exit 1
+    fi
+
+else 
+    echo usage: $0 raiddp/reeds/plain dir_test_files eos_raid_dir tmp_location_dir
+    exit 1
+fi
+
+#...............................................................................
+# Do all write-read-check tests in: $EOS_DEST ...
+#...............................................................................
+echo "\nDo all write-read-check tests in: $EOS_DEST ..."
+
+# loop over all files in the pattern and test them in EOS
+for i in {1..5}; do
+    for file in $ROOT_PATH/*.rain; do
+    	if [[ -f $file ]]; then
+           file=$(basename $file)
+	   write_and_read $ROOT_PATH $EOS_DEST $file
+    fi	
+    done
+done 
+
+#...............................................................................
+# Disable one FST and redo the read test...
+#...............................................................................
+echo "n\Disable one FST and redo the read test..."
+
+for fst in {1..6}; do
+    echo "Disable FST $fst and redo read test..." 
+
+    # disable one FST in EOS and test read
+    sudo /usr/bin/eos -b fs config $fst configstatus=off
+
+    # loop over all files in the pattern and test them in EOS
+    for file in $ROOT_PATH/*.rain; do
+	if [[ -f $file ]]; then 
+	    file=$(basename $file)
+	    read_and_check $ROOT_PATH $EOS_DEST $file
+	fi
+    done
+    
+    # restore the configuraton in EOS 
+    sudo /usr/bin/eos -b fs config $fst configstatus=rw
+done 
+
+#...............................................................................
+# Disable each two FST's and redo the read tests...
+#...............................................................................
+echo "\nDisable each two FST's and redo the read tests..."
+
+for fst1 in {1..6}; do
+    for fst2 in {1..6}; do
+	if [ "$fst1" -ne "$fst2" ]; then
+	    echo "Disable FST $fst1 and $fst2 and redo read test..." 
+	    
+            # disable one FST in EOS and test read
+	    sudo /usr/bin/eos -b fs config $fst1 configstatus=off
+	    sudo /usr/bin/eos -b fs config $fst2 configstatus=off
+	    
+            # loop over all files in the pattern and test them in EOS
+	    for file in $ROOT_PATH/*.rain; do
+		if [[ -f $file ]]; then
+		    file=$(basename $file)
+		    read_and_check $ROOT_PATH $EOS_DEST $file
+		fi
+	    done
+	    
+            # restore the configuraton in EOS 
+	    sudo /usr/bin/eos -b fs config $fst1 configstatus=rw
+	    sudo /usr/bin/eos -b fs config $fst2 configstatus=rw
+	fi
+    done
+done 
+
+exit 0

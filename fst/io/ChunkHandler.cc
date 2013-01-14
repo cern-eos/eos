@@ -62,7 +62,7 @@ void ChunkHandler::Update( AsyncMetaHandler* metaHandler,
                            uint32_t          length,
                            bool              isWrite)
 {
-  mMetaHandler =  metaHandler;
+  mMetaHandler = metaHandler;
   mOffset = offset;
   mLength = length;
   mRespLength = 0;
@@ -98,6 +98,11 @@ ChunkHandler::HandleResponse( XrdCl::XRootDStatus* pStatus,
   }
 
   mMetaHandler->HandleResponse( pStatus, this );
+  delete pStatus;
   
+  if ( pResponse ) {
+    delete pResponse;
+  }
 }
+
 EOSFSTNAMESPACE_END

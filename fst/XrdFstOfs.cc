@@ -107,9 +107,9 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-XrdFstOfs::XrdFstOfs()
+XrdFstOfs::XrdFstOfs():
+  eos::common::LogId()
 {
-  eos::common::LogId();
   Eroute = 0;
   Messaging = 0;
   Storage = 0;

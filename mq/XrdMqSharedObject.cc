@@ -208,7 +208,7 @@ XrdMqSharedObjectManager::DeleteSharedQueue(const char* subject, bool broadcast)
 void 
 XrdMqSharedObjectManager::DumpSharedObjects(XrdOucString& out) 
 {
-  //  out="";
+  out="";
 
   XrdMqRWMutexReadLock lock(HashMutex);
   std::map<std::string , XrdMqSharedHash*>::iterator it_hash;

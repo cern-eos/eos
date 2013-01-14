@@ -80,12 +80,12 @@ HeaderCRC::ReadFromFile( XrdCl::File*& pFile )
   uint32_t ret;
   long int offset = 0;
   size_t read_sizeblock = 0;
-  
-  char* buff = static_cast< char* >( calloc( mSizeHeader, sizeof( char ) ) );
+  char* buff = new char[mSizeHeader];
 
   if ( !( pFile->Read( offset, mSizeHeader, buff, ret ).IsOK() )
-       || ( ret != static_cast< uint32_t >( mSizeHeader ) ) ) {
-    free( buff );
+       || ( ret != static_cast< uint32_t >( mSizeHeader ) ) )
+  {
+    delete[] buff;
     mValid = false;
     return mValid;
   }
@@ -93,7 +93,7 @@ HeaderCRC::ReadFromFile( XrdCl::File*& pFile )
   memcpy( mTag, buff, sizeof mTag );
 
   if ( strncmp( mTag, msTagName, strlen( msTagName ) ) ) {
-    free( buff );
+    delete[] buff;
     mValid = false;
     return mValid;
   }
@@ -111,7 +111,7 @@ HeaderCRC::ReadFromFile( XrdCl::File*& pFile )
     eos_err( "error=block size read from file does not match block size expected" );
   }
   
-  free( buff );
+  delete[] buff;
   mValid = true;
   return mValid;
 }
@@ -124,14 +124,13 @@ bool
 HeaderCRC::ReadFromFile( FileIo*& pFile )
 {
   long int offset = 0;
-  size_t read_sizeblock = 0;
-    
-  char* buff = static_cast< char* >( calloc( mSizeHeader, sizeof( char ) ) );
+  size_t read_sizeblock = 0;    
+  char* buff = new char[mSizeHeader];
 
   if ( pFile->Read( offset, buff, mSizeHeader ) !=
        static_cast<uint32_t>( mSizeHeader ) )
   {
-    free( buff );
+    delete[] buff;
     mValid = false;
     return mValid;
   }
@@ -140,7 +139,7 @@ HeaderCRC::ReadFromFile( FileIo*& pFile )
   std::string tag = mTag;
 
   if ( strncmp( mTag, msTagName, strlen( msTagName ) ) ) {
-    free( buff );
+    delete[] buff;
     mValid = false;
     return mValid;
   }
@@ -158,7 +157,7 @@ HeaderCRC::ReadFromFile( FileIo*& pFile )
     eos_err( "error=block size read from file does not match block size expected" );
   }
 
-  free( buff );
+  delete[] buff;
   mValid = true;
   return mValid;
 }
@@ -172,7 +171,7 @@ bool
 HeaderCRC::WriteToFile( XrdCl::File*& pFile )
 {
   int offset = 0;
-  char* buff = static_cast< char* >( calloc( mSizeHeader, sizeof( char ) ) );
+  char* buff = new char[mSizeHeader];
 
   memcpy( buff + offset, msTagName, sizeof msTagName );
   offset += sizeof mTag;
@@ -192,7 +191,7 @@ HeaderCRC::WriteToFile( XrdCl::File*& pFile )
     mValid = true;
   }
 
-  free( buff );
+  delete[] buff;
   return mValid;
 }
 
@@ -204,7 +203,7 @@ bool
 HeaderCRC::WriteToFile( FileIo*& pFile )
 {
   int offset = 0;
-  char* buff = static_cast< char* >( calloc( mSizeHeader, sizeof( char ) ) );
+  char* buff = new char[mSizeHeader];
   
   memcpy( buff + offset, msTagName, sizeof msTagName );
   offset += sizeof mTag;
@@ -224,7 +223,7 @@ HeaderCRC::WriteToFile( FileIo*& pFile )
     mValid = true;
   }
 
-  free( buff );
+  delete[] buff;
   return mValid;
 }
 

@@ -71,7 +71,7 @@ struct ReadaheadBlock {
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~ReadaheadBlock() {
+  virtual ~ReadaheadBlock() {
     delete[] buffer;
     delete handler;
   }

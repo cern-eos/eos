@@ -251,7 +251,6 @@ class RaidMetaLayout : public Layout
     std::vector<char*> mDataBlocks;                 ///< vector containing the data in a group
     std::vector<FileIo*> mStripeFiles;              ///< vector containing the file IO layout
     std::vector<HeaderCRC*> mHdrInfo;               ///< headers of the stripe files
-    std::vector<std::string> mStripeUrls;           ///< the urls of the files
     std::vector<AsyncMetaHandler*> mMetaHandlers;   ///< rd/wr handlers for each stripe
     std::map<unsigned int, unsigned int> mapLP;     ///< map of url to stripes
     std::map<unsigned int, unsigned int> mapPL;     ///< map of stripes to url

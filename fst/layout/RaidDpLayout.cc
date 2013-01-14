@@ -200,7 +200,7 @@ RaidDpLayout::OperationXOR( char*  pBlock1,
 
 //------------------------------------------------------------------------------
 // Use simple and double parity to recover corrupted pieces in the curerent
-// group, all errors in the map belonging to the same group
+// group, all errors in the map belong to the same group
 //------------------------------------------------------------------------------
 bool
 RaidDpLayout::RecoverPiecesInGroup( off_t                    offsetInit,

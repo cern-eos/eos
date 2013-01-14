@@ -58,7 +58,6 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
   destfile.erase( 0, pos2 + 1 );
 
   XrdCl::Buffer arg;
-  XrdCl::Buffer* response = 0;
   XrdCl::StatInfo* stat_info = 0;
   XrdCl::URL url( destfilename.c_str() );
 

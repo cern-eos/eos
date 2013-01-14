@@ -58,7 +58,7 @@ class AsyncMetaHandler
     //--------------------------------------------------------------------------
     //! Destructor
     //--------------------------------------------------------------------------
-    ~AsyncMetaHandler();
+    virtual ~AsyncMetaHandler();
 
   
     //--------------------------------------------------------------------------
@@ -68,8 +68,8 @@ class AsyncMetaHandler
     //! @param chunk received chunk response
     //!
     //--------------------------------------------------------------------------
-    void HandleResponse( XrdCl::XRootDStatus* pStatus,
-                         ChunkHandler*        chunk );
+    virtual void HandleResponse( XrdCl::XRootDStatus* pStatus,
+                                 ChunkHandler*        chunk );
 
   
     //--------------------------------------------------------------------------

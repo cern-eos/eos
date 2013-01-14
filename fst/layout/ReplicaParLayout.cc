@@ -206,7 +206,6 @@ ReplicaParLayout::Open( const std::string&  path,
           eos::common::StringConversion::MaskTag( maskUrl, "cap.sym" );
           eos::common::StringConversion::MaskTag( maskUrl, "cap.msg" );
           eos::common::StringConversion::MaskTag( maskUrl, "authz" );
-          eos_info( "Opening Layout Stripe %s\n", maskUrl.c_str() );
           FileIo* file = FileIoPlugin::GetIoObject( eos::common::LayoutId::kXrdCl,
                                                     mOfsFile,
                                                     mSecEntity,

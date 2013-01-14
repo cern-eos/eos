@@ -170,6 +170,7 @@ XrdFstOss::Unlink( const char* path, int opts, XrdOucEnv* ep )
   // Delete also any entries in the oss file <-> blockxs map
   //............................................................................
   DropXs( path, true );
+  
   //............................................................................
   // Unlink the file
   //............................................................................
@@ -494,7 +495,7 @@ XrdFstOss::AddMapping( const std::string& fileName,
 
     //..........................................................................
     // If no. ref 0 then the obj is closed and waiting to be deleted so we can
-    // add the new one, else return old one
+    // add the new one, else return the old one
     //..........................................................................
     if ( pair_value.second->GetTotalRef() == 0 ) {
       delete pair_value.second;

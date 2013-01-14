@@ -94,6 +94,12 @@ SimpleHandler::HandleResponse( XrdCl::XRootDStatus* pStatus,
   mCond.Signal();     //signal
   mCond.UnLock();
 
+  delete pStatus;
+  
+  if ( pResponse ) {
+    delete pResponse;
+  }
+
 }
 
 

@@ -102,7 +102,7 @@ void
 AsyncMetaHandler::HandleResponse( XrdCl::XRootDStatus* pStatus,
                                   ChunkHandler*        chunk )
 {
-  mCond.Lock();
+  mCond.Lock();          // -->
   mNumReceivedResp++;
 
   if ( pStatus->status != XrdCl::stOK )
@@ -115,7 +115,7 @@ AsyncMetaHandler::HandleResponse( XrdCl::XRootDStatus* pStatus,
     mCond.Signal();
   }
 
-  mCond.UnLock();
+  mCond.UnLock();        // <--
 }
 
 
@@ -135,15 +135,15 @@ AsyncMetaHandler::GetErrorsMap()
 bool
 AsyncMetaHandler::WaitOK()
 {
-  mCond.Lock();
+  mCond.Lock();          // -->
 
   if ( mNumReceivedResp == mNumExpectedResp ) {
-    mCond.UnLock();
+    mCond.UnLock();      // <--
     return mState;
   }
 
   mCond.Wait();
-  mCond.UnLock();
+  mCond.UnLock();        // <--
   return mState;
 }
 

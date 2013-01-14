@@ -89,6 +89,12 @@ RaidMetaLayout::~RaidMetaLayout()
     delete meta_handler;
   }
 
+  while ( !mStripeFiles.empty() ) {
+    FileIo* file = mStripeFiles.back();
+    mStripeFiles.pop_back();
+    delete file;
+  }
+
   delete[] mFirstBlock;
   delete[] mLastBlock;
 }
@@ -407,7 +413,7 @@ RaidMetaLayout::OpenPio( std::vector<std::string>&& stripeUrls,
                          const char*                opaque )
     
 {
-  mStripeUrls = stripeUrls;
+  std::vector<std::string> stripe_urls = stripeUrls;
   
   //............................................................................
   // Do some minimal checkups
@@ -452,7 +458,7 @@ RaidMetaLayout::OpenPio( std::vector<std::string>&& stripeUrls,
   //..........................................................................
   // Open stripes
   //..........................................................................
-  for ( unsigned int i = 0; i < mStripeUrls.size(); i++ ) {
+  for ( unsigned int i = 0; i < stripe_urls.size(); i++ ) {
     int ret = -1;
     FileIo* file = FileIoPlugin::GetIoObject( eos::common::LayoutId::kXrdCl );
     XrdOucString openOpaque = opaque;
@@ -462,10 +468,10 @@ RaidMetaLayout::OpenPio( std::vector<std::string>&& stripeUrls,
     openOpaque += "&fst.blocksize=";
     openOpaque += static_cast<int>( mStripeWidth );
    
-    ret = file->Open( mStripeUrls[i], flags_xrdcl, mode_xrdcl, openOpaque.c_str() );
+    ret = file->Open( stripe_urls[i], flags_xrdcl, mode_xrdcl, openOpaque.c_str() );
        
     if ( ret == SFS_ERROR ) {
-      eos_err( "error=failed to open remote stripes", mStripeUrls[i].c_str() );
+      eos_err( "error=failed to open remote stripes", stripe_urls[i].c_str() );
       delete file;
       file = NULL;
     }
@@ -1049,9 +1055,9 @@ RaidMetaLayout::ReadGroup( off_t offsetGroup )
       // would lead to corruptions in the parity information computed!!!
       //........................................................................
       nread = mStripeFiles[physical_id]->Read( offset_local,
-                                                mDataBlocks[MapSmallToBig( i )],
-                                                mStripeWidth,
-                                                mMetaHandlers[physical_id] );
+                                               mDataBlocks[MapSmallToBig( i )],
+                                               mStripeWidth,
+                                               mMetaHandlers[physical_id] );
       
       if ( nread != mStripeWidth ) {
         eos_err( "error=error while reading local data blocks" );
@@ -1332,7 +1338,7 @@ RaidMetaLayout::Close()
         //..........................................................................
         long int num_blocks = ceil( ( mFileSize * 1.0 ) / mStripeWidth );
         size_t size_last_block = mFileSize % mStripeWidth;
-
+	
         for ( unsigned int i = 0; i < mHdrInfo.size(); i++ ) {
           if ( num_blocks != mHdrInfo[i]->GetNoBlocks() ) {
             mHdrInfo[i]->SetNoBlocks( num_blocks );

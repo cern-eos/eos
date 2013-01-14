@@ -74,12 +74,6 @@ VectHandlerType src_handler;
 ///! vector of destination file descriptors or xrd objects
 VectHandlerType dst_handler;
 
-///! vector of asynchronous response handlers for the sources
-std::vector<eos::fst::AsyncMetaHandler*> src_async_resp;
-
-///! vector of asynchronous response handlers for the sources
-std::vector<eos::fst::AsyncMetaHandler*> dst_async_resp;
-
 ///! vector of source host address and path file
 VectLocationType src_location; 
 
@@ -241,13 +235,13 @@ void print_summary_header( VectLocationType&  src,
   XrdOucString xsrc[MAXSRCDST];
   XrdOucString xdst[MAXSRCDST];
 
-  for ( int i = 0; i < nsrc; i++ ) {
+  for ( unsigned int i = 0; i < src.size(); i++ ) {
     xsrc[i] = src[i].first.c_str();
     xsrc[i] += src[i].second.c_str();
     xsrc[i].erase( xsrc[i].rfind( '?' ) );
   }
 
-  for ( int i = 0; i < ndst; i++ ) {
+  for ( unsigned int i = 0; i < dst.size(); i++ ) {
     xdst[i] = dst[i].first.c_str(); 
     xdst[i] += dst[i].second.c_str();
     xdst[i].erase( xdst[i].rfind( '?' ) );
@@ -261,10 +255,10 @@ void print_summary_header( VectLocationType&  src,
   COUT(("[eoscp] #################################################################\n"));
   COUT(("[eoscp] # Date                     : ( %lu ) %s", (unsigned long) rawtime, asctime(timeinfo)));
   COUT(("[eoscp} # auth forced=%s krb5=%s gsi=%s\n", getenv("XrdSecPROTOCOL")?(getenv("XrdSecPROTOCOL")):"<none>", getenv("KRB5CCNAME")?getenv("KRB5CCNAME"):"<none>",getenv("X509_USER_PROXY")?getenv("X509_USER_PROXY"):"<none>"));
-  for (int i = 0; i < nsrc; i++) 
+  for ( unsigned int i = 0; i < src.size(); i++) 
     COUT(("[eoscp] # Source Name [%02d]         : %s\n", i, xsrc[i].c_str()));
 
-  for (int i = 0; i < ndst; i++)
+  for ( unsigned int i = 0; i < dst.size(); i++)
     COUT(("[eoscp] # Destination Name [%02d]    : %s\n", i, xdst[i].c_str()));
 }
 
@@ -285,13 +279,13 @@ void print_summary( VectLocationType&  src,
   XrdOucString xsrc[MAXSRCDST];
   XrdOucString xdst[MAXSRCDST];
 
-  for ( int i = 0; i < nsrc; i++ ) {
+  for ( unsigned int i = 0; i < src.size(); i++ ) {
     xsrc[i] = src[i].first.c_str();
     xsrc[i] += src[i].second.c_str();
     xsrc[i].erase( xsrc[i].rfind( '?' ) );
   }
 
-  for ( int i = 0; i < ndst; i++ ) {
+  for ( unsigned int i = 0; i < dst.size(); i++ ) {
     xdst[i] = dst[i].first.c_str(); 
     xdst[i] += dst[i].second.c_str();
     xdst[i].erase( xdst[i].rfind( '?' ) );
@@ -471,9 +465,10 @@ int main( int argc, char* argv[] )
       }
       
       xsObj = eos::fst::ChecksumPlugins::GetChecksumObject(layoutId);
-      xsObj->Reset();
-      computeXS = true;
-      
+      if ( xsObj ) {
+        xsObj->Reset();
+        computeXS = true;
+      }
       break;
     }
     case 'P':
@@ -579,7 +574,7 @@ int main( int argc, char* argv[] )
   //............................................................................
   // Allocate the buffer used for copy
   //............................................................................
-  buffer = static_cast<char*>( malloc( 2 * buffersize ) );
+  buffer = new char[2 * buffersize];
 
   if ( ( !buffer ) ) {
     fprintf( stderr, "error: cannot allocate buffer of size %d\n", 2 * buffersize );
@@ -1107,7 +1102,6 @@ int main( int argc, char* argv[] )
           }
 
           src_handler.push_back( std::make_pair( 0, file ) );
-          src_async_resp.push_back( new eos::fst::AsyncMetaHandler() );
         }
         break;
 
@@ -1297,7 +1291,6 @@ int main( int argc, char* argv[] )
           }
           
           dst_handler.push_back( std::make_pair( 0, file ) );
-          dst_async_resp.push_back( new eos::fst::AsyncMetaHandler() );
         }
         break;
         
@@ -1535,15 +1528,6 @@ int main( int argc, char* argv[] )
               exit( -EIO );
             }
 
-            /*
-            // WRITING IN ASYNC MODE
-            wr_handler = dst_async_resp[i]->Register( stopwritebyte, nread, true );
-            status = dst_handler[i].second->Write( stopwritebyte,
-                                                   nread,
-                                                   ptr_buffer,
-                                                   wr_handler);
-            */
-
             nwrite = nread;
             
             clock_gettime(CLOCK_REALTIME, &end );
@@ -1573,7 +1557,7 @@ int main( int argc, char* argv[] )
   }   // end while(1)
 
 
-  if ( computeXS ) {
+  if ( computeXS && xsObj ) {
     xsObj->Finalize();
   }
 
@@ -1594,6 +1578,10 @@ int main( int argc, char* argv[] )
     print_summary( src_location, dst_location, totalbytes );
   }
 
+  if ( computeXS && xsObj ) {
+    delete xsObj;
+  }    
+
   //............................................................................
   // Close all files
   //............................................................................
@@ -1612,6 +1600,7 @@ int main( int argc, char* argv[] )
 
       case XRD_ACCESS:
         status = src_handler[i].second->Close();
+        delete src_handler[i].second;
         break;
 
       case CONSOLE_ACCESS:
@@ -1634,6 +1623,7 @@ int main( int argc, char* argv[] )
 
       case XRD_ACCESS:
         status = dst_handler[i].second->Close();
+        delete dst_handler[i].second;
         break;
 
       case CONSOLE_ACCESS:
@@ -1691,5 +1681,9 @@ int main( int argc, char* argv[] )
 
   fprintf( stderr, "Total read wait time is: %f miliseconds. \n", read_wait );
   fprintf( stderr, "Total write wait time is: %f miliseconds. \n", write_wait );
+
+  // Free memory
+  delete[] buffer;
+  
   return 0;
 }

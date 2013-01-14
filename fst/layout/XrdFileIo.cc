@@ -43,7 +43,8 @@ XrdFileIo::XrdFileIo( XrdFstOfsFile*      file,
   FileIo( file, client, error ),
   mIndex( 0 ),
   mDoReadahead( false ),
-  mBlocksize( ReadaheadBlock::sDefaultBlocksize )
+  mBlocksize( ReadaheadBlock::sDefaultBlocksize ),
+  mXrdFile( NULL )
 {
   // empty
 }
@@ -56,8 +57,14 @@ XrdFileIo::~XrdFileIo()
 {
   if ( mDoReadahead ) {
     while ( !mQueueBlocks.empty() ) {
-      delete mQueueBlocks.front();
+      ReadaheadBlock* ptr_readblock = mQueueBlocks.front();
       mQueueBlocks.pop();
+      delete ptr_readblock;
+    }
+
+    while ( !mMapBlocks.empty() ) {
+      delete mMapBlocks.begin()->second;
+      mMapBlocks.erase( mMapBlocks.begin() );
     }
   }
 
@@ -393,8 +400,8 @@ XrdFileIo::Close()
       SimpleHandler* shandler = mMapBlocks.begin()->second->handler;
       if ( shandler->HasRequest() ) {
         tmp_resp = shandler->WaitOK();
-	delete mMapBlocks.begin()->second;
       }
+      delete mMapBlocks.begin()->second;
       mMapBlocks.erase( mMapBlocks.begin() );
     }
   }
@@ -437,7 +444,7 @@ void
 XrdFileIo::PrefetchBlock( int64_t offset, bool isWrite )
 {
   XrdCl::XRootDStatus status;
-  eos_debug( "Try to prefetch with end offset: %lli.", offset );
+  eos_debug( "Try to prefetch with offset: %lli.", offset );
   ReadaheadBlock* block = NULL;
 
   if ( !mQueueBlocks.empty() ) {

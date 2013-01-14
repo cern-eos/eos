@@ -645,8 +645,9 @@ XrdMqClient::XrdMqClient( const char* clientid,
     }
   } else {
     // the default is to create the client id as /xmesssage/<domain>/<host>/
-    XrdOucString FullName = XrdSysDNS::getHostName();
     int ppos = 0;
+    char* cfull_name = XrdSysDNS::getHostName();
+    XrdOucString FullName = cfull_name;
     XrdOucString HostName = FullName;
     XrdOucString Domain   = FullName;
 
@@ -661,6 +662,7 @@ XrdMqClient::XrdMqClient( const char* clientid,
     kClientId += HostName;
     kClientId += "/";
     kClientId += Domain;
+    free( cfull_name );
   }
 
   kInternalBufferPosition = 0;
