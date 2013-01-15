@@ -103,6 +103,27 @@ SpaceQuota::SpaceQuota(const char* name) {
 /*----------------------------------------------------------------------------*/
 SpaceQuota::~SpaceQuota() {}
 
+/*----------------------------------------------------------------------------*/
+bool
+SpaceQuota::UpdateQuotaNodeAddress()
+{
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  eos::ContainerMD *quotadir=0;
+
+  try {
+    quotadir = gOFS->eosView->getContainer(SpaceName.c_str());
+    try {
+      QuotaNode = gOFS->eosView->getQuotaNode(quotadir, false);
+    } catch( eos::MDException &e ) {
+      QuotaNode = 0;
+      return false;
+    }
+  } catch( eos::MDException &e ) {
+    quotadir = 0;
+    return false;
+  }
+  return true;
+}
 
 /*----------------------------------------------------------------------------*/
 void
@@ -1349,6 +1370,11 @@ void
 Quota::PrintOut(const char* space, XrdOucString &output, long uid_sel, long gid_sel, bool monitoring, bool translateids)
 {
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+  {
+    // we add this to have all quota nodes visible even if they are not in the configuration file
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    LoadNodes();
+  }
   eos::common::RWMutexReadLock lock(gQuotaMutex);
   output="";
   XrdOucString spacenames="";
@@ -1632,7 +1658,6 @@ Quota::MapSizeCB(const eos::FileMD *file)
 /*----------------------------------------------------------------------------*/
 void
 Quota::LoadNodes() 
-
 { 
   // this routine has to be called with eosViewMutex locked
   // iterate over the defined quota nodes and make them visible as SpaceQuota
@@ -1642,11 +1667,14 @@ Quota::LoadNodes()
     eos::ContainerMD::id_t id = it->first;
     eos::ContainerMD* container = gOFS->eosDirectoryService->getContainerMD(id);
     std::string quotapath = gOFS->eosView->getUri( container);
-    SpaceQuota* spacequota = Quota::GetSpaceQuota(quotapath.c_str(), false);
-    if (spacequota) {
-      eos_static_notice("Created space for quota node: %s", quotapath.c_str());
-    } else {
-      eos_static_err("Failed to create space for quota node: %s\n", quotapath.c_str());
+    SpaceQuota* spacequota = Quota::GetSpaceQuota(quotapath.c_str(), true);
+    if (!spacequota) {
+      spacequota = Quota::GetSpaceQuota(quotapath.c_str(), false);
+      if (spacequota) {
+	eos_static_notice("Created space for quota node: %s", quotapath.c_str());
+      } else {
+	eos_static_err("Failed to create space for quota node: %s\n", quotapath.c_str());
+      }
     }
   }
 }
@@ -1681,7 +1709,7 @@ Quota::NodeToSpaceQuota(const char* name, bool lock)
 
   if (lock) 
     gOFS->eosViewRWMutex.LockRead();
-  if (spacequota && spacequota->GetQuotaNode()) {
+  if (spacequota && spacequota->UpdateQuotaNodeAddress() && spacequota->GetQuotaNode()) {
     // insert current state of a single quota node into aSpaceQuota
     eos::QuotaNode::UserMap::const_iterator itu;
     eos::QuotaNode::GroupMap::const_iterator itg;

@@ -178,6 +178,8 @@ public:
     if (tag == kAllGroupLogicalBytesTarget) { return "aval logib";}
     return "---- -----";
   }
+  
+  bool UpdateQuotaNodeAddress();  // updates the valid address of a quota node from the filesystem view
 
   eos::QuotaNode* GetQuotaNode() { return QuotaNode; }
   
