@@ -27,6 +27,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Quota.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "common/Statfs.hh"
 
 /*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNet.hh"
@@ -68,6 +69,11 @@ Master::Master()
   fCompactingStart  = 0;
   fCompactingInterval = 0;
   fCompactingRatio = 0;
+  fDevNull = 0;
+  fDevNullLogger = 0;
+  fDevNullErr = 0;
+  fCheckRemote = true;
+  fFileNamespaceInode = fDirNamespaceInode = 0;
 }
 
 
@@ -83,7 +89,7 @@ Master::HostCheck(const char* hostname, int port, int timeout)
   }
 
   XrdNetPeer peer;
-  XrdNet net(XrdMgmOfs::eDest);
+  XrdNet net(fDevNullErr);
   if (net.Connect(peer, lHostName.c_str(), port,0,timeout)) {
     // send a handshake to avoid handshake error messages on server side
     unsigned int vshake[5];
@@ -124,6 +130,12 @@ Master::Init()
     return true;
   }
 
+  // open a /dev/null looger/error object
+  fDevNull = open("/dev/null",0);
+
+  fDevNullLogger = new XrdSysLogger(fDevNull);
+  fDevNullErr = new XrdSysError(fDevNullLogger);
+
   XrdOucString lMaster1MQ;
   XrdOucString lMaster2MQ;
   
@@ -163,16 +175,21 @@ Master::Init()
     fMasterHost = fRemoteHost;
   }
 
-  if (fMasterHost != fRemoteHost) {
-    // start the heartbeat thread if a machine pair is configure
-    XrdSysThread::Run(&fThread, Master::StaticHeartBeat, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "Master HeartBeat Thread");
-  }
 
+  if (fThisHost != fRemoteHost) {
+    fCheckRemote = true;
+  } else {
+    fCheckRemote = false;
+  }
+  
+  // start the heartbeat thread anyway
+  XrdSysThread::Run(&fThread, Master::StaticSupervisor, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "Master Supervisor Thread");
+  
   // ---------------------------------------------------------------
   //! start the online compacting background thread
   // ---------------------------------------------------------------
   XrdSysThread::Run(&fThread, Master::StaticOnlineCompacting, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "Master OnlineCompacting Thread");
-
+  
   // get sync up if it is not up
   int rc = system("service eos status sync || service eos start sync");
   if (WEXITSTATUS(rc)) {
@@ -183,53 +200,63 @@ Master::Init()
 }  
 
 bool 
-Master::EnableHeartBeat()
+Master::EnableRemoteCheck()
 {
   //----------------------------------------------------------------
-  //! start's the heart beat thread if not already running
+  //! enable the heart beat thread to do remote checks
   //----------------------------------------------------------------
-  XrdSysTimer sleeper;
-  sleeper.Snooze(1);
-
-  if (!fThread) {
-    XrdSysThread::Run(&fThread, Master::StaticHeartBeat, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "Master HeartBeat Thread");
+  if (!fCheckRemote) {
+    MasterLog(eos_info("remotecheck=enabled"));
+    fCheckRemote = true;
     return true;
   }
+  
   return false;
 }
 
 bool 
-Master::DisableHeartBeat()
+Master::DisableRemoteCheck()
 {
   //----------------------------------------------------------------
-  //! stop's the heart beat thread if running
+  //! stop's the heart beat thread to do remote checks
   //----------------------------------------------------------------
-
-  if (fThread) {
-    XrdSysThread::Cancel(fThread);
-    XrdSysThread::Join(fThread,0);
-    fThread = 0;
+  
+  if (fCheckRemote) {
+    MasterLog(eos_info("remotecheck=disabled"));
+    fCheckRemote = false;
     return true;
-  }
+  }     
+  
   return false;
 }
 
 /* ------------------------------------------------------------------------- */
 void* 
-Master::StaticHeartBeat(void* arg)
+Master::StaticSupervisor(void* arg)
 {
   //----------------------------------------------------------------
-  //! static thread startup function calling HeartBeat
+  //! static thread startup function calling Supervisor
   //----------------------------------------------------------------
-  return reinterpret_cast<Master*>(arg)->HeartBeat();
+  return reinterpret_cast<Master*>(arg)->Supervisor();
 }
 
 /* ------------------------------------------------------------------------- */
 void*
-Master::HeartBeat()
+Master::Supervisor()
 {
+  // ------------------------------------------------------------------------------------
+  // This thread run's in an internal loop with 1Hz and checks
+  // a) if enabled a potential remote master/slave for failover
+  // b) the fill state of the local disk to avoid running out of disk space
+  // It then configures redirection/stalling etc. corresponding to the present situation
+  // ------------------------------------------------------------------------------------
+  
   std::string remoteMgmUrlString = "root://"; remoteMgmUrlString += fRemoteHost.c_str();
   std::string remoteMqUrlString  = "root://"; remoteMqUrlString  += fRemoteMq.c_str();
+  
+  bool lDiskFull = false;
+  bool pDiskFull = false;
+  std::string pStallSetting = "";
 
   int dpos = remoteMqUrlString.find(":",7);
   if (dpos != STR_NPOS) {
@@ -264,142 +291,193 @@ Master::HeartBeat()
   while (1) {
     XrdSysThread::SetCancelOff();
 
-    // - new XrdCl - 
-#ifdef NEWXRDCL
 
-    // ---------------------------------------
-    // ---- CAREFUL this is incomplete now ---
-    // ---------------------------------------
-
-    // ping the two guys e.g. MGM & MQ
-    XrdCl::XRootDStatus mgmStatus = FsMgm.Ping(1);
-    XrdCl::XRootDStatus mqStatus  = FsMgm.Ping(1);
-    
-    if (mgmStatus.IsOK()) {
-      fRemoteMasterOk = true;
-    } else {
-      fRemoteMasterOk = false;
-    }
-    
-    if (mqStatus.IsOK()) {
-      fRemoteMqOk = true;
-      CreateStatusFile(EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE);
-    } else {
-      fRemoteMqOk = false;
-      RemoveStatusFile(EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE);
-    }
-    // need to add the stat for the master proc entry
-#else
-
-    XrdClientAdmin* MgmAdmin = new XrdClientAdmin(remoteMgmUrlString.c_str());
-    XrdClientAdmin* MqAdmin  = new XrdClientAdmin(remoteMqUrlString.c_str());
-    
-    bool remoteMgmUp=false;
-    bool remoteMqUp=false;
-
-    if (HostCheck(fRemoteHost.c_str())) {
-      remoteMgmUp = true;
-    }
-
-    if (HostCheck(fRemoteMq.c_str(),1097)) {
-      remoteMqUp = true;
-    }
-
-    // - old XrdClient - 
-    // is there a difference? ;-)
-    if (remoteMqUp) {
-      // check the MQ service
-      MqAdmin->Connect();
-      MqAdmin->GetClientConn()->ClearLastServerError();
-      MqAdmin->GetClientConn()->SetOpTimeLimit(2);
-      long id=0;
-      long long size = 0;
-      long flags=0;
-      long modtime =0;
+    if (fCheckRemote) {
+      // ----------------------------------------
+      // check the remote machine for it's status
+      // ----------------------------------------
       
-      if (MqAdmin->Stat("/eos/",id, size, flags,modtime)) {
+      // - new XrdCl - 
+#ifdef NEWXRDCL
+      
+      // ---------------------------------------
+      // ---- CAREFUL this is incomplete now ---
+      // ---------------------------------------
+      
+      // ping the two guys e.g. MGM & MQ
+      XrdCl::XRootDStatus mgmStatus = FsMgm.Ping(1);
+      XrdCl::XRootDStatus mqStatus  = FsMgm.Ping(1);
+      
+      if (mgmStatus.IsOK()) {
+	fRemoteMasterOk = true;
+      } else {
+	fRemoteMasterOk = false;
+      }
+      
+      if (mqStatus.IsOK()) {
 	fRemoteMqOk = true;
 	CreateStatusFile(EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE);
       } else {
 	fRemoteMqOk = false;
 	RemoveStatusFile(EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE);
       }
-    } else {
-      fRemoteMqOk = false;
-      RemoveStatusFile(EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE);
-    }
-
-    if (remoteMgmUp) {
-      // check the MGM service
-      MgmAdmin->Connect();
-      MgmAdmin->GetClientConn()->ClearLastServerError();
-      MgmAdmin->GetClientConn()->SetOpTimeLimit(2);
-      long id=0;
-      long long size = 0;
-      long flags=0;
-      long modtime =0;
-
-      // --------------------------------------------
-      // this really sucks ...
-      // --------------------------------------------
-      int olddbg=DebugLevel();
-      DebugSetLevel(-1);
-      // --------------------------------------------
-      if (MgmAdmin->Stat("/",id, size, flags,modtime)) {
-	if (gOFS->MgmProcMasterPath.c_str()) {
-	  
-	  // check if this machine is running in master mode
-	  if (MgmAdmin->Stat(gOFS->MgmProcMasterPath.c_str(),id, size, flags,modtime)) {
-	    fRemoteMasterRW = true;
-	  } else {
-	    fRemoteMasterRW = false;
-	  }
+      // need to add the stat for the master proc entry
+#else
+      
+      XrdClientAdmin* MgmAdmin = new XrdClientAdmin(remoteMgmUrlString.c_str());
+      XrdClientAdmin* MqAdmin  = new XrdClientAdmin(remoteMqUrlString.c_str());
+      
+      bool remoteMgmUp=false;
+      bool remoteMqUp=false;
+      
+      if (HostCheck(fRemoteHost.c_str())) {
+	remoteMgmUp = true;
+      }
+      
+      if (HostCheck(fRemoteMq.c_str(),1097)) {
+	remoteMqUp = true;
+      }
+      
+      // - old XrdClient - 
+      // is there a difference? ;-)
+      if (remoteMqUp) {
+	// check the MQ service
+	MqAdmin->Connect();
+	MqAdmin->GetClientConn()->ClearLastServerError();
+	MqAdmin->GetClientConn()->SetOpTimeLimit(2);
+	long id=0;
+	long long size = 0;
+	long flags=0;
+	long modtime =0;
+	
+	if (MqAdmin->Stat("/eos/",id, size, flags,modtime)) {
+	  fRemoteMqOk = true;
+	  CreateStatusFile(EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE);
+	} else {
+	  fRemoteMqOk = false;
+	  RemoveStatusFile(EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE);
 	}
+      } else {
+	fRemoteMqOk = false;
+	RemoveStatusFile(EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE);
+      }
+      
+      if (remoteMgmUp) {
+	// check the MGM service
+	MgmAdmin->Connect();
+	MgmAdmin->GetClientConn()->ClearLastServerError();
+	MgmAdmin->GetClientConn()->SetOpTimeLimit(2);
+	long id=0;
+	long long size = 0;
+	long flags=0;
+	long modtime =0;
+	
+	// --------------------------------------------
+	// this really sucks ...
+	// --------------------------------------------
+	int olddbg=DebugLevel();
+	DebugSetLevel(-1);
+	// --------------------------------------------
+	if (MgmAdmin->Stat("/",id, size, flags,modtime)) {
+	  if (gOFS->MgmProcMasterPath.c_str()) {
+	    
+	    // check if this machine is running in master mode
+	    if (MgmAdmin->Stat(gOFS->MgmProcMasterPath.c_str(),id, size, flags,modtime)) {
+	      fRemoteMasterRW = true;
+	    } else {
+	      fRemoteMasterRW = false;
+	    }
+	  }
 	fRemoteMasterOk = true;
+	} else {
+	  fRemoteMasterOk = false;
+	  fRemoteMasterRW = false;
+	}
+	DebugSetLevel(olddbg);
       } else {
 	fRemoteMasterOk = false;
 	fRemoteMasterRW = false;
       }
-      DebugSetLevel(olddbg);
-    } else {
-      fRemoteMasterOk = false;
-      fRemoteMasterRW = false;
-    }
-    delete MgmAdmin;
-    delete MqAdmin;
-
+      delete MgmAdmin;
+      delete MqAdmin;
+      
 #endif
-    
-    {      
-      eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
-      if (!IsMaster() ) {
-	if (fRemoteMasterOk && fRemoteMasterRW) {
-	  // set the redirect for writes to the remote master
-	  Access::gRedirectionRules[std::string("w:*")] = fRemoteHost.c_str();
-	  // set the redirect for ENOENT to the remote master
-	  Access::gRedirectionRules[std::string("ENOENT:*")] = fRemoteHost.c_str();
-	  // remove the stall 
-	  Access::gStallRules.erase(std::string("w:*"));
+
+      if (!lDiskFull) {
+	eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
+	if (!IsMaster() ) {
+	  if (fRemoteMasterOk && fRemoteMasterRW) {
+	    // set the redirect for writes to the remote master
+	    Access::gRedirectionRules[std::string("w:*")] = fRemoteHost.c_str();
+	    // set the redirect for ENOENT to the remote master
+	    Access::gRedirectionRules[std::string("ENOENT:*")] = fRemoteHost.c_str();
+	    // remove the stall 
+	    Access::gStallRules.erase(std::string("w:*"));
+	  } else {
+	    // remove the redirect for writes and put a stall for writes
+	    Access::gRedirectionRules.erase(std::string("w:*"));
+	    Access::gStallRules[std::string("w:*")] = "60";
+	    Access::gRedirectionRules.erase(std::string("ENOENT:*"));
+	  }
 	} else {
-	  // remove the redirect for writes and put a stall for writes
-	  Access::gRedirectionRules.erase(std::string("w:*"));
-	  Access::gStallRules[std::string("w:*")] = "60";
-	  Access::gRedirectionRules.erase(std::string("ENOENT:*"));
-	}
-      } else {
-	// remove any redirect or stall in this case
-	if (Access::gRedirectionRules.count(std::string("w:*"))) {
-	  Access::gRedirectionRules.erase(std::string("w:*"));
-	}
-	if (Access::gStallRules.count(std::string("w:*"))) {
-	  Access::gStallRules.erase(std::string("w:*"));
-	}
-	if (Access::gStallRules.count(std::string("ENOENT:*"))) {
-	  Access::gRedirectionRules.erase(std::string("ENOENT:*"));
+	  // remove any redirect or stall in this case
+	  if (Access::gRedirectionRules.count(std::string("w:*"))) {
+	    Access::gRedirectionRules.erase(std::string("w:*"));
+	  }
+	  if (Access::gStallRules.count(std::string("w:*"))) {
+	    Access::gStallRules.erase(std::string("w:*"));
+	  }
+	  if (Access::gStallRules.count(std::string("ENOENT:*"))) {
+	    Access::gRedirectionRules.erase(std::string("ENOENT:*"));
+	  }
 	}
       }
     }
-    
+
+    // --------------------------------------------------------------------------
+    // check if the local filesystem has enough space on the namespace partition
+    // --------------------------------------------------------------------------
+    // try to statfs the filesystem holding the namespace
+    eos::common::Statfs* statfs = eos::common::Statfs::DoStatfs(gOFS->MgmMetaLogDir.c_str());
+
+    XrdOucString sizestring;
+
+    if (!statfs) {
+      MasterLog(eos_err("path=%s statfs=failed", gOFS->MgmMetaLogDir.c_str()));
+      // uups ... statfs failed
+      lDiskFull = true;
+    } else {
+      // we stop if we get to < 100 MB free
+      if ( (statfs->GetStatfs()->f_bfree*statfs->GetStatfs()->f_bsize) < (100*1024*1024) ) {
+	lDiskFull = true;
+      } else {
+	lDiskFull = false;
+      }
+      eos::common::StringConversion::GetReadableSizeString(sizestring, (statfs->GetStatfs()->f_bfree*statfs->GetStatfs()->f_bsize),"B");
+    }
+
+    if (lDiskFull != pDiskFull) {
+      // this is a state change and we have to configure the redirection settings
+      if (lDiskFull) {
+	// the disk is full, we stall every write
+	eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
+	pStallSetting = Access::gStallRules[std::string("w:*")];
+	Access::gStallRules[std::string("w:*")] = "60";
+	MasterLog(eos_warning("status=\"disk space warning - stalling\"  path=%s freebytes=%s", gOFS->MgmMetaLogDir.c_str(), sizestring.c_str() ));
+      } else {
+	MasterLog(eos_notice("status=\"disk space ok - removed stall\" path=%s freebyte=%s", gOFS->MgmMetaLogDir.c_str(), sizestring.c_str() ));
+	if (pStallSetting.length()) {
+	  // put back the original stall setting
+	  Access::gStallRules[std::string("w:*")] = pStallSetting;
+	} else {
+	  // remote the stall setting
+	  Access::gStallRules.erase(std::string("w:*"));
+	}
+	pStallSetting = "";
+      }
+      pDiskFull = lDiskFull;
+    }
+
     XrdSysThread::SetCancelOn();
 
     XrdSysTimer sleeper;
@@ -493,6 +571,7 @@ Master::WaitCompactingFinished()
 bool 
 Master::ScheduleOnlineCompacting(time_t starttime, time_t repetitioninterval)
 {
+  MasterLog(eos_static_info("msg=\"scheduling online compacting\" starttime=%u interval=%u",starttime, repetitioninterval));
   fCompactingStart = starttime;
   fCompactingInterval = repetitioninterval;
   return true;
@@ -554,6 +633,11 @@ Master::Compacting()
       // --------------------------------------------------------
       // run the online compacting procedure
       // --------------------------------------------------------
+
+      {
+	XrdSysMutexHelper lock(gOFS->InitializationMutex);
+	gOFS->Initialized=XrdMgmOfs::kCompacting;
+      }
       eos_notice("msg=\"starting online compactificiation\"");
 
       time_t now = time(NULL);
@@ -601,6 +685,13 @@ Master::Compacting()
 	  eos_notice("msg=\"rescheduling online compactificiation\" interval=%u", (unsigned int)fCompactingInterval);
 	  XrdSysMutexHelper cLock(fCompactingMutex);
 	  fCompactingStart = time(NULL) + fCompactingInterval;
+	} else {
+	  fCompactingStart = 0;
+	}
+
+	if (fRemoteMasterOk) {
+	  // if we have a remote master we have to signal it to bounce to us
+	  SignalRemoteBounceToMaster();
 	}
 	
 	if (::rename(gOFS->MgmNsFileChangeLogFile.c_str(), archivefile.c_str())) {
@@ -629,19 +720,57 @@ Master::Compacting()
       }
 
       XrdSysTimer sleeper;
-      sleeper.Wait(30000);
+      sleeper.Wait(1000);
 
       if (compacted) {
-	MasterLog(eos_info("msg=\"compact done\""));
+	MasterLog(eos_info("msg=\"compact done\" elapsed=%lu", time(NULL) - now));
+
+	if (fRemoteMasterOk) {
+	  // if we have a remote master we have to signal it to bounce to us
+	  SignalRemoteReload();
+	}      
+	
+	// ----------------------------------------------------------------------
+	// re-configure the changelog path from the .oc to the original filenames
+	// - if we don't do that we cannot do a transition to RO-master state
+	// ----------------------------------------------------------------------
+	std::map<std::string, std::string> fileSettings;
+	std::map<std::string, std::string> contSettings;
+
+	contSettings["changelog_path"] = gOFS->MgmNsDirChangeLogFile.c_str();
+	fileSettings["changelog_path"] = gOFS->MgmNsFileChangeLogFile.c_str();
+	if (!IsMaster()) {
+	  contSettings["slave_mode"]       = "true";
+	  contSettings["poll_interval_us"] = "1000";
+	  fileSettings["slave_mode"]       = "true";
+	  fileSettings["poll_interval_us"] = "1000";
+	}
+
+	try {
+	  gOFS->eosFileService->configure( fileSettings );
+	  gOFS->eosDirectoryService->configure( contSettings );
+	} catch ( eos::MDException &e ) {
+	  errno = e.getErrno();
+	  MasterLog(eos_crit("reconfiguration returned ec=%d %s", e.getErrno(),e.getMessage().str().c_str()));
+	  exit(-1);
+	}
       } else {
 	MasterLog(eos_crit("failed online compactification"));
 	exit(-1);
       }
+      
+      {
+	// set back from kCompacting to kBooted
+	XrdSysMutexHelper lock(gOFS->InitializationMutex);
+	gOFS->Initialized=XrdMgmOfs::kBooted;
+      }
+      
       {
 	// set to not compacting
 	XrdSysMutexHelper cLock(fCompactingMutex);
 	fCompactingState = kIsNotCompacting;
       }
+    
     }
 
     // --------------------------------------------------------
@@ -681,6 +810,7 @@ Master::PrintOutCompacting(XrdOucString &out)
 	out += " waitstart=0";
       }
     }
+    out += " interval="; out += (int) fCompactingInterval;
   }
   char cfratio[256];
   snprintf(cfratio,sizeof(cfratio)-1,"%.01f",fCompactingRatio);
@@ -725,9 +855,9 @@ Master::PrintOut(XrdOucString &out)
     if (fRemoteMasterOk) {
       out += " mgm:"; out += fRemoteHost; out += "=ok";
       if (fRemoteMasterRW) {
-	out += " mgm:mode=rw-master";
+	out += " mgm:mode=master-rw";
       } else {
-	out += " mgm:mode=ro-slave";
+	out += " mgm:mode=slave-ro";
       }
     } else {
       out += " mgm:"; out += fRemoteHost; out += "=down";
@@ -1004,6 +1134,10 @@ Master::Slave2Master()
   }
   
   if (syncok) {
+    // ---------------------------------------
+    // TODO: adapt for the new client      ---
+    // ---------------------------------------
+    
     XrdClientAdmin* SyncAdmin = new XrdClientAdmin(remoteSyncUrlString.c_str());
     if (SyncAdmin) {
       SyncAdmin->Connect();
@@ -1066,8 +1200,8 @@ Master::Slave2Master()
 
   try {
     MasterLog(eos_info("msg=\"invoking slave=>master transition\""));
-    gOFS->eosDirectoryService->slave2master(contSettings);
-    gOFS->eosFileService->slave2master(fileSettings);
+    gOFS->eosDirectoryService->slave2Master(contSettings);
+    gOFS->eosFileService->slave2Master(fileSettings);
   } catch ( eos::MDException &e ) {
     errno = e.getErrno();
     MasterLog(eos_crit("slave=>master transition returned ec=%d %s", e.getErrno(),e.getMessage().str().c_str()));
@@ -1234,6 +1368,18 @@ Master::~Master()
     XrdSysThread::Join(fCompactingThread,0);
     fCompactingThread = 0;
   }
+  if (fDevNull) {
+    close(fDevNull);
+    fDevNull = 0;
+  }
+  if (fDevNullLogger) {
+    delete fDevNullLogger;
+    fDevNullLogger = 0;
+  }
+  if (fDevNullErr) {
+    delete fDevNullErr;
+    fDevNullErr = 0;
+  }
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1315,7 +1461,7 @@ Master::BootNamespace()
       gOFS->eosDirectoryService->setSlaveLock(&fNsLock);
     }
 
-    gOFS->eosView->configure ( settings );
+     gOFS->eosView->configure ( settings );
     
     MasterLog(eos_notice("%s",(char*)"eos directory view configure started"));
 
@@ -1342,6 +1488,387 @@ Master::BootNamespace()
     fRunningState = kIsRunningMaster;
     MasterLog(eos_notice("running in master mode"));
   }
+  return true;
+}
+
+/* ------------------------------------------------------------------------- */
+void 
+Master::SignalRemoteBounceToMaster() 
+{
+  //------------------------------------------------------------------------
+  // Signal the remote master to bounce all requests to us
+  //------------------------------------------------------------------------
+
+  std::string remoteMgmUrlString = "root://"; remoteMgmUrlString += fRemoteHost.c_str(); remoteMgmUrlString += ":1094"; remoteMgmUrlString += "//dummy";
+  std::string remoteMgmHostPort =  fRemoteHost.c_str(); remoteMgmHostPort += ":1094";
+
+  // --------------------------------------------------
+  // TODO: add signals for remote slave(-only) machiens
+  // --------------------------------------------------
+  
+  bool mgmok=false;
+  
+  if (HostCheck(fRemoteHost.c_str())) {
+    MasterLog(eos_info("remote-mgm host=%s:1094 is reachable", fRemoteHost.c_str()));
+    mgmok = true;
+  } else {
+    MasterLog(eos_info("remote-mgm host=%s:1094 is down",fRemoteHost.c_str()));
+  }
+  
+  if (mgmok) {
+    char result[8192]; result[0]=0;
+    int  result_size=8192;
+
+    XrdOucString signalbounce="/?mgm.pcmd=mastersignalbounce";
+
+    // ---------------------------------------
+    // TODO: adapt for the new client      ---
+    // ---------------------------------------
+    
+    XrdClientAdmin* MgmAdmin = new XrdClientAdmin(remoteMgmUrlString.c_str());
+    if (MgmAdmin) {
+      MgmAdmin->Connect();
+      MgmAdmin->GetClientConn()->ClearLastServerError();
+      MgmAdmin->GetClientConn()->SetOpTimeLimit(60);
+
+      MgmAdmin->Query(kXR_Qopaquf,
+	       (kXR_char *) signalbounce.c_str(),
+	       (kXR_char *) result, result_size);
+
+      if (!MgmAdmin->LastServerResp()) {
+	MasterLog(eos_warning("failed to signal remote redirect to %s", remoteMgmUrlString.c_str()));
+      }
+      switch (MgmAdmin->LastServerResp()->status) {
+      case kXR_ok:
+	MasterLog(eos_info("msg=\"signalled successfully remote master to redirect\""));
+	break;
+      case kXR_error:
+	MasterLog(eos_warning("failed to signal remote redirect to %s", remoteMgmUrlString.c_str()));
+	break;
+	
+      default:
+	MasterLog(eos_warning("failed to signal remote redirect to %s", remoteMgmUrlString.c_str()));
+	break;
+      }
+      delete MgmAdmin;
+    }
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+void
+Master::SignalRemoteReload()
+{
+  //------------------------------------------------------------------------
+  // Signal the remote master to reload its namespace
+  //------------------------------------------------------------------------
+
+  std::string remoteMgmUrlString = "root://"; remoteMgmUrlString += fRemoteHost.c_str(); remoteMgmUrlString += ":1094"; remoteMgmUrlString += "//dummy";
+  std::string remoteMgmHostPort =  fRemoteHost.c_str(); remoteMgmHostPort += ":1094";
+
+  // --------------------------------------------------
+  // TODO: add signals for remote slave(-only) machiens
+  // --------------------------------------------------
+  
+  bool mgmok=false;
+  
+  if (HostCheck(fRemoteHost.c_str())) {
+    MasterLog(eos_info("remote-mgm host=%s:1094 is reachable", fRemoteHost.c_str()));
+    mgmok = true;
+  } else {
+    MasterLog(eos_info("remote-mgm host=%s:1094 is down",fRemoteHost.c_str()));
+  }
+  
+  if (mgmok) {
+    char result[8192]; result[0]=0;
+    int  result_size=8192;
+
+    XrdOucString signalreload="/?mgm.pcmd=mastersignalreload";
+
+    // ---------------------------------------
+    // TODO: adapt for the new client      ---
+    // ---------------------------------------
+    
+    XrdClientAdmin* MgmAdmin = new XrdClientAdmin(remoteMgmUrlString.c_str());
+    if (MgmAdmin) {
+      MgmAdmin->Connect();
+      MgmAdmin->GetClientConn()->ClearLastServerError();
+      MgmAdmin->GetClientConn()->SetOpTimeLimit(60);
+
+      MgmAdmin->Query(kXR_Qopaquf,
+	       (kXR_char *) signalreload.c_str(),
+	       (kXR_char *) result, result_size);
+
+      if (!MgmAdmin->LastServerResp()) {
+	MasterLog(eos_warning("failed to signal remote redirect to %s", remoteMgmUrlString.c_str()));
+      }
+      switch (MgmAdmin->LastServerResp()->status) {
+      case kXR_ok:
+	MasterLog(eos_info("msg=\"signalled remote master to reload\""));
+	break;
+      case kXR_error:
+	MasterLog(eos_warning("failed to signal remote redirect to %s", remoteMgmUrlString.c_str()));
+	break;
+	
+      default:
+	MasterLog(eos_warning("failed to signal remote redirect to %s", remoteMgmUrlString.c_str()));
+	break;
+      }
+      delete MgmAdmin;
+    }
+  }
+
+}
+
+/* ------------------------------------------------------------------------- */
+void
+Master::TagNamespaceInodes()
+{
+  struct stat statf;
+  struct stat statd;
+
+  MasterLog(eos_info("msg=\"tag namespace inodes\""));
+  if ( (!::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &statf)) && (!::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &statd)) ) {
+    fFileNamespaceInode = statf.st_ino;
+    fDirNamespaceInode  = statd.st_ino;
+  } else {
+    MasterLog(eos_warning("stat of namespace files failed with errno=%d", errno));
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+bool 
+Master::WaitNamespaceFilesInSync(unsigned int timeout)
+{
+  //------------------------------------------------------------------------
+  // Wait that local/remote namespace files are synced.
+  // This routine is called by a slave when it got
+  // signalled to reload the namespace
+  //------------------------------------------------------------------------
+
+  time_t starttime = time(NULL);
+
+  // -----------------------------------------------------------
+  // if possible evaluate if local and remote master files are 
+  // in sync ...
+  // -----------------------------------------------------------
+  
+  MasterLog(eos_info("msg=\"check ns file synchronization\""));
+  
+  off_t size_local_file_changelog  = 0;
+  off_t size_local_dir_changelog   = 0;
+  off_t size_remote_file_changelog = 0;
+  off_t size_remote_dir_changelog  = 0;
+
+  unsigned long long lFileNamespaceInode = 0;
+  unsigned long long lDirNamespaceInode  = 0;
+
+  struct stat buf;
+  
+  std::string remoteSyncUrlString = "root://"; remoteSyncUrlString += fRemoteHost.c_str(); remoteSyncUrlString += ":1096"; remoteSyncUrlString += "//dummy";
+  std::string remoteSyncHostPort =  fRemoteHost.c_str(); remoteSyncHostPort += ":1096";
+  
+  std::string rfclf = gOFS->MgmMetaLogDir.c_str();
+  std::string rdclf = gOFS->MgmMetaLogDir.c_str();
+  rdclf += "/directories.";
+  rfclf += "/files.";
+  rdclf += fRemoteHost.c_str();
+  rfclf += fRemoteHost.c_str();
+  rdclf += ".mdlog";
+  rfclf += ".mdlog";
+  
+  bool syncok=false;
+  
+  if (HostCheck(fRemoteHost.c_str(), 1096)) {
+    MasterLog(eos_info("remote-sync host=%s:1096 is reachable", fRemoteHost.c_str()));
+    syncok = true;
+  } else {
+    MasterLog(eos_info("remote-sync host=%s:1096 is down",fRemoteHost.c_str()));
+  }
+  
+  if (syncok) {
+    
+    // ---------------------------------------
+    // TODO: adapt for the new client      ---
+    // ---------------------------------------
+
+    // ---------------------------------------
+    // check once the remote size
+    // ---------------------------------------
+
+    XrdClientAdmin* SyncAdmin = new XrdClientAdmin(remoteSyncUrlString.c_str());
+    if (SyncAdmin) {
+      SyncAdmin->Connect();
+      SyncAdmin->GetClientConn()->ClearLastServerError();
+      SyncAdmin->GetClientConn()->SetOpTimeLimit(2);
+      long id=0;
+      long long size = 0;
+      long flags=0;
+      long modtime =0;
+      
+      // stat the two remote changelog files
+      if (SyncAdmin->Stat(rfclf.c_str(),id, size, flags, modtime)) {
+	size_remote_file_changelog = size;
+      } else {
+	MasterLog(eos_crit("remote stat failed for %s", rfclf.c_str()));
+	delete SyncAdmin;
+	return false;
+      }
+      if (SyncAdmin->Stat(rdclf.c_str(),id, size, flags, modtime)) {
+	size_remote_dir_changelog = size;
+      } else {
+	MasterLog(eos_crit("remote stat failed for %s", rdclf.c_str()));
+	delete SyncAdmin;
+	return false;
+      }
+      delete SyncAdmin;
+    }
+    
+    MasterLog(eos_info("remote files file=%llu dir=%llu", size_remote_file_changelog, size_remote_dir_changelog));
+    
+    do {
+      // ---------------------------------------
+      // wait the the inode changed and then
+      // check the local size and wait, 
+      // that the local files is atleast as 
+      // big as the remote file
+      // ---------------------------------------
+
+      if (!stat(gOFS->MgmNsFileChangeLogFile.c_str(),&buf)) {
+	size_local_file_changelog = buf.st_size;
+	lFileNamespaceInode = buf.st_ino;
+      } else {
+	MasterLog(eos_crit("local stat failed for %s", gOFS->MgmNsFileChangeLogFile.c_str()));
+	return false;
+      }
+      
+      if (!stat(gOFS->MgmNsDirChangeLogFile.c_str(),&buf)) {
+	size_local_dir_changelog = buf.st_size;
+	lDirNamespaceInode = buf.st_ino;
+      } else {
+	MasterLog(eos_crit("local stat failed for %s", gOFS->MgmNsDirChangeLogFile.c_str()));
+	return false;
+      }
+      
+      if ( (lFileNamespaceInode == fFileNamespaceInode ) ) {
+	// the inode didn't change yet
+	if ( time(NULL) > (starttime + timeout) ) {
+	  MasterLog(eos_warning("timeout occured after %u seconds", timeout));
+	  return false;
+	}
+	MasterLog(eos_info("waiting for inode change %llu=>%llu ",fFileNamespaceInode,lFileNamespaceInode));
+	XrdSysTimer sleeper;
+	sleeper.Wait(10000);
+	continue;
+      }
+
+      if (size_remote_file_changelog > size_local_file_changelog) {
+	if ( time(NULL) > (starttime + timeout) ) {
+	  MasterLog(eos_warning("timeout occured after %u seconds", timeout));
+	  return false;
+	}
+	XrdSysTimer sleeper;
+	sleeper.Wait(10000);
+	continue;
+      }
+      
+      if (size_remote_dir_changelog > size_local_dir_changelog) {
+	if ( time(NULL) > (starttime + timeout) ) {
+	  MasterLog(eos_warning("timeout occured after %u seconds", timeout));
+	  return false;
+	}
+	XrdSysTimer sleeper;
+	sleeper.Wait(10000);
+	continue;
+      }
+      MasterLog(eos_info("msg=\"ns files  synchronized\""));      
+      return true;
+    } while (1);
+  } else {
+    MasterLog(eos_warning("msg=\"remote sync service is not ok\""));      
+    return false;
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+void
+Master::RedirectToRemoteMaster()
+{
+  MasterLog(eos_info("msg=\"redirect to remote master\""));
+  // push everything to the remote master
+  Access::gRedirectionRules[std::string("*")] = fRemoteHost.c_str();
+  
+  try {
+    MasterLog(eos_info("msg=\"invoking slave shutdown\""));
+    gOFS->eosDirectoryService->stopSlave();
+    gOFS->eosFileService->stopSlave();
+    MasterLog(eos_info("msg=\"stopped namespace following\""));
+  } catch ( eos::MDException &e ) {
+    errno = e.getErrno();
+    MasterLog(eos_crit("slave shutdown returned ec=%d %s", e.getErrno(),e.getMessage().str().c_str()));
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+bool
+Master::RebootSlaveNamespace()
+{
+  fRunningState = kIsTransition;
+  {
+    // now convert the namespace
+    eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex);
+    
+    // take the whole namespace down
+    try {
+      if (gOFS->eosFsView)           { gOFS->eosFsView->finalize();           delete gOFS->eosFsView; gOFS->eosFsView=0; }
+      if (gOFS->eosView)             { gOFS->eosView->finalize();             delete gOFS->eosView;   gOFS->eosView=0;   }
+    } catch ( eos::MDException &e ) {
+      errno = e.getErrno();
+      MasterLog(eos_crit("master-ro=>slave namespace shutdown returned ec=%d %s", e.getErrno(),e.getMessage().str().c_str()));
+    };
+
+    // boot it from scratch
+    if (!BootNamespace()) {
+      fRunningState = kIsNothing;
+      return false;
+    }
+
+  }
+
+  {
+    XrdSysMutexHelper lock(gOFS->InitializationMutex);
+    if (gOFS->Initialized== gOFS->kBooted) {
+      // inform the boot thread that the stall should be removed after boot
+      gOFS->RemoveStallRuleAfterBoot = true;
+      
+      // start the file view loader thread
+      MasterLog(eos_info("msg=\"starting file view loader thread\""));
+      
+      pthread_t tid;
+      if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView, static_cast<void *>(gOFS),
+			     0, "File View Loader"))) {
+	MasterLog(eos_crit("cannot start file view loader"));
+	fRunningState = kIsNothing;
+	return false;
+      }
+    } else {
+      MasterLog(eos_crit("msg=\"don't want to start file view loader for a namespace in bootfailure state\""));
+      fRunningState = kIsNothing;
+      return false;
+    }
+
+  }
+
+  {
+    // be aware of interference with the heart beat daemon 
+    eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
+    
+    // remove global redirection
+    Access::gRedirectionRules.erase(std::string("*"));
+  }
+
+  fRunningState = kIsRunningSlave;
+  MasterLog(eos_notice("running in slave mode"));
   return true;
 }
 
