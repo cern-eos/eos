@@ -52,8 +52,16 @@ private:
   bool fRemoteMasterRW;      // indicates if the remote master is in RW = master mode or not
   bool fRemoteMqOk;          // indicates if the remote mq is up
   pthread_t fThread;         // thread id of the heart beat thread
+  bool fCheckRemote;         // indicate if we check the remote host status
   pthread_t fCompactingThread; // thread id of an oncline compacting thread
   double fCompactingRatio;   // compacting ratio e.g. 4:1 => 4 times smaller after compaction
+
+  int fDevNull;              // /dev/null filedescriptor
+  XrdSysLogger* fDevNullLogger; // /dev/null logger
+  XrdSysError*  fDevNullErr; // /dev/null error
+
+  unsigned long long fFileNamespaceInode; // inode number of the file namespace file
+  unsigned long long fDirNamespaceInode;  // inode number of the dir  namespace file
 
   // --------------------------------------------
   // lock class wrapper used by the namespace
@@ -140,9 +148,9 @@ public:
   ~Master();
   
   //------------------------------------------------------------------------
-  // HeartBeat Thread Start Function
+  // Supervisor Thread Start Function
   //------------------------------------------------------------------------
-  static void* StaticHeartBeat(void*);
+  static void* StaticSupervisor(void*);
 
   //------------------------------------------------------------------------
   // Online Compacting Thread Start Function
@@ -150,9 +158,9 @@ public:
   static void* StaticOnlineCompacting(void*);
   
   //------------------------------------------------------------------------
-  // HeartBeat Thread Function
+  // Supervisor Thread Function
   //------------------------------------------------------------------------
-  void* HeartBeat();
+  void* Supervisor();
 
   //------------------------------------------------------------------------
   // Compacting Thread Function
@@ -188,14 +196,14 @@ public:
   bool IsCompactingBlocked();
 
   //------------------------------------------------------------------------
-  // Enable Heart Beat
+  // Enable Remote Check
   //------------------------------------------------------------------------
-  bool EnableHeartBeat();
+  bool EnableRemoteCheck();
   
   //------------------------------------------------------------------------
-  // Disable Heart Beat
+  // Disable Remote Check
   //------------------------------------------------------------------------
-  bool DisableHeartBeat();
+  bool DisableRemoteCheck();
 
   //------------------------------------------------------------------------
   // ScheduleOnlineCompacting
@@ -291,7 +299,37 @@ public:
   // Add to Master Log
   //------------------------------------------------------------------------
   void MasterLog(const char* log) { if (log) fMasterLog += log; fMasterLog += "\n";}
-   
+
+  //------------------------------------------------------------------------
+  // Signal the remote master to bounce all requests to us (issued by master)
+  //------------------------------------------------------------------------
+  void SignalRemoteBounceToMaster();
+  
+  //------------------------------------------------------------------------
+  // Signal the remote master to reload its namespace (issued by master)
+  //------------------------------------------------------------------------
+  void SignalRemoteReload();
+
+  //------------------------------------------------------------------------
+  // Wait that local/remote namespace files are synced (called by slave)
+  //------------------------------------------------------------------------
+  bool WaitNamespaceFilesInSync(unsigned int timeout=600);
+
+  //------------------------------------------------------------------------
+  // Store the file inodes of the namespace file to see when a file has 
+  // resynced after compactification
+  // -----------------------------------------------------------------------
+  void TagNamespaceInodes();
+
+  // -----------------------------------------------------------------------
+  // Set a redirect to the remote master for everything
+  // -----------------------------------------------------------------------
+  void RedirectToRemoteMaster();
+
+  // -----------------------------------------------------------------------
+  // Reboot a slave namespace
+  // -----------------------------------------------------------------------
+  bool RebootSlaveNamespace();
 };
 
 EOSMGMNAMESPACE_END
