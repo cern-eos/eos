@@ -180,7 +180,7 @@ XrdMgmOfs::InitializeFileView()
       }
     }
     time_t tstop  = time(0);
-    eos_notice("eos namespace file loading stopped after %d seconds", (tstop-tstart));
+    gOFS->MgmMaster.MasterLog(eos_notice("eos namespace file loading stopped after %d seconds", (tstop-tstart)));
     if (!MgmMaster.IsMaster()) {
       eos_static_info("msg=\"starting slave listener\"");
       gOFS->eosFileService->startSlave();
@@ -221,6 +221,14 @@ XrdMgmOfs::InitializeFileView()
     if (!eos::common::LinuxStat::GetStat(gOFS->LinuxStatsStartup)) {
       eos_crit("failed to grab /proc/self/stat information");
     }
+  }
+
+  // fill the current accounting
+  {
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    // load all the quota nodes from the namespace
+    Quota::LoadNodes();
+    Quota::NodesToSpaceQuota();
   }
 
   return 0;
@@ -1152,7 +1160,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
       }
     }
     
-    
     eos_info("starting file view loader thread");
     if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView, static_cast<void *>(this),
 			   0, "File View Loader"))) {
@@ -1195,11 +1202,6 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
     }
     
   }
-  
-  // load all the quota nodes from the namespace
-  Quota::LoadNodes();
-  // fill the current accounting
-  Quota::NodesToSpaceQuota();
   
   // initialize the transfer database
   if (!gTransferEngine.Init("/var/eos/tx")) {

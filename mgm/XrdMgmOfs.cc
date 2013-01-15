@@ -130,10 +130,18 @@ xrdmgmofs_shutdown(int sig) {
   // ----------------------------------------------------------------------------------------------------------------
   eos_static_warning("Shutdown:: finalizing views ... ");
   try {
-    if (gOFS->eosFsView) { gOFS->eosFsView->finalize();           delete gOFS->eosFsView;}
-    if (gOFS->eosView) { gOFS->eosView->finalize();             delete gOFS->eosView;}
+
+    if (!gOFS->MgmMaster.IsMaster()) {
+      // stop the follower thread ...
+      if (gOFS->eosFileService)      { gOFS->eosFileService->stopSlave();      }
+      if (gOFS->eosDirectoryService) { gOFS->eosDirectoryService->stopSlave(); }
+    }
+
+    if (gOFS->eosFsView)           { gOFS->eosFsView->finalize();           delete gOFS->eosFsView;}
+    if (gOFS->eosView)             { gOFS->eosView->finalize();             delete gOFS->eosView;}
     if (gOFS->eosDirectoryService) { gOFS->eosDirectoryService->finalize(); delete gOFS->eosDirectoryService;}
-    if (gOFS->eosFileService) { gOFS->eosFileService->finalize();      delete gOFS->eosFileService;}
+    if (gOFS->eosFileService)      { gOFS->eosFileService->finalize();      delete gOFS->eosFileService;}
+
   } catch ( eos::MDException &e ) {
     // we don't really care about any exception here!
   }
@@ -6223,6 +6231,36 @@ XrdMgmOfs::FSctl(const int               cmd,
       EXEC_TIMING_END("TxState");      
       return SFS_DATA;
     }
+
+    if (execmd == "mastersignalbounce") {
+      // ----------------------------------------------------------------------
+      // a remote master signalled us to bounce everything to him
+      // ----------------------------------------------------------------------
+      REQUIRE_SSS_OR_LOCAL_AUTH;
+
+      gOFS->MgmMaster.TagNamespaceInodes();
+      gOFS->MgmMaster.RedirectToRemoteMaster();
+      
+      const char* ok = "OK";
+      error.setErrInfo(strlen(ok)+1,ok);
+      return SFS_DATA;
+    }
+
+    if (execmd == "mastersignalreload") {
+      // ----------------------------------------------------------------------
+      // a remote master signalled us to reload our namespace now
+      // ----------------------------------------------------------------------
+      REQUIRE_SSS_OR_LOCAL_AUTH;
+
+      gOFS->MgmMaster.WaitNamespaceFilesInSync();
+      gOFS->MgmMaster.RebootSlaveNamespace();
+
+      const char* ok = "OK";
+      error.setErrInfo(strlen(ok)+1,ok);
+      return SFS_DATA;
+    }
+
+
     eos_thread_err("No implementation for %s", execmd.c_str());
   }
 
