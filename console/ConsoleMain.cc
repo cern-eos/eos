@@ -633,10 +633,28 @@ output_result(XrdOucEnv* result, bool highlighting) {
     rstdout.replace("online","\033[1monline\033[0m");
     rstdout.replace("offline","\033[47;31m\e[5moffline\033[0m");
     rstdout.replace("unknown","\033[47;31m\e[5munknown\033[0m");
-    
     rstdout.replace(" ok","\033[49;32m ok\033[0m");
     rstdout.replace("warning","\033[49;33mwarning\033[0m");
     rstdout.replace("exceeded","\033[49;31mexceeded\033[0m");
+
+    rstdout.replace("[booted]","\033[1m[booted]\033[0m");
+    rstdout.replace("[down]"  ,"\033[49;31m[down]\033[0m");
+    rstdout.replace("[failed]"  ,"\033[49;31m[failed]\033[0m");
+    rstdout.replace("[booting]"  ,"\033[49;32m[booting]\033[0m");
+    rstdout.replace("[compacting]"  ,"\033[49;34m[compacting]\033[0m");
+
+    // replication highlighting
+    rstdout.replace("master-rw","\033[49;31mmaster-rw\033[0m");
+    rstdout.replace("master-ro","\033[49;34mmaster-ro\033[0m");
+    rstdout.replace("slave-ro","\033[1mslave-ro\033[0m");
+    rstdout.replace("=ok","=\033[49;32mok\033[0m");
+    rstdout.replace("=compacting","=\033[49;32mcompaccting\033[0m");
+    rstdout.replace("=off","=\033[49;34moff\033[0m");
+    rstdout.replace("=blocked","=\033[49;34mblocked\033[0m");
+    rstdout.replace("=wait","=\033[49;34mwait\033[0m");
+    rstdout.replace("=starting","=\033[49;34mstarting\033[0m");
+    rstdout.replace("=true","=\033[49;32mtrue\033[0m");
+    rstdout.replace("=false","=\033[49;31mfalse\033[0m");
   }
 
   int retc = EFAULT;
