@@ -701,17 +701,23 @@ namespace eos
       pollDesc.events |= (POLLIN | POLLPRI);
       pollDesc.fd     = pInotifyFd;
 
-      int status = poll( &pollDesc, 1, 500 );
-      if( status < 0 )
+      while( 1 )
       {
-        MDException ex( EFAULT );
-        ex.getMessage() << "Wait: inotify poll failed: ";
-        ex.getMessage() << strerror( errno );
-        throw ex;
-      }
+        int status = poll( &pollDesc, 1, 500 );
+        if( status < 0 && errno != EINTR )
+        {
+          MDException ex( EFAULT );
+          ex.getMessage() << "Wait: inotify poll failed: ";
+          ex.getMessage() << strerror( errno );
+          throw ex;
+        }
 
-      if( status == 0 )
-        return;
+        if( status == 0 )
+          return;
+
+        if( status > 0 )
+          break;
+      }
 
       //------------------------------------------------------------------------
       // Read all the queued events.
@@ -726,6 +732,9 @@ namespace eos
 
         if( status <= 0 )
         {
+          if( errno == EINTR )
+            continue;
+
           if( errno == EAGAIN || errno == EWOULDBLOCK )
             return;
 
