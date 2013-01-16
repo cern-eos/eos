@@ -30,6 +30,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 /*----------------------------------------------------------------------------*/
+#include <sys/inotify.h>
+
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdCl/XrdClFile.hh"
@@ -40,7 +42,6 @@
 #define TRANSFERBLOCKSIZE 1024*1024*4
 #define PAGESIZE (64*1024ll)
 
-
 //------------------------------------------------------------------------------
 // Usage
 //------------------------------------------------------------------------------
@@ -49,6 +50,14 @@ void usage()
   fprintf( stderr, "usage: %s <src-path> <dst-url> [--debug]\n", PROGNAME );
   exit( -1 );
 }
+
+// -------------------------------------------------------------
+// INOTIFY structures/buffer
+// -------------------------------------------------------------
+
+#define EVENT_SIZE  ( sizeof (struct inotify_event) )
+#define EVENT_BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
+char buffer[EVENT_BUF_LEN];
 
 
 //------------------------------------------------------------------------------
@@ -95,6 +104,15 @@ int main( int argc, char* argv[] )
     isdumpfile = true;
   }
 
+  int fd =0; 
+
+  int inotify_fd = inotify_init();
+
+  if ( inotify_fd < 0 ) {
+    fprintf(stderr,"error: unable to initialize inotify interface - will use polling\n");
+  }
+
+
   do {
     fd = open( sourcefile.c_str(), O_RDONLY );
 
@@ -109,6 +127,8 @@ int main( int argc, char* argv[] )
                         XrdCl::Access::GW | XrdCl::Access::OR;
   XrdCl::File* file = new XrdCl::File();
 
+  int watch_fd = inotify_add_watch(inotify_fd, sourcefile.c_str(), IN_MODIFY);
+  
   if ( !file ) {
     fprintf( stderr, "Error: cannot create XrdCl object\n" );
     exit( -1 );
@@ -127,11 +147,7 @@ int main( int argc, char* argv[] )
     }
   }
 
-  if ( !file->Truncate( 0 ).IsOK() ) {
-    eos_static_crit( "couldn't truncate remote file" );
-    delete file;
-    exit( -1 );
-  }
+  struct stat srcstat;
 
   struct stat srcstat;
   XrdCl::StatInfo* dststat = 0;
@@ -213,9 +229,17 @@ int main( int argc, char* argv[] )
     off_t mapoffset = remoteoffset - ( remoteoffset % PAGESIZE );
     size_t mapsize = transfersize + ( remoteoffset % PAGESIZE );
 
-    if ( !transfersize ) {
-      // sleep 10ms
-      usleep( 10000 );
+    if (!transfersize) {      
+      if ( (inotify_fd  >= 0 ) && (watch_fd >=0) ) {
+	// use inotify to wait for changes on our file, we don't really care to look at the event since we look only at a single file
+	ssize_t length = read( inotify_fd, buffer, EVENT_BUF_LEN );
+	if (!length) {
+	  eos_static_crit("read via inotify returned errno=%d", errno);
+	}
+      } else {
+	// sleep 1ms
+	usleep(1000);
+      }
     } else {
       eos_static_debug( "remoteoffset=%llu module=%llu mapoffset=%llu mapsize =%lu",
                         ( unsigned long long )remoteoffset,
