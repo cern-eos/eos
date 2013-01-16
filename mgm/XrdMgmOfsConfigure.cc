@@ -1157,14 +1157,31 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
       NoGo = 1;
     }
   }
-  
+#ifdef EOS_INSTRUMENTED_RWMUTEX
+  eos::common::RWMutex::EstimateLatenciesAndCompensation();
+  FsView::gFsView.ViewMutex.SetDebugName("FsView");
+  FsView::gFsView.ViewMutex.SetTiming(false);
+  FsView::gFsView.ViewMutex.SetSampling(true,0.01);
+  Quota::gQuotaMutex.SetDebugName("QuotaView");
+  Quota::gQuotaMutex.SetTiming(false);
+  Quota::gQuotaMutex.SetSampling(true,0.01);
+  gOFS->eosViewRWMutex.SetDebugName("eosView");
+  gOFS->eosViewRWMutex.SetTiming(false);
+  gOFS->eosViewRWMutex.SetSampling(true,0.01);
+  std::vector<eos::common::RWMutex*> order;
+  order.push_back(&FsView::gFsView.ViewMutex);
+  order.push_back(&Quota::gQuotaMutex);
+  order.push_back(&gOFS->eosViewRWMutex);
+  eos::common::RWMutex::AddOrderRule("Eos Mgm Mutexes",order);
+#endif
+
   eos_info("starting statistics thread");
   if ((XrdSysThread::Run(&stats_tid, XrdMgmOfs::StartMgmStats, static_cast<void *>(this),
                          0, "Statistics Thread"))) {
     eos_crit("cannot start statistics thread");
     NoGo = 1;
   }
-  
+
   
   if (!MgmRedirector) {
     eos_info("starting fs listener thread");
@@ -1204,11 +1221,8 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("ViewLockW",0,0,0);
   gOFS->MgmStats.Add("NsLockR",0,0,0);
   gOFS->MgmStats.Add("NsLockW",0,0,0);
-
-  gOFS->MgmStats.Add("ViewLockR",0,0,0);
-  gOFS->MgmStats.Add("ViewLockW",0,0,0);
-  gOFS->MgmStats.Add("NsLockR",0,0,0);
-  gOFS->MgmStats.Add("NsLockW",0,0,0);
+  gOFS->MgmStats.Add("QuotaLockR",0,0,0);
+  gOFS->MgmStats.Add("QuotaLockW",0,0,0);
 
   gOFS->MgmStats.Add("Access",0,0,0);
   gOFS->MgmStats.Add("AdjustReplica",0,0,0);

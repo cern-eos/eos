@@ -118,6 +118,247 @@ public:
   }
 };
 
+class StatExt {
+public:
+  unsigned long n3600[3600];
+  unsigned long n300[300];
+  unsigned long n60[60];
+  unsigned long n5[5];
+  double sum3600[3600];
+  double sum300[300];
+  double sum60[60];
+  double sum5[5];
+  double min3600[3600];
+  double min300[300];
+  double min60[60];
+  double min5[5];
+  double max3600[3600];
+  double max300[300];
+  double max60[60];
+  double max5[5];
+
+  StatExt() {
+    memset(n3600,0, sizeof(n3600));
+    memset(n300,0,sizeof(n300));
+    memset(n60,0,sizeof(n60));
+    memset(n5,0,sizeof(n5));
+    for(int k=0;k<3600;k++)  {
+        min3600[k]=std::numeric_limits<long long>::max();
+        max3600[k]=std::numeric_limits<size_t>::min();
+        sum3600[k]=0;
+    }
+    for(int k=0;k<300;k++)  {
+        min300[k]=std::numeric_limits<long long>::max();
+        max300[k]=std::numeric_limits<size_t>::min();
+        sum300[k]=0;
+    }
+    for(int k=0;k<60;k++)  {
+        min60[k]=std::numeric_limits<long long>::max();
+        max60[k]=std::numeric_limits<size_t>::min();
+        sum60[k]=0;
+    }
+    for(int k=0;k<5;k++)  {
+        min5[k]=std::numeric_limits<long long>::max();
+        max5[k]=std::numeric_limits<size_t>::min();
+        sum5[k]=0;
+    }
+  }
+
+  ~StatExt(){};
+
+  void Insert(unsigned long nsample, const double &avgv, const double &minv, const double &maxv) {
+    unsigned int bin3600 = (time(0) % 3600);
+    unsigned int bin300  = (time(0) % 300);
+    unsigned int bin60   = (time(0) % 60);
+    unsigned int bin5    = (time(0) % 5);
+
+    n3600[(bin3600+1)%3600] = 0;
+    n3600[bin3600] += nsample;
+    sum3600[(bin3600+1)%3600] = 0;
+    sum3600[bin3600] += avgv*nsample;
+    min3600[(bin3600+1)%3600] = std::numeric_limits<long long>::max();
+    min3600[bin3600] = std::min(min3600[bin3600],minv);
+    max3600[(bin3600+1)%3600] = std::numeric_limits<size_t>::min();
+    max3600[bin3600] = std::max(max3600[bin3600],maxv);
+
+    n300[(bin300+1)%300] = 0;
+    n300[bin300] += nsample;
+    sum300[(bin300+1)%300] = 0;
+    sum300[bin300] += avgv*nsample;
+    min300[(bin300+1)%300] = std::numeric_limits<long long>::max();
+    min300[bin300] = std::min(min300[bin300],minv);
+    max300[(bin300+1)%300] = std::numeric_limits<size_t>::min();
+    max300[bin300] = std::max(max300[bin300],maxv);
+
+    n60[(bin60+1)%60] = 0;
+    n60[bin60] += nsample;
+    sum60[(bin60+1)%60] = 0;
+    sum60[bin60] += avgv*nsample;
+    min60[(bin60+1)%60] = std::numeric_limits<long long>::max();
+    min60[bin60] = std::min(min60[bin60],minv);
+    max60[(bin60+1)%60] = std::numeric_limits<size_t>::min();
+    max60[bin60] = std::max(max60[bin60],maxv);
+
+    n5[(bin5+1)%5] = 0;
+    n5[bin5] += nsample;
+    sum5[(bin5+1)%5] = 0;
+    sum5[bin5] += avgv*nsample;
+    min5[(bin5+1)%5] = std::numeric_limits<long long>::max();
+    min5[bin5] = std::min(min5[bin5],minv);
+    max5[(bin5+1)%5] = std::numeric_limits<size_t>::min();
+    max5[bin5] = std::max(max5[bin5],maxv);
+  }
+
+  void StampZero() {
+    unsigned int bin3600 = (time(0) % 3600);
+    unsigned int bin300  = (time(0) % 300);
+    unsigned int bin60   = (time(0) % 60);
+    unsigned int bin5    = (time(0) % 5);
+
+    n3600[(bin3600+1)%3600] = 0;
+    n300[(bin300+1)%300] = 0;
+    n60[(bin60+1)%60] = 0;
+    n5[(bin5+1)%5] = 0;
+    sum3600[(bin3600+1)%3600] = 0;
+    sum300[(bin300+1)%300] = 0;
+    sum60[(bin60+1)%60] = 0;
+    sum5[(bin5+1)%5] = 0;
+    min3600[(bin3600+1)%3600] = std::numeric_limits<long long>::max();
+    min300[(bin300+1)%300] = std::numeric_limits<long long>::max();
+    min60[(bin60+1)%60] = std::numeric_limits<long long>::max();
+    min5[(bin5+1)%5] = std::numeric_limits<long long>::max();
+    max3600[(bin3600+1)%3600] = std::numeric_limits<size_t>::min();
+    max300[(bin300+1)%300] = std::numeric_limits<size_t>::min();
+    max60[(bin60+1)%60] = std::numeric_limits<size_t>::min();
+    max5[(bin5+1)%5] = std::numeric_limits<size_t>::min();
+  }
+
+  double GetN3600() {
+    unsigned long sum=0;
+    for (int i=0; i< 3600; i++) {
+        sum += n3600[i];
+    }
+    return (double)sum;
+  }
+
+  double GetAvg3600() {
+    double sum=0; double n=0;
+    for (int i=0; i< 3600; i++) {
+        n += n3600[i];
+      sum += sum3600[i];
+    }
+    return (sum / n);
+  }
+
+  double GetMin3600() {
+    double minval=std::numeric_limits<long long>::max();
+    for (int i=0; i< 3600; i++)
+      minval = std::min( min3600[i] , minval );
+    return double(minval);
+  }
+
+  double GetMax3600() {
+    double maxval=std::numeric_limits<size_t>::min();
+    for (int i=0; i< 3600; i++)
+      maxval = std::max( max3600[i] , maxval );
+    return double(maxval);
+  }
+
+  double GetN300() {
+    unsigned long sum=0;
+    for (int i=0; i< 300; i++) {
+        sum += n300[i];
+    }
+    return (double)sum;
+  }
+
+  double GetAvg300() {
+    double sum=0; double n=0;
+    for (int i=0; i< 300; i++) {
+        n += n300[i];
+      sum += sum300[i];
+    }
+    return (sum / n);
+  }
+
+  double GetMin300() {
+    double minval=std::numeric_limits<long long>::max();
+    for (int i=0; i< 300; i++)
+      minval = std::min( min300[i] , minval );
+    return double(minval);
+  }
+
+  double GetMax300() {
+    double maxval=std::numeric_limits<size_t>::min();
+    for (int i=0; i< 300; i++)
+      maxval = std::max( max300[i] , maxval );
+    return double(maxval);
+  }
+
+  double GetN60() {
+    unsigned long sum=0;
+    for (int i=0; i< 60; i++) {
+        sum += n60[i];
+    }
+    return (double)sum;
+  }
+
+  double GetAvg60() {
+    double sum=0; double n=0;
+    for (int i=0; i< 60; i++) {
+        n += n60[i];
+      sum += sum60[i];
+    }
+    return (sum / n);
+  }
+
+  double GetMin60() {
+    double minval=std::numeric_limits<long long>::max();
+    for (int i=0; i< 60; i++)
+      minval = std::min( min60[i] , minval );
+    return double(minval);
+  }
+
+  double GetMax60() {
+    double maxval=std::numeric_limits<size_t>::min();
+    for (int i=0; i< 60; i++)
+      maxval = std::max( max60[i] , maxval );
+    return double(maxval);
+  }
+
+  double GetN5() {
+    unsigned long sum=0;
+    for (int i=0; i< 5; i++) {
+        sum += n5[i];
+    }
+    return (double)sum;
+  }
+
+  double GetAvg5() {
+    double sum=0; double n=0;
+    for (int i=0; i< 5; i++) {
+        n += n5[i];
+      sum += sum5[i];
+    }
+    return (sum / n);
+  }
+
+  double GetMin5() {
+    double minval=std::numeric_limits<long long>::max();
+    for (int i=0; i< 5; i++)
+      minval = std::min( min5[i] , minval );
+    return double(minval);
+  }
+
+  double GetMax5() {
+    double maxval=std::numeric_limits<size_t>::min();
+    for (int i=0; i< 5; i++)
+      maxval = std::max( max5[i] , maxval );
+    return double(maxval);
+  }
+
+};
+
 
 #define EXEC_TIMING_BEGIN(__ID__)               \
   struct timeval start__ID__;                   \
@@ -138,9 +379,13 @@ public:
   google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, unsigned long long> > StatsGid;
   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatAvg> > StatAvgUid;
   google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatAvg> > StatAvgGid;
+  google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatExt> > StatExtUid;
+  google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatExt> > StatExtGid;
   google::sparse_hash_map<std::string, std::deque<float> > StatExec;
 
   void Add(const char* tag, uid_t uid, gid_t gid, unsigned long val);
+
+  void AddExt(const char* tag, uid_t uid, gid_t gid, unsigned long nsample, const double &avgv, const double &minv, const double &maxv);
 
   void AddExec(const char* tag, float exectime);
 
@@ -148,15 +393,31 @@ public:
 
   // warning: you have to lock the mutex if directly used
   double GetTotalAvg3600(const char* tag);
+  double GetTotalNExt3600(const char* tag);
+  double GetTotalAvgExt3600(const char* tag);
+  double GetTotalMinExt3600(const char* tag);
+  double GetTotalMaxExt3600(const char* tag);
 
   // warning: you have to lock the mutex if directly used
   double GetTotalAvg300(const char* tag);
+  double GetTotalNExt300(const char* tag);
+  double GetTotalAvgExt300(const char* tag);
+  double GetTotalMinExt300(const char* tag);
+  double GetTotalMaxExt300(const char* tag);
 
   // warning: you have to lock the mutex if directly used
   double GetTotalAvg60(const char* tag);
+  double GetTotalNExt60(const char* tag);
+  double GetTotalAvgExt60(const char* tag);
+  double GetTotalMinExt60(const char* tag);
+  double GetTotalMaxExt60(const char* tag);
 
   // warning: you have to lock the mutex if directly used
   double GetTotalAvg5(const char* tag);
+  double GetTotalNExt5(const char* tag);
+  double GetTotalAvgExt5(const char* tag);
+  double GetTotalMinExt5(const char* tag);
+  double GetTotalMaxExt5(const char* tag);
   
   // warning: you have to lock the mutex if directly used
   double GetExec(const char* tag, double &deviation);

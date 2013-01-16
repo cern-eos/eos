@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "common/RWMutex.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Namespace Interface */
@@ -35,17 +36,18 @@ com_ns (char* arg1) {
   XrdOucString options="";
 
   XrdOucString in ="";
-  if ( ( cmd != "stat")  && ( cmd != "" ) && ( cmd != "compact" ) && ( cmd != "master" ) ) {
+
+  if ( ( cmd != "stat")  && ( cmd != "" ) && ( cmd != "compact" ) && ( cmd != "master" ) && ( cmd != "mutex" ) ) {
     goto com_ns_usage;
   }
-  
+
   in = "mgm.cmd=ns&";
   if (cmd == "stat") {
-    in += "mgm.subcmd=stat";
+      in += "mgm.subcmd=stat";
   }
 
   if (cmd == "compact") {
-    in += "mgm.subcmd=compact";
+      in += "mgm.subcmd=compact";
   }
 
   if (cmd == "master") {
@@ -54,43 +56,80 @@ com_ns (char* arg1) {
     in += "&mgm.master="; in += master;
   }
 
+#ifdef EOS_INSTRUMENTED_RWMUTEX
+  if (cmd == "mutex") {
+      in += "mgm.subcmd=mutex";
+  }
+#endif
   do {
-    option = subtokenizer.GetToken();
-    if (!option.length())
-      break;
-    if (option == "-a") {
-      options += "a";
-    } else {
-      if (option == "-m") {
-        options += "m";
+      option = subtokenizer.GetToken();
+      if (!option.length())
+        break;
+      if (option == "-a") {
+          options += "a";
       } else {
-        if (option == "-n") {
-          options += "n";
-        } else {
-	  if ( option == "--reset") {
-	    options += "r";
-	  } else {
-	    goto com_ns_usage;
-	  }
-        }
+          if (option == "-m") {
+              options += "m";
+          } else {
+              if (option == "-n") {
+                  options += "n";
+              } else {
+                  if ( option == "--reset") {
+                      options += "r";
+                  } else {
+#ifdef EOS_INSTRUMENTED_RWMUTEX
+                      if (option == "--toggletiming") {
+                          options += "t";
+                      } else {
+                          if (option == "--toggleorder") {
+                              options += "o";
+                          } else {
+                              if (option == "--smplrate1") {
+                                  options += "1";
+                              } else {
+                                  if (option == "--smplrate10") {
+                                      options += "s";
+                                  } else {
+                                      if (option == "--smplrate100") {
+                                          options += "f";
+                                      } else {
+                                          goto com_ns_usage;
+                                      }
+                                  }
+                              }
+                          }
+                      }
+#else
+                      goto com_ns_usage;
+#endif
+                  }
+              }
+          }
       }
-    }
   } while(1);
-       
+
   if (options.length()) {
-    in += "&mgm.option="; in += options;
+      in += "&mgm.option="; in += options;
   }  
-  
+
   global_retc = output_result(client_admin_command(in));
   return (0);
 
- com_ns_usage:
+  com_ns_usage:
   fprintf(stdout,"Usage: ns                                                         :  print basic namespace parameters\n");
   fprintf(stdout,"       ns stat [-a] [-m] [-n]                                     :  print namespace statistics\n");
   fprintf(stdout,"                -a                                                   -  break down by uid/gid\n");
   fprintf(stdout,"                -m                                                   -  print in <key>=<val> monitoring format\n");
   fprintf(stdout,"                -n                                                   -  print numerical uid/gids\n");
   fprintf(stdout,"                --reset                                              -  reset namespace counter\n");
+#ifdef EOS_INSTRUMENTED_RWMUTEX
+  fprintf(stdout,"       ns mutex                                                   :  manage mutex monitoring\n");
+  fprintf(stdout,"                --toggletiming                                       -  toggle the timing\n");
+  fprintf(stdout,"                --toggleorder                                        -  toggle the order checking\n");
+  fprintf(stdout,"                --smplrate1                                          -  set the timing sample rate at 1%%   (default, almost no slow-down)\n");
+  fprintf(stdout,"                --smplrate10                                         -  set the timing sample rate at 10%%  (medium slow-down)\n");
+  fprintf(stdout,"                --smplrate100                                        -  set the timing sample rate at 100%% (severe slow-down)\n");
+#endif
   fprintf(stdout,"       ns compact                                                    -  compact the current changelogfile and reload the namespace\n");
   fprintf(stdout,"       ns master <master-hostname>|[--log]|--log-clear            :  master/slave operation\n");
   fprintf(stdout,"       ns master <master-hostname>                                   -  set the host name of the MGM RW master daemon\n");
