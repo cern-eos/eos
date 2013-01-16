@@ -34,8 +34,11 @@ com_ns (char* arg1) {
   XrdOucString cmd = subtokenizer.GetToken();
   XrdOucString option="";
   XrdOucString options="";
-
+  
   XrdOucString in ="";
+  XrdOucString state;
+  XrdOucString delay;
+  XrdOucString interval;
 
   if ( ( cmd != "stat")  && ( cmd != "" ) && ( cmd != "compact" ) && ( cmd != "master" ) && ( cmd != "mutex" ) ) {
     goto com_ns_usage;
@@ -47,9 +50,30 @@ com_ns (char* arg1) {
   }
 
   if (cmd == "compact") {
-      in += "mgm.subcmd=compact";
+    in += "mgm.subcmd=compact";
+    state    = subtokenizer.GetToken();
+    if ( ( state != "on" ) && ( state != "off") ) 
+      goto com_ns_usage;
+    in += "&mgm.ns.compact="; in += state;
+    delay    = subtokenizer.GetToken();
+    interval = subtokenizer.GetToken();
+    if (delay.length()) {
+      int idelay = atoi(delay.c_str());
+      if (!idelay) 
+	goto com_ns_usage;
+      
+      in += "&mgm.ns.compact.delay=";
+      in += delay;
+      
+      int iinterval = atoi(interval.c_str());
+      if (!iinterval) {
+	if (interval!= "0") 
+	  goto com_ns_usage;
+      }
+      in += "&mgm.ns.compact.interval="; in += interval;
+    }
   }
-
+  
   if (cmd == "master") {
     in += "mgm.subcmd=master";
     XrdOucString master = subtokenizer.GetToken();
@@ -130,7 +154,9 @@ com_ns (char* arg1) {
   fprintf(stdout,"                --smplrate10                                         -  set the timing sample rate at 10%%  (medium slow-down)\n");
   fprintf(stdout,"                --smplrate100                                        -  set the timing sample rate at 100%% (severe slow-down)\n");
 #endif
-  fprintf(stdout,"       ns compact                                                    -  compact the current changelogfile and reload the namespace\n");
+  fprintf(stdout,"       ns compact on <delay> [<interval>]                            -  enable online compactification after <delay> seconds\n");
+  fprintf(stdout,"                                                                     -  if <interval> is >0 the compactifcation is repeated automatically after <interval> seconds!\n");
+  fprintf(stdout,"       ns compact off                                                -  disable online compactification\n");
   fprintf(stdout,"       ns master <master-hostname>|[--log]|--log-clear            :  master/slave operation\n");
   fprintf(stdout,"       ns master <master-hostname>                                   -  set the host name of the MGM RW master daemon\n");
   fprintf(stdout,"       ns master                                                     -  show the master log\n");
