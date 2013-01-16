@@ -230,6 +230,8 @@ XrdMqOfs::FSctl(const int               cmd,
   static const char *epname = "FSctl";
   const char *tident = error.getErrUser();
 
+  MAYREDIRECT;
+
   // accept only plugin calls!
   ZTRACE(fsctl,"Calling FSctl");
 

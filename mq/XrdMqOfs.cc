@@ -48,6 +48,10 @@ const char *XrdMqOfsCVSID = "$Id: XrdMqOfs.cc,v 1.0.0 2007/10/04 01:34:19 ajp Ex
 #include <pwd.h>
 #include <grp.h>
 #include <signal.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
@@ -89,7 +93,6 @@ STRINGSTORE(const char* __charptr__) {
     return (char*)newstring->c_str();
   } 
 }
-
 
 XrdMqOfsOutMutex::XrdMqOfsOutMutex() {
   gMqFS->QueueOutMutex.Lock();
@@ -241,6 +244,27 @@ XrdMqOfs::stat(const char                *queuename,
 
   EPNAME("stat");
   const char *tident = error.getErrUser();
+  
+  if (!strcmp(queuename,"/eos/")) {
+    // this is just a ping test if we are alive
+    memset(buf,0,sizeof(struct stat));
+    buf->st_blksize= 1024;
+    buf->st_dev    = 0;
+    buf->st_rdev   = 0;
+    buf->st_nlink  = 1;
+    buf->st_uid    = 0;
+    buf->st_gid    = 0;
+    buf->st_size   = 0;
+    buf->st_atime  = 0;
+    buf->st_mtime  = 0;
+    buf->st_ctime  = 0;
+    buf->st_blocks = 1024;
+    buf->st_ino    = 0;
+    buf->st_mode   = S_IXUSR|S_IRUSR|S_IWUSR |S_IFREG;
+    return SFS_OK;
+  }
+  
+  MAYREDIRECT;
 
   XrdMqMessageOut* Out = 0;
 
@@ -329,6 +353,8 @@ XrdMqOfsFile::open(const char                *queuename,
 {
   EPNAME("open");
   tident = error.getErrUser();
+
+  MAYREDIRECT;
 
   ZTRACE(open,"Connecting Queue: " << queuename);
   
@@ -452,6 +478,17 @@ int
 XrdMqOfsFile::stat(struct stat *buf) {
   EPNAME("stat");
   ZTRACE(read,"fstat");
+
+  int port=0;                                              
+  XrdOucString host="";                                    
+  if (gMqFS->ShouldRedirect(host,port)) {
+    // we have to close this object to make the client reopen it to be redirected
+    this->close();
+    return gMqFS->Emsg(epname, error, EINVAL,"stat - forced close - you should be redirected");
+  }
+
+
+  MAYREDIRECT;
 
   if (Out) {
     Out->DeletionSem.Wait();
@@ -716,4 +753,127 @@ XrdMqOfs::Statistics() {
   }
 
   StatLock.UnLock();
+}
+
+bool XrdMqOfs::ShouldRedirect(XrdOucString &host,
+		      int &port)
+{
+  EPNAME("ShouldRedirect");
+  const char *tident = "internal";
+  static time_t lastaliascheck=0;
+  static bool isSlave=false;
+  static XrdOucString remoteMq = "localhost";
+  static XrdSysMutex sMutex;
+
+  XrdSysMutexHelper sLock(sMutex);
+  time_t now = time(NULL);
+
+  if ( (now - lastaliascheck) > 10) {
+    XrdOucString myName = HostName;
+    XrdOucString master1Name;
+    XrdOucString master2Name;
+
+    bool m1ok;
+    bool m2ok;
+    m1ok = ResolveName(getenv("EOS_MGM_MASTER1"),master1Name);
+    m2ok = ResolveName(getenv("EOS_MGM_MASTER2"),master2Name);
+    remoteMq = "localhost";
+    isSlave = false;
+    if (myName == master1Name) {
+      remoteMq = master2Name;
+    }
+    if (myName == master2Name) {
+      remoteMq = master1Name;
+    }
+
+    {
+      // check if we should be master or slave MQ
+      XrdOucString mastertagfile    = "/var/eos/eos.mgm.rw";
+      XrdOucString remotemqfile     = "/var/eos/eos.mq.remote.up";
+      XrdOucString localmqfile      = "/var/eos/eos.mq.master";
+
+      struct stat buf;
+      if (::stat(localmqfile.c_str(), &buf)) {
+	isSlave = true;
+	if (::stat(remotemqfile.c_str(),&buf)) {
+	  // oh no, the remote mq is down, keep the guys around here
+	  isSlave = false;
+	}
+      } else {
+	// we should be the master according to configuration
+	isSlave = false;
+      }
+    }
+
+    lastaliascheck = now;
+
+    if (isSlave) {
+      host = remoteMq;
+      port = myPort;
+      
+      ZTRACE(redirect, "Redirect (resolv)" <<host.c_str() <<":" << port);
+      return true;
+    } else {
+      host = "localhost";
+      port = myPort;
+      ZTRACE(redirect, "Stay (resolve)" <<host.c_str() <<":" << port);
+      return false;
+    }
+  } else {
+    if (isSlave) {
+      host = remoteMq;
+      port = myPort;
+      ZTRACE(redirect, "Redirect (cached) " <<host.c_str() <<":" <<port);
+      return true;
+    } else {
+      host = "localhost";
+      port = myPort;
+      ZTRACE(redirect, "Stay (cached) " << host.c_str() <<":" <<port);
+    }
+  }
+
+  return false;
+}
+
+
+bool XrdMqOfs::ResolveName(const char* inhost, XrdOucString &outhost)
+{
+  struct hostent *hp;
+  struct hostent *rhp;
+  if (!inhost)
+    return false;
+  hp = gethostbyname(inhost);
+  outhost = "localhost";
+  if (hp) {
+    if (hp->h_addrtype == AF_INET ) {
+      if (hp->h_addr_list[0]) {
+	outhost=inet_ntoa( *(struct in_addr *)hp->h_addr_list[0]);
+	rhp = gethostbyaddr(hp->h_addr_list[0], sizeof(int),AF_INET);
+	if (rhp) {
+	  outhost = rhp->h_name;
+	}
+	return true;
+      }
+    }
+  }
+  return false;
+}
+
+
+int XrdMqOfs::Redirect(XrdOucErrInfo   &error, // Error text & code
+		      XrdOucString &host,
+		      int &port)
+{
+  EPNAME("Redirect");
+  const char *tident = error.getErrUser();
+  
+  ZTRACE(delay, "Redirect " <<host.c_str() <<":" << port);
+  
+  // Place the error message in the error object and return
+  //
+  error.setErrInfo(port,host.c_str());
+  
+  // All done
+  //
+  return SFS_REDIRECT;
 }

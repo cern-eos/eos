@@ -35,7 +35,7 @@
 /*----------------------------------------------------------------------------*/
 
 bool XrdMqSharedObjectManager::debug=0;
-
+bool XrdMqSharedObjectManager::broadcast=true;
 
 unsigned long long XrdMqSharedHash::SetCounter=0;
 unsigned long long XrdMqSharedHash::SetNLCounter=0;
@@ -44,6 +44,7 @@ unsigned long long XrdMqSharedHash::GetCounter=0;
 /*----------------------------------------------------------------------------*/
 XrdMqSharedObjectManager::XrdMqSharedObjectManager() 
 {
+  broadcast      = true;
   EnableQueue    = false;
   DumperFile     = "";
   AutoReplyQueue = "";
@@ -143,7 +144,7 @@ XrdMqSharedObjectManager::DeleteSharedHash(const char* subject, bool broadcast)
   HashMutex.LockWrite();
   
   if ((hashsubjects.count(ss)>0)) {
-    if (broadcast) {
+    if (XrdMqSharedObjectManager::broadcast && broadcast) {
       XrdOucString txmessage="";
       hashsubjects[ss]->MakeRemoveEnvHeader(txmessage);
       XrdMqMessage message("XrdMqSharedHashMessage");
@@ -178,7 +179,7 @@ XrdMqSharedObjectManager::DeleteSharedQueue(const char* subject, bool broadcast)
   ListMutex.LockWrite();
   
   if ((queuesubjects.count(ss)>0)) {
-    if (broadcast) {
+    if (XrdMqSharedObjectManager::broadcast && broadcast) {
       XrdOucString txmessage="";
       hashsubjects[ss]->MakeRemoveEnvHeader(txmessage);
       XrdMqMessage message("XrdMqSharedHashMessage");
@@ -816,7 +817,7 @@ bool
 XrdMqSharedHash::CloseTransaction() 
 {
   bool retval=true;
-  if (Transactions.size()) {
+  if (XrdMqSharedObjectManager::broadcast && Transactions.size()) {
     XrdOucString txmessage="";
     MakeUpdateEnvHeader(txmessage);
     AddTransactionEnvString(txmessage, false);
@@ -856,7 +857,7 @@ XrdMqSharedHash::CloseTransaction()
     }
   }
 
-  if (Deletions.size()) {
+  if (XrdMqSharedObjectManager::broadcast && Deletions.size()) {
     XrdOucString txmessage="";
     MakeDeletionEnvHeader(txmessage);
     AddDeletionEnvString(txmessage);
@@ -927,11 +928,14 @@ XrdMqSharedHash::BroadCastEnvString(const char* receiver)
   IsTransaction = false;
   TransactionMutex.UnLock();
 
-  XrdMqMessage message("XrdMqSharedHashMessage");
-  message.SetBody(txmessage.c_str());
-  message.MarkAsMonitor();
-  if (XrdMqSharedObjectManager::debug)fprintf(stderr,"XrdMqSharedObjectManager::BroadCastEnvString=>[%s]=>%s \n", Subject.c_str(),receiver);
-  return XrdMqMessaging::gMessageClient.SendMessage(message,receiver);
+  if (XrdMqSharedObjectManager::broadcast) {
+    XrdMqMessage message("XrdMqSharedHashMessage");
+    message.SetBody(txmessage.c_str());
+    message.MarkAsMonitor();
+    if (XrdMqSharedObjectManager::debug)fprintf(stderr,"XrdMqSharedObjectManager::BroadCastEnvString=>[%s]=>%s \n", Subject.c_str(),receiver);
+    return XrdMqMessaging::gMessageClient.SendMessage(message,receiver);
+  }
+  return true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1036,7 +1040,7 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast, bool te
     }
     
     
-    if (broadcast) {
+    if (XrdMqSharedObjectManager::broadcast && broadcast) {
       if (SOM->IsMuxTransaction) {
         SOM->MuxTransactions[Subject].insert(skey);
       } else {
@@ -1070,7 +1074,7 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast, bool te
     }
   }
 
-  if (broadcast) {
+  if (XrdMqSharedObjectManager::broadcast && broadcast) {
     if (!SOM->IsMuxTransaction)
       if (!IsTransaction)
         CloseTransaction();
@@ -1136,7 +1140,7 @@ XrdMqSharedHash::Delete(const char* key, bool broadcast)
     CallBackDelete(&Store[key]);
     Store.erase(key);
     deleted = true;
-    if (IsTransaction && broadcast) {
+    if (IsTransaction && broadcast && XrdMqSharedObjectManager::broadcast) {
       Deletions.insert(key);
       Transactions.erase(key);
     }
@@ -1378,6 +1382,22 @@ XrdMqSharedHash::Print(std::string &out, std::string format)
   }
 }
 
+/*----------------------------------------------------------------------------*/
+void 
+XrdMqSharedHash::Clear(bool broadcast) 
+{
+  XrdMqRWMutexWriteLock lock(StoreMutex);
+  std::map<std::string, XrdMqSharedHashEntry>::iterator storeit;
+  for (storeit = Store.begin(); storeit != Store.end(); storeit++) {
+    CallBackDelete(&storeit->second);
+    if (IsTransaction) {
+      if (XrdMqSharedObjectManager::broadcast &&  broadcast)
+	Deletions.insert(storeit->first);
+      Transactions.erase(storeit->first);
+    }
+  }
+  Store.clear();
+}
 
 /*----------------------------------------------------------------------------*/
 void

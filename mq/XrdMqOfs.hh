@@ -68,6 +68,14 @@
 #define MQOFSMAXQUEUEBACKLOG 50000
 #define MQOFSREJECTQUEUEBACKLOG 100000
 
+#define MAYREDIRECT {                                       \
+    int port=0;                                               \
+    XrdOucString host="";                                     \
+    if (gMqFS->ShouldRedirect(host,port)) {                   \
+      return gMqFS->Redirect(error,host,port);                \
+    }                                                         \
+  }
+
 class XrdSysError;
 class XrdSysLogger;
 
@@ -193,8 +201,10 @@ public:
   virtual bool Init(XrdSysError &);
   const   char          *getVersion();
   int          Stall(XrdOucErrInfo &error, int stime, const char *msg); 
-  
+  int          Redirect(XrdOucErrInfo   &error, XrdOucString &host, int &port);
+  bool         ShouldRedirect(XrdOucString &host, int &port);
   int          Configure(XrdSysError& Eroute);
+  bool         ResolveName(const char* inname, XrdOucString &outname);
 
   XrdSysMutex     StoreMutex;          // -> protecting the string store hash
   

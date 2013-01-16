@@ -84,11 +84,22 @@ class XrdMqClient
       return kClientId.c_str();
     }
 
+<<<<<<< HEAD
     void ReNewBrokerXrdClientReceiver( int i );
 
     void CheckBrokerXrdClientReceiver( int i );
 
     bool AddBroker( const char* brokerurl, bool advisorystatus = false, bool advisoryquery = false );
+=======
+  bool RegisterRecvCallback(void (*callback_func)(void *arg));
+  XrdOucString* GetBrokerUrl(int i);
+  XrdOucString  GetBrokerId(int i);
+  XrdClient*      GetBrokerXrdClientReceiver(int i);
+  XrdClientAdmin* GetBrokerXrdClientSender(int i);
+  const char*   GetClientId() {return kClientId.c_str();}
+  
+  bool AddBroker(const char* brokerurl, bool advisorystatus=false, bool advisoryquery=false);
+>>>>>>> e4f661c... MQ: adding MAYREDIRECT to MQ server plugin
 
     void Disconnect();
 

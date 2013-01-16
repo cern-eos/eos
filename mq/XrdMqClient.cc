@@ -79,9 +79,7 @@ XrdMqClient::Subscribe( const char* queue )
     if ( !file || !file->Open( url->c_str(), flags_xrdcl ).IsOK() ) {
       // open failed
       continue;
-    } else {
-      CheckBrokerXrdClientReceiver( i );
-    }
+    } 
   }
 
   return true;
@@ -467,7 +465,6 @@ XrdMqClient::GetBrokerXrdClientSender( int i )
 {
   return kBrokerXrdClientSender.Find( GetBrokerId( i ).c_str() );
 }
-
 
 //------------------------------------------------------------------------------
 // ReNewBrokerXrdClientReceiver

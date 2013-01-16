@@ -62,7 +62,7 @@ public:
   std::string entry;
   std::string key;
   unsigned long long ChangeId;
-  
+
   XrdMqSharedHashEntry(){key="";entry = ""; UpdateTime();ChangeId=0;mtime.tv_sec=0;mtime.tv_usec=0;}
 
   ~XrdMqSharedHashEntry(){};
@@ -118,7 +118,7 @@ protected:
   std::string Type;
   
   XrdMqSharedObjectManager* SOM;
-  
+
 public:
 
   XrdMqSharedHash(const char* subject = "", const char* broadcastqueue = "", XrdMqSharedObjectManager* som=0) ;
@@ -157,19 +157,7 @@ public:
 
   bool Delete(const char* key, bool broadcast=true);
 
-  void Clear(bool broadcast=true) {
-    XrdMqRWMutexWriteLock lock(StoreMutex);
-    std::map<std::string, XrdMqSharedHashEntry>::iterator storeit;
-    for (storeit = Store.begin(); storeit != Store.end(); storeit++) {
-      CallBackDelete(&storeit->second);
-      if (IsTransaction) {
-        if (broadcast)
-          Deletions.insert(storeit->first);
-        Transactions.erase(storeit->first);
-      }
-    }
-    Store.clear();
-  }
+  void Clear(bool broadcast=true);
 
   void GetKeys(std::vector<std::string> &keys) {
     XrdMqRWMutexWriteLock lock(StoreMutex);
@@ -307,6 +295,7 @@ protected:
 
 public:
   static bool debug;
+  static bool broadcast;
 
   bool EnableQueue; // if this is true, creation/deletionsubjects are filled and SubjectsSem get's posted for every new creation/deletion
 
@@ -331,6 +320,9 @@ public:
   
   XrdMqSharedObjectManager();
   ~XrdMqSharedObjectManager();
+
+  void EnableBroadCast(bool enable) {broadcast = enable;} // switch to globally en-/disable broadcasting of changes into shared queues - default is enabled
+  bool ShouldBroadCast() { return broadcast; }            // indicate if we are broadcasting
 
   void SetAutoReplyQueue(const char* queue);
   void SetAutoReplyQueueDerive(bool val) { AutoReplyQueueDerive = val;}
