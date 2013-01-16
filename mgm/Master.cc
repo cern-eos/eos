@@ -63,6 +63,11 @@ Master::Master()
   fRemoteMasterRW = false;
   fThread         = 0;
   fRunningState   = kIsNothing;
+  fCompactingState = kIsNotCompacting;
+  fCompactingThread = 0;
+  fCompactingStart  = 0;
+  fCompactingInterval = 0;
+  fCompactingRatio = 0;
 }
 
 
@@ -162,6 +167,11 @@ Master::Init()
     // start the heartbeat thread if a machine pair is configure
     XrdSysThread::Run(&fThread, Master::StaticHeartBeat, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "Master HeartBeat Thread");
   }
+
+  // ---------------------------------------------------------------
+  //! start the online compacting background thread
+  // ---------------------------------------------------------------
+  XrdSysThread::Run(&fThread, Master::StaticOnlineCompacting, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "Master OnlineCompacting Thread");
 
   // get sync up if it is not up
   int rc = system("service eos status sync || service eos start sync");
@@ -399,6 +409,286 @@ Master::HeartBeat()
 }
 
 /* ------------------------------------------------------------------------- */
+void* 
+Master::StaticOnlineCompacting(void* arg)
+{
+  //----------------------------------------------------------------
+  //! static thread startup function calling Compacting
+  //----------------------------------------------------------------
+  return reinterpret_cast<Master*>(arg)->Compacting();
+}
+
+/* ------------------------------------------------------------------------- */
+bool 
+Master::IsCompacting()
+{
+  bool retc=false;
+  { 
+    XrdSysMutexHelper cLock(fCompactingMutex);
+    retc = (fCompactingState == kIsCompacting);
+  }
+
+  return retc;
+}
+
+/* ------------------------------------------------------------------------- */
+bool 
+Master::IsCompactingBlocked()
+{
+  bool retc=false;
+  { 
+    XrdSysMutexHelper cLock(fCompactingMutex);
+    retc = (fCompactingState == kIsCompactingBlocked);
+  }
+
+  return retc;
+}
+
+
+/* ------------------------------------------------------------------------- */
+void
+Master::BlockCompacting() 
+{
+  XrdSysMutexHelper cLock(fCompactingMutex);
+  fCompactingState = kIsCompactingBlocked;
+  eos_static_info("msg=\"block compacting\"");
+}
+
+/* ------------------------------------------------------------------------- */
+void
+Master::UnBlockCompacting() 
+{
+  WaitCompactingFinished();
+  {
+    XrdSysMutexHelper cLock(fCompactingMutex);
+    fCompactingState = kIsNotCompacting;
+    eos_static_info("msg=\"unblock compacting\"");
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+void
+Master::WaitCompactingFinished()
+{
+  eos_static_info("msg=\"wait for compacting to finish\"");
+  do {
+    bool isCompacting=false;
+    {
+      XrdSysMutexHelper cLock(fCompactingMutex);
+      isCompacting = (fCompactingState == kIsCompacting);
+    }
+    if (isCompacting) {
+      XrdSysTimer sleeper;
+      sleeper.Wait(1000);
+    } else {
+      // block any further compacting
+      BlockCompacting();
+      break;
+    }
+  } while (1);
+  eos_static_info("msg=\"waited for compacting to finish OK\"");
+}
+
+/* ------------------------------------------------------------------------- */
+bool 
+Master::ScheduleOnlineCompacting(time_t starttime, time_t repetitioninterval)
+{
+  fCompactingStart = starttime;
+  fCompactingInterval = repetitioninterval;
+  return true;
+}
+
+/* ------------------------------------------------------------------------- */
+void*
+Master::Compacting()
+{
+  do {
+    XrdSysThread::SetCancelOff();
+    time_t now = time(NULL);
+    bool runcompacting=false;
+    bool reschedule=false;
+     {
+      XrdSysMutexHelper cLock(fCompactingMutex);
+      runcompacting = ( (fCompactingStart) && (now >= fCompactingStart) && IsMaster() );
+    }
+
+    bool isBlocked=false;
+    do {
+      // --------------------------------------------------------
+      // check if we are blocked
+      // --------------------------------------------------------
+      { 
+	XrdSysMutexHelper cLock(fCompactingMutex);
+	isBlocked = (fCompactingState == kIsCompactingBlocked);
+      }
+      // --------------------------------------------------------
+      // if we are blocked we wait until we are unblocked
+      // --------------------------------------------------------
+      if (isBlocked) {
+	XrdSysTimer sleeper;
+	sleeper.Wait(1000);
+      } else {
+	if (runcompacting) {
+	  // set to compacting
+	  fCompactingState = kIsCompacting;
+	}
+	break;
+      }
+    } while ( isBlocked );
+
+    bool go = false;
+    do {
+      // --------------------------------------------------------
+      // wait that the namespace is booted
+      // --------------------------------------------------------
+      {
+	XrdSysMutexHelper(gOFS->InitializationMutex);
+	if (gOFS->Initialized == gOFS->kBooted) {
+	  go = true;
+	}
+      }
+    } while ( !go );
+
+
+    if ( runcompacting ) {
+      // --------------------------------------------------------
+      // run the online compacting procedure
+      // --------------------------------------------------------
+      eos_notice("msg=\"starting online compactificiation\"");
+
+      time_t now = time(NULL);
+
+      std::string ocfile = gOFS->MgmNsFileChangeLogFile.c_str(); ocfile += ".oc";
+      char archiveFileLogName[4096];
+      snprintf(archiveFileLogName,sizeof(archiveFileLogName)-1, "%s.%lu", gOFS->MgmNsFileChangeLogFile.c_str(), now);
+      
+      std::string archivefile = archiveFileLogName;
+      MasterLog(eos_info("archive=%s oc=%s", archivefile.c_str(), ocfile.c_str()));
+      
+      // clean-up any old .oc file
+      int rc = unlink(ocfile.c_str());
+      if (!WEXITSTATUS(rc)) {
+	MasterLog(eos_info("oc=%s msg=\"old online compacting file unlinked\""));
+      }
+
+      bool compacted = false;
+      try {
+	void *compData=0;
+	{
+	  MasterLog(eos_info("msg=\"compact prepare\""));
+	  // require NS read lock
+	  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+	  compData = gOFS->eosFileService->compactPrepare( ocfile );
+	}
+	{
+	  MasterLog(eos_info("msg=\"compacting\""));
+	  // require no NS lock
+	  gOFS->eosFileService->compact( compData );
+	}
+	{
+	  // require NS write lock
+	  MasterLog(eos_info("msg=\"compact commit\""));
+	  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+	  gOFS->eosFileService->compactCommit( compData );
+	}
+	
+	{ 
+	  XrdSysMutexHelper cLock(fCompactingMutex);
+	  reschedule = (fCompactingInterval != 0);
+	}	
+	
+	if ( reschedule ) {
+	  eos_notice("msg=\"rescheduling online compactificiation\" interval=%u", (unsigned int)fCompactingInterval);
+	  XrdSysMutexHelper cLock(fCompactingMutex);
+	  fCompactingStart = time(NULL) + fCompactingInterval;
+	}
+	
+	if (::rename(gOFS->MgmNsFileChangeLogFile.c_str(), archivefile.c_str())) {
+	  MasterLog(eos_crit("failed to rename %s=>%s errno=%d", gOFS->MgmNsFileChangeLogFile.c_str(), archivefile.c_str(),errno));
+	} else {
+	  if (::rename(ocfile.c_str(), gOFS->MgmNsFileChangeLogFile.c_str())) {
+	    MasterLog(eos_crit("failed to rename %s=>%s errno=%d", ocfile.c_str(), gOFS->MgmNsFileChangeLogFile.c_str(),errno));
+	  } else {
+	    // stat the sizes and set the compacting factor
+	    struct stat before_compacting;
+	    struct stat after_compacting;
+	    fCompactingRatio = 0.0;
+
+	    if ( (!::stat(gOFS->MgmNsFileChangeLogFile.c_str(),&after_compacting)) && (!::stat(archivefile.c_str(),&before_compacting)) ) {
+	      if (after_compacting.st_size) {
+		fCompactingRatio = 1.0 * before_compacting.st_size / after_compacting.st_size;
+	      }
+	    }
+
+	    compacted = true;
+	  }
+	}
+      } catch ( eos::MDException &e ) {
+	errno = e.getErrno();
+	MasterLog(eos_crit("online-compacting returned ec=%d %s", e.getErrno(),e.getMessage().str().c_str()));
+      }
+
+      XrdSysTimer sleeper;
+      sleeper.Wait(30000);
+
+      if (compacted) {
+	MasterLog(eos_info("msg=\"compact done\""));
+      } else {
+	MasterLog(eos_crit("failed online compactification"));
+	exit(-1);
+      }
+      {
+	// set to not compacting
+	XrdSysMutexHelper cLock(fCompactingMutex);
+	fCompactingState = kIsNotCompacting;
+      }
+    }
+
+    // --------------------------------------------------------
+    // check only once a minute
+    // --------------------------------------------------------
+    XrdSysThread::SetCancelOn();
+    XrdSysTimer sleeper;
+    sleeper.Wait(60000);
+  } while (1);
+  return 0;
+}
+
+/* ------------------------------------------------------------------------- */
+void
+Master::PrintOutCompacting(XrdOucString &out)
+{
+  time_t now = time(NULL);
+  if (IsCompacting()) {
+    out += "status=compacting";
+    out += " waitstart=0";
+  } else {
+    if (IsCompactingBlocked()) {
+      out += "status=blocked";
+      out += " waitstart=0";
+    } else {
+      if (fCompactingStart && IsMaster()) {
+	time_t nextrun = ( fCompactingStart > now )? (fCompactingStart-now):0;
+	if (nextrun) {
+	  out += "status=wait";
+	  out += " waitstart="; out += (int) nextrun;
+	} else {
+	  out += "status=starting";
+	  out += " waitstart=0";
+	}
+      } else {
+	out += "status=off";
+	out += " waitstart=0";
+      }
+    }
+  }
+  char cfratio[256];
+  snprintf(cfratio,sizeof(cfratio)-1,"%.01f",fCompactingRatio);
+  out += " ratio="; out += cfratio; out += ":1";
+}
+
+
+/* ------------------------------------------------------------------------- */
 void
 Master::PrintOut(XrdOucString &out)
 {
@@ -499,7 +789,7 @@ Master::Activate(XrdOucString &stdOut, XrdOucString &stdErr, int transitiontype)
 	XrdOucString stdErr="";
 	if (!gOFS->ConfEngine->LoadConfig(configenv, stdErr)) {
 	  MasterLog(eos_static_crit("Unable to auto-load config %s - fix your configuration file!", gOFS->MgmConfigAutoLoad.c_str()));
-	  MasterLog(eos_static_crit("%s\n", stdErr.c_str()));
+	  MasterLog(eos_static_crit("%s", stdErr.c_str()));
 	return false;
 	} else {
 	  MasterLog(eos_static_info("Successful auto-load config %s", gOFS->MgmConfigAutoLoad.c_str()));
@@ -780,7 +1070,7 @@ Master::Slave2Master()
     gOFS->eosFileService->slave2master(fileSettings);
   } catch ( eos::MDException &e ) {
     errno = e.getErrno();
-    MasterLog(eos_crit("slave=>master transition returned ec=%d %s\n", e.getErrno(),e.getMessage().str().c_str()));
+    MasterLog(eos_crit("slave=>master transition returned ec=%d %s", e.getErrno(),e.getMessage().str().c_str()));
     fRunningState = kIsNothing;
     
     rc = system("service eos sync start");
@@ -800,11 +1090,14 @@ Master::Slave2Master()
       gOFS->eosFileService->finalize();
     } catch ( eos::MDException &e ) {
       errno = e.getErrno();
-      MasterLog(eos_crit("slave=>master finalize returned ec=%d %s\n", e.getErrno(),e.getMessage().str().c_str()));
+      MasterLog(eos_crit("slave=>master finalize returned ec=%d %s", e.getErrno(),e.getMessage().str().c_str()));
     }
     fRunningState = kIsNothing;
     return false;
   }
+  
+  UnBlockCompacting();
+
   MasterLog(eos_notice("running in master mode"));
   return true;
 }
@@ -814,15 +1107,22 @@ bool
 Master::Master2MasterRO()
 {
   fRunningState = kIsTransition;
+  
   // -----------------------------------------------------------
   // convert the RW namespace into a read-only namespace
   // -----------------------------------------------------------
+
+  // -----------------------------------------------------------
+  // wait that compacting is finished and block any further compacting
+  // -----------------------------------------------------------
+  WaitCompactingFinished();
+
   try {
     gOFS->eosDirectoryService->makeReadOnly();
     gOFS->eosFileService->makeReadOnly();
   } catch ( eos::MDException &e ) {
     errno = e.getErrno();
-    MasterLog(eos_crit("master=>slave transition returned ec=%d %s\n", e.getErrno(),e.getMessage().str().c_str()));
+    MasterLog(eos_crit("master=>slave transition returned ec=%d %s", e.getErrno(),e.getMessage().str().c_str()));
     fRunningState = kIsNothing;
     return false;
   };
@@ -869,7 +1169,7 @@ Master::MasterRO2Slave()
       if (gOFS->eosView)             { gOFS->eosView->finalize();             delete gOFS->eosView;   gOFS->eosView=0;   }
     } catch ( eos::MDException &e ) {
       errno = e.getErrno();
-      MasterLog(eos_crit("master-ro=>slave namespace shutdown returned ec=%d %s\n", e.getErrno(),e.getMessage().str().c_str()));
+      MasterLog(eos_crit("master-ro=>slave namespace shutdown returned ec=%d %s", e.getErrno(),e.getMessage().str().c_str()));
     };
 
     // boot it from scratch
@@ -888,7 +1188,7 @@ Master::MasterRO2Slave()
     XrdOucString stdErr="";
     if (!gOFS->ConfEngine->LoadConfig(configenv, stdErr)) {
       MasterLog(eos_static_crit("Unable to auto-load config %s - fix your configuration file!", gOFS->MgmConfigAutoLoad.c_str()));
-      MasterLog(eos_static_crit("%s\n", stdErr.c_str()));
+      MasterLog(eos_static_crit("%s", stdErr.c_str()));
       return false;
     } else {
       MasterLog(eos_static_info("Successful auto-load config %s", gOFS->MgmConfigAutoLoad.c_str()));
@@ -928,6 +1228,11 @@ Master::~Master()
     XrdSysThread::Cancel(fThread);
     XrdSysThread::Join(fThread,0);
     fThread = 0;
+  }
+  if (fCompactingThread) {
+    XrdSysThread::Cancel(fCompactingThread);
+    XrdSysThread::Join(fCompactingThread,0);
+    fCompactingThread = 0;
   }
 }
 
@@ -1026,7 +1331,7 @@ Master::BootNamespace()
     time_t tstop  = time(0);
     MasterLog(eos_crit("eos view initialization failed after %d seconds", (tstop-tstart)));
     errno = e.getErrno();
-    MasterLog(eos_crit("initialization returned ec=%d %s\n", e.getErrno(),e.getMessage().str().c_str()));
+    MasterLog(eos_crit("initialization returned ec=%d %s", e.getErrno(),e.getMessage().str().c_str()));
     return false;
   };
 

@@ -52,6 +52,8 @@ private:
   bool fRemoteMasterRW;      // indicates if the remote master is in RW = master mode or not
   bool fRemoteMqOk;          // indicates if the remote mq is up
   pthread_t fThread;         // thread id of the heart beat thread
+  pthread_t fCompactingThread; // thread id of an oncline compacting thread
+  double fCompactingRatio;   // compacting ratio e.g. 4:1 => 4 times smaller after compaction
 
   // --------------------------------------------
   // lock class wrapper used by the namespace
@@ -118,8 +120,14 @@ public:
   enum {kMasterToMaster=0, kSlaveToMaster=1, kMasterToMasterRO=2, kMasterROToSlave=3, kSecondarySlaveMasterFailover=4};
   // running states
   enum {kIsNothing=0, kIsRunningMaster=1, kIsRunningSlave=2, kIsReadOnlyMaster=3, kIsSecondarySlave=4, kIsTransition=4};
+  // compacting states
+  enum {kIsNotCompacting=0, kIsCompacting=1, kIsCompactingBlocked=2};
 
   int fRunningState;
+  int fCompactingState;
+  time_t fCompactingInterval;
+  time_t fCompactingStart;
+  XrdSysMutex fCompactingMutex;
 
   //------------------------------------------------------------------------
   // Constructor
@@ -137,9 +145,47 @@ public:
   static void* StaticHeartBeat(void*);
 
   //------------------------------------------------------------------------
+  // Online Compacting Thread Start Function
+  //------------------------------------------------------------------------
+  static void* StaticOnlineCompacting(void*);
+  
+  //------------------------------------------------------------------------
   // HeartBeat Thread Function
   //------------------------------------------------------------------------
   void* HeartBeat();
+
+  //------------------------------------------------------------------------
+  // Compacting Thread Function
+  //------------------------------------------------------------------------
+  void* Compacting();
+
+  //------------------------------------------------------------------------
+  // Wait for a compacting round to finish
+  //------------------------------------------------------------------------
+  void WaitCompactingFinished();
+  
+  //------------------------------------------------------------------------
+  // Un/Block compacting
+  //------------------------------------------------------------------------
+  void BlockCompacting();
+  void UnBlockCompacting();
+
+  //------------------------------------------------------------------------
+  // Show the current compacting state
+  //------------------------------------------------------------------------
+  void PrintOutCompacting(XrdOucString &out);              
+
+  //------------------------------------------------------------------------
+  // Check if we are currently running compacting
+  //------------------------------------------------------------------------
+
+  bool IsCompacting();
+
+  //------------------------------------------------------------------------
+  // Check if we are currently blocking the compacting
+  //------------------------------------------------------------------------
+
+  bool IsCompactingBlocked();
 
   //------------------------------------------------------------------------
   // Enable Heart Beat
@@ -150,6 +196,11 @@ public:
   // Disable Heart Beat
   //------------------------------------------------------------------------
   bool DisableHeartBeat();
+
+  //------------------------------------------------------------------------
+  // ScheduleOnlineCompacting
+  //------------------------------------------------------------------------
+  bool ScheduleOnlineCompacting(time_t starttime, time_t repetitioninterval);
   
   //------------------------------------------------------------------------
   // Create a status file = touch
