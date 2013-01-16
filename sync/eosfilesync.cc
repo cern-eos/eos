@@ -122,6 +122,8 @@ int main( int argc, char* argv[] )
     }
   } while ( fd < 0 );
 
+
+ again:
   uint16_t flags_xrdcl;
   uint16_t mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::GR |
                         XrdCl::Access::GW | XrdCl::Access::OR;
@@ -132,6 +134,7 @@ int main( int argc, char* argv[] )
   if ( !file ) {
     fprintf( stderr, "Error: cannot create XrdCl object\n" );
     exit( -1 );
+
   }
 
   flags_xrdcl = XrdCl::OpenFlags::MakePath | XrdCl::OpenFlags::Update;
@@ -195,10 +198,10 @@ int main( int argc, char* argv[] )
 
     if ( isdumpfile ) {
       if ( !file->Truncate( 0 ).IsOK() ) {
-        eos_static_crit( "couldn't truncate remote file" );
-        delete dststat;
-        delete file;
-        exit( -1 );
+        eos_static_crit("couldn't truncate remote file");
+	sleep(60);
+	if (file) delete file;
+	goto again;
       }
 
       remoteoffset = 0;
@@ -207,10 +210,10 @@ int main( int argc, char* argv[] )
         eos_static_err( "remote file is longer than local file - force truncation\n" );
 
         if ( !file->Truncate( 0 ).IsOK() ) {
-          eos_static_crit( "couldn't truncate remote file" );
-          delete dststat;
-          delete file;
-          exit( -1 );
+          eos_static_crit("couldn't truncate remote file");
+	  sleep(60);
+	  if (file) delete file;
+	  goto again;
         }
 
         remoteoffset = 0;
