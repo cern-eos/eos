@@ -107,7 +107,7 @@ target_link_libraries(xrdcpdownloadrandom XrdPosix XrdUtils)
 target_link_libraries(xrdcpshrink XrdPosix XrdUtils)
 target_link_libraries(xrdcptruncate XrdPosix XrdUtils)
 target_link_libraries(xrdcpposixcache XrdPosix XrdUtils)
-target_link_libraries(xrdcppartial XrdPosix XrdUtil)s
+target_link_libraries(xrdcppartial XrdPosix XrdUtils)
 target_link_libraries(eoschecksumbench XrdPosix eosCommon XrdUtils)
 
 target_link_libraries(eos-udp-dumper)

@@ -747,7 +747,7 @@ XrdFstOfsFile::MakeReportEnv( XrdOucString& reportString )
       wsum += wvec[i];
     }
 
-    wavg = wvec.size() ? ( 1.0 * wsum / rvec.size() ) : 0;
+    wavg = wvec.size() ? ( 1.0 * wsum / wvec.size() ) : 0;
 
     for ( size_t i = 0; i < wvec.size(); i++ ) {
       wsum2 += ( ( wvec[i] - wavg ) * ( wvec[i] - wavg ) );
@@ -835,7 +835,7 @@ XrdFstOfsFile::verifychecksum()
         return false;
       }
     } else {
-      if ( ( ( !isRW ) && ( checkSum->GetMaxOffset() != openSize ) ) || ( ( !rvec.size() ) && ( !wvec.size() ) ) ) {
+      if ( ( ( !isRW ) && ( checkSum->GetMaxOffset() != openSize ) ) ) {
         eos_debug( "info=\"skipping checksum (re-scan) for access without any IO or "
                    "partial sequential read IO from the beginning...\"" );
         delete checkSum;

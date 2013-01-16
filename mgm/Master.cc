@@ -32,13 +32,9 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetPeer.hh"
-#ifdef NEWXRDCL
-#include "XrdCl/XrdCl.hh"
-#else
-#include "XrdClient/XrdClientAdmin.hh"
-#include "XrdClient/XrdClientDebug.hh"
+#include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClFileSystem.hh"
 #include "mq/XrdMqClient.hh"
-#endif
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
@@ -264,29 +260,21 @@ Master::Supervisor()
     remoteMqUrlString += "1097";
   }
 
-#ifdef NEWXRDCL
   XrdCl::URL remoteMgmUrl(remoteMgmUrlString.c_str());
   XrdCl::URL remoteMqUrl(remoteMqUrlString.c_str());
 
   if (! remoteMgmUrl.IsValid()) {
-    MasterLog(eos_static_crit("remote manager URL <%s> is not valid", remoteMgmUrl.c_str()));
+    MasterLog(eos_static_crit("remote manager URL <%s> is not valid", remoteMgmUrlString.c_str()));
     fRemoteMasterOk=false;
-    return;
   }
 
   if (! remoteMqUrl.IsValid()) {
-    MasterLog(eos_static_crit("remote mq URL <%s> is not valid", remoteMqUrl.c_str()));
+    MasterLog(eos_static_crit("remote mq URL <%s> is not valid", remoteMqUrlString.c_str()));
     fRemoteMqOk=false;
-    return;
   }
 
   XrdCl::FileSystem FsMgm ( remoteMgmUrl );
   XrdCl::FileSystem FsMq  ( remoteMqUrl  );
-#else
-  XrdMqClient::SetXrootVariables();
-  remoteMgmUrlString += "//dummy";
-  remoteMqUrlString  += "//dummy";
-#endif
 
   while (1) {
     XrdSysThread::SetCancelOff();
@@ -298,110 +286,61 @@ Master::Supervisor()
       // ----------------------------------------
       
       // - new XrdCl - 
-#ifdef NEWXRDCL
-      
-      // ---------------------------------------
-      // ---- CAREFUL this is incomplete now ---
-      // ---------------------------------------
-      
-      // ping the two guys e.g. MGM & MQ
+      bool remoteMgmUp=false;
+      bool remoteMqUp=false;
+
+      // ping the two guys with short timeouts e.g. MGM & MQ
       XrdCl::XRootDStatus mgmStatus = FsMgm.Ping(1);
       XrdCl::XRootDStatus mqStatus  = FsMgm.Ping(1);
       
       if (mgmStatus.IsOK()) {
-	fRemoteMasterOk = true;
-      } else {
-	fRemoteMasterOk = false;
-      }
-      
-      if (mqStatus.IsOK()) {
-	fRemoteMqOk = true;
-	CreateStatusFile(EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE);
-      } else {
-	fRemoteMqOk = false;
-	RemoveStatusFile(EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE);
-      }
-      // need to add the stat for the master proc entry
-#else
-      
-      XrdClientAdmin* MgmAdmin = new XrdClientAdmin(remoteMgmUrlString.c_str());
-      XrdClientAdmin* MqAdmin  = new XrdClientAdmin(remoteMqUrlString.c_str());
-      
-      bool remoteMgmUp=false;
-      bool remoteMqUp=false;
-      
-      if (HostCheck(fRemoteHost.c_str())) {
 	remoteMgmUp = true;
+      } else {
+	remoteMgmUp = false;
+
       }
       
-      if (HostCheck(fRemoteMq.c_str(),1097)) {
-	remoteMqUp = true;
-      }
-      
-      // - old XrdClient - 
-      // is there a difference? ;-)
       if (remoteMqUp) {
-	// check the MQ service
-	MqAdmin->Connect();
-	MqAdmin->GetClientConn()->ClearLastServerError();
-	MqAdmin->GetClientConn()->SetOpTimeLimit(2);
-	long id=0;
-	long long size = 0;
-	long flags=0;
-	long modtime =0;
-	
-	if (MqAdmin->Stat("/eos/",id, size, flags,modtime)) {
+	XrdCl::StatInfo* sinfo = 0 ;
+
+	if (FsMq.Stat("/eos/",sinfo,5).IsOK()) {
 	  fRemoteMqOk = true;
 	  CreateStatusFile(EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE);
 	} else {
 	  fRemoteMqOk = false;
 	  RemoveStatusFile(EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE);
 	}
+	if (sinfo) { delete sinfo; sinfo = 0;}
       } else {
 	fRemoteMqOk = false;
 	RemoveStatusFile(EOSMQMASTER_SUBSYS_REMOTE_LOCKFILE);
       }
       
       if (remoteMgmUp) {
-	// check the MGM service
-	MgmAdmin->Connect();
-	MgmAdmin->GetClientConn()->ClearLastServerError();
-	MgmAdmin->GetClientConn()->SetOpTimeLimit(2);
-	long id=0;
-	long long size = 0;
-	long flags=0;
-	long modtime =0;
-	
-	// --------------------------------------------
-	// this really sucks ...
-	// --------------------------------------------
-	int olddbg=DebugLevel();
-	DebugSetLevel(-1);
-	// --------------------------------------------
-	if (MgmAdmin->Stat("/",id, size, flags,modtime)) {
+	XrdCl::StatInfo* sinfo = 0;
+
+	if (FsMgm.Stat("/",sinfo,5).IsOK()) {
 	  if (gOFS->MgmProcMasterPath.c_str()) {
-	    
+	    XrdCl::StatInfo* smasterinfo = 0;
+
 	    // check if this machine is running in master mode
-	    if (MgmAdmin->Stat(gOFS->MgmProcMasterPath.c_str(),id, size, flags,modtime)) {
+	    if (FsMgm.Stat(gOFS->MgmProcMasterPath.c_str(),smasterinfo,5).IsOK()) {
 	      fRemoteMasterRW = true;
 	    } else {
 	      fRemoteMasterRW = false;
 	    }
+	    if (smasterinfo) {delete smasterinfo; smasterinfo = 0;}
 	  }
-	fRemoteMasterOk = true;
+	  fRemoteMasterOk = true;
 	} else {
 	  fRemoteMasterOk = false;
 	  fRemoteMasterRW = false;
 	}
-	DebugSetLevel(olddbg);
+	if (sinfo) { delete sinfo; sinfo = 0;}
       } else {
 	fRemoteMasterOk = false;
 	fRemoteMasterRW = false;
       }
-      delete MgmAdmin;
-      delete MqAdmin;
-      
-#endif
 
       if (!lDiskFull) {
 	eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
@@ -1137,25 +1076,25 @@ Master::Slave2Master()
     // ---------------------------------------
     // TODO: adapt for the new client      ---
     // ---------------------------------------
-    
-    XrdClientAdmin* SyncAdmin = new XrdClientAdmin(remoteSyncUrlString.c_str());
-    if (SyncAdmin) {
-      SyncAdmin->Connect();
-      SyncAdmin->GetClientConn()->ClearLastServerError();
-      SyncAdmin->GetClientConn()->SetOpTimeLimit(2);
-      long id=0;
-      long long size = 0;
-      long flags=0;
-      long modtime =0;
 
-      // stat the two remote changelog files
-      if (SyncAdmin->Stat(rfclf.c_str(),id, size, flags, modtime)) {
-	size_remote_file_changelog = size;
-      }
-      if (SyncAdmin->Stat(rdclf.c_str(),id, size, flags, modtime)) {
-	size_remote_dir_changelog = size;
-      }
-      delete SyncAdmin;
+    XrdCl::URL remoteSyncUrl(remoteSyncUrlString.c_str());
+    
+    XrdCl::FileSystem FsSync ( remoteSyncUrl );
+    XrdCl::StatInfo* sinfo = 0 ;
+
+    // stat the two remote changelog files
+    if (FsSync.Stat(rfclf.c_str(),sinfo, 5).IsOK()) {
+      size_remote_file_changelog = sinfo->GetSize();
+      if (sinfo) {delete sinfo; sinfo=0;}
+    } else {
+      if (sinfo) {delete sinfo; sinfo=0;}
+    }
+
+    if (FsSync.Stat(rdclf.c_str(),sinfo, 5).IsOK()) {
+      size_remote_dir_changelog = sinfo->GetSize();
+      if (sinfo) {delete sinfo; sinfo=0;}
+    } else {
+      if (sinfo) {delete sinfo; sinfo=0;}
     }
     
     if (size_remote_file_changelog != size_local_file_changelog) {
@@ -1506,53 +1445,22 @@ Master::SignalRemoteBounceToMaster()
   // TODO: add signals for remote slave(-only) machiens
   // --------------------------------------------------
   
-  bool mgmok=false;
+  std::string signalbounce="/?mgm.pcmd=mastersignalbounce";
+  XrdCl::URL remoteMgmUrl(remoteMgmUrlString.c_str());
+  XrdCl::FileSystem FsMgm ( remoteMgmUrl );
+  XrdCl::StatInfo* sinfo = 0 ;
   
-  if (HostCheck(fRemoteHost.c_str())) {
-    MasterLog(eos_info("remote-mgm host=%s:1094 is reachable", fRemoteHost.c_str()));
-    mgmok = true;
+  XrdCl::Buffer qbuffer;
+  qbuffer.FromString(signalbounce);
+  XrdCl::Buffer* rbuffer = 0;
+  
+  if (FsMgm.Query(XrdCl::QueryCode::OpaqueFile, qbuffer, rbuffer).IsOK()) {
+    MasterLog(eos_info("msg=\"signalled successfully remote master to redirect\""));
   } else {
-    MasterLog(eos_info("remote-mgm host=%s:1094 is down",fRemoteHost.c_str()));
+    MasterLog(eos_warning("failed to signal remote redirect to %s", remoteMgmUrlString.c_str()));
   }
-  
-  if (mgmok) {
-    char result[8192]; result[0]=0;
-    int  result_size=8192;
-
-    XrdOucString signalbounce="/?mgm.pcmd=mastersignalbounce";
-
-    // ---------------------------------------
-    // TODO: adapt for the new client      ---
-    // ---------------------------------------
-    
-    XrdClientAdmin* MgmAdmin = new XrdClientAdmin(remoteMgmUrlString.c_str());
-    if (MgmAdmin) {
-      MgmAdmin->Connect();
-      MgmAdmin->GetClientConn()->ClearLastServerError();
-      MgmAdmin->GetClientConn()->SetOpTimeLimit(60);
-
-      MgmAdmin->Query(kXR_Qopaquf,
-	       (kXR_char *) signalbounce.c_str(),
-	       (kXR_char *) result, result_size);
-
-      if (!MgmAdmin->LastServerResp()) {
-	MasterLog(eos_warning("failed to signal remote redirect to %s", remoteMgmUrlString.c_str()));
-      }
-      switch (MgmAdmin->LastServerResp()->status) {
-      case kXR_ok:
-	MasterLog(eos_info("msg=\"signalled successfully remote master to redirect\""));
-	break;
-      case kXR_error:
-	MasterLog(eos_warning("failed to signal remote redirect to %s", remoteMgmUrlString.c_str()));
-	break;
-	
-      default:
-	MasterLog(eos_warning("failed to signal remote redirect to %s", remoteMgmUrlString.c_str()));
-	break;
-      }
-      delete MgmAdmin;
-    }
-  }
+  if (rbuffer) {delete rbuffer; rbuffer = 0;}
+  if (sinfo) {delete sinfo; sinfo = 0;}
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1570,54 +1478,24 @@ Master::SignalRemoteReload()
   // TODO: add signals for remote slave(-only) machiens
   // --------------------------------------------------
   
-  bool mgmok=false;
+  std::string signalreload="/?mgm.pcmd=mastersignalreload";
+
+  XrdCl::URL remoteMgmUrl(remoteMgmUrlString.c_str());
+
+  XrdCl::FileSystem FsMgm ( remoteMgmUrl );
+  XrdCl::StatInfo* sinfo = 0 ;
   
-  if (HostCheck(fRemoteHost.c_str())) {
-    MasterLog(eos_info("remote-mgm host=%s:1094 is reachable", fRemoteHost.c_str()));
-    mgmok = true;
+  XrdCl::Buffer qbuffer;
+  qbuffer.FromString(signalreload);
+  XrdCl::Buffer* rbuffer = 0;
+  
+  if (FsMgm.Query(XrdCl::QueryCode::OpaqueFile, qbuffer, rbuffer).IsOK()) {
+    MasterLog(eos_info("msg=\"signalled remote master to reload\""));
   } else {
-    MasterLog(eos_info("remote-mgm host=%s:1094 is down",fRemoteHost.c_str()));
+    MasterLog(eos_warning("failed to signal remote reload to %s", remoteMgmUrlString.c_str()));
   }
-  
-  if (mgmok) {
-    char result[8192]; result[0]=0;
-    int  result_size=8192;
-
-    XrdOucString signalreload="/?mgm.pcmd=mastersignalreload";
-
-    // ---------------------------------------
-    // TODO: adapt for the new client      ---
-    // ---------------------------------------
-    
-    XrdClientAdmin* MgmAdmin = new XrdClientAdmin(remoteMgmUrlString.c_str());
-    if (MgmAdmin) {
-      MgmAdmin->Connect();
-      MgmAdmin->GetClientConn()->ClearLastServerError();
-      MgmAdmin->GetClientConn()->SetOpTimeLimit(60);
-
-      MgmAdmin->Query(kXR_Qopaquf,
-	       (kXR_char *) signalreload.c_str(),
-	       (kXR_char *) result, result_size);
-
-      if (!MgmAdmin->LastServerResp()) {
-	MasterLog(eos_warning("failed to signal remote redirect to %s", remoteMgmUrlString.c_str()));
-      }
-      switch (MgmAdmin->LastServerResp()->status) {
-      case kXR_ok:
-	MasterLog(eos_info("msg=\"signalled remote master to reload\""));
-	break;
-      case kXR_error:
-	MasterLog(eos_warning("failed to signal remote redirect to %s", remoteMgmUrlString.c_str()));
-	break;
-	
-      default:
-	MasterLog(eos_warning("failed to signal remote redirect to %s", remoteMgmUrlString.c_str()));
-	break;
-      }
-      delete MgmAdmin;
-    }
-  }
-
+  if (rbuffer) {delete rbuffer; rbuffer = 0;}
+  if (sinfo) {delete sinfo; sinfo = 0;}
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1696,32 +1574,28 @@ Master::WaitNamespaceFilesInSync(unsigned int timeout)
     // check once the remote size
     // ---------------------------------------
 
-    XrdClientAdmin* SyncAdmin = new XrdClientAdmin(remoteSyncUrlString.c_str());
-    if (SyncAdmin) {
-      SyncAdmin->Connect();
-      SyncAdmin->GetClientConn()->ClearLastServerError();
-      SyncAdmin->GetClientConn()->SetOpTimeLimit(2);
-      long id=0;
-      long long size = 0;
-      long flags=0;
-      long modtime =0;
-      
-      // stat the two remote changelog files
-      if (SyncAdmin->Stat(rfclf.c_str(),id, size, flags, modtime)) {
-	size_remote_file_changelog = size;
-      } else {
-	MasterLog(eos_crit("remote stat failed for %s", rfclf.c_str()));
-	delete SyncAdmin;
-	return false;
-      }
-      if (SyncAdmin->Stat(rdclf.c_str(),id, size, flags, modtime)) {
-	size_remote_dir_changelog = size;
-      } else {
-	MasterLog(eos_crit("remote stat failed for %s", rdclf.c_str()));
-	delete SyncAdmin;
-	return false;
-      }
-      delete SyncAdmin;
+    XrdCl::URL remoteSyncUrl(remoteSyncUrlString.c_str());
+
+    XrdCl::FileSystem FsSync ( remoteSyncUrl );
+    XrdCl::StatInfo* sinfo = 0 ;
+
+    // stat the two remote changelog files
+    if (FsSync.Stat(rfclf.c_str(),sinfo, 5).IsOK()) {
+      size_remote_file_changelog = sinfo->GetSize();
+      if (sinfo) { delete sinfo; sinfo = 0; }
+    } else {
+      if (sinfo) { delete sinfo; sinfo = 0; }
+      MasterLog(eos_crit("remote stat failed for %s", rfclf.c_str()));
+      return false;
+    }
+    
+    if (FsSync.Stat(rdclf.c_str(),sinfo, 5).IsOK()) {
+      size_remote_dir_changelog = sinfo->GetSize();
+      if (sinfo) { delete sinfo; sinfo = 0; }
+    } else {
+      if (sinfo) { delete sinfo; sinfo = 0; }
+      MasterLog(eos_crit("remote stat failed for %s", rdclf.c_str()));
+      return false;
     }
     
     MasterLog(eos_info("remote files file=%llu dir=%llu", size_remote_file_changelog, size_remote_dir_changelog));

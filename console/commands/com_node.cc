@@ -109,7 +109,7 @@ com_node (char* arg1) {
     in += active;
     ok = true;
   }
-
+  
   if ( subcommand == "status" ) {
     in ="mgm.cmd=node&mgm.subcmd=status";
     XrdOucString nodename = subtokenizer.GetToken();

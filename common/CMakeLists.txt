@@ -21,12 +21,29 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR})
-link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR} )
-if(LEVELDB_FOUND)
-include_directories( ${LEVELDB_INCLUDE_DIR} )
-link_directories( ${LEVELDB_LIB_DIR} )
-endif(LEVELDB_FOUND)
+include_directories( 
+		     ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd
+                     ${CMAKE_BINARY_DIR}/xrootd/src/include/
+		     ../ ${XROOTD_INCLUDE_DIR} 
+		     ${SPARSEHASH_INCLUDE_DIR} )
+
+link_directories( 
+		  /usr/${LIB_INSTALL_DIR}/ 
+		  ${XROOTD_LIB_DIR} )
+
+if (LEVELDB_FOUND)
+include_directories( 
+		     ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd
+                     ${CMAKE_BINARY_DIR}/xrootd/src/include/
+		     ../ ${XROOTD_INCLUDE_DIR} 
+		     ${SPARSEHASH_INCLUDE_DIR} 
+		     ${LEVELDB_INCLUDE_DIR} )
+link_directories( 
+		  /usr/${LIB_INSTALL_DIR} 
+		  ${XROOTD_LIB_DIR} 
+		  ${LEVELDB_LIB_DIR} )		   
+
+endif (LEVELDB_FOUND)
 
 add_library (eosCommon SHARED 
 	    FileSystem.cc
@@ -75,6 +92,7 @@ add_executable ( dbmaptestfunc
 )
 add_executable ( dbmaptestburn
        dbmaptest/DbMapTestBurn.cc
+)
 
 add_executable ( mutextest
        mutextest/RWMutexTest.cc
@@ -105,7 +123,7 @@ if (Linux)
   set_target_properties (eosCommon-Static PROPERTIES COMPILE_FLAGS "-fPIC -DSQLITE_NO_SYNC=1")
 
 endif(Linux)
-
+  
 install ( TARGETS eosCommon 
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}
           RUNTIME DESTINATION bin

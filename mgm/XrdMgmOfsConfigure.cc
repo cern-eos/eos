@@ -255,6 +255,9 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   signal(SIGABRT, xrdmgmofs_stacktrace);
   signal(SIGBUS,  xrdmgmofs_stacktrace);
 
+  // set short timeouts in the new XrdCl class
+  setenv("XRD_TIMEOUTRESOLUTION","1",1);
+
   Shutdown = false;
 
   setenv("XrdSecPROTOCOL","sss",1);

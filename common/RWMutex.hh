@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
 // File: RWMutex.hh
-// Author: Andreas-Joachim Peters - CERN
+// Author: Andreas-Joachim Peters & Geoffrey Adde - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -148,11 +148,11 @@ inline std::ostream& operator << (std::ostream &os, const RWMutexTimingStats &st
 class RWMutex
 {
 private:
-  pthread_rwlock_t       rwlock;
-  pthread_rwlockattr_t   attr;
-  struct timespec        wlocktime;
-  bool                   blocking;
-
+  pthread_rwlock_t rwlock;
+  pthread_rwlockattr_t attr;
+  struct timespec wlocktime;
+  struct timespec rlocktime;
+  bool blocking;
   size_t readLockCounter;
   size_t writeLockCounter;
 
@@ -162,7 +162,6 @@ private:
   int counter;
   std::string debugname;
   // #########################################
-
 
   // ############# TIMING MEMBERS ##############
   bool enabletiming,enablesampling;
@@ -221,7 +220,6 @@ public:
     // try to get write lock in 5 seconds, then release quickly and retry
     wlocktime.tv_sec=5;
     wlocktime.tv_nsec=0;
-
     // try to get read lock in 100ms, otherwise allow this thread to be canceled - used by LockReadCancel
     rlocktime.tv_sec=0;
     rlocktime.tv_nsec=1000000;
@@ -979,6 +977,7 @@ public:
     EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(read)
   }
 
+
   // ---------------------------------------------------------------------------
   //! Lock for read allowing to be canceled waiting for a lock
   // ---------------------------------------------------------------------------
@@ -1005,6 +1004,7 @@ public:
     }
     EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(read)
   }
+
 
   // ---------------------------------------------------------------------------
   //! Unlock a read lock

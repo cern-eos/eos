@@ -3,7 +3,7 @@
 // Author: Andreas-Joachim Peters - CERN
 //------------------------------------------------------------------------------
 
-/************************************************************************
+/********************A****************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
@@ -99,12 +99,13 @@ int main( int argc, char* argv[] )
   gettimeofday( &sync1, &tz );
   XrdOucString sourcefile = argv[1];
   XrdOucString dsturl = argv[2];
+  std::string sdsturl = dsturl.c_str();
+
+  XrdCl::URL dUrl(sdsturl);
 
   if ( sourcefile.endswith( ".dump" ) ) {
     isdumpfile = true;
   }
-
-  int fd =0; 
 
   int watch_fd = 0;
 
@@ -162,7 +163,6 @@ int main( int argc, char* argv[] )
 
   struct stat srcstat;
 
-  struct stat srcstat;
   XrdCl::StatInfo* dststat = 0;
 
   do {
@@ -206,15 +206,15 @@ int main( int argc, char* argv[] )
 	  } else {
 	    eos_static_notice("re-opened source file");
 	    file->Close();
-	    if (file) delete client;
+	    if (file) delete file;
 	    
-	    XrdCl::FileSystem FsSync ( dsturl.c_str() );
+	    XrdCl::FileSystem FsSync ( dUrl );
 	    XrdOucString sourcebackupfile = sourcefile;
 	    sourcebackupfile += ".";
 	    sourcebackupfile += (int)time(NULL);
 	    std::string s_file = sourcefile.c_str();
 	    std::string d_file = sourcebackupfile.c_str();
-	    if (!FsSync.Mv(s_file, d_file).IsOk()) {
+	    if (!FsSync.Mv(s_file, d_file).IsOK()) {
 	      eos_static_crit("couldn't rename %s=>%s\n", sourcefile.c_str(), sourcebackupfile.c_str());
 	    }
 	    goto again;
@@ -252,13 +252,13 @@ int main( int argc, char* argv[] )
 	  sleep(60);
 	  if (file) delete file;
 	  
-	  XrdCl::FileSystem FsSync ( dsturl.c_str() );
+	  XrdCl::FileSystem FsSync ( dUrl );
 	  XrdOucString sourcebackupfile = sourcefile;
 	  sourcebackupfile += ".";
 	  sourcebackupfile += (int)time(NULL);
 	  std::string s_file = sourcefile.c_str();
 	  std::string d_file = sourcebackupfile.c_str();
-	  if (!FsSync.Mv(s_file, d_file).IsOk()) {
+	  if (!FsSync.Mv(s_file, d_file).IsOK()) {
 	    eos_static_crit("couldn't rename %s=>%s\n", sourcefile.c_str(), sourcebackupfile.c_str());
 	  }
 	  goto again;

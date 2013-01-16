@@ -234,6 +234,10 @@ public:
     if ( (atoi(GetConfigMember("gw.rate").c_str()) == 0) || (atoi(GetConfigMember("gw.rate").c_str()) == LONG_MAX ) ) {
       SetConfigMember("gw.rate","120", true, mName.c_str(), true); // by default we allow 1GBit speed per transfer
     }
+
+    if (!(GetConfigMember("domain").length())) {
+      SetConfigMember("domain","MGM", true, mName.c_str(), true); // by default we set the 'MGM" domain e.g. the same geographical position as the MGM
+    }
   }
   
   static std::string gConfigQueuePrefix;
