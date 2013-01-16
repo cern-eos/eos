@@ -67,6 +67,10 @@ add_executable (xrdcptruncate
  	        XrdCpTruncate.cc
 )
 
+add_executable (xrdcppartial
+ 	        XrdCpPartial.cc
+)
+
 add_executable (eoschecksumbench
  	        EosChecksumBenchmark.cc
 		../fst/checksum/Adler.cc
@@ -83,6 +87,7 @@ add_executable (eos-mmap
 	       EosMmap.cc
 )
 
+<<<<<<< HEAD
 add_executable (testhmacsha256
 	        TestHmacSha256.cc
 		../common/SymKeys.hh            ../common/SymKeys.cc
@@ -98,7 +103,9 @@ target_link_libraries(xrdcpdownloadrandom XrdPosix XrdUtils)
 target_link_libraries(xrdcpshrink XrdPosix XrdUtils)
 target_link_libraries(xrdcptruncate XrdPosix XrdUtils)
 target_link_libraries(xrdcpposixcache XrdPosix XrdUtils)
+target_link_libraries(xrdcppartial XrdPosix XrdUtil)s
 target_link_libraries(eoschecksumbench XrdPosix eosCommon XrdUtils)
+
 target_link_libraries(eos-udp-dumper)
 target_link_libraries(testhmacsha256 eosCommon)
 
@@ -111,12 +118,13 @@ set_target_properties ( xrdcpbackward PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_B
 set_target_properties ( xrdcpdownloadrandom PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcpshrink PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcptruncate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcppartial PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcpposixcache PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -msse4.2" )
 
 INSTALL_PROGRAMS( /sbin FILES 
 		  xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink 
-		  xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom 
+		  xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial
 		  xrdcpposixcache eoschecksumbench eos-udp-dumper eos-mmap)
 
 INSTALL ( FILES xrdstress 
@@ -127,6 +135,5 @@ INSTALL ( FILES eos-instance-test eos-rain-test
 	DESTINATION ${CMAKE_INSTALL_PREFIX}/${SBIN_INSTALL_DIR}/ 
 	PERMISSIONS OWNER_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
 
-INSTALL ( FILES xrdstress DESTINATION ${CMAKE_INSTALL_PREFIX}/${SBIN_INSTALL_DIR}/ PERMISSIONS OWNER_EXECUTE GROUP_EXECUTE WORLD_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
-INSTALL ( FILES eos-instance-test eos-rain-test DESTINATION ${CMAKE_INSTALL_PREFIX}/${SBIN_INSTALL_DIR}/ PERMISSIONS OWNER_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
+INSTALL_PROGRAMS( /sbin FILES xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcptruncate xrdcppartial xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpposixcache eoschecksumbench eos-udp-dumper eos-mmap)
 

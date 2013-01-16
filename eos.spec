@@ -285,5 +285,6 @@ Contains an instance test script and some test executables
 /usr/sbin/xrdcprandom
 /usr/sbin/xrdcpshrink
 /usr/sbin/xrdcptruncate
+/usr/sbin/xrdcppartial
 /usr/sbin/xrdstress
 /usr/sbin/xrdstress.exe
