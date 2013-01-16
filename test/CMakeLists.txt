@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-set (CMAKE_CXX_FLAGS "-Wall -g -O0 -std=gnu++0x ")
+set (CMAKE_CXX_FLAGS "-Wall -g -O0 -std=gnu++0x -DHAVE_ATOMICS=1 ")
 #-------------------------------------------------------------------------------
 
 include_directories( ../ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} )
@@ -87,7 +87,6 @@ add_executable (eos-mmap
 	       EosMmap.cc
 )
 
-<<<<<<< HEAD
 add_executable (testhmacsha256
 	        TestHmacSha256.cc
 		../common/SymKeys.hh            ../common/SymKeys.cc

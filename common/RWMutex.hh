@@ -123,15 +123,15 @@ inline std::ostream& operator << (std::ostream &os, const RWMutexTimingStats &st
         AtomicInc(what##LockCounter##Sample); \
         AtomicAdd(cumulatedwait##what,tstamp);\
         bool needloop=true; \
-        do {size_t mymax=AtomicGet(maxwait##what); if (tstamp > mymax) needloop=!AtomicCAS(maxwait##what, mymax, tstamp); else needloop=false;}while(needloop); \
-        do {size_t mymin=AtomicGet(minwait##what); if (tstamp < mymin) needloop=!AtomicCAS(minwait##what, mymin, tstamp); else needloop=false;}while(needloop); \
+        do {size_t mymax=AtomicGet(maxwait##what); if (tstamp > mymax) needloop=!AtomicCAS(maxwait##what, mymax, tstamp); else needloop=false; }while(needloop); \
+        do {size_t mymin=AtomicGet(minwait##what); if (tstamp < mymin) needloop=!AtomicCAS(minwait##what, mymin, tstamp); else needloop=false; }while(needloop); \
       }\
       if(enabletimingglobal) { \
         AtomicInc(what##LockCounter##Sample_static); \
         AtomicAdd(cumulatedwait##what##_static,tstamp);\
         bool needloop=true; \
-        do {size_t mymax=AtomicGet(maxwait##what##_static); if (tstamp > mymax) needloop=!AtomicCAS(maxwait##what##_static, mymax, tstamp); else needloop=false;}while(needloop); \
-        do {size_t mymin=AtomicGet(minwait##what##_static); if (tstamp < mymin) needloop=!AtomicCAS(minwait##what##_static, mymin, tstamp); else needloop=false;}while(needloop); \
+        do {size_t mymax=AtomicGet(maxwait##what##_static); if (tstamp > mymax) needloop=!AtomicCAS(maxwait##what##_static, mymax, tstamp); else needloop=false; }while(needloop); \
+        do {size_t mymin=AtomicGet(minwait##what##_static); if (tstamp < mymin) needloop=!AtomicCAS(minwait##what##_static, mymin, tstamp); else needloop=false; }while(needloop); \
       }\
     }
 #else
@@ -216,10 +216,6 @@ public:
   // ---------------------------------------------------------------------------
   RWMutex()
   {
-    if(!staticInitialized) {
-      staticInitialized=true;
-      InitializeClass();
-    }
     // by default we are not a blocking write mutex
     blocking = false;
     // try to get write lock in 5 seconds, then release quickly and retry
@@ -231,6 +227,10 @@ public:
     rlocktime.tv_nsec=1000000;
     readLockCounter=writeLockCounter=0;
 #ifdef EOS_INSTRUMENTED_RWMUTEX
+    if(!staticInitialized) {
+      staticInitialized=true;
+      InitializeClass();
+    }
     counter=0;
     ResetTimingStatistics();
     enabletiming=false;
