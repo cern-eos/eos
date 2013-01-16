@@ -53,6 +53,7 @@
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 /*----------------------------------------------------------------------------*/
+#include <execinfo.h>
 /*----------------------------------------------------------------------------*/
 #ifdef __APPLE__
 #define ECOMM 70
@@ -71,6 +72,29 @@ XrdOucTrace     gMgmOfsTrace(&gMgmOfsEroute);
 const char* XrdMgmOfs::gNameSpaceState[] = {"down", "booting", "booted", "failed","compacting"};
 
 XrdMgmOfs* gOFS=0;
+
+/*----------------------------------------------------------------------------*/
+void
+xrdmgmofs_stacktrace(int sig) {
+  (void) signal(SIGINT,SIG_IGN);
+  (void) signal(SIGTERM,SIG_IGN);
+  (void) signal(SIGQUIT,SIG_IGN);
+  void *array[10];
+  size_t size;
+
+  // get void*'s for all entries on the stack                                                                                                                                                                 
+  size = backtrace(array, 10);
+
+  // print out all the frames to stderr                                                                                                                                                                       
+  fprintf(stderr, "error: received signal %d:\n", sig);
+  backtrace_symbols_fd(array, size, 2);
+
+  // now we put back the initial handler ...
+  signal(sig, SIG_DFL);
+
+  // ... and send the signal again
+  kill(getpid(), sig);
+}
 
 /*----------------------------------------------------------------------------*/
 void
