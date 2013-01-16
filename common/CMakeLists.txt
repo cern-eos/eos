@@ -44,7 +44,7 @@ add_library (eosCommon SHARED
 	    ZMQ.cc
 	    StringTokenizer.cc
 	    CommentLog.cc
-#	    RWMutex.cc
+	    RWMutex.cc
             DbMap.cc
             stringencoders/modp_numtoa.c
 	    )
@@ -65,7 +65,7 @@ add_library (eosCommon-Static STATIC
 	    StringTokenizer.cc
 	    ZMQ.cc
 	    CommentLog.cc
-#	    RWMutex.cc
+	    RWMutex.cc
             DbMap.cc
             stringencoders/modp_numtoa.c
 )
@@ -75,11 +75,10 @@ add_executable ( dbmaptestfunc
 )
 add_executable ( dbmaptestburn
        dbmaptest/DbMapTestBurn.cc
-)
 
-#add_executable ( mutextest
-#       mutextest/RWMutexTest.cc
-#)
+add_executable ( mutextest
+       mutextest/RWMutexTest.cc
+)
 
 
 target_link_libraries (eosCommon XrdMqClient XrdUtils XrdCl crypto uuid curses z attr )
@@ -93,6 +92,8 @@ endif(LEVELDB_FOUND)
 target_link_libraries ( dbmaptestfunc eosCommon-Static )
 target_link_libraries ( dbmaptestburn eosCommon-Static )
 #target_link_libraries ( mutextest eosCommon-Static )
+
+target_link_libraries ( mutextest eosCommon-Static )
 
 if (Linux) 
   set_target_properties (eosCommon PROPERTIES
