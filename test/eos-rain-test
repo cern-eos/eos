@@ -50,10 +50,16 @@
 
 export ERR_MSG1="The provided directory does not have the extended attributes set correctly."
 
+# Set the path to the xrdcp and eos commands
+XRDCP=$(which xrdcp)
+EOS=$(which eos)
+
+
 #-------------------------------------------------------------------------------
 # Write a file to EOS, read it back and compare the checksum
 #-------------------------------------------------------------------------------
-function write_and_read {
+function write_and_read() 
+{
     local SRC=$1
     local DEST=$2
     local FNAME=$3
@@ -61,10 +67,10 @@ function write_and_read {
     echo "Write, read and check test, with file: $FNAME"
     
     # write the file in EOS 
-    /usr/local/bin/xrdcp $SRC/$FNAME $DEST/$FNAME -f 
+    $XRDCP $SRC/$FNAME $DEST/$FNAME -f 
     
     # read it back in a tmp folder
-    /usr/local/bin/xrdcp $DEST/$FNAME $TMP_LOCATION/$FNAME.tmp -f 
+    $XRDCP $DEST/$FNAME $TMP_LOCATION/$FNAME.tmp -f 
     
     # compute the checksum of initial file and the one read back
     local XSINIT=$(sum $SRC/$FNAME)
@@ -86,7 +92,8 @@ function write_and_read {
 #-------------------------------------------------------------------------------
 # Read a file from EOS it back and compare the checksum
 #-------------------------------------------------------------------------------
-function read_and_check {
+function read_and_check() 
+{
     local SRC=$1
     local EOS_SRC=$2
     local FNAME=$3
@@ -94,7 +101,7 @@ function read_and_check {
     echo "Read and check test, with file: $FNAME"
    
     # read it back in a tmp folder
-    /usr/local/bin/xrdcp $EOS_SRC/$FNAME $TMP_LOCATION/$FNAME.tmp -f
+    $XRDCP $EOS_SRC/$FNAME $TMP_LOCATION/$FNAME.tmp -f
     
     # compute the checksum of initial file and the one read back
     local XSINIT=$(sum $SRC/$FNAME)
@@ -111,6 +118,19 @@ function read_and_check {
 	exit 1
     fi 
 }
+
+
+#-------------------------------------------------------------------------------
+# Get the file system ids on which the file has stripes
+#-------------------------------------------------------------------------------
+function get_file_fs() 
+{
+    local eos_file=$1
+    local rec=$(sudo $EOS -b file info $eos_file)
+
+    VECT_FS=( $(echo "$rec" | awk '{ if ( $7 ~ /booted/ ) print $2 }') )
+}
+
 
 
 #-------------------------------------------------------------------------------
@@ -140,7 +160,7 @@ INDX=`awk -v a="$EOS_DEST" -v b="//eos" 'BEGIN{print index(a,b)}'`
 EOS_DIR="${EOS_DEST:$INDX}"
 
 if [ "$ARG" = "raiddp" ]; then
-    sudo /usr/bin/eos -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="raidDP"' 
+    sudo $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="raidDP"' 
     if [ $? -ne 0 ]; then
 	echo "$ERR_MSG1"
 	echo_failure
@@ -148,7 +168,7 @@ if [ "$ARG" = "raiddp" ]; then
     fi
 elif [ "$ARG" = "reeds" ];
 then
-    sudo /usr/bin/eos -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="reedS"' 
+    sudo $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="reedS"' 
     if [ $? -ne 0 ]; then
 	echo "$ERR_MSG1"
 	echo_failure
@@ -156,7 +176,7 @@ then
     fi
 elif [ "$ARG" = "plain" ];
 then
-    sudo /usr/bin/eos -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="plain"'
+    sudo $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="plain"'
     if [ $? -ne 0 ]; then
 	echo "$ERR_MSG1"
 	echo_failure
@@ -168,71 +188,90 @@ else
     exit 1
 fi
 
+
+#...............................................................................
+# Check that there are at least 6 FST in the EOS setup so that we can run the test
+#...............................................................................
+ret=$( sudo $EOS -b fs ls | grep booted | wc -l | grep -w 6 )
+
+if [[ $ret -le 5 ]]; then
+    echo "The EOS instance needs at least 6 FST's to run this test."
+    exit 1
+fi
+
+
 #...............................................................................
 # Do all write-read-check tests in: $EOS_DEST ...
 #...............................................................................
-echo "\nDo all write-read-check tests in: $EOS_DEST ..."
+echo "Do all write-read-check tests in: $EOS_DEST ..."
 
 # loop over all files in the pattern and test them in EOS
-for i in {1..5}; do
-    for file in $ROOT_PATH/*.rain; do
-    	if [[ -f $file ]]; then
-           file=$(basename $file)
-	   write_and_read $ROOT_PATH $EOS_DEST $file
+for file in $ROOT_PATH/*.rain; do
+    if [[ -f $file ]]; then
+        file=$(basename $file)
+	write_and_read $ROOT_PATH $EOS_DEST $file
     fi	
-    done
-done 
+done
+
 
 #...............................................................................
 # Disable one FST and redo the read test...
 #...............................................................................
-echo "n\Disable one FST and redo the read test..."
+echo "Disable one FST and redo the read test..."
 
-for fst in {1..6}; do
-    echo "Disable FST $fst and redo read test..." 
 
-    # disable one FST in EOS and test read
-    sudo /usr/bin/eos -b fs config $fst configstatus=off
+# loop over all files in the pattern and test them in EOS
+for file in $ROOT_PATH/*.rain; do
+    file=$(basename $file)
+    if [[ -f $file ]]; then 
+	# get the fs on which this files resides
+	get_file_fs "$EOS_DIR/$file"
 
-    # loop over all files in the pattern and test them in EOS
-    for file in $ROOT_PATH/*.rain; do
-	if [[ -f $file ]]; then 
-	    file=$(basename $file)
+	for fst in "${VECT_FS[@]}"; do
+	    echo "Disable FST $fst and redo read test..." 
+	    
+            # disable one FST in EOS and test read
+	    sudo $EOS -b fs config $fst configstatus=off
+
 	    read_and_check $ROOT_PATH $EOS_DEST $file
-	fi
-    done
-    
-    # restore the configuraton in EOS 
-    sudo /usr/bin/eos -b fs config $fst configstatus=rw
+
+            # restore the configuraton in EOS 
+	    sudo $EOS -b fs config $fst configstatus=rw
+	done
+    fi
 done 
+
 
 #...............................................................................
 # Disable each two FST's and redo the read tests...
 #...............................................................................
-echo "\nDisable each two FST's and redo the read tests..."
+echo "Disable each two FST's and redo the read tests..."
 
-for fst1 in {1..6}; do
-    for fst2 in {1..6}; do
-	if [ "$fst1" -ne "$fst2" ]; then
-	    echo "Disable FST $fst1 and $fst2 and redo read test..." 
-	    
-            # disable one FST in EOS and test read
-	    sudo /usr/bin/eos -b fs config $fst1 configstatus=off
-	    sudo /usr/bin/eos -b fs config $fst2 configstatus=off
-	    
-            # loop over all files in the pattern and test them in EOS
-	    for file in $ROOT_PATH/*.rain; do
-		if [[ -f $file ]]; then
-		    file=$(basename $file)
+# loop over all files in the pattern and test them in EOS
+for file in $ROOT_PATH/*.rain; do
+    if [[ -f $file ]]; then
+	file=$(basename $file)
+	# get the fs on which this files resides
+	get_file_fs "$EOS_DIR/$file"
+	
+	for fst1 in "${VECT_FS[@]}"; do
+	    for fst2 in "${VECT_FS[@]}"; do
+		if [ "$fst1" -ne "$fst2" ]; then
+		    echo "Disable FST $fst1 and $fst2 and redo read test..." 
+		    
+                    # disable one FST in EOS and test read
+		    sudo $EOS -b fs config $fst1 configstatus=off
+		    sudo $EOS -b fs config $fst2 configstatus=off
+		    
 		    read_and_check $ROOT_PATH $EOS_DEST $file
+		    
+                    # restore the configuraton in EOS 
+		    sudo $EOS -b fs config $fst1 configstatus=rw
+		    sudo $EOS -b fs config $fst2 configstatus=rw
 		fi
 	    done
-	    
-            # restore the configuraton in EOS 
-	    sudo /usr/bin/eos -b fs config $fst1 configstatus=rw
-	    sudo /usr/bin/eos -b fs config $fst2 configstatus=rw
-	fi
-    done
-done 
+	done
+    fi
+done
 
 exit 0
