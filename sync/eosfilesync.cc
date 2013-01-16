@@ -122,15 +122,15 @@ int main( int argc, char* argv[] )
     }
   } while ( fd < 0 );
 
-
+  
  again:
   uint16_t flags_xrdcl;
   uint16_t mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::GR |
                         XrdCl::Access::GW | XrdCl::Access::OR;
   XrdCl::File* file = new XrdCl::File();
 
-  int watch_fd = inotify_add_watch(inotify_fd, sourcefile.c_str(), IN_MODIFY);
-  
+  int watch_fd = inotify_add_watch(inotify_fd, sourcefile.c_str(), IN_MODIFY | IN_MOVE_SELF );
+
   if ( !file ) {
     fprintf( stderr, "Error: cannot create XrdCl object\n" );
     exit( -1 );
@@ -163,29 +163,38 @@ int main( int argc, char* argv[] )
       sleep( 60 );
       continue;
     }
+    
+    int cantstat=0;
 
-    if ( !stat( sourcefile.c_str(), &src_curr_stat ) ) {
-      if ( src_curr_stat.st_ino != srcstat.st_ino ) {
-        eos_static_notice( "source file has been replaced" );
-        close( fd );
+    do {
+      if (!(cantstat=stat(sourcefile.c_str(), &src_curr_stat))) {
+	if (src_curr_stat.st_ino != srcstat.st_ino) {
+	  eos_static_notice("source file has been replaced");
+	  close(fd);
+	  do {
+	    fd= open (sourcefile.c_str(),O_RDONLY);
+	    if (fd<0) {
+	      sleep(1);
+	    }
+	  } while(fd <0 );
 
-        do {
-          fd = open( sourcefile.c_str(), O_RDONLY );
+	  if (fstat(fd, &srcstat)) {
+	    eos_static_err("cannot stat source file %s - retry in 1 minute ...", sourcefile.c_str());
+	    sleep(60);
+	    continue;
+	  }
 
-          if ( fd < 0 ) {
-            sleep( 1 );
-          }
-        } while ( fd < 0 );
+	  eos_static_notice("re-opened source file");
 
-        eos_static_notice( "re-opened source file" );
-
-        if ( !file->Truncate( 0 ).IsOK() ) {
-          eos_static_crit( "couldn't truncate remote file" );
-          delete file;
-          exit( -1 );
-        }
+	  if ( !file->Truncate( 0 ).IsOK() ) {	  
+	    eos_static_crit("couldn't truncate remote file");
+	    exit(-1);
+	  }
+	}
+      } else {
+	sleep(1);
       }
-    }
+    } while (cantstat);
 
     if ( !file->Stat( true, dststat ).IsOK() ) {
       eos_static_crit( "cannot stat destination file %s", dsturl.c_str() );
