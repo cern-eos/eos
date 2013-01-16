@@ -9,6 +9,7 @@
 
 FIND_PATH(XROOTD_INCLUDE_DIR XrdVersion.hh
   HINTS
+  $PWD/xrootd/src/include/ 	
   ${XROOTD_DIR}
   $ENV{XROOTD_DIR}
   /usr

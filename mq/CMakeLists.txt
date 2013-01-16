@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ ${XROOTD_INCLUDE_DIR} )
+include_directories( ../ ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd/ ${CMAKE_BINARY_DIR}/xrootd/src/include/ ${XROOTD_INCLUDE_DIR} )
 link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
 
 add_library (XrdMqClient SHARED 

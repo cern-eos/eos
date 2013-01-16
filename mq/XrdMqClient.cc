@@ -72,11 +72,11 @@ XrdMqClient::Subscribe( const char* queue )
   }
 
   for ( int i = 0; i < kBrokerN; i++ ) {
-    uint16_t flags_xrdcl = XrdCl::OpenFlags::Read;
+    XrdCl::OpenFlags::Flags flags_xrdcl = XrdCl::OpenFlags::Read;
     XrdCl::File* file = GetBrokerXrdClientReceiver( i );
     XrdOucString* url = kBrokerUrls.Find( GetBrokerId( i ).c_str() );
 
-    if ( !file || !file->Open( url->c_str(), flags_xrdcl, 0 ).IsOK() ) {
+    if ( !file || !file->Open( url->c_str(), flags_xrdcl ).IsOK() ) {
       // open failed
       continue;
     } else {

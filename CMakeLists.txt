@@ -133,7 +133,7 @@ endif (APR_FOUND)
 endif (HTTPD_FOUND)
 endif (CLIENT)
 
-include_directories( ../ /usr/include/xrootd/ /usr/include/ )
+include_directories( ../ /usr/include/xrootd/ /usr/include/ ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd ${CMAKE_BINARY_DIR}/xrootd/src/include/ )
 link_directories( /usr/${LIB_INSTALL_DIR}/)
 
 
@@ -147,6 +147,12 @@ CONFIGURE_FILE(
 
 ADD_CUSTOM_TARGET(uninstall
   "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake") 
+
+ADD_CUSTOM_TARGET(xrootd-git-stable
+  ${CMAKE_SOURCE_DIR}/utils/get-xrootd-git-stable.sh )
+
+ADD_CUSTOM_TARGET(xrootd-git-master
+  ${CMAKE_SOURCE_DIR}/utils/get-xrootd-git-master.sh )
 
 ######################################################################################################################
 # source packaging 

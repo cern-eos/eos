@@ -22,6 +22,8 @@
 # ************************************************************************
 
 include_directories( ../ 
+		     ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd
+		     ${CMAKE_BINARY_DIR}/xrootd/src/include/
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${SPARSEHASH_INCLUDE_DIR} )
 
