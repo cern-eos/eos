@@ -106,12 +106,16 @@ int main( int argc, char* argv[] )
 
   int fd =0; 
 
+  int watch_fd = 0;
+
   int inotify_fd = inotify_init();
+
+  XrdCl::File* file  = 0;
 
   if ( inotify_fd < 0 ) {
     fprintf(stderr,"error: unable to initialize inotify interface - will use polling\n");
   }
-
+  
 
   do {
     fd = open( sourcefile.c_str(), O_RDONLY );
@@ -122,14 +126,20 @@ int main( int argc, char* argv[] )
     }
   } while ( fd < 0 );
 
-  
+ 
  again:
   uint16_t flags_xrdcl;
   uint16_t mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::GR |
                         XrdCl::Access::GW | XrdCl::Access::OR;
-  XrdCl::File* file = new XrdCl::File();
+  
+  file = new XrdCl::File();
 
-  int watch_fd = inotify_add_watch(inotify_fd, sourcefile.c_str(), IN_MODIFY | IN_MOVE_SELF );
+  if (watch_fd) {
+    inotify_rm_watch(inotify_fd, watch_fd);
+    close(watch_fd);
+  }
+
+  watch_fd = inotify_add_watch(inotify_fd, sourcefile.c_str(), IN_MODIFY | IN_MOVE_SELF );
 
   if ( !file ) {
     fprintf( stderr, "Error: cannot create XrdCl object\n" );
@@ -186,9 +196,28 @@ int main( int argc, char* argv[] )
 
 	  eos_static_notice("re-opened source file");
 
-	  if ( !file->Truncate( 0 ).IsOK() ) {	  
-	    eos_static_crit("couldn't truncate remote file");
-	    exit(-1);
+	  if (isdumpfile) {
+	    if (!file->Truncate( 0 ).IsOK() ) {
+	      eos_static_crit("couldn't truncate remote file");
+	      sleep(60);
+	      if (file) delete file;
+	      goto again;
+	    }
+	  } else {
+	    eos_static_notice("re-opened source file");
+	    file->Close();
+	    if (file) delete client;
+	    
+	    XrdCl::FileSystem FsSync ( dsturl.c_str() );
+	    XrdOucString sourcebackupfile = sourcefile;
+	    sourcebackupfile += ".";
+	    sourcebackupfile += (int)time(NULL);
+	    std::string s_file = sourcefile.c_str();
+	    std::string d_file = sourcebackupfile.c_str();
+	    if (!FsSync.Mv(s_file, d_file).IsOk()) {
+	      eos_static_crit("couldn't rename %s=>%s\n", sourcefile.c_str(), sourcebackupfile.c_str());
+	    }
+	    goto again;
 	  }
 	}
       } else {
@@ -222,6 +251,16 @@ int main( int argc, char* argv[] )
           eos_static_crit("couldn't truncate remote file");
 	  sleep(60);
 	  if (file) delete file;
+	  
+	  XrdCl::FileSystem FsSync ( dsturl.c_str() );
+	  XrdOucString sourcebackupfile = sourcefile;
+	  sourcebackupfile += ".";
+	  sourcebackupfile += (int)time(NULL);
+	  std::string s_file = sourcefile.c_str();
+	  std::string d_file = sourcebackupfile.c_str();
+	  if (!FsSync.Mv(s_file, d_file).IsOk()) {
+	    eos_static_crit("couldn't rename %s=>%s\n", sourcefile.c_str(), sourcebackupfile.c_str());
+	  }
 	  goto again;
         }
 
