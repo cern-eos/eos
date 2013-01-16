@@ -502,7 +502,7 @@ Storage::Boot(FileSystem *fs)
       eos_static_alert("didn't receive manager name, aborting");
       XrdSysTimer sleeper;
       sleeper.Snooze(10);	
-      kill(SIGQUIT,getpid());
+      XrdFstOfs::xrdfstofs_shutdown(1);
     }
   } while(1);
   
@@ -2874,7 +2874,7 @@ Storage::MgmSyncer()
 	eos_static_alert("didn't receive manager name, aborting");
 	XrdSysTimer sleeper;
 	sleeper.Snooze(10);	
-	kill(SIGQUIT,getpid());
+	XrdFstOfs::xrdfstofs_shutdown(1);
       }
     } while(1);
     bool failure = false;
