@@ -54,6 +54,7 @@
 
 #ifdef __APPLE__
 #define pow10( x ) pow( (float)10, (int)(x) )
+#define ENONET 64
 #endif
 
 #include <vector>
@@ -1592,8 +1593,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                                           }
                                       }
                                   } else {
-                                      unsigned long long size   = eos::common::StringConversion::GetSizeFromString(value.c_str());
-                                      if (size>=0) {
+				      errno = 0;
+				      unsigned long long size   = eos::common::StringConversion::GetSizeFromString(value.c_str());
+                                      if (!errno) {
                                           if (key != "balancer.threshold") {
                                               // the threshold is allowed to be decimal!
                                               char ssize[1024];
@@ -1649,7 +1651,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                                               }
                                               FsView::gFsView.StoreFsConfig(fs);
                                           } else {
-                                              if ( ( (key == "headroom") || ( key == "scaninterval" ) || ( key == "graceperiod" ) || ( key == "drainperiod" ) )&& ( eos::common::StringConversion::GetSizeFromString(value.c_str()) >= 0)) {
+					    errno = 0;
+					    eos::common::StringConversion::GetSizeFromString(value.c_str());
+ 					    if ( ( (key == "headroom") || ( key == "scaninterval" ) || ( key == "graceperiod" ) || ( key == "drainperiod" ) ) && (!errno) ) {
                                                   fs->SetLongLong(key.c_str(), eos::common::StringConversion::GetSizeFromString(value.c_str()));
                                                   FsView::gFsView.StoreFsConfig(fs);
                                               } else {

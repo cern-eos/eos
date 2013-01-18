@@ -1624,7 +1624,7 @@ Master::WaitNamespaceFilesInSync(unsigned int timeout)
 	return false;
       }
       
-      if ( (lFileNamespaceInode == fFileNamespaceInode ) ) {
+      if ( lFileNamespaceInode == fFileNamespaceInode ) {
 	// the inode didn't change yet
 	if ( time(NULL) > (starttime + timeout) ) {
 	  MasterLog(eos_warning("timeout occured after %u seconds", timeout));

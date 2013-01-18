@@ -31,6 +31,10 @@
 
 EOSFSTNAMESPACE_BEGIN
 
+#ifdef __APPLE__
+#define O_LARGEFILE 0
+#endif
+
 //! pointer to the current OSS implementation to be used by the oss files
 extern XrdFstOss* XrdFstSS;
 

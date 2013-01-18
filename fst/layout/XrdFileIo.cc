@@ -22,12 +22,14 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include <stdint.h>
-#include <cstdlib>
-/*----------------------------------------------------------------------------*/
 #include "fst/layout/XrdFileIo.hh"
 #include "fst/io/ChunkHandler.hh"
 /*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+#include <stdint.h>
+#include <cstdlib>
+/*----------------------------------------------------------------------------*/
+
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -112,16 +114,51 @@ XrdFileIo::Open( const std::string& path,
   request += "?";
   request += opaque;
   mXrdFile = new XrdCl::File();
+  XrdCl::OpenFlags::Flags xflags = XrdCl::OpenFlags::None;
+
+  if (flags & SFS_O_CREAT) {
+    xflags |= XrdCl::OpenFlags::Delete;
+  }
+  if (flags & SFS_O_WRONLY) {
+    xflags |= XrdCl::OpenFlags::Update;
+  } else {
+    xflags |= XrdCl::OpenFlags::Read;
+  }
+  if (flags & SFS_O_RDWR )  {
+    xflags |= XrdCl::OpenFlags::Update;
+  }
+  if (flags & SFS_O_TRUNC ) {
+    xflags |= XrdCl::OpenFlags::Delete;
+  }
+  if (flags & SFS_O_POSC ) {
+    xflags |= XrdCl::OpenFlags::POSC;
+  }
+  if (flags & SFS_O_NOWAIT ) {
+    xflags |= XrdCl::OpenFlags::NoWait;
+  }
+  if (flags & SFS_O_RAWIO ) {
+    // no idea what to do 
+  }
+  if (flags & SFS_O_RESET ) {
+    xflags |= XrdCl::OpenFlags::Refresh;
+  }
+  if (flags & SFS_O_REPLICA ) {
+  }
+  if (flags & SFS_O_MKPTH ) {
+    xflags |= XrdCl::OpenFlags::MakePath;
+  }
+
   XrdCl::XRootDStatus status = mXrdFile->Open( request,
-                                               static_cast<uint16_t>( flags ),
-                                               static_cast<uint16_t>( mode ) );
+                                               xflags,
+					       (XrdCl::Access::Mode) mode );
 
   if ( !status.IsOK() ) {
     eos_err( "error=opening remote XrdClFile" );
     errno = status.errNo;
     return SFS_ERROR;
+  } else {
+    errno = 0;
   }
-
   return SFS_OK;
 }
 

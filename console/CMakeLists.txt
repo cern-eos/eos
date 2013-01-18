@@ -27,7 +27,7 @@ include_directories( ../
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${SPARSEHASH_INCLUDE_DIR} )
 
-link_directories( /usr/${LIB_INSTALL_DIR}/ 
+link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
 		  ${XROOTD_LIB_DIR} )
 
 
@@ -106,7 +106,7 @@ target_link_libraries( eos
 		       XrdPosix	        XrdCl
 		       XrdUtils  	eosCommon-Static 
 		       pthread 	        dl
-		       crypto 		uuid 		
+		       crypto 		${UUID_LIBRARIES} 		
 		       curses 		z    		
 		       readline 
 )
@@ -116,17 +116,17 @@ target_link_libraries( eos
 		       XrdUtils 	eosCommon-Static 
 		       readline         XrdMqClient-Static
 		       pthread 	        crypto 
-		       uuid 		curses 
+		       ${UUID_LIBRARIES} curses 
 		       z 		dl 		       
 )
 endif(CLIENT)
 
 target_link_libraries( eosdropboxd eosCommon-Static XrdPosix XrdCl XrdUtils pthread )
 
-INSTALL_PROGRAMS( /sbin FILES eosadmin )
+INSTALL_PROGRAMS( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR} FILES eosadmin )
 
 install( TARGETS eos eosdropboxd
-       	 LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-         RUNTIME DESTINATION bin
-         ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+       	 LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
+         RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}
+         ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
 )

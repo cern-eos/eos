@@ -407,7 +407,7 @@ RaidMetaLayout::Open( const std::string& path,
 // Open file using paralled IO
 //------------------------------------------------------------------------------
 int
-RaidMetaLayout::OpenPio( std::vector<std::string>&& stripeUrls,
+RaidMetaLayout::OpenPio( std::vector<std::string>   stripeUrls,
                          XrdSfsFileOpenMode         flags,  
                          mode_t                     mode,
                          const char*                opaque )

@@ -69,6 +69,14 @@ USE_EOSMGMNAMESPACE
 #define ACCESS_R 0
 #define ACCESS_W 1
 
+#ifdef __APPLE__
+#define EBADE 52
+#define EBADR 53
+#define ENONET 64
+#define EADV 68
+#define EREMOTEIO 121
+#define ENOKEY 126
+#endif
 
 #define ACCESSMODE_R int __AccessMode__ = 0
 #define ACCESSMODE_W int __AccessMode__ = 1

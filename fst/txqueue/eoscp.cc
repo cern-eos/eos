@@ -985,7 +985,7 @@ int main( int argc, char* argv[] )
                   fprintf( stdout, "[eoscp]: doing XROOT mkdir on %s\n", subpath.c_str() );
                 }
                 
-                status = fs.MkDir( subpath.c_str(), XrdCl::MkDirFlags::MakePath, mode );
+                status = fs.MkDir( subpath.c_str(), XrdCl::MkDirFlags::MakePath, (XrdCl::Access::Mode)mode );
                 
                 if ( !status.IsOK() ) {
                 mkdir_failed = 1;
@@ -1078,7 +1078,7 @@ int main( int argc, char* argv[] )
               fprintf( stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags );
             }
                         
-            if ( redundancyObj->OpenPio( std::move( vectUrl ), flags ) ) {
+            if ( redundancyObj->OpenPio( vectUrl , flags ) ) {
               fprintf( stderr, "error: can not open RAID object for read/write\n" );
               exit( -EIO );
             }
@@ -1235,7 +1235,7 @@ int main( int argc, char* argv[] )
               fprintf( stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags );
             }
                         
-            if ( redundancyObj->OpenPio( std::move( vectUrl ), flags ) ) {
+            if ( redundancyObj->OpenPio( vectUrl, flags ) ) {
               fprintf( stderr, "error: can not open RAID object for write\n" );
               exit( -EIO );
             }
@@ -1268,12 +1268,12 @@ int main( int argc, char* argv[] )
             if ( status.IsOK() ) {
               status = file->Open( location,
                                    XrdCl::OpenFlags::Append,
-                                   st[i].st_mode );
+                                   (XrdCl::Access::Mode)st[i].st_mode );
                   
             } else {
               status = file->Open( location,
                                    XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update,
-                                   st[i].st_mode );            
+                                   (XrdCl::Access::Mode)st[i].st_mode );            
             }
 
             delete response;            
@@ -1442,7 +1442,7 @@ int main( int argc, char* argv[] )
       buffersize = ( stopbyte - startbyte ) - totalbytes;
     }
 
-    uint32_t nread = -1;
+    int nread = -1;
 
     switch ( src_type[0] ) {
       case LOCAL_ACCESS:
@@ -1461,15 +1461,16 @@ int main( int argc, char* argv[] )
 
       case XRD_ACCESS:
         {
-          clock_gettime(CLOCK_REALTIME, &start );
-          status = src_handler[0].second->Read( offsetXrd, buffersize, ptr_buffer, nread );
-
+	  eos::common::Timing::GetTimeSpec(start);
+	  uint32_t xnread=0;
+          status = src_handler[0].second->Read( offsetXrd, buffersize, ptr_buffer, xnread );
+	  nread = xnread;
           if ( !status.IsOK() ) {
             fprintf( stderr, "Error while doing reading. \n" );
             exit( -1 );
           }
           
-          clock_gettime(CLOCK_REALTIME, &end );
+	  eos::common::Timing::GetTimeSpec(end);          
           wait_time = static_cast<double>( ( end.tv_sec * 1000 + end.tv_nsec / 1000000 )-
                                            ( start.tv_sec * 1000 + start.tv_nsec / 1000000 ) );
           read_wait += wait_time;
@@ -1494,7 +1495,7 @@ int main( int argc, char* argv[] )
       offsetXS += nread;
     }
 
-    uint32_t nwrite = 0;
+    int nwrite = 0;
 
     for ( int i = 0; i < ndst; i++ ) {
       switch ( dst_type[i] ) {
@@ -1513,9 +1514,8 @@ int main( int argc, char* argv[] )
           break;
 
         case XRD_ACCESS:
-          {
-            clock_gettime(CLOCK_REALTIME, &start );
-            
+          {            
+	    eos::common::Timing::GetTimeSpec(start);
             // WRITING IN SYNC MODE
             status = dst_handler[i].second->Write( stopwritebyte,
                                                    nread,
@@ -1530,7 +1530,7 @@ int main( int argc, char* argv[] )
 
             nwrite = nread;
             
-            clock_gettime(CLOCK_REALTIME, &end );
+	    eos::common::Timing::GetTimeSpec(start);           
             wait_time = static_cast<double>( ( end.tv_sec * 1000 + end.tv_nsec / 1000000 )-
                                              ( start.tv_sec * 1000 + start.tv_nsec / 1000000 ) );
             write_wait += wait_time;           

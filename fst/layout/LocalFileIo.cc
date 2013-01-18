@@ -24,7 +24,9 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/LocalFileIo.hh"
 /*----------------------------------------------------------------------------*/
+#ifndef __APPLE__
 #include <xfs/xfs.h>
+#endif
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -68,6 +70,7 @@ LocalFileIo::Open( const std::string& path,
   }
   
   mFilePath = path;
+  errno = 0;
   return mLogicalFile->openofs( mFilePath.c_str(),
                                 flags,
                                 mode,
@@ -154,6 +157,10 @@ LocalFileIo::Fallocate( XrdSfsFileOffset length )
   if ( mLogicalFile->fctl( SFS_FCTL_GETFD, 0, error ) )
     return SFS_ERROR;
 
+#ifdef __APPLE__
+  // no pre-allocation
+  return 0;
+#else
   int fd = error.getErrInfo();
 
   if ( platform_test_xfs_fd( fd ) ) {
@@ -168,7 +175,7 @@ LocalFileIo::Fallocate( XrdSfsFileOffset length )
   } else {
     return posix_fallocate( fd, 0, length );
   }
-
+#endif
   return SFS_ERROR;
 }
 
@@ -185,8 +192,11 @@ LocalFileIo::Fdeallocate( XrdSfsFileOffset fromOffset,
   if ( mLogicalFile->fctl( SFS_FCTL_GETFD, 0, error ) )
     return SFS_ERROR;
 
+#ifdef __APPLE__
+  // no de-allocation
+  return 0;
+#else
   int fd = error.getErrInfo();
-
   if ( fd > 0 ) {
     if ( platform_test_xfs_fd( fd ) ) {
       //........................................................................
@@ -203,6 +213,7 @@ LocalFileIo::Fdeallocate( XrdSfsFileOffset fromOffset,
   }
 
   return SFS_ERROR;
+#endif
 }
 
 

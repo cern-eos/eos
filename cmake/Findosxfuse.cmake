@@ -11,23 +11,16 @@ endif(FUSE_INCLUDE_DIRS AND FUSE_LIBRARIES)
 
 find_path( FUSE_INCLUDE_DIR fuse/fuse_lowlevel.h
   HINTS
-  /usr
+  /usr/local/
   ${FUSE_DIR}
-  PATH_SUFFIXES include )
+  PATH_SUFFIXES include/osxfuse )
 
-if(MacOSX)
 find_library( FUSE_LIBRARY osxfuse
   HINTS
   /usr/local/
   ${FUSE_DIR}
   PATH_SUFFIXES lib )
-else(MacOSX)
-find_library( FUSE_LIBRARY fuse
-  HINTS
-  /usr
-  ${FUSE_DIR}
-  PATH_SUFFIXES lib )
-endif(MacOSX)
+
 set(FUSE_INCLUDE_DIRS ${FUSE_INCLUDE_DIR})
 set(FUSE_LIBRARIES ${FUSE_LIBRARY})
 

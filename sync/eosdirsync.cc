@@ -79,7 +79,7 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
   //..................................................................
   // Do a remote stat using XrdCl::FileSystem
   //..................................................................
-  uint16_t flags_xrdcl = 0;
+  XrdCl::OpenFlags::Flags flags_xrdcl;
   uint16_t mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::GR |
                         XrdCl::Access::GW | XrdCl::Access::OR;
 
@@ -92,7 +92,7 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
 
   XrdCl::File* file = new XrdCl::File();
 
-  if ( !file->Open( destfile.c_str(), flags_xrdcl, mode_xrdcl ).IsOK() ) {
+  if ( !file->Open( destfile.c_str(), flags_xrdcl, (XrdCl::Access::Mode)mode_xrdcl ).IsOK() ) {
     eos_static_err("cannot open remote file %s\n", destfilename.c_str());
     delete stat_info;
     delete fs;

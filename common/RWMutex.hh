@@ -45,10 +45,13 @@
 #ifndef __EOSCOMMON_RWMUTEX_HH__
 #define __EOSCOMMON_RWMUTEX_HH__
 
+#ifndef __APPLE__
 #define EOS_INSTRUMENTED_RWMUTEX
+#endif
 
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
+#include "common/Timing.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysAtomics.hh"
@@ -75,14 +78,7 @@ EOSCOMMONNAMESPACE_BEGIN
 inline size_t NowInt()
 {
   struct timespec ts;
-#ifdef __APPLE__
-  struct timeval tv;
-  gettimeofday(&tv, 0);
-  ts.tv_sec = tv.tv_sec;
-  ts.tv_nsec = tv.tv_usec * 1000;
-#else
-  clock_gettime(CLOCK_REALTIME, &ts);
-#endif
+  eos::common::Timing::GetTimeSpec(ts);
   return 1000000000*ts.tv_sec+ts.tv_nsec;
 }
 
@@ -234,14 +230,28 @@ public:
     enabletiming=false;
     enablesampling=false;
     nrules=0;
+
+
 #endif
+#ifndef __APPLE__
+    pthread_rwlockattr_init(&attr);
+
     // readers don't go ahead of writers!
     if (pthread_rwlockattr_setkind_np(&attr,PTHREAD_RWLOCK_PREFER_WRITER_NP))
     { throw "pthread_rwlockattr_setkind_np failed";}
     if (pthread_rwlockattr_setpshared(&attr,PTHREAD_PROCESS_SHARED))
+      { throw "pthread_rwlockattr_setpshared failed";}
+
+    if ((pthread_rwlock_init(&rwlock, &attr)))
+      { throw "pthread_rwlock_init failed";}}
+#else
+  pthread_rwlockattr_init(&attr);
+  if (pthread_rwlockattr_setpshared(&attr,PTHREAD_PROCESS_SHARED))
     { throw "pthread_rwlockattr_setpshared failed";}
-    if (pthread_rwlock_init(&rwlock, &attr))
-    { throw "pthread_rwlock_init failed";}}
+  if ((pthread_rwlock_init(&rwlock, &attr))) 
+    { throw "pthread_rwlock_init failed";}
+  }
+#endif
 
   // ---------------------------------------------------------------------------
   //! Destructor
@@ -370,6 +380,13 @@ public:
     debugname=name;
   }
 
+#ifdef __APPLE__
+  int round(double number)
+  {
+    return number < 0.0 ? ceil(number - 0.5) : floor(number + 0.5);
+  }
+#endif
+
   // ---------------------------------------------------------------------------
   //! Enable sampling of timings
   // @param $first
@@ -384,7 +401,11 @@ public:
     if(rate<0)
       samplingModulo=samplingModulo_static;
     else
-      samplingModulo= std::min( RAND_MAX, std::max(0, (int)std::round(1.0/rate) ) );
+#ifdef __APPLE__
+      samplingModulo= std::min( RAND_MAX, std::max(0, (int)round(1.0/rate) ) );
+#else
+    samplingModulo= std::min( RAND_MAX, std::max(0, (int)std::round(1.0/rate) ) );
+#endif
   }
 
   // ---------------------------------------------------------------------------
@@ -651,7 +672,7 @@ public:
     for (unsigned long k = 0; k < loopsize; k++)
     {
       struct timespec ts;
-      clock_gettime(CLOCK_REALTIME, &ts);
+      eos::common::Timing::GetTimeSpec(ts);
     }
     t = NowInt() - t;
 
@@ -952,7 +973,7 @@ public:
     for(int k=0;k<EOS_RWMUTEX_ORDER_NRULES;k++) ordermask_staticthread[k]=0;
 
     // update orderCheckReset_staticthread, this memory should be specific to this thread
-    unsigned long tid=XrdSysThread::ID();
+    pthread_t tid = XrdSysThread::ID();
     pthread_rwlock_rdlock(&orderChkMgmLock);
     if(threadOrderCheckResetFlags_static.find(tid)==threadOrderCheckResetFlags_static.end()) {
       pthread_rwlock_unlock(&orderChkMgmLock);
@@ -970,11 +991,11 @@ public:
   // ---------------------------------------------------------------------------
   void LockRead()
   {
-    EOS_RWMUTEX_CHECKORDER_LOCK
-    EOS_RWMUTEX_TIMER_START
+    EOS_RWMUTEX_CHECKORDER_LOCK;
+    EOS_RWMUTEX_TIMER_START;
     if (pthread_rwlock_rdlock(&rwlock))
     { throw "pthread_rwlock_rdlock failed";}
-    EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(read)
+    EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(read);
   }
 
 
@@ -982,8 +1003,9 @@ public:
   //! Lock for read allowing to be canceled waiting for a lock
   // ---------------------------------------------------------------------------
   void LockReadCancel() {
-    EOS_RWMUTEX_CHECKORDER_LOCK
-    EOS_RWMUTEX_TIMER_START
+    EOS_RWMUTEX_CHECKORDER_LOCK;
+    EOS_RWMUTEX_TIMER_START;
+#ifndef __APPLE__
     while (1) {
       int rc = pthread_rwlock_timedrdlock(&rwlock, &rlocktime);
       if ( rc ) {
@@ -1002,7 +1024,10 @@ public:
         break;
       }
     }
-    EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(read)
+#else
+    LockRead();
+#endif
+    EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(read);
   }
 
 
@@ -1011,7 +1036,7 @@ public:
   // ---------------------------------------------------------------------------
   void UnLockRead()
   {
-    EOS_RWMUTEX_CHECKORDER_UNLOCK
+    EOS_RWMUTEX_CHECKORDER_UNLOCK;
     if (pthread_rwlock_unlock(&rwlock))
     { throw "pthread_rwlock_unlock failed";}
   }
@@ -1022,8 +1047,8 @@ public:
   void LockWrite()
   {
     //AtomicInc(writeLockCounter);  // not needed anymore because of the macro EOS_RWMUTEX_TIMER_STOP_AND_UPDATE
-    EOS_RWMUTEX_CHECKORDER_LOCK
-    EOS_RWMUTEX_TIMER_START
+    EOS_RWMUTEX_CHECKORDER_LOCK;
+    EOS_RWMUTEX_TIMER_START;
     if (blocking)
     {
       // a blocking mutex is just a normal lock for write
@@ -1032,6 +1057,13 @@ public:
     }
     else
     {
+#ifdef __APPLE__
+      // -------------------------------------------------
+      // Mac does not support timed mutexes
+      // -------------------------------------------------
+      if (pthread_rwlock_wrlock(&rwlock))
+      { throw "pthread_rwlock_rdlock failed";}
+#else
       // a non-blocking mutex tries for few seconds to write lock, then releases
       // this has the side effect, that it allows dead locked readers to jump ahead the lock queue
       while (1)
@@ -1057,17 +1089,9 @@ public:
           break;
         }
       }
+#endif
     }
-    EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(write)
-  }
-
-  // ---------------------------------------------------------------------------
-  //! Lock for write but give up after wlocktime
-  // ---------------------------------------------------------------------------
-  int TimeoutLockWrite()
-  {
-    EOS_RWMUTEX_CHECKORDER_LOCK
-    return pthread_rwlock_timedwrlock(&rwlock, &wlocktime);
+    EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(write);
   }
 
   // ---------------------------------------------------------------------------
@@ -1075,11 +1099,24 @@ public:
   // ---------------------------------------------------------------------------
   void UnLockWrite()
   {
-    EOS_RWMUTEX_CHECKORDER_UNLOCK
+    EOS_RWMUTEX_CHECKORDER_UNLOCK;
     if (pthread_rwlock_unlock(&rwlock))
     { throw "pthread_rwlock_unlock failed";}
     //    fprintf(stderr,"*** WRITE LOCK RELEASED  **** TID=%llu OBJECT=%llx\n",(unsigned long long)XrdSysThread::ID(), (unsigned long long)this);
 
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Lock for write but give up after wlocktime
+  // ---------------------------------------------------------------------------
+  int TimeoutLockWrite()
+  {
+    EOS_RWMUTEX_CHECKORDER_LOCK;
+#ifdef __APPLE__
+    return pthread_rwlock_wrlock(&rwlock);
+#else
+    return pthread_rwlock_timedwrlock(&rwlock, &wlocktime);
+#endif
   }
 
   // ---------------------------------------------------------------------------
@@ -1134,7 +1171,6 @@ public:
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-
   RWMutexReadLock(RWMutex &mutex)
   { Mutex = &mutex; Mutex->LockRead();}
 

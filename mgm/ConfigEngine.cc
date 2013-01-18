@@ -151,14 +151,14 @@ ConfigEngineChangeLog::LegacyFile2DbMapFile(const char *file)
 		if(map.AttachLog(file,0,st.st_mode) && legfile.is_open()) {
 			int cnt=0,lcnt=0;
 			bool loopagain=true;
-			size_t timestamp,prevtimestamp; timestamp=0; timestamp=-1;
+			size_t timestamp,prevtimestamp; 
 			std::string trash,buffer,action,key,value;
 			map.BeginSetSequence();
 			while(loopagain) {
 				lcnt++; // update the line counter
 				prevtimestamp=timestamp;
-				timestamp=-1; legfile>>timestamp;	 // field 0 of legacy format is the timestamp
-				if(timestamp<0) {loopagain=false; break;}
+				timestamp=(ssize_t)-1; legfile>>timestamp;	 // field 0 of legacy format is the timestamp
+				if(timestamp==(ssize_t)-1) {loopagain=false; break;}
 				timestamp*=1000000000; // time is in nanoseconds
 				if(prevtimestamp/1000000000==timestamp/1000000000) timestamp+=(++cnt); // a little trick to make sure that all the timestamps are different
 				else cnt=0;

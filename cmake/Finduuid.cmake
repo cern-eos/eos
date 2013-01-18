@@ -10,7 +10,10 @@ set(UUID_FIND_QUIETLY TRUE)
 endif(UUID_INCLUDE_DIRS AND UUID_LIBRARIES)
 
 find_path(UUID_INCLUDE_DIR uuid/uuid.h)
-find_library(UUID_LIBRARY uuid)
+find_library(UUID_LIBRARY uuid
+			  HINTS
+			  /opt/local/
+			  )
 
 set(UUID_INCLUDE_DIRS ${UUID_INCLUDE_DIR})
 set(UUID_LIBRARIES ${UUID_LIBRARY})

@@ -71,6 +71,12 @@ export EOS_FUSE_MOUNTDIR=/eos/
 # The MGM host from where to do the inital mount
 export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 
+# Enable FUSE debugging mode (default off)
+#export EOS_FUSE_DEBUG=1
+
+# Disable parallel IO mode (default on)
+#export EOS_FUSE_NOPIO=1
+
 # ------------------------------------------------------------------
 # Federation Configuration
 # ------------------------------------------------------------------

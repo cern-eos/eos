@@ -57,6 +57,7 @@
 #include "XrdOuc/XrdOucTable.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileSystem.hh"
@@ -1100,6 +1101,14 @@ int xrd_stat( const char* path, struct stat* buf )
       buf->st_size = ( off_t ) sval[7];
       buf->st_blksize = ( blksize_t ) sval[8];
       buf->st_blocks  = ( blkcnt_t ) sval[9];
+#ifdef __APPLE__
+      buf->st_atimespec.tv_sec = ( time_t ) ival[0];
+      buf->st_mtimespec.tv_sec = ( time_t ) ival[1];
+      buf->st_ctimespec.tv_sec = ( time_t ) ival[2];
+      buf->st_atimespec.tv_nsec = ( time_t ) ival[3];
+      buf->st_mtimespec.tv_nsec = ( time_t ) ival[4];
+      buf->st_ctimespec.tv_nsec = ( time_t ) ival[5];
+#else
       buf->st_atime = ( time_t ) ival[0];
       buf->st_mtime = ( time_t ) ival[1];
       buf->st_ctime = ( time_t ) ival[2];
@@ -1109,6 +1118,7 @@ int xrd_stat( const char* path, struct stat* buf )
       buf->st_atim.tv_nsec = ( time_t ) ival[3];
       buf->st_mtim.tv_nsec = ( time_t ) ival[4];
       buf->st_ctim.tv_nsec = ( time_t ) ival[5];
+#endif
       retc = 0;
     }
   } else {
@@ -1580,7 +1590,7 @@ int xrd_inodirlist( unsigned long long dirinode, const char* path )
     status = file->Read( offset, PAGESIZE, value + offset, nbytes );
   }
 
-  if ( nbytes >= 0 ) offset += nbytes;
+  if ( status.IsOK() ) offset += nbytes;
 
   value[offset] = 0;
   delete file;
@@ -1590,7 +1600,7 @@ int xrd_inodirlist( unsigned long long dirinode, const char* path )
 
   xrd_lock_w_dirview(); // =>
 
-  if ( nbytes >= 0 ) {
+  if ( status.IsOK() ) {
     char dirpath[4096];
     unsigned long long inode;
     char tag[128];
@@ -1659,7 +1669,7 @@ struct dirent* xrd_readdir( const char* path_dir, size_t *size )
 
   struct dirent* dirs = NULL;
   XrdCl::DirectoryList* response = 0;
-  uint8_t flags = 0; //nothing special
+  XrdCl::DirListFlags::Flags flags = XrdCl::DirListFlags::None;
   string path_str = path_dir;
   XrdCl::XRootDStatus status = fs->DirList( path_str, flags, response );
 
@@ -1727,7 +1737,7 @@ int xrd_mkdir( const char* path, mode_t mode )
 
   XrdCl::XRootDStatus status = fs->MkDir( path,
                                           XrdCl::MkDirFlags::MakePath,
-                                          dir_mode );
+                                          (XrdCl::Access::Mode)dir_mode );
   return -status.errNo;
 }
 
@@ -1742,6 +1752,94 @@ int xrd_rmdir( const char* path )
   return -status.errNo;
 }
 
+//------------------------------------------------------------------------------
+// Map open return codes to errno's
+//------------------------------------------------------------------------------
+int xrd_open_retc_map( int retc )
+{
+  errno = EFAULT;
+  fprintf(stderr,"retc=%d\n", retc);
+  if ( retc == kXR_ArgInvalid ) {
+      errno = EINVAL;
+  }
+  
+  if ( retc == kXR_ArgMissing ) {
+      errno = EINVAL;
+  }
+  
+  if ( retc == kXR_ArgTooLong ) {
+      errno = E2BIG;
+  }
+  
+  if ( retc == kXR_FileNotOpen ) {
+      errno = EBADF;
+  }
+  
+  if ( retc == kXR_FSError ) {
+      errno = EIO;
+  }
+  
+  if ( retc == kXR_InvalidRequest ) {
+      errno = EINVAL;
+  }
+  
+  if ( retc == kXR_IOError ) {
+      errno = EIO;
+  }
+  
+  if ( retc == kXR_NoMemory ) {
+      errno = ENOMEM;
+  }
+  
+  if ( retc == kXR_NoSpace ) {
+      errno = ENOSPC;
+  }
+  
+  if ( retc == kXR_ServerError ) {
+      errno = EIO;
+  }
+  
+  if ( retc == kXR_NotAuthorized) {
+      errno = EPERM;
+  }
+  
+  if ( retc == kXR_NotFound ) {
+      errno = ENOENT;
+  }
+  
+  if ( retc == kXR_Unsupported ) {
+      errno = ENOTSUP;
+  }
+  
+  if ( retc == kXR_NotFile ) {
+      errno = EISDIR;
+  }
+  
+  if ( retc == kXR_isDirectory ) {
+      errno = EISDIR;
+  }
+  
+  if ( retc == kXR_Cancelled ) {
+      errno = ECANCELED;
+  }
+  
+  if ( retc == kXR_ChkLenErr ) {
+      errno = ERANGE;
+  }
+  
+  if ( retc == kXR_ChkSumErr ) {
+      errno = ERANGE;
+  }
+  
+  if ( retc == kXR_inProgress ) {
+      errno = EAGAIN;
+  }
+  
+  if (retc) {
+      return -1;
+  }
+  return 0;
+}
 
 //------------------------------------------------------------------------------
 // Open a file
@@ -1752,31 +1850,31 @@ int xrd_open( const char* path, int oflags, mode_t mode )
   int t0;
   int retc = -1;
   XrdOucString spath = path;
-  uint16_t mode_xrdcl = 0;
-  uint16_t flags_xrdcl = XrdCl::OpenFlags::Flags::Read;  // open for read by default
+  mode_t mode_sfs = 0;
+
+  XrdSfsFileOpenMode flags_sfs = SFS_O_RDONLY; // open for read by default
 
   if ( oflags & ( O_CREAT | O_EXCL | O_RDWR | O_WRONLY ) ) {
-    flags_xrdcl = XrdCl::OpenFlags::Flags::Delete |
-                  XrdCl::OpenFlags::Flags::Update;
+    flags_sfs = SFS_O_CREAT | SFS_O_RDWR;
   }
 
-  if ( mode & S_IRUSR ) mode_xrdcl |= XrdCl::Access::UR;
+  if ( mode & S_IRUSR ) mode_sfs |= XrdCl::Access::UR;
 
-  if ( mode & S_IWUSR ) mode_xrdcl |= XrdCl::Access::UW;
+  if ( mode & S_IWUSR ) mode_sfs |= XrdCl::Access::UW;
 
-  if ( mode & S_IXUSR ) mode_xrdcl |= XrdCl::Access::UX;
+  if ( mode & S_IXUSR ) mode_sfs |= XrdCl::Access::UX;
 
-  if ( mode & S_IRGRP ) mode_xrdcl |= XrdCl::Access::GR;
+  if ( mode & S_IRGRP ) mode_sfs |= XrdCl::Access::GR;
 
-  if ( mode & S_IWGRP ) mode_xrdcl |= XrdCl::Access::GW;
+  if ( mode & S_IWGRP ) mode_sfs |= XrdCl::Access::GW;
 
-  if ( mode & S_IXGRP ) mode_xrdcl |= XrdCl::Access::GX;
+  if ( mode & S_IXGRP ) mode_sfs |= XrdCl::Access::GX;
 
-  if ( mode & S_IROTH ) mode_xrdcl |= XrdCl::Access::OR;
+  if ( mode & S_IROTH ) mode_sfs |= XrdCl::Access::OR;
 
-  if ( mode & S_IWOTH ) mode_xrdcl |= XrdCl::Access::OW;
+  if ( mode & S_IWOTH ) mode_sfs |= XrdCl::Access::OW;
 
-  if ( mode & S_IXOTH ) mode_xrdcl |= XrdCl::Access::OX;
+  if ( mode & S_IXOTH ) mode_sfs |= XrdCl::Access::OX;
 
   if ( ( t0 = spath.find( "/proc/" ) ) != STR_NPOS ) {
     //..........................................................................
@@ -1819,7 +1917,7 @@ int xrd_open( const char* path, int oflags, mode_t mode )
       spath += "?mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout( NULL, 0, NULL, NULL,
                                                           eos::common::LayoutId::kXrdCl );
-      retc = file->Open( spath.c_str(), flags_xrdcl, mode_xrdcl, "" );
+      retc = file->Open( spath.c_str(), flags_sfs, mode_sfs, "" );
       
       if ( retc ) {
         eos_static_err( "error=open failed for %s", spath.c_str() );
@@ -1827,7 +1925,7 @@ int xrd_open( const char* path, int oflags, mode_t mode )
         retc = xrd_add_fd2file( file );
       }
       
-      return retc;
+      return xrd_open_retc_map(errno);
     }
 
     if ( spath.endswith( "/proc/who" ) ) {
@@ -1835,14 +1933,14 @@ int xrd_open( const char* path, int oflags, mode_t mode )
       spath += "?mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout( NULL, 0, NULL, NULL,
                                                           eos::common::LayoutId::kXrdCl );
-      retc = file->Open( spath.c_str(), flags_xrdcl, mode_xrdcl, "" );
+      retc = file->Open( spath.c_str(), flags_sfs, mode_sfs, "" );
       
       if ( retc ) {
         eos_static_err( "error=open failed for %s", spath.c_str() );
       } else {
         retc = xrd_add_fd2file( file );
       }
-      return retc;
+      return xrd_open_retc_map(errno);
     }
 
     if ( spath.endswith( "/proc/quota" ) ) {
@@ -1850,21 +1948,21 @@ int xrd_open( const char* path, int oflags, mode_t mode )
       spath += "?mgm.cmd=quota&mgm.subcmd=ls&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout( NULL, 0, NULL, NULL,
                                                           eos::common::LayoutId::kXrdCl );
-      retc = file->Open( spath.c_str(), flags_xrdcl, mode_xrdcl, "" );
+      retc = file->Open( spath.c_str(), flags_sfs, mode_sfs, "" );
       
       if ( retc ) {
         eos_static_err( "error=open failed for %s", spath.c_str() );
       } else {
         retc = xrd_add_fd2file( file );
       }
-      return retc;
+      return xrd_open_retc_map(errno);
     }
   }
 
   //............................................................................
   // Try to open file using pio ( parallel io ) only in read mode
   //............................................................................
-  if ( flags_xrdcl == XrdCl::OpenFlags::Flags::Read ) {
+  if ( (!getenv("EOS_FUSE_NOPIO")) && (flags_sfs == SFS_O_RDONLY) ) {
     XrdCl::Buffer arg;
     XrdCl::Buffer* response = 0;
     XrdCl::XRootDStatus status;
@@ -1928,9 +2026,9 @@ int xrd_open( const char* path, int oflags, mode_t mode )
         }
 
         if ( file ) {  
-          retc = file->OpenPio( std::move( stripeUrls ),
-                                flags_xrdcl,
-                                mode_xrdcl,
+          retc = file->OpenPio( stripeUrls,
+                                flags_sfs,
+                                mode_sfs,
                                 opaqueInfo );
           if ( retc ) {
             eos_static_err( "error=failed open for pio red, path=%s",spath.c_str() );
@@ -1939,7 +2037,7 @@ int xrd_open( const char* path, int oflags, mode_t mode )
             retc = xrd_add_fd2file( file );
           }
 
-          return retc;
+          return xrd_open_retc_map(errno);
         }
       }
       else {
@@ -1947,7 +2045,6 @@ int xrd_open( const char* path, int oflags, mode_t mode )
       }
     } else {
       eos_static_err( "error=failed get request for pio read" );
-      retc = -EFAULT;
     }
   }
   
@@ -1956,16 +2053,18 @@ int xrd_open( const char* path, int oflags, mode_t mode )
   
   eos::fst::Layout* file = new eos::fst::PlainLayout( NULL, 0, NULL, NULL,
                                                       eos::common::LayoutId::kXrdCl );
-  retc = file->Open( spath.c_str(), flags_xrdcl, mode_xrdcl, "" );
+  retc = file->Open( spath.c_str(), flags_sfs, mode_sfs, "" );
   
   if ( retc ) {
     eos_static_err( "error=open failed for %s.", spath.c_str() );
     delete file;
+    return xrd_open_retc_map(errno);
   } else {
     retc = xrd_add_fd2file( file );
   }
-
+  
   return retc;
+  
 }
 
 

@@ -927,7 +927,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
         float randomacceptor = (0.999999 * random()/RAND_MAX);
         eos_static_debug("fs %u acceptor %f/%f for %d. replica [loop=%d] [avail=%d]", *ait, randomacceptor, availablefs[*ait], nassigned+1, loop, availablevector.size());
         
-        if ( (nassigned==0) ) {
+        if ( nassigned==0 ) {
           if (availablefs[*ait]<randomacceptor) {
             ait++;
             if (ait == availablevector.end()) 

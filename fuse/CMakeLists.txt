@@ -28,7 +28,7 @@ include_directories( ../
 		     ${FUSE_INCLUDE_DIR} 
 		     ${SPARSEHASH_INCLUDE_DIR} )
 
-link_directories( /usr/${LIB_INSTALL_DIR}/ 
+link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
 		  ${XROOTD_LIB_DIR} )
 
 add_subdirectory(XrdCache)
@@ -43,32 +43,36 @@ add_executable ( eosd
                  xrdposix.cc            xrdposix.hh
 		 FuseCacheEntry.cc	FuseCacheEntry.hh)
 
+
+
 target_link_libraries ( eosfsd 
 		        XrdCl
-			XrdEosFst-Static
 			XrdUtils 
-			XrdCache-static 
-			eosCommon-Static 
-			uuid 
 			${FUSE_LIBRARY} 
+			XrdEosFst-Static
+			XrdCache-Static
+			eosCommon-Static
 			pthread )
 
 target_link_libraries ( eosd 
      		      	XrdCl
-			XrdEosFst-Static
 			XrdUtils 
-			XrdCache-static 
-			eosCommon-Static 
-			uuid 
-			${FUSE_LIBRARY} 
+			${FUSE_LIBRARY}
+			XrdEosFst-Static
+			XrdCache-Static
+			eosCommon-Static
+			${UUID_LIBRARIES}
 			pthread )
 
+if(MacOSX)
+set_target_properties ( eosd eosfsd PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE")
+else(MacOSX)
 set_target_properties ( eosd eosfsd PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
-
-install_programs( /sbin FILES eosd )
+endif(MacOSX)
+install_programs( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR} FILES eosd )
 
 install ( TARGETS eosfsd
-          LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-          RUNTIME DESTINATION bin
-          ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+          LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
+          RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}
+          ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
 )

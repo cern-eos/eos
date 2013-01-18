@@ -22,7 +22,7 @@
 # ************************************************************************
 
 include_directories( ../ ${XROOTD_INCLUDE_DIR} )
-link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
+link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/ ${XROOTD_LIB_DIR})
 
 add_library (XrdEosAuth MODULE
 	    XrdCapability.cc
@@ -48,7 +48,7 @@ if (Linux)
 endif(Linux)
 
 install ( TARGETS XrdEosAuth
-          LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-          RUNTIME DESTINATION bin
-          ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+          LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
+          RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}
+          ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
 )

@@ -22,7 +22,7 @@
 # ************************************************************************
 
 include_directories( ../ ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd/ ${CMAKE_BINARY_DIR}/xrootd/src/include/ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} )
-link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
+link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} ${XROOTD_LIB_DIR})
 
 add_library (XrdEosMgm MODULE
             Access.cc         
@@ -50,7 +50,7 @@ add_library (XrdEosMgm MODULE
 	    Master.cc
 	    )
 
-target_link_libraries (XrdEosMgm XrdCl XrdPosix XrdUtils XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z )
+target_link_libraries (XrdEosMgm XrdCl XrdPosix XrdUtils XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto ${UUID_LIBRARIES} curses pthread dl z )
 
 add_executable ( testmgmview
 	         FsView.cc
@@ -61,7 +61,7 @@ add_executable ( eos-fst-dump
 	         FstDump.cc 
 )
 
-target_link_libraries ( testmgmview XrdCl XrdUtils eosCommon-Static XrdMqClient-Static crypto uuid curses pthread dl z)
+target_link_libraries ( testmgmview XrdCl XrdUtils eosCommon-Static XrdMqClient-Static crypto ${UUID_LIBRARIES} curses pthread dl z)
 
 set_target_properties ( testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST" )
 
@@ -76,11 +76,11 @@ if (Linux)
 endif(Linux)
 
 install ( TARGETS XrdEosMgm 
-          LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-          RUNTIME DESTINATION bin
-          ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+          LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
+          RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}
+          ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
 )
 
-INSTALL_PROGRAMS( /sbin FILES eos-fst-dump )
+INSTALL_PROGRAMS( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR} FILES eos-fst-dump )
 
-INSTALL ( FILES eos-repair-tool DESTINATION sbin PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )
+INSTALL ( FILES eos-repair-tool DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR} PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )

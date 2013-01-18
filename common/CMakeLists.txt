@@ -28,7 +28,7 @@ include_directories(
 		     ${SPARSEHASH_INCLUDE_DIR} )
 
 link_directories( 
-		  /usr/${LIB_INSTALL_DIR}/ 
+		  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
 		  ${XROOTD_LIB_DIR} )
 
 if (LEVELDB_FOUND)
@@ -39,7 +39,7 @@ include_directories(
 		     ${SPARSEHASH_INCLUDE_DIR} 
 		     ${LEVELDB_INCLUDE_DIR} )
 link_directories( 
-		  /usr/${LIB_INSTALL_DIR} 
+		  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
 		  ${XROOTD_LIB_DIR} 
 		  ${LEVELDB_LIB_DIR} )		   
 
@@ -98,20 +98,16 @@ add_executable ( mutextest
        mutextest/RWMutexTest.cc
 )
 
-
-target_link_libraries (eosCommon XrdMqClient XrdUtils XrdCl crypto uuid curses z attr )
-target_link_libraries (eosCommon-Static XrdMqClient-Static XrdUtils XrdCl crypto uuid curses z attr )
-#depends on XrdMqClient-Static libcrypto.a libuuid.a libcurses.a pthread dl z)
+target_link_libraries (eosCommon XrdMqClient XrdUtils XrdCl crypto ${UUID_LIBRARIES} curses z ${ATTR_LIBRARIES} )
+target_link_libraries (eosCommon-Static XrdMqClient-Static XrdUtils XrdCl crypto ${UUID_LIBRARIES} curses z ${ATTR_LIBRARIES} )
 if(LEVELDB_FOUND)
 target_link_libraries (eosCommon leveldb ) 
 target_link_libraries (eosCommon-Static leveldb )
 endif(LEVELDB_FOUND)
 
-target_link_libraries ( dbmaptestfunc eosCommon-Static )
-target_link_libraries ( dbmaptestburn eosCommon-Static )
-#target_link_libraries ( mutextest eosCommon-Static )
-
-target_link_libraries ( mutextest eosCommon-Static )
+target_link_libraries ( dbmaptestfunc eosCommon )
+target_link_libraries ( dbmaptestburn eosCommon )
+target_link_libraries ( mutextest eosCommon )
 
 if (Linux) 
   set_target_properties (eosCommon PROPERTIES
@@ -125,7 +121,7 @@ if (Linux)
 endif(Linux)
   
 install ( TARGETS eosCommon 
-          LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-          RUNTIME DESTINATION bin
-          ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+          LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
+          RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}
+          ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
 )

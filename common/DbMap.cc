@@ -88,17 +88,22 @@ void SqliteInterfaceBase::user_regexp(sqlite3_context *context, int argc, sqlite
   // this function implements the regexp operator for sql3
   // it can be made faster by writing others functions to initialize and terminate the callback
   // so that the compilation of the regex happens only once for a given regex.
-  struct re_pattern_buffer buffer;
+#ifdef __APPLE__
+  sqlite3_result_error(context,"Regexp not supported on Apple",-1);
+  return;
+#else
   const char *out;
   const char *pattern;
   const char *input_string;
 
+  struct re_pattern_buffer buffer;
   if ((sqlite3_value_type(argv[0]) != SQLITE_TEXT )
       || (sqlite3_value_type(argv[1]) != SQLITE_TEXT ))
   {
     sqlite3_result_error(context,"Improper argument types",-1);
     return;
   }
+
   re_set_syntax(RE_SYNTAX_POSIX_EGREP);
   memset(&buffer, 0, sizeof (buffer));
 
@@ -120,6 +125,7 @@ void SqliteInterfaceBase::user_regexp(sqlite3_context *context, int argc, sqlite
     regfree(&buffer);
     sqlite3_result_int(context, 1);
   }
+#endif
 }
 
 bool operator == ( const DbMapTypes::Tlogentry &l, const DbMapTypes::Tlogentry &r) {
@@ -562,7 +568,7 @@ void* SqliteDbLogInterface::ArchiveThread(void *dummy) {
   archmutex.Lock();
   while(true) {
     timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
+    eos::common::Timing::GetTimeSpec(now);   
 
     // process and erase the entry of the queue of which are outdated
     if(archqueue.size()!=0)
@@ -694,7 +700,7 @@ int SqliteDbLogInterface::SetArchivingPeriod(const string &dbname, int slicedura
     else {
       uniqmutex.UnLock();
       timespec ts;
-      clock_gettime(CLOCK_REALTIME, &ts);
+      eos::common::Timing::GetTimeSpec(ts);
       tm tm;
       localtime_r(&ts.tv_sec,&tm);
 
@@ -758,13 +764,13 @@ bool SqliteDbLogInterface::SetDbFile( const string &dbname, int sliceduration, i
       }
       close(fd);
       // check if the file can be successfully opened by sqlite3
-      sprintf(stmt,"ATTACH \'%s\' AS %s_%lu;",dbname.c_str(),"testattach",pthread_self());
+      sprintf(stmt,"ATTACH \'%s\' AS %s_%lu;",dbname.c_str(),"testattach",(unsigned long)pthread_self());
       ExecNoCallback(stmt);
       if(rc!=SQLITE_OK) {
         uniqmutex.UnLock();
         return false;
       }
-      sprintf(stmt,"DETACH %s_%lu;","testattach",pthread_self());
+      sprintf(stmt,"DETACH %s_%lu;","testattach",(unsigned long)pthread_self());
       ExecNoCallback(stmt);
     }
     uniqmutex.UnLock();
@@ -938,8 +944,8 @@ void* LvDbDbLogInterface::ArchiveThread(void *dummy) {
   pthread_cleanup_push(LvDbDbLogInterface::ArchiveThreadCleanup,NULL); // this is to make sure the mutex ius unlocked before terminating the thread
   archmutex.Lock();
   while(true) {
-    timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
+    timespec now;    
+    eos::common::Timing::GetTimeSpec(now);
 
     // process and erase the entry of the queue of which are outdated
     if(archqueue.size()!=0)
@@ -1083,7 +1089,7 @@ int LvDbDbLogInterface::SetArchivingPeriod(const string &dbname, int slicedurati
     else {
       uniqmutex.UnLock();
       timespec ts;
-      clock_gettime(CLOCK_REALTIME, &ts);
+      eos::common::Timing::GetTimeSpec(ts);     
       tm tm;
       localtime_r(&ts.tv_sec,&tm);
 

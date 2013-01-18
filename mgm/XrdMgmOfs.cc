@@ -1894,7 +1894,7 @@ XrdMgmOfs::chksum(      XrdSfsFileSystem::csFunc            Func,
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
-  XrdSecEntity mappedclient();
+  XrdSecEntity mappedclient;
 
   char buff[MAXPATHLEN+8];
   int rc;
@@ -1909,7 +1909,7 @@ XrdMgmOfs::chksum(      XrdSfsFileSystem::csFunc            Func,
 
   rc = 0;
 
-  if ((Func == XrdSfsFileSystem::csSize)) {
+  if (Func == XrdSfsFileSystem::csSize) {
     if (CheckSumName == "eos") {
       // just return the length
       error.setErrCode(20); 
@@ -2981,7 +2981,7 @@ int XrdMgmOfs::remdir(const char             *inpath,    // In
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
   
-  XrdSecEntity mappedclient();
+  XrdSecEntity mappedclient;
 
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
@@ -3353,7 +3353,7 @@ int XrdMgmOfs::stat(const char              *inpath,      // In
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
-  XrdSecEntity mappedclient();
+  XrdSecEntity mappedclient;
 
   NAMESPACEMAP;   
   BOUNCE_ILLEGAL_NAMES;
@@ -3440,11 +3440,24 @@ int XrdMgmOfs::_stat(const char                            *path,    // In
     
     // adding also nanosecond to stat struct
     fmd->getCTime(atime);
+#ifdef __APPLE__
+    buf->st_ctimespec.tv_sec   = atime.tv_sec;
+    buf->st_ctimespec.tv_nsec   = atime.tv_nsec;
+#else
     buf->st_ctime   = atime.tv_sec;
     buf->st_ctim.tv_sec   = atime.tv_sec;
     buf->st_ctim.tv_nsec   = atime.tv_nsec;
-    
+#endif
+
     fmd->getMTime(atime);
+
+#ifdef __APPLE__
+    buf->st_mtimespec.tv_sec   = atime.tv_sec;
+    buf->st_mtimespec.tv_nsec   = atime.tv_nsec;
+    
+    buf->st_atimespec.tv_sec   = atime.tv_sec;
+    buf->st_atimespec.tv_nsec  = atime.tv_nsec;
+#else
     buf->st_mtime   = atime.tv_sec;
     buf->st_mtim.tv_sec   = atime.tv_sec;
     buf->st_mtim.tv_nsec   = atime.tv_nsec;
@@ -3452,6 +3465,7 @@ int XrdMgmOfs::_stat(const char                            *path,    // In
     buf->st_atime   = atime.tv_sec;
     buf->st_atim.tv_sec   = atime.tv_sec;
     buf->st_atim.tv_nsec  = atime.tv_nsec;
+#endif
     EXEC_TIMING_END("Stat");    
     return SFS_OK;
   }
@@ -3482,8 +3496,15 @@ int XrdMgmOfs::_stat(const char                            *path,    // In
     eos::ContainerMD::ctime_t atime;
     cmd->getCTime(atime);
 
-    buf->st_atime   = atime.tv_sec;
-    
+#ifdef __APPLE__
+    buf->st_atimespec.tv_sec   = atime.tv_sec;
+    buf->st_mtimespec.tv_sec   = atime.tv_sec;
+    buf->st_ctimespec.tv_sec   = atime.tv_sec;
+    buf->st_atimespec.tv_nsec   = atime.tv_nsec;
+    buf->st_mtimespec.tv_nsec   = atime.tv_nsec;
+    buf->st_ctimespec.tv_nsec   = atime.tv_nsec;
+#else
+    buf->st_atime   = atime.tv_sec;    
     buf->st_mtime   = atime.tv_sec;
     buf->st_ctime   = atime.tv_sec;
     
@@ -3493,14 +3514,20 @@ int XrdMgmOfs::_stat(const char                            *path,    // In
     buf->st_atim.tv_nsec   = atime.tv_nsec;
     buf->st_mtim.tv_nsec   = atime.tv_nsec;
     buf->st_ctim.tv_nsec   = atime.tv_nsec;
-    
+#endif    
+
     // if we have a cached modification time, return that one
     // -->
     gOFS->MgmDirectoryModificationTimeMutex.Lock();
     if (gOFS->MgmDirectoryModificationTime.count(buf->st_ino)) {
+#ifdef __APPLE__
+      buf->st_mtimespec.tv_sec = gOFS->MgmDirectoryModificationTime[buf->st_ino].tv_sec;
+      buf->st_mtimespec.tv_nsec = gOFS->MgmDirectoryModificationTime[buf->st_ino].tv_nsec;
+#else
       buf->st_mtime = gOFS->MgmDirectoryModificationTime[buf->st_ino].tv_sec;
       buf->st_mtim.tv_sec = buf->st_mtime;
       buf->st_mtim.tv_nsec = gOFS->MgmDirectoryModificationTime[buf->st_ino].tv_nsec;
+#endif
     }
     gOFS->MgmDirectoryModificationTimeMutex.UnLock();  
     // --|
@@ -4150,7 +4177,7 @@ XrdMgmOfs::fsctl(const int               cmd,
   eos_thread_info("cmd=%d args=%s", cmd,args);
 
   int opcode = cmd & SFS_FSCTL_CMD;
-  if ((opcode == SFS_FSCTL_LOCATE)) {
+  if (opcode == SFS_FSCTL_LOCATE) {
 
     char locResp[4096];
     char rType[3], *Resp[] = {rType, locResp};
@@ -4163,7 +4190,7 @@ XrdMgmOfs::fsctl(const int               cmd,
     return SFS_DATA;
   }
 
-  if ((opcode == SFS_FSCTL_STATLS)) {
+  if (opcode == SFS_FSCTL_STATLS) {
     int blen=0;
     char* buff = error.getMsgBuff(blen);
     XrdOucString space = "default";
@@ -4754,12 +4781,22 @@ XrdMgmOfs::FSctl(const int               cmd,
                 (unsigned long long) buf.st_size,
                 (unsigned long long) buf.st_blksize,
                 (unsigned long long) buf.st_blocks,
+#ifdef __APPLE__
+                (unsigned long long) buf.st_atimespec.tv_sec,
+                (unsigned long long) buf.st_mtimespec.tv_sec,
+                (unsigned long long) buf.st_ctimespec.tv_sec,
+                (unsigned long long) buf.st_atimespec.tv_nsec,
+                (unsigned long long) buf.st_mtimespec.tv_nsec,
+                (unsigned long long) buf.st_ctimespec.tv_nsec
+#else
                 (unsigned long long) buf.st_atime,
                 (unsigned long long) buf.st_mtime,
                 (unsigned long long) buf.st_ctime,
                 (unsigned long long) buf.st_atim.tv_nsec,
                 (unsigned long long) buf.st_mtim.tv_nsec,
-                (unsigned long long) buf.st_ctim.tv_nsec);
+                (unsigned long long) buf.st_ctim.tv_nsec
+#endif
+		);
 
         error.setErrInfo(strlen(statinfo)+1,statinfo);
         return SFS_DATA;
@@ -5818,7 +5855,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 		for ( lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter) {
 		  // ignore filesystem id 0
 		  if ((*lociter)) {
-		    if ( (source_snapshot.mId == *lociter)) {
+		    if ( source_snapshot.mId == *lociter) {
 		      if (source_snapshot.mConfigStatus == eos::common::FileSystem::kDrain) {
 			// only add filesystems which are not in drain dead to the possible locations
 			locationfs.push_back(*lociter);

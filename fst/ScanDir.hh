@@ -38,7 +38,9 @@
 /*----------------------------------------------------------------------------*/
 
 #include <sys/syscall.h>
+#ifndef __APPLE__
 #include <asm/unistd.h>
+#endif
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -87,16 +89,19 @@ public:
     bgThread = bgthread;
 
     alignment = pathconf(dirPath.c_str(), _PC_REC_XFER_ALIGN);
+    size_t palignment = alignment;
 
     if (alignment>0) {
       bufferSize = 256 * alignment;
       setChecksum = setchecksum;
-      size_t palignment = alignment;
       if (posix_memalign((void**)&buffer, palignment, bufferSize)){
 	buffer = 0;
         fprintf(stderr, "error: error calling posix_memaling on dirpath=%s. \n",dirPath.c_str());
 	return;
       }
+#ifdef __APPLE__
+      palignment = 0;
+#endif
     } else {
       fprintf(stderr,"error: OS does not provide alignment\n");
       return;

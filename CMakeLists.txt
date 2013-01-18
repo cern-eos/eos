@@ -37,8 +37,17 @@ project (eos)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
+# force /usr/ installation prefix
+set(CMAKE_INSTALL_PREFIX /usr/)
+if (PREFIX) 
+   set (CMAKE_INSTALL_PREFIX ${PREFIX})
+endif (PREFIX)
+
 # include some generic functions
 include(EosUtils)
+
+# include GNU path settings
+include (GNUInstallDirs)
 
 #-------------------------------------------------------------------------------
 # Search for dependencies
@@ -48,6 +57,8 @@ if (RELEASE)
 else (RELEASE)
 set(RELEASE "head")
 endif (RELEASE)
+
+EOS_defineOperatingSystem()
 
 if (CLIENT)
 find_package(XRootD REQUIRED)
@@ -62,30 +73,44 @@ find_package(z REQUIRED)
 find_package(leveldb)
 find_package(CPPUnit)
 find_package(XRootD REQUIRED)
+
+if(MacOSX)
+find_package(fuse REQUIRED)
+else(MacOSX)
 find_package(fuse REQUIRED)
 find_package(attr REQUIRED)
+endif(MacOSX)
 find_package(httpd)
 find_package(apr)
 endif (CLIENT)
 
 ######################################################################################################################
 # Platform Specific
-EOS_defineOperatingSystem()
 
+#####################################################
 if(MacOSX)
-set(LIB_INSTALL_DIR lib)
-else(MacOSX)
-set(LIB_INSTALL_DIR lib64)
-endif(MacOSX)
+# ------------------------------------------
+# on MAC we don't link static objects at all
+# ------------------------------------------
+set(FUSE_LIBRARY /usr/local/lib/libosxfuse_i64.dylib)
 
-set(SBIN_INSTALL_DIR sbin)
+else(MacOSX)
+
+# ------------------------------------------
+# on Linux WE use static objects 
+# ------------------------------------------
+set(LIB_INSTALL_DIR lib64)
+set(RT_LIBS rt)
+
+endif(MacOSX)
+#####################################################
 
 EOS_CheckOutOfSourceBuild()
 
 if (CLIENT)
-set(CMAKE_CXX_FLAGS "-g -Wall -O2 -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
+set(CMAKE_CXX_FLAGS "-g -Wall -Wno-deprecated-declarations -O2 -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
 else (CLIENT)
-set(CMAKE_CXX_FLAGS "-g -Wall -O2 -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )
+set(CMAKE_CXX_FLAGS "-g -Wall -Wno-deprecated-declarations -O2 -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )
 endif (CLIENT)
 if (NOT LEVELDB_FOUND)
 message("  Warning: LevelDB not found, using slower Sqlite3 DbMap implentation")
@@ -98,10 +123,7 @@ endif (NOT LEVELDB_FOUND)
 ######################################################################################################################
 # install targets
 ######################################################################################################################
-set(CMAKE_INSTALL_PREFIX /usr/)
 
-set(SYSCONFDIR "/etc" CACHE PATH "Directory for system configuration files" )
-set(MANDIR "/usr/share/man/man1" CACHE PATH "Directory where man pages get installed" ) 
 
 if (CLIENT)
 add_subdirectory (fuse)
@@ -134,7 +156,7 @@ endif (HTTPD_FOUND)
 endif (CLIENT)
 
 include_directories( ../ /usr/include/xrootd/ /usr/include/ ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd ${CMAKE_BINARY_DIR}/xrootd/src/include/ )
-link_directories( /usr/${LIB_INSTALL_DIR}/)
+link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/)
 
 
 ######################################################################################################################
@@ -188,7 +210,28 @@ ADD_CUSTOM_TARGET(rpm COMMAND rpmbuild -tb ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE
 ADD_DEPENDENCIES(rpm dist)
 
 ######################################################################################################################
-# Package Finding
+# Print Configuration
 ######################################################################################################################
 
-# google sparse hash
+message( STATUS "_________________________________________________" )
+message( STATUS "Version           : eos-" ${VERSION_MAJOR} "." ${VERSION_MINOR} "." ${VERSION_PATCH} "-" ${RELEASE} )
+if (CLIENT)
+message( STATUS "Modules           : client " )
+else (CLIENT)
+if (LEVELDB_FOUND)
+message( STATUS "Modules           : client+server with LevelDb" )
+else (LEVELDB_FOUND)
+message( STATUS "Modules           : client+server without LevelDb" )
+endif (LEVELDB_FOUND)
+endif (CLIENT)
+
+message( STATUS "................................................." )
+message( STATUS "Prefix            : " ${CMAKE_INSTALL_PREFIX} )
+message( STATUS "Bin Dir           : " ${CMAKE_INSTALL_BINDIR} )
+message( STATUS "Lib Dir           : " ${CMAKE_INSTALL_LIBDIR} )
+message( STATUS "Sysconfig Dir     : " ${CMAKE_INSTALL_SYSCONFDIR} )
+message( STATUS "................................................." )
+message( STATUS "C Compiler        : " ${CMAKE_C_COMPILER} )
+message( STATUS "C++ Compiler      : " ${CMAKE_CXX_COMPILER} )
+message( STATUS "Build type        : " ${CMAKE_BUILD_TYPE} )
+message( STATUS "_________________________________________________" )

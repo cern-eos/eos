@@ -28,7 +28,7 @@ include_directories( ../
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${SPARSEHASH_INCLUDE_DIR} )
 
-link_directories( /usr/${LIB_INSTALL_DIR}/ 
+link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
 		  ${XROOTD_LIB_DIR} )
 
 add_library( EosFstOss MODULE
@@ -45,7 +45,7 @@ target_link_libraries( EosFstOss
       		       eosCapability-Static
 		       eosCommon-Static
 		       XrdServer	      
-		       uuid 
+		       ${UUID_LIBRARIES}
 )
 										       
 add_library( XrdEosFst MODULE
@@ -130,10 +130,10 @@ target_link_libraries( XrdEosFst
 		       eosCapability-Static    eosCommon-Static 
 		       XrdMqClient-Static      XrdCl	
 		       XrdUtils                XrdOfs 
-		       crypto                  uuid 
+		       crypto                  ${UUID_LIBRARIES}
 		       curses                  pthread 
 		       dl                      z  
-		       attr   		       rt 
+		       ${ATTR_LIBRARIES}       ${RT_LIBRARIES} 
 )
 
 
@@ -141,10 +141,10 @@ target_link_libraries( XrdEosFst-Static
 		       eosCapability-Static    eosCommon-Static 
 		       XrdMqClient-Static      XrdCl
 		       XrdUtils                XrdOfs 
-		       crypto                  uuid 
+		       crypto                  ${UUID_LIBRARIES} 
 		       curses                  pthread 
 		       dl                      z  
-		       attr      	       rt 
+		       ${ATTR_LIBRARIES}       ${RT_LIBRARIES}
 )
 
 
@@ -205,10 +205,10 @@ add_executable( eoscp
 
 set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 
-target_link_libraries( FstLoad XrdUtils dl rt )
+target_link_libraries( FstLoad XrdUtils dl ${RT_LIBRARIES} )
 target_link_libraries( eos-check-blockxs eosCommon )
 target_link_libraries( eos-compute-blockxs eosCommon )
-target_link_libraries( eos-scan-fs eosCommon rt XrdCl ) 
+target_link_libraries( eos-scan-fs eosCommon ${RT_LIBRARIES} XrdCl ) 
 target_link_libraries( eos-adler32 eosCommon ) 
 target_link_libraries( eoscp XrdEosFst-Static XrdCl )
 #target_link_libraries( eos-raid-recover eosCommon XrdCl )
@@ -240,7 +240,7 @@ INSTALL_PROGRAMS( /sbin
 )
 
 install( TARGETS EosFstOss XrdEosFst eoscp
-       	 LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-         RUNTIME DESTINATION bin
-         ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
+       	 LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
+         RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
+         ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
 )

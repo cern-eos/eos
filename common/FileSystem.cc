@@ -529,7 +529,12 @@ FileSystem::SetStatfs(struct statfs* statfs)
   success &= SetLongLong("stat.statfs.bavail", statfs->f_bavail);
   success &= SetLongLong("stat.statfs.files", statfs->f_files);
   success &= SetLongLong("stat.statfs.ffree", statfs->f_ffree);
+
+#ifdef __APPLE__
+  success &= SetLongLong("stat.statfs.namelen", MNAMELEN);
+#else
   success &= SetLongLong("stat.statfs.namelen", statfs->f_namelen);
+#endif
 
   return success;
 }

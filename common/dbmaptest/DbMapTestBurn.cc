@@ -76,7 +76,7 @@ void* TestWriteGlob(void *threadid) {
     char vs[]="value_xxxxxx";
     char cs[]="comment_xxxxxx";
 
-    unsigned long int thrid=pthread_self();
+    unsigned long int thrid= (unsigned long int) pthread_self();
 
 	for(int k=0;k<total;k++) {
 	    AtomicInc(writecount);

@@ -25,7 +25,7 @@ set (CMAKE_CXX_FLAGS "-Wall -g -O0 -std=gnu++0x -DHAVE_ATOMICS=1 ")
 #-------------------------------------------------------------------------------
 
 include_directories( ../ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} )
-link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
+link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} ${XROOTD_LIB_DIR})
 
 add_executable (xrdstress.exe
  	        XrdStress.cc            XrdStress.hh
@@ -96,7 +96,7 @@ add_executable (testhmacsha256
 		../common/SymKeys.hh            ../common/SymKeys.cc
 )					
 
-target_link_libraries(xrdstress.exe XrdPosix uuid XrdUtils)
+target_link_libraries(xrdstress.exe XrdPosix ${UUID_LIBRARIES} XrdUtils)
 target_link_libraries(xrdcpabort XrdPosix XrdUtils)
 target_link_libraries(xrdcprandom XrdPosix XrdUtils)
 target_link_libraries(xrdcpextend XrdPosix XrdUtils)
@@ -133,12 +133,12 @@ INSTALL_PROGRAMS( /sbin FILES
 		  xrdcpposixcache eoschecksumbench eos-udp-dumper eos-mmap)
 
 INSTALL ( FILES xrdstress 
-	DESTINATION ${CMAKE_INSTALL_PREFIX}/${SBIN_INSTALL_DIR}/ 
+	DESTINATION {CMAKE_INSTALL_SBINDIR}
 	PERMISSIONS OWNER_EXECUTE GROUP_EXECUTE WORLD_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
 
 INSTALL ( FILES eos-instance-test eos-rain-test
-	DESTINATION ${CMAKE_INSTALL_PREFIX}/${SBIN_INSTALL_DIR}/ 
+	DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR}
 	PERMISSIONS OWNER_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
 
-INSTALL_PROGRAMS( /sbin FILES xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcptruncate xrdcppartial xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpposixcache eoschecksumbench eos-udp-dumper eos-mmap)
+INSTALL_PROGRAMS( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR} FILES xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcptruncate xrdcppartial xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpposixcache eoschecksumbench eos-udp-dumper eos-mmap)
 

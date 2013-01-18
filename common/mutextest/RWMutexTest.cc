@@ -142,7 +142,7 @@ main()
   for (int k = 0; k < loopsize; k++)
   {
     struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
+    eos::common::Timing::GetTimeSpec(ts);
   }
   t = NowInt() - t;
   cout << " ------------------------- " << endl;

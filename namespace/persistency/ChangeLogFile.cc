@@ -31,7 +31,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#ifdef __linux__
 #include <sys/inotify.h>
+#endif
 #include <poll.h>
 #include <stdint.h>
 #include <unistd.h>

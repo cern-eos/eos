@@ -51,7 +51,7 @@ RaidDpLayout::RaidDpLayout( XrdFstOfsFile*                 file,
   RaidMetaLayout( file, lid, client, outError, io, storeRecovery,
                   isStreaming, targetSize, bookingOpaque )
 {
-  mNbDataBlocks = static_cast<int>( pow( mNbDataFiles, 2 ) );
+  mNbDataBlocks = static_cast<int>( pow( (double)mNbDataFiles, 2 ) );
   mNbTotalBlocks = mNbDataBlocks + 2 * mNbDataFiles;
   mSizeGroup = mNbDataBlocks * mStripeWidth;
   mSizeLine = mNbDataFiles * mStripeWidth;

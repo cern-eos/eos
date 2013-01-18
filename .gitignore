@@ -30,3 +30,4 @@ doxydoc
 Namespace/tests/text_runner
 valgrind.supp
 eos-log-repair
+/build/

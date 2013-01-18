@@ -31,7 +31,11 @@
   gcc -Wall `pkg-config fuse --cflags --libs` hello_ll.c -o hello_ll
 ------------------------------------------------------------------------------*/
 
+#ifdef __APPLE__
+#define FUSE_USE_VERSION 27
+#else
 #define FUSE_USE_VERSION 26
+#endif
 
 /*----------------------------------------------------------------------------*/
 #include <stdio.h>
@@ -465,7 +469,11 @@ static void eosfs_ll_readdir( fuse_req_t             req,
     // No dirview entry, try to use the directory cache
     //..........................................................................
     retc = xrd_stat( dirfullpath, &attr );
+#ifdef __APPLE__
+    dir_status = xrd_dir_cache_get( ino, attr.st_mtimespec, &tmp_buf );
+#else
     dir_status = xrd_dir_cache_get( ino, attr.st_mtim, &tmp_buf );
+#endif
 
     if ( !dir_status ) {
       //........................................................................
@@ -510,7 +518,11 @@ static void eosfs_ll_readdir( fuse_req_t             req,
       //........................................................................
       // Add directory to cache or update it
       //........................................................................
+#ifdef __APPLE__
+      xrd_dir_cache_sync( ino, cnt, attr.st_mtimespec, b );
+#else
       xrd_dir_cache_sync( ino, cnt, attr.st_mtim, b );
+#endif
       xrd_unlock_r_dirview();           // <=
     } else {
       //........................................................................
@@ -930,8 +942,8 @@ static void eosfs_ll_rename( fuse_req_t  req,
   int retcold = xrd_stat( fullpath, &stbuf );
 
   if ( isdebug ) {
-    fprintf( stderr, "[%s]: path=%s newpath=%s inode=%lu [%d]\n",
-             __FUNCTION__, fullpath, stbuf.st_ino, newfullpath, retcold );
+    fprintf( stderr, "[%s]: path=%s newpath=%s inode=%llu [%d]\n",
+             __FUNCTION__, fullpath, newfullpath, stbuf.st_ino, retcold );
   }
   
   int retc = xrd_rename( fullpath, newfullpath );
@@ -942,7 +954,7 @@ static void eosfs_ll_rename( fuse_req_t  req,
     //..........................................................................
     if ( !retcold ) {
       if ( isdebug ) {
-        fprintf( stderr, "[%s]: forgetting inode=%lu \n",
+        fprintf( stderr, "[%s]: forgetting inode=%llu \n",
                  __FUNCTION__, stbuf.st_ino );
       }
 
@@ -992,8 +1004,8 @@ static void eosfs_ll_link( fuse_req_t  req,
   xrd_unlock_r_p2i();         // <=
 
   if ( isdebug ) {
-    fprintf( stderr, "[%s]: path=$s sourcepath=%s link=%s\n",
-             __FUNCTION__, fullpath, linkdest, sourcepath );
+    fprintf( stderr, "[%s]: path=%s sourcepath=%s link=%s\n",
+             __FUNCTION__, fullpath, sourcepath, linkdest );
   }
 
   int retc = xrd_link( fullpath, linkdest, sourcepath );

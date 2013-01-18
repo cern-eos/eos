@@ -105,7 +105,7 @@ class RaidMetaLayout : public Layout
     //! @return 0 if successful, -1 otherwise and error code is set
     //!
     //--------------------------------------------------------------------------
-    virtual int OpenPio( std::vector<std::string>&& stripeUrls,
+    virtual int OpenPio( std::vector<std::string>   stripeUrls,
                          XrdSfsFileOpenMode         flags,  
                          mode_t                     mode = 0,
                          const char*                opaque = "fst.pio" );
@@ -228,9 +228,9 @@ class RaidMetaLayout : public Layout
     bool mStoreRecovery;               ///< set if recovery also triggers writing back to the
                                        ///< files, this also means that all files must be available
 
-    unsigned int mStripeHead;          ///< head stripe value
-    unsigned int mPhysicalStripeIndex; ///< physical index of the current stripe
-    unsigned int mLogicalStripeIndex;  ///< logical index of the current stripe
+    int mStripeHead;                   ///< head stripe value
+    int mPhysicalStripeIndex;          ///< physical index of the current stripe
+    int mLogicalStripeIndex;           ///< logical index of the current stripe
     unsigned int mNbParityFiles;       ///< number of parity files
     unsigned int mNbDataFiles;         ///< number of data files
     unsigned int mNbTotalFiles;        ///< total number of files ( data + parity )

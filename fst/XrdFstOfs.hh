@@ -52,8 +52,15 @@
 #include <fts.h>
 /*----------------------------------------------------------------------------*/
 
+//------------------------------------------------------------------------------                                                                                                                        
+// Apple does not know this errno's                                                                                                                                                                     
+//------------------------------------------------------------------------------                                                                                                                          
 #ifdef __APPLE__
+#define EBADE 52
+#define EBADR 53
+#define EADV 68
 #define EREMOTEIO 121
+#define ENOKEY 126
 #endif
 
 EOSFSTNAMESPACE_BEGIN

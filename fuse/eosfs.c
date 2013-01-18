@@ -742,7 +742,7 @@ int main( int argc, char* argv[] )
   int margc = argc;
 
   if ( argc < 2 ) {
-    usage;
+    usage();
   }
 
   int shift = 0;
@@ -762,9 +762,9 @@ int main( int argc, char* argv[] )
     }
   }
 
-  for ( i = 0; i < margc; i++ ) {
-    printf( "%d: %s\n", i, argv[i] );
-  }
+  //  for ( i = 0; i < margc; i++ ) {
+  //    printf( "%d: %s\n", i, argv[i] );
+  //  }
 
   if ( getenv( "EOS_FUSE_MGM_URL" ) ) {
     snprintf( rdrurl, sizeof( rdrurl ) - 1, "%s", getenv( "EOS_FUSE_MGM_URL" ) );
@@ -849,16 +849,17 @@ int main( int argc, char* argv[] )
 
   close( STDIN_FILENO );
   close( STDOUT_FILENO );
+
   //............................................................................
   // = > don't close STDERR because we redirect that to a file!
   //............................................................................
   xrd_init();
   umask( 0 );
 
-  fprintf ( stderr, "Call fuse_main with the following parameters: \n" );
-  for ( i = 0; i < margc; i++ ) {
-    fprintf( stderr, "argv[%i] = %s \n", i, argv[i] );
-  }
+  //  fprintf ( stderr, "Call fuse_main with the following parameters: \n" );
+  //  for ( i = 0; i < margc; i++ ) {
+  //    fprintf( stderr, "argv[%i] = %s \n", i, argv[i] );
+  //  }
   
   return fuse_main( margc, argv, &eosdfs_oper, NULL );
 }

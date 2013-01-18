@@ -38,7 +38,9 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <sys/mman.h>
+#ifndef __APPLE__
 #include <xfs/xfs.h>
+#endif
 /*----------------------------------------------------------------------------*/
 #include <XrdSys/XrdSysTimer.hh>
 
@@ -272,7 +274,11 @@ CheckSum::OpenMap(const char* mapfilepath, size_t maxfilesize, size_t blocksize,
 
   if (isRW) {
     int rc=0;
+#ifdef __APPLE__
+    rc = ftruncate(ChecksumMapFd,ChecksumMapSize);
+#else
     rc = posix_fallocate(ChecksumMapFd,0,ChecksumMapSize);
+#endif
     if (rc) {
       close(ChecksumMapFd);
       //      fprintf(stderr,"posix allocate failed\n")
@@ -372,8 +378,12 @@ CheckSum::ChangeMap(size_t newsize, bool shrink)
   }
 
   //  fprintf(stderr,"remapping %d %llu %llu %llu\n", ChecksumMapFd, ChecksumMap, ChecksumMapSize, newsize);
+#ifdef __APPLE__
+  if ( (munmap(ChecksumMap, ChecksumMapSize)) || (  ChecksumMap = (char*)mmap(ChecksumMap, newsize, PROT_READ | PROT_WRITE, MAP_SHARED,ChecksumMapFd,0)) ) {
+#else
   ChecksumMap = (char*)mremap(ChecksumMap, ChecksumMapSize, newsize, MREMAP_MAYMOVE);
   if (ChecksumMap == MAP_FAILED) {
+#endif
     fprintf(stderr,"Fatal: [CheckSum::ChangeMap] mremap [ errno=%d ]\n", errno);
     ChecksumMapSize = 0;
     ChecksumMap = 0;

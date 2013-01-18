@@ -41,7 +41,11 @@
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <sys/types.h>
+#ifdef __APPLE__
+#include <sys/xattr.h>
+#else
 #include <attr/xattr.h>
+#endif
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN

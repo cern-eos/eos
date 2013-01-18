@@ -33,7 +33,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#ifndef __APPLE__
 #include <sys/syscall.h>
+#endif
 #include <fts.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -46,7 +48,11 @@
 
 static int ioprio_set(int which, int who, int ioprio)
 {
+#ifdef __APPLE__
+  return 0;
+#else
   return syscall(SYS_ioprio_set, which, who, ioprio);
+#endif
 }
 
 //static int ioprio_get(int which, int who)

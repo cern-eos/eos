@@ -94,8 +94,11 @@ Attr::Set(const char* name, const char* value, size_t len)
 {
   if ((!name)|| (!value))
     return false;
-
+#ifdef __APPLE__
+  if (!setxattr(fName.c_str(), name, value, len,0,0))
+#else
   if (!lsetxattr(fName.c_str(), name, value, len,0))
+#endif
     return true;
   return false;
 }
@@ -135,8 +138,11 @@ Attr::Get(const char* name, char* value, size_t &size)
 
   if ((!name) || (!value))
     return false;
-  
+#ifdef __APPLE__
+  int retc = getxattr (fName.c_str(), name, value,size,0,0);
+#else
   int retc = lgetxattr (fName.c_str(), name, value,size);
+#endif
   if (retc!=-1) {
     size = retc;
     return true;

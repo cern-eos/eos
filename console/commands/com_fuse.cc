@@ -211,25 +211,35 @@ com_fuse (char* arg1) {
     struct stat buf;
     struct stat buf2;
 
+#ifndef __APPLE__
     if ((stat(mountpoint.c_str(),&buf)|| (buf.st_ino !=1))) {
       fprintf(stderr,"error: there is no eos mount at %s\n", mountpoint.c_str());
       exit(-1);
     }
+#endif
     
-    XrdOucString umount = "fusermount -z -u "; umount += mountpoint.c_str(); umount += ">& /dev/null";
+    XrdOucString umount;
+#ifdef __APPLE__
+    umount = "umount -f ";        umount += mountpoint.c_str(); umount += " >& /dev/null";
+#else
+    umount = "fusermount -z -u "; umount += mountpoint.c_str(); umount += " >& /dev/null";
+#endif
+
     int rc = system(umount.c_str());
     if (WEXITSTATUS(rc)) {
-      fprintf(stderr,"error: mount failed");
+      fprintf(stderr,"error: umount failed\n");
     }
     if ((stat(mountpoint.c_str(),&buf2))) {
       fprintf(stderr,"error: mount directoy disappeared from %s\n", mountpoint.c_str());
       exit(-1);
     }
-    
+
+#ifndef __APPLE__
     if (buf.st_ino == buf2.st_ino) {
       fprintf(stderr,"error: umount didn't work\n");
       exit(-1);
     }
+#endif
   }
   
   exit(0);

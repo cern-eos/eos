@@ -48,7 +48,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <attr/xattr.h>
 
 #include <math.h>
 #include <stdio.h>
@@ -175,7 +174,12 @@ XrdFstOfs::xrdfstofs_stacktrace( int sig )
   // now we put back the initial handler and send the signal again
   signal(sig, SIG_DFL);
   kill(getpid(), sig);
+#ifdef __APPLE__
+  int wstatus=0;
+  wait(&wstatus);
+#else
   wait();
+#endif
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1117,8 +1121,11 @@ XrdFstOfs::FSctl( const int               cmd,
       }
 
       char value[1024];
+#ifdef __APPLE__
+      ssize_t attr_length = getxattr( path, key, value, sizeof( value ) ,0,0);
+#else
       ssize_t attr_length = getxattr( path, key, value, sizeof( value ) );
-
+#endif
       if ( attr_length > 0 ) {
         value[1023] = 0;
         XrdOucString skey = key;
@@ -1277,7 +1284,7 @@ XrdFstOfsDirectory::nextEntry()
       if ( node->fts_level > 0 && node->fts_name[0] == '.' ) {
         fts_set( fts_tree, node, FTS_SKIP );
       } else {
-        if ( node->fts_info && FTS_F ) {
+        if ( node->fts_info & FTS_F ) {
           XrdOucString sizestring;
           XrdOucString filePath = node->fts_accpath;
           XrdOucString fileId   = node->fts_accpath;

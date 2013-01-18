@@ -224,7 +224,7 @@ int TransferJob::SendState(int state, const char* logfile, float progress)
     }
   }
   
-  if ( (mLastState == eos::mgm::TransferEngine::kDone) ) {
+  if ( mLastState == eos::mgm::TransferEngine::kDone ) {
     eos_static_debug("txid=%lld skipping update - we have already a 'done' state", mId);
     // when the done state is reached, it does not make sense to update the progress - moreover the transfer can be autoarchived and the update would fail
     return 0;

@@ -30,7 +30,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 /*----------------------------------------------------------------------------*/
+#ifndef __APPLE__
 #include <sys/inotify.h>
+#endif
 
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -55,8 +57,14 @@ void usage()
 // INOTIFY structures/buffer
 // -------------------------------------------------------------
 
+#ifndef __APPLE__
 #define EVENT_SIZE  ( sizeof (struct inotify_event) )
 #define EVENT_BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
+#else
+// - dummy -
+#define EVENT_BUF_LEN 1024
+#endif
+
 char buffer[EVENT_BUF_LEN];
 
 
@@ -107,16 +115,18 @@ int main( int argc, char* argv[] )
     isdumpfile = true;
   }
 
-  int watch_fd = 0;
+  XrdCl::File* file  = 0;  
+  
+  int inotify_fd = -1;
+  int watch_fd = -1;
 
-  int inotify_fd = inotify_init();
-
-  XrdCl::File* file  = 0;
+#ifndef __APPLE__
+  inotify_fd = inotify_init();
 
   if ( inotify_fd < 0 ) {
     fprintf(stderr,"error: unable to initialize inotify interface - will use polling\n");
   }
-  
+#endif
 
   do {
     fd = open( sourcefile.c_str(), O_RDONLY );
@@ -129,18 +139,21 @@ int main( int argc, char* argv[] )
 
  
  again:
-  uint16_t flags_xrdcl;
-  uint16_t mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::GR |
+  XrdCl::OpenFlags::Flags flags_xrdcl;
+  XrdCl::Access::Mode mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::GR |
                         XrdCl::Access::GW | XrdCl::Access::OR;
   
   file = new XrdCl::File();
 
+#ifndef __APPLE__
   if (watch_fd) {
     inotify_rm_watch(inotify_fd, watch_fd);
     close(watch_fd);
   }
 
   watch_fd = inotify_add_watch(inotify_fd, sourcefile.c_str(), IN_MODIFY | IN_MOVE_SELF );
+
+#endif
 
   if ( !file ) {
     fprintf( stderr, "Error: cannot create XrdCl object\n" );

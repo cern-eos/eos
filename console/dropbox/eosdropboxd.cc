@@ -94,7 +94,7 @@ int main(int argc, char* argv[])
   
   bool resync = false;
 
-  if ( (argc ==2) ) {
+  if ( argc ==2 ) {
     if (!strcmp(argv[1], "--resync")) {
       resync = true;
     }
@@ -351,15 +351,15 @@ int main(int argc, char* argv[])
 	    // file does not exist on target => clear upload case
 	    action = "upload";
 	  } else {
-	    if ( (remotemtimemap[pathit->first].tv_sec < localmtimemap[pathit->first].tv_sec ) ) {
+	    if ( remotemtimemap[pathit->first].tv_sec < localmtimemap[pathit->first].tv_sec ) {
 	      // the file exists in the remote box but is older
 	      action = "upload";
 	    } 
-	    if ( (remotemtimemap[pathit->first].tv_sec > localmtimemap[pathit->first].tv_sec ) ) {
+	    if ( remotemtimemap[pathit->first].tv_sec > localmtimemap[pathit->first].tv_sec ) {
 	      // the file exists in the remote box but is newer
 	      action = "download";
 	    }
-	    if ( (remotemtimemap[pathit->first].tv_sec == localmtimemap[pathit->first].tv_sec ) ) {
+	    if ( remotemtimemap[pathit->first].tv_sec == localmtimemap[pathit->first].tv_sec ) {
 	      // this is resynchronization
 	      action = "download";
 	    }
