@@ -127,18 +127,15 @@ set_target_properties ( xrdcppartial PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BI
 set_target_properties ( xrdcpposixcache PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -msse4.2" )
 
-INSTALL_PROGRAMS( /sbin FILES 
-		  xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink 
+INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR} FILES 
+		  xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcpappend
 		  xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial
 		  xrdcpposixcache eoschecksumbench eos-udp-dumper eos-mmap)
 
 INSTALL ( FILES xrdstress 
-	DESTINATION {CMAKE_INSTALL_SBINDIR}
+	DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
 	PERMISSIONS OWNER_EXECUTE GROUP_EXECUTE WORLD_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
 
 INSTALL ( FILES eos-instance-test eos-rain-test
-	DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR}
+	DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
 	PERMISSIONS OWNER_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
-
-INSTALL_PROGRAMS( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR} FILES xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcptruncate xrdcppartial xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpposixcache eoschecksumbench eos-udp-dumper eos-mmap)
-

@@ -22,7 +22,7 @@
 # ************************************************************************
 
 include_directories( ../ ${XROOTD_INCLUDE_DIR} )
-link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} ${XROOTD_LIB_DIR})
+link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR})
 
 add_executable ( eosfilesync
                  eosfilesync.cc
@@ -36,13 +36,13 @@ add_executable ( eosha
                  eosha.cc
 )
 
-INSTALL_PROGRAMS( ${SBINDIR} FILES eoshapl eossh-timeout)
+INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR} FILES eoshapl eossh-timeout)
 
 target_link_libraries ( eosdirsync eosCommon-Static XrdCl XrdUtils )
 target_link_libraries ( eosfilesync eosCommon-Static XrdCl XrdUtils )
 
 install ( TARGETS eosha eosfilesync eosdirsync
-          LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
-          RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
+          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
+          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
 )

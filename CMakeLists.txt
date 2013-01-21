@@ -38,7 +38,10 @@ project (eos)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # force /usr/ installation prefix
-set(CMAKE_INSTALL_PREFIX /usr/)
+set(CMAKE_INSTALL_PREFIX /usr)
+set(CMAKE_INSTALL_SYSCONFDIR /etc)
+set(CMAKE_INSTALL_SBINDIR /sbin)
+
 if (PREFIX) 
    set (CMAKE_INSTALL_PREFIX ${PREFIX})
 endif (PREFIX)
@@ -48,6 +51,9 @@ include(EosUtils)
 
 # include GNU path settings
 include (GNUInstallDirs)
+
+# overwrite the /sbin directory
+set(CMAKE_INSTALL_FULL_SBINDIR /usr/sbin) 
 
 #-------------------------------------------------------------------------------
 # Search for dependencies
@@ -226,10 +232,11 @@ endif (LEVELDB_FOUND)
 endif (CLIENT)
 
 message( STATUS "................................................." )
-message( STATUS "Prefix            : " ${CMAKE_INSTALL_PREFIX} )
-message( STATUS "Bin Dir           : " ${CMAKE_INSTALL_BINDIR} )
-message( STATUS "Lib Dir           : " ${CMAKE_INSTALL_LIBDIR} )
-message( STATUS "Sysconfig Dir     : " ${CMAKE_INSTALL_SYSCONFDIR} )
+message( STATUS "prefix            : " ${CMAKE_INSTALL_PREFIX} )
+message( STATUS "bin dir           : " ${CMAKE_INSTALL_FULL_BINDIR} )
+message( STATUS "sbin dir          : " ${CMAKE_INSTALL_SBINDIR} )
+message( STATUS "lib dir           : " ${CMAKE_INSTALL_FULL_LIBDIR} )
+message( STATUS "sysconfig dir     : " ${CMAKE_INSTALL_SYSCONFDIR} )
 message( STATUS "................................................." )
 message( STATUS "C Compiler        : " ${CMAKE_C_COMPILER} )
 message( STATUS "C++ Compiler      : " ${CMAKE_CXX_COMPILER} )

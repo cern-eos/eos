@@ -22,7 +22,7 @@
 # ************************************************************************
 
 include_directories( ../ ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd/ ${CMAKE_BINARY_DIR}/xrootd/src/include/ ${XROOTD_INCLUDE_DIR} )
-link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/ ${XROOTD_LIB_DIR})
+link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}/ ${XROOTD_LIB_DIR})
 
 add_library (XrdMqClient SHARED 
 	     XrdMqClient.hh
@@ -105,7 +105,7 @@ if (Linux)
 endif(Linux)
 
 install ( TARGETS XrdMqClient XrdMqOfs xrdmqdumper
-          LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
-          RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
+          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
 )

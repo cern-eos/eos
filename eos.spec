@@ -38,7 +38,7 @@ Group: Applications/File
 The EOS server installation containing MGM, FST & MQ service.
 
 
-Requires: xrootd-server >= 3.2.0
+Requires: xrootd-server >= 3.3.0
 Requires: xrootd-cl
 Requires: eos-client
 
@@ -55,7 +55,7 @@ export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 mkdir -p build
 cd build
 cmake ../ -DRELEASE=%{release} -DCMAKE_BUILD_TYPE=RelWithDebInfo
-%{__make} xrootd-git-stable
+%{__make} xrootd-git-master
 %{__make} %{_smp_mflags} 
 %install
 cd build
@@ -93,6 +93,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eosfstinfo
 /usr/sbin/eosadmin
 /usr/sbin/eos-check-blockxs
+/usr/sbin/eos-udp-dumper
 /usr/sbin/eos-compute-blockxs
 /usr/sbin/eos-scan-fs
 /usr/sbin/eos-adler32
@@ -277,7 +278,10 @@ Requires: eos-server
 Contains an instance test script and some test executables
 %files -n eos-test
 /usr/sbin/eos-instance-test
+/usr/sbin/eos-rain-test
 /usr/sbin/xrdcpabort
+/usr/sbin/xrdcpappend
+/usr/sbin/xrdcpposixcache
 /usr/sbin/xrdcpextend
 /usr/sbin/xrdcpholes
 /usr/sbin/xrdcpbackward

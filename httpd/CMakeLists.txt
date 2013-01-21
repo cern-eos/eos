@@ -22,7 +22,7 @@
 # ************************************************************************
 
 include_directories( ../ ${XROOTD_INCLUDE_DIR} ${HTTPD_INCLUDE_DIR}/httpd ${APR_INCLUDE_DIRS}/apr-1)
-link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} ${XROOTD_LIB_DIR})
+link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR})
 
 add_library (mod_authz_key MODULE
 	    mod_authz_key.c
@@ -38,9 +38,9 @@ if (Linux)
 endif(Linux)
 
 install ( TARGETS mod_authz_key
-          LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/httpd/modules/
-          RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/httpd/modules/
+          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}/httpd/modules/
+          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}/httpd/modules/
 )
 
 INSTALL ( FILES eos-httpd-redirector.cgi eos-httpd-redirector-suexec.cgi DESTINATION /var/www/eos/cgi-bin/ )

@@ -22,7 +22,7 @@
 # ************************************************************************
 
 include_directories( ../ ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd/ ${CMAKE_BINARY_DIR}/xrootd/src/include/ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} )
-link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} ${XROOTD_LIB_DIR})
+link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR})
 
 add_library (XrdEosMgm MODULE
             Access.cc         
@@ -57,15 +57,10 @@ add_executable ( testmgmview
 	         test/MgmViewTest.cc
 )
 
-add_executable ( eos-fst-dump
-	         FstDump.cc 
-)
 
 target_link_libraries ( testmgmview XrdCl XrdUtils eosCommon-Static XrdMqClient-Static crypto ${UUID_LIBRARIES} curses pthread dl z)
 
 set_target_properties ( testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST" )
-
-target_link_libraries ( eos-fst-dump XrdPosix XrdUtils )
 
 if (Linux)
   set_target_properties (XrdEosMgm PROPERTIES
@@ -76,11 +71,9 @@ if (Linux)
 endif(Linux)
 
 install ( TARGETS XrdEosMgm 
-          LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
-          RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
+          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
 )
 
-INSTALL_PROGRAMS( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR} FILES eos-fst-dump )
-
-INSTALL ( FILES eos-repair-tool DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR} PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )
+INSTALL ( FILES eos-repair-tool DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR} PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )
