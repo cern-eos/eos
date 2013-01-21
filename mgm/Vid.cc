@@ -36,7 +36,7 @@ EOSMGMNAMESPACE_BEGIN
 bool 
 Vid::Set(const char* value) 
 {
-  RWMutexWriteLock lock(Mapping::gMapMutex);
+  eos::common::RWMutexWriteLock lock(eos::common::Mapping::gMapMutex);
   XrdOucEnv env(value);
   XrdOucString skey=env.Get("mgm.vid.key");
   
@@ -191,7 +191,7 @@ Vid::Set(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 void 
 Vid::Ls(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 {
-  RWMutexReadLock lock(Mapping::gMapMutex);
+  eos::common::RWMutexReadLock lock(eos::common::Mapping::gMapMutex);
   eos::common::Mapping::Print(stdOut, env.Get("mgm.vid.option"));
   retc = 0;
 }
@@ -200,7 +200,7 @@ Vid::Ls(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 bool
 Vid::Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 {
-  RWMutexWriteLock lock(Mapping::gMapMutex);
+  eos::common::RWMutexWriteLock lock(eos::common::Mapping::gMapMutex);
   XrdOucString skey=env.Get("mgm.vid.key");
   XrdOucString vidcmd = env.Get("mgm.vid.cmd");
   int envlen=0;
