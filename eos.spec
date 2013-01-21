@@ -20,6 +20,8 @@ BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprog
 BuildRequires: fuse-devel, fuse
 BuildRequires: xrootd-cl-devel
 BuildRequires: leveldb-devel
+BuildRequires: git
+
 %if 0%{?rhel} < 6
 BuildRequires: gcc44, gcc44-c++
 %else
