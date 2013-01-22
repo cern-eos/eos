@@ -49,8 +49,6 @@ __thread bool *RWMutex::orderCheckReset_staticthread = NULL;
 __thread unsigned long RWMutex::ordermask_staticthread[EOS_RWMUTEX_ORDER_NRULES];
 std::map<pthread_t, bool> RWMutex::threadOrderCheckResetFlags_static;
 pthread_rwlock_t RWMutex::orderChkMgmLock;
-
-EOSCOMMONNAMESPACE_END
 #endif
 
 
