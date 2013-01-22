@@ -208,10 +208,11 @@ com_fuse (char* arg1) {
   }
 
   if (cmd == "umount") {
-    struct stat buf;
     struct stat buf2;
 
 #ifndef __APPLE__
+    struct stat buf;
+
     if ((stat(mountpoint.c_str(),&buf)|| (buf.st_ino !=1))) {
       fprintf(stderr,"error: there is no eos mount at %s\n", mountpoint.c_str());
       exit(-1);

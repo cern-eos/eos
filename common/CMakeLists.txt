@@ -60,6 +60,7 @@ add_library (eosCommon SHARED
 	    sqlite/sqlite3.c
 	    ZMQ.cc
 	    StringTokenizer.cc
+            StringConversion.cc
 	    CommentLog.cc
 	    RWMutex.cc
             DbMap.cc
@@ -80,6 +81,7 @@ add_library (eosCommon-Static STATIC
             Report.cc
 	    sqlite/sqlite3.c
 	    StringTokenizer.cc
+            StringConversion.cc
 	    ZMQ.cc
 	    CommentLog.cc
 	    RWMutex.cc
