@@ -175,7 +175,7 @@ upload () {
     dst=$2
     shift
     shift
-    echo xrdcp -np -v -f $src root://$EOS_TEST_REDIRECTOR/$dst $* >& $EOSLASTLOG ;eval $XROOTSYS/bin/xrdcp -f $src root://$EOS_TEST_REDIRECTOR/$dst $* >> $EOSCERTLOG 2>&1
+    echo xrdcp -np -v -f $* $src root://$EOS_TEST_REDIRECTOR/$dst >& $EOSLASTLOG ;eval $XROOTSYS/bin/xrdcp -f $* $src root://$EOS_TEST_REDIRECTOR/$dst >> $EOSCERTLOG 2>&1
 }
 ################################################################################################################
 download () {
@@ -183,7 +183,7 @@ download () {
     dst=$2
     shift
     shift
-    echo xrdcp -np -v -f root://$EOS_TEST_REDIRECTOR/$dst $src $* >& $EOSLASTLOG ;eval $XROOTSYS/bin/xrdcp -f root://$EOS_TEST_REDIRECTOR/$dst $src $* >> $EOSCERTLOG 2>&1
+    echo xrdcp -np -v -f $* root://$EOS_TEST_REDIRECTOR/$dst $src  >& $EOSLASTLOG ;eval $XROOTSYS/bin/xrdcp -f $* root://$EOS_TEST_REDIRECTOR/$dst $src >> $EOSCERTLOG 2>&1
 }
 ################################################################################################################
 downloadh () {
@@ -191,7 +191,7 @@ downloadh () {
     dst=$2
     shift
     shift
-    echo xrdcp -np -v -f root://$EOS_TEST_FULL_REDIRECTOR/$dst $src $* >& $EOSLASTLOG ;eval $XROOTSYS/bin/xrdcp -f root://$EOS_TEST_FULL_REDIRECTOR/$dst $src $* >> $EOSCERTLOG 2>&1
+    echo xrdcp -np -v -f $* root://$EOS_TEST_FULL_REDIRECTOR/$dst $src  >& $EOSLASTLOG ;eval $XROOTSYS/bin/xrdcp -f $* root://$EOS_TEST_FULL_REDIRECTOR/$dst $src >> $EOSCERTLOG 2>&1
 }
 ################################################################################################################
 timeout() {
@@ -580,8 +580,8 @@ runtest "### Attr      " unix 0 "" eos attr set sys.forced.blockchecksum=crc32c 
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.blocksize=1M /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir	
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=reedS /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir	
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=6 /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir	
-runtest "### RaidDpTest" unix 0 "" eos-rain-test raiddp $EOS_TEST_TESTSYS root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir $EOS_TEST_TESTSYS
-runtest "### ReedSTest " unix 0 "" eos-rain-test reeds $EOS_TEST_TESTSYS root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir $EOS_TEST_TESTSYS
+#runtest "### RaidDpTest" unix 0 "" eos-rain-test raiddp $EOS_TEST_TESTSYS root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir $EOS_TEST_TESTSYS
+#runtest "### ReedSTest " unix 0 "" eos-rain-test reeds $EOS_TEST_TESTSYS root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir $EOS_TEST_TESTSYS
 ################################################################################################################
 # FINAL CLEANUP 
 ################################################################################################################
