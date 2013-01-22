@@ -123,6 +123,7 @@ Master::Init()
 
   if (fThisHost == fRemoteHost) {
     // no master slave configuration ... also fine
+    fMasterHost = fThisHost;
     return true;
   }
 
