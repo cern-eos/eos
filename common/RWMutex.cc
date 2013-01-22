@@ -21,10 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/*----------------------------------------------------------------------------*/
 #include "common/RWMutex.hh"
+/*----------------------------------------------------------------------------*/
+
 
 EOSCOMMONNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 size_t RWMutex::cumulatedwaitread_static = 0;
 size_t RWMutex::cumulatedwaitwrite_static = 0;
@@ -38,17 +42,53 @@ size_t RWMutex::timingCompensation = 0;
 size_t RWMutex::timingLatency = 0;
 size_t RWMutex::orderCheckingLatency = 0;
 size_t RWMutex::lockUnlockDuration = 0;
-int RWMutex::samplingModulo_static = (int) (0.01 * RAND_MAX);
-bool RWMutex::staticInitialized = false;
-bool RWMutex::enabletimingglobal = false;
-bool RWMutex::enableordercheckglobal = false;
-RWMutex::rules_t RWMutex::rules_static;
+int    RWMutex::samplingModulo_static = (int) (0.01 * RAND_MAX);
+bool   RWMutex::staticInitialized = false;
+bool   RWMutex::enabletimingglobal = false;
+bool   RWMutex::enableordercheckglobal = false;
+RWMutex::rules_t                     RWMutex::rules_static;
 std::map<unsigned char, std::string> RWMutex::ruleIndex2Name_static;
 std::map<std::string, unsigned char> RWMutex::ruleName2Index_static;
-__thread bool *RWMutex::orderCheckReset_staticthread = NULL;
-__thread unsigned long RWMutex::ordermask_staticthread[EOS_RWMUTEX_ORDER_NRULES];
-std::map<pthread_t, bool> RWMutex::threadOrderCheckResetFlags_static;
-pthread_rwlock_t RWMutex::orderChkMgmLock;
+__thread bool                       *RWMutex::orderCheckReset_staticthread = NULL;
+__thread unsigned long               RWMutex::ordermask_staticthread[EOS_RWMUTEX_ORDER_NRULES];
+std::map<pthread_t, bool>            RWMutex::threadOrderCheckResetFlags_static;
+pthread_rwlock_t                     RWMutex::orderChkMgmLock;
+
+#define EOS_RWMUTEX_CHECKORDER_LOCK if(enableordercheckglobal) CheckAndLockOrder();
+#define EOS_RWMUTEX_CHECKORDER_UNLOCK if(enableordercheckglobal) CheckAndUnlockOrder();
+
+#define EOS_RWMUTEX_TIMER_START \
+  bool issampled=false; size_t tstamp=0; \
+  if( enabletiming || enabletimingglobal ) { \
+    issampled=enablesampling?(!((++counter)%samplingModulo)):true; \
+    if( issampled ) tstamp=NowInt(); \
+  }
+
+// what = write or what = read
+#define EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(what) \
+  AtomicInc(what##LockCounter); \
+  if( issampled ) { \
+    tstamp=NowInt()-tstamp; \
+    if(enabletiming) { \
+      AtomicInc(what##LockCounter##Sample); \
+      AtomicAdd(cumulatedwait##what,tstamp);\
+      bool needloop=true; \
+      do {size_t mymax=AtomicGet(maxwait##what); if (tstamp > mymax) needloop=!AtomicCAS(maxwait##what, mymax, tstamp); else needloop=false; }while(needloop); \
+      do {size_t mymin=AtomicGet(minwait##what); if (tstamp < mymin) needloop=!AtomicCAS(minwait##what, mymin, tstamp); else needloop=false; }while(needloop); \
+    }\
+    if(enabletimingglobal) { \
+      AtomicInc(what##LockCounter##Sample_static); \
+      AtomicAdd(cumulatedwait##what##_static,tstamp);\
+      bool needloop=true; \
+      do {size_t mymax=AtomicGet(maxwait##what##_static); if (tstamp > mymax) needloop=!AtomicCAS(maxwait##what##_static, mymax, tstamp); else needloop=false; }while(needloop); \
+      do {size_t mymin=AtomicGet(minwait##what##_static); if (tstamp < mymin) needloop=!AtomicCAS(minwait##what##_static, mymin, tstamp); else needloop=false; }while(needloop); \
+    }\
+  }
+#else
+#define EOS_RWMUTEX_CHECKORDER_LOCK
+#define EOS_RWMUTEX_CHECKORDER_UNLOCK
+#define EOS_RWMUTEX_TIMER_START
+#define EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(what) AtomicInc(what##LockCounter);
 #endif
 
 
@@ -625,7 +665,7 @@ RWMutex::EstimateTimingCompensation (size_t loopsize)
  */
 // ---------------------------------------------------------------------------
 
-static size_t
+size_t
 RWMutex::EstimateLockUnlockDuration (size_t loopsize)
 {
  RWMutex mutex;
@@ -661,7 +701,7 @@ RWMutex::EstimateLockUnlockDuration (size_t loopsize)
  */
 // ---------------------------------------------------------------------------
 
-static size_t
+size_t
 RWMutex::EstimateTimingAddedLatency (size_t loopsize, bool globaltiming)
 {
  RWMutex mutex;
@@ -708,7 +748,7 @@ RWMutex::EstimateTimingAddedLatency (size_t loopsize, bool globaltiming)
  */
 // ---------------------------------------------------------------------------
 
-static size_t
+size_t
 RWMutex::EstimateOrderCheckingAddedLatency (size_t nmutexes, size_t loopsize)
 {
  std::vector<RWMutex> mutexes;

@@ -100,41 +100,6 @@ inline std::ostream& operator << (std::ostream &os, const RWMutexTimingStats &st
   return os;
 }
 
-#define EOS_RWMUTEX_CHECKORDER_LOCK if(enableordercheckglobal) CheckAndLockOrder();
-#define EOS_RWMUTEX_CHECKORDER_UNLOCK if(enableordercheckglobal) CheckAndUnlockOrder();
-
-#define EOS_RWMUTEX_TIMER_START \
-    bool issampled=false; size_t tstamp=0; \
-    if( enabletiming || enabletimingglobal ) { \
-      issampled=enablesampling?(!((++counter)%samplingModulo)):true; \
-      if( issampled ) tstamp=NowInt(); \
-    }
-
-// what = write or what = read
-#define EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(what) \
-    AtomicInc(what##LockCounter); \
-    if( issampled ) { \
-      tstamp=NowInt()-tstamp; \
-      if(enabletiming) { \
-        AtomicInc(what##LockCounter##Sample); \
-        AtomicAdd(cumulatedwait##what,tstamp);\
-        bool needloop=true; \
-        do {size_t mymax=AtomicGet(maxwait##what); if (tstamp > mymax) needloop=!AtomicCAS(maxwait##what, mymax, tstamp); else needloop=false; }while(needloop); \
-        do {size_t mymin=AtomicGet(minwait##what); if (tstamp < mymin) needloop=!AtomicCAS(minwait##what, mymin, tstamp); else needloop=false; }while(needloop); \
-      }\
-      if(enabletimingglobal) { \
-        AtomicInc(what##LockCounter##Sample_static); \
-        AtomicAdd(cumulatedwait##what##_static,tstamp);\
-        bool needloop=true; \
-        do {size_t mymax=AtomicGet(maxwait##what##_static); if (tstamp > mymax) needloop=!AtomicCAS(maxwait##what##_static, mymax, tstamp); else needloop=false; }while(needloop); \
-        do {size_t mymin=AtomicGet(minwait##what##_static); if (tstamp < mymin) needloop=!AtomicCAS(minwait##what##_static, mymin, tstamp); else needloop=false; }while(needloop); \
-      }\
-    }
-#else
-#define EOS_RWMUTEX_CHECKORDER_LOCK
-#define EOS_RWMUTEX_CHECKORDER_UNLOCK
-#define EOS_RWMUTEX_TIMER_START
-#define EOS_RWMUTEX_TIMER_STOP_AND_UPDATE(what) AtomicInc(what##LockCounter);
 #endif
 
 /*----------------------------------------------------------------------------*/
