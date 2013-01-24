@@ -48,6 +48,9 @@ export EOS_AUTOLOAD_CONFIG=default
 # The EOS broker URL 
 export EOS_BROKER_URL=root://localhost:1097//eos/
 
+# The EOS host geo location tag used to sort hosts into geographical (rack) locations 
+export EOS_GEO_TAG=""
+
 # The fully qualified hostname of MGM master1
 export EOS_MGM_MASTER1=eosdevsrv1.cern.ch
 
