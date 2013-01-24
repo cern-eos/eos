@@ -41,7 +41,7 @@
 # file system in the EOS configuration is shutdown one by one and the file is 
 # read again from EOS to verify if the single stripe recovery mechanism is 
 # working properly. In the last stage, each two file systems are shutdown and
-# again the file is read out of EOS and the mathc with the original one is tested.
+# again the file is read out of EOS and the match with the original one is tested.
 #------------------------------------------------------------------------------
 
 #! /bin/bash
@@ -53,6 +53,10 @@ export ERR_MSG1="The provided directory does not have the extended attributes se
 # Set the path to the xrdcp and eos commands
 XRDCP=$(which xrdcp)
 EOS=$(which eos)
+
+if [ $LOGNAME != "root ]; then
+  SUDO="sudo"
+endif
 
 
 #-------------------------------------------------------------------------------
@@ -126,7 +130,7 @@ function read_and_check()
 function get_file_fs() 
 {
     local eos_file=$1
-    local rec=$(sudo $EOS -b file info $eos_file)
+    local rec=$($SUDO $EOS -b file info $eos_file)
 
     VECT_FS=( $(echo "$rec" | awk '{ if ( $7 ~ /booted/ ) print $2 }') )
 }
@@ -160,7 +164,7 @@ INDX=`awk -v a="$EOS_DEST" -v b="//eos" 'BEGIN{print index(a,b)}'`
 EOS_DIR="${EOS_DEST:$INDX}"
 
 if [ "$ARG" = "raiddp" ]; then
-    sudo $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="raidDP"' 
+    $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="raidDP"' 
     if [ $? -ne 0 ]; then
 	echo "$ERR_MSG1"
 	echo_failure
@@ -168,7 +172,7 @@ if [ "$ARG" = "raiddp" ]; then
     fi
 elif [ "$ARG" = "reeds" ];
 then
-    sudo $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="reedS"' 
+    $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="reedS"' 
     if [ $? -ne 0 ]; then
 	echo "$ERR_MSG1"
 	echo_failure
@@ -176,7 +180,7 @@ then
     fi
 elif [ "$ARG" = "plain" ];
 then
-    sudo $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="plain"'
+    $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="plain"'
     if [ $? -ne 0 ]; then
 	echo "$ERR_MSG1"
 	echo_failure
@@ -192,7 +196,7 @@ fi
 #...............................................................................
 # Check that there are at least 6 FST in the EOS setup so that we can run the test
 #...............................................................................
-ret=$( sudo $EOS -b fs ls | grep booted | wc -l | grep -w 6 )
+ret=$( $SUDO $EOS -b fs ls | grep booted | wc -l | grep -w 6 )
 
 if [[ $ret -le 5 ]]; then
     echo "The EOS instance needs at least 6 FST's to run this test."
@@ -231,12 +235,12 @@ for file in $ROOT_PATH/*.rain; do
 	    echo "Disable FST $fst and redo read test..." 
 	    
             # disable one FST in EOS and test read
-	    sudo $EOS -b fs config $fst configstatus=off
+	    $SUDO $EOS -b fs config $fst configstatus=off
 
 	    read_and_check $ROOT_PATH $EOS_DEST $file
 
             # restore the configuraton in EOS 
-	    sudo $EOS -b fs config $fst configstatus=rw
+	    $SUDO $EOS -b fs config $fst configstatus=rw
 	done
     fi
 done 
@@ -260,14 +264,14 @@ for file in $ROOT_PATH/*.rain; do
 		    echo "Disable FST $fst1 and $fst2 and redo read test..." 
 		    
                     # disable one FST in EOS and test read
-		    sudo $EOS -b fs config $fst1 configstatus=off
-		    sudo $EOS -b fs config $fst2 configstatus=off
+		    $SUDO $EOS -b fs config $fst1 configstatus=off
+		    $SUDO $EOS -b fs config $fst2 configstatus=off
 		    
 		    read_and_check $ROOT_PATH $EOS_DEST $file
 		    
                     # restore the configuraton in EOS 
-		    sudo $EOS -b fs config $fst1 configstatus=rw
-		    sudo $EOS -b fs config $fst2 configstatus=rw
+		    $SUDO $EOS -b fs config $fst1 configstatus=rw
+		    $SUDO $EOS -b fs config $fst2 configstatus=rw
 		fi
 	    done
 	done
