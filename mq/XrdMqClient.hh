@@ -42,6 +42,7 @@ class XrdMqClient
     static XrdSysMutex          Mutex;
     XrdOucHash <XrdOucString>   kBrokerUrls;
     XrdOucHash <XrdOucString>   kBrokerAliasUrls;
+    XrdSysMutex                 kBrokerAliasMutex;
     XrdOucHash <XrdCl::File>       kBrokerXrdClientReceiver;
     XrdOucHash <XrdCl::FileSystem> kBrokerXrdClientSender;
     time_t                      kBrokerXrdClientReceiverAliasTimeStamp[256];
@@ -76,7 +77,7 @@ class XrdMqClient
     XrdMqMessage* RecvMessage();
 
     bool RegisterRecvCallback( void ( *callback_func )( void* arg ) );
-    XrdOucString* GetBrokerUrl( int i );
+    XrdOucString* GetBrokerUrl( int i , XrdOucString &rhostport);
     XrdOucString  GetBrokerId( int i );
     XrdCl::File*       GetBrokerXrdClientReceiver( int i );
     XrdCl::FileSystem* GetBrokerXrdClientSender( int i );
