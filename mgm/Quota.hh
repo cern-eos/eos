@@ -36,6 +36,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
+#include "common/Mapping.hh"
 #include "common/GlobalConfig.hh"
 #include "common/RWMutex.hh"
 #include "mq/XrdMqMessage.hh"
@@ -305,10 +306,10 @@ public:
   bool CheckWriteQuota(uid_t, gid_t, long long desiredspace, unsigned int inodes);
 
   // the write placement routine
-  int FilePlacement(const char* path, uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate=false, int forcedindex=-1, unsigned long long bookingsize=1024*1024*1024ll);
+  int FilePlacement(const char* path, eos::common::Mapping::VirtualIdentity_t &vid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate=false, int forcedindex=-1, unsigned long long bookingsize=1024*1024*1024ll);
 
   // the access routine
-  int FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW, unsigned long long bookingsize,std::vector<unsigned int> &unavailfs, eos::common::FileSystem::fsstatus_t min_fsstatus = eos::common::FileSystem::kDrain);
+  int FileAccess(eos::common::Mapping::VirtualIdentity_t &vid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW, unsigned long long bookingsize,std::vector<unsigned int> &unavailfs, eos::common::FileSystem::fsstatus_t min_fsstatus = eos::common::FileSystem::kDrain);
 
 };
 

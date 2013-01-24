@@ -4302,14 +4302,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                                           selectedfs.push_back(*lociter);
                                       }
 
-                                      if (!(errno=quotaspace->FileAccess(vid_in.uid, vid_in.gid, (unsigned long)0, space.c_str(), (unsigned long)fmd->getLayoutId(), selectedfs, fsIndex, false, (long long unsigned) 0, unavailfs))) {
+                                      if (!(errno=quotaspace->FileAccess(vid_in, (unsigned long)0, space.c_str(), (unsigned long)fmd->getLayoutId(), selectedfs, fsIndex, false, (long long unsigned) 0, unavailfs))) {
                                           // this is now our source filesystem
                                           unsigned int sourcefsid = selectedfs[fsIndex];
                                           // now the just need to ask for <n> targets
                                           int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::kNone, nnewreplicas);
 
                                           // we don't know the container tag here, but we don't really care since we are scheduled as root
-                                          if (!(errno = quotaspace->FilePlacement(spath.c_str(), vid_in.uid, vid_in.gid, 0 , layoutId, selectedfs, SFS_O_TRUNC, forcedsubgroup, fmd->getSize()))) {
+                                          if (!(errno = quotaspace->FilePlacement(spath.c_str(), vid_in, 0 , layoutId, selectedfs, SFS_O_TRUNC, forcedsubgroup, fmd->getSize()))) {
                                               // yes we got a new replication vector
                                               for (unsigned int i=0; i< selectedfs.size(); i++) {
                                                   //                      stdOut += "info: replication := "; stdOut += (int) sourcefsid; stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
@@ -4997,7 +4997,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               struct stat buf;
               int listrc=0;
               XrdOucString filter = "";
-
+	      
+	      XrdOucString ls_file;
+	      
               if(gOFS->_stat(spath.c_str(),&buf, *error,  vid_in, (const char*) 0)) {
                   stdErr = error->getErrText();
                   retc = errno;
@@ -5015,9 +5017,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                           listrc = SFS_ERROR;
                           retc = ENOENT;
                       } else {
-                          filter.assign(spath,rpos+1);
-                          spath.erase(rpos);
-                          listrc = dir.open(spath.c_str(), vid_in, (const char*) 0);
+			// this is an 'ls <file>' command which has to return only one entry!
+			ls_file.assign(spath,rpos+1);
+			spath.erase(rpos);
+			listrc = 0;
                       }
                   }
 
@@ -5025,14 +5028,17 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                   if ((option.find("n"))!=STR_NPOS) {
                       translateids=false;
                   }
+
 		  if ((option.find("s"))!=STR_NPOS) {
 		    // just return '0' if this is a directory
 		    MakeResult(1);
 		    return SFS_OK;
 		  }
+
 		  if (!listrc) {
 		    const char* val;
-		    while ((val=dir.nextEntry())) {
+		    while ( (ls_file.length() && (val =ls_file.c_str()) ) || (val=dir.nextEntry())) {
+		      // this return's a single file or a (filtered) directory list
 		      XrdOucString entryname = val;
 		      if (((option.find("a"))==STR_NPOS) && entryname.beginswith(".")) {
 			// skip over . .. and hidden files
@@ -5139,8 +5145,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 			  }
 			}
 		      }
+		      if (ls_file.length()) {
+			// this was a single file to be listed
+			break;
+		      }
 		    }
-		    dir.close();
+		    if (!ls_file.length()) {
+		      dir.close();
+		    }
 		  } else {
 		    stdErr += "error: unable to open directory";
 		    retc = errno;
@@ -5232,6 +5244,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
             stdOut += " sudo*";
 
           stdOut += " host="; stdOut += vid_in.host.c_str();
+	  if (vid_in.geolocation.length()) {
+	    stdOut += " geo-location=";
+	    stdOut += vid_in.geolocation.c_str();
+	  }
           MakeResult(0);
           return SFS_OK;
       }

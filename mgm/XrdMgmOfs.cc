@@ -1347,7 +1347,7 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
     if (attrmap.count("user.tag")) {
       containertag = attrmap["user.tag"].c_str();
     }
-    retc = quotaspace->FilePlacement(path, vid.uid, vid.gid, containertag, layoutId, selectedfs, open_mode & SFS_O_TRUNC, -1, bookingsize);
+    retc = quotaspace->FilePlacement(path, vid, containertag, layoutId, selectedfs, open_mode & SFS_O_TRUNC, -1, bookingsize);
   } else {
     // ************************************************************************************************
     // access existing file
@@ -1365,7 +1365,7 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
       return Emsg(epname, error, ENODEV,  "open - no replica exists", path);        
     }
 
-    retc = quotaspace->FileAccess(vid.uid, vid.gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW, fmd->getSize(),unavailfs);
+    retc = quotaspace->FileAccess(vid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW, fmd->getSize(),unavailfs);
 
     if (retc == EXDEV) {
       // --------------------------------------------------------------
@@ -5885,7 +5885,9 @@ XrdMgmOfs::FSctl(const int               cmd,
 		// schedule access to that file with the original layout
 		int retc=0;
 		std::vector<unsigned int> unavailfs; // not used
-		if ((!space) || (retc=space->FileAccess((uid_t)0,(gid_t)0,(long unsigned int)0, (const char*) 0, lid, locationfs, fsindex, false, (long long unsigned)0, unavailfs))) {
+		eos::common::Mapping::VirtualIdentity_t h_vid;
+		eos::common::Mapping::Root(h_vid);
+		if ((!space) || (retc=space->FileAccess(h_vid,(long unsigned int)0, (const char*) 0, lid, locationfs, fsindex, false, (long long unsigned)0, unavailfs))) {
 		  // inaccessible files we let retry after 60 minutes
 		  eos_thread_err("no access to file %llx retc=%d", fid, retc);
 		  sScheduledFid[fid] = time(NULL) + 3600;

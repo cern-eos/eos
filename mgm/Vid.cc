@@ -36,10 +36,13 @@ EOSMGMNAMESPACE_BEGIN
 bool 
 Vid::Set(const char* value) 
 {
+  eos::common::RWMutexWriteLock lock(eos::common::Mapping::gMapMutex);
+
   XrdOucEnv env(value);
   XrdOucString skey=env.Get("mgm.vid.key");
   
   XrdOucString vidcmd = env.Get("mgm.vid.cmd");
+  const char* val = 0;
 
   if (!skey.length()) {
     return false;
@@ -49,7 +52,18 @@ Vid::Set(const char* value)
 
   if (!value) 
     return false;
-  
+
+  if (vidcmd == "geotag") {
+    if ((val=env.Get("mgm.vid.geotag"))) {
+      XrdOucString gkey = skey;
+      gkey.erase("geotag:");
+      fprintf(stderr,"Setting %s => %s (%s)\n", gkey.c_str(), val, value);
+      eos::common::Mapping::gGeoMap[gkey.c_str()] = val;
+      gOFS->ConfEngine->SetConfigValue("vid",skey.c_str(),value);
+      set=true;
+    }
+  }
+
   if (vidcmd == "membership") {
     uid_t uid=99;
     
@@ -174,12 +188,12 @@ Vid::Set(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
   while(inenv.replace("&"," ")) {};
   bool rc = Set(env.Env(envlen));
   if (rc == true) {
-    stdOut += "success: set vid [ "; stdOut += inenv; stdOut += "]\n";
+    stdOut += "success: set vid [ "; stdOut += inenv; stdOut += " ]\n";
     errno = 0;
     retc = 0;
     return true;
   } else {
-    stdErr += "error: failed to set vid [ "; stdErr += inenv ; stdErr += "]\n";
+    stdErr += "error: failed to set vid [ "; stdErr += inenv ; stdErr += " ]\n";
     errno = EINVAL;
     retc = EINVAL;
     return false;
@@ -190,6 +204,7 @@ Vid::Set(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 void 
 Vid::Ls(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 {
+  eos::common::RWMutexReadLock lock(eos::common::Mapping::gMapMutex);
   eos::common::Mapping::Print(stdOut, env.Get("mgm.vid.option"));
   retc = 0;
 }
@@ -198,12 +213,17 @@ Vid::Ls(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 bool
 Vid::Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 {
+  eos::common::RWMutexWriteLock lock(eos::common::Mapping::gMapMutex);
   XrdOucString skey=env.Get("mgm.vid.key");
   XrdOucString vidcmd = env.Get("mgm.vid.cmd");
   int envlen=0;
   XrdOucString inenv = env.Env(envlen);
   while(inenv.replace("&"," ")) {};
-  
+
+  if (skey.beginswith("vid:")) {
+    skey.erase(0,4);
+  }
+
   if (!skey.length()) {
     stdErr += "error: failed to rm vid [ "; stdErr += inenv ; stdErr += "] - key missing";
     errno = EINVAL;
@@ -211,16 +231,17 @@ Vid::Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
     return false;
   }
 
-  //  if (vidcmd != "unmap") {
-  //    stdErr += "error: failed to rm vid [ "; stdErr += inenv ; stdErr += "] - wrong command to unmap";
-  //    errno = EINVAL;
-  //    retc = EINVAL;
-  //    return false;
-  //  }
-
   int nerased=0;
-  nerased += eos::common::Mapping::gVirtualUidMap.erase(skey.c_str());
-  nerased += eos::common::Mapping::gVirtualGidMap.erase(skey.c_str());
+
+  if (skey.beginswith("vid:geotag")) {
+    // remove from geo tag map
+    XrdOucString gkey = skey;
+    gkey.erase("geotag:");
+    nerased += eos::common::Mapping::gGeoMap.erase(gkey.c_str());
+  } else {
+    nerased += eos::common::Mapping::gVirtualUidMap.erase(skey.c_str());
+    nerased += eos::common::Mapping::gVirtualGidMap.erase(skey.c_str());
+  }
 
   gOFS->ConfEngine->DeleteConfigValue("vid",skey.c_str());  
 

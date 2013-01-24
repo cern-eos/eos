@@ -39,6 +39,7 @@
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
 #include "namespace/views/HierarchicalView.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -256,7 +257,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   signal(SIGBUS,  xrdmgmofs_stacktrace);
 
   // set short timeouts in the new XrdCl class
-  setenv("XRD_TIMEOUTRESOLUTION","1",1);
+  XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution",1);
 
   Shutdown = false;
 

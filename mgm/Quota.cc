@@ -741,11 +741,12 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desiredspace, unsign
 
 /*----------------------------------------------------------------------------*/
 int 
-SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate, int forcedindex, unsigned long long bookingsize)
+SpaceQuota::FilePlacement(const char* path, eos::common::Mapping::VirtualIdentity_t& vid, const char* grouptag, unsigned long lid, std::vector<unsigned int> &selectedfs, bool truncate, int forcedindex, unsigned long long bookingsize)
 {
   // the caller routing has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) !!!
   std::set<eos::common::FileSystem::fsid_t> fsidavoidlist;
   std::map<eos::common::FileSystem::fsid_t, float> availablefs;
+  std::map<eos::common::FileSystem::fsid_t, std::string> availablefsgeolocation;
   std::list<eos::common::FileSystem::fsid_t> availablevector;
 
   // fill the avoid list from the selectedfs input vector
@@ -757,6 +758,18 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
   unsigned int nassigned = 0;
   bool hasquota = false;
 
+  uid_t uid = vid.uid;
+  gid_t gid = vid.gid;
+
+  bool hasgeolocation = false;
+  
+  if (vid.geolocation.length()) {
+    if ((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica)) {
+      // we only do geolocations for replica layouts
+      hasgeolocation = true;
+    }
+  }
+  
   // first figure out how many filesystems we need
   eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u",uid,gid,grouptag, nfilesystems);
   
@@ -824,6 +837,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
     eos_static_debug("scheduling group loop %d", forcedindex);
     selectedfs.clear();
     availablefs.clear();
+    availablefsgeolocation.clear();
 
     std::set<eos::common::FileSystem::fsid_t>::const_iterator fsit;
     eos::common::FileSystem::fsid_t fsid=0;
@@ -888,6 +902,12 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
         
         if (!fsidavoidlist.count(fsid)) {
           availablefs[fsid] = weight;
+
+	  if (hasgeolocation) {
+	    // only track the geo location if the client has one, otherwise we don't care about the target locations
+	    availablefsgeolocation[fsid] = snapshot.mGeoTag;
+	  }
+
           availablevector.push_back(fsid);
         }
       } else {
@@ -910,13 +930,27 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
 
 
       fsid = *fsit;
-      // evt. this has to be commented
-      if ( (availablefs.size()>= nfilesystems) && (availablefs.size() > ((*git)->size()/2)) ) {
-        // we stop if we have found enough ... atleast half of the scheduling group
-        break;
+
+      if (!hasgeolocation) {
+	// -------------------------------------------------------------------------------------------------------------------------------------------------------
+	// if we have geolocations we (unfortunately) look through the complete scheduling group, otherwise we just take half of it if we found enough filesystems
+	// -------------------------------------------------------------------------------------------------------------------------------------------------------
+	
+	// -----------------------------
+	// evt. this has to be commented
+	// -----------------------------
+	if ( (availablefs.size()>= nfilesystems) && (availablefs.size() > ((*git)->size()/2)) ) {
+	  // we stop if we have found enough ... atleast half of the scheduling group
+	  break;
+	}
       }
     }
-    
+
+    // -------------------------------------------------------------------------------
+    // Currently this code can deal only with two GEO locations !!!
+    // -------------------------------------------------------------------------------
+    std::string selected_geo_location;
+    int n_geolocations=0;
     // check if there are atlast <nfilesystems> in the available map
     if (availablefs.size() >= nfilesystems) {
       std::list<eos::common::FileSystem::fsid_t>::iterator ait;
@@ -936,6 +970,10 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
           } else {
             // push it on the selection list
             selectedfs.push_back(*ait);
+	    if (hasgeolocation) {
+	      selected_geo_location = availablefsgeolocation[*ait];
+	    }
+
             eos_static_debug("fs %u selected for %d. replica", *ait, nassigned+1);
             
             // remove it from the selection map
@@ -958,10 +996,25 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
             if (ait == availablevector.end())
               ait = availablevector.begin();
           }
-          
-          if (availablefs[*ait]>randomacceptor) {
+
+
+	  float fsweight = availablefs[*ait];
+
+	  // only when we need one more geo location, we lower the selection probability
+	  if ((hasgeolocation) && (n_geolocations!=1) && (selected_geo_location == availablefsgeolocation[*ait])) {
+	    // we reduce the probability to select a filesystem in an already existing location to 1/20th
+	    fsweight *= 0.05;
+	  }
+	  
+          if (fsweight>randomacceptor) {
             // push it on the selection list
             selectedfs.push_back(*ait);
+	    if (hasgeolocation) {
+	      if (selected_geo_location != availablefsgeolocation[*ait]) {
+		n_geolocations++;
+	      }
+	    }
+
             eos_static_debug("fs %u selected for %d. replica", *ait, nassigned+1);
             
             // remove it from the selection map
@@ -1024,7 +1077,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
 
 
 /*----------------------------------------------------------------------------*/
-int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW, unsigned long long bookingsize, std::vector<unsigned int> &unavailfs, eos::common::FileSystem::fsstatus_t min_fsstatus)
+int SpaceQuota::FileAccess(eos::common::Mapping::VirtualIdentity_t &vid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW, unsigned long long bookingsize, std::vector<unsigned int> &unavailfs, eos::common::FileSystem::fsstatus_t min_fsstatus)
 {
   // the caller routing has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) !!!
   
@@ -1105,6 +1158,12 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
 
     double renorm = 0; // this is the sum of all weights, we renormalize each weight in the selection with this sum
 
+    bool hasgeolocation = false;
+    
+    if (vid.geolocation.length()) {
+      hasgeolocation = true;      
+    }
+    
     // -----------------------------------------------------------------------
     // check all the locations - for write we need all - for read atleast one
     // -----------------------------------------------------------------------
@@ -1176,9 +1235,18 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
                 weight =0.1;
             }
           }
+
+	  // geo patch
+	  if (hasgeolocation) {
+	    if ( snapshot.mGeoTag != vid.geolocation ) {
+	      // we reduce the probability to 1/10th
+	      weight *= 0.1;
+	    }
+	  }
+	  
           availablefsweightsort.insert(std::pair<double,eos::common::FileSystem::fsid_t> (weight, snapshot.mId));          
           renorm += weight;
-          eos_static_debug("weight = %f netweight = %f renorm = %f %d=>%f\n", weight, netweight, renorm, snapshot.mId, snapshot.mDiskUtilization);
+	  eos_static_debug("weight=%f netweight=%f renorm=%f disk-geotag=%s client-geotag=%s id=%d utilization=%f\n", weight, netweight, renorm, snapshot.mGeoTag.c_str(), vid.geolocation.c_str(), snapshot.mId, snapshot.mDiskUtilization);
         } else {
 	  // -----------------------------------------------------------------------
 	  // we store not available filesystems in the unavail vector 
@@ -1260,6 +1328,11 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
       eos_static_crit("fatal inconsistency in scheduling - file system missing after selection of single replica");
       return EIO;
     }
+
+    // ------------------------------------------------------------------------------------------
+    // if we have geo location tags, we reweight the possible fs according to their geo location
+    // ------------------------------------------------------------------------------------------
+
     
     // -----------------------------------------------------------------------
     // now start with the one with the highest weight, but still use probabilty to select it
