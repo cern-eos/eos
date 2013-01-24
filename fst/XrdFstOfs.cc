@@ -870,7 +870,7 @@ XrdFstOfsFile::open(const char                *path,
       if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
         // there was a blockchecksum open error
         if ( !isRW ) {
-	  if (!isReplication) {
+	  if ( (layOut->IsEntryServer()) && ( !isReplication)) {
 	    int ecode=1094;
 	    eos_warning("rebouncing client since we failed to open the block checksum file back to MGM %s:%d",RedirectManager.c_str(), ecode);
 	    return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
@@ -927,7 +927,7 @@ XrdFstOfsFile::open(const char                *path,
   // attach meta data
   fMd = gFmdSqliteHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
   if (!fMd) {
-    if (!isReplication) {
+    if ( (layOut->IsEntryServer()) && ( !isReplication)) {
       eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, (unsigned long long)fsid);
       int ecode=1094;
       eos_warning("rebouncing client since we failed to get the FMD record back to MGM %s:%d",RedirectManager.c_str(), ecode);
@@ -996,16 +996,11 @@ XrdFstOfsFile::open(const char                *path,
     rc = layOut->fallocate(bookingsize);
     if (rc) {
       eos_crit("file allocation gave return code %d errno=%d for allocation of size=%llu" , rc, errno, bookingsize);
-      if (layOut->IsEntryServer()) {
-	if (!isReplication) {
-	  layOut->remove();
-	  int ecode=1094;
-	  eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",RedirectManager.c_str(), ecode);
-	  return gOFS.Redirect(error,RedirectManager.c_str(),ecode);
-	} else {
-	  layOut->remove();
-	  return gOFS.Emsg(epname, error, ENOSPC, "open - cannot allocate required space", Path.c_str());
-	}
+      if (layOut->IsEntryServer() && (!isReplication) ) {
+	layOut->remove();
+	int ecode=1094;
+	eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",RedirectManager.c_str(), ecode);
+	return gOFS.Redirect(error,RedirectManager.c_str(),ecode);
       } else {
 	return gOFS.Emsg(epname, error, ENOSPC, "open - cannot allocate required space", Path.c_str());
       }
@@ -1045,15 +1040,13 @@ XrdFstOfsFile::open(const char                *path,
     // if we have a replica layout
     if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
       // there was a checksum error during the last scan
-      if (layOut->IsEntryServer()) {
-	if (!isReplication) {
-	  int ecode=1094;
-	  eos_warning("rebouncing client since our replica has a wrong checksum back to MGM %s:%d",RedirectManager.c_str(), ecode);
-	  return gOFS.Redirect(error,RedirectManager.c_str(),ecode);
-	} else {
-	  eos_warning("opening %s failed - replica has a wrong checksum", Path.c_str());
-	  return gOFS.Emsg(epname, error, EIO, "open - replica has wrong checksum", Path.c_str());
-	}
+      if (layOut->IsEntryServer() && (!isReplication)) {
+	int ecode=1094;
+	eos_warning("rebouncing client since our replica has a wrong checksum back to MGM %s:%d",RedirectManager.c_str(), ecode);
+	return gOFS.Redirect(error,RedirectManager.c_str(),ecode);
+      } else {
+	eos_warning("opening %s failed - replica has a wrong checksum", Path.c_str());
+	return gOFS.Emsg(epname, error, EIO, "open - replica has wrong checksum", Path.c_str());
       }
     }
   }
@@ -1089,16 +1082,14 @@ XrdFstOfsFile::open(const char                *path,
 
     // in any case we just redirect back to the manager if we are the 1st entry point of the client
     
-    if (layOut->IsEntryServer()) {
-      if (!isReplication) {
-	int ecode=1094;
-	rc = SFS_REDIRECT;
-	eos_warning("rebouncing client after open error back to MGM %s:%d",RedirectManager.c_str(), ecode);
-	return gOFS.Redirect(error, RedirectManager.c_str(),ecode);
-      } else {
-	eos_warning("opening %s failed", Path.c_str());
-	return gOFS.Emsg(epname, error, EIO, "open", Path.c_str());
-      }
+    if (layOut->IsEntryServer() && (!isReplication) ) {
+      int ecode=1094;
+      rc = SFS_REDIRECT;
+      eos_warning("rebouncing client after open error back to MGM %s:%d",RedirectManager.c_str(), ecode);
+      return gOFS.Redirect(error, RedirectManager.c_str(),ecode);
+    } else {
+      eos_warning("opening %s failed", Path.c_str());
+      return gOFS.Emsg(epname, error, EIO, "open", Path.c_str());
     }
   }
 
