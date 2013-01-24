@@ -549,8 +549,13 @@ int main(int argc, char* argv[]) {
   memset(sid, 0, sizeof sid);
   memset(did, 0, sizeof did);
 
+  bool is_eos_replication = false;
+
   for (int i = 0 ; i < nsrc; i++) {
     if (src[i].beginswith("root://")) {
+      if ( (dst[i].find("replicate:")) != STR_NPOS) {
+	is_eos_replication = true;
+      }
       if (!isRaidTransfer) {
         sid[i] = XROOTID;
       }
@@ -577,6 +582,9 @@ int main(int argc, char* argv[]) {
   for (int i = 0; i < ndst; i++) {
 
     if (dst[i].beginswith("root://")) {
+      if ( (dst[i].find("replicate:")) != STR_NPOS) {
+	is_eos_replication = true;
+      }
       if (!isRaidTransfer) {
         did[i] = XROOTID;
       }
@@ -640,6 +648,9 @@ int main(int argc, char* argv[]) {
       XrdPosixXrootd::setEnv(NAME_READCACHESIZE, buffersize*6);
       if (debug)
         XrdPosixXrootd::setEnv(NAME_DEBUG, 10);
+      if (is_eos_replication) {
+	EnvPutInt(NAME_MAXREDIRECTCOUNT,1);
+      }
     }
     if (sid[i] == RAIDIOID) {
       new XrdPosixXrootd();
@@ -647,6 +658,9 @@ int main(int argc, char* argv[]) {
       XrdPosixXrootd::setEnv(NAME_READCACHESIZE, buffersize*6);
       if (debug)
         XrdPosixXrootd::setEnv(NAME_DEBUG, 10);
+      if (is_eos_replication) {
+	EnvPutInt(NAME_MAXREDIRECTCOUNT,1);
+      }
     }
   }
 
@@ -659,6 +673,9 @@ int main(int argc, char* argv[]) {
       //      XrdPosixXrootd::setEnv(NAME_READCACHESIZE,0l);
       if (debug)
         XrdPosixXrootd::setEnv(NAME_DEBUG, 10);
+      if (is_eos_replication) {
+	EnvPutInt(NAME_MAXREDIRECTCOUNT,1);
+      }
     }
     if (did[i] == RAIDIOID) {
       new XrdPosixXrootd();
@@ -666,6 +683,10 @@ int main(int argc, char* argv[]) {
       XrdPosixXrootd::setEnv(NAME_READCACHESIZE, buffersize*6);
       if (debug)
         XrdPosixXrootd::setEnv(NAME_DEBUG, 10);
+      if (is_eos_replication) {
+	fprintf(stderr,"warning: disabling redirection\n");
+	EnvPutInt(NAME_MAXREDIRECTCOUNT,1);
+      }
     }
   }   
 
