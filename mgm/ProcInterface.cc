@@ -2308,7 +2308,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                       stdOut+= "mutex order checking is on\n";
                   }
               }
-              if(smplrate1 || smplrate10 || smplrate1) {
+              if(smplrate1 || smplrate10 || smplrate100) {
                   float rate=0.0;
                   if(smplrate1) rate=0.01;
                   if(smplrate10) rate=0.1;
