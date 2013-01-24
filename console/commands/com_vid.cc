@@ -59,6 +59,27 @@ com_vid (char* arg1) {
       goto com_vid_usage;
 
     XrdOucString vidkey="";
+
+
+    if (key == "geotag") {
+      XrdOucString match = subtokenizer.GetToken();
+      if (!match.length()) {
+	goto com_vid_usage;
+      }
+      XrdOucString target = subtokenizer.GetToken();
+      if (!target.length()) {
+	goto com_vid_usage;
+      }
+      
+      vidkey = "geotag:"; vidkey += match;
+      in += "&mgm.vid.cmd=geotag";
+      in += "&mgm.vid.key="; in += vidkey.c_str();
+      in += "&mgm.vid.geotag="; in += target.c_str();
+
+      global_retc = output_result(client_admin_command(in));
+      return (0);
+    }
+
     if (key == "membership") {
 
       XrdOucString uid  = subtokenizer.GetToken();
@@ -312,7 +333,7 @@ com_vid (char* arg1) {
   }
   
  com_vid_usage:
-  fprintf(stdout,"usage: vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a]                                                    : list configured policies\n");
+  fprintf(stdout,"usage: vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a] [-l]                                               : list configured policies\n");
   fprintf(stdout,"                                        -u : show only user role mappings\n");
   fprintf(stdout,"                                        -g : show only group role mappings\n");
   fprintf(stdout,"                                        -s : show list of sudoers\n");
@@ -320,6 +341,7 @@ com_vid (char* arg1) {
   fprintf(stdout,"                                        -G : show group alias mapping\n");
   fprintf(stdout,"                                        -y : show configured gateways\n");
   fprintf(stdout,"                                        -a : show authentication\n");
+  fprintf(stdout,"                                        -l : show geo location mapping\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"       vid set membership <uid> -uids [<uid1>,<uid2>,...]\n");
   fprintf(stdout,"       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
@@ -327,13 +349,15 @@ com_vid (char* arg1) {
   fprintf(stdout,"       vid set map -krb5|-gsi|-sss|-unix|-tident|-voms <pattern> [vuid:<uid>] [vgid:<gid>] \n");
   fprintf(stdout,"\n");
   fprintf(stdout,"                                                                                                      -voms <pattern>  : <pattern> is <group>:<role> e.g. to map VOMS attribute /dteam/cern/Role=NULL/Capability=NULL one should define <pattern>=/dteam/cern: \n");
-  fprintf(stdout,"       vid rm <key>                                                                                 : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
+  fprintf(stdout,"       vid set geotag <IP-prefix> <geotag>  : add to all IP's matching the prefix <prefix> the geo location tag <geotag>\n");
+  fprintf(stdout,"                                              N.B. specify the default assumption via 'vid set geotag default <default-tag>'\n");                                                        
+  fprintf(stdout,"       vid rm <key>                         : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"       vid enable|disable krb5|gsi|ssl|sss|unix\n");
-  fprintf(stdout,"                                           : enable/disables the default mapping via password database\n");
+  fprintf(stdout,"                                            : enable/disables the default mapping via password database\n");
   fprintf(stdout,"\n");
   fprintf(stdout,"       vid add|remove gateway <hostname>\n");
-  fprintf(stdout,"                                             adds/removes a host as a (fuse) gateway with 'su' priviledges\n");
+  fprintf(stdout,"                                            : adds/removes a host as a (fuse) gateway with 'su' priviledges\n");
 
 
   return (0);
