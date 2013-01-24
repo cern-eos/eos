@@ -27,6 +27,8 @@
 #include "common/Logging.hh"
 #include "common/SecEntity.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdSys/XrdSysDNS.hh"
+/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -42,6 +44,8 @@ Mapping::VirtualUserMap_t  Mapping::gVirtualUidMap;
 Mapping::VirtualGroupMap_t Mapping::gVirtualGidMap;
 Mapping::SudoerMap_t       Mapping::gSudoerMap;
 bool                       Mapping::gRootSquash = true;
+
+Mapping::GeoLocationMap_t  Mapping::gGeoMap;
 
 XrdSysMutex                Mapping::ActiveLock;
 google::dense_hash_map<std::string, time_t> Mapping::ActiveTidents;
@@ -509,6 +513,40 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
 
   time_t now = time(NULL);
 
+  // ---------------------------------------------------------------------------    
+  // Check the Geo Location
+  // ---------------------------------------------------------------------------
+  if ( (!vid.geolocation.length()) && (gGeoMap.size()) ) {
+    // if the geo location was not set externally and we have some recipe we try 
+    // to translate the host name and match a rule
+    unsigned int ipaddr;
+
+    // if we have a default geo location we assume that a client in that one
+    if (gGeoMap.count("geotag:default")) {
+      vid.geolocation = gGeoMap["geotag:default"];
+    }
+    if ( XrdSysDNS::Host2IP(host.c_str(), &ipaddr) == 1) {
+      char ipstring[64];
+      int hostlen = XrdSysDNS::IP2String(ipaddr, 0, ipstring, 64);
+      if (hostlen > 0 ) {
+	std::string sipstring = ipstring;
+	GeoLocationMap_t::const_iterator it;
+	// we use the geo location with the longest name match
+	for (it = gGeoMap.begin(); it != gGeoMap.end(); it++) {
+	  size_t l =0;
+	  for (l = 0; l < it->first.length(); l++) {
+	    if (it->first.at(l) != sipstring.at(l)) {
+	      break;
+	    }
+	  }
+	  if ( l > vid.geolocation.length() ) {
+	    vid.geolocation = it->second;
+	  }
+	}
+      }
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Maintain the active client map and expire old entries
   // ---------------------------------------------------------------------------
@@ -539,7 +577,7 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
  * Print the current mappings
  * 
  * @param stdOut the output is stored here
- * @param option can be 'u' for user role mappings 'g' for group role mappings 's' for sudoer list 'U' for user alias mapping 'G' for group alias mapping 'y' for gateway mappings (tidents) 'a' for authentication mapping rules
+ * @param option can be 'u' for user role mappings 'g' for group role mappings 's' for sudoer list 'U' for user alias mapping 'G' for group alias mapping 'y' for gateway mappings (tidents) 'a' for authentication mapping rules 'l' for geo location rules
  */
 /*----------------------------------------------------------------------------*/
 void
@@ -641,6 +679,15 @@ Mapping::Print(XrdOucString &stdOut, XrdOucString option)
         stdOut += "auth=";
         stdOut +=authmethod; stdOut += "\n";
       }
+    }
+  }
+
+  if ((!option.length()) || ((option.find("l"))!=STR_NPOS)) {
+    eos::common::Mapping::GeoLocationMap_t::const_iterator it;
+    for ( it = gGeoMap.begin(); it != gGeoMap.end(); it++ ) {
+      char sline[1024];
+      snprintf(sline,sizeof(sline)-1,"geotag:\"%s\" => \"%s\"\n", it->first.c_str(),it->second.c_str());
+      stdOut += sline;
     }
   }
 }

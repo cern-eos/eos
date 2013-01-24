@@ -37,32 +37,41 @@
 #include <fcntl.h>
 #include <sys/time.h>
 
-EOSCOMMONNAMESPACE_BEGIN
+EOSCOMMONNAMESPACE_BEGIN;
 
 /*----------------------------------------------------------------------------*/
-//! Static Class to set a filedescriptor flag to CLOEXEC
+//! @brief Static Class to set a filedescriptor flag to CLOEXEC
 //! 
 //! Example
-//! eos::common::CloExec::Set(fd);
+//! \code eos::common::CloExec::Set(fd); \endcode
 /*----------------------------------------------------------------------------*/
 class CloExec {
 public:
-  static int Set(int fd) {
-    int flags=0;
-    if ((flags = fcntl(fd, F_GETFD)) != -1) {
-      return fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
-    } else {
-      return -1;
-    }
-  }
 
-  static void All() {
-    for (size_t i = getdtablesize(); i --> 3;) {
-      eos::common::CloExec::Set(i);
+    // ---------------------------------------------------------------------------
+    //! Set CLOEXEC on a single fd. 
+    // ---------------------------------------------------------------------------
+
+    static int Set(int fd) {
+        int flags = 0;
+        if ((flags = fcntl(fd, F_GETFD)) != -1) {
+            return fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+        } else {
+            return -1;
+        }
     }
-  }
+
+    // ---------------------------------------------------------------------------
+    //! Set CLOEXEC on all used file descriptors.
+    // ---------------------------------------------------------------------------
+
+    static void All() {
+        for (size_t i = getdtablesize(); i-- > 3;) {
+            eos::common::CloExec::Set(i);
+        }
+    }
 };
 
-EOSCOMMONNAMESPACE_END
- 
+EOSCOMMONNAMESPACE_END;
+
 #endif

@@ -43,7 +43,7 @@
 #include <string.h>
 #include <sys/syslog.h>
 #include <sys/time.h>
-//#include <uuid/uuid.h>
+#include <uuid/uuid.h>
 #include <string>
 #include <vector>
 /*----------------------------------------------------------------------------*/
@@ -145,9 +145,9 @@ public:
   //! Constructor
   // ---------------------------------------------------------------------------
   LogId() {
-    //    uuid_t uuid;
-    //    uuid_generate_time(uuid);
-    //    uuid_unparse(uuid,logId);
+    uuid_t uuid;
+    uuid_generate_time(uuid);
+    uuid_unparse(uuid,logId);
     sprintf(cident,"<service>");
     vid.uid=getuid();
     vid.gid=getgid();

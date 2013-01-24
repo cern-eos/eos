@@ -48,8 +48,8 @@ EOSCOMMONNAMESPACE_BEGIN
 
 class CommentLog {
 private:
-  std::string fName; //< File Name storing the comments
-  int fFd;           //< File Descriptor to comment log file
+  std::string mName; //< File Name storing the comments
+  int mFd;           //< File Descriptor to comment log file
 public:
   // ------------------------------------------------------------------------
   //! Add a comment with 'exectime','cmd','subcmd','args','comment','stdErr','retc'
@@ -61,12 +61,12 @@ public:
   bool IsValid();
 
   // ------------------------------------------------------------------------
-  //! Constructor
+  // Constructor
   // ------------------------------------------------------------------------
   CommentLog(const char* file);
   
   // ------------------------------------------------------------------------
-  //! Destructor
+  // Destructor
   // ------------------------------------------------------------------------
   ~CommentLog();
 };

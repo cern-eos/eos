@@ -29,14 +29,11 @@
 #include <unistd.h>
 /*----------------------------------------------------------------------------*/
 
-EOSCOMMONNAMESPACE_BEGIN
-
-char Attr::gBuffer[1024];
-XrdSysMutex Attr::gBufferMutex;
+EOSCOMMONNAMESPACE_BEGIN;
 
 /*----------------------------------------------------------------------------*/
 /** 
- * Factury function checking if file exists.
+ * Factory function checking if file exists.
  * 
  * @param file path to the file with extended attributes
  * 
@@ -58,14 +55,14 @@ Attr::OpenAttr(const char * file)
 
 /*----------------------------------------------------------------------------*/
 /** 
- * Create an attribute object for file
- * 
+ * Create an attribute object for file. Better use the factory function
+ * OpenAttr!
  * @param file path toe the file with extended attributes
  */
 /*----------------------------------------------------------------------------*/
 Attr::Attr(const char* file)
 {
-  fName = file;
+  mName = file;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -97,7 +94,7 @@ Attr::Set(const char* name, const char* value, size_t len)
 #ifdef __APPLE__
   if (!setxattr(fName.c_str(), name, value, len,0,0))
 #else
-  if (!lsetxattr(fName.c_str(), name, value, len,0))
+  if (!lsetxattr(mName.c_str(), name, value, len,0))
 #endif
     return true;
   return false;
@@ -139,9 +136,9 @@ Attr::Get(const char* name, char* value, size_t &size)
   if ((!name) || (!value))
     return false;
 #ifdef __APPLE__
-  int retc = getxattr (fName.c_str(), name, value,size,0,0);
+  int retc = getxattr (mName.c_str(), name, value,size,0,0);
 #else
-  int retc = lgetxattr (fName.c_str(), name, value,size);
+  int retc = lgetxattr (mName.c_str(), name, value,size);
 #endif
   if (retc!=-1) {
     size = retc;
@@ -163,16 +160,15 @@ Attr::Get(const char* name, char* value, size_t &size)
 std::string
 Attr::Get(std::string name)
 {
-  XrdSysMutexHelper bMutex(gBufferMutex);
-  gBuffer[0] = 0;
-  size_t size = sizeof(gBuffer)-1;
-  if (!Get(name.c_str(), gBuffer, size)) {
+  mBuffer[0] = 0;
+  size_t size = sizeof(mBuffer)-1;
+  if (!Get(name.c_str(), mBuffer, size)) {
     return "";
   }
   
-  gBuffer[size] = 0;
-  return std::string(gBuffer);
+  mBuffer[size] = 0;
+  return std::string(mBuffer);
 }
 
 /*----------------------------------------------------------------------------*/
-EOSCOMMONNAMESPACE_END
+EOSCOMMONNAMESPACE_END;

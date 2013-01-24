@@ -37,7 +37,8 @@
 #ifndef __EOSCOMMON_NAMESPACE_HH__
 #define __EOSCOMMON_NAMESPACE_HH__
 
-#define EOSCOMMONNAMESPACE_BEGIN namespace eos { namespace common {
+#define EOSCOMMONNAMESPACE_BEGIN   namespace eos { /** @namespace eos project namespace*/  namespace common { /** @namespace @brief common classes*/ 
+
 #define EOSCOMMONNAMESPACE_END }}
 
 #endif

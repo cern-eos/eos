@@ -37,7 +37,6 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <sys/types.h>
@@ -48,18 +47,16 @@
 #endif
 /*----------------------------------------------------------------------------*/
 
-EOSCOMMONNAMESPACE_BEGIN
+EOSCOMMONNAMESPACE_BEGIN;
 
 /*----------------------------------------------------------------------------*/
 //! Class to modify extended attributes on files.
-//! Best is to use the factory function OpenAttr instead of the constructor.
 /*----------------------------------------------------------------------------*/
 
 class Attr {
 private:
-  std::string fName; //< File Name storing the attributes
-  static char gBuffer[1024];
-  static XrdSysMutex gBufferMutex; 
+  std::string mName; //< File Name storing the attributes
+  char mBuffer[1024];
 
 public:
   // ------------------------------------------------------------------------
@@ -88,17 +85,17 @@ public:
   static Attr* OpenAttr(const char* file);               
 
   // ------------------------------------------------------------------------
-  //! Constructor
+  // Constructor
   // ------------------------------------------------------------------------
   Attr(const char* file);                                
   
   // ------------------------------------------------------------------------
-  //! Destructor
+  // Destructor
   // ------------------------------------------------------------------------
   ~Attr();                                               
 };
 
 /*----------------------------------------------------------------------------*/
-EOSCOMMONNAMESPACE_END
+EOSCOMMONNAMESPACE_END;
 #endif
 

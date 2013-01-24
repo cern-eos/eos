@@ -32,7 +32,7 @@
 
 /*----------------------------------------------------------------------------*/
 
-EOSCOMMONNAMESPACE_BEGIN
+EOSCOMMONNAMESPACE_BEGIN;
 
 
 /*----------------------------------------------------------------------------*/
@@ -44,8 +44,8 @@ EOSCOMMONNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 CommentLog::CommentLog(const char* file)
 {
-  fName = file;
-  fFd = ::open(file,O_CREAT| O_RDWR, 0644 );
+  mName = file;
+  mFd = ::open(file,O_CREAT| O_RDWR, 0644 );
 }
 
 /*----------------------------------------------------------------------------*/
@@ -56,8 +56,8 @@ CommentLog::CommentLog(const char* file)
 /*----------------------------------------------------------------------------*/
 CommentLog::~CommentLog() 
 {
-  if (fFd>0) {
-    ::close(fFd);
+  if (mFd>0) {
+    ::close(mFd);
   }
 }
 
@@ -72,7 +72,7 @@ CommentLog::~CommentLog()
 bool 
 CommentLog::IsValid() 
 {
-  return (fFd>0);
+  return (mFd>0);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -119,7 +119,7 @@ CommentLog::Add(time_t t, const char* cmd, const char* subcmd, const char* args,
   if (!out.endswith("\n")) {
     out += "\n";
   }
-  if ( (::write(fFd, out.c_str(), out.length() +1)) < 0) {
+  if ( (::write(mFd, out.c_str(), out.length() +1)) < 0) {
     return false;
   } else {
     return true;
@@ -128,4 +128,4 @@ CommentLog::Add(time_t t, const char* cmd, const char* subcmd, const char* args,
 
 
 /*----------------------------------------------------------------------------*/
-EOSCOMMONNAMESPACE_END
+EOSCOMMONNAMESPACE_END;

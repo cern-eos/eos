@@ -65,7 +65,7 @@ public:
   typedef std::map<std::string, uid_t> VirtualUserMap_t; //< typedef of map storing translation rules from auth methods to uids
   typedef std::map<std::string, gid_t> VirtualGroupMap_t;//< typedef of map storing translation rules from auth methods to gids
   typedef std::map<uid_t, bool > SudoerMap_t; //< typde of map storing members of the suid group
-
+  typedef std::map<std::string, std::string> GeoLocationMap_t; //< typdef of map storing translation of string(IP) => geo location string
 
   // ---------------------------------------------------------------------------
   //! Class wrapping an uid/gid pari
@@ -95,6 +95,7 @@ public:
     std::string grps;
     std::string role;
     std::string dn;
+    std::string geolocation;
     bool sudoer;
   };
 
@@ -134,6 +135,12 @@ public:
 
     for (unsigned int i=0; i< vidin.uid_list.size(); i++) vidout.uid_list.push_back(vidin.uid_list[i]);
     for (unsigned int i=0; i< vidin.gid_list.size(); i++) vidout.gid_list.push_back(vidin.gid_list[i]);
+
+    vidout.host = vidin.host;
+    vidout.grps = vidin.grps;
+    vidout.role = vidin.role;
+    vidout.dn   = vidin.dn;
+    vidout.geolocation = vidin.geolocation;
   }
 
   // ---------------------------------------------------------------------------
@@ -165,6 +172,10 @@ public:
   //! Map keeping the super user members
   // ---------------------------------------------------------------------------
   static SudoerMap_t gSudoerMap;
+
+  // ---------------------------------------------------------------------------
+  //! Map keeping the geo location HostName=>GeoTag translation
+  static GeoLocationMap_t   gGeoMap;
 
   // ---------------------------------------------------------------------------
   //! A cache for physical user id caching (e.g. from user name to uid)
