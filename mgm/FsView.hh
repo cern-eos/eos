@@ -92,10 +92,10 @@ public:
   void SetInQueue(size_t iq)         { mInQueue=iq; }
 
   long long SumLongLong(const char* param, bool lock=true); // calculates the sum of <param> as long long
-  double SumDouble(const char* param);      // calculates the sum of <param> as double
-  double AverageDouble(const char* param);  // calculates the average of <param> as double
-  double MaxDeviation(const char* param);   // calculates the maximum deviation from the average in a group
-  double SigmaDouble(const char* param);    // calculates the standard deviation of <param> as double
+  double SumDouble(const char* param, bool lock=true);      // calculates the sum of <param> as double
+  double AverageDouble(const char* param, bool lock=true);  // calculates the average of <param> as double
+  double MaxDeviation(const char* param, bool lock=true);   // calculates the maximum deviation from the average in a group
+  double SigmaDouble(const char* param, bool lock=true);    // calculates the standard deviation of <param> as double
 };
 
 class FsSpace : public BaseView {
