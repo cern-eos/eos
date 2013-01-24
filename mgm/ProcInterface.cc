@@ -4885,6 +4885,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
         struct stat buf;
         int listrc=0;
         XrdOucString filter = "";
+	XrdOucString ls_file = "";
 
         if(gOFS->_stat(spath.c_str(),&buf, *error,  vid_in, (const char*) 0)) {
           stdErr = error->getErrText();
@@ -4903,9 +4904,10 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
               listrc = SFS_ERROR;
               retc = ENOENT;
             } else {
-              filter.assign(spath,rpos+1);
-              spath.erase(rpos);
-              listrc = dir.open(spath.c_str(), vid_in, (const char*) 0);
+	      // this is an 'ls <file>' command which has to return only one entry!
+	      ls_file.assign(spath, rpos + 1);
+	      spath.erase(rpos);
+	      listrc = 0;
             }
           }
           
@@ -4921,7 +4923,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
           }
           if (!listrc) {
             const char* val;
-            while ((val=dir.nextEntry())) {
+	    while ((ls_file.length() && (val = ls_file.c_str())) || (val = dir.nextEntry())) {
               XrdOucString entryname = val;
               if (((option.find("a"))==STR_NPOS) && entryname.beginswith(".")) {
                 // skip over . .. and hidden files
@@ -5018,8 +5020,14 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                   }
                 }
               }
+	      if (ls_file.length()) {
+		// this was a single file to be listed
+		break;
+	      }
             }
-            dir.close();
+	    if (!ls_file.length()) {
+	      dir.close();
+	    }
           } else {
             stdErr += "error: unable to open directory";
             retc = errno;

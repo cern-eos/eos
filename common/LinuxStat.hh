@@ -31,6 +31,8 @@
 #ifndef __EOSCOMMON__LINUXSTAT__HH
 #define __EOSCOMMON__LINUXSTAT__HH
 
+#include <sys/param.h>
+
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
