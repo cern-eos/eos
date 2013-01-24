@@ -35,6 +35,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -42,9 +43,9 @@ EOSFSTNAMESPACE_BEGIN
 // -----------------------------------------------------------------------------
 //! Class holding information about an asynchronous request
 // -----------------------------------------------------------------------------
-class SimpleHandler: public XrdCl::ResponseHandler
+class SimpleHandler : public XrdCl::ResponseHandler
 {
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -54,15 +55,15 @@ class SimpleHandler: public XrdCl::ResponseHandler
   //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
-  SimpleHandler(uint64_t  offset = 0,
-                uint32_t  length = 0,
-                bool      isWrite = false );
+  SimpleHandler (uint64_t offset = 0,
+                 uint32_t length = 0,
+                 bool isWrite = false);
 
-  
+
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~SimpleHandler();
+  virtual ~SimpleHandler ();
 
 
   //----------------------------------------------------------------------------
@@ -73,19 +74,19 @@ class SimpleHandler: public XrdCl::ResponseHandler
   //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
-  void Update( uint64_t  offset,
-               uint32_t  length,
-               bool      isWrite );
+  void Update (uint64_t offset,
+               uint32_t length,
+               bool isWrite);
 
-  
+
   //----------------------------------------------------------------------------
   //! Wait for request to be done 
   //!
   //! @return status of the request
   //!
   //----------------------------------------------------------------------------
-  bool WaitOK();
-  
+  bool WaitOK ();
+
 
   //----------------------------------------------------------------------------
   //! Get if there is any request to process
@@ -93,13 +94,16 @@ class SimpleHandler: public XrdCl::ResponseHandler
   //! @return true if there is a request, false otherwise
   //!
   //----------------------------------------------------------------------------
-  bool HasRequest();  
+  bool HasRequest ();
 
-  
+
   //----------------------------------------------------------------------------
   //! Get request chunk offset
   //----------------------------------------------------------------------------
-  inline uint64_t GetOffset() const {
+
+  inline uint64_t
+  GetOffset () const
+  {
     return mOffset;
   };
 
@@ -107,7 +111,10 @@ class SimpleHandler: public XrdCl::ResponseHandler
   //----------------------------------------------------------------------------
   //! Get request chunk length
   //----------------------------------------------------------------------------
-  inline uint32_t GetLength() const {
+
+  inline uint32_t
+  GetLength () const
+  {
     return mLength;
   };
 
@@ -115,7 +122,10 @@ class SimpleHandler: public XrdCl::ResponseHandler
   //----------------------------------------------------------------------------
   //! Get response chunk length
   //----------------------------------------------------------------------------
-  inline uint32_t GetRespLength() const {
+
+  inline uint32_t
+  GetRespLength () const
+  {
     return mRespLength;
   };
 
@@ -123,15 +133,21 @@ class SimpleHandler: public XrdCl::ResponseHandler
   //----------------------------------------------------------------------------
   //! Get response chunk status
   //----------------------------------------------------------------------------
-  inline bool GetRespStatus() const {
+
+  inline bool
+  GetRespStatus () const
+  {
     return mRespOK;
   };
 
-  
+
   //----------------------------------------------------------------------------
   //! Test if chunk is from a write operation 
   //----------------------------------------------------------------------------
-  inline bool IsWrite() const {
+
+  inline bool
+  IsWrite () const
+  {
     return mIsWrite;
   };
 
@@ -143,21 +159,21 @@ class SimpleHandler: public XrdCl::ResponseHandler
   //! @param pResponse object containing extra info about the response
   //! 
   //----------------------------------------------------------------------------
-  virtual void HandleResponse( XrdCl::XRootDStatus* pStatus,
-                               XrdCl::AnyObject*    pResponse );
+  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
+                               XrdCl::AnyObject* pResponse);
 
 
- private:
+private:
 
-  uint64_t      mOffset;      ///< offset of the request
-  uint32_t      mLength;      ///< length of the request
-  uint32_t      mRespLength;  ///< length of response received, only for reads
-  bool          mIsWrite;     ///< operation type is write
-  bool          mRespOK;      ///< mark if the resp status is ok
-  bool          mReqDone;     ///< mark if the request was done
-  bool          mHasReq;      ///< mark if there is any request to proceess
-  XrdSysCondVar mCond;        ///< cond. variable used for synchronisation
-  
+  uint64_t mOffset; ///< offset of the request
+  uint32_t mLength; ///< length of the request
+  uint32_t mRespLength; ///< length of response received, only for reads
+  bool mIsWrite; ///< operation type is write
+  bool mRespOK; ///< mark if the resp status is ok
+  bool mReqDone; ///< mark if the request was done
+  bool mHasReq; ///< mark if there is any request to proceess
+  XrdSysCondVar mCond; ///< cond. variable used for synchronisation
+
 };
 
 EOSFSTNAMESPACE_END

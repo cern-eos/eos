@@ -27,6 +27,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/Layout.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -36,159 +37,159 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class ReplicaParLayout : public Layout
 {
-  public:
+public:
 
-    //--------------------------------------------------------------------------
-    //! Constructor
-    //!
-    //! @param file file handler
-    //! @param lid layout id
-    //! @param client security information
-    //! @param error error information
-    //! @param io io access type ( ofs/xrd )
-    //!
-    //--------------------------------------------------------------------------
-    ReplicaParLayout( XrdFstOfsFile*                 file,
-                      int                            lid,
-                      const XrdSecEntity*            client,
-                      XrdOucErrInfo*                 outError,
-                      eos::common::LayoutId::eIoType io );
-
-
-
-    //--------------------------------------------------------------------------
-    //! Destructor
-    //--------------------------------------------------------------------------
-    virtual ~ReplicaParLayout();
+  //--------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param file file handler
+  //! @param lid layout id
+  //! @param client security information
+  //! @param error error information
+  //! @param io io access type ( ofs/xrd )
+  //!
+  //--------------------------------------------------------------------------
+  ReplicaParLayout (XrdFstOfsFile* file,
+                    int lid,
+                    const XrdSecEntity* client,
+                    XrdOucErrInfo* outError,
+                    eos::common::LayoutId::eIoType io);
 
 
-    //--------------------------------------------------------------------------
-    //! Open file
-    //!
-    //! @param path file path
-    //! @param flags open flags
-    //! @param mode open mode
-    //! @param opaque opaque information
-    //!
-    //! @return 0 on success, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Open( const std::string& path,
-                      XrdSfsFileOpenMode flags,
-                      mode_t             mode,
-                      const char*        opaque );
+
+  //--------------------------------------------------------------------------
+  //! Destructor
+  //--------------------------------------------------------------------------
+  virtual ~ReplicaParLayout ();
 
 
-    //--------------------------------------------------------------------------
-    //! Read from file
-    //!
-    //! @param offset offset
-    //! @param buffer place to hold the read data
-    //! @param length length
-    //!
-    //! @return number of bytes read or -1 if error
-    //!
-    //--------------------------------------------------------------------------
-    virtual int64_t Read( XrdSfsFileOffset offset,
-                          char*            buffer,
-                          XrdSfsXferSize   length );
+  //--------------------------------------------------------------------------
+  //! Open file
+  //!
+  //! @param path file path
+  //! @param flags open flags
+  //! @param mode open mode
+  //! @param opaque opaque information
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Open (const std::string& path,
+                    XrdSfsFileOpenMode flags,
+                    mode_t mode,
+                    const char* opaque);
 
 
-    //--------------------------------------------------------------------------
-    //! Write to file
-    //!
-    //! @param offset offset
-    //! @param buffer data to be written
-    //! @param length length
-    //!
-    //! @return number of bytes written or -1 if error
-    //!
-    //--------------------------------------------------------------------------
-    virtual int64_t Write( XrdSfsFileOffset offset,
-                           const char*      buffer,
-                           XrdSfsXferSize   length );
+  //--------------------------------------------------------------------------
+  //! Read from file
+  //!
+  //! @param offset offset
+  //! @param buffer place to hold the read data
+  //! @param length length
+  //!
+  //! @return number of bytes read or -1 if error
+  //!
+  //--------------------------------------------------------------------------
+  virtual int64_t Read (XrdSfsFileOffset offset,
+                        char* buffer,
+                        XrdSfsXferSize length);
 
 
-    //--------------------------------------------------------------------------
-    //! Truncate
-    //!
-    //! @param offset truncate file to this value
-    //!
-    //! @return 0 on success, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Truncate( XrdSfsFileOffset offset );
+  //--------------------------------------------------------------------------
+  //! Write to file
+  //!
+  //! @param offset offset
+  //! @param buffer data to be written
+  //! @param length length
+  //!
+  //! @return number of bytes written or -1 if error
+  //!
+  //--------------------------------------------------------------------------
+  virtual int64_t Write (XrdSfsFileOffset offset,
+                         const char* buffer,
+                         XrdSfsXferSize length);
 
 
-    //--------------------------------------------------------------------------
-    //! Allocate file space
-    //!
-    //! @param length space to be allocated
-    //!
-    //! @return 0 if successful, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Fallocate( XrdSfsFileOffset length );
+  //--------------------------------------------------------------------------
+  //! Truncate
+  //!
+  //! @param offset truncate file to this value
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Truncate (XrdSfsFileOffset offset);
 
 
-    //--------------------------------------------------------------------------
-    //! Deallocate file space
-    //!
-    //! @param fromOffset offset start
-    //! @param toOffset offset end
-    //!
-    //! @return 0 if successful, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Fdeallocate( XrdSfsFileOffset fromOffset,
-                             XrdSfsFileOffset toOffset );
+  //--------------------------------------------------------------------------
+  //! Allocate file space
+  //!
+  //! @param length space to be allocated
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Fallocate (XrdSfsFileOffset length);
 
 
-    //--------------------------------------------------------------------------
-    //! Remove file
-    //!
-    //! @return 0 if successful, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Remove();
+  //--------------------------------------------------------------------------
+  //! Deallocate file space
+  //!
+  //! @param fromOffset offset start
+  //! @param toOffset offset end
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Fdeallocate (XrdSfsFileOffset fromOffset,
+                           XrdSfsFileOffset toOffset);
 
 
-    //--------------------------------------------------------------------------
-    //! Sync file to disk
-    //!
-    //! @return 0 if successful, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Sync();
+  //--------------------------------------------------------------------------
+  //! Remove file
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Remove ();
 
 
-    //--------------------------------------------------------------------------
-    //! Get stats about the file
-    //!
-    //! @param buf stat buffer
-    //!
-    //! @return 0 if successful, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Stat( struct stat* buf );
+  //--------------------------------------------------------------------------
+  //! Sync file to disk
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Sync ();
 
 
-    //--------------------------------------------------------------------------
-    //! Close file
-    //!
-    //! @return 0 if successful, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Close();
+  //--------------------------------------------------------------------------
+  //! Get stats about the file
+  //!
+  //! @param buf stat buffer
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Stat (struct stat* buf);
 
-  private:
 
-    int  mNumReplicas;        ///< number of replicas for current file
-    bool ioLocal;             ///< mark if we are to do local IO
+  //--------------------------------------------------------------------------
+  //! Close file
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Close ();
 
-    //! replica file object, index 0 is the local file
-    std::vector<FileIo*>     mReplicaFile;
-    std::vector<std::string> mReplicaUrl;  ///< URLs of the replica files
+private:
+
+  int mNumReplicas; ///< number of replicas for current file
+  bool ioLocal; ///< mark if we are to do local IO
+
+  //! replica file object, index 0 is the local file
+  std::vector<FileIo*> mReplicaFile;
+  std::vector<std::string> mReplicaUrl; ///< URLs of the replica files
 
 };
 

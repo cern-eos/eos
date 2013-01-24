@@ -34,12 +34,13 @@
 #include <deque>
 #include <cstring>
 #include <pthread.h>
+
 /* ------------------------------------------------------------------------- */
 
 EOSFSTNAMESPACE_BEGIN
 
-class TransferQueue {
-
+class TransferQueue
+{
 private:
   //  std::deque <std::string> queue;
   eos::common::TransferQueue** mQueue;
@@ -54,46 +55,62 @@ private:
 
   XrdSysCondVar mJobTerminateCondition;
 
-public: 
+public:
 
-  TransferQueue(eos::common::TransferQueue** queue, const char* name, int slots=2, int band=100);
-  ~TransferQueue();
+  TransferQueue (eos::common::TransferQueue** queue, const char* name, int slots = 2, int band = 100);
+  ~TransferQueue ();
 
-  eos::common::TransferQueue* GetQueue() { return *mQueue;}
+  eos::common::TransferQueue*
+  GetQueue ()
+  {
+    return *mQueue;
+  }
 
-  const char* GetName() { return mName.c_str();}
+  const char*
+  GetName ()
+  {
+    return mName.c_str();
+  }
 
-  size_t  GetSlots();
-  void SetSlots(size_t slots);
+  size_t GetSlots ();
+  void SetSlots (size_t slots);
 
-  size_t  GetBandwidth();
-  void SetBandwidth(size_t band);
-  
-  void IncRunning() {
+  size_t GetBandwidth ();
+  void SetBandwidth (size_t band);
+
+  void
+  IncRunning ()
+  {
     XrdSysMutexHelper(mJobsRunningMutex);
     mJobsRunning++;
   }
 
-  void DecRunning() {
+  void
+  DecRunning ()
+  {
     XrdSysMutexHelper(mJobsRunningMutex);
     mJobsRunning--;
     // signal threads waiting for a job to finish
     mJobTerminateCondition.Signal();
   }
 
-  size_t GetRunning() {
-    size_t nrun=0;
+  size_t
+  GetRunning ()
+  {
+    size_t nrun = 0;
     {
       XrdSysMutexHelper(mJobsRunningMutex);
       nrun = mJobsRunning;
     }
     return nrun;
   }
-    
-  size_t GetRunningAndQueued() {
+
+  size_t
+  GetRunningAndQueued ()
+  {
     return (GetRunning() + GetQueue()->Size());
   }
-    
+
 };
 
 EOSFSTNAMESPACE_END

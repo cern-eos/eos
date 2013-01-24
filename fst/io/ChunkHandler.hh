@@ -33,6 +33,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/io/AsyncMetaHandler.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -40,9 +41,9 @@ EOSFSTNAMESPACE_BEGIN
 // -----------------------------------------------------------------------------
 //! Class holding information about an asynchronous request
 // -----------------------------------------------------------------------------
-class ChunkHandler: public XrdCl::ResponseHandler
+class ChunkHandler : public XrdCl::ResponseHandler
 {
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -53,16 +54,16 @@ class ChunkHandler: public XrdCl::ResponseHandler
   //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
-  ChunkHandler( AsyncMetaHandler* reqHandler,
-                uint64_t          offset,
-                uint32_t          length,
-                bool              isWrite);
+  ChunkHandler (AsyncMetaHandler* reqHandler,
+                uint64_t offset,
+                uint32_t length,
+                bool isWrite);
 
-  
+
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ChunkHandler();
+  virtual ~ChunkHandler ();
 
 
   //----------------------------------------------------------------------------
@@ -74,16 +75,19 @@ class ChunkHandler: public XrdCl::ResponseHandler
   //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
-  void Update( AsyncMetaHandler* reqHandler,
-               uint64_t          offset,
-               uint32_t          length,
-               bool              isWrite);
+  void Update (AsyncMetaHandler* reqHandler,
+               uint64_t offset,
+               uint32_t length,
+               bool isWrite);
 
-  
+
   //----------------------------------------------------------------------------
   //! Get request chunk offset
   //----------------------------------------------------------------------------
-  inline uint64_t GetOffset() const {
+
+  inline uint64_t
+  GetOffset () const
+  {
     return mOffset;
   };
 
@@ -91,7 +95,10 @@ class ChunkHandler: public XrdCl::ResponseHandler
   //----------------------------------------------------------------------------
   //! Get request chunk length
   //----------------------------------------------------------------------------
-  inline uint32_t GetLength() const {
+
+  inline uint32_t
+  GetLength () const
+  {
     return mLength;
   };
 
@@ -99,7 +106,10 @@ class ChunkHandler: public XrdCl::ResponseHandler
   //----------------------------------------------------------------------------
   //! Get response chunk length
   //----------------------------------------------------------------------------
-  inline uint32_t GetRespLength() const {
+
+  inline uint32_t
+  GetRespLength () const
+  {
     return mRespLength;
   };
 
@@ -107,15 +117,21 @@ class ChunkHandler: public XrdCl::ResponseHandler
   //----------------------------------------------------------------------------
   //! Get errno
   //----------------------------------------------------------------------------
-  inline uint32_t GetErrno() const {
+
+  inline uint32_t
+  GetErrno () const
+  {
     return mErrorNo;
   };
 
-  
+
   //----------------------------------------------------------------------------
   //! Test if chunk is from a write operation 
   //----------------------------------------------------------------------------
-  inline bool IsWrite() const {
+
+  inline bool
+  IsWrite () const
+  {
     return mIsWrite;
   };
 
@@ -127,19 +143,19 @@ class ChunkHandler: public XrdCl::ResponseHandler
   //! @param pResponse object containing extra info about the response
   //! 
   //----------------------------------------------------------------------------
-  virtual void HandleResponse( XrdCl::XRootDStatus* pStatus,
-                               XrdCl::AnyObject*    pResponse );
+  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
+                               XrdCl::AnyObject* pResponse);
 
 
- private:
+private:
 
   AsyncMetaHandler* mMetaHandler; ///< handler to the whole file meta handler
-  uint64_t          mOffset;      ///< offset of the request
-  uint32_t          mLength;      ///< length of the request
-  uint32_t          mRespLength;  ///< length of response received, only for reads
-  bool              mIsWrite;     ///< operation type is write
-  int               mErrorNo;     ///< error no for this request
-  
+  uint64_t mOffset; ///< offset of the request
+  uint32_t mLength; ///< length of the request
+  uint32_t mRespLength; ///< length of response received, only for reads
+  bool mIsWrite; ///< operation type is write
+  int mErrorNo; ///< error no for this request
+
 };
 
 EOSFSTNAMESPACE_END

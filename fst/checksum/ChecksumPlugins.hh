@@ -33,46 +33,65 @@
 #include "fst/checksum/CRC32C.hh"
 #include "fst/checksum/MD5.hh"
 #include "fst/checksum/SHA1.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-class ChecksumPlugins {
+class ChecksumPlugins
+{
 public:
-  ChecksumPlugins() {};
-  ~ChecksumPlugins() {};
 
-  static CheckSum* GetChecksumObject(unsigned int layoutid, bool blockchecksum=false) {
-    if (blockchecksum) {
-      if (eos::common::LayoutId::GetBlockChecksum(layoutid) == eos::common::LayoutId::kAdler) {
+  ChecksumPlugins () { };
+
+  ~ChecksumPlugins () { };
+
+  static CheckSum*
+  GetChecksumObject (unsigned int layoutid, bool blockchecksum = false)
+  {
+    if (blockchecksum)
+    {
+      if (eos::common::LayoutId::GetBlockChecksum(layoutid) == eos::common::LayoutId::kAdler)
+      {
         return (CheckSum*)new Adler;
       }
-      if (eos::common::LayoutId::GetBlockChecksum(layoutid) == eos::common::LayoutId::kCRC32) {
+      if (eos::common::LayoutId::GetBlockChecksum(layoutid) == eos::common::LayoutId::kCRC32)
+      {
         return (CheckSum*)new CRC32;
       }
-      if (eos::common::LayoutId::GetBlockChecksum(layoutid) == eos::common::LayoutId::kCRC32C) {
+      if (eos::common::LayoutId::GetBlockChecksum(layoutid) == eos::common::LayoutId::kCRC32C)
+      {
         return (CheckSum*)new CRC32C;
       }
-      if (eos::common::LayoutId::GetBlockChecksum(layoutid) == eos::common::LayoutId::kMD5) {
+      if (eos::common::LayoutId::GetBlockChecksum(layoutid) == eos::common::LayoutId::kMD5)
+      {
         return (CheckSum*)new MD5;
       }
-      if (eos::common::LayoutId::GetBlockChecksum(layoutid) == eos::common::LayoutId::kSHA1) {
+      if (eos::common::LayoutId::GetBlockChecksum(layoutid) == eos::common::LayoutId::kSHA1)
+      {
         return (CheckSum*)new SHA1;
       }
-    } else {
-      if (eos::common::LayoutId::GetChecksum(layoutid) == eos::common::LayoutId::kAdler) {
+    }
+    else
+    {
+      if (eos::common::LayoutId::GetChecksum(layoutid) == eos::common::LayoutId::kAdler)
+      {
         return (CheckSum*)new Adler;
       }
-      if (eos::common::LayoutId::GetChecksum(layoutid) == eos::common::LayoutId::kCRC32) {
+      if (eos::common::LayoutId::GetChecksum(layoutid) == eos::common::LayoutId::kCRC32)
+      {
         return (CheckSum*)new CRC32;
       }
-      if (eos::common::LayoutId::GetChecksum(layoutid) == eos::common::LayoutId::kCRC32C) {
+      if (eos::common::LayoutId::GetChecksum(layoutid) == eos::common::LayoutId::kCRC32C)
+      {
         return (CheckSum*)new CRC32C;
       }
-      if (eos::common::LayoutId::GetChecksum(layoutid) == eos::common::LayoutId::kMD5) {
+      if (eos::common::LayoutId::GetChecksum(layoutid) == eos::common::LayoutId::kMD5)
+      {
         return (CheckSum*)new MD5;
       }
-      if (eos::common::LayoutId::GetChecksum(layoutid) == eos::common::LayoutId::kSHA1) {
+      if (eos::common::LayoutId::GetChecksum(layoutid) == eos::common::LayoutId::kSHA1)
+      {
         return (CheckSum*)new SHA1;
       }
     }

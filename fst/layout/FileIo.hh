@@ -31,6 +31,7 @@
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -46,209 +47,223 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Abstract class modelling an IO plugin
 //------------------------------------------------------------------------------
-class FileIo: public eos::common::LogId
+class FileIo : public eos::common::LogId
 {
-  public:
+public:
 
-    //--------------------------------------------------------------------------
-    //! Constructor
-    //--------------------------------------------------------------------------
-    FileIo( XrdFstOfsFile*      file,
-            const XrdSecEntity* client,
-            XrdOucErrInfo*      error ):
-      eos::common::LogId(),
-      mFilePath( "" ),
-      mLogicalFile( file ),
-      mError( error ),
-      mSecEntity( client )
-    {
-      //empty
-    }
+  //--------------------------------------------------------------------------
+  //! Constructor
+  //--------------------------------------------------------------------------
 
-
-    //--------------------------------------------------------------------------
-    //! Destructor
-    //--------------------------------------------------------------------------
-    virtual ~FileIo() {
-      //empty
-    }
+  FileIo (XrdFstOfsFile* file,
+          const XrdSecEntity* client,
+          XrdOucErrInfo* error) :
+  eos::common::LogId (),
+  mFilePath (""),
+  mLogicalFile (file),
+  mError (error),
+  mSecEntity (client) {
+    //empty
+  }
 
 
-    //--------------------------------------------------------------------------
-    //! Open file
-    //!
-    //! @param path file path
-    //! @param flags open flags
-    //! @param mode open mode
-    //! @param opaque opaque information
-    //!
-    //! @return 0 if successful, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Open( const std::string& path,
-                      XrdSfsFileOpenMode flags,
-                      mode_t             mode = 0,
-                      const std::string& opaque = "" ) = 0;
+  //--------------------------------------------------------------------------
+  //! Destructor
+  //--------------------------------------------------------------------------
+
+  virtual
+  ~FileIo () {
+    //empty
+  }
 
 
-    //--------------------------------------------------------------------------
-    //! Read from file - sync
-    //!
-    //! @param offset offset in file
-    //! @param buffer where the data is read
-    //! @param length read length
-    //!
-    //! @return number of bytes read or -1 if error
-    //!
-    //--------------------------------------------------------------------------
-    virtual int64_t Read( XrdSfsFileOffset offset,
-                          char*            buffer,
-                          XrdSfsXferSize   length ) = 0;
+  //--------------------------------------------------------------------------
+  //! Open file
+  //!
+  //! @param path file path
+  //! @param flags open flags
+  //! @param mode open mode
+  //! @param opaque opaque information
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Open (const std::string& path,
+                    XrdSfsFileOpenMode flags,
+                    mode_t mode = 0,
+                    const std::string& opaque = "") = 0;
 
 
-    //--------------------------------------------------------------------------
-    //! Write to file - sync
-    //!
-    //! @param offset offset
-    //! @param buffer data to be written
-    //! @param length length
-    //!
-    //! @return number of bytes written or -1 if error
-    //!
-    //--------------------------------------------------------------------------
-    virtual int64_t Write( XrdSfsFileOffset offset,
-                           const char*      buffer,
-                           XrdSfsXferSize   length ) = 0;
+  //--------------------------------------------------------------------------
+  //! Read from file - sync
+  //!
+  //! @param offset offset in file
+  //! @param buffer where the data is read
+  //! @param length read length
+  //!
+  //! @return number of bytes read or -1 if error
+  //!
+  //--------------------------------------------------------------------------
+  virtual int64_t Read (XrdSfsFileOffset offset,
+                        char* buffer,
+                        XrdSfsXferSize length) = 0;
 
 
-    //--------------------------------------------------------------------------
-    //! Read from file - async
-    //!
-    //! @param offset offset in file
-    //! @param buffer where the data is read
-    //! @param length read length
-    //! @param handler async read handler
-    //! @param readahead set if readahead is to be used
-    //!
-    //! @return number of bytes read or -1 if error
-    //!
-    //--------------------------------------------------------------------------
-    virtual int64_t Read( XrdSfsFileOffset offset,
-                          char*            buffer,
-                          XrdSfsXferSize   length,
-                          void*            handler,
-                          bool             readahead = false ) = 0;
+  //--------------------------------------------------------------------------
+  //! Write to file - sync
+  //!
+  //! @param offset offset
+  //! @param buffer data to be written
+  //! @param length length
+  //!
+  //! @return number of bytes written or -1 if error
+  //!
+  //--------------------------------------------------------------------------
+  virtual int64_t Write (XrdSfsFileOffset offset,
+                         const char* buffer,
+                         XrdSfsXferSize length) = 0;
 
 
-    //--------------------------------------------------------------------------
-    //! Write to file - async
-    //!
-    //! @param offset offset
-    //! @param buffer data to be written
-    //! @param length length
-    //! @param handler async write handler
-    //!
-    //! @return number of bytes written or -1 if error
-    //!
-    //--------------------------------------------------------------------------
-    virtual int64_t Write( XrdSfsFileOffset offset,
-                           const char*      buffer,
-                           XrdSfsXferSize   length,
-                           void*            handler ) = 0;
+  //--------------------------------------------------------------------------
+  //! Read from file - async
+  //!
+  //! @param offset offset in file
+  //! @param buffer where the data is read
+  //! @param length read length
+  //! @param handler async read handler
+  //! @param readahead set if readahead is to be used
+  //!
+  //! @return number of bytes read or -1 if error
+  //!
+  //--------------------------------------------------------------------------
+  virtual int64_t Read (XrdSfsFileOffset offset,
+                        char* buffer,
+                        XrdSfsXferSize length,
+                        void* handler,
+                        bool readahead = false) = 0;
 
 
-    //--------------------------------------------------------------------------
-    //! Truncate
-    //!
-    //! @param offset truncate file to this value
-    //!
-    //! @return 0 if successful, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Truncate( XrdSfsFileOffset offset ) = 0;
+  //--------------------------------------------------------------------------
+  //! Write to file - async
+  //!
+  //! @param offset offset
+  //! @param buffer data to be written
+  //! @param length length
+  //! @param handler async write handler
+  //!
+  //! @return number of bytes written or -1 if error
+  //!
+  //--------------------------------------------------------------------------
+  virtual int64_t Write (XrdSfsFileOffset offset,
+                         const char* buffer,
+                         XrdSfsXferSize length,
+                         void* handler) = 0;
 
 
-    //--------------------------------------------------------------------------
-    //! Allocate file space
-    //!
-    //! @param length space to be allocated
-    //!
-    //! @return 0 on success, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Fallocate( XrdSfsFileOffset length ) {
-      return 0;
-    }
+  //--------------------------------------------------------------------------
+  //! Truncate
+  //!
+  //! @param offset truncate file to this value
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Truncate (XrdSfsFileOffset offset) = 0;
 
 
-    //--------------------------------------------------------------------------
-    //! Deallocate file space
-    //!
-    //! @param fromOffset offset start
-    //! @param toOffset offset end
-    //!
-    //! @return 0 on success, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Fdeallocate( XrdSfsFileOffset fromOffset,
-                             XrdSfsFileOffset toOffset ) {
-      return 0;
-    }
+  //--------------------------------------------------------------------------
+  //! Allocate file space
+  //!
+  //! @param length space to be allocated
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+
+  virtual int
+  Fallocate (XrdSfsFileOffset length)
+  {
+    return 0;
+  }
 
 
-    //--------------------------------------------------------------------------
-    //! Remove file
-    //!
-    //! @return 0 on success, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Remove() {
-      return 0;
-    }
+  //--------------------------------------------------------------------------
+  //! Deallocate file space
+  //!
+  //! @param fromOffset offset start
+  //! @param toOffset offset end
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+
+  virtual int
+  Fdeallocate (XrdSfsFileOffset fromOffset,
+               XrdSfsFileOffset toOffset)
+  {
+    return 0;
+  }
 
 
-    //--------------------------------------------------------------------------
-    //! Sync file to disk
-    //!
-    //! @return 0 on success, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Sync() = 0;
+  //--------------------------------------------------------------------------
+  //! Remove file
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+
+  virtual int
+  Remove ()
+  {
+    return 0;
+  }
 
 
-    //--------------------------------------------------------------------------
-    //! Close file
-    //!
-    //! @return 0 on success, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Close() = 0;
+  //--------------------------------------------------------------------------
+  //! Sync file to disk
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Sync () = 0;
 
 
-    //--------------------------------------------------------------------------
-    //! Get stats about the file
-    //!
-    //! @param buf stat buffer
-    //!
-    //! @return 0 on success, -1 otherwise and error code is set
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Stat( struct stat* buf ) = 0;
+  //--------------------------------------------------------------------------
+  //! Close file
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Close () = 0;
 
 
-    //--------------------------------------------------------------------------
-    //! Get path to current file
-    //--------------------------------------------------------------------------
-    const std::string& GetPath() {
-      return mFilePath;
-    }
+  //--------------------------------------------------------------------------
+  //! Get stats about the file
+  //!
+  //! @param buf stat buffer
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Stat (struct stat* buf) = 0;
 
-  protected:
 
-    std::string         mFilePath;    ///< path to current physical file
-    XrdFstOfsFile*      mLogicalFile; ///< handler to logical file
-    XrdOucErrInfo*      mError;       ///< error information
-    const XrdSecEntity* mSecEntity;   ///< security entity
+  //--------------------------------------------------------------------------
+  //! Get path to current file
+  //--------------------------------------------------------------------------
+
+  const std::string&
+  GetPath ()
+  {
+    return mFilePath;
+  }
+
+protected:
+
+  std::string mFilePath; ///< path to current physical file
+  XrdFstOfsFile* mLogicalFile; ///< handler to logical file
+  XrdOucErrInfo* mError; ///< error information
+  const XrdSecEntity* mSecEntity; ///< security entity
 };
 
 EOSFSTNAMESPACE_END

@@ -25,6 +25,7 @@
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/FileIoPlugin.hh"
 #include "fst/XrdFstOfsFile.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -32,134 +33,145 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-PlainLayout::PlainLayout( XrdFstOfsFile*                 file,
-                          int                            lid,
-                          const XrdSecEntity*            client,
-                          XrdOucErrInfo*                 outError,
-                          eos::common::LayoutId::eIoType io ) :
-    Layout( file, lid, client, outError, io )
+PlainLayout::PlainLayout (XrdFstOfsFile* file,
+                          int lid,
+                          const XrdSecEntity* client,
+                          XrdOucErrInfo* outError,
+                          eos::common::LayoutId::eIoType io) :
+Layout (file, lid, client, outError, io)
 {
-  //............................................................................
-  // For the plain layout we use only the LocalFileIo type
-  //............................................................................
-  mPlainFile = FileIoPlugin::GetIoObject( mIoType,
-                                          mOfsFile,
-                                          mSecEntity,
-                                          mError );
-  mIsEntryServer = true;
+ //............................................................................
+ // For the plain layout we use only the LocalFileIo type
+ //............................................................................
+ mPlainFile = FileIoPlugin::GetIoObject(mIoType,
+                                        mOfsFile,
+                                        mSecEntity,
+                                        mError);
+ mIsEntryServer = true;
 }
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-PlainLayout::~PlainLayout()
+
+PlainLayout::~PlainLayout ()
 {
-  delete mPlainFile;
+ delete mPlainFile;
 }
 
 
 //------------------------------------------------------------------------------
 // Open File
 //------------------------------------------------------------------------------
+
 int
-PlainLayout::Open( const std::string& path,
+PlainLayout::Open (const std::string& path,
                    XrdSfsFileOpenMode flags,
-                   mode_t             mode,
-                   const char*        opaque )
+                   mode_t mode,
+                   const char* opaque)
 {
-  mLocalPath = path;
-  return mPlainFile->Open( path, flags, mode, opaque );
+ mLocalPath = path;
+ return mPlainFile->Open(path, flags, mode, opaque);
 }
 
 
 //------------------------------------------------------------------------------
 // Read from file
 //------------------------------------------------------------------------------
+
 int64_t
-PlainLayout::Read( XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length )
+PlainLayout::Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length)
 {
-  return mPlainFile->Read( offset, buffer, length );
+ return mPlainFile->Read(offset, buffer, length);
 }
 
 
 //------------------------------------------------------------------------------
 // Write to file
 //------------------------------------------------------------------------------
+
 int64_t
-PlainLayout::Write( XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length )
+PlainLayout::Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length)
 {
-  return mPlainFile->Write( offset, buffer, length );
+ return mPlainFile->Write(offset, buffer, length);
 }
 
 
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
+
 int
-PlainLayout::Truncate( XrdSfsFileOffset offset )
+PlainLayout::Truncate (XrdSfsFileOffset offset)
 {
-  return mPlainFile->Truncate( offset );
+ return mPlainFile->Truncate(offset);
 }
 
 
 //------------------------------------------------------------------------------
 // Reserve space for file
 //------------------------------------------------------------------------------
+
 int
-PlainLayout::Fallocate( XrdSfsFileOffset length )
+PlainLayout::Fallocate (XrdSfsFileOffset length)
 {
-  return mPlainFile->Fallocate( length );
+ return mPlainFile->Fallocate(length);
 }
 
 
 //------------------------------------------------------------------------------
 // Deallocate reserved space
 //------------------------------------------------------------------------------
+
 int
-PlainLayout::Fdeallocate( XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset )
+PlainLayout::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset)
 {
-  return mPlainFile->Fdeallocate( fromOffset, toOffset );
+ return mPlainFile->Fdeallocate(fromOffset, toOffset);
 }
 
 
 //------------------------------------------------------------------------------
 // Syn file to disk
 //------------------------------------------------------------------------------
+
 int
-PlainLayout::Sync()
+PlainLayout::Sync ()
 {
-  return mPlainFile->Sync();
+ return mPlainFile->Sync();
 }
 
 
 //------------------------------------------------------------------------------
 // Get stats for file
 //------------------------------------------------------------------------------
+
 int
-PlainLayout::Stat( struct stat* buf )
+PlainLayout::Stat (struct stat* buf)
 {
-  return mPlainFile->Stat( buf );
+ return mPlainFile->Stat(buf);
 }
 
 
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
+
 int
-PlainLayout::Close()
+PlainLayout::Close ()
 {
-  return mPlainFile->Close();
+ return mPlainFile->Close();
 }
 
 
 //------------------------------------------------------------------------------
 // Remove file
 //------------------------------------------------------------------------------
+
 int
-PlainLayout::Remove()
+PlainLayout::Remove ()
 {
-  return mPlainFile->Remove();
+ return mPlainFile->Remove();
 }
 
 EOSFSTNAMESPACE_END

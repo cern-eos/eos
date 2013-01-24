@@ -40,50 +40,58 @@ using eos::common::LayoutId;
 //------------------------------------------------------------------------------
 //! Class used to obtain a IO plugin object
 //------------------------------------------------------------------------------
+
 class FileIoPlugin
 {
-  public:
+public:
 
-    //--------------------------------------------------------------------------
-    //! Constructor
-    //--------------------------------------------------------------------------
-    FileIoPlugin() {
-      //empty
+  //--------------------------------------------------------------------------
+  //! Constructor
+  //--------------------------------------------------------------------------
+
+  FileIoPlugin () {
+    //empty
+  }
+
+
+  //--------------------------------------------------------------------------
+  //! Destructor
+  //--------------------------------------------------------------------------
+
+  ~FileIoPlugin () {
+    //empty
+  }
+
+
+  //--------------------------------------------------------------------------
+  //! Get IO object
+  //!
+  //! @param file file handler
+  //! @param layoutId layout id type
+  //! @param error error information
+  //!
+  //! @return requested layout type object
+  //!
+  //--------------------------------------------------------------------------
+
+  static FileIo*
+  GetIoObject (int ioType,
+               XrdFstOfsFile* file = 0,
+               const XrdSecEntity* client = 0,
+               XrdOucErrInfo* error = 0)
+  {
+    if (ioType == LayoutId::kLocal)
+    {
+      return static_cast<FileIo*> (new LocalFileIo(file, client, error));
     }
 
-
-    //--------------------------------------------------------------------------
-    //! Destructor
-    //--------------------------------------------------------------------------
-    ~FileIoPlugin() {
-      //empty
+    if (ioType == LayoutId::kXrdCl)
+    {
+      return static_cast<FileIo*> (new XrdFileIo(file, client, error));
     }
 
-
-    //--------------------------------------------------------------------------
-    //! Get IO object
-    //!
-    //! @param file file handler
-    //! @param layoutId layout id type
-    //! @param error error information
-    //!
-    //! @return requested layout type object
-    //!
-    //--------------------------------------------------------------------------
-    static FileIo* GetIoObject( int                 ioType,
-                                XrdFstOfsFile*      file   = 0,
-                                const XrdSecEntity* client = 0,
-                                XrdOucErrInfo*      error  = 0 ) {
-      if ( ioType == LayoutId::kLocal ) {
-        return static_cast<FileIo*>( new LocalFileIo( file, client, error ) );
-      }
-
-      if ( ioType == LayoutId::kXrdCl ) {
-        return static_cast<FileIo*>( new XrdFileIo( file, client, error ) );
-      }
-
-      return 0;
-    }
+    return 0;
+  }
 };
 
 EOSFSTNAMESPACE_END

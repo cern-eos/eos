@@ -27,6 +27,7 @@
 #ifndef __APPLE__
 #include <xfs/xfs.h>
 #endif
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -34,185 +35,202 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-LocalFileIo::LocalFileIo( XrdFstOfsFile*      file,
+LocalFileIo::LocalFileIo (XrdFstOfsFile* file,
                           const XrdSecEntity* client,
-                          XrdOucErrInfo*      error ):
-  FileIo( file, client, error )
-{
-  //............................................................................
-  // In this case the logical file is the same as the local physical file
-  //............................................................................
-  // empty
+                          XrdOucErrInfo* error) :
+FileIo (file, client, error) {
+ //............................................................................
+ // In this case the logical file is the same as the local physical file
+ //............................................................................
+ // empty
 }
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-LocalFileIo::~LocalFileIo()
-{
-  //empty
+
+LocalFileIo::~LocalFileIo () {
+ //empty
 }
 
 
 //------------------------------------------------------------------------------
 // Open file
 //------------------------------------------------------------------------------
+
 int
-LocalFileIo::Open( const std::string& path,
+LocalFileIo::Open (const std::string& path,
                    XrdSfsFileOpenMode flags,
-                   mode_t             mode,
-                   const std::string& opaque )
+                   mode_t mode,
+                   const std::string& opaque)
 {
-  if ( !mLogicalFile ) {
-    eos_err( "error= the logical file must exist already" );
-    return SFS_ERROR;
-  }
-  
-  mFilePath = path;
-  errno = 0;
-  return mLogicalFile->openofs( mFilePath.c_str(),
-                                flags,
-                                mode,
-                                mSecEntity,
-                                opaque.c_str() );
+ if (!mLogicalFile)
+ {
+   eos_err("error= the logical file must exist already");
+   return SFS_ERROR;
+ }
+
+ mFilePath = path;
+ errno = 0;
+ return mLogicalFile->openofs(mFilePath.c_str(),
+                              flags,
+                              mode,
+                              mSecEntity,
+                              opaque.c_str());
 }
 
 
 //------------------------------------------------------------------------------
 // Read from file - sync
 //------------------------------------------------------------------------------
+
 int64_t
-LocalFileIo::Read( XrdSfsFileOffset offset,
-                   char*            buffer,
-                   XrdSfsXferSize   length )
+LocalFileIo::Read (XrdSfsFileOffset offset,
+                   char* buffer,
+                   XrdSfsXferSize length)
 {
-  eos_debug( "offset = %lli, length = %lli",
-             static_cast<int64_t>( offset ),
-             static_cast<int64_t>( length ) );
-  return mLogicalFile->readofs( offset, buffer, length );
+ eos_debug("offset = %lli, length = %lli",
+           static_cast<int64_t> (offset),
+           static_cast<int64_t> (length));
+ return mLogicalFile->readofs(offset, buffer, length);
 }
 
 
 //------------------------------------------------------------------------------
 // Write to file - sync
 //------------------------------------------------------------------------------
+
 int64_t
-LocalFileIo::Write( XrdSfsFileOffset offset,
-                    const char*      buffer,
-                    XrdSfsXferSize   length )
+LocalFileIo::Write (XrdSfsFileOffset offset,
+                    const char* buffer,
+                    XrdSfsXferSize length)
 {
-  eos_debug( "offset = %lli, length = %lli",
-             static_cast<int64_t>( offset ),
-             static_cast<int64_t>( length ) );
-  return mLogicalFile->writeofs( offset, buffer, length );
+ eos_debug("offset = %lli, length = %lli",
+           static_cast<int64_t> (offset),
+           static_cast<int64_t> (length));
+ return mLogicalFile->writeofs(offset, buffer, length);
 }
 
 
 //------------------------------------------------------------------------------
 // Read from file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
+
 int64_t
-LocalFileIo::Read( XrdSfsFileOffset offset,
-                   char*            buffer,
-                   XrdSfsXferSize   length,
-                   void*            handler,
-                   bool             readahead )
+LocalFileIo::Read (XrdSfsFileOffset offset,
+                   char* buffer,
+                   XrdSfsXferSize length,
+                   void* handler,
+                   bool readahead)
 {
-  return Read( offset, buffer, length );
+ return Read(offset, buffer, length);
 }
 
 
 //------------------------------------------------------------------------------
 // Write to file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
+
 int64_t
-LocalFileIo::Write( XrdSfsFileOffset offset,
-                    const char*      buffer,
-                    XrdSfsXferSize   length,
-                    void*            handler )
+LocalFileIo::Write (XrdSfsFileOffset offset,
+                    const char* buffer,
+                    XrdSfsXferSize length,
+                    void* handler)
 {
-  return Write( offset, buffer, length );
+ return Write(offset, buffer, length);
 }
 
 
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
+
 int
-LocalFileIo::Truncate( XrdSfsFileOffset offset )
+LocalFileIo::Truncate (XrdSfsFileOffset offset)
 {
-  return mLogicalFile->truncateofs( offset );
+ return mLogicalFile->truncateofs(offset);
 }
 
 
 //------------------------------------------------------------------------------
 // Allocate space for file
 //------------------------------------------------------------------------------
-int
-LocalFileIo::Fallocate( XrdSfsFileOffset length )
-{
-  XrdOucErrInfo error;
 
-  if ( mLogicalFile->fctl( SFS_FCTL_GETFD, 0, error ) )
-    return SFS_ERROR;
+int
+LocalFileIo::Fallocate (XrdSfsFileOffset length)
+{
+ XrdOucErrInfo error;
+
+ if (mLogicalFile->fctl(SFS_FCTL_GETFD, 0, error))
+ {
+   return SFS_ERROR;
+ }
 
 #ifdef __APPLE__
-  // no pre-allocation
-  return 0;
+ // no pre-allocation
+ return 0;
 #else
-  int fd = error.getErrInfo();
+ int fd = error.getErrInfo();
 
-  if ( platform_test_xfs_fd( fd ) ) {
-    //..........................................................................
-    // Select the fast XFS allocation function if available
-    //..........................................................................
-    xfs_flock64_t fl;
-    fl.l_whence = 0;
-    fl.l_start = 0;
-    fl.l_len = ( off64_t )length;
-    return xfsctl( NULL, fd, XFS_IOC_RESVSP64, &fl );
-  } else {
-    return posix_fallocate( fd, 0, length );
-  }
+ if (platform_test_xfs_fd(fd))
+ {
+   //..........................................................................
+   // Select the fast XFS allocation function if available
+   //..........................................................................
+   xfs_flock64_t fl;
+   fl.l_whence = 0;
+   fl.l_start = 0;
+   fl.l_len = (off64_t) length;
+   return xfsctl(NULL, fd, XFS_IOC_RESVSP64, &fl);
+ }
+ else
+ {
+   return posix_fallocate(fd, 0, length);
+ }
 #endif
-  return SFS_ERROR;
+ return SFS_ERROR;
 }
 
 
 //------------------------------------------------------------------------------
 // Deallocate space reserved for file
 //------------------------------------------------------------------------------
-int
-LocalFileIo::Fdeallocate( XrdSfsFileOffset fromOffset,
-                          XrdSfsFileOffset toOffset )
-{
-  XrdOucErrInfo error;
 
-  if ( mLogicalFile->fctl( SFS_FCTL_GETFD, 0, error ) )
-    return SFS_ERROR;
+int
+LocalFileIo::Fdeallocate (XrdSfsFileOffset fromOffset,
+                          XrdSfsFileOffset toOffset)
+{
+ XrdOucErrInfo error;
+
+ if (mLogicalFile->fctl(SFS_FCTL_GETFD, 0, error))
+   return SFS_ERROR;
 
 #ifdef __APPLE__
-  // no de-allocation
-  return 0;
+ // no de-allocation
+ return 0;
 #else
-  int fd = error.getErrInfo();
-  if ( fd > 0 ) {
-    if ( platform_test_xfs_fd( fd ) ) {
-      //........................................................................
-      // Select the fast XFS deallocation function if available
-      //........................................................................
-      xfs_flock64_t fl;
-      fl.l_whence = 0;
-      fl.l_start = fromOffset;
-      fl.l_len = ( off64_t )toOffset - fromOffset;
-      return xfsctl( NULL, fd, XFS_IOC_UNRESVSP64, &fl );
-    } else {
-      return 0;
-    }
-  }
+ int fd = error.getErrInfo();
+ if (fd > 0)
+ {
+   if (platform_test_xfs_fd(fd))
+   {
+     //........................................................................
+     // Select the fast XFS deallocation function if available
+     //........................................................................
+     xfs_flock64_t fl;
+     fl.l_whence = 0;
+     fl.l_start = fromOffset;
+     fl.l_len = (off64_t) toOffset - fromOffset;
+     return xfsctl(NULL, fd, XFS_IOC_UNRESVSP64, &fl);
+   }
+   else
+   {
+     return 0;
+   }
+ }
 
-  return SFS_ERROR;
+ return SFS_ERROR;
 #endif
 }
 
@@ -220,50 +238,55 @@ LocalFileIo::Fdeallocate( XrdSfsFileOffset fromOffset,
 //------------------------------------------------------------------------------
 // Sync file to disk
 //------------------------------------------------------------------------------
+
 int
-LocalFileIo::Sync()
+LocalFileIo::Sync ()
 {
-  return mLogicalFile->syncofs();
+ return mLogicalFile->syncofs();
 }
 
 
 //------------------------------------------------------------------------------
 // Get stats about the file
 //------------------------------------------------------------------------------
+
 int
-LocalFileIo::Stat( struct stat* buf )
+LocalFileIo::Stat (struct stat* buf)
 {
-  XrdOfsFile* pOfsFile = mLogicalFile;
-  return pOfsFile->XrdOfsFile::stat( buf );
+ XrdOfsFile* pOfsFile = mLogicalFile;
+ return pOfsFile->XrdOfsFile::stat(buf);
 }
 
 
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
+
 int
-LocalFileIo::Close()
+LocalFileIo::Close ()
 {
-  return mLogicalFile->closeofs();
+ return mLogicalFile->closeofs();
 }
 
 
 //------------------------------------------------------------------------------
 // Remove file
 //------------------------------------------------------------------------------
+
 int
-LocalFileIo::Remove()
+LocalFileIo::Remove ()
 {
-  struct stat buf;
+ struct stat buf;
 
-  if ( Stat( &buf ) ) {
-    //..........................................................................
-    // Only try to delete if there is something to delete!
-    //..........................................................................
-    return unlink( mLogicalFile->GetFstPath().c_str() );
-  }
+ if (Stat(&buf))
+ {
+   //..........................................................................
+   // Only try to delete if there is something to delete!
+   //..........................................................................
+   return unlink(mLogicalFile->GetFstPath().c_str());
+ }
 
-  return SFS_OK;
+ return SFS_OK;
 }
 
 

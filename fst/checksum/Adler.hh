@@ -33,17 +33,22 @@
 /*----------------------------------------------------------------------------*/
 #include <zlib.h>
 #include <map>
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-struct ltoff_t {
-  bool operator()(off_t s1, off_t s2) const {
+struct ltoff_t
+{
+
+  bool operator()(off_t s1, off_t s2) const
+  {
     return (s1 < s2);
   }
 };
 
-typedef struct {
+typedef struct
+{
   off_t offset;
   size_t length;
   unsigned int adler;
@@ -52,35 +57,61 @@ typedef struct {
 typedef std::map<off_t, Chunk, ltoff_t> MapChunks;
 typedef std::map<off_t, Chunk, ltoff_t>::iterator IterMap;
 
-
-class Adler : public CheckSum {
+class Adler : public CheckSum
+{
 private:
   off_t adleroffset;
   off_t maxoffset;
   unsigned int adler;
   MapChunks map;
-  
+
 public:
-  Adler() : CheckSum("adler") {Reset();}
 
-  bool Add(const char* buffer, size_t length, off_t offset);
-  MapChunks& AddElementToMap(MapChunks& map, Chunk& chunk);
- 
-  off_t GetLastOffset() {return adleroffset;}
-  off_t GetMaxOffset() { return maxoffset;}
-  int GetCheckSumLen() { return sizeof(unsigned int);}
-  void ValidateAdlerMap();
- 
-  const char* GetHexChecksum();
-  const char* GetBinChecksum(int &len); 
-
-  void Finalize();
-  void Reset() {
-    map.clear();
-    adleroffset = 0;  adler = adler32(0L, Z_NULL,0); needsRecalculation = false; maxoffset = 0;
+  Adler () : CheckSum ("adler")
+  {
+    Reset();
   }
 
-  void ResetInit(off_t offsetInit, size_t lengthInit, const char* checksumInitHex) {
+  bool Add (const char* buffer, size_t length, off_t offset);
+  MapChunks& AddElementToMap (MapChunks& map, Chunk& chunk);
+
+  off_t
+  GetLastOffset ()
+  {
+    return adleroffset;
+  }
+
+  off_t
+  GetMaxOffset ()
+  {
+    return maxoffset;
+  }
+
+  int
+  GetCheckSumLen ()
+  {
+    return sizeof (unsigned int);
+  }
+  void ValidateAdlerMap ();
+
+  const char* GetHexChecksum ();
+  const char* GetBinChecksum (int &len);
+
+  void Finalize ();
+
+  void
+  Reset ()
+  {
+    map.clear();
+    adleroffset = 0;
+    adler = adler32(0L, Z_NULL, 0);
+    needsRecalculation = false;
+    maxoffset = 0;
+  }
+
+  void
+  ResetInit (off_t offsetInit, size_t lengthInit, const char* checksumInitHex)
+  {
     Chunk currChunk;
     maxoffset = 0;
     adleroffset = offsetInit + lengthInit;
@@ -89,16 +120,19 @@ public:
     if (checksumInitHex)
       return;
 
-    int checksumInitBin = strtol(checksumInitHex,0,16);
-    
+    int checksumInitBin = strtol(checksumInitHex, 0, 16);
+
     // if a file is truncated we get 0,0,<some checksum => reset to 0
-    if (lengthInit!=0) {
+    if (lengthInit != 0)
+    {
       adler = checksumInitBin;
-    } else {
-      adler = adler32(0L, Z_NULL,0);
+    }
+    else
+    {
+      adler = adler32(0L, Z_NULL, 0);
     }
 
-    fprintf(stderr,"adler is %x\n", adler);
+    fprintf(stderr, "adler is %x\n", adler);
     currChunk.offset = offsetInit;
     currChunk.length = lengthInit;
     currChunk.adler = adler;
@@ -108,8 +142,9 @@ public:
     maxoffset = (offsetInit + lengthInit);
     needsRecalculation = false;
   }
-  
-  virtual ~Adler() {};
+
+  virtual
+  ~Adler () { };
 
 };
 

@@ -36,37 +36,40 @@
 #include <deque>
 #include <cstring>
 #include <pthread.h>
+
 /* ------------------------------------------------------------------------- */
 
 EOSFSTNAMESPACE_BEGIN
 
-class TransferMultiplexer {
-
+class TransferMultiplexer
+{
 private:
   //  std::deque <std::string> queue;
   std::vector<TransferQueue*> mQueues;
   pthread_t thread;
 
-public: 
+public:
   eos::common::RWMutex Mutex;
 
-  TransferMultiplexer();
-  ~TransferMultiplexer();
+  TransferMultiplexer ();
+  ~TransferMultiplexer ();
 
-  void Add(TransferQueue* queue) {
+  void
+  Add (TransferQueue* queue)
+  {
     eos::common::RWMutexWriteLock lock(Mutex);
     // add all queues and then call Run()
     mQueues.push_back(queue);
   }
 
-  void SetSlots(size_t slots);    // apply in all attached queues
-  void SetBandwidth(size_t band); // apply in all attached queues
+  void SetSlots (size_t slots); // apply in all attached queues
+  void SetBandwidth (size_t band); // apply in all attached queues
 
-  void Run(); //  start the multiplexer thread (add all queues beforehand)
-  void Stop(); // stop the multiplexer thread
+  void Run (); //  start the multiplexer thread (add all queues beforehand)
+  void Stop (); // stop the multiplexer thread
 
-  static void* StaticThreadProc(void*);
-  void* ThreadProc();
+  static void* StaticThreadProc (void*);
+  void* ThreadProc ();
 };
 
 EOSFSTNAMESPACE_END

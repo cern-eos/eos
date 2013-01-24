@@ -8,9 +8,10 @@
 
 typedef unsigned char gf;
 
-typedef struct {
+typedef struct
+{
   unsigned long magic;
-  unsigned short k, n;                     /* parameters of the code */
+  unsigned short k, n; /* parameters of the code */
   gf* enc_matrix;
 } fec_t;
 
@@ -24,8 +25,8 @@ typedef struct {
  * param k the number of blocks required to reconstruct
  * param m the total number of blocks created
  */
-fec_t* fec_new(unsigned short k, unsigned short m);
-void fec_free(fec_t* p);
+fec_t* fec_new (unsigned short k, unsigned short m);
+void fec_free (fec_t* p);
 
 /**
  * @param inpkts the "primary blocks" i.e. the chunks of the input data
@@ -34,7 +35,7 @@ void fec_free(fec_t* p);
  * @param num_block_nums the length of the block_nums array
  * @param sz size of a packet in bytes
  */
-void fec_encode(const fec_t* code, const gf* __restrict const* __restrict const src, gf* __restrict const* __restrict const fecs, const unsigned* __restrict const block_nums, size_t num_block_nums, size_t sz);
+void fec_encode (const fec_t* code, const gf* __restrict const* __restrict const src, gf* __restrict const* __restrict const fecs, const unsigned* __restrict const block_nums, size_t num_block_nums, size_t sz);
 
 /**
  * @param inpkts an array of packets (size k); If a primary block, i, is present then it must be at index i. Secondary blocks can appear anywhere.
@@ -42,7 +43,7 @@ void fec_encode(const fec_t* code, const gf* __restrict const* __restrict const 
  * @param index an array of the blocknums of the packets in inpkts
  * @param sz size of a packet in bytes
  */
-void fec_decode(const fec_t* code, const gf* __restrict const* __restrict const inpkts, gf* __restrict const* __restrict const outpkts, const unsigned* __restrict const index, size_t sz);
+void fec_decode (const fec_t* code, const gf* __restrict const* __restrict const inpkts, gf* __restrict const* __restrict const outpkts, const unsigned* __restrict const index, size_t sz);
 
 #if defined(_MSC_VER)
 #define alloca _alloca

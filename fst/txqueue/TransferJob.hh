@@ -38,42 +38,42 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-class TransferJob: public XrdJob {
-
+class TransferJob : public XrdJob
+{
 private:
   TransferQueue* mQueue;
   eos::common::TransferJob* mJob;
   int mBandWidth; // band width in Mb/s
-  int mTimeOut;   // max duration for a transfer in seconds
-  int mStreams;   // number of streams to use
+  int mTimeOut; // max duration for a transfer in seconds
+  int mStreams; // number of streams to use
   XrdOucString mSourceUrl;
   XrdOucString mTargetUrl;
   XrdOucString mProgressFile;
   float mLastProgress; // last progress value which was broadcasted to the MGM
   int mLastState; // last state set
-  long long mId;  // the ID is only used for scheduled gateway transfers (managed via 'transfer' console)
-  
+  long long mId; // the ID is only used for scheduled gateway transfers (managed via 'transfer' console)
+
   pthread_t mProgressThread; // the id of the thread posting the transfer progress
-  pthread_t mDoItThread;     // the id of the thread running the DoIt function
-  XrdSysMutex mCancelMutex;  // protects the canceled variable
-  bool      mCanceled;       // this indicates that the thread should
+  pthread_t mDoItThread; // the id of the thread running the DoIt function
+  XrdSysMutex mCancelMutex; // protects the canceled variable
+  bool mCanceled; // this indicates that the thread should
 public:
 
-  TransferJob(TransferQueue* queue, eos::common::TransferJob* cjob,  int bw, int timeout=7200);
-  ~TransferJob();
+  TransferJob (TransferQueue* queue, eos::common::TransferJob* cjob, int bw, int timeout = 7200);
+  ~TransferJob ();
 
-  void DoIt();
-  std::string NewUuid();
+  void DoIt ();
+  std::string NewUuid ();
 
-  const char* GetSourceUrl();
-  const char* GetTargetUrl();
-  
-  XrdSysMutex SendMutex;  // protecting the send state function against paralle usage
+  const char* GetSourceUrl ();
+  const char* GetTargetUrl ();
 
-  int SendState(int state, const char* logfile=0, float progress=0.0);
-  
-  static void* StaticProgress(void*);
-  void* Progress();
+  XrdSysMutex SendMutex; // protecting the send state function against paralle usage
+
+  int SendState (int state, const char* logfile = 0, float progress = 0.0);
+
+  static void* StaticProgress (void*);
+  void* Progress ();
 };
 
 EOSFSTNAMESPACE_END

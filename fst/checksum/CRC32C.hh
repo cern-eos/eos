@@ -34,65 +34,93 @@
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <zlib.h>
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-class CRC32C : public CheckSum {
+class CRC32C : public CheckSum
+{
 private:
   off_t crc32coffset;
   uint32_t crcsum;
   bool finalized;
 
 public:
-  CRC32C() : CheckSum("crc32c") {Reset();}
 
-  off_t GetLastOffset() {return crc32coffset;}
+  CRC32C () : CheckSum ("crc32c")
+  {
+    Reset();
+  }
 
-  bool Add(const char* buffer, size_t length, off_t offset) {
-    if (offset != crc32coffset) {
-      needsRecalculation = true;
-      return false;
+  off_t
+  GetLastOffset ()
+  {
+    return crc32coffset;
+  }
+
+  bool
+  Add (const char* buffer, size_t length, off_t offset)
+  {
+    if (offset != crc32coffset)
+    {
+        needsRecalculation = true;
+        return false;
     }
     crcsum = checksum::crc32c(crcsum, (const Bytef*) buffer, length);
     crc32coffset += length;
     return true;
   }
 
-  const char* GetHexChecksum() {
+  const char*
+  GetHexChecksum ()
+  {
     if (!finalized)
-      Finalize();
+        Finalize();
 
     char scrc32[1024];
-    sprintf(scrc32,"%08x",crcsum);
+    sprintf(scrc32, "%08x", crcsum);
     Checksum = scrc32;
     return Checksum.c_str();
   }
 
-  const char* GetBinChecksum(int &len) {
+  const char*
+  GetBinChecksum (int &len)
+  {
     if (!finalized)
-      Finalize();
+        Finalize();
 
-    len = sizeof(unsigned int);
+    len = sizeof (unsigned int);
     return (char*) &crcsum;
   }
 
-  int GetCheckSumLen() { return sizeof(unsigned int);}
+  int
+  GetCheckSumLen ()
+  {
+    return sizeof (unsigned int);
+  }
 
-  void Reset() {
+  void
+  Reset ()
+  {
     crcsum = checksum::crc32cInit();
-    crc32coffset = 0; 
-    needsRecalculation=0;
+    crc32coffset = 0;
+    needsRecalculation = 0;
     finalized = false;
   }
 
-  void Finalize() {
-    if (!finalized) {
-      crcsum = checksum::crc32cFinish(crcsum);
-      finalized = true;
+  void
+  Finalize ()
+  {
+    if (!finalized)
+    {
+        crcsum = checksum::crc32cFinish(crcsum);
+        finalized = true;
     }
   }
-  virtual ~CRC32C(){};
+
+  virtual
+  ~CRC32C () { };
 
 };
 

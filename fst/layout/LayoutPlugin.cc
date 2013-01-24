@@ -28,6 +28,7 @@
 #include "fst/layout/ReplicaParLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -35,48 +36,52 @@ EOSFSTNAMESPACE_BEGIN
 //--------------------------------------------------------------------------
 // Constructor
 //--------------------------------------------------------------------------
-LayoutPlugin::LayoutPlugin()
-{
-  // empty
+LayoutPlugin::LayoutPlugin () {
+ // empty
 }
 
 
 //--------------------------------------------------------------------------
 // Destructor
 //--------------------------------------------------------------------------
-LayoutPlugin::~LayoutPlugin()
-{
-  //empty
+
+LayoutPlugin::~LayoutPlugin () {
+ //empty
 }
 
 
 //--------------------------------------------------------------------------
 // Get layout object
 //--------------------------------------------------------------------------
+
 Layout*
-LayoutPlugin::GetLayoutObject( XrdFstOfsFile*                 file,
-                               unsigned int                   layoutId,
-                               const XrdSecEntity*            client,
-                               XrdOucErrInfo*                 error,
-                               eos::common::LayoutId::eIoType io )
+LayoutPlugin::GetLayoutObject (XrdFstOfsFile* file,
+                               unsigned int layoutId,
+                               const XrdSecEntity* client,
+                               XrdOucErrInfo* error,
+                               eos::common::LayoutId::eIoType io)
 {
-  if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kPlain ) {
-    return static_cast<Layout*>( new PlainLayout( file, layoutId, client, error, io ) );
-  }
+ if (LayoutId::GetLayoutType(layoutId) == LayoutId::kPlain)
+ {
+   return static_cast<Layout*> (new PlainLayout(file, layoutId, client, error, io));
+ }
 
-  if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kReplica ) {
-    return static_cast<Layout*>( new ReplicaParLayout( file, layoutId, client, error, io) );
-  }
+ if (LayoutId::GetLayoutType(layoutId) == LayoutId::kReplica)
+ {
+   return static_cast<Layout*> (new ReplicaParLayout(file, layoutId, client, error, io));
+ }
 
-  if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kRaidDP ) {
-    return static_cast<Layout*>( new RaidDpLayout( file, layoutId, client, error, io ) );
-  }
+ if (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaidDP)
+ {
+   return static_cast<Layout*> (new RaidDpLayout(file, layoutId, client, error, io));
+ }
 
-  if ( LayoutId::GetLayoutType( layoutId ) == LayoutId::kReedS ) {
-    return static_cast<Layout*>( new ReedSLayout( file, layoutId, client, error, io ) );
-  }
-  
-  return 0;
+ if (LayoutId::GetLayoutType(layoutId) == LayoutId::kReedS)
+ {
+   return static_cast<Layout*> (new ReedSLayout(file, layoutId, client, error, io));
+ }
+
+ return 0;
 }
 
 EOSFSTNAMESPACE_END

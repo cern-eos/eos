@@ -35,6 +35,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOss/XrdOss.hh"
 #include "XrdSys/XrdSysPthread.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -44,137 +45,137 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class XrdFstOssFile : public XrdOssDF, public eos::common::LogId
 {
-  public:
+public:
 
-    //--------------------------------------------------------------------------
-    //! Constuctor
-    //!
-    //! @param tid
-    //!
-    //--------------------------------------------------------------------------
-    XrdFstOssFile( const char* tid );
-
-
-    //--------------------------------------------------------------------------
-    //! Destructor
-    //--------------------------------------------------------------------------
-    virtual ~XrdFstOssFile();
+  //--------------------------------------------------------------------------
+  //! Constuctor
+  //!
+  //! @param tid
+  //!
+  //--------------------------------------------------------------------------
+  XrdFstOssFile (const char* tid);
 
 
-    //--------------------------------------------------------------------------
-    //! Open function
-    //!
-    //! @param path file path
-    //! @param flags open flags
-    //! @param mode open mode
-    //! @param env env variables passed to the function
-    //!
-    //! @return XrdOssOK upon success, -errno otherwise
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Open( const char* path, int flags, mode_t mode, XrdOucEnv& env );
+  //--------------------------------------------------------------------------
+  //! Destructor
+  //--------------------------------------------------------------------------
+  virtual ~XrdFstOssFile ();
 
 
-    //--------------------------------------------------------------------------
-    //! Read
-    //!
-    //! @param buffer data container for read operation
-    //! @param offset file offet
-    //! @param length read length
-    //!
-    //! @return number of bytes read
-    //!
-    //--------------------------------------------------------------------------
-    ssize_t Read( void* buffer, off_t offset, size_t length );
+  //--------------------------------------------------------------------------
+  //! Open function
+  //!
+  //! @param path file path
+  //! @param flags open flags
+  //! @param mode open mode
+  //! @param env env variables passed to the function
+  //!
+  //! @return XrdOssOK upon success, -errno otherwise
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Open (const char* path, int flags, mode_t mode, XrdOucEnv& env);
 
 
-    //--------------------------------------------------------------------------
-    //! Read raw
-    //!
-    //! @param buffer data container for read operation
-    //! @param offset file offet
-    //! @param length read length
-    //!
-    //! @return number of bytes read
-    //!
-    //--------------------------------------------------------------------------
-    ssize_t ReadRaw( void* buffer, off_t offset, size_t length );
+  //--------------------------------------------------------------------------
+  //! Read
+  //!
+  //! @param buffer data container for read operation
+  //! @param offset file offet
+  //! @param length read length
+  //!
+  //! @return number of bytes read
+  //!
+  //--------------------------------------------------------------------------
+  ssize_t Read (void* buffer, off_t offset, size_t length);
 
 
-    //--------------------------------------------------------------------------
-    //! Write
-    //!
-    //! @param buffer data container for write operation
-    //! @param offset file offet
-    //! @param length write length
-    //!
-    //! @return number of byes written
-    //!
-    //--------------------------------------------------------------------------
-    ssize_t Write( const void* buffer, off_t offset, size_t length );
+  //--------------------------------------------------------------------------
+  //! Read raw
+  //!
+  //! @param buffer data container for read operation
+  //! @param offset file offet
+  //! @param length read length
+  //!
+  //! @return number of bytes read
+  //!
+  //--------------------------------------------------------------------------
+  ssize_t ReadRaw (void* buffer, off_t offset, size_t length);
 
 
-    //--------------------------------------------------------------------------
-    //! Chmod function
-    //!
-    //! @param mode the mode to set
-    //!
-    //! @return XrdOssOK upon success, (-errno) upon failure
-    //!
-    //--------------------------------------------------------------------------
-    int Fchmod( mode_t mode );
+  //--------------------------------------------------------------------------
+  //! Write
+  //!
+  //! @param buffer data container for write operation
+  //! @param offset file offet
+  //! @param length write length
+  //!
+  //! @return number of byes written
+  //!
+  //--------------------------------------------------------------------------
+  ssize_t Write (const void* buffer, off_t offset, size_t length);
 
 
-    //--------------------------------------------------------------------------
-    //! Get file status
-    //!
-    //! @param statinfo stat info structure
-    //!
-    //! @return XrdOssOK upon success, (-errno) upon failure
-    //!
-    //--------------------------------------------------------------------------
-    int Fstat( struct stat* statinfo );
+  //--------------------------------------------------------------------------
+  //! Chmod function
+  //!
+  //! @param mode the mode to set
+  //!
+  //! @return XrdOssOK upon success, (-errno) upon failure
+  //!
+  //--------------------------------------------------------------------------
+  int Fchmod (mode_t mode);
 
 
-    //--------------------------------------------------------------------------
-    //! Sync file to local disk
-    //--------------------------------------------------------------------------
-    int Fsync();
+  //--------------------------------------------------------------------------
+  //! Get file status
+  //!
+  //! @param statinfo stat info structure
+  //!
+  //! @return XrdOssOK upon success, (-errno) upon failure
+  //!
+  //--------------------------------------------------------------------------
+  int Fstat (struct stat* statinfo);
 
 
-    //--------------------------------------------------------------------------
-    //! Truncate the file
-    //!
-    //! @param offset truncate offset
-    //!
-    //! @return XrdOssOK upon success, -1 upon failure
-    //!
-    //--------------------------------------------------------------------------
-    int Ftruncate( unsigned long long offset );
+  //--------------------------------------------------------------------------
+  //! Sync file to local disk
+  //--------------------------------------------------------------------------
+  int Fsync ();
 
 
-    //--------------------------------------------------------------------------
-    //! Get file descriptor
-    //--------------------------------------------------------------------------
-    int getFD();
+  //--------------------------------------------------------------------------
+  //! Truncate the file
+  //!
+  //! @param offset truncate offset
+  //!
+  //! @return XrdOssOK upon success, -1 upon failure
+  //!
+  //--------------------------------------------------------------------------
+  int Ftruncate (unsigned long long offset);
 
 
-    //--------------------------------------------------------------------------
-    //! Close function
-    //!
-    //! @param retsz
-    //!
-    //! @return XrdOssOK upon success, -1 otherwise
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Close( long long* retsz = 0 );
+  //--------------------------------------------------------------------------
+  //! Get file descriptor
+  //--------------------------------------------------------------------------
+  int getFD ();
 
-  private:
 
-    XrdOucString        mPath;      ///< path of the file
-    bool                mIsRW;      ///< mark if opened for rw operations
-    XrdSysRWLock*       mRWLockXs;  ///< rw lock for the block xs
-    CheckSum*           mBlockXs;   ///< block xs object
+  //--------------------------------------------------------------------------
+  //! Close function
+  //!
+  //! @param retsz
+  //!
+  //! @return XrdOssOK upon success, -1 otherwise
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Close (long long* retsz = 0);
+
+private:
+
+  XrdOucString mPath; ///< path of the file
+  bool mIsRW; ///< mark if opened for rw operations
+  XrdSysRWLock* mRWLockXs; ///< rw lock for the block xs
+  CheckSum* mBlockXs; ///< block xs object
 };
 
 EOSFSTNAMESPACE_END

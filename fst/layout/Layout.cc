@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/Layout.hh"
 #include "fst/XrdFstOfsFile.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -31,39 +32,40 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Layout::Layout( XrdFstOfsFile* file ):
-  mOfsFile( file )
+Layout::Layout (XrdFstOfsFile* file) :
+mOfsFile (file)
 {
-  mName = "";
+ mName = "";
 }
 
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Layout::Layout( XrdFstOfsFile*                 file,
-                int                            lid,
-                const XrdSecEntity*            client,
-                XrdOucErrInfo*                 outError,
-                eos::common::LayoutId::eIoType io ):
-  mLayoutId( lid ),
-  mOfsFile( file ),
-  mError( outError ),
-  mIoType( io )
+
+Layout::Layout (XrdFstOfsFile* file,
+                int lid,
+                const XrdSecEntity* client,
+                XrdOucErrInfo* outError,
+                eos::common::LayoutId::eIoType io) :
+mLayoutId (lid),
+mOfsFile (file),
+mError (outError),
+mIoType (io)
 {
-  mSecEntity = const_cast<XrdSecEntity*>( client );
-  mName = eos::common::LayoutId::GetLayoutTypeString( mLayoutId );
-  mIsEntryServer = false;
-  mLocalPath = "";
+ mSecEntity = const_cast<XrdSecEntity*> (client);
+ mName = eos::common::LayoutId::GetLayoutTypeString(mLayoutId);
+ mIsEntryServer = false;
+ mLocalPath = "";
 }
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-Layout::~Layout()
-{
-  // empty
+
+Layout::~Layout () {
+ // empty
 }
 
 EOSFSTNAMESPACE_END

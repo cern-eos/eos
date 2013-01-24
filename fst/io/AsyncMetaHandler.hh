@@ -45,78 +45,79 @@ class ChunkHandler;
 //------------------------------------------------------------------------------
 //! Class for handling async responses
 //------------------------------------------------------------------------------
+
 class AsyncMetaHandler
 {
-  public:
+public:
 
-    //--------------------------------------------------------------------------
-    //! Constructor
-    //--------------------------------------------------------------------------
-    AsyncMetaHandler();
-
-  
-    //--------------------------------------------------------------------------
-    //! Destructor
-    //--------------------------------------------------------------------------
-    virtual ~AsyncMetaHandler();
-
-  
-    //--------------------------------------------------------------------------
-    //! Handle response
-    //!
-    //! @param pStatus status of the request
-    //! @param chunk received chunk response
-    //!
-    //--------------------------------------------------------------------------
-    virtual void HandleResponse( XrdCl::XRootDStatus* pStatus,
-                                 ChunkHandler*        chunk );
-
-  
-    //--------------------------------------------------------------------------
-    //! Wait for responses
-    //--------------------------------------------------------------------------
-    bool WaitOK();
-
-  
-    //--------------------------------------------------------------------------
-    //! Register a new request for the current file
-    //!
-    //! @param offset request offset
-    //! @param length request length
-    //! @param isWrite set if it is a write request
-    //!
-    //! @return new chunk async handler object
-    //! 
-    //--------------------------------------------------------------------------
-    ChunkHandler* Register( uint64_t offset, uint32_t length, bool isWrite );
+  //--------------------------------------------------------------------------
+  //! Constructor
+  //--------------------------------------------------------------------------
+  AsyncMetaHandler ();
 
 
-    //--------------------------------------------------------------------------
-    //! Get map of errors
-    //--------------------------------------------------------------------------
-    const std::map<uint64_t, uint32_t>& GetErrorsMap();
-  
-  
-    //--------------------------------------------------------------------------
-    //! Reset
-    //--------------------------------------------------------------------------
-    void Reset();
+  //--------------------------------------------------------------------------
+  //! Destructor
+  //--------------------------------------------------------------------------
+  virtual ~AsyncMetaHandler ();
 
-  private:
 
-    bool mState;           ///< true if all requests are ok, otherwise false
-    int mNumExpectedResp;  ///< expected number of responses
-    int mNumReceivedResp;  ///< received number of responses
-    XrdSysCondVar mCond;   ///< condition variable to signal the receival of
-                           ///< all responses
-  
-    std::list<ChunkHandler*> listReq;        ///< list of registered async requests
-    std::list<ChunkHandler*> listCache;      ///< list of cached request objects
-    std::map<uint64_t, uint32_t> mMapErrors; ///< chunks for which the request failed
+  //--------------------------------------------------------------------------
+  //! Handle response
+  //!
+  //! @param pStatus status of the request
+  //! @param chunk received chunk response
+  //!
+  //--------------------------------------------------------------------------
+  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
+                               ChunkHandler* chunk);
 
-    ///! maximum number of obj in cache used for recycling
-    static const unsigned int msMaxCacheSize;
-  
+
+  //--------------------------------------------------------------------------
+  //! Wait for responses
+  //--------------------------------------------------------------------------
+  bool WaitOK ();
+
+
+  //--------------------------------------------------------------------------
+  //! Register a new request for the current file
+  //!
+  //! @param offset request offset
+  //! @param length request length
+  //! @param isWrite set if it is a write request
+  //!
+  //! @return new chunk async handler object
+  //! 
+  //--------------------------------------------------------------------------
+  ChunkHandler* Register (uint64_t offset, uint32_t length, bool isWrite);
+
+
+  //--------------------------------------------------------------------------
+  //! Get map of errors
+  //--------------------------------------------------------------------------
+  const std::map<uint64_t, uint32_t>& GetErrorsMap ();
+
+
+  //--------------------------------------------------------------------------
+  //! Reset
+  //--------------------------------------------------------------------------
+  void Reset ();
+
+private:
+
+  bool mState; ///< true if all requests are ok, otherwise false
+  int mNumExpectedResp; ///< expected number of responses
+  int mNumReceivedResp; ///< received number of responses
+  XrdSysCondVar mCond; ///< condition variable to signal the receival of
+  ///< all responses
+
+  std::list<ChunkHandler*> listReq; ///< list of registered async requests
+  std::list<ChunkHandler*> listCache; ///< list of cached request objects
+  std::map<uint64_t, uint32_t> mMapErrors; ///< chunks for which the request failed
+
+  ///! maximum number of obj in cache used for recycling
+  static const unsigned int msMaxCacheSize;
+
 };
 
 EOSFSTNAMESPACE_END

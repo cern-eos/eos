@@ -28,6 +28,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "fst/layout/RaidMetaLayout.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -41,242 +42,242 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class RaidDpLayout : public RaidMetaLayout
 {
-  public:
+public:
 
-    //--------------------------------------------------------------------------
-    //! Constructor
-    //!
-    //! @param file handler to current file
-    //! @param lid layout id
-    //! @param client security information
-    //! @param outError error information
-    //! @param io access type 
-    //! @param storeRecovery if true write back the recovered blocks to file
-    //! @param isStreaming file is written in streaming mode
-    //! @param targetSize expected final size
-    //! @param bookingOpaque opaque information
-    //!
-    //--------------------------------------------------------------------------
-    RaidDpLayout( XrdFstOfsFile*                 file,
-                  int                            lid,
-                  const XrdSecEntity*            client,
-                  XrdOucErrInfo*                 outError,
-                  eos::common::LayoutId::eIoType io,
-                  bool                           storeRecovery = false,
-                  bool                           isStreaming = false,
-                  off_t                          targetSize = 0,
-                  std::string                    bookingOpaque = "oss.size" );
-
-
-    //--------------------------------------------------------------------------
-    //! Truncate file
-    //!
-    //! @param offset truncate value
-    //!
-    //! @return 0 if successful, otherwise error
-    //!
-    //--------------------------------------------------------------------------
-    virtual int Truncate( XrdSfsFileOffset offset );
+  //--------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param file handler to current file
+  //! @param lid layout id
+  //! @param client security information
+  //! @param outError error information
+  //! @param io access type 
+  //! @param storeRecovery if true write back the recovered blocks to file
+  //! @param isStreaming file is written in streaming mode
+  //! @param targetSize expected final size
+  //! @param bookingOpaque opaque information
+  //!
+  //--------------------------------------------------------------------------
+  RaidDpLayout (XrdFstOfsFile* file,
+                int lid,
+                const XrdSecEntity* client,
+                XrdOucErrInfo* outError,
+                eos::common::LayoutId::eIoType io,
+                bool storeRecovery = false,
+                bool isStreaming = false,
+                off_t targetSize = 0,
+                std::string bookingOpaque = "oss.size");
 
 
-    //--------------------------------------------------------------------------
-    //! Destructor
-    //--------------------------------------------------------------------------
-    virtual ~RaidDpLayout();
+  //--------------------------------------------------------------------------
+  //! Truncate file
+  //!
+  //! @param offset truncate value
+  //!
+  //! @return 0 if successful, otherwise error
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Truncate (XrdSfsFileOffset offset);
 
 
-  private:
-
-    //--------------------------------------------------------------------------
-    //! Add data block to compute parity stripes for current group of blocks
-    //! - used for the streaming mode
-    //!
-    //! @param offset block offset
-    //! @param buffer data buffer
-    //! @param length data length
-    //!
-    //--------------------------------------------------------------------------
-    virtual void AddDataBlock( off_t offset, const char* buffer, size_t length );
+  //--------------------------------------------------------------------------
+  //! Destructor
+  //--------------------------------------------------------------------------
+  virtual ~RaidDpLayout ();
 
 
-    //--------------------------------------------------------------------------
-    //! Compute parity information
-    //--------------------------------------------------------------------------
-    virtual void ComputeParity();
+private:
+
+  //--------------------------------------------------------------------------
+  //! Add data block to compute parity stripes for current group of blocks
+  //! - used for the streaming mode
+  //!
+  //! @param offset block offset
+  //! @param buffer data buffer
+  //! @param length data length
+  //!
+  //--------------------------------------------------------------------------
+  virtual void AddDataBlock (off_t offset, const char* buffer, size_t length);
 
 
-    //--------------------------------------------------------------------------
-    //! Write parity information corresponding to a group to files
-    //!
-    //! @param offsetGroup offset of the group of blocks
-    //!
-    //! @return 0 if successful, otherwise error
-    //!
-    //--------------------------------------------------------------------------
-    virtual int WriteParityToFiles( off_t offsetGroup );
+  //--------------------------------------------------------------------------
+  //! Compute parity information
+  //--------------------------------------------------------------------------
+  virtual void ComputeParity ();
 
 
-    //--------------------------------------------------------------------------
-    //! Compute XOR operation for two blocks of any size
-    //!
-    //! @param pBlock1 first input block
-    //! @param pBlock2 second input block
-    //! @param pResult result of XOR operation
-    //! @param totalBytes size of input blocks
-    //!
-    //--------------------------------------------------------------------------
-    void OperationXOR( char*  pBlock1,
-                       char*  pBlock2,
-                       char*  pResult,
-                       size_t totalBytes );
+  //--------------------------------------------------------------------------
+  //! Write parity information corresponding to a group to files
+  //!
+  //! @param offsetGroup offset of the group of blocks
+  //!
+  //! @return 0 if successful, otherwise error
+  //!
+  //--------------------------------------------------------------------------
+  virtual int WriteParityToFiles (off_t offsetGroup);
 
 
-    //--------------------------------------------------------------------------
-    //! Do recovery in the current group using simple and/or double parity
-    //!
-    //! @param offsetInit file offset corresponding to byte 0 from the buffer
-    //! @param pBuffer buffer where to save the recovered data
-    //! @param rMapPieces map containing corrupted pieces only from a group
-    //!
-    //! @return true if successful, otherwise error
-    //!
-    //--------------------------------------------------------------------------
-    bool RecoverPiecesInGroup( off_t                    offsetInit,
-                               char*                    pBuffer,
-                               std::map<off_t, size_t>& rMapPieces );
+  //--------------------------------------------------------------------------
+  //! Compute XOR operation for two blocks of any size
+  //!
+  //! @param pBlock1 first input block
+  //! @param pBlock2 second input block
+  //! @param pResult result of XOR operation
+  //! @param totalBytes size of input blocks
+  //!
+  //--------------------------------------------------------------------------
+  void OperationXOR (char* pBlock1,
+                     char* pBlock2,
+                     char* pResult,
+                     size_t totalBytes);
 
 
-    //--------------------------------------------------------------------------
-    //! Return diagonal stripe corresponding to current block
-    //!
-    //! @param blockId block id
-    //!
-    //! @return vector containing the blocks on the diagonal stripe
-    //!
-    //--------------------------------------------------------------------------
-    std::vector<unsigned int> GetDiagonalStripe( unsigned int blockId );
+  //--------------------------------------------------------------------------
+  //! Do recovery in the current group using simple and/or double parity
+  //!
+  //! @param offsetInit file offset corresponding to byte 0 from the buffer
+  //! @param pBuffer buffer where to save the recovered data
+  //! @param rMapPieces map containing corrupted pieces only from a group
+  //!
+  //! @return true if successful, otherwise error
+  //!
+  //--------------------------------------------------------------------------
+  bool RecoverPiecesInGroup (off_t offsetInit,
+                             char* pBuffer,
+                             std::map<off_t, size_t>& rMapPieces);
 
 
-    //--------------------------------------------------------------------------
-    //! Validate horizontal stripe for a block index
-    //!
-    //! @param rStripes horizontal stripe for current block id
-    //! @param pStatusBlock status of the blocks
-    //! @param blockId current block index
-    //!
-    //! @return true if successful, otherwise false
-    //!
-    //--------------------------------------------------------------------------
-    bool ValidHorizStripe( std::vector<unsigned int>& rStripes,
-                           bool*                      pStatusBlock,
-                           unsigned int               blockId );
+  //--------------------------------------------------------------------------
+  //! Return diagonal stripe corresponding to current block
+  //!
+  //! @param blockId block id
+  //!
+  //! @return vector containing the blocks on the diagonal stripe
+  //!
+  //--------------------------------------------------------------------------
+  std::vector<unsigned int> GetDiagonalStripe (unsigned int blockId);
 
 
-    //--------------------------------------------------------------------------
-    //! Validate diagonal stripe for a block index
-    //!
-    //! @param rStripes diagonal stripe for current block id
-    //! @param pStatusBlock vector of block's status
-    //! @param blockId current block index
-    //!
-    //! @return true if successful, otherwise false
-    //!
-    //--------------------------------------------------------------------------
-    bool ValidDiagStripe( std::vector<unsigned int>& rStripes,
-                          bool*                      pStatusBlock,
-                          unsigned int               blockId );
+  //--------------------------------------------------------------------------
+  //! Validate horizontal stripe for a block index
+  //!
+  //! @param rStripes horizontal stripe for current block id
+  //! @param pStatusBlock status of the blocks
+  //! @param blockId current block index
+  //!
+  //! @return true if successful, otherwise false
+  //!
+  //--------------------------------------------------------------------------
+  bool ValidHorizStripe (std::vector<unsigned int>& rStripes,
+                         bool* pStatusBlock,
+                         unsigned int blockId);
 
 
-    //--------------------------------------------------------------------------
-    //! Get indices of the simple parity blocks
-    //!
-    //! @return vecttor containing the values of the simple parity indices
-    //!
-    //--------------------------------------------------------------------------
-    std::vector<unsigned int> GetSimpleParityIndices();
+  //--------------------------------------------------------------------------
+  //! Validate diagonal stripe for a block index
+  //!
+  //! @param rStripes diagonal stripe for current block id
+  //! @param pStatusBlock vector of block's status
+  //! @param blockId current block index
+  //!
+  //! @return true if successful, otherwise false
+  //!
+  //--------------------------------------------------------------------------
+  bool ValidDiagStripe (std::vector<unsigned int>& rStripes,
+                        bool* pStatusBlock,
+                        unsigned int blockId);
 
 
-    //--------------------------------------------------------------------------
-    //! Get indices of the double parity blocks
-    //!
-    //! @return vector containing the values of the double parity indices
-    //!
-    //--------------------------------------------------------------------------
-    std::vector<unsigned int> GetDoubleParityIndices();
+  //--------------------------------------------------------------------------
+  //! Get indices of the simple parity blocks
+  //!
+  //! @return vecttor containing the values of the simple parity indices
+  //!
+  //--------------------------------------------------------------------------
+  std::vector<unsigned int> GetSimpleParityIndices ();
 
 
-    //--------------------------------------------------------------------------
-    //! Get simple parity block corresponding to current block
-    //!
-    //! @param elemFromStripe any element from the current stripe
-    //!
-    //! @return value of the simple parity index
-    //!
-    //--------------------------------------------------------------------------
-    unsigned int GetSParityBlock( unsigned int elemFromStripe );
+  //--------------------------------------------------------------------------
+  //! Get indices of the double parity blocks
+  //!
+  //! @return vector containing the values of the double parity indices
+  //!
+  //--------------------------------------------------------------------------
+  std::vector<unsigned int> GetDoubleParityIndices ();
 
 
-    //--------------------------------------------------------------------------
-    //! Get double parity blocks corresponding to current stripe
-    //!
-    //! @param rStripe elements from the current stripe
-    //!
-    //! @return value of the double parity block
-    //!
-    //--------------------------------------------------------------------------
-    unsigned int GetDParityBlock( std::vector<unsigned int>& rStripe );
+  //--------------------------------------------------------------------------
+  //! Get simple parity block corresponding to current block
+  //!
+  //! @param elemFromStripe any element from the current stripe
+  //!
+  //! @return value of the simple parity index
+  //!
+  //--------------------------------------------------------------------------
+  unsigned int GetSParityBlock (unsigned int elemFromStripe);
 
 
-    //--------------------------------------------------------------------------
-    //! Map index from nTotalBlocks representation to nDataBlocks
-    //!
-    //! @param idBig with values between 0 ans 23
-    //!
-    //! @return index with values between 0 and 15, -1 if error
-    //!
-    //--------------------------------------------------------------------------
-    unsigned int MapBigToSmall( unsigned int idBig );
+  //--------------------------------------------------------------------------
+  //! Get double parity blocks corresponding to current stripe
+  //!
+  //! @param rStripe elements from the current stripe
+  //!
+  //! @return value of the double parity block
+  //!
+  //--------------------------------------------------------------------------
+  unsigned int GetDParityBlock (std::vector<unsigned int>& rStripe);
 
 
-    //--------------------------------------------------------------------------
-    //! Map index from nDataBlocks representation to nTotalBlocks
-    //!
-    //! @param idSmall with values between 0 and 15
-    //!
-    //! @return index with values between 0 and 23, -1 if error
-    //!
-    //--------------------------------------------------------------------------
-    virtual unsigned int MapSmallToBig( unsigned int idSmall );
+  //--------------------------------------------------------------------------
+  //! Map index from nTotalBlocks representation to nDataBlocks
+  //!
+  //! @param idBig with values between 0 ans 23
+  //!
+  //! @return index with values between 0 and 15, -1 if error
+  //!
+  //--------------------------------------------------------------------------
+  unsigned int MapBigToSmall (unsigned int idBig);
 
 
-    //--------------------------------------------------------------------------
-    //! Disable copy constructor
-    //--------------------------------------------------------------------------
-    RaidDpLayout( const RaidDpLayout& ) = delete;
+  //--------------------------------------------------------------------------
+  //! Map index from nDataBlocks representation to nTotalBlocks
+  //!
+  //! @param idSmall with values between 0 and 15
+  //!
+  //! @return index with values between 0 and 23, -1 if error
+  //!
+  //--------------------------------------------------------------------------
+  virtual unsigned int MapSmallToBig (unsigned int idSmall);
 
 
-    //--------------------------------------------------------------------------
-    //! Disable assign operator
-    //--------------------------------------------------------------------------
-    RaidDpLayout& operator =( const RaidDpLayout& ) = delete;
+  //--------------------------------------------------------------------------
+  //! Disable copy constructor
+  //--------------------------------------------------------------------------
+  RaidDpLayout (const RaidDpLayout&) = delete;
 
 
-    //--------------------------------------------------------------------------
-    //! Do recovery using simple parity
-    //!
-    //! @param offsetInit file offset corresponding to byte 0 from the buffer
-    //! @param buffer buffer where to save the recovered data
-    //! @param mapPieces map containing corrupted pieces
-    //!
-    //! @return true if successful, otherwise error
-    //!
-    //--------------------------------------------------------------------------
-    /*
-    bool SimpleParityRecover( off_t                    offsetInit,
-                              char*                    buffer,
-                              std::map<off_t, size_t>& mapPieces,
-                              unsigned int&            blocksCorrupted);
-    */
+  //--------------------------------------------------------------------------
+  //! Disable assign operator
+  //--------------------------------------------------------------------------
+  RaidDpLayout& operator = (const RaidDpLayout&) = delete;
+
+
+  //--------------------------------------------------------------------------
+  //! Do recovery using simple parity
+  //!
+  //! @param offsetInit file offset corresponding to byte 0 from the buffer
+  //! @param buffer buffer where to save the recovered data
+  //! @param mapPieces map containing corrupted pieces
+  //!
+  //! @return true if successful, otherwise error
+  //!
+  //--------------------------------------------------------------------------
+  /*
+  bool SimpleParityRecover( off_t                    offsetInit,
+                            char*                    buffer,
+                            std::map<off_t, size_t>& mapPieces,
+                            unsigned int&            blocksCorrupted);
+   */
 
 
 };
