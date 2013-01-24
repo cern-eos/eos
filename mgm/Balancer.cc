@@ -160,8 +160,8 @@ Balancer::Balance(void)
           double dev=0;
 	  double avg=0;
 	  double fsdev=0;
-          if ( (dev=(*git)->MaxDeviation("stat.statfs.filled")) > SpaceDifferenceThreshold) {
-	    avg = (*git)->AverageDouble("stat.statfs.filled");
+          if ( (dev=(*git)->MaxDeviation("stat.statfs.filled"),false) > SpaceDifferenceThreshold) {
+	    avg = (*git)->AverageDouble("stat.statfs.filled",false);
 	    if (hasdrainjob) {
 	      // set status to 'drainwait'
 	      (*git)->SetConfigMember("stat.balancing","drainwait",false, "", true);

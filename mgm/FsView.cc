@@ -1395,31 +1395,33 @@ BaseView::SumLongLong(const char* param, bool lock)
 
 /*----------------------------------------------------------------------------*/
 double 
-BaseView::SumDouble(const char* param) 
+BaseView::SumDouble(const char* param, bool lock) 
 {
   //----------------------------------------------------------------
   //! computes the sum for <param> as double
   //----------------------------------------------------------------
 
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-  
+  if (lock) {FsView::gFsView.ViewMutex.LockRead();}
+
   double sum = 0;
   std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
   for (it=begin(); it != end(); it++) {
     sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
   }
+
+  if (lock) {FsView::gFsView.ViewMutex.UnLockRead();}
   return sum;
 }
 
 /*----------------------------------------------------------------------------*/
 double
-BaseView::AverageDouble(const char* param)
+BaseView::AverageDouble(const char* param, bool lock)
 {
   //----------------------------------------------------------------
   //! computes the average for <param>
   //----------------------------------------------------------------
 
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  if (lock) {FsView::gFsView.ViewMutex.LockRead();}
   
   double sum = 0;
   int cnt=0;
@@ -1439,20 +1441,21 @@ BaseView::AverageDouble(const char* param)
       sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
     }
   }
+
+  if (lock) {FsView::gFsView.ViewMutex.UnLockRead();}
   return (cnt)?(double)(1.0*sum/cnt):0;
 }
 
 double
-BaseView::MaxDeviation(const char* param)
+BaseView::MaxDeviation(const char* param, bool lock)
 {
   //----------------------------------------------------------------
   //! computes the maximum deviation of <param> from the avg of <param>
   //----------------------------------------------------------------
 
-  double avg = AverageDouble(param);
+  if (lock) {FsView::gFsView.ViewMutex.LockRead();}
 
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-  
+  double avg = AverageDouble(param, false);
   double maxdev = 0;
   double dev = 0;
 
@@ -1472,21 +1475,22 @@ BaseView::MaxDeviation(const char* param)
         maxdev = dev;
     }
   }
+  if (lock) {FsView::gFsView.ViewMutex.UnLockRead();}
   return (double)(maxdev);
 }
 
 /*----------------------------------------------------------------------------*/
 double
-BaseView::SigmaDouble(const char* param)
+BaseView::SigmaDouble(const char* param, bool lock)
 
 {  
   //----------------------------------------------------------------
   //! computes the sigma for <param>
   //----------------------------------------------------------------
 
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  if (lock) {FsView::gFsView.ViewMutex.LockRead();}
   
-  double avg = AverageDouble(param);
+  double avg = AverageDouble(param, false);
   double sumsquare=0;
   int cnt=0;
   std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
@@ -1506,7 +1510,7 @@ BaseView::SigmaDouble(const char* param)
   }
 
   sumsquare = (cnt)?sqrt(sumsquare/cnt):0;
-
+  if (lock) {FsView::gFsView.ViewMutex.UnLockRead();}
   return sumsquare;
 }
 
@@ -1650,11 +1654,11 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
       
       // sum printout
       if (formattags.count("sum")) {
-        snprintf(tmpline,sizeof(tmpline)-1,lformat,SumLongLong(formattags["sum"].c_str()));
+        snprintf(tmpline,sizeof(tmpline)-1,lformat,SumLongLong(formattags["sum"].c_str(), false));
         
         if ( ((formattags["format"].find("+")) != std::string::npos) ) {
           std::string ssize;
-          eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)SumLongLong(formattags["sum"].c_str()), formattags["unit"].c_str());
+          eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)SumLongLong(formattags["sum"].c_str(), false), formattags["unit"].c_str());
           snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
         } else {
           snprintf(line,sizeof(line)-1,lenformat,tmpline);
@@ -1692,11 +1696,11 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
       }
       
       if (formattags.count("avg")) {
-        snprintf(tmpline,sizeof(tmpline)-1,lformat,AverageDouble(formattags["avg"].c_str()));
+        snprintf(tmpline,sizeof(tmpline)-1,lformat,AverageDouble(formattags["avg"].c_str(),false));
         
         if ( (formattags["format"].find("+")!= std::string::npos) ) {
           std::string ssize;
-          eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)AverageDouble(formattags["avg"].c_str()), formattags["unit"].c_str());
+          eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)AverageDouble(formattags["avg"].c_str(),false), formattags["unit"].c_str());
           snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
         } else {
           snprintf(line,sizeof(line)-1,lenformat,tmpline);
@@ -1734,11 +1738,11 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
       }
 
       if (formattags.count("sig")) {
-        snprintf(tmpline,sizeof(tmpline)-1,lformat,SigmaDouble(formattags["sig"].c_str()));
+        snprintf(tmpline,sizeof(tmpline)-1,lformat,SigmaDouble(formattags["sig"].c_str(),false));
         
         if ( (formattags["format"].find("+")!= std::string::npos) ) {
           std::string ssize;
-          eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)SigmaDouble(formattags["sig"].c_str()), formattags["unit"].c_str());
+          eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)SigmaDouble(formattags["sig"].c_str(),false), formattags["unit"].c_str());
           snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
         } else {
           snprintf(line,sizeof(line)-1,lenformat,tmpline);
@@ -1775,11 +1779,11 @@ BaseView::Print(std::string &out, std::string headerformat, std::string listform
       }
 
       if (formattags.count("maxdev")) {
-        snprintf(tmpline,sizeof(tmpline)-1,lformat,MaxDeviation(formattags["maxdev"].c_str()));
+        snprintf(tmpline,sizeof(tmpline)-1,lformat,MaxDeviation(formattags["maxdev"].c_str(),false));
         
         if ( (formattags["format"].find("+")!= std::string::npos) ) {
           std::string ssize;
-          eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)MaxDeviation(formattags["maxdev"].c_str()), formattags["unit"].c_str());
+          eos::common::StringConversion::GetReadableSizeString(ssize,(unsigned long long)MaxDeviation(formattags["maxdev"].c_str(),false), formattags["unit"].c_str());
           snprintf(line,sizeof(line)-1,lenformat,ssize.c_str());
         } else {
           snprintf(line,sizeof(line)-1,lenformat,tmpline);
