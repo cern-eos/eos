@@ -91,6 +91,10 @@ add_executable (eos-mmap
 	       EosMmap.cc
 )
 
+add_executable (eosnsbench
+	        EosNamespaceBenchmark.cc
+)
+
 add_executable (testhmacsha256
 	        TestHmacSha256.cc
 		../common/SymKeys.hh            ../common/SymKeys.cc
@@ -111,6 +115,7 @@ target_link_libraries(xrdcppartial XrdPosix XrdUtils)
 target_link_libraries(eoschecksumbench XrdPosix eosCommon XrdUtils)
 
 target_link_libraries(eos-udp-dumper)
+target_link_libraries(eosnsbench eosCommon-Static eosNamespace-Static)
 target_link_libraries(testhmacsha256 eosCommon)
 
 set_target_properties ( xrdstress.exe PROPERTIES COMPILE_FLAGS "-std=gnu++0x -D_FILE_OFFSET_BITS=64" )
@@ -125,6 +130,7 @@ set_target_properties ( xrdcpshrink PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BIT
 set_target_properties ( xrdcptruncate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcppartial PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcpposixcache PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( eosnsbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -msse4.2" )
 
 INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR} FILES 
