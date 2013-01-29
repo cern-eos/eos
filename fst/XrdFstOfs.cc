@@ -848,6 +848,53 @@ XrdFstOfsFile::open(const char                *path,
     }
   }
 
+  // get the identity
+  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::Mapping::Nobody(vid);
+  
+  if ((val = capOpaque->Get("mgm.ruid"))) {
+    vid.uid = atoi(val);
+  } else {
+    return gOFS.Emsg(epname,error,EINVAL,"open - sec ruid missing",path);
+  }
+
+  if ((val = capOpaque->Get("mgm.rgid"))) {
+    vid.gid = atoi(val);
+  } else {
+    return gOFS.Emsg(epname,error,EINVAL,"open - sec rgid missing",path);
+  }
+
+  if ((val = capOpaque->Get("mgm.uid"))) {
+    vid.uid_list.clear();
+    vid.uid_list.push_back(atoi(val));
+  } else {
+    return gOFS.Emsg(epname,error,EINVAL,"open - sec uid missing",path);
+  }
+
+  if ((val = capOpaque->Get("mgm.gid"))) {
+    vid.gid_list.clear();
+    vid.gid_list.push_back(atoi(val));
+  } else {
+    return gOFS.Emsg(epname,error,EINVAL,"open - sec gid missing",path);
+  }
+
+  if ((val = capOpaque->Get("mgm.logid"))) {
+    snprintf(logId,sizeof(logId)-1,"%s", val);
+  }
+
+  SetLogId(logId, vid, tident);
+
+  eos_info("fstpath=%s", fstPath.c_str());
+
+  layOut = eos::fst::LayoutPlugins::GetLayoutObject(this, lid, &error);
+
+  if( !layOut) {
+    int envlen;
+    eos_err("unable to handle layout for %s", capOpaque->Env(envlen));
+    return gOFS.Emsg(epname,error,EINVAL,"open - illegal layout specified ",capOpaque->Env(envlen));
+  }
+
+  layOut->SetLogId(logId, vid, tident);
 
   // ------------------------------------------------------------------------
   // Code dealing with block checksums
@@ -884,46 +931,6 @@ XrdFstOfsFile::open(const char                *path,
     }
   } 
   
-  // get the identity
-
-  eos::common::Mapping::VirtualIdentity vid;
-  eos::common::Mapping::Nobody(vid);
-  
-
-  if ((val = capOpaque->Get("mgm.ruid"))) {
-    vid.uid = atoi(val);
-  } else {
-    return gOFS.Emsg(epname,error,EINVAL,"open - sec ruid missing",path);
-  }
-
-  if ((val = capOpaque->Get("mgm.rgid"))) {
-    vid.gid = atoi(val);
-  } else {
-    return gOFS.Emsg(epname,error,EINVAL,"open - sec rgid missing",path);
-  }
-
-  if ((val = capOpaque->Get("mgm.uid"))) {
-    vid.uid_list.clear();
-    vid.uid_list.push_back(atoi(val));
-  } else {
-    return gOFS.Emsg(epname,error,EINVAL,"open - sec uid missing",path);
-  }
-
-  if ((val = capOpaque->Get("mgm.gid"))) {
-    vid.gid_list.clear();
-    vid.gid_list.push_back(atoi(val));
-  } else {
-    return gOFS.Emsg(epname,error,EINVAL,"open - sec gid missing",path);
-  }
-
-  if ((val = capOpaque->Get("mgm.logid"))) {
-    snprintf(logId,sizeof(logId)-1,"%s", val);
-  }
-
-  SetLogId(logId, vid, tident);
-
-  eos_info("fstpath=%s", fstPath.c_str());
-
   // attach meta data
   fMd = gFmdSqliteHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
   if (!fMd) {
@@ -939,18 +946,7 @@ XrdFstOfsFile::open(const char                *path,
   }
 
   // call the checksum factory function with the selected layout
-  
-  layOut = eos::fst::LayoutPlugins::GetLayoutObject(this, lid, &error);
-
-  if( !layOut) {
-    int envlen;
-    eos_err("unable to handle layout for %s", capOpaque->Env(envlen));
-    delete fMd;
-    return gOFS.Emsg(epname,error,EINVAL,"open - illegal layout specified ",capOpaque->Env(envlen));
-  }
-
-  layOut->SetLogId(logId, vid, tident);
-
+ 
   if (isRW || ( ( opaqueCheckSum != "ignore") && 
 		((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) || 
 		 (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kPlain)))) {
