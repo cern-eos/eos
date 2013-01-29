@@ -236,7 +236,7 @@ Vid::Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
   if (skey.beginswith("vid:geotag")) {
     // remove from geo tag map
     XrdOucString gkey = skey;
-    gkey.erase("geotag:");
+    gkey.erase("vid:geotag:");
     nerased += eos::common::Mapping::gGeoMap.erase(gkey.c_str());
   } else {
     nerased += eos::common::Mapping::gVirtualUidMap.erase(skey.c_str());

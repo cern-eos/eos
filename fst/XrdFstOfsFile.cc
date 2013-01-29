@@ -486,6 +486,24 @@ XrdFstOfsFile::open (const char* path,
 
  SetLogId(logId, vid, tident);
  eos_info("fstpath=%s", fstPath.c_str());
+
+ //............................................................................
+ // Get the layout object
+ //............................................................................
+ layOut = eos::fst::LayoutPlugin::GetLayoutObject(this, lid, client, &error,
+                                                  eos::common::LayoutId::kLocal);
+
+ if (!layOut)
+ {
+   int envlen;
+   eos_err("unable to handle layout for %s", capOpaque->Env(envlen));
+   delete fMd;
+   return gOFS.Emsg(epname, error, EINVAL, "open - illegal layout specified ",
+                    capOpaque->Env(envlen));
+ }
+
+ layOut->SetLogId(logId, vid, tident);
+
  //............................................................................
  // Attach meta data
  //............................................................................
@@ -511,19 +529,6 @@ XrdFstOfsFile::open (const char* path,
  //............................................................................
  // Call the checksum factory function with the selected layout
  //............................................................................
- layOut = eos::fst::LayoutPlugin::GetLayoutObject(this, lid, client, &error,
-                                                  eos::common::LayoutId::kLocal);
-
- if (!layOut)
- {
-   int envlen;
-   eos_err("unable to handle layout for %s", capOpaque->Env(envlen));
-   delete fMd;
-   return gOFS.Emsg(epname, error, EINVAL, "open - illegal layout specified ",
-                    capOpaque->Env(envlen));
- }
-
- layOut->SetLogId(logId, vid, tident);
 
  if (isRW || (opaqueCheckSum != "ignore"))
  {
