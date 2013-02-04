@@ -228,7 +228,8 @@ void xrd_store_child_p2i( unsigned long long inode,
   std::string fullpath = inode2path[inode];
   std::string sname = name;
 
-  eos_static_debug( "full path is: %s.", fullpath.c_str() );
+  eos_static_debug( "parent_inode=%llu, child_inode=%llu, name=%s, fullpath=%s",
+                   inode, childinode, name, fullpath.c_str() );
 
   if ( sname != "." ) {
     // we don't need to store this one
@@ -255,12 +256,10 @@ void xrd_store_child_p2i( unsigned long long inode,
       fullpath += name;
     }
 
-    if ( ( sname != "..") && ( fullpath != "/" ) )  {
-      eos_static_debug( "sname=%s fullpath=%s inode=%llu childinode=%llu ",
-                        sname.c_str(), fullpath.c_str(), inode, childinode );
-      path2inode[fullpath] = childinode;
-      inode2path[childinode] = fullpath;
-    }
+    eos_static_debug( "sname=%s fullpath=%s inode=%llu childinode=%llu ",
+                      sname.c_str(), fullpath.c_str(), inode, childinode );
+    path2inode[fullpath] = childinode;
+    inode2path[childinode] = fullpath;
   }
 }
 
