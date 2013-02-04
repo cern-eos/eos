@@ -1838,6 +1838,7 @@ int xrd_open_retc_map( int retc )
   if (retc) {
       return -1;
   }
+
   return 0;
 }
 
@@ -2033,11 +2034,11 @@ int xrd_open( const char* path, int oflags, mode_t mode )
           if ( retc ) {
             eos_static_err( "error=failed open for pio red, path=%s",spath.c_str() );
             delete file;
+            return xrd_open_retc_map(errno);
           } else {
             retc = xrd_add_fd2file( file );
+            return retc;
           }
-
-          return xrd_open_retc_map(errno);
         }
       }
       else {
@@ -2061,10 +2062,8 @@ int xrd_open( const char* path, int oflags, mode_t mode )
     return xrd_open_retc_map(errno);
   } else {
     retc = xrd_add_fd2file( file );
-  }
-  
-  return retc;
-  
+    return retc;
+  }  
 }
 
 
@@ -2432,7 +2431,7 @@ void xrd_init()
   } else {
     eos::common::Logging::SetLogPriority( LOG_INFO );
   }
-  
+
   //............................................................................
   // Initialise the XrdClFileSystem object
   //............................................................................
