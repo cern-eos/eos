@@ -321,10 +321,9 @@ RaidMetaLayout::Open (const std::string& path,
 
        stripe_urls[i] += remoteOpenOpaque.c_str();
        int ret = -1;
-       uint16_t flags_xrdcl;
        uint16_t mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW |
-         XrdCl::Access::GR | XrdCl::Access::GW |
-         XrdCl::Access::OR;
+           XrdCl::Access::GR | XrdCl::Access::GW |
+           XrdCl::Access::OR;
 
        FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kXrdCl,
                                                 mOfsFile,
@@ -337,20 +336,10 @@ RaidMetaLayout::Open (const std::string& path,
        if (mStoreRecovery || (flags & (SFS_O_RDWR | SFS_O_TRUNC)))
        {
          mIsRw = true;
-         if (flags & SFS_O_TRUNC)
-         {
-           flags_xrdcl = XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update;
-           eos_debug("Write case.");
-         }
-         else
-         {
-           flags_xrdcl = XrdCl::OpenFlags::Update;
-           eos_debug("Update case.");
-         }
+         eos_debug( "Write case." );
        }
        else
        {
-         flags_xrdcl = XrdCl::OpenFlags::Read;
          mode_xrdcl = 0;
          eos_debug("Read case.");
        }
@@ -359,7 +348,7 @@ RaidMetaLayout::Open (const std::string& path,
        //........................................................................
        // Doing the actual open
        //........................................................................
-       ret = file->Open(stripe_urls[i], flags_xrdcl, mode_xrdcl,
+       ret = file->Open(stripe_urls[i], flags, mode_xrdcl,
                         enhanced_opaque.c_str());
 
        if (ret == SFS_ERROR)
@@ -479,10 +468,9 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    return SFS_ERROR;
  }
 
- int64_t flags_xrdcl = XrdCl::OpenFlags::Read;
  int64_t mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW |
-   XrdCl::Access::GR | XrdCl::Access::GW |
-   XrdCl::Access::OR;
+     XrdCl::Access::GR | XrdCl::Access::GW |
+     XrdCl::Access::OR;
 
  //....................................................................
  // Set the correct open flags for the stripe
@@ -492,16 +480,7 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
  {
    mIsRw = true;
    mStoreRecovery = true;
-   if (flags & (SFS_O_CREAT | SFS_O_TRUNC))
-   {
-     flags_xrdcl = XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update;
-     eos_debug("Write case.");
-   }
-   else
-   {
-     flags_xrdcl = XrdCl::OpenFlags::Update;
-     eos_debug("Update case.");
-   }
+   eos_debug( "Write case." );
  }
  else
  {
@@ -523,7 +502,7 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    openOpaque += "&fst.blocksize=";
    openOpaque += static_cast<int> (mStripeWidth);
 
-   ret = file->Open(stripe_urls[i], flags_xrdcl, mode_xrdcl, openOpaque.c_str());
+   ret = file->Open(stripe_urls[i], flags, mode_xrdcl, openOpaque.c_str());
 
    if (ret == SFS_ERROR)
    {
