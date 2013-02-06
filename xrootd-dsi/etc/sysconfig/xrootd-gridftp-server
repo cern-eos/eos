@@ -1,0 +1,10 @@
+# the following variable specifies one or several virtual mount points
+export XROOTD_VMP=localhost:1094:/
+# the foloowing environment variables enable some eos specifics
+# the value of the variable doesn't matter, it works on a defined / not defined basis
+# XROOTD_DSI_EOS_CKS      # enable EOS checksum
+# XROOTD_DSI_EOS_CHMOD    # enable EOS chmod
+# XROOTD_DSI_EOS_APPTAG   # enable EOS apptag to specify that requests are from the DSI gridftp plugin
+# XROOTD_DSI_EOS_BOOK     # enable EOS space booking when receiving a file
+export XROOTD_DSI_EOS=1         # enable ALL the EOS specifics
+
