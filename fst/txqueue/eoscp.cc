@@ -1778,12 +1778,12 @@ main (int argc, char* argv[])
    totalbytes += nwrite;
    stopwritebyte += nwrite;
 
-   if (nread < buffersize)
-   {
+   //if (nread < buffersize)
+   //{
      // seems to be end of file, with tar this doesn't work
      // fprintf(stdout, "Seems to be the end of file.\n");
      // break;
-   }
+   //}
  } // end while(1)
 
 

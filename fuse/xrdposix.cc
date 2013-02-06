@@ -228,7 +228,8 @@ void xrd_store_child_p2i( unsigned long long inode,
   std::string fullpath = inode2path[inode];
   std::string sname = name;
 
-  eos_static_debug( "full path is: %s.", fullpath.c_str() );
+  eos_static_debug( "parent_inode=%llu, child_inode=%llu, name=%s, fullpath=%s",
+                   inode, childinode, name, fullpath.c_str() );
 
   if ( sname != "." ) {
     // we don't need to store this one
@@ -255,12 +256,10 @@ void xrd_store_child_p2i( unsigned long long inode,
       fullpath += name;
     }
 
-    if ( ( sname != "..") && ( fullpath != "/" ) )  {
-      eos_static_debug( "sname=%s fullpath=%s inode=%llu childinode=%llu ",
-                        sname.c_str(), fullpath.c_str(), inode, childinode );
-      path2inode[fullpath] = childinode;
-      inode2path[childinode] = fullpath;
-    }
+    eos_static_debug( "sname=%s fullpath=%s inode=%llu childinode=%llu ",
+                      sname.c_str(), fullpath.c_str(), inode, childinode );
+    path2inode[fullpath] = childinode;
+    inode2path[childinode] = fullpath;
   }
 }
 
@@ -1838,6 +1837,7 @@ int xrd_open_retc_map( int retc )
   if (retc) {
       return -1;
   }
+
   return 0;
 }
 
@@ -2033,11 +2033,11 @@ int xrd_open( const char* path, int oflags, mode_t mode )
           if ( retc ) {
             eos_static_err( "error=failed open for pio red, path=%s",spath.c_str() );
             delete file;
+            return xrd_open_retc_map(errno);
           } else {
             retc = xrd_add_fd2file( file );
+            return retc;
           }
-
-          return xrd_open_retc_map(errno);
         }
       }
       else {
@@ -2061,10 +2061,8 @@ int xrd_open( const char* path, int oflags, mode_t mode )
     return xrd_open_retc_map(errno);
   } else {
     retc = xrd_add_fd2file( file );
-  }
-  
-  return retc;
-  
+    return retc;
+  }  
 }
 
 
@@ -2432,7 +2430,7 @@ void xrd_init()
   } else {
     eos::common::Logging::SetLogPriority( LOG_INFO );
   }
-  
+
   //............................................................................
   // Initialise the XrdClFileSystem object
   //............................................................................
