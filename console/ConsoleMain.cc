@@ -93,6 +93,7 @@ extern int com_who (char*);
 // ----------------------------------------------------------------------------
 XrdOucString serveruri="";
 XrdOucString historyfile="";
+XrdOucString pwdfile="";
 XrdOucString pwd="/";
 XrdOucString rstdout;
 XrdOucString rstderr;
@@ -820,6 +821,19 @@ valid_argument (char *caller, char *arg) {
 }
 
 // ----------------------------------------------------------------------------
+// - Load and apply the last used directory
+// ----------------------------------------------------------------------------
+
+void read_pwdfile() {
+  std::string lpwd;
+  eos::common::StringConversion::LoadFileIntoString(pwdfile.c_str(),lpwd);
+  if (lpwd.length()) {
+    // apply 
+    com_cd((char*)lpwd.c_str());
+  }
+}
+
+// ----------------------------------------------------------------------------
 // - Colour Definitions
 // ----------------------------------------------------------------------------
 
@@ -856,6 +870,7 @@ void usage() {
   fprintf(stderr,"            EOS_HISTORY_FILE                    : set's the command history file - by default '$HOME/.eos_history' is used\n\n");
   fprintf(stderr,"            EOS_SOCKS4_HOST                     : set's the SOCKS4 proxy host name\n");
   fprintf(stderr,"            EOS_SOCKS4_PORT                     : set's the SOCKS4 proxy port\n");
+  fprintf(stderr,"            EOS_PWD_FILE                        : set's the file where the last working directory is stored- by default '$HOME/.eos_pwd\n\n");
   fprintf(stderr,"            EOS_DISABLE_PIPEMODE                : forbids the EOS shell to split into a session and pipe executable to avoid useless re-authentication\n");
   fprintf(stderr,"Return Value: \n");
   fprintf(stderr,"            The return code of the last executed command is returned. 0 is returned in case of success otherwise <errno> (!=0).\n\n");
@@ -1160,7 +1175,18 @@ int main (int argc, char* argv[]) {
       historyfile += "/.eos_history";
     }
   }
+  if (getenv("EOS_PWD_FILE")) {
+    pwdfile = getenv("EOS_PWD_FILE");
+  } else {
+    if (getenv("HOME")) {
+      pwdfile = getenv("HOME");
+      pwdfile += "/.eos_pwd";
+    }
+  }
   read_history(historyfile.c_str());
+  // load the last used current working directory
+  read_pwdfile();
+
   /* Loop reading and executing lines until the user quits. */
   for ( ; done == 0; )
     {

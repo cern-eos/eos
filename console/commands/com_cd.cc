@@ -94,6 +94,17 @@ com_cd (char *arg) {
   global_retc = output_result(client_user_command(lsminuss));
   if (global_retc) { 
     pwd = oldpwd;
+  } else {
+    // store the last used directory
+    int cfd = open(pwdfile.c_str(), O_CREAT|O_TRUNC|O_RDWR, S_IRWXU);
+    if (cfd>=0) {
+      if ( (::write(cfd,pwd.c_str(), pwd.length())) != pwd.length()) {
+	fprintf(stderr,"warning: unable to store CWD to %s [errno=%d]\n", pwdfile.c_str(),errno);
+      }
+      close(cfd);
+    } else {
+      fprintf(stderr,"warning: unable to store CWD to %s\n", pwdfile.c_str());
+    }
   }
   return (0);
 

@@ -75,6 +75,7 @@ extern XrdOucString user_role;
 extern XrdOucString group_role;
 extern XrdOucString serveruri;
 extern XrdOucString global_comment;
+extern XrdOucString pwdfile;
 
 extern void exit_handler (int a);
 
