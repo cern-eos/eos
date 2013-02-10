@@ -1998,8 +1998,9 @@ int xrd_open( const char* path, int oflags, mode_t mode )
 
       if ( opaqueInfo ) {
         opaqueInfo += 2;
-                                 
-        for ( unsigned int i = 0; i < 6; i++ ) {
+        LayoutId::layoutid_t layout = openOpaque->GetInt( "mgm.lid" );
+
+        for ( unsigned int i = 0; i <= eos::common::LayoutId::GetStripeNumber( layout ); i++ ) {
           tag = "pio.";
           tag += static_cast<int>( i );
           stripePath = "root://";
@@ -2009,7 +2010,6 @@ int xrd_open( const char* path, int oflags, mode_t mode )
           stripeUrls.push_back( stripePath.c_str() );
         }
 
-        LayoutId::layoutid_t layout = openOpaque->GetInt( "mgm.lid" );
         eos::fst::RaidMetaLayout* file;
 
         if ( LayoutId::GetLayoutType( layout ) == LayoutId::kRaidDP ) {
