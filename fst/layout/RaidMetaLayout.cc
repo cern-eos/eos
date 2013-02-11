@@ -927,11 +927,6 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
    //..........................................................................
    // Only entry server does this
    //..........................................................................
-   for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
-   {
-     mMetaHandlers[i]->Reset();
-   }
-
    while (length)
    {
      stripe_id = (offset / mStripeWidth) % mNbDataFiles;
@@ -976,18 +971,6 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
      length -= nwrite;
      buffer += nwrite;
      write_length += nwrite;
-   }
-
-   //..........................................................................
-   // Collect the responses
-   //..........................................................................
-   for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
-   {
-     if (!mMetaHandlers[i]->WaitOK())
-     {
-       eos_err("error=write failed.");
-       return SFS_ERROR;
-     }
    }
 
    //..........................................................................
@@ -1161,8 +1144,17 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
  int id_stripe;
  int64_t nread = 0;
 
- for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
+ //..........................................................................
+ // Collect all the write the responses and reset all the handlers
+ //..........................................................................
+ for ( unsigned int i = 0; i < mMetaHandlers.size(); i++ )
  {
+   if ( !mMetaHandlers[i]->WaitOK() )
+   {
+     eos_err("error=write failed in previous requests.");
+     return false;
+   }
+
    mMetaHandlers[i]->Reset();
  }
 
@@ -1300,8 +1292,8 @@ RaidMetaLayout::SparseParityComputation (bool force)
  GetOffsetGroups(offset_groups, force);
 
  for (std::set<off_t>::iterator it = offset_groups.begin();
-   it != offset_groups.end();
-   it++)
+      it != offset_groups.end();
+      it++)
  {
    if (ReadGroup(static_cast<off_t> (*it)))
    {
@@ -1486,7 +1478,7 @@ RaidMetaLayout::Close ()
  eos::common::Timing ct("close");
  COMMONTIMING("start", &ct);
  int rc = SFS_OK;
-
+ 
  if (mIsOpen)
  {
    if (mIsEntryServer)
@@ -1514,6 +1506,20 @@ RaidMetaLayout::Close ()
          SparseParityComputation(true);
        }
 
+       //.......................................................................
+       // Collect all the write responses and reset all the handlers
+       //.......................................................................
+       for ( unsigned int i = 0; i < mMetaHandlers.size(); i++ )
+       {
+         if ( !mMetaHandlers[i]->WaitOK() )
+         {
+           eos_err("error=write failed in previous requests.");
+           rc = SFS_ERROR;
+         }
+         
+         mMetaHandlers[i]->Reset();
+       }
+       
        //..........................................................................
        // Update the header information and write it to all stripes
        //..........................................................................

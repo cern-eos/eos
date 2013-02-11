@@ -53,11 +53,13 @@ export ERR_MSG1="The provided directory does not have the extended attributes se
 # Set the path to the xrdcp and eos commands
 XRDCP=$(which xrdcp)
 EOS=$(which eos)
+LOGNAME=$(logname)
 
-if [ $LOGNAME != "root ]; then
-  SUDO="sudo"
-endif
-
+if [ $LOGNAME != "root" ]; then
+   SUDO="sudo"
+else 
+  SUDO=""
+fi
 
 #-------------------------------------------------------------------------------
 # Write a file to EOS, read it back and compare the checksum
