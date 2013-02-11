@@ -82,6 +82,9 @@ VectLocationType src_location;
 ///! vector of destination host address and path file
 VectLocationType dst_location;
 
+///! vector of async request handlers for the destination files
+std::vector<eos::fst::AsyncMetaHandler*> meta_handler;
+
 std::vector<AccessType> src_type; ///< vector of source type access
 std::vector<AccessType> dst_type; ///< vector of destination type access
 
@@ -111,12 +114,10 @@ XrdOucString cpname = "";
 XrdCl::XRootDStatus status;
 uint32_t buffersize = DEFAULTBUFFERSIZE;
 
-double read_wait = 0; ///< statistics about total read time
-double write_wait = 0; ///< statistics about total write time
-char* buffer = NULL; ///< used for doing the reading
+double read_wait = 0;   ///< statistics about total read time
+double write_wait = 0;  ///< statistics about total write time
+char* buffer = NULL;    ///< used for doing the reading
 bool first_time = true; ///< first time prefetch two blocks
-eos::fst::ChunkHandler* handler = NULL; ///< handler for async requests
-eos::fst::ChunkHandler* wr_handler = NULL; ///< handler for async write requests
 
 //..............................................................................
 // RAID related variables
@@ -125,12 +126,12 @@ off_t stripeWidth = 1024 * 1024;
 uint64_t offsetXrd = 0;
 int nparitystripes = 0;
 
-bool isRaidTransfer = false; ///< true if we currently handle a RAID transfer
-bool isSrcRaid = false; ///< meaninful only for RAID transfers 
-bool isStreamFile = false; ///< the file is streamed
+bool isRaidTransfer = false;  ///< true if we currently handle a RAID transfer
+bool isSrcRaid = false;       ///< meaninful only for RAID transfers 
+bool isStreamFile = false;    ///< the file is streamed
 bool doStoreRecovery = false; ///< store recoveries if the file is corrupted
-std::string opaqueInfo; ///< opaque info containing the capabilities necessary to
-                        ///< do a parallel IO open
+std::string opaqueInfo;       ///< opaque info containing the capabilities 
+                              ///< necesssary to do a parallel IO open
 
 std::string replicationType = "";
 eos::fst::RaidMetaLayout* redundancyObj = NULL;
@@ -878,7 +879,6 @@ main (int argc, char* argv[])
          //.....................................................................
          // The file is not suitable for PIO access, do normal XRD access
          //.....................................................................
-         fprintf( stderr, "Doing normal XRD_ACCESS for source location %i. ", i );
          src_type.push_back(XRD_ACCESS);
        }
 
@@ -915,7 +915,11 @@ main (int argc, char* argv[])
      }
      else
      {
+       //.......................................................................
+       // Here we rely on the fact that all destinations must be of the same type
+       //.......................................................................
        dst_type.push_back(XRD_ACCESS);
+       meta_handler.push_back( new eos::fst::AsyncMetaHandler() );
      }
    }
    else if (dst_location[i].second == "-")
@@ -1868,24 +1872,19 @@ main (int argc, char* argv[])
        break;
 
       case XRD_ACCESS:
-       {
+      {
+        //......................................................................
+        // Do writes in async mode
+        //......................................................................
         eos::common::Timing::GetTimeSpec(start);
-        // WRITING IN SYNC MODE
-        status = dst_handler[i].second->Write(stopwritebyte,
-                                              nread,
-                                              ptr_buffer);
-
-        if (!status.IsOK())
-        {
-          fprintf(stderr, "error: write failed on destination file %s - "
-                  "wrote %lld/%lld bytes - destination file is incomplete!\n",
-                  dst_location[i].second.c_str(), (long long) nwrite, (long long) nread);
-          exit(-EIO);
-        }
-
+        eos::fst::ChunkHandler* chunk_handler;
+        chunk_handler = meta_handler[i]->Register( stopwritebyte, nread, true );
+        status = dst_handler[i].second->Write( stopwritebyte,
+                                               nread,
+                                               ptr_buffer,
+                                               chunk_handler );
         nwrite = nread;
-
-        eos::common::Timing::GetTimeSpec(start);
+        eos::common::Timing::GetTimeSpec(end);
         wait_time = static_cast<double> ((end.tv_sec * 1000 + end.tv_nsec / 1000000)-
                                          (start.tv_sec * 1000 + start.tv_nsec / 1000000));
         write_wait += wait_time;
@@ -1911,8 +1910,27 @@ main (int argc, char* argv[])
      // fprintf(stdout, "Seems to be the end of file.\n");
      // break;
    //}
+   
  } // end while(1)
 
+ //.............................................................................
+ // Wait for all async write requests before moving on
+ //.............................................................................
+ eos::common::Timing::GetTimeSpec(start);
+ 
+ for (int i = 0; i < ndst; i++) {
+   if ( dst_type[i] == XRD_ACCESS ) {
+     if ( !meta_handler[i]->WaitOK() ) {
+       fprintf( stderr, "Error while doing the asyn writing.\n" );
+     }
+     delete meta_handler[i];
+   }   
+ }
+
+ eos::common::Timing::GetTimeSpec(end);
+ wait_time = static_cast<double> ((end.tv_sec * 1000 + end.tv_nsec / 1000000)-
+                                  (start.tv_sec * 1000 + start.tv_nsec / 1000000));
+ write_wait += wait_time;
 
  if (computeXS && xsObj)
  {
