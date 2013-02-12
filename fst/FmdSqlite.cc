@@ -442,8 +442,9 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
 
      if (!force)
      {
-       if (strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "reedS") &&
-           strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "raidDP"))
+       if (strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "raid6")  &&
+           strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "raiddp") && 
+	   strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "archive") )
        {
 
          // if we have a mismatch between the mgm/disk and 'ref' value in size,  we don't return the FMD record

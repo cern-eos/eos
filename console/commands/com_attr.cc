@@ -118,26 +118,36 @@ com_attr (char* arg1) {
         global_retc = com_attr((char*)d1.c_str()) || com_attr((char*)d2.c_str()) || com_attr((char*)d3.c_str()) || com_attr((char*)d4.c_str()) || com_attr((char*)d5.c_str()) || com_attr((char*)d6.c_str());
         return (0);
       } 
-      if (value == "raidDP") {
-        XrdOucString d1 = optionstring; d1 += "set "; d1 += "sys.forced.blocksize=4k ";   d1 += path;
+      if (value == "raiddp") {
+        XrdOucString d1 = optionstring; d1 += "set "; d1 += "sys.forced.blocksize=1M ";   d1 += path;
         XrdOucString d2 = optionstring; d2 += "set "; d2 += "sys.forced.checksum=adler "; d2 += path;
-        XrdOucString d3 = optionstring; d3 += "set "; d3 += "sys.forced.layout=raidDP "; d3 += path;
+        XrdOucString d3 = optionstring; d3 += "set "; d3 += "sys.forced.layout=raiddp "; d3 += path;
         XrdOucString d4 = optionstring; d4 += "set "; d4 += "sys.forced.nstripes=6 ";     d4 += path;
         XrdOucString d5 = optionstring; d5 += "set "; d5 += "sys.forced.space=default ";  d5 += path;
         XrdOucString d6 = optionstring; d6 += "set "; d6 += "sys.forced.blockchecksum=crc32c ";  d6 += path;
         global_retc = com_attr((char*)d1.c_str()) || com_attr((char*)d2.c_str()) || com_attr((char*)d3.c_str()) || com_attr((char*)d4.c_str()) || com_attr((char*)d5.c_str()) || com_attr((char*)d6.c_str());
         return (0);
       } 
-      if (value == "reedS") {
-        XrdOucString d1 = optionstring; d1 += "set "; d1 += "sys.forced.blocksize=4k ";   d1 += path;
+      if (value == "raid6") {
+        XrdOucString d1 = optionstring; d1 += "set "; d1 += "sys.forced.blocksize=1M ";   d1 += path;
         XrdOucString d2 = optionstring; d2 += "set "; d2 += "sys.forced.checksum=adler "; d2 += path;
-        XrdOucString d3 = optionstring; d3 += "set "; d3 += "sys.forced.layout=reedS "; d3 += path;
+        XrdOucString d3 = optionstring; d3 += "set "; d3 += "sys.forced.layout=raid6 "; d3 += path;
         XrdOucString d4 = optionstring; d4 += "set "; d4 += "sys.forced.nstripes=6 ";     d4 += path;
         XrdOucString d5 = optionstring; d5 += "set "; d5 += "sys.forced.space=default ";  d5 += path;
         XrdOucString d6 = optionstring; d6 += "set "; d6 += "sys.forced.blockchecksum=crc32c ";  d6 += path;
         global_retc = com_attr((char*)d1.c_str()) || com_attr((char*)d2.c_str()) || com_attr((char*)d3.c_str()) || com_attr((char*)d4.c_str()) || com_attr((char*)d5.c_str()) || com_attr((char*)d6.c_str());
         return (0);
       } 
+      if (value == "archive") {
+        XrdOucString d1 = optionstring; d1 += "set "; d1 += "sys.forced.blocksize=1M ";   d1 += path;
+        XrdOucString d2 = optionstring; d2 += "set "; d2 += "sys.forced.checksum=adler "; d2 += path;
+        XrdOucString d3 = optionstring; d3 += "set "; d3 += "sys.forced.layout=archive "; d3 += path;
+        XrdOucString d4 = optionstring; d4 += "set "; d4 += "sys.forced.nstripes=5 ";     d4 += path;
+        XrdOucString d5 = optionstring; d5 += "set "; d5 += "sys.forced.space=default ";  d5 += path;
+        XrdOucString d6 = optionstring; d6 += "set "; d6 += "sys.forced.blockchecksum=crc32c ";  d6 += path;
+        global_retc = com_attr((char*)d1.c_str()) || com_attr((char*)d2.c_str()) || com_attr((char*)d3.c_str()) || com_attr((char*)d4.c_str()) || com_attr((char*)d5.c_str()) || com_attr((char*)d6.c_str());
+        return (0);
+      }
       goto com_attr_usage;
     }
   }
@@ -175,13 +185,13 @@ com_attr (char* arg1) {
   fprintf(stdout," -r : list recursive on all directory children\n");
   fprintf(stdout,"attr [-r] set <key>=<value> <path> :\n");
   fprintf(stdout,"                                                : set attributes of path (-r recursive)\n");
-  fprintf(stdout,"attr [-r] set default=replica <path> :\n");
-  fprintf(stdout,"                                                : set attributes of path (-r recursive) to the EOS defaults for replicas.\n");
+  fprintf(stdout,"attr [-r] set default=replica|raiddp|raid6|archive <path> :\n");
+  fprintf(stdout,"                                                : set attributes of path (-r recursive) to the EOS defaults for replicas,dual-parity-raid (4+2), raid-6 (4+2) or archive layouts (5+3).\n");
 
-  //  fprintf(stdout,"attr [-r] set default=raidDP <path> :\n");
+  //  fprintf(stdout,"attr [-r] set default=raiddp <path> :\n");
   //  fprintf(stdout,"                                                : set attributes of path (-r recursive) to the EOS defaults for dual parity raid (4+2).\n");
 
-  //  fprintf(stdout,"attr [-r] set default=reedS <path> :\n");
+  //  fprintf(stdout,"attr [-r] set default=reeds <path> :\n");
   //  fprintf(stdout,"                                                : set attributes of path (-r recursive) to the EOS defaults for reed solomon (4+2).\n");
 
   fprintf(stdout," -r : set recursive on all directory children\n");
@@ -196,7 +206,7 @@ com_attr (char* arg1) {
 
   fprintf(stdout,"Administrator Variables:\n");
   fprintf(stdout,"         sys.forced.space=<space>              : enforces to use <space>    [configuration dependend]\n");
-  //  fprintf(stdout,"         sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica,raidDP,reedS)]\n");
+  //  fprintf(stdout,"         sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica,raiddp,reeds)]\n");
   fprintf(stdout,"         sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica)]\n");
   fprintf(stdout,"         sys.forced.checksum=<checksum>        : enforces to use file-level checksum <checksum>\n");
   fprintf(stdout,"                                              <checksum> = adler,crc32,crc32c,md5,sha\n");

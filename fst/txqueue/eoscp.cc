@@ -1231,7 +1231,7 @@ main (int argc, char* argv[])
         }
         else if (replicationType == "reedS")
         {
-          layout = LayoutId::GetId(LayoutId::kReedS,
+          layout = LayoutId::GetId(LayoutId::kRaid6,
                                    1, nsrc,
                                    LayoutId::BlockSizeEnum(stripeWidth),
                                    LayoutId::OssXsBlockSize,
@@ -1409,7 +1409,7 @@ main (int argc, char* argv[])
         }
         else if (replicationType == "reedS")
         {
-          layout = LayoutId::GetId(LayoutId::kReedS,
+          layout = LayoutId::GetId(LayoutId::kRaid6,
                                    1, ndst,
                                    stripeWidth,
                                    LayoutId::OssXsBlockSize,

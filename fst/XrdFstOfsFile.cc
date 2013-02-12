@@ -640,7 +640,8 @@ XrdFstOfsFile::open (const char* path,
  // if we read we don't check checksums at all since we have block and parity checking
  //.......................................................................................................
  if (((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaidDP) ||
-      (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReedS)) &&
+      (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaid6) ||
+      (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kArchive)) &&
      ((!isRW) || (!layOut->IsEntryServer())))
  {
    //........................................................................
@@ -1225,8 +1226,9 @@ XrdFstOfsFile::close ()
        // If we had space allocation we have to truncate the allocated space to
        // the real size of the file
        //......................................................................
-       if ((strcmp(layOut->GetName(), "raidDP") == 0) ||
-           (strcmp(layOut->GetName(), "reedS") == 0))
+       if ((strcmp(layOut->GetName(), "raiddp") == 0)  ||
+           (strcmp(layOut->GetName(), "raid6") == 0)   || 
+	   (strcmp(layOut->GetName(), "archive") == 0))
        {
          if (layOut->IsEntryServer())
            layOut->Truncate(maxOffsetWritten);
@@ -1267,8 +1269,9 @@ XrdFstOfsFile::close ()
        }
      }
 
-     if ((strcmp(layOut->GetName(), "raidDP") == 0) ||
-         (strcmp(layOut->GetName(), "reedS") == 0))
+     if ((strcmp(layOut->GetName(), "raiddp") == 0) ||
+         (strcmp(layOut->GetName(), "raid6") == 0) || 
+         (strcmp(layOut->GetName(), "archive") == 0) )
      {
        //......................................................................
        // For RAID-like layouts don't do this check

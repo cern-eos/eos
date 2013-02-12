@@ -76,7 +76,7 @@ LayoutPlugin::GetLayoutObject (XrdFstOfsFile* file,
    return static_cast<Layout*> (new RaidDpLayout(file, layoutId, client, error, io));
  }
 
- if (LayoutId::GetLayoutType(layoutId) == LayoutId::kReedS)
+ if ( (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid6) || (LayoutId::GetLayoutType(layoutId) == LayoutId::kArchive) )
  {
    return static_cast<Layout*> (new ReedSLayout(file, layoutId, client, error, io));
  }

@@ -78,9 +78,9 @@ class LayoutId
   enum eLayoutType   {
     kPlain   = 0x0,
     kReplica = 0x1,
-    kRaid5   = 0x2,
+    kArchive = 0x2,
     kRaidDP  = 0x3,
-    kReedS   = 0x4
+    kRaid6   = 0x4,
   };
   
   
@@ -285,15 +285,15 @@ class LayoutId
     if ( GetLayoutType( layout ) == kReplica )
       return 1.0  * ( GetStripeNumber( layout ) + 1 + GetExcessStripeNumber( layout ) );
     
-    if ( GetLayoutType( layout ) == kRaid5 )
-      return 1.0 * ( ( ( 1.0 * ( GetStripeNumber( layout ) + 2 ) /
-			 ( GetStripeNumber( layout ) + 1 ) ) ) + GetExcessStripeNumber( layout ) );
-    
     if ( GetLayoutType( layout ) == kRaidDP )
       return 1.0  * ( ( ( 1.0 * ( GetStripeNumber( layout ) + 1 + GetRedundancyStripeNumber( layout ) ) ) /
 			( GetStripeNumber( layout ) + 1 ) ) + GetExcessStripeNumber( layout ) );
     
-    if ( GetLayoutType( layout ) == kReedS )
+    if ( GetLayoutType( layout ) == kRaid6 )
+      return 1.0  * ( ( ( 1.0 * ( GetStripeNumber( layout ) + 1 + GetRedundancyStripeNumber( layout ) ) ) /
+			( GetStripeNumber( layout ) + 1 ) ) + GetExcessStripeNumber( layout ) );
+
+    if ( GetLayoutType( layout ) == kArchive )
       return 1.0  * ( ( ( 1.0 * ( GetStripeNumber( layout ) + 1 + GetRedundancyStripeNumber( layout ) ) ) /
 			( GetStripeNumber( layout ) + 1 ) ) + GetExcessStripeNumber( layout ) );
     
@@ -307,9 +307,9 @@ class LayoutId
   //--------------------------------------------------------------------------
   static size_t GetMinOnlineReplica( unsigned long layout ) {
     
-    if ( GetLayoutType( layout ) == kRaid5 )  return ( GetStripeNumber( layout ) );
     if ( GetLayoutType( layout ) == kRaidDP ) return ( GetStripeNumber( layout ) - 1 );
-    if ( GetLayoutType( layout ) == kReedS )  return ( GetStripeNumber( layout ) - 1 );
+    if ( GetLayoutType( layout ) == kRaid6 )  return ( GetStripeNumber( layout ) - 1 );
+    if ( GetLayoutType( layout ) == kArchive )  return ( GetStripeNumber( layout ) - 2 );
     
     return 1;
   }
@@ -321,9 +321,9 @@ class LayoutId
   //--------------------------------------------------------------------------
   static unsigned long GetOnlineStripeNumber( unsigned long layout ) {
     
-    if ( GetLayoutType( layout ) == kRaid5 )  return ( GetStripeNumber( layout ) + 1 );
     if ( GetLayoutType( layout ) == kRaidDP ) return ( GetStripeNumber( layout ) + 1 );
-    if ( GetLayoutType( layout ) == kReedS )  return ( GetStripeNumber( layout ) + 1 );
+    if ( GetLayoutType( layout ) == kRaid6 )  return ( GetStripeNumber( layout ) + 1 );
+    if ( GetLayoutType( layout ) == kArchive )  return ( GetStripeNumber( layout ) + 1 );
     
     return ( GetStripeNumber( layout ) + 1 );
   }
@@ -400,9 +400,9 @@ class LayoutId
     
     if ( GetLayoutType( layout ) == kPlain )   return "plain";
     if ( GetLayoutType( layout ) == kReplica ) return "replica";
-    if ( GetLayoutType( layout ) == kRaid5 )   return "raid5";
-    if ( GetLayoutType( layout ) == kRaidDP )  return "raidDP";
-    if ( GetLayoutType( layout ) == kReedS )   return "reedS";
+    if ( GetLayoutType( layout ) == kRaidDP )  return "raiddp";
+    if ( GetLayoutType( layout ) == kRaid6 )   return "raid6";
+    if ( GetLayoutType( layout ) == kArchive )   return "archive";
     
     return "none";
   }
@@ -479,9 +479,9 @@ class LayoutId
       XrdOucString typ = val;
       
       if ( typ == "replica" ) return kReplica;
-      if ( typ == "raid5" )   return kRaid5;
-      if ( typ == "raidDP" )  return kRaidDP;
-      if ( typ == "reedS" )   return kReedS;
+      if ( typ == "raiddp" )  return kRaidDP;
+      if ( typ == "raid6" )   return kRaid6;
+      if ( typ == "archive" )   return kArchive;
     }
     
     return kPlain;

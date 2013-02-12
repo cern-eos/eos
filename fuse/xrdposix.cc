@@ -2016,7 +2016,7 @@ int xrd_open( const char* path, int oflags, mode_t mode )
           file = new eos::fst::RaidDpLayout( NULL, layout, NULL, NULL,
                                              eos::common::LayoutId::kXrdCl );
         }
-        else if ( LayoutId::GetLayoutType( layout ) == LayoutId::kReedS ) {
+        else if ( (LayoutId::GetLayoutType( layout ) == LayoutId::kRaid6 ) || ( LayoutId::GetLayoutType( layout ) == LayoutId::kArchive ) ) {
           file = new eos::fst::ReedSLayout( NULL, layout, NULL, NULL,
                                             eos::common::LayoutId::kXrdCl );
         }
