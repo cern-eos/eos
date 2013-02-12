@@ -46,48 +46,49 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-class Scheduler {
+class Scheduler
+{
 public:
-    Scheduler();
-    virtual ~Scheduler();
+  Scheduler ();
+  virtual ~Scheduler ();
 
-    //! -------------------------------------------------------------
-    //! the write placement routine
-    //! -------------------------------------------------------------
-    virtual int FilePlacement(const char* path, //< path to place
-            eos::common::Mapping::VirtualIdentity_t &vid, //< virtual id of client
-            const char* grouptag, //< group tag for placement
-            unsigned long lid, //< layout to be placed
-            std::vector<unsigned int> &avoid_filesystems, //< filesystems to avoid
-            std::vector<unsigned int> &selected_filesystems, //< return filesystems selected by scheduler
-            bool truncate = false, //< indicates placement with truncation
-            int forced_scheduling_group_index = -1, //< forced index for the scheduling subgroup to be used 
-            unsigned long long bookingsize = 1024 * 1024 * 1024ll //< size to book for the placement
-            );
+  //! -------------------------------------------------------------
+  //! the write placement routine
+  //! -------------------------------------------------------------
+  virtual int FilePlacement (const char* path, //< path to place
+                             eos::common::Mapping::VirtualIdentity_t &vid, //< virtual id of client
+                             const char* grouptag, //< group tag for placement
+                             unsigned long lid, //< layout to be placed
+                             std::vector<unsigned int> &avoid_filesystems, //< filesystems to avoid
+                             std::vector<unsigned int> &selected_filesystems, //< return filesystems selected by scheduler
+                             bool truncate = false, //< indicates placement with truncation
+                             int forced_scheduling_group_index = -1, //< forced index for the scheduling subgroup to be used 
+                             unsigned long long bookingsize = 1024 * 1024 * 1024ll //< size to book for the placement
+                             );
 
-    //! -------------------------------------------------------------
-    //! the read(/write) access routine
-    //! -------------------------------------------------------------
-    virtual int FileAccess(
-            eos::common::Mapping::VirtualIdentity_t &vid, //< virtual id of client
-            unsigned long forcedfsid, //< forced file system for access
-            const char* forcedspace, //< forced space for access
-            unsigned long lid, //< layout of the file
-            std::vector<unsigned int> &locationsfs, //< filesystem id's where layout is stored
-            unsigned long &fsindex, //< return index pointing to layout entry filesystem
-            bool isRW, //< indicating if pure read or read/write access
-            unsigned long long bookingsize, //< size to book additionally for read/write access
-            std::vector<unsigned int> &unavailfs, //< return filesystems currently unavailable
-            eos::common::FileSystem::fsstatus_t min_fsstatus = eos::common::FileSystem::kDrain //< defines minimum filesystem state to allow filesystem selection
-            );
+  //! -------------------------------------------------------------
+  //! the read(/write) access routine
+  //! -------------------------------------------------------------
+  virtual int FileAccess (
+                          eos::common::Mapping::VirtualIdentity_t &vid, //< virtual id of client
+                          unsigned long forcedfsid, //< forced file system for access
+                          const char* forcedspace, //< forced space for access
+                          unsigned long lid, //< layout of the file
+                          std::vector<unsigned int> &locationsfs, //< filesystem id's where layout is stored
+                          unsigned long &fsindex, //< return index pointing to layout entry filesystem
+                          bool isRW, //< indicating if pure read or read/write access
+                          unsigned long long bookingsize, //< size to book additionally for read/write access
+                          std::vector<unsigned int> &unavailfs, //< return filesystems currently unavailable
+                          eos::common::FileSystem::fsstatus_t min_fsstatus = eos::common::FileSystem::kDrain //< defines minimum filesystem state to allow filesystem selection
+                          );
 
 protected:
-    XrdSysMutex schedulingMutex; //< protect the following scheduling state maps
+  XrdSysMutex schedulingMutex; //< protect the following scheduling state maps
 
-    std::map<std::string, FsGroup*> schedulingGroup; //< points to the current scheduling group where to start scheduling =>  std::string = <grouptag>|<uid>:<gid> 
-    std::map<std::string, eos::common::FileSystem::fsid_t > schedulingFileSystem; //< points to the current feilsystem where to start scheduling
+  std::map<std::string, FsGroup*> schedulingGroup; //< points to the current scheduling group where to start scheduling =>  std::string = <grouptag>|<uid>:<gid> 
+  std::map<std::string, eos::common::FileSystem::fsid_t > schedulingFileSystem; //< points to the current feilsystem where to start scheduling
 
-    XrdOucString SpaceName; //< the name of the space where the scheduling object is attached
+  XrdOucString SpaceName; //< the name of the space where the scheduling object is attached
 
 };
 

@@ -26,6 +26,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Access.hh"
 #include "common/LayoutId.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN

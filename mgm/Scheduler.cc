@@ -26,6 +26,7 @@
 #include "mgm/Quota.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -60,12 +61,12 @@ Scheduler::FilePlacement (const char* path, //< path to place
  std::list<eos::common::FileSystem::fsid_t> availablevector;
 
  // fill the avoid list from the selected_filesystems input vector
- for (unsigned int i = 0; i < avoid_filesystems.size (); i++)
+ for (unsigned int i = 0; i < avoid_filesystems.size(); i++)
  {
-   fsidavoidlist.insert (avoid_filesystems[i]);
+   fsidavoidlist.insert(avoid_filesystems[i]);
  }
 
- unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber (lid) + 1; // 0 = 1 replica !
+ unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(lid) + 1; // 0 = 1 replica !
  unsigned int nassigned = 0;
 
  uid_t uid = vid.uid;
@@ -73,9 +74,9 @@ Scheduler::FilePlacement (const char* path, //< path to place
 
  bool hasgeolocation = false;
 
- if (vid.geolocation.length ())
+ if (vid.geolocation.length())
  {
-   if ((eos::common::LayoutId::GetLayoutType (lid) == eos::common::LayoutId::kReplica))
+   if ((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica))
    {
      // we only do geolocations for replica layouts
      hasgeolocation = true;
@@ -94,104 +95,104 @@ Scheduler::FilePlacement (const char* path, //< path to place
    lindextag += (int) gid;
  }
 
- std::string indextag = lindextag.c_str ();
+ std::string indextag = lindextag.c_str();
 
- std::string spacename = SpaceName.c_str ();
+ std::string spacename = SpaceName.c_str();
 
  std::set<FsGroup*>::const_iterator git;
 
  // place the group iterator
  if (forced_scheduling_group_index >= 0)
  {
-   for (git = FsView::gFsView.mSpaceGroupView[spacename].begin (); git != FsView::gFsView.mSpaceGroupView[spacename].end (); git++)
+   for (git = FsView::gFsView.mSpaceGroupView[spacename].begin(); git != FsView::gFsView.mSpaceGroupView[spacename].end(); git++)
    {
-     if ((*git)->GetIndex () == (unsigned int) forced_scheduling_group_index)
+     if ((*git)->GetIndex() == (unsigned int) forced_scheduling_group_index)
        break;
    }
-   if ((git != FsView::gFsView.mSpaceGroupView[spacename].end ()) && ((*git)->GetIndex () != (unsigned int) forced_scheduling_group_index))
+   if ((git != FsView::gFsView.mSpaceGroupView[spacename].end()) && ((*git)->GetIndex() != (unsigned int) forced_scheduling_group_index))
    {
-     selected_filesystems.clear ();
+     selected_filesystems.clear();
      return ENOSPC;
    }
  }
  else
  {
-   schedulingMutex.Lock ();
-   if (schedulingGroup.count (indextag))
+   schedulingMutex.Lock();
+   if (schedulingGroup.count(indextag))
    {
-     git = FsView::gFsView.mSpaceGroupView[spacename].find (schedulingGroup[indextag]);
+     git = FsView::gFsView.mSpaceGroupView[spacename].find(schedulingGroup[indextag]);
    }
    else
    {
-     git = FsView::gFsView.mSpaceGroupView[spacename].begin ();
+     git = FsView::gFsView.mSpaceGroupView[spacename].begin();
      schedulingGroup[indextag] = *git;
    }
-   schedulingMutex.UnLock ();
+   schedulingMutex.UnLock();
  }
 
  // we can loop over all existing scheduling views
- for (unsigned int groupindex = 0; groupindex < FsView::gFsView.mSpaceGroupView[spacename].size (); groupindex++)
+ for (unsigned int groupindex = 0; groupindex < FsView::gFsView.mSpaceGroupView[spacename].size(); groupindex++)
  {
-   eos_static_debug ("scheduling group loop %d", forced_scheduling_group_index);
-   selected_filesystems.clear ();
-   availablefs.clear ();
-   availablefsgeolocation.clear ();
+   eos_static_debug("scheduling group loop %d", forced_scheduling_group_index);
+   selected_filesystems.clear();
+   availablefs.clear();
+   availablefsgeolocation.clear();
 
    std::set<eos::common::FileSystem::fsid_t>::const_iterator fsit;
    eos::common::FileSystem::fsid_t fsid = 0;
 
    // create the string map key for this group/index pair
    XrdOucString fsindextag = "";
-   fsindextag += (int) (*git)->GetIndex ();
+   fsindextag += (int) (*git)->GetIndex();
    // place the filesystem iterator
    fsindextag += "|";
-   fsindextag += indextag.c_str ();
-   std::string sfsindextag = fsindextag.c_str ();
+   fsindextag += indextag.c_str();
+   std::string sfsindextag = fsindextag.c_str();
 
-   schedulingMutex.Lock ();
-   if (schedulingFileSystem.count (sfsindextag))
+   schedulingMutex.Lock();
+   if (schedulingFileSystem.count(sfsindextag))
    {
      //
      fsid = schedulingFileSystem[sfsindextag];
-     fsit = (*git)->find (fsid);
-     if (fsit == (*git)->end ())
+     fsit = (*git)->find(fsid);
+     if (fsit == (*git)->end())
      {
        // this filesystem is not anymore there, we start with the first one
-       fsit = (*git)->begin ();
+       fsit = (*git)->begin();
        fsid = *fsit;
      }
    }
    else
    {
-     fsit = (*git)->begin ();
+     fsit = (*git)->begin();
      fsid = *fsit;
    }
-   schedulingMutex.UnLock ();
+   schedulingMutex.UnLock();
 
-   eos_static_debug ("Enter %s points to %d", sfsindextag.c_str (), *fsit);
+   eos_static_debug("Enter %s points to %d", sfsindextag.c_str(), *fsit);
 
    // remember the one we started with ...
 
    // we loop over some filesystems in that group
-   for (unsigned int fsindex = 0; fsindex < (*git)->size (); fsindex++)
+   for (unsigned int fsindex = 0; fsindex < (*git)->size(); fsindex++)
    {
-     eos_static_debug ("checking scheduling group %d filesystem %d", (*git)->GetIndex (), *fsit);
+     eos_static_debug("checking scheduling group %d filesystem %d", (*git)->GetIndex(), *fsit);
 
      // take filesystem snapshot
      eos::common::FileSystem::fs_snapshot_t snapshot;
      // we are already in a locked section
      FileSystem* fs = 0;
-     if (FsView::gFsView.mIdView.count (fsid))
+     if (FsView::gFsView.mIdView.count(fsid))
        fs = FsView::gFsView.mIdView[fsid];
      else
        continue;
 
-     fs->SnapShotFileSystem (snapshot, false);
+     fs->SnapShotFileSystem(snapshot, false);
 
      // the weight is given mainly by the disk performance and the network load has a weaker impact (sqrt)
      double weight = (1.0 - snapshot.mDiskUtilization);
      double netweight = (1.0 - ((snapshot.mNetEthRateMiB) ? (snapshot.mNetInRateMiB / snapshot.mNetEthRateMiB) : 0.0));
-     weight *= ((netweight > 0) ? sqrt (netweight) : 0);
+     weight *= ((netweight > 0) ? sqrt(netweight) : 0);
      if (weight < 0.1)
      {
        weight = 0.1;
@@ -201,11 +202,11 @@ Scheduler::FilePlacement (const char* path, //< path to place
      if ((snapshot.mStatus == eos::common::FileSystem::kBooted) &&
          (snapshot.mConfigStatus == eos::common::FileSystem::kRW) &&
          (snapshot.mErrCode == 0) && // this we probably don't need 
-         (fs->GetActiveStatus (snapshot)) && // this checks the heartbeat and the group & node are enabled
-         (fs->ReserveSpace (snapshot, bookingsize)))
+         (fs->GetActiveStatus(snapshot)) && // this checks the heartbeat and the group & node are enabled
+         (fs->ReserveSpace(snapshot, bookingsize)))
      {
 
-       if (!fsidavoidlist.count (fsid))
+       if (!fsidavoidlist.count(fsid))
        {
          availablefs[fsid] = weight;
 
@@ -215,7 +216,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
            availablefsgeolocation[fsid] = snapshot.mGeoTag;
          }
 
-         availablevector.push_back (fsid);
+         availablevector.push_back(fsid);
        }
      }
      else
@@ -225,18 +226,18 @@ Scheduler::FilePlacement (const char* path, //< path to place
      fsit++;
 
      // create cycling
-     if (fsit == (*git)->end ())
+     if (fsit == (*git)->end())
      {
-       fsit = (*git)->begin ();
+       fsit = (*git)->begin();
      }
 
      if (fsindex == 0)
      {
        // we move the iterator only by one position
-       schedulingMutex.Lock ();
+       schedulingMutex.Lock();
        schedulingFileSystem[sfsindextag] = *fsit;
-       eos_static_debug ("Exit %s points to %d", sfsindextag.c_str (), *fsit);
-       schedulingMutex.UnLock ();
+       eos_static_debug("Exit %s points to %d", sfsindextag.c_str(), *fsit);
+       schedulingMutex.UnLock();
      }
 
 
@@ -251,7 +252,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
        // -----------------------------
        // evt. this has to be commented
        // -----------------------------
-       if ((availablefs.size () >= nfilesystems) && (availablefs.size () > ((*git)->size () / 2)))
+       if ((availablefs.size() >= nfilesystems) && (availablefs.size() > ((*git)->size() / 2)))
        {
          // we stop if we have found enough ... atleast half of the scheduling group
          break;
@@ -265,42 +266,42 @@ Scheduler::FilePlacement (const char* path, //< path to place
    std::string selected_geo_location;
    int n_geolocations = 0;
    // check if there are atlast <nfilesystems> in the available map
-   if (availablefs.size () >= nfilesystems)
+   if (availablefs.size() >= nfilesystems)
    {
      std::list<eos::common::FileSystem::fsid_t>::iterator ait;
-     ait = availablevector.begin ();
+     ait = availablevector.begin();
 
      for (unsigned int loop = 0; loop < 1000; loop++)
      {
        // we cycle over the available filesystems
-       float randomacceptor = (0.999999 * random () / RAND_MAX);
-       eos_static_debug ("fs %u acceptor %f/%f for %d. replica [loop=%d] [avail=%d]", *ait, randomacceptor, availablefs[*ait], nassigned + 1, loop, availablevector.size ());
+       float randomacceptor = (0.999999 * random() / RAND_MAX);
+       eos_static_debug("fs %u acceptor %f/%f for %d. replica [loop=%d] [avail=%d]", *ait, randomacceptor, availablefs[*ait], nassigned + 1, loop, availablevector.size());
 
        if (nassigned == 0)
        {
          if (availablefs[*ait] < randomacceptor)
          {
            ait++;
-           if (ait == availablevector.end ())
-             ait = availablevector.begin ();
+           if (ait == availablevector.end())
+             ait = availablevector.begin();
            continue;
          }
          else
          {
            // push it on the selection list
-           selected_filesystems.push_back (*ait);
+           selected_filesystems.push_back(*ait);
            if (hasgeolocation)
            {
              selected_geo_location = availablefsgeolocation[*ait];
            }
 
-           eos_static_debug ("fs %u selected for %d. replica", *ait, nassigned + 1);
+           eos_static_debug("fs %u selected for %d. replica", *ait, nassigned + 1);
 
            // remove it from the selection map
-           availablefs.erase (*ait);
-           ait = availablevector.erase (ait);
-           if (ait == availablevector.end ())
-             ait = availablevector.begin ();
+           availablefs.erase(*ait);
+           ait = availablevector.erase(ait);
+           if (ait == availablevector.end())
+             ait = availablevector.begin();
 
            // rotate scheduling view ptr
            nassigned++;
@@ -310,14 +311,14 @@ Scheduler::FilePlacement (const char* path, //< path to place
        {
          // we select a random one
          unsigned int randomindex;
-         randomindex = (unsigned int) ((0.999999 * random () * availablefs.size ()) / RAND_MAX);
-         eos_static_debug ("trying random index %d", randomindex);
+         randomindex = (unsigned int) ((0.999999 * random() * availablefs.size()) / RAND_MAX);
+         eos_static_debug("trying random index %d", randomindex);
 
          for (unsigned int i = 0; i < randomindex; i++)
          {
            ait++;
-           if (ait == availablevector.end ())
-             ait = availablevector.begin ();
+           if (ait == availablevector.end())
+             ait = availablevector.begin();
          }
 
 
@@ -333,7 +334,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
          if (fsweight > randomacceptor)
          {
            // push it on the selection list
-           selected_filesystems.push_back (*ait);
+           selected_filesystems.push_back(*ait);
            if (hasgeolocation)
            {
              if (selected_geo_location != availablefsgeolocation[*ait])
@@ -342,14 +343,14 @@ Scheduler::FilePlacement (const char* path, //< path to place
              }
            }
 
-           eos_static_debug ("fs %u selected for %d. replica", *ait, nassigned + 1);
+           eos_static_debug("fs %u selected for %d. replica", *ait, nassigned + 1);
 
            // remove it from the selection map
-           availablefs.erase (*ait);
-           ait = availablevector.erase (ait);
+           availablefs.erase(*ait);
+           ait = availablevector.erase(ait);
            nassigned++;
-           if (ait == availablevector.end ())
-             ait = availablevector.begin ();
+           if (ait == availablevector.end())
+             ait = availablevector.begin();
          }
        }
        if (nassigned >= nfilesystems)
@@ -358,15 +359,15 @@ Scheduler::FilePlacement (const char* path, //< path to place
    }
 
    git++;
-   if (git == FsView::gFsView.mSpaceGroupView[spacename].end ())
+   if (git == FsView::gFsView.mSpaceGroupView[spacename].end())
    {
-     git = FsView::gFsView.mSpaceGroupView[spacename].begin ();
+     git = FsView::gFsView.mSpaceGroupView[spacename].begin();
    }
 
    // remember the last group for that indextag
-   schedulingMutex.Lock ();
+   schedulingMutex.Lock();
    schedulingGroup[indextag] = *git;
-   schedulingMutex.UnLock ();
+   schedulingMutex.UnLock();
 
    if (nassigned >= nfilesystems)
    {
@@ -374,7 +375,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
      break;
    }
 
-   selected_filesystems.clear ();
+   selected_filesystems.clear();
    nassigned = 0;
 
    if (forced_scheduling_group_index >= 0)
@@ -388,23 +389,23 @@ Scheduler::FilePlacement (const char* path, //< path to place
  {
    // now we reshuffle the order using a random number
    unsigned int randomindex;
-   randomindex = (unsigned int) ((0.999999 * random () * selected_filesystems.size ()) / RAND_MAX);
+   randomindex = (unsigned int) ((0.999999 * random() * selected_filesystems.size()) / RAND_MAX);
 
    std::vector<unsigned int> randomselectedfs;
    randomselectedfs = selected_filesystems;
 
-   selected_filesystems.clear ();
+   selected_filesystems.clear();
 
-   int rrsize = randomselectedfs.size ();
+   int rrsize = randomselectedfs.size();
    for (int i = 0; i < rrsize; i++)
    {
-     selected_filesystems.push_back (randomselectedfs[(randomindex + i) % rrsize]);
+     selected_filesystems.push_back(randomselectedfs[(randomindex + i) % rrsize]);
    }
    return 0;
  }
  else
  {
-   selected_filesystems.clear ();
+   selected_filesystems.clear();
    return ENOSPC;
  }
 }
@@ -437,13 +438,13 @@ Scheduler::FileAccess (
  // ! PLAIN Layout Scheduler
  // --------------------------------------------------------------------------------
 
- if (eos::common::LayoutId::GetLayoutType (lid) == eos::common::LayoutId::kPlain)
+ if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kPlain)
  {
    // we have one or more replica's ... find the best place to schedule this IO
-   if (locationsfs.size () && locationsfs[0])
+   if (locationsfs.size() && locationsfs[0])
    {
      eos::common::FileSystem* filesystem = 0;
-     if (FsView::gFsView.mIdView.count (locationsfs[0]))
+     if (FsView::gFsView.mIdView.count(locationsfs[0]))
      {
        filesystem = FsView::gFsView.mIdView[locationsfs[0]];
      }
@@ -459,19 +460,19 @@ Scheduler::FileAccess (
 
      FileSystem* fs = FsView::gFsView.mIdView[locationsfs[0]];
 
-     fs->SnapShotFileSystem (snapshot, false);
+     fs->SnapShotFileSystem(snapshot, false);
 
      if (isRW)
      {
        if ((snapshot.mStatus == eos::common::FileSystem::kBooted) &&
            (snapshot.mConfigStatus >= eos::common::FileSystem::kWO) &&
            (snapshot.mErrCode == 0) && // this we probably don't need 
-           (fs->GetActiveStatus (snapshot)) && // this checks the heartbeat and the group & node are enabled
-           (fs->ReserveSpace (snapshot, bookingsize)))
+           (fs->GetActiveStatus(snapshot)) && // this checks the heartbeat and the group & node are enabled
+           (fs->ReserveSpace(snapshot, bookingsize)))
        {
          // perfect!
          fsindex = 0;
-         eos_static_debug ("selected plain file access via filesystem %u", locationsfs[0]);
+         eos_static_debug("selected plain file access via filesystem %u", locationsfs[0]);
          return returnCode;
        }
        else
@@ -492,7 +493,7 @@ Scheduler::FileAccess (
        if ((snapshot.mStatus == eos::common::FileSystem::kBooted) &&
            (snapshot.mConfigStatus >= min_fsstatus) &&
            (snapshot.mErrCode == 0) && // this we probably don't need 
-           (fs->GetActiveStatus (snapshot)))
+           (fs->GetActiveStatus(snapshot)))
        {
 
          // perfect!
@@ -515,10 +516,10 @@ Scheduler::FileAccess (
  // ! REPLICA/RAID Layout Scheduler
  // --------------------------------------------------------------------------------
 
- if ((eos::common::LayoutId::GetLayoutType (lid) == eos::common::LayoutId::kReplica) ||
-     (eos::common::LayoutId::GetLayoutType (lid) == eos::common::LayoutId::kRaidDP) ||
-     (eos::common::LayoutId::GetLayoutType (lid) == eos::common::LayoutId::kArchive) ||
-     (eos::common::LayoutId::GetLayoutType (lid) == eos::common::LayoutId::kRaid6))
+ if ((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) ||
+     (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaidDP) ||
+     (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kArchive) ||
+     (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaid6))
  {
    std::set<eos::common::FileSystem::fsid_t> availablefs;
    std::multimap<double, eos::common::FileSystem::fsid_t> availablefsweightsort;
@@ -527,7 +528,7 @@ Scheduler::FileAccess (
 
    bool hasgeolocation = false;
 
-   if (vid.geolocation.length ())
+   if (vid.geolocation.length())
    {
      hasgeolocation = true;
    }
@@ -535,11 +536,11 @@ Scheduler::FileAccess (
    // -----------------------------------------------------------------------
    // check all the locations - for write we need all - for read atleast one
    // -----------------------------------------------------------------------
-   for (size_t i = 0; i < locationsfs.size (); i++)
+   for (size_t i = 0; i < locationsfs.size(); i++)
    {
      FileSystem* filesystem = 0;
 
-     if (FsView::gFsView.mIdView.count (locationsfs[i]))
+     if (FsView::gFsView.mIdView.count(locationsfs[i]))
      {
        filesystem = FsView::gFsView.mIdView[locationsfs[i]];
      }
@@ -556,25 +557,25 @@ Scheduler::FileAccess (
      // we are already in a locked section
 
      FileSystem* fs = FsView::gFsView.mIdView[locationsfs[i]];
-     fs->SnapShotFileSystem (snapshot, false);
+     fs->SnapShotFileSystem(snapshot, false);
 
      if (isRW)
      {
        if ((snapshot.mStatus == eos::common::FileSystem::kBooted) &&
            (snapshot.mConfigStatus >= eos::common::FileSystem::kWO) &&
            (snapshot.mErrCode == 0) && // this we probably don't need 
-           (fs->GetActiveStatus (snapshot)) && // this checks the heartbeat and the group & node are enabled
-           (fs->ReserveSpace (snapshot, bookingsize)))
+           (fs->GetActiveStatus(snapshot)) && // this checks the heartbeat and the group & node are enabled
+           (fs->ReserveSpace(snapshot, bookingsize)))
        {
          // perfect!
-         availablefs.insert (snapshot.mId);
+         availablefs.insert(snapshot.mId);
 
          // the weight is given mainly by the disk performance and the network load has a weaker impact (sqrt)
          double weight = (1.0 - snapshot.mDiskUtilization);
          double netweight = (1.0 - ((snapshot.mNetEthRateMiB) ? (snapshot.mNetInRateMiB / snapshot.mNetEthRateMiB) : 0.0));
-         weight *= ((netweight > 0) ? sqrt (netweight) : 0);
+         weight *= ((netweight > 0) ? sqrt(netweight) : 0);
 
-         availablefsweightsort.insert (std::pair<double, eos::common::FileSystem::fsid_t > (weight, snapshot.mId));
+         availablefsweightsort.insert(std::pair<double, eos::common::FileSystem::fsid_t > (weight, snapshot.mId));
          renorm += weight;
        }
        else
@@ -597,17 +598,17 @@ Scheduler::FileAccess (
            (snapshot.mErrCode == 0) && // this we probably don't need 
            (snapshot.mActiveStatus))
        {
-         availablefs.insert (snapshot.mId);
+         availablefs.insert(snapshot.mId);
 
          // the weight is given mainly by the disk performance and the network load has a weaker impact (sqrt)
          double weight = (1.0 - snapshot.mDiskUtilization);
          double netweight = (1.0 - ((snapshot.mNetEthRateMiB) ? (snapshot.mNetOutRateMiB / snapshot.mNetEthRateMiB) : 0.0));
-         weight *= ((netweight > 0) ? sqrt (netweight) : 0);
+         weight *= ((netweight > 0) ? sqrt(netweight) : 0);
          // drain patch
          if (snapshot.mConfigStatus == eos::common::FileSystem::kDrain)
          {
            // we set a low weight for drain filesystems if there is more than one replica
-           if (locationsfs.size () == 1)
+           if (locationsfs.size() == 1)
            {
              weight = 1.0;
            }
@@ -629,9 +630,9 @@ Scheduler::FileAccess (
            }
          }
 
-         availablefsweightsort.insert (std::pair<double, eos::common::FileSystem::fsid_t > (weight, snapshot.mId));
+         availablefsweightsort.insert(std::pair<double, eos::common::FileSystem::fsid_t > (weight, snapshot.mId));
          renorm += weight;
-         eos_static_debug ("weight=%f netweight=%f renorm=%f disk-geotag=%s client-geotag=%s id=%d utilization=%f\n", weight, netweight, renorm, snapshot.mGeoTag.c_str (), vid.geolocation.c_str (), snapshot.mId, snapshot.mDiskUtilization);
+         eos_static_debug("weight=%f netweight=%f renorm=%f disk-geotag=%s client-geotag=%s id=%d utilization=%f\n", weight, netweight, renorm, snapshot.mGeoTag.c_str(), vid.geolocation.c_str(), snapshot.mId, snapshot.mDiskUtilization);
        }
        else
        {
@@ -639,25 +640,25 @@ Scheduler::FileAccess (
          // we store not available filesystems in the unavail vector 
          // - this matters for RAID layouts because we have to remove there URLs to let the RAID driver use only online stripes
          // -----------------------------------------------------------------------
-         unavailfs.push_back (snapshot.mId);
+         unavailfs.push_back(snapshot.mId);
        }
      }
    }
 
-   eos_static_debug ("Requesting %d/%d replicas to be online\n", availablefs.size (), eos::common::LayoutId::GetMinOnlineReplica (lid));
+   eos_static_debug("Requesting %d/%d replicas to be online\n", availablefs.size(), eos::common::LayoutId::GetMinOnlineReplica(lid));
    // -----------------------------------------------------------------------
    // check if there are enough stripes available for a read operation of the given layout
    // -----------------------------------------------------------------------
-   if (availablefs.size () < eos::common::LayoutId::GetMinOnlineReplica (lid))
+   if (availablefs.size() < eos::common::LayoutId::GetMinOnlineReplica(lid))
    {
      return ENONET;
    }
 
-   if ((eos::common::LayoutId::GetLayoutType (lid) == eos::common::LayoutId::kRaidDP) ||
-       (eos::common::LayoutId::GetLayoutType (lid) == eos::common::LayoutId::kRaid6) ||
-       (eos::common::LayoutId::GetLayoutType (lid) == eos::common::LayoutId::kArchive))
+   if ((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaidDP) ||
+       (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaid6) ||
+       (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kArchive))
    {
-     if (availablefs.size () != eos::common::LayoutId::GetOnlineStripeNumber (lid))
+     if (availablefs.size() != eos::common::LayoutId::GetOnlineStripeNumber(lid))
      {
        // -----------------------------------------------------------------------
        // check if there are enough stripes available for the layout type chosen
@@ -682,9 +683,9 @@ Scheduler::FileAccess (
    // -----------------------------------------------------------------------
    if (forcedfsid > 0)
    {
-     if (availablefs.count (forcedfsid) == 1)
+     if (availablefs.count(forcedfsid) == 1)
      {
-       for (size_t i = 0; i < locationsfs.size (); i++)
+       for (size_t i = 0; i < locationsfs.size(); i++)
        {
          if (locationsfs[i] == forcedfsid)
          {
@@ -693,7 +694,7 @@ Scheduler::FileAccess (
          }
        }
        // uuh! - this should NEVER happen!
-       eos_static_crit ("fatal inconsistency in scheduling - file system missing after selection of forced fsid");
+       eos_static_crit("fatal inconsistency in scheduling - file system missing after selection of forced fsid");
        return EIO;
      }
      return ENONET;
@@ -707,7 +708,7 @@ Scheduler::FileAccess (
    // -----------------------------------------------------------------------
    // if there was none available, return
    // -----------------------------------------------------------------------
-   if (!availablefs.size ())
+   if (!availablefs.size())
    {
      return ENONET;
    }
@@ -715,18 +716,18 @@ Scheduler::FileAccess (
    // -----------------------------------------------------------------------
    // if there was only one available, use that one
    // -----------------------------------------------------------------------
-   if (availablefs.size () == 1)
+   if (availablefs.size() == 1)
    {
-     for (size_t i = 0; i < locationsfs.size (); i++)
+     for (size_t i = 0; i < locationsfs.size(); i++)
      {
-       if (locationsfs[i] == *(availablefs.begin ()))
+       if (locationsfs[i] == *(availablefs.begin()))
        {
          fsindex = i;
          return returnCode;
        }
      }
      // uuh! - this should NEVER happen!
-     eos_static_crit ("fatal inconsistency in scheduling - file system missing after selection of single replica");
+     eos_static_crit("fatal inconsistency in scheduling - file system missing after selection of single replica");
      return EIO;
    }
 
@@ -739,15 +740,15 @@ Scheduler::FileAccess (
    // now start with the one with the highest weight, but still use probabilty to select it
    // -----------------------------------------------------------------------
    std::multimap<double, eos::common::FileSystem::fsid_t>::reverse_iterator wit;
-   for (wit = availablefsweightsort.rbegin (); wit != availablefsweightsort.rend (); wit++)
+   for (wit = availablefsweightsort.rbegin(); wit != availablefsweightsort.rend(); wit++)
    {
-     float randomacceptor = (0.999999 * random () / RAND_MAX);
-     eos_static_debug ("random acceptor=%.02f norm=%.02f weight=%.02f normweight=%.02f fsid=%u", randomacceptor, renorm, wit->first, wit->first / renorm, wit->second);
+     float randomacceptor = (0.999999 * random() / RAND_MAX);
+     eos_static_debug("random acceptor=%.02f norm=%.02f weight=%.02f normweight=%.02f fsid=%u", randomacceptor, renorm, wit->first, wit->first / renorm, wit->second);
 
      if ((wit->first / renorm) > randomacceptor)
      {
        // take this
-       for (size_t i = 0; i < locationsfs.size (); i++)
+       for (size_t i = 0; i < locationsfs.size(); i++)
        {
          if (locationsfs[i] == wit->second)
          {
@@ -756,7 +757,7 @@ Scheduler::FileAccess (
          }
        }
        // uuh! - this should NEVER happen!
-       eos_static_crit ("fatal inconsistency in scheduling - file system missing after selection in randomacceptor");
+       eos_static_crit("fatal inconsistency in scheduling - file system missing after selection in randomacceptor");
        return EIO;
      }
    }
@@ -764,16 +765,16 @@ Scheduler::FileAccess (
    // if we don't succeed by the randomized weight, we return the one with the highest weight
    // -----------------------------------------------------------------------
 
-   for (size_t i = 0; i < locationsfs.size (); i++)
+   for (size_t i = 0; i < locationsfs.size(); i++)
    {
-     if (locationsfs[i] == availablefsweightsort.begin ()->second)
+     if (locationsfs[i] == availablefsweightsort.begin()->second)
      {
        fsindex = i;
        return returnCode;
      }
    }
    // uuh! - this should NEVER happen!
-   eos_static_crit ("fatal inconsistency in scheduling - file system missing after selection");
+   eos_static_crit("fatal inconsistency in scheduling - file system missing after selection");
    return EIO;
  }
 
