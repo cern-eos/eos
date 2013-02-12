@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/Quota.hh"
 #include "common/LinuxMemConsumption.hh"
 
 /*----------------------------------------------------------------------------*/

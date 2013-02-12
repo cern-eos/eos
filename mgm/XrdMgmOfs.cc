@@ -4507,7 +4507,7 @@ XrdMgmOfs::FSctl(const int               cmd,
 	      // we check the checksum only for replica layouts
 	      bool cxError=false;
 	      size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
-	      for (int i=0 ; i< cxlen; i++) {
+	      for (size_t i=0 ; i< cxlen; i++) {
 		if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i]) {
 		  cxError=true;
 		}
@@ -4535,7 +4535,7 @@ XrdMgmOfs::FSctl(const int               cmd,
             if (verifychecksum) {
               bool cxError=false;
 	      size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
-              for (int i=0 ; i< cxlen; i++) {
+              for (size_t i=0 ; i< cxlen; i++) {
                 if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i]) {
                   cxError=true;
                 }
