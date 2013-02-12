@@ -275,7 +275,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
                                              mStripeWidth,
                                              mMetaHandlers[physical_id],
                                              true); // enable readahead
-
+     
      if (nread != mStripeWidth)
      {
        status_blocks[i] = false;
@@ -629,8 +629,6 @@ RaidDpLayout::WriteParityToFiles (off_t offsetGroup)
  unsigned int index_dpblock;
  unsigned int physical_pindex = mapLP[mNbTotalFiles - 2];
  unsigned int physical_dpindex = mapLP[mNbTotalFiles - 1];
- mMetaHandlers[physical_pindex]->Reset();
- mMetaHandlers[physical_dpindex]->Reset();
 
  for (unsigned int i = 0; i < mNbDataFiles; i++)
  {
@@ -686,13 +684,11 @@ RaidDpLayout::WriteParityToFiles (off_t offsetGroup)
    }
  }
 
- if ((!mMetaHandlers[physical_pindex]->WaitOK()) ||
-     (!mMetaHandlers[physical_dpindex]->WaitOK()))
- {
-   eos_err("error=error while writing remote parity information");
-   ret = SFS_ERROR;
- }
-
+ //.............................................................................
+ // We collect the write responses either the next time we do a read like in
+ // ReadGroups or in the Close method for the whole file.
+ //.............................................................................
+ 
  return ret;
 }
 

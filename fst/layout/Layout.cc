@@ -48,6 +48,7 @@ Layout::Layout (XrdFstOfsFile* file,
                 const XrdSecEntity* client,
                 XrdOucErrInfo* outError,
                 eos::common::LayoutId::eIoType io) :
+eos::common::LogId(),
 mLayoutId (lid),
 mOfsFile (file),
 mError (outError),

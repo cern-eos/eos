@@ -528,7 +528,6 @@ ReedSLayout::WriteParityToFiles (off_t offsetGroup)
    //..........................................................................
    if (mStripeFiles[physical_id])
    {
-     mMetaHandlers[physical_id]->Reset();
      nwrite = mStripeFiles[physical_id]->Write(offset_local,
                                                mDataBlocks[i],
                                                mStripeWidth,
@@ -544,15 +543,11 @@ ReedSLayout::WriteParityToFiles (off_t offsetGroup)
    }
  }
 
- for (unsigned int i = mNbDataFiles; i < mNbTotalFiles; i++)
- {
-   if (!mMetaHandlers[mapLP[i]]->WaitOK())
-   {
-     eos_err("ReedSWrite write local stripe - write failed");
-     ret = SFS_ERROR;
-   }
- }
-
+ //.............................................................................
+ // We collect the write responses either the next time we do a read like in
+ // ReadGroups or in the Close method for the whole file.
+ //.............................................................................
+ 
  return ret;
 }
 

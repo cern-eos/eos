@@ -1100,8 +1100,6 @@ static void eosfs_ll_open( fuse_req_t             req,
            mounthostport, mountprefix, name );
   
   xrd_unlock_r_p2i();         // <=
-
-  fprintf( stderr, "The open flags are: %i.\n", fi->flags );
   
   if ( fi->flags & ( O_RDWR | O_WRONLY | O_CREAT ) ) {
     if ( ( res = xrd_get_open_fd( ( unsigned long long )ino, req->ctx.uid ) ) > 0 ) {

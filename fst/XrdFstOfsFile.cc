@@ -41,13 +41,13 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOfsFile::XrdFstOfsFile (const char* user, int MonID) :
-XrdOfsFile (user, MonID)
+  XrdOfsFile (user, MonID),
+  eos::common::LogId()
 {
  openOpaque = 0;
  capOpaque = 0;
  fstPath = "";
  hasBlockXs = false;
- eos::common::LogId();
  closed = false;
  opened = false;
  haswrite = false;

@@ -60,9 +60,9 @@ typedef std::vector<std::pair<std::string, std::string> > VectLocationType;
 
 enum AccessType
 {
- LOCAL_ACCESS, ///< local access
- RAID_ACCESS, ///< xroot protocol but with raid layout
- XRD_ACCESS, ///< xroot protocol
+ LOCAL_ACCESS,  ///< local access
+ RAID_ACCESS,   ///< xroot protocol but with raid layout
+ XRD_ACCESS,    ///< xroot protocol
  CONSOLE_ACCESS ///< input/output to console
 };
 
@@ -81,6 +81,9 @@ VectLocationType src_location;
 
 ///! vector of destination host address and path file
 VectLocationType dst_location;
+
+///! vector of async request handlers for the destination files
+std::vector<eos::fst::AsyncMetaHandler*> meta_handler;
 
 std::vector<AccessType> src_type; ///< vector of source type access
 std::vector<AccessType> dst_type; ///< vector of destination type access
@@ -111,12 +114,10 @@ XrdOucString cpname = "";
 XrdCl::XRootDStatus status;
 uint32_t buffersize = DEFAULTBUFFERSIZE;
 
-double read_wait = 0; ///< statistics about total read time
-double write_wait = 0; ///< statistics about total write time
-char* buffer = NULL; ///< used for doing the reading
+double read_wait = 0;   ///< statistics about total read time
+double write_wait = 0;  ///< statistics about total write time
+char* buffer = NULL;    ///< used for doing the reading
 bool first_time = true; ///< first time prefetch two blocks
-eos::fst::ChunkHandler* handler = NULL; ///< handler for async requests
-eos::fst::ChunkHandler* wr_handler = NULL; ///< handler for async write requests
 
 //..............................................................................
 // RAID related variables
@@ -125,10 +126,12 @@ off_t stripeWidth = 1024 * 1024;
 uint64_t offsetXrd = 0;
 int nparitystripes = 0;
 
-bool isRaidTransfer = false; ///< true if we currently handle a RAID transfer
-bool isSrcRaid = false; ///< meaninful only for RAID transfers 
-bool isStreamFile = false; ///< the file is streamed
+bool isRaidTransfer = false;  ///< true if we currently handle a RAID transfer
+bool isSrcRaid = false;       ///< meaninful only for RAID transfers 
+bool isStreamFile = false;    ///< the file is streamed
 bool doStoreRecovery = false; ///< store recoveries if the file is corrupted
+std::string opaqueInfo;       ///< opaque info containing the capabilities 
+                              ///< necesssary to do a parallel IO open
 
 std::string replicationType = "";
 eos::fst::RaidMetaLayout* redundancyObj = NULL;
@@ -237,7 +240,7 @@ extern "C"
 }
 
 //------------------------------------------------------------------------------
-// Printing summary
+// Printing summary header
 //------------------------------------------------------------------------------
 
 void
@@ -275,6 +278,11 @@ print_summary_header (VectLocationType& src,
  for (unsigned int i = 0; i < dst.size(); i++)
    COUT(("[eoscp] # Destination Name [%02d]    : %s\n", i, xdst[i].c_str()));
 }
+
+
+//------------------------------------------------------------------------------
+// Print summary
+//------------------------------------------------------------------------------
 
 void
 print_summary (VectLocationType& src,
@@ -381,6 +389,11 @@ print_progbar (unsigned long long bytesread, unsigned long long size)
  CERR(("| %.02f %% [%.01f MB/s]\r", 100.0 * bytesread / size, bytesread / abs_time / 1000.0));
 }
 
+
+//------------------------------------------------------------------------------
+// Write progress
+//------------------------------------------------------------------------------
+
 void
 write_progress (unsigned long long bytesread, unsigned long long size)
 {
@@ -407,7 +420,9 @@ write_progress (unsigned long long bytesread, unsigned long long size)
 }
 
 
-//////////////////////////////////////////////////////////////////////
+//------------------------------------------------------------------------------
+// Abort handler
+//------------------------------------------------------------------------------
 
 void
 abort_handler (int)
@@ -666,9 +681,9 @@ main (int argc, char* argv[])
  }
 
 
- //............................................................................
+ //.............................................................................
  // Get the address and the file path from the input
- //............................................................................
+ //.............................................................................
  std::string location;
  std::string address;
  std::string file_path;
@@ -727,9 +742,9 @@ main (int argc, char* argv[])
  }
 
 
- //............................................................................
+ //.............................................................................
  // Get the type of access we will be doing
- //............................................................................
+ //.............................................................................
  if (isRaidTransfer)
  {
    if (!nparitystripes)
@@ -748,9 +763,9 @@ main (int argc, char* argv[])
    }
  }
 
- //............................................................................
+ //.............................................................................
  // Get sources access type
- //............................................................................
+ //.............................................................................
  for (int i = 0; i < nsrc; i++)
  {
    if (src_location[i].first.find("root://") != std::string::npos)
@@ -761,7 +776,125 @@ main (int argc, char* argv[])
      }
      else
      {
-       src_type.push_back(XRD_ACCESS);
+       //.......................................................................
+       // Test if we can do parallel IO access
+       //.......................................................................
+       XrdCl::Buffer arg;
+       XrdCl::Buffer* response = 0;
+       XrdCl::XRootDStatus status;
+       file_path = src_location[i].first + src_location[i].second; 
+       size_t spos = file_path.rfind( "//" );
+       std::string address = file_path.substr( 0 , spos + 1 );
+       XrdCl::URL url( address );
+       
+       if ( !url.IsValid() ) {
+         fprintf( stderr, "URL is invalid: %s", address.c_str());
+         exit( -1 ); 
+       }
+       
+       XrdCl::FileSystem fs( url );
+      
+       if ( spos != std::string::npos ) {
+         file_path.erase( 0, spos + 1 );
+       }
+       
+       std::string request = file_path;
+       request += "?mgm.pcmd=open";
+       arg.FromString( request );
+       status = fs.Query( XrdCl::QueryCode::OpaqueFile, arg, response );
+       
+       if ( status.IsOK() ) {
+         //.....................................................................
+         // Parse output
+         //.....................................................................
+         if ( verbose || debug ) {
+           fprintf( stderr, "Doing PIO_ACCESS for source location %i.\n", i );
+         }
+         
+         XrdOucString tag;
+         XrdOucString stripe_path;
+         XrdOucString origResponse = response->GetBuffer();
+         XrdOucString stringOpaque = response->GetBuffer();
+       
+         while ( stringOpaque.replace( "?", "&" ) ) {}
+         while ( stringOpaque.replace( "&&", "&" ) ) {}
+         
+         XrdOucEnv* openOpaque = new XrdOucEnv( stringOpaque.c_str() );
+         char* opaque_info = (char*) strstr( origResponse.c_str(), "&&mgm.logid" );
+         opaqueInfo = opaque_info;
+         
+         //...................................................................
+         // Now that parallel IO is possible, we add the new stripes to the
+         // src_location vector, we update the number of source files and then
+         // we can use the RAID-like access mode where the stripe files are
+         // given as input to the command line
+         //...................................................................
+         if ( opaque_info ) {
+           opaque_info += 2;
+           LayoutId::layoutid_t layout = openOpaque->GetInt( "mgm.lid" );
+           std::string orig_file = file_path;
+           nsrc = eos::common::LayoutId::GetStripeNumber( layout ) + 1;
+           src_location.clear();
+           isRaidTransfer = true;
+           isSrcRaid = true;
+           if ( eos::common::LayoutId::GetLayoutType( layout ) == eos::common::LayoutId::kRaidDP ) {
+             replicationType = "raidDP";
+           }
+           else if ( eos::common::LayoutId::GetLayoutType( layout ) == eos::common::LayoutId::kRaidDP ) {
+             replicationType = "reedS";
+           }
+           else {
+             fprintf( stderr, " The layout returned by the MGM is not supported... strange!.\n" );
+             exit( -1 );
+           }
+           
+                     
+           for ( int i = 0; i < nsrc; i++ ) {
+             tag = "pio.";
+             tag += i;
+             stripe_path = "root://";
+             stripe_path += openOpaque->Get( tag.c_str() );
+             stripe_path += "/";
+             stripe_path += orig_file.c_str();
+             int pos = stripe_path.rfind("//");
+
+             if ( pos == STR_NPOS )
+             {
+               address = "";
+               file_path = stripe_path.c_str();
+             }
+             else
+             {
+               address = std::string( stripe_path.c_str(), 0, pos + 1 );
+               file_path = std::string( stripe_path.c_str(), pos + 1, stripe_path.length() - pos - 1 );
+             }
+
+             src_location.push_back( std::make_pair( address, file_path ) );
+             src_type.push_back( RAID_ACCESS );
+             
+             if ( verbose || debug )
+             {
+               fprintf( stdout, "src<%d>=%s \n", i, src_location.back().second.c_str() );
+             }
+           }
+         }
+         else
+         {
+           fprintf( stderr, "Error while parsing the opaque information from PIO request.\n" );
+           exit( -1 );          
+         }
+        
+         delete openOpaque;
+         break;
+       }
+       else {
+         //.....................................................................
+         // The file is not suitable for PIO access, do normal XRD access
+         //.....................................................................
+         src_type.push_back(XRD_ACCESS);
+       }
+
+       delete response;
      }
    }
    else if (src_location[i].second == "-")
@@ -794,7 +927,11 @@ main (int argc, char* argv[])
      }
      else
      {
+       //.......................................................................
+       // Here we rely on the fact that all destinations must be of the same type
+       //.......................................................................
        dst_type.push_back(XRD_ACCESS);
+       meta_handler.push_back( new eos::fst::AsyncMetaHandler() );
      }
    }
    else if (dst_location[i].second == "-")
@@ -875,6 +1012,11 @@ main (int argc, char* argv[])
        break;
 
       case RAID_ACCESS:
+        for ( int j = 0; j < nsrc; j++ ) {
+          st[j].st_size = 0;
+          st[j].st_mode = S_IFREG | S_IRUSR | S_IWUSR | S_IRGRP;
+        }
+        break;
       case XRD_ACCESS:
        {
         if (debug)
@@ -913,7 +1055,7 @@ main (int argc, char* argv[])
         delete response;
        }
        break;
-
+      
       case CONSOLE_ACCESS:
        stat_failed = 0;
        break;
@@ -1203,6 +1345,7 @@ main (int argc, char* argv[])
       if (isSrcRaid)
       {
         int flags;
+        mode_t mode_sfs = 0;
         std::vector<std::string> vectUrl;
 
         if (doStoreRecovery) flags = O_RDWR;
@@ -1248,7 +1391,7 @@ main (int argc, char* argv[])
           fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags);
         }
 
-        if (redundancyObj->OpenPio(vectUrl, flags))
+        if ( redundancyObj->OpenPio( vectUrl, flags, mode_sfs, opaqueInfo.c_str() ) )
         {
           fprintf(stderr, "error: can not open RAID object for read/write\n");
           exit(-EIO);
@@ -1741,24 +1884,19 @@ main (int argc, char* argv[])
        break;
 
       case XRD_ACCESS:
-       {
+      {
+        //......................................................................
+        // Do writes in async mode
+        //......................................................................
         eos::common::Timing::GetTimeSpec(start);
-        // WRITING IN SYNC MODE
-        status = dst_handler[i].second->Write(stopwritebyte,
-                                              nread,
-                                              ptr_buffer);
-
-        if (!status.IsOK())
-        {
-          fprintf(stderr, "error: write failed on destination file %s - "
-                  "wrote %lld/%lld bytes - destination file is incomplete!\n",
-                  dst_location[i].second.c_str(), (long long) nwrite, (long long) nread);
-          exit(-EIO);
-        }
-
+        eos::fst::ChunkHandler* chunk_handler;
+        chunk_handler = meta_handler[i]->Register( stopwritebyte, nread, true );
+        status = dst_handler[i].second->Write( stopwritebyte,
+                                               nread,
+                                               ptr_buffer,
+                                               chunk_handler );
         nwrite = nread;
-
-        eos::common::Timing::GetTimeSpec(start);
+        eos::common::Timing::GetTimeSpec(end);
         wait_time = static_cast<double> ((end.tv_sec * 1000 + end.tv_nsec / 1000000)-
                                          (start.tv_sec * 1000 + start.tv_nsec / 1000000));
         write_wait += wait_time;
@@ -1784,8 +1922,27 @@ main (int argc, char* argv[])
      // fprintf(stdout, "Seems to be the end of file.\n");
      // break;
    //}
+   
  } // end while(1)
 
+ //.............................................................................
+ // Wait for all async write requests before moving on
+ //.............................................................................
+ eos::common::Timing::GetTimeSpec(start);
+ 
+ for (int i = 0; i < ndst; i++) {
+   if ( dst_type[i] == XRD_ACCESS ) {
+     if ( !meta_handler[i]->WaitOK() ) {
+       fprintf( stderr, "Error while doing the asyn writing.\n" );
+     }
+     delete meta_handler[i];
+   }   
+ }
+
+ eos::common::Timing::GetTimeSpec(end);
+ wait_time = static_cast<double> ((end.tv_sec * 1000 + end.tv_nsec / 1000000)-
+                                  (start.tv_sec * 1000 + start.tv_nsec / 1000000));
+ write_wait += wait_time;
 
  if (computeXS && xsObj)
  {
