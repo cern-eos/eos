@@ -34,7 +34,6 @@
 #include "common/LinuxStat.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
-#include "mgm/ProcInterface.hh"
 #include "mgm/ConfigEngine.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Iostat.hh"
@@ -44,6 +43,7 @@
 #include "mgm/ZMQ.hh"
 #endif
 #include "mgm/Messaging.hh"
+#include "mgm/ProcInterface.hh"
 #include "namespace/IView.hh"
 #include "namespace/IFileMDSvc.hh"
 #include "namespace/IContainerMDSvc.hh"
@@ -63,6 +63,7 @@
 /*----------------------------------------------------------------------------*/
 #include <dirent.h>
 /*----------------------------------------------------------------------------*/
+
 
 USE_EOSMGMNAMESPACE
 
@@ -326,11 +327,7 @@ public:
 
   XrdMgmOfsFile(char *user=0, int MonID=0) : XrdSfsFile(user,MonID)
   {oh = 0; fname = 0; openOpaque=0;eos::common::Mapping::Nobody(vid);fileId=0; procCmd=0; eos::common::LogId();fmd=0;}
-  ~XrdMgmOfsFile() {
-    if (oh) close();
-    if (openOpaque) {delete openOpaque; openOpaque = 0;}
-    if (procCmd) { delete procCmd; procCmd = 0;}
-  }
+  virtual ~XrdMgmOfsFile();
                       
 private:
 

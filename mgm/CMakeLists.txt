@@ -31,7 +31,40 @@ add_library (XrdEosMgm MODULE
 	    Policy.cc  
 	    ProcInterface.cc
             proc/proc_fs.cc
+            proc/admin/Access.cc
+            proc/admin/Chown.cc
+            proc/admin/Config.cc
+            proc/admin/Debug.cc
+            proc/admin/Fs.cc
+            proc/admin/Fsck.cc
+            proc/admin/Group.cc
+            proc/admin/Io.cc
+            proc/admin/Node.cc
+            proc/admin/Ns.cc
+            proc/admin/Quota.cc
+            proc/admin/Rtlog.cc
+            proc/admin/Space.cc
+            proc/admin/Transfer.cc
+            proc/admin/Vid.cc
+            proc/user/Attr.cc
+            proc/user/Cd.cc
+            proc/user/Chmod.cc
+            proc/user/File.cc
+	    proc/user/Fileinfo.cc
+            proc/user/Find.cc
+            proc/user/Fuse.cc
+            proc/user/Ls.cc
+            proc/user/Map.cc
+            proc/user/Mkdir.cc
+            proc/user/Motd.cc
+            proc/user/Quota.cc
+            proc/user/Rm.cc
+            proc/user/Rmdir.cc
+            proc/user/Version.cc
+            proc/user/Who.cc
+            proc/user/Whoami.cc
 	    Quota.cc
+            Scheduler.cc
 	    Vid.cc
 	    FsView.cc
 	    XrdMgmOfsConfigure.cc

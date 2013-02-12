@@ -1347,7 +1347,7 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
     if (attrmap.count("user.tag")) {
       containertag = attrmap["user.tag"].c_str();
     }
-    retc = quotaspace->FilePlacement(path, vid, containertag, layoutId, selectedfs, open_mode & SFS_O_TRUNC, -1, bookingsize);
+    retc = quotaspace->FilePlacement(path, vid, containertag, layoutId, selectedfs, selectedfs, open_mode & SFS_O_TRUNC, -1, bookingsize);
   } else {
     // ************************************************************************************************
     // access existing file
@@ -4118,6 +4118,14 @@ int XrdMgmOfsFile::Emsg(const char    *pfx,    // Message prefix value
   return SFS_ERROR;
 }
 
+
+/*----------------------------------------------------------------------------*/
+XrdMgmOfsFile::~XrdMgmOfsFile() 
+{
+  if (oh) close();
+  if (openOpaque) {delete openOpaque; openOpaque = 0;}
+  if (procCmd) { delete procCmd; procCmd = 0;}
+}
 
 /*----------------------------------------------------------------------------*/
 int XrdMgmOfs::Stall(XrdOucErrInfo   &error, // Error text & code
