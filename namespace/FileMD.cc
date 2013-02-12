@@ -37,6 +37,7 @@ namespace eos
     pCUid( 0 ),
     pCGid( 0 ),
     pLayoutId( 0 ),
+    pChecksum( 0 ),
     pFileMDSvc( fileMDSvc )
   {
     pCTime.tv_sec = pCTime.tv_nsec = 0;

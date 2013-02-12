@@ -204,7 +204,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Clear checksum
       //------------------------------------------------------------------------
-      void clearChecksum(uint8_t size=64)
+      void clearChecksum(uint8_t size=20)
       {
         char zero=0;
         for ( uint8_t i=0; i< size; i++ )
@@ -460,11 +460,11 @@ namespace eos
       uid_t              pCUid;
       gid_t              pCGid;
       uint32_t           pLayoutId;
+      IFileMDSvc        *pFileMDSvc;
       std::string        pName;
       LocationVector     pLocation;
       LocationVector     pUnlinkedLocation;
       Buffer             pChecksum;
-      IFileMDSvc        *pFileMDSvc;
   };
 }
 

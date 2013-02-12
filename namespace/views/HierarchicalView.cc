@@ -208,7 +208,7 @@ namespace eos
     file->setCGid( gid );
     file->setCTimeNow();
     file->setMTimeNow();
-    file->clearChecksum();
+    file->clearChecksum(0);
     cont->addFile( file );
     pFileSvc->updateStore( file );
 
