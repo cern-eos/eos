@@ -1152,7 +1152,8 @@ int SpaceQuota::FileAccess(eos::common::Mapping::VirtualIdentity_t &vid, unsigne
 
   if ((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) || 
       (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaidDP) ||
-      (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReedS) ) {
+      (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kArchive) ||
+      (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaid6) ) {
     std::set<eos::common::FileSystem::fsid_t> availablefs;
     std::multimap<double, eos::common::FileSystem::fsid_t> availablefsweightsort;
 
@@ -1266,7 +1267,8 @@ int SpaceQuota::FileAccess(eos::common::Mapping::VirtualIdentity_t &vid, unsigne
     }
 
     if ( (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaidDP) ||
-	 (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReedS) ) {
+	 (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaid6) || 
+	 (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kArchive) ) {
       if (availablefs.size() != eos::common::LayoutId::GetOnlineStripeNumber(lid)) {
 	// -----------------------------------------------------------------------
 	// check if there are enough stripes available for the layout type chosen

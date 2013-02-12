@@ -1556,7 +1556,8 @@ int XrdMgmOfsFile::open(const char          *inpath,    // In
   
   if ((eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReplica) || 
       (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kRaidDP) || 
-      (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kReedS))
+      (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kArchive) || 
+      (eos::common::LayoutId::GetLayoutType(layoutId) == eos::common::LayoutId::kRaid6))
   {
     capability += "&mgm.fsid="; capability += (int)filesystem->GetId();
     
@@ -4497,7 +4498,8 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
 	      // we check the checksum only for replica layouts
 	      bool cxError=false;
-	      for (int i=0 ; i< SHA_DIGEST_LENGTH; i++) {
+	      size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+	      for (int i=0 ; i< cxlen; i++) {
 		if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i]) {
 		  cxError=true;
 		}
@@ -4524,7 +4526,8 @@ XrdMgmOfs::FSctl(const int               cmd,
           if (checksum) {
             if (verifychecksum) {
               bool cxError=false;
-              for (int i=0 ; i< SHA_DIGEST_LENGTH; i++) {
+	      size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+              for (int i=0 ; i< cxlen; i++) {
                 if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i]) {
                   cxError=true;
                 }
@@ -5058,8 +5061,9 @@ XrdMgmOfs::FSctl(const int               cmd,
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);      
       try {
         fmd = gOFS->eosView->getFile(spath.c_str());
+	size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
         for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
-          char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+          char hb[3]; sprintf(hb,"%02x", (i < cxlen)? (unsigned char) (fmd->getChecksum().getDataPtr()[i]) : 0);
           checksum += hb;
         }
       } catch ( eos::MDException &e ) {
@@ -5285,8 +5289,9 @@ XrdMgmOfs::FSctl(const int               cmd,
             else if (key.find("eos.XS") != STR_NPOS){
               response += "0 "; response += "value=";
               char hb[3]; 
-	      for (unsigned int i = 0; i < SHA_DIGEST_LENGTH; i++) {
-                if ((i + 1) == SHA_DIGEST_LENGTH)
+	      size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+	      for (unsigned int i = 0; i < cxlen; i++) {
+                if ((i + 1) == cxlen)
                   sprintf(hb,"%02x ", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
                 else 
                   sprintf(hb,"%02x_", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));

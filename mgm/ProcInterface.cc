@@ -4545,8 +4545,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                           stdOut += "mgm.checksumtype=";stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()); stdOut +="&";
                           stdOut += "mgm.size="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getSize()); stdOut+="&";
                           stdOut += "mgm.checksum=";
+			  size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
                           for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
-                              char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+  			      char hb[3]; sprintf(hb,"%02x", (i<cxlen)?((unsigned char) (fmd->getChecksum().getDataPtr()[i])) : 0);
                               stdOut += hb;
                           }
                           stdOut += "&";
@@ -4768,8 +4769,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                               stdOut += "   Pid: "; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getContainerId()); stdOut+="\n";
                               stdOut += "XStype: "; stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
                               stdOut += "    XS: ";
-                              for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
-                                  char hb[3]; sprintf(hb,"%02x ", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+			      size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());			      
+                              for (unsigned int i=0; i< cxlen; i++) {
+  				  char hb[3]; sprintf(hb,"%02x ", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
                                   stdOut += hb;
                               }
                               stdOut+="\n";
@@ -4787,8 +4789,9 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
                               stdOut += "pid="; stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)fmd->getContainerId()); stdOut+=" ";
                               stdOut += "xstype="; stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId()); stdOut += " ";
                               stdOut += "xs=";
+			      size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
                               for (unsigned int i=0; i< SHA_DIGEST_LENGTH; i++) {
-                                  char hb[3]; sprintf(hb,"%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+				  char hb[3]; sprintf(hb,"%02x", (i < cxlen)? (unsigned char) (fmd->getChecksum().getDataPtr()[i]) : 0);
                                   stdOut += hb;
                               }
                               stdOut+=" ";
