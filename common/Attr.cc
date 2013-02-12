@@ -92,7 +92,7 @@ Attr::Set(const char* name, const char* value, size_t len)
   if ((!name)|| (!value))
     return false;
 #ifdef __APPLE__
-  if (!setxattr(fName.c_str(), name, value, len,0,0))
+  if (!setxattr(mName.c_str(), name, value, len,0,0))
 #else
   if (!lsetxattr(mName.c_str(), name, value, len,0))
 #endif
