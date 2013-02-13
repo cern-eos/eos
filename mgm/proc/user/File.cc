@@ -60,6 +60,9 @@ ProcCommand::File ()
  }
  else
  {
+   // --------------------------------------------------------------------------
+   // drop a replica referenced by filesystem id
+   // --------------------------------------------------------------------------
    if (mSubCmd == "drop")
    {
      XrdOucString sfsid = pOpaque->Get("mgm.file.fsid");
@@ -85,7 +88,9 @@ ProcCommand::File ()
    }
 
 
-
+   // --------------------------------------------------------------------------
+   // change the number of stripes for files with replica layout
+   // --------------------------------------------------------------------------
    if (mSubCmd == "layout")
    {
      XrdOucString stripes = pOpaque->Get("mgm.file.layout.stripes");
@@ -183,6 +188,9 @@ ProcCommand::File ()
      }
    }
 
+   // --------------------------------------------------------------------------
+   // verify checksum, size for files issuing an asynchronous verification req
+   // --------------------------------------------------------------------------
    if (mSubCmd == "verify")
    {
      XrdOucString option = "";
@@ -349,6 +357,9 @@ ProcCommand::File ()
      }
    }
 
+   // --------------------------------------------------------------------------
+   // move a replica/stripe from source fs to target fs
+   // --------------------------------------------------------------------------
    if (mSubCmd == "move")
    {
      XrdOucString sfsidsource = pOpaque->Get("mgm.file.sourcefsid");
@@ -370,6 +381,9 @@ ProcCommand::File ()
      }
    }
 
+   // --------------------------------------------------------------------------
+   // replicate a replica/stripe from source fs to target fs
+   // --------------------------------------------------------------------------
    if (mSubCmd == "replicate")
    {
      XrdOucString sfsidsource = pOpaque->Get("mgm.file.sourcefsid");
@@ -391,7 +405,9 @@ ProcCommand::File ()
      }
    }
 
-
+   // --------------------------------------------------------------------------
+   // rename a file or directory from source to target path
+   // --------------------------------------------------------------------------
    if (mSubCmd == "rename")
    {
      XrdOucString source = pOpaque->Get("mgm.file.source");
@@ -412,7 +428,10 @@ ProcCommand::File ()
      }
    }
 
-
+   // --------------------------------------------------------------------------Ï
+   // fix the current state of the file layout by removing/repairing or adding
+   // replica/stripes
+   // --------------------------------------------------------------------------
    if (mSubCmd == "adjustreplica")
    {
      // only root can do that
@@ -864,6 +883,9 @@ ProcCommand::File ()
      }
    }
 
+   // --------------------------------------------------------------------------
+   // return meta data for a particular file
+   // --------------------------------------------------------------------------
    if (mSubCmd == "getmdlocation")
    {
      gOFS->MgmStats.Add("GetMdLocation", pVid->uid, pVid->gid, 1);
