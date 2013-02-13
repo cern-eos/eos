@@ -34,14 +34,14 @@ ProcCommand::Rtlog ()
 {
  if (pVid->uid == 0)
  {
-   dosort = 1;
+   mDoSort = 1;
    // this is just to identify a new queue for reach request
    static int bccount = 0;
    bccount++;
-   XrdOucString queue = opaque->Get("mgm.rtlog.queue");
-   XrdOucString lines = opaque->Get("mgm.rtlog.lines");
-   XrdOucString tag = opaque->Get("mgm.rtlog.tag");
-   XrdOucString filter = opaque->Get("mgm.rtlog.filter");
+   XrdOucString queue = pOpaque->Get("mgm.rtlog.queue");
+   XrdOucString lines = pOpaque->Get("mgm.rtlog.lines");
+   XrdOucString tag = pOpaque->Get("mgm.rtlog.tag");
+   XrdOucString filter = pOpaque->Get("mgm.rtlog.filter");
    if (!filter.length()) filter = " ";
    if ((!queue.length()) || (!lines.length()) || (!tag.length()))
    {
@@ -88,7 +88,7 @@ ProcCommand::Rtlog ()
 
          int envlen;
          XrdOucString msgbody;
-         msgbody = opaque->Env(envlen);
+         msgbody = pOpaque->Env(envlen);
 
          if (!gOFS->MgmOfsMessaging->BroadCastAndCollect(broadcastresponsequeue, broadcasttargetqueue, msgbody, stdOut, 2))
          {

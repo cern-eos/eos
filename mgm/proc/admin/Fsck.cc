@@ -34,7 +34,7 @@ ProcCommand::Fsck ()
 {
  if (pVid->uid == 0)
  {
-   if (subcmd == "disable")
+   if (mSubCmd == "disable")
    {
      if (gOFS->FsCheck.Stop())
      {
@@ -45,7 +45,7 @@ ProcCommand::Fsck ()
        stdErr += "error: fsck was already disabled";
      }
    }
-   if (subcmd == "enable")
+   if (mSubCmd == "enable")
    {
      if (gOFS->FsCheck.Start())
      {
@@ -56,23 +56,23 @@ ProcCommand::Fsck ()
        stdErr += "error: fsck was already enabled - to change the <interval> settings stop it first";
      }
    }
-   if (subcmd == "report")
+   if (mSubCmd == "report")
    {
      XrdOucString option = "";
-     XrdOucString selection = "";
-     option = opaque->Get("mgm.option") ? opaque->Get("mgm.option") : "";
-     selection = opaque->Get("mgm.fsck.selection") ? opaque->Get("mgm.fsck.selection") : "";
-     if (gOFS->FsCheck.Report(stdOut, stdErr, option, selection))
+     XrdOucString mSelection = "";
+     option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") : "";
+     mSelection = pOpaque->Get("mgm.fsck.mSelection") ? pOpaque->Get("mgm.fsck.mSelection") : "";
+     if (gOFS->FsCheck.Report(stdOut, stdErr, option, mSelection))
        retc = 0;
      else
        retc = EINVAL;
    }
 
-   if (subcmd == "repair")
+   if (mSubCmd == "repair")
    {
      XrdOucString option = "";
-     XrdOucString selection = "";
-     option = opaque->Get("mgm.option") ? opaque->Get("mgm.option") : "";
+     XrdOucString mSelection = "";
+     option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") : "";
      if (option == "all")
      {
        retc = (
@@ -98,7 +98,7 @@ ProcCommand::Fsck ()
    }
  }
 
- if (subcmd == "stat")
+ if (mSubCmd == "stat")
  {
    XrdOucString option = ""; // not used for the moment
    eos_info("fsck stat");

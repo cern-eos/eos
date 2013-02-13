@@ -33,9 +33,9 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Rm ()
 {
- XrdOucString spath = opaque->Get("mgm.path");
- XrdOucString option = opaque->Get("mgm.option");
- XrdOucString deep = opaque->Get("mgm.deletion");
+ XrdOucString spath = pOpaque->Get("mgm.path");
+ XrdOucString option = pOpaque->Get("mgm.option");
+ XrdOucString deep = pOpaque->Get("mgm.deletion");
 
  const char* inpath = spath.c_str();
  eos::common::Path cPath(inpath);

@@ -33,18 +33,18 @@ int
 ProcCommand::Fuse ()
 {
  gOFS->MgmStats.Add("Fuse-Dirlist", pVid->uid, pVid->gid, 1);
- XrdOucString path = opaque->Get("mgm.path");
- resultStream = "inodirlist: retc=";
+ XrdOucString path = pOpaque->Get("mgm.path");
+ mResultStream = "inodirlist: retc=";
  if (!path.length())
  {
-   resultStream += EINVAL;
+   mResultStream += EINVAL;
  }
  else
  {
    XrdMgmOfsDirectory* inodir = (XrdMgmOfsDirectory*) gOFS->newDir((char*) "");
    if (!inodir)
    {
-     resultStream += ENOMEM;
+     mResultStream += ENOMEM;
      return SFS_ERROR;
    }
 
@@ -52,22 +52,22 @@ ProcCommand::Fuse ()
    {
      delete inodir;
      retc = -retc;
-     resultStream += retc;
-     len = resultStream.length();
-     offset = 0;
+     mResultStream += retc;
+     mLen = mResultStream.length();
+     mOffset = 0;
      return SFS_OK;
    }
 
    const char* entry;
 
-   resultStream += 0;
-   resultStream += " ";
+   mResultStream += 0;
+   mResultStream += " ";
 
    unsigned long long inode = 0;
 
    char inodestr[256];
    size_t dotend = 0;
-   size_t dotstart = resultStream.length();
+   size_t dotstart = mResultStream.length();
 
    while ((entry = inodir->nextEntry()))
    {
@@ -87,17 +87,17 @@ ProcCommand::Fuse ()
      whitespaceentry.replace(" ", "%20");
      if ((!isdot) && (!isdotdot))
      {
-       resultStream += whitespaceentry;
-       resultStream += " ";
+       mResultStream += whitespaceentry;
+       mResultStream += " ";
      }
      if (isdot)
      {
        // the . and .. has to be streamed as first entries
-       resultStream.insert(". ", dotstart);
+       mResultStream.insert(". ", dotstart);
      }
      if (isdotdot)
      {
-       resultStream.insert(".. ", dotend);
+       mResultStream.insert(".. ", dotend);
      }
 
      XrdOucString statpath = path;
@@ -147,30 +147,30 @@ ProcCommand::Fuse ()
      sprintf(inodestr, "%lld", inode);
      if ((!isdot) && (!isdotdot))
      {
-       resultStream += inodestr;
-       resultStream += " ";
+       mResultStream += inodestr;
+       mResultStream += " ";
      }
      else
      {
        if (isdot)
        {
-         resultStream.insert(inodestr, dotstart + 2);
-         resultStream.insert(" ", dotstart + 2 + strlen(inodestr));
+         mResultStream.insert(inodestr, dotstart + 2);
+         mResultStream.insert(" ", dotstart + 2 + strlen(inodestr));
          dotend = dotstart + 2 + strlen(inodestr) + 1;
        }
        else
        {
-         resultStream.insert(inodestr, dotend + 3);
-         resultStream.insert(" ", dotend + strlen(inodestr) + 3);
+         mResultStream.insert(inodestr, dotend + 3);
+         mResultStream.insert(" ", dotend + strlen(inodestr) + 3);
        }
      }
    }
 
    inodir->close();
    delete inodir;
-   eos_debug("returning resultstream %s", resultStream.c_str());
-   len = resultStream.length();
-   offset = 0;
+   eos_debug("returning resultstream %s", mResultStream.c_str());
+   mLen = mResultStream.length();
+   mOffset = 0;
  }
  return SFS_OK;
 }

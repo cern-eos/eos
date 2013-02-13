@@ -33,8 +33,8 @@ int
 ProcCommand::Cd ()
 {
  gOFS->MgmStats.Add("Cd", pVid->uid, pVid->gid, 1);
- XrdOucString spath = opaque->Get("mgm.path");
- XrdOucString option = opaque->Get("mgm.option");
+ XrdOucString spath = pOpaque->Get("mgm.path");
+ XrdOucString option = pOpaque->Get("mgm.option");
 
  const char* inpath = spath.c_str();
 

@@ -512,7 +512,7 @@ proc_fs_source(std::string source_group, std::string target_group)
     return 0;
 
   if (splitgroup.length()) {
-    // there is a selection of a group as source
+    // there is a mSelection of a group as source
 
     // if there is no source group, we can't do anything
     if (!FsView::gFsView.mGroupView.count(source_group)) 

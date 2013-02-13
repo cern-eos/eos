@@ -34,13 +34,13 @@ ProcCommand::Debug ()
 {
  if (pVid->uid == 0)
  {
-   XrdOucString debugnode = opaque->Get("mgm.nodename");
-   XrdOucString debuglevel = opaque->Get("mgm.debuglevel");
-   XrdOucString filterlist = opaque->Get("mgm.filter");
+   XrdOucString debugnode = pOpaque->Get("mgm.nodename");
+   XrdOucString debuglevel = pOpaque->Get("mgm.debuglevel");
+   XrdOucString filterlist = pOpaque->Get("mgm.filter");
 
    XrdMqMessage message("debug");
    int envlen;
-   XrdOucString body = opaque->Env(envlen);
+   XrdOucString body = pOpaque->Env(envlen);
    message.SetBody(body.c_str());
    // filter out several *'s ...
    int nstars = 0;

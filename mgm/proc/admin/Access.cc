@@ -44,20 +44,20 @@ ProcCommand::Access ()
 
  bool monitoring = false;
  bool translate = true;
- user = opaque->Get("mgm.access.user") ? opaque->Get("mgm.access.user") : "";
- group = opaque->Get("mgm.access.group") ? opaque->Get("mgm.access.group") : "";
- host = opaque->Get("mgm.access.host") ? opaque->Get("mgm.access.host") : "";
- option = opaque->Get("mgm.access.option") ? opaque->Get("mgm.access.option") : "";
- redirect = opaque->Get("mgm.access.redirect") ? opaque->Get("mgm.access.redirect") : "";
- stall = opaque->Get("mgm.access.stall") ? opaque->Get("mgm.access.stall") : "";
- type = opaque->Get("mgm.access.type") ? opaque->Get("mgm.access.type") : "";
+ user = pOpaque->Get("mgm.access.user") ? pOpaque->Get("mgm.access.user") : "";
+ group = pOpaque->Get("mgm.access.group") ? pOpaque->Get("mgm.access.group") : "";
+ host = pOpaque->Get("mgm.access.host") ? pOpaque->Get("mgm.access.host") : "";
+ option = pOpaque->Get("mgm.access.option") ? pOpaque->Get("mgm.access.option") : "";
+ redirect = pOpaque->Get("mgm.access.redirect") ? pOpaque->Get("mgm.access.redirect") : "";
+ stall = pOpaque->Get("mgm.access.stall") ? pOpaque->Get("mgm.access.stall") : "";
+ type = pOpaque->Get("mgm.access.type") ? pOpaque->Get("mgm.access.type") : "";
 
  if ((option.find("m")) != std::string::npos)
    monitoring = true;
  if ((option.find("n")) != std::string::npos)
    translate = false;
 
- if (subcmd == "ban")
+ if (mSubCmd == "ban")
  {
    eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
    if (user.length())
@@ -132,7 +132,7 @@ ProcCommand::Access ()
    }
  }
 
- if (subcmd == "unban")
+ if (mSubCmd == "unban")
  {
    eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
    if (user.length())
@@ -246,7 +246,7 @@ ProcCommand::Access ()
    }
  }
 
- if (subcmd == "allow")
+ if (mSubCmd == "allow")
  {
    eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
    if (user.length())
@@ -321,7 +321,7 @@ ProcCommand::Access ()
    }
  }
 
- if (subcmd == "unallow")
+ if (mSubCmd == "unallow")
  {
    eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
    if (user.length())
@@ -433,7 +433,7 @@ ProcCommand::Access ()
      }
    }
 
-   if (subcmd == "set")
+   if (mSubCmd == "set")
    {
      eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
      if (redirect.length() && ((type.length() == 0) || (type == "r") || (type == "w")))
@@ -495,26 +495,26 @@ ProcCommand::Access ()
            if (type == "r")
            {
              Access::gStallRules[std::string("r:*")] = stall;
-             Access::gStallComment[std::string("r:*")] = comment.c_str();
+             Access::gStallComment[std::string("r:*")] = mComment.c_str();
            }
            else
            {
              if (type == "w")
              {
                Access::gStallRules[std::string("w:*")] = stall;
-               Access::gStallComment[std::string("w:*")] = comment.c_str();
+               Access::gStallComment[std::string("w:*")] = mComment.c_str();
              }
              else
              {
                if ((type.find("rate:user:") == 0) || (type.find("rate:group:") == 0))
                {
                  Access::gStallRules[std::string(type.c_str())] = stall;
-                 Access::gStallComment[std::string(type.c_str())] = comment.c_str();
+                 Access::gStallComment[std::string(type.c_str())] = mComment.c_str();
                }
                else
                {
                  Access::gStallRules[std::string("*")] = stall;
-                 Access::gStallComment[std::string("*")] = comment.c_str();
+                 Access::gStallComment[std::string("*")] = mComment.c_str();
                }
              }
            }
@@ -561,7 +561,7 @@ ProcCommand::Access ()
      }
    }
 
-   if (subcmd == "rm")
+   if (mSubCmd == "rm")
    {
      eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
      if (redirect.length())
@@ -707,7 +707,7 @@ ProcCommand::Access ()
      }
    }
 
-   if (subcmd == "ls")
+   if (mSubCmd == "ls")
    {
      eos::common::RWMutexReadLock lock(Access::gAccessMutex);
      std::set<uid_t>::const_iterator ituid;
@@ -978,7 +978,7 @@ ProcCommand::Access ()
          stdOut += itred->second.c_str();
          if (monitoring)
          {
-           stdOut += " comment=\"";
+           stdOut += " mComment=\"";
            stdOut += Access::gStallComment[itred->first].c_str();
            stdOut += "\"";
          }

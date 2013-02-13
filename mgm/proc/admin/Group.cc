@@ -33,34 +33,34 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Group ()
 {
- if (subcmd == "ls")
+ if (mSubCmd == "ls")
  {
    {
      std::string output = "";
      std::string format = "";
-     std::string listformat = "";
-     format = FsView::GetGroupFormat(std::string(outformat.c_str()));
-     if ((outformat == "l"))
-       listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
+     std::string mListFormat = "";
+     format = FsView::GetGroupFormat(std::string(mOutFormat.c_str()));
+     if ((mOutFormat == "l"))
+       mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
 
-     if ((outformat == "IO"))
+     if ((mOutFormat == "IO"))
      {
-       listformat = FsView::GetFileSystemFormat(std::string("io"));
-       outformat = "io";
+       mListFormat = FsView::GetFileSystemFormat(std::string("io"));
+       mOutFormat = "io";
      }
 
      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-     FsView::gFsView.PrintGroups(output, format, listformat, selection);
+     FsView::gFsView.PrintGroups(output, format, mListFormat, mSelection);
      stdOut += output.c_str();
    }
  }
 
- if (subcmd == "set")
+ if (mSubCmd == "set")
  {
    if (pVid->uid == 0)
    {
-     std::string groupname = (opaque->Get("mgm.group")) ? opaque->Get("mgm.group") : "";
-     std::string status = (opaque->Get("mgm.group.state")) ? opaque->Get("mgm.group.state") : "";
+     std::string groupname = (pOpaque->Get("mgm.group")) ? pOpaque->Get("mgm.group") : "";
+     std::string status = (pOpaque->Get("mgm.group.state")) ? pOpaque->Get("mgm.group.state") : "";
      std::string key = "status";
 
      if ((!groupname.length()) || (!status.length()))
@@ -167,11 +167,11 @@ ProcCommand::Group ()
    }
  }
 
- if (subcmd == "rm")
+ if (mSubCmd == "rm")
  {
    if (pVid->uid == 0)
    {
-     std::string groupname = (opaque->Get("mgm.group")) ? opaque->Get("mgm.group") : "";
+     std::string groupname = (pOpaque->Get("mgm.group")) ? pOpaque->Get("mgm.group") : "";
      if ((!groupname.length()))
      {
        stdErr = "error: illegal parameters";

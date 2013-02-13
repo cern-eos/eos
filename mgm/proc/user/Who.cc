@@ -37,7 +37,7 @@ ProcCommand::Who ()
  std::map<std::string, int> authcount;
  std::vector<std::string> tokens;
  std::string delimiter = ":";
- std::string option = (opaque->Get("mgm.option")) ? opaque->Get("mgm.option") : "";
+ std::string option = (pOpaque->Get("mgm.option")) ? pOpaque->Get("mgm.option") : "";
  bool monitoring = false;
  //      bool translate  = true;
  bool showclients = false;

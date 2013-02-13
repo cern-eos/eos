@@ -34,15 +34,15 @@ ProcCommand::Io ()
 {
  if (pVid->uid == 0)
  {
-   if (subcmd == "report")
+   if (mSubCmd == "report")
    {
-     XrdOucString path = opaque->Get("mgm.io.path");
+     XrdOucString path = pOpaque->Get("mgm.io.path");
      retc = Iostat::NamespaceReport(path.c_str(), stdOut, stdErr);
    }
    else
    {
-     XrdOucString option = opaque->Get("mgm.option");
-     XrdOucString target = opaque->Get("mgm.udptarget");
+     XrdOucString option = pOpaque->Get("mgm.option");
+     XrdOucString target = pOpaque->Get("mgm.udptarget");
      bool reports = false;
      bool reportnamespace = false;
      bool popularity = false;
@@ -58,7 +58,7 @@ ProcCommand::Io ()
 
      if ((!reports) && (!reportnamespace))
      {
-       if (subcmd == "enable")
+       if (mSubCmd == "enable")
        {
          if (target.length())
          {
@@ -105,7 +105,7 @@ ProcCommand::Io ()
            }
          }
        }
-       if (subcmd == "disable")
+       if (mSubCmd == "disable")
        {
          if (target.length())
          {
@@ -155,7 +155,7 @@ ProcCommand::Io ()
      {
        if (reports)
        {
-         if (subcmd == "enable")
+         if (mSubCmd == "enable")
          {
            if (gOFS->IoStats.StartReport())
            {
@@ -167,7 +167,7 @@ ProcCommand::Io ()
              stdOut += "success: enabled IO report store";
            }
          }
-         if (subcmd == "disable")
+         if (mSubCmd == "disable")
          {
            if (!gOFS->IoStats.StopReport())
            {
@@ -182,7 +182,7 @@ ProcCommand::Io ()
        }
        if (reportnamespace)
        {
-         if (subcmd == "enable")
+         if (mSubCmd == "enable")
          {
            if (gOFS->IoStats.StartReportNamespace())
            {
@@ -194,7 +194,7 @@ ProcCommand::Io ()
              stdOut += "success: enabled IO report namespace";
            }
          }
-         if (subcmd == "disable")
+         if (mSubCmd == "disable")
          {
            if (!gOFS->IoStats.StopReportNamespace())
            {
@@ -212,9 +212,9 @@ ProcCommand::Io ()
    }
  }
 
- if (subcmd == "stat")
+ if (mSubCmd == "stat")
  {
-   XrdOucString option = opaque->Get("mgm.option");
+   XrdOucString option = pOpaque->Get("mgm.option");
    bool details = false;
    bool monitoring = false;
    bool numerical = false;
@@ -249,9 +249,9 @@ ProcCommand::Io ()
    gOFS->IoStats.PrintOut(stdOut, summary, details, monitoring, numerical, top, domain, apps, option);
  }
 
- if (subcmd == "ns")
+ if (mSubCmd == "ns")
  {
-   XrdOucString option = opaque->Get("mgm.option");
+   XrdOucString option = pOpaque->Get("mgm.option");
    eos_info("io ns");
 
    gOFS->IoStats.PrintNs(stdOut, option);

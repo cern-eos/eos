@@ -32,11 +32,11 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Config ()
 {
- if (subcmd == "ls")
+ if (mSubCmd == "ls")
  {
    eos_notice("config ls");
    XrdOucString listing = "";
-   bool showbackup = (bool)opaque->Get("mgm.config.showbackup");
+   bool showbackup = (bool)pOpaque->Get("mgm.config.showbackup");
 
    if (!(gOFS->ConfEngine->ListConfigs(listing, showbackup)))
    {
@@ -49,10 +49,10 @@ ProcCommand::Config ()
    }
  }
 
- if (subcmd == "autosave")
+ if (mSubCmd == "autosave")
  {
    eos_notice("config autosave");
-   XrdOucString onoff = opaque->Get("mgm.config.state") ? opaque->Get("mgm.config.state") : "";
+   XrdOucString onoff = pOpaque->Get("mgm.config.state") ? pOpaque->Get("mgm.config.state") : "";
    if (!onoff.length())
    {
      if (gOFS->ConfEngine->GetAutoSave())
@@ -88,12 +88,12 @@ ProcCommand::Config ()
  }
 
  int envlen;
- if (subcmd == "load")
+ if (mSubCmd == "load")
  {
    if (pVid->uid == 0)
    {
-     eos_notice("config load: %s", opaque->Env(envlen));
-     if (!gOFS->ConfEngine->LoadConfig(*opaque, stdErr))
+     eos_notice("config load: %s", pOpaque->Env(envlen));
+     if (!gOFS->ConfEngine->LoadConfig(*pOpaque, stdErr))
      {
        retc = errno;
      }
@@ -109,12 +109,12 @@ ProcCommand::Config ()
    }
  }
 
- if (subcmd == "save")
+ if (mSubCmd == "save")
  {
-   eos_notice("config save: %s", opaque->Env(envlen));
+   eos_notice("config save: %s", pOpaque->Env(envlen));
    if (pVid->uid == 0)
    {
-     if (!gOFS->ConfEngine->SaveConfig(*opaque, stdErr))
+     if (!gOFS->ConfEngine->SaveConfig(*pOpaque, stdErr))
      {
        retc = errno;
      }
@@ -130,7 +130,7 @@ ProcCommand::Config ()
    }
  }
 
- if (subcmd == "reset")
+ if (mSubCmd == "reset")
  {
    eos_notice("config reset");
    if (pVid->uid == 0)
@@ -145,11 +145,11 @@ ProcCommand::Config ()
    }
  }
 
- if (subcmd == "dump")
+ if (mSubCmd == "dump")
  {
    eos_notice("config dump");
    XrdOucString dump = "";
-   if (!gOFS->ConfEngine->DumpConfig(dump, *opaque))
+   if (!gOFS->ConfEngine->DumpConfig(dump, *pOpaque))
    {
      stdErr += "error: listing of existing configs failed!";
      retc = errno;
@@ -157,21 +157,21 @@ ProcCommand::Config ()
    else
    {
      stdOut += dump;
-     dosort = true;
+     mDoSort = true;
    }
  }
 
- if (subcmd == "diff")
+ if (mSubCmd == "diff")
  {
    eos_notice("config diff");
    gOFS->ConfEngine->Diffs(stdOut);
  }
 
- if (subcmd == "changelog")
+ if (mSubCmd == "changelog")
  {
    int nlines = 5;
    char* val;
-   if ((val = opaque->Get("mgm.config.lines")))
+   if ((val = pOpaque->Get("mgm.config.lines")))
    {
      nlines = atoi(val);
      if (nlines < 1) nlines = 1;

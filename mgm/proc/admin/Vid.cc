@@ -33,28 +33,28 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Vid ()
 {
- if (subcmd == "ls")
+ if (mSubCmd == "ls")
  {
    eos_notice("vid ls");
-   Vid::Ls(*opaque, retc, stdOut, stdErr);
-   dosort = true;
+   Vid::Ls(*pOpaque, retc, stdOut, stdErr);
+   mDoSort = true;
  }
 
- if ((subcmd == "set") || (subcmd == "rm"))
+ if ((mSubCmd == "set") || (mSubCmd == "rm"))
  {
    if (pVid->uid == 0)
    {
-     if (subcmd == "set")
+     if (mSubCmd == "set")
      {
        eos_notice("vid set");
-       Vid::Set(*opaque, retc, stdOut, stdErr);
+       Vid::Set(*pOpaque, retc, stdOut, stdErr);
      }
 
 
-     if (subcmd == "rm")
+     if (mSubCmd == "rm")
      {
        eos_notice("vid rm");
-       Vid::Rm(*opaque, retc, stdOut, stdErr);
+       Vid::Rm(*pOpaque, retc, stdOut, stdErr);
      }
    }
    else

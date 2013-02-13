@@ -35,7 +35,7 @@ ProcCommand::Ls ()
 {
  eos_info("calling ls");
  gOFS->MgmStats.Add("Ls", pVid->uid, pVid->gid, 1);
- XrdOucString spath = opaque->Get("mgm.path");
+ XrdOucString spath = pOpaque->Get("mgm.path");
  eos::common::Path cPath(spath.c_str());
  const char* inpath = cPath.GetPath();
 
@@ -49,7 +49,7 @@ ProcCommand::Ls ()
 
  spath = path;
 
- XrdOucString option = opaque->Get("mgm.option");
+ XrdOucString option = pOpaque->Get("mgm.option");
  if (!spath.length())
  {
    stdErr = "error: you have to give a path name to call 'ls'";

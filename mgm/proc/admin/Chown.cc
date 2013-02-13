@@ -33,9 +33,9 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Chown ()
 {
- XrdOucString spath = opaque->Get("mgm.path");
- XrdOucString option = opaque->Get("mgm.chown.option");
- XrdOucString owner = opaque->Get("mgm.chown.owner");
+ XrdOucString spath = pOpaque->Get("mgm.path");
+ XrdOucString option = pOpaque->Get("mgm.chown.option");
+ XrdOucString owner = pOpaque->Get("mgm.chown.owner");
 
  const char* inpath = spath.c_str();
 

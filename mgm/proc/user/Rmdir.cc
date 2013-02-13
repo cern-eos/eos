@@ -33,7 +33,7 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Rmdir ()
 {
- XrdOucString spath = opaque->Get("mgm.path");
+ XrdOucString spath = pOpaque->Get("mgm.path");
 
  const char* inpath = spath.c_str();
 

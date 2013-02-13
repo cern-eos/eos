@@ -32,7 +32,7 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Motd ()
 {
- XrdOucString motdupload = opaque->Get("mgm.motd") ? opaque->Get("mgm.motd") : "";
+ XrdOucString motdupload = pOpaque->Get("mgm.motd") ? pOpaque->Get("mgm.motd") : "";
  gOFS->MgmStats.Add("Motd", pVid->uid, pVid->gid, 1);
  eos_info("motd");
  XrdOucString motdfile = gOFS->MgmConfigDir;

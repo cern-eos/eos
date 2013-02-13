@@ -38,17 +38,17 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Find ()
 {
- dosort = true;
+ mDoSort = true;
 
- XrdOucString spath = opaque->Get("mgm.path");
- XrdOucString option = opaque->Get("mgm.option");
- XrdOucString attribute = opaque->Get("mgm.find.attribute");
- XrdOucString olderthan = opaque->Get("mgm.find.olderthan");
- XrdOucString youngerthan = opaque->Get("mgm.find.youngerthan");
+ XrdOucString spath = pOpaque->Get("mgm.path");
+ XrdOucString option = pOpaque->Get("mgm.option");
+ XrdOucString attribute = pOpaque->Get("mgm.find.attribute");
+ XrdOucString olderthan = pOpaque->Get("mgm.find.olderthan");
+ XrdOucString youngerthan = pOpaque->Get("mgm.find.youngerthan");
 
  XrdOucString key = attribute;
  XrdOucString val = attribute;
- XrdOucString printkey = opaque->Get("mgm.find.printkey");
+ XrdOucString printkey = pOpaque->Get("mgm.find.printkey");
 
  const char* inpath = spath.c_str();
  bool deepquery = false;
@@ -568,14 +568,14 @@ ProcCommand::Find ()
          {
            //-------------------------------------------
            gOFS->eosViewRWMutex.LockRead();
-           eos::ContainerMD* cmd = 0;
+           eos::ContainerMD* mCmd = 0;
            unsigned long long childfiles = 0;
            unsigned long long childdirs = 0;
            try
            {
-             cmd = gOFS->eosView->getContainer(foundit->first.c_str());
-             childfiles = cmd->getNumFiles();
-             childdirs = cmd->getNumContainers();
+             mCmd = gOFS->eosView->getContainer(foundit->first.c_str());
+             childfiles = mCmd->getNumFiles();
+             childdirs = mCmd->getNumContainers();
              gOFS->eosViewRWMutex.UnLockRead();
              fprintf(fstdout, "%s ndir=%llu nfiles=%llu\n", foundit->first.c_str(), childdirs, childfiles);
              //-------------------------------------------

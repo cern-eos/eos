@@ -32,25 +32,25 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Node ()
 {
- if (subcmd == "ls")
+ if (mSubCmd == "ls")
  {
    {
      std::string output = "";
      std::string format = "";
-     std::string listformat = "";
-     format = FsView::GetNodeFormat(std::string(outformat.c_str()));
-     if ((outformat == "l"))
-       listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
+     std::string mListFormat = "";
+     format = FsView::GetNodeFormat(std::string(mOutFormat.c_str()));
+     if ((mOutFormat == "l"))
+       mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
 
      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-     FsView::gFsView.PrintNodes(output, format, listformat, selection);
+     FsView::gFsView.PrintNodes(output, format, mListFormat, mSelection);
      stdOut += output.c_str();
    }
  }
 
- if (subcmd == "status")
+ if (mSubCmd == "status")
  {
-   std::string node = (opaque->Get("mgm.node")) ? opaque->Get("mgm.node") : "";
+   std::string node = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") : "";
    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
    if ((node.find(":") == std::string::npos))
@@ -86,11 +86,11 @@ ProcCommand::Node ()
    }
  }
 
- if (subcmd == "set")
+ if (mSubCmd == "set")
  {
-   std::string nodename = (opaque->Get("mgm.node")) ? opaque->Get("mgm.node") : "";
-   std::string status = (opaque->Get("mgm.node.state")) ? opaque->Get("mgm.node.state") : "";
-   std::string txgw = (opaque->Get("mgm.node.txgw")) ? opaque->Get("mgm.node.txgw") : "";
+   std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") : "";
+   std::string status = (pOpaque->Get("mgm.node.state")) ? pOpaque->Get("mgm.node.state") : "";
+   std::string txgw = (pOpaque->Get("mgm.node.txgw")) ? pOpaque->Get("mgm.node.txgw") : "";
    std::string key = "status";
    if (txgw.length())
    {
@@ -184,11 +184,11 @@ ProcCommand::Node ()
    }
  }
 
- if (subcmd == "rm")
+ if (mSubCmd == "rm")
  {
    if (pVid->uid == 0)
    {
-     std::string nodename = (opaque->Get("mgm.node")) ? opaque->Get("mgm.node") : "";
+     std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") : "";
      if ((!nodename.length()))
      {
        stdErr = "error: illegal parameters";
@@ -249,13 +249,13 @@ ProcCommand::Node ()
    }
  }
 
- if (subcmd == "config")
+ if (mSubCmd == "config")
  {
    if (pVid->uid == 0)
    {
-     std::string identifier = (opaque->Get("mgm.node.name")) ? opaque->Get("mgm.node.name") : "";
-     std::string key = (opaque->Get("mgm.node.key")) ? opaque->Get("mgm.node.key") : "";
-     std::string value = (opaque->Get("mgm.node.value")) ? opaque->Get("mgm.node.value") : "";
+     std::string identifier = (pOpaque->Get("mgm.node.name")) ? pOpaque->Get("mgm.node.name") : "";
+     std::string key = (pOpaque->Get("mgm.node.key")) ? pOpaque->Get("mgm.node.key") : "";
+     std::string value = (pOpaque->Get("mgm.node.value")) ? pOpaque->Get("mgm.node.value") : "";
 
      if ((!identifier.length()) || (!key.length()) || (!value.length()))
      {
@@ -461,15 +461,15 @@ ProcCommand::Node ()
    }
  }
 
- if (subcmd == "register")
+ if (mSubCmd == "register")
  {
    if (pVid->uid == 0)
    {
-     XrdOucString registernode = opaque->Get("mgm.node.name");
-     XrdOucString path2register = opaque->Get("mgm.node.path2register");
-     XrdOucString space2register = opaque->Get("mgm.node.space2register");
-     XrdOucString force = opaque->Get("mgm.node.force");
-     XrdOucString rootflag = opaque->Get("mgm.node.root");
+     XrdOucString registernode = pOpaque->Get("mgm.node.name");
+     XrdOucString path2register = pOpaque->Get("mgm.node.path2register");
+     XrdOucString space2register = pOpaque->Get("mgm.node.space2register");
+     XrdOucString force = pOpaque->Get("mgm.node.force");
+     XrdOucString rootflag = pOpaque->Get("mgm.node.root");
 
      if ((!registernode.c_str()) ||
          (!path2register.c_str()) ||

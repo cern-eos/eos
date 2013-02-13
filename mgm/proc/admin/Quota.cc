@@ -33,12 +33,12 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::AdminQuota ()
 {
- if (subcmd == "rmnode")
+ if (mSubCmd == "rmnode")
  {
    eos_notice("quota rm");
    if (pVid->prot != "sss")
    {
-     XrdOucString space = opaque->Get("mgm.quota.space");
+     XrdOucString space = pOpaque->Get("mgm.quota.space");
      XrdOucString msg = "";
      if (!Quota::RmSpaceQuota(space, msg, retc))
      {

@@ -33,20 +33,20 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Fs ()
 {
- if (subcmd == "ls")
+ if (mSubCmd == "ls")
  {
    std::string output = "";
    std::string format = "";
-   std::string listformat = "";
+   std::string mListFormat = "";
 
-   listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
+   mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
 
    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-   FsView::gFsView.PrintSpaces(output, format, listformat, selection);
+   FsView::gFsView.PrintSpaces(output, format, mListFormat, mSelection);
    stdOut += output.c_str();
  }
 
- if (adminCmd)
+ if (mAdminCmd)
  {
    std::string tident = pVid->tident.c_str();
    size_t addpos = 0;
@@ -56,25 +56,25 @@ ProcCommand::Fs ()
    }
 
 
-   if (subcmd == "add")
+   if (mSubCmd == "add")
    {
-     std::string sfsid = (opaque->Get("mgm.fs.fsid")) ? opaque->Get("mgm.fs.fsid") : "0";
-     std::string uuid = (opaque->Get("mgm.fs.uuid")) ? opaque->Get("mgm.fs.uuid") : "";
-     std::string nodename = (opaque->Get("mgm.fs.node")) ? opaque->Get("mgm.fs.node") : "";
-     std::string mountpoint = (opaque->Get("mgm.fs.mountpoint")) ? opaque->Get("mgm.fs.mountpoint") : "";
-     std::string space = (opaque->Get("mgm.fs.space")) ? opaque->Get("mgm.fs.space") : "";
-     std::string configstatus = (opaque->Get("mgm.fs.configstatus")) ? opaque->Get("mgm.fs.configstatus") : "";
+     std::string sfsid = (pOpaque->Get("mgm.fs.fsid")) ? pOpaque->Get("mgm.fs.fsid") : "0";
+     std::string uuid = (pOpaque->Get("mgm.fs.uuid")) ? pOpaque->Get("mgm.fs.uuid") : "";
+     std::string nodename = (pOpaque->Get("mgm.fs.node")) ? pOpaque->Get("mgm.fs.node") : "";
+     std::string mountpoint = (pOpaque->Get("mgm.fs.mountpoint")) ? pOpaque->Get("mgm.fs.mountpoint") : "";
+     std::string space = (pOpaque->Get("mgm.fs.space")) ? pOpaque->Get("mgm.fs.space") : "";
+     std::string configstatus = (pOpaque->Get("mgm.fs.configstatus")) ? pOpaque->Get("mgm.fs.configstatus") : "";
 
      //          eos::common::RWMutexWriteLock vlock(FsView::gFsView.ViewMutex); => moving into the routine to do it more clever(shorted)
      retc = proc_fs_add(sfsid, uuid, nodename, mountpoint, space, configstatus, stdOut, stdErr, tident, *pVid);
    }
 
-   if (subcmd == "mv")
+   if (mSubCmd == "mv")
    {
      if (pVid->uid == 0)
      {
-       std::string sfsid = (opaque->Get("mgm.fs.id")) ? opaque->Get("mgm.fs.id") : "";
-       std::string space = (opaque->Get("mgm.space")) ? opaque->Get("mgm.space") : "";
+       std::string sfsid = (pOpaque->Get("mgm.fs.id")) ? pOpaque->Get("mgm.fs.id") : "";
+       std::string space = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
 
        eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
        retc = proc_fs_mv(sfsid, space, stdOut, stdErr, tident, *pVid);
@@ -86,7 +86,7 @@ ProcCommand::Fs ()
      }
    }
 
-   if (subcmd == "dumpmd")
+   if (mSubCmd == "dumpmd")
    {
      if ((pVid->uid == 0) || (pVid->prot == "sss"))
      {
@@ -101,12 +101,12 @@ ProcCommand::Fs ()
          }
        }
 
-       std::string fsidst = opaque->Get("mgm.fsid");
-       XrdOucString option = opaque->Get("mgm.dumpmd.option");
-       XrdOucString dp = opaque->Get("mgm.dumpmd.path");
-       XrdOucString df = opaque->Get("mgm.dumpmd.fid");
-       XrdOucString ds = opaque->Get("mgm.dumpmd.size");
-       XrdOucString dt = opaque->Get("mgm.dumpmd.storetime");
+       std::string fsidst = pOpaque->Get("mgm.fsid");
+       XrdOucString option = pOpaque->Get("mgm.dumpmd.option");
+       XrdOucString dp = pOpaque->Get("mgm.dumpmd.path");
+       XrdOucString df = pOpaque->Get("mgm.dumpmd.fid");
+       XrdOucString ds = pOpaque->Get("mgm.dumpmd.size");
+       XrdOucString dt = pOpaque->Get("mgm.dumpmd.storetime");
        size_t entries = 0;
        retc = proc_fs_dumpmd(fsidst, option, dp, df, ds, stdOut, stdErr, tident, *pVid, entries);
 
@@ -129,39 +129,39 @@ ProcCommand::Fs ()
      }
    }
 
-   if (subcmd == "config")
+   if (mSubCmd == "config")
    {
-     std::string identifier = (opaque->Get("mgm.fs.identifier")) ? opaque->Get("mgm.fs.identifier") : "";
-     std::string key = (opaque->Get("mgm.fs.key")) ? opaque->Get("mgm.fs.key") : "";
-     std::string value = (opaque->Get("mgm.fs.value")) ? opaque->Get("mgm.fs.value") : "";
+     std::string identifier = (pOpaque->Get("mgm.fs.identifier")) ? pOpaque->Get("mgm.fs.identifier") : "";
+     std::string key = (pOpaque->Get("mgm.fs.key")) ? pOpaque->Get("mgm.fs.key") : "";
+     std::string value = (pOpaque->Get("mgm.fs.value")) ? pOpaque->Get("mgm.fs.value") : "";
 
      retc = proc_fs_config(identifier, key, value, stdOut, stdErr, tident, *pVid);
    }
 
-   if (subcmd == "rm")
+   if (mSubCmd == "rm")
    {
-     std::string nodename = (opaque->Get("mgm.fs.node")) ? opaque->Get("mgm.fs.node") : "";
-     std::string mountpoint = opaque->Get("mgm.fs.mountpoint") ? opaque->Get("mgm.fs.mountpoint") : "";
-     std::string id = opaque->Get("mgm.fs.id") ? opaque->Get("mgm.fs.id") : "";
+     std::string nodename = (pOpaque->Get("mgm.fs.node")) ? pOpaque->Get("mgm.fs.node") : "";
+     std::string mountpoint = pOpaque->Get("mgm.fs.mountpoint") ? pOpaque->Get("mgm.fs.mountpoint") : "";
+     std::string id = pOpaque->Get("mgm.fs.id") ? pOpaque->Get("mgm.fs.id") : "";
      eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
      retc = proc_fs_rm(nodename, mountpoint, id, stdOut, stdErr, tident, *pVid);
    }
 
-   if (subcmd == "dropdeletion")
+   if (mSubCmd == "dropdeletion")
    {
-     std::string id = opaque->Get("mgm.fs.id") ? opaque->Get("mgm.fs.id") : "";
+     std::string id = pOpaque->Get("mgm.fs.id") ? pOpaque->Get("mgm.fs.id") : "";
      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
      retc = proc_fs_dropdeletion(id, stdOut, stdErr, tident, *pVid);
    }
  }
 
- if (subcmd == "boot")
+ if (mSubCmd == "boot")
  {
    if ((pVid->uid == 0) || (pVid->prot == "sss"))
    {
-     std::string node = (opaque->Get("mgm.fs.node")) ? opaque->Get("mgm.fs.node") : "";
-     std::string fsids = (opaque->Get("mgm.fs.id")) ? opaque->Get("mgm.fs.id") : "";
-     std::string forcemgmsync = (opaque->Get("mgm.fs.forcemgmsync")) ? opaque->Get("mgm.fs.forcemgmsync") : "";
+     std::string node = (pOpaque->Get("mgm.fs.node")) ? pOpaque->Get("mgm.fs.node") : "";
+     std::string fsids = (pOpaque->Get("mgm.fs.id")) ? pOpaque->Get("mgm.fs.id") : "";
+     std::string forcemgmsync = (pOpaque->Get("mgm.fs.forcemgmsync")) ? pOpaque->Get("mgm.fs.forcemgmsync") : "";
      eos::common::FileSystem::fsid_t fsid = atoi(fsids.c_str());
 
      if (node == "*")
@@ -290,13 +290,13 @@ ProcCommand::Fs ()
  }
  //      stdOut+="\n==== fs done ====";
 
- if (subcmd == "status")
+ if (mSubCmd == "status")
  {
    if ((pVid->uid == 0) || (pVid->prot == "sss"))
    {
-     std::string fsids = (opaque->Get("mgm.fs.id")) ? opaque->Get("mgm.fs.id") : "";
-     std::string node = (opaque->Get("mgm.fs.node")) ? opaque->Get("mgm.fs.node") : "";
-     std::string mount = (opaque->Get("mgm.fs.mountpoint")) ? opaque->Get("mgm.fs.mountpoint") : "";
+     std::string fsids = (pOpaque->Get("mgm.fs.id")) ? pOpaque->Get("mgm.fs.id") : "";
+     std::string node = (pOpaque->Get("mgm.fs.node")) ? pOpaque->Get("mgm.fs.node") : "";
+     std::string mount = (pOpaque->Get("mgm.fs.mountpoint")) ? pOpaque->Get("mgm.fs.mountpoint") : "";
      eos::common::FileSystem::fsid_t fsid = atoi(fsids.c_str());
 
      if (!fsid)

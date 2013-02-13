@@ -33,9 +33,9 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Chmod ()
 {
- XrdOucString spath = opaque->Get("mgm.path");
- XrdOucString option = opaque->Get("mgm.option");
- XrdOucString mode = opaque->Get("mgm.chmod.mode");
+ XrdOucString spath = pOpaque->Get("mgm.path");
+ XrdOucString option = pOpaque->Get("mgm.option");
+ XrdOucString mode = pOpaque->Get("mgm.chmod.mode");
 
  const char* inpath = spath.c_str();
 

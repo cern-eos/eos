@@ -35,24 +35,24 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Transfer ()
 {
- XrdOucString subcmd = opaque->Get("mgm.subcmd") ? opaque->Get("mgm.subcmd") : "";
- XrdOucString src = opaque->Get("mgm.txsrc") ? opaque->Get("mgm.txsrc") : "";
- XrdOucString dst = opaque->Get("mgm.txdst") ? opaque->Get("mgm.txdst") : "";
+ XrdOucString mSubCmd = pOpaque->Get("mgm.mSubCmd") ? pOpaque->Get("mgm.mSubCmd") : "";
+ XrdOucString src = pOpaque->Get("mgm.txsrc") ? pOpaque->Get("mgm.txsrc") : "";
+ XrdOucString dst = pOpaque->Get("mgm.txdst") ? pOpaque->Get("mgm.txdst") : "";
  src = XrdMqMessage::UnSeal(src);
  dst = XrdMqMessage::UnSeal(dst);
- XrdOucString rate = opaque->Get("mgm.txrate") ? opaque->Get("mgm.txrate") : "";
- XrdOucString streams = opaque->Get("mgm.txstreams") ? opaque->Get("mgm.txstreams") : "";
- XrdOucString group = opaque->Get("mgm.txgroup") ? opaque->Get("mgm.txgroup") : "";
- XrdOucString id = opaque->Get("mgm.txid") ? opaque->Get("mgm.txid") : "";
- XrdOucString option = opaque->Get("mgm.txoption") ? opaque->Get("mgm.txoption") : "";
- if ((subcmd != "submit") && (subcmd != "ls") && (subcmd != "cancel") && (subcmd != "enable") && (subcmd != "disable") && (subcmd != "reset") && (subcmd != "clear") && (subcmd != "resubmit") && (subcmd != "kill") && (subcmd != "log") && (subcmd != "purge"))
+ XrdOucString rate = pOpaque->Get("mgm.txrate") ? pOpaque->Get("mgm.txrate") : "";
+ XrdOucString streams = pOpaque->Get("mgm.txstreams") ? pOpaque->Get("mgm.txstreams") : "";
+ XrdOucString group = pOpaque->Get("mgm.txgroup") ? pOpaque->Get("mgm.txgroup") : "";
+ XrdOucString id = pOpaque->Get("mgm.txid") ? pOpaque->Get("mgm.txid") : "";
+ XrdOucString option = pOpaque->Get("mgm.txoption") ? pOpaque->Get("mgm.txoption") : "";
+ if ((mSubCmd != "submit") && (mSubCmd != "ls") && (mSubCmd != "cancel") && (mSubCmd != "enable") && (mSubCmd != "disable") && (mSubCmd != "reset") && (mSubCmd != "clear") && (mSubCmd != "resubmit") && (mSubCmd != "kill") && (mSubCmd != "log") && (mSubCmd != "purge"))
  {
    retc = EINVAL;
    stdErr = "error: there is no such sub-command defined for <transfer>";
    return SFS_OK;
  }
 
- if ((subcmd == "submit"))
+ if ((mSubCmd == "submit"))
  {
    // check if we have krb5 credentials for that user
    struct stat krbbuf;
@@ -117,21 +117,21 @@ ProcCommand::Transfer ()
    }
 
    // -------------------------------------------
-   // check s3 opaque information
+   // check s3 pOpaque information
    if (src.beginswith("as3://"))
    {
      if ((src.find("s3.key=") == STR_NPOS))
      {
        retc = EINVAL;
        stdErr += "error: you have to add the s3.key to the URL as ?s3.key=<>\n";
-       dosort = false;
+       mDoSort = false;
        return SFS_OK;
      }
      if ((src.find("s3.key=") == STR_NPOS))
      {
        retc = EINVAL;
        stdErr += "error: you have to add the s3.secretkey to the URL as ?s3.secretkey=<>\n";
-       dosort = false;
+       mDoSort = false;
        return SFS_OK;
      }
    }
@@ -142,20 +142,20 @@ ProcCommand::Transfer ()
      {
        retc = EINVAL;
        stdErr += "error: you have to add the s3.key to the URL as ?s3.key=<>\n";
-       dosort = false;
+       mDoSort = false;
        return SFS_OK;
      }
      if ((dst.find("s3.key=") == STR_NPOS))
      {
        retc = EINVAL;
        stdErr += "error: you have to add the s3.key to the URL as ?s3.key=<>\n";
-       dosort = false;
+       mDoSort = false;
        return SFS_OK;
      }
    }
 
    // -------------------------------------------
-   // add eos opaque mapping/application tags
+   // add eos pOpaque mapping/application tags
    if ((src.find("//eos/")) != STR_NPOS)
    {
      if ((src.find("?")) == STR_NPOS)
@@ -274,7 +274,7 @@ ProcCommand::Transfer ()
    {
      retc = EINVAL;
      stdErr += "error: we support only s3,root,gsiftp,http & https as a source transfer protocol\n";
-     dosort = false;
+     mDoSort = false;
      return SFS_OK;
    }
 
@@ -286,7 +286,7 @@ ProcCommand::Transfer ()
    {
      retc = EINVAL;
      stdErr += "error: we support only s3,root,gsiftp,http & https as a destination transfer protocol\n";
-     dosort = false;
+     mDoSort = false;
      return SFS_OK;
    }
 
@@ -298,13 +298,13 @@ ProcCommand::Transfer ()
    {
      retc = EINVAL;
      stdErr += "error: you need to use a delegated X509 proxy to do a transfer with gsiftp or https\n";
-     dosort = false;
+     mDoSort = false;
      return SFS_OK;
    }
    retc = gTransferEngine.Submit(src, dst, rate, streams, group, stdOut, stdErr, *pVid, 86400, Credential, (option.find("s") != STR_NPOS) ? true : false);
  }
 
- if ((subcmd == "enable"))
+ if ((mSubCmd == "enable"))
  {
    if (pVid->uid == 0)
    {
@@ -325,7 +325,7 @@ ProcCommand::Transfer ()
    }
  }
 
- if ((subcmd == "disable"))
+ if ((mSubCmd == "disable"))
  {
    if (pVid->uid == 0)
    {
@@ -346,42 +346,42 @@ ProcCommand::Transfer ()
    }
  }
 
- if ((subcmd == "reset"))
+ if ((mSubCmd == "reset"))
  {
    retc = gTransferEngine.Reset(option, id, group, stdOut, stdErr, *pVid);
  }
 
- if ((subcmd == "ls"))
+ if ((mSubCmd == "ls"))
  {
    retc = gTransferEngine.Ls(id, option, group, stdOut, stdErr, *pVid);
  }
 
- if ((subcmd == "clear"))
+ if ((mSubCmd == "clear"))
  {
    retc = gTransferEngine.Clear(stdOut, stdErr, *pVid);
  }
 
- if ((subcmd == "cancel"))
+ if ((mSubCmd == "cancel"))
  {
    retc = gTransferEngine.Cancel(id, group, stdOut, stdErr, *pVid);
  }
 
- if ((subcmd == "resubmit"))
+ if ((mSubCmd == "resubmit"))
  {
    retc = gTransferEngine.Resubmit(id, group, stdOut, stdErr, *pVid);
  }
 
- if ((subcmd == "kill"))
+ if ((mSubCmd == "kill"))
  {
    retc = gTransferEngine.Kill(id, group, stdOut, stdErr, *pVid);
  }
 
- if ((subcmd == "log"))
+ if ((mSubCmd == "log"))
  {
    retc = gTransferEngine.Log(id, group, stdOut, stdErr, *pVid);
  }
 
- if ((subcmd == "purge"))
+ if ((mSubCmd == "purge"))
  {
    retc = gTransferEngine.Purge(option, id, group, stdOut, stdErr, *pVid);
  }

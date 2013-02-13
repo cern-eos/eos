@@ -32,25 +32,25 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Space ()
 {
- if (subcmd == "ls")
+ if (mSubCmd == "ls")
  {
    {
      std::string output = "";
      std::string format = "";
-     std::string listformat = "";
-     format = FsView::GetSpaceFormat(std::string(outformat.c_str()));
-     if ((outformat == "l"))
-       listformat = FsView::GetFileSystemFormat(std::string(outformat.c_str()));
+     std::string mListFormat = "";
+     format = FsView::GetSpaceFormat(std::string(mOutFormat.c_str()));
+     if ((mOutFormat == "l"))
+       mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
 
      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-     FsView::gFsView.PrintSpaces(output, format, listformat, selection);
+     FsView::gFsView.PrintSpaces(output, format, mListFormat, mSelection);
      stdOut += output.c_str();
    }
  }
 
- if (subcmd == "status")
+ if (mSubCmd == "status")
  {
-   std::string space = (opaque->Get("mgm.space")) ? opaque->Get("mgm.space") : "";
+   std::string space = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
    if (FsView::gFsView.mSpaceView.count(space))
@@ -86,12 +86,12 @@ ProcCommand::Space ()
    }
  }
 
- if (subcmd == "set")
+ if (mSubCmd == "set")
  {
    if (pVid->uid == 0)
    {
-     std::string spacename = (opaque->Get("mgm.space")) ? opaque->Get("mgm.space") : "";
-     std::string status = (opaque->Get("mgm.space.state")) ? opaque->Get("mgm.space.state") : "";
+     std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
+     std::string status = (pOpaque->Get("mgm.space.state")) ? pOpaque->Get("mgm.space.state") : "";
 
      if ((!spacename.length()) || (!status.length()))
      {
@@ -147,13 +147,13 @@ ProcCommand::Space ()
    }
  }
 
- if (subcmd == "define")
+ if (mSubCmd == "define")
  {
    if (pVid->uid == 0)
    {
-     std::string spacename = (opaque->Get("mgm.space")) ? opaque->Get("mgm.space") : "";
-     std::string groupsize = (opaque->Get("mgm.space.groupsize")) ? opaque->Get("mgm.space.groupsize") : "";
-     std::string groupmod = (opaque->Get("mgm.space.groupmod")) ? opaque->Get("mgm.space.groupmod") : "";
+     std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
+     std::string groupsize = (pOpaque->Get("mgm.space.groupsize")) ? pOpaque->Get("mgm.space.groupsize") : "";
+     std::string groupmod = (pOpaque->Get("mgm.space.groupmod")) ? pOpaque->Get("mgm.space.groupmod") : "";
 
      int gsize = atoi(groupsize.c_str());
      int gmod = atoi(groupmod.c_str());
@@ -217,13 +217,13 @@ ProcCommand::Space ()
    }
  }
 
- if (subcmd == "config")
+ if (mSubCmd == "config")
  {
    if (pVid->uid == 0)
    {
-     std::string identifier = (opaque->Get("mgm.space.name")) ? opaque->Get("mgm.space.name") : "";
-     std::string key = (opaque->Get("mgm.space.key")) ? opaque->Get("mgm.space.key") : "";
-     std::string value = (opaque->Get("mgm.space.value")) ? opaque->Get("mgm.space.value") : "";
+     std::string identifier = (pOpaque->Get("mgm.space.name")) ? pOpaque->Get("mgm.space.name") : "";
+     std::string key = (pOpaque->Get("mgm.space.key")) ? pOpaque->Get("mgm.space.key") : "";
+     std::string value = (pOpaque->Get("mgm.space.value")) ? pOpaque->Get("mgm.space.value") : "";
 
      if ((!identifier.length()) || (!key.length()) || (!value.length()))
      {
@@ -411,10 +411,10 @@ ProcCommand::Space ()
    }
  }
 
- if (subcmd == "quota")
+ if (mSubCmd == "quota")
  {
-   std::string spacename = (opaque->Get("mgm.space")) ? opaque->Get("mgm.space") : "";
-   std::string onoff = (opaque->Get("mgm.space.quota")) ? opaque->Get("mgm.space.quota") : "";
+   std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
+   std::string onoff = (pOpaque->Get("mgm.space.quota")) ? pOpaque->Get("mgm.space.quota") : "";
    std::string key = "quota";
 
    if (pVid->uid == 0)
@@ -449,11 +449,11 @@ ProcCommand::Space ()
    }
  }
 
- if (subcmd == "rm")
+ if (mSubCmd == "rm")
  {
    if (pVid->uid == 0)
    {
-     std::string spacename = (opaque->Get("mgm.space")) ? opaque->Get("mgm.space") : "";
+     std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
      if ((!spacename.length()))
      {
        stdErr = "error: illegal parameters";

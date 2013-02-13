@@ -213,6 +213,7 @@ public:
 
   // ---------------------------------------------------------------------------
   //! Return priority int from string
+  // ---------------------------------------------------------------------------
   static int GetPriorityByString(const char* pri) {
     if (!strcmp(pri,"info"))    return LOG_INFO;
     if (!strcmp(pri,"debug"))   return LOG_DEBUG;

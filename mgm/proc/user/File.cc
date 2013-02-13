@@ -37,7 +37,7 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::File ()
 {
- XrdOucString spath = opaque->Get("mgm.path");
+ XrdOucString spath = pOpaque->Get("mgm.path");
 
  const char* inpath = spath.c_str();
  if (!inpath)
@@ -60,10 +60,10 @@ ProcCommand::File ()
  }
  else
  {
-   if (subcmd == "drop")
+   if (mSubCmd == "drop")
    {
-     XrdOucString sfsid = opaque->Get("mgm.file.fsid");
-     XrdOucString sforce = opaque->Get("mgm.file.force");
+     XrdOucString sfsid = pOpaque->Get("mgm.file.fsid");
+     XrdOucString sforce = pOpaque->Get("mgm.file.force");
      bool forceRemove = false;
      if (sforce.length() && (sforce == "1"))
      {
@@ -86,9 +86,9 @@ ProcCommand::File ()
 
 
 
-   if (subcmd == "layout")
+   if (mSubCmd == "layout")
    {
-     XrdOucString stripes = opaque->Get("mgm.file.layout.stripes");
+     XrdOucString stripes = pOpaque->Get("mgm.file.layout.stripes");
      int newstripenumber = 0;
      if (stripes.length()) newstripenumber = atoi(stripes.c_str());
      if (!stripes.length() || ((newstripenumber < (eos::common::LayoutId::kOneStripe + 1)) || (newstripenumber > (eos::common::LayoutId::kSixteenStripe + 1))))
@@ -183,14 +183,14 @@ ProcCommand::File ()
      }
    }
 
-   if (subcmd == "verify")
+   if (mSubCmd == "verify")
    {
      XrdOucString option = "";
-     XrdOucString computechecksum = opaque->Get("mgm.file.compute.checksum");
-     XrdOucString commitchecksum = opaque->Get("mgm.file.commit.checksum");
-     XrdOucString commitsize = opaque->Get("mgm.file.commit.size");
-     XrdOucString commitfmd = opaque->Get("mgm.file.commit.fmd");
-     XrdOucString verifyrate = opaque->Get("mgm.file.verify.rate");
+     XrdOucString computechecksum = pOpaque->Get("mgm.file.compute.checksum");
+     XrdOucString commitchecksum = pOpaque->Get("mgm.file.commit.checksum");
+     XrdOucString commitsize = pOpaque->Get("mgm.file.commit.size");
+     XrdOucString commitfmd = pOpaque->Get("mgm.file.commit.fmd");
+     XrdOucString verifyrate = pOpaque->Get("mgm.file.verify.rate");
 
      if (computechecksum == "1")
      {
@@ -218,11 +218,11 @@ ProcCommand::File ()
        option += verifyrate;
      }
 
-     XrdOucString fsidfilter = opaque->Get("mgm.file.verify.filterid");
+     XrdOucString fsidfilter = pOpaque->Get("mgm.file.verify.filterid");
      int acceptfsid = 0;
      if (fsidfilter.length())
      {
-       acceptfsid = atoi(opaque->Get("mgm.file.verify.filterid"));
+       acceptfsid = atoi(pOpaque->Get("mgm.file.verify.filterid"));
      }
 
      // only root can do that
@@ -349,11 +349,11 @@ ProcCommand::File ()
      }
    }
 
-   if (subcmd == "move")
+   if (mSubCmd == "move")
    {
-     XrdOucString sfsidsource = opaque->Get("mgm.file.sourcefsid");
+     XrdOucString sfsidsource = pOpaque->Get("mgm.file.sourcefsid");
      unsigned long sourcefsid = (sfsidsource.length()) ? strtoul(sfsidsource.c_str(), 0, 10) : 0;
-     XrdOucString sfsidtarget = opaque->Get("mgm.file.targetfsid");
+     XrdOucString sfsidtarget = pOpaque->Get("mgm.file.targetfsid");
      unsigned long targetfsid = (sfsidsource.length()) ? strtoul(sfsidtarget.c_str(), 0, 10) : 0;
 
      if (gOFS->_movestripe(spath.c_str(), *error, *pVid, sourcefsid, targetfsid))
@@ -370,11 +370,11 @@ ProcCommand::File ()
      }
    }
 
-   if (subcmd == "replicate")
+   if (mSubCmd == "replicate")
    {
-     XrdOucString sfsidsource = opaque->Get("mgm.file.sourcefsid");
+     XrdOucString sfsidsource = pOpaque->Get("mgm.file.sourcefsid");
      unsigned long sourcefsid = (sfsidsource.length()) ? strtoul(sfsidsource.c_str(), 0, 10) : 0;
-     XrdOucString sfsidtarget = opaque->Get("mgm.file.targetfsid");
+     XrdOucString sfsidtarget = pOpaque->Get("mgm.file.targetfsid");
      unsigned long targetfsid = (sfsidtarget.length()) ? strtoul(sfsidtarget.c_str(), 0, 10) : 0;
 
      if (gOFS->_copystripe(spath.c_str(), *error, *pVid, sourcefsid, targetfsid))
@@ -392,10 +392,10 @@ ProcCommand::File ()
    }
 
 
-   if (subcmd == "rename")
+   if (mSubCmd == "rename")
    {
-     XrdOucString source = opaque->Get("mgm.file.source");
-     XrdOucString target = opaque->Get("mgm.file.target");
+     XrdOucString source = pOpaque->Get("mgm.file.source");
+     XrdOucString target = pOpaque->Get("mgm.file.target");
 
      if (gOFS->rename(source.c_str(), target.c_str(), *error, *pVid, 0, 0))
      {
@@ -413,7 +413,7 @@ ProcCommand::File ()
    }
 
 
-   if (subcmd == "adjustreplica")
+   if (mSubCmd == "adjustreplica")
    {
      // only root can do that
      if (pVid->uid == 0)
@@ -421,17 +421,17 @@ ProcCommand::File ()
        eos::FileMD* fmd = 0;
 
        // this flag indicates that the replicate command should queue this transfers on the head of the FST transfer lists
-       XrdOucString sexpressflag = (opaque->Get("mgm.file.express"));
+       XrdOucString sexpressflag = (pOpaque->Get("mgm.file.express"));
        bool expressflag = false;
        if (sexpressflag == "1")
          expressflag = 1;
 
-       XrdOucString creationspace = opaque->Get("mgm.file.desiredspace");
+       XrdOucString creationspace = pOpaque->Get("mgm.file.desiredspace");
        int icreationsubgroup = -1;
 
-       if (opaque->Get("mgm.file.desiredsubgroup"))
+       if (pOpaque->Get("mgm.file.desiredsubgroup"))
        {
-         icreationsubgroup = atoi(opaque->Get("mgm.file.desiredsubgroup"));
+         icreationsubgroup = atoi(pOpaque->Get("mgm.file.desiredsubgroup"));
        }
 
        if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
@@ -864,11 +864,11 @@ ProcCommand::File ()
      }
    }
 
-   if (subcmd == "getmdlocation")
+   if (mSubCmd == "getmdlocation")
    {
      gOFS->MgmStats.Add("GetMdLocation", pVid->uid, pVid->gid, 1);
      // this returns the access urls to query local metadata information
-     XrdOucString spath = opaque->Get("mgm.path");
+     XrdOucString spath = pOpaque->Get("mgm.path");
 
      const char* inpath = spath.c_str();
 

@@ -33,7 +33,7 @@ int
 ProcCommand::Map ()
 {
 
- if (subcmd == "ls")
+ if (mSubCmd == "ls")
  {
    eos::common::RWMutexReadLock lock(gOFS->PathMapMutex);
    std::map<std::string, std::string>::const_iterator it;
@@ -46,14 +46,14 @@ ProcCommand::Map ()
    return SFS_OK;
  }
 
- if (subcmd == "link")
+ if (mSubCmd == "link")
  {
    if ((!pVid->uid) ||
        eos::common::Mapping::HasUid(3, vid.uid_list) ||
        eos::common::Mapping::HasGid(4, vid.gid_list))
    {
-     XrdOucString srcpath = opaque->Get("mgm.map.src");
-     XrdOucString dstpath = opaque->Get("mgm.map.dest");
+     XrdOucString srcpath = pOpaque->Get("mgm.map.src");
+     XrdOucString dstpath = pOpaque->Get("mgm.map.dest");
      fprintf(stderr, "|%s|%s|\n", srcpath.c_str(), dstpath.c_str());
      if ((!srcpath.length()) || ((srcpath.find("..") != STR_NPOS))
          || ((srcpath.find("/../") != STR_NPOS))
@@ -104,9 +104,9 @@ ProcCommand::Map ()
    return SFS_OK;
  }
 
- if (subcmd == "unlink")
+ if (mSubCmd == "unlink")
  {
-   XrdOucString path = opaque->Get("mgm.map.src");
+   XrdOucString path = pOpaque->Get("mgm.map.src");
    if ((!pVid->uid) ||
        eos::common::Mapping::HasUid(3, vid.uid_list) ||
        eos::common::Mapping::HasGid(4, vid.gid_list))

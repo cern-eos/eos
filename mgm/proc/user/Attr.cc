@@ -33,8 +33,8 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Attr ()
 {
- XrdOucString spath = opaque->Get("mgm.path");
- XrdOucString option = opaque->Get("mgm.option");
+ XrdOucString spath = pOpaque->Get("mgm.path");
+ XrdOucString option = pOpaque->Get("mgm.option");
 
  const char* inpath = spath.c_str();
 
@@ -47,16 +47,16 @@ ProcCommand::Attr ()
  spath = path;
 
  if ((!spath.length()) ||
-     ((subcmd != "set") && (subcmd != "get") && (subcmd != "ls") && (subcmd != "rm")))
+     ((mSubCmd != "set") && (mSubCmd != "get") && (mSubCmd != "ls") && (mSubCmd != "rm")))
  {
    stdErr = "error: you have to give a path name to call 'attr' and one of the subcommands 'ls', 'get','rm','set' !";
    retc = EINVAL;
  }
  else
  {
-   if (((subcmd == "set") && ((!opaque->Get("mgm.attr.key")) || ((!opaque->Get("mgm.attr.value"))))) ||
-       ((subcmd == "get") && ((!opaque->Get("mgm.attr.key")))) ||
-       ((subcmd == "rm") && ((!opaque->Get("mgm.attr.key")))))
+   if (((mSubCmd == "set") && ((!pOpaque->Get("mgm.attr.key")) || ((!pOpaque->Get("mgm.attr.value"))))) ||
+       ((mSubCmd == "get") && ((!pOpaque->Get("mgm.attr.key")))) ||
+       ((mSubCmd == "rm") && ((!pOpaque->Get("mgm.attr.key")))))
    {
 
      stdErr = "error: you have to provide 'mgm.attr.key' for set,get,rm and 'mgm.attr.value' for set commands!";
@@ -65,8 +65,8 @@ ProcCommand::Attr ()
    else
    {
      retc = 0;
-     XrdOucString key = opaque->Get("mgm.attr.key");
-     XrdOucString val = opaque->Get("mgm.attr.value");
+     XrdOucString key = pOpaque->Get("mgm.attr.key");
+     XrdOucString val = pOpaque->Get("mgm.attr.value");
 
      bool removed_quote = false;
      while (val.replace("\"", ""))
@@ -103,7 +103,7 @@ ProcCommand::Attr ()
        {
          {
            eos::ContainerMD::XAttrMap map;
-           if (subcmd == "ls")
+           if (mSubCmd == "ls")
            {
              XrdOucString partialStdOut = "";
              if (gOFS->_attr_ls(foundit->first.c_str(), *error, *pVid, (const char*) 0, map))
@@ -137,7 +137,7 @@ ProcCommand::Attr ()
              }
            }
 
-           if (subcmd == "set")
+           if (mSubCmd == "set")
            {
              if (gOFS->_attr_set(foundit->first.c_str(), *error, *pVid, (const char*) 0, key.c_str(), val.c_str()))
              {
@@ -157,7 +157,7 @@ ProcCommand::Attr ()
              }
            }
 
-           if (subcmd == "get")
+           if (mSubCmd == "get")
            {
              if (gOFS->_attr_get(foundit->first.c_str(), *error, *pVid, (const char*) 0, key.c_str(), val))
              {
@@ -176,7 +176,7 @@ ProcCommand::Attr ()
              }
            }
 
-           if (subcmd == "rm")
+           if (mSubCmd == "rm")
            {
              if (gOFS->_attr_rem(foundit->first.c_str(), *error, *pVid, (const char*) 0, key.c_str()))
              {

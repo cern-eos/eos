@@ -35,7 +35,7 @@ int
 ProcCommand::Quota ()
 {
  gOFS->MgmStats.Add("Quota", pVid->uid, pVid->gid, 1);
- if (subcmd == "lsuser")
+ if (mSubCmd == "lsuser")
  {
    eos_notice("quota ls (user)");
    XrdOucString out1 = "";
@@ -46,12 +46,12 @@ ProcCommand::Quota ()
    stdOut += "By group ...\n";
    Quota::PrintOut(0, out2, -1, pVid->gid, false, true);
    stdOut += out2;
-   dosort = false;
+   mDoSort = false;
    return SFS_OK;
  }
 
 
- XrdOucString space = opaque->Get("mgm.quota.space");
+ XrdOucString space = pOpaque->Get("mgm.quota.space");
  bool canQuota = false;
 
  if ((!vid.uid) ||
@@ -95,14 +95,14 @@ ProcCommand::Quota ()
 
  if (canQuota)
  {
-   if (subcmd == "ls")
+   if (mSubCmd == "ls")
    {
      eos_notice("quota ls");
 
-     XrdOucString uid_sel = opaque->Get("mgm.quota.uid");
-     XrdOucString gid_sel = opaque->Get("mgm.quota.gid");
-     XrdOucString monitoring = opaque->Get("mgm.quota.format");
-     XrdOucString printid = opaque->Get("mgm.quota.printid");
+     XrdOucString uid_sel = pOpaque->Get("mgm.quota.uid");
+     XrdOucString gid_sel = pOpaque->Get("mgm.quota.gid");
+     XrdOucString monitoring = pOpaque->Get("mgm.quota.format");
+     XrdOucString printid = pOpaque->Get("mgm.quota.printid");
      bool monitor = false;
      bool translate = true;
      if (monitoring == "m")
@@ -116,15 +116,15 @@ ProcCommand::Quota ()
      Quota::PrintOut(space.c_str(), stdOut, uid_sel.length() ? atol(uid_sel.c_str()) : -1, gid_sel.length() ? atol(gid_sel.c_str()) : -1, monitor, translate);
    }
 
-   if (subcmd == "set")
+   if (mSubCmd == "set")
    {
      if (pVid->prot != "sss")
      {
        eos_notice("quota set");
-       XrdOucString uid_sel = opaque->Get("mgm.quota.uid");
-       XrdOucString gid_sel = opaque->Get("mgm.quota.gid");
-       XrdOucString svolume = opaque->Get("mgm.quota.maxbytes");
-       XrdOucString sinodes = opaque->Get("mgm.quota.maxinodes");
+       XrdOucString uid_sel = pOpaque->Get("mgm.quota.uid");
+       XrdOucString gid_sel = pOpaque->Get("mgm.quota.gid");
+       XrdOucString svolume = pOpaque->Get("mgm.quota.maxbytes");
+       XrdOucString sinodes = pOpaque->Get("mgm.quota.maxinodes");
 
        if (uid_sel.length() && gid_sel.length())
        {
@@ -182,13 +182,13 @@ ProcCommand::Quota ()
      }
    }
 
-   if (subcmd == "rm")
+   if (mSubCmd == "rm")
    {
      eos_notice("quota rm");
      if (pVid->prot != "sss")
      {
-       XrdOucString uid_sel = opaque->Get("mgm.quota.uid");
-       XrdOucString gid_sel = opaque->Get("mgm.quota.gid");
+       XrdOucString uid_sel = pOpaque->Get("mgm.quota.uid");
+       XrdOucString gid_sel = pOpaque->Get("mgm.quota.gid");
 
        std::string suid = (uid_sel.length()) ? uid_sel.c_str() : "0";
        std::string sgid = (gid_sel.length()) ? gid_sel.c_str() : "0";

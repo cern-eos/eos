@@ -35,11 +35,11 @@ int
 ProcCommand::Ns ()
 {
 #ifdef EOS_INSTRUMENTED_RWMUTEX
- if (subcmd == "mutex")
+ if (mSubCmd == "mutex")
  {
    if (pVid->uid == 0)
    {
-     XrdOucString option = opaque->Get("mgm.option");
+     XrdOucString option = pOpaque->Get("mgm.option");
      bool toggletiming = false;
      bool toggleorder = false;
      bool smplrate1 = false;
@@ -148,9 +148,9 @@ ProcCommand::Ns ()
    }
  }
 #endif
- if ((subcmd != "mutex") && (subcmd != "compact"))
+ if ((mSubCmd != "mutex") && (mSubCmd != "compact"))
  {
-   XrdOucString option = opaque->Get("mgm.option");
+   XrdOucString option = pOpaque->Get("mgm.option");
    bool details = false;
    bool monitoring = false;
    bool numerical = false;
@@ -373,7 +373,7 @@ ProcCommand::Ns ()
      }
    }
 
-   if (subcmd == "stat")
+   if (mSubCmd == "stat")
    {
      if (option.find("r") != STR_NPOS)
      {
@@ -383,9 +383,9 @@ ProcCommand::Ns ()
      gOFS->MgmStats.PrintOutTotal(stdOut, details, monitoring, numerical);
    }
 
-   if (subcmd == "master")
+   if (mSubCmd == "master")
    {
-     XrdOucString masterhost = opaque->Get("mgm.master");
+     XrdOucString masterhost = pOpaque->Get("mgm.master");
 
      if (masterhost == "--disable")
      {
@@ -399,7 +399,7 @@ ProcCommand::Ns ()
        {
          stdOut += "success: disabled master heartbeat check\n";
        }
-       dosort = false;
+       mDoSort = false;
        return SFS_OK;
      }
 
@@ -415,14 +415,14 @@ ProcCommand::Ns ()
        {
          stdOut += "success: enabled master heartbeat check\n";
        }
-       dosort = false;
+       mDoSort = false;
        return SFS_OK;
      }
 
      if ((masterhost == "--log") || (!masterhost.length()))
      {
        gOFS->MgmMaster.GetLog(stdOut);
-       dosort = false;
+       mDoSort = false;
        return SFS_OK;
      }
 
@@ -430,7 +430,7 @@ ProcCommand::Ns ()
      {
        gOFS->MgmMaster.ResetLog();
        stdOut += "success: cleaned the master log";
-       dosort = false;
+       mDoSort = false;
        return SFS_OK;
      }
 
@@ -444,18 +444,18 @@ ProcCommand::Ns ()
        stdOut += gOFS->MgmMaster.GetMasterHost();
        stdOut += "> is now the master\n";
      }
-     dosort = false;
+     mDoSort = false;
      return SFS_OK;
    }
  }
 
- if (subcmd == "compact")
+ if (mSubCmd == "compact")
  {
    if (pVid->uid == 0)
    {
-     XrdOucString action = opaque->Get("mgm.ns.compact");
-     XrdOucString delay = opaque->Get("mgm.ns.compact.delay");
-     XrdOucString interval = opaque->Get("mgm.ns.compact.interval");
+     XrdOucString action = pOpaque->Get("mgm.ns.compact");
+     XrdOucString delay = pOpaque->Get("mgm.ns.compact.delay");
+     XrdOucString interval = pOpaque->Get("mgm.ns.compact.interval");
 
      if ((!action.length()))
      {
@@ -504,7 +504,7 @@ ProcCommand::Ns ()
      retc = EPERM;
      stdErr = "error: you have to take role 'root' to execute this command";
    }
-   dosort = false;
+   mDoSort = false;
  }
  return SFS_OK;
 }
