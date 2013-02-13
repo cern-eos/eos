@@ -252,8 +252,6 @@ public:
   int Stall (XrdOucErrInfo& error, int stime, const char* msg);
   int Redirect (XrdOucErrInfo& error, const char* host, int& port);
 
-  eos::fst::LockManager LockManager;
-
   eos::fst::Messaging* Messaging; //! messaging interface class
   eos::fst::Storage* Storage; //! Meta data & filesytem store object
 
