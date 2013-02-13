@@ -34,7 +34,6 @@
 #include "fst/Namespace.hh"
 #include "fst/storage/Storage.hh"
 #include "fst/Config.hh"
-#include "fst/Lock.hh"
 #include "fst/Messaging.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
@@ -69,25 +68,16 @@ EOSFSTNAMESPACE_BEGIN
 class ReplicaParLayout;
 class RaidMetaLayout;
 
-class XrdFstOfsDirectory : public XrdSfsDirectory, public eos::common::LogId
+class XrdFstOfsDirectory : public XrdSfsDirectory
 {
 private:
-  FTS* fts_tree;
-  char** fts_paths;
-  XrdOucString entry;
-  XrdOucString dirname;
-  eos::common::FileSystem::fsid_t fsid;
 
 public:
 
   XrdFstOfsDirectory (const char* user, int MonID = 0) :
-  XrdSfsDirectory (user, MonID)
+  XrdSfsDirectory (user, MonID) 
   {
-    eos::common::LogId();
-    fts_tree = 0;
-    fts_paths = 0;
-    fsid = 0;
-  };
+  }
 
   virtual
   ~XrdFstOfsDirectory ()
@@ -104,7 +94,7 @@ public:
   const char*
   FName ()
   {
-    return const_cast<const char*> (dirname.c_str());
+    return "";
   }
 
   int close ();

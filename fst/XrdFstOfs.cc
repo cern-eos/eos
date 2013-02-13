@@ -1390,41 +1390,9 @@ XrdFstOfsDirectory::open (const char* dirName,
                           const XrdSecClientName* client,
                           const char* opaque)
 {
- /* --------------------------------------------------------------------------------- */
- /* We use opendir/readdir/closedir to send meta data information about EOS FST files */
- /* --------------------------------------------------------------------------------- */
- XrdOucEnv Opaque(opaque ? opaque : "disk=1");
- eos_info("info=\"calling opendir\" dir=%s\n", dirName);
- dirname = dirName;
-
- if (!client || (strcmp(client->prot, "sss")))
- {
-   return gOFS.Emsg("opendir", error, EPERM, "open directory - you need to connect via sss", dirName);
- }
-
- if (Opaque.Get("disk"))
- {
-   std::string dn = dirname.c_str();
-
-   if (!gOFS.Storage->GetFsidFromPath(dn, fsid))
-   {
-     return gOFS.Emsg("opendir", error, EINVAL, "open directory - filesystem has no fsid label ", dirName);
-   }
-
-   // here we traverse the tree of the path given by dirName
-   fts_paths = (char**) calloc(2, sizeof ( char*));
-   fts_paths[0] = (char*) dirName;
-   fts_paths[1] = 0;
-   fts_tree = fts_open(fts_paths, FTS_NOCHDIR, 0);
-
-   if (fts_tree)
-   {
-     return SFS_OK;
-   }
-
-   return gOFS.Emsg("opendir", error, errno, "open directory - fts_open failed for ", dirName);
- }
-
+ // ----------------------------------------------------------------------------
+ // dummy implementation doing nothing
+ // ----------------------------------------------------------------------------
  return SFS_OK;
 }
 
@@ -1433,155 +1401,7 @@ XrdFstOfsDirectory::open (const char* dirName,
 const char*
 XrdFstOfsDirectory::nextEntry ()
 {
- FTSENT* node;
- size_t nfound = 0;
- entry = "";
- // we send the directory contents in a packed format
-
- while ((node = fts_read(fts_tree)))
- {
-   if (node)
-   {
-     if (node->fts_level > 0 && node->fts_name[0] == '.')
-     {
-       fts_set(fts_tree, node, FTS_SKIP);
-     }
-     else
-     {
-       if (node->fts_info & FTS_F)
-       {
-         XrdOucString sizestring;
-         XrdOucString filePath = node->fts_accpath;
-         XrdOucString fileId = node->fts_accpath;
-
-         if (!filePath.matches("*.xsmap"))
-         {
-           struct stat st_buf;
-           eos::common::Attr* attr = eos::common::Attr::OpenAttr(filePath.c_str());
-           int spos = filePath.rfind("/");
-
-           if (spos > 0)
-           {
-             fileId.erase(0, spos + 1);
-           }
-
-           if ((fileId.length() == 8) && (!stat(filePath.c_str(), &st_buf) && S_ISREG(st_buf.st_mode)))
-           {
-             // only scan closed files !!!!
-             unsigned long long fileid = eos::common::FileId::Hex2Fid(fileId.c_str());
-             bool isopenforwrite = false;
-             gOFS.OpenFidMutex.Lock();
-
-             if (gOFS.WOpenFid[fsid].count(fileid))
-             {
-               if (gOFS.WOpenFid[fsid][fileid] > 0)
-               {
-                 isopenforwrite = true;
-               }
-             }
-
-             gOFS.OpenFidMutex.UnLock();
-             std::string val = "";
-             // token[0]: fxid
-             entry += fileId;
-             entry += ":";
-             // token[1] scandir timestap
-             val = attr->Get("user.eos.timestamp").c_str();
-             entry += val.length() ? val.c_str() : "x";
-             entry += ":";
-             // token[2] creation checksum
-             val = "";
-             char checksumVal[SHA_DIGEST_LENGTH];
-             size_t checksumLen;
-             memset(checksumVal, 0, SHA_DIGEST_LENGTH);
-
-             if (attr->Get("user.eos.checksum", checksumVal, checksumLen))
-             {
-               for (unsigned int i = 0; i < SHA_DIGEST_LENGTH; i++)
-               {
-                 char hb[3];
-                 sprintf(hb, "%02x", (unsigned char) (checksumVal[i]));
-                 val += hb;
-               }
-             }
-
-             entry += val.length() ? val.c_str() : "x";
-             entry += ":";
-             // token[3] tag for file checksum error
-             val = attr->Get("user.eos.filecxerror").c_str();
-             entry += val.length() ? val.c_str() : "x";
-             entry += ":";
-             // token[4] tag for block checksum error
-             val = attr->Get("user.eos.blockcxerror").c_str();
-             entry += val.length() ? val.c_str() : "x";
-             entry += ":";
-             // token[5] tag for physical size
-             entry += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) st_buf.st_size);
-             entry += ":";
-
-             if (fsid)
-             {
-               FmdSqlite* fmd = gFmdSqliteHandler.GetFmd(eos::common::FileId::Hex2Fid(fileId.c_str()), fsid, 0, 0, 0, 0, true);
-
-               if (fmd)
-               {
-                 // token[6] size in changelog
-                 entry += eos::common::StringConversion::GetSizeString(sizestring, fmd->fMd.size);
-                 entry += ":";
-                 entry += fmd->fMd.checksum.c_str();
-                 delete fmd;
-               }
-               else
-               {
-                 entry += "x:x:";
-               }
-             }
-             else
-             {
-               entry += "0:0:";
-             }
-
-             gOFS.OpenFidMutex.Lock();
-
-             if (gOFS.WOpenFid[fsid].count(fileid))
-             {
-               if (gOFS.WOpenFid[fsid][fileid] > 0)
-               {
-                 isopenforwrite = true;
-               }
-             }
-
-             gOFS.OpenFidMutex.UnLock();
-
-             // token[8] :1 if it is write-open and :0 if not
-             if (isopenforwrite)
-             {
-               entry += ":1";
-             }
-             else
-             {
-               entry += ":0";
-             }
-
-             entry += "\n";
-             nfound++;
-           }
-
-           if (attr)
-             delete attr;
-         }
-       }
-     }
-
-     if (nfound)
-       break;
-   }
- }
-
- if (nfound == 0)
-   return 0;
- else
-   return entry.c_str();
+ return 0;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1589,18 +1409,6 @@ XrdFstOfsDirectory::nextEntry ()
 int
 XrdFstOfsDirectory::close ()
 {
- if (fts_tree)
- {
-   fts_close(fts_tree);
-   fts_tree = 0;
- }
-
- if (fts_paths)
- {
-   free(fts_paths);
-   fts_paths = 0;
- }
-
  return SFS_OK;
 }
 EOSFSTNAMESPACE_END
