@@ -70,9 +70,16 @@ add_library( XrdEosFst MODULE
 	     layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
 	     layout/ReedSLayout.cc          layout/ReedSLayout.hh
 	     
-	     checksum/Adler.cc
-	     checksum/CheckSum.cc
-	     storage/Storage.cc
+	     checksum/Adler.cc   	    checksum/CheckSum.cc
+
+	     storage/Storage.cc  	    storage/Balancer.cc
+             storage/Cleaner.cc             storage/Comunicator.cc
+             storage/Drainer.cc             storage/ErrorReport.cc
+             storage/FileSystem.cc	    storage/MgmSyncer.cc
+             storage/Publish.cc             storage/Remover.cc
+             storage/Report.cc              storage/Scrub.cc
+             storage/Storage.cc             storage/Supervisor.cc
+             storage/Trim.cc                storage/Verify.cc
 	     Config.cc
 	     Load.cc
              ScanDir.cc
@@ -109,9 +116,16 @@ add_library( XrdEosFst-Static STATIC
 	     layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
 	     layout/ReedSLayout.cc          layout/ReedSLayout.hh
 	     
-	     checksum/Adler.cc
-	     checksum/CheckSum.cc
-	     storage/Storage.cc
+	     checksum/Adler.cc              checksum/CheckSum.cc
+
+             storage/Storage.cc             storage/Balancer.cc
+             storage/Cleaner.cc             storage/Comunicator.cc
+             storage/Drainer.cc             storage/ErrorReport.cc
+             storage/FileSystem.cc          storage/MgmSyncer.cc
+             storage/Publish.cc             storage/Remover.cc
+             storage/Report.cc              storage/Scrub.cc
+             storage/Storage.cc             storage/Supervisor.cc
+             storage/Trim.cc                storage/Verify.cc
 	     Config.cc
 	     Load.cc
              ScanDir.cc
