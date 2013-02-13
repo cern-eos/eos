@@ -55,11 +55,24 @@
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
+/**
+ * Constructor 
+ */
 ProcInterface::ProcInterface () { }
 
 /*----------------------------------------------------------------------------*/
+/**
+ * Destructor 
+ */
+/*----------------------------------------------------------------------------*/
 ProcInterface::~ProcInterface () { }
 
+/*----------------------------------------------------------------------------*/
+/**
+ * Check if a path indicates a proc command
+ * @param path input path for a proc command
+ * @return true if proc command otherwise false
+ */
 /*----------------------------------------------------------------------------*/
 bool
 ProcInterface::IsProcAccess (const char* path)
@@ -72,6 +85,12 @@ ProcInterface::IsProcAccess (const char* path)
  return false;
 }
 
+/**
+ * Check if a proc command is a 'write' command modifying state of an MGM
+ * @param path input arguments for proc command
+ * @param info CGI for proc command
+ * @return true if write access otherwise false
+ */
 /*----------------------------------------------------------------------------*/
 bool
 ProcInterface::IsWriteAccess (const char* path, const char* info)
@@ -88,7 +107,9 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
  XrdOucString cmd = procEnv.Get("mgm.cmd");
  XrdOucString subcmd = procEnv.Get("mgm.subcmd");
 
+ // ----------------------------------------------------------------------------
  // filter here all namespace modifying proc messages
+ // ----------------------------------------------------------------------------
  if (((cmd == "file") &&
       ((subcmd == "adjustreplica") ||
        (subcmd == "drop") ||
@@ -142,6 +163,15 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
 }
 
 /*----------------------------------------------------------------------------*/
+/**
+ * Authorize a proc command based on the clients VID
+ * @param path specifies user or admin command path
+ * @param info CGI providing proc arguments
+ * @param vid virtual id of the client
+ * @param entity security entity object
+ * @return true if authorized otherwise false
+ */
+/*----------------------------------------------------------------------------*/
 bool
 ProcInterface::Authorize (const char* path,
                           const char* info,
@@ -150,7 +180,9 @@ ProcInterface::Authorize (const char* path,
 {
  XrdOucString inpath = path;
 
+ // ----------------------------------------------------------------------------
  // administrator access
+ // ----------------------------------------------------------------------------
  if (inpath.beginswith("/proc/admin/"))
  {
    // hosts with 'sss' authentication can run 'admin' commands
@@ -166,28 +198,30 @@ ProcInterface::Authorize (const char* path,
    {
      return true;
    }
-
+ 
+   // --------------------------------------------------------------------------
    // one has to be part of the virtual users 2(daemon) || 3(adm)/4(adm) 
+   // --------------------------------------------------------------------------
    return ( (eos::common::Mapping::HasUid(2, vid.uid_list)) ||
            (eos::common::Mapping::HasUid(3, vid.uid_list)) ||
            (eos::common::Mapping::HasGid(4, vid.gid_list)));
  }
 
+ // ----------------------------------------------------------------------------
  // user access
+ // ----------------------------------------------------------------------------
  if (inpath.beginswith("/proc/user/"))
  {
    return true;
  }
-
- // fst access
- if (inpath.beginswith("/proc/fst/"))
- {
-   return false;
- }
-
+ 
  return false;
 }
 
+/*----------------------------------------------------------------------------*/
+/**
+ * Constructor ProcCommand
+ */
 /*----------------------------------------------------------------------------*/
 ProcCommand::ProcCommand ()
 {
@@ -212,6 +246,10 @@ ProcCommand::ProcCommand ()
  fstdoutfilename = fstderrfilename = fresultStreamfilename = "";
 }
 
+/*----------------------------------------------------------------------------*/
+/**
+ * Destructor
+ */
 /*----------------------------------------------------------------------------*/
 ProcCommand::~ProcCommand ()
 {
@@ -243,6 +281,11 @@ ProcCommand::~ProcCommand ()
  }
 }
 
+/*----------------------------------------------------------------------------*/
+/**
+ * Open temporary output files for results of find commands
+ * @return true if successful otherwise false
+ */
 /*----------------------------------------------------------------------------*/
 bool
 ProcCommand::OpenTemporaryOutputFiles ()
@@ -285,6 +328,17 @@ ProcCommand::OpenTemporaryOutputFiles ()
 }
 
 /*----------------------------------------------------------------------------*/
+/**
+ * open a proc command e.g. call the appropriate user or admin commmand and
+ * store the output in a resultstream of in case of find in temporary output
+ * files.
+ * @param inpath path indicating user or admin command
+ * @param info CGI describing the proc command
+ * @param vid_in virtual identity of the user requesting a command
+ * @param error object to store errors
+ * @return SFS_OK in any case
+ */
+/*----------------------------------------------------------------------------*/
 int
 ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::VirtualIdentity &vid_in, XrdOucErrInfo *error)
 {
@@ -321,7 +375,13 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
 
  mFuseFormat = false;
  mJsonFormat = false;
- XrdOucString format = pOpaque->Get("mgm.format"); // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line feed in the end
+ 
+ // ----------------------------------------------------------------------------
+ // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line 
+ // feed in the end
+ // ----------------------------------------------------------------------------
+ 
+ XrdOucString format = pOpaque->Get("mgm.format"); 
 
  if (format == "fuse")
  {
@@ -340,8 +400,9 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
  mLen = 0;
  mDoSort = true;
 
-
+ // ----------------------------------------------------------------------------
  // admin command section
+ // ----------------------------------------------------------------------------
  if (mAdminCmd)
  {
    if (mCmd == "access")
@@ -424,6 +485,7 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
    }
    else
    {
+     // command is not implemented
      stdErr += "errro: no such admin command '";
      stdErr += mCmd;
      stdErr += "'";
@@ -434,6 +496,9 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
    return SFS_OK;
  }
 
+ // ----------------------------------------------------------------------------
+ // user command section
+ // ----------------------------------------------------------------------------
  if (mUserCmd)
  {
    if (mCmd == "motd")
@@ -528,7 +593,10 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
      if (Chmod() == SFS_OK) return SFS_OK;
    }
    else
-   {
+   { 
+     // ------------------------------------------------------------------------
+     // command not implemented
+     // ------------------------------------------------------------------------
      stdErr += "errro: no such user command '";
      stdErr += mCmd;
      stdErr += "'";
@@ -538,9 +606,20 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
    return SFS_OK;
  }
 
+ // ----------------------------------------------------------------------------
+ // if neither admin nor proc command
+ // ----------------------------------------------------------------------------
  return gOFS->Emsg((const char*) "open", *error, EINVAL, "execute command - not implemented ", ininfo);
 }
 
+/*----------------------------------------------------------------------------*/
+/**
+ * read a part of the result stream produced during open
+ * @param mOffset offset where to start
+ * @param buff buffer to store stream
+ * @param blen len to return
+ * @return number of bytes read
+ */
 /*----------------------------------------------------------------------------*/
 int
 ProcCommand::read (XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
@@ -577,6 +656,13 @@ ProcCommand::read (XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
 }
 
 /*----------------------------------------------------------------------------*/
+/**
+ * return stat information for the result stream to tell the client the size
+ * of the proc output
+ * @param buf stat structure to fill
+ * @return SFS_OK in any case
+ */
+/*----------------------------------------------------------------------------*/
 int
 ProcCommand::stat (struct stat* buf)
 {
@@ -587,6 +673,11 @@ ProcCommand::stat (struct stat* buf)
 }
 
 /*----------------------------------------------------------------------------*/
+/**
+ * close the proc stream and store the clients comment for the command in the
+ * comment log file
+ * @return 0 if comment has been successfully stored otherwise !=0
+ */
 int
 ProcCommand::close ()
 {
@@ -609,6 +700,12 @@ ProcCommand::close ()
 }
 
 /*----------------------------------------------------------------------------*/
+/**
+ * Build the inmemory result of the stdout,stderr & retc of the proc commdn
+ * Depending on the output format the key-value CGI returned changes => see
+ * implementation.
+ */
+/*----------------------------------------------------------------------------*/
 void
 ProcCommand::MakeResult ()
 {
@@ -619,7 +716,9 @@ ProcCommand::MakeResult ()
    XrdMqMessage::Sort(stdOut, mDoSort);
    if ((!mFuseFormat && !mJsonFormat))
    {
+     // ------------------------------------------------------------------------
      // the default format
+     // ------------------------------------------------------------------------
      mResultStream = "mgm.proc.stdout=";
      mResultStream += XrdMqMessage::Seal(stdOut);
      mResultStream += "&mgm.proc.stderr=";
@@ -630,10 +729,16 @@ ProcCommand::MakeResult ()
    }
    if (mFuseFormat)
    {
+     // ------------------------------------------------------------------------
+     // FUSE format contains only STDOUT
+     // ------------------------------------------------------------------------
      mResultStream += stdOut;
    }
    if (mJsonFormat)
    {
+     // ------------------------------------------------------------------------
+     // only few commands actually return stdJson as output
+     // ------------------------------------------------------------------------
      if (!stdJson.length())
      {
        stdJson = "{\n  \"error\": \"command does not provide JSON output\",\n  \"errc\": 93\n}";
@@ -654,11 +759,17 @@ ProcCommand::MakeResult ()
  }
  else
  {
+   // --------------------------------------------------------------------------
    // file based results CANNOT be sorted and don't have mFuseFormat
+   // --------------------------------------------------------------------------
    if (!mFuseFormat)
    {
+     // ------------------------------------------------------------------------
      // create the stdout result
-     if (!fseek(fstdout, 0, 0) && !fseek(fstderr, 0, 0) && !fseek(fresultStream, 0, 0))
+     // ------------------------------------------------------------------------
+     if (!fseek(fstdout, 0, 0) && 
+         !fseek(fstderr, 0, 0) && 
+         !fseek(fresultStream, 0, 0))
      {
        fprintf(fresultStream, "&mgm.proc.stdout=");
 
@@ -676,11 +787,15 @@ ProcCommand::MakeResult ()
          }
          fprintf(fresultStream, "%s", sentry.c_str());
        }
+       // ----------------------------------------------------------------------
        // close and remove - if this fails there is nothing to recover anyway
+       // ----------------------------------------------------------------------
        fclose(fstdout);
        fstdout = 0;
        unlink(fstdoutfilename.c_str());
+       // ----------------------------------------------------------------------
        // create the stderr result
+       // ----------------------------------------------------------------------
        fprintf(fresultStream, "&mgm.proc.stderr=");
        while (std::getline(inStdout, entry))
        {
@@ -689,15 +804,18 @@ ProcCommand::MakeResult ()
          XrdMqMessage::Seal(sentry);
          fprintf(fresultStream, "%s", sentry.c_str());
        }
+       // ----------------------------------------------------------------------
        // close and remove - if this fails there is nothing to recover anyway
+       // ----------------------------------------------------------------------
        fclose(fstderr);
        fstderr = 0;
        unlink(fstderrfilename.c_str());
 
        fprintf(fresultStream, "&mgm.proc.retc=%d", retc);
        mLen = ftell(fresultStream);
-
+       // ----------------------------------------------------------------------
        // spool the resultstream to the beginning
+       // ----------------------------------------------------------------------
        fseek(fresultStream, 0, 0);
      }
      else
