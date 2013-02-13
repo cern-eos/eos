@@ -72,7 +72,7 @@ add_library( XrdEosFst MODULE
 	     
 	     checksum/Adler.cc   	    checksum/CheckSum.cc
 
-	     storage/Storage.cc  	    storage/Balancer.cc
+	     storage/Balancer.cc
              storage/Cleaner.cc             storage/Comunicator.cc
              storage/Drainer.cc             storage/ErrorReport.cc
              storage/FileSystem.cc	    storage/MgmSyncer.cc
@@ -118,7 +118,7 @@ add_library( XrdEosFst-Static STATIC
 	     
 	     checksum/Adler.cc              checksum/CheckSum.cc
 
-             storage/Storage.cc             storage/Balancer.cc
+             storage/Balancer.cc
              storage/Cleaner.cc             storage/Comunicator.cc
              storage/Drainer.cc             storage/ErrorReport.cc
              storage/FileSystem.cc          storage/MgmSyncer.cc
