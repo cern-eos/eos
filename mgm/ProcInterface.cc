@@ -365,6 +365,7 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
    return SFS_ERROR;
  }
 
+ mOutFormat = "";
  mCmd = pOpaque->Get("mgm.cmd");
  mSubCmd = pOpaque->Get("mgm.subcmd");
  mOutFormat = pOpaque->Get("mgm.outformat");
