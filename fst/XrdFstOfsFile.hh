@@ -269,10 +269,16 @@ protected:
   std::vector<unsigned long long> wvec; //! vector with all write sizes -> to compute sigma,min,max,total
   unsigned long long rBytes; //! sum bytes read
   unsigned long long wBytes; //! sum bytes written
-  unsigned long long srBytes; //! sum bytes seeked
-  unsigned long long swBytes; //! sum bytes seeked
+  unsigned long long sFwdBytes; //! sum bytes seeked forward
+  unsigned long long sBwdBytes; //! sum bytes seeked backward
+  unsigned long long sXlFwdBytes;//! sum bytes with large forward seeks (> 4M)
+  unsigned long long sXlBwdBytes;//! sum bytes with large backward seeks (> 4M)
   unsigned long rCalls; //! number of read calls
   unsigned long wCalls; //! number of write calls
+  unsigned long nFwdSeeks; //! number of seeks forward
+  unsigned long nBwdSeeks; //! number of seeks backward
+  unsigned long nXlFwdSeeks; //! number of seeks forward
+  unsigned long nXlBwdSeeks; //! number of seeks backward
   unsigned long long rOffset; //! offset since last read operation on this file
   unsigned long long wOffset; //! offset since last write operation on this file
 

@@ -244,8 +244,14 @@ Iostat::Receive(void)
       Add("bytes_written", report->uid, report->gid, report->wb,report->ots, report->cts);
       Add("read_calls", report->uid, report->gid, report->nrc,report->ots, report->cts);
       Add("write_calls", report->uid, report->gid, report->nwc,report->ots, report->cts);
-      Add("bytes_rseek",  report->uid, report->gid, report->srb,report->ots, report->cts);
-      Add("bytes_wseek",    report->uid, report->gid, report->swb,report->ots, report->cts);
+      Add("fwd_seeks", report->uid, report->gid, report->nfwds,report->ots, report->cts);
+      Add("bwd_seeks", report->uid, report->gid, report->nbwds,report->ots, report->cts);
+      Add("xl_fwd_seeks", report->uid, report->gid, report->nxlfwds,report->ots, report->cts);
+      Add("xl_bwd_seeks", report->uid, report->gid, report->nxlbwds,report->ots, report->cts);
+      Add("bytes_fwd_seek",  report->uid, report->gid, report->sfwdb,report->ots, report->cts);
+      Add("bytes_bwd_wseek", report->uid, report->gid, report->sbwdb,report->ots, report->cts);
+      Add("bytes_xl_fwd_seek",  report->uid, report->gid, report->sxlfwdb,report->ots, report->cts);
+      Add("bytes_xl_bwd_wseek", report->uid, report->gid, report->sxlbwdb,report->ots, report->cts);
       Add("disk_time_read",  report->uid, report->gid, (unsigned long long)report->rt,report->ots, report->cts);
       Add("disk_time_write",  report->uid, report->gid, (unsigned long long)report->wt,report->ots, report->cts);
 

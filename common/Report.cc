@@ -65,10 +65,16 @@ Report::Report(XrdOucEnv &report)
   wb_min   = strtoull(report.Get("wb_min")?report.Get("wb_min"):"0",0,10);
   wb_max   = strtoull(report.Get("wb_max")?report.Get("wb_max"):"0",0,10);
   wb_sigma = strtod(report.Get("wb_sigma")?report.Get("wb_sigma"):"0",0);
-  srb      = strtoull(report.Get("srb")?report.Get("srb"):"0",0,10);
-  swb      = strtoull(report.Get("swb")?report.Get("swb"):"0",0,10);
+  sfwdb    = strtoull(report.Get("sfwdb")?report.Get("sfwdb"):"0",0,10);
+  sbwdb    = strtoull(report.Get("sbwdb")?report.Get("sbwdb"):"0",0,10);
+  sxlfwdb   = strtoull(report.Get("sxlfwd")?report.Get("sxlfwd"):"0",0,10);
+  sxlbwdb   = strtoull(report.Get("sxlbwd")?report.Get("sxlbwd"):"0",0,10);
   nrc      = strtoull(report.Get("nrc")?report.Get("nrc"):"0",0,10);
-  nwc      = strtod(report.Get("nwc")?report.Get("nwc"):"0",0);
+  nwc      = strtoull(report.Get("nwc")?report.Get("nwc"):"0",0,10);
+  nfwds    = strtoull(report.Get("nfwds")?report.Get("nfwds"):"0",0,10);
+  nbwds    = strtoull(report.Get("nbwds")?report.Get("nbwds"):"0",0,10);
+  nxlfwds  = strtoull(report.Get("nxlfwds")?report.Get("nxlfwds"):"0",0,10);
+  nxlbwds  = strtoull(report.Get("nxlbwds")?report.Get("nxlbwds"):"0",0,10);
   rt       = atof(report.Get("rt")?report.Get("rt"):"0.0");
   wt       = atof(report.Get("wt")?report.Get("wt"):"0.0");
   osize    = strtoull(report.Get("osize")?report.Get("osize"):"0",0,10);
@@ -101,7 +107,7 @@ void
 Report::Dump(XrdOucString &out, bool dumpsec)
 {
   char dumpline[16384];
-  snprintf(dumpline,sizeof(dumpline)-1,"uid=%d gid=%d rb=%llu rb_min=%llu rb_max=%llu rb_sigma=%.02f wb=%llu wb_min=%llu wb_max=%llu wb_sigma=%.02fsrb=%llu swb=%llu nrc=%llu nwc=%llu rt=%.02f wt=%.02f osize=%llu csize=%llu ots=%llu.%llu cts=%llu.%llu td=%s host=%s logid=%s", uid, gid, rb, rb_min, rb_max, rb_sigma, wb, wb_min, wb_max, wb_sigma, srb, swb, nrc,nwc, rt,wt,osize,csize, ots,otms, cts,ctms, td.c_str(),host.c_str(), logid.c_str());
+  snprintf(dumpline,sizeof(dumpline)-1,"uid=%d gid=%d rb=%llu rb_min=%llu rb_max=%llu rb_sigma=%.02f wb=%llu wb_min=%llu wb_max=%llu wb_sigma=%.02f sfwdb=%llu sbwdb=%llu sxlfwdb=%llu sxlbwdb=%llu nrc=%llu nwc=%llu nfwds=%llu nbwds=%llu nxlfwds=%llu nxlbwds=%llu rt=%.02f wt=%.02f osize=%llu csize=%llu ots=%llu.%llu cts=%llu.%llu td=%s host=%s logid=%s", uid, gid, rb, rb_min, rb_max, rb_sigma, wb, wb_min, wb_max, wb_sigma, sfwdb, sbwdb, sxlfwdb, sxlbwdb, nrc,nwc, nfwds, nbwds, nxlfwds, nxlbwds, rt,wt,osize,csize, ots,otms, cts,ctms, td.c_str(),host.c_str(), logid.c_str());
   out+=dumpline;
   if (dumpsec) {
     snprintf(dumpline,sizeof(dumpline)-1," sec_prot=\"%s\" sec_name=\"%s\" sec_host=\"%s\" sec_vorg=\"%s\" sec_grps=\"%s\" sec_role=\"%s\" sec_info=\"%s\" sec_app=\"%s\"", sec_prot.c_str(), sec_name.c_str(), sec_host.c_str(), sec_vorg.c_str(), sec_grps.c_str(), sec_role.c_str(), sec_info.c_str(), sec_app.c_str());

@@ -78,10 +78,16 @@ public:
   unsigned long long wb_min;   //< bytes written min 
   unsigned long long wb_max;   //< bytes written max
   double             wb_sigma; //< bytes written sigma
-  unsigned long long srb;  //< seeked bytes for read
-  unsigned long long swb;  //< seeked bytes for write
+  unsigned long long sfwdb;  //< seeked bytes forward
+  unsigned long long sbwdb;  //< seeked bytes backward
+  unsigned long long sxlfwdb;  //< seeked bytes forward in seeks >4M
+  unsigned long long sxlbwdb;  //< seeked bytes backward in seeks >4M
   unsigned long long nrc;  //< number of read calls
   unsigned long long nwc;  //< number of write calls
+  unsigned long long nfwds;  //< number of forward seeks
+  unsigned long long nbwds;  //< number of backwards seeks
+  unsigned long long nxlfwds;  //< number of large forward seeks
+  unsigned long long nxlbwds;  //< number of large backwards eeks
   float  rt;               //< disk time spent for read
   float  wt;               //< disk time spent for write
   unsigned long long osize;//< size when file was opened

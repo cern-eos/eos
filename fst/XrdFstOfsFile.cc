@@ -41,8 +41,8 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOfsFile::XrdFstOfsFile (const char* user, int MonID) :
-  XrdOfsFile (user, MonID),
-  eos::common::LogId()
+XrdOfsFile (user, MonID),
+eos::common::LogId ()
 {
  openOpaque = 0;
  capOpaque = 0;
@@ -56,14 +56,14 @@ XrdFstOfsFile::XrdFstOfsFile (const char* user, int MonID) :
  layOut = 0;
  isRW = 0;
  isCreation = 0;
- rBytes = wBytes = srBytes = swBytes = rOffset = wOffset = 0;
+ rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes = sXlBwdBytes = rOffset = wOffset = 0;
  rTime.tv_sec = wTime.tv_sec = lrTime.tv_sec = lwTime.tv_sec = cTime.tv_sec = 0;
  rTime.tv_usec = wTime.tv_usec = lrTime.tv_usec = lwTime.tv_usec = cTime.tv_usec = 0;
  fileid = 0;
  fsid = 0;
  lid = 0;
  cid = 0;
- rCalls = wCalls = 0;
+ rCalls = wCalls = nFwdSeeks = nBwdSeeks = nXlFwdSeeks = nXlBwdSeeks = 0;
  localPrefix = "";
  maxOffsetWritten = 0;
  openSize = 0;
@@ -902,7 +902,7 @@ XrdFstOfsFile::MakeReportEnv (XrdOucString& reportString)
    snprintf(report, sizeof ( report) - 1, "log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&"
             "lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&cts=%lu&ctms=%lu&rb=%llu&"
             "rb_min=%llu&rb_max=%llu&rb_sigma=%.02f&wb=%llu&wb_min=%llu&wb_max=%llu&&"
-            "wb_sigma=%.02f&srb=%llu&swb=%llu&nrc=%lu&nwc=%lu&rt=%.02f&wt=%.02f&"
+            "wb_sigma=%.02f&sfwdb=%llu&sbwdb=%llu&sxlfwdb=%llu&sxlbwdb=%llu&nrc=%lu&nwc=%lu&nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&rt=%.02f&wt=%.02f&"
             "osize=%llu&csize=%llu&%s"
             , this->logId
             , Path.c_str()
@@ -924,10 +924,16 @@ XrdFstOfsFile::MakeReportEnv (XrdOucString& reportString)
             , wmin
             , wmax
             , wsigma
-            , srBytes
-            , swBytes
+            , sFwdBytes
+            , sBwdBytes
+            , sXlFwdBytes
+            , sXlBwdBytes
             , rCalls
             , wCalls
+            , nFwdSeeks
+            , nBwdSeeks
+            , nXlFwdSeeks
+            , nXlBwdSeeks
             , ((rTime.tv_sec * 1000.0) + (rTime.tv_usec / 1000.0))
             , ((wTime.tv_sec * 1000.0) + (wTime.tv_usec / 1000.0))
             , (unsigned long long) openSize
@@ -970,7 +976,7 @@ XrdFstOfsFile::verifychecksum ()
 
    if (checkSum->NeedsRecalculation())
    {
-     if ((!isRW) && ((srBytes) || (checkSum->GetMaxOffset() != openSize)) && hasBlockXs)
+     if ((!isRW) && ((sFwdBytes + sBwdBytes) || (checkSum->GetMaxOffset() != openSize)) && hasBlockXs)
      {
        //............................................................................
        // we don't rescan files if they are read non-sequential or only partially
@@ -1226,9 +1232,9 @@ XrdFstOfsFile::close ()
        // If we had space allocation we have to truncate the allocated space to
        // the real size of the file
        //......................................................................
-       if ((strcmp(layOut->GetName(), "raiddp") == 0)  ||
-           (strcmp(layOut->GetName(), "raid6") == 0)   || 
-	   (strcmp(layOut->GetName(), "archive") == 0))
+       if ((strcmp(layOut->GetName(), "raiddp") == 0) ||
+           (strcmp(layOut->GetName(), "raid6") == 0) ||
+           (strcmp(layOut->GetName(), "archive") == 0))
        {
          if (layOut->IsEntryServer())
            layOut->Truncate(maxOffsetWritten);
@@ -1270,8 +1276,8 @@ XrdFstOfsFile::close ()
      }
 
      if ((strcmp(layOut->GetName(), "raiddp") == 0) ||
-         (strcmp(layOut->GetName(), "raid6") == 0) || 
-         (strcmp(layOut->GetName(), "archive") == 0) )
+         (strcmp(layOut->GetName(), "raid6") == 0) ||
+         (strcmp(layOut->GetName(), "archive") == 0))
      {
        //......................................................................
        // For RAID-like layouts don't do this check
@@ -1850,16 +1856,38 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
    checkSum->Add(buffer, rc, fileOffset);
  }
 
+ // ----------------------------------------------------------------------------
+ // account seeks for report logs
+ // ----------------------------------------------------------------------------
  if (rOffset != static_cast<unsigned long long> (fileOffset))
  {
-   srBytes += llabs(rOffset - fileOffset);
+   if (rOffset < static_cast<unsigned long long> (fileOffset))
+   {
+     nFwdSeeks++;
+     sFwdBytes += (fileOffset - rOffset);
+   }
+   else
+   {
+     nBwdSeeks++;
+     sBwdBytes += (rOffset - fileOffset);
+   }
+   if ((rOffset + (4 * 1024ll * 1024ll)) < (static_cast<unsigned long long> (fileOffset)))
+   {
+     sXlFwdBytes += (fileOffset - rOffset);
+     nXlFwdSeeks++;
+   }
+   if ((static_cast<unsigned long long> (rOffset) > (4 * 1024ll * 1024ll)) &&
+       (rOffset - (4 * 1024ll * 1024ll)) > (static_cast<unsigned long long> (fileOffset)))
+   {
+     sXlBwdBytes += (rOffset - fileOffset);
+     nXlBwdSeeks++;
+   }
  }
-
  if (rc > 0)
  {
    XrdSysMutexHelper vecLock(vecMutex);
    rvec.push_back(rc);
-   rOffset += rc;
+   rOffset = fileOffset + rc;
  }
 
  gettimeofday(&lrTime, &tz);
@@ -2010,16 +2038,40 @@ XrdFstOfsFile::write (XrdSfsFileOffset fileOffset,
                  static_cast<off_t> (fileOffset));
  }
 
+
+ // ----------------------------------------------------------------------------
+ // account seeks for report logs
+ // ----------------------------------------------------------------------------
  if (wOffset != static_cast<unsigned long long> (fileOffset))
  {
-   swBytes += llabs(wOffset - fileOffset);
+   if (wOffset < static_cast<unsigned long long> (fileOffset))
+   {
+     nFwdSeeks++;
+     sFwdBytes += (fileOffset - wOffset);
+   }
+   else
+   {
+     nBwdSeeks++;
+     sBwdBytes += (wOffset - fileOffset);
+   }
+   if ((wOffset + (4 * 1024ll * 1024ll)) < (static_cast<unsigned long long> (fileOffset)))
+   {
+     sXlFwdBytes += (fileOffset - wOffset);
+     nXlFwdSeeks++;
+   }
+   if ((static_cast<unsigned long long> (wOffset) > (4 * 1024ll * 1024ll)) &&
+       (wOffset - (4 * 1024ll * 1024ll)) > (static_cast<unsigned long long> (fileOffset)))
+   {
+     sXlBwdBytes += (wOffset - fileOffset);
+     nXlBwdSeeks++;
+   }
  }
 
  if (rc > 0)
  {
    XrdSysMutexHelper(vecMutex);
    wvec.push_back(rc);
-   wOffset += rc;
+   wOffset = fileOffset + rc;
 
    if (static_cast<unsigned long long> (fileOffset + buffer_size) >
        static_cast<unsigned long long> (maxOffsetWritten))
