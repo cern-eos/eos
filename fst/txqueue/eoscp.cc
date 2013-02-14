@@ -834,49 +834,52 @@ main (int argc, char* argv[])
            LayoutId::layoutid_t layout = openOpaque->GetInt( "mgm.lid" );
            std::string orig_file = file_path;
            nsrc = eos::common::LayoutId::GetStripeNumber( layout ) + 1;
-           src_location.clear();
            isRaidTransfer = true;
            isSrcRaid = true;
            if ( eos::common::LayoutId::GetLayoutType( layout ) == eos::common::LayoutId::kRaidDP ) {
+	     src_location.clear();
              replicationType = "raidDP";
            }
-           else if ( eos::common::LayoutId::GetLayoutType( layout ) == eos::common::LayoutId::kRaidDP ) {
+           else 
+	   if ( eos::common::LayoutId::GetLayoutType( layout ) == eos::common::LayoutId::kArchive ) {
+	     src_location.clear();
              replicationType = "reedS";
-           }
-           else {
-             fprintf( stderr, " The layout returned by the MGM is not supported... strange!.\n" );
-             exit( -1 );
+           } else {
+	     nsrc = 1;
+	     src_type.push_back(XRD_ACCESS);
+	     replicationType = "replica";
            }
            
-                     
-           for ( int i = 0; i < nsrc; i++ ) {
-             tag = "pio.";
-             tag += i;
-             stripe_path = "root://";
-             stripe_path += openOpaque->Get( tag.c_str() );
-             stripe_path += "/";
-             stripe_path += orig_file.c_str();
-             int pos = stripe_path.rfind("//");
-
-             if ( pos == STR_NPOS )
-             {
-               address = "";
-               file_path = stripe_path.c_str();
-             }
-             else
-             {
-               address = std::string( stripe_path.c_str(), 0, pos + 1 );
-               file_path = std::string( stripe_path.c_str(), pos + 1, stripe_path.length() - pos - 1 );
-             }
-
-             src_location.push_back( std::make_pair( address, file_path ) );
-             src_type.push_back( RAID_ACCESS );
-             
-             if ( verbose || debug )
-             {
-               fprintf( stdout, "src<%d>=%s \n", i, src_location.back().second.c_str() );
-             }
-           }
+	   if (replicationType != "replica") {
+	     for ( int i = 0; i < nsrc; i++ ) {
+	       tag = "pio.";
+	       tag += i;
+	       stripe_path = "root://";
+	       stripe_path += openOpaque->Get( tag.c_str() );
+	       stripe_path += "/";
+	       stripe_path += orig_file.c_str();
+	       int pos = stripe_path.rfind("//");
+	       
+	       if ( pos == STR_NPOS )
+		 {
+		   address = "";
+		   file_path = stripe_path.c_str();
+		 }
+	       else
+		 {
+		   address = std::string( stripe_path.c_str(), 0, pos + 1 );
+		   file_path = std::string( stripe_path.c_str(), pos + 1, stripe_path.length() - pos - 1 );
+		 }
+	       
+	       src_location.push_back( std::make_pair( address, file_path ) );
+	       src_type.push_back( RAID_ACCESS );
+	       
+	       if ( verbose || debug )
+		 {
+		   fprintf( stdout, "src<%d>=%s \n", i, src_location.back().second.c_str() );
+		 }
+	     }
+	   }
          }
          else
          {
@@ -2086,8 +2089,8 @@ main (int argc, char* argv[])
    }
  }
 
- fprintf(stderr, "Total read wait time is: %f miliseconds. \n", read_wait);
- fprintf(stderr, "Total write wait time is: %f miliseconds. \n", write_wait);
+ // fprintf(stderr, "Total read wait time is: %f miliseconds. \n", read_wait);
+ // fprintf(stderr, "Total write wait time is: %f miliseconds. \n", write_wait);
 
  // Free memory
  delete[] buffer;

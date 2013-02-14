@@ -384,8 +384,10 @@ com_cp (char* argin) {
                   (unsigned long long)buf.st_size);
         }
 
-        fprintf(stderr,"[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(),
-                (unsigned long long)buf.st_size);
+	if (!silent) {
+	  fprintf(stderr,"[eos-cp] path=%s size=%llu\n", source_list[nfile].c_str(),
+		  (unsigned long long)buf.st_size);
+	}
         
 	copysize += buf.st_size;
 	source_size.push_back((unsigned long long)buf.st_size);
@@ -550,6 +552,12 @@ com_cp (char* argin) {
     }
     
     arg2 = target;
+
+    if (arg2 == "-") {
+      // if we have stdout as target we disable all output
+      silent = true;
+      noprogress = true;
+    }
 
     if (arg2.beginswith("as3://")) {
       // apply the ROOT compatability environment variables
@@ -789,16 +797,19 @@ com_cp (char* argin) {
     } 
 
     if ( ((arg2.find(":/")==STR_NPOS) && (!arg2.beginswith("as3:"))) ) {
-      // this is a local file
-      buf.st_size=0;
-      if (!stat(targetfile.c_str(), &buf)) {
-	if ((source_size[nfile]) && (buf.st_size != (int)source_size[nfile])) {
-	  fprintf(stderr,"error: filesize differ between source and target file!\n");
+      // exclude STDOUT
+      if (arg2 != "-") {
+	// this is a local file
+	buf.st_size=0;
+	if (!stat(targetfile.c_str(), &buf)) {
+	  if ((source_size[nfile]) && (buf.st_size != (int)source_size[nfile])) {
+	    fprintf(stderr,"error: filesize differ between source and target file!\n");
+	    lrc = 0xffff00;
+	  } 
+	} else {
+	  fprintf(stderr,"error: target file was not created!\n");
 	  lrc = 0xffff00;
-	} 
-      } else {
-	fprintf(stderr,"error: target file was not created!\n");
-	lrc = 0xffff00;
+	}
       }
     }  
     if (!WEXITSTATUS(lrc)) {
