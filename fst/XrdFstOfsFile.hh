@@ -43,6 +43,9 @@
 
 EOSFSTNAMESPACE_BEGIN;
 
+// This defines for reports what is a large seek e.g. > 128 kB = default RA size
+#define EOS_FSTOFS_LARGE_SEEKS 128*1024ll
+
 // Forward declaration 
 class Layout;
 
@@ -271,8 +274,8 @@ protected:
   unsigned long long wBytes; //! sum bytes written
   unsigned long long sFwdBytes; //! sum bytes seeked forward
   unsigned long long sBwdBytes; //! sum bytes seeked backward
-  unsigned long long sXlFwdBytes;//! sum bytes with large forward seeks (> 4M)
-  unsigned long long sXlBwdBytes;//! sum bytes with large backward seeks (> 4M)
+  unsigned long long sXlFwdBytes;//! sum bytes with large forward seeks (> EOS_FSTOFS_LARGE_SEEKS)
+  unsigned long long sXlBwdBytes;//! sum bytes with large backward seeks (> EOS_FSTOFS_LARGE_SEEKS)
   unsigned long rCalls; //! number of read calls
   unsigned long wCalls; //! number of write calls
   unsigned long nFwdSeeks; //! number of seeks forward

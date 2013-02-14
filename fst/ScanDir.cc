@@ -267,7 +267,8 @@ ScanDir::CheckFile (const char* filepath)
 
    if (RescanFile(checksumStamp))
    {
-     if (checksumType.compare(""))
+     //     if (checksumType.compare(""))
+     if (1) 
      {
        bool blockcxerror = false;
        bool filecxerror = false;
@@ -281,13 +282,15 @@ ScanDir::CheckFile (const char* filepath)
        {
          if ((!stat(filePath.c_str(), &buf2)) && (buf1.st_mtime == buf2.st_mtime))
          {
-           if (bgThread)
-           {
-             syslog(LOG_ERR, "corrupted file checksum: localpath=%s lfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
-             eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(), logicalFileName.c_str());
-           }
-           else
-             fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
+	   if (filecxerror) {
+	     if (bgThread)
+	       {
+		 syslog(LOG_ERR, "corrupted file checksum: localpath=%s lfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
+		 eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(), logicalFileName.c_str());
+	       }
+	     else
+	       fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
+	   }
          }
          else
          {
@@ -595,16 +598,10 @@ ScanDir::ScanFileLoadAware (const char* path, unsigned long long &scansize, floa
  fileXSPath = filePath + ".xsmap";
 
  normalXS = eos::fst::ChecksumPlugins::GetChecksumObject(layoutid);
- if (!normalXS)
+ blockXS = GetBlockXS(fileXSPath.c_str());
+ if ( (!normalXS) && (!blockXS) )
  {
-   if (bgThread)
-   {
-     eos_err("cannot get checksum object for %lx\n", layoutid);
-   }
-   else
-   {
-     fprintf(stderr, "error: cannot get checksum object for %lx\n", layoutid);
-   }
+   // there is nothing to do here!
    return false;
  }
 
@@ -618,7 +615,7 @@ ScanDir::ScanFileLoadAware (const char* path, unsigned long long &scansize, floa
  }
 
  blockXS = GetBlockXS(fileXSPath.c_str());
- normalXS->Reset();
+ if (normalXS) normalXS->Reset();
 
  int nread = 0;
  off_t offset = 0;
@@ -635,7 +632,7 @@ ScanDir::ScanFileLoadAware (const char* path, unsigned long long &scansize, floa
        blockXS->CloseMap();
        delete blockXS;
      }
-     delete normalXS;
+     if (normalXS) delete normalXS;
      return false;
    }
 
@@ -646,7 +643,7 @@ ScanDir::ScanFileLoadAware (const char* path, unsigned long long &scansize, floa
          corruptBlockXS = true;
 
      //      fprintf(stderr,"adding %ld %llu\n", nread,offset);
-     normalXS->Add(buffer, nread, offset);
+     if (normalXS) normalXS->Add(buffer, nread, offset);
 
      offset += nread;
      if (currentRate)
@@ -681,12 +678,10 @@ ScanDir::ScanFileLoadAware (const char* path, unsigned long long &scansize, floa
  scantime = (((currenttime.tv_sec - opentime.tv_sec)*1000.0) + ((currenttime.tv_usec - opentime.tv_usec) / 1000.0));
  scansize = (unsigned long long) offset;
 
- normalXS->Finalize();
+ if (normalXS) normalXS->Finalize();
 
  //check file checksum only for replica layouts
- if ( ( (eos::common::LayoutId::GetLayoutType(layoutid) == eos::common::LayoutId::kReplica) ||
-	(eos::common::LayoutId::GetLayoutType(layoutid) == eos::common::LayoutId::kPlain) ) &&
-      (!normalXS->Compare(checksumVal)) ) 
+ if ( (normalXS) && (!normalXS->Compare(checksumVal))) 
  {
    if (bgThread)
    {
@@ -748,14 +743,14 @@ ScanDir::ScanFileLoadAware (const char* path, unsigned long long &scansize, floa
  //collect statistics
  noScanFiles++;
 
- normalXS->Finalize();
+ if (normalXS) normalXS->Finalize();
  if (blockXS)
  {
    blockXS->CloseMap();
    delete blockXS;
  }
 
- delete normalXS;
+ if (normalXS) delete normalXS;
  close(fd);
 
  if (bgThread)

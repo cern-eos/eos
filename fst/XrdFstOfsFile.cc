@@ -1871,13 +1871,13 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
      nBwdSeeks++;
      sBwdBytes += (rOffset - fileOffset);
    }
-   if ((rOffset + (4 * 1024ll * 1024ll)) < (static_cast<unsigned long long> (fileOffset)))
+   if ((rOffset + ( EOS_FSTOFS_LARGE_SEEKS )) < (static_cast<unsigned long long> (fileOffset)))
    {
      sXlFwdBytes += (fileOffset - rOffset);
      nXlFwdSeeks++;
    }
-   if ((static_cast<unsigned long long> (rOffset) > (4 * 1024ll * 1024ll)) &&
-       (rOffset - (4 * 1024ll * 1024ll)) > (static_cast<unsigned long long> (fileOffset)))
+   if ((static_cast<unsigned long long> (rOffset) > ( EOS_FSTOFS_LARGE_SEEKS )) &&
+       (rOffset - ( EOS_FSTOFS_LARGE_SEEKS )) > (static_cast<unsigned long long> (fileOffset)))
    {
      sXlBwdBytes += (rOffset - fileOffset);
      nXlBwdSeeks++;
@@ -2054,13 +2054,13 @@ XrdFstOfsFile::write (XrdSfsFileOffset fileOffset,
      nBwdSeeks++;
      sBwdBytes += (wOffset - fileOffset);
    }
-   if ((wOffset + (4 * 1024ll * 1024ll)) < (static_cast<unsigned long long> (fileOffset)))
+   if ((wOffset + ( EOS_FSTOFS_LARGE_SEEKS )) < (static_cast<unsigned long long> (fileOffset)))
    {
      sXlFwdBytes += (fileOffset - wOffset);
      nXlFwdSeeks++;
    }
-   if ((static_cast<unsigned long long> (wOffset) > (4 * 1024ll * 1024ll)) &&
-       (wOffset - (4 * 1024ll * 1024ll)) > (static_cast<unsigned long long> (fileOffset)))
+   if ((static_cast<unsigned long long> (wOffset) > ( EOS_FSTOFS_LARGE_SEEKS )) &&
+       (wOffset - ( EOS_FSTOFS_LARGE_SEEKS )) > (static_cast<unsigned long long> (fileOffset)))
    {
      sXlBwdBytes += (wOffset - fileOffset);
      nXlBwdSeeks++;
