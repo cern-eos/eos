@@ -238,7 +238,7 @@ ProcCommand::Find ()
      nofiles = true;
    }
 
-   if (gOFS->_find(spath.c_str(), *error, stdErr, *pVid, (*found), key.c_str(), val.c_str(), nofiles))
+   if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, (*found), key.c_str(), val.c_str(), nofiles))
    {
      fprintf(fstderr, "%s", stdErr.c_str());
      fprintf(fstderr, "error: unable to run find in directory");
@@ -552,7 +552,7 @@ ProcCommand::Find ()
        XrdOucString attr = "";
        if (printkey.length())
        {
-         gOFS->_attr_get(foundit->first.c_str(), *error, vid, (const char*) 0, printkey.c_str(), attr);
+         gOFS->_attr_get(foundit->first.c_str(), *mError, vid, (const char*) 0, printkey.c_str(), attr);
          if (printkey.length())
          {
            if (!attr.length())

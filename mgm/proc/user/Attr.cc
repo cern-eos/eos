@@ -84,7 +84,7 @@ ProcCommand::Attr ()
 
      if (option == "r")
      {
-       if (gOFS->_find(spath.c_str(), *error, stdErr, *pVid, found))
+       if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, found))
        {
          stdErr += "error: unable to search in path";
          retc = errno;
@@ -106,7 +106,7 @@ ProcCommand::Attr ()
            if (mSubCmd == "ls")
            {
              XrdOucString partialStdOut = "";
-             if (gOFS->_attr_ls(foundit->first.c_str(), *error, *pVid, (const char*) 0, map))
+             if (gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map))
              {
                stdErr += "error: unable to list attributes in directory ";
                stdErr += foundit->first.c_str();
@@ -139,7 +139,7 @@ ProcCommand::Attr ()
 
            if (mSubCmd == "set")
            {
-             if (gOFS->_attr_set(foundit->first.c_str(), *error, *pVid, (const char*) 0, key.c_str(), val.c_str()))
+             if (gOFS->_attr_set(foundit->first.c_str(), *mError, *pVid, (const char*) 0, key.c_str(), val.c_str()))
              {
                stdErr += "error: unable to set attribute in directory ";
                stdErr += foundit->first.c_str();
@@ -159,7 +159,7 @@ ProcCommand::Attr ()
 
            if (mSubCmd == "get")
            {
-             if (gOFS->_attr_get(foundit->first.c_str(), *error, *pVid, (const char*) 0, key.c_str(), val))
+             if (gOFS->_attr_get(foundit->first.c_str(), *mError, *pVid, (const char*) 0, key.c_str(), val))
              {
                stdErr += "error: unable to get attribute '";
                stdErr += key;
@@ -178,7 +178,7 @@ ProcCommand::Attr ()
 
            if (mSubCmd == "rm")
            {
-             if (gOFS->_attr_rem(foundit->first.c_str(), *error, *pVid, (const char*) 0, key.c_str()))
+             if (gOFS->_attr_rem(foundit->first.c_str(), *mError, *pVid, (const char*) 0, key.c_str()))
              {
                stdErr += "error: unable to remove attribute '";
                stdErr += key;

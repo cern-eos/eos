@@ -60,7 +60,7 @@ ProcCommand::Chown ()
 
    if (option == "r")
    {
-     if (gOFS->_find(spath.c_str(), *error, stdErr, *pVid, found))
+     if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, found))
      {
        stdErr += "error: unable to search in path";
        retc = errno;
@@ -135,7 +135,7 @@ ProcCommand::Chown ()
      // for directories
      for (foundit = found.begin(); foundit != found.end(); foundit++)
      {
-       if (gOFS->_chown(foundit->first.c_str(), uidt, gidt, *error, *pVid, (char*) 0))
+       if (gOFS->_chown(foundit->first.c_str(), uidt, gidt, *mError, *pVid, (char*) 0))
        {
          stdErr += "error: unable to chown of directory ";
          stdErr += foundit->first.c_str();
@@ -168,7 +168,7 @@ ProcCommand::Chown ()
        {
          std::string fpath = foundit->first;
          fpath += *fileit;
-         if (gOFS->_chown(fpath.c_str(), uidt, gidt, *error, *pVid, (char*) 0))
+         if (gOFS->_chown(fpath.c_str(), uidt, gidt, *mError, *pVid, (char*) 0))
          {
            stdErr += "error: unable to chown of file ";
            stdErr += fpath.c_str();

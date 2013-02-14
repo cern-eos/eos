@@ -64,9 +64,9 @@ ProcCommand::Ls ()
 
    XrdOucString ls_file;
 
-   if (gOFS->_stat(spath.c_str(), &buf, *error, *pVid, (const char*) 0))
+   if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, (const char*) 0))
    {
-     stdErr = error->getErrText();
+     stdErr = mError->getErrText();
      retc = errno;
    }
    else
@@ -167,7 +167,7 @@ ProcCommand::Ls ()
            {
            }
            struct stat buf;
-           if (gOFS->_stat(statpath.c_str(), &buf, *error, *pVid, (const char*) 0))
+           if (gOFS->_stat(statpath.c_str(), &buf, *mError, *pVid, (const char*) 0))
            {
              stdErr += "error: unable to stat path ";
              stdErr += statpath;

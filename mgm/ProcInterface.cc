@@ -235,7 +235,7 @@ ProcCommand::ProcCommand ()
  pVid = 0;
  path = "";
  mAdminCmd = mUserCmd = 0;
- error = 0;
+ mError = 0;
  mComment = "";
  mArgs = "";
  mExecTime = time(NULL);
@@ -346,6 +346,7 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
  mClosed = false;
  path = inpath;
  mDoSort = false;
+ mError = error;
 
  ininfo = info;
  if ((path.beginswith("/proc/admin")))
