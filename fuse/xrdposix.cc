@@ -1069,7 +1069,7 @@ xrd_stat(const char *path, struct stat *buf)
       buf->st_atim.tv_nsec = (time_t) ival[3];
       buf->st_mtim.tv_nsec = (time_t) ival[4];
       buf->st_ctim.tv_nsec = (time_t) ival[5];
-      if ( S_ISDIR(buf->st_mode) && fuse_exec ) {
+      if ( S_ISREG(buf->st_mode) && fuse_exec ) {
         buf->st_mode |= (S_IXUSR|S_IXGRP|S_IXOTH);
       }
       dostat = 0;
