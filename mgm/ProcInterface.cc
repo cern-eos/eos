@@ -533,11 +533,13 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
      if (mCmd == "file")
    {
      File();
+     mDoSort = false;
    }
    else
      if (mCmd == "fileinfo")
    {
      Fileinfo();
+     mDoSort = false;
    }
    else
      if (mCmd == "mkdir")
