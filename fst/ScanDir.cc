@@ -682,8 +682,11 @@ ScanDir::ScanFileLoadAware (const char* path, unsigned long long &scansize, floa
  scansize = (unsigned long long) offset;
 
  normalXS->Finalize();
- //check file checksum
- if (!normalXS->Compare(checksumVal))
+
+ //check file checksum only for replica layouts
+ if ( ( (eos::common::LayoutId::GetLayoutType(layoutid) == eos::common::LayoutId::kReplica) ||
+	(eos::common::LayoutId::GetLayoutType(layoutid) == eos::common::LayoutId::kPlain) ) &&
+      (!normalXS->Compare(checksumVal)) ) 
  {
    if (bgThread)
    {
