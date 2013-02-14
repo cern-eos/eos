@@ -76,6 +76,8 @@ static XrdOucHash<XrdOucString> *stringstore;
 XrdSysMutex passwdstoremutex;
 XrdSysMutex stringstoremutex;
 
+static bool fuse_exec=false;    // by default nothing can be executed from a FUSE mount
+
 unsigned long long sim_inode=1; // this is the highest used simulated inode
              // number as it is used by eosfsd (which works only by path but
              // xrdposix caches by inode!) - this variable is protected by
@@ -1067,6 +1069,9 @@ xrd_stat(const char *path, struct stat *buf)
       buf->st_atim.tv_nsec = (time_t) ival[3];
       buf->st_mtim.tv_nsec = (time_t) ival[4];
       buf->st_ctim.tv_nsec = (time_t) ival[5];
+      if ( S_ISDIR(buf->st_mode) && fuse_exec ) {
+        buf->st_mode |= (S_IXUSR|S_IXGRP|S_IXOTH);
+      }
       dostat = 0;
     } 
   }
@@ -1968,6 +1973,10 @@ xrd_init()
     eos::common::Logging::SetLogPriority(LOG_INFO);
   }
   
+  if ((getenv("EOS_FUSE_EXEC")) {
+    fuse_exec = true;
+  }
+
   XrdPosixXrootd::setEnv(NAME_DATASERVERCONN_TTL,300);
   XrdPosixXrootd::setEnv(NAME_LBSERVERCONN_TTL,3600*24);
   XrdPosixXrootd::setEnv(NAME_REQUESTTIMEOUT,30);
@@ -1984,16 +1993,17 @@ xrd_init()
 
   //initialise the XrdFileCache
   if (!(getenv("EOS_FUSE_CACHE"))) {
-    eos_static_notice("cache=false");
+    eos_static_notice("cache=false exec=%d", fuse_exec);
     XFC = NULL;
   } else {
     if (!getenv("EOS_FUSE_CACHE_SIZE")) {
       setenv("EOS_FUSE_CACHE_SIZE", "30000000", 1);   // ~300MB
     }
-    eos_static_notice("cache=true size=%s cache-read=%s, cache-write=%s",
+    eos_static_notice("cache=true size=%s cache-read=%s cache-write=%s exec=%d",
                       getenv("EOS_FUSE_CACHE_SIZE"), 
                       getenv("EOS_FUSE_CACHE_READ"), 
-                      getenv("EOS_FUSE_CACHE_WRITE"));
+                      getenv("EOS_FUSE_CACHE_WRITE"),
+		      fuse_exec);
 
     XFC = XrdFileCache::getInstance(static_cast<size_t>(atol(getenv("EOS_FUSE_CACHE_SIZE"))));   
 
