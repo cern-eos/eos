@@ -203,14 +203,6 @@ add_executable( eos-adler32
                 ../checksum/crc32ctables.cc 
 )
 
-
-
-#add_executable( eos-raid-recover
-#                RaidDPScan.cc
-#                tools/RecoverRaidDP.cc 
-#)
-
-
 add_executable( eoscp 
                 txqueue/eoscp.cc
 		../common/Logging.cc
