@@ -53,7 +53,6 @@ public:
   //! @param outError error information
   //! @param io access type 
   //! @param storeRecovery if true write back the recovered blocks to file
-  //! @param isStreaming file is written in streaming mode
   //! @param targetSize expected final size
   //! @param bookingOpaque opaque information
   //!
@@ -64,7 +63,6 @@ public:
                 XrdOucErrInfo* outError,
                 eos::common::LayoutId::eIoType io,
                 bool storeRecovery = false,
-                bool isStreaming = false,
                 off_t targetSize = 0,
                 std::string bookingOpaque = "oss.size");
 

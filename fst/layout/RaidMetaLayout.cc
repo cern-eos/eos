@@ -44,7 +44,6 @@ RaidMetaLayout::RaidMetaLayout (XrdFstOfsFile* file,
                                 XrdOucErrInfo* outError,
                                 eos::common::LayoutId::eIoType io,
                                 bool storeRecovery,
-                                bool isStreaming,
                                 off_t targetSize,
                                 std::string bookingOpaque) :
 Layout (file, lid, client, outError, io),
@@ -55,8 +54,9 @@ mDoTruncate (false),
 mUpdateHeader (false),
 mDoneRecovery (false),
 mFullDataBlocks (false),
-mIsStreaming (isStreaming),
+mIsStreaming (true),
 mStoreRecovery (storeRecovery),
+mLastWriteOffset( 0 ),
 mTargetSize (targetSize),
 mBookingOpaque (bookingOpaque)
 {
@@ -917,16 +917,25 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
 
  if (!mIsEntryServer)
  {
-   //..........................................................................
+   //...........................................................................
    // Non-entry server doing only local operations
-   //..........................................................................
+   //...........................................................................
    write_length = mStripeFiles[0]->Write(offset, buffer, length);
  }
  else
  {
-   //..........................................................................
+   //...........................................................................
+   // Detect if this is a non-streaming write
+   //...........................................................................
+   if (mIsStreaming && (offset != mLastWriteOffset)) {
+     mIsStreaming= false;
+   }
+
+   mLastWriteOffset += length;
+
+   //...........................................................................
    // Only entry server does this
-   //..........................................................................
+   //...........................................................................
    while (length)
    {
      stripe_id = (offset / mStripeWidth) % mNbDataFiles;
@@ -937,9 +946,9 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
      offset_local += mSizeHeader;
      COMMONTIMING("write remote", &wt);
 
-     //........................................................................
+     //.........................................................................
      // Write to stripe
-     //........................................................................
+     //.........................................................................
      if (mStripeFiles[physical_id])
      {
        nbytes = mStripeFiles[physical_id]->Write(offset_local,
@@ -956,17 +965,14 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
      }
 
      //........................................................................
-     // Streaming mode - add data and try to compute parity, else add pice to map
+     // By default we assume the file is written in streaming mode but we also
+     // save the pieces in the map in care the write turns out to be not in
+     // streaming mode. In this way, we can recompute the parity at any later
+     // point in time by using the map of pieces written.
      //........................................................................
-     if (mIsStreaming)
-     {
-       AddDataBlock(offset, buffer, nwrite);
-     }
-     else
-     {
-       AddPiece(offset, nwrite);
-     }
-
+     AddDataBlock(offset, buffer, nwrite);
+     AddPiece(offset, nwrite);
+     
      offset += nwrite;
      length -= nwrite;
      buffer += nwrite;
