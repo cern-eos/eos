@@ -1973,7 +1973,7 @@ xrd_init()
     eos::common::Logging::SetLogPriority(LOG_INFO);
   }
   
-  if ((getenv("EOS_FUSE_EXEC")) {
+  if (getenv("EOS_FUSE_EXEC")) {
     fuse_exec = true;
   }
 
