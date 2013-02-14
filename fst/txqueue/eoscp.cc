@@ -60,9 +60,9 @@ typedef std::vector<std::pair<std::string, std::string> > VectLocationType;
 
 enum AccessType
 {
- LOCAL_ACCESS,  ///< local access
- RAID_ACCESS,   ///< xroot protocol but with raid layout
- XRD_ACCESS,    ///< xroot protocol
+ LOCAL_ACCESS, ///< local access
+ RAID_ACCESS, ///< xroot protocol but with raid layout
+ XRD_ACCESS, ///< xroot protocol
  CONSOLE_ACCESS ///< input/output to console
 };
 
@@ -114,9 +114,9 @@ XrdOucString cpname = "";
 XrdCl::XRootDStatus status;
 uint32_t buffersize = DEFAULTBUFFERSIZE;
 
-double read_wait = 0;   ///< statistics about total read time
-double write_wait = 0;  ///< statistics about total write time
-char* buffer = NULL;    ///< used for doing the reading
+double read_wait = 0; ///< statistics about total read time
+double write_wait = 0; ///< statistics about total write time
+char* buffer = NULL; ///< used for doing the reading
 bool first_time = true; ///< first time prefetch two blocks
 
 //..............................................................................
@@ -126,12 +126,12 @@ off_t stripeWidth = 1024 * 1024;
 uint64_t offsetXrd = 0;
 int nparitystripes = 0;
 
-bool isRaidTransfer = false;  ///< true if we currently handle a RAID transfer
-bool isSrcRaid = false;       ///< meaninful only for RAID transfers 
-bool isStreamFile = false;    ///< the file is streamed
+bool isRaidTransfer = false; ///< true if we currently handle a RAID transfer
+bool isSrcRaid = false; ///< meaninful only for RAID transfers 
+bool isStreamFile = false; ///< the file is streamed
 bool doStoreRecovery = false; ///< store recoveries if the file is corrupted
-std::string opaqueInfo;       ///< opaque info containing the capabilities 
-                              ///< necesssary to do a parallel IO open
+std::string opaqueInfo; ///< opaque info containing the capabilities 
+///< necesssary to do a parallel IO open
 
 std::string replicationType = "";
 eos::fst::RaidMetaLayout* redundancyObj = NULL;
@@ -782,115 +782,131 @@ main (int argc, char* argv[])
        XrdCl::Buffer arg;
        XrdCl::Buffer* response = 0;
        XrdCl::XRootDStatus status;
-       file_path = src_location[i].first + src_location[i].second; 
-       size_t spos = file_path.rfind( "//" );
-       std::string address = file_path.substr( 0 , spos + 1 );
-       XrdCl::URL url( address );
-       
-       if ( !url.IsValid() ) {
-         fprintf( stderr, "URL is invalid: %s", address.c_str());
-         exit( -1 ); 
+       file_path = src_location[i].first + src_location[i].second;
+       size_t spos = file_path.rfind("//");
+       std::string address = file_path.substr(0, spos + 1);
+       XrdCl::URL url(address);
+
+       if (!url.IsValid())
+       {
+         fprintf(stderr, "URL is invalid: %s", address.c_str());
+         exit(-1);
        }
-       
-       XrdCl::FileSystem fs( url );
-      
-       if ( spos != std::string::npos ) {
-         file_path.erase( 0, spos + 1 );
+
+       XrdCl::FileSystem fs(url);
+
+       if (spos != std::string::npos)
+       {
+         file_path.erase(0, spos + 1);
        }
-       
+
        std::string request = file_path;
        request += "?mgm.pcmd=open";
-       arg.FromString( request );
-       status = fs.Query( XrdCl::QueryCode::OpaqueFile, arg, response );
-       
-       if ( status.IsOK() ) {
+       arg.FromString(request);
+       status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+
+       if (status.IsOK())
+       {
          //.....................................................................
          // Parse output
          //.....................................................................
-         if ( verbose || debug ) {
-           fprintf( stderr, "Doing PIO_ACCESS for source location %i.\n", i );
+         if (verbose || debug)
+         {
+           fprintf(stderr, "Doing PIO_ACCESS for source location %i.\n", i);
          }
-         
+
          XrdOucString tag;
          XrdOucString stripe_path;
          XrdOucString origResponse = response->GetBuffer();
          XrdOucString stringOpaque = response->GetBuffer();
-       
-         while ( stringOpaque.replace( "?", "&" ) ) {}
-         while ( stringOpaque.replace( "&&", "&" ) ) {}
-         
-         XrdOucEnv* openOpaque = new XrdOucEnv( stringOpaque.c_str() );
-         char* opaque_info = (char*) strstr( origResponse.c_str(), "&&mgm.logid" );
+
+         while (stringOpaque.replace("?", "&"))
+         {
+         }
+         while (stringOpaque.replace("&&", "&"))
+         {
+         }
+
+         XrdOucEnv* openOpaque = new XrdOucEnv(stringOpaque.c_str());
+         char* opaque_info = (char*) strstr(origResponse.c_str(), "&&mgm.logid");
          opaqueInfo = opaque_info;
-         
+
          //...................................................................
          // Now that parallel IO is possible, we add the new stripes to the
          // src_location vector, we update the number of source files and then
          // we can use the RAID-like access mode where the stripe files are
          // given as input to the command line
          //...................................................................
-         if ( opaque_info ) {
+         if (opaque_info)
+         {
            opaque_info += 2;
-           LayoutId::layoutid_t layout = openOpaque->GetInt( "mgm.lid" );
+           LayoutId::layoutid_t layout = openOpaque->GetInt("mgm.lid");
            std::string orig_file = file_path;
-           nsrc = eos::common::LayoutId::GetStripeNumber( layout ) + 1;
+           nsrc = eos::common::LayoutId::GetStripeNumber(layout) + 1;
            isRaidTransfer = true;
            isSrcRaid = true;
-           if ( eos::common::LayoutId::GetLayoutType( layout ) == eos::common::LayoutId::kRaidDP ) {
-	     src_location.clear();
+           if (eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kRaidDP)
+           {
+             src_location.clear();
              replicationType = "raidDP";
            }
-           else 
-	   if ( eos::common::LayoutId::GetLayoutType( layout ) == eos::common::LayoutId::kArchive ) {
-	     src_location.clear();
+           else
+             if (eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kArchive)
+           {
+             src_location.clear();
              replicationType = "reedS";
-           } else {
-	     nsrc = 1;
-	     src_type.push_back(XRD_ACCESS);
-	     replicationType = "replica";
            }
-           
-	   if (replicationType != "replica") {
-	     for ( int i = 0; i < nsrc; i++ ) {
-	       tag = "pio.";
-	       tag += i;
-	       stripe_path = "root://";
-	       stripe_path += openOpaque->Get( tag.c_str() );
-	       stripe_path += "/";
-	       stripe_path += orig_file.c_str();
-	       int pos = stripe_path.rfind("//");
-	       
-	       if ( pos == STR_NPOS )
-		 {
-		   address = "";
-		   file_path = stripe_path.c_str();
-		 }
-	       else
-		 {
-		   address = std::string( stripe_path.c_str(), 0, pos + 1 );
-		   file_path = std::string( stripe_path.c_str(), pos + 1, stripe_path.length() - pos - 1 );
-		 }
-	       
-	       src_location.push_back( std::make_pair( address, file_path ) );
-	       src_type.push_back( RAID_ACCESS );
-	       
-	       if ( verbose || debug )
-		 {
-		   fprintf( stdout, "src<%d>=%s \n", i, src_location.back().second.c_str() );
-		 }
-	     }
-	   }
+           else
+           {
+             nsrc = 1;
+             src_type.push_back(XRD_ACCESS);
+             replicationType = "replica";
+           }
+
+           if (replicationType != "replica")
+           {
+             for (int i = 0; i < nsrc; i++)
+             {
+               tag = "pio.";
+               tag += i;
+               stripe_path = "root://";
+               stripe_path += openOpaque->Get(tag.c_str());
+               stripe_path += "/";
+               stripe_path += orig_file.c_str();
+               int pos = stripe_path.rfind("//");
+
+               if (pos == STR_NPOS)
+               {
+                 address = "";
+                 file_path = stripe_path.c_str();
+               }
+               else
+               {
+                 address = std::string(stripe_path.c_str(), 0, pos + 1);
+                 file_path = std::string(stripe_path.c_str(), pos + 1, stripe_path.length() - pos - 1);
+               }
+
+               src_location.push_back(std::make_pair(address, file_path));
+               src_type.push_back(RAID_ACCESS);
+
+               if (verbose || debug)
+               {
+                 fprintf(stdout, "src<%d>=%s \n", i, src_location.back().second.c_str());
+               }
+             }
+           }
          }
          else
          {
-           fprintf( stderr, "Error while parsing the opaque information from PIO request.\n" );
-           exit( -1 );          
+           fprintf(stderr, "Error while parsing the opaque information from PIO request.\n");
+           exit(-1);
          }
-        
+
          delete openOpaque;
          break;
        }
-       else {
+       else
+       {
          //.....................................................................
          // The file is not suitable for PIO access, do normal XRD access
          //.....................................................................
@@ -934,7 +950,7 @@ main (int argc, char* argv[])
        // Here we rely on the fact that all destinations must be of the same type
        //.......................................................................
        dst_type.push_back(XRD_ACCESS);
-       meta_handler.push_back( new eos::fst::AsyncMetaHandler() );
+       meta_handler.push_back(new eos::fst::AsyncMetaHandler());
      }
    }
    else if (dst_location[i].second == "-")
@@ -1015,11 +1031,12 @@ main (int argc, char* argv[])
        break;
 
       case RAID_ACCESS:
-        for ( int j = 0; j < nsrc; j++ ) {
-          st[j].st_size = 0;
-          st[j].st_mode = S_IFREG | S_IRUSR | S_IWUSR | S_IRGRP;
-        }
-        break;
+       for (int j = 0; j < nsrc; j++)
+       {
+         st[j].st_size = 0;
+         st[j].st_mode = S_IFREG | S_IRUSR | S_IWUSR | S_IRGRP;
+       }
+       break;
       case XRD_ACCESS:
        {
         if (debug)
@@ -1058,7 +1075,7 @@ main (int argc, char* argv[])
         delete response;
        }
        break;
-      
+
       case CONSOLE_ACCESS:
        stat_failed = 0;
        break;
@@ -1394,7 +1411,7 @@ main (int argc, char* argv[])
           fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags);
         }
 
-        if ( redundancyObj->OpenPio( vectUrl, flags, mode_sfs, opaqueInfo.c_str() ) )
+        if (redundancyObj->OpenPio(vectUrl, flags, mode_sfs, opaqueInfo.c_str()))
         {
           fprintf(stderr, "error: can not open RAID object for read/write\n");
           exit(-EIO);
@@ -1887,17 +1904,17 @@ main (int argc, char* argv[])
        break;
 
       case XRD_ACCESS:
-      {
+       {
         //......................................................................
         // Do writes in async mode
         //......................................................................
         eos::common::Timing::GetTimeSpec(start);
         eos::fst::ChunkHandler* chunk_handler;
-        chunk_handler = meta_handler[i]->Register( stopwritebyte, nread, true );
-        status = dst_handler[i].second->Write( stopwritebyte,
-                                               nread,
-                                               ptr_buffer,
-                                               chunk_handler );
+        chunk_handler = meta_handler[i]->Register(stopwritebyte, nread, true);
+        status = dst_handler[i].second->Write(stopwritebyte,
+                                              nread,
+                                              ptr_buffer,
+                                              chunk_handler);
         nwrite = nread;
         eos::common::Timing::GetTimeSpec(end);
         wait_time = static_cast<double> ((end.tv_sec * 1000 + end.tv_nsec / 1000000)-
@@ -1918,28 +1935,23 @@ main (int argc, char* argv[])
 
    totalbytes += nwrite;
    stopwritebyte += nwrite;
-
-   //if (nread < buffersize)
-   //{
-     // seems to be end of file, with tar this doesn't work
-     // fprintf(stdout, "Seems to be the end of file.\n");
-     // break;
-   //}
-   
  } // end while(1)
 
  //.............................................................................
  // Wait for all async write requests before moving on
  //.............................................................................
  eos::common::Timing::GetTimeSpec(start);
- 
- for (int i = 0; i < ndst; i++) {
-   if ( dst_type[i] == XRD_ACCESS ) {
-     if ( !meta_handler[i]->WaitOK() ) {
-       fprintf( stderr, "Error while doing the asyn writing.\n" );
+
+ for (int i = 0; i < ndst; i++)
+ {
+   if (dst_type[i] == XRD_ACCESS)
+   {
+     if (!meta_handler[i]->WaitOK())
+     {
+       fprintf(stderr, "Error while doing the asyn writing.\n");
      }
      delete meta_handler[i];
-   }   
+   }
  }
 
  eos::common::Timing::GetTimeSpec(end);
