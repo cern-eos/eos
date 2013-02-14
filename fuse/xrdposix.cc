@@ -90,6 +90,8 @@ XrdSysMutex stringstoremutex;
 int  fuse_cache_read;
 int  fuse_cache_write;
 
+bool fuse_exec = false; // indicates if files should be make exectuble
+
 using eos::common::LayoutId;
 
 //------------------------------------------------------------------------------
@@ -1118,6 +1120,11 @@ int xrd_stat( const char* path, struct stat* buf )
       buf->st_mtim.tv_nsec = ( time_t ) ival[4];
       buf->st_ctim.tv_nsec = ( time_t ) ival[5];
 #endif
+
+      if ( S_ISREG(buf->st_mode) && fuse_exec ) {
+        buf->st_mode |= (S_IXUSR|S_IXGRP|S_IXOTH);
+      }
+
       retc = 0;
     }
   } else {
@@ -2048,7 +2055,7 @@ int xrd_open( const char* path, int oflags, mode_t mode )
     }
   }
   
-  spath += "?eos.app=fuse";
+  spath += "?eos.app=fuse&";
   eos_static_debug( "the spath is:%s", spath.c_str() );
   
   eos::fst::Layout* file = new eos::fst::PlainLayout( NULL, 0, NULL, NULL,
@@ -2458,6 +2465,13 @@ void xrd_init()
   if ( fs ) {
     eos_static_info( "Got new FileSystem object." );
   }
+
+  //............................................................................
+  // Check if we should set files executable
+  //............................................................................
+  if (getenv("EOS_FUSE_EXEC") && (!strcmp(getenv("EOS_FUSE_EXEC"),"1"))) {
+    fuse_exec = true;
+  }
   
   //............................................................................
   // Initialise the XrdFileCache
@@ -2465,7 +2479,7 @@ void xrd_init()
   fuse_cache_read = false;
   fuse_cache_write = false;
 
-  if ( !( getenv( "EOS_FUSE_CACHE" ) ) ) {
+  if ( (!(getenv("EOS_FUSE_CACHE"))) || (getenv("EOS_FUSE_CACHE") && (!strcmp(getenv("EOS_FUSE_CACHE"),"0"))) ) {
     eos_static_notice( "cache=false" );
     XFC = NULL;
   } else {
@@ -2473,10 +2487,12 @@ void xrd_init()
       setenv( "EOS_FUSE_CACHE_SIZE", "30000000", 1 ); // ~300MB
     }
 
-    eos_static_notice( "cache=true size=%s cache-read=%s, cache-write=%s",
+    eos_static_notice( "cache=true size=%s cache-read=%s cache-write=%s exec=%d",
                        getenv( "EOS_FUSE_CACHE_SIZE" ),
                        getenv( "EOS_FUSE_CACHE_READ" ),
-                       getenv( "EOS_FUSE_CACHE_WRITE" ) );
+                       getenv( "EOS_FUSE_CACHE_WRITE" ),
+		       fuse_exec );
+
     XFC = XrdFileCache::GetInstance( static_cast<size_t>( atol( getenv( "EOS_FUSE_CACHE_SIZE" ) ) ) );
 
     if ( getenv( "EOS_FUSE_CACHE_READ" ) && atoi( getenv( "EOS_FUSE_CACHE_READ" ) ) ) {
