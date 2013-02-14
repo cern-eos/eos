@@ -571,14 +571,14 @@ runtest "### Chmod     " unix 0 "" eos chmod 777 /eos/$EOS_TEST_INSTANCE/test/in
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=crc32c /eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir	
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.blockchecksum=crc32c /eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir	
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.blocksize=1M /eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir	
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=raidDP /eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir	
+runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=raiddp /eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir	
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=6 /eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir	
 runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir
 runtest "### Chmod     " unix 0 "" eos chmod 777 /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=crc32c /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir	
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.blockchecksum=crc32c /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir	
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.blocksize=1M /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir	
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=reedS /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir	
+runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=raid6 /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir	
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=6 /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir	
 #runtest "### RaidDpTest" unix 0 "" eos-rain-test raiddp $EOS_TEST_TESTSYS root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir $EOS_TEST_TESTSYS
 #runtest "### ReedSTest " unix 0 "" eos-rain-test reeds $EOS_TEST_TESTSYS root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir $EOS_TEST_TESTSYS
