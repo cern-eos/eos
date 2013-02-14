@@ -13,7 +13,7 @@
  * (at your option) any later version.                                  *
  *                                                                      *
  * This program is distributed in the hope that it will be useful,      *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * but WITHOUT ANY WARRANTY; without even the implied waDon'trranty of       *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
@@ -1094,16 +1094,23 @@ XrdFstOfsFile::verifychecksum ()
 
        if (attr)
        {
-         if (!attr->Set(std::string("user.eos.checksumtype"), std::string(checkSum->GetName())))
+         if (((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kPlain) ||
+              (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica)))
          {
-           eos_err("unable to set extended attribute <eos.checksumtype> errno=%d", errno);
-         }
+           //............................................................................
+           // Don't put file checksum tags for complex layouts like raid6,readdp, archive
+           //............................................................................
 
-         if (!attr->Set("user.eos.checksum", checkSum->GetBinChecksum(checksumlen), checksumlen))
-         {
-           eos_err("unable to set extended attribute <eos.checksum> errno=%d", errno);
-         }
+           if (!attr->Set(std::string("user.eos.checksumtype"), std::string(checkSum->GetName())))
+           {
+             eos_err("unable to set extended attribute <eos.checksumtype> errno=%d", errno);
+           }
 
+           if (!attr->Set("user.eos.checksum", checkSum->GetBinChecksum(checksumlen), checksumlen))
+           {
+             eos_err("unable to set extended attribute <eos.checksum> errno=%d", errno);
+           }
+         }
          //............................................................................
          // Reset any tagged error
          //............................................................................
@@ -1871,13 +1878,13 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
      nBwdSeeks++;
      sBwdBytes += (rOffset - fileOffset);
    }
-   if ((rOffset + ( EOS_FSTOFS_LARGE_SEEKS )) < (static_cast<unsigned long long> (fileOffset)))
+   if ((rOffset + (EOS_FSTOFS_LARGE_SEEKS)) < (static_cast<unsigned long long> (fileOffset)))
    {
      sXlFwdBytes += (fileOffset - rOffset);
      nXlFwdSeeks++;
    }
-   if ((static_cast<unsigned long long> (rOffset) > ( EOS_FSTOFS_LARGE_SEEKS )) &&
-       (rOffset - ( EOS_FSTOFS_LARGE_SEEKS )) > (static_cast<unsigned long long> (fileOffset)))
+   if ((static_cast<unsigned long long> (rOffset) > (EOS_FSTOFS_LARGE_SEEKS)) &&
+       (rOffset - (EOS_FSTOFS_LARGE_SEEKS)) > (static_cast<unsigned long long> (fileOffset)))
    {
      sXlBwdBytes += (rOffset - fileOffset);
      nXlBwdSeeks++;
@@ -2054,13 +2061,13 @@ XrdFstOfsFile::write (XrdSfsFileOffset fileOffset,
      nBwdSeeks++;
      sBwdBytes += (wOffset - fileOffset);
    }
-   if ((wOffset + ( EOS_FSTOFS_LARGE_SEEKS )) < (static_cast<unsigned long long> (fileOffset)))
+   if ((wOffset + (EOS_FSTOFS_LARGE_SEEKS)) < (static_cast<unsigned long long> (fileOffset)))
    {
      sXlFwdBytes += (fileOffset - wOffset);
      nXlFwdSeeks++;
    }
-   if ((static_cast<unsigned long long> (wOffset) > ( EOS_FSTOFS_LARGE_SEEKS )) &&
-       (wOffset - ( EOS_FSTOFS_LARGE_SEEKS )) > (static_cast<unsigned long long> (fileOffset)))
+   if ((static_cast<unsigned long long> (wOffset) > (EOS_FSTOFS_LARGE_SEEKS)) &&
+       (wOffset - (EOS_FSTOFS_LARGE_SEEKS)) > (static_cast<unsigned long long> (fileOffset)))
    {
      sXlBwdBytes += (wOffset - fileOffset);
      nXlBwdSeeks++;
