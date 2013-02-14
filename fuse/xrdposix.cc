@@ -1973,7 +1973,7 @@ xrd_init()
     eos::common::Logging::SetLogPriority(LOG_INFO);
   }
   
-  if (getenv("EOS_FUSE_EXEC")) {
+  if (getenv("EOS_FUSE_EXEC") && (!strcmp(getenv("EOS_FUSE_EXEC","1"))))) {
     fuse_exec = true;
   }
 
@@ -1992,7 +1992,7 @@ xrd_init()
   fuse_cache_write = false;
 
   //initialise the XrdFileCache
-  if (!(getenv("EOS_FUSE_CACHE"))) {
+  if ( (!(getenv("EOS_FUSE_CACHE"))) || (getenv("EOS_FUSE_CACHE") && (!strcmp(getenv("EOS_FUSE_CACHE"),"0"))) ) {
     eos_static_notice("cache=false exec=%d", fuse_exec);
     XFC = NULL;
   } else {
