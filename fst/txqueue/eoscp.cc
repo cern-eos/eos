@@ -1642,7 +1642,6 @@ main (int argc, char* argv[])
         status = file->Open(location,
                             XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update,
                             XrdCl::Access::UR | XrdCl::Access::UW);
-        //                                 st[i].st_mode );
       }
 
       if (!status.IsOK())

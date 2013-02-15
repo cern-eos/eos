@@ -240,7 +240,7 @@ ReplicaParLayout::Open (const std::string& path,
          // Write case
          //....................................................................
          if (file->Open(mReplicaUrl[i],
-                        XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update,
+                        SFS_O_CREAT | SFS_O_WRONLY,
                         XrdCl::Access::UR | XrdCl::Access::UW |
                         XrdCl::Access::GR | XrdCl::Access::GW |
                         XrdCl::Access::OR, opaque))

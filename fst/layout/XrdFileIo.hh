@@ -275,13 +275,25 @@ private:
   std::queue<ReadaheadBlock*> mQueueBlocks; ///< queue containing available blocks
 
   //--------------------------------------------------------------------------
+  //! Map SFS-like open flags to XrdCl open flags
+  //!
+  //! @param flags_sfs SFS open flags
+  //!
+  //! @return XrdCl-like open flags
+  //!
+  //--------------------------------------------------------------------------
+  XrdCl::OpenFlags::Flags MapFlagsSfs2XrdCl(XrdSfsFileOpenMode flags_sfs);
+  
+  
+  //--------------------------------------------------------------------------
   //! Method used to prefetch the next block using the readahead mechanism
   //!
   //! @param offset begin offset of the current block we are reading
   //! @param isWrite true if block is for write, false otherwise
+  //! @param timeout timeout value
   //!
   //--------------------------------------------------------------------------
-  void PrefetchBlock (int64_t offset, bool isWrite);
+  void PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
