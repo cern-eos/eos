@@ -63,7 +63,8 @@ int
 LocalFileIo::Open (const std::string& path,
                    XrdSfsFileOpenMode flags,
                    mode_t mode,
-                   const std::string& opaque)
+                   const std::string& opaque,
+                   uint16_t timeout)
 {
  if (!mLogicalFile)
  {
@@ -88,7 +89,8 @@ LocalFileIo::Open (const std::string& path,
 int64_t
 LocalFileIo::Read (XrdSfsFileOffset offset,
                    char* buffer,
-                   XrdSfsXferSize length)
+                   XrdSfsXferSize length,
+                   uint16_t timeout)
 {
  eos_debug("offset = %lli, length = %lli",
            static_cast<int64_t> (offset),
@@ -104,7 +106,8 @@ LocalFileIo::Read (XrdSfsFileOffset offset,
 int64_t
 LocalFileIo::Write (XrdSfsFileOffset offset,
                     const char* buffer,
-                    XrdSfsXferSize length)
+                    XrdSfsXferSize length,
+                    uint16_t timeout)
 {
  eos_debug("offset = %lli, length = %lli",
            static_cast<int64_t> (offset),
@@ -122,9 +125,10 @@ LocalFileIo::Read (XrdSfsFileOffset offset,
                    char* buffer,
                    XrdSfsXferSize length,
                    void* handler,
-                   bool readahead)
+                   bool readahead,
+                   uint16_t timeout)
 {
- return Read(offset, buffer, length);
+  return Read(offset, buffer, length, timeout);
 }
 
 
@@ -136,9 +140,10 @@ int64_t
 LocalFileIo::Write (XrdSfsFileOffset offset,
                     const char* buffer,
                     XrdSfsXferSize length,
-                    void* handler)
+                    void* handler,
+                    uint16_t timeout)
 {
- return Write(offset, buffer, length);
+  return Write(offset, buffer, length, timeout);
 }
 
 
@@ -147,9 +152,9 @@ LocalFileIo::Write (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int
-LocalFileIo::Truncate (XrdSfsFileOffset offset)
+LocalFileIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
- return mLogicalFile->truncateofs(offset);
+  return mLogicalFile->truncateofs(offset);
 }
 
 
@@ -240,7 +245,7 @@ LocalFileIo::Fdeallocate (XrdSfsFileOffset fromOffset,
 //------------------------------------------------------------------------------
 
 int
-LocalFileIo::Sync ()
+LocalFileIo::Sync (uint16_t timeout)
 {
  return mLogicalFile->syncofs();
 }
@@ -251,7 +256,7 @@ LocalFileIo::Sync ()
 //------------------------------------------------------------------------------
 
 int
-LocalFileIo::Stat (struct stat* buf)
+LocalFileIo::Stat (struct stat* buf, uint16_t timeout)
 {
  XrdOfsFile* pOfsFile = mLogicalFile;
  return pOfsFile->XrdOfsFile::stat(buf);
@@ -263,7 +268,7 @@ LocalFileIo::Stat (struct stat* buf)
 //------------------------------------------------------------------------------
 
 int
-LocalFileIo::Close ()
+LocalFileIo::Close (uint16_t timeout)
 {
  return mLogicalFile->closeofs();
 }

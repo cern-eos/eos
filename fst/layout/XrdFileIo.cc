@@ -89,7 +89,8 @@ int
 XrdFileIo::Open (const std::string& path,
                  XrdSfsFileOpenMode flags,
                  mode_t mode,
-                 const std::string& opaque)
+                 const std::string& opaque,
+                 uint16_t timeout)
 {
  const char* val = 0;
  std::string request;
@@ -168,9 +169,9 @@ XrdFileIo::Open (const std::string& path,
    xflags |= XrdCl::OpenFlags::MakePath;
  }
 
- XrdCl::XRootDStatus status = mXrdFile->Open(request,
-                                             xflags,
-                                             (XrdCl::Access::Mode) mode);
+ XrdCl::XRootDStatus status = mXrdFile->Open(request, xflags,
+                                             (XrdCl::Access::Mode) mode,
+                                             timeout);
 
  if (!status.IsOK())
  {
@@ -193,7 +194,8 @@ XrdFileIo::Open (const std::string& path,
 int64_t
 XrdFileIo::Read (XrdSfsFileOffset offset,
                  char* buffer,
-                 XrdSfsXferSize length)
+                 XrdSfsXferSize length,
+                 uint16_t timeout)
 {
  eos_debug("offset = %llu, length = %lu",
            static_cast<uint64_t> (offset),
@@ -203,7 +205,8 @@ XrdFileIo::Read (XrdSfsFileOffset offset,
  XrdCl::XRootDStatus status = mXrdFile->Read(static_cast<uint64_t> (offset),
                                              static_cast<uint32_t> (length),
                                              buffer,
-                                             bytes_read);
+                                             bytes_read,
+                                             timeout);
 
  if (!status.IsOK())
  {
@@ -222,7 +225,8 @@ XrdFileIo::Read (XrdSfsFileOffset offset,
 int64_t
 XrdFileIo::Write (XrdSfsFileOffset offset,
                   const char* buffer,
-                  XrdSfsXferSize length)
+                  XrdSfsXferSize length,
+                  uint16_t timeout)
 {
  eos_debug("offset = %llu, length = %lu",
            static_cast<uint64_t> (offset),
@@ -230,7 +234,8 @@ XrdFileIo::Write (XrdSfsFileOffset offset,
 
  XrdCl::XRootDStatus status = mXrdFile->Write(static_cast<uint64_t> (offset),
                                               static_cast<uint32_t> (length),
-                                              buffer);
+                                              buffer,
+                                              timeout);
 
  if (!status.IsOK())
  {
@@ -251,7 +256,8 @@ XrdFileIo::Read (XrdSfsFileOffset offset,
                  char* buffer,
                  XrdSfsXferSize length,
                  void* pFileHandler,
-                 bool readahead)
+                 bool readahead,
+                 uint16_t timeout)
 {
  eos_debug("offset = %llu, length = %li",
            static_cast<uint64_t> (offset),
@@ -274,7 +280,8 @@ XrdFileIo::Read (XrdSfsFileOffset offset,
    status = mXrdFile->Read(static_cast<uint64_t> (offset),
                            static_cast<uint32_t> (length),
                            buffer,
-                           static_cast<XrdCl::ResponseHandler*> (handler));
+                           static_cast<XrdCl::ResponseHandler*> (handler),
+                           timeout);
    nread += length;
  }
  else
@@ -366,7 +373,8 @@ XrdFileIo::Read (XrdSfsFileOffset offset,
      status = mXrdFile->Read(static_cast<uint64_t> (offset),
                              static_cast<uint32_t> (length),
                              pBuff,
-                             handler);
+                             handler,
+                             timeout);
      nread += length;
    }
  }
@@ -383,7 +391,8 @@ int64_t
 XrdFileIo::Write (XrdSfsFileOffset offset,
                   const char* buffer,
                   XrdSfsXferSize length,
-                  void* pFileHandler)
+                  void* pFileHandler,
+                  uint16_t timeout)
 {
  eos_debug("offset = %llu, length = %lu",
            static_cast<uint64_t> (offset),
@@ -396,7 +405,8 @@ XrdFileIo::Write (XrdSfsFileOffset offset,
  status = mXrdFile->Write(static_cast<uint64_t> (offset),
                           static_cast<uint32_t> (length),
                           buffer,
-                          handler);
+                          handler,
+                          timeout);
  return length;
 }
 
@@ -406,9 +416,10 @@ XrdFileIo::Write (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int
-XrdFileIo::Truncate (XrdSfsFileOffset offset)
+XrdFileIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
- XrdCl::XRootDStatus status = mXrdFile->Truncate(static_cast<uint64_t> (offset));
+  XrdCl::XRootDStatus status = mXrdFile->Truncate(static_cast<uint64_t> (offset),
+                                                  timeout);
 
  if (!status.IsOK())
  {
@@ -425,9 +436,9 @@ XrdFileIo::Truncate (XrdSfsFileOffset offset)
 //------------------------------------------------------------------------------
 
 int
-XrdFileIo::Sync ()
+XrdFileIo::Sync (uint16_t timeout)
 {
- XrdCl::XRootDStatus status = mXrdFile->Sync();
+ XrdCl::XRootDStatus status = mXrdFile->Sync(timeout);
 
  if (!status.IsOK())
  {
@@ -444,11 +455,11 @@ XrdFileIo::Sync ()
 //------------------------------------------------------------------------------
 
 int
-XrdFileIo::Stat (struct stat* buf)
+XrdFileIo::Stat (struct stat* buf, uint16_t timeout)
 {
  int rc = SFS_ERROR;
  XrdCl::StatInfo* stat = 0;
- XrdCl::XRootDStatus status = mXrdFile->Stat(true, stat);
+ XrdCl::XRootDStatus status = mXrdFile->Stat(true, stat, timeout);
 
  if (!status.IsOK())
  {
@@ -477,7 +488,7 @@ XrdFileIo::Stat (struct stat* buf)
 //------------------------------------------------------------------------------
 
 int
-XrdFileIo::Close ()
+XrdFileIo::Close (uint16_t timeout)
 {
  bool tmp_resp;
 
@@ -498,7 +509,7 @@ XrdFileIo::Close ()
    }
  }
 
- XrdCl::XRootDStatus status = mXrdFile->Close();
+ XrdCl::XRootDStatus status = mXrdFile->Close(timeout);
 
  if (!status.IsOK())
  {

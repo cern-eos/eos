@@ -84,6 +84,7 @@ public:
   //! @param flags open flags
   //! @param mode open mode
   //! @param opaque opaque information
+  //! @param timeout timeout value
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
@@ -91,7 +92,8 @@ public:
   virtual int Open (const std::string& path,
                     XrdSfsFileOpenMode flags,
                     mode_t mode = 0,
-                    const std::string& opaque = "") = 0;
+                    const std::string& opaque = "",
+                    uint16_t timeout = 0) = 0;
 
 
   //--------------------------------------------------------------------------
@@ -100,13 +102,15 @@ public:
   //! @param offset offset in file
   //! @param buffer where the data is read
   //! @param length read length
+  //! @param timeout timeout value
   //!
   //! @return number of bytes read or -1 if error
   //!
   //--------------------------------------------------------------------------
   virtual int64_t Read (XrdSfsFileOffset offset,
                         char* buffer,
-                        XrdSfsXferSize length) = 0;
+                        XrdSfsXferSize length,
+                        uint16_t timeout = 0) = 0;
 
 
   //--------------------------------------------------------------------------
@@ -115,13 +119,15 @@ public:
   //! @param offset offset
   //! @param buffer data to be written
   //! @param length length
+  //! @param timeout timeout value
   //!
   //! @return number of bytes written or -1 if error
   //!
   //--------------------------------------------------------------------------
   virtual int64_t Write (XrdSfsFileOffset offset,
                          const char* buffer,
-                         XrdSfsXferSize length) = 0;
+                         XrdSfsXferSize length,
+                         uint16_t timeout = 0) = 0;
 
 
   //--------------------------------------------------------------------------
@@ -132,6 +138,7 @@ public:
   //! @param length read length
   //! @param handler async read handler
   //! @param readahead set if readahead is to be used
+  //! @param timeout timeout value
   //!
   //! @return number of bytes read or -1 if error
   //!
@@ -140,7 +147,8 @@ public:
                         char* buffer,
                         XrdSfsXferSize length,
                         void* handler,
-                        bool readahead = false) = 0;
+                        bool readahead = false,
+                        uint16_t timeout = 0) = 0;
 
 
   //--------------------------------------------------------------------------
@@ -150,6 +158,7 @@ public:
   //! @param buffer data to be written
   //! @param length length
   //! @param handler async write handler
+  //! @param timeout timeout value
   //!
   //! @return number of bytes written or -1 if error
   //!
@@ -157,18 +166,20 @@ public:
   virtual int64_t Write (XrdSfsFileOffset offset,
                          const char* buffer,
                          XrdSfsXferSize length,
-                         void* handler) = 0;
+                         void* handler,
+                         uint16_t timeout = 0) = 0;
 
 
   //--------------------------------------------------------------------------
   //! Truncate
   //!
   //! @param offset truncate file to this value
+  //! @param timeout timeout value
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-  virtual int Truncate (XrdSfsFileOffset offset) = 0;
+  virtual int Truncate (XrdSfsFileOffset offset, uint16_t timeout = 0) = 0;
 
 
   //--------------------------------------------------------------------------
@@ -222,30 +233,36 @@ public:
   //--------------------------------------------------------------------------
   //! Sync file to disk
   //!
+  //! @param timeout timeout value
+  //!  
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-  virtual int Sync () = 0;
+  virtual int Sync (uint16_t timeout = 0) = 0;
 
 
   //--------------------------------------------------------------------------
   //! Close file
   //!
+  //! @param timeout timeout value
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-  virtual int Close () = 0;
+  virtual int Close (uint16_t timeout = 0) = 0;
 
 
   //--------------------------------------------------------------------------
   //! Get stats about the file
   //!
   //! @param buf stat buffer
+  //! @param timeout timeout value
+  //!
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-  virtual int Stat (struct stat* buf) = 0;
+  virtual int Stat (struct stat* buf, uint16_t timeout = 0) = 0;
 
 
   //--------------------------------------------------------------------------
