@@ -49,6 +49,7 @@
 #include <vector>
 #include <string>
 #include <set>
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -56,52 +57,53 @@ EOSMGMNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 //! Class implementing global Acccess rules
 /*----------------------------------------------------------------------------*/
-class Access {
+class Access
+{
 private:
 public:
 
-  
-  static const char* gUserKey;	//< static key defining the ban users entry in the global configuration key-value map
+
+  static const char* gUserKey; //< static key defining the ban users entry in the global configuration key-value map
   static const char* gGroupKey; //< static key defining the ban group key in the global configuration key-value map
-  static const char* gHostKey;  //< static key defining the ban host key in the global configuration key-value map
-  static const char* gAllowedUserKey;   //< static key defining the allowed users key in the global configuration key-value map
-  static const char* gAllowedGroupKey;  //< static key defining the allowed group key in the global configuration key-value map
-  static const char* gAllowedHostKey;   //< static key defining the allowed host key in the global configuration key-value map
-  static const char* gStallKey;         //< static key defining the stall rules in the global configuration key-value map
-  static const char* gRedirectionKey;   //< static key defining the redirection rules in the global configuration key-value map
-  static std::set<uid_t> gBannedUsers;  //< set containing the banned user IDs
+  static const char* gHostKey; //< static key defining the ban host key in the global configuration key-value map
+  static const char* gAllowedUserKey; //< static key defining the allowed users key in the global configuration key-value map
+  static const char* gAllowedGroupKey; //< static key defining the allowed group key in the global configuration key-value map
+  static const char* gAllowedHostKey; //< static key defining the allowed host key in the global configuration key-value map
+  static const char* gStallKey; //< static key defining the stall rules in the global configuration key-value map
+  static const char* gRedirectionKey; //< static key defining the redirection rules in the global configuration key-value map
+  static std::set<uid_t> gBannedUsers; //< set containing the banned user IDs
   static std::set<gid_t> gBannedGroups; //< set containing the banned group IDs
   static std::set<uid_t> gAllowedUsers; //< set containing the allowed user IDs
-  static std::set<gid_t> gAllowedGroups;//< set containing the allowed group IDs
-  static std::set<std::string> gBannedHosts;  //< set containing the banned host names
+  static std::set<gid_t> gAllowedGroups; //< set containing the allowed group IDs
+  static std::set<std::string> gBannedHosts; //< set containing the banned host names
   static std::set<std::string> gAllowedHosts; //< set containing the allowed host names
 
   static std::map<std::string, std::string> gRedirectionRules; //< map containing redirection rules
-  static std::map<std::string, std::string> gStallRules;       //< map containing stall rules
-  static std::map<std::string, std::string> gStallComment;     //< map containint stall message comment
-  static bool gStallGlobal;                                    //< indicates global stall rule
-  static bool gStallRead;                                      //< indicates global read stall
-  static bool gStallWrite;                                     //< indicates global write stall
-  static bool gStallUserGroup;                                 //< indicates a user or group rate stall entry
-  static std::map<uid_t, std::string> gUserRedirection;        //< map containing user based redirection
-  static std::map<gid_t, std::string> gGroupRedirection;       //< map containing group based redirection
+  static std::map<std::string, std::string> gStallRules; //< map containing stall rules
+  static std::map<std::string, std::string> gStallComment; //< map containint stall message comment
+  static bool gStallGlobal; //< indicates global stall rule
+  static bool gStallRead; //< indicates global read stall
+  static bool gStallWrite; //< indicates global write stall
+  static bool gStallUserGroup; //< indicates a user or group rate stall entry
+  static std::map<uid_t, std::string> gUserRedirection; //< map containing user based redirection
+  static std::map<gid_t, std::string> gGroupRedirection; //< map containing group based redirection
 
   static eos::common::RWMutex gAccessMutex; //< globa rw mutex protecting all static set's and maps in Access
 
   // ---------------------------------------------------------------------------
   //! Reset/cleear all access rules
   // ---------------------------------------------------------------------------
-  static void Reset();             
+  static void Reset ();
 
   // ---------------------------------------------------------------------------
   //! Retrieve the access configuration from the global shared hash/config engine and fill all static access configuration variables
   // ---------------------------------------------------------------------------
-  static void ApplyAccessConfig(); 
+  static void ApplyAccessConfig ();
 
   // ---------------------------------------------------------------------------
   //! Store the global access configuration variable into the globa shared hash/config engine
   // ---------------------------------------------------------------------------
-  static bool StoreAccessConfig();
+  static bool StoreAccessConfig ();
 };
 
 EOSMGMNAMESPACE_END
