@@ -197,7 +197,7 @@ ProcCommand::Quota ()
        long gid = eos::common::Mapping::GroupNameToGid(sgid, errc);
 
        XrdOucString msg = "";
-       if (!Quota::SetQuota(space, uid_sel.length() ? uid : -1, gid_sel.length() ? gid : -1, 0, 0, msg, retc))
+       if (!Quota::RmQuota(space, uid_sel.length() ? uid : -1, gid_sel.length() ? gid : -1, msg, retc))
        {
          stdErr = msg;
        }
@@ -209,7 +209,7 @@ ProcCommand::Quota ()
      else
      {
        retc = EPERM;
-       stdErr = "error: you cannot remove quota from storage node with 'sss' authentication!";
+       stdErr = "error: you cannot remove quota from a storage node using 'sss' authentication!";
      }
    }
  }

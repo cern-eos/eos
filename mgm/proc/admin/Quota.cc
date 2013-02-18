@@ -55,6 +55,13 @@ ProcCommand::AdminQuota ()
      stdErr = "error: you cannot remove quota nodes from storage node with 'sss' authentication!";
    }
  }
+ else
+ {
+   stdErr = "error: I don't know subcommand <";
+   stdErr += mSubCmd;
+   stdErr += ">";
+   retc = EINVAL;
+ }
  return SFS_OK;
 }
 
