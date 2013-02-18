@@ -456,7 +456,7 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
    else
      if (mCmd == "quota")
    {
-     Quota();
+     AdminQuota();
    }
    else
      if (mCmd == "transfer")
