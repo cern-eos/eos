@@ -44,11 +44,10 @@ ReedSLayout::ReedSLayout (XrdFstOfsFile* file,
                           XrdOucErrInfo* outError,
                           eos::common::LayoutId::eIoType io,
                           bool storeRecovery,
-                          bool isStreaming,
                           off_t targetSize,
                           std::string bookingOpaque) :
-RaidMetaLayout (file, lid, client, outError, io, storeRecovery,
-                isStreaming, targetSize, bookingOpaque)
+RaidMetaLayout (file, lid, client, outError, io,
+                storeRecovery, targetSize, bookingOpaque)
 {
  mNbDataBlocks = mNbDataFiles;
  mNbTotalBlocks = mNbDataFiles + mNbParityFiles;

@@ -95,7 +95,7 @@ private:
     XrdOucString fstdoutfilename;
     XrdOucString fstderrfilename;
     XrdOucString fresultStreamfilename;
-    XrdOucErrInfo* error;
+    XrdOucErrInfo* mError;
 
     XrdOucString mComment; //< comment issued by the user for the proc comamnd
     time_t mExecTime; //< execution time measured for the proc command

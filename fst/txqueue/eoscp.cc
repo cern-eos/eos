@@ -1389,8 +1389,7 @@ main (int argc, char* argv[])
 
           redundancyObj = new eos::fst::RaidDpLayout(NULL, layout, NULL, NULL,
                                                      eos::common::LayoutId::kXrdCl,
-                                                     doStoreRecovery,
-                                                     isStreamFile);
+                                                     doStoreRecovery);
         }
         else if (replicationType == "reedS")
         {
@@ -1402,8 +1401,7 @@ main (int argc, char* argv[])
 
           redundancyObj = new eos::fst::ReedSLayout(NULL, layout, NULL, NULL,
                                                     eos::common::LayoutId::kXrdCl,
-                                                    doStoreRecovery,
-                                                    isStreamFile);
+                                                    doStoreRecovery);
         }
 
         if (debug)
@@ -1644,7 +1642,6 @@ main (int argc, char* argv[])
         status = file->Open(location,
                             XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update,
                             XrdCl::Access::UR | XrdCl::Access::UW);
-        //                                 st[i].st_mode );
       }
 
       if (!status.IsOK())

@@ -52,7 +52,7 @@ ProcCommand::Rmdir ()
  }
  else
  {
-   if (gOFS->_remdir(spath.c_str(), *error, *pVid, (const char*) 0))
+   if (gOFS->_remdir(spath.c_str(), *mError, *pVid, (const char*) 0))
    {
      stdErr += "error: unable to remove directory";
      retc = errno;

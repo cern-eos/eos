@@ -75,7 +75,7 @@ ProcCommand::File ()
 
      unsigned long fsid = (sfsid.length()) ? strtoul(sfsid.c_str(), 0, 10) : 0;
 
-     if (gOFS->_dropstripe(spath.c_str(), *error, *pVid, fsid, forceRemove))
+     if (gOFS->_dropstripe(spath.c_str(), *mError, *pVid, fsid, forceRemove))
      {
        stdErr += "error: unable to drop stripe";
        retc = errno;
@@ -309,7 +309,7 @@ ProcCommand::File ()
            if (acceptfsid)
              acceptfound = true;
 
-           int lretc = gOFS->_verifystripe(spath.c_str(), *error, vid, (unsigned long) *it, option);
+           int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid, (unsigned long) *it, option);
            if (!lretc)
            {
              stdOut += "success: sending verify to fsid= ";
@@ -327,7 +327,7 @@ ProcCommand::File ()
          // we want to be able to force the registration and verification of a not registered replica
          if (acceptfsid && (!acceptfound))
          {
-           int lretc = gOFS->_verifystripe(spath.c_str(), *error, vid, (unsigned long) acceptfsid, option);
+           int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid, (unsigned long) acceptfsid, option);
            if (!lretc)
            {
              stdOut += "success: sending forced verify to fsid= ";
@@ -367,7 +367,7 @@ ProcCommand::File ()
      XrdOucString sfsidtarget = pOpaque->Get("mgm.file.targetfsid");
      unsigned long targetfsid = (sfsidsource.length()) ? strtoul(sfsidtarget.c_str(), 0, 10) : 0;
 
-     if (gOFS->_movestripe(spath.c_str(), *error, *pVid, sourcefsid, targetfsid))
+     if (gOFS->_movestripe(spath.c_str(), *mError, *pVid, sourcefsid, targetfsid))
      {
        stdErr += "error: unable to move stripe";
        retc = errno;
@@ -391,7 +391,7 @@ ProcCommand::File ()
      XrdOucString sfsidtarget = pOpaque->Get("mgm.file.targetfsid");
      unsigned long targetfsid = (sfsidtarget.length()) ? strtoul(sfsidtarget.c_str(), 0, 10) : 0;
 
-     if (gOFS->_copystripe(spath.c_str(), *error, *pVid, sourcefsid, targetfsid))
+     if (gOFS->_copystripe(spath.c_str(), *mError, *pVid, sourcefsid, targetfsid))
      {
        stdErr += "error: unable to replicate stripe";
        retc = errno;
@@ -413,7 +413,7 @@ ProcCommand::File ()
      XrdOucString source = pOpaque->Get("mgm.file.source");
      XrdOucString target = pOpaque->Get("mgm.file.target");
 
-     if (gOFS->rename(source.c_str(), target.c_str(), *error, *pVid, 0, 0))
+     if (gOFS->rename(source.c_str(), target.c_str(), *mError, *pVid, 0, 0))
      {
        stdErr += "error: unable to rename";
        retc = errno;
@@ -636,7 +636,7 @@ ProcCommand::File ()
                    {
                      //                      stdOut += "info: replication := "; stdOut += (int) sourcefsid; stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
                      // add replication here
-                     if (gOFS->_replicatestripe(fmd, spath.c_str(), *error, *pVid, sourcefsid, selectedfs[i], false, expressflag))
+                     if (gOFS->_replicatestripe(fmd, spath.c_str(), *mError, *pVid, sourcefsid, selectedfs[i], false, expressflag))
                      {
                        stdErr += "error: unable to replicate stripe ";
                        stdErr += (int) sourcefsid;

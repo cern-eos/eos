@@ -166,7 +166,7 @@ INDX=`awk -v a="$EOS_DEST" -v b="//eos" 'BEGIN{print index(a,b)}'`
 EOS_DIR="${EOS_DEST:$INDX}"
 
 if [ "$ARG" = "raiddp" ]; then
-    $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="raidDP"' 
+    $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="raiddp"' 
     if [ $? -ne 0 ]; then
 	echo "$ERR_MSG1"
 	echo_failure
@@ -174,7 +174,7 @@ if [ "$ARG" = "raiddp" ]; then
     fi
 elif [ "$ARG" = "reeds" ];
 then
-    $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="reedS"' 
+    $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="raid6"' 
     if [ $? -ne 0 ]; then
 	echo "$ERR_MSG1"
 	echo_failure

@@ -58,7 +58,7 @@ ProcCommand::Mkdir ()
    {
      mode |= SFS_O_MKPTH;
    }
-   if (gOFS->_mkdir(spath.c_str(), mode, *error, *pVid, (const char*) 0))
+   if (gOFS->_mkdir(spath.c_str(), mode, *mError, *pVid, (const char*) 0))
    {
      stdErr += "error: unable to create directory";
      retc = errno;

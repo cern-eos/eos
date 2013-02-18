@@ -62,7 +62,7 @@ ProcCommand::Rm ()
      std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
      std::set<std::string>::const_iterator fileit;
 
-     if (((cPath.GetSubPathSize() < 4) && (deep != "deep")) || (gOFS->_find(spath.c_str(), *error, stdErr, *pVid, found)))
+     if (((cPath.GetSubPathSize() < 4) && (deep != "deep")) || (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, found)))
      {
        if ((cPath.GetSubPathSize() < 4) && (deep != "deep"))
        {
@@ -84,7 +84,7 @@ ProcCommand::Rm ()
          {
            std::string fspath = rfoundit->first;
            fspath += *fileit;
-           if (gOFS->_rem(fspath.c_str(), *error, *pVid, (const char*) 0))
+           if (gOFS->_rem(fspath.c_str(), *mError, *pVid, (const char*) 0))
            {
              stdErr += "error: unable to remove file\n";
              retc = errno;
@@ -98,7 +98,7 @@ ProcCommand::Rm ()
          std::string fspath = rfoundit->first.c_str();
          if (fspath == "/")
            continue;
-         if (gOFS->_remdir(rfoundit->first.c_str(), *error, *pVid, (const char*) 0))
+         if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, (const char*) 0))
          {
            stdErr += "error: unable to remove directory";
            retc = errno;
@@ -108,7 +108,7 @@ ProcCommand::Rm ()
    }
    else
    {
-     if (gOFS->_rem(spath.c_str(), *error, *pVid, (const char*) 0))
+     if (gOFS->_rem(spath.c_str(), *mError, *pVid, (const char*) 0))
      {
        stdErr += "error: unable to remove file/directory";
        retc = errno;

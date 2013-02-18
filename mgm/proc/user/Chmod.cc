@@ -61,7 +61,7 @@ ProcCommand::Chmod ()
 
    if (option == "r")
    {
-     if (gOFS->_find(spath.c_str(), *error, stdErr, *pVid, found, 0, 0, true))
+     if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, found, 0, 0, true))
      {
        stdErr += "error: unable to search in path";
        retc = errno;
@@ -88,7 +88,7 @@ ProcCommand::Chmod ()
      for (foundit = found.begin(); foundit != found.end(); foundit++)
      {
        {
-         if (gOFS->_chmod(foundit->first.c_str(), Mode, *error, *pVid, (char*) 0))
+         if (gOFS->_chmod(foundit->first.c_str(), Mode, *mError, *pVid, (char*) 0))
          {
            stdErr += "error: unable to chmod of directory ";
            stdErr += foundit->first.c_str();

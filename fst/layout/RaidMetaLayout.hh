@@ -57,7 +57,6 @@ public:
   //! @param outError error information
   //! @param io access type 
   //! @param storeRecovery force writing back the recovered blocks to the files
-  //! @param isStreaming file is written in streaming mode
   //! @param targetSize initial file size
   //! @param bookingOpaque opaque information
   //!
@@ -68,7 +67,6 @@ public:
                   XrdOucErrInfo* outError,
                   eos::common::LayoutId::eIoType io,
                   bool storeRecovery,
-                  bool isStreaming,
                   off_t targetSize,
                   std::string bookingOpaque);
 
@@ -227,7 +225,7 @@ protected:
   bool mFullDataBlocks; ///< mark if we have all data blocks to compute parity
   bool mIsStreaming; ///< file is written in streaming mode
   bool mStoreRecovery; ///< set if recovery also triggers writing back to the
-  ///< files, this also means that all files must be available
+                       ///< files, this also means that all files must be available
 
   int mStripeHead; ///< head stripe value
   int mPhysicalStripeIndex; ///< physical index of the current stripe
@@ -238,15 +236,16 @@ protected:
   unsigned int mNbDataBlocks; ///< no. data blocks in a group
   unsigned int mNbTotalBlocks; ///< no. data and parity blocks in a group
 
+  off_t mLastWriteOffset; ///< offset of the last write request 
   off_t mStripeWidth; ///< stripe width
   off_t mSizeHeader; ///< size of header = 4KB
   off_t mFileSize; ///< total size of current file
   off_t mTargetSize; ///< expected final size (?!)
   off_t mSizeLine; ///< size of a line in a group
   off_t mOffGroupParity; ///< offset of the last group for which we
-  ///< computed the parity blocks
+                         ///< computed the parity blocks
   off_t mSizeGroup; ///< size of a group of blocks
-  ///< eg. RAIDDP: group = noDataStr^2 blocks
+                    ///< eg. RAIDDP: group = noDataStr^2 blocks
 
   std::string mBookingOpaque; ///< opaque information
   std::vector<char*> mDataBlocks; ///< vector containing the data in a group
@@ -256,12 +255,12 @@ protected:
   std::map<unsigned int, unsigned int> mapLP; ///< map of url to stripes
   std::map<unsigned int, unsigned int> mapPL; ///< map of stripes to url
   std::map<off_t, size_t> mMapPieces; ///< map of pieces written for which parity
-  ///< computation has not been done yet
+                                      ///< computation has not been done yet
 
   char* mFirstBlock; ///< first extra block for reading aligned
   char* mLastBlock; ///< last extra block for reading aligned
   std::vector<char*> mPtrBlocks; ///< vector containing pointers to where
-  ///< new blocks are to be read
+                                 ///< new blocks are to be read
 
   //--------------------------------------------------------------------------
   //! Test and recover any corrupted headers in the stripe files
