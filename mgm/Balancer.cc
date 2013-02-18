@@ -160,7 +160,7 @@ Balancer::Balance(void)
           double dev=0;
 	  double avg=0;
 	  double fsdev=0;
-          if ( (dev=(*git)->MaxDeviation("stat.statfs.filled"),false) > SpaceDifferenceThreshold) {
+          if ( (dev=(*git)->MaxDeviation("stat.statfs.filled",false)) > SpaceDifferenceThreshold) {
 	    avg = (*git)->AverageDouble("stat.statfs.filled",false);
 	    if (hasdrainjob) {
 	      // set status to 'drainwait'
@@ -227,29 +227,29 @@ Balancer::Balance(void)
         }
       } else {
 	if (1) {
-        std::set<FsGroup*>::const_iterator git;
-        if (FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
-	  for (git = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].begin(); git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end(); git++) {
-	    if ( (*git)->GetConfigMember("stat.balancing.running") != "0") {
-	      (*git)->SetConfigMember("stat.balancing.running", "0", false, "", true);
-	    }
-	    std::set<eos::common::FileSystem::fsid_t>::const_iterator fsit;
-	    for (fsit = (*git)->begin(); fsit != (*git)->end(); fsit++) {
-	      FileSystem* fs = FsView::gFsView.mIdView[*fsit];
-	      if (fs) {
-		std::string isset = fs->GetString("stat.nominal.filled");
-		double fsdev = fs->GetDouble("stat.nominal.filled");
-		if ((fsdev >0) || (!isset.length())) {
-		  // 0.0 indicates, that we are perfectly filled (or the balancing is disabled)
-		  if (fsdev)
-		    fs->SetDouble("stat.nominal.filled",0.0,true);
+	  std::set<FsGroup*>::const_iterator git;
+	  if (FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
+	    for (git = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].begin(); git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end(); git++) {
+	      if ( (*git)->GetConfigMember("stat.balancing.running") != "0") {
+		(*git)->SetConfigMember("stat.balancing.running", "0", false, "", true);
+	      }
+	      std::set<eos::common::FileSystem::fsid_t>::const_iterator fsit;
+	      for (fsit = (*git)->begin(); fsit != (*git)->end(); fsit++) {
+		FileSystem* fs = FsView::gFsView.mIdView[*fsit];
+		if (fs) {
+		  std::string isset = fs->GetString("stat.nominal.filled");
+		  double fsdev = fs->GetDouble("stat.nominal.filled");
+		  if ((fsdev >0) || (!isset.length())) {
+		    // 0.0 indicates, that we are perfectly filled (or the balancing is disabled)
+		    if (fsdev)
+		      fs->SetDouble("stat.nominal.filled",0.0,true);
+		  }
 		}
 	      }
+	      if ( (*git)->GetConfigMember("stat.balancing") != "idle")
+		(*git)->SetConfigMember("stat.balancing","idle",false, "", true);
 	    }
-	    if ( (*git)->GetConfigMember("stat.balancing") != "idle")
-	      (*git)->SetConfigMember("stat.balancing","idle",false, "", true);
 	  }
-	}
 	}
       }
     }
