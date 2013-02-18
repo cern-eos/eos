@@ -158,7 +158,7 @@ ConfigEngineChangeLog::LegacyFile2DbMapFile(const char *file)
 				lcnt++; // update the line counter
 				prevtimestamp=timestamp;
 				timestamp=(ssize_t)-1; legfile>>timestamp;	 // field 0 of legacy format is the timestamp
-				if(timestamp==(ssize_t)-1) {loopagain=false; break;}
+				if(timestamp==(size_t)-1) {loopagain=false; break;}
 				timestamp*=1000000000; // time is in nanoseconds
 				if(prevtimestamp/1000000000==timestamp/1000000000) timestamp+=(++cnt); // a little trick to make sure that all the timestamps are different
 				else cnt=0;
