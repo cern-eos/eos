@@ -124,9 +124,10 @@ public:
   }
 
   // ---------------------------------------------------------------------------
-  //! convert val1|val2|val3... to an env string
+  //! convert val1|val2|val3... to an env string, optional sec_app allows to
+  //! overwrite the sec.info field
   // ---------------------------------------------------------------------------
-  static std::string ToEnv(const char* s) {
+  static std::string ToEnv(const char* s, const char* sec_app = 0) {
     if (!s) 
       return "";
 
@@ -143,7 +144,14 @@ public:
       rs+="&sec.grps=";rs+= tokens[4];
       rs+="&sec.role=";rs+= tokens[5];
       rs+="&sec.info=";rs+= tokens[6];
-      rs+="&sec.app=";rs+= tokens[7];
+      if (sec_app) 
+      {
+        rs+="&sec.app=";rs+= sec_app;
+      } 
+      else 
+      {
+        rs+="&sec.app=";rs+= tokens[7];
+      }
     } else {
       fprintf(stderr,"[eos::common::SecEntit::ToEnv] error: %s has illegal contents [%d]\n", s?s:"", (int)tokens.size());
     }
