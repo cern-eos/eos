@@ -77,6 +77,8 @@ eos::common::LogId ()
  viaDelete = remoteDelete = writeDelete = false;
  SecString = "";
  writeErrorFlag = 0;
+ tpcFlag = kTpcNone;
+ tpcState = kTpcIdle;
 }
 
 
@@ -176,9 +178,180 @@ XrdFstOfsFile::open (const char* path,
  {
  }
 
+ int envlen;
+ XrdOucString maskOpaque = opaque ? opaque : "";
+ // mask some opaque parameters to shorten the logging
+ eos::common::StringConversion::MaskTag(maskOpaque, "cap.sym");
+ eos::common::StringConversion::MaskTag(maskOpaque, "cap.msg");
+ eos::common::StringConversion::MaskTag(maskOpaque, "authz");
+ eos_info("path=%s info=%s", Path.c_str(), maskOpaque.c_str());
+
+ if ((open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
+                   SFS_O_CREAT | SFS_O_TRUNC)) != 0)
+ {
+   isRW = true;
+ }
+
+ // ----------------------------------------------------------------------------
+ // extract tpc keys
+ // ----------------------------------------------------------------------------
+ XrdOucEnv tmpOpaque(stringOpaque.c_str());
+
+ if ((val = tmpOpaque.Get("mgm.logid")))
+ {
+   SetLogId(val, tident);
+ }
+
+ std::string tpc_stage = tmpOpaque.Get("tpc.stage") ?
+   tmpOpaque.Get("tpc.stage") : "";
+ std::string tpc_key = tmpOpaque.Get("tpc.key") ?
+   tmpOpaque.Get("tpc.key") : "";
+ std::string tpc_src = tmpOpaque.Get("tpc.src") ?
+   tmpOpaque.Get("tpc.src") : "";
+ std::string tpc_dst = tmpOpaque.Get("tpc.dst") ?
+   tmpOpaque.Get("tpc.dst") : "";
+ std::string tpc_org = tmpOpaque.Get("tpc.org") ?
+   tmpOpaque.Get("tpc.org") : "";
+ std::string tpc_lfn = tmpOpaque.Get("tpc.lfn") ?
+   tmpOpaque.Get("tpc.lfn") : "";
+
+ if (tpc_stage == "placement")
+ {
+   tpcFlag = kTpcSrcCanDo;
+ }
+
+ if (tpc_key.length())
+ {
+   time_t now = time(NULL);
+   if (tpc_stage == "copy")
+   {
+     //.........................................................................
+     // Create a TPC entry in the TpcMap 
+     //.........................................................................
+     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+     if (gOFS.TpcMap[isRW].count(tpc_key.c_str()))
+     {
+       //.......................................................................
+       // TPC key replay go away
+       //.......................................................................
+       return gOFS.Emsg(epname, error, EPERM, "open - tpc key replayed", path);
+     }
+     if (tpc_key == "")
+     {
+       //.......................................................................
+       // TPC key missing
+       //.......................................................................
+       return gOFS.Emsg(epname, error, EINVAL, "open - tpc key missing", path);
+     }
+     //.........................................................................
+     // Store the TPC initialization
+     //.........................................................................
+     gOFS.TpcMap[isRW][tpc_key].key = tpc_key;
+     gOFS.TpcMap[isRW][tpc_key].org = tpc_org;
+     gOFS.TpcMap[isRW][tpc_key].src = tpc_src;
+     gOFS.TpcMap[isRW][tpc_key].dst = tpc_dst;
+     gOFS.TpcMap[isRW][tpc_key].path = path;
+     gOFS.TpcMap[isRW][tpc_key].lfn = tpc_lfn;
+     gOFS.TpcMap[isRW][tpc_key].opaque = stringOpaque.c_str();
+     gOFS.TpcMap[isRW][tpc_key].expires = time(NULL) + 60; // one minute that's fine
+
+     TpcKey = tpc_key.c_str();
+     if (tpc_src.length())
+     {
+       // this is a destination session setup
+       tpcFlag = kTpcDstSetup;
+       if (!tpc_lfn.length())
+       {
+         return gOFS.Emsg(epname, error, EINVAL, "open - tpc lfn missing", path);
+       }
+     }
+     else
+     {
+       // this is a source session setup
+       tpcFlag = kTpcSrcSetup;
+     }
+     if (tpcFlag == kTpcDstSetup)
+     {
+       eos_info("msg=\"tpc dst session\" key=%s, org=%s, src=%s path=%s lfn=%s expires=%llu",
+                gOFS.TpcMap[isRW][tpc_key].key.c_str(),
+                gOFS.TpcMap[isRW][tpc_key].org.c_str(),
+                gOFS.TpcMap[isRW][tpc_key].src.c_str(),
+                gOFS.TpcMap[isRW][tpc_key].path.c_str(),
+                gOFS.TpcMap[isRW][tpc_key].lfn.c_str(),
+                gOFS.TpcMap[isRW][tpc_key].expires);
+     }
+     else
+     {
+       eos_info("msg=\"tpc src session\" key=%s, org=%s, dst=%s path=%s expires=%llu",
+                gOFS.TpcMap[isRW][tpc_key].key.c_str(),
+                gOFS.TpcMap[isRW][tpc_key].org.c_str(),
+                gOFS.TpcMap[isRW][tpc_key].dst.c_str(),
+                gOFS.TpcMap[isRW][tpc_key].path.c_str(),
+                gOFS.TpcMap[isRW][tpc_key].expires);
+     }
+   }
+   else
+   {
+     //.........................................................................
+     // Verify a TPC entry in the TpcMap 
+     //.........................................................................
+     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+     if (!gOFS.TpcMap[isRW].count(tpc_key))
+     {
+       return gOFS.Emsg(epname, error, EPERM, "open - tpc key not valid", path);
+     }
+     if (gOFS.TpcMap[isRW][tpc_key].expires < now)
+     {
+       return gOFS.Emsg(epname, error, EPERM, "open - tpc key expired", path);
+     }
+     if (gOFS.TpcMap[isRW][tpc_key].org != tpc_org)
+     {
+       return gOFS.Emsg(epname, error, EPERM, "open - tpc origin mismatch", path);
+     }
+     //.........................................................................
+     // Grab the open information
+     //.........................................................................
+     Path = gOFS.TpcMap[isRW][tpc_key].path.c_str();
+     stringOpaque = gOFS.TpcMap[isRW][tpc_key].opaque.c_str();
+     //.........................................................................
+     // Expire TPC entry
+     //.........................................................................
+     gOFS.TpcMap[isRW][tpc_key].expires = (now - 10);
+
+     // store the provided origin to compare with our local connection
+     gOFS.TpcMap[isRW][tpc_key].org = tpc_org;
+     // this must be a tpc read issued from a TPC target
+     tpcFlag = kTpcSrcRead;
+     TpcKey = tpc_key.c_str();
+     eos_info("msg=\"tpc read\" key=%s, org=%s, path=%s expires=%llu",
+              gOFS.TpcMap[isRW][tpc_key].key.c_str(),
+              gOFS.TpcMap[isRW][tpc_key].org.c_str(),
+              gOFS.TpcMap[isRW][tpc_key].src.c_str(),
+              gOFS.TpcMap[isRW][tpc_key].path.c_str(),
+              gOFS.TpcMap[isRW][tpc_key].expires);
+   }
+   //...........................................................................
+   // Expire keys which are more than one 4 hours expired
+   //...........................................................................
+   XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+   auto it = (gOFS.TpcMap[isRW]).begin();
+   auto del = (gOFS.TpcMap[isRW]).begin();
+   while (it != (gOFS.TpcMap[isRW]).end())
+   {
+     del = it;
+     it++;
+     if (now > (del->second.expires + (4 * 3600)))
+     {
+       eos_info("msg=\"expire tpc key\" key=%s", del->second.key.c_str());
+       gOFS.TpcMap[isRW].erase(del);
+     }
+   }
+ }
+
  stringOpaque += "&mgm.path=";
- stringOpaque += path;
+ stringOpaque += Path.c_str();
  openOpaque = new XrdOucEnv(stringOpaque.c_str());
+
 
  if ((val = openOpaque->Get("mgm.logid")))
  {
@@ -192,29 +365,53 @@ XrdFstOfsFile::open (const char* path,
 
  int caprc = 0;
 
- if ((caprc = gCapabilityEngine.Extract(openOpaque, capOpaque)))
+ //.............................................................................
+ // tpc src read can bypass capability checks
+ //.............................................................................
+ if ((tpcFlag != kTpcSrcRead) && (caprc = gCapabilityEngine.Extract(openOpaque, capOpaque)))
  {
    if (caprc == ENOKEY)
    {
-     //........................................................................
+     //.........................................................................
      // If we just miss the key, better stall the client
-     //........................................................................
+     //.........................................................................
      return gOFS.Stall(error, 10, "FST still misses the required capability key");
    }
 
-   //............................................................................
+   //...........................................................................
    // No capability - go away!
-   //............................................................................
-   return gOFS.Emsg(epname, error, caprc, "open - capability illegal", path);
+   //...........................................................................
+   return gOFS.Emsg(epname, error, caprc, "open - capability illegal", Path.c_str());
+ }
+ else
+ {
+   if (tpcFlag == kTpcSrcRead)
+   {
+     //.........................................................................  
+     // Grab the capability contents from the tpc key map
+     //.........................................................................
+     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+     if (gOFS.TpcMap[isRW][tpc_key].capability.length())
+     {
+       capOpaque = new XrdOucEnv(gOFS.TpcMap[isRW][tpc_key].capability.c_str());
+     }
+     else
+     {
+       return gOFS.Emsg(epname, error, EINVAL, "open - capability not found for tpc key %s", tpc_key.c_str());
+     }
+   }
+   if (tpcFlag == kTpcSrcSetup)
+   {
+     //.........................................................................  
+     // For a TPC setup we need to store the decoded capability contents
+     //.........................................................................
+     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+     gOFS.TpcMap[isRW][tpc_key].capability = capOpaque->Env(envlen);
+   }
  }
 
- int envlen;
- XrdOucString maskOpaque = opaque ? opaque : "";
- // mask some opaque parameters to shorten the logging
- eos::common::StringConversion::MaskTag(maskOpaque, "cap.sym");
- eos::common::StringConversion::MaskTag(maskOpaque, "cap.msg");
- eos::common::StringConversion::MaskTag(maskOpaque, "authz");
- eos_info("path=%s info=%s capability=%s", path, maskOpaque.c_str(), capOpaque->Env(envlen));
+ eos_info("capability=%s", capOpaque->Env(envlen));
+
  const char* hexfid = 0;
  const char* sfsid = 0;
  const char* slid = 0;
@@ -232,17 +429,17 @@ XrdFstOfsFile::open (const char* path,
 
  if (!(hexfid = capOpaque->Get("mgm.fid")))
  {
-   return gOFS.Emsg(epname, error, EINVAL, "open - no file id in capability", path);
+   return gOFS.Emsg(epname, error, EINVAL, "open - no file id in capability", Path.c_str());
  }
 
  if (!(sfsid = capOpaque->Get("mgm.fsid")))
  {
-   return gOFS.Emsg(epname, error, EINVAL, "open - no file system id in capability", path);
+   return gOFS.Emsg(epname, error, EINVAL, "open - no file system id in capability", Path.c_str());
  }
 
  if (!(secinfo = capOpaque->Get("mgm.sec")))
  {
-   return gOFS.Emsg(epname, error, EINVAL, "open - no security information in capability", path);
+   return gOFS.Emsg(epname, error, EINVAL, "open - no security information in capability", Path.c_str());
  }
  else
  {
@@ -313,22 +510,22 @@ XrdFstOfsFile::open (const char* path,
  if (!localPrefix.length())
  {
    return gOFS.Emsg(epname, error, EINVAL,
-                    "open - cannot determine the prefix path to use for the given filesystem id", path);
+                    "open - cannot determine the prefix path to use for the given filesystem id", Path.c_str());
  }
 
  if (!(slid = capOpaque->Get("mgm.lid")))
  {
-   return gOFS.Emsg(epname, error, EINVAL, "open - no layout id in capability", path);
+   return gOFS.Emsg(epname, error, EINVAL, "open - no layout id in capability", Path.c_str());
  }
 
  if (!(scid = capOpaque->Get("mgm.cid")))
  {
-   return gOFS.Emsg(epname, error, EINVAL, "open - no container id in capability", path);
+   return gOFS.Emsg(epname, error, EINVAL, "open - no container id in capability", Path.c_str());
  }
 
  if (!(smanager = capOpaque->Get("mgm.manager")))
  {
-   return gOFS.Emsg(epname, error, EINVAL, "open - no manager name in capability", path);
+   return gOFS.Emsg(epname, error, EINVAL, "open - no manager name in capability", Path.c_str());
  }
 
  RedirectManager = smanager;
@@ -365,7 +562,7 @@ XrdFstOfsFile::open (const char* path,
    {
      eos_err("forbid to open replica - file %s is opened in RW mode", Path.c_str());
      return gOFS.Emsg(epname, error, ENOENT,
-                      "open - cannot replicate: file is opened in RW mode", path);
+                      "open - cannot replicate: file is opened in RW mode", Path.c_str());
    }
 
    isReplication = true;
@@ -373,12 +570,6 @@ XrdFstOfsFile::open (const char* path,
 
  open_mode |= SFS_O_MKPTH;
  create_mode |= SFS_O_MKPTH;
-
- if ((open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
-                   SFS_O_CREAT | SFS_O_TRUNC)) != 0)
- {
-   isRW = true;
- }
 
  struct stat statinfo;
 
@@ -410,7 +601,7 @@ XrdFstOfsFile::open (const char* path,
  {
    if (!(sbookingsize = capOpaque->Get("mgm.bookingsize")))
    {
-     return gOFS.Emsg(epname, error, EINVAL, "open - no booking size in capability", path);
+     return gOFS.Emsg(epname, error, EINVAL, "open - no booking size in capability", Path.c_str());
    }
    else
    {
@@ -419,7 +610,7 @@ XrdFstOfsFile::open (const char* path,
      if (errno == ERANGE)
      {
        eos_err("invalid bookingsize in capability bookingsize=%s", sbookingsize);
-       return gOFS.Emsg(epname, error, EINVAL, "open - invalid bookingsize in capability", path);
+       return gOFS.Emsg(epname, error, EINVAL, "open - invalid bookingsize in capability", Path.c_str());
      }
    }
 
@@ -430,7 +621,7 @@ XrdFstOfsFile::open (const char* path,
      if (errno == ERANGE)
      {
        eos_err("invalid targetsize in capability targetsize=%s", stargetsize);
-       return gOFS.Emsg(epname, error, EINVAL, "open - invalid targetsize in capability", path);
+       return gOFS.Emsg(epname, error, EINVAL, "open - invalid targetsize in capability", Path.c_str());
      }
    }
  }
@@ -447,7 +638,7 @@ XrdFstOfsFile::open (const char* path,
  }
  else
  {
-   return gOFS.Emsg(epname, error, EINVAL, "open - sec ruid missing", path);
+   return gOFS.Emsg(epname, error, EINVAL, "open - sec ruid missing", Path.c_str());
  }
 
  if ((val = capOpaque->Get("mgm.rgid")))
@@ -456,7 +647,7 @@ XrdFstOfsFile::open (const char* path,
  }
  else
  {
-   return gOFS.Emsg(epname, error, EINVAL, "open - sec rgid missing", path);
+   return gOFS.Emsg(epname, error, EINVAL, "open - sec rgid missing", Path.c_str());
  }
 
  if ((val = capOpaque->Get("mgm.uid")))
@@ -466,7 +657,7 @@ XrdFstOfsFile::open (const char* path,
  }
  else
  {
-   return gOFS.Emsg(epname, error, EINVAL, "open - sec uid missing", path);
+   return gOFS.Emsg(epname, error, EINVAL, "open - sec uid missing", Path.c_str());
  }
 
  if ((val = capOpaque->Get("mgm.gid")))
@@ -476,7 +667,7 @@ XrdFstOfsFile::open (const char* path,
  }
  else
  {
-   return gOFS.Emsg(epname, error, EINVAL, "open - sec gid missing", path);
+   return gOFS.Emsg(epname, error, EINVAL, "open - sec gid missing", Path.c_str());
  }
 
  if ((val = capOpaque->Get("mgm.logid")))
@@ -612,7 +803,7 @@ XrdFstOfsFile::open (const char* path,
    //........................................................................
    // We feed the layout size, not the physical on disk!
    //........................................................................
-   eos_info("The layout size is: %zu, and the value stored in db is: %llu.",
+   eos_info("msg=\"layout size\": disk_size=%llu db_size= %llu",
             statinfo.st_size, fMd->fMd.size);
 
    if ((off_t) statinfo.st_size != (off_t) fMd->fMd.size)
@@ -681,7 +872,7 @@ XrdFstOfsFile::open (const char* path,
      }
      else
      {
-       if (!attr->Set(std::string("user.eos.lfn"), std::string(path)))
+       if (!attr->Set(std::string("user.eos.lfn"), std::string(Path.c_str())))
        {
          eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
        }
@@ -840,7 +1031,7 @@ XrdFstOfsFile::AddWriteTime ()
 //------------------------------------------------------------------------------
 
 void
-XrdFstOfsFile::MakeReportEnv (XrdOucString& reportString)
+XrdFstOfsFile::MakeReportEnv (XrdOucString & reportString)
 {
  // compute avg, min, max, sigma for read and written bytes
  unsigned long long rmin, rmax, rsum;
@@ -899,6 +1090,13 @@ XrdFstOfsFile::MakeReportEnv (XrdOucString& reportString)
 
    wsigma = wvec.size() ? (sqrt(wsum2 / wvec.size())) : 0;
    char report[16384];
+
+   if (rmin == 0xffffffff)
+     rmin = 0;
+
+   if (wmin == 0xffffffff)
+     wmin = 0;
+
    snprintf(report, sizeof ( report) - 1, "log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&"
             "lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&cts=%lu&ctms=%lu&rb=%llu&"
             "rb_min=%llu&rb_max=%llu&rb_sigma=%.02f&wb=%llu&wb_min=%llu&wb_max=%llu&&"
@@ -938,7 +1136,9 @@ XrdFstOfsFile::MakeReportEnv (XrdOucString& reportString)
             , ((wTime.tv_sec * 1000.0) + (wTime.tv_usec / 1000.0))
             , (unsigned long long) openSize
             , (unsigned long long) closeSize
-            , eos::common::SecEntity::ToEnv(SecString.c_str()).c_str());
+            , eos::common::SecEntity::ToEnv(SecString.c_str(),
+                                            ((tpcFlag == kTpcDstSetup) ||
+                                             (tpcFlag == kTpcSrcRead)) ? "tpc" : 0).c_str());
    reportString = report;
  }
 }
@@ -1165,6 +1365,18 @@ XrdFstOfsFile::close ()
  bool committed = false;
  bool minimumsizeerror = false;
 
+ //.............................................................................
+ // Any close on a file opened in TPC mode invalidates tpc keys
+ if (TpcKey.length())
+ {
+   XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+   if (gOFS.TpcMap[isRW].count(TpcKey.c_str()))
+   {
+     eos_info("msg=\"remove tpc key\" key=%s", TpcKey.c_str());
+     gOFS.TpcMap[isRW].erase(TpcKey.c_str());
+     gOFS.TpcMap[isRW].resize(0);
+   }
+ }
  //............................................................................
  // We enter the close logic only once since there can be an explicit close or
  // a close via the destructor
@@ -1596,20 +1808,25 @@ XrdFstOfsFile::close ()
 
    if (!deleteOnClose)
    {
-     //........................................................................
+     //.........................................................................
      // Prepare a report and add to the report queue
-     //........................................................................
-     XrdOucString reportString = "";
-     MakeReportEnv(reportString);
-     gOFS.ReportQueueMutex.Lock();
-     gOFS.ReportQueue.push(reportString);
-     gOFS.ReportQueueMutex.UnLock();
-
+     //.........................................................................
+     if ((tpcFlag != kTpcSrcSetup) && (tpcFlag != kTpcSrcCanDo))
+     {
+       //.......................................................................
+       // We don't want a report for the source tpc setup or can do open
+       //.......................................................................
+       XrdOucString reportString = "";
+       MakeReportEnv(reportString);
+       gOFS.ReportQueueMutex.Lock();
+       gOFS.ReportQueue.push(reportString);
+       gOFS.ReportQueueMutex.UnLock();
+     }
      if (isRW)
      {
-       //......................................................................
+       //.......................................................................
        // Store in the WrittenFilesQueue
-       //......................................................................
+       //.......................................................................
        gOFS.WrittenFilesQueueMutex.Lock();
        gOFS.WrittenFilesQueue.push(fMd->fMd);
        gOFS.WrittenFilesQueueMutex.UnLock();
@@ -1855,6 +2072,22 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
  rCalls++;
  eos_debug("XrdFstOfsFile: read - fileOffset: %lli, buffer_size: %i\n",
            fileOffset, buffer_size);
+
+
+ if (tpcFlag == kTpcSrcRead)
+ {
+   if (!(rCalls % 10))
+   {
+     // for TPC reads we check every 10th read call if the TPC has been
+     // interrupted from the client e.g. the TPC KEY has been deleted
+     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+     if (!TpcValid())
+     {
+       eos_err("msg=\"tcp interrupted by control-c - cancel tcp read\" key=%s", TpcKey.c_str());
+       return gOFS.Emsg("read", error, EINTR, "read - tpc transfer interrupted by client disconnect", FName());
+     }
+   }
+ }
  int rc = layOut->Read(fileOffset, buffer, buffer_size);
 
  if ((rc > 0) && (checkSum))
@@ -1939,7 +2172,7 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
 //------------------------------------------------------------------------------
 
 int
-XrdFstOfsFile::read (XrdSfsAio* aioparm)
+XrdFstOfsFile::read (XrdSfsAio * aioparm)
 {
  return SFS_ERROR;
 }
@@ -2187,7 +2420,7 @@ XrdFstOfsFile::write (XrdSfsFileOffset fileOffset,
 //------------------------------------------------------------------------------
 
 int
-XrdFstOfsFile::write (XrdSfsAio* aioparm)
+XrdFstOfsFile::write (XrdSfsAio * aioparm)
 {
  return SFS_ERROR;
 }
@@ -2204,6 +2437,26 @@ XrdFstOfsFile::syncofs ()
 }
 
 
+
+//------------------------------------------------------------------------------
+// Verify if a TPC key is still valid
+//------------------------------------------------------------------------------
+
+bool
+XrdFstOfsFile::TpcValid ()
+{
+ // This call requires to have a lock like 
+ // 'XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex)'
+ if (TpcKey.length())
+ {
+   if (gOFS.TpcMap[isRW].count(TpcKey.c_str()))
+   {
+     return true;
+   }
+ }
+ return false;
+}
+
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
@@ -2211,7 +2464,157 @@ XrdFstOfsFile::syncofs ()
 int
 XrdFstOfsFile::sync ()
 {
- return layOut->Sync();
+ if (tpcFlag == kTpcDstSetup)
+ {
+   if (tpcState == kTpcIdle)
+   {
+     eos_info("msg=\"tpc enabled - 1st sync\"");
+     tpcState = kTpcEnabled;
+     return SFS_OK;
+   }
+
+   if (tpcState == kTpcRun)
+   {
+     eos_info("msg=\"tpc already running - >2nd sync\"");
+     return SFS_OK;
+   }
+
+   if (tpcState == kTpcDone)
+   {
+     eos_info("msg=\"tpc already finisehd - >2nd sync\"");
+     return SFS_OK;
+   }
+
+   if (tpcState == kTpcEnabled)
+   {
+     tpcState = kTpcRun;
+   }
+
+   eos_info("msg=\"tpc now running - 2nd sync\"");
+   std::string src_url = "";
+   std::string src_cgi = "";
+   {
+     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+     //...........................................................................
+     // The sync initiates the third party copy 
+     //...........................................................................
+     if (!TpcValid())
+     {
+       tpcState = kTpcDone;
+       eos_err("msg=\"tpc session invalidated during sync\"");
+       error.setErrInfo(ECONNABORTED, "sync - TPC session has been closed by disconnect");
+       return SFS_ERROR;
+     }
+     // construct the source URL
+     src_url = "root://";
+     src_url += gOFS.TpcMap[isRW][TpcKey.c_str()].src;
+     src_url += "/";
+     src_url += gOFS.TpcMap[isRW][TpcKey.c_str()].lfn;
+
+     // construct the source CGI
+     src_cgi = "tpc.key=";
+     src_cgi += TpcKey.c_str();
+     src_cgi += "&tpc.org=";
+     src_cgi += gOFS.TpcMap[isRW][TpcKey.c_str()].org;
+   }
+
+   XrdFileIo tpcIO(this, 0, &error); // the remote IO object
+
+   if (tpcIO.Open(src_url.c_str(), 0, 0, src_cgi.c_str(), 10))
+   {
+     XrdOucString msg = "sync - TPC open failed for url=";
+     msg += src_url.c_str();
+     msg += " cgi=";
+     msg += src_cgi.c_str();
+     error.setErrInfo(EFAULT, msg.c_str());
+     tpcState = kTpcDone;
+     return SFS_ERROR;
+   }
+
+   {
+     //.........................................................................
+     // Re-Check validity of the TPC key
+     //.........................................................................
+     XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+     if (!TpcValid())
+     {
+       eos_err("msg=\"tpc session invalidated during sync\"");
+       tpcState = kTpcDone;
+       error.setErrInfo(ECONNABORTED,
+                        "sync - TPC session has been closed by disconnect");
+       return SFS_ERROR;
+     }
+   }
+
+   int64_t rbytes = 0;
+   int64_t wbytes = 0;
+   off_t offset = 0;
+   auto_ptr < std::vector<char> > buffer(new std::vector<char>(ReadaheadBlock::sDefaultBlocksize));
+
+   eos_info("msg=\"tpc pull\" ");
+
+   do
+   {
+     //.........................................................................
+     // Read the remote file in chunks and check after each chunk if the TPC
+     // has been aborted already
+     //.........................................................................
+     rbytes = tpcIO.Read(offset, &((*buffer)[0]), ReadaheadBlock::sDefaultBlocksize, 30);
+     eos_debug("msg=\"tpc read\" rbytes=%llu request=%llu", rbytes, ReadaheadBlock::sDefaultBlocksize);
+     if (rbytes == -1)
+     {
+       tpcState = kTpcDone;
+       eos_err("msg=\"tpc transfer terminated - remote read failed\"");
+       error.setErrInfo(EIO,
+                        "sync - tpc remote read failed");
+       return SFS_ERROR;
+     }
+
+     if (rbytes > 0)
+     {
+       //.......................................................................
+       // Write the buffer out through the local object
+       //.......................................................................
+       wbytes = write(offset, &((*buffer)[0]), rbytes);
+       eos_debug("msg=\"tpc write\" wbytes=%llu", wbytes);
+       if (rbytes != wbytes)
+       {
+         tpcState = kTpcDone;
+         eos_err("msg=\"tpc transfer terminated - local write failed\"");
+         error.setErrInfo(EIO,
+                          "sync - tpc local write failed");
+         return SFS_ERROR;
+       }
+       offset += rbytes;
+     }
+
+     {
+       //.......................................................................
+       // Re-Check validity of the TPC key
+       //.......................................................................
+       XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+       if (!TpcValid())
+       {
+         tpcState = kTpcDone;
+         eos_err("msg=\"tpc transfer invalidated during sync\"");
+         error.setErrInfo(ECONNABORTED,
+                          "sync - TPC session has been closed by disconnect");
+         return SFS_ERROR;
+       }
+     }
+   }
+   while (rbytes > 0);
+
+   // close the remote file, if no error close the local file
+   return (tpcIO.Close() || close());
+ }
+ else
+ {
+   //...........................................................................
+   // Standard file sync
+   //...........................................................................
+   return layOut->Sync();
+ }
 }
 
 
@@ -2220,7 +2623,7 @@ XrdFstOfsFile::sync ()
 //------------------------------------------------------------------------------
 
 int
-XrdFstOfsFile::sync (XrdSfsAio* aiop)
+XrdFstOfsFile::sync (XrdSfsAio * aiop)
 {
  return layOut->Sync();
 }
@@ -2282,7 +2685,7 @@ XrdFstOfsFile::truncate (XrdSfsFileOffset fileOffset)
 //------------------------------------------------------------------------------
 
 int
-XrdFstOfsFile::stat (struct stat* buf)
+XrdFstOfsFile::stat (struct stat * buf)
 {
  EPNAME("stat");
  int rc = SFS_OK;

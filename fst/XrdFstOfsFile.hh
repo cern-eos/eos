@@ -207,6 +207,10 @@ public:
   //--------------------------------------------------------------------------
   std::string GetFstPath ();
 
+  //--------------------------------------------------------------------------
+  //! Check if the TpcKey is still valid e.g. member of gOFS.TpcMap
+  //--------------------------------------------------------------------------
+  bool TpcValid (); 
 
 protected:
   XrdOucEnv* openOpaque;
@@ -225,6 +229,7 @@ protected:
   XrdOucString RedirectManager; //! manager host where we bounce back
   XrdOucString SecString; //! string containing security summary
   XrdSysMutex ChecksumMutex; //! mutex protecting the checksum class
+  XrdOucString TpcKey; //! TPC key for a tpc file operation
 
   bool hasBlockXs; //! mark if file has blockxs assigned
   unsigned long long fileid; //! file id
@@ -253,6 +258,27 @@ protected:
 
   int writeErrorFlag; //! uses kOFSxx enums to specify an error condition 
 
+  enum
+  {
+    kTpcNone = 0, //! no TPC access
+    kTpcSrcSetup = 1, //! access setting up a source TPC session
+    kTpcDstSetup = 2, //! access setting up a destination TPC session
+    kTpcSrcRead = 3, //! read access from a TPC destination
+    kTpcSrcCanDo = 4, //! read access to evaluate if source available
+  };
+
+  int tpcFlag; //! uses kTpcXYZ enums above to identify TPC access
+  
+  enum
+  {
+    kTpcIdle = 0, //! TPC is not enabled and not running (no sync received)
+    kTpcEnabled = 1, //! TPC is enabled, but not running (1st sync received)
+    kTpcRun = 2, //! TPC is running (2nd sync received)
+    kTpcDone = 3, //! TPC has finished
+  };
+  
+  int tpcState; //! uses kTPCXYZ enumgs above to tag the TPC state
+  
   FmdSqlite* fMd; //! pointer to the in-memory file meta data object             
   eos::fst::CheckSum* checkSum; //! pointer to a checksum object
   Layout* layOut; //! pointer to a layout object
@@ -274,8 +300,8 @@ protected:
   unsigned long long wBytes; //! sum bytes written
   unsigned long long sFwdBytes; //! sum bytes seeked forward
   unsigned long long sBwdBytes; //! sum bytes seeked backward
-  unsigned long long sXlFwdBytes;//! sum bytes with large forward seeks (> EOS_FSTOFS_LARGE_SEEKS)
-  unsigned long long sXlBwdBytes;//! sum bytes with large backward seeks (> EOS_FSTOFS_LARGE_SEEKS)
+  unsigned long long sXlFwdBytes; //! sum bytes with large forward seeks (> EOS_FSTOFS_LARGE_SEEKS)
+  unsigned long long sXlBwdBytes; //! sum bytes with large backward seeks (> EOS_FSTOFS_LARGE_SEEKS)
   unsigned long rCalls; //! number of read calls
   unsigned long wCalls; //! number of write calls
   unsigned long nFwdSeeks; //! number of seeks forward

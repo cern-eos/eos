@@ -128,6 +128,11 @@ eos::common::LogId ()
  (void) signal(SIGSEGV, xrdfstofs_stacktrace);
  (void) signal(SIGABRT, xrdfstofs_stacktrace);
  (void) signal(SIGBUS, xrdfstofs_stacktrace);
+
+ TpcMap.emplace(TpcMap.end());
+ TpcMap.emplace(TpcMap.end());
+ TpcMap[0].set_deleted_key(""); // readers
+ TpcMap[1].set_deleted_key(""); // writers
 }
 
 

@@ -18,6 +18,7 @@ ofs.authlib libXrdEosAuth.so
 ofs.authorize
 ofs.persist off
 ofs.osslib libEosFstOss.so
+ofs.tpc
 ###########################################################
 # this URL can be overwritten by EOS_BROKER_URL defined /etc/sysconfig/xrd
 fstofs.broker root://localhost:1097//eos/

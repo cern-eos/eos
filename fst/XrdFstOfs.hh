@@ -75,9 +75,7 @@ private:
 public:
 
   XrdFstOfsDirectory (const char* user, int MonID = 0) :
-  XrdSfsDirectory (user, MonID) 
-  {
-  }
+  XrdSfsDirectory (user, MonID) { }
 
   virtual
   ~XrdFstOfsDirectory ()
@@ -240,19 +238,36 @@ public:
   void SendFsck (XrdMqMessage* message);
 
   int Stall (XrdOucErrInfo& error, int stime, const char* msg);
-  int Redirect (XrdOucErrInfo& error, const char* host, int& port);
+  int
+  Redirect (XrdOucErrInfo& error, const char* host, int& port);
 
   eos::fst::Messaging* Messaging; //! messaging interface class
   eos::fst::Storage* Storage; //! Meta data & filesytem store object
 
   XrdSysMutex OpenFidMutex;
-  //  std::map<eos::common::FileSystem::fsid_t, std::map<unsigned long long, unsigned int> > WOpenFid;
-  //  std::map<eos::common::FileSystem::fsid_t, std::map<unsigned long long, unsigned int> > ROpenFId;
+
   google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > WOpenFid;
   google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > ROpenFid;
 
   XrdSysMutex XSLockFidMutex;
   google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > XSLockFid;
+
+  struct TpcInfo
+  {
+    std::string path;
+    std::string opaque;
+    std::string capability;
+    std::string key;
+    std::string src;
+    std::string dst;
+    std::string org;
+    std::string lfn;
+    time_t expires;
+  };
+
+  XrdSysMutex TpcMapMutex; //< a mutex protecting a Tpc Map
+  std::vector<google::sparse_hash_map<std::string, struct TpcInfo >> TpcMap; //< a vector map pointing from tpc key => tpc information for reads, [0] are readers [1] are writers
+
 
 
   XrdSysMutex ReportQueueMutex;
