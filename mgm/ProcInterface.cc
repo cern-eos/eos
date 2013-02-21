@@ -410,54 +410,64 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
    if (mCmd == "access")
    {
      Access();
+     mDoSort = false;
    }
    else
 
      if (mCmd == "config")
    {
      Config();
+     mDoSort = false;
    }
    else
 
      if (mCmd == "node")
    {
      Node();
+     mDoSort = false;
    }
    else
      if (mCmd == "space")
    {
      Space();
+     mDoSort = false;
    }
    else
 
      if (mCmd == "group")
    {
      Group();
+     mDoSort = false;
    }
    else
      if (mCmd == "fs")
    {
      Fs();
+     mDoSort = false;
    }
    else
      if (mCmd == "ns")
    {
      Ns();
+     mDoSort = false;
    }
    else
      if (mCmd == "io")
    {
      Io();
+     mDoSort = false;
    }
    else
      if (mCmd == "fsck")
    {
      Fsck();
+     mDoSort = false;
    }
    else
      if (mCmd == "quota")
    {
      AdminQuota();
+     mDoSort = false;
    }
    else
      if (mCmd == "transfer")
@@ -479,6 +489,7 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
      if (mCmd == "rtlog")
    {
      Rtlog();
+     mDoSort = false;
    }
    else
      if (mCmd == "chown")
