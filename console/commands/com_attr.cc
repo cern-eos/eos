@@ -142,7 +142,7 @@ com_attr (char* arg1) {
         XrdOucString d1 = optionstring; d1 += "set "; d1 += "sys.forced.blocksize=1M ";   d1 += path;
         XrdOucString d2 = optionstring; d2 += "set "; d2 += "sys.forced.checksum=adler "; d2 += path;
         XrdOucString d3 = optionstring; d3 += "set "; d3 += "sys.forced.layout=archive "; d3 += path;
-        XrdOucString d4 = optionstring; d4 += "set "; d4 += "sys.forced.nstripes=5 ";     d4 += path;
+        XrdOucString d4 = optionstring; d4 += "set "; d4 += "sys.forced.nstripes=8 ";     d4 += path;
         XrdOucString d5 = optionstring; d5 += "set "; d5 += "sys.forced.space=default ";  d5 += path;
         XrdOucString d6 = optionstring; d6 += "set "; d6 += "sys.forced.blockchecksum=crc32c ";  d6 += path;
         global_retc = com_attr((char*)d1.c_str()) || com_attr((char*)d2.c_str()) || com_attr((char*)d3.c_str()) || com_attr((char*)d4.c_str()) || com_attr((char*)d5.c_str()) || com_attr((char*)d6.c_str());
