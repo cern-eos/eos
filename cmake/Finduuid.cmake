@@ -12,6 +12,7 @@ endif(UUID_INCLUDE_DIRS AND UUID_LIBRARIES)
 find_path(UUID_INCLUDE_DIR uuid.h
                            HINTS
                            /usr/include/
+			   /usr/include/uuid/
 			   )
 find_library(UUID_LIBRARY uuid
 			  HINTS
