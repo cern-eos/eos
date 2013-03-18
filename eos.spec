@@ -58,7 +58,6 @@ export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 mkdir -p build
 cd build
 cmake ../ -DRELEASE=%{release} -DCMAKE_BUILD_TYPE=RelWithDebInfo
-%{__make} xrootd-git-stable
 %{__make} %{_smp_mflags} 
 %install
 cd build
