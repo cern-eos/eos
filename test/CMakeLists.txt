@@ -100,7 +100,7 @@ add_executable (testhmacsha256
 		../common/SymKeys.hh            ../common/SymKeys.cc
 )					
 
-target_link_libraries(xrdstress.exe XrdPosix ${UUID_LIBRARIES} XrdUtils)
+target_link_libraries(xrdstress.exe XrdPosix XrdUtils  ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(xrdcpabort XrdPosix XrdUtils)
 target_link_libraries(xrdcprandom XrdPosix XrdUtils)
 target_link_libraries(xrdcpextend XrdPosix XrdUtils)
@@ -112,11 +112,11 @@ target_link_libraries(xrdcpshrink XrdPosix XrdUtils)
 target_link_libraries(xrdcptruncate XrdPosix XrdUtils)
 target_link_libraries(xrdcpposixcache XrdPosix XrdUtils)
 target_link_libraries(xrdcppartial XrdPosix XrdUtils)
-target_link_libraries(eoschecksumbench XrdPosix eosCommon XrdUtils)
+target_link_libraries(eoschecksumbench XrdPosix eosCommon XrdUtils ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(eos-udp-dumper)
 target_link_libraries(eosnsbench eosCommon-Static eosNamespace-Static)
-target_link_libraries(testhmacsha256 eosCommon)
+target_link_libraries(testhmacsha256 eosCommon ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties ( xrdstress.exe PROPERTIES COMPILE_FLAGS "-std=gnu++0x -D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcpabort PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )

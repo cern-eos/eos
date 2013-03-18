@@ -13,6 +13,7 @@ BuildRoot: %{_tmppath}/%{name}-root
 BuildRequires: cmake >= 2.6
 BuildRequires: xrootd-server >= 3.3.0
 BuildRequires: xrootd-server-devel  >= 3.3.0
+BuildRequires: xrootd-private-devel  >= 3.3.0
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: libattr-devel
 BuildRequires: sparsehash

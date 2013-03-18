@@ -21,7 +21,10 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd/ ${CMAKE_BINARY_DIR}/xrootd/src/include/ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} )
+include_directories( ../ 
+		     ${XROOTD_INCLUDE_DIR} 
+		     ${XROOTD_PRIVATE_INCLUDE_DIR} 
+		     ${SPARSEHASH_INCLUDE_DIR} )
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR})
 
 add_library (XrdEosMgm MODULE
@@ -83,7 +86,15 @@ add_library (XrdEosMgm MODULE
 	    Master.cc
 	    )
 
-target_link_libraries (XrdEosMgm XrdCl XrdPosix XrdUtils XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto ${UUID_LIBRARIES} curses pthread dl z )
+target_link_libraries( XrdEosMgm 
+                       XrdCl                XrdPosix 
+                       XrdUtils             XrdOfs 
+                       eosCommon-Static     eosNamespace-Static 
+                       eosCapability-Static XrdMqClient-Static 
+                       crypto               curses 
+		       dl                   z 
+		       ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
+                     )
 
 add_executable ( testmgmview
 	         FsView.cc
@@ -91,7 +102,12 @@ add_executable ( testmgmview
 )
 
 
-target_link_libraries ( testmgmview XrdCl XrdUtils eosCommon-Static XrdMqClient-Static crypto ${UUID_LIBRARIES} curses pthread dl z)
+target_link_libraries ( testmgmview 
+                        XrdCl             XrdUtils 
+                        eosCommon-Static  XrdMqClient-Static 
+                        crypto            curses 
+                        dl                z 
+                        ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties ( testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST" )
 

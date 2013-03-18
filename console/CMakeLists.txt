@@ -22,9 +22,8 @@
 # ************************************************************************
 
 include_directories( ../ 
-		     ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd
-		     ${CMAKE_BINARY_DIR}/xrootd/src/include/
 		     ${XROOTD_INCLUDE_DIR} 
+		     ${XROOTD_PRIVATE_INCLUDE_DIR} 
 		     ${SPARSEHASH_INCLUDE_DIR} )
 
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}
@@ -105,23 +104,26 @@ if (CLIENT)
 target_link_libraries( eos 
 		       XrdPosix	        XrdCl
 		       XrdUtils  	eosCommon-Static 
-		       pthread 	        dl
-		       crypto 		${UUID_LIBRARIES} 		
-		       curses 		z    		
-		       readline 
-)
+		       crypto           curses
+		       dl               z
+                       readline         ${CMAKE_THREAD_LIBS_INIT}	$
+                       {UUID_LIBRARIES} 			       
+                     )
 else (CLIENT)
 target_link_libraries( eos 
-		       XrdPosix	        XrdCl 
-		       XrdUtils 	eosCommon-Static 
-		       readline         XrdMqClient-Static
-		       pthread 	        crypto 
-		       ${UUID_LIBRARIES} curses 
-		       z 		dl 		       
-)
+		       XrdPosix	         XrdCl 
+		       XrdUtils 	 eosCommon-Static 
+                       readline          XrdMqClient-Static
+		       crypto            curses
+		       dl                z
+                       ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT}
+                     )
 endif(CLIENT)
 
-target_link_libraries( eosdropboxd eosCommon-Static XrdPosix XrdCl XrdUtils pthread )
+target_link_libraries( eosdropboxd 
+		       eosCommon-Static XrdPosix 
+		       XrdCl            XrdUtils 
+		       ${CMAKE_THREAD_LIBS_INIT} )
 
 INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR} FILES eosadmin )
 
