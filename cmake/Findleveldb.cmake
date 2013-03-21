@@ -6,6 +6,7 @@
 # LEVELDB_LIB_DIR     - the leveldb library directory
 #
 # LEVELDB_DIR may be defined as a hint for where to look
+# LEVELDB_LIBRARIES   - the level db library name(s)
 
 FIND_PATH(LEVELDB_INCLUDE_DIR leveldb/db.h
   HINTS
@@ -27,6 +28,10 @@ FIND_LIBRARY(LEVELDB_LIB leveldb
   /opt/leveldb/
   PATH_SUFFIXES lib
 )
+
+
+set(LEVELDB_LIBRARIES ${LEVELDB_LIB})
+
 
 GET_FILENAME_COMPONENT( LEVELDB_LIB_DIR ${LEVELDB_LIB} PATH )
 

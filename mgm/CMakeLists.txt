@@ -26,10 +26,10 @@ link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR})
 
 add_library (XrdEosMgm MODULE
             Access.cc         
-	    ConfigEngine.cc
-	    Messaging.cc
-	    Policy.cc  
-	    ProcInterface.cc
+	          ConfigEngine.cc
+      	    Messaging.cc
+	          Policy.cc  
+	          ProcInterface.cc
             proc/proc_fs.cc
             proc/admin/Access.cc
             proc/admin/Chown.cc
@@ -49,8 +49,8 @@ add_library (XrdEosMgm MODULE
             proc/user/Attr.cc
             proc/user/Cd.cc
             proc/user/Chmod.cc
-            proc/user/File.cc
-	    proc/user/Fileinfo.cc
+            proc/user/File.cc 
+            proc/user/Fileinfo.cc
             proc/user/Find.cc
             proc/user/Fuse.cc
             proc/user/Ls.cc
@@ -58,17 +58,18 @@ add_library (XrdEosMgm MODULE
             proc/user/Mkdir.cc
             proc/user/Motd.cc
             proc/user/Quota.cc
+            proc/user/Recycle.cc
             proc/user/Rm.cc
             proc/user/Rmdir.cc
             proc/user/Version.cc
             proc/user/Who.cc
             proc/user/Whoami.cc
-	    Quota.cc
+            Quota.cc
             Scheduler.cc
-	    Vid.cc
-	    FsView.cc
-	    XrdMgmOfsConfigure.cc
-	    XrdMgmOfs.cc
+            Vid.cc
+            FsView.cc
+            XrdMgmOfsConfigure.cc
+            XrdMgmOfs.cc
             DrainJob.cc
             Balancer.cc
             FileSystem.cc
@@ -76,11 +77,14 @@ add_library (XrdEosMgm MODULE
             Acl.cc
             Stat.cc
             Iostat.cc
-	    Fsck.cc
-	    txengine/TransferEngine.cc
-	    txengine/TransferFsDB.cc
-	    ZMQ.cc
-	    Master.cc
+            Fsck.cc
+            txengine/TransferEngine.cc
+            txengine/TransferFsDB.cc
+            ZMQ.cc
+            Master.cc
+	    Recycle.cc
+            Http.cc
+	    S3Store.cc
 	    )
 
 target_link_libraries (XrdEosMgm XrdCl XrdPosix XrdUtils XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto ${UUID_LIBRARIES} curses pthread dl z )
