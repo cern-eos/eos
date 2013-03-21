@@ -32,7 +32,7 @@
 XrdPosixXrootd posixXrootd;
 
 int main (int argc, char* argv[]) {
-  // create a 1k file but does not close it!
+  // update an existing file and append a 4k buffer;
   XrdOucString urlFile = argv[1];
   if (!urlFile.length()) {
     fprintf(stderr,"usage: xrdcpappend <url>\n");
