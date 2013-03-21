@@ -71,6 +71,7 @@ extern int com_pwd (char*);
 extern int com_quit (char *);
 extern int com_quota (char*);
 extern int com_reconnect (char*);
+extern int com_recycle (char*);
 extern int com_restart (char*);
 extern int com_rm (char*);
 extern int com_rmdir (char*);
@@ -204,6 +205,7 @@ COMMAND commands[] = {
   { (char*)"quit",     com_quit,     (char*)"Exit from EOS console" },
   { (char*)"quota",    com_quota,    (char*)"Quota System configuration"},
   { (char*)"reconnect",com_reconnect,(char*)"Forces a re-authentication of the shell"},
+  { (char*)"recycle",  com_recycle,  (char*)"Recycle Bin Functionality"},
   { (char*)"restart",  com_restart,  (char*)"Restart System"},
   { (char*)"rmdir",    com_rmdir,    (char*)"Remove a directory" },
   { (char*)"rm",       com_rm,       (char*)"Remove a file" },

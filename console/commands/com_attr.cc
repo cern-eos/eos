@@ -226,6 +226,9 @@ com_attr (char* arg1) {
   fprintf(stdout,"               => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eog/public \n\n");
   fprintf(stdout,"         sys.redirect.enonet=<host[:port]>     : redirect clients opening unaccessible files to <host[:port]>\n");
   fprintf(stdout,"               => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eog/public \n\n");
+  fprintf(stdout,"         sys.recycle=/recycle                  : define the recycle bin for that directory e.g. /recycle is currently the only allowed location\n\n");
+  fprintf(stdout,"         sys.recycle.keeptime=<seconds>        : define the time how long files stay in a recycle bin before final deletions taks place. This attribute has to defined on the recycle bin e.g. currently only => /recycle \n\n");
+  
   fprintf(stdout,"         sys.acl=<acllist>                     : set's an ACL which is honoured for open,rm & rmdir operations\n");
   fprintf(stdout,"               => <acllist> = <rule1>,<rule2>...<ruleN> is a comma separated list of rules\n");
   fprintf(stdout,"               => <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)} \n\n");
