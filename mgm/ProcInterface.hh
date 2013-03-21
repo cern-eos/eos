@@ -178,6 +178,7 @@ public:
     int Mkdir();
     int Motd();
     int Quota();
+    int Recycle();
     int Rm();
     int Rmdir();
     int Version();

@@ -64,6 +64,7 @@ ProcInterface::ProcInterface () { }
 /**
  * Destructor 
  */
+
 /*----------------------------------------------------------------------------*/
 ProcInterface::~ProcInterface () { }
 
@@ -73,6 +74,7 @@ ProcInterface::~ProcInterface () { }
  * @param path input path for a proc command
  * @return true if proc command otherwise false
  */
+
 /*----------------------------------------------------------------------------*/
 bool
 ProcInterface::IsProcAccess (const char* path)
@@ -91,6 +93,7 @@ ProcInterface::IsProcAccess (const char* path)
  * @param info CGI for proc command
  * @return true if write access otherwise false
  */
+
 /*----------------------------------------------------------------------------*/
 bool
 ProcInterface::IsWriteAccess (const char* path, const char* info)
@@ -171,6 +174,7 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
  * @param entity security entity object
  * @return true if authorized otherwise false
  */
+
 /*----------------------------------------------------------------------------*/
 bool
 ProcInterface::Authorize (const char* path,
@@ -198,7 +202,7 @@ ProcInterface::Authorize (const char* path,
    {
      return true;
    }
- 
+
    // --------------------------------------------------------------------------
    // one has to be part of the virtual users 2(daemon) || 3(adm)/4(adm) 
    // --------------------------------------------------------------------------
@@ -214,7 +218,7 @@ ProcInterface::Authorize (const char* path,
  {
    return true;
  }
- 
+
  return false;
 }
 
@@ -222,6 +226,7 @@ ProcInterface::Authorize (const char* path,
 /**
  * Constructor ProcCommand
  */
+
 /*----------------------------------------------------------------------------*/
 ProcCommand::ProcCommand ()
 {
@@ -250,6 +255,7 @@ ProcCommand::ProcCommand ()
 /**
  * Destructor
  */
+
 /*----------------------------------------------------------------------------*/
 ProcCommand::~ProcCommand ()
 {
@@ -286,6 +292,7 @@ ProcCommand::~ProcCommand ()
  * Open temporary output files for results of find commands
  * @return true if successful otherwise false
  */
+
 /*----------------------------------------------------------------------------*/
 bool
 ProcCommand::OpenTemporaryOutputFiles ()
@@ -338,6 +345,7 @@ ProcCommand::OpenTemporaryOutputFiles ()
  * @param error object to store errors
  * @return SFS_OK in any case
  */
+
 /*----------------------------------------------------------------------------*/
 int
 ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::VirtualIdentity &vid_in, XrdOucErrInfo *error)
@@ -377,13 +385,13 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
 
  mFuseFormat = false;
  mJsonFormat = false;
- 
+
  // ----------------------------------------------------------------------------
  // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line 
  // feed in the end
  // ----------------------------------------------------------------------------
- 
- XrdOucString format = pOpaque->Get("mgm.format"); 
+
+ XrdOucString format = pOpaque->Get("mgm.format");
 
  if (format == "fuse")
  {
@@ -607,8 +615,14 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
    {
      if (Chmod() == SFS_OK) return SFS_OK;
    }
+   else 
+     if (mCmd == "recycle")
+   {
+     Recycle();
+     mDoSort = false;
+   }
    else
-   { 
+   {
      // ------------------------------------------------------------------------
      // command not implemented
      // ------------------------------------------------------------------------
@@ -635,6 +649,7 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
  * @param blen len to return
  * @return number of bytes read
  */
+
 /*----------------------------------------------------------------------------*/
 int
 ProcCommand::read (XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
@@ -677,6 +692,7 @@ ProcCommand::read (XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
  * @param buf stat structure to fill
  * @return SFS_OK in any case
  */
+
 /*----------------------------------------------------------------------------*/
 int
 ProcCommand::stat (struct stat* buf)
@@ -688,6 +704,7 @@ ProcCommand::stat (struct stat* buf)
 }
 
 /*----------------------------------------------------------------------------*/
+
 /**
  * close the proc stream and store the clients comment for the command in the
  * comment log file
@@ -720,6 +737,7 @@ ProcCommand::close ()
  * Depending on the output format the key-value CGI returned changes => see
  * implementation.
  */
+
 /*----------------------------------------------------------------------------*/
 void
 ProcCommand::MakeResult ()
@@ -782,8 +800,8 @@ ProcCommand::MakeResult ()
      // ------------------------------------------------------------------------
      // create the stdout result
      // ------------------------------------------------------------------------
-     if (!fseek(fstdout, 0, 0) && 
-         !fseek(fstderr, 0, 0) && 
+     if (!fseek(fstdout, 0, 0) &&
+         !fseek(fstderr, 0, 0) &&
          !fseek(fresultStream, 0, 0))
      {
        fprintf(fresultStream, "&mgm.proc.stdout=");
