@@ -787,7 +787,7 @@ XrdFstOfsFile::open (const char* path,
    }
  }
 
- eos_info("checksum=%llu entryserver=%d", checkSum, layOut->IsEntryServer());
+ eos_info("checksum=%llx entryserver=%d", (unsigned long long)checkSum, layOut->IsEntryServer());
 
  if (!isCreation)
  {

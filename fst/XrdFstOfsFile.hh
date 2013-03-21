@@ -212,6 +212,13 @@ public:
   //--------------------------------------------------------------------------
   bool TpcValid (); 
 
+  //--------------------------------------------------------------------------
+  //! return the file size seen at open time
+  //--------------------------------------------------------------------------
+  off_t getOpenSize() {
+    return openSize;
+  }
+
 protected:
   XrdOucEnv* openOpaque;
   XrdOucEnv* capOpaque;
