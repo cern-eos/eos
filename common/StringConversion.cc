@@ -227,6 +227,42 @@ StringConversion::GetSizeFromString (XrdOucString sizestring)
  {
    convfactor = 1000ll;
  }
+
+ if (sizestring.endswith ("S") || sizestring.endswith ("s"))
+ {
+   convfactor = 1ll;
+ }
+
+ if (sizestring.endswith ("MIN") || sizestring.endswith ("min"))
+ {
+   convfactor = 1ll;
+ }
+
+ if (sizestring.endswith ("H") || sizestring.endswith ("h"))
+ {
+   convfactor = 3600ll;
+ }
+
+ if (sizestring.endswith ("D") || sizestring.endswith ("d"))
+ {
+   convfactor = 86400ll;
+ }
+
+ if (sizestring.endswith ("W") || sizestring.endswith ("w"))
+ {
+   convfactor = 7*86400ll;
+ }
+
+ if (sizestring.endswith ("MO") || sizestring.endswith ("mo"))
+ {
+   convfactor = 31*86400ll;
+ }
+
+ if (sizestring.endswith ("Y") || sizestring.endswith ("y"))
+ {
+   convfactor = 365*86400ll;
+ }
+
  if (convfactor > 1)
    sizestring.erase (sizestring.length () - 1);
 

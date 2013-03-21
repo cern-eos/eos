@@ -25,25 +25,15 @@ include_directories(
 		     ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd
                      ${CMAKE_BINARY_DIR}/xrootd/src/include/
 		     ../ ${XROOTD_INCLUDE_DIR} 
-		     ${SPARSEHASH_INCLUDE_DIR} )
-
-link_directories( 
-		  ${CMAKE_INSTALL_FULL_LIBDIR}
-		  ${XROOTD_LIB_DIR} )
-
-if (LEVELDB_FOUND)
-include_directories( 
-		     ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd
-                     ${CMAKE_BINARY_DIR}/xrootd/src/include/
-		     ../ ${XROOTD_INCLUDE_DIR} 
 		     ${SPARSEHASH_INCLUDE_DIR} 
-		     ${LEVELDB_INCLUDE_DIR} )
+		     ${LEVELDB_INCLUDE_DIR}
+)
+
 link_directories( 
 		  ${CMAKE_INSTALL_FULL_LIBDIR}
 		  ${XROOTD_LIB_DIR} 
-		  ${LEVELDB_LIB_DIR} )		   
-
-endif (LEVELDB_FOUND)
+		  ${LEVELDB_LIB_DIR}
+)
 
 add_library (eosCommon SHARED 
 	    FileSystem.cc
@@ -64,6 +54,8 @@ add_library (eosCommon SHARED
 	    CommentLog.cc
 	    RWMutex.cc
             DbMap.cc
+	    Http.cc
+            S3.cc
             stringencoders/modp_numtoa.c
 	    )
 
@@ -86,6 +78,8 @@ add_library (eosCommon-Static STATIC
 	    CommentLog.cc
 	    RWMutex.cc
             DbMap.cc
+	    Http.cc
+	    S3.cc
             stringencoders/modp_numtoa.c
 )
 
@@ -100,12 +94,8 @@ add_executable ( mutextest
        mutextest/RWMutexTest.cc
 )
 
-target_link_libraries ( eosCommon XrdMqClient XrdUtils XrdCl crypto ${UUID_LIBRARIES} curses z ${ATTR_LIBRARIES} )
-target_link_libraries ( eosCommon-Static XrdMqClient-Static XrdUtils XrdCl crypto ${UUID_LIBRARIES} curses z ${ATTR_LIBRARIES} )
-if(LEVELDB_FOUND)
-target_link_libraries ( eosCommon leveldb ) 
-target_link_libraries ( eosCommon-Static leveldb )
-endif(LEVELDB_FOUND)
+target_link_libraries ( eosCommon XrdMqClient XrdUtils XrdCl crypto ${UUID_LIBRARIES} curses z ${ATTR_LIBRARIES} ${MICROHTTPD_LIBRARIES} ${LEVELDB_LIBRARIES} )
+target_link_libraries ( eosCommon-Static XrdMqClient-Static XrdUtils XrdCl crypto ${UUID_LIBRARIES} curses z ${ATTR_LIBRARIES} ${MICROHTTPD_LIBRARIES} ${LEVELDB_LIBRARIES} )
 
 target_link_libraries ( dbmaptestfunc eosCommon )
 target_link_libraries ( dbmaptestburn eosCommon )

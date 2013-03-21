@@ -37,6 +37,9 @@
 #include "XrdOuc/XrdOucTrace.hh"
 #include "common/Namespace.hh"
 #include <sys/time.h>
+#include <time.h>
+#include <stdio.h>
+#include <string>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -55,7 +58,8 @@ EOSCOMMONNAMESPACE_BEGIN
 //! tm.Print();
 //! fprintf(stdout,"realtime = %.02f", tm.RealTime());
 /*----------------------------------------------------------------------------*/
-class Timing {
+class Timing
+{
 public:
   struct timeval tv;
   XrdOucString tag;
@@ -66,65 +70,86 @@ public:
   // ---------------------------------------------------------------------------
   //! Constructor - used only internally
   // ---------------------------------------------------------------------------
-  Timing(const char* name, struct timeval &i_tv) {
-    memcpy(&tv, &i_tv, sizeof(struct timeval));
+
+  Timing (const char* name, struct timeval &i_tv)
+  {
+    memcpy(&tv, &i_tv, sizeof (struct timeval));
     tag = name;
     next = 0;
-    ptr  = this;
+    ptr = this;
   }
   // ---------------------------------------------------------------------------
   //! Constructor - tag is used as the name for the measurement in Print
   // ---------------------------------------------------------------------------
-  Timing(const char* i_maintag) {
+
+  Timing (const char* i_maintag)
+  {
     tag = "BEGIN";
     next = 0;
-    ptr  = this;
+    ptr = this;
     maintag = i_maintag;
   }
 
   // ---------------------------------------------------------------------------
   //! Print method to display measurements on STDERR
   // ---------------------------------------------------------------------------
-  void Print() {
+
+  void
+  Print ()
+  {
     char msg[512];
     Timing* p = this->next;
-    Timing* n; 
+    Timing* n;
     cerr << std::endl;
-    while ((n =p->next)) {
+    while ((n = p->next))
+    {
 
-      sprintf(msg,"                                        [%12s] %12s<=>%-12s : %.03f\n",maintag.c_str(),p->tag.c_str(),n->tag.c_str(), (float)((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec))/1000.0);
+      sprintf(msg, "                                        [%12s] %12s<=>%-12s : %.03f\n", maintag.c_str(), p->tag.c_str(), n->tag.c_str(), (float) ((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
       cerr << msg;
       p = n;
     }
     n = p;
     p = this->next;
-    sprintf(msg,"                                        =%12s= %12s<=>%-12s : %.03f\n",maintag.c_str(),p->tag.c_str(), n->tag.c_str(), (float)((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec))/1000.0);
+    sprintf(msg, "                                        =%12s= %12s<=>%-12s : %.03f\n", maintag.c_str(), p->tag.c_str(), n->tag.c_str(), (float) ((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
     cerr << msg;
   }
 
   // ---------------------------------------------------------------------------
   //! Return total Realtime
   // ---------------------------------------------------------------------------
-  double RealTime() {
+
+  double
+  RealTime ()
+  {
     Timing* p = this->next;
-    Timing* n; 
-    while ((n =p->next)) {
+    Timing* n;
+    while ((n = p->next))
+    {
       p = n;
     }
     n = p;
     p = this->next;
-    return (double) ((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec))/1000.0;
+    return (double) ((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0;
   }
 
   // ---------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
-  virtual ~Timing(){Timing* n = next; if (n) delete n;};
+
+  virtual
+  ~Timing ()
+  {
+    Timing* n = next;
+    if (n) delete n;
+  };
 
   // ---------------------------------------------------------------------------
   //! Wrapper Function to hide difference between Apple and Linux
   // ---------------------------------------------------------------------------
-  static void GetTimeSpec(struct timespec &ts) {
+
+  static void
+  GetTimeSpec (struct timespec &ts)
+  {
 #ifdef __APPLE__
     struct timeval tv;
     gettimeofday(&tv, 0);
@@ -133,7 +158,41 @@ public:
 #else
     clock_gettime(CLOCK_REALTIME, &ts);
 #endif
-  }    
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Time Conversion Function for ISO8601 time strings
+  // ---------------------------------------------------------------------------
+
+  static std::string
+  UnixTimstamp_to_ISO8601 (time_t now)
+  {
+    struct tm *utctime;
+    char str[21];
+    utctime = gmtime(&now);
+    strftime(str, 21, "%Y-%m-%dT%H:%M:%SZ", utctime);
+    return str;
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Time Conversion Function for strings to ISO8601 time 
+  // ---------------------------------------------------------------------------
+
+  static time_t
+  ISO8601_to_UnixTimestamp (std::string iso)
+  {
+    tzset();
+    char temp[64];
+    memset(temp, 0, sizeof (temp));
+    strncpy(temp, iso.c_str(), (iso.length() < 64) ? iso.length() : 64);
+
+    struct tm ctime;
+    memset(&ctime, 0, sizeof (struct tm));
+    strptime(temp, "%FT%T%z", &ctime);
+
+    time_t ts = mktime(&ctime) - timezone;
+    return ts;
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -150,5 +209,5 @@ public:
 
 
 EOSCOMMONNAMESPACE_END
- 
+
 #endif

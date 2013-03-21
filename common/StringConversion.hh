@@ -120,7 +120,7 @@ public:
  /** 
   * Convert a readable string into a number
   * 
-  * @param sizestring readable string like 4 KB or 1000 GB
+  * @param sizestring readable string like 4KB or 1000GB or 1s,1d,1y
   * 
   * @return number
   */
