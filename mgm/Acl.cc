@@ -35,8 +35,8 @@ EOSMGMNAMESPACE_BEGIN
 /** 
  * Constructor
  * 
- * @param sysacl system acl definition string 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)}'
- * @param useracl user acl definition string 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)}'
+ * @param sysacl system acl definition string 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}'
+ * @param useracl user acl definition string 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}'
  * @param vid virtual id to match ACL
  */
 /*----------------------------------------------------------------------------*/
@@ -49,8 +49,8 @@ Acl::Acl (std::string sysacl, std::string useracl, eos::common::Mapping::Virtual
 /** 
  * Set the contents of an ACL and compute the canXX and hasXX booleans
  * 
- * @param sysacl system acl definition string 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)}'
- * @param useracl user acl definition string 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)}'
+ * @param sysacl system acl definition string 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}'
+ * @param useracl user acl definition string 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}'
  * @param vid virtual id to match ACL 
  */
 
@@ -78,6 +78,7 @@ Acl::Set (std::string sysacl, std::string useracl, eos::common::Mapping::Virtual
  canRead = false;
  canWrite = false;
  canWriteOnce = false;
+ canUpdate = true;
  canBrowse = false;
  canChmod = false;
  canNotDelete = false;
@@ -214,6 +215,24 @@ Acl::Set (std::string sysacl, std::string useracl, eos::common::Mapping::Virtual
        canDelete = true;
        canNotDelete = false;
        canWriteOnce = false;
+       hasAcl = true;
+     }
+
+     // ---------------------------------------------------------------------------
+     //! '!d' removes update
+     // ---------------------------------------------------------------------------
+     if ((entry[2].find("!u")) != std::string::npos)
+     {
+       canUpdate = false;
+       hasAcl = true;
+     }
+
+     // ---------------------------------------------------------------------------
+     //! '+d' adds update
+     // ---------------------------------------------------------------------------
+     if ((entry[2].find("+u")) != std::string::npos)
+     {
+       canUpdate = true;
        hasAcl = true;
      }
 

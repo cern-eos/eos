@@ -52,7 +52,8 @@ class Acl
 {
   bool canRead; //< acl allows read access
   bool canWrite; //< acl allows write access
-  bool canWriteOnce; //< acl allows write-once access
+  bool canWriteOnce; //< acl allows write-once access (creation, no delete)
+  bool canUpdate; //< acl allows update of files
   bool canBrowse; //< acl allows browsing
   bool canChmod; //< acl allows mode change
   bool canNotDelete; //< acl forbids deletion
@@ -70,6 +71,7 @@ public:
     canRead = false;
     canWrite = false;
     canWriteOnce = false;
+    canUpdate = false;
     canBrowse = false;
     canChmod = false;
     canNotDelete = false;
@@ -115,6 +117,12 @@ public:
   CanWriteOnce ()
   {
     return canWriteOnce;
+  }
+
+  bool
+  CanUpdate ()
+  {
+    return canUpdate;
   }
 
   bool
