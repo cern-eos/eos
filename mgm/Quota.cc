@@ -34,6 +34,8 @@ EOSMGMNAMESPACE_BEGIN
 
 std::map<std::string, SpaceQuota*> Quota::gQuota;
 eos::common::RWMutex Quota::gQuotaMutex;
+gid_t Quota::gProjectId = 99;
+
 
 #ifdef __APPLE__
 #define ENONET 64
@@ -257,9 +259,27 @@ SpaceQuota::AddQuota (unsigned long tag, unsigned long id, long long value, bool
 {
  if (lock) Mutex.Lock();
  eos_static_debug("add quota tag=%lu id=%lu value=%llu", tag, id, value);
- // fix for avoiding negative numbers
- if ((((long long) Quota[Index(tag, id)]) + (long long) value) >= 0)
-   Quota[Index(tag, id)] += value;
+
+ if (id && (Quota[Index(kGroupBytesTarget, Quota::gProjectId)] > 0))
+ {
+   // project quota implementation accounts on '99' group
+   if ((((long long) Quota[Index(tag, Quota::gProjectId)]) + (long long) value) >= 0)
+     Quota[Index(tag, Quota::gProjectId)] += value;
+
+   if ((((long long) Quota[Index(tag, Quota::gProjectId)]) + (long long) value) >= 0)
+     Quota[Index(tag, Quota::gProjectId)] += value;
+ }
+ else
+ {
+   // user/group quota implementation
+   // fix for avoiding negative numbers
+   if ((((long long) Quota[Index(tag, id)]) + (long long) value) >= 0)
+     Quota[Index(tag, id)] += value;
+
+   if ((((long long) Quota[Index(tag, id)]) + (long long) value) >= 0)
+     Quota[Index(tag, id)] += value;
+ }
+
  eos_static_debug("sum quota tag=%lu id=%lu value=%llu", tag, id, Quota[Index(tag, id)]);
  if (lock) Mutex.UnLock();
 }
@@ -318,6 +338,13 @@ SpaceQuota::UpdateIsSums ()
  ResetQuota(kAllGroupFilesIs, 0, false);
  ResetQuota(kAllGroupLogicalBytesIs, 0, false);
 
+ ResetQuota(kAllUserBytesIs, 0, false);
+ ResetQuota(kAllUserLogicalBytesIs, 0, false);
+ ResetQuota(kAllUserFilesIs, 0, false);
+ ResetQuota(kAllGroupBytesIs, 0, false);
+ ResetQuota(kAllGroupFilesIs, 0, false);
+ ResetQuota(kAllGroupLogicalBytesIs, 0, false);
+
  std::map<long long, unsigned long long>::const_iterator it;
 
  for (it = Begin(); it != End(); it++)
@@ -347,12 +374,19 @@ SpaceQuota::UpdateFromQuotaNode (uid_t uid, gid_t gid)
  eos_static_debug("updating uid/gid values from quota node");
  if (QuotaNode)
  {
-   SetQuota(kAllUserBytesIs, uid, QuotaNode->getPhysicalSpaceByUser(uid), false);
-   SetQuota(kAllUserLogicalBytesIs, uid, QuotaNode->getUsedSpaceByUser(uid), false);
-   SetQuota(kAllUserFilesIs, uid, QuotaNode->getNumFilesByUser(uid), false);
-   SetQuota(kAllGroupBytesIs, gid, QuotaNode->getPhysicalSpaceByGroup(gid), false);
-   SetQuota(kAllGroupLogicalBytesIs, gid, QuotaNode->getUsedSpaceByUser(gid), false);
-   SetQuota(kAllGroupFilesIs, gid, QuotaNode->getNumFilesByGroup(gid), false);
+   ResetQuota(kUserBytesIs, uid, false);
+   ResetQuota(kUserLogicalBytesIs, uid, false);
+   ResetQuota(kUserFilesIs, uid, false);
+   ResetQuota(kGroupBytesIs, gid, false);
+   ResetQuota(kGroupFilesIs, gid, false);
+   ResetQuota(kGroupLogicalBytesIs, gid, false);
+
+   AddQuota(kUserBytesIs, uid, QuotaNode->getPhysicalSpaceByUser(uid), false);
+   AddQuota(kUserLogicalBytesIs, uid, QuotaNode->getUsedSpaceByUser(uid), false);
+   AddQuota(kUserFilesIs, uid, QuotaNode->getNumFilesByUser(uid), false);
+   AddQuota(kGroupBytesIs, gid, QuotaNode->getPhysicalSpaceByGroup(gid), false);
+   AddQuota(kGroupLogicalBytesIs, gid, QuotaNode->getUsedSpaceByUser(gid), false);
+   AddQuota(kGroupFilesIs, gid, QuotaNode->getNumFilesByGroup(gid), false);
  }
  Mutex.UnLock();
 }
@@ -383,6 +417,12 @@ SpaceQuota::PrintOut (XrdOucString &output, long uid_sel, long gid_sel, bool mon
  std::map<unsigned long, unsigned long > sortgidhash;
 
  std::map<unsigned long, unsigned long >::const_iterator sortit;
+
+ if (Quota[Index(kGroupBytesTarget, Quota::gProjectId)] > 0)
+ {
+   // for project space we just print the user/group entry gProjectId
+   gid_sel = Quota::gProjectId;
+ }
 
  if (!SpaceName.beginswith("/"))
  {
@@ -537,19 +577,26 @@ SpaceQuota::PrintOut (XrdOucString &output, long uid_sel, long gid_sel, bool mon
 
      if (translateids)
      {
-       // try to translate with password database
-       char buffer[16384];
-       int buflen = sizeof (buffer);
-       struct passwd pwbuf;
-       struct passwd *pwbufp = 0;
-       memset(&pwbuf, 0, sizeof (pwbuf));
-       if (!getpwuid_r(sortuidarray[lid], &pwbuf, buffer, buflen, &pwbufp))
+       if (gid_sel == Quota::gProjectId)
        {
-         char uidlimit[16];
-         if (pwbuf.pw_name)
+         id = "project";
+       }
+       else
+       {
+         // try to translate with password database
+         char buffer[16384];
+         int buflen = sizeof (buffer);
+         struct passwd pwbuf;
+         struct passwd *pwbufp = 0;
+         memset(&pwbuf, 0, sizeof (pwbuf));
+         if (!getpwuid_r(sortuidarray[lid], &pwbuf, buffer, buflen, &pwbufp))
          {
-           snprintf(uidlimit, 11, "%s", pwbuf.pw_name);
-           id = uidlimit;
+           char uidlimit[16];
+           if (pwbuf.pw_name)
+           {
+             snprintf(uidlimit, 11, "%s", pwbuf.pw_name);
+             id = uidlimit;
+           }
          }
        }
      }
@@ -627,24 +674,31 @@ SpaceQuota::PrintOut (XrdOucString &output, long uid_sel, long gid_sel, bool mon
 
      if (translateids)
      {
-       // try to translate with password database
-       char buffer[65536];
-       int buflen = sizeof (buffer);
-       struct group grbuf;
-       struct group *grbufp = 0;
-
-       if (!getgrgid_r(sortgidarray[lid], &grbuf, buffer, buflen, &grbufp))
+       if (gid_sel == Quota::gProjectId)
        {
-         char gidlimit[16];
-         if (grbufp && grbuf.gr_name)
+         id = "project";
+       }
+       else
+       {
+         // try to translate with password database
+         char buffer[65536];
+         int buflen = sizeof (buffer);
+         struct group grbuf;
+         struct group *grbufp = 0;
+
+         if (!getgrgid_r(sortgidarray[lid], &grbuf, buffer, buflen, &grbufp))
          {
-           snprintf(gidlimit, 11, "%s", grbuf.gr_name);
-           id = gidlimit;
-         }
-         else
-         {
-           snprintf(gidlimit, 11, "#notrans#");
-           id = gidlimit;
+           char gidlimit[16];
+           if (grbufp && grbuf.gr_name)
+           {
+             snprintf(gidlimit, 11, "%s", grbuf.gr_name);
+             id = gidlimit;
+           }
+           else
+           {
+             snprintf(gidlimit, 11, "#notrans#");
+             id = gidlimit;
+           }
          }
        }
      }
@@ -781,6 +835,11 @@ SpaceQuota::PrintOut (XrdOucString &output, long uid_sel, long gid_sel, bool mon
 bool
 SpaceQuota::CheckWriteQuota (uid_t uid, gid_t gid, long long desiredspace, unsigned int inodes)
 {
+ // ----------------------------------------------------------------------------
+ // Straigh-forward user/group quota checks
+ // If user & group quota is defined, both have to be fullfilled
+ // ----------------------------------------------------------------------------
+
  bool hasquota = false;
 
  // copy info from namespace Quota Node ...
@@ -789,8 +848,11 @@ SpaceQuota::CheckWriteQuota (uid_t uid, gid_t gid, long long desiredspace, unsig
 
  bool userquota = false;
  bool groupquota = false;
+ bool projectquota = false;
+ bool hasprojectquota = false;
  bool hasuserquota = false;
  bool hasgroupquota = false;
+
 
  if (GetQuota(kUserBytesTarget, uid, false) > 0)
  {
@@ -800,6 +862,11 @@ SpaceQuota::CheckWriteQuota (uid_t uid, gid_t gid, long long desiredspace, unsig
  if (GetQuota(kGroupBytesTarget, gid, false) > 0)
  {
    groupquota = true;
+ }
+
+ if (GetQuota(kGroupBytesTarget, Quota::gProjectId, false) > 0)
+ {
+   projectquota = true;
  }
 
  if ((((GetQuota(kUserBytesTarget, uid, false)) - (GetQuota(kUserBytesIs, uid, false))) > (long long) (desiredspace)) &&
@@ -818,6 +885,15 @@ SpaceQuota::CheckWriteQuota (uid_t uid, gid_t gid, long long desiredspace, unsig
 
  }
 
+ if (projectquota)
+ {
+   if ((((GetQuota(kGroupBytesTarget, Quota::gProjectId, false)) - (GetQuota(kGroupBytesIs, Quota::gProjectId, false))) > (long long) (desiredspace)) &&
+       (((GetQuota(kGroupFilesTarget, Quota::gProjectId, false)) - (GetQuota(kGroupFilesIs, Quota::gProjectId, false))) > (inodes)))
+   {
+     hasprojectquota = true;
+   }
+ }
+
  if ((userquota) && (groupquota))
  {
    // both are defined, we need to have both
@@ -826,6 +902,11 @@ SpaceQuota::CheckWriteQuota (uid_t uid, gid_t gid, long long desiredspace, unsig
  else
  {
    hasquota = hasuserquota || hasgroupquota;
+ }
+
+ if (projectquota && hasprojectquota)
+ {
+   hasquota = true;
  }
 
  if (uid == 0)
@@ -1057,12 +1138,12 @@ Quota::SetQuota (XrdOucString space, long uid_sel, long gid_sel, long long bytes
      if (bytes == -1)
      {
        spacequota->RmQuota(SpaceQuota::kUserBytesTarget, uid_sel);
-       sprintf(printline, "success: removed quota for uid=%ld\n", uid_sel);
+       sprintf(printline, "success: removed quota for uid=%ld from quotanode %s\n", uid_sel, spacequota->GetSpaceName());
      }
      else
      {
        spacequota->SetQuota(SpaceQuota::kUserBytesTarget, uid_sel, bytes);
-       sprintf(printline, "success: updated quota for uid=%ld to %s\n", uid_sel, eos::common::StringConversion::GetReadableSizeString(sizestring, bytes, "B"));
+       sprintf(printline, "success: updated quota for uid=%ld to %s bytes in quotanode %s\n", uid_sel, eos::common::StringConversion::GetReadableSizeString(sizestring, bytes, "B"), spacequota->GetSpaceName());
      }
      configstring += "uid=";
      configstring += (int) uid_sel;
@@ -1090,12 +1171,12 @@ Quota::SetQuota (XrdOucString space, long uid_sel, long gid_sel, long long bytes
      if (bytes == -1)
      {
        spacequota->RmQuota(SpaceQuota::kUserFilesTarget, uid_sel);
-       sprintf(printline, "success: removed quota for uid=%ld\n", uid_sel);
+       sprintf(printline, "success: removed quota for uid=%ld from quotanode %s\n", uid_sel, spacequota->GetSpaceName());
      }
      else
      {
        spacequota->SetQuota(SpaceQuota::kUserFilesTarget, uid_sel, files);
-       sprintf(printline, "success: updated quota for uid=%ld to %s files\n", uid_sel, eos::common::StringConversion::GetReadableSizeString(sizestring, files, "-"));
+       sprintf(printline, "success: updated quota for uid=%ld to %s files in quotanode %s\n", uid_sel, eos::common::StringConversion::GetReadableSizeString(sizestring, files, "-"), spacequota->GetSpaceName());
      }
      configstring += "uid=";
      configstring += (int) uid_sel;
@@ -1121,12 +1202,20 @@ Quota::SetQuota (XrdOucString space, long uid_sel, long gid_sel, long long bytes
      if (bytes == -1)
      {
        spacequota->RmQuota(SpaceQuota::kGroupBytesTarget, gid_sel);
-       sprintf(printline, "success: removed quota for gid=%ld\n", gid_sel);
+       sprintf(printline, "success: removed quota for gid=%ld from quotanode %s\n", gid_sel, spacequota->GetSpaceName());
      }
      else
      {
        spacequota->SetQuota(SpaceQuota::kGroupBytesTarget, gid_sel, bytes);
-       sprintf(printline, "success: updated quota for gid=%ld to %s\n", gid_sel, eos::common::StringConversion::GetReadableSizeString(sizestring, bytes, "B"));
+       if (gid_sel != Quota::gProjectId)
+       {
+         sprintf(printline, "success: updated quota for gid=%ld to %s bytes in quotanode %s\n", gid_sel, eos::common::StringConversion::GetReadableSizeString(sizestring, bytes, "B"), spacequota->GetSpaceName());
+       }
+       else
+       {
+         sprintf(printline, "success: updated project quota to %s bytes in quotanode %s\n", eos::common::StringConversion::GetReadableSizeString(sizestring, bytes, "B"), spacequota->GetSpaceName());
+
+       }
      }
      configstring += "gid=";
      configstring += (int) gid_sel;
@@ -1152,12 +1241,19 @@ Quota::SetQuota (XrdOucString space, long uid_sel, long gid_sel, long long bytes
      if (files == -1)
      {
        spacequota->RmQuota(SpaceQuota::kGroupFilesTarget, gid_sel);
-       sprintf(printline, "success: removed quota for gid=%ld \n", gid_sel);
+       sprintf(printline, "success: removed quota for gid=%ld from quotanode %s\n", gid_sel, spacequota->GetSpaceName());
      }
      else
      {
        spacequota->SetQuota(SpaceQuota::kGroupFilesTarget, gid_sel, files);
-       sprintf(printline, "success: updated quota for gid=%ld to %s files\n", gid_sel, eos::common::StringConversion::GetReadableSizeString(sizestring, files, "-"));
+       if (gid_sel != Quota::gProjectId)
+       {
+         sprintf(printline, "success: updated quota for gid=%ld to %s files in quotanode %s\n", gid_sel, eos::common::StringConversion::GetReadableSizeString(sizestring, files, "-"), spacequota->GetSpaceName());
+       }
+       else
+       {
+         sprintf(printline, "success: updated project quota to %s files in quotanode %s\n",eos::common::StringConversion::GetReadableSizeString(sizestring, files, "-"), spacequota->GetSpaceName());
+       }
      }
 
      configstring += "gid=";
@@ -1434,18 +1530,32 @@ Quota::NodeToSpaceQuota (const char* name, bool lock)
    // insert current state of a single quota node into aSpaceQuota
    eos::QuotaNode::UserMap::const_iterator itu;
    eos::QuotaNode::GroupMap::const_iterator itg;
+
+   spacequota->ResetQuota(SpaceQuota::kUserBytesIs, gProjectId);
+   spacequota->ResetQuota(SpaceQuota::kUserFilesIs, gProjectId);
+   spacequota->ResetQuota(SpaceQuota::kUserLogicalBytesIs, gProjectId);
+   spacequota->ResetQuota(SpaceQuota::kGroupBytesIs, gProjectId);
+   spacequota->ResetQuota(SpaceQuota::kGroupFilesIs, gProjectId);
+   spacequota->ResetQuota(SpaceQuota::kGroupLogicalBytesIs, gProjectId);
+
    // loop over user
    for (itu = spacequota->GetQuotaNode()->userUsageBegin(); itu != spacequota->GetQuotaNode()->userUsageEnd(); itu++)
    {
-     spacequota->SetQuota(SpaceQuota::kUserBytesIs, itu->first, itu->second.physicalSpace);
-     spacequota->SetQuota(SpaceQuota::kUserFilesIs, itu->first, itu->second.files);
-     spacequota->SetQuota(SpaceQuota::kUserLogicalBytesIs, itu->first, itu->second.space);
+     spacequota->ResetQuota(SpaceQuota::kUserBytesIs, itu->first);
+     spacequota->AddQuota(SpaceQuota::kUserBytesIs, itu->first, itu->second.physicalSpace);
+     spacequota->ResetQuota(SpaceQuota::kUserFilesIs, itu->first);
+     spacequota->AddQuota(SpaceQuota::kUserFilesIs, itu->first, itu->second.files);
+     spacequota->ResetQuota(SpaceQuota::kUserLogicalBytesIs, itu->first);
+     spacequota->AddQuota(SpaceQuota::kUserLogicalBytesIs, itu->first, itu->second.space);
    }
    for (itg = spacequota->GetQuotaNode()->groupUsageBegin(); itg != spacequota->GetQuotaNode()->groupUsageEnd(); itg++)
    {
-     spacequota->SetQuota(SpaceQuota::kGroupBytesIs, itg->first, itg->second.physicalSpace);
-     spacequota->SetQuota(SpaceQuota::kGroupFilesIs, itg->first, itg->second.files);
-     spacequota->SetQuota(SpaceQuota::kGroupLogicalBytesIs, itg->first, itg->second.space);
+     spacequota->ResetQuota(SpaceQuota::kGroupBytesIs, itg->first);
+     spacequota->AddQuota(SpaceQuota::kGroupBytesIs, itg->first, itg->second.physicalSpace);
+     spacequota->ResetQuota(SpaceQuota::kGroupFilesIs, itg->first);
+     spacequota->AddQuota(SpaceQuota::kGroupFilesIs, itg->first, itg->second.files);
+     spacequota->ResetQuota(SpaceQuota::kGroupLogicalBytesIs, itg->first);
+     spacequota->AddQuota(SpaceQuota::kGroupLogicalBytesIs, itg->first, itg->second.space);
    }
  }
  if (lock)
