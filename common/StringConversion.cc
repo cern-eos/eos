@@ -233,7 +233,7 @@ StringConversion::GetSizeFromString (XrdOucString sizestring)
     convfactor = 1ll;
   }
 
-  if ( (sizestring.length()>3) && (sizestring.endswith("MIN") || sizestring.endswith("min")))
+  if ((sizestring.length() > 3) && (sizestring.endswith("MIN") || sizestring.endswith("min")))
   {
     convfactor = 60ll;
   }
@@ -253,7 +253,7 @@ StringConversion::GetSizeFromString (XrdOucString sizestring)
     convfactor = 7 * 86400ll;
   }
 
-  if ( (sizestring.length()>2) && (sizestring.endswith("MO") || sizestring.endswith("mo")))
+  if ((sizestring.length() > 2) && (sizestring.endswith("MO") || sizestring.endswith("mo")))
   {
     convfactor = 31 * 86400ll;
   }
