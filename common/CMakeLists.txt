@@ -103,9 +103,7 @@ target_link_libraries ( eosCommon
                         ${UUID_LIBRARIES} 
                         curses 
                         z 
-                        ${ATTR_LIBRARIES} 
-                        ${MICROHTTPD_LIBRARIES} 
-                        ${LEVELDB_LIBRARIES} )
+                        ${ATTR_LIBRARIES} )
 
 target_link_libraries ( eosCommon-Static 
                         XrdMqClient-Static 
@@ -115,9 +113,17 @@ target_link_libraries ( eosCommon-Static
                         ${UUID_LIBRARIES} 
                         curses 
                         z 
-                        ${ATTR_LIBRARIES} 
-                        ${MICROHTTPD_LIBRARIES} 
-                        ${LEVELDB_LIBRARIES} )
+                        ${ATTR_LIBRARIES}  )
+
+if(LEVELDB_FOUND)
+target_link_libraries ( eosCommon ${LEVELDB_LIBRARIES} ) 
+target_link_libraries ( eosCommon-Static ${LEVELDB_LIBRARIES} )
+endif(LEVELDB_FOUND)
+
+if (MICROHTTPD_FOUND)
+target_link_libraries ( eosCommon ${MICROHTTPD_LIBRARIES} ) 
+target_link_libraries ( eosCommon-Static ${MICROHTTPD_LIBRARIES} )
+endif(MICROHTTPD_FOUND)
 
 target_link_libraries ( dbmaptestfunc eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries ( dbmaptestburn eosCommon ${CMAKE_THREAD_LIBS_INIT} )
