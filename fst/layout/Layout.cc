@@ -35,7 +35,7 @@ EOSFSTNAMESPACE_BEGIN
 Layout::Layout (XrdFstOfsFile* file) :
 mOfsFile (file)
 {
- mName = "";
+  mName = "";
 }
 
 
@@ -48,16 +48,16 @@ Layout::Layout (XrdFstOfsFile* file,
                 const XrdSecEntity* client,
                 XrdOucErrInfo* outError,
                 eos::common::LayoutId::eIoType io) :
-eos::common::LogId(),
+eos::common::LogId (),
 mLayoutId (lid),
 mOfsFile (file),
 mError (outError),
 mIoType (io)
 {
- mSecEntity = const_cast<XrdSecEntity*> (client);
- mName = eos::common::LayoutId::GetLayoutTypeString(mLayoutId);
- mIsEntryServer = false;
- mLocalPath = "";
+  mSecEntity = const_cast<XrdSecEntity*> (client);
+  mName = eos::common::LayoutId::GetLayoutTypeString(mLayoutId);
+  mIsEntryServer = false;
+  mLocalPath = "";
 }
 
 
@@ -66,7 +66,7 @@ mIoType (io)
 //------------------------------------------------------------------------------
 
 Layout::~Layout () {
- // empty
+  // empty
 }
 
 EOSFSTNAMESPACE_END

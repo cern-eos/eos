@@ -35,11 +35,11 @@ EOSFSTNAMESPACE_BEGIN
 /* ------------------------------------------------------------------------- */
 TransferQueue::TransferQueue (eos::common::TransferQueue** queue, const char* name, int slots, int band)
 {
- mQueue = queue;
- mName = name;
- mJobsRunning = 0;
- nslots = slots;
- bandwidth = band;
+  mQueue = queue;
+  mName = name;
+  mJobsRunning = 0;
+  nslots = slots;
+  bandwidth = band;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -49,39 +49,39 @@ TransferQueue::~TransferQueue () { }
 size_t
 TransferQueue::GetBandwidth ()
 {
- size_t bw = 0;
- {
-   XrdSysMutexHelper(mBandwidthMutex);
-   bw = bandwidth;
- }
- return bw;
+  size_t bw = 0;
+  {
+    XrdSysMutexHelper(mBandwidthMutex);
+    bw = bandwidth;
+  }
+  return bw;
 }
 
 /* ------------------------------------------------------------------------- */
 void
 TransferQueue::SetBandwidth (size_t band)
 {
- XrdSysMutexHelper(mBandwidthMutex);
- bandwidth = band;
+  XrdSysMutexHelper(mBandwidthMutex);
+  bandwidth = band;
 }
 
 /* ------------------------------------------------------------------------- */
 size_t
 TransferQueue::GetSlots ()
 {
- size_t n = 0;
- {
-   XrdSysMutexHelper(mSlotsMutex);
-   n = nslots;
- }
- return n;
+  size_t n = 0;
+  {
+    XrdSysMutexHelper(mSlotsMutex);
+    n = nslots;
+  }
+  return n;
 }
 
 /* ------------------------------------------------------------------------- */
 void
 TransferQueue::SetSlots (size_t slots)
 {
- XrdSysMutexHelper(mSlotsMutex);
- nslots = slots;
+  XrdSysMutexHelper(mSlotsMutex);
+  nslots = slots;
 }
 EOSFSTNAMESPACE_END

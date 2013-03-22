@@ -40,14 +40,14 @@ PlainLayout::PlainLayout (XrdFstOfsFile* file,
                           eos::common::LayoutId::eIoType io) :
 Layout (file, lid, client, outError, io)
 {
- //............................................................................
- // For the plain layout we use only the LocalFileIo type
- //............................................................................
- mPlainFile = FileIoPlugin::GetIoObject(mIoType,
-                                        mOfsFile,
-                                        mSecEntity,
-                                        mError);
- mIsEntryServer = true;
+  //............................................................................
+  // For the plain layout we use only the LocalFileIo type
+  //............................................................................
+  mPlainFile = FileIoPlugin::GetIoObject(mIoType,
+                                         mOfsFile,
+                                         mSecEntity,
+                                         mError);
+  mIsEntryServer = true;
 }
 
 
@@ -57,7 +57,7 @@ Layout (file, lid, client, outError, io)
 
 PlainLayout::~PlainLayout ()
 {
- delete mPlainFile;
+  delete mPlainFile;
 }
 
 
@@ -71,8 +71,8 @@ PlainLayout::Open (const std::string& path,
                    mode_t mode,
                    const char* opaque)
 {
- mLocalPath = path;
- return mPlainFile->Open(path, flags, mode, opaque);
+  mLocalPath = path;
+  return mPlainFile->Open(path, flags, mode, opaque);
 }
 
 
@@ -83,7 +83,7 @@ PlainLayout::Open (const std::string& path,
 int64_t
 PlainLayout::Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length)
 {
- return mPlainFile->Read(offset, buffer, length);
+  return mPlainFile->Read(offset, buffer, length);
 }
 
 
@@ -94,7 +94,7 @@ PlainLayout::Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length)
 int64_t
 PlainLayout::Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length)
 {
- return mPlainFile->Write(offset, buffer, length);
+  return mPlainFile->Write(offset, buffer, length);
 }
 
 
@@ -105,7 +105,7 @@ PlainLayout::Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize 
 int
 PlainLayout::Truncate (XrdSfsFileOffset offset)
 {
- return mPlainFile->Truncate(offset);
+  return mPlainFile->Truncate(offset);
 }
 
 
@@ -116,7 +116,7 @@ PlainLayout::Truncate (XrdSfsFileOffset offset)
 int
 PlainLayout::Fallocate (XrdSfsFileOffset length)
 {
- return mPlainFile->Fallocate(length);
+  return mPlainFile->Fallocate(length);
 }
 
 
@@ -127,7 +127,7 @@ PlainLayout::Fallocate (XrdSfsFileOffset length)
 int
 PlainLayout::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset)
 {
- return mPlainFile->Fdeallocate(fromOffset, toOffset);
+  return mPlainFile->Fdeallocate(fromOffset, toOffset);
 }
 
 
@@ -138,7 +138,7 @@ PlainLayout::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset
 int
 PlainLayout::Sync ()
 {
- return mPlainFile->Sync();
+  return mPlainFile->Sync();
 }
 
 
@@ -149,7 +149,7 @@ PlainLayout::Sync ()
 int
 PlainLayout::Stat (struct stat* buf)
 {
- return mPlainFile->Stat(buf);
+  return mPlainFile->Stat(buf);
 }
 
 
@@ -160,7 +160,7 @@ PlainLayout::Stat (struct stat* buf)
 int
 PlainLayout::Close ()
 {
- return mPlainFile->Close();
+  return mPlainFile->Close();
 }
 
 
@@ -171,7 +171,7 @@ PlainLayout::Close ()
 int
 PlainLayout::Remove ()
 {
- return mPlainFile->Remove();
+  return mPlainFile->Remove();
 }
 
 EOSFSTNAMESPACE_END

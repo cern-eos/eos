@@ -30,45 +30,45 @@ EOSFSTNAMESPACE_BEGIN
 void
 Storage::Cleaner ()
 {
- eos_static_info("Start Cleaner ...");
+  eos_static_info("Start Cleaner ...");
 
- std::string nodeconfigqueue = "";
+  std::string nodeconfigqueue = "";
 
- const char* val = 0;
- // we have to wait that we know our node config queue
- while (!(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str()))
- {
-   XrdSysTimer sleeper;
-   sleeper.Snooze(5);
-   eos_static_info("Snoozing ...");
- }
+  const char* val = 0;
+  // we have to wait that we know our node config queue
+  while (!(val = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str()))
+  {
+    XrdSysTimer sleeper;
+    sleeper.Snooze(5);
+    eos_static_info("Snoozing ...");
+  }
 
- nodeconfigqueue = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str();
+  nodeconfigqueue = eos::fst::Config::gConfig.FstNodeConfigQueue.c_str();
 
- while (1)
- {
-   eos_static_debug("Doing cleaning round ...");
+  while (1)
+  {
+    eos_static_debug("Doing cleaning round ...");
 
-   unsigned int nfs = 0;
-   {
-     eos::common::RWMutexReadLock lock(fsMutex);
-     nfs = fileSystemsVector.size();
-   }
-   for (unsigned int i = 0; i < nfs; i++)
-   {
-     eos::common::RWMutexReadLock lock(fsMutex);
-     if (i < fileSystemsVector.size())
-     {
+    unsigned int nfs = 0;
+    {
+      eos::common::RWMutexReadLock lock(fsMutex);
+      nfs = fileSystemsVector.size();
+    }
+    for (unsigned int i = 0; i < nfs; i++)
+    {
+      eos::common::RWMutexReadLock lock(fsMutex);
+      if (i < fileSystemsVector.size())
+      {
 
-       if (fileSystemsVector[i]->GetStatus() == eos::common::FileSystem::kBooted)
-         fileSystemsVector[i]->CleanTransactions();
-     }
-   }
+        if (fileSystemsVector[i]->GetStatus() == eos::common::FileSystem::kBooted)
+          fileSystemsVector[i]->CleanTransactions();
+      }
+    }
 
-   // go to sleep for a day since we allow a transaction to stay for 1 week
-   XrdSysTimer sleeper;
-   sleeper.Snooze(24 * 3600);
- }
+    // go to sleep for a day since we allow a transaction to stay for 1 week
+    XrdSysTimer sleeper;
+    sleeper.Snooze(24 * 3600);
+  }
 }
 
 EOSFSTNAMESPACE_END

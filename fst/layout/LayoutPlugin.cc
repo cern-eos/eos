@@ -37,7 +37,7 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //--------------------------------------------------------------------------
 LayoutPlugin::LayoutPlugin () {
- // empty
+  // empty
 }
 
 
@@ -46,7 +46,7 @@ LayoutPlugin::LayoutPlugin () {
 //--------------------------------------------------------------------------
 
 LayoutPlugin::~LayoutPlugin () {
- //empty
+  //empty
 }
 
 
@@ -61,27 +61,27 @@ LayoutPlugin::GetLayoutObject (XrdFstOfsFile* file,
                                XrdOucErrInfo* error,
                                eos::common::LayoutId::eIoType io)
 {
- if (LayoutId::GetLayoutType(layoutId) == LayoutId::kPlain)
- {
-   return static_cast<Layout*> (new PlainLayout(file, layoutId, client, error, io));
- }
+  if (LayoutId::GetLayoutType(layoutId) == LayoutId::kPlain)
+  {
+    return static_cast<Layout*> (new PlainLayout(file, layoutId, client, error, io));
+  }
 
- if (LayoutId::GetLayoutType(layoutId) == LayoutId::kReplica)
- {
-   return static_cast<Layout*> (new ReplicaParLayout(file, layoutId, client, error, io));
- }
+  if (LayoutId::GetLayoutType(layoutId) == LayoutId::kReplica)
+  {
+    return static_cast<Layout*> (new ReplicaParLayout(file, layoutId, client, error, io));
+  }
 
- if (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaidDP)
- {
-   return static_cast<Layout*> (new RaidDpLayout(file, layoutId, client, error, io));
- }
+  if (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaidDP)
+  {
+    return static_cast<Layout*> (new RaidDpLayout(file, layoutId, client, error, io));
+  }
 
- if ( (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid6) || (LayoutId::GetLayoutType(layoutId) == LayoutId::kArchive) )
- {
-   return static_cast<Layout*> (new ReedSLayout(file, layoutId, client, error, io));
- }
+  if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid6) || (LayoutId::GetLayoutType(layoutId) == LayoutId::kArchive))
+  {
+    return static_cast<Layout*> (new ReedSLayout(file, layoutId, client, error, io));
+  }
 
- return 0;
+  return 0;
 }
 
 EOSFSTNAMESPACE_END

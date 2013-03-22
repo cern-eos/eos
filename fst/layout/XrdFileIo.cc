@@ -33,7 +33,7 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-const uint64_t ReadaheadBlock::sDefaultBlocksize = 1024 * 1024; ///< 1MB default
+  const uint64_t ReadaheadBlock::sDefaultBlocksize = 1024 * 1024; ///< 1MB default
 const uint32_t XrdFileIo::sNumRdAheadBlocks = 2;
 
 //------------------------------------------------------------------------------
@@ -535,7 +535,7 @@ XrdFileIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
 //--------------------------------------------------------------------------
 
 XrdCl::OpenFlags::Flags
-XrdFileIo::MapFlagsSfs2XrdCl( XrdSfsFileOpenMode flags_sfs)
+XrdFileIo::MapFlagsSfs2XrdCl (XrdSfsFileOpenMode flags_sfs)
 {
   XrdCl::OpenFlags::Flags xflags = XrdCl::OpenFlags::None;
 

@@ -40,7 +40,7 @@ mState (true),
 mNumExpectedResp (0),
 mNumReceivedResp (0)
 {
- mCond = XrdSysCondVar(0);
+  mCond = XrdSysCondVar(0);
 }
 
 
@@ -50,21 +50,21 @@ mNumReceivedResp (0)
 
 AsyncMetaHandler::~AsyncMetaHandler ()
 {
- ChunkHandler* ptr_chunk = NULL;
+  ChunkHandler* ptr_chunk = NULL;
 
- while (!listReq.empty())
- {
-   ptr_chunk = listReq.back();
-   listReq.pop_back();
-   delete ptr_chunk;
- }
+  while (!listReq.empty())
+  {
+    ptr_chunk = listReq.back();
+    listReq.pop_back();
+    delete ptr_chunk;
+  }
 
- while (!listCache.empty())
- {
-   ptr_chunk = listCache.back();
-   listCache.pop_back();
-   delete ptr_chunk;
- }
+  while (!listCache.empty())
+  {
+    ptr_chunk = listCache.back();
+    listCache.pop_back();
+    delete ptr_chunk;
+  }
 }
 
 
@@ -77,29 +77,29 @@ AsyncMetaHandler::Register (uint64_t offset,
                             uint32_t length,
                             bool isWrite)
 {
- ChunkHandler* ptr_chunk = NULL;
+  ChunkHandler* ptr_chunk = NULL;
 
- mCond.Lock(); // --> 
- if (listCache.size())
- {
-   ptr_chunk = listCache.back();
-   listCache.pop_back();
- }
+  mCond.Lock(); // --> 
+  if (listCache.size())
+  {
+    ptr_chunk = listCache.back();
+    listCache.pop_back();
+  }
 
- if (!ptr_chunk)
- {
-   ptr_chunk = new ChunkHandler(this, offset, length, isWrite);
- }
- else
- {
-   ptr_chunk->Update(this, offset, length, isWrite);
- }
+  if (!ptr_chunk)
+  {
+    ptr_chunk = new ChunkHandler(this, offset, length, isWrite);
+  }
+  else
+  {
+    ptr_chunk->Update(this, offset, length, isWrite);
+  }
 
- listReq.push_back(ptr_chunk);
- mNumExpectedResp++;
- mCond.UnLock(); // <--
+  listReq.push_back(ptr_chunk);
+  mNumExpectedResp++;
+  mCond.UnLock(); // <--
 
- return ptr_chunk;
+  return ptr_chunk;
 }
 
 
@@ -111,21 +111,21 @@ void
 AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
                                   ChunkHandler* chunk)
 {
- mCond.Lock(); // -->
- mNumReceivedResp++;
+  mCond.Lock(); // -->
+  mNumReceivedResp++;
 
- if (pStatus->status != XrdCl::stOK)
- {
-   mMapErrors.insert(std::make_pair(chunk->GetOffset(), chunk->GetLength()));
-   mState = false;
- }
+  if (pStatus->status != XrdCl::stOK)
+  {
+    mMapErrors.insert(std::make_pair(chunk->GetOffset(), chunk->GetLength()));
+    mState = false;
+  }
 
- if (mNumReceivedResp == mNumExpectedResp)
- {
-   mCond.Signal();
- }
+  if (mNumReceivedResp == mNumExpectedResp)
+  {
+    mCond.Signal();
+  }
 
- mCond.UnLock(); // <--
+  mCond.UnLock(); // <--
 }
 
 
@@ -136,7 +136,7 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 const std::map<uint64_t, uint32_t>&
 AsyncMetaHandler::GetErrorsMap ()
 {
- return mMapErrors;
+  return mMapErrors;
 }
 
 
@@ -147,17 +147,17 @@ AsyncMetaHandler::GetErrorsMap ()
 bool
 AsyncMetaHandler::WaitOK ()
 {
- mCond.Lock(); // -->
+  mCond.Lock(); // -->
 
- if (mNumReceivedResp == mNumExpectedResp)
- {
-   mCond.UnLock(); // <--
-   return mState;
- }
+  if (mNumReceivedResp == mNumExpectedResp)
+  {
+    mCond.UnLock(); // <--
+    return mState;
+  }
 
- mCond.Wait();
- mCond.UnLock(); // <--
- return mState;
+  mCond.Wait();
+  mCond.UnLock(); // <--
+  return mState;
 }
 
 
@@ -168,28 +168,28 @@ AsyncMetaHandler::WaitOK ()
 void
 AsyncMetaHandler::Reset ()
 {
- ChunkHandler* ptr_chunk = NULL;
+  ChunkHandler* ptr_chunk = NULL;
 
- mCond.Lock(); // -->
- mState = true;
- mNumExpectedResp = 0;
- mNumReceivedResp = 0;
- mMapErrors.clear();
+  mCond.Lock(); // -->
+  mState = true;
+  mNumExpectedResp = 0;
+  mNumReceivedResp = 0;
+  mMapErrors.clear();
 
- while (!listReq.empty())
- {
-   ptr_chunk = listReq.back();
-   listReq.pop_back();
-   if (listCache.size() < msMaxCacheSize)
-   {
-     listCache.push_back(ptr_chunk);
-   }
-   else
-   {
-     delete ptr_chunk;
-   }
- }
- mCond.UnLock(); // <--
+  while (!listReq.empty())
+  {
+    ptr_chunk = listReq.back();
+    listReq.pop_back();
+    if (listCache.size() < msMaxCacheSize)
+    {
+      listCache.push_back(ptr_chunk);
+    }
+    else
+    {
+      delete ptr_chunk;
+    }
+  }
+  mCond.UnLock(); // <--
 }
 
 

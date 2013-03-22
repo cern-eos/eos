@@ -41,7 +41,7 @@ mLength (length),
 mRespLength (0),
 mIsWrite (isWrite),
 mErrorNo (0) {
- // empty
+  // empty
 }
 
 
@@ -50,7 +50,7 @@ mErrorNo (0) {
 //------------------------------------------------------------------------------
 
 ChunkHandler::~ChunkHandler () {
- // emtpy
+  // emtpy
 }
 
 
@@ -64,12 +64,12 @@ ChunkHandler::Update (AsyncMetaHandler* metaHandler,
                       uint32_t length,
                       bool isWrite)
 {
- mMetaHandler = metaHandler;
- mOffset = offset;
- mLength = length;
- mRespLength = 0;
- mIsWrite = isWrite;
- mErrorNo = 0;
+  mMetaHandler = metaHandler;
+  mOffset = offset;
+  mLength = length;
+  mRespLength = 0;
+  mIsWrite = isWrite;
+  mErrorNo = 0;
 }
 
 
@@ -81,34 +81,34 @@ void
 ChunkHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
                               XrdCl::AnyObject* pResponse)
 {
- //............................................................................
- // Do some extra check for the read case
- //............................................................................
- if ((mIsWrite == false) && (pResponse))
- {
-   XrdCl::ChunkInfo* chunk = 0;
-   pResponse->Get(chunk);
-   mRespLength = chunk->length;
+  //............................................................................
+  // Do some extra check for the read case
+  //............................................................................
+  if ((mIsWrite == false) && (pResponse))
+  {
+    XrdCl::ChunkInfo* chunk = 0;
+    pResponse->Get(chunk);
+    mRespLength = chunk->length;
 
-   //..........................................................................
-   // Notice if we received less then we initially requested - usually this means
-   // we reached the end of the file, but we will treat it as an error
-   //..........................................................................
-   if (mLength != chunk->length)
-   {
-     pStatus->status = XrdCl::stError;
-     pStatus->errNo = EFAULT;
-     mErrorNo = EFAULT;
-   }
- }
+    //..........................................................................
+    // Notice if we received less then we initially requested - usually this means
+    // we reached the end of the file, but we will treat it as an error
+    //..........................................................................
+    if (mLength != chunk->length)
+    {
+      pStatus->status = XrdCl::stError;
+      pStatus->errNo = EFAULT;
+      mErrorNo = EFAULT;
+    }
+  }
 
- mMetaHandler->HandleResponse(pStatus, this);
- delete pStatus;
+  mMetaHandler->HandleResponse(pStatus, this);
+  delete pStatus;
 
- if (pResponse)
- {
-   delete pResponse;
- }
+  if (pResponse)
+  {
+    delete pResponse;
+  }
 }
 
 EOSFSTNAMESPACE_END

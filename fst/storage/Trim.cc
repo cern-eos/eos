@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -33,28 +34,28 @@ void
 Storage::Trim ()
 {
   // this thread trim's the SQLITE DB every 30 days
- while (1)
- {
-   // sleep for a month
-   XrdSysTimer sleeper;
-   sleeper.Snooze(30 * 86400);
-   std::map<eos::common::FileSystem::fsid_t, sqlite3*>::iterator it;
+  while (1)
+  {
+    // sleep for a month
+    XrdSysTimer sleeper;
+    sleeper.Snooze(30 * 86400);
+    std::map<eos::common::FileSystem::fsid_t, sqlite3*>::iterator it;
 
-   for (it = gFmdSqliteHandler.GetDB()->begin(); it != gFmdSqliteHandler.GetDB()->end(); ++it)
-   {
-     eos_static_info("Trimming fsid=%llu ", it->first);
-     int fsid = it->first;
+    for (it = gFmdSqliteHandler.GetDB()->begin(); it != gFmdSqliteHandler.GetDB()->end(); ++it)
+    {
+      eos_static_info("Trimming fsid=%llu ", it->first);
+      int fsid = it->first;
 
-     if (!gFmdSqliteHandler.TrimDBFile(fsid))
-     {
-       eos_static_err("Cannot trim the SQLITE DB file for fsid=%llu ", it->first);
-     }
-     else
-     {
-       eos_static_info("Called vaccuum on SQLITE DB file for fsid=%llu ", it->first);
-     }
-   }
- }
+      if (!gFmdSqliteHandler.TrimDBFile(fsid))
+      {
+        eos_static_err("Cannot trim the SQLITE DB file for fsid=%llu ", it->first);
+      }
+      else
+      {
+        eos_static_info("Called vaccuum on SQLITE DB file for fsid=%llu ", it->first);
+      }
+    }
+  }
 }
 
 EOSFSTNAMESPACE_END

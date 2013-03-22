@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/io/SimpleHandler.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -30,27 +31,27 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SimpleHandler::SimpleHandler( uint64_t          offset,
-                              uint32_t          length,
-                              bool              isWrite ):
-    XrdCl::ResponseHandler(),
-    mOffset( offset ),
-    mLength( length ),
-    mRespLength( 0 ),
-    mIsWrite( isWrite ),
-    mRespOK( false ),
-    mReqDone( false ),
-    mHasReq( false )
+SimpleHandler::SimpleHandler (uint64_t offset,
+                              uint32_t length,
+                              bool isWrite) :
+XrdCl::ResponseHandler (),
+mOffset (offset),
+mLength (length),
+mRespLength (0),
+mIsWrite (isWrite),
+mRespOK (false),
+mReqDone (false),
+mHasReq (false)
 {
-  mCond = XrdSysCondVar( 0 );
+  mCond = XrdSysCondVar(0);
 }
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-SimpleHandler::~SimpleHandler()
-{
+
+SimpleHandler::~SimpleHandler () {
   // emtpy
 }
 
@@ -58,9 +59,11 @@ SimpleHandler::~SimpleHandler()
 //------------------------------------------------------------------------------
 // Update function
 //------------------------------------------------------------------------------
-void SimpleHandler::Update( uint64_t          offset,
-                            uint32_t          length,
-                            bool              isWrite )
+
+void
+SimpleHandler::Update (uint64_t offset,
+                       uint32_t length,
+                       bool isWrite)
 {
   mOffset = offset;
   mLength = length;
@@ -75,28 +78,31 @@ void SimpleHandler::Update( uint64_t          offset,
 //------------------------------------------------------------------------------
 // Handle response
 //------------------------------------------------------------------------------
+
 void
-SimpleHandler::HandleResponse( XrdCl::XRootDStatus* pStatus,
-                               XrdCl::AnyObject*    pResponse )
+SimpleHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
+                               XrdCl::AnyObject* pResponse)
 {
   //............................................................................
   // Do some extra check for the read case
   //............................................................................
-  if ( ( mIsWrite == false ) && ( pResponse ) ) {  
+  if ((mIsWrite == false) && (pResponse))
+  {
     XrdCl::ChunkInfo* chunk = 0;
-    pResponse->Get( chunk );
+    pResponse->Get(chunk);
     mRespLength = chunk->length;
   }
-  
+
   mCond.Lock();
   mRespOK = pStatus->IsOK();
   mReqDone = true;
-  mCond.Signal();     //signal
+  mCond.Signal(); //signal
   mCond.UnLock();
 
   delete pStatus;
-  
-  if ( pResponse ) {
+
+  if (pResponse)
+  {
     delete pResponse;
   }
 
@@ -106,24 +112,27 @@ SimpleHandler::HandleResponse( XrdCl::XRootDStatus* pStatus,
 //------------------------------------------------------------------------------
 // Wait for responses
 //------------------------------------------------------------------------------
+
 bool
-SimpleHandler::WaitOK()
+SimpleHandler::WaitOK ()
 {
   bool req_status = false;
-  
+
   mCond.Lock();
-  
-  if ( mReqDone ) {
+
+  if (mReqDone)
+  {
     req_status = mRespOK;
   }
-  else {
+  else
+  {
     mCond.Wait();
     req_status = mRespOK;
   }
 
   mHasReq = false;
   mCond.UnLock();
-  
+
   return req_status;
 }
 
@@ -131,16 +140,18 @@ SimpleHandler::WaitOK()
 //------------------------------------------------------------------------------
 //! Get if there is any request to process
 //------------------------------------------------------------------------------
+
 bool
-SimpleHandler::HasRequest() {
+SimpleHandler::HasRequest ()
+{
   bool ret = false;
-  
+
   mCond.Lock();
   ret = mHasReq;
   mCond.UnLock();
-  
+
   return ret;
-}  
+}
 
 
 EOSFSTNAMESPACE_END

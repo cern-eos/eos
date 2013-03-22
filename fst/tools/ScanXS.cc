@@ -38,33 +38,33 @@ eos::fst::FmdSqliteHandler gFmdSqliteHandler; // needed for compilation
 int
 main (int argc, char *argv[])
 {
- bool setxs = false;
- if ((argc < 2) || (argc > 3))
- {
-   fprintf(stderr, "usage: eos-scan-fs <directory> [--setxs]\n");
-   exit(-1);
- }
+  bool setxs = false;
+  if ((argc < 2) || (argc > 3))
+  {
+    fprintf(stderr, "usage: eos-scan-fs <directory> [--setxs]\n");
+    exit(-1);
+  }
 
- if (argc == 3)
- {
-   XrdOucString set = argv[2];
-   if (set != "--setxs")
-   {
-     fprintf(stderr, "usage: eos-scan-fs <directory> [--setxs]\n");
-     exit(-1);
-   }
-   setxs = true;
- }
- srand((unsigned int) time(NULL));
+  if (argc == 3)
+  {
+    XrdOucString set = argv[2];
+    if (set != "--setxs")
+    {
+      fprintf(stderr, "usage: eos-scan-fs <directory> [--setxs]\n");
+      exit(-1);
+    }
+    setxs = true;
+  }
+  srand((unsigned int) time(NULL));
 
- eos::fst::Load fstLoad(1);
- fstLoad.Monitor();
- usleep(100000);
- XrdOucString dirName = argv[1];
- eos::fst::ScanDir* sd = new eos::fst::ScanDir(dirName.c_str(), 0, &fstLoad, false, 10, 100, setxs);
- if (sd)
- {
-   eos::fst::ScanDir::StaticThreadProc((void*) sd);
-   delete sd;
- }
+  eos::fst::Load fstLoad(1);
+  fstLoad.Monitor();
+  usleep(100000);
+  XrdOucString dirName = argv[1];
+  eos::fst::ScanDir* sd = new eos::fst::ScanDir(dirName.c_str(), 0, &fstLoad, false, 10, 100, setxs);
+  if (sd)
+  {
+    eos::fst::ScanDir::StaticThreadProc((void*) sd);
+    delete sd;
+  }
 }
