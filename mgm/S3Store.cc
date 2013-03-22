@@ -263,38 +263,13 @@ S3Store::ListBucket (int& response_code, eos::common::S3 &s3, std::map<std::stri
 
   XrdOucString stdErr;
 
-  std::map < std::string, std::set < std::string >> find;
+  XrdMgmOfsDirectory bucketdir;
 
-  S3Store::BucketCache::BucketListing* bucketlist;
-
-  // try to get the result from the bucket cache
-  mBucketCache.Expire();
-  mBucketCache.LockRead();
-  bucketlist = mBucketCache.getListing(s3.getBucket());
-
-  if (bucketlist)
+  /*/if (gOFS->_find(mS3ContainerPath[s3.getBucket()].c_str(), error, stdErr, vid, find, false) != SFS_OK)
   {
-    find = bucketlist->mFind;
+    return s3.RestErrorResponse(response_code, 404, "NoSuchBucket", "Bucket couldn't be queried in the namespace!", s3.getBucket().c_str(), "");
   }
-  mBucketCache.UnLockRead();
-
-  if (!bucketlist)
-  {
-    eos_static_info("msg=\"uncached listing\" bucket=%s", s3.getBucket().c_str());
-    if (gOFS->_find(mS3ContainerPath[s3.getBucket()].c_str(), error, stdErr, vid, find, false) != SFS_OK)
-    {
-      return s3.RestErrorResponse(response_code, 404, "NoSuchBucket", "Bucket couldn't be queried in the namespace!", s3.getBucket().c_str(), "");
-    }
-    else
-    {
-      // put into the cache
-      mBucketCache.addListing(s3.getBucket(), find, 10); // store the listing for 10 seconds
-    }
-  }
-  else
-  {
-    eos_static_info("msg=\"cached listing\" bucket=%s", s3.getBucket().c_str());
-  }
+   */
 
 
   uint64_t cnt = 0;
@@ -325,6 +300,14 @@ S3Store::ListBucket (int& response_code, eos::common::S3 &s3, std::map<std::stri
   {
     marker_found = false;
   }
+
+  std::string lPrefix = prefix;
+  if (prefix == "")
+  {
+    lPrefix = "/";
+  }
+
+  eos_static_info("msg=\"listing\" bucket=%s prefix=%s", s3.getBucket().c_str(), lPrefix.c_str());
 
   if (!prefix.length())
   {
@@ -359,40 +342,47 @@ S3Store::ListBucket (int& response_code, eos::common::S3 &s3, std::map<std::stri
   size_t truncate_pos = result.length() + 13;
   result += "<IsTruncated>false</IsTruncated>";
 
-
-  for (auto dit = find.begin(); dit != find.end(); dit++)
+  XrdOucString sPrefix = lPrefix.c_str();
+  if (!sPrefix.endswith("/"))
   {
-    // directory loop
-    for (auto fit = dit->second.begin(); fit != dit->second.end(); fit++)
+    lPrefix += "/";
+  }
+
+  int listrc = bucketdir.open((mS3ContainerPath[s3.getBucket()] + lPrefix).c_str(), vid, (const char*) 0);
+
+  if (!listrc)
+  {
+    const char* dname1 = 0;
+
+    while ((dname1 = bucketdir.nextEntry()))
     {
+      // loop over the directory contents   
+
+      std::string sdname = dname1;
+      if ((sdname == ".") || (sdname == ".."))
+      {
+        continue;
+      }
+
       if (cnt > max_keys)
       {
         truncated = true;
         // don't return more than max-keys
         break;
       }
-      std::string objectname = dit->first;
+      std::string objectname = lPrefix;
 
       std::string fullname;
-      objectname += *fit;
-      fullname = objectname;
-      objectname.erase(0, mS3ContainerPath[s3.getBucket()].length());
-      while (objectname[0] == '/')
-      {
-        // remove '/' in the beginning of the path, if there
-        objectname.erase(0, 1);
-      }
+      objectname += sdname;
+      fullname = mS3ContainerPath[s3.getBucket()];
+      fullname += objectname;
+
       if (!marker_found)
       {
         if (marker == objectname)
         {
           marker_found = true;
         }
-        continue;
-      }
-      if (prefix.length() && (objectname.substr(0, prefix.length()) != prefix))
-      {
-        // skip paths which don't match the given prefix
         continue;
       }
 
@@ -407,9 +397,10 @@ S3Store::ListBucket (int& response_code, eos::common::S3 &s3, std::map<std::stri
         fmd = &fmdCopy;
         gOFS->eosViewRWMutex.UnLockRead();
         //-------------------------------------------
+
         result += "<Contents>";
         result += "<Key>";
-        result += objectname;
+        result += objectname.c_str();
         result += "</Key>";
         result += "<LastModified>";
 
@@ -449,13 +440,45 @@ S3Store::ListBucket (int& response_code, eos::common::S3 &s3, std::map<std::stri
         gOFS->eosViewRWMutex.UnLockRead();
         //-------------------------------------------
       }
+
+      if (!fmd)
+      {
+        // TODO: add the real container info here ... 
+        // this must be a container
+        result += "<Contents>";
+        result += "<Key>";
+        result += objectname.c_str();
+        result += "/";
+        result += "</Key>";
+        result += "<LastModified>";
+        result += eos::common::Timing::UnixTimstamp_to_ISO8601(time(NULL));
+        result += "</LastModified>";
+        result += "<ETag>";
+        result += "</ETag>";
+        result += "<Size>0</Size>";
+        result += "<StorageClass>STANDARD</StorageClass>";
+        result += "<Owner>";
+        result += "<ID>";
+        result += "0";
+        result += "</ID>";
+        result += "<DisplayName>";
+        result += "fake";
+        result += ":";
+        result += "fake";
+        result += "</DisplayName>";
+        result += "</Owner>";
+        result += "</Contents>";
+
+      }
       cnt++;
-    }
-    if (truncated)
-    {
-      break;
+      if (truncated)
+      {
+        break;
+      }
     }
   }
+
+  bucketdir.close();
 
   if (truncated)
   {
@@ -463,7 +486,9 @@ S3Store::ListBucket (int& response_code, eos::common::S3 &s3, std::map<std::stri
   }
 
   result += "</ListBucketResult>";
-  fprintf(stderr, "\n%s\n", result.c_str());
+  
+  response_header["Content-Type"] = "application/xml";
+  response_header["Connection"] = "close";
   return result;
 }
 
