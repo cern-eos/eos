@@ -47,114 +47,6 @@ class S3Store
 
 public:
 
-  class BucketCache
-  {
-  public:
-
-    /**
-     * Class implementing a bucket listing for caching
-     */
-    class BucketListing
-    {
-    public:
-      std::map < std::string, std::set < std::string >> mFind;
-      time_t mExpires;
-      std::string mBucketName;
-
-      BucketListing ()
-      {
-        mExpires = 0;
-      }
-
-      BucketListing (std::string& lName, std::map < std::string, std::set < std::string >> &lFind, time_t lLifetime)
-      {
-        mBucketName = lName;
-        mExpires = time(NULL) + lLifetime;
-        mFind = lFind;
-      }
-
-      virtual
-      ~BucketListing () { }
-    };
-
-    std::map<std::string, BucketListing* > mBucketCache; //< cache storing long bucket listings
-
-    BucketCache () { }
-
-    virtual
-    ~BucketCache ()
-    {
-      eos::common::RWMutexWriteLock mLock(mMutex);
-      for (auto it = mBucketCache.begin(); it != mBucketCache.end(); it++)
-      {
-        if (it->second)
-        {
-          delete it->second;
-          it->second = 0;
-        }
-      }
-    }
-
-    void
-    Expire ()
-    {
-      time_t now = time(NULL);
-      eos::common::RWMutexWriteLock mLock(mMutex);
-      for (auto it = mBucketCache.begin(); it != mBucketCache.end(); it++)
-      {
-        if ((it->second) && (it->second->mExpires < now))
-        {
-          delete it->second;
-          it->second = 0;
-        }
-      }
-    }
-
-    BucketListing*
-    getListing (std::string lContainerName)
-    {
-      if (mBucketCache.count(lContainerName))
-      {
-        return mBucketCache[lContainerName];
-      }
-      else
-      {
-        return 0;
-      }
-    }
-
-    void
-    uncacheListing (std::string lContainerName)
-    {
-      eos::common::RWMutexWriteLock mLock(mMutex);
-      delete (mBucketCache[lContainerName]);
-      mBucketCache[lContainerName] = 0;
-    }
-
-    void
-    addListing (std::string lContainerName, std::map < std::string, std::set < std::string >> &lFind, time_t lLifetime)
-    {
-      eos::common::RWMutexWriteLock mLock(mMutex);
-      delete (mBucketCache[lContainerName]);
-      mBucketCache[lContainerName] = new BucketListing(lContainerName, lFind, lLifetime);
-    }
-
-    void
-    LockRead ()
-    {
-      mMutex.LockRead();
-    }
-
-    void
-    UnLockRead ()
-    {
-      mMutex.UnLockRead();
-    }
-
-  private:
-    eos::common::RWMutex mMutex; //< mutex protecting the bucket cache
-  };
-
   /**
    * Constructor
    */
@@ -241,7 +133,6 @@ private:
   std::map<std::string, std::string> mS3ContainerPath; //< map pointing from container name to path
   std::string mS3DefContainer; //< path where all s3 objects are defined
 
-  BucketCache mBucketCache; //< cache for bucket listings
 };
 
 EOSMGMNAMESPACE_END
