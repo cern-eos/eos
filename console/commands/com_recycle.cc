@@ -139,6 +139,11 @@ com_recycle (char* arg1)
  if (args.size())
  {
    in += "&mgm.recycle.arg=";
+   if ( (options[0] == "--add-bin") ||
+        (options[0] == "--remove-bin") ) 
+   {
+     args[0] = abspath(args[0].c_str());
+   }
    in += args[0].c_str();
  }
 
