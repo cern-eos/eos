@@ -29,80 +29,88 @@
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FuseCacheEntry::FuseCacheEntry( int             noEntries,
+
+FuseCacheEntry::FuseCacheEntry (int noEntries,
                                 struct timespec modifTime,
-                                struct dirbuf*  pBuf ):
-  mNumEntries( noEntries )
+                                struct dirbuf* pBuf) :
+mNumEntries (noEntries)
 {
   mModifTime.tv_sec = modifTime.tv_sec;
   mModifTime.tv_nsec = modifTime.tv_nsec;
   mBuf.size = pBuf->size;
-  mBuf.p = static_cast<char*>( calloc( mBuf.size, sizeof( char ) ) );
-  mBuf.p = static_cast<char*>( memcpy( mBuf.p, pBuf->p, mBuf.size * sizeof( char ) ) );
+  mBuf.p = static_cast<char*> (calloc(mBuf.size, sizeof ( char)));
+  mBuf.p = static_cast<char*> (memcpy(mBuf.p, pBuf->p, mBuf.size * sizeof ( char)));
 }
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-FuseCacheEntry::~FuseCacheEntry()
+
+FuseCacheEntry::~FuseCacheEntry ()
 {
-  free( mBuf.p );
+  free(mBuf.p);
 }
 
 
 //------------------------------------------------------------------------------
 // Test if directory is filled
 //------------------------------------------------------------------------------
+
 bool
-FuseCacheEntry::IsFilled()
+FuseCacheEntry::IsFilled ()
 {
-  eos::common::RWMutexReadLock rd_lock( mMutex );
-  return ( mSubEntries.size() == static_cast<unsigned int>( mNumEntries - 2 ) );
+  eos::common::RWMutexReadLock rd_lock(mMutex);
+  return ( mSubEntries.size() == static_cast<unsigned int> (mNumEntries - 2));
 }
 
 
 //------------------------------------------------------------------------------
 // Update directory information
 //------------------------------------------------------------------------------
+
 void
-FuseCacheEntry::Update( int             noEntries,
+FuseCacheEntry::Update (int noEntries,
                         struct timespec modifTime,
-                        struct dirbuf*  pBuf )
+                        struct dirbuf* pBuf)
 {
-  eos::common::RWMutexWriteLock wr_lock( mMutex );
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
   mModifTime.tv_sec = modifTime.tv_sec;
   mModifTime.tv_nsec = modifTime.tv_nsec;
   mNumEntries = noEntries;
   mSubEntries.clear();
 
-  if ( mBuf.size != pBuf->size ) {
+  if (mBuf.size != pBuf->size)
+  {
     mBuf.size = pBuf->size;
-    mBuf.p = static_cast<char*>( realloc( mBuf.p, mBuf.size * sizeof( char ) ) );
+    mBuf.p = static_cast<char*> (realloc(mBuf.p, mBuf.size * sizeof ( char)));
   }
 
-  mBuf.p = static_cast<char*>( memcpy( mBuf.p, pBuf->p, mBuf.size * sizeof( char ) ) );
+  mBuf.p = static_cast<char*> (memcpy(mBuf.p, pBuf->p, mBuf.size * sizeof ( char)));
 }
 
 //------------------------------------------------------------------------------
 // Get the dirbuf structure
 //------------------------------------------------------------------------------
+
 void
-FuseCacheEntry::GetDirbuf( struct dirbuf*& rpBuf )
+FuseCacheEntry::GetDirbuf (struct dirbuf*& rpBuf)
 {
-  eos::common::RWMutexReadLock rd_lock( mMutex );
+  eos::common::RWMutexReadLock rd_lock(mMutex);
   rpBuf->size = mBuf.size;
-  rpBuf->p = static_cast<char*>( calloc( rpBuf->size, sizeof( char ) ) );
-  rpBuf->p = static_cast<char*>( memcpy( rpBuf->p, mBuf.p, rpBuf->size * sizeof( char ) ) );
+  rpBuf->p = static_cast<char*> (calloc(rpBuf->size, sizeof ( char)));
+  rpBuf->p = static_cast<char*> (memcpy(rpBuf->p, mBuf.p, rpBuf->size * sizeof ( char)));
 }
 
 
 //------------------------------------------------------------------------------
 // Get the modification time
 //------------------------------------------------------------------------------
+
 struct timespec
-FuseCacheEntry::GetModifTime() {
-  eos::common::RWMutexReadLock rd_lock( mMutex );
+FuseCacheEntry::GetModifTime ()
+{
+  eos::common::RWMutexReadLock rd_lock(mMutex);
   return mModifTime;
 }
 
@@ -110,13 +118,15 @@ FuseCacheEntry::GetModifTime() {
 //------------------------------------------------------------------------------
 // Add subentry
 //------------------------------------------------------------------------------
-void
-FuseCacheEntry::AddEntry( unsigned long long       inode,
-                          struct fuse_entry_param* e )
-{
-  eos::common::RWMutexWriteLock wr_lock( mMutex );
 
-  if ( !mSubEntries.count( inode ) ) {
+void
+FuseCacheEntry::AddEntry (unsigned long long inode,
+                          struct fuse_entry_param* e)
+{
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
+
+  if (!mSubEntries.count(inode))
+  {
     mSubEntries[inode] = *e;
   }
 }
@@ -125,13 +135,15 @@ FuseCacheEntry::AddEntry( unsigned long long       inode,
 //------------------------------------------------------------------------------
 // Get subentry
 //------------------------------------------------------------------------------
-bool
-FuseCacheEntry::GetEntry( unsigned long long       inode,
-                          struct fuse_entry_param& e )
-{
-  eos::common::RWMutexReadLock rd_lock( mMutex );
 
-  if ( mSubEntries.count( inode ) ) {
+bool
+FuseCacheEntry::GetEntry (unsigned long long inode,
+                          struct fuse_entry_param& e)
+{
+  eos::common::RWMutexReadLock rd_lock(mMutex);
+
+  if (mSubEntries.count(inode))
+  {
     e = mSubEntries[inode];
     return true;
   }

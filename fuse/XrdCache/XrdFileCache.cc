@@ -34,11 +34,13 @@ XrdFileCache* XrdFileCache::pInstance = NULL;
 //------------------------------------------------------------------------------
 // Return a singleton instance of the class
 //------------------------------------------------------------------------------
+
 XrdFileCache*
-XrdFileCache::GetInstance( size_t sizeMax )
+XrdFileCache::GetInstance (size_t sizeMax)
 {
-  if ( !pInstance ) {
-    pInstance  = new XrdFileCache( sizeMax );
+  if (!pInstance)
+  {
+    pInstance = new XrdFileCache(sizeMax);
     pInstance->Init();
   }
 
@@ -49,9 +51,10 @@ XrdFileCache::GetInstance( size_t sizeMax )
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-XrdFileCache::XrdFileCache( size_t sizeMax ):
-  mIndexFile( msMaxIndexFiles / 10 ),
-  msCacheSizeMax( sizeMax )
+
+XrdFileCache::XrdFileCache (size_t sizeMax) :
+mIndexFile (msMaxIndexFiles / 10),
+msCacheSizeMax (sizeMax)
 {
   mpUsedIndxQueue = new ConcurrentQueue<int>();
 }
@@ -61,27 +64,29 @@ XrdFileCache::XrdFileCache( size_t sizeMax ):
 // Initialization method in which the low-level cache is created and the
 // asynchronous thread doing the write operations is started
 //------------------------------------------------------------------------------
+
 void
-XrdFileCache::Init()
+XrdFileCache::Init ()
 {
-  mpCacheImpl = new CacheImpl( msCacheSizeMax, this );
+  mpCacheImpl = new CacheImpl(msCacheSizeMax, this);
   //............................................................................
   // Start worker thread
   //............................................................................
-  XrdSysThread::Run( &mWriteThread,
-                     XrdFileCache::WriteThreadProc,
-                     static_cast<void*>( this ) );
+  XrdSysThread::Run(&mWriteThread,
+                    XrdFileCache::WriteThreadProc,
+                    static_cast<void*> (this));
 }
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-XrdFileCache::~XrdFileCache()
+
+XrdFileCache::~XrdFileCache ()
 {
   void* ret;
   mpCacheImpl->KillWriteThread();
-  XrdSysThread::Join( mWriteThread, &ret );
+  XrdSysThread::Join(mWriteThread, &ret);
   delete mpCacheImpl;
   delete mpUsedIndxQueue;
 }
@@ -90,50 +95,61 @@ XrdFileCache::~XrdFileCache()
 //------------------------------------------------------------------------------
 // Function ran by the async thread managing the cache
 //------------------------------------------------------------------------------
+
 void*
-XrdFileCache::WriteThreadProc( void* arg )
+XrdFileCache::WriteThreadProc (void* arg)
 {
-  XrdFileCache* pfc = static_cast<XrdFileCache*>( arg );
+  XrdFileCache* pfc = static_cast<XrdFileCache*> (arg);
   pfc->mpCacheImpl->RunThreadWrites();
-  eos_static_debug( "stopped writer thread" );
-  return static_cast<void*>( pfc );
+  eos_static_debug("stopped writer thread");
+  return static_cast<void*> (pfc);
 }
 
 
 //------------------------------------------------------------------------------
 // Obtain handler to a file abstraction object
 //------------------------------------------------------------------------------
+
 FileAbstraction*
-XrdFileCache::GetFileObj( unsigned long inode, bool getNew )
+XrdFileCache::GetFileObj (unsigned long inode, bool getNew)
 {
   int key = -1;
   FileAbstraction* fRet = NULL;
-  mRwLock.ReadLock();                                  //read lock
+  mRwLock.ReadLock(); //read lock
   std::map<unsigned long, FileAbstraction*>::iterator iter =
-    mInode2fAbst.find( inode );
+    mInode2fAbst.find(inode);
 
-  if ( iter != mInode2fAbst.end() ) {
+  if (iter != mInode2fAbst.end())
+  {
     fRet = iter->second;
     key = fRet->GetId();
-  } else if ( getNew ) {
-    mRwLock.UnLock();                                  //unlock map
-    mRwLock.WriteLock();                               //write lock
+  }
+  else if (getNew)
+  {
+    mRwLock.UnLock(); //unlock map
+    mRwLock.WriteLock(); //write lock
 
-    if ( mIndexFile >= msMaxIndexFiles ) {
-      while ( !mpUsedIndxQueue->try_pop( key ) ) {
+    if (mIndexFile >= msMaxIndexFiles)
+    {
+      while (!mpUsedIndxQueue->try_pop(key))
+      {
         mpCacheImpl->RemoveReadBlock();
       }
 
-      fRet = new FileAbstraction( key, inode );
-      mInode2fAbst.insert( std::pair<unsigned long, FileAbstraction*>( inode, fRet ) );
-    } else {
+      fRet = new FileAbstraction(key, inode);
+      mInode2fAbst.insert(std::pair<unsigned long, FileAbstraction*>(inode, fRet));
+    }
+    else
+    {
       key = mIndexFile;
-      fRet = new FileAbstraction( key, inode );
-      mInode2fAbst.insert( std::pair<unsigned long, FileAbstraction*>( inode, fRet ) );
+      fRet = new FileAbstraction(key, inode);
+      mInode2fAbst.insert(std::pair<unsigned long, FileAbstraction*>(inode, fRet));
       mIndexFile++;
     }
-  } else {
-    mRwLock.UnLock();                                  //unlock map
+  }
+  else
+  {
+    mRwLock.UnLock(); //unlock map
     return 0;
   }
 
@@ -141,8 +157,8 @@ XrdFileCache::GetFileObj( unsigned long inode, bool getNew )
   // Increase the number of references to this file
   //............................................................................
   fRet->IncrementNoReferences();
-  mRwLock.UnLock();                                    //unlock map
-  eos_static_debug( "inode=%lu, key=%i", inode, key );
+  mRwLock.UnLock(); //unlock map
+  eos_static_debug("inode=%lu, key=%i", inode, key);
   return fRet;
 }
 
@@ -150,37 +166,40 @@ XrdFileCache::GetFileObj( unsigned long inode, bool getNew )
 //------------------------------------------------------------------------------
 // Submit a write request
 //------------------------------------------------------------------------------
+
 void
-XrdFileCache::SubmitWrite( eos::fst::Layout*& file,
-                           unsigned long      inode,
-                           void*              buf,
-                           off_t              off,
-                           size_t             len )
+XrdFileCache::SubmitWrite (eos::fst::Layout*& file,
+                           unsigned long inode,
+                           void* buf,
+                           off_t off,
+                           size_t len)
 {
   size_t nwrite;
   long long int key;
   off_t written_offset = 0;
-  char* pBuf = static_cast<char*>( buf );
-  FileAbstraction* pAbst = GetFileObj( inode, true );
+  char* pBuf = static_cast<char*> (buf);
+  FileAbstraction* pAbst = GetFileObj(inode, true);
 
   //............................................................................
   // While write bigger than block size, break in smaller blocks
   //............................................................................
-  while ( ( ( off % CacheEntry::GetMaxSize() ) + len ) > CacheEntry::GetMaxSize() ) {
-    nwrite = CacheEntry::GetMaxSize() - ( off % CacheEntry::GetMaxSize() );
-    key = pAbst->GenerateBlockKey( off );
-    eos_static_debug( "(1) off=%zu, len=%zu", off, nwrite );
-    mpCacheImpl->AddWrite( file, key, pBuf + written_offset, off, nwrite, *pAbst );
+  while (((off % CacheEntry::GetMaxSize()) + len) > CacheEntry::GetMaxSize())
+  {
+    nwrite = CacheEntry::GetMaxSize() - (off % CacheEntry::GetMaxSize());
+    key = pAbst->GenerateBlockKey(off);
+    eos_static_debug("(1) off=%zu, len=%zu", off, nwrite);
+    mpCacheImpl->AddWrite(file, key, pBuf + written_offset, off, nwrite, *pAbst);
     off += nwrite;
     len -= nwrite;
     written_offset += nwrite;
   }
 
-  if ( len != 0 ) {
+  if (len != 0)
+  {
     nwrite = len;
-    key = pAbst->GenerateBlockKey( off );
-    eos_static_debug( "(2) off=%zu, len=%zu", off, nwrite );
-    mpCacheImpl->AddWrite( file, key, pBuf + written_offset, off, nwrite, *pAbst );
+    key = pAbst->GenerateBlockKey(off);
+    eos_static_debug("(2) off=%zu, len=%zu", off, nwrite);
+    mpCacheImpl->AddWrite(file, key, pBuf + written_offset, off, nwrite, *pAbst);
     written_offset += nwrite;
   }
 
@@ -192,28 +211,31 @@ XrdFileCache::SubmitWrite( eos::fst::Layout*& file,
 //------------------------------------------------------------------------------
 // Try to satisfy request from cache
 //------------------------------------------------------------------------------
+
 int64_t
-XrdFileCache::GetRead( FileAbstraction& rFileAbst,
-                       void*            buf,
-                       off_t            off,
-                       size_t           len )
+XrdFileCache::GetRead (FileAbstraction& rFileAbst,
+                       void* buf,
+                       off_t off,
+                       size_t len)
 {
   int64_t nread;
   long long int key;
   bool found = true;
   int64_t read_offset = 0;
-  char* pBuf = static_cast<char*>( buf );
+  char* pBuf = static_cast<char*> (buf);
 
   //............................................................................
   // While read bigger than block size, break in smaller blocks
   //............................................................................
-  while ( ( ( off % CacheEntry::GetMaxSize() ) + len ) > CacheEntry::GetMaxSize() ) {
-    nread = CacheEntry::GetMaxSize() - ( off % CacheEntry::GetMaxSize() );
-    key = rFileAbst.GenerateBlockKey( off );
-    eos_static_debug( "(1) off=%zu, len=%zu", off, nread );
-    found = mpCacheImpl->GetRead( key, pBuf + read_offset, off, nread );
+  while (((off % CacheEntry::GetMaxSize()) + len) > CacheEntry::GetMaxSize())
+  {
+    nread = CacheEntry::GetMaxSize() - (off % CacheEntry::GetMaxSize());
+    key = rFileAbst.GenerateBlockKey(off);
+    eos_static_debug("(1) off=%zu, len=%zu", off, nread);
+    found = mpCacheImpl->GetRead(key, pBuf + read_offset, off, nread);
 
-    if ( !found ) {
+    if (!found)
+    {
       return 0;
     }
 
@@ -222,13 +244,15 @@ XrdFileCache::GetRead( FileAbstraction& rFileAbst,
     read_offset += nread;
   }
 
-  if ( len != 0 ) {
+  if (len != 0)
+  {
     nread = len;
-    key = rFileAbst.GenerateBlockKey( off );
-    eos_static_debug( "(2) off=%zu, len=%zu", off, nread );
-    found = mpCacheImpl->GetRead( key, pBuf + read_offset, off, nread );
+    key = rFileAbst.GenerateBlockKey(off);
+    eos_static_debug("(2) off=%zu, len=%zu", off, nread);
+    found = mpCacheImpl->GetRead(key, pBuf + read_offset, off, nread);
 
-    if ( !found ) {
+    if (!found)
+    {
       return 0;
     }
 
@@ -242,36 +266,39 @@ XrdFileCache::GetRead( FileAbstraction& rFileAbst,
 //------------------------------------------------------------------------------
 // Save piece in cache
 //------------------------------------------------------------------------------
+
 int64_t
-XrdFileCache::PutRead( eos::fst::Layout*& file,
-                       FileAbstraction&   rFileAbst,
-                       void*              buf, 
-                       off_t              off,
-                       size_t             len )
+XrdFileCache::PutRead (eos::fst::Layout*& file,
+                       FileAbstraction& rFileAbst,
+                       void* buf,
+                       off_t off,
+                       size_t len)
 {
   int64_t nread;
   long long int key;
   int64_t read_offset = 0;
-  char* pBuf = static_cast<char*>( buf );
+  char* pBuf = static_cast<char*> (buf);
 
   //............................................................................
   // Read bigger than block size, break in smaller blocks
   //............................................................................
-  while ( ( ( off % CacheEntry::GetMaxSize() ) + len ) > CacheEntry::GetMaxSize() ) {
-    nread = CacheEntry::GetMaxSize() - ( off % CacheEntry::GetMaxSize() );
-    key = rFileAbst.GenerateBlockKey( off );
-    eos_static_debug( "(1) off=%zu, len=%zu key=%lli", off, nread, key );
-    mpCacheImpl->AddRead( file, key, pBuf + read_offset, off, nread, rFileAbst );
+  while (((off % CacheEntry::GetMaxSize()) + len) > CacheEntry::GetMaxSize())
+  {
+    nread = CacheEntry::GetMaxSize() - (off % CacheEntry::GetMaxSize());
+    key = rFileAbst.GenerateBlockKey(off);
+    eos_static_debug("(1) off=%zu, len=%zu key=%lli", off, nread, key);
+    mpCacheImpl->AddRead(file, key, pBuf + read_offset, off, nread, rFileAbst);
     off += nread;
     len -= nread;
     read_offset += nread;
   }
 
-  if ( len != 0 ) {
+  if (len != 0)
+  {
     nread = len;
-    key = rFileAbst.GenerateBlockKey( off );
-    eos_static_debug( "(2) off=%zu, len=%zu key=%lli", off, nread, key );
-    mpCacheImpl->AddRead( file, key, pBuf + read_offset, off, nread, rFileAbst );
+    key = rFileAbst.GenerateBlockKey(off);
+    eos_static_debug("(2) off=%zu, len=%zu key=%lli", off, nread, key);
+    mpCacheImpl->AddRead(file, key, pBuf + read_offset, off, nread, rFileAbst);
     read_offset += nread;
   }
 
@@ -282,43 +309,49 @@ XrdFileCache::PutRead( eos::fst::Layout*& file,
 //------------------------------------------------------------------------------
 // Remove file from mapping
 //------------------------------------------------------------------------------
+
 bool
-XrdFileCache::RemoveFileInode( unsigned long inode, bool strongConstraint )
+XrdFileCache::RemoveFileInode (unsigned long inode, bool strongConstraint)
 {
   bool do_deletion = false;
-  eos_static_debug( "inode=%lu", inode );
-  FileAbstraction* ptr =  NULL;
-  mRwLock.WriteLock();                                 //write lock map
+  eos_static_debug("inode=%lu", inode);
+  FileAbstraction* ptr = NULL;
+  mRwLock.WriteLock(); //write lock map
   std::map<unsigned long, FileAbstraction*>::iterator iter =
-    mInode2fAbst.find( inode );
+    mInode2fAbst.find(inode);
 
-  if ( iter != mInode2fAbst.end() ) {
-    ptr = static_cast<FileAbstraction*>( ( *iter ).second );
+  if (iter != mInode2fAbst.end())
+  {
+    ptr = static_cast<FileAbstraction*> ((*iter).second);
 
-    if ( strongConstraint ) {
+    if (strongConstraint)
+    {
       //........................................................................
       // Strong constraint
       //........................................................................
-      do_deletion = ( ptr->GetSizeRdWr() == 0 ) && ( ptr->GetNoReferences() == 0 );
-    } else {
+      do_deletion = (ptr->GetSizeRdWr() == 0) && (ptr->GetNoReferences() == 0);
+    }
+    else
+    {
       //........................................................................
       // Weak constraint
       //........................................................................
-      do_deletion = ( ptr->GetSizeRdWr() == 0 ) && ( ptr->GetNoReferences() <= 1 );
+      do_deletion = (ptr->GetSizeRdWr() == 0) && (ptr->GetNoReferences() <= 1);
     }
 
-    if ( do_deletion ) {
+    if (do_deletion)
+    {
       //........................................................................
       // Remove file from mapping
       //........................................................................
       int id = ptr->GetId();
       delete ptr;
-      mInode2fAbst.erase( iter );
-      mpUsedIndxQueue->push( id );
+      mInode2fAbst.erase(iter);
+      mpUsedIndxQueue->push(id);
     }
   }
 
-  mRwLock.UnLock();                                    //unlock map
+  mRwLock.UnLock(); //unlock map
   return do_deletion;
 }
 
@@ -326,13 +359,15 @@ XrdFileCache::RemoveFileInode( unsigned long inode, bool strongConstraint )
 //------------------------------------------------------------------------------
 // Get errors queue
 //------------------------------------------------------------------------------
+
 ConcurrentQueue<error_type>&
-XrdFileCache::GetErrorQueue( unsigned long inode )
+XrdFileCache::GetErrorQueue (unsigned long inode)
 {
   ConcurrentQueue<error_type>* tmp = NULL;
-  FileAbstraction* pAbst = GetFileObj( inode, false );
+  FileAbstraction* pAbst = GetFileObj(inode, false);
 
-  if ( pAbst ) {
+  if (pAbst)
+  {
     *tmp = pAbst->GetErrorQueue();
     pAbst->DecrementNoReferences();
   }
@@ -345,18 +380,20 @@ XrdFileCache::GetErrorQueue( unsigned long inode )
 // It also forces the incompletele (not full) write blocks from cache to be
 // added to the writes queue and implicitly to be written to the file.
 //------------------------------------------------------------------------------
+
 void
-XrdFileCache::WaitFinishWrites( FileAbstraction& rFileAbst )
+XrdFileCache::WaitFinishWrites (FileAbstraction& rFileAbst)
 {
-  if ( rFileAbst.GetSizeWrites() != 0 ) {
-    mpCacheImpl->FlushWrites( rFileAbst );
+  if (rFileAbst.GetSizeWrites() != 0)
+  {
+    mpCacheImpl->FlushWrites(rFileAbst);
     rFileAbst.WaitFinishWrites();
 
     /*
     if ( !rFileAbst.IsInUse( false ) ) {
       RemoveFileInode( rFileAbst.GetInode(), false );
     }
-    */
+     */
   }
 }
 
@@ -366,15 +403,18 @@ XrdFileCache::WaitFinishWrites( FileAbstraction& rFileAbst )
 // It also forces the incompletele (not full) write blocks from cache to be added
 // to the writes queue and implicitly to be written to the file. 
 //------------------------------------------------------------------------------
+
 void
-XrdFileCache::WaitWritesAndRemove(FileAbstraction &fileAbst)
+XrdFileCache::WaitWritesAndRemove (FileAbstraction &fileAbst)
 {
-  if (fileAbst.GetSizeWrites() != 0) {
+  if (fileAbst.GetSizeWrites() != 0)
+  {
     mpCacheImpl->FlushWrites(fileAbst);
     fileAbst.WaitFinishWrites();
   }
 
-  if (!fileAbst.IsInUse(false)) {
+  if (!fileAbst.IsInUse(false))
+  {
     RemoveFileInode(fileAbst.GetInode(), false);
   }
 }
