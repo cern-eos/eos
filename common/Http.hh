@@ -53,6 +53,7 @@ protected:
   pthread_t mThreadId;
   bool mRunning;
 
+#ifdef EOS_MICRO_HTTPD
   /**
    * Returns the query string for an HTTP request 
    * @param cls in-out address of a std::string containing the query string
@@ -78,6 +79,7 @@ protected:
                              enum MHD_ValueKind kind,
                              const char *key,
                              const char *value);
+#endif
 
 public:
 

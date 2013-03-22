@@ -27,7 +27,6 @@
 #include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysPriv.hh"
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <map>
@@ -95,7 +94,6 @@ Http::Run ()
 #ifdef EOS_MICRO_HTTPD
 
   {
-    XrdSysPrivGuard(0, 0);
     mDaemon = MHD_start_daemon(MHD_USE_DEBUG | MHD_USE_SELECT_INTERNALLY,
                                mPort,
                                NULL,
