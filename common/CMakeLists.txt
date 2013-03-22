@@ -94,12 +94,35 @@ add_executable ( mutextest
        mutextest/RWMutexTest.cc
 )
 
-target_link_libraries ( eosCommon XrdMqClient XrdUtils XrdCl crypto ${UUID_LIBRARIES} curses z ${ATTR_LIBRARIES} ${MICROHTTPD_LIBRARIES} ${LEVELDB_LIBRARIES} )
-target_link_libraries ( eosCommon-Static XrdMqClient-Static XrdUtils XrdCl crypto ${UUID_LIBRARIES} curses z ${ATTR_LIBRARIES} ${MICROHTTPD_LIBRARIES} ${LEVELDB_LIBRARIES} )
+<<<<<<< HEAD
+target_link_libraries ( eosCommon 
+                        XrdMqClient 
+                        XrdUtils 
+                        XrdCl 
+                        crypto 
+                        rt
+                        ${UUID_LIBRARIES} 
+                        curses 
+                        z 
+                        ${ATTR_LIBRARIES} 
+                        ${MICROHTTPD_LIBRARIES} 
+                        ${LEVELDB_LIBRARIES} )
 
-target_link_libraries ( dbmaptestfunc eosCommon )
-target_link_libraries ( dbmaptestburn eosCommon )
-target_link_libraries ( mutextest eosCommon )
+target_link_libraries ( eosCommon-Static 
+                        XrdMqClient-Static 
+                        XrdUtils 
+                        XrdCl 
+                        crypto 
+                        ${UUID_LIBRARIES} 
+                        curses 
+                        z 
+                        ${ATTR_LIBRARIES} 
+                        ${MICROHTTPD_LIBRARIES} 
+                        ${LEVELDB_LIBRARIES} )
+
+target_link_libraries ( dbmaptestfunc eosCommon ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries ( dbmaptestburn eosCommon ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries ( mutextest eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 
 if (Linux) 
   set_target_properties ( 

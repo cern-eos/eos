@@ -1,9 +1,0 @@
-This is an XRootD DSI plugin for gridftp.
-So far, the supported operations are :
-  mkdir, rmdir, delete, rename, cksm (checksum), chmod  
-Any other operation is not implemented and will result in an error.
-
-Some eos specifics can be enabled.
-More generally, the configuration of the plugin is 
-written in the file /etc/sysconfig/xrootd-gridftp-server.
-

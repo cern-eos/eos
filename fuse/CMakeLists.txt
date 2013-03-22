@@ -22,9 +22,8 @@
 # ************************************************************************
 
 include_directories( ../ 
-		     ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd/
-		     ${CMAKE_BINARY_DIR}/xrootd/src/include/
 		     ${XROOTD_INCLUDE_DIR} 
+		     ${XROOTD_PRIVATE_INCLUDE_DIR}	
 		     ${FUSE_INCLUDE_DIR} 
 		     ${SPARSEHASH_INCLUDE_DIR} )
 
@@ -48,21 +47,21 @@ add_executable ( eosd
 target_link_libraries ( eosfsd 
 		        XrdCl
 			XrdUtils 
-			${FUSE_LIBRARY} 
 			XrdEosFst-Static
 			XrdCache-Static
 			eosCommon-Static
-			pthread )
+			${FUSE_LIBRARY} 
+			${CMAKE_THREAD_LIBS_INIT} )
 
 target_link_libraries ( eosd 
      		      	XrdCl
 			XrdUtils 
-			${FUSE_LIBRARY}
 			XrdEosFst-Static
 			XrdCache-Static
 			eosCommon-Static
+			${FUSE_LIBRARY}
 			${UUID_LIBRARIES}
-			pthread )
+			${CMAKE_THREAD_LIBS_INIT} )
 
 if(MacOSX)
 set_target_properties ( eosd eosfsd PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE")

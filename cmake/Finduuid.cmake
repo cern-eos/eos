@@ -9,10 +9,16 @@ if(UUID_INCLUDE_DIRS AND UUID_LIBRARIES)
 set(UUID_FIND_QUIETLY TRUE)
 endif(UUID_INCLUDE_DIRS AND UUID_LIBRARIES)
 
-find_path(UUID_INCLUDE_DIR uuid/uuid.h)
+find_path(UUID_INCLUDE_DIR uuid.h
+                           HINTS
+                           /usr/include/
+			   /usr/include/uuid/
+			   )
 find_library(UUID_LIBRARY uuid
 			  HINTS
 			  /opt/local/
+			  /usr/lib/
+			  PATH_SUFFIXES lib
 			  )
 
 set(UUID_INCLUDE_DIRS ${UUID_INCLUDE_DIR})

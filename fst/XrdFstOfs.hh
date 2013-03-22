@@ -140,6 +140,11 @@ public:
   // here we mask all illegal operations
 
   int
+  getMap(void **Addr, off_t &Size) {
+    return 0;
+  }
+  
+  int
   chmod (const char* Name,
          XrdSfsMode Mode,
          XrdOucErrInfo& out_error,
