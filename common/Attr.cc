@@ -39,17 +39,18 @@ EOSCOMMONNAMESPACE_BEGIN;
  * 
  * @return Attr object if file exists otherwise 0
  */
+
 /*----------------------------------------------------------------------------*/
 Attr*
-Attr::OpenAttr(const char * file)
+Attr::OpenAttr (const char * file)
 {
   struct stat buf;
   if (!file)
     return 0;
 
-  if (::stat(file,&buf)) 
+  if (::stat(file, &buf))
     return 0;
-  
+
   return new Attr(file);
 };
 
@@ -59,8 +60,9 @@ Attr::OpenAttr(const char * file)
  * OpenAttr!
  * @param file path toe the file with extended attributes
  */
+
 /*----------------------------------------------------------------------------*/
-Attr::Attr(const char* file)
+Attr::Attr (const char* file)
 {
   mName = file;
 }
@@ -70,10 +72,9 @@ Attr::Attr(const char* file)
  * Destructor
  * 
  */
+
 /*----------------------------------------------------------------------------*/
-Attr::~Attr() 
-{
-}
+Attr::~Attr () { }
 
 /*----------------------------------------------------------------------------*/
 /** 
@@ -85,16 +86,17 @@ Attr::~Attr()
  * 
  * @return true if successful - false if error
  */
+
 /*----------------------------------------------------------------------------*/
-bool 
-Attr::Set(const char* name, const char* value, size_t len)
+bool
+Attr::Set (const char* name, const char* value, size_t len)
 {
-  if ((!name)|| (!value))
+  if ((!name) || (!value))
     return false;
 #ifdef __APPLE__
-  if (!setxattr(mName.c_str(), name, value, len,0,0))
+  if (!setxattr(mName.c_str(), name, value, len, 0, 0))
 #else
-  if (!lsetxattr(mName.c_str(), name, value, len,0))
+  if (!lsetxattr(mName.c_str(), name, value, len, 0))
 #endif
     return true;
   return false;
@@ -109,9 +111,10 @@ Attr::Set(const char* name, const char* value, size_t len)
  * 
  * @return true if successful - false if error
  */
+
 /*----------------------------------------------------------------------------*/
-bool 
-Attr::Set(std::string key, std::string value)
+bool
+Attr::Set (std::string key, std::string value)
 {
 
   return Set(key.c_str(), value.c_str(), value.length());
@@ -128,19 +131,21 @@ Attr::Set(std::string key, std::string value)
  * 
  * @return true if the attribute has been retrieved - false if error
  */
+
 /*----------------------------------------------------------------------------*/
 bool
-Attr::Get(const char* name, char* value, size_t &size)
+Attr::Get (const char* name, char* value, size_t &size)
 {
 
   if ((!name) || (!value))
     return false;
 #ifdef __APPLE__
-  int retc = getxattr (mName.c_str(), name, value,size,0,0);
+  int retc = getxattr(mName.c_str(), name, value, size, 0, 0);
 #else
-  int retc = lgetxattr (mName.c_str(), name, value,size);
+  int retc = lgetxattr(mName.c_str(), name, value, size);
 #endif
-  if (retc!=-1) {
+  if (retc != -1)
+  {
     size = retc;
     return true;
   }
@@ -156,16 +161,18 @@ Attr::Get(const char* name, char* value, size_t &size)
  * 
  * @return string of the value and also empty "" if it does not exist
  */
+
 /*----------------------------------------------------------------------------*/
 std::string
-Attr::Get(std::string name)
+Attr::Get (std::string name)
 {
   mBuffer[0] = 0;
-  size_t size = sizeof(mBuffer)-1;
-  if (!Get(name.c_str(), mBuffer, size)) {
+  size_t size = sizeof (mBuffer) - 1;
+  if (!Get(name.c_str(), mBuffer, size))
+  {
     return "";
   }
-  
+
   mBuffer[size] = 0;
   return std::string(mBuffer);
 }

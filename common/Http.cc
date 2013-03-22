@@ -42,39 +42,39 @@ Http* Http::gHttp;
 /*----------------------------------------------------------------------------*/
 Http::Http (int port)
 {
- //.............................................................................
- // Constructor
- //.............................................................................
- gHttp = this;
- mPort = port;
- mThreadId = 0;
- mRunning = false;
+  //.............................................................................
+  // Constructor
+  //.............................................................................
+  gHttp = this;
+  mPort = port;
+  mThreadId = 0;
+  mRunning = false;
 }
 
 /*----------------------------------------------------------------------------*/
 Http::~Http () {
- //.............................................................................
- // Destructor
- //.............................................................................
+  //.............................................................................
+  // Destructor
+  //.............................................................................
 }
 
 /*----------------------------------------------------------------------------*/
 bool
 Http::Start ()
 {
- //.............................................................................
- // Startup the HTTP server
- //.............................................................................
- if (!mRunning)
- {
-   XrdSysThread::Run(&mThreadId, Http::StaticHttp, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Httpd Thread");
-   mRunning = true;
-   return true;
- }
- else
- {
-   return false;
- }
+  //.............................................................................
+  // Startup the HTTP server
+  //.............................................................................
+  if (!mRunning)
+  {
+    XrdSysThread::Run(&mThreadId, Http::StaticHttp, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Httpd Thread");
+    mRunning = true;
+    return true;
+  }
+  else
+  {
+    return false;
+  }
 
 }
 
@@ -82,10 +82,10 @@ Http::Start ()
 void*
 Http::StaticHttp (void* arg)
 {
- //.............................................................................
- // Asynchronoous thread start function
- //.............................................................................
- return reinterpret_cast<Http*> (arg)->Run();
+  //.............................................................................
+  // Asynchronoous thread start function
+  //.............................................................................
+  return reinterpret_cast<Http*> (arg)->Run();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -94,65 +94,65 @@ Http::Run ()
 {
 #ifdef EOS_MICRO_HTTPD
 
- {
-   XrdSysPrivGuard(0, 0);
-   mDaemon = MHD_start_daemon(MHD_USE_DEBUG | MHD_USE_SELECT_INTERNALLY,
-                              mPort,
-                              NULL,
-                              NULL,
-                              &Http::StaticHandler,
-                              (void*) EOSCOMMON_HTTP_PAGE,
-                              MHD_OPTION_END
-                              );
- }
- if (!mDaemon)
- {
-   mRunning = false;
-   eos_static_warning("msg=\"start of micro httpd failed [port=%d]\"", mPort);
-   return (0);
- }
- else
- {
-   mRunning = true;
- }
+  {
+    XrdSysPrivGuard(0, 0);
+    mDaemon = MHD_start_daemon(MHD_USE_DEBUG | MHD_USE_SELECT_INTERNALLY,
+                               mPort,
+                               NULL,
+                               NULL,
+                               &Http::StaticHandler,
+                               (void*) EOSCOMMON_HTTP_PAGE,
+                               MHD_OPTION_END
+                               );
+  }
+  if (!mDaemon)
+  {
+    mRunning = false;
+    eos_static_warning("msg=\"start of micro httpd failed [port=%d]\"", mPort);
+    return (0);
+  }
+  else
+  {
+    mRunning = true;
+  }
 
- eos_static_info("msg=\"start of micro httpd succeeded [port=%d]\"", mPort);
+  eos_static_info("msg=\"start of micro httpd succeeded [port=%d]\"", mPort);
 
- fd_set rs;
- fd_set ws;
- fd_set es;
- int max;
- unsigned MHD_LONG_LONG mhd_timeout;
- struct timeval tv;
+  fd_set rs;
+  fd_set ws;
+  fd_set es;
+  int max;
+  unsigned MHD_LONG_LONG mhd_timeout;
+  struct timeval tv;
 
- while (1)
- {
-   tv.tv_sec = 3600;
-   tv.tv_usec = 0;
+  while (1)
+  {
+    tv.tv_sec = 3600;
+    tv.tv_usec = 0;
 
-   max = 0;
-   FD_ZERO(&rs);
-   FD_ZERO(&ws);
-   FD_ZERO(&es);
+    max = 0;
+    FD_ZERO(&rs);
+    FD_ZERO(&ws);
+    FD_ZERO(&es);
 
-   if (MHD_YES != MHD_get_fdset(mDaemon, &rs, &ws, &es, &max))
-     break; /* fatal internal error */
+    if (MHD_YES != MHD_get_fdset(mDaemon, &rs, &ws, &es, &max))
+      break; /* fatal internal error */
 
-   if (MHD_get_timeout(mDaemon, &mhd_timeout) == MHD_YES)
-   {
-     if ((tv.tv_sec * 1000) < (long long) mhd_timeout)
-     {
-       tv.tv_sec = mhd_timeout / 1000;
-       tv.tv_usec = (mhd_timeout - (tv.tv_sec * 1000)) * 1000;
-     }
-   }
-   select(max + 1, &rs, &ws, &es, &tv);
-   MHD_run(mDaemon);
- }
- MHD_stop_daemon(mDaemon);
+    if (MHD_get_timeout(mDaemon, &mhd_timeout) == MHD_YES)
+    {
+      if ((tv.tv_sec * 1000) < (long long) mhd_timeout)
+      {
+        tv.tv_sec = mhd_timeout / 1000;
+        tv.tv_usec = (mhd_timeout - (tv.tv_sec * 1000)) * 1000;
+      }
+    }
+    select(max + 1, &rs, &ws, &es, &tv);
+    MHD_run(mDaemon);
+  }
+  MHD_stop_daemon(mDaemon);
 #endif
 
- return (0);
+  return (0);
 }
 
 #ifdef EOS_MICRO_HTTPD
@@ -167,22 +167,22 @@ Http::StaticHandler (void *cls,
                      const char *upload_data,
                      size_t *upload_data_size, void **ptr)
 {
- // The static handler function calls back the original http object
- if (gHttp)
- {
-   return gHttp->Handler(cls,
-                         connection,
-                         url,
-                         method,
-                         version,
-                         upload_data,
-                         upload_data_size,
-                         ptr);
- }
- else
- {
-   return 0;
- }
+  // The static handler function calls back the original http object
+  if (gHttp)
+  {
+    return gHttp->Handler(cls,
+                          connection,
+                          url,
+                          method,
+                          version,
+                          upload_data,
+                          upload_data_size,
+                          ptr);
+  }
+  else
+  {
+    return 0;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -195,49 +195,49 @@ Http::Handler (void *cls,
                const char *upload_data,
                size_t *upload_data_size, void **ptr)
 {
- static int aptr;
- struct MHD_Response *response;
+  static int aptr;
+  struct MHD_Response *response;
 
- std::string query;
- std::map<std::string, std::string> header;
+  std::string query;
+  std::map<std::string, std::string> header;
 
- // currently support only GET methods
- if (0 != strcmp(method, MHD_HTTP_METHOD_GET))
-   return MHD_NO; /* unexpected method */
+  // currently support only GET methods
+  if (0 != strcmp(method, MHD_HTTP_METHOD_GET))
+    return MHD_NO; /* unexpected method */
 
- if (&aptr != *ptr)
- {
-   /* do never respond on first call */
-   *ptr = &aptr;
-   return MHD_YES;
- }
+  if (&aptr != *ptr)
+  {
+    /* do never respond on first call */
+    *ptr = &aptr;
+    return MHD_YES;
+  }
 
- // get the query CGI
- MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND, &Http::BuildQueryString,
-                           (void*) &query);
+  // get the query CGI
+  MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND, &Http::BuildQueryString,
+                            (void*) &query);
 
- // get the header INFO
- MHD_get_connection_values(connection, MHD_HEADER_KIND, &Http::BuildHeaderMap,
-                           (void*) &header);
+  // get the header INFO
+  MHD_get_connection_values(connection, MHD_HEADER_KIND, &Http::BuildHeaderMap,
+                            (void*) &header);
 
- *ptr = NULL; /* reset when done */
+  *ptr = NULL; /* reset when done */
 
- eos_static_info("url=%s query=%s", url ? url : "", query.c_str() ? query.c_str() : "");
+  eos_static_info("url=%s query=%s", url ? url : "", query.c_str() ? query.c_str() : "");
 
- for (auto it = header.begin(); it != header.end(); it++)
- {
-   eos_static_info("header:%s=%s", it->first.c_str(), it->second.c_str());
- }
+  for (auto it = header.begin(); it != header.end(); it++)
+  {
+    eos_static_info("header:%s=%s", it->first.c_str(), it->second.c_str());
+  }
 
- std::string result = "Welcome to EOS!";
+  std::string result = "Welcome to EOS!";
 
- response = MHD_create_response_from_buffer(result.length(),
-                                            (void *) result.c_str(),
-                                            MHD_RESPMEM_MUST_FREE);
+  response = MHD_create_response_from_buffer(result.length(),
+                                             (void *) result.c_str(),
+                                             MHD_RESPMEM_MUST_FREE);
 
- int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+  int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
 
- return ret;
+  return ret;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -247,13 +247,13 @@ Http::BuildHeaderMap (void *cls,
                       const char *key,
                       const char *value)
 {
- // Call back function to return the header key-val map of an HTTP request
- std::map<std::string, std::string>* hMap = static_cast<std::map<std::string, std::string>*> (cls);
- if (key && value && hMap)
- {
-   (*hMap)[key] = value;
- }
- return MHD_YES;
+  // Call back function to return the header key-val map of an HTTP request
+  std::map<std::string, std::string>* hMap = static_cast<std::map<std::string, std::string>*> (cls);
+  if (key && value && hMap)
+  {
+    (*hMap)[key] = value;
+  }
+  return MHD_YES;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -263,19 +263,19 @@ Http::BuildQueryString (void *cls,
                         const char *key,
                         const char *value)
 {
- // Call back function to return the query string of an HTTP request
- std::string* qString = static_cast<std::string*> (cls);
- if (key && value && qString)
- {
-   if (qString->length())
-   {
-     *qString += "&";
-   }
-   *qString += key;
-   *qString += "=";
-   *qString += value;
- }
- return MHD_YES;
+  // Call back function to return the query string of an HTTP request
+  std::string* qString = static_cast<std::string*> (cls);
+  if (key && value && qString)
+  {
+    if (qString->length())
+    {
+      *qString += "&";
+    }
+    *qString += key;
+    *qString += "=";
+    *qString += value;
+  }
+  return MHD_YES;
 }
 #endif
 
@@ -283,69 +283,69 @@ Http::BuildQueryString (void *cls,
 std::string
 Http::HttpRedirect (int& response_code, std::map<std::string, std::string>& response_header, const char* host_cgi, int port, std::string& path, std::string& query, bool cookie)
 {
- response_code = 307;
- // return an HTTP redirect
- std::string host = host_cgi;
- std::string cgi = "";
- size_t qpos;
+  response_code = 307;
+  // return an HTTP redirect
+  std::string host = host_cgi;
+  std::string cgi = "";
+  size_t qpos;
 
- if ((qpos = host.find("?")) != std::string::npos)
- {
-   cgi = host;
-   cgi.erase(0, qpos + 1);
-   host.erase(qpos);
- }
+  if ((qpos = host.find("?")) != std::string::npos)
+  {
+    cgi = host;
+    cgi.erase(0, qpos + 1);
+    host.erase(qpos);
+  }
 
- std::string redirect;
+  std::string redirect;
 
- redirect = "http://";
- redirect += host;
- char sport[16];
- snprintf(sport, sizeof (sport) - 1, ":%d", port);
- redirect += sport;
- redirect += path.c_str();
+  redirect = "http://";
+  redirect += host;
+  char sport[16];
+  snprintf(sport, sizeof (sport) - 1, ":%d", port);
+  redirect += sport;
+  redirect += path.c_str();
 
- EncodeURI(cgi); // encode '+' '/' '='
+  EncodeURI(cgi); // encode '+' '/' '='
 
- if (cookie)
- {
-   response_header["Set-Cookie"] = "EOSCAPABILITY=";
-   response_header["Set-Cookie"] += cgi;
-   response_header["Set-Cookie"] += ";Max-Age=60;";
-   response_header["Set-Cookie"] += "Path=";
-   response_header["Set-Cookie"] += path.c_str();
-   response_header["Set-Cookie"] += ";Version=1";
-   response_header["Set-Cookie"] += ";Domain=";
-   response_header["Set-Cookie"] += "cern.ch";
- }
- else
- {
-   redirect += "?";
-   redirect += cgi;
- }
- response_header["Location"] = redirect;
- return "";
+  if (cookie)
+  {
+    response_header["Set-Cookie"] = "EOSCAPABILITY=";
+    response_header["Set-Cookie"] += cgi;
+    response_header["Set-Cookie"] += ";Max-Age=60;";
+    response_header["Set-Cookie"] += "Path=";
+    response_header["Set-Cookie"] += path.c_str();
+    response_header["Set-Cookie"] += ";Version=1";
+    response_header["Set-Cookie"] += ";Domain=";
+    response_header["Set-Cookie"] += "cern.ch";
+  }
+  else
+  {
+    redirect += "?";
+    redirect += cgi;
+  }
+  response_header["Location"] = redirect;
+  return "";
 }
 
 /*----------------------------------------------------------------------------*/
 std::string
 Http::HttpError (int &response_code, std::map<std::string, std::string>& response_header, const char* errtxt, int errc)
 {
- if (errc == ENOENT)
-   response_code = 404;
- else
-   if (errc == EOPNOTSUPP)
-   response_code = 501;
- else
-   response_code = 500;
+  if (errc == ENOENT)
+    response_code = 404;
+  else
+    if (errc == EOPNOTSUPP)
+    response_code = 501;
+  else
+    response_code = 500;
 
- if (errc > 400)
-   response_code = errc;
+  if (errc > 400)
+    response_code = errc;
 
- std::string error;
- char errct[256];
- snprintf(errct, sizeof (errct) - 1, "%d", errc);
- error += "  <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \n \
+  std::string error;
+  char errct[256];
+  snprintf(errct, sizeof (errct) - 1, "%d", errc);
+  error += "  <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \n \
     \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\"> \n\
 <html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\"> \n \
 <head>\n \
@@ -385,12 +385,12 @@ Http::HttpError (int &response_code, std::map<std::string, std::string>& respons
 	</div>\n\
   <div id=\"container\" class=\"clear-block\">\n\
   <div id=\"middle\" class=\"clear-block\">\n";
- error += "<h1>";
- error += errct;
- error += " - ";
- error += errtxt;
- error += "<h1>\n";
- error += "\
+  error += "<h1>";
+  error += errct;
+  error += " - ";
+  error += errtxt;
+  error += "<h1>\n";
+  error += "\
     <p>There was an error loading the page you requested<script type=\"text/javascript\">\n\
 		document.write (\": \" + document.location.href); \n\
 	</script>\n\
@@ -412,184 +412,193 @@ Http::HttpError (int &response_code, std::map<std::string, std::string>& respons
 </body>\n\
 </html>\n";
 
- return error;
+  return error;
 }
 
 /*----------------------------------------------------------------------------*/
 std::string
 Http::HttpData (int& response_code, std::map<std::string, std::string>& response_header, const char* data, int length)
 {
- response_code = 200;
- // return data as HTTP message
- std::string httpdata;
- httpdata.append(data, length);
- return httpdata;
+  response_code = 200;
+  // return data as HTTP message
+  std::string httpdata;
+  httpdata.append(data, length);
+  return httpdata;
 }
 
 /*----------------------------------------------------------------------------*/
 std::string
 Http::HttpStall (int& response_code, std::map<std::string, std::string>& response_header, const char* stallxt, int stallsec)
 {
- // return an HTTP stall
- response_code = 501;
- return HttpError(response_code, response_header, "unable to stall", 503);
+  // return an HTTP stall
+  response_code = 501;
+  return HttpError(response_code, response_header, "unable to stall", 503);
 }
 
 /*----------------------------------------------------------------------------*/
 void
 Http::EncodeURI (std::string& cgi)
 {
- // replace '+' '/' '='
- XrdOucString scgi = cgi.c_str();
- while (scgi.replace("+", "%2B"))
- {
- }
- while (scgi.replace("/", "%2F"))
- {
- }
- while (scgi.replace("=", "%3D"))
- {
- }
- while (scgi.replace("&", "%26"))
- {
- }
- cgi = "encURI=";
- cgi += scgi.c_str();
+  // replace '+' '/' '='
+  XrdOucString scgi = cgi.c_str();
+  while (scgi.replace("+", "%2B"))
+  {
+  }
+  while (scgi.replace("/", "%2F"))
+  {
+  }
+  while (scgi.replace("=", "%3D"))
+  {
+  }
+  while (scgi.replace("&", "%26"))
+  {
+  }
+  while (scgi.replace("#", "%23"))
+  {
+  }
+  cgi = "encURI=";
+  cgi += scgi.c_str();
 }
 
 /*----------------------------------------------------------------------------*/
 void
 Http::DecodeURI (std::string& cgi)
 {
- // replace "%2B" "%2F" "%3D"
- XrdOucString scgi = cgi.c_str();
- while (scgi.replace("%2B", "+"))
- {
- }
- while (scgi.replace("%2F", "/"))
- {
- }
- while (scgi.replace("%3D", "="))
- {
- }
- while (scgi.replace("%26", "&"))
- {
- }
- if (scgi.beginswith("encURI="))
- {
-   scgi.erase(0, 7);
- }
- cgi = scgi.c_str();
+  // replace "%2B" "%2F" "%3D"
+  XrdOucString scgi = cgi.c_str();
+  while (scgi.replace("%2B", "+"))
+  {
+  }
+  while (scgi.replace("%2F", "/"))
+  {
+  }
+  while (scgi.replace("%3D", "="))
+  {
+  }
+  while (scgi.replace("%26", "&"))
+  {
+  }
+  while (scgi.replace("%23", "#"))
+  {
+  }
+  if (scgi.beginswith("encURI="))
+  {
+    scgi.erase(0, 7);
+  }
+  cgi = scgi.c_str();
 }
 
 /*----------------------------------------------------------------------------*/
 bool
 Http::DecodeByteRange (std::string rangeheader, std::map<off_t, ssize_t>& offsetmap, ssize_t& requestsize, off_t filesize)
 {
- std::vector<std::string> tokens;
- if (rangeheader.substr(0, 6) != "bytes=")
- {
-   // this is an illegal header
-   return false;
- }
- else
- {
-   rangeheader.erase(0, 6);
- }
+  std::vector<std::string> tokens;
+  if (rangeheader.substr(0, 6) != "bytes=")
+  {
+    // this is an illegal header
+    return false;
+  }
+  else
+  {
+    rangeheader.erase(0, 6);
+  }
 
- eos::common::StringConversion::Tokenize(rangeheader, tokens, ",");
- // decode the string parts
- for (size_t i = 0; i < tokens.size(); i++)
- {
-   eos_static_info("decoding %s", tokens[i].c_str());
-   off_t start = 0;
-   off_t stop = 0;
-   off_t length = 0;
+  eos::common::StringConversion::Tokenize(rangeheader, tokens, ",");
+  // decode the string parts
+  for (size_t i = 0; i < tokens.size(); i++)
+  {
+    eos_static_info("decoding %s", tokens[i].c_str());
+    off_t start = 0;
+    off_t stop = 0;
+    off_t length = 0;
 
-   size_t mpos = tokens[i].find("-");
-   if (mpos == std::string::npos)
-   {
-     // there must always be a '-'
-     return false;
-   }
-   std::string sstop = tokens[i];
-   std::string sstart = tokens[i];
-   sstart.erase(mpos);
-   sstop.erase(0, mpos + 1);
-   if (sstart.length())
-   {
-     start = strtoull(sstart.c_str(), 0, 10);
-   }
-   if (sstop.length())
-   {
-     stop = strtoull(sstop.c_str(), 0, 10);
-   }
+    size_t mpos = tokens[i].find("-");
+    if (mpos == std::string::npos)
+    {
+      // there must always be a '-'
+      return false;
+    }
+    std::string sstop = tokens[i];
+    std::string sstart = tokens[i];
+    sstart.erase(mpos);
+    sstop.erase(0, mpos + 1);
+    if (sstart.length())
+    {
+      start = strtoull(sstart.c_str(), 0, 10);
+    }
+    if (sstop.length())
+    {
+      stop = strtoull(sstop.c_str(), 0, 10);
+    }
 
-   if ( (start > filesize) || (stop > filesize) ) {
-     return false;
-   }
-   
-   if (stop >= start)
-   {
-     length = (stop - start) + 1;
-   }
-   else
-   {
-     continue;
-   }
+    if ((start > filesize) || (stop > filesize))
+    {
+      return false;
+    }
 
-   if (offsetmap.count(start))
-   {
-     if (offsetmap[start] < length)
-     {
-       // a previous block has been replaced with a longer one
-       offsetmap[start] = length;
-     }
-   } else {
-     offsetmap[start] = length;
-   }
- }
+    if (stop >= start)
+    {
+      length = (stop - start) + 1;
+    }
+    else
+    {
+      continue;
+    }
 
- // now merge overlapping requests
- bool merged = true;
- while (merged)
- {
-   requestsize = 0;
-   if (offsetmap.begin() == offsetmap.end())
-   {
-     // if there is nothing in the map just return with error
-     eos_static_err("msg=\"range map is empty\"");
-     return false;
-   }
-   for (auto it = offsetmap.begin(); it != offsetmap.end(); it++)
-   {
-     eos_static_info("offsetmap %llu:%llu", it->first,it->second);
-     auto next = it;
-     next++;
-     if (next != offsetmap.end())
-     {
-       // check if we have two overlapping requests
-       if ((it->first + it->second) >= (next->first))
-       {
-         merged = true;
-         // merge this two
-         it->second = next->first + next->second - it->first;
-         offsetmap.erase(next);
-         break;
-       }
-       else
-       {
-         merged = false;
-       }
-     }
-     else
-     {
-       merged = false;
-     }
-     // compute the total size
-     requestsize += it->second;
-   }
- }
- return true;
+    if (offsetmap.count(start))
+    {
+      if (offsetmap[start] < length)
+      {
+        // a previous block has been replaced with a longer one
+        offsetmap[start] = length;
+      }
+    }
+    else
+    {
+      offsetmap[start] = length;
+    }
+  }
+
+  // now merge overlapping requests
+  bool merged = true;
+  while (merged)
+  {
+    requestsize = 0;
+    if (offsetmap.begin() == offsetmap.end())
+    {
+      // if there is nothing in the map just return with error
+      eos_static_err("msg=\"range map is empty\"");
+      return false;
+    }
+    for (auto it = offsetmap.begin(); it != offsetmap.end(); it++)
+    {
+      eos_static_info("offsetmap %llu:%llu", it->first, it->second);
+      auto next = it;
+      next++;
+      if (next != offsetmap.end())
+      {
+        // check if we have two overlapping requests
+        if ((it->first + it->second) >= (next->first))
+        {
+          merged = true;
+          // merge this two
+          it->second = next->first + next->second - it->first;
+          offsetmap.erase(next);
+          break;
+        }
+        else
+        {
+          merged = false;
+        }
+      }
+      else
+      {
+        merged = false;
+      }
+      // compute the total size
+      requestsize += it->second;
+    }
+  }
+  return true;
 }
 EOSCOMMONNAMESPACE_END

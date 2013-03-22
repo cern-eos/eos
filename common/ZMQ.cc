@@ -29,55 +29,60 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 void*
-ZMQ::Start(void *pp)
+ZMQ::Start (void *pp)
 {
-  ((ZMQ*)pp)->Listen();
+  ((ZMQ*) pp)->Listen();
   return 0;
 }
 
 /*----------------------------------------------------------------------------*/
-ZMQ::ZMQ(const char* url) 
+ZMQ::ZMQ (const char* url)
 {
   eos::common::LogId();
   tid = 0;
   bindUrl = url;
   int rc = 0;
 
-  if ((rc = XrdSysThread::Run(&tid, ZMQ::Start, static_cast<void *>(this),
-                              XRDSYSTHREAD_HOLD, "ZMQ Receiver"))) {
+  if ((rc = XrdSysThread::Run(&tid, ZMQ::Start, static_cast<void *> (this),
+                              XRDSYSTHREAD_HOLD, "ZMQ Receiver")))
+  {
     eos_thread_err("unable to create zmq thread");
     zombie = true;
-  } else {
+  }
+  else
+  {
     zombie = false;
     eos_thread_info("started ZMQ thread");
   }
 }
 
 /*----------------------------------------------------------------------------*/
-ZMQ::~ZMQ() 
+ZMQ::~ZMQ ()
 {
-  if (tid && (!zombie)) {
+  if (tid && (!zombie))
+  {
     XrdSysThread::Cancel(tid);
-    XrdSysThread::Join(tid,0);
+    XrdSysThread::Join(tid, 0);
   }
 }
 
 /*----------------------------------------------------------------------------*/
 void
-ZMQ::Listen() 
+ZMQ::Listen ()
 {
   zmq::context_t context(1);
-  zmq::socket_t socket (context, ZMQ_REP);
+  zmq::socket_t socket(context, ZMQ_REP);
   socket.bind(bindUrl.c_str());
-  
-  while(1) {
+
+  while (1)
+  {
     zmq::message_t request;
-    
+
     socket.recv(&request);
     XrdSysTimer sleeper;
-    sleeper.Snooze(1);     
-    
-    Process(socket,request);
+    sleeper.Snooze(1);
+
+    Process(socket, request);
 
     XrdSysThread::SetCancelOn();
     XrdSysThread::CancelPoint();
@@ -86,7 +91,7 @@ ZMQ::Listen()
 
 /*----------------------------------------------------------------------------*/
 void
-ZMQ::Process(zmq::socket_t &socket, zmq::message_t &request) 
+ZMQ::Process (zmq::socket_t &socket, zmq::message_t &request)
 {
   // send reply 
   zmq::message_t reply(5);

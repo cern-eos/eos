@@ -41,11 +41,12 @@ EOSCOMMONNAMESPACE_BEGIN;
  * 
  * @param file path to the comment log file
  */
+
 /*----------------------------------------------------------------------------*/
-CommentLog::CommentLog(const char* file)
+CommentLog::CommentLog (const char* file)
 {
   mName = file;
-  mFd = ::open(file,O_CREAT| O_RDWR, 0644 );
+  mFd = ::open(file, O_CREAT | O_RDWR, 0644);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -53,10 +54,12 @@ CommentLog::CommentLog(const char* file)
  * Destructor
  * 
  */
+
 /*----------------------------------------------------------------------------*/
-CommentLog::~CommentLog() 
+CommentLog::~CommentLog ()
 {
-  if (mFd>0) {
+  if (mFd > 0)
+  {
     ::close(mFd);
   }
 }
@@ -68,11 +71,12 @@ CommentLog::~CommentLog()
  * 
  * @return true if valid - false if error
  */
+
 /*----------------------------------------------------------------------------*/
-bool 
-CommentLog::IsValid() 
+bool
+CommentLog::IsValid ()
 {
-  return (mFd>0);
+  return (mFd > 0);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -89,39 +93,66 @@ CommentLog::IsValid()
  * 
  * @return true if successful - false if error
  */
+
 /*----------------------------------------------------------------------------*/
-bool 
-CommentLog::Add(time_t t, const char* cmd, const char* subcmd, const char* args, const char* comment, const char* stdErr, int retc)
+bool
+CommentLog::Add (time_t t, const char* cmd, const char* subcmd, const char* args, const char* comment, const char* stdErr, int retc)
 {
-  XrdOucString out="";
+  XrdOucString out = "";
   struct tm * timeinfo;
-  timeinfo = localtime (&t);
+  timeinfo = localtime(&t);
 
   out += "# ==============================================================\n";
-  out += "# "; out += asctime(timeinfo); out.erase(out.length()-1); out += " "; out += comment; out += "\n";
+  out += "# ";
+  out += asctime(timeinfo);
+  out.erase(out.length() - 1);
+  out += " ";
+  out += comment;
+  out += "\n";
   out += "# --------------------------------------------------------------\n";
   char st[16];
-  snprintf(st, sizeof(st)-1,"%u", (unsigned int) t);
-  out += "  time="; out += st; out += " cmd=\""; out += cmd; out += "\" subcmd=\""; out += subcmd; out += "\" retc="; out += retc; out += " comment=", out += comment; out += "\n";
+  snprintf(st, sizeof (st) - 1, "%u", (unsigned int) t);
+  out += "  time=";
+  out += st;
+  out += " cmd=\"";
+  out += cmd;
+  out += "\" subcmd=\"";
+  out += subcmd;
+  out += "\" retc=";
+  out += retc;
+  out += " comment=", out += comment;
+  out += "\n";
   out += "# ..............................................................\n";
-  out += "# args: "; out += args; out += "\n";
+  out += "# args: ";
+  out += args;
+  out += "\n";
   XrdOucString sErr = stdErr;
-  if (sErr.length()) {
-    while (sErr.replace("\n","__#n#__")) {}
-    while (sErr.replace("__#n#__","\n# ")) {}
-    sErr.insert("# ",0);
-    if (sErr.endswith("#")) {
-      sErr.erase(sErr.length()-1);
+  if (sErr.length())
+  {
+    while (sErr.replace("\n", "__#n#__"))
+    {
+    }
+    while (sErr.replace("__#n#__", "\n# "))
+    {
+    }
+    sErr.insert("# ", 0);
+    if (sErr.endswith("#"))
+    {
+      sErr.erase(sErr.length() - 1);
     }
     out += "# >STDERR\n";
     out += sErr;
   }
-  if (!out.endswith("\n")) {
+  if (!out.endswith("\n"))
+  {
     out += "\n";
   }
-  if ( (::write(mFd, out.c_str(), out.length() +1)) < 0) {
+  if ((::write(mFd, out.c_str(), out.length() + 1)) < 0)
+  {
     return false;
-  } else {
+  }
+  else
+  {
     return true;
   }
 }

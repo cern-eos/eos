@@ -38,9 +38,10 @@ GlobalConfig GlobalConfig::gConfig; //! Singleton for global configuration acces
  * Constructor
  * 
  */
+
 /*----------------------------------------------------------------------------*/
 
-GlobalConfig::GlobalConfig()
+GlobalConfig::GlobalConfig ()
 {
   mSom = 0;
 }
@@ -51,9 +52,11 @@ GlobalConfig::GlobalConfig()
  * 
  * @param som pointer to a shared object manager
  */
+
 /*----------------------------------------------------------------------------*/
 
-void GlobalConfig::SetSOM(XrdMqSharedObjectManager* som) 
+void
+GlobalConfig::SetSOM (XrdMqSharedObjectManager* som)
 {
   mSom = som;
 }
@@ -67,36 +70,46 @@ void GlobalConfig::SetSOM(XrdMqSharedObjectManager* som)
  * 
  * @return true if success false if failed
  */
+
 /*----------------------------------------------------------------------------*/
 
-bool 
-GlobalConfig::AddConfigQueue(const char* configqueue, const char* broadcastqueue)
+bool
+GlobalConfig::AddConfigQueue (const char* configqueue, const char* broadcastqueue)
 {
-  std::string lConfigQueue    = configqueue;
+  std::string lConfigQueue = configqueue;
   std::string lBroadCastQueue = broadcastqueue;
-  XrdMqSharedHash* lHash=0;
-  
-  if (mSom) {
+  XrdMqSharedHash* lHash = 0;
+
+  if (mSom)
+  {
     mSom->HashMutex.LockRead();
-    if (! (lHash = mSom->GetObject(lConfigQueue.c_str(),"hash")) ) {
+    if (!(lHash = mSom->GetObject(lConfigQueue.c_str(), "hash")))
+    {
       mSom->HashMutex.UnLockRead();
       // create the hash object
-      if (mSom->CreateSharedHash(lConfigQueue.c_str(), lBroadCastQueue.c_str(),mSom)) {
+      if (mSom->CreateSharedHash(lConfigQueue.c_str(), lBroadCastQueue.c_str(), mSom))
+      {
         mSom->HashMutex.LockRead();
-        lHash = mSom->GetObject(lConfigQueue.c_str(),"hash");
+        lHash = mSom->GetObject(lConfigQueue.c_str(), "hash");
         mBroadCastQueueMap[lConfigQueue] = lBroadCastQueue;
         mSom->HashMutex.UnLockRead();
-      } else {
+      }
+      else
+      {
         lHash = 0;
       }
-    } else {
+    }
+    else
+    {
       mSom->HashMutex.UnLockRead();
     }
-  } else {
+  }
+  else
+  {
     lHash = 0;
   }
 
-  return (lHash)?true:false;
+  return (lHash) ? true : false;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -105,16 +118,18 @@ GlobalConfig::AddConfigQueue(const char* configqueue, const char* broadcastqueue
  * 
  * @param out reference to a string where to print 
  */
+
 /*----------------------------------------------------------------------------*/
 
 void
-GlobalConfig::PrintBroadCastMap(std::string &out)
+GlobalConfig::PrintBroadCastMap (std::string &out)
 {
   std::map<std::string, std::string>::const_iterator it;
 
-  for (it = mBroadCastQueueMap.begin(); it != mBroadCastQueueMap.end(); it++) {
+  for (it = mBroadCastQueueMap.begin(); it != mBroadCastQueueMap.end(); it++)
+  {
     char line[1024];
-    snprintf(line, sizeof(line)-1,"# config [%-32s] == broad cast ==> [%s]\n", it->first.c_str(), it->second.c_str());
+    snprintf(line, sizeof (line) - 1, "# config [%-32s] == broad cast ==> [%s]\n", it->first.c_str(), it->second.c_str());
     out += line;
   }
 }
@@ -127,14 +142,15 @@ GlobalConfig::PrintBroadCastMap(std::string &out)
  * 
  * @return pointer to a shared hash representing a configuration queue
  */
+
 /*----------------------------------------------------------------------------*/
 
 XrdMqSharedHash*
-GlobalConfig::Get(const char* configqueue) 
+GlobalConfig::Get (const char* configqueue)
 {
   std::string lConfigQueue = configqueue;
 
-  return mSom->GetObject(lConfigQueue.c_str(),"hash");
+  return mSom->GetObject(lConfigQueue.c_str(), "hash");
 }
 
 
@@ -148,12 +164,13 @@ GlobalConfig::Get(const char* configqueue)
  * 
  * @return 
  */
+
 /*----------------------------------------------------------------------------*/
 
-std::string 
-GlobalConfig::QueuePrefixName(const char* prefix, const char*queuename)
+std::string
+GlobalConfig::QueuePrefixName (const char* prefix, const char*queuename)
 {
-  std::string out=prefix;
+  std::string out = prefix;
   out += eos::common::StringConversion::GetHostPortFromQueue(queuename).c_str();
   return out;
 }
@@ -163,12 +180,13 @@ GlobalConfig::QueuePrefixName(const char* prefix, const char*queuename)
  * Reset the configuration object e.g. all attached shared objects
  * 
  */
+
 /*----------------------------------------------------------------------------*/
 
 void
-GlobalConfig::Reset()
+GlobalConfig::Reset ()
 {
-  if (mSom) 
+  if (mSom)
     mSom->Clear();
 }
 /*----------------------------------------------------------------------------*/

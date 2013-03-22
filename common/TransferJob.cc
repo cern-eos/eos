@@ -25,6 +25,7 @@
 #include "common/TransferJob.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
+
 /*----------------------------------------------------------------------------*/
 
 
@@ -36,7 +37,7 @@ EOSCOMMONNAMESPACE_BEGIN
  * @param description string describing a transfer
  */
 /*----------------------------------------------------------------------------*/
-TransferJob::TransferJob(const char* description)
+TransferJob::TransferJob (const char* description)
 {
   if (description)
     mJob = new XrdOucEnv(description);
@@ -46,8 +47,10 @@ TransferJob::TransferJob(const char* description)
 
 /*----------------------------------------------------------------------------*/
 //! Destructor
+
 /*----------------------------------------------------------------------------*/
-TransferJob::~TransferJob() {
+TransferJob::~TransferJob ()
+{
   if (mJob)
     delete mJob;
 }
@@ -59,16 +62,19 @@ TransferJob::~TransferJob() {
  * 
  * @return pointer to string describing env representation
  */
+
 /*----------------------------------------------------------------------------*/
 const char*
-TransferJob::GetSealed() 
+TransferJob::GetSealed ()
 {
   if (!mJob)
     return 0;
 
-  int envlen=0;
+  int envlen = 0;
   mEncodedEnv = mJob->Env(envlen);
-  while (mEncodedEnv.replace("&","#@#")) {};
+  while (mEncodedEnv.replace("&", "#@#"))
+  {
+  };
   return mEncodedEnv.c_str();
 }
 
@@ -80,23 +86,27 @@ TransferJob::GetSealed()
  * 
  * @return pointer to transfer job object
  */
+
 /*----------------------------------------------------------------------------*/
 TransferJob*
-TransferJob::Create(const char* sealeddescription)
+TransferJob::Create (const char* sealeddescription)
 {
   if (!sealeddescription)
     return 0;
 
   XrdOucString s = sealeddescription;
-  while (s.replace("#@#","&")) {};
+  while (s.replace("#@#", "&"))
+  {
+  };
   return new TransferJob(s.c_str());
 }
 
 /*----------------------------------------------------------------------------*/
 //! Return the env representation of a job
+
 /*----------------------------------------------------------------------------*/
 XrdOucEnv*
-TransferJob::GetEnv() 
+TransferJob::GetEnv ()
 {
   return mJob;
 }
@@ -104,11 +114,13 @@ TransferJob::GetEnv()
 /*----------------------------------------------------------------------------*/
 //! Allows to replace the XrdOucEnv description externally
 //! This is used to replace a symmetric key encoded contents with the human readable contents
+
 /*----------------------------------------------------------------------------*/
-void 
-TransferJob::Replace(const char* description)
+void
+TransferJob::Replace (const char* description)
 {
-  if (mJob) {
+  if (mJob)
+  {
     delete mJob;
   }
 
@@ -117,16 +129,18 @@ TransferJob::Replace(const char* description)
 
 /*----------------------------------------------------------------------------*/
 //! Print a transfer job env description as key-val pairs
+
 /*----------------------------------------------------------------------------*/
-void 
-TransferJob::PrintOut(XrdOucString &out)
+void
+TransferJob::PrintOut (XrdOucString &out)
 {
   std::vector<std::string>tokens;
-  std::string delimiter="&";
-  int envlen=0;
+  std::string delimiter = "&";
+  int envlen = 0;
   std::string description = mJob->Env(envlen);
   eos::common::StringConversion::Tokenize(description, tokens, delimiter);
-  for (size_t i=0; i< tokens.size(); i++) {
+  for (size_t i = 0; i < tokens.size(); i++)
+  {
     out += tokens[i].c_str();
     out += " ";
   }

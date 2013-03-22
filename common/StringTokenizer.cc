@@ -24,6 +24,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/StringTokenizer.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -34,39 +35,46 @@ EOSCOMMONNAMESPACE_BEGIN
  * 
  */
 /*----------------------------------------------------------------------------*/
-StringTokenizer::StringTokenizer(const char* s) 
+StringTokenizer::StringTokenizer (const char* s)
 {
   // -----------------------------------------------------------
   // the constructor just parses lines not token's within a line
   // -----------------------------------------------------------
 
-  if (s) {
+  if (s)
+  {
     fBuffer = strdup(s);
-  } else {
+  }
+  else
+  {
     fBuffer = 0;
     return;
   }
 
-  
-  bool inquote=false;
-  if (fBuffer[0] != 0) {
+
+  bool inquote = false;
+  if (fBuffer[0] != 0)
+  {
     // set the first pointer to offset 0
     fLineStart.push_back(0);
   }
   // intelligent parsing considering quoting
-  for (size_t i=0; i< strlen(fBuffer); i++) {
-    if (fBuffer[i] == '"') {
-      if (inquote) 
-	inquote=false;
+  for (size_t i = 0; i < strlen(fBuffer); i++)
+  {
+    if (fBuffer[i] == '"')
+    {
+      if (inquote)
+        inquote = false;
       else
-	inquote=true;
+        inquote = true;
     }
-    if ( (!inquote) && fBuffer[i] == '\n') {
+    if ((!inquote) && fBuffer[i] == '\n')
+    {
       fLineStart.push_back(i);
     }
   }
-  fCurrentLine=-1;
-  fCurrentArg=-1;
+  fCurrentLine = -1;
+  fCurrentArg = -1;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -74,10 +82,12 @@ StringTokenizer::StringTokenizer(const char* s)
  * Destructor
  * 
  */
+
 /*----------------------------------------------------------------------------*/
-StringTokenizer::~StringTokenizer()
+StringTokenizer::~StringTokenizer ()
 {
-  if (fBuffer) {
+  if (fBuffer)
+  {
     free(fBuffer);
     fBuffer = 0;
   }
@@ -89,49 +99,62 @@ StringTokenizer::~StringTokenizer()
  * 
  * @return char reference to the next line
  */
-const char* 
-StringTokenizer::GetLine()
+const char*
+StringTokenizer::GetLine ()
 {
   fCurrentLine++;
-  if (fCurrentLine < (int)fLineStart.size()) {
-    char* line = fBuffer+fLineStart[fCurrentLine];
+  if (fCurrentLine < (int) fLineStart.size())
+  {
+    char* line = fBuffer + fLineStart[fCurrentLine];
     char* wordptr = line;
-    bool inquote=false;
+    bool inquote = false;
 
-    if (line[0]!=0) 
-fLineArgs.push_back(0);
+    if (line[0] != 0)
+      fLineArgs.push_back(0);
 
-    for (size_t i=0; i< strlen(line); i++) {
-      if (line[i] == '"') {
-	if (inquote) {
-	  inquote = false;
-	} else {
-	  inquote = true;
-	}	  
-	
-	if (line[i] == ' ') {
-	  if (!inquote) {
-	    if ( (i>1) && (line[i] == '\\') ) {
-	      // don't start a new word here
-	    } else {
-	      line[i] = 0;
-	      fLineArgs.push_back(wordptr);
-	      // start a new word here
-	      wordptr = line+i+1;
-	    }
-	  }
-	}
+    for (size_t i = 0; i < strlen(line); i++)
+    {
+      if (line[i] == '"')
+      {
+        if (inquote)
+        {
+          inquote = false;
+        }
+        else
+        {
+          inquote = true;
+        }
+
+        if (line[i] == ' ')
+        {
+          if (!inquote)
+          {
+            if ((i > 1) && (line[i] == '\\'))
+            {
+              // don't start a new word here
+            }
+            else
+            {
+              line[i] = 0;
+              fLineArgs.push_back(wordptr);
+              // start a new word here
+              wordptr = line + i + 1;
+            }
+          }
+        }
       }
-      if (line[i] == '\n') {
-	line[i] = 0;
+      if (line[i] == '\n')
+      {
+        line[i] = 0;
       }
     }
     return line;
-  } else {
+  }
+  else
+  {
     return 0;
   }
 }
-
 
 /** 
  * Return next parsed space seperated token taking into account escaped blanks and quoted strings
@@ -139,13 +162,16 @@ fLineArgs.push_back(0);
  * 
  * @return char reference to the next argument token
  */
-const char* 
-StringTokenizer::GetToken()
+const char*
+StringTokenizer::GetToken ()
 {
   fCurrentArg++;
-  if (fCurrentArg < (int)fLineArgs.size()) {
+  if (fCurrentArg < (int) fLineArgs.size())
+  {
     return fLineArgs[fCurrentArg].c_str();
-  } else {
+  }
+  else
+  {
     return 0;
   }
 }
