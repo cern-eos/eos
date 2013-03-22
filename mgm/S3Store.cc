@@ -794,8 +794,6 @@ S3Store::PutObject (int& response_code, eos::common::S3 &s3, std::map<std::strin
   vid.uid = uid;
   vid.uid_list.push_back(uid);
 
-  struct stat buf;
-
   // build the full path for the request
   std::string objectpath = mS3ContainerPath[s3.getBucket()];
   if (objectpath[objectpath.length() - 1] == '/')
