@@ -31,21 +31,25 @@
 #include "XrdOuc/XrdOucEnv.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-class Vid {
+class Vid
+{
 public:
-  Vid(){};
-  ~Vid(){};
 
-  static bool Set(const char* value);
-  static bool Set(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
-  static void Ls(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
-  static bool Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
+  Vid () { };
 
-  static const char* Get(const char* key);
+  ~Vid () { };
+
+  static bool Set (const char* value);
+  static bool Set (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
+  static void Ls (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
+  static bool Rm (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
+
+  static const char* Get (const char* key);
 };
 
 EOSMGMNAMESPACE_END

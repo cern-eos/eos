@@ -32,15 +32,15 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Version ()
 {
- gOFS->MgmStats.Add("Version", pVid->uid, pVid->gid, 1);
- eos_info("version");
- stdOut += "EOS_INSTANCE=";
- stdOut += gOFS->MgmOfsInstanceName;
- stdOut += "\nEOS_SERVER_VERSION=";
- stdOut += VERSION;
- stdOut += " EOS_SERVER_RELEASE=";
- stdOut += RELEASE;
- return SFS_OK;
+  gOFS->MgmStats.Add("Version", pVid->uid, pVid->gid, 1);
+  eos_info("version");
+  stdOut += "EOS_INSTANCE=";
+  stdOut += gOFS->MgmOfsInstanceName;
+  stdOut += "\nEOS_SERVER_VERSION=";
+  stdOut += VERSION;
+  stdOut += " EOS_SERVER_RELEASE=";
+  stdOut += RELEASE;
+  return SFS_OK;
 }
 
 EOSMGMNAMESPACE_END

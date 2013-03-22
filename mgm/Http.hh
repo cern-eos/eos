@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: proc/user/Whoami.cc
+// File: Http.hh
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -17,55 +17,61 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
- * You should have received a copy of the AGNU General Public License    *
+ * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifndef __EOSMGM_HTTP__HH__
+#define __EOSMGM_HTTP__HH__
+
 /*----------------------------------------------------------------------------*/
-#include "mgm/ProcInterface.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Namespace.hh"
+#include "mgm/S3Store.hh"
+#include "common/Http.hh"
+
+/*----------------------------------------------------------------------------*/
+#include "XrdSys/XrdSysPthread.hh"
+/*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-int
-ProcCommand::Whoami ()
+class Http : public eos::common::Http
 {
-  gOFS->MgmStats.Add("WhoAmI", pVid->uid, pVid->gid, 1);
-  stdOut += "Virtual Identity: uid=";
-  stdOut += (int) pVid->uid;
-  stdOut += " (";
-  for (unsigned int i = 0; i < pVid->uid_list.size(); i++)
-  {
-    stdOut += (int) pVid->uid_list[i];
-    stdOut += ",";
-  }
-  stdOut.erase(stdOut.length() - 1);
-  stdOut += ") gid=";
-  stdOut += (int) pVid->gid;
-  stdOut += " (";
-  for (unsigned int i = 0; i < pVid->gid_list.size(); i++)
-  {
-    stdOut += (int) pVid->gid_list[i];
-    stdOut += ",";
-  }
-  stdOut.erase(stdOut.length() - 1);
-  stdOut += ")";
-  stdOut += " [authz:";
-  stdOut += pVid->prot;
-  stdOut += "]";
-  if (pVid->sudoer)
-    stdOut += " sudo*";
+  // -------------------------------------------------------------
+  // ! creates an Http redirector instance running on the MGM
+  // -------------------------------------------------------------
+private:
+  S3Store* mS3Store;
 
-  stdOut += " host=";
-  stdOut += pVid->host.c_str();
-  if (pVid->geolocation.length())
-  {
-    stdOut += " geo-location=";
-    stdOut += pVid->geolocation.c_str();
-  }
-  return SFS_OK;
-}
+public:
+
+  /**
+   * Constructor
+   */
+  Http (int port = 8000);
+
+  /**
+   * Destructor
+   */
+  virtual ~Http ();
+
+#ifdef EOS_MICRO_HTTPD
+  /**
+   * http object handler function on MGM
+   * @return see implementation
+   */
+  virtual int Handler (void *cls,
+                       struct MHD_Connection *connection,
+                       const char *url,
+                       const char *method,
+                       const char *version,
+                       const char *upload_data,
+                       size_t *upload_data_size, void **ptr);
+#endif
+};
 
 EOSMGMNAMESPACE_END
+
+#endif

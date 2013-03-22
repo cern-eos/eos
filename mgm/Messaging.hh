@@ -31,22 +31,26 @@
 #include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-class Messaging : public XrdMqMessaging, public eos::common::LogId {
+class Messaging : public XrdMqMessaging, public eos::common::LogId
+{
 public:
   // we have to clone the base class constructore otherwise we cannot run inside valgrind                                                                                                            
-  Messaging(const char* url, const char* defaultreceiverqueue, bool advisorystatus=false, bool advisoryquery=false ,XrdMqSharedObjectManager* som=0);
-  virtual ~Messaging(){}
+  Messaging (const char* url, const char* defaultreceiverqueue, bool advisorystatus = false, bool advisoryquery = false, XrdMqSharedObjectManager* som = 0);
 
-  virtual bool Update(XrdAdvisoryMqMessage* advmsg);
-  virtual void Listen();
-  virtual void Process(XrdMqMessage* newmessage);
+  virtual
+  ~Messaging () { }
+
+  virtual bool Update (XrdAdvisoryMqMessage* advmsg);
+  virtual void Listen ();
+  virtual void Process (XrdMqMessage* newmessage);
 
   // listener thread startup                                                                                                                                                                         
-  static void* Start(void*);
+  static void* Start (void*);
 };
 
 EOSMGMNAMESPACE_END

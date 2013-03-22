@@ -23,48 +23,53 @@
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/FileSystem.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 bool
-FileSystem::StartDrainJob() 
+FileSystem::StartDrainJob ()
 {
   //----------------------------------------------------------------
   //! start a drain job after stat.errc!=0 (e.g. opserror)
   //----------------------------------------------------------------
 
-  if (!ShouldBroadCast()) {
+  if (!ShouldBroadCast())
+  {
     // this is a filesystem on a ro-slave MGM e.g. it does not drain
     return true;
   }
   // check if there is already a drainjob
   drainJobMutex.Lock();
-  if (drainJob) {
+  if (drainJob)
+  {
     drainJobMutex.UnLock();
     return false;
   }
 
   // no drain job
-  drainJob = new DrainJob(GetId(),true);
+  drainJob = new DrainJob(GetId(), true);
   drainJobMutex.UnLock();
   return true;
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-FileSystem::StopDrainJob()
+FileSystem::StopDrainJob ()
 {
   eos::common::FileSystem::fsstatus_t isstatus = GetConfigStatus();
 
-  if ( (isstatus == kDrainDead) || (isstatus == kDrain) ) {
+  if ((isstatus == kDrainDead) || (isstatus == kDrain))
+  {
     // if this is in drain mode, we leave the drain job
     return false;
   }
-  
+
   drainJobMutex.Lock();
-  if (drainJob) {
+  if (drainJob)
+  {
     delete drainJob;
     drainJob = 0;
     SetDrainStatus(eos::common::FileSystem::kNoDrain);
@@ -77,7 +82,7 @@ FileSystem::StopDrainJob()
 
 /*----------------------------------------------------------------------------*/
 bool
-FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t status)
+FileSystem::SetConfigStatus (eos::common::FileSystem::fsstatus_t status)
 {
   //----------------------------------------------------------------
   //! catch any status change from/to 'drain' or 'draindead' 
@@ -86,38 +91,52 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t status)
   // check the current status
   eos::common::FileSystem::fsstatus_t isstatus = GetConfigStatus();
 
-  if ( (isstatus == kDrainDead) || (isstatus == kDrain) ) {
+  if ((isstatus == kDrainDead) || (isstatus == kDrain))
+  {
     // stop draining
     drainJobMutex.Lock();
-    if (drainJob) {
+    if (drainJob)
+    {
       delete drainJob;
       drainJob = 0;
       drainJobMutex.UnLock();
       SetDrainStatus(eos::common::FileSystem::kNoDrain);
-    } else {
+    }
+    else
+    {
       drainJobMutex.UnLock();
     }
   }
 
-  if ( (status == kDrain) || (status == kDrainDead) ) {
+  if ((status == kDrain) || (status == kDrainDead))
+  {
     // create a drain job
     drainJobMutex.Lock();
     // check if there is still a drain job
-    if (drainJob) {
+    if (drainJob)
+    {
       delete drainJob;
-      drainJob=0;
+      drainJob = 0;
     }
-    if (!ShouldBroadCast()) {
+    if (!ShouldBroadCast())
+    {
       // this is a filesystem on a ro-slave MGM e.g. it does not drain
-    } else {
+    }
+    else
+    {
       drainJob = new DrainJob(GetId());
     }
     drainJobMutex.UnLock();
-  } else {
-    if (status == kEmpty) {
+  }
+  else
+  {
+    if (status == kEmpty)
+    {
       SetDrainStatus(eos::common::FileSystem::kDrained);
-      SetLongLong("stat.drainprogress",100);
-    } else {
+      SetLongLong("stat.drainprogress", 100);
+    }
+    else
+    {
       SetDrainStatus(eos::common::FileSystem::kNoDrain);
     }
   }
@@ -127,16 +146,17 @@ FileSystem::SetConfigStatus(eos::common::FileSystem::fsstatus_t status)
 
 /*----------------------------------------------------------------------------*/
 bool
-FileSystem::SetString(const char* key, const char* str, bool broadcast)
+FileSystem::SetString (const char* key, const char* str, bool broadcast)
 {
-  std::string skey=key;
-  std::string sval=str;
-  if (skey == "configstatus") {
+  std::string skey = key;
+  std::string sval = str;
+  if (skey == "configstatus")
+  {
     return SetConfigStatus(GetConfigStatusFromString(str));
   }
-  
-  return eos::common::FileSystem::SetString(key,str,broadcast);
+
+  return eos::common::FileSystem::SetString(key, str, broadcast);
 }
 
 EOSMGMNAMESPACE_END
- 
+

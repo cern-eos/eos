@@ -32,147 +32,147 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Fuse ()
 {
- gOFS->MgmStats.Add("Fuse-Dirlist", pVid->uid, pVid->gid, 1);
- XrdOucString path = pOpaque->Get("mgm.path");
- mResultStream = "inodirlist: retc=";
- if (!path.length())
- {
-   mResultStream += EINVAL;
- }
- else
- {
-   XrdMgmOfsDirectory* inodir = (XrdMgmOfsDirectory*) gOFS->newDir((char*) "");
-   if (!inodir)
-   {
-     mResultStream += ENOMEM;
-     return SFS_ERROR;
-   }
+  gOFS->MgmStats.Add("Fuse-Dirlist", pVid->uid, pVid->gid, 1);
+  XrdOucString path = pOpaque->Get("mgm.path");
+  mResultStream = "inodirlist: retc=";
+  if (!path.length())
+  {
+    mResultStream += EINVAL;
+  }
+  else
+  {
+    XrdMgmOfsDirectory* inodir = (XrdMgmOfsDirectory*) gOFS->newDir((char*) "");
+    if (!inodir)
+    {
+      mResultStream += ENOMEM;
+      return SFS_ERROR;
+    }
 
-   if ((retc = inodir->open(path.c_str(), *pVid, 0)) != SFS_OK)
-   {
-     delete inodir;
-     retc = -retc;
-     mResultStream += retc;
-     mLen = mResultStream.length();
-     mOffset = 0;
-     return SFS_OK;
-   }
+    if ((retc = inodir->open(path.c_str(), *pVid, 0)) != SFS_OK)
+    {
+      delete inodir;
+      retc = -retc;
+      mResultStream += retc;
+      mLen = mResultStream.length();
+      mOffset = 0;
+      return SFS_OK;
+    }
 
-   const char* entry;
+    const char* entry;
 
-   mResultStream += 0;
-   mResultStream += " ";
+    mResultStream += 0;
+    mResultStream += " ";
 
-   unsigned long long inode = 0;
+    unsigned long long inode = 0;
 
-   char inodestr[256];
-   size_t dotend = 0;
-   size_t dotstart = mResultStream.length();
+    char inodestr[256];
+    size_t dotend = 0;
+    size_t dotstart = mResultStream.length();
 
-   while ((entry = inodir->nextEntry()))
-   {
-     bool isdot = false;
-     bool isdotdot = false;
+    while ((entry = inodir->nextEntry()))
+    {
+      bool isdot = false;
+      bool isdotdot = false;
 
-     XrdOucString whitespaceentry = entry;
+      XrdOucString whitespaceentry = entry;
 
-     if (whitespaceentry == ".")
-     {
-       isdot = true;
-     }
-     if (whitespaceentry == "..")
-     {
-       isdotdot = true;
-     }
-     whitespaceentry.replace(" ", "%20");
-     if ((!isdot) && (!isdotdot))
-     {
-       mResultStream += whitespaceentry;
-       mResultStream += " ";
-     }
-     if (isdot)
-     {
-       // the . and .. has to be streamed as first entries
-       mResultStream.insert(". ", dotstart);
-     }
-     if (isdotdot)
-     {
-       mResultStream.insert(".. ", dotend);
-     }
+      if (whitespaceentry == ".")
+      {
+        isdot = true;
+      }
+      if (whitespaceentry == "..")
+      {
+        isdotdot = true;
+      }
+      whitespaceentry.replace(" ", "%20");
+      if ((!isdot) && (!isdotdot))
+      {
+        mResultStream += whitespaceentry;
+        mResultStream += " ";
+      }
+      if (isdot)
+      {
+        // the . and .. has to be streamed as first entries
+        mResultStream.insert(". ", dotstart);
+      }
+      if (isdotdot)
+      {
+        mResultStream.insert(".. ", dotend);
+      }
 
-     XrdOucString statpath = path;
-     statpath += "/";
-     statpath += entry;
+      XrdOucString statpath = path;
+      statpath += "/";
+      statpath += entry;
 
-     eos::common::Path cPath(statpath.c_str());
+      eos::common::Path cPath(statpath.c_str());
 
-     // attach MD to get inode number
-     eos::FileMD* fmd = 0;
-     inode = 0;
+      // attach MD to get inode number
+      eos::FileMD* fmd = 0;
+      inode = 0;
 
-     //-------------------------------------------
-     {
-       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-       try
-       {
-         fmd = gOFS->eosView->getFile(cPath.GetPath());
-         inode = fmd->getId() << 28;
-       }
-       catch (eos::MDException &e)
-       {
-         errno = e.getErrno();
-         eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
-       }
-     }
-     //-------------------------------------------
+      //-------------------------------------------
+      {
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+        try
+        {
+          fmd = gOFS->eosView->getFile(cPath.GetPath());
+          inode = fmd->getId() << 28;
+        }
+        catch (eos::MDException &e)
+        {
+          errno = e.getErrno();
+          eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+        }
+      }
+      //-------------------------------------------
 
-     // check if that is a directory in case
-     if (!fmd)
-     {
-       eos::ContainerMD* dir = 0;
-       //-------------------------------------------
-       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-       try
-       {
-         dir = gOFS->eosView->getContainer(cPath.GetPath());
-         inode = dir->getId();
-       }
-       catch (eos::MDException &e)
-       {
-         dir = 0;
-         eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
-       }
-       //-------------------------------------------
-     }
-     sprintf(inodestr, "%lld", inode);
-     if ((!isdot) && (!isdotdot))
-     {
-       mResultStream += inodestr;
-       mResultStream += " ";
-     }
-     else
-     {
-       if (isdot)
-       {
-         mResultStream.insert(inodestr, dotstart + 2);
-         mResultStream.insert(" ", dotstart + 2 + strlen(inodestr));
-         dotend = dotstart + 2 + strlen(inodestr) + 1;
-       }
-       else
-       {
-         mResultStream.insert(inodestr, dotend + 3);
-         mResultStream.insert(" ", dotend + strlen(inodestr) + 3);
-       }
-     }
-   }
+      // check if that is a directory in case
+      if (!fmd)
+      {
+        eos::ContainerMD* dir = 0;
+        //-------------------------------------------
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+        try
+        {
+          dir = gOFS->eosView->getContainer(cPath.GetPath());
+          inode = dir->getId();
+        }
+        catch (eos::MDException &e)
+        {
+          dir = 0;
+          eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+        }
+        //-------------------------------------------
+      }
+      sprintf(inodestr, "%lld", inode);
+      if ((!isdot) && (!isdotdot))
+      {
+        mResultStream += inodestr;
+        mResultStream += " ";
+      }
+      else
+      {
+        if (isdot)
+        {
+          mResultStream.insert(inodestr, dotstart + 2);
+          mResultStream.insert(" ", dotstart + 2 + strlen(inodestr));
+          dotend = dotstart + 2 + strlen(inodestr) + 1;
+        }
+        else
+        {
+          mResultStream.insert(inodestr, dotend + 3);
+          mResultStream.insert(" ", dotend + strlen(inodestr) + 3);
+        }
+      }
+    }
 
-   inodir->close();
-   delete inodir;
-   eos_debug("returning resultstream %s", mResultStream.c_str());
-   mLen = mResultStream.length();
-   mOffset = 0;
- }
- return SFS_OK;
+    inodir->close();
+    delete inodir;
+    eos_debug("returning resultstream %s", mResultStream.c_str());
+    mLen = mResultStream.length();
+    mOffset = 0;
+  }
+  return SFS_OK;
 }
 
 EOSMGMNAMESPACE_END

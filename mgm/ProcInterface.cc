@@ -79,12 +79,12 @@ ProcInterface::~ProcInterface () { }
 bool
 ProcInterface::IsProcAccess (const char* path)
 {
- XrdOucString inpath = path;
- if (inpath.beginswith("/proc/"))
- {
-   return true;
- }
- return false;
+  XrdOucString inpath = path;
+  if (inpath.beginswith("/proc/"))
+  {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -98,71 +98,71 @@ ProcInterface::IsProcAccess (const char* path)
 bool
 ProcInterface::IsWriteAccess (const char* path, const char* info)
 {
- XrdOucString inpath = (path ? path : "");
- XrdOucString ininfo = (info ? info : "");
+  XrdOucString inpath = (path ? path : "");
+  XrdOucString ininfo = (info ? info : "");
 
- if (!inpath.beginswith("/proc/"))
- {
-   return false;
- }
+  if (!inpath.beginswith("/proc/"))
+  {
+    return false;
+  }
 
- XrdOucEnv procEnv(ininfo.c_str());
- XrdOucString cmd = procEnv.Get("mgm.cmd");
- XrdOucString subcmd = procEnv.Get("mgm.subcmd");
+  XrdOucEnv procEnv(ininfo.c_str());
+  XrdOucString cmd = procEnv.Get("mgm.cmd");
+  XrdOucString subcmd = procEnv.Get("mgm.subcmd");
 
- // ----------------------------------------------------------------------------
- // filter here all namespace modifying proc messages
- // ----------------------------------------------------------------------------
- if (((cmd == "file") &&
-      ((subcmd == "adjustreplica") ||
-       (subcmd == "drop") ||
-       (subcmd == "layout") ||
-       (subcmd == "verify") ||
-       (subcmd == "rename"))) ||
-     ((cmd == "attr") &&
-      ((subcmd == "set") ||
-       (subcmd == "rm"))) ||
-     ((cmd == "mkdir")) ||
-     ((cmd == "rmdir")) ||
-     ((cmd == "rm")) ||
-     ((cmd == "chown")) ||
-     ((cmd == "chmod")) ||
-     ((cmd == "fs") &&
-      ((subcmd == "config") ||
-       (subcmd == "boot") ||
-       (subcmd == "dropfiles") ||
-       (subcmd == "add") ||
-       (subcmd == "mv") ||
-       (subcmd == "rm"))) ||
-     ((cmd == "space") &&
-      ((subcmd == "config") ||
-       (subcmd == "define") ||
-       (subcmd == "set") ||
-       (subcmd == "rm") ||
-       (subcmd == "quota"))) ||
-     ((cmd == "node") &&
-      ((subcmd == "rm") ||
-       (subcmd == "config") ||
-       (subcmd == "set") ||
-       (subcmd == "register") ||
-       (subcmd == "gw"))) ||
-     ((cmd == "group") &&
-      ((subcmd == "set") ||
-       (subcmd == "rm"))) ||
-     ((cmd == "map") &&
-      ((subcmd == "link") ||
-       (subcmd == "unlink"))) ||
-     ((cmd == "quota") &&
-      ((subcmd != "ls"))) ||
-     ((cmd == "vid") &&
-      ((subcmd != "ls"))) ||
-     ((cmd == "transfer")))
- {
+  // ----------------------------------------------------------------------------
+  // filter here all namespace modifying proc messages
+  // ----------------------------------------------------------------------------
+  if (((cmd == "file") &&
+       ((subcmd == "adjustreplica") ||
+        (subcmd == "drop") ||
+        (subcmd == "layout") ||
+        (subcmd == "verify") ||
+        (subcmd == "rename"))) ||
+      ((cmd == "attr") &&
+       ((subcmd == "set") ||
+        (subcmd == "rm"))) ||
+      ((cmd == "mkdir")) ||
+      ((cmd == "rmdir")) ||
+      ((cmd == "rm")) ||
+      ((cmd == "chown")) ||
+      ((cmd == "chmod")) ||
+      ((cmd == "fs") &&
+       ((subcmd == "config") ||
+        (subcmd == "boot") ||
+        (subcmd == "dropfiles") ||
+        (subcmd == "add") ||
+        (subcmd == "mv") ||
+        (subcmd == "rm"))) ||
+      ((cmd == "space") &&
+       ((subcmd == "config") ||
+        (subcmd == "define") ||
+        (subcmd == "set") ||
+        (subcmd == "rm") ||
+        (subcmd == "quota"))) ||
+      ((cmd == "node") &&
+       ((subcmd == "rm") ||
+        (subcmd == "config") ||
+        (subcmd == "set") ||
+        (subcmd == "register") ||
+        (subcmd == "gw"))) ||
+      ((cmd == "group") &&
+       ((subcmd == "set") ||
+        (subcmd == "rm"))) ||
+      ((cmd == "map") &&
+       ((subcmd == "link") ||
+        (subcmd == "unlink"))) ||
+      ((cmd == "quota") &&
+       ((subcmd != "ls"))) ||
+      ((cmd == "vid") &&
+       ((subcmd != "ls"))) ||
+      ((cmd == "transfer")))
+  {
 
-   return true;
- }
+    return true;
+  }
 
- return false;
+  return false;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -182,44 +182,44 @@ ProcInterface::Authorize (const char* path,
                           eos::common::Mapping::VirtualIdentity& vid,
                           const XrdSecEntity* entity)
 {
- XrdOucString inpath = path;
+  XrdOucString inpath = path;
 
- // ----------------------------------------------------------------------------
- // administrator access
- // ----------------------------------------------------------------------------
- if (inpath.beginswith("/proc/admin/"))
- {
-   // hosts with 'sss' authentication can run 'admin' commands
-   std::string protocol = entity ? entity->prot : "";
-   // we allow sss only with the daemon login is admin
-   if ((protocol == "sss") && (eos::common::Mapping::HasUid(2, vid.uid_list)))
-   {
-     return true;
-   }
+  // ----------------------------------------------------------------------------
+  // administrator access
+  // ----------------------------------------------------------------------------
+  if (inpath.beginswith("/proc/admin/"))
+  {
+    // hosts with 'sss' authentication can run 'admin' commands
+    std::string protocol = entity ? entity->prot : "";
+    // we allow sss only with the daemon login is admin
+    if ((protocol == "sss") && (eos::common::Mapping::HasUid(2, vid.uid_list)))
+    {
+      return true;
+    }
 
-   // root can do it
-   if (!vid.uid)
-   {
-     return true;
-   }
+    // root can do it
+    if (!vid.uid)
+    {
+      return true;
+    }
 
-   // --------------------------------------------------------------------------
-   // one has to be part of the virtual users 2(daemon) || 3(adm)/4(adm) 
-   // --------------------------------------------------------------------------
-   return ( (eos::common::Mapping::HasUid(2, vid.uid_list)) ||
-           (eos::common::Mapping::HasUid(3, vid.uid_list)) ||
-           (eos::common::Mapping::HasGid(4, vid.gid_list)));
- }
+    // --------------------------------------------------------------------------
+    // one has to be part of the virtual users 2(daemon) || 3(adm)/4(adm) 
+    // --------------------------------------------------------------------------
+    return ( (eos::common::Mapping::HasUid(2, vid.uid_list)) ||
+            (eos::common::Mapping::HasUid(3, vid.uid_list)) ||
+            (eos::common::Mapping::HasGid(4, vid.gid_list)));
+  }
 
- // ----------------------------------------------------------------------------
- // user access
- // ----------------------------------------------------------------------------
- if (inpath.beginswith("/proc/user/"))
- {
-   return true;
- }
+  // ----------------------------------------------------------------------------
+  // user access
+  // ----------------------------------------------------------------------------
+  if (inpath.beginswith("/proc/user/"))
+  {
+    return true;
+  }
 
- return false;
+  return false;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -230,25 +230,25 @@ ProcInterface::Authorize (const char* path,
 /*----------------------------------------------------------------------------*/
 ProcCommand::ProcCommand ()
 {
- stdOut = "";
- stdErr = "";
- stdJson = "";
- retc = 0;
- mResultStream = "";
- mOffset = 0;
- mLen = 0;
- pVid = 0;
- path = "";
- mAdminCmd = mUserCmd = 0;
- mError = 0;
- mComment = "";
- mArgs = "";
- mExecTime = time(NULL);
- mClosed = true;
- pOpaque = 0;
- ininfo = 0;
- fstdout = fstderr = fresultStream = 0;
- fstdoutfilename = fstderrfilename = fresultStreamfilename = "";
+  stdOut = "";
+  stdErr = "";
+  stdJson = "";
+  retc = 0;
+  mResultStream = "";
+  mOffset = 0;
+  mLen = 0;
+  pVid = 0;
+  path = "";
+  mAdminCmd = mUserCmd = 0;
+  mError = 0;
+  mComment = "";
+  mArgs = "";
+  mExecTime = time(NULL);
+  mClosed = true;
+  pOpaque = 0;
+  ininfo = 0;
+  fstdout = fstderr = fresultStream = 0;
+  fstdoutfilename = fstderrfilename = fresultStreamfilename = "";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -259,32 +259,32 @@ ProcCommand::ProcCommand ()
 /*----------------------------------------------------------------------------*/
 ProcCommand::~ProcCommand ()
 {
- if (fstdout)
- {
-   fclose(fstdout);
-   fstdout = 0;
-   unlink(fstdoutfilename.c_str());
- }
+  if (fstdout)
+  {
+    fclose(fstdout);
+    fstdout = 0;
+    unlink(fstdoutfilename.c_str());
+  }
 
- if (fstderr)
- {
-   fclose(fstderr);
-   fstderr = 0;
-   unlink(fstderrfilename.c_str());
- }
+  if (fstderr)
+  {
+    fclose(fstderr);
+    fstderr = 0;
+    unlink(fstderrfilename.c_str());
+  }
 
- if (fresultStream)
- {
-   fclose(fresultStream);
-   fresultStream = 0;
-   unlink(fresultStreamfilename.c_str());
- }
+  if (fresultStream)
+  {
+    fclose(fresultStream);
+    fresultStream = 0;
+    unlink(fresultStreamfilename.c_str());
+  }
 
- if (pOpaque)
- {
-   delete pOpaque;
-   pOpaque = 0;
- }
+  if (pOpaque)
+  {
+    delete pOpaque;
+    pOpaque = 0;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -297,41 +297,41 @@ ProcCommand::~ProcCommand ()
 bool
 ProcCommand::OpenTemporaryOutputFiles ()
 {
- char tmpdir [4096];
- snprintf(tmpdir, sizeof (tmpdir) - 1, "/tmp/eos.mgm/%llu", (unsigned long long) XrdSysThread::ID());
- fstdoutfilename = tmpdir;
- fstdoutfilename += ".stdout";
- fstderrfilename = tmpdir;
- fstderrfilename += ".stderr";
- fresultStreamfilename = tmpdir;
- fresultStreamfilename += ".mResultstream";
+  char tmpdir [4096];
+  snprintf(tmpdir, sizeof (tmpdir) - 1, "/tmp/eos.mgm/%llu", (unsigned long long) XrdSysThread::ID());
+  fstdoutfilename = tmpdir;
+  fstdoutfilename += ".stdout";
+  fstderrfilename = tmpdir;
+  fstderrfilename += ".stderr";
+  fresultStreamfilename = tmpdir;
+  fresultStreamfilename += ".mResultstream";
 
- eos::common::Path cPath(fstdoutfilename.c_str());
+  eos::common::Path cPath(fstdoutfilename.c_str());
 
- if (!cPath.MakeParentPath(S_IRWXU))
- {
-   eos_err("Unable to create temporary outputfile directory %s", tmpdir);
-   return false;
- }
+  if (!cPath.MakeParentPath(S_IRWXU))
+  {
+    eos_err("Unable to create temporary outputfile directory %s", tmpdir);
+    return false;
+  }
 
- // own the directory by daemon
- if (::chown(cPath.GetParentPath(), 2, 2))
- {
-   eos_err("Unable to own temporary outputfile directory %s", cPath.GetParentPath());
- }
+  // own the directory by daemon
+  if (::chown(cPath.GetParentPath(), 2, 2))
+  {
+    eos_err("Unable to own temporary outputfile directory %s", cPath.GetParentPath());
+  }
 
- fstdout = fopen(fstdoutfilename.c_str(), "w");
- fstderr = fopen(fstderrfilename.c_str(), "w");
- fresultStream = fopen(fresultStreamfilename.c_str(), "w+");
+  fstdout = fopen(fstdoutfilename.c_str(), "w");
+  fstderr = fopen(fstderrfilename.c_str(), "w");
+  fresultStream = fopen(fresultStreamfilename.c_str(), "w+");
 
- if ((!fstdout) || (!fstderr) || (!fresultStream))
- {
-   if (fstdout) fclose(fstdout);
-   if (fstderr) fclose(fstderr);
-   if (fresultStream) fclose(fresultStream);
-   return false;
- }
- return true;
+  if ((!fstdout) || (!fstderr) || (!fresultStream))
+  {
+    if (fstdout) fclose(fstdout);
+    if (fstderr) fclose(fstderr);
+    if (fresultStream) fclose(fresultStream);
+    return false;
+  }
+  return true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -350,295 +350,295 @@ ProcCommand::OpenTemporaryOutputFiles ()
 int
 ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::VirtualIdentity &vid_in, XrdOucErrInfo *error)
 {
- pVid = &vid_in;
- mClosed = false;
- path = inpath;
- mDoSort = false;
- mError = error;
+  pVid = &vid_in;
+  mClosed = false;
+  path = inpath;
+  mDoSort = false;
+  mError = error;
 
- ininfo = info;
- if ((path.beginswith("/proc/admin")))
- {
-   mAdminCmd = true;
- }
- if (path.beginswith("/proc/user"))
- {
-   mUserCmd = true;
- }
+  ininfo = info;
+  if ((path.beginswith("/proc/admin")))
+  {
+    mAdminCmd = true;
+  }
+  if (path.beginswith("/proc/user"))
+  {
+    mUserCmd = true;
+  }
 
- pOpaque = new XrdOucEnv(ininfo);
+  pOpaque = new XrdOucEnv(ininfo);
 
- if (!pOpaque)
- {
-   // alloc failed 
-   return SFS_ERROR;
- }
+  if (!pOpaque)
+  {
+    // alloc failed 
+    return SFS_ERROR;
+  }
 
- mOutFormat = "";
- mCmd = pOpaque->Get("mgm.cmd");
- mSubCmd = pOpaque->Get("mgm.subcmd");
- mOutFormat = pOpaque->Get("mgm.outformat");
- mSelection = pOpaque->Get("mgm.selection");
- mComment = pOpaque->Get("mgm.mComment") ? pOpaque->Get("mgm.mComment") : "";
- int envlen = 0;
- mArgs = pOpaque->Env(envlen);
+  mOutFormat = "";
+  mCmd = pOpaque->Get("mgm.cmd");
+  mSubCmd = pOpaque->Get("mgm.subcmd");
+  mOutFormat = pOpaque->Get("mgm.outformat");
+  mSelection = pOpaque->Get("mgm.selection");
+  mComment = pOpaque->Get("mgm.mComment") ? pOpaque->Get("mgm.mComment") : "";
+  int envlen = 0;
+  mArgs = pOpaque->Env(envlen);
 
- mFuseFormat = false;
- mJsonFormat = false;
+  mFuseFormat = false;
+  mJsonFormat = false;
 
- // ----------------------------------------------------------------------------
- // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line 
- // feed in the end
- // ----------------------------------------------------------------------------
+  // ----------------------------------------------------------------------------
+  // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line 
+  // feed in the end
+  // ----------------------------------------------------------------------------
 
- XrdOucString format = pOpaque->Get("mgm.format");
+  XrdOucString format = pOpaque->Get("mgm.format");
 
- if (format == "fuse")
- {
-   mFuseFormat = true;
- }
- if (format == "json")
- {
-   mJsonFormat = true;
- }
+  if (format == "fuse")
+  {
+    mFuseFormat = true;
+  }
+  if (format == "json")
+  {
+    mJsonFormat = true;
+  }
 
- stdOut = "";
- stdErr = "";
- retc = 0;
- mResultStream = "";
- mOffset = 0;
- mLen = 0;
- mDoSort = true;
+  stdOut = "";
+  stdErr = "";
+  retc = 0;
+  mResultStream = "";
+  mOffset = 0;
+  mLen = 0;
+  mDoSort = true;
 
- // ----------------------------------------------------------------------------
- // admin command section
- // ----------------------------------------------------------------------------
- if (mAdminCmd)
- {
-   if (mCmd == "access")
-   {
-     Access();
-     mDoSort = false;
-   }
-   else
+  // ----------------------------------------------------------------------------
+  // admin command section
+  // ----------------------------------------------------------------------------
+  if (mAdminCmd)
+  {
+    if (mCmd == "access")
+    {
+      Access();
+      mDoSort = false;
+    }
+    else
 
-     if (mCmd == "config")
-   {
-     Config();
-     mDoSort = false;
-   }
-   else
+      if (mCmd == "config")
+    {
+      Config();
+      mDoSort = false;
+    }
+    else
 
-     if (mCmd == "node")
-   {
-     Node();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "space")
-   {
-     Space();
-     mDoSort = false;
-   }
-   else
+      if (mCmd == "node")
+    {
+      Node();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "space")
+    {
+      Space();
+      mDoSort = false;
+    }
+    else
 
-     if (mCmd == "group")
-   {
-     Group();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "fs")
-   {
-     Fs();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "ns")
-   {
-     Ns();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "io")
-   {
-     Io();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "fsck")
-   {
-     Fsck();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "quota")
-   {
-     AdminQuota();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "transfer")
-   {
-     Transfer();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "debug")
-   {
-     Debug();
-   }
-   else
-     if (mCmd == "vid")
-   {
-     Vid();
-   }
-   else
-     if (mCmd == "rtlog")
-   {
-     Rtlog();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "chown")
-   {
-     Chown();
-   }
-   else
-   {
-     // command is not implemented
-     stdErr += "errro: no such admin command '";
-     stdErr += mCmd;
-     stdErr += "'";
-     retc = EINVAL;
-   }
+      if (mCmd == "group")
+    {
+      Group();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "fs")
+    {
+      Fs();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "ns")
+    {
+      Ns();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "io")
+    {
+      Io();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "fsck")
+    {
+      Fsck();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "quota")
+    {
+      AdminQuota();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "transfer")
+    {
+      Transfer();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "debug")
+    {
+      Debug();
+    }
+    else
+      if (mCmd == "vid")
+    {
+      Vid();
+    }
+    else
+      if (mCmd == "rtlog")
+    {
+      Rtlog();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "chown")
+    {
+      Chown();
+    }
+    else
+    {
+      // command is not implemented
+      stdErr += "errro: no such admin command '";
+      stdErr += mCmd;
+      stdErr += "'";
+      retc = EINVAL;
+    }
 
-   MakeResult();
-   return SFS_OK;
- }
+    MakeResult();
+    return SFS_OK;
+  }
 
- // ----------------------------------------------------------------------------
- // user command section
- // ----------------------------------------------------------------------------
- if (mUserCmd)
- {
-   if (mCmd == "motd")
-   {
-     Motd();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "version")
-   {
-     Version();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "quota")
-   {
-     Quota();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "who")
-   {
-     Who();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "fuse")
-   {
-     return Fuse();
-   }
-   else
-     if (mCmd == "file")
-   {
-     File();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "fileinfo")
-   {
-     Fileinfo();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "mkdir")
-   {
-     Mkdir();
-   }
-   else
-     if (mCmd == "rmdir")
-   {
-     Rmdir();
-   }
-   else
-     if (mCmd == "cd")
-   {
-     Cd();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "ls")
-   {
-     Ls();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "rm")
-   {
-     Rm();
-   }
-   else
-     if (mCmd == "whoami")
-   {
-     Whoami();
-     mDoSort = false;
-   }
-   else
-     if (mCmd == "find")
-   {
-     Find();
-   }
-   else
-     if (mCmd == "map")
-   {
-     Map();
-   }
-   else
-     if (mCmd == "attr")
-   {
-     Attr();
-   }
-   else
-     if (mCmd == "chmod")
-   {
-     if (Chmod() == SFS_OK) return SFS_OK;
-   }
-   else 
-     if (mCmd == "recycle")
-   {
-     Recycle();
-     mDoSort = false;
-   }
-   else
-   {
-     // ------------------------------------------------------------------------
-     // command not implemented
-     // ------------------------------------------------------------------------
-     stdErr += "errro: no such user command '";
-     stdErr += mCmd;
-     stdErr += "'";
-     retc = EINVAL;
-   }
-   MakeResult();
-   return SFS_OK;
- }
+  // ----------------------------------------------------------------------------
+  // user command section
+  // ----------------------------------------------------------------------------
+  if (mUserCmd)
+  {
+    if (mCmd == "motd")
+    {
+      Motd();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "version")
+    {
+      Version();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "quota")
+    {
+      Quota();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "who")
+    {
+      Who();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "fuse")
+    {
+      return Fuse();
+    }
+    else
+      if (mCmd == "file")
+    {
+      File();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "fileinfo")
+    {
+      Fileinfo();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "mkdir")
+    {
+      Mkdir();
+    }
+    else
+      if (mCmd == "rmdir")
+    {
+      Rmdir();
+    }
+    else
+      if (mCmd == "cd")
+    {
+      Cd();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "ls")
+    {
+      Ls();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "rm")
+    {
+      Rm();
+    }
+    else
+      if (mCmd == "whoami")
+    {
+      Whoami();
+      mDoSort = false;
+    }
+    else
+      if (mCmd == "find")
+    {
+      Find();
+    }
+    else
+      if (mCmd == "map")
+    {
+      Map();
+    }
+    else
+      if (mCmd == "attr")
+    {
+      Attr();
+    }
+    else
+      if (mCmd == "chmod")
+    {
+      if (Chmod() == SFS_OK) return SFS_OK;
+    }
+    else
+      if (mCmd == "recycle")
+    {
+      Recycle();
+      mDoSort = false;
+    }
+    else
+    {
+      // ------------------------------------------------------------------------
+      // command not implemented
+      // ------------------------------------------------------------------------
+      stdErr += "errro: no such user command '";
+      stdErr += mCmd;
+      stdErr += "'";
+      retc = EINVAL;
+    }
+    MakeResult();
+    return SFS_OK;
+  }
 
- // ----------------------------------------------------------------------------
- // if neither admin nor proc command
- // ----------------------------------------------------------------------------
- return gOFS->Emsg((const char*) "open", *error, EINVAL, "execute command - not implemented ", ininfo);
+  // ----------------------------------------------------------------------------
+  // if neither admin nor proc command
+  // ----------------------------------------------------------------------------
+  return gOFS->Emsg((const char*) "open", *error, EINVAL, "execute command - not implemented ", ininfo);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -654,35 +654,35 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
 int
 ProcCommand::read (XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
 {
- if (fresultStream)
- {
-   // file based results go here ...
-   if ((fseek(fresultStream, mOffset, 0)) == 0)
-   {
-     size_t nread = fread(buff, 1, blen, fresultStream);
-     if (nread > 0)
-       return nread;
-   }
-   else
-   {
-     eos_err("seek to %llu failed\n", mOffset);
-   }
-   return 0;
- }
- else
- {
-   // memory based results go here ...
-   if (((unsigned int) blen <= (mLen - mOffset)))
-   {
-     memcpy(buff, mResultStream.c_str() + mOffset, blen);
-     return blen;
-   }
-   else
-   {
-     memcpy(buff, mResultStream.c_str() + mOffset, (mLen - mOffset));
-     return (mLen - mOffset);
-   }
- }
+  if (fresultStream)
+  {
+    // file based results go here ...
+    if ((fseek(fresultStream, mOffset, 0)) == 0)
+    {
+      size_t nread = fread(buff, 1, blen, fresultStream);
+      if (nread > 0)
+        return nread;
+    }
+    else
+    {
+      eos_err("seek to %llu failed\n", mOffset);
+    }
+    return 0;
+  }
+  else
+  {
+    // memory based results go here ...
+    if (((unsigned int) blen <= (mLen - mOffset)))
+    {
+      memcpy(buff, mResultStream.c_str() + mOffset, blen);
+      return blen;
+    }
+    else
+    {
+      memcpy(buff, mResultStream.c_str() + mOffset, (mLen - mOffset));
+      return (mLen - mOffset);
+    }
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -697,10 +697,10 @@ ProcCommand::read (XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
 int
 ProcCommand::stat (struct stat* buf)
 {
- memset(buf, 0, sizeof (struct stat));
- buf->st_size = mLen;
+  memset(buf, 0, sizeof (struct stat));
+  buf->st_size = mLen;
 
- return SFS_OK;
+  return SFS_OK;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -713,22 +713,22 @@ ProcCommand::stat (struct stat* buf)
 int
 ProcCommand::close ()
 {
- if (!mClosed)
- {
-   // only instance users or sudoers can add to the log book
-   if ((pVid->uid <= 2) || (pVid->sudoer))
-   {
-     if (mComment.length() && gOFS->commentLog)
-     {
-       if (!gOFS->commentLog->Add(mExecTime, mCmd.c_str(), mSubCmd.c_str(), mArgs.c_str(), mComment.c_str(), stdErr.c_str(), retc))
-       {
-         eos_err("failed to log to comment log file");
-       }
-     }
-   }
-   mClosed = true;
- }
- return retc;
+  if (!mClosed)
+  {
+    // only instance users or sudoers can add to the log book
+    if ((pVid->uid <= 2) || (pVid->sudoer))
+    {
+      if (mComment.length() && gOFS->commentLog)
+      {
+        if (!gOFS->commentLog->Add(mExecTime, mCmd.c_str(), mSubCmd.c_str(), mArgs.c_str(), mComment.c_str(), stdErr.c_str(), retc))
+        {
+          eos_err("failed to log to comment log file");
+        }
+      }
+    }
+    mClosed = true;
+  }
+  return retc;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -742,121 +742,121 @@ ProcCommand::close ()
 void
 ProcCommand::MakeResult ()
 {
- mResultStream = "";
+  mResultStream = "";
 
- if (!fstdout)
- {
-   XrdMqMessage::Sort(stdOut, mDoSort);
-   if ((!mFuseFormat && !mJsonFormat))
-   {
-     // ------------------------------------------------------------------------
-     // the default format
-     // ------------------------------------------------------------------------
-     mResultStream = "mgm.proc.stdout=";
-     mResultStream += XrdMqMessage::Seal(stdOut);
-     mResultStream += "&mgm.proc.stderr=";
-     mResultStream += XrdMqMessage::Seal(stdErr);
-     mResultStream += "&mgm.proc.retc=";
-     mResultStream += retc;
+  if (!fstdout)
+  {
+    XrdMqMessage::Sort(stdOut, mDoSort);
+    if ((!mFuseFormat && !mJsonFormat))
+    {
+      // ------------------------------------------------------------------------
+      // the default format
+      // ------------------------------------------------------------------------
+      mResultStream = "mgm.proc.stdout=";
+      mResultStream += XrdMqMessage::Seal(stdOut);
+      mResultStream += "&mgm.proc.stderr=";
+      mResultStream += XrdMqMessage::Seal(stdErr);
+      mResultStream += "&mgm.proc.retc=";
+      mResultStream += retc;
 
-   }
-   if (mFuseFormat)
-   {
-     // ------------------------------------------------------------------------
-     // FUSE format contains only STDOUT
-     // ------------------------------------------------------------------------
-     mResultStream += stdOut;
-   }
-   if (mJsonFormat)
-   {
-     // ------------------------------------------------------------------------
-     // only few commands actually return stdJson as output
-     // ------------------------------------------------------------------------
-     if (!stdJson.length())
-     {
-       stdJson = "{\n  \"error\": \"command does not provide JSON output\",\n  \"errc\": 93\n}";
-     }
-     mResultStream = "mgm.proc.json=";
-     mResultStream += stdJson;
-   }
-   if (!mResultStream.endswith('\n'))
-   {
-     mResultStream += "\n";
-   }
-   if (retc)
-   {
-     eos_static_err("%s (errno=%u)", stdErr.c_str(), retc);
-   }
-   mLen = mResultStream.length();
-   mOffset = 0;
- }
- else
- {
-   // --------------------------------------------------------------------------
-   // file based results CANNOT be sorted and don't have mFuseFormat
-   // --------------------------------------------------------------------------
-   if (!mFuseFormat)
-   {
-     // ------------------------------------------------------------------------
-     // create the stdout result
-     // ------------------------------------------------------------------------
-     if (!fseek(fstdout, 0, 0) &&
-         !fseek(fstderr, 0, 0) &&
-         !fseek(fresultStream, 0, 0))
-     {
-       fprintf(fresultStream, "&mgm.proc.stdout=");
+    }
+    if (mFuseFormat)
+    {
+      // ------------------------------------------------------------------------
+      // FUSE format contains only STDOUT
+      // ------------------------------------------------------------------------
+      mResultStream += stdOut;
+    }
+    if (mJsonFormat)
+    {
+      // ------------------------------------------------------------------------
+      // only few commands actually return stdJson as output
+      // ------------------------------------------------------------------------
+      if (!stdJson.length())
+      {
+        stdJson = "{\n  \"error\": \"command does not provide JSON output\",\n  \"errc\": 93\n}";
+      }
+      mResultStream = "mgm.proc.json=";
+      mResultStream += stdJson;
+    }
+    if (!mResultStream.endswith('\n'))
+    {
+      mResultStream += "\n";
+    }
+    if (retc)
+    {
+      eos_static_err("%s (errno=%u)", stdErr.c_str(), retc);
+    }
+    mLen = mResultStream.length();
+    mOffset = 0;
+  }
+  else
+  {
+    // --------------------------------------------------------------------------
+    // file based results CANNOT be sorted and don't have mFuseFormat
+    // --------------------------------------------------------------------------
+    if (!mFuseFormat)
+    {
+      // ------------------------------------------------------------------------
+      // create the stdout result
+      // ------------------------------------------------------------------------
+      if (!fseek(fstdout, 0, 0) &&
+          !fseek(fstderr, 0, 0) &&
+          !fseek(fresultStream, 0, 0))
+      {
+        fprintf(fresultStream, "&mgm.proc.stdout=");
 
-       std::ifstream inStdout(fstdoutfilename.c_str());
-       std::ifstream inStderr(fstderrfilename.c_str());
-       std::string entry;
+        std::ifstream inStdout(fstdoutfilename.c_str());
+        std::ifstream inStderr(fstderrfilename.c_str());
+        std::string entry;
 
-       while (std::getline(inStdout, entry))
-       {
-         XrdOucString sentry = entry.c_str();
-         sentry += "\n";
-         if (!mFuseFormat)
-         {
-           XrdMqMessage::Seal(sentry);
-         }
-         fprintf(fresultStream, "%s", sentry.c_str());
-       }
-       // ----------------------------------------------------------------------
-       // close and remove - if this fails there is nothing to recover anyway
-       // ----------------------------------------------------------------------
-       fclose(fstdout);
-       fstdout = 0;
-       unlink(fstdoutfilename.c_str());
-       // ----------------------------------------------------------------------
-       // create the stderr result
-       // ----------------------------------------------------------------------
-       fprintf(fresultStream, "&mgm.proc.stderr=");
-       while (std::getline(inStdout, entry))
-       {
-         XrdOucString sentry = entry.c_str();
-         sentry += "\n";
-         XrdMqMessage::Seal(sentry);
-         fprintf(fresultStream, "%s", sentry.c_str());
-       }
-       // ----------------------------------------------------------------------
-       // close and remove - if this fails there is nothing to recover anyway
-       // ----------------------------------------------------------------------
-       fclose(fstderr);
-       fstderr = 0;
-       unlink(fstderrfilename.c_str());
+        while (std::getline(inStdout, entry))
+        {
+          XrdOucString sentry = entry.c_str();
+          sentry += "\n";
+          if (!mFuseFormat)
+          {
+            XrdMqMessage::Seal(sentry);
+          }
+          fprintf(fresultStream, "%s", sentry.c_str());
+        }
+        // ----------------------------------------------------------------------
+        // close and remove - if this fails there is nothing to recover anyway
+        // ----------------------------------------------------------------------
+        fclose(fstdout);
+        fstdout = 0;
+        unlink(fstdoutfilename.c_str());
+        // ----------------------------------------------------------------------
+        // create the stderr result
+        // ----------------------------------------------------------------------
+        fprintf(fresultStream, "&mgm.proc.stderr=");
+        while (std::getline(inStdout, entry))
+        {
+          XrdOucString sentry = entry.c_str();
+          sentry += "\n";
+          XrdMqMessage::Seal(sentry);
+          fprintf(fresultStream, "%s", sentry.c_str());
+        }
+        // ----------------------------------------------------------------------
+        // close and remove - if this fails there is nothing to recover anyway
+        // ----------------------------------------------------------------------
+        fclose(fstderr);
+        fstderr = 0;
+        unlink(fstderrfilename.c_str());
 
-       fprintf(fresultStream, "&mgm.proc.retc=%d", retc);
-       mLen = ftell(fresultStream);
-       // ----------------------------------------------------------------------
-       // spool the resultstream to the beginning
-       // ----------------------------------------------------------------------
-       fseek(fresultStream, 0, 0);
-     }
-     else
-     {
-       eos_static_err("cannot seek to position 0 in result files");
-     }
-   }
- }
+        fprintf(fresultStream, "&mgm.proc.retc=%d", retc);
+        mLen = ftell(fresultStream);
+        // ----------------------------------------------------------------------
+        // spool the resultstream to the beginning
+        // ----------------------------------------------------------------------
+        fseek(fresultStream, 0, 0);
+      }
+      else
+      {
+        eos_static_err("cannot seek to position 0 in result files");
+      }
+    }
+  }
 }
 
 /*----------------------------------------------------------------------------*/

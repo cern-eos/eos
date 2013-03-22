@@ -655,7 +655,7 @@ public:
 
   // insert current state of a single quota node into a SpaceQuota
   static void NodeToSpaceQuota (const char* name, bool lock = true);
-  
+
   static gid_t gProjectId; //< gid indicating project quota
 };
 

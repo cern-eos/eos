@@ -68,9 +68,9 @@ public:
 
   Egroup ();
   virtual ~Egroup ();
-  
-  bool Start();
-  
+
+  bool Start ();
+
   static bool Member (std::string &username, std::string &egroupname);
 
   static void AsyncRefresh (std::string &egroupname, std::string &username);

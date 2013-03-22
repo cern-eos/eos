@@ -30,15 +30,18 @@
 #include "common/ZMQ.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-class ZMQ : public eos::common::ZMQ {
+class ZMQ : public eos::common::ZMQ
+{
 public:
-  ZMQ(const char* URL);
-  ~ZMQ() {};
-  virtual void Process(zmq::socket_t &socket, zmq::message_t &request); // we implement the MGM processing here
+  ZMQ (const char* URL);
+
+  ~ZMQ () { };
+  virtual void Process (zmq::socket_t &socket, zmq::message_t &request); // we implement the MGM processing here
 };
 
 EOSMGMNAMESPACE_END
