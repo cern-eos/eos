@@ -94,7 +94,6 @@ add_executable ( mutextest
        mutextest/RWMutexTest.cc
 )
 
-<<<<<<< HEAD
 target_link_libraries ( eosCommon 
                         XrdMqClient 
                         XrdUtils 
