@@ -283,7 +283,14 @@ Http::FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max)
       //...........................................................................
       // file streaminig
       //...........................................................................
-      return httpHandle->mFile->read(pos, buf, max);
+      if (max)
+      {
+        return httpHandle->mFile->read(pos, buf, max);
+      }
+      else
+      {
+        return -1;
+      }
     }
   }
   return 0;
@@ -480,8 +487,10 @@ Http::Handler (void *cls,
           // successful http open
           char clength[16];
           snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) file->getOpenSize());
+          httpHandle->mRequestSize = file->getOpenSize();
           responseheader["Content-Type"] = s3->ContentType();
           responseheader["Content-Length"] = clength;
+          mhd_response = MHD_HTTP_OK;
         }
       }
     }
@@ -552,8 +561,10 @@ Http::Handler (void *cls,
           // successful http open
           char clength[16];
           snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) file->getOpenSize());
+          httpHandle->mRequestSize = file->getOpenSize();
           responseheader["Content-Type"] = "application/octet-stream";
           responseheader["Content-Length"] = clength;
+          mhd_response = MHD_HTTP_OK;
         }
       }
     }
