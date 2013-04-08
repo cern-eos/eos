@@ -199,6 +199,7 @@ ReplicaParLayout::Open (const std::string& path,
      // Only the referenced entry URL does local IO
      //........................................................................
      mLocalPath = path;
+     mReplicaUrl.push_back(mLocalPath);
      FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kLocal,
                                               mOfsFile,
                                               mSecEntity,
