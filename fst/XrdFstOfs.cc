@@ -739,7 +739,7 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
       rc = -EADV;
   }
 
-  if (return_result)
+  if (response)
   {
     *return_result = response->GetBuffer();
   }
