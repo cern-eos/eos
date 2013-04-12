@@ -24,11 +24,9 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/StringConversion.hh"
-
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
-
 
 
 // ---------------------------------------------------------------------------
@@ -894,6 +892,34 @@ StringConversion::CreateUrl (const char* protocol, const char* hostport, const c
   url = "";
   return 0;
 }
+
+
+// ---------------------------------------------------------------------------
+// Convert numeric value to string in a pretty way using KB, MB etc. symbols
+// ---------------------------------------------------------------------------  
+std::string
+StringConversion::GetPrettySize(float size)
+{
+  float fsize = 0;
+  std::string ret_str;
+  std::string size_unit;
+
+  if ((fsize = size / EB) >= 1) size_unit = "EB";
+  else if ((fsize = size / PB) >= 1) size_unit = "PB";
+  else if ((fsize = size / TB) >= 1) size_unit = "TB";
+  else if ((fsize = size / MB) >= 1) size_unit = "MB";
+  else {
+    fsize = size / KB;
+    size_unit = "KB";
+  }
+
+  char msg[30];
+  sprintf(msg, "%.1f %s", fsize, size_unit.c_str());
+
+  ret_str = msg;
+  return ret_str;  
+}
+
 
 // ---------------------------------------------------------------------------
 //! Constructor

@@ -90,6 +90,45 @@ public:
     maintag = i_maintag;
   }
 
+
+  // ---------------------------------------------------------------------------
+  //! Get time elapsed between the two tags in miliseconds
+  // ---------------------------------------------------------------------------
+  float
+  GetTagTimelapse(const std::string& tagBegin, const std::string& tagEnd)
+  {
+    float time_elapsed = 0;
+    Timing* ptr = this->next;
+    Timing* ptrBegin = 0;
+    Timing* ptrEnd = 0;
+    
+    while (ptr)
+    {
+      if (tagBegin.compare(ptr->tag.c_str()) == 0)
+      {
+        ptrBegin = ptr;
+      }
+
+      if (tagEnd.compare(ptr->tag.c_str()) == 0)
+      {
+        ptrEnd = ptr;
+      }
+
+      if (ptrBegin && ptrEnd) break;
+      
+      ptr = ptr->next;
+    }
+
+    if (ptrBegin && ptrEnd)
+    {
+      time_elapsed = static_cast<float>(((ptrEnd->tv.tv_sec - ptrBegin->tv.tv_sec) *1000000 +
+                                       (ptrEnd->tv.tv_usec - ptrBegin->tv.tv_usec)) / 1000.0);
+    }
+    
+    return time_elapsed;
+  }
+  
+  
   // ---------------------------------------------------------------------------
   //! Print method to display measurements on STDERR
   // ---------------------------------------------------------------------------

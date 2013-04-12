@@ -43,6 +43,8 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 #define EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN 1024 * 1024 * 1024 * 1024ll
 
+//! Forward declaration
+class XrdFstOfsFile;
 
 //------------------------------------------------------------------------------
 //! Abstract class modelling an IO plugin
