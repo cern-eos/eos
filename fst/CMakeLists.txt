@@ -142,7 +142,8 @@ add_library( XrdEosFst-Static STATIC
 
 
 target_link_libraries( XrdEosFst 
-		       eosCapability-Static    eosCommon-Static 
+		       eosCapability-Static    eosCommon-Static
+                       eosCommonServer-Static 
 		       XrdMqClient-Static      XrdCl	
 		       XrdUtils                XrdOfs 
 		       crypto                  curses                   
@@ -153,7 +154,8 @@ target_link_libraries( XrdEosFst
 
 
 target_link_libraries( XrdEosFst-Static
-		       eosCapability-Static    eosCommon-Static 
+		       eosCapability-Static    eosCommon-Static
+                       eosCommonServer-Static
 		       XrdMqClient-Static      XrdCl
 		       XrdUtils                XrdOfs 
 		       crypto                  curses
@@ -215,7 +217,7 @@ set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 target_link_libraries( FstLoad XrdUtils dl ${RT_LIBRARIES}  )
 target_link_libraries( eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-compute-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries( eos-scan-fs eosCommon XrdCl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
+target_link_libraries( eos-scan-fs eosCommon eosCommonServer XrdCl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
 target_link_libraries( eos-adler32 eosCommon ${CMAKE_THREAD_LIBS_INIT} ) 
 target_link_libraries( eoscp XrdEosFst-Static XrdCl )
 #target_link_libraries( eos-raid-recover eosCommon XrdCl )

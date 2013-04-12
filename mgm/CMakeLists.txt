@@ -93,7 +93,8 @@ add_library (XrdEosMgm MODULE
 target_link_libraries( XrdEosMgm 
                        XrdCl                XrdPosix 
                        XrdUtils             XrdOfs 
-                       eosCommon-Static     eosNamespace-Static 
+                       eosCommon-Static     eosCommonServer-Static
+                       eosNamespace-Static 
                        eosCapability-Static XrdMqClient-Static 
                        crypto               curses 
 		       dl                   z 
@@ -108,7 +109,8 @@ add_executable ( testmgmview
 
 target_link_libraries ( testmgmview 
                         XrdCl             XrdUtils 
-                        eosCommon-Static  XrdMqClient-Static 
+                        eosCommon-Static  eosCommonServer-Static
+                        XrdMqClient-Static 
                         crypto            curses 
                         dl                z 
                         ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})

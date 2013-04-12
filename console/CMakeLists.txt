@@ -113,7 +113,8 @@ target_link_libraries( eos
 else (CLIENT)
 target_link_libraries( eos 
 		       XrdPosix	         XrdCl 
-		       XrdUtils 	 eosCommon-Static 
+		       XrdUtils 	 eosCommon-Static
+                       eosCommonServer-Static 
                        readline          XrdMqClient-Static
 		       crypto            curses
 		       dl                z
