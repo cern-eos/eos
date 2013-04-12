@@ -132,7 +132,7 @@ PlainLayout::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset
 
 
 //------------------------------------------------------------------------------
-// Syn file to disk
+// Sync file to disk
 //------------------------------------------------------------------------------
 
 int

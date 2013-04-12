@@ -27,7 +27,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/FileIo.hh"
-#include "../io/SimpleHandler.hh"
+#include "fst/io/SimpleHandler.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
 /*----------------------------------------------------------------------------*/
@@ -274,16 +274,6 @@ private:
   std::map<uint64_t, ReadaheadBlock*> mMapBlocks; ///< map of block read/prefetched
   std::queue<ReadaheadBlock*> mQueueBlocks; ///< queue containing available blocks
 
-  //--------------------------------------------------------------------------
-  //! Map SFS-like open flags to XrdCl open flags
-  //!
-  //! @param flags_sfs SFS open flags
-  //!
-  //! @return XrdCl-like open flags
-  //!
-  //--------------------------------------------------------------------------
-  XrdCl::OpenFlags::Flags MapFlagsSfs2XrdCl(XrdSfsFileOpenMode flags_sfs);
-  
   
   //--------------------------------------------------------------------------
   //! Method used to prefetch the next block using the readahead mechanism

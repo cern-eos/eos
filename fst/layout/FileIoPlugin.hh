@@ -26,16 +26,18 @@
 #define __EOSFST_FILEIOPLUGIN_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "fst/XrdFstOfsFile.hh"
-/*----------------------------------------------------------------------------*/
 #include "fst/layout/FileIo.hh"
 #include "fst/layout/LocalFileIo.hh"
 #include "fst/layout/XrdFileIo.hh"
+#include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
 using eos::common::LayoutId;
+
+//! Forward declaration
+class XrdFstOfsFile;
 
 //------------------------------------------------------------------------------
 //! Class used to obtain a IO plugin object

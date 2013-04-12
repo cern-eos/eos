@@ -33,7 +33,7 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-  const uint64_t ReadaheadBlock::sDefaultBlocksize = 1024 * 1024; ///< 1MB default
+const uint64_t ReadaheadBlock::sDefaultBlocksize = 1024 * 1024; ///< 1MB default
 const uint32_t XrdFileIo::sNumRdAheadBlocks = 2;
 
 //------------------------------------------------------------------------------
@@ -123,10 +123,10 @@ XrdFileIo::Open (const std::string& path,
   request += "?";
   request += opaque;
   mXrdFile = new XrdCl::File();
-  XrdCl::OpenFlags::Flags xflags = MapFlagsSfs2XrdCl(flags);
-  XrdCl::XRootDStatus status = mXrdFile->Open(request, xflags,
-                                              (XrdCl::Access::Mode) mode,
-                                              timeout);
+  XrdCl::OpenFlags::Flags flags_xrdcl = eos::common::LayoutId::MapFlagsSfs2XrdCl(flags);
+  XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
+  XrdCl::XRootDStatus status = mXrdFile->Open(request, flags_xrdcl,
+                                              mode_xrdcl, timeout);
 
   if (!status.IsOK())
   {
@@ -529,66 +529,6 @@ XrdFileIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
   mMapBlocks.insert(std::make_pair(offset, block));
 }
 
-
-//--------------------------------------------------------------------------
-// Map SFS like open flags to XrdCl open flags
-//--------------------------------------------------------------------------
-
-XrdCl::OpenFlags::Flags
-XrdFileIo::MapFlagsSfs2XrdCl (XrdSfsFileOpenMode flags_sfs)
-{
-  XrdCl::OpenFlags::Flags xflags = XrdCl::OpenFlags::None;
-
-  if (flags_sfs & SFS_O_CREAT)
-  {
-    xflags |= XrdCl::OpenFlags::Delete;
-  }
-  if (flags_sfs & SFS_O_WRONLY)
-  {
-    xflags |= XrdCl::OpenFlags::Update;
-  }
-  if (flags_sfs & SFS_O_RDWR)
-  {
-    xflags |= XrdCl::OpenFlags::Update;
-  }
-  if (flags_sfs & SFS_O_TRUNC)
-  {
-    xflags |= XrdCl::OpenFlags::Delete;
-  }
-  if ((!(flags_sfs & SFS_O_TRUNC)) &&
-      (!(flags_sfs & SFS_O_WRONLY)) &&
-      (!(flags_sfs & SFS_O_CREAT)) &&
-      (!flags_sfs & SFS_O_RDWR))
-  {
-    xflags |= XrdCl::OpenFlags::Read;
-  }
-  if (flags_sfs & SFS_O_POSC)
-  {
-    xflags |= XrdCl::OpenFlags::POSC;
-  }
-  if (flags_sfs & SFS_O_NOWAIT)
-  {
-    xflags |= XrdCl::OpenFlags::NoWait;
-  }
-  if (flags_sfs & SFS_O_RAWIO)
-  {
-    // no idea what to do 
-  }
-  if (flags_sfs & SFS_O_RESET)
-  {
-    xflags |= XrdCl::OpenFlags::Refresh;
-  }
-  if (flags_sfs & SFS_O_REPLICA)
-  {
-    // emtpy
-  }
-  if (flags_sfs & SFS_O_MKPTH)
-  {
-    xflags |= XrdCl::OpenFlags::MakePath;
-  }
-
-  return xflags;
-}
 
 EOSFSTNAMESPACE_END
 

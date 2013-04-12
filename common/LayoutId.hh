@@ -30,6 +30,8 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdCl/XrdClFileSystem.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -504,6 +506,105 @@ class LayoutId
     
     return ( kOneStripe + 1 );
   }
+
+
+  //----------------------------------------------------------------------------
+  //! Map SFS-like open flags to XrdCl open flags
+  //!
+  //! @param flags_sfs SFS open flags
+  //!
+  //! @return XrdCl-like open flags
+  //!
+  //----------------------------------------------------------------------------
+  static XrdCl::OpenFlags::Flags
+  MapFlagsSfs2XrdCl (XrdSfsFileOpenMode flags_sfs)
+  {
+    XrdCl::OpenFlags::Flags xflags = XrdCl::OpenFlags::None;
+    
+    if (flags_sfs & SFS_O_CREAT)
+    {
+      xflags |= XrdCl::OpenFlags::Delete;
+    }
+    if (flags_sfs & SFS_O_WRONLY)
+    {
+      xflags |= XrdCl::OpenFlags::Update;
+    }
+    if (flags_sfs & SFS_O_RDWR)
+    {
+      xflags |= XrdCl::OpenFlags::Update;
+    }
+    if (flags_sfs & SFS_O_TRUNC)
+    {
+      xflags |= XrdCl::OpenFlags::Delete;
+    }
+    if ((!(flags_sfs & SFS_O_TRUNC)) &&
+        (!(flags_sfs & SFS_O_WRONLY)) &&
+        (!(flags_sfs & SFS_O_CREAT)) &&
+        (!flags_sfs & SFS_O_RDWR))
+    {
+      xflags |= XrdCl::OpenFlags::Read;
+    }
+    if (flags_sfs & SFS_O_POSC)
+    {
+      xflags |= XrdCl::OpenFlags::POSC;
+    }
+    if (flags_sfs & SFS_O_NOWAIT)
+    {
+      xflags |= XrdCl::OpenFlags::NoWait;
+    }
+    if (flags_sfs & SFS_O_RAWIO)
+    {
+      // no idea what to do 
+    }
+    if (flags_sfs & SFS_O_RESET)
+    {
+      xflags |= XrdCl::OpenFlags::Refresh;
+    }
+    if (flags_sfs & SFS_O_REPLICA)
+    {
+      // emtpy
+    }
+    if (flags_sfs & SFS_O_MKPTH)
+    {
+      xflags |= XrdCl::OpenFlags::MakePath;
+    }
+    
+    return xflags;
+  }
+  
+  
+  //----------------------------------------------------------------------------
+  //! Map SFS-like open mode to XrdCl open mode
+  //!
+  //! @param mode_sfs SFS open mode
+  //!
+  //! @return XrdCl-like open mode
+  //!
+  //----------------------------------------------------------------------------
+  static XrdCl::Access::Mode
+  MapModeSfs2XrdCl (mode_t mode_sfs)
+  {
+    XrdCl::Access::Mode mode_xrdcl = XrdCl::Access::Mode::None;
+    
+    if (mode_sfs & S_IRUSR) mode_xrdcl |= XrdCl::Access::Mode::UR;
+    
+    if (mode_sfs & S_IWUSR) mode_xrdcl |= XrdCl::Access::Mode::UW;
+    
+    if (mode_sfs & S_IXUSR) mode_xrdcl |= XrdCl::Access::Mode::UX;
+    
+    if (mode_sfs & S_IRGRP) mode_xrdcl |= XrdCl::Access::Mode::GR;
+    
+    if (mode_sfs & S_IWGRP) mode_xrdcl |= XrdCl::Access::Mode::GW;
+    
+    if (mode_sfs & S_IXGRP) mode_xrdcl |= XrdCl::Access::Mode::GX;
+
+    if (mode_sfs & S_IROTH) mode_xrdcl |= XrdCl::Access::Mode::OR;
+    
+    if (mode_sfs & S_IXOTH) mode_xrdcl |= XrdCl::Access::Mode::OX;
+    
+    return mode_xrdcl;
+  }
+
 
   //--------------------------------------------------------------------------
   //! Constructor
