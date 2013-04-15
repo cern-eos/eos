@@ -345,7 +345,7 @@ com_file (char* arg1) {
             down = false;
           }
           
-          struct eos::fst::FmdSqlite::FMD fmd;
+          struct eos::fst::Fmd fmd;
           int retc=0;
           int oldsilent=silent;
 
@@ -366,7 +366,7 @@ com_file (char* arg1) {
             //          newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()) );
             if ((option.find("%checksumattr")!= STR_NPOS)) {
               checksumattribute="";
-              if ((retc = eos::fst::gFmdSqliteHandler.GetRemoteAttribute(
+              if ((retc = eos::fst::gFmdClient.GetRemoteAttribute(
                       newresult->Get(repurl.c_str()),
                       "user.eos.checksum",
                       newresult->Get(repfstpath.c_str()),
@@ -407,7 +407,7 @@ com_file (char* arg1) {
             delete stat_info;
             delete fs;
 
-            if ((retc = eos::fst::gFmdSqliteHandler.GetRemoteFmdSqlite(
+            if ((retc = eos::fst::gFmdClient.GetRemoteFmdSqlite(
                     newresult->Get(repurl.c_str()),
                     newresult->Get(repfid.c_str()),
                     newresult->Get(repfsid.c_str()), fmd)))

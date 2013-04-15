@@ -92,6 +92,9 @@ rm -rf $RPM_BUILD_ROOT
 /usr/lib64/libXrdEosFst.so.0.3.0
 /usr/lib64/libXrdEosFst.so.0
 /usr/lib64/libXrdEosFst.so
+/usr/lib64/libEosFstCommon.so.0.3.0
+/usr/lib64/libEosFstCommon.so.0
+/usr/lib64/libEosFstCommon.so
 /usr/lib64/libEosFstOss.so.0.3.0
 /usr/lib64/libEosFstOss.so.0
 /usr/lib64/libEosFstOss.so

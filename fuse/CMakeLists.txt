@@ -35,12 +35,16 @@ add_subdirectory(XrdCache)
 add_executable ( eosfsd
                  eosfs.c
                  xrdposix.cc            xrdposix.hh
-		 FuseCacheEntry.cc	FuseCacheEntry.hh)
+		 FuseCacheEntry.cc	FuseCacheEntry.hh
+		 ../fst/layout/FileIoPlugin.cc
+)
 
 add_executable ( eosd
                  eosd.c
                  xrdposix.cc            xrdposix.hh
-		 FuseCacheEntry.cc	FuseCacheEntry.hh)
+		 FuseCacheEntry.cc	FuseCacheEntry.hh
+		 ../fst/layout/FileIoPlugin.cc
+)
 
 
 

@@ -81,8 +81,8 @@ add_executable (eoschecksumbench
  	        EosChecksumBenchmark.cc
 		../fst/checksum/Adler.cc
 		../fst/checksum/CheckSum.cc
-		../checksum/crc32c.cc
-		../checksum/crc32ctables.cc
+		../fst/checksum/crc32c.cc
+		../fst/checksum/crc32ctables.cc
 )
 
 add_executable (eos-udp-dumper

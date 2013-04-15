@@ -16,7 +16,7 @@
  *  Tables for software CRC generation
  */
 
-#include "checksum/crc32ctables.h"
+#include "fst/checksum/crc32ctables.h"
 
 namespace checksum {
 

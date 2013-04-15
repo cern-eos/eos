@@ -6,8 +6,8 @@
 #include <cstdio>
 #include <cstring>
 #include <stdlib.h>
-#include "checksum/crc32c.h"
-#include "checksum/crc32ctables.h"
+#include "fst/checksum/crc32c.h"
+#include "fst/checksum/crc32ctables.h"
 
 #undef __PIC__ 
 
