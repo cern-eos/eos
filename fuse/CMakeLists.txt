@@ -51,7 +51,7 @@ add_executable ( eosd
 target_link_libraries ( eosfsd 
 		        XrdCl
 			XrdUtils 
-			XrdEosFst-Static
+			EosFstCommon-Static
 			XrdCache-Static
 			eosCommon-Static
 			${FUSE_LIBRARY} 
@@ -60,7 +60,7 @@ target_link_libraries ( eosfsd
 target_link_libraries ( eosd 
      		      	XrdCl
 			XrdUtils 
-			XrdEosFst-Static
+			EosFstCommon-Static
 			XrdCache-Static
 			eosCommon-Static
 			${FUSE_LIBRARY}
