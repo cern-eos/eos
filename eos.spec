@@ -23,6 +23,7 @@ BuildRequires: fuse-devel, fuse
 BuildRequires: xrootd-cl-devel
 BuildRequires: leveldb-devel
 BuildRequires: git
+BuildRequires: protobuf, protobuf-devel, protobuf-compiler
 
 %if 0%{?rhel} < 6
 BuildRequires: gcc44, gcc44-c++
