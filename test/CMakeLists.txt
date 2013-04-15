@@ -27,6 +27,8 @@ set (CMAKE_CXX_FLAGS "-Wall -g -O0 -std=gnu++0x -DHAVE_ATOMICS=1 ")
 include_directories( ../ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} )
 link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} ${XROOTD_LIB_DIR})
 
+add_subdirectory(benchmark)
+
 add_executable (xrdstress.exe
  	        XrdStress.cc            XrdStress.hh
 )

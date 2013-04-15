@@ -548,6 +548,7 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    }
  }
 
+ eos_debug("Finished open with size: %lli.", (long long int) mFileSize);
  mIsPio = true;
  mIsOpen = true;
  mIsEntryServer = true;
@@ -1522,6 +1523,13 @@ RaidMetaLayout::Close ()
        //..........................................................................
        long int num_blocks = ceil((mFileSize * 1.0) / mStripeWidth);
        size_t size_last_block = mFileSize % mStripeWidth;
+       eos_debug("num_blocks=%li, size_last_block=%llu", num_blocks,
+                  (long long int) size_last_block);
+
+       if (size_last_block == 0)
+       {
+         num_blocks++;
+       }
 
        for (unsigned int i = 0; i < mHdrInfo.size(); i++)
        {

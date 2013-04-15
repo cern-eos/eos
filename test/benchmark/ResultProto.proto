@@ -1,0 +1,38 @@
+package eos.benchmark;
+
+message ResultProto {
+
+  required string timestamp      = 1;
+  repeated float openTime        = 2  [packed=true];  // all time values in miliseconds
+  repeated float readTime        = 3  [packed=true];
+  repeated float readWaitAsync   = 4  [packed=true];	
+  repeated float writeTime       = 5  [packed=true];
+  repeated float writeWaitAsync  = 6  [packed=true];
+  repeated float closeTime       = 7  [packed=true];
+  repeated float transactionTime = 8  [packed=true];
+  repeated float readSpeed       = 9  [packed=true];  // in MB/s
+  repeated float writeSpeed      = 10 [packed=true];  // in MB/s
+  repeated uint64 readTotal      = 11 [packed=true];
+  repeated uint64 writeTotal     = 12 [packed=true];
+
+  // Group statistics
+  optional float avgOpenTime        = 13;
+  optional float avgReadTime        = 14;
+  optional float avgReadWaitAsync   = 15;
+  optional float avgWriteTime       = 16;
+  optional float avgWriteWaitAsync  = 17;
+  optional float avgCloseTime       = 18;
+  optional float avgTransactionTime = 19;
+  optional float avgReadSpeed       = 20;
+  optional float avgWriteSpeed      = 21;
+  
+  optional float stdOpenTime        = 22;
+  optional float stdReadTime        = 23;
+  optional float stdReadWaitAsync   = 24;
+  optional float stdWriteTime       = 25;
+  optional float stdWriteWaitAsync  = 26;
+  optional float stdCloseTime       = 27;
+  optional float stdTransactionTime = 28;
+  optional float stdReadSpeed       = 29;
+  optional float stdWriteSpeed      = 30;
+}

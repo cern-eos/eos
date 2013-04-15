@@ -81,10 +81,9 @@ find_package(readline REQUIRED)
 find_package(uuid REQUIRED)
 find_package(z REQUIRED)
 find_package(rt REQUIRED)
+find_package(ProtocolBuffers REQUIRED)
 find_package(leveldb)
 find_package(CPPUnit)
-
-find_package(XRootD REQUIRED)
 find_package(microhttpd)
 
 if(MacOSX)
