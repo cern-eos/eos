@@ -154,6 +154,7 @@ fi
 #######################################################################################
 Summary: The EOS shell client
 Group: Applications/File
+Requires: xrootd-cl
 %description -n eos-client
 The EOS shell client.
 %files -n eos-client
