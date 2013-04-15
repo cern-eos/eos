@@ -29,7 +29,7 @@ include_directories(./
 		    ${XROOTD_PRIVATE_INCLUDE_DIR}
                     ${UUID_INCLUDE_DIRS})
 
-link_directories(${PROTOBUF_LIBRAREIS}
+link_directories(${PROTOBUF_LIBRARIES}
 		 ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
 		 ${XROOTD_LIB_DIR}
 		 ${UUID_LIBRARIES}) 
@@ -52,7 +52,7 @@ add_executable(eosbenchmark
 target_link_libraries(eosbenchmark
 		      XrdCl 
 		      XrdEosFst-Static
-                      ${PROTOBUF_LIBRARY} 
+                      ${PROTOBUF_LIBRARIES} 
 		      ${UUID_LIBRARIES} 
 		      ${CMAKE_THREAD_LIBS_INIT})
 
