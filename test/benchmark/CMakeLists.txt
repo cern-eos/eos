@@ -38,7 +38,7 @@ IF(PROTOBUF_FOUND)
 	PROTOBUF_GENERATE_CPP(CONFIG_SRCS CONFIG_HDRS PROTOFILES ConfigProto.proto)
 	PROTOBUF_GENERATE_CPP(RESULT_SRCS RESULT_HDRS PROTOFILES ResultProto.proto)
 
-	ADD_EXECUTABLE(eosbenchmark 
+	ADD_EXECUTABLE(eos-benchmark 
     		       eosbenchmark.cc     eosbenchmark.hh
      	       	       Configuration.cc    Configuration.hh
 		       DirEos.cc           DirEos.hh
@@ -51,12 +51,18 @@ IF(PROTOBUF_FOUND)
        	       	       ${CONFIG_SRCS}      ${CONFIG_HDRS}
       	       	       ${RESULT_SRCS}      ${RESULT_HDR}) 
 
-        TARGET_LINK_LIBRARIES(eosbenchmark
+        TARGET_LINK_LIBRARIES(eos-benchmark
 			      XrdCl 
 	      	      	      EosFstCommon-Static
  		      	      ${PROTOBUF_LIBRARIES} 
 	      	      	      ${UUID_LIBRARIES} 
 	      	      	      ${CMAKE_THREAD_LIBS_INIT})
+
+        INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR}
+                  FILES 
+                  eos-benchmark
+)
+
 ENDIF(PROTOBUF_FOUND)
 
 

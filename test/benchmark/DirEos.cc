@@ -321,7 +321,7 @@ DirEos::SetConfig(const ConfigProto& llconfig)
     ret  = SetXattr("user.admin.forced.layout", "plain");
     ret |= SetXattr("user.admin.forced.checksum", "adler");
     ret |= SetXattr("user.admin.forced.blockchecksum", "crc32c");
-    ret |= SetXattr("user.admin.forced.blocksize", "4K");
+    ret |= SetXattr("user.admin.forced.blocksize", "1MB");
   }
   else if (llconfig.filelayout() == ConfigProto_FileLayoutType_REPLICA)
   {
@@ -330,27 +330,27 @@ DirEos::SetConfig(const ConfigProto& llconfig)
                     std::to_string((long long int)llconfig.noreplicas()));
     ret |= SetXattr("user.admin.forced.checksum", "adler");
     ret |= SetXattr("user.admin.forced.blockchecksum", "crc32c");
-    ret |= SetXattr("user.admin.forced.blocksize", "4K");
+    ret |= SetXattr("user.admin.forced.blocksize", "1M");
   }
   else if (llconfig.filelayout() == ConfigProto_FileLayoutType_ARCHIVE)
   {
     ret  = SetXattr("user.admin.forced.layout", "archive");
     ret |= SetXattr("user.admin.forced.blockchecksum", "crc32c");
-    ret |= SetXattr("user.admin.forced.blocksize", "4K");
+    ret |= SetXattr("user.admin.forced.blocksize", "1M");
   }
   else if (llconfig.filelayout() == ConfigProto_FileLayoutType_RAIDDP)
   {
     ret  = SetXattr("user.admin.forced.layout", "raiddp");
     ret |= SetXattr("user.admin.forced.nstripes", "6");
     ret |= SetXattr("user.admin.forced.blockchecksum", "crc32c");
-    ret |= SetXattr("user.admin.forced.blocksize", "4K");
+    ret |= SetXattr("user.admin.forced.blocksize", "1M");
   }
   else if (llconfig.filelayout() == ConfigProto_FileLayoutType_RAID6)
   {
     ret  = SetXattr("user.admin.forced.layout", "raid6");
     ret |= SetXattr("user.admin.forced.nstripes", "6");
     ret |= SetXattr("user.admin.forced.blockchecksum", "crc32c");
-    ret |= SetXattr("user.admin.forced.blocksize", "4K");
+    ret |= SetXattr("user.admin.forced.blocksize", "1M");
   }
 
   if (!ret)
