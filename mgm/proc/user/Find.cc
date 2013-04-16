@@ -112,6 +112,7 @@ ProcCommand::Find ()
   bool printunlink = false;
   bool printcounter = false;
   bool printchildcount = true;
+  bool printhosts = false;
   time_t selectoldertime = 0;
   time_t selectyoungertime = 0;
 
@@ -200,6 +201,11 @@ ProcCommand::Find ()
     printchildcount = true;
   }
 
+  if (option.find("H") != STR_NPOS)
+  {
+    printhosts = true;
+  }
+
   if (attribute.length())
   {
     key.erase(attribute.find("="));
@@ -270,7 +276,7 @@ ProcCommand::Find ()
           fspath += *fileit;
           if (!calcbalance)
           {
-            if (findgroupmix || findzero || printsize || printfid || printchecksum || printctime || printmtime || printrep || printunlink || selectrepdiff || selectonehour || selectoldertime || selectyoungertime)
+            if (findgroupmix || findzero || printsize || printfid || printchecksum || printctime || printmtime || printrep || printunlink || printhosts || selectrepdiff || selectonehour || selectoldertime || selectyoungertime)
             {
               //-------------------------------------------
 
@@ -379,7 +385,7 @@ ProcCommand::Find ()
                 }
                 else
                 {
-                  if (selected && (selectonehour || selectoldertime || selectyoungertime || printsize || printfid || printchecksum || printfs || printctime || printmtime || printrep || printunlink || selectrepdiff))
+                  if (selected && (selectonehour || selectoldertime || selectyoungertime || printsize || printfid || printchecksum || printfs || printctime || printmtime || printrep || printunlink || printhosts || selectrepdiff))
                   {
                     XrdOucString sizestring;
                     bool printed = true;
@@ -409,7 +415,7 @@ ProcCommand::Find ()
                       }
                       if (printfs)
                       {
-                        if (!printcounter)fprintf(stdout, " fsid=");
+                        if (!printcounter)fprintf(fstdout, " fsid=");
                         eos::FileMD::LocationVector::const_iterator lociter;
                         for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
                         {
@@ -418,6 +424,41 @@ ProcCommand::Find ()
                             if (!printcounter)fprintf(fstdout, ",");
                           }
                           if (!printcounter)fprintf(fstdout, "%d", (int) *lociter);
+                        }
+                      }
+
+                      if (printhosts && (!printcounter))
+                      {
+                        fprintf(fstdout, " hosts=");
+                        std::set<std::string> fsHosts;
+                        eos::FileMD::LocationVector::const_iterator lociter;
+                        for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+                        {
+                          // get host name for fs id
+                          eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+                          eos::common::FileSystem* filesystem = 0;
+                          if (FsView::gFsView.mIdView.count(*lociter))
+                          {
+                            filesystem = FsView::gFsView.mIdView[*lociter];
+                          }
+
+                          if (filesystem)
+                          {
+                            eos::common::FileSystem::fs_snapshot_t fs;
+                            if (filesystem->SnapShotFileSystem(fs, true))
+                            {
+                              fsHosts.insert(fs.mHost);
+                            }
+                          }
+                        }
+                        
+                        for (auto hostit = fsHosts.begin(); hostit != fsHosts.end(); hostit++)
+                        {
+                          if (hostit != fsHosts.begin())
+                          {
+                            fprintf(fstdout, ",");
+                          }
+                          fprintf(fstdout, "%s", hostit->c_str());
                         }
                       }
                       if (printchecksum)
