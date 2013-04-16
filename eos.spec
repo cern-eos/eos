@@ -10,7 +10,7 @@ Group: Applications/File
 Source: %{name}-%{version}-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
-BuildRequires: cmake >= 2.6
+BuildRequires: cmake >= 2.8
 
 BuildRequires: xrootd-server >= 3.3.0
 BuildRequires: xrootd-server-devel >= 3.3.0
