@@ -219,6 +219,11 @@ public:
     return openSize;
   }
 
+  //--------------------------------------------------------------------------
+  //! return the file id
+  //--------------------------------------------------------------------------
+  unsigned long long getFileId() {return fileid;}
+
 protected:
   XrdOucEnv* openOpaque;
   XrdOucEnv* capOpaque;
@@ -341,13 +346,7 @@ protected:
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  void MakeReportEnv (XrdOucString& reportString);
-
-  //--------------------------------------------------------------------------
-  //!
-  //--------------------------------------------------------------------------
-  unsigned long long GetFileId() {return fileid;}
-  
+  void MakeReportEnv (XrdOucString& reportString);  
 };
 
 EOSFSTNAMESPACE_END;

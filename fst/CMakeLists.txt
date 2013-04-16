@@ -190,6 +190,7 @@ add_executable( FstLoad
 
 add_executable( eos-check-blockxs
                 tools/CheckBlockXS.cc
+		checksum/Adler.cc
                 checksum/CheckSum.cc
                 checksum/crc32c.cc
                 checksum/crc32ctables.cc 
