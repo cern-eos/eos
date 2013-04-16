@@ -78,7 +78,7 @@ Storage::MgmSyncer ()
     {
       // we enter this loop with the WrittenFilesQueueMutex locked
       time_t now = time(NULL);
-      struct FmdSqlite::FMD fmd = gOFS.WrittenFilesQueue.front();
+      struct Fmd fmd = gOFS.WrittenFilesQueue.front();
       gOFS.WrittenFilesQueueMutex.UnLock();
 
       eos_static_info("fid=%llx mtime=%llu", fmd.fid, fmd.ctime);

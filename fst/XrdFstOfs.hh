@@ -283,7 +283,7 @@ public:
   std::queue <XrdOucString> ErrorReportQueue; //! queue where log error are stored and picked up by a thread running in Storage
 
   XrdSysMutex WrittenFilesQueueMutex;
-  std::queue<struct FmdSqlite::FMD> WrittenFilesQueue; //! queue where modified/written files get stored and picked up by a thread running in Storage
+  std::queue<struct Fmd> WrittenFilesQueue; //! queue where modified/written files get stored and picked up by a thread running in Storage
 
 
   XrdMqSharedObjectManager ObjectManager; //! managing shared objects

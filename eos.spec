@@ -83,12 +83,18 @@ rm -rf $RPM_BUILD_ROOT
 /usr/lib64/libeosCommon.so.0.3.0
 /usr/lib64/libeosCommon.so.0
 /usr/lib64/libeosCommon.so
+/usr/lib64/libeosCommonServer.so.0.3.0
+/usr/lib64/libeosCommonServer.so.0
+/usr/lib64/libeosCommonServer.so
 /usr/lib64/libXrdEosAuth.so.0.3.0
 /usr/lib64/libXrdEosAuth.so.0
 /usr/lib64/libXrdEosAuth.so
 /usr/lib64/libXrdEosFst.so.0.3.0
 /usr/lib64/libXrdEosFst.so.0
 /usr/lib64/libXrdEosFst.so
+/usr/lib64/libEosFstCommon.so.0.3.0
+/usr/lib64/libEosFstCommon.so.0
+/usr/lib64/libEosFstCommon.so
 /usr/lib64/libEosFstOss.so.0.3.0
 /usr/lib64/libEosFstOss.so.0
 /usr/lib64/libEosFstOss.so
@@ -148,6 +154,7 @@ fi
 #######################################################################################
 Summary: The EOS shell client
 Group: Applications/File
+Requires: xrootd-cl
 %description -n eos-client
 The EOS shell client.
 %files -n eos-client

@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: SimpleHandler.hh
+// File: Result.hh
 // Author: Elvin-Alin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
@@ -21,160 +21,138 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifndef __EOSBMK_RESULT_HH__
+#define __EOSBMK_RESULT_HH__
+
+/*-----------------------------------------------------------------------------*/
+#include "Namespace.hh"
+#include "ResultProto.pb.h"
+/*-----------------------------------------------------------------------------*/
+
+EOSBMKNAMESPACE_BEGIN
+
 //------------------------------------------------------------------------------
-//! @file SimpleHandler.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class holding information about an asynchronous request
+//! Class Result 
 //------------------------------------------------------------------------------
-
-#ifndef __EOS_SIMPLEHANDLER_HH__
-#define __EOS_SIMPLEHANDLER_HH__
-
-/*----------------------------------------------------------------------------*/
-#include "fst/Namespace.hh"
-/*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
-/*----------------------------------------------------------------------------*/
-
-EOSFSTNAMESPACE_BEGIN
-
-// -----------------------------------------------------------------------------
-//! Class holding information about an asynchronous request
-// -----------------------------------------------------------------------------
-class SimpleHandler : public XrdCl::ResponseHandler
+class Result
 {
-public:
 
+ public:
+  
   //----------------------------------------------------------------------------
   //! Constructor
-  //!
-  //! @param offset request offset
-  //! @param length request length
-  //! @param isWrite chunk belongs to a write request
-  //!
   //----------------------------------------------------------------------------
-  SimpleHandler (uint64_t offset = 0,
-                 uint32_t length = 0,
-                 bool isWrite = false);
+  Result();
 
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~SimpleHandler ();
+  virtual ~Result();
 
 
   //----------------------------------------------------------------------------
-  //! Update function
+  //! Disable copy constructor
+  //----------------------------------------------------------------------------
+  Result(const Result&) = delete;
+
+
+  //----------------------------------------------------------------------------
+  //! Disable copy operator
+  //----------------------------------------------------------------------------
+  Result& operator =(const Result&) = delete; 
+
+
+  //----------------------------------------------------------------------------
+  //! Print statistics
+  //----------------------------------------------------------------------------
+  void Print() const;
+
+
+  //----------------------------------------------------------------------------
+  //! Get transfer speed
   //!
-  //! @param offset request offset
-  //! @param length request length
-  //! @param isWrite chunk belongs to a write request
+  //! @param size transfer size in bytes
+  //! @param duration time duration in miliseconds
+  //!
+  //! @return transfer speed in MB/s
   //!
   //----------------------------------------------------------------------------
-  void Update (uint64_t offset,
-               uint32_t length,
-               bool isWrite);
-
+  float GetTransferSpeed(float size, float duration);
+  
 
   //----------------------------------------------------------------------------
-  //! Wait for request to be done 
+  //! Get low level result object (reference)
   //!
-  //! @return status of the request
+  //! @return low level result object (ProtoBuf object)
+  //----------------------------------------------------------------------------
+  ResultProto& GetPbResult() const;
+
+
+  //----------------------------------------------------------------------------
+  //! Set the low level result object
+  //!
+  //! @param pbResult low level result object (ProtoBuf object)
+  //!  
+  //----------------------------------------------------------------------------
+  void SetPbResult(ResultProto* pbResult);
+  
+  
+  //----------------------------------------------------------------------------
+  //! Merge result object into the current one
+  //!
+  //! @param partial partial result object to be merged 
   //!
   //----------------------------------------------------------------------------
-  bool WaitOK ();
+  void Merge(const Result& partial);
 
 
   //----------------------------------------------------------------------------
-  //! Get if there is any request to process
+  //! Compute group statistics like average value and standard deviation
+  //----------------------------------------------------------------------------
+  void ComputeGroupStatistics();
+
+
+ private:
+
+  ResultProto* mPbResult; ///< pointer to low level result object (ProtoBuf object)
+
+  //----------------------------------------------------------------------------
+  //! Function used to compute the average for the supplied argument 
   //!
-  //! @return true if there is a request, false otherwise
+  //! @param input container of float values to be averaged
+  //!
+  //! @return average value
   //!
   //----------------------------------------------------------------------------
-  bool HasRequest ();
+  static float Average(const ::google::protobuf::RepeatedField<float>& input);
 
 
   //----------------------------------------------------------------------------
-  //! Get request chunk offset
-  //----------------------------------------------------------------------------
-
-  inline uint64_t
-  GetOffset () const
-  {
-    return mOffset;
-  };
-
-
-  //----------------------------------------------------------------------------
-  //! Get request chunk length
-  //----------------------------------------------------------------------------
-
-  inline uint32_t
-  GetLength () const
-  {
-    return mLength;
-  };
-
-
-  //----------------------------------------------------------------------------
-  //! Get response chunk length
-  //----------------------------------------------------------------------------
-
-  inline uint32_t
-  GetRespLength () const
-  {
-    return mRespLength;
-  };
-
-
-  //----------------------------------------------------------------------------
-  //! Get response chunk status
-  //----------------------------------------------------------------------------
-
-  inline bool
-  GetRespStatus () const
-  {
-    return mRespOK;
-  };
-
-
-  //----------------------------------------------------------------------------
-  //! Test if chunk is from a write operation 
-  //----------------------------------------------------------------------------
-
-  inline bool
-  IsWrite () const
-  {
-    return mIsWrite;
-  };
-
-
-  //----------------------------------------------------------------------------
-  //! Handle response
+  //! Function used to compute the standard deviation for the supplied argument 
   //!
-  //! @param pStatus status of the response
-  //! @param pResponse object containing extra info about the response
-  //! 
+  //! @param input container of float values to be averaged
+  //! @param mean mean value
+  //!
+  //! @return standard deviation value
+  //!
   //----------------------------------------------------------------------------
-  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
-                               XrdCl::AnyObject* pResponse);
+  static float StdDev(const ::google::protobuf::RepeatedField<float>& input,
+                      float                                           mean);
 
 
-private:
-
-  uint64_t mOffset; ///< offset of the request
-  uint32_t mLength; ///< length of the request
-  uint32_t mRespLength; ///< length of response received, only for reads
-  bool mIsWrite; ///< operation type is write
-  bool mRespOK; ///< mark if the resp status is ok
-  bool mReqDone; ///< mark if the request was done
-  bool mHasReq; ///< mark if there is any request to proceess
-  XrdSysCondVar mCond; ///< cond. variable used for synchronisation
+  //----------------------------------------------------------------------------
+  //! Function used to compute the sum of the elements in the container
+  //!
+  //! @param input container of float values
+  //!
+  //! @return sum of the values
+  //!
+  //----------------------------------------------------------------------------
+  static float Sum(const ::google::protobuf::RepeatedField<float>& input);
 
 };
 
-EOSFSTNAMESPACE_END
+EOSBMKNAMESPACE_END  
 
-#endif   // __EOS_SIMPLEHANDLER_HH__
+#endif // __EOSBMK_RESULT_HH__

@@ -1977,27 +1977,10 @@ int
 xrd_mkdir (const char* path, mode_t mode)
 {
   eos_static_info("path=%s mode=%d", path, mode);
-  uint16_t dir_mode = 0;
-
-  if (mode & S_IRUSR) dir_mode |= XrdCl::Access::Mode::UR;
-
-  if (mode & S_IWUSR) dir_mode |= XrdCl::Access::Mode::UW;
-
-  if (mode & S_IXUSR) dir_mode |= XrdCl::Access::Mode::UX;
-
-  if (mode & S_IRGRP) dir_mode |= XrdCl::Access::Mode::GR;
-
-  if (mode & S_IWGRP) dir_mode |= XrdCl::Access::Mode::GW;
-
-  if (mode & S_IXGRP) dir_mode |= XrdCl::Access::Mode::GX;
-
-  if (mode & S_IROTH) dir_mode |= XrdCl::Access::Mode::OR;
-
-  if (mode & S_IXOTH) dir_mode |= XrdCl::Access::Mode::OX;
-
+  XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
   XrdCl::XRootDStatus status = fs->MkDir(path,
                                          XrdCl::MkDirFlags::MakePath,
-                                         (XrdCl::Access::Mode)dir_mode);
+                                         mode_xrdcl);
   return -status.errNo;
 }
 

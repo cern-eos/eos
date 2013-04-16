@@ -321,10 +321,6 @@ RaidMetaLayout::Open (const std::string& path,
 
        stripe_urls[i] += remoteOpenOpaque.c_str();
        int ret = -1;
-       uint16_t mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW |
-           XrdCl::Access::GR | XrdCl::Access::GW |
-           XrdCl::Access::OR;
-
        FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kXrdCl,
                                                 mOfsFile,
                                                 mSecEntity,
@@ -340,7 +336,7 @@ RaidMetaLayout::Open (const std::string& path,
        }
        else
        {
-         mode_xrdcl = 0;
+         mode = 0;
          eos_debug("Read case.");
        }
 
@@ -348,8 +344,7 @@ RaidMetaLayout::Open (const std::string& path,
        //........................................................................
        // Doing the actual open
        //........................................................................
-       ret = file->Open(stripe_urls[i], flags, mode_xrdcl,
-                        enhanced_opaque.c_str());
+       ret = file->Open(stripe_urls[i], flags, mode, enhanced_opaque.c_str());
 
        if (ret == SFS_ERROR)
        {
@@ -467,11 +462,7 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    eos_err("error=failed open layout - stripe width at least 64");
    return SFS_ERROR;
  }
-
- int64_t mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW |
-     XrdCl::Access::GR | XrdCl::Access::GW |
-     XrdCl::Access::OR;
-
+ 
  //....................................................................
  // Set the correct open flags for the stripe
  //....................................................................
@@ -484,7 +475,7 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
  }
  else
  {
-   mode_xrdcl = 0;
+   mode = 0;
    eos_debug("Read case.");
  }
 
@@ -502,7 +493,7 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    openOpaque += "&fst.blocksize=";
    openOpaque += static_cast<int> (mStripeWidth);
 
-   ret = file->Open(stripe_urls[i], flags, mode_xrdcl, openOpaque.c_str());
+   ret = file->Open(stripe_urls[i], flags, mode, openOpaque.c_str());
 
    if (ret == SFS_ERROR)
    {
@@ -557,6 +548,7 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    }
  }
 
+ eos_debug("Finished open with size: %lli.", (long long int) mFileSize);
  mIsPio = true;
  mIsOpen = true;
  mIsEntryServer = true;
@@ -1531,6 +1523,13 @@ RaidMetaLayout::Close ()
        //..........................................................................
        long int num_blocks = ceil((mFileSize * 1.0) / mStripeWidth);
        size_t size_last_block = mFileSize % mStripeWidth;
+       eos_debug("num_blocks=%li, size_last_block=%llu", num_blocks,
+                  (long long int) size_last_block);
+
+       if (size_last_block == 0)
+       {
+         num_blocks++;
+       }
 
        for (unsigned int i = 0; i < mHdrInfo.size(); i++)
        {

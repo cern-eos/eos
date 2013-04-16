@@ -39,11 +39,12 @@ add_executable( eos
 #                ../common/Fmd.cc
 #                ../common/SymKeys.cc
 #		../common/Attr.cc
-		../fst/FmdSqlite.cc
+#		../fst/FmdSqlite.cc
+        ../fst/FmdClient.cc
 		../fst/checksum/CheckSum.cc
 		../fst/checksum/Adler.cc
-		../checksum/crc32c.cc
-                ../checksum/crc32ctables.cc
+		../fst/checksum/crc32c.cc
+                ../fst/checksum/crc32ctables.cc
 		commands/com_access.cc
 	        commands/com_attr.cc
 		commands/com_cd.cc
@@ -107,13 +108,14 @@ target_link_libraries( eos
 		       XrdUtils  	eosCommon-Static 
 		       crypto           curses
 		       dl               z
-                       readline         ${CMAKE_THREAD_LIBS_INIT}	$
-                       {UUID_LIBRARIES} 			       
+                       readline         ${CMAKE_THREAD_LIBS_INIT}
+                       ${UUID_LIBRARIES} 			       
                      )
 else (CLIENT)
 target_link_libraries( eos 
 		       XrdPosix	         XrdCl 
-		       XrdUtils 	 eosCommon-Static 
+		       XrdUtils 	 eosCommon-Static
+#                       eosCommonServer-Static 
                        readline          XrdMqClient-Static
 		       crypto            curses
 		       dl                z

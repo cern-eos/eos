@@ -71,6 +71,7 @@ find_package(XRootD REQUIRED)
 find_package(fuse REQUIRED)
 find_package(Threads REQUIRED)
 find_package(rt REQUIRED)
+find_package(uuid REQUIRED)
 else (CLIENT)
 find_package(XRootD REQUIRED)
 find_package(Threads REQUIRED)
@@ -81,6 +82,7 @@ find_package(readline REQUIRED)
 find_package(uuid REQUIRED)
 find_package(z REQUIRED)
 find_package(rt REQUIRED)
+find_package(ProtocolBuffers REQUIRED)
 find_package(leveldb)
 find_package(CPPUnit)
 
@@ -96,6 +98,24 @@ endif(MacOSX)
 find_package(httpd)
 find_package(apr)
 endif (CLIENT)
+
+
+######################################################################################################################
+# Check for Gcc >=4.4
+if(CMAKE_COMPILER_IS_GNUCXX)
+  exec_program(
+      ${CMAKE_CXX_COMPILER}
+      ARGS                    --version
+      OUTPUT_VARIABLE _compiler_output)
+  string(REGEX REPLACE ".* ([0-9]\\.[0-9]\\.[0-9]) .*" "\\1"
+         gcc_compiler_version ${_compiler_output})
+  message(STATUS "C++ compiler version: ${gcc_compiler_version} [${CMAKE_CXX_COMPILER}]")
+
+  if(gcc_compiler_version MATCHES "4\\.[0-3]\\.[0-9]")
+    message(FATAL_ERROR "Error: you need atleast gcc 4.4.x to compile EOS!")
+  endif (gcc_compiler_version MATCHES "4\\.[0-3]\\.[0-9]")
+endif (CMAKE_COMPILER_IS_GNUCXX)
+
 
 ######################################################################################################################
 # Platform Specific

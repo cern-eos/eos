@@ -29,8 +29,8 @@
  * 
  */
 
-#ifndef __EOSFST_FMDSQLITE_HH__
-#define __EOSFST_FMDSQLITE_HH__
+#ifndef __EOSFST_FmdSQLITE_HH__
+#define __EOSFST_FmdSQLITE_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
@@ -40,6 +40,7 @@
 #include "common/FileSystem.hh"
 #include "common/LayoutId.hh"
 #include "common/sqlite/sqlite3.h"
+#include "fst/FmdClient.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -71,69 +72,8 @@ class FmdSqlite : public eos::common::LogId
 {
 public:
   // ---------------------------------------------------------------------------
-  //! In-memory entry struct
-  // ---------------------------------------------------------------------------
-
-  struct FMD
-  {
-    eos::common::FileId::fileid_t fid; //< fileid
-    eos::common::FileId::fileid_t cid; //< container id (e.g. directory id)
-    eos::common::FileSystem::fsid_t fsid; //< filesystem id
-    unsigned long ctime; //< creation time 
-    unsigned long ctime_ns; //< ns of creation time
-    unsigned long mtime; //< modification time | deletion time
-    unsigned long mtime_ns; //< ns of modification time
-    unsigned long atime; //< access time
-    unsigned long atime_ns; //< ns of access time 
-    unsigned long checktime; //< time of last checksum scan
-    unsigned long long size; //< size              - 0xfffffff1ULL means it is still undefined
-    unsigned long long disksize; //< size on disk      - 0xfffffff1ULL means it is still undefined
-    unsigned long long mgmsize; //< size on the MGM   - 0xfffffff1ULL means it is still undefined
-    std::string checksum; //< checksum in hex representation
-    std::string diskchecksum; //< checksum in hex representation
-    std::string mgmchecksum; //< checksum in hex representation
-    eos::common::LayoutId::layoutid_t lid; //< layout id
-    uid_t uid; //< user  id
-    gid_t gid; //< roup id
-    int filecxerror; //< indicator for file checksum error
-    int blockcxerror; //< indicator for block checksum error
-    int layouterror; //< indicator for resync errors e.g. the mgm layout information is inconsistent e.g. only 1 of 2 replicas exist
-    std::string locations; //< fsid list with locations e.g. 1,2,3,4,10
-
-    // Copy assignment operator
-
-    FMD &operator = (const FMD & fmd)
-    {
-      fid = fmd.fid;
-      fsid = fmd.fsid;
-      cid = fmd.cid;
-      ctime = fmd.ctime;
-      ctime_ns = fmd.ctime_ns;
-      mtime = fmd.mtime;
-      mtime_ns = fmd.mtime_ns;
-      atime = fmd.atime;
-      atime_ns = fmd.atime_ns;
-      checktime = fmd.checktime;
-      size = fmd.size;
-      disksize = fmd.disksize;
-      mgmsize = fmd.mgmsize;
-      checksum = fmd.checksum;
-      diskchecksum = fmd.diskchecksum;
-      mgmchecksum = fmd.mgmchecksum;
-      lid = fmd.lid;
-      uid = fmd.uid;
-      gid = fmd.gid;
-      filecxerror = fmd.filecxerror;
-      blockcxerror = fmd.blockcxerror;
-      layouterror = fmd.layouterror;
-      locations = fmd.locations;
-      return *this;
-    }
-  };
-
-  // ---------------------------------------------------------------------------
   //! File Metadata object 
-  struct FMD fMd;
+  struct Fmd fMd;
   // ---------------------------------------------------------------------------
 
   // ---------------------------------------------------------------------------
@@ -141,7 +81,7 @@ public:
   // ---------------------------------------------------------------------------
 
   void
-  Replicate (struct FMD &fmd)
+  Replicate (struct Fmd &fmd)
   {
     fMd = fmd;
   }
@@ -197,7 +137,7 @@ public:
   // ---------------------------------------------------------------------------
 
   static void
-  Reset (struct FMD &fmd)
+  Reset (struct Fmd &fmd)
   {
     fmd.fid = 0;
     fmd.cid = 0;
@@ -224,24 +164,14 @@ public:
   }
 
   // ---------------------------------------------------------------------------
-  //! Dump FMD
+  //! Dump Fmd
   // ---------------------------------------------------------------------------
-  static void Dump (struct FMD* fmd);
+  static void Dump (struct Fmd* fmd);
 
   // ---------------------------------------------------------------------------
-  //! Convert FMD into env representation
+  //! Convert Fmd into env representation
   // ---------------------------------------------------------------------------
   XrdOucEnv* FmdSqliteToEnv ();
-
-  // ---------------------------------------------------------------------------
-  //! Convert an FST env representation into FMD
-  // ---------------------------------------------------------------------------
-  static bool EnvFstToFmdSqlite (XrdOucEnv &env, struct FmdSqlite::FMD &fmd);
-
-  // ---------------------------------------------------------------------------
-  //! Convert an MGM env representation into FMD
-  // ---------------------------------------------------------------------------
-  static bool EnvMgmToFmdSqlite (XrdOucEnv &env, struct FmdSqlite::FMD &fmd);
 
   // ---------------------------------------------------------------------------
   //! Constructor
@@ -263,10 +193,10 @@ public:
 };
 
 // ---------------------------------------------------------------------------
-//! Class handling many FMD changelog files at a time
+//! Class handling many Fmd changelog files at a time
 // ---------------------------------------------------------------------------
 
-class FmdSqliteHandler : public eos::common::LogId
+class FmdSqliteHandler : public eos::fst::FmdClient
 {
 public:
   typedef std::vector<std::map< std::string, XrdOucString > > qr_result_t;
@@ -274,13 +204,13 @@ public:
   struct FsCallBackInfo
   {
     eos::common::FileSystem::fsid_t fsid;
-    google::dense_hash_map<unsigned long long, struct FmdSqlite::FMD >* fmdmap;
+    google::dense_hash_map<unsigned long long, struct Fmd >* fmdmap;
   };
 
   typedef struct FsCallBackInfo fs_callback_info_t;
 
   XrdOucString DBDir; //< path to the directory with the SQLITE DBs
-  eos::common::RWMutex Mutex; //< Mutex protecting the FMD handler
+  eos::common::RWMutex Mutex; //< Mutex protecting the Fmd handler
 
   std::map<eos::common::FileSystem::fsid_t, sqlite3*> *
   GetDB ()
@@ -329,7 +259,7 @@ public:
   bool ShutdownDB (eos::common::FileSystem::fsid_t fsid);
 
   // ---------------------------------------------------------------------------
-  //! Read all FMD entries from a DB file
+  //! Read all Fmd entries from a DB file
   // ---------------------------------------------------------------------------
   bool ReadDBFile (eos::common::FileSystem::fsid_t, XrdOucString option = "");
 
@@ -437,7 +367,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Hash map pointing from fid to offset in changelog file
   // ---------------------------------------------------------------------------
-  google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::dense_hash_map<unsigned long long, struct FmdSqlite::FMD > > FmdSqliteMap;
+  google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::dense_hash_map<unsigned long long, struct Fmd > > FmdSqliteMap;
 
   // ---------------------------------------------------------------------------
   //! Create a new changelog filename in 'dir' (the fsid suffix is not added!)
@@ -451,14 +381,6 @@ public:
     clname += "fmd";
     return clname.c_str();
   }
-
-  // ---------------------------------------------------------------------------
-  //! Retrieve FMD from a remote machine
-  // ---------------------------------------------------------------------------
-  int GetRemoteFmdSqlite (const char* manager, const char* shexfid, const char* sfsid, struct FmdSqlite::FMD &fmd);
-  int GetMgmFmdSqlite (const char* manager, eos::common::FileId::fileid_t fid, struct FmdSqlite::FMD &fmd);
-
-  int GetRemoteAttribute (const char* manager, const char* key, const char* path, XrdOucString& attribute);
 
   // ---------------------------------------------------------------------------
   //! Constructor

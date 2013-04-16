@@ -25,7 +25,9 @@
 #include "common/LayoutId.hh"
 #include "common/Fmd.hh"
 #include "common/Logging.hh"
-#include "common/FileSystem.hh"
+//#include "common/FileSystem.hh"
+#include "common/StringConversion.hh"
+#include "mq/XrdMqSharedObject.hh"
 
 #ifndef CLIENT_ONLY
 #include "mq/XrdMqMessage.hh"

@@ -1,0 +1,60 @@
+package eos.benchmark;
+
+// Configuration class which holds all the possible configuration parameters
+message ConfigProto {
+	
+  // Type of operation requested 
+  enum OperationType {
+    NOTYPE   = 0;
+    WRITE    = 1;
+    READ_GW  = 2;
+    READ_PIO = 3;
+    RDWR_GW  = 4;
+    RDWR_PIO = 5;
+  }	
+
+  // Access mode options
+  enum AccessMode {
+    CONCURRENT = 0;
+    PARALLEL   = 1;
+  }
+
+  // Operation pattern type
+  enum PatternType {
+    NOPATTERN = 0;
+    FULL      = 1;
+    RANDOM    = 2;
+  }	
+
+  // Type of job to be launched
+  enum JobType {
+    THREAD  = 0;
+    PROCESS = 1;
+  }
+
+  // Type of file layout 
+  enum FileLayoutType {
+    NOLAYOUT = 0;
+    PLAIN    = 1;
+    REPLICA  = 2;
+    ARCHIVE  = 3;
+    RAIDDP   = 4;
+    RAID6    = 5;
+  }
+
+  required string         benchmarkInstance = 1; 
+  required string         benchmarkDir      = 2;
+  required uint64         fileSize          = 3;
+  required uint32         numFiles          = 4;
+  required uint32         blockSize         = 5;
+  required OperationType  operation         = 6;
+  required FileLayoutType fileLayout        = 7;
+  optional uint32         noReplicas        = 8 [default=1];
+  required JobType        jobType           = 9;
+  required uint32         numJobs           = 10;
+  optional AccessMode     access            = 11 [default=PARALLEL];
+  optional PatternType    pattern           = 12 [default=FULL];
+  repeated uint64         offset            = 13 [packed=true];
+  repeated uint32         length            = 14 [packed=true];
+}  
+ 

@@ -34,6 +34,7 @@
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 XrdPosixXrootd posixsingleton;
+#include "fst/FmdClient.hh"
 /*----------------------------------------------------------------------------*/
 
 // ----------------------------------------------------------------------------

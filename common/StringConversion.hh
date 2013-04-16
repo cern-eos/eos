@@ -52,6 +52,14 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+//! Constants used throughout the code
+const uint64_t KB = 1024;
+const uint64_t MB = 1024 * KB;
+const uint64_t GB = 1024 * MB;
+const uint64_t TB = 1024 * GB;
+const uint64_t PB = 1024 * TB;
+const uint64_t EB = 1024 * PB;
+
 /*----------------------------------------------------------------------------*/
 //! Static helper class with convenience functions for string tokenizing, value2string and split functions
 /*----------------------------------------------------------------------------*/
@@ -341,6 +349,18 @@ GetSizeString (std::string& sizestring, unsigned long long insize);
  // ---------------------------------------------------------------------------  
  static const char*
  ParseUrl (const char* url, XrdOucString& protocol, XrdOucString& hostport);
+
+
+ // ---------------------------------------------------------------------------
+ /** 
+  * Convert numeric value to string in a pretty way using KB, MB or GB symbols
+  * @param size size in KB to be processed
+  *
+  * @return string representation of the value in a pretty format
+  */
+ // ---------------------------------------------------------------------------  
+  static std::string
+  GetPrettySize(float size);
 
 
  // ---------------------------------------------------------------------------

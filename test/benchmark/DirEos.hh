@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: SimpleHandler.hh
+// File: DirEos.hh
 // Author: Elvin-Alin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
@@ -21,160 +21,133 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifndef __EOSBMK_DIREOS_HH__
+#define __EOSBMK_DIREOS_HH__
+
+/*-----------------------------------------------------------------------------*/
+#include <cstring>
+#include "Namespace.hh"
+#include "common/Logging.hh"
+#include "XrdCl/XrdClFileSystem.hh"
+/*-----------------------------------------------------------------------------*/
+
+EOSBMKNAMESPACE_BEGIN
+
+//! Forward declaration of low level config object
+class ConfigProto;
+
 //------------------------------------------------------------------------------
-//! @file SimpleHandler.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class holding information about an asynchronous request
+//! Class DirEos - used for doing operations on EOS directories
 //------------------------------------------------------------------------------
-
-#ifndef __EOS_SIMPLEHANDLER_HH__
-#define __EOS_SIMPLEHANDLER_HH__
-
-/*----------------------------------------------------------------------------*/
-#include "fst/Namespace.hh"
-/*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
-/*----------------------------------------------------------------------------*/
-
-EOSFSTNAMESPACE_BEGIN
-
-// -----------------------------------------------------------------------------
-//! Class holding information about an asynchronous request
-// -----------------------------------------------------------------------------
-class SimpleHandler : public XrdCl::ResponseHandler
+class DirEos: public eos::common::LogId
 {
-public:
+ public:
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
-  //! @param offset request offset
-  //! @param length request length
-  //! @param isWrite chunk belongs to a write request
+  //! @param dirPath path to the directory
+  //! @param eosInstance EOS instance to which to connect
   //!
   //----------------------------------------------------------------------------
-  SimpleHandler (uint64_t offset = 0,
-                 uint32_t length = 0,
-                 bool isWrite = false);
+  DirEos(const std::string& dirPath, const std::string& eosInstance);
 
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~SimpleHandler ();
+  virtual ~DirEos();
 
-
+  
   //----------------------------------------------------------------------------
-  //! Update function
+  //! Stat directory
   //!
-  //! @param offset request offset
-  //! @param length request length
-  //! @param isWrite chunk belongs to a write request
+  //! @return true if file exists, otherwise false
   //!
   //----------------------------------------------------------------------------
-  void Update (uint64_t offset,
-               uint32_t length,
-               bool isWrite);
+  bool Exist();
 
 
   //----------------------------------------------------------------------------
-  //! Wait for request to be done 
+  //! Create directory
   //!
-  //! @return status of the request
+  //! @return true if creation successful, otherwise false
   //!
   //----------------------------------------------------------------------------
-  bool WaitOK ();
+  bool Create();
 
-
+  
   //----------------------------------------------------------------------------
-  //! Get if there is any request to process
+  //! Set extended attribute
   //!
-  //! @return true if there is a request, false otherwise
+  //! @param attrName extended attribute name
+  //! @param attrValue extended attribute value
   //!
-  //----------------------------------------------------------------------------
-  bool HasRequest ();
-
-
-  //----------------------------------------------------------------------------
-  //! Get request chunk offset
-  //----------------------------------------------------------------------------
-
-  inline uint64_t
-  GetOffset () const
-  {
-    return mOffset;
-  };
-
-
-  //----------------------------------------------------------------------------
-  //! Get request chunk length
-  //----------------------------------------------------------------------------
-
-  inline uint32_t
-  GetLength () const
-  {
-    return mLength;
-  };
-
-
-  //----------------------------------------------------------------------------
-  //! Get response chunk length
-  //----------------------------------------------------------------------------
-
-  inline uint32_t
-  GetRespLength () const
-  {
-    return mRespLength;
-  };
-
-
-  //----------------------------------------------------------------------------
-  //! Get response chunk status
-  //----------------------------------------------------------------------------
-
-  inline bool
-  GetRespStatus () const
-  {
-    return mRespOK;
-  };
-
-
-  //----------------------------------------------------------------------------
-  //! Test if chunk is from a write operation 
-  //----------------------------------------------------------------------------
-
-  inline bool
-  IsWrite () const
-  {
-    return mIsWrite;
-  };
-
-
-  //----------------------------------------------------------------------------
-  //! Handle response
-  //!
-  //! @param pStatus status of the response
-  //! @param pResponse object containing extra info about the response
+  //! @return true if attribute set successfully, otherwise false
   //! 
   //----------------------------------------------------------------------------
-  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
-                               XrdCl::AnyObject* pResponse);
+  bool SetXattr(const std::string& attrName, const std::string& attrValue);
 
 
-private:
+  //----------------------------------------------------------------------------
+  //! Get files form benchmark directory having the requried file size 
+  //!
+  //! @param fileSize requried file size
+  //!
+  //! @return vector of files in directory matchin the requirements
+  //! 
+  //----------------------------------------------------------------------------
+  std::vector<std::string> GetMatchingFiles(const uint64_t fileSize);
 
-  uint64_t mOffset; ///< offset of the request
-  uint32_t mLength; ///< length of the request
-  uint32_t mRespLength; ///< length of response received, only for reads
-  bool mIsWrite; ///< operation type is write
-  bool mRespOK; ///< mark if the resp status is ok
-  bool mReqDone; ///< mark if the request was done
-  bool mHasReq; ///< mark if there is any request to proceess
-  XrdSysCondVar mCond; ///< cond. variable used for synchronisation
+  
+  //----------------------------------------------------------------------------
+  //! Check extended attribute
+  //!
+  //! @param attrName extended attribute name
+  //! @param refValue reference value to which we compare
+  //!
+  //! @return true if attribute value matches the reference one, otherwise false
+  //!
+  //----------------------------------------------------------------------------
+  bool CheckXattr(const std::string& attrName, const std::string& refValue);
 
+
+  //----------------------------------------------------------------------------
+  //! Check if directory matches with the supplied configuration
+  //!
+  //! @param llconfig low level configuration object
+  //!
+  //! @return true directory matches with configuration, otherwise false
+  //!
+  //----------------------------------------------------------------------------
+  bool MatchConfig(const ConfigProto& llconfig);
+
+
+  //----------------------------------------------------------------------------
+  //! Set the extended attributes of the directory so that they match the config
+  //!
+  //! @param llconfig low level configuration object
+  //!
+  //! @return true if ext. attr. were successfully set, otherwise false
+  //!
+  //----------------------------------------------------------------------------
+  bool SetConfig(const ConfigProto& llconfig);
+ 
+  
+  //----------------------------------------------------------------------------
+  //! Remove directory
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool Remove();
+
+  
+ private:
+  
+  std::string mDirPath;    ///< path to the directory
+  XrdCl::FileSystem* mFs;  ///< XrdCl file system instance 
 };
 
-EOSFSTNAMESPACE_END
+EOSBMKNAMESPACE_END
 
-#endif   // __EOS_SIMPLEHANDLER_HH__
+#endif // __EOSBMK_DIREOS_HH__
