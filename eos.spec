@@ -12,8 +12,10 @@ BuildRoot: %{_tmppath}/%{name}-root
 
 %if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} >= 18
 BuildRequires: cmake >= 2.8
+%define cmake_cmd cmake
 %else
 BuildRequires: cmake28 >= 2.8
+%define cmake_cmd cmake28
 %endif
 
 BuildRequires: xrootd-server >= 3.3.0
@@ -62,8 +64,9 @@ export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 
 mkdir -p build
 cd build
-cmake28 ../ -DRELEASE=%{release} -DCMAKE_BUILD_TYPE=RelWithDebInfo
+%{cmake_cmd} ../ -DRELEASE=%{release} -DCMAKE_BUILD_TYPE=RelWithDebInfo
 %{__make} %{_smp_mflags} 
+
 %install
 cd build
 %{__make} install DESTDIR=$RPM_BUILD_ROOT
