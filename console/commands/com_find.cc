@@ -108,6 +108,10 @@ com_find (char* arg1) {
     if (s1 == "--count") {
       option += "Z";
     }
+    
+    if (s1 == "--hosts") {
+      option += "H";
+    }
 
     if (s1 == "--childcount") {
       option += "l";
@@ -558,7 +562,7 @@ com_find (char* arg1) {
   fprintf(stdout,"                                                                      --count :  just print global counters for files/dirs found\n");
   fprintf(stdout,"                                                                 --childcount :  print the number of children in each directory\n");
   fprintf(stdout,"                                                                      default :  find files and directories\n");
-  fprintf(stdout,"       find [--nrep] [--nunlink] [--size] [--fid] [--fs] [--checksum] [--ctime] [--mtime] <path>   :  find files and print out the requested meta data as key value pairs\n");              
+  fprintf(stdout,"       find [--nrep] [--nunlink] [--size] [--hosts] [--fid] [--fs] [--checksum] [--ctime] [--mtime] <path>   :  find files and print out the requested meta data as key value pairs\n");              
   fprintf(stdout,"                                                               path=file:...  :  do a find in the local file system (options ignored) - 'file:' is the current working directory \n");
   fprintf(stdout,"                                                               path=root:...  :  do a find on a plain XRootD server (options ignored) - does not work on native XRootD clusters\n");
   fprintf(stdout,"                                                               path=as3:...   :  do a find on an S3 bucket\n");
