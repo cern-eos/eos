@@ -113,6 +113,8 @@ ProcCommand::Find ()
   bool printcounter = false;
   bool printchildcount = true;
   bool printhosts = false;
+  bool printpartition = false;
+
   time_t selectoldertime = 0;
   time_t selectyoungertime = 0;
 
@@ -206,6 +208,11 @@ ProcCommand::Find ()
     printhosts = true;
   }
 
+  if (option.find("P") != STR_NPOS)
+  {
+    printpartition = true;
+  }
+
   if (attribute.length())
   {
     key.erase(attribute.find("="));
@@ -276,7 +283,7 @@ ProcCommand::Find ()
           fspath += *fileit;
           if (!calcbalance)
           {
-            if (findgroupmix || findzero || printsize || printfid || printchecksum || printctime || printmtime || printrep || printunlink || printhosts || selectrepdiff || selectonehour || selectoldertime || selectyoungertime)
+            if (findgroupmix || findzero || printsize || printfid || printchecksum || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff || selectonehour || selectoldertime || selectyoungertime)
             {
               //-------------------------------------------
 
@@ -385,7 +392,7 @@ ProcCommand::Find ()
                 }
                 else
                 {
-                  if (selected && (selectonehour || selectoldertime || selectyoungertime || printsize || printfid || printchecksum || printfs || printctime || printmtime || printrep || printunlink || printhosts || selectrepdiff))
+                  if (selected && (selectonehour || selectoldertime || selectyoungertime || printsize || printfid || printchecksum || printfs || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff))
                   {
                     XrdOucString sizestring;
                     bool printed = true;
@@ -427,7 +434,45 @@ ProcCommand::Find ()
                         }
                       }
 
-                      if (printhosts && (!printcounter))
+                      if ( (printpartition) && (!printcounter))
+                      {
+                        fprintf(fstdout, " partition=");
+                        std::set<std::string> fsPartition;
+                        eos::FileMD::LocationVector::const_iterator lociter;
+                        for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+                        {
+                          // get host name for fs id
+                          eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+                          eos::common::FileSystem* filesystem = 0;
+                          if (FsView::gFsView.mIdView.count(*lociter))
+                          {
+                            filesystem = FsView::gFsView.mIdView[*lociter];
+                          }
+
+                          if (filesystem)
+                          {
+                            eos::common::FileSystem::fs_snapshot_t fs;
+                            if (filesystem->SnapShotFileSystem(fs, true))
+                            {
+			      std::string partition = fs.mHost;
+			      partition += ":";
+			      partition += fs.mPath;
+                              fsPartition.insert(partition);
+                            }
+                          }
+                        }
+                        
+                        for (auto partitionit = fsPartition.begin(); partitionit != fsPartition.end(); partitionit++)
+                        {
+                          if (partitionit != fsPartition.begin())
+                          {
+                            fprintf(fstdout, ",");
+                          }
+                          fprintf(fstdout, "%s", partitionit->c_str());
+                        }
+                      }
+
+                      if ( (printhosts) && (!printcounter))
                       {
                         fprintf(fstdout, " hosts=");
                         std::set<std::string> fsHosts;
@@ -461,6 +506,7 @@ ProcCommand::Find ()
                           fprintf(fstdout, "%s", hostit->c_str());
                         }
                       }
+
                       if (printchecksum)
                       {
                         if (!printcounter)fprintf(fstdout, " checksum=");
