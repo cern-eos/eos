@@ -24,10 +24,10 @@ BuildRequires: xrootd-cl-devel
 BuildRequires: leveldb-devel
 BuildRequires: git
 
-%if 0%{?rhel} < 6
-BuildRequires: gcc44, gcc44-c++
-%else
+%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} >= 18
 BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static
+%else
+BuildRequires: gcc44, gcc44-c++
 %endif
 
 %description
@@ -52,7 +52,7 @@ Requires: eos-client
 
 %build
 test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
-%if 0%{?rhel} < 6
+%if 0%{?rhel} < 6 && %{?fedora}%{!?fedora:0} <= 1
 export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44 
 %endif
 
