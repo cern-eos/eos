@@ -34,29 +34,29 @@ link_directories(${PROTOBUF_LIBRARIES}
 		 ${XROOTD_LIB_DIR}
 		 ${UUID_LIBRARIES}) 
 
-IF(PROTBUF_FOUND)
+IF(PROTOBUF_FOUND)
 	PROTOBUF_GENERATE_CPP(CONFIG_SRCS CONFIG_HDRS PROTOFILES ConfigProto.proto)
 	PROTOBUF_GENERATE_CPP(RESULT_SRCS RESULT_HDRS PROTOFILES ResultProto.proto)
 
-	add_executable(eosbenchmark 
-		       eosbenchmark.cc     eosbenchmark.hh
-	      	       Configuration.cc    Configuration.hh
-	       	       DirEos.cc           DirEos.hh
-               	       FileEos.cc          FileEos.hh
-	       	       Result.cc           Result.hh
-	       	       ProtoIo.cc          ProtoIo.hh
-	       	       ../../common/StringConversion.cc
-               	       ../../common/StringConversion.hh
-	       	       ${CONFIG_SRCS}      ${CONFIG_HDRS}
-	       	       ${RESULT_SRCS}      ${RESULT_HDR}) 
+	ADD_EXECUTABLE(eosbenchmark 
+    		       eosbenchmark.cc     eosbenchmark.hh
+     	       	       Configuration.cc    Configuration.hh
+		       DirEos.cc           DirEos.hh
+      	       	       FileEos.cc          FileEos.hh
+       	       	       Result.cc           Result.hh
+      	       	       ProtoIo.cc          ProtoIo.hh
+      	       	       ../../common/StringConversion.cc
+       	       	       ../../common/StringConversion.hh
+       	       	       ${CONFIG_SRCS}      ${CONFIG_HDRS}
+      	       	       ${RESULT_SRCS}      ${RESULT_HDR}) 
 
-        target_link_libraries(eosbenchmark
+        TARGET_LINK_LIBRARIES(eosbenchmark
 			      XrdCl 
-		      	      XrdEosFst-Static
- 			      ${PROTOBUF_LIBRARIES} 
-		      	      ${UUID_LIBRARIES} 
-		      	      ${CMAKE_THREAD_LIBS_INIT})
-ENDIF()
+	      	      	      XrdEosFst-Static
+ 		      	      ${PROTOBUF_LIBRARIES} 
+	      	      	      ${UUID_LIBRARIES} 
+	      	      	      ${CMAKE_THREAD_LIBS_INIT})
+ENDIF(PROTOBUF_FOUND)
 
 
 

@@ -120,8 +120,6 @@ XrdFileIo::Open (const std::string& path,
   }
 
   request = path;
-  request += "?";
-  request += opaque;
   mXrdFile = new XrdCl::File();
   XrdCl::OpenFlags::Flags flags_xrdcl = eos::common::LayoutId::MapFlagsSfs2XrdCl(flags);
   XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
