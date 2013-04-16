@@ -739,13 +739,13 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
       rc = -EADV;
   }
 
-  if (response)
+  if ( response && return_result )
   {
     *return_result = response->GetBuffer();
   }
 
   delete fs;
-  delete response;
+  if (response) delete response;
   return rc;
 }
 
