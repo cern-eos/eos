@@ -495,7 +495,18 @@ Http::Handler (void *cls,
   if (lMethod == "PUT")
   {
     // call the HttpHandle::Put method
-    return httpHandle->Put(upload_data, upload_data_size, first_call);
+    int rc = httpHandle->Put(upload_data, upload_data_size, first_call);
+    if (rc || ( (!first_call) && (upload_data_size == 0 ) ) ) {
+      // clean-up left-over objects on error or end-of-put
+      if (httpHandle->mFile) {
+        delete httpHandle->mFile;
+        httpHandle->mFile = 0;
+      }
+      if (httpHandle->mS3) {
+        delete httpHandle->mS3;
+        httpHandle->mS3 = 0;
+      }
+    }
   }
 
   eos_static_alert("invalid program path - should never reach this point!");
