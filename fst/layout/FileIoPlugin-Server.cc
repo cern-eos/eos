@@ -36,9 +36,10 @@ FileIoPlugin::GetIoObject (int ioType,
     XrdFstOfsFile* file ,
     const XrdSecEntity* client ,
     XrdOucErrInfo* error ) {
-  if (ioType == LayoutId::kXrdCl)
+
+  if (ioType == LayoutId::kLocal)
   {
-    return static_cast<FileIo*> (new XrdFileIo(file, client, error));
+    return static_cast<FileIo*> (new LocalFileIo(file, client, error));
   }
 
   return FileIoPluginHelper::GetIoObject (ioType,
