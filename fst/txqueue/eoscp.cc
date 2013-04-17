@@ -447,7 +447,7 @@ main (int argc, char* argv[])
   extern char* optarg;
   extern int optind;
 
-  while ((c = getopt(argc, argv, "nshdvlipfce:P:X:b:m:u:g:t:S:D:5ar:N:L:R:T")) != -1)
+  while ((c = getopt(argc, argv, "nshdvlipfce:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:O:")) != -1)
   {
     switch (c)
     {
