@@ -8641,7 +8641,9 @@ XrdMgmOfs::_replicatestripe (eos::FileMD *fmd,
 
     if (!sub)
       errno = ENXIO;
-
+    else 
+      errno = 0;
+    
     if (txjob)
       delete txjob;
     else
