@@ -511,7 +511,7 @@ int main(int argc, char* argv[])
   }
   else
   {
-    eos::common::Logging::SetLogPriority(LOG_DEBUG);
+    eos::common::Logging::SetLogPriority(LOG_INFO);
   }
 
   FILE* fstderr;

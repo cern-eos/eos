@@ -92,7 +92,7 @@ FileEos::Write(Result*& result)
   eos::fst::FileIo* file = eos::fst::FileIoPlugin::GetIoObject(
                              eos::common::LayoutId::kXrdCl,
                              NULL, NULL, NULL);
-
+  
   COMMONTIMING("OPEN", &wr_timing);
   std::string full_path = mBmkInstance;
   full_path += "/";
@@ -201,7 +201,7 @@ FileEos::ReadGw(Result*& result)
   std::string full_path = mBmkInstance;
   full_path += "/";
   full_path += mFilePath;
-  retc = file->Open(full_path, flags_sfs, 0, "");
+  retc = file->Open(full_path, flags_sfs, 0, "fst.readahead=true");
 
   if (retc)
   {
@@ -222,7 +222,7 @@ FileEos::ReadGw(Result*& result)
   while (file_size > 0)
   {
     length = ((file_size > block_size) ?  block_size : file_size);
-    nread = file->Read(offset, vect_buff[indx_buff], length, file_handler);
+    nread = file->Read(offset, vect_buff[indx_buff], length, file_handler, true);
     offset += nread;
     file_size -= nread;
     indx_buff = (indx_buff + 1) % total_buffs;
