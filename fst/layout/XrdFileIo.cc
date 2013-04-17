@@ -108,7 +108,7 @@ XrdFileIo::Open (const std::string& path,
     mDoReadahead = true;
     val = 0;
 
-    if (false && (val = open_opaque.Get("fst.blocksize")))
+    if ((val = open_opaque.Get("fst.blocksize")))
     {
       mBlocksize = static_cast<uint64_t> (atoll(val));
     }
