@@ -36,32 +36,22 @@ EOSBMKNAMESPACE_BEGIN
 class Configuration;
 class Result;
 
-//! Function signature to be excuted by the theads
-typedef void* ( *TypeFunc )( void* );
-
-
-//------------------------------------------------------------------------------
-//! Structure containg the configuration to be excuted and the result
-//! data structure
-//------------------------------------------------------------------------------
-struct ConfResStruct {
-  Configuration& config;
-  Result&        result;
-};
-
+//! Function signature to be excuted by the jobs
+typedef void* (*TypeFunc)(void*);
 
 //------------------------------------------------------------------------------
 //! Structure containg the configuration to be excuted and the id of the thread
 //! responsible for the execution
 //------------------------------------------------------------------------------
-struct ConfIdStruct {
+struct ConfIdStruct
+{
   Configuration& config;
   uint32_t       id;
 
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ConfIdStruct(Configuration& conf, uint32_t index):
+  ConfIdStruct(Configuration& conf, uint32_t index) :
     config(conf),
     id(index)
   {
@@ -71,9 +61,68 @@ struct ConfIdStruct {
 
 
 //------------------------------------------------------------------------------
-//! Print the usage instructions for eosbenchmark command 
+//! Print the usage instructions for eosbenchmark command
 //------------------------------------------------------------------------------
 void Usage();
+
+
+//------------------------------------------------------------------------------
+//! Start thread executing a particular function
+//!
+//! @param thread thread to be started
+//! @param func function to be executed by the new thread
+//! @param arg arguments passed to the new function
+//!
+//! @return 0 if successfully created the new thread, otherwise return errno
+//!
+//------------------------------------------------------------------------------
+int ThreadStart(pthread_t& thread, TypeFunc func, void* arg);
+
+
+//------------------------------------------------------------------------------
+//! Start routine executed by each thread
+//!
+//! @param arg arguments passed to the start routine
+//!
+//! @return pointer to a data structure to be returned after the finish of the
+//!         excution
+//!
+//------------------------------------------------------------------------------
+void* StartRoutine(void* arg);
+
+
+
+//------------------------------------------------------------------------------
+//! Do a run using the configuration supplied specialising later depending on
+//! the configuration parameters
+//!
+//! @param configFile file path for the configuration
+//! @param outputFile file path where the results are saved
+//!
+//------------------------------------------------------------------------------
+void RunConfiguration(const std::string& configFile,
+                      const std::string& outputFile);
+
+
+
+//------------------------------------------------------------------------------
+//! Run benchmark using threads
+//!
+//! @param config configuration which is going to be run
+//! @param outputFile file path where the results are saved
+//!
+//------------------------------------------------------------------------------
+void RunThreadConfig(Configuration& config, const std::string& outputFile);
+
+
+//------------------------------------------------------------------------------
+//! Run benchmark using processes
+//!
+//! @param config configuration which is going to be run
+//! @param outputFile file path where the results are saved
+//!
+//------------------------------------------------------------------------------
+void RunProcessConfig(Configuration& config, const std::string& outputFile);
 
 
 //------------------------------------------------------------------------------
@@ -83,7 +132,8 @@ void Usage();
 //! @param configFile file containing a specific configuration to be displayed
 //!
 //------------------------------------------------------------------------------
-void PrintResults(const std::string& resultsFile, const std::string& configFile);
+void PrintResults(const std::string& resultsFile,
+                  const std::string& configFile);
 
 
 EOSBMKNAMESPACE_END

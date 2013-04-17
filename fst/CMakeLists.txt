@@ -242,7 +242,6 @@ target_link_libraries( eos-compute-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-scan-fs eosCommon eosCommonServer XrdCl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
 target_link_libraries( eos-adler32 eosCommon ${CMAKE_THREAD_LIBS_INIT} ) 
 target_link_libraries( eoscp XrdCl EosFstCommon-Static eosCommon-Static )
-#target_link_libraries( eos-raid-recover eosCommon XrdCl )
 
 if (Linux)
   set_target_properties (XrdEosFst XrdEosFst-Static EosFstCommon EosFstCommon-Static PROPERTIES
@@ -267,7 +266,6 @@ INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR}
                   eos-check-blockxs 
                   eos-compute-blockxs 
                   eos-scan-fs 
-#                  eos-raid-recover
 )
 
 install( TARGETS EosFstOss XrdEosFst EosFstCommon eoscp

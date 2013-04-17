@@ -1,8 +1,13 @@
 package eos.benchmark;
 
+//------------------------------------------------------------------------------
+// Result message which holds all parameters computed during the run of the 
+// benchmark
+//------------------------------------------------------------------------------
+
 message ResultProto {
 
-  required string timestamp      = 1;
+  repeated string timestamp      = 1;
   repeated float openTime        = 2  [packed=true];  // all time values in miliseconds
   repeated float readTime        = 3  [packed=true];
   repeated float readWaitAsync   = 4  [packed=true];	
