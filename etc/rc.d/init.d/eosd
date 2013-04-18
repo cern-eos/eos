@@ -1,3 +1,4 @@
+#!/bin/bash
 # ----------------------------------------------------------------------
 # File: eosd
 # Author: Andreas-Joachim Peters - CERN
@@ -20,8 +21,6 @@
 # * You should have received a copy of the GNU General Public License    *
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
-
-#!/bin/bash
 #
 #       /etc/rc.d/init.d/eosd
 #
@@ -95,7 +94,7 @@ start() {
 	    unset X509_USER_KEY
 	    ulimit -S -c ${DAEMON_COREFILE_LIMIT:-0}
 	    ulimit -n 65000
-	    modprobe fuse
+	    test -c /dev/fuse || modprobe fuse
             ${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/} -o${FUSE_OPT-""}max_readahead=131072,max_write=4194304,fsname=eos$i,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch}/${EOS_FUSE_MOUNTDIR-/eos/}//  >& /dev/null 
             
             

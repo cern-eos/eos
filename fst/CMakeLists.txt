@@ -115,12 +115,12 @@ add_executable( eoscp
 
 set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 
-target_link_libraries ( FstLoad XrdUtils dl rt )
-target_link_libraries ( eos-check-blockxs eosCommon )
-target_link_libraries ( eos-compute-blockxs eosCommon )
-target_link_libraries ( eos-scan-fs eosCommon rt ) 
-target_link_libraries ( eos-adler32 eosCommon ) 
-target_link_libraries ( eoscp XrdUtils XrdPosix XrdCrypto ${OPENSSL_LIBRARIES} uuid )
+target_link_libraries ( FstLoad XrdUtils dl rt pthread)
+target_link_libraries ( eos-check-blockxs eosCommon pthread)
+target_link_libraries ( eos-compute-blockxs eosCommon pthread)
+target_link_libraries ( eos-scan-fs eosCommon rt pthread) 
+target_link_libraries ( eos-adler32 eosCommon pthread) 
+target_link_libraries ( eoscp XrdClient XrdUtils XrdPosix XrdCrypto ${OPENSSL_LIBRARIES} uuid z)
 target_link_libraries ( eos-raid-recover eosCommon)
 
 if (Linux)

@@ -315,7 +315,7 @@ public:
   SplitKeyValue(std::string keyval, std::string &key, std::string &value) {
     int equalpos = keyval.find(":");
     if (equalpos != STR_NPOS) {
-      key.assign(keyval,0,equalpos-1);
+      key.assign(keyval,0,equalpos);
       value.assign(keyval,equalpos+1, keyval.length()-(equalpos+1));
       return true;
     } else {
