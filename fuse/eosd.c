@@ -70,7 +70,7 @@ static void eosfs_ll_readlink(fuse_req_t req, fuse_ino_t ino)
       return;
     }
     
-    sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
+    sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid,req->ctx.pid),mounthostport,mountprefix,name);
     if (isdebug) fprintf(stderr,"[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);  
     xrd_unlock_r_p2i(); // <=
   }
@@ -106,7 +106,7 @@ static void eosfs_ll_getattr(fuse_req_t req, fuse_ino_t ino,
       return;
     }
     
-    sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
+    sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid,req->ctx.pid),mounthostport,mountprefix,name);
     if (isdebug) fprintf(stderr,"[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);
     xrd_unlock_r_p2i(); // <=
   }
@@ -139,7 +139,7 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
       return;
     }
     
-    sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
+    sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid,req->ctx.pid),mounthostport,mountprefix,name);
     if (isdebug) fprintf(stderr,"[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);  
     xrd_unlock_r_p2i(); // <=
   }
@@ -234,7 +234,7 @@ static void eosfs_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
     else 
       sprintf(ifullpath, "%s/%s", parentpath, name);
     
-    sprintf(fullpath,"root://%s@%s%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, parentpath,name);
+    sprintf(fullpath,"root://%s@%s%s/%s/%s", xrd_mapuser(req->ctx.uid,req->ctx.pid), mounthostport, mountprefix, parentpath,name);
     
     if (isdebug) {
       fprintf(stderr,"[%s]: parent=%lld path=%s uid=%d\n",
@@ -315,7 +315,7 @@ static void eosfs_ll_opendir(fuse_req_t req, fuse_ino_t ino,
       return;
     }
     
-    sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
+    sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid,req->ctx.pid),mounthostport,mountprefix,name);
     if (isdebug) fprintf(stderr,"[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);
     xrd_unlock_r_p2i(); // <=
   }
@@ -383,14 +383,14 @@ static void eosfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
 
   xrd_unlock_r_p2i(); // <=  
   sprintf(fullpath,"root://%s@%s//proc/user/?mgm.cmd=fuse&mgm.subcmd=inodirlist&mgm.path=%s/%s",
-          xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
+          xrd_mapuser(req->ctx.uid,req->ctx.uid),mounthostport,mountprefix,name);
   
   if (isdebug) {
     fprintf(stderr, "[%s]: inode=%lld path=%s size=%lld off=%lld\n",
             __FUNCTION__, (long long)ino, fullpath, (long long)size, (long long)off);
   }
   
-  sprintf(dirfullpath, "root://%s@%s%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, name);
+  sprintf(dirfullpath, "root://%s@%s%s/%s", xrd_mapuser(req->ctx.uid,req->ctx.pid), mounthostport, mountprefix, name);
 
   // try to use the cache for directories
   retc = xrd_stat(dirfullpath, &attr);
@@ -514,7 +514,7 @@ static void eosfs_ll_statfs(fuse_req_t req, fuse_ino_t ino)
     return;
   }
   
-  sprintf(rootpath,"root://%s@%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix);
+  sprintf(rootpath,"root://%s@%s/%s",xrd_mapuser(req->ctx.uid,req->ctx.pid),mounthostport,mountprefix);
   
   int res = xrd_statfs(rootpath, path, &svfs2);
   
@@ -555,8 +555,9 @@ static void eosfs_ll_mknod(fuse_req_t req, fuse_ino_t parent, const char *name, 
       return;
     }
     
-    sprintf(fullpath,"root://%s@%s/%s%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,parentpath,name);
-    sprintf(fullparentpath,"root://%s@%s/%s%s",xrd_mapuser(req->ctx.uid),mounthostport, mountprefix,parentpath);
+    const char* user= xrd_mapuser(req->ctx.uid,req->ctx.pid);
+    sprintf(fullpath,"root://%s@%s/%s%s/%s",user,mounthostport,mountprefix,parentpath,name);
+    sprintf(fullparentpath,"root://%s@%s/%s%s",user,mounthostport, mountprefix,parentpath);
     if (isdebug) fprintf(stderr,"[%s]: parent=%lld path=%s uid=%d\n", __FUNCTION__,(long long)parent,fullpath,req->ctx.uid);
     
     xrd_unlock_r_p2i(); // <=
@@ -612,7 +613,7 @@ static void eosfs_ll_mkdir(fuse_req_t req, fuse_ino_t parent, const char *name, 
   }
   char ifullpath[16384];
   sprintf(ifullpath,"%s/%s",parentpath,name);
-  sprintf(fullpath,"root://%s@%s/%s%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,parentpath,name);
+  sprintf(fullpath,"root://%s@%s/%s%s/%s",xrd_mapuser(req->ctx.uid,req->ctx.pid),mounthostport,mountprefix,parentpath,name);
 
   xrd_unlock_r_p2i();
 
@@ -658,7 +659,7 @@ static void eosfs_ll_unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
     return;
   }
 
-  sprintf(fullpath,"root://%s@%s/%s%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,parentpath,name);
+  sprintf(fullpath,"root://%s@%s/%s%s/%s",xrd_mapuser(req->ctx.uid,req->ctx.pid),mounthostport,mountprefix,parentpath,name);
   if (isdebug) fprintf(stderr,"[%s]: path=%s\n", __FUNCTION__,fullpath);
 
   xrd_unlock_r_p2i(); // <=
@@ -689,7 +690,7 @@ static void eosfs_ll_rmdir(fuse_req_t req, fuse_ino_t parent, const char *name)
     return;
   }
   
-  sprintf(fullpath,"root://%s@%s/%s%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,parentpath,name);
+  sprintf(fullpath,"root://%s@%s/%s%s/%s",xrd_mapuser(req->ctx.uid,req->ctx.pid),mounthostport,mountprefix,parentpath,name);
   if (isdebug) fprintf(stderr,"[%s]: path=%s\n", __FUNCTION__,fullpath);
 
   xrd_unlock_r_p2i(); // <=
@@ -729,13 +730,14 @@ static void eosfs_ll_symlink(fuse_req_t req, const char *link, fuse_ino_t parent
     return;
   }
 
-  sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,parentpath,name);
+  const char* user = xrd_mapuser(req->ctx.uid,req->ctx.pid);
+  sprintf(fullpath,"root://%s@%s/%s/%s",user,mounthostport,parentpath,name);
   if (isdebug) fprintf(stderr,"[%s]: path=%s\n", __FUNCTION__,fullpath);
 
   sprintf(linksource,"%s/%s",parentpath,name);
   sprintf(linkdest,"%s/%s",parentpath,link);
 
-  sprintf(fulllinkpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,parentpath,link);
+  sprintf(fulllinkpath,"root://%s@%s/%s/%s",user,mounthostport,parentpath,link);
 
   xrd_unlock_r_p2i(); // <=
 
@@ -791,8 +793,9 @@ static void eosfs_ll_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
     return;
   }
 
-  sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,parentpath,name);
-  sprintf(newfullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,newparentpath,newname);
+  const char* user = xrd_mapuser(req->ctx.uid,req->ctx.pid);
+  sprintf(fullpath,"root://%s@%s/%s/%s",user,mounthostport,parentpath,name);
+  sprintf(newfullpath,"root://%s@%s/%s/%s",user,mounthostport,newparentpath,newname);
 
   xrd_unlock_r_p2i(); // <=
 
@@ -846,7 +849,7 @@ static void eosfs_ll_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
     return;
   }
   
-  sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,parentpath,name);
+  sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid,req->ctx.pid),mounthostport,parentpath,name);
   if (isdebug) fprintf(stderr,"[%s]: path=%s\n", __FUNCTION__,fullpath);
 
   sprintf(linkdest,"%s/%s",parentpath,name);
@@ -893,7 +896,7 @@ static void eosfs_ll_access(fuse_req_t req, fuse_ino_t ino, int mask)
     return;
   }
   
-  sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
+  sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid,req->ctx.pid),mounthostport,mountprefix,name);
   if (isdebug) fprintf(stderr,"[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);
   
   xrd_unlock_r_p2i(); // <=
@@ -924,7 +927,7 @@ static void eosfs_ll_open( fuse_req_t             req,
     return;
   }
 
-  sprintf(fullpath,"root://%s@%s/%s%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
+  sprintf(fullpath,"root://%s@%s/%s%s",xrd_mapuser(req->ctx.uid,req->ctx.pid),mounthostport,mountprefix,name);
   
   xrd_unlock_r_p2i(); // <=
 
@@ -1085,7 +1088,7 @@ static void eosfs_ll_flush (fuse_req_t req, fuse_ino_t ino, struct fuse_file_inf
 	xrd_lock_r_p2i(); // =>
 	const char* name = xrd_path((unsigned long long)ino);
 	if (name) {
-	  sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid),mounthostport,mountprefix,name);
+	  sprintf(fullpath,"root://%s@%s/%s/%s",xrd_mapuser(req->ctx.uid,req->ctx.pid),mounthostport,mountprefix,name);
 	  if (isdebug) fprintf(stderr,"[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);
 	}
 	xrd_unlock_r_p2i(); // <=
@@ -1135,7 +1138,7 @@ static void eosfs_ll_getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr
       return;
     }
 
-  sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, name);
+  sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid,req->ctx.pid), mounthostport, mountprefix, name);
   if (isdebug) fprintf(stderr,"[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
 
   xrd_unlock_r_p2i(); // <=
@@ -1179,7 +1182,7 @@ static void eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
     return;
   }
 
-  sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, name);
+  sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid,req->ctx.pid), mounthostport, mountprefix, name);
   if (isdebug) fprintf(stderr,"[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
 
   xrd_unlock_r_p2i(); // <=
@@ -1221,7 +1224,7 @@ static void eosfs_ll_removexattr (fuse_req_t req, fuse_ino_t ino, const char *xa
     return;
   }
 
-  sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, name);
+  sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid,req->ctx.pid), mounthostport, mountprefix, name);
   if (isdebug) fprintf(stderr,"[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
 
   xrd_unlock_r_p2i(); // <=
@@ -1251,7 +1254,7 @@ static void eosfs_ll_setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr
     return;
   }
 
-  sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid), mounthostport, mountprefix, name);
+  sprintf(fullpath,"root://%s@%s/%s/%s", xrd_mapuser(req->ctx.uid,req->ctx.pid), mounthostport, mountprefix, name);
   if (isdebug) fprintf(stderr,"[%s]: inode=%lld path=%s\n", __FUNCTION__, (long long)ino, fullpath);  
 
   xrd_unlock_r_p2i(); // <=

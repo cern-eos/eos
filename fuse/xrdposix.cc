@@ -1880,7 +1880,7 @@ int xrd_rename(const char *oldpath, const char *newpath)
 
 //------------------------------------------------------------------------------
 const char*
-xrd_mapuser(uid_t uid)
+xrd_mapuser(uid_t uid, pid_t pid)
 {
   eos_static_debug("uid=%lu", (unsigned long) uid);
   struct passwd* pw;

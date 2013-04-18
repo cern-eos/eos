@@ -196,7 +196,7 @@ extern "C" {
   int            xrd_flush(int fd, unsigned long long inode);
 
   // - USER mapping
-  const char*    xrd_mapuser(uid_t uid);
+  const char*    xrd_mapuser(uid_t uid, pid_t pid);
 
   // - INITIALITZATION
   void           xrd_init();
