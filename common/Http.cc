@@ -100,6 +100,8 @@ Http::Run ()
                                NULL,
                                &Http::StaticHandler,
                                (void*) EOSCOMMON_HTTP_PAGE,
+                               MHD_OPTION_CONNECTION_MEMORY_LIMIT,
+                               128*1024*1024 /* 128MB */,
                                MHD_OPTION_END
                                );
   }

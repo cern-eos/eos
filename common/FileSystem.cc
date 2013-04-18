@@ -628,9 +628,9 @@ FileSystem::HasHeartBeat (fs_snapshot_t &fs)
 {
   time_t now = time(NULL);
   time_t hb = fs.mHeartBeatTime;
-  if ((now - hb) < 300)
+  if ((now - hb) < 60)
   {
-    // we allow some time drift plus overload delay of 300 seconds
+    // we allow some time drift plus overload delay of 60 seconds
     return true;
   }
   return false;

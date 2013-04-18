@@ -82,7 +82,7 @@ find_package(readline REQUIRED)
 find_package(uuid REQUIRED)
 find_package(z REQUIRED)
 find_package(rt REQUIRED)
-find_package(ProtocolBuffers REQUIRED)
+find_package(ProtocolBuffers)
 find_package(leveldb)
 find_package(CPPUnit)
 
@@ -98,6 +98,24 @@ endif(MacOSX)
 find_package(httpd)
 find_package(apr)
 endif (CLIENT)
+
+
+######################################################################################################################
+# Check for Gcc >=4.4
+if(CMAKE_COMPILER_IS_GNUCXX)
+  exec_program(
+      ${CMAKE_CXX_COMPILER}
+      ARGS                    --version
+      OUTPUT_VARIABLE _compiler_output)
+  string(REGEX REPLACE ".* ([0-9]\\.[0-9]\\.[0-9]) .*" "\\1"
+         gcc_compiler_version ${_compiler_output})
+  message(STATUS "C++ compiler version: ${gcc_compiler_version} [${CMAKE_CXX_COMPILER}]")
+
+  if(gcc_compiler_version MATCHES "4\\.[0-3]\\.[0-9]")
+    message(FATAL_ERROR "Error: you need atleast gcc 4.4.x to compile EOS!")
+  endif (gcc_compiler_version MATCHES "4\\.[0-3]\\.[0-9]")
+endif (CMAKE_COMPILER_IS_GNUCXX)
+
 
 ######################################################################################################################
 # Platform Specific
@@ -190,12 +208,6 @@ CONFIGURE_FILE(
 ADD_CUSTOM_TARGET(uninstall
   "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake") 
 
-ADD_CUSTOM_TARGET(xrootd-git-stable
-  ${CMAKE_SOURCE_DIR}/utils/get-xrootd-git-stable.sh )
-
-ADD_CUSTOM_TARGET(xrootd-git-master
-  ${CMAKE_SOURCE_DIR}/utils/get-xrootd-git-master.sh )
-
 ######################################################################################################################
 # source packaging 
 ######################################################################################################################
@@ -207,7 +219,7 @@ set(CPACK_PACKAGE_VERSION_PATCH ${VERSION_PATCH})
 set(CPACK_SOURCE_GENERATOR "TGZ")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME
   "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}-${RELEASE}")
-set(CPACK_SOURCE_IGNORE_FILES "/dsi/;/build/;/.deps/;/.bzr/;~$;'.'o$;/CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;ApMon;build;install_manifest.txt;lib;/.git/;${CPACK_SOURCE_IGNORE_FILES};")
+set(CPACK_SOURCE_IGNORE_FILES "xrootd-dsi/;/dsi/;/build/;/.deps/;/.bzr/;~$;'.'o$;/CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;ApMon;build;install_manifest.txt;lib;/.git/;${CPACK_SOURCE_IGNORE_FILES};")
 
 
 

@@ -24,12 +24,13 @@
 #ifndef __EOSBMK_DIREOS_HH__
 #define __EOSBMK_DIREOS_HH__
 
-/*-----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
 #include <cstring>
+/*----------------------------------------------------------------------------*/
 #include "Namespace.hh"
 #include "common/Logging.hh"
 #include "XrdCl/XrdClFileSystem.hh"
-/*-----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
 
 EOSBMKNAMESPACE_BEGIN
 
@@ -41,111 +42,114 @@ class ConfigProto;
 //------------------------------------------------------------------------------
 class DirEos: public eos::common::LogId
 {
- public:
+  public:
 
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @param dirPath path to the directory
-  //! @param eosInstance EOS instance to which to connect
-  //!
-  //----------------------------------------------------------------------------
-  DirEos(const std::string& dirPath, const std::string& eosInstance);
-
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  virtual ~DirEos();
-
-  
-  //----------------------------------------------------------------------------
-  //! Stat directory
-  //!
-  //! @return true if file exists, otherwise false
-  //!
-  //----------------------------------------------------------------------------
-  bool Exist();
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //!
+    //! @param dirPath path to the directory
+    //! @param eosInstance EOS instance to which to connect
+    //!
+    //--------------------------------------------------------------------------
+    DirEos(const std::string& dirPath, const std::string& eosInstance);
 
 
-  //----------------------------------------------------------------------------
-  //! Create directory
-  //!
-  //! @return true if creation successful, otherwise false
-  //!
-  //----------------------------------------------------------------------------
-  bool Create();
-
-  
-  //----------------------------------------------------------------------------
-  //! Set extended attribute
-  //!
-  //! @param attrName extended attribute name
-  //! @param attrValue extended attribute value
-  //!
-  //! @return true if attribute set successfully, otherwise false
-  //! 
-  //----------------------------------------------------------------------------
-  bool SetXattr(const std::string& attrName, const std::string& attrValue);
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
+    virtual ~DirEos();
 
 
-  //----------------------------------------------------------------------------
-  //! Get files form benchmark directory having the requried file size 
-  //!
-  //! @param fileSize requried file size
-  //!
-  //! @return vector of files in directory matchin the requirements
-  //! 
-  //----------------------------------------------------------------------------
-  std::vector<std::string> GetMatchingFiles(const uint64_t fileSize);
-
-  
-  //----------------------------------------------------------------------------
-  //! Check extended attribute
-  //!
-  //! @param attrName extended attribute name
-  //! @param refValue reference value to which we compare
-  //!
-  //! @return true if attribute value matches the reference one, otherwise false
-  //!
-  //----------------------------------------------------------------------------
-  bool CheckXattr(const std::string& attrName, const std::string& refValue);
+    //--------------------------------------------------------------------------
+    //! Stat directory
+    //!
+    //! @return true if file exists, otherwise false
+    //!
+    //--------------------------------------------------------------------------
+    bool Exist();
 
 
-  //----------------------------------------------------------------------------
-  //! Check if directory matches with the supplied configuration
-  //!
-  //! @param llconfig low level configuration object
-  //!
-  //! @return true directory matches with configuration, otherwise false
-  //!
-  //----------------------------------------------------------------------------
-  bool MatchConfig(const ConfigProto& llconfig);
+    //--------------------------------------------------------------------------
+    //! Create directory
+    //!
+    //! @return true if creation successful, otherwise false
+    //!
+    //--------------------------------------------------------------------------
+    bool Create();
 
 
-  //----------------------------------------------------------------------------
-  //! Set the extended attributes of the directory so that they match the config
-  //!
-  //! @param llconfig low level configuration object
-  //!
-  //! @return true if ext. attr. were successfully set, otherwise false
-  //!
-  //----------------------------------------------------------------------------
-  bool SetConfig(const ConfigProto& llconfig);
- 
-  
-  //----------------------------------------------------------------------------
-  //! Remove directory
-  //!
-  //! @return true if successful, otherwise false
-  //----------------------------------------------------------------------------
-  bool Remove();
+    //--------------------------------------------------------------------------
+    //! Set extended attribute
+    //!
+    //! @param attrName extended attribute name
+    //! @param attrValue extended attribute value
+    //!
+    //! @return true if attribute set successfully, otherwise false
+    //!
+    //--------------------------------------------------------------------------
+    bool SetXattr(const std::string& attrName, const std::string& attrValue);
 
-  
- private:
-  
-  std::string mDirPath;    ///< path to the directory
-  XrdCl::FileSystem* mFs;  ///< XrdCl file system instance 
+
+    //--------------------------------------------------------------------------
+    //! Get files form benchmark directory having the requried file size
+    //!
+    //! @param fileSize requried file size
+    //!
+    //! @return vector of files in directory matchin the requirements
+    //!
+    //--------------------------------------------------------------------------
+    std::vector<std::string> GetMatchingFiles(const uint64_t fileSize);
+
+
+    //--------------------------------------------------------------------------
+    //! Check extended attribute
+    //!
+    //! @param attrName extended attribute name
+    //! @param refValue reference value to which we compare
+    //!
+    //! @return true if attribute value matches the reference one,
+    //!         otherwise false
+    //!
+    //--------------------------------------------------------------------------
+    bool CheckXattr(const std::string& attrName, const std::string& refValue);
+
+
+    //--------------------------------------------------------------------------
+    //! Check if directory matches with the supplied configuration
+    //!
+    //! @param llconfig low level configuration object
+    //!
+    //! @return true directory matches with configuration, otherwise false
+    //!
+    //--------------------------------------------------------------------------
+    bool MatchConfig(const ConfigProto& llconfig);
+
+
+    //--------------------------------------------------------------------------
+    //! Set the extended attributes of the directory so that they match
+    //! the config
+    //!
+    //! @param llconfig low level configuration object
+    //!
+    //! @return true if ext. attr. were successfully set, otherwise false
+    //!
+    //--------------------------------------------------------------------------
+    bool SetConfig(const ConfigProto& llconfig);
+
+
+    //--------------------------------------------------------------------------
+    //! Remove directory
+    //!
+    //! @return true if successful, otherwise false
+    //!
+    //--------------------------------------------------------------------------
+    bool Remove();
+
+
+  private:
+
+    std::string mDirPath;    ///< path to the directory
+    XrdCl::FileSystem* mFs;  ///< XrdCl file system instance
 };
 
 EOSBMKNAMESPACE_END

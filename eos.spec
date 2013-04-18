@@ -10,7 +10,13 @@ Group: Applications/File
 Source: %{name}-%{version}-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
-BuildRequires: cmake >= 2.6
+%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} >= 18
+BuildRequires: cmake >= 2.8
+%define cmake_cmd cmake
+%else
+BuildRequires: cmake28 >= 2.8
+%define cmake_cmd cmake28
+%endif
 
 BuildRequires: xrootd-server >= 3.3.0
 BuildRequires: xrootd-server-devel >= 3.3.0
@@ -24,10 +30,10 @@ BuildRequires: xrootd-cl-devel
 BuildRequires: leveldb-devel
 BuildRequires: git
 
-%if 0%{?rhel} < 6
-BuildRequires: gcc44, gcc44-c++
-%else
+%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} >= 18
 BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static
+%else
+BuildRequires: gcc44, gcc44-c++
 %endif
 
 %description
@@ -52,14 +58,15 @@ Requires: eos-client
 
 %build
 test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
-%if 0%{?rhel} < 6
+%if 0%{?rhel} < 6 && %{?fedora}%{!?fedora:0} <= 1
 export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44 
 %endif
 
 mkdir -p build
 cd build
-cmake ../ -DRELEASE=%{release} -DCMAKE_BUILD_TYPE=RelWithDebInfo
+%{cmake_cmd} ../ -DRELEASE=%{release} -DCMAKE_BUILD_TYPE=RelWithDebInfo
 %{__make} %{_smp_mflags} 
+
 %install
 cd build
 %{__make} install DESTDIR=$RPM_BUILD_ROOT

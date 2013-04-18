@@ -438,6 +438,12 @@ ProcCommand::File ()
       if (pVid->uid == 0)
       {
         eos::FileMD* fmd = 0;
+	bool nodrop = false;
+
+	if (pOpaque->Get("mgm.file.option") && (!strcmp(pOpaque->Get("mgm.file.option"),"nodrop"))) 
+	{
+	  nodrop = true;
+	}
 
         // this flag indicates that the replicate command should queue this transfers on the head of the FST transfer lists
         XrdOucString sexpressflag = (pOpaque->Get("mgm.file.express"));
@@ -677,7 +683,7 @@ ProcCommand::File ()
               // we do this only if we didn't create replicas in the if section before, otherwise we remove replicas which have used before for new replications
 
               // this is magic code to adjust the number of replicas to the desired policy ;-)
-              if (nreplayout < nrep)
+              if ( (nreplayout < nrep) && (!nodrop) )
               {
                 std::vector<unsigned long> fsid2delete;
                 unsigned int n2delete = nrep - nreplayout;

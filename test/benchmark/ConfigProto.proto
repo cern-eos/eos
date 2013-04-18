@@ -1,6 +1,9 @@
 package eos.benchmark;
 
-// Configuration class which holds all the possible configuration parameters
+//------------------------------------------------------------------------------
+// Configuration which holds all the possible parameters for a benchmark run 
+//------------------------------------------------------------------------------
+
 message ConfigProto {
 	
   // Type of operation requested 

@@ -32,127 +32,127 @@
 EOSBMKNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Class Result 
+//! Class Result
 //------------------------------------------------------------------------------
 class Result
 {
 
- public:
-  
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  Result();
+  public:
+
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //--------------------------------------------------------------------------
+    Result();
 
 
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  virtual ~Result();
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
+    virtual ~Result();
 
 
-  //----------------------------------------------------------------------------
-  //! Disable copy constructor
-  //----------------------------------------------------------------------------
-  Result(const Result&) = delete;
+    //--------------------------------------------------------------------------
+    //! Disable copy constructor
+    //--------------------------------------------------------------------------
+    Result(const Result&) = delete;
 
 
-  //----------------------------------------------------------------------------
-  //! Disable copy operator
-  //----------------------------------------------------------------------------
-  Result& operator =(const Result&) = delete; 
+    //--------------------------------------------------------------------------
+    //! Disable copy operator
+    //--------------------------------------------------------------------------
+    Result& operator =(const Result&) = delete;
 
 
-  //----------------------------------------------------------------------------
-  //! Print statistics
-  //----------------------------------------------------------------------------
-  void Print() const;
+    //--------------------------------------------------------------------------
+    //! Print statistics
+    //--------------------------------------------------------------------------
+    void Print() const;
 
 
-  //----------------------------------------------------------------------------
-  //! Get transfer speed
-  //!
-  //! @param size transfer size in bytes
-  //! @param duration time duration in miliseconds
-  //!
-  //! @return transfer speed in MB/s
-  //!
-  //----------------------------------------------------------------------------
-  float GetTransferSpeed(float size, float duration);
-  
-
-  //----------------------------------------------------------------------------
-  //! Get low level result object (reference)
-  //!
-  //! @return low level result object (ProtoBuf object)
-  //----------------------------------------------------------------------------
-  ResultProto& GetPbResult() const;
+    //--------------------------------------------------------------------------
+    //! Get transfer speed
+    //!
+    //! @param size transfer size in bytes
+    //! @param duration time duration in miliseconds
+    //!
+    //! @return transfer speed in MB/s
+    //!
+    //--------------------------------------------------------------------------
+    float GetTransferSpeed(float size, float duration);
 
 
-  //----------------------------------------------------------------------------
-  //! Set the low level result object
-  //!
-  //! @param pbResult low level result object (ProtoBuf object)
-  //!  
-  //----------------------------------------------------------------------------
-  void SetPbResult(ResultProto* pbResult);
-  
-  
-  //----------------------------------------------------------------------------
-  //! Merge result object into the current one
-  //!
-  //! @param partial partial result object to be merged 
-  //!
-  //----------------------------------------------------------------------------
-  void Merge(const Result& partial);
+    //--------------------------------------------------------------------------
+    //! Get low level result object (reference)
+    //!
+    //! @return low level result object (ProtoBuf object)
+    //!
+    //--------------------------------------------------------------------------
+    ResultProto& GetPbResult() const;
 
 
-  //----------------------------------------------------------------------------
-  //! Compute group statistics like average value and standard deviation
-  //----------------------------------------------------------------------------
-  void ComputeGroupStatistics();
+    //--------------------------------------------------------------------------
+    //! Set the low level result object
+    //!
+    //! @param pbResult low level result object (ProtoBuf object)
+    //!
+    //--------------------------------------------------------------------------
+    void SetPbResult(ResultProto* pbResult);
 
 
- private:
+    //--------------------------------------------------------------------------
+    //! Merge result object into the current one
+    //!
+    //! @param partial partial result object to be merged
+    //!
+    //--------------------------------------------------------------------------
+    void Merge(const Result& partial);
 
-  ResultProto* mPbResult; ///< pointer to low level result object (ProtoBuf object)
+  private:
 
-  //----------------------------------------------------------------------------
-  //! Function used to compute the average for the supplied argument 
-  //!
-  //! @param input container of float values to be averaged
-  //!
-  //! @return average value
-  //!
-  //----------------------------------------------------------------------------
-  static float Average(const ::google::protobuf::RepeatedField<float>& input);
+    ResultProto* mPbResult; ///< pointer to low level result object
 
-
-  //----------------------------------------------------------------------------
-  //! Function used to compute the standard deviation for the supplied argument 
-  //!
-  //! @param input container of float values to be averaged
-  //! @param mean mean value
-  //!
-  //! @return standard deviation value
-  //!
-  //----------------------------------------------------------------------------
-  static float StdDev(const ::google::protobuf::RepeatedField<float>& input,
-                      float                                           mean);
+    //--------------------------------------------------------------------------
+    //! Function used to compute the average for the supplied argument
+    //!
+    //! @param input container of float values to be averaged
+    //!
+    //! @return average value
+    //!
+    //--------------------------------------------------------------------------
+    static float Average(const ::google::protobuf::RepeatedField<float>& input);
 
 
-  //----------------------------------------------------------------------------
-  //! Function used to compute the sum of the elements in the container
-  //!
-  //! @param input container of float values
-  //!
-  //! @return sum of the values
-  //!
-  //----------------------------------------------------------------------------
-  static float Sum(const ::google::protobuf::RepeatedField<float>& input);
+    //--------------------------------------------------------------------------
+    //! Function used to compute the standard deviation for the supplied argument
+    //!
+    //! @param input container of float values to be averaged
+    //! @param mean mean value
+    //!
+    //! @return standard deviation value
+    //!
+    //--------------------------------------------------------------------------
+    static float StdDev(const ::google::protobuf::RepeatedField<float>& input,
+                        float                                           mean);
+
+
+    //--------------------------------------------------------------------------
+    //! Function used to compute the sum of the elements in a container
+    //!
+    //! @param input container of float values
+    //!
+    //! @return sum of the values
+    //!
+    //--------------------------------------------------------------------------
+    static float Sum(const ::google::protobuf::RepeatedField<float>& input);
+
+
+    //--------------------------------------------------------------------------
+    //! Compute group statistics like average value and standard deviation
+    //--------------------------------------------------------------------------
+    void ComputeGroupStatistics();
 
 };
 
-EOSBMKNAMESPACE_END  
+EOSBMKNAMESPACE_END
 
 #endif // __EOSBMK_RESULT_HH__

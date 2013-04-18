@@ -80,14 +80,15 @@ Http::Handler (void *cls,
     // create the store if it does not exist yet
     mS3Store = new S3Store(gOFS->MgmProcPath.c_str());
   }
-  // currently support only GET,HEAD methods
+  // currently support only GET,HEAD,PUT methods
   if ((0 != strcmp(method, MHD_HTTP_METHOD_GET)) &&
-      (0 != strcmp(method, MHD_HTTP_METHOD_HEAD)))
+      (0 != strcmp(method, MHD_HTTP_METHOD_HEAD)) &&
+      (0 != strcmp(method, MHD_HTTP_METHOD_PUT)))
     return MHD_NO; /* unexpected method */
 
-  if (&aptr != *ptr)
+  if ( ( &aptr != *ptr) && (strcmp(method, MHD_HTTP_METHOD_PUT)) )
   {
-    /* do never respond on first call */
+    /* do never respond on first call for head/put */
     *ptr = &aptr;
     return MHD_YES;
   }
@@ -227,13 +228,31 @@ Http::Handler (void *cls,
 
       if (file)
       {
-        int rc = file->open(path.c_str(), 0, 0, &client, query.c_str());
+        XrdSfsFileOpenMode open_mode = 0;
+        mode_t create_mode = 0;
+
+        if (header["HttpMethod"] == "PUT")
+        {
+          // use the proper creation/open flags for PUT's
+          open_mode |= SFS_O_TRUNC;
+          open_mode |= SFS_O_RDWR;
+          open_mode |= SFS_O_MKPTH;
+          create_mode |= (SFS_O_MKPTH | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+        }
+        
+        int rc = file->open(path.c_str(), open_mode, create_mode, &client, query.c_str());
+        if ( (rc!= SFS_REDIRECT) && open_mode) {
+          // retry as a file creation
+          open_mode |= SFS_O_CREAT;
+          rc = file->open(path.c_str(), open_mode, create_mode, &client, query.c_str());
+        }
+        
         if (rc != SFS_OK)
         {
           if (rc == SFS_REDIRECT)
           {
             // the embedded server on FSTs is hardcoded to run on port 8001
-            result = HttpRedirect(mhd_response, responseheader, file->error.getErrText(), 8001, path, query, true);
+            result = HttpRedirect(mhd_response, responseheader, file->error.getErrText(), 8001, path, query, false);
           }
           else
             if (rc == SFS_ERROR)
@@ -304,7 +323,7 @@ Http::Handler (void *cls,
       MHD_add_response_header(response, it->first.c_str(), it->second.c_str());
     }
     int ret = MHD_queue_response(connection, mhd_response, response);
-
+    eos_static_info("MHD_queue_response ret=%d mhd_repsonse=%d", ret, mhd_response);
     return ret;
   }
   else

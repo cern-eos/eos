@@ -41,65 +41,98 @@ class Result;
 //------------------------------------------------------------------------------
 class FileEos: public eos::common::LogId
 {
- public:
-  
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @param filePath path of the file on which to do operations
-  //! @param bmkInstance benchmark instance name ex. eosdev.cern.ch
-  //! @param fileSize size of the file to be manipulated
-  //! @param blockSize block size used for operations
-  //!
-  //----------------------------------------------------------------------------
-  FileEos(const std::string& filePath,
-          const std::string& bmkInstance,
-          uint64_t           fileSize,
-          uint32_t           blockSize);
+  public:
+
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //!
+    //! @param filePath path of the file on which to do operations
+    //! @param bmkInstance benchmark instance name ex. eosdev.cern.ch
+    //! @param fileSize size of the file to be manipulated
+    //! @param blockSize block size used for operations
+    //!
+    //--------------------------------------------------------------------------
+    FileEos(const std::string& filePath,
+            const std::string& bmkInstance,
+            uint64_t           fileSize,
+            uint32_t           blockSize);
 
 
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  virtual ~FileEos();
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
+    virtual ~FileEos();
 
 
-  //----------------------------------------------------------------------------
-  //! Execute write operation
-  //!
-  //! @return 0 if successful, otherwise -1
-  //!
-  //----------------------------------------------------------------------------
-  int Write(Result*& result);
-
-  //----------------------------------------------------------------------------
-  //!
-  //----------------------------------------------------------------------------
-  int ReadGw(Result*& result);
-
-  //----------------------------------------------------------------------------
-  //!
-  //----------------------------------------------------------------------------
-  int ReadPio(Result*& result);
+    //--------------------------------------------------------------------------
+    //! Execute write operation
+    //!
+    //! @param result object in which the transfer statistics are saved
+    //!
+    //! @return 0 if successful, otherwise -1
+    //!
+    //--------------------------------------------------------------------------
+    int Write(Result*& result);
 
   
-  //----------------------------------------------------------------------------
-  //!
-  //----------------------------------------------------------------------------
-  int ReadWriteGw(Result*& result);
-
-
-  //----------------------------------------------------------------------------
-  //!
-  //----------------------------------------------------------------------------
-  int ReadWritePio(Result*& result);
+    //--------------------------------------------------------------------------
+    //! Read in gateway mode 
+    //!
+    //! @param result object in which the transfer statistics are saved
+    //!
+    //! @return 0 if successful, otherwise -1
+    //!
+    //--------------------------------------------------------------------------
+    int ReadGw(Result*& result);
   
- private:
 
-  std::string mFilePath;     ///< file path
-  std::string mBmkInstance;  ///< benchmark instance
-  uint64_t mFileSize;        ///< file size
-  uint32_t mBlockSize;       ///< block size for operations
+    //--------------------------------------------------------------------------
+    //! Read in parallel IO mode. If this is not possible then if fails over
+    //! to the gateway mode.
+    //!
+    //! @param result object in which the transfer statistics are saved
+    //!
+    //! @return 0 if successful, otherwise -1
+    //!
+    //--------------------------------------------------------------------------
+    int ReadPio(Result*& result);
+
+
+    //--------------------------------------------------------------------------
+    //! Do write and read operation in gateway mode (only read)
+    //!
+    //! @param result object in which the transfer statistics are saved
+    //!
+    //! @return 0 if successful, otherwise -1
+    //!
+    //--------------------------------------------------------------------------
+    int ReadWriteGw(Result*& result);
+
+
+    //--------------------------------------------------------------------------
+    //! Do write and read operation in parallel IO mode (only read)
+    //!
+    //! @param result object in which the transfer statistics are saved
+    //!
+    //! @return 0 if successful, otherwise -1
+    //!
+    //--------------------------------------------------------------------------
+    int ReadWritePio(Result*& result);
+
+  private:
+
+    std::string mFilePath;     ///< file path
+    std::string mBmkInstance;  ///< benchmark instance
+    uint64_t mFileSize;        ///< file size
+    uint32_t mBlockSize;       ///< block size for operations
+
+    //--------------------------------------------------------------------------
+    //! Get current timestamp as a string
+    //!
+    //! @return current timestamp as a string
+    //!
+    //--------------------------------------------------------------------------
+    std::string GetTimestamp();
 
 };
 

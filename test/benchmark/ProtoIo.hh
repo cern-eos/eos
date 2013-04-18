@@ -48,46 +48,54 @@ EOSBMKNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-//! Class ProtoWriter 
+//! Class ProtoWriter
 //------------------------------------------------------------------------------
 class ProtoWriter
 {
-  
- public:
 
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  ProtoWriter(const std::string &file);
-  
+  public:
 
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  ~ProtoWriter();
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //!
+    //! @param file file where the ProtocolBuffer objects are written
+    //!
+    //--------------------------------------------------------------------------
+    ProtoWriter(const std::string& file);
 
 
-  //----------------------------------------------------------------------------
-  //! Write the object to the file along with its size
-  //----------------------------------------------------------------------------
-  inline bool operator()(const ::google::protobuf::Message &msg)
-  {
-    _CodedOutputStream->WriteVarint32(msg.ByteSize());
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
+    ~ProtoWriter();
 
-    if ( !msg.SerializeToCodedStream(_CodedOutputStream) )
+
+    //--------------------------------------------------------------------------
+    //! Write the object to the file along with its size
+    //!
+    //! @param msg object to be written to the file
+    //!
+    //! @return true if successful, otherwise false
+    //!
+    //--------------------------------------------------------------------------
+    inline bool operator()(const ::google::protobuf::Message& msg)
     {
-      std::cerr << "SerializeToCodedStream error " << std::endl;
-      return false;
+      _CodedOutputStream->WriteVarint32(msg.ByteSize());
+
+      if (!msg.SerializeToCodedStream(_CodedOutputStream))
+      {
+        std::cerr << "SerializeToCodedStream error " << std::endl;
+        return false;
+      }
+
+      return true;
     }
-    
-    return true;
-  }
 
- private:
+  private:
 
-  std::ofstream mFs;                          ///< output file stream
-  OstreamOutputStream *_OstreamOutputStream;  ///<
-  CodedOutputStream *_CodedOutputStream;      ///<
+    std::ofstream mFs;                          ///< output file stream
+    OstreamOutputStream* _OstreamOutputStream;  ///<
+    CodedOutputStream* _CodedOutputStream;      ///<
 };
 
 
@@ -96,58 +104,65 @@ class ProtoWriter
 //------------------------------------------------------------------------------
 class ProtoReader
 {
-  
- public:
-  
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  ProtoReader(const std::string &file);
+
+  public:
+
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //!
+    //! @param file file from which ProtocolBuffer objects are read
+    //!
+    //--------------------------------------------------------------------------
+    ProtoReader(const std::string& file);
 
 
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  ~ProtoReader();
-  
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
+    ~ProtoReader();
 
-  //----------------------------------------------------------------------------
-  //! Read next object from file
-  //----------------------------------------------------------------------------
-  template<class T>
-  T* ReadNext()
-  {
-    T* msg = new T();
-    uint32_t size;
 
-    bool ret;
-    if ((ret = _CodedInputStream->ReadVarint32(&size)))
+    //--------------------------------------------------------------------------
+    //! Read next object from file
+    //!
+    //! @return the ProtocolBuffer object read from the file
+    //!
+    //--------------------------------------------------------------------------
+    template<class T>
+    T* ReadNext()
     {
-      CodedInputStream::Limit msgLimit = _CodedInputStream->PushLimit(size);
-      if ((ret = msg->ParseFromCodedStream(_CodedInputStream)))
+      T* msg = new T();
+      uint32_t size;
+      bool ret;
+
+      if ((ret = _CodedInputStream->ReadVarint32(&size)))
       {
-        _CodedInputStream->PopLimit(msgLimit);
+        CodedInputStream::Limit msgLimit = _CodedInputStream->PushLimit(size);
+
+        if ((ret = msg->ParseFromCodedStream(_CodedInputStream)))
+        {
+          _CodedInputStream->PopLimit(msgLimit);
+        }
+        else
+        {
+          delete msg;
+          msg = 0;
+        }
       }
       else
       {
         delete msg;
         msg = 0;
       }
-    }
-    else
-    {
-      delete msg;
-      msg = 0;
+
+      return msg;
     }
 
-    return msg;
-  }
+  private:
 
- private:
-  
-  std::ifstream mFs;                         ///< input file stream
-  IstreamInputStream *_IstreamInputStream;   ///<
-  CodedInputStream *_CodedInputStream;       ///<
+    std::ifstream mFs;                         ///< input file stream
+    IstreamInputStream* _IstreamInputStream;   ///<
+    CodedInputStream* _CodedInputStream;       ///<
 };
 
 EOSBMKNAMESPACE_END

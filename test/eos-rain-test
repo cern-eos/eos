@@ -24,7 +24,7 @@
 #------------------------------------------------------------------------------
 # Description: The script is used to test the RAID-like layouts from EOS. 
 # Usage: 
-# eos-raintest raiddp/reeds/plain dir_test_files root://host//eos_raid_dir tmp_location_dir
+# eos-rain-test raiddp/reeds/plain dir_test_files root://host//eos_raid_dir tmp_location_dir
 #  - first argument is the type of test made 
 #  - second arguments specifies the directory from which all files corresponding
 #     to the pattern *.rain will be used in the test 

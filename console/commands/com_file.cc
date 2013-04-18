@@ -102,9 +102,25 @@ com_file (char* arg1) {
   XrdOucString savearg = arg1;
   XrdOucString arg = arg1;
   XrdOucTokenizer subtokenizer(arg1);
+  XrdOucString option = "";
+  XrdOucString path = "";
   subtokenizer.GetLine();
+
+
   XrdOucString cmd = subtokenizer.GetToken();
-  XrdOucString path = subtokenizer.GetToken();
+  XrdOucString tmpArg;
+
+  do {
+    tmpArg = subtokenizer.GetToken();
+    if (tmpArg.beginswith("-")) {
+      while(tmpArg.replace("-","")) {}
+      option+=tmpArg; 
+    } else {
+      path = tmpArg;
+      break;
+    }
+  } while (1);
+
   XrdOucString fsid1 = subtokenizer.GetToken();
   XrdOucString fsid2 = subtokenizer.GetToken();
 
@@ -507,6 +523,12 @@ com_file (char* arg1) {
     return (consistencyerror);
   }
 
+
+  if (option.length()) 
+  {
+    in += "&mgm.file.option="; in += option;
+  }
+
   global_retc = output_result(client_user_command(in));
   return (0);
 
@@ -522,7 +544,7 @@ com_file (char* arg1) {
   fprintf(stdout,"                                                  move the file <path> from  <fsid1> to <fsid2>\n");
   fprintf(stdout,"file replicate <path> <fsid1> <fsid2> :\n");
   fprintf(stdout,"                                                  replicate file <path> part on <fsid1> to <fsid2>\n");
-  fprintf(stdout,"file adjustreplica <path>|fid:<fid-dec>|fxid:<fid-hex> [space [subgroup]] :\n");
+  fprintf(stdout,"file adjustreplica [--nodrop] <path>|fid:<fid-dec>|fxid:<fid-hex> [space [subgroup]] :\n");
   fprintf(stdout,"                                                  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
   fprintf(stdout,"file check <path> [%%size%%checksum%%nrep%%checksumattr%%force%%output%%silent] :\n");
   fprintf(stdout,"                                                  retrieves stat information from the physical replicas and verifies the correctness\n");

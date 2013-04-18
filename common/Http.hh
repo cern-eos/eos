@@ -53,6 +53,7 @@ protected:
   pthread_t mThreadId;
   bool mRunning;
 
+public:
 #ifdef EOS_MICRO_HTTPD
   /**
    * Returns the query string for an HTTP request 
@@ -81,7 +82,6 @@ protected:
                              const char *value);
 #endif
 
-public:
 
   /**
    * Constructor

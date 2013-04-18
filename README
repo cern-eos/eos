@@ -61,17 +61,6 @@ mkdir build
 cd build
 cmake ../ [-DRELEASE=<release#>]
 
-# ---------------------------
-# 2.1 Xrootd Git Header Files
-# ---------------------------
-# Currently EOS needs headers which are not distributed in the EPEL XRootD RPMS.
-# They can be auto installed before compilation:
-# Fetch source from the stable branch
-make xrootd-git-stable
-# Fetch source from the master branch
-make xrootd-git-master
-
-
 make -j 4 install
 
 # -------------
@@ -87,7 +76,7 @@ make -j 4 install
 - libz (+static)
 - git
 - cmake
-- xrootd client+server+dev packages (3.1.X)
+- xrootd client+server+dev packages (3.3.X)
 
 ##########################################################################
 # 3 Install/Uninstall                                                    #

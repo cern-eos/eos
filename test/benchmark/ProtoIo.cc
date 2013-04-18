@@ -22,9 +22,9 @@
  ************************************************************************/
 
 
-/*-----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
 #include "ProtoIo.hh"
-/*-----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
 
 EOSBMKNAMESPACE_BEGIN
 
@@ -36,11 +36,10 @@ EOSBMKNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ProtoWriter::ProtoWriter(const std::string &file):
-    mFs(file, std::ios::out | std::ios::binary)
+ProtoWriter::ProtoWriter(const std::string& file):
+  mFs(file, std::ios::out | std::ios::binary | std::ios::app)
 {
   assert(mFs.good());
-  
   _OstreamOutputStream = new OstreamOutputStream(&mFs);
   _CodedOutputStream = new CodedOutputStream(_OstreamOutputStream);
 }
@@ -64,11 +63,10 @@ ProtoWriter:: ~ProtoWriter()
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ProtoReader::ProtoReader(const std::string &file):
-    mFs(file, std::ios::in | std::ios::binary)
+ProtoReader::ProtoReader(const std::string& file):
+  mFs(file, std::ios::in | std::ios::binary)
 {
   assert(mFs.good());
-  
   _IstreamInputStream = new IstreamInputStream(&mFs);
   _CodedInputStream = new CodedInputStream(_IstreamInputStream);
 }

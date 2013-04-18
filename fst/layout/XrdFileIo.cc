@@ -108,7 +108,7 @@ XrdFileIo::Open (const std::string& path,
     mDoReadahead = true;
     val = 0;
 
-    if (false && (val = open_opaque.Get("fst.blocksize")))
+    if ((val = open_opaque.Get("fst.blocksize")))
     {
       mBlocksize = static_cast<uint64_t> (atoll(val));
     }
@@ -241,25 +241,31 @@ XrdFileIo::Read (XrdSfsFileOffset offset,
   }
   else
   {
-    eos_debug("Readahead is enabled.");
+    eos_debug("Readahead enabled and request offset=%lli, length=%lli", offset, length);
     int64_t read_length;
+    int64_t aligned_offset;
+    int64_t aligned_length;
     std::map<uint64_t, ReadaheadBlock*>::iterator iter;
 
     while (length)
     {
-      iter = mMapBlocks.find(offset);
+      aligned_offset = offset - (offset % mBlocksize);
+      iter = mMapBlocks.find(aligned_offset);
 
       if (iter != mMapBlocks.end())
       {
         //......................................................................
         // Block found in prefetched blocks
         //......................................................................
-        eos_debug("Found block in cache, offset=%lli.", (long long int) offset);
         SimpleHandler* sh = iter->second->handler;
-
+        
         if (sh->WaitOK())
         {
-          read_length = (length < (int64_t) mBlocksize) ? length : mBlocksize;
+          aligned_length = sh->GetRespLength() - (offset % mBlocksize);
+          eos_debug("Found block in cache, aligned_offset=%lld, aligned_length=%lld.",
+                    aligned_offset, aligned_length);
+
+          read_length = (length < aligned_length) ? length : aligned_length;
           pBuff = static_cast<char*> (memcpy(pBuff,
                                              iter->second->buffer,
                                              read_length));
@@ -280,7 +286,7 @@ XrdFileIo::Read (XrdSfsFileOffset offset,
               mMapBlocks.erase(mMapBlocks.begin());
             }
 
-            PrefetchBlock(offset + mBlocksize, false);
+            PrefetchBlock(aligned_offset + mBlocksize, false);
           }
 
           pBuff += read_length;

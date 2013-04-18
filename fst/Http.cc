@@ -23,8 +23,8 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/Http.hh"
-#include "fst/XrdFstOfs.hh"
 #include "common/Logging.hh"
+#include "fst/XrdFstOfs.hh"
 #include "common/S3.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
@@ -39,19 +39,30 @@ EOSFSTNAMESPACE_BEGIN
 #define EOSFST_HTTP_PAGE "<html><head><title>No such file or directory</title></head><body>No such file or directory</body></html>"
 
 /*----------------------------------------------------------------------------*/
-/**
- * Class keeping a handle to an HTTP file/range request
- */
+// Class keeping a handle to an HTTP file/range request                      
 /*----------------------------------------------------------------------------*/
+
 class HttpHandle
 {
 public:
+  std::string mQuery; //< query CGI string
+  std::map<std::string, std::string> mHeader; //< header map
+  std::map<std::string, std::string> mCookies; //< cookie map
+  int mRc; //< return code of a file open
+  struct MHD_Connection* mConnection; //< HTTP connection
+  eos::common::S3* mS3; //< s3 object ptr if one has been decoded from the headers
+  XrdSecEntity mClient; //< the sec entity of the connected client
+  std::string mPath; //< the path used in the request
   XrdFstOfsFile* mFile; //< handle to a file
   std::map<off_t, ssize_t> mOffsetMap; //< map with offset+length of range requests
   std::map<int, std::string> mMultipartHeaderMap; //< multipart header map
   off_t mRangeRequestSize; //< sum of all range requests
   off_t mFileSize; //< total file size
   off_t mRequestSize; //< size of the total output including headers
+  off_t mContentLength; //< size of the content provided by client
+  off_t mLastUploadSize; //< size of the last upload call
+  off_t mUploadLeftSize; //< size of data still to upload
+
   bool mRangeDecodingError; //< indicating an invalid range request
   bool mRangeRequest; //< indication if httpHandle has a range rqeuest
   std::string mBoundary; //< boundary "EOSMULTIPARBOUNDARY"
@@ -62,6 +73,9 @@ public:
   off_t mCurrentCallbackOffset; //< next offset from where to read in the offset map at position index
   bool mBoundaryEndSent; //< true when the boundary end was sent
   std::string mPrint; //< print buffer to print the handle contents
+  int mCloseCode; //< close code to return if file upload was successfull
+  unsigned long long mFileId; //< file id used in EOS - determined after Ofs::Open
+  std::string mLogId; //< log id used in EOS - determined after Ofs::Open
 
   /**
    * Constructor
@@ -81,6 +95,12 @@ public:
     mCurrentCallbackOffset = 0;
     mBoundaryEndSent = false;
     mSinglepartHeader = "";
+    mCloseCode = 0;
+    mS3 = 0;
+    mRc = 0;
+    mContentLength = 0;
+    mLastUploadSize = 0;
+    mUploadLeftSize = 0;
   }
 
   /**
@@ -154,6 +174,29 @@ public:
       index++;
     }
   }
+
+  /**
+   * initialize an HttpHandle using the connection information
+   * @return nothing
+   */
+
+  void Initialize ();
+
+  /**
+   * handle a get request
+   * @return like Http::Handler method
+   */
+  int Get ();
+
+  /**
+   * handle a put request
+   * @param upload_data pointer to the data to upload
+   * @param reference to the size of data to upload
+   * @return like Http::Handler method
+   */
+  int Put (const char *upload_data,
+           size_t *upload_data_size, bool first_call);
+
 };
 
 /*----------------------------------------------------------------------------*/
@@ -304,7 +347,7 @@ Http::FileCloseCallback (void *cls)
   HttpHandle* httpHandle = static_cast<HttpHandle*> (cls);
   if (httpHandle && httpHandle->mFile)
   {
-    httpHandle->mFile->close();
+    httpHandle->mCloseCode = httpHandle->mFile->close();
   }
   if (httpHandle)
   {
@@ -324,160 +367,264 @@ Http::Handler (void *cls,
                const char *upload_data,
                size_t *upload_data_size, void **ptr)
 {
-  static int aptr;
-  struct MHD_Response *response;
+  // The handler function is called in a 'stateless' fashion, so to keep state
+  // the implementation stores a HttpHandle object using **ptr.
+  // libmicrohttpd moreover deals with 100-continue responses used by PUT/POST
+  // in the upper protocol level, so the handler has to return for GET requests
+  // just MHD_YES if there is not yet an HttpHandle and for PUT requests
+  // should only create a response object if the open for the PUT failes for 
+  // whatever reason.
+  // So when the HTTP header have arrived Handler is called the first time
+  // and in following Handler calls we should not decode the headers again and
+  // again for performance reasons. So there is a different handling of GET and
+  // PUT because in GET we just don't do anything but return and decode 
+  // the HTTP headers with the second call, while for PUT we do it in the first
+  // call and open the output file immedeatly to return evt. an error.
 
-  std::string query;
-  std::map<std::string, std::string> header;
-  std::map<std::string, std::string> cookies;
+  bool first_call;
+
+  std::string lMethod = method ? method : "";
+
+  HttpHandle* httpHandle = 0;
 
   // currently support only GET methods
-  if (0 != strcmp(method, MHD_HTTP_METHOD_GET))
+  if ((lMethod != "GET") &&
+      (lMethod != "PUT"))
     return MHD_NO; /* unexpected method */
 
-  if (&aptr != *ptr)
+  if (! *ptr)
   {
-    /* do never respond on first call */
-    *ptr = &aptr;
-    return MHD_YES;
+    first_call = true;
+  }
+  else
+  {
+    first_call = false;
+
+  }
+  if (first_call)
+  {
+    if (lMethod == "GET")
+    {
+      /* do never respond on first call for GET */
+      *ptr = (void*) 0x1;
+      eos_static_debug("rc=MHD_YES firstcall=true");
+      return MHD_YES;
+    }
+    eos_static_debug("continue firstcall=true");
   }
 
-  MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND, &Http::BuildQueryString,
-                            (void*) &query);
+  if (*ptr == (void*) 0x1)
+  {
+    // reset the head/get second call indicator
+    *ptr = 0;
+  }
+
+  // now get an existing or create an HttpHandle for this session
+  if (!*ptr)
+  {
+    // create a handle and run the open;
+    httpHandle = new HttpHandle();
+    *ptr = (void*) httpHandle;
+    httpHandle->mConnection = connection;
+    if (url) httpHandle->mPath = url;
+  }
+  else
+  {
+    // get the previous handle back
+    httpHandle = (HttpHandle*) * ptr;
+  }
+
+  if (!httpHandle->mFile)
+  {
+    httpHandle->Initialize();
+  }
+
+  if (!httpHandle->mFile)
+  {
+    httpHandle->mFile = (XrdFstOfsFile*) gOFS.newFile(httpHandle->mClient.name);
+
+
+    // default modes are for GET=read
+    XrdSfsFileOpenMode open_mode = 0;
+    mode_t create_mode = 0;
+
+    if (lMethod == "PUT")
+    {
+      // use the proper creation/open flags for PUT's
+      open_mode |= SFS_O_CREAT;
+      open_mode |= SFS_O_TRUNC;
+      open_mode |= SFS_O_RDWR;
+      open_mode |= SFS_O_MKPTH;
+      create_mode |= (SFS_O_MKPTH | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    }
+
+    httpHandle->mRc = httpHandle->mFile->open(httpHandle->mPath.c_str(), open_mode, create_mode, &httpHandle->mClient, httpHandle->mQuery.c_str());
+
+    httpHandle->mFileSize = httpHandle->mFile->getOpenSize();
+
+    httpHandle->mFileId = httpHandle->mFile->getFileId();
+    httpHandle->mLogId = httpHandle->mFile->logId;
+
+    // check for range requests
+    if (httpHandle->mHeader.count("Range"))
+    {
+      if (!DecodeByteRange(httpHandle->mHeader["Range"], httpHandle->mOffsetMap, httpHandle->mRangeRequestSize, httpHandle->mFileSize))
+      {
+        // indicate range decoding error
+        httpHandle->mRangeDecodingError = true;
+      }
+      else
+      {
+        httpHandle->mRangeRequest = true;
+      }
+    }
+
+    if (!httpHandle->mRangeRequest)
+    {
+      // we put the file size as request size if this is not a range request aka full file download
+      httpHandle->mRangeRequestSize = httpHandle->mFile->getOpenSize();
+    }
+  }
+
+  if (lMethod == "GET")
+  {
+    // call the HttpHandle::Get method
+    return httpHandle->Get();
+  }
+
+  if (lMethod == "PUT")
+  {
+    // call the HttpHandle::Put method
+    int rc = httpHandle->Put(upload_data, upload_data_size, first_call);
+    if (rc || ( (!first_call) && (upload_data_size == 0 ) ) ) {
+      // clean-up left-over objects on error or end-of-put
+      if (httpHandle->mFile) {
+        delete httpHandle->mFile;
+        httpHandle->mFile = 0;
+      }
+      if (httpHandle->mS3) {
+        delete httpHandle->mS3;
+        httpHandle->mS3 = 0;
+      }
+    }
+  }
+
+  eos_static_alert("invalid program path - should never reach this point!");
+  return MHD_NO;
+}
+
+void
+HttpHandle::Initialize ()
+{
+  // decode all the header/cookie stuff
+
+  MHD_get_connection_values(mConnection, MHD_GET_ARGUMENT_KIND, &Http::BuildQueryString,
+                            (void*) &mQuery);
 
   // get the header INFO
-  MHD_get_connection_values(connection, MHD_HEADER_KIND, &Http::BuildHeaderMap,
-                            (void*) &header);
+  MHD_get_connection_values(mConnection, MHD_HEADER_KIND, &Http::BuildHeaderMap,
+                            (void*) &mHeader);
 
-  MHD_get_connection_values(connection, MHD_COOKIE_KIND, &Http::BuildHeaderMap,
-                            (void*) &cookies);
+  MHD_get_connection_values(mConnection, MHD_COOKIE_KIND, &Http::BuildHeaderMap,
+                            (void*) &mCookies);
 
-  *ptr = NULL; /* reset when done */
-
-  for (auto it = header.begin(); it != header.end(); it++)
+  for (auto it = mHeader.begin(); it != mHeader.end(); it++)
   {
     eos_static_info("header:%s=%s", it->first.c_str(), it->second.c_str());
   }
 
-  for (auto it = cookies.begin(); it != cookies.end(); it++)
+  for (auto it = mCookies.begin(); it != mCookies.end(); it++)
   {
     eos_static_info("cookie:%s=%s", it->first.c_str(), it->second.c_str());
   }
 
-  if (cookies.count("EOSCAPABILITY"))
+  if (mCookies.count("EOSCAPABILITY"))
   {
     // if we have a capability we don't use the query CGI but that one
-    query = cookies["EOSCAPABILITY"];
+    mQuery = mCookies["EOSCAPABILITY"];
 
   }
 
-  DecodeURI(query); // unescape '+' '/' '='
+  if (mHeader.count("Content-Length"))
+  {
+    mContentLength = strtoull(mHeader["Content-Length"].c_str(), 0, 10);
+    mUploadLeftSize = mContentLength;
+  }
 
-  std::string path = url;
-
-  eos_static_info("path=%s query=%s", url ? url : "", path.c_str() ? query.c_str() : "");
-
-  // if there is a capability COOKIE, we add it to the query string
+  Http::DecodeURI(mQuery); // unescape '+' '/' '='
 
 
-  XrdOucString spath = path.c_str();
+  eos_static_info("path=%s query=%s", mPath.c_str(), mQuery.c_str());
 
-  XrdSecEntity client("unix");
 
-  client.name = strdup("nobody");
-  client.host = strdup("localhost");
-  client.tident = strdup("http");
+  // define the client sec entity object
+  strncpy(mClient.prot, "unix", XrdSecPROTOIDSIZE - 1);
+  mClient.prot[XrdSecPROTOIDSIZE - 1] = '\0';
+  mClient.name = strdup("nobody");
+  mClient.host = strdup("localhost");
+  mClient.tident = strdup("http");
 
-  std::string result;
+  mS3 = eos::common::S3::ParseS3(mHeader);
+}
 
+/*----------------------------------------------------------------------------*/
+int
+HttpHandle::Get ()
+{
   int mhd_response = MHD_HTTP_OK;
-
+  std::string result;
   std::map<std::string, std::string> responseheader;
+  struct MHD_Response *response = 0;
 
-  XrdFstOfsFile* file = 0;
-
-  HttpHandle* httpHandle = new HttpHandle();
-
-  eos::common::S3* s3 = eos::common::S3::ParseS3(header);
-
-  // only assume FILE requests
-  file = (XrdFstOfsFile*) gOFS.newFile(client.name);
-
-  // store the file handle
-  httpHandle->mFile = file;
-
-  int rc = file->open(path.c_str(), 0, 0, &client, query.c_str());
-
-  httpHandle->mFileSize = file->getOpenSize();
-
-  // check for range requests
-  if (header.count("Range"))
-  {
-    if (!DecodeByteRange(header["Range"], httpHandle->mOffsetMap, httpHandle->mRangeRequestSize, httpHandle->mFileSize))
-    {
-      // indicate range decoding error
-      httpHandle->mRangeDecodingError = true;
-    }
-    else
-    {
-      httpHandle->mRangeRequest = true;
-    }
-  }
-
-  if (!httpHandle->mRangeRequest)
-  {
-    // we put the file size as request size if this is not a range request aka full file download
-    httpHandle->mRangeRequestSize = file->getOpenSize();
-  }
-
-  if (s3)
+  if (mS3)
   {
     //...........................................................................
     // S3 requests
     //...........................................................................
 
-    if (httpHandle->mRangeDecodingError)
+    if (mRangeDecodingError)
     {
-      result = s3->RestErrorResponse(mhd_response, 416, "InvalidRange", "Illegal Range request", header["Range"].c_str(), "");
+      result = mS3->RestErrorResponse(mhd_response, 416, "InvalidRange", "Illegal Range request", mHeader["Range"].c_str(), "");
     }
     else
     {
-      if (rc != SFS_OK)
+      if (mRc != SFS_OK)
       {
-        if (file->error.getErrInfo() == ENOENT)
+        if (mFile->error.getErrInfo() == ENOENT)
         {
-          result = s3->RestErrorResponse(mhd_response, 404, "NoSuchKey", "The specified key does not exist", s3->getPath(), "");
+          result = mS3->RestErrorResponse(mhd_response, 404, "NoSuchKey", "The specified key does not exist", mS3->getPath(), "");
         }
         else
-          if (file->error.getErrInfo() == EPERM)
+          if (mFile->error.getErrInfo() == EPERM)
         {
-          result = s3->RestErrorResponse(mhd_response, 403, "AccessDenied", "Access Denied", s3->getPath(), "");
+          result = mS3->RestErrorResponse(mhd_response, 403, "AccessDenied", "Access Denied", mS3->getPath(), "");
         }
         else
         {
-          result = s3->RestErrorResponse(mhd_response, 500, "InternalError", "File currently unavailable", s3->getPath(), "");
+          result = mS3->RestErrorResponse(mhd_response, 500, "InternalError", "File currently unavailable", mS3->getPath(), "");
         }
-        delete file;
-        file = 0;
+        delete mFile;
+        mFile = 0;
+        delete mS3;
       }
       else
       {
-        if (httpHandle->mRangeRequest)
+        if (mRangeRequest)
         {
-          httpHandle->CreateMultipartHeader(s3->ContentType());
-          eos_static_info(httpHandle->Print());
+          CreateMultipartHeader(mS3->ContentType());
+          eos_static_info(Print());
           char clength[16];
-          snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) httpHandle->mRequestSize);
-          if (httpHandle->mOffsetMap.size() == 1)
+          snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) mRequestSize);
+          if (mOffsetMap.size() == 1)
           {
             // if there is only one range we don't send a multipart response
-            responseheader["Content-Type"] = s3->ContentType();
-            responseheader["Content-Range"] = httpHandle->mSinglepartHeader;
+            responseheader["Content-Type"] = mS3->ContentType();
+            responseheader["Content-Range"] = mSinglepartHeader;
           }
           else
           {
             // for several ranges we send a multipart response
-            responseheader["Content-Type"] = httpHandle->mMultipartHeader;
+            responseheader["Content-Type"] = mMultipartHeader;
           }
           responseheader["Content-Length"] = clength;
           mhd_response = MHD_HTTP_PARTIAL_CONTENT;
@@ -486,9 +633,9 @@ Http::Handler (void *cls,
         {
           // successful http open
           char clength[16];
-          snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) file->getOpenSize());
-          httpHandle->mRequestSize = file->getOpenSize();
-          responseheader["Content-Type"] = s3->ContentType();
+          snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) mFile->getOpenSize());
+          mRequestSize = mFile->getOpenSize();
+          responseheader["Content-Type"] = mS3->ContentType();
           responseheader["Content-Length"] = clength;
           mhd_response = MHD_HTTP_OK;
         }
@@ -500,58 +647,58 @@ Http::Handler (void *cls,
     //...........................................................................
     // HTTP requests
     //...........................................................................
-    if (httpHandle->mRangeDecodingError)
+    if (mRangeDecodingError)
     {
-      result = HttpError(mhd_response, responseheader, "Illegal Range request", MHD_HTTP_REQUESTED_RANGE_NOT_SATISFIABLE);
+      result = Http::HttpError(mhd_response, responseheader, "Illegal Range request", MHD_HTTP_REQUESTED_RANGE_NOT_SATISFIABLE);
     }
     else
     {
-      if (rc != SFS_OK)
+      if (mRc != SFS_OK)
       {
-        if (rc == SFS_REDIRECT)
+        if (mRc == SFS_REDIRECT)
         {
-          result = HttpRedirect(mhd_response, responseheader, file->error.getErrText(), file->error.getErrInfo(), path, query, true);
+          result = Http::HttpRedirect(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo(), mPath, mQuery, true);
         }
         else
-          if (rc == SFS_ERROR)
+          if (mRc == SFS_ERROR)
         {
-          result = HttpError(mhd_response, responseheader, file->error.getErrText(), file->error.getErrInfo());
+          result = Http::HttpError(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
         }
         else
-          if (rc == SFS_DATA)
+          if (mRc == SFS_DATA)
         {
-          result = HttpData(mhd_response, responseheader, file->error.getErrText(), file->error.getErrInfo());
+          result = Http::HttpData(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
         }
         else
-          if (rc == SFS_STALL)
+          if (mRc == SFS_STALL)
         {
-          result = HttpStall(mhd_response, responseheader, file->error.getErrText(), file->error.getErrInfo());
+          result = Http::HttpStall(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
         }
         else
         {
-          result = HttpError(mhd_response, responseheader, "unexpected result from file open", EOPNOTSUPP);
+          result = Http::HttpError(mhd_response, responseheader, "unexpected result from file open", EOPNOTSUPP);
         }
-        delete file;
-        file = 0;
+        delete mFile;
+        mFile = 0;
       }
       else
       {
-        if (httpHandle->mRangeRequest)
+        if (mRangeRequest)
         {
-          httpHandle->CreateMultipartHeader("application/octet-stream");
-          eos_static_info(httpHandle->Print());
+          CreateMultipartHeader("application/octet-stream");
+          eos_static_info(Print());
           char clength[16];
-          snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) httpHandle->mRequestSize);
-          if (httpHandle->mOffsetMap.size() == 1)
+          snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) mRequestSize);
+          if (mOffsetMap.size() == 1)
           {
             // if there is only one range we don't send a multipart response
             responseheader["Content-Type"] = "application/octet-stream";
-            responseheader["Content-Range"] = httpHandle->mSinglepartHeader;
+            responseheader["Content-Range"] = mSinglepartHeader;
           }
           else
           {
             // for several ranges we send a multipart response
-            responseheader["Content-Type"] = httpHandle->mMultipartHeader;
+            responseheader["Content-Type"] = mMultipartHeader;
           }
           responseheader["Content-Length"] = clength;
           mhd_response = MHD_HTTP_PARTIAL_CONTENT;
@@ -560,8 +707,8 @@ Http::Handler (void *cls,
         {
           // successful http open
           char clength[16];
-          snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) file->getOpenSize());
-          httpHandle->mRequestSize = file->getOpenSize();
+          snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) mFile->getOpenSize());
+          mRequestSize = mFile->getOpenSize();
           responseheader["Content-Type"] = "application/octet-stream";
           responseheader["Content-Length"] = clength;
           mhd_response = MHD_HTTP_OK;
@@ -570,35 +717,229 @@ Http::Handler (void *cls,
     }
   }
 
-  if (file)
+  if (mFile)
   {
-    response = MHD_create_response_from_callback(httpHandle->mRequestSize, 32 * 1024, /* 32k page size */
+    // GET method
+    response = MHD_create_response_from_callback(mRequestSize, 32 * 1024, /* 32k page size */
                                                  &Http::FileReaderCallback,
-                                                 (void*) httpHandle,
+                                                 (void*) this,
                                                  &Http::FileCloseCallback);
   }
   else
   {
+    result = "";
     response = MHD_create_response_from_buffer(result.length(),
                                                (void *) result.c_str(),
-                                               MHD_RESPMEM_MUST_COPY);
+                                               MHD_RESPMEM_MUST_FREE);
   }
 
   if (response)
   {
-    for (auto it = responseheader.begin(); it != responseheader.end(); it++)
+    if (mCloseCode)
     {
-      // add all the response header tags
-      MHD_add_response_header(response, it->first.c_str(), it->second.c_str());
+      // close failed
+      result = Http::HttpError(mhd_response, responseheader, "File close failed", MHD_HTTP_SERVICE_UNAVAILABLE);
+      response = MHD_create_response_from_buffer(result.length(),
+                                                 (void *) result.c_str(),
+                                                 MHD_RESPMEM_MUST_COPY);
     }
-    int ret = MHD_queue_response(connection, mhd_response, response);
+    else
+    {
+      for (auto it = responseheader.begin(); it != responseheader.end(); it++)
+      {
+        // add all the response header tags
+        MHD_add_response_header(response, it->first.c_str(), it->second.c_str());
+      }
+    }
+    eos_static_info("mhd_response=%d", mhd_response);
+    int ret = MHD_queue_response(mConnection, mhd_response, response);
 
     return ret;
+
   }
   else
   {
     eos_static_alert("msg=\"response creation failed\"");
     return 0;
+  }
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+HttpHandle::Put (const char *upload_data,
+                 size_t *upload_data_size,
+                 bool first_call)
+{
+  int mhd_response = MHD_HTTP_OK;
+  std::string result;
+  std::map<std::string, std::string> responseheader;
+  struct MHD_Response *response = 0;
+
+  eos_static_info("method=PUT offset=%llu size=%llu size_ptr=%llu",
+                  mCurrentCallbackOffset,
+                  upload_data_size ? *upload_data_size : 0, upload_data_size
+                  );
+
+  if (mRc)
+  {
+    // check for open errors
+    if (mS3)
+    {
+      // ---------------------------------------------------------------------
+      // create S3 error responses
+      // ---------------------------------------------------------------------
+      if (mRc != SFS_OK)
+      {
+        if (mFile->error.getErrInfo() == EPERM)
+        {
+          result = mS3->RestErrorResponse(mhd_response, 403, "AccessDenied", "Access Denied", mS3->getPath(), "");
+        }
+        else
+        {
+          result = mS3->RestErrorResponse(mhd_response, 500, "InternalError", "File currently unwritable", mS3->getPath(), "");
+        }
+        delete mFile;
+        mFile = 0;
+        delete mS3;
+      }
+    }
+    else
+    {
+      // ---------------------------------------------------------------------
+      // create HTTP error response
+      // ---------------------------------------------------------------------
+      if (mRc != SFS_OK)
+      {
+        if (mRc == SFS_REDIRECT)
+        {
+          result = Http::HttpRedirect(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo(), mPath, mQuery, true);
+        }
+        else
+          if (mRc == SFS_ERROR)
+        {
+          result = Http::HttpError(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
+        }
+        else
+          if (mRc == SFS_DATA)
+        {
+          result = Http::HttpData(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
+        }
+        else
+          if (mRc == SFS_STALL)
+        {
+          result = Http::HttpStall(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
+        }
+        else
+        {
+          result = Http::HttpError(mhd_response, responseheader, "unexpected result from file open", EOPNOTSUPP);
+        }
+        delete mFile;
+        mFile = 0;
+      }
+    }
+
+    response = MHD_create_response_from_buffer(result.length(),
+                                               (void *) result.c_str(),
+                                               MHD_RESPMEM_MUST_FREE);
+    int ret = MHD_queue_response(mConnection, mhd_response, response);
+
+    return ret;
+  }
+  else
+  {
+    //...........................................................................
+    // file streaming in 
+    //...........................................................................
+    if (upload_data && upload_data_size && (*upload_data_size))
+    {
+
+      if ((mUploadLeftSize > (1 * 1024 * 1024) && ((*upload_data_size) < (1 * 1024 * 1024))))
+      {
+        // we want more bytes, we don't process this
+        return MHD_YES;
+      }
+
+      size_t stored = mFile->write(mCurrentCallbackOffset, upload_data, *upload_data_size);
+      if (stored != *upload_data_size)
+      {
+        if (mS3)
+        {
+          // S3 write error
+
+        }
+        else
+        {
+          // HTTP write error
+          result = Http::HttpError(mhd_response, responseheader, "Write error occured", MHD_HTTP_SERVICE_UNAVAILABLE);
+          response = MHD_create_response_from_buffer(result.length(),
+                                                     (void *) result.c_str(),
+                                                     MHD_RESPMEM_MUST_COPY);
+        }
+      }
+      else
+      {
+        // decrease the upload left data size
+        mUploadLeftSize -= *upload_data_size;
+        mCurrentCallbackOffset += *upload_data_size;
+        // set to the number of bytes not processed ...
+        *upload_data_size = 0;
+        // don't queue any response here
+        return MHD_YES;
+      }
+    }
+    else
+    {
+      if (first_call)
+      {
+        // if the file was opened we just return MHD_YES to allow the upper
+        // layer to send 100-CONTINUE and to call us again
+        return MHD_YES;
+      }
+      else
+      {
+        mCloseCode = mFile->close();
+        if (mCloseCode)
+        {
+          result = Http::HttpError(mhd_response, responseheader, "File close failed", MHD_HTTP_SERVICE_UNAVAILABLE);
+          response = MHD_create_response_from_buffer(result.length(),
+                                                     (void *) result.c_str(),
+                                                     MHD_RESPMEM_MUST_COPY);
+          mCloseCode = 0; // we don't want to create a second response down
+        }
+        else
+        {
+          result = "";
+          response = MHD_create_response_from_buffer(result.length(),
+                                                     (void *) result.c_str(),
+                                                     MHD_RESPMEM_MUST_FREE);
+        }
+      }
+    }
+
+    if (mS3)
+    {
+      char sFileId[16];
+      snprintf(sFileId, sizeof (sFileId) - 1, "%llu", mFileId);
+
+      // add some S3 specific tags to the response object
+      responseheader["x-amz-version-id"] = sFileId;
+      responseheader["x-amz-request-id"] = mLogId;
+      responseheader["Server"] = gOFS.HostName;
+      responseheader["Connection"] = "close";
+      responseheader["ETag"] = sFileId;
+    }
+
+    for (auto it = responseheader.begin(); it != responseheader.end(); it++)
+    {
+      // add all the response header tags
+      MHD_add_response_header(response, it->first.c_str(), it->second.c_str());
+    }
+
+    eos_static_info("mhd_response=%d", mhd_response);
+    int ret = MHD_queue_response(mConnection, mhd_response, response);
+
+    return ret;
   }
 }
 

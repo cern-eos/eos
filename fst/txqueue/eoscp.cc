@@ -447,7 +447,7 @@ main (int argc, char* argv[])
   extern char* optarg;
   extern int optind;
 
-  while ((c = getopt(argc, argv, "nshdvlipfce:P:X:b:m:u:g:t:S:D:5ar:N:L:R:T")) != -1)
+  while ((c = getopt(argc, argv, "nshdvlipfce:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:O:")) != -1)
   {
     switch (c)
     {
@@ -580,7 +580,29 @@ main (int argc, char* argv[])
         }
       }
       break;
-
+    case 'g':
+      egid = atoi(optarg);
+      char tgid[128];
+      sprintf(tgid, "%d", egid);
+      if (strcmp(tgid,optarg)) 
+      {
+        // this is not a number, try to map it with getgrnam
+        struct group* grinfo = getgrnam(optarg);
+        if (grinfo) 
+          {
+          egid = grinfo->gr_gid;
+          if (debug) 
+          {
+            fprintf(stdout,"[eoscp]: mapping group %s=>GID:%d\n", optarg, egid);
+          }
+        } 
+        else 
+        {
+          fprintf(stderr,"error: cannot map group %s to any unix id!\n", optarg);
+          exit(-ENOENT);
+        }
+      }
+      break;
     case 't':
       bandwidth = atoi(optarg);
       if ((bandwidth < 1) || (bandwidth > 2000))
