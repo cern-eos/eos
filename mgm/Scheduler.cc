@@ -632,6 +632,13 @@ Scheduler::FileAccess (
 
           availablefsweightsort.insert(std::pair<double, eos::common::FileSystem::fsid_t > (weight, snapshot.mId));
           renorm += weight;
+          
+          if ( (!(forcedfsid>0)) && (snapshot.mHost.substr(0,vid.host.length()) == vid.host)) {
+            // if the client sit's on an FST we force this file system
+            forcedfsid= snapshot.mId;
+            eos_static_info("msg=\"enforcing local replica access\" client=\"%s\"", vid.host.c_str());
+          }
+
           eos_static_debug("weight=%f netweight=%f renorm=%f disk-geotag=%s client-geotag=%s id=%d utilization=%f\n", weight, netweight, renorm, snapshot.mGeoTag.c_str(), vid.geolocation.c_str(), snapshot.mId, snapshot.mDiskUtilization);
         }
         else
