@@ -1159,7 +1159,7 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
 	  if ( (!(forcedfsid>0)) && (snapshot.mHost.substr(0,client_host.length()) == client_host)) {
 	    // if the client sit's on an FST we give the local file as the only possible location
 	    forcedfsid= snapshot.mId;
-	    eos_static_info("msg=\"enforcing local replica access\" client=\"%s\"", client_name.c_str());
+	    eos_static_info("msg=\"enforcing local replica access\" client=\"%s\"", client_host.c_str());
 	  }
           availablefsweightsort.insert(std::pair<double,eos::common::FileSystem::fsid_t> (weight, snapshot.mId));          
           renorm += weight;
