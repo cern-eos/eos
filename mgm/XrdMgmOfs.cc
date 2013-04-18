@@ -1269,7 +1269,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
       return Emsg(epname, error, ENODEV,  "open - no replica exists", path);        
     }
 
-    retc = quotaspace->FileAccess(vid.uid, vid.gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW, fmd->getSize(),unavailfs);
+    retc = quotaspace->FileAccess(vid.uid, vid.gid, forcedFsId, space.c_str(), layoutId, selectedfs, fsIndex, isRW, fmd->getSize(),unavailfs,eos::common::FileSystem::kDrain, vid.host);
 
     if (retc == EXDEV) {
       // --------------------------------------------------------------

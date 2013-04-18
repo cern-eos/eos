@@ -1003,7 +1003,7 @@ SpaceQuota::FilePlacement(const char* path, uid_t uid, gid_t gid, const char* gr
 
 
 /*----------------------------------------------------------------------------*/
-int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW, unsigned long long bookingsize, std::vector<unsigned int> &unavailfs, eos::common::FileSystem::fsstatus_t min_fsstatus)
+int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const char* forcedspace, unsigned long lid, std::vector<unsigned int> &locationsfs, unsigned long &fsindex, bool isRW, unsigned long long bookingsize, std::vector<unsigned int> &unavailfs, eos::common::FileSystem::fsstatus_t min_fsstatus, std::string client_host)
 {
   // the caller routing has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) !!!
   
@@ -1155,6 +1155,12 @@ int SpaceQuota::FileAccess(uid_t uid, gid_t gid, unsigned long forcedfsid, const
                 weight =0.1;
             }
           }
+
+	  if ( (!(forcedfsid>0)) && (snapshot.mHost.substr(0,client_host.length()) == client_host)) {
+	    // if the client sit's on an FST we give the local file as the only possible location
+	    forcedfsid= snapshot.mId;
+	    eos_static_info("msg=\"enforcing local replica access\" client=\"%s\"", client_name.c_str());
+	  }
           availablefsweightsort.insert(std::pair<double,eos::common::FileSystem::fsid_t> (weight, snapshot.mId));          
           renorm += weight;
           eos_static_debug("weight = %f netweight = %f renorm = %f %d=>%f\n", weight, netweight, renorm, snapshot.mId, snapshot.mDiskUtilization);
