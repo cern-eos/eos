@@ -1,13 +1,5 @@
 #ifndef __XRDUTILS_HH__
 #define __XRDUTILS_HH__
-// ----------------------------------------------------------------------
-// File: XrdUtils.hh
-// Author: Geoffray Adde - CERN
-// ----------------------------------------------------------------------
-//
-// Most of the following code has been replicated and slightly modified
-// from XRootD source code (mainly XrdCl and XrdPosix)
-// The main goal is to get rid of the dependency on XrdPosix.
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2013 CERN/Switzerland                                  *
@@ -25,6 +17,16 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+
+//------------------------------------------------------------------------------
+//! @file XrdUtils.hh
+//! @author Geoffray Adde - CERN
+//! @brief Some utility class and functions to help to use Xrd.
+//!        Most of the following code has been replicated and slightly modified
+//!        from XRootD source code (mainly XrdCl and XrdPosix)
+//!        The main goal is to get rid of the dependency on XrdPosix.
+//------------------------------------------------------------------------------
+
 extern "C" {
 #include "globus_gridftp_server.h"
 }

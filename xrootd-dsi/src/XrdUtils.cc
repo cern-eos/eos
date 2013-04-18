@@ -1,11 +1,4 @@
-// ----------------------------------------------------------------------
-// File: XrdUtils.cc
-// Author: Geoffray Adde - CERN
-// ----------------------------------------------------------------------
-//
-// Most of the following code has been replicated and slightly modified
-// from XRootD source code (mainly XrdCl and XrdPosix)
-// The main goal is to get rid of the dependency on XrdPosix.
+
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2013 CERN/Switzerland                                  *
@@ -23,6 +16,15 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+
+//------------------------------------------------------------------------------
+//! @file XrdUtils.cc
+//! @author Geoffray Adde - CERN
+//! @brief Some utility class and functions to help to use Xrd.
+//!        Most of the following code has been replicated and slightly modified
+//!        from XRootD source code (mainly XrdCl and XrdPosix)
+//!        The main goal is to get rid of the dependency on XrdPosix.
+//------------------------------------------------------------------------------
 
 #include <stdlib.h>
 #include <string.h>
@@ -271,19 +273,17 @@ int XrootStatUtils::mapFlagsXrd2Pos(int flags)
 
 int XrootStatUtils::mapFlagsPos2Xrd(int flags)
 {
-  int newflags = 0;
+  int XOflags;
 
-  // Map the xroot flags to unix flags
-  //
-  if (flags & S_IXUSR )     newflags |= kXR_xset;
-  if (flags & S_IRUSR ) newflags |= kXR_readable;
-  if (flags & S_IWUSR ) newflags |= kXR_writable;
-  if (flags & S_IFBLK )    newflags |= kXR_other;
-  else if (flags & S_IFDIR ) newflags |= kXR_isDir;
-  if (flags & S_ISVTX ) newflags |= kXR_offline;
-  if (flags & S_ISUID )newflags |= kXR_poscpend;
+  XOflags = (flags & (O_WRONLY | O_RDWR) ? kXR_open_updt : kXR_open_read);
+  if (flags & O_CREAT) {
+      XOflags |= (flags & O_EXCL ? kXR_new : kXR_delete);
+      XOflags |= kXR_mkpath;
+  }
+  else if ( (flags & O_TRUNC) && (XOflags & kXR_open_updt))
+             XOflags |= kXR_delete;
 
-  return newflags;
+  return XOflags;
 }
 
 /******************************************************************************/

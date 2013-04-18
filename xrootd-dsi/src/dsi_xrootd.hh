@@ -1,8 +1,3 @@
-// ----------------------------------------------------------------------
-// File: dsi_xrootd.hh
-// Author: Geoffray Adde - CERN
-// ----------------------------------------------------------------------
-
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2013 CERN/Switzerland                                  *
@@ -21,17 +16,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+//------------------------------------------------------------------------------
+//! @file dsi_xrootd.hh
+//! @author Geoffray Adde - CERN
+//! @brief Interface of the XRootD DSI plugin
+//------------------------------------------------------------------------------
+
 #if !defined(DSI_XRD_HH)
 #define DSI_XRD_HH
+
+#include "XrdFileIo.hh"
 
 extern "C" {
 #include "globus_gridftp_server.h"
 
 typedef struct globus_l_gfs_xrood_handle_s {
-  globus_mutex_t mutex;
-  XrdCl::File *file;
+  // !!! WARNING
+  // globus_mutex is not adapted to the XRootd async framework
+  // because if threading is disbaled in the globus build
+  // then, the thread model doesn't lock the mutexes because it's semantically equivalent in that case
+  // but the XRootD client is multithreaded anyway
+  pthread_mutex_t mutex;
+  XrdFileIo *fileIo;
   globus_result_t cached_res;
-  int outstanding;
   int optimal_count;
   globus_bool_t done;
   globus_off_t blk_length;
@@ -58,6 +65,9 @@ static globus_result_t globus_l_gfs_make_error(const char*, int);
 
 void fill_stat_array(globus_gfs_stat_t *, struct stat, char *);
 void free_stat_array(globus_gfs_stat_t * ,int);
+
+int next_read_chunk(globus_l_gfs_xrood_handle_s *xrootd_handle, int64_t &nextreadl);
+
 int xrootd_handle_open(char *, int, int,
     globus_l_gfs_xrootd_handle_t *);
 static globus_bool_t globus_l_gfs_xrootd_send_next_to_client

@@ -1,4 +1,26 @@
+OVERVIEW
+--------
 This is an XRootD DSI plugin for gridftp.
+
+LICENSE
+-------
+Copyright (C) 2013 CERN/Switzerland                                  
+                                                                     
+This program is free software: you can redistribute it and/or modify 
+it under the terms of the GNU General Public License as published by 
+the Free Software Foundation, either version 3 of the License, or    
+(at your option) any later version.                                  
+                                                                     
+This program is distributed in the hope that it will be useful,      
+but WITHOUT ANY WARRANTY; without even the implied warranty of       
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        
+GNU General Public License for more details.                         
+                                                                     
+You should have received a copy of the GNU General Public License    
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ 
+FEATURES
+--------
 So far, the supported operations are :
   mkdir, rmdir, delete, rename, cksm (checksum), chmod  
 Any other operation is not implemented and will result in an error.
@@ -7,3 +29,76 @@ Some eos specifics can be enabled.
 More generally, the configuration of the plugin is 
 written in the file /etc/sysconfig/xrootd-gridftp-server.
 
+the testing is based on uberftp:
+warning!! the test has been reported working with uberftp 2.6 but NOT working with uberftp 2.4
+(take care that 2.4 is the version currently installed on slc5)
+
+OS
+--
+This plugin has been successfully tested
+- on SLC6 with eos specifics
+- on SLC6 with a pure XRootD server
+- on SLC5 with a pure XRootD server
+Because of CMake, it sould be possible to compile it without any significant change on any OS
+provided with gcc > 4.4 or an equivalent compiler.
+
+EXTERNAL DEPENDENCIES
+---------------------
+This plugin has been developped and tested with globus-gridftp-server-devel 6.19-1 and XRootD 3.3.1-1
+
+To run this plugin, the following packages are required:
+- xrootd-cl
+- globus-gridftp-server-progs
+
+To Build this pluginm the following packages are required:
+- globus-gridftp-server-devel
+- xrootd-cl-devel
+- gcc > 4.4
+
+Minimum versions for these packages are not known.
+The testing script requires uberftp >= 2.6
+
+INSTALL
+-------
+Create an empty build directory anywhere then run cmake. It should look like
+> mkdir -p /path/to/build/dir
+> cd /path/to/build/dir
+> cmake /path/to/cmake.install/.
+
+Then there are several possible targets for make : all(default), clean, install, uninstall, dist, srpm, rpm
+For instance, to build the binary rpm, you should type 
+> cd /path/to/build/dir
+> make rpm
+
+FILE TREE
+---------
+  - src/			: source code
+  - cmake/			: cmake helpers for the build process
+  - etc/			: config and service files 
+  - doxygen/		: the directory to build the doxy documentation
+  - test/			: a testing script to unitary test each feature and to stress test some of them 
+  - CMakeLists.txt	: the CMake source file to make the build process
+  - xroot-dsi.spec	: the spec file to build the rpm
+  - README          : the current file
+
+DOCUMENTATION
+-------------
+The documentation is split out into several files, namely :
+- the current file for some general information
+- the doxy documentation (to build it, just go to the doxygen/ subdir and run doxygen)
+- comments in the source code for code related informations
+- the files in the subdir etc/, especially etc/sysconfig/xrootd-gridftp-server 
+  which should be meaningful for the configuration of the plugin and the eos specifics
+
+KNOWN BUGS AND LIMITATIONS
+--------------------------
+- because the Xrd Client is asynchronous, the code of the plugin is multithreaded. 
+  then, the threading should be turned on in the gridftp server (see the provided init script)
+- even if it has an offset argument, it seems that globus_gridftp_server_register_write()   
+  cannot be called out-of-order. The implementation of the plugin for send op is asynchronous and
+  a simple mechanism has been implemented to turn it synchronous. If this limitation disappears,
+  the plugin can be turned asynchronous but it requires to recompile. It's on purpose.
+
+CONTACT
+-------
+geoffray.adde@cern.ch

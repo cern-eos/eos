@@ -69,7 +69,8 @@ if [ ! -d "/var/log/xrootd/gridftp" ]; then
 fi
 
 if [ -z "$options" ]; then
-  options=" -S -p $port -log-module stdio -logfile $debuglog -log-level $debugloglevel -log-transfer $log -dsi xrootd"
+  options=" -S -p $port -log-module stdio -logfile $debuglog -log-level $debugloglevel -log-transfer $log -dsi xrootd -threads 1"
+  #options=" -S -p $port -log-module stdio -logfile $debuglog -log-level $debugloglevel -log-transfer $log -dsi xrootd"
 fi
 
 start()

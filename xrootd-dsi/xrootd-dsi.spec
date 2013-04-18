@@ -11,12 +11,12 @@ Group: Applications/File
 Source0: xrootd-dsi-0.3.0-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
-Requires: xrootd-cl >= 3.2.0
+Requires: xrootd-cl >= 3.3.0
 Requires: globus-gridftp-server-progs
 
 BuildRequires: globus-gridftp-server-devel
-BuildRequires: xrootd-cl >= 3.2.0
-BuildRequires: xrootd-cl-devel >= 3.2.0
+BuildRequires: xrootd-cl >= 3.3.0
+BuildRequires: xrootd-cl-devel >= 3.3.0
 
 
 %description
@@ -63,20 +63,7 @@ if [ $1 = 0 ]; then
 fi
 
 %changelog
-* Tue Feb 05 2013 <root@eosdevsrv1.cern.ch> - dsi 0.3.0-0 
+* Tue Feb 05 2013 <geoffray.adde@cern.ch> - dsi 0.3.0-0 
 - changing name to XRootD plugin (eos features are now optional and can be configured in /etc/sysconfig/xrootd-gridftp-server)
 - moving to CMake build
 - moving to xrootd 3.3.0 ( move from XrdPosix to XrdCl, XrdCl being part of the xrootd package)
-* Wed Feb 08 2012 root <root@eosdevsrv1.cern.ch> - dsi 0.2.0-0
-- no changes, just new version number
-* Tue Jan 17 2012 root <root@eosdevsrv1.cern.ch> - dsi 0.1.1-8
-- support for file size preset via eos.bookingsize attribute
-* Wed Dec 14 2011 root <root@eosdevsrv1.cern.ch> - dsi 0.1.1-5
-* Fri Dec 09 2011 root <root@eosdevsrv1.cern.ch> - dsi 0.1.1-3
-* Thu Jun 16 2011 root <root@lxbsu2005.cern.ch> - dsi.rc20
-- moving to xrootd 3.0.4
-- adding command implementation (mkdir,rmdir,chmod+cksm)
-* Tue Apr 26 2011 root <root@lxfsrd0304.cern.ch> - dsi.rc3
-- Build for eos-0.1.0
-
-

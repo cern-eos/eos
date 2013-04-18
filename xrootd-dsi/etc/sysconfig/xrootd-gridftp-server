@@ -6,5 +6,6 @@ export XROOTD_VMP=localhost:1094:/
 # XROOTD_DSI_EOS_CHMOD    # enable EOS chmod
 # XROOTD_DSI_EOS_APPTAG   # enable EOS apptag to specify that requests are from the DSI gridftp plugin
 # XROOTD_DSI_EOS_BOOK     # enable EOS space booking when receiving a file
-export XROOTD_DSI_EOS=1         # enable ALL the EOS specifics
+#export XROOTD_DSI_EOS=1         # enable ALL the EOS specifics
+GLOBUS_THREAD_MODEL=pthread
 

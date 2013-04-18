@@ -51,7 +51,7 @@ find_package(XRootD REQUIRED)
 # Platform Specific
 set(LIB_INSTALL_DIR lib64)
 
-set(CMAKE_CXX_FLAGS "-g -Wall -O2 -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\" -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64" )
+set(CMAKE_CXX_FLAGS "-std=c++0x -g -Wall -O2 -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\" -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64" )
 #set(CMAKE_CXX_FLAGS "-g -Wall -O0 -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\" -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64" )
 ######################################################################################################################
 # build targets
@@ -59,8 +59,12 @@ set(CMAKE_CXX_FLAGS "-g -Wall -O2 -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR
 include_directories( ../ ${XROOTD_INCLUDE_DIR} ${GLOBUSGRIDFTPSERVER_INCLUDE_DIR})
 link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR} )
 add_library (globus_gridftp_server_xrootd_gcc64pthr SHARED
-	    globus_gridftp_server_xrootd.cc
-	    XrdUtils.cc
+	    src/globus_gridftp_server_xrootd.cc
+	    src/XrdUtils.cc
+        src/AsyncMetaHandler.cc
+	    src/ChunkHandler.cc
+	    src/SimpleHandler.cc
+        src/XrdFileIo.cc
 )
 
 if (Linux)
@@ -116,7 +120,7 @@ set(CPACK_PACKAGE_VERSION_PATCH ${VERSION_PATCH})
 set(CPACK_SOURCE_GENERATOR "TGZ")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME
   "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}-${RELEASE}")
-set(CPACK_SOURCE_IGNORE_FILES "/dsi/;/build/;/.deps/;/.bzr/;~$;'.'o$;/CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;ApMon;build;install_manifest.txt;lib;/.git/;${CPACK_SOURCE_IGNORE_FILES};")
+set(CPACK_SOURCE_IGNORE_FILES "/doxygen/html;/valgrind/;/.deps/;/.bzr/;~$;'.'o$;/CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;build;install_manifest.txt;lib;/.git/;${CPACK_SOURCE_IGNORE_FILES};")
 
 include(CPack)
 
