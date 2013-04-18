@@ -2121,6 +2121,7 @@ xrd_open (const char* path, int oflags, mode_t mode)
   int retc = -1;
   XrdOucString spath = path;
   mode_t mode_sfs = 0;
+  errno = 0;
 
   XrdSfsFileOpenMode flags_sfs = SFS_O_RDONLY; // open for read by default
 
@@ -2194,17 +2195,17 @@ xrd_open (const char* path, int oflags, mode_t mode)
       eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                          eos::common::LayoutId::kXrdCl);
       retc = file->Open(spath.c_str(), flags_sfs, mode_sfs, "");
-
+      eos_static_info("open returned retc=%d", retc);
       if (retc)
       {
         eos_static_err("error=open failed for %s", spath.c_str());
+        return xrd_open_retc_map(errno);
       }
       else
       {
         retc = xrd_add_fd2file(file);
+        return retc;
       }
-
-      return xrd_open_retc_map(errno);
     }
 
     if (spath.endswith("/proc/who"))
@@ -2218,18 +2219,20 @@ xrd_open (const char* path, int oflags, mode_t mode)
       if (retc)
       {
         eos_static_err("error=open failed for %s", spath.c_str());
+        return xrd_open_retc_map(errno);
       }
       else
       {
         retc = xrd_add_fd2file(file);
+        return retc;
       }
-      return xrd_open_retc_map(errno);
+
     }
 
     if (spath.endswith("/proc/quota"))
     {
       spath.replace("/proc/quota", "/proc/user/");
-      spath += "?mgm.cmd=quota&mgm.subcmd=ls&mgm.format=fuse&eos.app=fuse";
+      spath += "?mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                          eos::common::LayoutId::kXrdCl);
       retc = file->Open(spath.c_str(), flags_sfs, mode_sfs, "");
@@ -2237,12 +2240,13 @@ xrd_open (const char* path, int oflags, mode_t mode)
       if (retc)
       {
         eos_static_err("error=open failed for %s", spath.c_str());
+        return xrd_open_retc_map(errno);
       }
       else
       {
         retc = xrd_add_fd2file(file);
+        return retc;
       }
-      return xrd_open_retc_map(errno);
     }
   }
 
@@ -2549,7 +2553,14 @@ xrd_pread (int fildes,
   else
   {
     file = xrd_get_file(fildes);
-    ret = file->Read(offset, static_cast<char*> (buf), nbyte);
+    if (file)
+    {
+      ret = file->Read(offset, static_cast<char*> (buf), nbyte);
+    }
+    else
+    {
+      ret = EIO;
+    }
   }
 
   COMMONTIMING("end", &xpr);
@@ -2674,13 +2685,13 @@ xrd_rename (const char* oldpath, const char* newpath)
 
 
 //------------------------------------------------------------------------------
-// Get user name from the uid
+// Get user name from the uid and change the effective user ID of the thread
 //------------------------------------------------------------------------------
 
 const char*
-xrd_mapuser (uid_t uid)
+xrd_mapuser (uid_t uid, pid_t pid)
 {
-  eos_static_debug("uid=%lu", (unsigned long) uid);
+  eos_static_debug("uid=%lu pid=%lu", (unsigned long) uid, (unsigned long) pid);
   struct passwd* pw;
   XrdOucString sid = "";
   XrdOucString* spw = NULL;
@@ -2706,14 +2717,143 @@ xrd_mapuser (uid_t uid)
 
   passwdstoremutex.UnLock();
   //............................................................................
-  // Setup the default locations for GSI authentication and KRB5 Authentication
+  // Create symbolic links to the KRB5CCNAME of the calling process
+  // since the XRootD plugins will just use the default locations
   //............................................................................
-  XrdOucString userproxy = "/tmp/x509up_u";
-  XrdOucString krb5ccname = "/tmp/krb5cc_";
-  userproxy += (int) uid;
-  krb5ccname += (int) uid;
-  setenv("X509_USER_PROXY", userproxy.c_str(), 1);
-  setenv("KRB5CCNAME", krb5ccname.c_str(), 1);
+
+  setuid(0);
+
+  {
+    static std::map<uid_t, time_t> linkmap;
+    static XrdSysMutex linkmapMutex;
+
+    XrdOucString userproxy = "/tmp/x509up_u";
+    XrdOucString krb5ccname = "/tmp/krb5cc_";
+    userproxy += (int) uid;
+    krb5ccname += (int) uid;
+    unsetenv("X509_USER_PROXY");
+    unsetenv("KRB5CCNAME");
+
+
+    struct stat buf;
+    // we do some gymnastic for krb5 
+    bool parseProcessEnvironment = false;
+    time_t now = time(NULL);
+
+    bool checkLink = false;
+    {
+      XrdSysMutexHelper lLock(linkmapMutex);
+      if (linkmap.count(uid))
+      {
+        if (linkmap[uid] < now)
+        {
+          // check once per minute
+          linkmap[uid] = now + 60;
+          checkLink = true;
+        }
+      }
+      else
+      {
+        linkmap[uid] = now + 60;
+        checkLink = true;
+      }
+    }
+
+    eos_static_info("checklink=%d", checkLink);
+    if (checkLink)
+    {
+      if (!lstat(krb5ccname.c_str(), &buf))
+      {
+        eos_static_info("islink=%d", S_ISLNK(buf.st_mode));
+        // check if this is a file or a link
+        if (S_ISLNK(buf.st_mode))
+        {
+          if (stat(krb5ccname.c_str(), &buf))
+          {
+            // the link target does not exist anymore
+            parseProcessEnvironment = true;
+          }
+          else
+          {
+            if (((now - buf.st_mtime) > 300))
+            {
+              struct utimbuf mtime;
+              mtime.actime = now;
+              mtime.modtime = now;
+              // update the modification time
+              utime(krb5ccname.c_str(), &mtime);
+              parseProcessEnvironment = true;
+            }
+          }
+        }
+      }
+      else
+      {
+        parseProcessEnvironment = true;
+      }
+
+      if (parseProcessEnvironment)
+      {
+        char envBuffer[65536];
+        envBuffer[0] = 0;
+        // read the environment of the process and create a link to the ticket
+        XrdOucString envFile = "/proc/";
+        envFile += (int) pid;
+        envFile += "/environ";
+        int fd = open(envFile.c_str(), O_RDONLY);
+        eos_static_info("env-file=%s", envFile.c_str());
+        if (fd > 0)
+        {
+          std::string krb5cc;
+
+          // read the stuff
+          read(fd, envBuffer, sizeof (envBuffer));
+          envBuffer[65535] = 0;
+          int krb5ccnamespos = -1;
+          for (size_t i = 0; i< sizeof (envBuffer) - strlen("KRB5CCNAME="); i++)
+          {
+
+            if (!strncmp(envBuffer + i, "KRB5CCNAME=", strlen("KRB5CCNAME=")))
+            {
+              krb5ccnamespos = i + strlen("KRB5CCNAME=");
+              krb5cc = (envBuffer + krb5ccnamespos);
+            }
+            if (krb5cc.length())
+            {
+              eos_static_info("krb5cc=%s", krb5cc.c_str());
+
+              // if this is a ticket in a directory convert it into a FILE:
+              if (krb5cc.substr(0, strlen("DIR:")) == "DIR:")
+              {
+                krb5cc.erase(0, 4);
+                krb5cc.insert(0, "FILE:");
+                krb5cc += "tkt";
+              }
+
+              if (krb5cc.substr(0, strlen("FILE:")) == "FILE:")
+              {
+                std::string source = krb5cc;
+                source.erase(0, strlen("FILE:"));
+                eos_static_info("msg=\"symlink\" source=%s target=%s", source.c_str(), krb5ccname.c_str());
+                seteuid(uid);
+                // create a symbolic link from the 'default' location to the real ticket
+                // - if it works fine, if not what can we do!
+                unlink(krb5ccname.c_str());
+                symlink(source.c_str(), krb5ccname.c_str());
+              }
+              break;
+            }
+          }
+          close(fd);
+        }
+      }
+    }
+  }
+
+  // change the effective user ID to the caller
+  seteuid(uid);
+
+  eos_static_info("uid=%d euid=%d", uid, geteuid());
   //............................................................................
   return STRINGSTORE(spw->c_str());
 }

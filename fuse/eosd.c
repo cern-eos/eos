@@ -425,7 +425,7 @@ eosfs_ll_opendir (fuse_req_t req,
     return;
   }
 
-  sprintf( fullpath, "root://%s@%s/%s/%s", xrd_mapuser( req->ctx.uid ),
+  sprintf( fullpath, "root://%s@%s/%s/%s", xrd_mapuser( req->ctx.uid , req->ctx.pid ),
            mounthostport, mountprefix, name );
 
   xrd_unlock_r_p2i(); // <=
@@ -530,7 +530,7 @@ eosfs_ll_readdir (fuse_req_t req,
   sprintf (dirfullpath, "/%s%s", mountprefix, name);
   sprintf (fullpath, "root://%s@%s//proc/user/?mgm.cmd=fuse&"
            "mgm.subcmd=inodirlist&mgm.path=/%s%s",
-           xrd_mapuser (req->ctx.uid), mounthostport, mountprefix, name);
+           xrd_mapuser (req->ctx.uid, req->ctx.pid), mounthostport, mountprefix, name);
 
   if (isdebug)
   {
@@ -747,10 +747,11 @@ eosfs_ll_mknod (fuse_req_t req,
 
     sprintf (partialpath, "/%s%s/%s", mountprefix, parentpath, name);
 
-    sprintf (fullpath, "root://%s@%s//%s%s/%s", xrd_mapuser (req->ctx.uid),
+    const char* user = xrd_mapuser (req->ctx.uid, req->ctx.pid);
+    sprintf (fullpath, "root://%s@%s//%s%s/%s", user,
              mounthostport, mountprefix, parentpath, name);
 
-    sprintf (fullparentpath, "root://%s@%s//%s%s", xrd_mapuser (req->ctx.uid),
+    sprintf (fullparentpath, "root://%s@%s//%s%s", user,
              mounthostport, mountprefix, parentpath);
 
     if ((strlen (parentpath) == 1) && (parentpath[0] == '/'))
@@ -992,13 +993,14 @@ eosfs_ll_symlink (fuse_req_t req,
     return;
   }
 
-  sprintf (fullpath, "root://%s@%s/%s/%s", xrd_mapuser (req->ctx.uid),
+  const char* user = xrd_mapuser (req->ctx.uid, req->ctx.pid);
+  sprintf (fullpath, "root://%s@%s/%s/%s", user,
            mounthostport, parentpath, name);
 
   sprintf (linksource, "%s/%s", parentpath, name);
   sprintf (linkdest, "%s/%s", parentpath, link);
 
-  sprintf (fulllinkpath, "root://%s@%s/%s/%s", xrd_mapuser (req->ctx.uid),
+  sprintf (fulllinkpath, "root://%s@%s/%s/%s", user,
            mounthostport, parentpath, link);
 
   xrd_unlock_r_p2i (); // <=
@@ -1273,7 +1275,7 @@ eosfs_ll_open (fuse_req_t req,
     return;
   }
 
-  sprintf (fullpath, "root://%s@%s//%s%s", xrd_mapuser (req->ctx.uid),
+  sprintf (fullpath, "root://%s@%s//%s%s", xrd_mapuser (req->ctx.uid, req->ctx.pid),
            mounthostport, mountprefix, name);
 
   xrd_unlock_r_p2i (); // <=
