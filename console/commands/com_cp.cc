@@ -659,8 +659,10 @@ com_cp (char* argin) {
       if (arg1.beginswith("https:")) {
 	cmdline += "-k ";
       }
-
-      cmdline += arg1; cmdline += " |";
+      cmdline += "\"";
+      cmdline += arg1; 
+      cmdline += "\"";
+      cmdline += " |";
       rstdin = true;
       noprogress = true;
     }
@@ -673,14 +675,18 @@ com_cp (char* argin) {
     if ( arg1.beginswith("as3:")) {
       XrdOucString s3arg= arg1; s3arg.replace("as3:","");
       cmdline += "s3 get ";
+      cmdline += "\"";
       cmdline += s3arg;
+      cmdline += "\"";
       cmdline += " |";
       rstdin = true;
     }
     
     if ( arg1.beginswith("gsiftp:")) {
       cmdline += "globus-url-copy ";
+      cmdline += "\"";
       cmdline += arg1;
+      cmdline += "\"";
       cmdline += " - |";
       rstdin = true;
       noprogress = true;
@@ -708,12 +714,17 @@ com_cp (char* argin) {
     if (rstdin) {
       cmdline += "- ";
     } else {
-      cmdline += arg1; cmdline += " ";
+      cmdline += "\"";
+      cmdline += arg1; 
+      cmdline += "\"";
+      cmdline += " ";
     }
     if (rstdout) {
       cmdline += "- ";
     } else {
+      cmdline += "\"";
       cmdline += arg2;
+      cmdline += "\"";
     }
     
     if ( arg2.beginswith("as3:") ) {
