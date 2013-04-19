@@ -35,11 +35,17 @@ com_quota (char* arg1) {
   XrdOucString arg = subtokenizer.GetToken();
   bool highlighting = true;
 
-  if ( subcommand == "") {
+  if ( subcommand == "" || subcommand.beginswith("/") ) {
     XrdOucString in ="mgm.cmd=quota&mgm.subcmd=lsuser";
+    if (subcommand.beginswith("/")) {
+      in += "&mgm.quota.space=";
+      in += subcommand;
+    }
     global_retc = output_result(client_user_command(in));
     return (0);
   }
+
+  bool has_space=false;
 
   if ( subcommand == "ls" ) {
     XrdOucString in ="mgm.cmd=quota&mgm.subcmd=ls";
@@ -62,11 +68,16 @@ com_quota (char* arg1) {
             arg = subtokenizer.GetToken();
           } else 
             if ((arg == "--path") || (arg == "-p")) {
+	      if (has_space) {
+		goto com_quota_usage;
+	      }
+
               XrdOucString space = subtokenizer.GetToken();
               if (space.c_str()) {
                 in += "&mgm.quota.space=";
                 in += space;
                 arg = subtokenizer.GetToken();
+		has_space = true;
               }
             } else 
               if ((arg == "-m")) {
@@ -77,8 +88,16 @@ com_quota (char* arg1) {
                 if ((arg == "-n")) {
                   in += "&mgm.quota.printid=n";
                   arg = subtokenizer.GetToken();
-                } else 
-                  goto com_quota_usage;
+                } else {
+		  if ((arg.beginswith("/")) && (!has_space)) {
+		    in += "&mgm.quota.space=";
+		    in += arg;
+		    has_space = true;
+		    arg = subtokenizer.GetToken();
+		  } else {
+		    goto com_quota_usage;
+		  }
+		}
       } while (arg.length());
     
     
@@ -107,6 +126,9 @@ com_quota (char* arg1) {
           arg = subtokenizer.GetToken();
         } else
           if ((arg == "--path") || (arg == "-p")) {
+	    if (has_space) {
+	      goto com_quota_usage;
+	    }
             space = subtokenizer.GetToken();
             if (!space.length()) 
               goto com_quota_usage;
@@ -114,6 +136,7 @@ com_quota (char* arg1) {
             in += "&mgm.quota.space=";
             in += space;
             arg = subtokenizer.GetToken();
+	    has_space = true;
           } else
             if ((arg == "--volume") || (arg =="-v")) {
               XrdOucString bytes = subtokenizer.GetToken();
@@ -130,8 +153,16 @@ com_quota (char* arg1) {
                 in += "&mgm.quota.maxinodes=";
                 in += inodes;
                 arg = subtokenizer.GetToken();
-              } else 
-                goto com_quota_usage;
+              } else {
+		if ((arg.beginswith("/")) && (!has_space)) {
+		  in += "&mgm.quota.space=";
+		  in += arg;
+		  has_space = true;
+		  arg = subtokenizer.GetToken();
+		} else {
+		  goto com_quota_usage;
+		}
+	      }
     } while (arg.length());
 
     global_retc = output_result(client_user_command(in));
@@ -158,6 +189,9 @@ com_quota (char* arg1) {
           arg = subtokenizer.GetToken();
         } else 
           if ((arg == "--path") || (arg == "-p")) {
+	    if (has_space) {
+	      goto com_quota_usage;
+	    }
             XrdOucString space = subtokenizer.GetToken();
             if (!space.length()) 
               goto com_quota_usage;
@@ -165,8 +199,16 @@ com_quota (char* arg1) {
             in += "&mgm.quota.space=";
             in += space;
             arg = subtokenizer.GetToken();
+	    has_space = true;
           } else {
-            goto com_quota_usage;
+	    if ((arg.beginswith("/")) && (!has_space)) {
+	      in += "&mgm.quota.space=";
+	      in += arg;
+	      has_space = true;
+	      arg = subtokenizer.GetToken();
+	    } else {
+	      goto com_quota_usage;
+	    }
           }
     } while (arg.length());
     
@@ -220,26 +262,27 @@ com_quota (char* arg1) {
   
   
  com_quota_usage:
-  fprintf(stdout,"usage: quota                                                                                       : show personal quota\n");
-  fprintf(stdout,"       quota ls [-n] [-m] -u <uid> [-p <path> ]                                                    : list configured quota and quota node(s)\n");
-  fprintf(stdout,"       quota ls [-n] [-m] --uid <uid> [--path <path>]                                              : list configured quota and quota node(s)\n");
-  fprintf(stdout,"       quota ls [-n] [-m] -g <gid> [-p <path> ]                                                    : list configured quota and quota node(s)\n");
-  fprintf(stdout,"       quota ls [-n] [-m] --gid <gid> [--path <path>]                                              : list configured quota and quota node(s)\n");
-  fprintf(stdout,"       quota set -u <uid>|-g <gid> -p <path>   [-v <bytes>] [-i <inodes>]                          : set volume and/or inode quota by uid or gid \n");
-  fprintf(stdout,"       quota set --uid <uid>|--gid <gid> -p|--path <path> [--volume <bytes>] [--inodes <inodes>]   : set volume and/or inode quota by uid or gid \n");
-  fprintf(stdout,"       quota rm  -u <uid>|-g <gid> -p|--path <path>                                                : remove configured quota for uid/gid in path\n");
-  fprintf(stdout,"       quota rm  --uid <uid>|--gid <gid> -p|--path <path>                                          : remove configured quota for uid/gid in path\n");
+  fprintf(stdout,"usage: quota [<path>]                                                                              : show personal quota for all or only the quota node responsible for <path>\n"); 
+  fprintf(stdout,"       quota ls [-n] [-m] [-u <uid>] [-g <gid>] [-p <path> ]                                       : list configured quota and quota node(s)\n");
+  fprintf(stdout,"       quota ls [-n] [-m] [-u <uid>] [-g <gid>] [<path>]                                           : list configured quota and quota node(s)\n");
+  fprintf(stdout,"       quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] -p <path>                            : set volume and/or inode quota by uid or gid \n");
+  fprintf(stdout,"       quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] <path>                               : set volume and/or inode quota by uid or gid \n");
+  fprintf(stdout,"       quota rm  -u <uid>|-g <gid> -p <path>                                                       : remove configured quota for uid/gid in path\n");
+  fprintf(stdout,"       quota rm  -u <uid>|-g <gid> <path>                                                          : remove configured quota for uid/gid in path\n");
   fprintf(stdout,"                                                 -m                  : print information in monitoring <key>=<value> format\n");
   fprintf(stdout,"                                                 -n                  : don't translate ids, print uid+gid number\n");
   fprintf(stdout,"                                                 -u/--uid <uid>      : print information only for uid <uid>\n");
-  fprintf(stdout,"                                                 -g/-gid <gid>       : print information only for gid <gid>\n");
-  fprintf(stdout,"                                                 -p/--path <path>    : print information only for path <path>\n");
+  fprintf(stdout,"                                                 -g/--gid <gid>      : print information only for gid <gid>\n");
+  fprintf(stdout,"                                                 -p/--path <path>    : print information only for path <path> - this can also be given without -p or --path\n");
   fprintf(stdout,"                                                 -v/--volume <bytes> : set the volume limit to <bytes>\n");
   fprintf(stdout,"                                                 -i/--inodes <inodes>: set the inodes limit to <inodes>\n");
   fprintf(stdout,"     => you have to specify either the user or the group identified by the unix id or the user/group name\n");
   fprintf(stdout,"     => the space argument is by default assumed as 'default'\n");
   fprintf(stdout,"     => you have to specify at least a volume or an inode limit to set quota\n");
+  fprintf(stdout,"     => for convenience all commands can just use <path> as last argument ommitting the -p|--path e.g. quota ls /eos/ ...\n");
+  fprintf(stdout,"     => if <path> is not terminated with a '/' it is assumed to be a file so it want match the quota node with <path>/ !\n");
   fprintf(stdout,"       quota rmnode -p <path>                                                                      : remove quota node and every defined quota on that node\n");
+
   
 
   return (0);

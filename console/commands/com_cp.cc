@@ -617,7 +617,7 @@ com_cp (char* argin) {
       arg2.insert("/",0);
       arg2.insert(serveruri.c_str(),0);
       char targetadd[1024];
-      snprintf(targetadd,sizeof(targetadd)-1,"\\?eos.targetsize=%llu\\&eos.bookingsize=%llu", source_size[nfile], source_size[nfile]);
+      snprintf(targetadd,sizeof(targetadd)-1,"?eos.targetsize=%llu&eos.bookingsize=%llu", source_size[nfile], source_size[nfile]);
       arg2.append(targetadd);
     }
 
@@ -697,8 +697,10 @@ com_cp (char* argin) {
       if (arg1.beginswith("https:")) {
 	cmdline += "-k ";
       }
-
-      cmdline += arg1; cmdline += " |";
+      cmdline += "\"";
+      cmdline += arg1;
+      cmdline += "\"";
+      cmdline += " |";
       rstdin = true;
       noprogress = true;
     }
@@ -711,14 +713,18 @@ com_cp (char* argin) {
     if ( arg1.beginswith("as3:")) {
       XrdOucString s3arg= arg1; s3arg.replace("as3:","");
       cmdline += "s3 get ";
+      cmdline += "\"";
       cmdline += s3arg;
+      cmdline += "\"";
       cmdline += " |";
       rstdin = true;
     }
     
     if ( arg1.beginswith("gsiftp:")) {
       cmdline += "globus-url-copy ";
+      cmdline += "\"";
       cmdline += arg1;
+      cmdline += "\"";
       cmdline += " - |";
       rstdin = true;
       noprogress = true;
@@ -728,7 +734,7 @@ com_cp (char* argin) {
       rstdout = true;
     }
 
-    if ( !arg1.beginswith("root:")) {
+    if ( arg1.beginswith("root:")) {
       // add the 'role' switches to the URL
       if (user_role.length() && group_role.length()) {
 	arg1 += "?eos.ruid="; arg1 += user_role;
@@ -746,12 +752,17 @@ com_cp (char* argin) {
     if (rstdin) {
       cmdline += "- ";
     } else {
-      cmdline += arg1; cmdline += " ";
+      cmdline += "\"";
+      cmdline += arg1; 
+      cmdline += "\"";
+      cmdline += " ";
     }
     if (rstdout) {
       cmdline += "- ";
     } else {
+      cmdline += "\"";
       cmdline += arg2;
+      cmdline += "\"";
     }
     
     if ( arg2.beginswith("as3:") ) {
