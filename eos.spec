@@ -18,8 +18,14 @@ BuildRequires: libattr-devel
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
 BuildRequires: fuse-devel, fuse
 
-%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} >= 18
+
+
+%if 0%{?rhel} >= 6 
+if %{?fedora}%{!?fedora:0} >= 18
 BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash-devel
+%else
+BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static
+%endif
 %else
 BuildRequires: gcc44, gcc44-c++, sparsehash
 %endif
@@ -282,3 +288,19 @@ Contains an instance test script and some test executables
 /usr/sbin/xrdcppartial
 /usr/sbin/xrdstress
 /usr/sbin/xrdstress.exe
+
+#######################################################################################
+# the cleanup package 
+#######################################################################################
+%package -n eos-cleanup
+#######################################################################################
+Summary: The EOS test package
+Group: Applications/File
+
+%description -n eos-cleanup
+Contains an clean-up script to remove 'left-overs' of an EOS instance for FST/MGM/FUSE etc ...
+%files -n eos-cleanup
+/usr/sbin/eos-uninstall
+/usr/sbin/eos-log-clean
+/usr/sbin/eos-fst-clean
+/usr/sbin/eos-mgm-clean
