@@ -1603,6 +1603,7 @@ xrd_open(const char *path, int oflags, mode_t mode)
       if (client) {
         if (client->Connect()) {
           client->GetClientConn()->Disconnect(true);
+	  delete client;
           errno = ENETRESET;
           return -1;
         }
@@ -1900,17 +1901,138 @@ xrd_mapuser(uid_t uid, pid_t pid)
     }
   }
   passwdstoremutex.UnLock();
+  
+  //............................................................................
+  // Create symbolic links to the KRB5CCNAME of the calling process
+  // since the XRootD plugins will just use the default locations
+  //............................................................................
+  
+  setuid(0);
+  
+  {
+    static std::map<uid_t, time_t> linkmap;
+    static XrdSysMutex linkmapMutex;
 
-  // ----------------------------------------------------------------------------------
-  // setup the default locations for GSI authentication and KRB5 Authentication
-  XrdOucString userproxy  = "/tmp/x509up_u";
-  XrdOucString krb5ccname = "/tmp/krb5cc_";
-  userproxy  += (int) uid;
-  krb5ccname += (int) uid;
-  setenv("X509_USER_PROXY",  userproxy.c_str(),1);
-  setenv("KRB5CCNAME", krb5ccname.c_str(),1);
-  // ----------------------------------------------------------------------------------
+    XrdOucString userproxy = "/tmp/x509up_u";
+    XrdOucString krb5ccname = "/tmp/krb5cc_";
+    userproxy += (int) uid;
+    krb5ccname += (int) uid;
+    unsetenv("X509_USER_PROXY");
+    unsetenv("KRB5CCNAME");
 
+
+    struct stat buf;
+    // we do some gymnastic for krb5
+    bool parseProcessEnvironment = false;
+    time_t now = time(NULL);
+    bool resetConnection = false;
+
+    bool checkLink = false;
+    {
+      XrdSysMutexHelper lLock(linkmapMutex);
+      if (linkmap.count(uid)) {
+	if (linkmap[uid] < now) {
+	  // check once per minute
+	  linkmap[uid] = now + 60;
+	  checkLink = true;
+	}
+      } else {
+	linkmap[uid] = now + 60;
+	checkLink = true;
+      }
+    }
+    
+    eos_static_info("checklink=%d", checkLink);
+    if (checkLink) {
+      if (!lstat(krb5ccname.c_str(), &buf)) {
+	eos_static_info("islink=%d", S_ISLNK(buf.st_mode));
+	// check if this is a file or a link
+	if (S_ISLNK(buf.st_mode)) {
+	  if (stat(krb5ccname.c_str(), &buf)) {
+	    // the link target does not exist anymore
+	    parseProcessEnvironment = true;
+	  }  else {
+	    if (((now - buf.st_mtime) > 600))  {
+	      struct utimbuf mtime;
+	      mtime.actime = now;
+	      mtime.modtime = now;
+	      // update the modification time
+	      utime(krb5ccname.c_str(), &mtime);
+	      parseProcessEnvironment = true;
+	    }
+	  }
+	}
+      } else {
+	parseProcessEnvironment = true;
+      }
+      
+      if (parseProcessEnvironment) {
+	char envBuffer[65536];
+	envBuffer[0] = 0;
+	// read the environment of the process and create a link to the ticket
+	XrdOucString envFile = "/proc/";
+	envFile += (int) pid;
+	envFile += "/environ";
+	int fd = open(envFile.c_str(), O_RDONLY);
+	eos_static_info("env-file=%s", envFile.c_str());
+	if (fd > 0) {
+	  std::string krb5cc;
+	  
+	  // read the stuff
+	  read(fd, envBuffer, sizeof (envBuffer));
+	  envBuffer[65535] = 0;
+	  int krb5ccnamespos = -1;
+	  for (size_t i = 0; i< sizeof (envBuffer) - strlen("KRB5CCNAME="); i++) {	    
+	    if (!strncmp(envBuffer + i, "KRB5CCNAME=", strlen("KRB5CCNAME=")))  {
+	      krb5ccnamespos = i + strlen("KRB5CCNAME=");
+	      krb5cc = (envBuffer + krb5ccnamespos);
+	    }
+	    if (krb5cc.length()) {
+	      eos_static_info("krb5cc=%s", krb5cc.c_str());
+	      
+	      // if this is a ticket in a directory convert it into a FILE:
+	      if (krb5cc.substr(0, strlen("DIR:")) == "DIR:") {
+		krb5cc.erase(0, 4);
+		krb5cc.insert(0, "FILE:");
+		krb5cc += "/tkt";
+	      }
+	      
+	      if (krb5cc.substr(0, strlen("FILE:")) == "FILE:") {
+		std::string source = krb5cc;
+		source.erase(0, strlen("FILE:"));
+		eos_static_info("msg=\"symlink\" source=%s target=%s", source.c_str(), krb5ccname.c_str());
+		seteuid(uid);
+		// create a symbolic link from the 'default' location to the real ticket
+		// - if it works fine, if not what can we do!
+		unlink(krb5ccname.c_str());
+		symlink(source.c_str(), krb5ccname.c_str());
+		resetConnection = true;
+	      }
+	      break;
+	    }
+	  }
+	  close(fd);
+	}
+      }
+    }
+  }
+
+  if (resetConnection) {
+    // disconnect to get a reconnect with the configured token
+    XrdClientAdmin* client = new XrdClientAdmin(path);
+    if (client) {
+      if (client->Connect()) {
+	client->GetClientConn()->Disconnect(true);
+      }
+      delete client;
+    }
+  }
+
+  // change the effective user ID to the caller
+  seteuid(uid);
+
+
+  eos_static_info("uid=%d euid=%d", uid, geteuid());
   return STRINGSTORE(spw->c_str());
 }
 
