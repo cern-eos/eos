@@ -849,40 +849,85 @@ SpaceQuota::CheckWriteQuota (uid_t uid, gid_t gid, long long desiredspace, unsig
   bool userquota = false;
   bool groupquota = false;
   bool projectquota = false;
-  bool hasprojectquota = false;
   bool hasuserquota = false;
   bool hasgroupquota = false;
+  bool hasprojectquota = false;
 
+  bool uservolumequota = false;
+  bool userinodequota = false;
+  bool groupvolumequota = false;
+  bool groupinodequota = false;
 
   if (GetQuota(kUserBytesTarget, uid, false) > 0)
   {
     userquota = true;
+    uservolumequota = true;
   }
 
   if (GetQuota(kGroupBytesTarget, gid, false) > 0)
   {
     groupquota = true;
+    groupvolumequota = true;
   }
 
-  if (GetQuota(kGroupBytesTarget, Quota::gProjectId, false) > 0)
+  if (GetQuota(kUserFilesTarget, uid, false) > 0)
   {
-    projectquota = true;
+    userquota = true;
+    userinodequota = true;
   }
 
-  if ((((GetQuota(kUserBytesTarget, uid, false)) - (GetQuota(kUserBytesIs, uid, false))) > (long long) (desiredspace)) &&
-      (((GetQuota(kUserFilesTarget, uid, false)) - (GetQuota(kUserFilesIs, uid, false))) > (inodes)))
+  if (GetQuota(kGroupFilesTarget, gid, false) > 0)
   {
-    // the user has quota here!
-    hasuserquota = true;
+    groupquota = true;
+    groupinodequota = true;
   }
 
-  // -> group quota
-  if ((((GetQuota(kGroupBytesTarget, gid, false)) - (GetQuota(kGroupBytesIs, gid, false))) > (long long) (desiredspace)) &&
-      (((GetQuota(kGroupFilesTarget, gid, false)) - (GetQuota(kGroupFilesIs, gid, false))) > (inodes)))
+  if (uservolumequota)
   {
-    // the group has quota here
-    hasgroupquota = true;
+    if (((GetQuota(kUserBytesTarget, uid, false)) - (GetQuota(kUserBytesIs, uid, false))) > (long long) (desiredspace))
+    {
+      hasuserquota = true;
+    }
+    else
+    {
+      hasuserquota = false;
+    }
+  }
 
+  if (userinodequota)
+  {
+    if (((GetQuota(kUserFilesTarget, uid, false)) - (GetQuota(kUserFilesIs, uid, false))) > (inodes))
+    {
+      hasuserquota = true;
+    }
+    else
+    {
+      hasuserquota = false;
+    }
+  }
+
+  if (groupvolumequota)
+  {
+    if (((GetQuota(kGroupBytesTarget, gid, false)) - (GetQuota(kGroupBytesIs, gid, false))) > (long long) (desiredspace))
+    {
+      hasgroupquota = true;
+    }
+    else
+    {
+      hasgroupquota = false;
+    }
+  }
+
+  if (groupinodequota)
+  {
+    if ((((GetQuota(kGroupFilesTarget, gid, false)) - (GetQuota(kGroupFilesIs, gid, false))) > (inodes)))
+    {
+      hasgroupquota = true;
+    }
+    else
+    {
+      hasgroupquota = false;
+    }
   }
 
   if (projectquota)
