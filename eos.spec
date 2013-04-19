@@ -15,14 +15,13 @@ BuildRequires: xrootd-server >= 3.2.0
 BuildRequires: xrootd-server-devel  >= 3.2.0
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: libattr-devel
-BuildRequires: sparsehash
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
 BuildRequires: fuse-devel, fuse
 
 %if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} >= 18
-BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static
+BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash-devel
 %else
-BuildRequires: gcc44, gcc44-c++
+BuildRequires: gcc44, gcc44-c++, sparsehash
 %endif
 
 %description
@@ -207,7 +206,8 @@ The EOS fuse client.
 %files -n eos-fuse
 /usr/bin/eosfsd
 /usr/sbin/eosd
-/etc/fuse.conf
+%config(noreplace) /etc/fuse.conf
+/etc/fuse.conf.eos
 /etc/rc.d/init.d/eosd
 %_sysconfdir/logrotate.d/eos-fuse-logs
 %changelog
