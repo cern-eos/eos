@@ -21,7 +21,7 @@ BuildRequires: fuse-devel, fuse
 
 
 %if 0%{?rhel} >= 6 
-if %{?fedora}%{!?fedora:0} >= 18
+%if %{?fedora}%{!?fedora:0} >= 18
 BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash-devel
 %else
 BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static
