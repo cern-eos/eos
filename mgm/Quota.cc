@@ -1085,7 +1085,7 @@ Quota::PrintOut (const char* space, XrdOucString &output, long uid_sel, long gid
   else
   {
     std::string sspace = space;
-    SpaceQuota* spacequota = GetSpaceQuota(space, true);
+    SpaceQuota* spacequota = GetResponsibleSpaceQuota(space);
     if (spacequota)
     {
       spacequota->PrintOut(output, uid_sel, gid_sel, monitoring, translateids);
