@@ -713,8 +713,8 @@ main (int argc, char* argv[])
   for (int i = 0; i < nsrc; i++)
   {
     location = argv[optind + i];
-    size_t pos = location.rfind("//");
-
+    size_t pos = location.find("://");
+    pos = location.find("//",pos+3);
     if (pos == std::string::npos)
     {
       address = "";
@@ -737,7 +737,8 @@ main (int argc, char* argv[])
   for (int i = 0; i < ndst; i++)
   {
     location = argv[optind + nsrc + i];
-    size_t pos = location.rfind("//");
+    size_t pos = location.find("://");
+    pos = location.find("//",pos+3);
 
     if (pos == std::string::npos)
     {
@@ -1331,7 +1332,7 @@ main (int argc, char* argv[])
 
             if (!status.IsOK())
             {
-              mkdir_failed = 1;
+              mkdir_failed = 0; // TODO we would like to see no error if the guy exists
             }
           }
 
