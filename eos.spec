@@ -231,7 +231,8 @@ The EOS fuse client.
 %files -n eos-fuse
 /usr/bin/eosfsd
 /usr/sbin/eosd
-/etc/fuse.conf
+%config(noreplace) /etc/fuse.conf
+/etc/fuse.conf.eos
 /etc/rc.d/init.d/eosd
 %_sysconfdir/logrotate.d/eos-fuse-logs
 %changelog
