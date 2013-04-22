@@ -1909,8 +1909,6 @@ xrd_mapuser(uid_t uid, pid_t pid)
   
   setuid(0);
 
-  bool resetConnection = false;
-  
   {
     static std::map<uid_t, time_t> linkmap;
     static XrdSysMutex linkmapMutex;
@@ -2006,7 +2004,6 @@ xrd_mapuser(uid_t uid, pid_t pid)
 		// - if it works fine, if not what can we do!
 		unlink(krb5ccname.c_str());
 		symlink(source.c_str(), krb5ccname.c_str());
-		resetConnection = true;
 	      }
 	      break;
 	    }
@@ -2014,17 +2011,6 @@ xrd_mapuser(uid_t uid, pid_t pid)
 	  close(fd);
 	}
       }
-    }
-  }
-
-  if (resetConnection) {
-    // disconnect to get a reconnect with the configured token
-    XrdClientAdmin* client = new XrdClientAdmin(path);
-    if (client) {
-      if (client->Connect()) {
-	client->GetClientConn()->Disconnect(true);
-      }
-      delete client;
     }
   }
 
