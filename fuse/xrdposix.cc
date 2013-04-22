@@ -1992,7 +1992,6 @@ xrd_mapuser(uid_t uid, pid_t pid)
 	      if (krb5cc.substr(0, strlen("DIR:")) == "DIR:") {
 		krb5cc.erase(0, 4);
 		krb5cc.insert(0, "FILE:");
-		krb5cc += "/tkt";
 	      }
 	      
 	      if (krb5cc.substr(0, strlen("FILE:")) == "FILE:") {
