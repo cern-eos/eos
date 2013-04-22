@@ -1908,6 +1908,8 @@ xrd_mapuser(uid_t uid, pid_t pid)
   //............................................................................
   
   setuid(0);
+
+  bool resetConnection = false;
   
   {
     static std::map<uid_t, time_t> linkmap;
@@ -1920,12 +1922,10 @@ xrd_mapuser(uid_t uid, pid_t pid)
     unsetenv("X509_USER_PROXY");
     unsetenv("KRB5CCNAME");
 
-
     struct stat buf;
     // we do some gymnastic for krb5
     bool parseProcessEnvironment = false;
     time_t now = time(NULL);
-    bool resetConnection = false;
 
     bool checkLink = false;
     {
