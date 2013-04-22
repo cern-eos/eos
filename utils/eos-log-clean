@@ -30,11 +30,15 @@ fi
 
 echo "# [ to execute the cleaning of logs+spool dirs give '--do-cleanup' as option ] ...";
 
+ECHO="echo"
+
 if [ "$runtest" = "no" ]; then
- echo "# Cleaning /var/log/eos/ ..."
- rm -rf /var/log/eos/*
- echo "# Cleaning /var/spool/eos/ ..."
- rm -rf /var/spool/eos/*
+  ECHO=""
 fi
+
+echo "# Cleaning /var/log/eos/ ..."
+$ECHO rm -rf /var/log/eos/* 2> /dev/null
+echo "# Cleaning /var/spool/eos/ ..."
+$ECHO rm -rf /var/spool/eos/* 2> /dev/null
 
 

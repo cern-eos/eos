@@ -34,21 +34,24 @@ ndirs=`find $name -type d  | wc -l`;
   echo "# (test=$runtest) FST Disk under path=$name nfiles=$nfiles ndirs=$ndirs";
 done;
 
+ECHO="echo"
 if [ "$runtest" = "no" ]; then
- echo "# Cleaning FST disk ..."
- for name in `cat /var/eos/md/so.fst.dump | grep "key=path" | awk '{print $2}' | sed s/value://`; do
-    echo rm -rf /$name
- done
- echo "# Cleaning /var/eos ..."
- rm -rf /var/eos/*
- echo "# Removing /etc/xrd.cf.fst ..."
- rm -rf /etc/xrd.cf.fst
- echo "# Removing /etc/sysconfig/eos ..."
- rm -rf /etc/sysconfig/eos
- echo "# Removing /var/log/eos/fst ..."
- rm -rf /var/log/eos/fst
- echo "# Removing /var/spool/eos/fst ..."
- rm -rf /var/spool/eos/fst
+ ECHO=""
 fi
+
+echo "# Cleaning FST disk ..."
+for name in `cat /var/eos/md/so.fst.dump | grep "key=path" | awk '{print $2}' | sed s/value://`; do
+   $ECHO rm -rf /$name 2> /dev/null
+done
+echo "# Cleaning /var/eos ..."
+$ECHO rm -rf /var/eos/* 2> /dev/null
+echo "# Removing /etc/xrd.cf.fst ..."
+$ECHO rm -rf /etc/xrd.cf.fst 2> /dev/null
+echo "# Removing /etc/sysconfig/eos ..."
+$ECHO rm -rf /etc/sysconfig/eos 2> /dev/null
+echo "# Removing /var/log/eos/fst ..."
+$ECHO rm -rf /var/log/eos/fst 2> /dev/null
+echo "# Removing /var/spool/eos/fst ..."
+$ECHO rm -rf /var/spool/eos/fst 2> /dev/null
 
 

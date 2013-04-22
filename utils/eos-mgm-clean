@@ -29,17 +29,21 @@ fi
 
 echo "# [ to execute the cleaning of the MGM give '--do-cleanup' as option ] ...";
 
+ECHO="echo"
+
 if [ "$runtest" = "no" ]; then
- echo "# Cleaning /var/eos ..."
- rm -rf /var/eos/*
- echo "# Removing /etc/xrd.cf.mgm /etc/xrd.cf.mq ..."
- rm -rf /etc/xrd.cf.mgm /etc/xrd.cf.mq
- echo "# Removing /etc/sysconfig/eos ..."
- rm -rf /etc/sysconfig/eos
- echo "# Removing /var/log/eos/mgm/ /var/log/eos/mq/ ..."
- rm -rf /var/log/eos/mgm /var/log/eos/mq/
- echo "# Removing /var/spool/eos/mgm /var/spool/eos/mq ...
- rm -rf /var/spool/eos/mgm /var/spool/eos/mq
+ ECHO=""
 fi
+
+echo "# Cleaning /var/eos ..."
+$ECHO rm -rf /var/eos/*
+echo "# Removing /etc/xrd.cf.mgm /etc/xrd.cf.mq ..."
+$ECHO rm -rf /etc/xrd.cf.mgm /etc/xrd.cf.mq 2>/dev/null
+echo "# Removing /etc/sysconfig/eos ..."
+$ECHO rm -rf /etc/sysconfig/eos 2>/dev/null
+echo "# Removing /var/log/eos/mgm/ /var/log/eos/mq/ ..."
+$ECHO rm -rf /var/log/eos/mgm /var/log/eos/mq/ 2>/dev/null
+echo "# Removing /var/spool/eos/mgm /var/spool/eos/mq ..."
+$ECHO rm -rf /var/spool/eos/mgm /var/spool/eos/mq 2>/dev/null
 
 

@@ -120,6 +120,8 @@ add_subdirectory (srm)
 add_subdirectory (var)
 add_subdirectory (man)
 add_subdirectory (test)
+add_subdirectory (utils)
+
 if (HTTPD_FOUND) 
 if (APR_FOUND)
 #add_subdirectory (httpd)
