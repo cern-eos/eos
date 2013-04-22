@@ -24,7 +24,7 @@ BuildRequires: fuse-devel, fuse
 %if %{?fedora}%{!?fedora:0} >= 18
 BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash-devel
 %else
-BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static
+BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash
 %endif
 %else
 BuildRequires: gcc44, gcc44-c++, sparsehash
