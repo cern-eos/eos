@@ -1314,7 +1314,7 @@ main (int argc, char* argv[])
             fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) stat on %s\n", subpath.c_str());
           }
 
-          XrdCl::URL url(src_location[i].first.c_str());
+          XrdCl::URL url(dst_location[i].first.c_str());
           XrdCl::FileSystem fs(url);
           XrdCl::StatInfo* response = 0;
           status = fs.Stat(subpath.c_str(), response);
@@ -1332,7 +1332,7 @@ main (int argc, char* argv[])
 
             if (!status.IsOK())
             {
-              mkdir_failed = 0; // TODO we would like to see no error if the guy exists
+              mkdir_failed = 1;
             }
           }
 
