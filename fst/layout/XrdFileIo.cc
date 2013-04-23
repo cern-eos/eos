@@ -319,7 +319,7 @@ XrdFileIo::Read (XrdSfsFileOffset offset,
         if (!mQueueBlocks.empty())
         {
           eos_debug("Prefetch new block(1).");
-          PrefetchBlock(offset, false);
+          PrefetchBlock(aligned_offset, false);
         }
       }
     }
@@ -451,7 +451,7 @@ XrdFileIo::Stat (struct stat* buf, uint16_t timeout)
 int
 XrdFileIo::Close (uint16_t timeout)
 {
-  bool tmp_resp;
+  bool async_ok = true;
 
   if (mDoReadahead)
   {
@@ -463,7 +463,7 @@ XrdFileIo::Close (uint16_t timeout)
       SimpleHandler* shandler = mMapBlocks.begin()->second->handler;
       if (shandler->HasRequest())
       {
-        tmp_resp = shandler->WaitOK();
+        async_ok = shandler->WaitOK();
       }
       delete mMapBlocks.begin()->second;
       mMapBlocks.erase(mMapBlocks.begin());
@@ -475,6 +475,12 @@ XrdFileIo::Close (uint16_t timeout)
   if (!status.IsOK())
   {
     errno = status.errNo;
+    return SFS_ERROR;
+  }
+
+  // If any of the async requests failes then we have an error
+  if (!async_ok)
+  {
     return SFS_ERROR;
   }
 
