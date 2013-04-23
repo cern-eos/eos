@@ -958,7 +958,7 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
 
      //........................................................................
      // By default we assume the file is written in streaming mode but we also
-     // save the pieces in the map in care the write turns out to be not in
+     // save the pieces in the map in case the write turns out not to be in
      // streaming mode. In this way, we can recompute the parity at any later
      // point in time by using the map of pieces written.
      //........................................................................
