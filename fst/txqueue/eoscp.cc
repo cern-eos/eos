@@ -823,13 +823,7 @@ int main(int argc, char* argv[]) {
           stat_failed = stat((char*)subpath.c_str(), &dstst[i]);
           break;
         case 1:
-          if (debug) {fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) stat on %s\n", subpath.c_str());}
-          stat_failed = XrdPosixXrootd::Stat((char*)subpath.c_str(), &dstst[i]);
-          break;
-        case 2:
-          if (debug) {fprintf(stdout, "[eoscp]: doing XROOT stat on %s\n", subpath.c_str());}
-          stat_failed = XrdPosixXrootd::Stat((char*)subpath.c_str(), &dstst[i]);
-          break;
+	case 2:
         case 3:
           stat_failed = 0;
           break;
@@ -847,15 +841,7 @@ int main(int argc, char* argv[]) {
             mkdir_failed = mkdir((char*)subpath.c_str(), mode);
             break;
           case 1:
-            if (debug) {fprintf(stdout,"[eoscp]: doing XROOT(RAIDIO) mkdir on %s\n", (char*)subpath.c_str());}
-	    //            mkdir_failed = XrdPosixXrootd::Mkdir(source[i], mode);
-	    mkdir_failed = 0;
-            break;
           case 2:
-            if (debug) {fprintf(stdout,"[eoscp]: doing XROOT mkdir on %s\n", (char*)subpath.c_str());}
-	    //            mkdir_failed = XrdPosixXrootd::Mkdir(source[i], mode);
-	    mkdir_failed = 0;
-            break;
           case 3:
             mkdir_failed = 0;
             break;
