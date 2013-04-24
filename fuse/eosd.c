@@ -60,6 +60,7 @@ static void eosfs_ll_readlink(fuse_req_t req, fuse_ino_t ino)
 {
   struct stat stbuf;
   char fullpath[16384];
+  xrd_lock_environment();
   {
     xrd_lock_r_p2i(); // =>
     const char* name = xrd_path((unsigned long long)ino);
@@ -67,6 +68,7 @@ static void eosfs_ll_readlink(fuse_req_t req, fuse_ino_t ino)
     if (!name) {
       fuse_reply_err(req, ENXIO);
       xrd_unlock_r_p2i(); // <=
+      xrd_unlock_environment();
       return;
     }
     
@@ -78,6 +80,8 @@ static void eosfs_ll_readlink(fuse_req_t req, fuse_ino_t ino)
   char linkbuffer[8912];
   
   int retc = xrd_readlink(fullpath, linkbuffer, sizeof(linkbuffer));
+  xrd_unlock_environment();
+  
   if (!retc) {
     fuse_reply_readlink(req,linkbuffer);
     return;
@@ -96,6 +100,7 @@ static void eosfs_ll_getattr(fuse_req_t req, fuse_ino_t ino,
   memset(&stbuf,0,sizeof(struct stat));
   char fullpath[16384];
 
+  xrd_lock_environment();
   {
     xrd_lock_r_p2i(); // =>
     const char* name = xrd_path((unsigned long long)ino);
@@ -103,6 +108,7 @@ static void eosfs_ll_getattr(fuse_req_t req, fuse_ino_t ino,
     if (!name) {
       fuse_reply_err(req, ENXIO);
       xrd_unlock_r_p2i(); // <=
+      xrd_unlock_environment();
       return;
     }
     
@@ -112,7 +118,7 @@ static void eosfs_ll_getattr(fuse_req_t req, fuse_ino_t ino,
   }
   
   int retc = xrd_stat(fullpath,&stbuf);
-
+  xrd_unlock_environment();
   if (!retc) {
     fuse_reply_attr(req, &stbuf, attrcachetime);
   } else {
@@ -128,6 +134,8 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
   int retc=0;
   char fullpath[16384];
 
+  xrd_lock_environment();
+
   {
     xrd_lock_r_p2i(); // =>
     const char* name = xrd_path((unsigned long long)ino);
@@ -136,6 +144,7 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
     if (!name) {
       fuse_reply_err(req, ENXIO);
       xrd_unlock_r_p2i(); // <=
+      xrd_unlock_environment();
       return;
     }
     
@@ -148,6 +157,8 @@ static void eosfs_ll_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
     if (isdebug) fprintf(stderr,"[%s]: set attr mode ino=%lld\n", __FUNCTION__,(long long)ino);
     retc = xrd_chmod(fullpath, attr->st_mode);
   }
+  xrd_unlock_environment();
+
   if ( (to_set & FUSE_SET_ATTR_UID) && (to_set & FUSE_SET_ATTR_GID) ) {
     if (isdebug) fprintf(stderr,"[%s]: set attr uid  ino=%lld\n", __FUNCTION__,(long long)ino);
     if (isdebug) fprintf(stderr,"[%s]: set attr gid  ino=%lld\n", __FUNCTION__,(long long)ino);
@@ -219,6 +230,7 @@ static void eosfs_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
   char fullpath[16384];
   char ifullpath[16384];
 
+  xrd_lock_environment();
   {
     xrd_lock_r_p2i(); // =>
     parentpath = xrd_path((unsigned long long)parent);
@@ -226,6 +238,7 @@ static void eosfs_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
     if (!parentpath) {
       fuse_reply_err(req, ENXIO);
       xrd_unlock_r_p2i(); // <=
+      xrd_unlock_environment();
       return;
     }
     
@@ -283,6 +296,7 @@ static void eosfs_ll_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
       }
     }
   }
+  xrd_unlock_environment();
 }
 
 #define min(x, y) ((x) < (y) ? (x) : (y))
@@ -305,6 +319,8 @@ static void eosfs_ll_opendir(fuse_req_t req, fuse_ino_t ino,
 			      struct fuse_file_info *fi)
 {
   char fullpath[16384];
+
+  xrd_lock_environment();
   {
     xrd_lock_r_p2i(); // =>
     const char* name = xrd_path((unsigned long long)ino);
@@ -312,6 +328,7 @@ static void eosfs_ll_opendir(fuse_req_t req, fuse_ino_t ino,
     if (!name) {
       fuse_reply_err(req, ENXIO);
       xrd_unlock_r_p2i(); // <=
+      xrd_unlock_environment();
       return;
     }
     
@@ -322,6 +339,7 @@ static void eosfs_ll_opendir(fuse_req_t req, fuse_ino_t ino,
   
   DIR* dir ;
   dir = xrd_opendir(fullpath);
+  xrd_unlock_environment();
 
 #if __SIZEOF_POINTER__ == 8
   fi->fh = (uint64_t) dir;
@@ -382,6 +400,9 @@ static void eosfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
   }
 
   xrd_unlock_r_p2i(); // <=  
+
+  xrd_lock_environment();
+
   sprintf(fullpath,"root://%s@%s//proc/user/?mgm.cmd=fuse&mgm.subcmd=inodirlist&mgm.path=%s/%s",
           xrd_mapuser(req->ctx.uid,req->ctx.uid),mounthostport,mountprefix,name);
   
@@ -394,6 +415,8 @@ static void eosfs_ll_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
 
   // try to use the cache for directories
   retc = xrd_stat(dirfullpath, &attr);
+  xrd_unlock_environment();
+
   dir_status = xrd_dir_cache_get(ino, attr.st_mtim, fullpath, &b);
 
   if (isdebug) fprintf(stderr, "[%s] directory status is: %i. \n",  __FUNCTION__, dir_status);
@@ -513,10 +536,14 @@ static void eosfs_ll_statfs(fuse_req_t req, fuse_ino_t ino)
     fuse_reply_statfs(req, &svfs);
     return;
   }
+
+  xrd_lock_environment();
   
   sprintf(rootpath,"root://%s@%s/%s",xrd_mapuser(req->ctx.uid,req->ctx.pid),mounthostport,mountprefix);
   
   int res = xrd_statfs(rootpath, path, &svfs2);
+  xrd_unlock_environment();
+
   
   free(path);
   
@@ -546,12 +573,15 @@ static void eosfs_ll_mknod(fuse_req_t req, fuse_ino_t parent, const char *name, 
     char fullpath[16384];
     char fullparentpath[16384];
 
+    xrd_lock_environment();
+
     xrd_lock_r_p2i(); // =>
     parentpath = xrd_path((unsigned long long)parent);
 
     if (!parentpath) {
       fuse_reply_err(req, ENXIO);
       xrd_unlock_r_p2i(); // <=
+      xrd_unlock_environment();
       return;
     }
     
@@ -563,6 +593,9 @@ static void eosfs_ll_mknod(fuse_req_t req, fuse_ino_t parent, const char *name, 
     xrd_unlock_r_p2i(); // <=
     
     res = xrd_open(fullpath, O_CREAT | O_EXCL | O_RDWR, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+
+    xrd_unlock_environment();
+
     if (res == -1) {
       fuse_reply_err(req, errno);
       return;
@@ -602,6 +635,8 @@ static void eosfs_ll_mkdir(fuse_req_t req, fuse_ino_t parent, const char *name, 
   const char* parentpath=NULL;
   char fullpath[16384];
 
+  xrd_lock_environment();
+
   xrd_lock_r_p2i(); // =>
 
   parentpath = xrd_path((unsigned long long)parent);
@@ -609,6 +644,7 @@ static void eosfs_ll_mkdir(fuse_req_t req, fuse_ino_t parent, const char *name, 
   if (!parentpath) {
     fuse_reply_err(req, ENXIO);
     xrd_unlock_r_p2i(); // <=
+    xrd_unlock_environment();
     return;
   }
   char ifullpath[16384];
@@ -619,6 +655,9 @@ static void eosfs_ll_mkdir(fuse_req_t req, fuse_ino_t parent, const char *name, 
 
   if (isdebug) fprintf(stderr,"[%s]: path=%s\n", __FUNCTION__,fullpath);
   int retc = xrd_mkdir(fullpath,mode);
+
+  xrd_unlock_environment();
+
   if (!retc) {
     struct fuse_entry_param e;
     memset(&e, 0, sizeof(e));
@@ -650,12 +689,15 @@ static void eosfs_ll_unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
   const char* parentpath=NULL;
   char fullpath[16384];
 
+  xrd_lock_environment();
+
   xrd_lock_r_p2i(); // =>
   parentpath = xrd_path((unsigned long long)parent);
 
   if (!parentpath) {
     fuse_reply_err(req, ENXIO);
     xrd_unlock_r_p2i(); // <=
+    xrd_unlock_environment();
     return;
   }
 
@@ -665,6 +707,8 @@ static void eosfs_ll_unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
   xrd_unlock_r_p2i(); // <=
 
   int retc = xrd_unlink(fullpath);
+
+  xrd_unlock_environment();
 
   if (!retc) {
     fuse_reply_buf(req, NULL, 0);
@@ -682,11 +726,14 @@ static void eosfs_ll_rmdir(fuse_req_t req, fuse_ino_t parent, const char *name)
   const char* parentpath=NULL;
   char fullpath[16384];
 
+  xrd_lock_environment();
+
   xrd_lock_r_p2i(); // =>
   parentpath = xrd_path( (unsigned long long) parent );
   
   if (!parentpath) {
     fuse_reply_err(req, ENXIO);
+    xrd_unlock_environment();
     return;
   }
   
@@ -696,6 +743,8 @@ static void eosfs_ll_rmdir(fuse_req_t req, fuse_ino_t parent, const char *name)
   xrd_unlock_r_p2i(); // <=
 
   int retc = xrd_rmdir(fullpath);
+
+  xrd_unlock_environment();
 
   if (!retc) {
     fuse_reply_err(req, 0);
@@ -721,12 +770,15 @@ static void eosfs_ll_symlink(fuse_req_t req, const char *link, fuse_ino_t parent
   char fullpath[16384];
   char fulllinkpath[16384];
 
+  xrd_lock_environment();
+
   xrd_lock_r_p2i(); // =>
   parentpath = xrd_path( (unsigned long long) parent);
 
   if (!parentpath) {
     fuse_reply_err(req, ENXIO);
     xrd_unlock_r_p2i(); // <=
+    xrd_unlock_environment();
     return;
   }
 
@@ -740,6 +792,7 @@ static void eosfs_ll_symlink(fuse_req_t req, const char *link, fuse_ino_t parent
   sprintf(fulllinkpath,"root://%s@%s/%s/%s",user,mounthostport,parentpath,link);
 
   xrd_unlock_r_p2i(); // <=
+  xrd_unlock_environment();
 
   if (isdebug) fprintf(stderr,"[%s]: sourcepath=%s link=%s\n", __FUNCTION__,linksource,link);
   int retc = xrd_symlink(fullpath,linksource,link);
@@ -775,6 +828,8 @@ static void eosfs_ll_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
   char fullpath[16384];
   char newfullpath[16384];
 
+  xrd_lock_environment();
+
   xrd_lock_r_p2i(); // =>
 
   parentpath = xrd_path( (unsigned long long ) parent );
@@ -782,6 +837,7 @@ static void eosfs_ll_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
   if (!parentpath) {
     fuse_reply_err(req, ENXIO);
     xrd_unlock_r_p2i(); // <=
+    xrd_unlock_environment();  
     return;
   }
 
@@ -790,6 +846,7 @@ static void eosfs_ll_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
   if (!newparentpath) {
     fuse_reply_err(req, ENXIO);
     xrd_unlock_r_p2i(); // <=
+    xrd_unlock_environment();  
     return;
   }
 
@@ -801,6 +858,8 @@ static void eosfs_ll_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
 
   struct stat stbuf;
   int retcold = xrd_stat(fullpath, &stbuf);
+  xrd_unlock_environment();
+  
   if (isdebug) fprintf(stderr,"[%s]: path=%s inode=%lu [%d]\n", __FUNCTION__,fullpath,stbuf.st_ino,retcold);
   if (isdebug) fprintf(stderr,"[%s]: path=%s newpath=%s\n", __FUNCTION__,fullpath,newfullpath);
 
@@ -834,18 +893,22 @@ static void eosfs_ll_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
   char fullpath[16384];
   const char* sourcepath=NULL;
 
+  xrd_lock_environment();
+
   xrd_lock_r_p2i(); // =>
   parentpath = xrd_path( (unsigned long long) parent);
 
   if (!parentpath) {
     fuse_reply_err(req, ENXIO);
     xrd_unlock_r_p2i(); // <=
+    xrd_unlock_environment();
     return;
   }
   sourcepath = xrd_path((unsigned long long)ino);
   if (!sourcepath) {
     fuse_reply_err(req, ENXIO);
     xrd_unlock_r_p2i(); // <=
+    xrd_unlock_environment();
     return;
   }
   
@@ -859,6 +922,8 @@ static void eosfs_ll_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
   if (isdebug) fprintf(stderr,"[%s]: sourcepath=%s link=%s\n", __FUNCTION__,linkdest,sourcepath);
 
   int retc = xrd_link(fullpath,linkdest,sourcepath);
+
+  xrd_unlock_environment();
 
   if (!retc) {
     struct fuse_entry_param e;
@@ -887,12 +952,15 @@ static void eosfs_ll_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
 static void eosfs_ll_access(fuse_req_t req, fuse_ino_t ino, int mask)
 {
   char fullpath[16384];
+  xrd_unlock_environment();
+
   xrd_lock_r_p2i(); // =>
   const char* name = xrd_path((unsigned long long)ino);
 
   if (!name) {
     fuse_reply_err(req, ENXIO);
     xrd_unlock_r_p2i(); // <=
+    xrd_unlock_environment();
     return;
   }
   
@@ -902,6 +970,8 @@ static void eosfs_ll_access(fuse_req_t req, fuse_ino_t ino, int mask)
   xrd_unlock_r_p2i(); // <=
 
   int retc = xrd_access(fullpath,mask);
+  xrd_unlock_environment();
+
   if (!retc) {
     fuse_reply_err(req, 0);
   } else {
@@ -918,12 +988,15 @@ static void eosfs_ll_open( fuse_req_t             req,
   struct stat stbuf;
   char fullpath[16384];
 
+  xrd_lock_environment();
+
   xrd_lock_r_p2i(); // =>
   const char* name = xrd_path((unsigned long long)ino);
 
   if (!name) {
     fuse_reply_err(req, ENXIO);
     xrd_unlock_r_p2i(); // <=
+    xrd_unlock_environment();
     return;
   }
 
@@ -947,6 +1020,8 @@ static void eosfs_ll_open( fuse_req_t             req,
   } else {
       res = xrd_open(fullpath, fi->flags,0);
   }
+
+  xrd_unlock_environment();
 
   if (isdebug) fprintf(stderr,"[%s]: inode=%lld path=%s res=%d\n", __FUNCTION__,(long long)ino,fullpath,res);
   if (res == -1) {
@@ -1085,6 +1160,8 @@ static void eosfs_ll_flush (fuse_req_t req, fuse_ino_t ino, struct fuse_file_inf
       char fullpath[16384];
       fullpath[0]=0;
       {
+	xrd_lock_environment();
+
 	xrd_lock_r_p2i(); // =>
 	const char* name = xrd_path((unsigned long long)ino);
 	if (name) {
@@ -1092,6 +1169,7 @@ static void eosfs_ll_flush (fuse_req_t req, fuse_ino_t ino, struct fuse_file_inf
 	  if (isdebug) fprintf(stderr,"[%s]: inode=%lld path=%s\n", __FUNCTION__,(long long)ino,fullpath);
 	}
 	xrd_unlock_r_p2i(); // <=
+	xrd_unlock_environment();
       }
       
       int retc = (fullpath[0]?xrd_stat(fullpath,&stbuf):-1);
@@ -1121,6 +1199,8 @@ static void eosfs_ll_getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr
   size_t init_size = size;
   char fullpath[16384];
 
+  xrd_lock_environment();
+
   xrd_lock_r_p2i(); // =>
   const char* name = xrd_path((unsigned long long)ino);
 
@@ -1135,6 +1215,7 @@ static void eosfs_ll_getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr
     {
       fuse_reply_err(req, ENODATA);
       xrd_unlock_r_p2i(); // <=
+      xrd_unlock_environment();
       return;
     }
 
@@ -1145,6 +1226,8 @@ static void eosfs_ll_getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr
 
   char* xattr_value = NULL;
   retc = xrd_getxattr(fullpath, xattr_name, &xattr_value, &size);
+
+  xrd_unlock_environment();
 
   if (retc)
     fuse_reply_err(req, ENODATA);
@@ -1172,6 +1255,8 @@ static void eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
   int retc = 0;
   size_t init_size = size;
   char fullpath[16384];
+
+  xrd_lock_environment();
   
   xrd_lock_r_p2i(); // =>
   const char* name = xrd_path((unsigned long long)ino);
@@ -1179,6 +1264,7 @@ static void eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
   if (!name) {
     fuse_reply_err(req, ENXIO);
     xrd_unlock_r_p2i(); // <=
+    xrd_unlock_environment();
     return;
   }
 
@@ -1189,6 +1275,9 @@ static void eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
 
   char* xattr_list = NULL;
   retc = xrd_listxattr(fullpath, &xattr_list, &size);
+
+  xrd_unlock_environment();
+
   if (retc)
     fuse_reply_err(req, retc);
   else {
@@ -1215,12 +1304,15 @@ static void eosfs_ll_removexattr (fuse_req_t req, fuse_ino_t ino, const char *xa
   int retc = 0;
   char fullpath[16384];
 
+  xrd_lock_environment();
+
   xrd_lock_r_p2i(); // =>
   const char* name = xrd_path((unsigned long long)ino);
 
   if (!name) {
     fuse_reply_err(req, ENXIO);
     xrd_unlock_r_p2i(); // <=
+    xrd_unlock_environment();
     return;
   }
 
@@ -1230,6 +1322,8 @@ static void eosfs_ll_removexattr (fuse_req_t req, fuse_ino_t ino, const char *xa
   xrd_unlock_r_p2i(); // <=
 
   retc = xrd_rmxattr(fullpath, xattr_name);
+  xrd_unlock_environment();
+
   fuse_reply_err(req, retc);
 
   return;
@@ -1244,6 +1338,8 @@ static void eosfs_ll_setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr
   size_t init_size = size;
   char fullpath[16384];
 
+  xrd_lock_environment();
+
   xrd_lock_r_p2i(); // =>
 
   const char* name = xrd_path((unsigned long long)ino);
@@ -1251,6 +1347,7 @@ static void eosfs_ll_setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr
   if (!name) {
     fuse_reply_err(req, ENXIO);
     xrd_unlock_r_p2i(); // <=
+    xrd_unlock_environment();
     return;
   }
 
@@ -1260,6 +1357,8 @@ static void eosfs_ll_setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr
   xrd_unlock_r_p2i(); // <=
 
   retc = xrd_setxattr(fullpath, xattr_name, xattr_value, strlen(xattr_value));
+  xrd_unlock_environment();
+ 
   fuse_reply_err(req, retc);
 
   return;

@@ -195,6 +195,10 @@ extern "C" {
   int            xrd_inodirlist(unsigned long long dirinode, const char *path);
   int            xrd_flush(int fd, unsigned long long inode);
 
+  // - GLOBAL auth environment lock
+  void           xrd_lock_environment();
+  void           xrd_unlock_environment();
+
   // - USER mapping
   const char*    xrd_mapuser(uid_t uid, pid_t pid);
 

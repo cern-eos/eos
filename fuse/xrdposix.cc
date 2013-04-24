@@ -75,6 +75,7 @@ static XrdOucHash<XrdOucString> *stringstore;
 
 XrdSysMutex passwdstoremutex;
 XrdSysMutex stringstoremutex;
+XrdSysMutex environmentmutex;
 
 static bool fuse_exec=false;    // by default nothing can be executed from a FUSE mount
 
@@ -273,6 +274,30 @@ xrd_forget_p2i(const char* path)
   xrd_unlock_w_p2i();
 }
 
+
+//------------------------------------------------------------------------------
+// Lock for environment variables
+//------------------------------------------------------------------------------
+
+void
+xrd_lock_environment () 
+{
+  if (getenv("EOS_FUSE_LOCK_ENVIRONMENT"))
+    environmentmutex.Lock();
+}
+
+//------------------------------------------------------------------------------
+// Unlock for environment variables
+//------------------------------------------------------------------------------
+
+void
+xrd_unlock_environment ()
+{
+  if (getenv("EOS_FUSE_LOCK_ENVIRONMENT")) {
+    environmentmutex.UnLock();
+    setuid(0); // switch always back to the root ID
+  }
+}
 
 // ---------------------------------------------------------------
 // Implementation of the directory listing table
@@ -1900,125 +1925,87 @@ xrd_mapuser(uid_t uid, pid_t pid)
       return NULL;
     }
   }
+
   passwdstoremutex.UnLock();
   
   //............................................................................
-  // Create symbolic links to the KRB5CCNAME of the calling process
-  // since the XRootD plugins will just use the default locations
+  // export X509_USER_PROXY && KRB5CCNAME from the calling process
+  // change the effective user id in this case
   //............................................................................
+  static XrdSysMutex exportCacheMutex;
+  static std::map <uid_t, std::map< std::string, std::string> > exportCache;
+  static std::map <uid_t, time_t> exportCacheRefreshTime;
   
-  setuid(0);
-
-  {
-    static std::map<uid_t, time_t> linkmap;
-    static XrdSysMutex linkmapMutex;
-
-    XrdOucString userproxy = "/tmp/x509up_u";
-    XrdOucString krb5ccname = "/tmp/krb5cc_";
-    userproxy += (int) uid;
-    krb5ccname += (int) uid;
-    unsetenv("X509_USER_PROXY");
-    unsetenv("KRB5CCNAME");
-
-    struct stat buf;
-    // we do some gymnastic for krb5
-    bool parseProcessEnvironment = false;
-    time_t now = time(NULL);
-
-    bool checkLink = false;
-    {
-      XrdSysMutexHelper lLock(linkmapMutex);
-      if (linkmap.count(uid)) {
-	if (linkmap[uid] < now) {
-	  // check once per minute
-	  linkmap[uid] = now + 60;
-	  checkLink = true;
-	}
-      } else {
-	linkmap[uid] = now + 60;
-	checkLink = true;
-      }
-    }
+  XrdSysMutexHelper cLock(exportCacheMutex);
+  
+  if (exportCacheRefreshTime.count(uid) && (exportCacheRefreshTime[uid] > now)) {
+    if (exportCache.count(uid) && exportCache[uid].count("KRB5CCNAME"))
+      setenv("KRB5CCNAME", exportCache[uid]["KRB5CCNAME"].c_str(), 1);
+    if (exportCache.count(uid) && exportCache[uid].count("X509_USER_PROXY"))
+      setenv("X509_USER_PROXY", exportCache[uid]["X509_USER_PROXY"].c_str(), 1);
+  } else {
+    // we do some gymnastic for the export variables
     
-    eos_static_info("checklink=%d", checkLink);
-    if (checkLink) {
-      if (!lstat(krb5ccname.c_str(), &buf)) {
-	eos_static_info("islink=%d", S_ISLNK(buf.st_mode));
-	// check if this is a file or a link
-	if (S_ISLNK(buf.st_mode)) {
-	  if (stat(krb5ccname.c_str(), &buf)) {
-	    // the link target does not exist anymore
-	    parseProcessEnvironment = true;
-	  }  else {
-	    if (((now - buf.st_mtime) > 600))  {
-	      struct utimbuf mtime;
-	      mtime.actime = now;
-	      mtime.modtime = now;
-	      // update the modification time
-	      utime(krb5ccname.c_str(), &mtime);
-	      parseProcessEnvironment = true;
-	    }
-	  }
-	}
-      } else {
-	parseProcessEnvironment = true;
-      }
+    char envBuffer[65536];
+    envBuffer[0] = 0;
+    // read the environment of the process and extract the krb5/x509 setting
+    XrdOucString envFile = "/proc/";
+    envFile += (int) pid;
+    envFile += "/environ";
+    
+    if (exportCache.count(uid))
+      exportCache[uid].erase("KRB5CCNAME");
+    if (exportCache.count(uid))
+      exportCache[uid].erase("X509_USER_PROXY");
+    
+    int fd = open(envFile.c_str(), O_RDONLY);
+    eos_static_info("env-file=%s", envFile.c_str());
+    if (fd > 0) {
+      std::string krb5cc;
+      std::string x509userproxy;
       
-      if (parseProcessEnvironment) {
-	char envBuffer[65536];
-	envBuffer[0] = 0;
-	// read the environment of the process and create a link to the ticket
-	XrdOucString envFile = "/proc/";
-	envFile += (int) pid;
-	envFile += "/environ";
-	int fd = open(envFile.c_str(), O_RDONLY);
-	eos_static_info("env-file=%s", envFile.c_str());
-	if (fd > 0) {
-	  std::string krb5cc;
-	  
-	  // read the stuff
-	  read(fd, envBuffer, sizeof (envBuffer));
-	  envBuffer[65535] = 0;
-	  int krb5ccnamespos = -1;
-	  for (size_t i = 0; i< sizeof (envBuffer) - strlen("KRB5CCNAME="); i++) {	    
-	    if (!strncmp(envBuffer + i, "KRB5CCNAME=", strlen("KRB5CCNAME=")))  {
-	      krb5ccnamespos = i + strlen("KRB5CCNAME=");
-	      krb5cc = (envBuffer + krb5ccnamespos);
-	    }
-	    if (krb5cc.length()) {
-	      eos_static_info("krb5cc=%s", krb5cc.c_str());
-	      
-	      // if this is a ticket in a directory convert it into a FILE:
-	      if (krb5cc.substr(0, strlen("DIR:")) == "DIR:") {
-		krb5cc.erase(0, 4);
-		krb5cc.insert(0, "FILE:");
-	      }
-	      
-	      if (krb5cc.substr(0, strlen("FILE:")) == "FILE:") {
-		std::string source = krb5cc;
-		source.erase(0, strlen("FILE:"));
-		eos_static_info("msg=\"symlink\" source=%s target=%s", source.c_str(), krb5ccname.c_str());
-		seteuid(uid);
-		// create a symbolic link from the 'default' location to the real ticket
-		// - if it works fine, if not what can we do!
-		unlink(krb5ccname.c_str());
-		symlink(source.c_str(), krb5ccname.c_str());
-	      }
-	      break;
-	    }
+      // read the stuff
+      read(fd, envBuffer, sizeof (envBuffer));
+      envBuffer[65535] = 0;
+      int krb5ccnamespos = -1;
+      int x509proxypos = -1;
+      for (size_t i = 0; i< sizeof (envBuffer) - strlen("KRB5CCNAME="); i++) {
+	
+	if (!strncmp(envBuffer + i, "KRB5CCNAME=", strlen("KRB5CCNAME="))) {
+	  krb5ccnamespos = i + strlen("KRB5CCNAME=");
+	  krb5cc = (envBuffer + krb5ccnamespos);
+	  if (krb5cc.length())  {
+	    eos_static_info("export KRB5CCNAME=%s", krb5cc.c_str());
+	    setenv("KRB5CCNAME", krb5cc.c_str(), 1);
+	    exportCache[uid]["KRB5CCNAME"] = krb5cc.c_str();
+	    exportCacheRefreshTime[uid] = now + 300;
 	  }
-	  close(fd);
+	}
+	
+	if (!strncmp(envBuffer + i, "X509_USER_PROXY", strlen("X509_USER_PROXY"))) {
+	  x509proxypos = i + strlen("X509_USER_PROXY=");
+	  x509userproxy = (envBuffer + x509proxypos);
+	  if (x509userproxy.length()) {
+	    eos_static_info("export X509_USER_PROXY=", x509userproxy.c_str());
+	    setenv("X509_USER_PROXY", x509userproxy.c_str(), 1);
+	    exportCache[uid]["X509_USER_PROXY"] = x509userproxy.c_str();
+	    exportCacheRefreshTime[uid] = now + 300;
+	  }
 	}
       }
+      close(fd);
     }
   }
 
   // change the effective user ID to the caller
   seteuid(uid);
-
-
+  
   eos_static_info("uid=%d euid=%d", uid, geteuid());
-  return STRINGSTORE(spw->c_str());
+  
+  XrdOucString role=spw->c_str();
+  
+  //............................................................................
+  return STRINGSTORE(role.c_str());
 }
 
 //------------------------------------------------------------------------------
