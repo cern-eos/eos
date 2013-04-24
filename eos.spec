@@ -29,7 +29,7 @@ BuildRequires: xrootd-cl-devel
 BuildRequires: leveldb-devel
 BuildRequires: git
 
-%if 0%{?rhel} >= 6
+%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
 %if %{?fedora}%{!?fedora:0} >= 18
 BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash-devel
 %else
