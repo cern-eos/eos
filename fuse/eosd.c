@@ -222,7 +222,7 @@ eosfs_ll_setattr (fuse_req_t req,
         }
 
         if ((fd = xrd_open (fullpath, O_WRONLY,
-                            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) > 0)
+                            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid)) > 0)
         {
           retc = xrd_truncate (fd, attr->st_size, ino);
           xrd_close (fd, ino);
@@ -245,7 +245,7 @@ eosfs_ll_setattr (fuse_req_t req,
       }
 
       if ((fd = xrd_open (fullpath, O_WRONLY,
-                          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) > 0)
+                          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid)) > 0)
       {
         retc = xrd_truncate (fd, attr->st_size, ino);
         xrd_close (fd, ino);
@@ -404,45 +404,6 @@ eosfs_ll_lookup (fuse_req_t req,
 
 
 //------------------------------------------------------------------------------
-// Open a directory - NOT USED
-//------------------------------------------------------------------------------
-
-static void
-eosfs_ll_opendir (fuse_req_t req,
-                  fuse_ino_t ino,
-                  struct fuse_file_info* fi)
-{
-  // not used for the moment
-  /*
-  char fullpath[16384];
-
-  xrd_lock_r_p2i(); // =>
-  const char* name = xrd_path( ( unsigned long long )ino );
-
-  if ( !name ) {
-    fuse_reply_err( req, ENXIO );
-    xrd_unlock_r_p2i(); // <=
-    return;
-  }
-
-  sprintf( fullpath, "root://%s@%s/%s/%s", xrd_mapuser( req->ctx.uid , req->ctx.pid ),
-           mounthostport, mountprefix, name );
-
-  xrd_unlock_r_p2i(); // <=
-
-  if ( isdebug ) {
-      fprintf( stderr, "[%s]: inode=%lld path=%s\n",
-               __FUNCTION__, ( long long )ino, fullpath );
-  }
-
-  fi->fh = 0;  //put dummy value, never actually used
-  fuse_reply_open( req, fi );
-   */
-  return;
-}
-
-
-//------------------------------------------------------------------------------
 // Add direntry to dirbuf structure
 //------------------------------------------------------------------------------
 
@@ -527,6 +488,8 @@ eosfs_ll_readdir (fuse_req_t req,
     return;
   }
 
+  xrd_lock_environment();
+
   sprintf (dirfullpath, "/%s%s", mountprefix, name);
   sprintf (fullpath, "root://%s@%s//proc/user/?mgm.cmd=fuse&"
            "mgm.subcmd=inodirlist&mgm.path=/%s%s",
@@ -544,6 +507,9 @@ eosfs_ll_readdir (fuse_req_t req,
     // No dirview entry, try to use the directory cache
     //..........................................................................
     retc = xrd_stat (dirfullpath, &attr);
+
+    xrd_unlock_environment();
+
 #ifdef __APPLE__
     dir_status = xrd_dir_cache_get (ino, attr.st_mtimespec, &tmp_buf);
 #else
@@ -629,6 +595,10 @@ eosfs_ll_readdir (fuse_req_t req,
       xrd_unlock_r_dirview (); // <=
       free (tmp_buf);
     }
+  }
+  else 
+  {
+    xrd_unlock_environment();
   }
 
   if (isdebug)
@@ -747,6 +717,8 @@ eosfs_ll_mknod (fuse_req_t req,
 
     sprintf (partialpath, "/%s%s/%s", mountprefix, parentpath, name);
 
+    xrd_lock_environment();
+
     const char* user = xrd_mapuser (req->ctx.uid, req->ctx.pid);
     sprintf (fullpath, "root://%s@%s//%s%s/%s", user,
              mounthostport, mountprefix, parentpath, name);
@@ -773,8 +745,9 @@ eosfs_ll_mknod (fuse_req_t req,
 
     res = xrd_open (fullpath,
                     O_CREAT | O_EXCL | O_RDWR,
-                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid);
 
+    xrd_unlock_environment();
     if (res == -1)
     {
       fuse_reply_err (req, errno);
@@ -993,6 +966,7 @@ eosfs_ll_symlink (fuse_req_t req,
     return;
   }
 
+  xrd_lock_environment();
   const char* user = xrd_mapuser (req->ctx.uid, req->ctx.pid);
   sprintf (fullpath, "root://%s@%s/%s/%s", user,
            mounthostport, parentpath, name);
@@ -1012,6 +986,8 @@ eosfs_ll_symlink (fuse_req_t req,
   }
 
   int retc = xrd_symlink (fullpath, linksource, link);
+
+  xrd_unlock_environment();
 
   if (!retc)
   {
@@ -1275,6 +1251,7 @@ eosfs_ll_open (fuse_req_t req,
     return;
   }
 
+  xrd_lock_environment();
   sprintf (fullpath, "root://%s@%s//%s%s", xrd_mapuser (req->ctx.uid, req->ctx.pid),
            mounthostport, mountprefix, name);
 
@@ -1292,13 +1269,15 @@ eosfs_ll_open (fuse_req_t req,
     }
     else
     {
-      res = xrd_open (fullpath, fi->flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+      res = xrd_open (fullpath, fi->flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid);
     }
   }
   else
   {
-    res = xrd_open (fullpath, fi->flags, 0);
+    res = xrd_open (fullpath, fi->flags, 0, req->ctx.uid);
   }
+
+  xrd_unlock_environment();
 
   if (isdebug)
   {
@@ -1800,7 +1779,6 @@ static struct fuse_lowlevel_ops eosfs_ll_oper = {
   .access = eosfs_ll_access,
   .readlink = eosfs_ll_readlink,
   .readdir = eosfs_ll_readdir,
-  //  .opendir  = eosfs_ll_opendir,
   .mknod = eosfs_ll_mknod,
   .mkdir = eosfs_ll_mkdir,
   .symlink = eosfs_ll_symlink,
