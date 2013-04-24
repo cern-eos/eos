@@ -2139,7 +2139,7 @@ xrd_open_retc_map (int retc)
 //------------------------------------------------------------------------------
 
 int
-xrd_open (const char* path, int oflags, mode_t mode, uid_t uid)
+xrd_open (const char* path, int oflags, mode_t mode)
 {
   eos_static_info("path=%s flags=%d mode=%d", path, oflags, mode);
   int t0;
@@ -2193,7 +2193,6 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid)
     {
       XrdSysMutexHelper cLock(connectionIdMutex);
       connectionId++;
-      connectionId%=65535;
       errno = ECONNABORTED;
       return -1;
     }

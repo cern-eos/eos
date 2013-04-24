@@ -244,7 +244,7 @@ eosdfs_mknod (const char* path, mode_t mode, dev_t rdev)
     sprintf (rootpath, "root://%s%s%s", mounthostport, mountprefix, path);
     res = xrd_open (rootpath,
                     O_CREAT | O_EXCL | O_WRONLY,
-                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, getuid());
+                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
     if (res == -1)
       return -errno;
@@ -470,7 +470,7 @@ eosdfs_truncate (const char* path, off_t size)
   //............................................................................
   res = xrd_open (rootpath,
                   O_WRONLY | O_TRUNC,
-                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, getuid());
+                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (res == -1)
     return -errno;
@@ -522,7 +522,7 @@ eosdfs_open (const char* path, struct fuse_file_info* fi)
   char rootpath[4096] = "";
   sprintf (rootpath, "root://%s%s%s", mounthostport, mountprefix, path);
   eosatime = time (0);
-  res = xrd_open (rootpath, fi->flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, getuid());
+  res = xrd_open (rootpath, fi->flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (res == -1)
     return -errno;

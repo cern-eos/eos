@@ -222,7 +222,7 @@ eosfs_ll_setattr (fuse_req_t req,
         }
 
         if ((fd = xrd_open (fullpath, O_WRONLY,
-                            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid)) > 0)
+                            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) > 0)
         {
           retc = xrd_truncate (fd, attr->st_size, ino);
           xrd_close (fd, ino);
@@ -245,7 +245,7 @@ eosfs_ll_setattr (fuse_req_t req,
       }
 
       if ((fd = xrd_open (fullpath, O_WRONLY,
-                          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid)) > 0)
+                          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) > 0)
       {
         retc = xrd_truncate (fd, attr->st_size, ino);
         xrd_close (fd, ino);
@@ -745,7 +745,7 @@ eosfs_ll_mknod (fuse_req_t req,
 
     res = xrd_open (fullpath,
                     O_CREAT | O_EXCL | O_RDWR,
-                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid);
+                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
     xrd_unlock_environment();
     if (res == -1)
@@ -1269,12 +1269,12 @@ eosfs_ll_open (fuse_req_t req,
     }
     else
     {
-      res = xrd_open (fullpath, fi->flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid);
+      res = xrd_open (fullpath, fi->flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     }
   }
   else
   {
-    res = xrd_open (fullpath, fi->flags, 0, req->ctx.uid);
+    res = xrd_open (fullpath, fi->flags, 0);
   }
 
   xrd_unlock_environment();
