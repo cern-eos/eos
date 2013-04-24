@@ -1456,7 +1456,9 @@ XrdFstOfsFile::close ()
             (strcmp(layOut->GetName(), "archive") == 0))
         {
           if (layOut->IsEntryServer())
+          {
             layOut->Truncate(maxOffsetWritten);
+          }
         }
         else
         {
@@ -1494,9 +1496,9 @@ XrdFstOfsFile::close ()
         }
       }
 
-      if ((strcmp(layOut->GetName(), "raiddp") == 0) ||
-          (strcmp(layOut->GetName(), "raid6") == 0) ||
-          (strcmp(layOut->GetName(), "archive") == 0))
+      if ((eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) == eos::common::LayoutId::kRaidDP) ||
+          (eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) == eos::common::LayoutId::kRaid6) ||
+          (eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) == eos::common::LayoutId::kArchive))
       {
         //......................................................................
         // For RAID-like layouts don't do this check
@@ -1742,6 +1744,10 @@ XrdFstOfsFile::close ()
                 eos_crit("commit returned an uncatched error msg=%s", error.getErrText());
               }
             }
+            else
+            {
+              committed = true;
+            }
           }
         }
       }
@@ -1772,12 +1778,21 @@ XrdFstOfsFile::close ()
 
     if (closerc)
     {
-      //........................................................................
-      // Some (remote) replica didn't make it through ... trigger an auto-repair
-      //........................................................................
-      if (!deleteOnClose)
+      // For RAIN layouts if there is an error on close when writing then we 
+      // delete the whole file
+      if ((eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) == eos::common::LayoutId::kRaidDP) ||
+          (eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) == eos::common::LayoutId::kRaid6) ||
+          (eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) == eos::common::LayoutId::kArchive))
       {
-        repairOnClose = true;
+        deleteOnClose = true;
+      }
+      else
+      {
+        // Some (remote) replica didn't make it through ... trigger an auto-repair
+        if (!deleteOnClose)
+        {
+          repairOnClose = true;
+        }
       }
     }
 
@@ -1860,6 +1875,13 @@ XrdFstOfsFile::close ()
       OpaqueString += (int) fsid;
       OpaqueString += "&mgm.fid=";
       OpaqueString += hexstring;
+
+      // If deleteOnClose at the gateway then we drop all replicas
+      if (layOut->IsEntryServer())
+      {
+        OpaqueString += "&mgm.dropall=1";
+      }
+      
       XrdOucEnv Opaque(OpaqueString.c_str());
       capOpaqueString += OpaqueString;
       //..................................................................................
