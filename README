@@ -42,7 +42,6 @@ emacs		-	emacs helper macros
 etc		-	Service scripts, Logrotation and Sysconfig Files
 fst		-	The Storage Server Plugin (FST)
 fuse		-	The FUSE mount Client (eosd low level - eosfsd high level)
-httpd		-	The Apache Gateway Server
 man		-	Manual Pages
 mgm		-	The Meta Data Namespace+Scheduling Redirector Plugin (MGM)
 mq		-	The Message Queue Server Plugin
@@ -50,12 +49,12 @@ namespace	-	Implementation of the Namespace
 srm		-	SRM BestMan utility scripts
 sync		-	EOSHA high availability daemon + file/directory synchronization programs
 test		-	Instance test script with some dedicated test executables
-utils		-	Usefull utilities
+utils		-	Usefull utilities and the uninstall scripts
 var		-	Placeholder directory to create log, http and namespace directories
 ##########################################################################
 
 ##########################################################################
-# 2 Compilation                                                          #
+# 2 Compilation (gcc >= 4.4)                                             # 
 ##########################################################################
 mkdir build
 cd build
@@ -75,7 +74,7 @@ make -j 4 install
 - libuuid (devel) | e2fsprogs (devel)
 - libz (+static)
 - git
-- cmake
+- cmake (2.8)
 - xrootd client+server+dev packages (3.3.X)
 
 ##########################################################################
@@ -101,5 +100,4 @@ make rpm
 ##########################################################################
 # cmake .. -DRELEASE=<release> must match the release number in ../eos.spec !
 make srpm
-
 
