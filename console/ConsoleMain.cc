@@ -1139,8 +1139,11 @@ int main (int argc, char* argv[]) {
       if (pipemode)
 	alarm(0);
 
-      if (!line)
+      if (!line) {
+	// put a new line on the terminal
+	fprintf(stdout,"\n");
         break;
+      }
 
       /* Remove leading and trailing whitespace from the line.
          Then, if there is anything left, add it to the history list
