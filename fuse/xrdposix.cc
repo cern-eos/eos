@@ -1927,7 +1927,9 @@ xrd_mapuser(uid_t uid, pid_t pid)
   }
 
   passwdstoremutex.UnLock();
-  
+
+  time_t now = time(NULL);
+
   //............................................................................
   // export X509_USER_PROXY && KRB5CCNAME from the calling process
   // change the effective user id in this case
