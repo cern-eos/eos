@@ -223,7 +223,7 @@ XrdFstOfsFile::open (const char* path,
   if (tpc_key.length())
   {
     time_t now = time(NULL);
-    if (tpc_stage == "copy")
+    if ( (tpc_stage == "copy") || (!gOFS.TpcMap[isRW].count(tpc_key.c_str())) )
     {
       //.........................................................................
       // Create a TPC entry in the TpcMap 
