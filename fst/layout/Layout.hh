@@ -109,7 +109,7 @@ public:
   //--------------------------------------------------------------------------
 
   inline unsigned int
-  GetLayOutId ()
+  GetLayoutId ()
   {
     return mLayoutId;
   }
