@@ -781,6 +781,7 @@ public:
   XrdOucString MgmConfigDir; // Directory where config files are stored 
   XrdOucString MgmConfigAutoLoad; // Name of the automatically loaded configuration file
   XrdOucString MgmProcPath; // Directory with proc files
+  XrdOucString MgmProcConversionPath; // Directory with conversion files (used as temporary files when a layout is changed using third party copy)
   XrdOucString MgmProcMasterPath; // Full path to the master indication proc file
   XrdOucString AuthLib; // -> path to a possible authorizationn library
   XrdOucString MgmNsFileChangeLogFile; // -> path to namespace changelog file for files

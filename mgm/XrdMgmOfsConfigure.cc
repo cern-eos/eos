@@ -1267,8 +1267,12 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   }
   MgmProcPath += subpath;
   MgmProcPath += "/proc";
+  MgmProcConversionPath = MgmProcPath;
+  MgmProcConversionPath += "/conversion"; // this path is used for temporary output files for layout conversions
   MgmProcMasterPath = MgmProcPath;
   MgmProcMasterPath += "/master";
+
+  Recycle::gRecyclingPrefix.insert(0,MgmProcPath.c_str());
 
   instancepath += subpath;
 
@@ -1438,6 +1442,33 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
         return 1;
       }
     }
+
+    try
+    {
+      eosmd = gOFS->eosView->getContainer(MgmProcConversionPath.c_str());
+    }
+    catch (eos::MDException &e)
+    {
+      eosmd = 0;
+    }
+
+    if (!eosmd)
+    {
+      try
+      {
+        eosmd = gOFS->eosView->createContainer(MgmProcConversionPath.c_str(), true);
+        // set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU);
+        gOFS->eosView->updateContainerStore(eosmd);
+      }
+      catch (eos::MDException &e)
+      {
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/conversion directory mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/conversion directory mode to 700");
+        return 1;
+      }
+    }
+
   }
   //-------------------------------------------
 

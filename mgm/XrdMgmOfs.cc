@@ -3568,7 +3568,7 @@ XrdMgmOfs::_rem (const char *path, // In
     gOFS->eosViewRWMutex.UnLockWrite();
 
     SpaceQuota* namespacequota = Quota::GetResponsibleSpaceQuota(attrmap[Recycle::gRecyclingAttribute].c_str());
-
+    eos_info("%llu %s", namespacequota, attrmap[Recycle::gRecyclingAttribute].c_str());
     if (namespacequota)
     {
       // there is quota defined on that recycle path
@@ -3613,7 +3613,7 @@ XrdMgmOfs::_rem (const char *path, // In
       return Emsg(epname,
                   error,
                   ENODEV,
-                  "remove existing file - the recycle space has not quota configuration"
+                  "remove existing file - the recycle space has no quota configuration"
                   );
     }
   }

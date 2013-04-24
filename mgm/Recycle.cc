@@ -32,7 +32,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysTimer.hh"
 /*----------------------------------------------------------------------------*/
-std::string Recycle::gRecyclingPrefix = "/recycle";
+std::string Recycle::gRecyclingPrefix = "/recycle/"; // MgmOfsConfigure prepends the proc directory path e.g. the bin is /eos/<instance/proc/recycle/
 std::string Recycle::gRecyclingAttribute = "sys.recycle";
 std::string Recycle::gRecyclingTimeAttribute = "sys.recycle.keeptime";
 std::string Recycle::gRecyclingPostFix = ".d";
@@ -80,7 +80,7 @@ Recycle::Recycler ()
 {
   //.............................................................................
   // Eternal thread doing garbage clean-up in the garbeg bin
-  // - default garbage directory is '/recycle/'
+  // - default garbage directory is '<instance-proc>/recycle/'
   // - one should define an attribute like 'sys.recycle.keeptime' on this dir
   //   to define the time in seconds how long files stay in the recycle bin
   //.............................................................................
@@ -156,7 +156,6 @@ Recycle::Recycler ()
                   }
                 }
                 std::string l2 = Recycle::gRecyclingPrefix;
-                l2 += "/";
                 l2 += dname1;
                 // list level-2 user directories
                 listrc = dirl2.open(l2.c_str(), rootvid, (const char*) 0);
@@ -517,7 +516,6 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
         }
         gid_t gid = strtoull(dname1, 0, 10);
         std::string l2 = Recycle::gRecyclingPrefix;
-        l2 += "/";
         l2 += dname1;
         // list level-2 user directories
         listrc = dirl2.open(l2.c_str(), rootvid, (const char*) 0);

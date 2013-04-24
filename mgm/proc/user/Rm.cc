@@ -81,12 +81,19 @@ ProcCommand::Rm ()
       {
         eos::ContainerMD::XAttrMap attrmap;
 
-        // check if this path has a recycle attribute
-        if (gOFS->_attr_ls(spath.c_str(), *mError, *pVid, "", attrmap))
+        // check if this path exists at all
+	struct stat buf;
+	if (!gOFS->_stat(spath.c_str(), &buf, *mError, *pVid,""))
         {
-          stdErr += "error: unable to get attributes on search path\n";
-          retc = errno;
-        }
+          // check if this path has a recycle attribute
+          if (gOFS->_attr_ls(spath.c_str(), *mError, *pVid, "", attrmap))
+          {
+            stdErr += "error: unable to get attributes on search path\n";
+            retc = errno;
+          }
+	} else {
+	  fprintf(stderr,"############ skipping attrls\n");
+	}
 
         //.......................................................................
         // see if we have a recycle policy set and if avoid to recycle inside 

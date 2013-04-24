@@ -48,7 +48,7 @@ EOSMGMNAMESPACE_BEGIN
  * in the recycling bin.
  * If the class is called with the complex constructor it is used with the ToGarbage
  * method to move a deleted file or a bulk deletion into the recycling bin.
- * The Recycling bin has the substructure /recycle/<gid>/<uid>/<constracted-path>.<08x:inode>
+ * The Recycling bin has the substructure <instance-proc>/recycle/<gid>/<uid>/<constracted-path>.<08x:inode>
  * The constrcated path is the full path of the file where all '/' are replaced
  * with a '#:#'
  */
