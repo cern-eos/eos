@@ -252,11 +252,13 @@ XrdIo::Read (XrdSfsFileOffset offset,
     int64_t read_length;
     int64_t aligned_offset;
     int64_t aligned_length;
+    int32_t shift;
     std::map<uint64_t, ReadaheadBlock*>::iterator iter;
 
     while (length)
     {
-      aligned_offset = offset - (offset % mBlocksize);
+      shift = offset % mBlocksize;
+      aligned_offset = offset - shift;
       iter = mMapBlocks.find(aligned_offset);
 
       if (iter != mMapBlocks.end())
@@ -268,13 +270,13 @@ XrdIo::Read (XrdSfsFileOffset offset,
         
         if (sh->WaitOK())
         {
-          aligned_length = sh->GetRespLength() - (offset % mBlocksize);
+          aligned_length = sh->GetRespLength() - shift;
           eos_debug("Found block in cache, aligned_offset=%lld, aligned_length=%lld.",
                     aligned_offset, aligned_length);
           
           read_length = (length < aligned_length) ? length : aligned_length;
           pBuff = static_cast<char*> (memcpy(pBuff,
-                                             iter->second->buffer,
+                                             iter->second->buffer + shift,
                                              read_length));
 
           //....................................................................
