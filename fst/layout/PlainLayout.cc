@@ -23,9 +23,8 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/PlainLayout.hh"
-#include "fst/layout/FileIoPlugin.hh"
+#include "fst/io/FileIoPlugin.hh"
 #include "fst/XrdFstOfsFile.hh"
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN

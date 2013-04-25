@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-//! @file FileIoPlugin.hh
-//! @author Elvin-Alin Sindrilaru - CERN
+//! @file FileIoPluginHelper.hh
+//! @author Geoffray Adde - CERN
 //! @brief Class generating an IO plugin object
 //------------------------------------------------------------------------------
 
@@ -22,13 +22,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_FILEIOPLUGIN_HH__
-#define __EOSFST_FILEIOPLUGIN_HH__
+#ifndef __EOSFST_FILEIOPLUGINHELPER_HH__
+#define __EOSFST_FILEIOPLUGINHELPER_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "fst/layout/FileIo.hh"
-#include "fst/layout/LocalIo.hh"
-#include "fst/layout/XrdIo.hh"
+#include "fst/io/FileIo.hh"
+#include "fst/io/XrdIo.hh"
 #include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -43,7 +42,7 @@ class XrdFstOfsFile;
 //! Class used to obtain a IO plugin object
 //------------------------------------------------------------------------------
 
-class FileIoPlugin
+class FileIoPluginHelper
 {
 public:
 
@@ -51,7 +50,7 @@ public:
   //! Constructor
   //--------------------------------------------------------------------------
 
-  FileIoPlugin () {
+  FileIoPluginHelper () {
     //empty
   }
 
@@ -60,7 +59,7 @@ public:
   //! Destructor
   //--------------------------------------------------------------------------
 
-  ~FileIoPlugin () {
+  ~FileIoPluginHelper () {
     //empty
   }
 
@@ -79,10 +78,18 @@ public:
   static FileIo*
   GetIoObject (int ioType,
                XrdFstOfsFile* file = 0,
-               const XrdSecEntity* client = 0);
+               const XrdSecEntity* client = 0)
+  {
+    if (ioType == LayoutId::kXrdCl)
+    {
+      return static_cast<FileIo*> (new XrdIo());
+    }
+
+    return 0;
+  }
 };
 
 EOSFSTNAMESPACE_END
 
-#endif // __ EOSFST_FILEIOPLUGIN_HH__
+#endif // __ EOSFST_FILEIOPLUGINHELPER_HH__
 

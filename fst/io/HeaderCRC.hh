@@ -33,7 +33,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
-#include "fst/layout/FileIo.hh"
+#include "fst/io/FileIo.hh"
 /*----------------------------------------------------------------------------*/
 #include <XrdCl/XrdClFile.hh>
 

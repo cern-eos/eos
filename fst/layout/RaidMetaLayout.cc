@@ -30,7 +30,6 @@
 #include "common/Timing.hh"
 #include "fst/layout/RaidMetaLayout.hh"
 #include "fst/XrdFstOfs.hh"
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN

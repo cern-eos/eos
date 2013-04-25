@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file LocalIo.hh
+//! @file XrdIo.hh
 //! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class used for doing local IO operations
+//! @brief Class used for doing remote IO operations unsing the xrd client
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,42 +22,103 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_LOCALFILEIO__HH__
-#define __EOSFST_LOCALFILEIO__HH__
+#ifndef __EOSFST_XRDFILEIO_HH__
+#define __EOSFST_XRDFILEIO_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "fst/layout/FileIo.hh"
+#include "fst/io/FileIo.hh"
+#include "fst/io/SimpleHandler.hh"
+/*----------------------------------------------------------------------------*/
+#include "XrdCl/XrdClFile.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
+class AsyncMetaHandler;
+
 //------------------------------------------------------------------------------
-//! Class used for doing local IO operations
+//! Struct that holds a readahead buffer and corresponding handler
 //------------------------------------------------------------------------------
-class LocalIo : public FileIo
+
+struct ReadaheadBlock
+{
+  static const uint64_t sDefaultBlocksize; ///< default value for readahead
+
+  //----------------------------------------------------------------------------
+  //! Constuctor
+  //!
+  //! @param blocksize the size of the readahead
+  //!
+  //----------------------------------------------------------------------------
+
+  ReadaheadBlock(uint64_t blocksize = sDefaultBlocksize)
+  {
+    buffer = new char[blocksize];
+    handler = new SimpleHandler();
+  }
+
+
+  //----------------------------------------------------------------------------
+  //! Update current request
+  //!
+  //! @param offset offset
+  //! @param length length
+  //! @param isWrite true if write request, otherwise false
+  //!
+  //----------------------------------------------------------------------------
+
+  void Update(uint64_t offset, uint32_t length, bool isWrite)
+  {
+    handler->Update(offset, length, isWrite);
+  }
+
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+
+  virtual ~ReadaheadBlock()
+  {
+    delete[] buffer;
+    delete handler;
+  }
+
+  char* buffer; ///< pointer to where the data is read
+  SimpleHandler* handler; ///< async handler for the requests
+};
+
+
+//------------------------------------------------------------------------------
+//! Class used for doing remote IO operations using the Xrd client
+//------------------------------------------------------------------------------
+
+class XrdIo : public FileIo
 {
 public:
-  //--------------------------------------------------------------------------
+
+  static const uint32_t sNumRdAheadBlocks; ///< no. of blocks used for readahead
+
+  //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param handle to logical file
   //! @param client security entity
+  //! @param error error information
   //!
-  //--------------------------------------------------------------------------
-  LocalIo (XrdFstOfsFile* file,
-               const XrdSecEntity* client);
+  //----------------------------------------------------------------------------
+  XrdIo ();
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Destructor
-  //--------------------------------------------------------------------------
-  virtual ~LocalIo ();
+  //----------------------------------------------------------------------------
+  virtual ~XrdIo ();
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Open file
   //!
-  //! @param path file path to local file
+  //! @param path file path
   //! @param flags open flags
   //! @param mode open mode
   //! @param opaque opaque information
@@ -65,7 +126,7 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Open (const std::string& path,
                     XrdSfsFileOpenMode flags,
                     mode_t mode = 0,
@@ -73,7 +134,7 @@ public:
                     uint16_t timeout = 0);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Read from file - sync
   //!
   //! @param offset offset in file
@@ -83,7 +144,7 @@ public:
   //!
   //! @return number of bytes read or -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int64_t Read (XrdSfsFileOffset offset,
                         char* buffer,
                         XrdSfsXferSize length,
@@ -93,7 +154,7 @@ public:
   //--------------------------------------------------------------------------
   //! Write to file - sync
   //!
-  //! @param offset offset in file
+  //! @param offset offset
   //! @param buffer data to be written
   //! @param length length
   //! @param timeout timeout value
@@ -108,12 +169,13 @@ public:
 
 
   //--------------------------------------------------------------------------
-  //! Read from file async - falls back to synchrounous mode
+  //! Read from file - async
   //!
   //! @param offset offset in file
   //! @param buffer where the data is read
   //! @param length read length
-  //! @param handler async read handler
+  //! @param pFileHandler async handler for file
+  //! @param readahead true if readahead is to be enabled, otherwise false
   //! @param timeout timeout value
   //!
   //! @return number of bytes read or -1 if error
@@ -122,13 +184,13 @@ public:
   virtual int64_t Read (XrdSfsFileOffset offset,
                         char* buffer,
                         XrdSfsXferSize length,
-                        void* handler,
+                        void* pFileHandler,
                         bool readahead = false,
                         uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
-  //! Write to file async - falls back to synchronous mode
+  //! Write to file - async
   //!
   //! @param offset offset
   //! @param buffer data to be written
@@ -142,7 +204,7 @@ public:
   virtual int64_t Write (XrdSfsFileOffset offset,
                          const char* buffer,
                          XrdSfsXferSize length,
-                         void* handler,
+                         void* pFileHandler,
                          uint16_t timeout = 0);
 
 
@@ -152,35 +214,11 @@ public:
   //! @param offset truncate file to this value
   //! @param timeout timeout value
   //!
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-  virtual int Truncate (XrdSfsFileOffset offset, uint16_t timeout = 0);
-
-
-  //--------------------------------------------------------------------------
-  //! Allocate file space
-  //!
-  //! @param length space to be allocated
-  //!
-  //! @return 0 on success, -1 otherwise and error code is set
-  //!
-  //--------------------------------------------------------------------------
-  virtual int Fallocate (XrdSfsFileOffset lenght);
-
-
-  //--------------------------------------------------------------------------
-  //! Deallocate file space
-  //!
-  //! @param fromOffset offset start
-  //! @param toOffset offset end
-  //!
-  //! @return 0 on success, -1 otherwise and error code is set
-  //!
-  //--------------------------------------------------------------------------
-  virtual int Fdeallocate (XrdSfsFileOffset fromOffset,
-                           XrdSfsFileOffset toOffset);
+  virtual int Truncate (XrdSfsFileOffset offset,
+                        uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
@@ -196,7 +234,7 @@ public:
   //! Sync file to disk
   //!
   //! @param timeout timeout value
-  //! 
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
@@ -227,25 +265,42 @@ public:
 
 private:
 
-  XrdFstOfsFile* mLogicalFile; ///< handler to logical file
-  const XrdSecEntity* mSecEntity; ///< security entity
+  int mIndex; ///< inded of readahead block in use ( 0 or 1 )
+  bool mDoReadahead; ///< mark if readahead is enabled
+  uint32_t mBlocksize; ///< block size for rd/wr opertations
+  std::string mPath; ///< path to file
+  XrdCl::File* mXrdFile; ///< handler to xrd file
+  std::map<uint64_t, ReadaheadBlock*> mMapBlocks; ///< map of block read/prefetched
+  std::queue<ReadaheadBlock*> mQueueBlocks; ///< queue containing available blocks
+
+  
+  //--------------------------------------------------------------------------
+  //! Method used to prefetch the next block using the readahead mechanism
+  //!
+  //! @param offset begin offset of the current block we are reading
+  //! @param isWrite true if block is for write, false otherwise
+  //! @param timeout timeout value
+  //!
+  //--------------------------------------------------------------------------
+  void PrefetchBlock (int64_t offset,
+                      bool isWrite,
+                      uint16_t timeout = 0);
+
 
   //--------------------------------------------------------------------------
   //! Disable copy constructor
   //--------------------------------------------------------------------------
-  LocalIo (const LocalIo&) = delete;
+  XrdIo (const XrdIo&) = delete;
 
 
   //--------------------------------------------------------------------------
   //! Disable assign operator
   //--------------------------------------------------------------------------
-  LocalIo& operator = (const LocalIo&) = delete;
-
+  XrdIo& operator = (const XrdIo&) = delete;
 
 };
 
 EOSFSTNAMESPACE_END
 
-#endif  // __EOSFST_LOCALFILEIO_HH__
-
+#endif  // __EOSFST_XRDFILEIO_HH__
 

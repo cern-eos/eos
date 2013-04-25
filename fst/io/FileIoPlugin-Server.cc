@@ -23,8 +23,8 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "fst/layout/FileIoPlugin.hh"
-#include "fst/layout/FileIoPluginCommon.hh"
+#include "fst/io/FileIoPlugin.hh"
+#include "fst/io/FileIoPluginCommon.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN

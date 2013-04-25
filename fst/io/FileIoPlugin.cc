@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file FileIoPluginHelper.hh
+//! @file FileIoPlugin.cc
 //! @author Geoffray Adde - CERN
-//! @brief Class generating an IO plugin object
+//! @brief Implementation of the FileIoPlugin for a client
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,74 +22,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_FILEIOPLUGINHELPER_HH__
-#define __EOSFST_FILEIOPLUGINHELPER_HH__
-
 /*----------------------------------------------------------------------------*/
-#include "fst/layout/FileIo.hh"
-#include "fst/layout/XrdIo.hh"
-#include "common/LayoutId.hh"
+#include "fst/io/FileIoPlugin.hh"
+#include "fst/io/FileIoPluginCommon.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
 using eos::common::LayoutId;
 
-//! Forward declaration
-class XrdFstOfsFile;
-
-//------------------------------------------------------------------------------
-//! Class used to obtain a IO plugin object
-//------------------------------------------------------------------------------
-
-class FileIoPluginHelper
-{
-public:
-
-  //--------------------------------------------------------------------------
-  //! Constructor
-  //--------------------------------------------------------------------------
-
-  FileIoPluginHelper () {
-    //empty
-  }
-
-
-  //--------------------------------------------------------------------------
-  //! Destructor
-  //--------------------------------------------------------------------------
-
-  ~FileIoPluginHelper () {
-    //empty
-  }
-
-
-  //--------------------------------------------------------------------------
-  //! Get IO object
-  //!
-  //! @param file file handler
-  //! @param layoutId layout id type
-  //! @param error error information
-  //!
-  //! @return requested layout type object
-  //!
-  //--------------------------------------------------------------------------
-
-  static FileIo*
-  GetIoObject (int ioType,
-               XrdFstOfsFile* file = 0,
-               const XrdSecEntity* client = 0)
-  {
-    if (ioType == LayoutId::kXrdCl)
-    {
-      return static_cast<FileIo*> (new XrdIo());
-    }
-
-    return 0;
-  }
-};
+FileIo*
+  FileIoPlugin::GetIoObject (int ioType,
+               XrdFstOfsFile* file ,
+               const XrdSecEntity* client) {
+               
+  return FileIoPluginHelper::GetIoObject (ioType, file, client);               
+}
 
 EOSFSTNAMESPACE_END
-
-#endif // __ EOSFST_FILEIOPLUGINHELPER_HH__
 

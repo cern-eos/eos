@@ -23,7 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOfsFile.hh"
-#include "fst/layout/LocalIo.hh"
+#include "fst/io/LocalIo.hh"
 /*----------------------------------------------------------------------------*/
 #ifndef __APPLE__
 #include <xfs/xfs.h>

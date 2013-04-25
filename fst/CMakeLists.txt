@@ -49,15 +49,14 @@ target_link_libraries( EosFstOss
 add_library( EosFstCommon SHARED
 	     XrdFstOfs.cc	            XrdFstOfs.hh
 
+  	     io/FileIoPlugin.hh
+	     io/FileIo.hh 
+  	     io/LocalIo.cc                  io/LocalIo.hh
+	     io/XrdIo.cc                    io/XrdIo.hh
 	     io/HeaderCRC.cc                io/HeaderCRC.hh
 	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
 	     io/ChunkHandler.cc             io/ChunkHandler.hh
 	     io/SimpleHandler.cc            io/SimpleHandler.hh
-
-  	     layout/FileIoPlugin.hh
-	     layout/FileIo.hh 
-  	     layout/LocalIo.cc          layout/LocalIo.hh
-	     layout/XrdIo.cc                layout/XrdIo.hh
 
 	     layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
 	     layout/Layout.cc               layout/Layout.hh
@@ -76,15 +75,15 @@ add_library( EosFstCommon SHARED
 add_library( EosFstCommon-Static STATIC
 	     XrdFstOfs.cc               XrdFstOfs.hh
 
+  	     io/FileIoPlugin.hh
+	     io/FileIo.hh 
+  	     io/LocalIo.cc                  io/LocalIo.hh
+	     io/XrdIo.cc                    io/XrdIo.hh
 	     io/HeaderCRC.cc                io/HeaderCRC.hh
 	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
 	     io/ChunkHandler.cc             io/ChunkHandler.hh
 	     io/SimpleHandler.cc            io/SimpleHandler.hh
 
-  	     layout/FileIoPlugin.hh
-	     layout/FileIo.hh 
-  	     layout/LocalIo.cc              layout/LocalIo.hh
-	     layout/XrdIo.cc                layout/XrdIo.hh
 
 	     layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
 	     layout/Layout.cc               layout/Layout.hh
@@ -102,7 +101,7 @@ add_library( EosFstCommon-Static STATIC
 										       
 add_library( XrdEosFst MODULE
 	     XrdFstOfs.cc                   XrdFstOfs.hh
-  	     layout/FileIoPlugin-Server.cc
+  	     io/FileIoPlugin-Server.cc
 	     XrdFstOfsFile.cc               XrdFstOfsFile.hh
 	     storage/Balancer.cc
 	     storage/Cleaner.cc             storage/Comunicator.cc
@@ -127,7 +126,7 @@ add_library( XrdEosFst MODULE
 
 add_library( XrdEosFst-Static STATIC
 	     XrdFstOfs.cc                   XrdFstOfs.hh
-  	     layout/FileIoPlugin-Server.cc
+  	     io/FileIoPlugin-Server.cc
 	     XrdFstOfsFile.cc               XrdFstOfsFile.hh
 	     storage/Balancer.cc
 	     storage/Cleaner.cc             storage/Comunicator.cc
@@ -231,7 +230,7 @@ add_executable( eoscp
 		txqueue/eoscp.cc
 		../common/Logging.cc
 		../common/Attr.cc
-		layout/FileIoPlugin.cc
+		io/FileIoPlugin.cc
 )
 
 set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )

@@ -31,7 +31,7 @@
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
-#include "fst/layout/FileIoPlugin.hh"
+#include "fst/io/FileIoPlugin.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSfs/XrdSfsInterface.hh"

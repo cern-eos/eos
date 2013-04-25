@@ -29,7 +29,7 @@
 #include "FileEos.hh"
 #include "Result.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-#include "fst/layout/FileIoPlugin.hh"
+#include "fst/io/FileIoPlugin.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/layout/RaidMetaLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
