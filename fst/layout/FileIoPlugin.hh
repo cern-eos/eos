@@ -79,8 +79,7 @@ public:
   static FileIo*
   GetIoObject (int ioType,
                XrdFstOfsFile* file = 0,
-               const XrdSecEntity* client = 0,
-               XrdOucErrInfo* error = 0);
+               const XrdSecEntity* client = 0);
 };
 
 EOSFSTNAMESPACE_END

@@ -96,7 +96,7 @@ class XrdFileIo : public FileIo
 {
 public:
 
-  static const uint32_t sNumRdAheadBlocks; //< no. of blocks used for readahead
+  static const uint32_t sNumRdAheadBlocks; ///< no. of blocks used for readahead
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -107,8 +107,7 @@ public:
   //!
   //----------------------------------------------------------------------------
   XrdFileIo (XrdFstOfsFile* file,
-             const XrdSecEntity* client,
-             XrdOucErrInfo* error);
+             const XrdSecEntity* client);
 
 
   //----------------------------------------------------------------------------
@@ -219,7 +218,8 @@ public:
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-  virtual int Truncate (XrdSfsFileOffset offset, uint16_t timeout = 0);
+  virtual int Truncate (XrdSfsFileOffset offset,
+                        uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
@@ -283,7 +283,9 @@ private:
   //! @param timeout timeout value
   //!
   //--------------------------------------------------------------------------
-  void PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout = 0);
+  void PrefetchBlock (int64_t offset,
+                      bool isWrite,
+                      uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------

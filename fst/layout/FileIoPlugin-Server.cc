@@ -34,16 +34,14 @@ using eos::common::LayoutId;
 FileIo*
 FileIoPlugin::GetIoObject (int ioType,
     XrdFstOfsFile* file ,
-    const XrdSecEntity* client ,
-    XrdOucErrInfo* error ) {
+    const XrdSecEntity* client) {
 
   if (ioType == LayoutId::kLocal)
   {
-    return static_cast<FileIo*> (new LocalFileIo(file, client, error));
+    return static_cast<FileIo*> (new LocalFileIo(file, client));
   }
 
-  return FileIoPluginHelper::GetIoObject (ioType,
-      file ,client,error);
+  return FileIoPluginHelper::GetIoObject (ioType, file, client);
 }
 
 EOSFSTNAMESPACE_END

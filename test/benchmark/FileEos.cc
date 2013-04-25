@@ -90,8 +90,7 @@ FileEos::Write(Result*& result)
   mode_t mode_sfs = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IROTH;
   XrdSfsFileOpenMode flags_sfs = SFS_O_CREAT | SFS_O_RDWR;
   eos::fst::FileIo* file = eos::fst::FileIoPlugin::GetIoObject(
-                             eos::common::LayoutId::kXrdCl,
-                             NULL, NULL, NULL);
+                             eos::common::LayoutId::kXrdCl, NULL, NULL);
   
   COMMONTIMING("OPEN", &wr_timing);
   std::string full_path = mBmkInstance;
@@ -195,8 +194,7 @@ FileEos::ReadGw(Result*& result)
   eos::fst::AsyncMetaHandler* file_handler = new eos::fst::AsyncMetaHandler();
   XrdSfsFileOpenMode flags_sfs = SFS_O_RDONLY;
   eos::fst::FileIo* file = eos::fst::FileIoPlugin::GetIoObject(
-                             eos::common::LayoutId::kXrdCl,
-                             NULL, NULL, NULL);
+                             eos::common::LayoutId::kXrdCl, NULL, NULL);
   COMMONTIMING("OPEN", &rd_timing);
   std::string full_path = mBmkInstance;
   full_path += "/";

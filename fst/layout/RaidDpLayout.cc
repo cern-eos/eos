@@ -273,7 +273,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
                                               mDataBlocks[i],
                                               mStripeWidth,
                                               mMetaHandlers[physical_id],
-                                              true); // enable readahead
+                                              true, mTimeout); // enable readahead
 
       if (nread != mStripeWidth)
       {
@@ -373,7 +373,8 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
           nwrite = mStripeFiles[physical_id]->Write(offset_local,
                                                     mDataBlocks[id_corrupted],
                                                     mStripeWidth,
-                                                    mMetaHandlers[physical_id]);
+                                                    mMetaHandlers[physical_id],
+                                                    mTimeout);
 
           if (nwrite != mStripeWidth)
           {
@@ -463,7 +464,8 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
             nwrite = mStripeFiles[physical_id]->Write(offset_local,
                                                       mDataBlocks[id_corrupted],
                                                       mStripeWidth,
-                                                      mMetaHandlers[physical_id]);
+                                                      mMetaHandlers[physical_id],
+                                                      mTimeout);
 
             if (nwrite != mStripeWidth)
             {
@@ -644,7 +646,8 @@ RaidDpLayout::WriteParityToFiles (off_t offsetGroup)
       nwrite = mStripeFiles[physical_pindex]->Write(off_parity_local,
                                                     mDataBlocks[index_pblock],
                                                     mStripeWidth,
-                                                    mMetaHandlers[physical_pindex]);
+                                                    mMetaHandlers[physical_pindex],
+                                                    mTimeout);
       if (nwrite != mStripeWidth)
       {
         eos_err("error=error while writing local parity information");
@@ -667,7 +670,8 @@ RaidDpLayout::WriteParityToFiles (off_t offsetGroup)
       nwrite = mStripeFiles[physical_dpindex]->Write(off_parity_local,
                                                      mDataBlocks[index_dpblock],
                                                      mStripeWidth,
-                                                     mMetaHandlers[physical_dpindex]);
+                                                     mMetaHandlers[physical_dpindex],
+                                                     mTimeout);
       if (nwrite != mStripeWidth)
       {
         eos_err("error=error while writing local parity information");
@@ -987,7 +991,7 @@ RaidDpLayout::Truncate (XrdSfsFileOffset offset)
   truncate_offset += mSizeHeader;
   if (mStripeFiles[0])
   {
-    mStripeFiles[0]->Truncate(truncate_offset);
+    mStripeFiles[0]->Truncate(truncate_offset, mTimeout);
   }
 
   eos_debug("Truncate local stripe to file_offset = %lli, stripe_offset = %zu",
@@ -1010,7 +1014,7 @@ RaidDpLayout::Truncate (XrdSfsFileOffset offset)
 
       if (mStripeFiles[i])
       {
-        if (mStripeFiles[i]->Truncate(truncate_offset))
+        if (mStripeFiles[i]->Truncate(truncate_offset, mTimeout))
         {
           eos_err("error=error while truncating");
           return SFS_ERROR;

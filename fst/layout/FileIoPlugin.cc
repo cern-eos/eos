@@ -34,12 +34,9 @@ using eos::common::LayoutId;
 FileIo*
   FileIoPlugin::GetIoObject (int ioType,
                XrdFstOfsFile* file ,
-               const XrdSecEntity* client ,
-               XrdOucErrInfo* error ) {
+               const XrdSecEntity* client) {
                
-  return FileIoPluginHelper::GetIoObject (ioType,
-         file ,client,error);
-               
+  return FileIoPluginHelper::GetIoObject (ioType, file, client);               
 }
 
 EOSFSTNAMESPACE_END

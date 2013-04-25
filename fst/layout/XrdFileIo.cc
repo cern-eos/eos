@@ -25,6 +25,7 @@
 #include "fst/layout/XrdFileIo.hh"
 #include "fst/io/ChunkHandler.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdCl/XrdClDefaultEnv.hh"
 /*----------------------------------------------------------------------------*/
 #include <stdint.h>
 #include <cstdlib>
@@ -41,14 +42,16 @@ const uint32_t XrdFileIo::sNumRdAheadBlocks = 2;
 //------------------------------------------------------------------------------
 
 XrdFileIo::XrdFileIo (XrdFstOfsFile* file,
-                      const XrdSecEntity* client,
-                      XrdOucErrInfo* error) :
-FileIo (file, client, error),
+                      const XrdSecEntity* client) :
+FileIo (file, client),
 mIndex (0),
 mDoReadahead (false),
 mBlocksize (ReadaheadBlock::sDefaultBlocksize),
-mXrdFile (NULL) {
-  // empty
+mXrdFile (NULL)
+{
+  // Set the TimeoutResolution to 1 
+  XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
+  env->PutInt( "TimeoutResolution", 1 );
 }
 
 
@@ -123,6 +126,11 @@ XrdFileIo::Open (const std::string& path,
   request += "?";
   request += opaque;
   mXrdFile = new XrdCl::File();
+
+  // Disable recover on read and write
+  mXrdFile->EnableReadRecovery(false);
+  mXrdFile->EnableWriteRecovery(false);
+  
   XrdCl::OpenFlags::Flags flags_xrdcl = eos::common::LayoutId::MapFlagsSfs2XrdCl(flags);
   XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
   XrdCl::XRootDStatus status = mXrdFile->Open(request, flags_xrdcl,
@@ -237,7 +245,7 @@ XrdFileIo::Read (XrdSfsFileOffset offset,
                             buffer,
                             static_cast<XrdCl::ResponseHandler*> (handler),
                             timeout);
-    nread += length;
+    nread += length;    
   }
   else
   {
@@ -264,7 +272,7 @@ XrdFileIo::Read (XrdSfsFileOffset offset,
           aligned_length = sh->GetRespLength() - (offset % mBlocksize);
           eos_debug("Found block in cache, aligned_offset=%lld, aligned_length=%lld.",
                     aligned_offset, aligned_length);
-
+          
           read_length = (length < aligned_length) ? length : aligned_length;
           pBuff = static_cast<char*> (memcpy(pBuff,
                                              iter->second->buffer,
@@ -301,12 +309,15 @@ XrdFileIo::Read (XrdSfsFileOffset offset,
           //....................................................................
           mQueueBlocks.push(iter->second);
           mMapBlocks.erase(iter);
-          eos_debug("Error while prefetching, remove block from map.\n");
+          eos_debug("Error while prefetching, remove block from map.");
           break;
         }
       }
       else
       {
+        // TODO: deal here with the case we received a read timeout from prefetching
+        eos_debug("Block not found in prefetched ones offset: %li", aligned_offset);
+        
         //......................................................................
         // Remove first element from map and prefetch a new block 
         //......................................................................
@@ -329,7 +340,7 @@ XrdFileIo::Read (XrdSfsFileOffset offset,
     //..........................................................................
     if (length)
     {
-      eos_debug("Readahead not useful, use the classic way for the rest or entire block. \n");
+      eos_debug("Readahead not useful, use the classic way for the rest fo the block.");
       handler = static_cast<AsyncMetaHandler*> (pFileHandler)->Register(offset, length, false);
       status = mXrdFile->Read(static_cast<uint64_t> (offset),
                               static_cast<uint32_t> (length),
@@ -379,9 +390,10 @@ XrdFileIo::Write (XrdSfsFileOffset offset,
 int
 XrdFileIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
+  eos_debug("Calling XrdFileIo::Truncate with timeout = %lu", timeout);
   XrdCl::XRootDStatus status = mXrdFile->Truncate(static_cast<uint64_t> (offset),
                                                   timeout);
-
+  
   if (!status.IsOK())
   {
     errno = status.errNo;
@@ -420,7 +432,10 @@ XrdFileIo::Stat (struct stat* buf, uint16_t timeout)
 {
   int rc = SFS_ERROR;
   XrdCl::StatInfo* stat = 0;
-  XrdCl::XRootDStatus status = mXrdFile->Stat(true, stat, timeout);
+  // TODO: once Stat using the file handler works properly in XRootD, one can
+  // revert the flag on the first position to true, so stat stat is forced and
+  // not taken from the cache as it is the case now
+  XrdCl::XRootDStatus status = mXrdFile->Stat(false, stat, timeout);
 
   if (!status.IsOK())
   {

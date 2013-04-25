@@ -42,12 +42,10 @@ public:
   //!
   //! @param handle to logical file
   //! @param client security entity
-  //! @param error error information
   //!
   //--------------------------------------------------------------------------
   LocalFileIo (XrdFstOfsFile* file,
-               const XrdSecEntity* client,
-               XrdOucErrInfo* error);
+               const XrdSecEntity* client);
 
 
   //--------------------------------------------------------------------------

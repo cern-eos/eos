@@ -55,16 +55,19 @@ public:
 
   //--------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param file original OFS file
+  //! @param client security entity
+  //!
   //--------------------------------------------------------------------------
 
   FileIo (XrdFstOfsFile* file,
-          const XrdSecEntity* client,
-          XrdOucErrInfo* error) :
+          const XrdSecEntity* client) :
   eos::common::LogId (),
   mFilePath (""),
   mLogicalFile (file),
-  mError (error),
-  mSecEntity (client) {
+  mSecEntity (client)
+  {
     //empty
   }
 
@@ -281,7 +284,6 @@ protected:
 
   std::string mFilePath; ///< path to current physical file
   XrdFstOfsFile* mLogicalFile; ///< handler to logical file
-  XrdOucErrInfo* mError; ///< error information
   const XrdSecEntity* mSecEntity; ///< security entity
 };
 

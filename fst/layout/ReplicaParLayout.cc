@@ -38,8 +38,9 @@ ReplicaParLayout::ReplicaParLayout (XrdFstOfsFile* file,
                                     int lid,
                                     const XrdSecEntity* client,
                                     XrdOucErrInfo* outError,
-                                    eos::common::LayoutId::eIoType io) :
-Layout (file, lid, client, outError, io)
+                                    eos::common::LayoutId::eIoType io,
+                                    uint16_t timeout) :
+    Layout (file, lid, client, outError, io, timeout)
 {
  mNumReplicas = eos::common::LayoutId::GetStripeNumber(lid) + 1; // this 1=0x0 16=0xf :-)
  ioLocal = false;
@@ -201,11 +202,9 @@ ReplicaParLayout::Open (const std::string& path,
      mLocalPath = path;
      mReplicaUrl.push_back(mLocalPath);
      FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kLocal,
-                                              mOfsFile,
-                                              mSecEntity,
-                                              mError);
+                                              mOfsFile, mSecEntity);
 
-     if (file->Open(path, flags, mode, opaque))
+     if (file->Open(path, flags, mode, opaque, mTimeout))
      {
        eos_err("Failed to open replica - local open failed on ", path.c_str());
        return gOFS.Emsg("ReplicaOpen", *mError, EIO,
@@ -233,16 +232,13 @@ ReplicaParLayout::Open (const std::string& path,
          eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
          eos::common::StringConversion::MaskTag(maskUrl, "authz");
          FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kXrdCl,
-                                                  mOfsFile,
-                                                  mSecEntity,
-                                                  mError);
+                                                  mOfsFile, mSecEntity);
 
          //....................................................................
          // Write case
          //....................................................................
-         if (file->Open(mReplicaUrl[i],
-                        SFS_O_CREAT | SFS_O_WRONLY,
-                        mode, opaque))
+         if (file->Open(mReplicaUrl[i], SFS_O_CREAT | SFS_O_WRONLY,
+                        mode, opaque, mTimeout))
          {
            eos_err("Failed to open stripes - remote open failed on ",
                    maskUrl.c_str());
@@ -298,7 +294,7 @@ ReplicaParLayout::Read (XrdSfsFileOffset offset,
 
  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
  {
-   rc = mReplicaFile[i]->Read(offset, buffer, length);
+   rc = mReplicaFile[i]->Read(offset, buffer, length, mTimeout);
 
    if (rc == SFS_ERROR)
    {
@@ -343,7 +339,7 @@ ReplicaParLayout::Write (XrdSfsFileOffset offset,
 
  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
  {
-   rc = mReplicaFile[i]->Write(offset, buffer, length);
+   rc = mReplicaFile[i]->Write(offset, buffer, length, mTimeout);
 
    if (rc != length)
    {
@@ -357,8 +353,7 @@ ReplicaParLayout::Write (XrdSfsFileOffset offset,
 
      eos_err("Failed to write replica %i - write failed - %llu %s",
              i, offset, maskUrl.c_str());
-     return gOFS.Emsg("ReplicaWrite", *mError, errno,
-                      "write replica failed",
+     return gOFS.Emsg("ReplicaWrite", *mError, errno, "write replica failed",
                       maskUrl.c_str());
    }
  }
@@ -378,7 +373,7 @@ ReplicaParLayout::Truncate (XrdSfsFileOffset offset)
 
  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
  {
-   rc = mReplicaFile[i]->Truncate(offset);
+   rc = mReplicaFile[i]->Truncate(offset, mTimeout);
 
    if (rc != SFS_OK)
    {
@@ -426,7 +421,7 @@ ReplicaParLayout::Sync ()
    eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
    eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
    eos::common::StringConversion::MaskTag(maskUrl, "authz");
-   rc = mReplicaFile[i]->Sync();
+   rc = mReplicaFile[i]->Sync(mTimeout);
 
    if (rc != SFS_OK)
    {
@@ -491,7 +486,7 @@ ReplicaParLayout::Close ()
 
  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
  {
-   rc = mReplicaFile[i]->Close();
+   rc = mReplicaFile[i]->Close(mTimeout);
 
    if (rc != SFS_OK)
    {

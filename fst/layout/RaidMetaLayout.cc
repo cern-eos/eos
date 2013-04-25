@@ -45,8 +45,9 @@ RaidMetaLayout::RaidMetaLayout (XrdFstOfsFile* file,
                                 eos::common::LayoutId::eIoType io,
                                 bool storeRecovery,
                                 off_t targetSize,
-                                std::string bookingOpaque) :
-Layout (file, lid, client, outError, io),
+                                std::string bookingOpaque,
+                                uint16_t timeout) :
+  Layout (file, lid, client, outError, io, timeout),
 mIsRw (false),
 mIsOpen (false),
 mIsPio (false),
@@ -186,9 +187,7 @@ RaidMetaLayout::Open (const std::string& path,
  //..........................................................................
  mLocalPath = path;
  FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kLocal,
-                                          mOfsFile,
-                                          mSecEntity,
-                                          mError);
+                                          mOfsFile, mSecEntity);
 
  //............................................................................
  // When recovery enabled then we open in simple RDWR mode
@@ -203,7 +202,7 @@ RaidMetaLayout::Open (const std::string& path,
    flags = SFS_O_RDWR | SFS_O_TRUNC;
  }
 
- if (file && file->Open(path, flags, mode, enhanced_opaque.c_str()))
+ if (file && file->Open(path, flags, mode, enhanced_opaque.c_str(), mTimeout))
  {
    eos_err("error=failed to open local ", path.c_str());
    return gOFS.Emsg("ReplicaOpen", *mError, EIO,
@@ -230,7 +229,7 @@ RaidMetaLayout::Open (const std::string& path,
  HeaderCRC* hd = mHdrInfo.back();
  file = mStripeFiles.back();
 
- if (hd->ReadFromFile(file))
+ if (hd->ReadFromFile(file, mTimeout))
  {
    mLogicalStripeIndex = hd->GetIdStripe();
    mapPL.insert(std::pair<unsigned int, unsigned int>(0, hd->GetIdStripe()));
@@ -322,9 +321,7 @@ RaidMetaLayout::Open (const std::string& path,
        stripe_urls[i] += remoteOpenOpaque.c_str();
        int ret = -1;
        FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kXrdCl,
-                                                mOfsFile,
-                                                mSecEntity,
-                                                mError);
+                                                mOfsFile, mSecEntity);
 
        //....................................................................
        // Set the correct open flags for the stripe
@@ -344,7 +341,7 @@ RaidMetaLayout::Open (const std::string& path,
        //........................................................................
        // Doing the actual open
        //........................................................................
-       ret = file->Open(stripe_urls[i], flags, mode, enhanced_opaque.c_str());
+       ret = file->Open(stripe_urls[i], flags, mode, enhanced_opaque.c_str(), mTimeout);
 
        if (ret == SFS_ERROR)
        {
@@ -364,7 +361,7 @@ RaidMetaLayout::Open (const std::string& path,
        hd = mHdrInfo.back();
        file = mStripeFiles.back();
 
-       if (file && hd->ReadFromFile(file))
+       if (file && hd->ReadFromFile(file, mTimeout))
        {
          mapPL.insert(std::make_pair(pos, hd->GetIdStripe()));
          mapLP.insert(std::make_pair(hd->GetIdStripe(), pos));
@@ -513,7 +510,7 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    HeaderCRC* hd = mHdrInfo.back();
    file = mStripeFiles.back();
 
-   if (file && hd->ReadFromFile(file))
+   if (file && hd->ReadFromFile(file, mTimeout))
    {
      mapPL.insert(std::make_pair(pos, hd->GetIdStripe()));
      mapLP.insert(std::make_pair(hd->GetIdStripe(), pos));
@@ -653,7 +650,7 @@ RaidMetaLayout::ValidateHeader ()
        {
          if (mStripeFiles[physical_id])
          {
-           mHdrInfo[physical_id]->WriteToFile(mStripeFiles[physical_id]);
+           mHdrInfo[physical_id]->WriteToFile(mStripeFiles[physical_id], mTimeout);
          }
        }
 
@@ -705,7 +702,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
    //..........................................................................
    // Non-entry server doing only local read operation
    //..........................................................................
-   read_length = mStripeFiles[0]->Read(offset, buffer, length);
+   read_length = mStripeFiles[0]->Read(offset, buffer, length, mTimeout);
  }
  else
  {
@@ -802,7 +799,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
                                                   mPtrBlocks[i],
                                                   mStripeWidth,
                                                   mMetaHandlers[physical_id],
-                                                  true);
+                                                  true, mTimeout);
 
          if (nbytes != mStripeWidth)
          {
@@ -833,6 +830,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
      //........................................................................
      size_t len;
 
+     // TODO: deal with the case when we receive a timeout error
      for (unsigned int j = 0; j < mMetaHandlers.size(); j++)
      {
        if (!mMetaHandlers[j]->WaitOK())
@@ -912,7 +910,7 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
    //...........................................................................
    // Non-entry server doing only local operations
    //...........................................................................
-   write_length = mStripeFiles[0]->Write(offset, buffer, length);
+   write_length = mStripeFiles[0]->Write(offset, buffer, length, mTimeout);
  }
  else
  {
@@ -943,10 +941,9 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
      //.........................................................................
      if (mStripeFiles[physical_id])
      {
-       nbytes = mStripeFiles[physical_id]->Write(offset_local,
-                                                 buffer,
-                                                 nwrite,
-                                                 mMetaHandlers[physical_id]);
+       nbytes = mStripeFiles[physical_id]->Write(offset_local, buffer, nwrite,
+                                                 mMetaHandlers[physical_id],
+                                                 mTimeout);
 
        if (nbytes != nwrite)
        {
@@ -1174,7 +1171,8 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
      nread = mStripeFiles[physical_id]->Read(offset_local,
                                              mDataBlocks[MapSmallToBig(i)],
                                              mStripeWidth,
-                                             mMetaHandlers[physical_id]);
+                                             mMetaHandlers[physical_id],
+                                             false, mTimeout);
 
      if (nread != mStripeWidth)
      {
@@ -1345,7 +1343,7 @@ RaidMetaLayout::Sync ()
    //..........................................................................
    // Sync local file
    //..........................................................................
-   if (mStripeFiles[0] && mStripeFiles[0]->Sync())
+   if (mStripeFiles[0] && mStripeFiles[0]->Sync(mTimeout))
    {
      eos_err("error=local file could not be synced");
      ret = SFS_ERROR;
@@ -1358,7 +1356,7 @@ RaidMetaLayout::Sync ()
      //........................................................................
      for (unsigned int i = 1; i < mStripeFiles.size(); i++)
      {
-       if (mStripeFiles[i] && mStripeFiles[i]->Sync())
+       if (mStripeFiles[i] && mStripeFiles[i]->Sync(mTimeout))
        {
          eos_err("error=file %i could not be synced", i);
          ret = SFS_ERROR;
@@ -1383,33 +1381,34 @@ RaidMetaLayout::Sync ()
 int
 RaidMetaLayout::Remove ()
 {
- int ret = SFS_OK;
+  eos_debug("Calling RaidMetaLayout::Remove"); 
+  int ret = SFS_OK;
 
- if (mIsEntryServer)
- {
-   //..........................................................................
-   // Unlink remote stripes
-   //..........................................................................
-   for (unsigned int i = 1; i < mStripeFiles.size(); i++)
-   {
-     if (mStripeFiles[i] && mStripeFiles[i]->Remove())
-     {
-       eos_err("error=failed to remove remote stripe %i", i);
-       ret = SFS_ERROR;
-     }
-   }
- }
+  if (mIsEntryServer)
+  {
+    //..........................................................................
+    // Unlink remote stripes
+    //..........................................................................
+    for (unsigned int i = 1; i < mStripeFiles.size(); i++)
+    {
+      if (mStripeFiles[i] && mStripeFiles[i]->Remove())
+      {
+        eos_err("error=failed to remove remote stripe %i", i);
+        ret = SFS_ERROR;
+      }
+    }
+  }
 
- //..........................................................................
- // Unlink local stripe
- //..........................................................................
- if (mStripeFiles[0] && mStripeFiles[0]->Remove())
- {
-   eos_err("error=failed to remove local stripe");
-   ret = SFS_ERROR;
- }
-
- return ret;
+  //..........................................................................
+  // Unlink local stripe
+  //..........................................................................
+  if (mStripeFiles[0] && mStripeFiles[0]->Remove())
+  {
+    eos_err("error=failed to remove local stripe");
+    ret = SFS_ERROR;
+  }
+  
+  return ret;
 }
 
 
@@ -1420,9 +1419,9 @@ RaidMetaLayout::Remove ()
 int
 RaidMetaLayout::Stat (struct stat* buf)
 {
- eos_debug("doing stat");
+ eos_debug("Calling Stat");
  int rc = SFS_OK; //TODO: change this, actually change the logic in XrdFstOfsFile
- // concerning stat before the file is opened
+                  // concerning stat before the file is opened
  bool found = false;
 
  if (mIsOpen)
@@ -1431,35 +1430,33 @@ RaidMetaLayout::Stat (struct stat* buf)
    {
      for (unsigned int i = 0; i < mStripeFiles.size(); i++)
      {
-       if (mStripeFiles[i] && mStripeFiles[i]->Stat(buf) == SFS_OK)
+       if (mStripeFiles[i] && mStripeFiles[i]->Stat(buf, mTimeout) == SFS_OK)
        {
          found = true;
          break;
-       }
-       else
-       {
-         eos_err("stat error=error in stat for stripe %i", i);
        }
      }
    }
    else
    {
-     if (mStripeFiles[0] && mStripeFiles[0]->Stat(buf) == SFS_ERROR)
-     {
-       rc = SFS_ERROR;
-     }
-     else
+     if (mStripeFiles[0] && mStripeFiles[0]->Stat(buf, mTimeout) == SFS_OK)
      {
        found = true;
      }
    }
-
+   
    // Obs: when we can not compute the file size, we take it from fmd
    buf->st_size = mFileSize;
    if (!found)
    {
+     eos_err("No valid stripe found for stat");
      rc = SFS_ERROR;
    }
+ }
+ else
+ {
+   eos_err("File not opened");
+   rc = SFS_ERROR;
  }
 
  return rc;
@@ -1488,9 +1485,15 @@ RaidMetaLayout::Close ()
          eos_debug("info=truncating after done a recovery or at end of write");
          mDoTruncate = false;
          mDoneRecovery = false;
-         Truncate(mFileSize);
+
+         if (Truncate(mFileSize))
+         {
+           eos_err("Error while doing truncate");
+           rc = SFS_ERROR;
+         }
        }
 
+       // Check if we still have to compute parity for the last group of blocks
        if (mIsStreaming)
        {
          if ((mOffGroupParity != -1) &&
@@ -1504,12 +1507,10 @@ RaidMetaLayout::Close ()
          SparseParityComputation(true);
        }
 
-       //.......................................................................
        // Collect all the write responses and reset all the handlers
-       //.......................................................................
-       for ( unsigned int i = 0; i < mMetaHandlers.size(); i++ )
+       for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
        {
-         if ( !mMetaHandlers[i]->WaitOK() )
+         if (!mMetaHandlers[i]->WaitOK())
          {
            eos_err("error=write failed in previous requests.");
            rc = SFS_ERROR;
@@ -1518,9 +1519,7 @@ RaidMetaLayout::Close ()
          mMetaHandlers[i]->Reset();
        }
        
-       //..........................................................................
        // Update the header information and write it to all stripes
-       //..........................................................................
        long int num_blocks = ceil((mFileSize * 1.0) / mStripeWidth);
        size_t size_last_block = mFileSize % mStripeWidth;
        eos_debug("num_blocks=%li, size_last_block=%llu", num_blocks,
@@ -1556,10 +1555,10 @@ RaidMetaLayout::Close ()
 
            if (mStripeFiles[i])
            {
-             if (!mHdrInfo[i]->WriteToFile(mStripeFiles[i]))
+             if (!mHdrInfo[i]->WriteToFile(mStripeFiles[i], mTimeout))
              {
                eos_err("error=write header to file failed for stripe:%i", i);
-               return SFS_ERROR;
+               rc =  SFS_ERROR;
              }
            }
            else
@@ -1577,7 +1576,7 @@ RaidMetaLayout::Close ()
      //........................................................................
      for (unsigned int i = 1; i < mStripeFiles.size(); i++)
      {
-       if (mStripeFiles[i] && mStripeFiles[i]->Close())
+       if (mStripeFiles[i] && mStripeFiles[i]->Close(mTimeout))
        {
          eos_err("error=failed to close remote file %i", i);
          rc = SFS_ERROR;
@@ -1588,7 +1587,7 @@ RaidMetaLayout::Close ()
    //..........................................................................
    // Close local file
    //..........................................................................
-   if (mStripeFiles[0] && mStripeFiles[0]->Close())
+   if (mStripeFiles[0] && mStripeFiles[0]->Close(mTimeout))
    {
      eos_err("error=failed to close local file");
      rc = SFS_ERROR;

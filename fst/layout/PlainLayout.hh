@@ -47,13 +47,15 @@ public:
   //! @param client security information
   //! @param error error information
   //! @param io io access type ( ofs/xrd )
+  //! @param timeout timeout value
   //!
   //--------------------------------------------------------------------------
   PlainLayout (XrdFstOfsFile* file,
                int lid,
                const XrdSecEntity* client,
                XrdOucErrInfo* outError,
-               eos::common::LayoutId::eIoType io);
+               eos::common::LayoutId::eIoType io,
+               uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
@@ -182,6 +184,9 @@ public:
   virtual int Close ();
 
 private:
+
+  // TODO: add an async handler and if we are doing a remote access using
+  //       XrdCl then we should try to do async requests
 
   FileIo* mPlainFile; ///< file handler, in this case the same as the initial one
 

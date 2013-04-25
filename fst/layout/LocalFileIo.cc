@@ -37,9 +37,9 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 LocalFileIo::LocalFileIo (XrdFstOfsFile* file,
-                          const XrdSecEntity* client,
-                          XrdOucErrInfo* error) :
-FileIo (file, client, error) {
+                          const XrdSecEntity* client) :
+FileIo (file, client)
+{
   //............................................................................
   // In this case the logical file is the same as the local physical file
   //............................................................................

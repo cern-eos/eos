@@ -47,13 +47,15 @@ public:
   //! @param client security information
   //! @param error error information
   //! @param io io access type ( ofs/xrd )
+  //! @param timeout timeout value
   //!
   //--------------------------------------------------------------------------
   ReplicaParLayout (XrdFstOfsFile* file,
                     int lid,
                     const XrdSecEntity* client,
                     XrdOucErrInfo* outError,
-                    eos::common::LayoutId::eIoType io);
+                    eos::common::LayoutId::eIoType io,
+                    uint16_t timeout = 0);
 
 
 

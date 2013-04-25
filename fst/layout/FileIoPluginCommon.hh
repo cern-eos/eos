@@ -77,13 +77,12 @@ public:
 
   static FileIo*
   GetIoObject (int ioType,
-      XrdFstOfsFile* file = 0,
-      const XrdSecEntity* client = 0,
-      XrdOucErrInfo* error = 0)
+               XrdFstOfsFile* file = 0,
+               const XrdSecEntity* client = 0)
   {
     if (ioType == LayoutId::kXrdCl)
     {
-      return static_cast<FileIo*> (new XrdFileIo(file, client, error));
+      return static_cast<FileIo*> (new XrdFileIo(file, client));
     }
 
     return 0;
