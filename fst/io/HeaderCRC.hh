@@ -70,22 +70,24 @@ public:
   //! Write header to file
   //!
   //! @param pFile file to which to header will be written
+  //! @param timeout timeout value 
   //!
   //! @return status of the operation
   //!
   //--------------------------------------------------------------------------
-  bool WriteToFile (FileIo*& pFile);
+  bool WriteToFile (FileIo*& pFile, uint16_t timeout);
 
 
   //--------------------------------------------------------------------------
   //! Read header from file
   //!
   //! @param pFile file from which the header will be read
+  //! @param timeout timeout value
   //!
   //! @return status of the operation
   //!
   //--------------------------------------------------------------------------
-  bool ReadFromFile (FileIo*& pFile);
+  bool ReadFromFile (FileIo*& pFile, uint16_t timeout);
 
 
   //--------------------------------------------------------------------------
