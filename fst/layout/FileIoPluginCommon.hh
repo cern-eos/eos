@@ -27,7 +27,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/FileIo.hh"
-#include "fst/layout/XrdFileIo.hh"
+#include "fst/layout/XrdIo.hh"
 #include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -82,7 +82,7 @@ public:
   {
     if (ioType == LayoutId::kXrdCl)
     {
-      return static_cast<FileIo*> (new XrdFileIo(file, client));
+      return static_cast<FileIo*> (new XrdIo());
     }
 
     return 0;

@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: XrdFileIo.cc
+// File: XrdIo.cc
 // Author: Elvin-Alin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
@@ -22,7 +22,7 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "fst/layout/XrdFileIo.hh"
+#include "fst/layout/XrdIo.hh"
 #include "fst/io/ChunkHandler.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -35,15 +35,14 @@
 EOSFSTNAMESPACE_BEGIN
 
 const uint64_t ReadaheadBlock::sDefaultBlocksize = 1024 * 1024; ///< 1MB default
-const uint32_t XrdFileIo::sNumRdAheadBlocks = 2;
+const uint32_t XrdIo::sNumRdAheadBlocks = 2;
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 
-XrdFileIo::XrdFileIo (XrdFstOfsFile* file,
-                      const XrdSecEntity* client) :
-FileIo (file, client),
+XrdIo::XrdIo () :
+FileIo(),
 mIndex (0),
 mDoReadahead (false),
 mBlocksize (ReadaheadBlock::sDefaultBlocksize),
@@ -59,7 +58,7 @@ mXrdFile (NULL)
 // Destructor
 //------------------------------------------------------------------------------
 
-XrdFileIo::~XrdFileIo ()
+XrdIo::~XrdIo ()
 {
   if (mDoReadahead)
   {
@@ -89,7 +88,7 @@ XrdFileIo::~XrdFileIo ()
 //------------------------------------------------------------------------------
 
 int
-XrdFileIo::Open (const std::string& path,
+XrdIo::Open (const std::string& path,
                  XrdSfsFileOpenMode flags,
                  mode_t mode,
                  const std::string& opaque,
@@ -155,7 +154,7 @@ XrdFileIo::Open (const std::string& path,
 //------------------------------------------------------------------------------
 
 int64_t
-XrdFileIo::Read (XrdSfsFileOffset offset,
+XrdIo::Read (XrdSfsFileOffset offset,
                  char* buffer,
                  XrdSfsXferSize length,
                  uint16_t timeout)
@@ -186,7 +185,7 @@ XrdFileIo::Read (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int64_t
-XrdFileIo::Write (XrdSfsFileOffset offset,
+XrdIo::Write (XrdSfsFileOffset offset,
                   const char* buffer,
                   XrdSfsXferSize length,
                   uint16_t timeout)
@@ -215,7 +214,7 @@ XrdFileIo::Write (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int64_t
-XrdFileIo::Read (XrdSfsFileOffset offset,
+XrdIo::Read (XrdSfsFileOffset offset,
                  char* buffer,
                  XrdSfsXferSize length,
                  void* pFileHandler,
@@ -360,7 +359,7 @@ XrdFileIo::Read (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int64_t
-XrdFileIo::Write (XrdSfsFileOffset offset,
+XrdIo::Write (XrdSfsFileOffset offset,
                   const char* buffer,
                   XrdSfsXferSize length,
                   void* pFileHandler,
@@ -388,9 +387,9 @@ XrdFileIo::Write (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int
-XrdFileIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
+XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
-  eos_debug("Calling XrdFileIo::Truncate with timeout = %lu", timeout);
+  eos_debug("Calling XrdIo::Truncate with timeout = %lu", timeout);
   XrdCl::XRootDStatus status = mXrdFile->Truncate(static_cast<uint64_t> (offset),
                                                   timeout);
   
@@ -409,7 +408,7 @@ XrdFileIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-XrdFileIo::Sync (uint16_t timeout)
+XrdIo::Sync (uint16_t timeout)
 {
   XrdCl::XRootDStatus status = mXrdFile->Sync(timeout);
 
@@ -428,7 +427,7 @@ XrdFileIo::Sync (uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-XrdFileIo::Stat (struct stat* buf, uint16_t timeout)
+XrdIo::Stat (struct stat* buf, uint16_t timeout)
 {
   int rc = SFS_ERROR;
   XrdCl::StatInfo* stat = 0;
@@ -464,7 +463,7 @@ XrdFileIo::Stat (struct stat* buf, uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-XrdFileIo::Close (uint16_t timeout)
+XrdIo::Close (uint16_t timeout)
 {
   bool async_ok = true;
 
@@ -508,7 +507,7 @@ XrdFileIo::Close (uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-XrdFileIo::Remove ()
+XrdIo::Remove ()
 {
   //............................................................................
   // Remove the file by truncating using the special value offset
@@ -530,7 +529,7 @@ XrdFileIo::Remove ()
 //------------------------------------------------------------------------------
 
 void
-XrdFileIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
+XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
 {
   XrdCl::XRootDStatus status;
   eos_debug("Try to prefetch with offset: %lli.", offset);

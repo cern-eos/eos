@@ -38,7 +38,7 @@ FileIoPlugin::GetIoObject (int ioType,
 
   if (ioType == LayoutId::kLocal)
   {
-    return static_cast<FileIo*> (new LocalFileIo(file, client));
+    return static_cast<FileIo*> (new LocalIo(file, client));
   }
 
   return FileIoPluginHelper::GetIoObject (ioType, file, client);

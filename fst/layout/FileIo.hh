@@ -60,13 +60,9 @@ public:
   //! @param client security entity
   //!
   //--------------------------------------------------------------------------
-
-  FileIo (XrdFstOfsFile* file,
-          const XrdSecEntity* client) :
+  FileIo () :
   eos::common::LogId (),
-  mFilePath (""),
-  mLogicalFile (file),
-  mSecEntity (client)
+  mFilePath ("")
   {
     //empty
   }
@@ -283,8 +279,7 @@ public:
 protected:
 
   std::string mFilePath; ///< path to current physical file
-  XrdFstOfsFile* mLogicalFile; ///< handler to logical file
-  const XrdSecEntity* mSecEntity; ///< security entity
+
 };
 
 EOSFSTNAMESPACE_END

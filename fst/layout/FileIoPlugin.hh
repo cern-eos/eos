@@ -27,8 +27,8 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/FileIo.hh"
-#include "fst/layout/LocalFileIo.hh"
-#include "fst/layout/XrdFileIo.hh"
+#include "fst/layout/LocalIo.hh"
+#include "fst/layout/XrdIo.hh"
 #include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
 

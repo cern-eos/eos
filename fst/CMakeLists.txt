@@ -56,8 +56,8 @@ add_library( EosFstCommon SHARED
 
   	     layout/FileIoPlugin.hh
 	     layout/FileIo.hh 
-  	     layout/LocalFileIo.cc          layout/LocalFileIo.hh
-	     layout/XrdFileIo.cc            layout/XrdFileIo.hh
+  	     layout/LocalIo.cc          layout/LocalIo.hh
+	     layout/XrdIo.cc                layout/XrdIo.hh
 
 	     layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
 	     layout/Layout.cc               layout/Layout.hh
@@ -83,8 +83,8 @@ add_library( EosFstCommon-Static STATIC
 
   	     layout/FileIoPlugin.hh
 	     layout/FileIo.hh 
-  	     layout/LocalFileIo.cc          layout/LocalFileIo.hh
-	     layout/XrdFileIo.cc            layout/XrdFileIo.hh
+  	     layout/LocalIo.cc              layout/LocalIo.hh
+	     layout/XrdIo.cc                layout/XrdIo.hh
 
 	     layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
 	     layout/Layout.cc               layout/Layout.hh
