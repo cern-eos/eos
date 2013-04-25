@@ -74,29 +74,7 @@ public:
   //! @return status of the operation
   //!
   //--------------------------------------------------------------------------
-  bool WriteToFile (XrdCl::File*& pFile);
-
-
-  //--------------------------------------------------------------------------
-  //! Write header to file
-  //!
-  //! @param pFile file to which to header will be written
-  //!
-  //! @return status of the operation
-  //!
-  //--------------------------------------------------------------------------
   bool WriteToFile (FileIo*& pFile);
-
-
-  //--------------------------------------------------------------------------
-  //! Read header from file
-  //!
-  //! @param pFile file from which the header will be read
-  //!
-  //! @return status of the operation
-  //!
-  //--------------------------------------------------------------------------
-  bool ReadFromFile (XrdCl::File*& pFile);
 
 
   //--------------------------------------------------------------------------
