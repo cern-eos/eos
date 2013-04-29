@@ -152,7 +152,7 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
                                               mDataBlocks[i],
                                               mStripeWidth,
                                               mMetaHandlers[physical_id],
-                                              true); //enable readahead
+                                              true, mTimeout); //enable readahead
 
       if (nread != mStripeWidth)
       {
@@ -284,7 +284,8 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
       nwrite = mStripeFiles[physical_id]->Write(offset_local,
                                                 mDataBlocks[stripe_id],
                                                 mStripeWidth,
-                                                mMetaHandlers[physical_id]);
+                                                mMetaHandlers[physical_id],
+                                                mTimeout);
 
       if (nwrite != mStripeWidth)
       {
@@ -530,7 +531,8 @@ ReedSLayout::WriteParityToFiles (off_t offsetGroup)
       nwrite = mStripeFiles[physical_id]->Write(offset_local,
                                                 mDataBlocks[i],
                                                 mStripeWidth,
-                                                mMetaHandlers[physical_id]);
+                                                mMetaHandlers[physical_id],
+                                                mTimeout);
 
       if (nwrite != mStripeWidth)
       {
@@ -567,7 +569,7 @@ ReedSLayout::Truncate (XrdSfsFileOffset offset)
   truncate_offset += mSizeHeader;
   eos_debug("Truncate local stripe to file_offset = %lli, stripe_offset = %zu",
             offset, truncate_offset);
-  mStripeFiles[0]->Truncate(truncate_offset);
+  mStripeFiles[0]->Truncate(truncate_offset, mTimeout);
 
   if (mIsEntryServer)
   {
@@ -578,7 +580,7 @@ ReedSLayout::Truncate (XrdSfsFileOffset offset)
 
       if (mStripeFiles[i])
       {
-        if (mStripeFiles[i]->Truncate(offset))
+        if (mStripeFiles[i]->Truncate(offset, mTimeout))
         {
           eos_err("error=error while truncating");
           return SFS_ERROR;

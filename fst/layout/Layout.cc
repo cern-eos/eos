@@ -24,7 +24,6 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/Layout.hh"
 #include "fst/XrdFstOfsFile.hh"
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -47,12 +46,14 @@ Layout::Layout (XrdFstOfsFile* file,
                 int lid,
                 const XrdSecEntity* client,
                 XrdOucErrInfo* outError,
-                eos::common::LayoutId::eIoType io) :
-eos::common::LogId (),
-mLayoutId (lid),
-mOfsFile (file),
-mError (outError),
-mIoType (io)
+                eos::common::LayoutId::eIoType io,
+                uint16_t timeout) :
+eos::common::LogId(),
+mLayoutId(lid),
+mOfsFile(file),
+mError(outError),
+mIoType(io),
+mTimeout(timeout)
 {
   mSecEntity = const_cast<XrdSecEntity*> (client);
   mName = eos::common::LayoutId::GetLayoutTypeString(mLayoutId);

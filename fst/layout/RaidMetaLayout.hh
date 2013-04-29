@@ -68,7 +68,8 @@ public:
                   eos::common::LayoutId::eIoType io,
                   bool storeRecovery,
                   off_t targetSize,
-                  std::string bookingOpaque);
+                  std::string bookingOpaque,
+                  uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------

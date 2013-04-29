@@ -47,7 +47,7 @@ IF(PROTOBUF_FOUND)
       	       	       ProtoIo.cc          ProtoIo.hh
       	       	       ../../common/StringConversion.cc
        	       	       ../../common/StringConversion.hh
-		       ../../fst/layout/FileIoPlugin.cc		       
+		       ../../fst/io/FileIoPlugin.cc		       
        	       	       ${CONFIG_SRCS}      ${CONFIG_HDRS}
       	       	       ${RESULT_SRCS}      ${RESULT_HDR}) 
 

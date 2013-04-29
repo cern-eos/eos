@@ -31,7 +31,7 @@
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
-#include "fst/layout/FileIoPlugin.hh"
+#include "fst/io/FileIoPlugin.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -67,13 +67,15 @@ public:
   //! @param client security information
   //! @param outError error information
   //! @param io access type informatio ( ofs/xrd )
+  //! @param timeout timeout value 
   //!
   //--------------------------------------------------------------------------
   Layout (XrdFstOfsFile* file,
           int lid,
           const XrdSecEntity* client,
           XrdOucErrInfo* outError,
-          eos::common::LayoutId::eIoType io);
+          eos::common::LayoutId::eIoType io,
+          uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
@@ -269,8 +271,8 @@ protected:
   std::string mLocalPath; ///< path to local file
   XrdOucErrInfo* mError; ///< error information
   XrdSecEntity* mSecEntity; ///< security information
-
   eos::common::LayoutId::eIoType mIoType; ///< type of access ( ofs/xrd )
+  uint16_t mTimeout; ///< timeout value used for all operations on this file
 
 };
 

@@ -2540,7 +2540,7 @@ XrdFstOfsFile::sync ()
       src_cgi += gOFS.TpcMap[isRW][TpcKey.c_str()].org;
     }
 
-    XrdFileIo tpcIO(this, 0, &error); // the remote IO object
+    XrdIo tpcIO; // the remote IO object
 
     if (tpcIO.Open(src_url.c_str(), 0, 0, src_cgi.c_str(), 10))
     {

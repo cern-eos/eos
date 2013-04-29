@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file XrdClFileIo.hh
+//! @file XrdIo.hh
 //! @author Elvin-Alin Sindrilaru - CERN
 //! @brief Class used for doing remote IO operations unsing the xrd client
 //------------------------------------------------------------------------------
@@ -26,7 +26,7 @@
 #define __EOSFST_XRDFILEIO_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "fst/layout/FileIo.hh"
+#include "fst/io/FileIo.hh"
 #include "fst/io/SimpleHandler.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
@@ -92,11 +92,11 @@ struct ReadaheadBlock
 //! Class used for doing remote IO operations using the Xrd client
 //------------------------------------------------------------------------------
 
-class XrdFileIo : public FileIo
+class XrdIo : public FileIo
 {
 public:
 
-  static const uint32_t sNumRdAheadBlocks; //< no. of blocks used for readahead
+  static const uint32_t sNumRdAheadBlocks; ///< no. of blocks used for readahead
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -106,15 +106,13 @@ public:
   //! @param error error information
   //!
   //----------------------------------------------------------------------------
-  XrdFileIo (XrdFstOfsFile* file,
-             const XrdSecEntity* client,
-             XrdOucErrInfo* error);
+  XrdIo ();
 
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~XrdFileIo ();
+  virtual ~XrdIo ();
 
 
   //----------------------------------------------------------------------------
@@ -219,7 +217,8 @@ public:
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-  virtual int Truncate (XrdSfsFileOffset offset, uint16_t timeout = 0);
+  virtual int Truncate (XrdSfsFileOffset offset,
+                        uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
@@ -283,19 +282,21 @@ private:
   //! @param timeout timeout value
   //!
   //--------------------------------------------------------------------------
-  void PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout = 0);
+  void PrefetchBlock (int64_t offset,
+                      bool isWrite,
+                      uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
   //! Disable copy constructor
   //--------------------------------------------------------------------------
-  XrdFileIo (const XrdFileIo&) = delete;
+  XrdIo (const XrdIo&) = delete;
 
 
   //--------------------------------------------------------------------------
   //! Disable assign operator
   //--------------------------------------------------------------------------
-  XrdFileIo& operator = (const XrdFileIo&) = delete;
+  XrdIo& operator = (const XrdIo&) = delete;
 
 };
 

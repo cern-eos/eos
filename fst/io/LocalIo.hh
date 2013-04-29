@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
-//! @file FileIo.hh
+//! @file LocalIo.hh
 //! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Abstract class modelling an IO plugin
+//! @brief Class used for doing local IO operations
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,80 +22,55 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_FILEIO_HH__
-#define __EOSFST_FILEIO_HH__
+#ifndef __EOSFST_LOCALFILEIO__HH__
+#define __EOSFST_LOCALFILEIO__HH__
 
 /*----------------------------------------------------------------------------*/
-#include <string>
-/*----------------------------------------------------------------------------*/
-#include "common/Logging.hh"
-#include "fst/Namespace.hh"
-#include "fst/XrdFstOfsFile.hh"
-
+#include "fst/io/FileIo.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! The truncate offset (1TB) is used to indicate that a file should be deleted
-//! during the close as there is no better interface usable via XrdCl to
-//! communicate a deletion on a open file
+//! Class used for doing local IO operations
 //------------------------------------------------------------------------------
-#define EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN 1024 * 1024 * 1024 * 1024ll
-
-//! Forward declaration
-class XrdFstOfsFile;
-
-//------------------------------------------------------------------------------
-//! Abstract class modelling an IO plugin
-//------------------------------------------------------------------------------
-class FileIo : public eos::common::LogId
+class LocalIo : public FileIo
 {
 public:
-
   //--------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param handle to logical file
+  //! @param client security entity
+  //!
   //--------------------------------------------------------------------------
-
-  FileIo (XrdFstOfsFile* file,
-          const XrdSecEntity* client,
-          XrdOucErrInfo* error) :
-  eos::common::LogId (),
-  mFilePath (""),
-  mLogicalFile (file),
-  mError (error),
-  mSecEntity (client) {
-    //empty
-  }
+  LocalIo (XrdFstOfsFile* file,
+               const XrdSecEntity* client);
 
 
   //--------------------------------------------------------------------------
   //! Destructor
   //--------------------------------------------------------------------------
-
-  virtual
-  ~FileIo () {
-    //empty
-  }
+  virtual ~LocalIo ();
 
 
   //--------------------------------------------------------------------------
   //! Open file
   //!
-  //! @param path file path
+  //! @param path file path to local file
   //! @param flags open flags
   //! @param mode open mode
   //! @param opaque opaque information
   //! @param timeout timeout value
   //!
-  //! @return 0 if successful, -1 otherwise and error code is set
+  //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
   virtual int Open (const std::string& path,
                     XrdSfsFileOpenMode flags,
                     mode_t mode = 0,
                     const std::string& opaque = "",
-                    uint16_t timeout = 0) = 0;
+                    uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
@@ -112,13 +87,13 @@ public:
   virtual int64_t Read (XrdSfsFileOffset offset,
                         char* buffer,
                         XrdSfsXferSize length,
-                        uint16_t timeout = 0) = 0;
+                        uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
   //! Write to file - sync
   //!
-  //! @param offset offset
+  //! @param offset offset in file
   //! @param buffer data to be written
   //! @param length length
   //! @param timeout timeout value
@@ -129,17 +104,16 @@ public:
   virtual int64_t Write (XrdSfsFileOffset offset,
                          const char* buffer,
                          XrdSfsXferSize length,
-                         uint16_t timeout = 0) = 0;
+                         uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
-  //! Read from file - async
+  //! Read from file async - falls back to synchrounous mode
   //!
   //! @param offset offset in file
   //! @param buffer where the data is read
   //! @param length read length
   //! @param handler async read handler
-  //! @param readahead set if readahead is to be used
   //! @param timeout timeout value
   //!
   //! @return number of bytes read or -1 if error
@@ -150,11 +124,11 @@ public:
                         XrdSfsXferSize length,
                         void* handler,
                         bool readahead = false,
-                        uint16_t timeout = 0) = 0;
+                        uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
-  //! Write to file - async
+  //! Write to file async - falls back to synchronous mode
   //!
   //! @param offset offset
   //! @param buffer data to be written
@@ -169,7 +143,7 @@ public:
                          const char* buffer,
                          XrdSfsXferSize length,
                          void* handler,
-                         uint16_t timeout = 0) = 0;
+                         uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
@@ -178,10 +152,11 @@ public:
   //! @param offset truncate file to this value
   //! @param timeout timeout value
   //!
-  //! @return 0 if successful, -1 otherwise and error code is set
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-  virtual int Truncate (XrdSfsFileOffset offset, uint16_t timeout = 0) = 0;
+  virtual int Truncate (XrdSfsFileOffset offset, uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
@@ -192,12 +167,7 @@ public:
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-
-  virtual int
-  Fallocate (XrdSfsFileOffset length)
-  {
-    return 0;
-  }
+  virtual int Fallocate (XrdSfsFileOffset lenght);
 
 
   //--------------------------------------------------------------------------
@@ -209,13 +179,8 @@ public:
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-
-  virtual int
-  Fdeallocate (XrdSfsFileOffset fromOffset,
-               XrdSfsFileOffset toOffset)
-  {
-    return 0;
-  }
+  virtual int Fdeallocate (XrdSfsFileOffset fromOffset,
+                           XrdSfsFileOffset toOffset);
 
 
   //--------------------------------------------------------------------------
@@ -224,23 +189,18 @@ public:
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-
-  virtual int
-  Remove ()
-  {
-    return 0;
-  }
+  virtual int Remove ();
 
 
   //--------------------------------------------------------------------------
   //! Sync file to disk
   //!
   //! @param timeout timeout value
-  //!  
+  //! 
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-  virtual int Sync (uint16_t timeout = 0) = 0;
+  virtual int Sync (uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
@@ -251,7 +211,7 @@ public:
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-  virtual int Close (uint16_t timeout = 0) = 0;
+  virtual int Close (uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
@@ -260,32 +220,32 @@ public:
   //! @param buf stat buffer
   //! @param timeout timeout value
   //!
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-  virtual int Stat (struct stat* buf, uint16_t timeout = 0) = 0;
+  virtual int Stat (struct stat* buf, uint16_t timeout = 0);
 
+private:
 
-  //--------------------------------------------------------------------------
-  //! Get path to current file
-  //--------------------------------------------------------------------------
-
-  const std::string&
-  GetPath ()
-  {
-    return mFilePath;
-  }
-
-protected:
-
-  std::string mFilePath; ///< path to current physical file
   XrdFstOfsFile* mLogicalFile; ///< handler to logical file
-  XrdOucErrInfo* mError; ///< error information
   const XrdSecEntity* mSecEntity; ///< security entity
+
+  //--------------------------------------------------------------------------
+  //! Disable copy constructor
+  //--------------------------------------------------------------------------
+  LocalIo (const LocalIo&) = delete;
+
+
+  //--------------------------------------------------------------------------
+  //! Disable assign operator
+  //--------------------------------------------------------------------------
+  LocalIo& operator = (const LocalIo&) = delete;
+
+
 };
 
 EOSFSTNAMESPACE_END
 
-#endif  // __EOSFST_FILEIO_HH__
+#endif  // __EOSFST_LOCALFILEIO_HH__
+
 
