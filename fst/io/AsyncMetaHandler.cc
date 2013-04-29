@@ -88,6 +88,9 @@ AsyncMetaHandler::Register (uint64_t offset,
 
   if (!ptr_chunk)
   {
+    //TODO: create a new write block only if the size of memory allocated
+    // is still manageable otherwise wait for some previous request to complete
+    // and then reuse the allocated memory
     ptr_chunk = new ChunkHandler(this, offset, length, isWrite);
   }
   else

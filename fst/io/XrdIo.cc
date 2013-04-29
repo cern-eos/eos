@@ -316,7 +316,6 @@ XrdIo::Read (XrdSfsFileOffset offset,
       }
       else
       {
-        // TODO: deal here with the case we received a read timeout from prefetching
         eos_debug("Block not found in prefetched ones offset: %li", aligned_offset);
         
         //......................................................................
@@ -433,9 +432,11 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
 {
   int rc = SFS_ERROR;
   XrdCl::StatInfo* stat = 0;
-  // TODO: once Stat using the file handler works properly in XRootD, one can
-  // revert the flag on the first position to true, so stat stat is forced and
-  // not taken from the cache as it is the case now
+  //............................................................................
+  // TODO: once Stat works properly in XRootD, one can revert the flag on the
+  // first position to true, so stat stat is forced and not taken from the
+  // cache as it is the case now
+  //............................................................................
   XrdCl::XRootDStatus status = mXrdFile->Stat(false, stat, timeout);
 
   if (!status.IsOK())

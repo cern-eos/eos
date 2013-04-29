@@ -36,7 +36,7 @@
 //! Thread-safe queue implementation using mutexes
 //------------------------------------------------------------------------------
 template <typename Data>
-class ConcurrentQueue
+class ConcurrentQueue: public eos::common::LogId
 {
 public:
   ConcurrentQueue();
@@ -61,7 +61,8 @@ private:
 //! Constructor
 //------------------------------------------------------------------------------
 template <typename Data>
-ConcurrentQueue<Data>::ConcurrentQueue()
+ConcurrentQueue<Data>::ConcurrentQueue():
+    eos::common::LogId()
 {
   pthread_mutex_init(&mutex, NULL);
   pthread_cond_init(&cond, NULL);

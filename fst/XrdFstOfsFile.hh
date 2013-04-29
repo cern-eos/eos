@@ -62,6 +62,8 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId
 
 public:
 
+  static const uint16_t msDefaultTimeout; ///< default timeout value
+  
   //--------------------------------------------------------------------------
   // Constructor
   //--------------------------------------------------------------------------

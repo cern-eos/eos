@@ -37,6 +37,8 @@ extern XrdOssSys* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
+const uint16_t XrdFstOfsFile::msDefaultTimeout = 5; // default timeout value
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -682,7 +684,8 @@ XrdFstOfsFile::open (const char* path,
   // Get the layout object
   //............................................................................
   layOut = eos::fst::LayoutPlugin::GetLayoutObject(this, lid, client, &error,
-                                                   eos::common::LayoutId::kLocal);
+                                                   eos::common::LayoutId::kLocal,
+                                                   msDefaultTimeout);
 
   if (!layOut)
   {

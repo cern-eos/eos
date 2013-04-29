@@ -63,6 +63,7 @@ public:
   //! @param client security entity
   //! @param error error information
   //! @param accessType access type ( ofs/xrd )
+  //! @param timeout timeout value 
   //!
   //! @return requested layout type object
   //!
@@ -71,7 +72,8 @@ public:
                                   unsigned int layoutId,
                                   const XrdSecEntity* client,
                                   XrdOucErrInfo* error,
-                                  eos::common::LayoutId::eIoType accessType);
+                                  eos::common::LayoutId::eIoType accessType,
+                                  uint16_t timeout = 0);
 };
 
 EOSFSTNAMESPACE_END
