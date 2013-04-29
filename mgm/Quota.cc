@@ -480,13 +480,14 @@ SpaceQuota::PrintOut (XrdOucString &output, long uid_sel, long gid_sel, bool mon
   }
   else
   {
+    XrdOucString header;
     // this is a virtual quota node
     if (!monitoring)
     {
-      output += "# _______________________________________________________________________________________________\n";
+      header += "# _______________________________________________________________________________________________\n";
       sprintf(headerline, "# ==> Quota Node: %-16s\n", SpaceName.c_str());
-      output += headerline;
-      output += "# _______________________________________________________________________________________________\n";
+      header += headerline;
+      header += "# _______________________________________________________________________________________________\n";
     }
     for (it = Begin(); it != End(); it++)
     {
@@ -551,6 +552,13 @@ SpaceQuota::PrintOut (XrdOucString &output, long uid_sel, long gid_sel, bool mon
 
     std::vector <std::string> uidout;
     std::vector <std::string> gidout;
+
+    if ( ((uid_sel <0) && (gid_sel <0)) || userentries || groupentries )
+    {
+      // - we print the header for selected uid/gid's only if there is something to print
+      // - if we have a full listing we print even empty quota nodes (=header only) 
+      output += header;
+    }
 
     if (userentries)
     {
