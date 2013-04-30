@@ -742,6 +742,13 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
 void
 Mapping::Print (XrdOucString &stdOut, XrdOucString option)
 {
+
+  bool translateids = true;
+  if (option.find("n") != STR_NPOS) {
+    translateids = false;
+    option.replace("n","");
+  }
+
   if ((!option.length()) || ((option.find("u")) != STR_NPOS))
   {
     UserRoleMap_t::const_iterator it;
@@ -751,12 +758,31 @@ Mapping::Print (XrdOucString &stdOut, XrdOucString option)
       sprintf(iuid, "%d", it->first);
       char suid[4096];
       sprintf(suid, "%-6s", iuid);
+      if (translateids)
+      {
+        int errc;
+        std::string username = UidToUserName(it->first, errc);
+        if (!errc)
+          sprintf(suid, "%-12s", username.c_str());
+      }
       stdOut += "membership uid: ";
       stdOut += suid;
       stdOut += " => uids(";
       for (unsigned int i = 0; i < (it->second).size(); i++)
       {
-        stdOut += (int) (it->second)[i];
+        if (translateids)
+        {
+          int errc;
+          std::string username = UidToUserName(it->second[i], errc);
+          if (!errc)
+            stdOut += username.c_str();
+          else 
+            stdOut += (int) (it->second)[i];
+        }
+        else
+        {
+          stdOut += (int) (it->second)[i];
+        }
         if (i < ((it->second).size() - 1))
           stdOut += ",";
       }
@@ -773,12 +799,31 @@ Mapping::Print (XrdOucString &stdOut, XrdOucString option)
       sprintf(iuid, "%d", it->first);
       char suid[4096];
       sprintf(suid, "%-6s", iuid);
+      if (translateids)
+      {
+        int errc;
+        std::string username = UidToUserName(it->first, errc);
+        if (!errc)
+          sprintf(suid, "%-12s", username.c_str());
+      }
       stdOut += "membership uid: ";
       stdOut += suid;
       stdOut += " => gids(";
       for (unsigned int i = 0; i < (it->second).size(); i++)
       {
-        stdOut += (int) (it->second)[i];
+        if (translateids)
+        {
+          int errc;
+          std::string username = GidToGroupName(it->second[i], errc);
+          if (!errc)
+            stdOut += username.c_str();
+          else 
+            stdOut += (int) (it->second)[i];
+        }
+        else
+        {
+          stdOut += (int) (it->second)[i];
+        }
         if (i < ((it->second).size() - 1))
           stdOut += ",";
       }

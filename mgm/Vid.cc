@@ -41,7 +41,7 @@ Vid::Set (const char* value)
 
   XrdOucEnv env(value);
   XrdOucString skey = env.Get("mgm.vid.key");
-
+  XrdOucString svalue = value;
   XrdOucString vidcmd = env.Get("mgm.vid.cmd");
   const char* val = 0;
 
@@ -75,7 +75,16 @@ Vid::Set (const char* value)
     if (env.Get("mgm.vid.source.uid"))
     {
       // rule for a certain user id
-      uid = (uid_t) atoi(env.Get("mgm.vid.source.uid"));
+      int errc;
+      std::string username = env.Get("mgm.vid.source.uid");
+      uid = eos::common::Mapping::UserNameToUid(username, errc);
+      XrdOucString suid; suid += (int) uid;
+      skey.replace(username.c_str(), suid);
+      
+      if (errc)
+      {
+        eos_static_err("msg=\"failed username translation\" user=%s", username.c_str());
+      }
     }
 
     const char* val = 0;
@@ -85,7 +94,8 @@ Vid::Set (const char* value)
       // fill uid target list
       eos::common::Mapping::gUserRoleVector[uid].clear();
       eos::common::Mapping::KommaListToUidVector(val, eos::common::Mapping::gUserRoleVector[uid]);
-      gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), value);
+      
+      gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
       set = true;
     }
 
@@ -94,7 +104,8 @@ Vid::Set (const char* value)
       // fill gid target list
       eos::common::Mapping::gGroupRoleVector[uid].clear();
       eos::common::Mapping::KommaListToGidVector(val, eos::common::Mapping::gGroupRoleVector[uid]);
-      gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), value);
+     
+      gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
       set = true;
     }
 
