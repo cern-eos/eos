@@ -408,7 +408,8 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
     }
   }
 
-  eos_static_info("tuid=%s tgid=%s", tuid.c_str(), tgid.c_str());
+  eos_static_debug("tuid=%s tgid=%s", tuid.c_str(), tgid.c_str());
+
   if (gVirtualUidMap.count(tuid.c_str()))
   {
     if (!gVirtualUidMap[tuid.c_str()])

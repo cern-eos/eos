@@ -579,7 +579,7 @@ com_cp (char* argin) {
       arg2.insert("/",0);
       arg2.insert(serveruri.c_str(),0);
       char targetadd[1024];
-      snprintf(targetadd,sizeof(targetadd)-1,"\\?eos.targetsize=%llu\\&eos.bookingsize=%llu", source_size[nfile], source_size[nfile]);
+      snprintf(targetadd,sizeof(targetadd)-1,"?eos.targetsize=%llu&eos.bookingsize=%llu", source_size[nfile], source_size[nfile]);
       arg2.append(targetadd);
     }
 
