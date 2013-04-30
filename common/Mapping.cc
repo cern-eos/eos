@@ -451,7 +451,8 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  eos_static_info("tuid=%s tgid=%s", tuid.c_str(), tgid.c_str());
+  eos_static_debug("tuid=%s tgid=%s", tuid.c_str(), tgid.c_str());
+  
   if (gVirtualUidMap.count(tuid.c_str()))
   {
     if (!gVirtualUidMap[tuid.c_str()])
@@ -742,11 +743,11 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
 void
 Mapping::Print (XrdOucString &stdOut, XrdOucString option)
 {
-
   bool translateids = true;
-  if (option.find("n") != STR_NPOS) {
+  if (option.find("n") != STR_NPOS)
+  {
     translateids = false;
-    option.replace("n","");
+    option.replace("n", "");
   }
 
   if ((!option.length()) || ((option.find("u")) != STR_NPOS))
@@ -760,7 +761,7 @@ Mapping::Print (XrdOucString &stdOut, XrdOucString option)
       sprintf(suid, "%-6s", iuid);
       if (translateids)
       {
-        int errc;
+        int errc = 0;
         std::string username = UidToUserName(it->first, errc);
         if (!errc)
           sprintf(suid, "%-12s", username.c_str());
@@ -772,11 +773,11 @@ Mapping::Print (XrdOucString &stdOut, XrdOucString option)
       {
         if (translateids)
         {
-          int errc;
+          int errc = 0;
           std::string username = UidToUserName(it->second[i], errc);
           if (!errc)
             stdOut += username.c_str();
-          else 
+          else
             stdOut += (int) (it->second)[i];
         }
         else
@@ -801,7 +802,7 @@ Mapping::Print (XrdOucString &stdOut, XrdOucString option)
       sprintf(suid, "%-6s", iuid);
       if (translateids)
       {
-        int errc;
+        int errc = 0;
         std::string username = UidToUserName(it->first, errc);
         if (!errc)
           sprintf(suid, "%-12s", username.c_str());
@@ -813,11 +814,11 @@ Mapping::Print (XrdOucString &stdOut, XrdOucString option)
       {
         if (translateids)
         {
-          int errc;
+          int errc = 0;
           std::string username = GidToGroupName(it->second[i], errc);
           if (!errc)
             stdOut += username.c_str();
-          else 
+          else
             stdOut += (int) (it->second)[i];
         }
         else
@@ -840,7 +841,12 @@ Mapping::Print (XrdOucString &stdOut, XrdOucString option)
     {
       if (it->second)
       {
-        stdOut += (int) (it->first);
+        int errc = 0;
+        std::string username = UidToUserName(it->first, errc);
+        if (!errc && translateids)
+          stdOut += username.c_str();
+        else
+          stdOut += (int) (it->first);
         stdOut += ",";
       }
     }
@@ -858,7 +864,12 @@ Mapping::Print (XrdOucString &stdOut, XrdOucString option)
     {
       stdOut += it->first.c_str();
       stdOut += " => ";
-      stdOut += (int) it->second;
+      int errc = 0;
+      std::string username = UidToUserName(it->second, errc);
+      if (!errc && translateids)
+        stdOut += username.c_str();
+      else
+        stdOut += (int) it->second;
       stdOut += "\n";
     }
   }
@@ -870,7 +881,12 @@ Mapping::Print (XrdOucString &stdOut, XrdOucString option)
     {
       stdOut += it->first.c_str();
       stdOut += " => ";
-      stdOut += (int) it->second;
+      int errc = 0;
+      std::string groupname = GidToGroupName(it->second, errc);
+      if (!errc && translateids)
+        stdOut += groupname.c_str();
+      else
+        stdOut += (int) it->second;
       stdOut += "\n";
     }
   }
@@ -1041,6 +1057,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity &vid)
 std::string
 Mapping::UidToUserName (uid_t uid, int &errc)
 {
+  errc = 0;
   XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
   if (gPhysicalUserNameCache.count(uid))
   {
@@ -1085,6 +1102,7 @@ Mapping::UidToUserName (uid_t uid, int &errc)
 std::string
 Mapping::GidToGroupName (gid_t gid, int &errc)
 {
+  errc = 0;
   XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
   if (gPhysicalGroupNameCache.count(gid))
   {
@@ -1136,6 +1154,7 @@ Mapping::UserNameToUid (std::string &username, int &errc)
   uid_t uid = 99;
   struct passwd pwbuf;
   struct passwd *pwbufp = 0;
+  errc = 0;
   getpwnam_r(username.c_str(), &pwbuf, buffer, buflen, &pwbufp);
   if (!pwbufp)
   {
@@ -1176,6 +1195,7 @@ Mapping::GroupNameToGid (std::string &groupname, int &errc)
   struct group grbuf;
   struct group *grbufp = 0;
   gid_t gid = 99;
+  errc = 0;
 
   getgrnam_r(groupname.c_str(), &grbuf, buffer, buflen, &grbufp);
   if (!grbufp)

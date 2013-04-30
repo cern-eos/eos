@@ -381,12 +381,26 @@ SpaceQuota::UpdateFromQuotaNode (uid_t uid, gid_t gid)
     ResetQuota(kGroupFilesIs, gid, false);
     ResetQuota(kGroupLogicalBytesIs, gid, false);
 
+    ResetQuota(kUserBytesIs, Quota::gProjectId, false);
+    ResetQuota(kUserLogicalBytesIs, Quota::gProjectId, false);
+    ResetQuota(kUserFilesIs, Quota::gProjectId, false);
+    ResetQuota(kGroupBytesIs, Quota::gProjectId, false);
+    ResetQuota(kGroupFilesIs, Quota::gProjectId, false);
+    ResetQuota(kGroupLogicalBytesIs, Quota::gProjectId, false);
+
     AddQuota(kUserBytesIs, uid, QuotaNode->getPhysicalSpaceByUser(uid), false);
     AddQuota(kUserLogicalBytesIs, uid, QuotaNode->getUsedSpaceByUser(uid), false);
     AddQuota(kUserFilesIs, uid, QuotaNode->getNumFilesByUser(uid), false);
     AddQuota(kGroupBytesIs, gid, QuotaNode->getPhysicalSpaceByGroup(gid), false);
     AddQuota(kGroupLogicalBytesIs, gid, QuotaNode->getUsedSpaceByUser(gid), false);
     AddQuota(kGroupFilesIs, gid, QuotaNode->getNumFilesByGroup(gid), false);
+
+    AddQuota(kUserBytesIs, Quota::gProjectId, QuotaNode->getPhysicalSpaceByUser(Quota::gProjectId), false);
+    AddQuota(kUserLogicalBytesIs, Quota::gProjectId, QuotaNode->getUsedSpaceByUser(Quota::gProjectId), false);
+    AddQuota(kUserFilesIs, Quota::gProjectId, QuotaNode->getNumFilesByUser(Quota::gProjectId), false);
+    AddQuota(kGroupBytesIs, Quota::gProjectId, QuotaNode->getPhysicalSpaceByGroup(Quota::gProjectId), false);
+    AddQuota(kGroupLogicalBytesIs, Quota::gProjectId, QuotaNode->getUsedSpaceByUser(Quota::gProjectId), false);
+    AddQuota(kGroupFilesIs, Quota::gProjectId, QuotaNode->getNumFilesByGroup(Quota::gProjectId), false);
   }
   Mutex.UnLock();
 }
@@ -851,7 +865,8 @@ SpaceQuota::CheckWriteQuota (uid_t uid, gid_t gid, long long desiredspace, unsig
   bool hasquota = false;
 
   // copy info from namespace Quota Node ...
-  UpdateFromQuotaNode(uid, gid);
+  UpdateFromQuotaNode(uid, gid); // get user/group/project quota
+
   eos_static_info("uid=%d gid=%d size=%llu quota=%llu", uid, gid, desiredspace, GetQuota(kUserBytesTarget, uid, false));
 
   bool userquota = false;
@@ -938,14 +953,14 @@ SpaceQuota::CheckWriteQuota (uid_t uid, gid_t gid, long long desiredspace, unsig
     }
   }
 
-  if (projectquota)
+  if ((((GetQuota(kGroupBytesTarget, Quota::gProjectId, false)) - (GetQuota(kGroupBytesIs, Quota::gProjectId, false))) > (long long) (desiredspace)) &&
+      (((GetQuota(kGroupFilesTarget, Quota::gProjectId, false)) - (GetQuota(kGroupFilesIs, Quota::gProjectId, false))) > (inodes)))
   {
-    if ((((GetQuota(kGroupBytesTarget, Quota::gProjectId, false)) - (GetQuota(kGroupBytesIs, Quota::gProjectId, false))) > (long long) (desiredspace)) &&
-        (((GetQuota(kGroupFilesTarget, Quota::gProjectId, false)) - (GetQuota(kGroupFilesIs, Quota::gProjectId, false))) > (inodes)))
-    {
-      hasprojectquota = true;
-    }
+    hasprojectquota = true;
   }
+
+  if (!userquota && !groupquota)
+    projectquota = true;
 
   if ((userquota) && (groupquota))
   {
