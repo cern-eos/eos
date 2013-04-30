@@ -149,7 +149,6 @@ void*
 Fsck::Check(void)
 {
   XrdSysThread::SetCancelOn();
-  XrdSysThread::SetCancelDeferred();
 
   XrdSysTimer sleeper;
   
@@ -161,6 +160,7 @@ Fsck::Check(void)
   
   while (1) {
     sleeper.Snooze(1);
+    XrdSysThread::SetCancelOff();
     eos_static_debug("Started consistency checker thread");
     ClearLog();
     Log(false,"started check");
@@ -394,9 +394,8 @@ Fsck::Check(void)
     }
 
     Log(false,"stopping check");
-    
-    XrdSysThread::CancelPoint();
     Log(false,"=> next run in 30 minutes");
+    XrdSysThread::SetCancelOn();
 
     // Write Report 
     sleeper.Snooze(1800);
