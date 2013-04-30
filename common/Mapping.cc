@@ -268,7 +268,6 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
       if (gVirtualUidMap["sss:\"<pwd>\":uid"] == 0)
       {
         eos_static_debug("sss uid mapping");
-        // use physical mapping for sss names
         Mapping::getPhysicalIds(client->name, vid);
         vid.gid = 99;
         vid.gid_list.clear();
@@ -296,6 +295,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
         // use physical mapping for sss names
         uid_t uid = vid.uid;
         Mapping::getPhysicalIds(client->name, vid);
+
         vid.uid = uid;
         vid.uid_list.clear();
         vid.uid_list.push_back(uid);
@@ -371,10 +371,15 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   // tident mapping
   // ---------------------------------------------------------------------------
   XrdOucString mytident = "";
+  XrdOucString myrole = "";
   XrdOucString wildcardtident = "";
   XrdOucString host = "";
   XrdOucString stident = "tident:";
   stident += "\"";
+  stident += ReduceTident(vid.tident, wildcardtident, mytident, host);
+  myrole = mytident;
+  myrole.erase(mytident.find("@"));
+
   stident += ReduceTident(vid.tident, wildcardtident, mytident, host);
   XrdOucString swctident = "tident:";
   swctident += "\"";
@@ -387,6 +392,11 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   swcuidtident += "\":uid";
   XrdOucString swcgidtident = swctident;
   swcgidtident += "\":gid";
+
+  XrdOucString sprotuidtident = swcuidtident;
+  XrdOucString sprotgidtident = swcgidtident;
+  sprotuidtident.replace("*", vid.prot); // there can be a protocol specific rule like sss:@<host>:uid...
+  sprotgidtident.replace("*", vid.prot); // there can be a protocol specific rule like sss:@<host>:gid...
 
   if ((gVirtualUidMap.count(suidtident.c_str())))
   {
@@ -405,16 +415,50 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   }
 
   // ---------------------------------------------------------------------------
-  // wild card tidents
-  // one can define mapping entries like '*@host=>0' e.g. for fuse mounts
+  // wild card tidents/protocol tidents
+  // one can define mapping entries like '*@host:uid=>0' e.g. for fuse mounts
+  // or only for a certain protocol like 'sss@host:uid=>0'
   // ---------------------------------------------------------------------------
-  if ((gVirtualUidMap.count(swcuidtident.c_str())))
+
+  XrdOucString tuid = "";
+  XrdOucString tgid = "";
+
+  if (gVirtualUidMap.count(swcuidtident.c_str()))
   {
-    if (!gVirtualUidMap[swcuidtident.c_str()])
+    // there is an entry like "*@<host:uid" matching all protocols
+    tuid = swcuidtident.c_str();
+  }
+  else
+  {
+    if (gVirtualUidMap.count(sprotuidtident.c_str()))
+    {
+      // there is a protocol specific entry "<prot>@<host>:uid"
+      tuid = sprotuidtident.c_str();
+    }
+  }
+
+  if (gVirtualGidMap.count(swcgidtident.c_str()))
+  {
+    // there is an entry like "*@<host>:gid" matching all protocols
+    tgid = swcgidtident.c_str();
+  }
+  else
+  {
+    if (gVirtualGidMap.count(sprotgidtident.c_str()))
+    {
+      // there is a protocol specific entry "<prot>@<host>:uid"
+      tgid = sprotgidtident.c_str();
+    }
+  }
+
+  eos_static_info("tuid=%s tgid=%s", tuid.c_str(), tgid.c_str());
+  if (gVirtualUidMap.count(tuid.c_str()))
+  {
+    if (!gVirtualUidMap[tuid.c_str()])
     {
       if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root"))
       {
-        eos_static_debug("tident unix root uid squash");
+        eos_static_debug("tident sss root uid squash");
         vid.uid_list.clear();
         vid.uid_list.push_back(99);
         vid.uid = 99;
@@ -424,18 +468,32 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
       }
       else
       {
-        eos_static_debug("tident unix uid mapping");
-        Mapping::getPhysicalIds(client->name, vid);
+        eos_static_debug("tident sss uid mapping");
+
+        // use physical mapping for sss names
+        if ((myrole != "root"))
+        {
+          Mapping::getPhysicalIds(myrole.c_str(), vid);
+          if ((myrole != "daemon") && (vid.uid < 99))
+          {
+            vid.uid_list.clear();
+            Mapping::getPhysicalIds(client->name, vid);
+          }
+        }
+        else
+        {
+          Mapping::getPhysicalIds(client->name, vid);
+        }
         vid.gid = 99;
         vid.gid_list.clear();
       }
     }
     else
     {
-      eos_static_debug("tident uid forced mapping");
+      eos_static_debug("tident sss uid forced mapping");
       // map to the requested id
       vid.uid_list.clear();
-      vid.uid = gVirtualUidMap[swcuidtident.c_str()];
+      vid.uid = gVirtualUidMap[tuid.c_str()];
       vid.uid_list.push_back(vid.uid);
       if (vid.uid != 99)
         vid.uid_list.push_back(99);
@@ -445,22 +503,36 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  if ((gVirtualGidMap.count(swcgidtident.c_str())))
+  if (gVirtualUidMap.count(tgid.c_str()))
   {
-    if (!gVirtualGidMap[swcgidtident.c_str()])
+    if (!gVirtualGidMap[tgid.c_str()])
     {
       if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root"))
       {
-        eos_static_debug("tident unix root gid squash");
+        eos_static_debug("tident sss root gid squash");
         vid.gid_list.clear();
         vid.gid_list.push_back(99);
         vid.gid = 99;
       }
       else
       {
-        eos_static_debug("tident unix gid mapping");
+        eos_static_debug("tident sss gid mapping");
         uid_t uid = vid.uid;
-        Mapping::getPhysicalIds(client->name, vid);
+
+        if ((myrole != "root"))
+        {
+          Mapping::getPhysicalIds(myrole.c_str(), vid);
+          if ((myrole != "daemon") && (vid.uid < 99))
+          {
+            vid.uid_list.clear();
+            vid.gid_list.clear();
+            Mapping::getPhysicalIds(client->name, vid);
+          }
+        }
+        else
+        {
+          Mapping::getPhysicalIds(client->name, vid);
+        }
         vid.uid = uid;
         vid.uid_list.clear();
         vid.uid_list.push_back(uid);
@@ -469,10 +541,10 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     }
     else
     {
-      eos_static_debug("tident gid forced mapping");
+      eos_static_debug("tident sss gid forced mapping");
       // map to the requested id
       vid.gid_list.clear();
-      vid.gid = gVirtualGidMap[swcgidtident.c_str()];
+      vid.gid = gVirtualGidMap[tgid.c_str()];
       vid.gid_list.push_back(vid.gid);
     }
   }
@@ -653,6 +725,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   eos_static_debug("selected %d %d [%s %s]", vid.uid, vid.gid, ruid.c_str(), rgid.c_str());
   if (log)
   {
+
     eos_static_info("%s sec.tident=\"%s\"", eos::common::SecEntity::ToString(client, Env.Get("eos.app")).c_str(), tident);
   }
 }
@@ -802,6 +875,7 @@ Mapping::Print (XrdOucString &stdOut, XrdOucString option)
     eos::common::Mapping::GeoLocationMap_t::const_iterator it;
     for (it = gGeoMap.begin(); it != gGeoMap.end(); it++)
     {
+
       char sline[1024];
       snprintf(sline, sizeof (sline) - 1, "geotag:\"%s\" => \"%s\"\n", it->first.c_str(), it->second.c_str());
       stdOut += sline;
@@ -829,8 +903,8 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity &vid)
 
   memset(&passwdinfo, 0, sizeof (passwdinfo))
     ;
-  gid_vector* gv;
-  id_pair* id;
+  gid_vector * gv;
+  id_pair * id;
 
   eos_static_debug("find in uid cache %s", name);
 
@@ -856,6 +930,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity &vid)
 
   if ((gv = gPhysicalGidCache.Find(name)))
   {
+
     vid.uid_list.push_back(id->uid);
     vid.gid_list = *gv;
     vid.uid = id->uid;
@@ -869,31 +944,31 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity &vid)
   // TODO: Because of problems with the LDAP database we have commented the secondary group support
   // ----------------------------------------------------------------------------------------
   /* remove secondary searches in the database -> LDAP assertion
-     struct group* gr;
+  struct group* gr;
   
-     eos_static_debug("group lookup");
-     gid_t gid = id->gid;
+  eos_static_debug("group lookup");
+  gid_t gid = id->gid;
 
-     setgrent();
+  setgrent();
 
-     while( (gr = getgrent() ) ) {
-     int cnt;
-     cnt=0;
-     if (gr->gr_gid == gid) {
-     if (!vid.gid_list.size()) {
-     vid.gid_list.push_back(gid);
-     vid.gid = gid;
-     }
-     }
+  while( (gr = getgrent() ) ) {
+  int cnt;
+  cnt=0;
+  if (gr->gr_gid == gid) {
+  if (!vid.gid_list.size()) {
+  vid.gid_list.push_back(gid);
+  vid.gid = gid;
+  }
+  }
 
-     while (gr->gr_mem[cnt]) {
-     if (!strcmp(gr->gr_mem[cnt],name)) {
-     vid.gid_list.push_back(gr->gr_gid);
-     }
-     cnt++;
-     }
-     }
-     endgrent();
+  while (gr->gr_mem[cnt]) {
+  if (!strcmp(gr->gr_mem[cnt],name)) {
+  vid.gid_list.push_back(gr->gr_gid);
+  }
+  cnt++;
+  }
+  }
+  endgrent();
 
    */
 
@@ -942,6 +1017,7 @@ Mapping::UidToUserName (uid_t uid, int &errc)
     }
     else
     {
+
       uid_string = pwbuf.pw_name;
       errc = 0;
     }
@@ -987,6 +1063,7 @@ Mapping::GidToGroupName (gid_t gid, int &errc)
     }
     else
     {
+
       gid_string = grbuf.gr_name;
       errc = 0;
     }
@@ -1028,6 +1105,7 @@ Mapping::UserNameToUid (std::string &username, int &errc)
   }
   else
   {
+
     uid = pwbuf.pw_uid;
     errc = 0;
   }

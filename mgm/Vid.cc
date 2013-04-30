@@ -280,6 +280,27 @@ Vid::Rm (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 
   int nerased = 0;
 
+  // ---------------------------------------------------------------------------
+  // depending on the key we have to modify the eos::common::Mapping maps
+  // ---------------------------------------------------------------------------
+  if (skey.endswith(":uids"))
+  {
+    XrdOucString lkey = skey;
+    lkey.erase("vid:");
+    lkey.replace(":uids","");
+    uid_t uid = atoi(lkey.c_str());
+    nerased += eos::common::Mapping::gUserRoleVector.erase(uid);
+  }
+
+  if (skey.endswith(":gids"))
+  {
+    XrdOucString lkey = skey;
+    lkey.erase("vid:");
+    lkey.replace(":gids","");
+    gid_t gid = atoi(lkey.c_str());
+    nerased += eos::common::Mapping::gGroupRoleVector.erase(gid);
+  }
+
   if (skey.beginswith("vid:geotag"))
   {
     // remove from geo tag map
@@ -293,6 +314,9 @@ Vid::Rm (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
     nerased += eos::common::Mapping::gVirtualGidMap.erase(skey.c_str());
   }
 
+  // ---------------------------------------------------------------------------
+  // delete the entry from the config engine
+  // ---------------------------------------------------------------------------
   gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
 
   if (nerased)

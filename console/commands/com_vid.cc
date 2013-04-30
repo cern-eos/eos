@@ -27,64 +27,79 @@
 
 /* VID System listing, configuration, manipulation */
 int
-com_vid (char* arg1) {
+com_vid (char* arg1)
+{
   // split subcommands
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
-  
-  if ( subcommand == "ls" ) {
-    XrdOucString in ="mgm.cmd=vid&mgm.subcmd=ls";
-    XrdOucString soption="";
-    XrdOucString option="";
-    do {
+
+  if (subcommand == "ls")
+  {
+    XrdOucString in = "mgm.cmd=vid&mgm.subcmd=ls";
+    XrdOucString soption = "";
+    XrdOucString option = "";
+    do
+    {
       option = subtokenizer.GetToken();
-      if (option.beginswith("-")) {
-        option.erase(0,1);
+      if (option.beginswith("-"))
+      {
+        option.erase(0, 1);
         soption += option;
       }
-    } while (option.length());
-    
-    if (soption.length()) {
-      in += "&mgm.vid.option="; in += soption;
+    }
+    while (option.length());
+
+    if (soption.length())
+    {
+      in += "&mgm.vid.option=";
+      in += soption;
     }
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
-  
-  if ( subcommand == "set" ) {
-    XrdOucString in    = "mgm.cmd=vid&mgm.subcmd=set";
-    XrdOucString key   = subtokenizer.GetToken();
-    if (!key.length()) 
+
+  if (subcommand == "set")
+  {
+    XrdOucString in = "mgm.cmd=vid&mgm.subcmd=set";
+    XrdOucString key = subtokenizer.GetToken();
+    if (!key.length())
       goto com_vid_usage;
 
-    XrdOucString vidkey="";
+    XrdOucString vidkey = "";
 
 
-    if (key == "geotag") {
+    if (key == "geotag")
+    {
       XrdOucString match = subtokenizer.GetToken();
-      if (!match.length()) {
-	goto com_vid_usage;
+      if (!match.length())
+      {
+        goto com_vid_usage;
       }
       XrdOucString target = subtokenizer.GetToken();
-      if (!target.length()) {
-	goto com_vid_usage;
+      if (!target.length())
+      {
+        goto com_vid_usage;
       }
-      
-      vidkey = "geotag:"; vidkey += match;
+
+      vidkey = "geotag:";
+      vidkey += match;
       in += "&mgm.vid.cmd=geotag";
-      in += "&mgm.vid.key="; in += vidkey.c_str();
-      in += "&mgm.vid.geotag="; in += target.c_str();
+      in += "&mgm.vid.key=";
+      in += vidkey.c_str();
+      in += "&mgm.vid.geotag=";
+      in += target.c_str();
 
       global_retc = output_result(client_admin_command(in));
       return (0);
     }
 
-    if (key == "membership") {
+    if (key == "membership")
+    {
 
-      XrdOucString uid  = subtokenizer.GetToken();
+      XrdOucString uid = subtokenizer.GetToken();
 
-      if (!uid.length()) 
+      if (!uid.length())
         goto com_vid_usage;
 
       vidkey += uid;
@@ -95,270 +110,363 @@ com_vid (char* arg1) {
         goto com_vid_usage;
 
       in += "&mgm.vid.cmd=membership";
-      in += "&mgm.vid.source.uid="; in += uid;
+      in += "&mgm.vid.source.uid=";
+      in += uid;
 
       XrdOucString list = "";
-      if ( (type == "-uids") ) {
+      if ((type == "-uids"))
+      {
         vidkey += ":uids";
         list = subtokenizer.GetToken();
-        in += "&mgm.vid.key="; in += vidkey;
-        in += "&mgm.vid.target.uid="; in += list;
+        in += "&mgm.vid.key=";
+        in += vidkey;
+        in += "&mgm.vid.target.uid=";
+        in += list;
       }
 
-      if ( (type == "-gids") ) {
+      if ((type == "-gids"))
+      {
         vidkey += ":gids";
         list = subtokenizer.GetToken();
-        in += "&mgm.vid.key="; in += vidkey;
-        in += "&mgm.vid.target.gid="; in += list;
+        in += "&mgm.vid.key=";
+        in += vidkey;
+        in += "&mgm.vid.target.gid=";
+        in += list;
       }
-      
-      if ( (type == "+sudo") ) {
+
+      if ((type == "+sudo"))
+      {
         vidkey += ":root";
         list = " "; // fake
-        in += "&mgm.vid.key="; in += vidkey;
+        in += "&mgm.vid.key=";
+        in += vidkey;
         in += "&mgm.vid.target.sudo=true";
       }
 
-      if ( (type == "-sudo") ) {
+      if ((type == "-sudo"))
+      {
         vidkey += ":root";
         list = " "; // fake
-        in += "&mgm.vid.key="; in += vidkey;
+        in += "&mgm.vid.key=";
+        in += vidkey;
         in += "&mgm.vid.target.sudo=false";
       }
-      if (!list.length()) {
+      if (!list.length())
+      {
         goto com_vid_usage;
       }
       global_retc = output_result(client_admin_command(in));
       return (0);
     }
-    
-    if (key == "map") {
+
+    if (key == "map")
+    {
       in += "&mgm.vid.cmd=map";
       XrdOucString type = subtokenizer.GetToken();
 
       if (!type.length())
         goto com_vid_usage;
 
-      bool hastype=false;
-      if ( (type == "-krb5") )  {     
+      bool hastype = false;
+      if ((type == "-krb5"))
+      {
         in += "&mgm.vid.auth=krb5";
-        hastype=true;
+        hastype = true;
       }
-      if ( (type == "-gsi") ) {
+      if ((type == "-gsi"))
+      {
         in += "&mgm.vid.auth=gsi";
-        hastype=true;
+        hastype = true;
       }
-      if ( (type == "-sss") ) {
+      if ((type == "-sss"))
+      {
         in += "&mgm.vid.auth=sss";
-        hastype=true;
+        hastype = true;
       }
-      if ( (type == "-unix") ) {
+      if ((type == "-unix"))
+      {
         in += "&mgm.vid.auth=unix";
-        hastype=true;
+        hastype = true;
       }
-      if ( (type == "-tident") ) {
+      if ((type == "-tident"))
+      {
         in += "&mgm.vid.auth=tident";
-        hastype=true;
+        hastype = true;
       }
-      if ( (type == "-voms") ) {
+      if ((type == "-voms"))
+      {
         in += "&mgm.vid.auth=voms";
-        hastype=true;
+        hastype = true;
       }
 
-      if (!hastype) 
+      if (!hastype)
         goto com_vid_usage;
-      
+
 
       XrdOucString pattern = subtokenizer.GetToken();
       // deal with patterns containing spaces but inside ""
-      if (pattern.beginswith("\"")) {
+      if (pattern.beginswith("\""))
+      {
         if (!pattern.endswith("\""))
-          do {
+          do
+          {
             XrdOucString morepattern = subtokenizer.GetToken();
 
-            if (morepattern.endswith("\"")) {
+            if (morepattern.endswith("\""))
+            {
               pattern += " ";
               pattern += morepattern;
               break;
             }
-            if (!morepattern.length()) {
+            if (!morepattern.length())
+            {
               goto com_vid_usage;
             }
             pattern += " ";
             pattern += morepattern;
-          } while (1);
+          }
+          while (1);
       }
-      if (!pattern.length()) 
+      if (!pattern.length())
         goto com_vid_usage;
 
-      in += "&mgm.vid.pattern="; in += pattern;
+      in += "&mgm.vid.pattern=";
+      in += pattern;
 
-      XrdOucString vid= subtokenizer.GetToken();
+      XrdOucString vid = subtokenizer.GetToken();
       if (!vid.length())
         goto com_vid_usage;
 
-      if (vid.beginswith("vuid:")) {
-        vid.replace("vuid:","");
-        in += "&mgm.vid.uid=";in += vid;        
-        
+      if (vid.beginswith("vuid:"))
+      {
+        vid.replace("vuid:", "");
+        in += "&mgm.vid.uid=";
+        in += vid;
+
         XrdOucString vid = subtokenizer.GetToken();
-        if (vid.length()) {
-          fprintf(stderr,"Got %s\n", vid.c_str());
-          if (vid.beginswith("vgid:")) {
-            vid.replace("vgid:","");
-            in += "&mgm.vid.gid=";in += vid;
-          } else {
+        if (vid.length())
+        {
+          fprintf(stderr, "Got %s\n", vid.c_str());
+          if (vid.beginswith("vgid:"))
+          {
+            vid.replace("vgid:", "");
+            in += "&mgm.vid.gid=";
+            in += vid;
+          }
+          else
+          {
             goto com_vid_usage;
           }
         }
-      } else {
-        if (vid.beginswith("vgid:")) {
-          vid.replace("vgid:","");
-          in += "&mgm.vid.gid=";in += vid;
-        } else {
+      }
+      else
+      {
+        if (vid.beginswith("vgid:"))
+        {
+          vid.replace("vgid:", "");
+          in += "&mgm.vid.gid=";
+          in += vid;
+        }
+        else
+        {
           goto com_vid_usage;
         }
       }
 
-      in += "&mgm.vid.key="; in += "<key>";
+      in += "&mgm.vid.key=";
+      in += "<key>";
 
       global_retc = output_result(client_admin_command(in));
       return (0);
     }
   }
 
-  if ( (subcommand == "enable") || (subcommand == "disable") ) {
-    XrdOucString in    = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=map";
-    XrdOucString disableu ="mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
-    XrdOucString disableg ="mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
-    XrdOucString type   = subtokenizer.GetToken();
-    if (!type.length()) 
+  if ((subcommand == "enable") || (subcommand == "disable"))
+  {
+    XrdOucString in = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=map";
+    XrdOucString disableu = "mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
+    XrdOucString disableg = "mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
+    XrdOucString type = subtokenizer.GetToken();
+    if (!type.length())
       goto com_vid_usage;
 
-    bool hastype=false;
-    if ( (type == "krb5") )  {     
+    bool hastype = false;
+    if ((type == "krb5"))
+    {
       in += "&mgm.vid.auth=krb5";
-      disableu +="krb5:\"<pwd>\":uid";
-      disableg +="krb5:\"<pwd>\":gid";
-      hastype=true;
+      disableu += "krb5:\"<pwd>\":uid";
+      disableg += "krb5:\"<pwd>\":gid";
+      hastype = true;
     }
-    if ( (type == "sss") ) {
+    if ((type == "sss"))
+    {
       in += "&mgm.vid.auth=sss";
-      disableu +="sss:\"<pwd>\":uid";
-      disableg +="sss:\"<pwd>\":guid";
-      hastype=true;
+      disableu += "sss:\"<pwd>\":uid";
+      disableg += "sss:\"<pwd>\":guid";
+      hastype = true;
     }
-    if ( (type == "gsi") ) {
+    if ((type == "gsi"))
+    {
       in += "&mgm.vid.auth=gsi";
-      disableu +="gsi:\"<pwd>\":uid";
-      disableg +="gsi:\"<pwd>\":gid";
-      hastype=true;
+      disableu += "gsi:\"<pwd>\":uid";
+      disableg += "gsi:\"<pwd>\":gid";
+      hastype = true;
     }
-    if ( (type == "unix") ) {
+    if ((type == "unix"))
+    {
       in += "&mgm.vid.auth=unix";
-      disableu +="unix\"<pwd>\":uid";
-      disableg +="unix\"<pwd>\":gid";
-      hastype=true;
+      disableu += "unix\"<pwd>\":uid";
+      disableg += "unix\"<pwd>\":gid";
+      hastype = true;
     }
-    if ( (type == "tident") ) {
+    if ((type == "tident"))
+    {
       in += "&mgm.vid.auth=tident";
-      disableu +="tident\"<pwd>\":uid";
-      disableg +="tident\"<pwd>\":gid";
-      hastype=true;
+      disableu += "tident\"<pwd>\":uid";
+      disableg += "tident\"<pwd>\":gid";
+      hastype = true;
     }
-    if (!hastype) 
+    if (!hastype)
       goto com_vid_usage;
 
     in += "&mgm.vid.pattern=<pwd>";
-    if (type != "unix") {
+    if (type != "unix")
+    {
       in += "&mgm.vid.uid=0";
       in += "&mgm.vid.gid=0";
-    } else {
+    }
+    else
+    {
       in += "&mgm.vid.uid=99";
       in += "&mgm.vid.gid=99";
     }
 
-    in += "&mgm.vid.key="; in += "<key>";
-    
-    if ( (subcommand == "enable") )
+    in += "&mgm.vid.key=";
+    in += "<key>";
+
+    if ((subcommand == "enable"))
       global_retc = output_result(client_admin_command(in));
-    
-    if ( (subcommand == "disable") ) {
-      global_retc = output_result(client_admin_command(disableu));
-      global_retc |= output_result(client_admin_command(disableg));
-    }
-    return (0);    
-  }
 
-  if ( (subcommand == "add") || (subcommand == "remove") ) {
-    XrdOucString gw   = subtokenizer.GetToken();
-    if (gw != "gateway") 
-      goto com_vid_usage;
-    XrdOucString host = subtokenizer.GetToken();
-    if (!host.length()) 
-      goto com_vid_usage;
-
-    XrdOucString in    = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=map";
-    XrdOucString disableu ="mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
-    XrdOucString disableg ="mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
-    
-    in += "&mgm.vid.auth=tident";
-    in += "&mgm.vid.pattern=\"*@";in += host; in += "\"";
-    in += "&mgm.vid.uid=0";
-    in += "&mgm.vid.gid=0";
-    disableu +="tident:\"*@";disableu += host; disableu += "\":uid";
-    disableg +="tident:\"*@";disableg += host; disableg += "\":gid";
-
-    in += "&mgm.vid.key="; in += "<key>";    
-
-    if ( (subcommand == "add") )
-      global_retc = output_result(client_admin_command(in));
-    
-    if ( (subcommand == "remove") ) {
+    if ((subcommand == "disable"))
+    {
       global_retc = output_result(client_admin_command(disableu));
       global_retc |= output_result(client_admin_command(disableg));
     }
     return (0);
   }
 
-  if ( subcommand == "rm" ) {
-    XrdOucString in ="mgm.cmd=vid&mgm.subcmd=rm";
-    XrdOucString key   = subtokenizer.GetToken();
-    if ( (!key.length()) ) 
+  if ((subcommand == "add") || (subcommand == "remove"))
+  {
+    XrdOucString gw = subtokenizer.GetToken();
+    if (gw != "gateway")
       goto com_vid_usage;
-    in += "&mgm.vid.key="; in += key;
-    
+    XrdOucString host = subtokenizer.GetToken();
+    if (!host.length())
+      goto com_vid_usage;
+    XrdOucString protocol = subtokenizer.GetToken();
+    if (protocol.length() && ((protocol != "sss") && (protocol != "gsi") && (protocol != "krb5") && (protocol != "unix")))
+      goto com_vid_usage;
+    if (!protocol.length())
+      protocol = "*";
+
+    XrdOucString in = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=map";
+    XrdOucString disableu = "mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
+    XrdOucString disableg = "mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
+
+    in += "&mgm.vid.auth=tident";
+    in += "&mgm.vid.pattern=\"";
+    in += protocol;
+    in += "@";
+    in += host;
+    in += "\"";
+    in += "&mgm.vid.uid=0";
+    in += "&mgm.vid.gid=0";
+    disableu += "tident:\"";
+    disableu += protocol;
+    disableu += "@";
+    disableu += host;
+    disableu += "\":uid";
+    disableg += "tident:\"";
+    disableg += protocol;
+    disableg += "@";
+    disableg += host;
+    disableg += "\":gid";
+
+    in += "&mgm.vid.key=";
+    in += "<key>";
+
+    if ((subcommand == "add"))
+      global_retc = output_result(client_admin_command(in));
+
+    if ((subcommand == "remove"))
+    {
+      global_retc = output_result(client_admin_command(disableu));
+      global_retc |= output_result(client_admin_command(disableg));
+    }
+    return (0);
+  }
+
+  if (subcommand == "rm")
+  {
+    XrdOucString in = "mgm.cmd=vid&mgm.subcmd=rm";
+    XrdOucString key = subtokenizer.GetToken();
+    if (key == "membership")
+    {
+      key = subtokenizer.GetToken();
+      key.insert("vid:", 0);
+      XrdOucString key1 = key;
+      XrdOucString key2 = key;
+      XrdOucString in1 = in;
+      XrdOucString in2 = in;
+      key1 += ":uids";
+      key2 += ":gids";
+      in1 += "&mgm.vid.key=";
+      in1 += key1;
+      in2 += "&mgm.vid.key=";
+      in2 += key2;
+
+      global_retc = output_result(client_admin_command(in1));
+      global_retc |= output_result(client_admin_command(in2));
+      return (0);
+    }
+
+    if ((!key.length()))
+      goto com_vid_usage;
+    in += "&mgm.vid.key=";
+    in += key;
+
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
-  
- com_vid_usage:
-  fprintf(stdout,"usage: vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a] [-l]                                               : list configured policies\n");
-  fprintf(stdout,"                                        -u : show only user role mappings\n");
-  fprintf(stdout,"                                        -g : show only group role mappings\n");
-  fprintf(stdout,"                                        -s : show list of sudoers\n");
-  fprintf(stdout,"                                        -U : show user  alias mapping\n");
-  fprintf(stdout,"                                        -G : show group alias mapping\n");
-  fprintf(stdout,"                                        -y : show configured gateways\n");
-  fprintf(stdout,"                                        -a : show authentication\n");
-  fprintf(stdout,"                                        -l : show geo location mapping\n");
-  fprintf(stdout,"\n");
-  fprintf(stdout,"       vid set membership <uid> -uids [<uid1>,<uid2>,...]\n");
-  fprintf(stdout,"       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
-  fprintf(stdout,"       vid set membership <uid> [+|-]sudo \n");
-  fprintf(stdout,"       vid set map -krb5|-gsi|-sss|-unix|-tident|-voms <pattern> [vuid:<uid>] [vgid:<gid>] \n");
-  fprintf(stdout,"\n");
-  fprintf(stdout,"                                                                                                      -voms <pattern>  : <pattern> is <group>:<role> e.g. to map VOMS attribute /dteam/cern/Role=NULL/Capability=NULL one should define <pattern>=/dteam/cern: \n");
-  fprintf(stdout,"       vid set geotag <IP-prefix> <geotag>  : add to all IP's matching the prefix <prefix> the geo location tag <geotag>\n");
-  fprintf(stdout,"                                              N.B. specify the default assumption via 'vid set geotag default <default-tag>'\n");                                                        
-  fprintf(stdout,"       vid rm <key>                         : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
-  fprintf(stdout,"\n");
-  fprintf(stdout,"       vid enable|disable krb5|gsi|ssl|sss|unix\n");
-  fprintf(stdout,"                                            : enable/disables the default mapping via password database\n");
-  fprintf(stdout,"\n");
-  fprintf(stdout,"       vid add|remove gateway <hostname>\n");
-  fprintf(stdout,"                                            : adds/removes a host as a (fuse) gateway with 'su' priviledges\n");
 
+com_vid_usage:
+  fprintf(stdout, "usage: vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a] [-l]                                               : list configured policies\n");
+  fprintf(stdout, "                                        -u : show only user role mappings\n");
+  fprintf(stdout, "                                        -g : show only group role mappings\n");
+  fprintf(stdout, "                                        -s : show list of sudoers\n");
+  fprintf(stdout, "                                        -U : show user  alias mapping\n");
+  fprintf(stdout, "                                        -G : show group alias mapping\n");
+  fprintf(stdout, "                                        -y : show configured gateways\n");
+  fprintf(stdout, "                                        -a : show authentication\n");
+  fprintf(stdout, "                                        -l : show geo location mapping\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       vid set membership <uid> -uids [<uid1>,<uid2>,...]\n");
+  fprintf(stdout, "       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
+  fprintf(stdout, "       vid rm membership <uid>             : delete the membership entries for <uid>.\n");
+  fprintf(stdout, "       vid set membership <uid> [+|-]sudo \n");
+  fprintf(stdout, "       vid set map -krb5|-gsi|-sss|-unix|-tident|-voms <pattern> [vuid:<uid>] [vgid:<gid>] \n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "                                                                                                      -voms <pattern>  : <pattern> is <group>:<role> e.g. to map VOMS attribute /dteam/cern/Role=NULL/Capability=NULL one should define <pattern>=/dteam/cern: \n");
+  fprintf(stdout, "       vid set geotag <IP-prefix> <geotag>  : add to all IP's matching the prefix <prefix> the geo location tag <geotag>\n");
+  fprintf(stdout, "                                              N.B. specify the default assumption via 'vid set geotag default <default-tag>'\n");
+  fprintf(stdout, "       vid rm <key>                         : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       vid enable|disable krb5|gsi|sss|unix\n");
+  fprintf(stdout, "                                            : enable/disables the default mapping via password database\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       vid add|remove gateway <hostname> [krb5|gsi|sss|unix\n");
+  fprintf(stdout, "                                            : adds/removes a host as a (fuse) gateway with 'su' priviledges\n");
+  fprintf(stdout, "                                              [<prot>] restricts the gateway sudo to the specified authentication method\n");
 
   return (0);
 }
