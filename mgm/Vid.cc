@@ -75,7 +75,7 @@ Vid::Set (const char* value)
     if (env.Get("mgm.vid.source.uid"))
     {
       // rule for a certain user id
-      int errc;
+      int errc=0;
       std::string username = env.Get("mgm.vid.source.uid");
       uid = eos::common::Mapping::UserNameToUid(username, errc);
       XrdOucString suid; suid += (int) uid;
