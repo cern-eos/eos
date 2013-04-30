@@ -327,55 +327,130 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
   // ---------------------------------------------------------------------------
   // tident mapping
   // ---------------------------------------------------------------------------
-  XrdOucString mytident="";
-  XrdOucString wildcardtident="";
-  XrdOucString host="";
-  XrdOucString stident = "tident:"; stident += "\""; stident += ReduceTident(vid.tident, wildcardtident, mytident, host); 
-  XrdOucString swctident = "tident:"; swctident += "\""; swctident += wildcardtident;
-  XrdOucString suidtident = stident; suidtident += "\":uid";
-  XrdOucString sgidtident = stident; sgidtident += "\":gid";
-  XrdOucString swcuidtident = swctident; swcuidtident += "\":uid";
-  XrdOucString swcgidtident = swctident; swcgidtident += "\":gid";
+   XrdOucString mytident = "";
+  XrdOucString myrole = "";
+  XrdOucString wildcardtident = "";
+  XrdOucString host = "";
+  XrdOucString stident = "tident:";
+  stident += "\"";
+  stident += ReduceTident(vid.tident, wildcardtident, mytident, host);
+  myrole = mytident;
+  myrole.erase(mytident.find("@"));
 
-  if ((gVirtualUidMap.count(suidtident.c_str()))) {
+  stident += ReduceTident(vid.tident, wildcardtident, mytident, host);
+  XrdOucString swctident = "tident:";
+  swctident += "\"";
+  swctident += wildcardtident;
+  XrdOucString suidtident = stident;
+  suidtident += "\":uid";
+  XrdOucString sgidtident = stident;
+  sgidtident += "\":gid";
+  XrdOucString swcuidtident = swctident;
+  swcuidtident += "\":uid";
+  XrdOucString swcgidtident = swctident;
+  swcgidtident += "\":gid";
+
+  XrdOucString sprotuidtident = swcuidtident;
+  XrdOucString sprotgidtident = swcgidtident;
+  sprotuidtident.replace("*", vid.prot); // there can be a protocol specific rule like sss:@<host>:uid...
+  sprotgidtident.replace("*", vid.prot); // there can be a protocol specific rule like sss:@<host>:gid...
+
+  if ((gVirtualUidMap.count(suidtident.c_str())))
+  {
     //    eos_static_debug("tident mapping");
     vid.uid = gVirtualUidMap[suidtident.c_str()];
-    if (!HasUid(vid.uid,vid.uid_list)) vid.uid_list.push_back(vid.uid);
+    if (!HasUid(vid.uid, vid.uid_list)) vid.uid_list.push_back(vid.uid);
     if (!HasUid(99, vid.uid_list)) vid.uid_list.push_back(99);
   }
 
-  if ((gVirtualGidMap.count(sgidtident.c_str()))) {
+  if ((gVirtualGidMap.count(sgidtident.c_str())))
+  {
     //    eos_static_debug("tident mapping");
     vid.gid = gVirtualGidMap[sgidtident.c_str()];
-    if (!HasGid(vid.gid,vid.gid_list)) vid.gid_list.push_back(vid.gid);
+    if (!HasGid(vid.gid, vid.gid_list)) vid.gid_list.push_back(vid.gid);
     if (!HasGid(99, vid.gid_list)) vid.gid_list.push_back(99);
-  } 
+  }
 
   // ---------------------------------------------------------------------------
-  // wild card tidents
-  // one can define mapping entries like '*@host=>0' e.g. for fuse mounts
+  // wild card tidents/protocol tidents
+  // one can define mapping entries like '*@host:uid=>0' e.g. for fuse mounts
+  // or only for a certain protocol like 'sss@host:uid=>0'
   // ---------------------------------------------------------------------------
-  if ((gVirtualUidMap.count(swcuidtident.c_str()))) {
-    if (!gVirtualUidMap[swcuidtident.c_str()]) {
-      if ( gRootSquash &&  (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root") ) {
-        eos_static_debug("tident unix root uid squash");
+
+  XrdOucString tuid = "";
+  XrdOucString tgid = "";
+
+  if (gVirtualUidMap.count(swcuidtident.c_str()))
+  {
+    // there is an entry like "*@<host:uid" matching all protocols
+    tuid = swcuidtident.c_str();
+  }
+  else
+  {
+    if (gVirtualUidMap.count(sprotuidtident.c_str()))
+    {
+      // there is a protocol specific entry "<prot>@<host>:uid"
+      tuid = sprotuidtident.c_str();
+    }
+  }
+
+  if (gVirtualGidMap.count(swcgidtident.c_str()))
+  {
+    // there is an entry like "*@<host>:gid" matching all protocols
+    tgid = swcgidtident.c_str();
+  }
+  else
+  {
+    if (gVirtualGidMap.count(sprotgidtident.c_str()))
+    {
+      // there is a protocol specific entry "<prot>@<host>:uid"
+      tgid = sprotgidtident.c_str();
+    }
+  }
+
+  eos_static_info("tuid=%s tgid=%s", tuid.c_str(), tgid.c_str());
+  if (gVirtualUidMap.count(tuid.c_str()))
+  {
+    if (!gVirtualUidMap[tuid.c_str()])
+    {
+      if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root"))
+      {
+        eos_static_debug("tident sss root uid squash");
         vid.uid_list.clear();
         vid.uid_list.push_back(99);
-        vid.uid=99;
+        vid.uid = 99;
         vid.gid_list.clear();
-        vid.gid=99;
+        vid.gid = 99;
         vid.gid_list.push_back(99);
-      } else {
-        eos_static_debug("tident unix uid mapping");
-        Mapping::getPhysicalIds(client->name, vid);
-        vid.gid=99;
+      }
+      else
+      {
+        eos_static_debug("tident sss uid mapping");
+
+        // use physical mapping for sss names
+        if ((myrole != "root"))
+        {
+          Mapping::getPhysicalIds(myrole.c_str(), vid);
+          if ((myrole != "daemon") && (vid.uid < 99))
+          {
+            vid.uid_list.clear();
+            Mapping::getPhysicalIds(client->name, vid);
+          }
+        }
+        else
+        {
+          Mapping::getPhysicalIds(client->name, vid);
+        }
+        vid.gid = 99;
         vid.gid_list.clear();
       }
-    } else {
-      eos_static_debug("tident uid forced mapping");
+    }
+    else
+    {
+      eos_static_debug("tident sss uid forced mapping");
       // map to the requested id
       vid.uid_list.clear();
-      vid.uid = gVirtualUidMap[swcuidtident.c_str()];
+      vid.uid = gVirtualUidMap[tuid.c_str()];
       vid.uid_list.push_back(vid.uid);
       if (vid.uid != 99)
         vid.uid_list.push_back(99);
@@ -385,27 +460,48 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
     }
   }
 
-  if ((gVirtualGidMap.count(swcgidtident.c_str()))) {
-    if (!gVirtualGidMap[swcgidtident.c_str()]) {
-      if ( gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root") ) {
-        eos_static_debug("tident unix root gid squash");
+  if (gVirtualUidMap.count(tgid.c_str()))
+  {
+    if (!gVirtualGidMap[tgid.c_str()])
+    {
+      if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root"))
+      {
+        eos_static_debug("tident sss root gid squash");
         vid.gid_list.clear();
         vid.gid_list.push_back(99);
-        vid.gid=99;
-      } else {
-        eos_static_debug("tident unix gid mapping");
+        vid.gid = 99;
+      }
+      else
+      {
+        eos_static_debug("tident sss gid mapping");
         uid_t uid = vid.uid;
-        Mapping::getPhysicalIds(client->name, vid);
+
+        if ((myrole != "root"))
+        {
+          Mapping::getPhysicalIds(myrole.c_str(), vid);
+          if ((myrole != "daemon") && (vid.uid < 99))
+          {
+            vid.uid_list.clear();
+            vid.gid_list.clear();
+            Mapping::getPhysicalIds(client->name, vid);
+          }
+        }
+        else
+        {
+          Mapping::getPhysicalIds(client->name, vid);
+        }
         vid.uid = uid;
         vid.uid_list.clear();
         vid.uid_list.push_back(uid);
         vid.uid_list.push_back(99);
       }
-    } else {
-      eos_static_debug("tident gid forced mapping");
+    }
+    else
+    {
+      eos_static_debug("tident sss gid forced mapping");
       // map to the requested id
       vid.gid_list.clear();
-      vid.gid = gVirtualGidMap[swcgidtident.c_str()];
+      vid.gid = gVirtualGidMap[tgid.c_str()];
       vid.gid_list.push_back(vid.gid);
     }
   }
@@ -545,101 +641,190 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
 void
 Mapping::Print(XrdOucString &stdOut, XrdOucString option)
 {
-  if ((!option.length()) || ( (option.find("u"))!=STR_NPOS)) {
+    bool translateids = true;
+  if (option.find("n") != STR_NPOS)
+  {
+    translateids = false;
+    option.replace("n", "");
+  }
+
+  if ((!option.length()) || ((option.find("u")) != STR_NPOS))
+  {
     UserRoleMap_t::const_iterator it;
-    for ( it = gUserRoleVector.begin(); it != gUserRoleVector.end(); ++it) {
+    for (it = gUserRoleVector.begin(); it != gUserRoleVector.end(); ++it)
+    {
       char iuid[4096];
-      sprintf(iuid,"%d", it->first);
+      sprintf(iuid, "%d", it->first);
       char suid[4096];
-      sprintf(suid,"%-6s",iuid);
-      stdOut += "membership uid: ";stdOut += suid;
+      sprintf(suid, "%-6s", iuid);
+      if (translateids)
+      {
+        int errc = 0;
+        std::string username = UidToUserName(it->first, errc);
+        if (!errc)
+          sprintf(suid, "%-12s", username.c_str());
+      }
+      stdOut += "membership uid: ";
+      stdOut += suid;
       stdOut += " => uids(";
-      for ( unsigned int i=0; i< (it->second).size(); i++) {
-        stdOut += (int) (it->second)[i];
-        if (i < ((it->second).size()-1))
+      for (unsigned int i = 0; i < (it->second).size(); i++)
+      {
+        if (translateids)
+        {
+          int errc = 0;
+          std::string username = UidToUserName(it->second[i], errc);
+          if (!errc)
+            stdOut += username.c_str();
+          else
+            stdOut += (int) (it->second)[i];
+        }
+        else
+        {
+          stdOut += (int) (it->second)[i];
+        }
+        if (i < ((it->second).size() - 1))
           stdOut += ",";
       }
       stdOut += ")\n";
     }
   }
 
-  if ((!option.length()) || ( (option.find("g"))!=STR_NPOS)) {
+  if ((!option.length()) || ((option.find("g")) != STR_NPOS))
+  {
     UserRoleMap_t::const_iterator it;
-    for ( it = gGroupRoleVector.begin(); it != gGroupRoleVector.end(); ++it) {
+    for (it = gGroupRoleVector.begin(); it != gGroupRoleVector.end(); ++it)
+    {
       char iuid[4096];
-      sprintf(iuid,"%d", it->first);
+      sprintf(iuid, "%d", it->first);
       char suid[4096];
-      sprintf(suid,"%-6s",iuid);
-      stdOut += "membership uid: ";stdOut += suid;
+      sprintf(suid, "%-6s", iuid);
+      if (translateids)
+      {
+        int errc = 0;
+        std::string username = UidToUserName(it->first, errc);
+        if (!errc)
+          sprintf(suid, "%-12s", username.c_str());
+      }
+      stdOut += "membership uid: ";
+      stdOut += suid;
       stdOut += " => gids(";
-      for ( unsigned int i=0; i< (it->second).size(); i++) {
-        stdOut += (int) (it->second)[i];
-        if (i < ((it->second).size()-1))
+      for (unsigned int i = 0; i < (it->second).size(); i++)
+      {
+        if (translateids)
+        {
+          int errc = 0;
+          std::string username = GidToGroupName(it->second[i], errc);
+          if (!errc)
+            stdOut += username.c_str();
+          else
+            stdOut += (int) (it->second)[i];
+        }
+        else
+        {
+          stdOut += (int) (it->second)[i];
+        }
+        if (i < ((it->second).size() - 1))
           stdOut += ",";
       }
       stdOut += ")\n";
     }
   }
 
-  if ((!option.length()) || ( (option.find("s"))!=STR_NPOS)) {
+  if ((!option.length()) || ((option.find("s")) != STR_NPOS))
+  {
     SudoerMap_t::const_iterator it;
     // print sudoer line
     stdOut += "sudoer                 => uids(";
-    for ( it = gSudoerMap.begin() ;it != gSudoerMap.end(); ++it) {  
-      if (it->second) {
-        stdOut += (int) (it->first);
+    for (it = gSudoerMap.begin(); it != gSudoerMap.end(); ++it)
+    {
+      if (it->second)
+      {
+        int errc = 0;
+        std::string username = UidToUserName(it->first, errc);
+        if (!errc && translateids)
+          stdOut += username.c_str();
+        else
+          stdOut += (int) (it->first);
         stdOut += ",";
       }
     }
-    if (stdOut.endswith(",")) {
-      stdOut.erase(stdOut.length()-1);
+    if (stdOut.endswith(","))
+    {
+      stdOut.erase(stdOut.length() - 1);
     }
     stdOut += ")\n";
   }
 
-  if ((!option.length()) || ( (option.find("U"))!=STR_NPOS)) {
+  if ((!option.length()) || ((option.find("U")) != STR_NPOS))
+  {
     VirtualUserMap_t::const_iterator it;
-    for ( it = gVirtualUidMap.begin(); it != gVirtualUidMap.end(); ++it) {
-      stdOut += it->first.c_str(); stdOut += " => "; stdOut += (int)it->second; stdOut += "\n";
+    for (it = gVirtualUidMap.begin(); it != gVirtualUidMap.end(); ++it)
+    {
+      stdOut += it->first.c_str();
+      stdOut += " => ";
+      int errc = 0;
+      std::string username = UidToUserName(it->second, errc);
+      if (!errc && translateids)
+        stdOut += username.c_str();
+      else
+        stdOut += (int) it->second;
+      stdOut += "\n";
     }
   }
 
-  if ((!option.length()) || ( (option.find("G"))!=STR_NPOS)) {
+  if ((!option.length()) || ((option.find("G")) != STR_NPOS))
+  {
     VirtualGroupMap_t::const_iterator it;
-    for ( it = gVirtualGidMap.begin(); it != gVirtualGidMap.end(); ++it) {
-      stdOut += it->first.c_str(); stdOut += " => "; stdOut += (int)it->second; stdOut += "\n";
+    for (it = gVirtualGidMap.begin(); it != gVirtualGidMap.end(); ++it)
+    {
+      stdOut += it->first.c_str();
+      stdOut += " => ";
+      int errc = 0;
+      std::string groupname = GidToGroupName(it->second, errc);
+      if (!errc && translateids)
+        stdOut += groupname.c_str();
+      else
+        stdOut += (int) it->second;
+      stdOut += "\n";
     }
   }
 
-  if (( (option.find("y"))!=STR_NPOS)) {
+  if (((option.find("y")) != STR_NPOS))
+  {
     VirtualUserMap_t::const_iterator it;
-    for ( it = gVirtualUidMap.begin(); it != gVirtualUidMap.end(); ++it) {
-      if (!it->second) {
+    for (it = gVirtualUidMap.begin(); it != gVirtualUidMap.end(); ++it)
+    {
+      if (!it->second)
+      {
         XrdOucString authmethod = it->first.c_str();
         if (!authmethod.beginswith("tident:"))
           continue;
         int dpos = authmethod.find("@");
-        authmethod.erase(0,dpos+1);
+        authmethod.erase(0, dpos + 1);
         dpos = authmethod.find("\"");
         authmethod.erase(dpos);
         stdOut += "gateway=";
-        stdOut += authmethod; 
+        stdOut += authmethod;
         stdOut += "\n";
       }
     }
   }
 
-  if (( (option.find("a"))!=STR_NPOS)) {
+  if (((option.find("a")) != STR_NPOS))
+  {
     VirtualUserMap_t::const_iterator it;
-    for ( it = gVirtualUidMap.begin(); it != gVirtualUidMap.end(); ++it) {
-      if (!it->second) {
+    for (it = gVirtualUidMap.begin(); it != gVirtualUidMap.end(); ++it)
+    {
+      if (!it->second)
+      {
         XrdOucString authmethod = it->first.c_str();
         if (authmethod.beginswith("tident:"))
           continue;
         int dpos = authmethod.find(":");
         authmethod.erase(dpos);
         stdOut += "auth=";
-        stdOut +=authmethod; stdOut += "\n";
+        stdOut += authmethod;
+        stdOut += "\n";
       }
     }
   }
@@ -752,6 +937,7 @@ Mapping::getPhysicalIds(const char* name, VirtualIdentity &vid)
 std::string 
 Mapping::UidToUserName(uid_t uid, int &errc)
 {
+  errc=0;
   XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
   if (gPhysicalUserNameCache.count(uid)) {
     return gPhysicalUserNameCache[uid];
@@ -788,6 +974,7 @@ Mapping::UidToUserName(uid_t uid, int &errc)
 std::string 
 Mapping::GidToGroupName(gid_t gid, int &errc)
 {
+  errc=0;
   XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
   if (gPhysicalGroupNameCache.count(gid)) {
     return gPhysicalGroupNameCache[gid];
@@ -826,6 +1013,7 @@ Mapping::GidToGroupName(gid_t gid, int &errc)
 uid_t 
 Mapping::UserNameToUid(std::string &username, int &errc)
 {
+  errc=0;
   char buffer[131072];
   int buflen = sizeof(buffer);
   uid_t uid=99;
@@ -860,6 +1048,7 @@ Mapping::UserNameToUid(std::string &username, int &errc)
 gid_t 
 Mapping::GroupNameToGid(std::string &groupname, int &errc)
 {
+  errc=0;
   char buffer[131072];
   int buflen = sizeof(buffer);
   struct group grbuf;

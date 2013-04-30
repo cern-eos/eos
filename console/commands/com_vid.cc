@@ -207,6 +207,7 @@ com_vid (char* arg1) {
   }
 
   if ( (subcommand == "enable") || (subcommand == "disable") ) {
+    
     XrdOucString in    = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=map";
     XrdOucString disableu ="mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
     XrdOucString disableg ="mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
@@ -276,18 +277,34 @@ com_vid (char* arg1) {
     XrdOucString host = subtokenizer.GetToken();
     if (!host.length()) 
       goto com_vid_usage;
-
+    XrdOucString protocol = subtokenizer.GetToken();
+    if (protocol.length() && ((protocol != "sss") && (protocol != "gsi") && (protocol != "krb5") && (protocol != "unix")))
+      goto com_vid_usage;
+    if (!protocol.length())
+      protocol = "*";
     XrdOucString in    = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=map";
     XrdOucString disableu ="mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
     XrdOucString disableg ="mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
     
     in += "&mgm.vid.auth=tident";
-    in += "&mgm.vid.pattern=\"*@";in += host; in += "\"";
+    in += "&mgm.vid.pattern=\"";
+    in += protocol;
+    in += "@";
+    in += host;
+    in += "\"";
     in += "&mgm.vid.uid=0";
     in += "&mgm.vid.gid=0";
-    disableu +="tident:\"*@";disableu += host; disableu += "\":uid";
-    disableg +="tident:\"*@";disableg += host; disableg += "\":gid";
-
+    disableu += "tident:\"";
+    disableu += protocol;
+    disableu += "@";
+    disableu += host;
+    disableu += "\":uid";
+    disableg += "tident:\"";
+    disableg += protocol;
+    disableg += "@";
+    disableg += host;
+    disableg += "\":gid";
+    
     in += "&mgm.vid.key="; in += "<key>";    
 
     if ( (subcommand == "add") )
@@ -300,16 +317,41 @@ com_vid (char* arg1) {
     return (0);
   }
 
-  if ( subcommand == "rm" ) {
-    XrdOucString in ="mgm.cmd=vid&mgm.subcmd=rm";
-    XrdOucString key   = subtokenizer.GetToken();
-    if ( (!key.length()) ) 
+  if (subcommand == "rm") {
+    XrdOucString in = "mgm.cmd=vid&mgm.subcmd=rm";
+    XrdOucString key = subtokenizer.GetToken();
+    if (key == "membership") {
+      key = subtokenizer.GetToken();
+      key.insert("vid:", 0);
+      XrdOucString key1 = key;
+      XrdOucString key2 = key;
+      XrdOucString in1 = in;
+      XrdOucString in2 = in;
+      key1 += ":uids";
+      key2 += ":gids";
+      in1 += "&mgm.vid.key=";
+      in1 += key1;
+      in2 += "&mgm.vid.key=";
+      in2 += key2;
+
+      global_retc = output_result(client_admin_command(in1));
+      global_retc |= output_result(client_admin_command(in2));
+      return (0);
+    }
+
+    if ((!key.length()))
       goto com_vid_usage;
-    in += "&mgm.vid.key="; in += key;
     
+    if (key.beginswith("-h") || key.beginswith("--h"))
+      goto com_vid_usage;
+    
+    in += "&mgm.vid.key=";
+    in += key;
+
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
+  
   
  com_vid_usage:
   fprintf(stdout,"usage: vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a]                                                    : list configured policies\n");
@@ -323,6 +365,7 @@ com_vid (char* arg1) {
   fprintf(stdout,"\n");
   fprintf(stdout,"       vid set membership <uid> -uids [<uid1>,<uid2>,...]\n");
   fprintf(stdout,"       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
+  fprintf(stdout, "      vid rm membership <uid>             : delete the membership entries for <uid>.\n");
   fprintf(stdout,"       vid set membership <uid> [+|-]sudo \n");
   fprintf(stdout,"       vid set map -krb5|-gsi|-sss|-unix|-tident|-voms <pattern> [vuid:<uid>] [vgid:<gid>] \n");
   fprintf(stdout,"\n");
@@ -332,9 +375,9 @@ com_vid (char* arg1) {
   fprintf(stdout,"       vid enable|disable krb5|gsi|ssl|sss|unix\n");
   fprintf(stdout,"                                           : enable/disables the default mapping via password database\n");
   fprintf(stdout,"\n");
-  fprintf(stdout,"       vid add|remove gateway <hostname>\n");
-  fprintf(stdout,"                                             adds/removes a host as a (fuse) gateway with 'su' priviledges\n");
-
+  fprintf(stdout, "       vid add|remove gateway <hostname> [krb5|gsi|sss|unix]n");
+  fprintf(stdout, "                                            : adds/removes a host as a (fuse) gateway with 'su' priviledges\n");
+  fprintf(stdout, "                                              [<prot>] restricts the gateway role change to the specified authentication method\n");
 
   return (0);
 }

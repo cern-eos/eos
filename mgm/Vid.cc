@@ -201,31 +201,73 @@ bool
 Vid::Rm(XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 {
   eos::common::RWMutexWriteLock lock(eos::common::Mapping::gMapMutex);
-  XrdOucString skey=env.Get("mgm.vid.key");
+  XrdOucString skey = env.Get("mgm.vid.key");
   XrdOucString vidcmd = env.Get("mgm.vid.cmd");
-  int envlen=0;
+  int envlen = 0;
   XrdOucString inenv = env.Env(envlen);
-  while(inenv.replace("&"," ")) {};
-  
-  if (!skey.length()) {
-    stdErr += "error: failed to rm vid [ "; stdErr += inenv ; stdErr += "] - key missing";
+  while (inenv.replace("&", " "))
+  {
+  };
+
+  if (skey.beginswith("vid:"))
+  {
+    skey.erase(0, 4);
+  }
+
+  if (!skey.length())
+  {
+    stdErr += "error: failed to rm vid [ ";
+    stdErr += inenv;
+    stdErr += "] - key missing";
     errno = EINVAL;
-    retc = EINVAL;    
+    retc = EINVAL;
     return false;
   }
 
-  int nerased=0;
+  int nerased = 0;
+
+  // ---------------------------------------------------------------------------
+  // depending on the key we have to modify the eos::common::Mapping maps
+  // ---------------------------------------------------------------------------
+  if (skey.endswith(":uids"))
+  {
+    XrdOucString lkey = skey;
+    lkey.erase("vid:");
+    lkey.replace(":uids","");
+    uid_t uid = atoi(lkey.c_str());
+    nerased += eos::common::Mapping::gUserRoleVector.erase(uid);
+  }
+
+  if (skey.endswith(":gids"))
+  {
+    XrdOucString lkey = skey;
+    lkey.erase("vid:");
+    lkey.replace(":gids","");
+    gid_t gid = atoi(lkey.c_str());
+    nerased += eos::common::Mapping::gGroupRoleVector.erase(gid);
+  }
+
+  
   nerased += eos::common::Mapping::gVirtualUidMap.erase(skey.c_str());
   nerased += eos::common::Mapping::gVirtualGidMap.erase(skey.c_str());
+  
 
-  gOFS->ConfEngine->DeleteConfigValue("vid",skey.c_str());  
+  // ---------------------------------------------------------------------------
+  // delete the entry from the config engine
+  // ---------------------------------------------------------------------------
+  gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
 
-  if (nerased) {
-    stdOut += "success: rm vid [ "; stdOut += inenv; stdOut += "]";
+  if (nerased)
+  {
+    stdOut += "success: rm vid [ ";
+    stdOut += inenv;
+    stdOut += "]";
     errno = 0;
     retc = 0;
     return true;
-  } else {
+  }
+  else
+  {
     stdErr += "error: nothing has been removed";
     errno = EINVAL;
     retc = EINVAL;
