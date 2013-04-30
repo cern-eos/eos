@@ -2080,6 +2080,9 @@ xrd_init()
   EnvPutInt("NAME_RECONNECTWAIT", 10);
 
   setenv("XRDPOSIX_POPEN","1",1);
+  unsetenv("KRB5CCNAME");
+  unsetenv("X509_USER_PROXY");
+
   if ((fusedebug.find("posix")!=STR_NPOS)) {
     XrdPosixXrootd::setEnv(NAME_DEBUG,atoi(getenv("EOS_FUSE_DEBUG")));
   }
