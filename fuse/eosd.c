@@ -1508,7 +1508,9 @@ int main(int argc, char *argv[])
   }
 
   xrd_init();
-
+  unsetenv("KRB5CCNAME");
+  unsetenv("X509_USER_PROXY");
+  
   if (fuse_parse_cmdline(&args, &mountpoint, NULL, NULL) != -1 &&
       (ch = fuse_mount(mountpoint, &args)) != NULL) {
     struct fuse_session *se;

@@ -282,8 +282,12 @@ xrd_forget_p2i(const char* path)
 void
 xrd_lock_environment () 
 {
-  if (getenv("EOS_FUSE_LOCK_ENVIRONMENT"))
+  if (getenv("EOS_FUSE_LOCK_ENVIRONMENT")) {
+    eos_static_debug("env-locked");
+    unsetenv("KRB5CCNAME");
+    unsetenv("X509_USER_PROXY");
     environmentmutex.Lock();
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -294,8 +298,10 @@ void
 xrd_unlock_environment ()
 {
   if (getenv("EOS_FUSE_LOCK_ENVIRONMENT")) {
+    eos_static_debug("env-unlocked");
+    unsetenv("KRB5CCNAME");
+    unsetenv("X509_USER_PROXY");
     environmentmutex.UnLock();
-    setuid(0); // switch always back to the root ID
   }
 }
 
@@ -1976,34 +1982,37 @@ xrd_mapuser(uid_t uid, pid_t pid)
 	if (!strncmp(envBuffer + i, "KRB5CCNAME=", strlen("KRB5CCNAME="))) {
 	  krb5ccnamespos = i + strlen("KRB5CCNAME=");
 	  krb5cc = (envBuffer + krb5ccnamespos);
-	  if (krb5cc.length())  {
-	    eos_static_info("export KRB5CCNAME=%s", krb5cc.c_str());
-	    setenv("KRB5CCNAME", krb5cc.c_str(), 1);
-	    exportCache[uid]["KRB5CCNAME"] = krb5cc.c_str();
-	    exportCacheRefreshTime[uid] = now + 300;
-	  }
 	}
 	
 	if (!strncmp(envBuffer + i, "X509_USER_PROXY", strlen("X509_USER_PROXY"))) {
 	  x509proxypos = i + strlen("X509_USER_PROXY=");
 	  x509userproxy = (envBuffer + x509proxypos);
-	  if (x509userproxy.length()) {
-	    eos_static_info("export X509_USER_PROXY=", x509userproxy.c_str());
-	    setenv("X509_USER_PROXY", x509userproxy.c_str(), 1);
-	    exportCache[uid]["X509_USER_PROXY"] = x509userproxy.c_str();
-	    exportCacheRefreshTime[uid] = now + 300;
-	  }
 	}
       }
+      if (krb5ccnamespos == -1) {
+	krb5cc = "FILE:/tmp/krb5cc_";
+ 	char suid[16]; snprintf(suid,sizeof(suid)-1,"%u", uid);
+	krb5cc += suid;
+      }
+      if (x509proxypos == -1) {
+	x509userproxy = "/tmp/x509u_";
+	char suid[16]; snprintf(suid,sizeof(suid)-1,"%u", uid);
+	x509userproxy += suid;
+      }
+
+      eos_static_info("export KRB5CCNAME=%s", krb5cc.c_str());
+      setenv("KRB5CCNAME", krb5cc.c_str(), 1);
+      exportCache[uid]["KRB5CCNAME"] = krb5cc.c_str();
+      exportCacheRefreshTime[uid] = now + 300;
+
+      eos_static_info("export X509_USER_PROXY=", x509userproxy.c_str());
+      setenv("X509_USER_PROXY", x509userproxy.c_str(), 1);
+      exportCache[uid]["X509_USER_PROXY"] = x509userproxy.c_str();
+      exportCacheRefreshTime[uid] = now + 300;
       close(fd);
     }
   }
 
-  // change the effective user ID to the caller
-  seteuid(uid);
-  
-  eos_static_info("uid=%d euid=%d", uid, geteuid());
-  
   XrdOucString role=spw->c_str();
   
   //............................................................................
@@ -2080,8 +2089,6 @@ xrd_init()
   EnvPutInt("NAME_RECONNECTWAIT", 10);
 
   setenv("XRDPOSIX_POPEN","1",1);
-  unsetenv("KRB5CCNAME");
-  unsetenv("X509_USER_PROXY");
 
   if ((fusedebug.find("posix")!=STR_NPOS)) {
     XrdPosixXrootd::setEnv(NAME_DEBUG,atoi(getenv("EOS_FUSE_DEBUG")));
