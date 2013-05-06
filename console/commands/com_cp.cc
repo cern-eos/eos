@@ -759,7 +759,7 @@ com_cp (char* argin) {
       }
       
       if (!XrdPosixXrootd::Stat(url.c_str(), &buf)) {
-	if ((source_size[nfile]) && (buf.st_size != (int)source_size[nfile])) {
+	if ((source_size[nfile]) && (buf.st_size != (off_t)source_size[nfile])) {
 	  fprintf(stderr,"error: filesize differ between source and target file!\n");
 	  lrc = 0xffff00;
 	} 
@@ -773,7 +773,7 @@ com_cp (char* argin) {
       // this is a local file
       buf.st_size=0;
       if (!stat(targetfile.c_str(), &buf)) {
-	if ((source_size[nfile]) && (buf.st_size != (int)source_size[nfile])) {
+	if ((source_size[nfile]) && (buf.st_size != (off_t)source_size[nfile])) {
 	  fprintf(stderr,"error: filesize differ between source and target file!\n");
 	  lrc = 0xffff00;
 	} 
