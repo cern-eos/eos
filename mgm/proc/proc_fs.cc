@@ -152,7 +152,9 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
           {
             entries++;
             fmd->getEnv(env);
-            stdOut += env.c_str();
+	    XrdOucString senv = env.c_str();
+	    senv.replace("checksum=&","checksum=none&");
+            stdOut += senv.c_str();
             stdOut += "&container=-\n";
           }
         }
