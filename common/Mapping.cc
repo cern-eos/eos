@@ -380,7 +380,6 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   myrole = mytident;
   myrole.erase(mytident.find("@"));
 
-  stident += ReduceTident(vid.tident, wildcardtident, mytident, host);
   XrdOucString swctident = "tident:";
   swctident += "\"";
   swctident += wildcardtident;
@@ -459,19 +458,19 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     {
       if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root"))
       {
-        eos_static_debug("tident sss root uid squash");
+        eos_static_debug("tident root uid squash");
         vid.uid_list.clear();
-        vid.uid_list.push_back(99);
-        vid.uid = 99;
+        vid.uid_list.push_back(2);
+        vid.uid = 2;
         vid.gid_list.clear();
-        vid.gid = 99;
-        vid.gid_list.push_back(99);
+        vid.gid = 2;
+        vid.gid_list.push_back(2);
       }
       else
       {
-        eos_static_debug("tident sss uid mapping");
-
-        // use physical mapping for sss names
+        eos_static_debug("tident uid mapping");
+	vid.uid_list.clear();
+        // use physical mapping 
         if ((myrole != "root"))
         {
           Mapping::getPhysicalIds(myrole.c_str(), vid);
@@ -491,7 +490,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     }
     else
     {
-      eos_static_debug("tident sss uid forced mapping");
+      eos_static_debug("tident uid forced mapping");
       // map to the requested id
       vid.uid_list.clear();
       vid.uid = gVirtualUidMap[tuid.c_str()];
@@ -504,20 +503,20 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  if (gVirtualUidMap.count(tgid.c_str()))
+  if (gVirtualGidMap.count(tgid.c_str()))
   {
     if (!gVirtualGidMap[tgid.c_str()])
     {
       if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root"))
       {
-        eos_static_debug("tident sss root gid squash");
+        eos_static_debug("tident root gid squash");
         vid.gid_list.clear();
-        vid.gid_list.push_back(99);
-        vid.gid = 99;
+        vid.gid_list.push_back(2);
+        vid.gid = 2;
       }
       else
       {
-        eos_static_debug("tident sss gid mapping");
+        eos_static_debug("tident gid mapping");
         uid_t uid = vid.uid;
 
         if ((myrole != "root"))
@@ -542,7 +541,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     }
     else
     {
-      eos_static_debug("tident sss gid forced mapping");
+      eos_static_debug("tident gid forced mapping");
       // map to the requested id
       vid.gid_list.clear();
       vid.gid = gVirtualGidMap[tgid.c_str()];
