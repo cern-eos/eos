@@ -106,6 +106,10 @@ FmdClient::EnvFstToFmdSqlite (XrdOucEnv &env, struct Fmd &fmd)
   if (env.Get("checksum"))
   {
     fmd.checksum = env.Get("checksum");
+    if (fmd.checksum=="none") 
+    {
+      fmd.checksum="";
+    }
   }
   else
   {
