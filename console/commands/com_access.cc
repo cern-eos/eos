@@ -193,8 +193,10 @@ com_access (char* arg1) {
     goto com_access_usage;
   }
 
-  in += "&mgm.access.option="; in += option;
-
+  if (option.length()) 
+  {
+    in += "&mgm.access.option="; in += option;
+  }
 
   global_retc = output_result(client_admin_command(in));
   return (0);
