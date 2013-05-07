@@ -1269,7 +1269,12 @@ main (int argc, char* argv[])
       int mkdir_failed = 0;
       int chown_failed = 0;
       XrdOucString file_path = dst_location[i].second.c_str();
-
+      XrdOucString opaque = dst_location[i].second.c_str();
+      int npos;
+      if ( (npos = opaque.find("?")) != STR_NPOS ) 
+      {
+        opaque.erase(0,npos);
+      }
       while ((pos = file_path.find("/", pos + 1)) != STR_NPOS)
       {
         XrdOucString subpath = file_path;
@@ -1313,7 +1318,7 @@ main (int argc, char* argv[])
           {
             fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) stat on %s\n", subpath.c_str());
           }
-
+          subpath+= opaque.c_str();
           XrdCl::URL url(dst_location[i].first.c_str());
           XrdCl::FileSystem fs(url);
           XrdCl::StatInfo* response = 0;
