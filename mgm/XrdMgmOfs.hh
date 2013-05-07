@@ -539,16 +539,12 @@ public:
                const char *opaque = 0,
                bool simulate = false);
 
-  int
-  rename (const char *oldFileName,
+  int rename (const char *oldFileName,
           const char *newFileName,
           XrdOucErrInfo &out_error,
           const XrdSecEntity *client = 0,
           const char *opaqueO = 0,
-          const char *opaqueN = 0)
-  {
-    return 0;
-  }
+          const char *opaqueN = 0);
 
   int rename (const char *oldFileName,
               const char *newFileName,
@@ -606,6 +602,7 @@ public:
   int readlink (const char*, XrdOucString&, XrdOucErrInfo&, const XrdSecEntity*, const char*);
 
   int access (const char*, int mode, XrdOucErrInfo&, const XrdSecEntity*, const char*);
+  int _access (const char*, int mode, XrdOucErrInfo&, eos::common::Mapping::VirtualIdentity &vid, const char*);
 
   int utimes (const char*, struct timespec *tvp, XrdOucErrInfo&, const XrdSecEntity*, const char*);
   int _utimes (const char*, struct timespec *tvp, XrdOucErrInfo&, eos::common::Mapping::VirtualIdentity &vid, const char* opaque = 0);

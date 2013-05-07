@@ -1,4 +1,4 @@
-// ------------------------------Acl----------------------------------------
+// ----------------------------------------------------------------------
 // File: XrdMgmOfs.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
@@ -3062,7 +3062,8 @@ XrdMgmOfs::_mkdir (const char *path, // In
           vid.gid = d_gid;
         }
       }
-      bool stdpermcheck = false;
+      bool stdpermcheck = true;
+      ;
       if (acl.HasAcl())
       {
         if ((!acl.CanWrite()) && (!acl.CanWriteOnce()))
@@ -3070,10 +3071,6 @@ XrdMgmOfs::_mkdir (const char *path, // In
           // we have to check the standard permissions
           stdpermcheck = true;
         }
-      }
-      else
-      {
-        stdpermcheck = false;
       }
 
       // admin's can always create a directory
@@ -3695,6 +3692,8 @@ Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
   static const char *epname = "remdir";
   errno = 0;
 
+  eos_info("path=%s", path);
+
   EXEC_TIMING_BEGIN("RmDir");
 
   gOFS->MgmStats.Add("RmDir", vid.uid, vid.gid, 1);
@@ -3748,7 +3747,7 @@ Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
     if ((dh->getCUid() != vid.uid) &&
         (vid.uid) && // not the root user
         (vid.uid != 3) && // not the admin user
-        (vid.gid != 4) && // notthe admin group
+        (vid.gid != 4) && // not the admin group
         (acl.CanNotDelete()))
     {
       // deletion is explicitly forbidden
@@ -3826,6 +3825,69 @@ int
 XrdMgmOfs::rename (const char *old_name, // In
                    const char *new_name, // In
                    XrdOucErrInfo &error, //Out
+                   const XrdSecEntity *client, // In
+                   const char *infoO, // In
+                   const char *infoN) // In
+
+{
+  static const char *epname = "rename";
+  const char *tident = error.getErrUser();
+
+  eos_info("old-name=%s new-name=%s", old_name, new_name);
+  // use a thread private vid
+  eos::common::Mapping::VirtualIdentity vid;
+
+  XrdSecEntity mappedclient;
+
+
+  eos::common::Mapping::IdMap(client, infoO, tident, vid);
+  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+
+  errno = 0;
+
+  XrdOucString source, destination;
+  XrdOucString oldn, newn;
+  XrdOucEnv renameo_Env(infoO);
+  XrdOucEnv renamen_Env(infoN);
+
+  oldn = old_name;
+  newn = new_name;
+
+  {
+    const char* inpath = old_name;
+    const char* ininfo = infoO;
+    AUTHORIZE(client, &renameo_Env, AOP_Delete, "rename", inpath, error);
+    NAMESPACEMAP;
+    BOUNCE_ILLEGAL_NAMES;
+    oldn = path;
+    if (info)info = 0;
+  }
+
+  {
+    const char* inpath = new_name;
+    const char* ininfo = infoN;
+    AUTHORIZE(client, &renamen_Env, AOP_Update, "rename", inpath, error);
+    NAMESPACEMAP;
+    BOUNCE_ILLEGAL_NAMES;
+    newn = path;
+
+    if (info)info = 0;
+  }
+
+  BOUNCE_NOT_ALLOWED;
+  ACCESSMODE_W;
+  MAYSTALL;
+  MAYREDIRECT;
+
+  return rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN);
+
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::rename (const char *old_name, // In
+                   const char *new_name, // In
+                   XrdOucErrInfo &error, //Out
                    eos::common::Mapping::VirtualIdentity& vid,
                    const char *infoO, // In
                    const char *infoN) // In
@@ -3850,10 +3912,7 @@ Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
   XrdOucEnv renameo_Env(infoO);
   XrdOucEnv renamen_Env(infoN);
 
-  //  AUTHORIZE(client,&renameo_Env,AOP_Update,"rename",old_name, error);
-  //  AUTHORIZE(client,&renamen_Env,AOP_Update,"rename",new_name, error);
 
-  // we need to add also the namespace re mapping here ...
   oldn = old_name;
   newn = new_name;
 
@@ -3861,6 +3920,7 @@ Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
     const char* inpath = old_name;
     const char* ininfo = infoO;
     NAMESPACEMAP;
+    BOUNCE_ILLEGAL_NAMES;
     oldn = path;
     if (info)info = 0;
   }
@@ -3875,10 +3935,22 @@ Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
     if (info)info = 0;
   }
 
+  BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
 
+  // check access permissions on source
+  if ((_access(oldn.c_str(), W_OK, error, vid, infoO) != SFS_OK))
+  {
+    return SFS_ERROR;
+  }
+
+  // check access permissions on target
+  if ((_access(newn.c_str(), W_OK, error, vid, infoN) != SFS_OK))
+  {
+    return SFS_ERROR;
+  }
   return _rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN);
 }
 
@@ -3912,13 +3984,6 @@ Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
   eos_info("source=%s target=%s", old_name, new_name);
 
   EXEC_TIMING_BEGIN("Rename");
-
-  // only 'root' can rename for the moment
-  if (vid.uid)
-  {
-    errno = EACCES;
-    return Emsg(epname, error, EACCES, "rename - user access restricted - only the root user might rename files");
-  }
 
   eos::common::Path oPath(old_name);
   eos::common::Path nPath(new_name);
@@ -4007,6 +4072,7 @@ Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
         if (file)
         {
           eosView->renameFile(file, nPath.GetName());
+          UpdateNowInmemoryDirectoryModificationTime(dir->getId());
         }
       }
       else
@@ -4016,6 +4082,8 @@ Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
         {
           // move to a new directory
           dir->removeFile(oPath.GetName());
+          UpdateNowInmemoryDirectoryModificationTime(dir->getId());
+          UpdateNowInmemoryDirectoryModificationTime(newdir->getId());
           file->setName(nPath.GetName());
           file->setContainerId(newdir->getId());
           if (updateCTime)
@@ -4187,6 +4255,7 @@ Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
           // rename within a container
           //.....................................................................
           eosView->renameContainer(rdir, nPath.GetName());
+          UpdateNowInmemoryDirectoryModificationTime(rdir->getId());
         }
         else
         {
@@ -4194,12 +4263,14 @@ Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
           // move from one container to another one
           //.....................................................................
           dir->removeContainer(oPath.GetName());
+          UpdateNowInmemoryDirectoryModificationTime(dir->getId());
           rdir->setName(nPath.GetName());
           if (updateCTime)
           {
             rdir->setCTimeNow();
           }
           newdir->addContainer(rdir);
+          UpdateNowInmemoryDirectoryModificationTime(newdir->getId());
           eosView->updateContainerStore(rdir);
         }
       }
@@ -4607,40 +4678,56 @@ XrdMgmOfs::access (const char *inpath, // In
   MAYSTALL;
   MAYREDIRECT;
 
-  gOFS->MgmStats.Add("Access", vid.uid, vid.gid, 1);
+  return _access(path, mode, error, vid, info);
 
+}
+
+/*----------------------------------------------------------------------------*/
+/* This function operations ONLY on directories !!!                           */
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_access (const char *path,
+                    int mode,
+                    XrdOucErrInfo &error,
+                    eos::common::Mapping::VirtualIdentity &vid,
+                    const char *info)
+{
+  static const char *epname = "_access";
+
+  eos_info("path=%s mode=%x uid=%u gid=%u", path, mode, vid.uid, vid.gid);
+  gOFS->MgmStats.Add("Access", vid.uid, vid.gid, 1);
 
   eos::common::Path cPath(path);
 
-  eos::ContainerMD* dh;
-  eos::FileMD* fh;
+  eos::ContainerMD* dh=0;
+  eos::FileMD* fh=0;
   bool permok = false;
   //-------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+
+  // check for existing file
   try
   {
     fh = gOFS->eosView->getFile(cPath.GetPath());
+    dh = gOFS->eosView->getContainer(cPath.GetPath());
   }
   catch (eos::MDException &e)
   {
-    fh = 0;
-    errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
 
+  errno = 0;
   try
   {
     eos::ContainerMD::XAttrMap attrmap;
-    if (fh)
+    if (fh || (!dh))
     {
-      // if this is a file we check the access on the parent directory
+      // if this is a file are not existing directory we check the access on the parent directory
+      eos_debug("path=%s", cPath.GetParentPath());
       dh = gOFS->eosView->getContainer(cPath.GetParentPath());
     }
-    else
-    {
-      // if this is not a file we assume it is a directory
-      dh = gOFS->eosView->getContainer(cPath.GetPath());
-    }
+    
     permok = dh->access(vid.uid, vid.gid, mode);
 
     if (!permok)
@@ -4669,10 +4756,15 @@ XrdMgmOfs::access (const char *inpath, // In
           permok = true;
         }
 
-        if ((mode & W_OK) && acl.CanBrowse())
+        if ((mode & R_OK) && acl.CanBrowse())
         {
           permok = true;
         }
+        else
+        {
+          permok = false;
+        }
+
       }
     }
   }
@@ -4688,12 +4780,17 @@ XrdMgmOfs::access (const char *inpath, // In
   if (!dh)
   {
     eos_debug("msg=\"access\" errno=ENOENT");
+    errno = ENOENT;
     return Emsg(epname, error, ENOENT, "access", path);
   }
 
+  // root/daemon can always access
+  if ((vid.uid == 0) || (vid.uid == 2))
+    permok = true;
+
   if (dh)
   {
-    eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o", vid.uid, vid.gid, (dh->access(vid.uid, vid.gid, R_OK | X_OK)), dh->getMode());
+    eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o", vid.uid, vid.gid, permok, dh->getMode());
   }
 
   if (dh && (mode & F_OK))
@@ -4708,10 +4805,11 @@ XrdMgmOfs::access (const char *inpath, // In
 
   if (dh && (!permok))
   {
-
+    errno = EACCES;
     return Emsg(epname, error, EACCES, "access", path);
   }
 
+  errno = EOPNOTSUPP;
   return Emsg(epname, error, EOPNOTSUPP, "access", path);
 }
 
@@ -5783,7 +5881,7 @@ XrdMgmOfs::FSctl (const int cmd,
             char* drop_all = env.Get("mgm.dropall");
             std::vector<unsigned int> drop_fsid;
             bool updatestore = false;
-            
+
             if (drop_all)
             {
               for (unsigned int i = 0; i < fmd->getNumLocation(); i++)
@@ -5797,23 +5895,23 @@ XrdMgmOfs::FSctl (const int cmd,
             }
 
             // Drop the selected replicas
-            for(auto id = drop_fsid.begin(); id != drop_fsid.end(); id++)
+            for (auto id = drop_fsid.begin(); id != drop_fsid.end(); id++)
             {
               eos_thread_debug("removing location %u of fid=%s", *id, afid);
               updatestore = false;
-            
+
               if (fmd->hasLocation(*id))
               {
-                  fmd->unlinkLocation(*id);
-                  updatestore = true;
+                fmd->unlinkLocation(*id);
+                updatestore = true;
               }
-              
+
               if (fmd->hasUnlinkedLocation(*id))
               {
                 fmd->removeLocation(*id);
                 updatestore = true;
               }
-              
+
               if (updatestore)
               {
                 gOFS->eosView->updateFileStore(fmd);
@@ -5837,7 +5935,7 @@ XrdMgmOfs::FSctl (const int cmd,
                 // and count the file as removed
                 quotanode->removeFile(fmd);
               }
-            }            
+            }
           }
           catch (...)
           {
@@ -5904,6 +6002,7 @@ XrdMgmOfs::FSctl (const int cmd,
       fmdenv += cPath.GetParentPath();
       XrdOucString response = "getfmd: retc=0 ";
       response += fmdenv.c_str();
+      response.replace("checksum=&","checksum=none&"); // XrdOucEnv does not deal with empty values ... sigh ...
       error.setErrInfo(response.length() + 1, response.c_str());
       return SFS_DATA;
     }
@@ -6011,7 +6110,7 @@ XrdMgmOfs::FSctl (const int cmd,
                       vid);
 
         XrdOucString response = "chmod: retc=";
-        response += retc;
+        response += errno;
         error.setErrInfo(response.length() + 1, response.c_str());
         return SFS_DATA;
       }
@@ -6059,55 +6158,6 @@ XrdMgmOfs::FSctl (const int cmd,
         error.setErrInfo(response.length() + 1, response.c_str());
         return SFS_DATA;
       }
-    }
-
-    if (execmd == "symlink")
-    {
-      // ----------------------------------------------------------------------
-      // symlink
-      // ----------------------------------------------------------------------
-      ACCESSMODE_W;
-      MAYSTALL;
-      MAYREDIRECT;
-
-      /*
-      char* destination;
-      char* source;
-      if ((destination = env.Get("linkdest"))) {
-      if ((source = env.Get("linksource"))) {
-      int retc = symlink(source,destination,error,client,0);
-      XrdOucString response="sysmlink: retc=";
-      response += retc;
-      error.setErrInfo(response.length()+1,response.c_str());
-      return SFS_DATA;
-      }
-      }
-      XrdOucString response="symlink: retc=";
-      response += EINVAL;
-      error.setErrInfo(response.length()+1,response.c_str());
-      return SFS_DATA;
-       */
-    }
-
-    if (execmd == "readlink")
-    {
-      // ----------------------------------------------------------------------
-      // readlink
-      // ----------------------------------------------------------------------
-      ACCESSMODE_R;
-      MAYSTALL;
-      MAYREDIRECT;
-
-      /*
-      XrdOucString linkpath="";
-      int retc=readlink(path.c_str(),linkpath,error,client,0);
-      XrdOucString response="readlink: retc=";
-      response += retc;
-      response += " link=";
-      response += linkpath;
-      error.setErrInfo(response.length()+1,response.c_str());
-      return SFS_DATA;
-       */
     }
 
     if (execmd == "access")
@@ -8667,9 +8717,9 @@ XrdMgmOfs::_replicatestripe (eos::FileMD *fmd,
 
     if (!sub)
       errno = ENXIO;
-    else 
+    else
       errno = 0;
-    
+
     if (txjob)
       delete txjob;
     else
