@@ -159,9 +159,9 @@ XrdIo::Read (XrdSfsFileOffset offset,
                  XrdSfsXferSize length,
                  uint16_t timeout)
 {
-  eos_debug("offset = %llu, length = %lu",
+  eos_debug("offset = %llu, length = %llu",
             static_cast<uint64_t> (offset),
-            static_cast<uint32_t> (length));
+            static_cast<uint64_t> (length));
 
   uint32_t bytes_read = 0;
   XrdCl::XRootDStatus status = mXrdFile->Read(static_cast<uint64_t> (offset),
