@@ -64,45 +64,22 @@ double readopentime = 5.0;
 
 
 //------------------------------------------------------------------------------
-// Read symbolic links
+// Convenience macros to build strings in C ...
 //------------------------------------------------------------------------------
 
-static void
-eosfs_ll_readlink (fuse_req_t req, fuse_ino_t ino)
-{
-  char fullpath[16384];
+#define FULLPATH(_out, _prefix,_name) \
+                 snprintf( (_out) ,sizeof( (_out) )-1,"/%s%s", (_prefix), (_name) )
 
-  xrd_lock_r_p2i (); // =>
-  const char* name = xrd_path ((unsigned long long) ino);
+#define FULLPARENTPATH(_out, _prefix, _parent, _name) \
+                 snprintf( (_out) ,sizeof( (_out) )-1,"/%s%s/%s", (_prefix), (_parent), (_name) )
 
-  if (!name)
-  {
-    fuse_reply_err (req, ENXIO);
-    xrd_unlock_r_p2i (); // <=
-    return;
-  }
+#define FULLURL(_url, _user, _hostport, _prefix, _parent, _name) \
+                 snprintf ( (_url) , sizeof( (_url)) -1, "root://%s@%s//%s%s/%s", (_user), \
+                           (_hostport), (_prefix), (_parent), (_name) )
 
-  sprintf (fullpath, "/%s%s", mountprefix, name);
-  xrd_unlock_r_p2i (); // <=
-
-  if (isdebug)
-  {
-    fprintf (stderr, "[%s]: inode=%lld path=%s\n",
-             __FUNCTION__, (long long) ino, fullpath);
-  }
-
-  char linkbuffer[8912];
-  int retc = xrd_readlink (fullpath, linkbuffer, sizeof ( linkbuffer));
-
-  if (!retc)
-  {
-    fuse_reply_readlink (req, linkbuffer);
-  }
-  else
-  {
-    fuse_reply_err (req, -retc);
-  }
-}
+#define FULLPARENTURL(_url, _user, _hostport, _prefix, _parent) \
+                 snprintf ( (_url) , sizeof( (_url)) -1, "root://%s@%s//%s%s", (_user), \
+                           (_hostport), (_prefix), (_parent) )
 
 
 //------------------------------------------------------------------------------
@@ -128,7 +105,8 @@ eosfs_ll_getattr (fuse_req_t req,
     return;
   }
 
-  sprintf (fullpath, "/%s%s", mountprefix, name);
+  FULLPATH (fullpath, mountprefix, name);
+
   xrd_unlock_r_p2i (); // <=
 
   if (isdebug)
@@ -163,6 +141,7 @@ eosfs_ll_setattr (fuse_req_t req,
 {
   int retc = 0;
   char fullpath[16384];
+  char url[1024];
 
   xrd_lock_r_p2i (); // =>
   const char* name = xrd_path ((unsigned long long) ino);
@@ -175,7 +154,8 @@ eosfs_ll_setattr (fuse_req_t req,
     return;
   }
 
-  sprintf (fullpath, "/%s%s", mountprefix, name);
+  FULLPATH (fullpath, mountprefix, name);
+
   xrd_unlock_r_p2i (); // <=
 
   if (to_set & FUSE_SET_ATTR_MODE)
@@ -185,7 +165,7 @@ eosfs_ll_setattr (fuse_req_t req,
       fprintf (stderr, "[%s]: set attr mode ino=%lld\n", __FUNCTION__, (long long) ino);
     }
 
-    retc = xrd_chmod (fullpath, attr->st_mode);
+    retc = xrd_chmod (fullpath, attr->st_mode, req->ctx.uid, req->ctx.pid);
   }
 
   if ((to_set & FUSE_SET_ATTR_UID) && (to_set & FUSE_SET_ATTR_GID))
@@ -194,10 +174,6 @@ eosfs_ll_setattr (fuse_req_t req,
     {
       fprintf (stderr, "[%s]: set attr uid  ino=%lld\n", __FUNCTION__, (long long) ino);
     }
-
-    // f.t.m. we fake it works !
-    //    fuse_reply_err(req,EPERM);
-    //    return;
   }
 
   if (to_set & FUSE_SET_ATTR_SIZE)
@@ -221,15 +197,18 @@ eosfs_ll_setattr (fuse_req_t req,
                    __FUNCTION__, (long long) attr->st_size, (long long) ino);
         }
 
+        xrd_lock_environment();
         if ((fd = xrd_open (fullpath, O_WRONLY,
-                            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) > 0)
+                            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid, req->ctx.pid)) > 0)
         {
+          xrd_unlock_environment();
           retc = xrd_truncate (fd, attr->st_size, ino);
           xrd_close (fd, ino);
           xrd_remove_fd2file (fd);
         }
         else
         {
+          xrd_unlock_environment();
           retc = -1;
         }
       }
@@ -244,12 +223,18 @@ eosfs_ll_setattr (fuse_req_t req,
                  __FUNCTION__, (long long) attr->st_size, (long long) ino);
       }
 
+      xrd_lock_environment ();
       if ((fd = xrd_open (fullpath, O_WRONLY,
-                          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) > 0)
+                          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid, req->ctx.pid)) > 0)
       {
+        xrd_unlock_environment ();
         retc = xrd_truncate (fd, attr->st_size, ino);
         xrd_close (fd, ino);
         xrd_remove_fd2file (fd);
+      }
+      else
+      {
+        xrd_unlock_environment ();
       }
     }
   }
@@ -267,8 +252,7 @@ eosfs_ll_setattr (fuse_req_t req,
       fprintf (stderr, "[%s]: set attr time ino=%lld atime=%ld mtime=%ld\n",
                __FUNCTION__, (long long) ino, (long) attr->st_atime, (long) attr->st_mtime);
     }
-
-    retc = xrd_utimes (fullpath, tvp);
+    retc = xrd_utimes (fullpath, tvp, req->ctx.uid, req->ctx.pid);
   }
 
   if (isdebug) fprintf (stderr, "[%s]: return code =%d\n", __FUNCTION__, retc);
@@ -286,12 +270,12 @@ eosfs_ll_setattr (fuse_req_t req,
     }
     else
     {
-      fuse_reply_err (req, -retc);
+      fuse_reply_err (req, errno);
     }
   }
   else
   {
-    fuse_reply_err (req, -retc);
+    fuse_reply_err (req, errno);
   }
 }
 
@@ -337,7 +321,8 @@ eosfs_ll_lookup (fuse_req_t req,
     }
   }
 
-  sprintf (fullpath, "/%s%s", mountprefix, ifullpath);
+  FULLPATH (fullpath, mountprefix, ifullpath);
+
   xrd_unlock_r_p2i (); // <=
 
   if (isdebug)
@@ -461,9 +446,8 @@ eosfs_ll_readdir (fuse_req_t req,
                   off_t off,
                   struct fuse_file_info* fi)
 {
-  char fullpath[16384];
   char dirfullpath[16384];
-
+  char fullpath[16384];
   char* name = 0;
   int retc = 0;
   int dir_status = 0;
@@ -488,18 +472,32 @@ eosfs_ll_readdir (fuse_req_t req,
     return;
   }
 
-  xrd_lock_environment();
 
-  sprintf (dirfullpath, "/%s%s", mountprefix, name);
-  sprintf (fullpath, "root://%s@%s//proc/user/?mgm.cmd=fuse&"
-           "mgm.subcmd=inodirlist&mgm.path=/%s%s",
-           xrd_mapuser (req->ctx.uid, req->ctx.pid), mounthostport, mountprefix, name);
+  FULLPATH(dirfullpath,mountprefix,name);
+  
+  sprintf (fullpath, "/proc/user/?mgm.cmd=fuse&"
+           "mgm.subcmd=inodirlist&mgm.path=/%s%s", mountprefix, name);
 
   if (isdebug)
   {
     fprintf (stderr, "[%s]: inode=%lld path=%s size=%lld off=%lld\n", __FUNCTION__,
-             (long long) ino, fullpath, (long long) size, (long long) off);
+             (long long) ino, dirfullpath, (long long) size, (long long) off);
   }
+
+  if ((req->ctx.uid) && ((!getenv ("EOS_FUSE_NOACCESS")) ||
+                         (!strcmp (getenv ("EOS_FUSE_NOACCESS"), "1"))))
+  {
+    // if ACCESS is disabled we have to make sure that we can actually read this directory if we are not 'root'
+
+    if (xrd_access (dirfullpath, R_OK | X_OK, req->ctx.uid, req->ctx.pid))
+    {
+      fprintf (stderr, "no access to %s\n", dirfullpath);
+      fuse_reply_err (req, errno);
+      free (name);
+      return;
+    }
+  }
+
 
   if (!(b = xrd_dirview_getbuffer (ino, 1)))
   {
@@ -507,8 +505,6 @@ eosfs_ll_readdir (fuse_req_t req,
     // No dirview entry, try to use the directory cache
     //..........................................................................
     retc = xrd_stat (dirfullpath, &attr);
-
-    xrd_unlock_environment();
 
 #ifdef __APPLE__
     dir_status = xrd_dir_cache_get (ino, attr.st_mtimespec, &tmp_buf);
@@ -521,7 +517,7 @@ eosfs_ll_readdir (fuse_req_t req,
       //........................................................................
       // Dir not in cache or invalid, fall-back to normal reading
       //........................................................................
-      xrd_inodirlist ((unsigned long long) ino, fullpath);
+      xrd_inodirlist ((unsigned long long) ino, fullpath, req->ctx.uid, req->ctx.pid);
       xrd_lock_r_dirview (); // =>
       b = xrd_dirview_getbuffer ((unsigned long long) ino, 0);
 
@@ -541,7 +537,6 @@ eosfs_ll_readdir (fuse_req_t req,
 
       while ((in = xrd_dirview_entry (ino, cnt, 0)))
       {
-
         if ((namep = xrd_basename (in)))
         {
           if (cnt == 0)
@@ -595,10 +590,6 @@ eosfs_ll_readdir (fuse_req_t req,
       xrd_unlock_r_dirview (); // <=
       free (tmp_buf);
     }
-  }
-  else 
-  {
-    xrd_unlock_environment();
   }
 
   if (isdebug)
@@ -662,7 +653,9 @@ eosfs_ll_statfs (fuse_req_t req, fuse_ino_t ino)
   }
 
   sprintf (rootpath, "/%s", mountprefix);
-  res = xrd_statfs (rootpath, path, &svfs2);
+  strcat (rootpath, path);
+
+  res = xrd_statfs (rootpath, &svfs2);
   free (path);
 
   if (res)
@@ -702,7 +695,6 @@ eosfs_ll_mknod (fuse_req_t req,
     const char* parentpath = NULL;
     char partialpath[16384];
     char fullpath[16384];
-    char fullparentpath[16384];
     char ifullpath[16384];
 
     xrd_lock_r_p2i (); // =>
@@ -717,14 +709,7 @@ eosfs_ll_mknod (fuse_req_t req,
 
     sprintf (partialpath, "/%s%s/%s", mountprefix, parentpath, name);
 
-    xrd_lock_environment();
-
-    const char* user = xrd_mapuser (req->ctx.uid, req->ctx.pid);
-    sprintf (fullpath, "root://%s@%s//%s%s/%s", user,
-             mounthostport, mountprefix, parentpath, name);
-
-    sprintf (fullparentpath, "root://%s@%s//%s%s", user,
-             mounthostport, mountprefix, parentpath);
+    FULLPARENTPATH (fullpath, mountprefix, parentpath, name);
 
     if ((strlen (parentpath) == 1) && (parentpath[0] == '/'))
     {
@@ -743,11 +728,13 @@ eosfs_ll_mknod (fuse_req_t req,
                __FUNCTION__, (long long) parent, fullpath, req->ctx.uid);
     }
 
+    xrd_lock_environment();
     res = xrd_open (fullpath,
                     O_CREAT | O_EXCL | O_RDWR,
-                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid, req->ctx.pid);
 
     xrd_unlock_environment();
+    
     if (res == -1)
     {
       fuse_reply_err (req, errno);
@@ -820,7 +807,7 @@ eosfs_ll_mkdir (fuse_req_t req,
 
   if (isdebug) fprintf (stderr, "[%s]: path=%s\n", __FUNCTION__, fullpath);
 
-  int retc = xrd_mkdir (fullpath, mode);
+  int retc = xrd_mkdir (fullpath, mode, req->ctx.uid, req->ctx.pid);
 
   if (!retc)
   {
@@ -834,7 +821,7 @@ eosfs_ll_mkdir (fuse_req_t req,
 
     if (retc)
     {
-      fuse_reply_err (req, -retc);
+      fuse_reply_err (req, errno);
       return;
     }
     else
@@ -846,7 +833,7 @@ eosfs_ll_mkdir (fuse_req_t req,
   }
   else
   {
-    fuse_reply_err (req, -retc);
+    fuse_reply_err (req, errno);
     return;
   }
 }
@@ -880,7 +867,7 @@ eosfs_ll_unlink (fuse_req_t req, fuse_ino_t parent, const char* name)
     fprintf (stderr, "[%s]: path=%s\n", __FUNCTION__, fullpath);
   }
 
-  int retc = xrd_unlink (fullpath);
+  int retc = xrd_unlink (fullpath, req->ctx.uid, req->ctx.pid);
 
   if (!retc)
   {
@@ -889,7 +876,7 @@ eosfs_ll_unlink (fuse_req_t req, fuse_ino_t parent, const char* name)
   }
   else
   {
-    fuse_reply_err (req, -retc);
+    fuse_reply_err (req, errno);
     return;
   }
 }
@@ -920,7 +907,7 @@ eosfs_ll_rmdir (fuse_req_t req, fuse_ino_t parent, const char* name)
 
   if (isdebug) fprintf (stderr, "[%s]: path=%s\n", __FUNCTION__, fullpath);
 
-  int retc = xrd_rmdir (fullpath);
+  int retc = xrd_rmdir (fullpath, req->ctx.uid, req->ctx.pid);
 
   if (!retc)
   {
@@ -934,95 +921,10 @@ eosfs_ll_rmdir (fuse_req_t req, fuse_ino_t parent, const char* name)
     }
     else
     {
-      fuse_reply_err (req, -retc);
+      fuse_reply_err (req, errno);
     }
   }
 }
-
-
-//------------------------------------------------------------------------------
-// Create symbolic link
-//------------------------------------------------------------------------------
-
-static void
-eosfs_ll_symlink (fuse_req_t req,
-                  const char* link,
-                  fuse_ino_t parent,
-                  const char* name)
-{
-  char linksource[16384];
-  char linkdest[16384];
-  char fullpath[16384];
-  char fulllinkpath[16384];
-  const char* parentpath = NULL;
-
-  xrd_lock_r_p2i (); // =>
-  parentpath = xrd_path ((unsigned long long) parent);
-
-  if (!parentpath)
-  {
-    fuse_reply_err (req, ENXIO);
-    xrd_unlock_r_p2i (); // <=
-    return;
-  }
-
-  xrd_lock_environment();
-  const char* user = xrd_mapuser (req->ctx.uid, req->ctx.pid);
-  sprintf (fullpath, "root://%s@%s/%s/%s", user,
-           mounthostport, parentpath, name);
-
-  sprintf (linksource, "%s/%s", parentpath, name);
-  sprintf (linkdest, "%s/%s", parentpath, link);
-
-  sprintf (fulllinkpath, "root://%s@%s/%s/%s", user,
-           mounthostport, parentpath, link);
-
-  xrd_unlock_r_p2i (); // <=
-
-  if (isdebug)
-  {
-    fprintf (stderr, "[%s]: path=%s sourcepath=%s link=%s\n",
-             __FUNCTION__, fullpath, linksource, link);
-  }
-
-  int retc = xrd_symlink (fullpath, linksource, link);
-
-  xrd_unlock_environment();
-
-  if (!retc)
-  {
-    struct fuse_entry_param e;
-    memset (&e, 0, sizeof ( e));
-    e.attr_timeout = attrcachetime;
-    e.entry_timeout = entrycachetime;
-    int retc = xrd_stat (fullpath, &e.attr);
-
-    if (!retc)
-    {
-      if (isdebug)
-      {
-        fprintf (stderr, "[%s]: storeinode=%lld path=%s\n",
-                 __FUNCTION__, (long long) e.attr.st_ino, linksource);
-      }
-
-      e.ino = e.attr.st_ino;
-      xrd_store_p2i ((unsigned long long) e.attr.st_ino, linksource);
-      fuse_reply_entry (req, &e);
-      return;
-    }
-    else
-    {
-      fuse_reply_err (req, -retc);
-      return;
-    }
-  }
-  else
-  {
-    fuse_reply_err (req, -retc);
-    return;
-  }
-}
-
 
 //------------------------------------------------------------------------------
 // Rename the file, directory, or other object
@@ -1060,9 +962,12 @@ eosfs_ll_rename (fuse_req_t req,
     return;
   }
 
-  sprintf (fullpath, "/%s/%s", parentpath, name);
-  sprintf (newfullpath, "/%s/%s", newparentpath, newname);
+  const char* user = xrd_mapuser (req->ctx.uid, req->ctx.pid);
+
+  FULLPARENTPATH (fullpath, mountprefix, parentpath, name);
+  FULLPARENTPATH (newfullpath, mountprefix, newparentpath, newname);
   sprintf (iparentpath, "%s/%s", newparentpath, newname);
+  
   xrd_unlock_r_p2i (); // <=
 
   struct stat stbuf;
@@ -1074,7 +979,7 @@ eosfs_ll_rename (fuse_req_t req,
              __FUNCTION__, fullpath, newfullpath, stbuf.st_ino, retcold);
   }
 
-  int retc = xrd_rename (fullpath, newfullpath);
+  int retc = xrd_rename (fullpath, newfullpath, req->ctx.uid, req->ctx.pid);
 
   if (!retc)
   {
@@ -1097,88 +1002,7 @@ eosfs_ll_rename (fuse_req_t req,
   }
   else
   {
-    fuse_reply_err (req, EOPNOTSUPP);
-  }
-}
-
-
-//------------------------------------------------------------------------------
-// Create hard link
-//------------------------------------------------------------------------------
-
-static void
-eosfs_ll_link (fuse_req_t req,
-               fuse_ino_t ino,
-               fuse_ino_t parent,
-               const char* name)
-{
-  char linkdest[16384];
-  char fullpath[16384];
-  const char* parentpath = NULL;
-  const char* sourcepath = NULL;
-
-  xrd_lock_r_p2i (); // =>
-  parentpath = xrd_path ((unsigned long long) parent);
-
-  if (!parentpath)
-  {
-    fuse_reply_err (req, ENXIO);
-    xrd_unlock_r_p2i (); // <=
-    return;
-  }
-
-  sourcepath = strdup (xrd_path ((unsigned long long) ino));
-
-  if (!sourcepath)
-  {
-    fuse_reply_err (req, ENXIO);
-    xrd_unlock_r_p2i (); // <=
-    return;
-  }
-
-  sprintf (fullpath, "/%s/%s", parentpath, name);
-  sprintf (linkdest, "%s/%s", parentpath, name);
-  xrd_unlock_r_p2i (); // <=
-
-  if (isdebug)
-  {
-    fprintf (stderr, "[%s]: path=%s sourcepath=%s link=%s\n",
-             __FUNCTION__, fullpath, sourcepath, linkdest);
-  }
-
-  int retc = xrd_link (fullpath, linkdest, sourcepath);
-
-  if (!retc)
-  {
-    struct fuse_entry_param e;
-    memset (&e, 0, sizeof ( e));
-    e.attr_timeout = attrcachetime;
-    e.entry_timeout = entrycachetime;
-    int retc = xrd_stat (fullpath, &e.attr);
-
-    if (!retc)
-    {
-      if (isdebug)
-      {
-        fprintf (stderr, "[%s]: storeinode=%lld path=%s\n",
-                 __FUNCTION__, (long long) e.attr.st_ino, linkdest);
-      }
-
-      e.ino = e.attr.st_ino;
-      xrd_store_p2i ((unsigned long long) e.attr.st_ino, linkdest);
-      fuse_reply_entry (req, &e);
-      return;
-    }
-    else
-    {
-      fuse_reply_err (req, -retc);
-      return;
-    }
-  }
-  else
-  {
-    fuse_reply_err (req, -retc);
-    return;
+    fuse_reply_err (req, errno);
   }
 }
 
@@ -1205,7 +1029,8 @@ eosfs_ll_access (fuse_req_t req, fuse_ino_t ino, int mask)
     return;
   }
 
-  sprintf (fullpath, "/%s%s", mountprefix, name);
+  FULLPATH (fullpath, mountprefix, name);
+
   xrd_unlock_r_p2i (); // <=
 
   if (isdebug)
@@ -1214,7 +1039,14 @@ eosfs_ll_access (fuse_req_t req, fuse_ino_t ino, int mask)
              __FUNCTION__, (long long) ino, fullpath);
   }
 
-  int retc = xrd_access (fullpath, mask);
+  if ((getenv ("EOS_FUSE_NOACCESS")) &&
+      (!strcmp (getenv ("EOS_FUSE_NOACCESS"), "1")))
+  {
+    fuse_reply_err (req, 0);
+    return;
+  }
+
+  int retc = xrd_access (fullpath, mask, req->ctx.uid, req->ctx.pid);
 
   if (!retc)
   {
@@ -1222,7 +1054,7 @@ eosfs_ll_access (fuse_req_t req, fuse_ino_t ino, int mask)
   }
   else
   {
-    fuse_reply_err (req, -retc);
+    fuse_reply_err (req, errno);
   }
 }
 
@@ -1251,9 +1083,9 @@ eosfs_ll_open (fuse_req_t req,
     return;
   }
 
-  xrd_lock_environment();
-  sprintf (fullpath, "root://%s@%s//%s%s", xrd_mapuser (req->ctx.uid, req->ctx.pid),
-           mounthostport, mountprefix, name);
+  xrd_lock_environment ();
+
+  FULLPATH (fullpath, mountprefix, name);
 
   xrd_unlock_r_p2i (); // <=
 
@@ -1269,15 +1101,15 @@ eosfs_ll_open (fuse_req_t req,
     }
     else
     {
-      res = xrd_open (fullpath, fi->flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+      res = xrd_open (fullpath, fi->flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid, req->ctx.pid);
     }
   }
   else
   {
-    res = xrd_open (fullpath, fi->flags, 0);
+    res = xrd_open (fullpath, fi->flags, 0 , req->ctx.uid, req->ctx.pid);
   }
 
-  xrd_unlock_environment();
+  xrd_unlock_environment ();
 
   if (isdebug)
   {
@@ -1489,7 +1321,7 @@ eosfs_ll_fsync (fuse_req_t req,
 
     if (res)
     {
-      fuse_reply_err (req, -res);
+      fuse_reply_err (req, errno);
     }
   }
 
@@ -1521,8 +1353,8 @@ eosfs_ll_flush (fuse_req_t req,
                 struct fuse_file_info* fi)
 {
   int errc_flush = 0;
-  int errc = 0;
-
+  
+  errno = 0;
   if (fi->fh)
   {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
@@ -1530,7 +1362,7 @@ eosfs_ll_flush (fuse_req_t req,
 
     if (errc_flush)
     {
-      errc = EIO;
+      errno = EIO;
     }
     else
     {
@@ -1556,12 +1388,12 @@ eosfs_ll_flush (fuse_req_t req,
       int retc = (fullpath[0] ? xrd_stat (fullpath, &stbuf) : -1);
       if (retc)
       {
-        errc = EIO;
+        errno = EIO;
       }
     }
   }
 
-  fuse_reply_err (req, errc);
+  fuse_reply_err (req, errno);
 }
 
 
@@ -1601,7 +1433,8 @@ eosfs_ll_getxattr (fuse_req_t req,
     return;
   }
 
-  sprintf (fullpath, "/%s%s", mountprefix, name);
+  FULLPATH (fullpath, mountprefix, name);
+
   xrd_unlock_r_p2i (); // <=
 
   if (isdebug)
@@ -1611,7 +1444,7 @@ eosfs_ll_getxattr (fuse_req_t req,
   }
 
   char* xattr_value = NULL;
-  retc = xrd_getxattr (fullpath, xattr_name, &xattr_value, &size);
+  retc = xrd_getxattr (fullpath, xattr_name, &xattr_value, &size, req->ctx.uid, req->ctx.pid);
 
   if (retc)
     fuse_reply_err (req, ENODATA);
@@ -1657,7 +1490,8 @@ eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
     return;
   }
 
-  sprintf (fullpath, "/%s%s", mountprefix, name);
+  FULLPATH (fullpath, mountprefix, name);
+
   xrd_unlock_r_p2i (); // <=
 
   if (isdebug)
@@ -1667,7 +1501,7 @@ eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
   }
 
   char* xattr_list = NULL;
-  retc = xrd_listxattr (fullpath, &xattr_list, &size);
+  retc = xrd_listxattr (fullpath, &xattr_list, &size, req->ctx.uid, req->ctx.pid);
 
   if (retc)
     fuse_reply_err (req, retc);
@@ -1714,7 +1548,8 @@ eosfs_ll_removexattr (fuse_req_t req,
     return;
   }
 
-  sprintf (fullpath, "/%s%s", mountprefix, name);
+  FULLPATH (fullpath, mountprefix, name);
+
   xrd_unlock_r_p2i (); // <=
 
   if (isdebug)
@@ -1723,7 +1558,7 @@ eosfs_ll_removexattr (fuse_req_t req,
              __FUNCTION__, (long long) ino, fullpath);
   }
 
-  retc = xrd_rmxattr (fullpath, xattr_name);
+  retc = xrd_rmxattr (fullpath, xattr_name, req->ctx.uid, req->ctx.pid);
   fuse_reply_err (req, retc);
 }
 
@@ -1755,7 +1590,7 @@ eosfs_ll_setxattr (fuse_req_t req,
     return;
   }
 
-  sprintf (fullpath, "/%s%s", mountprefix, name);
+  FULLPATH (fullpath, mountprefix, name);
 
   xrd_unlock_r_p2i (); // <=
 
@@ -1765,8 +1600,8 @@ eosfs_ll_setxattr (fuse_req_t req,
              __FUNCTION__, (long long) ino, fullpath);
   }
 
-  retc = xrd_setxattr (fullpath, xattr_name, xattr_value, strlen (xattr_value));
-  fuse_reply_err (req, -retc);
+  retc = xrd_setxattr (fullpath, xattr_name, xattr_value, strlen (xattr_value), req->ctx.uid, req->ctx.pid);
+  fuse_reply_err (req, retc);
   return;
 }
 
@@ -1777,15 +1612,12 @@ static struct fuse_lowlevel_ops eosfs_ll_oper = {
   .lookup = eosfs_ll_lookup,
   .setattr = eosfs_ll_setattr,
   .access = eosfs_ll_access,
-  .readlink = eosfs_ll_readlink,
   .readdir = eosfs_ll_readdir,
   .mknod = eosfs_ll_mknod,
   .mkdir = eosfs_ll_mkdir,
-  .symlink = eosfs_ll_symlink,
   .unlink = eosfs_ll_unlink,
   .rmdir = eosfs_ll_rmdir,
   .rename = eosfs_ll_rename,
-  .link = eosfs_ll_link,
   .open = eosfs_ll_open,
   .read = eosfs_ll_read,
   .write = eosfs_ll_write,
@@ -1948,9 +1780,9 @@ main (int argc, char* argv[])
   }
 
   xrd_init ();
-  
-  unsetenv("KRB5CCNAME");
-  unsetenv("X509_USER_PROXY");
+
+  unsetenv ("KRB5CCNAME");
+  unsetenv ("X509_USER_PROXY");
 
   if (fuse_parse_cmdline (&args, &mountpoint, NULL, NULL) != -1 &&
       (ch = fuse_mount (mountpoint, &args)) != NULL)
