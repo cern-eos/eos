@@ -613,7 +613,7 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
     else
       if (mCmd == "chmod")
     {
-      if (Chmod() == SFS_OK) return SFS_OK;
+      Chmod();
     }
     else
       if (mCmd == "recycle")
