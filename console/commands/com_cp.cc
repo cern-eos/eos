@@ -575,12 +575,24 @@ com_cp (char* argin) {
 
     targetfile = arg2;
 
-    if (arg2.beginswith("/eos")) {
-      arg2.insert("/",0);
-      arg2.insert(serveruri.c_str(),0);
+    if (arg2.beginswith("/eos") || arg2.beginswith("root://")) {
+      if (arg2.beginswith("/eos")) {
+        arg2.insert("/",0);
+        arg2.insert(serveruri.c_str(),0);
+      }
       char targetadd[1024];
-      snprintf(targetadd,sizeof(targetadd)-1,"?eos.targetsize=%llu&eos.bookingsize=%llu", source_size[nfile], source_size[nfile]);
+      if ((arg2.find("?")== STR_NPOS)) {
+        arg2 += "?";
+      } else {
+        arg2 += "&";
+      }
+      snprintf(targetadd,sizeof(targetadd)-1,"eos.targetsize=%llu&eos.bookingsize=%llu", source_size[nfile], source_size[nfile]);
       arg2.append(targetadd);
+      // put the proper role switches
+      if (user_role.length() && group_role.length()) {
+        arg2 += "&eos.ruid="; arg2 += user_role;
+        arg2 += "&eos.rgid="; arg2 += group_role;
+      }
     }
 
     // ------------------------------
@@ -625,9 +637,16 @@ com_cp (char* argin) {
 	XrdOucString url=serveruri.c_str();
 	url+="/";
 	url+= targetfile;
+
+
 	// add the 'role' switches to the URL
 	if (user_role.length() && group_role.length()) {
-	  url += "?eos.ruid="; url += user_role;
+	  if ((url.find("?")== STR_NPOS)) {
+	    url += "?";
+	  } else {
+	    url += "&";
+	  }
+	  url += "eos.ruid="; url += user_role;
 	  url += "&eos.rgid="; url += group_role;
 	}
 	if (!XrdPosixXrootd::Stat(url.c_str(), &buf)) {
@@ -699,6 +718,11 @@ com_cp (char* argin) {
     if ( !arg1.beginswith("root:")) {
       // add the 'role' switches to the URL
       if (user_role.length() && group_role.length()) {
+	if ((arg1.find("?")== STR_NPOS)) {
+	  arg1 += "?";
+	} else {
+	  arg1 += "&";
+	}
 	arg1 += "?eos.ruid="; arg1 += user_role;
 	arg1 += "&eos.rgid="; arg1 += group_role;
       }
@@ -754,6 +778,11 @@ com_cp (char* argin) {
 
       // add the 'role' switches to the URL
       if (user_role.length() && group_role.length()) {
+	if ((url.find("?")== STR_NPOS)) {
+	  url += "?";
+	} else {
+	  url += "&";
+	}
 	url += "?eos.ruid="; url += user_role;
 	url += "&eos.rgid="; url += group_role;
       }
