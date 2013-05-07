@@ -207,6 +207,18 @@ eos() {
     echo eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >& $EOSLASTLOG; eval $XROOTSYS/bin/eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR $* >> $EOSCERTLOG 2>&1
 }
 
+tpc1() {
+    src=$1
+    dst=$2
+    echo xrdcp --tpc only root://$EOS_TEST_REDIRECTOR/$src root://$EOS_TEST_REDIRECTOR/$dst >& $EOSLASTLOG; eval $XROOTSYS/bin/xrdcp -f --tpc only root://$EOS_TEST_REDIRECTOR/$src root://$EOS_TEST_REDIRECTOR/$dst >> $EOSCERTLOG 2>&1
+}
+
+tpc2() {
+    src=$1
+    dst=$2
+    echo xrdcopy --tpc only root://$EOS_TEST_REDIRECTOR/$src root://$EOS_TEST_REDIRECTOR/$dst >& $EOSLASTLOG; eval $XROOTSYS/bin/xrdcopy --tpc only root://$EOS_TEST_REDIRECTOR/$src root://$EOS_TEST_REDIRECTOR/$dst >> $EOSCERTLOG 2>&1
+}
+
 stress() {
     echo xrdstress $* >& $EOSLASTLOG; eval xrdstress $* >> $EOSCERTLOG 2>&1
 }
@@ -249,6 +261,10 @@ partial() {
 
 downloadrandom() {
     echo xrdcpdownloadrandom root://$EOS_TEST_REDIRECTOR/$1 >& $EOSLASTLOG; eval xrdcpdownloadrandom root://$EOS_TEST_REDIRECTOR/$1 >> $EOSCERTLOG 2>&1
+}
+
+shell() {
+    echo $* >& $EOSLASTLOG; eval $* >> $EOSCERTLOG 2>&1
 }
 
 ################################################################################################################
@@ -307,7 +323,7 @@ echo "==================================================="
 #      <auth>                  : 'krb5','gsi','unix','sss' - choose krb5 or X509 authentication [ you have to create both tokens beforehand ]
 #      <env>                   : can be used to set the execution environment env <env> "
 #      <expect>                : 0 or 1 => 0 - you expect the command works , 1 - you expect that the command failes, 2 - you run the command but it can fail or not, that is expected
-#      <mode>                  : upload|download|downloadh|meta|eos|stress|abort|extend|shrink|random|truncate|holes|backward|partial|downloadrandom : self explaining - meta executes command via xrd shell, eos via eos shell, stress runs xrdstress, abort runs xrdcpabort ...
+#      <mode>                  : upload|download|downloadh|meta|eos|stress|abort|extend|shrink|random|truncate|holes|backward|partial|downloadrandom|tpc1|tpc2|shell : self explaining - meta executes command via xrd shell, eos via eos shell, stress runs xrdstress, abort runs xrdcpabort ...
 #      <srcpath,dstpath>       : is a local '/...' or remote '/eos/...' path
 #      <param>                 : opaque information passed ... '&' has to be escaped !!!!
 ################################################################################################################
@@ -315,6 +331,7 @@ echo "==================================================="
 ################################################################################################################
 #xrdgsiproxy init >>& $EOSCERTLOG
 showtoken >> $EOSCERTLOG 2>&1
+
 
 ################################################################################################################
 # Preparation
@@ -363,7 +380,9 @@ runtest "### Who       " unix 0 "" eos "who | grep root"
 runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
 runtest "### Rename    " unix 1 "" eos "file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.rename"
 runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-ODeos.space=default"
+runtest "### Chmod     " unix 0 "" eos chmod "755" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 runtest "### Rename    " unix 1 "EOSROLE='-r 99 99'" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.rename
+runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 runtest "### Rename    " unix 0 "" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.rename
 
 runtest "### Mkdir     " unix 0 "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/rename.dir"
@@ -481,11 +500,11 @@ runtest "### Download  " unix 1 "" downloadh  "$EOS_TEST_TESTSYS/dumpit" "/eos/$
 runtest "### Access    " unix 0 "" eos "access ls | grep foo"
 runtest "### Access    " unix 0 "" eos "access rm redirect"
 runtest "### Access    " unix 1 "" eos "access ls | grep foo"
-runtest "### Rm        " unix 0 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
+runtest "### Rm        " unix 0 "" eos "rm /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
 ################################################################################################################
 # Quota Tests
 ################################################################################################################
-eos -b space status default | grep quota | grep on >& /dev/null
+$XROOTSYS/bin/eos -b space status default | grep quota | grep on >& /dev/null 2>&1
 if [ $? -eq 0 ]; then
 # --------------------------
 # if quota is enabled
@@ -500,8 +519,42 @@ runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/insta
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 fi
 ################################################################################################################
+# RECYCLE BIN TEST
+################################################################################################################
+recyclesize=`$XROOTSYS/bin/eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR recycle -m | grep maxbytes | awk '{print $3}' | sed s/maxbytes=//`
+recycletime=`$XROOTSYS/bin/eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR recycle -m | grep lifetime | awk '{print $6}' | sed s/lifetime=//`
+test -z $recyclesize && recyclesize=0
+test -z $recycletime && recycletime=0
+
+if [ $recyclesize -eq 0 ] ; then
+runtest "### Recycle   " unix 0 "" eos recycle config --size 100G
+fi
+
+if [ $recycletime -eq 0 ]; then
+runtest "### Recycle   " unix 0 "" eos recycle config --lifetime 86400
+fi
+ 
+runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle"
+runtest "### Recycle   " unix 0 "" eos recycle config --add-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle
+runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
+runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
+runtest "### Find      " unix 0 "" eos find -f /eos/$EOS_TEST_INSTANCE/proc/recycle/ | grep passwd.recycle | wc -l |grep -w 1
+runtest "### Recycle-Ls" unix 0 "" eos recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | wc -l | grep -w 1
+runtest "### Restore   " unix 1 "" eos recycle restore `$XROOTSYS/bin/eos -b root://$EOS_TEST_REDIRECTOR recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $9}' | tail -1`
+runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore `$XROOTSYS/bin/eos -b root://$EOS_TEST_REDIRECTOR recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $9}' | tail -1`
+runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
+runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
+runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
+runtest "### Restore   " unix 1 "EOSROLE='-r 3 4'" eos recycle restore `$XROOTSYS/bin/eos -b  root://$EOS_TEST_REDIRECTOR recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $9}' | tail -1`
+runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore -f `$XROOTSYS/bin/eos -b root://$EOS_TEST_REDIRECTOR recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $9}' | tail -1`
+runtest "### Recycle   " unix 0 "" eos recycle config --remove-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle
+runtest "### Rem       " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle
+
+
+################################################################################################################
 # STRESS
 ################################################################################################################
+if [ "x${EOS_TEST_NO_STRESS}" = "x" ]; then
 runtest "### Chmod      " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/"
 runtest "### Attr Set   " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test |grep success | wc -l | grep -w 6"
 runtest "### Stress Wpc " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 100 -s 1KB -n stress -j 10 -c -p"
@@ -516,6 +569,7 @@ runtest "### Cleanup    " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/st
 #runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=2000"
 #runtest "### Stress R  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -j 10 "
 #runtest "### Stress Rp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -j 10 -p"
+fi
 ################################################################################################################
 # ATTRIBUTES
 ###################################################A#############################################################
@@ -533,6 +587,7 @@ runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.nstripes /eos/$EOS_T
 runtest "### Cd        " unix 1 "" eos cd /__dont_exists
 runtest "### Cd        " unix 0 "" eos cd /eos/$EOS_TEST_INSTANCE/test
 runtest "### Ls        " unix 1 "" eos ls /__dont_exist 
+if [ "x${EOS_TEST_NO_STRESS}" = "x" ]; then
 runtest "### Ls        " unix 0 "" eos ls "/eos/$EOS_TEST_INSTANCE/test | grep [a-z] | wc -l | grep -w 2"
 runtest "### Ls        " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 2"
 runtest "### Ls        " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 4"
@@ -540,6 +595,7 @@ runtest "### Find      " unix 0 "" eos "find 2>&1 | grep error"
 runtest "### Find      " unix 0 "" eos find -f "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l |grep -w 200"
 runtest "### Find      " unix 0 "" eos find --count "/eos/$EOS_TEST_INSTANCE/test | grep 200"
 runtest "### Find      " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l | grep -w 3"
+fi
 runtest "### Chmod     " unix 0 "" eos chmod 700 /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Ls        " unix 1 "EOSROLE='-r 99 99'" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Ls        " unix 0 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
@@ -564,13 +620,81 @@ runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwx!u /eos/$EOS
 runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
 runtest "### Update    " unix 1 "" append    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"
 runtest "### Chmod     " unix 0 "" eos chmod 755 /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest/
 # --------------------------
 # Parallel sockets (does not work currently with 3.1.0 clients)
 # --------------------------
 #runtest "### UploadP   " unix 0 "" upload  "$TESTSYSFILE50M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" "-S10"
 #runtest "### Download  " unix 0 "" download "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" 
 #runtest "### DownloadP " unix 0 "" download "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.50k" "-S10"
+
+
 ################################################################################
+# eoscp tests
+################################################################################
+runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp -d /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp
+runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp -
+runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp.1
+runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/a/b/c/
+runtest "### eoscp     " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp
+
+################################################################################
+# eos FUSE tests
+################################################################################
+
+if [ -e "/eos/$EOS_TEST_INSTANCE" ];
+then
+echo "### Running FUSE tests ... disabling krb5/x509 ..."
+export X509_USER_PROXY=/tmp/invalid
+export KRB5CCNAME=/tmp/invalid
+
+runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
+runtest "### Chmod     " unix 0 "" eos chmod 755 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
+runtest "### FUSE cp   " unix 1 "" shell cp "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file.1k"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
+runtest "### FUSE cp   " unix 0 "" shell cp "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file.1k"
+runtest "### Chmod     " unix 0 "" eos chmod 755 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
+runtest "### FUSE mkdr " unix 1 "" shell mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.forbidden"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
+runtest "### FUSE mkdr " unix 0 "" shell mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed"
+runtest "### FUSE mkdr " unix 0 "" shell mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed2"
+runtest "### Chmod     " unix 0 "" eos chmod 755 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
+runtest "### FUSE mkdr " unix 1 "" shell rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
+runtest "### FUSE mkdr " unix 0 "" shell rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
+runtest "### FUSE chmd " unix 1 "" shell chmod 755 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
+runtest "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
+runtest "### FUSE chmd " unix 0 "" shell chmod 555 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
+runtest "### FUSE mv   " unix 1 "" shell mv "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file.1k" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file.1k.forbidden" 
+runtest "### FUSE chmd " unix 0 "" shell chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
+runtest "### FUSE mv   " unix 0 "" shell mv "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file.1k" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file.1k.forbidden" 
+runtest "### Chmod     " unix 0 "" eos chmod 555 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed2"
+runtest "### FUSE mv   " unix 1 "" shell mv "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file.1k.forbidden" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed2" 
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed2"
+runtest "### FUSE mv   " unix 0 "" shell mv "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file.1k.forbidden" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed2" 
+runtest "### FUSE mv   " unix 0 "" shell mv "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed2" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed" 
+runtest "### Chmod     " unix 0 "" eos chmod 555 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed"
+runtest "### Chmod     " unix 0 "" eos chmod 555 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/"
+runtest "### rm        " unix 1 "" shell rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed"
+runtest "### rm        " unix 1 "" shell rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed/file.1k.forbidden"
+runtest "### rmdir     " unix 1 "" shell rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed/"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed"
+runtest "### rmdir     " unix 1 "" shell rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed/"
+runtest "### rm        " unix 0 "" shell rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed/file.1k.forbidden"
+runtest "### rmdir     " unix 0 "" shell rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed/"
+fi
+
+################################################################################
+# Third party copy tests
+################################################################################
+runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" 
+runtest "### TPC 1     " unix 0 "" tpc1 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.2"
+runtest "### TPC 2     " unix 0 "" tpc2 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.3"
+runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/tpc
+
 # RAID-LIKE LAYOUT TESTS FOR WR/RD AND RECOVERY
 ################################################################################
 runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir
