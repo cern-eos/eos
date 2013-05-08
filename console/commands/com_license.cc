@@ -29,8 +29,9 @@ extern char* license;
 
 /* Display License File*/
 int
-com_license (char *arg) {
-  fprintf(stdout,"%s",license);
+com_license (char *arg)
+{
+  fprintf(stdout, "%s", license);
   global_retc = 0;
   return (0);
 }

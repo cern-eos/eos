@@ -76,8 +76,7 @@ add_executable( eos
 		commands/com_quit.cc 
 		commands/com_quota.cc 
 		commands/com_reconnect.cc 
-    commands/com_recycle.cc
-		commands/com_restart.cc 
+                commands/com_recycle.cc
 		commands/com_rm.cc 
 		commands/com_rmdir.cc 
 		commands/com_role.cc 
@@ -88,7 +87,6 @@ add_executable( eos
 		commands/com_test.cc 
 		commands/com_timing.cc
 		commands/com_transfer.cc 
-		commands/com_verify.cc 
 		commands/com_version.cc 
 		commands/com_vid.cc 
 		commands/com_whoami.cc   

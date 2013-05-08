@@ -40,109 +40,134 @@
 
 extern eos::common::IoPipe iopipe;
 
+static void*
+StaticThreadReaderStdout (void* arg)
+{
+  int fd = ((unsigned long long) arg) % 65536;
 
-static void* StaticThreadReaderStdout(void* arg) {
-  int fd = ((unsigned long long) arg)%65536;
-
-  XrdOucString sline="";
-  do {
+  XrdOucString sline = "";
+  do
+  {
     char c;
     int nread = read(fd, &c, 1);
-    if (nread ==1 ) {
+    if (nread == 1)
+    {
       sline += c;
-      if (c == '\n') {
-	if (sline.find("#__STOP__#") != STR_NPOS) {
-	  sline.replace("#__STOP__#\n", "");
-	  fprintf(stdout,"%s", sline.c_str());
-	  return 0;
-	}
-	fprintf(stdout,"%s", sline.c_str());
-	sline="";
+      if (c == '\n')
+      {
+        if (sline.find("#__STOP__#") != STR_NPOS)
+        {
+          sline.replace("#__STOP__#\n", "");
+          fprintf(stdout, "%s", sline.c_str());
+          return 0;
+        }
+        fprintf(stdout, "%s", sline.c_str());
+        sline = "";
       }
-    } else {
+    }
+    else
+    {
       fprintf(stderr, "socket read failed on fd %d\n", fd);
     }
-  } while (1);
+  }
+  while (1);
   return 0;
 }
 
-static void* StaticThreadReaderStderr(void* arg) {
-  int fd = ((unsigned long long) arg)%65536;
+static void*
+StaticThreadReaderStderr (void* arg)
+{
+  int fd = ((unsigned long long) arg) % 65536;
 
-  XrdOucString sline="";
+  XrdOucString sline = "";
 
-  do {
+  do
+  {
     char c;
     int nread = read(fd, &c, 1);
-    if (nread ==1 ) {
+    if (nread == 1)
+    {
       sline += c;
-      if (c == '\n') {
-	if (sline.find("#__STOP__#\n")!=STR_NPOS) {
-	  sline.replace("#__STOP__#\n", "");
-	  fprintf(stderr,"%s", sline.c_str());
-	  return 0;
-	}
-	fprintf(stderr,"%s", sline.c_str());
-	sline="";
+      if (c == '\n')
+      {
+        if (sline.find("#__STOP__#\n") != STR_NPOS)
+        {
+          sline.replace("#__STOP__#\n", "");
+          fprintf(stderr, "%s", sline.c_str());
+          return 0;
+        }
+        fprintf(stderr, "%s", sline.c_str());
+        sline = "";
       }
-    } else {
+    }
+    else
+    {
       fprintf(stderr, "socket read failed on fd %d\n", fd);
     }
-  } while (1);
+  }
+  while (1);
 
   return 0;
 }
 
-void pipe_exit_handler (int a) {
-  fprintf(stdout,"\n");
-  fprintf(stderr,"<Control-C>\n");
+void
+pipe_exit_handler (int a)
+{
+  fprintf(stdout, "\n");
+  fprintf(stderr, "<Control-C>\n");
   iopipe.KillProducer();
   iopipe.UnLockConsumer();
   exit(-1);
 }
 
-int pipe_command(const char* cmd) {
-  
-  if (!cmd) {
+int
+pipe_command (const char* cmd)
+{
+
+  if (!cmd)
+  {
     return -1;
   }
 
   XrdSysLogger* logger = new XrdSysLogger();
   XrdSysError eDest(logger);
 
-  if (!iopipe.Init()) {
-    fprintf(stderr,"error: cannot set IoPipe\n");
+  if (!iopipe.Init())
+  {
+    fprintf(stderr, "error: cannot set IoPipe\n");
     return -1;
   }
 
   iopipe.LockConsumer();
 
-  int stdinfd  = iopipe.AttachStdin(eDest);
+  int stdinfd = iopipe.AttachStdin(eDest);
   int stdoutfd = iopipe.AttachStdout(eDest);
   int stderrfd = iopipe.AttachStderr(eDest);
-  int retcfd   = iopipe.AttachRetc(eDest);
+  int retcfd = iopipe.AttachRetc(eDest);
 
 
-  if ( (stdinfd <0) || 
-       (stdoutfd < 0) ||
-       (stderrfd < 0) ||
-       (retcfd   < 0) ) {
-    fprintf(stderr,"error: cannot attache to pipes\n");
+  if ((stdinfd < 0) ||
+      (stdoutfd < 0) ||
+      (stderrfd < 0) ||
+      (retcfd < 0))
+  {
+    fprintf(stderr, "error: cannot attache to pipes\n");
     return -1;
   }
 
   pthread_t thread1;
   pthread_t thread2;
 
-  XrdSysThread::Run(&thread1, StaticThreadReaderStdout, (void*) stdoutfd ,XRDSYSTHREAD_HOLD, "Stdout Thread");
-  XrdSysThread::Run(&thread2, StaticThreadReaderStderr, (void*) stderrfd ,XRDSYSTHREAD_HOLD, "Stderr Thread");
+  XrdSysThread::Run(&thread1, StaticThreadReaderStdout, (void*) stdoutfd, XRDSYSTHREAD_HOLD, "Stdout Thread");
+  XrdSysThread::Run(&thread2, StaticThreadReaderStderr, (void*) stderrfd, XRDSYSTHREAD_HOLD, "Stderr Thread");
 
-  signal (SIGINT,  pipe_exit_handler);
-  signal (SIGPIPE,  SIG_IGN);
+  signal(SIGINT, pipe_exit_handler);
+  signal(SIGPIPE, SIG_IGN);
 
-  int n = write(stdinfd, cmd, strlen(cmd));     
-  if (n != (int)strlen(cmd)) {
-    fprintf(stderr,"error: communication error to the connector - write failed errno=%d\n", errno);
+  int n = write(stdinfd, cmd, strlen(cmd));
+  if (n != (int) strlen(cmd))
+  {
+    fprintf(stderr, "error: communication error to the connector - write failed errno=%d\n", errno);
   }
 
   XrdSysThread::Join(thread1, NULL);
@@ -152,12 +177,15 @@ int pipe_command(const char* cmd) {
   char a[2];
   n = read(retcfd, a, 2);
 
-  if (n != 2) {
+  if (n != 2)
+  {
     fprintf(stderr, "error: socket read failed on fd %d\n", retcfd);
     pipe_exit_handler(-1);
     return -1; // we don't get here anyway
-  } else {
+  }
+  else
+  {
     iopipe.UnLockConsumer();
-    return(a[0]);
+    return (a[0]);
   }
 }

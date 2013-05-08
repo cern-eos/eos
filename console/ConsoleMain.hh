@@ -68,7 +68,7 @@
 #include <math.h>
 /*----------------------------------------------------------------------------*/
 
-extern const char* abspath(const char* in);
+extern const char* abspath (const char* in);
 
 extern XrdOucString pwd;
 extern XrdOucString rstdout;
@@ -92,25 +92,28 @@ extern bool runpipe;
 extern bool ispipe;
 extern bool json;
 
-extern XrdOucEnv* client_user_command(XrdOucString &in);
-extern XrdOucEnv* client_admin_command(XrdOucString &in);
-extern int output_result(XrdOucEnv* result, bool highlighting=true);
-extern void command_result_stdout_to_vector(std::vector<std::string> &string_vector);
+extern XrdOucEnv* client_user_command (XrdOucString &in);
+extern XrdOucEnv* client_admin_command (XrdOucString &in);
+extern int output_result (XrdOucEnv* result, bool highlighting = true);
+extern void command_result_stdout_to_vector (std::vector<std::string> &string_vector);
 extern XrdOucEnv* CommandEnv;
 
 /* A structure which contains information on the commands this program
    can understand. */
 
-typedef int       CFunction(char *);
+typedef int
+CFunction (char *);
 
-typedef struct {
-  char *name;                   /* User printable name of the function. */
-  CFunction* func;;             /* Function to call to do the job. */
-  char *doc;                    /* Documentation for this function.  */
+typedef struct
+{
+  char *name; /* User printable name of the function. */
+  CFunction* func;
+  ; /* Function to call to do the job. */
+  char *doc; /* Documentation for this function.  */
 } COMMAND;
 
 /* Help filter function */
-extern int wants_help(const char* arg1);
+extern int wants_help (const char* arg1);
 
 extern COMMAND commands[];
 

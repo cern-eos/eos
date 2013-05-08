@@ -31,72 +31,92 @@
 
 
 #ifdef CLIENT_ONLY
-int 
-com_console (char *arg) {
-  fprintf(stderr,"error: console not supported in client-only compilation\n");
+
+int
+com_console (char *arg)
+{
+  fprintf(stderr, "error: console not supported in client-only compilation\n");
   exit(-1);
 }
 #else
+
 /* Run error log console &*/
 int
-com_console (char *arg) {
-  pid_t pid=0;
+com_console (char *arg)
+{
+  pid_t pid = 0;
   XrdSysLogger* logger = 0;
   XrdOucString sarg = arg;
-  if (arg) {
-    if (sarg.beginswith("log")) {
+  if (arg)
+  {
+    if (sarg.beginswith("log"))
+    {
       logger = new XrdSysLogger();
       XrdSysError eDest(logger);
       XrdOucString loggerpath = "/var/log/eos/mgm/";
       loggerpath += "error.log";
-      logger->Bind(loggerpath.c_str(),0);
-    } else {
-      if (sarg != "") {
-	fprintf(stderr, "usage: console [log]\n");
-	fprintf(stderr, "                                 log - write a log file into /var/log/eos/mgm/error.log\n");
-	exit(-1);
+      logger->Bind(loggerpath.c_str(), 0);
+    }
+    else
+    {
+      if (sarg != "")
+      {
+        fprintf(stderr, "usage: console [log]\n");
+        fprintf(stderr, "                                 log - write a log file into /var/log/eos/mgm/error.log\n");
+        exit(-1);
       }
     }
   }
-  if (!(pid=fork())) {
+  if (!(pid = fork()))
+  {
     XrdMqClient mqc;
     XrdMqMessage message("");
     message.Configure(0);
-    
+
     XrdOucString broker = serveruri;
 
-    if (!broker.endswith("//")) {
-      if (!broker.endswith("/")) {
-        broker += ":1097//";
-      } else {
+    if (!broker.endswith("//"))
+    {
+      if (!broker.endswith("/"))
+      {
         broker += ":1097//";
       }
-    } else {
-      broker.erase(broker.length()-3);
+      else
+      {
+        broker += ":1097//";
+      }
+    }
+    else
+    {
+      broker.erase(broker.length() - 3);
       broker += ":1097//";
     }
 
     broker += "eos/";
     broker += getenv("HOSTNAME");
     broker += ":";
-    broker += (int)getpid();
+    broker += (int) getpid();
     broker += ":";
-    broker += (int)getppid();
+    broker += (int) getppid();
     broker += "/errorreport";
-    
-    if (!mqc.AddBroker(broker.c_str())) {
-      fprintf(stderr,"error: failed to add broker %s\n",broker.c_str());
+
+    if (!mqc.AddBroker(broker.c_str()))
+    {
+      fprintf(stderr, "error: failed to add broker %s\n", broker.c_str());
       exit(-1);
-    } 
+    }
 
     mqc.Subscribe();
 
-    while(1) {
+    while (1)
+    {
       XrdMqMessage* newmessage = mqc.RecvMessage();
-      
-      if (newmessage) {
+
+      if (newmessage)
+      {
         XrdOucString line = newmessage->GetBody();
-        if (global_highlighting) {
+        if (global_highlighting)
+        {
           static std::string textnormal("\033[0m");
           static std::string textblack("\033[49;30m");
           static std::string textred("\033[49;31m");
@@ -108,43 +128,48 @@ com_console (char *arg) {
           static std::string textbold("\033[1m");
           static std::string textunbold("\033[0m");
 
-          static std::string cinfo    = textgreen + "INFO" + textnormal;
-          static std::string cdebug   = textblack + "DEBUG" + textnormal;
-          static std::string cerr     = textred + "ERROR" + textnormal;
-          static std::string cnote    = textblue + "NOTE" + textnormal;
-          static std::string cwarn    = textblueerror + "WARN" + textnormal;
-          static std::string cemerg   = textrederror + "EMERG" + textnormal;
-          static std::string ccrit    = textrederror + "CRIT" + textnormal;
-          static std::string calert   = textrederror + "ALERT" + textnormal;
+          static std::string cinfo = textgreen + "INFO" + textnormal;
+          static std::string cdebug = textblack + "DEBUG" + textnormal;
+          static std::string cerr = textred + "ERROR" + textnormal;
+          static std::string cnote = textblue + "NOTE" + textnormal;
+          static std::string cwarn = textblueerror + "WARN" + textnormal;
+          static std::string cemerg = textrederror + "EMERG" + textnormal;
+          static std::string ccrit = textrederror + "CRIT" + textnormal;
+          static std::string calert = textrederror + "ALERT" + textnormal;
 
-          line.replace("INFO",cinfo.c_str());
-          line.replace("DEBUG",cdebug.c_str());
-          line.replace("ERROR",cerr.c_str());
+          line.replace("INFO", cinfo.c_str());
+          line.replace("DEBUG", cdebug.c_str());
+          line.replace("ERROR", cerr.c_str());
           line.replace("EMERG", cemerg.c_str());
           line.replace("CRIT", ccrit.c_str());
           line.replace("WARN", cwarn.c_str());
           line.replace("ALERT", calert.c_str());
           line.replace("NOTE", cnote.c_str());
         }
-	
-	if (logger) {
-	  fprintf(stderr,"%s\n",line.c_str());
-	} else {
-	  fprintf(stdout,"%s\n",line.c_str());
-	  fflush(stdout);
-	}
+
+        if (logger)
+        {
+          fprintf(stderr, "%s\n", line.c_str());
+        }
+        else
+        {
+          fprintf(stdout, "%s\n", line.c_str());
+          fflush(stdout);
+        }
         delete newmessage;
-      } else {
+      }
+      else
+      {
         XrdSysTimer sleeper;
-	sleeper.Wait(100);
+        sleeper.Wait(100);
       }
     }
-    
+
     exit(0);
   }
   signal(SIGINT, SIG_IGN);
-  int status=0;
-  waitpid(pid,&status,0);
+  int status = 0;
+  waitpid(pid, &status, 0);
   signal(SIGINT, exit_handler);
   return (0);
 }

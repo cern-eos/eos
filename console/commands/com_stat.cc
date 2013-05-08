@@ -27,88 +27,112 @@
 
 /* Stat a directory or a file */
 int
-com_stat (char* arg1) {
+com_stat (char* arg1)
+{
   // split subcommands
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
-  XrdOucString param="";
-  XrdOucString option="";
-  XrdOucString path="";
+  XrdOucString param = "";
+  XrdOucString option = "";
+  XrdOucString path = "";
   XrdOucString sizestring;
   struct stat buf;
-  XrdOucString url=serveruri.c_str();
+  XrdOucString url = serveruri.c_str();
 
-  do {
+  do
+  {
     param = subtokenizer.GetToken();
     if (!param.length())
       break;
-    if (param == "--help") 
+    if (param == "--help")
       goto com_stat_usage;
     if (param == "-h")
       goto com_stat_usage;
 
-    if (param.beginswith("-")) {
-      while(param.replace("-","")) {}
-      option+= param;
-      if ( (option.find("&")) != STR_NPOS) {
+    if (param.beginswith("-"))
+    {
+      while (param.replace("-", ""))
+      {
+      }
+      option += param;
+      if ((option.find("&")) != STR_NPOS)
+      {
         goto com_stat_usage;
       }
-    } else {
+    }
+    else
+    {
       path = param;
       break;
     }
-  } while(1);
+  }
+  while (1);
 
-  if (!path.length()) {
+  if (!path.length())
+  {
     path = pwd;
-  } 
-  if ( (option.length()) && ((option != "f") && ( option != "d"))) {
+  }
+  if ((option.length()) && ((option != "f") && (option != "d")))
+  {
     goto com_stat_usage;
   }
 
   path = abspath(path.c_str());
-  
-  url+="/";
-  url+= path;
-  if (!XrdPosixXrootd::Stat(url.c_str(), &buf)) {
-    if ( (option.find("f")!= STR_NPOS) ) {
-      if (S_ISREG(buf.st_mode)) {
-	global_retc = 0;
-	return (0);
-      } else {
-	global_retc = 1;
-	return (0);
+
+  url += "/";
+  url += path;
+  if (!XrdPosixXrootd::Stat(url.c_str(), &buf))
+  {
+    if ((option.find("f") != STR_NPOS))
+    {
+      if (S_ISREG(buf.st_mode))
+      {
+        global_retc = 0;
+        return (0);
+      }
+      else
+      {
+        global_retc = 1;
+        return (0);
       }
     }
-    if ( (option.find("d")!= STR_NPOS) ) {
-      if (S_ISDIR(buf.st_mode)) {
-	global_retc = 0;
-	return (0);
-      } else {
-	global_retc = 1;
-	return (0);
+    if ((option.find("d") != STR_NPOS))
+    {
+      if (S_ISDIR(buf.st_mode))
+      {
+        global_retc = 0;
+        return (0);
+      }
+      else
+      {
+        global_retc = 1;
+        return (0);
       }
     }
-    fprintf(stdout,"  File: `%s'", path.c_str());
-    if (S_ISDIR(buf.st_mode)) {
-      fprintf(stdout," directory\n");
-    } 
-    if (S_ISREG(buf.st_mode)) {
-      fprintf(stdout,"  Size: %llu            %s", (unsigned long long)buf.st_size, eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long)buf.st_size, "B"));
-      fprintf(stdout," regular file\n");
+    fprintf(stdout, "  File: `%s'", path.c_str());
+    if (S_ISDIR(buf.st_mode))
+    {
+      fprintf(stdout, " directory\n");
+    }
+    if (S_ISREG(buf.st_mode))
+    {
+      fprintf(stdout, "  Size: %llu            %s", (unsigned long long) buf.st_size, eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) buf.st_size, "B"));
+      fprintf(stdout, " regular file\n");
     }
     global_retc = 0;
-  } else {
-    fprintf(stderr,"error: failed to stat %s\n", path.c_str());
+  }
+  else
+  {
+    fprintf(stderr, "error: failed to stat %s\n", path.c_str());
     global_retc = EFAULT;
     return (0);
   }
-  
+
   return (0);
 
- com_stat_usage:
-  fprintf(stdout,"usage: stat [-f|-d]    <path>                                                  :  stat <path>\n");
-  fprintf(stdout,"                    -f : checks if <path> is a file\n");
-  fprintf(stdout,"                    -d : checks if <path> is a directory\n");
+com_stat_usage:
+  fprintf(stdout, "usage: stat [-f|-d]    <path>                                                  :  stat <path>\n");
+  fprintf(stdout, "                    -f : checks if <path> is a file\n");
+  fprintf(stdout, "                    -d : checks if <path> is a directory\n");
   return (0);
 }

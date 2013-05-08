@@ -23,12 +23,16 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+
 /*----------------------------------------------------------------------------*/
 
-int com_json (char*) {
+int
+com_json (char*)
+{
   json = (!json);
-  if (!silent) {
-    fprintf(stderr,"json=%d\n", json);
+  if (!silent)
+  {
+    fprintf(stderr, "json=%d\n", json);
   }
   return (0);
 }

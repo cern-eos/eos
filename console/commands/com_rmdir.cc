@@ -27,45 +27,57 @@
 
 /* Remove a directory */
 int
-com_rmdir (char* arg1) {
+com_rmdir (char* arg1)
+{
   // split subcommands
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString path = subtokenizer.GetToken();
-  XrdOucString in = "mgm.cmd=rmdir&"; 
-  
-  if ( (path== "--help")  || (path == "-h") ) {
+  XrdOucString in = "mgm.cmd=rmdir&";
+
+  if ((path == "--help") || (path == "-h"))
+  {
     goto com_rmdir_usage;
   }
 
-  do {
+  do
+  {
     XrdOucString param;
     param = subtokenizer.GetToken();
-    if (param.length()) {
+    if (param.length())
+    {
       path += " ";
       path += param;
-    } else {
+    }
+    else
+    {
       break;
     }
-  } while (1);
-    
-  // remove escaped blanks
-  while (path.replace("\\ "," ")) {}
+  }
+  while (1);
 
-  if (!path.length()) {
+  // remove escaped blanks
+  while (path.replace("\\ ", " "))
+  {
+  }
+
+  if (!path.length())
+  {
     goto com_rmdir_usage;
-    
-  } else {
+
+  }
+  else
+  {
     path = abspath(path.c_str());
     in += "mgm.path=";
     in += path;
-    
+
     global_retc = output_result(client_user_command(in));
     return (0);
   }
 
- com_rmdir_usage:
-  fprintf(stdout,"usage: rmdir <path>                                                   :  remote directory <path>\n");
+com_rmdir_usage:
+  fprintf(stdout, "usage: rmdir <path>                                                   :  remote directory <path>\n");
   return (0);
 
 }

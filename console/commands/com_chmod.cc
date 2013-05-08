@@ -26,39 +26,43 @@
 /*----------------------------------------------------------------------------*/
 
 /* Mode Interface */
-int 
-com_chmod (char* arg1) {
+int
+com_chmod (char* arg1)
+{
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString mode = subtokenizer.GetToken();
-  XrdOucString option="";
+  XrdOucString option = "";
   XrdOucString in = "mgm.cmd=chmod";
   XrdOucString arg = "";
 
-  if (mode.beginswith("-")) {
+  if (mode.beginswith("-"))
+  {
     option = mode;
-    option.erase(0,1);
+    option.erase(0, 1);
     mode = subtokenizer.GetToken();
     in += "&mgm.option=";
     in += option;
   }
 
   XrdOucString path = subtokenizer.GetToken();
-  if ( !path.length() || !mode.length() ) 
+  if (!path.length() || !mode.length())
     goto com_chmod_usage;
 
   path = abspath(path.c_str());
 
-  in += "&mgm.path="; in += path;
-  in += "&mgm.chmod.mode="; in += mode;
+  in += "&mgm.path=";
+  in += path;
+  in += "&mgm.chmod.mode=";
+  in += mode;
 
   global_retc = output_result(client_user_command(in));
   return (0);
 
- com_chmod_usage:
-  fprintf(stdout,"usage: chmod [-r] <mode> <path>                             : set mode for <path> (-r recursive)\n");  
-  fprintf(stdout,"                 <mode> can be only numerical like 755, 644, 700\n");
-  fprintf(stdout,"                 <mode> are automatically changed to 2755, 2644, 2700 respectivly\n");
-  fprintf(stdout,"                 <mode> to disable attribute inheritance use 4755, 4644, 4700 ...\n");
+com_chmod_usage:
+  fprintf(stdout, "usage: chmod [-r] <mode> <path>                             : set mode for <path> (-r recursive)\n");
+  fprintf(stdout, "                 <mode> can be only numerical like 755, 644, 700\n");
+  fprintf(stdout, "                 <mode> are automatically changed to 2755, 2644, 2700 respectivly\n");
+  fprintf(stdout, "                 <mode> to disable attribute inheritance use 4755, 4644, 4700 ...\n");
   return (0);
 }

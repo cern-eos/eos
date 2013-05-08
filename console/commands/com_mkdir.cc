@@ -25,54 +25,68 @@
 #include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
-
 /* Create a directory */
 int
-com_mkdir (char* arg1) {
+com_mkdir (char* arg1)
+{
   // split subcommands
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString path = subtokenizer.GetToken();
-  XrdOucString in = "mgm.cmd=mkdir"; 
+  XrdOucString in = "mgm.cmd=mkdir";
 
-  if (path == "-p") {
+  if (path == "-p")
+  {
     path = subtokenizer.GetToken();
     in += "&mgm.option=p";
-  } else {
-    if (path.beginswith("-")) {
+  }
+  else
+  {
+    if (path.beginswith("-"))
+    {
       goto com_mkdir_usage;
     }
   }
 
-  do {
+  do
+  {
     // read space seperated names as a single directory name
     XrdOucString param;
     param = subtokenizer.GetToken();
-    if (param.length()) {
+    if (param.length())
+    {
       path += " ";
       path += param;
-    } else {
+    }
+    else
+    {
       break;
     }
-  } while (1);
+  }
+  while (1);
 
   // remove escaped blanks
-  while (path.replace("\\ "," ")) {}
+  while (path.replace("\\ ", " "))
+  {
+  }
 
-  if (!path.length()) {
+  if (!path.length())
+  {
     goto com_mkdir_usage;
-    
-  } else {
+
+  }
+  else
+  {
     path = abspath(path.c_str());
     in += "&mgm.path=";
     in += path;
-    
+
     global_retc = output_result(client_user_command(in));
     return (0);
   }
 
- com_mkdir_usage:
-  fprintf(stdout,"usage: mkdir -p <path>                                                :  create directory <path>\n");
+com_mkdir_usage:
+  fprintf(stdout, "usage: mkdir -p <path>                                                :  create directory <path>\n");
   return (0);
 
 }

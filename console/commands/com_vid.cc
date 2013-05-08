@@ -67,10 +67,10 @@ com_vid (char* arg1)
     XrdOucString key = subtokenizer.GetToken();
     if (!key.length())
       goto com_vid_usage;
-    
+
     if (key.beginswith("-h") || key.beginswith("=-h"))
-          goto com_vid_usage;
-    
+      goto com_vid_usage;
+
     XrdOucString vidkey = "";
 
 
@@ -81,10 +81,10 @@ com_vid (char* arg1)
       {
         goto com_vid_usage;
       }
-      
+
       if (match.beginswith("-h") || match.beginswith("=-h"))
-          goto com_vid_usage;
-      
+        goto com_vid_usage;
+
       XrdOucString target = subtokenizer.GetToken();
       if (!target.length())
       {
@@ -112,8 +112,8 @@ com_vid (char* arg1)
         goto com_vid_usage;
 
       if (uid.beginswith("-h") || uid.beginswith("=-h"))
-          goto com_vid_usage;
-      
+        goto com_vid_usage;
+
       vidkey += uid;
 
       XrdOucString type = subtokenizer.GetToken();
@@ -180,8 +180,8 @@ com_vid (char* arg1)
         goto com_vid_usage;
 
       if (type.beginswith("-h") || type.beginswith("=-h"))
-          goto com_vid_usage;
-      
+        goto com_vid_usage;
+
       bool hastype = false;
       if ((type == "-krb5"))
       {
@@ -304,10 +304,10 @@ com_vid (char* arg1)
     XrdOucString type = subtokenizer.GetToken();
     if (!type.length())
       goto com_vid_usage;
-    
+
     if (type.beginswith("-h") || type.beginswith("--h"))
       goto com_vid_usage;
-    
+
     bool hastype = false;
     if ((type == "krb5"))
     {
@@ -450,10 +450,10 @@ com_vid (char* arg1)
 
     if ((!key.length()))
       goto com_vid_usage;
-    
+
     if (key.beginswith("-h") || key.beginswith("--h"))
       goto com_vid_usage;
-    
+
     in += "&mgm.vid.key=";
     in += key;
 

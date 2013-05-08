@@ -28,24 +28,29 @@
 
 /* Force a reconnection/reauthentication */
 int
-com_reconnect (char* arg1) {
+com_reconnect (char* arg1)
+{
   // split subcommands
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
-  XrdOucString param="";
-  XrdOucString option="";
+  XrdOucString param = "";
+  XrdOucString option = "";
   param = subtokenizer.GetToken();
 
-  if ( (!param.length()) || 
-       ( param == "gsi" ) ||
-       ( param == "krb5" ) || 
-       ( param == "unix" ) ||
-       ( param == "sss" ) ) {
-    if (param.length()) {
-      fprintf(stdout,"# reconnecting to %s with <%s> authentication\n", serveruri.c_str(), param.c_str());
-      setenv("XrdSecPROTOCOL",param.c_str(),1);
-    } else {
-      fprintf(stdout,"# reconnecting to %s\n", serveruri.c_str());
+  if ((!param.length()) ||
+      (param == "gsi") ||
+      (param == "krb5") ||
+      (param == "unix") ||
+      (param == "sss"))
+  {
+    if (param.length())
+    {
+      fprintf(stdout, "# reconnecting to %s with <%s> authentication\n", serveruri.c_str(), param.c_str());
+      setenv("XrdSecPROTOCOL", param.c_str(), 1);
+    }
+    else
+    {
+      fprintf(stdout, "# reconnecting to %s\n", serveruri.c_str());
     }
 
     XrdOucString path = serveruri;
@@ -57,13 +62,15 @@ com_reconnect (char* arg1) {
     if (admin.GetClientConn()) {
       admin.GetClientConn()->Disconnect(true);
     }
-    */
-    
+     */
+
     if (debug)
-      fprintf(stdout,"debug: %s\n", path.c_str());
+      fprintf(stdout, "debug: %s\n", path.c_str());
     return (0);
-  } else {
-    fprintf(stdout,"usage: reconnect [gsi,krb5,unix,sss]                                    :  reconnect to the management node [using the specified protocol]\n");
+  }
+  else
+  {
+    fprintf(stdout, "usage: reconnect [gsi,krb5,unix,sss]                                    :  reconnect to the management node [using the specified protocol]\n");
     return (0);
   }
 }

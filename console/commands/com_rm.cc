@@ -28,7 +28,8 @@
 
 /* Remove a file */
 int
-com_rm (char* arg1) {
+com_rm (char* arg1)
+{
   // split subcommands
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
@@ -37,38 +38,52 @@ com_rm (char* arg1) {
   XrdOucString path;
   XrdOucString option;
   eos::common::Path* cPath = 0;
-  XrdOucString in = "mgm.cmd=rm&"; 
+  XrdOucString in = "mgm.cmd=rm&";
 
-  if ( (s1 == "--help")  || (s1 == "-h") ) {
+  if ((s1 == "--help") || (s1 == "-h"))
+  {
     goto com_rm_usage;
   }
 
-  if (s1 == "-r") {
-    option ="r";
+  if (s1 == "-r")
+  {
+    option = "r";
     path = s2;
-  } else {
-    option ="";
+  }
+  else
+  {
+    option = "";
     path = s1;
   }
-  
 
-  do {
-    XrdOucString param=subtokenizer.GetToken();
-    if (param.length()) {
+
+  do
+  {
+    XrdOucString param = subtokenizer.GetToken();
+    if (param.length())
+    {
       path += " ";
       path += param;
-    } else {
+    }
+    else
+    {
       break;
     }
-  } while (1);
+  }
+  while (1);
 
   // remove escaped blanks
-  while (path.replace("\\ "," ")) {}
+  while (path.replace("\\ ", " "))
+  {
+  }
 
-  if (!path.length()) {
+  if (!path.length())
+  {
     goto com_rm_usage;
-    
-  } else {
+
+  }
+  else
+  {
     path = abspath(path.c_str());
     in += "mgm.path=";
     in += path;
@@ -76,35 +91,40 @@ com_rm (char* arg1) {
     in += option;
 
     cPath = new eos::common::Path(path.c_str());
-    
-    if (cPath->GetSubPathSize() < 4) {
+
+    if (cPath->GetSubPathSize() < 4)
+    {
       string s;
-      fprintf(stdout,"Do you really want to delete ALL files starting at %s ?\n" , path.c_str());
-      fprintf(stdout,"Confirm the deletion by typing => ");
-      XrdOucString confirmation="";
-      for (int i=0; i<10; i++) {
-	confirmation += (int) (9.0 * rand()/RAND_MAX);
+      fprintf(stdout, "Do you really want to delete ALL files starting at %s ?\n", path.c_str());
+      fprintf(stdout, "Confirm the deletion by typing => ");
+      XrdOucString confirmation = "";
+      for (int i = 0; i < 10; i++)
+      {
+        confirmation += (int) (9.0 * rand() / RAND_MAX);
       }
-      fprintf(stdout,"%s\n", confirmation.c_str());
-      fprintf(stdout,"                               => ");
-      getline( std::cin, s );
+      fprintf(stdout, "%s\n", confirmation.c_str());
+      fprintf(stdout, "                               => ");
+      getline(std::cin, s);
       std::string sconfirmation = confirmation.c_str();
-      if ( s == sconfirmation) {
-	fprintf(stdout,"\nDeletion confirmed\n");
-	in += "&mgm.deletion=deep";
-	delete cPath;
-      } else {
-	fprintf(stdout,"\nDeletion aborted\n");
-	global_retc = EINTR;
-	delete cPath;
-	return (0);
+      if (s == sconfirmation)
+      {
+        fprintf(stdout, "\nDeletion confirmed\n");
+        in += "&mgm.deletion=deep";
+        delete cPath;
+      }
+      else
+      {
+        fprintf(stdout, "\nDeletion aborted\n");
+        global_retc = EINTR;
+        delete cPath;
+        return (0);
       }
     }
     global_retc = output_result(client_user_command(in));
     return (0);
   }
 
- com_rm_usage:
-  fprintf(stdout,"usage: rm [-r] <path>                                                  :  remove file <path>\n");
+com_rm_usage:
+  fprintf(stdout, "usage: rm [-r] <path>                                                  :  remove file <path>\n");
   return (0);
 }

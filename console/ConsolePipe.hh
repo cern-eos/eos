@@ -22,4 +22,4 @@
  ************************************************************************/
 
 
-extern int pipe_command(const char* cmd);
+extern int pipe_command (const char* cmd);
