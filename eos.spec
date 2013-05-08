@@ -2,7 +2,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.3.0
-Release: 3
+Release: 4
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -18,9 +18,9 @@ BuildRequires: cmake28 >= 2.8
 %define cmake_cmd cmake28
 %endif
 
-BuildRequires: xrootd-server >= 3.3.0
-BuildRequires: xrootd-server-devel >= 3.3.0
-BuildRequires: xrootd-private-devel  >= 3.3.0
+BuildRequires: xrootd-server = 3.3.2
+BuildRequires: xrootd-server-devel = 3.3.2
+BuildRequires: xrootd-private-devel  = 3.3.2
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: libattr-devel
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
@@ -51,7 +51,7 @@ Group: Applications/File
 The EOS server installation containing MGM, FST & MQ service.
 
 
-Requires: xrootd-server >= 3.3.0
+Requires: xrootd-server = 3.3.2
 Requires: xrootd-cl
 Requires: eos-client
 
@@ -102,9 +102,6 @@ rm -rf $RPM_BUILD_ROOT
 /usr/lib64/libXrdEosFst.so.0.3.0
 /usr/lib64/libXrdEosFst.so.0
 /usr/lib64/libXrdEosFst.so
-/usr/lib64/libEosFstCommon.so.0.3.0
-/usr/lib64/libEosFstCommon.so.0
-/usr/lib64/libEosFstCommon.so
 /usr/lib64/libEosFstOss.so.0.3.0
 /usr/lib64/libEosFstOss.so.0
 /usr/lib64/libEosFstOss.so
