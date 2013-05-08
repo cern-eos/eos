@@ -95,15 +95,6 @@ Messaging::Process (XrdMqMessage* newmessage)
     gOFS.SetDebug(action);
   }
 
-  if (cmd == "restart")
-  {
-    eos_notice("restarting service");
-    int rc = system("unset XRDPROG XRDCONFIGFN XRDINSTANCE XRDEXPORTS XRDHOST XRDOFSLIB XRDPORT XRDADMINPATH XRDOFSEVENTS XRDNAME XRDREDIRECT; /etc/init.d/xrd restart fst >& /dev/null");
-    if (rc)
-    {
-      rc = 0;
-    }
-  }
 
   if (cmd == "register")
   {
@@ -209,43 +200,6 @@ Messaging::Process (XrdMqMessage* newmessage)
     {
       eos_err("Cannot create a verify entry - illegal opaque information");
     }
-  }
-
-  if (cmd == "dropverifications")
-  {
-    gOFS.Storage->verificationsMutex.Lock();
-    eos_notice("dropping %u verifications", gOFS.Storage->verifications.size());
-
-    while (!gOFS.Storage->verifications.empty())
-    {
-      gOFS.Storage->verifications.pop();
-    }
-
-    gOFS.Storage->verificationsMutex.UnLock();
-  }
-
-  if (cmd == "dropverifications")
-  {
-    gOFS.Storage->verificationsMutex.Lock();
-    eos_notice("dropping %u verifications", gOFS.Storage->verifications.size());
-
-    while (!gOFS.Storage->verifications.empty())
-    {
-      gOFS.Storage->verifications.pop();
-    }
-
-    gOFS.Storage->verificationsMutex.UnLock();
-  }
-
-  if (cmd == "listverifications")
-  {
-    gOFS.Storage->verificationsMutex.Lock();
-    eos_notice("%u verifications in verify queue", gOFS.Storage->verifications.size());
-    if (gOFS.Storage->runningVerify)
-    {
-      gOFS.Storage->runningVerify->Show("running");
-    }
-    gOFS.Storage->verificationsMutex.UnLock();
   }
 
   if (cmd == "resync")
