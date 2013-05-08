@@ -43,6 +43,7 @@ S3::S3 ()
   mIsS3 = false;
   mId = mSignature = mHost = mContentMD5 = mContentType = mUserAgent = "";
   mHttpMethod = mPath = mQuery = mBucket = mDate = "";
+  mVirtualHost = false;
 
 }
 
@@ -95,9 +96,11 @@ S3::ParseHeader (std::map<std::string, std::string> &header)
           {
             // implementation for DNS buckets
             mBucket = subdomain;
+	    mVirtualHost = true;
           }
           else
           {
+	    mVirtualHost = false;
             // implementation for non DNS buckets
             mBucket = mPath;
 
@@ -280,11 +283,14 @@ S3::VerifySignature (std::string secure_key)
   string2sign += getDate();
   string2sign += "\n";
   string2sign += getCanonicalizedAmzHeaders();
+
+
   if (getBucket().length())
   {
     string2sign += "/";
     string2sign += getBucket();
   };
+
   string2sign += getPath();
 
   if (extractSubResource().length())

@@ -60,6 +60,7 @@ protected:
   std::string mDate; //< http date
   std::map<std::string, std::string> mAmzMap; //< canonical amz map
   std::string mCanonicalizedAmzHeaders; //< canonical resource build from canonical amz map
+  bool mVirtualHost; //< true if bucket name comes via virtual host, otherwise false (relevant for signature verification)
 public:
 
 

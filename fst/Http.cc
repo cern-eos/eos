@@ -496,17 +496,21 @@ Http::Handler (void *cls,
   {
     // call the HttpHandle::Put method
     int rc = httpHandle->Put(upload_data, upload_data_size, first_call);
-    if (rc || ( (!first_call) && (upload_data_size == 0 ) ) ) {
+    if (rc || ((!first_call) && (upload_data_size == 0)))
+    {
       // clean-up left-over objects on error or end-of-put
-      if (httpHandle->mFile) {
+      if (httpHandle->mFile)
+      {
         delete httpHandle->mFile;
         httpHandle->mFile = 0;
       }
-      if (httpHandle->mS3) {
+      if (httpHandle->mS3)
+      {
         delete httpHandle->mS3;
         httpHandle->mS3 = 0;
       }
     }
+    return rc;
   }
 
   eos_static_alert("invalid program path - should never reach this point!");
@@ -517,7 +521,7 @@ void
 HttpHandle::Initialize ()
 {
   // decode all the header/cookie stuff
-
+  mQuery = "";
   MHD_get_connection_values(mConnection, MHD_GET_ARGUMENT_KIND, &Http::BuildQueryString,
                             (void*) &mQuery);
 
@@ -802,6 +806,7 @@ HttpHandle::Put (const char *upload_data,
         delete mFile;
         mFile = 0;
         delete mS3;
+        mS3 = 0;
       }
     }
     else
@@ -843,7 +848,7 @@ HttpHandle::Put (const char *upload_data,
                                                (void *) result.c_str(),
                                                MHD_RESPMEM_MUST_FREE);
     int ret = MHD_queue_response(mConnection, mhd_response, response);
-
+    eos_static_err("result=%s", result.c_str());
     return ret;
   }
   else
@@ -854,9 +859,11 @@ HttpHandle::Put (const char *upload_data,
     if (upload_data && upload_data_size && (*upload_data_size))
     {
 
-      if ((mUploadLeftSize > (1 * 1024 * 1024) && ((*upload_data_size) < (1 * 1024 * 1024))))
-      {
+      if ( (mUploadLeftSize > (1 * 1024 * 1024) && ((*upload_data_size) < (1 * 1024 * 1024))) ||
+           ( (mUploadLeftSize == mContentLength) && ((*upload_data_size) < mContentLength)) )
+      { 
         // we want more bytes, we don't process this
+        eos_static_info("msg=\"wait for more bytes\"");
         return MHD_YES;
       }
 
@@ -866,19 +873,28 @@ HttpHandle::Put (const char *upload_data,
         if (mS3)
         {
           // S3 write error
-
+          result = mS3->RestErrorResponse(mhd_response, 500, "InternalError", "File currently unwritable (write failed)", mS3->getPath(), "");
+          delete mFile;
+          mFile = 0;
+          delete mS3;
+          mS3 = 0;
         }
         else
         {
           // HTTP write error
           result = Http::HttpError(mhd_response, responseheader, "Write error occured", MHD_HTTP_SERVICE_UNAVAILABLE);
-          response = MHD_create_response_from_buffer(result.length(),
-                                                     (void *) result.c_str(),
-                                                     MHD_RESPMEM_MUST_COPY);
         }
+        response = MHD_create_response_from_buffer(result.length(),
+                                                   (void *) result.c_str(),
+                                                   MHD_RESPMEM_MUST_COPY);
+
+        int ret = MHD_queue_response(mConnection, mhd_response, response);
+        eos_static_err("result=%s", result.c_str());
+        return ret;
       }
       else
       {
+        eos_static_info("msg=\"stored requested bytes\"");
         // decrease the upload left data size
         mUploadLeftSize -= *upload_data_size;
         mCurrentCallbackOffset += *upload_data_size;
@@ -894,10 +910,12 @@ HttpHandle::Put (const char *upload_data,
       {
         // if the file was opened we just return MHD_YES to allow the upper
         // layer to send 100-CONTINUE and to call us again
+        eos_static_info("first-call 100-continue handling");
         return MHD_YES;
       }
       else
       {
+        eos_static_info("entering close handler");
         mCloseCode = mFile->close();
         if (mCloseCode)
         {
