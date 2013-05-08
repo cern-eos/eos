@@ -69,7 +69,6 @@ const char* Access::gRedirectionKey = "Redirection"; //! constant used in the co
  * Static Function to reset all singleton objects defining access rules
  * 
  */
-
 /*----------------------------------------------------------------------------*/
 
 void
