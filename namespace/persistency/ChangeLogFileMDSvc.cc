@@ -1124,7 +1124,7 @@ namespace eos
       assert( it != pIdMap.end() );
       assert( it->second.logOffset == itU->second.offset );
 
-      it->second.logOffset = itO->newOffset;
+      it->second.logOffset = itU->second.newOffset;
       ++fileCounter;
     }
 
