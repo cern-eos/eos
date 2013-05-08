@@ -49,7 +49,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 Master::Master ()
 {
   fActivated = false;
@@ -101,7 +101,7 @@ Master::HostCheck (const char* hostname, int port, int timeout)
   }
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 bool
 Master::Init ()
 {
@@ -220,6 +220,7 @@ Master::Init ()
   return true;
 }
 
+/* -------------------------------------------------------------------------- */
 bool
 Master::EnableRemoteCheck ()
 {
@@ -236,6 +237,7 @@ Master::EnableRemoteCheck ()
   return false;
 }
 
+/* -------------------------------------------------------------------------- */
 bool
 Master::DisableRemoteCheck ()
 {
@@ -253,7 +255,7 @@ Master::DisableRemoteCheck ()
   return false;
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 void*
 Master::StaticSupervisor (void* arg)
 {
@@ -263,7 +265,7 @@ Master::StaticSupervisor (void* arg)
   return reinterpret_cast<Master*> (arg)->Supervisor();
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 void*
 Master::Supervisor ()
 {
@@ -448,9 +450,9 @@ Master::Supervisor ()
       }
     }
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // check if the local filesystem has enough space on the namespace partition
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // try to statfs the filesystem holding the namespace
     eos::common::Statfs* statfs = eos::common::Statfs::DoStatfs(gOFS->MgmMetaLogDir.c_str());
 
@@ -513,7 +515,7 @@ Master::Supervisor ()
   return 0;
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 void*
 Master::StaticOnlineCompacting (void* arg)
 {
@@ -523,7 +525,7 @@ Master::StaticOnlineCompacting (void* arg)
   return reinterpret_cast<Master*> (arg)->Compacting();
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 bool
 Master::IsCompacting ()
 {
@@ -536,7 +538,7 @@ Master::IsCompacting ()
   return retc;
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 bool
 Master::IsCompactingBlocked ()
 {
@@ -549,7 +551,7 @@ Master::IsCompactingBlocked ()
   return retc;
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 void
 Master::BlockCompacting ()
 {
@@ -558,7 +560,7 @@ Master::BlockCompacting ()
   eos_static_info("msg=\"block compacting\"");
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 void
 Master::UnBlockCompacting ()
 {
@@ -570,7 +572,7 @@ Master::UnBlockCompacting ()
   }
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 void
 Master::WaitCompactingFinished ()
 {
@@ -598,7 +600,7 @@ Master::WaitCompactingFinished ()
   eos_static_info("msg=\"waited for compacting to finish OK\"");
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 bool
 Master::ScheduleOnlineCompacting (time_t starttime, time_t repetitioninterval)
 {
@@ -608,7 +610,7 @@ Master::ScheduleOnlineCompacting (time_t starttime, time_t repetitioninterval)
   return true;
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 void*
 Master::Compacting ()
 {
@@ -851,7 +853,7 @@ Master::Compacting ()
   return 0;
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 void
 Master::PrintOutCompacting (XrdOucString &out)
 {
@@ -901,7 +903,7 @@ Master::PrintOutCompacting (XrdOucString &out)
   out += ":1";
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 void
 Master::PrintOut (XrdOucString &out)
 {
@@ -983,7 +985,7 @@ Master::PrintOut (XrdOucString &out)
   }
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 bool
 Master::ApplyMasterConfig (XrdOucString &stdOut, XrdOucString &stdErr, int transitiontype)
 {
@@ -1004,7 +1006,7 @@ Master::ApplyMasterConfig (XrdOucString &stdOut, XrdOucString &stdErr, int trans
   return Activate(stdOut, stdErr, transitiontype);
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 int
 Master::Activate (XrdOucString &stdOut, XrdOucString &stdErr, int transitiontype)
 {
@@ -1110,7 +1112,7 @@ Master::Activate (XrdOucString &stdOut, XrdOucString &stdErr, int transitiontype
   return true;
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 bool
 Master::Set (XrdOucString &mastername, XrdOucString &stdOut, XrdOucString &stdErr)
 {
@@ -1456,6 +1458,7 @@ Master::Slave2Master ()
   return true;
 }
 
+/* -------------------------------------------------------------------------- */
 bool
 Master::Master2MasterRO ()
 {
@@ -1488,6 +1491,7 @@ Master::Master2MasterRO ()
   return true;
 }
 
+/* -------------------------------------------------------------------------- */
 bool
 Master::MasterRO2Slave ()
 {
@@ -1603,7 +1607,7 @@ Master::MasterRO2Slave ()
   return true;
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 Master::~Master ()
 {
   if (fThread)
@@ -1635,7 +1639,7 @@ Master::~Master ()
   }
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 bool
 Master::CreateStatusFile (const char* path)
 {
@@ -1651,7 +1655,7 @@ Master::CreateStatusFile (const char* path)
   return true;
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 bool
 Master::RemoveStatusFile (const char* path)
 {
@@ -1667,7 +1671,7 @@ Master::RemoveStatusFile (const char* path)
   return true;
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 bool
 Master::BootNamespace ()
 {
@@ -1756,7 +1760,7 @@ Master::BootNamespace ()
   return true;
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 void
 Master::SignalRemoteBounceToMaster ()
 {
@@ -1804,7 +1808,7 @@ Master::SignalRemoteBounceToMaster ()
   }
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 void
 Master::SignalRemoteReload ()
 {
@@ -1854,7 +1858,7 @@ Master::SignalRemoteReload ()
   }
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 void
 Master::TagNamespaceInodes ()
 {
@@ -1873,7 +1877,7 @@ Master::TagNamespaceInodes ()
   }
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 bool
 Master::WaitNamespaceFilesInSync (unsigned int timeout)
 {
@@ -2069,7 +2073,7 @@ Master::WaitNamespaceFilesInSync (unsigned int timeout)
   }
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 void
 Master::RedirectToRemoteMaster ()
 {
@@ -2091,7 +2095,7 @@ Master::RedirectToRemoteMaster ()
   }
 }
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 bool
 Master::RebootSlaveNamespace ()
 {
