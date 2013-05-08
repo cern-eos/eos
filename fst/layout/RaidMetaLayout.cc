@@ -144,8 +144,8 @@ RaidMetaLayout::Open (const std::string& path,
        (mPhysicalStripeIndex > eos::common::LayoutId::kSixteenStripe))
    {
      eos_err("error=illegal stripe index %d", mPhysicalStripeIndex);
-     return gOFS.Emsg("RaidMetaLayoutOpen", *mError, EINVAL,
-                      "open stripes - illegal stripe index found", index);
+     errno = EINVAL;
+     return SFS_ERROR;
    }
  }
 
@@ -162,15 +162,15 @@ RaidMetaLayout::Open (const std::string& path,
        (mStripeHead > eos::common::LayoutId::kSixteenStripe))
    {
      eos_err("error=illegal stripe head %d", mStripeHead);
-     return gOFS.Emsg("RaidMetaLayoutOpen", *mError, EINVAL,
-                      "open stripes - illegal stripe head found", head);
+     errno = EINVAL;
+     return SFS_ERROR;
    }
  }
  else
  {
    eos_err("error=stripe head missing");
-   return gOFS.Emsg("RaidMetaLayoutOpen", *mError, EINVAL,
-                    "open stripes - no stripe head defined");
+   errno = EINVAL;
+   return SFS_ERROR;
  }
 
  //.........................................................................
@@ -204,8 +204,8 @@ RaidMetaLayout::Open (const std::string& path,
  if (file && file->Open(path, flags, mode, enhanced_opaque.c_str(), mTimeout))
  {
    eos_err("error=failed to open local ", path.c_str());
-   return gOFS.Emsg("ReplicaOpen", *mError, EIO,
-                    "open replica - local open failed ", path.c_str());
+   errno = EIO;
+   return SFS_ERROR;
  }
 
  //........................................................................
@@ -214,8 +214,8 @@ RaidMetaLayout::Open (const std::string& path,
  if (!mStripeFiles.empty())
  {
    eos_err("error=vector of stripe files is not empty ");
-   return gOFS.Emsg("RaidMetaLayoutOpen", *mError, EIO,
-                    "vector of stripe files is not empty ");
+   errno = EIO;
+   return SFS_ERROR;
  }
 
  mStripeFiles.push_back(file);
@@ -263,8 +263,8 @@ RaidMetaLayout::Open (const std::string& path,
          ((nmissing > 0) && (!stripe)))
      {
        eos_err("error=failed to open stripe - missing url for %s", stripetag.c_str());
-       return gOFS.Emsg("RaidMetaLayoutOpen", *mError, EINVAL,
-                        "open stripes - missing url for stripe ", stripetag.c_str());
+       errno = EINVAL;
+       return SFS_ERROR;
      }
 
      if (!stripe)
@@ -281,8 +281,8 @@ RaidMetaLayout::Open (const std::string& path,
    if (nmissing)
    {
      eos_err("error=failed to open RaidMetaLayout - stripes are missing");
-     return gOFS.Emsg("RaidMetaLayoutOpen", *mError, EREMOTEIO,
-                      "open stripes - stripes are missing.");
+     errno = EREMOTEIO;
+     return SFS_ERROR;
    }
 
    //..........................................................................
@@ -380,8 +380,8 @@ RaidMetaLayout::Open (const std::string& path,
        (mMetaHandlers.size() != mNbTotalFiles))
    {
      eos_err("error=number of files opened is different from the one expected");
-     return gOFS.Emsg("RaidMetaLayoutOpen", *mError, EIO,
-                      "number of files opened missmatch");
+     errno = EIO;
+     return SFS_ERROR;
    }
 
    //..........................................................................
@@ -390,7 +390,8 @@ RaidMetaLayout::Open (const std::string& path,
    if (!ValidateHeader())
    {
      eos_err("error=headers invalid - can not continue");
-     return gOFS.Emsg("RaidMetaLayoutOpen", *mError, EIO, "headers invalid ");
+     errno = EIO;
+     return SFS_ERROR;
    }
  }
 

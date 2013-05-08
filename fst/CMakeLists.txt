@@ -46,9 +46,7 @@ target_link_libraries( EosFstOss
 		       ${UUID_LIBRARIES}
 )
 
-add_library( EosFstCommon SHARED
-	     XrdFstOfs.cc	            XrdFstOfs.hh
-
+add_library( EosFstIo-Static STATIC
   	     io/FileIoPlugin.hh
 	     io/FileIo.hh 
   	     io/LocalIo.cc                  io/LocalIo.hh
@@ -57,34 +55,17 @@ add_library( EosFstCommon SHARED
 	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
 	     io/ChunkHandler.cc             io/ChunkHandler.hh
 	     io/SimpleHandler.cc            io/SimpleHandler.hh
+)
 
-	     layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
-	     layout/Layout.cc               layout/Layout.hh
-	     layout/PlainLayout.cc          layout/PlainLayout.hh
-	     layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
-	     layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
-	     layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
-	     layout/ReedSLayout.cc          layout/ReedSLayout.hh
 
+add_library( EosFstChecksum-Static STATIC
 	     checksum/CheckSum.cc           checksum/CheckSum.hh	     
 	     checksum/Adler.cc   	    checksum/Adler.hh
 	     checksum/crc32c.cc             checksum/crc32ctables.cc
 	     zfec/fec.cc
 )
 
-add_library( EosFstCommon-Static STATIC
-	     XrdFstOfs.cc               XrdFstOfs.hh
-
-  	     io/FileIoPlugin.hh
-	     io/FileIo.hh 
-  	     io/LocalIo.cc                  io/LocalIo.hh
-	     io/XrdIo.cc                    io/XrdIo.hh
-	     io/HeaderCRC.cc                io/HeaderCRC.hh
-	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
-	     io/ChunkHandler.cc             io/ChunkHandler.hh
-	     io/SimpleHandler.cc            io/SimpleHandler.hh
-
-
+add_library( EosFstLayout-Static STATIC
 	     layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
 	     layout/Layout.cc               layout/Layout.hh
 	     layout/PlainLayout.cc          layout/PlainLayout.hh
@@ -92,11 +73,36 @@ add_library( EosFstCommon-Static STATIC
 	     layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
 	     layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
 	     layout/ReedSLayout.cc          layout/ReedSLayout.hh
+)
 
-	     checksum/CheckSum.cc           checksum/CheckSum.hh	     
-	     checksum/Adler.cc   	    checksum/Adler.hh
-	     checksum/crc32c.cc		    checksum/crc32ctables.cc
-	     zfec/fec.cc
+target_link_libraries( EosFstIo-Static
+		       eosCommon-Static
+		       XrdCl	
+		       XrdUtils 
+		       crypto                  curses                   
+		       dl                      z  
+                       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
+		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
+)
+
+target_link_libraries( EosFstLayout-Static
+		       eosCommon-Static
+		       XrdCl	
+		       XrdUtils 
+		       crypto                  curses                   
+		       dl                      z  
+                       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
+		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
+)
+
+target_link_libraries( EosFstChecksum-Static
+		       eosCommon-Static
+		       XrdCl	
+		       XrdUtils 
+		       crypto                  curses                   
+		       dl                      z  
+                       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
+		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
 )
 										       
 add_library( XrdEosFst MODULE
@@ -111,6 +117,25 @@ add_library( XrdEosFst MODULE
 	     storage/Report.cc              storage/Scrub.cc
 	     storage/Storage.cc             storage/Supervisor.cc
 	     storage/Trim.cc                storage/Verify.cc
+	     layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
+	     layout/Layout.cc               layout/Layout.hh
+	     layout/PlainLayout.cc          layout/PlainLayout.hh
+	     layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
+	     layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
+	     layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
+	     layout/ReedSLayout.cc          layout/ReedSLayout.hh
+	     checksum/CheckSum.cc           checksum/CheckSum.hh	     
+	     checksum/Adler.cc   	    checksum/Adler.hh
+	     checksum/crc32c.cc             checksum/crc32ctables.cc
+  	     io/FileIoPlugin.hh
+	     io/FileIo.hh 
+  	     io/LocalIo.cc                  io/LocalIo.hh
+	     io/XrdIo.cc                    io/XrdIo.hh
+	     io/HeaderCRC.cc                io/HeaderCRC.hh
+	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
+	     io/ChunkHandler.cc             io/ChunkHandler.hh
+	     io/SimpleHandler.cc            io/SimpleHandler.hh
+	     zfec/fec.cc
 	     Config.cc
 	     Load.cc
 	     ScanDir.cc
@@ -149,20 +174,9 @@ add_library( XrdEosFst-Static STATIC
 )
 
 
-target_link_libraries( EosFstCommon-Static
-		       eosCapability-Static    eosCommon-Static
-		       XrdCl	
-		       XrdUtils                XrdOfs 
-		       crypto                  curses                   
-		       dl                      z  
-                       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
-		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
-)
-
-
 target_link_libraries( XrdEosFst 
 		       eosCapability-Static    eosCommon-Static
-		       eosCommonServer-Static  EosFstCommon
+		       eosCommonServer-Static  
 		       XrdMqClient-Static      XrdCl	
 		       XrdUtils                XrdOfs 
 		       crypto                  curses                   
@@ -174,7 +188,7 @@ target_link_libraries( XrdEosFst
 
 target_link_libraries( XrdEosFst-Static
 		       eosCapability-Static    eosCommon-Static
-		       eosCommonServer-Static  EosFstCommon-Static
+		       eosCommonServer-Static  
 		       XrdMqClient-Static      XrdCl
 		       XrdUtils                XrdOfs 
 		       crypto                  curses
@@ -240,10 +254,10 @@ target_link_libraries( eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-compute-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-scan-fs eosCommon eosCommonServer XrdCl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
 target_link_libraries( eos-adler32 eosCommon ${CMAKE_THREAD_LIBS_INIT} ) 
-target_link_libraries( eoscp XrdCl EosFstCommon-Static eosCommon-Static )
+target_link_libraries( eoscp XrdCl EosFstLayout-Static EosFstIo-Static EosFstChecksum-Static eosCommon-Static )
 
 if (Linux)
-  set_target_properties (XrdEosFst XrdEosFst-Static EosFstCommon EosFstCommon-Static PROPERTIES
+  set_target_properties (XrdEosFst PROPERTIES
     VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
     SOVERSION ${VERSION_MAJOR}
     CLEAN_DIRECT_OUTPUT 1
@@ -254,6 +268,10 @@ if (Linux)
     SOVERSION ${VERSION_MAJOR}
     CLEAN_DIRECT_OUTPUT 1
   )
+
+  set_target_properties ( EosFstIo-Static PROPERTIES COMPILE_FLAGS "-fPIC" )
+  set_target_properties ( EosFstLayout-Static PROPERTIES COMPILE_FLAGS "-fPIC" )
+  set_target_properties ( EosFstChecksum-Static PROPERTIES COMPILE_FLAGS "-fPIC" )
 
 endif(Linux)
 
@@ -267,7 +285,7 @@ INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR}
                   eos-scan-fs 
 )
 
-install( TARGETS EosFstOss XrdEosFst EosFstCommon eoscp
+install( TARGETS EosFstOss XrdEosFst eoscp
        	 LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
