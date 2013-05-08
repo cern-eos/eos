@@ -715,18 +715,13 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
   }
   else
   {
-    if (error)
-    {
-      gOFS.Emsg(epname, *error, ECOMM, "to call manager for fn=", path);
-    }
-
     msg = (status.GetErrorMessage().c_str());
     rc = SFS_ERROR;
 
-    if (msg.find("[EIDRM]") != STR_NPOS)
+    if (msg.find("[EIDRM]") != STR_NPOS) 
       rc = -EIDRM;
 
-    if (msg.find("[EBADE]") != STR_NPOS)
+    if (msg.find("[EBADE]") != STR_NPOS) 
       rc = -EBADE;
 
     if (msg.find("[EBADR]") != STR_NPOS)
@@ -737,6 +732,11 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
 
     if (msg.find("[EADV]") != STR_NPOS)
       rc = -EADV;
+
+    if (error && (rc != SFS_ERROR) )
+      gOFS.Emsg(epname, *error, -rc, msg.c_str(), path);
+    else
+      gOFS.Emsg(epname, *error, ECOMM, msg.c_str(), path);
   }
 
   if ( response && return_result )

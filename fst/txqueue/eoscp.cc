@@ -301,6 +301,8 @@ print_summary (VectLocationType& src,
   XrdOucString xsrc[MAXSRCDST];
   XrdOucString xdst[MAXSRCDST];
 
+  print_summary_header(src, dst);
+
   for (unsigned int i = 0; i < src.size(); i++)
   {
     xsrc[i] = src[i].first.c_str();
@@ -309,7 +311,7 @@ print_summary (VectLocationType& src,
 
     if (xsrc[i].find("//replicate:") != STR_NPOS)
     {
-      // disable client redirectioneoscp
+      // disable client redirection eoscp
       XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 1);
     }
   }
@@ -321,7 +323,7 @@ print_summary (VectLocationType& src,
     xdst[i].erase(xdst[i].rfind('?'));
     if (xsrc[i].find("//replicate:") != STR_NPOS)
     {
-      // disable client redirectioneoscp
+      // disable client redirection eoscp
       XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 1);
     }
   }
