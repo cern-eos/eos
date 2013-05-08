@@ -47,7 +47,7 @@ target_link_libraries( EosFstOss
 )
 
 add_library( EosFstIo-Static STATIC
-  	     io/FileIoPlugin.hh
+  	     io/FileIoPlugin.hh             io/FileIoPlugin.cc
 	     io/FileIo.hh 
   	     io/LocalIo.cc                  io/LocalIo.hh
 	     io/XrdIo.cc                    io/XrdIo.hh
@@ -55,17 +55,10 @@ add_library( EosFstIo-Static STATIC
 	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
 	     io/ChunkHandler.cc             io/ChunkHandler.hh
 	     io/SimpleHandler.cc            io/SimpleHandler.hh
-)
-
-
-add_library( EosFstChecksum-Static STATIC
 	     checksum/CheckSum.cc           checksum/CheckSum.hh	     
 	     checksum/Adler.cc   	    checksum/Adler.hh
 	     checksum/crc32c.cc             checksum/crc32ctables.cc
 	     zfec/fec.cc
-)
-
-add_library( EosFstLayout-Static STATIC
 	     layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
 	     layout/Layout.cc               layout/Layout.hh
 	     layout/PlainLayout.cc          layout/PlainLayout.hh
@@ -85,25 +78,6 @@ target_link_libraries( EosFstIo-Static
 		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
 )
 
-target_link_libraries( EosFstLayout-Static
-		       eosCommon-Static
-		       XrdCl	
-		       XrdUtils 
-		       crypto                  curses                   
-		       dl                      z  
-                       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
-		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
-)
-
-target_link_libraries( EosFstChecksum-Static
-		       eosCommon-Static
-		       XrdCl	
-		       XrdUtils 
-		       crypto                  curses                   
-		       dl                      z  
-                       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
-		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
-)
 										       
 add_library( XrdEosFst MODULE
 	     XrdFstOfs.cc                   XrdFstOfs.hh
@@ -254,7 +228,7 @@ target_link_libraries( eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-compute-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-scan-fs eosCommon eosCommonServer XrdCl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
 target_link_libraries( eos-adler32 eosCommon ${CMAKE_THREAD_LIBS_INIT} ) 
-target_link_libraries( eoscp XrdCl EosFstLayout-Static EosFstIo-Static EosFstChecksum-Static eosCommon-Static )
+target_link_libraries( eoscp XrdCl EosFstIo-Static eosCommon-Static )
 
 if (Linux)
   set_target_properties (XrdEosFst PROPERTIES
@@ -270,8 +244,6 @@ if (Linux)
   )
 
   set_target_properties ( EosFstIo-Static PROPERTIES COMPILE_FLAGS "-fPIC" )
-  set_target_properties ( EosFstLayout-Static PROPERTIES COMPILE_FLAGS "-fPIC" )
-  set_target_properties ( EosFstChecksum-Static PROPERTIES COMPILE_FLAGS "-fPIC" )
 
 endif(Linux)
 

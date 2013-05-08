@@ -36,14 +36,12 @@ add_executable ( eosfsd
                  eosfs.c
                  xrdposix.cc            xrdposix.hh
 		 FuseCacheEntry.cc	FuseCacheEntry.hh
-		 ../fst/io/FileIoPlugin.cc
 )
 
 add_executable ( eosd
                  eosd.c
                  xrdposix.cc            xrdposix.hh
 		 FuseCacheEntry.cc	FuseCacheEntry.hh
-		 ../fst/io/FileIoPlugin.cc
 )
 
 
@@ -51,7 +49,7 @@ add_executable ( eosd
 target_link_libraries ( eosfsd 
 		        XrdCl
 			XrdUtils 
-			EosFstCommon-Static
+			EosFstIo-Static
 			XrdCache-Static
 			eosCommon-Static
 			${FUSE_LIBRARY} 
@@ -60,7 +58,7 @@ target_link_libraries ( eosfsd
 target_link_libraries ( eosd 
      		      	XrdCl
 			XrdUtils 
-			EosFstCommon-Static
+			EosFstIo-Static
 			XrdCache-Static
 			eosCommon-Static
 			${FUSE_LIBRARY}
