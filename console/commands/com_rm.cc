@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "common/Path.hh"
+#include "curses.h"
 /*----------------------------------------------------------------------------*/
 
 extern int com_find (char*);
@@ -81,6 +82,7 @@ com_rm (char* arg1) {
     in += option;
 
     cPath = new eos::common::Path(path.c_str());
+
     if (cPath->GetSubPathSize() < 2) {
       string s;
       fprintf(stdout,"Do you really want to delete ALL files starting at %s ?\n" , path.c_str());
@@ -156,29 +158,35 @@ com_rm (char* arg1) {
       }
       
       XrdOucString sizestring;
-      fprintf(stderr,"warning: I found %s files and %s directories starting at %s ... are you sure you want to try to delete everything under %s ?\n", key2val["nfiles"].c_str(), key2val["ndirectories"].c_str(), path.c_str(), eos::common::StringConversion::GetReadableSizeString(sizestring, strtoull(key2val["nbytes"].c_str(),0,10), "B"));
       
       if (isatty(0) && isatty(1) ) {
 	
 	string s;
 	// we ask an annoying security code for more than 10 GB or more than 1000 files ... otherwise just yes/no
-	fprintf(stdout,"Confirm the deletion by typing => ");
-	XrdOucString confirmation="";
-	for (int i=0; i<10; i++) {
-	  confirmation += (int) (9.0 * rand()/RAND_MAX);
-	}
-	fprintf(stdout,"%s\n", confirmation.c_str());
-	fprintf(stdout,"                               => ");
-	getline( std::cin, s );
-	std::string sconfirmation = confirmation.c_str();
-	if ( s == sconfirmation) {
-	  fprintf(stdout,"\nDeletion confirmed\n");
-	  delete cPath;
+	if ( (strtoull(key2val["nfiles"].c_str(),0,10) > 100 ) ||
+	     (strtoull(key2val["nbytes"].c_str(),0,10) > (1000ll*1000ll*1000ll*10) ) ) { 
+	  fprintf(stderr,"warning: I found %s files and %s directories starting at %s ... are you sure you want to try to delete %s ?\n", key2val["nfiles"].c_str(), key2val["ndirectories"].c_str(), path.c_str(), eos::common::StringConversion::GetReadableSizeString(sizestring, strtoull(key2val["nbytes"].c_str(),0,10), "B"));
+
+	  fprintf(stdout,"Confirm the deletion by typing => ");
+	  XrdOucString confirmation="";
+	  for (int i=0; i<10; i++) {
+	    confirmation += (int) (9.0 * rand()/RAND_MAX);
+	  }
+	  fprintf(stdout,"%s\n", confirmation.c_str());
+	  fprintf(stdout,"                               => ");
+	  getline( std::cin, s );
+	  std::string sconfirmation = confirmation.c_str();
+	  if ( s == sconfirmation) {
+	    fprintf(stdout,"\nDeletion confirmed\n");
+	    delete cPath;
+	  } else {
+	    fprintf(stdout,"\nDeletion aborted\n");
+	    global_retc = EINTR;
+	    delete cPath;
+	    return (0);
+	  }
 	} else {
-	  fprintf(stdout,"\nDeletion aborted\n");
-	  global_retc = EINTR;
-	  delete cPath;
-	  return (0);
+	  // for the moment accept without question ...
 	}
       } else {
 	if ( (strtoull(key2val["nfiles"].c_str(),0,10) > 100 ) ||
@@ -191,7 +199,7 @@ com_rm (char* arg1) {
       }
     }
 
-    //    global_retc = output_result(client_user_command(in));
+    global_retc = output_result(client_user_command(in));
     return (0);
   }
 
