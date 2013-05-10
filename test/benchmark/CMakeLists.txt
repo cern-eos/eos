@@ -53,7 +53,7 @@ IF(PROTOBUF_FOUND)
 
         TARGET_LINK_LIBRARIES(eos-benchmark
 			      XrdCl 
-	      	      	      EosFstCommon-Static
+	      	      	      EosFstIo-Static
  		      	      ${PROTOBUF_LIBRARIES} 
 	      	      	      ${UUID_LIBRARIES} 
 	      	      	      ${CMAKE_THREAD_LIBS_INIT})
