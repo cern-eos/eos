@@ -21,14 +21,76 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
+/*----------------------------------------------------------------------------*/
 /**
  * @file   XrdMgmOfs.hh.hh
  * 
  * @brief  XRootD OFS plugin implementing meta data handling of EOS
  * 
+ * This class is the OFS plugin which is implemented the meta data and
+ * management server part. To understand the functionality of the MGM you start
+ * here. The class implements three objects, the MgmOfs object for generic
+ * meta data operations, configuration and EOS thread daemon startup, 
+ * the MgmOfsFile class which implements operations on files - in the case of
+ * an MGM this is mainly 'open' for redirection to an FST. There is one exception
+ * the so called EOS 'proc' commands. Every EOS shell command is implemented as
+ * an 'open for read', 'read', 'close' sequence where the open actually executes
+ * an EOS shell command and the read streams the result back. For details of
+ * this REST like request/response format look at the ProcInterface class and
+ * the implementations in the mgm/proc directory. The XrdMgmDirectory class
+ * is provided to implement the POSIX like 'open', 'readdir', 'closedir' syntax.
+ * The MGM code uses mainly three global mutexes given in the order they have
+ * to be used:
+ * - eos::common::RWMutexXXXLock lock(FsView::gFsView.ViewMutex)  : lock 1
+ * - eos::common::RWMutexXXXLock lock(Quota::gQuotaMutex)         : lock 2
+ * - eos::common::RWMutexXXXLock lock(gOFS->eosViewRWMutex)       : lock 3
+ * The XXX is either Read or Write depending what has to be done on the
+ * objects they are protecting. The first mutex is the file system view object
+ * (FsView.cc) which contains the current state of the storage 
+ * filesystem/node/group/space configuration. The second mutex is protecting
+ * the quota configuration and scheduling. The last mutex is protecting the
+ * namespace.
+ * The implementation uses a bunch of convenience macros to cut the code short.
+ * These macro's filter/map path names, apply redirection, stalling rules and
+ * require certain authentication credentials to be able to run some function.
+ * The MgmOfs functions are always split into the main entry function e.g.
+ * "::access" and an internal function "::_access". The main function applies
+ * typically the mentioned macros and converts the XRootD client identity object
+ * into an EOS virtual identity. The interal function requires an EOS virtual
+ * identity and contains the full implementation. This allows to apply 
+ * mapping & stall/redirection rules once and use the interval function 
+ * implementation from other main functions e.g. the "rename" function can use
+ * the "_access" internal function to check some permissions etc.  
+ * The MGM run's the following sub-services 
+ * (implemented by objects and threaded daemons):
+ * - Fsck
+ * - Balancer
+ * - Iostat
+ * - Messaging
+ * - Deletion
+ * - Filesystem Listener
+ * - Httpd
+ * - Recycler
  * 
+ * Many functions in the MgmOfs interface take CGI parameters. The supported
+ * CGI parameter are:
+ * "eos.ruid" - uid role the client wants
+ * "eos.rgid" - gid role the client wants
+ * "eos.space" - space a user wants to use for scheduling a write
+ * "eos.checksum" - checksum a file should have
+ * "eos.lfn" - use this name as path name not the path parameter (used by prefix
+ * redirector MGM's ...
+ * "eos.bookingsize" - reserve the requested bytes in a file placement
+ * "eos.cli.access=pio" - ask for a parallel open (changes the response of an open for RAIN layouts)
+ * "eos.app" - set the application name reported by monitoring
+ * "eos.targetsize" - expected size of a file to be uploaded
+ * "eos.blockchecksum=ignore" - disable block checksum verification
+ * 
+ * All path related functions take as parameters 'inpath' and 'ininfo'. These
+ * parameters are remapped by the NAMESPACEMAP macro to path & info variables 
+ * which are not visible in the declaration of each function!
  */
+/*----------------------------------------------------------------------------*/
 
 #ifndef __EOSMGM_MGMOFS__HH__
 #define __EOSMGM_MGMOFS__HH__
@@ -73,7 +135,6 @@
 #include "XrdSys/XrdSysTimer.hh"
 /*----------------------------------------------------------------------------*/
 #include <dirent.h>
-
 /*----------------------------------------------------------------------------*/
 
 
