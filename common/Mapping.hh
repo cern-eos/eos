@@ -147,6 +147,31 @@ public:
   }
 
   // ---------------------------------------------------------------------------
+  //! Check for a role in the user id list
+  // ---------------------------------------------------------------------------
+
+  static bool
+  HasUid (uid_t uid, VirtualIdentity &vid)
+  {
+    for (size_t i = 0; i < vid.uid_list.size(); i++)
+      if (vid.uid_list[i] == uid)
+        return true;
+    return false;
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Check for a role in the group id list
+  // ---------------------------------------------------------------------------
+
+  static bool
+  HasGid (gid_t gid, VirtualIdentity &vid)
+  {
+    for (size_t i = 0; i < vid.gid_list.size(); i++)
+      if (vid.gid_list[i] == gid)
+        return true;
+    return false;
+  }
+  // ---------------------------------------------------------------------------
   //! Copy function for virtual identities
   // ---------------------------------------------------------------------------
 
