@@ -599,12 +599,6 @@ ScanDir::ScanFileLoadAware (const char* path, unsigned long long &scansize, floa
   fileXSPath = filePath + ".xsmap";
 
   normalXS = eos::fst::ChecksumPlugins::GetChecksumObject(layoutid);
-  blockXS = GetBlockXS(fileXSPath.c_str());
-  if ((!normalXS) && (!blockXS))
-  {
-    // there is nothing to do here!
-    return false;
-  }
 
   gettimeofday(&opentime, &tz);
 
@@ -616,6 +610,14 @@ ScanDir::ScanFileLoadAware (const char* path, unsigned long long &scansize, floa
   }
 
   blockXS = GetBlockXS(fileXSPath.c_str());
+ 
+  if ((!normalXS) && (!blockXS))
+  {
+    // there is nothing to do here
+    close(fd);
+    return false;
+  }
+ 
   if (normalXS) normalXS->Reset();
 
   int nread = 0;

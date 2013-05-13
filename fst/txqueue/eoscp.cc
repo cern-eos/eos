@@ -586,21 +586,21 @@ main (int argc, char* argv[])
       egid = atoi(optarg);
       char tgid[128];
       sprintf(tgid, "%d", egid);
-      if (strcmp(tgid,optarg)) 
+      if (strcmp(tgid, optarg))
       {
         // this is not a number, try to map it with getgrnam
         struct group* grinfo = getgrnam(optarg);
-        if (grinfo) 
-          {
-          egid = grinfo->gr_gid;
-          if (debug) 
-          {
-            fprintf(stdout,"[eoscp]: mapping group %s=>GID:%d\n", optarg, egid);
-          }
-        } 
-        else 
+        if (grinfo)
         {
-          fprintf(stderr,"error: cannot map group %s to any unix id!\n", optarg);
+          egid = grinfo->gr_gid;
+          if (debug)
+          {
+            fprintf(stdout, "[eoscp]: mapping group %s=>GID:%d\n", optarg, egid);
+          }
+        }
+        else
+        {
+          fprintf(stderr, "error: cannot map group %s to any unix id!\n", optarg);
           exit(-ENOENT);
         }
       }
@@ -716,7 +716,7 @@ main (int argc, char* argv[])
   {
     location = argv[optind + i];
     size_t pos = location.find("://");
-    pos = location.find("//",pos+3);
+    pos = location.find("//", pos + 3);
     if (pos == std::string::npos)
     {
       address = "";
@@ -740,7 +740,7 @@ main (int argc, char* argv[])
   {
     location = argv[optind + nsrc + i];
     size_t pos = location.find("://");
-    pos = location.find("//",pos+3);
+    pos = location.find("//", pos + 3);
 
     if (pos == std::string::npos)
     {
@@ -804,10 +804,19 @@ main (int argc, char* argv[])
         //.......................................................................
         // Test if we can do parallel IO access
         //.......................................................................
+        bool doPIO = false;
+
         XrdCl::Buffer arg;
         XrdCl::Buffer* response = 0;
         XrdCl::XRootDStatus status;
         file_path = src_location[i].first + src_location[i].second;
+
+        if (file_path.find("://eos/") != std::string::npos)
+        {
+          // for any other URL it does not make sense to do the PIO access
+          doPIO = true;
+        }
+
         size_t spos = file_path.rfind("//");
         std::string address = file_path.substr(0, spos + 1);
         XrdCl::URL url(address);
@@ -826,11 +835,20 @@ main (int argc, char* argv[])
         }
 
         std::string request = file_path;
-        request += "?mgm.pcmd=open";
+        if ((file_path.find("?") == std::string::npos))
+        {
+          request += "?mgm.pcmd=open";
+        }
+        else
+        {
+          request += "mgm.pcmd=open";
+        }
         arg.FromString(request);
-        status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
 
-        if (status.IsOK())
+        
+        if ( doPIO && 
+            (status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response)) &&
+             status.IsOk() )
         {
           //.....................................................................
           // Parse output
@@ -1273,9 +1291,9 @@ main (int argc, char* argv[])
       XrdOucString file_path = dst_location[i].second.c_str();
       XrdOucString opaque = dst_location[i].second.c_str();
       int npos;
-      if ( (npos = opaque.find("?")) != STR_NPOS ) 
+      if ((npos = opaque.find("?")) != STR_NPOS)
       {
-        opaque.erase(0,npos);
+        opaque.erase(0, npos);
       }
       while ((pos = file_path.find("/", pos + 1)) != STR_NPOS)
       {
@@ -1320,7 +1338,7 @@ main (int argc, char* argv[])
           {
             fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) stat on %s\n", subpath.c_str());
           }
-          subpath+= opaque.c_str();
+          subpath += opaque.c_str();
           XrdCl::URL url(dst_location[i].first.c_str());
           XrdCl::FileSystem fs(url);
           XrdCl::StatInfo* response = 0;
