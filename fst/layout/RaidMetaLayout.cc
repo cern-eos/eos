@@ -193,12 +193,12 @@ RaidMetaLayout::Open (const std::string& path,
  //............................................................................
  if (mStoreRecovery)
  {
-   flags = SFS_O_RDWR;
+   flags |= SFS_O_RDWR;
  }
  else if (flags & (SFS_O_RDWR | SFS_O_TRUNC))
  {
    mStoreRecovery = true;
-   flags = SFS_O_RDWR | SFS_O_TRUNC;
+   flags |= SFS_O_RDWR | SFS_O_TRUNC;
  }
 
  if (file && file->Open(path, flags, mode, enhanced_opaque.c_str(), mTimeout))

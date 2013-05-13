@@ -43,13 +43,13 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 
 XrdFstOssFile::XrdFstOssFile (const char* tid) :
+XrdOssDF(),
 eos::common::LogId (),
 mIsRW (false),
 mRWLockXs (0),
 mBlockXs (0)
 {
   // empty
-  fd = -1;
 }
 
 
@@ -58,7 +58,6 @@ mBlockXs (0)
 //------------------------------------------------------------------------------
 
 XrdFstOssFile::~XrdFstOssFile () {
-  // empty
   if (fd >= 0) close(fd);
   fd = -1;
 }
