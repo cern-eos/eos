@@ -268,38 +268,6 @@ xrdmgmofs_shutdown (int sig)
 }
 
 /*----------------------------------------------------------------------------*/
-XrdMgmOfs::XrdMgmOfs (XrdSysError *ep)
-/*----------------------------------------------------------------------------*/
-/*
- * The MGM Ofs object constructor
- */
-/*----------------------------------------------------------------------------*/
-{
-  eDest = ep;
-  ConfigFN = 0;
-  eos::common::LogId();
-  eos::common::LogId::SetSingleShotLogId();
-
-  fslistener_tid = stats_tid = deletion_tid = 0;
-
-}
-
-/*----------------------------------------------------------------------------*/
-bool
-XrdMgmOfs::Init (XrdSysError &ep)
-/*----------------------------------------------------------------------------*/
-/* @brief Init function
- * 
- * This is just kept to be compatible with standard OFS plugins, but it is not
- * used for the moment.
- */
-/*----------------------------------------------------------------------------*/
-{
-
-  return true;
-}
-
-/*----------------------------------------------------------------------------*/
 extern "C"
 XrdSfsFileSystem *
 XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
@@ -350,7 +318,9 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
 }
 
 /******************************************************************************/
+/******************************************************************************/
 /* MGM Directory Interface                                                    */
+/******************************************************************************/
 /******************************************************************************/
 
 /*----------------------------------------------------------------------------*/
@@ -574,7 +544,9 @@ XrdMgmOfsDirectory::close ()
 }
 
 /******************************************************************************/
+/******************************************************************************/
 /* MGM File Interface                                                         */
+/******************************************************************************/
 /******************************************************************************/
 
 /*----------------------------------------------------------------------------*/
@@ -1995,6 +1967,68 @@ XrdMgmOfsFile::truncate (XrdSfsFileOffset flen)
 }
 
 /*----------------------------------------------------------------------------*/
+XrdMgmOfsFile::~XrdMgmOfsFile ()
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief destructor
+ * 
+ * Cleans-up the file object on destruction 
+ */
+/*----------------------------------------------------------------------------*/
+{
+  if (oh) close();
+  if (openOpaque)
+  {
+    delete openOpaque;
+    openOpaque = 0;
+  }
+  if (procCmd)
+  {
+
+    delete procCmd;
+    procCmd = 0;
+  }
+}
+
+/******************************************************************************/
+/******************************************************************************/
+/* MGM Directory Interface                                                    */
+/******************************************************************************/
+/******************************************************************************/
+
+/*----------------------------------------------------------------------------*/
+XrdMgmOfs::XrdMgmOfs (XrdSysError *ep)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief the MGM Ofs object constructor
+ */
+/*----------------------------------------------------------------------------*/
+{
+  eDest = ep;
+  ConfigFN = 0;
+  eos::common::LogId();
+  eos::common::LogId::SetSingleShotLogId();
+
+  fslistener_tid = stats_tid = deletion_tid = 0;
+
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+XrdMgmOfs::Init (XrdSysError &ep)
+/*----------------------------------------------------------------------------*/
+/* @brief Init function
+ * 
+ * This is just kept to be compatible with standard OFS plugins, but it is not
+ * used for the moment.
+ */
+/*----------------------------------------------------------------------------*/
+{
+
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::ShouldStall (const char* function,
                         int __AccessMode__,
@@ -2836,12 +2870,12 @@ XrdMgmOfs::_chmod (const char *path,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_chown (const char *path, 
-                   uid_t uid, 
-                   gid_t gid, 
+XrdMgmOfs::_chown (const char *path,
+                   uid_t uid,
+                   gid_t gid,
                    XrdOucErrInfo &error,
-                   eos::common::Mapping::VirtualIdentity &vid, 
-                   const char *ininfo) 
+                   eos::common::Mapping::VirtualIdentity &vid,
+                   const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief change the owner of a file or directory
@@ -2882,9 +2916,9 @@ XrdMgmOfs::_chown (const char *path,
   {
     cmd = gOFS->eosView->getContainer(path);
     if ((vid.uid) && (!eos::common::Mapping::HasUid(3, vid) &&
-                      !eos::common::Mapping::HasGid(4, vid) ) &&
-        (!cmd->access(vid.uid,vid.gid,W_OK)))
-                     
+                      !eos::common::Mapping::HasGid(4, vid)) &&
+        (!cmd->access(vid.uid, vid.gid, W_OK)))
+
     {
       errno = EPERM;
     }
@@ -3263,7 +3297,7 @@ XrdMgmOfs::getVersion ()
  * Return the version of the MGM software
  * 
  * @return return a version string
- */ 
+ */
 /*----------------------------------------------------------------------------*/
 {
 
@@ -3324,9 +3358,9 @@ XrdMgmOfs::mkdir (const char *inpath,
 int
 XrdMgmOfs::_mkdir (const char *path,
                    XrdSfsMode Mode,
-                   XrdOucErrInfo &error, 
+                   XrdOucErrInfo &error,
                    eos::common::Mapping::VirtualIdentity &vid,
-                   const char *ininfo) 
+                   const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create a directory with the given mode
@@ -3698,7 +3732,7 @@ int
 XrdMgmOfs::rem (const char *inpath,
                 XrdOucErrInfo &error,
                 const XrdSecEntity *client,
-                const char *ininfo) 
+                const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -3741,10 +3775,10 @@ XrdMgmOfs::rem (const char *inpath,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_rem (const char *path, 
-                 XrdOucErrInfo &error, 
+XrdMgmOfs::_rem (const char *path,
+                 XrdOucErrInfo &error,
                  eos::common::Mapping::VirtualIdentity &vid,
-                 const char *ininfo, 
+                 const char *ininfo,
                  bool simulate)
 /*----------------------------------------------------------------------------*/
 /*
@@ -4039,10 +4073,10 @@ XrdMgmOfs::_rem (const char *path,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::remdir (const char *inpath, 
-                   XrdOucErrInfo &error, 
+XrdMgmOfs::remdir (const char *inpath,
+                   XrdOucErrInfo &error,
                    const XrdSecEntity *client,
-                   const char *ininfo) 
+                   const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a directory from the namespace
@@ -4241,12 +4275,12 @@ XrdMgmOfs::_remdir (const char *path,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::rename (const char *old_name, 
-                   const char *new_name, 
-                   XrdOucErrInfo &error, 
-                   const XrdSecEntity *client, 
-                   const char *infoO, 
-                   const char *infoN) 
+XrdMgmOfs::rename (const char *old_name,
+                   const char *new_name,
+                   XrdOucErrInfo &error,
+                   const XrdSecEntity *client,
+                   const char *infoO,
+                   const char *infoN)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief rename a file or directory
@@ -4324,7 +4358,7 @@ XrdMgmOfs::rename (const char *old_name,
                    XrdOucErrInfo &error,
                    eos::common::Mapping::VirtualIdentity& vid,
                    const char *infoO,
-                   const char *infoN) 
+                   const char *infoN)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief rename a file or directory
@@ -4403,7 +4437,7 @@ XrdMgmOfs::_rename (const char *old_name,
                     const char *infoN,
                     bool updateCTime,
                     bool checkQuota
-                   )
+                    )
 /*----------------------------------------------------------------------------*/
 /*
  * @brief rename a file or directory
@@ -4757,7 +4791,7 @@ XrdMgmOfs::stat (const char *inpath,
                  struct stat *buf,
                  XrdOucErrInfo &error,
                  const XrdSecEntity *client,
-                 const char *ininfo) 
+                 const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -4812,10 +4846,10 @@ XrdMgmOfs::stat (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_stat (const char *path,
-                  struct stat *buf, 
+                  struct stat *buf,
                   XrdOucErrInfo &error,
-                  eos::common::Mapping::VirtualIdentity &vid, 
-                  const char *ininfo) 
+                  eos::common::Mapping::VirtualIdentity &vid,
+                  const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -5248,7 +5282,15 @@ XrdMgmOfs::utimes (const char *inpath,
                    const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
+ * @brief set change time for a given file/directory
  * 
+ * @param inpath path to set
+ * @param tvp timespec structure
+ * @param error error object
+ * @client XRootD authentication object
+ * @ininfo CGI
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -5279,11 +5321,28 @@ XrdMgmOfs::utimes (const char *inpath,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_utimes (const char *path, // In
-                    struct timespec *tvp, // In
-                    XrdOucErrInfo &error, // Out
-                    eos::common::Mapping::VirtualIdentity &vid, // In
-                    const char *ininfo) // In
+XrdMgmOfs::_utimes (const char *path,
+                    struct timespec *tvp,
+                    XrdOucErrInfo &error,
+                    eos::common::Mapping::VirtualIdentity &vid,
+                    const char *info)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief set change time for a given file/directory
+ * 
+ * @param path path to set
+ * @param tvp timespec structure
+ * @param error error object
+ * @param vid virtual identity of the client
+ * @param info CGI
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
+ * 
+ * For directories this routine set's the creation time and the in-memory
+ * modification time to the specified modificationt time. For files it 
+ * set's the modification time.
+ */
+/*----------------------------------------------------------------------------*/
 {
   bool done = false;
   eos::ContainerMD* cmd = 0;
@@ -5292,13 +5351,13 @@ XrdMgmOfs::_utimes (const char *path, // In
 
   gOFS->MgmStats.Add("Utimes", vid.uid, vid.gid, 1);
 
-  // ------------------------------------------
+  // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   try
   {
     cmd = gOFS->eosView->getContainer(path);
-    // we use creation time as modification time ... hmmm ...
     cmd->setCTime(tvp[1]);
+    UpdateInmemoryDirectoryModificationTime(cmd->getId(), tvp[1]);
     eosView->updateContainerStore(cmd);
     done = true;
   }
@@ -5341,13 +5400,34 @@ XrdMgmOfs::_utimes (const char *path, // In
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_find (const char *path, // In 
-                  XrdOucErrInfo &out_error, // Out
+XrdMgmOfs::_find (const char *path,
+                  XrdOucErrInfo &out_error,
                   XrdOucString &stdErr,
-                  eos::common::Mapping::VirtualIdentity &vid, // In
+                  eos::common::Mapping::VirtualIdentity &vid,
                   std::map<std::string, std::set<std::string> > &found,
                   const char* key, const char* val, bool nofiles
                   )
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief low-level namespace find command
+ * 
+ * @param path path to start the sub-tree find
+ * @param stdErr stderr output string
+ * @param vid virtual identity of the client
+ * @param found result map/set of the find
+ * @param key search for a certain key in the extended attributes
+ * @param val search for a certain value in the extended attributes (requires key)
+ * @param nofiles if true returns only directories, otherwise files and directories
+ * 
+ * The find command distinuishes 'power' and 'normal' users. If the virtual
+ * identity indicates the root or admin user queries are unlimited.
+ * For others queries are limited to 50k directories and 100k files and an 
+ * appropriate error/warning message is written to stdErr. Note that currently
+ * find does not do a 'full' permission check including ACLs in every
+ * subdirectory but checks only the POSIX permission R_OK/X_OK bits.
+ * 
+ */
+/*----------------------------------------------------------------------------*/
 {
   std::vector< std::vector<std::string> > found_dirs;
 
@@ -5514,7 +5594,9 @@ XrdMgmOfs::_find (const char *path, // In
     }
   }
   // ---------------------------------------------------------------------------  
-  // include also the directory which was specified in the query if it is accessible and a directory since it can evt. be missing if it is empty
+  // include also the directory which was specified in the query if it is 
+  // accessible and a directory since it can evt. be missing if it is empty
+  // ---------------------------------------------------------------------------
   XrdSfsFileExistence dir_exists;
   if (((_exists(found_dirs[0][0].c_str(), dir_exists, out_error, vid, 0)) == SFS_OK)
       && (dir_exists == XrdSfsFileExistIsDirectory))
@@ -5530,11 +5612,27 @@ XrdMgmOfs::_find (const char *path, // In
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::Emsg (const char *pfx, // Message prefix value
-                 XrdOucErrInfo &einfo, // Place to put text & error code
-                 int ecode, // The error code
-                 const char *op, // Operation being performed
-                 const char *target) // The target (e.g., fname)
+XrdMgmOfs::Emsg (const char *pfx,
+                 XrdOucErrInfo &einfo,
+                 int ecode,
+                 const char *op,
+                 const char *target)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief create an error message
+ * 
+ * @param pfx message prefix value
+ * @param einfo error text/code object
+ * @param ecode error code
+ * @param op name of the operation performed
+ * @param target target of the operation e.g. file name etc.
+ * 
+ * @return SFS_ERROR in all cases
+ * 
+ * This routines prints also an error message into the EOS log if it was not
+ * due to a stat call or the error codes EIDRM or ENODATA
+ */
+/*----------------------------------------------------------------------------*/
 {
   char *etext, buffer[4096], unkbuff[64];
 
@@ -5587,11 +5685,26 @@ XrdMgmOfs::Emsg (const char *pfx, // Message prefix value
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfsDirectory::Emsg (const char *pfx, // Message prefix value
-                          XrdOucErrInfo &einfo, // Place to put text & error code
-                          int ecode, // The error code
-                          const char *op, // Operation being performed
-                          const char *target) // The target (e.g., fname)
+XrdMgmOfsDirectory::Emsg (const char *pfx,
+                          XrdOucErrInfo &einfo,
+                          int ecode,
+                          const char *op,
+                          const char *target)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief create an error message for a directory object
+ * 
+ * @param pfx message prefix value
+ * @param einfo error text/code object
+ * @param ecode error code
+ * @param op name of the operation performed
+ * @param target target of the operation e.g. file name etc.
+ * 
+ * @return SFS_ERROR in all cases
+ * 
+ * This routines prints also an error message into the EOS log.
+ */
+/*----------------------------------------------------------------------------*/
 {
   char *etext, buffer[4096], unkbuff[64];
 
@@ -5630,11 +5743,26 @@ XrdMgmOfsDirectory::Emsg (const char *pfx, // Message prefix value
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfsFile::Emsg (const char *pfx, // Message prefix value
-                     XrdOucErrInfo &einfo, // Place to put text & error code
-                     int ecode, // The error code
-                     const char *op, // Operation being performed
-                     const char *target) // The target (e.g., fname)
+XrdMgmOfsFile::Emsg (const char *pfx,
+                     XrdOucErrInfo &einfo,
+                     int ecode,
+                     const char *op,
+                     const char *target)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief create an error message for a file object
+ * 
+ * @param pfx message prefix value
+ * @param einfo error text/code object
+ * @param ecode error code
+ * @param op name of the operation performed
+ * @param target target of the operation e.g. file name etc.
+ * 
+ * @return SFS_ERROR in all cases
+ * 
+ * This routines prints also an error message into the EOS log.
+ */
+/*----------------------------------------------------------------------------*/
 {
   char *etext, buffer[4096], unkbuff[64];
 
@@ -5672,29 +5800,20 @@ XrdMgmOfsFile::Emsg (const char *pfx, // Message prefix value
 }
 
 /*----------------------------------------------------------------------------*/
-XrdMgmOfsFile::~XrdMgmOfsFile ()
-{
-  if (oh) close();
-  if (openOpaque)
-  {
-    delete openOpaque;
-    openOpaque = 0;
-  }
-  if (procCmd)
-  {
-
-    delete procCmd;
-    procCmd = 0;
-  }
-}
-
-/*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::Stall (XrdOucErrInfo &error, // Error text & code
-                  int stime, // Seconds to stall
-                  const char *msg) // Message to give
+XrdMgmOfs::Stall (XrdOucErrInfo &error,
+                  int stime,
+                  const char *msg)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief send a stall response to the client
+ * 
+ * @param error error object with text/code
+ * @param stime seconds to stall
+ * @param msg message for the client
+ */
+/*----------------------------------------------------------------------------*/
 {
-
   XrdOucString smessage = msg;
   smessage += "; come back in ";
   smessage += stime;
@@ -5718,9 +5837,18 @@ XrdMgmOfs::Stall (XrdOucErrInfo &error, // Error text & code
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::Redirect (XrdOucErrInfo &error, // Error text & code
+XrdMgmOfs::Redirect (XrdOucErrInfo &error,
                      const char* host,
                      int &port)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief send a redirect response to the client
+ * 
+ * @param error error object with text/code
+ * @param host redirection target host
+ * @param port redirection target port
+ */
+/*----------------------------------------------------------------------------*/
 {
 
   EPNAME("Redirect");
@@ -5745,6 +5873,19 @@ XrdMgmOfs::fsctl (const int cmd,
                   const char *args,
                   XrdOucErrInfo &error,
                   const XrdSecEntity * client)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief implements locate and space-ls function
+ * 
+ * @param cmd operation to run
+ * @param args arguments for cmd
+ * @param error error object
+ * @param client XRootD authentication object
+ * 
+ * This function locate's files on the redirector and return's the available
+ * space in XRootD fashion.
+ */
+/*----------------------------------------------------------------------------*/
 {
   const char *tident = error.getErrUser();
 
@@ -5795,7 +5936,7 @@ XrdMgmOfs::fsctl (const int cmd,
       "&oss.maxf=%lld&oss.used=%lld&oss.quota=%lld";
 
     blen = snprintf(buff, blen, Resp, space.c_str(), maxbytes,
-                    freebytes, 64 * 1024 * 1024 * 1024LL /* fake 64BG */,
+                    freebytes, 64 * 1024 * 1024 * 1024LL /* fake 64GB */,
                     maxbytes - freebytes, maxbytes);
 
     error.setErrCode(blen + 1);
@@ -5812,6 +5953,21 @@ XrdMgmOfs::FSctl (const int cmd,
                   XrdSfsFSctl &args,
                   XrdOucErrInfo &error,
                   const XrdSecEntity * client)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief FS control funcition implementing the locate and plugin call
+ * 
+ * @cmd operation to run (locate or plugin)
+ * @args args for the operation
+ * @error error object
+ * @client XRootD authentication obeject
+ * 
+ * This function locates files on the redirector. Additionally it is used in EOS
+ * to implement many stateless operations like commit/drop a replica, stat 
+ * a file/directory, create a directory listing for FUSE, chmod, chown, access,
+ * utimes, get checksum, schedule to drain/balance/delete ...
+ */
+/*----------------------------------------------------------------------------*/
 {
 
   char ipath[16384];
@@ -8328,6 +8484,21 @@ XrdMgmOfs::attr_ls (const char *inpath,
                     const XrdSecEntity *client,
                     const char *ininfo,
                     eos::ContainerMD::XAttrMap & map)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief list extended attributes for a given directory
+ *  
+ * @param inpath directory name to list attributes
+ * @param error error object
+ * @param client XRootD authentication object
+ * @param ininfo CGI
+ * @param map return object with the extended attribute key-value map
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
+ * 
+ * See _attr_ls for details on the internals.
+ */
+/*----------------------------------------------------------------------------*/
 {
 
   static const char *epname = "attr_ls";
@@ -8359,6 +8530,22 @@ XrdMgmOfs::attr_set (const char *inpath,
                      const char *ininfo,
                      const char *key,
                      const char *value)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief set an extended attribute for a given directory to key=value
+ *  
+ * @param inpath directory name to set attribute
+ * @param error error object
+ * @param client XRootD authentication object
+ * @param ininfo CGI
+ * @param key key to set
+ * @param value value to set for key
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
+ * 
+ * See _attr_set for details on the internals.
+ */
+/*----------------------------------------------------------------------------*/
 {
 
   static const char *epname = "attr_set";
@@ -8389,6 +8576,22 @@ XrdMgmOfs::attr_get (const char *inpath,
                      const char *ininfo,
                      const char *key,
                      XrdOucString & value)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief get an extended attribute for a given directory by key
+ *  
+ * @param inpath directory name to get attribute
+ * @param error error object
+ * @param client XRootD authentication object
+ * @param ininfo CGI
+ * @param key key to retrieve
+ * @param value variable to store the value
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
+ * 
+ * See _attr_get for details on the internals.
+ */
+/*----------------------------------------------------------------------------*/
 {
 
   static const char *epname = "attr_get";
@@ -8419,6 +8622,21 @@ XrdMgmOfs::attr_rem (const char *inpath,
                      const XrdSecEntity *client,
                      const char *ininfo,
                      const char *key)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief delete an extended attribute for a given directory by key
+ *  
+ * @param inpath directory name to delete attribute
+ * @param error error object
+ * @param client XRootD authentication object
+ * @param ininfo CGI
+ * @param key key to delete
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
+ *
+ * See _attr_rem for details on the internals.
+ */
+/*----------------------------------------------------------------------------*/
 {
 
   static const char *epname = "attr_rm";
@@ -8449,6 +8667,21 @@ XrdMgmOfs::_attr_ls (const char *path,
                      eos::common::Mapping::VirtualIdentity &vid,
                      const char *info,
                      eos::ContainerMD::XAttrMap & map)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief list extended attributes for a given directory
+ *  
+ * @param path directory name to list attributes
+ * @param error error object
+ * @param vid virtual identity of the client
+ * @param info CGI
+ * @param map return object with the extended attribute key-value map
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
+ * 
+ * Normal unix permissions R_OK & X_OK are needed to list attributes.
+ */
+/*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_ls";
   eos::ContainerMD *dh = 0;
@@ -8497,6 +8730,23 @@ XrdMgmOfs::_attr_set (const char *path,
                       const char *info,
                       const char *key,
                       const char *value)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief set an extended attribute for a given directory with key=value
+ *  
+ * @param path directory name to set attribute
+ * @param error error object
+ * @param vid virtual identity of the client
+ * @param info CGI
+ * @param key key to set
+ * @param value value for key
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
+ * 
+ * Only the owner of a directory can set extended attributes with user prefix.
+ * sys prefix attributes can be set only by sudo'ers or root.
+ */
+/*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_set";
   eos::ContainerMD *dh = 0;
@@ -8558,6 +8808,22 @@ XrdMgmOfs::_attr_get (const char *path,
                       const char *key,
                       XrdOucString &value,
                       bool islocked)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief get an extended attribute for a given directory by key
+ *  
+ * @param path directory name to get attribute
+ * @param error error object
+ * @param vid virtual identity of the client
+ * @param info CGI
+ * @param key key to get
+ * @param value value returned
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
+ * 
+ * Normal POSIX R_OK & X_OK permissions are required to retrieve a key.
+ */
+/*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_get";
   eos::ContainerMD *dh = 0;
@@ -8609,6 +8875,22 @@ XrdMgmOfs::_attr_rem (const char *path,
                       eos::common::Mapping::VirtualIdentity &vid,
                       const char *info,
                       const char *key)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief delete an extended attribute for a given directory by key
+ *  
+ * @param path directory name to set attribute
+ * @param error error object
+ * @param vid virtual identity of the client
+ * @param info CGI
+ * @param key key to delete
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
+ * 
+ * Only the owner of a directory can delete an extended attributes with user prefix.
+ * sys prefix attributes can be deleted only by sudo'ers or root.
+ */
+/*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_rm";
   eos::ContainerMD *dh = 0;
@@ -8657,6 +8939,21 @@ XrdMgmOfs::_verifystripe (const char *path,
                           eos::common::Mapping::VirtualIdentity &vid,
                           unsigned long fsid,
                           XrdOucString option)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief send a verification message to a file system for a given file
+ * 
+ * @param path file name to verify
+ * @param error error object
+ * @param vid virtual identity of the client
+ * @param fsid filesystem id where to run the verification 
+ * @param option pass-through string for the verification
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
+ * 
+ * The function requires POSIX W_OK & X_OK on the parent directory to succeed. 
+ */
+/*----------------------------------------------------------------------------*/
 {
   static const char *epname = "verifystripe";
   eos::ContainerMD *dh = 0;
@@ -8701,7 +8998,7 @@ XrdMgmOfs::_verifystripe (const char *path,
 
   if (errno)
   {
-    return Emsg(epname, error, errno, "drop stripe", path);
+    return Emsg(epname, error, errno, "verify stripe", path);
   }
 
   // get the file
@@ -8801,6 +9098,21 @@ XrdMgmOfs::_dropstripe (const char *path,
                         eos::common::Mapping::VirtualIdentity &vid,
                         unsigned long fsid,
                         bool forceRemove)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief send a drop message to a file system for a given file
+ * 
+ * @param path file name to drop stripe
+ * @param error error object
+ * @param vid virtual identity of the client
+ * @param fsid filesystem id where to run the drop 
+ * @param forceRemove if true the stripe is immediatly dropped 
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
+ * 
+ * The function requires POSIX W_OK & X_OK on the parent directory to succeed. 
+ */
+/*----------------------------------------------------------------------------*/
 {
   static const char *epname = "dropstripe";
   eos::ContainerMD *dh = 0;
@@ -8889,6 +9201,23 @@ XrdMgmOfs::_movestripe (const char *path,
                         unsigned long sourcefsid,
                         unsigned long targetfsid,
                         bool expressflag)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief send a move message for a given file from source to target file system
+ * 
+ * @param path file name to move stripe
+ * @param error error object
+ * @param vid virtual identity of the client
+ * @param sourcefsid filesystem id of the source
+ * @param targetfsid filesystem id of the target
+ * @param expressflag if true the move is put in front of the queue on the FST
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
+ * 
+ * The function requires POSIX W_OK & X_OK on the parent directory to succeed.
+ * It calls _replicatestripe internally. 
+ */
+/*----------------------------------------------------------------------------*/
 {
 
   EXEC_TIMING_BEGIN("MoveStripe");
@@ -8905,6 +9234,23 @@ XrdMgmOfs::_copystripe (const char *path,
                         unsigned long sourcefsid,
                         unsigned long targetfsid,
                         bool expressflag)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief send a copy message for a given file from source to target file system
+ * 
+ * @param path file name to copy stripe
+ * @param error error object
+ * @param vid virtual identity of the client
+ * @param sourcefsid filesystem id of the source
+ * @param targetfsid filesystem id of the target
+ * @param expressflag if true the copy is put in front of the queue on the FST
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
+ * 
+ * The function requires POSIX W_OK & X_OK on the parent directory to succeed. 
+ * It calls _replicatestripe internally.
+ */
+/*----------------------------------------------------------------------------*/
 {
 
   EXEC_TIMING_BEGIN("CopyStripe");
@@ -8922,6 +9268,24 @@ XrdMgmOfs::_replicatestripe (const char *path,
                              unsigned long targetfsid,
                              bool dropsource,
                              bool expressflag)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief send a replication message for a given file from source to target file system
+ * 
+ * @param path file name to copy stripe
+ * @param error error object
+ * @param vid virtual identity of the client
+ * @param sourcefsid filesystem id of the source
+ * @param targetfsid filesystem id of the target
+ * @param dropsource indicates if the source is deleted(dropped) after successfull replication
+ * @param expressflag if true the copy is put in front of the queue on the FST
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
+ * 
+ * The function requires POSIX W_OK & X_OK on the parent directory to succeed. 
+ * It calls _replicatestripe with a file meta data object.
+ */
+/*----------------------------------------------------------------------------*/
 {
   static const char *epname = "replicatestripe";
   eos::ContainerMD *dh = 0;
@@ -9006,6 +9370,24 @@ XrdMgmOfs::_replicatestripe (eos::FileMD *fmd,
                              unsigned long targetfsid,
                              bool dropsource,
                              bool expressflag)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief send a replication message for a given file from source to target file system
+ * 
+ * @param fmd namespace file meta data object
+ * @param path file name 
+ * @param error error object
+ * @param vid virtual identity of the client
+ * @param sourcefsid filesystem id of the source
+ * @param targetfsid filesystem id of the target
+ * @param dropsource indicates if the source is deleted(dropped) after successfull replication
+ * @param expressflag if true the copy is put in front of the queue on the FST
+ * 
+ * @return SFS_OK if success otherwise SFS_ERROR
+ * 
+ * The function sends an appropriate message to the target FST. 
+ */
+/*----------------------------------------------------------------------------*/
 {
   static const char *epname = "replicatestripe";
   unsigned long long fid = fmd->getId();
@@ -9226,7 +9608,21 @@ XrdMgmOfs::_replicatestripe (eos::FileMD *fmd,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::SendResync (eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid)
+XrdMgmOfs::SendResync (eos::common::FileId::fileid_t fid, 
+                       eos::common::FileSystem::fsid_t fsid)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief send a resync command for a file identified by id and filesystem
+ * 
+ * @param fid file id to be resynced
+ * @param fsid filesystem id where the file should be resynced
+ * 
+ * @return true if successfully send otherwise false
+ * 
+ * A resync synchronizes the cache DB on the FST with the meta data on disk 
+ * and on the MGM and flags files accordingly with size/checksum errors.
+ */
+/*----------------------------------------------------------------------------*/
 {
   EXEC_TIMING_BEGIN("SendResync");
 
@@ -9296,7 +9692,21 @@ XrdMgmOfs::StartMgmFsListener (void *pp)
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmOfs::DeleteExternal (eos::common::FileSystem::fsid_t fsid, unsigned long long fid)
+XrdMgmOfs::DeleteExternal (eos::common::FileSystem::fsid_t fsid, 
+                           unsigned long long fid)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief send an explicit deletion message to a fsid/fid pair
+ * 
+ * @param fsid file system id where to run a deletion
+ * @param fid file id to be deleted
+ * 
+ * @result true if successfully sent otherwise false
+ * 
+ * This routine signs a deletion message for the given file id and sends it 
+ * to the referenced file system. 
+ */
+/*----------------------------------------------------------------------------*/
 {
   // ---------------------------------------------------------------------------
   // send an explicit deletion message to any fsid/fid pair
@@ -9370,6 +9780,15 @@ XrdMgmOfs::DeleteExternal (eos::common::FileSystem::fsid_t fsid, unsigned long l
 /*----------------------------------------------------------------------------*/
 void
 XrdMgmOfs::FsListener ()
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief file system listener agent starting drain jobs when receving opserror
+ * 
+ * This thread agent catches 'opserror' states on filesystems and executes the
+ * drain job start routine on the referenced filesystem. If a filesystem
+ * is removing the error code it also run's a stop drain job routine.
+ */
+/*----------------------------------------------------------------------------*/
 {
   XrdSysTimer sleeper;
   sleeper.Snooze(5);
