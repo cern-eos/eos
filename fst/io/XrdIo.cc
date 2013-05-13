@@ -238,7 +238,8 @@ XrdIo::Read (XrdSfsFileOffset offset,
 
   if (!readahead)
   {
-    handler = static_cast<AsyncMetaHandler*> (pFileHandler)->Register(offset, length, false);
+    handler = static_cast<AsyncMetaHandler*> (pFileHandler)->Register(offset, length,
+                                                                      NULL, false);
     status = mXrdFile->Read(static_cast<uint64_t> (offset),
                             static_cast<uint32_t> (length),
                             buffer,
@@ -341,7 +342,8 @@ XrdIo::Read (XrdSfsFileOffset offset,
     if (length)
     {
       eos_debug("Readahead not useful, use the classic way for the rest fo the block.");
-      handler = static_cast<AsyncMetaHandler*> (pFileHandler)->Register(offset, length, false);
+      handler = static_cast<AsyncMetaHandler*> (pFileHandler)->Register(offset, length,
+                                                                        NULL, false);
       status = mXrdFile->Read(static_cast<uint64_t> (offset),
                               static_cast<uint32_t> (length),
                               pBuff,
@@ -373,10 +375,13 @@ XrdIo::Write (XrdSfsFileOffset offset,
   ChunkHandler* handler;
   XrdCl::XRootDStatus status;
 
-  handler = static_cast<AsyncMetaHandler*> (pFileHandler)->Register(offset, length, true);
+  handler = static_cast<AsyncMetaHandler*> (pFileHandler)->Register(offset, length,
+                                                                    buffer, true);
+  
+  // Obs: Use the handler buffer for write requests
   status = mXrdFile->Write(static_cast<uint64_t> (offset),
                            static_cast<uint32_t> (length),
-                           buffer,
+                           handler->GetBuffer(),
                            handler,
                            timeout);
   return length;

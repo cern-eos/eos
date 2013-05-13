@@ -28,8 +28,8 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-  ///! maximum number of obj in cache used for recycling
-  const unsigned int AsyncMetaHandler::msMaxCacheSize = 8;
+///! maximum number of obj in cache used for recycling
+const unsigned int AsyncMetaHandler::msMaxCacheSize = 10;
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -75,6 +75,7 @@ AsyncMetaHandler::~AsyncMetaHandler ()
 ChunkHandler*
 AsyncMetaHandler::Register (uint64_t offset,
                             uint32_t length,
+                            const char* buffer,
                             bool isWrite)
 {
   ChunkHandler* ptr_chunk = NULL;
@@ -91,11 +92,11 @@ AsyncMetaHandler::Register (uint64_t offset,
     //TODO: create a new write block only if the size of memory allocated
     // is still manageable otherwise wait for some previous request to complete
     // and then reuse the allocated memory
-    ptr_chunk = new ChunkHandler(this, offset, length, isWrite);
+    ptr_chunk = new ChunkHandler(this, offset, length, buffer, isWrite);
   }
   else
   {
-    ptr_chunk->Update(this, offset, length, isWrite);
+    ptr_chunk->Update(this, offset, length, buffer, isWrite);
   }
 
   listReq.push_back(ptr_chunk);
@@ -121,6 +122,12 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
   {
     mMapErrors.insert(std::make_pair(chunk->GetOffset(), chunk->GetLength()));
     mState = false;
+    fprintf(stderr, "Got an error message.\n");
+    
+    if (pStatus->code == XrdCl::errOperationExpired) {
+      fprintf(stderr, "Got timeout error for offset=%lu, length=%lu.\n",
+              chunk->GetOffset(), chunk->GetLength());
+    }
   }
 
   if (mNumReceivedResp == mNumExpectedResp)
