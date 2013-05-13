@@ -49,7 +49,7 @@ mNoWrBlocks (0)
   eos_static_debug("mIdFile=%i, mFirstPossibleKey=%llu, mLastPossibleKey=%llu",
                    mIdFile, mFirstPossibleKey, mLastPossibleKey);
 
-  errorsQueue = new ConcurrentQueue<error_type > ();
+  errorsQueue = new eos::common::ConcurrentQueue<error_type > ();
   mCondUpdate = XrdSysCondVar(0);
 }
 
@@ -316,7 +316,7 @@ FileAbstraction::GetId () const
 // Get handler to the queue of errors
 //------------------------------------------------------------------------------
 
-ConcurrentQueue<error_type>&
+eos::common::ConcurrentQueue<error_type>&
 FileAbstraction::GetErrorQueue () const
 {
   return *errorsQueue;

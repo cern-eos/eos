@@ -22,21 +22,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
+#ifndef __EOS_CONCURRENTQUEUE_HH__
+#define __EOS_CONCURRENTQUEUE_HH__
+
+/*----------------------------------------------------------------------------*/
+#include "common/Namespace.hh"
+/*----------------------------------------------------------------------------*/
 #include <cstdio>
 #include <queue>
 #include <pthread.h>
 #include <common/Logging.hh>
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
 
-#ifndef __EOS_CONCURRENTQUEUE_HH__
-#define __EOS_CONCURRENTQUEUE_HH__
+EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Thread-safe queue implementation using mutexes
 //------------------------------------------------------------------------------
 template <typename Data>
-class ConcurrentQueue: public eos::common::LogId
+class ConcurrentQueue: public LogId
 {
 public:
   ConcurrentQueue();
@@ -180,5 +184,6 @@ ConcurrentQueue<Data>::clear()
   pthread_mutex_unlock(&mutex);
 }
 
+EOSCOMMONNAMESPACE_END
 
 #endif

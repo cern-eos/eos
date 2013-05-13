@@ -30,7 +30,7 @@
 #include <sys/types.h>
 #include <XrdSys/XrdSysPthread.hh>
 //------------------------------------------------------------------------------
-#include "ConcurrentQueue.hh"
+#include "common/ConcurrentQueue.hh"
 //------------------------------------------------------------------------------
 
 //! Definition of an error occurring in a write operation
@@ -44,7 +44,7 @@ class FileAbstraction
   public:
 
     //! Errors collected during writes
-    ConcurrentQueue<error_type>* errorsQueue;
+    eos::common::ConcurrentQueue<error_type>* errorsQueue;
 
     // -------------------------------------------------------------------------
     //! Constructor
@@ -177,7 +177,7 @@ class FileAbstraction
     // -------------------------------------------------------------------------
     //! Get the queue of errros
     // -------------------------------------------------------------------------
-    ConcurrentQueue<error_type>& GetErrorQueue() const;
+    eos::common::ConcurrentQueue<error_type>& GetErrorQueue() const;
 
   private:
 

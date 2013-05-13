@@ -2409,7 +2409,7 @@ xrd_flush (int fd, unsigned long inode)
     if (fAbst)
     {
       XFC->WaitFinishWrites(*fAbst);
-      ConcurrentQueue<error_type> err_queue = fAbst->GetErrorQueue();
+      eos::common::ConcurrentQueue<error_type> err_queue = fAbst->GetErrorQueue();
       error_type error;
 
       if (err_queue.try_pop(error))
