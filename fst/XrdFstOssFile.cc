@@ -347,12 +347,8 @@ XrdFstOssFile::Close (long long* retsz)
     {
       eos_err("error=close - cannot stat unlinked file: %s", mPath.c_str());
       //........................................................................
-      // We don't need to take care of cleaning the Xs map, as this is already
-      // handled by the XrdFstOss::Unlink.
+      // Take care not to leak file descriptors
       //........................................................................
-      XrdSysRWLockHelper wr_lock(mRWLockXs, 0); // ---> wrlock xs obj
-      mBlockXs->DecrementRef(mIsRW);
-      mBlockXs->CloseMap();
       if (fd >= 0) close(fd);
       fd = -1;
       return -EIO;
