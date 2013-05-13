@@ -154,8 +154,7 @@ FileEos::Write(Result*& result)
   pb_result.add_closetime(wr_timing.GetTagTimelapse("CLOSE", "END"));
   pb_result.add_transactiontime(wr_timing.GetTagTimelapse("OPEN", "END"));
   pb_result.add_readspeed(0);
-  pb_result.add_writespeed(((float)offset / eos::common::MB) /
-                           (transaction_time / 1000.0));
+  pb_result.add_writespeed(Result::GetTransferSpeed((float)offset, transaction_time));
   pb_result.add_readtotal(0);
   pb_result.add_writetotal(offset);
 
@@ -250,8 +249,7 @@ FileEos::ReadGw(Result*& result)
   pb_result.add_writewaitasync(0);
   pb_result.add_closetime(rd_timing.GetTagTimelapse("CLOSE", "END"));
   pb_result.add_transactiontime(rd_timing.GetTagTimelapse("OPEN", "END"));
-  pb_result.add_readspeed(((float)offset / eos::common::MB) /
-                          (transaction_time / 1000.0));
+  pb_result.add_readspeed(Result::GetTransferSpeed((float)offset, transaction_time));
   pb_result.add_writespeed(0);
   pb_result.add_readtotal(offset);
   pb_result.add_writetotal(0);
@@ -452,8 +450,7 @@ FileEos::ReadPio(Result*& result)
   pb_result.add_writewaitasync(0);
   pb_result.add_closetime(rd_timing.GetTagTimelapse("CLOSE", "END"));
   pb_result.add_transactiontime(rd_timing.GetTagTimelapse("OPEN", "END"));
-  pb_result.add_readspeed(((float)offset / eos::common::MB) /
-                          (transaction_time / 1000.0));
+  pb_result.add_readspeed(Result::GetTransferSpeed((float)offset, transaction_time));
   pb_result.add_writespeed(0);
   pb_result.add_readtotal(offset);
   pb_result.add_writetotal(0);

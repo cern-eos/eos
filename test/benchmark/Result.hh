@@ -78,7 +78,7 @@ class Result
     //! @return transfer speed in MB/s
     //!
     //--------------------------------------------------------------------------
-    float GetTransferSpeed(float size, float duration);
+    static float GetTransferSpeed(float size, float duration);
 
 
     //--------------------------------------------------------------------------

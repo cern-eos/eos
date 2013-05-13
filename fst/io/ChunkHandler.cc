@@ -34,14 +34,22 @@ EOSFSTNAMESPACE_BEGIN
 ChunkHandler::ChunkHandler (AsyncMetaHandler* metaHandler,
                             uint64_t offset,
                             uint32_t length,
+                            const char* buff,
                             bool isWrite) :
+mBuffer(0),
 mMetaHandler (metaHandler),
 mOffset (offset),
 mLength (length),
+mCapacity (length),
 mRespLength (0),
 mIsWrite (isWrite),
-mErrorNo (0) {
-  // empty
+mErrorNo (0)
+{
+  if (isWrite)
+  {
+    mBuffer = static_cast<char*>(calloc(length, sizeof(char)));
+    mBuffer = static_cast<char*>(memcpy(mBuffer, buff, length));
+  }
 }
 
 
@@ -49,8 +57,12 @@ mErrorNo (0) {
 // Destructor
 //------------------------------------------------------------------------------
 
-ChunkHandler::~ChunkHandler () {
-  // emtpy
+ChunkHandler::~ChunkHandler ()
+{
+  if (mBuffer)
+  {
+    free(mBuffer);
+  }
 }
 
 
@@ -62,6 +74,7 @@ void
 ChunkHandler::Update (AsyncMetaHandler* metaHandler,
                       uint64_t offset,
                       uint32_t length,
+                      const char* buff,
                       bool isWrite)
 {
   mMetaHandler = metaHandler;
@@ -70,6 +83,17 @@ ChunkHandler::Update (AsyncMetaHandler* metaHandler,
   mRespLength = 0;
   mIsWrite = isWrite;
   mErrorNo = 0;
+
+  if (isWrite)
+  {
+    if (length > mCapacity)
+    {
+      mCapacity = length;
+      mBuffer = static_cast<char*>(realloc(mBuffer, mCapacity));
+    }
+    
+    mBuffer = static_cast<char*>(memcpy(mBuffer, buff, length));
+  }
 }
 
 

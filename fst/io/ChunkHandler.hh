@@ -51,12 +51,14 @@ public:
   //! @param reqHandler handler to the file meta handler
   //! @param offset request offset
   //! @param length request length
+  //! @param buff holder for the data
   //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
   ChunkHandler (AsyncMetaHandler* reqHandler,
                 uint64_t offset,
                 uint32_t length,
+                const char* buff,
                 bool isWrite);
 
 
@@ -72,19 +74,30 @@ public:
   //! @param reqHandler handler to the file meta handler
   //! @param offset request offset
   //! @param length request length
+  //! @param buffer holder for data 
   //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
   void Update (AsyncMetaHandler* reqHandler,
                uint64_t offset,
                uint32_t length,
+               const char* buff,
                bool isWrite);
 
 
   //----------------------------------------------------------------------------
+  //! Get buffer
+  //----------------------------------------------------------------------------
+  inline char*
+  GetBuffer() const
+  {
+    return mBuffer;
+  };
+  
+
+  //----------------------------------------------------------------------------
   //! Get request chunk offset
   //----------------------------------------------------------------------------
-
   inline uint64_t
   GetOffset () const
   {
@@ -95,7 +108,6 @@ public:
   //----------------------------------------------------------------------------
   //! Get request chunk length
   //----------------------------------------------------------------------------
-
   inline uint32_t
   GetLength () const
   {
@@ -106,7 +118,6 @@ public:
   //----------------------------------------------------------------------------
   //! Get response chunk length
   //----------------------------------------------------------------------------
-
   inline uint32_t
   GetRespLength () const
   {
@@ -117,7 +128,6 @@ public:
   //----------------------------------------------------------------------------
   //! Get errno
   //----------------------------------------------------------------------------
-
   inline uint32_t
   GetErrno () const
   {
@@ -128,7 +138,6 @@ public:
   //----------------------------------------------------------------------------
   //! Test if chunk is from a write operation 
   //----------------------------------------------------------------------------
-
   inline bool
   IsWrite () const
   {
@@ -149,9 +158,11 @@ public:
 
 private:
 
+  char* mBuffer;  ///< holder for data for write requests
   AsyncMetaHandler* mMetaHandler; ///< handler to the whole file meta handler
   uint64_t mOffset; ///< offset of the request
   uint32_t mLength; ///< length of the request
+  uint32_t mCapacity; ///< capacity of the buffer
   uint32_t mRespLength; ///< length of response received, only for reads
   bool mIsWrite; ///< operation type is write
   int mErrorNo; ///< error no for this request

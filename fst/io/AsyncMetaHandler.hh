@@ -84,12 +84,16 @@ public:
   //!
   //! @param offset request offset
   //! @param length request length
+  //! @param buffer holder for the data
   //! @param isWrite set if it is a write request
   //!
   //! @return new chunk async handler object
   //! 
   //--------------------------------------------------------------------------
-  ChunkHandler* Register (uint64_t offset, uint32_t length, bool isWrite);
+  ChunkHandler* Register (uint64_t offset,
+                          uint32_t length,
+                          const char* buffer,
+                          bool isWrite);
 
 
   //--------------------------------------------------------------------------
