@@ -846,9 +846,11 @@ main (int argc, char* argv[])
         arg.FromString(request);
 
         
-        if ( doPIO && 
-            (status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response)) &&
-             status.IsOk() )
+        if ( doPIO ) {
+	  status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+	}
+
+	if ( doPIO && status.IsOK() )
         {
           //.....................................................................
           // Parse output
