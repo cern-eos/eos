@@ -811,7 +811,7 @@ main (int argc, char* argv[])
         XrdCl::XRootDStatus status;
         file_path = src_location[i].first + src_location[i].second;
 
-        if (file_path.find("://eos/") != std::string::npos)
+        if (file_path.find("//eos/") != std::string::npos)
         {
           // for any other URL it does not make sense to do the PIO access
           doPIO = true;
