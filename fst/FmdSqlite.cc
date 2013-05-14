@@ -807,8 +807,12 @@ FmdSqliteHandler::UpdateFromMgm (eos::common::FileSystem::fsid_t fsid, eos::comm
     FmdSqliteMap[fsid][fid].locations = locations;
 
     // truncate the checksum to the right string length
-    FmdSqliteMap[fsid][fid].mgmchecksum.erase(eos::common::LayoutId::GetChecksumLen(lid)*2);
-    FmdSqliteMap[fsid][fid].checksum.erase(eos::common::LayoutId::GetChecksumLen(lid)*2);
+    if (FmdSqliteMap[fsid][fid].mgmchecksum != "none")
+      FmdSqliteMap[fsid][fid].mgmchecksum.erase(eos::common::LayoutId::GetChecksumLen(lid)*2);
+
+    if (FmdSqliteMap[fsid][fid].checksum != "none")
+      FmdSqliteMap[fsid][fid].checksum.erase(eos::common::LayoutId::GetChecksumLen(lid)*2);
+    
     return CommitFromMemory(fid, fsid);
   }
   else

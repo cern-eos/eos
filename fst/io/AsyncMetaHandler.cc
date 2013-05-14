@@ -71,25 +71,22 @@ AsyncMetaHandler::Register (uint64_t offset,
                             bool isWrite)
 {
   ChunkHandler* ptr_chunk = NULL;
-  mCond.Lock();        
-  
+  mCond.Lock();  // -->
+  mAsyncReq++;
+ 
   if (mAsyncReq >= msMaxNumAsyncObj)
   {
-    mCond.UnLock();        
+    mCond.UnLock();   // <--    
     mQRecycle.wait_pop(ptr_chunk);
     ptr_chunk->Update(this, offset, length, buffer, isWrite);
   }
   else
   {
    // Create new request
-    mCond.UnLock();        
+    mCond.UnLock();   // <--            
     ptr_chunk = new ChunkHandler(this, offset, length, buffer, isWrite);
-  }   
-
-  mCond.Lock();          
-  mAsyncReq++;
-  mCond.UnLock();        
-
+  }
+  
   return ptr_chunk;
 }
 
@@ -102,31 +99,25 @@ void
 AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
                                   ChunkHandler* chunk)
 {
-  mCond.Lock();
+  mCond.Lock(); // -->
 
   if (pStatus->status != XrdCl::stOK)
   {
     mMapErrors.insert(std::make_pair(chunk->GetOffset(), chunk->GetLength()));
     mState = false;
   }
- 
-  mAsyncReq--;
-  
-  if (mQRecycle.getSize() >= msMaxNumAsyncObj)
-  {
-    delete chunk;
-  }
-  else 
-  {
-    mQRecycle.push(chunk);
-  }
 
-  if (mAsyncReq == 0)
+  if (--mAsyncReq == 0)
   {
     mCond.Signal();
   }
 
-  mCond.UnLock();
+  mCond.UnLock();  // <--
+  
+  if (!mQRecycle.push_size(chunk, msMaxNumAsyncObj))
+  {
+    delete chunk;
+  }
 }
 
 

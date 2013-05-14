@@ -48,6 +48,8 @@ public:
 
   size_t getSize();
   void push(Data& data);
+  bool push_size(Data &data, size_t max_size);
+
   bool empty();
 
   bool try_pop(Data& popped_value);
@@ -110,6 +112,32 @@ ConcurrentQueue<Data>::push(Data &data)
   queue.push(data);
   pthread_cond_broadcast(&cond);
   pthread_mutex_unlock(&mutex);
+}
+
+
+//------------------------------------------------------------------------------
+//! Push data to the queue if queue size is less then max_size
+//!
+//! @param data object to be pushed in the queue
+//! @param max_size max size allowed of the queue
+//!
+//------------------------------------------------------------------------------
+template <typename Data>
+bool
+ConcurrentQueue<Data>::push_size(Data &data, size_t max_size)
+{
+  bool ret_val = false;
+  pthread_mutex_lock(&mutex);
+  
+  if (queue.size() <= max_size)
+  {
+    queue.push(data);
+    ret_val = true;
+    pthread_cond_broadcast(&cond);
+  }
+  
+  pthread_mutex_unlock(&mutex);
+  return ret_val;  
 }
 
 
