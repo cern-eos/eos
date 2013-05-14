@@ -33,6 +33,9 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 /*----------------------------------------------------------------------------*/
+#include "common/ConcurrentQueue.hh"
+/*----------------------------------------------------------------------------*/
+
 
 #ifndef __EOS_ASYNCMETAHANDLER_HH__
 #define __EOS_ASYNCMETAHANDLER_HH__
@@ -110,17 +113,15 @@ public:
 private:
 
   bool mState; ///< true if all requests are ok, otherwise false
-  int mNumExpectedResp; ///< expected number of responses
-  int mNumReceivedResp; ///< received number of responses
-  XrdSysCondVar mCond; ///< condition variable to signal the receival of
-  ///< all responses
+  unsigned int mAsyncReq; ///< number of async requests in flight (for which no response was received)
+  XrdSysCondVar mCond; ///< condition variable to signal the receival of all responses
 
-  std::list<ChunkHandler*> listReq; ///< list of registered async requests
-  std::list<ChunkHandler*> listCache; ///< list of cached request objects
+  eos::common::ConcurrentQueue<ChunkHandler*> mQRecycle; ///< recyclable obj
   std::map<uint64_t, uint32_t> mMapErrors; ///< chunks for which the request failed
 
-  ///! maximum number of obj in cache used for recycling
-  static const unsigned int msMaxCacheSize;
+  //! maxium number of async requests in flight and also the maximum number
+  //! of ChunkHandler object that can be saved in cache
+  static const unsigned int msMaxNumAsyncObj; 
 
 };
 
