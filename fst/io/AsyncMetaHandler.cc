@@ -90,7 +90,6 @@ AsyncMetaHandler::Register (uint64_t offset,
   mAsyncReq++;
   mCond.UnLock();        
 
-  fprintf(stderr, "Register: no.req = %i\n", mAsyncReq);
   return ptr_chunk;
 }
 
@@ -109,17 +108,10 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
   {
     mMapErrors.insert(std::make_pair(chunk->GetOffset(), chunk->GetLength()));
     mState = false;
-    fprintf(stderr, "Got an error message.\n");
-    
-    if (pStatus->code == XrdCl::errOperationExpired) {
-      fprintf(stderr, "Got timeout error for offset=%lu, length=%llu.\n",
-              chunk->GetOffset(), chunk->GetLength());
-    }
   }
  
   mAsyncReq--;
-  fprintf(stderr, "HandleResponse: no.req = %i \n", mAsyncReq);
-
+  
   if (mQRecycle.getSize() >= msMaxNumAsyncObj)
   {
     delete chunk;
