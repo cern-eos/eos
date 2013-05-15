@@ -794,6 +794,9 @@ main (int argc, char* argv[])
     }
   }
 
+  int stat_failed = 0;
+  struct stat st[MAXSRCDST];
+
   //.............................................................................
   // Get sources access type
   //.............................................................................
@@ -851,19 +854,36 @@ main (int argc, char* argv[])
         }
         arg.FromString(request);
 
-        
+	st[0].st_size = 0;
+	st[0].st_mode = 0;
+
         if ( doPIO ) {
 	  status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
 	}
 
 	if ( doPIO && status.IsOK() )
         {
+	  XrdCl::StatInfo* statresponse = 0;
+	  status = fs.Stat(file_path.c_str(), statresponse);
+	  
+	  if (status.IsOK())
+	  {
+	    st[0].st_size = statresponse->GetSize();
+	    st[0].st_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+	    if (statresponse->TestFlags(XrdCl::StatInfo::IsWritable))
+	    {
+	      st[0].st_mode |= S_IWGRP;
+	    }
+	  } 
+
+	  delete statresponse;
+
           //.....................................................................
           // Parse output
           //.....................................................................
           if (verbose || debug)
           {
-            fprintf(stderr, "Doing PIO_ACCESS for source location %i.\n", i);
+            fprintf(stderr, "[eoscp] having PIO_ACCESS for source location %i...\n", i);
           }
 
           XrdOucString tag;
@@ -942,7 +962,7 @@ main (int argc, char* argv[])
 
                 if (verbose || debug)
                 {
-                  fprintf(stdout, "src<%d>=%s [%s]\n", i, src_location.back().second.c_str(), src_location.back().first.c_str());
+                  fprintf(stdout, "[eoscp] src<%d>=%s [%s]\n", i, src_location.back().second.c_str(), src_location.back().first.c_str());
                 }
               }
             }
@@ -1036,9 +1056,6 @@ main (int argc, char* argv[])
     }
   }
 
-  int stat_failed = 0;
-  struct stat st[MAXSRCDST];
-
   if (egid >= 0)
   {
     if (setgid(egid))
@@ -1082,12 +1099,12 @@ main (int argc, char* argv[])
         break;
 
       case RAID_ACCESS:
-        for (int j = 0; j < nsrc; j++)
-        {
-          st[j].st_size = 0;
-          st[j].st_mode = S_IFREG | S_IRUSR | S_IWUSR | S_IRGRP;
-        }
-        break;
+	for (int j = 1; j < nsrc; j++)
+	{
+  	    st[j].st_size = st[0].st_size;
+	    st[j].st_mode = st[0].st_mode;
+	}
+	break;
       case XRD_ACCESS:
       {
         if (debug)
@@ -1840,9 +1857,9 @@ main (int argc, char* argv[])
       gettimeofday(&abs_stop_time, &tz);
       for (int i = 0; i < nsrc; i++)
       {
-        if ((src_type[i] == XRD_ACCESS) && (!targetsize))
+        if ((src_type[i] == XRD_ACCESS) && (targetsize))
         {
-          st[i].st_size = totalbytes;
+          st[i].st_size = targetsize;
         }
       }
 
