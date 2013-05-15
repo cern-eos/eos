@@ -46,6 +46,7 @@
 #include "fst/layout/ReedSLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/io/ChunkHandler.hh"
+#include "fst/io/XrdIo.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -55,7 +56,6 @@
 
 using eos::common::LayoutId;
 
-typedef std::vector<std::pair<int, XrdCl::File*> > VectHandlerType;
 typedef std::vector<std::pair<std::string, std::string> > VectLocationType;
 
 enum AccessType
@@ -71,10 +71,10 @@ const char* xs[] = {"adler", "md5", "sha1", "crc32", "crc32c"};
 std::set<std::string> xsTypeSet (xs, xs + 5);
 
 ///! vector of source file descriptors or xrd objects
-VectHandlerType src_handler;
+std::vector<std::pair<int, XrdCl::File*> > src_handler;
 
 ///! vector of destination file descriptors or xrd objects
-VectHandlerType dst_handler;
+std::vector<std::pair<int, eos::fst::XrdIo*> > dst_handler;
 
 ///! vector of source host address and path file
 VectLocationType src_location;
@@ -1585,13 +1585,13 @@ main (int argc, char* argv[])
       {
         dst_handler.push_back(std::make_pair(open(dst_location[i].second.c_str(),
                                                   O_WRONLY | O_CREAT, st[i].st_mode),
-                                             static_cast<XrdCl::File*> (NULL)));
+                                             static_cast<eos::fst::XrdIo*> (NULL)));
       }
       else
       {
         dst_handler.push_back(std::make_pair(open(dst_location[i].second.c_str(),
                                                   O_WRONLY | O_TRUNC | O_CREAT, st[i].st_mode),
-                                             static_cast<XrdCl::File*> (NULL)));
+                                             static_cast<eos::fst::XrdIo*> (NULL)));
       }
     }
       break;
@@ -1661,7 +1661,7 @@ main (int argc, char* argv[])
                 dst_location[i].second.c_str());
       }
 
-      XrdCl::File* file = new XrdCl::File();
+      eos::fst::XrdIo* file = new eos::fst::XrdIo();
       location = dst_location[i].first + dst_location[i].second;
 
       if (appendmode)
@@ -1680,25 +1680,22 @@ main (int argc, char* argv[])
 
         if (status.IsOK())
         {
-          status = file->Open(location,
-                              XrdCl::OpenFlags::Append,
-                              (XrdCl::Access::Mode)st[i].st_mode);
+          //TODO: add timeout for all operations 
+          status = file->Open(location, SFS_O_RDWR, st[i].st_mode, "");
 
         }
         else
         {
-          status = file->Open(location,
-                              XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update,
-                              (XrdCl::Access::Mode)st[i].st_mode);
+          status = file->Open(location, SFS_O_CREAT | SFS_O_RDWR,
+                              st[i].st_mode, "");
         }
-
+        
         delete response;
       }
       else
       {
-        status = file->Open(location,
-                            XrdCl::OpenFlags::Delete | XrdCl::OpenFlags::Update,
-                            XrdCl::Access::UR | XrdCl::Access::UW);
+        status = file->Open(location, SFS_O_CREAT | SFS_O_RDWR,
+                            S_IRUSR | S_IWUSR | S_IRGRP, "");
       }
 
       if (!status.IsOK())
@@ -1714,7 +1711,7 @@ main (int argc, char* argv[])
 
     case CONSOLE_ACCESS:
       dst_handler.push_back(std::make_pair(fileno(stdout),
-                                           static_cast<XrdCl::File*> (NULL)));
+                                           static_cast<eos::fst::XrdIo*> (NULL)));
       break;
     }
 
@@ -1964,12 +1961,7 @@ main (int argc, char* argv[])
         // Do writes in async mode
         //......................................................................
         eos::common::Timing::GetTimeSpec(start);
-        eos::fst::ChunkHandler* chunk_handler;
-        chunk_handler = meta_handler[i]->Register(stopwritebyte, nread, ptr_buffer, true);
-        status = dst_handler[i].second->Write(stopwritebyte,
-                                              nread,
-                                              ptr_buffer,
-                                              chunk_handler);
+        status = dst_handler[i].second->Write(stopwritebyte, ptr_buffer, nread, meta_handler[i]);
         nwrite = nread;
         eos::common::Timing::GetTimeSpec(end);
         wait_time = static_cast<double> ((end.tv_sec * 1000 + end.tv_nsec / 1000000)-
