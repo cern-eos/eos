@@ -89,10 +89,10 @@ XrdIo::~XrdIo ()
 
 int
 XrdIo::Open (const std::string& path,
-                 XrdSfsFileOpenMode flags,
-                 mode_t mode,
-                 const std::string& opaque,
-                 uint16_t timeout)
+             XrdSfsFileOpenMode flags,
+             mode_t mode,
+             const std::string& opaque,
+             uint16_t timeout)
 {
   const char* val = 0;
   std::string request;
@@ -126,14 +126,13 @@ XrdIo::Open (const std::string& path,
   request += opaque;
   mXrdFile = new XrdCl::File();
 
-  // Disable recover on read and write
+  // Disable recovery on read and write
   mXrdFile->EnableReadRecovery(false);
   mXrdFile->EnableWriteRecovery(false);
   
   XrdCl::OpenFlags::Flags flags_xrdcl = eos::common::LayoutId::MapFlagsSfs2XrdCl(flags);
   XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
-  XrdCl::XRootDStatus status = mXrdFile->Open(request, flags_xrdcl,
-                                              mode_xrdcl, timeout);
+  XrdCl::XRootDStatus status = mXrdFile->Open(request, flags_xrdcl, mode_xrdcl, timeout);
 
   if (!status.IsOK())
   {
@@ -186,9 +185,9 @@ XrdIo::Read (XrdSfsFileOffset offset,
 
 int64_t
 XrdIo::Write (XrdSfsFileOffset offset,
-                  const char* buffer,
-                  XrdSfsXferSize length,
-                  uint16_t timeout)
+              const char* buffer,
+              XrdSfsXferSize length,
+              uint16_t timeout)
 {
   eos_debug("offset = %llu, length = %lu",
             static_cast<uint64_t> (offset),
@@ -439,7 +438,7 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
   XrdCl::StatInfo* stat = 0;
   //............................................................................
   // TODO: once Stat works properly in XRootD, one can revert the flag on the
-  // first position to true, so stat stat is forced and not taken from the
+  // first position to true, so that stat is forced and not taken from the
   // cache as it is the case now
   //............................................................................
   XrdCl::XRootDStatus status = mXrdFile->Stat(false, stat, timeout);
@@ -491,7 +490,7 @@ XrdIo::Close (uint16_t timeout)
       mMapBlocks.erase(mMapBlocks.begin());
     }
   }
-
+  
   XrdCl::XRootDStatus status = mXrdFile->Close(timeout);
 
   if (!status.IsOK())
