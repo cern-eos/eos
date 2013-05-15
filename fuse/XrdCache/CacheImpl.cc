@@ -38,8 +38,8 @@ mSizeMax (sizeMax),
 mSizeVirtual (0),
 mSizeAllocBlocks (0)
 {
-  mRecycleQueue = new ConcurrentQueue<CacheEntry*>();
-  mWrReqQueue = new ConcurrentQueue<CacheEntry*>();
+  mRecycleQueue = new eos::common::ConcurrentQueue<CacheEntry*>();
+  mWrReqQueue = new eos::common::ConcurrentQueue<CacheEntry*>();
   mCacheThreshold = msMaxPercentWrites * mSizeMax;
   mMaxSizeAllocBlocks = msMaxPercentSizeBlocks * mSizeMax;
 }

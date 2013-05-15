@@ -22,21 +22,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
+#ifndef __EOS_CONCURRENTQUEUE_HH__
+#define __EOS_CONCURRENTQUEUE_HH__
+
+/*----------------------------------------------------------------------------*/
+#include "common/Namespace.hh"
+/*----------------------------------------------------------------------------*/
 #include <cstdio>
 #include <queue>
 #include <pthread.h>
 #include <common/Logging.hh>
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
 
-#ifndef __EOS_CONCURRENTQUEUE_HH__
-#define __EOS_CONCURRENTQUEUE_HH__
+EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Thread-safe queue implementation using mutexes
 //------------------------------------------------------------------------------
 template <typename Data>
-class ConcurrentQueue: public eos::common::LogId
+class ConcurrentQueue: public LogId
 {
 public:
   ConcurrentQueue();
@@ -44,6 +48,8 @@ public:
 
   size_t getSize();
   void push(Data& data);
+  bool push_size(Data &data, size_t max_size);
+
   bool empty();
 
   bool try_pop(Data& popped_value);
@@ -106,6 +112,32 @@ ConcurrentQueue<Data>::push(Data &data)
   queue.push(data);
   pthread_cond_broadcast(&cond);
   pthread_mutex_unlock(&mutex);
+}
+
+
+//------------------------------------------------------------------------------
+//! Push data to the queue if queue size is less then max_size
+//!
+//! @param data object to be pushed in the queue
+//! @param max_size max size allowed of the queue
+//!
+//------------------------------------------------------------------------------
+template <typename Data>
+bool
+ConcurrentQueue<Data>::push_size(Data &data, size_t max_size)
+{
+  bool ret_val = false;
+  pthread_mutex_lock(&mutex);
+  
+  if (queue.size() <= max_size)
+  {
+    queue.push(data);
+    ret_val = true;
+    pthread_cond_broadcast(&cond);
+  }
+  
+  pthread_mutex_unlock(&mutex);
+  return ret_val;  
 }
 
 
@@ -180,5 +212,6 @@ ConcurrentQueue<Data>::clear()
   pthread_mutex_unlock(&mutex);
 }
 
+EOSCOMMONNAMESPACE_END
 
 #endif

@@ -29,7 +29,7 @@
 //------------------------------------------------------------------------------
 #include <pthread.h>
 //------------------------------------------------------------------------------
-#include "ConcurrentQueue.hh"
+#include "common/ConcurrentQueue.hh"
 #include "CacheImpl.hh"
 //------------------------------------------------------------------------------
 
@@ -149,7 +149,7 @@ class XrdFileCache
     //! @return error queue
     //!
     // -------------------------------------------------------------------------
-    ConcurrentQueue<error_type>& GetErrorQueue( unsigned long inode );
+    eos::common::ConcurrentQueue<error_type>& GetErrorQueue( unsigned long inode );
 
   
     // -------------------------------------------------------------------------
@@ -197,7 +197,7 @@ class XrdFileCache
     XrdSysRWLock mRwLock;     ///< rw lock for the key map
 
     //! File indices used and available to recycle
-    ConcurrentQueue<int>* mpUsedIndxQueue;
+    eos::common::ConcurrentQueue<int>* mpUsedIndxQueue;
 
     //! Map of inodes <-> FileAbst objects
     std::map<unsigned long, FileAbstraction*> mInode2fAbst;

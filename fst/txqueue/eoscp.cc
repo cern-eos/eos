@@ -1965,7 +1965,7 @@ main (int argc, char* argv[])
         //......................................................................
         eos::common::Timing::GetTimeSpec(start);
         eos::fst::ChunkHandler* chunk_handler;
-        chunk_handler = meta_handler[i]->Register(stopwritebyte, nread, NULL, true);
+        chunk_handler = meta_handler[i]->Register(stopwritebyte, nread, ptr_buffer, true);
         status = dst_handler[i].second->Write(stopwritebyte,
                                               nread,
                                               ptr_buffer,

@@ -242,8 +242,8 @@ class CacheImpl
     XrdSysCondVar  mCondWrDone;         ///< condition for notifying waiting threads
                                         ///< that a write op. has been done
 
-    ConcurrentQueue<CacheEntry*>* mRecycleQueue;  ///< pool of reusable objects
-    ConcurrentQueue<CacheEntry*>* mWrReqQueue;    ///< write request queue
+    eos::common::ConcurrentQueue<CacheEntry*>* mRecycleQueue;  ///< pool of reusable objects
+    eos::common::ConcurrentQueue<CacheEntry*>* mWrReqQueue;    ///< write request queue
 };
 
 #endif

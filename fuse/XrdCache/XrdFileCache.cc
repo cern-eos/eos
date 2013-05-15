@@ -56,7 +56,7 @@ XrdFileCache::XrdFileCache (size_t sizeMax) :
 mIndexFile (msMaxIndexFiles / 10),
 msCacheSizeMax (sizeMax)
 {
-  mpUsedIndxQueue = new ConcurrentQueue<int>();
+  mpUsedIndxQueue = new eos::common::ConcurrentQueue<int>();
 }
 
 
@@ -360,10 +360,10 @@ XrdFileCache::RemoveFileInode (unsigned long inode, bool strongConstraint)
 // Get errors queue
 //------------------------------------------------------------------------------
 
-ConcurrentQueue<error_type>&
+eos::common::ConcurrentQueue<error_type>&
 XrdFileCache::GetErrorQueue (unsigned long inode)
 {
-  ConcurrentQueue<error_type>* tmp = NULL;
+  eos::common::ConcurrentQueue<error_type>* tmp = NULL;
   FileAbstraction* pAbst = GetFileObj(inode, false);
 
   if (pAbst)

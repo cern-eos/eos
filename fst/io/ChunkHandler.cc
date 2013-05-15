@@ -48,7 +48,10 @@ mErrorNo (0)
   if (isWrite)
   {
     mBuffer = static_cast<char*>(calloc(length, sizeof(char)));
-    mBuffer = static_cast<char*>(memcpy(mBuffer, buff, length));
+    if (mBuffer)
+    {
+      mBuffer = static_cast<char*>(memcpy(mBuffer, buff, length));
+    }
   }
 }
 
