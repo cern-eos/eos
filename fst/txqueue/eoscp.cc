@@ -683,6 +683,12 @@ main (int argc, char* argv[])
     }
   }
 
+  //  if (debug) 
+  //  {
+  //    eos::common::Logging::Init();
+  //    eos::common::Logging::SetLogPriority(LOG_DEBUG);
+  //  }
+
   if (optind - 1 + nsrc + ndst >= argc)
   {
     usage();
@@ -841,7 +847,7 @@ main (int argc, char* argv[])
         }
         else
         {
-          request += "mgm.pcmd=open";
+          request += "&mgm.pcmd=open";
         }
         arg.FromString(request);
 
@@ -873,7 +879,7 @@ main (int argc, char* argv[])
           }
 
           XrdOucEnv* openOpaque = new XrdOucEnv(stringOpaque.c_str());
-          char* opaque_info = (char*) strstr(origResponse.c_str(), "&&mgm.logid");
+          char* opaque_info = (char*) strstr(origResponse.c_str(), "&mgm.logid");
           opaqueInfo = opaque_info;
 
           //...................................................................
@@ -919,7 +925,7 @@ main (int argc, char* argv[])
                 stripe_path += "/";
                 stripe_path += orig_file.c_str();
                 int pos = stripe_path.rfind("//");
-
+		
                 if (pos == STR_NPOS)
                 {
                   address = "";
@@ -936,7 +942,7 @@ main (int argc, char* argv[])
 
                 if (verbose || debug)
                 {
-                  fprintf(stdout, "src<%d>=%s \n", i, src_location.back().second.c_str());
+                  fprintf(stdout, "src<%d>=%s [%s]\n", i, src_location.back().second.c_str(), src_location.back().first.c_str());
                 }
               }
             }
@@ -1459,6 +1465,7 @@ main (int argc, char* argv[])
           fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags);
         }
 
+	fprintf(stderr,"opening opaque=%s\n", opaqueInfo.c_str());
         if (redundancyObj->OpenPio(vectUrl, flags, mode_sfs, opaqueInfo.c_str()))
         {
           fprintf(stderr, "error: can not open RAID object for read/write\n");
@@ -1937,7 +1944,8 @@ main (int argc, char* argv[])
       {
       case LOCAL_ACCESS:
       case CONSOLE_ACCESS:
-        nwrite = write(dst_handler[i].first, ptr_buffer, nread);
+	nwrite = write(dst_handler[i].first, ptr_buffer, nread);
+	nwrite = nread;
         break;
 
       case RAID_ACCESS:
