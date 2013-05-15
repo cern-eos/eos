@@ -2663,7 +2663,7 @@ int
 XrdFstOfsFile::truncateofs (XrdSfsFileOffset fileOffset)
 {
   // truncation moves the max offset written
-  eos_debug("value = %lli", fileOffset);
+  eos_debug("value=%llu", (unsigned long long) fileOffset);
   maxOffsetWritten = fileOffset;
   return XrdOfsFile::truncate(fileOffset);
 }

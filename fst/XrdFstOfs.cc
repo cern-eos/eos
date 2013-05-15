@@ -272,6 +272,17 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
     eos::fst::Config::gConfig.FstOfsBrokerUrl = getenv("EOS_BROKER_URL");
   }
 
+  {
+    // set the start date as string
+    XrdOucString out="";
+    time_t t= time(NULL);
+    struct tm * timeinfo;
+    timeinfo = localtime (&t);
+    
+    out = asctime(timeinfo); out.erase(out.length()-1); 
+    eos::fst::Config::gConfig.StartDate = out.c_str();
+  }
+
   eos::fst::Config::gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
   setenv("XrdClientEUSER", "daemon", 1);
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -389,6 +400,8 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   eos::fst::Config::gConfig.FstHostPort = HostName;
   eos::fst::Config::gConfig.FstHostPort += ":";
   eos::fst::Config::gConfig.FstHostPort += myPort;
+  eos::fst::Config::gConfig.KernelVersion = eos::common::StringConversion::StringFromShellCmd("uname -r | tr -d \"\n\"").c_str();
+  
   Eroute.Say("=====> fstofs.broker : ", eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(), "");
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // extract our queue name
