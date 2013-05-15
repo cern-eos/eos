@@ -712,7 +712,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
    if (offset > mFileSize)
    {
      eos_err("error=offset is larger then file size");
-     return read_length;
+     return 0;
    }
 
    if (end_raw_offset > mFileSize)
@@ -793,8 +793,8 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
 
        if (mStripeFiles[physical_id])
        {
-         eos_debug("Read stripe_id=%i, current_offset=%lli, local_offset=%lli",
-                   stripe_id, current_offset, offset_local);
+         eos_debug("Read stripe_id=%i, logic_offset=%lli, local_offset=%lli, length=%lli",
+                   stripe_id, current_offset, offset_local, mStripeWidth);
          nbytes = mStripeFiles[physical_id]->Read(offset_local,
                                                   mPtrBlocks[i],
                                                   mStripeWidth,

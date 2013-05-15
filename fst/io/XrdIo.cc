@@ -249,54 +249,48 @@ XrdIo::Read (XrdSfsFileOffset offset,
   else
   {
     eos_debug("Readahead enabled and request offset=%lli, length=%lli", offset, length);
-    int64_t read_length;
-    int64_t aligned_offset;
-    int64_t aligned_length;
-    int32_t shift;
+    uint64_t read_length;
+    uint32_t aligned_length;
+    uint32_t shift;
     std::map<uint64_t, ReadaheadBlock*>::iterator iter;
 
     while (length)
     {
-      shift = offset % mBlocksize;
-      aligned_offset = offset - shift;
-      iter = mMapBlocks.find(aligned_offset);
-
+      iter = FindBlock(offset);
+      
       if (iter != mMapBlocks.end())
       {
         //......................................................................
         // Block found in prefetched blocks
         //......................................................................
         SimpleHandler* sh = iter->second->handler;
+        shift = offset - iter->first;
+
+        //....................................................................
+        // We can prefetch another block if we still have available blocks in
+        // the queue or if first read was from second prefetched block
+        //....................................................................
+        if (!mQueueBlocks.empty() ||
+            ((pBuff == buffer) && (iter != mMapBlocks.begin())))
+        {
+          eos_debug("Prefetch new block(2).");
+          
+          if (iter != mMapBlocks.begin())
+          {
+            eos_debug("Recycle the oldest block. ");
+            mQueueBlocks.push(mMapBlocks.begin()->second);
+            mMapBlocks.erase(mMapBlocks.begin());
+          }
+          PrefetchBlock(offset + mBlocksize, false);
+        }
         
         if (sh->WaitOK())
         {
           aligned_length = sh->GetRespLength() - shift;
-          eos_debug("Found block in cache, aligned_offset=%lld, aligned_length=%lld.",
-                    aligned_offset, aligned_length);
-          
-          read_length = (length < aligned_length) ? length : aligned_length;
+          read_length = ((uint32_t)length < aligned_length) ? length : aligned_length;
           pBuff = static_cast<char*> (memcpy(pBuff,
                                              iter->second->buffer + shift,
                                              read_length));
-
-          //....................................................................
-          // We can prefetch another block if we still have available blocks in
-          // the queue or if first read was from second prefetched block
-          //....................................................................
-          if (!mQueueBlocks.empty() ||
-              ((pBuff == buffer) && (iter != mMapBlocks.begin())))
-          {
-            eos_debug("Prefetch new block(2).");
-
-            if (iter != mMapBlocks.begin())
-            {
-              eos_debug("Recycle the oldest block. ");
-              mQueueBlocks.push(mMapBlocks.begin()->second);
-              mMapBlocks.erase(mMapBlocks.begin());
-            }
-
-            PrefetchBlock(aligned_offset + mBlocksize, false);
-          }
 
           pBuff += read_length;
           offset += read_length;
@@ -316,11 +310,11 @@ XrdIo::Read (XrdSfsFileOffset offset,
       }
       else
       {
-        eos_debug("Block not found in prefetched ones offset: %li", aligned_offset);
-        
         //......................................................................
         // Remove first element from map and prefetch a new block 
         //......................................................................
+        eos_debug("Block not found in prefetched ones offset: %li", offset);
+
         if (!mMapBlocks.empty())
         {
           mQueueBlocks.push(mMapBlocks.begin()->second);
@@ -330,7 +324,7 @@ XrdIo::Read (XrdSfsFileOffset offset,
         if (!mQueueBlocks.empty())
         {
           eos_debug("Prefetch new block(1).");
-          PrefetchBlock(aligned_offset, false);
+          PrefetchBlock(offset, false);
         }
       }
     }
@@ -353,6 +347,48 @@ XrdIo::Read (XrdSfsFileOffset offset,
   }
 
   return nread;
+}
+
+
+//------------------------------------------------------------------------------
+// Try to find a block in cache with contains the required offset
+//------------------------------------------------------------------------------
+PrefetchMap::iterator
+XrdIo::FindBlock(uint64_t offset)
+{
+  if (mMapBlocks.empty())
+  {
+    return mMapBlocks.end();
+  }
+  
+  PrefetchMap::iterator iter = mMapBlocks.lower_bound(offset);
+  if ((iter != mMapBlocks.end()) && (iter->first == offset))
+  {
+    // Found exactly the block needed
+    return iter;
+  }
+  else
+  {
+    if (iter == mMapBlocks.begin())
+    {
+      // Only blocks with bigger offsets, return pointer to end of the map
+      return mMapBlocks.end();      
+    }
+    else 
+    {
+      // Check if the previous block, we know the map is not empty
+      iter--;
+      
+      if ((iter->first <= offset) && ( offset < (iter->first + mBlocksize)))
+      {
+        return iter;
+      }
+      else
+      {
+        return mMapBlocks.end();
+      }
+    }
+  }  
 }
 
 

@@ -34,7 +34,11 @@
 
 EOSFSTNAMESPACE_BEGIN
 
+//! Forward declarations
 class AsyncMetaHandler;
+struct ReadaheadBlock;
+
+typedef std::map<uint64_t, ReadaheadBlock*> PrefetchMap;
 
 //------------------------------------------------------------------------------
 //! Struct that holds a readahead buffer and corresponding handler
@@ -270,7 +274,7 @@ private:
   uint32_t mBlocksize; ///< block size for rd/wr opertations
   std::string mPath; ///< path to file
   XrdCl::File* mXrdFile; ///< handler to xrd file
-  std::map<uint64_t, ReadaheadBlock*> mMapBlocks; ///< map of block read/prefetched
+  PrefetchMap mMapBlocks; ///< map of block read/prefetched
   std::queue<ReadaheadBlock*> mQueueBlocks; ///< queue containing available blocks
 
   
@@ -286,6 +290,18 @@ private:
                       bool isWrite,
                       uint16_t timeout = 0);
 
+
+  //--------------------------------------------------------------------------
+  //! Try to find a block in cache with contains the provided offset
+  //!
+  //! @param offset offset to be searched for
+  //!
+  //! @return iterator to the block containing the offset or if no such block
+  //!         is found we return the iterator to the end of the map
+  //!
+  //--------------------------------------------------------------------------
+  PrefetchMap::iterator FindBlock(uint64_t offset);
+  
 
   //--------------------------------------------------------------------------
   //! Disable copy constructor
