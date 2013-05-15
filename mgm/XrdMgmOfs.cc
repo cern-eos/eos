@@ -1678,11 +1678,10 @@ XrdMgmOfsFile::open (const char *inpath,
   if (isPio)
   {
     redirectionhost = piolist;
-    redirectionhost += "&mgm.lid=";
+    redirectionhost += "mgm.lid=";
     redirectionhost += static_cast<int> (layoutId);
-    redirectionhost += "&&mgm.logid=";
+    redirectionhost += "&mgm.logid=";
     redirectionhost += this->logId;
-    redirectionhost += "&";
     redirectionhost += capabilityenv->Env(caplen);
   }
   else
