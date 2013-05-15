@@ -2269,7 +2269,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
       }
 
       XrdOucEnv* openOpaque = new XrdOucEnv(stringOpaque.c_str());
-      char* opaqueInfo = (char*) strstr(origResponse.c_str(), "&&mgm.logid");
+      char* opaqueInfo = (char*) strstr(origResponse.c_str(), "&mgm.logid");
 
       if (opaqueInfo)
       {
