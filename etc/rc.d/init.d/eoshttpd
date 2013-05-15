@@ -26,14 +26,6 @@ perl -pi -e 's/FULLSERVERNAME/$ENV{FULLSERVERNAME}/' /etc/httpd/conf/eoshttpd.co
 
 # Fix permission
 chown daemon:daemon /var/log/eos/httpd/
-chown daemon:daemon /var/www/eos/cgi-bin/eos-httpd-redirector.cgi
-chown daemon:daemon /var/www/eos/browser/connectors/jqueryFileTree.pl
-chown root:daemon /var/www/eos/cgi-bin/eos-httpd-redirector-suexec.cgi
-chmod 755 /var/www/eos/cgi-bin/eos-httpd-redirector.cgi
-chmod 4755 /var/www/eos/cgi-bin/eos-httpd-redirector-suexec.cgi
-chmod 755 /var/www/eos/browser/connectors/jqueryFileTree.pl
-test -L /var/www/eos/eos || ln -s /eos /var/www/eos/eos
-test -L /var/www/eos/browser/tree/eos || ln -s /eos /var/www/eos/browser/tree/eos
 
 # Start httpd in the C locale by default.
 HTTPD_LANG=${HTTPD_LANG-"C"}
