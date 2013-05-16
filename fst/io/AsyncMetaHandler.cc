@@ -112,12 +112,13 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
     mCond.Signal();
   }
 
-  mCond.UnLock();  // <--
-  
   if (!mQRecycle.push_size(chunk, msMaxNumAsyncObj))
   {
+    mCond.UnLock();  // <--
     delete chunk;
   }
+
+  mCond.UnLock();  // <--
 }
 
 
@@ -140,7 +141,7 @@ bool
 AsyncMetaHandler::WaitOK ()
 {
   mCond.Lock();   // -->
-  while (mAsyncReq)
+  while (mAsyncReq > 0)
   {
     mCond.Wait();
   }
