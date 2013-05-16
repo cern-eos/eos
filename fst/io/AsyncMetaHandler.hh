@@ -115,6 +115,7 @@ private:
   bool mState; ///< true if all requests are ok, otherwise false
   unsigned int mAsyncReq; ///< number of async requests in flight (for which no response was received)
   XrdSysCondVar mCond; ///< condition variable to signal the receival of all responses
+  ChunkHandler* mChunkToDelete; ///< pointer to the ChunkHandler to be deleted
 
   eos::common::ConcurrentQueue<ChunkHandler*> mQRecycle; ///< recyclable obj
   std::map<uint64_t, uint32_t> mMapErrors; ///< chunks for which the request failed

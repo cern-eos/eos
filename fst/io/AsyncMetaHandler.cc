@@ -39,7 +39,8 @@ const unsigned int AsyncMetaHandler::msMaxNumAsyncObj = 10;
 
 AsyncMetaHandler::AsyncMetaHandler () :
 mState (true),
-mAsyncReq (0)
+mAsyncReq (0),
+mChunkToDelete(NULL)
 {
   mCond = XrdSysCondVar(0);
 }
@@ -56,6 +57,12 @@ AsyncMetaHandler::~AsyncMetaHandler ()
   while (mQRecycle.try_pop(ptr_chunk))
   {
     delete ptr_chunk;
+  }
+
+  if (mChunkToDelete)
+  {
+    delete mChunkToDelete;
+    mChunkToDelete = NULL;
   }
 }
 
@@ -101,6 +108,12 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 {
   mCond.Lock(); // -->
 
+  if (mChunkToDelete)
+  {
+    delete mChunkToDelete;
+    mChunkToDelete = NULL;
+  }
+
   if (pStatus->status != XrdCl::stOK)
   {
     mMapErrors.insert(std::make_pair(chunk->GetOffset(), chunk->GetLength()));
@@ -114,8 +127,10 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 
   if (!mQRecycle.push_size(chunk, msMaxNumAsyncObj))
   {
-    mCond.UnLock();  // <--
-    delete chunk;
+    // Save the pointer to the chunk object to be deleted by the next arriving
+    // response. This can not be done here as we are currently called from the
+    // same chunk handler object that we want to delete. 
+    mChunkToDelete = chunk;
   }
 
   mCond.UnLock();  // <--
