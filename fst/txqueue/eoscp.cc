@@ -974,6 +974,7 @@ main (int argc, char* argv[])
           }
 
           delete openOpaque;
+          delete reponse;
           break;
         }
         else
