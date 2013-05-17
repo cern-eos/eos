@@ -610,7 +610,7 @@ com_cp (char* argin)
       }
     }
 
-    if ((source_list[nfile].find(":/") == STR_NPOS))
+    if ( (source_list[nfile].find(":/") == STR_NPOS) && (!source_list[nfile].beginswith("/eos")) )
     {
       // ------------------------------------------
       // local file
