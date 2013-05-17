@@ -1738,60 +1738,69 @@ XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manag
     admin->Connect();
     admin->GetClientConn()->ClearLastServerError();
     admin->GetClientConn()->SetOpTimeLimit(10);
-    admin->Query(kXR_Qopaquf,
-                 (kXR_char *) capOpaqueFile.c_str(),
-                 (kXR_char *) result, result_size);
-    
-    if (!admin->LastServerResp()) {
+    if (!admin->Query(kXR_Qopaquf,
+		      (kXR_char *) capOpaqueFile.c_str(),
+		      (kXR_char *) result, result_size)) {
+      // the call failed
+      eos_crit("msg=\"call to MGM probably timedout\"");
       if (error)
         gOFS.Emsg(epname, *error, ECOMM, "commit changed filesize to meta data cache for fn=", path);
       rc = SFS_ERROR;
-    }
-    switch (admin->LastServerResp()->status) {
-    case kXR_ok:
-      eos_debug("called MGM cache - %s", capOpaqueFile.c_str());
-      rc = SFS_OK;
-      break;
-      
-    case kXR_error:
-      if (error) {
-        gOFS.Emsg(epname, *error, ECOMM, "to call manager for fn=", path);
+    } else {
+      // call worked but no response (probably does not happen)
+      if (!admin->LastServerResp()) {
+	if (error)
+	  gOFS.Emsg(epname, *error, ECOMM, "commit changed filesize [rejected] to meta data cache for fn=", path);
+	rc = SFS_ERROR;
+      } else {
+	switch (admin->LastServerResp()->status) {
+	case kXR_ok:
+	  eos_debug("called MGM cache - %s", capOpaqueFile.c_str());
+	  rc = SFS_OK;
+	  break;
+	  
+	case kXR_error:
+	  if (error) {
+	    gOFS.Emsg(epname, *error, ECOMM, "to call manager for fn=", path);
+	  }
+	  msg = (admin->LastServerError()->errmsg);
+	  rc = SFS_ERROR;
+	  
+	  if (msg.find("[EIDRM]") !=STR_NPOS)
+	    rc = -EIDRM;
+	  
+	  
+	  if (msg.find("[EBADE]") !=STR_NPOS)
+	    rc = -EBADE;
+	  
+	  
+	  if (msg.find("[EBADR]") !=STR_NPOS)
+	    rc = -EBADR;
+	  
+	  if (msg.find("[EINVAL]") != STR_NPOS)
+	    rc = -EINVAL;
+	  
+	  if (msg.find("[EADV]") != STR_NPOS)
+	    rc = -EADV;
+	  
+	  if (msg.find("[EIO]") != STR_NPOS)
+	    rc = -EIO;
+	  
+	  break;
+	  
+	default:
+	  rc = SFS_ERROR;
+	  break;
+	}
       }
-      msg = (admin->LastServerError()->errmsg);
-      rc = SFS_ERROR;
-
-      if (msg.find("[EIDRM]") !=STR_NPOS)
-        rc = -EIDRM;
-
-
-      if (msg.find("[EBADE]") !=STR_NPOS)
-        rc = -EBADE;
-
-
-      if (msg.find("[EBADR]") !=STR_NPOS)
-        rc = -EBADR;
-
-      if (msg.find("[EINVAL]") != STR_NPOS)
-	rc = -EINVAL;
-      
-      if (msg.find("[EADV]") != STR_NPOS)
-	rc = -EADV;
-      
-      if (msg.find("[EIO]") != STR_NPOS)
-	rc = -EIO;
-
-      break;
-      
-    default:
-      rc = SFS_OK;
-      break;
     }
+    delete admin;
   } else {
     eos_crit("cannot get client admin to execute commit");
     if (error)
       gOFS.Emsg(epname, *error, ENOMEM, "allocate client admin object during close of fn=", path);
+    rc = SFS_ERROR;
   }
-  delete admin;
 
   if (return_result) {
     *return_result = result;
