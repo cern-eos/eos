@@ -214,15 +214,13 @@ XrdIo::Write (XrdSfsFileOffset offset,
 
 int64_t
 XrdIo::Read (XrdSfsFileOffset offset,
-                 char* buffer,
-                 XrdSfsXferSize length,
-                 void* pFileHandler,
-                 bool readahead,
-                 uint16_t timeout)
+             char* buffer,
+             XrdSfsXferSize length,
+             void* pFileHandler,
+             bool readahead,
+             uint16_t timeout)
 {
-  eos_debug("offset = %llu, length = %li",
-            static_cast<uint64_t> (offset),
-            (long int) length);
+  eos_debug("offset = %lli, length = %i", offset, length);
 
   int64_t nread = 0;
   char* pBuff = buffer;
@@ -248,7 +246,7 @@ XrdIo::Read (XrdSfsFileOffset offset,
   }
   else
   {
-    eos_debug("Readahead enabled and request offset=%lli, length=%lli", offset, length);
+    eos_debug("Readahead enabled, request offset=%lli, length=%i", offset, length);
     uint64_t read_length;
     uint32_t aligned_length;
     uint32_t shift;
@@ -270,22 +268,22 @@ XrdIo::Read (XrdSfsFileOffset offset,
         // We can prefetch another block if we still have available blocks in
         // the queue or if first read was from second prefetched block
         //....................................................................
-        if (!mQueueBlocks.empty() ||
-            ((pBuff == buffer) && (iter != mMapBlocks.begin())))
+        if (!mQueueBlocks.empty() || (iter != mMapBlocks.begin()))
         {
-          eos_debug("Prefetch new block(2).");
-          
           if (iter != mMapBlocks.begin())
           {
             eos_debug("Recycle the oldest block. ");
             mQueueBlocks.push(mMapBlocks.begin()->second);
             mMapBlocks.erase(mMapBlocks.begin());
           }
+
+          eos_debug("Prefetch new block(2).");
           PrefetchBlock(offset + mBlocksize, false);
         }
         
         if (sh->WaitOK())
         {
+          eos_debug(" Found block in cache: blk_off: %lld, req_off: %lld", iter->first, offset);
           aligned_length = sh->GetRespLength() - shift;
           read_length = ((uint32_t)length < aligned_length) ? length : aligned_length;
           pBuff = static_cast<char*> (memcpy(pBuff,
@@ -311,11 +309,10 @@ XrdIo::Read (XrdSfsFileOffset offset,
       else
       {
         //......................................................................
-        // Remove first element from map and prefetch a new block 
+        // Remove all elements from map so that we can align with the new 
+        // requests and prefetch a new block 
         //......................................................................
-        eos_debug("Block not found in prefetched ones offset: %li", offset);
-
-        if (!mMapBlocks.empty())
+        while (!mMapBlocks.empty())
         {
           mQueueBlocks.push(mMapBlocks.begin()->second);
           mMapBlocks.erase(mMapBlocks.begin());
@@ -575,7 +572,7 @@ void
 XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
 {
   XrdCl::XRootDStatus status;
-  eos_debug("Try to prefetch with offset: %lli.", offset);
+  eos_debug("Try to prefetch with offset: %lli, length: %zu.", offset, mBlocksize);
   ReadaheadBlock* block = NULL;
 
   if (!mQueueBlocks.empty())
