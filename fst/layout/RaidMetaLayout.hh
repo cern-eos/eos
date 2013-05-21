@@ -55,7 +55,8 @@ public:
   //! @param lid layout id
   //! @param client security information
   //! @param outError error information
-  //! @param io access type 
+  //! @param io access type
+  //! @param timeout timeout value
   //! @param storeRecovery force writing back the recovered blocks to the files
   //! @param targetSize initial file size
   //! @param bookingOpaque opaque information
@@ -66,10 +67,10 @@ public:
                   const XrdSecEntity* client,
                   XrdOucErrInfo* outError,
                   eos::common::LayoutId::eIoType io,
+                  uint16_t timeout,
                   bool storeRecovery,
                   off_t targetSize,
-                  std::string bookingOpaque,
-                  uint16_t timeout = 0);
+                  std::string bookingOpaque);
 
 
   //--------------------------------------------------------------------------

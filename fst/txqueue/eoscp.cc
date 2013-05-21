@@ -1698,7 +1698,7 @@ main (int argc, char* argv[])
 
         if (status.IsOK())
         {
-          //TODO: add timeout for all operations 
+          //TODO: add timeout for all XrdIo operations 
           status = file->Open(location, SFS_O_RDWR, st[i].st_mode, "");
 
         }

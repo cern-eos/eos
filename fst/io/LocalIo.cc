@@ -282,7 +282,7 @@ LocalIo::Close (uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-LocalIo::Remove ()
+LocalIo::Remove (uint16_t timeout)
 {
   struct stat buf;
 

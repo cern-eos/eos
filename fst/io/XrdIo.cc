@@ -395,10 +395,10 @@ XrdIo::FindBlock(uint64_t offset)
 
 int64_t
 XrdIo::Write (XrdSfsFileOffset offset,
-                  const char* buffer,
-                  XrdSfsXferSize length,
-                  void* pFileHandler,
-                  uint16_t timeout)
+              const char* buffer,
+              XrdSfsXferSize length,
+              void* pFileHandler,
+              uint16_t timeout)
 {
   eos_debug("offset = %llu, length = %lu",
             static_cast<uint64_t> (offset),
@@ -409,6 +409,13 @@ XrdIo::Write (XrdSfsFileOffset offset,
 
   handler = static_cast<AsyncMetaHandler*> (pFileHandler)->Register(offset, length,
                                                                     buffer, true);
+
+  // If previous write requests failed then we won't get a new handler
+  // and we return directly an error
+  if (!handler)
+  {
+    return SFS_ERROR;    
+  }
   
   // Obs: Use the handler buffer for write requests
   status = mXrdFile->Write(static_cast<uint64_t> (offset),
@@ -547,12 +554,12 @@ XrdIo::Close (uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-XrdIo::Remove ()
+XrdIo::Remove (uint16_t timeout)
 {
   //............................................................................
   // Remove the file by truncating using the special value offset
   //............................................................................
-  XrdCl::XRootDStatus status = mXrdFile->Truncate(EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN);
+  XrdCl::XRootDStatus status = mXrdFile->Truncate(EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN, timeout);
 
   if (!status.IsOK())
   {

@@ -220,12 +220,14 @@ public:
   //--------------------------------------------------------------------------
   //! Remove file
   //!
+  //! @param timeout timeout value
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
 
   virtual int
-  Remove ()
+  Remove (uint16_t timeout = 0)
   {
     return 0;
   }
