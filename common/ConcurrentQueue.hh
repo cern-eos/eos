@@ -46,7 +46,7 @@ public:
   ConcurrentQueue();
   ~ConcurrentQueue();
 
-  size_t getSize();
+  size_t size();
   void push(Data& data);
   bool push_size(Data &data, size_t max_size);
 
@@ -91,7 +91,7 @@ ConcurrentQueue<Data>::~ConcurrentQueue()
 //------------------------------------------------------------------------------
 template <typename Data>
 size_t
-ConcurrentQueue<Data>::getSize()
+ConcurrentQueue<Data>::size()
 {
   size_t size = 0;
   pthread_mutex_lock(&mutex);

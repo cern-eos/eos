@@ -237,6 +237,14 @@ XrdIo::Read (XrdSfsFileOffset offset,
   {
     handler = static_cast<AsyncMetaHandler*> (pFileHandler)->Register(offset, length,
                                                                       NULL, false);
+
+    // If previous read requests failed then we won't get a new handler
+    // and we return directly an error
+    if (!handler)
+    {
+      return SFS_ERROR;    
+    }
+    
     status = mXrdFile->Read(static_cast<uint64_t> (offset),
                             static_cast<uint32_t> (length),
                             buffer,
@@ -278,7 +286,7 @@ XrdIo::Read (XrdSfsFileOffset offset,
           }
 
           eos_debug("Prefetch new block(2).");
-          PrefetchBlock(offset + mBlocksize, false);
+          PrefetchBlock(offset + mBlocksize, false, timeout);
         }
         
         if (sh->WaitOK())
@@ -321,7 +329,7 @@ XrdIo::Read (XrdSfsFileOffset offset,
         if (!mQueueBlocks.empty())
         {
           eos_debug("Prefetch new block(1).");
-          PrefetchBlock(offset, false);
+          PrefetchBlock(offset, false, timeout);
         }
       }
     }
@@ -331,9 +339,17 @@ XrdIo::Read (XrdSfsFileOffset offset,
     //..........................................................................
     if (length)
     {
-      eos_debug("Readahead not useful, use the classic way for the rest fo the block.");
+      eos_debug("Readahead not useful, use the classic way for the rest of the block.");
       handler = static_cast<AsyncMetaHandler*> (pFileHandler)->Register(offset, length,
                                                                         NULL, false);
+
+      // If previous read requests failed then we won't get a new handler
+      // and we return directly an error
+      if (!handler)
+      {
+        return SFS_ERROR;    
+      }
+      
       status = mXrdFile->Read(static_cast<uint64_t> (offset),
                               static_cast<uint32_t> (length),
                               pBuff,

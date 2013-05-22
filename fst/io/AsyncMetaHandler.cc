@@ -30,7 +30,7 @@
 EOSFSTNAMESPACE_BEGIN
 
 ///! maximum number of obj in cache used for recycling
-const unsigned int AsyncMetaHandler::msMaxNumAsyncObj = 10;
+const unsigned int AsyncMetaHandler::msMaxNumAsyncObj = 20;
 
 
 //------------------------------------------------------------------------------
@@ -80,7 +80,7 @@ AsyncMetaHandler::Register (uint64_t offset,
   ChunkHandler* ptr_chunk = NULL;
   mCond.Lock();  // -->
 
-  //If the previous write requests failed then stop trying and return an error
+  //If any of the the previous requests failed then stop trying and return an error
   if (!mState)
   {
     mCond.UnLock(); // <--
@@ -89,7 +89,7 @@ AsyncMetaHandler::Register (uint64_t offset,
 
   mAsyncReq++;
   
-  if (mAsyncReq >= msMaxNumAsyncObj)
+  if (mQRecycle.size() + mAsyncReq >= msMaxNumAsyncObj)
   {
     mCond.UnLock();   // <--    
     mQRecycle.wait_pop(ptr_chunk);
