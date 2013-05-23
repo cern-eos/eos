@@ -90,9 +90,11 @@ std::vector<AccessType> dst_type; ///< vector of destination type access
 
 int verbose = 0;
 int debug = 0;
+int monitoring = 0;
 int trylocal = 0;
 int progbar = 1;
 int summary = 1;
+int nopio = 0;
 
 unsigned long long targetsize = 0;
 int euid = -1;
@@ -165,10 +167,11 @@ char *destination[MAXSRCDST];
 void
 usage ()
 {
-  fprintf(stderr, "Usage: %s [-5] [-X <type>] [-t <mb/s>] [-h] [-v] [-d] [-l] [-b <size>] [-T <size>] [-Y] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-O <filename>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n", PROGRAM);
+  fprintf(stderr, "Usage: %s [-5] [-0] [-X <type>] [-t <mb/s>] [-h] [-v] [-V] [-d] [-l] [-b <size>] [-T <size>] [-Y] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-O <filename>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n", PROGRAM);
   fprintf(stderr, "       -h           : help\n");
   fprintf(stderr, "       -d           : debug mode\n");
   fprintf(stderr, "       -v           : verbose mode\n");
+  fprintf(stderr, "       -V           : write summary as key value pairs\n");
   fprintf(stderr, "       -l           : try to force the destination to the local disk server [not supported]\n");
   fprintf(stderr, "       -a           : append to the file rather than truncate an existing file\n");
   fprintf(stderr, "       -b <size>    : use <size> as buffer size for copy operations\n");
@@ -197,6 +200,7 @@ usage ()
   fprintf(stderr, "       -f           : RAID layouts - store the modifications in case of errors\n");
   fprintf(stderr, "       -c           : RAID layouts - force check and recover any corruptions in any stripe\n");
   fprintf(stderr, "       -Y           : RAID layouts - streaming file\n");
+  fprintf(stderr, "       -0           : RAID layouts - don't use parallel IO mode\n");
 
   exit(-1);
 }
@@ -268,15 +272,29 @@ print_summary_header (VectLocationType& src,
   struct tm* timeinfo;
   time(&rawtime);
   timeinfo = localtime(&rawtime);
+  XrdOucString astime = asctime(timeinfo);
+  astime.erase(astime.length()-1);
 
-  COUT(("[eoscp] #################################################################\n"));
-  COUT(("[eoscp] # Date                     : ( %lu ) %s", (unsigned long) rawtime, asctime(timeinfo)));
-  COUT(("[eoscp} # auth forced=%s krb5=%s gsi=%s\n", getenv("XrdSecPROTOCOL") ? (getenv("XrdSecPROTOCOL")) : "<none>", getenv("KRB5CCNAME") ? getenv("KRB5CCNAME") : "<none>", getenv("X509_USER_PROXY") ? getenv("X509_USER_PROXY") : "<none>"));
-  for (unsigned int i = 0; i < src.size(); i++)
-    COUT(("[eoscp] # Source Name [%02d]         : %s\n", i, xsrc[i].c_str()));
-
-  for (unsigned int i = 0; i < dst.size(); i++)
-    COUT(("[eoscp] # Destination Name [%02d]    : %s\n", i, xdst[i].c_str()));
+  if (!monitoring) 
+  {
+    COUT(("[eoscp] #################################################################\n"));
+    COUT(("[eoscp] # Date                     : ( %lu ) %s", (unsigned long) rawtime, astime.c_str()));
+    COUT(("[eoscp} # auth forced=%s krb5=%s gsi=%s\n", getenv("XrdSecPROTOCOL") ? (getenv("XrdSecPROTOCOL")) : "<none>", getenv("KRB5CCNAME") ? getenv("KRB5CCNAME") : "<none>", getenv("X509_USER_PROXY") ? getenv("X509_USER_PROXY") : "<none>"));
+    for (unsigned int i = 0; i < src.size(); i++)
+      COUT(("[eoscp] # Source Name [%02d]         : %s\n", i, xsrc[i].c_str()));
+    
+    for (unsigned int i = 0; i < dst.size(); i++)
+      COUT(("[eoscp] # Destination Name [%02d]    : %s\n", i, xdst[i].c_str()));
+  } 
+  else 
+  {
+    COUT(("unixtime=%lu date=\"%s\" auth=\"%s\" " , (unsigned long) rawtime, astime.c_str(), getenv("XrdSecPROTOCOL")));
+    for (unsigned int i = 0; i < src.size(); i++)
+      COUT(("src_%d=%s ", i, xsrc[i].c_str()));
+    
+    for (unsigned int i = 0; i < dst.size(); i++)
+      COUT(("dst_%d=%s ", i, xdst[i].c_str()));
+  }
 }
 
 
@@ -328,39 +346,78 @@ print_summary (VectLocationType& src,
     }
   }
 
-  COUT(("[eoscp] # Data Copied [bytes]      : %lld\n", bytesread));
-
-  if (ndst > 1)
+  if (!monitoring)
   {
-    COUT(("[eoscp] # Tot. Data Copied [bytes] : %lld\n", bytesread * ndst));
+    COUT(("[eoscp] # Data Copied [bytes]      : %lld\n", bytesread));
+    
+    if (ndst > 1)
+    {
+      COUT(("[eoscp] # Tot. Data Copied [bytes] : %lld\n", bytesread * ndst));
+    }
+    
+    COUT(("[eoscp] # Realtime [s]             : %f\n", abs_time / 1000.0));
+    
+    if (abs_time > 0)
+    {
+      COUT(("[eoscp] # Eff.Copy. Rate[MB/s]     : %f\n", bytesread / abs_time / 1000.0));
+    }
+
+    if (bandwidth)
+    {
+      COUT(("[eoscp] # Bandwidth[MB/s]          : %d\n", (int) bandwidth));
+    }
+
+    if (computeXS)
+    {
+      COUT(("[eoscp] # Checksum Type %s        : ", xsString.c_str()));
+      COUT(("%s", xsObj->GetHexChecksum()));
+      COUT(("\n"));
+    }
+
+    COUT(("[eoscp] # Write Start Position     : %lld\n", startwritebyte));
+    COUT(("[eoscp] # Write Stop  Position     : %lld\n", stopwritebyte));
+
+    if (startbyte >= 0)
+    {
+      COUT(("[eoscp] # Read  Start Position     : %lld\n", startbyte));
+      COUT(("[eoscp] # Read  Stop  Position     : %lld\n", stopbyte));
+    }
   }
-
-  COUT(("[eoscp] # Realtime [s]             : %f\n", abs_time / 1000.0));
-
-  if (abs_time > 0)
+  else 
   {
-    COUT(("[eoscp] # Eff.Copy. Rate[MB/s]     : %f\n", bytesread / abs_time / 1000.0));
-  }
+    COUT(("bytes_copied=%lld ", bytesread));
+    
+    if (ndst > 1)
+    {
+      COUT(("totalbytes_copied=%lld ", bytesread * ndst));
+    }
+    
+    COUT(("realtime=%.02f ", abs_time / 1000.0));
+    
+    if (abs_time > 0)
+    {
+      COUT(("copy_rate=%f ", bytesread / abs_time / 1000.0));
+    }
 
-  if (bandwidth)
-  {
-    COUT(("[eoscp] # Bandwidth[MB/s]          : %d\n", (int) bandwidth));
-  }
+    if (bandwidth)
+    {
+      COUT(("bandwidth=%d ", (int) bandwidth));
+    }
 
-  if (computeXS)
-  {
-    COUT(("[eoscp] # Checksum Type %s        : ", xsString.c_str()));
-    COUT(("%s", xsObj->GetHexChecksum()));
-    COUT(("\n"));
-  }
+    if (computeXS)
+    {
+      COUT(("checksum_type=%s ", xsString.c_str()));
+      COUT(("checksum=%s ", xsObj->GetHexChecksum()));
+    }
 
-  COUT(("[eoscp] # Write Start Position     : %lld\n", startwritebyte));
-  COUT(("[eoscp] # Write Stop  Position     : %lld\n", stopwritebyte));
+    COUT(("write_start=%lld ", startwritebyte));
+    COUT(("write_stop=%lld ", stopwritebyte));
 
-  if (startbyte >= 0)
-  {
-    COUT(("[eoscp] # Read  Start Position     : %lld\n", startbyte));
-    COUT(("[eoscp] # Read  Stop  Position     : %lld\n", stopbyte));
+    if (startbyte >= 0)
+    {
+      COUT(("read_start=%lld ", startbyte));
+      COUT(("read_stop=%lld ", stopbyte));
+    }
   }
 }
 
@@ -449,12 +506,16 @@ main (int argc, char* argv[])
   extern char* optarg;
   extern int optind;
 
-  while ((c = getopt(argc, argv, "nshdvlipfce:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:O:")) != -1)
+  while ((c = getopt(argc, argv, "nshdvlipfce:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:O:V0")) != -1)
   {
     switch (c)
     {
     case 'v':
       verbose = 1;
+      break;
+      
+    case 'V':
+      monitoring = 1;
       break;
 
     case 'd':
@@ -555,6 +616,9 @@ main (int argc, char* argv[])
         fprintf(stderr, "error: number of parity stripes >= 2\n");
         exit(-1);
       }
+      break;
+    case '0':
+      nopio = true;
       break;
     case 'O':
       progressFile = optarg;
@@ -738,7 +802,7 @@ main (int argc, char* argv[])
 
     if (verbose || debug)
     {
-      fprintf(stdout, "src<%d>=%s ", i, location.c_str());
+      fprintf(stdout, "[eoscp] src<%d>=%s ", i, location.c_str());
     }
   }
 
@@ -823,7 +887,10 @@ main (int argc, char* argv[])
         if (file_path.find("//eos/") != std::string::npos)
         {
           // for any other URL it does not make sense to do the PIO access
-          doPIO = true;
+	  if (!nopio) 
+          { 
+	    doPIO = true; 
+	  }
         }
 
         size_t spos = file_path.rfind("//");
@@ -883,7 +950,7 @@ main (int argc, char* argv[])
           //.....................................................................
           if (verbose || debug)
           {
-            fprintf(stderr, "[eoscp] having PIO_ACCESS for source location %i...\n", i);
+            fprintf(stderr, "[eoscp] having PIO_ACCESS for source location=%i size=%llu n", i, (unsigned long long)st[0].st_size);
           }
 
           XrdOucString tag;
@@ -922,7 +989,8 @@ main (int argc, char* argv[])
               replicationType = "raidDP";
             }
             else
-              if (eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kArchive)
+              if ( (eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kArchive) ||
+		   (eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kRaid6) )
             {
               src_location.clear();
               replicationType = "reedS";
@@ -1151,7 +1219,7 @@ main (int argc, char* argv[])
 
       if (!isRaidTransfer && stat_failed)
       {
-        fprintf(stderr, "error: cannot stat source %s\n", src_location[i].second.c_str());
+        fprintf(stderr, "error: cannot stat source %s[%s]\n", src_location[i].first.c_str(), src_location[i].second.c_str());
         exit(-ENOENT);
       }
     }
@@ -1482,7 +1550,6 @@ main (int argc, char* argv[])
           fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags);
         }
 
-	fprintf(stderr,"opening opaque=%s\n", opaqueInfo.c_str());
         if (redundancyObj->OpenPio(vectUrl, flags, mode_sfs, opaqueInfo.c_str()))
         {
           fprintf(stderr, "error: can not open RAID object for read/write\n");
@@ -1803,14 +1870,17 @@ main (int argc, char* argv[])
     {
     case LOCAL_ACCESS:
     {
-      chmod_failed = chmod(dst_location[i].second.c_str(), dest_mode[i]);
-
-      if (getuid() == 0)
+      if (dst_location[i].second.substr(0,5) != "/dev/") 
       {
-        chown_failed = chown(dst_location[i].second.c_str(), st[0].st_uid, st[0].st_gid);
+        chmod_failed = chmod(dst_location[i].second.c_str(), dest_mode[i]);
+
+        if (getuid() == 0)
+        {
+          chown_failed = chown(dst_location[i].second.c_str(), st[0].st_uid, st[0].st_gid);
+        }
       }
     }
-      break;
+    break;
 
     case RAID_ACCESS:
     case XRD_ACCESS:
