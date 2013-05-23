@@ -333,7 +333,6 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
   XrdOucString host = "";
   XrdOucString stident = "tident:";
   stident += "\"";
-  stident += ReduceTident(vid.tident, wildcardtident, mytident, host);
   myrole = mytident;
   myrole.erase(mytident.find("@"));
 
@@ -580,7 +579,7 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
   // Check if we are allowed to take sel_uid & sel_gid
   // ---------------------------------------------------------------------------
   if (!vid.sudoer) {
-    // if we are not a sudore, scan the allowed ids
+    // if we are not a sudoer, scan the allowed ids
     if (HasUid(sel_uid, vid.uid_list))
       vid.uid = sel_uid;
     else 
