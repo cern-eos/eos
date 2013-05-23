@@ -30,7 +30,7 @@
 EOSFSTNAMESPACE_BEGIN
 
 ///! maximum number of obj in cache used for recycling
-const unsigned int AsyncMetaHandler::msMaxNumAsyncObj = 10;
+const unsigned int AsyncMetaHandler::msMaxNumAsyncObj = 20;
 
 
 //------------------------------------------------------------------------------
@@ -79,9 +79,17 @@ AsyncMetaHandler::Register (uint64_t offset,
 {
   ChunkHandler* ptr_chunk = NULL;
   mCond.Lock();  // -->
+
+  //If any of the the previous requests failed then stop trying and return an error
+  if (!mState)
+  {
+    mCond.UnLock(); // <--
+    return NULL;
+  }
+
   mAsyncReq++;
- 
-  if (mAsyncReq >= msMaxNumAsyncObj)
+  
+  if (mQRecycle.size() + mAsyncReq >= msMaxNumAsyncObj)
   {
     mCond.UnLock();   // <--    
     mQRecycle.wait_pop(ptr_chunk);
@@ -108,6 +116,7 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 {
   mCond.Lock(); // -->
 
+  // See next comment for motivation
   if (mChunkToDelete)
   {
     delete mChunkToDelete;
@@ -118,6 +127,15 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
   {
     mMapErrors.insert(std::make_pair(chunk->GetOffset(), chunk->GetLength()));
     mState = false;
+
+    //fprintf(stderr, "Got error message with staus:%u, code:%u, errNo:%lu. \n",
+    //        pStatus->status, pStatus->code, (unsigned long)pStatus->errNo);
+
+    if (pStatus->code == XrdCl::errOperationExpired)
+    {
+      //fprintf(stderr, "Got a timeout error for request off=%zu, len=%lu \n",
+      //        chunk->GetOffset(), (unsigned long)chunk->GetLength());
+    }    
   }
 
   if (--mAsyncReq == 0)
@@ -156,12 +174,13 @@ bool
 AsyncMetaHandler::WaitOK ()
 {
   mCond.Lock();   // -->
+  
   while (mAsyncReq > 0)
   {
     mCond.Wait();
   }
-  mCond.UnLock(); // <--
 
+  mCond.UnLock(); // <--
   return mState;
 }
 

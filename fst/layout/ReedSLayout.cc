@@ -43,11 +43,12 @@ ReedSLayout::ReedSLayout (XrdFstOfsFile* file,
                           const XrdSecEntity* client,
                           XrdOucErrInfo* outError,
                           eos::common::LayoutId::eIoType io,
+                          uint16_t timeout,
                           bool storeRecovery,
                           off_t targetSize,
                           std::string bookingOpaque) :
-RaidMetaLayout (file, lid, client, outError, io,
-                storeRecovery, targetSize, bookingOpaque)
+    RaidMetaLayout (file, lid, client, outError, io, timeout,
+                    storeRecovery, targetSize, bookingOpaque)
 {
   mNbDataBlocks = mNbDataFiles;
   mNbTotalBlocks = mNbDataFiles + mNbParityFiles;

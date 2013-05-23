@@ -42,10 +42,10 @@ RaidMetaLayout::RaidMetaLayout (XrdFstOfsFile* file,
                                 const XrdSecEntity* client,
                                 XrdOucErrInfo* outError,
                                 eos::common::LayoutId::eIoType io,
+                                uint16_t timeout,
                                 bool storeRecovery,
                                 off_t targetSize,
-                                std::string bookingOpaque,
-                                uint16_t timeout) :
+                                std::string bookingOpaque) :
   Layout (file, lid, client, outError, io, timeout),
 mIsRw (false),
 mIsOpen (false),
@@ -948,7 +948,7 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
        if (nbytes != nwrite)
        {
          eos_err("error=failed while write operation");
-         write_length = -1;
+         write_length = SFS_ERROR;
          break;
        }
      }
@@ -1391,7 +1391,7 @@ RaidMetaLayout::Remove ()
     //..........................................................................
     for (unsigned int i = 1; i < mStripeFiles.size(); i++)
     {
-      if (mStripeFiles[i] && mStripeFiles[i]->Remove())
+      if (mStripeFiles[i] && mStripeFiles[i]->Remove(mTimeout))
       {
         eos_err("error=failed to remove remote stripe %i", i);
         ret = SFS_ERROR;
@@ -1402,7 +1402,7 @@ RaidMetaLayout::Remove ()
   //..........................................................................
   // Unlink local stripe
   //..........................................................................
-  if (mStripeFiles[0] && mStripeFiles[0]->Remove())
+  if (mStripeFiles[0] && mStripeFiles[0]->Remove(mTimeout))
   {
     eos_err("error=failed to remove local stripe");
     ret = SFS_ERROR;
