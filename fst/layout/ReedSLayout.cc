@@ -54,14 +54,6 @@ ReedSLayout::ReedSLayout (XrdFstOfsFile* file,
   mNbTotalBlocks = mNbDataFiles + mNbParityFiles;
   mSizeGroup = mNbDataFiles * mStripeWidth;
   mSizeLine = mSizeGroup;
-
-  //............................................................................
-  // Allocate memory for blocks
-  //............................................................................
-  for (unsigned int i = 0; i < mNbTotalFiles; i++)
-  {
-    mDataBlocks.push_back(new char[mStripeWidth]);
-  }
 }
 
 
@@ -71,12 +63,7 @@ ReedSLayout::ReedSLayout (XrdFstOfsFile* file,
 
 ReedSLayout::~ReedSLayout ()
 {
-  while (!mDataBlocks.empty())
-  {
-    char* ptr_char = mDataBlocks.back();
-    mDataBlocks.pop_back();
-    delete[] ptr_char;
-  }
+  // empty 
 }
 
 

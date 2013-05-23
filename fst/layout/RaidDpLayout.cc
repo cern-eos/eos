@@ -56,14 +56,6 @@ RaidDpLayout::RaidDpLayout (XrdFstOfsFile* file,
   mNbTotalBlocks = mNbDataBlocks + 2 * mNbDataFiles;
   mSizeGroup = mNbDataBlocks * mStripeWidth;
   mSizeLine = mNbDataFiles * mStripeWidth;
-
-  //............................................................................
-  // Allocate memory for blocks
-  //............................................................................
-  for (unsigned int i = 0; i < mNbTotalBlocks; i++)
-  {
-    mDataBlocks.push_back(new char[mStripeWidth]);
-  }
 }
 
 
@@ -73,12 +65,7 @@ RaidDpLayout::RaidDpLayout (XrdFstOfsFile* file,
 
 RaidDpLayout::~RaidDpLayout ()
 {
-  while (!mDataBlocks.empty())
-  {
-    char* ptr_char = mDataBlocks.back();
-    mDataBlocks.pop_back();
-    delete[] ptr_char;
-  }
+  // empty
 }
 
 
