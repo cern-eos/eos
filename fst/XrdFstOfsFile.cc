@@ -37,7 +37,7 @@ extern XrdOssSys* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
-const uint16_t XrdFstOfsFile::msDefaultTimeout = 5; // default timeout value
+const uint16_t XrdFstOfsFile::msDefaultTimeout = 60; // default timeout value
 
 //------------------------------------------------------------------------------
 // Constructor
