@@ -712,7 +712,7 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
 
     if (error)
     {
-      gOFS.Emsg(epname, *error, ENOMEM, "allocate FS object during close of fn=", path);
+      gOFS.Emsg(epname, *error, ENOMEM, "allocate FS object calling the manager node for fn=", path);
     }
 
     return EINVAL;
