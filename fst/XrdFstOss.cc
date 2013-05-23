@@ -631,7 +631,7 @@ XrdFstOss::DropXs (const std::string& fileName, bool force)
 {
   XrdSysRWLockHelper wr_lock(mRWMap, 0); // --> wrlock map
   std::pair<XrdSysRWLock*, CheckSum*> pair_value;
-  eos_debug("\nOss map size before drop: %i.\n", mMapFileXs.size());
+  eos_debug("Oss map size before drop: %i.", mMapFileXs.size());
 
   if (mMapFileXs.count(fileName))
   {
@@ -640,7 +640,7 @@ XrdFstOss::DropXs (const std::string& fileName, bool force)
     // If no refs to the checksum, we can safely delete it
     //..........................................................................
     pair_value.first->WriteLock(); // --> wrlock xs obj
-    eos_debug("\nXs obj no ref: %i.\n", pair_value.second->GetTotalRef());
+    eos_debug("Xs obj no ref: %i.", pair_value.second->GetTotalRef());
 
     if ((pair_value.second->GetTotalRef() == 0) || force)
     {
@@ -656,7 +656,7 @@ XrdFstOss::DropXs (const std::string& fileName, bool force)
     }
   }
 
-  eos_debug("\nOss map size after drop: %i.\n", mMapFileXs.size());
+  eos_debug("Oss map size after drop: %i.", mMapFileXs.size());
 }
 
 
