@@ -34,7 +34,7 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-const uint64_t ReadaheadBlock::sDefaultBlocksize = 1024 * 1024; ///< 1MB default
+const uint64_t ReadaheadBlock::sDefaultBlocksize = 1 *1024 * 1024; ///< 1MB default
 const uint32_t XrdIo::sNumRdAheadBlocks = 2;
 
 //------------------------------------------------------------------------------
@@ -158,7 +158,7 @@ XrdIo::Read (XrdSfsFileOffset offset,
                  XrdSfsXferSize length,
                  uint16_t timeout)
 {
-  eos_debug("offset = %llu, length = %llu",
+  eos_debug("offset=%llu length=%llu",
             static_cast<uint64_t> (offset),
             static_cast<uint64_t> (length));
 
@@ -189,9 +189,9 @@ XrdIo::Write (XrdSfsFileOffset offset,
               XrdSfsXferSize length,
               uint16_t timeout)
 {
-  eos_debug("offset = %llu, length = %lu",
+  eos_debug("offset=%llu length=%llu",
             static_cast<uint64_t> (offset),
-            static_cast<uint32_t> (length));
+            static_cast<uint64_t> (length));
 
   XrdCl::XRootDStatus status = mXrdFile->Write(static_cast<uint64_t> (offset),
                                                static_cast<uint32_t> (length),
@@ -220,9 +220,9 @@ XrdIo::Read (XrdSfsFileOffset offset,
                  bool readahead,
                  uint16_t timeout)
 {
-  eos_debug("offset = %llu, length = %li",
+  eos_debug("offset=%llu length=%llu",
             static_cast<uint64_t> (offset),
-            (long int) length);
+            static_cast<uint64_t> (length));
 
   int64_t nread = 0;
   char* pBuff = buffer;
@@ -403,7 +403,7 @@ XrdIo::Write (XrdSfsFileOffset offset,
                   void* pFileHandler,
                   uint16_t timeout)
 {
-  eos_debug("offset = %llu, length = %lu",
+  eos_debug("offset=%llu length=%lu",
             static_cast<uint64_t> (offset),
             static_cast<uint32_t> (length));
 
@@ -451,6 +451,7 @@ XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 int
 XrdIo::Sync (uint16_t timeout)
 {
+  eos_debug("Calling XrdIo::Sync with timeout = %lu", timeout);
   XrdCl::XRootDStatus status = mXrdFile->Sync(timeout);
 
   if (!status.IsOK())
