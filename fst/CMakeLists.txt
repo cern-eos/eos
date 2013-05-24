@@ -214,12 +214,12 @@ add_executable( eos-adler32
                 checksum/crc32ctables.cc 
 )
 
-#add_executable( eoscp 
-#		txqueue/eoscp.cc
-#		../common/Logging.cc
-#		../common/Attr.cc
-#		io/FileIoPlugin.cc
-#)
+add_executable( eoscp 
+		txqueue/eoscp.cc
+		../common/Logging.cc
+		../common/Attr.cc
+		io/FileIoPlugin.cc
+)
 
 #set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 
@@ -257,8 +257,7 @@ INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR}
                   eos-scan-fs 
 )
 
-install( TARGETS EosFstOss XrdEosFst 
-	 #eoscp
+install( TARGETS EosFstOss XrdEosFst eoscp
        	 LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
