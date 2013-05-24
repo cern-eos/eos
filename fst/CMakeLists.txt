@@ -41,7 +41,7 @@ add_library( EosFstOss MODULE
 
 target_link_libraries( EosFstOss 
 		       eosCapability-Static
-		       eosCommon-Static
+		       eosCommon
 		       XrdServer	      
 		       ${UUID_LIBRARIES}
 )
@@ -69,7 +69,7 @@ add_library( EosFstIo-Static STATIC
 )
 
 target_link_libraries( EosFstIo-Static
-		       eosCommon-Static
+		       eosCommon
 		       XrdCl	
 		       XrdUtils 
 		       crypto                  curses                   
@@ -150,7 +150,7 @@ add_library( XrdEosFst-Static STATIC
 
 target_link_libraries( XrdEosFst 
 		       eosCapability-Static    eosCommon-Static
-		       eosCommonServer-Static  
+		       eosCommonServer
 		       XrdMqClient-Static      XrdCl	
 		       XrdUtils                XrdOfs 
 		       crypto                  curses                   
@@ -214,21 +214,21 @@ add_executable( eos-adler32
                 checksum/crc32ctables.cc 
 )
 
-add_executable( eoscp 
-		txqueue/eoscp.cc
-		../common/Logging.cc
-		../common/Attr.cc
-		io/FileIoPlugin.cc
-)
+#add_executable( eoscp 
+#		txqueue/eoscp.cc
+#		../common/Logging.cc
+#		../common/Attr.cc
+#		io/FileIoPlugin.cc
+#)
 
-set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
+#set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 
 target_link_libraries( FstLoad XrdUtils dl ${RT_LIBRARIES}  )
 target_link_libraries( eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-compute-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-scan-fs eosCommon eosCommonServer XrdCl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
 target_link_libraries( eos-adler32 eosCommon ${CMAKE_THREAD_LIBS_INIT} ) 
-target_link_libraries( eoscp XrdCl EosFstIo-Static eosCommon-Static )
+#target_link_libraries( eoscp XrdCl EosFstIo-Static eosCommon-Static )
 
 if (Linux)
   set_target_properties (XrdEosFst PROPERTIES
@@ -257,7 +257,8 @@ INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR}
                   eos-scan-fs 
 )
 
-install( TARGETS EosFstOss XrdEosFst eoscp
+install( TARGETS EosFstOss XrdEosFst 
+	 #eoscp
        	 LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}

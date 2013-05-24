@@ -1415,11 +1415,14 @@ main (int argc, char* argv[])
             mkdir_failed = mkdir(const_cast<char*> (subpath.c_str()), mode);
 
             //..................................................................
-            // The root user can also set the user/group as in the source location
+            // The root user can also set the user/group as in the target location
             //..................................................................
             if (getuid() == 0)
             {
-              chown_failed = chown(const_cast<char*> (subpath.c_str()), st[0].st_uid, st[0].st_gid);
+	      if (!subpath.beginswith("/dev/")) 
+              {
+		chown_failed = chown(const_cast<char*> (subpath.c_str()), st[0].st_uid, st[0].st_gid);
+	      }
             }
           }
         }
