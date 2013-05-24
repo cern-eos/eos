@@ -57,13 +57,16 @@ AsyncMetaHandler::~AsyncMetaHandler ()
   while (mQRecycle.try_pop(ptr_chunk))
   {
     delete ptr_chunk;
+    ptr_chunk = 0;
   }
-
+  
   if (mChunkToDelete)
   {
     delete mChunkToDelete;
-    mChunkToDelete = NULL;
+    mChunkToDelete = 0;
   }
+
+  mMapErrors.clear();
 }
 
 
