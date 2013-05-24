@@ -162,7 +162,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-  virtual int Fallocate (XrdSfsFileOffset lenght);
+  virtual int Fallocate (XrdSfsFileOffset lenght) = 0;
 
 
   //--------------------------------------------------------------------------
@@ -175,7 +175,7 @@ public:
   //!
   //--------------------------------------------------------------------------
   virtual int Fdeallocate (XrdSfsFileOffset fromOffset,
-                           XrdSfsFileOffset toOffset);
+                           XrdSfsFileOffset toOffset) = 0;
 
 
   //--------------------------------------------------------------------------

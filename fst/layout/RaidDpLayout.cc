@@ -971,48 +971,69 @@ RaidDpLayout::GetDParityBlock (std::vector<unsigned int>& rStripe)
 int
 RaidDpLayout::Truncate (XrdSfsFileOffset offset)
 {
-  eos_debug("_");
+  eos_debug("offset = %lli", offset);
   int rc = SFS_OK;
   off_t truncate_offset = 0;
 
-  if (!offset) return rc;
-
   truncate_offset = ceil((offset * 1.0) / mSizeGroup) * mSizeLine;
   truncate_offset += mSizeHeader;
+  
   if (mStripeFiles[0])
   {
     mStripeFiles[0]->Truncate(truncate_offset, mTimeout);
   }
-
+    
   eos_debug("Truncate local stripe to file_offset = %lli, stripe_offset = %zu",
             offset, truncate_offset);
-
+  
   if (mIsEntryServer)
   {
-    if (!mIsPio)
+    /*
+    // TODO: write 0's rather than truncate
+    if (offset > mFileSize) 
     {
-      //........................................................................
-      // In non PIO access each stripe will compute its own truncate value
-      //........................................................................
-      truncate_offset = offset;
-    }
+      off_t file_off_align = ceil((1.0 * offset) / mSizeGroup) * mSizeGroup;
+      off_t length = file_off_align - offset;
+      eos_debug("Truncate by writing 0's up to file_off_align=%zu length=%zu", file_off_align, length);
+      int64_t nwrite = 0;
+      int64_t nbytes = 0;
+      int64_t tmp_off = offset;
+      mDataBlocks[0] = static_cast<char*>(memset(mDataBlocks[0], 0, mStipeWidth));
 
-    for (unsigned int i = 1; i < mStripeFiles.size(); i++)
-    {
-      eos_debug("Truncate stripe %i, to file_offset = %lli, stripe_offset = %zu",
-                i, offset, truncate_offset);
-
-      if (mStripeFiles[i])
+      while (length > 0)
       {
-        if (mStripeFiles[i]->Truncate(truncate_offset, mTimeout))
+        nbytes = (length > mStripeWidth) ? mStripeWidth : length;
+        nwrtie = Write(tmp_off, mDataStripes[0], nbytes); 
+        length -= nwrites;
+        tmp_off += tmp_off;     
+      }
+      }*/
+    //    else {
+    
+    if (!mIsPio)
+      {
+        //........................................................................
+        // In non PIO access each stripe will compute its own truncate value
+        //........................................................................
+        truncate_offset = offset;
+      }
+      
+      for (unsigned int i = 1; i < mStripeFiles.size(); i++)
+      {
+        eos_debug("Truncate stripe %i, to file_offset = %lli, stripe_offset = %zu",
+                  i, offset, truncate_offset);
+        
+        if (mStripeFiles[i])
         {
-          eos_err("error=error while truncating");
-          return SFS_ERROR;
+          if (mStripeFiles[i]->Truncate(truncate_offset, mTimeout))
+          {
+            eos_err("error=error while truncating");
+            return SFS_ERROR;
+          }
         }
       }
-    }
+   // }
   }
-
   //............................................................................
   // *!!!* Reset the maxOffsetWritten from XrdFstOfsFile to logical offset
   //............................................................................
@@ -1024,6 +1045,31 @@ RaidDpLayout::Truncate (XrdSfsFileOffset offset)
   }
   return rc;
 }
+
+//--------------------------------------------------------------------------
+// Allocate file space ( reserve )
+//--------------------------------------------------------------------------
+int
+RaidDpLayout::Fallocate (XrdSfsFileOffset length)
+{
+  int64_t size = ceil( (1.0 * length) / mSizeGroup) * mSizeLine + mSizeHeader;
+  return mStripeFiles[0]->Fallocate(size);
+}
+
+
+//--------------------------------------------------------------------------
+// Deallocate file space
+//--------------------------------------------------------------------------
+int
+RaidDpLayout::Fdeallocate (XrdSfsFileOffset fromOffset,
+                           XrdSfsFileOffset toOffset)
+{
+  int64_t from_size = ceil( (1.0 * fromOffset) / mSizeGroup) * mSizeLine + mSizeHeader;
+  int64_t to_size = ceil( (1.0 * toOffset) / mSizeGroup) * mSizeLine + mSizeHeader;
+  return mStripeFiles[0]->Fdeallocate(from_size, to_size);
+}
+
+
 
 EOSFSTNAMESPACE_END
 

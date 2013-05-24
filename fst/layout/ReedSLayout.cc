@@ -611,5 +611,30 @@ ReedSLayout::MapSmallToBig (unsigned int idSmall)
   return idSmall;
 }
 
+
+//--------------------------------------------------------------------------
+// Allocate file space ( reserve )
+//--------------------------------------------------------------------------
+int
+ReedSLayout::Fallocate (XrdSfsFileOffset length)
+{
+  int64_t size = ceil( (1.0 * length) / mSizeGroup) * mStripeWidth + mSizeHeader;
+  return mStripeFiles[0]->Fallocate(size);
+}
+
+
+//--------------------------------------------------------------------------
+// Deallocate file space
+//--------------------------------------------------------------------------
+int
+ReedSLayout::Fdeallocate (XrdSfsFileOffset fromOffset,
+                          XrdSfsFileOffset toOffset)
+{
+  int64_t from_size = ceil( (1.0 * fromOffset) / mSizeGroup) * mStripeWidth + mSizeHeader;
+  int64_t to_size = ceil( (1.0 * toOffset) / mSizeGroup) * mStripeWidth + mSizeHeader;
+  return mStripeFiles[0]->Fdeallocate(from_size, to_size);
+}
+
+
 EOSFSTNAMESPACE_END
 

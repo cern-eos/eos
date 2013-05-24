@@ -215,7 +215,7 @@ RaidMetaLayout::Open (const std::string& path,
    errno = EIO;
    return SFS_ERROR;
  }
-
+   
  //........................................................................
  // Local stripe is always on the first position
  //........................................................................
@@ -1333,29 +1333,6 @@ RaidMetaLayout::SparseParityComputation (bool force)
  }
 
  return ret;
-}
-
-
-//--------------------------------------------------------------------------
-// Allocate file space ( reserve )
-//--------------------------------------------------------------------------
-
-int
-RaidMetaLayout::Fallocate (XrdSfsFileOffset length)
-{
- return mStripeFiles[0]->Fallocate(length);
-}
-
-
-//--------------------------------------------------------------------------
-// Deallocate file space
-//--------------------------------------------------------------------------
-
-int
-RaidMetaLayout::Fdeallocate (XrdSfsFileOffset fromOffset,
-                             XrdSfsFileOffset toOffset)
-{
- return mStripeFiles[0]->Fdeallocate(fromOffset, toOffset);
 }
 
 
