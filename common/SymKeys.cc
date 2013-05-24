@@ -238,7 +238,10 @@ SymKeyStore::SetKey64 (const char* inkey64, time_t invalidity)
     return 0;
   }
   if (outlen != SHA_DIGEST_LENGTH)
+  {
+    free(binarykey);
     return 0;
+  }
 
   return SetKey(binarykey, invalidity);
 }
@@ -256,6 +259,8 @@ SymKeyStore::SetKey (const char* inkey, time_t invalidity)
 
   Mutex.Lock();
   SymKey* key = SymKey::Create(inkey, invalidity);
+  free((void*)inkey);
+  
   if (!key)
   {
     return 0;

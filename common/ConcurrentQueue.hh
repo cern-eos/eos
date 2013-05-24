@@ -82,7 +82,6 @@ ConcurrentQueue<Data>::~ConcurrentQueue()
 {
   pthread_mutex_destroy(&mutex);
   pthread_cond_destroy(&cond);
-  queue.empty();
 }
 
 
