@@ -36,18 +36,21 @@ ChunkHandler::ChunkHandler (AsyncMetaHandler* metaHandler,
                             uint32_t length,
                             const char* buff,
                             bool isWrite) :
+XrdCl::ResponseHandler(),
 mBuffer(0),
 mMetaHandler (metaHandler),
 mOffset (offset),
 mLength (length),
-mCapacity (length),
+mCapacity (0),
 mRespLength (0),
 mIsWrite (isWrite),
 mErrorNo (0)
 {
-  if (isWrite)
+  if (mIsWrite)
   {
-    mBuffer = static_cast<char*>(calloc(length, sizeof(char)));
+    mCapacity = length;
+    mBuffer = static_cast<char*>(calloc(mCapacity, sizeof(char)));
+    
     if (mBuffer)
     {
       mBuffer = static_cast<char*>(memcpy(mBuffer, buff, length));
@@ -87,7 +90,7 @@ ChunkHandler::Update (AsyncMetaHandler* metaHandler,
   mIsWrite = isWrite;
   mErrorNo = 0;
 
-  if (isWrite)
+  if (mIsWrite)
   {
     if (length > mCapacity)
     {
@@ -129,13 +132,15 @@ ChunkHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
     }
   }
 
-  mMetaHandler->HandleResponse(pStatus, this);
-  delete pStatus;
-
   if (pResponse)
   {
     delete pResponse;
   }
+
+  XrdCl::XRootDStatus local_status(*pStatus);
+  delete pStatus;
+  
+  mMetaHandler->HandleResponse(&local_status, this);
 }
 
 EOSFSTNAMESPACE_END

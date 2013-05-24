@@ -90,7 +90,8 @@ RaidMetaLayout::~RaidMetaLayout ()
  {
    AsyncMetaHandler* meta_handler = mMetaHandlers.back();
    mMetaHandlers.pop_back();
-   delete meta_handler;
+   if (meta_handler)
+     delete meta_handler;
  }
 
  while (!mStripeFiles.empty())
@@ -100,6 +101,13 @@ RaidMetaLayout::~RaidMetaLayout ()
    delete file;
  }
 
+ while (!mDataBlocks.empty())
+ {
+   char* ptr_char = mDataBlocks.back();
+   mDataBlocks.pop_back();
+   delete[] ptr_char;
+ }
+ 
  delete[] mFirstBlock;
  delete[] mLastBlock;
 }
@@ -220,7 +228,7 @@ RaidMetaLayout::Open (const std::string& path,
 
  mStripeFiles.push_back(file);
  mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
- mMetaHandlers.push_back(new AsyncMetaHandler());
+ mMetaHandlers.push_back(NULL);
 
  //......................................................................
  // Read header information for the local file
@@ -250,6 +258,14 @@ RaidMetaLayout::Open (const std::string& path,
    std::vector<std::string> stripe_urls;
    mIsEntryServer = true;
 
+   //...........................................................................
+   // Allocate memory for blocks - used only by the entry server
+   //...........................................................................
+   for (unsigned int i = 0; i < mNbTotalBlocks; i++)
+   {
+     mDataBlocks.push_back(new char[mStripeWidth]);
+   }
+   
    //............................................................................
    // Assign stripe urls and check minimal requirements
    //............................................................................
@@ -300,9 +316,9 @@ RaidMetaLayout::Open (const std::string& path,
        stripe_urls[i] += remoteOpenPath.c_str();
        stripe_urls[i] += "?";
 
-       //......................................................................
+       //.......................................................................
        // Create the opaque information for the next stripe file
-       //......................................................................
+       //.......................................................................
        if ((val = mOfsFile->openOpaque->Get("mgm.replicaindex")))
        {
          XrdOucString oldindex = "mgm.replicaindex=";
@@ -322,9 +338,9 @@ RaidMetaLayout::Open (const std::string& path,
        FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kXrdCl,
                                                 mOfsFile, mSecEntity);
 
-       //....................................................................
+       //.......................................................................
        // Set the correct open flags for the stripe
-       //....................................................................
+       //.......................................................................
        if (mStoreRecovery || (flags & (SFS_O_RDWR | SFS_O_TRUNC)))
        {
          mIsRw = true;
@@ -445,9 +461,9 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
 {
  std::vector<std::string> stripe_urls = stripeUrls;
 
- //............................................................................
+ //.............................................................................
  // Do some minimal checkups
- //............................................................................
+ //.............................................................................
  if (mNbTotalFiles < 2)
  {
    eos_err("error=failed open layout - stripe size at least 2");
@@ -459,10 +475,18 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    eos_err("error=failed open layout - stripe width at least 64");
    return SFS_ERROR;
  }
- 
- //....................................................................
+
+ //.............................................................................
+ // Allocate memory for blocks - done only once
+ //.............................................................................
+ for (unsigned int i = 0; i < mNbTotalBlocks; i++)
+ {
+   mDataBlocks.push_back(new char[mStripeWidth]);
+ }
+  
+ //.............................................................................
  // Set the correct open flags for the stripe
- //....................................................................
+ //.............................................................................
  if (mStoreRecovery ||
      (flags & (SFS_O_CREAT | SFS_O_WRONLY | SFS_O_RDWR | SFS_O_TRUNC)))
  {
@@ -766,7 +790,10 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
      //........................................................................
      for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
      {
-       mMetaHandlers[i]->Reset();
+       if (mMetaHandlers[i])
+       {
+         mMetaHandlers[i]->Reset();
+       }
      }
 
      //........................................................................
@@ -833,7 +860,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
      // TODO: deal with the case when we receive a timeout error
      for (unsigned int j = 0; j < mMetaHandlers.size(); j++)
      {
-       if (!mMetaHandlers[j]->WaitOK())
+       if ((mMetaHandlers[j]) && (!mMetaHandlers[j]->WaitOK()))
        {
          map_tmp_errors = mMetaHandlers[j]->GetErrorsMap();
 
@@ -1144,13 +1171,16 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
  //..........................................................................
  for ( unsigned int i = 0; i < mMetaHandlers.size(); i++ )
  {
-   if ( !mMetaHandlers[i]->WaitOK() )
+   if (mMetaHandlers[i])
    {
-     eos_err("error=write failed in previous requests.");
-     return false;
-   }
+     if ( !mMetaHandlers[i]->WaitOK() )
+     {
+       eos_err("error=write failed in previous requests.");
+       return false;
+     }
 
-   mMetaHandlers[i]->Reset();
+     mMetaHandlers[i]->Reset();
+   }
  }
 
  for (unsigned int i = 0; i < mNbDataBlocks; i++)
@@ -1191,7 +1221,7 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
 
  for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
  {
-   if (!mMetaHandlers[i]->WaitOK())
+   if ((mMetaHandlers[i]) && (!mMetaHandlers[i]->WaitOK()))
    {
      eos_err("error=error while reading remote data blocks");
      ret = false;
@@ -1510,13 +1540,16 @@ RaidMetaLayout::Close ()
        // Collect all the write responses and reset all the handlers
        for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
        {
-         if (!mMetaHandlers[i]->WaitOK())
+         if (mMetaHandlers[i])
          {
-           eos_err("error=write failed in previous requests.");
-           rc = SFS_ERROR;
+           if (!mMetaHandlers[i]->WaitOK())
+           {
+             eos_err("error=write failed in previous requests.");
+             rc = SFS_ERROR;
+           }
+           
+           mMetaHandlers[i]->Reset();
          }
-         
-         mMetaHandlers[i]->Reset();
        }
        
        // Update the header information and write it to all stripes

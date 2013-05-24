@@ -56,14 +56,6 @@ RaidDpLayout::RaidDpLayout (XrdFstOfsFile* file,
   mNbTotalBlocks = mNbDataBlocks + 2 * mNbDataFiles;
   mSizeGroup = mNbDataBlocks * mStripeWidth;
   mSizeLine = mNbDataFiles * mStripeWidth;
-
-  //............................................................................
-  // Allocate memory for blocks
-  //............................................................................
-  for (unsigned int i = 0; i < mNbTotalBlocks; i++)
-  {
-    mDataBlocks.push_back(new char[mStripeWidth]);
-  }
 }
 
 
@@ -73,12 +65,7 @@ RaidDpLayout::RaidDpLayout (XrdFstOfsFile* file,
 
 RaidDpLayout::~RaidDpLayout ()
 {
-  while (!mDataBlocks.empty())
-  {
-    char* ptr_char = mDataBlocks.back();
-    mDataBlocks.pop_back();
-    delete[] ptr_char;
-  }
+  // empty
 }
 
 
@@ -252,7 +239,8 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   //............................................................................
   for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
   {
-    mMetaHandlers[i]->Reset();
+    if (mMetaHandlers[i])
+      mMetaHandlers[i]->Reset();
   }
 
   for (unsigned int i = 0; i < mNbTotalBlocks; i++)
@@ -294,7 +282,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   //............................................................................
   for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
   {
-    if (!mMetaHandlers[i]->WaitOK())
+    if ((mMetaHandlers[i]) && (!mMetaHandlers[i]->WaitOK()))
     {
       mapErrors = mMetaHandlers[i]->GetErrorsMap();
 
@@ -332,7 +320,8 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   //............................................................................
   for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
   {
-    mMetaHandlers[i]->Reset();
+    if (mMetaHandlers[i])
+      mMetaHandlers[i]->Reset();
   }
 
   while (!corrupt_ids.empty())
@@ -535,7 +524,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   //............................................................................
   for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
   {
-    if (!mMetaHandlers[i]->WaitOK())
+    if ((mMetaHandlers[i]) && (!mMetaHandlers[i]->WaitOK()))
     {
       eos_err("error=failed write on stripe %i", i);
       ret = false;
@@ -576,7 +565,7 @@ RaidDpLayout::AddDataBlock (off_t offset, const char* buffer, size_t length)
 
     for (unsigned int i = 0; i < mNbTotalBlocks; i++)
     {
-      memset(mDataBlocks[i], 0, mStripeWidth);
+      mDataBlocks[i] = static_cast<char*>(memset(mDataBlocks[i], 0, mStripeWidth));
     }
   }
 
@@ -609,7 +598,7 @@ RaidDpLayout::AddDataBlock (off_t offset, const char* buffer, size_t length)
 
       for (unsigned int i = 0; i < mNbTotalBlocks; i++)
       {
-        memset(mDataBlocks[i], 0, mStripeWidth);
+        mDataBlocks[i] = static_cast<char*>(memset(mDataBlocks[i], 0, mStripeWidth));
       }
     }
   }

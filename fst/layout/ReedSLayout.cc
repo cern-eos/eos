@@ -54,14 +54,6 @@ ReedSLayout::ReedSLayout (XrdFstOfsFile* file,
   mNbTotalBlocks = mNbDataFiles + mNbParityFiles;
   mSizeGroup = mNbDataFiles * mStripeWidth;
   mSizeLine = mSizeGroup;
-
-  //............................................................................
-  // Allocate memory for blocks
-  //............................................................................
-  for (unsigned int i = 0; i < mNbTotalFiles; i++)
-  {
-    mDataBlocks.push_back(new char[mStripeWidth]);
-  }
 }
 
 
@@ -71,12 +63,7 @@ ReedSLayout::ReedSLayout (XrdFstOfsFile* file,
 
 ReedSLayout::~ReedSLayout ()
 {
-  while (!mDataBlocks.empty())
-  {
-    char* ptr_char = mDataBlocks.back();
-    mDataBlocks.pop_back();
-    delete[] ptr_char;
-  }
+  // empty 
 }
 
 
@@ -142,7 +129,9 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
   for (unsigned int i = 0; i < mNbTotalFiles; i++)
   {
     physical_id = mapLP[i];
-    mMetaHandlers[physical_id]->Reset();
+
+    if (mMetaHandlers[physical_id])
+        mMetaHandlers[physical_id]->Reset();
 
     //........................................................................
     // Read data from stripe
@@ -181,7 +170,7 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
 
     if (physical_id)
     {
-      if (!mMetaHandlers[physical_id]->WaitOK())
+      if ((mMetaHandlers[physical_id]) && (!mMetaHandlers[physical_id]->WaitOK()))
       {
         eos_err("error=remote block corrupted id=%i", i);
         invalid_ids.push_back(i);
@@ -281,7 +270,9 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
 
     if (mStoreRecovery && mStripeFiles[physical_id])
     {
-      mMetaHandlers[physical_id]->Reset();
+      if (mMetaHandlers[physical_id])
+        mMetaHandlers[physical_id]->Reset();
+      
       nwrite = mStripeFiles[physical_id]->Write(offset_local,
                                                 mDataBlocks[stripe_id],
                                                 mStripeWidth,
@@ -327,7 +318,7 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
     iter != invalid_ids.end();
     ++iter)
   {
-    if (!mMetaHandlers[mapLP[*iter]]->WaitOK())
+    if ((mMetaHandlers[mapLP[*iter]]) && (!mMetaHandlers[mapLP[*iter]]->WaitOK()))
     {
       eos_err("ReedSRecovery - write stripe failed");
       ret = false;
