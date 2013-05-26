@@ -82,9 +82,6 @@ VectLocationType src_location;
 ///! vector of destination host address and path file
 VectLocationType dst_location;
 
-///! vector of async request handlers for the destination files
-std::vector<eos::fst::AsyncMetaHandler*> meta_handler;
-
 std::vector<AccessType> src_type; ///< vector of source type access
 std::vector<AccessType> dst_type; ///< vector of destination type access
 
@@ -1090,7 +1087,6 @@ main (int argc, char* argv[])
         // Here we rely on the fact that all destinations must be of the same type
         //.......................................................................
         dst_type.push_back(XRD_ACCESS);
-        meta_handler.push_back(new eos::fst::AsyncMetaHandler());
       }
     }
     else if (dst_location[i].second == "-")
@@ -2049,7 +2045,7 @@ main (int argc, char* argv[])
         // Do writes in async mode
         //......................................................................
         eos::common::Timing::GetTimeSpec(start);
-        status = dst_handler[i].second->Write(stopwritebyte, ptr_buffer, nread, meta_handler[i]);
+        status = dst_handler[i].second->WriteAsync(stopwritebyte, ptr_buffer, nread);
         nwrite = nread;
         eos::common::Timing::GetTimeSpec(end);
         wait_time = static_cast<double> ((end.tv_sec * 1000 + end.tv_nsec / 1000000)-
@@ -2076,16 +2072,22 @@ main (int argc, char* argv[])
   // Wait for all async write requests before moving on
   //.............................................................................
   eos::common::Timing::GetTimeSpec(start);
+  eos::fst::AsyncMetaHandler* ptr_handler = 0;
 
   for (int i = 0; i < ndst; i++)
   {
     if (dst_type[i] == XRD_ACCESS)
     {
-      if (!meta_handler[i]->WaitOK())
+      if (dst_handler[i].second)
       {
-        fprintf(stderr, "Error while doing the asyn writing.\n");
+        ptr_handler = static_cast<eos::fst::AsyncMetaHandler*>(
+            dst_handler[i].second->GetAsyncHandler());
+      
+        if (ptr_handler && (!ptr_handler->WaitOK()))
+        {
+          fprintf(stderr, "Error while doing the asyn writing.\n");
+        }
       }
-      delete meta_handler[i];
     }
   }
 

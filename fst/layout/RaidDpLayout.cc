@@ -229,20 +229,25 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   vector<int> exclude_ids;
   off_t offset = rMapToRecover.begin()->first;
   off_t offset_group = (offset / mSizeGroup) * mSizeGroup;
+  AsyncMetaHandler* ptr_handler = 0;
   std::map<uint64_t, uint32_t> mapErrors;
   vector<unsigned int> simple_parity = GetSimpleParityIndices();
   vector<unsigned int> double_parity = GetDoubleParityIndices();
   status_blocks = static_cast<bool*> (calloc(mNbTotalBlocks, sizeof ( bool)));
 
   //............................................................................
-  // Reset the async handlers
+  // Reset all the async handlers
   //............................................................................
-  for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
+  for (unsigned int i = 0; i < mStripeFiles.size(); i++)
   {
-    if (mMetaHandlers[i])
-      mMetaHandlers[i]->Reset();
+    if (mStripeFiles[i])
+    {
+      ptr_handler  = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
+      if (ptr_handler)
+        ptr_handler->Reset();
+    }
   }
-
+  
   for (unsigned int i = 0; i < mNbTotalBlocks; i++)
   {
     memset(mDataBlocks[i], 0, mStripeWidth);
@@ -258,11 +263,9 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
     //..........................................................................
     if (mStripeFiles[physical_id])
     {
-      nread = mStripeFiles[physical_id]->Read(offset_local,
-                                              mDataBlocks[i],
-                                              mStripeWidth,
-                                              mMetaHandlers[physical_id],
-                                              true, mTimeout); // enable readahead
+      // enable readahead
+      nread = mStripeFiles[physical_id]->ReadAsync(offset_local, mDataBlocks[i],
+                                                   mStripeWidth, true, mTimeout); 
 
       if (nread != mStripeWidth)
       {
@@ -280,22 +283,32 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   //............................................................................
   // Mark the corrupted blocks
   //............................................................................
-  for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
+  for (unsigned int i = 0; i < mStripeFiles.size(); i++)
   {
-    if ((mMetaHandlers[i]) && (!mMetaHandlers[i]->WaitOK()))
+    if (mStripeFiles[i])
     {
-      mapErrors = mMetaHandlers[i]->GetErrorsMap();
-
-      for (std::map<uint64_t, uint32_t>::iterator iter = mapErrors.begin();
-        iter != mapErrors.end();
-        iter++)
+      ptr_handler  = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
+    
+      if (ptr_handler)
       {
-        offset_local = iter->first;
-        offset_local -= mSizeHeader;
-        int line = ((offset_local % mSizeLine) / mStripeWidth);
-        int index = line * mNbTotalFiles + mapPL[i];
-        status_blocks[index] = false;
-        corrupt_ids.push_back(index);
+        if (!ptr_handler->WaitOK())
+        {
+          mapErrors = ptr_handler->GetErrorsMap();
+      
+          for (std::map<uint64_t, uint32_t>::iterator iter = mapErrors.begin();
+               iter != mapErrors.end();
+               iter++)
+          {
+            offset_local = iter->first;
+            offset_local -= mSizeHeader;
+            int line = ((offset_local % mSizeLine) / mStripeWidth);
+            int index = line * mNbTotalFiles + mapPL[i];
+            status_blocks[index] = false;
+            corrupt_ids.push_back(index);
+          }
+        }
+        
+        ptr_handler->Reset();
       }
     }
   }
@@ -314,15 +327,6 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   unsigned int id_corrupted;
   vector<unsigned int> horizontal_stripe;
   vector<unsigned int> diagonal_stripe;
-
-  //............................................................................
-  // Reset the async handlers
-  //............................................................................
-  for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
-  {
-    if (mMetaHandlers[i])
-      mMetaHandlers[i]->Reset();
-  }
 
   while (!corrupt_ids.empty())
   {
@@ -360,12 +364,11 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
       {
         if (mStripeFiles[physical_id])
         {
-          nwrite = mStripeFiles[physical_id]->Write(offset_local,
-                                                    mDataBlocks[id_corrupted],
-                                                    mStripeWidth,
-                                                    mMetaHandlers[physical_id],
-                                                    mTimeout);
-
+          nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local,
+                                                         mDataBlocks[id_corrupted],
+                                                         mStripeWidth,
+                                                         mTimeout);
+          
           if (nwrite != mStripeWidth)
           {
             eos_err("error=while doing local write operation offset=%lli",
@@ -451,11 +454,10 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
         {
           if (mStripeFiles[physical_id])
           {
-            nwrite = mStripeFiles[physical_id]->Write(offset_local,
-                                                      mDataBlocks[id_corrupted],
-                                                      mStripeWidth,
-                                                      mMetaHandlers[physical_id],
-                                                      mTimeout);
+            nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local,
+                                                           mDataBlocks[id_corrupted],
+                                                           mStripeWidth,
+                                                           mTimeout);
 
             if (nwrite != mStripeWidth)
             {
@@ -522,12 +524,17 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   //............................................................................
   // Wait for write responses and reset all handlers
   //............................................................................
-  for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
+  for (unsigned int i = 0; i < mStripeFiles.size(); i++)
   {
-    if ((mMetaHandlers[i]) && (!mMetaHandlers[i]->WaitOK()))
+    if (mStripeFiles[i])
     {
-      eos_err("error=failed write on stripe %i", i);
-      ret = false;
+      ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
+    
+      if (ptr_handler && (!ptr_handler->WaitOK()))
+      {
+        eos_err("error=failed write on stripe %i", i);
+        ret = false;
+      }
     }
   }
 
@@ -633,11 +640,10 @@ RaidDpLayout::WriteParityToFiles (off_t offsetGroup)
     //..........................................................................
     if (mStripeFiles[physical_pindex])
     {
-      nwrite = mStripeFiles[physical_pindex]->Write(off_parity_local,
-                                                    mDataBlocks[index_pblock],
-                                                    mStripeWidth,
-                                                    mMetaHandlers[physical_pindex],
-                                                    mTimeout);
+      nwrite = mStripeFiles[physical_pindex]->WriteAsync(off_parity_local,
+                                                         mDataBlocks[index_pblock],
+                                                         mStripeWidth,
+                                                         mTimeout);
       if (nwrite != mStripeWidth)
       {
         eos_err("error=error while writing local parity information");
@@ -657,11 +663,10 @@ RaidDpLayout::WriteParityToFiles (off_t offsetGroup)
     //..........................................................................
     if (mStripeFiles[physical_dpindex])
     {
-      nwrite = mStripeFiles[physical_dpindex]->Write(off_parity_local,
-                                                     mDataBlocks[index_dpblock],
-                                                     mStripeWidth,
-                                                     mMetaHandlers[physical_dpindex],
-                                                     mTimeout);
+      nwrite = mStripeFiles[physical_dpindex]->WriteAsync(off_parity_local,
+                                                          mDataBlocks[index_dpblock],
+                                                          mStripeWidth,
+                                                          mTimeout);
       if (nwrite != mStripeWidth)
       {
         eos_err("error=error while writing local parity information");

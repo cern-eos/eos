@@ -123,26 +123,26 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
   off_t offset_local = (offset / mSizeGroup) * mStripeWidth;
   off_t offset_group = (offset / mSizeGroup) * mSizeGroup;
   size_t length = 0;
+  AsyncMetaHandler* ptr_handler = 0;
   num_blocks_corrupted = 0;
   offset_local += mSizeHeader;
 
   for (unsigned int i = 0; i < mNbTotalFiles; i++)
   {
     physical_id = mapLP[i];
-
-    if (mMetaHandlers[physical_id])
-        mMetaHandlers[physical_id]->Reset();
-
+    
     //........................................................................
     // Read data from stripe
     //........................................................................
     if (mStripeFiles[physical_id])
     {
-      nread = mStripeFiles[physical_id]->Read(offset_local,
-                                              mDataBlocks[i],
-                                              mStripeWidth,
-                                              mMetaHandlers[physical_id],
-                                              true, mTimeout); //enable readahead
+      ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->GetAsyncHandler());
+      if (ptr_handler)
+        ptr_handler->Reset();
+            
+      //enable readahead
+      nread = mStripeFiles[physical_id]->ReadAsync(offset_local, mDataBlocks[i],
+                                                   mStripeWidth, true, mTimeout); 
 
       if (nread != mStripeWidth)
       {
@@ -164,18 +164,16 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
   //............................................................................
   // Wait for read responses and mark corrupted blocks
   //............................................................................
-  for (unsigned int i = 0; i < mNbTotalFiles; i++)
+  for (unsigned int i = 0; i < mStripeFiles.size(); i++)
   {
     physical_id = mapLP[i];
-
-    if (physical_id)
+    ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->GetAsyncHandler());
+    
+    if (ptr_handler && (!ptr_handler->WaitOK()))
     {
-      if ((mMetaHandlers[physical_id]) && (!mMetaHandlers[physical_id]->WaitOK()))
-      {
-        eos_err("error=remote block corrupted id=%i", i);
-        invalid_ids.push_back(i);
-        num_blocks_corrupted++;
-      }
+      eos_err("error=remote block corrupted id=%i", i);
+      invalid_ids.push_back(i);
+      num_blocks_corrupted++;
     }
   }
 
@@ -270,15 +268,17 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
 
     if (mStoreRecovery && mStripeFiles[physical_id])
     {
-      if (mMetaHandlers[physical_id])
-        mMetaHandlers[physical_id]->Reset();
+      ptr_handler =
+        static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->GetAsyncHandler());
       
-      nwrite = mStripeFiles[physical_id]->Write(offset_local,
-                                                mDataBlocks[stripe_id],
-                                                mStripeWidth,
-                                                mMetaHandlers[physical_id],
-                                                mTimeout);
-
+      if (ptr_handler)
+        ptr_handler->Reset();
+      
+      nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local,
+                                                     mDataBlocks[stripe_id],
+                                                     mStripeWidth,
+                                                     mTimeout);
+      
       if (nwrite != mStripeWidth)
       {
         eos_err("error=while doing local write operation offset=%lli", offset_local);
@@ -315,13 +315,20 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
   // Wait for write responses
   //............................................................................
   for (vector<unsigned int>::iterator iter = invalid_ids.begin();
-    iter != invalid_ids.end();
-    ++iter)
+       iter != invalid_ids.end();
+       ++iter)
   {
-    if ((mMetaHandlers[mapLP[*iter]]) && (!mMetaHandlers[mapLP[*iter]]->WaitOK()))
+    physical_id = mapLP[*iter];
+    
+    if (mStripeFiles[physical_id])
     {
-      eos_err("ReedSRecovery - write stripe failed");
-      ret = false;
+      ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->GetAsyncHandler());
+    
+      if (ptr_handler && (!ptr_handler->WaitOK()))
+      {
+        eos_err("ReedSRecovery - write stripe failed");
+        ret = false;
+      }
     }
   }
 
@@ -520,11 +527,8 @@ ReedSLayout::WriteParityToFiles (off_t offsetGroup)
     //..........................................................................
     if (mStripeFiles[physical_id])
     {
-      nwrite = mStripeFiles[physical_id]->Write(offset_local,
-                                                mDataBlocks[i],
-                                                mStripeWidth,
-                                                mMetaHandlers[physical_id],
-                                                mTimeout);
+      nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local, mDataBlocks[i],
+                                                     mStripeWidth, mTimeout);
 
       if (nwrite != mStripeWidth)
       {
@@ -561,7 +565,9 @@ ReedSLayout::Truncate (XrdSfsFileOffset offset)
   truncate_offset += mSizeHeader;
   eos_debug("Truncate local stripe to file_offset = %lli, stripe_offset = %zu",
             offset, truncate_offset);
-  mStripeFiles[0]->Truncate(truncate_offset, mTimeout);
+  
+  if (mStripeFiles[0])
+    mStripeFiles[0]->Truncate(truncate_offset, mTimeout);
 
   if (mIsEntryServer)
   {

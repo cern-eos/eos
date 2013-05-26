@@ -113,18 +113,16 @@ public:
   //! @param offset offset in file
   //! @param buffer where the data is read
   //! @param length read length
-  //! @param handler async read handler
   //! @param timeout timeout value
   //!
   //! @return number of bytes read or -1 if error
   //!
   //--------------------------------------------------------------------------
-  virtual int64_t Read (XrdSfsFileOffset offset,
-                        char* buffer,
-                        XrdSfsXferSize length,
-                        void* handler,
-                        bool readahead = false,
-                        uint16_t timeout = 0);
+  virtual int64_t ReadAsync (XrdSfsFileOffset offset,
+                             char* buffer,
+                             XrdSfsXferSize length,
+                             bool readahead = false,
+                             uint16_t timeout = 0);
 
 
   //--------------------------------------------------------------------------
@@ -133,18 +131,16 @@ public:
   //! @param offset offset
   //! @param buffer data to be written
   //! @param length length
-  //! @param handler async write handler
   //! @param timeout timeout value
   //!
   //! @return number of bytes written or -1 if error
   //!
   //--------------------------------------------------------------------------
-  virtual int64_t Write (XrdSfsFileOffset offset,
-                         const char* buffer,
-                         XrdSfsXferSize length,
-                         void* handler,
-                         uint16_t timeout = 0);
-
+  virtual int64_t WriteAsync (XrdSfsFileOffset offset,
+                              const char* buffer,
+                              XrdSfsXferSize length,
+                              uint16_t timeout = 0);
+  
 
   //--------------------------------------------------------------------------
   //! Truncate
@@ -226,6 +222,16 @@ public:
   //!
   //--------------------------------------------------------------------------
   virtual int Stat (struct stat* buf, uint16_t timeout = 0);
+
+
+  //--------------------------------------------------------------------------
+  //! Get pointer to async meta handler object 
+  //!
+  //! @return pointer to async handler, NULL otherwise 
+  //!
+  //--------------------------------------------------------------------------
+  virtual void* GetAsyncHandler ();
+
 
 private:
 

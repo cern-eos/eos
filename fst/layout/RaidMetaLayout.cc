@@ -86,14 +86,6 @@ RaidMetaLayout::~RaidMetaLayout ()
    delete hd;
  }
 
- while (!mMetaHandlers.empty())
- {
-   AsyncMetaHandler* meta_handler = mMetaHandlers.back();
-   mMetaHandlers.pop_back();
-   if (meta_handler)
-     delete meta_handler;
- }
-
  while (!mStripeFiles.empty())
  {
    FileIo* file = mStripeFiles.back();
@@ -228,7 +220,6 @@ RaidMetaLayout::Open (const std::string& path,
 
  mStripeFiles.push_back(file);
  mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
- mMetaHandlers.push_back(NULL);
 
  //......................................................................
  // Read header information for the local file
@@ -367,7 +358,6 @@ RaidMetaLayout::Open (const std::string& path,
 
        mStripeFiles.push_back(file);
        mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
-       mMetaHandlers.push_back(new AsyncMetaHandler());
 
        //......................................................................
        // Read header information for remote files
@@ -392,8 +382,7 @@ RaidMetaLayout::Open (const std::string& path,
    //..........................................................................
    // Consistency checks
    //..........................................................................
-   if ((mStripeFiles.size() != mNbTotalFiles) ||
-       (mMetaHandlers.size() != mNbTotalFiles))
+   if (mStripeFiles.size() != mNbTotalFiles)
    {
      eos_err("error=number of files opened is different from the one expected");
      errno = EIO;
@@ -525,7 +514,6 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
 
    mStripeFiles.push_back(file);
    mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
-   mMetaHandlers.push_back(new AsyncMetaHandler());
 
    //......................................................................
    // Read header information for remote files
@@ -718,6 +706,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
  off_t offset_local = 0;
  off_t offset_init = offset;
  off_t end_raw_offset = offset + length;
+ AsyncMetaHandler* ptr_handler = 0;
  std::map<off_t, size_t> map_all_errors;
  std::map<uint64_t, uint32_t> map_tmp_errors;
 
@@ -726,7 +715,8 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
    //..........................................................................
    // Non-entry server doing only local read operation
    //..........................................................................
-   read_length = mStripeFiles[0]->Read(offset, buffer, length, mTimeout);
+   if (mStripeFiles[0])
+     read_length = mStripeFiles[0]->Read(offset, buffer, length, mTimeout);
  }
  else
  {
@@ -785,17 +775,19 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
    }
    else
    {
-     //........................................................................
-     // Normal reading mode
-     //........................................................................
-     for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
+     //.........................................................................
+     // Reset all the async handlers
+     //.........................................................................
+     for (unsigned int i = 0; i < mStripeFiles.size(); i++)
      {
-       if (mMetaHandlers[i])
+       if (mStripeFiles[i])
        {
-         mMetaHandlers[i]->Reset();
+         ptr_handler  = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
+         if (ptr_handler)
+           ptr_handler->Reset();
        }
      }
-
+     
      //........................................................................
      // TODO: Align to blockchecksum size by expanding the requested range
      //........................................................................
@@ -822,11 +814,10 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
        {
          eos_debug("Read stripe_id=%i, logic_offset=%lli, local_offset=%lli, length=%lli",
                    stripe_id, current_offset, offset_local, mStripeWidth);
-         nbytes = mStripeFiles[physical_id]->Read(offset_local,
-                                                  mPtrBlocks[i],
-                                                  mStripeWidth,
-                                                  mMetaHandlers[physical_id],
-                                                  true, mTimeout);
+         nbytes = mStripeFiles[physical_id]->ReadAsync(offset_local,
+                                                       mPtrBlocks[i],
+                                                       mStripeWidth,
+                                                       true, mTimeout);
 
          if (nbytes != mStripeWidth)
          {
@@ -858,34 +849,41 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
      size_t len;
 
      // TODO: deal with the case when we receive a timeout error
-     for (unsigned int j = 0; j < mMetaHandlers.size(); j++)
+     for (unsigned int j = 0; j < mStripeFiles.size(); j++)
      {
-       if ((mMetaHandlers[j]) && (!mMetaHandlers[j]->WaitOK()))
+       if (mStripeFiles[j])
        {
-         map_tmp_errors = mMetaHandlers[j]->GetErrorsMap();
-
-         for (std::map<uint64_t, uint32_t>::iterator iter = map_tmp_errors.begin();
-           iter != map_tmp_errors.end();
-           iter++)
+         ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[j]->GetAsyncHandler());
+       
+         if (ptr_handler)
          {
-           offset_local = iter->first;
-           offset_local -= mSizeHeader; // remove header size
-           current_offset = (offset_local / mStripeWidth) * mSizeLine +
-             (mStripeWidth * mapPL[j]) + (offset_local % mStripeWidth);
-           len = iter->second;
+           if (!ptr_handler->WaitOK())
+           {
+             map_tmp_errors = ptr_handler->GetErrorsMap();
 
-           if ((current_offset < offset) ||
-               (current_offset + len > static_cast<size_t> (end_raw_offset)))
-           {
-             map_all_errors.insert(GetMatchingPart(offset, length, current_offset));
-           }
-           else
-           {
-             map_all_errors.insert(std::make_pair(current_offset, len));
-           }
+             for (std::map<uint64_t, uint32_t>::iterator iter = map_tmp_errors.begin();
+                  iter != map_tmp_errors.end(); iter++)
+             {
+               offset_local = iter->first;
+               offset_local -= mSizeHeader; // remove header size
+               current_offset = (offset_local / mStripeWidth) * mSizeLine +
+                 (mStripeWidth * mapPL[j]) + (offset_local % mStripeWidth);
+               len = iter->second;
+
+               if ((current_offset < offset) ||
+                   (current_offset + len > static_cast<size_t> (end_raw_offset)))
+               {
+                 map_all_errors.insert(GetMatchingPart(offset, length, current_offset));
+               }
+               else
+               {
+                 map_all_errors.insert(std::make_pair(current_offset, len));
+               }
+             }
+
+             do_recovery = true;
+           }        
          }
-
-         do_recovery = true;
        }
      }
 
@@ -968,9 +966,8 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
      //.........................................................................
      if (mStripeFiles[physical_id])
      {
-       nbytes = mStripeFiles[physical_id]->Write(offset_local, buffer, nwrite,
-                                                 mMetaHandlers[physical_id],
-                                                 mTimeout);
+       nbytes = mStripeFiles[physical_id]->WriteAsync(offset_local, buffer,
+                                                      nwrite, mTimeout);
 
        if (nbytes != nwrite)
        {
@@ -1165,21 +1162,27 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
  bool ret = true;
  int id_stripe;
  int64_t nread = 0;
+ AsyncMetaHandler* ptr_handler = 0;
 
  //..........................................................................
  // Collect all the write the responses and reset all the handlers
  //..........................................................................
- for ( unsigned int i = 0; i < mMetaHandlers.size(); i++ )
+ for ( unsigned int i = 0; i < mStripeFiles.size(); i++ )
  {
-   if (mMetaHandlers[i])
+   if (mStripeFiles[i])
    {
-     if ( !mMetaHandlers[i]->WaitOK() )
+     ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
+     
+     if (ptr_handler)
      {
-       eos_err("error=write failed in previous requests.");
-       return false;
+       if (!ptr_handler->WaitOK())
+       {
+         eos_err("error=write failed in previous requests.");
+         return false;
+       }
+       
+       ptr_handler->Reset();
      }
-
-     mMetaHandlers[i]->Reset();
    }
  }
 
@@ -1198,11 +1201,10 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
      // !!!Here we can only do normal async requests without readahead as this
      // would lead to corruptions in the parity information computed!!!
      //........................................................................
-     nread = mStripeFiles[physical_id]->Read(offset_local,
-                                             mDataBlocks[MapSmallToBig(i)],
-                                             mStripeWidth,
-                                             mMetaHandlers[physical_id],
-                                             false, mTimeout);
+     nread = mStripeFiles[physical_id]->ReadAsync(offset_local,
+                                                  mDataBlocks[MapSmallToBig(i)],
+                                                  mStripeWidth,
+                                                  false, mTimeout);
 
      if (nread != mStripeWidth)
      {
@@ -1218,16 +1220,22 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
      break;
    }
  }
-
- for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
+ 
+ // Collect read responses 
+ for ( unsigned int i = 0; i < mStripeFiles.size(); i++ )
  {
-   if ((mMetaHandlers[i]) && (!mMetaHandlers[i]->WaitOK()))
-   {
-     eos_err("error=error while reading remote data blocks");
-     ret = false;
+   if (mStripeFiles[i])
+   {  
+     ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
+   
+     if (ptr_handler && (!ptr_handler->WaitOK()))
+     {
+       eos_err("error=error while reading remote data blocks");
+       ret = false;
+     }
    }
  }
-
+  
  return ret;
 }
 
@@ -1515,17 +1523,23 @@ RaidMetaLayout::Close ()
        }
 
        // Collect all the write responses and reset all the handlers
-       for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
+       for (unsigned int i = 0; i < mStripeFiles.size(); i++)
        {
-         if (mMetaHandlers[i])
+         if (mStripeFiles[i])
          {
-           if (!mMetaHandlers[i]->WaitOK())
+           AsyncMetaHandler* ptr_handler =
+             static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
+
+           if (ptr_handler)
            {
-             eos_err("error=write failed in previous requests.");
-             rc = SFS_ERROR;
+             if (!ptr_handler->WaitOK())
+             {
+               eos_err("error=write failed in previous requests.");
+               rc = SFS_ERROR;
+             }
+
+             ptr_handler->Reset();
            }
-           
-           mMetaHandlers[i]->Reset();
          }
        }
        

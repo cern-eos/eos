@@ -46,7 +46,8 @@ FileIo(),
 mIndex (0),
 mDoReadahead (false),
 mBlocksize (ReadaheadBlock::sDefaultBlocksize),
-mXrdFile (NULL)
+mXrdFile (NULL),
+mMetaHandler(new AsyncMetaHandler())
 {
   // Set the TimeoutResolution to 1 
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
@@ -80,6 +81,8 @@ XrdIo::~XrdIo ()
   {
     delete mXrdFile;
   }
+
+  delete mMetaHandler;
 }
 
 
@@ -213,12 +216,11 @@ XrdIo::Write (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int64_t
-XrdIo::Read (XrdSfsFileOffset offset,
-             char* buffer,
-             XrdSfsXferSize length,
-             void* pFileHandler,
-             bool readahead,
-             uint16_t timeout)
+XrdIo::ReadAsync (XrdSfsFileOffset offset,
+                  char* buffer,
+                  XrdSfsXferSize length,
+                  bool readahead,
+                  uint16_t timeout)
 {
   eos_debug("offset=%llu length=%llu",
             static_cast<uint64_t> (offset),
@@ -237,8 +239,7 @@ XrdIo::Read (XrdSfsFileOffset offset,
 
   if (!readahead)
   {
-    handler = static_cast<AsyncMetaHandler*> (pFileHandler)->Register(offset, length,
-                                                                      NULL, false);
+    handler = mMetaHandler->Register(offset, length, NULL, false);
 
     // If previous read requests failed then we won't get a new handler
     // and we return directly an error
@@ -342,8 +343,7 @@ XrdIo::Read (XrdSfsFileOffset offset,
     if (length)
     {
       eos_debug("Readahead not useful, use the classic way for the rest of the block.");
-      handler = static_cast<AsyncMetaHandler*> (pFileHandler)->Register(offset, length,
-                                                                        NULL, false);
+      handler = mMetaHandler->Register(offset, length, NULL, false);
 
       // If previous read requests failed then we won't get a new handler
       // and we return directly an error
@@ -412,11 +412,10 @@ XrdIo::FindBlock(uint64_t offset)
 //------------------------------------------------------------------------------
 
 int64_t
-XrdIo::Write (XrdSfsFileOffset offset,
-              const char* buffer,
-              XrdSfsXferSize length,
-              void* pFileHandler,
-              uint16_t timeout)
+XrdIo::WriteAsync (XrdSfsFileOffset offset,
+                   const char* buffer,
+                   XrdSfsXferSize length,
+                   uint16_t timeout)
 {
   eos_debug("offset=%llu length=%lu",
             static_cast<uint64_t> (offset),
@@ -425,8 +424,7 @@ XrdIo::Write (XrdSfsFileOffset offset,
   ChunkHandler* handler;
   XrdCl::XRootDStatus status;
 
-  handler = static_cast<AsyncMetaHandler*> (pFileHandler)->Register(offset, length,
-                                                                    buffer, true);
+  handler = mMetaHandler->Register(offset, length, buffer, true);
 
   // If previous write requests failed then we won't get a new handler
   // and we return directly an error
@@ -621,6 +619,15 @@ XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
   mMapBlocks.insert(std::make_pair(offset, block));
 }
 
+
+//------------------------------------------------------------------------------
+// Get pointer to async meta handler object 
+//------------------------------------------------------------------------------
+void*
+XrdIo::GetAsyncHandler ()
+{
+  return mMetaHandler;
+}
 
 EOSFSTNAMESPACE_END
 
