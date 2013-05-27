@@ -234,7 +234,8 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
 
   eos_static_warning("%s", "op=shutdown msg=\"shutdown fmdsqlite handler\"");
   gFmdSqliteHandler.Shutdown();
-  kill(9, watchdog);
+  kill(watchdog,9);
+  wait();
 
   eos_static_warning("%s", "op=shutdown status=sqliteclosed");
 
@@ -243,7 +244,11 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
 
   eos_static_warning("%s", "op=shutdown status=completed");
   // harakiri - yes!
-  kill(getpid(), 9);
+  (void) signal(SIGABRT, SIG_IGN);
+  (void) signal(SIGINT, SIG_IGN);
+  (void) signal(SIGTERM, SIG_IGN);
+  (void) signal(SIGQUIT, SIG_IGN);
+  exit(0);
 }
 
 /*----------------------------------------------------------------------------*/

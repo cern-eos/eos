@@ -228,7 +228,7 @@ target_link_libraries( eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-compute-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-scan-fs eosCommon eosCommonServer XrdCl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
 target_link_libraries( eos-adler32 eosCommon ${CMAKE_THREAD_LIBS_INIT} ) 
-#target_link_libraries( eoscp XrdCl EosFstIo-Static eosCommon-Static )
+target_link_libraries( eoscp XrdCl EosFstIo-Static eosCommon-Static )
 
 if (Linux)
   set_target_properties (XrdEosFst PROPERTIES

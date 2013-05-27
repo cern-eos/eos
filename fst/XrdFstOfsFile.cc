@@ -711,13 +711,11 @@ XrdFstOfsFile::open (const char* path,
       int ecode = 1094;
       eos_warning("rebouncing client since we failed to get the FMD record back to MGM %s:%d",
                   RedirectManager.c_str(), ecode);
-      delete layOut;
       return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
     }
     else
     {
       eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, (unsigned long long) fsid);
-      delete layOut;
       return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found ");
     }
   }
@@ -762,7 +760,6 @@ XrdFstOfsFile::open (const char* path,
     if (gOFS.Storage->fileSystemFullMap[fsid])
     {
       writeErrorFlag = kOfsDiskFullError;
-      delete layOut;
       return gOFS.Emsg("writeofs", error, ENOSPC, "create file - disk space (headroom) exceeded fn=",
                        capOpaque ? (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") : FName()) : FName());
     }
@@ -780,13 +777,11 @@ XrdFstOfsFile::open (const char* path,
         int ecode = 1094;
         eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
                     RedirectManager.c_str(), ecode);
-        delete layOut;
         return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
       }
       else
       {
         layOut->Remove();
-        delete layOut;
         return gOFS.Emsg(epname, error, ENOSPC, "open - cannot allocate required space", Path.c_str());
       }
     }
@@ -801,7 +796,6 @@ XrdFstOfsFile::open (const char* path,
     //..........................................................................
     if ((retc = layOut->Stat(&statinfo)))
     {
-      delete layOut;
       return gOFS.Emsg(epname, error, EIO, "open - cannot stat layout to determine file size", Path.c_str());
     }
 
@@ -909,13 +903,11 @@ XrdFstOfsFile::open (const char* path,
         int ecode = 1094;
         eos_warning("rebouncing client since our replica has a wrong checksum back to MGM %s:%d",
                     RedirectManager.c_str(), ecode);
-        delete layOut;
         return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
       }
       else
       {
         eos_err("open of %s failed - replica has a checksum mismatch", Path.c_str());
-        delete layOut;
         return gOFS.Emsg(epname, error, EIO, "open - replica has a checksum mismatch", Path.c_str());
       }
     }
@@ -977,13 +969,11 @@ XrdFstOfsFile::open (const char* path,
       int ecode = 1094;
       rc = SFS_REDIRECT;
       eos_warning("rebouncing client after open error back to MGM %s:%d", RedirectManager.c_str(), ecode);
-      delete layOut;
       return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
     }
     else
     {
       eos_warning("opening %s failed", Path.c_str());
-      delete layOut;
       return gOFS.Emsg(epname, error, EIO, "open", Path.c_str());
     }
   }
