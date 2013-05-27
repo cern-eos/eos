@@ -229,20 +229,25 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   vector<int> exclude_ids;
   off_t offset = rMapToRecover.begin()->first;
   off_t offset_group = (offset / mSizeGroup) * mSizeGroup;
+  AsyncMetaHandler* ptr_handler = 0;
   std::map<uint64_t, uint32_t> mapErrors;
   vector<unsigned int> simple_parity = GetSimpleParityIndices();
   vector<unsigned int> double_parity = GetDoubleParityIndices();
   status_blocks = static_cast<bool*> (calloc(mNbTotalBlocks, sizeof ( bool)));
 
   //............................................................................
-  // Reset the async handlers
+  // Reset all the async handlers
   //............................................................................
-  for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
+  for (unsigned int i = 0; i < mStripeFiles.size(); i++)
   {
-    if (mMetaHandlers[i])
-      mMetaHandlers[i]->Reset();
+    if (mStripeFiles[i])
+    {
+      ptr_handler  = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
+      if (ptr_handler)
+        ptr_handler->Reset();
+    }
   }
-
+  
   for (unsigned int i = 0; i < mNbTotalBlocks; i++)
   {
     memset(mDataBlocks[i], 0, mStripeWidth);
@@ -258,11 +263,9 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
     //..........................................................................
     if (mStripeFiles[physical_id])
     {
-      nread = mStripeFiles[physical_id]->Read(offset_local,
-                                              mDataBlocks[i],
-                                              mStripeWidth,
-                                              mMetaHandlers[physical_id],
-                                              true, mTimeout); // enable readahead
+      // enable readahead
+      nread = mStripeFiles[physical_id]->ReadAsync(offset_local, mDataBlocks[i],
+                                                   mStripeWidth, true, mTimeout); 
 
       if (nread != mStripeWidth)
       {
@@ -280,22 +283,32 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   //............................................................................
   // Mark the corrupted blocks
   //............................................................................
-  for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
+  for (unsigned int i = 0; i < mStripeFiles.size(); i++)
   {
-    if ((mMetaHandlers[i]) && (!mMetaHandlers[i]->WaitOK()))
+    if (mStripeFiles[i])
     {
-      mapErrors = mMetaHandlers[i]->GetErrorsMap();
-
-      for (std::map<uint64_t, uint32_t>::iterator iter = mapErrors.begin();
-        iter != mapErrors.end();
-        iter++)
+      ptr_handler  = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
+    
+      if (ptr_handler)
       {
-        offset_local = iter->first;
-        offset_local -= mSizeHeader;
-        int line = ((offset_local % mSizeLine) / mStripeWidth);
-        int index = line * mNbTotalFiles + mapPL[i];
-        status_blocks[index] = false;
-        corrupt_ids.push_back(index);
+        if (!ptr_handler->WaitOK())
+        {
+          mapErrors = ptr_handler->GetErrorsMap();
+      
+          for (std::map<uint64_t, uint32_t>::iterator iter = mapErrors.begin();
+               iter != mapErrors.end();
+               iter++)
+          {
+            offset_local = iter->first;
+            offset_local -= mSizeHeader;
+            int line = ((offset_local % mSizeLine) / mStripeWidth);
+            int index = line * mNbTotalFiles + mapPL[i];
+            status_blocks[index] = false;
+            corrupt_ids.push_back(index);
+          }
+        }
+        
+        ptr_handler->Reset();
       }
     }
   }
@@ -314,15 +327,6 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   unsigned int id_corrupted;
   vector<unsigned int> horizontal_stripe;
   vector<unsigned int> diagonal_stripe;
-
-  //............................................................................
-  // Reset the async handlers
-  //............................................................................
-  for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
-  {
-    if (mMetaHandlers[i])
-      mMetaHandlers[i]->Reset();
-  }
 
   while (!corrupt_ids.empty())
   {
@@ -360,12 +364,11 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
       {
         if (mStripeFiles[physical_id])
         {
-          nwrite = mStripeFiles[physical_id]->Write(offset_local,
-                                                    mDataBlocks[id_corrupted],
-                                                    mStripeWidth,
-                                                    mMetaHandlers[physical_id],
-                                                    mTimeout);
-
+          nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local,
+                                                         mDataBlocks[id_corrupted],
+                                                         mStripeWidth,
+                                                         mTimeout);
+          
           if (nwrite != mStripeWidth)
           {
             eos_err("error=while doing local write operation offset=%lli",
@@ -451,11 +454,10 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
         {
           if (mStripeFiles[physical_id])
           {
-            nwrite = mStripeFiles[physical_id]->Write(offset_local,
-                                                      mDataBlocks[id_corrupted],
-                                                      mStripeWidth,
-                                                      mMetaHandlers[physical_id],
-                                                      mTimeout);
+            nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local,
+                                                           mDataBlocks[id_corrupted],
+                                                           mStripeWidth,
+                                                           mTimeout);
 
             if (nwrite != mStripeWidth)
             {
@@ -522,12 +524,17 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   //............................................................................
   // Wait for write responses and reset all handlers
   //............................................................................
-  for (unsigned int i = 0; i < mMetaHandlers.size(); i++)
+  for (unsigned int i = 0; i < mStripeFiles.size(); i++)
   {
-    if ((mMetaHandlers[i]) && (!mMetaHandlers[i]->WaitOK()))
+    if (mStripeFiles[i])
     {
-      eos_err("error=failed write on stripe %i", i);
-      ret = false;
+      ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
+    
+      if (ptr_handler && (!ptr_handler->WaitOK()))
+      {
+        eos_err("error=failed write on stripe %i", i);
+        ret = false;
+      }
     }
   }
 
@@ -633,11 +640,10 @@ RaidDpLayout::WriteParityToFiles (off_t offsetGroup)
     //..........................................................................
     if (mStripeFiles[physical_pindex])
     {
-      nwrite = mStripeFiles[physical_pindex]->Write(off_parity_local,
-                                                    mDataBlocks[index_pblock],
-                                                    mStripeWidth,
-                                                    mMetaHandlers[physical_pindex],
-                                                    mTimeout);
+      nwrite = mStripeFiles[physical_pindex]->WriteAsync(off_parity_local,
+                                                         mDataBlocks[index_pblock],
+                                                         mStripeWidth,
+                                                         mTimeout);
       if (nwrite != mStripeWidth)
       {
         eos_err("error=error while writing local parity information");
@@ -657,11 +663,10 @@ RaidDpLayout::WriteParityToFiles (off_t offsetGroup)
     //..........................................................................
     if (mStripeFiles[physical_dpindex])
     {
-      nwrite = mStripeFiles[physical_dpindex]->Write(off_parity_local,
-                                                     mDataBlocks[index_dpblock],
-                                                     mStripeWidth,
-                                                     mMetaHandlers[physical_dpindex],
-                                                     mTimeout);
+      nwrite = mStripeFiles[physical_dpindex]->WriteAsync(off_parity_local,
+                                                          mDataBlocks[index_dpblock],
+                                                          mStripeWidth,
+                                                          mTimeout);
       if (nwrite != mStripeWidth)
       {
         eos_err("error=error while writing local parity information");
@@ -971,48 +976,69 @@ RaidDpLayout::GetDParityBlock (std::vector<unsigned int>& rStripe)
 int
 RaidDpLayout::Truncate (XrdSfsFileOffset offset)
 {
-  eos_debug("_");
+  eos_debug("offset = %lli", offset);
   int rc = SFS_OK;
   off_t truncate_offset = 0;
 
-  if (!offset) return rc;
-
   truncate_offset = ceil((offset * 1.0) / mSizeGroup) * mSizeLine;
   truncate_offset += mSizeHeader;
+  
   if (mStripeFiles[0])
   {
     mStripeFiles[0]->Truncate(truncate_offset, mTimeout);
   }
-
+    
   eos_debug("Truncate local stripe to file_offset = %lli, stripe_offset = %zu",
             offset, truncate_offset);
-
+  
   if (mIsEntryServer)
   {
-    if (!mIsPio)
+    /*
+    // TODO: write 0's rather than truncate
+    if (offset > mFileSize) 
     {
-      //........................................................................
-      // In non PIO access each stripe will compute its own truncate value
-      //........................................................................
-      truncate_offset = offset;
-    }
+      off_t file_off_align = ceil((1.0 * offset) / mSizeGroup) * mSizeGroup;
+      off_t length = file_off_align - offset;
+      eos_debug("Truncate by writing 0's up to file_off_align=%zu length=%zu", file_off_align, length);
+      int64_t nwrite = 0;
+      int64_t nbytes = 0;
+      int64_t tmp_off = offset;
+      mDataBlocks[0] = static_cast<char*>(memset(mDataBlocks[0], 0, mStipeWidth));
 
-    for (unsigned int i = 1; i < mStripeFiles.size(); i++)
-    {
-      eos_debug("Truncate stripe %i, to file_offset = %lli, stripe_offset = %zu",
-                i, offset, truncate_offset);
-
-      if (mStripeFiles[i])
+      while (length > 0)
       {
-        if (mStripeFiles[i]->Truncate(truncate_offset, mTimeout))
+        nbytes = (length > mStripeWidth) ? mStripeWidth : length;
+        nwrtie = Write(tmp_off, mDataStripes[0], nbytes); 
+        length -= nwrites;
+        tmp_off += tmp_off;     
+      }
+      }*/
+    //    else {
+    
+    if (!mIsPio)
+      {
+        //........................................................................
+        // In non PIO access each stripe will compute its own truncate value
+        //........................................................................
+        truncate_offset = offset;
+      }
+      
+      for (unsigned int i = 1; i < mStripeFiles.size(); i++)
+      {
+        eos_debug("Truncate stripe %i, to file_offset = %lli, stripe_offset = %zu",
+                  i, offset, truncate_offset);
+        
+        if (mStripeFiles[i])
         {
-          eos_err("error=error while truncating");
-          return SFS_ERROR;
+          if (mStripeFiles[i]->Truncate(truncate_offset, mTimeout))
+          {
+            eos_err("error=error while truncating");
+            return SFS_ERROR;
+          }
         }
       }
-    }
+   // }
   }
-
   //............................................................................
   // *!!!* Reset the maxOffsetWritten from XrdFstOfsFile to logical offset
   //............................................................................
@@ -1024,6 +1050,31 @@ RaidDpLayout::Truncate (XrdSfsFileOffset offset)
   }
   return rc;
 }
+
+//--------------------------------------------------------------------------
+// Allocate file space ( reserve )
+//--------------------------------------------------------------------------
+int
+RaidDpLayout::Fallocate (XrdSfsFileOffset length)
+{
+  int64_t size = ceil( (1.0 * length) / mSizeGroup) * mSizeLine + mSizeHeader;
+  return mStripeFiles[0]->Fallocate(size);
+}
+
+
+//--------------------------------------------------------------------------
+// Deallocate file space
+//--------------------------------------------------------------------------
+int
+RaidDpLayout::Fdeallocate (XrdSfsFileOffset fromOffset,
+                           XrdSfsFileOffset toOffset)
+{
+  int64_t from_size = ceil( (1.0 * fromOffset) / mSizeGroup) * mSizeLine + mSizeHeader;
+  int64_t to_size = ceil( (1.0 * toOffset) / mSizeGroup) * mSizeLine + mSizeHeader;
+  return mStripeFiles[0]->Fdeallocate(from_size, to_size);
+}
+
+
 
 EOSFSTNAMESPACE_END
 

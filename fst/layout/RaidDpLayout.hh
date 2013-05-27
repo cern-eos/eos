@@ -81,6 +81,30 @@ public:
 
 
   //--------------------------------------------------------------------------
+  //! Allocate file space
+  //!
+  //! @param length space to be allocated
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Fallocate (XrdSfsFileOffset lenght);
+
+
+  //--------------------------------------------------------------------------
+  //! Deallocate file space
+  //!
+  //! @param fromOffset offset start
+  //! @param toOffset offset end
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+  virtual int Fdeallocate (XrdSfsFileOffset fromOffset,
+                           XrdSfsFileOffset toOffset);
+
+  
+  //--------------------------------------------------------------------------
   //! Destructor
   //--------------------------------------------------------------------------
   virtual ~RaidDpLayout ();

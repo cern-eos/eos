@@ -176,6 +176,8 @@ AsyncMetaHandler::GetErrorsMap ()
 bool
 AsyncMetaHandler::WaitOK ()
 {
+  bool ret = false;
+  
   mCond.Lock();   // -->
   
   while (mAsyncReq > 0)
@@ -183,8 +185,10 @@ AsyncMetaHandler::WaitOK ()
     mCond.Wait();
   }
 
+  ret = mState;
   mCond.UnLock(); // <--
-  return mState;
+  
+  return ret;
 }
 
 
