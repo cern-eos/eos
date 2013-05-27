@@ -28,7 +28,7 @@
 #include <sys/stat.h>
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/RaidDpLayout.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/io/AsyncMetaHandler.hh"
 #include "common/Timing.hh"
 /*----------------------------------------------------------------------------*/
 

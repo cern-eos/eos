@@ -31,7 +31,6 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 /*----------------------------------------------------------------------------*/
 
-
 EOSFSTNAMESPACE_BEGIN
 
 const uint64_t ReadaheadBlock::sDefaultBlocksize = 1 *1024 * 1024; ///< 1MB default

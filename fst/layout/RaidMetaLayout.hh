@@ -33,10 +33,6 @@
 #include "fst/layout/Layout.hh"
 #include "fst/io/HeaderCRC.hh"
 #include "fst/XrdFstOfsFile.hh"
-#include "fst/io/AsyncMetaHandler.hh"
-/*----------------------------------------------------------------------------*/
-#include "XrdCl/XrdClFile.hh"
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN

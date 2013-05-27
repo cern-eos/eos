@@ -24,13 +24,13 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Timing.hh"
 #include "fst/layout/ReedSLayout.hh"
+#include "fst/io/AsyncMetaHandler.hh"
 /*----------------------------------------------------------------------------*/
 #include <cmath>
 #include <map>
 #include <set>
 #include <algorithm>
 #include "fst/zfec/fec.h"
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN

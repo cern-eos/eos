@@ -29,7 +29,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Timing.hh"
 #include "fst/layout/RaidMetaLayout.hh"
-#include "fst/XrdFstOfs.hh"
+#include "fst/io/AsyncMetaHandler.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN

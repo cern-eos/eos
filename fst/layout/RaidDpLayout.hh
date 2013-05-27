@@ -26,9 +26,7 @@
 #define __EOSFST_RAIDDPLAYOUT_HH__
 
 /*----------------------------------------------------------------------------*/
-#include "fst/Namespace.hh"
 #include "fst/layout/RaidMetaLayout.hh"
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
