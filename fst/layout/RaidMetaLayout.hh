@@ -162,7 +162,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
-  virtual int Fallocate (XrdSfsFileOffset lenght);
+  virtual int Fallocate (XrdSfsFileOffset lenght) = 0;
 
 
   //--------------------------------------------------------------------------
@@ -175,7 +175,7 @@ public:
   //!
   //--------------------------------------------------------------------------
   virtual int Fdeallocate (XrdSfsFileOffset fromOffset,
-                           XrdSfsFileOffset toOffset);
+                           XrdSfsFileOffset toOffset) = 0;
 
 
   //--------------------------------------------------------------------------
@@ -253,7 +253,6 @@ protected:
   std::vector<char*> mDataBlocks; ///< vector containing the data in a group
   std::vector<FileIo*> mStripeFiles; ///< vector containing the file IO layout
   std::vector<HeaderCRC*> mHdrInfo; ///< headers of the stripe files
-  std::vector<AsyncMetaHandler*> mMetaHandlers; ///< rd/wr handlers for each stripe
   std::map<unsigned int, unsigned int> mapLP; ///< map of url to stripes
   std::map<unsigned int, unsigned int> mapPL; ///< map of stripes to url
   std::map<off_t, size_t> mMapPieces; ///< map of pieces written for which parity

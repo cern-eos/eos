@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/ReplicaParLayout.hh"
 #include "fst/io/FileIoPlugin.hh"
+#include "fst/io/AsyncMetaHandler.hh"
 #include "fst/XrdFstOfs.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -338,7 +339,7 @@ ReplicaParLayout::Write (XrdSfsFileOffset offset,
 
  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
  {
-   rc = mReplicaFile[i]->Write(offset, buffer, length, mTimeout);
+   rc = mReplicaFile[i]->WriteAsync(offset, buffer, length, mTimeout);
 
    if (rc != length)
    {
@@ -482,21 +483,41 @@ int
 ReplicaParLayout::Close ()
 {
  int rc = SFS_OK;
+ int rc_close = SFS_OK;
 
  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
  {
-   rc = mReplicaFile[i]->Close(mTimeout);
+   // Wait for any async requests before closing 
+   if (mReplicaFile[i])
+   {
+     AsyncMetaHandler* ptr_handler =
+         static_cast<AsyncMetaHandler*>(mReplicaFile[i]->GetAsyncHandler());
 
-   if (rc != SFS_OK)
+     if (ptr_handler)
+     {
+       if (!ptr_handler->WaitOK())
+       {
+         eos_err("error=async requests failed for replica %s", mReplicaUrl[i].c_str());
+         rc = SFS_ERROR;
+       }
+     }
+   }
+   
+   rc_close = mReplicaFile[i]->Close(mTimeout);
+   rc += rc_close;
+
+   if (rc_close != SFS_OK)
    {
      if (i != 0) errno = EREMOTEIO;
-
-     eos_err("error=failed to close replica %i", mReplicaUrl[i].c_str());
-     return gOFS.Emsg("ReplicaParClose", *mError, errno, "close failed",
-                      mReplicaUrl[i].c_str());
+     eos_err("error=failed to close replica %s", mReplicaUrl[i].c_str());
    }
  }
 
+ if (rc != SFS_OK)
+ {
+   return gOFS.Emsg("ReplicaParClose", *mError, errno, "close failed", "");
+ }
+ 
  return rc;
 }
 

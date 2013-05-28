@@ -37,7 +37,7 @@ extern XrdOssSys* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
-const uint16_t XrdFstOfsFile::msDefaultTimeout = 5; // default timeout value
+const uint16_t XrdFstOfsFile::msDefaultTimeout = 60; // default timeout value
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -760,7 +760,6 @@ XrdFstOfsFile::open (const char* path,
     if (gOFS.Storage->fileSystemFullMap[fsid])
     {
       writeErrorFlag = kOfsDiskFullError;
-      delete layOut;
       return gOFS.Emsg("writeofs", error, ENOSPC, "create file - disk space (headroom) exceeded fn=",
                        capOpaque ? (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") : FName()) : FName());
     }
@@ -778,13 +777,11 @@ XrdFstOfsFile::open (const char* path,
         int ecode = 1094;
         eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
                     RedirectManager.c_str(), ecode);
-        delete layOut;
         return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
       }
       else
       {
         layOut->Remove();
-        delete layOut;
         return gOFS.Emsg(epname, error, ENOSPC, "open - cannot allocate required space", Path.c_str());
       }
     }
@@ -799,7 +796,6 @@ XrdFstOfsFile::open (const char* path,
     //..........................................................................
     if ((retc = layOut->Stat(&statinfo)))
     {
-      delete layOut;
       return gOFS.Emsg(epname, error, EIO, "open - cannot stat layout to determine file size", Path.c_str());
     }
 

@@ -23,7 +23,6 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/Http.hh"
-#include "common/Logging.hh"
 #include "fst/XrdFstOfs.hh"
 #include "common/S3.hh"
 /*----------------------------------------------------------------------------*/
@@ -386,7 +385,7 @@ Http::Handler (void *cls,
   std::string lMethod = method ? method : "";
 
   HttpHandle* httpHandle = 0;
-
+  
   // currently support only GET methods
   if ((lMethod != "GET") &&
       (lMethod != "PUT"))
@@ -496,7 +495,7 @@ Http::Handler (void *cls,
   {
     // call the HttpHandle::Put method
     int rc = httpHandle->Put(upload_data, upload_data_size, first_call);
-    if (rc || ((!first_call) && (upload_data_size == 0)))
+    if ( (rc!=MHD_YES) || ((!first_call) && (upload_data_size == 0)))
     {
       // clean-up left-over objects on error or end-of-put
       if (httpHandle->mFile)
@@ -559,7 +558,6 @@ HttpHandle::Initialize ()
 
 
   eos_static_info("path=%s query=%s", mPath.c_str(), mQuery.c_str());
-
 
   // define the client sec entity object
   strncpy(mClient.prot, "unix", XrdSecPROTOIDSIZE - 1);
@@ -859,11 +857,10 @@ HttpHandle::Put (const char *upload_data,
     if (upload_data && upload_data_size && (*upload_data_size))
     {
 
-      if ( (mUploadLeftSize > (1 * 1024 * 1024) && ((*upload_data_size) < (1 * 1024 * 1024))) ||
-           ( (mUploadLeftSize == mContentLength) && ((*upload_data_size) < mContentLength)) )
+      if ( ((mUploadLeftSize > (10 * 1024 * 1024)) && ((*upload_data_size) < (10 * 1024 * 1024))) )
       { 
         // we want more bytes, we don't process this
-        eos_static_info("msg=\"wait for more bytes\"");
+        eos_static_info("msg=\"wait for more bytes\" leftsize=%llu uploadsize=%llu", mUploadLeftSize, *upload_data_size);
         return MHD_YES;
       }
 

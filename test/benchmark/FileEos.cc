@@ -86,7 +86,6 @@ FileEos::Write(Result*& result)
   urandom.close();
 
   // Open the file for writing and get and XrdFileIo object
-  eos::fst::AsyncMetaHandler* file_handler = new eos::fst::AsyncMetaHandler();
   mode_t mode_sfs = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IROTH;
   XrdSfsFileOpenMode flags_sfs = SFS_O_CREAT | SFS_O_RDWR;
   eos::fst::FileIo* file = eos::fst::FileIoPlugin::GetIoObject(
@@ -102,7 +101,6 @@ FileEos::Write(Result*& result)
   {
     eos_err("Error while opening file: %s", full_path.c_str());
     delete file;
-    delete file_handler;
     return retc;
   }
 
@@ -116,7 +114,7 @@ FileEos::Write(Result*& result)
   while (file_size > 0)
   {
     length = ((file_size > block_size) ?  block_size : file_size);
-    nwrite = file->Write(offset, buffer, length, file_handler);
+    nwrite = file->WriteAsync(offset, buffer, length);
 
     if (nwrite != (int64_t)length)
     {
@@ -132,7 +130,10 @@ FileEos::Write(Result*& result)
   COMMONTIMING("WAIT_ASYNC", &wr_timing);
 
   // Collect all the write responses
-  if (!file_handler->WaitOK())
+  eos::fst::AsyncMetaHandler* ptr_handler =
+      static_cast<eos::fst::AsyncMetaHandler*>(file->GetAsyncHandler());
+  
+  if (ptr_handler && (!ptr_handler->WaitOK()))
   {
     eos_err("Error while waiting for write async responses");
     retc = -1;
@@ -159,7 +160,6 @@ FileEos::Write(Result*& result)
   pb_result.add_writetotal(offset);
 
   delete file;
-  delete file_handler;
   delete[] buffer;
   return retc;
 }
@@ -190,7 +190,6 @@ FileEos::ReadGw(Result*& result)
   }
 
   // Open the file for reading and get and XrdFileIo object
-  eos::fst::AsyncMetaHandler* file_handler = new eos::fst::AsyncMetaHandler();
   XrdSfsFileOpenMode flags_sfs = SFS_O_RDONLY;
   eos::fst::FileIo* file = eos::fst::FileIoPlugin::GetIoObject(
                              eos::common::LayoutId::kXrdCl, NULL, NULL);
@@ -204,7 +203,6 @@ FileEos::ReadGw(Result*& result)
   {
     eos_err("Error while opening files: %s", full_path.c_str());
     delete file;
-    delete file_handler;
     return retc;
   }
 
@@ -219,7 +217,7 @@ FileEos::ReadGw(Result*& result)
   while (file_size > 0)
   {
     length = ((file_size > block_size) ?  block_size : file_size);
-    nread = file->Read(offset, vect_buff[indx_buff], length, file_handler, true);
+    nread = file->ReadAsync(offset, vect_buff[indx_buff], length, true);
     offset += nread;
     file_size -= nread;
     indx_buff = (indx_buff + 1) % total_buffs;
@@ -228,7 +226,10 @@ FileEos::ReadGw(Result*& result)
   COMMONTIMING("WAIT_ASYNC", &rd_timing);
 
   // Collect all the read responses
-  if (!file_handler->WaitOK())
+  eos::fst::AsyncMetaHandler* ptr_handler =
+      static_cast<eos::fst::AsyncMetaHandler*>(file->GetAsyncHandler());
+  
+  if (ptr_handler && (!ptr_handler->WaitOK()))
   {
     eos_err("Error while waiting for read async responses");
     retc = -1;
@@ -262,7 +263,6 @@ FileEos::ReadGw(Result*& result)
 
   vect_buff.clear();
   delete file;
-  delete file_handler;
   return retc;
 }
 

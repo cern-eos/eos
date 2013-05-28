@@ -124,12 +124,11 @@ LocalIo::Write (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int64_t
-LocalIo::Read (XrdSfsFileOffset offset,
-                   char* buffer,
-                   XrdSfsXferSize length,
-                   void* handler,
-                   bool readahead,
-                   uint16_t timeout)
+LocalIo::ReadAsync (XrdSfsFileOffset offset,
+                    char* buffer,
+                    XrdSfsXferSize length,
+                    bool readahead,
+                    uint16_t timeout)
 {
   return Read(offset, buffer, length, timeout);
 }
@@ -140,11 +139,10 @@ LocalIo::Read (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int64_t
-LocalIo::Write (XrdSfsFileOffset offset,
-                    const char* buffer,
-                    XrdSfsXferSize length,
-                    void* handler,
-                    uint16_t timeout)
+LocalIo::WriteAsync (XrdSfsFileOffset offset,
+                     const char* buffer,
+                     XrdSfsXferSize length,
+                     uint16_t timeout)
 {
   return Write(offset, buffer, length, timeout);
 }
@@ -168,6 +166,7 @@ LocalIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 int
 LocalIo::Fallocate (XrdSfsFileOffset length)
 {
+  eos_debug("fallocate with length = %lli", length);
   XrdOucErrInfo error;
 
   if (mLogicalFile->fctl(SFS_FCTL_GETFD, 0, error))
@@ -207,8 +206,9 @@ LocalIo::Fallocate (XrdSfsFileOffset length)
 
 int
 LocalIo::Fdeallocate (XrdSfsFileOffset fromOffset,
-                          XrdSfsFileOffset toOffset)
+                      XrdSfsFileOffset toOffset)
 {
+  eos_debug("fdeallocate from = %lli to = %lli", fromOffset, toOffset);
   XrdOucErrInfo error;
 
   if (mLogicalFile->fctl(SFS_FCTL_GETFD, 0, error))
@@ -297,6 +297,15 @@ LocalIo::Remove (uint16_t timeout)
   return SFS_OK;
 }
 
+
+//------------------------------------------------------------------------------
+// Get pointer to async meta handler object 
+//------------------------------------------------------------------------------
+void*
+LocalIo::GetAsyncHandler ()
+{
+  return NULL;
+}
 
 EOSFSTNAMESPACE_END
 

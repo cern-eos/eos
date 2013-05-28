@@ -41,7 +41,7 @@ add_library( EosFstOss MODULE
 
 target_link_libraries( EosFstOss 
 		       eosCapability-Static
-		       eosCommon-Static
+		       eosCommon
 		       XrdServer	      
 		       ${UUID_LIBRARIES}
 )
@@ -69,7 +69,7 @@ add_library( EosFstIo-Static STATIC
 )
 
 target_link_libraries( EosFstIo-Static
-		       eosCommon-Static
+		       eosCommon
 		       XrdCl	
 		       XrdUtils 
 		       crypto                  curses                   
@@ -150,7 +150,7 @@ add_library( XrdEosFst-Static STATIC
 
 target_link_libraries( XrdEosFst 
 		       eosCapability-Static    eosCommon-Static
-		       eosCommonServer-Static  
+		       eosCommonServer
 		       XrdMqClient-Static      XrdCl	
 		       XrdUtils                XrdOfs 
 		       crypto                  curses                   
@@ -221,7 +221,7 @@ add_executable( eoscp
 		io/FileIoPlugin.cc
 )
 
-set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
+#set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 
 target_link_libraries( FstLoad XrdUtils dl ${RT_LIBRARIES}  )
 target_link_libraries( eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )

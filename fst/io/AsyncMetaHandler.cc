@@ -57,13 +57,16 @@ AsyncMetaHandler::~AsyncMetaHandler ()
   while (mQRecycle.try_pop(ptr_chunk))
   {
     delete ptr_chunk;
+    ptr_chunk = 0;
   }
-
+  
   if (mChunkToDelete)
   {
     delete mChunkToDelete;
-    mChunkToDelete = NULL;
+    mChunkToDelete = 0;
   }
+
+  mMapErrors.clear();
 }
 
 
@@ -173,6 +176,8 @@ AsyncMetaHandler::GetErrorsMap ()
 bool
 AsyncMetaHandler::WaitOK ()
 {
+  bool ret = false;
+  
   mCond.Lock();   // -->
   
   while (mAsyncReq > 0)
@@ -180,8 +185,10 @@ AsyncMetaHandler::WaitOK ()
     mCond.Wait();
   }
 
+  ret = mState;
   mCond.UnLock(); // <--
-  return mState;
+  
+  return ret;
 }
 
 
