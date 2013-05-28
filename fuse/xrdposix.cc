@@ -2872,6 +2872,10 @@ xrd_init ()
     {
       fprintf(stderr, "error: cannot open log file %s\n", logfile);
     }
+    else 
+    {
+      chmod(logfile,S_IRUSR | S_IWUSR |S_IRGRP| S_IROTH );
+    }
   }
   else
   {
@@ -2889,6 +2893,10 @@ xrd_init ()
     if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr)))
     {
       fprintf(stderr, "error: cannot open log file %s\n", cPath.GetPath());
+    }
+    else 
+    {
+      chmod(cPath.GetPath(),S_IRUSR | S_IWUSR);
     }
   }
 

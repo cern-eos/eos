@@ -207,6 +207,7 @@ CacheImpl::AddRead (eos::fst::Layout*& file,
       if (!RemoveReadBlock())
       {
         ForceWrite();
+	break;
       }
     }
 
