@@ -216,17 +216,16 @@ add_executable( eos-adler32
 
 add_executable( eoscp 
 		txqueue/eoscp.cc
-		io/FileIoPlugin.cc
 )
 
-#set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
+set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 
 target_link_libraries( FstLoad XrdUtils dl ${RT_LIBRARIES}  )
 target_link_libraries( eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-compute-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-scan-fs eosCommon eosCommonServer XrdCl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
 target_link_libraries( eos-adler32 eosCommon ${CMAKE_THREAD_LIBS_INIT} ) 
-target_link_libraries( eoscp XrdCl EosFstIo-Static eosCommon-Static )
+target_link_libraries( eoscp XrdCl EosFstIo-Static )
 
 if (Linux)
   set_target_properties (XrdEosFst PROPERTIES
