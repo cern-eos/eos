@@ -202,6 +202,7 @@ CacheImpl::addRead(int filed, const long long int& k, char* buf, off_t off,
       COMMONTIMING("start evitc", &ar);
       if (!removeReadBlock()) {
         forceWrite();
+	break;
       } 
     }
 
