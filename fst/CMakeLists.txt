@@ -216,8 +216,6 @@ add_executable( eos-adler32
 
 add_executable( eoscp 
 		txqueue/eoscp.cc
-		../common/Logging.cc
-		../common/Attr.cc
 		io/FileIoPlugin.cc
 )
 
