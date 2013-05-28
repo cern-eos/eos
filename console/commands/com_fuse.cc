@@ -150,7 +150,7 @@ com_fuse (char* arg1) {
       env += getenv("EOS_FUSE_CACHE_READ");
     } else {
       setenv("EOS_FUSE_CACHE_READ","1",1);
-      env += " EOS_FUSE_CACHE_READ=1";
+      env += " EOS_FUSE_CACHE_READ=0";
     }
     
     if (getenv("EOS_FUSE_CACHE_SIZE")) {
