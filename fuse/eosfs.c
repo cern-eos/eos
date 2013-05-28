@@ -656,6 +656,6 @@ int main(int argc, char *argv[])
   fprintf(stderr,"mount=%s\n", mountpoint);
   umask(022);
   signal(SIGALRM,fuse_shutdown);
-  alarm(48*3600);
+  alarm(7*24*3600); // we shutdown after 1 week 
   return fuse_main(margc, argv, &eosdfs_oper, NULL);
 }

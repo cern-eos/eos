@@ -183,7 +183,7 @@ com_fuse (char* arg1) {
     fprintf(stderr,"===> fuse write-cache      : %s\n", getenv("EOS_FUSE_CACHE_WRITE"));
     fprintf(stderr,"===> fuse write-cache-size : %s\n", getenv("EOS_FUSE_CACHE_SIZE"));
 
-    XrdOucString mount=env; mount += " eosfsd "; mount += mountpoint.c_str(); mount += " -f -s "; mount += " -o"; mount += params;
+    XrdOucString mount=env; mount += " eosfsd "; mount += mountpoint.c_str(); mount += " -f "; mount += " -o"; mount += params;
     if (logfile.length()) {
       mount += " -d >& "; mount += logfile; mount += " &";
       int rc = system(mount.c_str());
