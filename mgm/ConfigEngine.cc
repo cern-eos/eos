@@ -52,30 +52,36 @@ ConfigEngineChangeLog::ConfigEngineChangeLog () {
 void
 ConfigEngineChangeLog::Init (const char* changelogfile)
 {
-  if (!IsDbMapFile(changelogfile))
   {
+    std::ifstream testfile(changelogfile);
+    if(testfile.good()) {
+      testfile.close();
+      if (!IsDbMapFile(changelogfile))
+      {
 #ifndef EOS_SQLITE_DBMAP
-    if (IsSqliteFile(changelogfile))
-    { // case : sqlite -> leveldb
-      std::string bakname = changelogfile;
-      bakname += ".sqlite";
-      if (eos::common::ConvertSqlite2LevelDb(changelogfile, changelogfile, bakname))
-        eos_notice("autoconverted changelogfile %s from sqlite format to leveldb format", changelogfile);
-      else
-      {
-        eos_emerg("failed to autoconvert changelogfile %s from sqlite format to leveldb format", changelogfile);
-        exit(-1);
-      }
-    }
-    else
+        if (IsSqliteFile(changelogfile))
+        { // case : sqlite -> leveldb
+          std::string bakname = changelogfile;
+          bakname += ".sqlite";
+          if (eos::common::ConvertSqlite2LevelDb(changelogfile, changelogfile, bakname))
+            eos_notice("autoconverted changelogfile %s from sqlite format to leveldb format", changelogfile);
+          else
+          {
+            eos_emerg("failed to autoconvert changelogfile %s from sqlite format to leveldb format", changelogfile);
+            exit(-1);
+          }
+        }
+        else
 #endif
-    { // case : old plain text -> leveldb or sqlite
-      if (LegacyFile2DbMapFile(changelogfile))
-        eos_notice("autoconverted changelogfile %s from legacy txt format to %s format", changelogfile, eos::common::DbMap::GetDbType().c_str());
-      else
-      {
-        eos_emerg("failed to autoconvert changelogfile %s from legacy txt format to %s format", changelogfile, eos::common::DbMap::GetDbType().c_str());
-        exit(-1);
+        { // case : old plain text -> leveldb or sqlite
+          if (LegacyFile2DbMapFile(changelogfile))
+            eos_notice("autoconverted changelogfile %s from legacy txt format to %s format", changelogfile, eos::common::DbMap::GetDbType().c_str());
+          else
+          {
+            eos_emerg("failed to autoconvert changelogfile %s from legacy txt format to %s format", changelogfile, eos::common::DbMap::GetDbType().c_str());
+            exit(-1);
+          }
+        }
       }
     }
   }
