@@ -53,6 +53,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <signal.h>
 #include <pthread.h>
 #ifdef HAVE_SETXATTR
 #include <sys/xattr.h>
@@ -62,6 +63,7 @@
 
 char *rdr;
 static time_t eosatime; // we need to track the access time of / to use autofs
+char *mountpoint;
 
 
 static int eosdfs_getattr(const char *path, struct stat *stbuf)
@@ -551,6 +553,14 @@ usage() {
   exit(-1);
 }
 
+static void
+fuse_shutdown(int sig) {
+  char systemline[1024];
+  fprintf(stderr,"**** Doing automatic FUSE shutdown after 48 hours ... ***\n");
+  snprintf(systemline, sizeof(systemline)-1, "fusermount -u %s", mountpoint);
+  system(systemline);
+}
+
 int main(int argc, char *argv[])
 {
   char* spos=0;
@@ -642,7 +652,10 @@ int main(int argc, char *argv[])
   // = > don't close STDERR because we redirect that to a file!
   
   xrd_init();
-  
-  umask(0);
+  mountpoint = argv[margc-1];
+  fprintf(stderr,"mount=%s\n", mountpoint);
+  umask(022);
+  signal(SIGALRM,fuse_shutdown);
+  alarm(48*3600);
   return fuse_main(margc, argv, &eosdfs_oper, NULL);
 }

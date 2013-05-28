@@ -2034,6 +2034,8 @@ xrd_init()
 
     if (!(fstderr = freopen(logfile,"a+", stderr))) {
       fprintf(stderr,"error: cannot open log file %s\n", logfile);
+    } else {
+      chmod(logfile,S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
     }
   } else {
     // running as root ... we log into /var/log/eos/fuse
@@ -2041,6 +2043,8 @@ xrd_init()
     cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IROTH);
     if (!(fstderr = freopen(cPath.GetPath(),"a+", stderr))) {
       fprintf(stderr,"error: cannot open log file %s\n", cPath.GetPath());
+    } else {
+      chmod(cPath.GetPath(),S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
     }
   }
 
