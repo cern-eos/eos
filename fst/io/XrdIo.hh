@@ -276,7 +276,6 @@ public:
 
 private:
 
-  int mIndex; ///< inded of readahead block in use ( 0 or 1 )
   bool mDoReadahead; ///< mark if readahead is enabled
   uint32_t mBlocksize; ///< block size for rd/wr opertations
   std::string mPath; ///< path to file

@@ -38,7 +38,7 @@ const unsigned int AsyncMetaHandler::msMaxNumAsyncObj = 20;
 //------------------------------------------------------------------------------
 
 AsyncMetaHandler::AsyncMetaHandler () :
-mState (true),
+mErrorType (XrdCl::errNone),
 mAsyncReq (0),
 mChunkToDelete(NULL)
 {
@@ -54,10 +54,13 @@ AsyncMetaHandler::~AsyncMetaHandler ()
 {
   ChunkHandler* ptr_chunk = NULL;
 
-  while (mQRecycle.try_pop(ptr_chunk))
+  while (!mQRecycle.empty())
   {
-    delete ptr_chunk;
-    ptr_chunk = 0;
+    if (mQRecycle.try_pop(ptr_chunk))
+    {
+      delete ptr_chunk;
+      ptr_chunk = 0;
+    }
   }
   
   if (mChunkToDelete)
@@ -83,8 +86,9 @@ AsyncMetaHandler::Register (uint64_t offset,
   ChunkHandler* ptr_chunk = NULL;
   mCond.Lock();  // -->
 
-  //If any of the the previous requests failed then stop trying and return an error
-  if (!mState)
+  // If any of the the previous requests failed with a timeout then stop trying
+  // and return an error
+  if (mErrorType == XrdCl::errOperationExpired)
   {
     mCond.UnLock(); // <--
     return NULL;
@@ -128,14 +132,18 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 
   if (pStatus->status != XrdCl::stOK)
   {
-    mMapErrors.insert(std::make_pair(chunk->GetOffset(), chunk->GetLength()));
-    mState = false;
-
-    //fprintf(stderr, "Got error message with staus:%u, code:%u, errNo:%lu. \n",
+    //fprintf(stderr, "Got error message with status:%u, code:%u, errNo:%lu. \n",
     //        pStatus->status, pStatus->code, (unsigned long)pStatus->errNo);
+    
+    mMapErrors.insert(std::make_pair(chunk->GetOffset(), chunk->GetLength()));
 
+    // If we got a timeout in the previous requests then we keep the error code
+    if (mErrorType != XrdCl::errOperationExpired)
+      mErrorType = pStatus->code;
+       
     if (pStatus->code == XrdCl::errOperationExpired)
     {
+      mErrorType = pStatus->code;
       //fprintf(stderr, "Got a timeout error for request off=%zu, len=%lu \n",
       //        chunk->GetOffset(), (unsigned long)chunk->GetLength());
     }    
@@ -163,7 +171,7 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 //------------------------------------------------------------------------------
 
 const std::map<uint64_t, uint32_t>&
-AsyncMetaHandler::GetErrorsMap ()
+AsyncMetaHandler::GetErrors ()
 {
   return mMapErrors;
 }
@@ -173,10 +181,10 @@ AsyncMetaHandler::GetErrorsMap ()
 // Wait for responses
 //------------------------------------------------------------------------------
 
-bool
+uint16_t
 AsyncMetaHandler::WaitOK ()
 {
-  bool ret = false;
+  uint16_t ret = XrdCl::errNone;
   
   mCond.Lock();   // -->
   
@@ -185,7 +193,7 @@ AsyncMetaHandler::WaitOK ()
     mCond.Wait();
   }
 
-  ret = mState;
+  ret = mErrorType;
   mCond.UnLock(); // <--
   
   return ret;
@@ -200,7 +208,7 @@ void
 AsyncMetaHandler::Reset ()
 {
   mCond.Lock();
-  mState = true;
+  mErrorType = XrdCl::errNone;
   mAsyncReq = 0;
   mMapErrors.clear();
   mCond.UnLock();

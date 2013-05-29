@@ -60,7 +60,8 @@ LayoutPlugin::GetLayoutObject (XrdFstOfsFile* file,
                                const XrdSecEntity* client,
                                XrdOucErrInfo* error,
                                eos::common::LayoutId::eIoType io,
-                               uint16_t timeout)
+                               uint16_t timeout,
+                               bool storeRecovery)
 {
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kPlain)
   {
@@ -74,13 +75,13 @@ LayoutPlugin::GetLayoutObject (XrdFstOfsFile* file,
 
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaidDP)
   {
-    return static_cast<Layout*> (new RaidDpLayout(file, layoutId, client, error, io, timeout));
+    return static_cast<Layout*> (new RaidDpLayout(file, layoutId, client, error, io, timeout, storeRecovery));
   }
 
   if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid6) ||
       (LayoutId::GetLayoutType(layoutId) == LayoutId::kArchive))
   {
-    return static_cast<Layout*> (new ReedSLayout(file, layoutId, client, error, io, timeout));
+    return static_cast<Layout*> (new ReedSLayout(file, layoutId, client, error, io, timeout, storeRecovery));
   }
 
   return 0;
