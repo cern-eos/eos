@@ -2,7 +2,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.3.0
-Release: 7
+Release: 8
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -79,9 +79,6 @@ rm -rf $RPM_BUILD_ROOT
 
 %files -n eos-server
 %defattr(-,root,root)
-/usr/lib64/libXrdMqClient.so.0.3.0
-/usr/lib64/libXrdMqClient.so.0
-/usr/lib64/libXrdMqClient.so
 /usr/lib64/libXrdMqOfs.so.0.3.0
 /usr/lib64/libXrdMqOfs.so.0
 /usr/lib64/libXrdMqOfs.so
@@ -90,9 +87,6 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eoshapl
 /usr/sbin/eosfilesync
 /usr/sbin/eosdirsync
-/usr/lib64/libeosCommon.so.0.3.0
-/usr/lib64/libeosCommon.so.0
-/usr/lib64/libeosCommon.so
 /usr/lib64/libeosCommonServer.so.0.3.0
 /usr/lib64/libeosCommonServer.so.0
 /usr/lib64/libeosCommonServer.so
@@ -168,6 +162,13 @@ The EOS shell client.
 /usr/bin/eos
 /usr/bin/eosdropboxd
 /usr/bin/eoscp
+/usr/lib64/libXrdMqClient.so.0.3.0
+/usr/lib64/libXrdMqClient.so.0
+/usr/lib64/libXrdMqClient.so
+/usr/lib64/libeosCommon.so.0.3.0
+/usr/lib64/libeosCommon.so.0
+/usr/lib64/libeosCommon.so
+
 ############################
 # documentation
 %doc %_mandir/man1/eos.1.gz
