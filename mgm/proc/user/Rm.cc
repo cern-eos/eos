@@ -57,6 +57,23 @@ ProcCommand::Rm ()
   }
   else
   {
+    // check if this file exists
+    XrdSfsFileExistence file_exists;
+    if (gOFS->_exists(spath.c_str(), file_exists, *mError, *pVid, 0))
+    {
+      stdErr += "error: unable to run exists on path '";
+      stdErr += spath.c_str();
+      stdErr += "'";
+      retc = errno;  
+      return SFS_OK;
+    }
+    
+    if (file_exists == XrdSfsFileExistIsFile)
+    {
+      // if we have rm -r <file> we remove the -r flag
+      option = "";
+    }
+    
     // find everything to be deleted
     if (option == "r")
     {
@@ -82,8 +99,8 @@ ProcCommand::Rm ()
         eos::ContainerMD::XAttrMap attrmap;
 
         // check if this path exists at all
-	struct stat buf;
-	if (!gOFS->_stat(spath.c_str(), &buf, *mError, *pVid,""))
+        struct stat buf;
+        if (!gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, ""))
         {
           // check if this path has a recycle attribute
           if (gOFS->_attr_ls(spath.c_str(), *mError, *pVid, "", attrmap))
@@ -91,9 +108,11 @@ ProcCommand::Rm ()
             stdErr += "error: unable to get attributes on search path\n";
             retc = errno;
           }
-	} else {
-	  fprintf(stderr,"############ skipping attrls\n");
-	}
+        }
+        else
+        {
+          fprintf(stderr, "############ skipping attrls\n");
+        }
 
         //.......................................................................
         // see if we have a recycle policy set and if avoid to recycle inside 
