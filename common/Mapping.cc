@@ -327,16 +327,16 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
   // ---------------------------------------------------------------------------
   // tident mapping
   // ---------------------------------------------------------------------------
-   XrdOucString mytident = "";
+  XrdOucString mytident = "";
   XrdOucString myrole = "";
   XrdOucString wildcardtident = "";
   XrdOucString host = "";
   XrdOucString stident = "tident:";
   stident += "\"";
+  stident += ReduceTident(vid.tident, wildcardtident, mytident, host);
   myrole = mytident;
   myrole.erase(mytident.find("@"));
 
-  stident += ReduceTident(vid.tident, wildcardtident, mytident, host);
   XrdOucString swctident = "tident:";
   swctident += "\"";
   swctident += wildcardtident;
@@ -425,7 +425,7 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
       }
       else
       {
-        eos_static_debug("tident uid mapping");
+        eos_static_debug("tident uid mapping myrole=%s", myrole.c_str());
 	vid.uid_list.clear();
         // use physical mapping 
         if ((myrole != "root"))
