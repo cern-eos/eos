@@ -318,7 +318,11 @@ ProcCommand::Fileinfo ()
             stdOut += (int) (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
             stdOut += " Blocksize: ";
             stdOut += eos::common::LayoutId::GetBlockSizeString(fmd->getLayoutId());
-            stdOut += " *******\n";
+            stdOut += " LayoutId: ";
+            XrdOucString hexlidstring;
+            eos::common::FileId::Fid2Hex(fmd->getLayoutId(), hexlidstring);
+            stdOut += hexlidstring;
+            stdOut += "\n";
             stdOut += "  #Rep: ";
             stdOut += (int) fmd->getNumLocation();
             stdOut += "\n";
@@ -346,7 +350,6 @@ ProcCommand::Fileinfo ()
             stdOut += " gid=";
             stdOut += (int) fmd->getCGid();
             stdOut += " ";
-
             stdOut += "fxid=";
             stdOut += hexfidstring;
             stdOut += " ";
@@ -372,6 +375,11 @@ ProcCommand::Fileinfo ()
             stdOut += eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId());
             stdOut += " nstripes=";
             stdOut += (int) (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
+            stdOut += " ";
+            stdOut += "lid=";
+            XrdOucString hexlidstring;
+            eos::common::FileId::Fid2Hex(fmd->getLayoutId(), hexlidstring);
+            stdOut += hexlidstring;
             stdOut += " ";
             stdOut += "nrep=";
             stdOut += (int) fmd->getNumLocation();
