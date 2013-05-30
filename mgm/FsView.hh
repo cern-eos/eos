@@ -26,6 +26,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/Balancer.hh"
+#include "mgm/Converter.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/FsView.hh"
@@ -138,7 +139,8 @@ class FsSpace : public BaseView
 {
 public:
 #ifndef EOSMGMFSVIEWTEST
-  Balancer* mBalancer;
+  Balancer* mBalancer;   // threaded class supervising space balancing 
+  Converter* mConverter; // threaded class running layout conversion jobs
 #endif
 
   // this variable is set when a configuration get's loaded to avoid overwriting of the loaded values by default values
@@ -150,7 +152,8 @@ public:
     mType = "spaceview";
 #ifndef EOSMGMFSVIEWTEST
     mBalancer = new Balancer(name);
-
+    mConverter = new Converter(name);
+    
     if (!gDisableDefaults)
     {
       // set default balancing variables
@@ -178,6 +181,10 @@ public:
         SetConfigMember("groupmod", "0", true, "/eos/*/mgm");
       if (GetConfigMember("groupsize") == "")
         SetConfigMember("groupsize", "0", true, "/eos/*/mgm");
+      if (GetConfigMember("converter") == "")
+        SetConfigMember("converter", "off", true, "/eos/*/mgm"); // disable converter by default
+      if (GetConfigMember("converter.ntx") == "")
+        SetConfigMember("converter.ntx", "2", true, "/eos/*/mgm"); // set two converter streams by default
     }
 
 #endif
@@ -189,6 +196,9 @@ public:
   {
 #ifndef EOSMGMFSVIEWTEST
     if (mBalancer) delete mBalancer;
+    if (mConverter) delete mConverter;
+    mBalancer = 0;
+    mConverter = 0;
 #endif
   };
 
