@@ -133,6 +133,7 @@ std::string opaqueInfo; ///< opaque info containing the capabilities
 ///< necesssary to do a parallel IO open
 
 std::string replicationType = "";
+//TODO: deal with the case when both the source and the destination are RAIN files
 eos::fst::RaidMetaLayout* redundancyObj = NULL;
 
 //..............................................................................

@@ -34,6 +34,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 /*----------------------------------------------------------------------------*/
 #include "common/ConcurrentQueue.hh"
+#include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 
 
@@ -49,7 +50,7 @@ class ChunkHandler;
 //! Class for handling async responses
 //------------------------------------------------------------------------------
 
-class AsyncMetaHandler
+class AsyncMetaHandler: public eos::common::LogId
 {
 public:
 
