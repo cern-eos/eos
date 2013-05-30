@@ -1734,6 +1734,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("Stall", 0, 0, 0);
   gOFS->MgmStats.Add("Stat", 0, 0, 0);
   gOFS->MgmStats.Add("Symlink", 0, 0, 0);
+  gOFS->MgmStats.Add("Touch", 0, 0, 0);
   gOFS->MgmStats.Add("TxState", 0, 0, 0);
   gOFS->MgmStats.Add("Truncate", 0, 0, 0);
   gOFS->MgmStats.Add("VerifyStripe", 0, 0, 0);
