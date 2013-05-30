@@ -1,4 +1,4 @@
-// ----------------------------------------------------------------------
+// at----------------------------------------------------------------------
 // File: XrdMgmOfs.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
@@ -5391,7 +5391,7 @@ XrdMgmOfs::_utimes (const char *path,
   if (!done)
   {
 
-    return Emsg("utimes", error, errno, "set utimes", path);
+
   }
 
   return SFS_OK;
@@ -5606,6 +5606,87 @@ XrdMgmOfs::_find (const char *path,
   }
 
   EXEC_TIMING_END("Find");
+  return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::_touch (const char *path,
+                   XrdOucErrInfo &error,
+                   eos::common::Mapping::VirtualIdentity &vid,
+                   const char *ininfo)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief create(touch) a no-replica file in the namespace
+ * 
+ * @param inpath file to delete
+ * @param error error object
+ * @param vid virtual identity of the client
+ * @param ininfo CGI
+ * @param simulate indicates 'simulate deletion' e.g. it can be used as a test if a deletion would succeed
+ * @return SFS_OK if success otherwise SFS_ERROR
+ * 
+ * Deletion supports the recycle bin if configured on the parent directory of 
+ * the file to be deleted. The simulation mode is used to test if there is 
+ * enough space in the recycle bin to move the object. If the simulation succeeds
+ * the real deletion is executed. 
+ */
+/*----------------------------------------------------------------------------*/
+{
+  EXEC_TIMING_BEGIN("Touch");
+
+  eos_info("path=%s vid.uid=%u vid.gid=%u", path, vid.uid, vid.gid);
+
+
+  gOFS->MgmStats.Add("Touch", vid.uid, vid.gid, 1);
+
+  // Perform the actual deletion
+  //
+  errno = 0;
+  eos::FileMD* fmd=0;
+  
+  if (_access(path, W_OK, error, vid, ininfo))
+  {
+    return SFS_ERROR;
+  }
+
+  try
+  {
+    fmd = gOFS->eosView->getFile(path);
+    errno = 0;
+  }
+  catch (eos::MDException &e)
+  {
+    errno = e.getErrno();
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+              e.getErrno(), e.getMessage().str().c_str());
+  }
+
+  try
+  {
+    if (!fmd)
+    {
+      fmd = gOFS->eosView->createFile(path, vid.uid, vid.gid);
+      fmd->setCUid(vid.uid);
+      fmd->setCGid(vid.gid);
+      fmd->setCTimeNow();
+      fmd->setSize(0);
+    }
+    fmd->setMTimeNow();
+    gOFS->eosView->updateFileStore(fmd);
+    errno = 0;
+  }
+  catch (eos::MDException &e)
+  {
+    errno = e.getErrno();
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+              e.getErrno(), e.getMessage().str().c_str());
+  }
+  if (errno)
+  {
+    return Emsg("utimes", error, errno, "touch", path);
+  }
+  EXEC_TIMING_END("Touch");
   return SFS_OK;
 }
 
@@ -9607,7 +9688,7 @@ XrdMgmOfs::_replicatestripe (eos::FileMD *fmd,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::SendResync (eos::common::FileId::fileid_t fid, 
+XrdMgmOfs::SendResync (eos::common::FileId::fileid_t fid,
                        eos::common::FileSystem::fsid_t fsid)
 /*----------------------------------------------------------------------------*/
 /*
@@ -9691,7 +9772,7 @@ XrdMgmOfs::StartMgmFsListener (void *pp)
 
 /*----------------------------------------------------------------------------*/
 bool
-XrdMgmOfs::DeleteExternal (eos::common::FileSystem::fsid_t fsid, 
+XrdMgmOfs::DeleteExternal (eos::common::FileSystem::fsid_t fsid,
                            unsigned long long fid)
 /*----------------------------------------------------------------------------*/
 /*
