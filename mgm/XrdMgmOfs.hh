@@ -23,7 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 /**
- * @file   XrdMgmOfs.hh.hh
+ * @file   XrdMgmOfs.hh
  * 
  * @brief  XRootD OFS plugin implementing meta data handling of EOS
  * 
@@ -135,6 +135,7 @@
 #include "XrdSys/XrdSysTimer.hh"
 /*----------------------------------------------------------------------------*/
 #include <dirent.h>
+
 /*----------------------------------------------------------------------------*/
 
 
@@ -391,10 +392,11 @@ public:
   {
     return (const char *) dirName.c_str();
   }
-  
+
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
+
   XrdMgmOfsDirectory (char *user = 0, int MonID = 0) : XrdSfsDirectory (user, MonID)
   {
     dirName = "";
@@ -407,6 +409,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
+
   ~XrdMgmOfsDirectory () { }
 private:
 
@@ -464,6 +467,7 @@ public:
   // ---------------------------------------------------------------------------
   //! fs command faking always ok
   // ---------------------------------------------------------------------------
+
   int
   Fscmd (const char* path, const char* path2, const char* orgipath, const XrdSecEntity *client, XrdOucErrInfo &error, const char* info)
   {
@@ -473,6 +477,7 @@ public:
   // ---------------------------------------------------------------------------
   //! return mmap address (we don't need it)
   // ---------------------------------------------------------------------------
+
   int
   getMmap (void **Addr, off_t &Size)
   {
@@ -536,6 +541,7 @@ public:
   // ---------------------------------------------------------------------------
   //! get checksum info (returns nothing - not supported)
   // ---------------------------------------------------------------------------
+
   int
   getCXinfo (char cxtype[4], int &cxrsz)
   {
@@ -545,6 +551,7 @@ public:
   // ---------------------------------------------------------------------------
   //! fctl fakes ok
   // ---------------------------------------------------------------------------
+
   int
   fctl (int, const char*, XrdOucErrInfo&)
   {
@@ -560,6 +567,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
+
   XrdMgmOfsFile (char *user = 0, int MonID = 0) : XrdSfsFile (user, MonID)
   {
     oh = 0;
@@ -606,6 +614,7 @@ public:
   // ---------------------------------------------------------------------------
   //! return a MGM directory object
   // ---------------------------------------------------------------------------
+
   XrdSfsDirectory *
   newDir (char *user = 0, int MonID = 0)
   {
@@ -615,6 +624,7 @@ public:
   // ---------------------------------------------------------------------------
   //! return a MGM file object
   // ---------------------------------------------------------------------------
+
   XrdSfsFile *
   newFile (char *user = 0, int MonID = 0)
   {
@@ -717,6 +727,7 @@ public:
   // ---------------------------------------------------------------------------
   //! get stats function (fake ok)
   // ---------------------------------------------------------------------------
+
   int
   getStats (char *buff, int blen)
   {
@@ -851,12 +862,13 @@ public:
   // ---------------------------------------------------------------------------
   // stat file to retrieve mode
   // ---------------------------------------------------------------------------
+
   int
   stat (const char *Name,
-	mode_t &mode,
-	XrdOucErrInfo &out_error,
-	const XrdSecEntity *client = 0,
-	const char *opaque = 0)
+        mode_t &mode,
+        XrdOucErrInfo &out_error,
+        const XrdSecEntity *client = 0,
+        const char *opaque = 0)
   {
     struct stat bfr;
     int rc = stat(Name, &bfr, out_error, client, opaque);
@@ -897,6 +909,14 @@ public:
   // ---------------------------------------------------------------------------
   int _utimes (const char*, struct timespec *tvp, XrdOucErrInfo&, eos::common::Mapping::VirtualIdentity &vid, const char* opaque = 0);
 
+  // ---------------------------------------------------------------------------
+  // touch a file
+  // ---------------------------------------------------------------------------
+  int _touch (const char *path,
+              XrdOucErrInfo &error,
+              eos::common::Mapping::VirtualIdentity &vid,
+              const char *ininfo = 0);
+  
   // ---------------------------------------------------------------------------
   // list extended attributes of a directory
   // ---------------------------------------------------------------------------
@@ -1168,7 +1188,7 @@ public:
   // ---------------------------------------------------------------------------
   // Filesystem error listener thread startup function
   // ---------------------------------------------------------------------------
-  static void* StartMgmFsListener (void *pp); 
+  static void* StartMgmFsListener (void *pp);
 
   // ---------------------------------------------------------------------------
   // Filesystem error listener thread function
