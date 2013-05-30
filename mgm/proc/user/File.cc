@@ -428,6 +428,24 @@ ProcCommand::File ()
       }
     }
 
+    // --------------------------------------------------------------------------
+    // touch a file 
+    // --------------------------------------------------------------------------
+    if (mSubCmd == "touch")
+    {
+      if (gOFS->_touch(spath.c_str(), *mError, *pVid, 0))
+      {
+        stdErr += "error: unable to touch";
+        retc = errno;
+      }
+      else
+      {
+        stdOut += "success: touched '";
+        stdOut += spath.c_str();
+        stdOut += "'";
+      }
+    }
+    
     // --------------------------------------------------------------------------Ï
     // fix the current state of the file layout by removing/repairing or adding
     // replica/stripes
