@@ -88,6 +88,7 @@ add_library (XrdEosMgm MODULE
 	    Recycle.cc
             Http.cc
 	    S3Store.cc
+	    Converter.cc
 	    )
 
 target_link_libraries( XrdEosMgm 
