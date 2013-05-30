@@ -155,7 +155,7 @@ com_file (char* arg1)
   if (wants_help(savearg.c_str()))
     goto com_file_usage;
 
-  if ((cmd != "drop") && (cmd != "move") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename"))
+  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename"))
   {
     goto com_file_usage;
   }
@@ -182,7 +182,15 @@ com_file (char* arg1)
     in += fsid1.c_str();
   }
 
-
+  if (cmd == "touch")
+  {
+    if (!path.length() )
+      goto com_file_usage;
+    in += "&mgm.path=";
+    in += path;
+    in += "&mgm.subcmd=touch";
+  }
+  
   if (cmd == "drop")
   {
     if (!path.length() || !fsid1.length())
@@ -702,6 +710,10 @@ com_file_usage:
   fprintf(stdout, "       -commitchecksum : commit the computed checksum to the MGM\n");
   fprintf(stdout, "       -commitsize     : commit the file size to the MGM\n");
   fprintf(stdout, "       -rate <rate>    : restrict the verification speed to <rate> per node\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "file touch <path> :\n");
+  fprintf(stdout,"                                                   create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
+
   return (0);
 }
 

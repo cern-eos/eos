@@ -261,10 +261,12 @@ com_space_usage:
   fprintf(stdout, "                                                                --io : print IO satistics\n");
   fprintf(stdout, "                                                              --fsck : print filesystem check statistics\n");
   fprintf(stdout, "       space config <space-name> space.nominalsize=<value>           : configure the nominal size for this space\n");
-  fprintf(stdout, "       space config <space-name> space.balancer=on|off               : enable/disable the space balancer [default=on]\n");
+  fprintf(stdout, "       space config <space-name> space.balancer=on|off               : enable/disable the space balancer [default=off]\n");
   fprintf(stdout, "       space config <space-name> space.balancer.threshold=<percent>  : configure the used bytes deviation which triggers balancing            [ default=20 (%%)     ] \n");
   fprintf(stdout, "       space config <space-name> space.balancer.node.rate=<MB/s>     : configure the nominal transfer bandwith per running transfer on a node [ default=25 (MB/s)   ]\n");
   fprintf(stdout, "       space config <space-name> space.balancer.node.ntx=<#>         : configure the number of parallel balancing transfers per node          [ default=2 (streams) ]\n");
+  fprintf(stdout, "       space config <space-name> space.converter=on|off              : enable/disable the space converter [default=off]\n");
+  fprintf(stdout, "       space config <space-name> space.converter.ntx=<#>             : configure the number of parallel conversions per space                 [ default=2 (streams) ]\n");
   fprintf(stdout, "       space config <space-name> space.drainer.node.rate=<MB/s >     : configure the nominal transfer bandwith per running transfer on a node [ default=25 (MB/s)   ]\n");
   fprintf(stdout, "       space config <space-name> space.drainer.node.ntx=<#>          : configure the number of parallel draining transfers per node           [ default=2 (streams) ]\n");
   fprintf(stdout, "       space config <space-name> space.headroom=<size>               : configure the default disk headroom if not defined on a filesystem (see fs for details)\n");
