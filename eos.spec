@@ -1,7 +1,7 @@
 %define _unpackaged_files_terminate_build 0
 Summary: The EOS project
 Name: eos
-Version: 0.2.31
+Version: 0.2.32
 Release: 1
 Prefix: /usr
 License: none
@@ -68,10 +68,10 @@ rm -rf $RPM_BUILD_ROOT
 
 %files -n eos-server
 %defattr(-,root,root)
-/usr/lib64/libXrdMqClient.so.0.2.31
+/usr/lib64/libXrdMqClient.so.0.2.32
 /usr/lib64/libXrdMqClient.so.0
 /usr/lib64/libXrdMqClient.so
-/usr/lib64/libXrdMqOfs.so.0.2.31
+/usr/lib64/libXrdMqOfs.so.0.2.32
 /usr/lib64/libXrdMqOfs.so.0
 /usr/lib64/libXrdMqOfs.so
 /usr/bin/xrdmqdumper
@@ -79,13 +79,13 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eoshapl
 /usr/sbin/eosfilesync
 /usr/sbin/eosdirsync
-/usr/lib64/libeosCommon.so.0.2.31
+/usr/lib64/libeosCommon.so.0.2.32
 /usr/lib64/libeosCommon.so.0
 /usr/lib64/libeosCommon.so
-/usr/lib64/libXrdEosAuth.so.0.2.31
+/usr/lib64/libXrdEosAuth.so.0.2.32
 /usr/lib64/libXrdEosAuth.so.0
 /usr/lib64/libXrdEosAuth.so
-/usr/lib64/libXrdEosFst.so.0.2.31
+/usr/lib64/libXrdEosFst.so.0.2.32
 /usr/lib64/libXrdEosFst.so.0
 /usr/lib64/libXrdEosFst.so
 /usr/sbin/eosfstregister
@@ -97,7 +97,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eos-adler32
 /usr/sbin/eos-mmap
 /usr/sbin/eos-repair-tool
-/usr/lib64/libXrdEosMgm.so.0.2.31
+/usr/lib64/libXrdEosMgm.so.0.2.32
 /usr/lib64/libXrdEosMgm.so.0
 /usr/lib64/libXrdEosMgm.so
 /usr/sbin/eos-log-compact
