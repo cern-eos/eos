@@ -100,11 +100,12 @@ class LayoutId
   //--------------------------------------------------------------------------
   enum eBlockSize {
     k4k      = 0x0,
-    k64k     = 0x1,
     k128k    = 0x2,
-    k256k    = 0x3,
-    k512k    = 0x4,
-    k1M      = 0x5,
+    k512k    = 0x3,
+    k1M      = 0x4,
+    k4M      = 0x5,
+    k16M     = 0x6,
+    k64M     = 0x7
   };
   
   //--------------------------------------------------------------------------
@@ -156,11 +157,12 @@ class LayoutId
   static unsigned long BlockSize( int blocksize ) {
     
     if ( blocksize == k4k )   return ( 4   * 1024 );
-    if ( blocksize == k64k )  return ( 64  * 1024 );
     if ( blocksize == k128k ) return ( 128 * 1024 );
-    if ( blocksize == k256k ) return ( 256 * 1024 );
     if ( blocksize == k512k ) return ( 512 * 1024 );
     if ( blocksize == k1M )   return ( 1024 * 1024 );
+    if ( blocksize == k4M )   return (  4 * 1024 * 1024 );
+    if ( blocksize == k16M )  return ( 16 * 1024 * 1024 );
+    if ( blocksize == k64M )  return ( 64 * 1024 * 1024 );
     
     return 0;
   }
@@ -172,11 +174,12 @@ class LayoutId
   static int BlockSizeEnum( unsigned long blocksize ) {
     
     if ( blocksize == ( 4 * 1024 ) )   return k4k;
-    if ( blocksize == ( 64 * 1024 ) )  return k64k;
     if ( blocksize == ( 128 * 1024 ) ) return k128k;
-    if ( blocksize == ( 256 * 1024 ) ) return k256k;
     if ( blocksize == ( 512 * 1024 ) ) return k512k;
     if ( blocksize == ( 1024 * 1024 ) ) return k1M;
+    if ( blocksize == ( 4 * 1024 * 1024 ) ) return k4M;
+    if ( blocksize == ( 16 * 1024 * 1024 ) ) return k16M;
+    if ( blocksize == ( 64 * 1024 * 1024 ) ) return k64M;
     
     return 0;
   }
@@ -385,11 +388,12 @@ class LayoutId
   static const char* GetBlockSizeString( unsigned long layout ) {
     
     if ( GetBlocksizeType( layout ) == k4k )   return "4k";
-    if ( GetBlocksizeType( layout ) == k64k )  return "k64k";
     if ( GetBlocksizeType( layout ) == k128k ) return "128k";
-    if ( GetBlocksizeType( layout ) == k256k ) return "256k";
     if ( GetBlocksizeType( layout ) == k512k ) return "512k";
     if ( GetBlocksizeType( layout ) == k1M )   return "1M";
+    if ( GetBlocksizeType( layout ) == k4M )   return "4M";
+    if ( GetBlocksizeType( layout ) == k16M )  return "16M";
+    if ( GetBlocksizeType( layout ) == k64M )  return "64M";
     
     return "illegal";
   }
@@ -460,11 +464,12 @@ class LayoutId
       XrdOucString bs = val;
       
       if ( bs == "4k" )   return k4k;
-      if ( bs == "64k" )  return k64k;
       if ( bs == "128k" ) return k128k;
-      if ( bs == "256k" ) return k256k;
       if ( bs == "512k" ) return k512k;
       if ( bs == "1M" )   return k1M;
+      if ( bs == "4M" )   return k4M;
+      if ( bs == "16M" )  return k16M;
+      if ( bs == "64M" )  return k64M;
     }
     
     return 0;
