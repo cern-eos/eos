@@ -230,14 +230,12 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   off_t offset = rMapToRecover.begin()->first;
   off_t offset_group = (offset / mSizeGroup) * mSizeGroup;
   AsyncMetaHandler* ptr_handler = 0;
-  std::map<uint64_t, uint32_t> mapErrors;
+  std::map<uint64_t, uint32_t> map_errors;
   vector<unsigned int> simple_parity = GetSimpleParityIndices();
   vector<unsigned int> double_parity = GetDoubleParityIndices();
   status_blocks = static_cast<bool*> (calloc(mNbTotalBlocks, sizeof ( bool)));
 
-  //............................................................................
   // Reset all the async handlers
-  //............................................................................
   for (unsigned int i = 0; i < mStripeFiles.size(); i++)
   {
     if (mStripeFiles[i])
@@ -247,7 +245,8 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
         ptr_handler->Reset();
     }
   }
-  
+
+  // Read the current group of blocks
   for (unsigned int i = 0; i < mNbTotalBlocks; i++)
   {
     memset(mDataBlocks[i], 0, mStripeWidth);
@@ -258,9 +257,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
       ((i / mNbTotalFiles) * mStripeWidth);
     offset_local += mSizeHeader;
 
-    //..........................................................................
     // Read data from stripe
-    //..........................................................................
     if (mStripeFiles[physical_id])
     {
       // enable readahead
@@ -291,12 +288,15 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
     
       if (ptr_handler)
       {
-        if (!ptr_handler->WaitOK())
+        uint16_t error_type = ptr_handler->WaitOK();
+        
+        if (error_type != XrdCl::errNone)
         {
-          mapErrors = ptr_handler->GetErrorsMap();
-      
-          for (std::map<uint64_t, uint32_t>::iterator iter = mapErrors.begin();
-               iter != mapErrors.end();
+          // Get type of error and the errors map 
+          map_errors = ptr_handler->GetErrors();
+                         
+          for (std::map<uint64_t, uint32_t>::iterator iter = map_errors.begin();
+               iter != map_errors.end();
                iter++)
           {
             offset_local = iter->first;
@@ -306,11 +306,22 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
             status_blocks[index] = false;
             corrupt_ids.push_back(index);
           }
+
+          // If timeout error, then disable current file 
+          if (error_type == XrdCl::errOperationExpired)
+          {
+            delete mStripeFiles[i];
+            mStripeFiles[i] = NULL;
+          }
         }
-        
-        ptr_handler->Reset();
+
+        if (mStripeFiles[i])
+          ptr_handler->Reset();
       }
     }
+
+    // TODO: deal with the case the file is NULL, we need to add all the blocks
+    //       in that file to the list of corrupted ones
   }
 
   if (corrupt_ids.empty())
@@ -530,10 +541,21 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
     {
       ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
     
-      if (ptr_handler && (!ptr_handler->WaitOK()))
+      if (ptr_handler)
       {
-        eos_err("error=failed write on stripe %i", i);
-        ret = false;
+        uint16_t error_type = ptr_handler->WaitOK();
+
+        if (error_type != XrdCl::errNone)
+        {
+          eos_err("error=failed write on stripe %i", i);
+          ret = false;
+
+          if (error_type == XrdCl::errOperationExpired)
+          {
+            delete mStripeFiles[i];
+            mStripeFiles[i] = NULL;
+          }
+        }
       }
     }
   }
@@ -984,10 +1006,8 @@ RaidDpLayout::Truncate (XrdSfsFileOffset offset)
   truncate_offset += mSizeHeader;
   
   if (mStripeFiles[0])
-  {
     mStripeFiles[0]->Truncate(truncate_offset, mTimeout);
-  }
-    
+      
   eos_debug("Truncate local stripe to file_offset = %lli, stripe_offset = %zu",
             offset, truncate_offset);
   
@@ -1051,6 +1071,7 @@ RaidDpLayout::Truncate (XrdSfsFileOffset offset)
   return rc;
 }
 
+
 //--------------------------------------------------------------------------
 // Allocate file space ( reserve )
 //--------------------------------------------------------------------------
@@ -1073,8 +1094,6 @@ RaidDpLayout::Fdeallocate (XrdSfsFileOffset fromOffset,
   int64_t to_size = ceil( (1.0 * toOffset) / mSizeGroup) * mSizeLine + mSizeHeader;
   return mStripeFiles[0]->Fdeallocate(from_size, to_size);
 }
-
-
 
 EOSFSTNAMESPACE_END
 

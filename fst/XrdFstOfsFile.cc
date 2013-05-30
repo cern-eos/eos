@@ -678,6 +678,17 @@ XrdFstOfsFile::open (const char* path,
   }
 
   SetLogId(logId, vid, tident);
+
+  // For RAIN layouts if the opaque information contains the tag fst.store=1
+  // the corrupted files are recovered back on disk 
+  bool store_recovery = false;
+
+  if ((val = openOpaque->Get("fst.store")))
+  {
+    if (strncmp(val, "1", 1) == 0)
+      store_recovery = true;
+  }
+  
   eos_info("fstpath=%s", fstPath.c_str());
 
   //............................................................................
@@ -685,7 +696,7 @@ XrdFstOfsFile::open (const char* path,
   //............................................................................
   layOut = eos::fst::LayoutPlugin::GetLayoutObject(this, lid, client, &error,
                                                    eos::common::LayoutId::kLocal,
-                                                   msDefaultTimeout);
+                                                   msDefaultTimeout, store_recovery);
 
   if (!layOut)
   {

@@ -78,8 +78,12 @@ public:
 
   //--------------------------------------------------------------------------
   //! Wait for responses
+  //!
+  //! @return error type, if no error occurs return XrdCl::errNone
+  //!  For further details on possible error codes look into XrdClStatus.hh
+  //!
   //--------------------------------------------------------------------------
-  bool WaitOK ();
+  uint16_t WaitOK ();
 
 
   //--------------------------------------------------------------------------
@@ -101,8 +105,11 @@ public:
 
   //--------------------------------------------------------------------------
   //! Get map of errors
+  //!
+  //! @return map of errors
+  //!
   //--------------------------------------------------------------------------
-  const std::map<uint64_t, uint32_t>& GetErrorsMap ();
+  const std::map<uint64_t, uint32_t>& GetErrors ();
 
 
   //--------------------------------------------------------------------------
@@ -112,7 +119,7 @@ public:
 
 private:
 
-  bool mState; ///< true if all requests are ok, otherwise false
+  uint16_t mErrorType; ///< type of error, we are mostly interested in timeouts
   unsigned int mAsyncReq; ///< number of async requests in flight (for which no response was received)
   XrdSysCondVar mCond; ///< condition variable to signal the receival of all responses
   ChunkHandler* mChunkToDelete; ///< pointer to the ChunkHandler to be deleted

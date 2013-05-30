@@ -545,7 +545,7 @@ class LayoutId
     if ((!(flags_sfs & SFS_O_TRUNC)) &&
         (!(flags_sfs & SFS_O_WRONLY)) &&
         (!(flags_sfs & SFS_O_CREAT)) &&
-        (!flags_sfs & SFS_O_RDWR))
+        (!(flags_sfs & SFS_O_RDWR)))
     {
       xflags |= XrdCl::OpenFlags::Read;
     }

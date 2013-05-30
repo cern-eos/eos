@@ -42,7 +42,6 @@ const uint32_t XrdIo::sNumRdAheadBlocks = 2;
 
 XrdIo::XrdIo () :
 FileIo(),
-mIndex (0),
 mDoReadahead (false),
 mBlocksize (ReadaheadBlock::sDefaultBlocksize),
 mXrdFile (NULL),
@@ -76,12 +75,10 @@ XrdIo::~XrdIo ()
     }
   }
 
+  delete mMetaHandler;  
+  
   if (mXrdFile)
-  {
     delete mXrdFile;
-  }
-
-  delete mMetaHandler;
 }
 
 
@@ -625,7 +622,7 @@ XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
 void*
 XrdIo::GetAsyncHandler ()
 {
-  return mMetaHandler;
+  return static_cast<void*>(mMetaHandler);
 }
 
 EOSFSTNAMESPACE_END

@@ -169,11 +169,23 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
     physical_id = mapLP[i];
     ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->GetAsyncHandler());
     
-    if (ptr_handler && (!ptr_handler->WaitOK()))
+    if (ptr_handler)
     {
-      eos_err("error=remote block corrupted id=%i", i);
-      invalid_ids.push_back(i);
-      num_blocks_corrupted++;
+      uint16_t error_type = ptr_handler->WaitOK();
+      
+      if (error_type != XrdCl::errNone)
+      {
+        std::pair< uint16_t, std::map<uint64_t, uint32_t> > pair_err;
+        eos_err("error=remote block corrupted id=%i", i);
+        invalid_ids.push_back(i);
+        num_blocks_corrupted++;
+
+        if (error_type == XrdCl::errOperationExpired)
+        {
+          delete mStripeFiles[physical_id];
+          mStripeFiles[physical_id] = NULL;
+        }
+      }
     }
   }
 
@@ -324,10 +336,21 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
     {
       ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->GetAsyncHandler());
     
-      if (ptr_handler && (!ptr_handler->WaitOK()))
+      if (ptr_handler)
       {
-        eos_err("ReedSRecovery - write stripe failed");
-        ret = false;
+        uint16_t error_type = ptr_handler->WaitOK();
+
+        if (error_type != XrdCl::errNone)
+        {
+          eos_err("ReedSRecovery - write stripe failed");
+          ret = false;
+
+          if (error_type == XrdCl::errOperationExpired)
+          {
+            delete mStripeFiles[physical_id];
+            mStripeFiles[physical_id] = NULL;
+          }
+        }
       }
     }
   }

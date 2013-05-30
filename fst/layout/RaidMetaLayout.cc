@@ -205,6 +205,8 @@ RaidMetaLayout::Open (const std::string& path,
  {
    eos_err("error=failed to open local ", path.c_str());
    errno = EIO;
+   delete file;
+   file = 0;
    return SFS_ERROR;
  }
    
@@ -522,6 +524,7 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    HeaderCRC* hd = mHdrInfo.back();
    file = mStripeFiles.back();
 
+   eos_info("Before calling ReadFromFile.");
    if (file && hd->ReadFromFile(file, mTimeout))
    {
      mapPL.insert(std::make_pair(pos, hd->GetIdStripe()));
@@ -696,7 +699,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
                       char* buffer,
                       XrdSfsXferSize length)
 {
- eos_debug("offset=%llu, length=%lu", offset, (long unsigned) length);
+ eos_debug("offset=%lli, length=%li", offset, length);
  eos::common::Timing rt("read");
  COMMONTIMING("start", &rt);
  off_t nread = 0;
@@ -708,7 +711,6 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
  off_t end_raw_offset = offset + length;
  AsyncMetaHandler* ptr_handler = 0;
  std::map<off_t, size_t> map_all_errors;
- std::map<uint64_t, uint32_t> map_tmp_errors;
 
  if (!mIsEntryServer)
  {
@@ -738,7 +740,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
    if ((offset < 0) && (mIsRw))
    {
      //........................................................................
-     // Recover file mode use first extra block as dummy buffer
+     // Force recover file mode - use first extra block as dummy buffer
      //........................................................................
      offset = 0;
      int64_t len = mFileSize;
@@ -755,7 +757,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
      {
        nread = mStripeWidth;
        map_all_errors.insert(std::make_pair<off_t, size_t > (offset, nread));
-
+       
        if (offset % mSizeGroup == 0)
        {
          if (!RecoverPieces(offset, mFirstBlock, map_all_errors))
@@ -846,9 +848,9 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
      //........................................................................
      // Collect errros
      //........................................................................
-     size_t len;
+     size_t len = 0;
+     std::map<uint64_t, uint32_t> map_tmp_errors;
 
-     // TODO: deal with the case when we receive a timeout error
      for (unsigned int j = 0; j < mStripeFiles.size(); j++)
      {
        if (mStripeFiles[j])
@@ -857,9 +859,12 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
        
          if (ptr_handler)
          {
-           if (!ptr_handler->WaitOK())
+           uint16_t error_type = ptr_handler->WaitOK();
+           
+           if (error_type != XrdCl::errNone)
            {
-             map_tmp_errors = ptr_handler->GetErrorsMap();
+             // Get the type of error and the map
+             map_tmp_errors = ptr_handler->GetErrors();
 
              for (std::map<uint64_t, uint32_t>::iterator iter = map_tmp_errors.begin();
                   iter != map_tmp_errors.end(); iter++)
@@ -880,8 +885,16 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
                  map_all_errors.insert(std::make_pair(current_offset, len));
                }
              }
-
+             
              do_recovery = true;
+
+             // If timeout error, then disable current file as we asume that
+             // the server is down
+             if (error_type == XrdCl::errOperationExpired)
+             {
+               delete mStripeFiles[j];
+               mStripeFiles[j] = NULL;
+             }
            }        
          }
        }
@@ -935,7 +948,8 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
    //...........................................................................
    // Non-entry server doing only local operations
    //...........................................................................
-   write_length = mStripeFiles[0]->Write(offset, buffer, length, mTimeout);
+   if (mStripeFiles[0])
+     write_length = mStripeFiles[0]->Write(offset, buffer, length, mTimeout);
  }
  else
  {
@@ -1175,7 +1189,7 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
      
      if (ptr_handler)
      {
-       if (!ptr_handler->WaitOK())
+       if (ptr_handler->WaitOK() != XrdCl::errNone)
        {
          eos_err("error=write failed in previous requests.");
          return false;
@@ -1228,7 +1242,7 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
    {  
      ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
    
-     if (ptr_handler && (!ptr_handler->WaitOK()))
+     if (ptr_handler && (ptr_handler->WaitOK() != XrdCl::errNone))
      {
        eos_err("error=error while reading remote data blocks");
        ret = false;
@@ -1532,7 +1546,7 @@ RaidMetaLayout::Close ()
 
            if (ptr_handler)
            {
-             if (!ptr_handler->WaitOK())
+             if (ptr_handler->WaitOK() != XrdCl::errNone)
              {
                eos_err("error=write failed in previous requests.");
                rc = SFS_ERROR;

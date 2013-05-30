@@ -63,7 +63,8 @@ public:
   //! @param client security entity
   //! @param error error information
   //! @param accessType access type ( ofs/xrd )
-  //! @param timeout timeout value 
+  //! @param timeout timeout value
+  //! @param storeRecovery store recovered blocks
   //!
   //! @return requested layout type object
   //!
@@ -73,7 +74,8 @@ public:
                                   const XrdSecEntity* client,
                                   XrdOucErrInfo* error,
                                   eos::common::LayoutId::eIoType accessType,
-                                  uint16_t timeout = 0);
+                                  uint16_t timeout = 0,
+                                  bool storeRecovery = false);
 };
 
 EOSFSTNAMESPACE_END
