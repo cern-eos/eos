@@ -30,9 +30,9 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-  /*----------------------------------------------------------------------------*/
-  // Global static variables
-  /*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+// Global static variables
+/*----------------------------------------------------------------------------*/
   int Logging::gLogMask = 0;
 int Logging::gPriorityLevel = 0;
 int Logging::gShortFormat = 0;
@@ -43,6 +43,7 @@ unsigned long Logging::gCircularIndexSize;
 XrdSysMutex Logging::gMutex;
 XrdOucString Logging::gUnit = "none";
 XrdOucString Logging::gFilter = "";
+std::map<std::string,FILE*> Logging::gLogFanOut;
 
 Mapping::VirtualIdentity Logging::gZeroVid;
 
@@ -104,9 +105,21 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
   // apply filter to avoid message flooding for debug messages
   if (priority >= LOG_INFO)
   {
-    if ((gFilter.find(func)) != STR_NPOS)
+    if ((gFilter.find("PASS:")) != STR_NPOS)
     {
-      return "";
+      // if this is a pass-through filter e.g. we want to see exactly this messages
+      if ((gFilter.find(func)) == STR_NPOS)
+      {
+        return "";
+      }
+    }
+    else
+    {
+      // this is a normal filter by function name
+      if ((gFilter.find(func)) != STR_NPOS)
+      {
+        return "";
+      }
     }
   }
 
@@ -120,15 +133,11 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
 
   XrdOucString File = file;
 
-  // we truncate the file name and show only the end
-  if (File.length() > 16)
-  {
-    int up = File.length() - 13;
-    File.erase(3, up);
-    File.insert("...", 3);
-  }
-
-
+  // we show only one hierarchy directory like Acl (assuming that we have only
+  // file names like *.cc and *.hh
+  File.erase(0, File.rfind("/") + 1);
+  File.erase(File.length()-3);
+  
   static time_t current_time;
   static struct timeval tv;
   static struct timezone tz;
@@ -159,13 +168,13 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
   if (gShortFormat)
   {
     tm = localtime(&current_time);
-    sprintf(buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-12s level=%s tid=%lu source=%s:%-5s ", tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func, GetPriorityString(priority), (unsigned long) XrdSysThread::ID(), File.c_str(), linen);
+    sprintf(buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-12s level=%s tid=%016lx source=%-24s:%-5s ", tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func, GetPriorityString(priority), (unsigned long) XrdSysThread::ID(), File.c_str(), linen);
   }
   else
   {
     sprintf(fcident, "tident=%s sec=%s uid=%d gid=%d name=%s geo=\"%s\"", cident, vid.prot.c_str(), vid.uid, vid.gid, truncname.c_str(), vid.geolocation.c_str());
     tm = localtime(&current_time);
-    sprintf(buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-24s level=%s logid=%s unit=%s tid=%lu source=%s:%-5s %s ", tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func, GetPriorityString(priority), logid, gUnit.c_str(), (unsigned long) XrdSysThread::ID(), File.c_str(), linen, fcident);
+    sprintf(buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-24s level=%s logid=%s unit=%s tid=%016lx source=%-24s:%-5s %s ", tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func, GetPriorityString(priority), logid, gUnit.c_str(), (unsigned long) XrdSysThread::ID(), File.c_str(), linen, fcident);
   }
 
   char* ptr = buffer + strlen(buffer);
@@ -173,9 +182,35 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
   // limit the length of the output to buffer-1 length
   vsnprintf(ptr, logmsgbuffersize - (ptr - buffer - 1), msg, args);
 
-  fprintf(stderr, "%s", buffer);
-  fprintf(stderr, "\n");
-  fflush(stderr);
+  if (gLogFanOut.size())
+  {
+    // we do log-message fanout
+    if (gLogFanOut.count("*")) 
+    {
+      fprintf(gLogFanOut["*"],"%s\n",buffer);
+      fflush(gLogFanOut["*"]);
+    }
+    if (gLogFanOut.count(File.c_str()))
+    {
+      fprintf(gLogFanOut[File.c_str()],"%s\n", buffer);
+      fflush(gLogFanOut[File.c_str()]);
+    } 
+    else 
+    {
+      if (gLogFanOut.count("#"))
+      {
+        fprintf(gLogFanOut["#"],"%s\n", buffer);
+        fflush(gLogFanOut["#"]);
+      }
+    }
+    fprintf(stderr, "%s\n", buffer);
+    fflush(stderr);
+  }
+  else
+  {
+    fprintf(stderr, "%s\n", buffer);
+    fflush(stderr);
+  }
   va_end(args);
 
   const char* rptr;

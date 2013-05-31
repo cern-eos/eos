@@ -26,6 +26,21 @@
  *
  * @brief  Class for message logging.
  *
+ * You can use this class without creating an instance object (it provides a 
+ * global singleton). All the 'eos_<state>' functions require that the logging
+ * class inherits from the 'LogId' class. As an alternative as set of static
+ * 'eos_static_<state>' logging functinos are provided. To define the log level
+ * one uses the static 'SetLogPriority' function. 'SetFilter' allows to filter
+ * out log messages which are identified by their function/method name
+ * (__FUNCTION__). If you prefix this comma seperated list with 'PASS:' it is 
+ * used as an acceptance filter. By default all logging is printed to 'stderr'.
+ * You can arrange a log stream filter fan-out using 'AddFanOut'. The fan-out of
+ * messages is defined by the source filename the message comes from and mappes
+ * to a FILE* where the message is written. If you add a '*' fan-out you can
+ * write all messages into this file. If you add a '#' fan-out you can write 
+ * all messages which are not in any other fan-out (besides '*') into that file.
+ * The fan-out functionality assumes that
+ * source filenames follow the pattern <fan-out-name>.xx !!!!
  */
 
 #ifndef __EOSCOMMON_LOGGING_HH__
@@ -80,14 +95,14 @@ EOSCOMMONNAMESPACE_BEGIN
 //! Log Macros usable from static member functions without LogId object
 /*----------------------------------------------------------------------------*/
 #define eos_static_log(__EOSCOMMON_LOG_PRIORITY__ , ...) eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"",  (__EOSCOMMON_LOG_PRIORITY__) , __VA_ARGS__
-#define eos_static_debug(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", eos::common::Logging::gZeroVid,"", (LOG_DEBUG)  , __VA_ARGS__)
-#define eos_static_info(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", eos::common::Logging::gZeroVid,"", (LOG_INFO)   , __VA_ARGS__)
-#define eos_static_notice(...)  eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", eos::common::Logging::gZeroVid,"", (LOG_NOTICE) , __VA_ARGS__)
-#define eos_static_warning(...) eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", eos::common::Logging::gZeroVid,"", (LOG_WARNING), __VA_ARGS__)
-#define eos_static_err(...)     eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", eos::common::Logging::gZeroVid,"", (LOG_ERR)    , __VA_ARGS__)
-#define eos_static_crit(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", eos::common::Logging::gZeroVid,"", (LOG_CRIT)   , __VA_ARGS__)
-#define eos_static_alert(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", eos::common::Logging::gZeroVid,"", (LOG_ALERT)  , __VA_ARGS__)
-#define eos_static_emerg(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", eos::common::Logging::gZeroVid,"", (LOG_EMERG)  , __VA_ARGS__)
+#define eos_static_debug(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static                              ", eos::common::Logging::gZeroVid,"", (LOG_DEBUG)  , __VA_ARGS__)
+#define eos_static_info(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static                              ", eos::common::Logging::gZeroVid,"", (LOG_INFO)   , __VA_ARGS__)
+#define eos_static_notice(...)  eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static                              ", eos::common::Logging::gZeroVid,"", (LOG_NOTICE) , __VA_ARGS__)
+#define eos_static_warning(...) eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static                              ", eos::common::Logging::gZeroVid,"", (LOG_WARNING), __VA_ARGS__)
+#define eos_static_err(...)     eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static                              ", eos::common::Logging::gZeroVid,"", (LOG_ERR)    , __VA_ARGS__)
+#define eos_static_crit(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static                              ", eos::common::Logging::gZeroVid,"", (LOG_CRIT)   , __VA_ARGS__)
+#define eos_static_alert(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static                              ", eos::common::Logging::gZeroVid,"", (LOG_ALERT)  , __VA_ARGS__)
+#define eos_static_emerg(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static                              ", eos::common::Logging::gZeroVid,"", (LOG_EMERG)  , __VA_ARGS__)
 
 /*----------------------------------------------------------------------------*/
 //! Log Macros to check if a function would log in a certain log level
@@ -178,8 +193,9 @@ public:
   static XrdSysMutex gMutex;                 //< global mutex
   static XrdOucString gUnit;                 //< global unit name
   static XrdOucString gFilter;               //< global log filter to apply
-  static int gShortFormat;                  //< indiciating if the log-output is in short format
-
+  static int gShortFormat;                   //< indiciating if the log-output is in short format
+  static std::map<std::string,FILE*> gLogFanOut;//< here one can define log fan-out to different file descriptors than stderr
+  
   // ---------------------------------------------------------------------------
   //! Set the log priority (like syslog)
   // ---------------------------------------------------------------------------
@@ -230,6 +246,14 @@ public:
   //! Initialize Logger
   // ---------------------------------------------------------------------------
   static void Init();
+  
+  // ---------------------------------------------------------------------------
+  //! Add a tag fanout filedescriptor to the logging module
+  // ---------------------------------------------------------------------------
+  static void AddFanOut(const char* tag, FILE* fd)
+  {
+    gLogFanOut[tag] = fd;
+  }
   
   // ---------------------------------------------------------------------------
   //! Check if we should log in the defined level/filter
