@@ -101,6 +101,7 @@ Balancer::Balance (void)
   while (1)
   {
     bool IsSpaceBalancing = true;
+    bool IsMaster = true;
     double SpaceDifferenceThreshold = 0;
     std::string SpaceNodeTransfers = "";
     std::string SpaceNodeTransferRate = "";
@@ -119,12 +120,14 @@ Balancer::Balance (void)
       else
         IsSpaceBalancing = false;
 
+      IsMaster = gOFS->MgmMaster.IsMaster();
+      
       SpaceNodeThreshold = FsView::gFsView.mSpaceView[mSpaceName.c_str()]->GetConfigMember("balancer.threshold");
       SpaceDifferenceThreshold = strtod(SpaceNodeThreshold.c_str(), 0);
       SpaceNodeTransfers = FsView::gFsView.mSpaceView[mSpaceName.c_str()]->GetConfigMember("balancer.node.ntx");
       SpaceNodeTransferRate = FsView::gFsView.mSpaceView[mSpaceName.c_str()]->GetConfigMember("balancer.node.rate");
 
-      if (IsSpaceBalancing)
+      if (IsMaster && IsSpaceBalancing)
       {
         size_t totalfiles; // number of files currently in transfer
         // loop over all groups
