@@ -160,6 +160,8 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 
   static XrdMqOfs myFS(&gMqOfsEroute);
 
+  lp->setRotate(0); // disable XRootD log rotation
+  
   gMqFS = &myFS;
 
   gMqFS->ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
