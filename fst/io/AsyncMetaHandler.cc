@@ -38,6 +38,7 @@ const unsigned int AsyncMetaHandler::msMaxNumAsyncObj = 20;
 //------------------------------------------------------------------------------
 
 AsyncMetaHandler::AsyncMetaHandler () :
+eos::common::LogId(),
 mErrorType (XrdCl::errNone),
 mAsyncReq (0),
 mChunkToDelete(NULL)
@@ -132,8 +133,8 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 
   if (pStatus->status != XrdCl::stOK)
   {
-    //fprintf(stderr, "Got error message with status:%u, code:%u, errNo:%lu. \n",
-    //        pStatus->status, pStatus->code, (unsigned long)pStatus->errNo);
+    eos_debug("Got error message with status:%u, code:%u, errNo:%lu. \n",
+              pStatus->status, pStatus->code, (unsigned long)pStatus->errNo);
     
     mMapErrors.insert(std::make_pair(chunk->GetOffset(), chunk->GetLength()));
 
@@ -144,8 +145,8 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
     if (pStatus->code == XrdCl::errOperationExpired)
     {
       mErrorType = pStatus->code;
-      //fprintf(stderr, "Got a timeout error for request off=%zu, len=%lu \n",
-      //        chunk->GetOffset(), (unsigned long)chunk->GetLength());
+      eos_debug("Got a timeout error for request off=%zu, len=%lu \n",
+                chunk->GetOffset(), (unsigned long)chunk->GetLength());
     }    
   }
 

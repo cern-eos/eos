@@ -524,7 +524,6 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    HeaderCRC* hd = mHdrInfo.back();
    file = mStripeFiles.back();
 
-   eos_info("Before calling ReadFromFile.");
    if (file && hd->ReadFromFile(file, mTimeout))
    {
      mapPL.insert(std::make_pair(pos, hd->GetIdStripe()));
@@ -819,7 +818,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
          nbytes = mStripeFiles[physical_id]->ReadAsync(offset_local,
                                                        mPtrBlocks[i],
                                                        mStripeWidth,
-                                                       true, mTimeout);
+                                                       true, mTimeout); 
 
          if (nbytes != mStripeWidth)
          {
@@ -1372,10 +1371,17 @@ RaidMetaLayout::Sync ()
    //..........................................................................
    // Sync local file
    //..........................................................................
-   if (mStripeFiles[0] && mStripeFiles[0]->Sync(mTimeout))
+   if (mStripeFiles[0])
    {
-     eos_err("error=local file could not be synced");
-     ret = SFS_ERROR;
+     if (mStripeFiles[0]->Sync(mTimeout))
+     {
+       eos_err("error=local file could not be synced");
+       ret = SFS_ERROR;
+     }
+   }
+   else
+   {
+     eos_warning("warning=local file could not be synced as it is NULL");
    }
 
    if (mIsEntryServer)
@@ -1385,10 +1391,17 @@ RaidMetaLayout::Sync ()
      //........................................................................
      for (unsigned int i = 1; i < mStripeFiles.size(); i++)
      {
-       if (mStripeFiles[i] && mStripeFiles[i]->Sync(mTimeout))
+       if (mStripeFiles[i])
        {
-         eos_err("error=file %i could not be synced", i);
-         ret = SFS_ERROR;
+         if (mStripeFiles[i]->Sync(mTimeout))
+         {
+           eos_err("error=file %i could not be synced", i);
+           ret = SFS_ERROR;
+         }
+       }
+       else
+       {
+         eos_warning("warning=remote file could not be synced as it is NULL");
        }
      }
    }
@@ -1420,10 +1433,17 @@ RaidMetaLayout::Remove ()
     //..........................................................................
     for (unsigned int i = 1; i < mStripeFiles.size(); i++)
     {
-      if (mStripeFiles[i] && mStripeFiles[i]->Remove(mTimeout))
+      if (mStripeFiles[i])
       {
-        eos_err("error=failed to remove remote stripe %i", i);
-        ret = SFS_ERROR;
+        if (mStripeFiles[i]->Remove(mTimeout))
+        {
+          eos_err("error=failed to remove remote stripe %i", i);
+          ret = SFS_ERROR;
+        }
+      }
+      else
+      {
+        eos_warning("warning=remote file could not be removed as it is NULL");
       }
     }
   }
@@ -1431,10 +1451,17 @@ RaidMetaLayout::Remove ()
   //..........................................................................
   // Unlink local stripe
   //..........................................................................
-  if (mStripeFiles[0] && mStripeFiles[0]->Remove(mTimeout))
+  if (mStripeFiles[0])
   {
-    eos_err("error=failed to remove local stripe");
-    ret = SFS_ERROR;
+    if (mStripeFiles[0]->Remove(mTimeout))
+    {
+      eos_err("error=failed to remove local stripe");
+      ret = SFS_ERROR;
+    }
+  }
+  else
+  {
+    eos_warning("warning=local file could not be removed as it is NULL");
   }
   
   return ret;
@@ -1459,18 +1486,32 @@ RaidMetaLayout::Stat (struct stat* buf)
    {
      for (unsigned int i = 0; i < mStripeFiles.size(); i++)
      {
-       if (mStripeFiles[i] && mStripeFiles[i]->Stat(buf, mTimeout) == SFS_OK)
+       if (mStripeFiles[i])
        {
-         found = true;
-         break;
+         if (mStripeFiles[i]->Stat(buf, mTimeout) == SFS_OK)
+         {
+           found = true;
+           break;
+         }
+       }
+       else
+       {
+         eos_warning("warning=file %i could not be stat as it is NULL", i);
        }
      }
    }
    else
    {
-     if (mStripeFiles[0] && mStripeFiles[0]->Stat(buf, mTimeout) == SFS_OK)
+     if (mStripeFiles[0])
      {
-       found = true;
+       if (mStripeFiles[0]->Stat(buf, mTimeout) == SFS_OK)
+       {
+         found = true;
+       }
+     }
+     else
+     {
+       eos_warning("warning=local file could no be stat as it is NULL");
      }
    }
    
@@ -1601,7 +1642,7 @@ RaidMetaLayout::Close ()
            }
            else
            {
-             eos_warning("warning=could not write header info to unopened file.");
+             eos_warning("warning=could not write header info to NULL file.");
            }
          }
 
@@ -1614,10 +1655,17 @@ RaidMetaLayout::Close ()
      //........................................................................
      for (unsigned int i = 1; i < mStripeFiles.size(); i++)
      {
-       if (mStripeFiles[i] && mStripeFiles[i]->Close(mTimeout))
+       if (mStripeFiles[i])
        {
-         eos_err("error=failed to close remote file %i", i);
-         rc = SFS_ERROR;
+         if (mStripeFiles[i]->Close(mTimeout))
+         {
+           eos_err("error=failed to close remote file %i", i);
+           rc = SFS_ERROR;
+         }
+       }
+       else
+       {
+         eos_warning("error=remote stripe could not be closed as the file is NULL");
        }
      }
    }
@@ -1625,10 +1673,17 @@ RaidMetaLayout::Close ()
    //..........................................................................
    // Close local file
    //..........................................................................
-   if (mStripeFiles[0] && mStripeFiles[0]->Close(mTimeout))
+   if (mStripeFiles[0])
    {
-     eos_err("error=failed to close local file");
-     rc = SFS_ERROR;
+     if (mStripeFiles[0]->Close(mTimeout))
+     {
+       eos_err("error=failed to close local file");
+       rc = SFS_ERROR;
+     }
+   }
+   else
+   {
+     eos_warning("warning=local stripe could not be closed as the file is NULL");     
    }
  }
  else

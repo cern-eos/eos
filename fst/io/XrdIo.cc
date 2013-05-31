@@ -153,9 +153,9 @@ XrdIo::Open (const std::string& path,
 
 int64_t
 XrdIo::Read (XrdSfsFileOffset offset,
-                 char* buffer,
-                 XrdSfsXferSize length,
-                 uint16_t timeout)
+             char* buffer,
+             XrdSfsXferSize length,
+             uint16_t timeout)
 {
   eos_debug("offset=%llu length=%llu",
             static_cast<uint64_t> (offset),
@@ -249,6 +249,18 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
                             buffer,
                             static_cast<XrdCl::ResponseHandler*> (handler),
                             timeout);
+
+    if (!status.IsOK())
+    {
+      //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      // TODO: for the time being we call this ourselves but this should be
+      // dropped once XrdCl will call the handler for a request as it knows it
+      // has already failed 
+      //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      mMetaHandler->HandleResponse(&status, handler);
+      return SFS_ERROR;
+    }
+    
     nread += length;    
   }
   else
@@ -353,6 +365,17 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
                               pBuff,
                               handler,
                               timeout);
+      if (!status.IsOK())
+      {
+        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        // TODO: for the time being we call this ourselves but this should be
+        // dropped once XrdCl will call the handler for a request as it knows it
+        // has already failed 
+        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        mMetaHandler->HandleResponse(&status, handler);
+        return SFS_ERROR;
+      }
+
       nread += length;
     }
   }
@@ -362,7 +385,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
 
 
 //------------------------------------------------------------------------------
-// Try to find a block in cache with contains the required offset
+// Try to find a block in cache which contains the required offset
 //------------------------------------------------------------------------------
 PrefetchMap::iterator
 XrdIo::FindBlock(uint64_t offset)
@@ -406,7 +429,6 @@ XrdIo::FindBlock(uint64_t offset)
 //------------------------------------------------------------------------------
 // Write to file - async
 //------------------------------------------------------------------------------
-
 int64_t
 XrdIo::WriteAsync (XrdSfsFileOffset offset,
                    const char* buffer,
@@ -442,7 +464,6 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
-
 int
 XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
@@ -463,7 +484,6 @@ XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 //------------------------------------------------------------------------------
 // Sync file to disk
 //------------------------------------------------------------------------------
-
 int
 XrdIo::Sync (uint16_t timeout)
 {
@@ -483,7 +503,6 @@ XrdIo::Sync (uint16_t timeout)
 //------------------------------------------------------------------------------
 // Get stats about the file
 //------------------------------------------------------------------------------
-
 int
 XrdIo::Stat (struct stat* buf, uint16_t timeout)
 {
@@ -521,7 +540,6 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
-
 int
 XrdIo::Close (uint16_t timeout)
 {
@@ -565,7 +583,6 @@ XrdIo::Close (uint16_t timeout)
 //------------------------------------------------------------------------------
 // Remove file
 //------------------------------------------------------------------------------
-
 int
 XrdIo::Remove (uint16_t timeout)
 {
@@ -587,7 +604,6 @@ XrdIo::Remove (uint16_t timeout)
 //------------------------------------------------------------------------------
 // Prefetch block using the readahead mechanism
 //------------------------------------------------------------------------------
-
 void
 XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
 {
@@ -612,7 +628,15 @@ XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
                           block->handler,
                           timeout);
 
-  mMapBlocks.insert(std::make_pair(offset, block));
+  if (!status.IsOK())
+  {
+    block->handler->HandleResponse(&status, NULL);
+    mQueueBlocks.push(block);    
+  }
+  else
+  {
+    mMapBlocks.insert(std::make_pair(offset, block));
+  }
 }
 
 
