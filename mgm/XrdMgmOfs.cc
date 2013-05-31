@@ -293,10 +293,16 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
   vs += VERSION;
   gMgmOfsEroute.Say("++++++ (c) 2012 CERN/IT-DSS ", vs.c_str());
 
+  // ---------------------------------------------------------------------------
   // Initialize the subsystems
-  //
+  // ---------------------------------------------------------------------------
   if (!myFS.Init(gMgmOfsEroute)) return 0;
 
+  
+  // ---------------------------------------------------------------------------
+  // Disable XRootd log rotation
+  // ---------------------------------------------------------------------------
+  lp->setRotate(0);
   gOFS = &myFS;
 
   // by default enable stalling and redirection
@@ -2706,8 +2712,15 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
     buff[j++] = hv[(fmd->getChecksum().getDataPtr()[i] >> 4) & 0x0f];
     buff[j++] = hv[ fmd->getChecksum().getDataPtr()[i] & 0x0f];
   }
-  buff[j] = '\0';
-  eos_info("checksum is %s", buff);
+  if (j == 0)
+  {
+    sprintf(buff, "NONE");
+  }
+  else
+  {
+    buff[j] = '\0';
+  }
+  eos_info("checksum=\"%s\"", buff);
   error.setErrInfo(0, buff);
   return SFS_OK;
 }
@@ -4157,7 +4170,17 @@ XrdMgmOfs::_remdir (const char *path,
   eos::common::Path cPath(path);
   eos::ContainerMD::XAttrMap attrmap;
 
-
+  // ---------------------------------------------------------------------------
+  // make sure this is not a quota node
+  // ---------------------------------------------------------------------------
+  {
+    eos::common::RWMutexReadLock qlock(Quota::gQuotaMutex);
+    if (Quota::GetSpaceQuota(path, false)) {
+      errno = EBUSY ;
+      return Emsg(epname, error, errno, "rmdir - this is a quota node", path);  
+    }
+  }
+  
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
@@ -5643,8 +5666,8 @@ XrdMgmOfs::_touch (const char *path,
   // Perform the actual deletion
   //
   errno = 0;
-  eos::FileMD* fmd=0;
-  
+  eos::FileMD* fmd = 0;
+
   if (_access(path, W_OK, error, vid, ininfo))
   {
     return SFS_ERROR;
@@ -7387,6 +7410,7 @@ XrdMgmOfs::FSctl (const int cmd,
           return Emsg(epname, error, EINVAL,
                       "unable to schedule - filesystem ID is not known");
         }
+
         target_fs->SnapShotFileSystem(target_snapshot);
         FsGroup* group = FsView::gFsView.mGroupView[target_snapshot.mGroup];
 
