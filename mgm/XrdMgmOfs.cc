@@ -2899,6 +2899,16 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
   eos::common::Path cPath(path);
   eos::ContainerMD::XAttrMap attrmap;
 
+  // ---------------------------------------------------------------------------
+  // make sure this is not a quota node
+  // ---------------------------------------------------------------------------
+  {
+    eos::common::RWMutexReadLock qlock(Quota::gQuotaMutex);
+    if (Quota::GetSpaceQuota(path, false)) {
+      errno = EBUSY ;
+      return Emsg(epname, error, errno, "rmdir - this is a quota node", path);  
+    }
+  }
    
   //-------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);

@@ -1680,14 +1680,20 @@ Quota::LoadNodes()
   eos::common::RWMutexReadLock lock(gQuotaMutex);
   eos::QuotaStats::NodeMap::iterator it;
   for (it = gOFS->eosView->getQuotaStats()->nodesBegin(); it != gOFS->eosView->getQuotaStats()->nodesEnd(); it++) {
-    eos::ContainerMD::id_t id = it->first;
-    eos::ContainerMD* container = gOFS->eosDirectoryService->getContainerMD(id);
-    std::string quotapath = gOFS->eosView->getUri( container);
-    SpaceQuota* spacequota = Quota::GetSpaceQuota(quotapath.c_str(), false);
-    if (spacequota) {
-      eos_static_notice("Created space for quota node: %s", quotapath.c_str());
-    } else {
-      eos_static_err("Failed to create space for quota node: %s\n", quotapath.c_str());
+    try {
+      eos::ContainerMD::id_t id = it->first;
+      eos::ContainerMD* container = gOFS->eosDirectoryService->getContainerMD(id);
+      std::string quotapath = gOFS->eosView->getUri( container);
+      SpaceQuota* spacequota = Quota::GetSpaceQuota(quotapath.c_str(), false);
+      if (spacequota) {
+	eos_static_notice("Created space for quota node: %s", quotapath.c_str());
+      } else {
+	eos_static_err("Failed to create space for quota node: %s\n", quotapath.c_str());
+      }
+    } catch (eos::MDException &e) {
+      errno = e.getErrno();
+      eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+		     e.getErrno(), e.getMessage().str().c_str());
     }
   }
 }
@@ -1701,10 +1707,16 @@ Quota::NodesToSpaceQuota()
   // inserts the current state of the quota nodes into SpaceQuota's 
   eos::QuotaStats::NodeMap::iterator it;
   for (it = gOFS->eosView->getQuotaStats()->nodesBegin(); it != gOFS->eosView->getQuotaStats()->nodesEnd(); it++) {
-    eos::ContainerMD::id_t id = it->first;
-    eos::ContainerMD* container = gOFS->eosDirectoryService->getContainerMD(id);
-    std::string quotapath = gOFS->eosView->getUri( container);
-    NodeToSpaceQuota(quotapath.c_str(), false);
+    try {
+      eos::ContainerMD::id_t id = it->first;
+      eos::ContainerMD* container = gOFS->eosDirectoryService->getContainerMD(id);
+      std::string quotapath = gOFS->eosView->getUri( container);
+      NodeToSpaceQuota(quotapath.c_str(), false);
+    } catch (eos::MDException &e) {
+      errno = e.getErrno();
+      eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+		     e.getErrno(), e.getMessage().str().c_str());
+    }
   }
 }
 
