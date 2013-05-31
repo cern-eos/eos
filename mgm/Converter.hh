@@ -24,20 +24,21 @@
 #ifndef __EOSMGM_CONVERTER__
 #define __EOSMGM_CONVERTER__
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
-/* ------------------------------------------------------------------------- */
+#include "common/FileId.hh"
+/* -------------------------------------------------------------------------- */
 #include "XrdSys/XrdSysPthread.hh"
 #include "Xrd/XrdScheduler.hh"
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 #include <vector>
 #include <string>
 #include <deque>
 #include <cstring>
 
-/* ------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 
 /**
  * @file Converter.cc
@@ -48,13 +49,15 @@
  * to pick-up conversion
  * jobs from the directory /eos/../proc/conversion/
  * It uses the XrdScheduler class to run third party clients copying files
- * into temporary output files living in the conversion directory called <job>.running
+ * into the conversion definition files named <fid(016x)>:<conversionlayout>
  * If a third party conversion finished successfully the layout & replica of the
  * converted temporary file will be merged into the existing file and the previous
  * layout will be dropped.
  */
 EOSMGMNAMESPACE_BEGIN
 
+
+/* -------------------------------------------------------------------------- */
 class ConverterJob : XrdJob
 {
   // ---------------------------------------------------------------------------
@@ -62,12 +65,23 @@ class ConverterJob : XrdJob
   // ---------------------------------------------------------------------------
 
 private:
+  eos::common::FileId::fileid_t mFid;
+  std::string mTargetPath;
+  std::string mSourcePath;
+  std::string mTargetCGI;
+  
+  XrdOucString mConversionLayout;
+  XrdSysCondVar mDoneSignal;
+
 public:
 
-  ConverterJob(eos::common::FileId::fileid_t fid, XrdOucString conversionlayout);
-  ~ConverterJob();
+  ConverterJob (eos::common::FileId::fileid_t fid, const char* conversionlayout, XrdSysCondVar &donesignal);
+  ~ConverterJob () {};
+
+  void DoIt ();
 };
 
+/* -------------------------------------------------------------------------- */
 class Converter
 {
   // ---------------------------------------------------------------------------
@@ -78,7 +92,7 @@ private:
   pthread_t mThread;
   std::string mSpaceName;
   XrdScheduler* mScheduler;
-
+  XrdSysCondVar mDoneSignal;
 public:
 
   // ---------------------------------------------------------------------------
