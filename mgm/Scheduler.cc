@@ -192,10 +192,16 @@ Scheduler::FilePlacement (const char* path, //< path to place
       // the weight is given mainly by the disk performance and the network load has a weaker impact (sqrt)
       double weight = (1.0 - snapshot.mDiskUtilization);
       double netweight = (1.0 - ((snapshot.mNetEthRateMiB) ? (snapshot.mNetInRateMiB / snapshot.mNetEthRateMiB) : 0.0));
+      double netoutweight = (1.0 - ((snapshot.mNetEthRateMiB) ? (snapshot.mNetOutRateMiB / snapshot.mNetEthRateMiB) : 0.0));
       weight *= ((netweight > 0) ? sqrt(netweight) : 0);
       if (weight < 0.1)
       {
         weight = 0.1;
+      }
+
+      if (netoutweight < 0.05) {
+	eos_static_info("msg=\"skipping node with overloaded eth-out\"");
+	continue;
       }
 
       // check if this filesystem can be used (online, enough space etc...)
