@@ -981,6 +981,45 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   // setup the circular in-memory logging buffer
   eos::common::Logging::Init();
 
+  // configure log-file fan out
+
+  std::vector<std::string> lFanOutTags;
+
+  lFanOutTags.push_back("Balancer");
+  lFanOutTags.push_back("Converter");
+  lFanOutTags.push_back("DrainJob");
+  lFanOutTags.push_back("Http");
+  lFanOutTags.push_back("Master");
+  lFanOutTags.push_back("Recycle");
+  lFanOutTags.push_back("#");
+  // get the XRootD log directory
+  char *logdir;
+  XrdOucEnv::Import("XRDLOGDIR", logdir);
+
+  for (size_t i = 0; i < lFanOutTags.size(); i++)
+  {
+    std::string lLogFile = logdir;
+    lLogFile += "/";
+    if (lFanOutTags[i] == "#")
+    {
+      lLogFile += "Clients";
+    }
+    else
+    {
+      lLogFile += lFanOutTags[i];
+    }
+    lLogFile += ".log";
+    FILE* fp = fopen(lLogFile.c_str(), "a+");
+    if (fp)
+    {
+      eos::common::Logging::AddFanOut(lFanOutTags[i].c_str(), fp);
+    }
+    else
+    {
+      fprintf(stderr, "error: failed to open sub-logfile=%s", lLogFile.c_str());
+    }
+  }
+
   eos::common::Logging::SetUnit(MgmOfsBrokerUrl.c_str());
 
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");
@@ -1272,7 +1311,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   MgmProcMasterPath = MgmProcPath;
   MgmProcMasterPath += "/master";
 
-  Recycle::gRecyclingPrefix.insert(0,MgmProcPath.c_str());
+  Recycle::gRecyclingPrefix.insert(0, MgmProcPath.c_str());
 
   instancepath += subpath;
 
