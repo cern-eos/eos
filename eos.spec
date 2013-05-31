@@ -94,7 +94,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eos-check-blockxs
 /usr/sbin/eos-compute-blockxs
 /usr/sbin/eos-scan-fs
-/usr/sbin/eos-adler33
+/usr/sbin/eos-adler32
 /usr/sbin/eos-mmap
 /usr/sbin/eos-repair-tool
 /usr/lib64/libXrdEosMgm.so.0.2.33
