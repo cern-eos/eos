@@ -83,17 +83,20 @@ extern "C"
                        XrdSysLogger* lp,
                        const char* configfn)
   {
-    // Do the herald thing
-    //
     OfsEroute.SetPrefix("FstOfs_");
     OfsEroute.logger(lp);
+    // -------------------------------------------------------------------------
+    // disable XRootD log rotation
+    // -------------------------------------------------------------------------
+    lp->setRotate(0);
     XrdOucString version = "FstOfs (Object Storage File System) ";
     version += VERSION;
     OfsEroute.Say("++++++ (c) 2010 CERN/IT-DSS ",
                   version.c_str());
 
+    // -------------------------------------------------------------------------
     // Initialize the subsystems
-    //
+    // -------------------------------------------------------------------------
     eos::fst::gOFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
 
     if (eos::fst::gOFS.Configure(OfsEroute)) return 0;
@@ -245,10 +248,10 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
   eos_static_warning("%s", "op=shutdown status=completed");
   // harakiri - yes!
   (void) signal(SIGABRT, SIG_IGN);
-  (void) signal(SIGINT, SIG_IGN);
+  (void) signal(SIGINT,  SIG_IGN);
   (void) signal(SIGTERM, SIG_IGN);
   (void) signal(SIGQUIT, SIG_IGN);
-  exit(0);
+  kill(getpid(),9);
 }
 
 /*----------------------------------------------------------------------------*/
