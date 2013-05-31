@@ -82,7 +82,12 @@ ProcCommand::Debug ()
            stdOut += filterlist;
            eos_notice("setting message logid filter to <%s>", filterlist.c_str());
          }
-         if (debuglevel == "debug" && (eos::common::Logging::gFilter.find("SharedHash") == STR_NPOS))
+         if (debuglevel == "debug" && 
+	     (
+	      ((eos::common::Logging::gFilter.find("PASS:") == STR_NPOS) && (eos::common::Logging::gFilter.find("SharedHash") == STR_NPOS)) ||
+	      ((eos::common::Logging::gFilter.find("PASS:") != STR_NPOS) && (eos::common::Logging::gFilter.find("SharedHash") != STR_NPOS))
+	     )
+	    )
          {
            gOFS->ObjectManager.SetDebug(true);
          }
