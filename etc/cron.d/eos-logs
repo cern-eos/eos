@@ -21,5 +21,5 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-30 0 * * * root  find /var/log/eos  -name "xrdlog.*.????????" -exec gzip -9 \{\} \; ; find /var/log/eos  -name "xrdlog.*.????????.gz" -mtime +200 -exec rm \{\} \;
+30 0 * * * root  find /var/log/eos  -name "*-????????.gz" -mtime +200 -exec rm \{\} \;
 

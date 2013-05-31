@@ -18,6 +18,36 @@
         compress
 }
 
+/var/log/eos/mgm/xrdlog.mgm {
+	missingok
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
+/var/log/eos/fst/xrdlog.fst {
+	missingok
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
+/var/log/eos/mq/xrdlog.mq {
+	missingok
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
 /var/log/eos/eosha/eosha.log {
 	missingok
 	daily
@@ -39,6 +69,86 @@
 }
 
 /var/log/eos/fst/eoscp.log {
+	missingok
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
+/var/log/eos/mgm/Client.log {
+	missingok
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
+/var/log/eos/mgm/DrainJob.log {
+	missingok
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
+/var/log/eos/mgm/Balancer.log {
+	missingok
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
+/var/log/eos/mgm/Converter.log {
+	missingok
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
+/var/log/eos/mgm/Clients.log {
+	missingok
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
+/var/log/eos/mgm/Recycle.log {
+	missingok
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
+/var/log/eos/mgm/Http.log {
+	missingok
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
+/var/log/eos/mgm/Master.log {
 	missingok
 	daily
         copytruncate
