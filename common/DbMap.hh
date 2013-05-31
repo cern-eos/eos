@@ -221,9 +221,8 @@ public :
 /*----------------------------------------------------------------------------*/
 inline void _TestSqliteError_(const char* str, const int *rc, char **errstr, void* _this, const char* __file, int __line) {
   if(SqliteInterfaceBase::abortonsqliteerror && (*rc!=SQLITE_OK) && (*rc!=SQLITE_DONE) ) {
-    fprintf(stderr," Sqlite 3 Error in %s at line %d , object %p\t Executing %s returned %d\t The error message was %s\n",__file,__line,_this,str,*rc,*errstr);
-    eos_static_emerg(" Sqlite 3 Error in %s at line %d , object %p\t Executing %s returned %d\t The error message was %s\n",__file,__line,_this,str,*rc,*errstr);
-    exit(1);
+    //fprintf(stderr," Sqlite 3 Error in %s at line %d , object %p\t Executing %s (as uid=%lu,gid=%lu) returned %d\t The error message was %s\n",__file,__line,_this,str,(unsigned)geteuid(),(unsigned)getegid(),*rc,*errstr);
+    eos_static_emerg(" Sqlite 3 Error in %s at line %d , object %p\t Executing %s (as uid=%lu,gid=%lu) returned %d\t The error message was %s\n",__file,__line,_this,str,(unsigned)geteuid(),(unsigned)getegid(),*rc,*errstr);
   }
 }
 #define TestSqliteError(stmt,returncode,errstr,_this) _TestSqliteError_(stmt,returncode,errstr,_this,__FILE__,__LINE__);
@@ -341,9 +340,8 @@ public :
 /*----------------------------------------------------------------------------*/
 inline void _TestLvDbError_(const leveldb::Status &s, void* _this, const char* __file, int __line) {
   if(LvDbInterfaceBase::abortonlvdberror && !s.ok() ) {
-    fprintf(stderr," LevelDb Error in %s at line %d involving object %p : %s\n",__file,__line,_this,s.ToString().c_str());
-    eos_static_emerg(" LevelDb Error in %s at line %d involving object %p : %s\n",__file,__line,_this,s.ToString().c_str());
-    exit(1);
+    //fprintf(stderr," LevelDb Error (as uid=%lu,gid=%lu) in %s at line %d involving object %p : %s\n",(unsigned)geteuid(),(unsigned)getegid(),__file,__line,_this,s.ToString().c_str());
+    eos_static_emerg(" LevelDb Error (as uid=%lu,gid=%lu) in %s at line %d involving object %p : %s\n",(unsigned)geteuid(),(unsigned)getegid(),__file,__line,_this,s.ToString().c_str());
   }
 }
 #define TestLvDbError(s,_this) _TestLvDbError_(s,_this,__FILE__,__LINE__);
