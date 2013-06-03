@@ -2010,8 +2010,22 @@ int XrdMgmOfs::_chown(const char               *path,    // In
   
   // try as a directory
   try {
+    eos::ContainerMD* pcmd = 0;
+    eos::ContainerMD::XAttrMap attrmap;
+
+    eos::common::Path cPath(path);
     cmd = gOFS->eosView->getContainer(path);
-    if ( (vid.uid) && (vid.uid != 3) && (vid.gid != 4) && !cmd->access(vid.uid,vid.gid,W_OK)) {
+    pcmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+
+    eos::ContainerMD::XAttrMap::const_iterator it;
+    for ( it = pcmd->attributesBegin(); it != pcmd->attributesEnd(); ++it) {
+      attrmap[it->first] = it->second;
+    }
+
+    // acl of the parent!
+    Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
+
+    if ( (vid.uid) && (vid.uid != 3) && (vid.gid != 4) && !acl.CanChown() ) {
       errno = EPERM;
     } else {
       // change the owner

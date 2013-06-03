@@ -127,6 +127,7 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
 bool 
 ProcInterface::Authorize(const char* path, const char* info, eos::common::Mapping::VirtualIdentity &vid , const XrdSecEntity* entity) {
   XrdOucString inpath = path;
+  XrdOucEnv opaque = info;
 
   // administrator access
   if (inpath.beginswith("/proc/admin/")) {
@@ -139,7 +140,11 @@ ProcInterface::Authorize(const char* path, const char* info, eos::common::Mappin
     // root can do it
     if (!vid.uid) 
       return true;
-      
+
+    // we let the chown command pass (sigh)
+    if (!strcmp(opaque.Get("mgm.cmd"),"chown")) 
+      return true;
+
     // one has to be part of the virtual users 2(daemon) || 3(adm)/4(adm) 
     return ( (eos::common::Mapping::HasUid(2, vid.uid_list)) || (eos::common::Mapping::HasUid(3, vid.uid_list)) || (eos::common::Mapping::HasGid(4, vid.gid_list)) );
   }

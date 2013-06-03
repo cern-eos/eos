@@ -53,6 +53,7 @@ class Acl {
   bool canWriteOnce;  //< acl allows write-once access
   bool canBrowse;     //< acl allows browsing
   bool canChmod;      //< acl allows mode change
+  bool canChown;      //< acl allows owner change
   bool canNotDelete;  //< acl forbids deletion
   bool canDelete;     //< acl allows deletion
   bool canSetQuota;   //< acl allows to set quota
@@ -62,7 +63,7 @@ public:
   /*----------------------------------------------------------------------------*/
   //! Default Constructor
   /*----------------------------------------------------------------------------*/
-  Acl() { canRead = false; canWrite = false; canWriteOnce = false; canBrowse = false; canChmod = false; canNotDelete = false; canDelete = false; canSetQuota = false; hasAcl = false; hasEgroup = false;}
+  Acl() { canRead = false; canWrite = false; canWriteOnce = false; canBrowse = false; canChmod = false; canChown = false; canNotDelete = false; canDelete = false; canSetQuota = false; hasAcl = false; hasEgroup = false;}
 
   /*----------------------------------------------------------------------------*/
   //! Constructor
@@ -87,6 +88,7 @@ public:
   bool CanWriteOnce() {return canWriteOnce;}
   bool CanBrowse()    {return canBrowse;}
   bool CanChmod()     {return canChmod;}
+  bool CanChown()     {return canChown;}
   bool CanNotDelete() {return canNotDelete;}
   bool CanSetQuota()  {return canSetQuota;}
   bool HasAcl()       {return hasAcl;}
