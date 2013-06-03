@@ -715,7 +715,7 @@ com_cp (char* argin) {
       rstdout = true;
     }
 
-    if ( !arg1.beginswith("root:")) {
+    if ( arg1.beginswith("/eos") || arg1.beginswith("root:") ) {
       // add the 'role' switches to the URL
       if (user_role.length() && group_role.length()) {
 	if ((arg1.find("?")== STR_NPOS)) {
