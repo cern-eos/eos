@@ -2904,7 +2904,7 @@ int XrdMgmOfs::_remdir(const char             *path,    // In
   // ---------------------------------------------------------------------------
   {
     eos::common::RWMutexReadLock qlock(Quota::gQuotaMutex);
-    if (Quota::GetSpaceQuota(path, false)) {
+    if (Quota::GetSpaceQuota(path, true)) {
       errno = EBUSY ;
       return Emsg(epname, error, errno, "rmdir - this is a quota node", path);  
     }
