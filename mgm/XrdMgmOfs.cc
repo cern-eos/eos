@@ -801,10 +801,6 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 
   // proc filter
   if (ProcInterface::IsProcAccess(path)) {
-    if ( gOFS->Authorization && ( vid.prot != "sss") && ( vid.host != "localhost") && (vid.host != "localhost.localdomain") ) {
-      return Emsg(epname, error, EPERM, "execute proc command - you don't have the requested permissions for that operation ", path);
-    }
-
     gOFS->MgmStats.Add("OpenProc",vid.uid,vid.gid,1);  
 
     if (!ProcInterface::Authorize(path, info, vid, client)) {

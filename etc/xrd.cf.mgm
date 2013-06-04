@@ -28,7 +28,7 @@ sec.protbind * only krb5 gsi sss unix
 ###########################################################
 mgmofs.fs /
 mgmofs.targetport 1095
-#mgmofs.authlib libXrdAliceTokenAcc.so
+#mgmofs.authlib /usr/lib64/libXrdAliceTokenAcc.so
 #mgmofs.authorize 1
 ###########################################################
 #mgmofs.trace all debug
