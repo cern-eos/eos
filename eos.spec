@@ -218,7 +218,7 @@ The EOS fuse client.
 %else
 /etc/fuse.conf.eos
 %config(noreplace) /etc/fuse.conf
-#endif
+%endif
 /etc/rc.d/init.d/eosd
 %_sysconfdir/logrotate.d/eos-fuse-logs
 %changelog
