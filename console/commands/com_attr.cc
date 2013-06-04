@@ -218,13 +218,13 @@ com_attr (char* arg1) {
   fprintf(stdout,"               => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eog/public \n\n");
   fprintf(stdout,"         sys.acl=<acllist>                     : set's an ACL which is honoured for open,rm & rmdir operations\n");
   fprintf(stdout,"               => <acllist> = <rule1>,<rule2>...<ruleN> is a comma separated list of rules\n");
-  fprintf(stdout,"               => <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)} \n\n");
-  fprintf(stdout,"               e.g.: <acllist=\"u:300:rw,g:z2:rwo:egroup:eos-dev:rwx,u:500:rwm!d:u:600:rwq\"\n\n");
+  fprintf(stdout,"               => <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxocm(!d)(+d)} \n\n");
+  fprintf(stdout,"               e.g.: <acllist=\"u:300:rw,g:z2:rwo:egroup:eos-dev:rwx,u:500:rwm!d:u:600:rwqc\"\n\n");
   fprintf(stdout,"               => user id 300 can read + write\n");
   fprintf(stdout,"               => group z2 can read + write-once (create new files but can't delete)\n");
   fprintf(stdout,"               => members of egroup 'eos-dev' can read & write & browse\n");
-  fprintf(stdout,"               => user id 500 can read + write into and chmod, but cannot delete the directory itself!\n");
-  fprintf(stdout,"               => user id 600 can read + write and administer the quota node\n");
+  fprintf(stdout,"               => user id 500 can read + write into and chmod(m), but cannot delete the directory itself(!d)!\n");
+  fprintf(stdout,"               => user id 600 can read + write and administer the quota node and can change(q) the ownership (c)\n");
   fprintf(stdout,"              '+d' : this tag can be used to overwrite a group rule excluding deletion via '!d' for certain users\n");
   fprintf(stdout,"         sys.owner.auth=<owner-auth-list>                 : set's additional owner on a directory - open/create + mkdir commands will use the owner id for operations if the client is part of the owner authentication list");
   fprintf(stdout,"               => <owner-auth-list> = <auth1>:<name1>,<auth2>:<name2  e.g. krb5:nobody,gsi:DN=...\n");
