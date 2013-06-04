@@ -1365,9 +1365,11 @@ LvDbDbLogInterface::SetDbFile (const string &dbname, int sliceduration, int crea
   // try to create the directory if it doesn't exist (don't forget to add the x mode to all users to make the directory browsable)
   mkdir(dbname.c_str(), createperm ? createperm | 0111 : 0644 | 0111);
 
+  uniqmutex.Lock();
+  archmutex.Lock(); 
+
   if (!dbname.empty())
   {
-    uniqmutex.Lock();
     if (file2db.find(dbname) == file2db.end())
     { // we do the check only if the file to attach is not yet attached
       options.create_if_missing = true;
@@ -1376,23 +1378,21 @@ LvDbDbLogInterface::SetDbFile (const string &dbname, int sliceduration, int crea
       leveldb::Status status = leveldb::DB::Open(options, dbname.c_str(), &testdb);
       if (!status.ok())
       {
-        uniqmutex.UnLock();
         delete options.filter_policy;
+        archmutex.UnLock();
+        uniqmutex.UnLock();            
         return false;
       }
     }
-    uniqmutex.UnLock();
+    //uniqmutex.UnLock();
   }
 
   if (!this->dbname.empty())
   { // detach the current sqname
-    uniqmutex.Lock();
     tCountedDbAndFilter &csqn = file2db[this->dbname];
-    uniqmutex.UnLock();
     if (csqn.second > 1) csqn.second--; // if there is other instances pointing to the that db DON'T detach
     else
     { // if there is no other instances pointing to the that db DO detach
-      archmutex.Lock();
       for (tTimeToPeriodedFile::iterator it = archqueue.begin(); it != archqueue.end(); it++)
       {
         if (it->second.first.compare(this->dbname) == 0)
@@ -1401,15 +1401,12 @@ LvDbDbLogInterface::SetDbFile (const string &dbname, int sliceduration, int crea
           break;
         }
       }
-      archmutex.UnLock();
       if (debugmode) printf("LEVELDB>> closing db --> %p\n", csqn.first.first);
       delete csqn.first.first; // close the DB
       delete csqn.first.second; // delete the filter
-      uniqmutex.Lock();
       file2db.erase(this->dbname);
       this->db = NULL;
       this->dbname = "";
-      uniqmutex.UnLock();
     }
     isopen = false;
   }
@@ -1418,7 +1415,6 @@ LvDbDbLogInterface::SetDbFile (const string &dbname, int sliceduration, int crea
 
   if (!dbname.empty())
   {
-    uniqmutex.Lock();
     if (file2db.find(dbname) != file2db.end())
     {
       file2db[this->dbname].second++; // if there is already others instances pointing to that db DON'T attach
@@ -1430,8 +1426,10 @@ LvDbDbLogInterface::SetDbFile (const string &dbname, int sliceduration, int crea
       file2db[dbname] = tCountedDbAndFilter(DbAndFilter(db, (leveldb::FilterPolicy*)options.filter_policy), 1);
     }
     isopen = true;
-    uniqmutex.UnLock();
   }
+
+  archmutex.UnLock();
+  uniqmutex.UnLock();            
 
   if (sliceduration > 0) SetArchivingPeriod(dbname, sliceduration);
 
