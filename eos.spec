@@ -212,8 +212,13 @@ The EOS fuse client.
 %files -n eos-fuse
 /usr/bin/eosfsd
 /usr/sbin/eosd
-%config(noreplace) /etc/fuse.conf
+
+%if %{?fedora:1}%{!?fedora:0}
 /etc/fuse.conf.eos
+%else
+/etc/fuse.conf.eos
+%config(noreplace) /etc/fuse.conf
+fi
 /etc/rc.d/init.d/eosd
 %_sysconfdir/logrotate.d/eos-fuse-logs
 %changelog
