@@ -220,7 +220,7 @@ foreach ( @filesystems ) {
 	    exit(-4);
 	}
     }
-    printf "$_ : uuid=$uuid fsid=$fsid\n";
+    printf " : uuid=$uuid fsid=$fsid\n";
     
     my $cmd=0;
     if (!($cmd=fork())) {
