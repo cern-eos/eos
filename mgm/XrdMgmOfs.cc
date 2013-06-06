@@ -2902,8 +2902,8 @@ XrdMgmOfs::_chown (const char *path,
  * 
  * Chown has only an internal implementation because XRootD does not support
  * this operation in the Ofs interface. root can alwasy run the operation.
- * Users with an admin role can run the operation if their current role grants
- * write permissions on that directory. File ownership can only be changed
+ * Users with the admin role can run the operation. Normal users can run the operation 
+ * if they have the 'c' permissions in 'sys.acl'. File ownership can only be changed
  * with the root or admin role. 
  */
 /*----------------------------------------------------------------------------*/
@@ -2926,10 +2926,26 @@ XrdMgmOfs::_chown (const char *path,
   // try as a directory
   try
   {
+    eos::ContainerMD* pcmd = 0;
+    eos::ContainerMD::XAttrMap attrmap;
+
+    eos::common::Path cPath(path);
+    cmd = gOFS->eosView->getContainer(path);
+    pcmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+
+    eos::ContainerMD::XAttrMap::const_iterator it;
+    for ( it = pcmd->attributesBegin(); it != pcmd->attributesEnd(); ++it) 
+    {
+      attrmap[it->first] = it->second;
+    }
+
+    // acl of the parent!
+    Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
+
     cmd = gOFS->eosView->getContainer(path);
     if ((vid.uid) && (!eos::common::Mapping::HasUid(3, vid) &&
                       !eos::common::Mapping::HasGid(4, vid)) &&
-        (!cmd->access(vid.uid, vid.gid, W_OK)))
+	!acl.CanChown())
 
     {
       errno = EPERM;
@@ -4175,7 +4191,7 @@ XrdMgmOfs::_remdir (const char *path,
   // ---------------------------------------------------------------------------
   {
     eos::common::RWMutexReadLock qlock(Quota::gQuotaMutex);
-    if (Quota::GetSpaceQuota(path, false)) {
+    if (Quota::GetSpaceQuota(path, true)) {
       errno = EBUSY ;
       return Emsg(epname, error, errno, "rmdir - this is a quota node", path);  
     }

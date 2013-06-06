@@ -35,7 +35,6 @@ add_library (XrdEosMgm MODULE
 	          ProcInterface.cc
             proc/proc_fs.cc
             proc/admin/Access.cc
-            proc/admin/Chown.cc
             proc/admin/Config.cc
             proc/admin/Debug.cc
             proc/admin/Fs.cc
@@ -52,6 +51,7 @@ add_library (XrdEosMgm MODULE
             proc/user/Attr.cc
             proc/user/Cd.cc
             proc/user/Chmod.cc
+            proc/user/Chown.cc
             proc/user/File.cc 
             proc/user/Fileinfo.cc
             proc/user/Find.cc
