@@ -81,6 +81,7 @@ Acl::Set (std::string sysacl, std::string useracl, eos::common::Mapping::Virtual
   canUpdate = true;
   canBrowse = false;
   canChmod = false;
+  canChown = false;
   canNotDelete = false;
   canDelete = false;
   canSetQuota = false;
@@ -194,6 +195,16 @@ Acl::Set (std::string sysacl, std::string useracl, eos::common::Mapping::Virtual
       }
 
       // ---------------------------------------------------------------------------
+      //! 'c' defines owner change permission (for directories)
+      // ---------------------------------------------------------------------------
+      if ((!useracl.length()) && ((entry[2].find("c")) != std::string::npos))
+      {
+	// this is only valid if only a sysacl is present
+        canChown = true;
+        hasAcl = true;
+      }
+
+      // ---------------------------------------------------------------------------
       //! '!d' forbids deletion
       // ---------------------------------------------------------------------------
       if ((entry[2].find("!d")) != std::string::npos)
@@ -257,8 +268,9 @@ Acl::Set (std::string sysacl, std::string useracl, eos::common::Mapping::Virtual
       // ---------------------------------------------------------------------------
       //! 'q' defines quota set permission
       // ---------------------------------------------------------------------------
-      if ((entry[2].find("q")) != std::string::npos)
+      if ((!useracl.length()) && ((entry[2].find("q")) != std::string::npos))
       {
+	// this is only valid if only a sys acl is present
         canSetQuota = true;
         hasAcl = true;
       }

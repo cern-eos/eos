@@ -421,7 +421,11 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
       mDoSort = false;
     }
     else
-
+      if (mCmd == "chown")
+    {
+      Chown();
+    }
+    else
       if (mCmd == "config")
     {
       Config();
@@ -498,11 +502,6 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
     {
       Rtlog();
       mDoSort = false;
-    }
-    else
-      if (mCmd == "chown")
-    {
-      Chown();
     }
     else
     {

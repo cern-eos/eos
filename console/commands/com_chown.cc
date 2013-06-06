@@ -57,7 +57,7 @@ com_chown (char* arg1)
   in += "&mgm.chown.owner=";
   in += owner;
 
-  global_retc = output_result(client_admin_command(in));
+  global_retc = output_result(client_user_command(in));
   return (0);
 
 com_chown_usage:

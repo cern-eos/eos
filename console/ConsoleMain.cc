@@ -831,7 +831,9 @@ client_admin_command (XrdOucString &in)
   }
   else
   {
-    fprintf(stderr, "error: open file for reading: %s.\n", path.c_str());
+    std::string errmsg;
+    errmsg = status.GetErrorMessage();
+    fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo,errmsg.c_str());
   }
 
   delete client;

@@ -56,6 +56,7 @@ class Acl
   bool canUpdate; //< acl allows update of files
   bool canBrowse; //< acl allows browsing
   bool canChmod; //< acl allows mode change
+  bool canChown; //< acl allows chown change
   bool canNotDelete; //< acl forbids deletion
   bool canDelete; //< acl allows deletion
   bool canSetQuota; //< acl allows to set quota
@@ -74,6 +75,7 @@ public:
     canUpdate = false;
     canBrowse = false;
     canChmod = false;
+    canChown = false;
     canNotDelete = false;
     canDelete = false;
     canSetQuota = false;
@@ -135,6 +137,12 @@ public:
   CanChmod ()
   {
     return canChmod;
+  }
+
+  bool
+  CanChown ()
+  {
+    return canChown;
   }
 
   bool
