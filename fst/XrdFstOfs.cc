@@ -1593,6 +1593,17 @@ XrdFstOfsFile::close()
       }
     } 
   }
+
+  // ----------------------------------------------------------------------------------------------------------
+  // check if the target filesystem has been put into some non-operational mode in the meanwhile
+  // ----------------------------------------------------------------------------------------------------------
+  {
+    eos::common::RWMutexReadLock lock(gOFS.Storage->fsMutex);
+    if (gOFS.Storage->fileSystemsMap[fsid]->GetConfigStatus() < eos::common::FileSystem::kRO) {
+      eos_notice("msg=\"failing transfer because filesystem has non-operational state\" path=%s state=%s", Path.c_str(), eos::common::FileSystem::GetConfigStatusAsString(gOFS.Storage->fileSystemsMap[fsid]->GetConfigStatus()));
+      deleteOnClose = true;
+    }
+  }
   
   if (deleteOnClose && isCreation) {
     int retc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid, true);
