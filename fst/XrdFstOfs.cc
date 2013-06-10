@@ -1599,7 +1599,7 @@ XrdFstOfsFile::close()
   // ----------------------------------------------------------------------------------------------------------
   {
     eos::common::RWMutexReadLock lock(gOFS.Storage->fsMutex);
-    if (gOFS.Storage->fileSystemsMap[fsid]->GetConfigStatus() < eos::common::FileSystem::kRO) {
+    if (gOFS.Storage->fileSystemsMap[fsid]->GetConfigStatus() < eos::common::FileSystem::kDrain) {
       eos_notice("msg=\"failing transfer because filesystem has non-operational state\" path=%s state=%s", Path.c_str(), eos::common::FileSystem::GetConfigStatusAsString(gOFS.Storage->fileSystemsMap[fsid]->GetConfigStatus()));
       deleteOnClose = true;
     }
