@@ -4259,7 +4259,21 @@ XrdMgmOfs::FSctl(const int               cmd,
         unsigned long fsid      = strtoul (afsid,0,10);
         unsigned long mtime     = strtoul (amtime,0,10);
         unsigned long mtimens   = strtoul (amtimensec,0,10);
-
+     
+	{
+	  // ---------------------------------------------------------------
+	  // check that the filesystem is still allowed to accept replica's
+	  // ---------------------------------------------------------------
+	  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+	  eos::mgm::FileSystem* fs = 0;
+	  if (FsView::gFsView.mIdView.count(fsid)) {
+	    fs = FsView::gFsView.mIdView[fsid];
+	  }
+	  if ( (!fs) || (fs->GetConfigStatus() < eos::common::FileSystem::kDrain )) {
+	    eos_thread_err("msg=\"commit suppressed\" configstatus=%s subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu checksum=%s mtime=%s mtime.nsec=%s", fs?eos::common::FileSystem::GetConfigStatusAsString(fs->GetConfigStatus()):"deleted", spath, asize, afid, afsid, dropfsid, checksum, amtime, amtimensec);
+            return Emsg(epname,error, EIO, "commit file metadata - filesystem is in non-operational state [EIO]","");
+	  }
+	}
         
         eos::Buffer checksumbuffer;
         checksumbuffer.putData(binchecksum, SHA_DIGEST_LENGTH);

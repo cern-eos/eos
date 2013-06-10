@@ -261,31 +261,37 @@ DrainJob::Drain(void)
     sleeper.Wait(1000);
   } while (!go);
   
-
   // check if we should abort
   XrdSysThread::CancelPoint();
 
   // build the list of files to migrate
   long long totalfiles=0;
+  long long wopenfiles=0;
 
   XrdSysThread::SetCancelOff();
   {
     //------------------------------------
+    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex,true);
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex,true);
     try {
       eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
       eos::FileSystemView::FileIterator it;
 
       totalfiles = filelist.size();
-      
+      if (fs->GetConfigStatus() == eos::common::FileSystem::kDrain) {
+	// if we are still an alive file system, we cannot finish a drain as a long as we see some open files
+	wopenfiles =  fs->GetLongLong("stat.wopen");
+      }      
     } catch ( eos::MDException &e ) {
     // there are no files in that view
     }    
   }
+
+
   //------------------------------------
 
   XrdSysThread::SetCancelOn();
-  if (!totalfiles) {
+  if ( (!wopenfiles) && (!totalfiles) ) {
     goto nofilestodrain;
   }
 
