@@ -225,7 +225,7 @@ com_vid (char* arg1) {
     if ( (type == "sss") ) {
       in += "&mgm.vid.auth=sss";
       disableu +="sss:\"<pwd>\":uid";
-      disableg +="sss:\"<pwd>\":guid";
+      disableg +="sss:\"<pwd>\":gid";
       hastype=true;
     }
     if ( (type == "gsi") ) {
@@ -236,14 +236,14 @@ com_vid (char* arg1) {
     }
     if ( (type == "unix") ) {
       in += "&mgm.vid.auth=unix";
-      disableu +="unix\"<pwd>\":uid";
-      disableg +="unix\"<pwd>\":gid";
+      disableu +="unix:\"<pwd>\":uid";
+      disableg +="unix:\"<pwd>\":gid";
       hastype=true;
     }
     if ( (type == "tident") ) {
       in += "&mgm.vid.auth=tident";
-      disableu +="tident\"<pwd>\":uid";
-      disableg +="tident\"<pwd>\":gid";
+      disableu +="tident:\"<pwd>\":uid";
+      disableg +="tident:\"<pwd>\":gid";
       hastype=true;
     }
     if (!hastype) 
