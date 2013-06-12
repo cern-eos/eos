@@ -4648,7 +4648,7 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	      time_t filectime = (time_t) ctime.tv_sec;
 	      time_t filemtime = (time_t) mtime.tv_sec;
 	      char fid[32];
-	      snprintf(fid,32,"%llu",(unsigned long long) fmd->getId());
+	      snprintf(fid,32,"%llu", (unsigned long long) fmd->getId());
 	      
 	      if (!Monitoring) {
 		stdOut  = "  File: '"; stdOut += spath; stdOut += "'";
