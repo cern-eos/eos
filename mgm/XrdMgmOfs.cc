@@ -1140,6 +1140,16 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     return Emsg(epname, error, EINVAL, "get quota space ", space.c_str());
   }
 
+  unsigned long long external_ctime = 0;
+  unsigned long long external_mtime = 0;
+
+  if (openOpaque->Get("eos.ctime")) {
+    external_ctime = strtoull(openOpaque->Get("eos.ctime"),0,10);
+  }
+
+  if (openOpaque->Get("eos.mtime")) {
+    external_mtime = strtoull(openOpaque->Get("eos.mtime"),0,10);
+  }
 
   if (isCreation || ( (open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation()))) {
     eos_info("blocksize=%llu lid=%x", eos::common::LayoutId::GetBlocksize(newlayoutId), newlayoutId);
@@ -1147,6 +1157,22 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
     // set the layout and commit new meta data 
     fmd->setLayoutId(layoutId);
     fmd->setSize(0);
+
+    // set external mtime/ctime if desired
+    if (external_mtime) {
+      eos::FileMD::ctime_t mtime;
+      mtime.tv_sec = external_mtime;
+      mtime.tv_nsec = 0;
+      fmd->setMTime(mtime);
+    }
+
+    if (external_ctime) {
+      eos::FileMD::ctime_t ctime;
+      ctime.tv_sec = external_ctime;
+      ctime.tv_nsec = 0;
+      fmd->setCTime(ctime);
+    }
+
     {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       //-------------------------------------------      
@@ -3663,8 +3689,7 @@ int XrdMgmOfs::_utimes(  const char          *path,        // In
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   try {
     cmd = gOFS->eosView->getContainer(path);
-    // we use creation time as modification time ... hmmm ...
-    cmd->setCTime(tvp[1]);
+    cmd->setCTime(tvp[0]);
     eosView->updateContainerStore(cmd);
     done = true;
   } catch( eos::MDException &e ) {
@@ -3678,6 +3703,7 @@ int XrdMgmOfs::_utimes(  const char          *path,        // In
     try {
       fmd = gOFS->eosView->getFile(path);
       fmd->setMTime(tvp[1]);
+      fmd->setCTime(tvp[0]);
       eosView->updateFileStore(fmd);
       done = true;
     } catch( eos::MDException &e ) {
@@ -4381,6 +4407,8 @@ XrdMgmOfs::FSctl(const int               cmd,
               }
             }
           }
+	  
+	  bool isUpdate = false;
 
           {
             SpaceQuota* space = Quota::GetResponsibleSpaceQuota(spath);
@@ -4403,6 +4431,9 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    }
           
             if (commitsize) {
+	      if (fmd->getSize() != size)
+		isUpdate = true;
+
               fmd->setSize(size);
             }
 
@@ -4412,14 +4443,25 @@ XrdMgmOfs::FSctl(const int               cmd,
           }
           
           
-          if (commitchecksum)
+          if (commitchecksum) {
+	    if (!isUpdate) {
+	      for (int i=0 ; i< SHA_DIGEST_LENGTH; i++) {
+		if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i]) {
+		  isUpdate = true;
+		}
+	      }
+	    }
             fmd->setChecksum(checksumbuffer);
+	  }
 
           //      fmd->setMTimeNow();
           eos::FileMD::ctime_t mt;
           mt.tv_sec  = mtime;
           mt.tv_nsec = mtimens;
-          fmd->setMTime(mt);     
+	  if (isUpdate) {
+	    // only change the modification time for file changes
+	    fmd->setMTime(mt);     
+	  }
           
           eos_thread_debug("commit: setting size to %llu", fmd->getSize());
           //-------------------------------------------
