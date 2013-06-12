@@ -6415,6 +6415,7 @@ XrdMgmOfs::_attr_rem(const char             *path,
       errno = EPERM;
     else 
       dh->removeAttribute(key);
+    eosView->updateContainerStore(dh);
   } catch( eos::MDException &e ) {
     dh = 0;
     errno = e.getErrno();
