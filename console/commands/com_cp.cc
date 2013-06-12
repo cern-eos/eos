@@ -225,7 +225,15 @@ com_cp (char* argin) {
 	eos::common::Path cPath(arg1.c_str());
 	std::string dname = "";
 	
-	XrdOucString l = "eos -b ls -l "; 
+	XrdOucString l = "eos ";
+	if (user_role.length() && group_role.length()) {
+	  l+= "--role "; 
+	  l += user_role;
+	  l += " ";
+	  l += group_role;
+	  l += " ";
+	}
+	l += "-b ls -l "; 
 	if (!arg1.endswith("/")) {
 	  dname = cPath.GetParentPath() ;
 	} else {
@@ -290,7 +298,15 @@ com_cp (char* argin) {
       XrdOucString l="";
       XrdOucString sourceprefix=""; // this is the URL part of root://<host>/ for XRootD or as3://<hostname>/
 
-      l+= "eos -b find -f "; 
+      l+= "eos ";
+      if (user_role.length() && group_role.length()) {
+	l+= "--role "; 
+	l += user_role;
+	l += " ";
+	l += group_role;
+	l += " ";
+      }
+      l += "-b find -f "; 
       if (source_find_list[nfile].beginswith("/") && (!source_find_list[nfile].beginswith("/eos"))) {
 	l += "file:";
 	
