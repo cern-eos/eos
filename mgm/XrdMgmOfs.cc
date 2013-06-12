@@ -6413,9 +6413,10 @@ XrdMgmOfs::_attr_rem(const char             *path,
     XrdOucString Key = key;
     if ( Key.beginswith("sys.") && (!vid.sudoer) )
       errno = EPERM;
-    else 
+    else {
       dh->removeAttribute(key);
-    eosView->updateContainerStore(dh);
+      eosView->updateContainerStore(dh);
+    }
   } catch( eos::MDException &e ) {
     dh = 0;
     errno = e.getErrno();
