@@ -2760,7 +2760,7 @@ xrd_mapuser (uid_t uid, pid_t pid)
         std::string x509userproxy;
 
         // read the stuff
-        read(fd, envBuffer, sizeof (envBuffer));
+        ssize_t nread = read(fd, envBuffer, sizeof (envBuffer));
         envBuffer[65535] = 0;
         int krb5ccnamespos = -1;
         int x509proxypos = -1;
