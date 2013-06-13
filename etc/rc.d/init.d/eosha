@@ -2,7 +2,6 @@
 # File: eosha
 # Author: Andreas-Joachim Peters - CERN
 # ----------------------------------------------------------------------
-
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
 # * Copyright (C) 2011 CERN/Switzerland                                  *
@@ -69,6 +68,8 @@ case "$1" in
         ;;
   status)
         status eosha
+	status eosha 2>&1 | grep running >& /dev/null
+	exit $?;
         ;;
   condrestart)	
 	status eosha 2>&1 | grep dead 
@@ -84,12 +85,12 @@ case "$1" in
 	  exit 0
 	fi
 	;;
-  restart|reload|condrestart)
+  restart|reload)
         stop
         start
         ;;
   *)
-        echo $"Usage: $0 {start|stop|restart|reload|status}"
+        echo $"Usage: $0 {start|stop|restart|reload|condrestart|status}"
         exit 1
 esac
 
