@@ -321,12 +321,12 @@ public:
       SetConfigMember("txgw", "off", true, mName.c_str(), true); // by default node's aren't transfer gateways
     }
 
-    if ((atoi(GetConfigMember("gw.ntx").c_str()) == 0) || (atoi(GetConfigMember("gw.ntx").c_str()) == LONG_MAX))
+    if ((strtol(GetConfigMember("gw.ntx").c_str(),0,10) == 0) || (strtol(GetConfigMember("gw.ntx").c_str(),0,10) == LONG_MAX))
     {
       SetConfigMember("gw.ntx", "10", true, mName.c_str(), true); // by default we set 10 parallel gw transfers
     }
 
-    if ((atoi(GetConfigMember("gw.rate").c_str()) == 0) || (atoi(GetConfigMember("gw.rate").c_str()) == LONG_MAX))
+    if ((strtol(GetConfigMember("gw.rate").c_str(),0,10) == 0) || (strtol(GetConfigMember("gw.rate").c_str(),0,10) == LONG_MAX))
     {
       SetConfigMember("gw.rate", "120", true, mName.c_str(), true); // by default we allow 1GBit speed per transfer
     }

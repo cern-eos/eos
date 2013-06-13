@@ -102,7 +102,8 @@ FsView::GetFileSystemFormat (std::string option)
 
   if (option == "d")
   {
-    return "header=1:key=host:width=24:format=s:condition=stat.drain=!nodrain|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.drainprogress:width=12:format=l:tag=progress|sep= |key=stat.drainfiles:width=12:format=+l:tag=files|sep= |key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left:unit=B|sep= |key=stat.timeleft:width=11:format=l:tag=timeleft|sep= |key=stat.drainretry:width=6:format=l:tag=retry";
+    return "header=1:key=host:width=24:format=s:condition=stat.drain=!nodrain|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.drainprogress:width=12:format=l:tag=progress|sep= |key=stat.drainfiles:width=12:format=+l:tag=files|sep= |key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left:unit=B|sep= |key=stat.timeleft:width=11:format=l:tag=timeleft|sep= |key=stat.drainretry:width=6:format=l:tag=retry|sep= |key=stat.wopen:width=6:format=l:ta\
+g=wopen|";
 
   }
   if (option == "l")
