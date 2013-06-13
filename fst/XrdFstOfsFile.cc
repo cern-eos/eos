@@ -19,7 +19,7 @@
  *                                                                      *
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
- ************************************************************************/
+ *****************************************dde*******************************/
 
 /*----------------------------------------------------------------------------*/
 #include "common/Path.hh"
@@ -37,11 +37,12 @@ extern XrdOssSys* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
-const uint16_t XrdFstOfsFile::msDefaultTimeout = 60; // default timeout value
+  const uint16_t XrdFstOfsFile::msDefaultTimeout = 60; // default timeout value
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
+
 XrdFstOfsFile::XrdFstOfsFile (const char* user, int MonID) :
 XrdOfsFile (user, MonID),
 eos::common::LogId ()
@@ -225,7 +226,7 @@ XrdFstOfsFile::open (const char* path,
   if (tpc_key.length())
   {
     time_t now = time(NULL);
-    if ( (tpc_stage == "copy") || (!gOFS.TpcMap[isRW].count(tpc_key.c_str())) )
+    if ((tpc_stage == "copy") || (!gOFS.TpcMap[isRW].count(tpc_key.c_str())))
     {
       //.........................................................................
       // Create a TPC entry in the TpcMap 
@@ -688,7 +689,7 @@ XrdFstOfsFile::open (const char* path,
     if (strncmp(val, "1", 1) == 0)
       store_recovery = true;
   }
-  
+
   eos_info("fstpath=%s", fstPath.c_str());
 
   //............................................................................
@@ -1859,6 +1860,21 @@ XrdFstOfsFile::close ()
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // check if the target filesystem has been put into some non-operational mode 
+  // in the meanwhile, it makes no sense to try to commit in this case
+  // ---------------------------------------------------------------------------
+  {
+    eos::common::RWMutexReadLock lock(gOFS.Storage->fsMutex);
+    if (gOFS.Storage->fileSystemsMap.count(fsid) && gOFS.Storage->fileSystemsMap[fsid]->GetConfigStatus() <
+        eos::common::FileSystem::kDrain)
+    {
+
+      eos_notice("msg=\"failing transfer because filesystem has non-operational state\" path=%s state=%s", Path.c_str(), eos::common::FileSystem::GetConfigStatusAsString(gOFS.Storage->fileSystemsMap[fsid]->GetConfigStatus()));
+      deleteOnClose = true;
+    }
+  }
+
   if (deleteOnClose && isCreation)
   {
     eos_info("info=\"deleting on close\" fn=%s fstpath=%s\n",
@@ -1891,7 +1907,7 @@ XrdFstOfsFile::close ()
       {
         OpaqueString += "&mgm.dropall=1";
       }
-      
+
       XrdOucEnv Opaque(OpaqueString.c_str());
       capOpaqueString += OpaqueString;
       //..................................................................................
