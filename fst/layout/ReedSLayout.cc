@@ -182,6 +182,7 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
 
         if (error_type == XrdCl::errOperationExpired)
         {
+          mStripeFiles[physical_id]->Close(mTimeout);
           delete mStripeFiles[physical_id];
           mStripeFiles[physical_id] = NULL;
         }
@@ -347,6 +348,7 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
 
           if (error_type == XrdCl::errOperationExpired)
           {
+            mStripeFiles[physical_id]->Close(mTimeout);
             delete mStripeFiles[physical_id];
             mStripeFiles[physical_id] = NULL;
           }

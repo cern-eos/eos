@@ -30,6 +30,7 @@
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <map>
+#include <sstream>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -329,7 +330,10 @@ Http::HttpRedirect (int& response_code, std::map<std::string, std::string>& resp
 
 /*----------------------------------------------------------------------------*/
 std::string
-Http::HttpError (int &response_code, std::map<std::string, std::string>& response_header, const char* errtxt, int errc)
+Http::HttpError (int                                &response_code,
+                 std::map<std::string, std::string> &response_header,
+                 const char                         *errtxt,
+                 int                                 errc)
 {
   if (errc == ENOENT)
     response_code = 404;
@@ -342,77 +346,26 @@ Http::HttpError (int &response_code, std::map<std::string, std::string>& respons
   if (errc > 400)
     response_code = errc;
 
-  std::string error;
+  XrdOucString html_dir, error;
   char errct[256];
   snprintf(errct, sizeof (errct) - 1, "%d", errc);
-  error += "  <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \n \
-    \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\"> \n\
-<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\"> \n \
-<head>\n \
-	<meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\" />\n \
-	<meta http-equiv=\"Content-Language\" content=\"en\" />\n \
-	<meta name=\"viewport\" content=\"width=device-width, initial-scale = 1, user-scalable = yes\" /> \n \
-	<title>Error | CERN</title>\n \
-	<!-- THIS IS THE DEFAULT FRAMEWORK CSS\n \
-	IT'S A BIT HEAVY FOR THIS DOCUMENT SO WE'LL CALL JUST THE STYLESHEETS WE NEED\n \
-	<link href=\"https://framework.web.cern.ch/framework/1.0/screen.css\" rel=\"stylesheet\" type=\"text/css\" media=\"screen\" />\
-	-->\n\
-	<link href=\"https://framework.web.cern.ch/framework/1.0/css/global_banner.css\" rel=\"stylesheet\" type=\"text/css\" media=\"screen\" />\n\
-	<link href=\"https://framework.web.cern.ch/framework/1.0/css/layout.css\" rel=\"stylesheet\" type=\"text/css\" media=\"screen\" />\n\
-	<link href=\"https://framework.web.cern.ch/framework/1.0/css/cern_logo.css\" rel=\"stylesheet\" type=\"text/css\" media=\"screen\" />\n\
-	<link href=\"https://framework.web.cern.ch/framework/1.0/css/content.css\" rel=\"stylesheet\" type=\"text/css\" media=\"screen\" />\n\
-	<style type=\"text/css\">\n\
-		a {color: #3861aa;}\n\
-		ul {margin-top: 4em;}\n\
-		ul li a {padding-left: 20px; background: url(\"https://framework.web.cern.ch/framework/1.0/img/icons/bullet_go.png\") left center no-repeat;}\n\
-		/* FOOTER */\n\
-		#footer {height: 80px; margin-top: 20px; padding-top: 20px; position: relative;}\n\
-		#footer p {position: absolute; bottom: 0; left: 0; font-size: 0.9em; line-height: 1; margin-bottom: 0; color: #999;}\n\
-		#footer a#cern_logo {position: absolute; bottom: 0; right: 0;}\n\
-		@media all and (max-width:480px) {\n\
-			body {padding: 0 3%;}\n\
-			body.fluid #container {width: 100%; padding: 0;}\n\
-			#footer {height: auto; text-align: left;}\n\
-			#footer p {position: relative; bottom: auto; left: auto; font-size: 0.9em; color: #999; margin-bottom: 1em; color: #000; line-height: 1.3;}\n\
-			#footer a#cern_logo {position: relative; bottom: auto; right: auto;}\n\
-		}\n\
-	</style>\n\
-</head>\n\
-<body class=\"lang-en fluid\">\n\
-	<!-- THE CERN_BANNER IS REQUIRED BY THE GRAPHIC CHARTER -->\n\
-	<div id=\"cern_banner\">\n\
-		<a href=\"http://www.cern.ch/\" title=\"cern.ch\"><span>CERN &mdash; the European Organization for Nuclear Research</span></a>\n\
-	</div>\n\
-  <div id=\"container\" class=\"clear-block\">\n\
-  <div id=\"middle\" class=\"clear-block\">\n";
-  error += "<h1>";
-  error += errct;
-  error += " - ";
-  error += errtxt;
-  error += "<h1>\n";
-  error += "\
-    <p>There was an error loading the page you requested<script type=\"text/javascript\">\n\
-		document.write (\": \" + document.location.href); \n\
-	</script>\n\
-	 &mdash; This page may have been deleted or moved.</p>\n\
-    <ul class=\"plain airy\">\n\
-    	<li><a href=\"http://www.cern.ch\">CERN homepage</a></li>\n\
-    	<li><a href=\"http://itssb.web.cern.ch/\">IT service status</a></li>\n\
-	<li>\n\
-		<a href= \"https://cern.ch/service-portal/\">Contact the Service Desk</a>\n\
-	</li>\n\
-    </ul>\n\
-    </div><!-- / middle -->\n\
-    <div id=\"footer\" class=\"clear-block\">\n\
-      <p>European Organization for Nuclear Research, CH-1211, Genève 23, Switzerland</p>\n  \
-      <!-- THE CERN_LOGO IS REQUIRED BY THE GRAPHIC CHARTER --> \n\
-      <a id=\"cern_logo\" class=\"badge_80\" href=\"http://www.cern.ch\" title=\"www.cern.ch\" name=\"cern_logo\"><span>cern.ch</span></a>\n\
-      </div><!-- / footer -->\n\
-  </div><!-- / container -->\n\
-</body>\n\
-</html>\n";
 
-  return error;
+  if (getenv("EOS_HTMLDIR"))
+    html_dir = getenv("EOS_HTMLDIR");
+  else
+    html_dir = "/var/share/eos/";
+
+  std::ifstream in(std::string(html_dir.c_str()) + std::string("error.html"));
+  std::stringstream buffer;
+  buffer << in.rdbuf();
+  error = buffer.str().c_str();
+
+  while (error.replace("__RESPONSE_CODE__", errct))  {}
+  while (error.replace("__ERROR_TEXT__",    errtxt)) {}
+
+  eos_static_debug("html=%s", error.c_str());
+
+  return std::string(error.c_str());
 }
 
 /*----------------------------------------------------------------------------*/

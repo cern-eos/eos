@@ -872,7 +872,9 @@ main (int argc, char* argv[])
       }
       else
       {
-        if (!doStoreRecovery)
+        // If we don't need to recover the source and we were not told explicitly
+        // that this is a RAIN transfer
+        if (!doStoreRecovery && !isRaidTransfer)
         {
           //.......................................................................
           // Test if we can do parallel IO access
@@ -1168,6 +1170,7 @@ main (int argc, char* argv[])
   // Start the performance measurement
   //............................................................................
   gettimeofday(&abs_start_time, &tz);
+  bool got_rain_flags = false;
 
   if (!replicamode)
   {
@@ -1189,10 +1192,47 @@ main (int argc, char* argv[])
         break;
 
       case RAID_ACCESS:
-        for (int j = 1; j < nsrc; j++)
+        if (!got_rain_flags)
         {
-          st[j].st_size = st[0].st_size;
-          st[j].st_mode = st[0].st_mode;
+          XrdCl::URL url(src_location[i].first);
+
+          if (!url.IsValid())
+          {
+            fprintf(stderr, "error: the url address is not valid\n");
+            exit(-EPERM);
+          }
+
+          XrdCl::FileSystem fs(url);
+          XrdCl::StatInfo* response = 0;
+          status = fs.Stat(src_location[i].second, response);
+          
+          if (!status.IsOK())
+          {
+            stat_failed = 1;
+          }
+          else
+          {
+            stat_failed = 0;
+            st[i].st_size = response->GetSize();
+            st[i].st_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+            if (response->TestFlags(XrdCl::StatInfo::IsWritable))
+            {
+              st[i].st_mode |= S_IWGRP;
+            }
+            got_rain_flags = true;
+          }
+
+          if (got_rain_flags)
+          {
+            for (int j = 0; j < nsrc; j++)
+            {
+              if (j != i)
+              {
+                st[j].st_size = st[i].st_size;
+                st[j].st_mode = st[i].st_mode;
+              }
+            }
+          }
         }
         break;
       case XRD_ACCESS:
@@ -1755,7 +1795,7 @@ main (int argc, char* argv[])
           fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags);
         }
 
-        if (redundancyObj->OpenPio(vectUrl, flags))
+        if (redundancyObj && redundancyObj->OpenPio(vectUrl, flags))
         {
           fprintf(stderr, "error: can not open RAID object for write\n");
           exit(-EIO);
