@@ -166,7 +166,8 @@ int main( int argc, char* argv[] )
   if ( !file->Open( dsturl.c_str(), flags_xrdcl, mode_xrdcl ).IsOK() ) {
     eos_static_info( "Creating the file..." );
     flags_xrdcl = XrdCl::OpenFlags::MakePath | XrdCl::OpenFlags::New;
-
+    delete file;
+    file = new XrdCl::File();
     if ( !file->Open( dsturl.c_str(), flags_xrdcl, mode_xrdcl ).IsOK() ) {
       eos_static_err( "cannot open remote file %s", dsturl.c_str() );
       delete file;
