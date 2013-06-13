@@ -437,7 +437,7 @@ ProcCommand::Access ()
   if (mSubCmd == "set")
   {
     eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
-    if (redirect.length() && ((type.length() == 0) || (type == "r") || (type == "w")))
+    if (redirect.length() && ((type.length() == 0) || (type == "r") || (type == "w") || (type == "ENONET") || (type == "ENOENT") ) )
     {
       if (type == "r")
       {
@@ -491,7 +491,7 @@ ProcCommand::Access ()
     {
       if (stall.length())
       {
-        if ((atoi(stall.c_str()) > 0) && ((type.length() == 0) || (type == "r") || (type == "w") || ((type.find("rate:") == 0))))
+        if ((atoi(stall.c_str()) > 0) && ((type.length() == 0) || (type == "r") || (type == "w") || ((type.find("rate:") == 0)) || (type == "ENONET") || (type == "ENOENT")))
         {
           if (type == "r")
           {
@@ -514,8 +514,24 @@ ProcCommand::Access ()
               }
               else
               {
-                Access::gStallRules[std::string("*")] = stall;
-                Access::gStallComment[std::string("*")] = mComment.c_str();
+		if (type == "ENONET") 
+                {
+		  Access::gStallRules[std::string("ENONET:*")] = stall;
+		  Access::gStallComment[std::string("ENONET:*")] = mComment.c_str();
+		} 
+		else 
+                {
+		  if (type == "ENOENT") 
+                  {
+		    Access::gStallRules[std::string("ENOENT:*")] = stall;
+		    Access::gStallComment[std::string("ENOENT:*")] = mComment.c_str();
+		  } 
+                  else 
+                  {
+		    Access::gStallRules[std::string("*")] = stall;
+		    Access::gStallComment[std::string("*")] = mComment.c_str();
+		  }
+		}
               }
             }
           }
