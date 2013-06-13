@@ -298,10 +298,12 @@ retry:
 
   // build the list of files to migrate
   long long totalfiles = 0;
+  long long wopenfiles = 0;
 
   XrdSysThread::SetCancelOff();
   {
     //------------------------------------
+    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
@@ -309,7 +311,11 @@ retry:
       eos::FileSystemView::FileIterator it;
 
       totalfiles = filelist.size();
-
+      if (fs->GetConfigStatus() == eos::common::FileSystem::kDrain)
+      {
+        // if we are still an alive file system, we cannot finish a drain as a long as we see some open files
+        wopenfiles = fs->GetLongLong("stat.wopen");
+      }
     }
     catch (eos::MDException &e)
     {
@@ -319,7 +325,7 @@ retry:
   //------------------------------------
 
   XrdSysThread::SetCancelOn();
-  if (!totalfiles)
+  if ( (!wopenfiles) && (!totalfiles) )
   {
     goto nofilestodrain;
   }
