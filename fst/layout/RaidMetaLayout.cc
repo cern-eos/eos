@@ -891,6 +891,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
              // the server is down
              if (error_type == XrdCl::errOperationExpired)
              {
+               mStripeFiles[j]->Close(mTimeout);
                delete mStripeFiles[j];
                mStripeFiles[j] = NULL;
              }

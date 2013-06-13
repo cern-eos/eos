@@ -495,7 +495,7 @@ ReplicaParLayout::Close ()
 
      if (ptr_handler)
      {
-       if (!ptr_handler->WaitOK())
+       if (ptr_handler->WaitOK() != XrdCl::errNone)
        {
          eos_err("error=async requests failed for replica %s", mReplicaUrl[i].c_str());
          rc = SFS_ERROR;
