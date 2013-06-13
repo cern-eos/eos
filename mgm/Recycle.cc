@@ -100,13 +100,15 @@ Recycle::Recycler ()
   {
     //...........................................................................
     // every now and then we wake up
-    //...........................................................................
+    //..........................................................................
     eos_static_info("snooze-time=%llu", snoozetime);
+    XrdSysThread::SetCancelOn();
     XrdSysTimer sleeper;
     sleeper.Snooze(snoozetime);
 
     snoozetime = gRecyclingPollTime; // this will be reconfigured to an appropriate value later
 
+    XrdSysThread::SetCancelOff();
     //...........................................................................
     // read our current policy setting
     //...........................................................................
