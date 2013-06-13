@@ -598,7 +598,6 @@ private:
 
 /*----------------------------------------------------------------------------*/
 //! Class implementing atomic meta data commands
-
 /*----------------------------------------------------------------------------*/
 class XrdMgmOfs : public XrdSfsFileSystem, public eos::common::LogId
 {
@@ -1186,14 +1185,14 @@ public:
   static void* StartMgmStats (void *pp);
 
   // ---------------------------------------------------------------------------
-  // Filesystem error listener thread startup function
+  // Filesystem error/config listener thread startup function
   // ---------------------------------------------------------------------------
-  static void* StartMgmFsListener (void *pp);
+  static void* StartMgmFsConfigListener (void *pp);
 
   // ---------------------------------------------------------------------------
-  // Filesystem error listener thread function
+  // Filesystem error and configuration change listener thread function
   // ---------------------------------------------------------------------------
-  void FsListener ();
+  void FsConfigListener ();
 
   // ---------------------------------------------------------------------------
   // configuration variables
@@ -1292,7 +1291,7 @@ public:
   // ---------------------------------------------------------------------------
   pthread_t deletion_tid; //< Thead Id of the deletion thread
   pthread_t stats_tid; //< Thread Id of the stats thread
-  pthread_t fslistener_tid; //< Thread ID of the fs listener thread
+  pthread_t fsconfiglistener_tid; //< Thread ID of the fs listener/config change thread
 
   // ---------------------------------------------------------------------------
   // class objects
