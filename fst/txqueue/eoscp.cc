@@ -872,7 +872,9 @@ main (int argc, char* argv[])
       }
       else
       {
-        if (!doStoreRecovery)
+        // If we don't need to recover the source and we were not told explicitly
+        // that this is a RAIN transfer
+        if (!doStoreRecovery && !isRaidTransfer)
         {
           //.......................................................................
           // Test if we can do parallel IO access
@@ -1755,7 +1757,7 @@ main (int argc, char* argv[])
           fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags);
         }
 
-        if (redundancyObj->OpenPio(vectUrl, flags))
+        if (redundancyObj && redundancyObj->OpenPio(vectUrl, flags))
         {
           fprintf(stderr, "error: can not open RAID object for write\n");
           exit(-EIO);
