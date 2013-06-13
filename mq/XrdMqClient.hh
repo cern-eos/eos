@@ -41,12 +41,8 @@ class XrdMqClient
   private:
     static XrdSysMutex          Mutex;
     XrdOucHash <XrdOucString>   kBrokerUrls;
-    XrdOucHash <XrdOucString>   kBrokerAliasUrls;
-    XrdSysMutex                 kBrokerAliasMutex;
     XrdOucHash <XrdCl::File>       kBrokerXrdClientReceiver;
     XrdOucHash <XrdCl::FileSystem> kBrokerXrdClientSender;
-    time_t                      kBrokerXrdClientReceiverAliasTimeStamp[256];
-    time_t                      kBrokerXrdClientSenderAliasTimeStamp[256];
 
     XrdOucString                kMessageBuffer;
     int kBrokerN;

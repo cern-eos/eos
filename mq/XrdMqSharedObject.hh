@@ -127,18 +127,18 @@ public:
 
   void SetBroadCastQueue(const char* broadcastqueue) { BroadCastQueue = broadcastqueue;}
   
-  bool Set(std::string key, std::string value, bool broadcast=true, bool tempmodsubjects=false) {
-    return Set(key.c_str(),value.c_str(), broadcast, tempmodsubjects);
+  bool Set(std::string key, std::string value, bool broadcast=true, bool tempmodsubjects=false, bool notify=true) {
+    return Set(key.c_str(),value.c_str(), broadcast, tempmodsubjects, notify);
   }
 
-  bool Set(const char* key, const char* value, bool broadcast=true, bool tempmodsubjects=false);
-  bool SetNoLockNoBroadCast(const char* key, const char* value, bool tempmodsubjects);
+  bool Set(const char* key, const char* value, bool broadcast=true, bool tempmodsubjects=false, bool notify=true);
+  bool SetNoLockNoBroadCast(const char* key, const char* value, bool tempmodsubjects, bool notify=true);
 
-  bool Set(std::map<std::string, std::string> &map) {
+  bool Set(std::map<std::string, std::string> &map, bool broadcast=true, bool tempmodsubjects=false, bool notify=true) {
     std::map<std::string, std::string>::const_iterator it;
     bool success=true;
     for (it=map.begin(); it!=map.end(); it++) {
-      success *= Set(it->first.c_str(), it->second.c_str());
+      success *= Set(it->first.c_str(), it->second.c_str(),broadcast,tempmodsubjects,notify);
     }
     return success;
   }
@@ -155,7 +155,7 @@ public:
     return Set(key, convert, broadcast);
   }
 
-  bool Delete(const char* key, bool broadcast=true);
+  bool Delete(const char* key, bool broadcast=true, bool notify=true);
 
   void Clear(bool broadcast=true);
 
@@ -299,12 +299,26 @@ public:
 
   bool EnableQueue; // if this is true, creation/deletionsubjects are filled and SubjectsSem get's posted for every new creation/deletion
 
-  std::deque<std::string> CreationSubjects;
-  std::deque<std::string> DeletionSubjects;
-  std::deque<std::string> ModificationSubjects;    // these are posted as <queue>:<key>
+  typedef enum {kMqSubjectNothing=-1,kMqSubjectCreation=0, kMqSubjectDeletion=1, kMqSubjectModification=2, kMqSubjectKeyDeletion=3} notification_t;
+  struct Notification {
+    // notification about creation, modification or deletion of a subject.
+    std::string mSubject;
+    notification_t mType;
+    
+    Notification(std::string s, notification_t n) {
+      mSubject = s;
+      mType = n;
+    }
+    Notification() {
+      mType = kMqSubjectNothing;
+    }
+  };
+  
+  std::deque<Notification> NotificationSubjects;
+  
   std::deque<std::string> ModificationTempSubjects;// these are posted as <queue>:<key>
   std::set<std::string> ModificationWatchKeys;     // set of keys which get posted on the modifications list
-
+  std::set<std::string> ModificationWatchSubjects;  // set of subjects which get posted on the modification list
  
   // clean the bulk modification subject list
   void PostModificationTempSubjects();             
