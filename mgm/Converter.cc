@@ -41,27 +41,32 @@ extern XrdOucTrace gMgmOfsTrace;
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
+XrdSysMutex eos::mgm::Converter::gSchedulerMutex;
+XrdScheduler* eos::mgm::Converter::gScheduler;
+XrdSysMutex eos::mgm::Converter::gConverterMapMutex;
+std::map<std::string, Converter*> eos::mgm::Converter::gConverterMap;
+
 /*----------------------------------------------------------------------------*/
 ConverterJob::ConverterJob (eos::common::FileId::fileid_t fid,
                             const char* conversionlayout,
-                            XrdSysCondVar &donesignal)
+                            std::string &convertername)
 : mFid (fid),
 mConversionLayout (conversionlayout),
-mDoneSignal (donesignal)
+mConverterName (convertername)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief Constructor of a conversion job
  * 
  * @param fid file id of the file to convert
  * @param conversionlayout string describing the conversion layout to use
- * 
+ * @param convertername to be used
  */
-/*----------------------------------------------------------------------------*/ 
-{ 
+/*----------------------------------------------------------------------------*/
+{
   mSourcePath = gOFS->MgmProcConversionPath.c_str();
   mSourcePath += "/";
   char xfid[20];
-  snprintf(xfid,sizeof(xfid),"%016llx", (long long)mFid);
+  snprintf(xfid, sizeof (xfid), "%016llx", (long long) mFid);
   mSourcePath += "/";
   mSourcePath += xfid;
   mSourcePath += ":";
@@ -78,15 +83,24 @@ ConverterJob::DoIt ()
  */
 /*----------------------------------------------------------------------------*/
 {
-  eos_static_info("msg=\"start tpc job\" fxid=%016x layout=%s source_path=%s", mFid, mConversionLayout.c_str(),mSourcePath.c_str());
+  eos_static_info("msg=\"start tpc job\" fxid=%016x layout=%s source_path=%s",
+                  mFid, mConversionLayout.c_str(), mSourcePath.c_str());
   XrdSysTimer sleeper;
   //XrdCl::JobDescriptor lJob; //< the local tpc job description
 
-  eos::FileMD* fmd=0;
-  eos::ContainerMD* cmd=0;
-  
+  eos::FileMD* fmd = 0;
+  eos::ContainerMD* cmd = 0;
+
   eos::ContainerMD::XAttrMap attrmap;
-  
+
+
+  Converter* startConverter = 0;
+  Converter* stopConverter = 0;
+  {
+    XrdSysMutexHelper cLock(Converter::gConverterMapMutex);
+    startConverter = Converter::gConverterMap[mConverterName];
+  }
+
   {
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
     try
@@ -101,28 +115,33 @@ ConverterJob::DoIt ()
       {
         attrmap[it->first] = it->second;
       }
-      
+
       std::string conversionattribute = "sys.conversion.";
       conversionattribute += mConversionLayout.c_str();
       XrdOucString lEnv;
-      if (attrmap.count(mConversionLayout.c_str())) {
+      if (attrmap.count(mConversionLayout.c_str()))
+      {
         // conversion layout can either point to a conversion attribute definition in the parent directory
-        mTargetCGI = eos::common::LayoutId::GetEnvFromHexLayoutIdString(lEnv, attrmap[mConversionLayout.c_str()].c_str());
+        mTargetCGI =
+          eos::common::LayoutId::GetEnvFromHexLayoutIdString(lEnv, attrmap[mConversionLayout.c_str()].c_str());
       }
       else
       {
         // or can be directly a hexadecimal layout representation
-        mTargetCGI = eos::common::LayoutId::GetEnvFromHexLayoutIdString(lEnv, mConversionLayout.c_str());
+        mTargetCGI =
+          eos::common::LayoutId::GetEnvFromHexLayoutIdString(lEnv, mConversionLayout.c_str());
       }
     }
     catch (eos::MDException &e)
     {
       errno = e.getErrno();
-      eos_static_err("fid=%016x errno=%d msg=\"%s\"\n", mFid, e.getErrno(), e.getMessage().str().c_str());
+      eos_static_err("fid=%016x errno=%d msg=\"%s\"\n",
+                     mFid, e.getErrno(), e.getMessage().str().c_str());
     }
   }
-  
-  if (mTargetCGI.length()) {
+
+  if (mTargetCGI.length())
+  {
     // this is properly defined job
     eos_static_info("msg=\"conversion layout correct\" fxid=%016x cgi=\"%s\"",
                     mFid, mTargetCGI.c_str());
@@ -130,10 +149,27 @@ ConverterJob::DoIt ()
   else
   {
     // this is a crappy defined job
-    eos_static_err("msg=\"conversion layout definition wrong\" fxid=%016x layout=%s", mFid, mConversionLayout.c_str());
+    eos_static_err("msg=\"conversion layout definition wrong\" fxid=%016x layout=%s",
+                   mFid, mConversionLayout.c_str());
   }
-  eos_static_info("msg=\"stop  tpc job\" fxid=%016x layout=%s", mFid, mConversionLayout.c_str());
-  mDoneSignal.Signal();
+  eos_static_info("msg=\"stop  tpc job\" fxid=%016x layout=%s",
+                  mFid, mConversionLayout.c_str());
+
+  {
+    // -------------------------------------------------------------------------
+    // we can only call-back to the Converter object if it wasn't 
+    // destroyed/recreated in the mean-while
+    // -------------------------------------------------------------------------
+    
+    XrdSysMutexHelper cLock(Converter::gConverterMapMutex);
+    stopConverter = Converter::gConverterMap[mConverterName];
+    if (startConverter && (startConverter == stopConverter))
+    {
+      stopConverter->GetSignal()->Signal();
+      stopConverter->DecActiveJobs();
+    }
+  }
+
   delete this;
 }
 
@@ -148,9 +184,26 @@ Converter::Converter (const char* spacename)
 /*----------------------------------------------------------------------------*/
 {
   mSpaceName = spacename;
-  mScheduler = new XrdScheduler(&gMgmOfsEroute, &gMgmOfsTrace, 2, 128, 64);
-  mScheduler->Start();
-  XrdSysThread::Run(&mThread, Converter::StaticConverter, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Converter Thread");
+  XrdSysMutexHelper sLock(gSchedulerMutex);
+  if (!gScheduler)
+  {
+    gScheduler = new XrdScheduler(&gMgmOfsEroute, &gMgmOfsTrace, 2, 128, 64);
+    gScheduler->Start();
+  }
+
+  {
+    XrdSysMutexHelper cLock(Converter::gConverterMapMutex);
+    // store this object in the converter map for callbask
+    gConverterMap[spacename] = this;
+  }
+
+  mActiveJobs = 0;
+
+  XrdSysThread::Run(&mThread, 
+                    Converter::StaticConverter, 
+                    static_cast<void *> (this), 
+                    XRDSYSTHREAD_HOLD, 
+                    "Converter Thread");
 }
 
 /*----------------------------------------------------------------------------*/
@@ -166,10 +219,10 @@ Converter::~Converter ()
   {
     XrdSysThread::Join(mThread, NULL);
   }
-  if (mScheduler)
+
   {
-    delete mScheduler;
-    mScheduler = 0;
+    XrdSysMutexHelper cLock(Converter::gConverterMapMutex);
+    gConverterMap[mSpaceName] = 0;
   }
 }
 
@@ -178,7 +231,7 @@ void*
 Converter::StaticConverter (void* arg)
 /*----------------------------------------------------------------------------*/
 /*
- * @brief Static thread startup functino calling Convert
+ * @brief Static thread startup function calling Convert
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -236,7 +289,7 @@ Converter::Convert (void)
     bool IsMaster = true;
 
     int lSpaceTransfers = 0;
-    int lSpaceTransferRate = 0;
+    //    int lSpaceTransferRate = 0; => currently not used
 
     XrdSysThread::SetCancelOff();
     {
@@ -250,13 +303,16 @@ Converter::Convert (void)
       if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str()))
         break;
 
-      if (FsView::gFsView.mSpaceView[mSpaceName.c_str()]->GetConfigMember("converter") == "on")
+      if (FsView::gFsView.mSpaceView[mSpaceName.c_str()]->\
+          GetConfigMember("converter") == "on")
         IsSpaceConverter = true;
       else
         IsSpaceConverter = false;
 
-      lSpaceTransfers = atoi(FsView::gFsView.mSpaceView[mSpaceName.c_str()]->GetConfigMember("converter.ntx").c_str());
-      lSpaceTransferRate = atoi(FsView::gFsView.mSpaceView[mSpaceName.c_str()]->GetConfigMember("converter.rate").c_str());
+      lSpaceTransfers = 
+        atoi(FsView::gFsView.mSpaceView[mSpaceName.c_str()]->GetConfigMember("converter.ntx").c_str());
+      // lSpaceTransferRate = atoi(FsView::gFsView.mSpaceView[mSpaceName.c_str()]->
+      // GetConfigMember("converter.rate").c_str());
     }
 
     IsMaster = gOFS->MgmMaster.IsMaster();
@@ -268,7 +324,9 @@ Converter::Convert (void)
         XrdMgmOfsDirectory dir;
         int listrc = 0;
         // fill the conversion queue with the existing entries
-        listrc = dir.open(gOFS->MgmProcConversionPath.c_str(), rootvid, (const char*) 0);
+        listrc = dir.open(gOFS->MgmProcConversionPath.c_str(), 
+                          rootvid, 
+                          (const char*) 0);
         if (listrc == SFS_OK)
         {
           const char* val;
@@ -286,19 +344,26 @@ Converter::Convert (void)
             eos_static_info("name=\"%s\"", sfxid.c_str());
             if (!(sfxid.endswith("run")))
             {
-              if (eos::common::StringConversion::SplitKeyValue(sfxid, fxid, conversionattribute) && (eos::common::FileId::Hex2Fid(fxid.c_str())) && (fxid.length() == 16))
+              if (eos::common::StringConversion::SplitKeyValue(sfxid, fxid, conversionattribute) && 
+                  (eos::common::FileId::Hex2Fid(fxid.c_str())) && 
+                  (fxid.length() == 16))
               {
                 // this is a valid entry like <fxid>:<attribute> - we add it to the set
-                lConversionFidMap[eos::common::FileId::Hex2Fid(fxid.c_str())] = conversionattribute.c_str();
+                lConversionFidMap[eos::common::FileId::Hex2Fid(fxid.c_str())] = 
+                  conversionattribute.c_str();
               }
               else
               {
                 // this is an invalid entry not following the <key(016x)>:<value> syntax
-                std::string lFullConversionFilePath = gOFS->MgmProcConversionPath.c_str();
+                std::string lFullConversionFilePath = 
+                  gOFS->MgmProcConversionPath.c_str();
                 lFullConversionFilePath += "/";
                 lFullConversionFilePath += val;
                 // this is an invalid entry we just remove it
-                if (!gOFS->_rem(lFullConversionFilePath.c_str(), error, rootvid, (const char*) 0))
+                if (!gOFS->_rem(lFullConversionFilePath.c_str(), 
+                                error, 
+                                rootvid, 
+                                (const char*) 0))
                 {
                   eos_static_warning("msg=\"deleted invalid conversion entry\" name=\"%s\"", val);
                 }
@@ -314,10 +379,13 @@ Converter::Convert (void)
         }
         else
         {
-          eos_static_err("msg=\"failed to list conversion directory\" path=\"%s\"", gOFS->MgmProcConversionPath.c_str());
+          eos_static_err("msg=\"failed to list conversion directory\" path=\"%s\"", 
+                         gOFS->MgmProcConversionPath.c_str());
         }
       }
-      eos_static_info("converter is enabled ntx=%d nqueued=%d", lSpaceTransfers, lConversionFidMap.size());
+      eos_static_info("converter is enabled ntx=%d nqueued=%d", 
+                      lSpaceTransfers, 
+                      lConversionFidMap.size());
     }
     else
     {
@@ -331,15 +399,20 @@ Converter::Convert (void)
     // -------------------------------------------------------------------------
     // Schedule some conversion jobs if any 
     // -------------------------------------------------------------------------
-    int nschedule = lSpaceTransfers - mScheduler->Active();
+    int nschedule = lSpaceTransfers - mActiveJobs;
     for (int i = 0; i < nschedule; i++)
     {
 
       if (lConversionFidMap.size())
       {
         auto it = lConversionFidMap.begin();
-        ConverterJob* job = new ConverterJob(it->first, it->second.c_str(), mDoneSignal);
-        mScheduler->Schedule((XrdJob*) job);
+        ConverterJob* job = new ConverterJob(it->first, 
+                                             it->second.c_str(), 
+                                             mSpaceName);
+        // use the global shared scheduler
+        XrdSysMutexHelper sLock(gSchedulerMutex);
+        gScheduler->Schedule((XrdJob*) job);
+        mActiveJobs++;
       }
       else
       {
@@ -352,6 +425,7 @@ Converter::Convert (void)
     // Let some time pass or wait for a notification
     // -------------------------------------------------------------------------
     mDoneSignal.Wait(10);
+
     XrdSysThread::CancelPoint();
   }
   return 0;

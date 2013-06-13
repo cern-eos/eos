@@ -54,7 +54,8 @@ ConfigEngineChangeLog::Init (const char* changelogfile)
 {
   {
     std::ifstream testfile(changelogfile);
-    if(testfile.good()) {
+    if (testfile.good())
+    {
       testfile.close();
       if (!IsDbMapFile(changelogfile))
       {
@@ -336,8 +337,45 @@ ConfigEngineChangeLog::Tail (unsigned int nlines, XrdOucString &tail)
 }
 
 /*----------------------------------------------------------------------------*/
+ConfigEngine::ConfigEngine (const char* configdir)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief: constructor of the configuration engine
+ * 
+ * @param configdir is the directory where the configuration are loaded/stored.
+ * 
+ * Set's some default variables and start's a communicator thread listening 
+ * to remote configuration changes
+ * 
+ */
+/*----------------------------------------------------------------------------*/
+{
+  SetConfigDir(configdir);
+  changeLog.configChanges = "";
+  currentConfigFile = "default";
+  XrdOucString changeLogFile = configDir;
+  changeLogFile += "/config.changelog";
+  changeLog.Init(changeLogFile.c_str());
+  autosave = false;
+  configBroadcast = true;
+}
+
+/*----------------------------------------------------------------------------*/
+ConfigEngine::~ConfigEngine ()
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief destructor
+ */
+/*----------------------------------------------------------------------------*/ { }
+
+/*----------------------------------------------------------------------------*/
 bool
 ConfigEngine::LoadConfig (XrdOucEnv &env, XrdOucString &err)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief Load a given configuration file
+ */
+/*----------------------------------------------------------------------------*/
 {
   const char* name = env.Get("mgm.config.file");
   eos_notice("loading name=%s ", name);
@@ -383,9 +421,10 @@ ConfigEngine::LoadConfig (XrdOucEnv &env, XrdOucString &err)
     infile.close();
     if (!ParseConfig(allconfig, err))
       return false;
-
+    configBroadcast = false;
     if (!ApplyConfig(err))
     {
+      configBroadcast = true;
       cl += " with failure";
       cl += " : ";
       cl += err;
@@ -394,6 +433,7 @@ ConfigEngine::LoadConfig (XrdOucEnv &env, XrdOucString &err)
     }
     else
     {
+      configBroadcast = true;
       cl += " successfully";
       changeLog.AddEntry(cl.c_str());
       currentConfigFile = name;
@@ -415,6 +455,11 @@ ConfigEngine::LoadConfig (XrdOucEnv &env, XrdOucString &err)
 /*----------------------------------------------------------------------------*/
 bool
 ConfigEngine::SaveConfig (XrdOucEnv &env, XrdOucString &err)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief store the current configuration to a given file
+ */
+/*----------------------------------------------------------------------------*/
 {
   const char* name = env.Get("mgm.config.file");
   bool force = (bool)env.Get("mgm.config.force");
@@ -567,6 +612,11 @@ ConfigEngine::SaveConfig (XrdOucEnv &env, XrdOucString &err)
 /*----------------------------------------------------------------------------*/
 bool
 ConfigEngine::ListConfigs (XrdOucString &configlist, bool showbackup)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief list the existing configurations
+ */
+/*----------------------------------------------------------------------------*/
 {
 
   struct filestat
@@ -696,18 +746,15 @@ ConfigEngine::ListConfigs (XrdOucString &configlist, bool showbackup)
 }
 
 /*----------------------------------------------------------------------------*/
-bool
-ConfigEngine::BroadCastConfig ()
-{
-
-  return true;
-}
-
-/*----------------------------------------------------------------------------*/
 void
 ConfigEngine::ResetConfig ()
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief reset the configuration
+ */
+/*----------------------------------------------------------------------------*/
 {
-
+  configBroadcast = false;
   XrdOucString cl = "reset  config ";
   changeLog.AddEntry(cl.c_str());
   changeLog.configChanges = "";
@@ -742,11 +789,20 @@ ConfigEngine::ResetConfig ()
   Quota::LoadNodes();
   // fill the current accounting
   Quota::NodesToSpaceQuota();
+  configBroadcast = true;
 }
 
 /*----------------------------------------------------------------------------*/
 bool
 ConfigEngine::ApplyConfig (XrdOucString &err)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief apply a given configuration defition
+ * 
+ * Apply means the configuration engine informs the corresponding objects 
+ * about the new values.
+ */
+/*----------------------------------------------------------------------------*/
 {
   err = "";
 
@@ -797,6 +853,11 @@ ConfigEngine::ApplyConfig (XrdOucString &err)
 /*----------------------------------------------------------------------------*/
 bool
 ConfigEngine::ParseConfig (XrdOucString &inconfig, XrdOucString &err)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief parse a given configuration 
+ */
+/*----------------------------------------------------------------------------*/
 {
   err = "";
   Mutex.Lock();
@@ -841,7 +902,115 @@ ConfigEngine::ParseConfig (XrdOucString &inconfig, XrdOucString &err)
 
 /*----------------------------------------------------------------------------*/
 int
+ConfigEngine::ApplyKeyDeletion (const char* key)
+/*----------------------------------------------------------------------------*/
+/* @brief deletion of a configuration key to the responsible object
+ */
+/*----------------------------------------------------------------------------*/
+{
+  XrdOucString skey = key;
+
+  eos_static_debug("key=%s ", skey.c_str());
+
+  if (skey.beginswith("fs:"))
+  {
+    // 
+    return 0;
+  }
+
+  if (skey.beginswith("global:"))
+  {
+    //
+    return 0;
+  }
+
+  if (skey.beginswith("map:"))
+  {
+    skey.erase(0, 4);
+    eos::common::RWMutexWriteLock lock(gOFS->PathMapMutex);
+
+    if (gOFS->PathMap.count(skey.c_str()))
+    {
+      gOFS->PathMap.erase(skey.c_str());
+    }
+  }
+
+  if (skey.beginswith("quota:"))
+  {
+    // set a quota definition
+    skey.erase(0, 6);
+    int spaceoffset = 0;
+    int ugoffset = 0;
+    int ugequaloffset = 0;
+    int tagoffset = 0;
+    ugoffset = skey.find(':', spaceoffset + 1);
+    ugequaloffset = skey.find('=', ugoffset + 1);
+    tagoffset = skey.find(':', ugequaloffset + 1);
+
+    if ((ugoffset == STR_NPOS) ||
+        (ugequaloffset == STR_NPOS) ||
+        (tagoffset == STR_NPOS))
+    {
+      return 0;
+    }
+
+    XrdOucString space = "";
+    XrdOucString ug = "";
+    XrdOucString ugid = "";
+    XrdOucString tag = "";
+    space.assign(skey, 0, ugoffset - 1);
+    ug.assign(skey, ugoffset + 1, ugequaloffset - 1);
+    ugid.assign(skey, ugequaloffset + 1, tagoffset - 1);
+    tag.assign(skey, tagoffset + 1);
+
+    eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+
+    SpaceQuota* spacequota = Quota::GetSpaceQuota(space.c_str());
+
+    long id = strtol(ugid.c_str(), 0, 10);
+
+    if (spacequota)
+    {
+      if (id > 0 || (ugid == "0"))
+      {
+        spacequota->RmQuota(SpaceQuota::GetTagFromString(tag), id, false);
+      }
+    }
+    return 0;
+  }
+
+  if (skey.beginswith("policy:"))
+  {
+    // set a policy
+    skey.erase(0, 7);
+    return 0;
+  }
+
+  if (skey.beginswith("vid:"))
+  {
+    XrdOucString vidstr = "mgm.vid.key=";
+    XrdOucString stdOut;
+    XrdOucString stdErr;
+    int retc = 0;
+    vidstr += skey.c_str();
+    XrdOucEnv videnv(vidstr.c_str());
+    // remove vid entry
+    Vid::Rm(videnv, retc, stdOut, stdErr, false);
+
+    return 0;
+  }
+
+  return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+int
 ConfigEngine::DeleteConfigByMatch (const char* key, XrdOucString* def, void* Arg)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief delete configuration keys by match
+ */
+/*----------------------------------------------------------------------------*/
 {
   XrdOucString* matchstring = (XrdOucString*) Arg;
   XrdOucString skey = key;
@@ -857,6 +1026,12 @@ ConfigEngine::DeleteConfigByMatch (const char* key, XrdOucString* def, void* Arg
 /*----------------------------------------------------------------------------*/
 int
 ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief callback function of XrdOucHash to apply a key to the corresponding
+ * configuration object
+ */
+/*----------------------------------------------------------------------------*/
 {
   XrdOucString* err = (XrdOucString*) Arg;
 
@@ -882,7 +1057,8 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
     if (!FsView::gFsView.ApplyFsConfig(skey.c_str(), sdef))
     {
       *err += "error: unable to apply config ";
-      *err += key, *err += " => ";
+      *err += key;
+      *err += " => ";
       *err += def->c_str();
       *err += "\n";
     }
@@ -895,10 +1071,12 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
     if (!FsView::gFsView.ApplyGlobalConfig(skey.c_str(), sdef))
     {
       *err += "error: unable to apply config ";
-      *err += key, *err += " => ";
+      *err += key;
+      *err += " => ";
       *err += def->c_str();
       *err += "\n";
     }
+
     return 0;
   }
 
@@ -908,10 +1086,12 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
     if (!gOFS->AddPathMap(skey.c_str(), sdef.c_str()))
     {
       *err += "error: unable to apply config ";
-      *err += key, *err += " => ";
+      *err += key;
+      *err += " => ";
       *err += def->c_str();
       *err += "\n";
     }
+
     return 0;
   }
 
@@ -935,6 +1115,7 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
       *err += "error: cannot parse config line key: ";
       *err += skey.c_str();
       *err += "\n";
+      return 0;
     }
 
     XrdOucString space = "";
@@ -981,8 +1162,9 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
   {
     int envlen;
     // set a virutal Identity
-    if (!Vid::Set(envdev.Env(envlen)))
+    if (!Vid::Set(envdev.Env(envlen), false))
     {
+
       eos_static_err("cannot apply config line key: |%s| => |%s|", skey.c_str(), def->c_str());
       *err += "error: cannot apply config line key: ";
       *err += skey.c_str();
@@ -1000,6 +1182,11 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
 /*----------------------------------------------------------------------------*/
 int
 ConfigEngine::PrintEachConfig (const char* key, XrdOucString* def, void* Arg)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief callback function of XrdOucHash to print individual configuration keys
+ */
+/*----------------------------------------------------------------------------*/
 {
   if (Arg == NULL)
     eos_static_info("%s => %s", key, def->c_str());
@@ -1049,7 +1236,8 @@ ConfigEngine::PrintEachConfig (const char* key, XrdOucString* def, void* Arg)
 
     if (filter)
     {
-      (*outstring) += key;
+      (
+       *outstring) += key;
       (*outstring) += " => ";
       (*outstring) += def->c_str();
       (*outstring) += "\n";
@@ -1061,6 +1249,11 @@ ConfigEngine::PrintEachConfig (const char* key, XrdOucString* def, void* Arg)
 /*----------------------------------------------------------------------------*/
 bool
 ConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief dump function for selective configuration printing
+ */
+/*----------------------------------------------------------------------------*/
 {
   struct PrintInfo pinfo;
 
@@ -1139,12 +1332,209 @@ ConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
 
       if (filtered)
       {
+
         out += sinputline;
         out += "\n";
       }
     }
   }
   return true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+ConfigEngine::AutoSave ()
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief do an autosave
+ */
+/*----------------------------------------------------------------------------*/
+{
+  if (gOFS->MgmMaster.IsMaster() && autosave && currentConfigFile.length())
+  {
+    int aspos = 0;
+    if ((aspos = currentConfigFile.find(".autosave")) != STR_NPOS)
+    {
+      currentConfigFile.erase(aspos);
+    }
+    if ((aspos = currentConfigFile.find(".backup")) != STR_NPOS)
+    {
+      currentConfigFile.erase(aspos);
+    }
+    XrdOucString envstring = "mgm.config.file=";
+    envstring += currentConfigFile;
+    envstring += "&mgm.config.force=1";
+    envstring += "&mgm.config.autosave=1";
+    XrdOucEnv env(envstring.c_str());
+    XrdOucString err = "";
+
+    if (!SaveConfig(env, err))
+    {
+
+      eos_static_err("%s\n", err.c_str());
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+/*----------------------------------------------------------------------------*/
+void
+ConfigEngine::SetConfigValue (const char* prefix,
+                              const char* key,
+                              const char* val,
+                              bool tochangelog)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief set a configuration value
+ * @prefix identifies the type of configuration parameter (e.g. the responsible module)
+ * @key key of the configuration value
+ * @val definition=value of the configuration
+ */
+/*----------------------------------------------------------------------------*/
+{
+  XrdOucString cl = "set config ";
+  cl += prefix;
+  cl += ":";
+  cl += key;
+  cl += " => ";
+  cl += val;
+  if (tochangelog)
+    changeLog.AddEntry(cl.c_str());
+  XrdOucString configname = prefix;
+  configname += ":";
+  XrdOucString * sdef = new XrdOucString(val);
+  configname += key;
+  configDefinitions.Rep(configname.c_str(), sdef);
+  eos_static_debug("%s => %s", key, val);
+
+  fprintf(stderr,"SetConfigValue %d %s", configBroadcast, key);
+  if (configBroadcast)
+  {
+    // make this value visible between MGM's
+    XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
+    if (hash)
+    {
+      XrdOucString repval=val;
+      while (repval.replace("&"," ")) {}
+      hash->Set(configname.c_str(), repval.c_str());
+    }
+  }
+
+  if (gOFS->MgmMaster.IsMaster() && autosave && currentConfigFile.length())
+  {
+    int aspos = 0;
+    if ((aspos = currentConfigFile.find(".autosave")) != STR_NPOS)
+    {
+      currentConfigFile.erase(aspos);
+    }
+    if ((aspos = currentConfigFile.find(".backup")) != STR_NPOS)
+    {
+      currentConfigFile.erase(aspos);
+    }
+    XrdOucString envstring = "mgm.config.file=";
+    envstring += currentConfigFile;
+    envstring += "&mgm.config.force=1";
+    envstring += "&mgm.config.autosave=1";
+    XrdOucEnv env(envstring.c_str());
+    XrdOucString err = "";
+
+    if (!SaveConfig(env, err))
+    {
+
+      eos_static_err("%s\n", err.c_str());
+    }
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+void
+ConfigEngine::DeleteConfigValue (const char* prefix,
+                                 const char* key,
+                                 bool tochangelog)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief delete configuration key
+ * @prefix identifies the type of configuration parameter (e.g. the responsible module)
+ * key of the configuration value to delete
+ */
+/*----------------------------------------------------------------------------*/
+{
+  XrdOucString cl = "del config ";
+  cl += prefix;
+  cl += ":";
+  cl += key;
+
+  XrdOucString configname = prefix;
+  configname += ":";
+  configname += key;
+
+  if (configBroadcast)
+  {
+    eos_static_info("Deleting %s\n", configname.c_str());
+    // make this value visible between MGM's
+    XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
+    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
+    if (hash)
+    {
+      eos_static_info("Deleting on hash %s", configname.c_str());
+      hash->Delete(configname.c_str(), true);
+    }
+  }
+
+  Mutex.Lock();
+  configDefinitions.Del(configname.c_str());
+
+  if (tochangelog)
+    changeLog.AddEntry(cl.c_str());
+
+  if (gOFS->MgmMaster.IsMaster() && autosave && currentConfigFile.length())
+  {
+    int aspos = 0;
+    if ((aspos = currentConfigFile.find(".autosave")) != STR_NPOS)
+    {
+      currentConfigFile.erase(aspos);
+    }
+    if ((aspos = currentConfigFile.find(".backup")) != STR_NPOS)
+    {
+      currentConfigFile.erase(aspos);
+    }
+    XrdOucString envstring = "mgm.config.file=";
+    envstring += currentConfigFile;
+    envstring += "&mgm.config.force=1";
+    envstring += "&mgm.config.autosave=1";
+    XrdOucEnv env(envstring.c_str());
+    XrdOucString err = "";
+    if (!SaveConfig(env, err))
+    {
+
+      eos_static_err("%s\n", err.c_str());
+    }
+  }
+  Mutex.UnLock();
+  eos_static_debug("%s", key);
+}
+
+/*----------------------------------------------------------------------------*/
+void
+ConfigEngine::DeleteConfigValueByMatch (const char* prefix,
+                                        const char* match)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief delete configuration values matching a pattern 
+ * @prefix identifies the type of configuration parameter (e.g. the responsible module)
+ * @match is a match pattern as used in DeleteConfigByMatch
+ */
+/*----------------------------------------------------------------------------*/
+{
+  Mutex.Lock();
+  XrdOucString smatch = prefix;
+  smatch += ":";
+  smatch += match;
+  configDefinitions.Apply(DeleteConfigByMatch, &smatch);
+  Mutex.UnLock();
 }
 
 EOSMGMNAMESPACE_END

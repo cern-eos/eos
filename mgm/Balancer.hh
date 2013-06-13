@@ -24,39 +24,63 @@
 #ifndef __EOSMGM_BALANCER__
 #define __EOSMGM_BALANCER__
 
-/* ------------------------------------------------------------------------- */
+/*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
-/* ------------------------------------------------------------------------- */
+/*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
-/* ------------------------------------------------------------------------- */
+/*----------------------------------------------------------------------------*/
 #include <vector>
 #include <string>
 #include <deque>
 #include <cstring>
+/*----------------------------------------------------------------------------*/
 
-/* ------------------------------------------------------------------------- */
-
+/*----------------------------------------------------------------------------*/
+/**
+ * @file   Balancer.hh
+ * 
+ * @brief  Class steering in-group balancing
+ *
+ */
+/*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
+//! @brief class steering the balancing activity
+//! 
+//! This class run's as singleton per space on the MGM and checks all 
+//! existing groups if they are balanced.
+//! In case there is an inbalance, it signals balancing to all nodes in the 
+//! group.
+/*----------------------------------------------------------------------------*/
 class Balancer
 {
-  // --------------------------------------------------------------------------------------------
-  // !this class run's as singleton per space on the MGM and checks all existing groups if it is unbalanced
-  // !incase there is an inbalance, it starts a balancing job on the group
-  // --------------------------------------------------------------------------------------------
-
 private:
-  pthread_t thread;
-  std::string mSpaceName;
+  pthread_t thread; //< thread id of the balancer thread
+  std::string mSpaceName; //< responsable space of this balancer object
 
 public:
 
+  // ---------------------------------------------------------------------------
+  // Constructor
+  // ---------------------------------------------------------------------------
   Balancer (const char* spacename);
+
+  // ---------------------------------------------------------------------------
+  // Destructor
+  // ---------------------------------------------------------------------------
   ~Balancer ();
 
+  // ---------------------------------------------------------------------------
+  // static thread start function
+  // ---------------------------------------------------------------------------
   static void* StaticBalance (void*);
+
+  // ---------------------------------------------------------------------------
+  // balancer implementation
+  // ---------------------------------------------------------------------------
   void* Balance ();
 };
 

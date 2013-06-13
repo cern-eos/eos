@@ -32,6 +32,10 @@
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
+Acl::Acl (std::string sysacl, 
+          std::string useracl, 
+          eos::common::Mapping::VirtualIdentity &vid)
+/*----------------------------------------------------------------------------*/
 /** 
  * Constructor
  * 
@@ -42,16 +46,18 @@ EOSMGMNAMESPACE_BEGIN
  * @param vid virtual id to match ACL
  */
 /*----------------------------------------------------------------------------*/
-Acl::Acl (std::string sysacl, 
-          std::string useracl, 
-          eos::common::Mapping::VirtualIdentity &vid)
 {
   Set(sysacl, useracl, vid);
 }
 
 /*----------------------------------------------------------------------------*/
+void
+Acl::Set (std::string sysacl, 
+          std::string useracl, 
+          eos::common::Mapping::VirtualIdentity &vid)
+/*----------------------------------------------------------------------------*/
 /** 
- * @brief set the contents of an ACL and compute the canXX and hasXX booleans
+ * @brief Sset the contents of an ACL and compute the canXX and hasXX booleans.
  * 
  * @param sysacl system acl definition string 
  * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}'
@@ -59,12 +65,7 @@ Acl::Acl (std::string sysacl,
  * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}'
  * @param vid virtual id to match ACL 
  */
-
 /*----------------------------------------------------------------------------*/
-void
-Acl::Set (std::string sysacl, 
-          std::string useracl, 
-          eos::common::Mapping::VirtualIdentity &vid)
 {
   std::string acl = "";
   if (sysacl.length())

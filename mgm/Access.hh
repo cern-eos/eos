@@ -21,12 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/*----------------------------------------------------------------------------*/
 /**
  * @file   Access.hh
  * 
  * @brief  Class defining access rules like banned users, hosts, stall rules etc.
  *       
  */
+/*----------------------------------------------------------------------------*/
 
 
 #ifndef __EOSCOMMON_ACCESS__

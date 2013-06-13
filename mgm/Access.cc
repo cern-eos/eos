@@ -109,7 +109,7 @@ void
 Access::Reset ()
 /*----------------------------------------------------------------------------*/
 /** 
- * @brief static function to reset all singleton objects defining access rules
+ * @brief Static function to reset all singleton objects defining access rules.
  * 
  */
 /*----------------------------------------------------------------------------*/
@@ -135,8 +135,8 @@ void
 Access::ApplyAccessConfig ()
 /*----------------------------------------------------------------------------*/
 /** 
- * @brief static function to retrieve the access configuration from the global 
- * configuration and apply to the static singleton rules
+ * @brief Static function to retrieve the access configuration from the global 
+ * configuration and apply to the static singleton rules.
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -294,9 +294,8 @@ bool
 Access::StoreAccessConfig ()
 /*----------------------------------------------------------------------------*/
 /** 
- * @brief static function to store all defined rules in the global configuration
- * 
- * 
+ * @brief Static function to store all defined rules in the global configuration.
+ *  
  * @return true if successful, otherwise false
  */
 /*----------------------------------------------------------------------------*/
