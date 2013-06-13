@@ -35,7 +35,8 @@ EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 bool
-Vid::Set (const char* value)
+Vid::Set (const char* value, 
+          bool storeConfig)
 {
   eos::common::RWMutexWriteLock lock(eos::common::Mapping::gMapMutex);
 
@@ -63,7 +64,7 @@ Vid::Set (const char* value)
       gkey.erase("geotag:");
       fprintf(stderr, "Setting %s => %s (%s)\n", gkey.c_str(), val, value);
       eos::common::Mapping::gGeoMap[gkey.c_str()] = val;
-      gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), value);
+      if (storeConfig) gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), value);
       set = true;
     }
   }
@@ -95,7 +96,7 @@ Vid::Set (const char* value)
       eos::common::Mapping::gUserRoleVector[uid].clear();
       eos::common::Mapping::KommaListToUidVector(val, eos::common::Mapping::gUserRoleVector[uid]);
       
-      gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
+      if (storeConfig) gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
       set = true;
     }
 
@@ -105,7 +106,7 @@ Vid::Set (const char* value)
       eos::common::Mapping::gGroupRoleVector[uid].clear();
       eos::common::Mapping::KommaListToGidVector(val, eos::common::Mapping::gGroupRoleVector[uid]);
      
-      gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
+      if (storeConfig) gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
       set = true;
     }
 
@@ -116,14 +117,14 @@ Vid::Set (const char* value)
       if (setting == "true")
       {
         eos::common::Mapping::gSudoerMap[uid] = 1;
-        gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), value);
+        if (storeConfig) gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), value);
         return true;
       }
       else
       {
         // this in fact is deletion of the right
         eos::common::Mapping::gSudoerMap[uid] = 0;
-        gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
+        if (storeConfig) gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
         return true;
       }
     }
@@ -188,7 +189,7 @@ Vid::Set (const char* value)
       while (svalue.replace("&", " "))
       {
       };
-      gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
+      if (storeConfig) gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
     }
 
     skey = auth;
@@ -215,7 +216,7 @@ Vid::Set (const char* value)
       while (svalue.replace("&", " "))
       {
       };
-      gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
+      if (storeConfig) gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
     }
   }
   return set;
@@ -223,7 +224,11 @@ Vid::Set (const char* value)
 
 /*----------------------------------------------------------------------------*/
 bool
-Vid::Set (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
+Vid::Set (XrdOucEnv &env, 
+          int &retc, 
+          XrdOucString &stdOut, 
+          XrdOucString &stdErr, 
+          bool storeConfig)
 {
   int envlen;
   // no '&' are allowed into stdOut !
@@ -231,7 +236,7 @@ Vid::Set (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
   while (inenv.replace("&", " "))
   {
   };
-  bool rc = Set(env.Env(envlen));
+  bool rc = Set(env.Env(envlen),storeConfig);
   if (rc == true)
   {
     stdOut += "success: set vid [ ";
@@ -254,7 +259,10 @@ Vid::Set (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 
 /*----------------------------------------------------------------------------*/
 void
-Vid::Ls (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
+Vid::Ls (XrdOucEnv &env, 
+         int &retc, 
+         XrdOucString &stdOut, 
+         XrdOucString &stdErr)
 {
   eos::common::RWMutexReadLock lock(eos::common::Mapping::gMapMutex);
   eos::common::Mapping::Print(stdOut, env.Get("mgm.vid.option"));
@@ -263,7 +271,11 @@ Vid::Ls (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
 
 /*----------------------------------------------------------------------------*/
 bool
-Vid::Rm (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
+Vid::Rm (XrdOucEnv &env, 
+         int &retc, 
+         XrdOucString &stdOut, 
+         XrdOucString &stdErr, 
+         bool storeConfig)
 {
   eos::common::RWMutexWriteLock lock(eos::common::Mapping::gMapMutex);
   XrdOucString skey = env.Get("mgm.vid.key");
@@ -311,12 +323,12 @@ Vid::Rm (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
     gid_t gid = atoi(lkey.c_str());
     nerased += eos::common::Mapping::gGroupRoleVector.erase(gid);
   }
-
-  if (skey.beginswith("vid:geotag"))
+  
+  if (skey.beginswith("geotag"))
   {
     // remove from geo tag map
     XrdOucString gkey = skey;
-    gkey.erase("vid:geotag:");
+    gkey.erase("geotag:");
     nerased += eos::common::Mapping::gGeoMap.erase(gkey.c_str());
   }
   else
@@ -328,7 +340,7 @@ Vid::Rm (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr)
   // ---------------------------------------------------------------------------
   // delete the entry from the config engine
   // ---------------------------------------------------------------------------
-  gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
+  if (storeConfig) gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
 
   if (nerased)
   {
