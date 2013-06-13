@@ -253,7 +253,6 @@ void modifySubTree( eos::IView *view, const std::string &root )
   {
     std::ostringstream o;
     o << root << "/dir" << i;
-    int i;
     eos::ContainerMD *container = view->getContainer( o.str() );
     eos::QuotaNode   *qn = view->getQuotaNode( container );
     eos::ContainerMD::FileMap::iterator it;
