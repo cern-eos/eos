@@ -41,6 +41,7 @@
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdVersion.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
@@ -293,6 +294,13 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
 
   eos::fst::Config::gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
   setenv("XrdClientEUSER", "daemon", 1);
+
+  // set short timeout resolution, connection window, connection retry and stream error window
+  XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
+  XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 5);
+  XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 1);
+  XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
+
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // extract the manager from the config file
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
