@@ -212,6 +212,15 @@ xrdmgmofs_shutdown (int sig)
     gOFS->zMQ = 0;
   }
 #endif
+
+  // ----------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop config engine ... ");
+  if (gOFS->ConfEngine)
+  {
+    delete gOFS->ConfEngine;
+    gOFS->ConfEngine = 0;
+  }
+
   // ----------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop messaging ... ");
   if (gOFS->MgmOfsMessaging)
@@ -237,10 +246,10 @@ xrdmgmofs_shutdown (int sig)
 
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop fs listener thread ... ");
-  if (gOFS->fslistener_tid)
+  if (gOFS->fsconfiglistener_tid)
   {
-    XrdSysThread::Cancel(gOFS->fslistener_tid);
-    XrdSysThread::Join(gOFS->fslistener_tid, 0);
+    XrdSysThread::Cancel(gOFS->fsconfiglistener_tid);
+    XrdSysThread::Join(gOFS->fsconfiglistener_tid, 0);
   }
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: remove messaging ... ");
@@ -298,7 +307,7 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
   // ---------------------------------------------------------------------------
   if (!myFS.Init(gMgmOfsEroute)) return 0;
 
-  
+
   // ---------------------------------------------------------------------------
   // Disable XRootd log rotation
   // ---------------------------------------------------------------------------
@@ -1176,6 +1185,18 @@ XrdMgmOfsFile::open (const char *inpath,
     return Emsg(epname, error, EINVAL, "get quota space ", space.c_str());
   }
 
+  unsigned long long external_mtime = 0;
+  unsigned long long external_ctime = 0;
+
+  if (openOpaque->Get("eos.ctime"))
+  {
+    external_ctime = strtoull(openOpaque->Get("eos.ctime"), 0, 10);
+  }
+
+  if (openOpaque->Get("eos.mtime"))
+  {
+    external_mtime = strtoull(openOpaque->Get("eos.mtime"), 0, 10);
+  }
 
   if (isCreation || ((open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation())))
   {
@@ -1184,7 +1205,23 @@ XrdMgmOfsFile::open (const char *inpath,
     layoutId = newlayoutId;
     // set the layout and commit new meta data 
     fmd->setLayoutId(layoutId);
-    fmd->setSize(0);
+    // -------------------------------------------------------------------------
+    // if specified set an external modification/creation time 
+    // -------------------------------------------------------------------------
+    if (external_mtime)
+    {
+      eos::FileMD::ctime_t mtime;
+      mtime.tv_sec = external_mtime;
+      mtime.tv_nsec = 0;
+      fmd->setMTime(mtime);
+    }
+    if (external_ctime)
+    {
+      eos::FileMD::ctime_t ctime;
+      ctime.tv_sec = external_ctime;
+      ctime.tv_nsec = 0;
+      fmd->setCTime(ctime);
+    }
     {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       // -----------------------------------------------------------------------      
@@ -2014,7 +2051,7 @@ XrdMgmOfs::XrdMgmOfs (XrdSysError *ep)
   eos::common::LogId();
   eos::common::LogId::SetSingleShotLogId();
 
-  fslistener_tid = stats_tid = deletion_tid = 0;
+  fsconfiglistener_tid = stats_tid = deletion_tid = 0;
 
 }
 
@@ -2934,18 +2971,18 @@ XrdMgmOfs::_chown (const char *path,
     pcmd = gOFS->eosView->getContainer(cPath.GetParentPath());
 
     eos::ContainerMD::XAttrMap::const_iterator it;
-    for ( it = pcmd->attributesBegin(); it != pcmd->attributesEnd(); ++it) 
+    for (it = pcmd->attributesBegin(); it != pcmd->attributesEnd(); ++it)
     {
       attrmap[it->first] = it->second;
     }
 
     // acl of the parent!
-    Acl acl(attrmap.count("sys.acl")?attrmap["sys.acl"]:std::string(""),attrmap.count("user.acl")?attrmap["user.acl"]:std::string(""),vid);
+    Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""), attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid);
 
     cmd = gOFS->eosView->getContainer(path);
     if ((vid.uid) && (!eos::common::Mapping::HasUid(3, vid) &&
                       !eos::common::Mapping::HasGid(4, vid)) &&
-	!acl.CanChown())
+        !acl.CanChown())
 
     {
       errno = EPERM;
@@ -4191,12 +4228,13 @@ XrdMgmOfs::_remdir (const char *path,
   // ---------------------------------------------------------------------------
   {
     eos::common::RWMutexReadLock qlock(Quota::gQuotaMutex);
-    if (Quota::GetSpaceQuota(path, true)) {
-      errno = EBUSY ;
-      return Emsg(epname, error, errno, "rmdir - this is a quota node", path);  
+    if (Quota::GetSpaceQuota(path, true))
+    {
+      errno = EBUSY;
+      return Emsg(epname, error, errno, "rmdir - this is a quota node", path);
     }
   }
-  
+
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
@@ -5394,7 +5432,6 @@ XrdMgmOfs::_utimes (const char *path,
   try
   {
     cmd = gOFS->eosView->getContainer(path);
-    cmd->setCTime(tvp[1]);
     UpdateInmemoryDirectoryModificationTime(cmd->getId(), tvp[1]);
     eosView->updateContainerStore(cmd);
     done = true;
@@ -6311,6 +6348,32 @@ XrdMgmOfs::FSctl (const int cmd,
         unsigned long mtime = strtoul(amtime, 0, 10);
         unsigned long mtimens = strtoul(amtimensec, 0, 10);
 
+        {
+          // ---------------------------------------------------------------
+          // check that the filesystem is still allowed to accept replica's
+          // ---------------------------------------------------------------
+          eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+          eos::mgm::FileSystem* fs = 0;
+          if (FsView::gFsView.mIdView.count(fsid))
+          {
+            fs = FsView::gFsView.mIdView[fsid];
+          }
+          if ((!fs) || (fs->GetConfigStatus() < eos::common::FileSystem::kDrain))
+          {
+            eos_thread_err("msg=\"commit suppressed\" configstatus=%s subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu checksum=%s mtime=%s mtime.nsec=%s",
+                           fs ? eos::common::FileSystem::GetConfigStatusAsString(fs->GetConfigStatus()) : "deleted",
+                           spath,
+                           asize,
+                           afid,
+                           afsid,
+                           dropfsid,
+                           checksum,
+                           amtime,
+                           amtimensec);
+
+            return Emsg(epname, error, EIO, "commit file metadata - filesystem is in non-operational state [EIO]", "");
+          }
+        }
 
         eos::Buffer checksumbuffer;
         checksumbuffer.putData(binchecksum, SHA_DIGEST_LENGTH);
@@ -6457,6 +6520,12 @@ XrdMgmOfs::FSctl (const int cmd,
             }
           }
 
+          // -----------------------------------------------------------------
+          // for changing the modification time we have to figure out if we
+          // just attach a new replica or if we have a change of the contents
+          // -----------------------------------------------------------------
+          bool isUpdate;
+
           {
             SpaceQuota* space = Quota::GetResponsibleSpaceQuota(spath);
             eos::QuotaNode* quotanode = 0;
@@ -6482,6 +6551,10 @@ XrdMgmOfs::FSctl (const int cmd,
 
             if (commitsize)
             {
+              if (fmd->getSize() != size)
+              {
+                isUpdate = true;
+              }
               fmd->setSize(size);
             }
 
@@ -6491,14 +6564,30 @@ XrdMgmOfs::FSctl (const int cmd,
             }
           }
 
-
           if (commitchecksum)
+          {
+            if (!isUpdate)
+            {
+              for (int i = 0; i < SHA_DIGEST_LENGTH; i++)
+              {
+                if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i])
+                {
+                  isUpdate = true;
+                }
+              }
+            }
             fmd->setChecksum(checksumbuffer);
+          }
 
           eos::FileMD::ctime_t mt;
           mt.tv_sec = mtime;
           mt.tv_nsec = mtimens;
-          fmd->setMTime(mt);
+
+          if (isUpdate)
+          {
+            // update the modification time only if the file contents changed
+            fmd->setMTime(mt);
+          }
 
           eos_thread_debug("commit: setting size to %llu", fmd->getSize());
           try
@@ -9032,7 +9121,10 @@ XrdMgmOfs::_attr_rem (const char *path,
     if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid)))
       errno = EPERM;
     else
+    {
       dh->removeAttribute(key);
+      eosView->updateContainerStore(dh);
+    }
   }
   catch (eos::MDException &e)
   {
@@ -9802,11 +9894,11 @@ XrdMgmOfs::StartMgmStats (void *pp)
 
 /*----------------------------------------------------------------------------*/
 void*
-XrdMgmOfs::StartMgmFsListener (void *pp)
+XrdMgmOfs::StartMgmFsConfigListener (void *pp)
 {
 
   XrdMgmOfs* ofs = (XrdMgmOfs*) pp;
-  ofs->FsListener();
+  ofs->FsConfigListener();
   return 0;
 }
 
@@ -9899,95 +9991,197 @@ XrdMgmOfs::DeleteExternal (eos::common::FileSystem::fsid_t fsid,
 
 /*----------------------------------------------------------------------------*/
 void
-XrdMgmOfs::FsListener ()
+XrdMgmOfs::FsConfigListener ()
 /*----------------------------------------------------------------------------*/
 /*
  * @brief file system listener agent starting drain jobs when receving opserror
+ * and applying remote master configuration changes to the local configuration
+ * object.
  * 
  * This thread agent catches 'opserror' states on filesystems and executes the
  * drain job start routine on the referenced filesystem. If a filesystem
  * is removing the error code it also run's a stop drain job routine.
+ * Additionally it applies changes in the MGM configuration which have been
+ * broadcasted by a remote master MGM.
  */
 /*----------------------------------------------------------------------------*/
 {
   XrdSysTimer sleeper;
   sleeper.Snooze(5);
-  // thread listening on filesystem errors
+  // thread listening on filesystem errors and configuration changes
   do
   {
-    XrdSysTimer sleeper;
-    sleeper.Snooze(1);
+    gOFS->ObjectManager.SubjectsSem.Wait();
+
+    XrdSysThread::SetCancelOff();
+
+    // we always take a lock to take something from the queue and then release it
     gOFS->ObjectManager.SubjectsMutex.Lock();
+
     // listens on modifications on filesystem objects
-    while (gOFS->ObjectManager.ModificationSubjects.size())
+    while (gOFS->ObjectManager.NotificationSubjects.size())
     {
-      std::string newsubject = gOFS->ObjectManager.ModificationSubjects.front();
-      eos_static_debug("received modification on subject %s\n", newsubject.c_str());
-      gOFS->ObjectManager.ModificationSubjects.pop_front();
+      XrdMqSharedObjectManager::Notification event;
+      event = gOFS->ObjectManager.NotificationSubjects.front();
+      gOFS->ObjectManager.NotificationSubjects.pop_front();
       gOFS->ObjectManager.SubjectsMutex.UnLock();
-      // if this is an error status on a file system, check if the filesystem is > drained state and in this case launch a drain job with
-      // the opserror flag by calling StartDrainJob
-      // We use directly the ObjectManager Interface because it is more handy with the available information we have at this point
 
-      std::string key = newsubject;
-      std::string queue = newsubject;
-      size_t dpos = 0;
-      if ((dpos = queue.find(";")) != std::string::npos)
+      std::string newsubject = event.mSubject.c_str();
+
+
+      if (event.mType == XrdMqSharedObjectManager::kMqSubjectCreation)
       {
-        key.erase(0, dpos + 1);
-        queue.erase(dpos);
+        // ---------------------------------------------------------------------
+        // handle subject creation
+        // ---------------------------------------------------------------------
+        eos_static_debug("received creation on subject %s\n", newsubject.c_str());
+        gOFS->ObjectManager.SubjectsMutex.Lock();
+        continue;
       }
-      eos::common::FileSystem::fsid_t fsid = 0;
-      FileSystem* fs = 0;
-      long long errc = 0;
-      std::string configstatus = "";
-      std::string bootstatus = "";
-      int cfgstatus = 0;
-      int bstatus = 0;
 
-      // read the id from the hash and the current error value
-      gOFS->ObjectManager.HashMutex.LockRead();
-      XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
-      if (hash)
+      if (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion)
       {
-        fsid = (eos::common::FileSystem::fsid_t) hash->GetLongLong("id");
-        errc = (int) hash->GetLongLong("stat.errc");
-        configstatus = hash->Get("configstatus");
-        bootstatus = hash->Get("stat.boot");
-        cfgstatus = eos::common::FileSystem::GetConfigStatusFromString(configstatus.c_str());
-        bstatus = eos::common::FileSystem::GetStatusFromString(bootstatus.c_str());
+        // ---------------------------------------------------------------------
+        // handle subject deletion
+        // ---------------------------------------------------------------------
+        eos_static_debug("received deletion on subject %s\n", newsubject.c_str());
+
+        gOFS->ObjectManager.SubjectsMutex.Lock();
+        continue;
       }
-      gOFS->ObjectManager.HashMutex.UnLockRead();
 
-      if (fsid && errc && (cfgstatus >= eos::common::FileSystem::kRO) && (bstatus == eos::common::FileSystem::kOpsError))
+      if (event.mType == XrdMqSharedObjectManager::kMqSubjectModification)
       {
-        // this is the case we take action and explicitly ask to start a drain job
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        if (FsView::gFsView.mIdView.count(fsid))
-          fs = FsView::gFsView.mIdView[fsid];
-        else
-          fs = 0;
-        if (fs)
+        // ---------------------------------------------------------------------
+        // handle subject modification
+        // ---------------------------------------------------------------------
+
+        eos_static_info("received modification on subject %s\n", newsubject.c_str());
+        // if this is an error status on a file system, check if the filesystem is > drained state and in this case launch a drain job with
+        // the opserror flag by calling StartDrainJob
+        // We use directly the ObjectManager Interface because it is more handy with the available information we have at this point
+
+        std::string key = newsubject;
+        std::string queue = newsubject;
+        size_t dpos = 0;
+        if ((dpos = queue.find(";")) != std::string::npos)
         {
-          fs->StartDrainJob();
+          key.erase(0, dpos + 1);
+          queue.erase(dpos);
         }
-      }
-      if (fsid && (!errc))
-      {
-        // make sure there is no drain job triggered by a previous filesystem errc!=0
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        if (FsView::gFsView.mIdView.count(fsid))
-          fs = FsView::gFsView.mIdView[fsid];
-        else
-          fs = 0;
-        if (fs)
+
+        if (queue == MgmConfigQueue.c_str())
         {
-          fs->StopDrainJob();
+          // -------------------------------------------------------------------
+          // this is an MGM configuration modification
+          // -------------------------------------------------------------------
+          if (!gOFS->MgmMaster.IsMaster())
+          {
+            // only an MGM slave needs to aplly this
+
+            gOFS->ObjectManager.HashMutex.LockRead();
+            XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
+            if (hash)
+            {
+              XrdOucString err;
+              XrdOucString value = hash->Get(key).c_str();
+              if (value.c_str())
+              {
+                gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, (void*) &err);
+              }
+              gOFS->ObjectManager.HashMutex.UnLockRead();
+            }
+          }
         }
+        else
+        {
+          // -------------------------------------------------------------------
+          // this is a filesystem status error
+          // ------------------------------------------------------------------- 
+          if (gOFS->MgmMaster.IsMaster())
+          {
+            // only an MGM master needs to initiate draining
+            eos::common::FileSystem::fsid_t fsid = 0;
+            FileSystem* fs = 0;
+            long long errc = 0;
+            std::string configstatus = "";
+            std::string bootstatus = "";
+            int cfgstatus = 0;
+            int bstatus = 0;
+
+            // read the id from the hash and the current error value
+            gOFS->ObjectManager.HashMutex.LockRead();
+            XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
+            if (hash)
+            {
+              fsid = (eos::common::FileSystem::fsid_t) hash->GetLongLong("id");
+              errc = (int) hash->GetLongLong("stat.errc");
+              configstatus = hash->Get("configstatus");
+              bootstatus = hash->Get("stat.boot");
+              cfgstatus = eos::common::FileSystem::GetConfigStatusFromString(configstatus.c_str());
+              bstatus = eos::common::FileSystem::GetStatusFromString(bootstatus.c_str());
+            }
+            gOFS->ObjectManager.HashMutex.UnLockRead();
+
+            if (fsid && errc && (cfgstatus >= eos::common::FileSystem::kRO) && (bstatus == eos::common::FileSystem::kOpsError))
+            {
+              // this is the case we take action and explicitly ask to start a drain job
+              eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+              if (FsView::gFsView.mIdView.count(fsid))
+                fs = FsView::gFsView.mIdView[fsid];
+              else
+                fs = 0;
+              if (fs)
+              {
+                fs->StartDrainJob();
+              }
+            }
+            if (fsid && (!errc))
+            {
+              // make sure there is no drain job triggered by a previous filesystem errc!=0
+              eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+              if (FsView::gFsView.mIdView.count(fsid))
+                fs = FsView::gFsView.mIdView[fsid];
+              else
+                fs = 0;
+              if (fs)
+              {
+                fs->StopDrainJob();
+              }
+            }
+          }
+        }
+        gOFS->ObjectManager.SubjectsMutex.Lock();
+        continue;
       }
+
+      if (event.mType == XrdMqSharedObjectManager::kMqSubjectKeyDeletion)
+      {
+        // ---------------------------------------------------------------------
+        // handle subject key deletion
+        // ---------------------------------------------------------------------
+        eos_static_debug("received deletion on subject %s\n", newsubject.c_str());
+
+        std::string key = newsubject;
+        std::string queue = newsubject;
+        size_t dpos = 0;
+        if ((dpos = queue.find(";")) != std::string::npos)
+        {
+          key.erase(0, dpos + 1);
+          queue.erase(dpos);
+        }
+
+        gOFS->ConfEngine->ApplyKeyDeletion(key.c_str());
+
+        gOFS->ObjectManager.SubjectsMutex.Lock();
+        continue;
+      }
+      eos_static_warning("msg=\"don't know what to do with subject\" subject=%s", newsubject.c_str());
       gOFS->ObjectManager.SubjectsMutex.Lock();
+      continue;
     }
     gOFS->ObjectManager.SubjectsMutex.UnLock();
+    XrdSysThread::SetCancelOff();
   }
   while (1);
 }
