@@ -31,48 +31,88 @@
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-std::set<uid_t> Access::gBannedUsers; //! singleton set for banned user IDs
-std::set<gid_t> Access::gBannedGroups; //! singleton set for banned group IDS
-std::set<std::string> Access::gBannedHosts; //! singleton set for banned host names
+//! singleton set for banned user IDs
+std::set<uid_t> Access::gBannedUsers;
 
-std::set<uid_t> Access::gAllowedUsers; //! singleton set for allowed user IDs
-std::set<gid_t> Access::gAllowedGroups; //! singleton set for allowed group IDs
-std::set<std::string> Access::gAllowedHosts; //! singleton set for allowed host names
+//! singleton set for banned group IDS
+std::set<gid_t> Access::gBannedGroups;
 
-std::map<std::string, std::string> Access::gRedirectionRules; //! singleton map for redirection rules
-std::map<std::string, std::string> Access::gStallRules; //! singleton map for stall rules
-std::map<std::string, std::string> Access::gStallComment; //! singleton map for stall comments
-bool Access::gStallGlobal = false; //! indicates global stall rule
-bool Access::gStallRead = false; //! indicates global read stall                                                                                                             
-bool Access::gStallWrite = false; //! indicates global write stall                                                                                                                  
-bool Access::gStallUserGroup = false; //! indicates a user or group rate stall entry
+//! singleton set for banned host names
+std::set<std::string> Access::gBannedHosts;
 
-std::map<uid_t, std::string> Access::gUserRedirection; //! singleton map for UID based redirection (not used yet)
-std::map<gid_t, std::string> Access::gGroupRedirection; //! singleton map for GID based redirection (not used yet)
+//! singleton set for allowed user IDs
+std::set<uid_t> Access::gAllowedUsers;
 
-eos::common::RWMutex Access::gAccessMutex; //! global rw mutex protecting all static singletons
+//! singleton set for allowed group IDs
+std::set<gid_t> Access::gAllowedGroups;
+
+//! singleton set for allowed host names
+std::set<std::string> Access::gAllowedHosts;
+
+//! singleton map for redirection rules
+std::map<std::string, std::string> Access::gRedirectionRules;
+
+//! singleton map for stall rules
+std::map<std::string, std::string> Access::gStallRules;
+
+//! singleton map for stall comments
+std::map<std::string, std::string> Access::gStallComment;
+
+//! indicates global stall rule
+bool Access::gStallGlobal = false;
+
+//! indicates global read stall        
+bool Access::gStallRead = false;
+
+//! indicates global write stall       
+bool Access::gStallWrite = false;
+
+//! indicates a user or group rate stall entry
+bool Access::gStallUserGroup = false;
+
+//! singleton map for UID based redirection (not used yet)
+std::map<uid_t, std::string> Access::gUserRedirection;
+
+//! singleton map for GID based redirection (not used yet)
+std::map<gid_t, std::string> Access::gGroupRedirection;
+
+//! global rw mutex protecting all static singletons
+eos::common::RWMutex Access::gAccessMutex;
 
 /*----------------------------------------------------------------------------*/
-const char* Access::gUserKey = "BanUsers"; //! constant used in the configuration store
-const char* Access::gGroupKey = "BanGroups"; //! constant used in the configuration store
-const char* Access::gHostKey = "BanHosts"; //! constant used in the configuration store
+//! constant used in the configuration store
+const char* Access::gUserKey = "BanUsers";
 
-const char* Access::gAllowedUserKey = "AllowedUsers"; //! constant used in the configuration store
-const char* Access::gAllowedGroupKey = "AllowedGroups"; //! constant used in the configuration store
-const char* Access::gAllowedHostKey = "AllowedHosts"; //! constant used in the configuration store
+//! constant used in the configuration store
+const char* Access::gGroupKey = "BanGroups";
 
-const char* Access::gStallKey = "Stall"; //! constant used in the configuration store
-const char* Access::gRedirectionKey = "Redirection"; //! constant used in the configuration store
+//! constant used in the configuration store
+const char* Access::gHostKey = "BanHosts";
 
+//! constant used in the configuration store
+const char* Access::gAllowedUserKey = "AllowedUsers";
+
+//! constant used in the configuration store
+const char* Access::gAllowedGroupKey = "AllowedGroups";
+
+//! constant used in the configuration store
+const char* Access::gAllowedHostKey = "AllowedHosts";
+
+//! constant used in the configuration store
+const char* Access::gStallKey = "Stall";
+
+//! constant used in the configuration store
+const char* Access::gRedirectionKey = "Redirection";
+
+/*----------------------------------------------------------------------------*/
+void
+Access::Reset ()
 /*----------------------------------------------------------------------------*/
 /** 
- * Static Function to reset all singleton objects defining access rules
+ * @brief static function to reset all singleton objects defining access rules
  * 
  */
 /*----------------------------------------------------------------------------*/
-
-void
-Access::Reset ()
 {
   eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
   Access::gBannedUsers.clear();
@@ -86,19 +126,19 @@ Access::Reset ()
   Access::gStallComment.clear();
   Access::gUserRedirection.clear();
   Access::gGroupRedirection.clear();
-  Access::gStallGlobal = Access::gStallRead = Access::gStallWrite = Access::gStallUserGroup = false;
+  Access::gStallGlobal = Access::gStallRead = \
+    Access::gStallWrite = Access::gStallUserGroup = false;
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
- * Static functino to retrieve the access configuration from the global configuration and apply to the static singleton rules
- * 
- */
-
-/*----------------------------------------------------------------------------*/
-
 void
 Access::ApplyAccessConfig ()
+/*----------------------------------------------------------------------------*/
+/** 
+ * @brief static function to retrieve the access configuration from the global 
+ * configuration and apply to the static singleton rules
+ */
+/*----------------------------------------------------------------------------*/
 {
   Access::Reset();
   eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
@@ -193,7 +233,9 @@ Access::ApplyAccessConfig ()
     if (tokens[i].length())
     {
       subtokens.clear();
-      eos::common::StringConversion::Tokenize(tokens[i], subtokens, subdelimiter);
+      eos::common::StringConversion::Tokenize(tokens[i],
+                                              subtokens,
+                                              subdelimiter);
       if (subtokens.size() >= 2)
       {
         Access::gStallRules[subtokens[0]] = subtokens[1];
@@ -236,7 +278,9 @@ Access::ApplyAccessConfig ()
     if (tokens[i].length())
     {
       subtokens.clear();
-      eos::common::StringConversion::Tokenize(tokens[i], subtokens, subdelimiter);
+      eos::common::StringConversion::Tokenize(tokens[i],
+                                              subtokens,
+                                              subdelimiter);
       if (subtokens.size() == 2)
       {
         Access::gRedirectionRules[subtokens[0]] = subtokens[1];
@@ -246,17 +290,16 @@ Access::ApplyAccessConfig ()
 }
 
 /*----------------------------------------------------------------------------*/
+bool
+Access::StoreAccessConfig ()
+/*----------------------------------------------------------------------------*/
 /** 
- * Static function to store all defined rules in the global configuration
+ * @brief static function to store all defined rules in the global configuration
  * 
  * 
  * @return true if successful, otherwise false
  */
-
 /*----------------------------------------------------------------------------*/
-
-bool
-Access::StoreAccessConfig ()
 {
   std::set<uid_t>::const_iterator ituid;
   std::set<gid_t>::const_iterator itgid;
@@ -273,40 +316,47 @@ Access::StoreAccessConfig ()
   std::string stall = "";
   std::string redirect = "";
 
-  for (ituid = Access::gBannedUsers.begin(); ituid != Access::gBannedUsers.end(); ituid++)
+  for (ituid = Access::gBannedUsers.begin();
+    ituid != Access::gBannedUsers.end(); ituid++)
   {
     userval += eos::common::Mapping::UidAsString(*ituid);
     userval += ":";
   }
-  for (itgid = Access::gBannedGroups.begin(); itgid != Access::gBannedGroups.end(); itgid++)
+  for (itgid = Access::gBannedGroups.begin();
+    itgid != Access::gBannedGroups.end(); itgid++)
   {
     groupval += eos::common::Mapping::GidAsString(*itgid);
     groupval += ":";
   }
-  for (ithost = Access::gBannedHosts.begin(); ithost != Access::gBannedHosts.end(); ithost++)
+  for (ithost = Access::gBannedHosts.begin();
+    ithost != Access::gBannedHosts.end(); ithost++)
   {
     hostval += ithost->c_str();
     hostval += ":";
   }
 
-  for (ituid = Access::gAllowedUsers.begin(); ituid != Access::gAllowedUsers.end(); ituid++)
+  for (ituid = Access::gAllowedUsers.begin();
+    ituid != Access::gAllowedUsers.end(); ituid++)
   {
     useraval += eos::common::Mapping::UidAsString(*ituid);
     useraval += ":";
   }
-  for (itgid = Access::gAllowedGroups.begin(); itgid != Access::gAllowedGroups.end(); itgid++)
+  for (itgid = Access::gAllowedGroups.begin();
+    itgid != Access::gAllowedGroups.end(); itgid++)
   {
     groupaval += eos::common::Mapping::GidAsString(*itgid);
     groupaval += ":";
   }
-  for (ithost = Access::gAllowedHosts.begin(); ithost != Access::gAllowedHosts.end(); ithost++)
+  for (ithost = Access::gAllowedHosts.begin();
+    ithost != Access::gAllowedHosts.end(); ithost++)
   {
     hostaval += ithost->c_str();
     hostaval += ":";
   }
 
   gStallRead = gStallWrite = gStallGlobal = gStallUserGroup = false;
-  for (itstall = Access::gStallRules.begin(); itstall != Access::gStallRules.end(); itstall++)
+  for (itstall = Access::gStallRules.begin();
+    itstall != Access::gStallRules.end(); itstall++)
   {
     stall += itstall->first.c_str();
     stall += "~";
@@ -340,7 +390,8 @@ Access::StoreAccessConfig ()
     }
   }
 
-  for (itredirect = Access::gRedirectionRules.begin(); itredirect != Access::gRedirectionRules.end(); itredirect++)
+  for (itredirect = Access::gRedirectionRules.begin();
+    itredirect != Access::gRedirectionRules.end(); itredirect++)
   {
     redirect += itredirect->first.c_str();
     redirect += "~";
