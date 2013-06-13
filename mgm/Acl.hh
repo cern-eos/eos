@@ -39,14 +39,16 @@
  * 
  * @brief  Class providing ACL interpretation and access control functions
  * 
- * ACL rules used in the constructor or set function are strings with the following format:
- * rule='u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)}'
  */
 
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-//! Class implementing access control list interpretation
+//! Class implementing access control list interpretation.
+//! ACL rules used in the constructor or set function are strings with 
+//! the following format:\n\n
+//! rule=
+//! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
 /*----------------------------------------------------------------------------*/
 class Acl
 {
@@ -63,10 +65,9 @@ class Acl
   bool hasAcl; //< acl is valid
   bool hasEgroup; //< acl contains egroup rule
 public:
-  /*----------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
   //! Default Constructor
-
-  /*----------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
   Acl ()
   {
     canRead = false;
@@ -83,26 +84,29 @@ public:
     hasEgroup = false;
   }
 
-  /*----------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
   //! Constructor
-  /*----------------------------------------------------------------------------*/
-  Acl (std::string sysacl, std::string useracl, eos::common::Mapping::VirtualIdentity &vid);
+  /*---------------------------------------------------------------------------*/
+  Acl (std::string sysacl, 
+       std::string useracl, 
+       eos::common::Mapping::VirtualIdentity &vid);
 
-  /*----------------------------------------------------------------------------*/
+  /*--------------------------------------------------------------------------*/
   //! Destructor
 
-  /*----------------------------------------------------------------------------*/
+  /*--------------------------------------------------------------------------*/
   ~Acl () { };
 
-  /*----------------------------------------------------------------------------*/
+  /*--------------------------------------------------------------------------*/
   //! Enter system and user definition + identity used for ACL interpretation
-  /*----------------------------------------------------------------------------*/
-  void Set (std::string sysacl, std::string useracl, eos::common::Mapping::VirtualIdentity &vid);
+  /*--------------------------------------------------------------------------*/
+  void Set (std::string sysacl, 
+            std::string useracl, 
+            eos::common::Mapping::VirtualIdentity &vid);
 
-  /*----------------------------------------------------------------------------*/
-  //! Getter Functions for ACL booleans
-
-  /*----------------------------------------------------------------------------*/
+  /*--------------------------------------------------------------------------*/
+  // Getter Functions for ACL booleans
+  /*--------------------------------------------------------------------------*/
   bool
   CanRead ()
   {
