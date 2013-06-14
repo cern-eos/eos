@@ -140,6 +140,23 @@ void unlinkReplicas( eos::IView *view, eos::ContainerMD *container )
 }
 
 //------------------------------------------------------------------------------
+// Recursively remove the files from accounting
+//------------------------------------------------------------------------------
+void cleanUpQuotaRec( eos::IView *view, eos::ContainerMD *container )
+{
+  eos::QuotaNode *qn = view->getQuotaNode( container );
+  eos::ContainerMD::FileMap::iterator it;
+  for( it = container->filesBegin(); it != container->filesEnd(); ++it )
+    qn->removeFile( it->second );
+
+  eos::ContainerMD::ContainerMap::iterator itC;
+  for( itC = container->containersBegin();
+       itC != container->containersEnd();
+       ++itC )
+    unlinkReplicas( view, itC->second );
+}
+
+//------------------------------------------------------------------------------
 // Delete some replicas from the files in the container
 //------------------------------------------------------------------------------
 void deleteReplicas( eos::IView *view, eos::ContainerMD *container )
@@ -516,16 +533,16 @@ void HierarchicalSlaveTest::functionalTest()
   CPPUNIT_ASSERT_NO_THROW( createSubTree( viewMaster, "/newdir2", 2, 10, 100 ) );
   CPPUNIT_ASSERT_NO_THROW( modifySubTree( viewMaster, "/newdir2" ) );
   CPPUNIT_ASSERT_NO_THROW( createSubTree( viewMaster, "/newdir3", 2, 10, 100 ) );
-  uint64_t corrSMaster2 = calcSize( viewMaster->getContainer( "/newdir2/dir3" ) );
-  uint64_t corrNMaster2 = calcFiles( viewMaster->getContainer( "/newdir2/dir3" ) );
+  CPPUNIT_ASSERT_NO_THROW( cleanUpQuotaRec( viewMaster,
+                                            viewMaster->getContainer( "/newdir2/dir3" ) ) );
   deleteAllReplicasRec( viewMaster, "/newdir2/dir3" );
   CPPUNIT_ASSERT_NO_THROW( viewMaster->removeContainer( "/newdir2/dir3", true ) );
   CPPUNIT_ASSERT_NO_THROW( modifySubTree( viewMaster, "/newdir3" ) );
   CPPUNIT_ASSERT_NO_THROW( createSubTree( viewMaster, "/newdir4", 2, 10, 100 ) );
   CPPUNIT_ASSERT_NO_THROW( createSubTree( viewMaster, "/newdir5", 2, 10, 100 ) );
   CPPUNIT_ASSERT_NO_THROW( modifySubTree( viewMaster, "/newdir4" ) );
-  uint64_t corrSMaster3 = calcSize( viewMaster->getContainer( "/newdir3/dir1" ) );
-  uint64_t corrNMaster3 = calcFiles( viewMaster->getContainer( "/newdir3/dir1" ) );
+  CPPUNIT_ASSERT_NO_THROW( cleanUpQuotaRec( viewMaster,
+                                            viewMaster->getContainer( "/newdir3/dir1" ) ) );
   deleteAllReplicasRec( viewMaster, "/newdir3/dir1" );
   CPPUNIT_ASSERT_NO_THROW( viewMaster->removeContainer( "/newdir3/dir1", true ) );
 
@@ -563,18 +580,16 @@ void HierarchicalSlaveTest::functionalTest()
 
   eos::QuotaNode *qnS[2]; qnS[0] = qnSlave2;  qnS[1] = qnSlave3;
   eos::QuotaNode *qnM[2]; qnM[0] = qnMaster2; qnM[1] = qnMaster3;
-  uint64_t qnCS[2]; qnCS[0] = corrSMaster2; qnCS[1] = corrSMaster3;
-  uint64_t qnCN[2]; qnCN[0] = corrNMaster2; qnCN[1] = corrNMaster3;
   for( int i = 0; i < 2; ++i )
   {
     eos::QuotaNode *qnSlave  = qnS[i];
     eos::QuotaNode *qnMaster = qnM[i];
-    CPPUNIT_ASSERT( qnSlave->getPhysicalSpaceByUser(0)  == qnMaster->getPhysicalSpaceByUser(0)-qnCS[i] );
-    CPPUNIT_ASSERT( qnSlave->getUsedSpaceByUser(0)      == qnMaster->getUsedSpaceByUser(0)-qnCS[i] );
-    CPPUNIT_ASSERT( qnSlave->getPhysicalSpaceByGroup(0) == qnMaster->getPhysicalSpaceByGroup(0)-qnCS[i] );
-    CPPUNIT_ASSERT( qnSlave->getUsedSpaceByGroup(0)     == qnMaster->getUsedSpaceByGroup(0)-qnCS[i] );
-    CPPUNIT_ASSERT( qnSlave->getNumFilesByUser(0)       == qnMaster->getNumFilesByUser(0)-qnCN[i] );
-    CPPUNIT_ASSERT( qnSlave->getNumFilesByGroup(0)      == qnMaster->getNumFilesByGroup(0)-qnCN[i] );
+    CPPUNIT_ASSERT( qnSlave->getPhysicalSpaceByUser(0)  == qnMaster->getPhysicalSpaceByUser(0) );
+    CPPUNIT_ASSERT( qnSlave->getUsedSpaceByUser(0)      == qnMaster->getUsedSpaceByUser(0) );
+    CPPUNIT_ASSERT( qnSlave->getPhysicalSpaceByGroup(0) == qnMaster->getPhysicalSpaceByGroup(0) );
+    CPPUNIT_ASSERT( qnSlave->getUsedSpaceByGroup(0)     == qnMaster->getUsedSpaceByGroup(0) );
+    CPPUNIT_ASSERT( qnSlave->getNumFilesByUser(0)       == qnMaster->getNumFilesByUser(0) );
+    CPPUNIT_ASSERT( qnSlave->getNumFilesByGroup(0)      == qnMaster->getNumFilesByGroup(0) );
   }
 
   lock.unLock();
