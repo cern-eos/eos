@@ -286,13 +286,32 @@ void modifySubTree( eos::IView *view, const std::string &root )
       if(  i % 4 == 0 )
         toDel.push_back( it->second );
     }
+
+    for( itD = toDel.begin(); itD != toDel.end(); ++itD )
+      view->unlinkFile( view->getUri( *itD ) );
+
+    while( 1 )
+    {
+      bool locationsLeft = false;
+      for( itD = toDel.begin(); itD != toDel.end(); ++itD )
+      {
+        eos::FileMD *file = *itD;
+        if( file->getNumUnlinkedLocation() == 0 )
+          continue;
+        file->removeLocation( *(file->unlinkedLocationsBegin()) );
+        view->updateFileStore( file );
+        if( file->getNumUnlinkedLocation() )
+          locationsLeft = true;
+      }
+
+      if( !locationsLeft )
+        break;
+      sleep(1);
+    }
+
     for( itD = toDel.begin(); itD != toDel.end(); ++itD )
     {
       eos::FileMD *file = *itD;
-      file->unlinkAllLocations();
-      view->updateFileStore( file );
-      file->removeAllLocations();
-      view->updateFileStore( file );
       if( qn ) qn->removeFile( file );
       view->removeFile( file );
     }
@@ -337,20 +356,31 @@ bool compareTrees( eos::IView       *view1, eos::IView       *view2,
                    eos::ContainerMD *tree1, eos::ContainerMD *tree2 )
 {
   std::string treeMsg = view1->getUri( tree1 ) + " " + view2->getUri( tree2 );
+  std::ostringstream o1, o2, o3, o4;
 
-  CPPUNIT_ASSERT_MESSAGE( treeMsg, tree1->getId() == tree2->getId() );
-  CPPUNIT_ASSERT_MESSAGE( treeMsg, tree1->getName() == tree2->getName() );
-  CPPUNIT_ASSERT_MESSAGE( treeMsg, tree1->getNumFiles() == tree2->getNumFiles() );
-  CPPUNIT_ASSERT_MESSAGE( treeMsg, tree1->getNumContainers() == tree2->getNumContainers() );
+  o1 << " -- " << tree1->getId() << " " << tree2->getId();
+  CPPUNIT_ASSERT_MESSAGE( treeMsg + o1.str(),
+                          tree1->getId() == tree2->getId() );
+  o2 << " -- " << tree1->getName() << " " << tree2->getName();
+  CPPUNIT_ASSERT_MESSAGE( treeMsg + o2.str(),
+                          tree1->getName() == tree2->getName() );
+  o3 << " -- " << tree1->getNumFiles() << " " << tree2->getNumFiles();
+  CPPUNIT_ASSERT_MESSAGE( treeMsg + o3.str(),
+                          tree1->getNumFiles() == tree2->getNumFiles() );
+  o4 << " -- " << tree1->getNumContainers() << " " << tree2->getNumContainers();
+  CPPUNIT_ASSERT_MESSAGE( treeMsg + o4.str(),
+                          tree1->getNumContainers() == tree2->getNumContainers() );
 
   eos::ContainerMD::FileMap::iterator itF;
   for( itF = tree1->filesBegin(); itF != tree1->filesEnd(); ++itF )
   {
     eos::FileMD *file = tree2->findFile( itF->second->getName() );
-    std::string fileMsg = treeMsg + " file: " + itF->second->getName();
-    CPPUNIT_ASSERT_MESSAGE( fileMsg, file );
-    CPPUNIT_ASSERT_MESSAGE( fileMsg, file->getSize() == itF->second->getSize() );
-    CPPUNIT_ASSERT_MESSAGE( fileMsg, file->getId() == itF->second->getId() );
+    std::string fileMsg = treeMsg + " file " + itF->second->getName();
+    CPPUNIT_ASSERT_MESSAGE( fileMsg + " missing", file );
+    CPPUNIT_ASSERT_MESSAGE( fileMsg + " wrong size", file->getSize() == itF->second->getSize() );
+    CPPUNIT_ASSERT_MESSAGE( fileMsg + " wrong id", file->getId() == itF->second->getId() );
+    CPPUNIT_ASSERT_MESSAGE( fileMsg, file->getFileMDSvc() );
+    CPPUNIT_ASSERT_MESSAGE( fileMsg, itF->second->getFileMDSvc() );
   }
 
   eos::ContainerMD::ContainerMap::iterator itC;
@@ -553,6 +583,28 @@ void HierarchicalSlaveTest::functionalTest()
   unlinkReplicas( viewMaster, viewMaster->getContainer( "/newdir5/dir2" ) );
 
   //----------------------------------------------------------------------------
+  // Move some files around and rename them
+  //----------------------------------------------------------------------------
+  eos::ContainerMD *parent1     = 0;
+  eos::ContainerMD *parent2     = 0;
+  eos::FileMD      *toBeMoved   = 0;
+  eos::FileMD      *toBeRenamed = 0;
+  CPPUNIT_ASSERT_NO_THROW( parent1 = viewMaster->createContainer( "/dest", true ) );
+  CPPUNIT_ASSERT_NO_THROW( parent2 = viewMaster->getContainer( "/dir0/dir0" ) );
+  CPPUNIT_ASSERT_NO_THROW( toBeMoved = viewMaster->getFile( "/dir0/dir0/file0" ) );
+  CPPUNIT_ASSERT_NO_THROW( toBeRenamed = viewMaster->getFile( "/dir0/dir0/file1" ) );
+  CPPUNIT_ASSERT( parent1 );
+  CPPUNIT_ASSERT( parent2 );
+  CPPUNIT_ASSERT( toBeMoved );
+  CPPUNIT_ASSERT( toBeRenamed );
+
+  parent2->removeFile( toBeMoved->getName() );
+  parent1->addFile( toBeMoved );
+  viewMaster->updateFileStore( toBeMoved );
+
+  viewMaster->renameFile( toBeRenamed, "file0" );
+
+  //----------------------------------------------------------------------------
   // Check
   //----------------------------------------------------------------------------
   sleep( 5 );
@@ -607,6 +659,8 @@ void HierarchicalSlaveTest::functionalTest()
   delete contSvcMaster;
   delete fileSvcSlave;
   delete fileSvcMaster;
+  delete fsViewMaster;
+  delete fsViewSlave;
   unlink( fileNameFileMD.c_str() );
   unlink( fileNameContMD.c_str() );
   unlink( (fileNameFileMD+"c").c_str() );
