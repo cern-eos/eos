@@ -999,13 +999,20 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   lFanOutTags.push_back("Master");
   lFanOutTags.push_back("Recycle");
   lFanOutTags.push_back("#");
+
   // get the XRootD log directory
-  char *logdir;
-  XrdOucEnv::Import("XRDLOGDIR", logdir);
+  char *logdir=0;
+  XrdOucEnv::Import("XRDLOGDIR",logdir);
+
+  if (!logdir) {
+    fprintf(stderr,"error: XRDLOGDIR could not be found in XrdOucEnv\n");
+    return 1;
+  }
 
   for (size_t i = 0; i < lFanOutTags.size(); i++)
   {
     std::string lLogFile = logdir;
+    lLogFile += "/mgm";
     lLogFile += "/";
     if (lFanOutTags[i] == "#")
     {
@@ -1766,6 +1773,9 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("Recycle", 0, 0, 0);
   gOFS->MgmStats.Add("ReplicaFailedSize", 0, 0, 0);
   gOFS->MgmStats.Add("ReplicaFailedChecksum", 0, 0, 0);
+  gOFS->MgmStats.Add("Redirect", 0, 0, 0);
+  gOFS->MgmStats.Add("RedirectR", 0, 0, 0);
+  gOFS->MgmStats.Add("RedirectW", 0, 0, 0);
   gOFS->MgmStats.Add("RedirectENOENT", 0, 0, 0);
   gOFS->MgmStats.Add("RedirectENONET", 0, 0, 0);
   gOFS->MgmStats.Add("Rename", 0, 0, 0);
