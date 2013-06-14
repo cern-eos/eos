@@ -58,22 +58,22 @@ EOSMGMNAMESPACE_BEGIN
 class ConverterJob : XrdJob
 {
 private:
-  //< file id of the conversion job
+  /// file id of the conversion job
   eos::common::FileId::fileid_t mFid;
   
-  //< target path of the conversion job
+  /// target path of the conversion job
   std::string mTargetPath;
   
-  //< source path of the conversion job
+  /// source path of the conversion job
   std::string mSourcePath;
   
-  //< target CGI of the conversion job
+  /// target CGI of the conversion job
   std::string mTargetCGI;
 
-  //< layout name of the target file
+  /// layout name of the target file
   XrdOucString mConversionLayout;
   
-  //< target space name of the conversion
+  /// target space name of the conversion
   std::string mConverterName;
 
 public:
@@ -113,16 +113,16 @@ public:
 class Converter
 {
 private:
-  //< thread id
+  /// thread id
   pthread_t mThread;
   
-  //< name of th espace this converter serves
+  /// name of th espace this converter serves
   std::string mSpaceName;
   
-  //< this are all jobs which are queued and didn't run yet
+  /// this are all jobs which are queued and didn't run yet
   size_t      mActiveJobs; 
   
-  //< condition variabl to get signalled for a done job
+  /// condition variabl to get signalled for a done job
   XrdSysCondVar mDoneSignal;
 public:
 
@@ -162,17 +162,17 @@ public:
   // ---------------------------------------------------------------------------
   size_t GetActiveJobs() const { return mActiveJobs; }
 
-  //< the scheduler class is providing a destructor-less object, 
-  //< so we have to create once a singleton of this and keep/share it
+  /// the scheduler class is providing a destructor-less object, 
+  /// so we have to create once a singleton of this and keep/share it
   static XrdSysMutex gSchedulerMutex; 
   
-  //< singelton objct of a scheduler
+  /// singelton objct of a scheduler
   static XrdScheduler* gScheduler; 
   
-  //< the mutex protecting the map of existing converter objects
+  /// the mutex protecting the map of existing converter objects
   static XrdSysMutex gConverterMapMutex; 
   
-  //< map containing the current allocated converter objects
+  /// map containing the current allocated converter objects
   static std::map<std::string,Converter*> gConverterMap; 
 };
 

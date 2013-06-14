@@ -54,18 +54,18 @@ EOSMGMNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 class Acl
 {
-  bool canRead; //< acl allows read access
-  bool canWrite; //< acl allows write access
-  bool canWriteOnce; //< acl allows write-once access (creation, no delete)
-  bool canUpdate; //< acl allows update of files
-  bool canBrowse; //< acl allows browsing
-  bool canChmod; //< acl allows mode change
-  bool canChown; //< acl allows chown change
-  bool canNotDelete; //< acl forbids deletion
-  bool canDelete; //< acl allows deletion
-  bool canSetQuota; //< acl allows to set quota
-  bool hasAcl; //< acl is valid
-  bool hasEgroup; //< acl contains egroup rule
+  bool canRead; ///< acl allows read access
+  bool canWrite; ///< acl allows write access
+  bool canWriteOnce; ///< acl allows write-once access (creation, no delete)
+  bool canUpdate; ///< acl allows update of files
+  bool canBrowse; ///< acl allows browsing
+  bool canChmod; ///< acl allows mode change
+  bool canChown; ///< acl allows chown change
+  bool canNotDelete; ///< acl forbids deletion
+  bool canDelete; ///< acl allows deletion
+  bool canSetQuota; ///< acl allows to set quota
+  bool hasAcl; ///< acl is valid
+  bool hasEgroup; ///< acl contains egroup rule
 public:
   /*---------------------------------------------------------------------------*/
   //! Default Constructor
@@ -109,68 +109,80 @@ public:
   /*--------------------------------------------------------------------------*/
   // Getter Functions for ACL booleans
   /*--------------------------------------------------------------------------*/
+  
   bool
   CanRead ()
+  /// allowed to read
   {
     return canRead;
   }
 
   bool
   CanWrite ()
+  /// allowed to write
   {
     return canWrite;
   }
 
   bool
   CanWriteOnce ()
+  /// allowed to write-once (no overwrite/update/delete)
   {
     return canWriteOnce;
   }
 
   bool
   CanUpdate ()
+  /// allowed to update
   {
     return canUpdate;
   }
 
   bool
   CanBrowse ()
+  /// allowed to list
   {
     return canBrowse;
   }
 
   bool
   CanChmod ()
+  /// allowed to change mod
   {
     return canChmod;
   }
 
   bool
   CanChown ()
+  /// allowed to change owner
   {
     return canChown;
   }
 
   bool
   CanNotDelete ()
+  /// allowed to delete
   {
     return canNotDelete;
   }
 
   bool
   CanSetQuota ()
+  /// allowed to administer quota
   {
     return canSetQuota;
   }
 
   bool
   HasAcl ()
+  /// has any acl defined
   {
     return hasAcl;
   }
 
   bool
   HasEgroup ()
+  /// has any egroup defined
   {
     return hasEgroup;
   }

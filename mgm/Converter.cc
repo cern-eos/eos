@@ -176,7 +176,7 @@ ConverterJob::DoIt ()
 /*----------------------------------------------------------------------------*/
 Converter::Converter (const char* spacename)
 /*----------------------------------------------------------------------------*/
-/*
+/**
  * @brief Constructor by space name
  * 
  * @param spacename name of the associated space
@@ -209,7 +209,7 @@ Converter::Converter (const char* spacename)
 /*----------------------------------------------------------------------------*/
 Converter::~Converter ()
 /*----------------------------------------------------------------------------*/
-/*
+/**
  * @brief Destructor
  */
 /*----------------------------------------------------------------------------*/
@@ -230,7 +230,7 @@ Converter::~Converter ()
 void*
 Converter::StaticConverter (void* arg)
 /*----------------------------------------------------------------------------*/
-/*
+/**
  * @brief Static thread startup function calling Convert
  */
 /*----------------------------------------------------------------------------*/
@@ -242,7 +242,7 @@ Converter::StaticConverter (void* arg)
 void*
 Converter::Convert (void)
 /*----------------------------------------------------------------------------*/
-/*
+/**
  * @brief eternal loop trying to run conversion jobs
  *
  */

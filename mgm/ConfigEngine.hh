@@ -65,7 +65,7 @@ EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 /** 
- * @brief class implementing the changelog store/history
+ * @brief Class implementing the changelog store/history
  *
  */
 /*----------------------------------------------------------------------------*/
@@ -98,7 +98,7 @@ public:
 
 /*----------------------------------------------------------------------------*/
 /**
- * @brief class implementing the configuration engine
+ * @brief Class implementing the configuration engine
  * 
  * The class provides reset/load/store functionality. 
  */
@@ -106,67 +106,67 @@ public:
 class ConfigEngine : public eos::common::LogId
 {
 private:
-  //< directory where configuration files are stored
+  /// directory where configuration files are stored
   XrdOucString configDir;
   
-  //< mutex protecting the configuration engine
+  /// mutex protecting the configuration engine
   XrdSysMutex Mutex;
   
-  //< name of the configuration file currently loaded
+  /// name of the configuration file currently loaded
   XrdOucString currentConfigFile; 
 
-  //< Changelog class
+  /// Changelog class
   ConfigEngineChangeLog changeLog; 
   
-  //< autosave flag - if enabled all changes trigger to store an autosave file
+  /// autosave flag - if enabled all changes trigger to store an autosave file
   bool autosave; 
   
-  //< broadcasting flag - if enabled all changes are broadcasted into the MGM
-  //< configuration queue (config/<instance>/mgm)
+  /// broadcasting flag - if enabled all changes are broadcasted into the MGM
+  /// configuration queue (config/<instance>/mgm)
   bool configBroadcast;  
 
 public:
 
-  //< config definitions of the last loaded file
-  static XrdOucHash<XrdOucString> configDefinitionsFile;
   
-  //< config definitions currently in memory
-  static XrdOucHash<XrdOucString> configDefinitions;
+  static XrdOucHash<XrdOucString> configDefinitionsFile;///< config definitions of the last loaded file
+  
+  
+  static XrdOucHash<XrdOucString> configDefinitions;///< config definitions currently in memory
 
   //< helper struct to use the XrdOucHash::Apply function
   struct PrintInfo
   {
-    XrdOucString* out;
-    XrdOucString option;
+    XrdOucString* out;    ///< output string
+    XrdOucString option;  ///< option for printing
   };
 
   // ---------------------------------------------------------------------------
-  //! XrdOucHash callback function to apply a configuration value
+  // XrdOucHash callback function to apply a configuration value
   // ---------------------------------------------------------------------------
   static int ApplyEachConfig (const char* key, XrdOucString* def, void* Arg);
 
   // ---------------------------------------------------------------------------
-  //! XrdOucHash callback function to print a configuration value
+  // XrdOucHash callback function to print a configuration value
   // ---------------------------------------------------------------------------
   static int PrintEachConfig (const char* key, XrdOucString* def, void* Arg);
 
   // ---------------------------------------------------------------------------
-  //! XrdOucHash callback function to delete a configuration value by match
+  // XrdOucHash callback function to delete a configuration value by match
   // ---------------------------------------------------------------------------
   static int DeleteConfigByMatch (const char* key, XrdOucString* def, void* Arg);
 
-  // ---------------------------------------------------------------------------  //! Function applying a deletion of a configuration key to the responsible
-  //! object.
+  // ---------------------------------------------------------------------------  
+  // Function applying a deletion of a configuration key to the responsible
   // ---------------------------------------------------------------------------
   int ApplyKeyDeletion (const char* key);
 
   // ---------------------------------------------------------------------------
-  //! Constructor
+  // Constructor
   // ---------------------------------------------------------------------------
   ConfigEngine (const char* configdir);
 
   // ---------------------------------------------------------------------------
-  //! Destructor
+  // Destructor
   // ---------------------------------------------------------------------------
   ~ConfigEngine ();
 
@@ -191,12 +191,12 @@ public:
   }
 
   // ---------------------------------------------------------------------------
-  //! Load a configuration
+  // Load a configuration
   // ---------------------------------------------------------------------------
   bool LoadConfig (XrdOucEnv& env, XrdOucString &err);
 
   // ---------------------------------------------------------------------------
-  //! Save a configuration
+  // Save a configuration
   // ---------------------------------------------------------------------------
   bool SaveConfig (XrdOucEnv& env, XrdOucString &err);
 
@@ -228,32 +228,27 @@ public:
   }
 
   // ---------------------------------------------------------------------------
-  //! List all configurations
+  // List all configurations
   // ---------------------------------------------------------------------------
   bool ListConfigs (XrdOucString &configlist, bool showbackups = false);
 
   // ---------------------------------------------------------------------------
-  //! Dump a configuration
+  // Dump a configuration
   // ---------------------------------------------------------------------------
   bool DumpConfig (XrdOucString &out, XrdOucEnv &filter);
-
+  
   // ---------------------------------------------------------------------------
-  //! Build a configuration
-  // ---------------------------------------------------------------------------
-  bool BuildConfig ();
-
-  // ---------------------------------------------------------------------------
-  //! Parse a configuration
+  // Parse a configuration
   // ---------------------------------------------------------------------------
   bool ParseConfig (XrdOucString &broadcast, XrdOucString &err);
 
   // ---------------------------------------------------------------------------
-  //! Apply a configuration
+  // Apply a configuration
   // ---------------------------------------------------------------------------
   bool ApplyConfig (XrdOucString &err);
 
   // ---------------------------------------------------------------------------
-  //! Reset the current configuration
+  // Reset the current configuration
   // ---------------------------------------------------------------------------
   void ResetConfig ();
 
@@ -287,12 +282,12 @@ public:
   }
 
   // ---------------------------------------------------------------------------
-  //! Do an autosave
+  // Do an autosave
   // ---------------------------------------------------------------------------
   bool
   AutoSave ();
   // ---------------------------------------------------------------------------
-  //! Set a configuration value
+  // Set a configuration value
   // ---------------------------------------------------------------------------
   void
   SetConfigValue (const char* prefix,
@@ -301,7 +296,7 @@ public:
                   bool tochangelog = true);
 
   // ---------------------------------------------------------------------------
-  //! Delete a configuration value
+  // Delete a configuration value
   // ---------------------------------------------------------------------------
   void
   DeleteConfigValue (const char* prefix,
@@ -309,15 +304,10 @@ public:
                      bool tochangelog = true);
 
   // ---------------------------------------------------------------------------
-  //! Delete a configuration value by match
+  // Delete a configuration value by match
   // ---------------------------------------------------------------------------
   void
   DeleteConfigValueByMatch (const char* prefix, const char* match);
-
-  // ---------------------------------------------------------------------------
-  //! Flag the current configuration as dirty (modified from stored one)
-  // ---------------------------------------------------------------------------
-  void FlagGlobalDirty ();
 };
 
 EOSMGMNAMESPACE_END

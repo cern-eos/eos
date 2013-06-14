@@ -41,17 +41,19 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+// config definitions of the last loaded file
 XrdOucHash<XrdOucString> ConfigEngine::configDefinitionsFile;
+
+// config definitions currently in memory
 XrdOucHash<XrdOucString> ConfigEngine::configDefinitions;
 
 /*----------------------------------------------------------------------------*/
-ConfigEngineChangeLog::ConfigEngineChangeLog () 
+ConfigEngineChangeLog::ConfigEngineChangeLog ()
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Constructor
  */
-/*----------------------------------------------------------------------------*/
-{
+/*----------------------------------------------------------------------------*/ {
   // do nothing
 }
 
@@ -97,13 +99,12 @@ ConfigEngineChangeLog::Init (const char* changelogfile)
 }
 
 /*----------------------------------------------------------------------------*/
-ConfigEngineChangeLog::~ConfigEngineChangeLog () 
+ConfigEngineChangeLog::~ConfigEngineChangeLog ()
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Destructor
  */
-/*----------------------------------------------------------------------------*/
-{
+/*----------------------------------------------------------------------------*/ {
   // nothing to do
 }
 
@@ -113,6 +114,7 @@ ConfigEngineChangeLog::IsSqliteFile (const char* file)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Check for SQLITE file
+ * @param file filename to check
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -139,7 +141,7 @@ ConfigEngineChangeLog::IsLevelDbFile (const char* file)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Constructor
- * @param file filename
+ * @param file filename to check
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -157,7 +159,7 @@ ConfigEngineChangeLog::IsDbMapFile (const char* file)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Check for DbMap File
- * @param file filename
+ * @param file filename to check
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -174,7 +176,7 @@ ConfigEngineChangeLog::LegacyFile2DbMapFile (const char *file)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Convert a legacy to DBMap file
- * 
+ * @param file filename to convert
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -261,7 +263,19 @@ ConfigEngineChangeLog::LegacyFile2DbMapFile (const char *file)
 
 /*----------------------------------------------------------------------------*/
 bool
-ConfigEngineChangeLog::ParseTextEntry (const char *entry, std::string &key, std::string &value, std::string &action)
+ConfigEngineChangeLog::ParseTextEntry (const char *entry,
+                                       std::string &key,
+                                       std::string &value,
+                                       std::string &action)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Parse a text line into key value pairs
+ * @param entry entry to parse
+ * @param key key parsed
+ * @param value value parsed
+ * @param action action parsed
+ */
+/*----------------------------------------------------------------------------*/
 {
   std::stringstream ss(entry);
   std::string tmp;
@@ -322,6 +336,12 @@ ConfigEngineChangeLog::ParseTextEntry (const char *entry, std::string &key, std:
 /*----------------------------------------------------------------------------*/
 bool
 ConfigEngineChangeLog::AddEntry (const char* info)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Add an entry to the changelog
+ * @param info add and entry to the changelog
+ */
+/*----------------------------------------------------------------------------*/
 {
   Mutex.Lock();
   std::string key, value, action;
@@ -343,6 +363,14 @@ ConfigEngineChangeLog::AddEntry (const char* info)
 /*----------------------------------------------------------------------------*/
 bool
 ConfigEngineChangeLog::Tail (unsigned int nlines, XrdOucString &tail)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Return a tail of the changelog
+ * @param nlines number of lines to return
+ * @param tail return string of the tail
+ * @return true if ok otherwise false
+ */
+/*----------------------------------------------------------------------------*/
 {
   eos::common::DbLog logfile;
   eos::common::DbLog::TlogentryVec qresult;
@@ -374,8 +402,8 @@ ConfigEngineChangeLog::Tail (unsigned int nlines, XrdOucString &tail)
 /*----------------------------------------------------------------------------*/
 ConfigEngine::ConfigEngine (const char* configdir)
 /*----------------------------------------------------------------------------*/
-/*
- * @brief: constructor of the configuration engine
+/**
+ * @brief Constructor 
  * 
  * @param configdir is the directory where the configuration are loaded/stored.
  * 
@@ -398,8 +426,8 @@ ConfigEngine::ConfigEngine (const char* configdir)
 /*----------------------------------------------------------------------------*/
 ConfigEngine::~ConfigEngine ()
 /*----------------------------------------------------------------------------*/
-/*
- * @brief destructor
+/**
+ * @brief Destructor
  */
 /*----------------------------------------------------------------------------*/ { }
 
@@ -407,7 +435,7 @@ ConfigEngine::~ConfigEngine ()
 bool
 ConfigEngine::LoadConfig (XrdOucEnv &env, XrdOucString &err)
 /*----------------------------------------------------------------------------*/
-/*
+/**
  * @brief Load a given configuration file
  */
 /*----------------------------------------------------------------------------*/
@@ -491,8 +519,8 @@ ConfigEngine::LoadConfig (XrdOucEnv &env, XrdOucString &err)
 bool
 ConfigEngine::SaveConfig (XrdOucEnv &env, XrdOucString &err)
 /*----------------------------------------------------------------------------*/
-/*
- * @brief store the current configuration to a given file
+/**
+ * @brief Store the current configuration to a given file
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -648,8 +676,8 @@ ConfigEngine::SaveConfig (XrdOucEnv &env, XrdOucString &err)
 bool
 ConfigEngine::ListConfigs (XrdOucString &configlist, bool showbackup)
 /*----------------------------------------------------------------------------*/
-/*
- * @brief list the existing configurations
+/**
+ * @brief List the existing configurations
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -784,8 +812,8 @@ ConfigEngine::ListConfigs (XrdOucString &configlist, bool showbackup)
 void
 ConfigEngine::ResetConfig ()
 /*----------------------------------------------------------------------------*/
-/*
- * @brief reset the configuration
+/**
+ * @brief Reset the configuration
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -831,8 +859,8 @@ ConfigEngine::ResetConfig ()
 bool
 ConfigEngine::ApplyConfig (XrdOucString &err)
 /*----------------------------------------------------------------------------*/
-/*
- * @brief apply a given configuration defition
+/**
+ * @brief Apply a given configuration defition
  * 
  * Apply means the configuration engine informs the corresponding objects 
  * about the new values.
@@ -889,8 +917,8 @@ ConfigEngine::ApplyConfig (XrdOucString &err)
 bool
 ConfigEngine::ParseConfig (XrdOucString &inconfig, XrdOucString &err)
 /*----------------------------------------------------------------------------*/
-/*
- * @brief parse a given configuration 
+/**
+ * @brief Parse a given configuration 
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -939,7 +967,8 @@ ConfigEngine::ParseConfig (XrdOucString &inconfig, XrdOucString &err)
 int
 ConfigEngine::ApplyKeyDeletion (const char* key)
 /*----------------------------------------------------------------------------*/
-/* @brief deletion of a configuration key to the responsible object
+/**
+ *  @brief Deletion of a configuration key to the responsible object
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -1042,8 +1071,8 @@ ConfigEngine::ApplyKeyDeletion (const char* key)
 int
 ConfigEngine::DeleteConfigByMatch (const char* key, XrdOucString* def, void* Arg)
 /*----------------------------------------------------------------------------*/
-/*
- * @brief delete configuration keys by match
+/**
+ * @brief Delete configuration keys by match
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -1062,9 +1091,9 @@ ConfigEngine::DeleteConfigByMatch (const char* key, XrdOucString* def, void* Arg
 int
 ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
 /*----------------------------------------------------------------------------*/
-/*
- * @brief callback function of XrdOucHash to apply a key to the corresponding
- * configuration object
+/**
+ * @brief Callback function of XrdOucHash to apply a key to the corresponding
+ * @brief configuration object
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -1218,8 +1247,8 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
 int
 ConfigEngine::PrintEachConfig (const char* key, XrdOucString* def, void* Arg)
 /*----------------------------------------------------------------------------*/
-/*
- * @brief callback function of XrdOucHash to print individual configuration keys
+/**
+ * @brief Callback function of XrdOucHash to print individual configuration keys
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -1285,8 +1314,8 @@ ConfigEngine::PrintEachConfig (const char* key, XrdOucString* def, void* Arg)
 bool
 ConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
 /*----------------------------------------------------------------------------*/
-/*
- * @brief dump function for selective configuration printing
+/**
+ * @brief Dump function for selective configuration printing
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -1297,8 +1326,18 @@ ConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
   pinfo.out = &out;
   pinfo.option = "vfqcgm";
 
-  if (filter.Get("mgm.config.vid") || (filter.Get("mgm.config.fs")) || (filter.Get("mgm.config.quota")) || (filter.Get("mgm.config.comment") || (filter.Get("mgm.config.policy")) || (filter.Get("mgm.config.global") || (filter.Get("mgm.config.map")))))
+  if (filter.Get("mgm.config.vid") ||
+      (filter.Get("mgm.config.fs")) ||
+      (filter.Get("mgm.config.quota")) ||
+      (filter.Get("mgm.config.comment") ||
+       (filter.Get("mgm.config.policy")) ||
+       (filter.Get("mgm.config.global") || (filter.Get("mgm.config.map"))
+        )
+       )
+      )
+  {
     pinfo.option = "";
+  }
 
   if (filter.Get("mgm.config.vid"))
   {
@@ -1380,8 +1419,8 @@ ConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
 bool
 ConfigEngine::AutoSave ()
 /*----------------------------------------------------------------------------*/
-/*
- * @brief do an autosave
+/**
+ * @brief Do an autosave
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -1421,9 +1460,9 @@ ConfigEngine::SetConfigValue (const char* prefix,
                               const char* val,
                               bool tochangelog)
 /*----------------------------------------------------------------------------*/
-/*
- * @brief set a configuration value
- * @prefix identifies the type of configuration parameter (e.g. the responsible module)
+/**
+ * @brief Set a configuration value
+ * @prefix identifies the type of configuration parameter (module)
  * @key key of the configuration value
  * @val definition=value of the configuration
  */
@@ -1444,16 +1483,19 @@ ConfigEngine::SetConfigValue (const char* prefix,
   configDefinitions.Rep(configname.c_str(), sdef);
   eos_static_debug("%s => %s", key, val);
 
-  fprintf(stderr,"SetConfigValue %d %s", configBroadcast, key);
+  fprintf(stderr, "SetConfigValue %d %s", configBroadcast, key);
   if (configBroadcast)
   {
     // make this value visible between MGM's
     XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
+    XrdMqSharedHash* hash =
+      eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
     if (hash)
     {
-      XrdOucString repval=val;
-      while (repval.replace("&"," ")) {}
+      XrdOucString repval = val;
+      while (repval.replace("&", " "))
+      {
+      }
       hash->Set(configname.c_str(), repval.c_str());
     }
   }
@@ -1490,9 +1532,9 @@ ConfigEngine::DeleteConfigValue (const char* prefix,
                                  const char* key,
                                  bool tochangelog)
 /*----------------------------------------------------------------------------*/
-/*
- * @brief delete configuration key
- * @prefix identifies the type of configuration parameter (e.g. the responsible module)
+/**
+ * @brief Delete configuration key
+ * @prefix identifies the type of configuration parameter (module)
  * key of the configuration value to delete
  */
 /*----------------------------------------------------------------------------*/
@@ -1511,7 +1553,8 @@ ConfigEngine::DeleteConfigValue (const char* prefix,
     eos_static_info("Deleting %s\n", configname.c_str());
     // make this value visible between MGM's
     XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
+    XrdMqSharedHash* hash =
+      eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
     if (hash)
     {
       eos_static_info("Deleting on hash %s", configname.c_str());
@@ -1557,9 +1600,9 @@ void
 ConfigEngine::DeleteConfigValueByMatch (const char* prefix,
                                         const char* match)
 /*----------------------------------------------------------------------------*/
-/*
- * @brief delete configuration values matching a pattern 
- * @prefix identifies the type of configuration parameter (e.g. the responsible module)
+/**
+ * @brief Delete configuration values matching a pattern 
+ * @prefix identifies the type of configuration parameter (module)
  * @match is a match pattern as used in DeleteConfigByMatch
  */
 /*----------------------------------------------------------------------------*/

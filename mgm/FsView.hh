@@ -51,30 +51,58 @@
 #ifndef EOSMGMFSVIEWTEST
 #include "mgm/ConfigEngine.hh"
 #endif
+/*----------------------------------------------------------------------------*/
+/**
+ * @file FsView.hh
+ * 
+ * @brief Class representing the cluster configuration of EOS 
+ * 
+ * There are three views on EOS filesystems by space,group and by node.
+ */
 
 /*----------------------------------------------------------------------------*/
-
 EOSMGMNAMESPACE_BEGIN
 
-//------------------------------------------------------------------------
-//! Classes providing views on filesystems by space,group,node
-//------------------------------------------------------------------------
-
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Class representing a grouped set of filesystems 
+ * 
+ */
+/*----------------------------------------------------------------------------*/
 class BaseView : public std::set<eos::common::FileSystem::fsid_t>
 {
 private:
+  /// last heartbeat time
   time_t mHeartBeat;
+
+  /// last heartbeat time as string
   std::string mHeartBeatString;
+
+  /// time since last heartbeat as string
   std::string mHeartBeatDeltaString;
+
+  /// status of the base view (meaning depends on inheritor)
   std::string mStatus;
+
+  /// size of the base object (meaning depends on inheritor)
   std::string mSize;
+
+  /// number of items in queue (meaning depends on inheritor)
   size_t mInQueue;
 
 public:
+  /// name of the base view
   std::string mName;
 
+  /// type of the base view
   std::string mType;
 
+  // ---------------------------------------------------------------------------
+  /**
+   * @brief Constructor
+   * 
+   */
+  // ---------------------------------------------------------------------------
   BaseView ()
   {
     mStatus = "unknown";
@@ -82,64 +110,135 @@ public:
     mInQueue = 0;
   }
 
+  // ---------------------------------------------------------------------------
+  /**
+   * @brief Destructor
+   * 
+   */
+  // ---------------------------------------------------------------------------
   virtual
   ~BaseView () { };
 
+  // ---------------------------------------------------------------------------
+  /**
+   * @brief Return the configuration queue prefix
+   * @return return the configuration prefix
+   */
+  // ---------------------------------------------------------------------------
   virtual const char*
   GetConfigQueuePrefix ()
   {
     return "";
   }
 
+  // ---------------------------------------------------------------------------
+  // Print the view contents
+  // ---------------------------------------------------------------------------
   void Print (std::string &out, std::string headerformat, std::string listformat);
 
+  // ---------------------------------------------------------------------------
+  // Return a member variable in the view
+  // ---------------------------------------------------------------------------
   virtual std::string GetMember (std::string member);
-  virtual bool SetConfigMember (std::string key, string value, bool create = false, std::string broadcastqueue = "", bool isstatus = false);
+  
+  // ---------------------------------------------------------------------------
+  // Set a member variable in a view
+  virtual bool SetConfigMember (std::string key, 
+                                string value, 
+                                bool create = false, 
+                                std::string broadcastqueue = "", 
+                                bool isstatus = false);
+  
+  // ---------------------------------------------------------------------------
+  // Return a configuration member
+  // ---------------------------------------------------------------------------
   virtual std::string GetConfigMember (std::string key);
+  
+  // ---------------------------------------------------------------------------
+  // Return all configuration keys
+  // ---------------------------------------------------------------------------
   bool GetConfigKeys (std::vector<std::string> &keys);
 
+  // ---------------------------------------------------------------------------
+  /**
+   * @brief Set the heartbeat time
+   * @param hb heart beat time to set
+   */
+  // ---------------------------------------------------------------------------
   void
   SetHeartBeat (time_t hb)
   {
     mHeartBeat = hb;
   }
 
+  // ---------------------------------------------------------------------------
+  /**
+   * 
+   * @brief Set the status 
+   * @param status status to set
+   */
+  // ---------------------------------------------------------------------------
   void
   SetStatus (const char* status)
   {
     mStatus = status;
   }
 
+  // ---------------------------------------------------------------------------
+  /**
+   * @brief Return the status 
+   */
+  // ---------------------------------------------------------------------------
   const char*
   GetStatus ()
   {
     return mStatus.c_str();
   }
 
+  // ---------------------------------------------------------------------------
+  /**
+   * @brief Get the heart beat time
+   */
+  // ---------------------------------------------------------------------------
   time_t
   GetHeartBeat ()
   {
     return mHeartBeat;
   }
 
+  // ---------------------------------------------------------------------------
+  /**
+   * @brief Set the queue size
+   * @param iq size to set a s queue size variable
+   */
+  // ---------------------------------------------------------------------------
   void
   SetInQueue (size_t iq)
   {
     mInQueue = iq;
   }
 
-  long long SumLongLong (const char* param, bool lock = true); // calculates the sum of <param> as long long
-  double SumDouble (const char* param, bool lock = true); // calculates the sum of <param> as double
-  double AverageDouble (const char* param, bool lock = true); // calculates the average of <param> as double
-  double MaxDeviation (const char* param, bool lock = true); // calculates the maximum deviation from the average in a group
-  double SigmaDouble (const char* param, bool lock = true); // calculates the standard deviation of <param> as double
+  // calculates the sum of <param> as long long
+  long long SumLongLong (const char* param, bool lock = true); 
+  
+  // calculates the sum of <param> as double
+  double SumDouble (const char* param, bool lock = true); 
+  
+  // calculates the average of <param> as double
+  double AverageDouble (const char* param, bool lock = true); 
+  
+  // calculates the maximum deviation from the average in a group
+  double MaxDeviation (const char* param, bool lock = true); 
+  
+  // calculates the standard deviation of <param> as double
+  double SigmaDouble (const char* param, bool lock = true); 
 };
 
 class FsSpace : public BaseView
 {
 public:
 #ifndef EOSMGMFSVIEWTEST
-  Balancer* mBalancer;   // threaded class supervising space balancing 
+  Balancer* mBalancer; // threaded class supervising space balancing 
   Converter* mConverter; // threaded class running layout conversion jobs
 #endif
 
@@ -153,7 +252,7 @@ public:
 #ifndef EOSMGMFSVIEWTEST
     mBalancer = new Balancer(name);
     mConverter = new Converter(name);
-    
+
     if (!gDisableDefaults)
     {
       // set default balancing variables
@@ -321,12 +420,12 @@ public:
       SetConfigMember("txgw", "off", true, mName.c_str(), true); // by default node's aren't transfer gateways
     }
 
-    if ((strtol(GetConfigMember("gw.ntx").c_str(),0,10) == 0) || (strtol(GetConfigMember("gw.ntx").c_str(),0,10) == LONG_MAX))
+    if ((strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == 0) || (strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == LONG_MAX))
     {
       SetConfigMember("gw.ntx", "10", true, mName.c_str(), true); // by default we set 10 parallel gw transfers
     }
 
-    if ((strtol(GetConfigMember("gw.rate").c_str(),0,10) == 0) || (strtol(GetConfigMember("gw.rate").c_str(),0,10) == LONG_MAX))
+    if ((strtol(GetConfigMember("gw.rate").c_str(), 0, 10) == 0) || (strtol(GetConfigMember("gw.rate").c_str(), 0, 10) == LONG_MAX))
     {
       SetConfigMember("gw.rate", "120", true, mName.c_str(), true); // by default we allow 1GBit speed per transfer
     }

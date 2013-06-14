@@ -33,32 +33,37 @@
 #include <queue>
 /*----------------------------------------------------------------------------*/
 
-/* -------------------------------------------------------------------------- */
+/*----------------------------------------------------------------------------*/
 /**
- * @file Converter.hh
+ * @file Drainjob.hh
  * 
- * @brief Class implementing a thread following a filesystem drain
+ * @brief Class implementing a thread following a filesystem drain.
  * 
  */
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Class implementing the draining of a filesystem
+ */
+/*----------------------------------------------------------------------------*/
 class DrainJob {
 private:
-  //< file system id of the draining filesystem
+  /// file system id of the draining filesystem
   eos::common::FileSystem::fsid_t mFsId;
   
-  //< space where the filesystem resides
+  /// space where the filesystem resides
   std::string mSpace;
   
-  //< group where the filesystem resides
+  /// group where the filesystem resides
   std::string mGroup;
   
-  //< indicator if draining is initiated by a filesystem OpsError (e.g.IO error)
+  /// indicator if draining is initiated by a filesystem OpsError (e.g.IO error)
   bool mOnOpsError;
   
-  //< thread id of the draing job
+  /// thread id of the draing job
   pthread_t mThread;
 
 public:

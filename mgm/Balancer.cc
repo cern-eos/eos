@@ -44,7 +44,7 @@ Balancer::Balancer (const char* spacename)
 /*----------------------------------------------------------------------------*/
 {
   mSpaceName = spacename;
-  XrdSysThread::Run(&thread,
+  XrdSysThread::Run(&mThread,
                     Balancer::StaticBalance,
                     static_cast<void *> (this),
                     XRDSYSTHREAD_HOLD,
@@ -61,10 +61,10 @@ Balancer::~Balancer ()
  */
 /*----------------------------------------------------------------------------*/
 {
-  XrdSysThread::Cancel(thread);
+  XrdSysThread::Cancel(mThread);
   if (!gOFS->Shutdown)
   {
-    XrdSysThread::Join(thread, NULL);
+    XrdSysThread::Join(mThread, NULL);
   }
 }
 

@@ -106,49 +106,49 @@ public:
   // set containing the banned user ID
   static std::set<uid_t> gBannedUsers;
 
-  //< set containing the banned group ID
+  //! set containing the banned group ID
   static std::set<gid_t> gBannedGroups;
 
-  //< set containing the allowed user IDs
+  //! set containing the allowed user IDs
   static std::set<uid_t> gAllowedUsers;
 
-  //< set containing the allowed group IDs
+  //! set containing the allowed group IDs
   static std::set<gid_t> gAllowedGroups;
 
-  //< set containing the banned host names
+  //! set containing the banned host names
   static std::set<std::string> gBannedHosts;
 
-  //< set containing the allowed host names
+  //! set containing the allowed host names
   static std::set<std::string> gAllowedHosts;
 
-  //< map containing redirection rules
+  //! map containing redirection rules
   static std::map<std::string, std::string> gRedirectionRules;
 
-  //< map containing stall rules
+  //! map containing stall rules
   static std::map<std::string, std::string> gStallRules;
 
-  //< map containint stall message comment
+  //! map containint stall message comment
   static std::map<std::string, std::string> gStallComment;
 
-  //< indicates global stall rule
+  //! indicates global stall rule
   static bool gStallGlobal;
 
-  //< indicates global read stall
+  //! indicates global read stall
   static bool gStallRead;
 
-  //< indicates global write stall
+  //! indicates global write stall
   static bool gStallWrite;
 
-  //< indicates a user or group rate stall entry
+  //! indicates a user or group rate stall entry
   static bool gStallUserGroup;
 
-  //< map containing user based redirection
+  //! map containing user based redirection
   static std::map<uid_t, std::string> gUserRedirection;
 
-  //< map containing group based redirection
+  //! map containing group based redirection
   static std::map<gid_t, std::string> gGroupRedirection;
 
-  //< global rw mutex protecting all static set's and maps in Access
+  //! global rw mutex protecting all static set's and maps in Access
   static eos::common::RWMutex gAccessMutex;
 
   // ---------------------------------------------------------------------------

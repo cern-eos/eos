@@ -48,7 +48,7 @@
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-//! @brief class steering the balancing activity
+//! @brief Class steering the balancing activity
 //! 
 //! This class run's as singleton per space on the MGM and checks all 
 //! existing groups if they are balanced.
@@ -58,8 +58,8 @@ EOSMGMNAMESPACE_BEGIN
 class Balancer
 {
 private:
-  pthread_t thread; //< thread id of the balancer thread
-  std::string mSpaceName; //< responsable space of this balancer object
+  pthread_t mThread; ///< thread id of the balancer thread
+  std::string mSpaceName; ///< responsable space of this balancer object
 
 public:
 
