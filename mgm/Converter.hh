@@ -49,27 +49,50 @@
 EOSMGMNAMESPACE_BEGIN
 
 
-/* -------------------------------------------------------------------------- */
+/*----------------------------------------------------------------------------*/
+/** 
+ * @brief Class executing a third-party conversion job
+ *
+ */
+/*----------------------------------------------------------------------------*/
 class ConverterJob : XrdJob
 {
-  // ---------------------------------------------------------------------------
-  // This class executes a conversion job
-  // ---------------------------------------------------------------------------
-
 private:
+  //< file id of the conversion job
   eos::common::FileId::fileid_t mFid;
+  
+  //< target path of the conversion job
   std::string mTargetPath;
+  
+  //< source path of the conversion job
   std::string mSourcePath;
+  
+  //< target CGI of the conversion job
   std::string mTargetCGI;
 
+  //< layout name of the target file
   XrdOucString mConversionLayout;
+  
+  //< target space name of the conversion
   std::string mConverterName;
 
 public:
 
-  ConverterJob (eos::common::FileId::fileid_t fid, const char* conversionlayout, std::string &convertername);
+  // ---------------------------------------------------------------------------
+  // Constructor
+  // ---------------------------------------------------------------------------
+  ConverterJob (eos::common::FileId::fileid_t fid, 
+                const char* conversionlayout, 
+                std::string &convertername);
+  
+  // ---------------------------------------------------------------------------
+  //! Destructor
+  // ---------------------------------------------------------------------------
   ~ConverterJob () {};
 
+  // ---------------------------------------------------------------------------
+  // Job execution function
+  // ---------------------------------------------------------------------------
   void DoIt ();
 };
 

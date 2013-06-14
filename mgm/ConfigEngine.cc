@@ -45,8 +45,14 @@ XrdOucHash<XrdOucString> ConfigEngine::configDefinitionsFile;
 XrdOucHash<XrdOucString> ConfigEngine::configDefinitions;
 
 /*----------------------------------------------------------------------------*/
-ConfigEngineChangeLog::ConfigEngineChangeLog () {
-  // nothing to do here
+ConfigEngineChangeLog::ConfigEngineChangeLog () 
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Constructor
+ */
+/*----------------------------------------------------------------------------*/
+{
+  // do nothing
 }
 
 void
@@ -91,13 +97,24 @@ ConfigEngineChangeLog::Init (const char* changelogfile)
 }
 
 /*----------------------------------------------------------------------------*/
-ConfigEngineChangeLog::~ConfigEngineChangeLog () {
+ConfigEngineChangeLog::~ConfigEngineChangeLog () 
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Destructor
+ */
+/*----------------------------------------------------------------------------*/
+{
   // nothing to do
 }
 
 /*----------------------------------------------------------------------------*/
 bool
 ConfigEngineChangeLog::IsSqliteFile (const char* file)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Check for SQLITE file
+ */
+/*----------------------------------------------------------------------------*/
 {
   int fd = open(file, O_RDONLY);
   bool result = false;
@@ -119,6 +136,12 @@ ConfigEngineChangeLog::IsSqliteFile (const char* file)
 /*----------------------------------------------------------------------------*/
 bool
 ConfigEngineChangeLog::IsLevelDbFile (const char* file)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Constructor
+ * @param file filename
+ */
+/*----------------------------------------------------------------------------*/
 {
   XrdOucString path = file;
   // the least we can ask to a leveldb directory is to have a "CURRENT" file
@@ -131,6 +154,12 @@ ConfigEngineChangeLog::IsLevelDbFile (const char* file)
 /*----------------------------------------------------------------------------*/
 bool
 ConfigEngineChangeLog::IsDbMapFile (const char* file)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Check for DbMap File
+ * @param file filename
+ */
+/*----------------------------------------------------------------------------*/
 {
 #ifdef EOS_SQLITE_DBMAP
   return IsSqliteFile(file);
@@ -142,6 +171,12 @@ ConfigEngineChangeLog::IsDbMapFile (const char* file)
 /*----------------------------------------------------------------------------*/
 bool
 ConfigEngineChangeLog::LegacyFile2DbMapFile (const char *file)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Convert a legacy to DBMap file
+ * 
+ */
+/*----------------------------------------------------------------------------*/
 {
   bool result = false;
   bool renamed = false;

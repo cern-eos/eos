@@ -44,17 +44,17 @@ DrainJob::~DrainJob ()
   //! destructor stops the draining thread 
   //----------------------------------------------------------------
   eos_static_info("waiting for join ...");
-  if (thread)
+  if (mThread)
   {
-    XrdSysThread::Cancel(thread);
+    XrdSysThread::Cancel(mThread);
     if (!gOFS->Shutdown)
     {
-      XrdSysThread::Join(thread, NULL);
+      XrdSysThread::Join(mThread, NULL);
     }
-    thread = 0;
+    mThread = 0;
   }
   ResetCounter();
-  eos_static_notice("Stopping Drain Job for fs=%u", fsid);
+  eos_static_notice("Stopping Drain Job for fs=%u", mFsId);
 }
 
 void
@@ -63,9 +63,9 @@ DrainJob::ResetCounter ()
   // set all the drain counters back to 0 
 
   FileSystem* fs = 0;
-  if (FsView::gFsView.mIdView.count(fsid))
+  if (FsView::gFsView.mIdView.count(mFsId))
   {
-    fs = FsView::gFsView.mIdView[fsid];
+    fs = FsView::gFsView.mIdView[mFsId];
     if (fs)
     {
       //    fs->OpenTransaction();
@@ -102,8 +102,8 @@ DrainJob::SetDrainer ()
   FileSystem* fs = 0;
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   fs = 0;
-  if (FsView::gFsView.mIdView.count(fsid))
-    fs = FsView::gFsView.mIdView[fsid];
+  if (FsView::gFsView.mIdView.count(mFsId))
+    fs = FsView::gFsView.mIdView[mFsId];
   if (!fs)
   {
     return;
@@ -111,9 +111,9 @@ DrainJob::SetDrainer ()
 
   FsGroup::const_iterator git;
   bool setactive = false;
-  if (FsView::gFsView.mGroupView.count(group))
+  if (FsView::gFsView.mGroupView.count(mGroup))
   {
-    for (git = FsView::gFsView.mGroupView[group]->begin(); git != FsView::gFsView.mGroupView[group]->end(); git++)
+    for (git = FsView::gFsView.mGroupView[mGroup]->begin(); git != FsView::gFsView.mGroupView[mGroup]->end(); git++)
     {
       if (FsView::gFsView.mIdView.count(*git))
       {
@@ -121,17 +121,17 @@ DrainJob::SetDrainer ()
         if ((drainstatus == eos::common::FileSystem::kDraining) ||
             (drainstatus == eos::common::FileSystem::kDrainStalling))
         {
-          // if any group filesystem is draining, all the others have to enable the pull for draining!
+          // if any mGroup filesystem is draining, all the others have to enable the pull for draining!
           setactive = true;
         }
       }
     }
-    // if the group get's disabled we stop the draining
-    if (FsView::gFsView.mGroupView[group]->GetConfigMember("status") != "on")
+    // if the mGroup get's disabled we stop the draining
+    if (FsView::gFsView.mGroupView[mGroup]->GetConfigMember("status") != "on")
     {
       setactive = false;
     }
-    for (git = FsView::gFsView.mGroupView[group]->begin(); git != FsView::gFsView.mGroupView[group]->end(); git++)
+    for (git = FsView::gFsView.mGroupView[mGroup]->begin(); git != FsView::gFsView.mGroupView[mGroup]->end(); git++)
     {
       fs = FsView::gFsView.mIdView[*git];
       if (fs)
@@ -164,16 +164,16 @@ DrainJob::SetSpaceNode ()
 
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
-  if (FsView::gFsView.mSpaceView.count(space))
+  if (FsView::gFsView.mSpaceView.count(mSpace))
   {
-    SpaceNodeTransfers = FsView::gFsView.mSpaceView[space]->GetConfigMember("drainer.node.ntx");
-    SpaceNodeTransferRate = FsView::gFsView.mSpaceView[space]->GetConfigMember("drainer.node.rate");
+    SpaceNodeTransfers = FsView::gFsView.mSpaceView[mSpace]->GetConfigMember("drainer.node.ntx");
+    SpaceNodeTransferRate = FsView::gFsView.mSpaceView[mSpace]->GetConfigMember("drainer.node.rate");
   }
 
   FsGroup::const_iterator git;
-  if (FsView::gFsView.mGroupView.count(group))
+  if (FsView::gFsView.mGroupView.count(mGroup))
   {
-    for (git = FsView::gFsView.mGroupView[group]->begin(); git != FsView::gFsView.mGroupView[group]->end(); git++)
+    for (git = FsView::gFsView.mGroupView[mGroup]->begin(); git != FsView::gFsView.mGroupView[mGroup]->end(); git++)
     {
       if (FsView::gFsView.mIdView.count(*git))
       {
@@ -219,7 +219,7 @@ DrainJob::Drain (void)
 retry:
   ntried++;
 
-  eos_static_notice("Starting Drain Job for fs=%u onOpsError=%d try=%d", fsid, onOpsError, ntried);
+  eos_static_notice("Starting Drain Job for fs=%u onopserror=%d try=%d", mFsId, mOnOpsError, ntried);
 
   FileSystem* fs = 0;
 
@@ -239,24 +239,24 @@ retry:
     // set status to 'prepare'
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     fs = 0;
-    if (FsView::gFsView.mIdView.count(fsid))
-      fs = FsView::gFsView.mIdView[fsid];
+    if (FsView::gFsView.mIdView.count(mFsId))
+      fs = FsView::gFsView.mIdView[mFsId];
     if (!fs)
     {
-      eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
+      eos_static_notice("Filesystem fsid=%u has been removed during drain operation", mFsId);
       return 0;
     }
 
     fs->SetDrainStatus(eos::common::FileSystem::kDrainPrepare);
     fs->SetLongLong("stat.drainretry", ntried - 1);
 
-    group = fs->GetString("schedgroup");
+    mGroup = fs->GetString("schedgroup");
 
     fs->SnapShotFileSystem(drain_snapshot, false);
     drainperiod = fs->GetLongLong("drainperiod");
     drainendtime = drainstart + drainperiod;
-    space = drain_snapshot.mSpace;
-    group = drain_snapshot.mGroup;
+    mSpace = drain_snapshot.mSpace;
+    mGroup = drain_snapshot.mGroup;
   }
 
   XrdSysThread::SetCancelOn();
@@ -307,7 +307,7 @@ retry:
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
-      eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+      eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(mFsId);
       eos::FileSystemView::FileIterator it;
 
       totalfiles = filelist.size();
@@ -335,11 +335,11 @@ retry:
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     fs = 0;
-    if (FsView::gFsView.mIdView.count(fsid))
-      fs = FsView::gFsView.mIdView[fsid];
+    if (FsView::gFsView.mIdView.count(mFsId))
+      fs = FsView::gFsView.mIdView[mFsId];
     if (!fs)
     {
-      eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
+      eos_static_notice("Filesystem fsid=%u has been removed during drain operation", mFsId);
       XrdSysThread::SetCancelOn();
       return 0;
     }
@@ -349,7 +349,7 @@ retry:
   }
 
 
-  if (onOpsError)
+  if (mOnOpsError)
   {
     time_t waitendtime;
     time_t waitreporttime;
@@ -360,11 +360,11 @@ retry:
       // set status to 'waiting'
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
       fs = 0;
-      if (FsView::gFsView.mIdView.count(fsid))
-        fs = FsView::gFsView.mIdView[fsid];
+      if (FsView::gFsView.mIdView.count(mFsId))
+        fs = FsView::gFsView.mIdView[mFsId];
       if (!fs)
       {
-        eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
+        eos_static_notice("Filesystem fsid=%u has been removed during drain operation", mFsId);
         return 0;
       }
 
@@ -391,11 +391,11 @@ retry:
         // update stat.timeleft
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         fs = 0;
-        if (FsView::gFsView.mIdView.count(fsid))
-          fs = FsView::gFsView.mIdView[fsid];
+        if (FsView::gFsView.mIdView.count(mFsId))
+          fs = FsView::gFsView.mIdView[mFsId];
         if (!fs)
         {
-          eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
+          eos_static_notice("Filesystem fsid=%u has been removed during drain operation", mFsId);
           return 0;
         }
         fs->SetLongLong("stat.timeleft", waitendtime - now);
@@ -421,11 +421,11 @@ retry:
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     fs = 0;
-    if (FsView::gFsView.mIdView.count(fsid))
-      fs = FsView::gFsView.mIdView[fsid];
+    if (FsView::gFsView.mIdView.count(mFsId))
+      fs = FsView::gFsView.mIdView[mFsId];
     if (!fs)
     {
-      eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
+      eos_static_notice("Filesystem fsid=%u has been removed during drain operation", mFsId);
       XrdSysThread::SetCancelOn();
       return 0;
     }
@@ -457,7 +457,7 @@ retry:
       last_filesleft = filesleft;
       try
       {
-        eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+        eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(mFsId);
         filesleft = filelist.size();
       }
       catch (eos::MDException &e)
@@ -489,11 +489,11 @@ retry:
       {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         fs = 0;
-        if (FsView::gFsView.mIdView.count(fsid))
-          fs = FsView::gFsView.mIdView[fsid];
+        if (FsView::gFsView.mIdView.count(mFsId))
+          fs = FsView::gFsView.mIdView[mFsId];
         if (!fs)
         {
-          eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
+          eos_static_notice("Filesystem fsid=%u has been removed during drain operation", mFsId);
           return 0;
         }
         fs->SetLongLong("stat.drainbytesleft", fs->GetLongLong("stat.statfs.usedbytes"));
@@ -537,11 +537,11 @@ retry:
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
       int progress = (int) (totalfiles) ? (100.0 * (totalfiles - filesleft) / totalfiles) : 100;
       fs = 0;
-      if (FsView::gFsView.mIdView.count(fsid))
-        fs = FsView::gFsView.mIdView[fsid];
+      if (FsView::gFsView.mIdView.count(mFsId))
+        fs = FsView::gFsView.mIdView[mFsId];
       if (!fs)
       {
-        eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
+        eos_static_notice("Filesystem fsid=%u has been removed during drain operation", mFsId);
         XrdSysThread::SetCancelOn();
         return 0;
       }
@@ -564,11 +564,11 @@ retry:
       {
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         fs = 0;
-        if (FsView::gFsView.mIdView.count(fsid))
-          fs = FsView::gFsView.mIdView[fsid];
+        if (FsView::gFsView.mIdView.count(mFsId))
+          fs = FsView::gFsView.mIdView[mFsId];
         if (!fs)
         {
-          eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
+          eos_static_notice("Filesystem fsid=%u has been removed during drain operation", mFsId);
           XrdSysThread::SetCancelOn();
           return 0;
         }
@@ -610,11 +610,11 @@ nofilestodrain:
     XrdSysThread::SetCancelOff();
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     fs = 0;
-    if (FsView::gFsView.mIdView.count(fsid))
-      fs = FsView::gFsView.mIdView[fsid];
+    if (FsView::gFsView.mIdView.count(mFsId))
+      fs = FsView::gFsView.mIdView[mFsId];
     if (!fs)
     {
-      eos_static_notice("Filesystem fsid=%u has been removed during drain operation", fsid);
+      eos_static_notice("Filesystem fsid=%u has been removed during drain operation", mFsId);
       XrdSysThread::SetCancelOn();
       return 0;
     }

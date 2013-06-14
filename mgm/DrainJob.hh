@@ -33,37 +33,84 @@
 #include <queue>
 /*----------------------------------------------------------------------------*/
 
+/* -------------------------------------------------------------------------- */
+/**
+ * @file Converter.hh
+ * 
+ * @brief Class implementing a thread following a filesystem drain
+ * 
+ */
+/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 class DrainJob {
-  // ---------------------------------------------------------------------------
-  //! This class implements the drain procedure of a filesystem
-  // ---------------------------------------------------------------------------
 private:
-  eos::common::FileSystem::fsid_t fsid;
-  std::string space;
-  std::string group;
-  bool onOpsError;
-  pthread_t thread;
+  //< file system id of the draining filesystem
+  eos::common::FileSystem::fsid_t mFsId;
+  
+  //< space where the filesystem resides
+  std::string mSpace;
+  
+  //< group where the filesystem resides
+  std::string mGroup;
+  
+  //< indicator if draining is initiated by a filesystem OpsError (e.g.IO error)
+  bool mOnOpsError;
+  
+  //< thread id of the draing job
+  pthread_t mThread;
 
 public:
 
+  // ---------------------------------------------------------------------------
+  /**
+   * @brief Constructor
+   * @param ifsid filesystem id
+   * @param opserror indicator if draining triggered by ops error
+   */
+  // ---------------------------------------------------------------------------
   DrainJob(eos::common::FileSystem::fsid_t ifsid, bool opserror=false) {
-    thread=0;
-    fsid = ifsid;
-    onOpsError=opserror;
-    XrdSysThread::Run(&thread, DrainJob::StaticThreadProc, static_cast<void *>(this),XRDSYSTHREAD_HOLD, "DrainJob Thread");
+    mThread=0;
+    mFsId = ifsid;
+    mOnOpsError=opserror;
+    XrdSysThread::Run(&mThread, 
+                      DrainJob::StaticThreadProc, 
+                      static_cast<void *>(this),
+                      XRDSYSTHREAD_HOLD, 
+                      "DrainJob Thread");
   }
 
+  // ---------------------------------------------------------------------------
+  // Destructor
+  // ---------------------------------------------------------------------------
+  virtual ~DrainJob();
+    
+  // ---------------------------------------------------------------------------
+  // reset all drain counter
+  // ---------------------------------------------------------------------------
   void ResetCounter();
 
+  // ---------------------------------------------------------------------------
+  // static thread startup function
+  // ---------------------------------------------------------------------------
   static void* StaticThreadProc(void*);
-  void* Drain();     // the function scheduling from the drain map into shared queues
+  
+  // ---------------------------------------------------------------------------
+  // thread loop implementing the drain job
+  // ---------------------------------------------------------------------------
+  void* Drain();
 
+  // ---------------------------------------------------------------------------
+  // function notifying all nodes in a drain group to start to pull off files
+  // ---------------------------------------------------------------------------
   void SetDrainer();   // enabled the drain pull for all filesytems in the group
-  void SetSpaceNode(); // set's space defined variables on each node involved in draining e.g. transfer rate & nparallel transfers
-  virtual ~DrainJob();
+  
+  // ---------------------------------------------------------------------------
+  // set the space defined drain variables on each node participating in the 
+  // draining e.g. transfer rate & parallel transfers
+  // ---------------------------------------------------------------------------
+  void SetSpaceNode(); 
 };
 
 EOSMGMNAMESPACE_END
