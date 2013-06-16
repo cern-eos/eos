@@ -1576,6 +1576,17 @@ XrdFstOfsFile::close()
     gOFS.OpenFidMutex.UnLock();
     
     gettimeofday(&closeTime,&tz);
+
+    // ----------------------------------------------------------------------------------------------------------
+    // check if the target filesystem has been put into some non-operational mode in the meanwhile
+    // ----------------------------------------------------------------------------------------------------------
+    {
+      eos::common::RWMutexReadLock lock(gOFS.Storage->fsMutex);
+      if (gOFS.Storage->fileSystemsMap[fsid]->GetConfigStatus() < eos::common::FileSystem::kDrain) {
+	eos_notice("msg=\"failing transfer because filesystem has non-operational state\" path=%s state=%s", Path.c_str(), eos::common::FileSystem::GetConfigStatusAsString(gOFS.Storage->fileSystemsMap[fsid]->GetConfigStatus()));
+	deleteOnClose = true;
+      }
+    }
     
     if (!deleteOnClose) {
       // prepare a report and add to the report queue
@@ -1592,124 +1603,113 @@ XrdFstOfsFile::close()
 	gOFS.WrittenFilesQueueMutex.UnLock();
       }
     } 
-  }
-
-  // ----------------------------------------------------------------------------------------------------------
-  // check if the target filesystem has been put into some non-operational mode in the meanwhile
-  // ----------------------------------------------------------------------------------------------------------
-  {
-    eos::common::RWMutexReadLock lock(gOFS.Storage->fsMutex);
-    if (gOFS.Storage->fileSystemsMap[fsid]->GetConfigStatus() < eos::common::FileSystem::kDrain) {
-      eos_notice("msg=\"failing transfer because filesystem has non-operational state\" path=%s state=%s", Path.c_str(), eos::common::FileSystem::GetConfigStatusAsString(gOFS.Storage->fileSystemsMap[fsid]->GetConfigStatus()));
-      deleteOnClose = true;
-    }
-  }
   
-  if (deleteOnClose && isCreation) {
-    int retc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid, true);
-    if (retc) {
-      eos_debug("<rem> returned retc=%d", retc);
-    }
-
-    if (committed) {
-      // if we commit the replica and an error happened remote, we have to unlink it again
-      XrdOucString hexstring="";
-      eos::common::FileId::Fid2Hex(fileid,hexstring);
-      XrdOucErrInfo error;
-      
-      XrdOucString capOpaqueString="/?mgm.pcmd=drop";
-      XrdOucString OpaqueString = "";
-      OpaqueString+="&mgm.fsid="; OpaqueString += (int)fsid;
-      OpaqueString+="&mgm.fid=";  OpaqueString += hexstring;
-      XrdOucEnv Opaque(OpaqueString.c_str());
-      capOpaqueString += OpaqueString;
-      
-      // -------------------------------------------------------------------------------------------------------
-      // delete the replica in the MGM
-      // -------------------------------------------------------------------------------------------------------
-      int rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueString);
-      if (rc) {
-	if (rc != -EIDRM) {
-	  eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",hexstring.c_str(), fileid, capOpaque->Get("mgm.manager"));
-	}
+    if (deleteOnClose && isCreation) {
+      int retc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid, true);
+      if (retc) {
+	eos_debug("<rem> returned retc=%d", retc);
       }
-      eos_info("info=\"removing on manager\" manager=%s fid=%llu fsid=%d fn=%s fstpath=%s rc=%d", capOpaque->Get("mgm.manager"), (unsigned long long)fileid, (int)fsid, capOpaque->Get("mgm.path"), fstPath.c_str(),rc);
-    }
-
-    rc = SFS_ERROR;
-
-    if (minimumsizeerror) {
-      gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because it is smaller than the required minimum file size in that directory", Path.c_str());
-      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"minimum file size criteria\"", capOpaque->Get("mgm.path"), fstPath.c_str());    
-    } else {
-      if (checksumerror) {
-	gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a checksum error ",Path.c_str());
-	eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"checksum error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+      
+      if (committed) {
+	// if we commit the replica and an error happened remote, we have to unlink it again
+	XrdOucString hexstring="";
+	eos::common::FileId::Fid2Hex(fileid,hexstring);
+	XrdOucErrInfo error;
+	
+	XrdOucString capOpaqueString="/?mgm.pcmd=drop";
+	XrdOucString OpaqueString = "";
+	OpaqueString+="&mgm.fsid="; OpaqueString += (int)fsid;
+	OpaqueString+="&mgm.fid=";  OpaqueString += hexstring;
+	XrdOucEnv Opaque(OpaqueString.c_str());
+	capOpaqueString += OpaqueString;
+	
+	// -------------------------------------------------------------------------------------------------------
+	// delete the replica in the MGM
+	// -------------------------------------------------------------------------------------------------------
+	int rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueString);
+	if (rc) {
+	  if (rc != -EIDRM) {
+	    eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",hexstring.c_str(), fileid, capOpaque->Get("mgm.manager"));
+	  }
+	}
+	eos_info("info=\"removing on manager\" manager=%s fid=%llu fsid=%d fn=%s fstpath=%s rc=%d", capOpaque->Get("mgm.manager"), (unsigned long long)fileid, (int)fsid, capOpaque->Get("mgm.path"), fstPath.c_str(),rc);
+      }
+      
+      rc = SFS_ERROR;
+      
+      if (minimumsizeerror) {
+	gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because it is smaller than the required minimum file size in that directory", Path.c_str());
+	eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"minimum file size criteria\"", capOpaque->Get("mgm.path"), fstPath.c_str());    
       } else {
-	if (writeErrorFlag == kOfsSimulatedIoError) {
-	  gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a simulated IO error ",Path.c_str());
-	  eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"simulated IO error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+	if (checksumerror) {
+	  gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a checksum error ",Path.c_str());
+	  eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"checksum error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 	} else {
-	  if (writeErrorFlag == kOfsMaxSizeError) {
-	    gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because you exceeded the maximum file size settings for this namespace branch",Path.c_str());
-	    eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"maximum file size criteria\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+	  if (writeErrorFlag == kOfsSimulatedIoError) {
+	    gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a simulated IO error ",Path.c_str());
+	    eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"simulated IO error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 	  } else {
-	    if (writeErrorFlag == kOfsDiskFullError) {
-	      gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because the target disk filesystem got full and you didn't use reservation",Path.c_str());
-	      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"filesystem full\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+	    if (writeErrorFlag == kOfsMaxSizeError) {
+	      gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because you exceeded the maximum file size settings for this namespace branch",Path.c_str());
+	      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"maximum file size criteria\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 	    } else {
-	      if (writeErrorFlag == kOfsIoError) {
-		gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of an IO error during a write operation",Path.c_str());
-	      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"write IO error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+	      if (writeErrorFlag == kOfsDiskFullError) {
+		gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because the target disk filesystem got full and you didn't use reservation",Path.c_str());
+		eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"filesystem full\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 	      } else {
-		if (targetsizeerror) {
-		  gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because the stored file does not match the provided targetsize",Path.c_str());
-		  eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"target size mismatch\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+		if (writeErrorFlag == kOfsIoError) {
+		  gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of an IO error during a write operation",Path.c_str());
+		  eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"write IO error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 		} else {
-		  gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a client disconnect",Path.c_str());
-		  eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"client disconnect\"", capOpaque->Get("mgm.path"), fstPath.c_str());
-		}
-	      }		
+		  if (targetsizeerror) {
+		    gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because the stored file does not match the provided targetsize",Path.c_str());
+		    eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"target size mismatch\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+		  } else {
+		    gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a client disconnect",Path.c_str());
+		    eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"client disconnect\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+		  }
+		}		
+	      }
 	    }
 	  }
 	}
       }
-    }
-    
-    if (fstBlockXS) {
-      fstBlockXS->CloseMap();
-      // delete also the block checksum file
-      fstBlockXS->UnlinkXSPath();
-      delete fstBlockXS;
-      fstBlockXS=0;
-    }
-  } else {
-    if (checksumerror) {
-      rc = SFS_ERROR;
-      gOFS.Emsg(epname, error, EIO, "verify checksum - checksum error for file fn=", capOpaque->Get("mgm.path"));   
-      int envlen=0;
-      eos_crit("file-xs error file=%s", capOpaque->Env(envlen));
-    }
-  }
-
-  if (repairOnClose) {
-    // do an upcall to the MGM and ask to adjust the replica of the uploaded file
-    XrdOucString OpaqueString="/?mgm.pcmd=adjustreplica&mgm.path=";
-    OpaqueString += capOpaque->Get("mgm.path");
-    
-    eos_info("info=\"repair on close\" path=%s",  capOpaque->Get("mgm.path"));
-    if (gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), OpaqueString)) {
-      eos_warning("failed to execute 'adjustreplica' for path=%s", capOpaque->Get("mgm.path"));
-      gOFS.Emsg(epname, error, EIO, "create all replicas - uploaded file is at risk - only one replica has been successfully stored for fn=", capOpaque->Get("mgm.path"));   
+      
+      if (fstBlockXS) {
+	fstBlockXS->CloseMap();
+	// delete also the block checksum file
+	fstBlockXS->UnlinkXSPath();
+	delete fstBlockXS;
+	fstBlockXS=0;
+      }
     } else {
-      if (!brc) {
-	// reset the return code
-	rc = 0 ;
-	// clean error message
-	gOFS.Emsg(epname, error, 0, "no error");
+      if (checksumerror) {
+	rc = SFS_ERROR;
+	gOFS.Emsg(epname, error, EIO, "verify checksum - checksum error for file fn=", capOpaque->Get("mgm.path"));   
+	int envlen=0;
+	eos_crit("file-xs error file=%s", capOpaque->Env(envlen));
       }
     }
-    eos_warning("executed 'adjustreplica' for path=%s - file is at low risk due to missing replica's", capOpaque->Get("mgm.path"));
+    
+    if (repairOnClose) {
+      // do an upcall to the MGM and ask to adjust the replica of the uploaded file
+      XrdOucString OpaqueString="/?mgm.pcmd=adjustreplica&mgm.path=";
+      OpaqueString += capOpaque->Get("mgm.path");
+      
+      eos_info("info=\"repair on close\" path=%s",  capOpaque->Get("mgm.path"));
+      if (gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), OpaqueString)) {
+	eos_warning("failed to execute 'adjustreplica' for path=%s", capOpaque->Get("mgm.path"));
+	gOFS.Emsg(epname, error, EIO, "create all replicas - uploaded file is at risk - only one replica has been successfully stored for fn=", capOpaque->Get("mgm.path"));   
+      } else {
+	if (!brc) {
+	  // reset the return code
+	  rc = 0 ;
+	  // clean error message
+	  gOFS.Emsg(epname, error, 0, "no error");
+	}
+      }
+      eos_warning("executed 'adjustreplica' for path=%s - file is at low risk due to missing replica's", capOpaque->Get("mgm.path"));
+    }
   }
 
   return rc;
