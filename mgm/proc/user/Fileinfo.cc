@@ -125,10 +125,13 @@ ProcCommand::Fileinfo ()
 
       XrdOucString sizestring;
       XrdOucString hexfidstring;
+      XrdOucString hexpidstring;
       bool Monitoring = false;
       bool Envformat = false;
 
       eos::common::FileId::Fid2Hex(fmd->getId(), hexfidstring);
+      eos::common::FileId::Fid2Hex(fmd->getContainerId(), hexpidstring);
+
       if ((option.find("-m")) != STR_NPOS)
       {
         Monitoring = true;
@@ -300,6 +303,8 @@ ProcCommand::Fileinfo ()
             stdOut += " ";
             stdOut += "   Pid: ";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getContainerId());
+	    stdOut += "   Pxid: ";
+	    stdOut += hexpidstring;
             stdOut += "\n";
             stdOut += "XStype: ";
             stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
@@ -358,6 +363,9 @@ ProcCommand::Fileinfo ()
             stdOut += " ";
             stdOut += "pid=";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getContainerId());
+            stdOut += " ";
+	    stdOut += "pxid=";
+	    stdOut += hexpidstring;
             stdOut += " ";
             stdOut += "xstype=";
             stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
