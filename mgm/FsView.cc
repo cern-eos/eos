@@ -47,6 +47,13 @@ ConfigEngine* FsView::ConfEngine = 0;
 
 /*----------------------------------------------------------------------------*/
 std::string
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief return's the printout format for a given option
+ * @param option see the implementation for valid options
+ * @return std;:string with format line passed to the printout routine
+ */
+/*----------------------------------------------------------------------------*/
 FsView::GetNodeFormat (std::string option)
 {
 
@@ -58,30 +65,41 @@ FsView::GetNodeFormat (std::string option)
 
   if (option == "io")
   {
+    // io format
     return "header=1:member=hostport:width=24:format=s|sep= |avg=stat.disk.load:width=10:format=f:tag=diskload|sep= |sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |sum=stat.ropen:width=6:format=l:tag=ropen|sep= |sum=stat.wopen:width=6:format=l:tag=wopen|sep= |sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |sum=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |sum=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |sum=stat.statfs.files:width=11:format=+l:tag=max-files|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd|sep= |member=inqueue:width=10:format=s:tag=gw-queue";
   }
 
   if (option == "sys")
   {
+    // system format
     return "header=1:member=hostport:width=30:format=s|sep= |member=cfg.stat.sys.vsize:width=12:format=+l|tag=vsize|sep= |member=cfg.stat.sys.rss:width=12:format=+l:tag=rss|sep= |member=cfg.stat.sys.threads:width=12:format=+l:tag=threads|sep= |member=cfg.stat.sys.sockets:width=10:format=s:tag=sockets|sep= |member=cfg.stat.sys.eos.version:width=12:format=s:tag=eos|sep= |member=cfg.stat.sys.kernel:width=30:format=s:tag=kernel version|sep= |member=cfg.stat.sys.eos.start:width=32:format=s:tag=start|sep= |member=cfg.stat.sys.uptime:width=80:format=s:tag=uptime";
   }
 
   if (option == "fsck")
   {
+    // fsck format
     return "header=1:member=hostport:width=24:format=s|sep= |sum=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sep= |sum=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sep= |sum=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sep= |sum=stat.fsck.orphans_n:width=12:format=l:tag=e(orph)|sep= |sum=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sep= |sum=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sep= |sum=stat.fsck.rep_missing_n:width=12:format=l:tag=e(miss)|sep= |sum=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sep= |sum=stat.fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sep= |sum=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sep= |sum=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
   }
 
   if (option == "l")
   {
-    // long output formag
+    // long format
     return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=cfg.txgw:width=6:format=s|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s|sep= |sum=stat.balancer.running:width=10:format=l:tag=balan-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd|sep= |member=inqueue:width=10:format=s:tag=gw-queue";
   }
+  // default format
   return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=cfg.txgw:width=6:format=s|sep= |member=inqueue:width=10:format=s:tag=gw-queued|sep= |member=cfg.gw.ntx:width=8:format=s:tag=gw-ntx|sep= |member=cfg.gw.rate:width=8:format=s:tag=gw-rate|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s";
 }
 
 /*----------------------------------------------------------------------------*/
 std::string
 FsView::GetFileSystemFormat (std::string option)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief return's the printout format for a given option
+ * @param option see the implementation for valid options
+ * @return std;:string with format line passed to the printout routine
+ */
+/*----------------------------------------------------------------------------*/
 {
 
   if (option == "m")
@@ -92,16 +110,19 @@ FsView::GetFileSystemFormat (std::string option)
 
   if (option == "io")
   {
+    // io format
     return "header=1:key=hostport:width=30:format=s|sep= |key=id:width=5:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=stat.disk.load:width=10:format=f:tag=diskload|sep= |key=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |key=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |key=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |key=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |key=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |key=stat.ropen:width=6:format=l:tag=ropen|sep= |key=stat.wopen:width=6:format=l:tag=wopen|sep= |key=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |key=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |key=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |key=stat.statfs.files:width=11:format=+l:tag=max-files|sep= |key=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |key=stat.drainer.running:width=14:format=l:tag=drain-shd|key=stat.drainer:width=12:format=s:tag=drainpull";
   }
 
   if (option == "fsck")
   {
+    // fsck format
     return "header=1:key=hostport:width=30:format=s|sep= |key=id:width=6:format=s|sep= |key=stat.fsck.mem_n:width=8:format=l:tag=n(mem)|sep= |key=stat.fsck.d_sync_n:width=8:format=l:tag=n(disk)|sep= |key=stat.fsck.m_sync_n:width=8:format=l:tag=n(mgm)|sep= |key=stat.fsck.orphans_n:width=12:format=l:tag=e(orph)|sep= |key=stat.fsck.unreg_n:width=12:format=l:tag=e(unreg)|sep= |key=stat.fsck.rep_diff_n:width=12:format=l:tag=e(layout)|sep= |key=stat.fsck.rep_missing_n:width=12:format=l:tag=e(miss)|sep= |key=stat.fsck.d_mem_sz_diff:width=12:format=l:tag=e(disksize)|sep= |key=stat.fsck.m_mem_sz_diff:width=12:format=l:tag=e(mgmsize)|sep= |key=stat.fsck.d_cx_diff:width=12:format=l:tag=e(disk-cx)|sep= |key=stat.fsck.m_cx_diff:width=12:format=l:tag=e(mgm-cx)";
   }
 
   if (option == "d")
   {
+    // drain format
     return "header=1:key=host:width=24:format=s:condition=stat.drain=!nodrain|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.drainprogress:width=12:format=l:tag=progress|sep= |key=stat.drainfiles:width=12:format=+l:tag=files|sep= |key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left:unit=B|sep= |key=stat.timeleft:width=11:format=l:tag=timeleft|sep= |key=stat.drainretry:width=6:format=l:tag=retry|sep= |key=stat.wopen:width=6:format=l:ta\
 g=wopen|";
 
@@ -117,13 +138,20 @@ g=wopen|";
     // error format
     return "header=1:key=host:width=24:format=s:condition=stat.errc=!0|sep= |key=id:width=6:format=s|sep= |key=path:width=10:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.errc:width=3:format=s|sep= |key=stat.errmsg:width=0:format=s";
   }
-
+  // default format
   return "header=1:key=host:width=24:format=s|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=stat.geotag:width=16:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s";
 }
 
 /*----------------------------------------------------------------------------*/
 std::string
 FsView::GetSpaceFormat (std::string option)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief return's the printout format for a given option
+ * @param option see the implementation for valid options
+ * @return std;:string with format line passed to the printout routine
+ */
+/*----------------------------------------------------------------------------*/
 {
   if (option == "m")
   {
@@ -153,6 +181,13 @@ FsView::GetSpaceFormat (std::string option)
 /*----------------------------------------------------------------------------*/
 std::string
 FsView::GetGroupFormat (std::string option)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief return's the printout format for a given option
+ * @param option see the implementation for valid options
+ * @return std;:string with format line passed to the printout routine
+ */
+/*----------------------------------------------------------------------------*/
 {
   if (option == "m")
   {
@@ -162,21 +197,29 @@ FsView::GetGroupFormat (std::string option)
 
   if (option == "io")
   {
+    // io format
     return "header=1:member=name:width=16:format=-s|sep= |avg=stat.disk.load:width=10:format=f:tag=diskload|sep= |sum=stat.disk.readratemb:width=12:format=+l:tag=diskr-MB/s|sep= |sum=stat.disk.writeratemb:width=12:format=+l:tag=diskw-MB/s|sep= |sum=stat.net.ethratemib:width=10:format=l:tag=eth-MiB/s|sep= |sum=stat.net.inratemib:width=10:format=l:tag=ethi-MiB|sep= |sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|sep= |sum=stat.ropen:width=6:format=l:tag=ropen|sep= |sum=stat.wopen:width=6:format=l:tag=wopen|sep= |sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|sep= |sum=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|sep= |sum=stat.usedfiles:width=12:format=+l:tag=used-files|sep= |sum=stat.statfs.files:width=11:format=+l:tag=max-files|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
   }
 
   if (option == "l")
   {
-    // long output formag
+    // long format
     return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s";
   }
-
+  // default format
   return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=-s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s|sep= |maxdev=stat.statfs.filled:width=12:format=f:unit=p|sep= |avg=stat.statfs.filled:width=12:format=f:unit=p|sep= |sig=stat.statfs.filled:width=12:format=f:unit=p|sep= |member=cfg.stat.balancing:width=10:format=-s|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
 }
 
 /*----------------------------------------------------------------------------*/
 bool
 FsView::Register (FileSystem* fs)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief register a filesystem object in the filesystem view
+ * @param fs filesystem to register
+ * @return true if done, otherwise false
+ */
+/*----------------------------------------------------------------------------*/
 {
   if (!fs)
     return false;
@@ -186,9 +229,9 @@ FsView::Register (FileSystem* fs)
 
   if (fs->SnapShotFileSystem(snapshot))
   {
-    //----------------------------------------------------------------
-    //! align view by filesystem object and filesystem id
-    //----------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    // align view by filesystem object and filesystem id
+    //--------------------------------------------------------------------------
 
     // check if there is already a filesystem with the same path on the same node
 
@@ -229,9 +272,9 @@ FsView::Register (FileSystem* fs)
       eos_debug("registering mapping %u<=>%lld", snapshot.mId, fs);
     }
 
-    //----------------------------------------------------------------
-    //! align view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst
-    //----------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    // align view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst
+    //--------------------------------------------------------------------------
 
     // check if we have already a node view
     if (mNodeView.count(snapshot.mQueue))
@@ -248,9 +291,9 @@ FsView::Register (FileSystem* fs)
       eos_debug("creating/inserting into node view %s<=>%u", snapshot.mQueue.c_str(), snapshot.mId, fs);
     }
 
-    //----------------------------------------------------------------
-    //! align view by groupname
-    //----------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    // align view by groupname
+    //--------------------------------------------------------------------------
 
     // check if we have already a group view
     if (mGroupView.count(snapshot.mGroup))
@@ -270,9 +313,9 @@ FsView::Register (FileSystem* fs)
 
     mSpaceGroupView[snapshot.mSpace].insert(mGroupView[snapshot.mGroup]);
 
-    //----------------------------------------------------------------
-    //! align view by spacename
-    //----------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    // align view by spacename
+    //--------------------------------------------------------------------------
 
     // check if we have already a space view
     if (mSpaceView.count(snapshot.mSpace))
@@ -297,11 +340,19 @@ FsView::Register (FileSystem* fs)
 /*----------------------------------------------------------------------------*/
 void
 FsView::StoreFsConfig (FileSystem* fs)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Store the filesystem configuration in the configuration engine
+ * @param fs filesystem object to store
+ */
+/*----------------------------------------------------------------------------*/
 {
 #ifndef EOSMGMFSVIEWTEST
   if (fs)
   {
+    // -------------------------------------------------------------------------
     // register in the configuration engine
+    // -------------------------------------------------------------------------
     std::string key;
     std::string val;
     fs->CreateConfig(key, val);
@@ -313,6 +364,13 @@ FsView::StoreFsConfig (FileSystem* fs)
 }
 
 /*----------------------------------------------------------------------------*/
+/**
+ * @brief Move a filesystem in to a target group
+ * @param fs filesystem object to move
+ * @param group target group 
+ * @return true if moved otherwise false
+ */
+ /*----------------------------------------------------------------------------*/
 bool
 FsView::MoveGroup (FileSystem* fs, std::string group)
 {
@@ -333,7 +391,8 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
       {
         FsSpace* space = mSpaceView[snapshot1.mSpace];
         space->erase(snapshot1.mId);
-        eos_debug("unregister space %s from space view", space->GetMember("name").c_str());
+        eos_debug("unregister space %s from space view", 
+                  space->GetMember("name").c_str());
         if (!space->size())
         {
           mSpaceView.erase(snapshot1.mSpace);
@@ -346,7 +405,8 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
       {
         FsGroup* group = mGroupView[snapshot1.mGroup];
         group->erase(snapshot1.mId);
-        eos_debug("unregister group %s from group view", group->GetMember("name").c_str());
+        eos_debug("unregister group %s from group view", 
+                  group->GetMember("name").c_str());
         if (!group->size())
         {
           if (mSpaceGroupView.count(snapshot1.mSpace))
@@ -362,7 +422,8 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
       if (mGroupView.count(snapshot.mGroup))
       {
         mGroupView[snapshot.mGroup]->insert(snapshot.mId);
-        eos_debug("inserting into group view %s<=>%u", snapshot.mGroup.c_str(), snapshot.mId, fs);
+        eos_debug("inserting into group view %s<=>%u", 
+                  snapshot.mGroup.c_str(), snapshot.mId, fs);
       }
       else
       {
@@ -370,7 +431,8 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
         mGroupView[snapshot.mGroup] = group;
         group->insert(snapshot.mId);
         group->mIndex = snapshot.mGroupIndex;
-        eos_debug("creating/inserting into group view %s<=>%u", snapshot.mGroup.c_str(), snapshot.mId, fs);
+        eos_debug("creating/inserting into group view %s<=>%u", 
+                  snapshot.mGroup.c_str(), snapshot.mId, fs);
       }
 
       mSpaceGroupView[snapshot.mSpace].insert(mGroupView[snapshot.mGroup]);
@@ -379,14 +441,16 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
       if (mSpaceView.count(snapshot.mSpace))
       {
         mSpaceView[snapshot.mSpace]->insert(snapshot.mId);
-        eos_debug("inserting into space view %s<=>%u %x", snapshot.mSpace.c_str(), snapshot.mId, fs);
+        eos_debug("inserting into space view %s<=>%u %x", 
+                  snapshot.mSpace.c_str(), snapshot.mId, fs);
       }
       else
       {
         FsSpace* space = new FsSpace(snapshot.mSpace.c_str());
         mSpaceView[snapshot.mSpace] = space;
         space->insert(snapshot.mId);
-        eos_debug("creating/inserting into space view %s<=>%u %x", snapshot.mSpace.c_str(), snapshot.mId, fs);
+        eos_debug("creating/inserting into space view %s<=>%u %x", 
+                  snapshot.mSpace.c_str(), snapshot.mId, fs);
       }
 
       StoreFsConfig(fs);
@@ -397,6 +461,12 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
   return false;
 }
 
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Unregister a filesystem in the filesystem view
+ * @param fs filesystem to unregister
+ * @return true if done otherwise false
+ */
 /*----------------------------------------------------------------------------*/
 bool
 FsView::UnRegister (FileSystem* fs)
@@ -419,9 +489,9 @@ FsView::UnRegister (FileSystem* fs)
 
   if (fs->SnapShotFileSystem(snapshot))
   {
-    //----------------------------------------------------------------
-    //! remove view by filesystem object and filesystem id
-    //----------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    // remove view by filesystem object and filesystem id
+    //--------------------------------------------------------------------------
 
     // check if this is in the view
     if (mFileSystemView.count(fs))
@@ -432,7 +502,7 @@ FsView::UnRegister (FileSystem* fs)
     }
 
     //----------------------------------------------------------------
-    //! remove fs from node view & evt. remove node view
+    // remove fs from node view & evt. remove node view
     //----------------------------------------------------------------
     if (mNodeView.count(snapshot.mQueue))
     {
