@@ -124,17 +124,7 @@ public:
     return mRespLength;
   };
 
-
-  //----------------------------------------------------------------------------
-  //! Get errno
-  //----------------------------------------------------------------------------
-  inline uint32_t
-  GetErrno () const
-  {
-    return mErrorNo;
-  };
-
-
+  
   //----------------------------------------------------------------------------
   //! Test if chunk is from a write operation 
   //----------------------------------------------------------------------------
@@ -165,8 +155,6 @@ private:
   uint32_t mCapacity; ///< capacity of the buffer
   uint32_t mRespLength; ///< length of response received, only for reads
   bool mIsWrite; ///< operation type is write
-  int mErrorNo; ///< error no for this request
-
 };
 
 EOSFSTNAMESPACE_END
