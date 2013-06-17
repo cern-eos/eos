@@ -184,61 +184,6 @@ HttpServer::StaticHandler (void                  *cls,
 }
 
 /*----------------------------------------------------------------------------*/
-//int
-//HttpServer::Handler (void *cls,
-//               struct MHD_Connection *connection,
-//               const char *url,
-//               const char *method,
-//               const char *version,
-//               const char *upload_data,
-//               size_t *upload_data_size, void **ptr)
-//{
-//  static int aptr;
-//  struct MHD_Response *response;
-//
-//  std::string query;
-//  std::map<std::string, std::string> header;
-//
-//  // currently support only GET methods
-//  if (0 != strcmp(method, MHD_HTTP_METHOD_GET))
-//    return MHD_NO; /* unexpected method */
-//
-//  if (&aptr != *ptr)
-//  {
-//    /* do never respond on first call */
-//    *ptr = &aptr;
-//    return MHD_YES;
-//  }
-//
-//  // get the query CGI
-//  MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND, &HttpServer::BuildQueryString,
-//                            (void*) &query);
-//
-//  // get the header INFO
-//  MHD_get_connection_values(connection, MHD_HEADER_KIND, &HttpServer::BuildHeaderMap,
-//                            (void*) &header);
-//
-//  *ptr = NULL; /* reset when done */
-//
-//  eos_static_info("url=%s query=%s", url ? url : "", query.c_str() ? query.c_str() : "");
-//
-//  for (auto it = header.begin(); it != header.end(); it++)
-//  {
-//    eos_static_info("header:%s=%s", it->first.c_str(), it->second.c_str());
-//  }
-//
-//  std::string result = "Welcome to EOS!";
-//
-//  response = MHD_create_response_from_buffer(result.length(),
-//                                             (void *) result.c_str(),
-//                                             MHD_RESPMEM_MUST_FREE);
-//
-//  int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
-//
-//  return ret;
-//}
-
-/*----------------------------------------------------------------------------*/
 int
 HttpServer::BuildHeaderMap (void              *cls,
                             enum MHD_ValueKind kind,
