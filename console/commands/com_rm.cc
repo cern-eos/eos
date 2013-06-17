@@ -92,7 +92,7 @@ com_rm (char* arg1)
 
     cPath = new eos::common::Path(path.c_str());
 
-    if (cPath->GetSubPathSize() < 4)
+    if ( (option == "r") && (cPath->GetSubPathSize() < 4) )
     {
       string s;
       fprintf(stdout, "Do you really want to delete ALL files starting at %s ?\n", path.c_str());
