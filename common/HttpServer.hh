@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Http.hh
+// File: HttpServer.hh
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -21,6 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file   HttpServer.hh
+ *
+ * @brief  Class running an HTTP daemon
+ */
+
 #ifndef __EOSCOMMON_HTTP__HH__
 #define __EOSCOMMON_HTTP__HH__
 
@@ -31,16 +37,15 @@
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <map>
-/*----------------------------------------------------------------------------*/
+
 #ifdef EOS_MICRO_HTTPD
 #include <microhttpd.h>
 #endif
-
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
-class Http
+class HttpServer
 {
   // -------------------------------------------------------------
   // ! creates an embedded http server instance
@@ -86,12 +91,12 @@ public:
   /**
    * Constructor
    */
-  Http (int port = 8000);
+  HttpServer (int port = 8000);
 
   /**
    * Destructor
    */
-  virtual ~Http ();
+  virtual ~HttpServer ();
 
   /**
    * Start the listening HTTP server
@@ -203,12 +208,13 @@ public:
                        const char *method,
                        const char *version,
                        const char *upload_data,
-                       size_t *upload_data_size, void **ptr);
+                       size_t *upload_data_size, void **ptr) = 0;
 
 #endif
-  static Http* gHttp; //< this is the instance of the http server allowing allowing the Handler function to call class member functions
+  static HttpServer* gHttp; //< this is the instance of the http server allowing allowing the Handler function to call class member functions
 };
 
+/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
 
 #endif

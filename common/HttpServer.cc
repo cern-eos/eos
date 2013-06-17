@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Http.cc
+// File: HttpServer.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -22,7 +22,7 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "common/Http.hh"
+#include "common/HttpServer.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
@@ -31,16 +31,17 @@
 #include <string>
 #include <map>
 #include <sstream>
+/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
-Http* Http::gHttp;
+HttpServer* HttpServer::gHttp;
 
 /*----------------------------------------------------------------------------*/
 #define EOSCOMMON_HTTP_PAGE "<html><head><title>No such file or directory</title></head><body>No such file or directory</body></html>"
 
 /*----------------------------------------------------------------------------*/
-Http::Http (int port)
+HttpServer::HttpServer (int port)
 {
   //.............................................................................
   // Constructor
@@ -52,7 +53,7 @@ Http::Http (int port)
 }
 
 /*----------------------------------------------------------------------------*/
-Http::~Http () {
+HttpServer::~HttpServer () {
   //.............................................................................
   // Destructor
   //.............................................................................
@@ -60,14 +61,14 @@ Http::~Http () {
 
 /*----------------------------------------------------------------------------*/
 bool
-Http::Start ()
+HttpServer::Start ()
 {
   //.............................................................................
   // Startup the HTTP server
   //.............................................................................
   if (!mRunning)
   {
-    XrdSysThread::Run(&mThreadId, Http::StaticHttp, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Httpd Thread");
+    XrdSysThread::Run(&mThreadId, HttpServer::StaticHttp, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Httpd Thread");
     mRunning = true;
     return true;
   }
@@ -80,17 +81,17 @@ Http::Start ()
 
 /*----------------------------------------------------------------------------*/
 void*
-Http::StaticHttp (void* arg)
+HttpServer::StaticHttp (void* arg)
 {
   //.............................................................................
   // Asynchronoous thread start function
   //.............................................................................
-  return reinterpret_cast<Http*> (arg)->Run();
+  return reinterpret_cast<HttpServer*> (arg)->Run();
 }
 
 /*----------------------------------------------------------------------------*/
 void*
-Http::Run ()
+HttpServer::Run ()
 {
 #ifdef EOS_MICRO_HTTPD
 
@@ -99,7 +100,7 @@ Http::Run ()
                                mPort,
                                NULL,
                                NULL,
-                               &Http::StaticHandler,
+                               &HttpServer::StaticHandler,
                                (void*) EOSCOMMON_HTTP_PAGE,
                                MHD_OPTION_CONNECTION_MEMORY_LIMIT,
                                128*1024*1024 /* 128MB */,
@@ -160,13 +161,13 @@ Http::Run ()
 
 /*----------------------------------------------------------------------------*/
 int
-Http::StaticHandler (void *cls,
-                     struct MHD_Connection *connection,
-                     const char *url,
-                     const char *method,
-                     const char *version,
-                     const char *upload_data,
-                     size_t *upload_data_size, void **ptr)
+HttpServer::StaticHandler (void *cls,
+                           struct MHD_Connection *connection,
+                           const char *url,
+                           const char *method,
+                           const char *version,
+                           const char *upload_data,
+                           size_t *upload_data_size, void **ptr)
 {
   // The static handler function calls back the original http object
   if (gHttp)
@@ -187,66 +188,66 @@ Http::StaticHandler (void *cls,
 }
 
 /*----------------------------------------------------------------------------*/
-int
-Http::Handler (void *cls,
-               struct MHD_Connection *connection,
-               const char *url,
-               const char *method,
-               const char *version,
-               const char *upload_data,
-               size_t *upload_data_size, void **ptr)
-{
-  static int aptr;
-  struct MHD_Response *response;
-
-  std::string query;
-  std::map<std::string, std::string> header;
-
-  // currently support only GET methods
-  if (0 != strcmp(method, MHD_HTTP_METHOD_GET))
-    return MHD_NO; /* unexpected method */
-
-  if (&aptr != *ptr)
-  {
-    /* do never respond on first call */
-    *ptr = &aptr;
-    return MHD_YES;
-  }
-
-  // get the query CGI
-  MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND, &Http::BuildQueryString,
-                            (void*) &query);
-
-  // get the header INFO
-  MHD_get_connection_values(connection, MHD_HEADER_KIND, &Http::BuildHeaderMap,
-                            (void*) &header);
-
-  *ptr = NULL; /* reset when done */
-
-  eos_static_info("url=%s query=%s", url ? url : "", query.c_str() ? query.c_str() : "");
-
-  for (auto it = header.begin(); it != header.end(); it++)
-  {
-    eos_static_info("header:%s=%s", it->first.c_str(), it->second.c_str());
-  }
-
-  std::string result = "Welcome to EOS!";
-
-  response = MHD_create_response_from_buffer(result.length(),
-                                             (void *) result.c_str(),
-                                             MHD_RESPMEM_MUST_FREE);
-
-  int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
-
-  return ret;
-}
+//int
+//HttpServer::Handler (void *cls,
+//               struct MHD_Connection *connection,
+//               const char *url,
+//               const char *method,
+//               const char *version,
+//               const char *upload_data,
+//               size_t *upload_data_size, void **ptr)
+//{
+//  static int aptr;
+//  struct MHD_Response *response;
+//
+//  std::string query;
+//  std::map<std::string, std::string> header;
+//
+//  // currently support only GET methods
+//  if (0 != strcmp(method, MHD_HTTP_METHOD_GET))
+//    return MHD_NO; /* unexpected method */
+//
+//  if (&aptr != *ptr)
+//  {
+//    /* do never respond on first call */
+//    *ptr = &aptr;
+//    return MHD_YES;
+//  }
+//
+//  // get the query CGI
+//  MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND, &HttpServer::BuildQueryString,
+//                            (void*) &query);
+//
+//  // get the header INFO
+//  MHD_get_connection_values(connection, MHD_HEADER_KIND, &HttpServer::BuildHeaderMap,
+//                            (void*) &header);
+//
+//  *ptr = NULL; /* reset when done */
+//
+//  eos_static_info("url=%s query=%s", url ? url : "", query.c_str() ? query.c_str() : "");
+//
+//  for (auto it = header.begin(); it != header.end(); it++)
+//  {
+//    eos_static_info("header:%s=%s", it->first.c_str(), it->second.c_str());
+//  }
+//
+//  std::string result = "Welcome to EOS!";
+//
+//  response = MHD_create_response_from_buffer(result.length(),
+//                                             (void *) result.c_str(),
+//                                             MHD_RESPMEM_MUST_FREE);
+//
+//  int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+//
+//  return ret;
+//}
 
 /*----------------------------------------------------------------------------*/
 int
-Http::BuildHeaderMap (void *cls,
-                      enum MHD_ValueKind kind,
-                      const char *key,
-                      const char *value)
+HttpServer::BuildHeaderMap (void *cls,
+                            enum MHD_ValueKind kind,
+                            const char *key,
+                            const char *value)
 {
   // Call back function to return the header key-val map of an HTTP request
   std::map<std::string, std::string>* hMap = static_cast<std::map<std::string, std::string>*> (cls);
@@ -259,10 +260,10 @@ Http::BuildHeaderMap (void *cls,
 
 /*----------------------------------------------------------------------------*/
 int
-Http::BuildQueryString (void *cls,
-                        enum MHD_ValueKind kind,
-                        const char *key,
-                        const char *value)
+HttpServer::BuildQueryString (void *cls,
+                              enum MHD_ValueKind kind,
+                              const char *key,
+                              const char *value)
 {
   // Call back function to return the query string of an HTTP request
   std::string* qString = static_cast<std::string*> (cls);
@@ -282,7 +283,7 @@ Http::BuildQueryString (void *cls,
 
 /*----------------------------------------------------------------------------*/
 std::string
-Http::HttpRedirect (int& response_code, std::map<std::string, std::string>& response_header, const char* host_cgi, int port, std::string& path, std::string& query, bool cookie)
+HttpServer::HttpRedirect (int& response_code, std::map<std::string, std::string>& response_header, const char* host_cgi, int port, std::string& path, std::string& query, bool cookie)
 {
   response_code = 307;
   // return an HTTP redirect
@@ -330,10 +331,10 @@ Http::HttpRedirect (int& response_code, std::map<std::string, std::string>& resp
 
 /*----------------------------------------------------------------------------*/
 std::string
-Http::HttpError (int                                &response_code,
-                 std::map<std::string, std::string> &response_header,
-                 const char                         *errtxt,
-                 int                                 errc)
+HttpServer::HttpError (int                                &response_code,
+                       std::map<std::string, std::string> &response_header,
+                       const char                         *errtxt,
+                       int                                 errc)
 {
   if (errc == ENOENT)
     response_code = 404;
@@ -360,7 +361,10 @@ Http::HttpError (int                                &response_code,
   buffer << in.rdbuf();
   error = buffer.str().c_str();
 
-  while (error.replace("__RESPONSE_CODE__", errct))  {}
+  eos_static_info("errc=%d, retcode=%d", errc, response_code);
+  while (error.replace("__RESPONSE_CODE__",
+                       std::to_string(static_cast<long long>(response_code))
+                       .c_str())) {}
   while (error.replace("__ERROR_TEXT__",    errtxt)) {}
 
   eos_static_debug("html=%s", error.c_str());
@@ -370,7 +374,7 @@ Http::HttpError (int                                &response_code,
 
 /*----------------------------------------------------------------------------*/
 std::string
-Http::HttpData (int& response_code, std::map<std::string, std::string>& response_header, const char* data, int length)
+HttpServer::HttpData (int& response_code, std::map<std::string, std::string>& response_header, const char* data, int length)
 {
   response_code = 200;
   // return data as HTTP message
@@ -381,7 +385,7 @@ Http::HttpData (int& response_code, std::map<std::string, std::string>& response
 
 /*----------------------------------------------------------------------------*/
 std::string
-Http::HttpStall (int& response_code, std::map<std::string, std::string>& response_header, const char* stallxt, int stallsec)
+HttpServer::HttpStall (int& response_code, std::map<std::string, std::string>& response_header, const char* stallxt, int stallsec)
 {
   // return an HTTP stall
   response_code = 501;
@@ -390,7 +394,7 @@ Http::HttpStall (int& response_code, std::map<std::string, std::string>& respons
 
 /*----------------------------------------------------------------------------*/
 void
-Http::EncodeURI (std::string& cgi)
+HttpServer::EncodeURI (std::string& cgi)
 {
   // replace '+' '/' '='
   XrdOucString scgi = cgi.c_str();
@@ -415,7 +419,7 @@ Http::EncodeURI (std::string& cgi)
 
 /*----------------------------------------------------------------------------*/
 void
-Http::DecodeURI (std::string& cgi)
+HttpServer::DecodeURI (std::string& cgi)
 {
   // replace "%2B" "%2F" "%3D"
   XrdOucString scgi = cgi.c_str();
@@ -443,7 +447,7 @@ Http::DecodeURI (std::string& cgi)
 
 /*----------------------------------------------------------------------------*/
 bool
-Http::DecodeByteRange (std::string rangeheader, std::map<off_t, ssize_t>& offsetmap, ssize_t& requestsize, off_t filesize)
+HttpServer::DecodeByteRange (std::string rangeheader, std::map<off_t, ssize_t>& offsetmap, ssize_t& requestsize, off_t filesize)
 {
   std::vector<std::string> tokens;
   if (rangeheader.substr(0, 6) != "bytes=")
@@ -554,4 +558,6 @@ Http::DecodeByteRange (std::string rangeheader, std::map<off_t, ssize_t>& offset
   }
   return true;
 }
+
+/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END

@@ -78,8 +78,7 @@ add_library (eosCommonServer SHARED
             TransferJob.cc
             sqlite/sqlite3.c
             DbMap.cc
-            Http.cc
-            S3.cc
+            HttpServer.cc
             stringencoders/modp_numtoa.c
             )
 
@@ -89,8 +88,7 @@ add_library (eosCommonServer-Static STATIC
             TransferJob.cc
             sqlite/sqlite3.c
             DbMap.cc
-            Http.cc
-            S3.cc
+            HttpServer.cc
             stringencoders/modp_numtoa.c
 )
 
