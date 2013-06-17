@@ -596,7 +596,7 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // start the embedded HTTP server
-  httpd = new Http(8001);
+  httpd = new HttpServer(8001);
   if (httpd)
   {
     httpd->Start();

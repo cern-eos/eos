@@ -35,7 +35,7 @@
 #include "fst/storage/Storage.hh"
 #include "fst/Config.hh"
 #include "fst/Messaging.hh"
-#include "fst/Http.hh"
+#include "fst/HttpServer.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
 
@@ -300,7 +300,7 @@ public:
   bool Simulate_XS_read_error; //! simulate a checksum error on read
   bool Simulate_XS_write_error; //! simulate a checksum error on write
 
-  Http* httpd; //! embedded http server
+  HttpServer* httpd; //! embedded http server
 };
 
 //------------------------------------------------------------------------------

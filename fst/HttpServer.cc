@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Http.cc
+// File: HttpServer.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -22,9 +22,9 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "fst/Http.hh"
+#include "fst/HttpServer.hh"
 #include "fst/XrdFstOfs.hh"
-#include "common/S3.hh"
+//#include "common/S3.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -49,7 +49,7 @@ public:
   std::map<std::string, std::string> mCookies; //< cookie map
   int mRc; //< return code of a file open
   struct MHD_Connection* mConnection; //< HTTP connection
-  eos::common::S3* mS3; //< s3 object ptr if one has been decoded from the headers
+//  eos::common::S3* mS3; //< s3 object ptr if one has been decoded from the headers
   XrdSecEntity mClient; //< the sec entity of the connected client
   std::string mPath; //< the path used in the request
   XrdFstOfsFile* mFile; //< handle to a file
@@ -95,7 +95,7 @@ public:
     mBoundaryEndSent = false;
     mSinglepartHeader = "";
     mCloseCode = 0;
-    mS3 = 0;
+//    mS3 = 0;
     mRc = 0;
     mContentLength = 0;
     mLastUploadSize = 0;
@@ -199,14 +199,14 @@ public:
 };
 
 /*----------------------------------------------------------------------------*/
-Http::Http (int port) : eos::common::Http::Http (port) {
+HttpServer::HttpServer (int port) : eos::common::HttpServer::HttpServer (port) {
   //.............................................................................
   // Constructor
   //.............................................................................
 }
 
 /*----------------------------------------------------------------------------*/
-Http::~Http () {
+HttpServer::~HttpServer () {
   //.............................................................................
   // Destructor
   //.............................................................................
@@ -216,7 +216,7 @@ Http::~Http () {
 
 /*----------------------------------------------------------------------------*/
 ssize_t
-Http::FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max)
+HttpServer::FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max)
 {
   // call back function to read from a file object
   HttpHandle* httpHandle = static_cast<HttpHandle*> (cls);
@@ -340,7 +340,7 @@ Http::FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max)
 
 /*----------------------------------------------------------------------------*/
 void
-Http::FileCloseCallback (void *cls)
+HttpServer::FileCloseCallback (void *cls)
 {
   // callback function to close the file object
   HttpHandle* httpHandle = static_cast<HttpHandle*> (cls);
@@ -358,7 +358,7 @@ Http::FileCloseCallback (void *cls)
 
 /*----------------------------------------------------------------------------*/
 int
-Http::Handler (void *cls,
+HttpServer::Handler (void *cls,
                struct MHD_Connection *connection,
                const char *url,
                const char *method,
@@ -503,11 +503,11 @@ Http::Handler (void *cls,
         delete httpHandle->mFile;
         httpHandle->mFile = 0;
       }
-      if (httpHandle->mS3)
-      {
-        delete httpHandle->mS3;
-        httpHandle->mS3 = 0;
-      }
+//      if (httpHandle->mS3)
+//      {
+//        delete httpHandle->mS3;
+//        httpHandle->mS3 = 0;
+//      }
     }
     return rc;
   }
@@ -521,14 +521,14 @@ HttpHandle::Initialize ()
 {
   // decode all the header/cookie stuff
   mQuery = "";
-  MHD_get_connection_values(mConnection, MHD_GET_ARGUMENT_KIND, &Http::BuildQueryString,
+  MHD_get_connection_values(mConnection, MHD_GET_ARGUMENT_KIND, &HttpServer::BuildQueryString,
                             (void*) &mQuery);
 
   // get the header INFO
-  MHD_get_connection_values(mConnection, MHD_HEADER_KIND, &Http::BuildHeaderMap,
+  MHD_get_connection_values(mConnection, MHD_HEADER_KIND, &HttpServer::BuildHeaderMap,
                             (void*) &mHeader);
 
-  MHD_get_connection_values(mConnection, MHD_COOKIE_KIND, &Http::BuildHeaderMap,
+  MHD_get_connection_values(mConnection, MHD_COOKIE_KIND, &HttpServer::BuildHeaderMap,
                             (void*) &mCookies);
 
   for (auto it = mHeader.begin(); it != mHeader.end(); it++)
@@ -554,7 +554,7 @@ HttpHandle::Initialize ()
     mUploadLeftSize = mContentLength;
   }
 
-  Http::DecodeURI(mQuery); // unescape '+' '/' '='
+  HttpServer::DecodeURI(mQuery); // unescape '+' '/' '='
 
 
   eos_static_info("path=%s query=%s", mPath.c_str(), mQuery.c_str());
@@ -566,7 +566,7 @@ HttpHandle::Initialize ()
   mClient.host = strdup("localhost");
   mClient.tident = strdup("http");
 
-  mS3 = eos::common::S3::ParseS3(mHeader);
+//  mS3 = eos::common::S3::ParseS3(mHeader);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -577,81 +577,81 @@ HttpHandle::Get ()
   std::string result;
   std::map<std::string, std::string> responseheader;
   struct MHD_Response *response = 0;
-
-  if (mS3)
-  {
-    //...........................................................................
-    // S3 requests
-    //...........................................................................
-
-    if (mRangeDecodingError)
-    {
-      result = mS3->RestErrorResponse(mhd_response, 416, "InvalidRange", "Illegal Range request", mHeader["Range"].c_str(), "");
-    }
-    else
-    {
-      if (mRc != SFS_OK)
-      {
-        if (mFile->error.getErrInfo() == ENOENT)
-        {
-          result = mS3->RestErrorResponse(mhd_response, 404, "NoSuchKey", "The specified key does not exist", mS3->getPath(), "");
-        }
-        else
-          if (mFile->error.getErrInfo() == EPERM)
-        {
-          result = mS3->RestErrorResponse(mhd_response, 403, "AccessDenied", "Access Denied", mS3->getPath(), "");
-        }
-        else
-        {
-          result = mS3->RestErrorResponse(mhd_response, 500, "InternalError", "File currently unavailable", mS3->getPath(), "");
-        }
-        delete mFile;
-        mFile = 0;
-        delete mS3;
-      }
-      else
-      {
-        if (mRangeRequest)
-        {
-          CreateMultipartHeader(mS3->ContentType());
-          eos_static_info(Print());
-          char clength[16];
-          snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) mRequestSize);
-          if (mOffsetMap.size() == 1)
-          {
-            // if there is only one range we don't send a multipart response
-            responseheader["Content-Type"] = mS3->ContentType();
-            responseheader["Content-Range"] = mSinglepartHeader;
-          }
-          else
-          {
-            // for several ranges we send a multipart response
-            responseheader["Content-Type"] = mMultipartHeader;
-          }
-          responseheader["Content-Length"] = clength;
-          mhd_response = MHD_HTTP_PARTIAL_CONTENT;
-        }
-        else
-        {
-          // successful http open
-          char clength[16];
-          snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) mFile->getOpenSize());
-          mRequestSize = mFile->getOpenSize();
-          responseheader["Content-Type"] = mS3->ContentType();
-          responseheader["Content-Length"] = clength;
-          mhd_response = MHD_HTTP_OK;
-        }
-      }
-    }
-  }
-  else
+//
+//  if (mS3)
+//  {
+//    //...........................................................................
+//    // S3 requests
+//    //...........................................................................
+//
+//    if (mRangeDecodingError)
+//    {
+//      result = mS3->RestErrorResponse(mhd_response, 416, "InvalidRange", "Illegal Range request", mHeader["Range"].c_str(), "");
+//    }
+//    else
+//    {
+//      if (mRc != SFS_OK)
+//      {
+//        if (mFile->error.getErrInfo() == ENOENT)
+//        {
+//          result = mS3->RestErrorResponse(mhd_response, 404, "NoSuchKey", "The specified key does not exist", mS3->getPath(), "");
+//        }
+//        else
+//          if (mFile->error.getErrInfo() == EPERM)
+//        {
+//          result = mS3->RestErrorResponse(mhd_response, 403, "AccessDenied", "Access Denied", mS3->getPath(), "");
+//        }
+//        else
+//        {
+//          result = mS3->RestErrorResponse(mhd_response, 500, "InternalError", "File currently unavailable", mS3->getPath(), "");
+//        }
+//        delete mFile;
+//        mFile = 0;
+//        delete mS3;
+//      }
+//      else
+//      {
+//        if (mRangeRequest)
+//        {
+//          CreateMultipartHeader(mS3->ContentType());
+//          eos_static_info(Print());
+//          char clength[16];
+//          snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) mRequestSize);
+//          if (mOffsetMap.size() == 1)
+//          {
+//            // if there is only one range we don't send a multipart response
+//            responseheader["Content-Type"] = mS3->ContentType();
+//            responseheader["Content-Range"] = mSinglepartHeader;
+//          }
+//          else
+//          {
+//            // for several ranges we send a multipart response
+//            responseheader["Content-Type"] = mMultipartHeader;
+//          }
+//          responseheader["Content-Length"] = clength;
+//          mhd_response = MHD_HTTP_PARTIAL_CONTENT;
+//        }
+//        else
+//        {
+//          // successful http open
+//          char clength[16];
+//          snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) mFile->getOpenSize());
+//          mRequestSize = mFile->getOpenSize();
+//          responseheader["Content-Type"] = mS3->ContentType();
+//          responseheader["Content-Length"] = clength;
+//          mhd_response = MHD_HTTP_OK;
+//        }
+//      }
+//    }
+//  }
+//  else
   {
     //...........................................................................
     // HTTP requests
     //...........................................................................
     if (mRangeDecodingError)
     {
-      result = Http::HttpError(mhd_response, responseheader, "Illegal Range request", MHD_HTTP_REQUESTED_RANGE_NOT_SATISFIABLE);
+      result = HttpServer::HttpError(mhd_response, responseheader, "Illegal Range request", MHD_HTTP_REQUESTED_RANGE_NOT_SATISFIABLE);
     }
     else
     {
@@ -659,26 +659,26 @@ HttpHandle::Get ()
       {
         if (mRc == SFS_REDIRECT)
         {
-          result = Http::HttpRedirect(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo(), mPath, mQuery, true);
+          result = HttpServer::HttpRedirect(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo(), mPath, mQuery, true);
         }
         else
           if (mRc == SFS_ERROR)
         {
-          result = Http::HttpError(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
+          result = HttpServer::HttpError(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
         }
         else
           if (mRc == SFS_DATA)
         {
-          result = Http::HttpData(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
+          result = HttpServer::HttpData(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
         }
         else
           if (mRc == SFS_STALL)
         {
-          result = Http::HttpStall(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
+          result = HttpServer::HttpStall(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
         }
         else
         {
-          result = Http::HttpError(mhd_response, responseheader, "unexpected result from file open", EOPNOTSUPP);
+          result = HttpServer::HttpError(mhd_response, responseheader, "unexpected result from file open", EOPNOTSUPP);
         }
         delete mFile;
         mFile = 0;
@@ -723,9 +723,9 @@ HttpHandle::Get ()
   {
     // GET method
     response = MHD_create_response_from_callback(mRequestSize, 32 * 1024, /* 32k page size */
-                                                 &Http::FileReaderCallback,
+                                                 &HttpServer::FileReaderCallback,
                                                  (void*) this,
-                                                 &Http::FileCloseCallback);
+                                                 &HttpServer::FileCloseCallback);
   }
   else
   {
@@ -740,7 +740,7 @@ HttpHandle::Get ()
     if (mCloseCode)
     {
       // close failed
-      result = Http::HttpError(mhd_response, responseheader, "File close failed", MHD_HTTP_SERVICE_UNAVAILABLE);
+      result = HttpServer::HttpError(mhd_response, responseheader, "File close failed", MHD_HTTP_SERVICE_UNAVAILABLE);
       response = MHD_create_response_from_buffer(result.length(),
                                                  (void *) result.c_str(),
                                                  MHD_RESPMEM_MUST_COPY);
@@ -786,28 +786,28 @@ HttpHandle::Put (const char *upload_data,
   if (mRc)
   {
     // check for open errors
-    if (mS3)
-    {
-      // ---------------------------------------------------------------------
-      // create S3 error responses
-      // ---------------------------------------------------------------------
-      if (mRc != SFS_OK)
-      {
-        if (mFile->error.getErrInfo() == EPERM)
-        {
-          result = mS3->RestErrorResponse(mhd_response, 403, "AccessDenied", "Access Denied", mS3->getPath(), "");
-        }
-        else
-        {
-          result = mS3->RestErrorResponse(mhd_response, 500, "InternalError", "File currently unwritable", mS3->getPath(), "");
-        }
-        delete mFile;
-        mFile = 0;
-        delete mS3;
-        mS3 = 0;
-      }
-    }
-    else
+//    if (mS3)
+//    {
+//      // ---------------------------------------------------------------------
+//      // create S3 error responses
+//      // ---------------------------------------------------------------------
+//      if (mRc != SFS_OK)
+//      {
+//        if (mFile->error.getErrInfo() == EPERM)
+//        {
+//          result = mS3->RestErrorResponse(mhd_response, 403, "AccessDenied", "Access Denied", mS3->getPath(), "");
+//        }
+//        else
+//        {
+//          result = mS3->RestErrorResponse(mhd_response, 500, "InternalError", "File currently unwritable", mS3->getPath(), "");
+//        }
+//        delete mFile;
+//        mFile = 0;
+//        delete mS3;
+//        mS3 = 0;
+//      }
+//    }
+//    else
     {
       // ---------------------------------------------------------------------
       // create HTTP error response
@@ -816,26 +816,26 @@ HttpHandle::Put (const char *upload_data,
       {
         if (mRc == SFS_REDIRECT)
         {
-          result = Http::HttpRedirect(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo(), mPath, mQuery, true);
+          result = HttpServer::HttpRedirect(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo(), mPath, mQuery, true);
         }
         else
           if (mRc == SFS_ERROR)
         {
-          result = Http::HttpError(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
+          result = HttpServer::HttpError(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
         }
         else
           if (mRc == SFS_DATA)
         {
-          result = Http::HttpData(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
+          result = HttpServer::HttpData(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
         }
         else
           if (mRc == SFS_STALL)
         {
-          result = Http::HttpStall(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
+          result = HttpServer::HttpStall(mhd_response, responseheader, mFile->error.getErrText(), mFile->error.getErrInfo());
         }
         else
         {
-          result = Http::HttpError(mhd_response, responseheader, "unexpected result from file open", EOPNOTSUPP);
+          result = HttpServer::HttpError(mhd_response, responseheader, "unexpected result from file open", EOPNOTSUPP);
         }
         delete mFile;
         mFile = 0;
@@ -867,19 +867,19 @@ HttpHandle::Put (const char *upload_data,
       size_t stored = mFile->write(mCurrentCallbackOffset, upload_data, *upload_data_size);
       if (stored != *upload_data_size)
       {
-        if (mS3)
-        {
-          // S3 write error
-          result = mS3->RestErrorResponse(mhd_response, 500, "InternalError", "File currently unwritable (write failed)", mS3->getPath(), "");
-          delete mFile;
-          mFile = 0;
-          delete mS3;
-          mS3 = 0;
-        }
-        else
+//        if (mS3)
+//        {
+//          // S3 write error
+//          result = mS3->RestErrorResponse(mhd_response, 500, "InternalError", "File currently unwritable (write failed)", mS3->getPath(), "");
+//          delete mFile;
+//          mFile = 0;
+//          delete mS3;
+//          mS3 = 0;
+//        }
+//        else
         {
           // HTTP write error
-          result = Http::HttpError(mhd_response, responseheader, "Write error occured", MHD_HTTP_SERVICE_UNAVAILABLE);
+          result = HttpServer::HttpError(mhd_response, responseheader, "Write error occured", MHD_HTTP_SERVICE_UNAVAILABLE);
         }
         response = MHD_create_response_from_buffer(result.length(),
                                                    (void *) result.c_str(),
@@ -916,7 +916,7 @@ HttpHandle::Put (const char *upload_data,
         mCloseCode = mFile->close();
         if (mCloseCode)
         {
-          result = Http::HttpError(mhd_response, responseheader, "File close failed", MHD_HTTP_SERVICE_UNAVAILABLE);
+          result = HttpServer::HttpError(mhd_response, responseheader, "File close failed", MHD_HTTP_SERVICE_UNAVAILABLE);
           response = MHD_create_response_from_buffer(result.length(),
                                                      (void *) result.c_str(),
                                                      MHD_RESPMEM_MUST_COPY);
@@ -932,18 +932,18 @@ HttpHandle::Put (const char *upload_data,
       }
     }
 
-    if (mS3)
-    {
-      char sFileId[16];
-      snprintf(sFileId, sizeof (sFileId) - 1, "%llu", mFileId);
-
-      // add some S3 specific tags to the response object
-      responseheader["x-amz-version-id"] = sFileId;
-      responseheader["x-amz-request-id"] = mLogId;
-      responseheader["Server"] = gOFS.HostName;
-      responseheader["Connection"] = "close";
-      responseheader["ETag"] = sFileId;
-    }
+//    if (mS3)
+//    {
+//      char sFileId[16];
+//      snprintf(sFileId, sizeof (sFileId) - 1, "%llu", mFileId);
+//
+//      // add some S3 specific tags to the response object
+//      responseheader["x-amz-version-id"] = sFileId;
+//      responseheader["x-amz-request-id"] = mLogId;
+//      responseheader["Server"] = gOFS.HostName;
+//      responseheader["Connection"] = "close";
+//      responseheader["ETag"] = sFileId;
+//    }
 
     for (auto it = responseheader.begin(); it != responseheader.end(); it++)
     {

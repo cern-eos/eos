@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Http.hh
+// File: HttpServer.hh
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -27,7 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "common/Logging.hh"
-#include "common/Http.hh"
+#include "common/HttpServer.hh"
 
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
@@ -37,7 +37,7 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-class Http : public eos::common::Http
+class HttpServer : public eos::common::HttpServer
 {
   // -------------------------------------------------------------
   // ! creates an Http redirector instance running on the FST
@@ -48,12 +48,12 @@ public:
   /**
    * Constructor
    */
-  Http (int port = 8000);
+  HttpServer (int port = 8000);
 
   /**
    * Destructor
    */
-  virtual ~Http ();
+  virtual ~HttpServer ();
 
 #ifdef EOS_MICRO_HTTPD
   /**

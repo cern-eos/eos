@@ -119,7 +119,7 @@ add_library( XrdEosFst MODULE
 	     txqueue/TransferQueue.cc
 	     FmdSqlite.cc
 	     FmdClient.cc 
-	     Http.cc
+	     HttpServer.cc
 )
 
 
@@ -144,7 +144,7 @@ add_library( XrdEosFst-Static STATIC
 	     txqueue/TransferQueue.cc
 	     FmdSqlite.cc 
 	     FmdClient.cc
-	     Http.cc
+	     HttpServer.cc
 )
 
 
