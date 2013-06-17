@@ -32,31 +32,40 @@
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
+Acl::Acl (std::string sysacl, 
+          std::string useracl, 
+          eos::common::Mapping::VirtualIdentity &vid)
+/*----------------------------------------------------------------------------*/
 /** 
  * Constructor
  * 
- * @param sysacl system acl definition string 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}'
- * @param useracl user acl definition string 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}'
+ * @param sysacl system acl definition string 
+ * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}'
+ * @param useracl user acl definition string 
+ * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}'
  * @param vid virtual id to match ACL
  */
 /*----------------------------------------------------------------------------*/
-Acl::Acl (std::string sysacl, std::string useracl, eos::common::Mapping::VirtualIdentity &vid)
 {
   Set(sysacl, useracl, vid);
 }
 
 /*----------------------------------------------------------------------------*/
+void
+Acl::Set (std::string sysacl, 
+          std::string useracl, 
+          eos::common::Mapping::VirtualIdentity &vid)
+/*----------------------------------------------------------------------------*/
 /** 
- * Set the contents of an ACL and compute the canXX and hasXX booleans
+ * @brief Sset the contents of an ACL and compute the canXX and hasXX booleans.
  * 
- * @param sysacl system acl definition string 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}'
- * @param useracl user acl definition string 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}'
+ * @param sysacl system acl definition string 
+ * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}'
+ * @param useracl user acl definition string 
+ * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}'
  * @param vid virtual id to match ACL 
  */
-
 /*----------------------------------------------------------------------------*/
-void
-Acl::Set (std::string sysacl, std::string useracl, eos::common::Mapping::VirtualIdentity &vid)
 {
   std::string acl = "";
   if (sysacl.length())
@@ -72,7 +81,7 @@ Acl::Set (std::string sysacl, std::string useracl, eos::common::Mapping::Virtual
   }
 
   // ---------------------------------------------------------------------------
-  //! by default nothing is granted
+  // by default nothing is granted
   // ---------------------------------------------------------------------------
   hasAcl = false;
   canRead = false;
@@ -101,8 +110,10 @@ Acl::Set (std::string sysacl, std::string useracl, eos::common::Mapping::Virtual
   XrdOucString sizestring1;
   XrdOucString sizestring2;
 
-  std::string userid = eos::common::StringConversion::GetSizeString(sizestring1, (unsigned long long) vid.uid);
-  std::string groupid = eos::common::StringConversion::GetSizeString(sizestring2, (unsigned long long) vid.gid);
+  std::string userid = eos::common::StringConversion::GetSizeString(
+    sizestring1, (unsigned long long) vid.uid);
+  std::string groupid = eos::common::StringConversion::GetSizeString(
+    sizestring2, (unsigned long long) vid.gid);
 
   std::string usertag = "u:";
   usertag += userid;
@@ -130,14 +141,14 @@ Acl::Set (std::string sysacl, std::string useracl, eos::common::Mapping::Virtual
   grouptagfn += ":";
 
   // ---------------------------------------------------------------------------
-  //! Rule interpretation logic
+  // Rule interpretation logic
   // ---------------------------------------------------------------------------
   for (it = rules.begin(); it != rules.end(); it++)
   {
     bool egroupmatch = false;
-    // ---------------------------------------------------------------------------
-    //! check for e-group membership
-    // ---------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // check for e-group membership
+    // -------------------------------------------------------------------------
     if (!it->compare(0, strlen("egroup:"), "egroup:"))
     {
       std::vector<std::string> entry;
@@ -152,10 +163,13 @@ Acl::Set (std::string sysacl, std::string useracl, eos::common::Mapping::Virtual
       hasEgroup = egroupmatch;
     }
     // ---------------------------------------------------------------------------
-    //! match 'our' rule
+    // match 'our' rule
     // ---------------------------------------------------------------------------
-    if ((!it->compare(0, usertag.length(), usertag)) || (!it->compare(0, grouptag.length(), grouptag)) || (egroupmatch) ||
-        (!it->compare(0, usertagfn.length(), usertagfn)) || (!it->compare(0, grouptagfn.length(), grouptagfn)))
+    if ((!it->compare(0, usertag.length(), usertag)) || 
+        (!it->compare(0, grouptag.length(), grouptag)) || 
+        (egroupmatch) ||
+        (!it->compare(0, usertagfn.length(), usertagfn)) 
+         || (!it->compare(0, grouptagfn.length(), grouptagfn)))
     {
       // that is our rule
       std::vector<std::string> entry;
@@ -167,36 +181,36 @@ Acl::Set (std::string sysacl, std::string useracl, eos::common::Mapping::Virtual
         continue;
       }
 
-      // ---------------------------------------------------------------------------
-      //! 'r' defines read permission
-      // ---------------------------------------------------------------------------
+      // -----------------------------------------------------------------------
+      // 'r' defines read permission
+      // -----------------------------------------------------------------------
       if ((entry[2].find("r")) != std::string::npos)
       {
         canRead = true;
         hasAcl = true;
       }
 
-      // ---------------------------------------------------------------------------
-      //! 'x' defines browsing permission
-      // ---------------------------------------------------------------------------
+      // -----------------------------------------------------------------------
+      // 'x' defines browsing permission
+      // -----------------------------------------------------------------------
       if ((entry[2].find("x")) != std::string::npos)
       {
         canBrowse = true;
         hasAcl = true;
       }
 
-      // ---------------------------------------------------------------------------
-      //! 'm' defines mode change permission
-      // ---------------------------------------------------------------------------
+      // -----------------------------------------------------------------------
+      // 'm' defines mode change permission
+      // -----------------------------------------------------------------------
       if ((entry[2].find("m")) != std::string::npos)
       {
         canChmod = true;
         hasAcl = true;
       }
 
-      // ---------------------------------------------------------------------------
-      //! 'c' defines owner change permission (for directories)
-      // ---------------------------------------------------------------------------
+      // -----------------------------------------------------------------------
+      // 'c' defines owner change permission (for directories)
+      // -----------------------------------------------------------------------
       if ((!useracl.length()) && ((entry[2].find("c")) != std::string::npos))
       {
 	// this is only valid if only a sysacl is present
@@ -204,12 +218,14 @@ Acl::Set (std::string sysacl, std::string useracl, eos::common::Mapping::Virtual
         hasAcl = true;
       }
 
-      // ---------------------------------------------------------------------------
-      //! '!d' forbids deletion
-      // ---------------------------------------------------------------------------
+      // -----------------------------------------------------------------------
+      // '!d' forbids deletion
+      // -----------------------------------------------------------------------
       if ((entry[2].find("!d")) != std::string::npos)
       {
-        // canDelete is true, if deletion has been explicitly allowed by a rule and in this case we don't forbid deletion even if another rule says that
+        // canDelete is true, if deletion has been explicitly allowed by a rule 
+        // and in this case we don't forbid deletion even if another rule 
+        // says that
         if (!canDelete)
         {
           canNotDelete = true;
@@ -218,9 +234,9 @@ Acl::Set (std::string sysacl, std::string useracl, eos::common::Mapping::Virtual
         hasAcl = true;
       }
 
-      // ---------------------------------------------------------------------------
-      //! '+d' adds deletion
-      // ---------------------------------------------------------------------------
+      // -----------------------------------------------------------------------
+      // '+d' adds deletion
+      // -----------------------------------------------------------------------
       if ((entry[2].find("+d")) != std::string::npos)
       {
         canDelete = true;
@@ -229,48 +245,48 @@ Acl::Set (std::string sysacl, std::string useracl, eos::common::Mapping::Virtual
         hasAcl = true;
       }
 
-      // ---------------------------------------------------------------------------
-      //! '!d' removes update
-      // ---------------------------------------------------------------------------
+      // -----------------------------------------------------------------------
+      // '!d' removes update
+      // -----------------------------------------------------------------------
       if ((entry[2].find("!u")) != std::string::npos)
       {
         canUpdate = false;
         hasAcl = true;
       }
 
-      // ---------------------------------------------------------------------------
-      //! '+d' adds update
-      // ---------------------------------------------------------------------------
+      // -----------------------------------------------------------------------
+      // '+d' adds update
+      // -----------------------------------------------------------------------
       if ((entry[2].find("+u")) != std::string::npos)
       {
         canUpdate = true;
         hasAcl = true;
       }
 
-      // ---------------------------------------------------------------------------
+      // -----------------------------------------------------------------------
       // 'wo' defines write once permissions
-      // ---------------------------------------------------------------------------
+      // -----------------------------------------------------------------------
       if (((entry[2].find("wo")) != std::string::npos))
       {
         canWriteOnce = true;
         hasAcl = true;
       }
 
-      // ---------------------------------------------------------------------------
+      // -----------------------------------------------------------------------
       // 'w' defines write permissions if 'wo' is not granted
-      // ---------------------------------------------------------------------------
+      // -----------------------------------------------------------------------
       if ((!canWriteOnce) && (entry[2].find("w")) != std::string::npos)
       {
         canWrite = true;
         hasAcl = true;
       }
 
-      // ---------------------------------------------------------------------------
-      //! 'q' defines quota set permission
-      // ---------------------------------------------------------------------------
+      // -----------------------------------------------------------------------
+      // 'q' defines quota set permission
+      // -----------------------------------------------------------------------
       if ((!useracl.length()) && ((entry[2].find("q")) != std::string::npos))
       {
-	// this is only valid if only a sys acl is present
+	      // this is only valid if only a sys acl is present
         canSetQuota = true;
         hasAcl = true;
       }

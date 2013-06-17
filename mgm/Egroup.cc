@@ -35,14 +35,27 @@ std::map < std::string, std::map < std::string, time_t > > Egroup::LifeTime;
 std::deque <std::pair<std::string, std::string > > Egroup::LdapQueue;
 XrdSysCondVar Egroup::mCond;
 
+
+Egroup::Egroup () 
 /*----------------------------------------------------------------------------*/
-Egroup::Egroup () { }
+/**
+ * @brief Constructor
+ */
+/*----------------------------------------------------------------------------*/
+{ }
+
 
 bool
+/*----------------------------------------------------------------------------*/
 Egroup::Start ()
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Asynchronous thread start function
+ */
+/*----------------------------------------------------------------------------*/
 {
   // run an asynchronous refresh thread
-  eos_static_info("constructor");
+  eos_static_info("Start");
   mThread = 0;
   XrdSysThread::Run(&mThread, Egroup::StaticRefresh, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Egroup refresh Thread");
   return (mThread ? true : false);
@@ -50,6 +63,13 @@ Egroup::Start ()
 
 /*----------------------------------------------------------------------------*/
 Egroup::~Egroup ()
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Destructor
+ * 
+ * We are cancelling and joining the asynchronous prefetch thread here.
+ */
+/*----------------------------------------------------------------------------*/
 {
   // cancel the asynchronous resfresh thread
   if (mThread)
@@ -62,6 +82,15 @@ Egroup::~Egroup ()
 /*----------------------------------------------------------------------------*/
 bool
 Egroup::Member (std::string &username, std::string & egroupname)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Member
+ * @param username name of the user to check Egroup membership
+ * @param egroupname name of Egroup where to look for membership
+ * 
+ * @return true if member otherwise false
+ */
+/*----------------------------------------------------------------------------*/
 {
   Mutex.Lock();
   time_t now = time(NULL);
@@ -93,6 +122,7 @@ Egroup::Member (std::string &username, std::string & egroupname)
 
   if (!iscached)
   {
+    // if we never saw a user we run the lookup synchronous
     eos_static_info("refresh=sync user=%s egroup=%s", username.c_str(), egroupname.c_str());
     // we don't have any cached value, we have to ask for it now
     std::string cmd = "ldapsearch -LLL -l 15 -h xldap -x -b 'OU=Users,Ou=Organic Units,DC=cern,DC=ch' 'sAMAccountName=";
@@ -109,7 +139,10 @@ Egroup::Member (std::string &username, std::string & egroupname)
     {
       Map[egroupname][username] = true;
       LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
-      eos_static_info("msg=\"update-sync\" member=%d user=%s egroup=%s", Map[egroupname][username], username.c_str(), egroupname.c_str());
+      eos_static_info("msg=\"update-sync\" member=%d user=%s egroup=%s", 
+                      Map[egroupname][username], 
+                      username.c_str(), 
+                      egroupname.c_str());
       Mutex.UnLock();
       return true;
     }
@@ -117,7 +150,10 @@ Egroup::Member (std::string &username, std::string & egroupname)
     {
       Map[egroupname][username] = false;
       LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
-      eos_static_info("msg=\"update-sync\" member=%d user=%s egroup=%s", Map[egroupname][username], username.c_str(), egroupname.c_str());
+      eos_static_info("msg=\"update-sync\" member=%d user=%s egroup=%s", 
+                      Map[egroupname][username], 
+                      username.c_str(), 
+                      egroupname.c_str());
       Mutex.UnLock();
       return false;
     }
@@ -133,16 +169,35 @@ Egroup::Member (std::string &username, std::string & egroupname)
 /*----------------------------------------------------------------------------*/
 void*
 Egroup::StaticRefresh (void* arg)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Thread startup function
+ * @param arg Egroup object
+ * @return Should never return until cancelled.
+ */
+/*----------------------------------------------------------------------------*/
 {
   return reinterpret_cast<Egroup*> (arg)->Refresh();
 }
 
 /*----------------------------------------------------------------------------*/
 void*
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Asynchronous refresh loop
+ * 
+ * The looping thread takes Egroup requests and run's LDAP queries pushing 
+ * results into the Egroup membership map and updates the lifetime of the 
+ * resolved entry.
+ * 
+ * @return Should never return until cancelled.
+ */
+/*----------------------------------------------------------------------------*/
 Egroup::Refresh ()
 {
   eos_static_info("msg=\"async egroup fetch thread started\"");
-  // infinite loop waiting to run refresh requests indicated by conditions variable
+  // infinite loop waiting to run refresh requests indicated by conditions 
+  // variable
   while (1)
   { // wait for anything to do ...
     mCond.Wait();
@@ -167,9 +222,14 @@ Egroup::Refresh ()
   return 0;
 }
 
-/*----------------------------------------------------------------------------*/
+
 void
 Egroup::AsyncRefresh (std::string& egroupname, std::string & username)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Pushes an Egroup/user resolution request into the asynchronous queue
+ */
+/*----------------------------------------------------------------------------*/
 {
   // push a egroup/username pair into the async refresh queue
   {
@@ -185,9 +245,14 @@ Egroup::AsyncRefresh (std::string& egroupname, std::string & username)
 /*----------------------------------------------------------------------------*/
 void
 Egroup::DoRefresh (std::string& egroupname, std::string& username)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Run a synchronous LDAP query for Egroup/username and update the Map
+ * 
+ * The asynchronous thread uses this function to update the Egroup Map.
+ */
+/*----------------------------------------------------------------------------*/
 {
-  // routine run from an asynchronous update thread
-
   Mutex.Lock();
   time_t now = time(NULL);
 
@@ -206,7 +271,9 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
   }
   Mutex.UnLock();
 
-  eos_static_info("refresh-async user=%s egroup=%s", username.c_str(), egroupname.c_str());
+  eos_static_info("refresh-async user=%s egroup=%s", 
+                  username.c_str(), 
+                  egroupname.c_str());
 
   std::string cmd = "ldapsearch -LLL -l 15 -h xldap -x -b 'OU=Users,Ou=Organic Units,DC=cern,DC=ch' 'sAMAccountName=";
   cmd += username;
@@ -229,7 +296,10 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
 
   LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
 
-  eos_static_info("msg=\"update-async\" member=%d user=%s egroup=%s", Map[egroupname][username], username.c_str(), egroupname.c_str());
+  eos_static_info("msg=\"update-async\" member=%d user=%s egroup=%s", 
+                  Map[egroupname][username], 
+                  username.c_str(), 
+                  egroupname.c_str());
 
   Mutex.UnLock();
   return;

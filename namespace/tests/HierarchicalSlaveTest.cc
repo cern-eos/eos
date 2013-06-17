@@ -140,6 +140,23 @@ void unlinkReplicas( eos::IView *view, eos::ContainerMD *container )
 }
 
 //------------------------------------------------------------------------------
+// Recursively remove the files from accounting
+//------------------------------------------------------------------------------
+void cleanUpQuotaRec( eos::IView *view, eos::ContainerMD *container )
+{
+  eos::QuotaNode *qn = view->getQuotaNode( container );
+  eos::ContainerMD::FileMap::iterator it;
+  for( it = container->filesBegin(); it != container->filesEnd(); ++it )
+    qn->removeFile( it->second );
+
+  eos::ContainerMD::ContainerMap::iterator itC;
+  for( itC = container->containersBegin();
+       itC != container->containersEnd();
+       ++itC )
+    unlinkReplicas( view, itC->second );
+}
+
+//------------------------------------------------------------------------------
 // Delete some replicas from the files in the container
 //------------------------------------------------------------------------------
 void deleteReplicas( eos::IView *view, eos::ContainerMD *container )
@@ -253,7 +270,6 @@ void modifySubTree( eos::IView *view, const std::string &root )
   {
     std::ostringstream o;
     o << root << "/dir" << i;
-    int i;
     eos::ContainerMD *container = view->getContainer( o.str() );
     eos::QuotaNode   *qn = view->getQuotaNode( container );
     eos::ContainerMD::FileMap::iterator it;
@@ -270,13 +286,32 @@ void modifySubTree( eos::IView *view, const std::string &root )
       if(  i % 4 == 0 )
         toDel.push_back( it->second );
     }
+
+    for( itD = toDel.begin(); itD != toDel.end(); ++itD )
+      view->unlinkFile( view->getUri( *itD ) );
+
+    while( 1 )
+    {
+      bool locationsLeft = false;
+      for( itD = toDel.begin(); itD != toDel.end(); ++itD )
+      {
+        eos::FileMD *file = *itD;
+        if( file->getNumUnlinkedLocation() == 0 )
+          continue;
+        file->removeLocation( *(file->unlinkedLocationsBegin()) );
+        view->updateFileStore( file );
+        if( file->getNumUnlinkedLocation() )
+          locationsLeft = true;
+      }
+
+      if( !locationsLeft )
+        break;
+      sleep(1);
+    }
+
     for( itD = toDel.begin(); itD != toDel.end(); ++itD )
     {
       eos::FileMD *file = *itD;
-      file->unlinkAllLocations();
-      view->updateFileStore( file );
-      file->removeAllLocations();
-      view->updateFileStore( file );
       if( qn ) qn->removeFile( file );
       view->removeFile( file );
     }
@@ -321,20 +356,31 @@ bool compareTrees( eos::IView       *view1, eos::IView       *view2,
                    eos::ContainerMD *tree1, eos::ContainerMD *tree2 )
 {
   std::string treeMsg = view1->getUri( tree1 ) + " " + view2->getUri( tree2 );
+  std::ostringstream o1, o2, o3, o4;
 
-  CPPUNIT_ASSERT_MESSAGE( treeMsg, tree1->getId() == tree2->getId() );
-  CPPUNIT_ASSERT_MESSAGE( treeMsg, tree1->getName() == tree2->getName() );
-  CPPUNIT_ASSERT_MESSAGE( treeMsg, tree1->getNumFiles() == tree2->getNumFiles() );
-  CPPUNIT_ASSERT_MESSAGE( treeMsg, tree1->getNumContainers() == tree2->getNumContainers() );
+  o1 << " -- " << tree1->getId() << " " << tree2->getId();
+  CPPUNIT_ASSERT_MESSAGE( treeMsg + o1.str(),
+                          tree1->getId() == tree2->getId() );
+  o2 << " -- " << tree1->getName() << " " << tree2->getName();
+  CPPUNIT_ASSERT_MESSAGE( treeMsg + o2.str(),
+                          tree1->getName() == tree2->getName() );
+  o3 << " -- " << tree1->getNumFiles() << " " << tree2->getNumFiles();
+  CPPUNIT_ASSERT_MESSAGE( treeMsg + o3.str(),
+                          tree1->getNumFiles() == tree2->getNumFiles() );
+  o4 << " -- " << tree1->getNumContainers() << " " << tree2->getNumContainers();
+  CPPUNIT_ASSERT_MESSAGE( treeMsg + o4.str(),
+                          tree1->getNumContainers() == tree2->getNumContainers() );
 
   eos::ContainerMD::FileMap::iterator itF;
   for( itF = tree1->filesBegin(); itF != tree1->filesEnd(); ++itF )
   {
     eos::FileMD *file = tree2->findFile( itF->second->getName() );
-    std::string fileMsg = treeMsg + " file: " + itF->second->getName();
-    CPPUNIT_ASSERT_MESSAGE( fileMsg, file );
-    CPPUNIT_ASSERT_MESSAGE( fileMsg, file->getSize() == itF->second->getSize() );
-    CPPUNIT_ASSERT_MESSAGE( fileMsg, file->getId() == itF->second->getId() );
+    std::string fileMsg = treeMsg + " file " + itF->second->getName();
+    CPPUNIT_ASSERT_MESSAGE( fileMsg + " missing", file );
+    CPPUNIT_ASSERT_MESSAGE( fileMsg + " wrong size", file->getSize() == itF->second->getSize() );
+    CPPUNIT_ASSERT_MESSAGE( fileMsg + " wrong id", file->getId() == itF->second->getId() );
+    CPPUNIT_ASSERT_MESSAGE( fileMsg, file->getFileMDSvc() );
+    CPPUNIT_ASSERT_MESSAGE( fileMsg, itF->second->getFileMDSvc() );
   }
 
   eos::ContainerMD::ContainerMap::iterator itC;
@@ -517,16 +563,16 @@ void HierarchicalSlaveTest::functionalTest()
   CPPUNIT_ASSERT_NO_THROW( createSubTree( viewMaster, "/newdir2", 2, 10, 100 ) );
   CPPUNIT_ASSERT_NO_THROW( modifySubTree( viewMaster, "/newdir2" ) );
   CPPUNIT_ASSERT_NO_THROW( createSubTree( viewMaster, "/newdir3", 2, 10, 100 ) );
-  uint64_t corrSMaster2 = calcSize( viewMaster->getContainer( "/newdir2/dir3" ) );
-  uint64_t corrNMaster2 = calcFiles( viewMaster->getContainer( "/newdir2/dir3" ) );
+  CPPUNIT_ASSERT_NO_THROW( cleanUpQuotaRec( viewMaster,
+                                            viewMaster->getContainer( "/newdir2/dir3" ) ) );
   deleteAllReplicasRec( viewMaster, "/newdir2/dir3" );
   CPPUNIT_ASSERT_NO_THROW( viewMaster->removeContainer( "/newdir2/dir3", true ) );
   CPPUNIT_ASSERT_NO_THROW( modifySubTree( viewMaster, "/newdir3" ) );
   CPPUNIT_ASSERT_NO_THROW( createSubTree( viewMaster, "/newdir4", 2, 10, 100 ) );
   CPPUNIT_ASSERT_NO_THROW( createSubTree( viewMaster, "/newdir5", 2, 10, 100 ) );
   CPPUNIT_ASSERT_NO_THROW( modifySubTree( viewMaster, "/newdir4" ) );
-  uint64_t corrSMaster3 = calcSize( viewMaster->getContainer( "/newdir3/dir1" ) );
-  uint64_t corrNMaster3 = calcFiles( viewMaster->getContainer( "/newdir3/dir1" ) );
+  CPPUNIT_ASSERT_NO_THROW( cleanUpQuotaRec( viewMaster,
+                                            viewMaster->getContainer( "/newdir3/dir1" ) ) );
   deleteAllReplicasRec( viewMaster, "/newdir3/dir1" );
   CPPUNIT_ASSERT_NO_THROW( viewMaster->removeContainer( "/newdir3/dir1", true ) );
 
@@ -535,6 +581,28 @@ void HierarchicalSlaveTest::functionalTest()
   unlinkReplicas( viewMaster, viewMaster->getContainer( "/newdir4/dir2" ) );
   unlinkReplicas( viewMaster, viewMaster->getContainer( "/newdir5/dir1" ) );
   unlinkReplicas( viewMaster, viewMaster->getContainer( "/newdir5/dir2" ) );
+
+  //----------------------------------------------------------------------------
+  // Move some files around and rename them
+  //----------------------------------------------------------------------------
+  eos::ContainerMD *parent1     = 0;
+  eos::ContainerMD *parent2     = 0;
+  eos::FileMD      *toBeMoved   = 0;
+  eos::FileMD      *toBeRenamed = 0;
+  CPPUNIT_ASSERT_NO_THROW( parent1 = viewMaster->createContainer( "/dest", true ) );
+  CPPUNIT_ASSERT_NO_THROW( parent2 = viewMaster->getContainer( "/dir0/dir0" ) );
+  CPPUNIT_ASSERT_NO_THROW( toBeMoved = viewMaster->getFile( "/dir0/dir0/file0" ) );
+  CPPUNIT_ASSERT_NO_THROW( toBeRenamed = viewMaster->getFile( "/dir0/dir0/file1" ) );
+  CPPUNIT_ASSERT( parent1 );
+  CPPUNIT_ASSERT( parent2 );
+  CPPUNIT_ASSERT( toBeMoved );
+  CPPUNIT_ASSERT( toBeRenamed );
+
+  parent2->removeFile( toBeMoved->getName() );
+  parent1->addFile( toBeMoved );
+  viewMaster->updateFileStore( toBeMoved );
+
+  viewMaster->renameFile( toBeRenamed, "file0" );
 
   //----------------------------------------------------------------------------
   // Check
@@ -564,18 +632,16 @@ void HierarchicalSlaveTest::functionalTest()
 
   eos::QuotaNode *qnS[2]; qnS[0] = qnSlave2;  qnS[1] = qnSlave3;
   eos::QuotaNode *qnM[2]; qnM[0] = qnMaster2; qnM[1] = qnMaster3;
-  uint64_t qnCS[2]; qnCS[0] = corrSMaster2; qnCS[1] = corrSMaster3;
-  uint64_t qnCN[2]; qnCN[0] = corrNMaster2; qnCN[1] = corrNMaster3;
   for( int i = 0; i < 2; ++i )
   {
     eos::QuotaNode *qnSlave  = qnS[i];
     eos::QuotaNode *qnMaster = qnM[i];
-    CPPUNIT_ASSERT( qnSlave->getPhysicalSpaceByUser(0)  == qnMaster->getPhysicalSpaceByUser(0)-qnCS[i] );
-    CPPUNIT_ASSERT( qnSlave->getUsedSpaceByUser(0)      == qnMaster->getUsedSpaceByUser(0)-qnCS[i] );
-    CPPUNIT_ASSERT( qnSlave->getPhysicalSpaceByGroup(0) == qnMaster->getPhysicalSpaceByGroup(0)-qnCS[i] );
-    CPPUNIT_ASSERT( qnSlave->getUsedSpaceByGroup(0)     == qnMaster->getUsedSpaceByGroup(0)-qnCS[i] );
-    CPPUNIT_ASSERT( qnSlave->getNumFilesByUser(0)       == qnMaster->getNumFilesByUser(0)-qnCN[i] );
-    CPPUNIT_ASSERT( qnSlave->getNumFilesByGroup(0)      == qnMaster->getNumFilesByGroup(0)-qnCN[i] );
+    CPPUNIT_ASSERT( qnSlave->getPhysicalSpaceByUser(0)  == qnMaster->getPhysicalSpaceByUser(0) );
+    CPPUNIT_ASSERT( qnSlave->getUsedSpaceByUser(0)      == qnMaster->getUsedSpaceByUser(0) );
+    CPPUNIT_ASSERT( qnSlave->getPhysicalSpaceByGroup(0) == qnMaster->getPhysicalSpaceByGroup(0) );
+    CPPUNIT_ASSERT( qnSlave->getUsedSpaceByGroup(0)     == qnMaster->getUsedSpaceByGroup(0) );
+    CPPUNIT_ASSERT( qnSlave->getNumFilesByUser(0)       == qnMaster->getNumFilesByUser(0) );
+    CPPUNIT_ASSERT( qnSlave->getNumFilesByGroup(0)      == qnMaster->getNumFilesByGroup(0) );
   }
 
   lock.unLock();
@@ -593,6 +659,8 @@ void HierarchicalSlaveTest::functionalTest()
   delete contSvcMaster;
   delete fileSvcSlave;
   delete fileSvcMaster;
+  delete fsViewMaster;
+  delete fsViewSlave;
   unlink( fileNameFileMD.c_str() );
   unlink( fileNameContMD.c_str() );
   unlink( (fileNameFileMD+"c").c_str() );

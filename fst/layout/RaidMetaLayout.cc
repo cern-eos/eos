@@ -506,12 +506,30 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    openOpaque += static_cast<int> (mStripeWidth);
 
    ret = file->Open(stripe_urls[i], flags, mode, openOpaque.c_str());
-
+      
    if (ret == SFS_ERROR)
    {
      eos_err("error=failed to open remote stripes", stripe_urls[i].c_str());
-     delete file;
-     file = NULL;
+
+     // If flag is SFS_RDWR then we can try to create the file
+     if (flags & SFS_O_RDWR)
+     {
+       XrdSfsFileOpenMode tmp_flags = flags | SFS_O_CREAT;
+       mode_t tmp_mode = mode | SFS_O_CREAT;
+       ret = file->Open(stripe_urls[i], tmp_flags, tmp_mode, openOpaque.c_str());
+
+       if (ret == SFS_ERROR)
+       {
+         eos_err("error=failed to create remote stripes %s", stripe_urls[i].c_str());
+         delete file;
+         file = NULL;
+       }
+     }
+     else
+     {
+       delete file;
+       file = NULL;
+     }
    }
 
    mStripeFiles.push_back(file);
@@ -891,6 +909,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
              // the server is down
              if (error_type == XrdCl::errOperationExpired)
              {
+               mStripeFiles[j]->Close(mTimeout);
                delete mStripeFiles[j];
                mStripeFiles[j] = NULL;
              }

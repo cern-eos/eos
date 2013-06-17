@@ -48,12 +48,27 @@
 #include <fcntl.h>
 
 /*----------------------------------------------------------------------------*/
+/**
+ * @file ConfigEngine.hh
+ * 
+ * @brief Class responsible to handle configuration (load,save, publish)
+ * 
+ * The MgmOfs class run's an asynchronous thread which applies configuration
+ * changes from a remote master MGM on the configuration object.
+ * 
+ */
 
-
+/*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
 #define EOSMGMCONFIGENGINE_EOS_SUFFIX ".eoscf"
 
+/*----------------------------------------------------------------------------*/
+/** 
+ * @brief Class implementing the changelog store/history
+ *
+ */
+/*----------------------------------------------------------------------------*/
 class ConfigEngineChangeLog : public eos::common::LogId
 {
 private:
@@ -61,7 +76,11 @@ private:
   bool IsLevelDbFile (const char* file);
   bool IsDbMapFile (const char* file);
   bool LegacyFile2DbMapFile (const char* file);
-  bool ParseTextEntry (const char *entry, std::string &key, std::string &value, std::string &comment);
+  bool ParseTextEntry (const char *entry,
+                       std::string &key,
+                       std::string &value,
+                       std::string &comment);
+
   XrdSysMutex Mutex;
   eos::common::DbMap map;
   std::string changelogfile;
@@ -77,44 +96,83 @@ public:
   bool Tail (unsigned int nlines, XrdOucString &tail);
 };
 
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Class implementing the configuration engine
+ * 
+ * The class provides reset/load/store functionality. 
+ */
+/*----------------------------------------------------------------------------*/
 class ConfigEngine : public eos::common::LogId
 {
 private:
+  /// directory where configuration files are stored
   XrdOucString configDir;
+  
+  /// mutex protecting the configuration engine
   XrdSysMutex Mutex;
-  XrdOucString currentConfigFile;
+  
+  /// name of the configuration file currently loaded
+  XrdOucString currentConfigFile; 
 
-  ConfigEngineChangeLog changeLog;
-  bool autosave;
+  /// Changelog class
+  ConfigEngineChangeLog changeLog; 
+  
+  /// autosave flag - if enabled all changes trigger to store an autosave file
+  bool autosave; 
+  
+  /// broadcasting flag - if enabled all changes are broadcasted into the MGM
+  /// configuration queue (config/<instance>/mgm)
+  bool configBroadcast;  
 
 public:
 
-  static XrdOucHash<XrdOucString> configDefinitionsFile;
-  static XrdOucHash<XrdOucString> configDefinitions;
+  
+  static XrdOucHash<XrdOucString> configDefinitionsFile;///< config definitions of the last loaded file
+  
+  
+  static XrdOucHash<XrdOucString> configDefinitions;///< config definitions currently in memory
 
+  //< helper struct to use the XrdOucHash::Apply function
   struct PrintInfo
   {
-    XrdOucString* out;
-    XrdOucString option;
+    XrdOucString* out;    ///< output string
+    XrdOucString option;  ///< option for printing
   };
 
+  // ---------------------------------------------------------------------------
+  // XrdOucHash callback function to apply a configuration value
+  // ---------------------------------------------------------------------------
   static int ApplyEachConfig (const char* key, XrdOucString* def, void* Arg);
 
+  // ---------------------------------------------------------------------------
+  // XrdOucHash callback function to print a configuration value
+  // ---------------------------------------------------------------------------
   static int PrintEachConfig (const char* key, XrdOucString* def, void* Arg);
 
+  // ---------------------------------------------------------------------------
+  // XrdOucHash callback function to delete a configuration value by match
+  // ---------------------------------------------------------------------------
   static int DeleteConfigByMatch (const char* key, XrdOucString* def, void* Arg);
 
-  ConfigEngine (const char* configdir)
-  {
-    SetConfigDir(configdir);
-    changeLog.configChanges = "";
-    currentConfigFile = "default";
-    XrdOucString changeLogFile = configDir;
-    changeLogFile += "/config.changelog";
-    changeLog.Init(changeLogFile.c_str());
-    autosave = false;
-  }
+  // ---------------------------------------------------------------------------  
+  // Function applying a deletion of a configuration key to the responsible
+  // ---------------------------------------------------------------------------
+  int ApplyKeyDeletion (const char* key);
 
+  // ---------------------------------------------------------------------------
+  // Constructor
+  // ---------------------------------------------------------------------------
+  ConfigEngine (const char* configdir);
+
+  // ---------------------------------------------------------------------------
+  // Destructor
+  // ---------------------------------------------------------------------------
+  ~ConfigEngine ();
+
+  // ---------------------------------------------------------------------------
+  //! Set the configuration directory
+  // ---------------------------------------------------------------------------
   void
   SetConfigDir (const char* configdir)
   {
@@ -123,15 +181,28 @@ public:
     currentConfigFile = "default";
   }
 
+  // ---------------------------------------------------------------------------
+  //! Get the changlog object
+  // ---------------------------------------------------------------------------
   ConfigEngineChangeLog*
   GetChangeLog ()
   {
     return &changeLog;
   }
 
+  // ---------------------------------------------------------------------------
+  // Load a configuration
+  // ---------------------------------------------------------------------------
   bool LoadConfig (XrdOucEnv& env, XrdOucString &err);
+
+  // ---------------------------------------------------------------------------
+  // Save a configuration
+  // ---------------------------------------------------------------------------
   bool SaveConfig (XrdOucEnv& env, XrdOucString &err);
 
+  // ---------------------------------------------------------------------------
+  //! Show diffs between the last stored and current configuration
+  // ---------------------------------------------------------------------------
   void
   Diffs (XrdOucString &diffs)
   {
@@ -141,12 +212,13 @@ public:
     }
   };
 
-  // for sorted listings
 
+  // ---------------------------------------------------------------------------
+  //! Comparison function for sorted listing
+  // ---------------------------------------------------------------------------
   static int
   CompareCtime (const void* a, const void*b)
   {
-
     struct filestat
     {
       struct stat buf;
@@ -155,20 +227,34 @@ public:
     return ( (((struct filestat*) a)->buf.st_mtime) - ((struct filestat*) b)->buf.st_mtime);
   }
 
+  // ---------------------------------------------------------------------------
+  // List all configurations
+  // ---------------------------------------------------------------------------
   bool ListConfigs (XrdOucString &configlist, bool showbackups = false);
 
+  // ---------------------------------------------------------------------------
+  // Dump a configuration
+  // ---------------------------------------------------------------------------
   bool DumpConfig (XrdOucString &out, XrdOucEnv &filter);
-
-  bool BuildConfig ();
-
-  bool BroadCastConfig ();
-
+  
+  // ---------------------------------------------------------------------------
+  // Parse a configuration
+  // ---------------------------------------------------------------------------
   bool ParseConfig (XrdOucString &broadcast, XrdOucString &err);
 
+  // ---------------------------------------------------------------------------
+  // Apply a configuration
+  // ---------------------------------------------------------------------------
   bool ApplyConfig (XrdOucString &err);
 
+  // ---------------------------------------------------------------------------
+  // Reset the current configuration
+  // ---------------------------------------------------------------------------
   void ResetConfig ();
 
+  // ---------------------------------------------------------------------------
+  //! Print the current configuration
+  // ---------------------------------------------------------------------------
   void
   PrintConfig ()
   {
@@ -177,147 +263,51 @@ public:
     Mutex.UnLock();
   }
 
+  // ---------------------------------------------------------------------------
+  //! Set the autosave mode
+  // ---------------------------------------------------------------------------
   void
   SetAutoSave (bool val)
   {
     autosave = val;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Get the autosave mode
+  // ---------------------------------------------------------------------------
   bool
   GetAutoSave ()
   {
     return autosave;
   }
 
+  // ---------------------------------------------------------------------------
+  // Do an autosave
+  // ---------------------------------------------------------------------------
   bool
-  AutoSave ()
-  {
-    if (autosave && currentConfigFile.length())
-    {
-      int aspos = 0;
-      if ((aspos = currentConfigFile.find(".autosave")) != STR_NPOS)
-      {
-        currentConfigFile.erase(aspos);
-      }
-      if ((aspos = currentConfigFile.find(".backup")) != STR_NPOS)
-      {
-        currentConfigFile.erase(aspos);
-      }
-      XrdOucString envstring = "mgm.config.file=";
-      envstring += currentConfigFile;
-      envstring += "&mgm.config.force=1";
-      envstring += "&mgm.config.autosave=1";
-      XrdOucEnv env(envstring.c_str());
-      XrdOucString err = "";
-
-      if (!SaveConfig(env, err))
-      {
-        eos_static_err("%s\n", err.c_str());
-        return false;
-      }
-      return true;
-    }
-    return false;
-  }
-
+  AutoSave ();
+  // ---------------------------------------------------------------------------
+  // Set a configuration value
+  // ---------------------------------------------------------------------------
   void
-  SetConfigValue (const char* prefix, const char* fsname, const char* def, bool tochangelog = true)
-  {
-    XrdOucString cl = "set config ";
-    cl += prefix;
-    cl += ":";
-    cl += fsname;
-    cl += " => ";
-    cl += def;
-    if (tochangelog)
-      changeLog.AddEntry(cl.c_str());
-    XrdOucString configname = prefix;
-    configname += ":";
-    XrdOucString *sdef = new XrdOucString(def);
-    configname += fsname;
-    configDefinitions.Rep(configname.c_str(), sdef);
-    eos_static_debug("%s => %s", fsname, def);
-    if (autosave && currentConfigFile.length())
-    {
-      int aspos = 0;
-      if ((aspos = currentConfigFile.find(".autosave")) != STR_NPOS)
-      {
-        currentConfigFile.erase(aspos);
-      }
-      if ((aspos = currentConfigFile.find(".backup")) != STR_NPOS)
-      {
-        currentConfigFile.erase(aspos);
-      }
-      XrdOucString envstring = "mgm.config.file=";
-      envstring += currentConfigFile;
-      envstring += "&mgm.config.force=1";
-      envstring += "&mgm.config.autosave=1";
-      XrdOucEnv env(envstring.c_str());
-      XrdOucString err = "";
+  SetConfigValue (const char* prefix,
+                  const char* fsname,
+                  const char* def,
+                  bool tochangelog = true);
 
-      if (!SaveConfig(env, err))
-      {
-        eos_static_err("%s\n", err.c_str());
-      }
-    }
-  }
-
+  // ---------------------------------------------------------------------------
+  // Delete a configuration value
+  // ---------------------------------------------------------------------------
   void
-  DeleteConfigValue (const char* prefix, const char* fsname, bool tochangelog = true)
-  {
-    XrdOucString cl = "del config ";
-    cl += prefix;
-    cl += ":";
-    cl += fsname;
+  DeleteConfigValue (const char* prefix,
+                     const char* fsname,
+                     bool tochangelog = true);
 
-    XrdOucString configname = prefix;
-    configname += ":";
-    configname += fsname;
-
-    Mutex.Lock();
-    configDefinitions.Del(configname.c_str());
-
-    if (tochangelog)
-      changeLog.AddEntry(cl.c_str());
-
-    if (autosave && currentConfigFile.length())
-    {
-      int aspos = 0;
-      if ((aspos = currentConfigFile.find(".autosave")) != STR_NPOS)
-      {
-        currentConfigFile.erase(aspos);
-      }
-      if ((aspos = currentConfigFile.find(".backup")) != STR_NPOS)
-      {
-        currentConfigFile.erase(aspos);
-      }
-      XrdOucString envstring = "mgm.config.file=";
-      envstring += currentConfigFile;
-      envstring += "&mgm.config.force=1";
-      envstring += "&mgm.config.autosave=1";
-      XrdOucEnv env(envstring.c_str());
-      XrdOucString err = "";
-      if (!SaveConfig(env, err))
-      {
-        eos_static_err("%s\n", err.c_str());
-      }
-    }
-    Mutex.UnLock();
-    eos_static_debug("%s", fsname);
-  }
-
+  // ---------------------------------------------------------------------------
+  // Delete a configuration value by match
+  // ---------------------------------------------------------------------------
   void
-  DeleteConfigValueByMatch (const char* prefix, const char* match)
-  {
-    Mutex.Lock();
-    XrdOucString smatch = prefix;
-    smatch += ":";
-    smatch += match;
-    configDefinitions.Apply(DeleteConfigByMatch, &smatch);
-    Mutex.UnLock();
-  }
-
-  void FlagGlobalDirty ();
+  DeleteConfigValueByMatch (const char* prefix, const char* match);
 };
 
 EOSMGMNAMESPACE_END

@@ -300,6 +300,13 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   // set short timeouts in the new XrdCl class
   XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
+  // set connection window short
+  XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 5);
+  // set connection retry to one
+  XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 1);
+  // set stream error window
+  XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
+
 
   Shutdown = false;
 
@@ -992,13 +999,20 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   lFanOutTags.push_back("Master");
   lFanOutTags.push_back("Recycle");
   lFanOutTags.push_back("#");
+
   // get the XRootD log directory
-  char *logdir;
-  XrdOucEnv::Import("XRDLOGDIR", logdir);
+  char *logdir=0;
+  XrdOucEnv::Import("XRDLOGDIR",logdir);
+
+  if (!logdir) {
+    fprintf(stderr,"error: XRDLOGDIR could not be found in XrdOucEnv\n");
+    return 1;
+  }
 
   for (size_t i = 0; i < lFanOutTags.size(); i++)
   {
     std::string lLogFile = logdir;
+    lLogFile += "/mgm";
     lLogFile += "/";
     if (lFanOutTags[i] == "#")
     {
@@ -1262,14 +1276,17 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
-
+  
   // set the object manager to listener only
   ObjectManager.EnableBroadCast(false);
 
   // setup the modifications which the fs listener thread is waiting for
   ObjectManager.SubjectsMutex.Lock();
   std::string watch_errc = "stat.errc";
-  ObjectManager.ModificationWatchKeys.insert(watch_errc);
+ 
+  ObjectManager.ModificationWatchKeys.insert(watch_errc); // we need to take action an filesystem errors
+  ObjectManager.ModificationWatchSubjects.insert(MgmConfigQueue.c_str()); // we need to apply remote configuration changes
+  
   ObjectManager.SubjectsMutex.UnLock();
 
   ObjectManager.SetDebug(false);
@@ -1635,7 +1652,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   if (!MgmRedirector)
   {
     eos_info("starting fs listener thread");
-    if ((XrdSysThread::Run(&fslistener_tid, XrdMgmOfs::StartMgmFsListener, static_cast<void *> (this),
+    if ((XrdSysThread::Run(&fsconfiglistener_tid, XrdMgmOfs::StartMgmFsConfigListener, static_cast<void *> (this),
                            0, "FsListener Thread")))
     {
       eos_crit("cannot start fs listener thread");
@@ -1672,8 +1689,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     eos_warning("msg=\"cannot start egroup thread\"");
   }
 
-  // start the recycler garbage collection thread
-  if (!gOFS->Recycler.Start())
+  // start the recycler garbage collection thread on a master machine
+  if ( (MgmMaster.IsMaster()) && (!gOFS->Recycler.Start()))
   {
     eos_warning("msg=\"cannot start recycle thread\"");
   }
@@ -1756,6 +1773,9 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("Recycle", 0, 0, 0);
   gOFS->MgmStats.Add("ReplicaFailedSize", 0, 0, 0);
   gOFS->MgmStats.Add("ReplicaFailedChecksum", 0, 0, 0);
+  gOFS->MgmStats.Add("Redirect", 0, 0, 0);
+  gOFS->MgmStats.Add("RedirectR", 0, 0, 0);
+  gOFS->MgmStats.Add("RedirectW", 0, 0, 0);
   gOFS->MgmStats.Add("RedirectENOENT", 0, 0, 0);
   gOFS->MgmStats.Add("RedirectENONET", 0, 0, 0);
   gOFS->MgmStats.Add("Rename", 0, 0, 0);

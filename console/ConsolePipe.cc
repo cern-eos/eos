@@ -158,8 +158,8 @@ pipe_command (const char* cmd)
   pthread_t thread1;
   pthread_t thread2;
 
-  XrdSysThread::Run(&thread1, StaticThreadReaderStdout, (void*) stdoutfd, XRDSYSTHREAD_HOLD, "Stdout Thread");
-  XrdSysThread::Run(&thread2, StaticThreadReaderStderr, (void*) stderrfd, XRDSYSTHREAD_HOLD, "Stderr Thread");
+  XrdSysThread::Run(&thread1, StaticThreadReaderStdout, (void*) (unsigned long long)stdoutfd, XRDSYSTHREAD_HOLD, "Stdout Thread");
+  XrdSysThread::Run(&thread2, StaticThreadReaderStderr, (void*) (unsigned long long)stderrfd, XRDSYSTHREAD_HOLD, "Stderr Thread");
 
   signal(SIGINT, pipe_exit_handler);
   signal(SIGPIPE, SIG_IGN);

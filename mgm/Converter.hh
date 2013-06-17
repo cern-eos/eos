@@ -39,83 +39,141 @@
 #include <cstring>
 
 /* -------------------------------------------------------------------------- */
-
 /**
- * @file Converter.cc
+ * @file Converter.hh
  * 
  * @brief File Layout Conversion Service class and Conversion Job class
  * 
+ */
+/*----------------------------------------------------------------------------*/
+EOSMGMNAMESPACE_BEGIN
+
+
+/*----------------------------------------------------------------------------*/
+/** 
+ * @brief Class executing a third-party conversion job
+ *
+ */
+/*----------------------------------------------------------------------------*/
+class ConverterJob : XrdJob
+{
+private:
+  /// file id of the conversion job
+  eos::common::FileId::fileid_t mFid;
+  
+  /// target path of the conversion job
+  std::string mTargetPath;
+  
+  /// source path of the conversion job
+  std::string mSourcePath;
+  
+  /// target CGI of the conversion job
+  std::string mTargetCGI;
+
+  /// layout name of the target file
+  XrdOucString mConversionLayout;
+  
+  /// target space name of the conversion
+  std::string mConverterName;
+
+public:
+
+  // ---------------------------------------------------------------------------
+  // Constructor
+  // ---------------------------------------------------------------------------
+  ConverterJob (eos::common::FileId::fileid_t fid, 
+                const char* conversionlayout, 
+                std::string &convertername);
+  
+  // ---------------------------------------------------------------------------
+  //! Destructor
+  // ---------------------------------------------------------------------------
+  ~ConverterJob () {};
+
+  // ---------------------------------------------------------------------------
+  // Job execution function
+  // ---------------------------------------------------------------------------
+  void DoIt ();
+};
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief  This class run's the file layout conversion service per space.
+ * 
  * This class run's an eternal thread per configured space which is responsible 
  * to pick-up conversion
- * jobs from the directory /eos/../proc/conversion/
+ * jobs from the directory /eos/../proc/conversion/\n\n
  * It uses the XrdScheduler class to run third party clients copying files
- * into the conversion definition files named <fid(016x)>:<conversionlayout>
+ * into the conversion definition files named !<fid(016x)!>:!<conversionlayout!>
  * If a third party conversion finished successfully the layout & replica of the
  * converted temporary file will be merged into the existing file and the previous
  * layout will be dropped.
  */
-EOSMGMNAMESPACE_BEGIN
-
-
-/* -------------------------------------------------------------------------- */
-class ConverterJob : XrdJob
-{
-  // ---------------------------------------------------------------------------
-  // This class executes a conversion job
-  // ---------------------------------------------------------------------------
-
-private:
-  eos::common::FileId::fileid_t mFid;
-  std::string mTargetPath;
-  std::string mSourcePath;
-  std::string mTargetCGI;
-  
-  XrdOucString mConversionLayout;
-  XrdSysCondVar mDoneSignal;
-
-public:
-
-  ConverterJob (eos::common::FileId::fileid_t fid, const char* conversionlayout, XrdSysCondVar &donesignal);
-  ~ConverterJob () {};
-
-  void DoIt ();
-};
-
-/* -------------------------------------------------------------------------- */
+/*----------------------------------------------------------------------------*/
 class Converter
 {
-  // ---------------------------------------------------------------------------
-  // This class run's the file layout conversion service per space
-  // ---------------------------------------------------------------------------
-
 private:
+  /// thread id
   pthread_t mThread;
+  
+  /// name of th espace this converter serves
   std::string mSpaceName;
-  XrdScheduler* mScheduler;
+  
+  /// this are all jobs which are queued and didn't run yet
+  size_t      mActiveJobs; 
+  
+  /// condition variabl to get signalled for a done job
   XrdSysCondVar mDoneSignal;
 public:
 
   // ---------------------------------------------------------------------------
-  //! Constructor (per space)
+  // Constructor (per space)
   // ---------------------------------------------------------------------------
   Converter (const char* spacename);
 
   // ---------------------------------------------------------------------------
-  //! Destructor
+  // Destructor
   // ---------------------------------------------------------------------------
   ~Converter ();
 
   // ---------------------------------------------------------------------------
-  //! Service thread static startup function
+  // Service thread static startup function
   // ---------------------------------------------------------------------------
-
   static void* StaticConverter (void*);
 
   // ---------------------------------------------------------------------------
-  //! Service implementation e.g. eternal conversion loop running third-party 
-  //! conversion
+  // Service implementation e.g. eternal conversion loop running third-party 
+  // conversion
   // ---------------------------------------------------------------------------
   void* Convert (void);
+
+  // ---------------------------------------------------------------------------
+  //! Return the condition variable to signal when a job finishes
+  // ---------------------------------------------------------------------------
+  XrdSysCondVar* GetSignal() { return &mDoneSignal; }
+
+  // ---------------------------------------------------------------------------
+  //! Decrement the number of active jobs in this converter
+  // ---------------------------------------------------------------------------
+  void DecActiveJobs() { mActiveJobs--; }
+
+  // ---------------------------------------------------------------------------
+  //! Return active jobs
+  // ---------------------------------------------------------------------------
+  size_t GetActiveJobs() const { return mActiveJobs; }
+
+  /// the scheduler class is providing a destructor-less object, 
+  /// so we have to create once a singleton of this and keep/share it
+  static XrdSysMutex gSchedulerMutex; 
+  
+  /// singelton objct of a scheduler
+  static XrdScheduler* gScheduler; 
+  
+  /// the mutex protecting the map of existing converter objects
+  static XrdSysMutex gConverterMapMutex; 
+  
+  /// map containing the current allocated converter objects
+  static std::map<std::string,Converter*> gConverterMap; 
 };
 
 EOSMGMNAMESPACE_END

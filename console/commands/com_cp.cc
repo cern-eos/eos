@@ -43,6 +43,7 @@ com_cp_usage ()
   fprintf(stdout, "       --rate          : limit the cp rate to <rate>\n");
   fprintf(stdout, "       --streams       : use <#> parallel streams\n");
   fprintf(stdout, "       --checksum      : output the checksums\n");
+  fprintf(stdout, " -p |--preserve : preserves file creation and modification time from the source\n");
   fprintf(stdout, "       -a              : append to the target, don't truncate\n");
   fprintf(stdout, "       -n              : hide progress bar\n");
   fprintf(stdout, "       -S              : print summary\n");
@@ -96,6 +97,7 @@ com_cp (char* argin)
   XrdOucString cmdline;
   std::vector<XrdOucString> source_list;
   std::vector<unsigned long long> source_size;
+  std::vector < std::pair<timespec, timespec >> source_utime;
   std::vector<XrdOucString> source_base_list;
   std::vector<XrdOucString> source_find_list;
 
@@ -111,6 +113,7 @@ com_cp (char* argin)
   bool checksums = false;
   bool silent = false;
   bool nooverwrite = false;
+  bool preserve = false;
   unsigned long long copysize = 0;
   int retc = 0;
   int copiedok = 0;
@@ -194,14 +197,21 @@ com_cp (char* argin)
                       }
                       else
                       {
-                        if (option.beginswith("-"))
+                        if ((option == "--preserve") || (option == "-p"))
                         {
-                          return com_cp_usage();
+                          preserve = true;
                         }
                         else
                         {
-                          source_list.push_back(option.c_str());
-                          break;
+                          if (option.beginswith("-"))
+                          {
+                            return com_cp_usage();
+                          }
+                          else
+                          {
+                            source_list.push_back(option.c_str());
+                            break;
+                          }
                         }
                       }
                     }
@@ -275,7 +285,17 @@ com_cp (char* argin)
         eos::common::Path cPath(arg1.c_str());
         std::string dname = "";
 
-        XrdOucString l = "eos -b ls -l ";
+        XrdOucString l = "eos -b ";
+        if (user_role.length() && group_role.length())
+        {
+          l += "--role ";
+          l += user_role;
+          l += " ";
+          l += group_role;
+          l += " ";
+        }
+
+        l += "ls -l ";
         if (!arg1.endswith("/"))
         {
           dname = cPath.GetParentPath();
@@ -359,7 +379,16 @@ com_cp (char* argin)
       XrdOucString l = "";
       XrdOucString sourceprefix = ""; // this is the URL part of root://<host>/ for XRootD or as3://<hostname>/
 
-      l += "eos -b find -f ";
+      l += "eos -b ";
+      if (user_role.length() && group_role.length())
+      {
+        l += "--role ";
+        l += user_role;
+        l += " ";
+        l += group_role;
+        l += " ";
+      }
+      l += "find -f ";
       if (source_find_list[nfile].beginswith("/") && (!source_find_list[nfile].beginswith("/eos")))
       {
         l += "file:";
@@ -482,6 +511,17 @@ com_cp (char* argin)
 
         copysize += buf.st_size;
         source_size.push_back((unsigned long long) buf.st_size);
+
+        timespec atime;
+        timespec mtime;
+
+        atime.tv_sec = time(NULL);
+        atime.tv_nsec = 0;
+        mtime.tv_sec = buf.st_mtime;
+        mtime.tv_nsec = 0;
+
+        // store the a/m-time
+        source_utime.push_back(std::make_pair(atime, mtime));
         statok = true;
       }
     }
@@ -606,11 +646,22 @@ com_cp (char* argin)
 
         copysize += buf.st_size;
         source_size.push_back((unsigned long long) buf.st_size);
+
+        timespec atime;
+        timespec mtime;
+
+        atime.tv_sec = time(NULL);
+        atime.tv_nsec = 0;
+        mtime.tv_sec = buf.st_mtime;
+        mtime.tv_nsec = 0;
+
+        // store the a/m-time
+        source_utime.push_back(std::make_pair(atime, mtime));
         statok = true;
       }
     }
 
-    if ( (source_list[nfile].find(":/") == STR_NPOS) && (!source_list[nfile].beginswith("/eos")) )
+    if ((source_list[nfile].find(":/") == STR_NPOS) && (!source_list[nfile].beginswith("/eos")))
     {
       // ------------------------------------------
       // local file
@@ -632,6 +683,17 @@ com_cp (char* argin)
 
         copysize += buf.st_size;
         source_size.push_back((unsigned long long) buf.st_size);
+
+        timespec atime;
+        timespec mtime;
+
+        atime.tv_sec = buf.st_atime;
+        atime.tv_nsec = 0;
+        mtime.tv_sec = buf.st_mtime;
+        mtime.tv_nsec = 0;
+
+        // store the a/m-time
+        source_utime.push_back(std::make_pair(atime, mtime));
         statok = true;
       }
     }
@@ -843,10 +905,13 @@ com_cp (char* argin)
       }
       else
       {
-        if (!stat(targetfile.c_str(), &buf))
+        if (targetfile.beginswith("/"))
         {
-          fprintf(stderr, "error: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
-          continue;
+          if (!stat(targetfile.c_str(), &buf))
+          {
+            fprintf(stderr, "error: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
+            continue;
+          }
         }
       }
     }
@@ -1024,6 +1089,55 @@ com_cp (char* argin)
           fprintf(stderr, "error: filesize differ between source and target file!\n");
           lrc = 0xffff00;
         }
+        else
+        {
+          if (preserve && (source_size.size() == source_utime.size()))
+          {
+            char value[4096];
+            value[0] = 0;
+            ;
+            XrdOucString request;
+            request = url.c_str();
+            if ((url.find("?") == STR_NPOS))
+            {
+              request += "?";
+            }
+            else
+            {
+              request += "&";
+            }
+            request += "mgm.pcmd=utimes&tv1_sec=";
+            char lltime[1024];
+            sprintf(lltime, "%llu", (unsigned long long) source_utime[nfile].first.tv_sec);
+            request += lltime;
+            request += "&tv1_nsec=";
+            sprintf(lltime, "%llu", (unsigned long long) source_utime[nfile].first.tv_nsec);
+            request += lltime;
+            request += "&tv2_sec=";
+            sprintf(lltime, "%llu", (unsigned long long) source_utime[nfile].second.tv_sec);
+            request += lltime;
+            request += "&tv2_nsec=";
+            sprintf(lltime, "%llu", (unsigned long long) source_utime[nfile].second.tv_nsec);
+            request += lltime;
+
+            long long doutimes = XrdPosixXrootd::QueryOpaque(request.c_str(), value, 4096);
+            if (doutimes >= 0)
+            {
+              char tag[1024];
+              int retc;
+              // parse the stat output
+              int items = sscanf(value, "%s retc=%d", tag, &retc);
+              if ((items != 2) || (strcmp(tag, "utimes:")))
+              {
+                fprintf(stderr, "warning: creation/modification time could not be preserved for %s\n", targetfile.c_str());
+              }
+            }
+            else
+            {
+              fprintf(stderr, "warning: creation/modification time could not be preserved for %s\n", targetfile.c_str());
+            }
+          }
+        }
       }
       else
       {
@@ -1045,6 +1159,22 @@ com_cp (char* argin)
           {
             fprintf(stderr, "error: filesize differ between source and target file!\n");
             lrc = 0xffff00;
+          }
+          else
+          {
+            if (preserve && (source_size.size() == source_utime.size()))
+            {
+              struct timeval times[2];
+              times[0].tv_sec = source_utime[nfile].first.tv_sec;
+              times[0].tv_usec = source_utime[nfile].first.tv_nsec / 1000;
+              times[1].tv_sec = source_utime[nfile].second.tv_sec;
+              times[1].tv_usec = source_utime[nfile].second.tv_nsec / 1000;
+
+              if (utimes(targetfile.c_str(), times))
+              {
+                fprintf(stderr, "warning: creation/modification time could not be preserved for %s\n", targetfile.c_str());
+              }
+            }
           }
         }
         else

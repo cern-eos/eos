@@ -310,6 +310,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
           // If timeout error, then disable current file 
           if (error_type == XrdCl::errOperationExpired)
           {
+            mStripeFiles[i]->Close(mTimeout);
             delete mStripeFiles[i];
             mStripeFiles[i] = NULL;
           }
@@ -552,6 +553,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
 
           if (error_type == XrdCl::errOperationExpired)
           {
+            mStripeFiles[i]->Close(mTimeout);
             delete mStripeFiles[i];
             mStripeFiles[i] = NULL;
           }

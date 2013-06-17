@@ -303,6 +303,15 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
         if (sh->WaitOK())
         {
           eos_debug(" Found block in cache: blk_off: %lld, req_off: %lld", iter->first, offset);
+          
+          if (sh->GetRespLength() == 0)
+          {
+            // The request got a response but it read 0 bytes
+            eos_warning("Response contains 0 bytes.");
+            break;           
+          }
+
+
           aligned_length = sh->GetRespLength() - shift;
           read_length = ((uint32_t)length < aligned_length) ? length : aligned_length;
           pBuff = static_cast<char*> (memcpy(pBuff,

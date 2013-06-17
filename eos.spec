@@ -2,7 +2,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.3.0
-Release: 9
+Release: 10
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -127,12 +127,14 @@ rm -rf $RPM_BUILD_ROOT
 %_sysconfdir/rc.d/init.d/eos
 %_sysconfdir/rc.d/init.d/eosha
 %_sysconfdir/rc.d/init.d/eossync
+%_sysconfdir/rc.d/init.d/eosslave
 %_sysconfdir/cron.d/eos-logs
 %_sysconfdir/cron.d/eos-reports
 %_sysconfdir/logrotate.d/eos-logs
 
 %post -n eos-server
 /sbin/chkconfig --add eos
+/sbin/chkconfig --add eosslave
 echo Starting conditional EOS services
 sleep 2
 /sbin/service eos condrestart > /dev/null 2>&1 || :
@@ -144,7 +146,9 @@ if [ $1 = 0 ]; then
         /sbin/service eosd stop > /dev/null 2>&1 
         /sbin/service eos stop > /dev/null 2>&1 || :
         /sbin/service eossync stop > /dev/null 2>&1 
+	/sbin/service eosslave stop > /dev/null 2>&1
         /sbin/chkconfig --del eos
+        /sbin/chkconfig --del eosslave	
 fi
 
 

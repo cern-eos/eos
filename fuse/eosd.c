@@ -976,7 +976,7 @@ eosfs_ll_rename (fuse_req_t req,
   if (isdebug)
   {
     fprintf (stderr, "[%s]: path=%s newpath=%s inode=%llu [%d]\n",
-             __FUNCTION__, fullpath, newfullpath, stbuf.st_ino, retcold);
+             __FUNCTION__, fullpath, newfullpath, (unsigned long long) stbuf.st_ino, retcold);
   }
 
   int retc = xrd_rename (fullpath, newfullpath, req->ctx.uid, req->ctx.pid);
@@ -991,7 +991,7 @@ eosfs_ll_rename (fuse_req_t req,
       if (isdebug)
       {
         fprintf (stderr, "[%s]: forgetting inode=%llu \n",
-                 __FUNCTION__, stbuf.st_ino);
+                 __FUNCTION__, (unsigned long long) stbuf.st_ino);
       }
 
       xrd_forget_p2i ((unsigned long long) stbuf.st_ino);

@@ -34,39 +34,42 @@
 #include <string>
 /*----------------------------------------------------------------------------*/
 
+/*----------------------------------------------------------------------------*/
 /**
  * @file   Acl.hh
  * 
  * @brief  Class providing ACL interpretation and access control functions
  * 
- * ACL rules used in the constructor or set function are strings with the following format:
- * rule='u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)}'
  */
+/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-//! Class implementing access control list interpretation
+//! Class implementing access control list interpretation.
+//! ACL rules used in the constructor or set function are strings with 
+//! the following format:\n\n
+//! rule=
+//! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
 /*----------------------------------------------------------------------------*/
 class Acl
 {
-  bool canRead; //< acl allows read access
-  bool canWrite; //< acl allows write access
-  bool canWriteOnce; //< acl allows write-once access (creation, no delete)
-  bool canUpdate; //< acl allows update of files
-  bool canBrowse; //< acl allows browsing
-  bool canChmod; //< acl allows mode change
-  bool canChown; //< acl allows chown change
-  bool canNotDelete; //< acl forbids deletion
-  bool canDelete; //< acl allows deletion
-  bool canSetQuota; //< acl allows to set quota
-  bool hasAcl; //< acl is valid
-  bool hasEgroup; //< acl contains egroup rule
+  bool canRead; ///< acl allows read access
+  bool canWrite; ///< acl allows write access
+  bool canWriteOnce; ///< acl allows write-once access (creation, no delete)
+  bool canUpdate; ///< acl allows update of files
+  bool canBrowse; ///< acl allows browsing
+  bool canChmod; ///< acl allows mode change
+  bool canChown; ///< acl allows chown change
+  bool canNotDelete; ///< acl forbids deletion
+  bool canDelete; ///< acl allows deletion
+  bool canSetQuota; ///< acl allows to set quota
+  bool hasAcl; ///< acl is valid
+  bool hasEgroup; ///< acl contains egroup rule
 public:
-  /*----------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
   //! Default Constructor
-
-  /*----------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
   Acl ()
   {
     canRead = false;
@@ -83,88 +86,103 @@ public:
     hasEgroup = false;
   }
 
-  /*----------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
   //! Constructor
-  /*----------------------------------------------------------------------------*/
-  Acl (std::string sysacl, std::string useracl, eos::common::Mapping::VirtualIdentity &vid);
+  /*---------------------------------------------------------------------------*/
+  Acl (std::string sysacl, 
+       std::string useracl, 
+       eos::common::Mapping::VirtualIdentity &vid);
 
-  /*----------------------------------------------------------------------------*/
+  /*--------------------------------------------------------------------------*/
   //! Destructor
 
-  /*----------------------------------------------------------------------------*/
+  /*--------------------------------------------------------------------------*/
   ~Acl () { };
 
-  /*----------------------------------------------------------------------------*/
+  /*--------------------------------------------------------------------------*/
   //! Enter system and user definition + identity used for ACL interpretation
-  /*----------------------------------------------------------------------------*/
-  void Set (std::string sysacl, std::string useracl, eos::common::Mapping::VirtualIdentity &vid);
+  /*--------------------------------------------------------------------------*/
+  void Set (std::string sysacl, 
+            std::string useracl, 
+            eos::common::Mapping::VirtualIdentity &vid);
 
-  /*----------------------------------------------------------------------------*/
-  //! Getter Functions for ACL booleans
-
-  /*----------------------------------------------------------------------------*/
+  /*--------------------------------------------------------------------------*/
+  // Getter Functions for ACL booleans
+  /*--------------------------------------------------------------------------*/
+  
   bool
   CanRead ()
+  /// allowed to read
   {
     return canRead;
   }
 
   bool
   CanWrite ()
+  /// allowed to write
   {
     return canWrite;
   }
 
   bool
   CanWriteOnce ()
+  /// allowed to write-once (no overwrite/update/delete)
   {
     return canWriteOnce;
   }
 
   bool
   CanUpdate ()
+  /// allowed to update
   {
     return canUpdate;
   }
 
   bool
   CanBrowse ()
+  /// allowed to list
   {
     return canBrowse;
   }
 
   bool
   CanChmod ()
+  /// allowed to change mod
   {
     return canChmod;
   }
 
   bool
   CanChown ()
+  /// allowed to change owner
   {
     return canChown;
   }
 
   bool
   CanNotDelete ()
+  /// allowed to delete
   {
     return canNotDelete;
   }
 
   bool
   CanSetQuota ()
+  /// allowed to administer quota
   {
     return canSetQuota;
   }
 
   bool
   HasAcl ()
+  /// has any acl defined
   {
     return hasAcl;
   }
 
   bool
   HasEgroup ()
+  /// has any egroup defined
   {
     return hasEgroup;
   }

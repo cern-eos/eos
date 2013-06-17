@@ -83,7 +83,7 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
   uint16_t mode_xrdcl = XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::GR |
                         XrdCl::Access::GW | XrdCl::Access::OR;
 
-  if ( !fs->Stat( destfilename.c_str(), stat_info ).IsOK() ) {
+  if ( !fs->Stat( destfile.c_str(), stat_info ).IsOK() ) {
     flags_xrdcl = XrdCl::OpenFlags::MakePath | XrdCl::OpenFlags::New;
   }
   else {
@@ -92,7 +92,7 @@ bool forwardFile(XrdOucString &filename, XrdOucString &destfilename) {
 
   XrdCl::File* file = new XrdCl::File();
 
-  if ( !file->Open( destfile.c_str(), flags_xrdcl, (XrdCl::Access::Mode)mode_xrdcl ).IsOK() ) {
+  if ( !file->Open( destfilename.c_str(), flags_xrdcl, (XrdCl::Access::Mode)mode_xrdcl ).IsOK() ) {
     eos_static_err("cannot open remote file %s\n", destfilename.c_str());
     delete stat_info;
     delete fs;

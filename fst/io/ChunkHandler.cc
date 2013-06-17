@@ -43,8 +43,7 @@ mOffset (offset),
 mLength (length),
 mCapacity (0),
 mRespLength (0),
-mIsWrite (isWrite),
-mErrorNo (0)
+mIsWrite (isWrite)
 {
   if (mIsWrite)
   {
@@ -88,7 +87,6 @@ ChunkHandler::Update (AsyncMetaHandler* metaHandler,
   mLength = length;
   mRespLength = 0;
   mIsWrite = isWrite;
-  mErrorNo = 0;
 
   if (mIsWrite)
   {
@@ -127,8 +125,7 @@ ChunkHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
     if (mLength != chunk->length)
     {
       pStatus->status = XrdCl::stError;
-      pStatus->errNo = EFAULT;
-      mErrorNo = EFAULT;
+      pStatus->code = XrdCl::errErrorResponse;
     }
   }
 

@@ -271,8 +271,8 @@ ProcCommand::Fileinfo ()
             stdOut += "  Size: ";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getSize());
             stdOut += "\n";
-            stdOut += "Modify: ";
-            stdOut += ctime_r(&filectime, mtimestring);
+            stdOut += "Modify: "; 
+            stdOut += ctime_r(&filemtime, mtimestring);
             stdOut.erase(stdOut.length() - 1);
             stdOut += " Timestamp: ";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) mtime.tv_sec);
@@ -280,7 +280,7 @@ ProcCommand::Fileinfo ()
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) mtime.tv_nsec);
             stdOut += "\n";
             stdOut += "Change: ";
-            stdOut += ctime_r(&filemtime, ctimestring);
+            stdOut += ctime_r(&filectime, ctimestring);
             stdOut.erase(stdOut.length() - 1);
             stdOut += " Timestamp: ";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) ctime.tv_sec);

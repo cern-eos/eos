@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------
-# File: CMakeLists.txt
+# File: eosslave
 # Author: Andreas-Joachim Peters - CERN
 # ----------------------------------------------------------------------
 
@@ -18,13 +18,52 @@
 # * GNU General Public License for more details.                         *
 # *                                                                      *
 # * You should have received a copy of the GNU General Public License    *
-# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-INSTALL ( FILES eos.keytab DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/ PERMISSIONS OWNER_READ OWNER_WRITE )
-INSTALL ( FILES xrd.cf.fst xrd.cf.mgm xrd.cf.mq xrd.cf.sync xrd.cf.fed xrd.cf.prefix fuse.conf fuse.conf.eos DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/ )
-INSTALL ( FILES rc.d/init.d/eos rc.d/init.d/eosha rc.d/init.d/eosslave rc.d/init.d/eossync rc.d/init.d/eosd rc.d/init.d/eoshttpd DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/rc.d/init.d PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-INSTALL ( FILES sysconfig/eos.example sysconfig/xrootd.example sysconfig/eoshttpd DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/ )
-INSTALL ( FILES cron.d/eos-logs cron.d/eos-reports DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/cron.d/ )
-INSTALL ( FILES logrotate.d/eos-logs logrotate.d/eos-fuse-logs DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/logrotate.d/ )
-INSTALL ( FILES httpd/conf/eoshttpd.default.conf DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/httpd/conf/ )
+#!/bin/bash
+#
+# chkconfig: 35 94 12
+# description: eosslave - configuration service making 'eos' services running in slave mode
+#
+
+# Get function from functions library
+. /etc/init.d/functions
+. /etc/sysconfig/eos
+
+# Start the eosslave pseudo service
+start() {
+	echo -n Configure EOS in slave mode 
+	service eosha status >& /dev/null && service eosha stop >& /dev/null
+	service eos status mgm >& /dev/null && service eos stop mgm >& /dev/null
+	service eos status mq >& /dev/null && service eos stop mq >& /dev/null
+	service eos slave mgm >& /dev/null
+	service eos slave mq >& /dev/null
+        success $"eosslave execution"
+        echo
+}
+
+# Stop the eosslave pseudo service
+stop() {
+	echo -n
+}
+
+### main logic ###
+case "$1" in
+  start)
+        start
+        ;;
+  stop)
+        stop
+        ;;
+  status)
+        ;;
+  restart|reload|condrestart)
+        stop
+        start
+        ;;
+  *)
+        echo $"Usage: $0 {start|stop|restart|reload|condrestart|status}"
+        exit 1
+esac
+
+exit 0

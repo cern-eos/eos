@@ -30,8 +30,7 @@ const char* XrdMqClientCVSID = "$Id: XrdMqClient.cc,v 1.0.0 2007/10/04 01:34:19 
 
 #include <XrdSys/XrdSysDNS.hh>
 #include <XrdSys/XrdSysTimer.hh>
-#include <XrdClient/XrdClientUrlSet.hh>
-#include <XrdClient/XrdClientConn.hh>
+#include <XrdCl/XrdClDefaultEnv.hh>
 
 #include <setjmp.h>
 #include <signal.h>
@@ -173,7 +172,6 @@ XrdMqClient::SendMessage( XrdMqMessage& msg, const char* receiverid, bool sign, 
 
   //  msg.Print();
   for ( i = 0 ; i < kBrokerN; i++ ) {
-    XrdSysMutexHelper aliasLock(kBrokerAliasMutex);
     XrdOucString rhostport;
     XrdCl::URL url( GetBrokerUrl( i , rhostport )->c_str() );
 
@@ -290,7 +288,6 @@ XrdMqClient::RecvMessage()
 
     if ( message ) return message;
 
-    CheckBrokerXrdClientReceiver( 0 );
     XrdCl::File* file = GetBrokerXrdClientReceiver( 0 );
 
     if ( !file ) {
@@ -370,82 +367,10 @@ XrdMqClient::RegisterRecvCallback( void ( *callback_func )( void* arg ) )
 XrdOucString*
 XrdMqClient::GetBrokerUrl( int i , XrdOucString &rhostport )
 {
-  // ----------------------------------------------------------------------------------------------
-  // add:  XrdSysMutexHelper aliasLock(kBrokerAliasMutex) into the scope where you call this method
-  // ----------------------------------------------------------------------------------------------
-
-  static time_t AliasResolved = 0;
   XrdOucString n = "";
   n += i;
   // split url
-  XrdOucString* s = kBrokerUrls.Find( n.c_str() );
-  XrdOucString* a = kBrokerAliasUrls.Find( n.c_str() );
-
-  // if we didn't resolve the name yet or it is older than 5 seconds, resolve it ...
-  if ( ( !a ) || ( ( time( NULL ) - AliasResolved ) > 5 ) ) {
-    int hstart = s->find( "://" );
-    int dstop  = s->find( ":", ( hstart > 2 ) ? ( hstart + 3 ) : 0 );
-    int hstop  = s->find( "//", ( hstart > 2 ) ? ( hstart + 3 ) : 0 );
-    XrdOucString hostname;
-    XrdOucString queue;
-    XrdOucString port;
-    hostname.assign( *s, hstart + 3, ( dstop > 0 ) ? ( dstop - 1 ) : ( hstop - 1 ) );
-
-    if ( dstop > 0 ) {
-      port.assign( *s, dstop, hstop - 1 );
-    }
-
-    queue.assign( *s, hstop );
-    //    fprintf(stdout,"hostname=%s port=%s queue=%s\n", hostname.c_str(), port.c_str(), queue.c_str());
-    AliasResolved = time( NULL );
-    // resolve the hostname to an ip, this is not IPV6 compatible
-    struct hostent* hp;
-    struct hostent* rhp;
-    hp = gethostbyname( hostname.c_str() );
-    hostname = "localhost";
-
-    if ( hp ) {
-      if ( hp->h_addrtype == AF_INET ) {
-        if ( hp->h_addr_list[0] ) {
-          hostname = inet_ntoa( *( struct in_addr* )hp->h_addr_list[0] );
-          rhp = gethostbyaddr( hp->h_addr_list[0], sizeof( int ), AF_INET );
-
-          if ( rhp ) {
-            hostname = rhp->h_name;
-          }
-        }
-      }
-    }
-
-    if ( hostname == "localhost" ) {
-      hostname = "localhost.localdomain";
-    }
-
-    rhostport = hostname;
-    rhostport += port;
-    XrdOucString* alias = new XrdOucString();
-    *alias = "root://";
-    *alias += hostname;
-    *alias += port;
-    *alias += queue;
-    kBrokerAliasUrls.Rep( n.c_str(), alias );
-    //    fprintf(stderr,"alias=%s hostport=%s\n", alias->c_str(), rhostport.c_str());
-  } else {
-    XrdOucString lhostport;
-    XrdOucString* bk = kBrokerAliasUrls.Find( n.c_str() );
-    if (bk) {
-      lhostport = *bk;
-      int spos = lhostport.find("://");
-      int epos = lhostport.find("//", spos+3);
-      lhostport.erase(epos);
-      lhostport.erase(0, spos+3);
-      rhostport = lhostport;
-    } else {
-      rhostport = "<undef>";
-    }
-  }
-
-  return kBrokerAliasUrls.Find( n.c_str() );
+  return kBrokerUrls.Find( n.c_str() );
 }
 
 
@@ -495,7 +420,6 @@ XrdMqClient::ReNewBrokerXrdClientReceiver( int i )
   kBrokerXrdClientReceiver.Add( GetBrokerId( i ).c_str(), new XrdCl::File() );
   XrdOucString rhostport;
 
-  XrdSysMutexHelper aliasLock(kBrokerAliasMutex);
   XrdCl::XRootDStatus status = GetBrokerXrdClientReceiver( i )->Open( GetBrokerUrl( i, rhostport )->c_str(),
                                XrdCl::OpenFlags::Read );
 
@@ -503,64 +427,6 @@ XrdMqClient::ReNewBrokerXrdClientReceiver( int i )
     fprintf( stderr, "XrdMqClient::Reopening of new alias failed ...\n" );
   }
 }
-
-
-//------------------------------------------------------------------------------
-// CheckBrokerXrdClientReceiver
-//------------------------------------------------------------------------------
-void
-XrdMqClient::CheckBrokerXrdClientReceiver( int i )
-{
-  Mutex.Lock();
-
-  // SIGBUS re-entry
-  if ( sigsetjmp( xrdmqclient_sj_env, 1 ) ) {
-    fprintf( stderr, "Fatal: recovered SIGBUS error - backoff for 5s\n" );
-    XrdSysTimer sleeper;
-    sleeper.Wait( 5000 );
-  }
-
-  XrdCl::File* file = GetBrokerXrdClientReceiver( i );
-
-  if ( i < 256 ) {
-    if ( kBrokerXrdClientReceiverAliasTimeStamp[i] &&
-         ( ( time( NULL ) - kBrokerXrdClientReceiverAliasTimeStamp[i] ) < 10 ) ) {
-      // do nothing
-    } else {
-      if ( file ) {
-	XrdOucString* bk;
-	XrdOucString rhostport;
-
-	{
-	  XrdSysMutexHelper aliasLock(kBrokerAliasMutex);
-	  //  fprintf(stderr,"Checking Broker\n");
-	  bk = GetBrokerUrl( i, rhostport );
-	}
-
-        XrdOucString data_server = file->GetDataServer().c_str();
-
-        if ( ( !kBrokerXrdClientReceiverAliasTimeStamp[i] ) ||
-             ( ( bk ) && ( rhostport != data_server ) &&
-               ( bk->find( "localhost" ) == STR_NPOS ) ) ) {
-          if ( rhostport != data_server ) {
-            fprintf( stderr, "XrdMqClient::CheckBrokerXrdClientReceiver => Broker alias changed from %s => %s\n",
-                     data_server.c_str(), rhostport.c_str() );
-          }
-	  
-          ReNewBrokerXrdClientReceiver( i );
-          // get the new client object
-          GetBrokerXrdClientReceiver( i );
-          // the alias has been switched, del the client and create a new one to connect to the new alias
-        }
-
-        kBrokerXrdClientReceiverAliasTimeStamp[i] = time( NULL );
-      }
-    }
-  }
-
-  Mutex.UnLock();
-}
-
 
 //------------------------------------------------------------------------------
 // AddBroker
@@ -590,7 +456,6 @@ bool XrdMqClient::AddBroker( const char* brokerurl,
   printf( "==> new Broker %s\n", newBrokerUrl.c_str() );
 
   for ( int i = 0; i < kBrokerN; i++ ) {
-    XrdSysMutexHelper aliasLock(kBrokerAliasMutex);
     XrdOucString rhostport;
     XrdOucString* brk = GetBrokerUrl( i, rhostport );
 
@@ -646,8 +511,11 @@ XrdMqClient::XrdMqClient( const char* clientid,
     fprintf( stderr, "error: [XrdMqClient] cannot install SIGBUS handler\n" );
   }
 
-  memset( kBrokerXrdClientReceiverAliasTimeStamp, 0, sizeof( int ) * 256 );
-  memset( kBrokerXrdClientSenderAliasTimeStamp  , 0, sizeof( int ) * 256 );
+  // set short timeout resolution, connection window, connection retry and stream error window
+  XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
+  XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 5);
+  XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 1);
+  XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
 
   if ( brokerurl && ( !AddBroker( brokerurl ) ) ) {
     fprintf( stderr, "error: [XrdMqClient] cannot add broker %s\n", brokerurl );

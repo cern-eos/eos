@@ -58,7 +58,7 @@ namespace eos
         //----------------------------------------------------------------------
         if( type == UPDATE_RECORD_MAGIC )
         {
-          FileMD *file = new FileMD( 0, 0 );
+          FileMD *file = new FileMD( 0, pFileSvc );
           file->deserialize( (Buffer&)buffer );
           FileMap::iterator it = pUpdated.find( file->getId() );
 
@@ -222,38 +222,155 @@ namespace eos
           else
           {
             //------------------------------------------------------------------
-            // Notify listeners about file update
+            // We have the file already but it might have changed the parent
+            // container or might have been unlinked, so we need to check it up
+            // in its original container
             //------------------------------------------------------------------
-            IFileMDChangeListener::Event e( currentFile,
-                                            IFileMDChangeListener::Updated );
-            pFileSvc->notifyListeners( &e );
+            FileMD      *originalFile      = it->second.ptr;
+            ContainerMD *originalContainer = 0;
+
+            ChangeLogContainerMDSvc::IdMap::iterator itP;
+            itP = contIdMap->find( originalFile->getContainerId() );
 
             //------------------------------------------------------------------
-            // Find the container and handle quota if the file is really
-            // attached to this container - ie. no name conflict
+            // If the container does not exist it means that the file was
+            // either an orphan or was detached due to a conflict and it's
+            // container has been removed
             //------------------------------------------------------------------
-            ChangeLogContainerMDSvc::IdMap::iterator itP;
-            itP = contIdMap->find( currentFile->getContainerId() );
             if( itP != contIdMap->end() )
+              originalContainer = itP->second.ptr;
+
+            //------------------------------------------------------------------
+            // The parent container did not change
+            //------------------------------------------------------------------
+            if( originalFile->getContainerId() == currentFile->getContainerId() )
             {
-              ContainerMD *container    = itP->second.ptr;
-              FileMD      *existingFile = container->findFile( currentFile->getName() );
-              if( existingFile && existingFile->getId() == currentFile->getId() )
+              if( originalContainer )
               {
-                QuotaNode *node = getQuotaNode( container );
-                if( node )
+                FileMD *existingFile =
+                  originalContainer->findFile( originalFile->getName() );
+                if( existingFile &&
+                    existingFile->getId() == originalFile->getId() )
                 {
-                  node->removeFile( existingFile );
-                  node->addFile( currentFile );
+
+                  //------------------------------------------------------------
+                  // Update quota
+                  //------------------------------------------------------------
+                  QuotaNode *node = getQuotaNode( originalContainer );
+                  if( node )
+                  {
+                    node->removeFile( existingFile );
+                    node->addFile( currentFile );
+                  }
+
+                  //------------------------------------------------------------
+                  // Rename
+                  //------------------------------------------------------------
+                  originalContainer->removeFile( existingFile->getName() );
+                  existingFile->setName( currentFile->getName() );
+                  originalContainer->addFile( existingFile );
                 }
               }
-            }
 
-            handleReplicas( it->second.ptr, currentFile );
-            (*it->second.ptr)    = *currentFile;
-            it->second.logOffset = currentOffset;
-            processed.push_back( currentFile->getId() );
-            delete currentFile;
+              handleReplicas( originalFile, currentFile );
+              *originalFile = *currentFile;
+              originalFile->setFileMDSvc( pFileSvc );
+              it->second.logOffset = currentOffset;
+              processed.push_back( currentFile->getId() );
+              delete currentFile;
+
+              IFileMDChangeListener::Event e( originalFile,
+                                              IFileMDChangeListener::Updated );
+              pFileSvc->notifyListeners( &e );
+
+            }
+            //------------------------------------------------------------------
+            // The parent container changed
+            //------------------------------------------------------------------
+            else
+            {
+              //----------------------------------------------------------------
+              // Check if the new container exists, if it doesn't we need
+              // to wait for it, so we do nothing for the time being
+              //----------------------------------------------------------------
+              ChangeLogContainerMDSvc::IdMap::iterator itPN;
+              itPN = contIdMap->find( currentFile->getContainerId() );
+              if( itPN == contIdMap->end() )
+                continue;
+
+              //----------------------------------------------------------------
+              // If the file is present in the original container, we remove
+              // it from there and update the quota
+              //----------------------------------------------------------------
+              if( originalContainer )
+              {
+                FileMD *existingFile =
+                  originalContainer->findFile( originalFile->getName() );
+                if( existingFile &&
+                    existingFile->getId() == originalFile->getId() )
+                {
+                  QuotaNode *node = getQuotaNode( originalContainer );
+                  if( node )
+                    node->removeFile( existingFile );
+
+                  originalContainer->removeFile( existingFile->getName() );
+                }
+              }
+
+              //----------------------------------------------------------------
+              // Update the file and handle the replicas
+              //----------------------------------------------------------------
+              handleReplicas( originalFile, currentFile );
+
+              *originalFile = *currentFile;
+              originalFile->setFileMDSvc( pFileSvc );
+              it->second.logOffset = currentOffset;
+              delete currentFile;
+
+              //----------------------------------------------------------------
+              // The file was unlinked so our job is done
+              //----------------------------------------------------------------
+              if( originalFile->getContainerId() == 0 )
+              {
+                processed.push_back( currentFile->getId() );
+                IFileMDChangeListener::Event e( originalFile,
+                                                IFileMDChangeListener::Updated );
+                pFileSvc->notifyListeners( &e );
+              }
+
+              //----------------------------------------------------------------
+              // The file has moved
+              //----------------------------------------------------------------
+              else
+              {
+                //--------------------------------------------------------------
+                // We check if the file with the given name already exists in
+                // the container, if it does, we have a name conflict in which
+                // case we attach the new file and remove the old one
+                //--------------------------------------------------------------
+                ContainerMD *newContainer = itPN->second.ptr;
+                QuotaNode   *node         = getQuotaNode( newContainer );
+                FileMD      *existingFile =
+                  newContainer->findFile( originalFile->getName() );
+
+                if( existingFile )
+                {
+                  if( node )
+                    node->removeFile( existingFile );
+                  newContainer->removeFile( existingFile->getName() );
+                }
+
+                newContainer->addFile( originalFile );
+
+                if( node )
+                  node->addFile( originalFile );
+
+                processed.push_back( originalFile->getId() );
+                IFileMDChangeListener::Event e( originalFile,
+                                                IFileMDChangeListener::Updated );
+                pFileSvc->notifyListeners( &e );
+              }
+            }
           }
         }
 
@@ -280,11 +397,7 @@ namespace eos
         // Initial sanity check
         //----------------------------------------------------------------------
         if( !container )
-        {
-          MDException ex;
-          ex.getMessage() << "Invalid container (zero pointer)";
-          throw ex;
-        }
+          return 0;
 
         if( !pQuotaStats )
           return 0;
