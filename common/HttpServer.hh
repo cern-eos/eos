@@ -24,7 +24,8 @@
 /**
  * @file   HttpServer.hh
  *
- * @brief  Class running an HTTP daemon
+ * @brief  Class running an HTTP daemon. Creates an embedded HTTP server
+ *         instance
  */
 
 #ifndef __EOSCOMMON_HTTP__HH__
@@ -47,47 +48,19 @@ EOSCOMMONNAMESPACE_BEGIN
 
 class HttpServer
 {
-  // -------------------------------------------------------------
-  // ! creates an embedded http server instance
-  // -------------------------------------------------------------
 protected:
+
 #ifdef EOS_MICRO_HTTPD
-  struct MHD_Daemon *mDaemon;
+  struct MHD_Daemon *mDaemon;   //!< MicroHttpd daemon instance
 #endif
-  int mPort;
-  pthread_t mThreadId;
-  bool mRunning;
+  int                mPort;     //!< The port this server listens on
+  pthread_t          mThreadId; //!< This thread's ID
+  bool               mRunning;  //!< Is this server running?
+  static HttpServer *gHttp;     //!< This is the instance of the HTTP server
+                                //!< allowing the Handler function to call class
+                                //!< member functions
 
 public:
-#ifdef EOS_MICRO_HTTPD
-  /**
-   * Returns the query string for an HTTP request 
-   * @param cls in-out address of a std::string containing the query string
-   * @param kind request type
-   * @param key ...
-   * @param value ...
-   * @return ...
-   */
-  static int BuildQueryString (void *cls,
-                               enum MHD_ValueKind kind,
-                               const char *key,
-                               const char *value);
-
-  /**
-   * Returns the header map for an HTTP request 
-   * @param cls in-out address of a std::map<std::string,std::string> containing the query string
-   * @param kind request type
-   * @param key ...
-   * @param value ...
-   * @return ...
-   */
-  static int BuildHeaderMap (void *cls,
-                             enum MHD_ValueKind kind,
-                             const char *key,
-                             const char *value);
-#endif
-
-
   /**
    * Constructor
    */
@@ -100,15 +73,17 @@ public:
 
   /**
    * Start the listening HTTP server
+   *
    * @return true if server running otherwise false
    */
   virtual bool Start ();
 
   /**
    * Start a thread running the embedded server
+   *
    * @return void
    */
-  static void* StaticHttp (void* arg);
+  static void* StaticHttp (void *arg);
 
   /**
    * Create the embedded server and run
@@ -118,6 +93,7 @@ public:
 
   /**
    * returns redirection HTTP
+   *
    * @param return response code
    * @param host_cgi host?redirect_query
    * @param port port number
@@ -126,55 +102,77 @@ public:
    * @param cookie (true use cookies, false use cgi)
    * @return HTTP output page
    */
-  static
-  std::string HttpRedirect (int& response_code, std::map<std::string, std::string>& response_header, const char* host_cgi, int port, std::string& path, std::string& query, bool cookie = true);
+  static std::string
+  HttpRedirect (int                                &response_code,
+                std::map<std::string, std::string> &response_header,
+                const char                         *host_cgi,
+                int                                 port,
+                std::string                        &path,
+                std::string                        &query,
+                bool                                cookie = true);
 
   /**
    * returns error HTTP
+   *
    * @param return response code
    * @param errtxt text to display
    * @param errc error code to map
    * @return HTTP error page
    */
-  static
-  std::string HttpError (int& response_code, std::map<std::string, std::string>& response_header, const char* errtxt, int errc);
+  static std::string
+  HttpError (int                                &response_code,
+             std::map<std::string, std::string> &response_header,
+             const char                         *errtxt,
+             int                                 errc);
 
   /**
    * returns data
+   *
    * @param return response code
    * @param point to data
    * @param length of data
    * @return HTTP data page
    */
-  static
-  std::string HttpData (int& response_code, std::map<std::string, std::string>& response_header, const char* data, int length);
+  static std::string
+  HttpData (int                                &response_code,
+            std::map<std::string, std::string> &response_header,
+            const char                         *data,
+            int                                 length);
 
   /**
    * returns a stall message
+   *
    * @param return response code
    * @param stalltxt text to display
    * @param stallsec seconds to stall
    * @return HTTP stall page
    */
-  static
-  std::string HttpStall (int& response_code, std::map<std::string, std::string>& response_header, const char* stallxt, int stallsec);
+  static std::string
+  HttpStall (int                                &response_code,
+             std::map<std::string, std::string> &response_header,
+             const char                         *stallxt,
+             int                                 stallsec);
 
   /**
    * encode the provided CGI string escaping '/' '+' '='
+   *
    * @param cgi to encode
    */
-  static
-  void EncodeURI (std::string& cgi);
+  static void
+  EncodeURI (std::string &cgi);
 
   /**
    * deocde the provided CGI string unesacping '/' '+' '='
+   *
    * @param cgi to decode
    */
-  static
-  void DecodeURI (std::string& cgi);
+  static void
+  DecodeURI (std::string &cgi);
 
   /**
-   * decode the range header tag and create canonical merged map with offset/len
+   * decode the range header tag and create canonical merged map with
+   * offset/len
+   *
    * @param range header
    * @param offsetmap canonical map with offset/length by reference
    * @param requestsize sum of non overlapping bytes to serve
@@ -182,36 +180,75 @@ public:
    * @return true if valid request, otherwise false
    */
   bool
-  DecodeByteRange (std::string rangeheader, std::map<off_t, ssize_t>& offsetmap, ssize_t& requestsize, off_t filesize);
+  DecodeByteRange (std::string               rangeheader,
+                   std::map<off_t, ssize_t> &offsetmap,
+                   ssize_t                  &requestsize,
+                   off_t                     filesize);
 
 #ifdef EOS_MICRO_HTTPD
   /**
    * calls the instance handler function of the Http object
+   *
    * @return 
    */
-  static int StaticHandler (void *cls,
-                            struct MHD_Connection *connection,
-                            const char *url,
-                            const char *method,
-                            const char *version,
-                            const char *upload_data,
-                            size_t *upload_data_size, void **ptr);
+  static int
+  StaticHandler (void                  *cls,
+                 struct MHD_Connection *connection,
+                 const char            *url,
+                 const char            *method,
+                 const char            *version,
+                 const char            *upload_data,
+                 size_t                *upload_data_size,
+                 void                 **ptr);
 
 
   /**
    * http object handler function
+   *
    * @return see implementation
    */
-  virtual int Handler (void *cls,
-                       struct MHD_Connection *connection,
-                       const char *url,
-                       const char *method,
-                       const char *version,
-                       const char *upload_data,
-                       size_t *upload_data_size, void **ptr) = 0;
+  virtual int
+  Handler (void                  *cls,
+           struct MHD_Connection *connection,
+           const char            *url,
+           const char            *method,
+           const char            *version,
+           const char            *upload_data,
+           size_t                *upload_data_size,
+           void                 **ptr) = 0;
+
+  /**
+   * Returns the query string for an HTTP request
+   *
+   * @param cls in-out address of a std::string containing the query string
+   * @param kind request type
+   * @param key ...
+   * @param value ...
+   * @return ...
+   */
+  static int
+  BuildQueryString (void              *cls,
+                    enum MHD_ValueKind kind,
+                    const char        *key,
+                    const char        *value);
+
+  /**
+   * Returns the header map for an HTTP request
+   *
+   * @param cls in-out address of a std::map<std::string,std::string>
+   *            containing the query string
+   * @param kind request type
+   * @param key ...
+   * @param value ...
+   * @return ...
+   */
+  static int
+  BuildHeaderMap (void              *cls,
+                  enum MHD_ValueKind kind,
+                  const char        *key,
+                  const char        *value);
 
 #endif
-  static HttpServer* gHttp; //< this is the instance of the http server allowing allowing the Handler function to call class member functions
 };
 
 /*----------------------------------------------------------------------------*/

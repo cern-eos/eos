@@ -38,14 +38,12 @@ EOSCOMMONNAMESPACE_BEGIN
 HttpServer* HttpServer::gHttp;
 
 /*----------------------------------------------------------------------------*/
-#define EOSCOMMON_HTTP_PAGE "<html><head><title>No such file or directory</title></head><body>No such file or directory</body></html>"
+#define EOSCOMMON_HTTP_PAGE "<html><head><title>No such file or directory</title>\
+                             </head><body>No such file or directory</body></html>"
 
 /*----------------------------------------------------------------------------*/
 HttpServer::HttpServer (int port)
 {
-  //.............................................................................
-  // Constructor
-  //.............................................................................
   gHttp = this;
   mPort = port;
   mThreadId = 0;
@@ -53,22 +51,22 @@ HttpServer::HttpServer (int port)
 }
 
 /*----------------------------------------------------------------------------*/
-HttpServer::~HttpServer () {
-  //.............................................................................
-  // Destructor
-  //.............................................................................
+HttpServer::~HttpServer ()
+{
+
 }
 
 /*----------------------------------------------------------------------------*/
 bool
 HttpServer::Start ()
 {
-  //.............................................................................
-  // Startup the HTTP server
-  //.............................................................................
   if (!mRunning)
   {
-    XrdSysThread::Run(&mThreadId, HttpServer::StaticHttp, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Httpd Thread");
+    XrdSysThread::Run(&mThreadId,
+                      HttpServer::StaticHttp,
+                      static_cast<void *> (this),
+                      XRDSYSTHREAD_HOLD,
+                      "Httpd Thread");
     mRunning = true;
     return true;
   }
@@ -83,9 +81,6 @@ HttpServer::Start ()
 void*
 HttpServer::StaticHttp (void* arg)
 {
-  //.............................................................................
-  // Asynchronoous thread start function
-  //.............................................................................
   return reinterpret_cast<HttpServer*> (arg)->Run();
 }
 
@@ -161,13 +156,14 @@ HttpServer::Run ()
 
 /*----------------------------------------------------------------------------*/
 int
-HttpServer::StaticHandler (void *cls,
+HttpServer::StaticHandler (void                  *cls,
                            struct MHD_Connection *connection,
-                           const char *url,
-                           const char *method,
-                           const char *version,
-                           const char *upload_data,
-                           size_t *upload_data_size, void **ptr)
+                           const char            *url,
+                           const char            *method,
+                           const char            *version,
+                           const char            *upload_data,
+                           size_t                *upload_data_size,
+                           void                 **ptr)
 {
   // The static handler function calls back the original http object
   if (gHttp)
@@ -244,10 +240,10 @@ HttpServer::StaticHandler (void *cls,
 
 /*----------------------------------------------------------------------------*/
 int
-HttpServer::BuildHeaderMap (void *cls,
+HttpServer::BuildHeaderMap (void              *cls,
                             enum MHD_ValueKind kind,
-                            const char *key,
-                            const char *value)
+                            const char        *key,
+                            const char        *value)
 {
   // Call back function to return the header key-val map of an HTTP request
   std::map<std::string, std::string>* hMap = static_cast<std::map<std::string, std::string>*> (cls);
@@ -260,10 +256,10 @@ HttpServer::BuildHeaderMap (void *cls,
 
 /*----------------------------------------------------------------------------*/
 int
-HttpServer::BuildQueryString (void *cls,
+HttpServer::BuildQueryString (void              *cls,
                               enum MHD_ValueKind kind,
-                              const char *key,
-                              const char *value)
+                              const char        *key,
+                              const char        *value)
 {
   // Call back function to return the query string of an HTTP request
   std::string* qString = static_cast<std::string*> (cls);
@@ -283,8 +279,16 @@ HttpServer::BuildQueryString (void *cls,
 
 /*----------------------------------------------------------------------------*/
 std::string
-HttpServer::HttpRedirect (int& response_code, std::map<std::string, std::string>& response_header, const char* host_cgi, int port, std::string& path, std::string& query, bool cookie)
+HttpServer::HttpRedirect (int                                &response_code,
+                          std::map<std::string, std::string> &response_header,
+                          const char                         *host_cgi,
+                          int                                 port,
+                          std::string                        &path,
+                          std::string                        &query,
+                          bool                                cookie)
 {
+  eos_static_info("info=redirecting");
+
   response_code = 307;
   // return an HTTP redirect
   std::string host = host_cgi;
@@ -363,8 +367,7 @@ HttpServer::HttpError (int                                &response_code,
 
   eos_static_info("errc=%d, retcode=%d", errc, response_code);
   while (error.replace("__RESPONSE_CODE__",
-                       std::to_string(static_cast<long long>(response_code))
-                       .c_str())) {}
+                       std::to_string((long long) response_code) .c_str())) {}
   while (error.replace("__ERROR_TEXT__",    errtxt)) {}
 
   eos_static_debug("html=%s", error.c_str());
@@ -374,7 +377,7 @@ HttpServer::HttpError (int                                &response_code,
 
 /*----------------------------------------------------------------------------*/
 std::string
-HttpServer::HttpData (int& response_code, std::map<std::string, std::string>& response_header, const char* data, int length)
+HttpServer::HttpData (int &response_code, std::map<std::string, std::string> &response_header, const char *data, int length)
 {
   response_code = 200;
   // return data as HTTP message
@@ -385,7 +388,10 @@ HttpServer::HttpData (int& response_code, std::map<std::string, std::string>& re
 
 /*----------------------------------------------------------------------------*/
 std::string
-HttpServer::HttpStall (int& response_code, std::map<std::string, std::string>& response_header, const char* stallxt, int stallsec)
+HttpServer::HttpStall (int                                &response_code,
+                       std::map<std::string, std::string> &response_header,
+                       const char                         *stallxt,
+                       int                                 stallsec)
 {
   // return an HTTP stall
   response_code = 501;
@@ -394,7 +400,7 @@ HttpServer::HttpStall (int& response_code, std::map<std::string, std::string>& r
 
 /*----------------------------------------------------------------------------*/
 void
-HttpServer::EncodeURI (std::string& cgi)
+HttpServer::EncodeURI (std::string &cgi)
 {
   // replace '+' '/' '='
   XrdOucString scgi = cgi.c_str();
@@ -419,7 +425,7 @@ HttpServer::EncodeURI (std::string& cgi)
 
 /*----------------------------------------------------------------------------*/
 void
-HttpServer::DecodeURI (std::string& cgi)
+HttpServer::DecodeURI (std::string &cgi)
 {
   // replace "%2B" "%2F" "%3D"
   XrdOucString scgi = cgi.c_str();
@@ -447,7 +453,10 @@ HttpServer::DecodeURI (std::string& cgi)
 
 /*----------------------------------------------------------------------------*/
 bool
-HttpServer::DecodeByteRange (std::string rangeheader, std::map<off_t, ssize_t>& offsetmap, ssize_t& requestsize, off_t filesize)
+HttpServer::DecodeByteRange (std::string               rangeheader,
+                             std::map<off_t, ssize_t> &offsetmap,
+                             ssize_t                  &requestsize,
+                             off_t                     filesize)
 {
   std::vector<std::string> tokens;
   if (rangeheader.substr(0, 6) != "bytes=")
