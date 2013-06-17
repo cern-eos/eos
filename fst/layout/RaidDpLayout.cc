@@ -1038,28 +1038,28 @@ RaidDpLayout::Truncate (XrdSfsFileOffset offset)
     //    else {
     
     if (!mIsPio)
-      {
-        //........................................................................
-        // In non PIO access each stripe will compute its own truncate value
-        //........................................................................
-        truncate_offset = offset;
-      }
+    {
+      //........................................................................
+      // In non PIO access each stripe will compute its own truncate value
+      //........................................................................
+      truncate_offset = offset;
+    }
       
-      for (unsigned int i = 1; i < mStripeFiles.size(); i++)
+    for (unsigned int i = 1; i < mStripeFiles.size(); i++)
+    {
+      eos_debug("Truncate stripe %i, to file_offset = %lli, stripe_offset = %zu",
+                i, offset, truncate_offset);
+      
+      if (mStripeFiles[i])
       {
-        eos_debug("Truncate stripe %i, to file_offset = %lli, stripe_offset = %zu",
-                  i, offset, truncate_offset);
-        
-        if (mStripeFiles[i])
+        if (mStripeFiles[i]->Truncate(truncate_offset, mTimeout))
         {
-          if (mStripeFiles[i]->Truncate(truncate_offset, mTimeout))
-          {
-            eos_err("error=error while truncating");
-            return SFS_ERROR;
-          }
+          eos_err("error=error while truncating");
+          return SFS_ERROR;
         }
       }
-   // }
+    }
+    // }
   }
   //............................................................................
   // *!!!* Reset the maxOffsetWritten from XrdFstOfsFile to logical offset

@@ -584,8 +584,6 @@ ReedSLayout::Truncate (XrdSfsFileOffset offset)
   int rc = SFS_OK;
   off_t truncate_offset = 0;
 
-  if (!offset) return rc;
-
   truncate_offset = ceil((offset * 1.0) / mSizeGroup) * mStripeWidth;
   truncate_offset += mSizeHeader;
   eos_debug("Truncate local stripe to file_offset = %lli, stripe_offset = %zu",
@@ -596,6 +594,14 @@ ReedSLayout::Truncate (XrdSfsFileOffset offset)
 
   if (mIsEntryServer)
   {
+    if (!mIsPio)
+    {
+      //........................................................................
+      // In non PIO access each stripe will compute its own truncate value
+      //........................................................................
+      truncate_offset = offset;
+    }
+  
     for (unsigned int i = 1; i < mStripeFiles.size(); i++)
     {
       eos_debug("Truncate stripe %i, to file_offset = %lli, stripe_offset = %zu",
@@ -603,7 +609,7 @@ ReedSLayout::Truncate (XrdSfsFileOffset offset)
 
       if (mStripeFiles[i])
       {
-        if (mStripeFiles[i]->Truncate(offset, mTimeout))
+        if (mStripeFiles[i]->Truncate(truncate_offset, mTimeout))
         {
           eos_err("error=error while truncating");
           return SFS_ERROR;
