@@ -61,10 +61,10 @@ public:
 
   IostatAvg ()
   {
-    memset(avg86400, 0, sizeof (avg86400));
-    memset(avg3600, 0, sizeof (avg3600));
-    memset(avg300, 0, sizeof (avg300));
-    memset(avg60, 0, sizeof (avg60));
+    memset (avg86400, 0, sizeof (avg86400));
+    memset (avg3600, 0, sizeof (avg3600));
+    memset (avg300, 0, sizeof (avg300));
+    memset (avg60, 0, sizeof (avg60));
   }
 
   ~IostatAvg () { };
@@ -72,7 +72,7 @@ public:
   void
   Add (unsigned long val, time_t starttime, time_t stoptime)
   {
-    time_t now = time(0);
+    time_t now = time (0);
 
     size_t tdiff = stoptime - starttime;
 
@@ -141,10 +141,10 @@ public:
   void
   StampZero ()
   {
-    unsigned int bin86400 = (time(0) / 1440);
-    unsigned int bin3600 = (time(0) / 60);
-    unsigned int bin300 = (time(0) / 5);
-    unsigned int bin60 = (time(0) / 1);
+    unsigned int bin86400 = (time (0) / 1440);
+    unsigned int bin3600 = (time (0) / 60);
+    unsigned int bin300 = (time (0) / 5);
+    unsigned int bin60 = (time (0) / 1);
 
     avg86400[(bin86400 + 1) % 60] = 0;
     avg3600[(bin3600 + 1) % 60] = 0;
@@ -290,7 +290,7 @@ public:
   SetStoreFileName (const char* storefilename)
   {
     mStoreFileName = storefilename;
-    return Restore();
+    return Restore ();
   }
 
   bool Store ();
@@ -326,16 +326,16 @@ public:
   AddToPopularity (std::string path, unsigned long long rb, time_t starttime, time_t stoptime)
   {
     size_t popularitybin = (((starttime + stoptime) / 2) % (IOSTAT_POPULARITY_DAY * IOSTAT_POPULARITY_HISTORY_DAYS)) / IOSTAT_POPULARITY_DAY;
-    PopularityMutex.Lock();
-    eos::common::Path cPath(path.c_str());
-    for (size_t k = 0; k < cPath.GetSubPathSize(); k++)
+    PopularityMutex.Lock ();
+    eos::common::Path cPath (path.c_str ());
+    for (size_t k = 0; k < cPath.GetSubPathSize (); k++)
     {
-      std::string sp = cPath.GetSubPath(k);
+      std::string sp = cPath.GetSubPath (k);
       IostatPopularity[popularitybin][sp].rb += rb;
       IostatPopularity[popularitybin][sp].nread++;
     }
     IostatLastPopularityBin = popularitybin;
-    PopularityMutex.UnLock();
+    PopularityMutex.UnLock ();
   }
 
   // stats collection
@@ -343,12 +343,12 @@ public:
   void
   Add (const char* tag, uid_t uid, gid_t gid, unsigned long val, time_t starttime, time_t stoptime)
   {
-    Mutex.Lock();
+    Mutex.Lock ();
     IostatUid[tag][uid] += val;
     IostatGid[tag][gid] += val;
-    IostatAvgUid[tag][uid].Add(val, starttime, stoptime);
-    IostatAvgGid[tag][gid].Add(val, starttime, stoptime);
-    Mutex.UnLock();
+    IostatAvgUid[tag][uid].Add (val, starttime, stoptime);
+    IostatAvgGid[tag][gid].Add (val, starttime, stoptime);
+    Mutex.UnLock ();
   }
 
   unsigned long long
@@ -356,9 +356,9 @@ public:
   {
     google::sparse_hash_map<uid_t, unsigned long long>::const_iterator it;
     unsigned long long val = 0;
-    if (!IostatUid.count(tag))
+    if (!IostatUid.count (tag))
       return 0;
-    for (it = IostatUid[tag].begin(); it != IostatUid[tag].end(); ++it)
+    for (it = IostatUid[tag].begin (); it != IostatUid[tag].end (); ++it)
     {
       val += it->second;
     }
@@ -372,11 +372,11 @@ public:
   {
     google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
     double val = 0;
-    if (!IostatAvgUid.count(tag))
+    if (!IostatAvgUid.count (tag))
       return 0;
-    for (it = IostatAvgUid[tag].begin(); it != IostatAvgUid[tag].end(); ++it)
+    for (it = IostatAvgUid[tag].begin (); it != IostatAvgUid[tag].end (); ++it)
     {
-      val += it->second.GetAvg86400();
+      val += it->second.GetAvg86400 ();
     }
     return val;
   }
@@ -388,11 +388,11 @@ public:
   {
     google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
     double val = 0;
-    if (!IostatAvgUid.count(tag))
+    if (!IostatAvgUid.count (tag))
       return 0;
-    for (it = IostatAvgUid[tag].begin(); it != IostatAvgUid[tag].end(); ++it)
+    for (it = IostatAvgUid[tag].begin (); it != IostatAvgUid[tag].end (); ++it)
     {
-      val += it->second.GetAvg3600();
+      val += it->second.GetAvg3600 ();
     }
     return val;
   }
@@ -404,11 +404,11 @@ public:
   {
     google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
     double val = 0;
-    if (!IostatAvgUid.count(tag))
+    if (!IostatAvgUid.count (tag))
       return 0;
-    for (it = IostatAvgUid[tag].begin(); it != IostatAvgUid[tag].end(); ++it)
+    for (it = IostatAvgUid[tag].begin (); it != IostatAvgUid[tag].end (); ++it)
     {
-      val += it->second.GetAvg300();
+      val += it->second.GetAvg300 ();
     }
     return val;
   }
@@ -421,11 +421,11 @@ public:
     google::sparse_hash_map<uid_t, IostatAvg>::iterator it;
 
     double val = 0;
-    if (!IostatAvgUid.count(tag))
+    if (!IostatAvgUid.count (tag))
       return 0;
-    for (it = IostatAvgUid[tag].begin(); it != IostatAvgUid[tag].end(); ++it)
+    for (it = IostatAvgUid[tag].begin (); it != IostatAvgUid[tag].end (); ++it)
     {
-      val += it->second.GetAvg60();
+      val += it->second.GetAvg60 ();
     }
     return val;
   }

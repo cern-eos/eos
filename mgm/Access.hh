@@ -77,7 +77,7 @@ public:
 
   // static key defining the ban group key in the global configuration 
   // key-value map
-  static const char* gGroupKey; 
+  static const char* gGroupKey;
 
   // static key defining the ban host key in the global configuration 
   // key-value map

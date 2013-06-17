@@ -120,7 +120,7 @@ public:
 
   ~Recycle ()
   {
-    if (mThread) Stop();
+    if (mThread) Stop ();
   };
 
   /**
@@ -130,7 +130,7 @@ public:
    * @return SFS_OK if ok, otherwise SFS_ERR + errno + error object set
    */
 
-  int ToGarbage (const char* epname, XrdOucErrInfo& error);
+  int ToGarbage (const char* epname, XrdOucErrInfo & error);
 
   /**
    * return the path from where the action can be recycled ( this is filled after ToGarbage has been called
@@ -162,7 +162,7 @@ public:
    * @param option can be --force-original-name or -f
    * @return 0 if done, otherwise errno
    */
-  static int Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping::VirtualIdentity_t &vid, const char* key, XrdOucString &options);
+  static int Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping::VirtualIdentity_t &vid, const char* key, XrdOucString & options);
 
   /**
    * purge all files in the recycle bin
@@ -171,7 +171,7 @@ public:
    * @param vid of the client
    * @return 0 if done, otherwise errno
    */
-  static int Purge (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping::VirtualIdentity_t &vid);
+  static int Purge (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping::VirtualIdentity_t & vid);
 
   /**
    * configure the recycle bin
@@ -182,7 +182,7 @@ public:
    * @option configuration type
    * @return 0 if done, otherwise errno
    */
-  static int Config (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping::VirtualIdentity_t &vid, const char* arg, XrdOucString &options);
+  static int Config (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping::VirtualIdentity_t &vid, const char* arg, XrdOucString & options);
 
   static std::string gRecyclingPrefix; //< prefix for all recycle bins
   static std::string gRecyclingAttribute; //< attribute key defining a recycling location

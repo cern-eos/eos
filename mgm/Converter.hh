@@ -60,19 +60,19 @@ class ConverterJob : XrdJob
 private:
   /// file id of the conversion job
   eos::common::FileId::fileid_t mFid;
-  
+
   /// target path of the conversion job
   std::string mTargetPath;
-  
+
   /// source path of the conversion job
   std::string mSourcePath;
-  
+
   /// target CGI of the conversion job
   std::string mTargetCGI;
 
   /// layout name of the target file
   XrdOucString mConversionLayout;
-  
+
   /// target space name of the conversion
   std::string mConverterName;
 
@@ -81,14 +81,15 @@ public:
   // ---------------------------------------------------------------------------
   // Constructor
   // ---------------------------------------------------------------------------
-  ConverterJob (eos::common::FileId::fileid_t fid, 
-                const char* conversionlayout, 
-                std::string &convertername);
-  
+  ConverterJob (eos::common::FileId::fileid_t fid,
+                const char* conversionlayout,
+                std::string & convertername);
+
   // ---------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
-  ~ConverterJob () {};
+
+  ~ConverterJob () { };
 
   // ---------------------------------------------------------------------------
   // Job execution function
@@ -110,18 +111,17 @@ public:
  * layout will be dropped.
  */
 /*----------------------------------------------------------------------------*/
-class Converter
-{
-private:
+class Converter{
+  private :
   /// thread id
   pthread_t mThread;
-  
+
   /// name of th espace this converter serves
   std::string mSpaceName;
-  
+
   /// this are all jobs which are queued and didn't run yet
-  size_t      mActiveJobs; 
-  
+  size_t mActiveJobs;
+
   /// condition variabl to get signalled for a done job
   XrdSysCondVar mDoneSignal;
 public:
@@ -150,30 +150,42 @@ public:
   // ---------------------------------------------------------------------------
   //! Return the condition variable to signal when a job finishes
   // ---------------------------------------------------------------------------
-  XrdSysCondVar* GetSignal() { return &mDoneSignal; }
+
+  XrdSysCondVar * GetSignal ()
+  {
+    return &mDoneSignal;
+  }
 
   // ---------------------------------------------------------------------------
   //! Decrement the number of active jobs in this converter
   // ---------------------------------------------------------------------------
-  void DecActiveJobs() { mActiveJobs--; }
+
+  void DecActiveJobs ()
+  {
+    mActiveJobs--;
+  }
 
   // ---------------------------------------------------------------------------
   //! Return active jobs
   // ---------------------------------------------------------------------------
-  size_t GetActiveJobs() const { return mActiveJobs; }
+
+  size_t GetActiveJobs () const
+  {
+    return mActiveJobs;
+  }
 
   /// the scheduler class is providing a destructor-less object, 
   /// so we have to create once a singleton of this and keep/share it
-  static XrdSysMutex gSchedulerMutex; 
-  
+  static XrdSysMutex gSchedulerMutex;
+
   /// singelton objct of a scheduler
-  static XrdScheduler* gScheduler; 
-  
+  static XrdScheduler* gScheduler;
+
   /// the mutex protecting the map of existing converter objects
-  static XrdSysMutex gConverterMapMutex; 
-  
+  static XrdSysMutex gConverterMapMutex;
+
   /// map containing the current allocated converter objects
-  static std::map<std::string,Converter*> gConverterMap; 
+  static std::map<std::string, Converter*> gConverterMap;
 };
 
 EOSMGMNAMESPACE_END

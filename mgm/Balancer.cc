@@ -138,7 +138,7 @@ Balancer::Balance (void)
         break;
 
       if (FsView::gFsView.mSpaceView[mSpaceName.c_str()]->\
-          GetConfigMember("balancer") == "on")
+ GetConfigMember("balancer") == "on")
         IsSpaceBalancing = true;
       else
         IsSpaceBalancing = false;
@@ -147,25 +147,25 @@ Balancer::Balance (void)
 
       SpaceNodeThreshold =
         FsView::gFsView.mSpaceView[mSpaceName.c_str()]->\
-        GetConfigMember("balancer.threshold");
+ GetConfigMember("balancer.threshold");
 
       SpaceDifferenceThreshold =
         strtod(SpaceNodeThreshold.c_str(), 0);
 
       SpaceNodeTransfers =
         FsView::gFsView.mSpaceView[mSpaceName.c_str()]->\
-        GetConfigMember("balancer.node.ntx");
+ GetConfigMember("balancer.node.ntx");
 
       SpaceNodeTransferRate =
         FsView::gFsView.mSpaceView[mSpaceName.c_str()]->\
-        GetConfigMember("balancer.node.rate");
+ GetConfigMember("balancer.node.rate");
 
       if (IsMaster && IsSpaceBalancing)
       {
         size_t totalfiles; // number of files currently in transfer
         // loop over all groups
         for (git = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].begin();
-          git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end(); git++)
+             git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end(); git++)
         {
 
           // --------------------------------------------------------------------
@@ -184,18 +184,18 @@ Balancer::Balance (void)
 
               if (FsView::gFsView.mIdView.count(*it))
               {
-                totalfiles += 
+                totalfiles +=
                   FsView::gFsView.mIdView[*it]->\
-                  GetLongLong("stat.balancer.running");
+ GetLongLong("stat.balancer.running");
               }
 
               if (fs)
               {
-                eos::common::FileSystem::fsstatus_t configstatus = 
+                eos::common::FileSystem::fsstatus_t configstatus =
                   fs->GetConfigStatus();
-                
-                if (((configstatus == eos::common::FileSystem::kDrain) 
-                      || (configstatus == eos::common::FileSystem::kDrainDead)))
+
+                if (((configstatus == eos::common::FileSystem::kDrain)
+                     || (configstatus == eos::common::FileSystem::kDrainDead)))
                 {
                   hasdrainjob = true;
                 }
@@ -203,13 +203,13 @@ Balancer::Balance (void)
 
               // set transfer running by group
               char srunning[256];
-              snprintf(srunning, sizeof (srunning) - 1, "%lu", 
+              snprintf(srunning, sizeof (srunning) - 1, "%lu",
                        (unsigned long) totalfiles);
-              
+
               std::string brunning = srunning;
               if ((*git)->GetConfigMember("stat.balancing.running") != brunning)
               {
-                (*git)->SetConfigMember("stat.balancing.running", 
+                (*git)->SetConfigMember("stat.balancing.running",
                                         brunning, false, "", true);
               }
             }
@@ -221,19 +221,19 @@ Balancer::Balance (void)
           double dev = 0;
           double avg = 0;
           double fsdev = 0;
-          if ((dev = (*git)->MaxDeviation("stat.statfs.filled", false)) > 
+          if ((dev = (*git)->MaxDeviation("stat.statfs.filled", false)) >
               SpaceDifferenceThreshold)
           {
             avg = (*git)->AverageDouble("stat.statfs.filled", false);
             if (hasdrainjob)
             {
               // set status to 'drainwait'
-              (*git)->SetConfigMember("stat.balancing", "drainwait", false, 
+              (*git)->SetConfigMember("stat.balancing", "drainwait", false,
                                       "", true);
             }
             else
             {
-              (*git)->SetConfigMember("stat.balancing", "balancing", false, 
+              (*git)->SetConfigMember("stat.balancing", "balancing", false,
                                       "", true);
             }
 
@@ -247,31 +247,31 @@ Balancer::Balance (void)
                 if (node)
                 {
                   // broadcast the rate & stream configuration if changed
-                  if (node->GetConfigMember("stat.balance.ntx") != 
+                  if (node->GetConfigMember("stat.balance.ntx") !=
                       SpaceNodeTransfers)
                   {
-                    node->SetConfigMember("stat.balance.ntx", 
-                                          SpaceNodeTransfers, 
-                                          false, 
-                                          "", 
+                    node->SetConfigMember("stat.balance.ntx",
+                                          SpaceNodeTransfers,
+                                          false,
+                                          "",
                                           true);
                   }
-                  if (node->GetConfigMember("stat.balance.rate") != 
+                  if (node->GetConfigMember("stat.balance.rate") !=
                       SpaceNodeTransferRate)
                   {
-                    node->SetConfigMember("stat.balance.rate", 
-                                          SpaceNodeTransferRate, 
-                                          false, 
-                                          "", 
+                    node->SetConfigMember("stat.balance.rate",
+                                          SpaceNodeTransferRate,
+                                          false,
+                                          "",
                                           true);
                   }
-                  if (node->GetConfigMember("stat.balance.threshold") != 
+                  if (node->GetConfigMember("stat.balance.threshold") !=
                       SpaceNodeThreshold)
                   {
                     node->SetConfigMember("stat.balance.threshold",
-                                          SpaceNodeThreshold, 
-                                          false, 
-                                          "", 
+                                          SpaceNodeThreshold,
+                                          false,
+                                          "",
                                           true);
                   }
                 }
@@ -314,7 +314,7 @@ Balancer::Balance (void)
                     fs->SetDouble("stat.nominal.filled", 0.0, true);
                   }
                   if ((*git)->GetConfigMember("stat.balancing") != "idle")
-                    (*git)->SetConfigMember("stat.balancing", "idle", 
+                    (*git)->SetConfigMember("stat.balancing", "idle",
                                             false, "", true);
                 }
               }
@@ -324,11 +324,11 @@ Balancer::Balance (void)
 
           XrdOucString sizestring1;
           XrdOucString sizestring2;
-          eos_static_debug("space=%-10s group=%-20s deviation=%-10s threshold=%-10s", 
-                           mSpaceName.c_str(), (*git)->GetMember("name").c_str(), 
-                           eos::common::StringConversion::GetReadableSizeString(sizestring1, (unsigned long long) dev, "B"), 
+          eos_static_debug("space=%-10s group=%-20s deviation=%-10s threshold=%-10s",
+                           mSpaceName.c_str(), (*git)->GetMember("name").c_str(),
+                           eos::common::StringConversion::GetReadableSizeString(sizestring1, (unsigned long long) dev, "B"),
                            eos::common::StringConversion::GetReadableSizeString(sizestring2, (unsigned long long) SpaceDifferenceThreshold, "B")
-            );
+                           );
         }
       }
       else
@@ -338,13 +338,13 @@ Balancer::Balance (void)
           std::set<FsGroup*>::const_iterator git;
           if (FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str()))
           {
-            for (git = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].begin(); 
-              git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end(); 
-              git++)
+            for (git = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].begin();
+                 git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end();
+                 git++)
             {
               if ((*git)->GetConfigMember("stat.balancing.running") != "0")
               {
-                (*git)->SetConfigMember("stat.balancing.running", "0", false, 
+                (*git)->SetConfigMember("stat.balancing.running", "0", false,
                                         "", true);
               }
               std::set<eos::common::FileSystem::fsid_t>::const_iterator fsit;
@@ -365,7 +365,7 @@ Balancer::Balance (void)
                 }
               }
               if ((*git)->GetConfigMember("stat.balancing") != "idle")
-                (*git)->SetConfigMember("stat.balancing", "idle", false, 
+                (*git)->SetConfigMember("stat.balancing", "idle", false,
                                         "", true);
             }
           }

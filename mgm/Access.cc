@@ -316,38 +316,38 @@ Access::StoreAccessConfig ()
   std::string redirect = "";
 
   for (ituid = Access::gBannedUsers.begin();
-    ituid != Access::gBannedUsers.end(); ituid++)
+       ituid != Access::gBannedUsers.end(); ituid++)
   {
     userval += eos::common::Mapping::UidAsString(*ituid);
     userval += ":";
   }
   for (itgid = Access::gBannedGroups.begin();
-    itgid != Access::gBannedGroups.end(); itgid++)
+       itgid != Access::gBannedGroups.end(); itgid++)
   {
     groupval += eos::common::Mapping::GidAsString(*itgid);
     groupval += ":";
   }
   for (ithost = Access::gBannedHosts.begin();
-    ithost != Access::gBannedHosts.end(); ithost++)
+       ithost != Access::gBannedHosts.end(); ithost++)
   {
     hostval += ithost->c_str();
     hostval += ":";
   }
 
   for (ituid = Access::gAllowedUsers.begin();
-    ituid != Access::gAllowedUsers.end(); ituid++)
+       ituid != Access::gAllowedUsers.end(); ituid++)
   {
     useraval += eos::common::Mapping::UidAsString(*ituid);
     useraval += ":";
   }
   for (itgid = Access::gAllowedGroups.begin();
-    itgid != Access::gAllowedGroups.end(); itgid++)
+       itgid != Access::gAllowedGroups.end(); itgid++)
   {
     groupaval += eos::common::Mapping::GidAsString(*itgid);
     groupaval += ":";
   }
   for (ithost = Access::gAllowedHosts.begin();
-    ithost != Access::gAllowedHosts.end(); ithost++)
+       ithost != Access::gAllowedHosts.end(); ithost++)
   {
     hostaval += ithost->c_str();
     hostaval += ":";
@@ -355,7 +355,7 @@ Access::StoreAccessConfig ()
 
   gStallRead = gStallWrite = gStallGlobal = gStallUserGroup = false;
   for (itstall = Access::gStallRules.begin();
-    itstall != Access::gStallRules.end(); itstall++)
+       itstall != Access::gStallRules.end(); itstall++)
   {
     stall += itstall->first.c_str();
     stall += "~";
@@ -390,7 +390,7 @@ Access::StoreAccessConfig ()
   }
 
   for (itredirect = Access::gRedirectionRules.begin();
-    itredirect != Access::gRedirectionRules.end(); itredirect++)
+       itredirect != Access::gRedirectionRules.end(); itredirect++)
   {
     redirect += itredirect->first.c_str();
     redirect += "~";

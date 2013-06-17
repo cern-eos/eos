@@ -102,42 +102,44 @@ public:
  * 
  * The class provides reset/load/store functionality. 
  */
+
 /*----------------------------------------------------------------------------*/
 class ConfigEngine : public eos::common::LogId
 {
 private:
   /// directory where configuration files are stored
   XrdOucString configDir;
-  
+
   /// mutex protecting the configuration engine
   XrdSysMutex Mutex;
-  
+
   /// name of the configuration file currently loaded
-  XrdOucString currentConfigFile; 
+  XrdOucString currentConfigFile;
 
   /// Changelog class
-  ConfigEngineChangeLog changeLog; 
-  
+  ConfigEngineChangeLog changeLog;
+
   /// autosave flag - if enabled all changes trigger to store an autosave file
-  bool autosave; 
-  
+  bool autosave;
+
   /// broadcasting flag - if enabled all changes are broadcasted into the MGM
   /// configuration queue (config/<instance>/mgm)
-  bool configBroadcast;  
+  bool configBroadcast;
 
 public:
 
-  
-  static XrdOucHash<XrdOucString> configDefinitionsFile;///< config definitions of the last loaded file
-  
-  
-  static XrdOucHash<XrdOucString> configDefinitions;///< config definitions currently in memory
+
+  static XrdOucHash<XrdOucString> configDefinitionsFile; ///< config definitions of the last loaded file
+
+
+  static XrdOucHash<XrdOucString> configDefinitions; ///< config definitions currently in memory
 
   //< helper struct to use the XrdOucHash::Apply function
+
   struct PrintInfo
   {
-    XrdOucString* out;    ///< output string
-    XrdOucString option;  ///< option for printing
+    XrdOucString* out; ///< output string
+    XrdOucString option; ///< option for printing
   };
 
   // ---------------------------------------------------------------------------
@@ -173,6 +175,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Set the configuration directory
   // ---------------------------------------------------------------------------
+
   void
   SetConfigDir (const char* configdir)
   {
@@ -184,6 +187,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Get the changlog object
   // ---------------------------------------------------------------------------
+
   ConfigEngineChangeLog*
   GetChangeLog ()
   {
@@ -203,11 +207,12 @@ public:
   // ---------------------------------------------------------------------------
   //! Show diffs between the last stored and current configuration
   // ---------------------------------------------------------------------------
+
   void
   Diffs (XrdOucString &diffs)
   {
     diffs = changeLog.configChanges;
-    while (diffs.replace("&", " "))
+    while (diffs.replace ("&", " "))
     {
     }
   };
@@ -216,9 +221,11 @@ public:
   // ---------------------------------------------------------------------------
   //! Comparison function for sorted listing
   // ---------------------------------------------------------------------------
+
   static int
   CompareCtime (const void* a, const void*b)
   {
+
     struct filestat
     {
       struct stat buf;
@@ -236,7 +243,7 @@ public:
   // Dump a configuration
   // ---------------------------------------------------------------------------
   bool DumpConfig (XrdOucString &out, XrdOucEnv &filter);
-  
+
   // ---------------------------------------------------------------------------
   // Parse a configuration
   // ---------------------------------------------------------------------------
@@ -255,17 +262,19 @@ public:
   // ---------------------------------------------------------------------------
   //! Print the current configuration
   // ---------------------------------------------------------------------------
+
   void
   PrintConfig ()
   {
-    Mutex.Lock();
-    configDefinitions.Apply(PrintEachConfig, NULL);
-    Mutex.UnLock();
+    Mutex.Lock ();
+    configDefinitions.Apply (PrintEachConfig, NULL);
+    Mutex.UnLock ();
   }
 
   // ---------------------------------------------------------------------------
   //! Set the autosave mode
   // ---------------------------------------------------------------------------
+
   void
   SetAutoSave (bool val)
   {
@@ -275,6 +284,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Get the autosave mode
   // ---------------------------------------------------------------------------
+
   bool
   GetAutoSave ()
   {

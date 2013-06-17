@@ -370,7 +370,8 @@ FsView::StoreFsConfig (FileSystem* fs)
  * @param group target group 
  * @return true if moved otherwise false
  */
- /*----------------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------------*/
 bool
 FsView::MoveGroup (FileSystem* fs, std::string group)
 {
@@ -391,7 +392,7 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
       {
         FsSpace* space = mSpaceView[snapshot1.mSpace];
         space->erase(snapshot1.mId);
-        eos_debug("unregister space %s from space view", 
+        eos_debug("unregister space %s from space view",
                   space->GetMember("name").c_str());
         if (!space->size())
         {
@@ -405,7 +406,7 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
       {
         FsGroup* group = mGroupView[snapshot1.mGroup];
         group->erase(snapshot1.mId);
-        eos_debug("unregister group %s from group view", 
+        eos_debug("unregister group %s from group view",
                   group->GetMember("name").c_str());
         if (!group->size())
         {
@@ -422,7 +423,7 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
       if (mGroupView.count(snapshot.mGroup))
       {
         mGroupView[snapshot.mGroup]->insert(snapshot.mId);
-        eos_debug("inserting into group view %s<=>%u", 
+        eos_debug("inserting into group view %s<=>%u",
                   snapshot.mGroup.c_str(), snapshot.mId, fs);
       }
       else
@@ -431,7 +432,7 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
         mGroupView[snapshot.mGroup] = group;
         group->insert(snapshot.mId);
         group->mIndex = snapshot.mGroupIndex;
-        eos_debug("creating/inserting into group view %s<=>%u", 
+        eos_debug("creating/inserting into group view %s<=>%u",
                   snapshot.mGroup.c_str(), snapshot.mId, fs);
       }
 
@@ -441,7 +442,7 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
       if (mSpaceView.count(snapshot.mSpace))
       {
         mSpaceView[snapshot.mSpace]->insert(snapshot.mId);
-        eos_debug("inserting into space view %s<=>%u %x", 
+        eos_debug("inserting into space view %s<=>%u %x",
                   snapshot.mSpace.c_str(), snapshot.mId, fs);
       }
       else
@@ -449,7 +450,7 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
         FsSpace* space = new FsSpace(snapshot.mSpace.c_str());
         mSpaceView[snapshot.mSpace] = space;
         space->insert(snapshot.mId);
-        eos_debug("creating/inserting into space view %s<=>%u %x", 
+        eos_debug("creating/inserting into space view %s<=>%u %x",
                   snapshot.mSpace.c_str(), snapshot.mId, fs);
       }
 
@@ -467,6 +468,7 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
  * @param fs filesystem to unregister
  * @return true if done otherwise false
  */
+
 /*----------------------------------------------------------------------------*/
 bool
 FsView::UnRegister (FileSystem* fs)

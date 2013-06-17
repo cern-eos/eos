@@ -38,7 +38,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-const char* Iostat::gIostatCollect = "iostat::collect";
+  const char* Iostat::gIostatCollect = "iostat::collect";
 const char* Iostat::gIostatReport = "iostat::report";
 const char* Iostat::gIostatReportNamespace = "iostat::reportnamespace";
 const char* Iostat::gIostatPopularity = "iostat::popularity";

@@ -44,10 +44,10 @@ public:
 
   ~Vid () { };
 
-  static bool Set (const char* value, bool storeConfig=true);
-  static bool Set (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr, bool storeConfig=true);
+  static bool Set (const char* value, bool storeConfig = true);
+  static bool Set (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr, bool storeConfig = true);
   static void Ls (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);
-  static bool Rm (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr, bool storeConfig=true);
+  static bool Rm (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr, bool storeConfig = true);
 
   static const char* Get (const char* key);
 };

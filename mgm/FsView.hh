@@ -198,7 +198,7 @@ public:
   const char*
   GetStatus ()
   {
-    return mStatus.c_str();
+    return mStatus.c_str ();
   }
 
   // ---------------------------------------------------------------------------
@@ -275,8 +275,8 @@ public:
     mName = name;
     mType = "spaceview";
 #ifndef EOSMGMFSVIEWTEST
-    mBalancer = new Balancer(name);
-    mConverter = new Converter(name);
+    mBalancer = new Balancer (name);
+    mConverter = new Converter (name);
 
     if (!gDisableDefaults)
     {
@@ -285,47 +285,47 @@ public:
       // -----------------------------------------------------------------------
 
       // disable balancing by default
-      if (GetConfigMember("balancer") == "")
-        SetConfigMember("balancer", "off", true, "/eos/*/mgm");
+      if (GetConfigMember ("balancer") == "")
+        SetConfigMember ("balancer", "off", true, "/eos/*/mgm");
       // set deviation treshold
-      if (GetConfigMember("balancer.threshold") == "")
-        SetConfigMember("balancer.threshold", "20", true, "/eos/*/mgm");
+      if (GetConfigMember ("balancer.threshold") == "")
+        SetConfigMember ("balancer.threshold", "20", true, "/eos/*/mgm");
       // set balancing rate per balancing stream
-      if (GetConfigMember("balancer.node.rate") == "")
-        SetConfigMember("balancer.node.rate", "25", true, "/eos/*/mgm");
+      if (GetConfigMember ("balancer.node.rate") == "")
+        SetConfigMember ("balancer.node.rate", "25", true, "/eos/*/mgm");
       // set parallel balancing streams per node
-      if (GetConfigMember("balancer.node.ntx") == "")
-        SetConfigMember("balancer.node.ntx", "2", true, "/eos/*/mgm");
+      if (GetConfigMember ("balancer.node.ntx") == "")
+        SetConfigMember ("balancer.node.ntx", "2", true, "/eos/*/mgm");
       // set drain rate per drain stream
-      if (GetConfigMember("drain.node.rate") == "")
-        SetConfigMember("drainer.node.rate", "25", true, "/eos/*/mgm");
+      if (GetConfigMember ("drain.node.rate") == "")
+        SetConfigMember ("drainer.node.rate", "25", true, "/eos/*/mgm");
       // set parallel draining streams per node
-      if (GetConfigMember("drainer.node.ntx") == "")
-        SetConfigMember("drainer.node.ntx", "2", true, "/eos/*/mgm");
+      if (GetConfigMember ("drainer.node.ntx") == "")
+        SetConfigMember ("drainer.node.ntx", "2", true, "/eos/*/mgm");
       // set the grace period before drain start on opserror to 1 day
-      if (GetConfigMember("graceperiod") == "")
-        SetConfigMember("graceperiod", "86400", true, "/eos/*/mgm");
+      if (GetConfigMember ("graceperiod") == "")
+        SetConfigMember ("graceperiod", "86400", true, "/eos/*/mgm");
       // set the time for a drain by default to 1 day
-      if (GetConfigMember("drainperiod") == "")
-        SetConfigMember("drainperiod", "86400", true, "/eos/*/mgm");
+      if (GetConfigMember ("drainperiod") == "")
+        SetConfigMember ("drainperiod", "86400", true, "/eos/*/mgm");
       // set the scan interval by default to 1 week
-      if (GetConfigMember("scaninterval") == "")
-        SetConfigMember("scaninterval", "604800", true, "/eos/*/mgm");
+      if (GetConfigMember ("scaninterval") == "")
+        SetConfigMember ("scaninterval", "604800", true, "/eos/*/mgm");
       // disable quota by default
-      if (GetConfigMember("quota") == "")
-        SetConfigMember("quota", "off", true, "/eos/*/mgm");
+      if (GetConfigMember ("quota") == "")
+        SetConfigMember ("quota", "off", true, "/eos/*/mgm");
       // set the group modulo to 0
-      if (GetConfigMember("groupmod") == "")
-        SetConfigMember("groupmod", "0", true, "/eos/*/mgm");
+      if (GetConfigMember ("groupmod") == "")
+        SetConfigMember ("groupmod", "0", true, "/eos/*/mgm");
       // set the group size to 0
-      if (GetConfigMember("groupsize") == "")
-        SetConfigMember("groupsize", "0", true, "/eos/*/mgm");
+      if (GetConfigMember ("groupsize") == "")
+        SetConfigMember ("groupsize", "0", true, "/eos/*/mgm");
       // disable converter by default
-      if (GetConfigMember("converter") == "")
-        SetConfigMember("converter", "off", true, "/eos/*/mgm");
+      if (GetConfigMember ("converter") == "")
+        SetConfigMember ("converter", "off", true, "/eos/*/mgm");
       // set two converter streams by default
-      if (GetConfigMember("converter.ntx") == "")
-        SetConfigMember("converter.ntx", "2", true, "/eos/*/mgm");
+      if (GetConfigMember ("converter.ntx") == "")
+        SetConfigMember ("converter.ntx", "2", true, "/eos/*/mgm");
     }
 
 #endif
@@ -359,7 +359,7 @@ public:
   virtual const char*
   GetConfigQueuePrefix ()
   {
-    return gConfigQueuePrefix.c_str();
+    return gConfigQueuePrefix.c_str ();
   }
 
   // ---------------------------------------------------------------------------
@@ -369,7 +369,7 @@ public:
   static const char*
   sGetConfigQueuePrefix ()
   {
-    return gConfigQueuePrefix.c_str();
+    return gConfigQueuePrefix.c_str ();
   }
 
   // ---------------------------------------------------------------------------
@@ -448,7 +448,7 @@ public:
   virtual const char*
   GetConfigQueuePrefix ()
   {
-    return gConfigQueuePrefix.c_str();
+    return gConfigQueuePrefix.c_str ();
   }
 
   // ---------------------------------------------------------------------------
@@ -460,7 +460,7 @@ public:
   static const char*
   sGetConfigQueuePrefix ()
   {
-    return gConfigQueuePrefix.c_str();
+    return gConfigQueuePrefix.c_str ();
   }
 };
 
@@ -494,9 +494,9 @@ public:
   {
     mName = name;
     mType = "nodesview";
-    std::string n = mName.c_str();
+    std::string n = mName.c_str ();
     n += "/gw";
-    mGwQueue = new eos::common::TransferQueue(mName.c_str(), n.c_str(), "txq", (eos::common::FileSystem*)0, eos::common::GlobalConfig::gConfig.SOM(), false);
+    mGwQueue = new eos::common::TransferQueue (mName.c_str (), n.c_str (), "txq", (eos::common::FileSystem*)0, eos::common::GlobalConfig::gConfig.SOM (), false);
   }
 
   // ---------------------------------------------------------------------------
@@ -515,56 +515,56 @@ public:
   SetNodeConfigDefault ()
   {
     // define the manager ID
-    if (!(GetConfigMember("manager").length()))
+    if (!(GetConfigMember ("manager").length ()))
     {
-      SetConfigMember("manager", gManagerId, true, mName.c_str(), true);
+      SetConfigMember ("manager", gManagerId, true, mName.c_str (), true);
     }
     // by default set 2 balancing streams per node
-    if (!(GetConfigMember("stat.balance.ntx").length()))
+    if (!(GetConfigMember ("stat.balance.ntx").length ()))
     {
-      SetConfigMember("stat.balance.ntx", "2", true, mName.c_str(), true);
+      SetConfigMember ("stat.balance.ntx", "2", true, mName.c_str (), true);
     }
     // by default set 25 MB/s stream balancing rate
-    if (!(GetConfigMember("stat.balance.rate").length()))
+    if (!(GetConfigMember ("stat.balance.rate").length ()))
     {
-      SetConfigMember("stat.balance.rate", "25", true, mName.c_str(), true);
+      SetConfigMember ("stat.balance.rate", "25", true, mName.c_str (), true);
     }
     // set the default sym key from the sym key store
-    eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+    eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey ();
     // store the sym key as configuration member
-    if (!(GetConfigMember("symkey").length()))
+    if (!(GetConfigMember ("symkey").length ()))
     {
-      SetConfigMember("symkey", symkey->GetKey64(), true, mName.c_str(), true);
+      SetConfigMember ("symkey", symkey->GetKey64 (), true, mName.c_str (), true);
     }
     // set the default debug level to notice
-    if (!(GetConfigMember("debug.level").length()))
+    if (!(GetConfigMember ("debug.level").length ()))
     {
-      SetConfigMember("debug.level", "notice", true, mName.c_str(), true);
+      SetConfigMember ("debug.level", "notice", true, mName.c_str (), true);
     }
     // set by default as no transfer gateway
-    if ((GetConfigMember("txgw") != "on") && (GetConfigMember("txgw") != "off"))
+    if ((GetConfigMember ("txgw") != "on") && (GetConfigMember ("txgw") != "off"))
     {
-      SetConfigMember("txgw", "off", true, mName.c_str(), true);
+      SetConfigMember ("txgw", "off", true, mName.c_str (), true);
     }
 
     // set by default 10 transfers per gateway node
-    if ((strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == 0) ||
-        (strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == LONG_MAX))
+    if ((strtol (GetConfigMember ("gw.ntx").c_str (), 0, 10) == 0) ||
+        (strtol (GetConfigMember ("gw.ntx").c_str (), 0, 10) == LONG_MAX))
     {
-      SetConfigMember("gw.ntx", "10", true, mName.c_str(), true);
+      SetConfigMember ("gw.ntx", "10", true, mName.c_str (), true);
     }
 
     // set by default the gateway stream transfer speed to 120 Mb/s
-    if ((strtol(GetConfigMember("gw.rate").c_str(), 0, 10) == 0) ||
-        (strtol(GetConfigMember("gw.rate").c_str(), 0, 10) == LONG_MAX))
+    if ((strtol (GetConfigMember ("gw.rate").c_str (), 0, 10) == 0) ||
+        (strtol (GetConfigMember ("gw.rate").c_str (), 0, 10) == LONG_MAX))
     {
-      SetConfigMember("gw.rate", "120", true, mName.c_str(), true);
+      SetConfigMember ("gw.rate", "120", true, mName.c_str (), true);
     }
 
     // set by default the MGM domain e.g. same geographical position as the MGM
-    if (!(GetConfigMember("domain").length()))
+    if (!(GetConfigMember ("domain").length ()))
     {
-      SetConfigMember("domain", "MGM", true, mName.c_str(), true);
+      SetConfigMember ("domain", "MGM", true, mName.c_str (), true);
     }
   }
 
@@ -580,7 +580,7 @@ public:
   virtual const char*
   GetConfigQueuePrefix ()
   {
-    return gConfigQueuePrefix.c_str();
+    return gConfigQueuePrefix.c_str ();
   }
 
   // ---------------------------------------------------------------------------
@@ -592,7 +592,7 @@ public:
   static const char*
   sGetConfigQueuePrefix ()
   {
-    return gConfigQueuePrefix.c_str();
+    return gConfigQueuePrefix.c_str ();
   }
 };
 
@@ -717,7 +717,7 @@ public:
   bool
   HasMapping (eos::common::FileSystem::fsid_t fsid)
   {
-    return (Fs2UuidMap.count(fsid) > 0) ? true : false;
+    return (Fs2UuidMap.count (fsid) > 0) ? true : false;
   }
 
   // ---------------------------------------------------------------------------
@@ -766,11 +766,11 @@ public:
 #ifndef EOSMGMFSVIEWTEST
     ConfEngine = 0;
 #endif
-    XrdSysThread::Run(&hbthread,
-                      FsView::StaticHeartBeatCheck,
-                      static_cast<void *> (this),
-                      XRDSYSTHREAD_HOLD,
-                      "HeartBeat Thread");
+    XrdSysThread::Run (&hbthread,
+                       FsView::StaticHeartBeatCheck,
+                       static_cast<void *> (this),
+                       XRDSYSTHREAD_HOLD,
+                       "HeartBeat Thread");
   }
 
   // ---------------------------------------------------------------------------
@@ -782,8 +782,8 @@ public:
   {
     if (hbthread)
     {
-      XrdSysThread::Cancel(hbthread);
-      XrdSysThread::Join(hbthread, 0);
+      XrdSysThread::Cancel (hbthread);
+      XrdSysThread::Join (hbthread, 0);
       hbthread = 0;
     }
   }
@@ -795,7 +795,7 @@ public:
   virtual
   ~FsView ()
   {
-    StopHeartBeat();
+    StopHeartBeat ();
   };
 
   void

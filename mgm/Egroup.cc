@@ -35,15 +35,12 @@ std::map < std::string, std::map < std::string, time_t > > Egroup::LifeTime;
 std::deque <std::pair<std::string, std::string > > Egroup::LdapQueue;
 XrdSysCondVar Egroup::mCond;
 
-
-Egroup::Egroup () 
+Egroup::Egroup ()
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Constructor
  */
-/*----------------------------------------------------------------------------*/
-{ }
-
+/*----------------------------------------------------------------------------*/ { }
 
 bool
 /*----------------------------------------------------------------------------*/
@@ -139,9 +136,9 @@ Egroup::Member (std::string &username, std::string & egroupname)
     {
       Map[egroupname][username] = true;
       LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
-      eos_static_info("msg=\"update-sync\" member=%d user=%s egroup=%s", 
-                      Map[egroupname][username], 
-                      username.c_str(), 
+      eos_static_info("msg=\"update-sync\" member=%d user=%s egroup=%s",
+                      Map[egroupname][username],
+                      username.c_str(),
                       egroupname.c_str());
       Mutex.UnLock();
       return true;
@@ -150,9 +147,9 @@ Egroup::Member (std::string &username, std::string & egroupname)
     {
       Map[egroupname][username] = false;
       LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
-      eos_static_info("msg=\"update-sync\" member=%d user=%s egroup=%s", 
-                      Map[egroupname][username], 
-                      username.c_str(), 
+      eos_static_info("msg=\"update-sync\" member=%d user=%s egroup=%s",
+                      Map[egroupname][username],
+                      username.c_str(),
                       egroupname.c_str());
       Mutex.UnLock();
       return false;
@@ -222,7 +219,6 @@ Egroup::Refresh ()
   return 0;
 }
 
-
 void
 Egroup::AsyncRefresh (std::string& egroupname, std::string & username)
 /*----------------------------------------------------------------------------*/
@@ -271,8 +267,8 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
   }
   Mutex.UnLock();
 
-  eos_static_info("refresh-async user=%s egroup=%s", 
-                  username.c_str(), 
+  eos_static_info("refresh-async user=%s egroup=%s",
+                  username.c_str(),
                   egroupname.c_str());
 
   std::string cmd = "ldapsearch -LLL -l 15 -h xldap -x -b 'OU=Users,Ou=Organic Units,DC=cern,DC=ch' 'sAMAccountName=";
@@ -296,9 +292,9 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
 
   LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
 
-  eos_static_info("msg=\"update-async\" member=%d user=%s egroup=%s", 
-                  Map[egroupname][username], 
-                  username.c_str(), 
+  eos_static_info("msg=\"update-async\" member=%d user=%s egroup=%s",
+                  Map[egroupname][username],
+                  username.c_str(),
                   egroupname.c_str());
 
   Mutex.UnLock();

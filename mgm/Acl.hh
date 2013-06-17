@@ -41,6 +41,7 @@
  * @brief  Class providing ACL interpretation and access control functions
  * 
  */
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -69,6 +70,7 @@ class Acl
 public:
   /*---------------------------------------------------------------------------*/
   //! Default Constructor
+
   /*---------------------------------------------------------------------------*/
   Acl ()
   {
@@ -89,8 +91,8 @@ public:
   /*---------------------------------------------------------------------------*/
   //! Constructor
   /*---------------------------------------------------------------------------*/
-  Acl (std::string sysacl, 
-       std::string useracl, 
+  Acl (std::string sysacl,
+       std::string useracl,
        eos::common::Mapping::VirtualIdentity &vid);
 
   /*--------------------------------------------------------------------------*/
@@ -102,14 +104,15 @@ public:
   /*--------------------------------------------------------------------------*/
   //! Enter system and user definition + identity used for ACL interpretation
   /*--------------------------------------------------------------------------*/
-  void Set (std::string sysacl, 
-            std::string useracl, 
+  void Set (std::string sysacl,
+            std::string useracl,
             eos::common::Mapping::VirtualIdentity &vid);
 
   /*--------------------------------------------------------------------------*/
   // Getter Functions for ACL booleans
+
   /*--------------------------------------------------------------------------*/
-  
+
   bool
   CanRead ()
   /// allowed to read
