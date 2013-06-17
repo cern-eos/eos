@@ -103,7 +103,6 @@ target_link_libraries( XrdEosMgm
                        eosCapability-Static XrdMqClient-Static 
                        crypto               curses 
 		       dl                   z 
-                       curl
 		       ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
                      )
 
