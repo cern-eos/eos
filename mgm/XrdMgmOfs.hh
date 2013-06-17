@@ -110,7 +110,6 @@
 #include "mgm/Iostat.hh"
 #include "mgm/Fsck.hh"
 #include "mgm/Master.hh"
-#include "mgm/Http.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/Recycle.hh"
 #ifdef HAVE_ZMQ
@@ -118,6 +117,7 @@
 #endif
 #include "mgm/Messaging.hh"
 #include "mgm/ProcInterface.hh"
+#include "mgm/http/HttpServer.hh"
 #include "namespace/IView.hh"
 #include "namespace/IFileMDSvc.hh"
 #include "namespace/IContainerMDSvc.hh"
@@ -1329,7 +1329,7 @@ public:
 
   google::sparse_hash_map<unsigned long long, struct timespec> MgmDirectoryModificationTime;
 
-  Http Httpd; //<  Http daemon if available
+  HttpServer Httpd; //<  Http daemon if available
 
   Egroup EgroupRefresh; //<  Egroup refresh object running asynchronous Egroup fetch thread
 

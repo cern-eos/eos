@@ -22,13 +22,13 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "mgm/S3Store.hh"
+#include "mgm/http/S3Store.hh"
+#include "mgm/http/S3.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
-#include "common/S3.hh"
 /*----------------------------------------------------------------------------*/
-
+/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -151,7 +151,7 @@ S3Store::Refresh ()
 
 /*----------------------------------------------------------------------------*/
 bool
-S3Store::VerifySignature (eos::common::S3& s3)
+S3Store::VerifySignature (S3& s3)
 {
   if (!mS3Keys.count(s3.getId()))
   {
@@ -164,7 +164,7 @@ S3Store::VerifySignature (eos::common::S3& s3)
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3Store::ListBuckets (int& response_code, eos::common::S3 &s3, std::map<std::string, std::string> &response_header)
+S3Store::ListBuckets (int& response_code, S3 &s3, std::map<std::string, std::string> &response_header)
 {
   //.............................................................................
   // Return bucket list for a given s3 request
@@ -226,7 +226,7 @@ S3Store::ListBuckets (int& response_code, eos::common::S3 &s3, std::map<std::str
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3Store::ListBucket (int& response_code, eos::common::S3 &s3, std::map<std::string, std::string> &response_header)
+S3Store::ListBucket (int& response_code, S3 &s3, std::map<std::string, std::string> &response_header)
 {
   //.............................................................................
   // Return bucket listing for a given s3 request
@@ -494,7 +494,7 @@ S3Store::ListBucket (int& response_code, eos::common::S3 &s3, std::map<std::stri
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3Store::HeadObject (int& response_code, eos::common::S3 &s3, std::map<std::string, std::string> &response_header)
+S3Store::HeadObject (int& response_code, S3 &s3, std::map<std::string, std::string> &response_header)
 {
   XrdOucErrInfo error;
   eos::common::Mapping::VirtualIdentity vid;
@@ -560,7 +560,7 @@ S3Store::HeadObject (int& response_code, eos::common::S3 &s3, std::map<std::stri
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3Store::HeadBucket (int& response_code, eos::common::S3 &s3, std::map<std::string, std::string> &response_header)
+S3Store::HeadBucket (int& response_code, S3 &s3, std::map<std::string, std::string> &response_header)
 {
   XrdOucErrInfo error;
   eos::common::Mapping::VirtualIdentity vid;
@@ -618,7 +618,7 @@ S3Store::HeadBucket (int& response_code, eos::common::S3 &s3, std::map<std::stri
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3Store::GetObject (int& response_code, eos::common::S3 &s3, std::map<std::string, std::string> &response_header)
+S3Store::GetObject (int& response_code, S3 &s3, std::map<std::string, std::string> &response_header)
 {
   std::string result;
   XrdOucErrInfo error;
@@ -735,7 +735,7 @@ S3Store::GetObject (int& response_code, eos::common::S3 &s3, std::map<std::strin
       {
 
         // the embedded server on FSTs is hardcoded to run on port 8001
-        result = eos::common::Http::HttpRedirect(response_code,
+        result = eos::common::HttpServer::HttpRedirect(response_code,
                                                  response_header,
                                                  file->error.getErrText(),
                                                  8001,
@@ -775,7 +775,7 @@ S3Store::GetObject (int& response_code, eos::common::S3 &s3, std::map<std::strin
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3Store::PutObject (int& response_code, eos::common::S3 &s3, std::map<std::string, std::string> &response_header)
+S3Store::PutObject (int& response_code, S3 &s3, std::map<std::string, std::string> &response_header)
 {
   std::string result;
   XrdOucErrInfo error;
@@ -818,7 +818,7 @@ S3Store::PutObject (int& response_code, eos::common::S3 &s3, std::map<std::strin
     {
 
       // the embedded server on FSTs is hardcoded to run on port 8001
-      result = eos::common::Http::HttpRedirect(response_code,
+      result = eos::common::HttpServer::HttpRedirect(response_code,
                                                response_header,
                                                file->error.getErrText(),
                                                8001,

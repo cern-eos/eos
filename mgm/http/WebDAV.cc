@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: Http.hh
-// Author: Andreas-Joachim Peters - CERN
+// File: WebDAV.cc
+// Author: Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2013 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,57 +21,48 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_HTTP__HH__
-#define __EOSMGM_HTTP__HH__
-
 /*----------------------------------------------------------------------------*/
+#include "mgm/http/WebDAV.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/S3Store.hh"
-#include "common/Http.hh"
-
+#include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
-
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-class Http : public eos::common::Http
+/*----------------------------------------------------------------------------*/
+bool
+WebDAV::Matches(std::string &meth, ProtocolHandler::HeaderMap &headers)
 {
-  // -------------------------------------------------------------
-  // ! creates an Http redirector instance running on the MGM
-  // -------------------------------------------------------------
-private:
-  S3Store* mS3Store;
+  int method =  ParseMethodString(meth);
+  if (method == WebDAV::PROPFIND || method == WebDAV::PROPPATCH ||
+      method == WebDAV::MKCOL    || method == WebDAV::COPY      ||
+      method == WebDAV::MOVE     || method == WebDAV::LOCK      ||
+      method == WebDAV::UNLOCK)
+  {
+    eos_static_info("info=Matched WebDAV protocol for request");
+    return true;
+  }
+  else return false;
+}
 
-public:
+/*----------------------------------------------------------------------------*/
+void
+WebDAV::ParseHeader (ProtocolHandler::HeaderMap &headers)
+{
 
-  /**
-   * Constructor
-   */
-  Http (int port = 8000);
+}
 
-  /**
-   * Destructor
-   */
-  virtual ~Http ();
+/*----------------------------------------------------------------------------*/
+std::string
+WebDAV::HandleRequest(ProtocolHandler::HeaderMap request,
+                      ProtocolHandler::HeaderMap response,
+                      int                        error)
+{
+  error = 1;
+  return "Not Implemented";
+}
 
-#ifdef EOS_MICRO_HTTPD
-  /**
-   * http object handler function on MGM
-   * @return see implementation
-   */
-  virtual int Handler (void *cls,
-                       struct MHD_Connection *connection,
-                       const char *url,
-                       const char *method,
-                       const char *version,
-                       const char *upload_data,
-                       size_t *upload_data_size, void **ptr);
-#endif
-};
-
+/*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_END
-
-#endif

@@ -21,28 +21,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file  S3Store.hh
+ *
+ * @brief creates the S3 store object knowing ids, keys and containers
+ *        and their mapping to the real namespace
+ */
+
 #ifndef __EOSMGM_S3Store__HH__
 #define __EOSMGM_S3Store__HH__
 
 /*----------------------------------------------------------------------------*/
+#include "mgm/http/S3.hh"
 #include "mgm/Namespace.hh"
 #include "common/RWMutex.hh"
-#include "common/S3.hh"
+/*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 #include <map>
 #include <set>
 #include <string>
 /*----------------------------------------------------------------------------*/
 
-/*----------------------------------------------------------------------------*/
-
 EOSMGMNAMESPACE_BEGIN
+
+class S3;
 
 class S3Store
 {
   // -------------------------------------------------------------
-  // ! creates the S3 store object knowing ids, keys and container
-  // ! and their mapping to the real namespace
+  // !
   // -------------------------------------------------------------
 
 public:
@@ -68,7 +75,7 @@ public:
    * @param s3 object containing s3 id & key
    * @return true if signature ok
    */
-  bool VerifySignature (eos::common::S3 &s3);
+  bool VerifySignature (S3 &s3);
 
   /**
    * return bucket list for a given S3 requestor
@@ -77,7 +84,7 @@ public:
    * @param http response header
    * @return XML bucket list
    */
-  std::string ListBuckets (int& response_code, eos::common::S3 &s3, std::map<std::string, std::string> &header);
+  std::string ListBuckets (int& response_code, S3 &s3, std::map<std::string, std::string> &header);
 
   /**
    * return bucket listing for a given S3 requestor
@@ -86,7 +93,7 @@ public:
    * @param http response header
    * @return XML bucket listing
    */
-  std::string ListBucket (int& response_code, eos::common::S3 &s3, std::map<std::string, std::string> &header);
+  std::string ListBucket (int& response_code, S3 &s3, std::map<std::string, std::string> &header);
 
   /**
    * return act's like stat on a bucket
@@ -95,7 +102,7 @@ public:
    * @param http response header
    * @return http response body
    */
-  std::string HeadBucket (int& response_code, eos::common::S3 &s3, std::map<std::string, std::string> &header);
+  std::string HeadBucket (int& response_code, S3 &s3, std::map<std::string, std::string> &header);
 
   /**
    * return meta data for an object
@@ -104,7 +111,7 @@ public:
    * @param http response header
    * @return http response body
    */
-  std::string HeadObject (int& response_code, eos::common::S3 &s3, std::map<std::string, std::string> &header);
+  std::string HeadObject (int& response_code, S3 &s3, std::map<std::string, std::string> &header);
 
   /**
    * return object e.g. redirection
@@ -113,7 +120,7 @@ public:
    * @param http response header
    * @return http response body
    */
-  std::string GetObject (int& response_code, eos::common::S3 &s3, std::map<std::string, std::string> &header);
+  std::string GetObject (int& response_code, S3 &s3, std::map<std::string, std::string> &header);
 
   /**
    * create new object e.g. redirection
@@ -122,7 +129,7 @@ public:
    * @param http response header
    * @return http response body
    */
-  std::string PutObject (int& response_code, eos::common::S3 &s3, std::map<std::string, std::string> &header);
+  std::string PutObject (int& response_code, S3 &s3, std::map<std::string, std::string> &header);
 
 private:
   eos::common::RWMutex mStoreMutex; //< mutex protecting all mS3xx variables
@@ -135,6 +142,7 @@ private:
 
 };
 
+/*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_END
 
 #endif

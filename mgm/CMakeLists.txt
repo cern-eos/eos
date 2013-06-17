@@ -85,11 +85,15 @@ add_library (XrdEosMgm MODULE
             txengine/TransferFsDB.cc
             ZMQ.cc
             Master.cc
-	    Recycle.cc
-            Http.cc
-	    S3Store.cc
-	    Converter.cc
-	    )
+            Recycle.cc
+            http/HttpServer.cc
+            http/ProtocolHandler.cc
+            http/Http.cc
+            http/S3.cc
+            http/S3Store.cc
+            http/WebDAV.cc
+            Converter.cc
+            )
 
 target_link_libraries( XrdEosMgm 
                        XrdCl                XrdPosix 
@@ -99,6 +103,7 @@ target_link_libraries( XrdEosMgm
                        eosCapability-Static XrdMqClient-Static 
                        crypto               curses 
 		       dl                   z 
+                       curl
 		       ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
                      )
 
