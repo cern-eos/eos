@@ -1781,7 +1781,7 @@ main (int argc, char* argv[])
         {
           layout = LayoutId::GetId(LayoutId::kRaid6,
                                    1, ndst,
-                                   stripeWidth,
+                                   LayoutId::BlockSizeEnum(stripeWidth),
                                    LayoutId::OssXsBlockSize,
                                    0, nparitystripes);
 
