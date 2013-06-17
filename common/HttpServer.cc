@@ -191,7 +191,8 @@ HttpServer::BuildHeaderMap (void              *cls,
                             const char        *value)
 {
   // Call back function to return the header key-val map of an HTTP request
-  std::map<std::string, std::string>* hMap = static_cast<std::map<std::string, std::string>*> (cls);
+  std::map<std::string, std::string>* hMap
+    = static_cast<std::map<std::string, std::string>*> (cls);
   if (key && value && hMap)
   {
     (*hMap)[key] = value;
@@ -322,7 +323,10 @@ HttpServer::HttpError (int                                &response_code,
 
 /*----------------------------------------------------------------------------*/
 std::string
-HttpServer::HttpData (int &response_code, std::map<std::string, std::string> &response_header, const char *data, int length)
+HttpServer::HttpData (int                                &response_code,
+                      std::map<std::string, std::string> &response_header,
+                      const char                         *data,
+                      int                                 length)
 {
   response_code = 200;
   // return data as HTTP message
