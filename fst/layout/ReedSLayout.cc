@@ -167,24 +167,28 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
   for (unsigned int i = 0; i < mStripeFiles.size(); i++)
   {
     physical_id = mapLP[i];
-    ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->GetAsyncHandler());
-    
-    if (ptr_handler)
-    {
-      uint16_t error_type = ptr_handler->WaitOK();
-      
-      if (error_type != XrdCl::errNone)
-      {
-        std::pair< uint16_t, std::map<uint64_t, uint32_t> > pair_err;
-        eos_err("error=remote block corrupted id=%i", i);
-        invalid_ids.push_back(i);
-        num_blocks_corrupted++;
 
-        if (error_type == XrdCl::errOperationExpired)
+    if (mStripeFiles[physical_id])
+    {
+      ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->GetAsyncHandler());
+    
+      if (ptr_handler)
+      {
+        uint16_t error_type = ptr_handler->WaitOK();
+        
+        if (error_type != XrdCl::errNone)
         {
-          mStripeFiles[physical_id]->Close(mTimeout);
-          delete mStripeFiles[physical_id];
-          mStripeFiles[physical_id] = NULL;
+          std::pair< uint16_t, std::map<uint64_t, uint32_t> > pair_err;
+          eos_err("error=remote block corrupted id=%i", i);
+          invalid_ids.push_back(i);
+          num_blocks_corrupted++;
+          
+          if (error_type == XrdCl::errOperationExpired)
+          {
+            mStripeFiles[physical_id]->Close(mTimeout);
+            delete mStripeFiles[physical_id];
+            mStripeFiles[physical_id] = NULL;
+          }
         }
       }
     }

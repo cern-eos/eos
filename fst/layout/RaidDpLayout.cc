@@ -320,9 +320,6 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
           ptr_handler->Reset();
       }
     }
-
-    // TODO: deal with the case the file is NULL, we need to add all the blocks
-    //       in that file to the list of corrupted ones
   }
 
   if (corrupt_ids.empty())
