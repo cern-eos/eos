@@ -123,7 +123,7 @@ namespace eos
           FileMD *currentFile = it->second.ptr;
           ChangeLogContainerMDSvc::IdMap::iterator itP;
           itP = contIdMap->find( currentFile->getContainerId() );
-          if( itP != contIdMap->end() )
+          if( ( itP != contIdMap->end() ) || ( !currentFile->getContainerId() ) )
           {
             //------------------------------------------------------------------
             // We need to check whether the pointer of the file we're trying
@@ -131,6 +131,8 @@ namespace eos
             // attached to the parent container under the same file name.
             // It may happen that the pointers differ if there was a name
             // conflict
+            // Additionally we have to detail with detached files e.g. 
+            // containerId=0.
             //------------------------------------------------------------------
             ContainerMD *container    = itP->second.ptr;
             FileMD      *existingFile = container->findFile( currentFile->getName() );
@@ -295,7 +297,7 @@ namespace eos
               //----------------------------------------------------------------
               ChangeLogContainerMDSvc::IdMap::iterator itPN;
               itPN = contIdMap->find( currentFile->getContainerId() );
-              if( itPN == contIdMap->end() )
+              if( (itPN == contIdMap->end()) && (currentFile->getContainerId()) )
                 continue;
 
               //----------------------------------------------------------------
