@@ -541,6 +541,8 @@ void HierarchicalSlaveTest::functionalTest()
 
   viewSlave->getQuotaStats()->registerSizeMapper( mapSize );
   fileSvcSlave->setQuotaStats( viewSlave->getQuotaStats() );
+  contSvcSlave->setQuotaStats( viewSlave->getQuotaStats() );
+
   CPPUNIT_ASSERT_NO_THROW( viewSlave->initialize() );
 
   CPPUNIT_ASSERT_NO_THROW( contSvcSlave->startSlave() );
