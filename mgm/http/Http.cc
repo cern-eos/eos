@@ -32,51 +32,43 @@
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-Http::Http ()
-{
-
-}
-
-/*----------------------------------------------------------------------------*/
-Http::~Http ()
-{
-
-}
-
-/*----------------------------------------------------------------------------*/
 bool
-Http::Matches(std::string &method, ProtocolHandler::HeaderMap &headers)
+Http::Matches (const std::string &meth, HeaderMap &headers)
 {
-  return true;
-}
-
-/*----------------------------------------------------------------------------*/
-void
-Http::ParseHeader (ProtocolHandler::HeaderMap &headers)
-{
-
+  int method =  ParseMethodString(meth);
+  if (method == GET     || method == HEAD    || method == POST  ||
+      method == PUT     || method == DELETE  || method == TRACE ||
+      method == OPTIONS || method == CONNECT || method == PATCH)
+  {
+    eos_static_info("info=Matched HTTP protocol for request");
+    return true;
+  }
+  else return false;
 }
 
 /*----------------------------------------------------------------------------*/
 std::string
-Http::HandleRequest(ProtocolHandler::HeaderMap request,
-                    ProtocolHandler::HeaderMap response,
-                    int                        error)
+Http::HandleRequest (const std::string &method,
+                     const std::string &url,
+                     const std::string &query,
+                     const std::string &body,
+                     size_t            *bodysize,
+                     HeaderMap         &request,
+                     HeaderMap         &cookies,
+                     HeaderMap         &response,
+                     int               &respcode)
 {
-//  error = 1;
-//  return "Not Implemented";
-
-  XrdSecEntity        client("unix");
-  client.name       = strdup("nobody");
-  client.host       = strdup("localhost");
-  client.tident     = strdup("http");
-  std::string path  = request["Path"];
-  std::string query = request["Query"];
+  eos_static_info("msg=\"handling http request\"");
   std::string result;
+
+  XrdSecEntity    client("unix");
+  client.name   = strdup("nobody");
+  client.host   = strdup("localhost");
+  client.tident = strdup("http");
 
   // Classify path to split between directory or file objects
   bool isfile = true;
-  XrdOucString spath = path.c_str();
+  XrdOucString spath = url.c_str();
   if (!spath.beginswith("/proc/"))
   {
     if (spath.endswith("/"))
@@ -102,13 +94,13 @@ Http::HandleRequest(ProtocolHandler::HeaderMap request,
         create_mode |= (SFS_O_MKPTH | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
       }
 
-      int rc = file->open(path.c_str(), open_mode, create_mode, &client,
+      int rc = file->open(url.c_str(), open_mode, create_mode, &client,
                           query.c_str());
       if ((rc != SFS_REDIRECT) && open_mode)
       {
         // retry as a file creation
         open_mode |= SFS_O_CREAT;
-        rc = file->open(path.c_str(), open_mode, create_mode, &client,
+        rc = file->open(url.c_str(), open_mode, create_mode, &client,
                         query.c_str());
       }
 
@@ -117,30 +109,30 @@ Http::HandleRequest(ProtocolHandler::HeaderMap request,
         if (rc == SFS_REDIRECT)
         {
           // the embedded server on FSTs is hardcoded to run on port 8001
-          result = HttpServer::HttpRedirect(error, response, file->error.getErrText(),
-                                            8001, path, query, false);
+          result = HttpServer::HttpRedirect(respcode, response, file->error.getErrText(),
+                                            8001, url, query, false);
         }
         else
         if (rc == SFS_ERROR)
         {
-          result = HttpServer::HttpError(error, response, file->error.getErrText(),
+          result = HttpServer::HttpError(respcode, response, file->error.getErrText(),
                                          file->error.getErrInfo());
         }
         else
         if (rc == SFS_DATA)
         {
-          result = HttpServer::HttpData(error, response, file->error.getErrText(),
+          result = HttpServer::HttpData(respcode, response, file->error.getErrText(),
                                         file->error.getErrInfo());
         }
         else
         if (rc == SFS_STALL)
         {
-          result = HttpServer::HttpStall(error, response, file->error.getErrText(),
+          result = HttpServer::HttpStall(respcode, response, file->error.getErrText(),
                                          file->error.getErrInfo());
         }
         else
         {
-          result = HttpServer::HttpError(error, response,
+          result = HttpServer::HttpError(respcode, response,
                                          "unexpected result from file open",
                                          EOPNOTSUPP);
         }
@@ -171,7 +163,7 @@ Http::HandleRequest(ProtocolHandler::HeaderMap request,
   else
   {
     // DIR requests
-    result = HttpServer::HttpError(error, response, "not implemented", EOPNOTSUPP);
+    result = HttpServer::HttpError(respcode, response, "not implemented", EOPNOTSUPP);
   }
 
   return result;

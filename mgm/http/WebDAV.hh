@@ -64,12 +64,12 @@ private:
 public:
 
   /**
-   *
+   * Constructor
    */
   WebDAV () {};
 
   /**
-   *
+   * Destructor
    */
   virtual ~WebDAV () {};
 
@@ -77,25 +77,82 @@ public:
    *
    */
   static bool
-  Matches(std::string &method, HeaderMap &headers);
+  Matches (const std::string &method, HeaderMap &headers);
+
+  /**
+   * Build a response to the given WebDAV request.
+   *
+   * @param method   [in]  the request verb used by the client (GET, PUT, etc)
+   * @param url      [in]  the URL requested by the client
+   * @param query    [in]  the GET request query string (if any)
+   * @param body     [in]  the request body data sent by the client
+   * @param bodysize [in]  the size of the request body
+   * @param request  [in]  the map of request headers sent by the client
+   * @param cookies  [in]  the map of cookie headers
+   * @param response [out] the map of response headers to be built and returned
+   *                       by the server
+   * @param respcode [out] the HTTP response code to be set as appropriate
+   *
+   * @return the HTML body response
+   */
+  std::string
+  HandleRequest (const std::string &method,
+                 const std::string &url,
+                 const std::string &query,
+                 const std::string &body,
+                 size_t            *bodysize,
+                 HeaderMap         &request,
+                 HeaderMap         &cookies,
+                 HeaderMap         &response,
+                 int               &respcode);
 
   /**
    *
    */
-  virtual void
-  ParseHeader(HeaderMap &headers);
+  std::string
+  PropFind (HeaderMap &request, HeaderMap &response, int &respcode);
 
   /**
    *
    */
-  virtual std::string
-  HandleRequest(HeaderMap request, HeaderMap response, int error);
+  std::string
+  PropPatch (HeaderMap &request, HeaderMap &response, int &respcode);
+
+  /**
+   *
+   */
+  std::string
+  MkCol (HeaderMap &request, HeaderMap &response, int &respcode);
+
+  /**
+   *
+   */
+  std::string
+  Copy (HeaderMap &request, HeaderMap &response, int &respcode);
+
+  /**
+   *
+   */
+  std::string
+  Move (HeaderMap &request, HeaderMap &response, int &respcode);
+
+  /**
+   *
+   */
+  std::string
+  Lock (HeaderMap &request, HeaderMap &response, int &respcode);
+
+  /**
+   *
+   */
+  std::string
+  Unlock (HeaderMap &request, HeaderMap &response, int &respcode);
 
   /**
    *
    */
   inline static int
-  ParseMethodString(std::string &method)
+  ParseMethodString (const std::string &method)
   {
     if      (method == "PROPFIND")  return Methods::PROPFIND;
     else if (method == "PROPPATCH") return Methods::PROPPATCH;

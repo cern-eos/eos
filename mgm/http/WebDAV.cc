@@ -33,13 +33,12 @@ EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 bool
-WebDAV::Matches(std::string &meth, ProtocolHandler::HeaderMap &headers)
+WebDAV::Matches (const std::string &meth, HeaderMap &headers)
 {
   int method =  ParseMethodString(meth);
-  if (method == WebDAV::PROPFIND || method == WebDAV::PROPPATCH ||
-      method == WebDAV::MKCOL    || method == WebDAV::COPY      ||
-      method == WebDAV::MOVE     || method == WebDAV::LOCK      ||
-      method == WebDAV::UNLOCK)
+  if (method == PROPFIND || method == PROPPATCH || method == MKCOL ||
+      method == COPY     || method == MOVE      || method == LOCK  ||
+      method == UNLOCK)
   {
     eos_static_info("info=Matched WebDAV protocol for request");
     return true;
@@ -48,20 +47,92 @@ WebDAV::Matches(std::string &meth, ProtocolHandler::HeaderMap &headers)
 }
 
 /*----------------------------------------------------------------------------*/
-void
-WebDAV::ParseHeader (ProtocolHandler::HeaderMap &headers)
+std::string
+WebDAV::HandleRequest (const std::string &method,
+                       const std::string &url,
+                       const std::string &query,
+                       const std::string &body,
+                       size_t            *bodysize,
+                       HeaderMap         &request,
+                       HeaderMap         &cookies,
+                       HeaderMap         &response,
+                       int               &respcode)
+{
+  std::string result;
+  int meth = ParseMethodString(method);
+
+  switch (meth)
+  {
+  case PROPFIND:
+    result = PropFind(request, response, respcode);
+    break;
+  case PROPPATCH:
+    break;
+  case MKCOL:
+    break;
+  case COPY:
+    break;
+  case MOVE:
+    break;
+  case LOCK:
+    break;
+  case UNLOCK:
+    break;
+  default:
+    respcode = 400;
+    return "No such method";
+  }
+
+  return result;
+}
+
+/*----------------------------------------------------------------------------*/
+std::string
+WebDAV::PropFind (HeaderMap &request, HeaderMap &response, int &respcode)
 {
 
 }
 
 /*----------------------------------------------------------------------------*/
 std::string
-WebDAV::HandleRequest(ProtocolHandler::HeaderMap request,
-                      ProtocolHandler::HeaderMap response,
-                      int                        error)
+WebDAV::PropPatch (HeaderMap &request, HeaderMap &response, int &respcode)
 {
-  error = 1;
-  return "Not Implemented";
+
+}
+
+/*----------------------------------------------------------------------------*/
+std::string
+WebDAV::MkCol (HeaderMap &request, HeaderMap &response, int &respcode)
+{
+
+}
+
+/*----------------------------------------------------------------------------*/
+std::string
+WebDAV::Copy (HeaderMap &request, HeaderMap &response, int &respcode)
+{
+
+}
+
+/*----------------------------------------------------------------------------*/
+std::string
+WebDAV::Move (HeaderMap &request, HeaderMap &response, int &respcode)
+{
+
+}
+
+/*----------------------------------------------------------------------------*/
+std::string
+WebDAV::Lock (HeaderMap &request, HeaderMap &response, int &respcode)
+{
+
+}
+
+/*----------------------------------------------------------------------------*/
+std::string
+WebDAV::Unlock (HeaderMap &request, HeaderMap &response, int &respcode)
+{
+
 }
 
 /*----------------------------------------------------------------------------*/

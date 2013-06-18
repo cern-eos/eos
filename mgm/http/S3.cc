@@ -53,11 +53,8 @@ S3::S3 ()
 }
 
 /*----------------------------------------------------------------------------*/
-S3::~S3 () {}
-
-/*----------------------------------------------------------------------------*/
 bool
-S3::Matches(std::string &method, ProtocolHandler::HeaderMap &headers)
+S3::Matches (const std::string &method, HeaderMap &headers)
 {
   if (headers.count("Authorization"))
   {
@@ -72,7 +69,7 @@ S3::Matches(std::string &method, ProtocolHandler::HeaderMap &headers)
 
 /*----------------------------------------------------------------------------*/
 void
-S3::ParseHeader (ProtocolHandler::HeaderMap &header)
+S3::ParseHeader (HeaderMap &header)
 {
   // Parse function to analyse HTTP and AMZ header map
   std::string header_line;
@@ -218,9 +215,15 @@ S3::ParseHeader (ProtocolHandler::HeaderMap &header)
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3::HandleRequest(ProtocolHandler::HeaderMap request,
-                  ProtocolHandler::HeaderMap response,
-                  int                        error)
+S3::HandleRequest (const std::string &method,
+                   const std::string &url,
+                   const std::string &query,
+                   const std::string &body,
+                   size_t            *bodysize,
+                   HeaderMap         &request,
+                   HeaderMap         &cookies,
+                   HeaderMap         &response,
+                   int               &respcode)
 {
   eos_static_info("msg=\"handling s3 request\"");
 
@@ -229,7 +232,7 @@ S3::HandleRequest(ProtocolHandler::HeaderMap request,
 
   if (!mS3Store->VerifySignature(*this))
   {
-    result = RestErrorResponse(error, 403, "SignatureDoesNotMatch", "", getBucket(), "");
+    result = RestErrorResponse(respcode, 403, "SignatureDoesNotMatch", "", getBucket(), "");
   }
   else
   {
@@ -238,19 +241,19 @@ S3::HandleRequest(ProtocolHandler::HeaderMap request,
       if (getBucket() == "")
       {
         // GET SERVICE REQUEST
-        result = mS3Store->ListBuckets(error, *this, response);
+        result = mS3Store->ListBuckets(respcode, *this, response);
       }
       else
       {
         if (getPath() == "/")
         {
           // GET BUCKET LISTING REQUEST
-          result = mS3Store->ListBucket(error, *this, response);
+          result = mS3Store->ListBucket(respcode, *this, response);
         }
         else
         {
           // GET OBJECT REQUEST
-          result = mS3Store->GetObject(error, *this, response);
+          result = mS3Store->GetObject(respcode, *this, response);
         }
       }
     }
@@ -261,18 +264,18 @@ S3::HandleRequest(ProtocolHandler::HeaderMap request,
         if (getPath() == "/")
         {
           // HEAD BUCKET REQUEST
-          result = mS3Store->HeadBucket(error, *this, response);
+          result = mS3Store->HeadBucket(respcode, *this, response);
         }
         else
         {
           // HEAD OBJECT REQUEST
-          result = mS3Store->HeadObject(error, *this, response);
+          result = mS3Store->HeadObject(respcode, *this, response);
         }
       }
       else
       {
         // PUT REQUEST ...
-        result = mS3Store->PutObject(error, *this, response);
+        result = mS3Store->PutObject(respcode, *this, response);
       }
     }
   }
@@ -407,7 +410,12 @@ S3::VerifySignature (std::string secure_key)
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3::RestErrorResponse (int &response_code, int http_code, std::string errcode, std::string errmsg, std::string resource, std::string requestid)
+S3::RestErrorResponse (int        &response_code,
+                       int         http_code,
+                       std::string errcode,
+                       std::string errmsg,
+                       std::string resource,
+                       std::string requestid)
 {
   //.............................................................................
   // Creates a AWS RestError Response string

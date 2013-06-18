@@ -51,26 +51,26 @@ class S3 : public eos::mgm::ProtocolHandler
 
 protected:
   static S3Store *mS3Store;
-  bool            mIsS3;           //< indicates if this is a valid S3 object
-  std::string     mId;             //< the S3 id of the client
-  std::string     mSignature;      //< the S3 signature of the client
-  std::string     mHost;           //< header host
-  std::string     mContentMD5;     //< header MD5
-  std::string     mContentType;    //< header content type
-  std::string     mUserAgent;      //< header user agent
-  std::string     mHttpMethod;     //< http method
-  std::string     mPath;           //< http path
-  std::string     mQuery;          //< http query
-  std::string     mSubResource;    //< S3 sub resource
-  HeaderMap       mSubResourceMap; //< map with S3 subresource key/vals
-  std::string     mBucket;         //< http bucket
-  std::string     mDate;           //< http date
-  HeaderMap       mAmzMap;         //< canonical amz map
-  std::string     mCanonicalizedAmzHeaders; //< canonical resource build from
-                                            //< canonical amz map
-  bool            mVirtualHost;    //< true if bucket name comes via virtual
-                                   //< host, otherwise false (relevant for
-                                   //< signature verification)
+  bool            mIsS3;           //!< indicates if this is a valid S3 object
+  std::string     mId;             //!< the S3 id of the client
+  std::string     mSignature;      //!< the S3 signature of the client
+  std::string     mHost;           //!< header host
+  std::string     mContentMD5;     //!< header MD5
+  std::string     mContentType;    //!< header content type
+  std::string     mUserAgent;      //!< header user agent
+  std::string     mHttpMethod;     //!< http method
+  std::string     mPath;           //!< http path
+  std::string     mQuery;          //!< http query
+  std::string     mSubResource;    //!< S3 sub resource
+  HeaderMap       mSubResourceMap; //!< map with S3 subresource key/vals
+  std::string     mBucket;         //!< http bucket
+  std::string     mDate;           //!< http date
+  HeaderMap       mAmzMap;         //!< canonical amz map
+  std::string     mCanonicalizedAmzHeaders; //!< canonical resource build from
+                                            //!< canonical amz map
+  bool            mVirtualHost;    //!< true if bucket name comes via virtual
+                                   //!< host, otherwise false (relevant for
+                                   //!< signature verification)
 
 public:
 
@@ -82,25 +82,46 @@ public:
   /**
    * Destructor
    */
-  virtual ~S3 ();
+  virtual ~S3 () {};
 
   /**
    *
    */
   static bool
-  Matches(std::string &method, HeaderMap &headers);
+  Matches (const std::string &method, HeaderMap &headers);
 
   /**
    *
    */
   virtual void
-  ParseHeader(HeaderMap &headers);
+  ParseHeader (HeaderMap &headers);
 
   /**
+   * Build a response to the given S3 request.
    *
+   * @param method   [in]  the request verb used by the client (GET, PUT, etc)
+   * @param url      [in]  the URL requested by the client
+   * @param query    [in]  the GET request query string (if any)
+   * @param body     [in]  the request body data sent by the client
+   * @param bodysize [in]  the size of the request body
+   * @param request  [in]  the map of request headers sent by the client
+   * @param cookies  [in]  the map of cookie headers
+   * @param response [out] the map of response headers to be built and returned
+   *                       by the server
+   * @param respcode [out] the HTTP response code to be set as appropriate
+   *
+   * @return the HTML body response
    */
-  virtual std::string
-  HandleRequest(HeaderMap request, HeaderMap response, int error);
+  std::string
+  HandleRequest (const std::string &method,
+                 const std::string &url,
+                 const std::string &query,
+                 const std::string &body,
+                 size_t            *bodysize,
+                 HeaderMap         &request,
+                 HeaderMap         &cookies,
+                 HeaderMap         &response,
+                 int               &respcode);
 
   /**
    * getter for S3 id
@@ -217,8 +238,8 @@ public:
 //  static S3* ParseS3 (std::map<std::string, std::string>&);
 
   /**
-   * return rest error response string
-   * @param reponse_code set to http_code or error_code
+   * return rest respcode response string
+   * @param reponse_code set to http_code or respcode_code
    * @param http_code to put for the response
    * @param errcode as string
    * @param errmsg as string
@@ -227,7 +248,12 @@ public:
    * @return rest error response string
    */
   static std::string
-  RestErrorResponse (int &response_code, int http_code, std::string errcode, std::string errmsg, std::string resource, std::string requestid);
+  RestErrorResponse (int        &response_code,
+                     int         http_code,
+                     std::string errcode,
+                     std::string errmsg,
+                     std::string resource,
+                     std::string requestid);
 
   /**
    * return content type for an s3 request object

@@ -54,21 +54,23 @@ public:
   /**
    * Destructor
    */
-  virtual ~HttpServer ();
+  virtual ~HttpServer () {};
 
 #ifdef EOS_MICRO_HTTPD
   /**
    * http object handler function on MGM
+   *
    * @return see implementation
    */
   virtual int
-  Handler (void *cls,
+  Handler (void                  *cls,
            struct MHD_Connection *connection,
-           const char *url,
-           const char *method,
-           const char *version,
-           const char *upload_data,
-           size_t *upload_data_size, void **ptr);
+           const char            *url,
+           const char            *method,
+           const char            *version,
+           const char            *upload_data,
+           size_t                *upload_data_size,
+           void                 **ptr);
 #endif
 };
 

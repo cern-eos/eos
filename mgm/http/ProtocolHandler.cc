@@ -33,8 +33,9 @@
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-ProtocolHandler* ProtocolHandler::CreateProtocolHandler(std::string &method,
-                                                        HeaderMap   &headers)
+ProtocolHandler*
+ProtocolHandler::CreateProtocolHandler (const std::string &method,
+                                        HeaderMap         &headers)
 {
   if (S3::Matches(method, headers))
   {
