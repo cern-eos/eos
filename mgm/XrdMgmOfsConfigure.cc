@@ -1004,10 +1004,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   char *logdir=0;
   XrdOucEnv::Import("XRDLOGDIR",logdir);
 
-  if (!logdir) {
-    fprintf(stderr,"error: XRDLOGDIR could not be found in XrdOucEnv\n");
-    return 1;
-  }
+  if (logdir) {
 
   for (size_t i = 0; i < lFanOutTags.size(); i++)
   {
@@ -1032,6 +1029,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     {
       fprintf(stderr, "error: failed to open sub-logfile=%s", lLogFile.c_str());
     }
+  }
   }
 
   eos::common::Logging::SetUnit(MgmOfsBrokerUrl.c_str());
@@ -1828,15 +1826,18 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     }
   }
 
-  // add shutdown handler
-  (void) signal(SIGINT, xrdmgmofs_shutdown);
-  (void) signal(SIGTERM, xrdmgmofs_shutdown);
-  (void) signal(SIGQUIT, xrdmgmofs_shutdown);
-
-  // add SEGV handler                                                                                                                                                                
-  (void) signal(SIGSEGV, xrdmgmofs_stacktrace);
-  (void) signal(SIGABRT, xrdmgmofs_stacktrace);
-  (void) signal(SIGBUS, xrdmgmofs_stacktrace);
+  if (!getenv("EOS_NO_SHUTDOWN")) 
+  {
+    // add shutdown handler
+    (void) signal(SIGINT, xrdmgmofs_shutdown);
+    (void) signal(SIGTERM, xrdmgmofs_shutdown);
+    (void) signal(SIGQUIT, xrdmgmofs_shutdown);
+    
+    // add SEGV handler                                                                                                                                                                
+    (void) signal(SIGSEGV, xrdmgmofs_stacktrace);
+    (void) signal(SIGABRT, xrdmgmofs_stacktrace);
+    (void) signal(SIGBUS, xrdmgmofs_stacktrace);
+  }
 
   XrdSysTimer sleeper;
   sleeper.Wait(200);
