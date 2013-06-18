@@ -229,8 +229,8 @@ HttpServer::HttpRedirect (int                                &response_code,
                           std::map<std::string, std::string> &response_header,
                           const char                         *host_cgi,
                           int                                 port,
-                          std::string                        &path,
-                          std::string                        &query,
+                          const std::string                  &path,
+                          const std::string                  &query,
                           bool                                cookie)
 {
   eos_static_info("info=redirecting");
