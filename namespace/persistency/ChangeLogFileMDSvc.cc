@@ -131,17 +131,20 @@ namespace eos
             // attached to the parent container under the same file name.
             // It may happen that the pointers differ if there was a name
             // conflict
-            // Additionally we have to detail with detached files e.g. 
+            // Additionally we have to deal with detached files e.g. 
             // containerId=0.
             //------------------------------------------------------------------
-            ContainerMD *container    = itP->second.ptr;
-            FileMD      *existingFile = container->findFile( currentFile->getName() );
-            if( existingFile == currentFile )
+            if (currentFile->getContainerId())
             {
-              container->removeFile( currentFile->getName() );
-              QuotaNode *node = getQuotaNode( container );
-              if( node )
-                node->removeFile( currentFile );
+              ContainerMD *container    = itP->second.ptr;
+              FileMD      *existingFile = container->findFile( currentFile->getName() );
+              if( existingFile == currentFile )
+              {
+                container->removeFile( currentFile->getName() );
+                QuotaNode *node = getQuotaNode( container );
+                if( node )
+                  node->removeFile( currentFile );
+              }
             }
 
             //------------------------------------------------------------------
