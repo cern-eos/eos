@@ -32,6 +32,7 @@
 #include "common/Statfs.hh"
 #include "common/Attr.hh"
 #include "common/SyncAll.hh"
+#include "common/StackTrace.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOfs/XrdOfs.hh"
@@ -120,18 +121,21 @@ eos::common::LogId ()
   Messaging = 0;
   Storage = 0;
   TransferScheduler = 0;
-  //-------------------------------------------
-  // add Shutdown handler
-  //-------------------------------------------
-  (void) signal(SIGINT, xrdfstofs_shutdown);
-  (void) signal(SIGTERM, xrdfstofs_shutdown);
-  (void) signal(SIGQUIT, xrdfstofs_shutdown);
-  //-------------------------------------------
-  // add SEGV handler
-  //-------------------------------------------
-  (void) signal(SIGSEGV, xrdfstofs_stacktrace);
-  (void) signal(SIGABRT, xrdfstofs_stacktrace);
-  (void) signal(SIGBUS, xrdfstofs_stacktrace);
+  if (!getenv("EOS_NO_SHUTDOWN")) 
+  {
+    //-------------------------------------------
+    // add Shutdown handler
+    //-------------------------------------------
+    (void) signal(SIGINT, xrdfstofs_shutdown);
+    (void) signal(SIGTERM, xrdfstofs_shutdown);
+    (void) signal(SIGQUIT, xrdfstofs_shutdown);
+    //-------------------------------------------
+    // add SEGV handler
+    //-------------------------------------------
+    (void) signal(SIGSEGV, xrdfstofs_stacktrace);
+    (void) signal(SIGABRT, xrdfstofs_stacktrace);
+    (void) signal(SIGBUS, xrdfstofs_stacktrace);
+  }
 
   TpcMap.emplace(TpcMap.end());
   TpcMap.emplace(TpcMap.end());
@@ -184,6 +188,15 @@ XrdFstOfs::xrdfstofs_stacktrace (int sig)
   // print out all the frames to stderr
   fprintf(stderr, "error: received signal %d:\n", sig);
   backtrace_symbols_fd(array, size, 2);
+
+  eos::common::StackTrace::GdbTrace("xrootd", getpid(), "where");
+  eos::common::StackTrace::GdbTrace("xrootd", getpid(), "thread apply all bt");
+
+  if (getenv("EOS_CORE_DUMP"))
+  {
+    eos::common::StackTrace::GdbTrace("xrootd", getpid(), "generate-core-file");
+  }
+
   // now we put back the initial handler and send the signal again
   signal(sig, SIG_DFL);
   kill(getpid(), sig);
