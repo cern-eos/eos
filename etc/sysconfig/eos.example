@@ -64,6 +64,12 @@ export EOS_MGM_ALIAS=eosdev.cern.ch
 export EOS_MAIL_CC="apeters@mail.cern.ch"
 export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 
+# Enable core dumps initiated internally 
+#export EOS_CORE_DUMP
+
+# Disable shutdown/signal handlers for debugging
+#export EOS_NO_SHUTDOWN
+
 # ------------------------------------------------------------------
 # FUSE Configuration
 # ------------------------------------------------------------------
