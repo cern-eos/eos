@@ -108,7 +108,7 @@ private:
     virtual void
     readLock ()
     {
-      if (pLock)pLock->LockRead();
+      if (pLock)pLock->LockRead ();
     }
 
     //------------------------------------------------------------------------
@@ -118,7 +118,7 @@ private:
     virtual void
     writeLock ()
     {
-      if (pLock)pLock->LockWrite();
+      if (pLock)pLock->LockWrite ();
     }
 
     //------------------------------------------------------------------------
@@ -128,7 +128,7 @@ private:
     virtual void
     unLock ()
     {
-      if (pLock)pLock->UnLockRead(); // it does not matter if UnLockRead or Write is called
+      if (pLock)pLock->UnLockRead (); // it does not matter if UnLockRead or Write is called
     }
   private:
     eos::common::RWMutex* pLock;
@@ -298,7 +298,7 @@ public:
   const char*
   GetMasterHost ()
   {
-    return (fMasterHost.c_str()) ? fMasterHost.c_str() : "<none>";
+    return (fMasterHost.c_str ()) ? fMasterHost.c_str () : "<none>";
   }
 
   //------------------------------------------------------------------------

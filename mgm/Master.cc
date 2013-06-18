@@ -349,13 +349,13 @@ Master::Supervisor ()
 
       }
 
-      if (mqStatus.IsOK())	
+      if (mqStatus.IsOK())
       {
-	remoteMqUp = true;
+        remoteMqUp = true;
       }
       else
       {
-	remoteMqUp = false;
+        remoteMqUp = false;
       }
 
       if (remoteMqUp)
@@ -441,43 +441,44 @@ Master::Supervisor ()
             Access::gRedirectionRules[std::string("ENOENT:*")] = fRemoteHost.c_str();
             // remove the stall 
             Access::gStallRules.erase(std::string("w:*"));
-	    Access::gStallWrite = false;
+            Access::gStallWrite = false;
           }
           else
           {
             // remove the redirect for writes and put a stall for writes
             Access::gRedirectionRules.erase(std::string("w:*"));
             Access::gStallRules[std::string("w:*")] = "60";
-	    Access::gStallWrite = true;
+            Access::gStallWrite = true;
             Access::gRedirectionRules.erase(std::string("ENOENT:*"));
           }
         }
         else
         {
-	  // check if we have two master-rw
-	  if (fRemoteMasterOk && fRemoteMasterRW)
-	  {
-	    MasterLog(eos_crit("msg=\"dual RW master setup detected\""));
+          // check if we have two master-rw
+          if (fRemoteMasterOk && fRemoteMasterRW)
+          {
+            MasterLog(eos_crit("msg=\"dual RW master setup detected\""));
             Access::gStallRules[std::string("w:*")] = "60"
-;	    Access::gStallWrite = true;
-	  }
-	  else 
-	  {
-	    // remove any redirect or stall in this case
-	    if (Access::gRedirectionRules.count(std::string("w:*")))
-	    {
-		Access::gRedirectionRules.erase(std::string("w:*"));
-	    }
-	    if (Access::gStallRules.count(std::string("w:*")))
-	    {
-		Access::gStallRules.erase(std::string("w:*"));
-		Access::gStallWrite = false;
-	    }
-	    if (Access::gRedirectionRules.count(std::string("ENOENT:*")))
-	    {
-		Access::gRedirectionRules.erase(std::string("ENOENT:*"));
-	    }
-	  }
+              ;
+            Access::gStallWrite = true;
+          }
+          else
+          {
+            // remove any redirect or stall in this case
+            if (Access::gRedirectionRules.count(std::string("w:*")))
+            {
+              Access::gRedirectionRules.erase(std::string("w:*"));
+            }
+            if (Access::gStallRules.count(std::string("w:*")))
+            {
+              Access::gStallRules.erase(std::string("w:*"));
+              Access::gStallWrite = false;
+            }
+            if (Access::gRedirectionRules.count(std::string("ENOENT:*")))
+            {
+              Access::gRedirectionRules.erase(std::string("ENOENT:*"));
+            }
+          }
         }
       }
     }
@@ -519,7 +520,7 @@ Master::Supervisor ()
         eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
         pStallSetting = Access::gStallRules[std::string("w:*")];
         Access::gStallRules[std::string("w:*")] = "60";
-	Access::gStallWrite = true;
+        Access::gStallWrite = true;
         MasterLog(eos_warning("status=\"disk space warning - stalling\"  path=%s freebytes=%s", gOFS->MgmMetaLogDir.c_str(), sizestring.c_str()));
       }
       else
@@ -529,19 +530,20 @@ Master::Supervisor ()
         {
           // put back the original stall setting
           Access::gStallRules[std::string("w:*")] = pStallSetting;
-	  if (Access::gStallRules[std::string("w:*")].length()) {
-	    Access::gStallWrite = true;
-	  } 
-	  else
-	  {
-	    Access::gStallWrite = false;
-	  }
+          if (Access::gStallRules[std::string("w:*")].length())
+          {
+            Access::gStallWrite = true;
+          }
+          else
+          {
+            Access::gStallWrite = false;
+          }
         }
         else
         {
           // remote the stall setting
           Access::gStallRules.erase(std::string("w:*"));
-	  Access::gStallWrite = false;
+          Access::gStallWrite = false;
         }
         pStallSetting = "";
       }

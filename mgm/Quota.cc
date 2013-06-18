@@ -207,6 +207,7 @@ SpaceQuota::UpdateLogicalSizeFactor ()
     // get the layout in this quota node
     Policy::GetLayoutAndSpace(SpaceName.c_str(), map, vid, layoutId, spn, env, forcedfsid);
     LayoutSizeFactor = eos::common::LayoutId::GetSizeFactor(layoutId);
+    fprintf(stderr,"layoutsizefactor=%f\n", LayoutSizeFactor);
   }
   else
   {
@@ -347,14 +348,17 @@ SpaceQuota::UpdateIsSums ()
 
   std::map<long long, unsigned long long>::const_iterator it;
 
+  fprintf(stderr,"========================================= %s\n", SpaceName.c_str());
   for (it = Begin(); it != End(); it++)
   {
     if ((UnIndex(it->first) == kUserBytesIs))
       AddQuota(kAllUserBytesIs, 0, it->second, false);
     if ((UnIndex(it->first) == kUserLogicalBytesIs))
       AddQuota(kAllUserLogicalBytesIs, 0, it->second, false);
-    if ((UnIndex(it->first) == kUserFilesIs))
+    if ((UnIndex(it->first) == kUserFilesIs)) {
+      fprintf(stderr,"file is %ld %lld\n", UnIndex(it->first),it->second);
       AddQuota(kAllUserFilesIs, 0, it->second, false);
+    }
     if ((UnIndex(it->first) == kGroupBytesIs))
       AddQuota(kAllGroupBytesIs, 0, it->second, false);
     if ((UnIndex(it->first) == kGroupLogicalBytesIs))
@@ -395,9 +399,9 @@ SpaceQuota::UpdateFromQuotaNode (uid_t uid, gid_t gid)
     AddQuota(kGroupLogicalBytesIs, gid, QuotaNode->getUsedSpaceByUser(gid), false);
     AddQuota(kGroupFilesIs, gid, QuotaNode->getNumFilesByGroup(gid), false);
 
-    AddQuota(kUserBytesIs, Quota::gProjectId, QuotaNode->getPhysicalSpaceByUser(Quota::gProjectId), false);
-    AddQuota(kUserLogicalBytesIs, Quota::gProjectId, QuotaNode->getUsedSpaceByUser(Quota::gProjectId), false);
-    AddQuota(kUserFilesIs, Quota::gProjectId, QuotaNode->getNumFilesByUser(Quota::gProjectId), false);
+    //    AddQuota(kUserBytesIs, Quota::gProjectId, QuotaNode->getPhysicalSpaceByUser(Quota::gProjectId), false);
+    //    AddQuota(kUserLogicalBytesIs, Quota::gProjectId, QuotaNode->getUsedSpaceByUser(Quota::gProjectId), false);
+    //    AddQuota(kUserFilesIs, Quota::gProjectId, QuotaNode->getNumFilesByUser(Quota::gProjectId), false);
     AddQuota(kGroupBytesIs, Quota::gProjectId, QuotaNode->getPhysicalSpaceByGroup(Quota::gProjectId), false);
     AddQuota(kGroupLogicalBytesIs, Quota::gProjectId, QuotaNode->getUsedSpaceByUser(Quota::gProjectId), false);
     AddQuota(kGroupFilesIs, Quota::gProjectId, QuotaNode->getNumFilesByGroup(Quota::gProjectId), false);
@@ -414,11 +418,12 @@ SpaceQuota::PrintOut (XrdOucString &output, long uid_sel, long gid_sel, bool mon
 
   std::map<long long, unsigned long long>::const_iterator it;
 
+  Quota::NodeToSpaceQuota(SpaceName.c_str(), true);
+
   UpdateLogicalSizeFactor();
   UpdateIsSums();
   UpdateTargetSums();
 
-  Quota::NodeToSpaceQuota(SpaceName.c_str(), true);
 
   int* sortuidarray = (int*) malloc(sizeof (int) * (Quota.size() + 1));
   int* sortgidarray = (int*) malloc(sizeof (int) * (Quota.size() + 1));
@@ -1613,7 +1618,7 @@ Quota::NodeToSpaceQuota (const char* name, bool lock)
     gOFS->eosViewRWMutex.LockRead();
   if (spacequota && spacequota->UpdateQuotaNodeAddress() && spacequota->GetQuotaNode())
   {
-    // insert current state of a single quota node into aSpaceQuota
+    // insert current state of a single quota node into a SpaceQuota
     eos::QuotaNode::UserMap::const_iterator itu;
     eos::QuotaNode::GroupMap::const_iterator itg;
 

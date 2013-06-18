@@ -39,17 +39,19 @@
 #include <stdarg.h>
 #include <map>
 #include <set>
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-class Fsck {
+class Fsck
+{
   // -------------------------------------------------------------
   // ! run's a consistency check aggregation over all FST nodes against the MGM namespace
   // -------------------------------------------------------------
 private:
 
-  XrdOucString  mLog;
+  XrdOucString mLog;
   XrdSysMutex mLogMutex;
 
   XrdOucString mEnabled;
@@ -62,7 +64,7 @@ private:
 
   // the error detail  map storing "<error-name>"=><fsid>=>[fid1,fid2,fid3...]"
   std::map<std::string, std::map<eos::common::FileSystem::fsid_t, std::set <eos::common::FileId::fileid_t> > > eFsMap;
-  
+
   // the error summary map storing "<error-name>"=>[fid1,fid2,fid3...]"
   std::map<std::string, std::set <eos::common::FileId::fileid_t> > eMap;
   std::map<std::string, unsigned long long > eCount;
@@ -76,40 +78,42 @@ private:
   // timestamp of collection
   time_t eTimeStamp;
 
-  void  ResetErrorMaps() {
-    XrdSysMutexHelper lock(eMutex);
-    eFsMap.clear(); 
-    eMap.clear();
-    eCount.clear();
-    eFsUnavail.clear();
-    eFsDark.clear();
-    eTimeStamp = time(NULL);
+  void
+  ResetErrorMaps ()
+  {
+    XrdSysMutexHelper lock (eMutex);
+    eFsMap.clear ();
+    eMap.clear ();
+    eCount.clear ();
+    eFsUnavail.clear ();
+    eFsDark.clear ();
+    eTimeStamp = time (NULL);
   }
 
 public:
   static const char* gFsckEnabled;
   static const char* gFsckInterval;
 
-  Fsck();
-  ~Fsck();
- 
-  bool Start(int interval=0);
-  bool Stop();
+  Fsck ();
+  ~Fsck ();
 
-  bool Usage(XrdOucString &out, XrdOucString &err);
+  bool Start (int interval = 0);
+  bool Stop ();
 
-  void PrintOut(XrdOucString &out, XrdOucString option="");
-  bool Report(XrdOucString &out, XrdOucString &err, XrdOucString option="", XrdOucString selection="");
-  bool Repair(XrdOucString &out, XrdOucString &err, XrdOucString option="");
+  bool Usage (XrdOucString &out, XrdOucString &err);
 
-  void ClearLog();
-  void Log(bool overwrite, const char* msg, ...);
+  void PrintOut (XrdOucString &out, XrdOucString option = "");
+  bool Report (XrdOucString &out, XrdOucString &err, XrdOucString option = "", XrdOucString selection = "");
+  bool Repair (XrdOucString &out, XrdOucString &err, XrdOucString option = "");
 
-  void ApplyFsckConfig();
-  bool StoreFsckConfig();
+  void ClearLog ();
+  void Log (bool overwrite, const char* msg, ...);
 
-  static void* StaticCheck(void*);
-  void* Check();
+  void ApplyFsckConfig ();
+  bool StoreFsckConfig ();
+
+  static void* StaticCheck (void*);
+  void* Check ();
 };
 
 EOSMGMNAMESPACE_END

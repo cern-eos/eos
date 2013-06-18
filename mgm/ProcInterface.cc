@@ -157,7 +157,7 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
       ((cmd == "vid") &&
        ((subcmd != "ls"))) ||
       ((cmd == "transfer") &&
-       ((subcmd != ""))) || 
+       ((subcmd != ""))) ||
       ((cmd == "recycle") &&
        ((subcmd != "ls"))))
 

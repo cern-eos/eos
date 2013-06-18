@@ -38,6 +38,7 @@
  * @brief Class implementing egroup support via LDAP queries
  * 
  */
+
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
@@ -81,13 +82,13 @@ public:
   virtual
   ~FileSystem ()
   {
-    mDrainJobMutex.Lock();
+    mDrainJobMutex.Lock ();
     if (mDrainJob)
     {
       delete mDrainJob;
       mDrainJob = 0;
     }
-    mDrainJobMutex.UnLock();
+    mDrainJobMutex.UnLock ();
   }
 
   /*--------------------------------------------------------------------------*/
@@ -102,7 +103,7 @@ public:
   {
     if (mSom)
     {
-      return mSom->ShouldBroadCast();
+      return mSom->ShouldBroadCast ();
     }
     else
     {

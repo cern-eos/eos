@@ -1001,35 +1001,34 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   lFanOutTags.push_back("#");
 
   // get the XRootD log directory
-  char *logdir=0;
-  XrdOucEnv::Import("XRDLOGDIR",logdir);
+  char *logdir = 0;
+  XrdOucEnv::Import("XRDLOGDIR", logdir);
 
   if (logdir) {
-
-  for (size_t i = 0; i < lFanOutTags.size(); i++)
-  {
-    std::string lLogFile = logdir;
-    lLogFile += "/mgm";
-    lLogFile += "/";
-    if (lFanOutTags[i] == "#")
+    for (size_t i = 0; i < lFanOutTags.size(); i++)
     {
-      lLogFile += "Clients";
+      std::string lLogFile = logdir;
+      lLogFile += "/mgm";
+      lLogFile += "/";
+      if (lFanOutTags[i] == "#")
+      {
+        lLogFile += "Clients";
+      }
+      else
+      {
+        lLogFile += lFanOutTags[i];
+      }
+      lLogFile += ".log";
+      FILE* fp = fopen(lLogFile.c_str(), "a+");
+      if (fp)
+      {
+        eos::common::Logging::AddFanOut(lFanOutTags[i].c_str(), fp);
+      }
+      else
+      {
+        fprintf(stderr, "error: failed to open sub-logfile=%s", lLogFile.c_str());
+      }
     }
-    else
-    {
-      lLogFile += lFanOutTags[i];
-    }
-    lLogFile += ".log";
-    FILE* fp = fopen(lLogFile.c_str(), "a+");
-    if (fp)
-    {
-      eos::common::Logging::AddFanOut(lFanOutTags[i].c_str(), fp);
-    }
-    else
-    {
-      fprintf(stderr, "error: failed to open sub-logfile=%s", lLogFile.c_str());
-    }
-  }
   }
 
   eos::common::Logging::SetUnit(MgmOfsBrokerUrl.c_str());
@@ -1274,17 +1273,17 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
-  
+
   // set the object manager to listener only
   ObjectManager.EnableBroadCast(false);
 
   // setup the modifications which the fs listener thread is waiting for
   ObjectManager.SubjectsMutex.Lock();
   std::string watch_errc = "stat.errc";
- 
+
   ObjectManager.ModificationWatchKeys.insert(watch_errc); // we need to take action an filesystem errors
   ObjectManager.ModificationWatchSubjects.insert(MgmConfigQueue.c_str()); // we need to apply remote configuration changes
-  
+
   ObjectManager.SubjectsMutex.UnLock();
 
   ObjectManager.SetDebug(false);
@@ -1688,7 +1687,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   }
 
   // start the recycler garbage collection thread on a master machine
-  if ( (MgmMaster.IsMaster()) && (!gOFS->Recycler.Start()))
+  if ((MgmMaster.IsMaster()) && (!gOFS->Recycler.Start()))
   {
     eos_warning("msg=\"cannot start recycle thread\"");
   }

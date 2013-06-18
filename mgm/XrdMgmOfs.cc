@@ -2315,21 +2315,21 @@ XrdMgmOfs::ShouldRedirect (const char* function,
       if (c1)
       {
         eos::common::StringConversion::Tokenize(Access::gRedirectionRules[std::string("*")], tokens, delimiter);
-	gOFS->MgmStats.Add("Redirect", vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("Redirect", vid.uid, vid.gid, 1);
       }
       else
       {
         if (c2)
         {
           eos::common::StringConversion::Tokenize(Access::gRedirectionRules[std::string("w:*")], tokens, delimiter);
-	  gOFS->MgmStats.Add("RedirectW", vid.uid, vid.gid, 1);
+          gOFS->MgmStats.Add("RedirectW", vid.uid, vid.gid, 1);
         }
         else
         {
           if (c3)
           {
             eos::common::StringConversion::Tokenize(Access::gRedirectionRules[std::string("r:*")], tokens, delimiter);
-	    gOFS->MgmStats.Add("RedirectR", vid.uid, vid.gid, 1);
+            gOFS->MgmStats.Add("RedirectR", vid.uid, vid.gid, 1);
           }
         }
       }
@@ -7289,8 +7289,8 @@ XrdMgmOfs::FSctl (const int cmd,
             if (rc == SFS_OK)
             {
               for (std::map<std::string,
-                std::string>::iterator iter = map.begin();
-                iter != map.end(); iter++)
+                   std::string>::iterator iter = map.begin();
+                   iter != map.end(); iter++)
               {
                 response += iter->first.c_str();
                 response += "&";
