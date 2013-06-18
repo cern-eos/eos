@@ -1267,7 +1267,7 @@ Storage::Remover()
   while(1) {
     // since we use vector and erase from the beginning, this is not really a perfect choice, but we don't have any performance issues here
     deletionsMutex.Lock();
-    if (deletions.size()) {
+    while (deletions.size()) {
       eos_static_debug("%u files to delete",deletions.size());
       Deletion todelete =  deletions[0];
       deletionsMutex.UnLock();
@@ -1299,12 +1299,11 @@ Storage::Remover()
       }
       deletionsMutex.Lock();
       deletions.erase(deletions.begin());
-      deletionsMutex.UnLock();
-    } else {
-      deletionsMutex.UnLock();
-      XrdSysTimer msSleep; 
-      msSleep.Wait(100);
     }
+
+    deletionsMutex.UnLock();
+    XrdSysTimer msSleep; 
+    msSleep.Wait(100);
 
     time_t now = time(NULL);
 
