@@ -1,4 +1,4 @@
-// at----------------------------------------------------------------------
+// ----------------------------------------------------------------------
 // File: XrdMgmOfs.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
@@ -29,6 +29,7 @@
 #include "common/Timing.hh"
 #include "common/StringConversion.hh"
 #include "common/SecEntity.hh"
+#include "common/StackTrace.hh"
 #include "namespace/Constants.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
@@ -59,6 +60,7 @@
 #include <signal.h>
 #include <stdlib.h>
 /*----------------------------------------------------------------------------*/
+
 #ifdef __APPLE__
 #define ECOMM 70
 #endif
@@ -104,7 +106,16 @@ xrdmgmofs_stacktrace (int sig)
 
   // print out all the frames to stderr                                                                                                                                                                       
   fprintf(stderr, "error: received signal %d:\n", sig);
+
   backtrace_symbols_fd(array, size, 2);
+
+  eos::common::StackTrace::GdbTrace("xrootd", getpid(), "where");
+  eos::common::StackTrace::GdbTrace("xrootd", getpid(), "thread apply all bt");
+  
+  if (getenv("EOS_CORE_DUMP")) 
+  {
+    eos::common::StackTrace::GdbTrace("xrootd", getpid(), "generate-core-file");
+  }
 
   // now we put back the initial handler ...
   signal(sig, SIG_DFL);
