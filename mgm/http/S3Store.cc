@@ -413,7 +413,7 @@ S3Store::ListBucket (int& response_code, S3 &s3, std::map<std::string, std::stri
         for (unsigned int i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
         {
           char hb[3];
-          sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+          sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
           result += hb;
         }
         result += "</ETag>";
