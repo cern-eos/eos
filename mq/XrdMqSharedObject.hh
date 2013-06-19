@@ -286,7 +286,8 @@ private:
                               // the subject "/eos/<host>/fst/<path>" derives as "/eos/<host>/fst"
 
 protected:
-  XrdSysMutex MuxTransactionMutex;
+  XrdSysMutex MuxTransactionMutex;  //! blocks mux transactions
+  XrdSysMutex MuxTransactionsMutex; //! protects the mux transaction map
   std::string MuxTransactionType;
   std::string MuxTransactionBroadCastQueue;
 
