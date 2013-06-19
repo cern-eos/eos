@@ -32,8 +32,8 @@
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-Acl::Acl (std::string sysacl, 
-          std::string useracl, 
+Acl::Acl (std::string sysacl,
+          std::string useracl,
           eos::common::Mapping::VirtualIdentity &vid)
 /*----------------------------------------------------------------------------*/
 /** 
@@ -52,8 +52,8 @@ Acl::Acl (std::string sysacl,
 
 /*----------------------------------------------------------------------------*/
 void
-Acl::Set (std::string sysacl, 
-          std::string useracl, 
+Acl::Set (std::string sysacl,
+          std::string useracl,
           eos::common::Mapping::VirtualIdentity &vid)
 /*----------------------------------------------------------------------------*/
 /** 
@@ -111,9 +111,9 @@ Acl::Set (std::string sysacl,
   XrdOucString sizestring2;
 
   std::string userid = eos::common::StringConversion::GetSizeString(
-    sizestring1, (unsigned long long) vid.uid);
+                                                                    sizestring1, (unsigned long long) vid.uid);
   std::string groupid = eos::common::StringConversion::GetSizeString(
-    sizestring2, (unsigned long long) vid.gid);
+                                                                     sizestring2, (unsigned long long) vid.gid);
 
   std::string usertag = "u:";
   usertag += userid;
@@ -165,11 +165,11 @@ Acl::Set (std::string sysacl,
     // ---------------------------------------------------------------------------
     // match 'our' rule
     // ---------------------------------------------------------------------------
-    if ((!it->compare(0, usertag.length(), usertag)) || 
-        (!it->compare(0, grouptag.length(), grouptag)) || 
+    if ((!it->compare(0, usertag.length(), usertag)) ||
+        (!it->compare(0, grouptag.length(), grouptag)) ||
         (egroupmatch) ||
-        (!it->compare(0, usertagfn.length(), usertagfn)) 
-         || (!it->compare(0, grouptagfn.length(), grouptagfn)))
+        (!it->compare(0, usertagfn.length(), usertagfn))
+        || (!it->compare(0, grouptagfn.length(), grouptagfn)))
     {
       // that is our rule
       std::vector<std::string> entry;
@@ -213,7 +213,7 @@ Acl::Set (std::string sysacl,
       // -----------------------------------------------------------------------
       if ((!useracl.length()) && ((entry[2].find("c")) != std::string::npos))
       {
-	// this is only valid if only a sysacl is present
+        // this is only valid if only a sysacl is present
         canChown = true;
         hasAcl = true;
       }
@@ -286,7 +286,7 @@ Acl::Set (std::string sysacl,
       // -----------------------------------------------------------------------
       if ((!useracl.length()) && ((entry[2].find("q")) != std::string::npos))
       {
-	      // this is only valid if only a sys acl is present
+        // this is only valid if only a sys acl is present
         canSetQuota = true;
         hasAcl = true;
       }

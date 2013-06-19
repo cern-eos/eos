@@ -874,7 +874,7 @@ main (int argc, char* argv[])
       {
         // If we don't need to recover the source and we were not told explicitly
         // that this is a RAIN transfer
-        if (!doStoreRecovery && !isRaidTransfer)
+        if (!isRaidTransfer)
         {
           //.......................................................................
           // Test if we can do parallel IO access
@@ -1612,7 +1612,7 @@ main (int argc, char* argv[])
 
         if (debug)
         {
-          fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags);
+          fprintf(stdout, "[eoscp]: doing XROOT(RAID-PIO) open with flags: %x\n", flags);
         }
 
         if (redundancyObj->OpenPio(vectUrl, flags, mode_sfs, opaqueInfo.c_str()))
@@ -1781,7 +1781,7 @@ main (int argc, char* argv[])
         {
           layout = LayoutId::GetId(LayoutId::kRaid6,
                                    1, ndst,
-                                   stripeWidth,
+                                   LayoutId::BlockSizeEnum(stripeWidth),
                                    LayoutId::OssXsBlockSize,
                                    0, nparitystripes);
 
@@ -1792,7 +1792,7 @@ main (int argc, char* argv[])
 
         if (debug)
         {
-          fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO) open with flags: %x\n", flags);
+          fprintf(stdout, "[eoscp]: doing XROOT(RAIDIO-PIO) open with flags: %x\n", flags);
         }
 
         if (redundancyObj && redundancyObj->OpenPio(vectUrl, flags))

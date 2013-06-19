@@ -390,7 +390,7 @@ public:
   const char *
   FName ()
   {
-    return (const char *) dirName.c_str();
+    return (const char *) dirName.c_str ();
   }
 
   // ---------------------------------------------------------------------------
@@ -402,8 +402,8 @@ public:
     dirName = "";
     dh = 0;
     d_pnt = &dirent_full.d_entry;
-    eos::common::Mapping::Nobody(vid);
-    eos::common::LogId();
+    eos::common::Mapping::Nobody (vid);
+    eos::common::LogId ();
   }
 
   // ---------------------------------------------------------------------------
@@ -573,10 +573,10 @@ public:
     oh = 0;
     fname = 0;
     openOpaque = 0;
-    eos::common::Mapping::Nobody(vid);
+    eos::common::Mapping::Nobody (vid);
     fileId = 0;
     procCmd = 0;
-    eos::common::LogId();
+    eos::common::LogId ();
     fmd = 0;
   }
 
@@ -598,6 +598,7 @@ private:
 
 /*----------------------------------------------------------------------------*/
 //! Class implementing atomic meta data commands
+
 /*----------------------------------------------------------------------------*/
 class XrdMgmOfs : public XrdSfsFileSystem, public eos::common::LogId
 {
@@ -617,7 +618,7 @@ public:
   XrdSfsDirectory *
   newDir (char *user = 0, int MonID = 0)
   {
-    return (XrdSfsDirectory *)new XrdMgmOfsDirectory(user, MonID);
+    return (XrdSfsDirectory *)new XrdMgmOfsDirectory (user, MonID);
   }
 
   // ---------------------------------------------------------------------------
@@ -627,7 +628,7 @@ public:
   XrdSfsFile *
   newFile (char *user = 0, int MonID = 0)
   {
-    return (XrdSfsFile *)new XrdMgmOfsFile(user, MonID);
+    return (XrdSfsFile *)new XrdMgmOfsFile (user, MonID);
   }
 
   // ---------------------------------------------------------------------------
@@ -870,7 +871,7 @@ public:
         const char *opaque = 0)
   {
     struct stat bfr;
-    int rc = stat(Name, &bfr, out_error, client, opaque);
+    int rc = stat (Name, &bfr, out_error, client, opaque);
     if (!rc) mode = bfr.st_mode;
     return rc;
   }
@@ -915,7 +916,7 @@ public:
               XrdOucErrInfo &error,
               eos::common::Mapping::VirtualIdentity &vid,
               const char *ininfo = 0);
-  
+
   // ---------------------------------------------------------------------------
   // list extended attributes of a directory
   // ---------------------------------------------------------------------------

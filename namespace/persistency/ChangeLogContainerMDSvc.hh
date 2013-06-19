@@ -28,6 +28,7 @@
 #include "namespace/MDException.hh"
 #include "namespace/IContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogFile.hh"
+#include "namespace/accounting/QuotaStats.hh"
 
 #include <google/dense_hash_map>
 #include <google/sparse_hash_map>
@@ -52,7 +53,7 @@ namespace eos
       //------------------------------------------------------------------------
       ChangeLogContainerMDSvc(): pFirstFreeId( 0 ), pSlaveLock( 0 ),
         pSlaveMode( false ), pSlaveStarted( false ), pSlavePoll( 1000 ),
-        pFollowStart( 0 )
+        pFollowStart( 0 ), pQuotaStats( 0 )
       {
         pIdMap.set_deleted_key( 0 );
         pIdMap.set_empty_key( 0xffffffffffffffffll );
@@ -207,6 +208,14 @@ namespace eos
         return pSlavePoll;
       }
 
+      //------------------------------------------------------------------------
+      //! Set the QuotaStats object for the follower
+      //------------------------------------------------------------------------
+      void setQuotaStats( QuotaStats *quotaStats )
+      {
+        pQuotaStats = quotaStats;
+      }
+
     private:
       //------------------------------------------------------------------------
       // Placeholder for the record info
@@ -286,6 +295,7 @@ namespace eos
       bool               pSlaveStarted;
       int32_t            pSlavePoll;
       uint64_t           pFollowStart;
+      QuotaStats        *pQuotaStats;
   };
 }
 

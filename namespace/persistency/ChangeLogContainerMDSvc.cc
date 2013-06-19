@@ -25,6 +25,7 @@
 #include "namespace/persistency/ChangeLogConstants.hh"
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/ThreadUtils.hh"
+#include "namespace/Constants.hh"
 
 #include <set>
 #include <memory>
@@ -38,7 +39,10 @@ namespace eos
   {
     public:
       ContainerMDFollower( eos::ChangeLogContainerMDSvc *contSvc ):
-        pContSvc( contSvc ) {}
+        pContSvc( contSvc ) 
+      {
+        pQuotaStats = pContSvc->pQuotaStats;
+      }
 
       //------------------------------------------------------------------------
       // Unpack new data and put it in the queue
@@ -154,8 +158,162 @@ namespace eos
           }
           else
           {
-            (*it->second.ptr) = *currentCont;
-            delete currentCont;
+            if (it->second.ptr->getParentId() == currentCont->getParentId() )
+            {
+              // ---------------------------------------------------------------
+              // update within the same parent directory
+              // ---------------------------------------------------------------
+              if (currentCont->getName() == it->second.ptr->getName())
+              {
+                // -------------------------------------------------------------
+                // meta data change - keeping directory name
+                // -------------------------------------------------------------
+                (*it->second.ptr) = *currentCont;
+                delete currentCont;
+              }
+              else
+              {
+                // -------------------------------------------------------------
+                // directory rename
+                // -------------------------------------------------------------
+                itP = idMap->find(currentCont->getParentId());
+                if (itP != idMap->end())
+                {
+                  // -----------------------------------------------------------
+                  // remove container with old name
+                  // -----------------------------------------------------------
+                  itP->second.ptr->removeContainer(it->second.ptr->getName());
+                  delete itP->second.ptr;
+                  // -----------------------------------------------------------
+                  // add container with new name
+                  // -----------------------------------------------------------
+                  itP->second.ptr->addContainer(currentCont);
+                  // -----------------------------------------------------------
+                  // update idmap pointer to the container
+                  // -----------------------------------------------------------
+                  (*idMap)[currentCont->getId()] = ChangeLogContainerMDSvc::DataInfo(0, currentCont);
+                }
+              }
+            }
+            else
+            { 
+              // ---------------------------------------------------------------
+              // STEP 1 container move (moving a subtree)
+              // ---------------------------------------------------------------
+              ChangeLogContainerMDSvc::IdMap::iterator itNP;
+              // --------------------------------------------------------------- 
+              // get the old and the new parent container
+              // ---------------------------------------------------------------
+              itP = idMap->find(it->second.ptr->getParentId());
+              itNP = idMap->find(currentCont->getParentId());
+              if ((itP != idMap->end()) && (itNP != idMap->end()))
+              {
+                // -------------------------------------------------------------
+                // substract all the files in the old tree from their quota node
+                // -------------------------------------------------------------
+                size_t deepness = 0;
+                ContainerMD::ContainerMap::iterator cIt;
+                ContainerMD::FileMap::iterator fIt;
+                std::vector<std::set<ContainerMD*> > dirTree;
+                dirTree.resize(1);
+                dirTree[0].insert(it->second.ptr);
+                do
+                {
+                  // -----------------------------------------------------------
+                  // we run down the directory hierarchy starting at deepness 0
+                  // until there are no more subcontainer found
+                  // -----------------------------------------------------------
+                  dirTree.resize(deepness + 2);
+
+                  std::set<ContainerMD*>::const_iterator dIt;
+                  // -----------------------------------------------------------
+                  // loop over all attached directories in that deepness
+                  // -----------------------------------------------------------
+                  for (dIt = dirTree[deepness].begin(); 
+                       dIt != dirTree[deepness].end(); 
+                       dIt++)
+                  {
+                    // ---------------------------------------------------------
+                    // attach the sub-container at the next deepness level
+                    // ---------------------------------------------------------
+                    for (cIt = (*dIt)->containersBegin(); 
+                         cIt != (*dIt)->containersEnd(); 
+                         cIt++)
+                    {
+                      dirTree[deepness + 1].insert(cIt->second);
+                    }
+                    // ---------------------------------------------------------
+                    // remove every file from it's quota node
+                    // ---------------------------------------------------------
+                    for (fIt = (*dIt)->filesBegin(); 
+                         fIt != (*dIt)->filesEnd(); 
+                         fIt++)
+                    {
+                      QuotaNode *node = getQuotaNode(*dIt);
+                      if (node)
+                        node->removeFile(fIt->second);
+                    }
+                  }
+                  deepness++;
+                }
+                while (dirTree[deepness].size());
+                // -------------------------------------------------------------
+                // STEP 2 move the source container
+                // -------------------------------------------------------------
+              
+                // -------------------------------------------------------------
+                // first remove from the old parent container
+                // -------------------------------------------------------------
+                itP->second.ptr->removeContainer(it->second.ptr->getName());
+                // -------------------------------------------------------------
+                // copy the meta data
+                // -------------------------------------------------------------
+                (*it->second.ptr) = *currentCont;
+                // -------------------------------------------------------------
+                // add to the new parent container
+                // -------------------------------------------------------------
+                itNP->second.ptr->addContainer(it->second.ptr);
+                delete currentCont;
+                
+                // -------------------------------------------------------------
+                // STEP 3 add all the files in the new tree to new quota node
+                // -------------------------------------------------------------
+                deepness = 0;
+
+                // -------------------------------------------------------------
+                // we still have the full hierarchy stored and start at deepn. 0
+                // -------------------------------------------------------------
+                while (dirTree[deepness].size())
+                {
+                  std::set<ContainerMD*>::const_iterator dIt;
+
+                  // -----------------------------------------------------------
+                  // loop over all attached directories in that deepness
+                  // -----------------------------------------------------------
+                  for (dIt = dirTree[deepness].begin(); 
+                       dIt != dirTree[deepness].end(); 
+                       dIt++)
+                  {
+                    // ---------------------------------------------------------
+                    // remove every file from it's quota node
+                    // ---------------------------------------------------------
+                    for (fIt = (*dIt)->filesBegin(); 
+                         fIt != (*dIt)->filesEnd(); 
+                         fIt++)
+                    {
+                      QuotaNode *node = getQuotaNode(*dIt);
+                      if (node)
+                        node->addFile(fIt->second);
+                    }
+                  }
+                  deepness++;
+                }
+                // -------------------------------------------------------------
+                // all done - clean up
+                // -------------------------------------------------------------
+                dirTree.clear();
+              }
+            }
           }
         }
         pUpdated.clear();
@@ -163,10 +321,53 @@ namespace eos
       }
 
     private:
+      
+      //------------------------------------------------------------------------
+      // Get quota node id concerning given container
+      //------------------------------------------------------------------------
+
+      QuotaNode *
+      getQuotaNode (const ContainerMD *container)
+      throw ( MDException)
+      {
+        //----------------------------------------------------------------------
+        // Initial sanity check
+        //----------------------------------------------------------------------
+        if (!container)
+          return 0;
+
+        if (!pQuotaStats)
+          return 0;
+
+        //----------------------------------------------------------------------
+        // Search for the node
+        //----------------------------------------------------------------------
+        const ContainerMD *current = container;
+
+        while ( ( current->getId() != 1 ) &&
+                ( (current->getFlags() & QUOTA_NODE_FLAG) == 0) )
+          current = pContSvc->getContainerMD(current->getParentId());
+
+        //----------------------------------------------------------------------
+        // We have either found a quota node or reached root without finding one
+        // so we need to double check whether the current container has an
+        // associated quota node
+        //----------------------------------------------------------------------
+        if ((current->getFlags() & QUOTA_NODE_FLAG) == 0)
+          return 0;
+
+        QuotaNode *node = pQuotaStats->getQuotaNode(current->getId());
+        if (node)
+          return node;
+
+        return pQuotaStats->registerNewNode(current->getId());
+      }
+      
       typedef std::map<eos::ContainerMD::id_t, eos::ContainerMD*> ContMap;
       ContMap                           pUpdated;
       std::set<eos::ContainerMD::id_t>  pDeleted;
       eos::ChangeLogContainerMDSvc     *pContSvc;
+      QuotaStats                       *pQuotaStats;
   };
 }
 

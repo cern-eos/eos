@@ -44,6 +44,7 @@
  * @brief  Class steering in-group balancing
  *
  */
+
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 

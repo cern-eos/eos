@@ -35,7 +35,7 @@ EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 bool
-Vid::Set (const char* value, 
+Vid::Set (const char* value,
           bool storeConfig)
 {
   eos::common::RWMutexWriteLock lock(eos::common::Mapping::gMapMutex);
@@ -76,12 +76,13 @@ Vid::Set (const char* value,
     if (env.Get("mgm.vid.source.uid"))
     {
       // rule for a certain user id
-      int errc=0;
+      int errc = 0;
       std::string username = env.Get("mgm.vid.source.uid");
       uid = eos::common::Mapping::UserNameToUid(username, errc);
-      XrdOucString suid; suid += (int) uid;
+      XrdOucString suid;
+      suid += (int) uid;
       skey.replace(username.c_str(), suid);
-      
+
       if (errc)
       {
         eos_static_err("msg=\"failed username translation\" user=%s", username.c_str());
@@ -95,7 +96,7 @@ Vid::Set (const char* value,
       // fill uid target list
       eos::common::Mapping::gUserRoleVector[uid].clear();
       eos::common::Mapping::KommaListToUidVector(val, eos::common::Mapping::gUserRoleVector[uid]);
-      
+
       if (storeConfig) gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
       set = true;
     }
@@ -105,7 +106,7 @@ Vid::Set (const char* value,
       // fill gid target list
       eos::common::Mapping::gGroupRoleVector[uid].clear();
       eos::common::Mapping::KommaListToGidVector(val, eos::common::Mapping::gGroupRoleVector[uid]);
-     
+
       if (storeConfig) gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
       set = true;
     }
@@ -224,10 +225,10 @@ Vid::Set (const char* value,
 
 /*----------------------------------------------------------------------------*/
 bool
-Vid::Set (XrdOucEnv &env, 
-          int &retc, 
-          XrdOucString &stdOut, 
-          XrdOucString &stdErr, 
+Vid::Set (XrdOucEnv &env,
+          int &retc,
+          XrdOucString &stdOut,
+          XrdOucString &stdErr,
           bool storeConfig)
 {
   int envlen;
@@ -236,7 +237,7 @@ Vid::Set (XrdOucEnv &env,
   while (inenv.replace("&", " "))
   {
   };
-  bool rc = Set(env.Env(envlen),storeConfig);
+  bool rc = Set(env.Env(envlen), storeConfig);
   if (rc == true)
   {
     stdOut += "success: set vid [ ";
@@ -259,9 +260,9 @@ Vid::Set (XrdOucEnv &env,
 
 /*----------------------------------------------------------------------------*/
 void
-Vid::Ls (XrdOucEnv &env, 
-         int &retc, 
-         XrdOucString &stdOut, 
+Vid::Ls (XrdOucEnv &env,
+         int &retc,
+         XrdOucString &stdOut,
          XrdOucString &stdErr)
 {
   eos::common::RWMutexReadLock lock(eos::common::Mapping::gMapMutex);
@@ -271,10 +272,10 @@ Vid::Ls (XrdOucEnv &env,
 
 /*----------------------------------------------------------------------------*/
 bool
-Vid::Rm (XrdOucEnv &env, 
-         int &retc, 
-         XrdOucString &stdOut, 
-         XrdOucString &stdErr, 
+Vid::Rm (XrdOucEnv &env,
+         int &retc,
+         XrdOucString &stdOut,
+         XrdOucString &stdErr,
          bool storeConfig)
 {
   eos::common::RWMutexWriteLock lock(eos::common::Mapping::gMapMutex);
@@ -310,7 +311,7 @@ Vid::Rm (XrdOucEnv &env,
   {
     XrdOucString lkey = skey;
     lkey.erase("vid:");
-    lkey.replace(":uids","");
+    lkey.replace(":uids", "");
     uid_t uid = atoi(lkey.c_str());
     nerased += eos::common::Mapping::gUserRoleVector.erase(uid);
   }
@@ -319,11 +320,11 @@ Vid::Rm (XrdOucEnv &env,
   {
     XrdOucString lkey = skey;
     lkey.erase("vid:");
-    lkey.replace(":gids","");
+    lkey.replace(":gids", "");
     gid_t gid = atoi(lkey.c_str());
     nerased += eos::common::Mapping::gGroupRoleVector.erase(gid);
   }
-  
+
   if (skey.beginswith("geotag"))
   {
     // remove from geo tag map

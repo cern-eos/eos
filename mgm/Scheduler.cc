@@ -199,9 +199,10 @@ Scheduler::FilePlacement (const char* path, //< path to place
         weight = 0.1;
       }
 
-      if (netoutweight < 0.05) {
-	eos_static_info("msg=\"skipping node with overloaded eth-out\"");
-	continue;
+      if (netoutweight < 0.05)
+      {
+        eos_static_info("msg=\"skipping node with overloaded eth-out\"");
+        continue;
       }
 
       // check if this filesystem can be used (online, enough space etc...)
@@ -638,10 +639,11 @@ Scheduler::FileAccess (
 
           availablefsweightsort.insert(std::pair<double, eos::common::FileSystem::fsid_t > (weight, snapshot.mId));
           renorm += weight;
-          
-          if ( (!(forcedfsid>0)) && (snapshot.mHost.substr(0,vid.host.length()) == vid.host)) {
+
+          if ((!(forcedfsid > 0)) && (snapshot.mHost.substr(0, vid.host.length()) == vid.host))
+          {
             // if the client sit's on an FST we force this file system
-            forcedfsid= snapshot.mId;
+            forcedfsid = snapshot.mId;
             eos_static_info("msg=\"enforcing local replica access\" client=\"%s\"", vid.host.c_str());
           }
 

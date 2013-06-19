@@ -155,9 +155,6 @@ else (NOT MICROHTTPD_FOUND)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
 endif (NOT MICROHTTPD_FOUND)
 
-#set(SOFLAGS  "-m64 -dynamiclib -undefined dynamic_lookup -single_module")
-#set(CMAKE_SHARED_LINKER_FLAGS ${SOFLAGS}) 
-
 ######################################################################################################################
 # install targets
 ######################################################################################################################

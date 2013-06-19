@@ -43,6 +43,7 @@
  * @brief Class implementing egroup support via LDAP queries
  * 
  */
+
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
@@ -68,7 +69,7 @@ class Egroup
 {
 private:
   /// thread id of the async refresh thread
-  pthread_t mThread; 
+  pthread_t mThread;
 
   // ---------------------------------------------------------------------------
   // Synchronous refresh function doing an LDAP query for a given Egroup/user
@@ -77,30 +78,30 @@ private:
 
 public:
   /// static queue with pairs of egroup/username 
-  static std::deque <std::pair<std::string, std::string > > LdapQueue; 
-  
+  static std::deque <std::pair<std::string, std::string > > LdapQueue;
+
   /// static mutex protecting static Egroup objects
-  static XrdSysMutex Mutex; 
-  
+  static XrdSysMutex Mutex;
+
   /// static map indicating egroup memebership for egroup/username pairs
   static std::map < std::string, std::map <std::string, bool > > Map;
-  
+
   /// static map storing the validity of egroup/username pairs in Map
   static std::map < std::string, std::map <std::string, time_t > > LifeTime;
-  
+
   /// static condition variable to notify the asynchronous update thread about
   /// a new egroup request
-  static XrdSysCondVar mCond; 
+  static XrdSysCondVar mCond;
 
   // ---------------------------------------------------------------------------
   // Constructor
   // ---------------------------------------------------------------------------
   Egroup ();
-  
+
   // ---------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
-  
+
   virtual ~Egroup ();
 
   // ---------------------------------------------------------------------------
@@ -113,17 +114,17 @@ public:
   // ---------------------------------------------------------------------------
   static bool Member (std::string &username, std::string &egroupname);
 
-  
+
   // ---------------------------------------------------------------------------
   // static function to schedule an asynchronous refresh for egroup/username
   // ---------------------------------------------------------------------------
   static void AsyncRefresh (std::string &egroupname, std::string &username);
-  
+
   // ---------------------------------------------------------------------------
   // asynchronous thread loop doing egroup/username fetching
   // ---------------------------------------------------------------------------
-  void* Refresh (); 
-  
+  void* Refresh ();
+
   // ---------------------------------------------------------------------------
   // static thread startup function
   // ---------------------------------------------------------------------------

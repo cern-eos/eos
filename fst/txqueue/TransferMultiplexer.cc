@@ -107,8 +107,6 @@ TransferMultiplexer::ThreadProc (void)
 
  eos_static_info("running transfer multiplexer with %d queues", mQueues.size());
 
- size_t loopsleep = 2000000;
-
 
  while (1)
  {
@@ -124,11 +122,11 @@ TransferMultiplexer::ThreadProc (void)
          // take an entry from the queue
 
          int freeslots = mQueues[i]->GetSlots() - mQueues[i]->GetRunning();
-
+	 fprintf(stderr,"free slots %d\n", freeslots);
          if (freeslots <= 0)
            break;
 
-         //	  fprintf(stderr,"Found %u transfers in queue %s\n", (unsigned int) mQueues[i]->GetQueue()->Size(), mQueues[i]->GetName());
+	 fprintf(stderr,"Found %u transfers in queue %s\n", (unsigned int) mQueues[i]->GetQueue()->Size(), mQueues[i]->GetName());
 
          mQueues[i]->GetQueue()->OpenTransaction();
          eos::common::TransferJob* cjob = mQueues[i]->GetQueue()->Get();
@@ -139,7 +137,7 @@ TransferMultiplexer::ThreadProc (void)
 
          XrdOucString out = "";
          cjob->PrintOut(out);
-         //	fprintf(stderr, "New transfer %s\n", out.c_str());
+	 fprintf(stderr, "New transfer %s\n", out.c_str());
 
          //create new TransferJob and submit it to the scheduler
          TransferJob* job = new TransferJob(mQueues[i], cjob, mQueues[i]->GetBandwidth());
@@ -150,13 +148,10 @@ TransferMultiplexer::ThreadProc (void)
        }
      }
    }
+   
    XrdSysThread::SetCancelOn();
-   for (size_t i = 0; i < loopsleep / 10000; i++)
-   {
-     XrdSysTimer sleeper;
-     sleeper.Wait(100);
-     XrdSysThread::CancelPoint();
-   }
+   XrdSysTimer sleeper;
+   sleeper.Wait(100);
  }
 
  // we wait that the scheduler is empty, otherwise we might have call backs to our queues

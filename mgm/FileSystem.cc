@@ -96,13 +96,13 @@ FileSystem::SetConfigStatus (eos::common::FileSystem::fsstatus_t status)
  * @brief Set the configuration status of this filesystem
  * @return true if successfull otherwise false
  * 
- * Depending on the given status this routine also mangages drain jobs on the
+ * Depending on the given status this routine also manages drain jobs on the
  * underlying filesystem.
  */
 /*----------------------------------------------------------------------------*/
 {
   //----------------------------------------------------------------
-  //! catch any status change from/to 'drain' or 'draindead' 
+  // catch any status change from/to 'drain' or 'draindead' 
   //----------------------------------------------------------------
 
   // check the current status
@@ -131,7 +131,7 @@ FileSystem::SetConfigStatus (eos::common::FileSystem::fsstatus_t status)
     // create a drain job
     // -------------------------------------------------------------------------
     mDrainJobMutex.Lock();
-    
+
     // -------------------------------------------------------------------------
     // check if there is still a drain job
     // -------------------------------------------------------------------------

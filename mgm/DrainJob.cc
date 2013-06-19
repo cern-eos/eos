@@ -128,7 +128,7 @@ DrainJob::SetDrainer ()
   if (FsView::gFsView.mGroupView.count(mGroup))
   {
     for (git = FsView::gFsView.mGroupView[mGroup]->begin();
-      git != FsView::gFsView.mGroupView[mGroup]->end(); git++)
+         git != FsView::gFsView.mGroupView[mGroup]->end(); git++)
     {
       if (FsView::gFsView.mIdView.count(*git))
       {
@@ -152,7 +152,7 @@ DrainJob::SetDrainer ()
       setactive = false;
     }
     for (git = FsView::gFsView.mGroupView[mGroup]->begin();
-      git != FsView::gFsView.mGroupView[mGroup]->end(); git++)
+         git != FsView::gFsView.mGroupView[mGroup]->end(); git++)
     {
       fs = FsView::gFsView.mIdView[*git];
       if (fs)
@@ -712,12 +712,12 @@ nofilestodrain:
   // set status to 'drained'
   //----------------------------------------------------------------------------
   {
-    XrdSysThread::SetCancelOff();
-    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    fs = 0;
-    if (FsView::gFsView.mIdView.count(mFsId))
+   XrdSysThread::SetCancelOff();
+   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+   fs = 0;
+   if (FsView::gFsView.mIdView.count(mFsId))
       fs = FsView::gFsView.mIdView[mFsId];
-    if (!fs)
+   if (!fs)
     {
       eos_static_notice(
                         "Filesystem fsid=%u has been removed during drain operation",
@@ -726,17 +726,17 @@ nofilestodrain:
       return 0;
     }
 
-    fs->SetLongLong("stat.drainfiles", filesleft);
-    fs->SetDrainStatus(eos::common::FileSystem::kDrained);
-    fs->SetLongLong("stat.drainbytesleft", 0);
-    fs->SetLongLong("stat.timeleft", 0);
-    SetDrainer();
-    //--------------------------------------------------------------------------
-    // we automatically switch this filesystem to the 'empty' state
-    //--------------------------------------------------------------------------
-    fs->SetString("configstatus", "empty");
-    FsView::gFsView.StoreFsConfig(fs);
-    fs->SetLongLong("stat.drainprogress", 100);
+   fs->SetLongLong("stat.drainfiles", filesleft);
+   fs->SetDrainStatus(eos::common::FileSystem::kDrained);
+   fs->SetLongLong("stat.drainbytesleft", 0);
+   fs->SetLongLong("stat.timeleft", 0);
+   SetDrainer();
+   //--------------------------------------------------------------------------
+   // we automatically switch this filesystem to the 'empty' state
+   //--------------------------------------------------------------------------
+   fs->SetString("configstatus", "empty");
+   FsView::gFsView.StoreFsConfig(fs);
+   fs->SetLongLong("stat.drainprogress", 100);
   }
   XrdSysThread::SetCancelOn();
   return 0;

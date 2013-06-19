@@ -71,14 +71,14 @@ private:
   bool
   Enabled ()
   {
-    time_t now = time(NULL);
+    time_t now = time (NULL);
     if (now > (LastEnableCheck + 5))
     {
-      std::string spacename = SpaceName.c_str();
+      std::string spacename = SpaceName.c_str ();
       std::string key = "quota";
-      if (FsView::gFsView.mSpaceView.count(spacename))
+      if (FsView::gFsView.mSpaceView.count (spacename))
       {
-        std::string ison = FsView::gFsView.mSpaceView[spacename]->GetConfigMember(key);
+        std::string ison = FsView::gFsView.mSpaceView[spacename]->GetConfigMember (key);
         if (ison == "on")
         {
           On = true;
@@ -338,15 +338,15 @@ public:
     {
       fp = 0;
     }
-    sprintf(percentage, "%.02f", fp);
+    sprintf (percentage, "%.02f", fp);
     spercentage = percentage;
-    return spercentage.c_str();
+    return spercentage.c_str ();
   }
 
   bool
   NeedsRecalculation ()
   {
-    if ((time(NULL) - LastCalculationTime) > 10) return true;
+    if ((time (NULL) - LastCalculationTime) > 10) return true;
     else return false;
   }
 
@@ -363,19 +363,19 @@ public:
   std::map<long long, unsigned long long>::const_iterator
   Begin ()
   {
-    return Quota.begin();
+    return Quota.begin ();
   }
 
   std::map<long long, unsigned long long>::const_iterator
   End ()
   {
-    return Quota.end();
+    return Quota.end ();
   }
 
   const char*
   GetSpaceName ()
   {
-    return SpaceName.c_str();
+    return SpaceName.c_str ();
   }
 
   long long GetQuota (unsigned long tag, unsigned long id, bool lock = true);
@@ -435,49 +435,49 @@ public:
   void
   ResetPhysicalFreeBytes ()
   {
-    SetPhysicalFreeBytes(0);
+    SetPhysicalFreeBytes (0);
   }
 
   void
   ResetPhysicalFreeFiles ()
   {
-    SetPhysicalFreeFiles(0);
+    SetPhysicalFreeFiles (0);
   }
 
   void
   ResetPhysicalMaxBytes ()
   {
-    SetPhysicalMaxBytes(0);
+    SetPhysicalMaxBytes (0);
   }
 
   void
   ResetPhysicalMaxFiles ()
   {
-    SetPhysicalMaxFiles(0);
+    SetPhysicalMaxFiles (0);
   }
 
   void
   ResetPhysicalTmpFreeBytes ()
   {
-    SetPhysicalTmpFreeBytes(0);
+    SetPhysicalTmpFreeBytes (0);
   }
 
   void
   ResetPhysicalTmpFreeFiles ()
   {
-    SetPhysicalTmpFreeFiles(0);
+    SetPhysicalTmpFreeFiles (0);
   }
 
   void
   ResetPhysicalTmpMaxBytes ()
   {
-    SetPhysicalTmpMaxBytes(0);
+    SetPhysicalTmpMaxBytes (0);
   }
 
   void
   ResetPhysicalTmpMaxFiles ()
   {
-    SetPhysicalTmpMaxFiles(0);
+    SetPhysicalTmpMaxFiles (0);
   }
 
   void
@@ -579,7 +579,7 @@ public:
   void
   ResetQuota (unsigned long tag, unsigned long id, bool lock = true)
   {
-    return SetQuota(tag, id, 0, lock);
+    return SetQuota (tag, id, 0, lock);
   }
   void PrintOut (XrdOucString& output, long uid_sel = -1, long gid_sel = -1, bool monitoring = false, bool translateids = false);
 

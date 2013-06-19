@@ -40,6 +40,7 @@
  * @brief Class implementing a thread following a filesystem drain.
  * 
  */
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -49,20 +50,21 @@ EOSMGMNAMESPACE_BEGIN
  * @brief Class implementing the draining of a filesystem
  */
 /*----------------------------------------------------------------------------*/
-class DrainJob {
+class DrainJob
+{
 private:
   /// file system id of the draining filesystem
   eos::common::FileSystem::fsid_t mFsId;
-  
+
   /// space where the filesystem resides
   std::string mSpace;
-  
+
   /// group where the filesystem resides
   std::string mGroup;
-  
+
   /// indicator if draining is initiated by a filesystem OpsError (e.g.IO error)
   bool mOnOpsError;
-  
+
   /// thread id of the draing job
   pthread_t mThread;
 
@@ -75,47 +77,49 @@ public:
    * @param opserror indicator if draining triggered by ops error
    */
   // ---------------------------------------------------------------------------
-  DrainJob(eos::common::FileSystem::fsid_t ifsid, bool opserror=false) {
-    mThread=0;
+
+  DrainJob (eos::common::FileSystem::fsid_t ifsid, bool opserror = false)
+  {
+    mThread = 0;
     mFsId = ifsid;
-    mOnOpsError=opserror;
-    XrdSysThread::Run(&mThread, 
-                      DrainJob::StaticThreadProc, 
-                      static_cast<void *>(this),
-                      XRDSYSTHREAD_HOLD, 
-                      "DrainJob Thread");
+    mOnOpsError = opserror;
+    XrdSysThread::Run (&mThread,
+                       DrainJob::StaticThreadProc,
+                       static_cast<void *> (this),
+                       XRDSYSTHREAD_HOLD,
+                       "DrainJob Thread");
   }
 
   // ---------------------------------------------------------------------------
   // Destructor
   // ---------------------------------------------------------------------------
-  virtual ~DrainJob();
-    
+  virtual ~DrainJob ();
+
   // ---------------------------------------------------------------------------
   // reset all drain counter
   // ---------------------------------------------------------------------------
-  void ResetCounter();
+  void ResetCounter ();
 
   // ---------------------------------------------------------------------------
   // static thread startup function
   // ---------------------------------------------------------------------------
-  static void* StaticThreadProc(void*);
-  
+  static void* StaticThreadProc (void*);
+
   // ---------------------------------------------------------------------------
   // thread loop implementing the drain job
   // ---------------------------------------------------------------------------
-  void* Drain();
+  void* Drain ();
 
   // ---------------------------------------------------------------------------
   // function notifying all nodes in a drain group to start to pull off files
   // ---------------------------------------------------------------------------
-  void SetDrainer();   // enabled the drain pull for all filesytems in the group
-  
+  void SetDrainer (); // enabled the drain pull for all filesytems in the group
+
   // ---------------------------------------------------------------------------
   // set the space defined drain variables on each node participating in the 
   // draining e.g. transfer rate & parallel transfers
   // ---------------------------------------------------------------------------
-  void SetSpaceNode(); 
+  void SetSpaceNode ();
 };
 
 EOSMGMNAMESPACE_END

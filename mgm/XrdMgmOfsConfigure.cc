@@ -1001,36 +1001,33 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   lFanOutTags.push_back("#");
 
   // get the XRootD log directory
-  char *logdir=0;
-  XrdOucEnv::Import("XRDLOGDIR",logdir);
+  char *logdir = 0;
+  XrdOucEnv::Import("XRDLOGDIR", logdir);
 
-  if (!logdir) {
-    fprintf(stderr,"error: XRDLOGDIR could not be found in XrdOucEnv\n");
-    return 1;
-  }
-
-  for (size_t i = 0; i < lFanOutTags.size(); i++)
-  {
-    std::string lLogFile = logdir;
-    lLogFile += "/mgm";
-    lLogFile += "/";
-    if (lFanOutTags[i] == "#")
+  if (logdir) {
+    for (size_t i = 0; i < lFanOutTags.size(); i++)
     {
-      lLogFile += "Clients";
-    }
-    else
-    {
-      lLogFile += lFanOutTags[i];
-    }
-    lLogFile += ".log";
-    FILE* fp = fopen(lLogFile.c_str(), "a+");
-    if (fp)
-    {
-      eos::common::Logging::AddFanOut(lFanOutTags[i].c_str(), fp);
-    }
-    else
-    {
-      fprintf(stderr, "error: failed to open sub-logfile=%s", lLogFile.c_str());
+      std::string lLogFile = logdir;
+      lLogFile += "/mgm";
+      lLogFile += "/";
+      if (lFanOutTags[i] == "#")
+      {
+        lLogFile += "Clients";
+      }
+      else
+      {
+        lLogFile += lFanOutTags[i];
+      }
+      lLogFile += ".log";
+      FILE* fp = fopen(lLogFile.c_str(), "a+");
+      if (fp)
+      {
+        eos::common::Logging::AddFanOut(lFanOutTags[i].c_str(), fp);
+      }
+      else
+      {
+        fprintf(stderr, "error: failed to open sub-logfile=%s", lLogFile.c_str());
+      }
     }
   }
 
@@ -1276,17 +1273,17 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
-  
+
   // set the object manager to listener only
   ObjectManager.EnableBroadCast(false);
 
   // setup the modifications which the fs listener thread is waiting for
   ObjectManager.SubjectsMutex.Lock();
   std::string watch_errc = "stat.errc";
- 
+
   ObjectManager.ModificationWatchKeys.insert(watch_errc); // we need to take action an filesystem errors
   ObjectManager.ModificationWatchSubjects.insert(MgmConfigQueue.c_str()); // we need to apply remote configuration changes
-  
+
   ObjectManager.SubjectsMutex.UnLock();
 
   ObjectManager.SetDebug(false);
@@ -1690,7 +1687,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   }
 
   // start the recycler garbage collection thread on a master machine
-  if ( (MgmMaster.IsMaster()) && (!gOFS->Recycler.Start()))
+  if ((MgmMaster.IsMaster()) && (!gOFS->Recycler.Start()))
   {
     eos_warning("msg=\"cannot start recycle thread\"");
   }
@@ -1828,15 +1825,18 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     }
   }
 
-  // add shutdown handler
-  (void) signal(SIGINT, xrdmgmofs_shutdown);
-  (void) signal(SIGTERM, xrdmgmofs_shutdown);
-  (void) signal(SIGQUIT, xrdmgmofs_shutdown);
-
-  // add SEGV handler                                                                                                                                                                
-  (void) signal(SIGSEGV, xrdmgmofs_stacktrace);
-  (void) signal(SIGABRT, xrdmgmofs_stacktrace);
-  (void) signal(SIGBUS, xrdmgmofs_stacktrace);
+  if (!getenv("EOS_NO_SHUTDOWN")) 
+  {
+    // add shutdown handler
+    (void) signal(SIGINT, xrdmgmofs_shutdown);
+    (void) signal(SIGTERM, xrdmgmofs_shutdown);
+    (void) signal(SIGQUIT, xrdmgmofs_shutdown);
+    
+    // add SEGV handler                                                                                                                                                                
+    (void) signal(SIGSEGV, xrdmgmofs_stacktrace);
+    (void) signal(SIGABRT, xrdmgmofs_stacktrace);
+    (void) signal(SIGBUS, xrdmgmofs_stacktrace);
+  }
 
   XrdSysTimer sleeper;
   sleeper.Wait(200);
