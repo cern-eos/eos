@@ -82,35 +82,28 @@ public:
   /**
    * Build a response to the given WebDAV request.
    *
-   * @param method   [in]  the request verb used by the client (GET, PUT, etc)
-   * @param url      [in]  the URL requested by the client
-   * @param query    [in]  the GET request query string (if any)
-   * @param body     [in]  the request body data sent by the client
-   * @param bodysize [in]  the size of the request body
-   * @param request  [in]  the map of request headers sent by the client
-   * @param cookies  [in]  the map of cookie headers
-   * @param response [out] the map of response headers to be built and returned
-   *                       by the server
-   * @param respcode [out] the HTTP response code to be set as appropriate
-   *
-   * @return the HTML body response
+   * @param request  the map of request headers sent by the client
+   * @param method   the request verb used by the client (GET, PUT, etc)
+   * @param url      the URL requested by the client
+   * @param query    the GET request query string (if any)
+   * @param body     the request body data sent by the client
+   * @param bodysize the size of the request body
+   * @param cookies  the map of cookie headers
    */
-  std::string
-  HandleRequest (const std::string &method,
+  void
+  HandleRequest (HeaderMap         &request,
+                 const std::string &method,
                  const std::string &url,
                  const std::string &query,
                  const std::string &body,
                  size_t            *bodysize,
-                 HeaderMap         &request,
-                 HeaderMap         &cookies,
-                 HeaderMap         &response,
-                 int               &respcode);
+                 HeaderMap         &cookies);
 
   /**
    *
    */
   std::string
-  PropFind (HeaderMap &request, HeaderMap &response, int &respcode);
+  PropFind (HeaderMap &request, const std::string &body);
 
   /**
    *

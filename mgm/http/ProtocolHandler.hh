@@ -47,12 +47,22 @@ class ProtocolHandler
 public:
   typedef std::map<std::string, std::string> HeaderMap;
 
+protected:
+  HeaderMap   mResponseHeaders; //!< the response headers
+  std::string mResponseBody;    //!< the response body string
+  int         mResponseCode;    //!< the HTTP response code
+
 public:
+
+  /**
+   * Constructor
+   */
+  ProtocolHandler ();
 
   /**
    * Destructor
    */
-  virtual ~ProtocolHandler () = 0;
+  virtual ~ProtocolHandler () {};
 
   /**
    * Factory function to create an appropriate object which will handle this
@@ -82,29 +92,46 @@ public:
    * Concrete implementations must use this function to build a response to the
    * given request.
    *
-   * @param method   [in]  the request verb used by the client (GET, PUT, etc)
-   * @param url      [in]  the URL requested by the client
-   * @param query    [in]  the GET request query string (if any)
-   * @param body     [in]  the request body data sent by the client
-   * @param bodysize [in]  the size of the request body
-   * @param request  [in]  the map of request headers sent by the client
-   * @param cookies  [in]  the map of cookie headers
-   * @param response [out] the map of response headers to be built and returned
-   *                       by the server
-   * @param respcode [out] the HTTP response code to be set as appropriate
-   *
-   * @return the HTML body response
+   * @param request  the map of request headers sent by the client
+   * @param method   the request verb used by the client (GET, PUT, etc)
+   * @param url      the URL requested by the client
+   * @param query    the GET request query string (if any)
+   * @param body     the request body data sent by the client
+   * @param bodysize the size of the request body
+   * @param cookies  the map of cookie headers
    */
-  virtual std::string
-  HandleRequest (const std::string &method,
+  virtual void
+  HandleRequest (HeaderMap         &request,
+                 const std::string &method,
                  const std::string &url,
                  const std::string &query,
                  const std::string &body,
                  size_t            *bodysize,
-                 HeaderMap         &request,
-                 HeaderMap         &cookies,
-                 HeaderMap         &response,
-                 int               &respcode) = 0;
+                 HeaderMap         &cookies) = 0;
+
+  /**
+   * @return the response headers that were built.
+   */
+  inline HeaderMap
+  GetResponseHeaders () { return mResponseHeaders; };
+
+  /**
+   * @return the response body that was built.
+   */
+  inline std::string
+  GetResponseBody () { return mResponseBody; };
+
+  /**
+   * @return the HTTP response code that was decided upon.
+   */
+  inline int
+  GetResponseCode () { return mResponseCode; };
+
+  /**
+   * Dump all parts of the request to the log
+   */
+  void
+  PrintResponse ();
 };
 
 /*----------------------------------------------------------------------------*/

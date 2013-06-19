@@ -26,11 +26,15 @@
 #include "mgm/http/Http.hh"
 #include "mgm/http/S3.hh"
 #include "mgm/http/WebDAV.hh"
+#include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
+
+/*----------------------------------------------------------------------------*/
+ProtocolHandler::ProtocolHandler() : mResponseCode(200) {}
 
 /*----------------------------------------------------------------------------*/
 ProtocolHandler*
@@ -51,6 +55,21 @@ ProtocolHandler::CreateProtocolHandler (const std::string &method,
   }
 
   else return NULL;
+}
+
+/*----------------------------------------------------------------------------*/
+void
+ProtocolHandler::PrintResponse()
+{
+  eos_static_info("response code=%d", mResponseCode);
+
+  for (auto it = mResponseHeaders.begin(); it != mResponseHeaders.end(); ++it)
+  {
+    eos_static_info("response header:%s=%s", it->first.c_str(),
+                                             it->second.c_str());
+  }
+
+  eos_static_info("response body=\n%s", mResponseBody.c_str());
 }
 
 /*----------------------------------------------------------------------------*/

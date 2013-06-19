@@ -214,16 +214,14 @@ S3::ParseHeader (HeaderMap &header)
 }
 
 /*----------------------------------------------------------------------------*/
-std::string
-S3::HandleRequest (const std::string &method,
+void
+S3::HandleRequest (HeaderMap         &request,
+                   const std::string &method,
                    const std::string &url,
                    const std::string &query,
                    const std::string &body,
                    size_t            *bodysize,
-                   HeaderMap         &request,
-                   HeaderMap         &cookies,
-                   HeaderMap         &response,
-                   int               &respcode)
+                   HeaderMap         &cookies)
 {
   eos_static_info("msg=\"handling s3 request\"");
 
@@ -232,7 +230,7 @@ S3::HandleRequest (const std::string &method,
 
   if (!mS3Store->VerifySignature(*this))
   {
-    result = RestErrorResponse(respcode, 403, "SignatureDoesNotMatch", "", getBucket(), "");
+    result = RestErrorResponse(mResponseCode, 403, "SignatureDoesNotMatch", "", getBucket(), "");
   }
   else
   {
@@ -241,19 +239,19 @@ S3::HandleRequest (const std::string &method,
       if (getBucket() == "")
       {
         // GET SERVICE REQUEST
-        result = mS3Store->ListBuckets(respcode, *this, response);
+        result = mS3Store->ListBuckets(mResponseCode, *this, mResponseHeaders);
       }
       else
       {
         if (getPath() == "/")
         {
           // GET BUCKET LISTING REQUEST
-          result = mS3Store->ListBucket(respcode, *this, response);
+          result = mS3Store->ListBucket(mResponseCode, *this, mResponseHeaders);
         }
         else
         {
           // GET OBJECT REQUEST
-          result = mS3Store->GetObject(respcode, *this, response);
+          result = mS3Store->GetObject(mResponseCode, *this, mResponseHeaders);
         }
       }
     }
@@ -264,23 +262,23 @@ S3::HandleRequest (const std::string &method,
         if (getPath() == "/")
         {
           // HEAD BUCKET REQUEST
-          result = mS3Store->HeadBucket(respcode, *this, response);
+          result = mS3Store->HeadBucket(mResponseCode, *this, mResponseHeaders);
         }
         else
         {
           // HEAD OBJECT REQUEST
-          result = mS3Store->HeadObject(respcode, *this, response);
+          result = mS3Store->HeadObject(mResponseCode, *this, mResponseHeaders);
         }
       }
       else
       {
         // PUT REQUEST ...
-        result = mS3Store->PutObject(respcode, *this, response);
+        result = mS3Store->PutObject(mResponseCode, *this, mResponseHeaders);
       }
     }
   }
 
-  return result;
+  mResponseBody = result;
 }
 
 

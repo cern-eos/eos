@@ -47,17 +47,18 @@ HttpServer::Handler (void                  *cls,
                      const char            *url,
                      const char            *method,
                      const char            *version,
-                     const char            *body,
-                     size_t                *bodysize,
+                     const char            *uploadData,
+                     size_t                *uploadDataSize,
                      void                 **ptr)
 {
   std::map<std::string, std::string> requestHeaders;
 
   // If this is the first call, create an appropriate protocol handler based
-  // on the headers. We should only return MHD_YES here (unless error)
+  // on the headers and store it in *ptr. We should only return MHD_YES here
+  // (unless error)
   if (*ptr == 0)
   {
-    // get the headers
+    // Get the headers
     MHD_get_connection_values(connection, MHD_HEADER_KIND,
                               &HttpServer::BuildHeaderMap, (void*) &requestHeaders);
 
@@ -77,66 +78,81 @@ HttpServer::Handler (void                  *cls,
   // Use the existing protocol handler stored in ptr
   ProtocolHandler *protocolHandler = (ProtocolHandler*) *ptr;
 
-  // Get the requestHeaders again
-  MHD_get_connection_values(connection, MHD_HEADER_KIND,
-                            &HttpServer::BuildHeaderMap, (void*) &requestHeaders);
-
-  // Get the request query string
-  std::string query;
-  MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND,
-                            &HttpServer::BuildQueryString, (void*) &query);
-
-  // Get the cookies
-  std::map<std::string, std::string> cookies;
-  MHD_get_connection_values(connection, MHD_COOKIE_KIND,
-                            &HttpServer::BuildHeaderMap, (void*) &cookies);
-
-  eos_static_info("path=%s query=%s", url ? url : "",
-                                      query.c_str() ? query.c_str() : "");
-
-  // Add query, path & method into the map
-//  headers["Path"]       = std::string(url);
-//  requestHeaders["Query"]      = query;
-//  requestHeaders["HttpMethod"] = method;
-
-  std::map<std::string, std::string> responseHeaders;
-  struct MHD_Response               *response;
-  std::string                        result;
-  int                                respcode = MHD_HTTP_OK;
-
-  // Handle the request and build a response based on the specific protocol
-  result = protocolHandler->HandleRequest(method,
-                                          url,
-                                          query,
-                                          body,
-                                          bodysize,
-                                          requestHeaders,
-                                          cookies,
-                                          responseHeaders,
-                                          respcode);
-
-  eos_static_info("result=%s", result.c_str());
-
-  // Create the response
-  response = MHD_create_response_from_buffer(result.length(),(void *) result.c_str(),
-                                             MHD_RESPMEM_MUST_COPY);
-
-  if (response)
+  // If we have a non-empty body, we must "process" it, set the body size to
+  // zero, and return MHD_YES. We should not queue the response yet - we must
+  // do that on the next call.
+  if (*uploadDataSize != 0)
   {
-    for (auto it = responseHeaders.begin(); it != responseHeaders.end(); it++)
-    {
-      // Add all the response header tags
-      MHD_add_response_header(response, it->first.c_str(), it->second.c_str());
-    }
+    // Get the request headers again
+    MHD_get_connection_values(connection, MHD_HEADER_KIND,
+                              &HttpServer::BuildHeaderMap, (void*) &requestHeaders);
 
-    int ret = MHD_queue_response(connection, respcode, response);
-    eos_static_info("MHD_queue_response ret=%d respcode=%d", ret, respcode);
-    return ret;
+    // Get the request query string
+    std::string query;
+    MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND,
+                              &HttpServer::BuildQueryString, (void*) &query);
+
+    // Get the cookies
+    std::map<std::string, std::string> cookies;
+    MHD_get_connection_values(connection, MHD_COOKIE_KIND,
+                              &HttpServer::BuildHeaderMap, (void*) &cookies);
+
+    eos_static_info("path=%s query=%s method=%s bodysize=%d body=\n%s",
+                    url ? url : "", query.c_str() ? query.c_str() : "", method,
+                    *uploadDataSize, uploadData ? uploadData : "");
+
+    // Handle the request and build a response based on the specific protocol
+    protocolHandler->HandleRequest(requestHeaders,
+                                   method,
+                                   url,
+                                   query.c_str() ? query       : "",
+                                   uploadData    ? uploadData  : "",
+                                   uploadDataSize,
+                                   cookies);
+
+    // Set the uploadData size to zero and return
+    *uploadDataSize = 0;
+    return MHD_YES;
   }
+
+  // We processed the request data on the last call, so this time, get the
+  // response stuff from the protocol handler and return the MHD response
   else
   {
-    eos_static_crit("msg=\"response creation failed\"");
-    return MHD_NO;
+    struct MHD_Response                *mhdResponse;
+    std::map<std::string, std::string>  responseHeaders;
+    std::string                         responseBody;
+    int                                 responseCode;
+
+    responseHeaders = protocolHandler->GetResponseHeaders();
+    responseBody    = protocolHandler->GetResponseBody();
+    responseCode    = protocolHandler->GetResponseCode();
+
+    protocolHandler->PrintResponse();
+
+    // Create the response
+    mhdResponse = MHD_create_response_from_buffer(responseBody.length(),
+                                                  (void *) responseBody.c_str(),
+                                                  MHD_RESPMEM_MUST_COPY);
+
+    if (mhdResponse)
+    {
+      // Add all the response header tags
+      for (auto it = responseHeaders.begin(); it != responseHeaders.end(); it++)
+      {
+        MHD_add_response_header(mhdResponse, it->first.c_str(), it->second.c_str());
+      }
+
+      // Queue the response
+      int ret = MHD_queue_response(connection, responseCode, mhdResponse);
+      eos_static_info("MHD_queue_response ret=%d", ret);
+      return ret;
+    }
+    else
+    {
+      eos_static_crit("msg=\"response creation failed\"");
+      return MHD_NO;
+    }
   }
 }
 
