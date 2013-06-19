@@ -233,6 +233,10 @@ xrdmgmofs_shutdown (int sig)
   }
 
   // ----------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop egroup fetching ... ");
+  gOFS->EgroupRefresh.Stop();
+
+  // ----------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop messaging ... ");
   if (gOFS->MgmOfsMessaging)
   {
@@ -2760,8 +2764,8 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
   for (size_t i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
   {
 
-    buff[j++] = hv[(fmd->getChecksum().getDataPtr()[i] >> 4) & 0x0f];
-    buff[j++] = hv[ fmd->getChecksum().getDataPtr()[i] & 0x0f];
+    buff[j++] = hv[(fmd->getChecksum().getDataPadded(i) >> 4) & 0x0f];
+    buff[j++] = hv[ fmd->getChecksum().getDataPadded(i) & 0x0f];
   }
   if (j == 0)
   {
@@ -6487,7 +6491,7 @@ XrdMgmOfs::FSctl (const int cmd,
               size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
               for (size_t i = 0; i < cxlen; i++)
               {
-                if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i])
+                if (fmd->getChecksum().getDataPadded(i) != checksumbuffer.getDataPadded(i))
                 {
                   cxError = true;
                 }
@@ -6521,7 +6525,7 @@ XrdMgmOfs::FSctl (const int cmd,
               size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
               for (size_t i = 0; i < cxlen; i++)
               {
-                if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i])
+                if (fmd->getChecksum().getDataPadded(i) != checksumbuffer.getDataPadded(i))
                 {
                   cxError = true;
                 }
@@ -6584,7 +6588,7 @@ XrdMgmOfs::FSctl (const int cmd,
             {
               for (int i = 0; i < SHA_DIGEST_LENGTH; i++)
               {
-                if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i])
+                if (fmd->getChecksum().getDataPadded(i) != checksumbuffer.getDataPadded(i))
                 {
                   isUpdate = true;
                 }
@@ -7141,7 +7145,7 @@ XrdMgmOfs::FSctl (const int cmd,
         for (unsigned int i = 0; i < SHA_DIGEST_LENGTH; i++)
         {
           char hb[3];
-          sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPtr()[i]) : 0);
+          sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPadded(i)) : 0);
           checksum += hb;
         }
       }
@@ -7435,9 +7439,9 @@ XrdMgmOfs::FSctl (const int cmd,
               for (unsigned int i = 0; i < cxlen; i++)
               {
                 if ((i + 1) == cxlen)
-                  sprintf(hb, "%02x ", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+                  sprintf(hb, "%02x ", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
                 else
-                  sprintf(hb, "%02x_", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+                  sprintf(hb, "%02x_", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
                 response += hb;
               }
 
