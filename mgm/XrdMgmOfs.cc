@@ -6717,7 +6717,7 @@ XrdMgmOfs::FSctl (const int cmd,
         {
           try
           {
-            // If mgmg.dropall flag is set then it means we got a deleteOnClose
+            // If mgm.dropall flag is set then it means we got a deleteOnClose
             // at the gateway node and we need to delete all replicas
             char* drop_all = env.Get("mgm.dropall");
             std::vector<unsigned int> drop_fsid;
