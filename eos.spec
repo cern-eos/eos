@@ -14,7 +14,7 @@ BuildRequires: cmake >= 2.6
 BuildRequires: xrootd-server >= 3.2.0
 BuildRequires: xrootd-server-devel  >= 3.2.0
 BuildRequires: readline-devel, ncurses-devel
-BuildRequires: libattr-devel
+BuildRequires: libattr-devel, openldap-devel
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
 BuildRequires: fuse-devel, fuse
 
