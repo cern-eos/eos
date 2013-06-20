@@ -25,7 +25,10 @@ include_directories( ../
                      ./
                      ${XROOTD_INCLUDE_DIR} 
                      ${XROOTD_PRIVATE_INCLUDE_DIR}
-                     ${SPARSEHASH_INCLUDE_DIR} )
+                     ${SPARSEHASH_INCLUDE_DIR}
+                     ${NCURSES_INCLUDE_DIR}
+		     ${Z_INCLUDE_DIR}
+)
 
 link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
                   ${XROOTD_LIB_DIR} )
@@ -72,8 +75,8 @@ target_link_libraries( EosFstIo-Static
 		       eosCommon
 		       XrdCl	
 		       XrdUtils 
-		       crypto                  curses                   
-		       dl                      z  
+		       crypto                  ${NCURSES_LIBRARIES}
+		       dl                      ${Z_LIBRARIES}  
                        ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
 		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
 )
@@ -153,8 +156,8 @@ target_link_libraries( XrdEosFst
 		       eosCommonServer
 		       XrdMqClient-Static      XrdCl	
 		       XrdUtils                XrdOfs 
-		       crypto                  curses                   
-		       dl                      z  
+		       crypto                  ${NCURSES_LIBRARIES}
+		       dl                      ${Z_LIBRARIES}  
 		       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
 		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
 )
@@ -165,10 +168,10 @@ target_link_libraries( XrdEosFst-Static
 		       eosCommonServer-Static  
 		       XrdMqClient-Static      XrdCl
 		       XrdUtils                XrdOfs 
-		       crypto                  curses
-		       dl                      z  
+		       crypto                  ${NCURSES_LIBRARIES}
+		       dl                      ${Z_LIBRARIES}  
 		       ${ATTR_LIBRARIES}       ${RT_LIBRARIES}
-               ${UUID_LIBRARIES}       ${CMAKE_THREAD_LIBS_INIT}
+                       ${UUID_LIBRARIES}       ${CMAKE_THREAD_LIBS_INIT}
 )
 
 

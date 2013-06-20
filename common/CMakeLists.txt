@@ -26,6 +26,8 @@ include_directories(
                      ${CMAKE_BINARY_DIR}/xrootd/src/include/
 		     ../ ${XROOTD_INCLUDE_DIR} 
 		     ${SPARSEHASH_INCLUDE_DIR} 
+		     ${NCURSES_INCLUDE_DIR}
+		     ${Z_INCLUDE_DIR}
 )
 
 if(LEVELDB_FOUND)
@@ -111,8 +113,8 @@ target_link_libraries ( eosCommon
                         crypto 
                         rt
                         ${UUID_LIBRARIES} 
-                        curses 
-                        z 
+                        ${NCURSES_LIBRARIES}
+                        ${Z_LIBRARIES} 
                         ${ATTR_LIBRARIES} )
 
 target_link_libraries ( eosCommon-Static 
@@ -121,8 +123,8 @@ target_link_libraries ( eosCommon-Static
                         XrdCl 
                         crypto 
                         ${UUID_LIBRARIES} 
-                        curses 
-                        z 
+                        ${NCURSES_LIBRARIES}
+                        ${Z_LIBRARIES} 
                         ${ATTR_LIBRARIES}  )
 
 target_link_libraries ( eosCommonServer 
@@ -132,8 +134,8 @@ target_link_libraries ( eosCommonServer
                         crypto 
                         rt
                         ${UUID_LIBRARIES} 
-                        curses 
-                        z 
+                        ${NCURSES_LIBRARIES}
+                        ${Z_LIBRARIES} 
                         ${ATTR_LIBRARIES} )
 
 target_link_libraries ( eosCommonServer-Static 
@@ -142,8 +144,8 @@ target_link_libraries ( eosCommonServer-Static
                         XrdCl 
                         crypto 
                         ${UUID_LIBRARIES} 
-                        curses 
-                        z 
+                        ${NCURSES_LIBRARIES}
+                        ${Z_LIBRARIES} 
                         ${ATTR_LIBRARIES}  )
 
 if(LEVELDB_FOUND)
