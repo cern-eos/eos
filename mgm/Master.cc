@@ -346,7 +346,6 @@ Master::Supervisor ()
       else
       {
         remoteMgmUp = false;
-
       }
 
       if (mqStatus.IsOK())
