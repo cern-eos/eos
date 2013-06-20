@@ -216,6 +216,8 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   MgmRedirector = false;
   Shutdown = false;
 
+  umask(S_IWGRP | S_IWOTH);
+
   setenv("XrdSecPROTOCOL","sss",1);
   Eroute.Say("=====> mgmofs enforces SSS authentication for XROOT clients");
 
