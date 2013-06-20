@@ -32,17 +32,17 @@
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <string>
+#include <ldap.h>
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-#define EOSEGROUPCACHETIME 300
+#define EOSEGROUPCACHETIME 1800
 
 class Egroup {
 public:
   static XrdSysMutex Mutex;
   static std::map < std::string, std::map <std::string, bool > > Map;
-
   static std::map < std::string, std::map <std::string, time_t > > LifeTime;
 
   Egroup(){};
