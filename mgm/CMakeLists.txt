@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} )
+include_directories( ../ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} ${ATTR_INCLUDE_DIR} ${LDAP_INCLUDE_DIR} )
 link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR})
 
 add_library (XrdEosMgm MODULE
@@ -49,7 +49,7 @@ add_library (XrdEosMgm MODULE
 	    ZMQ.cc
 	    )
 
-target_link_libraries (XrdEosMgm XrdClient XrdPosix XrdUtils XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z )
+target_link_libraries (XrdEosMgm XrdClient XrdPosix XrdUtils XrdOfs eosCommon-Static eosNamespace-Static eosCapability-Static XrdMqClient-Static crypto uuid curses pthread dl z ${ATTR_LIBRARIES} ${LDAP_LIBRARIES})
 
 add_executable ( testmgmview
 	         FsView.cc
