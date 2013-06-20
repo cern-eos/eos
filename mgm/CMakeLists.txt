@@ -24,7 +24,12 @@
 include_directories( ../ 
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${XROOTD_PRIVATE_INCLUDE_DIR} 
-		     ${SPARSEHASH_INCLUDE_DIR} )
+		     ${SPARSEHASH_INCLUDE_DIR} 
+		     ${NCURSES_INCLUDE_DIR}
+		     ${LDAP_INCLUDE_DIR}
+		     ${Z_INCLUDE_DIR}
+)
+
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR})
 
 add_library (XrdEosMgm MODULE
@@ -101,8 +106,9 @@ target_link_libraries( XrdEosMgm
                        eosCommon-Static     eosCommonServer-Static
                        eosNamespace-Static 
                        eosCapability-Static XrdMqClient-Static 
-                       crypto               curses 
-		       dl                   z 
+                       crypto               ${NCURSES_LIBRARIES} 
+		       ${LDAP_LIBRARIES}
+		       dl                   ${Z_LIBRARIES}
 		       ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
                      )
 
@@ -116,8 +122,8 @@ target_link_libraries ( testmgmview
                         XrdCl             XrdUtils 
                         eosCommon-Static  eosCommonServer-Static
                         XrdMqClient-Static 
-                        crypto            curses 
-                        dl                z 
+                        crypto            ${NCURSES_LIBRARIES}
+                        dl                ${Z_LIBRARIES}
                         ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties ( testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST" )

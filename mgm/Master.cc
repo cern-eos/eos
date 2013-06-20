@@ -1780,6 +1780,7 @@ Master::BootNamespace ()
 
     gOFS->eosFileService->addChangeListener(gOFS->eosFsView);
     gOFS->eosFileService->setQuotaStats(gOFS->eosView->getQuotaStats());
+    gOFS->eosDirectoryService->setQuotaStats(gOFS->eosView->getQuotaStats());
 
     gOFS->eosView->getQuotaStats()->registerSizeMapper(Quota::MapSizeCB);
     gOFS->eosView->initialize1();

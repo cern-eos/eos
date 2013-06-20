@@ -1004,34 +1004,30 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   char *logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
 
-  if (!logdir)
-  {
-    fprintf(stderr, "error: XRDLOGDIR could not be found in XrdOucEnv\n");
-    return 1;
-  }
-
-  for (size_t i = 0; i < lFanOutTags.size(); i++)
-  {
-    std::string lLogFile = logdir;
-    lLogFile += "/mgm";
-    lLogFile += "/";
-    if (lFanOutTags[i] == "#")
+  if (logdir) {
+    for (size_t i = 0; i < lFanOutTags.size(); i++)
     {
-      lLogFile += "Clients";
-    }
-    else
-    {
-      lLogFile += lFanOutTags[i];
-    }
-    lLogFile += ".log";
-    FILE* fp = fopen(lLogFile.c_str(), "a+");
-    if (fp)
-    {
-      eos::common::Logging::AddFanOut(lFanOutTags[i].c_str(), fp);
-    }
-    else
-    {
-      fprintf(stderr, "error: failed to open sub-logfile=%s", lLogFile.c_str());
+      std::string lLogFile = logdir;
+      lLogFile += "/mgm";
+      lLogFile += "/";
+      if (lFanOutTags[i] == "#")
+      {
+        lLogFile += "Clients";
+      }
+      else
+      {
+        lLogFile += lFanOutTags[i];
+      }
+      lLogFile += ".log";
+      FILE* fp = fopen(lLogFile.c_str(), "a+");
+      if (fp)
+      {
+        eos::common::Logging::AddFanOut(lFanOutTags[i].c_str(), fp);
+      }
+      else
+      {
+        fprintf(stderr, "error: failed to open sub-logfile=%s", lLogFile.c_str());
+      }
     }
   }
 
@@ -1829,15 +1825,18 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     }
   }
 
-  // add shutdown handler
-  (void) signal(SIGINT, xrdmgmofs_shutdown);
-  (void) signal(SIGTERM, xrdmgmofs_shutdown);
-  (void) signal(SIGQUIT, xrdmgmofs_shutdown);
-
-  // add SEGV handler                                                                                                                                                                
-  (void) signal(SIGSEGV, xrdmgmofs_stacktrace);
-  (void) signal(SIGABRT, xrdmgmofs_stacktrace);
-  (void) signal(SIGBUS, xrdmgmofs_stacktrace);
+  if (!getenv("EOS_NO_SHUTDOWN")) 
+  {
+    // add shutdown handler
+    (void) signal(SIGINT, xrdmgmofs_shutdown);
+    (void) signal(SIGTERM, xrdmgmofs_shutdown);
+    (void) signal(SIGQUIT, xrdmgmofs_shutdown);
+    
+    // add SEGV handler                                                                                                                                                                
+    (void) signal(SIGSEGV, xrdmgmofs_stacktrace);
+    (void) signal(SIGABRT, xrdmgmofs_stacktrace);
+    (void) signal(SIGBUS, xrdmgmofs_stacktrace);
+  }
 
   XrdSysTimer sleeper;
   sleeper.Wait(200);

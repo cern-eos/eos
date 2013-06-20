@@ -110,6 +110,11 @@ public:
   bool Start ();
 
   // ---------------------------------------------------------------------------
+  // Stop function to terminate the asynchronous Egroup fetch thread
+  // ---------------------------------------------------------------------------
+  void Stop ();
+
+  // ---------------------------------------------------------------------------
   // static function to check if username is member in egroupname
   // ---------------------------------------------------------------------------
   static bool Member (std::string &username, std::string &egroupname);

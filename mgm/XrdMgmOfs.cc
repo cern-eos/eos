@@ -1,4 +1,4 @@
-// at----------------------------------------------------------------------
+// ----------------------------------------------------------------------
 // File: XrdMgmOfs.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
@@ -29,6 +29,7 @@
 #include "common/Timing.hh"
 #include "common/StringConversion.hh"
 #include "common/SecEntity.hh"
+#include "common/StackTrace.hh"
 #include "namespace/Constants.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
@@ -59,6 +60,7 @@
 #include <signal.h>
 #include <stdlib.h>
 /*----------------------------------------------------------------------------*/
+
 #ifdef __APPLE__
 #define ECOMM 70
 #endif
@@ -104,7 +106,16 @@ xrdmgmofs_stacktrace (int sig)
 
   // print out all the frames to stderr                                                                                                                                                                       
   fprintf(stderr, "error: received signal %d:\n", sig);
+
   backtrace_symbols_fd(array, size, 2);
+
+  eos::common::StackTrace::GdbTrace("xrootd", getpid(), "where");
+  eos::common::StackTrace::GdbTrace("xrootd", getpid(), "thread apply all bt");
+  
+  if (getenv("EOS_CORE_DUMP")) 
+  {
+    eos::common::StackTrace::GdbTrace("xrootd", getpid(), "generate-core-file");
+  }
 
   // now we put back the initial handler ...
   signal(sig, SIG_DFL);
@@ -220,6 +231,10 @@ xrdmgmofs_shutdown (int sig)
     delete gOFS->ConfEngine;
     gOFS->ConfEngine = 0;
   }
+
+  // ----------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop egroup fetching ... ");
+  gOFS->EgroupRefresh.Stop();
 
   // ----------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop messaging ... ");
@@ -2749,8 +2764,8 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
   for (size_t i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
   {
 
-    buff[j++] = hv[(fmd->getChecksum().getDataPtr()[i] >> 4) & 0x0f];
-    buff[j++] = hv[ fmd->getChecksum().getDataPtr()[i] & 0x0f];
+    buff[j++] = hv[(fmd->getChecksum().getDataPadded(i) >> 4) & 0x0f];
+    buff[j++] = hv[ fmd->getChecksum().getDataPadded(i) & 0x0f];
   }
   if (j == 0)
   {
@@ -6476,7 +6491,7 @@ XrdMgmOfs::FSctl (const int cmd,
               size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
               for (size_t i = 0; i < cxlen; i++)
               {
-                if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i])
+                if (fmd->getChecksum().getDataPadded(i) != checksumbuffer.getDataPadded(i))
                 {
                   cxError = true;
                 }
@@ -6510,7 +6525,7 @@ XrdMgmOfs::FSctl (const int cmd,
               size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
               for (size_t i = 0; i < cxlen; i++)
               {
-                if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i])
+                if (fmd->getChecksum().getDataPadded(i) != checksumbuffer.getDataPadded(i))
                 {
                   cxError = true;
                 }
@@ -6573,7 +6588,7 @@ XrdMgmOfs::FSctl (const int cmd,
             {
               for (int i = 0; i < SHA_DIGEST_LENGTH; i++)
               {
-                if (fmd->getChecksum().getDataPtr()[i] != checksumbuffer.getDataPtr()[i])
+                if (fmd->getChecksum().getDataPadded(i) != checksumbuffer.getDataPadded(i))
                 {
                   isUpdate = true;
                 }
@@ -6702,7 +6717,7 @@ XrdMgmOfs::FSctl (const int cmd,
         {
           try
           {
-            // If mgmg.dropall flag is set then it means we got a deleteOnClose
+            // If mgm.dropall flag is set then it means we got a deleteOnClose
             // at the gateway node and we need to delete all replicas
             char* drop_all = env.Get("mgm.dropall");
             std::vector<unsigned int> drop_fsid;
@@ -7130,7 +7145,7 @@ XrdMgmOfs::FSctl (const int cmd,
         for (unsigned int i = 0; i < SHA_DIGEST_LENGTH; i++)
         {
           char hb[3];
-          sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPtr()[i]) : 0);
+          sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPadded(i)) : 0);
           checksum += hb;
         }
       }
@@ -7424,9 +7439,9 @@ XrdMgmOfs::FSctl (const int cmd,
               for (unsigned int i = 0; i < cxlen; i++)
               {
                 if ((i + 1) == cxlen)
-                  sprintf(hb, "%02x ", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+                  sprintf(hb, "%02x ", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
                 else
-                  sprintf(hb, "%02x_", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+                  sprintf(hb, "%02x_", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
                 response += hb;
               }
 

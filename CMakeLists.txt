@@ -82,10 +82,10 @@ find_package(readline REQUIRED)
 find_package(uuid REQUIRED)
 find_package(z REQUIRED)
 find_package(rt REQUIRED)
+find_package(ldap REQUIRED)
 find_package(ProtocolBuffers)
 find_package(leveldb)
 find_package(CPPUnit)
-
 find_package(XRootD REQUIRED)
 find_package(microhttpd)
 
@@ -154,9 +154,6 @@ message("  Warning: MicroHttpd not found, no httpd access available")
 else (NOT MICROHTTPD_FOUND)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
 endif (NOT MICROHTTPD_FOUND)
-
-#set(SOFLAGS  "-m64 -dynamiclib -undefined dynamic_lookup -single_module")
-#set(CMAKE_SHARED_LINKER_FLAGS ${SOFLAGS}) 
 
 ######################################################################################################################
 # install targets

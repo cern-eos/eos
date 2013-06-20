@@ -23,7 +23,10 @@
 
 include_directories( ../ 
 		     ${XROOTD_INCLUDE_DIR} 
-		     ${XROOTD_PRIVATE_INCLUDE_DIR})
+		     ${XROOTD_PRIVATE_INCLUDE_DIR}
+		     ${NCURSES_INCLUDE_DIR}
+)
+
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}/ ${XROOTD_LIB_DIR})
 
 add_library (XrdMqClient SHARED 
@@ -69,8 +72,8 @@ add_library (XrdMqOfs-Static STATIC
 	    XrdMqMessage.hh )
 
 
-target_link_libraries (XrdMqClient XrdUtils  XrdCl crypto ${UUID_LIBRARIES} curses)
-target_link_libraries (XrdMqOfs    XrdUtils  XrdCl XrdOfs crypto ${UUID_LIBRARIES} curses)
+target_link_libraries (XrdMqClient XrdUtils  XrdCl crypto ${UUID_LIBRARIES} ${NCURSES_LIBRARIES})
+target_link_libraries (XrdMqOfs    XrdUtils  XrdCl XrdOfs crypto ${UUID_LIBRARIES} ${NCURSES_LIBRARIES})
 
 target_link_libraries (XrdMqClient-Static )
 #depends on XrdCl XrdSys XrdOuc  XrdOuc libcrypto.a libuuid.a libcurses.a dl ${CMAKE_THREAD_LIBS_INIT} )

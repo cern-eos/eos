@@ -977,7 +977,7 @@ ProcCommand::File ()
           for (unsigned int i = 0; i < SHA_DIGEST_LENGTH; i++)
           {
             char hb[3];
-            sprintf(hb, "%02x", (i < cxlen) ? ((unsigned char) (fmd->getChecksum().getDataPtr()[i])) : 0);
+            sprintf(hb, "%02x", (i < cxlen) ? ((unsigned char) (fmd->getChecksum().getDataPadded(i))) : 0);
             stdOut += hb;
           }
           stdOut += "&";

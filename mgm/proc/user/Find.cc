@@ -531,7 +531,7 @@ ProcCommand::Find ()
                         if (!printcounter)fprintf(fstdout, " checksum=");
                         for (unsigned int i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
                         {
-                          if (!printcounter)fprintf(fstdout, "%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+                          if (!printcounter)fprintf(fstdout, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
                         }
                       }
 

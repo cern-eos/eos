@@ -50,7 +50,10 @@ XrdMqSharedObjectManager::XrdMqSharedObjectManager ()
   AutoReplyQueue = "";
   AutoReplyQueueDerive = false;
   IsMuxTransaction = false;
-  MuxTransactions.clear();
+  {
+    XrdSysMutexHelper mLock(MuxTransactionsMutex);
+    MuxTransactions.clear();
+  }
   dumper_tid = 0;
 }
 
@@ -817,19 +820,22 @@ XrdMqSharedObjectManager::CloseMuxTransaction ()
 {
   // Mux Transactions can only update values with the same broadcastqueue, no deletions of subjects
 
-  if (MuxTransactions.size())
   {
-    XrdOucString txmessage = "";
-    MakeMuxUpdateEnvHeader(txmessage);
-    AddMuxTransactionEnvString(txmessage);
-    XrdMqMessage message("XrdMqSharedHashMessage");
-    message.SetBody(txmessage.c_str());
-    message.MarkAsMonitor();
-    XrdMqMessaging::gMessageClient.SendMessage(message, MuxTransactionBroadCastQueue.c_str());
-  }
+    XrdSysMutexHelper mLock(MuxTransactionsMutex);
+    if (MuxTransactions.size())
+    {
+      XrdOucString txmessage = "";
+      MakeMuxUpdateEnvHeader(txmessage);
+      AddMuxTransactionEnvString(txmessage);
+      XrdMqMessage message("XrdMqSharedHashMessage");
+      message.SetBody(txmessage.c_str());
+      message.MarkAsMonitor();
+      XrdMqMessaging::gMessageClient.SendMessage(message, MuxTransactionBroadCastQueue.c_str());
+    }
 
-  IsMuxTransaction = false;
-  MuxTransactions.clear();
+    IsMuxTransaction = false;
+    MuxTransactions.clear();
+  }
   MuxTransactionMutex.UnLock();
   return true;
 }
