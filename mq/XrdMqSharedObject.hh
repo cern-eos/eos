@@ -298,6 +298,7 @@ private:
 
 protected:
   XrdSysMutex MuxTransactionMutex;
+  XrdSysMutex MuxTransactionMapMutex;
   std::string MuxTransactionType;
   std::string MuxTransactionBroadCastQueue;
 

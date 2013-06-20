@@ -49,7 +49,10 @@ XrdMqSharedObjectManager::XrdMqSharedObjectManager()
   AutoReplyQueue = "";
   AutoReplyQueueDerive = false;
   IsMuxTransaction = false;
-  MuxTransactions.clear();
+  {
+    XrdSysMutexHelper mlock(MuxTransactionMapMutex);
+    MuxTransactions.clear();
+  }
   dumper_tid=0;
 }
 
@@ -680,18 +683,21 @@ XrdMqSharedObjectManager::CloseMuxTransaction()
 {
   // Mux Transactions can only update values with the same broadcastqueue, no deletions of subjects
 
-  if (MuxTransactions.size()) {
-    XrdOucString txmessage="";
-    MakeMuxUpdateEnvHeader(txmessage);
-    AddMuxTransactionEnvString(txmessage);
-    XrdMqMessage message("XrdMqSharedHashMessage");
-    message.SetBody(txmessage.c_str());
-    message.MarkAsMonitor();
-    XrdMqMessaging::gMessageClient.SendMessage(message, MuxTransactionBroadCastQueue.c_str());
+  {
+    XrdSysMutexHelper mlock(MuxTransactionMapMutex);
+    
+    if (MuxTransactions.size()) {
+      XrdOucString txmessage="";
+      MakeMuxUpdateEnvHeader(txmessage);
+      AddMuxTransactionEnvString(txmessage);
+      XrdMqMessage message("XrdMqSharedHashMessage");
+      message.SetBody(txmessage.c_str());
+      message.MarkAsMonitor();
+      XrdMqMessaging::gMessageClient.SendMessage(message, MuxTransactionBroadCastQueue.c_str());
+    }
+    IsMuxTransaction = false;
+    MuxTransactions.clear();
   }
-
-  IsMuxTransaction = false;
-  MuxTransactions.clear();
   MuxTransactionMutex.UnLock();
   return true;
 }
@@ -702,6 +708,7 @@ XrdMqSharedObjectManager::MakeMuxUpdateEnvHeader(XrdOucString &out)
 {
   std::string subjects="";
   std::map<std::string,std::set <std::string> >::const_iterator it;
+  
   for (it = MuxTransactions.begin(); it != MuxTransactions.end(); it++) {
     subjects += it->first;
     subjects += "%";
@@ -805,7 +812,10 @@ XrdMqSharedObjectManager::OpenMuxTransaction(const char* type, const char* broad
     MuxTransactionBroadCastQueue = broadcastqueue;
   }
   MuxTransactionMutex.Lock();
-  MuxTransactions.clear();
+  {
+    XrdSysMutexHelper mlock(MuxTransactionMapMutex);
+    MuxTransactions.clear();
+  }
   
   IsMuxTransaction= true;
   return true;
@@ -1038,6 +1048,7 @@ XrdMqSharedHash::Set(const char* key, const char* value, bool broadcast, bool te
     
     if (broadcast) {
       if (SOM->IsMuxTransaction) {
+	XrdSysMutexHelper mlock(SOM->MuxTransactionMapMutex);
         SOM->MuxTransactions[Subject].insert(skey);
       } else {
         // we emulate a transaction for a single Set
