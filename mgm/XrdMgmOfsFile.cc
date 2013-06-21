@@ -184,12 +184,12 @@ XrdMgmOfsFile::open (const char *inpath,
   ACCESSMODE_R;
   if (isRW)
   {
-    SET_ACCESSMODE_W;
+    ACCESSMODE_W;
   }
 
   if (ProcInterface::IsWriteAccess(path, pinfo.c_str()))
   {
-    SET_ACCESSMODE_W;
+    ACCESSMODE_W;
   }
 
   MAYSTALL;
