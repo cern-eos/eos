@@ -52,14 +52,22 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 // Macro Defines
 /*----------------------------------------------------------------------------*/
 
+/// define read access
 #define ACCESS_R 0
+
+/// define write access
 #define ACCESS_W 1
 
+/// defines operation mode to be read
 #define ACCESSMODE_R int __AccessMode__ = 0
-#define ACCESSMODE_W int __AccessMode__ = 1
-#define SET_ACCESSMODE_W __AccessMode__ = 1
 
+/// defines operation mode to be write 
+#define ACCESSMODE_W int __AccessMode__ = 1
+
+/// check if we are in read access mode
 #define IS_ACCESSMODE_R (__AccessMode__ == 0)
+
+/// check if we are in write access mode
 #define IS_ACCESSMODE_W (__AccessMode__ == 1)
 
 // -----------------------------------------------------------------------------
