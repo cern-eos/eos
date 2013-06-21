@@ -77,6 +77,8 @@ add_library (XrdEosMgm MODULE
             Vid.cc
             FsView.cc
             XrdMgmOfsConfigure.cc
+            XrdMgmOfsFile.cc
+            XrdMgmOfsDirectory.cc
             XrdMgmOfs.cc
             DrainJob.cc
             Balancer.cc

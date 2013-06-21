@@ -25,6 +25,7 @@
 #include "mgm/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/txengine/TransferEngine.hh"
+#include "mgm/Macros.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPriv.hh"
 

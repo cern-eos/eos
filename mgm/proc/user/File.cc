@@ -26,6 +26,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Access.hh"
 #include "mgm/Quota.hh"
+#include "mgm/Macros.hh"
 #include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
 #include <math.h>

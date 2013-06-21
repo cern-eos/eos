@@ -24,8 +24,9 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Access.hh"
-
+#include "mgm/Macros.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN

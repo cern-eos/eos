@@ -481,7 +481,7 @@ Fsck::Check (void)
                 (FsView::gFsView.mIdView[*lociter]->GetStatus(true));
 
               eos::common::FileSystem::fsstatus_t configstatus =
-                FsView::gFsView.mIdView[*lociter]->GetConfigStatus());
+                (FsView::gFsView.mIdView[*lociter]->GetConfigStatus());
 
               bool conda =
                 (FsView::gFsView.mIdView[*lociter]->GetActiveStatus(true) == eos::common::FileSystem::kOffline);

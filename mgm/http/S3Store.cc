@@ -25,6 +25,7 @@
 #include "mgm/http/S3Store.hh"
 #include "mgm/http/S3.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/XrdMgmOfsDirectory.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
