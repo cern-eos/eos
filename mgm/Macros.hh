@@ -64,6 +64,9 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 /// defines operation mode to be write 
 #define ACCESSMODE_W int __AccessMode__ = 1
 
+/// set's operation mode to be write 
+#define SET_ACCESSMODE_W __AccessMode__ = 1
+
 /// check if we are in read access mode
 #define IS_ACCESSMODE_R (__AccessMode__ == 0)
 
