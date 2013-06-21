@@ -132,6 +132,11 @@ XrdMgmOfsFile::open (const char *inpath,
   int isRewrite = 0;
   bool isCreation = false;
   bool isPio = false; // flag indicating parallel IO access
+  bool isPioReconstruct = false; // flag indicating acces with reconstruction
+  std::vector<unsigned int> PioReconstructFsList; // list of filesystem IDs to 
+  // reconstruct
+
+  // of RAIN files
 
   int crOpts = (Mode & SFS_O_MKPTH) ? XRDOSS_mkpath : 0;
 
@@ -184,12 +189,12 @@ XrdMgmOfsFile::open (const char *inpath,
   ACCESSMODE_R;
   if (isRW)
   {
-    ACCESSMODE_W;
+    SET_ACCESSMODE_W;
   }
 
   if (ProcInterface::IsWriteAccess(path, pinfo.c_str()))
   {
-    ACCESSMODE_W;
+    SET_ACCESSMODE_W;
   }
 
   MAYSTALL;
@@ -197,12 +202,77 @@ XrdMgmOfsFile::open (const char *inpath,
 
   openOpaque = new XrdOucEnv(info);
 
+  // ---------------------------------------------------------------------------
+  // PIO MODE CONFIGURATION
+  // ---------------------------------------------------------------------------
+  // PIO mode return's a vector of URLs to a client and the client contact's
+  // directly these machines and run's the RAIN codec on client side.
+  // The default mode return's one gateway machine and this machine run's the
+  // RAIN codec.
+  // On the fly reconstruction is done using PIO mode when the reconstruction
+  // action is defined ('eos.pio.action=reconstruct'). The client can specify
+  // a list of filesystem's which should be excluded. In case they are used
+  // in the layout they stripes on the explicitly referenced filesystems and
+  // all other unavailable filesystems get reconstructed into stripes on 
+  // new machines.
+  // ---------------------------------------------------------------------------
+  
+  // ---------------------------------------------------------------------------
+  // discover PIO mode
+  // ---------------------------------------------------------------------------
   XrdOucString sPio = (openOpaque) ? openOpaque->Get("eos.cli.access") : "";
   if (sPio == "pio")
   {
     isPio = true;
   }
 
+  // ---------------------------------------------------------------------------
+  // discover PIO reconstruction mode
+  // ---------------------------------------------------------------------------
+  XrdOucString sPioRecover = (openOpaque) ? 
+    openOpaque->Get("eos.pio.action") : "";
+  if (sPioRecover == "reconstruct")
+  {
+    isPioReconstruct = true;
+  }
+
+  {
+    // -------------------------------------------------------------------------
+    // discover PIO reconstruction filesystems (stripes to be replaced)
+    // -------------------------------------------------------------------------
+    std::string sPioRecoverFs = (openOpaque) ? 
+      ( openOpaque->Get("eos.pio.recfs") ? openOpaque->Get("eos.pio.recfs"):"")
+      : "";
+    std::vector<std::string> fsToken;
+    eos::common::StringConversion::Tokenize(sPioRecoverFs,fsToken,",");
+    
+    if (openOpaque->Get("eos.pio.recfs") && !fsToken.size())
+    {
+      // -----------------------------------------------------------------------
+      // if there is a list announced there should be atleast one filesystem
+      // mentioned for reconstruction
+      // -----------------------------------------------------------------------
+      return Emsg(epname, error, EINVAL, "open - you specified a list of"
+                  " reconstruction filesystems but the list is empty", path);
+    }
+    for (size_t i=0; i<fsToken.size(); i++)
+    {
+      errno = 0;
+      unsigned int rfs = (unsigned int) strtol(fsToken[i].c_str(),0, 10);
+      if (errno)
+      {
+        return Emsg(epname, 
+                    error, 
+                    EINVAL, 
+                    "open - you specified a list of "
+                    "reconstruction filesystems but "
+                    "the list contains non numerical id's", 
+                    path);
+      }
+      // store in the reconstruction filesystem list
+      PioReconstructFsList.push_back(rfs);
+    }
+  }
 
   int rcode = SFS_ERROR;
 
@@ -1122,8 +1192,8 @@ XrdMgmOfsFile::open (const char *inpath,
   // ---------------------------------------------------------------------------
   newlayoutId =
     eos::common::LayoutId::GetId(
-                                 isPio ? eos::common::LayoutId::kPlain : 
-                                   eos::common::LayoutId::GetLayoutType(layoutId),
+                                 isPio ? eos::common::LayoutId::kPlain :
+                                 eos::common::LayoutId::GetLayoutType(layoutId),
                                  eos::common::LayoutId::GetChecksum(layoutId),
                                  static_cast<int> (selectedfs.size()),
                                  eos::common::LayoutId::GetBlocksizeType(layoutId),
@@ -1133,20 +1203,20 @@ XrdMgmOfsFile::open (const char *inpath,
   capability += static_cast<int> (newlayoutId);
   // space to be prebooked/allocated
   capability += "&mgm.bookingsize=";
-  capability += eos::common::StringConversion::GetSizeString(sizestring, 
+  capability += eos::common::StringConversion::GetSizeString(sizestring,
                                                              bookingsize);
 
   if (minimumsize)
   {
     capability += "&mgm.minsize=";
-    capability += eos::common::StringConversion::GetSizeString(sizestring, 
+    capability += eos::common::StringConversion::GetSizeString(sizestring,
                                                                minimumsize);
   }
 
   if (maximumsize)
   {
     capability += "&mgm.maxsize=";
-    capability += eos::common::StringConversion::GetSizeString(sizestring, 
+    capability += eos::common::StringConversion::GetSizeString(sizestring,
                                                                maximumsize);
   }
 
@@ -1154,11 +1224,11 @@ XrdMgmOfsFile::open (const char *inpath,
   if (targetsize)
   {
     capability += "&mgm.targetsize=";
-    capability += eos::common::StringConversion::GetSizeString(sizestring, 
+    capability += eos::common::StringConversion::GetSizeString(sizestring,
                                                                targetsize);
   }
 
-  if (eos::common::LayoutId::GetLayoutType(layoutId) == 
+  if (eos::common::LayoutId::GetLayoutType(layoutId) ==
       eos::common::LayoutId::kPlain)
   {
     capability += "&mgm.fsid=";
@@ -1189,10 +1259,10 @@ XrdMgmOfsFile::open (const char *inpath,
 
       if (!repfilesystem)
       {
-        return Emsg(epname, 
-                    error, 
-                    EINVAL, 
-                    "get replica filesystem information", 
+        return Emsg(epname,
+                    error,
+                    EINVAL,
+                    "get replica filesystem information",
                     path);
       }
       capability += "&mgm.url";
