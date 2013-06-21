@@ -595,7 +595,7 @@ public:
   unsigned long
   UnIndex (unsigned long long reindex)
   {
-    return (reindex >> 32) & 0xffff;
+    return (reindex >> 32) & 0xffffffff;
   }
 
   bool CheckWriteQuota (uid_t, gid_t, long long desiredspace, unsigned int inodes);
