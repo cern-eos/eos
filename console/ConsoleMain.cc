@@ -898,7 +898,12 @@ client_user_command (XrdOucString &in)
     CommandEnv = new XrdOucEnv(out.c_str());
     return CommandEnv;
   }
-
+  else
+  {
+    std::string errmsg;
+    errmsg = status.GetErrorMessage();
+    fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo,errmsg.c_str());
+  }
   return 0;
 }
 
