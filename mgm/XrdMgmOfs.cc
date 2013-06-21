@@ -279,7 +279,6 @@ xrdmgmofs_shutdown (int sig)
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: removing spaces...");
   gOFS->ConfEngine->SetAutoSave(false);
-  FsView::gFsView.Reset(); // deletes all spaces and stops balancing
 
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: cleanup quota...");
@@ -288,6 +287,8 @@ xrdmgmofs_shutdown (int sig)
   {
     delete (it->second);
   }
+
+  FsView::gFsView.Reset(); // deletes all spaces and stops balancing
 
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown complete");
@@ -8395,7 +8396,7 @@ XrdMgmOfs::FsConfigListener ()
         // handle subject modification
         // ---------------------------------------------------------------------
 
-        eos_static_info("received modification on subject %s\n", newsubject.c_str());
+        eos_static_info("received modification on subject %s", newsubject.c_str());
         // if this is an error status on a file system, check if the filesystem is > drained state and in this case launch a drain job with
         // the opserror flag by calling StartDrainJob
         // We use directly the ObjectManager Interface because it is more handy with the available information we have at this point
