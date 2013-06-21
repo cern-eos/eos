@@ -1430,9 +1430,11 @@ main (int argc, char* argv[])
   //............................................................................
   // For the '-p' flag we create the needed destination directory tree
   //............................................................................
+
+  struct stat dstst[MAXSRCDST];
+
   if ((!replicamode) && createdir)
   {
-    struct stat dstst[MAXSRCDST];
     mode_t mode = 0;
 
     //..........................................................................
@@ -1937,7 +1939,7 @@ main (int argc, char* argv[])
     {
     case LOCAL_ACCESS:
     {
-      if (dst_location[i].second.substr(0, 5) != "/dev/")
+      if ( (S_ISREG(dstst[i].st_mode) && (dst_location[i].second.substr(0, 5) != "/dev/")) )
       {
         chmod_failed = chmod(dst_location[i].second.c_str(), dest_mode[i]);
 
