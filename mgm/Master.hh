@@ -148,7 +148,7 @@ public:
 
   enum
   {
-    kIsNothing = 0, kIsRunningMaster = 1, kIsRunningSlave = 2, kIsReadOnlyMaster = 3, kIsSecondarySlave = 4, kIsTransition = 4
+    kIsNothing = 0, kIsRunningMaster = 1, kIsRunningSlave = 2, kIsReadOnlyMaster = 3, kIsSecondarySlave = 4, kIsTransition = 5
   };
   // compacting states
 
