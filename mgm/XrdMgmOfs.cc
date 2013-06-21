@@ -405,7 +405,7 @@ XrdMgmOfs::newDir (char *user, int MonID)
 
 /*----------------------------------------------------------------------------*/
 XrdSfsFile *
-newFile (char *user, int MonID)
+XrdMgmOfs::newFile (char *user, int MonID)
 /*----------------------------------------------------------------------------*/
 /* 
  * @brief return a MGM file object
