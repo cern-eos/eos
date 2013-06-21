@@ -207,7 +207,6 @@ SpaceQuota::UpdateLogicalSizeFactor ()
     // get the layout in this quota node
     Policy::GetLayoutAndSpace(SpaceName.c_str(), map, vid, layoutId, spn, env, forcedfsid);
     LayoutSizeFactor = eos::common::LayoutId::GetSizeFactor(layoutId);
-    fprintf(stderr,"layoutsizefactor=%f\n", LayoutSizeFactor);
   }
   else
   {
@@ -266,17 +265,11 @@ SpaceQuota::AddQuota (unsigned long tag, unsigned long id, long long value, bool
     // project quota implementation accounts on '99' group
     if ((((long long) Quota[Index(tag, Quota::gProjectId)]) + (long long) value) >= 0)
       Quota[Index(tag, Quota::gProjectId)] += value;
-
-    if ((((long long) Quota[Index(tag, Quota::gProjectId)]) + (long long) value) >= 0)
-      Quota[Index(tag, Quota::gProjectId)] += value;
   }
   else
   {
     // user/group quota implementation
     // fix for avoiding negative numbers
-    if ((((long long) Quota[Index(tag, id)]) + (long long) value) >= 0)
-      Quota[Index(tag, id)] += value;
-
     if ((((long long) Quota[Index(tag, id)]) + (long long) value) >= 0)
       Quota[Index(tag, id)] += value;
   }
@@ -348,7 +341,6 @@ SpaceQuota::UpdateIsSums ()
 
   std::map<long long, unsigned long long>::const_iterator it;
 
-  fprintf(stderr,"========================================= %s\n", SpaceName.c_str());
   for (it = Begin(); it != End(); it++)
   {
     if ((UnIndex(it->first) == kUserBytesIs))
@@ -356,7 +348,6 @@ SpaceQuota::UpdateIsSums ()
     if ((UnIndex(it->first) == kUserLogicalBytesIs))
       AddQuota(kAllUserLogicalBytesIs, 0, it->second, false);
     if ((UnIndex(it->first) == kUserFilesIs)) {
-      fprintf(stderr,"file is %ld %lld\n", UnIndex(it->first),it->second);
       AddQuota(kAllUserFilesIs, 0, it->second, false);
     }
     if ((UnIndex(it->first) == kGroupBytesIs))
@@ -395,13 +386,14 @@ SpaceQuota::UpdateFromQuotaNode (uid_t uid, gid_t gid)
     AddQuota(kUserBytesIs, uid, QuotaNode->getPhysicalSpaceByUser(uid), false);
     AddQuota(kUserLogicalBytesIs, uid, QuotaNode->getUsedSpaceByUser(uid), false);
     AddQuota(kUserFilesIs, uid, QuotaNode->getNumFilesByUser(uid), false);
+
     AddQuota(kGroupBytesIs, gid, QuotaNode->getPhysicalSpaceByGroup(gid), false);
-    AddQuota(kGroupLogicalBytesIs, gid, QuotaNode->getUsedSpaceByUser(gid), false);
+    AddQuota(kGroupLogicalBytesIs, gid, QuotaNode->getUsedSpaceByGroup(gid), false);
     AddQuota(kGroupFilesIs, gid, QuotaNode->getNumFilesByGroup(gid), false);
 
-    //    AddQuota(kUserBytesIs, Quota::gProjectId, QuotaNode->getPhysicalSpaceByUser(Quota::gProjectId), false);
-    //    AddQuota(kUserLogicalBytesIs, Quota::gProjectId, QuotaNode->getUsedSpaceByUser(Quota::gProjectId), false);
-    //    AddQuota(kUserFilesIs, Quota::gProjectId, QuotaNode->getNumFilesByUser(Quota::gProjectId), false);
+    AddQuota(kUserBytesIs, Quota::gProjectId, QuotaNode->getPhysicalSpaceByUser(Quota::gProjectId), false);
+    AddQuota(kUserLogicalBytesIs, Quota::gProjectId, QuotaNode->getUsedSpaceByUser(Quota::gProjectId), false);
+    AddQuota(kUserFilesIs, Quota::gProjectId, QuotaNode->getNumFilesByUser(Quota::gProjectId), false);
     AddQuota(kGroupBytesIs, Quota::gProjectId, QuotaNode->getPhysicalSpaceByGroup(Quota::gProjectId), false);
     AddQuota(kGroupLogicalBytesIs, Quota::gProjectId, QuotaNode->getUsedSpaceByUser(Quota::gProjectId), false);
     AddQuota(kGroupFilesIs, Quota::gProjectId, QuotaNode->getNumFilesByGroup(Quota::gProjectId), false);
