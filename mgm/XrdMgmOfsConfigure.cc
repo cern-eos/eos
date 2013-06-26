@@ -1208,6 +1208,7 @@ int XrdMgmOfs::Configure(XrdSysError &Eroute)
   gOFS->MgmStats.Add("CommitFailedNamespace",0,0,0);
   gOFS->MgmStats.Add("CommitFailedParameters",0,0,0);
   gOFS->MgmStats.Add("CommitFailedUnlinked",0,0,0);
+  gOFS->MgmStats.Add("CommitFailedQuota",0,0,0);
   gOFS->MgmStats.Add("CopyStripe",0,0,0);
   gOFS->MgmStats.Add("DumpMd",0,0,0);
   gOFS->MgmStats.Add("Drop",0,0,0);
