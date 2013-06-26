@@ -295,7 +295,7 @@ void abort_handler(int)
 {
   print_summary_header(source, destination);
   fprintf(stdout,"error: [eoscp] has been aborted\n");
-  exit(-1);
+  _exit(-1);
 }
 
 
@@ -940,7 +940,7 @@ int main(int argc, char* argv[]) {
     }
     
     if (!isRaidTransfer && srcfd[i]<0) {
-      fprintf(stderr, "error: cannot open source file %s\n", source[i]);
+      fprintf(stderr, "error: cannot open source file %s [errno=%d err='%s']\n", source[i], errno, strerror(errno));
       exit(-ENOENT);
     }
   }
@@ -1010,7 +1010,7 @@ int main(int argc, char* argv[]) {
     }
     
     if (!isRaidTransfer && dstfd[i] < 0) {
-      fprintf(stderr, "error: cannot open destination file %s\n", destination[i]);
+      fprintf(stderr, "error: cannot open destination file %s [errno=%d err='%s']\n", destination[i], errno, strerror(errno));
       exit(-EPERM);
     }
   }
@@ -1223,6 +1223,14 @@ int main(int argc, char* argv[]) {
       }
       break;
     case 2:
+      if (is_eos_replication) {
+	// send a truncate with a special flag which checks if the source has been modified
+	if (XrdPosixXrootd::Ftruncate(srcfd[i],EOS_FST_UPDATED_FLAG_VIA_TRUNCATE_LEN)) {
+	  fprintf(stderr,"error: discarding copy since source has been modified during transfer\n");
+	  exit(-EIO);
+	}
+      }
+
       if (XrdPosixXrootd::Close(srcfd[i])) {
 	fprintf(stderr,"error: close of source file %d failed\n", i);
 	exit(-EIO);
