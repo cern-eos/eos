@@ -47,6 +47,8 @@ class XrdFstOfsFile;
 
 #define EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN 1024 * 1024 * 1024 * 1024ll
 
+#define EOS_FST_UPDATED_FLAG_VIA_TRUNCATE_LEN (1024 * 1024 * 1024 * 1024ll)+1
+
 class Layout : public eos::common::LogId {
 protected:
   XrdOucString Name;
