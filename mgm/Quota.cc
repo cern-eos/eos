@@ -716,7 +716,10 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desiredspace, unsign
 
   if ( userinodequota ) {
     if ( ( (GetQuota(kUserFilesTarget,uid,false)) - (GetQuota(kUserFilesIs,uid,false)) ) > (inodes) ) {
-      hasuserquota = true;
+      if ( uservolumequota ) 
+	hasuserquota &= true;
+      else
+	hasuserquota = true;
     } else {
       hasuserquota = false;
     }
@@ -732,7 +735,10 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desiredspace, unsign
 
   if ( groupinodequota ) {
     if ( ( ( (GetQuota(kGroupFilesTarget,gid,false)) - (GetQuota(kGroupFilesIs,gid,false)) ) > (inodes) ) ) {
-      hasgroupquota = true;
+      if ( groupvolumequota ) 
+	hasgroupquota &= true;
+      else
+	hasgroupquota = true;
     } else {
       hasgroupquota = false;
     }
