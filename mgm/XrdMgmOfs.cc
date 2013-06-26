@@ -1407,7 +1407,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
 	return Emsg(epname, error, retc, "get free physical space", path);
       }
       if (retc == EDQUOT) {
-	return Emsg(epname, error, retc, "get quota space - quota not defined or exhausted", path);
+	return Emsg(epname, error, ENOSPC, "get quota space - quota not defined or exhausted", path);
       }
       return Emsg(epname, error, retc, "access quota space",path);
     } else {
@@ -4387,6 +4387,9 @@ XrdMgmOfs::FSctl(const int               cmd,
 	    }
           }
 
+	  // check if there is actually quota to accept this file 
+
+
           if (verifysize) {
             // check if we saw a file size change or checksum change
             if (fmd->getSize() != size) {
@@ -4414,6 +4417,16 @@ XrdMgmOfs::FSctl(const int               cmd,
             SpaceQuota* space = Quota::GetResponsibleSpaceQuota(spath);
             eos::QuotaNode* quotanode = 0;
             if (space) {
+	      if (!replication && ((size-fmd->getSize()) > 0)) {
+		// check if we can accept this 'commit' according to quota
+		bool hasquota = space->CheckWriteQuota(fmd->getCUid(), fmd->getCGid(), (size-fmd->getSize()), 1);
+		if (!hasquota) {
+		  eos_thread_err("commit exceeds quota of uid=%u gid=%u with file  - rejecting commit", fmd->getId(), fsid);
+		  gOFS->MgmStats.Add("ReplicaFailedQuota",fmd->getCUid(),fmd->getCGid(),1);
+		  return Emsg(epname, error, EDQUOT, "commit replica - quota is exceeded [EDQUOT]","");
+		}
+	      }
+
               quotanode = space->GetQuotaNode();
               // free previous quota
               if (quotanode)
@@ -6885,6 +6898,8 @@ XrdMgmOfs::_replicatestripe(eos::FileMD            *fmd,
 
     if (!sub) 
       errno = ENXIO;
+    else
+      errno = 0;
 
     if (txjob)
       delete txjob;
