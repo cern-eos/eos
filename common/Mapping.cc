@@ -596,6 +596,11 @@ Mapping::IdMap(const XrdSecEntity* client,const char* env, const char* tident, M
 
   vid.host = host.c_str();
 
+  // for NODNR setting translate the localhost IP
+  if (vid.host == "127.0.0.1") {
+    vid.host = "localhost";
+  }
+  
   {
     int errc=0;
     // add the uid/gid as strings
