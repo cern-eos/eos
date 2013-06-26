@@ -159,6 +159,8 @@ protected:
   bool         deleteOnClose;
   bool         repairOnClose;
 
+  struct stat updateStat;
+
   enum {
     kOfsIoError=1,
     kOfsMaxSizeError=2,

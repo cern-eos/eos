@@ -820,11 +820,11 @@ XrdFstOfsFile::open(const char                *path,
 
   struct stat statinfo;
 
-  if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
+  if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &updateStat))) {
     // file does not exist, keep the create lfag
     isCreation = true;
     openSize = 0;
-    statinfo.st_mtime=0; // this we use to indicate if a file was written in the meanwhile by someone else
+    updateStat.st_mtime=0; // this we use to indicate if a file was written in the meanwhile by someone else
   } else {
     if (open_mode & SFS_O_CREAT) 
       open_mode -= SFS_O_CREAT;
@@ -911,7 +911,7 @@ XrdFstOfsFile::open(const char                *path,
     eos_info("info=\"created/got blocklevel checksum\"");
     XrdOucString fstXSPath = fstBlockXS->MakeBlockXSPath(fstPath.c_str());
 
-    if (!fstBlockXS->OpenMap(fstXSPath.c_str(), isCreation?bookingsize:statinfo.st_size,fstBlockSize, isRW)) {
+    if (!fstBlockXS->OpenMap(fstXSPath.c_str(), isCreation?bookingsize:updateStat.st_size,fstBlockSize, isRW)) {
       eos_err("unable to create block checksum file");
 
       if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
@@ -1111,9 +1111,36 @@ XrdFstOfsFile::closeofs()
   // ------------------------------------------------------------------------
   // Code dealing with block checksums
   // ------------------------------------------------------------------------
+
+  bool fileExists=true;
+
+  struct stat statinfo;
+  if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
+    fileExists = false;
+  }
+
+  // check if the file could have been changed in the meanwhile ...
+
+  if (isReplication && (!isRW) ) {
+    // ---------------------------------------------------------------------
+    gOFS.OpenFidMutex.Lock();
+    if (gOFS.WOpenFid[fsid].count(fileid)) {
+      if (gOFS.WOpenFid[fsid][fileid]>0) {
+	eos_err("file is now open for writing - discarding replication");
+	rc = SFS_ERROR;
+      }
+    }
+    gOFS.OpenFidMutex.UnLock();
+    // ---------------------------------------------------------------------
+    
+    if ( (statinfo.st_mtime != updateStat.st_mtime) ) {
+      eos_err("file has been modified during replication");
+      rc = SFS_ERROR;
+    }
+  }
+
   if (fstBlockXS) {
-    struct stat statinfo;
-    if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
+    if (!fileExists) {
       eos_warning("close - cannot stat closed file %s- probably already unlinked!", Path.c_str());
       return XrdOfsFile::close();
     }
