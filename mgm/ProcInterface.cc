@@ -3454,7 +3454,30 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
 	  if (printid == "n") {
 	    translate = false;
 	  }
-	  Quota::PrintOut(space.c_str(), stdOut , uid_sel.length()?atol(uid_sel.c_str()):-1, gid_sel.length()?atol(gid_sel.c_str()):-1, monitor, translate);
+	  std::string suid = (uid_sel.length())?uid_sel.c_str():"0";
+	  std::string sgid = (gid_sel.length())?gid_sel.c_str():"0";
+	  int errc;
+	  long uid = eos::common::Mapping::UserNameToUid(suid,errc);
+	  long gid = eos::common::Mapping::GroupNameToGid(sgid,errc);
+
+	  XrdOucString out1;
+	  XrdOucString out2;
+
+	  if ( (!uid_sel.length() && (!gid_sel.length()) ) ) {
+	    Quota::PrintOut(space.c_str(), stdOut, -1 , -1, monitor, translate);
+	  } else {
+	    if (uid_sel.length()) {
+	      Quota::PrintOut(space.c_str(), out1, uid , -1, monitor, translate);
+	      stdOut += out1;
+	    }
+	    
+	    if (gid_sel.length()) {
+	      Quota::PrintOut(space.c_str(), out2, -1, gid , monitor, translate);
+	      stdOut += out2;
+	    }
+	  }
+
+	  Quota::PrintOut(space.c_str(), stdOut , uid_sel.length()?uid:-1, gid_sel.length()?gid:-1, monitor, translate);
 	}
 	
 	if (subcmd == "set") {
