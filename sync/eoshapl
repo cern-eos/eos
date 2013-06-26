@@ -177,7 +177,7 @@ while(1) {
     if (defined $palias_ip) {
         $alias_ip = inet_ntoa($palias_ip);
     } else {
-	if ($mastermgm) {
+	if (!$mastermgm) {
 	    # if we are the master we stay the master
 	    $alias_ip = $host_ip;
 	} else {
