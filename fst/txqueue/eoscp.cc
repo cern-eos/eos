@@ -1223,7 +1223,10 @@ int main(int argc, char* argv[]) {
       }
       break;
     case 2:
-      XrdPosixXrootd::Close(srcfd[i]);
+      if (XrdPosixXrootd::Close(srcfd[i])) {
+	fprintf(stderr,"error: close of source file %d failed\n", i);
+	exit(-EIO);
+      }
       break;
     case 3:
       break;
@@ -1242,7 +1245,10 @@ int main(int argc, char* argv[]) {
       }
       break;
     case 2:
-      XrdPosixXrootd::Close(dstfd[i]);
+      if (XrdPosixXrootd::Close(dstfd[i])) {
+	fprintf(stderr,"error: close of target file %d failed\n", i);
+	exit(-EIO);
+      }
       break;
     case 3:
       break;
