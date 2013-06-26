@@ -511,7 +511,7 @@ XrdFstOfs::SetSimulationError(const char* tag) {
   // define error bool variables to en-/disable error simulation in the OFS layer
 
   XrdOucString stag = tag;
-  gOFS.Simulate_IO_read_error = gOFS.Simulate_IO_write_error = gOFS.Simulate_XS_read_error = gOFS.Simulate_XS_write_error = false;
+  gOFS.Simulate_IO_read_error = gOFS.Simulate_IO_write_error = gOFS.Simulate_XS_read_error = gOFS.Simulate_XS_write_error = gOFS.Simulate_IO_closeofs_error = false;
   
   if (stag == "io_read") {
     gOFS.Simulate_IO_read_error = true;
@@ -519,6 +519,9 @@ XrdFstOfs::SetSimulationError(const char* tag) {
   if (stag == "io_write") {
     gOFS.Simulate_IO_write_error = true;
   } 
+  if (stag == "io_closeofs") {
+    gOFS.Simulate_IO_closeofs_error = true;
+  }
   if (stag == "xs_read") {
     gOFS.Simulate_XS_read_error = true;
   }
@@ -634,7 +637,7 @@ XrdFstOfsFile::open(const char                *path,
 
   const char *tident = error.getErrUser();
   tIdent = error.getErrUser();
-
+  
   char *val=0;
   isRW = false;
   int   retc = SFS_OK;
@@ -816,7 +819,6 @@ XrdFstOfsFile::open(const char                *path,
   if ( (open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
                      SFS_O_CREAT  | SFS_O_TRUNC) ) != 0) 
     isRW = true;
-
 
   struct stat statinfo;
 
@@ -1054,8 +1056,9 @@ XrdFstOfsFile::open(const char                *path,
     if (isRW) {
       gOFS.WOpenFid[fsid][fileid]++;
     }
-    else
+    else {
       gOFS.ROpenFid[fsid][fileid]++;
+    }
 
     gOFS.OpenFidMutex.UnLock();
   } else {
@@ -1070,7 +1073,6 @@ XrdFstOfsFile::open(const char                *path,
           eos_crit("disabling filesystem %u after IO error on path %s", gOFS.Storage->fileSystemsVector[i]->GetId(), gOFS.Storage->fileSystemsVector[i]->GetPath().c_str());
           XrdOucString s="local IO error";
           gOFS.Storage->fileSystemsVector[i]->BroadcastError(EIO, s.c_str());
-          //      gOFS.Storage->fileSystemsVector[i]->BroadcastError(error.getErrInfo(), "local IO error");
           break;
         }
       }
@@ -1121,12 +1123,13 @@ XrdFstOfsFile::closeofs()
 
   // check if the file could have been changed in the meanwhile ...
 
-  if (isReplication && (!isRW) ) {
+  if (fileExists && isReplication && (!isRW) ) {
     // ---------------------------------------------------------------------
     gOFS.OpenFidMutex.Lock();
     if (gOFS.WOpenFid[fsid].count(fileid)) {
       if (gOFS.WOpenFid[fsid][fileid]>0) {
-	eos_err("file is now open for writing - discarding replication");
+	eos_err("file is now open for writing - discarding replication [wopen=%d]", gOFS.WOpenFid[fsid][fileid]);
+	gOFS.Emsg("closeofs",error, EIO,"guarantee correctness - file has been opened for writing during replication",Path.c_str());
 	rc = SFS_ERROR;
       }
     }
@@ -1136,6 +1139,7 @@ XrdFstOfsFile::closeofs()
     if ( (statinfo.st_mtime != updateStat.st_mtime) ) {
       eos_err("file has been modified during replication");
       rc = SFS_ERROR;
+      gOFS.Emsg("closeofs",error, EIO,"guarantee correctness - file has been modified during replication",Path.c_str());
     }
   }
 
@@ -1173,6 +1177,11 @@ XrdFstOfsFile::closeofs()
   }
     
   rc |= XrdOfsFile::close();
+
+  if (gOFS.Simulate_IO_closeofs_error) {
+    gOFS.Emsg("closeofs", error, EIO, "close - simulated IO error in closeofs");
+    rc |= SFS_ERROR;
+  }
 
   return rc;
 }
@@ -1521,7 +1530,7 @@ XrdFstOfsFile::close()
 	    rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueFile);
 
 
-	    if (  (rc == -EIO) || (rc == -EIDRM) || (rc == -EBADE) || (rc == -EBADR) ) {
+	    if (  (rc == -EIO) || (rc == -EIDRM) || (rc == -EBADE) || (rc == -EBADR) || (rc == -EDQUOT) ) {
 	      if (rc == -EIO) {
 		eos_crit("commit returned an error msg=%s", error.getErrText());
 		if (isCreation) {
@@ -1530,6 +1539,13 @@ XrdFstOfsFile::close()
 		}
 	      }
 	      
+	      if (rc == -EDQUOT) {
+		if (layOut->IsEntryServer()) {
+		  eos_crit("commit was blocked ... truncating file to original size=%llu",openSize);
+		  layOut->truncate(openSize);
+		}
+		rc = 0;
+	      }
 	      if ( (rc == -EIDRM) || (rc == -EBADE) || (rc == -EBADR) ) {
 		if (!gOFS.Storage->CloseTransaction(fsid, fileid)) {
 		  eos_crit("cannot close transaction for fsid=%u fid=%llu", fsid, fileid);
@@ -1550,8 +1566,6 @@ XrdFstOfsFile::close()
 		  eos_debug("<rem> returned retc=%d", retc);
 		}
 		deleteOnClose=true; 
-	      } else {
-		eos_crit("commit returned an not catched error msg=%s", error.getErrText());
 	      }
 	    }
 	  }    
@@ -1578,20 +1592,22 @@ XrdFstOfsFile::close()
     closed = true;
     
     if (closerc) {
-      // some (remote) replica didn't make it through ... trigger an auto-repair
-      if (!deleteOnClose) {
+      // some (remote) replica didn't make it through ... trigger an auto-repair if this is not a replication process
+      if (!deleteOnClose && (!isReplication) && (isCreation)) {
 	repairOnClose = true;
       }
     }
     
     gOFS.OpenFidMutex.Lock();
-    if (isRW) 
+    if (isRW) {
       gOFS.WOpenFid[fMd->fMd.fsid][fMd->fMd.fid]--;
-    else
+    }
+    else {
       gOFS.ROpenFid[fMd->fMd.fsid][fMd->fMd.fid]--;
+    }
     
     if (gOFS.WOpenFid[fMd->fMd.fsid][fMd->fMd.fid] <= 0) {
-      // if this was a write of the last writer we had the lock and we release it
+      // if this was a write or the last writer we had the lock and we release it
       gOFS.WOpenFid[fMd->fMd.fsid].erase(fMd->fMd.fid);
       gOFS.WOpenFid[fMd->fMd.fsid].resize(0);
     }
@@ -1823,7 +1839,10 @@ XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manag
 	  
 	  if (msg.find("[EIO]") != STR_NPOS)
 	    rc = -EIO;
-	  
+
+	  if (msg.find("[EDQUOT]") != STR_NPOS)
+	    rc = -EDQUOT;
+
 	  break;
 	  
 	default:
@@ -2137,9 +2156,43 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset   fileOffset)
 
   if (fileOffset == EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN) {
     eos_info("msg=\"deletion flag indicated\" path=%s",fstPath.c_str());
+    // -------------------------------------------------------------------------
     // this truncate offset indicates to delete the file during the close operation
+    // -------------------------------------------------------------------------
     remoteDelete = true;
     return SFS_OK;
+  }
+
+  if (fileOffset == EOS_FST_UPDATED_FLAG_VIA_TRUNCATE_LEN) {
+    eos_info("msg=\"check for update\" path=%s", fstPath.c_str());
+    // -------------------------------------------------------------------------
+    // routine to check if a file has been updated since the open
+    // -------------------------------------------------------------------------
+    int rc = SFS_OK;
+
+    struct stat statinfo;
+    if (!(XrdOfsOss->Stat(fstPath.c_str(), &statinfo))) {
+      if (isReplication && (!isRW) ) {
+	// ---------------------------------------------------------------------
+	gOFS.OpenFidMutex.Lock();
+	if (gOFS.WOpenFid[fsid].count(fileid)) {
+	  if (gOFS.WOpenFid[fsid][fileid]>0) {
+	    eos_err("file is now open for writing - discarding replication [wopen=%d]", gOFS.WOpenFid[fsid][fileid]);
+	    gOFS.Emsg("closeofs",error, EIO,"guarantee correctness - file has been opened for writing during replication",Path.c_str());
+	    rc = SFS_ERROR;
+	  }
+	}
+	gOFS.OpenFidMutex.UnLock();
+	// ---------------------------------------------------------------------
+	
+	if ( (statinfo.st_mtime != updateStat.st_mtime) ) {
+	  eos_err("file has been modified during replication");
+	  rc = SFS_ERROR;
+	  gOFS.Emsg("closeofs",error, EIO,"guarantee correctness - file has been modified during replication",Path.c_str());
+	}
+      }
+    }
+    return rc;
   }
 
   //  fprintf(stderr,"truncate called %llu\n", fileOffset);

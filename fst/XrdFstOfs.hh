@@ -115,7 +115,7 @@ public:
     (void) signal(SIGSEGV, xrdfstofs_stacktrace);
     (void) signal(SIGABRT, xrdfstofs_stacktrace);
     (void) signal(SIGBUS,  xrdfstofs_stacktrace);
-    Simulate_IO_read_error = Simulate_IO_write_error = Simulate_XS_read_error = Simulate_XS_write_error = false;
+    Simulate_IO_read_error = Simulate_IO_write_error = Simulate_XS_read_error = Simulate_XS_write_error = Simulate_IO_closeofs_error = false;
   }
 
   XrdSysError*        Eroute;          // used by the 
@@ -202,10 +202,8 @@ public:
   eos::fst::Storage* Storage;          // -> Meta data & filesytem store object
 
   XrdSysMutex OpenFidMutex;
-  //  std::map<eos::common::FileSystem::fsid_t, std::map<unsigned long long, unsigned int> > WOpenFid;
-  //  std::map<eos::common::FileSystem::fsid_t, std::map<unsigned long long, unsigned int> > ROpenFId;
-  google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > WOpenFid;
-  google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > ROpenFid;
+  google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > WOpenFid;   // file open for write
+  google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > ROpenFid;   // file open for read
 
   XrdSysMutex XSLockFidMutex;
   google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::sparse_hash_map<unsigned long long, unsigned int> > XSLockFid;
@@ -233,6 +231,7 @@ public:
   bool Simulate_IO_write_error;         // -> simulate an IO error on write
   bool Simulate_XS_read_error;          // -> simulate a checksum error on read
   bool Simulate_XS_write_error;         // -> simulate a checksum error on write
+  bool Simulate_IO_closeofs_error;      // -> simulate an error during closeofs
 
   virtual ~XrdFstOfs() {};
 };
