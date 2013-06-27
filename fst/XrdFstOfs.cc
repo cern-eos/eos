@@ -1529,26 +1529,25 @@ XrdFstOfsFile::close()
 	    
 	    rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), capOpaqueFile);
 
-
-	    if (  (rc == -EIO) || (rc == -EIDRM) || (rc == -EBADE) || (rc == -EBADR) || (rc == -EDQUOT) ) {
-	      if (rc == -EIO) {
-		eos_crit("commit returned an error msg=%s", error.getErrText());
-		if (isCreation) {
-		  // new files we should clean-up
-		  deleteOnClose=true;
-		}
-	      }
-	      
+	    if ( rc ) {
 	      if (rc == -EDQUOT) {
-		if (layOut->IsEntryServer()) {
-		  eos_crit("commit was blocked ... truncating file to original size=%llu",openSize);
-		  layOut->truncate(openSize);
+		if (isCreation) {
+		  deleteOnClose = true;
+		  // rc will be set by deleteOnClose logic
+		} else {
+		  if (layOut->IsEntryServer()) {
+		    eos_crit("commit was blocked ... truncating file to original size=%llu",openSize);
+		    layOut->truncate(openSize);		  
+		    gOFS.Emsg(epname, error, ENOSPC, "write file - quota is exceeded");
+		    rc = SFS_ERROR;
+		  } else {
+		    // we do nothing, we will get the truncation via the entry server
+		    rc = SFS_OK;
+		  }
 		}
-		rc = 0;
-	      }
-	      if ( (rc == -EIDRM) || (rc == -EBADE) || (rc == -EBADR) ) {
-		if (!gOFS.Storage->CloseTransaction(fsid, fileid)) {
-		  eos_crit("cannot close transaction for fsid=%u fid=%llu", fsid, fileid);
+	      } else {
+		if ( (rc == -EIO) || ( rc == SFS_ERROR ) ) {
+		  eos_crit("commit returned an error msg=%s", error.getErrText());
 		}
 		if (rc == -EIDRM) {
 		  // this file has been deleted in the meanwhile ... we can unlink that immedeatly
@@ -1560,11 +1559,6 @@ XrdFstOfsFile::close()
 		if (rc == -EBADR) {
 		  eos_err("info=\"unlinking fid=%08x path=%s - checksum of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
 		}
-		
-		int retc =  gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(), fileid,fsid);
-		if (!retc) {
-		  eos_debug("<rem> returned retc=%d", retc);
-		}
 		deleteOnClose=true; 
 	      }
 	    }
@@ -1572,13 +1566,7 @@ XrdFstOfsFile::close()
 	} 
       }
     }
-    
-    if (isRW) {
-      if (rc==SFS_OK) {
-	gOFS.Storage->CloseTransaction(fsid, fileid);
-      }
-    }
-
+  
     int closerc=0; // return of the close
     brc = rc;  // return before the close
     
@@ -1755,6 +1743,12 @@ XrdFstOfsFile::close()
     }
   }
 
+  if (isRW) {
+    if (!gOFS.Storage->CloseTransaction(fsid, fileid)) {
+      eos_crit("cannot close transaction for fsid=%u fid=%llu", fsid, fileid);
+    }
+  }
+
   return rc;
 }
 
@@ -1792,63 +1786,55 @@ XrdFstOfs::CallManager(XrdOucErrInfo *error, const char* path, const char* manag
     admin->Connect();
     admin->GetClientConn()->ClearLastServerError();
     admin->GetClientConn()->SetOpTimeLimit(10);
-    if (!admin->Query(kXR_Qopaquf,
-		      (kXR_char *) capOpaqueFile.c_str(),
-		      (kXR_char *) result, result_size)) {
-      // the call failed
-      eos_crit("msg=\"call to MGM probably timedout\"");
+    admin->Query(kXR_Qopaquf,
+		 (kXR_char *) capOpaqueFile.c_str(),
+		 (kXR_char *) result, result_size);
+
+    // call worked but no response (probably does not happen)
+    if (!admin->LastServerResp()) {
       if (error)
-        gOFS.Emsg(epname, *error, ECOMM, "commit changed filesize to meta data cache for fn=", path);
+	gOFS.Emsg(epname, *error, ECOMM, "contact MGM (timeout?) for fn=", path);
       rc = SFS_ERROR;
     } else {
-      // call worked but no response (probably does not happen)
-      if (!admin->LastServerResp()) {
-	if (error)
-	  gOFS.Emsg(epname, *error, ECOMM, "commit changed filesize [rejected] to meta data cache for fn=", path);
-	rc = SFS_ERROR;
-      } else {
-	switch (admin->LastServerResp()->status) {
-	case kXR_ok:
-	  eos_debug("called MGM cache - %s", capOpaqueFile.c_str());
-	  rc = SFS_OK;
-	  break;
-	  
-	case kXR_error:
-	  if (error) {
-	    gOFS.Emsg(epname, *error, ECOMM, "to call manager for fn=", path);
-	  }
-	  msg = (admin->LastServerError()->errmsg);
-	  rc = SFS_ERROR;
-	  
-	  if (msg.find("[EIDRM]") !=STR_NPOS)
-	    rc = -EIDRM;
-	  
-	  
-	  if (msg.find("[EBADE]") !=STR_NPOS)
-	    rc = -EBADE;
-	  
-	  
-	  if (msg.find("[EBADR]") !=STR_NPOS)
-	    rc = -EBADR;
-	  
-	  if (msg.find("[EINVAL]") != STR_NPOS)
-	    rc = -EINVAL;
-	  
-	  if (msg.find("[EADV]") != STR_NPOS)
-	    rc = -EADV;
-	  
-	  if (msg.find("[EIO]") != STR_NPOS)
-	    rc = -EIO;
-
-	  if (msg.find("[EDQUOT]") != STR_NPOS)
-	    rc = -EDQUOT;
-
-	  break;
-	  
-	default:
-	  rc = SFS_ERROR;
-	  break;
+      switch (admin->LastServerResp()->status) {
+      case kXR_ok:
+	eos_debug("called MGM cache - %s", capOpaqueFile.c_str());
+	rc = SFS_OK;
+	break;
+	
+      case kXR_error:
+	if (error) {
+	  gOFS.Emsg(epname, *error, ECOMM, "to call manager for fn=", path);
 	}
+	msg = (admin->LastServerError()->errmsg);
+	rc = SFS_ERROR;
+	
+	if (msg.find("[EIDRM]") !=STR_NPOS)
+	  rc = -EIDRM;
+		
+	if (msg.find("[EBADE]") !=STR_NPOS)
+	  rc = -EBADE;  
+	
+	if (msg.find("[EBADR]") !=STR_NPOS)
+	  rc = -EBADR;
+	
+	if (msg.find("[EINVAL]") != STR_NPOS)
+	  rc = -EINVAL;
+	
+	if (msg.find("[EADV]") != STR_NPOS)
+	  rc = -EADV;
+	
+	if (msg.find("[EIO]") != STR_NPOS)
+	  rc = -EIO;
+	
+	if (msg.find("[EDQUOT]") != STR_NPOS)
+	  rc = -EDQUOT;
+	
+	break;
+	
+      default:
+	rc = SFS_ERROR;
+	break;
       }
     }
     delete admin;
