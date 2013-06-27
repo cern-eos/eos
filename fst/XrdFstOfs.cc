@@ -1546,19 +1546,6 @@ XrdFstOfsFile::close()
 		  }
 		}
 	      } else {
-		if ( (rc == -EIO) || ( rc == SFS_ERROR ) ) {
-		  eos_crit("commit returned an error msg=%s", error.getErrText());
-		}
-		if (rc == -EIDRM) {
-		  // this file has been deleted in the meanwhile ... we can unlink that immedeatly
-		  eos_info("info=\"unlinking fid=%08x path=%s - file has been already unlinked from the namespace\"", fMd->fMd.fid, Path.c_str());
-		}
-		if (rc == -EBADE) {
-		  eos_err("info=\"unlinking fid=%08x path=%s - file size of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
-		}
-		if (rc == -EBADR) {
-		  eos_err("info=\"unlinking fid=%08x path=%s - checksum of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
-		}
 		deleteOnClose=true; 
 	      }
 	    }
@@ -1666,8 +1653,6 @@ XrdFstOfsFile::close()
 	eos_info("info=\"removing on manager\" manager=%s fid=%llu fsid=%d fn=%s fstpath=%s rc=%d", capOpaque->Get("mgm.manager"), (unsigned long long)fileid, (int)fsid, capOpaque->Get("mgm.path"), fstPath.c_str(),rc);
       }
       
-      rc = SFS_ERROR;
-      
       if (minimumsizeerror) {
 	gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because it is smaller than the required minimum file size in that directory", Path.c_str());
 	eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"minimum file size criteria\"", capOpaque->Get("mgm.path"), fstPath.c_str());    
@@ -1696,8 +1681,33 @@ XrdFstOfsFile::close()
 		    gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because the stored file does not match the provided targetsize",Path.c_str());
 		    eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"target size mismatch\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 		  } else {
-		    gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a client disconnect",Path.c_str());
-		    eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"client disconnect\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+		    if ( rc == -EDQUOT ) {
+		      gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because the quota has been exceeded",Path.c_str());
+		      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"quota exhausted\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+		    } else {
+		      if ( (rc == -EIO) || ( rc == SFS_ERROR ) ) {
+			gOFS.Emsg(epname,error, EIO, "store file - commit failed",Path.c_str());
+			eos_crit("commit returned an error msg=%s", error.getErrText());
+		      } else {
+			if (rc == -EIDRM) {
+			  gOFS.Emsg(epname,error, EIO, "store file - file already unlinked",Path.c_str());
+			  eos_warning("info=\"unlinking fid=%08x path=%s - file has been already unlinked from the namespace\"", fMd->fMd.fid, Path.c_str());
+			} else {
+			  if (rc == -EBADE) {
+			    gOFS.Emsg(epname,error, EIO, "store file - file size of replica does not match reference",Path.c_str());
+			    eos_warning("info=\"unlinking fid=%08x path=%s - file size of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
+			  } else {
+			    if (rc == -EBADR) {
+			      gOFS.Emsg(epname,error, EIO, "store file - checksum size of replica does not match reference",Path.c_str());
+			      eos_err("info=\"unlinking fid=%08x path=%s - checksum of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
+			    } else {
+			      gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a client disconnect",Path.c_str());
+			      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"client disconnect\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+			    }
+			  }
+			}
+		      }
+		    }
 		  }
 		}		
 	      }
@@ -1705,6 +1715,8 @@ XrdFstOfsFile::close()
 	  }
 	}
       }
+
+      rc = SFS_ERROR;
       
       if (fstBlockXS) {
 	fstBlockXS->CloseMap();
@@ -1743,7 +1755,7 @@ XrdFstOfsFile::close()
     }
   }
 
-  if (isRW) {
+  if (isRW && (! (deleteOnClose && isCreation)) ) {
     if (!gOFS.Storage->CloseTransaction(fsid, fileid)) {
       eos_crit("cannot close transaction for fsid=%u fid=%llu", fsid, fileid);
     }
