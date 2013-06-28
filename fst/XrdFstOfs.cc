@@ -1307,7 +1307,7 @@ XrdFstOfsFile::close()
 
     XrdOucString hexstring="";
     eos::common::FileId::Fid2Hex(fMd->fMd.fid,hexstring);
-    XrdOucErrInfo error;
+    //    XrdOucErrInfo error;
     
     XrdOucString capOpaqueString="/?mgm.pcmd=drop";
     XrdOucString OpaqueString = "";
@@ -1321,13 +1321,13 @@ XrdFstOfsFile::close()
       // it is closed by the constructor e.g. no proper close 
       // -------------------------------------------------------------------------------------------------------
       if (viaDelete) {
-	eos_warning("msg=\"(unpersist): deleting file\" reason=\"client disconnect\"  fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
+	eos_err("msg=\"(unpersist): deleting file\" reason=\"client disconnect\"  fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
       }
       if (writeDelete) {
-	eos_warning("msg=\"(unpersist): deleting file\" reason=\"write/policy error\" fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
+	eos_err("msg=\"(unpersist): deleting file\" reason=\"write/policy error\" fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
       }
       if (remoteDelete) {
-	eos_warning("msg=\"(unpersist): deleting file\" reason=\"remote deletion\"    fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
+	eos_err("msg=\"(unpersist): deleting file\" reason=\"remote deletion\"    fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
       }
 
       // delete the file
@@ -1536,7 +1536,7 @@ XrdFstOfsFile::close()
 		  // rc will be set by deleteOnClose logic
 		} else {
 		  if (layOut->IsEntryServer()) {
-		    eos_crit("commit was blocked lacking quota ... truncating file to original size=%llu",openSize);
+		    eos_err("commit was blocked lacking quota ... truncating file to original size=%llu",openSize);
 		    layOut->truncate(openSize);		  
 		    gOFS.Emsg(epname, error, ENOSPC, "write file - quota is exceeded");
 		    rc = SFS_ERROR;
@@ -1675,19 +1675,19 @@ XrdFstOfsFile::close()
 	      } else {
 		if (writeErrorFlag == kOfsIoError) {
 		  gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of an IO error during a write operation",Path.c_str());
-		  eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"write IO error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+		  eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"write IO error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 		} else {
 		  if (targetsizeerror) {
 		    gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because the stored file does not match the provided targetsize",Path.c_str());
-		    eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"target size mismatch\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+		    eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"target size mismatch\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 		  } else {
 		    if ( brc == -EDQUOT ) {
 		      gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because the quota has been exceeded",Path.c_str());
-		      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"quota exhausted\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+		      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"quota exhausted\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 		    } else {
 		      if ( ( (brc == -EIO) || ( rc == SFS_ERROR )) && (!viaDelete) ) {
 			gOFS.Emsg(epname,error, EIO, "store file - commit failed",Path.c_str());
-			eos_crit("commit returned an error msg=%s", error.getErrText());
+			eos_warning("commit returned an error msg=%s", error.getErrText());
 		      } else {
 			if (brc == -EIDRM) {
 			  gOFS.Emsg(epname,error, EIO, "store file - file already unlinked",Path.c_str());
@@ -1699,10 +1699,10 @@ XrdFstOfsFile::close()
 			  } else {
 			    if (brc == -EBADR) {
 			      gOFS.Emsg(epname,error, EIO, "store file - checksum size of replica does not match reference",Path.c_str());
-			      eos_err("info=\"unlinking fid=%08x path=%s - checksum of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
+			      eos_warning("info=\"unlinking fid=%08x path=%s - checksum of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
 			    } else {
 			      gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a client disconnect",Path.c_str());
-			      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"client disconnect\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+			      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"client disconnect\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 			    }
 			  }
 			}
