@@ -1321,13 +1321,13 @@ XrdFstOfsFile::close()
       // it is closed by the constructor e.g. no proper close 
       // -------------------------------------------------------------------------------------------------------
       if (viaDelete) {
-	eos_info("msg=\"(unpersist): deleting file\" reason=\"client disconnect\"  fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
+	eos_warning("msg=\"(unpersist): deleting file\" reason=\"client disconnect\"  fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
       }
       if (writeDelete) {
-	eos_info("msg=\"(unpersist): deleting file\" reason=\"write/policy error\" fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
+	eos_warning("msg=\"(unpersist): deleting file\" reason=\"write/policy error\" fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
       }
       if (remoteDelete) {
-	eos_info("msg=\"(unpersist): deleting file\" reason=\"remote deletion\"    fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
+	eos_warning("msg=\"(unpersist): deleting file\" reason=\"remote deletion\"    fsid=%u fxid=%08x on fsid=%u ", fMd->fMd.fsid, fMd->fMd.fid);
       }
 
       // delete the file
@@ -1685,7 +1685,7 @@ XrdFstOfsFile::close()
 		      gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because the quota has been exceeded",Path.c_str());
 		      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"quota exhausted\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 		    } else {
-		      if ( (brc == -EIO) || ( rc == SFS_ERROR ) ) {
+		      if ( ( (brc == -EIO) || ( rc == SFS_ERROR )) && (!viaDelete) ) {
 			gOFS.Emsg(epname,error, EIO, "store file - commit failed",Path.c_str());
 			eos_crit("commit returned an error msg=%s", error.getErrText());
 		      } else {
