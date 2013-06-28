@@ -1536,7 +1536,7 @@ XrdFstOfsFile::close()
 		  // rc will be set by deleteOnClose logic
 		} else {
 		  if (layOut->IsEntryServer()) {
-		    eos_crit("commit was blocked ... truncating file to original size=%llu",openSize);
+		    eos_crit("commit was blocked lacking quota ... truncating file to original size=%llu",openSize);
 		    layOut->truncate(openSize);		  
 		    gOFS.Emsg(epname, error, ENOSPC, "write file - quota is exceeded");
 		    rc = SFS_ERROR;
@@ -1681,23 +1681,23 @@ XrdFstOfsFile::close()
 		    gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because the stored file does not match the provided targetsize",Path.c_str());
 		    eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"target size mismatch\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 		  } else {
-		    if ( rc == -EDQUOT ) {
+		    if ( brc == -EDQUOT ) {
 		      gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because the quota has been exceeded",Path.c_str());
 		      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason=\"quota exhausted\"", capOpaque->Get("mgm.path"), fstPath.c_str());
 		    } else {
-		      if ( (rc == -EIO) || ( rc == SFS_ERROR ) ) {
+		      if ( (brc == -EIO) || ( rc == SFS_ERROR ) ) {
 			gOFS.Emsg(epname,error, EIO, "store file - commit failed",Path.c_str());
 			eos_crit("commit returned an error msg=%s", error.getErrText());
 		      } else {
-			if (rc == -EIDRM) {
+			if (brc == -EIDRM) {
 			  gOFS.Emsg(epname,error, EIO, "store file - file already unlinked",Path.c_str());
 			  eos_warning("info=\"unlinking fid=%08x path=%s - file has been already unlinked from the namespace\"", fMd->fMd.fid, Path.c_str());
 			} else {
-			  if (rc == -EBADE) {
+			  if (brc == -EBADE) {
 			    gOFS.Emsg(epname,error, EIO, "store file - file size of replica does not match reference",Path.c_str());
 			    eos_warning("info=\"unlinking fid=%08x path=%s - file size of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
 			  } else {
-			    if (rc == -EBADR) {
+			    if (brc == -EBADR) {
 			      gOFS.Emsg(epname,error, EIO, "store file - checksum size of replica does not match reference",Path.c_str());
 			      eos_err("info=\"unlinking fid=%08x path=%s - checksum of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
 			    } else {
@@ -1742,7 +1742,7 @@ XrdFstOfsFile::close()
       eos_info("info=\"repair on close\" path=%s",  capOpaque->Get("mgm.path"));
       if (gOFS.CallManager(&error, capOpaque->Get("mgm.path"),capOpaque->Get("mgm.manager"), OpaqueString)) {
 	eos_warning("failed to execute 'adjustreplica' for path=%s", capOpaque->Get("mgm.path"));
-	gOFS.Emsg(epname, error, EIO, "create all replicas - uploaded file is at risk - only one replica has been successfully stored for fn=", capOpaque->Get("mgm.path"));   
+	gOFS.Emsg(epname, error, EIO, "create all replicas - uploaded file is at risk - not allreplicas have been successfully stored for fn=", capOpaque->Get("mgm.path"));   
       } else {
 	if (!brc) {
 	  // reset the return code
