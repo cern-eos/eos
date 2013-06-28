@@ -1701,8 +1701,23 @@ XrdFstOfsFile::close()
 			      gOFS.Emsg(epname,error, EIO, "store file - checksum size of replica does not match reference",Path.c_str());
 			      eos_warning("info=\"unlinking fid=%08x path=%s - checksum of replica does not match reference\"", fMd->fMd.fid, Path.c_str());
 			    } else {
-			      gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a client disconnect",Path.c_str());
-			      eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"client disconnect\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+			      if (viaDelete) {
+				gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a client disconnect",Path.c_str());
+				eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"client disconnect\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+			      } else {
+				if (remoteDelete) {
+				gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because remote deletion was executed",Path.c_str());
+				eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"remote deletion\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+				} else {
+				  if (writeDelete) {
+				    gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of a generic IO write error",Path.c_str());
+				    eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"generic IO error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+				  } else {
+				    gOFS.Emsg(epname,error, EIO, "store file - file has been cleaned because of an uncategorized error",Path.c_str());
+				    eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason=\"uncategorized error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+				  }
+				}
+			      }
 			    }
 			  }
 			}
