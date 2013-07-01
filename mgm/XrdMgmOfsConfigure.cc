@@ -1756,6 +1756,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("OpenFailedPermission", 0, 0, 0);
   gOFS->MgmStats.Add("OpenFailedQuota", 0, 0, 0);
   gOFS->MgmStats.Add("OpenFailedNoUpdate", 0, 0, 0);
+  gOFS->MgmStats.Add("OpenFailedReconstruct", 0, 0, 0);
   gOFS->MgmStats.Add("OpenFileOffline", 0, 0, 0);
   gOFS->MgmStats.Add("OpenProc", 0, 0, 0);
   gOFS->MgmStats.Add("OpenRead", 0, 0, 0);
