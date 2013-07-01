@@ -87,7 +87,7 @@ Fsck::Start (int interval)
 
 /*----------------------------------------------------------------------------*/
 bool
-Fsck::Stop ()
+Fsck::Stop (bool store)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Stop the FSCK thread.
@@ -111,7 +111,10 @@ Fsck::Stop ()
     mRunning = false;
     mEnabled = false;
     Log(false, "disabled check");
-    return StoreFsckConfig();
+    if (store)
+      return StoreFsckConfig();
+    else 
+      return true;
   }
   else
   {
@@ -130,7 +133,7 @@ Fsck::~Fsck ()
 /*----------------------------------------------------------------------------*/
 {
   if (mRunning)
-    Stop();
+    Stop(false);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -216,8 +219,26 @@ Fsck::Check (void)
   int bccount = 0;
 
   ClearLog();
-  Log(false, "delaying check by 15 minutes ...");
-  //  sleeper.Snooze(60*15);
+
+  bool go = false;
+  do
+  {
+    // --------------------------------------------------------
+    // wait that the namespace is booted
+    // --------------------------------------------------------
+    {
+      XrdSysMutexHelper(gOFS->InitializationMutex);
+      if (gOFS->Initialized == gOFS->kBooted)
+      {
+	go = true;
+      }
+      else       
+      {
+	sleeper.Snooze(10);
+      }
+    }
+  }
+  while (!go);
 
   while (1)
   {

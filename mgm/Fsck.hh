@@ -139,7 +139,7 @@ public:
   bool Start (int interval = 0);
   
   // Stop the collection thread
-  bool Stop ();
+  bool Stop (bool store=true);
 
   // FSCK interface usage output
   bool Usage (XrdOucString &out, XrdOucString &err);
