@@ -800,6 +800,13 @@ bool XrdMqOfs::ShouldRedirect(XrdOucString &host,
     bool m2ok;
     m1ok = ResolveName(getenv("EOS_MGM_MASTER1"),master1Name);
     m2ok = ResolveName(getenv("EOS_MGM_MASTER2"),master2Name);
+    if (!m1ok) {
+      fprintf(stderr,"error: unable to resolve %s\n", getenv("EOS_MGM_MASTER1"));
+    }
+    if (!m2ok) {
+      fprintf(stderr,"error: unable to resolve %s\n", getenv("EOS_MGM_MASTER2"));
+    }
+
     remoteMq = "localhost";
     isSlave = false;
     if (myName == master1Name) {
