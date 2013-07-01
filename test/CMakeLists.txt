@@ -24,7 +24,7 @@
 set (CMAKE_CXX_FLAGS "-Wall -g -O0 -std=gnu++0x -DHAVE_ATOMICS=1 ")
 #-------------------------------------------------------------------------------
 
-include_directories( ../ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} )
+include_directories( ../ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} ../common/ulib/ )
 link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} ${XROOTD_LIB_DIR})
 
 add_subdirectory(benchmark)
@@ -97,6 +97,11 @@ add_executable (eosnsbench
 	        EosNamespaceBenchmark.cc
 )
 
+add_executable (eoshashbench
+	        EosHashBenchmark.cc
+)
+
+
 add_executable (testhmacsha256
 	        TestHmacSha256.cc
 		../common/SymKeys.hh            ../common/SymKeys.cc
@@ -118,6 +123,7 @@ target_link_libraries(eoschecksumbench XrdPosix eosCommon XrdUtils ${CMAKE_THREA
 
 target_link_libraries(eos-udp-dumper)
 target_link_libraries(eosnsbench eosCommon-Static eosNamespace-Static)
+target_link_libraries(eoshashbench eosCommon-Static eosNamespace-Static)
 target_link_libraries(testhmacsha256 eosCommon ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties ( xrdstress.exe PROPERTIES COMPILE_FLAGS "-std=gnu++0x -D_FILE_OFFSET_BITS=64" )
@@ -133,12 +139,13 @@ set_target_properties ( xrdcptruncate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_B
 set_target_properties ( xrdcppartial PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcpposixcache PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( eosnsbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( eoshashbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -msse4.2" )
 
 INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR} FILES 
 		  xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcpappend
 		  xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial
-		  xrdcpposixcache eoschecksumbench eos-udp-dumper eos-mmap)
+		  xrdcpposixcache eoschecksumbench eosnsbench eoshashbench eos-udp-dumper eos-mmap)
 
 INSTALL ( FILES xrdstress 
 	DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}

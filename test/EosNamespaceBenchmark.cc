@@ -212,7 +212,7 @@ int main( int argc, char **argv )
   if( argc != 5 )
   {
     std::cerr << "Usage:"                                << std::endl;
-    std::cerr << "  eos-namespace-benchmark directory.log file.log <level1-dirs> <level3-files>" << std::endl;
+    std::cerr << "  eos-namespace-benchmark directory.log file.log <level1-dirs> <level3-files> " << std::endl;
     return 1;
   };
 
@@ -347,10 +347,10 @@ int main( int argc, char **argv )
 	    // add two locations
 	    fmd->addLocation(k);
 	    fmd->addLocation(k+1);
-	    fmd->addLocation(k+2);
+	    /*	    fmd->addLocation(k+2);
 	    fmd->addLocation(k+3);
 	    fmd->addLocation(k+4);
-	    fmd->addLocation(k+5);
+	    fmd->addLocation(k+5);*/
 	    fmd->setLayoutId(10);
 	    view->updateFileStore(fmd);
 	  }
