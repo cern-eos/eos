@@ -253,7 +253,21 @@ public:
   static unsigned long
   GetStripeNumber (unsigned long layout)
   {
-    return ( (layout >> 8) & 0xf);
+    return ( (layout >> 8) & 0xff);
+  }
+
+
+  //--------------------------------------------------------------------------
+  //! Modify layout stripe number
+  //--------------------------------------------------------------------------
+  static void
+  SetStripeNumber (unsigned long &layout, int stripes)
+  {
+    unsigned long tmp = stripes & 0xff;
+    tmp <<= 8 ;
+    tmp &= 0xff00;
+    layout &= 0xffff00ff;
+    layout |= tmp;
   }
 
 
