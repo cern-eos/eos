@@ -131,10 +131,18 @@ XrdMgmOfsFile::open (const char *inpath,
   int isRW = 0;
   int isRewrite = 0;
   bool isCreation = false;
-  bool isPio = false; // flag indicating parallel IO access
-  bool isPioReconstruct = false; // flag indicating acces with reconstruction
-  std::vector<unsigned int> PioReconstructFsList; // list of filesystem IDs to 
-  // reconstruct
+
+  // flag indicating parallel IO access
+  bool isPio = false;
+
+  // flag indicating acces with reconstruction
+  bool isPioReconstruct = false;
+
+  // list of filesystem IDs to reconstruct
+  std::vector<unsigned int> PioReconstructFsList;
+
+  // list of filesystem IDs usable for replacmenet
+  std::vector<unsigned int> PioReplacementFsList;
 
   // of RAIN files
 
@@ -216,7 +224,7 @@ XrdMgmOfsFile::open (const char *inpath,
   // all other unavailable filesystems get reconstructed into stripes on 
   // new machines.
   // ---------------------------------------------------------------------------
-  
+
   // ---------------------------------------------------------------------------
   // discover PIO mode
   // ---------------------------------------------------------------------------
@@ -229,7 +237,7 @@ XrdMgmOfsFile::open (const char *inpath,
   // ---------------------------------------------------------------------------
   // discover PIO reconstruction mode
   // ---------------------------------------------------------------------------
-  XrdOucString sPioRecover = (openOpaque) ? 
+  XrdOucString sPioRecover = (openOpaque) ?
     openOpaque->Get("eos.pio.action") : "";
   if (sPioRecover == "reconstruct")
   {
@@ -240,12 +248,12 @@ XrdMgmOfsFile::open (const char *inpath,
     // -------------------------------------------------------------------------
     // discover PIO reconstruction filesystems (stripes to be replaced)
     // -------------------------------------------------------------------------
-    std::string sPioRecoverFs = (openOpaque) ? 
-      ( openOpaque->Get("eos.pio.recfs") ? openOpaque->Get("eos.pio.recfs"):"")
+    std::string sPioRecoverFs = (openOpaque) ?
+      (openOpaque->Get("eos.pio.recfs") ? openOpaque->Get("eos.pio.recfs") : "")
       : "";
     std::vector<std::string> fsToken;
-    eos::common::StringConversion::Tokenize(sPioRecoverFs,fsToken,",");
-    
+    eos::common::StringConversion::Tokenize(sPioRecoverFs, fsToken, ",");
+
     if (openOpaque->Get("eos.pio.recfs") && !fsToken.size())
     {
       // -----------------------------------------------------------------------
@@ -255,18 +263,21 @@ XrdMgmOfsFile::open (const char *inpath,
       return Emsg(epname, error, EINVAL, "open - you specified a list of"
                   " reconstruction filesystems but the list is empty", path);
     }
-    for (size_t i=0; i<fsToken.size(); i++)
+
+    for (size_t i = 0; i < fsToken.size(); i++)
     {
       errno = 0;
-      unsigned int rfs = (unsigned int) strtol(fsToken[i].c_str(),0, 10);
-      if (errno)
+      unsigned int rfs = (unsigned int) strtol(fsToken[i].c_str(), 0, 10);
+      XrdOucString srfs = "";
+      srfs += (int) rfs;
+      if (errno || (srfs != fsToken[i].c_str()))
       {
-        return Emsg(epname, 
-                    error, 
-                    EINVAL, 
+        return Emsg(epname,
+                    error,
+                    EINVAL,
                     "open - you specified a list of "
                     "reconstruction filesystems but "
-                    "the list contains non numerical id's", 
+                    "the list contains non numerical or illegal id's",
                     path);
       }
       // store in the reconstruction filesystem list
@@ -953,6 +964,9 @@ XrdMgmOfsFile::open (const char *inpath,
   std::vector<unsigned int> selectedfs;
   // file systems which are unavailable during a read operation
   std::vector<unsigned int> unavailfs;
+  // file systems which have been replaced with a new reconstructed stripe
+  std::vector<unsigned int> replacedfs;
+
   std::vector<unsigned int>::const_iterator sfs;
 
   int retc = 0;
@@ -1247,11 +1261,107 @@ XrdMgmOfsFile::open (const char *inpath,
     capability += (int) filesystem->GetId();
 
     eos::mgm::FileSystem* repfilesystem = 0;
+    replacedfs.resize(selectedfs.size());
+
+    // -------------------------------------------------------------------------
+    // if replacement has been specified try to get new locations for reco.
+    // -------------------------------------------------------------------------
+
+    if (isPioReconstruct && PioReconstructFsList.size())
+    {
+      const char* containertag = 0;
+      if (attrmap.count("user.tag"))
+      {
+        containertag = attrmap["user.tag"].c_str();
+      }
+
+      // -----------------------------------------------------------------------
+      // create a plain layout with the number of replacement stripes to be
+      // scheduled in the file placement routine
+      // -----------------------------------------------------------------------
+      unsigned long plainLayoutId = newlayoutId;
+      eos::common::LayoutId::SetStripeNumber(
+                                             plainLayoutId,
+                                             PioReconstructFsList.size() - 1
+                                             );
+      eos_info("nstripes=%d => nstripes=%d",
+               eos::common::LayoutId::GetStripeNumber(newlayoutId),
+               eos::common::LayoutId::GetStripeNumber(plainLayoutId));
+      // -----------------------------------------------------------------------
+      // compute the size of the stripes to be placed
+      // -----------------------------------------------------------------------
+      unsigned long long plainBookingSize =
+        fmd->getSize() /
+        (eos::common::LayoutId::GetStripeNumber(layoutId) + 1);
+      plainBookingSize += 4096;
+      plainBookingSize *= PioReconstructFsList.size();
+
+      retc = quotaspace->FilePlacement(path, vid, containertag, plainLayoutId,
+                                       selectedfs, PioReplacementFsList,
+                                       false, -1,
+                                       plainBookingSize);
+
+      if (retc)
+      {
+        // the placement didn't work, we cannot schedule reconstruction
+        gOFS->MgmStats.Add("OpenFailedReconstruct", vid.uid, vid.gid, 1);
+        return Emsg(epname, error, errno, "schedule stripes for reconstruction", path);
+      }
+
+      for (int i = 0; i < (int) PioReplacementFsList.size(); i++)
+      {
+        eos_debug("msg=\"scheduled fs for reconstruction\" rec-fsid=%lu nrecofs=%lu", PioReplacementFsList[i], PioReplacementFsList.size());
+      }
+    }
+
     // put all the replica urls into the capability
     for (int i = 0; i < (int) selectedfs.size(); i++)
     {
       if (!selectedfs[i])
         eos_err("0 filesystem in replica vector");
+
+
+      // -----------------------------------------------------------------------
+      // Logic to discover filesystems to be reconstructed
+      // -----------------------------------------------------------------------
+      bool replace = false;
+      if (isPioReconstruct)
+      {
+        for (size_t k = 0; k < PioReconstructFsList.size(); k++)
+        {
+          if (selectedfs[i] == PioReconstructFsList[k])
+          {
+            replace = true;
+            break;
+          }
+        }
+      }
+
+      if (replace)
+      {
+        if (!PioReplacementFsList.size())
+        {
+          // if we don't have found any filesystem to be used as a replacement
+          return Emsg(epname,
+                      error,
+                      EIO,
+                      "get replacement file system",
+                      path);
+        }
+        // ---------------------------------------------------------------------
+        // take one replacement filesystem from the replacement list
+        // ---------------------------------------------------------------------
+        replacedfs[i] = selectedfs[i];
+        selectedfs[i] = PioReplacementFsList.back();
+        eos_info("msg=\"replace fs\" old-fsid=%u new-fsid=%u", replacedfs[i], selectedfs[i]);
+        PioReplacementFsList.pop_back();
+      }
+      else
+      {
+        // there is no replacement happening
+        replacedfs[i] = 0;
+      }
+
       if (FsView::gFsView.mIdView.count(selectedfs[i]))
         repfilesystem = FsView::gFsView.mIdView[selectedfs[i]];
       else
@@ -1307,6 +1417,15 @@ XrdMgmOfsFile::open (const char *inpath,
       capability += (int) repfilesystem->GetId();
       if (isPio)
       {
+        if (replacedfs[i])
+        {
+          // -------------------------------------------------------------------
+          // add the drop message to the replacement capability
+          // -------------------------------------------------------------------
+          capability += "&mgm.drainfsid=";
+          capability += (int) replacedfs[i];
+        }
+
         piolist += "pio.";
         piolist += (int) i;
         piolist += "=";
