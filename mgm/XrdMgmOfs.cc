@@ -149,6 +149,10 @@ xrdmgmofs_shutdown (int sig)
   (void) signal(SIGTERM, SIG_IGN);
   (void) signal(SIGQUIT, SIG_IGN);
 
+  // avoid shutdown recursions
+  if (gOFS->Shutdown)
+    return;
+
   gOFS->Shutdown = true;
 
   // ---------------------------------------------------------------------------
@@ -227,14 +231,8 @@ xrdmgmofs_shutdown (int sig)
   }
 #endif
 
-  // ----------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop config engine ... ");
-  if (gOFS->ConfEngine)
-  {
-    delete gOFS->ConfEngine;
-    gOFS->ConfEngine = 0;
-  }
-
+  gOFS->ConfEngine->SetAutoSave(false);
+  
   // ----------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop egroup fetching ... ");
   gOFS->EgroupRefresh.Stop();
@@ -277,10 +275,6 @@ xrdmgmofs_shutdown (int sig)
   }
 
   // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: removing spaces...");
-  gOFS->ConfEngine->SetAutoSave(false);
-
-  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: cleanup quota...");
   std::map<std::string, SpaceQuota*>::const_iterator it;
   for (it = Quota::gQuota.begin(); it != Quota::gQuota.end(); it++)
@@ -288,9 +282,20 @@ xrdmgmofs_shutdown (int sig)
     delete (it->second);
   }
 
-  FsView::gFsView.Reset(); // deletes all spaces and stops balancing
+  // ----------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop config engine ... ");
+  if (gOFS->ConfEngine)
+  {
+    delete gOFS->ConfEngine;
+    gOFS->ConfEngine = 0;
+    FsView::ConfEngine = 0;
+  }
 
   // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: removing spaces...");
+  FsView::gFsView.Reset(); // deletes all spaces and stops balancing
+  // ---------------------------------------------------------------------------
+  
   eos_static_warning("Shutdown complete");
   exit(0);
 }
@@ -4035,17 +4040,10 @@ XrdMgmOfs::_touch (const char *path,
 /*
  * @brief create(touch) a no-replica file in the namespace
  * 
- * @param inpath file to delete
+ * @param path file to touch
  * @param error error object
  * @param vid virtual identity of the client
  * @param ininfo CGI
- * @param simulate indicates 'simulate deletion' e.g. it can be used as a test if a deletion would succeed
- * @return SFS_OK if success otherwise SFS_ERROR
- * 
- * Deletion supports the recycle bin if configured on the parent directory of 
- * the file to be deleted. The simulation mode is used to test if there is 
- * enough space in the recycle bin to move the object. If the simulation succeeds
- * the real deletion is executed. 
  */
 /*----------------------------------------------------------------------------*/
 {
