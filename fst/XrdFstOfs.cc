@@ -498,7 +498,6 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   ObjectManager.EnableQueue = true;
   ObjectManager.SetAutoReplyQueue("/eos/*/mgm");
   ObjectManager.SetDebug(false);
-  eos::common::Logging::SetLogPriority(LOG_INFO);
 
   // setup notification subjects
   ObjectManager.SubjectsMutex.Lock();
