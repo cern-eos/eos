@@ -220,7 +220,7 @@ XrdMgmOfsFile::open (const char *inpath,
   // On the fly reconstruction is done using PIO mode when the reconstruction
   // action is defined ('eos.pio.action=reconstruct'). The client can specify
   // a list of filesystem's which should be excluded. In case they are used
-  // in the layout they stripes on the explicitly referenced filesystems and
+  // in the layout the stripes on the explicitly referenced filesystems and
   // all other unavailable filesystems get reconstructed into stripes on 
   // new machines.
   // ---------------------------------------------------------------------------
@@ -1208,7 +1208,7 @@ XrdMgmOfsFile::open (const char *inpath,
     eos::common::LayoutId::GetId(
                                  isPio ? eos::common::LayoutId::kPlain :
                                  eos::common::LayoutId::GetLayoutType(layoutId),
-                                 eos::common::LayoutId::GetChecksum(layoutId),
+                                 isPio ? eos::common::LayoutId::kNone : eos::common::LayoutId::GetChecksum(layoutId),
                                  static_cast<int> (selectedfs.size()),
                                  eos::common::LayoutId::GetBlocksizeType(layoutId),
                                  eos::common::LayoutId::GetBlockChecksum(layoutId));
