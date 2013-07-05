@@ -43,7 +43,6 @@ add_library( EosFstOss MODULE
 
 
 target_link_libraries( EosFstOss 
-		       eosCapability-Static
 		       eosCommon
 		       XrdServer	      
 		       ${UUID_LIBRARIES}
@@ -126,52 +125,15 @@ add_library( XrdEosFst MODULE
 )
 
 
-add_library( XrdEosFst-Static STATIC
-	     XrdFstOfs.cc                   XrdFstOfs.hh
-  	     io/FileIoPlugin-Server.cc
-	     XrdFstOfsFile.cc               XrdFstOfsFile.hh
-	     storage/Balancer.cc
-	     storage/Cleaner.cc             storage/Comunicator.cc
-	     storage/Drainer.cc             storage/ErrorReport.cc
-	     storage/FileSystem.cc	    storage/MgmSyncer.cc
-	     storage/Publish.cc             storage/Remover.cc
-	     storage/Report.cc              storage/Scrub.cc
-	     storage/Storage.cc             storage/Supervisor.cc
-	     storage/Trim.cc                storage/Verify.cc
-	     Config.cc
-	     Load.cc
-	     ScanDir.cc
-	     Messaging.cc
-	     txqueue/TransferMultiplexer.cc
-	     txqueue/TransferJob.cc
-	     txqueue/TransferQueue.cc
-	     FmdSqlite.cc 
-	     FmdClient.cc
-	     HttpServer.cc
-)
-
-
 target_link_libraries( XrdEosFst 
-		       eosCapability-Static    eosCommon-Static
-		       eosCommonServer
+		       eosCommon
+		       eosCommonServer         eosCapability-Static
 		       XrdMqClient-Static      XrdCl	
 		       XrdUtils                XrdOfs 
 		       crypto                  ${NCURSES_LIBRARIES}
 		       dl                      ${Z_LIBRARIES}  
 		       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
 		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
-)
-
-
-target_link_libraries( XrdEosFst-Static
-		       eosCapability-Static    eosCommon-Static
-		       eosCommonServer-Static  
-		       XrdMqClient-Static      XrdCl
-		       XrdUtils                XrdOfs 
-		       crypto                  ${NCURSES_LIBRARIES}
-		       dl                      ${Z_LIBRARIES}  
-		       ${ATTR_LIBRARIES}       ${RT_LIBRARIES}
-                       ${UUID_LIBRARIES}       ${CMAKE_THREAD_LIBS_INIT}
 )
 
 
