@@ -102,6 +102,12 @@ public:
   std::set<eos::common::FileSystem::fsid_t> BootSet; // set containing the filesystems currently booting
   bool RunBootThread (FileSystem* fs);
 
+  // ---------------------------------------------------------------------------
+  // generic methods
+  // ---------------------------------------------------------------------------
+
+  void WaitConfigQueue (std::string & nodeconfigqueue);
+
   void Scrub ();
   void Trim ();
   void Remover ();
@@ -111,8 +117,58 @@ public:
   void Communicator ();
   void Supervisor ();
   void Publish ();
+
+  // ---------------------------------------------------------------------------
+  // balancer related methods
+  // ---------------------------------------------------------------------------
+  XrdSysCondVar balanceJobNotification;
+
   void Balancer ();
+  void GetBalanceSlotVariables (unsigned long long &nparalleltx,
+                                unsigned long long &ratex,
+                                std::string configqueue,
+                                std::string &manager);
+
+  unsigned long long GetScheduledBalanceJobs (unsigned long long totalscheduled,
+                                              unsigned long long &totalexecuted);
+
+  unsigned long long WaitFreeBalanceSlot (unsigned long long &nparalleltx,
+                                          unsigned long long &totalscheduled,
+                                          unsigned long long &totalexecuted);
+
+  bool GetFileSystemInBalanceMode (std::vector<unsigned int> &balancefsvector,
+                                   unsigned int &cycler,
+                                   unsigned long long nparalleltx,
+                                   unsigned long long ratetx);
+
+  bool GetBalanceJob (unsigned int index, std::string manager);
+
+  // ---------------------------------------------------------------------------
+  // drain related methods
+  // ---------------------------------------------------------------------------
   void Drainer ();
+  XrdSysCondVar drainJobNotification;
+
+  void GetDrainSlotVariables (unsigned long long &nparalleltx,
+                              unsigned long long &ratex,
+                              std::string configqueue,
+                              std::string &manager);
+
+  unsigned long long GetScheduledDrainJobs (unsigned long long totalscheduled,
+                                            unsigned long long &totalexecuted);
+
+  unsigned long long WaitFreeDrainSlot (unsigned long long &nparalleltx,
+                                        unsigned long long &totalscheduled,
+                                        unsigned long long &totalexecuted);
+
+  bool GetFileSystemInDrainMode (std::vector<unsigned int> &drainfsvector,
+                                 unsigned int &cycler,
+                                 unsigned long long nparalleltx,
+                                 unsigned long long ratetx);
+
+  bool GetDrainJob (unsigned int index, std::string manager);
+
+  // ---------------------------------------------------------------------------
   void Cleaner ();
   void MgmSyncer ();
 
