@@ -34,10 +34,10 @@ link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR})
 
 add_library (XrdEosMgm MODULE
             Access.cc         
-	          ConfigEngine.cc
+            ConfigEngine.cc
       	    Messaging.cc
-	          Policy.cc  
-	          ProcInterface.cc
+            Policy.cc  
+            ProcInterface.cc
             proc/proc_fs.cc
             proc/admin/Access.cc
             proc/admin/Config.cc
@@ -105,9 +105,9 @@ add_library (XrdEosMgm MODULE
 target_link_libraries( XrdEosMgm 
                        XrdCl                XrdPosix 
                        XrdUtils             XrdOfs 
-                       eosCommon-Static     eosCommonServer-Static
-                       eosNamespace-Static 
-                       eosCapability-Static XrdMqClient-Static 
+                       eosCommon            eosCommonServer
+                       eosNamespace-Static  eosCapability-Static
+                       XrdMqClient-Static 
                        crypto               ${NCURSES_LIBRARIES} 
 		       ${LDAP_LIBRARIES}
 		       dl                   ${Z_LIBRARIES}
@@ -122,8 +122,8 @@ add_executable ( testmgmview
 
 target_link_libraries ( testmgmview 
                         XrdCl             XrdUtils 
-                        eosCommon-Static  eosCommonServer-Static
-                        XrdMqClient-Static 
+                        eosCommon         eosCommonServer
+                        XrdMqClient-Static eosCapability-Static
                         crypto            ${NCURSES_LIBRARIES}
                         dl                ${Z_LIBRARIES}
                         ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
