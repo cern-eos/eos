@@ -40,6 +40,7 @@ TransferQueue::TransferQueue (eos::common::TransferQueue** queue, const char* na
   mJobsRunning = 0;
   nslots = slots;
   bandwidth = band;
+  mJobEndCallback = 0;
 }
 
 /* ------------------------------------------------------------------------- */

@@ -387,7 +387,7 @@ TransferJob::DoIt ()
     }
 
     // check if this is a reconstruction job
-    if ((mJob->GetEnv()->Get("layout.reco"))) {
+    if ((mJob->GetEnv()->Get("tx.layout.reco"))) {
       isReco = true;
     }
 

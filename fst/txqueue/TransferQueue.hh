@@ -52,8 +52,10 @@ private:
   XrdSysMutex mJobsRunningMutex;
   XrdSysMutex mBandwidthMutex;
   XrdSysMutex mSlotsMutex;
+  XrdSysMutex mCallbackMutex;
 
   XrdSysCondVar mJobTerminateCondition;
+  XrdSysCondVar* mJobEndCallback;
 
 public:
 
@@ -79,6 +81,13 @@ public:
   void SetBandwidth (size_t band);
 
   void
+  SetJobEndCallback (XrdSysCondVar* cvar)
+  {
+    XrdSysMutexHelper(mCallBackMutex);
+    mJobEndCallback = cvar;
+  }
+
+  void
   IncRunning ()
   {
     XrdSysMutexHelper(mJobsRunningMutex);
@@ -92,6 +101,13 @@ public:
     mJobsRunning--;
     // signal threads waiting for a job to finish
     mJobTerminateCondition.Signal();
+
+    // signal a call-back condition variable
+    {
+      XrdSysMutexHelper(mCallBackMutex);
+      if (mJobEndCallback)
+        mJobEndCallback->Signal();
+    }
   }
 
   size_t
