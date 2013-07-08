@@ -62,7 +62,7 @@ mBookingOpaque (bookingOpaque)
 {
  mStripeWidth = eos::common::LayoutId::GetBlocksize(lid);
  mNbTotalFiles = eos::common::LayoutId::GetStripeNumber(lid) + 1;
- mNbParityFiles = 2; //TODO: fix this, by adding more info to the layout ?!
+ mNbParityFiles = eos::common::LayoutId::GetRedundancyStripeNumber(lid);
  mNbDataFiles = mNbTotalFiles - mNbParityFiles;
  mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
  mOffGroupParity = -1;
@@ -1049,26 +1049,32 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 // Compute and write parity blocks to files
 //------------------------------------------------------------------------------
-
-void
+bool
 RaidMetaLayout::DoBlockParity (off_t offsetGroup)
 {
- eos::common::Timing up("parity");
- COMMONTIMING("Compute-In", &up);
+  bool done;
+  eos::common::Timing up("parity");
+  COMMONTIMING("Compute-In", &up);
+  
+  //............................................................................
+  // Compute parity blocks
+  //............................................................................
+  if ((done = ComputeParity()))
+  {
+   COMMONTIMING("Compute-Out", &up);
 
- //............................................................................
- // Compute parity blocks
- //............................................................................
- ComputeParity();
- COMMONTIMING("Compute-Out", &up);
+   //...........................................................................
+   // Write parity blocks to files
+   //...........................................................................
+   if (WriteParityToFiles(offsetGroup) == SFS_ERROR)
+     done = false;
+  
+   COMMONTIMING("WriteParity", &up);
+   mFullDataBlocks = false;
+  }
 
- //............................................................................
- // Write parity blocks to files
- //............................................................................
- WriteParityToFiles(offsetGroup);
- COMMONTIMING("WriteParity", &up);
- mFullDataBlocks = false;
- //  up.Print();
+  //  up.Print();
+  return done;
 }
 
 
@@ -1349,7 +1355,7 @@ RaidMetaLayout::GetOffsetGroups (std::set<off_t>& offsetGroups, bool forceAll)
 bool
 RaidMetaLayout::SparseParityComputation (bool force)
 {
- bool ret = true;
+ bool done = true;
  std::set<off_t> offset_groups;
 
  if (mMapPieces.empty()) return false;
@@ -1363,16 +1369,17 @@ RaidMetaLayout::SparseParityComputation (bool force)
  {
    if (ReadGroup(static_cast<off_t> (*it)))
    {
-     DoBlockParity(*it);
+     done = DoBlockParity(*it);
+     if (!done) break;
    }
    else
    {
-     ret = false;
+     done = false;
      break;
    }
  }
 
- return ret;
+ return done;
 }
 
 
@@ -1588,7 +1595,11 @@ RaidMetaLayout::Close ()
          if ((mOffGroupParity != -1) &&
              (mOffGroupParity < static_cast<off_t> (mFileSize)))
          {
-           DoBlockParity(mOffGroupParity);
+           if (!DoBlockParity(mOffGroupParity))
+           {
+             eos_err("error=failed to do last group parity");
+             rc = SFS_ERROR;
+           }
          }
        }
        else

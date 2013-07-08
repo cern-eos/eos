@@ -285,8 +285,11 @@ protected:
   //!
   //! @param offsetGroup offset of group of blocks
   //!
+  //! @return true if successfully computed the parity and wrote it to the
+  //!         corresponding files, otherwise false
+  //!
   //--------------------------------------------------------------------------
-  virtual void DoBlockParity (off_t offsetGroup);
+  virtual bool DoBlockParity (off_t offsetGroup);
 
 
   //--------------------------------------------------------------------------
@@ -316,10 +319,13 @@ protected:
   virtual void AddDataBlock (off_t offset, const char* buffer, size_t length) = 0;
 
 
-  //--------------------------------------------------------------------------
-  //! Compute parity information for a group of blocks
-  //--------------------------------------------------------------------------
-  virtual void ComputeParity () = 0;
+  //----------------------------------------------------------------------------
+  //! Compute error correction blocks
+  //!
+  //! @return true if parity info computed successfully, otherwise false
+  //!
+  //----------------------------------------------------------------------------
+  virtual bool ComputeParity () = 0;
 
 
   //--------------------------------------------------------------------------

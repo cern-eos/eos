@@ -157,13 +157,27 @@ public:
          int excessreplicas = 0,
          int redundancystripes = 0)
   {
-    return ( checksum |
-            ((layout & 0xf) << 4) |
-            (((stripesize - 1) & 0xf) << 8) |
-            ((stripewidth & 0xf) << 16) |
-            ((blockchecksum & 0xf) << 20) |
-            ((excessreplicas & 0xf) << 24) |
-            ((redundancystripes & 0x7) << 28));
+    unsigned long id = (checksum |
+                        ((layout & 0xf) << 4) |
+                        (((stripesize - 1) & 0xf) << 8) |
+                        ((stripewidth & 0xf) << 16) |
+                        ((blockchecksum & 0xf) << 20) |
+                        ((excessreplicas & 0xf) << 24));
+  
+    // Set the number of parity stripes depending on the layout type if not
+    // already set explicitly
+    if (redundancystripes == 0)
+    {
+      if (layout == kRaidDP)
+        redundancystripes = 2;
+      else if (layout == kRaid6)
+        redundancystripes = 2;
+      else if (layout == kArchive)
+        redundancystripes = 3;
+    }
+        
+    id |= ((redundancystripes & 0x7) << 28);    
+    return id;
   }
 
 
