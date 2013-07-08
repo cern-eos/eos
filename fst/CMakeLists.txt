@@ -68,11 +68,11 @@ add_library( EosFstIo-Static STATIC
 	     layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
 	     layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
 	     layout/ReedSLayout.cc          layout/ReedSLayout.hh
-	     layout/jerasure/jerasure.cc    layout/jerasure/jerasure.hh
-	     layout/jerasure/reed_sol.cc    layout/jerasure/reed_sol.hh
-	     layout/jerasure/liberation.cc  layout/jerasure/liberation.hh
-	     layout/jerasure/galois.cc	    layout/jerasure/galois.hh
-	     layout/jerasure/cauchy.cc      layout/jerasure/cauchy.hh
+	     layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
+	     layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
+	     layout/jerasure/liberation.cc      layout/jerasure/liberation.hh
+	     layout/jerasure/galois.cc	        layout/jerasure/galois.hh
+	     layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
 )
 
 target_link_libraries( EosFstIo-Static
@@ -126,11 +126,11 @@ add_library( XrdEosFst MODULE
 	     FmdSqlite.cc
 	     FmdClient.cc 
 	     HttpServer.cc
-	     layout/jerasure/jerasure.cc    layout/jerasure/jerasure.hh
-	     layout/jerasure/reed_sol.cc    layout/jerasure/reed_sol.hh
-	     layout/jerasure/liberation.cc  layout/jerasure/liberation.hh
-	     layout/jerasure/galois.cc	    layout/jerasure/galois.hh
-	     layout/jerasure/cauchy.cc      layout/jerasure/cauchy.hh
+	     layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
+	     layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
+	     layout/jerasure/liberation.cc      layout/jerasure/liberation.hh
+	     layout/jerasure/galois.cc	        layout/jerasure/galois.hh
+	     layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
 )
 
 
