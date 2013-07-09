@@ -461,8 +461,9 @@ TransferJob::DoIt ()
     }
   }
 
-  if (mDestination.beginswith("root://"))
+  if (mDestination.beginswith("root://")  || (mDestination == "/dev/null"))
   {
+    // RAIN reconstruction uses /dev/null as eoscp-target !
     if ((mSource.beginswith("as3://")) ||
         (mSource.beginswith("http://")) ||
         (mSource.beginswith("https://")) ||

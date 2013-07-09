@@ -49,6 +49,8 @@ private:
   size_t nslots, bandwidth;
 
   size_t mJobsRunning;
+  unsigned long long mJobsDone;
+
   XrdSysMutex mJobsRunningMutex;
   XrdSysMutex mBandwidthMutex;
   XrdSysMutex mSlotsMutex;
@@ -99,6 +101,7 @@ public:
   {
     XrdSysMutexHelper(mJobsRunningMutex);
     mJobsRunning--;
+    mJobsDone++;
     // signal threads waiting for a job to finish
     mJobTerminateCondition.Signal();
 
@@ -119,6 +122,17 @@ public:
       nrun = mJobsRunning;
     }
     return nrun;
+  }
+
+  unsigned long long
+  GetDone ()
+  {
+    size_t ndone = 0;
+    {
+      XrdSysMutexHelper(mJobsRunningMutex);
+      ndone = mJobsDone;
+    }
+    return ndone;
   }
 
   size_t

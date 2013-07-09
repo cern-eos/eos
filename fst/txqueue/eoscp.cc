@@ -741,7 +741,7 @@ main (int argc, char* argv[])
     }
   }
 
-  if (debug) 
+  if (debug)
   {
     eos::common::Logging::Init();
     eos::common::Logging::SetLogPriority(LOG_DEBUG);
@@ -881,7 +881,7 @@ main (int argc, char* argv[])
           XrdCl::Buffer* response = 0;
           XrdCl::XRootDStatus status;
           file_path = src_location[i].first + src_location[i].second;
-          
+
           if (file_path.find("//eos/") != std::string::npos)
           {
             // for any other URL it does not make sense to do the PIO access
@@ -894,20 +894,20 @@ main (int argc, char* argv[])
           size_t spos = file_path.rfind("//");
           std::string address = file_path.substr(0, spos + 1);
           XrdCl::URL url(address);
-          
+
           if (!url.IsValid())
           {
             fprintf(stderr, "URL is invalid: %s", address.c_str());
             exit(-1);
           }
-          
+
           XrdCl::FileSystem fs(url);
-          
+
           if (spos != std::string::npos)
           {
             file_path.erase(0, spos + 1);
           }
-          
+
           std::string request = file_path;
           if ((file_path.find("?") == std::string::npos))
           {
@@ -918,18 +918,18 @@ main (int argc, char* argv[])
             request += "&mgm.pcmd=open";
           }
           arg.FromString(request);
-          
+
           st[0].st_size = 0;
           st[0].st_mode = 0;
-          
+
           if (doPIO)
             status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
-                    
+
           if (doPIO && status.IsOK())
           {
             XrdCl::StatInfo* statresponse = 0;
             status = fs.Stat(file_path.c_str(), statresponse);
-            
+
             if (status.IsOK())
             {
               st[0].st_size = statresponse->GetSize();
@@ -939,9 +939,9 @@ main (int argc, char* argv[])
                 st[0].st_mode |= S_IWGRP;
               }
             }
-            
+
             delete statresponse;
-            
+
             //..................................................................
             // Parse output
             //..................................................................
@@ -950,23 +950,23 @@ main (int argc, char* argv[])
               fprintf(stderr, "[eoscp] having PIO_ACCESS for source location=%i size=%llu \n",
                       i, (unsigned long long) st[0].st_size);
             }
-            
+
             XrdOucString tag;
             XrdOucString stripe_path;
             XrdOucString origResponse = response->GetBuffer();
             XrdOucString stringOpaque = response->GetBuffer();
-            
+
             while (stringOpaque.replace("?", "&"))
             {
             }
             while (stringOpaque.replace("&&", "&"))
             {
             }
-            
+
             XrdOucEnv* openOpaque = new XrdOucEnv(stringOpaque.c_str());
             char* opaque_info = (char*) strstr(origResponse.c_str(), "&mgm.logid");
             opaqueInfo = opaque_info;
-            
+
             //..................................................................
             // Now that parallel IO is possible, we add the new stripes to the
             // src_location vector, we update the number of source files and then
@@ -978,7 +978,7 @@ main (int argc, char* argv[])
               opaque_info += 2;
               LayoutId::layoutid_t layout = openOpaque->GetInt("mgm.lid");
               std::string orig_file = file_path;
-            
+
               if (eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kRaidDP)
               {
                 nsrc = eos::common::LayoutId::GetStripeNumber(layout) + 1;
@@ -990,19 +990,19 @@ main (int argc, char* argv[])
               else
                 if ((eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kArchive) ||
                     (eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kRaid6))
-                {
-                  nsrc = eos::common::LayoutId::GetStripeNumber(layout) + 1;
-                  isRaidTransfer = true;
-                  isSrcRaid = true;
-                  src_location.clear();
-                  replicationType = "reedS";
-                }
-                else
-                {
-                  nsrc = 1;
-                  src_type.push_back(XRD_ACCESS);
-                  replicationType = "replica";
-                }
+              {
+                nsrc = eos::common::LayoutId::GetStripeNumber(layout) + 1;
+                isRaidTransfer = true;
+                isSrcRaid = true;
+                src_location.clear();
+                replicationType = "reedS";
+              }
+              else
+              {
+                nsrc = 1;
+                src_type.push_back(XRD_ACCESS);
+                replicationType = "replica";
+              }
 
 
               if (replicationType != "replica")
@@ -1016,7 +1016,7 @@ main (int argc, char* argv[])
                   stripe_path += "/";
                   stripe_path += orig_file.c_str();
                   int pos = stripe_path.rfind("//");
-                  
+
                   if (pos == STR_NPOS)
                   {
                     address = "";
@@ -1027,10 +1027,10 @@ main (int argc, char* argv[])
                     address = std::string(stripe_path.c_str(), 0, pos + 1);
                     file_path = std::string(stripe_path.c_str(), pos + 1, stripe_path.length() - pos - 1);
                   }
-                  
+
                   src_location.push_back(std::make_pair(address, file_path));
                   src_type.push_back(RAID_ACCESS);
-                  
+
                   if (verbose || debug)
                   {
                     fprintf(stdout, "[eoscp] src<%d>=%s [%s]\n", i,
@@ -1051,7 +1051,7 @@ main (int argc, char* argv[])
               fprintf(stderr, "Error while parsing the opaque information from PIO request.\n");
               exit(-1);
             }
-            
+
             delete openOpaque;
             delete response;
             break;
@@ -1063,7 +1063,7 @@ main (int argc, char* argv[])
             //.....................................................................
             src_type.push_back(XRD_ACCESS);
           }
-          
+
           delete response;
         }
         else
@@ -1079,7 +1079,7 @@ main (int argc, char* argv[])
     else if (src_location[i].second == "-")
     {
       src_type.push_back(CONSOLE_ACCESS);
-      
+
       if (i > 0)
       {
         fprintf(stderr, "error: you cannot read with several sources from stdin\n");
@@ -1201,7 +1201,7 @@ main (int argc, char* argv[])
           XrdCl::FileSystem fs(url);
           XrdCl::StatInfo* response = 0;
           status = fs.Stat(src_location[i].second, response);
-          
+
           if (!status.IsOK())
           {
             stat_failed = 1;
@@ -1631,17 +1631,22 @@ main (int argc, char* argv[])
       }
 
       location = src_location[i].first + src_location[i].second;
-      
+
       if (doStoreRecovery)
-        location += "?fst.store=1";
-        
+      {
+        if ((location.find("?") == std::string::npos))
+          location += "?fst.store=1";
+        else
+          location += "&fst.store=1";
+      }
+      
       XrdCl::File* file = new XrdCl::File();
       status = file->Open(location, XrdCl::OpenFlags::Read);
       if (!status.IsOK())
       {
-	std::string errmsg;
-	errmsg = status.GetErrorMessage();
-	fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo,errmsg.c_str());
+        std::string errmsg;
+        errmsg = status.GetErrorMessage();
+        fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
         exit(-status.errNo);
       }
 
@@ -1660,7 +1665,7 @@ main (int argc, char* argv[])
     {
       std::string errmsg;
       errmsg = status.GetErrorMessage();
-      fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo,errmsg.c_str());
+      fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
       exit(-status.errNo);
     }
 
@@ -1852,9 +1857,9 @@ main (int argc, char* argv[])
 
       if (!status.IsOK())
       {
-	std::string errmsg;
-	errmsg = status.GetErrorMessage();
-	fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo,errmsg.c_str());
+        std::string errmsg;
+        errmsg = status.GetErrorMessage();
+        fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
         exit(-status.errNo);
       }
 
@@ -1874,7 +1879,7 @@ main (int argc, char* argv[])
     {
       std::string errmsg;
       errmsg = status.GetErrorMessage();
-      fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo,errmsg.c_str());
+      fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
       exit(-status.errNo);
     }
 
@@ -1933,10 +1938,10 @@ main (int argc, char* argv[])
       //........................................................................
       // If not specified on the command line, take the source mode
       //........................................................................
-      if (S_ISREG(dstst[i].st_mode)) 
+      if (S_ISREG(dstst[i].st_mode))
       {
-	// only for files !
-	dest_mode[i] = st[0].st_mode;
+        // only for files !
+        dest_mode[i] = st[0].st_mode;
       }
     }
 
@@ -1944,7 +1949,7 @@ main (int argc, char* argv[])
     {
     case LOCAL_ACCESS:
     {
-      if ( (S_ISREG(dstst[i].st_mode) && (dst_location[i].second.substr(0, 5) != "/dev/")) )
+      if ((S_ISREG(dstst[i].st_mode) && (dst_location[i].second.substr(0, 5) != "/dev/")))
       {
         chmod_failed = chmod(dst_location[i].second.c_str(), dest_mode[i]);
 
@@ -2155,12 +2160,12 @@ main (int argc, char* argv[])
       if (dst_handler[i].second)
       {
         ptr_handler = static_cast<eos::fst::AsyncMetaHandler*> (
-            dst_handler[i].second->GetAsyncHandler());
+                                                                dst_handler[i].second->GetAsyncHandler());
 
         if (ptr_handler)
         {
           uint16_t error_type = ptr_handler->WaitOK();
-          
+
           if (error_type != XrdCl::errNone)
           {
             fprintf(stderr, "Error while doing the asyn writing.\n");

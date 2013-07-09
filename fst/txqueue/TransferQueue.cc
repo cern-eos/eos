@@ -38,6 +38,7 @@ TransferQueue::TransferQueue (eos::common::TransferQueue** queue, const char* na
   mQueue = queue;
   mName = name;
   mJobsRunning = 0;
+  mJobsDone = 0;
   nslots = slots;
   bandwidth = band;
   mJobEndCallback = 0;
