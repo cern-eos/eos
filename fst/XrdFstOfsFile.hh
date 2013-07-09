@@ -333,7 +333,8 @@ protected:
   struct timeval wTime; //! sum time to serve write requests in ms
   XrdOucString tIdent; //! tident
 
-
+  
+  struct stat updateStat; //! stat struct to check if a file is updated between open-close
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------

@@ -374,7 +374,7 @@ XrdFstOfsFile::open (const char* path,
     if (action == "reconstruct")
       isReconstruction = true;
   }
-  
+
   int caprc = 0;
 
   //.............................................................................
@@ -585,7 +585,7 @@ XrdFstOfsFile::open (const char* path,
 
   struct stat statinfo;
 
-  if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &statinfo)))
+  if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &updateStat)))
   {
     //..........................................................................
     // File does not exist, keep the create lfag
@@ -595,7 +595,7 @@ XrdFstOfsFile::open (const char* path,
     //..........................................................................
     // Used to indicate if a file was written in the meanwhile by someone else
     //..........................................................................
-    statinfo.st_mtime = 0;
+    updateStat.st_mtime = 0;
     // force the create flag
     open_mode |= SFS_O_CREAT;
   }
@@ -830,7 +830,7 @@ XrdFstOfsFile::open (const char* path,
     {
       // in a RAID-like layout if the header is corrupted there is no way to know
       // the size of the initial file, therefore we take the value from the DB
-      if (!isReconstruction) 
+      if (!isReconstruction)
       {
         openSize = fMd->fMd.size;
       }
@@ -1179,6 +1179,53 @@ int
 XrdFstOfsFile::closeofs ()
 {
   int rc = 0;
+
+  bool fileExists = true;
+
+  struct stat statinfo;
+  if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo)))
+  {
+    fileExists = false;
+  }
+
+  // ---------------------------------------------------------------------------
+  // check if the file could have been changed in the meanwhile ...
+  // ---------------------------------------------------------------------------
+  if (fileExists && isReplication && (!isRW))
+  {
+    // -------------------------------------------------------------------------
+    gOFS.OpenFidMutex.Lock();
+    if (gOFS.WOpenFid[fsid].count(fileid))
+    {
+      if (gOFS.WOpenFid[fsid][fileid] > 0)
+      {
+        eos_err("file is now open for writing -"
+                " discarding replication [wopen=%d]",
+                gOFS.WOpenFid[fsid][fileid]);
+
+        gOFS.Emsg("closeofs",
+                  error,
+                  EIO,
+                  "guarantee correctness - "
+                  "file has been opened for writing during replication",
+                  Path.c_str());
+
+        rc = SFS_ERROR;
+      }
+    }
+    gOFS.OpenFidMutex.UnLock();
+    // -------------------------------------------------------------------------
+
+    if ((statinfo.st_mtime != updateStat.st_mtime))
+    {
+      eos_err("file has been modified during replication");
+      rc = SFS_ERROR;
+      gOFS.Emsg("closeofs", error, EIO, "guarantee correctness -"
+                "file has been modified during replication", Path.c_str());
+    }
+  }
+
+
   rc |= XrdOfsFile::close();
   return rc;
 }
@@ -1203,15 +1250,17 @@ XrdFstOfsFile::verifychecksum ()
 
     if (checkSum->NeedsRecalculation())
     {
-      if ((!isRW) && ((sFwdBytes + sBwdBytes) || (checkSum->GetMaxOffset() != openSize)) && hasBlockXs)
+      if ((!isRW) && ((sFwdBytes + sBwdBytes)
+                      || (checkSum->GetMaxOffset() != openSize)) && hasBlockXs)
       {
-        //............................................................................
+        //......................................................................
         // we don't rescan files if they are read non-sequential or only partially
-        //............................................................................
-        eos_debug("info=\"skipping checksum (re-scan) for non-sequential reading ...\"");
-        //............................................................................
+        //......................................................................
+        eos_debug("info=\"skipping checksum (re-scan) "
+                  "for non-sequential reading ...\"");
+        //......................................................................
         // remove the checksum object
-        //............................................................................
+        //......................................................................
         delete checkSum;
         checkSum = 0;
         return false;
@@ -2713,7 +2762,7 @@ XrdFstOfsFile::truncateofs (XrdSfsFileOffset fileOffset)
   // truncation moves the max offset written
   eos_debug("value=%llu", (unsigned long long) fileOffset);
   maxOffsetWritten = fileOffset;
-  
+
   struct stat buf;
   // stat the current file size
   if (!::stat(fstPath.c_str(), &buf))
