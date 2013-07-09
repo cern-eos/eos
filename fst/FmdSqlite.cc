@@ -812,7 +812,7 @@ FmdSqliteHandler::UpdateFromMgm (eos::common::FileSystem::fsid_t fsid, eos::comm
 
     if (FmdSqliteMap[fsid][fid].checksum != "none")
       FmdSqliteMap[fsid][fid].checksum.erase(eos::common::LayoutId::GetChecksumLen(lid)*2);
-    
+
     return CommitFromMemory(fid, fsid);
   }
   else
@@ -1439,48 +1439,58 @@ FmdSqliteHandler::GetInconsistencyStatistics (eos::common::FileSystem::fsid_t fs
         }
       }
 
-      if (it->second.mgmsize != 0xfffffffffff1ULL)
+      eos::common::LayoutId::layoutid_t lid = it->second.lid;
+      
+      if (((eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaidDP) &&
+           (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaid6) &&
+           (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kArchive)))
       {
-        statistics["m_sync_n"]++;
-        if (it->second.size != 0xfffffffffff1ULL)
+        // ---------------------------------------------------------------------
+        // this checks make onLy sense for replica layouts
+        // ---------------------------------------------------------------------
+        if (it->second.mgmsize != 0xfffffffffff1ULL)
         {
-          if (it->second.size != it->second.mgmsize)
+          statistics["m_sync_n"]++;
+          if (it->second.size != 0xfffffffffff1ULL)
           {
-            statistics["m_mem_sz_diff"]++;
-            fidset["m_mem_sz_diff"].insert(it->second.fid);
+            if (it->second.size != it->second.mgmsize)
+            {
+              statistics["m_mem_sz_diff"]++;
+              fidset["m_mem_sz_diff"].insert(it->second.fid);
+            }
+          }
+        }
+
+        if (!it->second.layouterror)
+        {
+          if (it->second.size && it->second.diskchecksum.length() && (it->second.diskchecksum != it->second.checksum))
+          {
+            statistics["d_cx_diff"]++;
+            fidset["d_cx_diff"].insert(it->second.fid);
+          }
+
+          if (it->second.size && it->second.mgmchecksum.length() && (it->second.mgmchecksum != it->second.checksum))
+          {
+            statistics["m_cx_diff"]++;
+            fidset["m_cx_diff"].insert(it->second.fid);
+          }
+        }
+
+        if (it->second.disksize != 0xfffffffffff1ULL)
+        {
+          statistics["d_sync_n"]++;
+          if (it->second.size != 0xfffffffffff1ULL)
+          {
+            if (it->second.size != it->second.disksize)
+            {
+
+              statistics["d_mem_sz_diff"]++;
+              fidset["d_mem_sz_diff"].insert(it->second.fid);
+            }
           }
         }
       }
-
-      if (!it->second.layouterror)
-      {
-        if (it->second.size && it->second.diskchecksum.length() && (it->second.diskchecksum != it->second.checksum))
-        {
-          statistics["d_cx_diff"]++;
-          fidset["d_cx_diff"].insert(it->second.fid);
-        }
-
-        if (it->second.size && it->second.mgmchecksum.length() && (it->second.mgmchecksum != it->second.checksum))
-        {
-          statistics["m_cx_diff"]++;
-          fidset["m_cx_diff"].insert(it->second.fid);
-        }
-      }
-
       statistics["mem_n"]++;
-
-      if (it->second.disksize != 0xfffffffffff1ULL)
-      {
-        statistics["d_sync_n"]++;
-        if (it->second.size != 0xfffffffffff1ULL)
-        {
-          if (it->second.size != it->second.disksize)
-          {
-            statistics["d_mem_sz_diff"]++;
-            fidset["d_mem_sz_diff"].insert(it->second.fid);
-          }
-        }
-      }
     }
   }
   return true;
@@ -1526,6 +1536,7 @@ FmdSqliteHandler::ResetDB (eos::common::FileSystem::fsid_t fsid)
   }
   else
   {
+
     rc = false;
   }
   return rc;
@@ -1556,6 +1567,7 @@ FmdSqliteHandler::TrimDBFile (eos::common::FileSystem::fsid_t fsid, XrdOucString
   // cleanup/compact the DB file
   if (sqlite3_exec(DB[fsid], "VACUUM;", 0, 0, &ErrMsg) != SQLITE_OK)
   {
+
     eos_err("unable to run VACCUM - msg=%s", ErrMsg);
     return false;
   }
