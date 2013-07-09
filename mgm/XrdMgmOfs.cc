@@ -4590,7 +4590,6 @@ XrdMgmOfs::FSctl (const int cmd,
       // execute adjust replica                                                                                                                                                                            
       eos::common::Mapping::VirtualIdentity vid;
       eos::common::Mapping::Root(vid);
-      XrdOucErrInfo error;
 
       // execute a proc command                                                                                                                                                                            
       ProcCommand Cmd;
@@ -6548,9 +6547,9 @@ XrdMgmOfs::FSctl (const int cmd,
                                                                     long long unsigned) 0,
                                                             unavailfs)))
                   {
-                    // inaccessible files we let retry after 60 minutes
+                    // inaccessible files we let retry after 60 seconds
                     eos_thread_err("cmd=schedule2drain msg=\"no access to file %llx retc=%d\"", fid, retc);
-                    sScheduledFid[fid] = time(NULL) + 3600;
+                    sScheduledFid[fid] = time(NULL) + 60;
                     // try with next file
                     fit++;
                     continue;
@@ -6686,16 +6685,12 @@ XrdMgmOfs::FSctl (const int cmd,
                       target_cap += hexfid;
                       fullcapability += source_cap;
                       fullcapability += target_cap;
-                      // send submitted response
-                      XrdOucString response = "submitted";
-                      error.setErrInfo(response.length() + 1, response.c_str());
                     }
-
+                      
                     if (source_capabilityenv)
                       delete source_capabilityenv;
                     if (target_capabilityenv)
                       delete target_capabilityenv;
-
                   }
                   else
                   {
@@ -6718,10 +6713,15 @@ XrdMgmOfs::FSctl (const int cmd,
                       // this file fits
                       sScheduledFid[fid] = time(NULL) + 3600;
                     }
+                    
+                    // send submitted response
+                    XrdOucString response = "submitted";
+                    error.setErrInfo(response.length() + 1, response.c_str());
                   }
                   else
                   {
                     eos_thread_err("cmd=schedule2drain msg=\"failed to submit job\" job=%s", fullcapability.c_str());
+                    error.setErrInfo(0, "");
                   }
                 }
 
