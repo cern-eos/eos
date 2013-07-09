@@ -1151,8 +1151,13 @@ XrdMgmOfsFile::open (const char *inpath,
     {
       if (isCreation)
       {
-        // we will remove the created file in the namespace
-        gOFS->_rem(cPath.GetPath(), error, vid, 0);
+        // ---------------------------------------------------------------------
+        // we will remove the created file in the namespace as root
+        // since somebody could have a no-delete ACL
+        // ---------------------------------------------------------------------
+        eos::common::Mapping::VirtualIdentity vidroot;
+        eos::common::Mapping::Root(vidroot);
+        gOFS->_rem(cPath.GetPath(),error, vidroot, 0);
       }
 
       gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
