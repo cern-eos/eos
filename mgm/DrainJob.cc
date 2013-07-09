@@ -114,7 +114,6 @@ DrainJob::SetDrainer ()
 /*----------------------------------------------------------------------------*/
 {
   FileSystem* fs = 0;
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   fs = 0;
   if (FsView::gFsView.mIdView.count(mFsId))
     fs = FsView::gFsView.mIdView[mFsId];
