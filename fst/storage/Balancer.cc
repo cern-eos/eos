@@ -87,15 +87,20 @@ Storage::GetScheduledBalanceJobs (unsigned long long totalscheduled,
 
     // sum up the current execution state e.g. 
     // number of jobs taken from the queue
+
+    // sum up the current execution state e.g. number of jobs taken from the queue
     for (unsigned int s = 0; s < nfs; s++)
     {
       if (s < fileSystemsVector.size())
       {
-        totalexecuted += 
-          fileSystemsVector[s]->GetBalanceQueue()->GetQueue()->GetJobCount();
+        totalexecuted += fileSystemsVector[s]->GetBalanceQueue()->GetDone();
       }
     }
-    nscheduled = totalscheduled - totalexecuted;
+    if (totalscheduled < totalexecuted)
+      nscheduled = 0;
+
+    else
+      nscheduled = totalscheduled - totalexecuted;
   }
 
   return nscheduled;
@@ -193,7 +198,7 @@ Storage::GetFileSystemInBalanceMode (std::vector<unsigned int> &balancefsvector,
       // store our notification condition variable
       fileSystemsVector[index]->
         GetBalanceQueue()->SetJobEndCallback(&balanceJobNotification);
-      
+
       // configure the proper rates and slots
       if (fileSystemsVector[index]->GetBalanceQueue()->GetBandwidth() != ratetx)
       {
@@ -224,8 +229,8 @@ Storage::GetFileSystemInBalanceMode (std::vector<unsigned int> &balancefsvector,
           (full))
       {
         // skip this one in bad state
-        eos_static_debug("FileSystem %lu status=%u configstatus=%u", 
-                         bootstatus, 
+        eos_static_debug("FileSystem %lu status=%u configstatus=%u",
+                         bootstatus,
                          configstatus);
         continue;
       }
@@ -339,7 +344,7 @@ Storage::Balancer ()
       // we can lay back for a minute if we have no drainer in our group
       sleeper.Snooze(60);
     }
-    
+
     GetBalanceSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
 
     // -------------------------------------------------------------------------
@@ -360,70 +365,82 @@ Storage::Balancer ()
 
     // ************************************************************************>
     // read lock the file system vector from now on 
-
-    eos::common::RWMutexReadLock lock(fsMutex);
-
-    if (!GetFileSystemInBalanceMode(balancefsindex,
-                                    cycler,
-                                    nparalleltx,
-                                    ratetx)
-        )
     {
-      noBalancer = true;
-      continue;
-    }
+      eos::common::RWMutexReadLock lock(fsMutex);
 
-    balancefsindexSchedulingFailed.resize(balancefsindex.size());
-
-    // -------------------------------------------------------------------------
-    // -- 4 --
-    // cycle over all filesystems until all slots are filled or
-    // none can schedule anymore
-    // -------------------------------------------------------------------------
-
-    size_t slotstofill = nparalleltx - nscheduled;
-    bool stillGotOneScheduled;
-
-    do
-    {
-      stillGotOneScheduled = false;
-      for (size_t i = 0; i < balancefsindex.size(); i++)
+      if (!GetFileSystemInBalanceMode(balancefsindex,
+                                      cycler,
+                                      nparalleltx,
+                                      ratetx)
+          )
       {
-        // ---------------------------------------------------------------------
-        // skip indices where we know we couldn't schedule
-        // ---------------------------------------------------------------------
-        if (balancefsindexSchedulingFailed[i])
-          continue;
+        noBalancer = true;
+        continue;
+      }
+      else
+      {
+        noBalancer = false;
+      }
 
-        // ---------------------------------------------------------------------
-        // skip filesystems where the scheduling has been blocked for some time
-        // ---------------------------------------------------------------------
-        if ((balancefsindexSchedulingTime.count(balancefsindex[i])) &&
-            (balancefsindexSchedulingTime[balancefsindex[i]] > time(NULL)))
-          continue;
+      balancefsindexSchedulingFailed.resize(balancefsindex.size());
 
+      // -------------------------------------------------------------------------
+      // -- 4 --
+      // cycle over all filesystems until all slots are filled or
+      // none can schedule anymore
+      // -------------------------------------------------------------------------
 
-        // ---------------------------------------------------------------------
-        // try to get a balancejob for the indexed filesystem
-        // ---------------------------------------------------------------------
-        if (GetDrainJob(balancefsindex[i], manager))
+      size_t slotstofill = ((nparalleltx - nscheduled) > 0) ?
+        (nparalleltx - nscheduled) : 0;
+
+      bool stillGotOneScheduled;
+
+      if (slotstofill)
+      {
+        do
         {
-          balancefsindexSchedulingTime[balancefsindex[i]] = 0;
-          totalscheduled++;
-          stillGotOneScheduled = true;
-          slotstofill--;
+          stillGotOneScheduled = false;
+          for (size_t i = 0; i < balancefsindex.size(); i++)
+          {
+            // ---------------------------------------------------------------------
+            // skip indices where we know we couldn't schedule
+            // ---------------------------------------------------------------------
+            if (balancefsindexSchedulingFailed[i])
+              continue;
+
+            // ---------------------------------------------------------------------
+            // skip filesystems where the scheduling has been blocked for some time
+            // ---------------------------------------------------------------------
+            if ((balancefsindexSchedulingTime.count(balancefsindex[i])) &&
+                (balancefsindexSchedulingTime[balancefsindex[i]] > time(NULL)))
+              continue;
+
+
+            // ---------------------------------------------------------------------
+            // try to get a balancejob for the indexed filesystem
+            // ---------------------------------------------------------------------
+            if (GetDrainJob(balancefsindex[i], manager))
+            {
+              balancefsindexSchedulingTime[balancefsindex[i]] = 0;
+              totalscheduled++;
+              stillGotOneScheduled = true;
+              slotstofill--;
+            }
+            else
+            {
+              balancefsindexSchedulingFailed[i] = true;
+              balancefsindexSchedulingTime[balancefsindex[i]] = time(NULL) + 60;
+            }
+            // we stop if we have all slots full
+            if (!slotstofill)
+              break;
+          }
         }
-        else
-        {
-          balancefsindexSchedulingFailed[i] = true;
-          balancefsindexSchedulingTime[balancefsindex[i]] = time(NULL) + 60;
-        }
+        while (slotstofill && stillGotOneScheduled);
       }
     }
-    while (slotstofill && stillGotOneScheduled);
-
-    balanceJobNotification.Wait(1);
     // ************************************************************************>
+    balanceJobNotification.Wait(1);
   }
 }
 
