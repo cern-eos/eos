@@ -454,7 +454,7 @@ Master::Supervisor ()
         else
         {
           // check if we have two master-rw
-          if (fRemoteMasterOk && fRemoteMasterRW)
+          if (fRemoteMasterOk && fRemoteMasterRW && (fThisHost != fRemoteHost))
           {
             MasterLog(eos_crit("msg=\"dual RW master setup detected\""));
             Access::gStallRules[std::string("w:*")] = "60";
