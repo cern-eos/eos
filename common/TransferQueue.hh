@@ -52,9 +52,11 @@ class FileSystem;
 
 /*----------------------------------------------------------------------------*/
 //! Class implementing the base class of a transfer queue used in FST & MGM
+
 /*----------------------------------------------------------------------------*/
 
-class TransferQueue {
+class TransferQueue
+{
 private:
   // ---------------------------------------------------------------------------
   //! Queue name e.g. /eos/host/fst/mntpoint
@@ -69,7 +71,7 @@ private:
   // ---------------------------------------------------------------------------
   //! Transfer Queue name e.g. 'txname' e.g. balanceq, drainq, externq
   // ---------------------------------------------------------------------------
-  std::string mTxQueue;   
+  std::string mTxQueue;
 
   // ---------------------------------------------------------------------------
   //! Reference to parent object hosting this queue e.g. a filesystem object
@@ -79,13 +81,13 @@ private:
   // ---------------------------------------------------------------------------
   //! Indicator for a queue slave e.g. if the object is deleted it __does__ __not__ clear the queue!
   // ---------------------------------------------------------------------------
-  bool        mSlave;    
+  bool mSlave;
 
   // ---------------------------------------------------------------------------
   //! Reference to the underlying shared queue maintained by the shared object manager
   //! Usage of this object requires a read lock on the shared object manager and the hash has to be validated!
   // ---------------------------------------------------------------------------
-  XrdMqSharedQueue* mHashQueue; 
+  XrdMqSharedQueue* mHashQueue;
   XrdMqSharedObjectManager* mSom;
   XrdSysMutex constructorLock;
 
@@ -99,27 +101,30 @@ public:
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-  TransferQueue(const char* queue, const char* queuepath, const char* subqueue, eos::common::FileSystem* fs, XrdMqSharedObjectManager* som, bool bc2mgm=false);
+  TransferQueue (const char* queue, const char* queuepath, const char* subqueue, eos::common::FileSystem* fs, XrdMqSharedObjectManager* som, bool bc2mgm = false);
 
   // ---------------------------------------------------------------------------
   //! Add a transfer job to the queue
   // ---------------------------------------------------------------------------
-  bool Add   (eos::common::TransferJob* job);
+  bool Add (eos::common::TransferJob* job);
 
   // ---------------------------------------------------------------------------
   //! Get a transfer job from the queue
   // ---------------------------------------------------------------------------
-  eos::common::TransferJob* Get();
+  eos::common::TransferJob* Get ();
 
   // ---------------------------------------------------------------------------
   //! Remove a transfer job from the queue
   // ---------------------------------------------------------------------------
-  bool Remove(eos::common::TransferJob* job);
+  bool Remove (eos::common::TransferJob* job);
 
   // ---------------------------------------------------------------------------
   //! Get the count of retrieved transfers
   // ---------------------------------------------------------------------------
-  unsigned long long GetJobCount() {
+
+  unsigned long long
+  GetJobCount ()
+  {
     unsigned long long count;
     {
       XrdSysMutexHelper cLock(mJobGetCountMutex);
@@ -131,7 +136,10 @@ public:
   // ---------------------------------------------------------------------------
   //! Increment the count of retrieved transfers
   // ---------------------------------------------------------------------------
-  void IncGetJobCount() {
+
+  void
+  IncGetJobCount ()
+  {
     XrdSysMutexHelper cLock(mJobGetCountMutex);
     mJobGetCount++;
   }
@@ -139,12 +147,18 @@ public:
   // ---------------------------------------------------------------------------
   //! Get the current size of the queue
   // ---------------------------------------------------------------------------
-  size_t Size() {
-    if (mSom) {
+
+  size_t
+  Size ()
+  {
+    if (mSom)
+    {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
-      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(),"queue");
-      if (mHashQueue) {
-        if (mHashQueue->GetQueue()) {
+      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
+      if (mHashQueue)
+      {
+        if (mHashQueue->GetQueue())
+        {
           return mHashQueue->GetQueue()->size();
         }
       }
@@ -155,12 +169,18 @@ public:
   // ---------------------------------------------------------------------------
   //! Clear all jobs from the queue
   // ---------------------------------------------------------------------------
-  bool Clear () {    
-    if (mSom) {
+
+  bool
+  Clear ()
+  {
+    if (mSom)
+    {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
-      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(),"queue");
-      if (mHashQueue) {
-        if (mHashQueue->GetQueue()) {
+      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
+      if (mHashQueue)
+      {
+        if (mHashQueue->GetQueue())
+        {
           mHashQueue->Clear();
           return true;
         }
@@ -172,12 +192,18 @@ public:
   // ---------------------------------------------------------------------------
   //! Open a transaction for a bulk injection
   // ---------------------------------------------------------------------------
-  bool OpenTransaction () {
-    if (mSom) {
+
+  bool
+  OpenTransaction ()
+  {
+    if (mSom)
+    {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
-      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(),"queue");
-      if (mHashQueue) {
-        if (mHashQueue->GetQueue()) {
+      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
+      if (mHashQueue)
+      {
+        if (mHashQueue->GetQueue())
+        {
           return mHashQueue->OpenTransaction();
         }
       }
@@ -188,23 +214,30 @@ public:
   // ---------------------------------------------------------------------------
   //! Close a transaction after a bulk injection
   // ---------------------------------------------------------------------------
-  bool CloseTransaction () {
-    if (mSom) {
+
+  bool
+  CloseTransaction ()
+  {
+    if (mSom)
+    {
       XrdMqRWMutexReadLock lock(mSom->HashMutex);
-      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(),"queue");
-      if (mHashQueue) {
-        if (mHashQueue->GetQueue()) {
+      mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
+      if (mHashQueue)
+      {
+        if (mHashQueue->GetQueue())
+        {
           return mHashQueue->CloseTransaction();
         }
       }
     }
     return false;
   }
-  
+
   // ---------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
-  virtual ~TransferQueue();
+  virtual ~TransferQueue ();
+
 };
 
 EOSCOMMONNAMESPACE_END
