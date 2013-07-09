@@ -2263,6 +2263,9 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
       XrdOucString origResponse = response->GetBuffer();
       XrdOucString stringOpaque = response->GetBuffer();
 
+      // Add the eos.app=fuse tag to all future PIO open requests
+      origResponse += "&eos.app=fuse";
+
       while (stringOpaque.replace("?", "&"))
       {
       }
@@ -2276,7 +2279,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
 
       if (opaqueInfo)
       {
-        opaqueInfo += 2;
+        opaqueInfo += 1;
         LayoutId::layoutid_t layout = openOpaque->GetInt("mgm.lid");
 
         for (unsigned int i = 0; i <= eos::common::LayoutId::GetStripeNumber(layout); i++)
@@ -2297,7 +2300,8 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
           file = new eos::fst::RaidDpLayout(NULL, layout, NULL, NULL,
                                             eos::common::LayoutId::kXrdCl);
         }
-        else if ((LayoutId::GetLayoutType(layout) == LayoutId::kRaid6) || (LayoutId::GetLayoutType(layout) == LayoutId::kArchive))
+        else if ((LayoutId::GetLayoutType(layout) == LayoutId::kRaid6) ||
+                 (LayoutId::GetLayoutType(layout) == LayoutId::kArchive))
         {
           file = new eos::fst::ReedSLayout(NULL, layout, NULL, NULL,
                                            eos::common::LayoutId::kXrdCl);
