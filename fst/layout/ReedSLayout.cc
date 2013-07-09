@@ -30,7 +30,11 @@
 #include <map>
 #include <set>
 #include <algorithm>
-#include "fst/zfec/fec.h"
+#include "fst/layout/jerasure/jerasure.hh"
+#include "fst/layout/jerasure/reed_sol.hh"
+#include "fst/layout/jerasure/galois.hh"
+#include "fst/layout/jerasure/cauchy.hh"
+#include "fst/layout/jerasure/liberation.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -38,22 +42,27 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ReedSLayout::ReedSLayout (XrdFstOfsFile* file,
-                          int lid,
-                          const XrdSecEntity* client,
-                          XrdOucErrInfo* outError,
-                          eos::common::LayoutId::eIoType io,
-                          uint16_t timeout,
-                          bool storeRecovery,
-                          off_t targetSize,
-                          std::string bookingOpaque) :
-    RaidMetaLayout (file, lid, client, outError, io, timeout,
-                    storeRecovery, targetSize, bookingOpaque)
+ReedSLayout::ReedSLayout(XrdFstOfsFile* file,
+                         int lid,
+                         const XrdSecEntity* client,
+                         XrdOucErrInfo* outError,
+                         eos::common::LayoutId::eIoType io,
+                         uint16_t timeout,
+                         bool storeRecovery,
+                         off_t targetSize,
+                         std::string bookingOpaque) :
+  RaidMetaLayout(file, lid, client, outError, io, timeout,
+                 storeRecovery, targetSize, bookingOpaque),
+  mDoneInitialisation(false)
 {
   mNbDataBlocks = mNbDataFiles;
   mNbTotalBlocks = mNbDataFiles + mNbParityFiles;
   mSizeGroup = mNbDataFiles * mStripeWidth;
   mSizeLine = mSizeGroup;
+
+  // Set the parameters for the Jerasure codes
+  mTech = Cauchy_Good;   // type of error correction code
+  w = 8;                 // "word size" this can be adjusted between 4..32
 }
 
 
@@ -61,41 +70,269 @@ ReedSLayout::ReedSLayout (XrdFstOfsFile* file,
 // Destructor
 //------------------------------------------------------------------------------
 
-ReedSLayout::~ReedSLayout ()
+ReedSLayout::~ReedSLayout()
 {
-  // empty 
+  // empty
+}
+
+
+//------------------------------------------------------------------------------
+// Initialise the Jerasure library
+//------------------------------------------------------------------------------
+bool
+ReedSLayout::InitialiseJerasure()
+{
+  mPacketSize = mSizeLine / (mNbDataBlocks * w * sizeof(int));
+  eos_info("mStripeWidth=%zu, mSizeLine=%zu, mNbDataBlocks=%u, mNbParityFiles=%u,"
+           " w=%u, mPacketSize=%u", mStripeWidth, mSizeLine, mNbDataBlocks,
+           mNbParityFiles, w, mPacketSize);
+
+  if (mSizeLine % mPacketSize != 0)
+  {
+    eos_err("error=packet size could not be computed correctly");
+    return false;
+  }
+
+  // Do error checking for coding technique
+  if (mTech == Reed_Sol_Van)
+  {
+    if (w != 8 && w != 16 && w != 32)
+    {
+      eos_err("error=w must be one of {8, 16, 32}");
+      return false;
+    }
+  }
+  else if (mTech == Reed_Sol_R6_Op)
+  {
+    if (mNbParityFiles != 2)
+    {
+      eos_err("error=m must be equal to 2");
+      return false;
+    }
+
+    if (w != 8 && w != 16 && w != 32)
+    {
+      eos_err("error=w must be one of {8, 16, 32}");
+      return false;
+    }
+  }
+  else if (mTech == Cauchy_Orig)
+  {
+    if (mPacketSize == 0)
+    {
+      eos_err("error=must include packetsize");
+      return false;
+    }
+  }
+  else if (mTech == Cauchy_Good)
+  {
+    if (mPacketSize == 0)
+    {
+      eos_err("error=must include packetsize");
+      return false;
+    }
+  }
+  else if (mTech == Liberation)
+  {
+    if (mNbDataBlocks > w)
+    {
+      eos_err("error= mNbDataBlocks must be less than or equal to w");
+      return false;
+    }
+
+    if (w <= 2 || !(w % 2) || !IsPrime(w))
+    {
+      eos_err("error=w must be greater than two and w must be prime");
+      return false;
+    }
+
+    if (mPacketSize == 0)
+    {
+      eos_err("error=must include packetsize");
+      return false;
+    }
+
+    if ((mPacketSize % (sizeof(int))) != 0)
+    {
+      eos_err("error=packetsize must be a multiple of sizeof(int)");
+      return false;
+    }
+  }
+  else if (mTech == Blaum_Roth)
+  {
+    if (mNbDataBlocks > w)
+    {
+      eos_err("error=mNbDataBlocks must be less than or equal to w");
+      return false;
+    }
+
+    if (w <= 2 || !((w + 1) % 2) || !IsPrime(w + 1))
+    {
+      eos_err("error=w must be greater than two and w+1 must be prime");
+      return false;
+    }
+
+    if (mPacketSize == 0)
+    {
+      eos_err("error=must include packetsize");
+      return false;
+    }
+
+    if ((mPacketSize % (sizeof(int))) != 0)
+    {
+      eos_err("error=packetsize must be a multiple of sizeof(int)");
+      return false;
+    }
+  }
+  else if (mTech == Liber8tion)
+  {
+    if (mPacketSize == 0)
+    {
+      eos_err("error=must include packetsize");
+      return false;
+    }
+
+    if (w != 8)
+    {
+      eos_err("error=w must equal 8");
+      return false;
+    }
+
+    if (mNbParityFiles != 2)
+    {
+      eos_err("error=mNbParityBlocks must equal 2");
+      return false;
+    }
+
+    if (mNbDataBlocks > w)
+    {
+      eos_err("error=mNbDataBlocks must be less than or equal to w");
+      return false;
+    }
+  }
+  else
+  {
+    eos_err("error=not a valid coding technique. Set one of the following: "
+            "reed_sol_van, reed_sol_r6_op, cauchy_orig, cauchy_good, liberation,"
+            " blaum_roth, liber8tion, no_coding");
+    return false;
+  }
+
+  switch (mTech)
+  {
+  case No_Coding:
+    break;
+
+  case Reed_Sol_Van:
+    matrix = reed_sol_vandermonde_coding_matrix(mNbDataBlocks, mNbParityFiles, w);
+    break;
+
+  case Cauchy_Orig:
+    matrix = cauchy_original_coding_matrix(mNbDataBlocks, mNbParityFiles, w);
+    bitmatrix = jerasure_matrix_to_bitmatrix(mNbDataBlocks, mNbParityFiles, w, matrix);
+    schedule = jerasure_smart_bitmatrix_to_schedule(mNbDataBlocks, mNbParityFiles, w, bitmatrix);
+    break;
+
+  case Cauchy_Good:
+    matrix = cauchy_good_general_coding_matrix(mNbDataBlocks, mNbParityFiles, w);
+    bitmatrix = jerasure_matrix_to_bitmatrix(mNbDataBlocks, mNbParityFiles, w, matrix);
+    schedule = jerasure_smart_bitmatrix_to_schedule(mNbDataBlocks, mNbParityFiles, w, bitmatrix);
+    break;
+
+  case Liberation:
+    bitmatrix = liberation_coding_bitmatrix(mNbDataBlocks, w);
+    schedule = jerasure_smart_bitmatrix_to_schedule(mNbDataBlocks, mNbParityFiles, w, bitmatrix);
+    break;
+
+  case Blaum_Roth:
+    bitmatrix = blaum_roth_coding_bitmatrix(mNbDataBlocks, w);
+    schedule = jerasure_smart_bitmatrix_to_schedule(mNbDataBlocks, mNbParityFiles, w, bitmatrix);
+    break;
+
+  case Liber8tion:
+    bitmatrix = liber8tion_coding_bitmatrix(mNbDataBlocks);
+    schedule = jerasure_smart_bitmatrix_to_schedule(mNbDataBlocks, mNbParityFiles, w, bitmatrix);
+    break;
+
+  default:
+    eos_err("error=unsupported coding technique");
+    break;
+  }
+
+  return true;
 }
 
 
 //------------------------------------------------------------------------------
 // Compute the error correction blocks
 //------------------------------------------------------------------------------
-
-void
-ReedSLayout::ComputeParity ()
+bool
+ReedSLayout::ComputeParity()
 {
-  unsigned int block_nums[mNbParityFiles];
-  unsigned char* outblocks[mNbParityFiles];
-  const unsigned char* blocks[mNbDataFiles];
+  // Initialise Jerasure structures if not done already
+  if (!mDoneInitialisation)
+  {
+    if (!InitialiseJerasure())
+    {
+      eos_err("error=failed to initialise Jerasure library");
+      return false;
+    }
+    
+    mDoneInitialisation = true;
+  }
+  
+  // Get pointers to data and parity information
+  char* coding[mNbParityFiles];
+  char* data[mNbDataFiles];
 
   for (unsigned int i = 0; i < mNbDataFiles; i++)
   {
-    blocks[i] = (const unsigned char*) mDataBlocks[i];
+    data[i] = (char*) mDataBlocks[i];
   }
 
   for (unsigned int i = 0; i < mNbParityFiles; i++)
   {
-    block_nums[i] = mNbDataFiles + i;
-    outblocks[i] = (unsigned char*) mDataBlocks[mNbDataFiles + i];
-    memset(mDataBlocks[mNbDataFiles + i], 0, mStripeWidth);
+    coding[i] = (char*) mDataBlocks[mNbDataFiles + i];
+  }
+    
+  // Encode according to coding method
+  switch(mTech) {	
+    case No_Coding:
+      break;
+    case Reed_Sol_Van:
+      jerasure_matrix_encode(mNbDataBlocks, mNbParityFiles, w, matrix, data,
+                             coding, mStripeWidth);
+      break;
+    case Reed_Sol_R6_Op:
+      reed_sol_r6_encode(mNbDataBlocks, mNbParityFiles, data, coding, mStripeWidth);
+      break;
+    case Cauchy_Orig:
+      jerasure_schedule_encode(mNbDataBlocks, mNbParityFiles, w, schedule, data,
+                               coding, mStripeWidth, mPacketSize);
+      break;
+    case Cauchy_Good:
+      jerasure_schedule_encode(mNbDataBlocks, mNbParityFiles, w, schedule, data,
+                               coding, mStripeWidth, mPacketSize);
+      break;
+    case Liberation:
+      jerasure_schedule_encode(mNbDataBlocks, mNbParityFiles, w, schedule, data,
+                               coding, mStripeWidth, mPacketSize);
+      break;
+    case Blaum_Roth:
+      jerasure_schedule_encode(mNbDataBlocks, mNbParityFiles, w, schedule, data,
+                               coding, mStripeWidth, mPacketSize);
+      break;
+    case Liber8tion:
+      jerasure_schedule_encode(mNbDataBlocks, mNbParityFiles, w, schedule, data,
+                               coding, mStripeWidth, mPacketSize);
+      break;
+    default:
+      fprintf(stderr,  "unsupported coding technique used\n");
+      break;
   }
 
-  fec_t * const fec = fec_new(mNbDataFiles, mNbTotalFiles);
-  fec_encode(fec, blocks, outblocks, block_nums, mNbParityFiles, mStripeWidth);
-  //............................................................................
-  // Free memory
-  //............................................................................
-  fec_free(fec);
+  return true;
+
 }
 
 
@@ -105,10 +342,22 @@ ReedSLayout::ComputeParity ()
 //------------------------------------------------------------------------------
 
 bool
-ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
-                                   char* pBuffer,
-                                   std::map<off_t, size_t>& rMapErrors)
+ReedSLayout::RecoverPiecesInGroup(off_t offsetInit,
+                                  char* pBuffer,
+                                  std::map<off_t, size_t>& rMapErrors)
 {
+  // Initialise Jerasure structures if not done already
+  if (!mDoneInitialisation)
+  {
+    if (!InitialiseJerasure())
+    {
+      eos_err("error=failed to initialise Jerasure library");
+      return false;
+    }
+    
+    mDoneInitialisation = true;
+  }
+  
   //............................................................................
   // Obs: RecoverPiecesInGroup also checks the parity blocks
   //............................................................................
@@ -130,19 +379,21 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
   for (unsigned int i = 0; i < mNbTotalFiles; i++)
   {
     physical_id = mapLP[i];
-    
+
     //........................................................................
     // Read data from stripe
     //........................................................................
     if (mStripeFiles[physical_id])
     {
-      ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->GetAsyncHandler());
+      ptr_handler = static_cast<AsyncMetaHandler*>
+                    (mStripeFiles[physical_id]->GetAsyncHandler());
+
       if (ptr_handler)
         ptr_handler->Reset();
-            
+
       //enable readahead
       nread = mStripeFiles[physical_id]->ReadAsync(offset_local, mDataBlocks[i],
-                                                   mStripeWidth, true, mTimeout); 
+              mStripeWidth, true, mTimeout);
 
       if (nread != mStripeWidth)
       {
@@ -170,19 +421,20 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
 
     if (mStripeFiles[physical_id])
     {
-      ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->GetAsyncHandler());
-    
+      ptr_handler = static_cast<AsyncMetaHandler*>
+                    (mStripeFiles[physical_id]->GetAsyncHandler());
+
       if (ptr_handler)
       {
         uint16_t error_type = ptr_handler->WaitOK();
-        
+
         if (error_type != XrdCl::errNone)
         {
           std::pair< uint16_t, std::map<uint64_t, uint32_t> > pair_err;
           eos_err("error=remote block corrupted id=%i", i);
           invalid_ids.push_back(i);
           num_blocks_corrupted++;
-          
+
           if (error_type == XrdCl::errOperationExpired)
           {
             mStripeFiles[physical_id]->Close(mTimeout);
@@ -211,65 +463,65 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
   }
   else if (num_blocks_corrupted > mNbParityFiles)
   {
+    eos_err("error=more blocks corrupted than the maximum number supported");
     return false;
   }
+
+  // Get pointers to data and parity information
+  char* coding[mNbParityFiles];
+  char* data[mNbDataFiles];
+
+  for (unsigned int i = 0; i < mNbDataFiles; i++)
+  {
+    data[i] = (char*) mDataBlocks[i];
+  }
+
+  for (unsigned int i = 0; i < mNbParityFiles; i++)
+  {
+    coding[i] = (char*) mDataBlocks[mNbDataFiles + i];
+  }
+
+  // Array of ids of erased pieces
+  int *erasures = new int[invalid_ids.size() + 1];
+  int index = 0;
+  
+  for (auto iter = invalid_ids.begin();
+       iter != invalid_ids.end(); ++iter, ++index)
+  {
+    erasures[index] = *iter;
+  }
+
+  erasures[invalid_ids.size()] = -1;
 
   //............................................................................
   // ******* DECODE ******
   //............................................................................
-  const unsigned char* inpkts[valid_ids.size()];
-  unsigned char* outpkts[invalid_ids.size()];
-  unsigned int indexes[valid_ids.size()];
-  //............................................................................
-  // Obtain a valid combination of blocks suitable for recovery
-  //............................................................................
-  Backtracking(0, indexes, valid_ids);
-
-  for (unsigned int i = 0; i < valid_ids.size(); i++)
+  int decode;
+  
+  if (mTech == Reed_Sol_Van || mTech == Reed_Sol_R6_Op) {
+    decode = jerasure_matrix_decode(mNbDataBlocks, mNbParityFiles, w, matrix, 1,
+                                    erasures, data, coding, mStripeWidth);
+  }
+  else if (mTech == Cauchy_Orig || mTech == Cauchy_Good ||
+           mTech == Liberation || mTech == Blaum_Roth || mTech == Liber8tion)
   {
-    inpkts[i] = (const unsigned char*) mDataBlocks[indexes[i]];
+    decode  = jerasure_schedule_decode_lazy(mNbDataBlocks, mNbParityFiles, w, bitmatrix,
+                                            erasures, data, coding, mStripeWidth, mPacketSize, 1);
+  }
+  else {
+    eos_err("error=not a valid coding technique");
+    delete[] erasures;
+    return false;
   }
 
-  //............................................................................
-  // Add the invalid data blocks to be recovered
-  //............................................................................
-  bool data_corrupted = false;
-  bool parity_corrupted = false;
-  //............................................................................
-  // Obs: The indices of the blocks to be recovered have to be sorted in ascending
-  // order. So outpkts has to point to the corrupted blocks in ascending order.
-  //............................................................................
-  sort(invalid_ids.begin(), invalid_ids.end());
-
-  for (unsigned int i = 0; i < invalid_ids.size(); i++)
-  {
-    outpkts[i] = (unsigned char*) mDataBlocks[invalid_ids[i]];
-
-    if (invalid_ids[i] >= mNbDataFiles)
-      parity_corrupted = true;
-    else
-      data_corrupted = true;
-  }
-
-  //............................................................................
-  // Actual decoding - recover primary blocks
-  //............................................................................
-  if (data_corrupted)
-  {
-    fec_t * const fec = fec_new(mNbDataFiles, mNbTotalFiles);
-    fec_decode(fec, inpkts, outpkts, indexes, mStripeWidth);
-    fec_free(fec);
-  }
-
-  //............................................................................
-  // If there are also parity blocks corrupted then we encode again the blocks
-  // - recover secondary blocks
-  //............................................................................
-  if (parity_corrupted)
-  {
-    ComputeParity();
-  }
-
+  // Free memory
+  delete[] erasures;
+  
+  if (decode == -1) {
+    eos_err("error=decoding was unsuccessful");
+    return false;
+  }  
+  
   //............................................................................
   // Update the files in which we found invalid blocks
   //............................................................................
@@ -277,8 +529,8 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
   unsigned int stripe_id;
 
   for (vector<unsigned int>::iterator iter = invalid_ids.begin();
-    iter != invalid_ids.end();
-    ++iter)
+       iter != invalid_ids.end();
+       ++iter)
   {
     stripe_id = *iter;
     physical_id = mapLP[stripe_id];
@@ -287,15 +539,15 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
     {
       ptr_handler =
         static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->GetAsyncHandler());
-      
+
       if (ptr_handler)
         ptr_handler->Reset();
-      
+
       nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local,
                                                      mDataBlocks[stripe_id],
                                                      mStripeWidth,
                                                      mTimeout);
-      
+
       if (nwrite != mStripeWidth)
       {
         eos_err("error=while doing local write operation offset=%lli", offset_local);
@@ -307,22 +559,23 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
     //..........................................................................
     // Write the correct block to the reading buffer, if it is not parity info
     //..........................................................................
-    if (*iter < mNbDataFiles)
-    { //if one of the data blocks
+    if (stripe_id < mNbDataFiles)
+    {
+      //if one of the data blocks
       for (std::map<off_t, size_t>::iterator itPiece = rMapErrors.begin();
-        itPiece != rMapErrors.end();
-        itPiece++)
+           itPiece != rMapErrors.end();
+           itPiece++)
       {
         offset = itPiece->first;
         length = itPiece->second;
 
-        if ((offset >= (off_t) (offset_group + (*iter) * mStripeWidth)) &&
-            (offset < (off_t) (offset_group + ((*iter) + 1) * mStripeWidth)))
+        if ((offset >= (off_t)(offset_group + stripe_id * mStripeWidth)) &&
+            (offset < (off_t)(offset_group + (stripe_id + 1) * mStripeWidth)))
         {
           pBuff = pBuffer + (offset - offsetInit);
-          pBuff = static_cast<char*> (memcpy(pBuff,
-                                             mDataBlocks[*iter] + (offset % mStripeWidth),
-                                             length));
+          pBuff = static_cast<char*>(memcpy(pBuff,
+                                            mDataBlocks[stripe_id] + (offset % mStripeWidth),
+                                            length));
         }
       }
     }
@@ -336,11 +589,12 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
        ++iter)
   {
     physical_id = mapLP[*iter];
-    
+
     if (mStripeFiles[physical_id])
     {
-      ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->GetAsyncHandler());
-    
+      ptr_handler = static_cast<AsyncMetaHandler*>
+                    (mStripeFiles[physical_id]->GetAsyncHandler());
+
       if (ptr_handler)
       {
         uint16_t error_type = ptr_handler->WaitOK();
@@ -367,112 +621,12 @@ ReedSLayout::RecoverPiecesInGroup (off_t offsetInit,
 
 
 //------------------------------------------------------------------------------
-// Get backtracking solution
-//------------------------------------------------------------------------------
-
-bool
-ReedSLayout::SolutionBkt (unsigned int k,
-                          unsigned int* pIndexes,
-                          std::vector<unsigned int>& validId)
-{
-  bool found = false;
-
-  //............................................................................
-  // All valid blocks should be used in the recovery process
-  //............................................................................
-  if (k != validId.size()) return found;
-
-  //............................................................................
-  // If we have a valid parity block then it should be among the input blocks
-  //............................................................................
-  for (unsigned int i = mNbDataFiles; i < mNbTotalFiles; i++)
-  {
-    if (find(validId.begin(), validId.end(), i) != validId.end())
-    {
-      found = false;
-
-      for (unsigned int j = 0; j <= k; j++)
-      {
-        if (pIndexes[j] == i)
-        {
-          found = true;
-          break;
-        }
-      }
-
-      if (!found) break;
-    }
-  }
-
-  return found;
-}
-
-
-//------------------------------------------------------------------------------
-// Validation function for backtracking
-//------------------------------------------------------------------------------
-
-bool
-ReedSLayout::ValidBkt (unsigned int k,
-                       unsigned int* pIndexes,
-                       std::vector<unsigned int>& validId)
-{
-  //............................................................................
-  // Obs: condition from zfec implementation:
-  // If a primary block, i, is present then it must be at index i;
-  // Secondary blocks can appear anywhere.
-  //............................................................................
-  if (find(validId.begin(), validId.end(), pIndexes[k]) == validId.end() ||
-      ((pIndexes[k] < mNbDataFiles) && (pIndexes[k] != k)))
-  {
-    return false;
-  }
-
-  for (unsigned int i = 0; i < k; i++)
-  {
-    if ((pIndexes[i] == pIndexes[k]) ||
-        (pIndexes[i] < mNbDataFiles && pIndexes[i] != i))
-    {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-
-//------------------------------------------------------------------------------
-// Backtracking method to get the indices needed for recovery
-//------------------------------------------------------------------------------
-
-bool
-ReedSLayout::Backtracking (unsigned int k,
-                           unsigned int* pIndexes,
-                           std::vector<unsigned int>& validId)
-{
-  if (SolutionBkt(k, pIndexes, validId))
-    return true;
-  else
-  {
-    for (pIndexes[k] = 0; pIndexes[k] < mNbTotalFiles; pIndexes[k]++)
-    {
-      if (ValidBkt(k, pIndexes, validId))
-        if (Backtracking(k + 1, pIndexes, validId))
-          return true;
-    }
-
-    return false;
-  }
-}
-
-
-//------------------------------------------------------------------------------
 // Writing a file in streaming mode
 // Add a new data used to compute parity block
 //------------------------------------------------------------------------------
 
 void
-ReedSLayout::AddDataBlock (off_t offset, const char* pBuffer, size_t length)
+ReedSLayout::AddDataBlock(off_t offset, const char* pBuffer, size_t length)
 {
   int indx_block;
   size_t nwrite;
@@ -509,7 +663,7 @@ ReedSLayout::AddDataBlock (off_t offset, const char* pBuffer, size_t length)
     nwrite = (length > availableLength) ? availableLength : length;
     ptr = mDataBlocks[indx_block];
     ptr += offset_in_block;
-    ptr = static_cast<char*> (memcpy(ptr, pBuffer, nwrite));
+    ptr = static_cast<char*>(memcpy(ptr, pBuffer, nwrite));
     offset += nwrite;
     length -= nwrite;
     pBuffer += nwrite;
@@ -539,7 +693,7 @@ ReedSLayout::AddDataBlock (off_t offset, const char* pBuffer, size_t length)
 //------------------------------------------------------------------------------
 
 int
-ReedSLayout::WriteParityToFiles (off_t offsetGroup)
+ReedSLayout::WriteParityToFiles(off_t offsetGroup)
 {
   int ret = SFS_OK;
   int64_t nwrite = 0;
@@ -557,7 +711,7 @@ ReedSLayout::WriteParityToFiles (off_t offsetGroup)
     if (mStripeFiles[physical_id])
     {
       nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local, mDataBlocks[i],
-                                                     mStripeWidth, mTimeout);
+               mStripeWidth, mTimeout);
 
       if (nwrite != mStripeWidth)
       {
@@ -573,7 +727,6 @@ ReedSLayout::WriteParityToFiles (off_t offsetGroup)
   // We collect the write responses either the next time we do a read like in
   // ReadGroups or in the Close method for the whole file.
   //.............................................................................
-
   return ret;
 }
 
@@ -583,16 +736,15 @@ ReedSLayout::WriteParityToFiles (off_t offsetGroup)
 //------------------------------------------------------------------------------
 
 int
-ReedSLayout::Truncate (XrdSfsFileOffset offset)
+ReedSLayout::Truncate(XrdSfsFileOffset offset)
 {
   int rc = SFS_OK;
   off_t truncate_offset = 0;
-
   truncate_offset = ceil((offset * 1.0) / mSizeGroup) * mStripeWidth;
   truncate_offset += mSizeHeader;
   eos_debug("Truncate local stripe to file_offset = %lli, stripe_offset = %zu",
             offset, truncate_offset);
-  
+
   if (mStripeFiles[0])
     mStripeFiles[0]->Truncate(truncate_offset, mTimeout);
 
@@ -605,7 +757,7 @@ ReedSLayout::Truncate (XrdSfsFileOffset offset)
       //........................................................................
       truncate_offset = offset;
     }
-  
+
     for (unsigned int i = 1; i < mStripeFiles.size(); i++)
     {
       eos_debug("Truncate stripe %i, to file_offset = %lli, stripe_offset = %zu",
@@ -641,7 +793,7 @@ ReedSLayout::Truncate (XrdSfsFileOffset offset)
 //------------------------------------------------------------------------------
 
 unsigned int
-ReedSLayout::MapSmallToBig (unsigned int idSmall)
+ReedSLayout::MapSmallToBig(unsigned int idSmall)
 {
   if (idSmall >= mNbDataBlocks)
   {
@@ -657,9 +809,9 @@ ReedSLayout::MapSmallToBig (unsigned int idSmall)
 // Allocate file space ( reserve )
 //--------------------------------------------------------------------------
 int
-ReedSLayout::Fallocate (XrdSfsFileOffset length)
+ReedSLayout::Fallocate(XrdSfsFileOffset length)
 {
-  int64_t size = ceil( (1.0 * length) / mSizeGroup) * mStripeWidth + mSizeHeader;
+  int64_t size = ceil((1.0 * length) / mSizeGroup) * mStripeWidth + mSizeHeader;
   return mStripeFiles[0]->Fallocate(size);
 }
 
@@ -668,12 +820,35 @@ ReedSLayout::Fallocate (XrdSfsFileOffset length)
 // Deallocate file space
 //--------------------------------------------------------------------------
 int
-ReedSLayout::Fdeallocate (XrdSfsFileOffset fromOffset,
-                          XrdSfsFileOffset toOffset)
+ReedSLayout::Fdeallocate(XrdSfsFileOffset fromOffset,
+                         XrdSfsFileOffset toOffset)
 {
-  int64_t from_size = ceil( (1.0 * fromOffset) / mSizeGroup) * mStripeWidth + mSizeHeader;
-  int64_t to_size = ceil( (1.0 * toOffset) / mSizeGroup) * mStripeWidth + mSizeHeader;
+  int64_t from_size = ceil((1.0 * fromOffset) / mSizeGroup) * mStripeWidth +
+                      mSizeHeader;
+  int64_t to_size = ceil((1.0 * toOffset) / mSizeGroup) * mStripeWidth +
+                    mSizeHeader;
   return mStripeFiles[0]->Fdeallocate(from_size, to_size);
+}
+
+
+//------------------------------------------------------------------------------
+// Check if a number is prime
+//------------------------------------------------------------------------------
+bool
+ReedSLayout::IsPrime(int w)
+{
+  int prime55[] = {2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,
+                   83,89,97,101,103,107,109,113,127,131,137,139,149,151,157,163,167,
+                   173,179,181,191,193,197,199,211,223,227,229,233,239,241,251,257};
+
+  for (int i = 0; i < 55; i++) {
+    if (w % prime55[i] == 0) {
+      if (w == prime55[i]) return true;
+      else return false; 
+    }
+  }
+
+  return false;;
 }
 
 

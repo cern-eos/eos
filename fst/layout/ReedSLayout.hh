@@ -32,13 +32,14 @@
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Implementation of the Reed-Solomon layout
+//! Implementation of the Reed-Solomon layout - this uses the Jerasure code
+//! for implementing Cauchy Reed-Solomon
 //------------------------------------------------------------------------------
 class ReedSLayout : public RaidMetaLayout
 {
 public:
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param file handler to current file
@@ -51,7 +52,7 @@ public:
   //! @param targetSize expected final size
   //! @param bookingOpaque opaque information
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   ReedSLayout (XrdFstOfsFile* file,
                int lid,
                const XrdSecEntity* client,
@@ -63,29 +64,29 @@ public:
                std::string bookingOpaque = "oss.size");
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Truncate file
   //!
   //! @param offset truncate size value
   //!
   //! @return 0 if successful, otherwise error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Truncate (XrdSfsFileOffset offset);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Allocate file space
   //!
   //! @param length space to be allocated
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Fallocate (XrdSfsFileOffset lenght);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Deallocate file space
   //!
   //! @param fromOffset offset start
@@ -93,25 +94,72 @@ public:
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Fdeallocate (XrdSfsFileOffset fromOffset,
                            XrdSfsFileOffset toOffset);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Destructor
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual ~ReedSLayout ();
 
 private:
 
-  //--------------------------------------------------------------------------
+  bool mDoneInitialisation; ///< Jerasure codes initialisation status
+
+  //! Types of encoding that are supported by the Jerasure library
+  enum Coding_Technique {
+    Reed_Sol_Van,
+    Reed_Sol_R6_Op,
+    Cauchy_Orig,
+    Cauchy_Good,
+    Liberation,
+    Blaum_Roth,
+    Liber8tion,
+    RDP,
+    EVENODD,
+    No_Coding};
+
+  enum Coding_Technique mTech; ///< coding technique (parameter)
+  unsigned int w, mPacketSize; ///< word size, packet size
+  
+  //! Values use by Jerasure codes
+  int *matrix;
+  int *bitmatrix;
+  int **schedule;
+
+  
+  //----------------------------------------------------------------------------
+  //! Initialise the Jerasure structures used for encoding and decoding
+  //!
+  //! @return true if initalisation successful, otherwise false
+  //!  
+  //----------------------------------------------------------------------------
+  bool InitialiseJerasure();
+
+
+  //----------------------------------------------------------------------------
+  //! Check if a number is prime
+  //!
+  //! @param w number to be checked
+  //!
+  //! @return true if number is prime, otherwise false
+  //! 
+  //----------------------------------------------------------------------------
+  bool IsPrime(int w);
+  
+  
+  //----------------------------------------------------------------------------
   //! Compute error correction blocks
-  //--------------------------------------------------------------------------
-  virtual void ComputeParity ();
+  //!
+  //! @return true if parity info computed successfully, otherwise false
+  //!
+  //----------------------------------------------------------------------------
+  virtual bool ComputeParity ();
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Write parity information corresponding to a group to files
   //!
   //! @param offsetGroup offset of the group of blocks
@@ -161,30 +209,6 @@ private:
 
 
   //--------------------------------------------------------------------------
-  //! Get backtracking solution
-  //--------------------------------------------------------------------------
-  bool SolutionBkt (unsigned int k,
-                    unsigned int* pIndexes,
-                    std::vector<unsigned int>& validId);
-
-
-  //--------------------------------------------------------------------------
-  //! Validate backtracking solution
-  //--------------------------------------------------------------------------
-  bool ValidBkt (unsigned int k,
-                 unsigned int* pIndexes,
-                 std::vector<unsigned int>& validId);
-
-
-  //--------------------------------------------------------------------------
-  //! Backtracking method for getting the indices used in the recovery process
-  //--------------------------------------------------------------------------
-  bool Backtracking (unsigned int k,
-                     unsigned int* pIndexes,
-                     std::vector<unsigned int>& validId);
-
-
-  //--------------------------------------------------------------------------
   //! Disable copy constructor
   //--------------------------------------------------------------------------
   ReedSLayout (const ReedSLayout&) = delete;
@@ -194,7 +218,7 @@ private:
   //! Disable assign operator
   //--------------------------------------------------------------------------
   ReedSLayout& operator = (const ReedSLayout&) = delete;
-
+  
 };
 
 EOSFSTNAMESPACE_END
