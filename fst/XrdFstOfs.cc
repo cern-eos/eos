@@ -645,7 +645,7 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
 
   eos::fst::Config::gConfig.KeyTabAdler = keytabcks.c_str();
 
-  sleeper.Snooze(5);
+  //sleeper.Snooze(5);
 
   return 0;
 }
