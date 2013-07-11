@@ -42,7 +42,9 @@ HttpServer* HttpServer::gHttp; //!< Global HTTP server
 HttpServer::HttpServer (int port)
 {
   gHttp = this;
+#ifdef EOS_MICRO_HTTPD
   mDaemon = 0;
+#endif
   mPort = port;
   mThreadId = 0;
   mRunning = false;
