@@ -97,7 +97,9 @@ XrdCapability::Init()
 
 /*----------------------------------------------------------------------------*/
 int
-XrdCapability::Create(XrdOucEnv *inenv, XrdOucEnv* &outenv, eos::common::SymKey* key) 
+XrdCapability::Create(XrdOucEnv *inenv, 
+                      XrdOucEnv* &outenv, 
+                      eos::common::SymKey* key) 
 {
   outenv = 0;
 
@@ -109,9 +111,19 @@ XrdCapability::Create(XrdOucEnv *inenv, XrdOucEnv* &outenv, eos::common::SymKey*
 
   int envlen;
   XrdOucString toencrypt = inenv->Env(envlen);
+  
+  // ---------------------------------------------------------------------------
+  // add the validity time (1 hour)
+  // ---------------------------------------------------------------------------
+  toencrypt += "&cap.valid=";
+  char validity[32];
+  snprintf(validity,32,"%u", (unsigned int) time(NULL) + 3600); 
+  toencrypt += validity;
   XrdOucString encrypted="";
   
-  if (!XrdMqMessage::SymmetricStringEncrypt(toencrypt, encrypted, (char*)key->GetKey())) {
+  if (!XrdMqMessage::SymmetricStringEncrypt(toencrypt, 
+                                            encrypted, 
+                                            (char*)key->GetKey())) {
     return EKEYREJECTED;
   } 
   
@@ -151,10 +163,27 @@ XrdCapability::Extract(XrdOucEnv *inenv, XrdOucEnv* &outenv)
   
   XrdOucString todecrypt = symmsg;
   XrdOucString decrypted ="";
-  if (!XrdMqMessage::SymmetricStringDecrypt(todecrypt, decrypted, (char*)key->GetKey())) {
+  if (!XrdMqMessage::SymmetricStringDecrypt(todecrypt, 
+                                            decrypted, 
+                                            (char*)key->GetKey())) {
     return EKEYREJECTED;
   } 
+  
   outenv = new XrdOucEnv(decrypted.c_str());
+  
+  // ---------------------------------------------------------------------------
+  // check the validity time
+  // ---------------------------------------------------------------------------
+  if (!outenv->Get("cap.valid")) {
+    // validity missing
+    return EINVAL;
+  } else {
+    time_t now = time(NULL);
+    time_t capnow = atoi(outenv->Get("cap.valid"));
+    // capability expired!
+    if (capnow < now)
+      return ETIME;
+  }
   return 0;
 }
 
