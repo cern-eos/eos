@@ -607,6 +607,49 @@ XrdFstOfsFile::open (const char* path,
   }
 
   //............................................................................
+  // Capability access distinction
+  //............................................................................
+  if (isRW)
+  {
+    if (isCreation)
+    {
+      if (!capOpaque->Get("mgm.access") 
+                          || (strcmp(capOpaque->Get("mgm.access"), "create")))
+      {
+        return gOFS.Emsg(epname, 
+                         error, 
+                         EPERM, 
+                         "open - capability does not allow to create this file", 
+                         path);
+      }
+    }
+    else
+    {
+      if (!capOpaque->Get("mgm.access") 
+                          || (strcmp(capOpaque->Get("mgm.access"), "update")))
+      {
+        return gOFS.Emsg(epname, 
+                         error, 
+                         EPERM, 
+                         "open - capability does not allow to update this file", 
+                         path);
+      }
+    }
+  }
+  else
+  {
+    if (!capOpaque->Get("mgm.access") 
+                        || (strcmp(capOpaque->Get("mgm.access"), "read")))
+    {
+      return gOFS.Emsg(epname, 
+                       error, 
+                       EPERM, 
+                       "open - capability does not allow to read this file", 
+                       path);
+    }
+  }
+
+  //............................................................................
   // Bookingsize is only needed for file creation
   //............................................................................
   if (isRW && isCreation)
