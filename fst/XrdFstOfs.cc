@@ -833,8 +833,27 @@ XrdFstOfsFile::open(const char                *path,
   }
 
 
-  // bookingsize is only needed for file creation
+  // -------------------------
+  // capability access control
+  // -------------------------
+  if (isRW) {
+    if (isCreation) {
+      if (!capOpaque->Get("mgm.access") || (strcmp(capOpaque->Get("mgm.access"),"create")) ) {
+	return gOFS.Emsg(epname,error, EPERM,"open - capability does not allow to create this file",path);
+      }
+    } else {
+      if (!capOpaque->Get("mgm.access") || (strcmp(capOpaque->Get("mgm.access"),"update")) ) {
+	return gOFS.Emsg(epname,error, EPERM,"open - capability does not allow to update this file",path);
+      }
+    }
+  } else {
+    if (!capOpaque->Get("mgm.access") || (strcmp(capOpaque->Get("mgm.access"),"read")) ) {
+      return gOFS.Emsg(epname,error, EPERM,"open - capability does not allow to read this file",path);
+    }    
+  }
+
   if (isRW && isCreation) {
+    // bookingsize is only needed for file creation
     if (!(sbookingsize=capOpaque->Get("mgm.bookingsize"))) {
       return gOFS.Emsg(epname,error, EINVAL,"open - no booking size in capability",path);
     } else {
