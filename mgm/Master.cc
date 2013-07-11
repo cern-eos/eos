@@ -68,6 +68,7 @@ Master::Master ()
   fDevNullErr = 0;
   fCheckRemote = true;
   fFileNamespaceInode = fDirNamespaceInode = 0;
+  f2MasterTransitionTime = time(NULL) - 3600; // start without service delays
 }
 
 bool
@@ -1246,7 +1247,9 @@ Master::Slave2Master ()
 
 {
   fRunningState = kIsTransition;
-
+  // this will block draining/balancing for the next hour!!!
+  f2MasterTransitionTime = time(NULL);
+  
   // -----------------------------------------------------------
   // This call transforms the namespace following slave into
   // a master in RW mode

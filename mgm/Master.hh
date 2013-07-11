@@ -162,6 +162,9 @@ public:
   time_t fCompactingInterval;
   time_t fCompactingStart;
   XrdSysMutex fCompactingMutex;
+  
+  time_t f2MasterTransitionTime;
+  XrdSysMutex f2MasterTransitionTimeMutex;
 
   //------------------------------------------------------------------------
   // Constructor
@@ -311,6 +314,24 @@ public:
     return (fThisHost == fMasterHost);
   }
 
+  //------------------------------------------------------------------------
+  // Return's a delay time for balancing & draining since after a transition
+  // we don't know the maps of already scheduled ID's and we have to make
+  // sure not to reissue a transfer too early!
+  //------------------------------------------------------------------------
+  
+  size_t GetServiceDelay () 
+  {
+    time_t now = time(NULL);
+    XrdSysMutexHelper lock(&f2MasterTransitionTimeMutex);
+    time_t delay = now - f2MasterTransitionTime + 3600;
+    if (delay<0) 
+      delay = 0;
+    if (delay> 3600)
+      delay = 3600;
+    return delay;
+  }
+  
   //------------------------------------------------------------------------
   // Check if the remote is the master host
   //------------------------------------------------------------------------
