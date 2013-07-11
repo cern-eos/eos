@@ -819,6 +819,7 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
   if (open_flag & O_CREAT) {
     AUTHORIZE(client,openOpaque,AOP_Create,"create",inpath,error);
   } else {
+    isRewrite = true;
     AUTHORIZE(client,openOpaque,(isRW?AOP_Update:AOP_Read),"open",inpath,error);
   }
 
@@ -1395,8 +1396,10 @@ int XrdMgmOfsFile::open(const char          *inpath,      // In
       gOFS->MgmStats.Add("OpenFileOffline",vid.uid,vid.gid,1);  
     } else {
       if (isCreation) {
-        // we will remove the created file in the namespace
-        gOFS->_rem(cPath.GetPath(),error, vid, 0);
+        // we will remove the created file in the namespace as 'root' becauase somebody could define a no-delete ACL
+	eos::common::Mapping::VirtualIdentity vidroot;
+	eos::common::Mapping::Root(vidroot);
+        gOFS->_rem(cPath.GetPath(),error, vidroot, 0);
       }
 
       gOFS->MgmStats.Add("OpenFailedQuota",vid.uid,vid.gid,1);  
