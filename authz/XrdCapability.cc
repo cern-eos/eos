@@ -109,6 +109,11 @@ XrdCapability::Create(XrdOucEnv *inenv, XrdOucEnv* &outenv, eos::common::SymKey*
 
   int envlen;
   XrdOucString toencrypt = inenv->Env(envlen);
+  toencrypt += "cap.valid=";
+  char validity[32];
+  snprintf(validity,32,"%u", (unsigned int) time(NULL) + 3600); // one hour validity
+  toencrypt += validity;
+
   XrdOucString encrypted="";
   
   if (!XrdMqMessage::SymmetricStringEncrypt(toencrypt, encrypted, (char*)key->GetKey())) {
@@ -155,6 +160,18 @@ XrdCapability::Extract(XrdOucEnv *inenv, XrdOucEnv* &outenv)
     return EKEYREJECTED;
   } 
   outenv = new XrdOucEnv(decrypted.c_str());
+
+  if (!outenv->Get("cap.valid")) {
+    return EINVAL;
+  } else {
+    time_t now = time(NULL);
+    time_t capnow = atoi(outenv->Get("cap.valid"));
+    // capability expired!
+
+    if (capnow < now) 
+      return ETIME;
+  }
+
   return 0;
 }
 
