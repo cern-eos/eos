@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: WebDAV.hh
+// File: HttpHandler.hh
 // Author: Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
@@ -22,16 +22,16 @@
  ************************************************************************/
 
 /**
- * @file   WebDAV.hh
+ * @file   HttpHandler.hh
  *
- * @brief  TODO
+ * @brief  Class to handle plain HTTP requests and build responses.
  */
 
-#ifndef __EOSMGM_WEBDAV__HH__
-#define __EOSMGM_WEBDAV__HH__
+#ifndef __EOSMGM_HTTP_HANDLER__HH__
+#define __EOSMGM_HTTP_HANDLER__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "mgm/http/ProtocolHandler.hh"
+#include "common/http/HttpHandler.hh"
 #include "mgm/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -41,46 +41,35 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-class WebDAV : public eos::mgm::ProtocolHandler
+class HttpHandler : public eos::common::HttpHandler
 {
-
-private:
-  enum Methods
-  {
-    PROPFIND,  //!< Used to retrieve properties, stored as XML, from a web
-               //!< resource. It is also overloaded to allow one to retrieve
-               //!< the collection structure (a.k.a. directory hierarchy) of a
-               //!< remote system.
-    PROPPATCH, //!< Used to change and delete multiple properties on a resource
-               //!< in a single atomic act
-    MKCOL,     //!< Used to create collections (a.k.a. a directory)
-    COPY,      //!< Used to copy a resource from one URI to another
-    MOVE,      //!< Used to move a resource from one URI to another
-    LOCK,      //!< Used to put a lock on a resource. WebDAV supports both
-               //!< shared and exclusive locks.
-    UNLOCK     //!< Used to remove a lock from a resource
-  };
 
 public:
 
   /**
    * Constructor
    */
-  WebDAV () {};
+  HttpHandler (eos::common::Mapping::VirtualIdentity *vid) :
+    eos::common::ProtocolHandler(vid) {};
 
   /**
    * Destructor
    */
-  virtual ~WebDAV () {};
+  virtual ~HttpHandler () {};
 
   /**
+   * Check whether the given method and headers are a match for this protocol.
    *
+   * @param method  the request verb used by the client (GET, PUT, etc)
+   * @param headers the map of request headers
+   *
+   * @return true if the protocol matches, false otherwise
    */
   static bool
   Matches (const std::string &method, HeaderMap &headers);
 
   /**
-   * Build a response to the given WebDAV request.
+   * Build a response to the given plain HTTP request.
    *
    * @param request  the map of request headers sent by the client
    * @param method   the request verb used by the client (GET, PUT, etc)
@@ -91,75 +80,101 @@ public:
    * @param cookies  the map of cookie headers
    */
   void
-  HandleRequest (HeaderMap         &request,
-                 const std::string &method,
-                 const std::string &url,
-                 const std::string &query,
-                 const std::string &body,
-                 size_t            *bodysize,
-                 HeaderMap         &cookies);
+  HandleRequest (eos::common::HttpRequest *request);
 
   /**
+   * Handle an HTTP GET request.
    *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
    */
-  std::string
-  PropFind (HeaderMap &request, const std::string &body);
+  eos::common::HttpResponse*
+  Get (eos::common::HttpRequest *request);
 
   /**
+   * Handle an HTTP HEAD request.
    *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
    */
-  std::string
-  PropPatch (HeaderMap &request, HeaderMap &response, int &respcode);
+  eos::common::HttpResponse*
+  Head (eos::common::HttpRequest *request);
 
   /**
+   * Handle an HTTP POST request.
    *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
    */
-  std::string
-  MkCol (HeaderMap &request, HeaderMap &response, int &respcode);
+  eos::common::HttpResponse*
+  Post (eos::common::HttpRequest *request);
 
   /**
+   * Handle an HTTP PUT request.
    *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
    */
-  std::string
-  Copy (HeaderMap &request, HeaderMap &response, int &respcode);
+  eos::common::HttpResponse*
+  Put (eos::common::HttpRequest *request);
 
   /**
+   * Handle an HTTP DELETE request.
    *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
    */
-  std::string
-  Move (HeaderMap &request, HeaderMap &response, int &respcode);
+  eos::common::HttpResponse*
+  Delete (eos::common::HttpRequest *request);
 
   /**
+   * Handle an HTTP TRACE request.
    *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
    */
-  std::string
-  Lock (HeaderMap &request, HeaderMap &response, int &respcode);
+  eos::common::HttpResponse*
+  Trace (eos::common::HttpRequest *request);
 
   /**
+   * Handle an HTTP OPTIONS request.
    *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
    */
-  std::string
-  Unlock (HeaderMap &request, HeaderMap &response, int &respcode);
+  eos::common::HttpResponse*
+  Options (eos::common::HttpRequest *request);
 
   /**
+   * Handle an HTTP CONNECT request.
    *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
    */
-  inline static int
-  ParseMethodString (const std::string &method)
-  {
-    if      (method == "PROPFIND")  return Methods::PROPFIND;
-    else if (method == "PROPPATCH") return Methods::PROPPATCH;
-    else if (method == "MKCOL")     return Methods::MKCOL;
-    else if (method == "COPY")      return Methods::COPY;
-    else if (method == "MOVE")      return Methods::MOVE;
-    else if (method == "LOCK")      return Methods::LOCK;
-    else if (method == "UNLOCK")    return Methods::UNLOCK;
-    else return -1;
-  }
+  eos::common::HttpResponse*
+  Connect (eos::common::HttpRequest *request);
+
+  /**
+   * Handle an HTTP PATCH request.
+   *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
+   */
+  eos::common::HttpResponse*
+  Patch (eos::common::HttpRequest *request);
 
 };
 
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_END
 
-#endif /* __EOSMGM_WEBDAV__HH__ */
+#endif /* __EOSMGM_HTTP_HANDLER__HH__ */

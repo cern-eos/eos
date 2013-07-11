@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// File: ProtocolHandler.cc
-// Author: Justin Lewis Salmon - CERN
+// File: HttpServer.hh
+// Author: Andreas-Joachim Peters & Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -21,56 +21,81 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file HttpServer.hh
+ *
+ * @brief creates an HTTP redirector instance running on the FST
+ */
+
+#ifndef __EOSFST_HTTP__HH__
+#define __EOSFST_HTTP__HH__
+
 /*----------------------------------------------------------------------------*/
-#include "mgm/http/ProtocolHandler.hh"
-#include "mgm/http/Http.hh"
-#include "mgm/http/S3.hh"
-#include "mgm/http/WebDAV.hh"
+#include "fst/Namespace.hh"
 #include "common/Logging.hh"
+#include "common/http/HttpServer.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
-EOSMGMNAMESPACE_BEGIN
+EOSFSTNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-ProtocolHandler::ProtocolHandler() : mResponseCode(200) {}
-
-/*----------------------------------------------------------------------------*/
-ProtocolHandler*
-ProtocolHandler::CreateProtocolHandler (const std::string &method,
-                                        HeaderMap         &headers)
+class HttpServer : public eos::common::HttpServer
 {
-  if (S3::Matches(method, headers))
-  {
-    return new S3();
-  }
-  else if (WebDAV::Matches(method, headers))
-  {
-    return new WebDAV();
-  }
-  else if (Http::Matches(method, headers))
-  {
-    return new Http();
-  }
 
-  else return NULL;
-}
+public:
 
-/*----------------------------------------------------------------------------*/
-void
-ProtocolHandler::PrintResponse()
-{
-  eos_static_info("response code=%d", mResponseCode);
+  /**
+   * Constructor
+   */
+  HttpServer (int port = 8001);
 
-  for (auto it = mResponseHeaders.begin(); it != mResponseHeaders.end(); ++it)
-  {
-    eos_static_info("response header:%s=%s", it->first.c_str(),
-                                             it->second.c_str());
-  }
+  /**
+   * Destructor
+   */
+  virtual ~HttpServer ();
 
-  eos_static_info("response body=\n%s", mResponseBody.c_str());
-}
+#ifdef EOS_MICRO_HTTPD
+  /**
+   * HTTP object handler function on FST
+   *
+   * @return see implementation
+   */
+  virtual int
+  Handler (void                  *cls,
+           struct MHD_Connection *connection,
+           const char            *url,
+           const char            *method,
+           const char            *version,
+           const char            *upload_data,
+           size_t                *upload_data_size,
+           void                 **ptr);
 
-/*----------------------------------------------------------------------------*/
-EOSMGMNAMESPACE_END
+  /**
+   * File Read Callback function
+   *
+   * @param cls XrdOfsFile* object
+   * @param pos offset to read from
+   * @param buf buffer to write to
+   * @param max size to read
+   *
+   * @return number of bytes read
+   */
+  static ssize_t
+  FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max);
+
+  /**
+   * File Close Callback function
+   *
+   * @param cls XrdOfsFile* object
+   */
+  static void
+  FileCloseCallback (void *cls);
+
+#endif
+};
+
+EOSFSTNAMESPACE_END
+
+#endif

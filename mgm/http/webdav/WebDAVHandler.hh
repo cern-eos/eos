@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ProtocolHandler.hh
+// File: WebDAVHandler.hh
 // Author: Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
@@ -22,63 +22,64 @@
  ************************************************************************/
 
 /**
- * @file   ProtocolHandler.hh
+ * @file   WebDAVHandler.hh
  *
- * @brief  Abstract base class representing an interface which a concrete
- *         protocol must implement, e.g. HTTP, WebDAV, S3.
+ * @brief  Class to handle WebDAV requests and build responses.
  */
 
-#ifndef __EOSMGM_PROTOCOLHANDLER__HH__
-#define __EOSMGM_PROTOCOLHANDLER__HH__
+#ifndef __EOSMGM_WEBDAV_HANDLER__HH__
+#define __EOSMGM_WEBDAV_HANDLER__HH__
 
 /*----------------------------------------------------------------------------*/
+#include "common/http/ProtocolHandler.hh"
+#include "common/Mapping.hh"
 #include "mgm/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
-#include <string>
 #include <map>
+#include <string>
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-class ProtocolHandler
+class WebDAVHandler : public eos::common::ProtocolHandler
 {
 
-public:
-  typedef std::map<std::string, std::string> HeaderMap;
-
-protected:
-  HeaderMap   mResponseHeaders; //!< the response headers
-  std::string mResponseBody;    //!< the response body string
-  int         mResponseCode;    //!< the HTTP response code
+private:
+  /**
+   * WebDAV HTTP extension methods
+   */
+  enum Methods
+  {
+    PROPFIND,  //!< Used to retrieve properties, stored as XML, from a web
+               //!< resource. It is also overloaded to allow one to retrieve
+               //!< the collection structure (a.k.a. directory hierarchy) of a
+               //!< remote system.
+    PROPPATCH, //!< Used to change and delete multiple properties on a resource
+               //!< in a single atomic act
+    MKCOL,     //!< Used to create collections (a.k.a. a directory)
+    COPY,      //!< Used to copy a resource from one URI to another
+    MOVE,      //!< Used to move a resource from one URI to another
+    LOCK,      //!< Used to put a lock on a resource. WebDAV supports both
+               //!< shared and exclusive locks.
+    UNLOCK     //!< Used to remove a lock from a resource
+  };
 
 public:
 
   /**
    * Constructor
    */
-  ProtocolHandler ();
+  WebDAVHandler (eos::common::Mapping::VirtualIdentity *vid) :
+    eos::common::ProtocolHandler(vid) {};
 
   /**
    * Destructor
    */
-  virtual ~ProtocolHandler () {};
+  virtual ~WebDAVHandler () {};
 
   /**
-   * Factory function to create an appropriate object which will handle this
-   * request based on the method and headers.
-   *
-   * @param method  the request verb used by the client (GET, PUT, etc)
-   * @param headers the map of request headers
-   *
-   * @return a concrete ProtocolHandler, or NULL if no matching protocol found
-   */
-  static ProtocolHandler*
-  CreateProtocolHandler (const std::string &method, HeaderMap &headers);
-
-  /**
-   * Concrete implementations must use this function to check whether the given
-   * method and headers are a match for their protocol.
+   * Check whether the given method and headers are a match for this protocol.
    *
    * @param method  the request verb used by the client (GET, PUT, etc)
    * @param headers the map of request headers
@@ -89,8 +90,7 @@ public:
   Matches (const std::string &method, HeaderMap &headers);
 
   /**
-   * Concrete implementations must use this function to build a response to the
-   * given request.
+   * Build a response to the given WebDAV request.
    *
    * @param request  the map of request headers sent by the client
    * @param method   the request verb used by the client (GET, PUT, etc)
@@ -100,41 +100,38 @@ public:
    * @param bodysize the size of the request body
    * @param cookies  the map of cookie headers
    */
-  virtual void
-  HandleRequest (HeaderMap         &request,
-                 const std::string &method,
-                 const std::string &url,
-                 const std::string &query,
-                 const std::string &body,
-                 size_t            *bodysize,
-                 HeaderMap         &cookies) = 0;
-
-  /**
-   * @return the response headers that were built.
-   */
-  inline HeaderMap
-  GetResponseHeaders () { return mResponseHeaders; };
-
-  /**
-   * @return the response body that was built.
-   */
-  inline std::string
-  GetResponseBody () { return mResponseBody; };
-
-  /**
-   * @return the HTTP response code that was decided upon.
-   */
-  inline int
-  GetResponseCode () { return mResponseCode; };
-
-  /**
-   * Dump all parts of the request to the log
-   */
   void
-  PrintResponse ();
+  HandleRequest (eos::common::HttpRequest *request);
+
+  /**
+   *
+   */
+  eos::common::HttpResponse*
+  MkCol (eos::common::HttpRequest *request);
+
+  /**
+   * Convert the given request method string into its integer constant
+   * representation.
+   *
+   * @param method  the method string to convert
+   *
+   * @return the converted method string as an integer
+   */
+  inline static int
+  ParseMethodString (const std::string &method)
+  {
+    if      (method == "PROPFIND")  return Methods::PROPFIND;
+    else if (method == "PROPPATCH") return Methods::PROPPATCH;
+    else if (method == "MKCOL")     return Methods::MKCOL;
+    else if (method == "COPY")      return Methods::COPY;
+    else if (method == "MOVE")      return Methods::MOVE;
+    else if (method == "LOCK")      return Methods::LOCK;
+    else if (method == "UNLOCK")    return Methods::UNLOCK;
+    else return -1;
+  }
 };
 
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_END
 
-#endif /* __EOSMGM_PROTOCOLHANDLER__HH__ */
+#endif /* __EOSMGM_WEBDAV_HANDLER__HH__ */

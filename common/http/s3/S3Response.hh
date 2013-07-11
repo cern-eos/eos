@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: HttpServer.hh
-// Author: Andreas-Joachim Peters & Justin Lewis Salmon - CERN
+// File: S3Response.hh
+// Author: Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2013 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,74 +22,69 @@
  ************************************************************************/
 
 /**
- * @file   HttpServer.hh
+ * @file   S3Response.hh
  *
- * @brief  Creates an Http redirector instance running on the MGM
+ * @brief  TODO
  */
 
-#ifndef __EOSMGM_HTTPSERVER__HH__
-#define __EOSMGM_HTTPSERVER__HH__
+#ifndef __EOSCOMMON_S3_RESPONSE__HH__
+#define __EOSCOMMON_S3_RESPONSE__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "mgm/Namespace.hh"
-#include "common/http/HttpServer.hh"
-#include "common/Mapping.hh"
+#include "common/http/HttpResponse.hh"
+#include "common/Namespace.hh"
+#include "common/Logging.hh"
+
 /*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <map>
 #include <string>
 /*----------------------------------------------------------------------------*/
 
-EOSMGMNAMESPACE_BEGIN
+EOSCOMMONNAMESPACE_BEGIN
 
-class HttpServer : public eos::common::HttpServer
+#define XML_V1_UTF8 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+
+class S3Response : public HttpResponse
 {
 
-private:
-  std::string     mGridMapFile;            //!< contents of the gridmap file
-  struct timespec mGridMapFileLastModTime; //!< last modification time of the
-                                           //!< gridmap file
-
 public:
-  /**
-   * Constructor
-   */
-  HttpServer (int port = 8000) :
-    eos::common::HttpServer(port), mGridMapFileLastModTime{0} {}
 
-  /**
-   * Destructor
-   */
-  virtual ~HttpServer () {};
+  HttpResponse*
+  BuildResponse (HttpRequest *request) { return this; };
 
-#ifdef EOS_MICRO_HTTPD
-  /**
-   * HTTP object handler function on MGM
-   *
-   * @return see implementation
-   */
-  virtual int
-  Handler (void                  *cls,
-           struct MHD_Connection *connection,
-           const char            *url,
-           const char            *method,
-           const char            *version,
-           const char            *upload_data,
-           size_t                *upload_data_size,
-           void                 **ptr);
-#endif
-
-  /**
-   * Authenticate the client request by inspecting the SSL headers which were
-   * transmitted by the reverse proxy server and attempting to map the client
-   * DN to the gridmap file.
-   */
-  eos::common::Mapping::VirtualIdentity*
-  Authenticate (std::map<std::string, std::string> &headers);
+  /*----------------------------------------------------------------------------*/
+//  static std::string
+//  RestErrorResponse (int        &response_code,
+//                     int         http_code,
+//                     std::string errcode,
+//                     std::string errmsg,
+//                     std::string resource,
+//                     std::string requestid)
+//  {
+//    //.............................................................................
+//    // Creates a AWS RestError Response string
+//    //.............................................................................
+//    response_code = http_code;
+//    std::string result = XML_V1_UTF8;
+//    result += "<Error><Code>";
+//    result += errcode;
+//    result += "</Code>";
+//    result += "<Message>";
+//    result += errmsg;
+//    result += "</Message>";
+//    result += "<Resource>";
+//    result += resource;
+//    result += "</Resource>";
+//    result += "<RequestId>";
+//    result += requestid;
+//    result += "</RequestId>";
+//    result += "</Error";
+//    return result;
+//  }
 };
 
 /*----------------------------------------------------------------------------*/
-EOSMGMNAMESPACE_END
+EOSCOMMONNAMESPACE_END
 
-#endif
+#endif /* __EOSCOMMON_S3_RESPONSE__HH__ */

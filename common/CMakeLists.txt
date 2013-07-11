@@ -80,10 +80,12 @@ add_library (eosCommonServer SHARED
             TransferJob.cc
             sqlite/sqlite3.c
             DbMap.cc
-            HttpServer.cc
+            http/HttpServer.cc
+            http/HttpRequest.cc
+            http/HttpResponse.cc
+            http/s3/S3Handler.cc
             stringencoders/modp_numtoa.c
             )
-
 
 add_executable ( dbmaptestfunc
        dbmaptest/DbMapTestFunc.cc

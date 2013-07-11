@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: HttpServer.hh
-// Author: Andreas-Joachim Peters & Justin Lewis Salmon - CERN
+// File: ProtocolHandlerFactory.hh
+// Author: Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2013 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,74 +22,63 @@
  ************************************************************************/
 
 /**
- * @file   HttpServer.hh
+ * @file   ProtocolHandlerFactory.hh
  *
- * @brief  Creates an Http redirector instance running on the MGM
+ * @brief  TODO
  */
 
-#ifndef __EOSMGM_HTTPSERVER__HH__
-#define __EOSMGM_HTTPSERVER__HH__
+#ifndef __EOSFST_PROTOCOLHANDLERFACTORY__HH__
+#define __EOSFST_PROTOCOLHANDLERFACTORY__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "mgm/Namespace.hh"
-#include "common/http/HttpServer.hh"
-#include "common/Mapping.hh"
+#include "fst/Namespace.hh"
+#include "fst/http/HttpHandler.hh"
+#include "fst/http/s3/S3Handler.hh"
+#include "common/http/ProtocolHandlerFactory.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <map>
 #include <string>
 /*----------------------------------------------------------------------------*/
 
-EOSMGMNAMESPACE_BEGIN
+EOSFSTNAMESPACE_BEGIN
 
-class HttpServer : public eos::common::HttpServer
+class ProtocolHandlerFactory : public eos::common::ProtocolHandlerFactory
 {
-
-private:
-  std::string     mGridMapFile;            //!< contents of the gridmap file
-  struct timespec mGridMapFileLastModTime; //!< last modification time of the
-                                           //!< gridmap file
-
 public:
-  /**
-   * Constructor
-   */
-  HttpServer (int port = 8000) :
-    eos::common::HttpServer(port), mGridMapFileLastModTime{0} {}
+
+  ProtocolHandlerFactory () {};
+  virtual ~ProtocolHandlerFactory () {};
 
   /**
-   * Destructor
-   */
-  virtual ~HttpServer () {};
-
-#ifdef EOS_MICRO_HTTPD
-  /**
-   * HTTP object handler function on MGM
+   * Factory function to create an appropriate object which will handle this
+   * request based on the method and headers.
    *
-   * @return see implementation
+   * @param method  the request verb used by the client (GET, PUT, etc)
+   * @param headers the map of request headers
+   * @param vid     the mapped virtual identity of this client
+   *
+   * @return a concrete ProtocolHandler, or NULL if no matching protocol found
    */
-  virtual int
-  Handler (void                  *cls,
-           struct MHD_Connection *connection,
-           const char            *url,
-           const char            *method,
-           const char            *version,
-           const char            *upload_data,
-           size_t                *upload_data_size,
-           void                 **ptr);
-#endif
+  eos::common::ProtocolHandler*
+  CreateProtocolHandler (const std::string                     &method,
+                         std::map<std::string, std::string>    &headers,
+                         eos::common::Mapping::VirtualIdentity *vid)
+  {
+    if (S3Handler::Matches(method, headers))
+    {
+      return new S3Handler();
+    }
+    else if (HttpHandler::Matches(method, headers))
+    {
+      return new HttpHandler();
+    }
 
-  /**
-   * Authenticate the client request by inspecting the SSL headers which were
-   * transmitted by the reverse proxy server and attempting to map the client
-   * DN to the gridmap file.
-   */
-  eos::common::Mapping::VirtualIdentity*
-  Authenticate (std::map<std::string, std::string> &headers);
+    else return NULL;
+  };
 };
 
 /*----------------------------------------------------------------------------*/
-EOSMGMNAMESPACE_END
+EOSFSTNAMESPACE_END
 
-#endif
+#endif /* __EOSFST_PROTOCOLHANDLERFACTORY__HH__ */

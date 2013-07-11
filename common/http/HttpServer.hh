@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
 // File: HttpServer.hh
-// Author: Andreas-Joachim Peters - CERN
+// Author: Andreas-Joachim Peters & Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -28,10 +28,12 @@
  *         instance
  */
 
-#ifndef __EOSCOMMON_HTTP__HH__
-#define __EOSCOMMON_HTTP__HH__
+#ifndef __EOSCOMMON_HTTP_SERVER__HH__
+#define __EOSCOMMON_HTTP_SERVER__HH__
 
 /*----------------------------------------------------------------------------*/
+#include "common/http/HttpRequest.hh"
+#include "common/http/HttpResponse.hh"
 #include "common/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
@@ -48,8 +50,8 @@ EOSCOMMONNAMESPACE_BEGIN
 
 class HttpServer
 {
-protected:
 
+protected:
 #ifdef EOS_MICRO_HTTPD
   struct MHD_Daemon *mDaemon;   //!< MicroHttpd daemon instance
 #endif
@@ -57,8 +59,8 @@ protected:
   pthread_t          mThreadId; //!< This thread's ID
   bool               mRunning;  //!< Is this server running?
   static HttpServer *gHttp;     //!< This is the instance of the HTTP server
-                                //!< allowing the Handler function to call class
-                                //!< member functions
+                                //!< allowing the Handler function to call
+                                //!< class member functions
 
 public:
   /**
@@ -69,7 +71,7 @@ public:
   /**
    * Destructor
    */
-  virtual ~HttpServer ();
+  virtual ~HttpServer () {};
 
   /**
    * Start the listening HTTP server
@@ -90,106 +92,79 @@ public:
    */
   void* Run ();
 
-
   /**
-   * returns redirection HTTP
+   * Get an HTTP redirect response object.
    *
-   * @param return response code
-   * @param host_cgi host?redirect_query
-   * @param port port number
-   * @param path path of the request
-   * @param query cgi of the request
-   * @param cookie (true use cookies, false use cgi)
-   * @return HTTP output page
+   * @param url      the url to redirect to
+   * @param hostCGI  the string returned by the open() call that told us to
+   *                 redirect. Contains hostname?redirect_query
+   * @param port     the port number to redirect to
+   * @param cookie   true if we should use cookies, false for CGI
+   *
+   * @return an HTTP response object
    */
-  static std::string
-  HttpRedirect (int                                &response_code,
-                std::map<std::string, std::string> &response_header,
-                const char                         *host_cgi,
-                int                                 port,
-                const std::string                  &path,
-                const std::string                  &query,
-                bool                                cookie = true);
+  static HttpResponse*
+  HttpRedirect (const std::string &url,
+                const std::string &hostCGI,
+                int                port,
+                bool               cookie);
 
   /**
-   * returns error HTTP
+   * Get an HTTP error response object containing an HTML error page inside
+   * the body.
    *
-   * @param return response code
-   * @param errtxt text to display
-   * @param errc error code to map
-   * @return HTTP error page
+   * @param errorText  the error message to be displayed on the error page
+   * @param errorCode  the derived HTTP error code
+   *
+   * @return an HTTP response object
    */
-  static std::string
-  HttpError (int                                &response_code,
-             std::map<std::string, std::string> &response_header,
-             const char                         *errtxt,
-             int                                 errc);
+  static HttpResponse*
+  HttpError (const char *errorText, int errorCode);
 
   /**
-   * returns data
+   * Get an HTTP data response object containing an HTML data page inside the
+   * body.
    *
-   * @param return response code
-   * @param point to data
-   * @param length of data
-   * @return HTTP data page
+   * @param data    the HTML data page string
+   * @param length  the size of the data page
+   *
+   * @return an HTTP response object
    */
-  static std::string
-  HttpData (int                                &response_code,
-            std::map<std::string, std::string> &response_header,
-            const char                         *data,
-            int                                 length);
+  static HttpResponse*
+  HttpData (const char *data, int length);
 
   /**
-   * returns a stall message
+   * Get an HTTP stall response object.
    *
-   * @param return response code
-   * @param stalltxt text to display
-   * @param stallsec seconds to stall
-   * @return HTTP stall page
+   * @param stallText  the stall text to display
+   * @param seconds    number of seconds to stall for
+   *
+   * @return an HTTP response object
    */
-  static std::string
-  HttpStall (int                                &response_code,
-             std::map<std::string, std::string> &response_header,
-             const char                         *stallxt,
-             int                                 stallsec);
+  static HttpResponse*
+  HttpStall (const char *stallText, int seconds);
 
   /**
-   * encode the provided CGI string escaping '/' '+' '='
+   * Encode the provided CGI string, escaping '/' '+' '=' characters
    *
-   * @param cgi to encode
+   * @param cgi  the CGI string to encode
    */
   static void
   EncodeURI (std::string &cgi);
 
   /**
-   * deocde the provided CGI string unesacping '/' '+' '='
+   * Deocde the provided CGI string, unesacping '/' '+' '=' characters
    *
-   * @param cgi to decode
+   * @param cgi  the CGI string to decode
    */
   static void
   DecodeURI (std::string &cgi);
 
-  /**
-   * decode the range header tag and create canonical merged map with
-   * offset/len
-   *
-   * @param range header
-   * @param offsetmap canonical map with offset/length by reference
-   * @param requestsize sum of non overlapping bytes to serve
-   * @param filesize size of file
-   * @return true if valid request, otherwise false
-   */
-  bool
-  DecodeByteRange (std::string               rangeheader,
-                   std::map<off_t, ssize_t> &offsetmap,
-                   ssize_t                  &requestsize,
-                   off_t                     filesize);
-
 #ifdef EOS_MICRO_HTTPD
   /**
-   * calls the instance handler function of the Http object
+   * Calls the instance handler function of the Http object
    *
-   * @return 
+   * @return see implementation
    */
   static int
   StaticHandler (void                  *cls,
@@ -203,7 +178,7 @@ public:
 
 
   /**
-   * http object handler function
+   * HTTP object handler function
    *
    * @return see implementation
    */
@@ -220,11 +195,12 @@ public:
   /**
    * Returns the query string for an HTTP request
    *
-   * @param cls in-out address of a std::string containing the query string
-   * @param kind request type
-   * @param key ...
-   * @param value ...
-   * @return ...
+   * @param cls    in-out address of a std::string containing the query string
+   * @param kind   the request type
+   * @param key    the query parameter key
+   * @param value  the query parameter value
+   *
+   * @return MHD_YES
    */
   static int
   BuildQueryString (void              *cls,
@@ -235,12 +211,13 @@ public:
   /**
    * Returns the header map for an HTTP request
    *
-   * @param cls in-out address of a std::map<std::string,std::string>
-   *            containing the query string
-   * @param kind request type
-   * @param key ...
-   * @param value ...
-   * @return ...
+   * @param cls    in-out address of a std::map<std::string,std::string>
+   *               containing the query string
+   * @param kind   the request type
+   * @param key    the query parameter key
+   * @param value  the query parameter value
+   *
+   * @return MHD_YES
    */
   static int
   BuildHeaderMap (void              *cls,

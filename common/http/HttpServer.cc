@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
 // File: HttpServer.cc
-// Author: Andreas-Joachim Peters - CERN
+// Author: Andreas-Joachim Peters & Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -22,7 +22,8 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "common/HttpServer.hh"
+#include "common/http/HttpServer.hh"
+#include "common/http/PlainHttpResponse.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
@@ -35,25 +36,16 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-HttpServer* HttpServer::gHttp;
-
-/*----------------------------------------------------------------------------*/
-#define EOSCOMMON_HTTP_PAGE "<html><head><title>No such file or directory</title>\
-                             </head><body>No such file or directory</body></html>"
+HttpServer* HttpServer::gHttp; //!< Global HTTP server
 
 /*----------------------------------------------------------------------------*/
 HttpServer::HttpServer (int port)
 {
   gHttp = this;
+  mDaemon = 0;
   mPort = port;
   mThreadId = 0;
   mRunning = false;
-}
-
-/*----------------------------------------------------------------------------*/
-HttpServer::~HttpServer ()
-{
-
 }
 
 /*----------------------------------------------------------------------------*/
@@ -74,7 +66,6 @@ HttpServer::Start ()
   {
     return false;
   }
-
 }
 
 /*----------------------------------------------------------------------------*/
@@ -91,12 +82,15 @@ HttpServer::Run ()
 #ifdef EOS_MICRO_HTTPD
 
   {
+    // Delay to make sure xrootd is configured before serving
+    XrdSysTimer::Snooze(1);
+
     mDaemon = MHD_start_daemon(MHD_USE_DEBUG | MHD_USE_SELECT_INTERNALLY,
                                mPort,
                                NULL,
                                NULL,
                                &HttpServer::StaticHandler,
-                               (void*) EOSCOMMON_HTTP_PAGE,
+                               (void*) 0,
                                MHD_OPTION_CONNECTION_MEMORY_LIMIT,
                                128*1024*1024 /* 128MB */,
                                MHD_OPTION_END
@@ -223,21 +217,17 @@ HttpServer::BuildQueryString (void              *cls,
 }
 #endif
 
-/*----------------------------------------------------------------------------*/
-std::string
-HttpServer::HttpRedirect (int                                &response_code,
-                          std::map<std::string, std::string> &response_header,
-                          const char                         *host_cgi,
-                          int                                 port,
-                          const std::string                  &path,
-                          const std::string                  &query,
-                          bool                                cookie)
+HttpResponse*
+HttpServer::HttpRedirect (const std::string &url,
+                          const std::string &hostCGI,
+                          int                port,
+                          bool               cookie)
 {
   eos_static_info("info=redirecting");
-
-  response_code = 307;
-  // return an HTTP redirect
-  std::string host = host_cgi;
+  HttpResponse *response = new PlainHttpResponse();
+  response->SetResponseCode(HttpResponse::ResponseCodes::TEMPORARY_REDIRECT);
+  std::string host = hostCGI;
+  eos_static_info("\n\nhost=%s", host.c_str());
   std::string cgi = "";
   size_t qpos;
 
@@ -248,6 +238,9 @@ HttpServer::HttpRedirect (int                                &response_code,
     host.erase(qpos);
   }
 
+  eos_static_info("\n\nhost=%s", host.c_str());
+  eos_static_info("\n\ncgi=%s", cgi.c_str());
+
   std::string redirect;
 
   redirect = "http://";
@@ -255,51 +248,50 @@ HttpServer::HttpRedirect (int                                &response_code,
   char sport[16];
   snprintf(sport, sizeof (sport) - 1, ":%d", port);
   redirect += sport;
-  redirect += path.c_str();
+  redirect += url;
 
   EncodeURI(cgi); // encode '+' '/' '='
 
   if (cookie)
   {
-    response_header["Set-Cookie"] = "EOSCAPABILITY=";
-    response_header["Set-Cookie"] += cgi;
-    response_header["Set-Cookie"] += ";Max-Age=60;";
-    response_header["Set-Cookie"] += "Path=";
-    response_header["Set-Cookie"] += path.c_str();
-    response_header["Set-Cookie"] += ";Version=1";
-    response_header["Set-Cookie"] += ";Domain=";
-    response_header["Set-Cookie"] += "cern.ch";
+    response->AddHeader("Set-Cookie", "EOSCAPABILITY="
+                                      + cgi
+                                      + ";Max-Age=60;"
+                                      + "Path="
+                                      + url
+                                      + ";Version=1"
+                                      + ";Domain="
+                                      + "cern.ch");
   }
   else
   {
     redirect += "?";
     redirect += cgi;
   }
-  response_header["Location"] = redirect;
-  return "";
+
+  response->AddHeader("Location", redirect);
+  return response;
 }
 
 /*----------------------------------------------------------------------------*/
-std::string
-HttpServer::HttpError (int                                &response_code,
-                       std::map<std::string, std::string> &response_header,
-                       const char                         *errtxt,
-                       int                                 errc)
+HttpResponse*
+HttpServer::HttpError (const char *errorText, int errorCode)
 {
-  if (errc == ENOENT)
-    response_code = 404;
-  else
-    if (errc == EOPNOTSUPP)
-    response_code = 501;
-  else
-    response_code = 500;
+  HttpResponse *response = new PlainHttpResponse();
 
-  if (errc > 400)
-    response_code = errc;
+  if (errorCode == ENOENT)
+    response->SetResponseCode(response->NOT_FOUND);
+  else if (errorCode == EOPNOTSUPP)
+    response->SetResponseCode(response->NOT_IMPLEMENTED);
+  else
+    response->SetResponseCode(response->INTERNAL_SERVER_ERROR);
+
+  if (errorCode > 400)
+    response->SetResponseCode(errorCode);
 
   XrdOucString html_dir, error;
   char errct[256];
-  snprintf(errct, sizeof (errct) - 1, "%d", errc);
+  snprintf(errct, sizeof (errct) - 1, "%d", errorCode);
 
   if (getenv("EOS_HTMLDIR"))
     html_dir = getenv("EOS_HTMLDIR");
@@ -311,40 +303,34 @@ HttpServer::HttpError (int                                &response_code,
   buffer << in.rdbuf();
   error = buffer.str().c_str();
 
-  eos_static_info("errc=%d, retcode=%d", errc, response_code);
-  while (error.replace("__RESPONSE_CODE__",
-                       std::to_string((long long) response_code) .c_str())) {}
-  while (error.replace("__ERROR_TEXT__",    errtxt)) {}
+  eos_static_info("errc=%d, retcode=%d", errorCode, response->GetResponseCode());
+  while (error.replace("__RESPONSE_CODE__", std::to_string((long long)
+                                            response->GetResponseCode()).c_str())) {}
+  while (error.replace("__ERROR_TEXT__",    errorText)) {}
 
-  eos_static_debug("html=%s", error.c_str());
-
-  return std::string(error.c_str());
+  response->SetBody(error.c_str());
+  response->AddHeader("Content-Length", std::to_string((long long)
+                                        response->GetBodySize()));
+  response->AddHeader("Content-Type", "text/html");
+  return response;
 }
 
 /*----------------------------------------------------------------------------*/
-std::string
-HttpServer::HttpData (int                                &response_code,
-                      std::map<std::string, std::string> &response_header,
-                      const char                         *data,
-                      int                                 length)
+HttpResponse*
+HttpServer::HttpData (const char *data, int length)
 {
-  response_code = 200;
-  // return data as HTTP message
-  std::string httpdata;
-  httpdata.append(data, length);
-  return httpdata;
+  HttpResponse *response = new PlainHttpResponse();
+  response->SetResponseCode(HttpResponse::ResponseCodes::OK);
+  response->SetBody(std::string(data, length));
+  return response;
 }
 
 /*----------------------------------------------------------------------------*/
-std::string
-HttpServer::HttpStall (int                                &response_code,
-                       std::map<std::string, std::string> &response_header,
-                       const char                         *stallxt,
-                       int                                 stallsec)
+HttpResponse*
+HttpServer::HttpStall(const char *stallText, int seconds)
 {
-  // return an HTTP stall
-  response_code = 501;
-  return HttpError(response_code, response_header, "unable to stall", 503);
+  return HttpError("Unable to stall",
+                   HttpResponse::ResponseCodes::SERVICE_UNAVAILABLE);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -398,123 +384,6 @@ HttpServer::DecodeURI (std::string &cgi)
     scgi.erase(0, 7);
   }
   cgi = scgi.c_str();
-}
-
-/*----------------------------------------------------------------------------*/
-bool
-HttpServer::DecodeByteRange (std::string               rangeheader,
-                             std::map<off_t, ssize_t> &offsetmap,
-                             ssize_t                  &requestsize,
-                             off_t                     filesize)
-{
-  std::vector<std::string> tokens;
-  if (rangeheader.substr(0, 6) != "bytes=")
-  {
-    // this is an illegal header
-    return false;
-  }
-  else
-  {
-    rangeheader.erase(0, 6);
-  }
-
-  eos::common::StringConversion::Tokenize(rangeheader, tokens, ",");
-  // decode the string parts
-  for (size_t i = 0; i < tokens.size(); i++)
-  {
-    eos_static_info("decoding %s", tokens[i].c_str());
-    off_t start = 0;
-    off_t stop = 0;
-    off_t length = 0;
-
-    size_t mpos = tokens[i].find("-");
-    if (mpos == std::string::npos)
-    {
-      // there must always be a '-'
-      return false;
-    }
-    std::string sstop = tokens[i];
-    std::string sstart = tokens[i];
-    sstart.erase(mpos);
-    sstop.erase(0, mpos + 1);
-    if (sstart.length())
-    {
-      start = strtoull(sstart.c_str(), 0, 10);
-    }
-    if (sstop.length())
-    {
-      stop = strtoull(sstop.c_str(), 0, 10);
-    }
-
-    if ((start > filesize) || (stop > filesize))
-    {
-      return false;
-    }
-
-    if (stop >= start)
-    {
-      length = (stop - start) + 1;
-    }
-    else
-    {
-      continue;
-    }
-
-    if (offsetmap.count(start))
-    {
-      if (offsetmap[start] < length)
-      {
-        // a previous block has been replaced with a longer one
-        offsetmap[start] = length;
-      }
-    }
-    else
-    {
-      offsetmap[start] = length;
-    }
-  }
-
-  // now merge overlapping requests
-  bool merged = true;
-  while (merged)
-  {
-    requestsize = 0;
-    if (offsetmap.begin() == offsetmap.end())
-    {
-      // if there is nothing in the map just return with error
-      eos_static_err("msg=\"range map is empty\"");
-      return false;
-    }
-    for (auto it = offsetmap.begin(); it != offsetmap.end(); it++)
-    {
-      eos_static_info("offsetmap %llu:%llu", it->first, it->second);
-      auto next = it;
-      next++;
-      if (next != offsetmap.end())
-      {
-        // check if we have two overlapping requests
-        if ((it->first + it->second) >= (next->first))
-        {
-          merged = true;
-          // merge this two
-          it->second = next->first + next->second - it->first;
-          offsetmap.erase(next);
-          break;
-        }
-        else
-        {
-          merged = false;
-        }
-      }
-      else
-      {
-        merged = false;
-      }
-      // compute the total size
-      requestsize += it->second;
-    }
-  }
-  return true;
 }
 
 /*----------------------------------------------------------------------------*/
