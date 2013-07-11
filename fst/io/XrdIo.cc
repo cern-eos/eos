@@ -265,7 +265,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
   }
   else
   {
-    eos_debug("Readahead enabled, request offset=%lli, length=%i", offset, length);
+    eos_debug("debug=readahead enabled, request offset=%lli, length=%i", offset, length);
     uint64_t read_length;
     uint32_t aligned_length;
     uint32_t shift;
@@ -291,26 +291,25 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
         {
           if (iter != mMapBlocks.begin())
           {
-            eos_debug("Recycle the oldest block. ");
+            eos_debug("debug=recycle the oldest block");
             mQueueBlocks.push(mMapBlocks.begin()->second);
             mMapBlocks.erase(mMapBlocks.begin());
           }
 
-          eos_debug("Prefetch new block(2).");
+          eos_debug("debug=prefetch new block(2)");
           PrefetchBlock(offset + mBlocksize, false, timeout);
         }
         
         if (sh->WaitOK())
         {
-          eos_debug(" Found block in cache: blk_off: %lld, req_off: %lld", iter->first, offset);
+          eos_debug("debug=block in cache: blk_off: %lld, req_off: %lld", iter->first, offset);
           
           if (sh->GetRespLength() == 0)
           {
             // The request got a response but it read 0 bytes
-            eos_warning("Response contains 0 bytes.");
+            eos_warning("warning=response contains 0 bytes.");
             break;           
           }
-
 
           aligned_length = sh->GetRespLength() - shift;
           read_length = ((uint32_t)length < aligned_length) ? length : aligned_length;
@@ -330,7 +329,8 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
           //....................................................................
           mQueueBlocks.push(iter->second);
           mMapBlocks.erase(iter);
-          eos_debug("Error while prefetching, remove block from map.");
+          eos_err("error=prefetching failed, disable it and remove block from map");
+          mDoReadahead = false;
           break;
         }
       }
@@ -348,7 +348,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
 
         if (!mQueueBlocks.empty())
         {
-          eos_debug("Prefetch new block(1).");
+          eos_debug("debug=prefetch new block(1)");
           PrefetchBlock(offset, false, timeout);
         }
       }
@@ -359,7 +359,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
     //..........................................................................
     if (length)
     {
-      eos_debug("Readahead not useful, use the classic way for the rest of the block.");
+      eos_debug("debug=readahead useless, use the classic way for reading");
       handler = mMetaHandler->Register(offset, length, NULL, false);
 
       // If previous read requests failed then we won't get a new handler
@@ -496,7 +496,6 @@ XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 int
 XrdIo::Sync (uint16_t timeout)
 {
-  eos_debug("Calling XrdIo::Sync with timeout = %lu", timeout);
   XrdCl::XRootDStatus status = mXrdFile->Sync(timeout);
 
   if (!status.IsOK())
@@ -579,7 +578,7 @@ XrdIo::Close (uint16_t timeout)
     return SFS_ERROR;
   }
 
-  // If any of the async requests failes then we have an error
+  // If any of the async requests failed then we have an error
   if (!async_ok)
   {
     return SFS_ERROR;
@@ -617,8 +616,10 @@ void
 XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
 {
   XrdCl::XRootDStatus status;
-  eos_debug("Try to prefetch with offset: %lli, length: %zu.", offset, mBlocksize);
   ReadaheadBlock* block = NULL;
+  
+  eos_debug("debug=try to prefetch with offset: %lli, length: %4u",
+            offset, mBlocksize);
 
   if (!mQueueBlocks.empty())
   {
@@ -639,7 +640,9 @@ XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
 
   if (!status.IsOK())
   {
-    block->handler->HandleResponse(&status, NULL);
+    // Create tmp status which is deleted in the HandleResponse method
+    XrdCl::XRootDStatus* tmp_status = new XrdCl::XRootDStatus(status);
+    block->handler->HandleResponse(tmp_status, NULL);
     mQueueBlocks.push(block);    
   }
   else

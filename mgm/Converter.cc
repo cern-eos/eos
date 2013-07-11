@@ -392,9 +392,9 @@ Converter::Convert (void)
     {
       lConversionFidMap.clear();
       if (IsMaster)
-        eos_static_info("converter is disabled");
+        eos_static_debug("converter is disabled");
       else
-        eos_static_info("converter is in slave mode");
+        eos_static_debug("converter is in slave mode");
     }
 
     // -------------------------------------------------------------------------

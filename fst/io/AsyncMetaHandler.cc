@@ -133,7 +133,7 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 
   if (pStatus->status != XrdCl::stOK)
   {
-    eos_debug("Got error message with status:%u, code:%u, errNo:%lu. \n",
+    eos_debug("Got error message with status:%u, code:%u, errNo:%lu",
               pStatus->status, pStatus->code, (unsigned long)pStatus->errNo);
     
     mMapErrors.insert(std::make_pair(chunk->GetOffset(), chunk->GetLength()));
@@ -145,7 +145,7 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
     if (pStatus->code == XrdCl::errOperationExpired)
     {
       mErrorType = pStatus->code;
-      eos_debug("Got a timeout error for request off=%zu, len=%lu \n",
+      eos_debug("Got a timeout error for request off=%zu, len=%lu",
                 chunk->GetOffset(), (unsigned long)chunk->GetLength());
     }    
   }

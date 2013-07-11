@@ -133,11 +133,9 @@ ChunkHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
   {
     delete pResponse;
   }
-
-  XrdCl::XRootDStatus local_status(*pStatus);
+   
+  mMetaHandler->HandleResponse(pStatus, this);
   delete pStatus;
-  
-  mMetaHandler->HandleResponse(&local_status, this);
 }
 
 EOSFSTNAMESPACE_END

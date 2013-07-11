@@ -909,6 +909,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
              // the server is down
              if (error_type == XrdCl::errOperationExpired)
              {
+               eos_debug("debug=calling close on the file after a timeout error");
                mStripeFiles[j]->Close(mTimeout);
                delete mStripeFiles[j];
                mStripeFiles[j] = NULL;
