@@ -99,7 +99,7 @@ public:
 
 /*----------------------------------------------------------------------------*/
 /**
- * @brief  This class run's the file layout conversion service per space.
+ * @brief Class running the file layout conversion service per space
  * 
  * This class run's an eternal thread per configured space which is responsible 
  * to pick-up conversion

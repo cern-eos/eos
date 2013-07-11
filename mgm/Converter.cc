@@ -25,6 +25,7 @@
 #include "mgm/Converter.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
+#include "mgm/XrdMgmOfsDirectory.hh"
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"

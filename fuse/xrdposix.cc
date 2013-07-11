@@ -1297,7 +1297,6 @@ xrd_stat (const char* path, struct stat* buf)
 
   COMMONTIMING("START", &stattiming);
 
-  int retc = 0;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
@@ -1384,7 +1383,6 @@ xrd_stat (const char* path, struct stat* buf)
       buf->st_mode &= (~S_ISVTX); // clear the vxt bit
       buf->st_mode &= (~S_ISUID); // clear suid
       buf->st_mode &= (~S_ISGID); // clear sgid
-      retc = 0;
     }
   }
   else
@@ -2115,9 +2113,14 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
 
   XrdSfsFileOpenMode flags_sfs = SFS_O_RDONLY; // open for read by default
 
-  if (oflags & (O_CREAT | O_EXCL | O_RDWR | O_WRONLY))
+  if (oflags & O_CREAT )
   {
     flags_sfs = SFS_O_CREAT | SFS_O_RDWR;
+  } else {
+    if (oflags & (O_EXCL | O_RDWR | O_WRONLY))
+      {
+	flags_sfs = SFS_O_RDWR;
+      }
   }
 
   if (mode & S_IRUSR) mode_sfs |= XrdCl::Access::UR;
@@ -2260,6 +2263,9 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
       XrdOucString origResponse = response->GetBuffer();
       XrdOucString stringOpaque = response->GetBuffer();
 
+      // Add the eos.app=fuse tag to all future PIO open requests
+      origResponse += "&eos.app=fuse";
+
       while (stringOpaque.replace("?", "&"))
       {
       }
@@ -2273,7 +2279,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
 
       if (opaqueInfo)
       {
-        opaqueInfo += 2;
+        opaqueInfo += 1;
         LayoutId::layoutid_t layout = openOpaque->GetInt("mgm.lid");
 
         for (unsigned int i = 0; i <= eos::common::LayoutId::GetStripeNumber(layout); i++)
@@ -2294,7 +2300,8 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
           file = new eos::fst::RaidDpLayout(NULL, layout, NULL, NULL,
                                             eos::common::LayoutId::kXrdCl);
         }
-        else if ((LayoutId::GetLayoutType(layout) == LayoutId::kRaid6) || (LayoutId::GetLayoutType(layout) == LayoutId::kArchive))
+        else if ((LayoutId::GetLayoutType(layout) == LayoutId::kRaid6) ||
+                 (LayoutId::GetLayoutType(layout) == LayoutId::kArchive))
         {
           file = new eos::fst::ReedSLayout(NULL, layout, NULL, NULL,
                                            eos::common::LayoutId::kXrdCl);

@@ -25,7 +25,10 @@ include_directories( ../
                      ./
                      ${XROOTD_INCLUDE_DIR} 
                      ${XROOTD_PRIVATE_INCLUDE_DIR}
-                     ${SPARSEHASH_INCLUDE_DIR} )
+                     ${SPARSEHASH_INCLUDE_DIR}
+                     ${NCURSES_INCLUDE_DIR}
+		     ${Z_INCLUDE_DIR}
+)
 
 link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
                   ${XROOTD_LIB_DIR} )
@@ -40,11 +43,11 @@ add_library( EosFstOss MODULE
 
 
 target_link_libraries( EosFstOss 
-		       eosCapability-Static
 		       eosCommon
 		       XrdServer	      
 		       ${UUID_LIBRARIES}
 )
+
 
 add_library( EosFstIo-Static STATIC
   	     io/FileIoPlugin.hh             io/FileIoPlugin.cc
@@ -58,7 +61,6 @@ add_library( EosFstIo-Static STATIC
 	     checksum/CheckSum.cc           checksum/CheckSum.hh	     
 	     checksum/Adler.cc   	    checksum/Adler.hh
 	     checksum/crc32c.cc             checksum/crc32ctables.cc
-	     zfec/fec.cc
 	     layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
 	     layout/Layout.cc               layout/Layout.hh
 	     layout/PlainLayout.cc          layout/PlainLayout.hh
@@ -66,14 +68,19 @@ add_library( EosFstIo-Static STATIC
 	     layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
 	     layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
 	     layout/ReedSLayout.cc          layout/ReedSLayout.hh
+	     layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
+	     layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
+	     layout/jerasure/liberation.cc      layout/jerasure/liberation.hh
+	     layout/jerasure/galois.cc	        layout/jerasure/galois.hh
+	     layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
 )
 
 target_link_libraries( EosFstIo-Static
 		       eosCommon
 		       XrdCl	
 		       XrdUtils 
-		       crypto                  curses                   
-		       dl                      z  
+		       crypto                  ${NCURSES_LIBRARIES}
+		       dl                      ${Z_LIBRARIES}  
                        ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
 		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
 )
@@ -109,7 +116,6 @@ add_library( XrdEosFst MODULE
 	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
 	     io/ChunkHandler.cc             io/ChunkHandler.hh
 	     io/SimpleHandler.cc            io/SimpleHandler.hh
-	     zfec/fec.cc
 	     Config.cc
 	     Load.cc
 	     ScanDir.cc
@@ -120,55 +126,23 @@ add_library( XrdEosFst MODULE
 	     FmdSqlite.cc
 	     FmdClient.cc 
 	     HttpServer.cc
-)
-
-
-add_library( XrdEosFst-Static STATIC
-	     XrdFstOfs.cc                   XrdFstOfs.hh
-  	     io/FileIoPlugin-Server.cc
-	     XrdFstOfsFile.cc               XrdFstOfsFile.hh
-	     storage/Balancer.cc
-	     storage/Cleaner.cc             storage/Comunicator.cc
-	     storage/Drainer.cc             storage/ErrorReport.cc
-	     storage/FileSystem.cc	    storage/MgmSyncer.cc
-	     storage/Publish.cc             storage/Remover.cc
-	     storage/Report.cc              storage/Scrub.cc
-	     storage/Storage.cc             storage/Supervisor.cc
-	     storage/Trim.cc                storage/Verify.cc
-	     Config.cc
-	     Load.cc
-	     ScanDir.cc
-	     Messaging.cc
-	     txqueue/TransferMultiplexer.cc
-	     txqueue/TransferJob.cc
-	     txqueue/TransferQueue.cc
-	     FmdSqlite.cc 
-	     FmdClient.cc
-	     HttpServer.cc
+	     layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
+	     layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
+	     layout/jerasure/liberation.cc      layout/jerasure/liberation.hh
+	     layout/jerasure/galois.cc	        layout/jerasure/galois.hh
+	     layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
 )
 
 
 target_link_libraries( XrdEosFst 
-		       eosCapability-Static    eosCommon-Static
-		       eosCommonServer
+		       eosCommon
+		       eosCommonServer         eosCapability-Static
 		       XrdMqClient-Static      XrdCl	
 		       XrdUtils                XrdOfs 
-		       crypto                  curses                   
-		       dl                      z  
+		       crypto                  ${NCURSES_LIBRARIES}
+		       dl                      ${Z_LIBRARIES}  
 		       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
 		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
-)
-
-
-target_link_libraries( XrdEosFst-Static
-		       eosCapability-Static    eosCommon-Static
-		       eosCommonServer-Static  
-		       XrdMqClient-Static      XrdCl
-		       XrdUtils                XrdOfs 
-		       crypto                  curses
-		       dl                      z  
-		       ${ATTR_LIBRARIES}       ${RT_LIBRARIES}
-               ${UUID_LIBRARIES}       ${CMAKE_THREAD_LIBS_INIT}
 )
 
 

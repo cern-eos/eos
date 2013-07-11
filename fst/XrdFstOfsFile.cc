@@ -72,6 +72,7 @@ eos::common::LogId ()
   openSize = 0;
   closeSize = 0;
   isReplication = false;
+  isReconstruction = false;
   deleteOnClose = false;
   repairOnClose = false;
   closeTime.tv_sec = closeTime.tv_usec = 0;
@@ -366,6 +367,14 @@ XrdFstOfsFile::open (const char* path,
     opaqueCheckSum = val;
   }
 
+  if ((val = openOpaque->Get("eos.pio.action")))
+  {
+    // figure out if this is a RAIN reconstruction
+    XrdOucString action = val;
+    if (action == "reconstruct")
+      isReconstruction = true;
+  }
+  
   int caprc = 0;
 
   //.............................................................................
@@ -821,7 +830,14 @@ XrdFstOfsFile::open (const char* path,
     {
       // in a RAID-like layout if the header is corrupted there is no way to know
       // the size of the initial file, therefore we take the value from the DB
-      openSize = fMd->fMd.size;
+      if (!isReconstruction) 
+      {
+        openSize = fMd->fMd.size;
+      }
+      else
+      {
+        openSize = statinfo.st_size;
+      }
     }
     else
     {
@@ -1686,16 +1702,26 @@ XrdFstOfsFile::close ()
               capOpaqueFile += capOpaque->Get("mgm.drainfsid");
             }
 
-            if (isEntryServer && !isReplication)
+            if (isReconstruction)
             {
               //................................................................
-              // The entry server commits size and checksum
+              // indicate that this is a commit of a RAIN reconstruction
               //................................................................
-              capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";
+              capOpaqueFile += "mgm.reconstruction=1";
             }
             else
             {
-              capOpaqueFile += "&mgm.replication=1";
+              if (isEntryServer && !isReplication)
+              {
+                //..............................................................
+                // The entry server commits size and checksum
+                //..............................................................
+                capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";
+              }
+              else
+              {
+                capOpaqueFile += "&mgm.replication=1";
+              }
             }
 
             //..................................................................
@@ -2687,6 +2713,15 @@ XrdFstOfsFile::truncateofs (XrdSfsFileOffset fileOffset)
   // truncation moves the max offset written
   eos_debug("value=%llu", (unsigned long long) fileOffset);
   maxOffsetWritten = fileOffset;
+  
+  struct stat buf;
+  // stat the current file size
+  if (!::stat(fstPath.c_str(), &buf))
+  {
+    // if the file has the proper size we don't truncate
+    if (buf.st_size == fileOffset)
+      return SFS_OK;
+  }
   return XrdOfsFile::truncate(fileOffset);
 }
 

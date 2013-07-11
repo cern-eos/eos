@@ -50,7 +50,6 @@ Storage::Remover ()
   // this thread unlinks stored files
   while (1)
   {
-    bool hadDeletions = false;
     // since we use vector and erase from the beginning, this is not really a perfect choice, but we don't have any performance issues here
     deletionsMutex.Lock();
     while (deletions.size())
@@ -61,7 +60,6 @@ Storage::Remover ()
 
       for (unsigned int j = 0; j < todelete.fIdVector.size(); j++)
       {
-        hadDeletions = true;
         eos_static_debug("Deleting File Id=%llu on Fs=%u", todelete.fIdVector[j], todelete.fsId);
         // delete the file
         XrdOucString hexstring = "";

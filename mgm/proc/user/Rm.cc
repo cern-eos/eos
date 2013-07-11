@@ -27,7 +27,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Recycle.hh"
-
+#include "mgm/Macros.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN

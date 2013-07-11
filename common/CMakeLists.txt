@@ -26,6 +26,8 @@ include_directories(
                      ${CMAKE_BINARY_DIR}/xrootd/src/include/
 		     ../ ${XROOTD_INCLUDE_DIR} 
 		     ${SPARSEHASH_INCLUDE_DIR} 
+		     ${NCURSES_INCLUDE_DIR}
+		     ${Z_INCLUDE_DIR}
 )
 
 if(LEVELDB_FOUND)
@@ -82,16 +84,6 @@ add_library (eosCommonServer SHARED
             stringencoders/modp_numtoa.c
             )
 
-add_library (eosCommonServer-Static STATIC
-	    FileSystem.cc
-            TransferQueue.cc
-            TransferJob.cc
-            sqlite/sqlite3.c
-            DbMap.cc
-            HttpServer.cc
-            stringencoders/modp_numtoa.c
-)
-
 
 add_executable ( dbmaptestfunc
        dbmaptest/DbMapTestFunc.cc
@@ -111,8 +103,8 @@ target_link_libraries ( eosCommon
                         crypto 
                         rt
                         ${UUID_LIBRARIES} 
-                        curses 
-                        z 
+                        ${NCURSES_LIBRARIES}
+                        ${Z_LIBRARIES} 
                         ${ATTR_LIBRARIES} )
 
 target_link_libraries ( eosCommon-Static 
@@ -121,8 +113,8 @@ target_link_libraries ( eosCommon-Static
                         XrdCl 
                         crypto 
                         ${UUID_LIBRARIES} 
-                        curses 
-                        z 
+                        ${NCURSES_LIBRARIES}
+                        ${Z_LIBRARIES} 
                         ${ATTR_LIBRARIES}  )
 
 target_link_libraries ( eosCommonServer 
@@ -132,28 +124,16 @@ target_link_libraries ( eosCommonServer
                         crypto 
                         rt
                         ${UUID_LIBRARIES} 
-                        curses 
-                        z 
+                        ${NCURSES_LIBRARIES}
+                        ${Z_LIBRARIES} 
                         ${ATTR_LIBRARIES} )
-
-target_link_libraries ( eosCommonServer-Static 
-                        XrdMqClient-Static 
-                        XrdUtils 
-                        XrdCl 
-                        crypto 
-                        ${UUID_LIBRARIES} 
-                        curses 
-                        z 
-                        ${ATTR_LIBRARIES}  )
 
 if(LEVELDB_FOUND)
 target_link_libraries ( eosCommonServer ${LEVELDB_LIBRARIES} ) 
-target_link_libraries ( eosCommonServer-Static ${LEVELDB_LIBRARIES} )
 endif(LEVELDB_FOUND)
 
 if (MICROHTTPD_FOUND)
 target_link_libraries ( eosCommonServer ${MICROHTTPD_LIBRARIES} ) 
-target_link_libraries ( eosCommonServer-Static ${MICROHTTPD_LIBRARIES} )
 endif(MICROHTTPD_FOUND)
 
 target_link_libraries ( dbmaptestfunc eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT} )
@@ -176,7 +156,6 @@ if (Linux)
     CLEAN_DIRECT_OUTPUT 1
     COMPILE_FLAGS -DSQLITE_NO_SYNC=1
   )
-  set_target_properties ( eosCommonServer-Static PROPERTIES COMPILE_FLAGS "-fPIC -DSQLITE_NO_SYNC=1" )
 
 endif(Linux)
   

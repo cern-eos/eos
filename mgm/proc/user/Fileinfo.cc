@@ -25,6 +25,7 @@
 #include "mgm/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Access.hh"
+#include "mgm/Macros.hh"
 #include "common/LayoutId.hh"
 
 /*----------------------------------------------------------------------------*/
@@ -232,7 +233,7 @@ ProcCommand::Fileinfo ()
             for (unsigned int i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
             {
               char hb[3];
-              sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+              sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
               stdOut += hb;
             }
             stdOut += "\n";
@@ -246,7 +247,7 @@ ProcCommand::Fileinfo ()
             for (unsigned int i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
             {
               char hb[3];
-              sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+              sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
               stdOut += hb;
             }
             stdOut += " ";
@@ -313,7 +314,7 @@ ProcCommand::Fileinfo ()
             for (unsigned int i = 0; i < cxlen; i++)
             {
               char hb[3];
-              sprintf(hb, "%02x ", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+              sprintf(hb, "%02x ", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
               stdOut += hb;
             }
             stdOut += "\n";
@@ -375,7 +376,7 @@ ProcCommand::Fileinfo ()
             for (unsigned int i = 0; i < SHA_DIGEST_LENGTH; i++)
             {
               char hb[3];
-              sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPtr()[i]) : 0);
+              sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPadded(i)) : 0);
               stdOut += hb;
             }
             stdOut += " ";

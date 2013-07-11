@@ -142,463 +142,7 @@
 USE_EOSMGMNAMESPACE
 
 /*----------------------------------------------------------------------------*/
-// Macro Defines
-/*----------------------------------------------------------------------------*/
-
-#define ACCESS_R 0
-#define ACCESS_W 1
-
-#ifdef __APPLE__
-#define EBADE 52
-#define EBADR 53
-#define ENONET 64
-#define EADV 68
-#define EREMOTEIO 121
-#define ENOKEY 126
-#endif
-
-#define ACCESSMODE_R int __AccessMode__ = 0
-#define ACCESSMODE_W int __AccessMode__ = 1
-#define SET_ACCESSMODE_W __AccessMode__ = 1
-
-#define IS_ACCESSMODE_R (__AccessMode__ == 0)
-#define IS_ACCESSMODE_W (__AccessMode__ == 1)
-
-// -----------------------------------------------------------------------------
-//! Stall Macro
-// -----------------------------------------------------------------------------
-#define MAYSTALL { if (gOFS->IsStall) {                                 \
-      XrdOucString stallmsg="";                                         \
-      int stalltime=0;                                                  \
-      if (gOFS->ShouldStall(__FUNCTION__,__AccessMode__, vid, stalltime, stallmsg)) \
-        return gOFS->Stall(error,stalltime, stallmsg.c_str());          \
-    }                                                                   \
-  }
-
-// -----------------------------------------------------------------------------
-//! Redirect Macro
-// -----------------------------------------------------------------------------
-#define MAYREDIRECT { if (gOFS->IsRedirect) {                   \
-      int port=0;                                               \
-      XrdOucString host="";                                     \
-      if (gOFS->ShouldRedirect(__FUNCTION__,__AccessMode__,vid, host,port)) \
-        return gOFS->Redirect(error, host.c_str(), port);       \
-    }								\
-  }
-
-// -----------------------------------------------------------------------------
-//! ENOENT Redirect Macro
-// -----------------------------------------------------------------------------
-#define MAYREDIRECT_ENOENT { if (gOFS->IsRedirect) {		\
-      int port=0;						\
-      XrdOucString host="";					\
-      if (gOFS->HasRedirect(path,"ENOENT:*",host,port)) {	\
-	return gOFS->Redirect(error, host.c_str(), port) ;	\
-      }								\
-    }								\
-  }
-
-// -----------------------------------------------------------------------------
-//! ENONET Redirect Macro
-// -----------------------------------------------------------------------------
-#define MAYREDIRECT_ENONET { if (gOFS->IsRedirect) {		\
-      int port=0;						\
-      XrdOucString host="";					\
-      if (gOFS->HasRedirect(path,"ENOENT:*",host,port)) {	\
-	return gOFS->Redirect(error, host.c_str(), port) ;	\
-      }								\
-    }								\
-  }
-
-// -----------------------------------------------------------------------------
-//! ENOENT Stall Macro
-// -----------------------------------------------------------------------------
-#define MAYSTALL_ENOENT { if (gOFS->IsStall) {				\
-      XrdOucString stallmsg="";						\
-      int stalltime;							\
-      if (gOFS->HasStall(path, "ENOENT:*", stalltime, stallmsg)) {	\
-	return gOFS->Stall(error, stalltime, stallmsg.c_str()) ;	\
-      }									\
-    }									\
-  }								
-
-// -----------------------------------------------------------------------------
-//! ENONET Stall Macro
-// -----------------------------------------------------------------------------
-#define MAYSTALL_ENONET { if (gOFS->IsStall) {			\
-      XrdOucString stallmsg="";					\
-      int stalltime;						\
-      if (gOFS->HasStall(path,"ENONET:*", stalltime, stallmsg)) {	\
-	return gOFS->Stall(error, stalltime, stallmsg.c_str()) ;	\
-      }									\
-    }									\
-  }
-
-// -----------------------------------------------------------------------------
-//! Namespace Map MACRO
-//! - checks validity of path names
-//! - checks for prefixing and rewrites path name
-//! - remap's path names according to the configured path map
-// -----------------------------------------------------------------------------
-#define NAMESPACEMAP							\
-  const char*path = inpath;						\
-  const char*info = ininfo;						\
-  XrdOucString store_path=path;						\
-  if ( inpath && ( !(ininfo) || (ininfo && (!strstr(ininfo,"eos.prefix"))))) { \
-    gOFS->PathRemap(inpath,store_path);					\
-  }									\
-  size_t __i=0;								\
-  size_t __n = store_path.length();					\
-  for (__i=0;__i<__n;__i++) {						\
-    if ( ((store_path[__i] >= 97) && (store_path[__i] <= 122 )) || /* a-z   */ \
-	 ((store_path[__i] >= 64) && (store_path[__i] <= 90 ))  || /* @,A-Z */ \
-	 ((store_path[__i] >= 48) && (store_path[__i] <= 57 ))  || /* 0-9   */ \
-	 (store_path[__i] == 47) || /* / */				\
-	 (store_path[__i] == 46) || /* . */				\
-	 (store_path[__i] == 32) || /* SPACE */				\
-	 (store_path[__i] == 45) || /* - */				\
-	 (store_path[__i] == 95) || /* _ */				\
-	 (store_path[__i] == 126)|| /* ~ */				\
-	 (store_path[__i] == 35) || /* # */				\
-	 (store_path[__i] == 58) || /* : */				\
-	 (store_path[__i] == 43) || /* + */				\
-	 (store_path[__i] == 94)    /* ^ */				\
-	 ) {								\
-      continue;								\
-    } else {								\
-      break;								\
-    }									\
-  }									\
-  if ( (vid.uid != 0) && (__i != (__n) ) ) { /* root can use all letters */ \
-    path = 0;								\
-  } else {								\
-    const char* pf=0;							\
-    if ( ininfo && (pf=strstr(ininfo,"eos.prefix=")) ) {		/* check for redirection with prefixes */ \
-      if (!store_path.beginswith("/proc")) {				\
-	XrdOucEnv env(pf);						\
-	store_path.insert(env.Get("eos.prefix"),0);			/* check for redirection with LFN rewrite */ \
-      }									\
-    }									\
-    if ( ininfo && (pf=strstr(ininfo,"eos.lfn=")) ) {			\
-      if ((!store_path.beginswith("/proc"))) {				\
-      XrdOucEnv env(pf);						\
-      store_path = env.Get("eos.lfn");					\
-      }									\
-    }									\
-    path = store_path.c_str();						\
-  }									
-
-// -----------------------------------------------------------------------------
-//! Bounce Illegal Name Macro
-// -----------------------------------------------------------------------------
-#define BOUNCE_ILLEGAL_NAMES						\
-  if (!path) {								\
-    eos_err("illegal character in %s", store_path.c_str());		\
-    return Emsg(epname, error, EILSEQ,"accept path name - illegal characters - use only A-Z a-z 0-9 / SPACE .-_~#:^", store_path.c_str()); \
-  } 
-
-// -----------------------------------------------------------------------------
-//! Bounce Illegal Name in proc request Macro
-// -----------------------------------------------------------------------------
-#define PROC_BOUNCE_ILLEGAL_NAMES					\
-  if (!path) {								\
-    eos_err("illegal character in %s", store_path.c_str());		\
-    retc = EILSEQ;							\
-    stdErr += "error: illegal characters - use only use only A-Z a-z 0-9 SPACE .-_~#:^\n"; \
-    return SFS_OK;							\
-  }
-
-// -----------------------------------------------------------------------------
-//! Require System Auth (SSS or localhost) Macro
-// -----------------------------------------------------------------------------
-#define REQUIRE_SSS_OR_LOCAL_AUTH					\
-  if ( (vid.prot!="sss") && ((vid.host != "localhost") && (vid.host != "localhost.localdomain")) ){ \
-    eos_err("system access restricted - not authorized identity used");	\
-    return Emsg(epname, error, EACCES,"give access - system access restricted - not authorized identity used"); \
-  }
-
-// -----------------------------------------------------------------------------
-//! Bounce not-allowed-users Macro
-// -----------------------------------------------------------------------------
-#define BOUNCE_NOT_ALLOWED						\
-  /* for root, bin, daemon, admin we allow localhost connects or sss authentication always */ \
-  if ( ((vid.uid>3) || ( (vid.prot!="sss") && (vid.host != "localhost") && (vid.host != "localhost.localdomain"))) && (Access::gAllowedUsers.size() || Access::gAllowedGroups.size() || Access::gAllowedHosts.size() )) { \
-    if ( (!Access::gAllowedGroups.count(vid.gid)) &&			\
-	 (!Access::gAllowedUsers.count(vid.uid)) &&			\
-	 (!Access::gAllowedHosts.count(vid.host)) ) {			\
-      eos_err("user access restricted - not authorized identity used"); \
-      return Emsg(epname, error, EACCES,"give access - user access restricted - not authorized identity used"); \
-    }									\
-  }
-
-// -----------------------------------------------------------------------------
-//! Bounce not-allowed-users in proc request Macro
-// -----------------------------------------------------------------------------
-#define PROC_BOUNCE_NOT_ALLOWED						\
-  if ((vid.uid>3) &&(Access::gAllowedUsers.size() || Access::gAllowedGroups.size() || Access::gAllowedHosts.size() )) { \
-    if ( (!Access::gAllowedGroups.count(vid.gid)) &&			\
-	 (!Access::gAllowedUsers.count(vid.uid)) &&			\
-	 (!Access::gAllowedHosts.count(vid.host)) ) {			\
-      eos_err("user access restricted - not authorized identity used"); \
-      retc = EACCES;							\
-      stdErr += "error: user access restricted - not authorized identity used";	\
-      return SFS_OK;							\
-    }									\
-  }
-
-/*----------------------------------------------------------------------------*/
-//! Class implementing directories and operations
-/*----------------------------------------------------------------------------*/
-class XrdMgmOfsDirectory : public XrdSfsDirectory, public eos::common::LogId
-{
-public:
-
-  // ---------------------------------------------------------------------------
-  // open a directory
-  // ---------------------------------------------------------------------------
-  int open (const char *dirName,
-            const XrdSecClientName *client = 0,
-            const char *opaque = 0);
-
-  // ---------------------------------------------------------------------------
-  // open a directory by vid
-  // ---------------------------------------------------------------------------
-  int open (const char *dirName,
-            eos::common::Mapping::VirtualIdentity &vid,
-            const char *opaque = 0);
-
-  // ---------------------------------------------------------------------------
-  // return entry of an open directory
-  // ---------------------------------------------------------------------------
-  const char *nextEntry ();
-
-  // ---------------------------------------------------------------------------
-  // return error message
-  // ---------------------------------------------------------------------------
-  int Emsg (const char *, XrdOucErrInfo&, int, const char *x,
-            const char *y = "");
-
-  // ---------------------------------------------------------------------------
-  // close an open directory
-  // ---------------------------------------------------------------------------
-  int close ();
-
-  // ---------------------------------------------------------------------------
-  //! return name of an open directory
-  // ---------------------------------------------------------------------------
-
-  const char *
-  FName ()
-  {
-    return (const char *) dirName.c_str ();
-  }
-
-  // ---------------------------------------------------------------------------
-  //! Constructor
-  // ---------------------------------------------------------------------------
-
-  XrdMgmOfsDirectory (char *user = 0, int MonID = 0) : XrdSfsDirectory (user, MonID)
-  {
-    dirName = "";
-    dh = 0;
-    d_pnt = &dirent_full.d_entry;
-    eos::common::Mapping::Nobody (vid);
-    eos::common::LogId ();
-  }
-
-  // ---------------------------------------------------------------------------
-  //! Destructor
-  // ---------------------------------------------------------------------------
-
-  ~XrdMgmOfsDirectory () { }
-private:
-
-  struct
-  {
-    struct dirent d_entry;
-    char pad[MAXNAMLEN]; // This is only required for Solaris!
-  } dirent_full;
-
-  struct dirent *d_pnt;
-  std::string dirName;
-  eos::common::Mapping::VirtualIdentity vid;
-
-  eos::ContainerMD* dh;
-  std::set<std::string> dh_list;
-  std::set<std::string>::const_iterator dh_it;
-};
-
-/*----------------------------------------------------------------------------*/
-class XrdSfsAio;
-
-/*----------------------------------------------------------------------------*/
-//! Class implementing files and operations
-
-/*----------------------------------------------------------------------------*/
-
-class XrdMgmOfsFile : public XrdSfsFile, eos::common::LogId
-{
-public:
-
-  // ---------------------------------------------------------------------------
-  // open a file 
-  // ---------------------------------------------------------------------------
-  int open (const char *fileName,
-            XrdSfsFileOpenMode openMode,
-            mode_t createMode,
-            const XrdSecEntity *client = 0,
-            const char *opaque = 0);
-
-  // ---------------------------------------------------------------------------
-  // close a file
-  // ---------------------------------------------------------------------------
-  int close ();
-
-  // ---------------------------------------------------------------------------
-  //! get file name
-  // ---------------------------------------------------------------------------
-
-  const char *
-  FName ()
-  {
-    return fname;
-  }
-
-  // ---------------------------------------------------------------------------
-  //! fs command faking always ok
-  // ---------------------------------------------------------------------------
-
-  int
-  Fscmd (const char* path, const char* path2, const char* orgipath, const XrdSecEntity *client, XrdOucErrInfo &error, const char* info)
-  {
-    return SFS_OK;
-  }
-
-  // ---------------------------------------------------------------------------
-  //! return mmap address (we don't need it)
-  // ---------------------------------------------------------------------------
-
-  int
-  getMmap (void **Addr, off_t &Size)
-  {
-    if (Addr) Addr = 0;
-    Size = 0;
-    return SFS_OK;
-  }
-
-  // ---------------------------------------------------------------------------
-  //! file pre-read fakes ok (we don't need it)
-  // ---------------------------------------------------------------------------
-
-  int
-  read (XrdSfsFileOffset fileOffset,
-        XrdSfsXferSize preread_sz)
-  {
-    return SFS_OK;
-  }
-
-  // ---------------------------------------------------------------------------
-  // file read used to stream proc command results
-  // ---------------------------------------------------------------------------
-  XrdSfsXferSize read (XrdSfsFileOffset fileOffset,
-                       char *buffer,
-                       XrdSfsXferSize buffer_size);
-
-  // ---------------------------------------------------------------------------
-  // file read in async mode (not supported)
-  // ---------------------------------------------------------------------------
-  int read (XrdSfsAio *aioparm);
-
-  XrdSfsXferSize write (XrdSfsFileOffset fileOffset,
-                        const char *buffer,
-                        XrdSfsXferSize buffer_size);
-
-  // ---------------------------------------------------------------------------
-  // file write in async mode (not supported)
-  // ---------------------------------------------------------------------------
-  int write (XrdSfsAio *aioparm);
-
-  // ---------------------------------------------------------------------------
-  //! file sync
-  // ---------------------------------------------------------------------------
-  int sync ();
-
-  // ---------------------------------------------------------------------------
-  //! file sync aio
-  // ---------------------------------------------------------------------------
-  int sync (XrdSfsAio *aiop);
-
-  // ---------------------------------------------------------------------------
-  // file stat 
-  // ---------------------------------------------------------------------------
-  int stat (struct stat *buf);
-
-  // ---------------------------------------------------------------------------
-  // file truncate
-  // ---------------------------------------------------------------------------
-  int truncate (XrdSfsFileOffset fileOffset);
-
-  // ---------------------------------------------------------------------------
-  //! get checksum info (returns nothing - not supported)
-  // ---------------------------------------------------------------------------
-
-  int
-  getCXinfo (char cxtype[4], int &cxrsz)
-  {
-    return cxrsz = 0;
-  }
-
-  // ---------------------------------------------------------------------------
-  //! fctl fakes ok
-  // ---------------------------------------------------------------------------
-
-  int
-  fctl (int, const char*, XrdOucErrInfo&)
-  {
-    return 0;
-  }
-
-  // ---------------------------------------------------------------------------
-  //! error message function
-  // ---------------------------------------------------------------------------
-  int Emsg (const char *, XrdOucErrInfo&, int, const char *x,
-            const char *y = "");
-
-  // ---------------------------------------------------------------------------
-  //! Constructor
-  // ---------------------------------------------------------------------------
-
-  XrdMgmOfsFile (char *user = 0, int MonID = 0) : XrdSfsFile (user, MonID)
-  {
-    oh = 0;
-    fname = 0;
-    openOpaque = 0;
-    eos::common::Mapping::Nobody (vid);
-    fileId = 0;
-    procCmd = 0;
-    eos::common::LogId ();
-    fmd = 0;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Destructor
-  // ---------------------------------------------------------------------------
-  virtual ~XrdMgmOfsFile ();
-
-private:
-
-  int oh; //< file handle
-  char *fname; //< file name
-  XrdOucEnv *openOpaque; //< opaque info given with 'open'
-  unsigned long fileId; //< file id
-  ProcCommand* procCmd; //< proc command object if a proc command was 'opened'
-  eos::FileMD* fmd; //< file meta data object
-  eos::common::Mapping::VirtualIdentity vid; //< virtual ID of the client
-};
-
-/*----------------------------------------------------------------------------*/
 //! Class implementing atomic meta data commands
-
 /*----------------------------------------------------------------------------*/
 class XrdMgmOfs : public XrdSfsFileSystem, public eos::common::LogId
 {
@@ -612,25 +156,18 @@ public:
   // ---------------------------------------------------------------------------
 
   // ---------------------------------------------------------------------------
-  //! return a MGM directory object
+  // return a MGM directory object
   // ---------------------------------------------------------------------------
 
   XrdSfsDirectory *
-  newDir (char *user = 0, int MonID = 0)
-  {
-    return (XrdSfsDirectory *)new XrdMgmOfsDirectory (user, MonID);
-  }
-
+  newDir (char *user = 0, int MonID = 0);
+ 
   // ---------------------------------------------------------------------------
-  //! return a MGM file object
+  // return a MGM file object
   // ---------------------------------------------------------------------------
-
   XrdSfsFile *
-  newFile (char *user = 0, int MonID = 0)
-  {
-    return (XrdSfsFile *)new XrdMgmOfsFile (user, MonID);
-  }
-
+  newFile (char *user = 0, int MonID = 0);
+ 
   // ---------------------------------------------------------------------------
   // meta data functions
   // - the _XYZ functions are the internal version of XYZ when XrdSecEntity 
@@ -1058,15 +595,19 @@ public:
   // ---------------------------------------------------------------------------
   // send resync command to a file system
   // ---------------------------------------------------------------------------
-  int SendResync (eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid);
+  int SendResync (eos::common::FileId::fileid_t fid, 
+                  eos::common::FileSystem::fsid_t fsid);
 
   // ---------------------------------------------------------------------------
   // static Mkpath is not supported
   // ---------------------------------------------------------------------------
 
   static int
-  Mkpath (const char *path, mode_t mode,
-          const char *info = 0, XrdSecEntity* client = 0, XrdOucErrInfo* error = 0)
+  Mkpath (const char *path, 
+          mode_t mode,
+          const char *info = 0, 
+          XrdSecEntity* client = 0, 
+          XrdOucErrInfo* error = 0)
   {
     return SFS_ERROR;
   }
@@ -1133,22 +674,35 @@ public:
   // ---------------------------------------------------------------------------
   // Test if a client needs to be stalled
   // ---------------------------------------------------------------------------
-  bool ShouldStall (const char* function, int accessmode, eos::common::Mapping::VirtualIdentity &vid, int &stalltime, XrdOucString &stallmsg);
+  bool ShouldStall (const char* function, 
+                    int accessmode, 
+                    eos::common::Mapping::VirtualIdentity &vid, 
+                    int &stalltime, XrdOucString &stallmsg);
 
   // ---------------------------------------------------------------------------
   // Test if a  client should be redirected
   // ---------------------------------------------------------------------------
-  bool ShouldRedirect (const char* function, int accessmode, eos::common::Mapping::VirtualIdentity &vid, XrdOucString &host, int &port);
+  bool ShouldRedirect (const char* function, 
+                       int accessmode, 
+                       eos::common::Mapping::VirtualIdentity &vid, 
+                       XrdOucString &host, 
+                       int &port);
 
   // ---------------------------------------------------------------------------
   // Test for a stall rule
   // ---------------------------------------------------------------------------
-  bool HasStall (const char* path, const char* rule, int &stalltime, XrdOucString &stallmsg);
+  bool HasStall (const char* path, 
+                 const char* rule, 
+                 int &stalltime, 
+                 XrdOucString &stallmsg);
 
   // ---------------------------------------------------------------------------
   // Test for a redirection rule
   // ---------------------------------------------------------------------------
-  bool HasRedirect (const char* path, const char* rule, XrdOucString &host, int &port);
+  bool HasRedirect (const char* path, 
+                    const char* rule, 
+                    XrdOucString &host, 
+                    int &port);
 
   // ---------------------------------------------------------------------------
   // Update emulated in-memory directory modification time with the current time
@@ -1158,7 +712,8 @@ public:
   // ---------------------------------------------------------------------------
   // Update emulated in-memory directory modification time with a given time
   // ---------------------------------------------------------------------------
-  void UpdateInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id, eos::ContainerMD::ctime_t &ctime);
+  void UpdateInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id, 
+                                                eos::ContainerMD::ctime_t &ctime);
 
   // ---------------------------------------------------------------------------
   // Retrieve a mapping for a given path
@@ -1178,7 +733,8 @@ public:
   // ---------------------------------------------------------------------------
   // Send an explicit deletion message to any fsid/fid pair 
   // ---------------------------------------------------------------------------
-  bool DeleteExternal (eos::common::FileSystem::fsid_t fsid, unsigned long long fid);
+  bool DeleteExternal (eos::common::FileSystem::fsid_t fsid, 
+                       unsigned long long fid);
 
   // ---------------------------------------------------------------------------
   // Statistics circular buffer thread startup function

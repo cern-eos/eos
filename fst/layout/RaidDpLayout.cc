@@ -72,8 +72,7 @@ RaidDpLayout::~RaidDpLayout ()
 //------------------------------------------------------------------------------
 // Compute simple and double parity blocks
 //------------------------------------------------------------------------------
-
-void
+bool
 RaidDpLayout::ComputeParity ()
 {
   int index_pblock;
@@ -154,6 +153,8 @@ RaidDpLayout::ComputeParity ()
       used_blocks.push_back(next_block);
     }
   }
+
+  return true;
 }
 
 

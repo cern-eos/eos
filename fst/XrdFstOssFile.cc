@@ -331,7 +331,6 @@ XrdFstOssFile::getFD ()
 int
 XrdFstOssFile::Close (long long* retsz)
 {
-  int retc = 0;
   bool delete_mapping = false;
 
   if (fd < 0) return -EBADF;
@@ -370,7 +369,6 @@ XrdFstOssFile::Close (long long* retsz)
         if (!mBlockXs->ChangeMap(statinfo.st_size, true))
         {
           eos_err("error=unable to change block checksum map");
-          retc = -1;
         }
         else
         {
@@ -393,7 +391,6 @@ XrdFstOssFile::Close (long long* retsz)
         if (!mBlockXs->ChangeMap(statinfo.st_size, true))
         {
           eos_err("error=Unable to change block checksum map");
-          retc = 1;
         }
         else
         {
@@ -409,7 +406,6 @@ XrdFstOssFile::Close (long long* retsz)
       if (!mBlockXs->CloseMap())
       {
         eos_err("error=unable to close block checksum map");
-        retc = 1;
       }
 
       delete_mapping = true;

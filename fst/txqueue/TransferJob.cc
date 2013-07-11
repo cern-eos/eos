@@ -319,6 +319,8 @@ TransferJob::DoIt ()
   std::string fileStageResult = fileName + uuid + ".stageout" + ".ok"; // file containing credentails
   std::string fileCredential = fileName + "." + uuid + ".cred";
 
+  bool isReco=false; // e.g. we should add the '-c' flag to eoscp
+
   std::string progressFileName = fileName + "." + uuid + ".progress";
 
   mProgressFile = progressFileName.c_str(); // used by the progress report thread
@@ -382,6 +384,11 @@ TransferJob::DoIt ()
     if ((mJob->GetEnv()->Get("tx.id")))
     {
       mId = strtoll(mJob->GetEnv()->Get("tx.id"), 0, 10);
+    }
+
+    // check if this is a reconstruction job
+    if ((mJob->GetEnv()->Get("tx.layout.reco"))) {
+      isReco = true;
     }
 
     // extract credentials (if any)
@@ -627,6 +634,7 @@ TransferJob::DoIt ()
     else
     {
       ss << "eoscp -u 2 -g 2 -n -p -O $PROGRESS -t $BANDWIDTH \"-\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+     
     }
 
   }
@@ -639,7 +647,14 @@ TransferJob::DoIt ()
     }
     else
     {
-      ss << "eoscp -u 2 -g 2 -R -n -p -O $PROGRESS -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+      if (isReco) 
+      {
+	ss << "eoscp -u 2 -g 2 -c -R -n -p -O $PROGRESS -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+      } 
+      else
+      {
+	ss << "eoscp -u 2 -g 2 -R -n -p -O $PROGRESS -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+      }
     }
   }
   ss << "PID=$!" << std::endl;

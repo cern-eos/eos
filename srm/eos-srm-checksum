@@ -7,5 +7,5 @@ if [ "x$1" = "x" ] ; then
     exit -1;
 fi
 
-chksum=`eos -b ${EOS_MGM_URL-root://eosatlas.cern.ch//} file info $1 -checksum | grep xs: | awk '{print $2}' 2>/dev/null`
+chksum=`getfattr --only-values -n user.eos.XS $1 2>/dev/null | tr -d ' ' | cut -c -8`
 echo $chksum

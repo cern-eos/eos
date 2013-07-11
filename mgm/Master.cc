@@ -346,7 +346,6 @@ Master::Supervisor ()
       else
       {
         remoteMgmUp = false;
-
       }
 
       if (mqStatus.IsOK())
@@ -458,8 +457,7 @@ Master::Supervisor ()
           if (fRemoteMasterOk && fRemoteMasterRW)
           {
             MasterLog(eos_crit("msg=\"dual RW master setup detected\""));
-            Access::gStallRules[std::string("w:*")] = "60"
-              ;
+            Access::gStallRules[std::string("w:*")] = "60";
             Access::gStallWrite = true;
           }
           else

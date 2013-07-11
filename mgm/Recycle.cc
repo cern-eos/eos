@@ -29,6 +29,7 @@
 #include "mgm/Recycle.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
+#include "mgm/XrdMgmOfsDirectory.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysTimer.hh"
 /*----------------------------------------------------------------------------*/

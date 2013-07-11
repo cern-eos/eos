@@ -44,13 +44,11 @@ $SIG{'HUP'} = 'HUP_handler';
 
 my $mgmstatus="";
 my $mqstatus="";
-my $syncstatus="";
 my $eossyncstatus="";
 my $eosshtimeout=10;
 
 my $mastermgm=0;
 my $mastermq=0;
-my $mastersync=0;
 my $masterfed=0;
 my $eossync=0;
 
@@ -73,12 +71,10 @@ while(1) {
     now();
     $mastermgm =system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mgm >&/dev/null");
     $mastermq  =system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mq >&/dev/null");
-    $mastersync=system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status sync >&/dev/null");
     $masterfed =system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status fed >&/dev/null");
     $eossync=system("env CONSOLETYPE=serial /etc/rc.d/init.d/eossync status >&/dev/null");
     $mastermgm = ($mastermgm >> 8);
     $mastermq  = ($mastermq >> 8);
-    $mastersync= ($mastersync >> 8);
     $masterfed = ($masterfed >> 8);
     $eossync= ($eossync >> 8);
 
@@ -94,12 +90,6 @@ while(1) {
         $mqstatus="<down>";
     }
 
-    if (!$mastersync) {
-        $syncstatus="<up>";
-    } else {
-        $syncstatus="<down>";
-    }
-
     if (!$eossync) {
         $eossyncstatus="<up>";
     } else {
@@ -110,12 +100,10 @@ while(1) {
     
     $mastermgm = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mgm >&/dev/null");
     $mastermq  = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status mq >&/dev/null");
-    $mastersync= system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status sync >&/dev/null");
     $masterfed = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos status fed >&/dev/null");
     $eossync   = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eossync status >&/dev/null");
     $mastermgm = ($mastermgm >> 8);
     $mastermq  = ($mastermq >> 8);
-    $mastersync= ($mastersync >>8);
     $masterfed = ($masterfed >>8);
     $eossync   = ($eossync >>8);
 
@@ -137,15 +125,6 @@ while(1) {
 	my $startupmq = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart mq >> $logfile 2>&1 ");
     }
 
-    if ( $mastersync ) {
-	now();
-	printf "$now ===================================================================\n";
-	printf("$now (re-)start SYNC ...\n");
-	printf "$now ___________________________________________________________________\n";
-	# service dead ... let's restart
-	my $startupsync = system("env CONSOLETYPE=serial /etc/rc.d/init.d/eos restart sync >> $logfile 2>&1 ");
-    }
-    
     if ( $masterfed ) {
 	now();
 	printf "$now ===================================================================\n";

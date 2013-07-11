@@ -309,10 +309,6 @@ print_summary (VectLocationType& src,
   float abs_time = ((float) ((abs_stop_time.tv_sec - abs_start_time.tv_sec) * 1000 +
                              (abs_stop_time.tv_usec - abs_start_time.tv_usec) / 1000));
 
-  time_t rawtime;
-  struct tm* timeinfo;
-  time(&rawtime);
-  timeinfo = localtime(&rawtime);
 
   XrdOucString xsrc[MAXSRCDST];
   XrdOucString xdst[MAXSRCDST];
@@ -745,11 +741,11 @@ main (int argc, char* argv[])
     }
   }
 
-  //if (debug) 
-  //{
-  //  eos::common::Logging::Init();
-  //  eos::common::Logging::SetLogPriority(LOG_DEBUG);
-  //}
+  if (debug) 
+  {
+    eos::common::Logging::Init();
+    eos::common::Logging::SetLogPriority(LOG_DEBUG);
+  }
 
   if (optind - 1 + nsrc + ndst >= argc)
   {
@@ -1430,9 +1426,11 @@ main (int argc, char* argv[])
   //............................................................................
   // For the '-p' flag we create the needed destination directory tree
   //............................................................................
+
+  struct stat dstst[MAXSRCDST];
+
   if ((!replicamode) && createdir)
   {
-    struct stat dstst[MAXSRCDST];
     mode_t mode = 0;
 
     //..........................................................................
@@ -1641,8 +1639,10 @@ main (int argc, char* argv[])
       status = file->Open(location, XrdCl::OpenFlags::Read);
       if (!status.IsOK())
       {
-        fprintf(stderr, "error: can not open XROOT object for read\n");
-        exit(-EIO);
+	std::string errmsg;
+	errmsg = status.GetErrorMessage();
+	fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo,errmsg.c_str());
+        exit(-status.errNo);
       }
 
       src_handler.push_back(std::make_pair(0, file));
@@ -1658,9 +1658,10 @@ main (int argc, char* argv[])
         (src_handler[i].first <= 0) &&
         (src_handler[i].second == NULL))
     {
-      fprintf(stderr, "error: cannot open source file %s\n",
-              src_location[i].second.c_str());
-      exit(-ENOENT);
+      std::string errmsg;
+      errmsg = status.GetErrorMessage();
+      fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo,errmsg.c_str());
+      exit(-status.errNo);
     }
 
     if (isRaidTransfer && isSrcRaid)
@@ -1851,9 +1852,10 @@ main (int argc, char* argv[])
 
       if (!status.IsOK())
       {
-        fprintf(stderr, "error: could not open the XROOT file, err=%s. \n",
-                status.ToString().c_str());
-        exit(-EPERM);
+	std::string errmsg;
+	errmsg = status.GetErrorMessage();
+	fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo,errmsg.c_str());
+        exit(-status.errNo);
       }
 
       dst_handler.push_back(std::make_pair(0, file));
@@ -1870,9 +1872,10 @@ main (int argc, char* argv[])
         (dst_handler[i].first <= 0) &&
         (dst_handler[i].second == NULL))
     {
-      fprintf(stderr, "error: cannot open destination file %s\n",
-              dst_location[i].second.c_str());
-      exit(-EPERM);
+      std::string errmsg;
+      errmsg = status.GetErrorMessage();
+      fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo,errmsg.c_str());
+      exit(-status.errNo);
     }
 
     if (isRaidTransfer && !isSrcRaid)
@@ -1930,14 +1933,18 @@ main (int argc, char* argv[])
       //........................................................................
       // If not specified on the command line, take the source mode
       //........................................................................
-      dest_mode[i] = st[0].st_mode;
+      if (S_ISREG(dstst[i].st_mode)) 
+      {
+	// only for files !
+	dest_mode[i] = st[0].st_mode;
+      }
     }
 
     switch (dst_type[i])
     {
     case LOCAL_ACCESS:
     {
-      if (dst_location[i].second.substr(0, 5) != "/dev/")
+      if ( (S_ISREG(dstst[i].st_mode) && (dst_location[i].second.substr(0, 5) != "/dev/")) )
       {
         chmod_failed = chmod(dst_location[i].second.c_str(), dest_mode[i]);
 
