@@ -337,6 +337,7 @@ XrdMgmOfsFile::open (const char *inpath,
   {
     AUTHORIZE(client, openOpaque, (isRW ? AOP_Update : AOP_Read), "open",
               inpath, error);
+    isRewrite = true;
   }
 
   eos_debug("msg=\"authorize done\"");
