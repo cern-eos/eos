@@ -297,7 +297,10 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
           }
 
           eos_debug("debug=prefetch new block(2)");
-          PrefetchBlock(offset + mBlocksize, false, timeout);
+          if (!PrefetchBlock(offset + mBlocksize, false, timeout))
+          {
+            eos_warning("warning=failed to send prefetch request(2)");
+          }
         }
         
         if (sh->WaitOK())
@@ -349,7 +352,13 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
         if (!mQueueBlocks.empty())
         {
           eos_debug("debug=prefetch new block(1)");
-          PrefetchBlock(offset, false, timeout);
+          
+          if (!PrefetchBlock(offset, false, timeout))
+          {
+            eos_err("error=failed to send prefetch request(1)");
+            mDoReadahead = false;
+            break;
+          }
         }
       }
     }
@@ -612,9 +621,10 @@ XrdIo::Remove (uint16_t timeout)
 //------------------------------------------------------------------------------
 // Prefetch block using the readahead mechanism
 //------------------------------------------------------------------------------
-void
+bool 
 XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
 {
+  bool done = true;
   XrdCl::XRootDStatus status;
   ReadaheadBlock* block = NULL;
   
@@ -628,7 +638,8 @@ XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
   }
   else
   {
-    return;
+    done = false;
+    return done;
   }
 
   block->handler->Update(offset, mBlocksize, isWrite);
@@ -643,12 +654,15 @@ XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
     // Create tmp status which is deleted in the HandleResponse method
     XrdCl::XRootDStatus* tmp_status = new XrdCl::XRootDStatus(status);
     block->handler->HandleResponse(tmp_status, NULL);
-    mQueueBlocks.push(block);    
+    mQueueBlocks.push(block);
+    done = false;
   }
   else
   {
     mMapBlocks.insert(std::make_pair(offset, block));
   }
+
+  return done;
 }
 
 

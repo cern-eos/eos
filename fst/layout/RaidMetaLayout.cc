@@ -189,7 +189,7 @@ RaidMetaLayout::Open (const std::string& path,
                                           mOfsFile, mSecEntity);
 
  //............................................................................
- // When recovery enabled then we open in simple RDWR mode
+ // When recovery enabled we open the files in RDWR mode
  //............................................................................
  if (mStoreRecovery)
  {
@@ -678,14 +678,11 @@ RaidMetaLayout::ValidateHeader ()
        //......................................................................
        // If file successfully opened, we need to store the info
        //......................................................................
-       if (mStoreRecovery)
+       if (mStoreRecovery && mStripeFiles[physical_id])
        {
-         if (mStripeFiles[physical_id])
-         {
-           mHdrInfo[physical_id]->WriteToFile(mStripeFiles[physical_id], mTimeout);
-         }
+         mHdrInfo[physical_id]->WriteToFile(mStripeFiles[physical_id], mTimeout);
        }
-
+       
        break;
      }
    }
@@ -1199,7 +1196,7 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
  unsigned int physical_id;
  off_t offset_local;
  bool ret = true;
- int id_stripe;
+ unsigned int id_stripe;
  int64_t nread = 0;
  AsyncMetaHandler* ptr_handler = 0;
 
@@ -1247,7 +1244,7 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
 
      if (nread != mStripeWidth)
      {
-       eos_err("error=error while reading local data blocks");
+       eos_err("error=error while reading data blocks stripe=%u", id_stripe);
        ret = false;
        break;
      }
@@ -1269,7 +1266,7 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
    
      if (ptr_handler && (ptr_handler->WaitOK() != XrdCl::errNone))
      {
-       eos_err("error=error while reading remote data blocks");
+       eos_err("error=error while reading data blocks stripe=%u", i);
        ret = false;
      }
    }

@@ -226,8 +226,8 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   off_t offset_local;
   unsigned int stripe_id;
   unsigned int physical_id;
-  vector<int> corrupt_ids;
-  vector<int> exclude_ids;
+  set<int> corrupt_ids;
+  set<int> exclude_ids;
   off_t offset = rMapToRecover.begin()->first;
   off_t offset_group = (offset / mSizeGroup) * mSizeGroup;
   AsyncMetaHandler* ptr_handler = 0;
@@ -261,20 +261,20 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
     // Read data from stripe
     if (mStripeFiles[physical_id])
     {
-      // enable readahead
+      // Enable readahead
       nread = mStripeFiles[physical_id]->ReadAsync(offset_local, mDataBlocks[i],
                                                    mStripeWidth, true, mTimeout); 
 
       if (nread != mStripeWidth)
       {
         status_blocks[i] = false;
-        corrupt_ids.push_back(i);
+        corrupt_ids.insert(i);
       }
     }
     else
     {
       status_blocks[i] = false;
-      corrupt_ids.push_back(i);
+      corrupt_ids.insert(i);
     }
   }
 
@@ -305,7 +305,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
             int line = ((offset_local % mSizeLine) / mStripeWidth);
             int index = line * mNbTotalFiles + mapPL[i];
             status_blocks[index] = false;
-            corrupt_ids.push_back(index);
+            corrupt_ids.insert(index);
           }
 
           // If timeout error, then disable current file 
@@ -340,8 +340,9 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
 
   while (!corrupt_ids.empty())
   {
-    id_corrupted = corrupt_ids.back();
-    corrupt_ids.pop_back();
+    auto iter = corrupt_ids.begin();
+    id_corrupted = *iter;
+    corrupt_ids.erase(iter);
 
     if (ValidHorizStripe(horizontal_stripe, status_blocks, id_corrupted))
     {
@@ -370,29 +371,21 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
         ((id_corrupted / mNbTotalFiles) * mStripeWidth);
       offset_local += mSizeHeader;
 
-      if (mStoreRecovery)
+      if (mStoreRecovery && mStripeFiles[physical_id])
       {
-        if (mStripeFiles[physical_id])
+        nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local,
+                                                       mDataBlocks[id_corrupted],
+                                                       mStripeWidth,
+                                                       mTimeout);
+        
+        if (nwrite != mStripeWidth)
         {
-          nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local,
-                                                         mDataBlocks[id_corrupted],
-                                                         mStripeWidth,
-                                                         mTimeout);
-          
-          if (nwrite != mStripeWidth)
-          {
-            eos_err("error=while doing local write operation offset=%lli",
-                    offset_local);
-            ret = false;
-          }
-        }
-        else
-        {
-          eos_warning("warning=could not write recovered block because file is "
-                      "not opened ( simple parity).");
+          eos_err("error=while doing write operation stripe=%u, offset=%lli",
+                  stripe_id, offset_local);
+          ret = false;
         }
       }
-
+    
       //......................................................................
       // Return corrected information to the buffer
       //......................................................................
@@ -425,7 +418,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
       //........................................................................
       if (!exclude_ids.empty())
       {
-        corrupt_ids.insert(corrupt_ids.end(), exclude_ids.begin(), exclude_ids.end());
+        corrupt_ids.insert(exclude_ids.begin(), exclude_ids.end());
         exclude_ids.clear();
       }
 
@@ -452,7 +445,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
         }
 
         //......................................................................
-        // Return recovered block and also write it to the file
+        // Return recovered block and also write them to the files
         //......................................................................
         stripe_id = id_corrupted % mNbTotalFiles;
         physical_id = mapLP[stripe_id];
@@ -460,29 +453,21 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
           ((id_corrupted / mNbTotalFiles) * mStripeWidth);
         offset_local += mSizeHeader;
 
-        if (mStoreRecovery)
+        if (mStoreRecovery && mStripeFiles[physical_id])
         {
-          if (mStripeFiles[physical_id])
-          {
-            nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local,
-                                                           mDataBlocks[id_corrupted],
-                                                           mStripeWidth,
-                                                           mTimeout);
+          nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local,
+                                                         mDataBlocks[id_corrupted],
+                                                         mStripeWidth,
+                                                         mTimeout);
 
-            if (nwrite != mStripeWidth)
-            {
-              eos_err("error=while doing local write operation offset=%lli",
-                      offset_local + mSizeHeader);
-              ret = false;
-            }
-          }
-          else
+          if (nwrite != mStripeWidth)
           {
-            eos_warning("warning=could not write recovered block because file is "
-                        "not opened ( double parity ).");
+            eos_err("error=while doing write operation stripe=%u, offset=%lli",
+                    stripe_id, (offset_local + mSizeHeader));
+            ret = false;
           }
         }
-
+      
         //......................................................................
         // Return corrected information to the buffer
         //......................................................................
@@ -515,7 +500,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
         //......................................................................
         if (!exclude_ids.empty())
         {
-          corrupt_ids.insert(corrupt_ids.end(), exclude_ids.begin(), exclude_ids.end());
+          corrupt_ids.insert(exclude_ids.begin(), exclude_ids.end());
           exclude_ids.clear();
         }
 
@@ -526,7 +511,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
         //......................................................................
         // Current block can not be recoverd in this configuration
         //......................................................................
-        exclude_ids.push_back(id_corrupted);
+        exclude_ids.insert(id_corrupted);
       }
     }
   }
@@ -536,19 +521,19 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   //............................................................................
   for (unsigned int i = 0; i < mStripeFiles.size(); i++)
   {
-    if (mStripeFiles[i])
+    if (mStoreRecovery && mStripeFiles[i])
     {
       ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
-    
+      
       if (ptr_handler)
       {
         uint16_t error_type = ptr_handler->WaitOK();
-
+        
         if (error_type != XrdCl::errNone)
         {
-          eos_err("error=failed write on stripe %i", i);
+          eos_err("error=failed write on stripe %u", i);
           ret = false;
-
+          
           if (error_type == XrdCl::errOperationExpired)
           {
             mStripeFiles[i]->Close(mTimeout);
@@ -593,9 +578,7 @@ RaidDpLayout::AddDataBlock (off_t offset, const char* buffer, size_t length)
     mFullDataBlocks = false;
 
     for (unsigned int i = 0; i < mNbTotalBlocks; i++)
-    {
       mDataBlocks[i] = static_cast<char*>(memset(mDataBlocks[i], 0, mStripeWidth));
-    }
   }
 
   char* ptr;
@@ -668,7 +651,7 @@ RaidDpLayout::WriteParityToFiles (off_t offsetGroup)
                                                          mTimeout);
       if (nwrite != mStripeWidth)
       {
-        eos_err("error=error while writing local parity information");
+        eos_err("error=error while writing simple parity information");
         ret = SFS_ERROR;
         break;
       }
@@ -691,7 +674,7 @@ RaidDpLayout::WriteParityToFiles (off_t offsetGroup)
                                                           mTimeout);
       if (nwrite != mStripeWidth)
       {
-        eos_err("error=error while writing local parity information");
+        eos_err("error=error while writing double parity information");
         ret = SFS_ERROR;
         break;
       }
@@ -1013,29 +996,7 @@ RaidDpLayout::Truncate (XrdSfsFileOffset offset)
   
   if (mIsEntryServer)
   {
-    /*
-    // TODO: write 0's rather than truncate
-    if (offset > mFileSize) 
-    {
-      off_t file_off_align = ceil((1.0 * offset) / mSizeGroup) * mSizeGroup;
-      off_t length = file_off_align - offset;
-      eos_debug("Truncate by writing 0's up to file_off_align=%zu length=%zu", file_off_align, length);
-      int64_t nwrite = 0;
-      int64_t nbytes = 0;
-      int64_t tmp_off = offset;
-      mDataBlocks[0] = static_cast<char*>(memset(mDataBlocks[0], 0, mStipeWidth));
-
-      while (length > 0)
-      {
-        nbytes = (length > mStripeWidth) ? mStripeWidth : length;
-        nwrtie = Write(tmp_off, mDataStripes[0], nbytes); 
-        length -= nwrites;
-        tmp_off += tmp_off;     
-      }
-      }*/
-    //    else {
-    
-    if (!mIsPio)
+   if (!mIsPio)
     {
       //........................................................................
       // In non PIO access each stripe will compute its own truncate value
@@ -1057,7 +1018,6 @@ RaidDpLayout::Truncate (XrdSfsFileOffset offset)
         }
       }
     }
-    // }
   }
   //............................................................................
   // *!!!* Reset the maxOffsetWritten from XrdFstOfsFile to logical offset

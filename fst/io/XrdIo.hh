@@ -292,8 +292,10 @@ private:
   //! @param isWrite true if block is for write, false otherwise
   //! @param timeout timeout value
   //!
+  //! @return true if prefetch request was sent, otherwise false
+  //!
   //--------------------------------------------------------------------------
-  void PrefetchBlock (int64_t offset,
+  bool PrefetchBlock (int64_t offset,
                       bool isWrite,
                       uint16_t timeout = 0);
 
