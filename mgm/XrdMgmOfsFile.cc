@@ -584,6 +584,30 @@ XrdMgmOfsFile::open (const char *inpath,
 
   if (isRW)
   {
+    if (isRewrite &&
+        (
+         (eos::common::LayoutId::GetLayoutType(fmdlid) ==
+          eos::common::LayoutId::kRaidDP) ||
+
+         (eos::common::LayoutId::GetLayoutType(fmdlid) ==
+          eos::common::LayoutId::kArchive) ||
+
+         (eos::common::LayoutId::GetLayoutType(fmdlid) ==
+          eos::common::LayoutId::kRaid6)
+         )
+        &&
+        (vid.uid > 3)
+        )
+    {
+      gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
+      // -----------------------------------------------------------------------
+      // unpriviledged users are not allowed to open RAIN files for update
+      // -----------------------------------------------------------------------
+      return Emsg(epname, error, EPERM,
+                  "update RAIN layout file - "
+                  "you have to be a priviledged user for updates");
+    }
+
     if ((open_mode & SFS_O_TRUNC) && fmd)
     {
       // check if this directory is write-once for the mapped user
@@ -591,6 +615,7 @@ XrdMgmOfsFile::open (const char *inpath,
       {
         if (acl.CanWriteOnce())
         {
+          gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
           // this is a write once user
           return Emsg(epname, error, EEXIST,
                       "overwrite existing file - you are write-once user");
@@ -1158,7 +1183,7 @@ XrdMgmOfsFile::open (const char *inpath,
         // ---------------------------------------------------------------------
         eos::common::Mapping::VirtualIdentity vidroot;
         eos::common::Mapping::Root(vidroot);
-        gOFS->_rem(cPath.GetPath(),error, vidroot, 0);
+        gOFS->_rem(cPath.GetPath(), error, vidroot, 0);
       }
 
       gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
