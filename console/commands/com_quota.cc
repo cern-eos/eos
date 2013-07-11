@@ -35,8 +35,11 @@ com_quota (char* arg1) {
   XrdOucString arg = subtokenizer.GetToken();
   bool highlighting = true;
 
-  if ( subcommand == "") {
+  if ( (subcommand == "") || (subcommand == "-m") ) {
     XrdOucString in ="mgm.cmd=quota&mgm.subcmd=lsuser";
+    if (subcommand == "-m") {
+      in += "&mgm.quota.format=m";
+    }
     global_retc = output_result(client_user_command(in));
     return (0);
   }
