@@ -158,7 +158,7 @@ S3Handler::HandleRequest (eos::common::HttpRequest *request)
 eos::common::HttpResponse*
 S3Handler::Get (eos::common::HttpRequest *request)
 {
-  int mhd_response = MHD_HTTP_OK;
+  int mhd_response = eos::common::HttpResponse::OK;
   std::string result;
   std::map<std::string, std::string> responseheader;
 
@@ -220,7 +220,7 @@ S3Handler::Get (eos::common::HttpRequest *request)
           responseheader["Content-Type"] = mMultipartHeader;
         }
         responseheader["Content-Length"] = clength;
-        mhd_response = MHD_HTTP_PARTIAL_CONTENT;
+        mhd_response = response->PARTIAL_CONTENT;
       }
       else
       {
@@ -231,7 +231,7 @@ S3Handler::Get (eos::common::HttpRequest *request)
         response->mResponseLength = mRequestSize;
         responseheader["Content-Type"] = eos::common::HttpResponse::ContentType(getPath());
         responseheader["Content-Length"] = clength;
-        mhd_response = MHD_HTTP_OK;
+        mhd_response = response->OK;
       }
     }
   }
@@ -316,7 +316,7 @@ S3Handler::Put (eos::common::HttpRequest *request)
       mCloseCode = mFile->close();
       if (mCloseCode)
       {
-        response = HttpServer::HttpError("File close failed", MHD_HTTP_SERVICE_UNAVAILABLE);
+        response = HttpServer::HttpError("File close failed", response->SERVICE_UNAVAILABLE);
         mCloseCode = 0; // we don't want to create a second response down
       }
       else

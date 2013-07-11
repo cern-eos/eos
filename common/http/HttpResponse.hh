@@ -57,6 +57,7 @@ public:
     // Successful 2xx
     OK                    = 200,
     CREATED               = 201,
+    PARTIAL_CONTENT       = 206,
     MULTI_STATUS          = 207,
 
     // Redirection 3xx
@@ -67,6 +68,7 @@ public:
     UNAUTHORIZED          = 401,
     FORBIDDEN             = 403,
     NOT_FOUND             = 404,
+    REQUESTED_RANGE_NOT_SATISFIABLE = 416,
 
     // Server Error 5xx
     INTERNAL_SERVER_ERROR = 500,

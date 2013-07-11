@@ -221,7 +221,7 @@ HttpHandler::Get (eos::common::HttpRequest *request)
 
   if (mRangeDecodingError)
   {
-    response = HttpServer::HttpError("Illegal Range request", MHD_HTTP_REQUESTED_RANGE_NOT_SATISFIABLE);
+    response = HttpServer::HttpError("Illegal Range request", response->REQUESTED_RANGE_NOT_SATISFIABLE);
   }
   else
   {
@@ -275,7 +275,7 @@ HttpHandler::Get (eos::common::HttpRequest *request)
           response->AddHeader("Content-Type", mMultipartHeader);
         }
         response->AddHeader("Content-Length", clength);
-        response->SetResponseCode(MHD_HTTP_PARTIAL_CONTENT);
+        response->SetResponseCode(response->PARTIAL_CONTENT);
 //            mhd_response = MHD_HTTP_PARTIAL_CONTENT;
       }
       else
@@ -287,7 +287,7 @@ HttpHandler::Get (eos::common::HttpRequest *request)
         response->mResponseLength = mRequestSize;
         response->AddHeader("Content-Type", "application/octet-stream");
         response->AddHeader("Content-Length", clength);
-        response->SetResponseCode(MHD_HTTP_OK);
+        response->SetResponseCode(response->OK);
 //            mhd_response = MHD_HTTP_OK;
       }
     }
