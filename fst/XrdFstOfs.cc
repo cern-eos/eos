@@ -67,13 +67,6 @@ extern XrdOss* XrdOfsOss;
 extern XrdOfs* XrdOfsFS;
 extern XrdOucTrace OfsTrace;
 
-extern XrdOss*
-XrdOssGetSS (XrdSysLogger*,
-             const char*,
-             const char*,
-             const char*,
-             XrdVersionInfo&);
-
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
