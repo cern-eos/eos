@@ -302,11 +302,16 @@ retry:
   }
 
   XrdSysThread::SetCancelOn();
-  // now we wait 60 seconds ...
-  for (int k = 0; k < 60; k++)
+  // now we wait 60 seconds or the service delay time indicated by Master
+  
+  size_t kLoop = gOFS->MgmMaster.GetServiceDelay();
+  if (!kLoop)
+    kLoop = 60;
+  
+  for (int k = 0; k < kLoop; k++)
   {
     XrdSysThread::SetCancelOff();
-    fs->SetLongLong("stat.timeleft", 59 - k);
+    fs->SetLongLong("stat.timeleft", kLoop -1 - k);
     XrdSysThread::SetCancelOn();
     sleeper.Snooze(1);
     XrdSysThread::CancelPoint();
