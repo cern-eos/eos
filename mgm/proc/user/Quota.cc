@@ -38,14 +38,22 @@ ProcCommand::Quota ()
   gOFS->MgmStats.Add("Quota", pVid->uid, pVid->gid, 1);
   if (mSubCmd == "lsuser")
   {
+    XrdOucString monitoring = pOpaque->Get("mgm.quota.format");
+    bool monitor = false;
+
+    if (monitoring == "m")
+    {
+      monitor = true;
+    }
+
     eos_notice("quota ls (user)");
     XrdOucString out1 = "";
     XrdOucString out2 = "";
-    stdOut += "By user ...\n";
-    Quota::PrintOut(space.c_str(), out1, pVid->uid, -1, false, true);
+    if (!monitor) stdOut += "By user ...\n";
+    Quota::PrintOut(space.c_str(), out1, pVid->uid, -1, monitor, true);
     stdOut += out1;
-    stdOut += "By group ...\n";
-    Quota::PrintOut(space.c_str(), out2, -1, pVid->gid, false, true);
+    if (!monitor)stdOut += "By group ...\n";
+    Quota::PrintOut(space.c_str(), out2, -1, pVid->gid, monitor, true);
     stdOut += out2;
     mDoSort = false;
     return SFS_OK;
@@ -123,23 +131,23 @@ ProcCommand::Quota ()
       XrdOucString out1 = "";
       XrdOucString out2 = "";
 
-      if ( (!uid_sel.length() && (!gid_sel.length()) ) ) 
+      if ((!uid_sel.length() && (!gid_sel.length())))
       {
-	Quota::PrintOut(space.c_str(), stdOut, -1 , -1, monitor, translate);
+        Quota::PrintOut(space.c_str(), stdOut, -1, -1, monitor, translate);
       }
-      else 
+      else
       {
-	if (uid_sel.length()) 
-	  {
-	    Quota::PrintOut(space.c_str(), out1, uid , -1, monitor, translate);
-	    stdOut += out1;
-	  }
-	
-	if (gid_sel.length()) 
-	  {
-	    Quota::PrintOut(space.c_str(), out2, -1, gid , monitor, translate);
-	    stdOut += out2;
-	  }
+        if (uid_sel.length())
+        {
+          Quota::PrintOut(space.c_str(), out1, uid, -1, monitor, translate);
+          stdOut += out1;
+        }
+
+        if (gid_sel.length())
+        {
+          Quota::PrintOut(space.c_str(), out2, -1, gid, monitor, translate);
+          stdOut += out2;
+        }
       }
     }
 
