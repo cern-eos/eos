@@ -94,11 +94,12 @@ add_library (XrdEosMgm MODULE
             Master.cc
             Recycle.cc
             http/HttpServer.cc
-            http/ProtocolHandler.cc
-            http/Http.cc
-            http/S3.cc
-            http/S3Store.cc
-            http/WebDAV.cc
+            http/HttpHandler.cc
+            http/s3/S3Handler.cc
+            http/s3/S3Store.cc
+            http/webdav/WebDAVHandler.cc
+            http/webdav/WebDAVResponse.cc
+            http/webdav/PropFindResponse.cc
             Converter.cc
             )
 

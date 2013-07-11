@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Http.hh
+// File: HttpHandler.hh
 // Author: Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
@@ -22,29 +22,32 @@
  ************************************************************************/
 
 /**
- * @file   Http.hh
+ * @file   HttpHandler.hh
  *
- * @brief  TODO
+ * @brief  Class to handle plain HTTP requests and build responses.
  */
 
-#ifndef __EOSMGM_HTTP__HH__
-#define __EOSMGM_HTTP__HH__
+#ifndef __EOSCOMMON_HTTP_HANDLER__HH__
+#define __EOSCOMMON_HTTP_HANDLER__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "mgm/http/ProtocolHandler.hh"
-#include "mgm/Namespace.hh"
+#include "common/http/ProtocolHandler.hh"
+#include "common/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 #include <map>
 #include <string>
 /*----------------------------------------------------------------------------*/
 
-EOSMGMNAMESPACE_BEGIN
+EOSCOMMONNAMESPACE_BEGIN
 
-class Http : public ProtocolHandler
+class HttpHandler : virtual public eos::common::ProtocolHandler
 {
 
-private:
+protected:
+  /**
+   * Standard plain HTTP request methods
+   */
   enum Methods
   {
     GET,     //!< Requests a representation of the specified resource. Requests
@@ -74,32 +77,52 @@ private:
   };
 
 public:
-  Http ();
-  virtual ~Http ();
 
   /**
+   * Constructor
+   */
+  HttpHandler () {};
+
+  /**
+   * Destructor
+   */
+  virtual ~HttpHandler () {};
+
+  /**
+   * Check whether the given method and headers are a match for this protocol.
    *
+   * @param method  the request verb used by the client (GET, PUT, etc)
+   * @param headers the map of request headers
+   *
+   * @return true if the protocol matches, false otherwise
    */
   static bool
-  Matches(std::string &method, HeaderMap &headers);
+  Matches (const std::string &method, HeaderMap &headers);
 
   /**
+   * Build a response to the given plain HTTP request.
    *
+   * @param request  the map of request headers sent by the client
+   * @param method   the request verb used by the client (GET, PUT, etc)
+   * @param url      the URL requested by the client
+   * @param query    the GET request query string (if any)
+   * @param body     the request body data sent by the client
+   * @param bodysize the size of the request body
+   * @param cookies  the map of cookie headers
    */
   virtual void
-  ParseHeader(HeaderMap &headers);
+  HandleRequest (eos::common::HttpRequest *request) = 0;
 
   /**
+   * Convert the given request method string into its integer constant
+   * representation.
    *
-   */
-  virtual std::string
-  HandleRequest(HeaderMap request, HeaderMap response, int error);
-
-  /**
+   * @param method  the method string to convert
    *
+   * @return the converted method string as an integer
    */
   inline static int
-  ParseMethodString(std::string &method)
+  ParseMethodString (const std::string &method)
   {
     if      (method == "GET")     return Methods::GET;
     else if (method == "HEAD")    return Methods::HEAD;
@@ -115,6 +138,6 @@ public:
 };
 
 /*----------------------------------------------------------------------------*/
-EOSMGMNAMESPACE_END
+EOSCOMMONNAMESPACE_END
 
-#endif /* __EOSMGM_HTTP__HH__ */
+#endif /* __EOSCOMMON_HTTP_HANDLER__HH__ */

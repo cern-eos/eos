@@ -106,25 +106,10 @@ public:
 
 private:
 
-  bool mDoneInitialisation; ///< Jerasure codes initialisation status
-
-  //! Types of encoding that are supported by the Jerasure library
-  enum Coding_Technique {
-    Reed_Sol_Van,
-    Reed_Sol_R6_Op,
-    Cauchy_Orig,
-    Cauchy_Good,
-    Liberation,
-    Blaum_Roth,
-    Liber8tion,
-    RDP,
-    EVENODD,
-    No_Coding};
-
-  enum Coding_Technique mTech; ///< coding technique (parameter)
-  unsigned int w, mPacketSize; ///< word size, packet size
-  
   //! Values use by Jerasure codes
+  bool mDoneInitialisation; ///< Jerasure codes initialisation status
+  unsigned int w;           ///< word size for Jerasure
+  unsigned int mPacketSize; ///< packet size for Jerasure
   int *matrix;
   int *bitmatrix;
   int **schedule;

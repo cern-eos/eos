@@ -35,7 +35,7 @@
 #include "fst/storage/Storage.hh"
 #include "fst/Config.hh"
 #include "fst/Messaging.hh"
-#include "fst/HttpServer.hh"
+#include "fst/http/HttpServer.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
 

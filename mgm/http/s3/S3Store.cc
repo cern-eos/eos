@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
 // File: S3Store.cc
-// Author: Andreas-Joachim Peters - CERN
+// Author: Andreas-Joachim Peters & Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -22,8 +22,8 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "mgm/http/S3Store.hh"
-#include "mgm/http/S3.hh"
+#include "mgm/http/s3/S3Store.hh"
+#include "mgm/http/s3/S3Handler.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "common/Logging.hh"
@@ -34,36 +34,28 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-S3Store::S3Store (const char*s3defpath)
+#define XML_V1_UTF8 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+
+/*----------------------------------------------------------------------------*/
+S3Store::S3Store (const char *s3defpath)
 {
-  //.............................................................................
-  // Constructor
-  //.............................................................................
   mS3DefContainer = s3defpath;
   mStoreModificationTime = 1;
   mStoreReloadTime = 1;
 }
 
 /*----------------------------------------------------------------------------*/
-S3Store::~S3Store () {
-  //.............................................................................
-  // Destructor
-  //.............................................................................
-}
-
-/*----------------------------------------------------------------------------*/
 void
 S3Store::Refresh ()
 {
-  //.............................................................................
-  // Refresh the S3 id,keys,container definitions
-  //.............................................................................
+  // Refresh the S3 id, keys, container definitions
   time_t now = time(NULL);
   time_t srtime;
   {
     eos::common::RWMutexReadLock sLock(mStoreMutex);
     srtime = mStoreReloadTime;
   }
+
   // max. enter once per minute this code branch
   if ((now - srtime) > 60)
   {
@@ -152,7 +144,7 @@ S3Store::Refresh ()
 
 /*----------------------------------------------------------------------------*/
 bool
-S3Store::VerifySignature (S3& s3)
+S3Store::VerifySignature (S3Handler& s3)
 {
   if (!mS3Keys.count(s3.getId()))
   {
@@ -165,12 +157,10 @@ S3Store::VerifySignature (S3& s3)
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3Store::ListBuckets (int& response_code, S3 &s3, std::map<std::string, std::string> &response_header)
+S3Store::ListBuckets (int                                &response_code,
+                      S3Handler                          &s3,
+                      std::map<std::string, std::string> &response_header)
 {
-  //.............................................................................
-  // Return bucket list for a given s3 request
-  //.............................................................................
-
   eos::common::RWMutexReadLock sLock(mStoreMutex);
 
   response_header["Content-Type"] = "application/xml";
@@ -227,12 +217,10 @@ S3Store::ListBuckets (int& response_code, S3 &s3, std::map<std::string, std::str
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3Store::ListBucket (int& response_code, S3 &s3, std::map<std::string, std::string> &response_header)
+S3Store::ListBucket (int                                &response_code,
+                     S3Handler                          &s3,
+                     std::map<std::string, std::string> &response_header)
 {
-  //.............................................................................
-  // Return bucket listing for a given s3 request
-  //.............................................................................
-
   XrdOucErrInfo error;
   eos::common::Mapping::VirtualIdentity vid;
   eos::common::Mapping::Root(vid);
@@ -242,7 +230,8 @@ S3Store::ListBucket (int& response_code, S3 &s3, std::map<std::string, std::stri
   if (!mS3ContainerPath.count(s3.getBucket()))
   {
     // check if this bucket is configured
-    return s3.RestErrorResponse(response_code, 404, "NoSuchBucket", "Bucket does not exist!", s3.getBucket().c_str(), "");
+    return s3.RestErrorResponse(response_code, 404, "NoSuchBucket",
+        "Bucket does not exist!", s3.getBucket().c_str(), "");
   }
   else
   {
@@ -414,7 +403,7 @@ S3Store::ListBucket (int& response_code, S3 &s3, std::map<std::string, std::stri
         for (unsigned int i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
         {
           char hb[3];
-          sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
+          sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
           result += hb;
         }
         result += "</ETag>";
@@ -495,7 +484,9 @@ S3Store::ListBucket (int& response_code, S3 &s3, std::map<std::string, std::stri
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3Store::HeadObject (int& response_code, S3 &s3, std::map<std::string, std::string> &response_header)
+S3Store::HeadObject (int                                &response_code,
+                     S3Handler                          &s3,
+                     std::map<std::string, std::string> &response_header)
 {
   XrdOucErrInfo error;
   eos::common::Mapping::VirtualIdentity vid;
@@ -544,16 +535,16 @@ S3Store::HeadObject (int& response_code, S3 &s3, std::map<std::string, std::stri
     // shift back the inode number to the original file id
     buf.st_ino >>= 28;
     std::string sinode;
-    response_header["x-amz-id-2"] = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino);
+    response_header["x-amz-id-2"]       = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino);
     response_header["x-amz-request-id"] = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino);
     response_header["x-amz-version-id"] = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino);
-    response_header["Date"] = s3.getDate();
-    response_header["Last-Modified"] = eos::common::Timing::UnixTimstamp_to_ISO8601(buf.st_mtime);
-    response_header["ETag"] = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino);
-    response_header["Content-Length"] = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_size);
-    response_header["Content-Type"] = s3.ContentType();
-    response_header["Connection"] = "close";
-    response_header["Server"] = gOFS->HostName;
+    response_header["Date"]             = s3.getDate();
+    response_header["Last-Modified"]    = eos::common::Timing::UnixTimstamp_to_ISO8601(buf.st_mtime);
+    response_header["ETag"]             = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino);
+    response_header["Content-Length"]   = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_size);
+    response_header["Content-Type"]     = eos::common::HttpResponse::ContentType(s3.getPath());
+    response_header["Connection"]       = "close";
+    response_header["Server"]           = gOFS->HostName;
     response_code = 200;
     return "OK";
   }
@@ -561,7 +552,9 @@ S3Store::HeadObject (int& response_code, S3 &s3, std::map<std::string, std::stri
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3Store::HeadBucket (int& response_code, S3 &s3, std::map<std::string, std::string> &response_header)
+S3Store::HeadBucket (int                                &response_code,
+                     S3Handler                          &s3,
+                     std::map<std::string, std::string> &response_header)
 {
   XrdOucErrInfo error;
   eos::common::Mapping::VirtualIdentity vid;
@@ -619,7 +612,9 @@ S3Store::HeadBucket (int& response_code, S3 &s3, std::map<std::string, std::stri
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3Store::GetObject (int& response_code, S3 &s3, std::map<std::string, std::string> &response_header)
+S3Store::GetObject (int                                &response_code,
+                    S3Handler                          &s3,
+                    std::map<std::string, std::string> &response_header)
 {
   std::string result;
   XrdOucErrInfo error;
@@ -736,15 +731,15 @@ S3Store::GetObject (int& response_code, S3 &s3, std::map<std::string, std::strin
       {
 
         // the embedded server on FSTs is hardcoded to run on port 8001
-        result = eos::common::HttpServer::HttpRedirect(response_code,
-                                                 response_header,
-                                                 file->error.getErrText(),
-                                                 8001,
-                                                 objectpath,
-                                                 response_header["Query"],
-                                                 false);
+        eos::common::HttpResponse *response;
+        response = eos::common::HttpServer::HttpRedirect(objectpath,
+                                                         file->error.getErrText(),
+                                                         8001, false);
 
+        response_header = response->GetHeaders();
         response_header["x-amz-website-redirect-location"] = response_header["Location"];
+        response_code = response->GetResponseCode();
+        delete response;
       }
       else
         if (rc == SFS_ERROR)
@@ -776,7 +771,9 @@ S3Store::GetObject (int& response_code, S3 &s3, std::map<std::string, std::strin
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3Store::PutObject (int& response_code, S3 &s3, std::map<std::string, std::string> &response_header)
+S3Store::PutObject (int                                &response_code,
+                    S3Handler                          &s3,
+                    std::map<std::string, std::string> &response_header)
 {
   std::string result;
   XrdOucErrInfo error;
@@ -819,15 +816,15 @@ S3Store::PutObject (int& response_code, S3 &s3, std::map<std::string, std::strin
     {
 
       // the embedded server on FSTs is hardcoded to run on port 8001
-      result = eos::common::HttpServer::HttpRedirect(response_code,
-                                               response_header,
-                                               file->error.getErrText(),
-                                               8001,
-                                               objectpath,
-                                               response_header["Query"],
-                                               false);
+      eos::common::HttpResponse *response;
+      response = eos::common::HttpServer::HttpRedirect(objectpath,
+                                                       file->error.getErrText(),
+                                                       8001, false);
 
+      response_header = response->GetHeaders();
       response_header["x-amz-website-redirect-location"] = response_header["Location"];
+      response_code = response->GetResponseCode();
+      delete response;
     }
     else
       if (rc == SFS_ERROR)

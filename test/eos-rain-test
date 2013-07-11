@@ -24,7 +24,7 @@
 #------------------------------------------------------------------------------
 # Description: The script is used to test the RAID-like layouts from EOS. 
 # Usage: 
-# eos-rain-test raiddp/reeds/plain dir_test_files root://host//eos_raid_dir tmp_location_dir
+# eos-rain-test raiddp/raid6/archive/plain dir_test_files root://host//eos_raid_dir tmp_location_dir
 #  - first argument is the type of test made 
 #  - second arguments specifies the directory from which all files corresponding
 #     to the pattern *.rain will be used in the test 
@@ -145,7 +145,7 @@ function get_file_fs()
 
 if [[ $# -eq 0 && $# -gt 5 ]]; 
 then 
-    echo usage: $0 raiddp/reeds/plain dir_test_files root://host//eos_raid_dir tmp_location_dir
+    echo usage: $0 raiddp/raid6/archive/plain dir_test_files root://host//eos_raid_dir tmp_location_dir
     exit
 fi
 
@@ -172,9 +172,17 @@ if [ "$ARG" = "raiddp" ]; then
 	echo_failure
 	exit 1
     fi
-elif [ "$ARG" = "reeds" ];
+elif [ "$ARG" = "raid6" ];
 then
     $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="raid6"' 
+    if [ $? -ne 0 ]; then
+	echo "$ERR_MSG1"
+	echo_failure
+	exit 1
+    fi
+elif [ "$ARG" = "archive" ];
+then
+    $SUDO $EOS -b attr ls "$EOS_DIR" | grep -q 'sys.forced.layout="archive"' 
     if [ $? -ne 0 ]; then
 	echo "$ERR_MSG1"
 	echo_failure
@@ -190,7 +198,7 @@ then
     fi
 
 else 
-    echo usage: $0 raiddp/reeds/plain dir_test_files eos_raid_dir tmp_location_dir
+    echo usage: $0 raiddp/raid6/archive/plain dir_test_files eos_raid_dir tmp_location_dir
     exit 1
 fi
 

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: HttpServer.hh
+// File: S3Handler.hh
 // Author: Andreas-Joachim Peters & Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
@@ -22,74 +22,92 @@
  ************************************************************************/
 
 /**
- * @file   HttpServer.hh
+ * @file   S3Handler.hh
  *
- * @brief  Creates an Http redirector instance running on the MGM
+ * @brief  Dealing with all S3Handler goodies
  */
 
-#ifndef __EOSMGM_HTTPSERVER__HH__
-#define __EOSMGM_HTTPSERVER__HH__
+#ifndef __EOSFST_S3_HANDLER__HH__
+#define __EOSFST_S3_HANDLER__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "mgm/Namespace.hh"
-#include "common/http/HttpServer.hh"
-#include "common/Mapping.hh"
+#include "common/http/s3/S3Handler.hh"
+#include "fst/http/HttpHandler.hh"
+#include "fst/Namespace.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
-#include <map>
 #include <string>
+#include <map>
 /*----------------------------------------------------------------------------*/
 
-EOSMGMNAMESPACE_BEGIN
+EOSFSTNAMESPACE_BEGIN
 
-class HttpServer : public eos::common::HttpServer
+class S3Store;
+
+class S3Handler : public eos::common::S3Handler, public eos::fst::HttpHandler
 {
 
-private:
-  std::string     mGridMapFile;            //!< contents of the gridmap file
-  struct timespec mGridMapFileLastModTime; //!< last modification time of the
-                                           //!< gridmap file
-
 public:
+
   /**
    * Constructor
    */
-  HttpServer (int port = 8000) :
-    eos::common::HttpServer(port), mGridMapFileLastModTime{0} {}
+  S3Handler ();
 
   /**
    * Destructor
    */
-  virtual ~HttpServer () {};
+  virtual ~S3Handler () {};
 
-#ifdef EOS_MICRO_HTTPD
   /**
-   * HTTP object handler function on MGM
+   * Check whether the given method and headers are a match for this protocol.
    *
-   * @return see implementation
+   * @param method  the request verb used by the client (GET, PUT, etc)
+   * @param headers the map of request headers
+   *
+   * @return true if the protocol matches, false otherwise
    */
-  virtual int
-  Handler (void                  *cls,
-           struct MHD_Connection *connection,
-           const char            *url,
-           const char            *method,
-           const char            *version,
-           const char            *upload_data,
-           size_t                *upload_data_size,
-           void                 **ptr);
-#endif
+  static bool
+  Matches (const std::string &method, HeaderMap &headers);
 
   /**
-   * Authenticate the client request by inspecting the SSL headers which were
-   * transmitted by the reverse proxy server and attempting to map the client
-   * DN to the gridmap file.
+   * Build a response to the given S3 request.
+   *
+   * @param request  the map of request headers sent by the client
+   * @param method   the request verb used by the client (GET, PUT, etc)
+   * @param url      the URL requested by the client
+   * @param query    the GET request query string (if any)
+   * @param body     the request body data sent by the client
+   * @param bodysize the size of the request body
+   * @param cookies  the map of cookie headers
    */
-  eos::common::Mapping::VirtualIdentity*
-  Authenticate (std::map<std::string, std::string> &headers);
+  void
+  HandleRequest (eos::common::HttpRequest *request);
+
+  /**
+   * Handle an S3 GET request.
+   *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
+   */
+  eos::common::HttpResponse*
+  Get (eos::common::HttpRequest *request);
+
+  /**
+   * Handle an S3 PUT request.
+   *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
+   */
+  eos::common::HttpResponse*
+  Put (eos::common::HttpRequest *request);
+
 };
 
 /*----------------------------------------------------------------------------*/
-EOSMGMNAMESPACE_END
+EOSFSTNAMESPACE_END
 
 #endif
+

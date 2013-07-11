@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: WebDAV.hh
+// File: WebDAVHandler.hh
 // Author: Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
@@ -22,16 +22,17 @@
  ************************************************************************/
 
 /**
- * @file   WebDAV.hh
+ * @file   WebDAVHandler.hh
  *
- * @brief  TODO
+ * @brief  Class to handle WebDAV requests and build responses.
  */
 
-#ifndef __EOSMGM_WEBDAV__HH__
-#define __EOSMGM_WEBDAV__HH__
+#ifndef __EOSMGM_WEBDAV_HANDLER__HH__
+#define __EOSMGM_WEBDAV_HANDLER__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "mgm/http/ProtocolHandler.hh"
+#include "common/http/ProtocolHandler.hh"
+#include "common/Mapping.hh"
 #include "mgm/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -41,10 +42,13 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-class WebDAV : public eos::mgm::ProtocolHandler
+class WebDAVHandler : public eos::common::ProtocolHandler
 {
 
 private:
+  /**
+   * WebDAV HTTP extension methods
+   */
   enum Methods
   {
     PROPFIND,  //!< Used to retrieve properties, stored as XML, from a web
@@ -64,38 +68,57 @@ private:
 public:
 
   /**
-   *
+   * Constructor
    */
-  WebDAV () {};
+  WebDAVHandler (eos::common::Mapping::VirtualIdentity *vid) :
+    eos::common::ProtocolHandler(vid) {};
 
   /**
-   *
+   * Destructor
    */
-  virtual ~WebDAV () {};
+  virtual ~WebDAVHandler () {};
 
   /**
+   * Check whether the given method and headers are a match for this protocol.
    *
+   * @param method  the request verb used by the client (GET, PUT, etc)
+   * @param headers the map of request headers
+   *
+   * @return true if the protocol matches, false otherwise
    */
   static bool
-  Matches(std::string &method, HeaderMap &headers);
+  Matches (const std::string &method, HeaderMap &headers);
+
+  /**
+   * Build a response to the given WebDAV request.
+   *
+   * @param request  the map of request headers sent by the client
+   * @param method   the request verb used by the client (GET, PUT, etc)
+   * @param url      the URL requested by the client
+   * @param query    the GET request query string (if any)
+   * @param body     the request body data sent by the client
+   * @param bodysize the size of the request body
+   * @param cookies  the map of cookie headers
+   */
+  void
+  HandleRequest (eos::common::HttpRequest *request);
 
   /**
    *
    */
-  virtual void
-  ParseHeader(HeaderMap &headers);
+  eos::common::HttpResponse*
+  MkCol (eos::common::HttpRequest *request);
 
   /**
+   * Convert the given request method string into its integer constant
+   * representation.
    *
-   */
-  virtual std::string
-  HandleRequest(HeaderMap request, HeaderMap response, int error);
-
-  /**
+   * @param method  the method string to convert
    *
+   * @return the converted method string as an integer
    */
   inline static int
-  ParseMethodString(std::string &method)
+  ParseMethodString (const std::string &method)
   {
     if      (method == "PROPFIND")  return Methods::PROPFIND;
     else if (method == "PROPPATCH") return Methods::PROPPATCH;
@@ -106,10 +129,9 @@ public:
     else if (method == "UNLOCK")    return Methods::UNLOCK;
     else return -1;
   }
-
 };
 
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_END
 
-#endif /* __EOSMGM_WEBDAV__HH__ */
+#endif /* __EOSMGM_WEBDAV_HANDLER__HH__ */

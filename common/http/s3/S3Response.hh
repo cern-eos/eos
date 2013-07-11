@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: WebDAV.cc
+// File: S3Response.hh
 // Author: Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
@@ -21,48 +21,70 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+/**
+ * @file   S3Response.hh
+ *
+ * @brief  TODO
+ */
+
+#ifndef __EOSCOMMON_S3_RESPONSE__HH__
+#define __EOSCOMMON_S3_RESPONSE__HH__
+
 /*----------------------------------------------------------------------------*/
-#include "mgm/http/WebDAV.hh"
-#include "mgm/Namespace.hh"
+#include "common/http/HttpResponse.hh"
+#include "common/Namespace.hh"
 #include "common/Logging.hh"
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
-
-EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-bool
-WebDAV::Matches(std::string &meth, ProtocolHandler::HeaderMap &headers)
-{
-  int method =  ParseMethodString(meth);
-  if (method == WebDAV::PROPFIND || method == WebDAV::PROPPATCH ||
-      method == WebDAV::MKCOL    || method == WebDAV::COPY      ||
-      method == WebDAV::MOVE     || method == WebDAV::LOCK      ||
-      method == WebDAV::UNLOCK)
-  {
-    eos_static_info("info=Matched WebDAV protocol for request");
-    return true;
-  }
-  else return false;
-}
-
 /*----------------------------------------------------------------------------*/
-void
-WebDAV::ParseHeader (ProtocolHandler::HeaderMap &headers)
+#include <map>
+#include <string>
+/*----------------------------------------------------------------------------*/
+
+EOSCOMMONNAMESPACE_BEGIN
+
+#define XML_V1_UTF8 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+
+class S3Response : public HttpResponse
 {
 
-}
+public:
+
+  HttpResponse*
+  BuildResponse (HttpRequest *request) { return this; };
+
+  /*----------------------------------------------------------------------------*/
+//  static std::string
+//  RestErrorResponse (int        &response_code,
+//                     int         http_code,
+//                     std::string errcode,
+//                     std::string errmsg,
+//                     std::string resource,
+//                     std::string requestid)
+//  {
+//    //.............................................................................
+//    // Creates a AWS RestError Response string
+//    //.............................................................................
+//    response_code = http_code;
+//    std::string result = XML_V1_UTF8;
+//    result += "<Error><Code>";
+//    result += errcode;
+//    result += "</Code>";
+//    result += "<Message>";
+//    result += errmsg;
+//    result += "</Message>";
+//    result += "<Resource>";
+//    result += resource;
+//    result += "</Resource>";
+//    result += "<RequestId>";
+//    result += requestid;
+//    result += "</RequestId>";
+//    result += "</Error";
+//    return result;
+//  }
+};
 
 /*----------------------------------------------------------------------------*/
-std::string
-WebDAV::HandleRequest(ProtocolHandler::HeaderMap request,
-                      ProtocolHandler::HeaderMap response,
-                      int                        error)
-{
-  error = 1;
-  return "Not Implemented";
-}
+EOSCOMMONNAMESPACE_END
 
-/*----------------------------------------------------------------------------*/
-EOSMGMNAMESPACE_END
+#endif /* __EOSCOMMON_S3_RESPONSE__HH__ */

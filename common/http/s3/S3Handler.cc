@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: S3.cc
-// Author: Andreas-Joachim Peters - CERN
+// File: S3Handler.cc
+// Author: Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2013 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,59 +22,21 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "mgm/http/S3.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "common/http/s3/S3Handler.hh"
+#include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
-#include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
-#include <string>
-#include <map>
 /*----------------------------------------------------------------------------*/
 
-EOSMGMNAMESPACE_BEGIN
-
-S3Store *S3::mS3Store = 0;
-
-/*----------------------------------------------------------------------------*/
-S3::S3 ()
-{
-  mIsS3 = false;
-  mId = mSignature = mHost = mContentMD5 = mContentType = mUserAgent = "";
-  mHttpMethod = mPath = mQuery = mBucket = mDate = "";
-  mVirtualHost = false;
-
-  if (!mS3Store)
-  {
-    // create the store if it does not exist yet
-    mS3Store = new S3Store(gOFS->MgmProcPath.c_str());
-  }
-}
-
-/*----------------------------------------------------------------------------*/
-S3::~S3 () {}
-
-/*----------------------------------------------------------------------------*/
-bool
-S3::Matches(std::string &method, ProtocolHandler::HeaderMap &headers)
-{
-  if (headers.count("Authorization"))
-  {
-    if (headers["Authorization"].substr(0, 3) == "AWS")
-    {
-      eos_static_info("info=Matched S3 protocol for request");
-      return true;
-    }
-  }
-  return false;
-}
+EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 void
-S3::ParseHeader (ProtocolHandler::HeaderMap &header)
+S3Handler::ParseHeader (eos::common::HttpRequest *request)
 {
-  // Parse function to analyse HTTP and AMZ header map
+  HeaderMap header = request->GetHeaders();
   std::string header_line;
   for (auto it = header.begin(); it != header.end(); it++)
   {
@@ -98,52 +60,45 @@ S3::ParseHeader (ProtocolHandler::HeaderMap &header)
         mId.erase(dpos);
         mSignature.erase(0, dpos + 1);
 
-        if (header.count("HttpMethod"))
-        {
-          mHttpMethod = header["HttpMethod"];
-        }
-        if (header.count("Path"))
-        {
-          mPath = header["Path"];
-          std::string subdomain = SubDomain(header["Host"]);
+        mHttpMethod = request->GetMethod();
 
-          if (subdomain.length())
+        mPath = request->GetUrl();
+        std::string subdomain = SubDomain(header["Host"]);
+
+        if (subdomain.length())
+        {
+          // implementation for DNS buckets
+          mBucket = subdomain;
+          mVirtualHost = true;
+        }
+        else
+        {
+          mVirtualHost = false;
+          // implementation for non DNS buckets
+          mBucket = mPath;
+
+          if (mBucket[0] == '/')
           {
-            // implementation for DNS buckets
-            mBucket = subdomain;
-            mVirtualHost = true;
+            mBucket.erase(0, 1);
+          }
+
+          size_t slash_pos = mBucket.find("/");
+          if (slash_pos != std::string::npos)
+          {
+            // something like data/...
+
+            mPath = mBucket;
+            mPath.erase(0, slash_pos);
+            mBucket.erase(slash_pos);
           }
           else
           {
-            mVirtualHost = false;
-            // implementation for non DNS buckets
-            mBucket = mPath;
-
-            if (mBucket[0] == '/')
-            {
-              mBucket.erase(0, 1);
-            }
-
-            size_t slash_pos = mBucket.find("/");
-            if (slash_pos != std::string::npos)
-            {
-              // something like data/...    
-
-              mPath = mBucket;
-              mPath.erase(0, slash_pos);
-              mBucket.erase(slash_pos);
-            }
-            else
-            {
-              mPath = "/";
-            }
+            mPath = "/";
           }
         }
 
-        if (header.count("Query"))
-        {
-          mQuery = header["Query"];
-        }
+        mQuery = request->GetQuery();
+
         if (header.count("Content-MD5"))
         {
           mContentMD5 = header["Content-MD5"];
@@ -155,6 +110,10 @@ S3::ParseHeader (ProtocolHandler::HeaderMap &header)
         if (header.count("content-type"))
         {
           mContentType = header["content-type"];
+        }
+        if (header.count("Content-type"))
+        {
+          mContentType = header["Content-type"];
         }
         if (header.count("Host"))
         {
@@ -217,98 +176,16 @@ S3::ParseHeader (ProtocolHandler::HeaderMap &header)
 }
 
 /*----------------------------------------------------------------------------*/
-std::string
-S3::HandleRequest(ProtocolHandler::HeaderMap request,
-                  ProtocolHandler::HeaderMap response,
-                  int                        error)
-{
-  eos_static_info("msg=\"handling s3 request\"");
-
-  std::string result;
-  mS3Store->Refresh();
-
-  if (!mS3Store->VerifySignature(*this))
-  {
-    result = RestErrorResponse(error, 403, "SignatureDoesNotMatch", "", getBucket(), "");
-  }
-  else
-  {
-    if (request["HttpMethod"] == "GET")
-    {
-      if (getBucket() == "")
-      {
-        // GET SERVICE REQUEST
-        result = mS3Store->ListBuckets(error, *this, response);
-      }
-      else
-      {
-        if (getPath() == "/")
-        {
-          // GET BUCKET LISTING REQUEST
-          result = mS3Store->ListBucket(error, *this, response);
-        }
-        else
-        {
-          // GET OBJECT REQUEST
-          result = mS3Store->GetObject(error, *this, response);
-        }
-      }
-    }
-    else
-    {
-      if (request["HttpMethod"] == "HEAD")
-      {
-        if (getPath() == "/")
-        {
-          // HEAD BUCKET REQUEST
-          result = mS3Store->HeadBucket(error, *this, response);
-        }
-        else
-        {
-          // HEAD OBJECT REQUEST
-          result = mS3Store->HeadObject(error, *this, response);
-        }
-      }
-      else
-      {
-        // PUT REQUEST ...
-        result = mS3Store->PutObject(error, *this, response);
-      }
-    }
-  }
-
-  return result;
-}
-
-
-///*----------------------------------------------------------------------------*/
-//S3 *
-//S3::ParseS3 (std::map<std::string, std::string> &header)
-//{
-//  S3* s3 = new S3();
-//  s3->ParseHeader(header);
-//  if (s3->IsS3())
-//  {
-//    return s3;
-//  }
-//  else
-//  {
-//    delete s3;
-//    return 0;
-//  }
-//}
-
-
-/*----------------------------------------------------------------------------*/
 bool
-S3::IsS3 ()
+S3Handler::IsS3 ()
 {
   // Check if S3 object is complete
   return mIsS3;
 }
 
+/*----------------------------------------------------------------------------*/
 void
-S3::Print (std::string & out)
+S3Handler::Print (std::string & out)
 {
   // Print the S3 object contents to out
   out = "id=";
@@ -319,10 +196,12 @@ S3::Print (std::string & out)
   return;
 }
 
+/*----------------------------------------------------------------------------*/
 std::string
-S3::extractSubResource ()
+S3Handler::extractSubResource ()
 {
-  // Extract everything from the query which is a sub-resource aka used for signatures
+  // Extract everything from the query which is a sub-resource aka used for
+  // signatures
   std::vector<std::string> srvec;
   eos::common::StringConversion::Tokenize(getQuery(), srvec, "&");
   for (auto it = srvec.begin(); it != srvec.end(); it++)
@@ -363,8 +242,9 @@ S3::extractSubResource ()
   return mSubResource;
 }
 
+/*----------------------------------------------------------------------------*/
 bool
-S3::VerifySignature (std::string secure_key)
+S3Handler::VerifySignature (std::string secure_key)
 {
   std::string string2sign = getHttpMethod();
   string2sign += "\n";
@@ -401,96 +281,14 @@ S3::VerifySignature (std::string secure_key)
   // base64 encode the hash
   eos::common::SymKey::Base64Encode((char*) hmac1.c_str(), hmac1.size(), b64mac1);
   std::string verify_signature = b64mac1.c_str();
-  eos_static_info("in_signature=%s out_signature=%s\n", getSignature().c_str(), verify_signature.c_str());
+  eos_static_info("in_signature=%s out_signature=%s\n",
+                  getSignature().c_str(), verify_signature.c_str());
   return (verify_signature == getSignature());
 }
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3::RestErrorResponse (int &response_code, int http_code, std::string errcode, std::string errmsg, std::string resource, std::string requestid)
-{
-  //.............................................................................
-  // Creates a AWS RestError Response string
-  //.............................................................................
-  response_code = http_code;
-  std::string result = XML_V1_UTF8;
-  result += "<Error><Code>";
-  result += errcode;
-  result += "</Code>";
-  result += "<Message>";
-  result += errmsg;
-  result += "</Message>";
-  result += "<Resource>";
-  result += resource;
-  result += "</Resource>";
-  result += "<RequestId>";
-  result += requestid;
-  result += "</RequestId>";
-  result += "</Error";
-  return result;
-}
-
-/*----------------------------------------------------------------------------*/
-std::string
-S3::ContentType ()
-{
-  XrdOucString name = getPath().c_str();
-  if (name.endswith(".txt") ||
-      name.endswith(".log"))
-  {
-    return "text/plain";
-  }
-  if (name.endswith(".xml"))
-  {
-    return "text/xml";
-  }
-  if (name.endswith(".gif"))
-  {
-    return "image/gif";
-  }
-  if (name.endswith(".jpg"))
-  {
-    return "image/jpg";
-  }
-  if (name.endswith(".png"))
-  {
-    return "image/png";
-  }
-  if (name.endswith(".tiff"))
-  {
-    return "image/tiff";
-  }
-  if (name.endswith(".mp3"))
-  {
-    return "audio/mp3";
-  }
-  if (name.endswith(".mp4"))
-  {
-    return "audio/mp4";
-  }
-  if (name.endswith(".pdf"))
-  {
-    return "application/pdf";
-  }
-  if (name.endswith(".zip"))
-  {
-    return "application/zip";
-  }
-  if (name.endswith(".gzip"))
-  {
-    return "application/gzip";
-  }
-  if (name.endswith(".tar.gz"))
-  {
-    return "application/gzip";
-  }
-  // default is binary stream
-  return "application/octet-stream";
-}
-
-/*----------------------------------------------------------------------------*/
-std::string
-S3::SubDomain (std::string hostname)
+S3Handler::SubDomain (std::string hostname)
 {
   std::string subdomain = "";
   size_t pos1 = hostname.rfind(".");
@@ -512,4 +310,4 @@ S3::SubDomain (std::string hostname)
 }
 
 /*----------------------------------------------------------------------------*/
-EOSMGMNAMESPACE_END
+EOSCOMMONNAMESPACE_END

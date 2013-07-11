@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: HttpServer.hh
-// Author: Andreas-Joachim Peters - CERN
+// File: PlainHttpResponse.hh
+// Author: Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2013 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,71 +21,48 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_HTTP__HH__
-#define __EOSFST_HTTP__HH__
+/**
+ * @file   PlainHttpResponse.hh
+ *
+ * @brief  The simplest possible HTTP response. Does no request processing
+ *         whatsoever.
+ */
+
+#ifndef __EOSCOMMON_PLAIN_HTTP_RESPONSE__HH__
+#define __EOSCOMMON_PLAIN_HTTP_RESPONSE__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "fst/Namespace.hh"
+#include "common/http/HttpResponse.hh"
+#include "common/Namespace.hh"
 #include "common/Logging.hh"
-#include "common/HttpServer.hh"
-
 /*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
-
+#include <map>
+#include <string>
 /*----------------------------------------------------------------------------*/
 
-EOSFSTNAMESPACE_BEGIN
+EOSCOMMONNAMESPACE_BEGIN
 
-class HttpServer : public eos::common::HttpServer
+class PlainHttpResponse : public HttpResponse
 {
-  // -------------------------------------------------------------
-  // ! creates an Http redirector instance running on the FST
-  // -------------------------------------------------------------
 
 public:
 
-  /**
-   * Constructor
-   */
-  HttpServer (int port = 8000);
+  PlainHttpResponse () {};
+  virtual ~PlainHttpResponse () {};
 
   /**
-   * Destructor
+   * Build an appropriate response to the given request.
+   *
+   * @param request  the client request object
+   *
+   * @return the newly built response object (empty in this case)
    */
-  virtual ~HttpServer ();
-
-#ifdef EOS_MICRO_HTTPD
-  /**
-   * http object handler function on FST
-   * @return see implementation
-   */
-  virtual int Handler (void *cls,
-                       struct MHD_Connection *connection,
-                       const char *url,
-                       const char *method,
-                       const char *version,
-                       const char *upload_data,
-                       size_t *upload_data_size, void **ptr);
-
-  /**
-   * File Read Callback function
-   * @param cls XrdOfsFile* object
-   * @param pos offset to read from
-   * @param buf buffer to write to
-   * @param max size to read
-   * @return number of bytes read
-   */
-  static ssize_t FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max);
-
-  /**
-   * File Close Callback function
-   * @param cls XrdOfsFile* object
-   */
-  static void FileCloseCallback (void *cls);
-#endif
+  HttpResponse*
+  BuildResponse (eos::common::HttpRequest *request) { return this; };
 };
 
-EOSFSTNAMESPACE_END
+/*----------------------------------------------------------------------------*/
+EOSCOMMONNAMESPACE_END
 
-#endif
+#endif /* __EOSCOMMON_PLAIN_HTTP_RESPONSE__HH__ */

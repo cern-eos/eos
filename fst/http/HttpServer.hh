@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: ProtocolHandler.hh
-// Author: Justin Lewis Salmon - CERN
+// File: HttpServer.hh
+// Author: Andreas-Joachim Peters & Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2013 CERN/Switzerland                                  *
+ * Copyright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,67 +22,80 @@
  ************************************************************************/
 
 /**
- * @file   ProtocolHandler.hh
+ * @file HttpServer.hh
  *
- * @brief  Abstract base class representing an interface which a concrete
- *         protocol must implement, e.g. HTTP, WebDAV, S3.
+ * @brief creates an HTTP redirector instance running on the FST
  */
 
-#ifndef __EOSMGM_PROTOCOLHANDLER__HH__
-#define __EOSMGM_PROTOCOLHANDLER__HH__
+#ifndef __EOSFST_HTTP__HH__
+#define __EOSFST_HTTP__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "mgm/Namespace.hh"
+#include "fst/Namespace.hh"
+#include "common/Logging.hh"
+#include "common/http/HttpServer.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
-#include <string>
-#include <map>
 /*----------------------------------------------------------------------------*/
 
-EOSMGMNAMESPACE_BEGIN
+EOSFSTNAMESPACE_BEGIN
 
-class ProtocolHandler
+class HttpServer : public eos::common::HttpServer
 {
-public:
-  typedef std::map<std::string, std::string> HeaderMap;
 
 public:
+
   /**
    * Constructor
    */
-  ProtocolHandler () {};
+  HttpServer (int port = 8001);
 
   /**
    * Destructor
    */
-  virtual ~ProtocolHandler () {};
+  virtual ~HttpServer ();
 
+#ifdef EOS_MICRO_HTTPD
   /**
-   * return NULL if no matching protocol found
-   */
-  static ProtocolHandler*
-  CreateProtocolHandler(std::string &method, HeaderMap &headers);
-
-  /**
+   * HTTP object handler function on FST
    *
+   * @return see implementation
    */
-  static bool
-  Matches(std::string &method, HeaderMap &headers);
+  virtual int
+  Handler (void                  *cls,
+           struct MHD_Connection *connection,
+           const char            *url,
+           const char            *method,
+           const char            *version,
+           const char            *upload_data,
+           size_t                *upload_data_size,
+           void                 **ptr);
 
   /**
+   * File Read Callback function
    *
+   * @param cls XrdOfsFile* object
+   * @param pos offset to read from
+   * @param buf buffer to write to
+   * @param max size to read
+   *
+   * @return number of bytes read
    */
-  virtual void
-  ParseHeader(HeaderMap &headers) = 0;
+  static ssize_t
+  FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max);
 
   /**
+   * File Close Callback function
    *
+   * @param cls XrdOfsFile* object
    */
-  virtual std::string
-  HandleRequest(HeaderMap request, HeaderMap response, int error) = 0;
+  static void
+  FileCloseCallback (void *cls);
+
+#endif
 };
 
-/*----------------------------------------------------------------------------*/
-EOSMGMNAMESPACE_END
+EOSFSTNAMESPACE_END
 
-#endif /* __EOSMGM_PROTOCOLHANDLER__HH__ */
+#endif

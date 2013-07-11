@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
 // File: HttpServer.cc
-// Author: Andreas-Joachim Peters - CERN
+// Author: Andreas-Joachim Peters & Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -23,36 +23,22 @@
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/http/HttpServer.hh"
-#include "mgm/http/ProtocolHandler.hh"
-#include "mgm/http/Http.hh"
-#include "mgm/http/S3.hh"
-#include "mgm/http/WebDAV.hh"
+#include "mgm/http/ProtocolHandlerFactory.hh"
+#include "common/http/ProtocolHandler.hh"
+#include "common/http/HttpRequest.hh"
+#include "common/StringConversion.hh"
 #include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
+#include <sstream>
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 #define EOSMGM_HTTP_PAGE "<html><head><title>No such file or directory</title>\
                           </head><body>No such file or directory</body></html>"
-
-/*----------------------------------------------------------------------------*/
-//HttpServer::HttpServer (int port) : eos::common::HttpServer (port) {
-//
-//}
-
-/*----------------------------------------------------------------------------*/
-HttpServer::~HttpServer ()
-{
-//  if (mS3Store)
-//  {
-//    delete mS3Store;
-//    mS3Store = 0;
-//  }
-}
 
 #ifdef EOS_MICRO_HTTPD
 /*----------------------------------------------------------------------------*/
@@ -62,27 +48,56 @@ HttpServer::Handler (void                  *cls,
                      const char            *url,
                      const char            *method,
                      const char            *version,
-                     const char            *upload_data,
-                     size_t                *upload_data_size,
+                     const char            *uploadData,
+                     size_t                *uploadDataSize,
                      void                 **ptr)
 {
   std::map<std::string, std::string> headers;
 
   // If this is the first call, create an appropriate protocol handler based
-  // on the headers. We should only return MHD_YES here (unless error)
+  // on the headers and store it in *ptr. We should only return MHD_YES here
+  // (unless error)
   if (*ptr == 0)
   {
-    // get the headers
+    // Get the headers
     MHD_get_connection_values(connection, MHD_HEADER_KIND,
                               &HttpServer::BuildHeaderMap, (void*) &headers);
 
+    for (auto it = headers.begin(); it != headers.end(); ++it)
+    {
+      eos_static_info("%s: %s", (*it).first.c_str(), (*it).second.c_str());
+    }
 
-    std::string methodstr(method);
-    ProtocolHandler *handler = ProtocolHandler::CreateProtocolHandler(methodstr,
-                                                                      headers);
+    // Authenticate the client
+    eos::common::Mapping::VirtualIdentity *vid = Authenticate(headers);
+    if (!vid)
+    {
+      eos::common::HttpResponse *response = HttpError("Forbidden",
+                                                       response->FORBIDDEN);
+      // TODO: move this to a function
+      struct MHD_Response *mhdResponse;
+      mhdResponse = MHD_create_response_from_buffer(response->GetBodySize(),
+                                                    (void *) response->GetBody().c_str(),
+                                                    MHD_RESPMEM_MUST_COPY);
+      // Add all the response header tags
+      headers = response->GetHeaders();
+      for (auto it = headers.begin(); it != headers.end(); it++)
+      {
+        MHD_add_response_header(mhdResponse, it->first.c_str(), it->second.c_str());
+      }
+
+      int ret = MHD_queue_response(connection, response->GetResponseCode(),
+                                       mhdResponse);
+      eos_static_info("MHD_queue_response ret=%d", ret);
+      return ret;
+    }
+
+    eos::common::ProtocolHandler *handler;
+    ProtocolHandlerFactory factory = ProtocolHandlerFactory();
+    handler = factory.CreateProtocolHandler(method, headers, vid);
     if (!handler)
     {
-      eos_static_err("msg=No matching protocol for request");
+      eos_static_err("msg=no matching protocol for request");
       return MHD_NO;
     }
 
@@ -90,57 +105,78 @@ HttpServer::Handler (void                  *cls,
     return MHD_YES;
   }
 
-  // If this is the second call, actually process the request
-  // Use the existing protocol handler stored in ptr
-  ProtocolHandler *protocolHandler = (ProtocolHandler*) *ptr;
+  // Retrieve the protocol handler stored in *ptr
+  eos::common::ProtocolHandler *protocolHandler = (eos::common::ProtocolHandler*) *ptr;
 
-  // Get the headers again
-  MHD_get_connection_values(connection, MHD_HEADER_KIND,
-                            &HttpServer::BuildHeaderMap, (void*) &headers);
+  // For requests which have a body (i.e. uploadDataSize != 0) we must handle
+  // the body data on the second reentrant call to this function. We must
+  // create the response and store it inside the protocol handler, but we must
+  // NOT queue the response until the third call.
+  if (!protocolHandler->GetResponse())
+  {
+    // Get the request headers again
+    MHD_get_connection_values(connection, MHD_HEADER_KIND,
+                              &HttpServer::BuildHeaderMap, (void*) &headers);
 
-  // Get the request query string
-  std::string query;
-  MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND,
-                            &HttpServer::BuildQueryString, (void*) &query);
+    // Get the request query string
+    std::string query;
+    MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND,
+                              &HttpServer::BuildQueryString, (void*) &query);
 
-  // Get the cookies
-  std::map<std::string, std::string> cookies;
-  MHD_get_connection_values(connection, MHD_COOKIE_KIND,
-                            &HttpServer::BuildHeaderMap, (void*) &cookies);
+    // Get the cookies
+    std::map<std::string, std::string> cookies;
+    MHD_get_connection_values(connection, MHD_COOKIE_KIND,
+                              &HttpServer::BuildHeaderMap, (void*) &cookies);
 
-  eos_static_info("path=%s query=%s", url ? url : "",
-                                      query.c_str() ? query.c_str() : "");
+    // Make a request object
+    std::string body(uploadData, *uploadDataSize);
+    eos::common::HttpRequest *request = new eos::common::HttpRequest(
+                                            headers, method, url,
+                                            query.c_str() ? query : "",
+                                            body, uploadDataSize, cookies);
+    eos_static_info("\n\n%s", request->ToString().c_str());
 
-  // Add query, path & method into the map
-  headers["Path"]       = std::string(url);
-  headers["Query"]      = query;
-  headers["HttpMethod"] = method;
+    // Handle the request and build a response based on the specific protocol
+    protocolHandler->HandleRequest(request);
+    delete request;
+  }
 
-  std::map<std::string, std::string> responseHeaders;
-  struct MHD_Response               *response;
-  std::string                        result;
-  int                                mhdResponse = MHD_HTTP_OK;
+  // If we have a non-empty body, we must "process" it, set the body size to
+  // zero, and return MHD_YES. We should not queue the response yet - we must
+  // do that on the next (third) call.
+  if (*uploadDataSize != 0)
+  {
+    *uploadDataSize = 0;
+    return MHD_YES;
+  }
 
-  // Handle the request and build a response based on the specific protocol
-  result = protocolHandler->HandleRequest(headers, responseHeaders, mhdResponse);
-  eos_static_info("result=%s", result.c_str());
+  eos::common::HttpResponse *response = protocolHandler->GetResponse();
+  if (!response)
+  {
+    eos_static_crit("msg=\"response creation failed\"");
+    return MHD_NO;
+  }
+  eos_static_info("\n\n%s", response->ToString().c_str());
 
   // Create the response
-  response = MHD_create_response_from_buffer(result.length(),
-                                             (void *) result.c_str(),
-                                             MHD_RESPMEM_MUST_COPY);
+  struct MHD_Response *mhdResponse;
+  mhdResponse = MHD_create_response_from_buffer(response->GetBodySize(), (void*)
+                                                response->GetBody().c_str(),
+                                                MHD_RESPMEM_MUST_COPY);
 
-  if (response)
+  if (mhdResponse)
   {
-    for (auto it = responseHeaders.begin(); it != responseHeaders.end(); it++)
+    // Add all the response header tags
+    headers = response->GetHeaders();
+    for (auto it = headers.begin(); it != headers.end(); it++)
     {
-      // Add all the response header tags
-      MHD_add_response_header(response, it->first.c_str(), it->second.c_str());
+      MHD_add_response_header(mhdResponse, it->first.c_str(), it->second.c_str());
     }
 
-    int ret = MHD_queue_response(connection, mhdResponse, response);
-    eos_static_info("MHD_queue_response ret=%d mhdRepsonse=%d",
-                    ret, mhdResponse);
+    // Queue the response
+    int ret = MHD_queue_response(connection, response->GetResponseCode(),
+                                 mhdResponse);
+    eos_static_info("MHD_queue_response ret=%d", ret);
     return ret;
   }
   else
@@ -148,284 +184,128 @@ HttpServer::Handler (void                  *cls,
     eos_static_crit("msg=\"response creation failed\"");
     return MHD_NO;
   }
-
-
-//  static int aptr;
-//  struct MHD_Response *response;
-//
-//  std::string query;
-//
-//  if (!mS3Store)
-//  {
-//    // create the store if it does not exist yet
-//    mS3Store = new S3Store(gOFS->MgmProcPath.c_str());
-//  }
-//  // currently support only GET,HEAD,PUT methods
-//  if ((0 != strcmp(method, MHD_HTTP_METHOD_GET))  &&
-//      (0 != strcmp(method, MHD_HTTP_METHOD_HEAD)) &&
-//      (0 != strcmp(method, MHD_HTTP_METHOD_PUT))  &&
-//      (0 != strcmp(method, MHD_HTTP_METHOD_OPTIONS))  &&
-//      (0 != strcmp(method, "PROPFIND")))
-//    return MHD_NO; /* unexpected method */
-//
-//  if ( ( &aptr != *ptr) && (strcmp(method, MHD_HTTP_METHOD_PUT)) )
-//  {
-//    /* do never respond on first call for head/put */
-//    *ptr = &aptr;
-//    return MHD_YES;
-//  }
-//
-//  MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND, &HttpServer::BuildQueryString,
-//                            (void*) &query);
-//
-//
-//  *ptr = NULL; /* reset when done */
-//
-//  std::string path = url;
-//
-//  eos_static_info("path=%s query=%s", url ? url : "", path.c_str() ? query.c_str() : "");
-//
-//
-//  // classify path to split between directory or file objects
-//  bool isfile = true;
-//
-//  XrdOucString spath = path.c_str();
-//  if (!spath.beginswith("/proc/"))
-//  {
-//    if (spath.endswith("/"))
-//    {
-//      isfile = false;
-//    }
-//  }
-//  XrdSecEntity client("unix");
-//
-//  client.name = strdup("nobody");
-//  client.host = strdup("localhost");
-//  client.tident = strdup("http");
-//
-//  std::string result;
-//
-//  int mhd_response = MHD_HTTP_OK;
-//
-//  std::map<std::string, std::string> header;
-//  std::map<std::string, std::string> cookies;
-//
-//  // get the header INFO
-//  MHD_get_connection_values(connection, MHD_HEADER_KIND, &HttpServer::BuildHeaderMap,
-//                            (void*) &header);
-//
-//  MHD_get_connection_values(connection, MHD_COOKIE_KIND, &HttpServer::BuildHeaderMap,
-//                            (void*) &cookies);
-//
-//  // add query, path & method into the map
-//  header["Path"] = path;
-//  header["Query"] = query;
-//  header["HttpMethod"] = method;
-//
-//  for (auto it = header.begin(); it != header.end(); it++)
-//  {
-//    eos_static_info("header:%s=%s", it->first.c_str(), it->second.c_str());
-//  }
-//
-//  for (auto it = cookies.begin(); it != cookies.end(); it++)
-//  {
-//    eos_static_info("cookie:%s=%s", it->first.c_str(), it->second.c_str());
-//  }
-//
-//  std::map<std::string, std::string> responseheader;
-//
-//  eos::common::S3* s3 = eos::common::S3::ParseS3(header);
-//
-//  if (s3)
-//  {
-//    eos_static_info("msg=\"handling s3 request\"");
-//    //...........................................................................
-//    // handle S3 request
-//    //...........................................................................
-//
-//    mS3Store->Refresh();
-//
-//    if (!mS3Store->VerifySignature(*s3))
-//    {
-//      result = s3->RestErrorResponse(mhd_response, 403, "SignatureDoesNotMatch", "", s3->getBucket(), "");
-//    }
-//    else
-//    {
-//      if (header["HttpMethod"] == "GET")
-//      {
-//        if (s3->getBucket() == "")
-//        {
-//          // GET SERVICE REQUEST
-//          result = mS3Store->ListBuckets(mhd_response, *s3, responseheader);
-//        }
-//        else
-//        {
-//          if (s3->getPath() == "/")
-//          {
-//            // GET BUCKET LISTING REQUEST
-//            result = mS3Store->ListBucket(mhd_response, *s3, responseheader);
-//          }
-//          else
-//          {
-//            // GET OBJECT REQUEST
-//            result = mS3Store->GetObject(mhd_response, *s3, responseheader);
-//          }
-//        }
-//      }
-//      else
-//      {
-//        if (header["HttpMethod"] == "HEAD")
-//        {
-//          if (s3->getPath() == "/")
-//          {
-//            // HEAD BUCKET REQUEST
-//            result = mS3Store->HeadBucket(mhd_response, *s3, responseheader);
-//          }
-//          else
-//          {
-//            // HEAD OBJECT REQUEST
-//            result = mS3Store->HeadObject(mhd_response, *s3, responseheader);
-//          }
-//        }
-//        else
-//        {
-//          // PUT REQUEST ...
-//          result = mS3Store->PutObject(mhd_response, *s3, responseheader);
-//        }
-//      }
-//
-//    }
-//    delete s3;
-//  }
-//  else
-//  {
-//    //...........................................................................
-//    // handle HTTP request
-//    //...........................................................................
-//
-//    if (isfile)
-//    {
-//      // FILE requests
-//      XrdSfsFile* file = gOFS->newFile(client.name);
-//
-//      if (file)
-//      {
-//        XrdSfsFileOpenMode open_mode = 0;
-//        mode_t create_mode = 0;
-//
-//        if (header["HttpMethod"] == "PUT")
-//        {
-//          // use the proper creation/open flags for PUT's
-//          open_mode |= SFS_O_TRUNC;
-//          open_mode |= SFS_O_RDWR;
-//          open_mode |= SFS_O_MKPTH;
-//          create_mode |= (SFS_O_MKPTH | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-//        }
-//
-//        int rc = file->open(path.c_str(), open_mode, create_mode, &client, query.c_str());
-//        if ( (rc!= SFS_REDIRECT) && open_mode) {
-//          // retry as a file creation
-//          open_mode |= SFS_O_CREAT;
-//          rc = file->open(path.c_str(), open_mode, create_mode, &client, query.c_str());
-//        }
-//
-//        if (rc != SFS_OK)
-//        {
-//          if (rc == SFS_REDIRECT)
-//          {
-//            // the embedded server on FSTs is hardcoded to run on port 8001
-//            result = HttpRedirect(mhd_response, responseheader, file->error.getErrText(), 8001, path, query, false);
-//          }
-//          else
-//            if (rc == SFS_ERROR)
-//          {
-//            result = HttpError(mhd_response, responseheader, file->error.getErrText(), file->error.getErrInfo());
-//          }
-//          else
-//            if (rc == SFS_DATA)
-//          {
-//            result = HttpData(mhd_response, responseheader, file->error.getErrText(), file->error.getErrInfo());
-//          }
-//          else
-//            if (rc == SFS_STALL)
-//          {
-//            result = HttpStall(mhd_response, responseheader, file->error.getErrText(), file->error.getErrInfo());
-//          }
-//          else
-//          {
-//            result = HttpError(mhd_response, responseheader, "unexpected result from file open", EOPNOTSUPP);
-//          }
-//        }
-//        else
-//        {
-//          char buffer[65536];
-//          offset_t offset = 0;
-//          do
-//          {
-//            size_t nread = file->read(offset, buffer, sizeof (buffer));
-//            if (nread > 0)
-//            {
-//              result.append(buffer, nread);
-//            }
-//            if (nread != sizeof (buffer))
-//            {
-//              break;
-//            }
-//          }
-//          while (1);
-//          file->close();
-//        }
-//        // clean up the object
-//        delete file;
-//      }
-//    }
-//    else
-//    {
-//      eos::common::WebDAV *dav = eos::common::WebDAV::ParseWebDAV(header);
-//      // DIR requests
-//      // result = HttpError(mhd_response, responseheader, "not implemented", EOPNOTSUPP);
-//      if (header["HttpMethod"] == "OPTIONS")
-//      {
-//        result = HttpData(mhd_response, responseheader, "lol\n", 4);
-//      }
-//
-//      if (header["HttpMethod"] == "PROPFIND")
-//      {
-//        result = HttpData(mhd_response, responseheader, "lol\n", 4);
-//      }
-//    }
-//  }
-//
-//  for (auto it = responseheader.begin(); it != responseheader.end(); it++)
-//  {
-//    eos_static_info("response_header:%s=%s", it->first.c_str(), it->second.c_str());
-//  }
-//
-//  eos_static_info("result=%s", result.c_str());
-//
-//  response = MHD_create_response_from_buffer(result.length(),
-//                                             (void *) result.c_str(),
-//                                             MHD_RESPMEM_MUST_COPY);
-//
-//  if (response)
-//  {
-//    for (auto it = responseheader.begin(); it != responseheader.end(); it++)
-//    {
-//      // add all the response header tags
-//      MHD_add_response_header(response, it->first.c_str(), it->second.c_str());
-//    }
-//    int ret = MHD_queue_response(connection, mhd_response, response);
-//    eos_static_info("MHD_queue_response ret=%d mhd_repsonse=%d", ret, mhd_response);
-//    return ret;
-//  }
-//  else
-//  {
-//    eos_static_crit("msg=\"response creation failed\"");
-//    return 0;
-//  }
 }
 
 #endif
+
+/*----------------------------------------------------------------------------*/
+eos::common::Mapping::VirtualIdentity*
+HttpServer::Authenticate(std::map<std::string, std::string> &headers)
+{
+  eos::common::Mapping::VirtualIdentity *vid = 0;
+  std::string clientDN   = headers["SSL_CLIENT_S_DN"];
+  std::string remoteUser = headers["Remote-User"];
+  std::string dn;
+  std::string username;
+  unsigned    pos;
+
+  if (clientDN.empty() && remoteUser.empty())
+  {
+    eos_static_info("msg=client supplied neither SSL_CLIENT_S_DN nor "
+                    "Remote-User headers");
+    return NULL;
+  }
+
+  // Stat the gridmap file
+  struct stat info;
+  if (stat("/etc/grid-security/grid-mapfile", &info) == -1)
+  {
+    eos_static_err("error stat'ing gridmap file: %s", strerror(errno));
+    return NULL;
+  }
+
+  // Initially load the file, or reload it if it was modified
+  if (!mGridMapFileLastModTime.tv_sec ||
+       mGridMapFileLastModTime.tv_sec != info.st_mtim.tv_sec)
+  {
+    eos_static_info("msg=reloading gridmap file");
+
+    std::ifstream in("/etc/grid-security/grid-mapfile");
+    std::stringstream buffer;
+    buffer << in.rdbuf();
+    mGridMapFile = buffer.str();
+    mGridMapFileLastModTime = info.st_mtim;
+    in.close();
+  }
+
+  // Process each mapping
+  std::vector<std::string> mappings;
+  eos::common::StringConversion::Tokenize(mGridMapFile, mappings, "\n");
+
+  bool match = false;
+  for (auto it = mappings.begin(); it != mappings.end(); ++it)
+  {
+    eos_static_debug("grid mapping: %s", (*it).c_str());
+
+    // Split off the last whitespace-separated token (i.e. username)
+    pos = (*it).find_last_of(" \t");
+    if (pos == string::npos)
+    {
+      eos_static_err("msg=malformed gridmap file");
+      return NULL;
+    }
+
+    dn       = (*it).substr(1, pos - 2); // Remove quotes around DN
+    username = (*it).substr(pos + 1);
+    eos_static_debug(" dn:       %s", dn.c_str());
+    eos_static_debug(" username: %s", username.c_str());
+
+    // Try to match with SSL header
+    if (dn == clientDN)
+    {
+      eos_static_info("msg=mapped client certificate successfully dn=%s "
+                      "username=%s", dn.c_str(), username.c_str());
+      match = true;
+      break;
+    }
+
+    // Try to match with kerberos username
+    pos = remoteUser.find_last_of("@");
+    std::string remoteUserName = remoteUser.substr(0, pos);
+
+    std::vector<std::string> tokens;
+    eos::common::StringConversion::Tokenize(dn, tokens, "/");
+
+    for (auto it = tokens.begin(); it != tokens.end(); ++it)
+    {
+      eos_static_debug("dn token=%s", (*it).c_str());
+
+      pos            = (*it).find_last_of("=");
+      std::string cn = (*it).substr(pos + 1);
+      eos_static_debug("cn=%s", cn.c_str());
+
+      if (cn == remoteUserName)
+      {
+        username = (*it).substr(pos + 1);
+        eos_static_info("msg=mapped client krb5 username successfully "
+                        "username=%s", username.c_str());
+        match = true;
+        break;
+      }
+    }
+  }
+
+  // If we found a match, make a virtual identity
+  if (match)
+  {
+    vid = new eos::common::Mapping::VirtualIdentity();
+    eos::common::Mapping::getPhysicalIds(username.c_str(), *vid);
+
+    vid->dn   = dn;
+    vid->name = XrdOucString(username.c_str());
+    vid->host = headers["Host"];
+    vid->prot = "http";
+
+    return vid;
+  }
+  else
+  {
+    eos_static_info("msg=client not authenticated with certificate or kerberos "
+                    "SSL_CLIENT_S_DN=%s, Remote-User=%s", clientDN.c_str(),
+                    remoteUser.c_str());
+    return NULL;
+  }
+}
 
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_END
