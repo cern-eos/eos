@@ -341,7 +341,7 @@ Storage::Balancer ()
 
     if (noBalancer)
     {
-      // we can lay back for a minute if we have no drainer in our group
+      // we can lay back for a minute if we have no balancer in our group
       sleeper.Snooze(60);
     }
 
@@ -419,7 +419,7 @@ Storage::Balancer ()
             // ---------------------------------------------------------------------
             // try to get a balancejob for the indexed filesystem
             // ---------------------------------------------------------------------
-            if (GetDrainJob(balancefsindex[i], manager))
+            if (GetBalanceJob(balancefsindex[i], manager))
             {
               balancefsindexSchedulingTime[balancefsindex[i]] = 0;
               totalscheduled++;
