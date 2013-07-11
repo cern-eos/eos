@@ -35,7 +35,11 @@ com_quota (char* arg1)
   XrdOucString subcommand = subtokenizer.GetToken();
   XrdOucString arg = subtokenizer.GetToken();
   bool highlighting = true;
-
+  if (subcommand == "-m")
+  {
+    subcommand = "";
+    arg = "-m";
+  }
   if (subcommand == "" || subcommand.beginswith("/"))
   {
     XrdOucString in = "mgm.cmd=quota&mgm.subcmd=lsuser";
@@ -43,6 +47,9 @@ com_quota (char* arg1)
     {
       in += "&mgm.quota.space=";
       in += subcommand;
+    }
+    if (arg == "-m") {
+      in += "&mgm.quota.format=m";  
     }
     global_retc = output_result(client_user_command(in));
     return (0);
