@@ -3390,14 +3390,24 @@ ProcCommand::open(const char* inpath, const char* ininfo, eos::common::Mapping::
     if (cmd == "quota") {
       gOFS->MgmStats.Add("Quota",vid_in.uid,vid_in.gid,1);
       if (subcmd == "lsuser") {
+	XrdOucString monitoring = opaque.Get("mgm.quota.format");
+	bool monitor = false;
+	if (monitoring == "m") {
+	  monitor = true;
+	}
+
         eos_notice("quota ls (user)");
         XrdOucString out1="";
         XrdOucString out2="";
-        stdOut += "By user ...\n";
-        Quota::PrintOut(0, out1 , vid_in.uid, -1,false, true);
+	if (!monitor) {
+	  stdOut += "By user ...\n";
+	}
+        Quota::PrintOut(0, out1 , vid_in.uid, -1,monitor, true);
         stdOut += out1;
-        stdOut += "By group ...\n";
-        Quota::PrintOut(0, out2 , -1, vid_in.gid, false, true);
+	if (!monitor) {
+	  stdOut += "By group ...\n";
+	}
+        Quota::PrintOut(0, out2 , -1, vid_in.gid, monitor, true);
         stdOut += out2;
         MakeResult(0);
         return SFS_OK;
