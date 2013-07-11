@@ -103,6 +103,7 @@ Balancer::Balance (void)
   // wait that the namespace is initialized
   //----------------------------------------------------------------------------
   bool go = false;
+
   do
   {
     XrdSysThread::SetCancelOff();
@@ -143,6 +144,12 @@ Balancer::Balance (void)
       else
         IsSpaceBalancing = false;
 
+      if (gOFS->MgmMaster.GetServiceDelay()) 
+      {
+        eos_static_debug("msg=\"force balancing off due to slave-master transition\"");
+        IsSpaceBalancing = false;
+      }
+      
       IsMaster = gOFS->MgmMaster.IsMaster();
 
       SpaceNodeThreshold =
@@ -165,7 +172,7 @@ Balancer::Balance (void)
         size_t totalfiles; // number of files currently in transfer
         // loop over all groups
         for (git = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].begin();
-             git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end(); git++)
+          git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end(); git++)
         {
 
           // --------------------------------------------------------------------
@@ -339,8 +346,8 @@ Balancer::Balance (void)
           if (FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str()))
           {
             for (git = FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].begin();
-                 git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end();
-                 git++)
+              git != FsView::gFsView.mSpaceGroupView[mSpaceName.c_str()].end();
+              git++)
             {
               if ((*git)->GetConfigMember("stat.balancing.running") != "0")
               {
@@ -373,6 +380,7 @@ Balancer::Balance (void)
       }
     }
     XrdSysThread::SetCancelOn();
+
     // hang a little bit around ...
     for (size_t i = 0; i < 10; i++)
     {
