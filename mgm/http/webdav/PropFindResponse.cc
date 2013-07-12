@@ -67,11 +67,17 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
   multistatusNode->append_attribute(AllocateAttribute("xmlns:d", "DAV:"));
   mXMLResponseDocument.append_node(multistatusNode);
 
+  // Is the requested resource a file or directory?
+  XrdOucErrInfo error;
+  struct stat   statInfo;
+  gOFS->_stat(request->GetUrl().c_str(), &statInfo, error, *mVirtualIdentity,
+             (const char*) 0);
+
   // Figure out what we actually need to do
   std::string depth = request->GetHeaders()["Depth"];
 
   xml_node<> *responseNode = 0;
-  if (depth == "0")
+  if (depth == "0" || !S_ISDIR(statInfo.st_mode))
   {
     // Simply stat the file or directory
     responseNode = BuildResponseNode(request->GetUrl());
@@ -87,10 +93,16 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
 
   else if (depth == "1")
   {
-    // Stat the resource and all sibling resources
+    // Stat the resource and all child resources
     XrdMgmOfsDirectory directory;
     int listrc = directory.open(request->GetUrl().c_str(), *mVirtualIdentity,
                                 (const char*) 0);
+
+    responseNode = BuildResponseNode(request->GetUrl());
+    if (responseNode)
+    {
+      multistatusNode->append_node(responseNode);
+    }
 
     if (!listrc)
     {
@@ -129,12 +141,12 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
 
   else if (depth == "1,noroot")
   {
-    // Stat all sibling resources but not the requested resource
+    // Stat all child resources but not the requested resource
   }
 
   else if (depth == "infinity" || depth == "")
   {
-    // Recursively stat the resource and all sibling resources
+    // Recursively stat the resource and all child resources
   }
 
   std::string responseString;
