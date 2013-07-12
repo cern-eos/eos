@@ -162,7 +162,12 @@ XrdCapability::Extract(XrdOucEnv *inenv, XrdOucEnv* &outenv)
   outenv = new XrdOucEnv(decrypted.c_str());
 
   if (!outenv->Get("cap.valid")) {
-    return EINVAL;
+    // -------------------------------------------
+    // TODO: with the next version return EINVAL
+    // -> for know we accept the missing lifetime
+    // -------------------------------------------
+    //return EINVAL;
+    return 0;
   } else {
     time_t now = time(NULL);
     time_t capnow = atoi(outenv->Get("cap.valid"));
