@@ -396,6 +396,8 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   XrdOucString sprotgidtident = swcgidtident;
   sprotuidtident.replace("*", vid.prot); // there can be a protocol specific rule like sss:@<host>:uid...
   sprotgidtident.replace("*", vid.prot); // there can be a protocol specific rule like sss:@<host>:gid...
+  
+  eos_static_debug("swcuidtident=%s sprotuidtident=%s myrole=%s", swcuidtident.c_str(), sprotuidtident.c_str(), myrole.c_str());
 
   if ((gVirtualUidMap.count(suidtident.c_str())))
   {
@@ -456,7 +458,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   {
     if (!gVirtualUidMap[tuid.c_str()])
     {
-      if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root"))
+      if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root") && (myrole == "root") )
       {
         eos_static_debug("tident root uid squash");
         vid.uid_list.clear();
@@ -473,13 +475,11 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
         // use physical mapping 
         if ((myrole != "root"))
         {
-          Mapping::getPhysicalIds(myrole.c_str(), vid);
-          if ((myrole != "daemon") && (vid.uid < 99))
-          {
-            vid.uid_list.clear();
-            Mapping::getPhysicalIds(client->name, vid);
-          }
-        }
+	  if ((vid.prot == "unix"))
+	    Mapping::getPhysicalIds(myrole.c_str(), vid);
+	  else
+	    Mapping::getPhysicalIds(client->name, vid);
+	}
         else
         {
           Mapping::getPhysicalIds(client->name, vid);
@@ -507,7 +507,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   {
     if (!gVirtualGidMap[tgid.c_str()])
     {
-      if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root"))
+      if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root") && (myrole == "root") )
       {
         eos_static_debug("tident root gid squash");
         vid.gid_list.clear();
@@ -521,13 +521,10 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
 
         if ((myrole != "root"))
         {
-          Mapping::getPhysicalIds(myrole.c_str(), vid);
-          if ((myrole != "daemon") && (vid.uid < 99))
-          {
-            vid.uid_list.clear();
-            vid.gid_list.clear();
-            Mapping::getPhysicalIds(client->name, vid);
-          }
+	  if ((vid.prot == "unix")) 
+	    Mapping::getPhysicalIds(myrole.c_str(), vid);
+	  else
+	    Mapping::getPhysicalIds(client->name, vid);
         }
         else
         {
