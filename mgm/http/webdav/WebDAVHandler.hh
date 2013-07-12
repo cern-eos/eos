@@ -110,6 +110,12 @@ public:
   MkCol (eos::common::HttpRequest *request);
 
   /**
+   *
+   */
+  eos::common::HttpResponse*
+  Move (eos::common::HttpRequest *request);
+
+  /**
    * Convert the given request method string into its integer constant
    * representation.
    *

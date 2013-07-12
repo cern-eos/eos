@@ -84,9 +84,14 @@ public:
    * Authenticate the client request by inspecting the SSL headers which were
    * transmitted by the reverse proxy server and attempting to map the client
    * DN to the gridmap file.
+   *
+   * @param headers  the map of client request headers
+   *
+   * @return an appropriately filled virtual identity
    */
   eos::common::Mapping::VirtualIdentity*
   Authenticate (std::map<std::string, std::string> &headers);
+
 };
 
 /*----------------------------------------------------------------------------*/

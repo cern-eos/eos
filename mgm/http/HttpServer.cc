@@ -291,10 +291,11 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
     vid = new eos::common::Mapping::VirtualIdentity();
     eos::common::Mapping::getPhysicalIds(username.c_str(), *vid);
 
-    vid->dn   = dn;
-    vid->name = XrdOucString(username.c_str());
-    vid->host = headers["Host"];
-    vid->prot = "http";
+    vid->dn     = dn;
+    vid->name   = XrdOucString(username.c_str());
+    vid->host   = headers["Host"];
+    vid->tident = "dummy.0:0@localhost";
+    vid->prot   = "http";
 
     return vid;
   }
