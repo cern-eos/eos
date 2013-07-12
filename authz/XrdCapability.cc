@@ -109,7 +109,7 @@ XrdCapability::Create(XrdOucEnv *inenv, XrdOucEnv* &outenv, eos::common::SymKey*
 
   int envlen;
   XrdOucString toencrypt = inenv->Env(envlen);
-  toencrypt += "cap.valid=";
+  toencrypt += "&cap.valid=";
   char validity[32];
   snprintf(validity,32,"%u", (unsigned int) time(NULL) + 3600); // one hour validity
   toencrypt += validity;
