@@ -505,7 +505,7 @@ SpaceQuota::PrintOut (XrdOucString &output, long uid_sel, long gid_sel, bool mon
       if ((UnIndex(it->first) >= kUserBytesIs) && (UnIndex(it->first) <= kUserFilesTarget))
       {
         eos_static_debug("adding %llx to print list ", UnIndex(it->first));
-        unsigned long ugid = (it->first)&0xffff;
+        unsigned long ugid = (it->first)&0xffffffff;
         // uid selection filter
         if (uid_sel >= 0)
           if (ugid != (unsigned long) uid_sel)
@@ -520,7 +520,7 @@ SpaceQuota::PrintOut (XrdOucString &output, long uid_sel, long gid_sel, bool mon
 
       if ((UnIndex(it->first) >= kGroupBytesIs) && (UnIndex(it->first) <= kGroupFilesTarget))
       {
-        unsigned long ugid = (it->first)&0xffff;
+        unsigned long ugid = (it->first)&0xffffffff;
         // uid selection filter
         if (gid_sel >= 0)
           if (ugid != (unsigned long) gid_sel)
