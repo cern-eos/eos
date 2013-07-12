@@ -816,6 +816,18 @@ StringConversion::ParseUrl (const char* url, XrdOucString& protocol, XrdOucStrin
     hostport.erase(0, 7);
     return (url + spos);
   }
+  if (protocol == "https")
+  {
+    // http://<hostname><path>
+    int spos = hostport.find("/", 8);
+    if (spos == STR_NPOS)
+    {
+      return 0;
+    }
+    hostport.erase(spos);
+    hostport.erase(0, 7);
+    return (url + spos);
+  }
   if (protocol == "gsiftp")
   {
     // gsiftp://<hostname><path>
