@@ -344,9 +344,42 @@ HttpHandler::Put(eos::common::HttpRequest *request)
 eos::common::HttpResponse*
 HttpHandler::Delete(eos::common::HttpRequest *request)
 {
-  using namespace eos::common;
-  HttpResponse *response = new PlainHttpResponse();
-  response->SetResponseCode(HttpResponse::ResponseCodes::NOT_IMPLEMENTED);
+  eos::common::HttpResponse *response = 0;
+  XrdOucErrInfo              error;
+  int                        rc;
+  struct stat                buf;
+  ProcCommand                cmd;
+
+  gOFS->_stat(request->GetUrl().c_str(), &buf, error, *mVirtualIdentity, "");
+
+  XrdOucString info = "mgm.cmd=rm&mgm.path=";
+  info += request->GetUrl().c_str();
+  if (S_ISDIR(buf.st_mode)) info += "&mgm.option=r";
+
+  rc = cmd.open("/proc/user", info.c_str(), *mVirtualIdentity, &error);
+  cmd.close();
+
+  if (rc != SFS_OK)
+  {
+    if (error.getErrInfo() == EPERM)
+    {
+      response = HttpServer::HttpError(error.getErrText(), response->FORBIDDEN);
+    }
+    else if (error.getErrInfo() == ENOENT)
+    {
+      response = HttpServer::HttpError(error.getErrText(), response->NOT_FOUND);
+    }
+    else
+    {
+      response = HttpServer::HttpError(error.getErrText(), error.getErrInfo());
+    }
+  }
+  else
+  {
+    response = new eos::common::PlainHttpResponse();
+    response->SetResponseCode(response->NO_CONTENT);
+  }
+
   return response;
 }
 
