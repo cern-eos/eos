@@ -308,7 +308,7 @@ retry:
   if (!kLoop)
     kLoop = 60;
   
-  for (int k = 0; k < kLoop; k++)
+  for (size_t k = 0; k < kLoop; k++)
   {
     XrdSysThread::SetCancelOff();
     fs->SetLongLong("stat.timeleft", kLoop -1 - k);
