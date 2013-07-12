@@ -883,8 +883,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
              for (std::map<uint64_t, uint32_t>::iterator iter = map_tmp_errors.begin();
                   iter != map_tmp_errors.end(); iter++)
              {
-               offset_local = iter->first;
-               offset_local -= mSizeHeader; // remove header size
+               offset_local = iter->first - mSizeHeader;
                current_offset = (offset_local / mStripeWidth) * mSizeLine +
                  (mStripeWidth * mapPL[j]) + (offset_local % mStripeWidth);
                len = iter->second;

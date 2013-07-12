@@ -124,7 +124,7 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 {
   mCond.Lock(); // -->
 
-  // See next comment for motivation
+  // See last comment for motivation
   if (mChunkToDelete)
   {
     delete mChunkToDelete;
@@ -140,14 +140,15 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 
     // If we got a timeout in the previous requests then we keep the error code
     if (mErrorType != XrdCl::errOperationExpired)
-      mErrorType = pStatus->code;
-       
-    if (pStatus->code == XrdCl::errOperationExpired)
     {
       mErrorType = pStatus->code;
-      eos_debug("Got a timeout error for request off=%zu, len=%lu",
-                chunk->GetOffset(), (unsigned long)chunk->GetLength());
-    }    
+
+      if (mErrorType == XrdCl::errOperationExpired)
+      {
+        eos_debug("Got a timeout error for request off=%zu, len=%lu",
+                  chunk->GetOffset(), (unsigned long)chunk->GetLength());
+      }    
+    }
   }
 
   if (--mAsyncReq == 0)

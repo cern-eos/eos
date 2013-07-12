@@ -237,8 +237,8 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
   {
     handler = mMetaHandler->Register(offset, length, NULL, false);
 
-    // If previous read requests failed then we won't get a new handler
-    // and we return directly an error
+    // If previous read requests failed with a timeout error then we won't
+    // get a new handler and we return directly an error
     if (!handler)
     {
       return SFS_ERROR;    
@@ -258,7 +258,6 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
       // has already failed 
       //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       mMetaHandler->HandleResponse(&status, handler);
-      return SFS_ERROR;
     }
     
     nread += length;    
@@ -391,7 +390,6 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
         // has already failed 
         //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         mMetaHandler->HandleResponse(&status, handler);
-        return SFS_ERROR;
       }
 
       nread += length;
