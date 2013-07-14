@@ -76,6 +76,7 @@ today_fmt = '%B %d, %Y'
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 
+html_theme = "sphinxdoc"
 
 # Options for HTML output
 # -----------------------
