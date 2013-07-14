@@ -238,6 +238,14 @@ xrd_basename (unsigned long long inode)
 //----------------------------------------------------------------------------
 //! Return the CGI of an URL
 //----------------------------------------------------------------------------
+const char* get_cgi (const char* url)
+{
+  return url?(strchr(url,'?')):0;
+}
+
+//----------------------------------------------------------------------------
+//! Return the CGI of an URL
+//----------------------------------------------------------------------------
 XrdOucString get_url_nocgi (const char* url)
 {
   XrdOucString surl = url;
