@@ -38,6 +38,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -577,6 +578,14 @@ extern "C"
   //! Create an URL with a user private physical channel e.g. root://<name>@<host
   //----------------------------------------------------------------------------
   const char* xrd_user_url (uid_t uid, pid_t pid);
+
+  //----------------------------------------------------------------------------
+  //! Return the CGI of an URL
+  //----------------------------------------------------------------------------
+  const char* get_cgi (const char* url)
+  {
+    return url?(strchr(url,'?')):0;
+  }
 
   //----------------------------------------------------------------------------
   //! Initialisation function

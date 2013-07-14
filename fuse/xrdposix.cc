@@ -48,6 +48,7 @@
 #include <iostream>
 #include <libgen.h>
 #include <pwd.h>
+#include <string.h>
 /*----------------------------------------------------------------------------*/
 #include "XrdCache/XrdFileCache.hh"
 #include "XrdCache/FileAbstraction.hh"
@@ -234,6 +235,15 @@ xrd_basename (unsigned long long inode)
   return 0;
 }
 
+//----------------------------------------------------------------------------
+//! Return the CGI of an URL
+//----------------------------------------------------------------------------
+XrdOucString get_url_nocgi (const char* url)
+{
+  XrdOucString surl = url;
+  surl.erase(surl.find("?"));
+  return surl;
+}
 
 //------------------------------------------------------------------------------
 // Translate from inode to path
@@ -2174,7 +2184,11 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
       spath += "?mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                          eos::common::LayoutId::kXrdCl);
-      retc = file->Open(spath.c_str(), flags_sfs, mode_sfs, "");
+
+      XrdOucString open_path = get_url_nocgi(spath.c_str());
+      XrdOucString open_cgi  = get_cgi(spath.c_str());
+
+      retc = file->Open(open_path.c_str(), flags_sfs, mode_sfs, open_cgi.c_str());
       eos_static_info("open returned retc=%d", retc);
       if (retc)
       {
@@ -2194,7 +2208,10 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
       spath += "?mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                          eos::common::LayoutId::kXrdCl);
-      retc = file->Open(spath.c_str(), flags_sfs, mode_sfs, "");
+      XrdOucString open_path = get_url_nocgi(spath.c_str());
+      XrdOucString open_cgi  = get_cgi(spath.c_str());
+
+      retc = file->Open(open_path.c_str(), flags_sfs, mode_sfs, open_cgi.c_str());
 
       if (retc)
       {
@@ -2215,7 +2232,11 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
       spath += "?mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                          eos::common::LayoutId::kXrdCl);
-      retc = file->Open(spath.c_str(), flags_sfs, mode_sfs, "");
+
+      XrdOucString open_path = get_url_nocgi(spath.c_str());
+      XrdOucString open_cgi  = get_cgi(spath.c_str());
+
+      retc = file->Open(open_path.c_str(), flags_sfs, mode_sfs, open_cgi.c_str());
 
       if (retc)
       {
@@ -2342,12 +2363,13 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
     }
   }
 
-  spath += "?eos.app=fuse&";
   eos_static_debug("the spath is:%s", spath.c_str());
 
   eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                      eos::common::LayoutId::kXrdCl);
-  retc = file->Open(spath.c_str(), flags_sfs, mode_sfs, "");
+
+
+  retc = file->Open(spath.c_str(), flags_sfs, mode_sfs, "eos.app=fuse");
 
   if (retc)
   {
