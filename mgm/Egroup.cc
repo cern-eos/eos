@@ -108,6 +108,7 @@ Egroup::Member (std::string &username, std::string & egroupname)
 
   bool iscached = false;
   bool member = false;
+  bool isMember = false;
 
   if (Map.count(egroupname))
   {
@@ -133,41 +134,86 @@ Egroup::Member (std::string &username, std::string & egroupname)
 
   if (!iscached)
   {
-    // if we never saw a user we run the lookup synchronous
-    eos_static_info("refresh=sync user=%s egroup=%s", username.c_str(), egroupname.c_str());
-    // we don't have any cached value, we have to ask for it now
-    std::string cmd = "ldapsearch -LLL -l 15 -h xldap -x -b 'OU=Users,Ou=Organic Units,DC=cern,DC=ch' 'sAMAccountName=";
-    cmd += username;
-    cmd += "' memberOf | grep CN=";
-    cmd += egroupname;
-    cmd += ",";
-    cmd += ">& /dev/null";
-    int rc = system(cmd.c_str());
-
-    Mutex.Lock();
-
-    if (!WEXITSTATUS(rc))
+    eos_static_info("msg=\"lookup\" user=\"%s\" e-group=\"%s\"", username.c_str(), egroupname.c_str());
+    // run the LDAP query
+    LDAP *ld = NULL;
+    int version = LDAP_VERSION3;
+    // currently hard coded to server name 'lxadp'
+    ldap_initialize(&ld, "ldap://xldap");
+    if (ld == NULL)
     {
-      Map[egroupname][username] = true;
-      LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
-      eos_static_info("msg=\"update-sync\" member=%d user=%s egroup=%s",
-                      Map[egroupname][username],
-                      username.c_str(),
-                      egroupname.c_str());
-      Mutex.UnLock();
-      return true;
+      fprintf(stderr, "error: failed to initialize LDAP\n");
     }
     else
     {
-      Map[egroupname][username] = false;
-      LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
-      eos_static_info("msg=\"update-sync\" member=%d user=%s egroup=%s",
-                      Map[egroupname][username],
-                      username.c_str(),
-                      egroupname.c_str());
-      Mutex.UnLock();
-      return false;
+      (void) ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version);
+      // the LDAP base
+      std::string sbase = "OU=Users,Ou=Organic Units,DC=cern,DC=ch";
+      // the LDAP filter
+      std::string filter = "sAMAccountName=";
+      filter += username;
+      ;
+      // the LDAP attribute
+      std::string attr = "memberOf";
+      // the LDAP match
+      std::string match = "CN=";
+      match += egroupname;
+      match += ",";
+
+      char* attrs[2];
+      attrs[0] = (char*) attr.c_str();
+      attrs[1] = NULL;
+      LDAPMessage *res = NULL;
+      struct timeval timeout;
+      timeout.tv_sec = 5;
+      timeout.tv_usec = 0;
+      int rc = ldap_search_ext_s(ld, sbase.c_str(), LDAP_SCOPE_SUBTREE,
+                                 filter.c_str(), attrs, 0, NULL, NULL, &timeout, LDAP_NO_LIMIT, &res);
+      if ((rc == LDAP_SUCCESS) && (ldap_count_entries(ld, res) != 0))
+      {
+        LDAPMessage* e = NULL;
+
+        for (e = ldap_first_entry(ld, res); e != NULL; e = ldap_next_entry(ld, e))
+        {
+          struct berval **v = ldap_get_values_len(ld, e, attr.c_str());
+
+          if (v != NULL)
+          {
+            int n = ldap_count_values_len(v);
+            int j;
+
+            for (j = 0; j < n; j++)
+            {
+              std::string result = v[ j ]->bv_val;
+              if ((result.find(match)) != std::string::npos)
+              {
+                isMember = true;
+              }
+            }
+            ldap_value_free_len(v);
+          }
+        }
+      }
+
+      ldap_msgfree(res);
+
+      if (ld != NULL)
+      {
+        ldap_unbind_ext(ld, NULL, NULL);
+      }
     }
+
+    if (isMember)
+      eos_static_info("member=true user=\"%s\" e-group=\"%s\" cachetime=%lu", username.c_str(), egroupname.c_str(), now + EOSEGROUPCACHETIME);
+    else
+      eos_static_info("member=false user=\"%s\" e-group=\"%s\" cachetime=%lu", username.c_str(), egroupname.c_str(), now + EOSEGROUPCACHETIME);
+
+
+    Mutex.Lock();
+    Map[egroupname][username] = isMember;
+    LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
+    Mutex.UnLock();
+    return isMember;
   }
   else
   {
@@ -265,6 +311,7 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
 {
   Mutex.Lock();
   time_t now = time(NULL);
+  bool isMember = false;
 
   if (Map.count(egroupname))
   {
@@ -281,35 +328,87 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
   }
   Mutex.UnLock();
 
-  eos_static_info("refresh-async user=%s egroup=%s",
-                  username.c_str(),
-                  egroupname.c_str());
+  eos_static_info("msg=\"async-lookup\" user=\"%s\" e-group=\"%s\"", username.c_str(), egroupname.c_str());
+  // run the LDAP query
+  LDAP *ld = NULL;
+  int version = LDAP_VERSION3;
+  // currently hard coded to server name 'xldap'
+  ldap_initialize(&ld, "ldap://xldap");
 
-  std::string cmd = "ldapsearch -LLL -l 15 -h xldap -x -b 'OU=Users,Ou=Organic Units,DC=cern,DC=ch' 'sAMAccountName=";
-  cmd += username;
-  cmd += "' memberOf | grep CN=";
-  cmd += egroupname;
-  cmd += ",";
-  cmd += ">& /dev/null";
-  int rc = system(cmd.c_str());
-
-  Mutex.Lock();
-
-  if (!WEXITSTATUS(rc))
+  if (ld == NULL)
   {
-    Map[egroupname][username] = true;
+    fprintf(stderr, "error: failed to initialize LDAP\n");
   }
   else
   {
-    Map[egroupname][username] = false;
+    (void) ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version);
+    // the LDAP base
+    std::string sbase = "OU=Users,Ou=Organic Units,DC=cern,DC=ch";
+    // the LDAP filter
+    std::string filter = "sAMAccountName=";
+    filter += username;
+    ;
+    // the LDAP attribute
+    std::string attr = "memberOf";
+    // the LDAP match
+    std::string match = "CN=";
+    match += egroupname;
+    match += ",";
+
+    char* attrs[2];
+    attrs[0] = (char*) attr.c_str();
+    attrs[1] = NULL;
+    LDAPMessage *res = NULL;
+    struct timeval timeout;
+    timeout.tv_sec = 5;
+    timeout.tv_usec = 0;
+    int rc = ldap_search_ext_s(ld, sbase.c_str(), LDAP_SCOPE_SUBTREE,
+                               filter.c_str(), attrs, 0, NULL, NULL, &timeout, LDAP_NO_LIMIT, &res);
+    if ((rc == LDAP_SUCCESS) && (ldap_count_entries(ld, res) != 0))
+    {
+      LDAPMessage* e = NULL;
+
+      for (e = ldap_first_entry(ld, res); e != NULL; e = ldap_next_entry(ld, e))
+      {
+        struct berval **v = ldap_get_values_len(ld, e, attr.c_str());
+
+        if (v != NULL)
+        {
+          int n = ldap_count_values_len(v);
+          int j;
+
+          for (j = 0; j < n; j++)
+          {
+            std::string result = v[ j ]->bv_val;
+            if ((result.find(match)) != std::string::npos)
+            {
+              isMember = true;
+            }
+          }
+          ldap_value_free_len(v);
+        }
+      }
+    }
+
+    ldap_msgfree(res);
+
+    if (ld != NULL)
+    {
+      ldap_unbind_ext(ld, NULL, NULL);
+    }
   }
 
-  LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
+  if (isMember)
+    eos_static_info("member=true user=\"%s\" e-group=\"%s\" cachetime=%lu", username.c_str(), egroupname.c_str(), now + EOSEGROUPCACHETIME);
+  else
+    eos_static_info("member=false user=\"%s\" e-group=\"%s\" cachetime=%lu", username.c_str(), egroupname.c_str(), now + EOSEGROUPCACHETIME);
 
-  eos_static_info("msg=\"update-async\" member=%d user=%s egroup=%s",
-                  Map[egroupname][username],
-                  username.c_str(),
-                  egroupname.c_str());
+
+  Mutex.Lock();
+
+  Map[egroupname][username] = isMember;
+
+  LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
 
   Mutex.UnLock();
   return;
