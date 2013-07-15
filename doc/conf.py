@@ -32,7 +32,7 @@ templates_path = ['.templates']
 source_suffix = '.rst'
 
 # The master toctree document.
-master_doc = 'contents'
+master_doc = 'index'
 
 # General substitutions.
 project = 'EOS'

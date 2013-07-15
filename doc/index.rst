@@ -1,7 +1,7 @@
 .. _index:
 
 Welcome to the EOS documentation!
-===============================
+=================================
 
 Contents:
 
