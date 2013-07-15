@@ -76,7 +76,10 @@ today_fmt = '%B %d, %Y'
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 
-html_theme = "sphinxdoc"
+html_theme = 'sphinx13'
+html_theme_path = ['_themes']
+modindex_common_prefix = ['sphinx.']
+#html_static_path = ['_static']
 
 # Options for HTML output
 # -----------------------
@@ -84,7 +87,7 @@ html_theme = "sphinxdoc"
 # The style sheet to use for HTML and HTML Help pages. A file of that name
 # must exist either in Sphinx' static/ path, or in one of the custom paths
 # given in html_static_path.
-html_style = 'default.css'
+#html_style = 'default.css'
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
