@@ -1,8 +1,6 @@
-.. EOS documentation master file, created by sphinx-quickstart on Sun Jul 14 22:27:50 2013.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. _index:
 
-Welcome to EOS's documentation!
+Welcome to the EOS documentation!
 ===============================
 
 Contents:
@@ -11,10 +9,3 @@ Contents:
    :maxdepth: 2
 
    contents
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
