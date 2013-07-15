@@ -34,11 +34,6 @@
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-S3Handler::S3Handler ()
-{
-}
-
-/*----------------------------------------------------------------------------*/
 bool
 S3Handler::Matches (const std::string &method, HeaderMap &headers)
 {
@@ -112,7 +107,8 @@ S3Handler::HandleRequest (eos::common::HttpRequest *request)
 
     if (!mRangeRequest)
     {
-      // we put the file size as request size if this is not a range request aka full file download
+      // we put the file size as request size if this is not a range request
+      // aka full file download
       mRangeRequestSize = mFile->getOpenSize();
     }
   }
@@ -126,20 +122,19 @@ S3Handler::HandleRequest (eos::common::HttpRequest *request)
   if (request->GetMethod() == "PUT")
   {
 
-    if ( ((mUploadLeftSize > (10 * 1024 * 1024)) && ((*request->GetBodySize()) < (10 * 1024 * 1024))) )
+    if ( ((mUploadLeftSize > (10 * 1024 * 1024)) &&
+         ((*request->GetBodySize()) < (10 * 1024 * 1024))) )
     {
       // we want more bytes, we don't process this
-      eos_static_info("msg=\"wait for more bytes\" leftsize=%llu uploadsize=%llu", mUploadLeftSize, *request->GetBodySize());
+      eos_static_info("msg=\"wait for more bytes\" leftsize=%llu uploadsize=%llu",
+                      mUploadLeftSize, *request->GetBodySize());
       mHttpResponse = new eos::common::PlainHttpResponse();
       mHttpResponse->SetResponseCode(0);
       return;
     }
 
     // call the HttpHandler::Put method
-    // int rc = Put(request->GetBody(), request->GetBodySize(), first_call);
     mHttpResponse = Put(request);
-
-    // if ( (rc != MHD_YES) || ((!first_call) && (request->GetBodySize() == 0)))
 
     if (!mHttpResponse || request->GetBodySize() == 0)
     {
@@ -164,16 +159,10 @@ S3Handler::Get (eos::common::HttpRequest *request)
 
   eos::common::HttpResponse *response = 0;
 
-//  if (mS3)
-//  {
-    //...........................................................................
-    // S3 requests
-    //...........................................................................
-
   if (mRangeDecodingError)
   {
-    //result = RestErrorResponse(mhd_response, 416, "InvalidRange", "Illegal Range request", request->GetHeaders()["Range"].c_str(), "");
-    response = RestErrorResponse(416, "InvalidRange", "Illegal Range request", request->GetHeaders()["Range"].c_str(), "");
+    response = RestErrorResponse(416, "InvalidRange", "Illegal Range request",
+                                 request->GetHeaders()["Range"].c_str(), "");
   }
   else
   {
@@ -181,22 +170,21 @@ S3Handler::Get (eos::common::HttpRequest *request)
     {
       if (mFile->error.getErrInfo() == ENOENT)
       {
-//          result = RestErrorResponse(mhd_response, 404, "NoSuchKey", "The specified key does not exist", getPath(), "");
-        response = RestErrorResponse(404, "NoSuchKey", "The specified key does not exist", getPath(), "");
+        response = RestErrorResponse(404, "NoSuchKey", "The specified key does "
+                                     "not exist", getPath(), "");
       }
       else if (mFile->error.getErrInfo() == EPERM)
       {
-//          result = RestErrorResponse(mhd_response, 403, "AccessDenied", "Access Denied", getPath(), "");
-        response = RestErrorResponse(403, "AccessDenied", "Access Denied", getPath(), "");
+        response = RestErrorResponse(403, "AccessDenied", "Access Denied",
+                                     getPath(), "");
       }
       else
       {
-//        result = RestErrorResponse(mhd_response, 500, "InternalError", "File currently unavailable", getPath(), "");
-        response = RestErrorResponse(500, "InternalError", "File currently unavailable", getPath(), "");
+        response = RestErrorResponse(500, "InternalError", "File currently "
+                                     "unavailable", getPath(), "");
       }
       delete mFile;
       mFile = 0;
-//        delete mS3;
     }
     else
     {
@@ -207,11 +195,12 @@ S3Handler::Get (eos::common::HttpRequest *request)
         CreateMultipartHeader(eos::common::HttpResponse::ContentType(getPath()));
         eos_static_info(HttpHandler::Print());
         char clength[16];
-        snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) mRequestSize);
+        snprintf(clength, sizeof (clength) - 1, "%llu",
+                (unsigned long long) mRequestSize);
         if (mOffsetMap.size() == 1)
         {
           // if there is only one range we don't send a multipart response
-          responseheader["Content-Type"] = eos::common::HttpResponse::ContentType(getPath());
+          responseheader["Content-Type"] = response->ContentType(getPath());
           responseheader["Content-Range"] = mSinglepartHeader;
         }
         else
@@ -226,16 +215,16 @@ S3Handler::Get (eos::common::HttpRequest *request)
       {
         // successful http open
         char clength[16];
-        snprintf(clength, sizeof (clength) - 1, "%llu", (unsigned long long) mFile->getOpenSize());
+        snprintf(clength, sizeof (clength) - 1, "%llu",
+                (unsigned long long) mFile->getOpenSize());
         mRequestSize = mFile->getOpenSize();
         response->mResponseLength = mRequestSize;
-        responseheader["Content-Type"] = eos::common::HttpResponse::ContentType(getPath());
+        responseheader["Content-Type"] = response->ContentType(getPath());
         responseheader["Content-Length"] = clength;
         mhd_response = response->OK;
       }
     }
   }
-//  }
 
   if (mFile)
   {
@@ -263,18 +252,18 @@ S3Handler::Put (eos::common::HttpRequest *request)
   if (mRc)
   {
     // check for open errors
-    // ---------------------------------------------------------------------
     // create S3 error responses
-    // ---------------------------------------------------------------------
     if (mRc != SFS_OK)
     {
       if (mFile->error.getErrInfo() == EPERM)
       {
-        response = RestErrorResponse(403, "AccessDenied", "Access Denied", getPath(), "");
+        response = RestErrorResponse(403, "AccessDenied", "Access Denied",
+                                     getPath(), "");
       }
       else
       {
-        response = RestErrorResponse(500, "InternalError", "File currently unwritable", getPath(), "");
+        response = RestErrorResponse(500, "InternalError", "File currently "
+                                     "unwritable", getPath(), "");
       }
       delete mFile;
       mFile = 0;
@@ -283,18 +272,19 @@ S3Handler::Put (eos::common::HttpRequest *request)
   }
   else
   {
-    //...........................................................................
     // file streaming in
-    //...........................................................................
+
     size_t *bodySize = request->GetBodySize();
     if (request->GetBody().c_str() && bodySize && (*bodySize))
     {
 
-      size_t stored = mFile->write(mCurrentCallbackOffset, request->GetBody().c_str(), *bodySize);
+      size_t stored = mFile->write(mCurrentCallbackOffset,
+                                   request->GetBody().c_str(), *bodySize);
       if (stored != *bodySize)
       {
         // S3 write error
-        response = RestErrorResponse(500, "InternalError", "File currently unwritable (write failed)", getPath(), "");
+        response = RestErrorResponse(500, "InternalError", "File currently "
+                                     "unwritable (write failed)", getPath(), "");
         delete mFile;
         mFile = 0;
       }
@@ -316,7 +306,8 @@ S3Handler::Put (eos::common::HttpRequest *request)
       mCloseCode = mFile->close();
       if (mCloseCode)
       {
-        response = HttpServer::HttpError("File close failed", response->SERVICE_UNAVAILABLE);
+        response = HttpServer::HttpError("File close failed",
+                                         response->SERVICE_UNAVAILABLE);
         mCloseCode = 0; // we don't want to create a second response down
       }
       else

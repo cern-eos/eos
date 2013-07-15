@@ -49,12 +49,12 @@ public:
   /**
    * Constructor
    */
-  HttpServer (int port = 8001);
+  HttpServer (int port = 8001) : eos::common::HttpServer::HttpServer (port) {};
 
   /**
    * Destructor
    */
-  virtual ~HttpServer ();
+  virtual ~HttpServer () {};
 
 #ifdef EOS_MICRO_HTTPD
   /**
