@@ -155,7 +155,7 @@ com_file (char* arg1)
   if (wants_help(savearg.c_str()))
     goto com_file_usage;
 
-  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename"))
+  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert" ))
   {
     goto com_file_usage;
   }
@@ -224,6 +224,43 @@ com_file (char* arg1)
     in += fsid1;
     in += "&mgm.file.targetfsid=";
     in += fsid2;
+  }
+
+  if (cmd == "copy") 
+  {
+    XrdOucString dest_path = fsid1;
+    if (!path.length() || !dest_path.length() ) 
+      goto com_file_usage;
+    in += "&mgm.subcmd=copy";
+    in + "&mgm.path=";
+    in += path;
+    dest_path = abspath(dest_path.c_str());
+    in += "&mgm.dest=";
+    in += dest_path;
+  }
+
+  if (cmd == "convert") 
+  {
+    XrdOucString layout = fsid1;
+    if (!path.length()) 
+      goto com_file_usage;
+    in += "&mgm.subcmd=convert";
+    in += "&mgm.path=";
+    in += path;
+    if (layout.length()) 
+    {
+      in += "&mgm.convert.layout=";
+      in += layout;
+    }
+    if (option == "sync") 
+    {
+      fprintf(stderr,"error: --sync is currently not supported\n");
+      goto com_file_usage;
+    }
+    if (option.length()) 
+    {
+      goto com_file_usage;
+    }
   }
 
   if (cmd == "replicate")
@@ -677,17 +714,9 @@ com_file (char* arg1)
   return (0);
 
 com_file_usage:
-  fprintf(stdout, "Usage: file rename|drop|move|replicate|adjustreplica|check|info|layout|verify ...\n");
+  fprintf(stdout, "Usage: file adjustreplica|check|convert|copy|drop|info|layout|move|rename|replicate|verify ...\n");
   fprintf(stdout, "'[eos] file ..' provides the file management interface of EOS.\n");
   fprintf(stdout, "Options:\n");
-  fprintf(stdout, "file rename <old> <new> :\n");
-  fprintf(stdout, "                                                  rename from <old> to <new> name (works for files and directories!). This only works for the 'root' user and the renamed file/directory has to stay in the same parent directory\n");
-  fprintf(stdout, "file drop <path> <fsid> [-f] :\n");
-  fprintf(stdout, "                                                  drop the file <path> from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem) \n");
-  fprintf(stdout, "file move <path> <fsid1> <fsid2> :\n");
-  fprintf(stdout, "                                                  move the file <path> from  <fsid1> to <fsid2>\n");
-  fprintf(stdout, "file replicate <path> <fsid1> <fsid2> :\n");
-  fprintf(stdout, "                                                  replicate file <path> part on <fsid1> to <fsid2>\n");
   fprintf(stdout, "file adjustreplica [--nodrop] <path>|fid:<fid-dec>|fxid:<fid-hex> [space [subgroup]] :\n");
   fprintf(stdout, "                                                  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
   fprintf(stdout, "file check <path> [%%size%%checksum%%nrep%%checksumattr%%force%%output%%silent] :\n");
@@ -699,10 +728,32 @@ com_file_usage:
   fprintf(stdout, "       - %%silent                                                     :  suppresses all information for each replic to be printed\n");
   fprintf(stdout, "       - %%force                                                      :  forces to get the MD even if the node is down\n");
   fprintf(stdout, "       - %%output                                                     :  prints lines with inconsitency information\n");
+  fprintf(stdout, "file convert [--sync] <path> [<layout>:<stripes> | <layout-id> | <sys.attribute.name>] :\n");
+  fprintf(stdout, "                                                                         convert the layout of a file\n");
+  fprintf(stdout, "        <layout>:<stripes>   : specify the target layout and number of stripes\n");
+  fprintf(stdout, "        <layout-id>          : specify the hexadecimal layout id \n");
+  fprintf(stdout, "        <sys.attribute.name> : specify the name of the attribute in the parten directory of <path> defining the target layout\n");
+  fprintf(stdout, "        --sync               : run convertion in synchronous mode (by default conversions are asynchronous)\n");
+  fprintf(stdout, "file cp <src> <dst>                                                   :  synchronous third party copy from <src> to <dst>\n");
+  fprintf(stdout,"         <src>                                                         :  source can be a file or a directory\n");
+  fprintf(stdout,"         <dst>                                                         :  destination can be a file (if source is a file) or a directory\n");
+  fprintf(stdout, "file drop <path> <fsid> [-f] :\n");
+  fprintf(stdout, "                                                  drop the file <path> from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem) \n");
   fprintf(stdout, "file info <path> :\n");
   fprintf(stdout, "                                                  convenience function aliasing to 'fileinfo' command\n");
   fprintf(stdout, "file layout <path>|fid:<fid-dec>|fxid:<fid-hex>  -stripes <n> :\n");
   fprintf(stdout, "                                                  change the number of stripes of a file with replica layout to <n>\n");
+  fprintf(stdout, "file move <path> <fsid1> <fsid2> :\n");
+  fprintf(stdout, "                                                  move the file <path> from  <fsid1> to <fsid2>\n");
+
+  fprintf(stdout, "file rename <old> <new> :\n");
+  fprintf(stdout, "                                                  rename from <old> to <new> name (works for files and directories!). This only works for the 'root' user and the renamed file/directory has to stay in the same parent directory\n");
+  fprintf(stdout, "file replicate <path> <fsid1> <fsid2> :\n");
+  fprintf(stdout, "                                                  replicate file <path> part on <fsid1> to <fsid2>\n");
+
+  fprintf(stdout, "file touch <path> :\n");
+  fprintf(stdout,"                                                   create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
+
   fprintf(stdout, "file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : \n");
   fprintf(stdout, "                                                  verify a file against the disk images\n");
   fprintf(stdout, "       <fsid>          : verifies only the replica on <fsid>\n");
@@ -711,8 +762,6 @@ com_file_usage:
   fprintf(stdout, "       -commitsize     : commit the file size to the MGM\n");
   fprintf(stdout, "       -rate <rate>    : restrict the verification speed to <rate> per node\n");
   fprintf(stdout, "\n");
-  fprintf(stdout, "file touch <path> :\n");
-  fprintf(stdout,"                                                   create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
 
   return (0);
 }
