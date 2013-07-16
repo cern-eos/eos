@@ -54,7 +54,6 @@ HttpRequest::ToString()
   {
     ss << it->first << ": " << it->second.c_str() << std::endl;
   }
-  ss << "\n\n" << GetBody() << std::endl;
   return ss.str();
 }
 

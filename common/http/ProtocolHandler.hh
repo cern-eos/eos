@@ -71,7 +71,11 @@ public:
   /**
    * Destructor
    */
-  virtual ~ProtocolHandler () { delete mHttpResponse; };
+  virtual ~ProtocolHandler ()
+  {
+    delete mHttpResponse;
+    delete mVirtualIdentity;
+  };
 
   /**
    * Concrete implementations must use this function to check whether the given
