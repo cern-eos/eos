@@ -99,11 +99,10 @@ HttpHandler::Get(eos::common::HttpRequest *request)
 {
   // TODO: Refactor out common behavior
 
-
-  XrdSecEntity    client("unix");
-  client.name   = strdup("nobody");
-  client.host   = strdup("localhost");
-  client.tident = strdup("http");
+  XrdSecEntity    client(mVirtualIdentity->prot.c_str());
+  client.name   = const_cast<char*>(mVirtualIdentity->name.c_str());
+  client.host   = const_cast<char*>(mVirtualIdentity->host.c_str());
+  client.tident = const_cast<char*>(mVirtualIdentity->tident.c_str());
 
   // Classify path to split between directory or file objects
   bool isfile = true;
@@ -230,15 +229,15 @@ HttpHandler::Post(eos::common::HttpRequest *request)
 eos::common::HttpResponse*
 HttpHandler::Put(eos::common::HttpRequest *request)
 {
-  XrdSecEntity    client("unix");
-  client.name   = strdup("nobody");
-  client.host   = strdup("localhost");
-  client.tident = strdup("http");
+  XrdSecEntity    client(mVirtualIdentity->prot.c_str());
+  client.name   = const_cast<char*>(mVirtualIdentity->name.c_str());
+  client.host   = const_cast<char*>(mVirtualIdentity->host.c_str());
+  client.tident = const_cast<char*>(mVirtualIdentity->tident.c_str());
 
   // Classify path to split between directory or file objects
   bool isfile = true;
-  std::string url = request->GetUrl();
-  std::string query = request->GetQuery();
+  std::string url   = request->GetUrl();
+  std::string query = "?eos.bookingsize=" + request->GetHeaders()["Content-Length"];
   eos::common::HttpResponse *response = 0;
 
   XrdOucString spath = request->GetUrl().c_str();
@@ -282,7 +281,6 @@ HttpHandler::Put(eos::common::HttpRequest *request)
           response = HttpServer::HttpRedirect(request->GetUrl(),
                                               file->error.getErrText(),
                                               8001, false);
-
         }
         else if (rc == SFS_ERROR)
         {
@@ -398,8 +396,7 @@ eos::common::HttpResponse*
 HttpHandler::Options(eos::common::HttpRequest *request)
 {
   eos::common::HttpResponse *response = new eos::common::PlainHttpResponse();
-  response->AddHeader("DAV", "1,2");
-  response->AddHeader("DAV", "<http://apache.org/dav/propset/fs/1>");
+  response->AddHeader("DAV",   "1");
   response->AddHeader("Allow", "OPTIONS,GET,HEAD,POST,DELETE,TRACE,"\
                                "PROPFIND,PROPPATCH,COPY,MOVE,LOCK,UNLOCK");
   response->AddHeader("Content-Length", "0");
