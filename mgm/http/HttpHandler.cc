@@ -344,7 +344,6 @@ HttpHandler::Delete (eos::common::HttpRequest *request)
 {
   eos::common::HttpResponse *response = 0;
   XrdOucErrInfo              error;
-  int                        rc;
   struct stat                buf;
   ProcCommand                cmd;
 
@@ -354,8 +353,9 @@ HttpHandler::Delete (eos::common::HttpRequest *request)
   info += request->GetUrl().c_str();
   if (S_ISDIR(buf.st_mode)) info += "&mgm.option=r";
 
-  rc = cmd.open("/proc/user", info.c_str(), *mVirtualIdentity, &error);
+  cmd.open("/proc/user", info.c_str(), *mVirtualIdentity, &error);
   cmd.close();
+  int rc = cmd.GetRetc();
 
   if (rc != SFS_OK)
   {
