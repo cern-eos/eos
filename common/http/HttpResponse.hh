@@ -62,6 +62,7 @@ public:
     MULTI_STATUS                    = 207,
 
     // Redirection 3xx
+    NOT_MODIFIED                    = 304,
     TEMPORARY_REDIRECT              = 307,
 
     // Client Error 4xx
