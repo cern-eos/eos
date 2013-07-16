@@ -1063,7 +1063,7 @@ XrdFstOfsFile::open (const char* path,
     }
   }
 
-  eos_debug("OPEN FINISHED!\n");
+  eos_debug("open finished");
   return rc;
 }
 
@@ -1994,7 +1994,7 @@ XrdFstOfsFile::close ()
 
     if (deleteOnClose && isCreation)
     {
-      eos_info("info=\"deleting on close\" fn=%s fstpath=%s\n",
+      eos_info("info=\"deleting on close\" fn=%s fstpath=%s",
                capOpaque->Get("mgm.path"), fstPath.c_str());
       int retc = gOFS._rem(Path.c_str(), error, 0, capOpaque, fstPath.c_str(),
                            fileid, fsid, true);
@@ -2235,7 +2235,7 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
   //  EPNAME("read");
   gettimeofday(&cTime, &tz);
   rCalls++;
-  eos_debug("XrdFstOfsFile: read - fileOffset: %lli, buffer_size: %i\n",
+  eos_debug("XrdFstOfsFile: read - fileOffset: %lli, buffer_size: %i",
             fileOffset, buffer_size);
 
 
