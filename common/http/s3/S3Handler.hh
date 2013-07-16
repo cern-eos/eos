@@ -31,7 +31,7 @@
 #define __EOSCOMMON_S3_HANDLER__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "common/http/ProtocolHandler.hh"
+#include "common/http/HttpHandler.hh"
 #include "common/http/s3/S3Response.hh"
 #include "common/Namespace.hh"
 /*----------------------------------------------------------------------------*/
@@ -44,7 +44,7 @@ EOSCOMMONNAMESPACE_BEGIN
 
 #define XML_V1_UTF8 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
 
-class S3Handler : virtual public eos::common::ProtocolHandler
+class S3Handler : virtual public eos::common::HttpHandler
 {
 
 protected:
@@ -112,85 +112,85 @@ public:
    * @return the client S3Handler ID
    */
   inline std::string
-  getId () const { return mId; }
+  GetId () const { return mId; }
 
   /**
    * @return the client S3Handler signature
    */
   inline std::string
-  getSignature () const { return mSignature; }
+  GetSignature () const { return mSignature; }
 
   /**
    * @return the client hostname
    */
   inline std::string
-  getHost () const { return mHost; }
+  GetHost () const { return mHost; }
 
   /**
    * @return the md5 hash of the request content
    */
   inline std::string
-  getContentMD5 () const { return mContentMD5; }
+  GetContentMD5 () const { return mContentMD5; }
 
   /**
    * @return the request content type
    */
   inline std::string
-  getContentType () const { return mContentType; }
+  GetContentType () const { return mContentType; }
 
   /**
    * @return the request user agent
    */
   inline std::string
-  getUserAgent () const { return mUserAgent; }
+  GetUserAgent () const { return mUserAgent; }
 
   /**
    * @return the request method
    */
   inline std::string
-  getHttpMethod () const { return mHttpMethod; }
+  GetHttpMethod () const { return mHttpMethod; }
 
   /**
    * @return the request path
    */
   inline std::string
-  getPath () const { return mPath; }
+  GetPath () const { return mPath; }
 
   /**
    * @return the request query string
    */
   inline std::string
-  getQuery () const { return mQuery; }
+  GetQuery () const { return mQuery; }
 
   /**
    * @return
    */
   inline std::string
-  getSubResource () const { return mSubResource; }
+  GetSubResource () const { return mSubResource; }
 
   /**
    * @return the request sub respurce (used for signatures)
    */
   std::string
-  extractSubResource();
+  ExtractSubResource();
 
   /**
    * @return the requested bucket
    */
   inline std::string
-  getBucket () const { return mBucket; }
+  GetBucket () const { return mBucket; }
 
   /**
    * @return the request date
    */
   inline std::string
-  getDate () const { return mDate; }
+  GetDate () const { return mDate; }
 
   /**
    * @return the canonicalized amazon request headers
    */
   inline std::string
-  getCanonicalizedAmzHeaders () const { return mCanonicalizedAmzHeaders; }
+  GetCanonicalizedAmzHeaders () const { return mCanonicalizedAmzHeaders; }
 
   /**
    * Check if the current S3 object is containing all the relevant S3 tags
@@ -198,15 +198,6 @@ public:
    * @return true if S3 headers have been provided otherwise false
    */
   bool IsS3 ();
-
-  /**
-   * Verify the AWS signature
-   *
-   * @param secure_key  the secret AWS key
-   *
-   * @return true if S3Handler signature is verified
-   */
-  bool VerifySignature (std::string secure_key);
 
   /**
    * Print the current S3 object

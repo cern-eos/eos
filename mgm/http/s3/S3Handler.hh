@@ -48,7 +48,7 @@ class S3Handler : public eos::common::S3Handler
 {
 
 protected:
-  static S3Store *mS3Store; //!< S3Handler store object
+  static S3Store *mS3Store; //!< persistent S3 data object
 
 public:
 
@@ -73,14 +73,6 @@ public:
   static bool
   Matches (const std::string &method, HeaderMap &headers);
 
-//  /**
-//   * Analyze the header map, searching for HTTP and Amazon headers
-//   *
-//   * @param headers  the map of request headers
-//   */
-//  virtual void
-//  ParseHeader (HeaderMap &headers);
-
   /**
    * Build a response to the given S3 request.
    *
@@ -94,6 +86,54 @@ public:
    */
   void
   HandleRequest (eos::common::HttpRequest *request);
+
+  /**
+   * Verify the AWS signature
+   *
+   * @return true if S3 signature is verified
+   */
+  bool
+  VerifySignature ();
+
+  /**
+   * Handle an S3 GET request.
+   *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
+   */
+  eos::common::HttpResponse*
+  Get (eos::common::HttpRequest *request);
+
+  /**
+   * Handle an S3 HEAD request.
+   *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
+   */
+  eos::common::HttpResponse*
+  Head (eos::common::HttpRequest *request);
+
+  /**
+   * Handle an S3 PUT request.
+   *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
+   */
+  eos::common::HttpResponse*
+  Put (eos::common::HttpRequest *request);
+
+  /**
+   * Handle an S3 DELETE request.
+   *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
+   */
+  eos::common::HttpResponse*
+  Delete (eos::common::HttpRequest *request);
 
 };
 

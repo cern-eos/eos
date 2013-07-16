@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/http/s3/S3Handler.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "common/http/PlainHttpResponse.hh"
 #include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -71,83 +72,158 @@ void
 S3Handler::HandleRequest (eos::common::HttpRequest *request)
 {
   eos_static_info("msg=\"handling s3 request\"");
+  eos::common::HttpResponse *response = 0;
 
   // Parse the headers
   ParseHeader(request);
 
-  eos::common::HttpResponse *response = 0;
-  std::string result;
+  // Refresh the data store
   mS3Store->Refresh();
 
-  // REMOVE THESE!!
-  int responseCode = 0;
-  std::map<std::string, std::string> responseHeaders;
-  responseHeaders["Query"] = request->GetQuery();
-
-
-  if (!mS3Store->VerifySignature(*this))
+  if (VerifySignature())
   {
-    response = RestErrorResponse(response->FORBIDDEN,
-                               "SignatureDoesNotMatch", "", getBucket(), "");
+    int meth = ParseMethodString(request->GetMethod());
+    switch (meth)
+    {
+    case GET:
+      response = Get(request);
+      break;
+    case HEAD:
+      response = Head(request);
+      break;
+    case PUT:
+      response = Put(request);
+      break;
+    case DELETE:
+      response = Delete(request);
+      break;
+    default:
+      response = new eos::common::PlainHttpResponse();
+      response->SetResponseCode(eos::common::HttpResponse::NOT_IMPLEMENTED);
+    }
   }
   else
   {
-    response = new eos::common::S3Response();
+    response = RestErrorResponse(response->FORBIDDEN,
+                                 "SignatureDoesNotMatch", "", GetBucket(), "");
+  }
 
-    if (request->GetMethod() == "GET")
+  mHttpResponse = response;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+S3Handler::VerifySignature ()
+{
+  if (!mS3Store->GetKeys().count(GetId()))
+  {
+    eos_static_err("msg=\"no such account\" id=%s", GetId().c_str());
+    return false;
+  }
+
+  std::string secure_key = mS3Store->GetKeys()[GetId()];
+
+  std::string string2sign = GetHttpMethod();
+  string2sign += "\n";
+  string2sign += GetContentMD5();
+  string2sign += "\n";
+  string2sign += GetContentType();
+  string2sign += "\n";
+  string2sign += GetDate();
+  string2sign += "\n";
+  string2sign += GetCanonicalizedAmzHeaders();
+
+
+  if (GetBucket().length())
+  {
+    string2sign += "/";
+    string2sign += GetBucket();
+  };
+
+  string2sign += GetPath();
+
+  if (ExtractSubResource().length())
+  {
+    string2sign += "?";
+    string2sign += GetSubResource();
+  }
+
+  eos_static_info("s2sign=%s key=%s", string2sign.c_str(), secure_key.c_str());
+
+  // get hmac sha1 hash
+  std::string hmac1 = eos::common::SymKey::HmacSha1(secure_key,
+                                                    string2sign);
+
+  XrdOucString b64mac1;
+  // base64 encode the hash
+  eos::common::SymKey::Base64Encode((char*) hmac1.c_str(), hmac1.size(), b64mac1);
+  std::string verify_signature = b64mac1.c_str();
+  eos_static_info("in_signature=%s out_signature=%s\n",
+                  GetSignature().c_str(), verify_signature.c_str());
+  return (verify_signature == GetSignature());
+}
+
+/*----------------------------------------------------------------------------*/
+eos::common::HttpResponse*
+S3Handler::Get (eos::common::HttpRequest *request)
+{
+  eos::common::HttpResponse *response = 0;
+
+  if (GetBucket() == "")
+  {
+    response = mS3Store->ListBuckets(GetId());
+  }
+  else
+  {
+    if (GetPath() == "/")
     {
-
-      if (getBucket() == "")
-      {
-        // GET SERVICE REQUEST
-        result = mS3Store->ListBuckets(responseCode, *this, responseHeaders);
-      }
-      else
-      {
-        if (getPath() == "/")
-        {
-          // GET BUCKET LISTING REQUEST
-          result = mS3Store->ListBucket(responseCode, *this, responseHeaders);
-        }
-        else
-        {
-          // GET OBJECT REQUEST
-          result = mS3Store->GetObject(responseCode, *this, responseHeaders);
-        }
-      }
+      response = mS3Store->ListBucket(GetBucket(), GetQuery());
     }
     else
     {
-      if (request->GetMethod() == "HEAD")
-      {
-        if (getPath() == "/")
-        {
-          // HEAD BUCKET REQUEST
-          result = mS3Store->HeadBucket(responseCode, *this, responseHeaders);
-        }
-        else
-        {
-          // HEAD OBJECT REQUEST
-          result = mS3Store->HeadObject(responseCode, *this, responseHeaders);
-        }
-      }
-      else
-      {
-        // PUT REQUEST ...
-        result = mS3Store->PutObject(responseCode, *this, responseHeaders);
-      }
+      response = mS3Store->GetObject(request, GetId(), GetBucket(), GetPath(),
+                                     GetQuery());
     }
+  }
+  return response;
+}
 
-    if (!responseHeaders.empty())
-      response->SetHeaders(responseHeaders);
+/*----------------------------------------------------------------------------*/
+eos::common::HttpResponse*
+S3Handler::Head (eos::common::HttpRequest *request)
+{
+  eos::common::HttpResponse *response = 0;
+
+  if (GetPath() == "/")
+  {
+    response = mS3Store->HeadBucket(GetId(), GetBucket(), GetDate());
+  }
+  else
+  {
+    response = mS3Store->HeadObject(GetId(), GetBucket(), GetPath(), GetDate());
   }
 
-  // TODO: remove this
-  if (responseCode)
-    response->SetResponseCode(responseCode);
-  if (result.size())
-    response->SetBody(result);
-  mHttpResponse = response;
+  return response;
+}
+
+/*----------------------------------------------------------------------------*/
+eos::common::HttpResponse*
+S3Handler::Put (eos::common::HttpRequest *request)
+{
+  eos::common::HttpResponse *response = 0;
+  response = mS3Store->PutObject(request, GetId(), GetBucket(), GetPath(),
+                                 GetQuery());
+  return response;
+}
+
+/*----------------------------------------------------------------------------*/
+eos::common::HttpResponse*
+S3Handler::Delete (eos::common::HttpRequest *request)
+{
+  using namespace eos::common;
+  HttpResponse *response = new PlainHttpResponse();
+  response->SetResponseCode(HttpResponse::ResponseCodes::NOT_IMPLEMENTED);
+  return response;
 }
 
 /*----------------------------------------------------------------------------*/
