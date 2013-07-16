@@ -22,15 +22,23 @@
 # ************************************************************************
 
 include_directories( ../ 
-         ${XROOTD_INCLUDE_DIR} 
-         ${XROOTD_PRIVATE_INCLUDE_DIR} 
-         ${SPARSEHASH_INCLUDE_DIR} 
-         ${NCURSES_INCLUDE_DIR}
-         ${LDAP_INCLUDE_DIR}
-         ${Z_INCLUDE_DIR}
+		     ${XROOTD_INCLUDE_DIR} 
+		     ${XROOTD_PRIVATE_INCLUDE_DIR} 
+		     ${SPARSEHASH_INCLUDE_DIR} 
+		     ${NCURSES_INCLUDE_DIR}
+		     ${LDAP_INCLUDE_DIR}
+		     ${Z_INCLUDE_DIR}
+		     ${ZMQ_INCLUDE_DIRS}
+		     ${PROTOBUF_INCLUDE_DIRS}
+		     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR})
+link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} 
+		  ${XROOTD_LIB_DIR}
+		  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
+
+# Compile the protocol buffers header and source files
+PROTOBUF_GENERATE_CPP(STAT_SRCS STAT_HDRS PROTOFILES StatProto.proto)
 
 add_library (XrdEosMgm MODULE
             Access.cc         
@@ -102,6 +110,7 @@ add_library (XrdEosMgm MODULE
             http/webdav/WebDAVResponse.cc
             http/webdav/PropFindResponse.cc
             Converter.cc
+	     ${STAT_SRCS}          ${STAT_HDRS}
             )
 
 target_link_libraries( XrdEosMgm 
@@ -110,11 +119,13 @@ target_link_libraries( XrdEosMgm
                        eosCommon            eosCommonServer
                        eosNamespace-Static  eosCapability-Static
                        XrdMqClient-Static 
-                       crypto               ${NCURSES_LIBRARIES} 
-                       ${LDAP_LIBRARIES}
-                       dl                   ${Z_LIBRARIES}
-                       ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
-                     )
+                       crypto               
+		       dl
+		       ${NCURSES_LIBRARIES} ${LDAP_LIBRARIES}
+		       ${ZMQ_LIBRARIES}     ${Z_LIBRARIES}
+		       ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
+		       ${PROTOBUF_LIBRARIES}
+)
 
 add_executable ( testmgmview
            FsView.cc  

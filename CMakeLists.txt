@@ -88,6 +88,7 @@ find_package(leveldb)
 find_package(CPPUnit)
 find_package(XRootD REQUIRED)
 find_package(microhttpd)
+find_package(ZMQ)
 
 if(MacOSX)
 find_package(fuse REQUIRED)

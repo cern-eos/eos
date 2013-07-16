@@ -140,6 +140,15 @@
 
 /*----------------------------------------------------------------------------*/
 
+//! Forward declaration
+namespace eos
+{
+  namespace auth
+  {
+    class XrdSecEntityProto;
+  }
+}
+
 
 USE_EOSMGMNAMESPACE
 
@@ -643,9 +652,8 @@ public:
   // ---------------------------------------------------------------------------
   //! Destructor 
   // ---------------------------------------------------------------------------
-
   virtual
-  ~XrdMgmOfs () { }
+  ~XrdMgmOfs () { };
 
   // ---------------------------------------------------------------------------
   // Configuration routine 
@@ -753,21 +761,41 @@ public:
   bool DeleteExternal (eos::common::FileSystem::fsid_t fsid,
                        unsigned long long fid);
 
+  
   // ---------------------------------------------------------------------------
   // Statistics circular buffer thread startup function
   // ---------------------------------------------------------------------------
   static void* StartMgmStats (void *pp);
 
+  
   // ---------------------------------------------------------------------------
   // Filesystem error/config listener thread startup function
   // ---------------------------------------------------------------------------
   static void* StartMgmFsConfigListener (void *pp);
 
+  
+  //----------------------------------------------------------------------------
+  //! Authentication thread startup static function
+  //!
+  //! @param pp pointer to the XrdMgmOfs class
+  //!
+  //----------------------------------------------------------------------------
+  static void* StartAuthenticationThread (void *pp);
+
+  
+  //----------------------------------------------------------------------------
+  //! Authentication thread function - accepts requests from EOS AUTH plugins
+  //! and replies with the result of the requested actions.
+  //----------------------------------------------------------------------------
+  void AuthenticationThread ();
+
+  
   // ---------------------------------------------------------------------------
   // Filesystem error and configuration change listener thread function
   // ---------------------------------------------------------------------------
   void FsConfigListener ();
 
+  
   // ---------------------------------------------------------------------------
   // configuration variables
   // ---------------------------------------------------------------------------
@@ -866,7 +894,8 @@ public:
   pthread_t deletion_tid; //< Thead Id of the deletion thread
   pthread_t stats_tid; //< Thread Id of the stats thread
   pthread_t fsconfiglistener_tid; //< Thread ID of the fs listener/config change thread
-
+  pthread_t auth_tid; ///< Thread Id of the authentication thread
+  
   // ---------------------------------------------------------------------------
   // class objects
   // ---------------------------------------------------------------------------
@@ -913,6 +942,27 @@ public:
 private:
 
   eos::common::Mapping::VirtualIdentity vid; //< virtual identity
+
+  //----------------------------------------------------------------------------
+  //! Get XrdSecEntity bbject from protocol buffer object
+  //!
+  //! @param proto_obj protocol buffer object
+  //!
+  //! @return converted XrdSecEntiry object
+  //!
+  //----------------------------------------------------------------------------
+  XrdSecEntity* GetXrdSecEntity(const eos::auth::XrdSecEntityProto& proto_client);
+
+
+  //----------------------------------------------------------------------------
+  //! Delete XrdSecEntity object
+  //!
+  //! @param client object to be deleted
+  //!
+  //----------------------------------------------------------------------------
+  void DeleteXrdSecEntity(XrdSecEntity*& client);
+
+  
 };
 /*----------------------------------------------------------------------------*/
 extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object

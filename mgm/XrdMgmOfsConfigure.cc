@@ -1870,6 +1870,15 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     (void) signal(SIGBUS, xrdmgmofs_stacktrace);
   }
 
+  eos_info("starting the authentication thread");
+  
+  if ((XrdSysThread::Run(&auth_tid, XrdMgmOfs::StartAuthenticationThread,
+                         static_cast<void *> (this), 0, "Authentication Thread")))
+  {
+    eos_crit("cannot start the authentication thread");
+    NoGo = 1;
+  }
+  
   XrdSysTimer sleeper;
   sleeper.Wait(200);
 

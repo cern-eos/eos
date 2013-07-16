@@ -63,6 +63,10 @@
 #include <signal.h>
 #include <stdlib.h>
 /*----------------------------------------------------------------------------*/
+#include "zmq.hpp"
+#include "StatProto.pb.h"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
+/*----------------------------------------------------------------------------*/
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -8432,6 +8436,131 @@ XrdMgmOfs::StartMgmFsConfigListener (void *pp)
   ofs->FsConfigListener();
   return 0;
 }
+
+
+//------------------------------------------------------------------------------
+// Authentication thread startup function
+//------------------------------------------------------------------------------
+void*
+XrdMgmOfs::StartAuthenticationThread(void *pp)
+{
+  XrdMgmOfs* ofs = static_cast<XrdMgmOfs*>(pp);
+  ofs->AuthenticationThread();
+  return 0;  
+}
+
+
+//------------------------------------------------------------------------------
+// Authentication thread function - accepts requests from EOS AUTH plugins
+// and replies with the result of the requested actions.
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::AuthenticationThread()
+{
+  eos_static_info("authentication thread started");
+  zmq::context_t context(1);
+  zmq::socket_t socket(context, ZMQ_REP);
+  socket.bind("tcp://*:5555");
+
+  
+  while (1)
+  {
+    zmq::message_t request;
+
+    // Wait for next request
+    socket.recv(&request);
+
+    // Read in the ProtocolBuffer object just received
+    std::string msg_recv((char*)request.data(), request.size());
+    eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+    req_proto->ParseFromString(msg_recv);
+
+    if (req_proto->type() == eos::auth::RequestProto_OperationType_STAT)
+    {
+      eos_static_info("received a stat request for path:%s, opaque:%s",
+                      req_proto->stat().path().c_str(),
+                      req_proto->stat().opaque().c_str());
+      
+      XrdSecEntity* client = GetXrdSecEntity(req_proto->stat().error());
+      struct stat buf;
+      XrdOucErrInfo error;
+      
+      int ret = gOFS->stat(req_proto->stat().path().c_str(), &buf,
+                           error, client, req_proto->stat().opaque().c_str());
+
+      std::stringstream sstr;
+      sstr << "Device :" << buf.st_dev << " Inode: " << buf.st_ino
+           <<" Size: " << buf.st_size;
+
+      eos_static_info(sstr.str().c_str());
+
+      if (ret == SFS_OK)
+      {
+        eos::auth::StatRespProto* resp_stat = new eos::auth::StatRespProto();
+        resp_stat->set_response(ret);
+        resp_stat->set_error_code(0);
+        resp_stat->set_message(&buf, sizeof(struct stat));
+
+        int resp_size = resp_stat->ByteSize();
+        zmq::message_t reply(resp_size);
+        google::protobuf::io::ArrayOutputStream aos(reply.data(), resp_size);
+        
+        resp_stat->SerializeToZeroCopyStream(&aos);
+        socket.send(reply);
+        delete resp_stat;
+      }
+      
+      DeleteXrdSecEntity(client);      
+    }
+
+    delete req_proto;
+  }
+}
+
+
+//------------------------------------------------------------------------------
+// Get XrdSecEntity object from protocol buffer object
+//------------------------------------------------------------------------------
+XrdSecEntity*
+XrdMgmOfs::GetXrdSecEntity(const eos::auth::XrdSecEntityProto& proto_client)
+{
+  XrdSecEntity* client = new XrdSecEntity();
+  strncpy(client->prot, proto_client.prot().c_str(), XrdSecPROTOIDSIZE -1);
+  client->prot[XrdSecPROTOIDSIZE - 1] = '\0';
+  client->name = strdup(proto_client.name().c_str());
+  client->host = strdup(proto_client.host().c_str());
+  client->host = strdup(proto_client.host().c_str());
+  client->vorg = strdup(proto_client.vorg().c_str());
+  client->role = strdup(proto_client.role().c_str());
+  client->grps = strdup(proto_client.grps().c_str());
+  client->endorsements = strdup(proto_client.endorsements().c_str());
+  client->creds = strdup(proto_client.creds().c_str());
+  client->credslen = proto_client.credslen();
+  client->moninfo = strdup(proto_client.moninfo().c_str());
+  client->tident = strdup(proto_client.tident().c_str());
+  return client;
+}
+
+
+//------------------------------------------------------------------------------
+// Delete XrdSecEntity object 
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::DeleteXrdSecEntity(XrdSecEntity*& client)
+{
+  free(client->name);
+  free(client->host);
+  free(client->vorg);
+  free(client->role);
+  free(client->grps);
+  free(client->endorsements);
+  free(client->creds);
+  free(client->moninfo);
+  free(client->tident);
+  delete client;
+  client = NULL;      
+}
+
 
 /*----------------------------------------------------------------------------*/
 bool
