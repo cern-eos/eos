@@ -220,9 +220,8 @@ S3Handler::Put (eos::common::HttpRequest *request)
 eos::common::HttpResponse*
 S3Handler::Delete (eos::common::HttpRequest *request)
 {
-  using namespace eos::common;
-  HttpResponse *response = new PlainHttpResponse();
-  response->SetResponseCode(HttpResponse::ResponseCodes::NOT_IMPLEMENTED);
+  eos::common::HttpResponse *response = 0;
+  response = mS3Store->DeleteObject(request, GetId(), GetBucket(), GetPath());
   return response;
 }
 

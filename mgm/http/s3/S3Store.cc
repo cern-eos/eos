@@ -993,13 +993,99 @@ S3Store::PutObject (eos::common::HttpRequest *request,
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-S3Store::DeleteObject (const std::string &id,
-                       const std::string &bucket,
-                       const std::string &path)
+S3Store::DeleteObject (eos::common::HttpRequest *request,
+                       const std::string        &id,
+                       const std::string        &bucket,
+                       const std::string        &path)
 {
   using namespace eos::common;
 
+  XrdOucErrInfo error;
+  Mapping::VirtualIdentity vid;
+  Mapping::Nobody(vid);
   HttpResponse *response = 0;
+
+  int errc = 0;
+  std::string username = id;
+  uid_t uid = Mapping::UserNameToUid(username, errc);
+  if (errc)
+  {
+    // error mapping the s3 id to unix id
+    return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+                                        "InvalidArgument",
+                                        "Unable to map bucket id to virtual id",
+                                        id.c_str(), "");
+  }
+
+  // set the bucket id as vid
+  vid.uid = uid;
+  vid.uid_list.push_back(uid);
+
+  struct stat buf;
+
+  // build the full path for the request
+  std::string objectpath = mS3ContainerPath[bucket];
+  if (objectpath[objectpath.length() - 1] == '/')
+  {
+    objectpath.erase(objectpath.length() - 1);
+  }
+  objectpath += path;
+
+  // stat this object
+  if (gOFS->_stat(objectpath.c_str(), &buf, error, vid, (const char*) 0) != SFS_OK)
+  {
+    if (error.getErrInfo() == ENOENT)
+    {
+      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+                                          "NoSuchKey",
+                                          "Unable to delete requested object",
+                                          id.c_str(), "");
+    }
+    else
+    {
+      return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+                                          "InvalidArgument",
+                                          "Unable to delete requested object",
+                                          id.c_str(), "");
+    }
+  }
+  else
+  {
+    XrdOucString info = "mgm.cmd=rm&mgm.path=";
+    info += objectpath.c_str();
+    if (S_ISDIR(buf.st_mode)) info += "&mgm.option=r";
+
+    ProcCommand cmd;
+    cmd.open("/proc/user", info.c_str(), vid, &error);
+    cmd.close();
+    int rc = cmd.GetRetc();
+
+    if (rc != SFS_OK)
+    {
+      if (error.getErrInfo() == EPERM)
+      {
+        return S3Handler::RestErrorResponse(response->FORBIDDEN,
+                                            "AccessDenied",
+                                            "Access Denied",
+                                            path, "");
+      }
+      else
+      {
+        return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+                                            "InvalidArgument",
+                                            "Unable to delete requested object",
+                                            id.c_str(), "");
+      }
+    }
+    else
+    {
+      response = new eos::common::PlainHttpResponse();
+      response->AddHeader("Connection", "close");
+      response->AddHeader("Server",     gOFS->HostName);
+      response->SetResponseCode(response->NO_CONTENT);
+    }
+  }
+
   return response;
 }
 

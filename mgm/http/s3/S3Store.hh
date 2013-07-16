@@ -179,9 +179,10 @@ public:
    * @return S3 HTTP response object
    */
   eos::common::HttpResponse*
-  DeleteObject (const std::string &id,
-                const std::string &bucket,
-                const std::string &path);
+  DeleteObject (eos::common::HttpRequest *request,
+                const std::string        &id,
+                const std::string        &bucket,
+                const std::string        &path);
 
 };
 
