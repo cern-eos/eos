@@ -249,7 +249,7 @@ public:
     result += "<RequestId>";
     result += requestid;
     result += "</RequestId>";
-    result += "</Error";
+    result += "</Error>";
     return result;
   }
 
