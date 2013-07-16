@@ -95,7 +95,7 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-HttpHandler::Get(eos::common::HttpRequest *request)
+HttpHandler::Get (eos::common::HttpRequest *request)
 {
   // TODO: Refactor out common behavior
 
@@ -207,7 +207,7 @@ HttpHandler::Get(eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-HttpHandler::Head(eos::common::HttpRequest *request)
+HttpHandler::Head (eos::common::HttpRequest *request)
 {
   using namespace eos::common;
   HttpResponse *response = new PlainHttpResponse();
@@ -217,7 +217,7 @@ HttpHandler::Head(eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-HttpHandler::Post(eos::common::HttpRequest *request)
+HttpHandler::Post (eos::common::HttpRequest *request)
 {
   using namespace eos::common;
   HttpResponse *response = new PlainHttpResponse();
@@ -227,7 +227,7 @@ HttpHandler::Post(eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-HttpHandler::Put(eos::common::HttpRequest *request)
+HttpHandler::Put (eos::common::HttpRequest *request)
 {
   XrdSecEntity    client(mVirtualIdentity->prot.c_str());
   client.name   = const_cast<char*>(mVirtualIdentity->name.c_str());
@@ -340,7 +340,7 @@ HttpHandler::Put(eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-HttpHandler::Delete(eos::common::HttpRequest *request)
+HttpHandler::Delete (eos::common::HttpRequest *request)
 {
   eos::common::HttpResponse *response = 0;
   XrdOucErrInfo              error;
@@ -383,7 +383,7 @@ HttpHandler::Delete(eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-HttpHandler::Trace(eos::common::HttpRequest *request)
+HttpHandler::Trace (eos::common::HttpRequest *request)
 {
   using namespace eos::common;
   HttpResponse *response = new PlainHttpResponse();
@@ -393,7 +393,7 @@ HttpHandler::Trace(eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-HttpHandler::Options(eos::common::HttpRequest *request)
+HttpHandler::Options (eos::common::HttpRequest *request)
 {
   eos::common::HttpResponse *response = new eos::common::PlainHttpResponse();
   response->AddHeader("DAV",   "1");
@@ -406,7 +406,7 @@ HttpHandler::Options(eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-HttpHandler::Connect(eos::common::HttpRequest *request)
+HttpHandler::Connect (eos::common::HttpRequest *request)
 {
   using namespace eos::common;
   HttpResponse *response = new PlainHttpResponse();
@@ -416,7 +416,7 @@ HttpHandler::Connect(eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-HttpHandler::Patch(eos::common::HttpRequest *request)
+HttpHandler::Patch (eos::common::HttpRequest *request)
 {
   using namespace eos::common;
   HttpResponse *response = new PlainHttpResponse();
