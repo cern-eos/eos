@@ -933,6 +933,7 @@ XrdMgmOfsFile::open (const char *inpath,
   // the size which will be reserved with a placement of one replica 
   // for that file
   unsigned long long bookingsize;
+  bool hasClientBookingSize = false;
   unsigned long long targetsize = 0;
   unsigned long long minimumsize = 0;
   unsigned long long maximumsize = 0;
@@ -954,12 +955,14 @@ XrdMgmOfsFile::open (const char *inpath,
       if (openOpaque->Get("eos.bookingsize"))
       {
         bookingsize = strtoull(openOpaque->Get("eos.bookingsize"), 0, 10);
+        hasClientBookingSize = true;
       }
       else
       {
         if (openOpaque->Get("oss.asize"))
         {
           bookingsize = strtoull(openOpaque->Get("oss.asize"), 0, 10);
+          hasClientBookingSize = true;
         }
       }
     }
@@ -1207,7 +1210,51 @@ XrdMgmOfsFile::open (const char *inpath,
       return Emsg(epname, error, retc, "open file ", path);
     }
   }
+  else
+  {
+    if (isRW)
+    {
+      if (isCreation && hasClientBookingSize && (bookingsize == 0))
+      {
+        // -----------------------------------------------------------------------
+        // if this is a creation we commit the scheduled replicas NOW
+        // -----------------------------------------------------------------------
+        {
+          for (int i = 0; i < (int) selectedfs.size(); i++)
+          {
+            fmd->addLocation(selectedfs[i]);
+          }
 
+          eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+          // ---------------------------------------------------------------------      
+          try
+          {
+            gOFS->eosView->updateFileStore(fmd);
+          }
+          catch (eos::MDException &e)
+          {
+            errno = e.getErrno();
+            std::string errmsg = e.getMessage().str();
+            eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                      e.getErrno(), e.getMessage().str().c_str());
+            gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
+            return Emsg(epname, error, errno, "open file", errmsg.c_str());
+          }
+          // ---------------------------------------------------------------------
+        }
+        return SFS_OK;
+      }
+    } 
+    else
+    {
+      if (!fmd->getSize())
+      {
+        // 0-size files can be read from the MGM
+        isZeroSizeFile=true;
+        return SFS_OK;
+      }
+    }
+  }
   // ---------------------------------------------------------------------------
   // get the redirection host from the first entry in the vector
   // ---------------------------------------------------------------------------
@@ -1623,6 +1670,10 @@ XrdMgmOfsFile::read (XrdSfsFileOffset offset,
 {
   static const char *epname = "read";
 
+  if (isZeroSizeFile)
+  {
+    return 0;
+  }
   // Make sure the offset is not too large
   //
 #if _FILE_OFFSET_BITS!=64
@@ -1649,8 +1700,10 @@ XrdMgmOfsFile::read (XrdSfsAio * aiop)
  */
 /*----------------------------------------------------------------------------*/
 {
-
   static const char *epname = "read";
+  if (isZeroSizeFile)
+    return 0;
+  
   // Execute this request in a synchronous fashion
   //
   return Emsg(epname, error, EOPNOTSUPP, "read", fname);
@@ -1719,6 +1772,12 @@ XrdMgmOfsFile::stat (struct stat * buf)
 {
   static const char *epname = "stat";
 
+  if (isZeroSizeFile)
+  {
+    memset(buf, 0, sizeof(struct stat));
+    return 0;
+  }
+  
   if (procCmd)
     return procCmd->stat(buf);
 
@@ -1791,7 +1850,7 @@ XrdMgmOfsFile::~XrdMgmOfsFile ()
  */
 /*----------------------------------------------------------------------------*/
 {
-  if (oh) close();
+  if (oh>0) close();
   if (openOpaque)
   {
     delete openOpaque;

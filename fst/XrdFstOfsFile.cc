@@ -614,24 +614,26 @@ XrdFstOfsFile::open (const char* path,
     if (isCreation)
     {
       if (!capOpaque->Get("mgm.access") 
-                          || (strcmp(capOpaque->Get("mgm.access"), "create")))
+	  || ( (strcmp(capOpaque->Get("mgm.access"), "create")) &&
+	       (strcmp(capOpaque->Get("mgm.access"), "update")) ) )
       {
         return gOFS.Emsg(epname, 
                          error, 
                          EPERM, 
-                         "open - capability does not allow to create this file", 
+                         "open - capability does not allow to create(update) this file", 
                          path);
       }
     }
     else
     {
       if (!capOpaque->Get("mgm.access") 
-                          || (strcmp(capOpaque->Get("mgm.access"), "update")))
+	  || ( (strcmp(capOpaque->Get("mgm.access"), "create")) &&
+	       (strcmp(capOpaque->Get("mgm.access"), "update")) ) )
       {
         return gOFS.Emsg(epname, 
                          error, 
                          EPERM, 
-                         "open - capability does not allow to update this file", 
+                         "open - capability does not allow to update(create) this file", 
                          path);
       }
     }

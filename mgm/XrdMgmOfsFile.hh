@@ -72,7 +72,8 @@ class XrdSfsAio;
 class XrdMgmOfsFile : public XrdSfsFile, eos::common::LogId
 {
 public:
-
+  bool isZeroSizeFile; //< true if the file has 0 size
+  
   // ---------------------------------------------------------------------------
   // open a file 
   // ---------------------------------------------------------------------------
@@ -216,6 +217,7 @@ public:
     procCmd = 0;
     eos::common::LogId ();
     fmd = 0;
+    isZeroSizeFile = false;
   }
 
   // ---------------------------------------------------------------------------
