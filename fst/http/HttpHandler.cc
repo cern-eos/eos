@@ -251,6 +251,7 @@ HttpHandler::Get (eos::common::HttpRequest *request)
           response->AddHeader("Content-Type", mMultipartHeader);
         }
         response->AddHeader("Content-Length", clength);
+        response->mResponseLength = mRequestSize;
         response->SetResponseCode(response->PARTIAL_CONTENT);
       }
       else
