@@ -20,6 +20,7 @@ Create a build directory ...
    mkdir build
    cd build
 
+<<<<<<< HEAD
 
 Dependencies
 ----------------
@@ -66,4 +67,3 @@ Compile the project ...
    make -j 4
    make install
 
-		
