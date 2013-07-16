@@ -337,11 +337,21 @@ div.topic {
 }
 
 table {
-    border-collapse: collapse;
+    border-collapse: collapse
+    color:#000000;
+    background-color:#EAF2D3;
     margin: 0 -0.5em 0 -0.5em;
 }
 
-table td, table th {
+table td {
+    color:#000000;
+    background-color:#EAF2D3;
+    padding: 0.2em 0.5em 0.2em 0.5em;
+}
+
+table th {
+    color:#000000;
+    background-color:#f4debf;
     padding: 0.2em 0.5em 0.2em 0.5em;
 }
 
