@@ -1,5 +1,0 @@
-.. highlight:: rst
-
-Configuration
-=======================
-

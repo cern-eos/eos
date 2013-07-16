@@ -32,7 +32,7 @@ templates_path = ['.templates']
 source_suffix = '.rst'
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = 'contents'
 
 # General substitutions.
 project = 'EOS'
@@ -78,7 +78,11 @@ pygments_style = 'sphinx'
 
 html_theme = 'sphinx13'
 html_theme_path = ['_themes']
+
+html_sidebars = {'index': ['searchbox.html']}
+
 modindex_common_prefix = ['sphinx.']
+
 #html_static_path = ['_static']
 
 # Options for HTML output
@@ -119,8 +123,6 @@ html_last_updated_fmt = '%b %d, %Y'
 #html_use_smartypants = True
 
 # Custom sidebar templates, maps document names to template names.
-#html_sidebars = {}
-
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
 #html_additional_pages = {}
@@ -181,3 +183,13 @@ latex_documents = [
 
 # If false, no module index is generated.
 #latex_use_modindex = True
+
+rst_epilog = """
+.. |more| image:: /.static/more.png
+          :align: middle
+          :alt: more info
+          :width: 20px
+"""
+
+html_show_sourcelink = False;
+

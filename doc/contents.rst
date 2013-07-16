@@ -1,24 +1,22 @@
 .. _contents:
 
-Using EOS 
+Documentation
 =============================
 
 .. toctree::
    :maxdepth: 2
 
    intro
-   configuration
-   tutorial
+   quickstart
    install
-   faq
    develop
 
 
 Indices and tables
 ==================
 
-* :ref:`genindex`
 * :ref:`search`
+* :ref:`genindex`
 
 
 

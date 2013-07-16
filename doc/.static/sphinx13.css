@@ -350,7 +350,7 @@ div.admonition, div.warning {
     margin: 1em 0 1em 0;
     border: 1px solid #86989B;
     border-radius: 2px;
-    background-color: #f7f7f7;
+    background-color: #d7f7f7;
     padding: 0;
 }
 
@@ -372,7 +372,7 @@ div.warning p.admonition-title {
 
 div.warning {
     border: 1px solid #940000;
-/*    background-color: #FFCCCF;*/
+    background-color: #FFDDCF;
 }
 
 div.warning p.admonition-title {

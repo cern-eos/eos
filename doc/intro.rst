@@ -3,7 +3,7 @@
 Introduction
 =======================
 
-Lifetime & Goal
+Lifeline & Goal
 ---------------
 The EOS project was started in April 2010 in the IT DSS group. The main goal of the project is to provide fast and reliable disk only storage technology for CERN LHC use cases.
 The first release has been put into production in June 2010. 
