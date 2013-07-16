@@ -1,0 +1,50 @@
+package eos.auth;
+
+//------------------------------------------------------------------------------
+// Stat request protocol buffer message
+//------------------------------------------------------------------------------
+
+
+// XrdSecEntity protocol buffer message
+message XrdSecEntityProto {
+  required string prot = 1;         // Protocol used
+  required string name = 2 ;        // Entity's name
+  required string host = 3;         // Entity's host name
+  required string vorg = 4;         // Entity's virtual organization
+  required string role = 5;         // Entity's role
+  required string grps = 6;         // Entity's group names
+  required string endorsements = 7; // Protocol specific endorsements
+  required string creds = 8;        // Raw client credentials or certificate
+  required int64  credslen = 9;     // Length of the 'cert' field
+  required string moninfo = 10;     // Additional information for monitoring 
+  required string tident = 11;      // Trace identifier (do not touch)
+}
+
+
+message StatReqProto {	
+  required string            path   = 1;
+  required XrdSecEntityProto error  = 2;
+  required string            opaque = 3;
+}  
+
+
+message RequestProto {
+  enum OperationType {
+     STAT = 0;
+  }    	  
+
+  // Identifies which filed is filled in 
+  required OperationType type = 1;
+
+  // One of the following is filled in 
+  optional StatReqProto stat = 2;
+}
+
+
+message StatRespProto {
+  required int64 response   = 1;
+  optional bytes message    = 2;
+  optional int64 error_code = 3;  
+}
+
+ 
