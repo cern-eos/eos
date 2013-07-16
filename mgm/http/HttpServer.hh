@@ -85,6 +85,9 @@ public:
    * transmitted by the reverse proxy server and attempting to map the client
    * DN to the gridmap file.
    *
+   * If the client is not in the gridmap file, (s)he will be mapped to the
+   * user "nobody" and have limited access.
+   *
    * @param headers  the map of client request headers
    *
    * @return an appropriately filled virtual identity

@@ -52,7 +52,7 @@ public:
   /**
    * Constructor
    */
-  S3Handler ();
+  S3Handler () {};
 
   /**
    * Destructor

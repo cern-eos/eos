@@ -24,7 +24,8 @@
 /**
  * @file   ProtocolHandlerFactory.hh
  *
- * @brief  TODO
+ * @brief  Factory class to create an appropriate protocol handler for the
+ *         FST.
  */
 
 #ifndef __EOSFST_PROTOCOLHANDLERFACTORY__HH__

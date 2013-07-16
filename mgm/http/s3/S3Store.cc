@@ -26,6 +26,7 @@
 #include "mgm/http/s3/S3Handler.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "common/http/PlainHttpResponse.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
@@ -66,8 +67,10 @@ S3Store::Refresh ()
     eos::common::Mapping::VirtualIdentity vid;
     eos::common::Mapping::Root(vid);
     eos::ContainerMD::XAttrMap map;
+
     struct stat buf;
-    if (gOFS->_stat(mS3DefContainer.c_str(), &buf, error, vid, (const char*) 0) == SFS_OK)
+    if (gOFS->_stat(mS3DefContainer.c_str(), &buf, error, vid, (const char*) 0)
+        == SFS_OK)
     {
       // check last modification time
       if (buf.st_mtime != mStoreModificationTime)
@@ -76,16 +79,19 @@ S3Store::Refresh ()
         mS3ContainerSet.clear();
         mS3Keys.clear();
         mS3ContainerPath.clear();
-        if (gOFS->_attr_ls(mS3DefContainer.c_str(), error, vid, 0, map) != SFS_OK)
+        if (gOFS->_attr_ls(mS3DefContainer.c_str(), error, vid, 0, map)
+            != SFS_OK)
         {
-          eos_static_err("unable to list attributes of % s", mS3DefContainer.c_str());
+          eos_static_err("unable to list attributes of % s",
+                         mS3DefContainer.c_str());
         }
         else
         {
           // parse the attributes into the store
           for (auto it = map.begin(); it != map.end(); it++)
           {
-            eos_static_info("parsing %s=>%s", it->first.c_str(), it->second.c_str());
+            eos_static_info("parsing %s=>%s", it->first.c_str(),
+                                              it->second.c_str());
             if (it->first.substr(0, 6) == "sys.s3")
             {
               // the s3 attributes are built as
@@ -115,14 +121,16 @@ S3Store::Refresh ()
                     svec[i].erase(svec[i].length() - 1);
                   }
                   mS3ContainerSet[id].insert(svec[i]);
-                  eos_static_debug("id=%s bucket=%s", id.c_str(), svec[i].c_str());
+                  eos_static_debug("id=%s bucket=%s", id.c_str(),
+                                                      svec[i].c_str());
                 }
               }
               if (it->first.substr(0, 12) == "sys.s3.path.")
               {
                 std::string bucket = it->first.substr(12);
                 mS3ContainerPath[bucket] = it->second;
-                eos_static_info("bucket=%s path=%s", bucket.c_str(), it->second.c_str());
+                eos_static_info("bucket=%s path=%s", bucket.c_str(),
+                                                     it->second.c_str());
               }
             }
           }
@@ -143,41 +151,24 @@ S3Store::Refresh ()
 }
 
 /*----------------------------------------------------------------------------*/
-bool
-S3Store::VerifySignature (S3Handler& s3)
-{
-  if (!mS3Keys.count(s3.getId()))
-  {
-    eos_static_err("msg=\"no such account\" id=%s", s3.getId().c_str());
-    return false;
-  }
-
-  return s3.VerifySignature(mS3Keys[s3.getId()]);
-}
-
-/*----------------------------------------------------------------------------*/
-std::string
-S3Store::ListBuckets (int                                &response_code,
-                      S3Handler                          &s3,
-                      std::map<std::string, std::string> &response_header)
+eos::common::HttpResponse*
+S3Store::ListBuckets (const std::string &id)
 {
   eos::common::RWMutexReadLock sLock(mStoreMutex);
-
-  response_header["Content-Type"] = "application/xml";
-  response_header["x-amz-id-2"] = "unknown";
-  response_header["x-amz-request-id"] = "unknown";
+  eos::common::HttpResponse *response = 0;
 
   std::string result = XML_V1_UTF8;
   result += "<ListAllMyBucketsResult xmlns=\"http://doc.s3.amazonaws.com/2006-03-01\">";
   result += "<Owner><ID>";
-  result += s3.getId();
+  result += id;
   result += "</ID>";
   result += "<Display>";
-  result += s3.getId();
+  result += id;
   result += "</Display>";
   result += "</Owner>";
   result += "<Buckets>";
-  for (auto it = mS3ContainerSet[s3.getId()].begin(); it != mS3ContainerSet[s3.getId()].end(); it++)
+
+  for (auto it = mS3ContainerSet[id].begin(); it != mS3ContainerSet[id].end(); it++)
   {
     if (mS3ContainerPath.count(*it))
     {
@@ -188,8 +179,10 @@ S3Store::ListBuckets (int                                &response_code,
       eos::common::Mapping::VirtualIdentity vid;
       eos::common::Mapping::Root(vid);
       eos::ContainerMD::XAttrMap map;
+
       struct stat buf;
-      if (gOFS->_stat(bucketpath.c_str(), &buf, error, vid, (const char*) 0) == SFS_OK)
+      if (gOFS->_stat(bucketpath.c_str(), &buf, error, vid, (const char*) 0)
+          == SFS_OK)
       {
         result += "<Bucket>";
         result += "<Name>";
@@ -206,68 +199,75 @@ S3Store::ListBuckets (int                                &response_code,
         errmsg += bucketpath;
         errmsg += " for bucket ";
         errmsg += *it;
-        return s3.RestErrorResponse(response_code, 404, "NoSuchBucket", errmsg, *it, "");
+        return eos::common::S3Handler::RestErrorResponse(response->NOT_FOUND,
+                                                         "NoSuchBucket",
+                                                         errmsg, *it, "");
       }
     }
   }
+
   result += "</Buckets>";
   result += "</ListAllMyBucketsResult>";
-  return result;
+
+  response = new eos::common::PlainHttpResponse();
+  response->AddHeader("Content-Type",     "application/xml");
+  response->AddHeader("x-amz-id-2",       "unknown");
+  response->AddHeader("x-amz-request-id", "unknown");
+  response->SetBody(result);
+
+  return response;
 }
 
 /*----------------------------------------------------------------------------*/
-std::string
-S3Store::ListBucket (int                                &response_code,
-                     S3Handler                          &s3,
-                     std::map<std::string, std::string> &response_header)
+eos::common::HttpResponse*
+S3Store::ListBucket (const std::string &bucket, const std::string &query)
 {
+  using namespace eos::common;
+
   XrdOucErrInfo error;
-  eos::common::Mapping::VirtualIdentity vid;
-  eos::common::Mapping::Root(vid);
+  Mapping::VirtualIdentity vid;
+  Mapping::Root(vid);
+  RWMutexReadLock sLock(mStoreMutex);
+  HttpResponse *response = 0;
 
-  eos::common::RWMutexReadLock sLock(mStoreMutex);
-
-  if (!mS3ContainerPath.count(s3.getBucket()))
+  if (!mS3ContainerPath.count(bucket))
   {
     // check if this bucket is configured
-    return s3.RestErrorResponse(response_code, 404, "NoSuchBucket",
-        "Bucket does not exist!", s3.getBucket().c_str(), "");
+    return S3Handler::RestErrorResponse(response->NOT_FOUND,
+                                        "NoSuchBucket",
+                                        "Bucket does not exist!",
+                                        bucket.c_str(), "");
   }
   else
   {
     // check if this bucket is mapped
     struct stat buf;
-    if (gOFS->_stat(mS3ContainerPath[s3.getBucket()].c_str(), &buf, error, vid, (const char*) 0) != SFS_OK)
+    if (gOFS->_stat(mS3ContainerPath[bucket].c_str(), &buf, error, vid,
+                    (const char*) 0) != SFS_OK)
     {
-      return s3.RestErrorResponse(response_code, 404, "NoSuchBucket", "Bucket is not mapped into the namespace!", s3.getBucket().c_str(), "");
+      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+                                          "NoSuchBucket",
+                                          "Bucket is not mapped into the "
+                                          "namespace!", bucket.c_str(), "");
     }
   }
 
   std::string result = XML_V1_UTF8;
   result += "<ListBucketResult xmlns=\"http://doc.s3.amazonaws.com/2006-03-01\">";
   result += "<Name>";
-  result += s3.getBucket();
+  result += bucket;
   result += "</Name>";
 
-  XrdOucEnv parameter(s3.getQuery().c_str());
-
-  XrdOucString stdErr;
-
+  XrdOucEnv          parameter(query.c_str());
+  XrdOucString       stdErr;
   XrdMgmOfsDirectory bucketdir;
+  uint64_t           cnt = 0;
+  uint64_t           max_keys = 1000;
+  std::string        marker = "";
+  std::string        prefix = "";
 
-  /*/if (gOFS->_find(mS3ContainerPath[s3.getBucket()].c_str(), error, stdErr, vid, find, false) != SFS_OK)
-  {
-    return s3.RestErrorResponse(response_code, 404, "NoSuchBucket", "Bucket couldn't be queried in the namespace!", s3.getBucket().c_str(), "");
-  }
-   */
-
-
-  uint64_t cnt = 0;
-  uint64_t max_keys = 1000;
-  std::string marker = "";
-  std::string prefix = "";
-
-  bool marker_found = true; // indicates that the given marker has been found in the list and output starts
+  // indicates that the given marker has been found in the list and output starts
+  bool marker_found = true;
 
   const char* val = 0;
   if ((val = parameter.Get("max-keys")))
@@ -297,7 +297,8 @@ S3Store::ListBucket (int                                &response_code,
     lPrefix = "/";
   }
 
-  eos_static_info("msg=\"listing\" bucket=%s prefix=%s", s3.getBucket().c_str(), lPrefix.c_str());
+  eos_static_info("msg=\"listing\" bucket=%s prefix=%s", bucket.c_str(),
+                                                         lPrefix.c_str());
 
   if (!prefix.length())
   {
@@ -323,7 +324,8 @@ S3Store::ListBucket (int                                &response_code,
 
   result += "<MaxKeys>";
   char smaxkeys[16];
-  snprintf(smaxkeys, sizeof (smaxkeys) - 1, "%llu", (unsigned long long) max_keys);
+  snprintf(smaxkeys, sizeof (smaxkeys) - 1, "%llu",
+          (unsigned long long) max_keys);
   result += smaxkeys;
   result += "</MaxKeys>";
 
@@ -338,7 +340,8 @@ S3Store::ListBucket (int                                &response_code,
     lPrefix += "/";
   }
 
-  int listrc = bucketdir.open((mS3ContainerPath[s3.getBucket()] + lPrefix).c_str(), vid, (const char*) 0);
+  int listrc = bucketdir.open((mS3ContainerPath[bucket] + lPrefix).c_str(),
+                              vid, (const char*) 0);
 
   if (!listrc)
   {
@@ -364,7 +367,7 @@ S3Store::ListBucket (int                                &response_code,
 
       std::string fullname;
       objectname += sdname;
-      fullname = mS3ContainerPath[s3.getBucket()];
+      fullname = mS3ContainerPath[bucket];
       fullname += objectname;
 
       if (!marker_found)
@@ -397,10 +400,10 @@ S3Store::ListBucket (int                                &response_code,
         eos::FileMD::ctime_t mtime;
         fmd->getMTime(mtime);
 
-        result += eos::common::Timing::UnixTimstamp_to_ISO8601(mtime.tv_sec);
+        result += Timing::UnixTimstamp_to_ISO8601(mtime.tv_sec);
         result += "</LastModified>";
         result += "<ETag>";
-        for (unsigned int i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
+        for (unsigned int i = 0; i < LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
         {
           char hb[3];
           sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
@@ -409,18 +412,19 @@ S3Store::ListBucket (int                                &response_code,
         result += "</ETag>";
         result += "<Size>";
         std::string sconv;
-        result += eos::common::StringConversion::GetSizeString(sconv, (unsigned long long) fmd->getSize());
+        result += StringConversion::GetSizeString(sconv, (unsigned long long)
+                                                         fmd->getSize());
         result += "</Size>";
         result += "<StorageClass>STANDARD</StorageClass>";
         result += "<Owner>";
         result += "<ID>";
         int errc = 0;
-        result += eos::common::Mapping::UidToUserName(fmd->getCUid(), errc);
+        result += Mapping::UidToUserName(fmd->getCUid(), errc);
         result += "</ID>";
         result += "<DisplayName>";
-        result += eos::common::Mapping::UidToUserName(fmd->getCUid(), errc);
+        result += Mapping::UidToUserName(fmd->getCUid(), errc);
         result += ":";
-        result += eos::common::Mapping::GidToGroupName(fmd->getCGid(), errc);
+        result += Mapping::GidToGroupName(fmd->getCGid(), errc);
         result += "</DisplayName>";
         result += "</Owner>";
         result += "</Contents>";
@@ -441,7 +445,7 @@ S3Store::ListBucket (int                                &response_code,
         result += "/";
         result += "</Key>";
         result += "<LastModified>";
-        result += eos::common::Timing::UnixTimstamp_to_ISO8601(time(NULL));
+        result += Timing::UnixTimstamp_to_ISO8601(time(NULL));
         result += "</LastModified>";
         result += "<ETag>";
         result += "</ETag>";
@@ -477,95 +481,37 @@ S3Store::ListBucket (int                                &response_code,
 
   result += "</ListBucketResult>";
   
-  response_header["Content-Type"] = "application/xml";
-  response_header["Connection"] = "close";
-  return result;
+  response = new PlainHttpResponse();
+  response->AddHeader("Content-Type", "application/xml");
+  response->AddHeader("Connection", "close");
+  response->SetBody(result);
+
+  return response;
 }
 
 /*----------------------------------------------------------------------------*/
-std::string
-S3Store::HeadObject (int                                &response_code,
-                     S3Handler                          &s3,
-                     std::map<std::string, std::string> &response_header)
+eos::common::HttpResponse*
+S3Store::HeadBucket (const std::string &id,
+                     const std::string &bucket,
+                     const std::string &date)
 {
-  XrdOucErrInfo error;
-  eos::common::Mapping::VirtualIdentity vid;
-  eos::common::Mapping::Nobody(vid);
+  using namespace eos::common;
+
+  HttpResponse            *response = 0;
+  XrdOucErrInfo            error;
+  Mapping::VirtualIdentity vid;
+  Mapping::Nobody(vid);
+
   int errc = 0;
-  std::string username = s3.getId();
-  uid_t uid = eos::common::Mapping::UserNameToUid(username, errc);
+  std::string username = id;
+  uid_t uid = Mapping::UserNameToUid(username, errc);
   if (errc)
   {
     // error mapping the s3 id to unix id
-    return s3.RestErrorResponse(response_code, 400, "InvalidArgument", "Unable to map bucket id to virtual id!", s3.getId().c_str(), "");
-  }
-
-  // set the bucket id as vid 
-  vid.uid = uid;
-  vid.uid_list.push_back(uid);
-
-  struct stat buf;
-
-  // build the full path for the request
-  std::string objectpath = mS3ContainerPath[s3.getBucket()];
-  if (objectpath[objectpath.length() - 1] == '/')
-  {
-    objectpath.erase(objectpath.length() - 1);
-  }
-  objectpath += s3.getPath();
-
-  // stat this object 
-  if (gOFS->_stat(objectpath.c_str(), &buf, error, vid, (const char*) 0) != SFS_OK)
-  {
-    if (error.getErrInfo() == ENOENT)
-    {
-      return s3.RestErrorResponse(response_code, 404, "NoSuchKey", "Unable stat requested object", s3.getId().c_str(), "");
-    }
-    else
-    {
-      return s3.RestErrorResponse(response_code, 400, "InvalidArgument", "Unable to stat requested object!", s3.getId().c_str(), "");
-    }
-  }
-  else
-  {
-    if (S_ISDIR(buf.st_mode))
-    {
-      return s3.RestErrorResponse(response_code, 404, "NoSuchKey", "Unable stat requested object - is a bucket subdirectory", s3.getId().c_str(), "");
-    }
-    // shift back the inode number to the original file id
-    buf.st_ino >>= 28;
-    std::string sinode;
-    response_header["x-amz-id-2"]       = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino);
-    response_header["x-amz-request-id"] = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino);
-    response_header["x-amz-version-id"] = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino);
-    response_header["Date"]             = s3.getDate();
-    response_header["Last-Modified"]    = eos::common::Timing::UnixTimstamp_to_ISO8601(buf.st_mtime);
-    response_header["ETag"]             = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino);
-    response_header["Content-Length"]   = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_size);
-    response_header["Content-Type"]     = eos::common::HttpResponse::ContentType(s3.getPath());
-    response_header["Connection"]       = "close";
-    response_header["Server"]           = gOFS->HostName;
-    response_code = 200;
-    return "OK";
-  }
-}
-
-/*----------------------------------------------------------------------------*/
-std::string
-S3Store::HeadBucket (int                                &response_code,
-                     S3Handler                          &s3,
-                     std::map<std::string, std::string> &response_header)
-{
-  XrdOucErrInfo error;
-  eos::common::Mapping::VirtualIdentity vid;
-  eos::common::Mapping::Nobody(vid);
-  int errc = 0;
-  std::string username = s3.getId();
-  uid_t uid = eos::common::Mapping::UserNameToUid(username, errc);
-  if (errc)
-  {
-    // error mapping the s3 id to unix id
-    return s3.RestErrorResponse(response_code, 400, "InvalidArgument", "Unable to map bucket id to virtual id!", s3.getId().c_str(), "");
+    return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+                                        "InvalidArgument",
+                                        "Unable to map bucket id to virtual id",
+                                        id.c_str(), "");
   }
 
   // set the bucket id as vid 
@@ -575,58 +521,83 @@ S3Store::HeadBucket (int                                &response_code,
   struct stat buf;
 
   // build the bucket path
-  std::string bucketpath = mS3ContainerPath[s3.getBucket()];
+  std::string bucketpath = mS3ContainerPath[bucket];
 
   // stat this object 
   if (gOFS->_stat(bucketpath.c_str(), &buf, error, vid, (const char*) 0) != SFS_OK)
   {
     if (error.getErrInfo() == ENOENT)
     {
-      return s3.RestErrorResponse(response_code, 404, "NoSuchBucket", "Unable stat requested bucket", s3.getId().c_str(), "");
+      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+                                          "NoSuchBucket",
+                                          "Unable stat requested bucket",
+                                          id.c_str(), "");
     }
     else
     {
-      return s3.RestErrorResponse(response_code, 400, "InvalidArgument", "Unable to stat requested bucket!", s3.getId().c_str(), "");
+      return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+                                          "InvalidArgument",
+                                          "Unable to stat requested bucket!",
+                                          id.c_str(), "");
     }
   }
   else
   {
     if (!S_ISDIR(buf.st_mode))
     {
-      return s3.RestErrorResponse(response_code, 404, "NoSuchBucket", "Unable stat requested object - is an object", s3.getId().c_str(), "");
+      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+                                          "NoSuchBucket",
+                                          "Unable stat requested object - is "
+                                          "an object", id.c_str(), "");
     }
+
+    response = new PlainHttpResponse();
+
     // shift back the inode number to the original file id
     buf.st_ino >>= 28;
     std::string sinode;
-    response_header["x-amz-id-2"] = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino);
-    response_header["x-amz-request-id"] = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino);
-    response_header["Date"] = s3.getDate();
-    response_header["Last-Modified"] = eos::common::Timing::UnixTimstamp_to_ISO8601(buf.st_mtime);
-    response_header["ETag"] = eos::common::StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino);
-    response_header["Connection"] = "Keep-Alive";
-    response_header["Server"] = gOFS->HostName;
-    response_code = 200;
-    return "OK";
+
+    response->AddHeader("x-amz-id-2",
+                        StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino));
+    response->AddHeader("x-amz-request-id",
+                        StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino));
+    response->AddHeader("ETag",
+                        StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino));
+    response->AddHeader("Last-Modified",
+                        Timing::UnixTimstamp_to_ISO8601(buf.st_mtime));
+    response->AddHeader("Date",       date);
+    response->AddHeader("Connection", "Keep-Alive");
+    response->AddHeader("Server",     gOFS->HostName);
+
+    response->SetResponseCode(response->OK);
+    return response;
   }
 }
 
 /*----------------------------------------------------------------------------*/
-std::string
-S3Store::GetObject (int                                &response_code,
-                    S3Handler                          &s3,
-                    std::map<std::string, std::string> &response_header)
+eos::common::HttpResponse*
+S3Store::HeadObject (const std::string &id,
+                     const std::string &bucket,
+                     const std::string &path,
+                     const std::string &date)
 {
-  std::string result;
+  using namespace eos::common;
+
   XrdOucErrInfo error;
-  eos::common::Mapping::VirtualIdentity vid;
-  eos::common::Mapping::Nobody(vid);
+  Mapping::VirtualIdentity vid;
+  Mapping::Nobody(vid);
+  HttpResponse *response = 0;
+
   int errc = 0;
-  std::string username = s3.getId();
-  uid_t uid = eos::common::Mapping::UserNameToUid(username, errc);
+  std::string username = id;
+  uid_t uid = Mapping::UserNameToUid(username, errc);
   if (errc)
   {
     // error mapping the s3 id to unix id
-    return s3.RestErrorResponse(response_code, 400, "InvalidArgument", "Unable to map bucket id to virtual id!", s3.getId().c_str(), "");
+    return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+                                        "InvalidArgument",
+                                        "Unable to map bucket id to virtual id",
+                                        id.c_str(), "");
   }
 
   // set the bucket id as vid 
@@ -636,13 +607,111 @@ S3Store::GetObject (int                                &response_code,
   struct stat buf;
 
   // build the full path for the request
-  std::string objectpath = mS3ContainerPath[s3.getBucket()];
+  std::string objectpath = mS3ContainerPath[bucket];
+  if (objectpath[objectpath.length() - 1] == '/')
+  {
+    objectpath.erase(objectpath.length() - 1);
+  }
+  objectpath += path;
+
+  // stat this object 
+  if (gOFS->_stat(objectpath.c_str(), &buf, error, vid, (const char*) 0) != SFS_OK)
+  {
+    if (error.getErrInfo() == ENOENT)
+    {
+      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+                                          "NoSuchKey",
+                                          "Unable stat requested object",
+                                          id.c_str(), "");
+    }
+    else
+    {
+      return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+                                          "InvalidArgument",
+                                          "Unable to stat requested object!",
+                                          id.c_str(), "");
+    }
+  }
+  else
+  {
+    if (S_ISDIR(buf.st_mode))
+    {
+      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+                                          "NoSuchKey",
+                                          "Unable stat requested object - "
+                                          "is a bucket subdirectory",
+                                          id.c_str(), "");
+    }
+
+    // shift back the inode number to the original file id
+    buf.st_ino >>= 28;
+    std::string sinode;
+
+    response = new PlainHttpResponse();
+    response->AddHeader("x-amz-id-2",
+                        StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino));
+    response->AddHeader("x-amz-request-id",
+                        StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino));
+    response->AddHeader("x-amz-version-id",
+                        StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino));
+    response->AddHeader("ETag",
+                        StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino));
+    response->AddHeader("Content-Length",
+                        StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_size));
+    response->AddHeader("Last-Modified",
+                        Timing::UnixTimstamp_to_ISO8601(buf.st_mtime));
+    response->AddHeader("Date",         date);
+    response->AddHeader("Content-Type", HttpResponse::ContentType(path));
+    response->AddHeader("Connection",   "close");
+    response->AddHeader("Server",       gOFS->HostName);
+
+    response->SetResponseCode(response->OK);
+    return response;
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+eos::common::HttpResponse*
+S3Store::GetObject (eos::common::HttpRequest *request,
+                    const std::string        &id,
+                    const std::string        &bucket,
+                    const std::string        &path,
+                    const std::string        &query)
+{
+  using namespace eos::common;
+
+  std::string result;
+  XrdOucErrInfo error;
+  Mapping::VirtualIdentity vid;
+  Mapping::Nobody(vid);
+  HttpResponse *response = 0;
+
+  int errc = 0;
+  std::string username = id;
+  uid_t uid = Mapping::UserNameToUid(username, errc);
+  if (errc)
+  {
+    // error mapping the s3 id to unix id
+    return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+                                        "InvalidArgument",
+                                        "Unable to map bucket id to virtual id",
+                                        id.c_str(), "");
+  }
+
+  // set the bucket id as vid 
+  vid.uid = uid;
+  vid.uid_list.push_back(uid);
+
+  struct stat buf;
+
+  // build the full path for the request
+  std::string objectpath = mS3ContainerPath[bucket];
   if (objectpath[objectpath.length() - 1] == '/')
   {
     objectpath.erase(objectpath.length() - 1);
   }
 
-  objectpath += s3.getPath();
+  objectpath += path;
 
   // evalutate If-XX requests
 
@@ -652,24 +721,27 @@ S3Store::GetObject (int                                &response_code,
   unsigned long long inode_match = 0;
   unsigned long long inode_none_match = 0;
 
-  if (response_header.count("If-Modified-Since"))
+  if (request->GetHeaders().count("If-Modified-Since"))
   {
-    modified_since = eos::common::Timing::ISO8601_to_UnixTimestamp(response_header["If-Modified-Since"]);
+    modified_since = Timing::ISO8601_to_UnixTimestamp(request->GetHeaders()
+                                                      ["If-Modified-Since"]);
   }
 
-  if (response_header.count("If-Unmodified-Since"))
+  if (request->GetHeaders().count("If-Unmodified-Since"))
   {
-    modified_since = eos::common::Timing::ISO8601_to_UnixTimestamp(response_header["If-Unmodified-Since"]);
+    modified_since = Timing::ISO8601_to_UnixTimestamp(request->GetHeaders()
+                                                      ["If-Unmodified-Since"]);
   }
 
-  if (response_header.count("If-Match"))
+  if (request->GetHeaders().count("If-Match"))
   {
-    inode_match = strtoull(response_header["If-Match"].c_str(), 0, 10);
+    inode_match = strtoull(request->GetHeaders()["If-Match"].c_str(), 0, 10);
   }
 
-  if (response_header.count("If-None-Match"))
+  if (request->GetHeaders().count("If-None-Match"))
   {
-    inode_none_match = strtoull(response_header["If-None-Match"].c_str(), 0, 10);
+    inode_none_match = strtoull(request->GetHeaders()["If-None-Match"].c_str(),
+                                0, 10);
   }
 
   // stat this object 
@@ -677,11 +749,17 @@ S3Store::GetObject (int                                &response_code,
   {
     if (error.getErrInfo() == ENOENT)
     {
-      return s3.RestErrorResponse(response_code, 404, "NoSuchKey", "Unable stat requested object", s3.getId().c_str(), "");
+      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+                                          "NoSuchKey",
+                                          "Unable stat requested object",
+                                          id.c_str(), "");
     }
     else
     {
-      return s3.RestErrorResponse(response_code, 400, "InvalidArgument", "Unable to stat requested object!", s3.getId().c_str(), "");
+      return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+                                          "InvalidArgument",
+                                          "Unable to stat requested object!",
+                                          id.c_str(), "");
     }
   }
   else
@@ -689,103 +767,148 @@ S3Store::GetObject (int                                &response_code,
     // check if modified since was asked
     if (modified_since && (buf.st_mtime <= modified_since))
     {
-      return s3.RestErrorResponse(response_code, 412, "PreconditionFailed", "Object was not modified since specified time!", s3.getPath().c_str(), "");
+      return S3Handler::RestErrorResponse(response->PRECONDITION_FAILED,
+                                          "PreconditionFailed",
+                                          "Object was not modified since "
+                                          "specified time!", path.c_str(), "");
     }
 
     // check if unmodified since was asekd
     if (unmodified_since && (buf.st_mtime != unmodified_since))
     {
-      return s3.RestErrorResponse(response_code, 304, "NotModified", "Object was modified since specified time!", s3.getPath().c_str(), "");
+      return S3Handler::RestErrorResponse(response->NOT_MODIFIED,
+                                          "NotModified",
+                                          "Object was modified since specified "
+                                          "time!", path.c_str(), "");
 
     }
 
     // check if the matching inode was given
     if (inode_match && (buf.st_ino != inode_match))
     {
-      return s3.RestErrorResponse(response_code, 412, "PreconditionFailed", "Object was modified!", s3.getPath().c_str(), "");
+      return S3Handler::RestErrorResponse(response->PRECONDITION_FAILED,
+                                          "PreconditionFailed",
+                                          "Object was modified!",
+                                          path.c_str(), "");
     }
 
     // check if a non matching inode was given
     if (inode_none_match && (buf.st_ino == inode_none_match))
     {
-      return s3.RestErrorResponse(response_code, 304, "NotModified", "Object was not modified!", s3.getPath().c_str(), "");
+      return S3Handler::RestErrorResponse(response->NOT_MODIFIED,
+                                          "NotModified",
+                                          "Object was not modified!",
+                                          path.c_str(), "");
     }
 
     if (S_ISDIR(buf.st_mode))
     {
-      return s3.RestErrorResponse(response_code, 404, "NoSuchKey", "Unable stat requested object - is a bucket subdirectory", s3.getId().c_str(), "");
+      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+                                          "NoSuchKey",
+                                          "Unable stat requested object - is a "
+                                          "bucket subdirectory", id.c_str(), "");
     }
 
     // FILE requests
-    XrdSfsFile* file = gOFS->newFile((char*) s3.getId().c_str());
+    XrdSfsFile* file = gOFS->newFile((char*) id.c_str());
 
     if (file)
     {
       XrdSecEntity client("unix");
-
-      client.name = strdup(s3.getId().c_str());
-      client.host = strdup(s3.getHost().c_str());
+      client.name = strdup(id.c_str());
+      client.host = strdup(request->GetHeaders()["Host"].c_str());
       client.tident = strdup("http");
-      int rc = file->open(objectpath.c_str(), 0, 0, &client, response_header["Query"].c_str());
+
+      int rc = file->open(objectpath.c_str(), 0, 0, &client, query.c_str());
       if (rc == SFS_REDIRECT)
       {
-
         // the embedded server on FSTs is hardcoded to run on port 8001
-        eos::common::HttpResponse *response;
-        response = eos::common::HttpServer::HttpRedirect(objectpath,
-                                                         file->error.getErrText(),
-                                                         8001, false);
+        response = HttpServer::HttpRedirect(objectpath,
+                                            file->error.getErrText(),
+                                            8001, false);
 
-        response_header = response->GetHeaders();
-        response_header["x-amz-website-redirect-location"] = response_header["Location"];
-        response_code = response->GetResponseCode();
-        delete response;
+        response->AddHeader("x-amz-website-redirect-location",
+                            response->GetHeaders()["Location"]);
+
+        std::string body = XML_V1_UTF8;
+        body += "<Error>"
+                "<Code>TemporaryRedirect</Code>"
+                "<Message>Please re-send this request to the specified temporary "
+                "endpoint. Continue to use the original request endpoint for "
+                "future requests.</Message>"
+                "<Endpoint>";
+        body += response->GetHeaders()["Location"];
+        body += "</Endpoint>"
+                "</Error>";
+        response->SetBody(body);
+        eos_static_info("\n\n%s\n\n", response->GetBody().c_str());
       }
-      else
-        if (rc == SFS_ERROR)
+
+      else if (rc == SFS_ERROR)
       {
         if (file->error.getErrInfo() == ENOENT)
         {
-          result = s3.RestErrorResponse(response_code, 404, "NoSuchKey", "The specified key does not exist", s3.getPath(), "");
+          response = S3Handler::RestErrorResponse(response->NOT_FOUND,
+                                                "NoSuchKey",
+                                                "The specified key does not exist",
+                                                path, "");
+        }
+        else if (file->error.getErrInfo() == EPERM)
+        {
+          response = S3Handler::RestErrorResponse(response->FORBIDDEN,
+                                                 "AccessDenied",
+                                                 "Access Denied",
+                                                 path, "");
         }
         else
-          if (file->error.getErrInfo() == EPERM)
         {
-          result = s3.RestErrorResponse(response_code, 403, "AccessDenied", "Access Denied", s3.getPath(), "");
-        }
-        else
-        {
-          result = s3.RestErrorResponse(response_code, 500, "Internal Error", "File currently unavailable", s3.getPath(), "");
+          response = S3Handler::RestErrorResponse(response->INTERNAL_SERVER_ERROR,
+                                                 "Internal Error",
+                                                 "File currently unavailable",
+                                                 path, "");
         }
       }
       else
       {
-        result = s3.RestErrorResponse(response_code, 500, "Internal Error", "File not accessible in this way", s3.getPath(), "");
+        response = S3Handler::RestErrorResponse(response->INTERNAL_SERVER_ERROR,
+                                               "Internal Error",
+                                               "File not accessible in this way",
+                                               path, "");
       }
+
       // clean up the object
       delete file;
     }
   }
-  return result;
+  return response;
 }
 
 /*----------------------------------------------------------------------------*/
-std::string
-S3Store::PutObject (int                                &response_code,
-                    S3Handler                          &s3,
-                    std::map<std::string, std::string> &response_header)
+eos::common::HttpResponse*
+S3Store::PutObject (eos::common::HttpRequest *request,
+                    const std::string        &id,
+                    const std::string        &bucket,
+                    const std::string        &path,
+                    const std::string        &query)
 {
+  using namespace eos::common;
+
   std::string result;
   XrdOucErrInfo error;
-  eos::common::Mapping::VirtualIdentity vid;
-  eos::common::Mapping::Nobody(vid);
+  Mapping::VirtualIdentity vid;
+  Mapping::Nobody(vid);
+  HttpResponse *response = 0;
+
   int errc = 0;
-  std::string username = s3.getId();
-  uid_t uid = eos::common::Mapping::UserNameToUid(username, errc);
+  std::string username = id;
+  uid_t uid = Mapping::UserNameToUid(username, errc);
   if (errc)
   {
     // error mapping the s3 id to unix id
-    return s3.RestErrorResponse(response_code, 400, "InvalidArgument", "Unable to map bucket id to virtual id!", s3.getId().c_str(), "");
+    return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+                                        "InvalidArgument",
+                                        "Unable to map bucket id to virtual id",
+                                        id.c_str(), "");
   }
 
   // set the bucket id as vid 
@@ -793,61 +916,178 @@ S3Store::PutObject (int                                &response_code,
   vid.uid_list.push_back(uid);
 
   // build the full path for the request
-  std::string objectpath = mS3ContainerPath[s3.getBucket()];
+  std::string objectpath = mS3ContainerPath[bucket];
   if (objectpath[objectpath.length() - 1] == '/')
   {
     objectpath.erase(objectpath.length() - 1);
   }
 
-  objectpath += s3.getPath();
+  objectpath += path;
 
   // FILE requests
-  XrdSfsFile* file = gOFS->newFile((char*) s3.getId().c_str());
+  XrdSfsFile* file = gOFS->newFile((char*) id.c_str());
 
   if (file)
   {
     XrdSecEntity client("unix");
-
-    client.name = strdup(s3.getId().c_str());
-    client.host = strdup(s3.getHost().c_str());
+    client.name = strdup(id.c_str());
+    client.host = strdup(request->GetHeaders()["Host"].c_str());
     client.tident = strdup("http");
-    int rc = file->open(objectpath.c_str(), SFS_O_TRUNC, SFS_O_MKPTH, &client, response_header["Query"].c_str());
+
+    int rc = file->open(objectpath.c_str(), SFS_O_TRUNC, SFS_O_MKPTH, &client,
+                        query.c_str());
     if (rc == SFS_REDIRECT)
     {
 
       // the embedded server on FSTs is hardcoded to run on port 8001
-      eos::common::HttpResponse *response;
-      response = eos::common::HttpServer::HttpRedirect(objectpath,
-                                                       file->error.getErrText(),
-                                                       8001, false);
+      response = HttpServer::HttpRedirect(objectpath,
+                                          file->error.getErrText(),
+                                          8001, false);
 
-      response_header = response->GetHeaders();
-      response_header["x-amz-website-redirect-location"] = response_header["Location"];
-      response_code = response->GetResponseCode();
-      delete response;
+      response->AddHeader("x-amz-website-redirect-location",
+                          response->GetHeaders()["Location"]);
+      std::string body = XML_V1_UTF8;
+      body += "<Error>"
+              "<Code>TemporaryRedirect</Code>"
+              "<Message>Please re-send this request to the specified temporary "
+              "endpoint. Continue to use the original request endpoint for "
+              "future requests.</Message>"
+              "<Endpoint>";
+      body += response->GetHeaders()["Location"];
+      body += "</Endpoint>"
+              "</Error>";
+      response->SetBody(body);
+      eos_static_info("\n\n%s\n\n", response->GetBody().c_str());
     }
     else
       if (rc == SFS_ERROR)
     {
       if (file->error.getErrInfo() == EPERM)
       {
-        result = s3.RestErrorResponse(response_code, 403, "AccessDenied", "Access Denied", s3.getPath(), "");
+        response = S3Handler::RestErrorResponse(response->FORBIDDEN,
+                                                "AccessDenied",
+                                                "Access Denied",
+                                                path, "");
       }
       else
       {
-        result = s3.RestErrorResponse(response_code, 500, "Internal Error", "File creation currently unavailable", s3.getPath(), "");
+        response = S3Handler::RestErrorResponse(response->INTERNAL_SERVER_ERROR,
+                                                "Internal Error",
+                                                "File creation currently "
+                                                "unavailable", path, "");
       }
     }
     else
     {
-      result = s3.RestErrorResponse(response_code, 500, "Internal Error", "File not accessible in this way", s3.getPath(), "");
+      response = S3Handler::RestErrorResponse(response->INTERNAL_SERVER_ERROR,
+                                              "Internal Error",
+                                              "File not accessible in this way",
+                                              path, "");
     }
+
     // clean up the object
     delete file;
   }
-  return result;
+  return response;
 }
 
+/*----------------------------------------------------------------------------*/
+eos::common::HttpResponse*
+S3Store::DeleteObject (eos::common::HttpRequest *request,
+                       const std::string        &id,
+                       const std::string        &bucket,
+                       const std::string        &path)
+{
+  using namespace eos::common;
+
+  XrdOucErrInfo error;
+  Mapping::VirtualIdentity vid;
+  Mapping::Nobody(vid);
+  HttpResponse *response = 0;
+
+  int errc = 0;
+  std::string username = id;
+  uid_t uid = Mapping::UserNameToUid(username, errc);
+  if (errc)
+  {
+    // error mapping the s3 id to unix id
+    return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+                                        "InvalidArgument",
+                                        "Unable to map bucket id to virtual id",
+                                        id.c_str(), "");
+  }
+
+  // set the bucket id as vid
+  vid.uid = uid;
+  vid.uid_list.push_back(uid);
+
+  struct stat buf;
+
+  // build the full path for the request
+  std::string objectpath = mS3ContainerPath[bucket];
+  if (objectpath[objectpath.length() - 1] == '/')
+  {
+    objectpath.erase(objectpath.length() - 1);
+  }
+  objectpath += path;
+
+  // stat this object
+  if (gOFS->_stat(objectpath.c_str(), &buf, error, vid, (const char*) 0) != SFS_OK)
+  {
+    if (error.getErrInfo() == ENOENT)
+    {
+      return S3Handler::RestErrorResponse(response->NOT_FOUND,
+                                          "NoSuchKey",
+                                          "Unable to delete requested object",
+                                          id.c_str(), "");
+    }
+    else
+    {
+      return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+                                          "InvalidArgument",
+                                          "Unable to delete requested object",
+                                          id.c_str(), "");
+    }
+  }
+  else
+  {
+    XrdOucString info = "mgm.cmd=rm&mgm.path=";
+    info += objectpath.c_str();
+    if (S_ISDIR(buf.st_mode)) info += "&mgm.option=r";
+
+    ProcCommand cmd;
+    cmd.open("/proc/user", info.c_str(), vid, &error);
+    cmd.close();
+    int rc = cmd.GetRetc();
+
+    if (rc != SFS_OK)
+    {
+      if (error.getErrInfo() == EPERM)
+      {
+        return S3Handler::RestErrorResponse(response->FORBIDDEN,
+                                            "AccessDenied",
+                                            "Access Denied",
+                                            path, "");
+      }
+      else
+      {
+        return S3Handler::RestErrorResponse(response->BAD_REQUEST,
+                                            "InvalidArgument",
+                                            "Unable to delete requested object",
+                                            id.c_str(), "");
+      }
+    }
+    else
+    {
+      response = new eos::common::PlainHttpResponse();
+      response->AddHeader("Connection", "close");
+      response->AddHeader("Server",     gOFS->HostName);
+      response->SetResponseCode(response->NO_CONTENT);
+    }
+  }
+
+  return response;
+}
 
 EOSMGMNAMESPACE_END
 

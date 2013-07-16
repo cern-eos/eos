@@ -28,13 +28,13 @@
  *        and their mapping to the real namespace
  */
 
-#ifndef __EOSMGM_S3Store__HH__
-#define __EOSMGM_S3Store__HH__
+#ifndef __EOSMGM_S3STORE__HH__
+#define __EOSMGM_S3STORE__HH__
 
 /*----------------------------------------------------------------------------*/
-#include "mgm/http/s3/S3Handler.hh"
-#include "mgm/Namespace.hh"
+#include "common/http/HttpResponse.hh"
 #include "common/RWMutex.hh"
+#include "mgm/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 #include <map>
@@ -43,8 +43,6 @@
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
-
-class S3Handler;
 
 class S3Store
 {
@@ -75,101 +73,116 @@ public:
   /**
    * Refresh function to reload keys from the namespace definition
    */
-  void Refresh ();
-
-
-  /**
-   * Verify S3 request
-   *
-   * @param S3 object containing S3 id & key
-   *
-   * @return true if signature ok, false otherwise
-   */
-  bool VerifySignature (S3Handler &s3);
+  void
+  Refresh ();
 
   /**
-   * Get a list of all buckets for a given S3 requester
-   *
-   * @param response_code  return of HTTP response code (only modified in case
-   *                       of errors)
-   * @param s3             object containing s3 id & key
-   * @param header         http response headers
-   *
-   * @return XML bucket list
+   * @return map pointing from user name to user secret key
    */
-  std::string ListBuckets (int                                &response_code,
-                           S3Handler                          &s3,
-                           std::map<std::string, std::string> &header);
+  inline std::map<std::string, std::string>&
+  GetKeys () { return mS3Keys; };
+
+  /**
+   * Get a list of all buckets for a given S3 request
+   *
+   * @param id  the S3 id of the client
+   *
+   * @return S3 HTTP response object
+   */
+  eos::common::HttpResponse*
+  ListBuckets (const std::string &id);
 
   /**
    * Get a bucket listing for a given S3 bucket
    *
-   * @param response_code  return of HTTP response code (only modified in case
-   *                       of errors)
-   * @param s3             object containing s3 id & key
-   * @param header         http response headers
+   * @param bucket  the name of the bucket to list
+   * @param query   the client request query string
    *
-   * @return XML bucket list
+   * @return S3 HTTP response object
    */
-  std::string ListBucket (int                                &response_code,
-                          S3Handler                          &s3,
-                          std::map<std::string, std::string> &header);
+  eos::common::HttpResponse*
+  ListBucket (const std::string &bucket, const std::string &query);
 
   /**
    * Head a bucket (acts like stat on a bucket)
    *
-   * @param response_code  return of HTTP response code (only modified in case
-   *                       of errors)
-   * @param s3             object containing s3 id & key
-   * @param header         http response headers
+   * @param id      the S3 id of the client
+   * @param bucket  the name of the bucket to head
+   * @param date    the request x-amz-date header
    *
-   * @return XML bucket list
+   * @return S3 HTTP response object
    */
-  std::string HeadBucket (int                                &response_code,
-                          S3Handler                          &s3,
-                          std::map<std::string, std::string> &header);
+  eos::common::HttpResponse*
+  HeadBucket (const std::string &id,
+              const std::string &bucket,
+              const std::string &date);
 
   /**
    * Get metadata for an object
    *
-   * @param response_code  return of HTTP response code (only modified in case
-   *                       of errors)
-   * @param s3             object containing s3 id & key
-   * @param header         http response headers
+   * @param id      the S3 id of the client
+   * @param bucket  the name of the bucket to head
+   * @param path    the request path
+   * @param date    the request x-amz-date header
    *
-   * @return XML bucket list
+   * @return S3 HTTP response object
    */
-  std::string HeadObject (int                                &response_code,
-                          S3Handler                          &s3,
-                          std::map<std::string, std::string> &header);
+  eos::common::HttpResponse*
+  HeadObject (const std::string &id,
+              const std::string &bucket,
+              const std::string &path,
+              const std::string &date);
 
   /**
    * Get an object (redirection)
    *
-   * @param response_code  return of HTTP response code (only modified in case
-   *                       of errors)
-   * @param s3             object containing s3 id & key
-   * @param header         http response headers
+   * @param request  the client request object
+   * @param id       the S3 id of the client
+   * @param bucket   the name of the bucket to head
+   * @param path     the request path
+   * @param date     the request x-amz-date header
    *
-   * @return XML bucket list
+   * @return S3 HTTP response object
    */
-  std::string GetObject (int                                &response_code,
-                         S3Handler                          &s3,
-                         std::map<std::string, std::string> &header);
+  eos::common::HttpResponse*
+  GetObject (eos::common::HttpRequest *request,
+             const std::string        &id,
+             const std::string        &bucket,
+             const std::string        &path,
+             const std::string        &query);
 
   /**
    * Create a new object (redirection)
    *
-   * @param response_code  return of HTTP response code (only modified in case
-   *                       of errors)
-   * @param s3             object containing s3 id & key
-   * @param header         http response headers
+   * @param request  the client request object
+   * @param id       the S3 id of the client
+   * @param bucket   the name of the bucket to head
+   * @param path     the request path
+   * @param date     the request x-amz-date header
    *
-   * @return XML bucket list
+   * @return S3 HTTP response object
    */
-  std::string PutObject (int                                &response_code,
-                         S3Handler                          &s3,
-                         std::map<std::string, std::string> &header);
+  eos::common::HttpResponse*
+  PutObject (eos::common::HttpRequest *request,
+             const std::string        &id,
+             const std::string        &bucket,
+             const std::string        &path,
+             const std::string        &query);
+
+  /**
+   * Delete an object from a bucket
+   *
+   * @param id      the S3 id of the client
+   * @param bucket  the name of the bucket to head
+   * @param path    the request path
+   *
+   * @return S3 HTTP response object
+   */
+  eos::common::HttpResponse*
+  DeleteObject (eos::common::HttpRequest *request,
+                const std::string        &id,
+                const std::string        &bucket,
+                const std::string        &path);
 
 };
 

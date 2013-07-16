@@ -177,6 +177,8 @@ HttpServer::Handler (void                  *cls,
     int ret = MHD_queue_response(connection, response->GetResponseCode(),
                                  mhdResponse);
     eos_static_info("MHD_queue_response ret=%d", ret);
+    MHD_destroy_response(mhdResponse);
+    delete protocolHandler;
     return ret;
   }
   else
@@ -203,109 +205,106 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
   {
     eos_static_info("msg=client supplied neither SSL_CLIENT_S_DN nor "
                     "Remote-User headers");
-    return NULL;
   }
-
-  // Stat the gridmap file
-  struct stat info;
-  if (stat("/etc/grid-security/grid-mapfile", &info) == -1)
+  else
   {
-    eos_static_err("error stat'ing gridmap file: %s", strerror(errno));
-    return NULL;
-  }
-
-  // Initially load the file, or reload it if it was modified
-  if (!mGridMapFileLastModTime.tv_sec ||
-       mGridMapFileLastModTime.tv_sec != info.st_mtim.tv_sec)
-  {
-    eos_static_info("msg=reloading gridmap file");
-
-    std::ifstream in("/etc/grid-security/grid-mapfile");
-    std::stringstream buffer;
-    buffer << in.rdbuf();
-    mGridMapFile = buffer.str();
-    mGridMapFileLastModTime = info.st_mtim;
-    in.close();
-  }
-
-  // Process each mapping
-  std::vector<std::string> mappings;
-  eos::common::StringConversion::Tokenize(mGridMapFile, mappings, "\n");
-
-  bool match = false;
-  for (auto it = mappings.begin(); it != mappings.end(); ++it)
-  {
-    eos_static_debug("grid mapping: %s", (*it).c_str());
-
-    // Split off the last whitespace-separated token (i.e. username)
-    pos = (*it).find_last_of(" \t");
-    if (pos == string::npos)
+    // Stat the gridmap file
+    struct stat info;
+    if (stat("/etc/grid-security/grid-mapfile", &info) == -1)
     {
-      eos_static_err("msg=malformed gridmap file");
+      eos_static_err("error stat'ing gridmap file: %s", strerror(errno));
       return NULL;
     }
 
-    dn       = (*it).substr(1, pos - 2); // Remove quotes around DN
-    username = (*it).substr(pos + 1);
-    eos_static_debug(" dn:       %s", dn.c_str());
-    eos_static_debug(" username: %s", username.c_str());
-
-    // Try to match with SSL header
-    if (dn == clientDN)
+    // Initially load the file, or reload it if it was modified
+    if (!mGridMapFileLastModTime.tv_sec ||
+         mGridMapFileLastModTime.tv_sec != info.st_mtim.tv_sec)
     {
-      eos_static_info("msg=mapped client certificate successfully dn=%s "
-                      "username=%s", dn.c_str(), username.c_str());
-      match = true;
-      break;
+      eos_static_info("msg=reloading gridmap file");
+
+      std::ifstream in("/etc/grid-security/grid-mapfile");
+      std::stringstream buffer;
+      buffer << in.rdbuf();
+      mGridMapFile = buffer.str();
+      mGridMapFileLastModTime = info.st_mtim;
+      in.close();
     }
 
-    // Try to match with kerberos username
-    pos = remoteUser.find_last_of("@");
-    std::string remoteUserName = remoteUser.substr(0, pos);
+    // Process each mapping
+    std::vector<std::string> mappings;
+    eos::common::StringConversion::Tokenize(mGridMapFile, mappings, "\n");
 
-    std::vector<std::string> tokens;
-    eos::common::StringConversion::Tokenize(dn, tokens, "/");
-
-    for (auto it = tokens.begin(); it != tokens.end(); ++it)
+    for (auto it = mappings.begin(); it != mappings.end(); ++it)
     {
-      eos_static_debug("dn token=%s", (*it).c_str());
+      eos_static_debug("grid mapping: %s", (*it).c_str());
 
-      pos            = (*it).find_last_of("=");
-      std::string cn = (*it).substr(pos + 1);
-      eos_static_debug("cn=%s", cn.c_str());
-
-      if (cn == remoteUserName)
+      // Split off the last whitespace-separated token (i.e. username)
+      pos = (*it).find_last_of(" \t");
+      if (pos == string::npos)
       {
-        username = (*it).substr(pos + 1);
-        eos_static_info("msg=mapped client krb5 username successfully "
-                        "username=%s", username.c_str());
-        match = true;
+        eos_static_err("msg=malformed gridmap file");
+        return NULL;
+      }
+
+      dn       = (*it).substr(1, pos - 2); // Remove quotes around DN
+      username = (*it).substr(pos + 1);
+      eos_static_debug(" dn:       %s", dn.c_str());
+      eos_static_debug(" username: %s", username.c_str());
+
+      // Try to match with SSL header
+      if (dn == clientDN)
+      {
+        eos_static_info("msg=mapped client certificate successfully dn=%s "
+                        "username=%s", dn.c_str(), username.c_str());
         break;
+      }
+
+      // Try to match with kerberos username
+      pos = remoteUser.find_last_of("@");
+      std::string remoteUserName = remoteUser.substr(0, pos);
+
+      std::vector<std::string> tokens;
+      eos::common::StringConversion::Tokenize(dn, tokens, "/");
+
+      for (auto it = tokens.begin(); it != tokens.end(); ++it)
+      {
+        eos_static_debug("dn token=%s", (*it).c_str());
+
+        pos            = (*it).find_last_of("=");
+        std::string cn = (*it).substr(pos + 1);
+        eos_static_debug("cn=%s", cn.c_str());
+
+        if (cn == remoteUserName)
+        {
+          username = (*it).substr(pos + 1);
+          eos_static_info("msg=mapped client krb5 username successfully "
+                          "username=%s", username.c_str());
+          break;
+        }
       }
     }
   }
 
-  // If we found a match, make a virtual identity
-  if (match)
-  {
-    vid = new eos::common::Mapping::VirtualIdentity();
-    eos::common::Mapping::getPhysicalIds(username.c_str(), *vid);
-
-    vid->dn     = dn;
-    vid->name   = XrdOucString(username.c_str());
-    vid->host   = headers["Host"];
-    vid->tident = "dummy.0:0@localhost";
-    vid->prot   = "http";
-
-    return vid;
-  }
-  else
+  if (username.empty())
   {
     eos_static_info("msg=client not authenticated with certificate or kerberos "
                     "SSL_CLIENT_S_DN=%s, Remote-User=%s", clientDN.c_str(),
                     remoteUser.c_str());
-    return NULL;
+    eos_static_info("msg=mapping user to \"nobody\"");
+    username = "nobody";
   }
+
+  // Make a virtual identity object
+  vid = new eos::common::Mapping::VirtualIdentity();
+  eos::common::Mapping::getPhysicalIds(username.c_str(), *vid);
+
+  vid->dn     = dn;
+  vid->name   = XrdOucString(username.c_str());
+  vid->host   = headers["Host"];
+  vid->tident = "dummy.0:0@localhost";
+  vid->prot   = "http";
+
+  return vid;
 }
 
 /*----------------------------------------------------------------------------*/

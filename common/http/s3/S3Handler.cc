@@ -198,12 +198,12 @@ S3Handler::Print (std::string & out)
 
 /*----------------------------------------------------------------------------*/
 std::string
-S3Handler::extractSubResource ()
+S3Handler::ExtractSubResource ()
 {
   // Extract everything from the query which is a sub-resource aka used for
   // signatures
   std::vector<std::string> srvec;
-  eos::common::StringConversion::Tokenize(getQuery(), srvec, "&");
+  eos::common::StringConversion::Tokenize(GetQuery(), srvec, "&");
   for (auto it = srvec.begin(); it != srvec.end(); it++)
   {
     std::string key;
@@ -240,50 +240,6 @@ S3Handler::extractSubResource ()
     mSubResource += it->second;
   }
   return mSubResource;
-}
-
-/*----------------------------------------------------------------------------*/
-bool
-S3Handler::VerifySignature (std::string secure_key)
-{
-  std::string string2sign = getHttpMethod();
-  string2sign += "\n";
-  string2sign += getContentMD5();
-  string2sign += "\n";
-  string2sign += getContentType();
-  string2sign += "\n";
-  string2sign += getDate();
-  string2sign += "\n";
-  string2sign += getCanonicalizedAmzHeaders();
-
-
-  if (getBucket().length())
-  {
-    string2sign += "/";
-    string2sign += getBucket();
-  };
-
-  string2sign += getPath();
-
-  if (extractSubResource().length())
-  {
-    string2sign += "?";
-    string2sign += getSubResource();
-  }
-
-  eos_static_info("s2sign=%s key=%s", string2sign.c_str(), secure_key.c_str());
-
-  // get hmac sha1 hash
-  std::string hmac1 = eos::common::SymKey::HmacSha1(secure_key,
-                                                    string2sign);
-
-  XrdOucString b64mac1;
-  // base64 encode the hash
-  eos::common::SymKey::Base64Encode((char*) hmac1.c_str(), hmac1.size(), b64mac1);
-  std::string verify_signature = b64mac1.c_str();
-  eos_static_info("in_signature=%s out_signature=%s\n",
-                  getSignature().c_str(), verify_signature.c_str());
-  return (verify_signature == getSignature());
 }
 
 /*----------------------------------------------------------------------------*/

@@ -104,16 +104,37 @@ public:
   HandleRequest (eos::common::HttpRequest *request);
 
   /**
+   * Make a collection (create a directory). If any of the parent directories
+   * do not exist, the response will be a failure, as WebDAV is not supposed
+   * to create intermediate directories.
    *
+   * @param request  the client request object
+   *
+   * @return the response object
    */
   eos::common::HttpResponse*
   MkCol (eos::common::HttpRequest *request);
 
   /**
+   * Move a resource (file or directory). If the "Overwrite" header is set to
+   * "T" and the target exists, the target will be overwritten.
    *
+   * @param request  the client request object
+   *
+   * @return the response object
    */
   eos::common::HttpResponse*
   Move (eos::common::HttpRequest *request);
+
+  /**
+   * Copy a resource (file or directory).
+   *
+   * @param request  the client request object
+   *
+   * @return the response object
+   */
+  eos::common::HttpResponse*
+  Copy (eos::common::HttpRequest *request);
 
   /**
    * Convert the given request method string into its integer constant
