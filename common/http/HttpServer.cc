@@ -87,7 +87,7 @@ HttpServer::Run ()
     // Delay to make sure xrootd is configured before serving
     XrdSysTimer::Snooze(1);
 
-    mDaemon = MHD_start_daemon(MHD_USE_DEBUG | MHD_USE_SELECT_INTERNALLY,
+    mDaemon = MHD_start_daemon(MHD_USE_DEBUG,
                                mPort,
                                NULL,
                                NULL,
