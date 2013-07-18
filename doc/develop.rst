@@ -3,6 +3,9 @@
 Develop
 =======================
 
+
+Source Code
+-------------------
 For development clone the GIT source tree ...
 
 .. code-block:: bash
@@ -17,14 +20,10 @@ Create a build directory ...
    mkdir build
    cd build
 
-Run *cmake* ...
 
-.. code-block:: bash
-
-   cmake ../
-
-
-.. warning:: Before you can compile you have to make sure that you installed the packaged listed in the following table!
+Dependencies
+----------------
+.. warning:: Before compilation you have to make sure that you installed the packaged listed in the following table ...
 
 .. epigraph::
 
@@ -50,6 +49,15 @@ Run *cmake* ...
    git                              default                        
    cmake                            2.8                           
    ===============================  =========
+
+Compilation
+-----------
+Run *cmake* ...
+
+.. code-block:: bash
+
+   cmake ../
+
 
 Compile the project ...
 
