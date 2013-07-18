@@ -267,9 +267,21 @@ com_cp (char* argin)
   if (!recursive)
   {
     source_find_list = source_list;
+
     source_list.clear();
+
     for (size_t l = 0; l < source_find_list.size(); l++)
     {
+      XrdOucString source_opaque;
+      int opos = source_find_list[l].find("?");
+      if (opos != STR_NPOS) 
+      {
+	source_opaque = source_find_list[l];
+	source_opaque.erase(0,opos+1);
+	source_find_list[l].erase(opos);
+      }
+
+
       if (((source_find_list[l].beginswith("http:")) ||
            (source_find_list[l].beginswith("gsiftp:"))) &&
           (source_find_list[l].endswith("/")))
@@ -344,6 +356,11 @@ com_cp (char* argin)
         {
           std::string fullpath = dname;
           fullpath += f2c;
+	  if (source_opaque.length()) 
+          {
+	    fullpath += "?";
+	    fullpath += source_opaque.c_str();
+	  }
           if (debug) fprintf(stdout, "[eos-cp] add file %s\n", fullpath.c_str());
           source_list.push_back(fullpath.c_str());
         }
@@ -359,9 +376,17 @@ com_cp (char* argin)
   {
     // use find to get a file list
     source_find_list = source_list;
+
     source_list.clear();
     for (size_t nfile = 0; nfile < source_find_list.size(); nfile++)
     {
+      XrdOucString source_opaque;
+      int opos = source_find_list[nfile].find("?");
+      if (opos != STR_NPOS) {
+	source_opaque = source_find_list[nfile];
+	source_opaque.erase(0,opos+1);
+	source_find_list[nfile].erase(opos);
+      }
       if (!source_find_list[nfile].beginswith("as3:"))
       {
         if (!source_find_list[nfile].endswith("/"))
@@ -398,6 +423,7 @@ com_cp (char* argin)
       l += source_find_list[nfile];
 
       l += " 2> /dev/null";
+
       if (debug) fprintf(stderr, "[eos-cp] running %s\n", l.c_str());
       FILE* fp = popen(l.c_str(), "r");
       if (!fp)
@@ -415,6 +441,10 @@ com_cp (char* argin)
           if (debug) fprintf(stdout, "[eos-cp] add file %s\n", f2c);
           XrdOucString sf2c = f2c;
           sf2c.insert(sourceprefix, 0);
+	  if (source_opaque.length()) {
+	    sf2c += "?";
+	    sf2c += source_opaque;
+	  }
           source_list.push_back(sf2c.c_str());
           source_base_list.push_back(source_find_list[nfile]);
         }
@@ -818,7 +848,7 @@ com_cp (char* argin)
       {
         arg2 += "&";
       }
-      snprintf(targetadd, sizeof (targetadd) - 1, "eos.targetsize=%llu&eos.bookingsize=%llu", source_size[nfile], source_size[nfile]);
+      snprintf(targetadd, sizeof (targetadd) - 1, "eos.targetsize=%llu&eos.bookingsize=%llu&eos.app=eoscp", source_size[nfile], source_size[nfile]);
       arg2.append(targetadd);
       // put the proper role switches
       if (user_role.length() && group_role.length())
@@ -881,18 +911,21 @@ com_cp (char* argin)
         XrdOucString url = serveruri.c_str();
         url += "/";
         url += targetfile;
+
+	if ((url.find("?") == STR_NPOS))
+        {
+	  url += "?";
+	}
+	else
+	  {
+            url += "&";
+        }
+	url += "eos.app=eoscp";
+
         // add the 'role' switches to the URL
         if (user_role.length() && group_role.length())
         {
-          if ((url.find("?") == STR_NPOS))
-          {
-            url += "?";
-          }
-          else
-          {
-            url += "&";
-          }
-          url += "eos.ruid=";
+          url += "&eos.ruid=";
           url += user_role;
           url += "&eos.rgid=";
           url += group_role;
@@ -983,18 +1016,20 @@ com_cp (char* argin)
 
     if (arg1.beginswith("root:"))
     {
+      if ((arg1.find("?") == STR_NPOS))
+      { 
+	arg1 += "?";
+      }
+      else
+      {
+	arg1 += "&";
+      }
+
+      arg1 += "eos.app=eoscp";
       // add the 'role' switches to the URL
       if (user_role.length() && group_role.length())
       {
-        if ((arg1.find("?") == STR_NPOS))
-        {
-          arg1 += "?";
-        }
-        else
-        {
-          arg1 += "&";
-        }
-        arg1 += "eos.ruid=";
+        arg1 += "&eos.ruid=";
         arg1 += user_role;
         arg1 += "&eos.rgid=";
         arg1 += group_role;
@@ -1065,18 +1100,20 @@ com_cp (char* argin)
         url += targetfile;
       }
 
+      if ((url.find("?") == STR_NPOS))
+      {
+	url += "?";
+      }
+      else
+      {
+	url += "&";
+      }
+
+      url += "eos.app=eoscp";
       // add the 'role' switches to the URL
       if (user_role.length() && group_role.length())
       {
-        if ((url.find("?") == STR_NPOS))
-        {
-          url += "?";
-        }
-        else
-        {
-          url += "&";
-        }
-        url += "eos.ruid=";
+        url += "&eos.ruid=";
         url += user_role;
         url += "&eos.rgid=";
         url += group_role;
