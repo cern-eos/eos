@@ -236,6 +236,16 @@ public:
   Get (eos::common::HttpRequest *request);
 
   /**
+   * Handle an HTTP HEAD request.
+   *
+   * @param request  the client request object
+   *
+   * @return an HTTP response object
+   */
+  eos::common::HttpResponse*
+  Head (eos::common::HttpRequest *request);
+
+  /**
    * Handle an HTTP PUT request.
    *
    * @param request  the client request object

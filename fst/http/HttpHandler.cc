@@ -280,6 +280,15 @@ HttpHandler::Get (eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
+HttpHandler::Head (eos::common::HttpRequest *request)
+{
+  eos::common::HttpResponse *response = Get(request);
+  response->mUseFileReaderCallback = false;
+  return response;
+}
+
+/*----------------------------------------------------------------------------*/
+eos::common::HttpResponse*
 HttpHandler::Put (eos::common::HttpRequest *request)
 {
   eos_static_info("method=PUT offset=%llu size=%llu size_ptr=%llu",
