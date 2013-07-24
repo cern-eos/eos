@@ -189,6 +189,9 @@ com_cp (char* argin) {
   if (silent) 
     noprogress = true;
 
+  if (!hasterminal)
+    noprogress = true;
+
   nextarg=subtokenizer.GetToken();
   lastarg=subtokenizer.GetToken();
   do {
@@ -1024,8 +1027,13 @@ com_cp (char* argin) {
 	copiedsize += source_size[nfile];
       }
     } 
-    retc |= lrc;
 
+    // check if we got a CONTROL-C
+    if (WIFSIGNALED(lrc) &&
+        (WTERMSIG(lrc) == SIGINT || WTERMSIG(lrc) == SIGQUIT))
+      break;
+
+    retc |= lrc;
   }    
 
   gettimeofday(&tv2, &tz);

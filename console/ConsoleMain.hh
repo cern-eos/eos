@@ -82,6 +82,7 @@ extern void exit_handler (int a);
 extern int global_retc;
 extern bool global_highlighting;
 extern bool interactive;
+extern bool hasterminal;
 extern bool silent;
 extern bool timing;
 extern bool debug;

@@ -105,6 +105,7 @@ std::string exec_line="";
 int  global_retc         = 0;
 bool global_highlighting = true;
 bool interactive         = true;
+bool hasterminal         = true;
 bool silent              = false;
 bool timing              = false;
 bool debug               = false;
@@ -862,9 +863,11 @@ int main (int argc, char* argv[]) {
   }
 
   if (!retc) {
+    hasterminal = true;
     global_highlighting = true;
     interactive = true;
   } else {
+    hasterminal = false;
     global_highlighting = false;
     interactive = false;
   }
