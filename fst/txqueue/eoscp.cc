@@ -275,6 +275,10 @@ void write_progress(unsigned long long bytesread, unsigned long long size) {
 
 
 void print_progbar(unsigned long long bytesread, unsigned long long size) {
+  if (!size) {
+    // fake 100%
+    size=1; bytesread = 1;
+  }
   CERR(("[eoscp] %-24s Total %.02f MB\t|",cpname.c_str(), (float)size/1024/1024));
   for (int l=0; l< 20;l++) {
     if (l< ( (int)(20.0*bytesread/size)))
@@ -293,9 +297,9 @@ void print_progbar(unsigned long long bytesread, unsigned long long size) {
 //////////////////////////////////////////////////////////////////////
 void abort_handler(int)
 {
-  print_summary_header(source, destination);
+  //print_summary_header(source, destination);
   fprintf(stdout,"error: [eoscp] has been aborted\n");
-  _exit(-1);
+  _exit( EINTR );
 }
 
 

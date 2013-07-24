@@ -859,6 +859,7 @@ com_cp (char* argin) {
     
     if(debug)fprintf(stderr,"[eos-cp] running: %s\n", cmdline.c_str());
     int lrc=system(cmdline.c_str());
+    int erc=lrc;
     // check the target size
     struct stat buf;
       
@@ -1026,13 +1027,12 @@ com_cp (char* argin) {
 	copiedok++;
 	copiedsize += source_size[nfile];
       }
-    } 
-
-    // check if we got a CONTROL-C
-    if (WIFSIGNALED(lrc) &&
-        (WTERMSIG(lrc) == SIGINT || WTERMSIG(lrc) == SIGQUIT))
+    }
+    if ( WEXITSTATUS(erc) == ( EINTR ) ) {
+      fprintf(stderr,"<Control-C>\n");
+      retc |= lrc;
       break;
-
+    }
     retc |= lrc;
   }    
 
