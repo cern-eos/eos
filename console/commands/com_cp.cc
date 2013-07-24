@@ -667,6 +667,11 @@ com_cp (char* argin) {
       }
     }
 
+    if (arg2.beginswith("/") && !arg2.beginswith("/eos/")) {
+      // remove the opaque info for local files
+      arg2.erase(arg2.find("?"));
+    }
+
     targetfile = arg2;
 
     if (arg2.beginswith("/eos") || arg2.beginswith("root://")) {
