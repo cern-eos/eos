@@ -81,7 +81,7 @@ cp $SOURCEPATH/nginx.spec        $TEMPDIR
 # no more exiting on error
 set +e
 
-spectool --get-files --directory $RPMSOURCES $SOURCEPATH/nginx.spec
+/usr/bin/spectool --get-files --directory $RPMSOURCES $SOURCEPATH/nginx.spec
 
 #-------------------------------------------------------------------------------
 # Build the source RPM
