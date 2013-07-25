@@ -63,41 +63,16 @@ HttpServer::Handler (void                  *cls,
     MHD_get_connection_values(connection, MHD_HEADER_KIND,
                               &HttpServer::BuildHeaderMap, (void*) &headers);
 
-    for (auto it = headers.begin(); it != headers.end(); ++it)
-    {
-      eos_static_info("%s: %s", (*it).first.c_str(), (*it).second.c_str());
-    }
-
     // Authenticate the client
     eos::common::Mapping::VirtualIdentity *vid = Authenticate(headers);
-    if (!vid)
-    {
-      eos::common::HttpResponse *response = HttpError("Forbidden",
-                                                       response->FORBIDDEN);
-      // TODO: move this to a function
-      struct MHD_Response *mhdResponse;
-      mhdResponse = MHD_create_response_from_buffer(response->GetBodySize(),
-                                                    (void *) response->GetBody().c_str(),
-                                                    MHD_RESPMEM_MUST_COPY);
-      // Add all the response header tags
-      headers = response->GetHeaders();
-      for (auto it = headers.begin(); it != headers.end(); it++)
-      {
-        MHD_add_response_header(mhdResponse, it->first.c_str(), it->second.c_str());
-      }
-
-      int ret = MHD_queue_response(connection, response->GetResponseCode(),
-                                       mhdResponse);
-      eos_static_info("MHD_queue_response ret=%d", ret);
-      return ret;
-    }
 
     eos::common::ProtocolHandler *handler;
     ProtocolHandlerFactory factory = ProtocolHandlerFactory();
     handler = factory.CreateProtocolHandler(method, headers, vid);
     if (!handler)
     {
-      eos_static_err("msg=no matching protocol for request");
+      eos_static_err("msg=\"no matching protocol for request method %s\"",
+                     method);
       return MHD_NO;
     }
 
@@ -134,7 +109,7 @@ HttpServer::Handler (void                  *cls,
                                             headers, method, url,
                                             query.c_str() ? query : "",
                                             body, uploadDataSize, cookies);
-    eos_static_info("\n\n%s", request->ToString().c_str());
+    eos_static_debug("\n\n%s", request->ToString().c_str());
 
     // Handle the request and build a response based on the specific protocol
     protocolHandler->HandleRequest(request);
@@ -156,7 +131,7 @@ HttpServer::Handler (void                  *cls,
     eos_static_crit("msg=\"response creation failed\"");
     return MHD_NO;
   }
-  eos_static_info("\n\n%s", response->ToString().c_str());
+  eos_static_debug("\n\n%s", response->ToString().c_str());
 
   // Create the response
   struct MHD_Response *mhdResponse;
@@ -176,7 +151,7 @@ HttpServer::Handler (void                  *cls,
     // Queue the response
     int ret = MHD_queue_response(connection, response->GetResponseCode(),
                                  mhdResponse);
-    eos_static_info("MHD_queue_response ret=%d", ret);
+    eos_static_info("msg=\"MHD_queue_response returned code %d\"", ret);
     MHD_destroy_response(mhdResponse);
     delete protocolHandler;
     return ret;
@@ -203,8 +178,8 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
 
   if (clientDN.empty() && remoteUser.empty())
   {
-    eos_static_info("msg=client supplied neither SSL_CLIENT_S_DN nor "
-                    "Remote-User headers");
+    eos_static_info("msg=\"client supplied neither SSL_CLIENT_S_DN nor "
+                    "Remote-User headers\"");
   }
   else
   {
@@ -212,7 +187,7 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
     struct stat info;
     if (stat("/etc/grid-security/grid-mapfile", &info) == -1)
     {
-      eos_static_err("error stat'ing gridmap file: %s", strerror(errno));
+      eos_static_err("msg=\"error stating gridmap file: %s\"", strerror(errno));
       return NULL;
     }
 
@@ -220,7 +195,7 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
     if (!mGridMapFileLastModTime.tv_sec ||
          mGridMapFileLastModTime.tv_sec != info.st_mtim.tv_sec)
     {
-      eos_static_info("msg=reloading gridmap file");
+      eos_static_info("msg=\"reloading gridmap file\"");
 
       std::ifstream in("/etc/grid-security/grid-mapfile");
       std::stringstream buffer;
@@ -248,14 +223,12 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
 
       dn       = (*it).substr(1, pos - 2); // Remove quotes around DN
       username = (*it).substr(pos + 1);
-      eos_static_debug(" dn:       %s", dn.c_str());
-      eos_static_debug(" username: %s", username.c_str());
 
       // Try to match with SSL header
       if (dn == clientDN)
       {
-        eos_static_info("msg=mapped client certificate successfully dn=%s "
-                        "username=%s", dn.c_str(), username.c_str());
+        eos_static_info("msg=\"mapped client certificate successfully\" "
+                        "dn=\"%s\"username=\"%s\"", dn.c_str(), username.c_str());
         break;
       }
 
@@ -268,17 +241,14 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
 
       for (auto it = tokens.begin(); it != tokens.end(); ++it)
       {
-        eos_static_debug("dn token=%s", (*it).c_str());
-
         pos            = (*it).find_last_of("=");
         std::string cn = (*it).substr(pos + 1);
-        eos_static_debug("cn=%s", cn.c_str());
 
         if (cn == remoteUserName)
         {
           username = (*it).substr(pos + 1);
-          eos_static_info("msg=mapped client krb5 username successfully "
-                          "username=%s", username.c_str());
+          eos_static_info("msg=\"mapped client krb5 username successfully\" "
+                          "username=\"%s\"", username.c_str());
           break;
         }
       }
@@ -287,10 +257,10 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
 
   if (username.empty())
   {
-    eos_static_info("msg=client not authenticated with certificate or kerberos "
-                    "SSL_CLIENT_S_DN=%s, Remote-User=%s", clientDN.c_str(),
-                    remoteUser.c_str());
-    eos_static_info("msg=mapping user to \"nobody\"");
+    eos_static_info("msg=\"client not authenticated with certificate or"
+                    " kerberos\" SSL_CLIENT_S_DN=\"%s\", Remote-User=\"%s\"",
+                    clientDN.c_str(), remoteUser.c_str());
+    eos_static_info("msg=\"mapping user to nobody\"");
     username = "nobody";
   }
 
