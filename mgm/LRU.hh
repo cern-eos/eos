@@ -26,6 +26,8 @@
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
+#include "common/Mapping.hh"
+#include "namespace/ContainerMD.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -53,6 +55,9 @@ private:
   pthread_t mThread; //< thread id of the LRU thread
   time_t mMs; //< forced sleep time used for find / scans
   
+  eos::common::Mapping::VirtualIdentity mRootVid;//< we operate with the root vid
+  XrdOucErrInfo mError; //< XRootD error object
+  
 public:
 
   /* Default Constructor - use it to run the LRU thread by calling Start 
@@ -61,6 +66,7 @@ public:
   {
     mThread = 0;
     mMs = 0; 
+    eos::common::Mapping::Root(mRootVid);
   }
 
   /**
@@ -99,6 +105,26 @@ public:
   {
     if (mThread) Stop ();
   };
+  
+  /* expire by age if empty
+   */
+  void AgeExpireEmtpy(const char* dir, std::string& policy);
+  
+  /* expire by age
+   */
+  void AgeExpire(const char* dir, std::string& policy);
+  
+  /* expire by volume 
+   */
+  void CacheExpire(const char* dir, std::string& low, std::string& high);
+  
+  /* convert by age
+   */
+  void ConvertAtime(const char* dir, std::string& policy);
+  
+  /* convert by suffix
+   */
+  void ConvertSuffix(const char* dir,  eos::ContainerMD::XAttrMap &map);
   
   static const char* gLRUPolicyPrefix;
 };
