@@ -68,12 +68,12 @@ mkdir -p $TEMPDIR/rpmbuild/SRPMS
 
 echo "[i] Working in: $TEMPDIR" 1>&2
 
-cp etc/init.d/*      $RPMSOURCES
-cp etc/logrotate.d/* $RPMSOURCES
-cp etc/nginx/*       $RPMSOURCES
-cp etc/sysconfig/*   $RPMSOURCES
-cp ./*.patch         $RPMSOURCES
-cp ./nginx.spec      $TEMPDIR
+cp $SOURCEPATH/etc/init.d/*      $RPMSOURCES
+cp $SOURCEPATH/etc/logrotate.d/* $RPMSOURCES
+cp $SOURCEPATH/etc/nginx/*       $RPMSOURCES
+cp $SOURCEPATH/etc/sysconfig/*   $RPMSOURCES
+cp $SOURCEPATH/*.patch           $RPMSOURCES
+cp $SOURCEPATH/nginx.spec        $TEMPDIR
 
 #-------------------------------------------------------------------------------
 # Download the source tarball
@@ -81,7 +81,7 @@ cp ./nginx.spec      $TEMPDIR
 # no more exiting on error
 set +e
 
-spectool --get-files --directory $RPMSOURCES nginx.spec
+spectool --get-files --directory $RPMSOURCES $SOURCEPATH/nginx.spec
 
 #-------------------------------------------------------------------------------
 # Build the source RPM
