@@ -998,6 +998,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   lFanOutTags.push_back("Http");
   lFanOutTags.push_back("Master");
   lFanOutTags.push_back("Recycle");
+  lFanOutTags.push_back("LRU");
   lFanOutTags.push_back("#");
 
   // get the XRootD log directory
@@ -1499,6 +1500,9 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     try
     {
       eosmd = gOFS->eosView->getContainer(MgmProcConversionPath.c_str());
+      eosmd->setMode(S_IFDIR | S_IRWXU );
+      eosmd->setCUid(2); // conversion directory is owned by daemon
+      gOFS->eosView->updateContainerStore(eosmd);
     }
     catch (eos::MDException &e)
     {
@@ -1511,7 +1515,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       {
         eosmd = gOFS->eosView->createContainer(MgmProcConversionPath.c_str(), true);
         // set attribute inheritance
-        eosmd->setMode(S_IFDIR | S_IRWXU);
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
         gOFS->eosView->updateContainerStore(eosmd);
       }
       catch (eos::MDException &e)
@@ -1686,6 +1690,11 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     eos_warning("msg=\"cannot start egroup thread\"");
   }
 
+  // start the LRU daemon
+  if (!gOFS->LRUd.Start())
+  {
+    eos_warning("msg=\"cannot start LRU thread\"");
+  }
   // start the recycler garbage collection thread on a master machine
   if ((MgmMaster.IsMaster()) && (!gOFS->Recycler.Start()))
   {
@@ -1719,6 +1728,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("CommitFailedNamespace", 0, 0, 0);
   gOFS->MgmStats.Add("CommitFailedParameters", 0, 0, 0);
   gOFS->MgmStats.Add("CommitFailedUnlinked", 0, 0, 0);
+  gOFS->MgmStats.Add("ConversionDone", 0, 0, 0);
+  gOFS->MgmStats.Add("ConversionFailed", 0, 0, 0);
   gOFS->MgmStats.Add("CopyStripe", 0, 0, 0);
   gOFS->MgmStats.Add("DumpMd", 0, 0, 0);
   gOFS->MgmStats.Add("Drop", 0, 0, 0);
@@ -1742,6 +1753,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("GetMd", 0, 0, 0);
   gOFS->MgmStats.Add("IdMap", 0, 0, 0);
   gOFS->MgmStats.Add("Ls", 0, 0, 0);
+  gOFS->MgmStats.Add("LRUFind", 0, 0, 0);
   gOFS->MgmStats.Add("MarkDirty", 0, 0, 0);
   gOFS->MgmStats.Add("MarkClean", 0, 0, 0);
   gOFS->MgmStats.Add("Mkdir", 0, 0, 0);
