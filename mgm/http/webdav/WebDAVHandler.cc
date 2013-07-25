@@ -24,7 +24,6 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/http/webdav/WebDAVHandler.hh"
 #include "mgm/http/webdav/PropFindResponse.hh"
-#include "mgm/http/webdav/LockResponse.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/Logging.hh"

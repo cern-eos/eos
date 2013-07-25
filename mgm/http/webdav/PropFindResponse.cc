@@ -130,7 +130,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
     }
     else
     {
-      eos_static_warn("msg=\"error opening directory\"");
+      eos_static_warning("msg=\"error opening directory\"");
       SetResponseCode(HttpResponse::BAD_REQUEST);
       return this;
     }
