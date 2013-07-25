@@ -308,6 +308,7 @@ com_attr_usage:
   fprintf(stdout, "If <key> starts with 'sys.' you have to be member of the sudoer group to see this attributes or modify.\n\n");
 
   fprintf(stdout, "Administrator Variables:\n");
+  // ---------------------------------------------------------------------------
   fprintf(stdout, "         sys.forced.space=<space>              : enforces to use <space>    [configuration dependend]\n");
   //  fprintf(stdout,"         sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica,raiddp,reeds)]\n");
   fprintf(stdout, "         sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica)]\n");
@@ -322,17 +323,34 @@ com_attr_usage:
   fprintf(stdout, "         sys.forced.bookingsize=<bytes>        : set's the number of bytes which get for each new created replica\n");
   fprintf(stdout, "         sys.forced.minimumsize=<bytes>        : set's the minimum number of bytes a file to be stored must have\n");
   fprintf(stdout, "         sys.forced.maximumsize=<bytes>        : set's the maximum number of bytes a file to be stored can have\n");
-  fprintf(stdout, "         sys.force.atime=track                 : enables atime tagging under that directory");
+  // ---------------------------------------------------------------------------
+  fprintf(stdout, "         sys.force.atime=<age>                 : enables atime tagging under that directory. <age> is the minimum age before the access time is stored as change time.\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "         sys.lru.expire.empty=<age>            : delete empty directories older than <age>\n");
+  fprintf(stdout, "         sys.lru.expire.suffix=[suffix1:<age1>,suffix2:<age2>..]\n");
+  fprintf(stdout, "                                               : defines the rule that files with a given suffix will be removed if \n");
+  fprintf(stdout, "                                                 they havn't been accessed longer than <age> ago. <age> is defined like 3600,3600s,60min,1h,1mo,y ...\n");
+  fprintf(stdout, "         sys.lru.watermark=<low>:<high>        : if the watermark reaches more than <high> %%, files will be removed \n");
+  fprintf(stdout, "                                                 until the usage is reaching <low> %%.\n");
+  fprintf(stdout, "         sys.lru.convert.atime=<age>           : files not touched longer than <age> will be converted into the layout defined by attribute sys.conversion.atime.\n");
+  fprintf(stdout, "         sys.conversion.atime=<layout-cgi>     : defines the conversion target layout when the previous policy applies ...\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "         sys.lru.convert.suffix=[suffix1:<age1>,suffix2:<age2>...]\n");
+  fprintf(stdout, "                                                 defines the rule that files with a given suffix will be converted to the layouts defined by sys.conversion.<suffix> when their access time reaches <age>.\n");
+  fprintf(stdout, "\n"); 
+  // ---------------------------------------------------------------------------
   fprintf(stdout, "         sys.stall.unavailable=<sec>           : stall clients for <sec> seconds if a needed file system is unavailable\n");
   fprintf(stdout, "         sys.heal.unavailable=<tries>          : try to heal an unavailable file for atleast <tries> times - must be >= 3 !!\n");
   fprintf(stdout, "                                                     - the product <heal-tries> * <stall-time> should be bigger than the expect replication time for a given filesize!\n\n");
+  // ---------------------------------------------------------------------------
   fprintf(stdout, "         sys.redirect.enoent=<host[:port]>     : redirect clients opening non existing files to <host[:port]>\n");
   fprintf(stdout, "               => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eog/public \n\n");
   fprintf(stdout, "         sys.redirect.enonet=<host[:port]>     : redirect clients opening unaccessible files to <host[:port]>\n");
   fprintf(stdout, "               => hence this variable has to be set on the directory at level 2 in the eos namespace e.g. /eog/public \n\n");
+  // ---------------------------------------------------------------------------
   fprintf(stdout, "         sys.recycle=/recycle                  : define the recycle bin for that directory e.g. /recycle is currently the only allowed location\n\n");
   fprintf(stdout, "         sys.recycle.keeptime=<seconds>        : define the time how long files stay in a recycle bin before final deletions taks place. This attribute has to defined on the recycle bin e.g. currently only => /recycle \n\n");
-
+// ---------------------------------------------------------------------------
   fprintf(stdout, "         sys.acl=<acllist>                     : set's an ACL which is honoured for open,rm & rmdir operations\n");
   fprintf(stdout, "               => <acllist> = <rule1>,<rule2>...<ruleN> is a comma separated list of rules\n");
   fprintf(stdout, "               => <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)} \n\n");
@@ -345,6 +363,7 @@ com_attr_usage:
   fprintf(stdout, "              '+d' : this tag can be used to overwrite a group rule excluding deletion via '!d' for certain users\n");
   fprintf(stdout, "         sys.owner.auth=<owner-auth-list>                 : set's additional owner on a directory - open/create + mkdir commands will use the owner id for operations if the client is part of the owner authentication list");
   fprintf(stdout, "               => <owner-auth-list> = <auth1>:<name1>,<auth2>:<name2  e.g. krb5:nobody,gsi:DN=...\n");
+  // ---------------------------------------------------------------------------
   fprintf(stdout, "User Variables:\n");
   fprintf(stdout, "         user.forced.space=<space>             : s.a.\n");
   fprintf(stdout, "         user.forced.layout=<layout>           : s.a.\n");
