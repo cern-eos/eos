@@ -91,7 +91,7 @@ static int prim_poly[33] =
 /* 29 */    04000000005,
 /* 30 */    010040000007,
 /* 31 */    020000000011, 
-/* 32 */    00020000007 };  /* Really 40020000007, but we're omitting the high order bit */
+/* 32 */    (int)00020000007 };  /* Really 40020000007, but we're omitting the high order bit */
 
 static int mult_type[33] = 
 { NONE, 
@@ -140,7 +140,7 @@ static int nwm1[33] = { 0, (1 << 1)-1, (1 << 2)-1, (1 << 3)-1, (1 << 4)-1,
 (1 << 11)-1, (1 << 12)-1, (1 << 13)-1, (1 << 14)-1, (1 << 15)-1, (1 << 16)-1,
 (1 << 17)-1, (1 << 18)-1, (1 << 19)-1, (1 << 20)-1, (1 << 21)-1, (1 << 22)-1,
 (1 << 23)-1, (1 << 24)-1, (1 << 25)-1, (1 << 26)-1, (1 << 27)-1, (1 << 28)-1,
-(1 << 29)-1, (1 << 30)-1, 0x7fffffff, 0xffffffff };
+(1 << 29)-1, (1 << 30)-1, 0x7fffffff, (int)0xffffffff };
    
 static int *galois_log_tables[33] = { NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -684,15 +684,14 @@ void galois_w32_region_multiply(char *region,      /* Region to multiply */
                                   char *r2,          /* If r2 != NULL, products go here */
                                   int add)
 {
-  unsigned int *ur1, *ur2, *ur2top;
+  unsigned int *ur1, *ur2;
   int i, j, a, b, accumulator, i8, j8, k;
   int acache[4];
 
   ur1 = (unsigned int *) region;
   ur2 = (r2 == NULL) ? ur1 : (unsigned int *) r2;
   nbytes /= sizeof(int);
-  ur2top = ur2 + nbytes;
-
+  
   if (galois_split_w8[0]== NULL) {
     if (galois_create_split_w8_tables() < 0) {
       fprintf(stderr, "galois_32_region_multiply -- couldn't make split multiplication tables\n");
