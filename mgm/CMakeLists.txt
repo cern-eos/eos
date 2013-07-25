@@ -22,12 +22,12 @@
 # ************************************************************************
 
 include_directories( ../ 
-		     ${XROOTD_INCLUDE_DIR} 
-		     ${XROOTD_PRIVATE_INCLUDE_DIR} 
-		     ${SPARSEHASH_INCLUDE_DIR} 
-		     ${NCURSES_INCLUDE_DIR}
-		     ${LDAP_INCLUDE_DIR}
-		     ${Z_INCLUDE_DIR}
+         ${XROOTD_INCLUDE_DIR} 
+         ${XROOTD_PRIVATE_INCLUDE_DIR} 
+         ${SPARSEHASH_INCLUDE_DIR} 
+         ${NCURSES_INCLUDE_DIR}
+         ${LDAP_INCLUDE_DIR}
+         ${Z_INCLUDE_DIR}
 )
 
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR})
@@ -35,7 +35,7 @@ link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR})
 add_library (XrdEosMgm MODULE
             Access.cc         
             ConfigEngine.cc
-      	    Messaging.cc
+            Messaging.cc
             Policy.cc  
             ProcInterface.cc
             proc/proc_fs.cc
@@ -93,6 +93,7 @@ add_library (XrdEosMgm MODULE
             ZMQ.cc
             Master.cc
             Recycle.cc
+            LRU.cc
             http/HttpServer.cc
             http/HttpHandler.cc
             http/s3/S3Handler.cc
@@ -110,14 +111,14 @@ target_link_libraries( XrdEosMgm
                        eosNamespace-Static  eosCapability-Static
                        XrdMqClient-Static 
                        crypto               ${NCURSES_LIBRARIES} 
-		       ${LDAP_LIBRARIES}
-		       dl                   ${Z_LIBRARIES}
-		       ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
+                       ${LDAP_LIBRARIES}
+                       dl                   ${Z_LIBRARIES}
+                       ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
                      )
 
 add_executable ( testmgmview
-	         FsView.cc
-	         test/MgmViewTest.cc
+           FsView.cc  
+          test/MgmViewTest.cc
 )
 
 
