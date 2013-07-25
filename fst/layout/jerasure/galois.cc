@@ -91,7 +91,7 @@ static int prim_poly[33] =
 /* 29 */    04000000005,
 /* 30 */    010040000007,
 /* 31 */    020000000011, 
-/* 32 */    (int)00020000007 };  /* Really 40020000007, but we're omitting the high order bit */
+/* 32 */    (int)00020000007u };  /* Really 40020000007, but we're omitting the high order bit */
 
 static int mult_type[33] = 
 { NONE, 
