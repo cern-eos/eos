@@ -42,7 +42,14 @@ WebDAVResponse::WebDAVResponse (eos::common::HttpRequest *request)
   mXMLRequestCopy.push_back('\0');
 
   // Parse the request
-  mXMLRequestDocument.parse<0>(&mXMLRequestCopy[0]);
+  try
+  {
+    mXMLRequestDocument.parse<0>(&mXMLRequestCopy[0]);
+  }
+  catch (const rapidxml::parse_error &e)
+  {
+    eos_static_err("msg=\"error parsing XML document: %s\"", e.what());
+  }
 };
 
 /*----------------------------------------------------------------------------*/
@@ -69,8 +76,7 @@ WebDAVResponse::ParseNamespaces ()
         if ((colon = attributeName.find(':')) != STR_NPOS)
           ns = std::string(std::string(attributeName.c_str()) + ":", colon + 1);
 
-        eos_static_info("\n\nfound namespace: %s", ns != "" ? ns.c_str()
-                                                              : "default");
+        eos_static_debug("namespace=\"%s\"", ns != "" ? ns.c_str() : "default");
 
         if (attributeValue == "DAV:")
           mDAVNamespaces[ns] = attributeValue;
@@ -97,7 +103,7 @@ WebDAVResponse::GetNode (rapidxml::xml_node<> *node, const char *name)
     for (auto it = mDAVNamespaces.begin(); it != mDAVNamespaces.end(); ++it)
     {
       std::string full(it->first + name);
-      eos_static_info("\n\n full ns: %s", full.c_str());
+      eos_static_debug("namespace=\"%s\"", full.c_str());
       if (std::string(child->name()) == full)
         return child;
     }

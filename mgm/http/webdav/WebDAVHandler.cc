@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/http/webdav/WebDAVHandler.hh"
 #include "mgm/http/webdav/PropFindResponse.hh"
+#include "mgm/http/webdav/LockResponse.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/Logging.hh"
@@ -42,7 +43,7 @@ WebDAVHandler::Matches (const std::string &meth, HeaderMap &headers)
       method == COPY     || method == MOVE      || method == LOCK  ||
       method == UNLOCK)
   {
-    eos_static_info("Matched WebDAV protocol for request");
+    eos_static_debug("msg=\"matched webdav protocol for request\"");
     return true;
   }
   else return false;
@@ -52,7 +53,7 @@ WebDAVHandler::Matches (const std::string &meth, HeaderMap &headers)
 void
 WebDAVHandler::HandleRequest (eos::common::HttpRequest *request)
 {
-  eos_static_info("handling webdav request");
+  eos_static_info("msg=\"handling webdav request\"");
   eos::common::HttpResponse *response = 0;
 
   int meth = ParseMethodString(request->GetMethod());
@@ -69,8 +70,7 @@ WebDAVHandler::HandleRequest (eos::common::HttpRequest *request)
     response = MkCol(request);
     break;
   case COPY:
-    response = new eos::common::PlainHttpResponse();
-    response->SetResponseCode(eos::common::HttpResponse::NOT_IMPLEMENTED);
+    response = Copy(request);
     break;
   case MOVE:
     response = Move(request);
@@ -194,11 +194,12 @@ eos::common::HttpResponse*
 WebDAVHandler::Move (eos::common::HttpRequest *request)
 {
   eos::common::HttpResponse *response = 0;
-  XrdOucString prot;
-  XrdOucString port;
-  const char *destination = eos::common::StringConversion::ParseUrl(request->GetHeaders()["Destination"].c_str(), prot, port);
+  XrdOucString prot, port;
+  const char *destination = eos::common::StringConversion::ParseUrl
+      (request->GetHeaders()["Destination"].c_str(), prot, port);
 
-  eos_static_info("move src=%s, dest=%s", request->GetUrl().c_str(), destination);
+  eos_static_info("action=\"move\" src=\"%s\", dest=\"%s\"",
+                  request->GetUrl().c_str(), destination);
 
   XrdSecEntity client;
   client.name   = const_cast<char*>(mVirtualIdentity->name.c_str());
@@ -326,6 +327,18 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
       response->SetResponseCode(response->CREATED);
     }
   }
+
+  return response;
+}
+
+/*----------------------------------------------------------------------------*/
+eos::common::HttpResponse*
+WebDAVHandler::Copy (eos::common::HttpRequest *request)
+{
+  eos::common::HttpResponse *response = 0;
+
+  response = new eos::common::PlainHttpResponse();
+  response->SetResponseCode(eos::common::HttpResponse::NOT_IMPLEMENTED);
 
   return response;
 }

@@ -76,8 +76,8 @@ public:
    */
   PropFindResponse (eos::common::HttpRequest              *request,
                     eos::common::Mapping::VirtualIdentity *vid) :
-    WebDAVResponse(request), mRequestPropertyTypes(NONE), mVirtualIdentity(vid)
-  {};
+    WebDAVResponse(request), mRequestPropertyTypes(NONE),
+    mVirtualIdentity(vid) {};
 
   /**
    * Destructor

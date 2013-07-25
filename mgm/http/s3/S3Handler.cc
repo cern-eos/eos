@@ -60,7 +60,7 @@ S3Handler::Matches (const std::string &method, HeaderMap &headers)
   {
     if (headers["Authorization"].substr(0, 3) == "AWS")
     {
-      eos_static_info("info=Matched S3 protocol for request");
+      eos_static_debug("msg=\"matched S3 protocol for request\"");
       return true;
     }
   }
@@ -71,7 +71,7 @@ S3Handler::Matches (const std::string &method, HeaderMap &headers)
 void
 S3Handler::HandleRequest (eos::common::HttpRequest *request)
 {
-  eos_static_info("msg=\"handling s3 request\"");
+  eos_static_debug("msg=\"handling s3 request\"");
   eos::common::HttpResponse *response = 0;
 
   // Parse the headers
@@ -148,7 +148,7 @@ S3Handler::VerifySignature ()
     string2sign += GetSubResource();
   }
 
-  eos_static_info("s2sign=%s key=%s", string2sign.c_str(), secure_key.c_str());
+  eos_static_debug("s2sign=%s key=%s", string2sign.c_str(), secure_key.c_str());
 
   // get hmac sha1 hash
   std::string hmac1 = eos::common::SymKey::HmacSha1(secure_key,
@@ -158,8 +158,8 @@ S3Handler::VerifySignature ()
   // base64 encode the hash
   eos::common::SymKey::Base64Encode((char*) hmac1.c_str(), hmac1.size(), b64mac1);
   std::string verify_signature = b64mac1.c_str();
-  eos_static_info("in_signature=%s out_signature=%s\n",
-                  GetSignature().c_str(), verify_signature.c_str());
+  eos_static_debug("in_signature=%s out_signature=%s\n",
+                   GetSignature().c_str(), verify_signature.c_str());
   return (verify_signature == GetSignature());
 }
 

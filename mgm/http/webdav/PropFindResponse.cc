@@ -55,7 +55,6 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
   ParseRequestPropertyTypes(rootNode);
 
   // Build the response
-
   // xml declaration
   xml_node<> *decl = mXMLResponseDocument.allocate_node(node_declaration);
   decl->append_attribute(AllocateAttribute("version", "1.0"));
@@ -109,8 +108,6 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
       const char *val;
       while ((val = directory.nextEntry()))
       {
-        eos_static_info("\n\ndir entry: %s", val);
-
         XrdOucString entryname = val;
         if (entryname.beginswith("."))
         {
@@ -133,7 +130,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
     }
     else
     {
-      eos_static_info("\n\nerror opening directory");
+      eos_static_warn("msg=\"error opening directory\"");
       SetResponseCode(HttpResponse::BAD_REQUEST);
       return this;
     }
@@ -142,11 +139,15 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
   else if (depth == "1,noroot")
   {
     // Stat all child resources but not the requested resource
+    SetResponseCode(HttpResponse::NOT_IMPLEMENTED);
+    return this;
   }
 
   else if (depth == "infinity" || depth == "")
   {
     // Recursively stat the resource and all child resources
+    SetResponseCode(HttpResponse::NOT_IMPLEMENTED);
+    return this;
   }
 
   std::string responseString;
@@ -186,7 +187,7 @@ PropFindResponse::ParseRequestPropertyTypes(rapidxml::xml_node<> *node)
   // It wasn't <allprop/>
   xml_node<> *propNode = GetNode(node, "prop");
   if (!propNode) {
-    eos_static_err("\n\nno <prop/> node found in tree");
+    eos_static_err("msg=\"no <prop/> node found in tree\"");
     return;
   }
 
@@ -196,7 +197,7 @@ PropFindResponse::ParseRequestPropertyTypes(rapidxml::xml_node<> *node)
   while (property)
   {
     XrdOucString propertyName = property->name();
-    eos_static_info("\n\nfound xml property: %s", propertyName.c_str());
+    eos_static_debug("msg=\"ound xml property: %s\"", propertyName.c_str());
 
     int colon = 0;
     if ((colon = propertyName.find(':')) != STR_NPOS)
@@ -237,7 +238,8 @@ PropFindResponse::BuildResponseNode (const std::string &url)
   if (gOFS->_stat(url.c_str(), &statInfo, error, *mVirtualIdentity,
                  (const char*) 0))
   {
-    eos_static_err("Error stat'ing %s: %s", url.c_str(), error.getErrText());
+    eos_static_err("msg=\"error stating %s: %s\"", url.c_str(),
+                                                   error.getErrText());
     SetResponseCode(ResponseCodes::NOT_FOUND);
     return NULL;
   }
@@ -334,7 +336,7 @@ PropFindResponse::BuildResponseNode (const std::string &url)
   if (displayName)
   {
     eos::common::Path path(url.c_str());
-    eos_static_info("\n\ndisplay name: %s", path.GetName());
+    eos_static_debug("msg=\"display name: %s\"", path.GetName());
     SetValue(displayName, path.GetName());
     propFound->append_node(displayName);
   }
