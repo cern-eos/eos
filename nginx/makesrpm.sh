@@ -81,7 +81,12 @@ cp $SOURCEPATH/nginx.spec        $TEMPDIR
 # no more exiting on error
 set +e
 
-/usr/bin/spectool --get-files --directory $RPMSOURCES $SOURCEPATH/nginx.spec
+echo "[i] Downloading nginx source..."
+VERSION=`cat nginx/nginx.spec | \
+         egrep -e 'Version:\s+([0-9\.]*)' -o | \
+         egrep -e '[0-9\.]*' -o`
+curl -sS http://nginx.org/download/nginx-$VERSION.tar.gz -O
+mv nginx-$VERSION.tar.gz $RPMSOURCES/
 
 #-------------------------------------------------------------------------------
 # Build the source RPM
