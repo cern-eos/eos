@@ -97,17 +97,15 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
 eos::common::HttpResponse*
 HttpHandler::Get (eos::common::HttpRequest *request)
 {
-  // TODO: Refactor out common behavior
-
   XrdSecEntity    client(mVirtualIdentity->prot.c_str());
   client.name   = const_cast<char*>(mVirtualIdentity->name.c_str());
   client.host   = const_cast<char*>(mVirtualIdentity->host.c_str());
   client.tident = const_cast<char*>(mVirtualIdentity->tident.c_str());
 
   // Classify path to split between directory or file objects
-  bool isfile = true;
-  std::string url = request->GetUrl();
-  std::string query = request->GetQuery();
+  bool        isfile = true;
+  std::string url    = request->GetUrl();
+  std::string query  = request->GetQuery();
   eos::common::HttpResponse *response = 0;
 
   XrdOucString spath = request->GetUrl().c_str();
@@ -145,13 +143,19 @@ HttpHandler::Get (eos::common::HttpRequest *request)
           response = HttpServer::HttpRedirect(request->GetUrl(),
                                               file->error.getErrText(),
                                               8001, false);
-
         }
         else
         if (rc == SFS_ERROR)
         {
+          if (file->error.getErrInfo() == ENODEV)
+          {
+            response = new eos::common::PlainHttpResponse();
+          }
+          else
+          {
           response = HttpServer::HttpError(file->error.getErrText(),
                                            file->error.getErrInfo());
+          }
         }
         else
         if (rc == SFS_DATA)
@@ -190,6 +194,7 @@ HttpHandler::Get (eos::common::HttpRequest *request)
         }
         while (1);
         file->close();
+        response = new eos::common::PlainHttpResponse();
         response->SetBody(result);
       }
       // clean up the object
@@ -209,9 +214,8 @@ HttpHandler::Get (eos::common::HttpRequest *request)
 eos::common::HttpResponse*
 HttpHandler::Head (eos::common::HttpRequest *request)
 {
-  using namespace eos::common;
-  HttpResponse *response = new PlainHttpResponse();
-  response->SetResponseCode(HttpResponse::ResponseCodes::NOT_IMPLEMENTED);
+  eos::common::HttpResponse *response = Get(request);
+  response->SetBody("");
   return response;
 }
 
@@ -236,8 +240,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
 
   // Classify path to split between directory or file objects
   bool isfile = true;
-  std::string url   = request->GetUrl();
-  std::string query = "?eos.bookingsize=" + request->GetHeaders()["Content-Length"];
+  std::string url = request->GetUrl();
   eos::common::HttpResponse *response = 0;
 
   XrdOucString spath = request->GetUrl().c_str();
@@ -263,14 +266,24 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       open_mode   |= SFS_O_MKPTH;
       create_mode |= (SFS_O_MKPTH | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
+      std::string query;
+      if (request->GetHeaders()["Content-Length"] == "0" ||
+          *request->GetBodySize() == 0)
+      {
+        query += "eos.bookingsize=0";
+      }
+
       int rc = file->open(url.c_str(), open_mode, create_mode, &client,
                           query.c_str());
-      if ((rc != SFS_REDIRECT) && open_mode)
+      if (rc != SFS_OK)
       {
-        // retry as a file creation
-        open_mode |= SFS_O_CREAT;
-        rc = file->open(url.c_str(), open_mode, create_mode, &client,
-                        query.c_str());
+        if ((rc != SFS_REDIRECT) && open_mode)
+        {
+          // retry as a file creation
+          open_mode |= SFS_O_CREAT;
+          rc = file->open(url.c_str(), open_mode, create_mode, &client,
+                          query.c_str());
+        }
       }
 
       if (rc != SFS_OK)
@@ -305,24 +318,8 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       }
       else
       {
-        char buffer[65536];
-        offset_t offset = 0;
-        std::string result;
-        do
-        {
-          size_t nread = file->read(offset, buffer, sizeof (buffer));
-          if (nread > 0)
-          {
-            result.append(buffer, nread);
-          }
-          if (nread != sizeof (buffer))
-          {
-            break;
-          }
-        }
-        while (1);
-        file->close();
-        response->SetBody(result);
+        response = new eos::common::PlainHttpResponse();
+        response->SetResponseCode(response->CREATED);
       }
       // clean up the object
       delete file;
@@ -396,7 +393,7 @@ eos::common::HttpResponse*
 HttpHandler::Options (eos::common::HttpRequest *request)
 {
   eos::common::HttpResponse *response = new eos::common::PlainHttpResponse();
-  response->AddHeader("DAV",   "1");
+  response->AddHeader("DAV",   "1,2");
   response->AddHeader("Allow", "OPTIONS,GET,HEAD,POST,DELETE,TRACE,"\
                                "PROPFIND,PROPPATCH,COPY,MOVE,LOCK,UNLOCK");
   response->AddHeader("Content-Length", "0");
