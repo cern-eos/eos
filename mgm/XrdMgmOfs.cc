@@ -238,8 +238,8 @@ xrdmgmofs_shutdown (int sig)
   gOFS->EgroupRefresh.Stop();
 
   // ---------------------------------------------------------------------------
-  // eos_static_warning("Shutdown:: stop LRU thread ... ");
-  // gOFS->LRUd.Stop();
+  eos_static_warning("Shutdown:: stop LRU thread ... ");
+  gOFS->LRUd.Stop();
 
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop messaging ... ");

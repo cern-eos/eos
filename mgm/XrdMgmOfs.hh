@@ -110,7 +110,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/Iostat.hh"
 #include "mgm/Fsck.hh"
-//#include "mgm/LRU.hh"
+#include "mgm/LRU.hh"
 #include "mgm/Master.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/Recycle.hh"
@@ -903,7 +903,7 @@ public:
 
   HttpServer Httpd; //<  Http daemon if available
 
-  // LRU LRUd; //< LRU object running the LRU policy engine
+  LRU LRUd; //< LRU object running the LRU policy engine
   
   Egroup EgroupRefresh; //<  Egroup refresh object running asynchronous Egroup fetch thread
 
