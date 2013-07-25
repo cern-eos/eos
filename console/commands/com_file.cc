@@ -155,7 +155,7 @@ com_file (char* arg1)
   if (wants_help(savearg.c_str()))
     goto com_file_usage;
 
-  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert" ))
+  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert"))
   {
     goto com_file_usage;
   }
@@ -163,7 +163,7 @@ com_file (char* arg1)
   // convenience function
   if (cmd == "info")
   {
-    if (arg=="info") 
+    if (arg == "info")
     {
       arg.replace("info", "");
     }
@@ -191,13 +191,13 @@ com_file (char* arg1)
 
   if (cmd == "touch")
   {
-    if (!path.length() )
+    if (!path.length())
       goto com_file_usage;
     in += "&mgm.path=";
     in += path;
     in += "&mgm.subcmd=touch";
   }
-  
+
   if (cmd == "drop")
   {
     if (!path.length() || !fsid1.length())
@@ -233,29 +233,40 @@ com_file (char* arg1)
     in += fsid2;
   }
 
-  if (cmd == "copy") 
+  if (cmd == "copy")
   {
     XrdOucString dest_path = fsid1;
-    if (!path.length() || !dest_path.length() ) 
+    if (!path.length() || !dest_path.length())
       goto com_file_usage;
     in += "&mgm.subcmd=copy";
     in += "&mgm.path=";
     in += path;
+    if (option.length())
+    {
+      if ((option != "f") &&
+          (option != "sf") &&
+          (option != "fs") &&
+          (option != "s"))
+        goto com_file_usage;
+
+      in += "&mgm.file.option=";
+
+    }
     dest_path = abspath(dest_path.c_str());
     in += "&mgm.file.target=";
     in += dest_path;
   }
 
-  if (cmd == "convert") 
+  if (cmd == "convert")
   {
     XrdOucString layout = fsid1;
-    XrdOucString space  = fsid2;
-    if (!path.length()) 
+    XrdOucString space = fsid2;
+    if (!path.length())
       goto com_file_usage;
     in += "&mgm.subcmd=convert";
     in += "&mgm.path=";
     in += path;
-    if (layout.length()) 
+    if (layout.length())
     {
       in += "&mgm.convert.layout=";
       in += layout;
@@ -265,12 +276,12 @@ com_file (char* arg1)
       in += "&mgm.convert.space=";
       in += space;
     }
-    if (option == "sync") 
+    if (option == "sync")
     {
-      fprintf(stderr,"error: --sync is currently not supported\n");
+      fprintf(stderr, "error: --sync is currently not supported\n");
       goto com_file_usage;
     }
-    if (option.length()) 
+    if (option.length())
     {
       goto com_file_usage;
     }
@@ -748,9 +759,9 @@ com_file_usage:
   fprintf(stdout, "        <conversion-name>    : specify the name of the attribute sys.conversion.<name> in the parent directory of <path> defining the target layout\n");
   fprintf(stdout, "        <target-space>       : optional name of the target space or group e.g. default or default.3");
   fprintf(stdout, "        --sync               : run convertion in synchronous mode (by default conversions are asynchronous)\n");
-  fprintf(stdout, "file cp <src> <dst>                                                   :  synchronous third party copy from <src> to <dst>\n");
-  fprintf(stdout,"         <src>                                                         :  source can be a file or a directory\n");
-  fprintf(stdout,"         <dst>                                                         :  destination can be a file (if source is a file) or a directory\n");
+  fprintf(stdout, "file copy [-f] [-s] <src> <dst>                                       :  synchronous third party copy from <src> to <dst>\n");
+  fprintf(stdout, "         <src>                                                         :  source can be a file or a directory\n");
+  fprintf(stdout, "         <dst>                                                         :  destination can be a file (if source is a file) or a directory\n");
   fprintf(stdout, "file drop <path> <fsid> [-f] :\n");
   fprintf(stdout, "                                                  drop the file <path> from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem) \n");
   fprintf(stdout, "file info <path> :\n");
@@ -766,7 +777,7 @@ com_file_usage:
   fprintf(stdout, "                                                  replicate file <path> part on <fsid1> to <fsid2>\n");
 
   fprintf(stdout, "file touch <path> :\n");
-  fprintf(stdout,"                                                   create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
+  fprintf(stdout, "                                                   create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
 
   fprintf(stdout, "file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : \n");
   fprintf(stdout, "                                                  verify a file against the disk images\n");

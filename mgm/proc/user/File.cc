@@ -487,11 +487,6 @@ ProcCommand::File ()
       XrdOucString src = spath;
       XrdOucString dst = pOpaque->Get("mgm.file.target");
 
-      stdOut += "info: copying '";
-      stdOut += spath;
-      stdOut += "' => '";
-      stdOut += dst;
-      stdOut += "' ...\n";
       if (!dst.length())
       {
         stdErr += "error: missing destination argument";
@@ -509,82 +504,108 @@ ProcCommand::File ()
         }
         else
         {
-          // check source and destination access
-          if (gOFS->_access(src.c_str(),
-                            R_OK,
-                            *mError,
-                            *pVid,
-                            "") ||
-              gOFS->_access(dst.c_str(),
-                            W_OK,
-                            *mError,
-                            *pVid,
-                            ""
-                            ))
+          XrdOucString option = pOpaque->Get("mgm.file.option");
+          bool silent = false;
+          if ((option.find("s"))!=STR_NPOS)
           {
-            stdErr += "error: ";
-            stdErr += mError->getErrText();
-            retc = errno;
+            silent = true;
           }
           else
           {
-            // -----------------------------------------------------------------
-            // setup a TPC job
-            // -----------------------------------------------------------------
-            struct XrdCl::JobDescriptor lTPCJob;
-            lTPCJob.thirdParty = true;
-            lTPCJob.thirdPartyFallBack = false;
-            lTPCJob.force = true;
-            lTPCJob.posc = false;
-            lTPCJob.coerce = false;
+            stdOut += "info: copying '";
+            stdOut += spath;
+            stdOut += "' => '";
+            stdOut += dst;
+            stdOut += "' ...\n";
+          }
 
-            std::string source = src.c_str();
-            std::string target = dst.c_str();
-
-            std::string sizestring;
-            std::string cgi = "eos.ruid=";
-            cgi += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)pVid->uid);
-            cgi += "&eos.rgid=";
-            cgi += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)pVid->gid);
-            cgi += "&eos.app=filecopy";
-
-            lTPCJob.source.SetProtocol("root");
-            lTPCJob.source.SetHostName("localhost");
-            lTPCJob.source.SetUserName("root");
-            lTPCJob.source.SetParams(cgi);
-            lTPCJob.target.SetProtocol("root");
-            lTPCJob.target.SetHostName("localhost");
-            lTPCJob.target.SetUserName("root");
-            lTPCJob.target.SetParams(cgi);
-            lTPCJob.source.SetPath(source);
-            lTPCJob.target.SetPath(target);
-            lTPCJob.sourceLimit = 1;
-            lTPCJob.checkSumPrint = false;
-            lTPCJob.chunkSize = 4 * 1024 * 1024;
-            lTPCJob.parallelChunks = 1;
-
-            XrdCl::CopyProcess lCopyProcess;
-            lCopyProcess.AddJob(&lTPCJob);
-
-            XrdCl::XRootDStatus lTpcPrepareStatus = lCopyProcess.Prepare();
-
-            eos_static_info("[tpc]: %s=>%s %s",
-                            lTPCJob.source.GetURL().c_str(),
-                            lTPCJob.target.GetURL().c_str(),
-                            lTpcPrepareStatus.ToStr().c_str());
-
-            XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);
-            eos_static_info("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
-            if (lTpcStatus.IsOK())
+          if ((option.find("f") == STR_NPOS) &&
+            !gOFS->_stat(dst.c_str(), &buf, *mError, *pVid, ""))
             {
-              stdOut += "success: copy done";
-              retc = 0;
+              // there is no force flag and the target exists
+              stdErr += "error: the target file exists - use '-f' to force the copy";
+              retc = EEXIST;
+            }
+          else
+          {
+            // check source and destination access
+            if (gOFS->_access(src.c_str(),
+                              R_OK,
+                              *mError,
+                              *pVid,
+                              "") ||
+                gOFS->_access(dst.c_str(),
+                              W_OK,
+                              *mError,
+                              *pVid,
+                              ""
+                              ))
+            {
+              stdErr += "error: ";
+              stdErr += mError->getErrText();
+              retc = errno;
             }
             else
             {
-              stdErr += "error: copy failed - ";
-              stdErr += lTpcStatus.ToStr().c_str();
-              retc = EIO;
+              // -----------------------------------------------------------------
+              // setup a TPC job
+              // -----------------------------------------------------------------
+              struct XrdCl::JobDescriptor lTPCJob;
+              lTPCJob.thirdParty = true;
+              lTPCJob.thirdPartyFallBack = false;
+              lTPCJob.force = true;
+              lTPCJob.posc = false;
+              lTPCJob.coerce = false;
+
+              std::string source = src.c_str();
+              std::string target = dst.c_str();
+
+              std::string sizestring;
+              std::string cgi = "eos.ruid=";
+              cgi += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) pVid->uid);
+              cgi += "&eos.rgid=";
+              cgi += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) pVid->gid);
+              cgi += "&eos.app=filecopy";
+
+              lTPCJob.source.SetProtocol("root");
+              lTPCJob.source.SetHostName("localhost");
+              lTPCJob.source.SetUserName("root");
+              lTPCJob.source.SetParams(cgi);
+              lTPCJob.target.SetProtocol("root");
+              lTPCJob.target.SetHostName("localhost");
+              lTPCJob.target.SetUserName("root");
+              lTPCJob.target.SetParams(cgi);
+              lTPCJob.source.SetPath(source);
+              lTPCJob.target.SetPath(target);
+              lTPCJob.sourceLimit = 1;
+              lTPCJob.checkSumPrint = false;
+              lTPCJob.chunkSize = 4 * 1024 * 1024;
+              lTPCJob.parallelChunks = 1;
+
+              XrdCl::CopyProcess lCopyProcess;
+              lCopyProcess.AddJob(&lTPCJob);
+
+              XrdCl::XRootDStatus lTpcPrepareStatus = lCopyProcess.Prepare();
+
+              eos_static_info("[tpc]: %s=>%s %s",
+                              lTPCJob.source.GetURL().c_str(),
+                              lTPCJob.target.GetURL().c_str(),
+                              lTpcPrepareStatus.ToStr().c_str());
+
+              XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);
+              eos_static_info("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
+              if (lTpcStatus.IsOK())
+              {
+                if (!silent)
+                  stdOut += "success: copy done";
+                retc = 0;
+              }
+              else
+              {
+                stdErr += "error: copy failed - ";
+                stdErr += lTpcStatus.ToStr().c_str();
+                retc = EIO;
+              }
             }
           }
         }
