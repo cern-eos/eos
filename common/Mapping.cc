@@ -396,7 +396,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   XrdOucString sprotgidtident = swcgidtident;
   sprotuidtident.replace("*", vid.prot); // there can be a protocol specific rule like sss:@<host>:uid...
   sprotgidtident.replace("*", vid.prot); // there can be a protocol specific rule like sss:@<host>:gid...
-  
+
   eos_static_debug("swcuidtident=%s sprotuidtident=%s myrole=%s", swcuidtident.c_str(), sprotuidtident.c_str(), myrole.c_str());
 
   if ((gVirtualUidMap.count(suidtident.c_str())))
@@ -453,12 +453,12 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   }
 
   eos_static_debug("tuid=%s tgid=%s", tuid.c_str(), tgid.c_str());
-  
+
   if (gVirtualUidMap.count(tuid.c_str()))
   {
     if (!gVirtualUidMap[tuid.c_str()])
     {
-      if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root") && (myrole == "root") )
+      if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root") && (myrole == "root"))
       {
         eos_static_debug("tident root uid squash");
         vid.uid_list.clear();
@@ -471,21 +471,19 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
       else
       {
         eos_static_debug("tident uid mapping");
-	vid.uid_list.clear();
+        vid.uid_list.clear();
         // use physical mapping 
         if ((myrole != "root"))
         {
-	  if ((vid.prot == "unix"))
-	    Mapping::getPhysicalIds(myrole.c_str(), vid);
-	  else
-	    Mapping::getPhysicalIds(client->name, vid);
-	}
+          if ((vid.prot == "unix"))
+            Mapping::getPhysicalIds(myrole.c_str(), vid);
+          else
+            Mapping::getPhysicalIds(client->name, vid);
+        }
         else
         {
           Mapping::getPhysicalIds(client->name, vid);
         }
-        vid.gid = 99;
-        vid.gid_list.clear();
       }
     }
     else
@@ -507,7 +505,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   {
     if (!gVirtualGidMap[tgid.c_str()])
     {
-      if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root") && (myrole == "root") )
+      if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root") && (myrole == "root"))
       {
         eos_static_debug("tident root gid squash");
         vid.gid_list.clear();
@@ -521,10 +519,10 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
 
         if ((myrole != "root"))
         {
-	  if ((vid.prot == "unix")) 
-	    Mapping::getPhysicalIds(myrole.c_str(), vid);
-	  else
-	    Mapping::getPhysicalIds(client->name, vid);
+          if ((vid.prot == "unix"))
+            Mapping::getPhysicalIds(myrole.c_str(), vid);
+          else
+            Mapping::getPhysicalIds(client->name, vid);
         }
         else
         {
@@ -648,7 +646,8 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   vid.host = host.c_str();
 
   // for NODNR setting translate the localhost IP
-  if (vid.host == "127.0.0.1") {
+  if (vid.host == "127.0.0.1")
+  {
     vid.host = "localhost";
   }
 
