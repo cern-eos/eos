@@ -53,7 +53,6 @@ fi
 
 echo "[i] Working on: $SOURCEPATH"
 echo "[i] Storing the output to: $OUTPUTPATH"
-OUTPUTPATH="."
 
 #-------------------------------------------------------------------------------
 # Create a tempdir and copy the files there
