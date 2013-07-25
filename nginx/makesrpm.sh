@@ -4,6 +4,55 @@
 # Author: Justin Salmon <jsalmon@cern.ch> (25.07.2013)
 #-------------------------------------------------------------------------------
 
+#-------------------------------------------------------------------------------
+# Print help
+#-------------------------------------------------------------------------------
+function printHelp()
+{
+  echo "Usage:"                                              1>&2
+  echo "${0} [--help] [--source PATH] [--output PATH]"       1>&2
+  echo "  --help        prints this message"                 1>&2
+  echo "  --source PATH specify the root of the source tree" 1>&2
+  echo "                defaults to ."                       1>&2
+  echo "  --output PATH the directory where the source rpm"  1>&2
+  echo "                should be stored, defaulting to ."   1>&2
+}
+
+#-------------------------------------------------------------------------------
+# Parse the commandline
+#-------------------------------------------------------------------------------
+SOURCEPATH="."
+OUTPUTPATH="."
+PRINTHELP=0
+
+while test ${#} -ne 0; do
+  if test x${1} = x--help; then
+    PRINTHELP=1
+  elif test x${1} = x--source; then
+    if test ${#} -lt 2; then
+      echo "--source parameter needs an argument" 1>&2
+      exit 1
+    fi
+    SOURCEPATH=${2}
+    shift
+  elif test x${1} = x--output; then
+    if test ${#} -lt 2; then
+      echo "--output parameter needs an argument" 1>&2
+      exit 1
+    fi
+    OUTPUTPATH=${2}
+    shift
+  fi
+  shift
+done
+
+if test $PRINTHELP -eq 1; then
+  printHelp
+  exit 0
+fi
+
+echo "[i] Working on: $SOURCEPATH"
+echo "[i] Storing the output to: $OUTPUTPATH"
 OUTPUTPATH="."
 
 #-------------------------------------------------------------------------------
