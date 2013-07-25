@@ -34,7 +34,6 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "Xrd/XrdScheduler.hh"
-#include "XrdCl/XrdClCopyProcess.hh"
 /*----------------------------------------------------------------------------*/
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
@@ -64,14 +63,14 @@ mConverterName (convertername)
  */
 /*----------------------------------------------------------------------------*/
 {
-  mSourcePath = gOFS->MgmProcConversionPath.c_str();
-  mSourcePath += "/";
+  mProcPath = gOFS->MgmProcConversionPath.c_str();
+  mProcPath += "/";
   char xfid[20];
   snprintf(xfid, sizeof (xfid), "%016llx", (long long) mFid);
-  mSourcePath += "/";
-  mSourcePath += xfid;
-  mSourcePath += ":";
-  mSourcePath += conversionlayout;
+  mProcPath += "/";
+  mProcPath += xfid;
+  mProcPath += ":";
+  mProcPath += conversionlayout;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -84,14 +83,15 @@ ConverterJob::DoIt ()
  */
 /*----------------------------------------------------------------------------*/
 {
-  eos_static_info("msg=\"start tpc job\" fxid=%016x layout=%s source_path=%s",
-                  mFid, mConversionLayout.c_str(), mSourcePath.c_str());
+  eos_static_info("msg=\"start tpc job\" fxid=%016x layout=%s proc_path=%s",
+                  mFid, mConversionLayout.c_str(), mProcPath.c_str());
   XrdSysTimer sleeper;
-  //XrdCl::JobDescriptor lJob; //< the local tpc job description
 
   eos::FileMD* fmd = 0;
   eos::ContainerMD* cmd = 0;
-
+  uid_t owner_uid=0;
+  gid_t owner_gid=0;
+  
   eos::ContainerMD::XAttrMap attrmap;
 
 
@@ -107,6 +107,9 @@ ConverterJob::DoIt ()
     try
     {
       fmd = gOFS->eosFileService->getFileMD(mFid);
+      owner_uid = fmd->getCUid();
+      owner_gid = fmd->getCGid();
+      
       mSourcePath = gOFS->eosView->getUri(fmd);
       eos::common::Path cPath(mSourcePath.c_str());
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
@@ -120,17 +123,23 @@ ConverterJob::DoIt ()
       std::string conversionattribute = "sys.conversion.";
       conversionattribute += mConversionLayout.c_str();
       XrdOucString lEnv;
+      const char* val = 0;
       if (attrmap.count(mConversionLayout.c_str()))
       {
         // conversion layout can either point to a conversion attribute definition in the parent directory
-        mTargetCGI =
-          eos::common::LayoutId::GetEnvFromHexLayoutIdString(lEnv, attrmap[mConversionLayout.c_str()].c_str());
+        val =
+          eos::common::LayoutId::GetEnvFromConversionIdString(lEnv, attrmap[mConversionLayout.c_str()].c_str());
       }
       else
       {
         // or can be directly a hexadecimal layout representation
-        mTargetCGI =
-          eos::common::LayoutId::GetEnvFromHexLayoutIdString(lEnv, mConversionLayout.c_str());
+        val =
+          eos::common::LayoutId::GetEnvFromConversionIdString(lEnv, mConversionLayout.c_str());
+      }
+
+      if (val)
+      {
+        mTargetCGI = val;
       }
     }
     catch (eos::MDException &e)
@@ -141,19 +150,78 @@ ConverterJob::DoIt ()
     }
   }
 
+  bool success = false;
   if (mTargetCGI.length())
   {
+    // -------------------------------------------------------------------------
     // this is properly defined job
+    // -------------------------------------------------------------------------
     eos_static_info("msg=\"conversion layout correct\" fxid=%016x cgi=\"%s\"",
                     mFid, mTargetCGI.c_str());
+
+    // -------------------------------------------------------------------------
+    // prepare the TPC copy job
+    // -------------------------------------------------------------------------
+
+    mTPCJob.thirdParty = true;
+    mTPCJob.thirdPartyFallBack = false;
+    mTPCJob.force = true;
+    mTPCJob.posc = false;
+    mTPCJob.coerce = false;
+
+    std::string source = mSourcePath.c_str();
+    std::string target = mProcPath.c_str();
+
+    std::string cgi = "eos.ruid=2&eos.rgid=2&";
+    cgi += mTargetCGI.c_str();
+    cgi += "&eos.app=converter";
+    
+    mTPCJob.source.SetProtocol("root");
+    mTPCJob.source.SetHostName("localhost");
+    mTPCJob.source.SetUserName("root");
+    mTPCJob.source.SetParams("eos.app=converter");
+    mTPCJob.target.SetProtocol("root");
+    mTPCJob.target.SetHostName("localhost");
+    mTPCJob.target.SetUserName("root");
+    mTPCJob.target.SetParams(cgi);
+    mTPCJob.source.SetPath(source);
+    mTPCJob.target.SetPath(target);
+    mTPCJob.sourceLimit = 1;
+    mTPCJob.checkSumPrint = false;
+    mTPCJob.chunkSize = 4 * 1024 * 1024;
+    mTPCJob.parallelChunks = 1;
+
+    XrdCl::CopyProcess lCopyProcess;
+    lCopyProcess.AddJob(&mTPCJob);
+
+    XrdCl::XRootDStatus lTpcPrepareStatus = lCopyProcess.Prepare();
+
+    eos_static_info("[tpc]: %s=>%s %s",
+                    mTPCJob.source.GetURL().c_str(),
+                    mTPCJob.target.GetURL().c_str(),
+                    lTpcPrepareStatus.ToStr().c_str());
+
+    XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);
+    eos_static_info("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
+    if (lTpcStatus.IsOK())
+    {
+      success = true;
+    }
+    else
+    {
+      success = false;
+    }
   }
   else
   {
+    // -------------------------------------------------------------------------
     // this is a crappy defined job
+    // -------------------------------------------------------------------------
     eos_static_err("msg=\"conversion layout definition wrong\" fxid=%016x layout=%s",
                    mFid, mConversionLayout.c_str());
+    success = false;
   }
-  eos_static_info("msg=\"stop  tpc job\" fxid=%016x layout=%s",
+  eos_static_info("msg=\"stop tpc job\" fxid=%016x layout=%s",
                   mFid, mConversionLayout.c_str());
 
   {
@@ -170,6 +238,57 @@ ConverterJob::DoIt ()
       stopConverter->DecActiveJobs();
     }
   }
+
+  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::Mapping::Root(rootvid);
+  XrdOucErrInfo error;
+
+  if (success)
+  {
+    // -------------------------------------------------------------------------
+    // we merge the conversion entry
+    // -------------------------------------------------------------------------
+
+    if (!gOFS->merge(mProcPath.c_str(),
+                     mSourcePath.c_str(),
+                     error,
+                     rootvid))
+    {
+      eos_static_info("msg=\"deleted processed conversion job entry\" name=\"%s\"",
+                      mConversionLayout.c_str());
+      gOFS->MgmStats.Add("ConversionDone", owner_uid, owner_gid, 1);
+    }
+    else
+    {
+      eos_static_err("msg=\"failed to remove failed conversion job entry\" name=\"%s\"",
+                     mConversionLayout.c_str());
+      gOFS->MgmStats.Add("ConversionFailed", owner_uid, owner_gid, 1);
+    }
+  }
+  else
+  {
+    // -------------------------------------------------------------------------
+    // we set owner nobody to indicate that this is a failed/faulty entry
+    // -------------------------------------------------------------------------
+    if (!gOFS->_chown(mProcPath.c_str(),
+                      99,
+                      99,
+                      error,
+                      rootvid,
+                      (const char*) 0))
+    {
+      eos_static_info("msg=\"tagged failed conversion entry with owner nobody\" name=\"%s\"",
+                      mConversionLayout.c_str());
+    }
+    else
+    {
+
+      eos_static_err("msg=\"failed to tag with owner nobody failed conversion job entry\" name=\"%s\"",
+                     mConversionLayout.c_str());
+    }
+    gOFS->MgmStats.Add("ConversionFailed", owner_uid, owner_gid, 1);
+  }
+
 
   delete this;
 }
@@ -193,6 +312,7 @@ Converter::Converter (const char* spacename)
   }
 
   {
+
     XrdSysMutexHelper cLock(Converter::gConverterMapMutex);
     // store this object in the converter map for callbask
     gConverterMap[spacename] = this;
@@ -222,6 +342,7 @@ Converter::~Converter ()
   }
 
   {
+
     XrdSysMutexHelper cLock(Converter::gConverterMapMutex);
     gConverterMap[mSpaceName] = 0;
   }
@@ -236,6 +357,7 @@ Converter::StaticConverter (void* arg)
  */
 /*----------------------------------------------------------------------------*/
 {
+
   return reinterpret_cast<Converter*> (arg)->Convert();
 }
 
@@ -343,36 +465,73 @@ Converter::Convert (void)
             XrdOucString conversionattribute;
 
             eos_static_info("name=\"%s\"", sfxid.c_str());
-            if (!(sfxid.endswith("run")))
+
+            std::string lFullConversionFilePath =
+              gOFS->MgmProcConversionPath.c_str();
+            lFullConversionFilePath += "/";
+            lFullConversionFilePath += val;
+            struct stat buf;
+
+            if (gOFS->_stat(lFullConversionFilePath.c_str(), &buf, error, rootvid, ""))
             {
-              if (eos::common::StringConversion::SplitKeyValue(sfxid, fxid, conversionattribute) &&
-                  (eos::common::FileId::Hex2Fid(fxid.c_str())) &&
-                  (fxid.length() == 16))
+              continue;
+            }
+
+            if ((buf.st_uid != 0) /* this is a failed or scheduled entry */)
+            {
+              continue;
+            }
+
+
+            if (eos::common::StringConversion::SplitKeyValue(sfxid, fxid, conversionattribute) &&
+                (eos::common::FileId::Hex2Fid(fxid.c_str())) &&
+                (fxid.length() == 16))
+            {
+              if (conversionattribute.beginswith(mSpaceName.c_str()))
               {
-                // this is a valid entry like <fxid>:<attribute> - we add it to the set
+                // -----------------------------------------------------------
+                // this is a valid entry like <fxid>:<attribute>
+                // we add it to the set
+                // if <attribute> starts with our space name!
+                // -----------------------------------------------------------
                 lConversionFidMap[eos::common::FileId::Hex2Fid(fxid.c_str())] =
                   conversionattribute.c_str();
-              }
-              else
-              {
-                // this is an invalid entry not following the <key(016x)>:<value> syntax
-                std::string lFullConversionFilePath =
-                  gOFS->MgmProcConversionPath.c_str();
-                lFullConversionFilePath += "/";
-                lFullConversionFilePath += val;
-                // this is an invalid entry we just remove it
-                if (!gOFS->_rem(lFullConversionFilePath.c_str(),
-                                error,
-                                rootvid,
-                                (const char*) 0))
+
+                // -------------------------------------------------------------------------
+                // we set owner admin to indicate that this is a scheduled entry
+                // -------------------------------------------------------------------------
+                if (!gOFS->_chown(lFullConversionFilePath.c_str(),
+                                  3,
+                                  4,
+                                  error,
+                                  rootvid,
+                                  (const char*) 0))
                 {
-                  eos_static_warning("msg=\"deleted invalid conversion entry\" name=\"%s\"", val);
+                  eos_static_info("msg=\"tagged scheduled conversion entry with owner admin\" name=\"%s\"",
+                                  conversionattribute.c_str());
+                }
+                else
+                {
+
+                  eos_static_err("msg=\"failed to tag with owner admin scheduled conversion job entry\" name=\"%s\"",
+                                 conversionattribute.c_str());
                 }
               }
             }
             else
             {
-              eos_static_info("no run");
+              eos_static_warning("split=%d fxid=%llu fxid=|%s|length=%u", eos::common::StringConversion::SplitKeyValue(sfxid, fxid, conversionattribute), eos::common::FileId::Hex2Fid(fxid.c_str()), fxid.c_str(), fxid.length());
+
+              // this is an invalid entry not following the <key(016x)>:<value> syntax
+
+              // this is an invalid entry we just remove it
+              if (!gOFS->_rem(lFullConversionFilePath.c_str(),
+                              error,
+                              rootvid,
+                              (const char*) 0))
+              {
+                eos_static_warning("msg=\"deleted invalid conversion entry\" name=\"%s\"", val);
+              }
             }
           }
           dir.close();
@@ -414,6 +573,8 @@ Converter::Convert (void)
         XrdSysMutexHelper sLock(gSchedulerMutex);
         gScheduler->Schedule((XrdJob*) job);
         mActiveJobs++;
+        // remove the entry from the conversion map
+        lConversionFidMap.erase(lConversionFidMap.begin());
       }
       else
       {

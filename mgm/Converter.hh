@@ -32,6 +32,7 @@
 /* -------------------------------------------------------------------------- */
 #include "XrdSys/XrdSysPthread.hh"
 #include "Xrd/XrdScheduler.hh"
+#include "XrdCl/XrdClCopyProcess.hh"
 /* -------------------------------------------------------------------------- */
 #include <vector>
 #include <string>
@@ -67,6 +68,9 @@ private:
   /// source path of the conversion job
   std::string mSourcePath;
 
+  /// proc path of the conversion job
+  std::string mProcPath;
+  
   /// target CGI of the conversion job
   std::string mTargetCGI;
 
@@ -76,6 +80,9 @@ private:
   /// target space name of the conversion
   std::string mConverterName;
 
+  /// the third-party copy job description
+  struct XrdCl::JobDescriptor mTPCJob;
+  
 public:
 
   // ---------------------------------------------------------------------------
@@ -109,9 +116,10 @@ public:
  * If a third party conversion finished successfully the layout & replica of the
  * converted temporary file will be merged into the existing file and the previous
  * layout will be dropped.
+ * !<conversionlayout!> is formed like !<space[.group]~>=!<layoutid(08x)!>
  */
 /*----------------------------------------------------------------------------*/
-class Converter{
+class Converter {
   private :
   /// thread id
   pthread_t mThread;
@@ -121,7 +129,7 @@ class Converter{
 
   /// this are all jobs which are queued and didn't run yet
   size_t mActiveJobs;
-
+  
   /// condition variabl to get signalled for a done job
   XrdSysCondVar mDoneSignal;
 public:
