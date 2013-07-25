@@ -423,6 +423,10 @@ print_summary (VectLocationType& src,
 void
 print_progbar (unsigned long long bytesread, unsigned long long size)
 {
+  if (!size) {
+    bytesread = size = 1; // fake 100% in that case
+  }
+
   CERR(("[eoscp] %-24s Total %.02f MB\t|", cpname.c_str(), (float) size / 1024 / 1024));
 
   for (int l = 0; l < 20; l++)
@@ -480,9 +484,9 @@ write_progress (unsigned long long bytesread, unsigned long long size)
 void
 abort_handler (int)
 {
-  print_summary_header(src_location, dst_location);
+  //  print_summary_header(src_location, dst_location);
   fprintf(stdout, "error: [eoscp] has been aborted\n");
-  exit(-1);
+  exit( EINTR );
 }
 
 
@@ -2234,6 +2238,10 @@ main (int argc, char* argv[])
 
     case XRD_ACCESS:
       status = src_handler[i].second->Close();
+      if (!status.IsOK()) {
+	fprintf(stderr,"error: close failed on source - file modified during replication\n");
+	exit(-EIO);
+      }
       delete src_handler[i].second;
       break;
 
