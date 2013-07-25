@@ -959,6 +959,7 @@ SpaceQuota::CheckWriteQuota (uid_t uid, gid_t gid, long long desiredspace, unsig
   if (!userquota && !groupquota)
     projectquota = true;
 
+  eos_static_info("userquota=%d groupquota=%d userquota=%d groupquota=%d userinodequota=%d uservolumequota=%d\n", userquota, groupquota, hasuserquota, hasgroupquota, userinodequota, uservolumequota);
   if ((userquota) && (groupquota))
   {
     // both are defined, we need to have both
@@ -974,7 +975,7 @@ SpaceQuota::CheckWriteQuota (uid_t uid, gid_t gid, long long desiredspace, unsig
     hasquota = true;
   }
 
-  if (uid == 0)
+  if ( (uid == 0) )
   {
     // root does not need any quota
     hasquota = true;
@@ -1034,12 +1035,13 @@ SpaceQuota::FilePlacement (const char* path, //< path to place
 
   if (!FsView::gFsView.mSpaceGroupView.count(spacename))
   {
+    eos_static_err("msg=\"no filesystem in space\" space=\"%s\"", spacename.c_str());
     // there is no filesystem in that space
     selected_filesystems.clear();
     return ENOSPC;
   }
 
-  // call the scheduler impelemntation now
+  // call the scheduler implementation now
   return Scheduler::FilePlacement(path, vid, grouptag, lid, avoid_filesystems, selected_filesystems, truncate, forced_scheduling_group_index, bookingsize);
 }
 
