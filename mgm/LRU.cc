@@ -163,7 +163,8 @@ LRU::LRUr ()
                       lrudirs.size()
                       );
 
-      for (auto it = lrudirs.begin(); it != lrudirs.end(); it++)
+      // scan backwards ... in this way we get rid of empty directories in one go ...
+      for (auto it = lrudirs.rbegin(); it != lrudirs.rend(); it++)
       {
         // ---------------------------------------------------------------------
         // get the attributes
@@ -250,18 +251,27 @@ LRU::AgeExpireEmtpy (const char* dir, std::string& policy)
 {
   struct stat buf;
 
+  eos_static_debug("dir=%s",dir);
+  
   if (!gOFS->_stat(dir, &buf, mError, mRootVid, ""))
   {
     // check if there is any child in that directory
-    if (buf.st_ino)
+    if (buf.st_nlink)
       return;
     else
     {
-      eos_static_info("msg=\"delete empty directory\" path=\"%s\"", dir);
-      if (gOFS->_rem(dir, mError, mRootVid, ""))
+      time_t now = time(NULL);
+      XrdOucString sage = policy.c_str();
+      time_t age = eos::common::StringConversion::GetSizeFromString(sage);
+      eos_static_debug("ctime=%u age=%u now=%u", buf.st_ctime, age, now);
+      if ((buf.st_ctime + age) < now)
       {
-        eos_static_err("msg=\"failed to delete empty directory\" "
-                       "path=\"%s\"", dir);
+        eos_static_info("msg=\"delete empty directory\" path=\"%s\"", dir);
+        if (gOFS->_rem(dir, mError, mRootVid, ""))
+        {
+          eos_static_err("msg=\"failed to delete empty directory\" "
+                         "path=\"%s\"", dir);
+        }
       }
     }
   }
