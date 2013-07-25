@@ -363,6 +363,7 @@ StringConversion::GetSizeString (XrdOucString& sizestring, double insize)
  * 
  * @param keyval key-val string 'key:value'
  * @param key returned key
+ * @param split split character
  * @param value return value
  * 
  * @return true if parsing ok, false if wrong format
@@ -370,12 +371,12 @@ StringConversion::GetSizeString (XrdOucString& sizestring, double insize)
 // ---------------------------------------------------------------------------  
 
 bool
-StringConversion::SplitKeyValue (std::string keyval, std::string &key, std::string &value)
+StringConversion::SplitKeyValue (std::string keyval, std::string &key, std::string &value, std::string split)
 {
-  int equalpos = keyval.find(":");
+  int equalpos = keyval.find(split.c_str());
   if (equalpos != STR_NPOS)
   {
-    key.assign(keyval, 0, equalpos - 1);
+    key.assign(keyval, 0, equalpos );
     value.assign(keyval, equalpos + 1, keyval.length()-(equalpos + 1));
     return true;
   }
@@ -392,6 +393,7 @@ StringConversion::SplitKeyValue (std::string keyval, std::string &key, std::stri
  * 
  * @param keyval key-val string 'key:value'
  * @param key returned key
+ * @param split split character
  * @param value return value
  * 
  * @return true if parsing ok, false if wrong format
@@ -399,12 +401,12 @@ StringConversion::SplitKeyValue (std::string keyval, std::string &key, std::stri
 // ---------------------------------------------------------------------------  
 
 bool
-StringConversion::SplitKeyValue (XrdOucString keyval, XrdOucString &key, XrdOucString &value)
+StringConversion::SplitKeyValue (XrdOucString keyval, XrdOucString &key, XrdOucString &value, XrdOucString split)
 {
-  int equalpos = keyval.find(":");
+  int equalpos = keyval.find(split.c_str());
   if (equalpos != STR_NPOS)
   {
-    key.assign(keyval, 0, equalpos - 1);
+    key.assign(keyval, 0, equalpos -1);
     value.assign(keyval, equalpos + 1);
     return true;
   }
@@ -905,6 +907,18 @@ StringConversion::CreateUrl (const char* protocol, const char* hostport, const c
   return 0;
 }
 
+bool
+StringConversion::IsHexNumber (const char* hexstring, const char* format)
+{
+  if (!hexstring)
+    return false;
+  
+  unsigned long long number = strtoull(hexstring, 0, 16);
+  char controlstring[256];
+  snprintf(controlstring,sizeof(controlstring)-1,format, number);
+  
+  return !strcmp(hexstring,controlstring);
+}
 
 // ---------------------------------------------------------------------------
 // Convert numeric value to string in a pretty way using KB, MB etc. symbols
