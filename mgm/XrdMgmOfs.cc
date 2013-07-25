@@ -3824,9 +3824,9 @@ XrdMgmOfs::_find (const char *path,
                   XrdOucString &stdErr,
                   eos::common::Mapping::VirtualIdentity &vid,
                   std::map<std::string, std::set<std::string> > &found,
-                  const char* key, 
-                  const char* val, 
-                  bool nofiles, 
+                  const char* key,
+                  const char* val,
+                  bool nofiles,
                   time_t millisleep
                   )
 /*----------------------------------------------------------------------------*/
@@ -3865,7 +3865,7 @@ XrdMgmOfs::_find (const char *path,
   XrdOucString sPath = path;
   errno = 0;
   XrdSysTimer snooze;
-  
+
   EXEC_TIMING_BEGIN("Find");
 
   gOFS->MgmStats.Add("Find", vid.uid, vid.gid, 1);
@@ -3905,7 +3905,7 @@ XrdMgmOfs::_find (const char *path,
     {
       Path = found_dirs[deepness][i].c_str();
       eos_static_debug("Listing files in directory %s", Path.c_str());
-      
+
       if (millisleep)
       {
         // slow down the find command without having locks
@@ -3962,11 +3962,11 @@ XrdMgmOfs::_find (const char *path,
                   XrdOucString akey = it->first.c_str();
                   if (akey.matches(wkey.c_str()))
                   {
-                    found_dirs[deepness + 1].push_back(fpath.c_str());
                     found[fpath].size();
                   }
                 }
               }
+              found_dirs[deepness + 1].push_back(fpath.c_str());
             }
             else
             {
@@ -3977,11 +3977,11 @@ XrdMgmOfs::_find (const char *path,
               if (!gOFS->_attr_get(fpath.c_str(), out_error, vid,
                                    (const char*) 0, key, attr, true))
               {
+                found_dirs[deepness + 1].push_back(fpath.c_str());
                 if (attr == val)
                 {
-                  found_dirs[deepness + 1].push_back(fpath.c_str());
                   found[fpath].size();
-                }
+                } 
               }
             }
           }
@@ -8254,7 +8254,7 @@ XrdMgmOfs::merge (
                   const char* src,
                   const char* dst,
                   XrdOucErrInfo &error,
-                  eos::common::Mapping::VirtualIdentity &vid
+                  eos::common::Mapping::VirtualIdentity & vid
                   )
 /*----------------------------------------------------------------------------*/
 /**
