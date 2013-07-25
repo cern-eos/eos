@@ -54,7 +54,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
   //! the write placement routine
   //! ------------------------------------------------------------- 
 
-  // the caller routing has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) 
+  // the caller routine has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) 
   std::set<eos::common::FileSystem::fsid_t> fsidavoidlist;
   std::map<eos::common::FileSystem::fsid_t, float> availablefs;
   std::map<eos::common::FileSystem::fsid_t, std::string> availablefsgeolocation;
