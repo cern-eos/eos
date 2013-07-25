@@ -246,7 +246,7 @@ HttpServer::HttpRedirect (const std::string &url,
   std::string redirect;
 
   redirect = "http://";
-  redirect += host;
+  redirect += "127.0.0.1"; //host;
   char sport[16];
   snprintf(sport, sizeof (sport) - 1, ":%d", port);
   redirect += sport;
@@ -272,6 +272,9 @@ HttpServer::HttpRedirect (const std::string &url,
   }
 
   response->AddHeader("Location", redirect);
+  redirect = "/internal_redirect/" + redirect.substr(7);
+  response->AddHeader("X-Accel-Redirect", redirect);
+  response->AddHeader("X-Sendfile", redirect);
   return response;
 }
 
