@@ -95,9 +95,25 @@ XrdIo::Open (const std::string& path,
 {
   const char* val = 0;
   std::string request;
-  XrdOucEnv open_opaque(opaque.c_str());
+
+  std::string lOpaque;
+  size_t qpos = 0;
 
   mFilePath = path;
+
+  //............................................................................
+  // Opaque info can be part of the 'path' 
+  //............................................................................
+  if ( ( (qpos = path.find("?")) != std::string::npos) ) {
+    lOpaque = path.substr(qpos+1);
+    mFilePath.erase(qpos);
+  } 
+  else
+  {
+    lOpaque = opaque;
+  }
+
+  XrdOucEnv open_opaque(lOpaque.c_str());
 
   //............................................................................
   // Decide if readahead is used and the block size
@@ -122,7 +138,7 @@ XrdIo::Open (const std::string& path,
 
   request = path;
   request += "?";
-  request += opaque;
+  request += lOpaque;
   mXrdFile = new XrdCl::File();
 
   // Disable recovery on read and write
