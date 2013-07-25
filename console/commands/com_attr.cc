@@ -322,6 +322,7 @@ com_attr_usage:
   fprintf(stdout, "         sys.forced.bookingsize=<bytes>        : set's the number of bytes which get for each new created replica\n");
   fprintf(stdout, "         sys.forced.minimumsize=<bytes>        : set's the minimum number of bytes a file to be stored must have\n");
   fprintf(stdout, "         sys.forced.maximumsize=<bytes>        : set's the maximum number of bytes a file to be stored can have\n");
+  fprintf(stdout, "         sys.force.atime=track                 : enables atime tagging under that directory");
   fprintf(stdout, "         sys.stall.unavailable=<sec>           : stall clients for <sec> seconds if a needed file system is unavailable\n");
   fprintf(stdout, "         sys.heal.unavailable=<tries>          : try to heal an unavailable file for atleast <tries> times - must be >= 3 !!\n");
   fprintf(stdout, "                                                     - the product <heal-tries> * <stall-time> should be bigger than the expect replication time for a given filesize!\n\n");

@@ -163,7 +163,14 @@ com_file (char* arg1)
   // convenience function
   if (cmd == "info")
   {
-    arg.replace("info ", "");
+    if (arg=="info") 
+    {
+      arg.replace("info", "");
+    }
+    else
+    {
+      arg.replace("info ", "");
+    }
     return com_fileinfo((char*) arg.c_str());
   }
 
@@ -232,16 +239,17 @@ com_file (char* arg1)
     if (!path.length() || !dest_path.length() ) 
       goto com_file_usage;
     in += "&mgm.subcmd=copy";
-    in + "&mgm.path=";
+    in += "&mgm.path=";
     in += path;
     dest_path = abspath(dest_path.c_str());
-    in += "&mgm.dest=";
+    in += "&mgm.file.target=";
     in += dest_path;
   }
 
   if (cmd == "convert") 
   {
     XrdOucString layout = fsid1;
+    XrdOucString space  = fsid2;
     if (!path.length()) 
       goto com_file_usage;
     in += "&mgm.subcmd=convert";
@@ -251,6 +259,11 @@ com_file (char* arg1)
     {
       in += "&mgm.convert.layout=";
       in += layout;
+    }
+    if (space.length())
+    {
+      in += "&mgm.convert.space=";
+      in += space;
     }
     if (option == "sync") 
     {
@@ -728,11 +741,12 @@ com_file_usage:
   fprintf(stdout, "       - %%silent                                                     :  suppresses all information for each replic to be printed\n");
   fprintf(stdout, "       - %%force                                                      :  forces to get the MD even if the node is down\n");
   fprintf(stdout, "       - %%output                                                     :  prints lines with inconsitency information\n");
-  fprintf(stdout, "file convert [--sync] <path> [<layout>:<stripes> | <layout-id> | <sys.attribute.name>] :\n");
+  fprintf(stdout, "file convert [--sync] <path> [<layout>:<stripes> | <layout-id> | <sys.attribute.name>] [target-space]:\n");
   fprintf(stdout, "                                                                         convert the layout of a file\n");
   fprintf(stdout, "        <layout>:<stripes>   : specify the target layout and number of stripes\n");
   fprintf(stdout, "        <layout-id>          : specify the hexadecimal layout id \n");
-  fprintf(stdout, "        <sys.attribute.name> : specify the name of the attribute in the parten directory of <path> defining the target layout\n");
+  fprintf(stdout, "        <conversion-name>    : specify the name of the attribute sys.conversion.<name> in the parent directory of <path> defining the target layout\n");
+  fprintf(stdout, "        <target-space>       : optional name of the target space or group e.g. default or default.3");
   fprintf(stdout, "        --sync               : run convertion in synchronous mode (by default conversions are asynchronous)\n");
   fprintf(stdout, "file cp <src> <dst>                                                   :  synchronous third party copy from <src> to <dst>\n");
   fprintf(stdout,"         <src>                                                         :  source can be a file or a directory\n");

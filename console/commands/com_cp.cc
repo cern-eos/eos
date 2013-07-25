@@ -229,6 +229,9 @@ com_cp (char* argin)
   if (silent)
     noprogress = true;
 
+  if (!hasterminal)
+    noprogress = true;
+
   nextarg = subtokenizer.GetToken();
   lastarg = subtokenizer.GetToken();
   do
@@ -830,6 +833,12 @@ com_cp (char* argin)
       }
     }
 
+    if (arg2.beginswith("/") && !arg2.beginswith("/eos/")) 
+    {
+      // remove the opaque info for local files
+      arg2.erase(arg2.find("?"));
+    }
+
     targetfile = arg2;
 
     if (arg2.beginswith("/eos") || arg2.beginswith("root://"))
@@ -1083,6 +1092,7 @@ com_cp (char* argin)
 
     if (debug)fprintf(stderr, "[eos-cp] running: %s\n", cmdline.c_str());
     int lrc = system(cmdline.c_str());
+    int erc = lrc ; // the original return code
     // check the target size
     struct stat buf;
 
@@ -1353,9 +1363,16 @@ com_cp (char* argin)
         copiedok++;
         copiedsize += source_size[nfile];
       }
+    } 
+    // check if we got a CONTROL-C
+    if ( erc == EINTR) 
+    {
+      fprintf(stderr,"<Control-C>\n");
+      retc |= lrc;
+      break;
     }
-    retc |= lrc;
 
+    retc |= lrc;
   }
 
   gettimeofday(&tv2, &tz);
