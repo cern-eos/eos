@@ -1,0 +1,29 @@
+# Configuration file for the nginx service
+
+NGINX_CONF_FILE=/etc/nginx/nginx.eos.conf
+
+# nginx SSL configuration
+export EOS_NGINX_HOSTNAME=`hostname -f`
+export EOS_NGINX_PORT=443
+export EOS_NGINX_SSL_CERTIFICATE=/etc/grid-security/hostcert.pem
+export EOS_NGINX_SSL_KEY=/etc/grid-security/hostkey.pem
+export EOS_NGINX_SSL_CLIENT_CERTIFICATE=/etc/grid-security/certificates/nginx-bundle.pem
+
+# Enable openssl to use proxy certificates
+export OPENSSL_ALLOW_PROXY_CERTS=1
+
+# nginx kerberos configuration
+export EOS_NGINX_GSS_KEYTAB=/etc/krb5.keytab
+export EOS_NGINX_GSS_REALM=CERN.CH
+export EOS_NGINX_GSS_SERVICE_NAME=host/$EOS_NGINX_HOSTNAME
+
+
+# Replace all the things
+perl -pi -e 's/EOS_NGINX_HOSTNAME/$ENV{EOS_NGINX_HOSTNAME}/'                             /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_PORT/$ENV{EOS_NGINX_PORT}/'                                     /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_SSL_CERTIFICATE/$ENV{EOS_NGINX_SSL_CERTIFICATE}/'               /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_SSL_KEY/$ENV{EOS_NGINX_SSL_KEY}/'                               /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_SSL_CLIENT_CERTIFICATE/$ENV{EOS_NGINX_SSL_CLIENT_CERTIFICATE}/' /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_GSS_KEYTAB/$ENV{EOS_NGINX_GSS_KEYTAB}/'                         /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_GSS_REALM/$ENV{EOS_NGINX_GSS_REALM}/'                           /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_GSS_SERVICE_NAME/$ENV{EOS_NGINX_GSS_SERVICE_NAME}/'             /etc/nginx/nginx.eos.conf

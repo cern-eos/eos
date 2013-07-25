@@ -1,0 +1,10 @@
+--- auto/options.orig	2007-03-22 09:34:58.000000000 -0600
++++ auto/options	2007-03-22 09:35:33.000000000 -0600
+@@ -4,6 +4,7 @@
+ 
+ help=no
+ 
++NGX_DEST_DIR=${DESTDIR:-}
+ NGX_PREFIX=
+ NGX_SBIN_PATH=
+ NGX_CONF_PATH=

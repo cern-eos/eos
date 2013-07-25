@@ -49,7 +49,8 @@ std::string
 HttpRequest::ToString()
 {
   std::stringstream ss;
-  ss << GetMethod() << " " << GetUrl() << "?" << GetQuery() << std::endl;
+  ss << GetMethod() << " " << GetUrl() << GetQuery().size() ? "?" : ""
+     << GetQuery() << std::endl;
   for (auto it = GetHeaders().begin(); it != GetHeaders().end(); ++it)
   {
     ss << it->first << ": " << it->second.c_str() << std::endl;
