@@ -96,15 +96,15 @@ static void* RunReader(void* tconf)
     if (dolock) nslock.LockRead();
     if (r->type == 0) {
       long long v = stdmap[n];
-      v = 1;
+      if (v) v = 1;
     }
     if (r->type == 1) {
       long long v = googlemap[n];
-      v = 1;
+      if (v) v = 1;
     }
     if (r->type == 2) {
       long long v = ulibmap[n];
-      v = 1;
+      if (v) v = 1;
     }
 
     // if (dolock)nsmutex.UnLock();
