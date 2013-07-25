@@ -29,6 +29,8 @@
 #include "mgm/Macros.hh"
 #include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdCl/XrdClCopyProcess.hh"
+/*----------------------------------------------------------------------------*/
 #include <math.h>
 
 /*----------------------------------------------------------------------------*/
@@ -89,17 +91,20 @@ ProcCommand::File ()
     }
 
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // change the number of stripes for files with replica layout
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     if (mSubCmd == "layout")
     {
       XrdOucString stripes = pOpaque->Get("mgm.file.layout.stripes");
       int newstripenumber = 0;
       if (stripes.length()) newstripenumber = atoi(stripes.c_str());
-      if (!stripes.length() || ((newstripenumber < (eos::common::LayoutId::kOneStripe + 1)) || (newstripenumber > (eos::common::LayoutId::kSixteenStripe + 1))))
+      if (!stripes.length() ||
+          ((newstripenumber < (eos::common::LayoutId::kOneStripe + 1)) ||
+           (newstripenumber > (eos::common::LayoutId::kSixteenStripe + 1))))
       {
-        stdErr = "error: you have to give a valid number of stripes as an argument to call 'file layout'";
+        stdErr = "error: you have to give a valid number of stripes"
+          " as an argument to call 'file layout'";
         retc = EINVAL;
       }
       else
@@ -133,13 +138,16 @@ ProcCommand::File ()
               errno = e.getErrno();
               stdErr = "error: cannot retrieve file meta data - ";
               stdErr += e.getMessage().str().c_str();
-              eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+              eos_debug("caught exception %d %s\n",
+                        e.getErrno(),
+                        e.getMessage().str().c_str());
             }
           }
           else
           {
+            // -----------------------------------------------------------------
             // reference by path
-            //-------------------------------------------
+            // -----------------------------------------------------------------
             gOFS->eosViewRWMutex.LockWrite();
             try
             {
@@ -150,15 +158,26 @@ ProcCommand::File ()
               errno = e.getErrno();
               stdErr = "error: cannot retrieve file meta data - ";
               stdErr += e.getMessage().str().c_str();
-              eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+              eos_debug("caught exception %d %s\n",
+                        e.getErrno(),
+                        e.getMessage().str().c_str());
             }
           }
 
           if (fmd)
           {
-            if ((eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kReplica) || (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kPlain))
+            if ((eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
+                 eos::common::LayoutId::kReplica) ||
+                (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
+                 eos::common::LayoutId::kPlain))
             {
-              unsigned long newlayout = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::GetChecksum(fmd->getLayoutId()), newstripenumber, eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()));
+              unsigned long newlayout =
+                eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica,
+                                             eos::common::LayoutId::GetChecksum(fmd->getLayoutId()),
+                                             newstripenumber,
+                                             eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())
+                                             );
+
               fmd->setLayoutId(newlayout);
               stdOut += "success: setting new stripe number to ";
               stdOut += newstripenumber;
@@ -170,7 +189,8 @@ ProcCommand::File ()
             else
             {
               retc = EPERM;
-              stdErr = "error: you can only change the number of stripes for files with replica layout";
+              stdErr = "error: you can only change the number of "
+                "stripes for files with replica layout";
             }
           }
           else
@@ -189,9 +209,9 @@ ProcCommand::File ()
       }
     }
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // verify checksum, size for files issuing an asynchronous verification req
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     if (mSubCmd == "verify")
     {
       XrdOucString option = "";
@@ -251,8 +271,9 @@ ProcCommand::File ()
             spath.replace("fxid:", "");
             fid = strtoull(spath.c_str(), 0, 16);
           }
+          // -------------------------------------------------------------------
           // reference by fid+fsid
-          //-------------------------------------------
+          // -------------------------------------------------------------------
           gOFS->eosViewRWMutex.LockRead();
           try
           {
@@ -265,13 +286,16 @@ ProcCommand::File ()
             errno = e.getErrno();
             stdErr = "error: cannot retrieve file meta data - ";
             stdErr += e.getMessage().str().c_str();
-            eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+            eos_debug("caught exception %d %s\n",
+                      e.getErrno(),
+                      e.getMessage().str().c_str());
           }
         }
         else
         {
+          // -------------------------------------------------------------------
           // reference by path
-          //-------------------------------------------
+          // -------------------------------------------------------------------
           gOFS->eosViewRWMutex.LockRead();
           try
           {
@@ -282,13 +306,17 @@ ProcCommand::File ()
             errno = e.getErrno();
             stdErr = "error: cannot retrieve file meta data - ";
             stdErr += e.getMessage().str().c_str();
-            eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+            eos_debug("caught exception %d %s\n",
+                      e.getErrno(),
+                      e.getMessage().str().c_str());
           }
         }
 
         if (fmd)
         {
+          // -------------------------------------------------------------------
           // copy out the locations vector
+          // -------------------------------------------------------------------
           eos::FileMD::LocationVector locations;
           eos::FileMD::LocationVector::const_iterator it;
           for (it = fmd->locationsBegin(); it != fmd->locationsEnd(); ++it)
@@ -310,7 +338,11 @@ ProcCommand::File ()
             if (acceptfsid)
               acceptfound = true;
 
-            int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid, (unsigned long) *it, option);
+            int lretc = gOFS->_verifystripe(spath.c_str(),
+                                            *mError,
+                                            vid,
+                                            (unsigned long) *it,
+                                            option);
             if (!lretc)
             {
               stdOut += "success: sending verify to fsid= ";
@@ -325,10 +357,19 @@ ProcCommand::File ()
             }
           }
 
-          // we want to be able to force the registration and verification of a not registered replica
+          // -------------------------------------------------------------------
+          // we want to be able to force the registration and verification of a 
+          // not registered replica
+          // -------------------------------------------------------------------
           if (acceptfsid && (!acceptfound))
           {
-            int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid, (unsigned long) acceptfsid, option);
+            int lretc = gOFS->_verifystripe(spath.c_str(),
+                                            *mError,
+                                            vid,
+                                            (unsigned long) acceptfsid,
+                                            option
+                                            );
+
             if (!lretc)
             {
               stdOut += "success: sending forced verify to fsid= ";
@@ -358,17 +399,24 @@ ProcCommand::File ()
       }
     }
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // move a replica/stripe from source fs to target fs
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     if (mSubCmd == "move")
     {
       XrdOucString sfsidsource = pOpaque->Get("mgm.file.sourcefsid");
-      unsigned long sourcefsid = (sfsidsource.length()) ? strtoul(sfsidsource.c_str(), 0, 10) : 0;
+      unsigned long sourcefsid = (sfsidsource.length()) ?
+        strtoul(sfsidsource.c_str(), 0, 10) : 0;
       XrdOucString sfsidtarget = pOpaque->Get("mgm.file.targetfsid");
-      unsigned long targetfsid = (sfsidsource.length()) ? strtoul(sfsidtarget.c_str(), 0, 10) : 0;
+      unsigned long targetfsid = (sfsidsource.length()) ?
+        strtoul(sfsidtarget.c_str(), 0, 10) : 0;
 
-      if (gOFS->_movestripe(spath.c_str(), *mError, *pVid, sourcefsid, targetfsid))
+      if (gOFS->_movestripe(spath.c_str(),
+                            *mError,
+                            *pVid,
+                            sourcefsid,
+                            targetfsid)
+          )
       {
         stdErr += "error: unable to move stripe";
         retc = errno;
@@ -382,15 +430,17 @@ ProcCommand::File ()
       }
     }
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // replicate a replica/stripe from source fs to target fs
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     if (mSubCmd == "replicate")
     {
       XrdOucString sfsidsource = pOpaque->Get("mgm.file.sourcefsid");
-      unsigned long sourcefsid = (sfsidsource.length()) ? strtoul(sfsidsource.c_str(), 0, 10) : 0;
+      unsigned long sourcefsid = (sfsidsource.length()) ?
+        strtoul(sfsidsource.c_str(), 0, 10) : 0;
       XrdOucString sfsidtarget = pOpaque->Get("mgm.file.targetfsid");
-      unsigned long targetfsid = (sfsidtarget.length()) ? strtoul(sfsidtarget.c_str(), 0, 10) : 0;
+      unsigned long targetfsid = (sfsidtarget.length()) ?
+        strtoul(sfsidtarget.c_str(), 0, 10) : 0;
 
       if (gOFS->_copystripe(spath.c_str(), *mError, *pVid, sourcefsid, targetfsid))
       {
@@ -406,9 +456,9 @@ ProcCommand::File ()
       }
     }
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // rename a file or directory from source to target path
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     if (mSubCmd == "rename")
     {
       XrdOucString source = pOpaque->Get("mgm.file.source");
@@ -429,9 +479,294 @@ ProcCommand::File ()
       }
     }
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // third-party copy files/directories
+    // -------------------------------------------------------------------------
+    if (mSubCmd == "copy")
+    {
+      XrdOucString src = spath;
+      XrdOucString dst = pOpaque->Get("mgm.file.target");
+
+      stdOut += "info: copying '";
+      stdOut += spath;
+      stdOut += "' => '";
+      stdOut += dst;
+      stdOut += "' ...\n";
+      if (!dst.length())
+      {
+        stdErr += "error: missing destination argument";
+        retc = EINVAL;
+      }
+      else
+      {
+        struct stat buf;
+        // check that we can access source and destination
+        if (gOFS->_stat(src.c_str(), &buf, *mError, *pVid, ""))
+        {
+          stdErr += "error: ";
+          stdErr += mError->getErrText();
+          retc = errno;
+        }
+        else
+        {
+          // check source and destination access
+          if (gOFS->_access(src.c_str(),
+                            R_OK,
+                            *mError,
+                            *pVid,
+                            "") ||
+              gOFS->_access(dst.c_str(),
+                            W_OK,
+                            *mError,
+                            *pVid,
+                            ""
+                            ))
+          {
+            stdErr += "error: ";
+            stdErr += mError->getErrText();
+            retc = errno;
+          }
+          else
+          {
+            // -----------------------------------------------------------------
+            // setup a TPC job
+            // -----------------------------------------------------------------
+            struct XrdCl::JobDescriptor lTPCJob;
+            lTPCJob.thirdParty = true;
+            lTPCJob.thirdPartyFallBack = false;
+            lTPCJob.force = true;
+            lTPCJob.posc = false;
+            lTPCJob.coerce = false;
+
+            std::string source = src.c_str();
+            std::string target = dst.c_str();
+
+            std::string sizestring;
+            std::string cgi = "eos.ruid=";
+            cgi += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)pVid->uid);
+            cgi += "&eos.rgid=";
+            cgi += eos::common::StringConversion::GetSizeString(sizestring,(unsigned long long)pVid->gid);
+            cgi += "&eos.app=filecopy";
+
+            lTPCJob.source.SetProtocol("root");
+            lTPCJob.source.SetHostName("localhost");
+            lTPCJob.source.SetUserName("root");
+            lTPCJob.source.SetParams(cgi);
+            lTPCJob.target.SetProtocol("root");
+            lTPCJob.target.SetHostName("localhost");
+            lTPCJob.target.SetUserName("root");
+            lTPCJob.target.SetParams(cgi);
+            lTPCJob.source.SetPath(source);
+            lTPCJob.target.SetPath(target);
+            lTPCJob.sourceLimit = 1;
+            lTPCJob.checkSumPrint = false;
+            lTPCJob.chunkSize = 4 * 1024 * 1024;
+            lTPCJob.parallelChunks = 1;
+
+            XrdCl::CopyProcess lCopyProcess;
+            lCopyProcess.AddJob(&lTPCJob);
+
+            XrdCl::XRootDStatus lTpcPrepareStatus = lCopyProcess.Prepare();
+
+            eos_static_info("[tpc]: %s=>%s %s",
+                            lTPCJob.source.GetURL().c_str(),
+                            lTPCJob.target.GetURL().c_str(),
+                            lTpcPrepareStatus.ToStr().c_str());
+
+            XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);
+            eos_static_info("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
+            if (lTpcStatus.IsOK())
+            {
+              stdOut += "success: copy done";
+              retc = 0;
+            }
+            else
+            {
+              stdErr += "error: copy failed - ";
+              stdErr += lTpcStatus.ToStr().c_str();
+              retc = EIO;
+            }
+          }
+        }
+      }
+    }
+
+    if (mSubCmd == "convert")
+    {
+      // -----------------------------------------------------------------------
+      // check access permissions on source
+      // -----------------------------------------------------------------------
+
+      if ((gOFS->_access(spath.c_str(), W_OK, *mError, *pVid, "") != SFS_OK))
+      {
+        stdErr += "error: you have no write permission on '";
+        stdErr += spath.c_str();
+        stdErr += "'";
+        retc = EPERM;
+      }
+      else
+      {
+
+        XrdOucString layout = pOpaque->Get("mgm.convert.layout");
+        XrdOucString space = pOpaque->Get("mgm.convert.space");
+
+        if (!space.length())
+        {
+          // -------------------------------------------------------------------
+          // retrieve the target space from the layout settings
+          // -------------------------------------------------------------------
+          eos::common::Path cPath(spath.c_str());
+          eos::ContainerMD::XAttrMap map;
+          int rc = gOFS->_attr_ls(cPath.GetParentPath(), *mError, *pVid, (const char *) 0, map);
+          if (rc || (!map.count("sys.forced.space") && !map.count("user.forced.space")))
+          {
+            stdErr += "error: cannot get default space settings from parent directory attributes";
+            retc = EINVAL;
+          }
+          else
+          {
+            if (map.count("sys.forced.space"))
+              space = map["sys.forced.space"].c_str();
+            else
+              space = map["user.forced.space"].c_str();
+          }
+        }
+        else
+        {
+
+          if (!layout.length())
+          {
+            stdErr += "error: conversion layout has to be defined";
+            retc = EINVAL;
+          }
+          else
+          {
+            // get the file meta data
+            eos::FileMD* fmd = 0;
+
+            eos::common::LayoutId::layoutid_t layoutid = 0;
+            eos::common::FileId::fileid_t fileid = 0;
+            {
+              eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+              try
+              {
+                fmd = gOFS->eosView->getFile(spath.c_str());
+                layoutid = fmd->getLayoutId();
+                fileid = fmd->getId();
+              }
+              catch (eos::MDException &e)
+              {
+                errno = e.getErrno();
+                eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+              }
+            }
+
+            if (!fmd)
+            {
+              stdErr += "error: unable to get file meta data of file ";
+              stdErr += spath.c_str();
+              retc = errno;
+            }
+            else
+            {
+              char conversiontagfile[1024];
+
+              if (eos::common::StringConversion::IsHexNumber(layout.c_str(), "%08x"))
+              {
+                // we hand over as an conversion layout ID
+                snprintf(conversiontagfile,
+                         sizeof (conversiontagfile) - 1,
+                         "%s/%016llx:%s#%s",
+                         gOFS->MgmProcConversionPath.c_str(),
+                         fileid,
+                         space.c_str(),
+                         layout.c_str());
+                stdOut += "info: conversion based on hexadecimal layout id\n";
+              }
+              else
+              {
+                unsigned long layout_type = 0;
+                unsigned long layout_stripes = 0;
+
+                // check if it was provided as <layout>:<stripes>
+                std::string lLayout = layout.c_str();
+                std::string lLayoutName;
+                std::string lLayoutStripes;
+                if (eos::common::StringConversion::SplitKeyValue(lLayout,
+                                                                 lLayoutName,
+                                                                 lLayoutStripes))
+                {
+                  XrdOucString lLayoutString = "eos.layout.type=";
+                  lLayoutString += lLayoutName.c_str();
+                  lLayoutString += "&eos.layout.nstripes=";
+                  lLayoutString += lLayoutStripes.c_str();
+                  // ---------------------------------------------------------------
+                  // add block checksumming and the default blocksize of 4 M
+                  // ---------------------------------------------------------------
+
+                  XrdOucEnv lLayoutEnv(lLayoutString.c_str());
+                  layout_type =
+                    eos::common::LayoutId::GetLayoutFromEnv(lLayoutEnv);
+                  layout_stripes =
+                    eos::common::LayoutId::GetStripeNumberFromEnv(lLayoutEnv);
+                  // ---------------------------------------------------------------
+                  // re-create layout id by merging in the layout stripes & type
+                  // ---------------------------------------------------------------
+                  layoutid =
+                    eos::common::LayoutId::GetId(layout_type,
+                                                 eos::common::LayoutId::kAdler,
+                                                 layout_stripes,
+                                                 eos::common::LayoutId::k4M,
+                                                 eos::common::LayoutId::kCRC32C,
+                                                 eos::common::LayoutId::GetRedundancyStripeNumber(layoutid));
+
+
+                  snprintf(conversiontagfile,
+                           sizeof (conversiontagfile) - 1,
+                           "%s/%016llx:%s#%08lx",
+                           gOFS->MgmProcConversionPath.c_str(),
+                           fileid,
+                           space.c_str(),
+                           (unsigned long) layoutid);
+                  stdOut += "info: conversion based layout+stripe arguments\n";
+                }
+                else
+                {
+                  // assume this is the name of an attribute
+                  snprintf(conversiontagfile,
+                           sizeof (conversiontagfile) - 1,
+                           "%s/%016llx:%s#%s",
+                           gOFS->MgmProcConversionPath.c_str(),
+                           fileid,
+                           space.c_str(),
+                           layout.c_str());
+                  stdOut += "info: conversion based conversion attribute name\n";
+                }
+              }
+              eos::common::Mapping::VirtualIdentity rootvid;
+              eos::common::Mapping::Root(rootvid);
+              if (gOFS->_touch(conversiontagfile, *mError, rootvid, 0))
+              {
+                stdErr += "error: unable to create conversion job '";
+                stdErr += conversiontagfile;
+                stdErr += "'";
+                retc = errno;
+              }
+              else
+              {
+                stdOut += "success: created conversion job '";
+                stdOut += conversiontagfile;
+                stdOut += "'";
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // -------------------------------------------------------------------------
     // touch a file 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     if (mSubCmd == "touch")
     {
       if (gOFS->_touch(spath.c_str(), *mError, *pVid, 0))
@@ -446,25 +781,30 @@ ProcCommand::File ()
         stdOut += "'";
       }
     }
-    
-    // --------------------------------------------------------------------------Ï
+
+    // -------------------------------------------------------------------------
     // fix the current state of the file layout by removing/repairing or adding
     // replica/stripes
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     if (mSubCmd == "adjustreplica")
     {
+      // -----------------------------------------------------------------------
       // only root can do that
+      // -----------------------------------------------------------------------
       if (pVid->uid == 0)
       {
         eos::FileMD* fmd = 0;
-	bool nodrop = false;
+        bool nodrop = false;
 
-	if (pOpaque->Get("mgm.file.option") && (!strcmp(pOpaque->Get("mgm.file.option"),"nodrop"))) 
-	{
-	  nodrop = true;
-	}
-
-        // this flag indicates that the replicate command should queue this transfers on the head of the FST transfer lists
+        if (pOpaque->Get("mgm.file.option") &&
+            (!strcmp(pOpaque->Get("mgm.file.option"), "nodrop")))
+        {
+          nodrop = true;
+        }
+        // ---------------------------------------------------------------------
+        // this flag indicates that the replicate command should queue 
+        // this transfers on the head of the FST transfer lists
+        // ---------------------------------------------------------------------
         XrdOucString sexpressflag = (pOpaque->Get("mgm.file.express"));
         bool expressflag = false;
         if (sexpressflag == "1")
@@ -504,13 +844,16 @@ ProcCommand::File ()
             errno = e.getErrno();
             stdErr = "error: cannot retrieve file meta data - ";
             stdErr += e.getMessage().str().c_str();
-            eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+            eos_debug("caught exception %d %s\n",
+                      e.getErrno(),
+                      e.getMessage().str().c_str());
           }
         }
         else
         {
+          // -------------------------------------------------------------------
           // reference by path
-          //-------------------------------------------
+          // -------------------------------------------------------------------
           gOFS->eosViewRWMutex.LockRead();
           try
           {
@@ -521,7 +864,9 @@ ProcCommand::File ()
             errno = e.getErrno();
             stdErr = "error: cannot retrieve file meta data - ";
             stdErr += e.getMessage().str().c_str();
-            eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+            eos_debug("caught exception %d %s\n",
+                      e.getErrno(),
+                      e.getMessage().str().c_str());
           }
         }
 
@@ -540,18 +885,23 @@ ProcCommand::File ()
           //-------------------------------------------
 
           // check if that is a replica layout at all
-          if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kReplica)
+          if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
+              eos::common::LayoutId::kReplica)
           {
             // check the configured and available replicas
 
             XrdOucString sizestring;
 
             eos::FileMD::LocationVector::const_iterator lociter;
-            int nreplayout = eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1;
+            int nreplayout =
+              eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1;
             int nrep = (int) fmd->getNumLocation();
             int nreponline = 0;
             int ngroupmix = 0;
-            for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+            for (lociter = fmd->locationsBegin();
+              lociter != fmd->locationsEnd();
+              ++lociter
+              )
             {
               // ignore filesystem id 0
               if (!(*lociter))
@@ -598,7 +948,11 @@ ProcCommand::File ()
               }
             }
 
-            eos_debug("path=%s nrep=%lu nrep-layout=%lu nrep-online=%lu", spath.c_str(), nrep, nreplayout, nreponline);
+            eos_debug("path=%s nrep=%lu nrep-layout=%lu nrep-online=%lu",
+                      spath.c_str(),
+                      nrep,
+                      nreplayout,
+                      nreponline);
 
             if (nreplayout > nreponline)
             {
@@ -613,20 +967,27 @@ ProcCommand::File ()
                 forcedsubgroup = icreationsubgroup;
               }
 
-              // if the space is explicitly set, we don't force into a particular subgroup
+              // if the space is explicitly set, 
+              // we don't force into a particular subgroup
               if (creationspace.length())
               {
                 forcedsubgroup = -1;
               }
 
-              // we don't have enough replica's online, we trigger asynchronous replication
+              // we don't have enough replica's online, 
+              // we trigger asynchronous replication
               int nnewreplicas = nreplayout - nreponline; // we have to create that much new replica
 
-              eos_debug("forcedsubgroup=%d icreationsubgroup=%d", forcedsubgroup, icreationsubgroup);
+              eos_debug("forcedsubgroup=%d icreationsubgroup=%d",
+                        forcedsubgroup,
+                        icreationsubgroup);
 
               // get the location where we can read that file
               SpaceQuota* quotaspace = Quota::GetSpaceQuota(space.c_str(), true);
-              eos_debug("creating %d new replicas space=%s subgroup=%d", nnewreplicas, space.c_str(), forcedsubgroup);
+              eos_debug("creating %d new replicas space=%s subgroup=%d",
+                        nnewreplicas,
+                        space.c_str(),
+                        forcedsubgroup);
 
               if (!quotaspace)
               {
@@ -641,27 +1002,55 @@ ProcCommand::File ()
                 std::vector<unsigned int> selectedfs;
                 std::vector<unsigned int> unavailfs;
                 // fill the existing locations
-                for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+                for (lociter = fmd->locationsBegin();
+                  lociter != fmd->locationsEnd();
+                  ++lociter)
                 {
                   selectedfs.push_back(*lociter);
                 }
 
-                if (!(errno = quotaspace->FileAccess(*pVid, (unsigned long) 0, space.c_str(), (unsigned long) fmd->getLayoutId(), selectedfs, fsIndex, false, (long long unsigned) 0, unavailfs)))
+                if (!(errno = quotaspace->FileAccess(*pVid,
+                                                     (unsigned long) 0,
+                                                     space.c_str(),
+                                                     (unsigned long) fmd->getLayoutId(),
+                                                     selectedfs,
+                                                     fsIndex,
+                                                     false,
+                                                     (long long unsigned) 0,
+                                                     unavailfs))
+                    )
                 {
                   // this is now our source filesystem
                   unsigned int sourcefsid = selectedfs[fsIndex];
                   // now the just need to ask for <n> targets
-                  int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::kNone, nnewreplicas);
+                  int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::kNone,
+                                                              nnewreplicas);
 
                   // we don't know the container tag here, but we don't really care since we are scheduled as root
-                  if (!(errno = quotaspace->FilePlacement(spath.c_str(), *pVid, 0, layoutId, selectedfs, selectedfs, SFS_O_TRUNC, forcedsubgroup, fmd->getSize())))
+                  if (!(errno = quotaspace->FilePlacement(spath.c_str(),
+                                                          *pVid,
+                                                          0,
+                                                          layoutId,
+                                                          selectedfs,
+                                                          selectedfs,
+                                                          SFS_O_TRUNC,
+                                                          forcedsubgroup,
+                                                          fmd->getSize()))
+                      )
                   {
                     // yes we got a new replication vector
                     for (unsigned int i = 0; i < selectedfs.size(); i++)
                     {
                       //                      stdOut += "info: replication := "; stdOut += (int) sourcefsid; stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
                       // add replication here
-                      if (gOFS->_replicatestripe(fmd, spath.c_str(), *mError, *pVid, sourcefsid, selectedfs[i], false, expressflag))
+                      if (gOFS->_replicatestripe(fmd,
+                                                 spath.c_str(),
+                                                 *mError,
+                                                 *pVid,
+                                                 sourcefsid,
+                                                 selectedfs[i],
+                                                 false,
+                                                 expressflag))
                       {
                         stdErr += "error: unable to replicate stripe ";
                         stdErr += (int) sourcefsid;
@@ -699,10 +1088,11 @@ ProcCommand::File ()
             }
             else
             {
-              // we do this only if we didn't create replicas in the if section before, otherwise we remove replicas which have used before for new replications
+              // we do this only if we didn't create replicas in the if section before, 
+              // otherwise we remove replicas which have used before for new replications
 
               // this is magic code to adjust the number of replicas to the desired policy ;-)
-              if ( (nreplayout < nrep) && (!nodrop) )
+              if ((nreplayout < nrep) && (!nodrop))
               {
                 std::vector<unsigned long> fsid2delete;
                 unsigned int n2delete = nrep - nreplayout;
@@ -716,10 +1106,15 @@ ProcCommand::File ()
 
                 // we have too many replica's online, we drop (nrepoonline-nreplayout) replicas starting with the lowest configuration state
 
-                eos_debug("trying to drop %d replicas space=%s subgroup=%d", n2delete, creationspace.c_str(), icreationsubgroup);
+                eos_debug("trying to drop %d replicas space=%s subgroup=%d",
+                          n2delete,
+                          creationspace.c_str(),
+                          icreationsubgroup);
 
                 // fill the views
-                for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+                for (lociter = fmd->locationsBegin();
+                  lociter != fmd->locationsEnd();
+                  ++lociter)
                 {
                   // ignore filesystem id 0
                   if (!(*lociter))
@@ -783,7 +1178,9 @@ ProcCommand::File ()
                       std::multimap <int, int>::const_iterator stateit;
 
                       // get the state for each fsid matching
-                      for (stateit = statemap.begin(); stateit != statemap.end(); stateit++)
+                      for (stateit = statemap.begin();
+                        stateit != statemap.end();
+                        stateit++)
                       {
                         if (stateit->second == sit->second)
                         {
@@ -798,7 +1195,11 @@ ProcCommand::File ()
 
                     std::multimap <int, int>::const_iterator lit;
 
-                    for (lit = limitedstatemap.begin(); lit != limitedstatemap.end(); ++lit)
+                    for (
+                      lit = limitedstatemap.begin();
+                      lit != limitedstatemap.end();
+                      ++lit
+                      )
                     {
                       fsid2delete.push_back(lit->second);
                       if (fsid2delete.size() == n2delete)
@@ -831,7 +1232,9 @@ ProcCommand::File ()
                       std::multimap <int, int>::const_iterator stateit;
 
                       // get the state for each fsid matching
-                      for (stateit = statemap.begin(); stateit != statemap.end(); stateit++)
+                      for (stateit = statemap.begin();
+                        stateit != statemap.end();
+                        stateit++)
                       {
                         if (stateit->second == sit->second)
                         {
@@ -858,7 +1261,8 @@ ProcCommand::File ()
                 if (fsid2delete.size() != n2delete)
                 {
                   // add a warning that something does not work as requested ....
-                  stdErr = "warning: cannot adjust replicas according to your requirement: space=";
+                  stdErr = "warning: cannot adjust replicas according to your "
+                    "requirement: space=";
                   stdErr += creationspace;
                   stdErr += " subgroup=";
                   stdErr += icreationsubgroup;
@@ -885,10 +1289,13 @@ ProcCommand::File ()
                     catch (eos::MDException &e)
                     {
                       errno = e.getErrno();
-                      stdErr = "error: drop excess replicas => cannot unlink location - ";
+                      stdErr = "error: drop excess replicas => cannot unlink "
+                        "location - ";
                       stdErr += e.getMessage().str().c_str();
                       stdErr += "\n";
-                      eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+                      eos_debug("caught exception %d %s\n",
+                                e.getErrno(),
+                                e.getMessage().str().c_str());
                     }
                   }
                 }
@@ -908,9 +1315,9 @@ ProcCommand::File ()
       }
     }
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // return meta data for a particular file
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     if (mSubCmd == "getmdlocation")
     {
       gOFS->MgmStats.Add("GetMdLocation", pVid->uid, pVid->gid, 1);
@@ -947,7 +1354,9 @@ ProcCommand::File ()
           errno = e.getErrno();
           stdErr = "error: cannot retrieve file meta data - ";
           stdErr += e.getMessage().str().c_str();
-          eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+          eos_debug("caught exception %d %s\n",
+                    e.getErrno(),
+                    e.getMessage().str().c_str());
         }
 
         if (!fmd)
@@ -971,14 +1380,17 @@ ProcCommand::File ()
           stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
           stdOut += "&";
           stdOut += "mgm.size=";
-          stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getSize());
+          stdOut +=
+            eos::common::StringConversion::GetSizeString(sizestring,
+                                                         (unsigned long long) fmd->getSize());
           stdOut += "&";
           stdOut += "mgm.checksum=";
           size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
           for (unsigned int i = 0; i < SHA_DIGEST_LENGTH; i++)
           {
             char hb[3];
-            sprintf(hb, "%02x", (i < cxlen) ? ((unsigned char) (fmd->getChecksum().getDataPadded(i))) : 0);
+            sprintf(hb, "%02x", (i < cxlen) ?
+                    ((unsigned char) (fmd->getChecksum().getDataPadded(i))) : 0);
             stdOut += hb;
           }
           stdOut += "&";
@@ -986,7 +1398,9 @@ ProcCommand::File ()
           stdOut += (int) (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
           stdOut += "&";
 
-          for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+          for (lociter = fmd->locationsBegin();
+            lociter != fmd->locationsEnd();
+            ++lociter)
           {
             // ignore filesystem id 0
             if (!(*lociter))
@@ -1030,7 +1444,9 @@ ProcCommand::File ()
               stdOut += "mgm.fstpath";
               stdOut += i;
               stdOut += "=";
-              eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(), filesystem->GetPath().c_str(), fullpath);
+              eos::common::FileId::FidPrefix2FullPath(hexstring.c_str(),
+                                                      filesystem->GetPath().c_str(),
+                                                      fullpath);
               stdOut += fullpath;
               stdOut += "&";
             }
