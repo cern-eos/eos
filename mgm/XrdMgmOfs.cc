@@ -233,11 +233,15 @@ xrdmgmofs_shutdown (int sig)
 
   gOFS->ConfEngine->SetAutoSave(false);
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop egroup fetching ... ");
   gOFS->EgroupRefresh.Stop();
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // eos_static_warning("Shutdown:: stop LRU thread ... ");
+  // gOFS->LRUd.Stop();
+
+  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop messaging ... ");
   if (gOFS->MgmOfsMessaging)
   {
@@ -291,13 +295,8 @@ xrdmgmofs_shutdown (int sig)
     FsView::ConfEngine = 0;
   }
 
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: removing spaces...");
-  FsView::gFsView.Reset(); // deletes all spaces and stops balancing
-  // ---------------------------------------------------------------------------
-
   eos_static_warning("Shutdown complete");
-  exit(0);
+  kill(getpid(), 9);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3598,7 +3597,7 @@ XrdMgmOfs::_access (const char *path,
     eos::ContainerMD::XAttrMap attrmap;
     if (fh || (!dh))
     {
-      // if this is a file are not existing directory we check the access on the parent directory
+      // if this is a file or a not existing directory we check the access on the parent directory
       eos_debug("path=%s", cPath.GetParentPath());
       dh = gOFS->eosView->getContainer(cPath.GetParentPath());
     }
@@ -3825,7 +3824,10 @@ XrdMgmOfs::_find (const char *path,
                   XrdOucString &stdErr,
                   eos::common::Mapping::VirtualIdentity &vid,
                   std::map<std::string, std::set<std::string> > &found,
-                  const char* key, const char* val, bool nofiles
+                  const char* key, 
+                  const char* val, 
+                  bool nofiles, 
+                  time_t millisleep
                   )
 /*----------------------------------------------------------------------------*/
 /*
@@ -3838,6 +3840,7 @@ XrdMgmOfs::_find (const char *path,
  * @param key search for a certain key in the extended attributes
  * @param val search for a certain value in the extended attributes (requires key)
  * @param nofiles if true returns only directories, otherwise files and directories
+ * @param millisleep milli seconds to sleep between each directory scan
  * 
  * The find command distinuishes 'power' and 'normal' users. If the virtual
  * identity indicates the root or admin user queries are unlimited.
@@ -3845,6 +3848,11 @@ XrdMgmOfs::_find (const char *path,
  * appropriate error/warning message is written to stdErr. Note that currently
  * find does not do a 'full' permission check including ACLs in every
  * subdirectory but checks only the POSIX permission R_OK/X_OK bits.
+ * If 'key' contains a wildcard character in the end find produces a list of 
+ * directories containing an attribute starting with that key match like
+ * var=sys.policy.*
+ * The millisleep variable allows to slow down full scans to decrease impact
+ * when doing large scans.
  * 
  */
 /*----------------------------------------------------------------------------*/
@@ -3856,7 +3864,8 @@ XrdMgmOfs::_find (const char *path,
   std::string Path = path;
   XrdOucString sPath = path;
   errno = 0;
-
+  XrdSysTimer snooze;
+  
   EXEC_TIMING_BEGIN("Find");
 
   gOFS->MgmStats.Add("Find", vid.uid, vid.gid, 1);
@@ -3896,6 +3905,12 @@ XrdMgmOfs::_find (const char *path,
     {
       Path = found_dirs[deepness][i].c_str();
       eos_static_debug("Listing files in directory %s", Path.c_str());
+      
+      if (millisleep)
+      {
+        // slow down the find command without having locks
+        snooze.Wait(millisleep);
+      }
       // -----------------------------------------------------------------------
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
       try
@@ -3931,15 +3946,42 @@ XrdMgmOfs::_find (const char *path,
           // check if we select by tag
           if (key)
           {
-            std::string sval = val;
-            XrdOucString attr = "";
-            if (!gOFS->_attr_get(fpath.c_str(), out_error, vid,
-                                 (const char*) 0, key, attr, true))
+            XrdOucString wkey = key;
+            if (wkey.find("*") != STR_NPOS)
             {
-              if (attr == val)
+              // this is a search for 'beginswith' match
+              eos::ContainerMD::XAttrMap attrmap;
+              if (!gOFS->_attr_ls(fpath.c_str(),
+                                  out_error,
+                                  vid,
+                                  (const char*) 0,
+                                  attrmap))
               {
-                found_dirs[deepness + 1].push_back(fpath.c_str());
-                found[fpath].size();
+                for (auto it = attrmap.begin(); it != attrmap.end(); it++)
+                {
+                  XrdOucString akey = it->first.c_str();
+                  if (akey.matches(wkey.c_str()))
+                  {
+                    found_dirs[deepness + 1].push_back(fpath.c_str());
+                    found[fpath].size();
+                  }
+                }
+              }
+            }
+            else
+            {
+              // this is a search for a full match 
+
+              std::string sval = val;
+              XrdOucString attr = "";
+              if (!gOFS->_attr_get(fpath.c_str(), out_error, vid,
+                                   (const char*) 0, key, attr, true))
+              {
+                if (attr == val)
+                {
+                  found_dirs[deepness + 1].push_back(fpath.c_str());
+                  found[fpath].size();
+                }
               }
             }
           }
@@ -4044,6 +4086,9 @@ XrdMgmOfs::_touch (const char *path,
  * @param error error object
  * @param vid virtual identity of the client
  * @param ininfo CGI
+ * 
+ * Access control is not fully done here, just the POSIX write flag is checked,
+ * no ACLs ...
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -4064,6 +4109,7 @@ XrdMgmOfs::_touch (const char *path,
     return SFS_ERROR;
   }
 
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   try
   {
     fmd = gOFS->eosView->getFile(path);
@@ -4650,14 +4696,14 @@ XrdMgmOfs::FSctl (const int cmd,
       XrdOucString adropfsid = env.Get("mgm.drop.fsid");
       XrdOucString areplication = env.Get("mgm.replication");
       XrdOucString areconstruction = env.Get("mgm.reconstruction");
-      
+
       bool verifychecksum = (averifychecksum == "1");
       bool commitchecksum = (acommitchecksum == "1");
       bool verifysize = (averifysize == "1");
       bool commitsize = (acommitsize == "1");
       bool replication = (areplication == "1");
       bool reconstruction = (areconstruction == "1");
-      
+
       char* checksum = env.Get("mgm.checksum");
       char binchecksum[SHA_DIGEST_LENGTH];
       memset(binchecksum, 0, sizeof (binchecksum));
@@ -4667,16 +4713,17 @@ XrdMgmOfs::FSctl (const int cmd,
         dropfsid = strtoul(adropfsid.c_str(), 0, 10);
       }
 
-      if (reconstruction) {
+      if (reconstruction)
+      {
         // remove the checksum we don't care about it
-        checksum = false;
+        checksum = 0;
         verifysize = false;
         verifychecksum = false;
         commitsize = false;
         commitchecksum = false;
         replication = false;
       }
-      
+
       if (checksum)
       {
         for (unsigned int i = 0; i < strlen(checksum); i += 2)
@@ -6496,9 +6543,9 @@ XrdMgmOfs::FSctl (const int cmd,
                   // is done when 'eoscp' is executed.
                   // -----------------------------------------------------------
                   eos_thread_info(
-                    "msg=\"creating RAIN reconstruction job\" path=%s", fullpath.c_str() 
-                   );
-                  
+                                  "msg=\"creating RAIN reconstruction job\" path=%s", fullpath.c_str()
+                                  );
+
                   fullcapability += "source.url=root://";
                   fullcapability += gOFS->ManagerId;
                   fullcapability += "/";
@@ -6686,7 +6733,7 @@ XrdMgmOfs::FSctl (const int cmd,
                       fullcapability += source_cap;
                       fullcapability += target_cap;
                     }
-                      
+
                     if (source_capabilityenv)
                       delete source_capabilityenv;
                     if (target_capabilityenv)
@@ -6698,7 +6745,7 @@ XrdMgmOfs::FSctl (const int cmd,
                     continue;
                   }
                 }
-                
+
                 eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
 
                 if (!simulate)
@@ -6713,7 +6760,7 @@ XrdMgmOfs::FSctl (const int cmd,
                       // this file fits
                       sScheduledFid[fid] = time(NULL) + 3600;
                     }
-                    
+
                     // send submitted response
                     XrdOucString response = "submitted";
                     error.setErrInfo(response.length() + 1, response.c_str());
@@ -8199,6 +8246,97 @@ XrdMgmOfs::_replicatestripe (eos::FileMD *fmd,
     return Emsg(epname, error, errno, "replicate stripe", fmd->getName().c_str());
 
   return SFS_OK;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::merge (
+                  const char* src,
+                  const char* dst,
+                  XrdOucErrInfo &error,
+                  eos::common::Mapping::VirtualIdentity &vid
+                  )
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief merge one file into another one 
+ * @param src to merge
+ * @param dst to merge into
+ * @return SFS_OK if success 
+ * 
+ * This command act's like a rename and keeps the ownership and creation time
+ * of the target file.
+ */
+/*----------------------------------------------------------------------------*/
+{
+  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::Mapping::Root(rootvid);
+
+  eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
+  eos::FileMD* src_fmd = 0;
+  eos::FileMD* dst_fmd = 0;
+
+  if (!src || !dst)
+  {
+    return Emsg("merge", error, EINVAL, "merge source into destination path - source or target missing");
+  }
+
+  std::string src_path = src;
+  std::string dst_path = dst;
+  try
+  {
+    src_fmd = gOFS->eosView->getFile(src_path);
+    dst_fmd = gOFS->eosView->getFile(dst_path);
+
+    // -------------------------------------------------------------------------
+    // inherit some core meta data, the checksum must be right by construction,
+    // so we don't copy it
+    // -------------------------------------------------------------------------
+
+    // inherit the previous ownership
+    src_fmd->setCUid(dst_fmd->getCUid());
+    src_fmd->setCGid(dst_fmd->getCGid());
+    // inherit the creation time
+    eos::FileMD::ctime_t ctime;
+    dst_fmd->getCTime(ctime);
+    src_fmd->setCTime(ctime);
+    // change the owner of the source file
+    eosView->updateFileStore(src_fmd);
+  }
+  catch (eos::MDException &e)
+  {
+    errno = e.getErrno();
+    eos_debug("caught exception %d %s\n",
+              e.getErrno(),
+              e.getMessage().str().c_str());
+  }
+
+  int rc = SFS_OK;
+
+  if (src_fmd && dst_fmd)
+  {
+    // remove the destination file
+    rc |= gOFS->_rem(dst_path.c_str(),
+                     error,
+                     rootvid,
+                     "");
+
+    // rename the source to destination
+    rc |= gOFS->_rename(src_path.c_str(),
+                        dst_path.c_str(),
+                        error,
+                        rootvid,
+                        "",
+                        "",
+                        true,
+                        false
+                        );
+  }
+  else
+  {
+    return Emsg("merge", error, EINVAL, "merge source into destination path - "
+                "cannot get file meta data ", src_path.c_str());
+  }
+  return rc;
 }
 
 /*----------------------------------------------------------------------------*/

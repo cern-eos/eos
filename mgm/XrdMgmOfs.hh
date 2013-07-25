@@ -71,6 +71,7 @@
  * - Filesystem Listener
  * - Httpd
  * - Recycler
+ * - LRU
  * 
  * Many functions in the MgmOfs interface take CGI parameters. The supported
  * CGI parameter are:
@@ -109,6 +110,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/Iostat.hh"
 #include "mgm/Fsck.hh"
+//#include "mgm/LRU.hh"
 #include "mgm/Master.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/Recycle.hh"
@@ -161,13 +163,13 @@ public:
 
   XrdSfsDirectory *
   newDir (char *user = 0, int MonID = 0);
- 
+
   // ---------------------------------------------------------------------------
   // return a MGM file object
   // ---------------------------------------------------------------------------
   XrdSfsFile *
   newFile (char *user = 0, int MonID = 0);
- 
+
   // ---------------------------------------------------------------------------
   // meta data functions
   // - the _XYZ functions are the internal version of XYZ when XrdSecEntity 
@@ -327,7 +329,11 @@ public:
              XrdOucString &stdErr,
              eos::common::Mapping::VirtualIdentity &vid,
              std::map<std::string, std::set<std::string> > &found,
-             const char* key = 0, const char* val = 0, bool nofiles = false);
+             const char* key = 0, 
+             const char* val = 0, 
+             bool nofiles = false,
+             time_t millisleep = 0
+             );
 
   // ---------------------------------------------------------------------------
   // delete dir
@@ -408,7 +414,7 @@ public:
         const char *opaque = 0)
   {
     struct stat bfr;
-    int rc = stat (Name, &bfr, out_error, client, opaque);
+    int rc = stat(Name, &bfr, out_error, client, opaque);
     if (!rc) mode = bfr.st_mode;
     return rc;
   }
@@ -593,9 +599,19 @@ public:
                         bool expressflag = false);
 
   // ---------------------------------------------------------------------------
+  // merge one file into another one (used by conversion)
+  // ---------------------------------------------------------------------------
+
+  int merge (const char* src_path,
+             const char* dst_path,
+             XrdOucErrInfo &error,
+             eos::common::Mapping::VirtualIdentity &vid
+             );
+
+  // ---------------------------------------------------------------------------
   // send resync command to a file system
   // ---------------------------------------------------------------------------
-  int SendResync (eos::common::FileId::fileid_t fid, 
+  int SendResync (eos::common::FileId::fileid_t fid,
                   eos::common::FileSystem::fsid_t fsid);
 
   // ---------------------------------------------------------------------------
@@ -603,10 +619,10 @@ public:
   // ---------------------------------------------------------------------------
 
   static int
-  Mkpath (const char *path, 
+  Mkpath (const char *path,
           mode_t mode,
-          const char *info = 0, 
-          XrdSecEntity* client = 0, 
+          const char *info = 0,
+          XrdSecEntity* client = 0,
           XrdOucErrInfo* error = 0)
   {
     return SFS_ERROR;
@@ -674,34 +690,34 @@ public:
   // ---------------------------------------------------------------------------
   // Test if a client needs to be stalled
   // ---------------------------------------------------------------------------
-  bool ShouldStall (const char* function, 
-                    int accessmode, 
-                    eos::common::Mapping::VirtualIdentity &vid, 
+  bool ShouldStall (const char* function,
+                    int accessmode,
+                    eos::common::Mapping::VirtualIdentity &vid,
                     int &stalltime, XrdOucString &stallmsg);
 
   // ---------------------------------------------------------------------------
   // Test if a  client should be redirected
   // ---------------------------------------------------------------------------
-  bool ShouldRedirect (const char* function, 
-                       int accessmode, 
-                       eos::common::Mapping::VirtualIdentity &vid, 
-                       XrdOucString &host, 
+  bool ShouldRedirect (const char* function,
+                       int accessmode,
+                       eos::common::Mapping::VirtualIdentity &vid,
+                       XrdOucString &host,
                        int &port);
 
   // ---------------------------------------------------------------------------
   // Test for a stall rule
   // ---------------------------------------------------------------------------
-  bool HasStall (const char* path, 
-                 const char* rule, 
-                 int &stalltime, 
+  bool HasStall (const char* path,
+                 const char* rule,
+                 int &stalltime,
                  XrdOucString &stallmsg);
 
   // ---------------------------------------------------------------------------
   // Test for a redirection rule
   // ---------------------------------------------------------------------------
-  bool HasRedirect (const char* path, 
-                    const char* rule, 
-                    XrdOucString &host, 
+  bool HasRedirect (const char* path,
+                    const char* rule,
+                    XrdOucString &host,
                     int &port);
 
   // ---------------------------------------------------------------------------
@@ -712,7 +728,7 @@ public:
   // ---------------------------------------------------------------------------
   // Update emulated in-memory directory modification time with a given time
   // ---------------------------------------------------------------------------
-  void UpdateInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id, 
+  void UpdateInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id,
                                                 eos::ContainerMD::ctime_t &ctime);
 
   // ---------------------------------------------------------------------------
@@ -733,7 +749,7 @@ public:
   // ---------------------------------------------------------------------------
   // Send an explicit deletion message to any fsid/fid pair 
   // ---------------------------------------------------------------------------
-  bool DeleteExternal (eos::common::FileSystem::fsid_t fsid, 
+  bool DeleteExternal (eos::common::FileSystem::fsid_t fsid,
                        unsigned long long fid);
 
   // ---------------------------------------------------------------------------
@@ -887,6 +903,8 @@ public:
 
   HttpServer Httpd; //<  Http daemon if available
 
+  // LRU LRUd; //< LRU object running the LRU policy engine
+  
   Egroup EgroupRefresh; //<  Egroup refresh object running asynchronous Egroup fetch thread
 
   Recycle Recycler; //<  Recycle object running the recycle bin deletion thread
