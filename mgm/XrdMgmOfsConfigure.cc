@@ -1000,16 +1000,15 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   lFanOutTags.push_back("Recycle");
   lFanOutTags.push_back("LRU");
   lFanOutTags.push_back("#");
-
+ 
   // get the XRootD log directory
   char *logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
-
+  
   if (logdir) {
     for (size_t i = 0; i < lFanOutTags.size(); i++)
-    {
+    { 
       std::string lLogFile = logdir;
-      lLogFile += "/mgm";
       lLogFile += "/";
       if (lFanOutTags[i] == "#")
       {
