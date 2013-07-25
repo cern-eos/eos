@@ -1612,11 +1612,13 @@ XrdMgmOfsFile::open (const char *inpath,
   if (capabilityenv)
     delete capabilityenv;
 
-  if (attrmap.count("sys.force.atime") && (attrmap["sys.force.atime"] == "track"))
+  if (attrmap.count("sys.force.atime"))
   {
     // -------------------------------------------------------------------------
     // we are supposed to track the access time of a file. 
     // since we don't have an atime field we use the change time of the file
+    // we only update the atime if the current atime is older than the age 
+    // value given by the attribute
     // -------------------------------------------------------------------------
 
     const char* app = 0;
@@ -1630,12 +1632,21 @@ XrdMgmOfsFile::open (const char *inpath,
     {
       // we are supposed to update the change time with the access since this
       // is any kind of external access
+      time_t now = time(NULL);
+      XrdOucString sage = attrmap["sys.force.atime"].c_str();
+      time_t age = eos::common::StringConversion::GetSizeFromString(sage);
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       try
       {
         fmd = gOFS->eosView->getFile(path);
-        fmd->setCTimeNow();
-        gOFS->eosView->updateFileStore(fmd);
+        eos::FileMD::ctime_t ctime;
+        fmd->getCTime(ctime);
+        if ((ctime.tv_sec + age) < now)
+        {
+          // only update within the resolution of the access tracking
+          fmd->setCTimeNow();
+          gOFS->eosView->updateFileStore(fmd);
+        }
         errno = 0;
       }
       catch (eos::MDException &e)
