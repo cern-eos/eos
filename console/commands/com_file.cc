@@ -567,7 +567,9 @@ com_file (char* arg1)
             // Do a remote stat using XrdCl::FileSystem
             //..................................................................
             uint64_t rsize;
-        
+	    uint64_t id = 0;
+	    uint64_t flags = 0;
+	    uint64_t modtime = 0;
 
             status = fs->Stat(newresult->Get(repfstpath.c_str()), stat_info);
 
