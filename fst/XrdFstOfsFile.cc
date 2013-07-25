@@ -188,7 +188,6 @@ XrdFstOfsFile::open (const char* path,
   eos::common::StringConversion::MaskTag(maskOpaque, "cap.sym");
   eos::common::StringConversion::MaskTag(maskOpaque, "cap.msg");
   eos::common::StringConversion::MaskTag(maskOpaque, "authz");
-  eos_info("path=%s info=%s", Path.c_str(), maskOpaque.c_str());
 
   if ((open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
                     SFS_O_CREAT | SFS_O_TRUNC)) != 0)
@@ -196,6 +195,8 @@ XrdFstOfsFile::open (const char* path,
     isRW = true;
   }
 
+  eos_info("path=%s info=%s isrw=%d", Path.c_str(), maskOpaque.c_str(), isRW);
+  
   // ----------------------------------------------------------------------------
   // extract tpc keys
   // ----------------------------------------------------------------------------
@@ -227,7 +228,7 @@ XrdFstOfsFile::open (const char* path,
   if (tpc_key.length())
   {
     time_t now = time(NULL);
-    if ((tpc_stage == "copy") || (!gOFS.TpcMap[isRW].count(tpc_key.c_str())))
+    if ((tpc_stage == "placement") || (!gOFS.TpcMap[isRW].count(tpc_key.c_str())))
     {
       //.........................................................................
       // Create a TPC entry in the TpcMap 
