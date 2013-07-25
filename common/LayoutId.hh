@@ -32,6 +32,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdCl/XrdClFileSystem.hh"
+#include "StringConversion.hh"
 
 /*----------------------------------------------------------------------------*/
 
@@ -665,16 +666,25 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Convert a hexadecimal layout id string to an env representation
+  //! Convert a <space>=<hexadecimal layout id> string to an env representation
   //----------------------------------------------------------------------------
 
   static const char*
-  GetEnvFromHexLayoutIdString (XrdOucString& out, const char* hexlayoutidstring)
+  GetEnvFromConversionIdString (XrdOucString& out, 
+                                const char* conversionlayoutidstring)
   {
-    if (!hexlayoutidstring)
+    if (!conversionlayoutidstring)
       return NULL;
+    
+    std::string keyval = conversionlayoutidstring;
+    std::string space;
+    std::string layout;
+    
+    if (!eos::common::StringConversion::SplitKeyValue(keyval, space,layout, "#"))
+      return NULL;
+
     errno = 0;
-    unsigned long long lid = strtoll(hexlayoutidstring, 0, 16);
+    unsigned long long lid = strtoll(layout.c_str(), 0, 16);
     if (errno)
       return NULL;
     out = "eos.layout.type=";
@@ -687,6 +697,8 @@ public:
     out += GetChecksumString(lid);
     out += "&eos.layout.blocksize=";
     out += GetBlockSizeString(lid);
+    out += "&eos.space=";
+    out += space.c_str();
     return out.c_str();
   }
 
