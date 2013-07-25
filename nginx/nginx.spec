@@ -1,6 +1,6 @@
 %define _unpackaged_files_terminate_build 0
 
-%define nginx_user      nginx
+%define nginx_user      daemon
 %define nginx_group     %{nginx_user}
 %define nginx_home      %{_localstatedir}/lib/nginx
 %define nginx_home_tmp  /var/spool/nginx/tmp
@@ -9,11 +9,12 @@
 %define nginx_datadir   %{_datadir}/nginx
 %define nginx_webroot   %{nginx_datadir}/html
 
-Name:           nginx
+Name:           eos-nginx
 Version:        1.0.15
 Release:        1
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
+Packager:       Justin Salmon <jsalmon@cern.ch>
 
 # BSD License (two clause)
 # http://www.freebsd.org/copyright/freebsd-license.html
@@ -29,12 +30,15 @@ Requires(post):     chkconfig
 # for /sbin/service
 Requires(preun):    chkconfig, initscripts
 Requires(postun):   initscripts
+# don't allow this on top of vanilla nginx
+Conflicts:          nginx
 
-Source0:    http://nginx.org/download/nginx-%{version}.tar.gz
-Source1:    %{name}.init
-Source2:    %{name}.logrotate
-Source7:    %{name}.sysconfig
-Source8:    %{name}.eos.conf
+#Source0:    %{name}-%{version}.tar.gz
+Source:     http://nginx.org/download/nginx-%{version}.tar.gz
+Source2:    nginx.init
+Source3:    nginx.logrotate
+Source4:    nginx.sysconfig
+Source5:    nginx.eos.conf
 
 # removes -Werror in upstream build scripts.  -Werror conflicts with
 # -D_FORTIFY_SOURCE=2 causing warnings to turn into errors.
@@ -46,16 +50,26 @@ Patch1:     nginx-auto-install.patch
 
 # configuration patch to match all the Fedora paths for logs, pid files
 # etc.
-Patch2:	    nginx-auto-options.patch
+Patch2:     nginx-auto-options.patch
 
 %description
 Nginx [engine x] is an HTTP(S) server, HTTP(S) reverse proxy and IMAP/POP3
 proxy server written by Igor Sysoev.
 
-One third party module, ngx_http_auth_pam has been added.
+One third party module, ngx_http_auth_spnego has been added.
 
 %prep
-%setup -q
+%setup -q -n nginx-%{version}
+#cd %{_topdir}/BUILD
+#rm -rf nginx-*
+#gzip -dc %{_sourcedir}/nginx-*.tar.gz | tar -xvvf -
+#if [ $? -ne 0 ]; then
+#  exit $?
+#fi
+#cd nginx-*
+#cd %{_topdir}/BUILD/nginx-*
+#chown -R root.root .
+#chmod -R a+rX,g-w,o-w .
 
 %patch0 -p0
 #%patch1 -p0
@@ -79,15 +93,15 @@ export DESTDIR=%{buildroot}
     --user=%{nginx_user} \
     --group=%{nginx_group} \
     --prefix=%{nginx_datadir} \
-    --sbin-path=%{_sbindir}/%{name} \
-    --conf-path=%{nginx_confdir}/%{name}.conf  \
+    --sbin-path=%{_sbindir}/nginx \
+    --conf-path=%{nginx_confdir}/nginx.conf  \
     --error-log-path=%{nginx_logdir}/error.log \
     --http-log-path=%{nginx_logdir}/access.log \
     --http-client-body-temp-path=%{nginx_home_tmp}/client_body \
     --http-proxy-temp-path=%{nginx_home_tmp}/proxy \
     --http-fastcgi-temp-path=%{nginx_home_tmp}/fastcgi \
-    --pid-path=%{_localstatedir}/run/%{name}.pid      \
-    --lock-path=%{_localstatedir}/lock/subsys/%{name} \
+    --pid-path=%{_localstatedir}/run/nginx.pid      \
+    --lock-path=%{_localstatedir}/lock/subsys/nginx \
     --with-http_ssl_module              \
     --with-http_gzip_static_module      \
     --with-http_stub_status_module      \
@@ -118,10 +132,10 @@ find %{buildroot} -type f -exec chmod 0644 {} \;
 find %{buildroot} -type f -name '*.so' -exec chmod 0755 {} \;
 chmod 0755 %{buildroot}%{_sbindir}/nginx
 mkdir %{buildroot}%{nginx_confdir}/conf.d
-%{__install} -p -D -m 0755 %{SOURCE1} %{buildroot}%{_initrddir}/%{name}
-%{__install} -p -D -m 0644 %{SOURCE2} %{buildroot}%{_sysconfdir}/logrotate.d/%{name}
-%{__install} -p -D -m 0644 %{SOURCE7} %{buildroot}%{_sysconfdir}/sysconfig/%{name}
-%{__install} -p -D -m 0644 %{SOURCE8} %{buildroot}%{_sysconfdir}/%{name}/%{name}.eos.conf
+%{__install} -p -D -m 0755 %{SOURCE2} %{buildroot}%{_initrddir}/nginx
+%{__install} -p -D -m 0644 %{SOURCE3} %{buildroot}%{_sysconfdir}/logrotate.d/nginx
+%{__install} -p -D -m 0644 %{SOURCE4} %{buildroot}%{_sysconfdir}/sysconfig/nginx
+%{__install} -p -D -m 0644 %{SOURCE5} %{buildroot}%{_sysconfdir}/nginx/nginx.eos.conf
 %{__install} -p -d -m 0755 %{buildroot}%{nginx_confdir}/vhosts
 %{__install} -p -d -m 0755 %{buildroot}%{nginx_home}
 %{__install} -p -d -m 0755 %{buildroot}%{nginx_home_tmp}
@@ -144,27 +158,27 @@ rm -rf %{_builddir}/spnego-http-auth-nginx-module
 %{_sbindir}/useradd -c "Nginx user" -s /bin/false -r -d %{nginx_home} %{nginx_user} 2>/dev/null || :
 
 %post
-/sbin/chkconfig --add %{name}
+/sbin/chkconfig --add nginx
 
 %preun
 if [ $1 = 0 ]; then
-    /sbin/service %{name} stop >/dev/null 2>&1
-    /sbin/chkconfig --del %{name}
+    /sbin/service nginx stop >/dev/null 2>&1
+    /sbin/chkconfig --del nginx
 fi
 
 %postun
 if [ $1 -ge 1 ]; then
-    /sbin/service %{name} condrestart > /dev/null 2>&1 || :
+    /sbin/service nginx condrestart > /dev/null 2>&1 || :
 fi
 
 %files
 %defattr(-,root,root,-)
 %doc LICENSE CHANGES README
 %dir %{nginx_datadir}
-%{_datadir}/%{name}/*/*
-%{_sbindir}/%{name}
-#%{_mandir}/man3/%{name}.3pm.gz
-%{_initrddir}/%{name}
+%{_datadir}/nginx/*/*
+%{_sbindir}/nginx
+#%{_mandir}/man3/nginx.3pm.gz
+%{_initrddir}/nginx
 %dir %{nginx_confdir}
 %dir %{nginx_confdir}/conf.d
 %config(noreplace) %{nginx_confdir}/win-utf
@@ -180,14 +194,14 @@ fi
 %config(noreplace) %{nginx_confdir}/uwsgi_params.default
 %config(noreplace) %{nginx_confdir}/koi-win
 %config(noreplace) %{nginx_confdir}/koi-utf
-%config(noreplace) %{nginx_confdir}/%{name}.conf
-%config(noreplace) %{nginx_confdir}/%{name}.eos.conf
+%config(noreplace) %{nginx_confdir}/nginx.conf
+%config(noreplace) %{nginx_confdir}/nginx.eos.conf
 %config(noreplace) %{nginx_confdir}/mime.types
-%config(noreplace) %{_sysconfdir}/logrotate.d/%{name}
-%config(noreplace) %{_sysconfdir}/sysconfig/%{name}
-#%dir %{perl_vendorarch}/auto/%{name}
-#%{perl_vendorarch}/%{name}.pm
-#%{perl_vendorarch}/auto/%{name}/%{name}.so
+%config(noreplace) %{_sysconfdir}/logrotate.d/nginx
+%config(noreplace) %{_sysconfdir}/sysconfig/nginx
+#%dir %{perl_vendorarch}/auto/nginx
+#%{perl_vendorarch}/nginx.pm
+#%{perl_vendorarch}/auto/nginx/nginx.so
 %attr(-,%{nginx_user},%{nginx_group}) %dir %{nginx_home}
 %attr(-,%{nginx_user},%{nginx_group}) %dir %{nginx_home_tmp}
 %attr(-,%{nginx_user},%{nginx_group}) %dir %{nginx_logdir}

@@ -4,7 +4,6 @@
 # Author: Justin Salmon <jsalmon@cern.ch> (25.07.2013)
 #-------------------------------------------------------------------------------
 
-SOURCEPATH="."
 OUTPUTPATH="."
 
 #-------------------------------------------------------------------------------
@@ -13,7 +12,7 @@ OUTPUTPATH="."
 # exit on any error
 set -e
 
-TEMPDIR=`mktemp -d /tmp/nginx.srpm.XXXXXXXXXX`
+TEMPDIR=`mktemp -d /tmp/eos-nginx.srpm.XXXXXXXXXX`
 RPMSOURCES=$TEMPDIR/rpmbuild/SOURCES
 mkdir -p $RPMSOURCES
 mkdir -p $TEMPDIR/rpmbuild/SRPMS
@@ -38,6 +37,7 @@ spectool --get-files --directory $RPMSOURCES nginx.spec
 #-------------------------------------------------------------------------------
 # Build the source RPM
 #-------------------------------------------------------------------------------
+
 echo "[i] Creating the source RPM..."
 
 # Dirty, dirty hack!
@@ -53,7 +53,7 @@ if test $? -ne 0; then
   exit 1
 fi
 
-cp $TEMPDIR/rpmbuild/SRPMS/nginx*.src.rpm $OUTPUTPATH
+cp $TEMPDIR/rpmbuild/SRPMS/eos-nginx*.src.rpm $OUTPUTPATH
 rm -rf $TEMPDIR
 
 echo "[i] Done."

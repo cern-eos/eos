@@ -26,4 +26,4 @@ an RPM.
 To build:
 
     ./makesrpm.sh
-    rpmbuild --rebuild nginx-1.0.15-1.src.rpm
+    rpmbuild --rebuild eos-nginx-1.0.15-1.src.rpm
