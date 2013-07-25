@@ -1244,13 +1244,13 @@ XrdMgmOfsFile::open (const char *inpath,
         }
         return SFS_OK;
       }
-    } 
+    }
     else
     {
       if (!fmd->getSize())
       {
         // 0-size files can be read from the MGM
-        isZeroSizeFile=true;
+        isZeroSizeFile = true;
         return SFS_OK;
       }
     }
@@ -1612,6 +1612,40 @@ XrdMgmOfsFile::open (const char *inpath,
   if (capabilityenv)
     delete capabilityenv;
 
+  if (attrmap.count("sys.force.atime") && (attrmap["sys.force.atime"] == "track"))
+  {
+    // -------------------------------------------------------------------------
+    // we are supposed to track the access time of a file. 
+    // since we don't have an atime field we use the change time of the file
+    // -------------------------------------------------------------------------
+
+    const char* app = 0;
+    if (!(app = openOpaque->Get("eos.app")) ||
+        (
+         (strcmp(app, "balancer")) &&
+         (strcmp(app, "drainer")) &&
+         (strcmp(app, "converter"))
+         )
+        )
+    {
+      // we are supposed to update the change time with the access since this
+      // is any kind of external access
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      try
+      {
+        fmd = gOFS->eosView->getFile(path);
+        fmd->setCTimeNow();
+        gOFS->eosView->updateFileStore(fmd);
+        errno = 0;
+      }
+      catch (eos::MDException &e)
+      {
+        errno = e.getErrno();
+        eos_warning("msg=\"failed to update access time\" path=\"%s\" ec=%d emsg=\"%s\"\n",
+                    path, e.getErrno(), e.getMessage().str().c_str());
+      }
+    }
+  }
   EXEC_TIMING_END("Open");
 
   return rcode;
@@ -1703,7 +1737,7 @@ XrdMgmOfsFile::read (XrdSfsAio * aiop)
   static const char *epname = "read";
   if (isZeroSizeFile)
     return 0;
-  
+
   // Execute this request in a synchronous fashion
   //
   return Emsg(epname, error, EOPNOTSUPP, "read", fname);
@@ -1774,10 +1808,10 @@ XrdMgmOfsFile::stat (struct stat * buf)
 
   if (isZeroSizeFile)
   {
-    memset(buf, 0, sizeof(struct stat));
+    memset(buf, 0, sizeof (struct stat));
     return 0;
   }
-  
+
   if (procCmd)
     return procCmd->stat(buf);
 
@@ -1850,7 +1884,7 @@ XrdMgmOfsFile::~XrdMgmOfsFile ()
  */
 /*----------------------------------------------------------------------------*/
 {
-  if (oh>0) close();
+  if (oh > 0) close();
   if (openOpaque)
   {
     delete openOpaque;
