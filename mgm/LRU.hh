@@ -122,9 +122,9 @@ public:
    */
   void ConvertAtime(const char* dir, std::string& policy);
   
-  /* convert by suffix
+  /* convert by match
    */
-  void ConvertSuffix(const char* dir,  eos::ContainerMD::XAttrMap &map);
+  void ConvertMatch(const char* dir,  eos::ContainerMD::XAttrMap &map);
   
   static const char* gLRUPolicyPrefix;
 };

@@ -24,6 +24,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/StringConversion.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -376,7 +377,7 @@ StringConversion::SplitKeyValue (std::string keyval, std::string &key, std::stri
   int equalpos = keyval.find(split.c_str());
   if (equalpos != STR_NPOS)
   {
-    key.assign(keyval, 0, equalpos );
+    key.assign(keyval, 0, equalpos);
     value.assign(keyval, equalpos + 1, keyval.length()-(equalpos + 1));
     return true;
   }
@@ -406,7 +407,7 @@ StringConversion::SplitKeyValue (XrdOucString keyval, XrdOucString &key, XrdOucS
   int equalpos = keyval.find(split.c_str());
   if (equalpos != STR_NPOS)
   {
-    key.assign(keyval, 0, equalpos -1);
+    key.assign(keyval, 0, equalpos - 1);
     value.assign(keyval, equalpos + 1);
     return true;
   }
@@ -415,6 +416,50 @@ StringConversion::SplitKeyValue (XrdOucString keyval, XrdOucString &key, XrdOucS
     key = value = "";
     return false;
   }
+}
+
+// ---------------------------------------------------------------------------
+/**
+ * Split a comma seperated key:val list and fill it into a map
+ * 
+ * @param mapstring map string to parse
+ * @param map return map after parsing if ok
+ * @param split seperator used to seperate key from value default ":"
+ * @return true if format ok, otherwise false
+ */
+// ---------------------------------------------------------------------------
+
+bool
+StringConversion::GetKeyValueMap (const char* mapstring,
+                std::map<std::string, std::string> &map,
+                const char* split)
+{
+  if (!mapstring)
+    return false;
+
+  std::string is = mapstring;
+  std::string delimiter = ",";
+  std::vector<std::string> slist;
+  Tokenize(is, slist, delimiter);
+
+  if (!slist.size()) {
+    return false;
+  }
+  
+  for (auto it = slist.begin(); it != slist.end(); it++)
+  {
+    std::string key;
+    std::string val;
+    if (SplitKeyValue(*it, key, val, split))
+    {
+      map[key] = val;
+    }
+    else
+    {
+      return false;
+    }
+  }
+  return true;
 }
 
 // ---------------------------------------------------------------------------  
@@ -912,19 +957,20 @@ StringConversion::IsHexNumber (const char* hexstring, const char* format)
 {
   if (!hexstring)
     return false;
-  
+
   unsigned long long number = strtoull(hexstring, 0, 16);
   char controlstring[256];
-  snprintf(controlstring,sizeof(controlstring)-1,format, number);
-  
-  return !strcmp(hexstring,controlstring);
+  snprintf(controlstring, sizeof (controlstring) - 1, format, number);
+
+  return !strcmp(hexstring, controlstring);
 }
 
 // ---------------------------------------------------------------------------
 // Convert numeric value to string in a pretty way using KB, MB etc. symbols
 // ---------------------------------------------------------------------------  
+
 std::string
-StringConversion::GetPrettySize(float size)
+StringConversion::GetPrettySize (float size)
 {
   float fsize = 0;
   std::string ret_str;
@@ -934,7 +980,8 @@ StringConversion::GetPrettySize(float size)
   else if ((fsize = size / PB) >= 1) size_unit = "PB";
   else if ((fsize = size / TB) >= 1) size_unit = "TB";
   else if ((fsize = size / MB) >= 1) size_unit = "MB";
-  else {
+  else
+  {
     fsize = size / KB;
     size_unit = "KB";
   }
@@ -943,7 +990,7 @@ StringConversion::GetPrettySize(float size)
   sprintf(msg, "%.1f %s", fsize, size_unit.c_str());
 
   ret_str = msg;
-  return ret_str;  
+  return ret_str;
 }
 
 

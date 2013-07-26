@@ -40,6 +40,7 @@
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <vector>
+#include <map>
 #include <set>
 #include <stdio.h>
 #include <limits.h>
@@ -68,7 +69,7 @@ class StringConversion
 {
 public:
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Tokenize a string
    * 
@@ -76,13 +77,13 @@ public:
    * @param tokens  returned list of seperated string tokens
    * @param delimiters delimiter used for tokenizing
    */
-  // -----------------------------------------------------------------------------
+  // ----------------------------------------------------------------------------
   static void Tokenize (const std::string& str,
                         std::vector<std::string>& tokens,
                         const std::string& delimiters = " ");
 
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Tokenize a string accepting also empty members e.g. a||b is returning 3 fields
    * 
@@ -90,12 +91,12 @@ public:
    * @param tokens  returned list of seperated string tokens
    * @param delimiters delimiter used for tokenizing
    */
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   static void EmptyTokenize (const std::string& str,
                              std::vector<std::string>& tokens,
                              const std::string& delimiters = " ");
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Convert a long long value into K,M,G,T,P,E byte scale
    * 
@@ -105,14 +106,14 @@ public:
    * 
    * @return sizestring.c_str()
    */
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
 
   static const char*
   GetReadableSizeString (XrdOucString& sizestring,
                          unsigned long long insize,
                          const char* unit);
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Convert a long long value into K,M,G,T,P,E byte scale
    * 
@@ -122,14 +123,14 @@ public:
    * 
    * @return sizestring.c_str()
    */
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
 
   static const char*
   GetReadableSizeString (std::string& sizestring,
                          unsigned long long insize,
                          const char* unit);
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Convert a readable string into a number
    * 
@@ -137,11 +138,11 @@ public:
    * 
    * @return number
    */
-  // -----------------------------------------------------------------------------
+  // ----------------------------------------------------------------------------
   static unsigned long long
   GetSizeFromString (XrdOucString sizestring);
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Convert a long long number into a std::string
    * 
@@ -150,12 +151,12 @@ public:
    * 
    * @return sizestring.c_str()
    */
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
 
   static const char*
   GetSizeString (XrdOucString& sizestring, unsigned long long insize);
 
-  // -----------------------------------------------------------------------------
+  // ----------------------------------------------------------------------------
   /**
    * Convert a long long number into a XrdOucString
    * 
@@ -164,12 +165,12 @@ public:
    * 
    * @return sizestring.c_str()
    */
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
 
   static const char*
   GetSizeString (std::string& sizestring, unsigned long long insize);
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Convert a floating point number into a string
    * 
@@ -178,11 +179,11 @@ public:
    * 
    * @return sizestring.c_str()
    */
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   static const char*
   GetSizeString (XrdOucString& sizestring, double insize);
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Convert a floating point number into a std::string
    * 
@@ -191,11 +192,11 @@ public:
    * 
    * @return sizestring.c_str()
    */
-  // ----------------------------------------------------------------------------Ï
+  // ---------------------------------------------------------------------------Ï
   static const char*
   GetSizeString (std::string& sizestring, double insize);
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Split a 'key:value' definition into key + value
    * 
@@ -206,11 +207,14 @@ public:
    * 
    * @return true if parsing ok, false if wrong format
    */
-  // ----------------------------------------------------------------------------  
+  // ---------------------------------------------------------------------------  
   static bool
-  SplitKeyValue (std::string keyval, std::string &key, std::string &value, std::string split=":");
+  SplitKeyValue (std::string keyval,
+                 std::string &key,
+                 std::string &value,
+                 std::string split = ":");
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Split a 'key:value' definition into key + value
    * 
@@ -221,11 +225,30 @@ public:
    * 
    * @return true if parsing ok, false if wrong format
    */
-  // ----------------------------------------------------------------------------  
+  // ---------------------------------------------------------------------------  
   static bool
-  SplitKeyValue (XrdOucString keyval, XrdOucString &key, XrdOucString &value, XrdOucString split=":");
+  SplitKeyValue (XrdOucString keyval,
+                 XrdOucString &key,
+                 XrdOucString &value,
+                 XrdOucString split = ":");
 
-  // ----------------------------------------------------------------------------  
+  // ---------------------------------------------------------------------------
+  /**
+   * Split a comma seperated key:val list and fill it into a map
+   * 
+   * @param mapstring map string to parse
+   * @param map return map after parsing if ok
+   * @param split seperator used to seperate key from value default ":"
+   * @return true if format ok, otherwise false
+   */
+  // ---------------------------------------------------------------------------
+  static bool
+  GetKeyValueMap (const char* mapstring,
+                  std::map<std::string, std::string> &map,
+                  const char* split = ":");
+
+
+  // ---------------------------------------------------------------------------  
   /** 
    * Specialized splitting function returning the host part out of a queue name
    * 
@@ -233,11 +256,11 @@ public:
    * 
    * @return string containing the host
    */
-  // ----------------------------------------------------------------------------  
+  // ---------------------------------------------------------------------------  
   static XrdOucString
   GetHostPortFromQueue (const char* queue);
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Specialized splitting function returning the host:port part out of a queue name
    * 
@@ -245,11 +268,11 @@ public:
    * 
    * @return string containing host:port
    */
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   static std::string
   GetStringHostPortFromQueue (const char* queue);
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Split 'a.b' into a and b
    * 
@@ -257,23 +280,23 @@ public:
    * @param pre string before .
    * @param post string after .
    */
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   static void
   SplitByPoint (std::string in, std::string &pre, std::string &post);
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Convert a string into a line-wise map
    * 
    * @param in char*
    * @param out vector with std::string lines
    */
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
 
   static void
   StringToLineVector (char* in, std::vector<std::string> &out);
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Split a string of type '<string>@<int>[:<0xXXXXXXXX] into string,int,std::set<unsigned long long>'
    * 
@@ -283,14 +306,14 @@ public:
    * @param set std::set<unsigned long long>
    * @return true if parsed, false if format error
    */
-  // ----------------------------------------------------------------------------  
+  // ---------------------------------------------------------------------------  
   static bool
   ParseStringIdSet (char* in,
                     std::string& tag,
                     unsigned long& id,
                     std::set<unsigned long long> &set);
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Load a text file <name> into a string
    * 
@@ -298,57 +321,57 @@ public:
    * @param out string where to inject the file contents
    * @return (const char*) pointer to loaded string
    */
-  // ----------------------------------------------------------------------------  
+  // ---------------------------------------------------------------------------  
   static const char*
   LoadFileIntoString (const char* filename, std::string &out);
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Read a long long number as output of a shell command - this is not usefull in multi-threaded environments
    * 
    * @param shellcommand to execute
    * @return long long value of converted shell output
    */
-  // ----------------------------------------------------------------------------  
+  // ---------------------------------------------------------------------------  
   static long long
   LongLongFromShellCmd (const char* shellcommand);
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Read a string as output of a shell command - this is not usefull in multi-threaded environments
    * 
    * @param shellcommand to execute
    * @return XrdOucString
    */
-  // ----------------------------------------------------------------------------  
+  // ---------------------------------------------------------------------------  
   static std::string
   StringFromShellCmd (const char* shellcommand);
 
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Return the time as <seconds>.<nanoseconds> in a string
    * @param stime XrdOucString where to store the time as text
    * @return const char* to XrdOucString object passed
    */
-  // ----------------------------------------------------------------------------  
+  // ---------------------------------------------------------------------------  
   static const char*
   TimeNowAsString (XrdOucString& stime);
 
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Mask a tag 'key=val' as 'key=<...>' in an opaque string
    * @param XrdOucString where to mask
    * @return pointer to string where the masked string is stored
    */
-  // ----------------------------------------------------------------------------  
+  // ---------------------------------------------------------------------------  
   static const char*
   MaskTag (XrdOucString& line, const char* tag);
 
 
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Parse a string as an URL (does not deal with opaque information)
    * @param url string to parse
@@ -356,24 +379,24 @@ public:
    * @param &hostport - return of the host(port) identifier
    * @return pointer to file path inside the url
    */
-  // ----------------------------------------------------------------------------  
+  // ---------------------------------------------------------------------------  
   static const char*
   ParseUrl (const char* url, XrdOucString& protocol, XrdOucString& hostport);
 
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Convert numeric value to string in a pretty way using KB, MB or GB symbols
    * @param size size in KB to be processed
    *
    * @return string representation of the value in a pretty format
    */
-  // ----------------------------------------------------------------------------  
+  // ---------------------------------------------------------------------------  
   static std::string
   GetPrettySize (float size);
 
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /** 
    * Create an Url 
    * @param protocol - name of the protocol
@@ -382,29 +405,29 @@ public:
    * @param @url     - returned URL string
    * @return char* to returned URL string
    */
-  // ----------------------------------------------------------------------------  
+  // ---------------------------------------------------------------------------  
   static const char*
   CreateUrl (const char* protocol, const char* hostport, const char* path, XrdOucString& url);
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   /**
    * Check if a string is a hexadecimal number
    * @param hexstring - hexadecimal string
    * @param format - format used for printing e.g. %08x 
    * @return true if it is a converted hex number otherwise false
    */
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   static bool
-  IsHexNumber (const char* hexstring, const char* format="%08x");
+  IsHexNumber (const char* hexstring, const char* format = "%08x");
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   //! 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   //! Constructor
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   StringConversion ();
 
-  // ----------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
   ~StringConversion ();

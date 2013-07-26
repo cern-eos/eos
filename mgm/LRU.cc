@@ -96,6 +96,30 @@ LRU::LRUr ()
  */
 /*----------------------------------------------------------------------------*/
 {
+
+  // ---------------------------------------------------------------------------
+  // wait that the namespace is initialized
+  // ---------------------------------------------------------------------------
+  bool go = false;
+  do
+  {
+    XrdSysThread::SetCancelOff();
+    {
+      XrdSysMutexHelper(gOFS->InitializationMutex);
+      if (gOFS->Initialized == gOFS->kBooted)
+      {
+        go = true;
+      }
+    }
+    XrdSysThread::SetCancelOn();
+    XrdSysTimer sleeper;
+    sleeper.Wait(1000);
+  }
+  while (!go);
+
+  XrdSysTimer sleeper;
+  sleeper.Snooze(10);
+
   //----------------------------------------------------------------------------
   // Eternal thread doing LRU scans
   //----------------------------------------------------------------------------
@@ -109,11 +133,7 @@ LRU::LRUr ()
     // every now and then we wake up
     // -------------------------------------------------------------------------
 
-    eos_static_info("snooze-time=%llu", snoozetime);
-    XrdSysThread::SetCancelOn();
-    XrdSysTimer sleeper;
-    sleeper.Snooze(snoozetime);
-
+    XrdSysThread::SetCancelOff();
     // -------------------------------------------------------------------------
     // do a slow find
     // -------------------------------------------------------------------------
@@ -133,7 +153,7 @@ LRU::LRUr ()
       // we have a forced setting
       ms = GetMs();
     }
-    eos_static_info("msg=\"start policy scan\" ndir=%llu ms=%u", ndirs, ms);
+    eos_static_info("msg=\"start LRU scan\" ndir=%llu ms=%u", ndirs, ms);
 
     std::map<std::string, std::set<std::string> > lrudirs;
 
@@ -158,7 +178,7 @@ LRU::LRUr ()
                      )
         )
     {
-      eos_static_info("msg=\"finished LRU scan\" LRU-dirs=%llu",
+      eos_static_info("msg=\"finished LRU find\" LRU-dirs=%llu",
                       lrudirs.size()
                       );
 
@@ -189,12 +209,12 @@ LRU::LRUr ()
             AgeExpireEmtpy(it->first.c_str(), map["sys.lru.expire.empty"]);
           }
 
-          if (map.count("sys.lru.expire.suffix"))
+          if (map.count("sys.lru.expire.match"))
           {
             // -----------------------------------------------------------------
-            // files with a given suffix will be removed after expiration time
+            // files with a given match will be removed after expiration time
             // -----------------------------------------------------------------
-            AgeExpire(it->first.c_str(), map["sys.lru.expire.suffix"]);
+            AgeExpire(it->first.c_str(), map["sys.lru.expire.match"]);
           }
 
           if (map.count("sys.lru.lowwatermark") &&
@@ -220,19 +240,26 @@ LRU::LRUr ()
             ConvertAtime(it->first.c_str(), map["sys.lru.convert.atime"]);
           }
 
-          if (map.count("sys.lru.convert.suffix"))
+          if (map.count("sys.lru.convert.match"))
           {
             // -----------------------------------------------------------------
-            // files with a given suffix will be automatically converted
+            // files with a given match will be automatically converted
             // -----------------------------------------------------------------
-            ConvertSuffix(it->first.c_str(), map);
+            ConvertMatch(it->first.c_str(), map);
           }
         }
       }
     }
-
     EXEC_TIMING_END("LRUFind");
-    XrdSysThread::SetCancelOff();
+
+    eos_static_info("msg=\"finished LRU application\" LRU-dirs=%llu",
+                      lrudirs.size()
+                      );
+    eos_static_info("snooze-time=%llu", snoozetime);
+    XrdSysThread::SetCancelOn();
+    XrdSysTimer sleeper;
+    sleeper.Snooze(snoozetime);
+
   };
   return 0;
 }
@@ -250,14 +277,14 @@ LRU::AgeExpireEmtpy (const char* dir, std::string& policy)
 {
   struct stat buf;
 
-  eos_static_debug("dir=%s",dir);
-  
+  eos_static_debug("dir=%s", dir);
+
   if (!gOFS->_stat(dir, &buf, mError, mRootVid, ""))
   {
     // check if there is any child in that directory
-    if (buf.st_nlink>1)
+    if (buf.st_nlink > 1)
     {
-      eos_static_debug("dir=%s children=%d", dir,buf.st_nlink);
+      eos_static_debug("dir=%s children=%d", dir, buf.st_nlink);
       return;
     }
     else
@@ -268,7 +295,7 @@ LRU::AgeExpireEmtpy (const char* dir, std::string& policy)
       eos_static_debug("ctime=%u age=%u now=%u", buf.st_ctime, age, now);
       if ((buf.st_ctime + age) < now)
       {
-        eos_static_info("msg=\"delete empty directory\" path=\"%s\"", dir);
+        eos_static_notice("msg=\"delete empty directory\" path=\"%s\"", dir);
         if (gOFS->_remdir(dir, mError, mRootVid, ""))
         {
           eos_static_err("msg=\"failed to delete empty directory\" "
@@ -295,22 +322,104 @@ LRU::AgeExpire (const char* dir,
                   dir,
                   policy.c_str());
 
-  std::set<std::string> lDeletionList;
+  std::map < std::string, std::string> lMatchMap;
+  std::map < std::string, time_t> lMatchAgeMap;
+
+  time_t now = time(NULL);
+
+  if (!eos::common::StringConversion::GetKeyValueMap(policy.c_str(),
+                                                     lMatchMap,
+                                                     ":")
+      )
   {
+    eos_static_err("msg=\"LRU match attribute is illegal\" val=\"%s\"",
+                   policy.c_str());
+    return;
+  }
+
+  for (auto it = lMatchMap.begin(); it != lMatchMap.end(); it++)
+  {
+    time_t t = strtoul(it->second.c_str(), 0, 10);
+    if (errno)
+    {
+      eos_static_err("msg=\"LRU match attribute has illegal age\" "
+                     "match=\"%s\", age=\"%s\"",
+                     it->first.c_str(),
+                     it->second.c_str());
+    }
+    else
+    {
+      lMatchAgeMap[it->first] = t;
+      eos_static_info("rule %s %u", it->first.c_str(), t);
+    }
+  }
+
+  std::vector<std::string> lDeleteList;
+  {
+    // -------------------------------------------------------------------------
     // check the directory contents
+    // -------------------------------------------------------------------------
     eos::ContainerMD* cmd = 0;
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
       cmd = gOFS->eosView->getContainer(dir);
+      eos::ContainerMD::FileMap::iterator fit;
+      for (fit = cmd->filesBegin(); fit != cmd->filesEnd(); ++fit)
+      {
+        std::string fullpath = dir;
+        fullpath += fit->first;
+        eos_static_debug("%s", fullpath.c_str());
+        // ---------------------------------------------------------------------
+        // loop over the match map
+        // ---------------------------------------------------------------------
+        for (auto mit = lMatchAgeMap.begin(); mit != lMatchAgeMap.end(); mit++)
+        {
 
+          XrdOucString fname = fit->second->getName().c_str();
+          eos_static_debug("%s %d", mit->first.c_str(), fname.matches(mit->first.c_str()));
+          if (fname.matches(mit->first.c_str()))
+          {
+            // -----------------------------------------------------------------
+            // full match check the age policy
+            // ----------------------------------------------------------------
+            eos::FileMD::ctime_t ctime;
+            fit->second->getCTime(ctime);
+            time_t age = mit->second;
+            if ((ctime.tv_sec + age) < now)
+            {
+              // ---------------------------------------------------------------
+              // this entry can be deleted
+              // ---------------------------------------------------------------
+              eos_static_notice("msg=\"delete expired file\" path=\"%s\" ctime=%u policy-age=%u age=%u",
+                                fullpath.c_str(),
+                                ctime.tv_sec,
+                                age,
+                                now - ctime.tv_sec
+                                );
+
+              lDeleteList.push_back(fullpath);
+              break;
+            }
+          }
+        }
+      }
     }
     catch (eos::MDException &e)
     {
       errno = e.getErrno();
       cmd = 0;
-      eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                       e.getErrno(), e.getMessage().str().c_str());
+      eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\"",
+                     e.getErrno(), e.getMessage().str().c_str());
+    }
+  }
+
+  for (auto it = lDeleteList.begin(); it != lDeleteList.end(); it++)
+  {
+    if (gOFS->_rem(it->c_str(), mError, mRootVid, ""))
+    {
+      eos_static_err("msg=\"failed to expire file\" "
+                     "path=\"%s\"", it->c_str());
     }
   }
 }
@@ -354,17 +463,17 @@ LRU::ConvertAtime (const char* dir,
 
 /*----------------------------------------------------------------------------*/
 void
-LRU::ConvertSuffix (const char* dir,
-                    eos::ContainerMD::XAttrMap & map)
+LRU::ConvertMatch (const char* dir,
+                   eos::ContainerMD::XAttrMap & map)
 /*----------------------------------------------------------------------------*/
 /**
- * @brief convert all files matching a suffix
+ * @brief convert all files matching
  * @param dir directory to process
- * @param map storing all the 'sys.conversion.<suffix>' policies
+ * @param map storing all the 'sys.conversion.<match>' policies
  */
 {
-  eos_static_info("msg=\"applying suffix policy\" dir=\"%s\" suffix=\"%s\"",
+  eos_static_info("msg=\"applying match policy\" dir=\"%s\" match=\"%s\"",
                   dir,
-                  map["sys.lru.convert.suffix"].c_str());
+                  map["sys.lru.convert.match"].c_str());
 }
 EOSMGMNAMESPACE_END

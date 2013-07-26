@@ -327,16 +327,16 @@ com_attr_usage:
   fprintf(stdout, "         sys.force.atime=<age>                 : enables atime tagging under that directory. <age> is the minimum age before the access time is stored as change time.\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "         sys.lru.expire.empty=<age>            : delete empty directories older than <age>\n");
-  fprintf(stdout, "         sys.lru.expire.suffix=[suffix1:<age1>,suffix2:<age2>..]\n");
-  fprintf(stdout, "                                               : defines the rule that files with a given suffix will be removed if \n");
+  fprintf(stdout, "         sys.lru.expire.match=[match1:<age1>,match2:<age2>..]\n");
+  fprintf(stdout, "                                               : defines the rule that files with a given match will be removed if \n");
   fprintf(stdout, "                                                 they havn't been accessed longer than <age> ago. <age> is defined like 3600,3600s,60min,1h,1mo,y ...\n");
   fprintf(stdout, "         sys.lru.watermark=<low>:<high>        : if the watermark reaches more than <high> %%, files will be removed \n");
   fprintf(stdout, "                                                 until the usage is reaching <low> %%.\n");
   fprintf(stdout, "         sys.lru.convert.atime=<age>           : files not touched longer than <age> will be converted into the layout defined by attribute sys.conversion.atime.\n");
   fprintf(stdout, "         sys.conversion.atime=<layout-cgi>     : defines the conversion target layout when the previous policy applies ...\n");
   fprintf(stdout, "\n");
-  fprintf(stdout, "         sys.lru.convert.suffix=[suffix1:<age1>,suffix2:<age2>...]\n");
-  fprintf(stdout, "                                                 defines the rule that files with a given suffix will be converted to the layouts defined by sys.conversion.<suffix> when their access time reaches <age>.\n");
+  fprintf(stdout, "         sys.lru.convert.match=[match1:<age1>,match2:<age2>...]\n");
+  fprintf(stdout, "                                                 defines the rule that files with a given match will be converted to the layouts defined by sys.conversion.<match> when their access time reaches <age>.\n");
   fprintf(stdout, "\n"); 
   // ---------------------------------------------------------------------------
   fprintf(stdout, "         sys.stall.unavailable=<sec>           : stall clients for <sec> seconds if a needed file system is unavailable\n");
