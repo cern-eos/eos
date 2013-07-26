@@ -48,7 +48,6 @@ LRU::Start ()
 /*----------------------------------------------------------------------------*/
 {
   // run an asynchronous LRU thread
-  eos_static_info("constructor");
   mThread = 0;
   XrdSysThread::Run(&mThread,
                     LRU::StartLRUThread,
@@ -256,8 +255,11 @@ LRU::AgeExpireEmtpy (const char* dir, std::string& policy)
   if (!gOFS->_stat(dir, &buf, mError, mRootVid, ""))
   {
     // check if there is any child in that directory
-    if (buf.st_nlink)
+    if (buf.st_nlink>1)
+    {
+      eos_static_debug("dir=%s children=%d", dir,buf.st_nlink);
       return;
+    }
     else
     {
       time_t now = time(NULL);
@@ -267,7 +269,7 @@ LRU::AgeExpireEmtpy (const char* dir, std::string& policy)
       if ((buf.st_ctime + age) < now)
       {
         eos_static_info("msg=\"delete empty directory\" path=\"%s\"", dir);
-        if (gOFS->_rem(dir, mError, mRootVid, ""))
+        if (gOFS->_remdir(dir, mError, mRootVid, ""))
         {
           eos_static_err("msg=\"failed to delete empty directory\" "
                          "path=\"%s\"", dir);
