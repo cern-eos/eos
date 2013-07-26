@@ -4,20 +4,13 @@ Documentation
 =============================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    intro
    quickstart
    install
+   configuration
    develop
-
-
-Indices and tables
-==================
-
-* :ref:`search`
-* :ref:`genindex`
-
 
 
 
