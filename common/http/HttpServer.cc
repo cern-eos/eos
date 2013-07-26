@@ -229,7 +229,7 @@ HttpServer::HttpRedirect (const std::string &url,
   HttpResponse *response = new PlainHttpResponse();
   response->SetResponseCode(HttpResponse::ResponseCodes::TEMPORARY_REDIRECT);
   std::string host = hostCGI;
-  eos_static_info("\n\nhost=%s", host.c_str());
+
   std::string cgi = "";
   size_t qpos;
 
@@ -240,13 +240,13 @@ HttpServer::HttpRedirect (const std::string &url,
     host.erase(qpos);
   }
 
-  eos_static_info("\n\nhost=%s", host.c_str());
-  eos_static_info("\n\ncgi=%s", cgi.c_str());
+  eos_static_debug("host=%s", host.c_str());
+  eos_static_debug("cgi=%s", cgi.c_str());
 
   std::string redirect;
 
   redirect = "http://";
-  redirect += "127.0.0.1"; //host;
+  redirect += host;
   char sport[16];
   snprintf(sport, sizeof (sport) - 1, ":%d", port);
   redirect += sport;
