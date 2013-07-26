@@ -1030,7 +1030,26 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       }
     }
   }
-
+  
+  // ---------------------------------------------------------------------------
+  // add some alias for the logging
+  // ---------------------------------------------------------------------------
+  
+  // ---------------------------------------------------------------------------
+  // HTTP module
+  // ---------------------------------------------------------------------------
+  eos::common::Logging::AddFanOutAlias("HttpHandler", "Http");
+  eos::common::Logging::AddFanOutAlias("HttpServer", "Http");
+  eos::common::Logging::AddFanOutAlias("ProtocolHandler", "Http");
+  eos::common::Logging::AddFanOutAlias("S3", "Http");
+  eos::common::Logging::AddFanOutAlias("S3Store", "Http");
+  eos::common::Logging::AddFanOutAlias("WebDAV", "Http");
+  eos::common::Logging::AddFanOutAlias("PropFindReponse", "Http");
+  eos::common::Logging::AddFanOutAlias("WebDAVHandler", "Http");
+  eos::common::Logging::AddFanOutAlias("WebDAVReponse", "Http");
+  eos::common::Logging::AddFanOutAlias("S3Handler", "Http");
+  eos::common::Logging::AddFanOutAlias("S3Store", "Http");
+  
   eos::common::Logging::SetUnit(MgmOfsBrokerUrl.c_str());
 
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");

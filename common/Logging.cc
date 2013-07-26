@@ -30,9 +30,9 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-// Global static variables
-/*----------------------------------------------------------------------------*/
+  /*----------------------------------------------------------------------------*/
+  // Global static variables
+  /*----------------------------------------------------------------------------*/
   int Logging::gLogMask = 0;
 int Logging::gPriorityLevel = 0;
 int Logging::gShortFormat = 0;
@@ -43,7 +43,7 @@ unsigned long Logging::gCircularIndexSize;
 XrdSysMutex Logging::gMutex;
 XrdOucString Logging::gUnit = "none";
 XrdOucString Logging::gFilter = "";
-std::map<std::string,FILE*> Logging::gLogFanOut;
+std::map<std::string, FILE*> Logging::gLogFanOut;
 
 Mapping::VirtualIdentity Logging::gZeroVid;
 
@@ -136,8 +136,8 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
   // we show only one hierarchy directory like Acl (assuming that we have only
   // file names like *.cc and *.hh
   File.erase(0, File.rfind("/") + 1);
-  File.erase(File.length()-3);
-  
+  File.erase(File.length() - 3);
+
   static time_t current_time;
   static struct timeval tv;
   static struct timezone tz;
@@ -158,6 +158,8 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
 
   XrdOucString truncname = vid.name;
 
+  size_t tident_len = 0;
+
   // we show only the last 16 bytes of the name
   if (truncname.length() > 16)
   {
@@ -168,13 +170,18 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
   if (gShortFormat)
   {
     tm = localtime(&current_time);
-    sprintf(buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-12s level=%s tid=%016lx source=%24s:%-5s ", tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func, GetPriorityString(priority), (unsigned long) XrdSysThread::ID(), File.c_str(), linen);
+    char sourceline[64];
+    snprintf(sourceline, sizeof (sourceline) - 1, "%s:%s", File.c_str(), linen);
+    sprintf(buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-12s level=%s tid=%016lx source=%-30s ", tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func, GetPriorityString(priority), (unsigned long) XrdSysThread::ID(), sourceline);
   }
   else
   {
-    sprintf(fcident, "tident=%s sec=%s uid=%d gid=%d name=%s geo=\"%s\"", cident, vid.prot.c_str(), vid.uid, vid.gid, truncname.c_str(), vid.geolocation.c_str());
+    sprintf(fcident, "tident=%s sec=%4s uid=%d gid=%d name=%s geo=\"%s\"", cident, vid.prot.c_str(), vid.uid, vid.gid, truncname.c_str(), vid.geolocation.c_str());
     tm = localtime(&current_time);
-    sprintf(buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-24s level=%s logid=%s unit=%s tid=%016lx source=%-24s:%-5s %s ", tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func, GetPriorityString(priority), logid, gUnit.c_str(), (unsigned long) XrdSysThread::ID(), File.c_str(), linen, fcident);
+    tident_len = strlen(fcident);
+    char sourceline[64];
+    snprintf(sourceline, sizeof (sourceline) - 1, "%s:%s", File.c_str(), linen);
+    sprintf(buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-24s level=%s logid=%s unit=%s tid=%016lx source=%-30s %s ", tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func, GetPriorityString(priority), logid, gUnit.c_str(), (unsigned long) XrdSysThread::ID(), sourceline, fcident);
   }
 
   char* ptr = buffer + strlen(buffer);
@@ -185,22 +192,68 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
   if (gLogFanOut.size())
   {
     // we do log-message fanout
-    if (gLogFanOut.count("*")) 
+    if (gLogFanOut.count("*"))
     {
-      fprintf(gLogFanOut["*"],"%s\n",buffer);
+      fprintf(gLogFanOut["*"], "%s\n", buffer);
       fflush(gLogFanOut["*"]);
     }
     if (gLogFanOut.count(File.c_str()))
     {
-      fprintf(gLogFanOut[File.c_str()],"%s\n", buffer);
+      buffer[16] = 0;
+      buffer[39] = 0;
+      buffer[68] = 0;
+      buffer[80] = 0;
+      buffer[177] = 0;
+      buffer[177 + 38] = 0;
+      buffer[177 + 38 + tident_len] = 0;
+
+      fprintf(gLogFanOut[File.c_str()], "%s %s%s%s %s %s \n", 
+              buffer, 
+              GetLogColour(buffer + 75), 
+              buffer + 75, 
+              EOS_TEXTNORMAL, 
+              buffer + 178 + 7, 
+              buffer + 178 + 38 + tident_len);
       fflush(gLogFanOut[File.c_str()]);
-    } 
-    else 
+      buffer[16] = ' ';
+      buffer[68] = ' ';
+      buffer[74] = ' ';
+      buffer[80] = ' ';
+      buffer[177] = ' ';
+      buffer[177 + 38] = ' ';
+      buffer[177 + 38 + tident_len] = ' ';
+    }
+    else
     {
       if (gLogFanOut.count("#"))
       {
-        fprintf(gLogFanOut["#"],"%s\n", buffer);
+        buffer[16] = 0;
+        buffer[39] = 0;
+        buffer[68] = 0;
+        buffer[80] = 0;
+        buffer[177] = 0;
+        buffer[177 + 38] = 0;
+        buffer[177 + 38 + tident_len] = 0;
+
+        fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %s %s \n",
+                buffer,
+                GetLogColour(buffer + 75),
+                buffer + 75,
+                EOS_TEXTNORMAL,
+                vid.uid,
+                vid.gid,
+                buffer + 178 + 7,
+                buffer + 178 + 38 + tident_len
+                );
+
         fflush(gLogFanOut["#"]);
+        buffer[16] = ' ';
+        buffer[68] = ' ';
+        buffer[74] = ' ';
+        buffer[80] = ' ';
+        buffer[177] = ' ';
+        buffer[177 + 38] = ' ';
+        buffer[177 + 38 + tident_len] = ' ';
       }
     }
     fprintf(stderr, "%s\n", buffer);

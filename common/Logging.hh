@@ -61,9 +61,21 @@
 #include <uuid/uuid.h>
 #include <string>
 #include <vector>
+
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
+#define EOS_TEXTNORMAL "\033[0m"
+#define EOS_TEXTBLACK  "\033[49;30m"
+#define EOS_TEXTRED    "\033[49;31m"
+#define EOS_TEXTREDERROR "\033[47;31m\e[5m"
+#define EOS_TEXTBLUEERROR "\033[47;34m\e[5m"
+#define EOS_TEXTGREEN  "\033[49;32m"
+#define EOS_TEXTYELLOW "\033[49;33m"
+#define EOS_TEXTBLUE   "\033[49;34m"
+#define EOS_TEXTBOLD   "\033[1m"
+#define EOS_TEXTUNBOLD "\033[0m"
+
 
 /*----------------------------------------------------------------------------*/
 //! Log Macros usable in objects inheriting from the logId Class
@@ -122,107 +134,140 @@ EOSCOMMONNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 //! Class implementing EOS logging
 /*----------------------------------------------------------------------------*/
-class LogId {
+class LogId
+{
 public:
   // ---------------------------------------------------------------------------
   //! For calls which are not client initiated this function set's a unique dummy log id
   // ---------------------------------------------------------------------------
-  void SetSingleShotLogId(const char* td="<single-exec>") {
-    snprintf(logId,sizeof(logId)-1,"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx");
-    snprintf(cident, sizeof(cident)-1,"%s",td);
+
+  void
+  SetSingleShotLogId (const char* td = "<single-exec>")
+  {
+    snprintf(logId, sizeof (logId) - 1, "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx");
+    snprintf(cident, sizeof (cident) - 1, "%s", td);
   }
-  
+
   // ---------------------------------------------------------------------------
   //! Set's the logid and trace identifier
   // ---------------------------------------------------------------------------
-  void SetLogId(const char* newlogid, const char* td= "<service>") {
+
+  void
+  SetLogId (const char* newlogid, const char* td = "<service>")
+  {
     if (newlogid != logId)
-      snprintf(logId,sizeof(logId)-1,"%s",newlogid);
-    snprintf(cident,sizeof(cident)-1,"%s", td);
+      snprintf(logId, sizeof (logId) - 1, "%s", newlogid);
+    snprintf(cident, sizeof (cident) - 1, "%s", td);
   }
-  
+
   // ---------------------------------------------------------------------------
   //! Set's the logid, vid and trace identifier
   // ---------------------------------------------------------------------------
-  void SetLogId(const char* newlogid, Mapping::VirtualIdentity &vid_in, const char* td = "") {
+
+  void
+  SetLogId (const char* newlogid, Mapping::VirtualIdentity &vid_in, const char* td = "")
+  {
     Mapping::Copy(vid_in, vid);
-    snprintf(cident,sizeof(cident)-1,"%s",td);
+    snprintf(cident, sizeof (cident) - 1, "%s", td);
     if (newlogid != logId)
-      snprintf(logId,sizeof(logId)-1,"%s",newlogid);
+      snprintf(logId, sizeof (logId) - 1, "%s", newlogid);
   }
 
 
-  char logId[40];   //< the log Id for message printout
+  char logId[40]; //< the log Id for message printout
   char cident[256]; //< the client identifier
   Mapping::VirtualIdentity vid; //< the client identity
 
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-  LogId() {
+
+  LogId ()
+  {
     uuid_t uuid;
     uuid_generate_time(uuid);
-    uuid_unparse(uuid,logId);
-    sprintf(cident,"<service>");
-    vid.uid=getuid();
-    vid.gid=getgid();
+    uuid_unparse(uuid, logId);
+    sprintf(cident, "<service>");
+    vid.uid = getuid();
+    vid.gid = getgid();
   }
 
   // ---------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
-  ~LogId(){}
+
+  ~LogId () { }
 };
 
 // ---------------------------------------------------------------------------
 //! Class wrapping global singleton objects for logging
 // ---------------------------------------------------------------------------
 
-class Logging {
+class Logging
+{
 private:
 public:
   typedef std::vector< unsigned long > LogCircularIndex; //< typedef for circular index pointing to the next message position int he log array
   typedef std::vector< std::vector <XrdOucString> > LogArray; //< typdef for log message array 
 
   static LogCircularIndex gLogCircularIndex; //< global circular index
-  static LogArray         gLogMemory;        //< global logging memory
-  static unsigned long    gCircularIndexSize;//< global circular index size
-  static Mapping::VirtualIdentity gZeroVid;  //< root vid
-  static int gLogMask;                       //< log mask
-  static int gPriorityLevel;                 //< log priority
-  static XrdSysMutex gMutex;                 //< global mutex
-  static XrdOucString gUnit;                 //< global unit name
-  static XrdOucString gFilter;               //< global log filter to apply
-  static int gShortFormat;                   //< indiciating if the log-output is in short format
-  static std::map<std::string,FILE*> gLogFanOut;//< here one can define log fan-out to different file descriptors than stderr
-  
+  static LogArray gLogMemory; //< global logging memory
+  static unsigned long gCircularIndexSize; //< global circular index size
+  static Mapping::VirtualIdentity gZeroVid; //< root vid
+  static int gLogMask; //< log mask
+  static int gPriorityLevel; //< log priority
+  static XrdSysMutex gMutex; //< global mutex
+  static XrdOucString gUnit; //< global unit name
+  static XrdOucString gFilter; //< global log filter to apply
+  static int gShortFormat; //< indiciating if the log-output is in short format
+  static std::map<std::string, FILE*> gLogFanOut; //< here one can define log fan-out to different file descriptors than stderr
+
   // ---------------------------------------------------------------------------
   //! Set the log priority (like syslog)
   // ---------------------------------------------------------------------------
-  static void SetLogPriority(int pri) { gLogMask = LOG_UPTO(pri); gPriorityLevel = pri;}
+
+  static void
+  SetLogPriority (int pri)
+  {
+    gLogMask = LOG_UPTO(pri);
+    gPriorityLevel = pri;
+  }
 
   // ---------------------------------------------------------------------------
   //! Set the log unit name
   // ---------------------------------------------------------------------------
-  static void SetUnit(const char* unit) { gUnit = unit;}
+
+  static void
+  SetUnit (const char* unit)
+  {
+    gUnit = unit;
+  }
 
   // ---------------------------------------------------------------------------
   //! Set the log filter
   // ---------------------------------------------------------------------------
-  static void SetFilter(const char* filter) {gFilter = filter;}
+
+  static void
+  SetFilter (const char* filter)
+  {
+    gFilter = filter;
+  }
 
   // ---------------------------------------------------------------------------
   //! Return priority as string
   // ---------------------------------------------------------------------------
-  static const char* GetPriorityString(int pri) {
-    if (pri==(LOG_INFO)) return "INFO ";
-    if (pri==(LOG_DEBUG)) return "DEBUG";
-    if (pri==(LOG_ERR)) return "ERROR";
-    if (pri==(LOG_EMERG)) return "EMERG";
-    if (pri==(LOG_ALERT)) return "ALERT";
-    if (pri==(LOG_CRIT))  return "CRIT ";
-    if (pri==(LOG_WARNING)) return "WARN ";
-    if (pri==(LOG_NOTICE)) return "NOTE ";
+
+  static const char*
+  GetPriorityString (int pri)
+  {
+    if (pri == (LOG_INFO)) return "INFO ";
+    if (pri == (LOG_DEBUG)) return "DEBUG";
+    if (pri == (LOG_ERR)) return "ERROR";
+    if (pri == (LOG_EMERG)) return "EMERG";
+    if (pri == (LOG_ALERT)) return "ALERT";
+    if (pri == (LOG_CRIT)) return "CRIT ";
+    if (pri == (LOG_WARNING)) return "WARN ";
+    if (pri == (LOG_NOTICE)) return "NOTE ";
 
     return "NONE ";
   }
@@ -230,40 +275,73 @@ public:
   // ---------------------------------------------------------------------------
   //! Return priority int from string
   // ---------------------------------------------------------------------------
-  static int GetPriorityByString(const char* pri) {
-    if (!strcmp(pri,"info"))    return LOG_INFO;
-    if (!strcmp(pri,"debug"))   return LOG_DEBUG;
-    if (!strcmp(pri,"err"))     return LOG_ERR;
-    if (!strcmp(pri,"emerg"))   return LOG_EMERG;
-    if (!strcmp(pri,"alert"))   return LOG_ALERT;
-    if (!strcmp(pri,"crit"))    return LOG_CRIT;
-    if (!strcmp(pri,"warning")) return LOG_WARNING;
-    if (!strcmp(pri,"notice"))  return LOG_NOTICE;
+
+  static int
+  GetPriorityByString (const char* pri)
+  {
+    if (!strcmp(pri, "info")) return LOG_INFO;
+    if (!strcmp(pri, "debug")) return LOG_DEBUG;
+    if (!strcmp(pri, "err")) return LOG_ERR;
+    if (!strcmp(pri, "emerg")) return LOG_EMERG;
+    if (!strcmp(pri, "alert")) return LOG_ALERT;
+    if (!strcmp(pri, "crit")) return LOG_CRIT;
+    if (!strcmp(pri, "warning")) return LOG_WARNING;
+    if (!strcmp(pri, "notice")) return LOG_NOTICE;
     return -1;
   }
 
   // ---------------------------------------------------------------------------
   //! Initialize Logger
   // ---------------------------------------------------------------------------
-  static void Init();
-  
+  static void Init ();
+
   // ---------------------------------------------------------------------------
   //! Add a tag fanout filedescriptor to the logging module
   // ---------------------------------------------------------------------------
-  static void AddFanOut(const char* tag, FILE* fd)
+
+  static void
+  AddFanOut (const char* tag, FILE* fd)
   {
     gLogFanOut[tag] = fd;
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Add a tag fanout alias to the logging module
+  // ---------------------------------------------------------------------------
+  static void
+  AddFanOutAlias (const char* alias, const char* tag)
+  {
+    if (gLogFanOut.count(tag))
+    {
+      gLogFanOut[alias] = gLogFanOut[tag];
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Get a color for a given logging level
+  // ---------------------------------------------------------------------------
+  static const char* GetLogColour(const char* loglevel)
+  {
+    if (!strcmp(loglevel,"INFO ")) return EOS_TEXTGREEN;
+    if (!strcmp(loglevel,"ERROR")) return EOS_TEXTRED;
+    if (!strcmp(loglevel,"WARN ")) return EOS_TEXTYELLOW;
+    if (!strcmp(loglevel,"NOTE ")) return EOS_TEXTBLUE;
+    if (!strcmp(loglevel,"CRIT ")) return EOS_TEXTREDERROR;
+    if (!strcmp(loglevel,"EMERG")) return EOS_TEXTBLUEERROR;
+    if (!strcmp(loglevel,"ALERT")) return EOS_TEXTREDERROR;
+    if (!strcmp(loglevel,"DEBUG")) return "";
+    return "";
   }
   
   // ---------------------------------------------------------------------------
   //! Check if we should log in the defined level/filter
   // ---------------------------------------------------------------------------
-  static bool shouldlog(const char* func, int priority);
+  static bool shouldlog (const char* func, int priority);
 
   // ---------------------------------------------------------------------------
   //! Log a message into the global buffer
   // ---------------------------------------------------------------------------
-  static const char* log(const char* func, const char* file, int line, const char* logid, const Mapping::VirtualIdentity &vid , const char* cident, int priority, const char *msg, ...);
+  static const char* log (const char* func, const char* file, int line, const char* logid, const Mapping::VirtualIdentity &vid, const char* cident, int priority, const char *msg, ...);
 
 };
 
