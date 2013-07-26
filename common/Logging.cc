@@ -199,9 +199,9 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
     }
     if (gLogFanOut.count(File.c_str()))
     {
-      buffer[16] = 0;
-      buffer[39] = 0;
-      buffer[68] = 0;
+      buffer[15] = 0;
+      buffer[38] = 0;
+      buffer[67] = 0;
       buffer[80] = 0;
       buffer[177] = 0;
       buffer[177 + 38] = 0;
@@ -215,8 +215,9 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
               buffer + 178 + 7, 
               buffer + 178 + 38 + tident_len);
       fflush(gLogFanOut[File.c_str()]);
-      buffer[16] = ' ';
-      buffer[68] = ' ';
+      buffer[15] = ' ';
+      buffer[38] = ' ';
+      buffer[67] = ' ';
       buffer[74] = ' ';
       buffer[80] = ' ';
       buffer[177] = ' ';
@@ -227,8 +228,8 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
     {
       if (gLogFanOut.count("#"))
       {
-        buffer[16] = 0;
-        buffer[39] = 0;
+        buffer[15] = 0;
+        buffer[38] = 0;
         buffer[68] = 0;
         buffer[80] = 0;
         buffer[177] = 0;
@@ -247,7 +248,8 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
                 );
 
         fflush(gLogFanOut["#"]);
-        buffer[16] = ' ';
+        buffer[15] = ' ';
+        buffer[38] = ' ';
         buffer[68] = ' ';
         buffer[74] = ' ';
         buffer[80] = ' ';
