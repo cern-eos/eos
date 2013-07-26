@@ -31,10 +31,10 @@ Dependencies
    ===============================  =========
    Package                          Version                        
    ===============================  =========
-   xrootd-server                    >= 3.3.2                       
-   xrootd-server-devel              >= 3.3.2                       
-   xrootd-private-devel             >= 3.3.2                       
-   xrootd-cl-devel                  >= 3.3.2                       
+   xrootd-server                    = 3.3.3                       
+   xrootd-server-devel              = 3.3.3                       
+   xrootd-private-devel             = 3.3.3                       
+   xrootd-cl-devel                  = 3.3.3                       
    readline-devel                   default                        
    ncurses-devel                    default                        
    libattr-devel                    default                        
