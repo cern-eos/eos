@@ -89,9 +89,9 @@ ConverterJob::DoIt ()
 
   eos::FileMD* fmd = 0;
   eos::ContainerMD* cmd = 0;
-  uid_t owner_uid=0;
-  gid_t owner_gid=0;
-  
+  uid_t owner_uid = 0;
+  gid_t owner_gid = 0;
+
   eos::ContainerMD::XAttrMap attrmap;
 
 
@@ -109,7 +109,7 @@ ConverterJob::DoIt ()
       fmd = gOFS->eosFileService->getFileMD(mFid);
       owner_uid = fmd->getCUid();
       owner_gid = fmd->getCGid();
-      
+
       mSourcePath = gOFS->eosView->getUri(fmd);
       eos::common::Path cPath(mSourcePath.c_str());
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
@@ -132,7 +132,7 @@ ConverterJob::DoIt ()
       }
       else
       {
-        // or can be directly a hexadecimal layout representation
+        // or can be directly a hexadecimal layout representation or env representation
         val =
           eos::common::LayoutId::GetEnvFromConversionIdString(lEnv, mConversionLayout.c_str());
       }
@@ -175,7 +175,7 @@ ConverterJob::DoIt ()
     std::string cgi = "eos.ruid=2&eos.rgid=2&";
     cgi += mTargetCGI.c_str();
     cgi += "&eos.app=converter";
-    
+
     mTPCJob.source.SetProtocol("root");
     mTPCJob.source.SetHostName("localhost");
     mTPCJob.source.SetUserName("root");
@@ -201,11 +201,18 @@ ConverterJob::DoIt ()
                     mTPCJob.target.GetURL().c_str(),
                     lTpcPrepareStatus.ToStr().c_str());
 
-    XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);
-    eos_static_info("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
-    if (lTpcStatus.IsOK())
+    if (lTpcPrepareStatus.IsOK())
     {
-      success = true;
+      XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);
+      eos_static_info("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
+      if (lTpcStatus.IsOK())
+      {
+        success = true;
+      }
+      else
+      {
+        success = false;
+      }
     }
     else
     {
@@ -221,6 +228,7 @@ ConverterJob::DoIt ()
                    mFid, mConversionLayout.c_str());
     success = false;
   }
+
   eos_static_info("msg=\"stop tpc job\" fxid=%016x layout=%s",
                   mFid, mConversionLayout.c_str());
 
@@ -328,6 +336,18 @@ Converter::Converter (const char* spacename)
 }
 
 /*----------------------------------------------------------------------------*/
+void 
+Converter::Stop ()
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief thread stop function
+ */
+/*---------------------- ------------------------------------------------------*/
+{
+  XrdSysThread::Cancel(mThread);
+}
+
+/*----------------------------------------------------------------------------*/
 Converter::~Converter ()
 /*----------------------------------------------------------------------------*/
 /**
@@ -335,7 +355,7 @@ Converter::~Converter ()
  */
 /*----------------------------------------------------------------------------*/
 {
-  XrdSysThread::Cancel(mThread);
+  Stop();
   if (!gOFS->Shutdown)
   {
     XrdSysThread::Join(mThread, NULL);

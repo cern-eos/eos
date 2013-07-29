@@ -806,6 +806,13 @@ FsView::Reset ()
 
   std::map<std::string, FsSpace* >::iterator it;
 
+  {
+    eos::common::RWMutexReadLock viewlock(ViewMutex);
+    // stop all the threads having only a read-lock
+    for (auto it=mSpaceView.begin();it!=mSpaceView.end(); it++)
+      it->second->Stop();
+  }
+  
   eos::common::RWMutexWriteLock viewlock(ViewMutex);
   while (mSpaceView.size())
   {
