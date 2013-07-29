@@ -194,11 +194,11 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
 {
   eos::common::HttpResponse *response = 0;
   XrdOucString prot, port;
-  const char *destination = eos::common::StringConversion::ParseUrl
+  std::string destination = eos::common::StringConversion::ParseUrl
       (request->GetHeaders()["Destination"].c_str(), prot, port);
 
   eos_static_info("action=\"move\" src=\"%s\", dest=\"%s\"",
-                  request->GetUrl().c_str(), destination);
+                  request->GetUrl().c_str(), destination.c_str());
 
   XrdSecEntity client;
   client.name   = const_cast<char*>(mVirtualIdentity->name.c_str());
@@ -210,10 +210,15 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
     response = HttpServer::HttpError("source path required",
                                      response->BAD_REQUEST);
   }
-  else if (!destination)
+  else if (!destination.size())
   {
     response = HttpServer::HttpError("destination required",
                                      response->BAD_REQUEST);
+  }
+  else if (request->GetUrl() == destination)
+  {
+    response = HttpServer::HttpError("destination must be different from source",
+                                     response->FORBIDDEN);
   }
   else
   {
@@ -221,7 +226,7 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
     XrdOucErrInfo error;
 
     rc = gOFS->rename(request->GetUrl().c_str(),
-                      destination,
+                      destination.c_str(),
                       error, &client, 0, 0);
     if (rc != SFS_OK)
     {
@@ -239,11 +244,12 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
 
             ProcCommand  cmd;
             XrdOucString info = "mgm.cmd=rm&mgm.path=";
-            info += destination;
+            info += destination.c_str();
             if (S_ISDIR(buf.st_mode)) info += "&mgm.option=r";
 
-            rc = cmd.open("/proc/user", info.c_str(), *mVirtualIdentity, &error);
+            cmd.open("/proc/user", info.c_str(), *mVirtualIdentity, &error);
             cmd.close();
+            rc = cmd.GetRetc();
 
             if (rc != SFS_OK)
             {
@@ -255,7 +261,7 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
             {
               // try the rename again
               rc = gOFS->rename(request->GetUrl().c_str(),
-                                destination,
+                                destination.c_str(),
                                 error, &client, 0, 0);
 
               if (rc != SFS_OK)
@@ -336,8 +342,111 @@ WebDAVHandler::Copy (eos::common::HttpRequest *request)
 {
   eos::common::HttpResponse *response = 0;
 
-  response = new eos::common::PlainHttpResponse();
-  response->SetResponseCode(eos::common::HttpResponse::NOT_IMPLEMENTED);
+  XrdOucString prot, port;
+  std::string destination = eos::common::StringConversion::ParseUrl
+      (request->GetHeaders()["Destination"].c_str(), prot, port);
+
+  eos_static_info("action=\"copy\" src=\"%s\", dest=\"%s\"",
+                  request->GetUrl().c_str(), destination.c_str());
+
+  XrdSecEntity client;
+  client.name   = const_cast<char*>(mVirtualIdentity->name.c_str());
+  client.host   = const_cast<char*>(mVirtualIdentity->host.c_str());
+  client.tident = const_cast<char*>(mVirtualIdentity->tident.c_str());
+
+  if (!request->GetUrl().size())
+  {
+    response = HttpServer::HttpError("source path required",
+                                     response->BAD_REQUEST);
+  }
+  else if (!destination.size())
+  {
+    response = HttpServer::HttpError("destination required",
+                                     response->BAD_REQUEST);
+  }
+  else
+  {
+    int           rc = 0;
+    XrdOucErrInfo error;
+
+    ProcCommand  cmd;
+    XrdOucString info  = "mgm.cmd=file&mgm.subcmd=copy";
+                 info += "&mgm.path=";
+                 info += request->GetUrl().c_str();
+                 info += "&mgm.file.target=";
+                 info += destination.c_str();
+                 info += "&eos.ruid=";
+                 info += mVirtualIdentity->uid_string.c_str();
+                 info += "&eos.rgid=";
+                 info +=mVirtualIdentity->gid_string.c_str();
+
+    eos_static_debug("cmd=%s", info.c_str());
+    cmd.open("/proc/user", info.c_str(), *mVirtualIdentity, &error);
+    cmd.close();
+    rc = cmd.GetRetc();
+    eos_static_debug("ret=%d", rc);
+
+    if (rc != SFS_OK)
+    {
+      if (rc == EEXIST)
+      {
+        // resource exists
+        if (request->GetHeaders()["Overwrite"] == "T")
+        {
+          // force overwrite
+          info += "&mgm.file.option=f";
+          eos_static_debug("overwriting: cmd=%s", info.c_str());
+          cmd.open("/proc/user", info.c_str(), *mVirtualIdentity, &error);
+          cmd.close();
+          rc = cmd.GetRetc();
+          eos_static_debug("ret=%d", rc);
+
+          if (rc != 0)
+          {
+            // something went wrong with the overwrite
+            response = HttpServer::HttpError(error.getErrText(),
+                                             error.getErrInfo());
+          }
+          else
+          {
+            // it worked!
+            response = new eos::common::PlainHttpResponse();
+            response->SetResponseCode(response->NO_CONTENT);
+          }
+        }
+        else
+        {
+          // resource exists but we are not overwriting
+          response = HttpServer::HttpError(error.getErrText(),
+                                           response->PRECONDITION_FAILED);
+        }
+      }
+      else if (rc == ENOENT)
+      {
+        // parent directory does not exist
+        response = HttpServer::HttpError(error.getErrText(),
+                                         response->CONFLICT);
+      }
+      else if (rc == EPERM)
+      {
+        // not permitted
+        response = HttpServer::HttpError(error.getErrText(),
+                                         response->FORBIDDEN);
+      }
+      else
+      {
+        // some other error
+        response = HttpServer::HttpError(error.getErrText(),
+                                         error.getErrInfo());
+      }
+    }
+    else
+    {
+      // everything went well
+      response = new eos::common::PlainHttpResponse();
+      response->SetResponseCode(response->CREATED);
+    }
+  }
 
   return response;
 }
