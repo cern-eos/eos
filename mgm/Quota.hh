@@ -353,7 +353,7 @@ public:
   void UpdateLogicalSizeFactor ();
   void UpdateTargetSums ();
   void UpdateIsSums ();
-  void UpdateFromQuotaNode (uid_t uid, gid_t gid);
+  void UpdateFromQuotaNode (uid_t uid, gid_t gid, bool calc_project_quota=false);
 
   SpaceQuota (const char* name);
   ~SpaceQuota ();
@@ -654,7 +654,7 @@ public:
   static void NodesToSpaceQuota ();
 
   // insert current state of a single quota node into a SpaceQuota
-  static void NodeToSpaceQuota (const char* name, bool lock = true);
+  static void NodeToSpaceQuota (const char* name);
 
   static gid_t gProjectId; //< gid indicating project quota
 };

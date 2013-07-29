@@ -267,12 +267,10 @@ XrdMgmOfs::InitializeFileView ()
   }
 
   // fill the current accounting
-  {
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    // load all the quota nodes from the namespace
-    Quota::LoadNodes();
-    Quota::NodesToSpaceQuota();
-  }
+  // load all the quota nodes from the namespace
+  Quota::LoadNodes();
+  Quota::NodesToSpaceQuota();
+  
 
   return 0;
 }
