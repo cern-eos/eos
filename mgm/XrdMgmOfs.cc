@@ -3343,7 +3343,7 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_rdev = 0; /* device type (if inode device) */
     buf->st_size = fmd->getSize();
     buf->st_blksize = 512;
-    buf->st_blocks = fmd->getSize() / 512;
+    buf->st_blocks = Quota::MapSizeCB(fmd) / 512; // including layout factor
     eos::FileMD::ctime_t atime;
 
     // adding also nanosecond to stat struct
