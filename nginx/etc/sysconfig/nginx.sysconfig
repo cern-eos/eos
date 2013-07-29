@@ -2,28 +2,46 @@
 
 NGINX_CONF_FILE=/etc/nginx/nginx.eos.conf
 
-# nginx SSL configuration
+# User to run nginx under
+export EOS_NGINX_USER=daemon
+
+# Hostname to use for nginx vhosts
 export EOS_NGINX_HOSTNAME=`hostname -f`
-export EOS_NGINX_PORT=443
+
+# nginx SSL configuration
 export EOS_NGINX_SSL_CERTIFICATE=/etc/grid-security/hostcert.pem
 export EOS_NGINX_SSL_KEY=/etc/grid-security/hostkey.pem
+# nginx-bundle should contain CERN CA plus all default CAs (Verisign, etc)
 export EOS_NGINX_SSL_CLIENT_CERTIFICATE=/etc/grid-security/certificates/nginx-bundle.pem
 
+# Port to enable client certificate authentication on
+export EOS_NGINX_CLIENT_SSL_PORT=443
 # Enable openssl to use proxy certificates
 export OPENSSL_ALLOW_PROXY_CERTS=1
 
+# Port to enable kerberos authentication on
+export EOS_NGINX_GSS_PORT=8443
 # nginx kerberos configuration
 export EOS_NGINX_GSS_KEYTAB=/etc/krb5.keytab
 export EOS_NGINX_GSS_REALM=CERN.CH
 export EOS_NGINX_GSS_SERVICE_NAME=host/$EOS_NGINX_HOSTNAME
 
 
+# Set this to 0 to allow nginx to resolve redirects from the mgm internally,
+# i.e. not sending the 3xx response back to the client. This allows PUT and GET
+# to work with WebDAV clients who do not know how to handle the redirect.
+export EOS_NGINX_REDIRECT_EXTERNALLY=0
+
+
 # Replace all the things
-perl -pi -e 's/EOS_NGINX_HOSTNAME/$ENV{EOS_NGINX_HOSTNAME}/'                             /etc/nginx/nginx.eos.conf
-perl -pi -e 's/EOS_NGINX_PORT/$ENV{EOS_NGINX_PORT}/'                                     /etc/nginx/nginx.eos.conf
-perl -pi -e 's/EOS_NGINX_SSL_CERTIFICATE/$ENV{EOS_NGINX_SSL_CERTIFICATE}/'               /etc/nginx/nginx.eos.conf
-perl -pi -e 's/EOS_NGINX_SSL_KEY/$ENV{EOS_NGINX_SSL_KEY}/'                               /etc/nginx/nginx.eos.conf
-perl -pi -e 's/EOS_NGINX_SSL_CLIENT_CERTIFICATE/$ENV{EOS_NGINX_SSL_CLIENT_CERTIFICATE}/' /etc/nginx/nginx.eos.conf
-perl -pi -e 's/EOS_NGINX_GSS_KEYTAB/$ENV{EOS_NGINX_GSS_KEYTAB}/'                         /etc/nginx/nginx.eos.conf
-perl -pi -e 's/EOS_NGINX_GSS_REALM/$ENV{EOS_NGINX_GSS_REALM}/'                           /etc/nginx/nginx.eos.conf
-perl -pi -e 's/EOS_NGINX_GSS_SERVICE_NAME/$ENV{EOS_NGINX_GSS_SERVICE_NAME}/'             /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_USER/$ENV{EOS_NGINX_USER}/g'                                     /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_HOSTNAME/$ENV{EOS_NGINX_HOSTNAME}/g'                             /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_CLIENT_SSL_PORT/$ENV{EOS_NGINX_CLIENT_SSL_PORT}/g'               /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_SSL_CERTIFICATE/$ENV{EOS_NGINX_SSL_CERTIFICATE}/g'               /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_SSL_KEY/$ENV{EOS_NGINX_SSL_KEY}/g'                               /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_SSL_CLIENT_CERTIFICATE/$ENV{EOS_NGINX_SSL_CLIENT_CERTIFICATE}/g' /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_GSS_PORT/$ENV{EOS_NGINX_GSS_PORT}/g'                             /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_GSS_KEYTAB/$ENV{EOS_NGINX_GSS_KEYTAB}/g'                         /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_GSS_REALM/$ENV{EOS_NGINX_GSS_REALM}/g'                           /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_GSS_SERVICE_NAME/$ENV{EOS_NGINX_GSS_SERVICE_NAME}/g'             /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_REDIRECT_EXTERNALLY/$ENV{EOS_NGINX_REDIRECT_EXTERNALLY}/g'       /etc/nginx/nginx.eos.conf
