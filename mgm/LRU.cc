@@ -39,6 +39,8 @@ const char* LRU::gLRUPolicyPrefix = "sys.lru.*"; //< the attribute name defining
 
 EOSMGMNAMESPACE_BEGIN
 
+using namespace eos::common;
+
 /*----------------------------------------------------------------------------*/
 bool
 LRU::Start ()
@@ -282,7 +284,7 @@ LRU::AgeExpireEmtpy (const char* dir, std::string& policy)
     {
       time_t now = time(NULL);
       XrdOucString sage = policy.c_str();
-      time_t age = eos::common::StringConversion::GetSizeFromString(sage);
+      time_t age = StringConversion::GetSizeFromString(sage);
       eos_static_debug("ctime=%u age=%u now=%u", buf.st_ctime, age, now);
       if ((buf.st_ctime + age) < now)
       {
@@ -318,7 +320,7 @@ LRU::AgeExpire (const char* dir,
 
   time_t now = time(NULL);
 
-  if (!eos::common::StringConversion::GetKeyValueMap(policy.c_str(),
+  if (!StringConversion::GetKeyValueMap(policy.c_str(),
                                                      lMatchMap,
                                                      ":")
       )
@@ -351,7 +353,7 @@ LRU::AgeExpire (const char* dir,
     // check the directory contents
     // -------------------------------------------------------------------------
     eos::ContainerMD* cmd = 0;
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
       cmd = gOFS->eosView->getContainer(dir);
@@ -437,7 +439,7 @@ LRU::CacheExpire (const char* dir,
   // ---------------------------------------------------------------------------
   // get the quota space 
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexReadLock gLock(Quota::gQuotaMutex);
+  RWMutexReadLock gLock(Quota::gQuotaMutex);
 
   SpaceQuota* space = Quota::GetResponsibleSpaceQuota(dir);
   if (!space)
@@ -506,7 +508,7 @@ LRU::CacheExpire (const char* dir,
                     lwm,
                     hwm,
                     cwm,
-                    eos::common::StringConversion::GetReadableSizeString(sizestring, bytes_to_free, "B")
+                    StringConversion::GetReadableSizeString(sizestring, bytes_to_free, "B")
                     );
 
   // ---------------------------------------------------------------------------
@@ -573,7 +575,11 @@ LRU::CacheExpire (const char* dir,
           lru.size = buf.st_blocks * buf.st_blksize;
           lru_map.insert(lru);
           lru_size += lru.size;
-          eos_static_debug("msg=\"adding\" file=\"%s\" bytes-free=\"%llu\" lru-size=\"%llu\"", fpath.c_str(), bytes_to_free, lru_size);
+          eos_static_debug("msg=\"adding\" file=\"%s\" "
+                           "bytes-free=\"%llu\" lru-size=\"%llu\"",
+                           fpath.c_str(),
+                           bytes_to_free,
+                           lru_size);
 
           // check if we can shrink the LRU map
           if (lru_map.size() && (lru_size > bytes_to_free))
@@ -600,7 +606,8 @@ LRU::CacheExpire (const char* dir,
     eos_static_err("msg=\"%s\"", stdErr.c_str());
   }
 
-  eos_static_notice("msg=\"cleaning LRU cache\" files-to-delete=%llu", lru_map.size());
+  eos_static_notice("msg=\"cleaning LRU cache\" files-to-delete=%llu",
+                    lru_map.size());
   // ---------------------------------------------------------------------------
   // delete starting with the 'oldest' entry until we have freed enough space
   // to go under the low watermark
@@ -641,7 +648,7 @@ LRU::ConvertMatch (const char* dir,
 
   time_t now = time(NULL);
 
-  if (!eos::common::StringConversion::GetKeyValueMap(map["sys.lru.convert.match"].c_str(),
+  if (!StringConversion::GetKeyValueMap(map["sys.lru.convert.match"].c_str(),
                                                      lMatchMap,
                                                      ":")
       )
@@ -672,19 +679,20 @@ LRU::ConvertMatch (const char* dir,
       }
       else
       {
-        eos_static_err("msg=\"LRU match attribute has no conversion attribute defined\" "
+        eos_static_err("msg=\"LRU match attribute has no conversion "
+                       "attribute defined\" "
                        " attr-missing=\"%s\"", conv_attr.c_str());
       }
     }
   }
 
-  std::vector < std::pair<eos::common::FileId::fileid_t, std::string> > lConversionList;
+  std::vector < std::pair<FileId::fileid_t, std::string> > lConversionList;
   {
     // -------------------------------------------------------------------------
     // check the directory contents
     // -------------------------------------------------------------------------
     eos::ContainerMD* cmd = 0;
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
       cmd = gOFS->eosView->getContainer(dir);
@@ -729,7 +737,9 @@ LRU::ConvertMatch (const char* dir,
               // ---------------------------------------------------------------
               // this entry can be converted
               // ---------------------------------------------------------------
-              eos_static_notice("msg=\"convert expired file\" path=\"%s\" ctime=%u policy-age=%u age=%u fid=%llu layout=\"%s\"",
+              eos_static_notice("msg=\"convert expired file\" path=\"%s\" "
+                                "ctime=%u policy-age=%u age=%u fid=%llu "
+                                "layout=\"%s\"",
                                 fullpath.c_str(),
                                 ctime.tv_sec,
                                 age,
@@ -738,7 +748,8 @@ LRU::ConvertMatch (const char* dir,
                                 map[conv_attr].c_str()
                                 );
 
-              lConversionList.push_back(std::make_pair(fit->second->getId(), map[conv_attr]));
+              lConversionList.push_back(std::make_pair(fit->second->getId(),
+                                                       map[conv_attr]));
               break;
             }
           }

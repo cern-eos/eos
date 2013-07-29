@@ -130,13 +130,25 @@ public:
     bool operator< (lru_entry const& lhs)
     {
       if (lhs.ctime == ctime)
-        return (path < lhs.path);
+        return (getPath() < lhs.getPath());
       
-      return ctime < lhs.ctime;
+      return getCTime() < lhs.getCTime();
     }
     std::string path;
     time_t ctime;
     unsigned long long size;
+    
+    // ctime getter
+    time_t getCTime() const
+    {
+      return ctime;
+    }
+    
+    // path getter
+    std::string getPath() const
+    {
+      return path;
+    }
   } ;
   
   // entry in an lru queue having path name,mtime,size
