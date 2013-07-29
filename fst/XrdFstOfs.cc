@@ -214,9 +214,9 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
     eos::common::SyncAll::AllandClose();
     XrdSysTimer sleeper;
     sleeper.Snooze(15);
-    eos_static_warning("%s", "op=shutdown msg=\"shutdown timedout after 15 seconds\"");
+    fprintf(stderr,"@@@@@@ 00:00:00 %s", "op=shutdown msg=\"shutdown timedout after 15 seconds\"\n");
     kill(getppid(), 9);
-    eos_static_warning("%s", "op=shutdown status=forced-complete");
+    fprintf(stderr,"@@@@@@ 00:00:00 %s", "op=shutdown status=forced-complete");
     kill(getpid(), 9);
   }
 

@@ -213,7 +213,7 @@ Storage::Publish ()
             success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", (long long) (gFmdSqliteHandler.FmdSqliteMap.count(fsid) ? gFmdSqliteHandler.FmdSqliteMap[fsid].size() : 0));
           }
 
-          success &= fileSystemsVector[i]->SetString("stat.boot", fileSystemsVector[i]->GetString("stat.boot").c_str());
+          success &= fileSystemsVector[i]->SetString("stat.boot", fileSystemsVector[i]->GetStatusAsString(fileSystemsVector[i]->GetStatus()));
           success &= fileSystemsVector[i]->SetString("stat.geotag", lNodeGeoTag.c_str());
           success &= fileSystemsVector[i]->SetLongLong("stat.drainer.running", fileSystemsVector[i]->GetDrainQueue()->GetRunningAndQueued());
           success &= fileSystemsVector[i]->SetLongLong("stat.balancer.running", fileSystemsVector[i]->GetBalanceQueue()->GetRunningAndQueued());

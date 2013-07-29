@@ -49,6 +49,9 @@ FileSystem::FileSystem (const char* queuepath,
   n2 += "/balance";
   std::string n3 = queuepath;
   n3 += "/extern";
+  
+  mLocalBootStatus = eos::common::FileSystem::kDown;
+  
   mTxDrainQueue = new TransferQueue(&mDrainQueue, n1.c_str());
   mTxBalanceQueue = new TransferQueue(&mBalanceQueue, n2.c_str());
   mTxExternQueue = new TransferQueue(&mExternQueue, n3.c_str());
