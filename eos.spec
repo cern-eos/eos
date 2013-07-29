@@ -2,7 +2,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.3.0
-Release: 11
+Release: 12
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -51,9 +51,10 @@ Group: Applications/File
 The EOS server installation containing MGM, FST & MQ service.
 
 
-Requires: xrootd-server >= 3.3.2
+Requires: xrootd-server = 3.3.3
 Requires: xrootd-cl
 Requires: eos-client
+Requires: gdb
 
 %prep
 
