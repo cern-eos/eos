@@ -118,15 +118,29 @@ public:
    */
   void CacheExpire(const char* dir, std::string& low, std::string& high);
   
-  /* convert by age
-   */
-  void ConvertAtime(const char* dir, std::string& policy);
-  
   /* convert by match
    */
   void ConvertMatch(const char* dir,  eos::ContainerMD::XAttrMap &map);
   
   static const char* gLRUPolicyPrefix;
+  
+  struct lru_entry
+  {
+    // compare operator to use struct in a map 
+    bool operator< (lru_entry const& lhs)
+    {
+      if (lhs.ctime == ctime)
+        return (path < lhs.path);
+      
+      return ctime < lhs.ctime;
+    }
+    std::string path;
+    time_t ctime;
+    unsigned long long size;
+  } ;
+  
+  // entry in an lru queue having path name,mtime,size
+  typedef struct lru_entry lru_entry_t;
 };
 
 EOSMGMNAMESPACE_END

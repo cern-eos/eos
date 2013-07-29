@@ -26,6 +26,7 @@
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
 #include "common/RWMutex.hh"
+#include "mgm/Quota.hh"
 #include "mgm/LRU.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
@@ -230,20 +231,10 @@ LRU::LRUr ()
                         );
           }
 
-          if (map.count("sys.lru.convert.atime") &&
-              map.count("sys.conversion.atime"))
-          {
-            // -----------------------------------------------------------------
-            // files which havn't been accessed longer than atime ago will be
-            // converted into a new layout
-            // -----------------------------------------------------------------
-            ConvertAtime(it->first.c_str(), map["sys.lru.convert.atime"]);
-          }
-
           if (map.count("sys.lru.convert.match"))
           {
             // -----------------------------------------------------------------
-            // files with a given match will be automatically converted
+            // files with a given match/age will be automatically converted
             // -----------------------------------------------------------------
             ConvertMatch(it->first.c_str(), map);
           }
@@ -253,8 +244,8 @@ LRU::LRUr ()
     EXEC_TIMING_END("LRUFind");
 
     eos_static_info("msg=\"finished LRU application\" LRU-dirs=%llu",
-                      lrudirs.size()
-                      );
+                    lrudirs.size()
+                    );
     eos_static_info("snooze-time=%llu", snoozetime);
     XrdSysThread::SetCancelOn();
     XrdSysTimer sleeper;
@@ -350,7 +341,7 @@ LRU::AgeExpire (const char* dir,
     else
     {
       lMatchAgeMap[it->first] = t;
-      eos_static_info("rule %s %u", it->first.c_str(), t);
+      eos_static_info("rule=\"%s %u\"", it->first.c_str(), t);
     }
   }
 
@@ -428,7 +419,7 @@ LRU::AgeExpire (const char* dir,
 void
 LRU::CacheExpire (const char* dir,
                   std::string& lowmark,
-                  std::string & highmark)
+                  std::string& highmark)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief expire the oldest files to go under the low watermark
@@ -442,23 +433,192 @@ LRU::CacheExpire (const char* dir,
                   dir,
                   lowmark.c_str(),
                   highmark.c_str());
-}
 
-/*----------------------------------------------------------------------------*/
-void
-LRU::ConvertAtime (const char* dir,
-                   std::string & policy)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief convert all files which have not been accessed longer than atime
- * @param dir directory to process
- * @param policy minimum age policy
- */
-/*----------------------------------------------------------------------------*/
-{
-  eos_static_info("msg=\"applying age conversion policy\" dir=\"%s\" age=\"%s\"",
-                  dir,
-                  policy.c_str());
+  // ---------------------------------------------------------------------------
+  // get the quota space 
+  // ---------------------------------------------------------------------------
+  eos::common::RWMutexReadLock gLock(Quota::gQuotaMutex);
+
+  SpaceQuota* space = Quota::GetResponsibleSpaceQuota(dir);
+  if (!space)
+  {
+    // there is no quota here - do nothing
+    return;
+  }
+
+  if (strcmp(space->GetSpaceName(), dir))
+  {
+    // this is not the quota node itself - do nothing
+    return;
+  }
+
+  // ---------------------------------------------------------------------------
+  // update the quota information
+  // ---------------------------------------------------------------------------
+  space->UpdateFromQuotaNode(0, 0, true);
+
+  // ---------------------------------------------------------------------------
+  // check for project quota 
+  // ---------------------------------------------------------------------------
+
+  long long target_volume = space->GetQuota(SpaceQuota::kGroupBytesTarget,
+                                            Quota::gProjectId,
+                                            false);
+  long long is_volume = space->GetQuota(SpaceQuota::kGroupBytesIs,
+                                        Quota::gProjectId,
+                                        false);
+
+  if (target_volume <= 0)
+    return;
+
+  double lwm = strtod(lowmark.c_str(), 0);
+  if (!lwm || errno || (lwm >= 100))
+  {
+    eos_static_err("msg=\"low watermark value is illegal - "
+                   "must be 0 < lw < 100\" low-watermark=\"%s\"",
+                   lowmark.c_str());
+    return;
+  }
+  double hwm = strtod(highmark.c_str(), 0);
+  if (!hwm || errno || (hwm < lwm) || (hwm >= 100))
+  {
+    eos_static_err("msg = \"high watermark value is illegal - "
+                   "must be 0 < lw < hw < 100\" "
+                   "low_watermark=\"%s\" high-watermark=\"%s\"",
+                   lowmark.c_str(), highmark.c_str());
+    return;
+  }
+
+
+  double cwm = 100.0 * is_volume / target_volume;
+
+  eos_static_debug("cwm=%.02f hwm=%.02f", cwm, hwm);
+  // ---------------------------------------------------------------------------
+  // check if we have to do cache cleanup e.g. current is over high water mark
+  // ---------------------------------------------------------------------------
+  if (cwm < hwm)
+    return;
+
+  unsigned long long bytes_to_free = is_volume - (lwm * target_volume / 100.0);
+  XrdOucString sizestring;
+  eos_static_notice("low-mark=%.02f high-mark=%.02f current-mark=%.02f "
+                    "deletion-bytes=%s",
+                    lwm,
+                    hwm,
+                    cwm,
+                    eos::common::StringConversion::GetReadableSizeString(sizestring, bytes_to_free, "B")
+                    );
+
+  // ---------------------------------------------------------------------------
+  // build the LRU list 
+  // ---------------------------------------------------------------------------
+  std::map<std::string, std::set<std::string> > cachedirs;
+
+  XrdOucString stdErr;
+
+  time_t ms = 0;
+
+  if (mMs)
+  {
+    // we have a forced setting
+    ms = GetMs();
+  }
+
+  // map with path/mtime pairs
+  std::set<lru_entry_t> lru_map;
+  unsigned long long lru_size = 0;
+
+  if (!gOFS->_find(dir,
+                   mError,
+                   stdErr,
+                   mRootVid,
+                   cachedirs,
+                   "",
+                   "",
+                   false,
+                   ms
+                   ))
+  {
+    // -------------------------------------------------------------------------
+    // loop through the result and build an LRU list
+    // we just keep as many entries in the LRU list to have the required
+    // number of bytes to free available.
+    // -------------------------------------------------------------------------
+    for (auto dit = cachedirs.begin(); dit != cachedirs.end(); dit++)
+    {
+      eos_static_debug("path=%s", dit->first.c_str());
+      for (auto fit = dit->second.begin(); fit != dit->second.end(); fit++)
+      {
+        // build the full path name
+        std::string fpath = dit->first;
+        fpath += *fit;
+        struct stat buf;
+        eos_static_debug("path=%s", fpath.c_str());
+        // get the current ctime & size information
+        if (!gOFS->_stat(fpath.c_str(), &buf, mError, mRootVid, ""))
+        {
+          if (lru_map.size())
+            if ((lru_size > bytes_to_free) &&
+                lru_map.size() &&
+                ((--lru_map.end())->ctime < buf.st_ctime))
+            {
+              // this entry is newer than all the rest
+              continue;
+            }
+
+          // add LRU entry in front
+          lru_entry_t lru;
+          lru.path = fpath;
+          lru.ctime = buf.st_ctime;
+          lru.size = buf.st_blocks * buf.st_blksize;
+          lru_map.insert(lru);
+          lru_size += lru.size;
+          eos_static_debug("msg=\"adding\" file=\"%s\" bytes-free=\"%llu\" lru-size=\"%llu\"", fpath.c_str(), bytes_to_free, lru_size);
+
+          // check if we can shrink the LRU map
+          if (lru_map.size() && (lru_size > bytes_to_free))
+          {
+            while (lru_map.size() &&
+                   ((lru_size - (--lru_map.end())->size) > bytes_to_free))
+            {
+              // remove the last element  of the map 
+              auto it = lru_map.end();
+              it--;
+              // substract the size
+              lru_size -= it->size;
+              eos_static_info("msg=\"clean-up\" path=\"%s\"", it->path.c_str());
+              lru_map.erase(it);
+
+            }
+          }
+        }
+      }
+    }
+  }
+  else
+  {
+    eos_static_err("msg=\"%s\"", stdErr.c_str());
+  }
+
+  eos_static_notice("msg=\"cleaning LRU cache\" files-to-delete=%llu", lru_map.size());
+  // ---------------------------------------------------------------------------
+  // delete starting with the 'oldest' entry until we have freed enough space
+  // to go under the low watermark
+  // ---------------------------------------------------------------------------
+
+  for (auto it = lru_map.begin(); it != lru_map.end(); it++)
+  {
+    eos_static_notice("msg=\"delete LRU file\" path=\"%s\" ctime=%lu size=%llu",
+                      it->path.c_str(),
+                      it->ctime,
+                      it->size);
+
+    if (gOFS->_rem(it->path.c_str(), mError, mRootVid, ""))
+    {
+      eos_static_err("msg=\"failed to expire file\" "
+                     "path=\"%s\"", it->path.c_str());
+    }
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -475,5 +635,167 @@ LRU::ConvertMatch (const char* dir,
   eos_static_info("msg=\"applying match policy\" dir=\"%s\" match=\"%s\"",
                   dir,
                   map["sys.lru.convert.match"].c_str());
+
+  std::map < std::string, std::string> lMatchMap;
+  std::map < std::string, time_t> lMatchAgeMap;
+
+  time_t now = time(NULL);
+
+  if (!eos::common::StringConversion::GetKeyValueMap(map["sys.lru.convert.match"].c_str(),
+                                                     lMatchMap,
+                                                     ":")
+      )
+  {
+    eos_static_err("msg=\"LRU match attribute is illegal\" val=\"%s\"",
+                   map["sys.lru.convert.match"].c_str());
+    return;
+  }
+
+  for (auto it = lMatchMap.begin(); it != lMatchMap.end(); it++)
+  {
+    time_t t = strtoul(it->second.c_str(), 0, 10);
+    if (errno)
+    {
+      eos_static_err("msg=\"LRU match attribute has illegal age\" "
+                     "match=\"%s\", age=\"%s\"",
+                     it->first.c_str(),
+                     it->second.c_str());
+    }
+    else
+    {
+      std::string conv_attr = "sys.conversion.";
+      conv_attr += it->first;
+      if (map.count(conv_attr))
+      {
+        lMatchAgeMap[it->first] = t;
+        eos_static_info("rule=\"%s %u\"", it->first.c_str(), t);
+      }
+      else
+      {
+        eos_static_err("msg=\"LRU match attribute has no conversion attribute defined\" "
+                       " attr-missing=\"%s\"", conv_attr.c_str());
+      }
+    }
+  }
+
+  std::vector < std::pair<eos::common::FileId::fileid_t, std::string> > lConversionList;
+  {
+    // -------------------------------------------------------------------------
+    // check the directory contents
+    // -------------------------------------------------------------------------
+    eos::ContainerMD* cmd = 0;
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    try
+    {
+      cmd = gOFS->eosView->getContainer(dir);
+      eos::ContainerMD::FileMap::iterator fit;
+      for (fit = cmd->filesBegin(); fit != cmd->filesEnd(); ++fit)
+      {
+        std::string fullpath = dir;
+        fullpath += fit->first;
+        eos_static_debug("%s", fullpath.c_str());
+        // ---------------------------------------------------------------------
+        // loop over the match map
+        // ---------------------------------------------------------------------
+        for (auto mit = lMatchAgeMap.begin(); mit != lMatchAgeMap.end(); mit++)
+        {
+
+          XrdOucString fname = fit->second->getName().c_str();
+          eos_static_debug("%s %d", mit->first.c_str(), fname.matches(mit->first.c_str()));
+          if (fname.matches(mit->first.c_str()))
+          {
+            // -----------------------------------------------------------------
+            // full match check the age policy
+            // ----------------------------------------------------------------
+            eos::FileMD::ctime_t ctime;
+            fit->second->getCTime(ctime);
+            time_t age = mit->second;
+            if ((ctime.tv_sec + age) < now)
+            {
+              std::string conv_attr = "sys.conversion.";
+              conv_attr += mit->first;
+
+              // ---------------------------------------------------------------
+              // check if this file has already the proper layout
+              // ---------------------------------------------------------------
+              unsigned long long lid = strtoll(map[conv_attr].c_str(), 0, 16);
+              if (fit->second->getLayoutId() == lid)
+              {
+                eos_static_debug("msg=\"skipping conversion - file has already"
+                                 "the desired target layout\" fid=%llu", fit->second->getId());
+                continue;
+              }
+
+              // ---------------------------------------------------------------
+              // this entry can be converted
+              // ---------------------------------------------------------------
+              eos_static_notice("msg=\"convert expired file\" path=\"%s\" ctime=%u policy-age=%u age=%u fid=%llu layout=\"%s\"",
+                                fullpath.c_str(),
+                                ctime.tv_sec,
+                                age,
+                                now - ctime.tv_sec,
+                                (unsigned long long) fit->second->getId(),
+                                map[conv_attr].c_str()
+                                );
+
+              lConversionList.push_back(std::make_pair(fit->second->getId(), map[conv_attr]));
+              break;
+            }
+          }
+        }
+      }
+    }
+    catch (eos::MDException &e)
+    {
+      errno = e.getErrno();
+      cmd = 0;
+      eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\"",
+                     e.getErrno(), e.getMessage().str().c_str());
+    }
+  }
+
+  for (auto it = lConversionList.begin(); it != lConversionList.end(); it++)
+  {
+    char conversiontagfile[1024];
+    std::string space;
+
+    if (map.count("user.forced.space"))
+      space = map["user.forced.space"];
+
+    if (map.count("sys.forced.space"))
+      space = map["sys.forced.space"];
+
+    if (map.count("sys.lru.conversion.space"))
+      space = map["sys.lru.conversion.space"];
+
+    // the conversion value can be directory an layout env representation like
+    // "eos.space=...&eos.layout ..."
+
+    XrdOucEnv cenv(it->second.c_str());
+
+    if (cenv.Get("eos.space"))
+    {
+      space = cenv.Get("eos.space");
+    }
+
+    snprintf(conversiontagfile,
+             sizeof (conversiontagfile) - 1,
+             "%s/%016llx:%s#%s",
+             gOFS->MgmProcConversionPath.c_str(),
+             it->first,
+             space.c_str(),
+             it->second.c_str());
+
+    eos_static_notice("msg=\"creating conversion tag file\" tag-file=%s",
+                      conversiontagfile);
+
+    if (gOFS->_touch(conversiontagfile, mError, mRootVid, 0))
+    {
+      eos_static_err("msg=\"unable to create conversion job\" job-file=\"%s\"",
+                     conversiontagfile);
+    }
+  }
 }
+
+
 EOSMGMNAMESPACE_END
