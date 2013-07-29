@@ -378,16 +378,16 @@ public:
       return 1.0 * (GetStripeNumber(layout) + 1 + GetExcessStripeNumber(layout));
 
     if (GetLayoutType(layout) == kRaidDP)
-      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1 + GetRedundancyStripeNumber(layout))) /
-                     (GetStripeNumber(layout) + 1)) + GetExcessStripeNumber(layout));
+      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1 )) /
+                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(layout))) + GetExcessStripeNumber(layout));
 
     if (GetLayoutType(layout) == kRaid6)
-      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1 + GetRedundancyStripeNumber(layout))) /
-                     (GetStripeNumber(layout) + 1)) + GetExcessStripeNumber(layout));
+      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1 )) /
+                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(layout))) + GetExcessStripeNumber(layout));
 
     if (GetLayoutType(layout) == kArchive)
-      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1 + GetRedundancyStripeNumber(layout))) /
-                     (GetStripeNumber(layout) + 1)) + GetExcessStripeNumber(layout));
+      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
+                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(layout))) + GetExcessStripeNumber(layout));
 
     return 1.0;
   }
@@ -675,8 +675,21 @@ public:
   {
     if (!conversionlayoutidstring)
       return NULL;
-    
+
     std::string keyval = conversionlayoutidstring;
+    
+    // check if this is already a complete env representation
+    if ( (keyval.find("eos.layout.type") != std::string::npos) &&
+	 (keyval.find("eos.layout.nstripes") != std::string::npos) &&
+	 (keyval.find("eos.layout.blockchecksum") != std::string::npos) &&
+	 (keyval.find("eos.layout.checksum") != std::string::npos) &&
+	 (keyval.find("eos.layout.blocksize") != std::string::npos) &&
+	 (keyval.find("eos.space") != std::string::npos) )
+    {
+      out = conversionlayoutidstring;
+      return out.c_str();
+    }
+
     std::string space;
     std::string layout;
     
