@@ -303,7 +303,9 @@ HttpServer::HttpError (const char *errorText, int errorCode)
   else
     html_dir = "/var/share/eos/";
 
-  std::ifstream in(std::string(html_dir.c_str()) + std::string("error.html"));
+  std::string path = html_dir.c_str();
+  path += std::string("error.html");
+  std::ifstream in(path.c_str());
   std::stringstream buffer;
   buffer << in.rdbuf();
   error = buffer.str().c_str();
