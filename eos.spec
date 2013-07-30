@@ -300,7 +300,7 @@ Contains an example keytab file.
 Summary: The EOS test package
 Group: Applications/File
 
-Requires: eos-server
+Requires: eos-server libs3 cadaver
 
 %description -n eos-test
 Contains an instance test script and some test executables
