@@ -473,6 +473,7 @@ LRU::CacheExpire (const char* dir,
   if (target_volume <= 0)
     return;
 
+  errno = 0;
   double lwm = strtod(lowmark.c_str(), 0);
   if (!lwm || errno || (lwm >= 100))
   {
@@ -481,6 +482,7 @@ LRU::CacheExpire (const char* dir,
                    lowmark.c_str());
     return;
   }
+  errno = 0;
   double hwm = strtod(highmark.c_str(), 0);
   if (!hwm || errno || (hwm < lwm) || (hwm >= 100))
   {
