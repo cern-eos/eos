@@ -127,7 +127,7 @@ public:
   struct lru_entry
   {
     // compare operator to use struct in a map 
-    bool operator< (lru_entry const& lhs)
+    bool operator< (lru_entry const& lhs) const
     {
       if (lhs.getCTime() == getCTime())
         return (getPath() < lhs.getPath());
