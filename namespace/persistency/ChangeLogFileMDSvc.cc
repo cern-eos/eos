@@ -337,7 +337,7 @@ namespace eos
               //----------------------------------------------------------------
               if( originalFile->getContainerId() == 0 )
               {
-                processed.push_back( currentFile->getId() );
+                processed.push_back( originalFile->getId() );
                 IFileMDChangeListener::Event e( originalFile,
                                                 IFileMDChangeListener::Updated );
                 pFileSvc->notifyListeners( &e );
