@@ -27,6 +27,7 @@ BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprog
 BuildRequires: fuse-devel, fuse
 BuildRequires: xrootd-cl-devel
 BuildRequires: leveldb-devel
+BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: git
 
 %if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
@@ -54,6 +55,7 @@ The EOS server installation containing MGM, FST & MQ service.
 Requires: xrootd-server = 3.3.3
 Requires: xrootd-cl
 Requires: eos-client
+Requires: libmicrohttpd
 Requires: gdb
 
 %prep
