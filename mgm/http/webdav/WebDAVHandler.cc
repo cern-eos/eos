@@ -364,6 +364,11 @@ WebDAVHandler::Copy (eos::common::HttpRequest *request)
     response = HttpServer::HttpError("destination required",
                                      response->BAD_REQUEST);
   }
+  else if (request->GetUrl() == destination)
+  {
+    response = HttpServer::HttpError("destination must be different from source",
+                                     response->FORBIDDEN);
+  }
   else
   {
     int           rc = 0;
