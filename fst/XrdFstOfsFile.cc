@@ -1861,14 +1861,6 @@ XrdFstOfsFile::close ()
                           fMd->fMd.fid, Path.c_str());
                 }
 
-                int retc = gOFS._rem(Path.c_str(), error, 0, capOpaque,
-                                     fstPath.c_str(), fileid, fsid);
-
-                if (!retc)
-                {
-                  eos_debug("<rem> returned retc=%d", retc);
-                }
-
                 deleteOnClose = true;
               }
               else
