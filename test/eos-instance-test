@@ -219,6 +219,12 @@ tpc2() {
     echo xrdcopy --tpc only root://$EOS_TEST_REDIRECTOR/$src root://$EOS_TEST_REDIRECTOR/$dst >& $EOSLASTLOG; eval $XROOTSYS/bin/xrdcopy --tpc only root://$EOS_TEST_REDIRECTOR/$src root://$EOS_TEST_REDIRECTOR/$dst >> $EOSCERTLOG 2>&1
 }
 
+tgrep() {
+	a=$1
+	shift
+	echo "eval $* | grep $a" >& $EOSLASTLOG; eval $* | grep $a >> $EOSCERTLOG 2>&1
+}
+
 stress() {
     echo xrdstress $* >& $EOSLASTLOG; eval xrdstress $* >> $EOSCERTLOG 2>&1
 }
@@ -716,6 +722,70 @@ runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=raid6 /eos/$EO
 runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=6 /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir	
 #runtest "### RaidDpTest" unix 0 "" eos-rain-test raiddp $EOS_TEST_TESTSYS root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir $EOS_TEST_TESTSYS
 #runtest "### ReedSTest " unix 0 "" eos-rain-test reeds $EOS_TEST_TESTSYS root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir $EOS_TEST_TESTSYS
+
+################################################################################
+# HTTP tests
+################################################################################
+HTTPDIR=eos/$EOS_TEST_INSTANCE/test/instancetest/http.dir
+
+runtest "### Mkdir        " unix 0 "" eos mkdir $HTTPDIR
+runtest "### Chmod        " unix 0 "" eos chmod 777 $HTTPDIR
+runtest "### Http PUT     " unix 0 "" curl --location --fail --silent --upload-file $TESTSYSFILE50M http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m
+runtest "### Http GET     " unix 0 "" curl --location --fail --silent http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
+runtest "### Chmod        " unix 0 "" eos chmod 644 $HTTPDIR
+runtest "### Http PUT     " unix 1 "" curl --location --fail --silent --upload-file $TESTSYSFILE50M http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m
+runtest "### Http GET     " unix 1 "" curl --location --fail --silent http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
+runtest "### Chmod        " unix 0 "" eos chmod 777 $HTTPDIR
+
+# --------------------------
+# Range requests
+# --------------------------
+runtest "### Http GET     " unix 0 "" curl --location --fail --silent --range 0-499 http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
+runtest "### Http GET     " unix 0 "" curl --location --fail --silent --range 0-499,500-999 http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
+runtest "### Http GET     " unix 0 "" curl --location --fail --silent --range 0-499,1000-1499 http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
+runtest "### Http GET     " unix 1 "" curl --location --fail --silent --range 51200000-512000000 http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
+
+################################################################################
+# WebDAV tests
+################################################################################
+runtest "### WebDAV Ls    " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR     <<< ls"
+runtest "### WebDAV Ls    " unix 0 "" tgrep "404"       "cadaver http://$EOS_TEST_REDIRECTOR:8000$HTTPDIR/foo  <<< ls"
+runtest "### WebDAV Mkdir " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR     <<< \"mkdir sub.dir\""
+runtest "### WebDAV Ls    " unix 0 "" tgrep "sub.dir"   "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR     <<< ls"
+runtest "### WebDAV Mkdir " unix 0 "" tgrep "409"       "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR     <<< \"mkdir foo/bar/sub.dir\""
+
+# Disable overwrite
+echo "unset overwrite" > $EOS_TEST_TESTSYS/.cadaverrc
+
+runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"copy file.50m file.50m.copy\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"copy file.50m file.50m.copy\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "403"       "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"copy file.50m file.50m\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "409"       "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"copy file.50m foo/bar/file.50m\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "412"       "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"copy file.50m file.50m.copy\""
+
+runtest "### WebDAV Move  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"move file.50m file.50m.copy\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"copy file.50m.copy file.50m\""
+runtest "### WebDAV Move  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"move file.50m file.50m.copy\""
+runtest "### WebDAV Move  " unix 0 "" tgrep "403"       "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"move file.50m file.50m\""
+runtest "### WebDAV Move  " unix 0 "" tgrep "409"       "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"move file.50m foo/bar/file.50m\""
+runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"copy file.50m.copy file.50m\""
+runtest "### WebDAV Move  " unix 0 "" tgrep "412"       "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"move file.50m.copy file.50m\""
+
+runtest "### WebDAV Rm    " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"rm file.50m\""
+runtest "### WebDAV Rm    " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"rmcol sub.dir\""
+
+################################################################################
+# Amazon S3 tests
+################################################################################
+
+export S3_ACCESS_KEY_ID="test"
+export S3_SECRET_ACCESS_KEY="0123456789"
+export S3_HOSTNAME=$EOS_TEST_REDIRECTOR
+
+runtest "### Attr         " unix 0 "" eos attr set sys.s3.bucket.test="test" /eos/$EOS_TEST_INSTANCE/proc
+runtest "### Attr         " unix 0 "" eos attr set sys.s3.id.test="0123456789" /eos/$EOS_TEST_INSTANCE/proc 
+runtest "### Attr         " unix 0 "" eos attr set sys.s3.path.test="/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir" /eos/$EOS_TEST_INSTANCE/proc 
+
 ################################################################################################################
 # FINAL CLEANUP 
 ################################################################################################################
