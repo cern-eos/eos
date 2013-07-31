@@ -149,7 +149,7 @@ HttpServer::Handler (void                  *cls,
   {
     eos_static_info("response length=%d", response->mResponseLength);
     mhdResponse = MHD_create_response_from_callback(response->mResponseLength,
-                                                    32 * 1024, /* 32k page size */
+                                                    4 * 1024 * 1024, /* 4M page size */
                                                     &HttpServer::FileReaderCallback,
                                                     (void*) protocolHandler,
                                                     &HttpServer::FileCloseCallback);
