@@ -39,7 +39,7 @@ const char* LRU::gLRUPolicyPrefix = "sys.lru.*"; //< the attribute name defining
 
 EOSMGMNAMESPACE_BEGIN
 
-using namespace eos::common;
+  using namespace eos::common;
 
 /*----------------------------------------------------------------------------*/
 bool
@@ -137,117 +137,122 @@ LRU::LRUr ()
     // -------------------------------------------------------------------------
 
     XrdSysThread::SetCancelOff();
-    // -------------------------------------------------------------------------
-    // do a slow find
-    // -------------------------------------------------------------------------
 
-    unsigned long long ndirs =
-      (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
-
-    time_t ms = 1;
-
-    if (ndirs > 10000000)
+    // only a master needs to run LRU
+    if (gOFS->MgmMaster.IsMaster())
     {
-      ms = 0;
-    }
+      // -------------------------------------------------------------------------
+      // do a slow find
+      // -------------------------------------------------------------------------
 
-    if (mMs)
-    {
-      // we have a forced setting
-      ms = GetMs();
-    }
-    eos_static_info("msg=\"start LRU scan\" ndir=%llu ms=%u", ndirs, ms);
+      unsigned long long ndirs =
+        (unsigned long long) gOFS->eosDirectoryService->getNumContainers();
 
-    std::map<std::string, std::set<std::string> > lrudirs;
+      time_t ms = 1;
 
-    XrdOucString stdErr;
-
-    // -------------------------------------------------------------------------
-    // find all directories defining an LRU policy
-    // -------------------------------------------------------------------------
-    gOFS->MgmStats.Add("LRUFind", 0, 0, 1);
-
-    EXEC_TIMING_BEGIN("LRUFind");
-
-    if (!gOFS->_find("/",
-                     mError,
-                     stdErr,
-                     mRootVid,
-                     lrudirs,
-                     gLRUPolicyPrefix,
-                     "*",
-                     true,
-                     ms
-                     )
-        )
-    {
-      eos_static_info("msg=\"finished LRU find\" LRU-dirs=%llu",
-                      lrudirs.size()
-                      );
-
-      // scan backwards ... in this way we get rid of empty directories in one go ...
-      for (auto it = lrudirs.rbegin(); it != lrudirs.rend(); it++)
+      if (ndirs > 10000000)
       {
-        // ---------------------------------------------------------------------
-        // get the attributes
-        // ---------------------------------------------------------------------
-        eos_static_info("lru-dir=\"%s\"", it->first.c_str());
-        eos::ContainerMD::XAttrMap map;
-        if (!gOFS->_attr_ls(it->first.c_str(),
-                            mError,
-                            mRootVid,
-                            (const char *) 0,
-                            map)
-            )
-        {
-          // -------------------------------------------------------------------
-          // sort out the individual LRU policies 
-          // -------------------------------------------------------------------
+        ms = 0;
+      }
 
-          if (map.count("sys.lru.expire.empty") && !it->second.size())
-          {
-            // ----------------------------------------------------------------- 
-            // remove empty directories older than <age>
-            // -----------------------------------------------------------------
-            AgeExpireEmtpy(it->first.c_str(), map["sys.lru.expire.empty"]);
-          }
+      if (mMs)
+      {
+        // we have a forced setting
+        ms = GetMs();
+      }
+      eos_static_info("msg=\"start LRU scan\" ndir=%llu ms=%u", ndirs, ms);
 
-          if (map.count("sys.lru.expire.match"))
-          {
-            // -----------------------------------------------------------------
-            // files with a given match will be removed after expiration time
-            // -----------------------------------------------------------------
-            AgeExpire(it->first.c_str(), map["sys.lru.expire.match"]);
-          }
+      std::map<std::string, std::set<std::string> > lrudirs;
 
-          if (map.count("sys.lru.lowwatermark") &&
-              map.count("sys.lru.highwatermark"))
-          {
-            // -----------------------------------------------------------------
-            // if the space in this directory reaches highwatermark, files are
-            // cleaned up according to the LRU policy
-            // -----------------------------------------------------------------
-            CacheExpire(it->first.c_str(),
-                        map["sys.lru.lowwatermark"],
-                        map["sys.lru.highwatermark"]
+      XrdOucString stdErr;
+
+      // -------------------------------------------------------------------------
+      // find all directories defining an LRU policy
+      // -------------------------------------------------------------------------
+      gOFS->MgmStats.Add("LRUFind", 0, 0, 1);
+
+      EXEC_TIMING_BEGIN("LRUFind");
+
+      if (!gOFS->_find("/",
+                       mError,
+                       stdErr,
+                       mRootVid,
+                       lrudirs,
+                       gLRUPolicyPrefix,
+                       "*",
+                       true,
+                       ms
+                       )
+          )
+      {
+        eos_static_info("msg=\"finished LRU find\" LRU-dirs=%llu",
+                        lrudirs.size()
                         );
-          }
 
-          if (map.count("sys.lru.convert.match"))
+        // scan backwards ... in this way we get rid of empty directories in one go ...
+        for (auto it = lrudirs.rbegin(); it != lrudirs.rend(); it++)
+        {
+          // ---------------------------------------------------------------------
+          // get the attributes
+          // ---------------------------------------------------------------------
+          eos_static_info("lru-dir=\"%s\"", it->first.c_str());
+          eos::ContainerMD::XAttrMap map;
+          if (!gOFS->_attr_ls(it->first.c_str(),
+                              mError,
+                              mRootVid,
+                              (const char *) 0,
+                              map)
+              )
           {
-            // -----------------------------------------------------------------
-            // files with a given match/age will be automatically converted
-            // -----------------------------------------------------------------
-            ConvertMatch(it->first.c_str(), map);
+            // -------------------------------------------------------------------
+            // sort out the individual LRU policies 
+            // -------------------------------------------------------------------
+
+            if (map.count("sys.lru.expire.empty") && !it->second.size())
+            {
+              // ----------------------------------------------------------------- 
+              // remove empty directories older than <age>
+              // -----------------------------------------------------------------
+              AgeExpireEmtpy(it->first.c_str(), map["sys.lru.expire.empty"]);
+            }
+
+            if (map.count("sys.lru.expire.match"))
+            {
+              // -----------------------------------------------------------------
+              // files with a given match will be removed after expiration time
+              // -----------------------------------------------------------------
+              AgeExpire(it->first.c_str(), map["sys.lru.expire.match"]);
+            }
+
+            if (map.count("sys.lru.lowwatermark") &&
+                map.count("sys.lru.highwatermark"))
+            {
+              // -----------------------------------------------------------------
+              // if the space in this directory reaches highwatermark, files are
+              // cleaned up according to the LRU policy
+              // -----------------------------------------------------------------
+              CacheExpire(it->first.c_str(),
+                          map["sys.lru.lowwatermark"],
+                          map["sys.lru.highwatermark"]
+                          );
+            }
+
+            if (map.count("sys.lru.convert.match"))
+            {
+              // -----------------------------------------------------------------
+              // files with a given match/age will be automatically converted
+              // -----------------------------------------------------------------
+              ConvertMatch(it->first.c_str(), map);
+            }
           }
         }
       }
-    }
-    EXEC_TIMING_END("LRUFind");
+      EXEC_TIMING_END("LRUFind");
 
-    eos_static_info("msg=\"finished LRU application\" LRU-dirs=%llu",
-                    lrudirs.size()
-                    );
+      eos_static_info("msg=\"finished LRU application\" LRU-dirs=%llu",
+                      lrudirs.size()
+                      );
+    }
     eos_static_info("snooze-time=%llu", snoozetime);
     XrdSysThread::SetCancelOn();
     XrdSysTimer sleeper;
@@ -321,8 +326,8 @@ LRU::AgeExpire (const char* dir,
   time_t now = time(NULL);
 
   if (!StringConversion::GetKeyValueMap(policy.c_str(),
-                                                     lMatchMap,
-                                                     ":")
+                                        lMatchMap,
+                                        ":")
       )
   {
     eos_static_err("msg=\"LRU match attribute is illegal\" val=\"%s\"",
@@ -651,8 +656,8 @@ LRU::ConvertMatch (const char* dir,
   time_t now = time(NULL);
 
   if (!StringConversion::GetKeyValueMap(map["sys.lru.convert.match"].c_str(),
-                                                     lMatchMap,
-                                                     ":")
+                                        lMatchMap,
+                                        ":")
       )
   {
     eos_static_err("msg=\"LRU match attribute is illegal\" val=\"%s\"",
