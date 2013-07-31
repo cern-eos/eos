@@ -20,7 +20,6 @@ Create a build directory ...
    mkdir build
    cd build
 
-<<<<<<< HEAD
 
 Dependencies
 ----------------
