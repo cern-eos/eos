@@ -640,7 +640,7 @@ Scheduler::FileAccess (
           availablefsweightsort.insert(std::pair<double, eos::common::FileSystem::fsid_t > (weight, snapshot.mId));
           renorm += weight;
 
-          if ((!(forcedfsid > 0)) && (snapshot.mHost.substr(0, vid.host.length()) == vid.host))
+	  if ((!(forcedfsid > 0)) && (snapshot.mHost == vid.host.substr(0, snapshot.mHost.length())))
           {
             // if the client sit's on an FST we force this file system
             forcedfsid = snapshot.mId;

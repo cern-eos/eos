@@ -87,16 +87,36 @@ HttpServer::Run ()
     // Delay to make sure xrootd is configured before serving
     XrdSysTimer::Snooze(1);
 
-    mDaemon = MHD_start_daemon(MHD_USE_DEBUG,
-                               mPort,
-                               NULL,
-                               NULL,
-                               &HttpServer::StaticHandler,
-                               (void*) 0,
-                               MHD_OPTION_CONNECTION_MEMORY_LIMIT,
-                               128*1024*1024 /* 128MB */,
-                               MHD_OPTION_END
-                               );
+    if (getenv("EOS_HTTP_THREADPOOL"))
+    {
+      mDaemon = MHD_start_daemon(MHD_USE_DEBUG | MHD_USE_SELECT_INTERNALLY,
+                                 mPort,
+                                 NULL,
+                                 NULL,
+                                 &HttpServer::StaticHandler,
+                                 (void*) 0,
+                                 MHD_OPTION_CONNECTION_MEMORY_LIMIT,
+                                 128 * 1024 * 1024 /* 128MB */,
+                                 MHD_OPTION_THREAD_POOL_SIZE,
+                                 getenv("EOS_HTTP_THREADPOOL_SIZE")? 
+                                   (atoi(getenv("EOS_HTTP_THREADPOOL_SIZE"))>0)?
+                                     atoi(getenv("EOS_HTTP_THREADPOOL_SIZE")):16:16, 
+                                 MHD_OPTION_END
+                                 );
+    }
+    else
+    {
+      mDaemon = MHD_start_daemon(MHD_USE_DEBUG,
+                                 mPort,
+                                 NULL,
+                                 NULL,
+                                 &HttpServer::StaticHandler,
+                                 (void*) 0,
+                                 MHD_OPTION_CONNECTION_MEMORY_LIMIT,
+                                 128 * 1024 * 1024 /* 128MB */,
+                                 MHD_OPTION_END
+                                 );
+    }
   }
   if (!mDaemon)
   {
@@ -118,29 +138,39 @@ HttpServer::Run ()
   unsigned MHD_LONG_LONG mhd_timeout;
   struct timeval tv;
 
-  while (1)
+  if (getenv("EOS_HTTP_THREADPOOL"))
   {
-    tv.tv_sec = 3600;
-    tv.tv_usec = 0;
-
-    max = 0;
-    FD_ZERO(&rs);
-    FD_ZERO(&ws);
-    FD_ZERO(&es);
-
-    if (MHD_YES != MHD_get_fdset(mDaemon, &rs, &ws, &es, &max))
-      break; /* fatal internal error */
-
-    if (MHD_get_timeout(mDaemon, &mhd_timeout) == MHD_YES)
+    while (1)
     {
-      if ((tv.tv_sec * 1000) < (long long) mhd_timeout)
-      {
-        tv.tv_sec = mhd_timeout / 1000;
-        tv.tv_usec = (mhd_timeout - (tv.tv_sec * 1000)) * 1000;
-      }
+      pause();
     }
-    select(max + 1, &rs, &ws, &es, &tv);
-    MHD_run(mDaemon);
+  }
+  else
+  {
+    while (1)
+    {
+      tv.tv_sec = 3600;
+      tv.tv_usec = 0;
+
+      max = 0;
+      FD_ZERO(&rs);
+      FD_ZERO(&ws);
+      FD_ZERO(&es);
+
+      if (MHD_YES != MHD_get_fdset(mDaemon, &rs, &ws, &es, &max))
+        break; /* fatal internal error */
+
+      if (MHD_get_timeout(mDaemon, &mhd_timeout) == MHD_YES)
+      {
+        if ((tv.tv_sec * 1000) < (long long) mhd_timeout)
+        {
+          tv.tv_sec = mhd_timeout / 1000;
+          tv.tv_usec = (mhd_timeout - (tv.tv_sec * 1000)) * 1000;
+        }
+      }
+      select(max + 1, &rs, &ws, &es, &tv);
+      MHD_run(mDaemon);
+    }
   }
   MHD_stop_daemon(mDaemon);
 #endif
@@ -152,14 +182,14 @@ HttpServer::Run ()
 
 /*----------------------------------------------------------------------------*/
 int
-HttpServer::StaticHandler (void                  *cls,
+HttpServer::StaticHandler (void *cls,
                            struct MHD_Connection *connection,
-                           const char            *url,
-                           const char            *method,
-                           const char            *version,
-                           const char            *upload_data,
-                           size_t                *upload_data_size,
-                           void                 **ptr)
+                           const char *url,
+                           const char *method,
+                           const char *version,
+                           const char *upload_data,
+                           size_t *upload_data_size,
+                           void **ptr)
 {
   // The static handler function calls back the original http object
   if (gHttp)
@@ -181,10 +211,10 @@ HttpServer::StaticHandler (void                  *cls,
 
 /*----------------------------------------------------------------------------*/
 int
-HttpServer::BuildHeaderMap (void              *cls,
+HttpServer::BuildHeaderMap (void *cls,
                             enum MHD_ValueKind kind,
-                            const char        *key,
-                            const char        *value)
+                            const char *key,
+                            const char *value)
 {
   // Call back function to return the header key-val map of an HTTP request
   std::map<std::string, std::string>* hMap
@@ -198,10 +228,10 @@ HttpServer::BuildHeaderMap (void              *cls,
 
 /*----------------------------------------------------------------------------*/
 int
-HttpServer::BuildQueryString (void              *cls,
+HttpServer::BuildQueryString (void *cls,
                               enum MHD_ValueKind kind,
-                              const char        *key,
-                              const char        *value)
+                              const char *key,
+                              const char *value)
 {
   // Call back function to return the query string of an HTTP request
   std::string* qString = static_cast<std::string*> (cls);
@@ -222,8 +252,8 @@ HttpServer::BuildQueryString (void              *cls,
 HttpResponse*
 HttpServer::HttpRedirect (const std::string &url,
                           const std::string &hostCGI,
-                          int                port,
-                          bool               cookie)
+                          int port,
+                          bool cookie)
 {
   eos_static_info("info=redirecting");
   HttpResponse *response = new PlainHttpResponse();
@@ -257,13 +287,13 @@ HttpServer::HttpRedirect (const std::string &url,
   if (cookie)
   {
     response->AddHeader("Set-Cookie", "EOSCAPABILITY="
-                                      + cgi
-                                      + ";Max-Age=60;"
-                                      + "Path="
-                                      + url
-                                      + ";Version=1"
-                                      + ";Domain="
-                                      + "cern.ch");
+                        + cgi
+                        + ";Max-Age=60;"
+                        + "Path="
+                        + url
+                        + ";Version=1"
+                        + ";Domain="
+                        + "cern.ch");
   }
   else
   {
@@ -312,12 +342,16 @@ HttpServer::HttpError (const char *errorText, int errorCode)
 
   eos_static_info("errc=%d, retcode=%d", errorCode, response->GetResponseCode());
   while (error.replace("__RESPONSE_CODE__", std::to_string((long long)
-                                            response->GetResponseCode()).c_str())) {}
-  while (error.replace("__ERROR_TEXT__",    errorText)) {}
+                                                           response->GetResponseCode()).c_str()))
+  {
+  }
+  while (error.replace("__ERROR_TEXT__", errorText))
+  {
+  }
 
   response->SetBody(error.c_str());
   response->AddHeader("Content-Length", std::to_string((long long)
-                                        response->GetBodySize()));
+                                                       response->GetBodySize()));
   response->AddHeader("Content-Type", "text/html");
   return response;
 }
@@ -334,7 +368,7 @@ HttpServer::HttpData (const char *data, int length)
 
 /*----------------------------------------------------------------------------*/
 HttpResponse*
-HttpServer::HttpStall(const char *stallText, int seconds)
+HttpServer::HttpStall (const char *stallText, int seconds)
 {
   return HttpError("Unable to stall",
                    HttpResponse::ResponseCodes::SERVICE_UNAVAILABLE);
