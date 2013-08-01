@@ -377,6 +377,11 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   XrdOucString stident = "tident:";
   stident += "\"";
   stident += ReduceTident(vid.tident, wildcardtident, mytident, host);
+
+  if (host == "127.0.0.1") {
+    host = "localhost";
+  }
+
   myrole = mytident;
   myrole.erase(mytident.find("@"));
 
@@ -644,12 +649,6 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   }
 
   vid.host = host.c_str();
-
-  // for NODNR setting translate the localhost IP
-  if (vid.host == "127.0.0.1")
-  {
-    vid.host = "localhost";
-  }
 
   {
     int errc = 0;
