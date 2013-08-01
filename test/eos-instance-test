@@ -33,6 +33,19 @@ export EOS_TEST_TESTSYS=/tmp/eos-instance-test
 export EOS_TEST_GSMLOCKTIME=3600
 export EOS_TEST_TESTTIMESLICE=300;
 
+
+################################################################################################################
+# check if on SLC5
+################################################################################################################
+uname -a | grep el5 >& /dev/null
+
+if [ $? -eq 0 ]; 
+then
+  EL5=1
+else
+  EL5=0
+fi
+
 if [ -e /etc/sysconfig/eos ];  then
 . /etc/sysconfig/eos
 fi
@@ -731,10 +744,22 @@ HTTPDIR=eos/$EOS_TEST_INSTANCE/test/instancetest/http.dir
 
 runtest "### Mkdir        " unix 0 "" eos mkdir $HTTPDIR
 runtest "### Chmod        " unix 0 "" eos chmod 777 $HTTPDIR
+# ------------------------------------------------------------------------------
+if [ $EL5 -eq 1 ] ; then
+runtest "### Upload       " unix 0 "" upload $TESTSYSFILE50M /$HTTPDIR/file.50m
+else
 runtest "### Http PUT     " unix 0 "" curl --location --fail --silent --upload-file $TESTSYSFILE50M http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m
+fi
+# ------------------------------------------------------------------------------
 runtest "### Http GET     " unix 0 "" curl --location --fail --silent http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
 runtest "### Chmod        " unix 0 "" eos chmod 644 $HTTPDIR
+# ------------------------------------------------------------------------------
+if [ $EL5 -eq 1 ] ; then
+echo -n ""
+else
 runtest "### Http PUT     " unix 1 "" curl --location --fail --silent --upload-file $TESTSYSFILE50M http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m
+fi
+# ------------------------------------------------------------------------------
 runtest "### Http GET     " unix 1 "" curl --location --fail --silent http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
 runtest "### Chmod        " unix 0 "" eos chmod 777 $HTTPDIR
 
@@ -762,17 +787,27 @@ runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TES
 runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"copy file.50m file.50m.copy\""
 runtest "### WebDAV Copy  " unix 0 "" tgrep "403"       "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"copy file.50m file.50m\""
 runtest "### WebDAV Copy  " unix 0 "" tgrep "409"       "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"copy file.50m foo/bar/file.50m\""
+# ------------------------------------------------------------------------------
+if [ $EL5 -eq 1 ] ; then
+echo -n ""
+else
 runtest "### WebDAV Copy  " unix 0 "" tgrep "412"       "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"copy file.50m file.50m.copy\""
-
+fi
+# ------------------------------------------------------------------------------
 runtest "### WebDAV Move  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"move file.50m file.50m.copy\""
 runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"copy file.50m.copy file.50m\""
 runtest "### WebDAV Move  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"move file.50m file.50m.copy\""
 runtest "### WebDAV Move  " unix 0 "" tgrep "403"       "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"move file.50m file.50m\""
 runtest "### WebDAV Move  " unix 0 "" tgrep "409"       "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"move file.50m foo/bar/file.50m\""
 runtest "### WebDAV Copy  " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"copy file.50m.copy file.50m\""
+# ------------------------------------------------------------------------------
+if [ $EL5 -eq 1 ] ; then
+echo -n ""
+else
 runtest "### WebDAV Move  " unix 0 "" tgrep "412"       "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR --rcfile=$EOS_TEST_TESTSYS/.cadaverrc <<< \"move file.50m.copy file.50m\""
-
 runtest "### WebDAV Rm    " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"rm file.50m\""
+fi
+# ------------------------------------------------------------------------------
 runtest "### WebDAV Rm    " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR <<< \"rmcol sub.dir\""
 
 ################################################################################
