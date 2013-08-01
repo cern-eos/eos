@@ -605,6 +605,7 @@ fi
 runtest "### Chmod     " unix 0 "" eos chmod 700 /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Ls        " unix 1 "EOSROLE='-r 99 99'" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Ls        " unix 0 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Attr      " unix 1 "" eos attr set sys.acl=illegal /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rx /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Upload    " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
