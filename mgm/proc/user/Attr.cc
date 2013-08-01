@@ -144,6 +144,11 @@ ProcCommand::Attr ()
               {
                 stdErr += "error: unable to set attribute in directory ";
                 stdErr += foundit->first.c_str();
+                if (mError != 0)
+                {
+                  stdErr += ": ";
+                  stdErr += mError->getErrText();
+                }
                 retc = errno;
               }
               else

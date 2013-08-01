@@ -26,7 +26,8 @@
 #include "mgm/Egroup.hh"
 #include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
-
+#include <regex.h>
+#include <string>
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -291,6 +292,63 @@ Acl::Set (std::string sysacl,
         hasAcl = true;
       }
     }
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+Acl::IsValid (const std::string value,
+              XrdOucErrInfo &error)
+/*----------------------------------------------------------------------------*/
+/** 
+ * @brief Check whether ACL has a valid format / syntax.
+ * 
+ * @param value value to check
+ * @param error error datastructure
+ * @return boolean indicating validity
+ */
+/*----------------------------------------------------------------------------*/
+{
+  int regexErrorCode;
+  int result;
+  regex_t regex;
+  std::string regexString = "^(((((u|g):(([0-9]+)|([[:alnum:]-]+)))|(egroup:([[:alnum:]-]+))):(r|w|wo|x|m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+
+  // -----------------------------------------------------------------------
+  // Compile regex
+  // -----------------------------------------------------------------------
+  regexErrorCode = regcomp(&regex, regexString.c_str(), REG_EXTENDED);
+
+  if(regexErrorCode)
+  {
+    error.setErrInfo(2, "failed to compile regex");
+    regfree(&regex);
+    return false;
+  }
+
+  // -----------------------------------------------------------------------
+  // Execute regex
+  // -----------------------------------------------------------------------
+  result = regexec(&regex, value.c_str(), 0, NULL, 0);
+
+  regfree(&regex);
+
+  // -----------------------------------------------------------------------
+  // Check the result
+  // -----------------------------------------------------------------------
+  if(result == 0)
+  {
+    return true;
+  }
+  else if(result == REG_NOMATCH)
+  {
+    error.setErrInfo(1, "invalid acl syntax");
+    return false;
+  }
+  else // REG_BADPAT, REG_ESPACE, etc...
+  {
+    error.setErrInfo(2, "invalid regex or out of memory");
+    return false;
   }
 }
 

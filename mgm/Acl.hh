@@ -29,6 +29,7 @@
 #include "common/Mapping.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdOuc/XrdOucErrInfo.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <string>
@@ -107,6 +108,12 @@ public:
   void Set (std::string sysacl,
             std::string useracl,
             eos::common::Mapping::VirtualIdentity &vid);
+
+  /*--------------------------------------------------------------------------*/
+  //! Use regex to check ACL format / syntax
+  /*--------------------------------------------------------------------------*/
+  static bool IsValid (const std::string value,
+                       XrdOucErrInfo &error);
 
   /*--------------------------------------------------------------------------*/
   // Getter Functions for ACL booleans

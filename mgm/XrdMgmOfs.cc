@@ -7416,6 +7416,15 @@ XrdMgmOfs::_attr_set (const char *path,
       }
       else
       {
+        // check format of acl 
+        if (Key.beginswith("user.acl") || Key.beginswith("sys.acl"))
+        {
+          if (!Acl::IsValid(value, error))
+          {
+            errno = EINVAL;
+            return SFS_ERROR;
+          }
+        }
         dh->setAttribute(key, value);
         eosView->updateContainerStore(dh);
         errno = 0;
