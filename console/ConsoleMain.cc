@@ -36,6 +36,8 @@
 XrdPosixXrootd posixsingleton;
 #include "fst/FmdClient.hh"
 /*----------------------------------------------------------------------------*/
+#include <setjmp.h>
+/*----------------------------------------------------------------------------*/
 
 // ----------------------------------------------------------------------------
 // - Implemented Commands                                                     -
@@ -120,12 +122,7 @@ int retcfd = 0;
 
 XrdOucEnv* CommandEnv = 0; // this is a pointer to the result of client_admin... or client_user.... = it get's invalid when the output_result function is called
 
-
-// for static linking needed
-/*int
-  XrdOucUtils::makePath(char*, unsigned int) {
-  return 0;
-  }*/
+static jmp_buf jump_buf;
 
 // ----------------------------------------------------------------------------
 // - Exit handler
@@ -144,6 +141,15 @@ exit_handler (int a)
   exit(-1);
 }
 
+// ----------------------------------------------------------------------------
+// - Jump handler
+// ----------------------------------------------------------------------------
+
+void
+jump_handler (int a)
+{
+  longjmp(jump_buf,1);
+}
 
 // ----------------------------------------------------------------------------
 // - Absolut Path Conversion Function
@@ -989,7 +995,8 @@ usage ()
   fprintf(stderr, "            eos space ls --io                   : run the eos shell command 'space' with arguments 'ls --io'\n");
   fprintf(stderr, "            eos --version                       : print version information\n");
   fprintf(stderr, "            eos -b eosscript.eosh               : run the eos shell script 'eosscript.eosh'. This script has to contain linewise commands which are understood by the eos interactive shell.\n");
-
+  fprintf(stderr, "\n");
+  fprintf(stderr, " You can leave the interactive shell with <Control-D>. <Control-C> cleans the current shell line or terminates the shell when a command is currently executed.");
 
   fprintf(stderr, "Report bugs to eos-dev@cern.ch\n");
 }
@@ -1383,10 +1390,17 @@ main (int argc, char* argv[])
       signal(SIGALRM, exit_handler);
       alarm(60);
     }
+    // with Control-
+    signal(SIGINT, jump_handler);
+    
+    if ( setjmp(jump_buf) ) {
+      fprintf(stdout,"\n");
+    }
+    
     line = readline(prompt);
     if (pipemode)
       alarm(0);
-
+    signal(SIGINT, exit_handler);
     if (!line)
     {
       fprintf(stdout, "\n");
