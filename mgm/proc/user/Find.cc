@@ -26,6 +26,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
+#include "mgm/Acl.hh"
 #include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -115,6 +116,9 @@ ProcCommand::Find ()
   bool printchildcount = true;
   bool printhosts = false;
   bool printpartition = false;
+  bool selectonline = false;
+  bool printfileinfo = false;
+  bool selectfaultyacl = false;
 
   time_t selectoldertime = 0;
   time_t selectyoungertime = 0;
@@ -214,6 +218,23 @@ ProcCommand::Find ()
     printpartition = true;
   }
 
+  if (option.find("O") != STR_NPOS)
+  {
+    selectonline = true;
+  }
+
+  if (option.find("I") != STR_NPOS)
+  {
+    printfileinfo = true;
+    option += "f";
+  }
+
+  if (option.find("A") != STR_NPOS)
+  {
+    selectfaultyacl = true;
+    option += "d";
+  }
+
   if (attribute.length())
   {
     key.erase(attribute.find("="));
@@ -267,7 +288,7 @@ ProcCommand::Find ()
       if (file_exists == XrdSfsFileExistIsFile)
       {
         // if this is already a file name, we switch off to find directories
-        option+= "f";
+        option += "f";
       }
     }
     if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, (*found), key.c_str(), val.c_str(), nofiles))
@@ -286,7 +307,6 @@ ProcCommand::Find ()
     {
       for (foundit = (*found).begin(); foundit != (*found).end(); foundit++)
       {
-
         if ((option.find("d")) == STR_NPOS)
         {
           if (option.find("f") == STR_NPOS)
@@ -303,7 +323,7 @@ ProcCommand::Find ()
           fspath += *fileit;
           if (!calcbalance)
           {
-            if (findgroupmix || findzero || printsize || printfid || printchecksum || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff || selectonehour || selectoldertime || selectyoungertime)
+            if (findgroupmix || findzero || printsize || printfid || printfileinfo || printchecksum || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff || selectonehour || selectoldertime || selectyoungertime)
             {
               //-------------------------------------------
 
@@ -412,7 +432,7 @@ ProcCommand::Find ()
                 }
                 else
                 {
-                  if (selected && (selectonehour || selectoldertime || selectyoungertime || printsize || printfid || printchecksum || printfs || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff))
+                  if (selected && (selectonehour || selectoldertime || selectyoungertime || printsize || printfid || printchecksum || printfileinfo || printfs || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff))
                   {
                     XrdOucString sizestring;
                     bool printed = true;
@@ -430,135 +450,155 @@ ProcCommand::Find ()
 
                     if (printed)
                     {
-                      if (!printcounter)fprintf(fstdout, "path=%s", fspath.c_str());
+                      if (!printfileinfo)
+                      {
+                        if (!printcounter)fprintf(fstdout, "path=%s", fspath.c_str());
 
-                      if (printsize)
-                      {
-                        if (!printcounter)fprintf(fstdout, " size=%llu", (unsigned long long) fmd->getSize());
-                      }
-                      if (printfid)
-                      {
-                        if (!printcounter)fprintf(fstdout, " fid=%llu", (unsigned long long) fmd->getId());
-                      }
-                      if (printfs)
-                      {
-                        if (!printcounter)fprintf(fstdout, " fsid=");
-                        eos::FileMD::LocationVector::const_iterator lociter;
-                        for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+                        if (printsize)
                         {
-                          if (lociter != fmd->locationsBegin())
-                          {
-                            if (!printcounter)fprintf(fstdout, ",");
-                          }
-                          if (!printcounter)fprintf(fstdout, "%d", (int) *lociter);
+                          if (!printcounter)fprintf(fstdout, " size=%llu", (unsigned long long) fmd->getSize());
                         }
-                      }
-
-                      if ( (printpartition) && (!printcounter))
-                      {
-                        fprintf(fstdout, " partition=");
-                        std::set<std::string> fsPartition;
-                        eos::FileMD::LocationVector::const_iterator lociter;
-                        for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+                        if (printfid)
                         {
-                          // get host name for fs id
-                          eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-                          eos::common::FileSystem* filesystem = 0;
-                          if (FsView::gFsView.mIdView.count(*lociter))
+                          if (!printcounter)fprintf(fstdout, " fid=%llu", (unsigned long long) fmd->getId());
+                        }
+                        if (printfs)
+                        {
+                          if (!printcounter)fprintf(fstdout, " fsid=");
+                          eos::FileMD::LocationVector::const_iterator lociter;
+                          for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
                           {
-                            filesystem = FsView::gFsView.mIdView[*lociter];
-                          }
-
-                          if (filesystem)
-                          {
-                            eos::common::FileSystem::fs_snapshot_t fs;
-                            if (filesystem->SnapShotFileSystem(fs, true))
+                            if (lociter != fmd->locationsBegin())
                             {
-			      std::string partition = fs.mHost;
-			      partition += ":";
-			      partition += fs.mPath;
-                              fsPartition.insert(partition);
+                              if (!printcounter)fprintf(fstdout, ",");
+                            }
+                            if (!printcounter)fprintf(fstdout, "%d", (int) *lociter);
+                          }
+                        }
+
+                        if ((printpartition) && (!printcounter))
+                        {
+                          fprintf(fstdout, " partition=");
+                          std::set<std::string> fsPartition;
+                          eos::FileMD::LocationVector::const_iterator lociter;
+                          for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+                          {
+                            // get host name for fs id
+                            eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+                            eos::common::FileSystem* filesystem = 0;
+                            if (FsView::gFsView.mIdView.count(*lociter))
+                            {
+                              filesystem = FsView::gFsView.mIdView[*lociter];
+                            }
+
+                            if (filesystem)
+                            {
+                              eos::common::FileSystem::fs_snapshot_t fs;
+                              if (filesystem->SnapShotFileSystem(fs, true))
+                              {
+                                std::string partition = fs.mHost;
+                                partition += ":";
+                                partition += fs.mPath;
+                                if ((!selectonline) || (filesystem->GetActiveStatus(true) == eos::common::FileSystem::kOnline))
+                                {
+                                  fsPartition.insert(partition);
+                                }
+                              }
                             }
                           }
-                        }
-                        
-                        for (auto partitionit = fsPartition.begin(); partitionit != fsPartition.end(); partitionit++)
-                        {
-                          if (partitionit != fsPartition.begin())
-                          {
-                            fprintf(fstdout, ",");
-                          }
-                          fprintf(fstdout, "%s", partitionit->c_str());
-                        }
-                      }
 
-                      if ( (printhosts) && (!printcounter))
-                      {
-                        fprintf(fstdout, " hosts=");
-                        std::set<std::string> fsHosts;
-                        eos::FileMD::LocationVector::const_iterator lociter;
-                        for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
-                        {
-                          // get host name for fs id
-                          eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-                          eos::common::FileSystem* filesystem = 0;
-                          if (FsView::gFsView.mIdView.count(*lociter))
+                          for (auto partitionit = fsPartition.begin(); partitionit != fsPartition.end(); partitionit++)
                           {
-                            filesystem = FsView::gFsView.mIdView[*lociter];
-                          }
-
-                          if (filesystem)
-                          {
-                            eos::common::FileSystem::fs_snapshot_t fs;
-                            if (filesystem->SnapShotFileSystem(fs, true))
+                            if (partitionit != fsPartition.begin())
                             {
-                              fsHosts.insert(fs.mHost);
+                              fprintf(fstdout, ",");
+                            }
+                            fprintf(fstdout, "%s", partitionit->c_str());
+                          }
+                        }
+
+                        if ((printhosts) && (!printcounter))
+                        {
+                          fprintf(fstdout, " hosts=");
+                          std::set<std::string> fsHosts;
+                          eos::FileMD::LocationVector::const_iterator lociter;
+                          for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+                          {
+                            // get host name for fs id
+                            eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+                            eos::common::FileSystem* filesystem = 0;
+                            if (FsView::gFsView.mIdView.count(*lociter))
+                            {
+                              filesystem = FsView::gFsView.mIdView[*lociter];
+                            }
+
+                            if (filesystem)
+                            {
+                              eos::common::FileSystem::fs_snapshot_t fs;
+                              if (filesystem->SnapShotFileSystem(fs, true))
+                              {
+                                fsHosts.insert(fs.mHost);
+                              }
                             }
                           }
-                        }
-                        
-                        for (auto hostit = fsHosts.begin(); hostit != fsHosts.end(); hostit++)
-                        {
-                          if (hostit != fsHosts.begin())
+
+                          for (auto hostit = fsHosts.begin(); hostit != fsHosts.end(); hostit++)
                           {
-                            fprintf(fstdout, ",");
+                            if (hostit != fsHosts.begin())
+                            {
+                              fprintf(fstdout, ",");
+                            }
+                            fprintf(fstdout, "%s", hostit->c_str());
                           }
-                          fprintf(fstdout, "%s", hostit->c_str());
                         }
-                      }
 
-                      if (printchecksum)
-                      {
-                        if (!printcounter)fprintf(fstdout, " checksum=");
-                        for (unsigned int i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
+                        if (printchecksum)
                         {
-                          if (!printcounter)fprintf(fstdout, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
+                          if (!printcounter)fprintf(fstdout, " checksum=");
+                          for (unsigned int i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
+                          {
+                            if (!printcounter)fprintf(fstdout, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
+                          }
+                        }
+
+                        if (printctime)
+                        {
+                          eos::FileMD::ctime_t ctime;
+                          fmd->getCTime(ctime);
+                          if (!printcounter)fprintf(fstdout, " ctime=%llu.%llu", (unsigned long long) ctime.tv_sec, (unsigned long long) ctime.tv_nsec);
+                        }
+                        if (printmtime)
+                        {
+                          eos::FileMD::ctime_t mtime;
+                          fmd->getMTime(mtime);
+                          if (!printcounter)fprintf(fstdout, " mtime=%llu.%llu", (unsigned long long) mtime.tv_sec, (unsigned long long) mtime.tv_nsec);
+                        }
+
+                        if (printrep)
+                        {
+                          if (!printcounter)fprintf(fstdout, " nrep=%d", (int) fmd->getNumLocation());
+                        }
+
+                        if (printunlink)
+                        {
+                          if (!printcounter)fprintf(fstdout, " nunlink=%d", (int) fmd->getNumUnlinkedLocation());
                         }
                       }
-
-                      if (printctime)
+                      else
                       {
-                        eos::FileMD::ctime_t ctime;
-                        fmd->getCTime(ctime);
-                        if (!printcounter)fprintf(fstdout, " ctime=%llu.%llu", (unsigned long long) ctime.tv_sec, (unsigned long long) ctime.tv_nsec);
+                        // print fileinfo -m 
+                        ProcCommand Cmd;
+                        XrdOucString lStdOut = "";
+                        XrdOucString lStdErr = "";
+                        XrdOucString info = "&mgm.cmd=fileinfo&mgm.path=";
+                        info += fspath.c_str();
+                        info += "&mgm.file.info.option=-m";
+                        Cmd.open("/proc/user", info.c_str(), *pVid, mError);
+                        Cmd.AddOutput(lStdOut, lStdErr);
+                        if (lStdOut.length()) fprintf(fstdout, "%s", lStdOut.c_str());
+                        if (lStdErr.length()) fprintf(fstderr, "%s", lStdErr.c_str());
+                        Cmd.close();
                       }
-                      if (printmtime)
-                      {
-                        eos::FileMD::ctime_t mtime;
-                        fmd->getMTime(mtime);
-                        if (!printcounter)fprintf(fstdout, " mtime=%llu.%llu", (unsigned long long) mtime.tv_sec, (unsigned long long) mtime.tv_nsec);
-                      }
-
-                      if (printrep)
-                      {
-                        if (!printcounter)fprintf(fstdout, " nrep=%d", (int) fmd->getNumLocation());
-                      }
-
-                      if (printunlink)
-                      {
-                        if (!printcounter)fprintf(fstdout, " nunlink=%d", (int) fmd->getNumUnlinkedLocation());
-                      }
-
                       if (!printcounter)fprintf(fstdout, "\n");
                     }
                   }
@@ -655,6 +695,39 @@ ProcCommand::Find ()
     {
       for (foundit = (*found).begin(); foundit != (*found).end(); foundit++)
       {
+        if (selectfaultyacl)
+        {
+          // get the attributes and call the verify function
+          eos::ContainerMD::XAttrMap map;
+          if (!gOFS->_attr_ls(foundit->first.c_str(),
+                              *mError,
+                              *pVid,
+                              (const char *) 0,
+                              map)
+              )
+          {
+            if ((map.count("sys.acl") || map.count("user.acl")))
+            {
+              if (map.count("sys.acl"))
+              {
+                if (Acl::IsValid(map["sys.acl"].c_str(), *mError))
+                  continue;
+              }
+
+              if (map.count("user.acl"))
+              {
+                if (Acl::IsValid(map["user.acl"].c_str(), *mError))
+                  continue;
+              }
+            }
+
+            else
+            {
+              continue;
+            }
+          }
+        }
+        
         // print directories
         XrdOucString attr = "";
         if (printkey.length())
