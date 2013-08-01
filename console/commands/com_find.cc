@@ -47,103 +47,143 @@ com_find (char* arg1)
   XrdOucString stripes = "";
 
   XrdOucString in = "mgm.cmd=find&";
+
+  bool valid = false;
+
   while ((s1 = subtokenizer.GetToken()).length() && (s1.beginswith("-")))
   {
     if (s1 == "-s")
     {
       option += "s";
+      valid = true;
     }
 
     if (s1 == "-d")
     {
       option += "d";
+      valid = true;
     }
 
     if (s1 == "-f")
     {
       option += "f";
+      valid = true;
     }
 
     if (s1 == "-0")
     {
       option += "f0";
+      valid = true;
     }
 
     if (s1 == "-m")
     {
       option += "fG";
+      valid = true;
     }
 
     if (s1 == "--size")
     {
       option += "S";
+      valid = true;
     }
 
 
     if (s1 == "--fs")
     {
       option += "L";
+      valid = true;
     }
 
     if (s1 == "--checksum")
     {
       option += "X";
+      valid = true;
     }
 
 
     if (s1 == "--ctime")
     {
       option += "C";
+      valid = true;
     }
 
     if (s1 == "--mtime")
     {
       option += "M";
+      valid = true;
     }
 
     if (s1 == "--fid")
     {
       option += "F";
+      valid = true;
     }
 
     if (s1 == "--nrep")
     {
       option += "R";
+      valid = true;
+    }
+
+    if (s1 == "--online")
+    {
+      option += "O";
+      valid = true;
+    }
+
+    if (s1 == "--fileinfo")
+    {
+      option += "I";
+      valid = true;
     }
 
     if (s1 == "--nunlink")
     {
       option += "U";
+      valid = true;
     }
 
     if (s1 == "--stripediff")
     {
       option += "D";
+      valid = true;
+    }
+
+    if (s1 == "--faultyacl")
+    {
+      option += "A";
+      valid = true;
     }
 
     if (s1 == "--count")
     {
       option += "Z";
+      valid = true;
     }
 
     if (s1 == "--hosts")
     {
       option += "H";
+      valid = true;
     }
 
     if (s1 == "--partition")
     {
       option += "P";
+      valid = true;
     }
 
     if (s1 == "--childcount")
     {
       option += "l";
+      valid = true;
     }
 
     if (s1 == "-1")
     {
       option += "1";
+      valid = true;
     }
 
     if (s1.beginswith("-h") || (s1.beginswith("--help")))
@@ -154,6 +194,7 @@ com_find (char* arg1)
     if (s1 == "-x")
     {
       option += "x";
+      valid = true;
 
       attribute = subtokenizer.GetToken();
 
@@ -166,6 +207,7 @@ com_find (char* arg1)
 
     if ((s1 == "-ctime") || (s1 == "-mtime"))
     {
+      valid = true;
       XrdOucString period = "";
       period = subtokenizer.GetToken();
 
@@ -217,7 +259,7 @@ com_find (char* arg1)
 
     if (s1 == "-c")
     {
-
+      valid = true;
       option += "c";
 
       filter = subtokenizer.GetToken();
@@ -232,6 +274,7 @@ com_find (char* arg1)
 
     if (s1 == "-layoutstripes")
     {
+      valid = true;
       stripes = subtokenizer.GetToken();
       if (!stripes.length())
         goto com_find_usage;
@@ -239,6 +282,7 @@ com_find (char* arg1)
 
     if (s1 == "-p")
     {
+      valid = true;
       option += "p";
 
       printkey = subtokenizer.GetToken();
@@ -249,8 +293,12 @@ com_find (char* arg1)
 
     if (s1 == "-b")
     {
+      valid = true;
       option += "b";
     }
+
+    if (!valid)
+      goto com_find_usage;
   }
 
   if (s1.length())
@@ -678,10 +726,11 @@ com_find_usage:
   fprintf(stdout, "                                                           -layoutstripes <n> :  apply new layout with <n> stripes to all files found\n");
   fprintf(stdout, "                                                                           -1 :  find files which are atleast 1 hour old\n");
   fprintf(stdout, "                                                                 --stripediff :  find files which have not the nominal number of stripes(replicas)\n");
+  fprintf(stdout, "                                                                  --faultyacl :  find directories with illegal ACLs");
   fprintf(stdout, "                                                                      --count :  just print global counters for files/dirs found\n");
   fprintf(stdout, "                                                                 --childcount :  print the number of children in each directory\n");
   fprintf(stdout, "                                                                      default :  find files and directories\n");
-  fprintf(stdout, "       find [--nrep] [--nunlink] [--size] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] <path>   :  find files and print out the requested meta data as key value pairs\n");
+  fprintf(stdout, "       find [--nrep] [--nunlink] [--size] [--fileinfo] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] <path>   :  find files and print out the requested meta data as key value pairs\n");
   fprintf(stdout, "                                                               path=file:...  :  do a find in the local file system (options ignored) - 'file:' is the current working directory \n");
   fprintf(stdout, "                                                               path=root:...  :  do a find on a plain XRootD server (options ignored) - does not work on native XRootD clusters\n");
   fprintf(stdout, "                                                               path=as3:...   :  do a find on an S3 bucket\n");
