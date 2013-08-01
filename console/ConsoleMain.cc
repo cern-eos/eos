@@ -122,7 +122,7 @@ int retcfd = 0;
 
 XrdOucEnv* CommandEnv = 0; // this is a pointer to the result of client_admin... or client_user.... = it get's invalid when the output_result function is called
 
-static jmp_buf jump_buf;
+static sigjmp_buf sigjump_buf;
 
 // ----------------------------------------------------------------------------
 // - Exit handler
@@ -148,7 +148,7 @@ exit_handler (int a)
 void
 jump_handler (int a)
 {
-  longjmp(jump_buf,1);
+  siglongjmp(sigjump_buf,1);
 }
 
 // ----------------------------------------------------------------------------
@@ -1301,7 +1301,7 @@ main (int argc, char* argv[])
 
 
   /* install a shutdown handler */
-  signal(SIGINT, exit_handler);
+  //signal(SIGINT, exit_handler);
 
   if (!interactive)
   {
@@ -1390,17 +1390,21 @@ main (int argc, char* argv[])
       signal(SIGALRM, exit_handler);
       alarm(60);
     }
-    // with Control-
+    
+    
     signal(SIGINT, jump_handler);
     
-    if ( setjmp(jump_buf) ) {
+    if ( sigsetjmp(sigjump_buf,1) ) {
+      signal(SIGINT, jump_handler);
       fprintf(stdout,"\n");
     }
     
     line = readline(prompt);
+    signal(SIGINT, exit_handler);
+    
     if (pipemode)
       alarm(0);
-    signal(SIGINT, exit_handler);
+    
     if (!line)
     {
       fprintf(stdout, "\n");
@@ -1448,6 +1452,7 @@ main (int argc, char* argv[])
   }
 
   write_history(historyfile.c_str());
+  signal(SIGINT, SIG_IGN);
   exit(0);
 }
 
