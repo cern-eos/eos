@@ -2,7 +2,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.3.1
-Release: 1
+Release: 2
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -18,9 +18,9 @@ BuildRequires: cmake28 >= 2.8
 %define cmake_cmd cmake28
 %endif
 
-BuildRequires: xrootd-server >= 3.3.2
-BuildRequires: xrootd-server-devel >= 3.3.2
-BuildRequires: xrootd-private-devel  >= 3.3.2
+BuildRequires: xrootd-server = 3.3.3
+BuildRequires: xrootd-server-devel = 3.3.3
+BuildRequires: xrootd-private-devel  = 3.3.3
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: libattr-devel, openldap-devel
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
@@ -302,7 +302,7 @@ Contains an example keytab file.
 Summary: The EOS test package
 Group: Applications/File
 
-Requires: eos-server libs3 cadaver
+Requires: eos-server cadaver
 
 %description -n eos-test
 Contains an instance test script and some test executables
