@@ -36,7 +36,7 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Transfer ()
 {
- XrdOucString mSubCmd = pOpaque->Get("mgm.mSubCmd") ? pOpaque->Get("mgm.mSubCmd") : "";
+ XrdOucString mSubCmd = pOpaque->Get("mgm.subcmd") ? pOpaque->Get("mgm.subcmd") : "";
  XrdOucString src = pOpaque->Get("mgm.txsrc") ? pOpaque->Get("mgm.txsrc") : "";
  XrdOucString dst = pOpaque->Get("mgm.txdst") ? pOpaque->Get("mgm.txdst") : "";
  src = XrdMqMessage::UnSeal(src);
