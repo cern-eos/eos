@@ -33,8 +33,10 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "StringConversion.hh"
-
 /*----------------------------------------------------------------------------*/
+#include <fcntl.h>
+/*----------------------------------------------------------------------------*/
+
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -722,6 +724,49 @@ public:
 
 
   //----------------------------------------------------------------------------
+  //! Map POSIX-like open flags to SFS open flags - used on the FUSE mount
+  //!
+  //! @param flags_sfs SFS open flags
+  //!
+  //! @return SFS-like open flags
+  //!
+  //----------------------------------------------------------------------------
+  static XrdSfsFileOpenMode
+  MapFlagsPosix2Sfs (int oflags)
+  {
+    XrdSfsFileOpenMode sfs_flags = SFS_O_RDONLY; // 0x0000
+
+    if (oflags & O_CREAT)
+    {
+      sfs_flags |= SFS_O_CREAT;
+    }
+    if (oflags & O_RDWR)
+    {
+      sfs_flags |= SFS_O_RDWR;
+    }
+    if (oflags & O_TRUNC)
+    {
+      sfs_flags |= SFS_O_TRUNC;
+    }
+    if (oflags & O_WRONLY)
+    {
+      sfs_flags |= SFS_O_WRONLY;
+    }
+    if (oflags & O_APPEND)
+    {
+      sfs_flags |= SFS_O_RDWR;
+    }
+
+    // !!!
+    // Could also forward O_EXLC as XrdCl::OpenFlags::Flags::New but there is
+    // no corresponding flag in SFS
+    // !!!
+    
+    return sfs_flags;
+  }
+
+  
+  //----------------------------------------------------------------------------
   //! Map SFS-like open flags to XrdCl open flags
   //!
   //! @param flags_sfs SFS open flags
@@ -729,7 +774,6 @@ public:
   //! @return XrdCl-like open flags
   //!
   //----------------------------------------------------------------------------
-
   static XrdCl::OpenFlags::Flags
   MapFlagsSfs2XrdCl (XrdSfsFileOpenMode flags_sfs)
   {
@@ -795,7 +839,6 @@ public:
   //! @return XrdCl-like open mode
   //!
   //----------------------------------------------------------------------------
-
   static XrdCl::Access::Mode
   MapModeSfs2XrdCl (mode_t mode_sfs)
   {
