@@ -189,13 +189,14 @@ XrdFstOfsFile::open (const char* path,
   eos::common::StringConversion::MaskTag(maskOpaque, "cap.msg");
   eos::common::StringConversion::MaskTag(maskOpaque, "authz");
 
-  if ((open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
-                    SFS_O_CREAT | SFS_O_TRUNC)) != 0)
+  
+  if ((open_mode & (SFS_O_WRONLY | SFS_O_RDWR | SFS_O_CREAT | SFS_O_TRUNC)) != 0)
   {
     isRW = true;
   }
 
-  eos_info("path=%s info=%s isrw=%d", Path.c_str(), maskOpaque.c_str(), isRW);
+  eos_info("path=%s info=%s isRW=%d open_mode=%x",
+           Path.c_str(), maskOpaque.c_str(), isRW, open_mode);
   
   // ----------------------------------------------------------------------------
   // extract tpc keys
@@ -602,7 +603,7 @@ XrdFstOfsFile::open (const char* path,
   }
   else
   {
-    // remote the creat flag
+    // remove the creat flag
     if (open_mode & SFS_O_CREAT)
       open_mode -= SFS_O_CREAT;
   }
@@ -871,7 +872,7 @@ XrdFstOfsFile::open (const char* path,
     //........................................................................
     // We feed the layout size, not the physical on disk!
     //........................................................................
-    eos_info("msg=\"layout size\": disk_size=%llu db_size= %llu",
+    eos_info("msg=\"layout size\": disk_size=%zu db_size= %llu",
              statinfo.st_size, fMd->fMd.size);
 
     if ((off_t) statinfo.st_size != (off_t) fMd->fMd.size)
@@ -2194,7 +2195,7 @@ XrdFstOfsFile::readofs (XrdSfsFileOffset fileOffset,
                         XrdSfsXferSize buffer_size)
 {
   int retc = XrdOfsFile::read(fileOffset, buffer, buffer_size);
-  eos_debug("read %llu %llu %lu retc=%d", this, fileOffset, buffer_size, retc);
+  eos_debug("read %llu %llu %i retc=%d", this, fileOffset, buffer_size, retc);
 
   if (gOFS.Simulate_IO_read_error)
   {

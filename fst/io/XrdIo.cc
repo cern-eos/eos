@@ -467,9 +467,7 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset,
                    XrdSfsXferSize length,
                    uint16_t timeout)
 {
-  eos_debug("offset=%llu length=%lu",
-            static_cast<uint64_t> (offset),
-            static_cast<uint32_t> (length));
+  eos_debug("offset=%llu length=%i", static_cast<uint64_t>(offset), length);
 
   ChunkHandler* handler;
   XrdCl::XRootDStatus status;
@@ -499,7 +497,6 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset,
 int
 XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
-  eos_debug("Calling XrdIo::Truncate with timeout = %lu", timeout);
   XrdCl::XRootDStatus status = mXrdFile->Truncate(static_cast<uint64_t> (offset),
                                                   timeout);
   
