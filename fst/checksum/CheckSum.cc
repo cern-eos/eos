@@ -303,6 +303,14 @@ CheckSum::OpenMap (const char* mapfilepath, size_t maxfilesize, size_t blocksize
   if (isRW)
   {
     int rc = 0;
+
+    // In RDWR mode we trucate the blockxs file to 0 to force a recomputation
+    // of all the block xs. This is necessary for RAIN files when they get
+    // updated or overwritten with a smaller file size. All this becasuse the
+    // blockxs for the last block (i.e. the margin which is padded) is not
+    // recomputed since AddBlocSumHoles only recomputes the blocks with 0 checksum.
+    rc = ftruncate(ChecksumMapFd, 0);
+    
 #ifdef __APPLE__
     rc = ftruncate(ChecksumMapFd, ChecksumMapSize);
 #else
