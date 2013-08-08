@@ -100,12 +100,11 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
   //............................................................................
   // Decide if file opened for rw operations
   //............................................................................
-  if ((flags &
-       (O_RDONLY | O_WRONLY | O_RDWR | O_CREAT | O_TRUNC)) != 0)
+  if ((flags & (O_WRONLY | O_RDWR | O_CREAT | O_TRUNC)) != 0)
   {
     mIsRW = true;
   }
-
+  
   if (eos::common::LayoutId::GetBlockChecksum(lid) != eos::common::LayoutId::kNone)
   {
     //..........................................................................
@@ -128,11 +127,9 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
 
         if (!mBlockXs->OpenMap(xs_path.c_str(),
                                (retc ? booking_size : buf.st_size),
-                               eos::common::LayoutId::OssXsBlockSize,
-                               false))
+                               eos::common::LayoutId::OssXsBlockSize, mIsRW))
         {
-          eos_err("error=unable to open the blockchecksum file: %s",
-                  xs_path.c_str());
+          eos_err("error=unable to open blockxs file: %s", xs_path.c_str());
           return -EIO;
         }
 
@@ -143,7 +140,7 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
       }
       else
       {
-        eos_err("error=unable to create the blockchecksum obj");
+        eos_err("error=unable to create the blockxs obj");
         return -EIO;
       }
     }
