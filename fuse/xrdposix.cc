@@ -1986,7 +1986,6 @@ xrd_mkdir (const char* path,
 //------------------------------------------------------------------------------
 // Remove the given directory
 //------------------------------------------------------------------------------
-
 int
 xrd_rmdir (const char* path, uid_t uid, pid_t pid)
 {
@@ -2003,10 +2002,10 @@ xrd_rmdir (const char* path, uid_t uid, pid_t pid)
     return 0;
 }
 
+
 //------------------------------------------------------------------------------
 // Map open return codes to errno's
 //------------------------------------------------------------------------------
-
 int
 xrd_error_retc_map (int retc)
 {
@@ -2121,49 +2120,18 @@ xrd_error_retc_map (int retc)
 int
 xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
 {
-  eos_static_info("path=%s flags=%d mode=%d uid=%u pid=%u", path, oflags, mode, uid, pid);
-  int t0;
+  eos_static_info("path=%s flags=%d mode=%d uid=%u pid=%u",
+                  path, oflags, mode, uid, pid);
   int retc = -1;
   XrdOucString spath = xrd_user_url(uid, pid);
+  XrdSfsFileOpenMode flags_sfs = eos::common::LayoutId::MapFlagsPosix2Sfs(oflags);
   spath += path;
-  mode_t mode_sfs = 0;
   errno = 0;
-
-  XrdSfsFileOpenMode flags_sfs = SFS_O_RDONLY; // open for read by default
-
-  if (oflags & O_CREAT )
-  {
-    flags_sfs = SFS_O_CREAT | SFS_O_RDWR;
-  } else {
-    if (oflags & (O_EXCL | O_RDWR | O_WRONLY))
-      {
-	flags_sfs = SFS_O_RDWR;
-      }
-  }
-
-  if (mode & S_IRUSR) mode_sfs |= XrdCl::Access::UR;
-
-  if (mode & S_IWUSR) mode_sfs |= XrdCl::Access::UW;
-
-  if (mode & S_IXUSR) mode_sfs |= XrdCl::Access::UX;
-
-  if (mode & S_IRGRP) mode_sfs |= XrdCl::Access::GR;
-
-  if (mode & S_IWGRP) mode_sfs |= XrdCl::Access::GW;
-
-  if (mode & S_IXGRP) mode_sfs |= XrdCl::Access::GX;
-
-  if (mode & S_IROTH) mode_sfs |= XrdCl::Access::OR;
-
-  if (mode & S_IWOTH) mode_sfs |= XrdCl::Access::OW;
-
-  if (mode & S_IXOTH) mode_sfs |= XrdCl::Access::OX;
-
+  int t0;
+  
   if ((t0 = spath.find("/proc/")) != STR_NPOS)
   {
-    //..........................................................................
     // Clean the path
-    //..........................................................................
     int t1 = spath.find("//");
     int t2 = spath.find("//", t1 + 2);
     spath.erase(t2 + 2, t0 - t2 - 2);
@@ -2172,9 +2140,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
     {
     };
 
-    //..........................................................................
     // Force a reauthentication to the head node
-    //..........................................................................
     if (spath.endswith("/proc/reconnect"))
     {
       XrdSysMutexHelper cLock(connectionIdMutex);
@@ -2183,9 +2149,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
       return -1;
     }
 
-    //..........................................................................
     // Return the 'whoami' information in that file
-    //..........................................................................
     if (spath.endswith("/proc/whoami"))
     {
       spath.replace("/proc/whoami", "/proc/user/");
@@ -2196,7 +2160,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi  = get_cgi(spath.c_str());
 
-      retc = file->Open(open_path.c_str(), flags_sfs, mode_sfs, open_cgi.c_str());
+      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str());
       eos_static_info("open returned retc=%d", retc);
       if (retc)
       {
@@ -2219,7 +2183,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi  = get_cgi(spath.c_str());
 
-      retc = file->Open(open_path.c_str(), flags_sfs, mode_sfs, open_cgi.c_str());
+      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str());
 
       if (retc)
       {
@@ -2244,7 +2208,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi  = get_cgi(spath.c_str());
 
-      retc = file->Open(open_path.c_str(), flags_sfs, mode_sfs, open_cgi.c_str());
+      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str());
 
       if (retc)
       {
@@ -2259,9 +2223,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
     }
   }
 
-  //............................................................................
-  // Try to open file using pio ( parallel io ) only in read mode
-  //............................................................................
+  // Try to open file using PIO (parallel io) only in read mode
   if ((!getenv("EOS_FUSE_NOPIO")) && (flags_sfs == SFS_O_RDONLY))
   {
     XrdCl::Buffer arg;
@@ -2282,9 +2244,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
 
     if (status.IsOK())
     {
-      //........................................................................
       // Parse output
-      //........................................................................
       XrdOucString tag;
       XrdOucString stripePath;
       std::vector<std::string> stripeUrls;
@@ -2345,7 +2305,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
         {
           retc = file->OpenPio(stripeUrls,
                                flags_sfs,
-                               mode_sfs,
+                               mode,
                                opaqueInfo);
           if (retc)
           {
@@ -2377,7 +2337,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
                                                      eos::common::LayoutId::kXrdCl);
 
 
-  retc = file->Open(spath.c_str(), flags_sfs, mode_sfs, "eos.app=fuse");
+  retc = file->Open(spath.c_str(), flags_sfs, mode, "eos.app=fuse");
 
   if (retc)
   {
