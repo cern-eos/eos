@@ -41,6 +41,9 @@ com_ns (char* arg1)
   XrdOucString delay;
   XrdOucString interval;
 
+  if (wants_help(arg1))
+    goto com_ns_usage;
+
   if ((cmd != "stat") && (cmd != "") && (cmd != "compact") && (cmd != "master") && (cmd != "mutex"))
   {
     goto com_ns_usage;

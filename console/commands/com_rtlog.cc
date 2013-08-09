@@ -37,6 +37,9 @@ com_rtlog (char* arg1)
   XrdOucString tag = subtokenizer.GetToken();
   XrdOucString filter = subtokenizer.GetToken();
   XrdOucString in = "mgm.cmd=rtlog&mgm.rtlog.queue=";
+  
+  if (wants_help(arg1))
+    goto com_rtlog_usage;
 
   if (!queue.length())
     goto com_rtlog_usage;

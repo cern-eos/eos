@@ -35,6 +35,9 @@ com_mkdir (char* arg1)
   XrdOucString path = subtokenizer.GetToken();
   XrdOucString in = "mgm.cmd=mkdir";
 
+  if (wants_help(arg1))
+    goto com_mkdir_usage;
+
   if (path == "-p")
   {
     path = subtokenizer.GetToken();

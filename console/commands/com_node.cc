@@ -43,6 +43,10 @@ com_node (char* arg1)
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
+
+  if (wants_help(arg1))
+    goto com_node_usage;
+
   if (subcommand == "ls")
   {
     in = "mgm.cmd=node&mgm.subcmd=ls";

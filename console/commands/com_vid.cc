@@ -34,6 +34,9 @@ com_vid (char* arg1)
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
 
+  if (wants_help(arg1))
+    goto com_vid_usage;
+
   if (subcommand == "ls")
   {
     XrdOucString in = "mgm.cmd=vid&mgm.subcmd=ls";

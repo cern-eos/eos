@@ -36,6 +36,9 @@ com_who (char* arg1)
 
   XrdOucString in = "";
 
+  if (wants_help(arg1))
+    goto com_who_usage;
+
   in = "mgm.cmd=who";
   do
   {

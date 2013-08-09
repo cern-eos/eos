@@ -35,6 +35,7 @@ com_quota (char* arg1)
   XrdOucString subcommand = subtokenizer.GetToken();
   XrdOucString arg = subtokenizer.GetToken();
   bool highlighting = true;
+
   if (subcommand == "-m")
   {
     subcommand = "";
@@ -56,6 +57,9 @@ com_quota (char* arg1)
   }
 
   bool has_space = false;
+
+  if (wants_help(arg1))
+    goto com_quota_usage;
 
   if (subcommand == "ls")
   {

@@ -37,6 +37,9 @@ com_attr (char* arg1)
   XrdOucString in = "mgm.cmd=attr";
   XrdOucString arg = "";
 
+  if (wants_help(arg1))
+    goto com_attr_usage;
+
   if (subcommand.beginswith("-"))
   {
     option = subcommand;

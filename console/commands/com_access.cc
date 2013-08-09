@@ -39,6 +39,9 @@ com_access (char* arg1)
 
   XrdOucString subcmd = subtokenizer.GetToken();
 
+  if (wants_help(arg1))
+    goto com_access_usage;
+
   if (subcmd == "ban")
   {
     ok = true;

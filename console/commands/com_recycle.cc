@@ -42,6 +42,9 @@ com_recycle (char* arg1)
 
   XrdOucString subcmd = subtokenizer.GetToken();
 
+  if (wants_help(arg1))
+    goto com_recycle_usage;
+
   if ((subcmd != "") &&
       (subcmd != "config") &&
       (subcmd != "ls") &&

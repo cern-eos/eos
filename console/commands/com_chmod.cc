@@ -46,6 +46,10 @@ com_chmod (char* arg1)
   }
 
   XrdOucString path = subtokenizer.GetToken();
+
+  if (wants_help(arg1))
+    goto com_chmod_usage;
+
   if (!path.length() || !mode.length())
     goto com_chmod_usage;
 

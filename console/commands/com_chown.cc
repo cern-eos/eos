@@ -35,6 +35,7 @@ com_chown (char* arg1)
   XrdOucString option = "";
   XrdOucString in = "mgm.cmd=chown";
   XrdOucString arg = "";
+  
 
   if (owner.beginswith("-"))
   {
@@ -46,6 +47,9 @@ com_chown (char* arg1)
   }
 
   XrdOucString path = subtokenizer.GetToken();
+
+  if (wants_help(arg1))
+    goto com_chown_usage;
 
   if (!path.length() || !owner.length())
     goto com_chown_usage;

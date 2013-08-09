@@ -55,8 +55,11 @@ com_transfer (char* argin)
   XrdOucString arg2 = "";
   bool sync = false;
 
+  if (wants_help(argin))
+    goto com_transfer_usage;
+
   if ((subcmd != "submit") && (subcmd != "cancel") && (subcmd != "ls") && (subcmd != "enable") && (subcmd != "disable") && (subcmd != "reset") && (subcmd != "clear") && (subcmd != "log") && (subcmd != "resubmit") && (subcmd != "kill") && (subcmd != "purge"))
-    goto com_usage_transfer;
+    goto com_transfer_usage;
 
   in += subcmd;
 
@@ -124,7 +127,7 @@ com_transfer (char* argin)
                     {
                       if (option.beginswith("-"))
                       {
-                        goto com_usage_transfer;
+                        goto com_transfer_usage;
                       }
                       else
                       {
@@ -154,7 +157,7 @@ com_transfer (char* argin)
         (!arg2.beginswith("https://")) &&
         (!arg2.beginswith("/eos/")))
     {
-      goto com_usage_transfer;
+      goto com_transfer_usage;
     }
 
     if ((!arg1.beginswith("/eos/")) &&
@@ -164,7 +167,7 @@ com_transfer (char* argin)
         (!arg1.beginswith("https://")) &&
         (!arg1.beginswith("root://")))
     {
-      goto com_usage_transfer;
+      goto com_transfer_usage;
     }
 
     bool noprogress = false;
@@ -187,7 +190,7 @@ com_transfer (char* argin)
 
     if (foption.length())
     {
-      goto com_usage_transfer;
+      goto com_transfer_usage;
     }
 
     in += "&mgm.txsrc=";
@@ -370,7 +373,7 @@ com_transfer (char* argin)
   {
     if (arg2.length())
     {
-      goto com_usage_transfer;
+      goto com_transfer_usage;
     }
 
     in += "&mgm.txoption=";
@@ -395,7 +398,7 @@ com_transfer (char* argin)
     xid = arg1;
     if ((subcmd != "purge") && ((subcmd != "reset")) && (!xid.length() && (!group.length())))
     {
-      goto com_usage_transfer;
+      goto com_transfer_usage;
     }
     if (!xid.length())
     {
@@ -412,7 +415,7 @@ com_transfer (char* argin)
     return (0);
   }
 
-com_usage_transfer:
+ com_transfer_usage:
   fprintf(stdout, "Usage: transfer submit|cancel|ls|enable|disable|reset|clear|resubmit|log ..");
   fprintf(stdout, "'[eos] transfer ..' provides the transfer interface of EOS.\n");
   fprintf(stdout, "Options:\n");

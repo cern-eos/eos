@@ -35,6 +35,9 @@ com_config (char* arg1)
   XrdOucString subcommand = subtokenizer.GetToken();
   XrdOucString arg = subtokenizer.GetToken();
 
+  if (wants_help(arg1))
+    goto com_config_usage;
+
   if (subcommand == "dump")
   {
     XrdOucString in = "mgm.cmd=config&mgm.subcmd=dump";

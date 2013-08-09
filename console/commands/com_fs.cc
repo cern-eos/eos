@@ -44,6 +44,9 @@ com_fs (char* arg1)
   XrdOucString subcommand = subtokenizer.GetToken();
   bool temp_silent = false;
 
+  if (wants_help(arg1))
+    goto com_fs_usage;
+
   if (subcommand == "add")
   {
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=add";

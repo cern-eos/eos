@@ -43,6 +43,10 @@ com_group (char* arg1)
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
+
+  if (wants_help(arg1))
+    goto com_group_usage;
+
   if (subcommand == "ls")
   {
     in = "mgm.cmd=group&mgm.subcmd=ls";

@@ -35,6 +35,9 @@ com_rmdir (char* arg1)
   XrdOucString path = subtokenizer.GetToken();
   XrdOucString in = "mgm.cmd=rmdir&";
 
+  if (wants_help(arg1))
+    goto com_rmdir_usage;
+
   if ((path == "--help") || (path == "-h"))
   {
     goto com_rmdir_usage;

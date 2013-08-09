@@ -37,6 +37,9 @@ com_map (char* arg1)
   XrdOucString in = "mgm.cmd=map";
   XrdOucString arg = "";
 
+  if (wants_help(arg1))
+    goto com_map_usage;
+
   if (subcommand.beginswith("-"))
   {
     option = subcommand;

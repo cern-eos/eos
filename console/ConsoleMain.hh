@@ -119,3 +119,4 @@ extern int wants_help (const char* arg1);
 extern COMMAND commands[];
 
 extern int done;
+

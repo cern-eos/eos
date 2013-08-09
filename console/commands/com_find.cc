@@ -50,6 +50,9 @@ com_find (char* arg1)
 
   bool valid = false;
 
+  if ( wants_help(arg1))
+    goto com_find_usage;
+
   while ((s1 = subtokenizer.GetToken()).length() && (s1.beginswith("-")))
   {
     if (s1 == "-s")

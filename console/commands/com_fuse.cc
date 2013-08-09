@@ -54,6 +54,9 @@ com_fuse (char* arg1)
   XrdOucString params = "kernel_cache,attr_timeout=30,entry_timeout=30,max_readahead=131072,max_write=4194304,fsname=";
   params += fsname;
 
+  if (wants_help(arg1))
+    goto com_fuse_usage;
+
   if ((cmd != "mount") && (cmd != "umount"))
     goto com_fuse_usage;
 

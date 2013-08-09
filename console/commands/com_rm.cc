@@ -40,6 +40,9 @@ com_rm (char* arg1)
   eos::common::Path* cPath = 0;
   XrdOucString in = "mgm.cmd=rm&";
 
+  if (wants_help(arg1))
+    goto com_rm_usage;
+
   if ((s1 == "--help") || (s1 == "-h"))
   {
     goto com_rm_usage;

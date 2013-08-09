@@ -33,6 +33,10 @@ com_role (char *arg)
   subtokenizer.GetLine();
   user_role = subtokenizer.GetToken();
   group_role = subtokenizer.GetToken();
+
+  if (wants_help(arg))
+    goto com_role_usage;
+
   if (!silent)
     fprintf(stdout, "=> selected user role ruid=<%s> and group role rgid=<%s>\n", user_role.c_str(), group_role.c_str());
 

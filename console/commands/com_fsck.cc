@@ -38,6 +38,9 @@ com_fsck (char* arg1)
   XrdOucString in = "";
   XrdOucString selection = "";
 
+  if (wants_help(arg1))
+    goto com_fsck_usage;
+
   if ((cmd != "stat") && (cmd != "enable") && (cmd != "disable") && (cmd != "report") && (cmd != "repair"))
   {
     goto com_fsck_usage;

@@ -43,6 +43,10 @@ com_space (char* arg1)
   XrdOucTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
+
+  if (wants_help(arg1))
+    goto com_space_usage;
+
   if (subcommand == "ls")
   {
     in = "mgm.cmd=space&mgm.subcmd=ls";

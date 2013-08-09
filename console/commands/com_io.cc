@@ -38,6 +38,9 @@ com_io (char* arg1)
   XrdOucString in = "";
   XrdOucString target = "";
 
+  if (wants_help(arg1))
+    goto com_io_usage;
+
   if ((cmd != "stat") && (cmd != "enable") && (cmd != "disable") && (cmd != "report") && (cmd != "ns"))
   {
     goto com_io_usage;

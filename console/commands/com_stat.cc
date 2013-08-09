@@ -38,6 +38,9 @@ com_stat (char* arg1)
   XrdOucString sizestring;
   struct stat buf;
   XrdOucString url = serveruri.c_str();
+ 
+  if (wants_help(arg1))
+    goto com_stat_usage;
 
   do
   {
