@@ -218,7 +218,8 @@ public:
   static int gPriorityLevel; //< log priority
   static XrdSysMutex gMutex; //< global mutex
   static XrdOucString gUnit; //< global unit name
-  static XrdOucString gFilter; //< global log filter to apply
+  static XrdOucHash<const char*> gAllowFilter; ///< global list of function names allowed to log
+  static XrdOucHash<const char*> gDenyFilter;  ///< global list of function names denied to log
   static int gShortFormat; //< indiciating if the log-output is in short format
   static std::map<std::string, FILE*> gLogFanOut; //< here one can define log fan-out to different file descriptors than stderr
 
@@ -250,7 +251,36 @@ public:
   static void
   SetFilter (const char* filter)
   {
-    gFilter = filter;
+    int pos = 0;
+    char del = ',';
+    XrdOucString token;
+    XrdOucString pass_tag = "PASS:";
+    XrdOucString sfilter = filter;
+
+    // Clear both maps 
+    gDenyFilter.Purge();
+    gAllowFilter.Purge();
+    
+    if ((pos = sfilter.find(pass_tag)) != STR_NPOS)
+    {
+      // Extract the function names which are allowed to log       
+      pos += pass_tag.length();
+      
+      while ((pos = sfilter.tokenize(token, pos , del)) != -1)
+      {
+        gAllowFilter.Add(token.c_str(), NULL, 0, Hash_data_is_key);
+      }
+    }
+    else
+    {
+      // Extract the function names which are denied to log
+      pos = 0;
+      
+      while ((pos = sfilter.tokenize(token, pos , del)) != -1)
+      {
+        gDenyFilter.Add(token.c_str(), NULL, 0, Hash_data_is_key);
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------

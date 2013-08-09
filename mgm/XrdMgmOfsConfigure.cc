@@ -1131,9 +1131,12 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   eos::common::Logging::SetLogPriority(LOG_INFO);
   eos::common::Logging::SetUnit(unit.c_str());
-
-  eos::common::Logging::gFilter = "Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash";
-  Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash");
+  std::string filter = "Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,"
+                       "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash";
+  eos::common::Logging::SetFilter(filter.c_str());
+  Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,"
+             "UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,"
+             "RegisterNode,SharedHash");
 
   // we automatically append the host name to the config dir now !!!
   MgmConfigDir += HostName;

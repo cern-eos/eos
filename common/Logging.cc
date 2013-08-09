@@ -42,7 +42,8 @@ Logging::LogCircularIndex Logging::gLogCircularIndex;
 unsigned long Logging::gCircularIndexSize;
 XrdSysMutex Logging::gMutex;
 XrdOucString Logging::gUnit = "none";
-XrdOucString Logging::gFilter = "";
+XrdOucHash<const char*> Logging::gAllowFilter;
+XrdOucHash<const char*> Logging::gDenyFilter;
 std::map<std::string, FILE*> Logging::gLogFanOut;
 
 Mapping::VirtualIdentity Logging::gZeroVid;
@@ -68,9 +69,13 @@ Logging::shouldlog (const char* func, int priority)
   // apply filter to avoid message flooding for debug messages
   if (priority >= LOG_INFO)
   {
-    if ((gFilter.find(func)) != STR_NPOS)
+    if (gDenyFilter.Num())
     {
-      return false;
+      // this is a normal filter by function name
+      if (gDenyFilter.Find(func))
+      {
+        return false;
+      }
     }
   }
   return true;
@@ -105,18 +110,18 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
   // apply filter to avoid message flooding for debug messages
   if (priority >= LOG_INFO)
   {
-    if ((gFilter.find("PASS:")) != STR_NPOS)
+    if (gAllowFilter.Num())
     {
       // if this is a pass-through filter e.g. we want to see exactly this messages
-      if ((gFilter.find(func)) == STR_NPOS)
+      if (!gAllowFilter.Find(func))
       {
         return "";
       }
     }
-    else
+    else if (gDenyFilter.Num())
     {
       // this is a normal filter by function name
-      if ((gFilter.find(func)) != STR_NPOS)
+      if (gDenyFilter.Find(func))
       {
         return "";
       }
