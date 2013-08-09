@@ -112,6 +112,7 @@ public:
   enum eBlockSize
   {
     k4k = 0x0,
+    k64k = 0x1,
     k128k = 0x2,
     k512k = 0x3,
     k1M = 0x4,
@@ -191,6 +192,7 @@ public:
   {
 
     if (blocksize == k4k) return ( 4 * 1024);
+    if (blocksize == k64k) return ( 64 * 1024);
     if (blocksize == k128k) return ( 128 * 1024);
     if (blocksize == k512k) return ( 512 * 1024);
     if (blocksize == k1M) return ( 1024 * 1024);
@@ -211,6 +213,7 @@ public:
   {
 
     if (blocksize == (4 * 1024)) return k4k;
+    if (blocksize == (64 * 1024)) return k64k;
     if (blocksize == (128 * 1024)) return k128k;
     if (blocksize == (512 * 1024)) return k512k;
     if (blocksize == (1024 * 1024)) return k1M;
@@ -492,6 +495,7 @@ public:
   GetBlockSizeString (unsigned long layout)
   {
     if (GetBlocksizeType(layout) == k4k) return "4k";
+    if (GetBlocksizeType(layout) == k64k) return "64k";
     if (GetBlocksizeType(layout) == k128k) return "128k";
     if (GetBlocksizeType(layout) == k512k) return "512k";
     if (GetBlocksizeType(layout) == k1M) return "1M";
@@ -608,6 +612,7 @@ public:
       XrdOucString bs = val;
 
       if (bs == "4k") return k4k;
+      if (bs == "64k") return k64k;
       if (bs == "128k") return k128k;
       if (bs == "512k") return k512k;
       if (bs == "1M") return k1M;
