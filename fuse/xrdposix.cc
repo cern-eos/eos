@@ -38,10 +38,10 @@
 /*----------------------------------------------------------------------------*/
 #include "xrdposix.hh"
 #include "FuseCacheEntry.hh"
-#include "../fst/layout/LayoutPlugin.hh"
-#include "../fst/layout/PlainLayout.hh"
-#include "../fst/layout/RaidDpLayout.hh"
-#include "../fst/layout/ReedSLayout.hh"
+#include "fst/layout/LayoutPlugin.hh"
+#include "fst/layout/PlainLayout.hh"
+#include "fst/layout/RaidDpLayout.hh"
+#include "fst/layout/ReedSLayout.hh"
 /*----------------------------------------------------------------------------*/
 #include <climits>
 #include <stdint.h>
