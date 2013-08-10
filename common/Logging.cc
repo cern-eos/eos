@@ -167,10 +167,11 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
     truncname.erase(0, truncname.length() - 16);
   }
 
+  char sourceline[64];
+
   if (gShortFormat)
   {
     tm = localtime(&current_time);
-    char sourceline[64];
     snprintf(sourceline, sizeof (sourceline) - 1, "%s:%s", File.c_str(), linen);
     sprintf(buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-12s level=%s tid=%016lx source=%-30s ", tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func, GetPriorityString(priority), (unsigned long) XrdSysThread::ID(), sourceline);
   }
@@ -179,7 +180,6 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
     sprintf(fcident, "tident=%s sec=%4s uid=%d gid=%d name=%s geo=\"%s\"", cident, vid.prot.c_str(), vid.uid, vid.gid, truncname.c_str(), vid.geolocation.c_str());
     tm = localtime(&current_time);
     tident_len = strlen(fcident);
-    char sourceline[64];
     snprintf(sourceline, sizeof (sourceline) - 1, "%s:%s", File.c_str(), linen);
     sprintf(buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-24s level=%s logid=%s unit=%s tid=%016lx source=%-30s %s ", tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func, GetPriorityString(priority), logid, gUnit.c_str(), (unsigned long) XrdSysThread::ID(), sourceline, fcident);
   }
@@ -200,62 +200,37 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
     if (gLogFanOut.count(File.c_str()))
     {
       buffer[15] = 0;
-      buffer[38] = 0;
-      buffer[67] = 0;
-      buffer[80] = 0;
-      buffer[177] = 0;
-      buffer[177 + 38] = 0;
-      buffer[177 + 38 + tident_len] = 0;
 
-      fprintf(gLogFanOut[File.c_str()], "%s %s%s%s %s %s \n", 
+      fprintf(gLogFanOut[File.c_str()], "%s %s%s%s %-30s %s \n", 
               buffer, 
-              GetLogColour(buffer + 75), 
-              buffer + 75, 
+              GetLogColour(GetPriorityString(priority)), 
+              GetPriorityString(priority), 
               EOS_TEXTNORMAL, 
-              buffer + 178 + 7, 
-              buffer + 178 + 38 + tident_len);
+	      sourceline,
+	      ptr);
+
       fflush(gLogFanOut[File.c_str()]);
       buffer[15] = ' ';
-      buffer[38] = ' ';
-      buffer[67] = ' ';
-      buffer[74] = ' ';
-      buffer[80] = ' ';
-      buffer[177] = ' ';
-      buffer[177 + 38] = ' ';
-      buffer[177 + 38 + tident_len] = ' ';
     }
     else
     {
       if (gLogFanOut.count("#"))
       {
-        buffer[15] = 0;
-        buffer[38] = 0;
-        buffer[68] = 0;
-        buffer[80] = 0;
-        buffer[177] = 0;
-        buffer[177 + 38] = 0;
-        buffer[177 + 38 + tident_len] = 0;
+	buffer[15] = 0;
 
-        fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %s %s \n",
+        fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %16s %s \n",
                 buffer,
-                GetLogColour(buffer + 75),
-                buffer + 75,
+		GetLogColour(GetPriorityString(priority)),
+		GetPriorityString(priority),
                 EOS_TEXTNORMAL,
                 vid.uid,
                 vid.gid,
-                buffer + 178 + 7,
-                buffer + 178 + 38 + tident_len
+		truncname.c_str(),
+		ptr
                 );
 
         fflush(gLogFanOut["#"]);
         buffer[15] = ' ';
-        buffer[38] = ' ';
-        buffer[68] = ' ';
-        buffer[74] = ' ';
-        buffer[80] = ' ';
-        buffer[177] = ' ';
-        buffer[177 + 38] = ' ';
-        buffer[177 + 38 + tident_len] = ' ';
       }
     }
     fprintf(stderr, "%s\n", buffer);
