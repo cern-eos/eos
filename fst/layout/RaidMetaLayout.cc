@@ -988,8 +988,15 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
      stripe_id = (offset / mStripeWidth) % mNbDataFiles;
      physical_id = mapLP[stripe_id];
      nwrite = (length < mStripeWidth) ? length : mStripeWidth;
-     offset_local = ((offset / mSizeLine) * mStripeWidth) +
-       (offset % mStripeWidth);
+
+     // Deal with the case when offset is not aligned (sparse writing) and the
+     // length goes beyond the current stripe that we are writing to
+     if ((offset / mStripeWidth) != ((offset + nwrite) / mStripeWidth))
+     {
+       nwrite = mStripeWidth - (offset % mStripeWidth);
+     }
+     
+     offset_local = ((offset / mSizeLine) * mStripeWidth) + (offset % mStripeWidth);
      offset_local += mSizeHeader;
      COMMONTIMING("write remote", &wt);
 

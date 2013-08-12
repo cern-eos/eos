@@ -95,7 +95,7 @@ LocalIo::Read (XrdSfsFileOffset offset,
                    XrdSfsXferSize length,
                    uint16_t timeout)
 {
-  eos_debug("offset = %lli, length = %lli",
+  eos_debug("offset = %lld, length = %lld",
             static_cast<int64_t> (offset),
             static_cast<int64_t> (length));
   return mLogicalFile->readofs(offset, buffer, length);
@@ -108,11 +108,11 @@ LocalIo::Read (XrdSfsFileOffset offset,
 
 int64_t
 LocalIo::Write (XrdSfsFileOffset offset,
-                    const char* buffer,
-                    XrdSfsXferSize length,
-                    uint16_t timeout)
+                const char* buffer,
+                XrdSfsXferSize length,
+                uint16_t timeout)
 {
-  eos_debug("offset = %lli, length = %lli",
+  eos_debug("offset = %lld, length = %lld",
             static_cast<int64_t> (offset),
             static_cast<int64_t> (length));
   return mLogicalFile->writeofs(offset, buffer, length);
