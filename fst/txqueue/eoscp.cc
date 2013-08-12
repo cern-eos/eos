@@ -193,7 +193,7 @@ usage ()
   fprintf(stderr, "       -L <linkname>: create a symbolic link to the 1st target file with name <linkname>\n");
   fprintf(stderr, "       -R           : replication mode - avoid dir creation and stat's\n");
   fprintf(stderr, "       -X           : checksum type: adler, crc32, crc32c, sha1, md5\n");
-  fprintf(stderr, "       -e           : RAID layouts - error correction layout: raidDP/reedS\n");
+  fprintf(stderr, "       -e           : RAID layouts - error correction layout: raiddp/reeds\n");
   fprintf(stderr, "       -P           : RAID layouts - number of parity stripes\n");
   fprintf(stderr, "       -f           : RAID layouts - store the modifications in case of errors\n");
   fprintf(stderr, "       -c           : RAID layouts - force check and recover any corruptions in any stripe\n");
@@ -556,7 +556,7 @@ main (int argc, char* argv[])
     case 'e':
       replicationType = optarg;
 
-      if ((replicationType != "raidDP") && (replicationType != "reedS"))
+      if ((replicationType != "raiddp") && (replicationType != "reeds"))
       {
         fprintf(stderr, "error: no such RAID layout\n");
         exit(-1);
@@ -989,7 +989,7 @@ main (int argc, char* argv[])
                 isRaidTransfer = true;
                 isSrcRaid = true;
                 src_location.clear();
-                replicationType = "raidDP";
+                replicationType = "raiddp";
               }
               else
                 if ((eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kArchive) ||
@@ -999,7 +999,7 @@ main (int argc, char* argv[])
                 isRaidTransfer = true;
                 isSrcRaid = true;
                 src_location.clear();
-                replicationType = "reedS";
+                replicationType = "reeds";
               }
               else
               {
@@ -1587,7 +1587,7 @@ main (int argc, char* argv[])
 
         LayoutId::layoutid_t layout = 0;
 
-        if (replicationType == "raidDP")
+        if (replicationType == "raiddp")
         {
           layout = LayoutId::GetId(LayoutId::kRaidDP,
                                    1, nsrc,
@@ -1599,7 +1599,7 @@ main (int argc, char* argv[])
                                                      eos::common::LayoutId::kXrdCl,
                                                      0, doStoreRecovery);
         }
-        else if (replicationType == "reedS")
+        else if (replicationType == "reeds")
         {
           layout = LayoutId::GetId(LayoutId::kRaid6,
                                    1, nsrc,
@@ -1775,7 +1775,7 @@ main (int argc, char* argv[])
 
         LayoutId::layoutid_t layout = 0;
 
-        if (replicationType == "raidDP")
+        if (replicationType == "raiddp")
         {
           layout = LayoutId::GetId(LayoutId::kRaidDP,
                                    1, ndst,
@@ -1787,7 +1787,7 @@ main (int argc, char* argv[])
                                                      eos::common::LayoutId::kXrdCl,
                                                      0, doStoreRecovery, isStreamFile);
         }
-        else if (replicationType == "reedS")
+        else if (replicationType == "reeds")
         {
           layout = LayoutId::GetId(LayoutId::kRaid6,
                                    1, ndst,
