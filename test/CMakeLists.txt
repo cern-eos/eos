@@ -24,13 +24,22 @@
 set (CMAKE_CXX_FLAGS "-Wall -g -O0 -std=gnu++0x -DHAVE_ATOMICS=1 ")
 #-------------------------------------------------------------------------------
 
-include_directories( ../ ${XROOTD_INCLUDE_DIR} ${SPARSEHASH_INCLUDE_DIR} ../common/ulib/ )
-link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} ${XROOTD_LIB_DIR})
+include_directories( ./
+		     ../ 
+		     ${XROOTD_INCLUDE_DIR} 
+		     ${XROOTD_PRIVATE_INCLUDE_DIR}
+		     ${SPARSEHASH_INCLUDE_DIR} 
+		     ../common/ulib/ 
+)
+
+link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} 
+		  ${XROOTD_LIB_DIR}
+)
 
 add_subdirectory(benchmark)
 
 add_executable (xrdstress.exe
- 	        XrdStress.cc            XrdStress.hh
+	        XrdStress.cc            XrdStress.hh
 )
 
 add_executable (xrdcpabort
@@ -101,6 +110,9 @@ add_executable (eoshashbench
 	        EosHashBenchmark.cc
 )
 
+add_executable( eos-io-test
+                eos_io_test.cc
+)
 
 add_executable (testhmacsha256
 	        TestHmacSha256.cc
@@ -120,6 +132,7 @@ target_link_libraries(xrdcptruncate XrdPosix XrdUtils)
 target_link_libraries(xrdcpposixcache XrdPosix XrdUtils)
 target_link_libraries(xrdcppartial XrdPosix XrdUtils)
 target_link_libraries(eoschecksumbench XrdPosix eosCommon XrdUtils ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries( eos-io-test XrdCl XrdServer EosFstIo-Static )
 
 target_link_libraries(eos-udp-dumper)
 target_link_libraries(eosnsbench eosCommon-Static eosNamespace-Static)
@@ -145,6 +158,7 @@ set_target_properties ( eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSE
 INSTALL( TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcpappend
 	 xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial
 	 xrdcpposixcache eoschecksumbench eosnsbench eoshashbench eos-udp-dumper eos-mmap
+	 eos-io-test
 	 RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR} )
 
 INSTALL ( FILES xrdstress 
