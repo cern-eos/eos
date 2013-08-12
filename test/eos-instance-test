@@ -71,7 +71,7 @@ export EOSTESTPID=$EOS_TEST_TESTSYS/eos-pid
 export FAILFILE=$EOS_TEST_TESTSYS/eos-failed
 export TIMEOUTFILE=$EOS_TEST_TESTSYS/eos-timeout
 
-export TESTSYSFILE0K=$EOS_TEST_TSETSYS/file.0K
+export TESTSYSFILE0K=$EOS_TEST_TESTSYS/file.0K
 export TESTSYSFILE1K=$EOS_TEST_TESTSYS/file.1K
 export TESTSYSFILE1M=$EOS_TEST_TESTSYS/file.1M
 export TESTSYSFILE50M=$EOS_TEST_TESTSYS/file.50M
@@ -101,19 +101,21 @@ echo "####################################"
 yes | dd of=$TESTSYSFILE50M bs=1k count=50000
 CKS50M=`eos-adler32 $TESTSYSFILE1M | awk '{print $4'} | sed s/adler32=//`
 echo "adler32 (50M) = $CKS50M"
-echo "####################################"
-echo "### Creating RAID Test Pattern Files"
-echo "####################################"
-export TESTRAIDFILE1=$EOS_TEST_TESTSYS/file1.rain
-export TESTRAIDFILE2=$EOS_TEST_TESTSYS/file2.rain
-export TESTRAIDFILE3=$EOS_TEST_TESTSYS/file3.rain
-export TESTRAIDFILE4=$EOS_TEST_TESTSYS/file4.rain
-export TESTRAIDFILE5=$EOS_TEST_TESTSYS/file5.rain
-yes | dd of=$TESTRAIDFILE1 bs=1552 count=1
-yes | dd of=$TESTRAIDFILE2 bs=1M count=4
-yes | dd of=$TESTRAIDFILE3 bs=4608K count=1
-yes | dd of=$TESTRAIDFILE4 bs=18227k count=1
-yes | dd of=$TESTRAIDFILE5 bs=1M count=34
+echo "############################################"
+echo "### Creating RAIN Dir And Test Pattern Files"
+echo "############################################"
+export EOS_TEST_RAIN_DIR=$EOS_TEST_TESTSYS/rain
+mkdir -p $EOS_TEST_TESTSYS/rain
+export TEST_RAIN_FILE1=$EOS_TEST_RAIN_DIR/file1.rain
+export TEST_RAIN_FILE2=$EOS_TEST_RAIN_DIR/file2.rain
+export TEST_RAIN_FILE3=$EOS_TEST_RAIN_DIR/file3.rain
+export TEST_RAIN_FILE4=$EOS_TEST_RAIN_DIR/file4.rain
+export TEST_RAIN_FILE5=$EOS_TEST_RAIN_DIR/file5.rain
+yes | dd of=$TEST_RAIN_FILE1 bs=1552K count=1
+yes | dd of=$TEST_RAIN_FILE2 bs=1M count=4
+yes | dd of=$TEST_RAIN_FILE3 bs=4608K count=1
+yes | dd of=$TEST_RAIN_FILE4 bs=18227K count=1
+yes | dd of=$TEST_RAIN_FILE5 bs=1M count=34
 ################################################################################################################
 
 
@@ -576,18 +578,18 @@ runtest "### Rem       " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instan
 if [ "x${EOS_TEST_NO_STRESS}" = "x" ]; then
 runtest "### Chmod      " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/"
 runtest "### Attr Set   " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test |grep success | wc -l | grep -w 6"
-runtest "### Stress Wpc " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 100 -s 1KB -n stress -j 10 -c -p"
-runtest "### Stress Wc  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 100 -s 1KB -n stress -j 10 -c "
-runtest "### Find       " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=200"
-runtest "### Stress Rc  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -j 10 -c"
-runtest "### Stress Rpc " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -j 10 -c -p"
+runtest "### Stress Wpp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 -c -p"
+runtest "### Stress Wp  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 -c "
+runtest "### Find       " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=100"
+runtest "### Stress Rp  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c"
+runtest "### Stress Rpp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c -p"
 runtest "### Cleanup    " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress/*"
 # NOTE: The same thing but not concurrently, not so interesting ...
-#runtest "### Stress Wp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 100 -s 1KB -n stress -j 10 -p"
-#runtest "### Stress W  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 100 -s 1KB -n stress -j 10 "
-#runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=2000"
-#runtest "### Stress R  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -j 10 "
-#runtest "### Stress Rp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 100 -s 1KB -n stress -j 10 -p"
+#runtest "### Stress Wp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 -p"
+#runtest "### Stress W  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 "
+#runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=1000"
+#runtest "### Stress R  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 "
+#runtest "### Stress Rp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -p"
 fi
 ################################################################################################################
 # ATTRIBUTES
@@ -611,8 +613,8 @@ runtest "### Ls        " unix 0 "" eos ls "/eos/$EOS_TEST_INSTANCE/test | grep [
 runtest "### Ls        " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 2"
 runtest "### Ls        " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 4"
 runtest "### Find      " unix 0 "" eos "find 2>&1 | grep error"
-runtest "### Find      " unix 0 "" eos find -f "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l |grep -w 200"
-runtest "### Find      " unix 0 "" eos find --count "/eos/$EOS_TEST_INSTANCE/test | grep 200"
+runtest "### Find      " unix 0 "" eos find -f "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l |grep -w 100"
+runtest "### Find      " unix 0 "" eos find --count "/eos/$EOS_TEST_INSTANCE/test | grep 100"
 runtest "### Find      " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l | grep -w 3"
 fi
 runtest "### Chmod     " unix 0 "" eos chmod 700 /eos/$EOS_TEST_INSTANCE/test/instancetest/
@@ -710,32 +712,12 @@ fi
 ################################################################################
 # Third party copy tests
 ################################################################################
-runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/
-runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/"
+runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc"
 runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" 
 runtest "### TPC 1     " unix 0 "" tpc1 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.2"
 runtest "### TPC 2     " unix 0 "" tpc2 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.3"
 runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/tpc
-
-################################################################################
-# RAID-LIKE LAYOUT TESTS FOR WR/RD AND RECOVERY
-################################################################################
-runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir
-runtest "### Chmod     " unix 0 "" eos chmod 777 /eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=crc32c /eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir	
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.blockchecksum=crc32c /eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir	
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.blocksize=1M /eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir	
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=raiddp /eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir	
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=6 /eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir	
-runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir
-runtest "### Chmod     " unix 0 "" eos chmod 777 /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=crc32c /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir	
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.blockchecksum=crc32c /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir	
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.blocksize=1M /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir	
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=raid6 /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir	
-runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=6 /eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir	
-#runtest "### RaidDpTest" unix 0 "" eos-rain-test raiddp $EOS_TEST_TESTSYS root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp.dir $EOS_TEST_TESTSYS
-#runtest "### ReedSTest " unix 0 "" eos-rain-test reeds $EOS_TEST_TESTSYS root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/reeds.dir $EOS_TEST_TESTSYS
 
 ################################################################################
 # HTTP tests
@@ -821,12 +803,62 @@ export S3_HOSTNAME=$EOS_TEST_REDIRECTOR
 runtest "### Attr         " unix 0 "" eos attr set sys.s3.bucket.test="test" /eos/$EOS_TEST_INSTANCE/proc
 runtest "### Attr         " unix 0 "" eos attr set sys.s3.id.test="0123456789" /eos/$EOS_TEST_INSTANCE/proc 
 runtest "### Attr         " unix 0 "" eos attr set sys.s3.path.test="/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir" /eos/$EOS_TEST_INSTANCE/proc 
+=======
+#######################################################################################
+# RAIN-LIKE LAYOUT TESTS FOR WR/RD AND RECOVERY - RUN ONLY IF AT LEAST 6 FSTs PRESENT
+######################################################################################
+NUM_FST=$($XROOTSYS/bin/eos -b $EOSROLE fs ls | awk '{ if (($6 ~ /booted/) || ($7 ~ /booted/)) c++} END {print c}')
+if [ $NUM_FST -ge 6 ]; then
+   #----------------------------------------------------------------------------   
+   # Create temporary RAIN test file outside EOS
+   #----------------------------------------------------------------------------
+   export EOS_TEST_RAIN_TMP=/tmp/rain_test
+   mkdir -p $EOS_TEST_RAIN_TMP
+
+   #----------------------------------------------------------------------------
+   # Create the RAIDDP directory and set the proper attributes
+   #----------------------------------------------------------------------------
+   runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"
+   runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=crc32c "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"	
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.blockchecksum=crc32c "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"	
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.blocksize=1M "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"	
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=raiddp "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"	
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"	
+
+   #----------------------------------------------------------------------------
+   # Create the RAID6 directory and set the proper attributes
+   #----------------------------------------------------------------------------
+   runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"
+   runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=crc32c "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"	
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.blockchecksum=crc32c "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"	
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.blocksize=1M "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"	
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=raid6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"	
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"	
+
+   runtest "### RaidDpTest " unix 0 "" eos-rain-test raiddp $EOS_TEST_RAIN_DIR root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp $EOS_TEST_RAIN_TMP
+   echo "Sleeping 2 sec ..."
+   sleep 2
+   runtest "### Raid6Test  " unix 0 "" eos-rain-test raid6 $EOS_TEST_RAIN_DIR root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/raid6 $EOS_TEST_RAIN_TMP
+   
+   #----------------------------------------------------------------------------
+   # Clean up the files used for the RAIN test
+   #----------------------------------------------------------------------------
+   runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/raiddp"
+   runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/raid6"
+   rm -rf $EOS_TEST_RAIN_TMP
+else 
+  echo "Can not run RAIN test - not enough FSTs"
+fi
+
 
 ################################################################################################################
 # FINAL CLEANUP 
 ################################################################################################################
 runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress"
 runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
+runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/rain"
 ################################################################################################################
 # show test summary
 testout

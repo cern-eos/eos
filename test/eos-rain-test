@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------
-#! @file eos-rain-test
-#! @author Elvin-Alin Sindrilaru - CERN
+# File: eos-rain-test
+# Author: Elvin-Alin Sindrilaru - CERN
 #------------------------------------------------------------------------------
 
 #/************************************************************************
@@ -52,6 +52,7 @@ export ERR_MSG1="The provided directory does not have the extended attributes se
 
 # Set the path to the xrdcp and eos commands
 XRDCP=$(which xrdcp)
+XRDCP="$XRDCP --nopbar"
 EOS=$(which eos)
 LOGNAME=$(logname)
 
@@ -86,9 +87,7 @@ function write_and_read()
     rm -rf $TMP_LOCATION/$FNAME.tmp
     
     test "$XSINIT" = "$XSCOPY" 
-    if [[ $? -eq 0 ]]; then
-	echo_success
-    else
+    if [[ $? -ne 0 ]]; then
 	echo_failure
 	exit 1
     fi 
@@ -104,7 +103,7 @@ function read_and_check()
     local EOS_SRC=$2
     local FNAME=$3
 
-    echo "Read and check test, with file: $FNAME"
+    #echo "Read and check test, with file: $FNAME"
    
     # read it back in a tmp folder
     $XRDCP $EOS_SRC/$FNAME $TMP_LOCATION/$FNAME.tmp -f
@@ -117,9 +116,7 @@ function read_and_check()
     rm -rf $TMP_LOCATION/$FNAME.tmp
     
     test "$XSINIT" = "$XSCOPY" 
-    if [[ $? -eq 0 ]]; then
-	echo_success
-    else
+    if [[ $? -ne 0 ]]; then
 	echo_failure
 	exit 1
     fi 
@@ -145,7 +142,7 @@ function get_file_fs()
 
 if [[ $# -eq 0 && $# -gt 5 ]]; 
 then 
-    echo usage: $0 raiddp/raid6/archive/plain dir_test_files root://host//eos_raid_dir tmp_location_dir
+    echo "Usage: $0 raiddp/raid6/archive/plain dir_test_files root://host//eos_rain_dir tmp_dir"
     exit
 fi
 
@@ -198,7 +195,7 @@ then
     fi
 
 else 
-    echo usage: $0 raiddp/raid6/archive/plain dir_test_files eos_raid_dir tmp_location_dir
+    echo "Usage: $0 raiddp/raid6/archive/plain dir_test_files eos_rain_dir tmp_dir"
     exit 1
 fi
 
@@ -217,7 +214,7 @@ fi
 #...............................................................................
 # Do all write-read-check tests in: $EOS_DEST ...
 #...............................................................................
-echo "Do all write-read-check tests in: $EOS_DEST ..."
+echo "Do all write-read-check tests in: $EOS_DEST"
 
 # loop over all files in the pattern and test them in EOS
 for file in $ROOT_PATH/*.rain; do
@@ -236,13 +233,14 @@ echo "Disable one FST and redo the read test..."
 
 # loop over all files in the pattern and test them in EOS
 for file in $ROOT_PATH/*.rain; do
-    file=$(basename $file)
     if [[ -f $file ]]; then 
-	# get the fs on which this files resides
+        file=$(basename $file)
+    	# get the fs on which this files resides
 	get_file_fs "$EOS_DIR/$file"
+	echo "Process file $file ..."
 
 	for fst in "${VECT_FS[@]}"; do
-	    echo "Disable FST $fst and redo read test..." 
+	    #echo "Disable FST $fst and redo read test..." 
 	    
             # disable one FST in EOS and test read
 	    $SUDO $EOS -b fs config $fst configstatus=off
@@ -265,13 +263,14 @@ echo "Disable each two FST's and redo the read tests..."
 for file in $ROOT_PATH/*.rain; do
     if [[ -f $file ]]; then
 	file=$(basename $file)
-	# get the fs on which this files resides
+	# get the filesystems on which this files resides
 	get_file_fs "$EOS_DIR/$file"
+	echo "Process file $file ..."
 	
 	for fst1 in "${VECT_FS[@]}"; do
 	    for fst2 in "${VECT_FS[@]}"; do
 		if [ "$fst1" -ne "$fst2" ]; then
-		    echo "Disable FST $fst1 and $fst2 and redo read test..." 
+		    #echo "Disable FST $fst1 and $fst2 and redo read test..." 
 		    
                     # disable one FST in EOS and test read
 		    $SUDO $EOS -b fs config $fst1 configstatus=off
@@ -288,4 +287,5 @@ for file in $ROOT_PATH/*.rain; do
     fi
 done
 
+echo_success
 exit 0

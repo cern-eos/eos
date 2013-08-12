@@ -142,15 +142,15 @@ set_target_properties ( eosnsbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS
 set_target_properties ( eoshashbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -msse4.2" )
 
-INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR} FILES 
-		  xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcpappend
-		  xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial
-		  xrdcpposixcache eoschecksumbench eosnsbench eoshashbench eos-udp-dumper eos-mmap)
+INSTALL( TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcpappend
+	 xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial
+	 xrdcpposixcache eoschecksumbench eosnsbench eoshashbench eos-udp-dumper eos-mmap
+	 RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR} )
 
 INSTALL ( FILES xrdstress 
-	DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
-	PERMISSIONS OWNER_EXECUTE GROUP_EXECUTE WORLD_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
+	  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
+	  PERMISSIONS OWNER_EXECUTE GROUP_EXECUTE WORLD_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
 
 INSTALL ( FILES eos-instance-test eos-rain-test eoscp-rain-test
-	DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
-	PERMISSIONS OWNER_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
+	  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
+	  PERMISSIONS OWNER_EXECUTE OWNER_READ GROUP_READ WORLD_READ)
