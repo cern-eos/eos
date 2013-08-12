@@ -1,11 +1,11 @@
 #------------------------------------------------------------------------------
-#! @file eoscp-rain-test
-#! @author Elvin-Alin Sindrilaru - CERN
+# File eoscp-rain-test
+# Futhor Elvin-Alin Sindrilaru - CERN 2013
 #------------------------------------------------------------------------------
 
 #/************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2011 CERN/Switzerland                                  *
+# * Copyright (C) 2013 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -22,26 +22,25 @@
 # ************************************************************************/
 
 #------------------------------------------------------------------------------
-# Description: The script is used to test the RAIN-like layout using the eoscp
-#              command.
+# Description: Script used to test the RAIN-like layout using the eoscp command
 # Usage:
-# eoscp-rain-test raidDP/reedS root://host//eos_file root://host//eos_plain_dir
+# eoscp-rain-test raiddp/reeds root://host//eos_plain_dir/test_file 
 # - first argument is the type of RAIN layout to be used
-# - second argument is a file in eos which will be transformed from its current
-#   layout to a RAIN file 
-# - third argument will be a directory in EOS which as a **PLAIN** layout with
-#   block level checksum enabled where the stripes will be saved 
+# - second argument will be a directory in EOS which has a **PLAIN** layout with
+#   block level checksum enabled where the stripes of the RAIN representation
+#   will be saved. It also contains the initial test files and the reconstructed
+#   version of the initial file.
 #
 # The script does the following:
-#  - transform the file to a RAIN layout
-#  - reconstruct the inital file from the stripes and check using sum to see 
-#    if the inital file and the reconstructed on match
+#  - transforms the file into a RAIN layout
+#  - reconstructs the inital file from the stripes and checks using sum to see 
+#    if the inital file and the reconstructed one match
 #  - disable one by one each of the stripes i.e. use an empty dummy.rain file 
 #    and reconstruct the inital file without any recovery of the stripe file
-#  - the precvious step but with the recovery of the stripe file. Notice the 
-#    "-f" flag passed to the eoscp command. This is also followed by a check
-#    of the original file and the reconstructed one but also of the original
-#    stripe and the reconstructed one i.e. the dummy.rain file
+#  - the same as in the previous step but with the recovery of the stripe file. 
+#    Note the "-f" flag passed to the eoscp command. This is also followed 
+#    by a check of the original file and the reconstructed one but also of the 
+#    original stripe and the reconstructed one i.e. the dummy.rain file
 #
 #------------------------------------------------------------------------------
 
@@ -51,9 +50,10 @@
 
 # Create error message
 export ERR_MSG1="The provided directory does not have the extended attributes set correctly."
+export USAGE_MSG="Usage: $0 raiddp/reeds root://host//eos_plain_dir/test_file "
 
 # Set the path to eoscp, eos and others
-EOSCP=$(which eoscp)
+EOSCP="$(which eoscp) -s"
 EOS=$(which eos)
 LOGNAME=$(logname)
 
@@ -68,7 +68,7 @@ fi
 # Check if two files are identical by computing the sum
 # 
 # @param first file
-# @param second files
+# @param second file
 #
 #-------------------------------------------------------------------------------
 function check_identical()
@@ -90,9 +90,7 @@ function check_identical()
   local XS2=$(sum $PFN2)
 
   test "$XS1" = "$XS2"
-  if [[ $? -eq 0 ]]; then
-    echo_success
-  else 
+  if [[ $? -ne 0 ]]; then
     echo_failure
     exit 1
   fi
@@ -103,32 +101,35 @@ function check_identical()
 # Main part
 #-------------------------------------------------------------------------------
 
-if [[ $# -eq 0 || $# -ne 3 ]]; 
+if [[ $# -ne 2 ]]; 
 then 
-    echo usage: $0 raidDP/reedS root://host//eos_file root://host//eos_plain_dir
+    echo $USAGE_MSG
     exit 1
 fi
 
-# The layout type can be either raidDP or reedS
+#...............................................................................
+# Check configuration 
+#...............................................................................
+# The layout type can be either raiddp or raid6 or archive
 LAYOUT=$1
 
-if [[ "$LAYOUT" != "raidDP" && "$LAYOUT" != "reedS" ]]; then
+if [[ "$LAYOUT" != "raiddp" && "$LAYOUT" != "reeds" ]]; then
     echo "No such layout for RAIN" 
-    echo usage: $0 root://host//eos_file root://host//eos_plain_dir raidDP/reedS
+    echo $USAGE_MSG
     exit 1
 fi
 
 # Source file to be converted to a RAIN layout
 EOS_SRC=$2
 
-# Location where the RAIN files will be saved, note that this needs to be a 
-# plain layout directory
-EOS_DST=$3
-
 # Extract the EOS destination directory name
-INDX=`awk -v a="$EOS_DST" -v b="//eos" 'BEGIN{print index(a,b)}'`
-EOS_DST_DIR="${EOS_DST:$INDX}"
+EOS_DST_URL="`awk -F '/[^/]*$' '{print $1}' <<< $EOS_SRC`"
+EOS_DST_DIR="`awk -v input="$EOS_DST_URL" -v tok="//eos" 'BEGIN {indx=index(input,tok); print substr(input,indx+1)}'`"
+echo "Destination url dir is: $EOS_DST_URL"
+echo "Destination dir is: $EOS_DST_DIR"
 
+# Check that the destination directory has a PLAIN layout type
+echo "Check that the EOS directory has the proper attributes ..."
 $SUDO $EOS -b attr ls "$EOS_DST_DIR" | grep -q 'sys.forced.layout="plain"'
 if [ $? -ne 0 ]; then
     echo "$ERR_MSG1"
@@ -136,32 +137,48 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Check that the destination directory has blockchecksum enabled 
+$SUDO $EOS -b attr ls "$EOS_DST_DIR" | grep -q 'sys.forced.blockchecksum="crc32c"'
+if [ $? -ne 0 ]; then
+    echo "$ERR_MSG1"
+    echo_failure
+    exit 1
+fi
+
+#...............................................................................
+# Initial RAIN conversion
+#...............................................................................
 echo "Convert the file to a RAIN layout ..." 
-$EOSCP -e raidDP -S 1 -D 6 -P 2 $EOS_SRC \
-    $EOS_DST/stripe1.rain \
-    $EOS_DST/stripe2.rain \
-    $EOS_DST/stripe3.rain \
-    $EOS_DST/stripe4.rain \
-    $EOS_DST/stripe5.rain \
-    $EOS_DST/stripe6.rain
+$EOSCP -e $LAYOUT -S 1 -D 6 -P 2 $EOS_SRC \
+    $EOS_DST_URL/stripe1.rain \
+    $EOS_DST_URL/stripe2.rain \
+    $EOS_DST_URL/stripe3.rain \
+    $EOS_DST_URL/stripe4.rain \
+    $EOS_DST_URL/stripe5.rain \
+    $EOS_DST_URL/stripe6.rain
 
 
+#...............................................................................
+# Rebuild initial file
+#...............................................................................
 echo "Rebuild the file from the new stripes ..." 
 $EOSCP -e $LAYOUT -S 6 -D 1 -P 2  \
-    $EOS_DST/stripe1.rain \
-    $EOS_DST/stripe2.rain \
-    $EOS_DST/stripe3.rain \
-    $EOS_DST/stripe4.rain \
-    $EOS_DST/stripe5.rain \
-    $EOS_DST/stripe6.rain \
-    $EOS_DST/result.rain  
-
+    $EOS_DST_URL/stripe1.rain \
+    $EOS_DST_URL/stripe2.rain \
+    $EOS_DST_URL/stripe3.rain \
+    $EOS_DST_URL/stripe4.rain \
+    $EOS_DST_URL/stripe5.rain \
+    $EOS_DST_URL/stripe6.rain \
+    $EOS_DST_URL/result.rain  
 
 echo "Check if files are identical"
-check_identical $EOS_SRC $EOS_DST/result.rain
+check_identical $EOS_SRC $EOS_DST_URL/result.rain
 
+
+#...............................................................................
+# Test recovery of RAIN layouts
+#...............................................................................
 echo "Delete the file stripes one by one and reconstruct the file"
-#VECT_STRIPES=(1, 2, 3, 4, 5, 6)
 ALL_STRIPES=( 1 2 3 4 5 6 )
 VECT_STRIPES=( 1 2 3 4 5 6 )
 
@@ -170,13 +187,11 @@ for i in "${VECT_STRIPES[@]}"; do
     
     for j in "${ALL_STRIPES[@]}"; do
        if [ "$i" == "$j" ]; then 
-       	  FILE_NAMES+=("$EOS_DST/dummy.rain")    
+       	  FILE_NAMES+=("$EOS_DST_URL/dummy.rain")    
        else 
-          FILE_NAMES+=("$EOS_DST/stripe$j.rain")
+          FILE_NAMES+=("$EOS_DST_URL/stripe$j.rain")
        fi
     done
-
-    echo ${FILE_NAMES[*]}
 
     $SUDO $EOS -b rm "$EOS_DST_DIR/result.rain"
     
@@ -188,10 +203,10 @@ for i in "${VECT_STRIPES[@]}"; do
     ${FILE_NAMES[3]} \
     ${FILE_NAMES[4]} \
     ${FILE_NAMES[5]} \
-    $EOS_DST/result.rain  
+    $EOS_DST_URL/result.rain  
 
     echo "Check if result files are identical"
-    check_identical $EOS_SRC $EOS_DST/result.rain
+    check_identical $EOS_SRC $EOS_DST_URL/result.rain
     
     echo "Recover also the missing stripe..."
     $EOSCP -f -e $LAYOUT -S 6 -D 1 -P 2  \
@@ -201,18 +216,19 @@ for i in "${VECT_STRIPES[@]}"; do
     ${FILE_NAMES[3]} \
     ${FILE_NAMES[4]} \
     ${FILE_NAMES[5]} \
-    $EOS_DST/result.rain  
+    $EOS_DST_URL/result.rain  
     
     echo "Check if recovered stripes are identical"
-    check_identical $EOS_DST/stripe$i.rain $EOS_DST/dummy.rain
+    check_identical $EOS_DST_URL/stripe$i.rain $EOS_DST_URL/dummy.rain
 
     $SUDO $EOS -b rm "$EOS_DST_DIR/dummy.rain"       
     unset "FILE_NAMES"
 
 done
 
-
+#...............................................................................
 # Clean up
+#...............................................................................
 $SUDO $EOS -b rm "$EOS_DST_DIR/stripe1.rain"
 $SUDO $EOS -b rm "$EOS_DST_DIR/stripe2.rain"
 $SUDO $EOS -b rm "$EOS_DST_DIR/stripe3.rain"
@@ -221,6 +237,7 @@ $SUDO $EOS -b rm "$EOS_DST_DIR/stripe5.rain"
 $SUDO $EOS -b rm "$EOS_DST_DIR/stripe6.rain"
 $SUDO $EOS -b rm "$EOS_DST_DIR/result.rain"
 
+echo_success
 exit 0
 
     
