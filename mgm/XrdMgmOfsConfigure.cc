@@ -1131,10 +1131,10 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   eos::common::Logging::SetLogPriority(LOG_INFO);
   eos::common::Logging::SetUnit(unit.c_str());
-  std::string filter = "Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,"
+  std::string filter = "Process,AddQuota,UpdateHint,Update,UpdateQuotaStatus,SetConfigValue,"
                        "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash";
   eos::common::Logging::SetFilter(filter.c_str());
-  Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,"
+  Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,Update"
              "UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,"
              "RegisterNode,SharedHash");
 
