@@ -195,12 +195,14 @@ RaidMetaLayout::Open (const std::string& path,
  {
    flags |= SFS_O_RDWR;
  }
- else if (flags & (SFS_O_RDWR | SFS_O_TRUNC))
+ else if (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY))
  {
    mStoreRecovery = true;
-   flags |= SFS_O_RDWR | SFS_O_TRUNC;
+   flags |= (SFS_O_RDWR | SFS_O_TRUNC);
  }
 
+ eos_debug("open_mode=%x", flags);
+ 
  if (file && file->Open(path, flags, mode, enhanced_opaque.c_str(), mTimeout))
  {
    eos_err("error=failed to open local ", path.c_str());
@@ -334,15 +336,15 @@ RaidMetaLayout::Open (const std::string& path,
        //.......................................................................
        // Set the correct open flags for the stripe
        //.......................................................................
-       if (mStoreRecovery || (flags & (SFS_O_RDWR | SFS_O_TRUNC)))
+       if (mStoreRecovery || (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY)))
        {
          mIsRw = true;
-         eos_debug( "Write case." );
+         eos_debug( "Write case with flags:%x.", flags);
        }
        else
        {
          mode = 0;
-         eos_debug("Read case.");
+         eos_debug("Read case with flags=%x.", flags);
        }
 
 
@@ -713,7 +715,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
                       char* buffer,
                       XrdSfsXferSize length)
 {
- eos_debug("offset=%lli, length=%li", offset, length);
+ eos_debug("offset=%llu, length=%i", offset, length);
  eos::common::Timing rt("read");
  COMMONTIMING("start", &rt);
  off_t nread = 0;
@@ -971,10 +973,11 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
    //...........................................................................
    // Detect if this is a non-streaming write
    //...........................................................................
-   if (mIsStreaming && (offset != mLastWriteOffset)) {
+   if (mIsStreaming && (offset != mLastWriteOffset))
+   {
      mIsStreaming= false;
    }
-
+   
    mLastWriteOffset += length;
 
    //...........................................................................
@@ -1012,7 +1015,9 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
      // streaming mode. In this way, we can recompute the parity at any later
      // point in time by using the map of pieces written.
      //........................................................................
-     AddDataBlock(offset, buffer, nwrite);
+     if (mIsStreaming)
+       AddDataBlock(offset, buffer, nwrite);
+
      AddPiece(offset, nwrite);
      
      offset += nwrite;
@@ -1132,19 +1137,17 @@ RaidMetaLayout::RecoverPieces (off_t offsetInit,
 void
 RaidMetaLayout::AddPiece (off_t offset, size_t length)
 {
- if (mMapPieces.count(offset))
- {
-   std::map<off_t, size_t>::iterator it = mMapPieces.find(offset);
-
-   if (length > it->second)
-   {
-     it->second = length;
-   }
- }
- else
- {
-   mMapPieces.insert(std::make_pair(offset, length));
- }
+  auto it = mMapPieces.find(offset);
+  
+  if (it != mMapPieces.end())
+  {
+    if (length > it->second)
+      it->second = length;
+  }
+  else
+  {
+    mMapPieces.insert(std::make_pair(offset, length));
+  }
 }
 
 
@@ -1156,8 +1159,8 @@ void
 RaidMetaLayout::MergePieces ()
 {
  off_t offset_end;
- std::map<off_t, size_t>::iterator it1 = mMapPieces.begin();
- std::map<off_t, size_t>::iterator it2 = it1;
+ auto it1 = mMapPieces.begin();
+ auto it2 = it1;
  it2++;
 
  while (it2 != mMapPieces.end())
@@ -1199,9 +1202,7 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
  int64_t nread = 0;
  AsyncMetaHandler* ptr_handler = 0;
 
- //..........................................................................
  // Collect all the write the responses and reset all the handlers
- //..........................................................................
  for ( unsigned int i = 0; i < mStripeFiles.size(); i++ )
  {
    if (mStripeFiles[i])
@@ -1225,8 +1226,7 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
  {
    id_stripe = i % mNbDataFiles;
    physical_id = mapLP[id_stripe];
-   offset_local = (offsetGroup / mSizeLine) * mStripeWidth +
-     ((i / mNbDataFiles) * mStripeWidth);
+   offset_local = (offsetGroup / mSizeLine) * mStripeWidth + ((i / mNbDataFiles) * mStripeWidth);
    offset_local += mSizeHeader;
 
    if (mStripeFiles[physical_id])
@@ -1243,7 +1243,7 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
 
      if (nread != mStripeWidth)
      {
-       eos_err("error=error while reading data blocks stripe=%u", id_stripe);
+       eos_err("error=error while reading local data blocks stripe=%u", id_stripe);
        ret = false;
        break;
      }
@@ -1256,12 +1256,14 @@ RaidMetaLayout::ReadGroup (off_t offsetGroup)
    }
  }
  
- // Collect read responses 
- for ( unsigned int i = 0; i < mStripeFiles.size(); i++ )
+ // Collect read responses only for the data files as we only read from these
+ for ( unsigned int i = 0; i < mNbDataFiles; i++ )
  {
-   if (mStripeFiles[i])
+   physical_id = mapLP[i];
+   
+   if (mStripeFiles[physical_id])
    {  
-     ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
+     ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->GetAsyncHandler());
    
      if (ptr_handler && (ptr_handler->WaitOK() != XrdCl::errNone))
      {
@@ -1300,10 +1302,8 @@ RaidMetaLayout::GetOffsetGroups (std::set<off_t>& offsetGroups, bool forceAll)
    if (forceAll)
    {
      mMapPieces.erase(it++);
-     offsetGroups.insert(off_group);
-     off_group += mSizeGroup;
 
-     while ((off_group >= offset) && (off_group <= off_piece_end))
+     while (off_group < off_piece_end)
      {
        offsetGroups.insert(off_group);
        off_group += mSizeGroup;
@@ -1312,8 +1312,10 @@ RaidMetaLayout::GetOffsetGroups (std::set<off_t>& offsetGroups, bool forceAll)
    else
    {
      if (off_group < offset) off_group += mSizeGroup;
+     bool once = true;
+     std::pair<off_t, size_t> elem;
 
-     while ((off_group <= off_piece_end) &&
+     while ((off_group < off_piece_end) &&
             (off_group + mSizeGroup <= off_piece_end))
      {
        if (!done_delete)
@@ -1322,9 +1324,10 @@ RaidMetaLayout::GetOffsetGroups (std::set<off_t>& offsetGroups, bool forceAll)
          done_delete = true;
        }
 
-       if (off_group > offset)
+       if (once && (off_group > offset))
        {
-         mMapPieces.insert(std::make_pair(offset, off_group - offset));
+         once = false;
+         elem = std::make_pair(offset, (off_group - offset));
        }
 
        //......................................................................
@@ -1333,6 +1336,8 @@ RaidMetaLayout::GetOffsetGroups (std::set<off_t>& offsetGroups, bool forceAll)
        offsetGroups.insert(off_group);
        off_group += mSizeGroup;
      }
+
+     if (!once) mMapPieces.insert(elem);
 
      if (done_delete && (off_group + mSizeGroup > off_piece_end))
      {
@@ -1360,9 +1365,7 @@ RaidMetaLayout::SparseParityComputation (bool force)
  MergePieces();
  GetOffsetGroups(offset_groups, force);
 
- for (std::set<off_t>::iterator it = offset_groups.begin();
-      it != offset_groups.end();
-      it++)
+ for (auto it = offset_groups.begin(); it != offset_groups.end(); it++)
  {
    if (ReadGroup(static_cast<off_t> (*it)))
    {
@@ -1800,7 +1803,7 @@ RaidMetaLayout::AlignExpandBlocks (char* ptrBuffer,
    if (end_aligned_offset > end_raw_offset)
    {
      mPtrBlocks.push_back(mLastBlock);
-     eos_debug("Multiple blocks, one read in lastspace.");
+     eos_debug("Multiple blocks, one read in last place.");
    }
  }
 }
