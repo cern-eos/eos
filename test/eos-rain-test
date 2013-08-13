@@ -287,5 +287,19 @@ for file in $ROOT_PATH/*.rain; do
     fi
 done
 
+#...............................................................................
+# Clean up all the files written in EOS
+#...............................................................................
+echo "Delete files in EOS"
+
+# loop over all files in the pattern and test them in EOS
+for file in $ROOT_PATH/*.rain; do
+    if [[ -f $file ]]; then
+        file=$(basename $file)
+	$SUDO eos -b rm $EOS_DEST/$file
+    fi	
+done
+
+
 echo_success
 exit 0
