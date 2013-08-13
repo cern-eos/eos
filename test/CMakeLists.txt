@@ -110,8 +110,8 @@ add_executable (eoshashbench
 	        EosHashBenchmark.cc
 )
 
-add_executable( eos-io-test
-                eos_io_test.cc
+add_executable( eos-io-tool
+                eos_io_tool.cc
 )
 
 add_executable (testhmacsha256
@@ -132,7 +132,7 @@ target_link_libraries(xrdcptruncate XrdPosix XrdUtils)
 target_link_libraries(xrdcpposixcache XrdPosix XrdUtils)
 target_link_libraries(xrdcppartial XrdPosix XrdUtils)
 target_link_libraries(eoschecksumbench XrdPosix eosCommon XrdUtils ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries( eos-io-test XrdCl XrdServer EosFstIo-Static )
+target_link_libraries( eos-io-tool XrdCl XrdServer EosFstIo-Static )
 
 target_link_libraries(eos-udp-dumper)
 target_link_libraries(eosnsbench eosCommon-Static eosNamespace-Static)
@@ -158,7 +158,7 @@ set_target_properties ( eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSE
 INSTALL( TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcpappend
 	 xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial
 	 xrdcpposixcache eoschecksumbench eosnsbench eoshashbench eos-udp-dumper eos-mmap
-	 eos-io-test
+	 eos-io-tool
 	 RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR} )
 
 INSTALL ( FILES xrdstress 

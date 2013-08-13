@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: eos-io-test.cc
+// File: eos-io-tool.cc
 // Author: Elvin-Alin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
@@ -702,7 +702,7 @@ int main(int argc, char* argv[])
   // Build the usage string
   std::ostringstream usage_sstr;
   usage_sstr << "Usage: " << std::endl
-             << "eos-io-test --operation <rdsequ/rdrand/rdpatt/wrsequ/wrpatt> "
+             << "eos-io-tool --operation <rdsequ/rdrand/rdpatt/wrsequ/wrpatt> "
              << std::endl
              << "            --eosfile <eos_file> " << std::endl
              << "            --extfile <ext_file> " << std::endl

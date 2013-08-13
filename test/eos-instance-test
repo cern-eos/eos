@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-#/bin/bash
+#! /bin/bash
 ################################################################################################################
 # default values can be overwritten in /etc/sysconfig/eos
 #export EOS_TEST_MAILNOTIFY=apeters@mail.cern.ch
@@ -284,7 +284,6 @@ eos_rain() {
 eoscp_rain() {
     echo eoscp-rain-test $1 root://$EOS_TEST_REDIRECTOR/$2 >& $EOSLASTLOG; eval eoscp-rain-test $1 root://$EOS_TEST_REDIRECTOR/$2 >> $EOSLASTLOG 2>&1
 }
-
 
 shell() {
     echo $* >& $EOSLASTLOG; eval $* >> $EOSCERTLOG 2>&1
@@ -840,17 +839,17 @@ if [ $NUM_FST -ge 6 ]; then
    runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=raid6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"	
    runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"	
 
-   runtest "### RaiddpTest " unix 0 "" eos_rain raiddp $EOS_TEST_RAIN_DIR /eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp $EOS_TEST_RAIN_TMP
+   runtest "### RaiddpTest " unix 0 "" eos_rain "raiddp" "$EOS_TEST_RAIN_DIR" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp" "$EOS_TEST_RAIN_TMP"
    # Sleep two seconds between the tests as disabling/enabling a FST is not that fast 
    sleep 2
-   runtest "### Raid6Test  " unix 0 "" eos_rain raid6 $EOS_TEST_RAIN_DIR /eos/$EOS_TEST_INSTANCE/test/instancetest/raid6 $EOS_TEST_RAIN_TM
+   runtest "### Raid6Test  " unix 0 "" eos_rain "raid6" "$EOS_TEST_RAIN_DIR" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6" "$EOS_TEST_RAIN_TMP"
    sleep 2
-   
+  
    #----------------------------------------------------------------------------
    # Clean up the files used for the RAIN test
    #----------------------------------------------------------------------------
-   runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/raiddp"
-   runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/raid6"
+   runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"
+   runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"
    rm -rf $EOS_TEST_RAIN_TMP
 else 
   echo "Can not run RAIN test - not enough FSTs"
