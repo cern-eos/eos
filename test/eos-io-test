@@ -1,0 +1,189 @@
+#------------------------------------------------------------------------------
+# File: eos-io-test
+# Author: Elvin-Alin Sindrilaru - CERN
+#------------------------------------------------------------------------------
+
+#/************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2011 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************/
+
+#------------------------------------------------------------------------------
+# Description: The script tests the IO layer in EOS by reading/writing files in 
+#              sequential mode or using various pattern files i.e. patterns for 
+#              reading/writing. It uses the eos-io-tool for doing all the IO 
+#              operations. For a description of how the pattern files should
+#              look like see the eos-io-tool.
+# Usage: 
+# eos-io-test root://host//eos_dir /ext_dir/test_files
+#
+#------------------------------------------------------------------------------
+
+#! /bin/bash 
+. /etc/init.d/functions
+
+if [ $LOGNAME != "root" ]; then
+   SUDO="sudo"
+else 
+  SUDO=""
+fi
+
+#-------------------------------------------------------------------------------
+# Do sequential operations on each file in the source location by first writing
+# it to EOS, then reading it back and in the end verifying that the checksum of 
+# the inital file matches the one of the file read back from EOS.
+#
+# @param $1 test directory in EOS, e.g. root://host//eos_dir (can be any layout)
+# @param $2 external directory containing the files to be used for the test 
+#          e.g /local_dir/file.io. Only files ending in ".io" will be used for
+#          testing.
+#
+#-------------------------------------------------------------------------------
+function write_read_sequential() 
+{
+  echo "Calling the write_read_sequential"
+  local DEST=$1
+  local SRC=$2
+
+  # Loop through all the *.io files in the source directory and do test
+  for FPATH in $SRC/*.io; do
+    if [[ -f $FPATH ]]; then
+      local TMP_FILE="$FPATH.tmp"
+      local FILE=$(basename $FPATH)
+  
+      $SUDO eos-io-tool --operation wrsequ --eosfile $DEST/$FILE --extfile $FPATH --async
+
+      # Exit immediately if previous operation failed
+      if [[ $? -ne 0 ]]; then
+        echo_failture
+        exit 1
+      fi
+
+      $SUDO eos-io-tool --operation rdsequ --eosfile $DEST/$FILE --extfile $TMP_FILE --async
+
+      # Exit immediately if previous operation failed
+      if [[ $? -ne 0 ]]; then
+        echo_failture
+        exit 1
+      fi
+
+      # Compute the checksum of the initial file and the one read back
+      local XSINIT=$($SUDO sum $FPATH)
+      local XSCOPY=$($SUDO sum $TMP_FILE)
+
+      test "$XSINIT" = "$XSCOPY" 
+      if [[ $? -ne 0 ]]; then
+        echo_failure
+       exit 1
+      fi 
+    fi
+  done
+
+  # Clean up all the tmp files 
+  $SUDO rm -rf $SRC/*.tmp
+}
+
+
+#-------------------------------------------------------------------------------
+# Do sparse IO operations on a file by first writing it to EOS, the reading
+# it back and in the end verifying that the checksum of the inital files matches
+# the one of the file read back from EOS. We use a special file which contains
+# the pattern used for reading and writing. e.g if the file is called file1.io
+# then we look of the pattern file file1.io.pattern
+#
+# @param $1 test directory in EOS, e.g. root://host//eos_dir (can be any layout)
+# @param $2 external directory containing the files to be used for the test and 
+#           also the associated pattern files, e.g /local_dir/. Only files 
+#           ending in ".io" will be used for testing
+#
+#-------------------------------------------------------------------------------
+function write_read_pattern() 
+{
+  echo "Calling the write_read_pattern"
+  local DEST=$1
+  local SRC=$2
+  
+  # Loop through all the *.io files in the source directory and do test
+  for FPATH in $SRC/*.io; do
+    if [[ -f $FPATH ]]; then
+      local TMP_FILE="$FPATH.tmp"
+      local PATTERN_FILE="$FPATH.pattern"
+
+      # If not associated pattern file then we continue
+      if [ ! -f $PATTERN_FILE ]; then
+        continue
+      fi
+
+      local FILE=$(basename $FPATH)
+      $SUDO eos-io-tool --operation wrpatt --eosfile $DEST/$FILE --extfile $FPATH --patternfile $PATTERN_FILE --async
+      
+      # Exit immediately if previous operation failed
+      if [[ $? -ne 0 ]]; then
+        echo_failture
+        exit 1
+      fi
+
+      $SUDO eos-io-tool --operation rdpatt --eosfile $DEST/$FILE --extfile $TMP_FILE --patternfile $PATTERN_FILE --async
+
+      # Exit immediately if previous operation failed
+      if [[ $? -ne 0 ]]; then
+        echo_failture
+        exit 1
+      fi
+
+      # Compute the checksum of the initial file and the one read back
+      local XSINIT=$($SUDO sum $FPATH)
+      local XSCOPY=$($SUDO sum $TMP_FILE)
+
+      test "$XSINIT" = "$XSCOPY" 
+      if [[ $? -ne 0 ]]; then
+        echo_failure
+        exit 1
+      fi
+    fi
+  done
+
+  # Clean up all the tmp files 
+  $SUDO rm -rf $SRC/*.tmp
+}
+
+
+#-------------------------------------------------------------------------------
+# Main part
+#
+# @param the first parameter of the script needs to be the location of the test
+#        directory in EOS. It can have any layout type. e.g root://host//eos_dir.
+# @param the second parameter is the external directory which contains the test
+#        files used by the eos-io-tool. The user needs to make sure that the 
+#        pattern files needed for the non-sequential operations are present in 
+#        in the same directory. If this is not the case, then the PATTERN test 
+#        is skipped. Only files ending in ".io" will be used for tesing. The 
+#        pattern files need to end in ".io.pattern" for each corresponing test
+#        file.
+#-------------------------------------------------------------------------------
+
+if [[ $# -eq 0 || $# -gt 2 ]]; then 
+  echo "Usage: $0 root://host//eos_dir /local/test/dir"
+  exit 1
+fi
+
+EOS_URL=$1
+LOCAL_DIR=$2
+
+write_read_sequential $EOS_URL $LOCAL_DIR
+write_read_pattern $EOS_URL $LOCAL_DIR
+
+exit 0
