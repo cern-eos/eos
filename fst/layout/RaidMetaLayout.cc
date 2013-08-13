@@ -991,7 +991,8 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
 
      // Deal with the case when offset is not aligned (sparse writing) and the
      // length goes beyond the current stripe that we are writing to
-     if ((offset / mStripeWidth) != ((offset + nwrite) / mStripeWidth))
+     if ((offset % mStripeWidth != 0) &&
+         (offset / mStripeWidth) != ((offset + nwrite) / mStripeWidth))
      {
        nwrite = mStripeWidth - (offset % mStripeWidth);
      }
