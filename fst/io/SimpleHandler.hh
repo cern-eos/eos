@@ -32,6 +32,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
+#include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
@@ -42,7 +43,7 @@ EOSFSTNAMESPACE_BEGIN
 // -----------------------------------------------------------------------------
 //! Class holding information about an asynchronous request
 // -----------------------------------------------------------------------------
-class SimpleHandler : public XrdCl::ResponseHandler
+class SimpleHandler : public eos::common::LogId, public XrdCl::ResponseHandler
 {
 public:
 

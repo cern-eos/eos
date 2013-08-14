@@ -34,6 +34,7 @@ EOSFSTNAMESPACE_BEGIN
 SimpleHandler::SimpleHandler (uint64_t offset,
                               uint32_t length,
                               bool isWrite) :
+eos::common::LogId(),
 XrdCl::ResponseHandler (),
 mOffset (offset),
 mLength (length),
@@ -116,20 +117,16 @@ SimpleHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 bool
 SimpleHandler::WaitOK ()
 {
-  bool req_status = false;
+  bool req_status;
 
   mCond.Lock();
 
-  if (mReqDone)
-  {
-    req_status = mRespOK;
-  }
-  else
+  while (!mReqDone)
   {
     mCond.Wait();
-    req_status = mRespOK;
   }
 
+  req_status = mRespOK;
   mHasReq = false;
   mCond.UnLock();
 
