@@ -55,7 +55,6 @@
 enum OperationType
 {
   RD_SEQU,
-  RD_RAND,
   RD_PATT,
   WR_SEQU,
   WR_PATT,
@@ -249,7 +248,7 @@ LoadPattern(std::string& pattern_file,
 
   for (auto iter = map_pattern.begin(); iter != map_pattern.end(); ++iter)
   {
-    eos_static_debug("off:%llu len:%u", iter->first, iter->second);
+    eos_static_debug("off:%ju len:%ju", iter->first, (uint64_t)iter->second);
   }
 }
 
@@ -319,7 +318,7 @@ ReadPattern(XrdCl::URL& url,
   }
 
   // Open file outside EOS, where the data is written
-  int ext_fd = open(ext_file.c_str(), O_CREAT | O_WRONLY | O_LARGEFILE);
+  int ext_fd = open(ext_file.c_str(), O_CREAT | O_WRONLY | O_LARGEFILE, S_IRWXU);
 
   if (ext_fd == -1)
   {
@@ -346,13 +345,13 @@ ReadPattern(XrdCl::URL& url,
   {
     piece_off = iter->first;
     piece_len = iter->second;
-    eos_static_debug("Piece off:%llu len:%lu ", piece_off, piece_len);
+    eos_static_debug("Piece off:%ju len:%jd ", piece_off, piece_len);
 
-    // Read a pice which can be bigger than the block size
+    // Read a piece which can be bigger than the block size
     while (piece_len > 0)
     {
-      length = ((piece_len < block_size) ? piece_len : block_size);
-      //std::cout << "Reading at: " << piece_off << " length: " << length << std::endl;
+      length = (int32_t)((piece_len < block_size) ? piece_len : block_size);
+      eos_static_debug("Reading at off:%ju, length:%jd", piece_off, (int64_t)length);
 
       // Read from the EOS file
       if (do_async)
@@ -385,7 +384,7 @@ ReadPattern(XrdCl::URL& url,
       }
 
       // Write data to the file outside EOS at the same offset
-      nwrite = pwrite(ext_fd, static_cast<void*>(buffer), nread, piece_off);
+      nwrite = pwrite(ext_fd, static_cast<const void*>(buffer), nread, piece_off);
 
       if (nwrite != nread)
       {
@@ -702,7 +701,7 @@ int main(int argc, char* argv[])
   // Build the usage string
   std::ostringstream usage_sstr;
   usage_sstr << "Usage: " << std::endl
-             << "eos-io-tool --operation <rdsequ/rdrand/rdpatt/wrsequ/wrpatt> "
+             << "eos-io-tool --operation <rdsequ/rdpatt/wrsequ/wrpatt> "
              << std::endl
              << "            --eosfile <eos_file> " << std::endl
              << "            --extfile <ext_file> " << std::endl
@@ -722,7 +721,7 @@ int main(int argc, char* argv[])
   
   // Log only mesages from functions in this file
   eos::common::Logging::SetFilter("PASS:ReadSequentially,WriteSequentially,"
-                                  "LoadPattern,ReadPattern,WritePattern");
+                                  "LoadPattern,ReadPattern,WritePattern,main");
 
   if (argc < 2)
   {
@@ -781,7 +780,6 @@ int main(int argc, char* argv[])
       val = optarg;
 
       if (val == "rdsequ") op_type = RD_SEQU;
-      else if (val == "rdrand") op_type = RD_RAND;
       else if (val == "rdpatt") op_type = RD_PATT;
       else if (val == "wrsequ") op_type = WR_SEQU;
       else if (val == "wrpatt") op_type = WR_PATT;
@@ -880,72 +878,95 @@ int main(int argc, char* argv[])
   if (debug == 1) eos::common::Logging::SetLogPriority(LOG_DEBUG);
 
   // Print the running configuration
-  std::cout << "-----------------------------------------------------------"
-            << std::endl
-            << "Default block size: " << block_size << std::endl
-            << "Default timeout: " << timeout << std::endl
-            << "Default prefetch size: " << prefetch_size << std::endl
-            << "Default async: " << do_async << std::endl
-            << "Default debug: " << debug << std::endl
-            << "-----------------------------------------------------------"
-            << std::endl;
+  if (debug)
+  {
+    std::cout << "-----------------------------------------------------------"
+              << std::endl
+              << "Default block size: " << block_size << std::endl
+              << "Default timeout: " << timeout << std::endl
+              << "Default prefetch size: " << prefetch_size << std::endl
+              << "Default async: " << do_async << std::endl
+              << "Default debug: " << debug << std::endl
+              << "-----------------------------------------------------------"
+              << std::endl;
+  }
 
   // Execute the required operation
   if (op_type == RD_SEQU)
   {
     if (!url_file.IsValid() || ext_file.empty())
     {
-      std::cerr << "Set EOS file and output file name" << std::endl;
-      exit(1);
+      eos_static_err("Set EOS file and output file name");
+      return 1; // error
     }
 
     if (ReadSequentially(url_file, ext_file))
-      std::cout << "Operation successful" << std::endl;
+    {
+      eos_static_info("Operation successful");
+      return 0;
+    }
     else
-      std::cout << "Operation failed" << std::endl;
+    {
+      eos_static_info("Operation failed");
+      return 1; // error
+    }
   }
   else if (op_type == RD_PATT)
   {
     if (!url_file.IsValid() || ext_file.empty() || pattern_file.empty())
     {
-      std::cerr << "Set EOS file, pattern file and output file name" << std::endl;
-      exit(1);
+      eos_static_err("Set EOS file, pattern file and output file name");
+      return 1; // error
     }
 
     if (ReadPattern(url_file, ext_file, pattern_file))
-      std::cout << "Operation successful" << std::endl;
+    {
+      eos_static_info("Operation successful");
+      return 0;
+    }
     else
-      std::cout << "Operation failed" << std::endl;
-  }
-  else if (op_type == RD_RAND)
-  {
-    std::cout << "Operation not implemented yet" << std::endl;
+    {
+      eos_static_info("Operation failed");
+      return 1; // error
+    }
   }
   else if (op_type == WR_SEQU)
   {
     if (!url_file.IsValid() || ext_file.empty())
     {
-      std::cerr << "Set EOS file and external file name" << std::endl;
-      exit(1);
+      eos_static_err("Set EOS file and external file name");
+      return 1; // error
     }
 
     if (WriteSequentially(url_file, ext_file))
-      std::cout << "Operation successful" << std::endl;
+    {
+      eos_static_info("Operation successful");
+      return 0;
+    }
     else
-      std::cout << "Operation failed" << std::endl;
+    {
+      eos_static_info("Operation failed");
+      return 1; // error
+    }
   }
   else if (op_type == WR_PATT)
   {
     if (!url_file.IsValid() || ext_file.empty() || pattern_file.empty())
     {
-      std::cerr << "Set EOS file, pattern file and output file name" << std::endl;
-      exit(1);
+      eos_static_err("Set EOS file, pattern file and output file name");
+      return 1; // error
     }
 
     if (WritePattern(url_file, ext_file, pattern_file))
-      std::cout << "Operation successful" << std::endl;
+    {
+      eos_static_info("Operation successful");
+      return 0;
+    }
     else
-      std::cout << "Operation failed" << std::endl;
+    {
+      eos_static_info("Operation failed");
+      return 1; // error
+    }
   }
 }
 

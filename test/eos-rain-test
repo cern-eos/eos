@@ -296,10 +296,9 @@ echo "Delete files in EOS"
 for file in $ROOT_PATH/*.rain; do
     if [[ -f $file ]]; then
         file=$(basename $file)
-	$SUDO eos -b rm $EOS_DEST/$file
+	$SUDO eos -b rm $EOS_DIR/$file
     fi	
 done
-
 
 echo_success
 exit 0
