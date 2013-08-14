@@ -356,10 +356,21 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
       {
         //......................................................................
         // Remove all elements from map so that we can align with the new 
-        // requests and prefetch a new block 
+        // requests and prefetch a new block. But first we need to collect any
+        // responses which are in-flight as otherwise these response might
+        // arrive later on, when we are expecting replies for other blocks since
+        // we are recycling the SimpleHandler objects.
         //......................................................................
         while (!mMapBlocks.empty())
         {
+          SimpleHandler* sh = mMapBlocks.begin()->second->handler;
+          
+          if (sh->HasRequest())
+          {
+            // Not interested in the result - discard it 
+            sh->WaitOK();
+          }
+          
           mQueueBlocks.push(mMapBlocks.begin()->second);
           mMapBlocks.erase(mMapBlocks.begin());
         }

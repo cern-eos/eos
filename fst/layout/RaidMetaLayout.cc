@@ -743,7 +743,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
    //..........................................................................
    if (offset > mFileSize)
    {
-     eos_err("error=offset is larger then file size");
+     eos_warning("warning=offset:%lld larger then file size:%lld", offset, mFileSize);
      return 0;
    }
 
