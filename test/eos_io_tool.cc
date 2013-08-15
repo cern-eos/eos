@@ -23,7 +23,7 @@
 
 /*!
 @details This program is used to test out various IO operations done on EOS files.
-  One can write, read files in sequential mode or using a cetain pattern defined
+  One can write, read files in sequential mode or using a certain pattern defined
   in a separate file. The file outside EOS is read according to the pattern and
   then written in EOS using the same sequence of blocks. The same is valid for
   reading.
@@ -211,7 +211,7 @@ LoadPattern(std::string& pattern_file,
   uint64_t off_start;
   uint32_t off_end;
   std::string line;
-  std::ifstream ifpattern(pattern_file);
+  std::ifstream ifpattern(pattern_file.c_str());
 
   // Read pattern from file
   if (ifpattern.is_open())
