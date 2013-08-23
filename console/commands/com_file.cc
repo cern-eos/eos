@@ -757,7 +757,7 @@ com_file_usage:
   fprintf(stdout, "        <layout>:<stripes>   : specify the target layout and number of stripes\n");
   fprintf(stdout, "        <layout-id>          : specify the hexadecimal layout id \n");
   fprintf(stdout, "        <conversion-name>    : specify the name of the attribute sys.conversion.<name> in the parent directory of <path> defining the target layout\n");
-  fprintf(stdout, "        <target-space>       : optional name of the target space or group e.g. default or default.3");
+  fprintf(stdout, "        <target-space>       : optional name of the target space or group e.g. default or default.3\n");
   fprintf(stdout, "        --sync               : run convertion in synchronous mode (by default conversions are asynchronous)\n");
   fprintf(stdout, "file copy [-f] [-s] <src> <dst>                                       :  synchronous third party copy from <src> to <dst>\n");
   fprintf(stdout, "         <src>                                                         :  source can be a file or a directory\n");

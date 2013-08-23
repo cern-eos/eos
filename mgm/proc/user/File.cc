@@ -726,7 +726,8 @@ ProcCommand::File ()
               space = map["user.forced.space"].c_str();
           }
         }
-        else
+
+	if (space.length())
         {
 
           if (!layout.length())
