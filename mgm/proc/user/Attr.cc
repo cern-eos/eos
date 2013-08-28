@@ -69,15 +69,7 @@ ProcCommand::Attr ()
       XrdOucString key = pOpaque->Get("mgm.attr.key");
       XrdOucString val = pOpaque->Get("mgm.attr.value");
 
-      bool removed_quote = false;
-      while (val.replace("\"", ""))
-      {
-        removed_quote = true;
-      }
-      if (removed_quote)
-      {
-        stdErr += "warning: removed quotes from attribute value";
-      }
+      while (val.replace("\"", "")) {}
       // find everything to be modified
       std::map<std::string, std::set<std::string> > found;
       std::map<std::string, std::set<std::string> >::const_iterator foundit;
@@ -153,11 +145,11 @@ ProcCommand::Attr ()
               }
               else
               {
-                stdOut += "success: set attribute '";
+                stdOut += "success: set attribute ";
                 stdOut += key;
-                stdOut += "'='";
+                stdOut += "=\"";
                 stdOut += val;
-                stdOut += "' in directory ";
+                stdOut += "\" in directory ";
                 stdOut += foundit->first.c_str();
                 stdOut += "\n";
               }
@@ -167,9 +159,9 @@ ProcCommand::Attr ()
             {
               if (gOFS->_attr_get(foundit->first.c_str(), *mError, *pVid, (const char*) 0, key.c_str(), val))
               {
-                stdErr += "error: unable to get attribute '";
+                stdErr += "error: unable to get attribute ";
                 stdErr += key;
-                stdErr += "' in directory ";
+                stdErr += " in directory ";
                 stdErr += foundit->first.c_str();
                 retc = errno;
               }
