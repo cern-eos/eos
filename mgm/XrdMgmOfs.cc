@@ -3970,7 +3970,7 @@ XrdMgmOfs::_find (const char *path,
             }
             else
             {
-              // this is a search for a full match 
+              // this is a search for a full match or a key search
 
               std::string sval = val;
               XrdOucString attr = "";
@@ -3978,7 +3978,7 @@ XrdMgmOfs::_find (const char *path,
                                    (const char*) 0, key, attr, true))
               {
                 found_dirs[deepness + 1].push_back(fpath.c_str());
-                if (attr == val)
+                if ( (val == std::string("*")) || (attr == val) )
                 {
                   found[fpath].size();
                 } 
@@ -5584,34 +5584,17 @@ XrdMgmOfs::FSctl (const int cmd,
         // here we put some cache to avoid too heavy space recomputations
         if ((time(NULL) - laststat) > (10 + (int) rand() / RAND_MAX))
         {
-          SpaceQuota* spacequota = 0;
+	  // take the sum's from all file systems in 'default'
+	  if (FsView::gFsView.mSpaceView.count("default"))
           {
-            eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-            spacequota = Quota::GetResponsibleSpaceQuota(space.c_str());
-          }
-
-          if (!spacequota)
-          {
-            // take the sum's from all file systems in 'default'
-            if (FsView::gFsView.mSpaceView.count("default"))
-            {
-              eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-              freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
-              freefiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree");
-
-              maxbytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
-              maxfiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files");
-            }
-          }
-          else
-          {
-            freebytes = spacequota->GetPhysicalFreeBytes();
-            freefiles = spacequota->GetPhysicalFreeFiles();
-            maxbytes = spacequota->GetPhysicalMaxBytes();
-            maxfiles = spacequota->GetPhysicalMaxFiles();
-          }
-          laststat = time(NULL);
-        }
+	    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+	    freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
+	    freefiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree");
+	    
+	    maxbytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
+	    maxfiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files");
+	  }
+	}
         statvfsmutex.UnLock();
         response = "statvfs: retc=0";
         char val[1025];
@@ -7561,8 +7544,15 @@ XrdMgmOfs::_attr_rem (const char *path,
       errno = EPERM;
     else
     {
-      dh->removeAttribute(key);
-      eosView->updateContainerStore(dh);
+      if (dh->hasAttribute(key)) 
+      {
+	dh->removeAttribute(key);
+	eosView->updateContainerStore(dh);
+      }
+      else
+      {
+	errno = ENODATA;
+      }
     }
   }
   catch (eos::MDException &e)

@@ -103,6 +103,12 @@ public:
       fullPath.erase(fullPath.length()-2);
     }
 
+    if (!fullPath.beginswith("/"))
+    {
+      lastPath=fullPath;
+      return;
+    }
+
     int bppos;
 
     // convert /./
