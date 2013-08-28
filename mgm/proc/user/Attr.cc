@@ -168,9 +168,9 @@ ProcCommand::Attr ()
               else
               {
                 stdOut += key;
-                stdOut += "=";
+                stdOut += "=\"";
                 stdOut += val;
-                stdOut += "\n";
+                stdOut += "\"\n";
               }
             }
 
