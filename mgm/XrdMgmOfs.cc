@@ -63,7 +63,6 @@
 #include <signal.h>
 #include <stdlib.h>
 /*----------------------------------------------------------------------------*/
-#include "zmq.hpp"
 #include "StatProto.pb.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 /*----------------------------------------------------------------------------*/
@@ -367,7 +366,7 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
 /******************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-XrdMgmOfs::XrdMgmOfs (XrdSysError *ep)
+XrdMgmOfs::XrdMgmOfs (XrdSysError *ep) 
 /*----------------------------------------------------------------------------*/
 /* 
  * @brief the MGM Ofs object constructor
@@ -380,7 +379,9 @@ XrdMgmOfs::XrdMgmOfs (XrdSysError *ep)
   eos::common::LogId::SetSingleShotLogId();
 
   fsconfiglistener_tid = stats_tid = deletion_tid = 0;
-
+  // TODO: set this as a configuration option in the config file
+  mNumAuthThreads = 5;
+  mZmqContext = new zmq::context_t(1);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -5582,14 +5583,13 @@ XrdMgmOfs::FSctl (const int cmd,
       static unsigned long long freefiles = 0;
       static unsigned long long maxbytes = 0;
       static unsigned long long maxfiles = 0;
-
       static time_t laststat = 0;
 
       XrdOucString response = "";
 
       if (!space.length())
       {
-        response = "df: retc=";
+        response = "statvfs: retc=";
         response += EINVAL;
       }
       else
@@ -8439,81 +8439,109 @@ XrdMgmOfs::StartMgmFsConfigListener (void *pp)
 
 
 //------------------------------------------------------------------------------
-// Authentication thread startup function
+// Authentication master thread startup function
 //------------------------------------------------------------------------------
 void*
-XrdMgmOfs::StartAuthenticationThread(void *pp)
+XrdMgmOfs::StartAuthMasterThread(void *pp)
 {
   XrdMgmOfs* ofs = static_cast<XrdMgmOfs*>(pp);
-  ofs->AuthenticationThread();
+  ofs->AuthMasterThread();
+  return 0;  
+}
+
+
+//----------------------------------------------------------------------------
+// Authentication master thread function - accepts requests from EOS AUTH
+// plugins which he then forwards to worker threads.
+//----------------------------------------------------------------------------
+void
+XrdMgmOfs::AuthMasterThread ()
+{
+  // Socket facing clients 
+  zmq::socket_t frontend(*mZmqContext, ZMQ_ROUTER);
+  // TODO: make the port a configurable value
+  frontend.bind("tcp://*:5555");
+
+  // Socket facing worker threads
+  zmq::socket_t backend(*mZmqContext, ZMQ_DEALER);
+  backend.bind("inproc://authplugin");
+
+  // Start the proxy
+  zmq_device(ZMQ_QUEUE, frontend, backend);
+}
+
+
+//------------------------------------------------------------------------------
+// Authentication worker thread startup function
+//------------------------------------------------------------------------------
+void*
+XrdMgmOfs::StartAuthWorkerThread(void *pp)
+{
+  XrdMgmOfs* ofs = static_cast<XrdMgmOfs*>(pp);
+  ofs->AuthWorkerThread();
   return 0;  
 }
 
 
 //------------------------------------------------------------------------------
-// Authentication thread function - accepts requests from EOS AUTH plugins
-// and replies with the result of the requested actions.
+// Authentication worker thread function - accepts requests from the master,
+// executed the proper action and replies with the result.
 //------------------------------------------------------------------------------
 void
-XrdMgmOfs::AuthenticationThread()
+XrdMgmOfs::AuthWorkerThread()
 {
-  eos_static_info("authentication thread started");
-  zmq::context_t context(1);
-  zmq::socket_t socket(context, ZMQ_REP);
-  socket.bind("tcp://*:5555");
-
+  eos_static_info("authentication worker thread started");
+  zmq::socket_t responder(*mZmqContext, ZMQ_REP);
+  responder.connect("inproc://authplugin");
   
   while (1)
   {
     zmq::message_t request;
 
     // Wait for next request
-    socket.recv(&request);
+    responder.recv(&request);
 
     // Read in the ProtocolBuffer object just received
     std::string msg_recv((char*)request.data(), request.size());
-    eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
-    req_proto->ParseFromString(msg_recv);
+    eos::auth::RequestProto req_proto;
+    req_proto.ParseFromString(msg_recv);
 
-    if (req_proto->type() == eos::auth::RequestProto_OperationType_STAT)
+    if (req_proto.type() == eos::auth::RequestProto_OperationType_STAT)
     {
+      /*
       eos_static_info("received a stat request for path:%s, opaque:%s",
-                      req_proto->stat().path().c_str(),
-                      req_proto->stat().opaque().c_str());
-      
-      XrdSecEntity* client = GetXrdSecEntity(req_proto->stat().error());
+                      req_proto.stat().path().c_str(),
+                      req_proto.stat().opaque().c_str());
+      */
+
       struct stat buf;
       XrdOucErrInfo error;
-      
-      int ret = gOFS->stat(req_proto->stat().path().c_str(), &buf,
-                           error, client, req_proto->stat().opaque().c_str());
+      XrdSecEntity* client = GetXrdSecEntity(req_proto.stat().error());
+      int ret = gOFS->stat(req_proto.stat().path().c_str(), &buf,
+                           error, client, req_proto.stat().opaque().c_str());
 
+      /*
       std::stringstream sstr;
       sstr << "Device :" << buf.st_dev << " Inode: " << buf.st_ino
            <<" Size: " << buf.st_size;
 
       eos_static_info(sstr.str().c_str());
+      */
 
-      if (ret == SFS_OK)
-      {
-        eos::auth::StatRespProto* resp_stat = new eos::auth::StatRespProto();
-        resp_stat->set_response(ret);
-        resp_stat->set_error_code(0);
-        resp_stat->set_message(&buf, sizeof(struct stat));
+      // Construct and send the stat response to the requester
+      eos::auth::StatRespProto resp_stat;
+      resp_stat.set_response(ret);
+      resp_stat.set_error_code(ret);
+      resp_stat.set_message(&buf, sizeof(struct stat));
 
-        int resp_size = resp_stat->ByteSize();
-        zmq::message_t reply(resp_size);
-        google::protobuf::io::ArrayOutputStream aos(reply.data(), resp_size);
-        
-        resp_stat->SerializeToZeroCopyStream(&aos);
-        socket.send(reply);
-        delete resp_stat;
-      }
+      int resp_size = resp_stat.ByteSize();
+      zmq::message_t reply(resp_size);
+      google::protobuf::io::ArrayOutputStream aos(reply.data(), resp_size);
       
+      resp_stat.SerializeToZeroCopyStream(&aos);
+      responder.send(reply);
       DeleteXrdSecEntity(client);      
     }
-
-    delete req_proto;
   }
 }
 

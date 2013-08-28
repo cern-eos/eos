@@ -137,7 +137,8 @@
 #include "XrdSys/XrdSysTimer.hh"
 /*----------------------------------------------------------------------------*/
 #include <dirent.h>
-
+/*----------------------------------------------------------------------------*/
+#include "zmq.hpp"
 /*----------------------------------------------------------------------------*/
 
 //! Forward declaration
@@ -775,20 +776,36 @@ public:
 
   
   //----------------------------------------------------------------------------
-  //! Authentication thread startup static function
+  //! Authentication master thread startup static function
   //!
   //! @param pp pointer to the XrdMgmOfs class
   //!
   //----------------------------------------------------------------------------
-  static void* StartAuthenticationThread (void *pp);
+  static void* StartAuthMasterThread (void *pp);
 
   
   //----------------------------------------------------------------------------
-  //! Authentication thread function - accepts requests from EOS AUTH plugins
-  //! and replies with the result of the requested actions.
+  //! Authentication master thread function - accepts requests from EOS AUTH
+  //! plugins which he then forwards to worker threads.
   //----------------------------------------------------------------------------
-  void AuthenticationThread ();
+  void AuthMasterThread ();
+  
 
+  //----------------------------------------------------------------------------
+  //! Authentication worker thread startup static function
+  //!
+  //! @param pp pointer to the XrdMgmOfs class
+  //!
+  //----------------------------------------------------------------------------
+  static void* StartAuthWorkerThread (void *pp);
+
+
+  //----------------------------------------------------------------------------
+  //! Authentication worker thread function - accepts requests from the master,
+  //! executed the proper action and replies with the result.
+  //----------------------------------------------------------------------------
+  void AuthWorkerThread ();
+  
   
   // ---------------------------------------------------------------------------
   // Filesystem error and configuration change listener thread function
@@ -895,6 +912,9 @@ public:
   pthread_t stats_tid; //< Thread Id of the stats thread
   pthread_t fsconfiglistener_tid; //< Thread ID of the fs listener/config change thread
   pthread_t auth_tid; ///< Thread Id of the authentication thread
+  std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
+  unsigned int mNumAuthThreads; ///< max number of auth worker threads
+  zmq::context_t* mZmqContext; ///< ZMQ context for all the sockets
   
   // ---------------------------------------------------------------------------
   // class objects
