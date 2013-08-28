@@ -209,7 +209,7 @@ fi
 
 
 %changelog
-* Thu Jul 25 2013 Justin Salmon <jsalmon@cern.ch>
-- Switch to nginx version 1.4.2
 * Thu Aug 28 2013 Justin Salmon <jsalmon@cern.ch>
 - Bump release version
+* Thu Jul 25 2013 Justin Salmon <jsalmon@cern.ch>
+- Switch to nginx version 1.4.2
