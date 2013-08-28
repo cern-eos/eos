@@ -81,7 +81,7 @@ cp $SOURCEPATH/nginx.spec        $TEMPDIR
 set +e
 
 echo "[i] Downloading nginx source..."
-VERSION=`cat nginx/nginx.spec | \
+VERSION=`cat $SOURCEPATH/nginx.spec | \
          egrep -e 'Version:\s+([0-9\.]*)' -o | \
          egrep -e '[0-9\.]*' -o`
 curl -sS http://nginx.org/download/nginx-$VERSION.tar.gz -O
