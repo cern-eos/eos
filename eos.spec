@@ -56,6 +56,7 @@ Requires: xrootd = 3.3.3
 Requires: xrootd-cl
 Requires: eos-client
 Requires: libmicrohttpd
+Requires: acl
 Requires: gdb
 
 %prep
