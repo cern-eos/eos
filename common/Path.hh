@@ -95,6 +95,9 @@ public:
   Path(const char* path){
     fullPath = path;
 
+    if (fullPath == "/")
+      return;
+
     if (fullPath.endswith('/')) 
       fullPath.erase(fullPath.length()-1);
     
