@@ -7544,8 +7544,15 @@ XrdMgmOfs::_attr_rem (const char *path,
       errno = EPERM;
     else
     {
-      dh->removeAttribute(key);
-      eosView->updateContainerStore(dh);
+      if (dh->hasAttribute(key)) 
+      {
+	dh->removeAttribute(key);
+	eosView->updateContainerStore(dh);
+      }
+      else
+      {
+	errno = ENODATA;
+      }
     }
   }
   catch (eos::MDException &e)

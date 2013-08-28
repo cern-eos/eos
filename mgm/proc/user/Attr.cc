@@ -190,6 +190,7 @@ ProcCommand::Attr ()
                 stdErr += key;
                 stdErr += "' in directory ";
                 stdErr += foundit->first.c_str();
+		retc = errno;
               }
               else
               {
