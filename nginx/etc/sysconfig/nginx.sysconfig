@@ -32,6 +32,8 @@ export EOS_NGINX_GSS_SERVICE_NAME=host/$EOS_NGINX_HOSTNAME
 # to work with WebDAV clients who do not know how to handle the redirect.
 export EOS_NGINX_REDIRECT_EXTERNALLY=0
 
+# Make a copy of the template config file
+cp /etc/nginx/nginx.eos.conf.template /etc/nginx/nginx.eos.conf
 
 # Replace all the things
 perl -pi -e 's/EOS_NGINX_USER/$ENV{EOS_NGINX_USER}/g'                                     /etc/nginx/nginx.eos.conf

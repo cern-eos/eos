@@ -38,7 +38,7 @@ Source:     http://nginx.org/download/nginx-%{version}.tar.gz
 Source2:    nginx.init
 Source3:    nginx.logrotate
 Source4:    nginx.sysconfig
-Source5:    nginx.eos.conf
+Source5:    nginx.eos.conf.template
 
 # removes -Werror in upstream build scripts.  -Werror conflicts with
 # -D_FORTIFY_SOURCE=2 causing warnings to turn into errors.
@@ -136,7 +136,7 @@ mkdir %{buildroot}%{nginx_confdir}/conf.d
 %{__install} -p -D -m 0755 %{SOURCE2} %{buildroot}%{_initrddir}/nginx
 %{__install} -p -D -m 0644 %{SOURCE3} %{buildroot}%{_sysconfdir}/logrotate.d/nginx
 %{__install} -p -D -m 0644 %{SOURCE4} %{buildroot}%{_sysconfdir}/sysconfig/nginx
-%{__install} -p -D -m 0644 %{SOURCE5} %{buildroot}%{_sysconfdir}/nginx/nginx.eos.conf
+%{__install} -p -D -m 0644 %{SOURCE5} %{buildroot}%{_sysconfdir}/nginx/nginx.eos.conf.template
 %{__install} -p -d -m 0755 %{buildroot}%{nginx_confdir}/vhosts
 %{__install} -p -d -m 0755 %{buildroot}%{nginx_home}
 %{__install} -p -d -m 0755 %{buildroot}%{nginx_home_tmp}
@@ -196,7 +196,7 @@ fi
 %config(noreplace) %{nginx_confdir}/koi-win
 %config(noreplace) %{nginx_confdir}/koi-utf
 %config(noreplace) %{nginx_confdir}/nginx.conf
-%config(noreplace) %{nginx_confdir}/nginx.eos.conf
+%config(noreplace) %{nginx_confdir}/nginx.eos.conf.template
 %config(noreplace) %{nginx_confdir}/mime.types
 %config(noreplace) %{_sysconfdir}/logrotate.d/nginx
 %config(noreplace) %{_sysconfdir}/sysconfig/nginx
