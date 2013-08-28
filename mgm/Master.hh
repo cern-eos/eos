@@ -324,11 +324,16 @@ public:
   {
     time_t now = time(NULL);
     XrdSysMutexHelper lock(&f2MasterTransitionTimeMutex);
-    time_t delay = now - f2MasterTransitionTime + 3600;
-    if (delay<0) 
+    time_t delay=0;
+
+    if (now > (f2MasterTransitionTime+3600) )
+    {
       delay = 0;
-    if (delay> 3600)
-      delay = 3600;
+    }
+    else
+    {
+      delay = 3600 - (now-f2MasterTransitionTime);
+    }
     return delay;
   }
   
