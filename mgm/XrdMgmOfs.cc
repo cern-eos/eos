@@ -380,7 +380,7 @@ XrdMgmOfs::XrdMgmOfs (XrdSysError *ep)
 
   fsconfiglistener_tid = stats_tid = deletion_tid = 0;
   // TODO: set this as a configuration option in the config file
-  mNumAuthThreads = 5;
+  mNumAuthThreads = 8;
   mZmqContext = new zmq::context_t(1);
 }
 
@@ -3244,6 +3244,8 @@ XrdMgmOfs::stat (const char *inpath,
 /*----------------------------------------------------------------------------*/
 
 {
+  struct timeval start, end;
+  gettimeofday(&start, NULL);
   static const char *epname = "stat";
   const char *tident = error.getErrUser();
 
@@ -3276,6 +3278,11 @@ XrdMgmOfs::stat (const char *inpath,
     MAYREDIRECT_ENOENT;
     MAYSTALL_ENOENT;
   }
+
+  gettimeofday(&end , NULL);
+  unsigned long long diff = (end.tv_sec * 1000000 + end.tv_usec) -
+                            (start.tv_sec * 1000000 + start.tv_usec);
+  eos_debug("eos raw stat time: %ju", diff);
   return rc;
 }
 
@@ -8464,7 +8471,7 @@ XrdMgmOfs::AuthMasterThread ()
 
   // Socket facing worker threads
   zmq::socket_t backend(*mZmqContext, ZMQ_DEALER);
-  backend.bind("inproc://authplugin");
+  backend.bind("inproc://authbackend");
 
   // Start the proxy
   zmq_device(ZMQ_QUEUE, frontend, backend);
@@ -8492,14 +8499,18 @@ XrdMgmOfs::AuthWorkerThread()
 {
   eos_static_info("authentication worker thread started");
   zmq::socket_t responder(*mZmqContext, ZMQ_REP);
-  responder.connect("inproc://authplugin");
+  responder.connect("inproc://authbackend");
+
+  struct timeval start, end;
+  unsigned long long time_diff;
   
   while (1)
   {
     zmq::message_t request;
-
+    
     // Wait for next request
     responder.recv(&request);
+    gettimeofday(&start, NULL);
 
     // Read in the ProtocolBuffer object just received
     std::string msg_recv((char*)request.data(), request.size());
@@ -8520,27 +8531,25 @@ XrdMgmOfs::AuthWorkerThread()
       int ret = gOFS->stat(req_proto.stat().path().c_str(), &buf,
                            error, client, req_proto.stat().opaque().c_str());
 
-      /*
-      std::stringstream sstr;
-      sstr << "Device :" << buf.st_dev << " Inode: " << buf.st_ino
-           <<" Size: " << buf.st_size;
-
-      eos_static_info(sstr.str().c_str());
-      */
-
       // Construct and send the stat response to the requester
       eos::auth::StatRespProto resp_stat;
       resp_stat.set_response(ret);
       resp_stat.set_error_code(ret);
       resp_stat.set_message(&buf, sizeof(struct stat));
 
-      int resp_size = resp_stat.ByteSize();
-      zmq::message_t reply(resp_size);
-      google::protobuf::io::ArrayOutputStream aos(reply.data(), resp_size);
+      int reply_size = resp_stat.ByteSize();
+      zmq::message_t reply(reply_size);
+      google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
       
       resp_stat.SerializeToZeroCopyStream(&aos);
       responder.send(reply);
-      DeleteXrdSecEntity(client);      
+      DeleteXrdSecEntity(client);
+
+      gettimeofday(&end, NULL);
+      time_diff = (end.tv_sec * 1000000 + end.tv_usec) -
+                  (start.tv_sec * 1000000 + start.tv_usec);
+
+      eos_debug("auth worker process time: %ju", time_diff);
     }
   }
 }
