@@ -477,7 +477,7 @@ XrdMgmOfs::PathRemap(const char* inpath, XrdOucString &outpath)
 
   for (size_t i=cPath.GetSubPathSize()-1; i>0; i--) {
     if (PathMap.count(cPath.GetSubPath(i))) {
-      outpath.replace(cPath.GetSubPath(i),PathMap[cPath.GetSubPath(i)].c_str());
+      outpath.replace(cPath.GetSubPath(i), PathMap[cPath.GetSubPath(i)].c_str(), 0,strlen(cPath.GetSubPath(i)));
       outpath.erase(outpath.length()-1);
       return;
     }
