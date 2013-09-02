@@ -145,7 +145,7 @@ CacheEntry::addPiece(char* buf, off_t off, size_t len)
   std::map<off_t, size_t>::reverse_iterator iReverse;
   std::map<off_t, size_t>::iterator iAfter = mapPieces.lower_bound(off);
 
-  if (iAfter->first == off) {
+  if (iAfter != mMapPieces.end() && iAfter->first == off) {
     sizeAdded = (iAfter->second >= len) ? 0 : (len - iAfter->second);
     std::map<off_t, size_t>::iterator iTmp;
     iTmp = iAfter;
