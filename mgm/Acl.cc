@@ -318,7 +318,7 @@ Acl::IsValid (const std::string value,
   int regexErrorCode;
   int result;
   regex_t regex;
-  std::string regexString = "^(((((u|g):(([0-9]+)|([[:alnum:]-]+)))|(egroup:([[:alnum:]-]+))):(r|w|wo|x|m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+  std::string regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-]+)))|(egroup:([\\.[:alnum:]-]+))):(r|w|wo|x|m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
 
   // -----------------------------------------------------------------------
   // Compile regex
