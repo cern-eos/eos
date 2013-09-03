@@ -272,7 +272,7 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
   vid->name   = XrdOucString(username.c_str());
   vid->host   = headers["Host"];
   vid->tident = "dummy.0:0@localhost";
-  vid->prot   = "gsi";
+  vid->prot   = "https";
 
   return vid;
 }

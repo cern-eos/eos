@@ -134,7 +134,7 @@ Vid::Set (const char* value,
   if (vidcmd == "map")
   {
     XrdOucString auth = env.Get("mgm.vid.auth");
-    if ((auth != "voms") && (auth != "krb5") && (auth != "sss") && (auth != "unix") && (auth != "tident") && (auth != "gsi"))
+    if ((auth != "voms") && (auth != "krb5") && (auth != "sss") && (auth != "unix") && (auth != "tident") && (auth != "gsi") && (auth != "https") )
     {
       eos_static_err("invalid auth mode");
       return false;

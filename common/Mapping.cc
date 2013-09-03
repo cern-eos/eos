@@ -258,6 +258,50 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   }
 
   // ---------------------------------------------------------------------------
+  // gsi mapping
+  // ---------------------------------------------------------------------------
+  if ((vid.prot == "https"))
+  {
+    eos_static_debug("https mapping");
+    if (gVirtualUidMap.count("https:\"<pwd>\":uid"))
+    {
+      if (gVirtualGidMap["https:\"<pwd>\":uid"] == 0) {
+	// use physical mapping for https names
+	Mapping::getPhysicalIds(client->name, vid);
+	vid.gid = 99;
+	vid.gid_list.clear();
+      }
+      else
+      {
+	vid.uid_list.clear();
+        vid.uid_list.push_back(gVirtualGidMap["https:\"<pwd>\":uid"]);
+        vid.uid_list.push_back(99);
+	vid.gid = 99;
+	vid.gid_list.clear();
+      }
+    }
+
+    if (gVirtualGidMap.count("https:\"<pwd>\":gid"))
+    {
+      if (gVirtualGidMap["https:\"<pwd>\":gid"] == 0) 
+      {
+	// use physical mapping for gsi names
+	uid_t uid = vid.uid;
+	Mapping::getPhysicalIds(client->name, vid);
+	vid.uid = uid;
+	vid.uid_list.clear();
+	vid.uid_list.push_back(uid);
+	vid.uid_list.push_back(99);
+      }
+      else
+      {
+	vid.gid_list.clear();
+	vid.gid_list.push_back(gVirtualGidMap["https:\"<pwd>\":gid"]);
+	vid.gid_list.push_back(99);
+      }
+    }
+  }
+  // ---------------------------------------------------------------------------
   // sss mapping
   // ---------------------------------------------------------------------------
   if ((vid.prot == "sss"))

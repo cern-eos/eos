@@ -196,6 +196,11 @@ com_vid (char* arg1)
         in += "&mgm.vid.auth=gsi";
         hastype = true;
       }
+      if ((type == "-https"))
+      {
+        in += "&mgm.vid.auth=https";
+        hastype = true;
+      }
       if ((type == "-sss"))
       {
         in += "&mgm.vid.auth=sss";
@@ -333,6 +338,13 @@ com_vid (char* arg1)
       disableg += "gsi:\"<pwd>\":gid";
       hastype = true;
     }
+    if ((type == "https"))
+    {
+      in += "&mgm.vid.auth=https";
+      disableu += "https:\"<pwd>\":uid";
+      disableg += "https:\"<pwd>\":gid";
+      hastype = true;
+    }
     if ((type == "unix"))
     {
       in += "&mgm.vid.auth=unix";
@@ -385,7 +397,7 @@ com_vid (char* arg1)
     if (!host.length())
       goto com_vid_usage;
     XrdOucString protocol = subtokenizer.GetToken();
-    if (protocol.length() && ((protocol != "sss") && (protocol != "gsi") && (protocol != "krb5") && (protocol != "unix")))
+    if (protocol.length() && ((protocol != "sss") && (protocol != "gsi") && (protocol != "krb5") && (protocol != "unix") && (protocol != "https") ) )
       goto com_vid_usage;
     if (!protocol.length())
       protocol = "*";
@@ -480,14 +492,14 @@ com_vid_usage:
   fprintf(stdout, "       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
   fprintf(stdout, "       vid rm membership <uid>             : delete the membership entries for <uid>.\n");
   fprintf(stdout, "       vid set membership <uid> [+|-]sudo \n");
-  fprintf(stdout, "       vid set map -krb5|-gsi|-sss|-unix|-tident|-voms <pattern> [vuid:<uid>] [vgid:<gid>] \n");
+  fprintf(stdout, "       vid set map -krb5|-gsi|-https|-sss|-unix|-tident|-voms <pattern> [vuid:<uid>] [vgid:<gid>] \n");
   fprintf(stdout, "\n");
   fprintf(stdout, "                                                                                                      -voms <pattern>  : <pattern> is <group>:<role> e.g. to map VOMS attribute /dteam/cern/Role=NULL/Capability=NULL one should define <pattern>=/dteam/cern: \n");
   fprintf(stdout, "       vid set geotag <IP-prefix> <geotag>  : add to all IP's matching the prefix <prefix> the geo location tag <geotag>\n");
   fprintf(stdout, "                                              N.B. specify the default assumption via 'vid set geotag default <default-tag>'\n");
   fprintf(stdout, "       vid rm <key>                         : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
   fprintf(stdout, "\n");
-  fprintf(stdout, "       vid enable|disable krb5|gsi|sss|unix\n");
+  fprintf(stdout, "       vid enable|disable krb5|gsi|sss|unix|https\n");
   fprintf(stdout, "                                            : enable/disables the default mapping via password database\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "       vid add|remove gateway <hostname> [krb5|gsi|sss|unix]\n");
