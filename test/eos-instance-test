@@ -22,7 +22,15 @@
 # ************************************************************************
 
 #! /bin/bash
+
 ################################################################################################################
+# Usage:                                                                                                       #
+# - run full test suite:   bash> eos-instance                                                                  #
+# - list test id's:        bash> eos-instance list                                                             #
+# - limit tests:           bash> eos-instance 243 258               # run 243-258 (prepare+cleanup always run) #
+# - limit tests:           bash> eos-instance fuse,rain             # run only fuse+rain tests                 #
+################################################################################################################
+
 # default values can be overwritten in /etc/sysconfig/eos
 #export EOS_TEST_MAILNOTIFY=apeters@mail.cern.ch
 #export EOS_TEST_GSMNOTIFY="0041764875002@mail2sms.cern.ch"
@@ -31,8 +39,10 @@ export EOS_TEST_REDIRECTOR=localhost
 export EOS_TEST_FULL_REDIRECTOR=`hostname -f`
 export EOS_TEST_TESTSYS=/tmp/eos-instance-test
 export EOS_TEST_GSMLOCKTIME=3600
-export EOS_TEST_TESTTIMESLICE=300;
+export EOS_TEST_TESTTIMESLICE=500;
 
+firsttest=$1
+lasttest=$2
 
 ################################################################################################################
 # check if on SLC5
@@ -77,30 +87,48 @@ export TESTSYSFILE1M=$EOS_TEST_TESTSYS/file.1M
 export TESTSYSFILE50M=$EOS_TEST_TESTSYS/file.50M
 
 ################################################################################################################
+
+if [ $1 != "list" ]; then 
+
+if [ ! -e $TESTSYSFILE0K ]; then
 echo "####################################"
 echo "### Creating Test Pattern File 0K"
 echo "####################################"
 rm -rf $TESTSYSFILE0K >& /dev/null
 touch $TESTSYSFILE0K
+fi
 
+if [ ! -e $TESTSYSFILE1K ]; then
 echo "####################################"
 echo "### Creating Test Pattern File 1K"
 echo "####################################"
 yes | dd of=$TESTSYSFILE1K bs=1k count=1
+fi
+
 CKS1K=`eos-adler32 $TESTSYSFILE1K | awk '{print $4'} | sed s/adler32=//`
 echo "adler32 (1k) = $CKS1K"
+
+if [ ! -e $TESTSYSFILE1M ]; then
 echo "####################################"
 echo "### Creating Test Pattern File 1M"
 echo "####################################"
 yes | dd of=$TESTSYSFILE1M bs=1k count=1000
+fi 
+
 CKS1M=`eos-adler32 $TESTSYSFILE1M | awk '{print $4'} | sed s/adler32=//`
 echo "adler32 (1M) = $CKS1M"
+
+if [ ! -e $TESTSYSFILE50M ]; then
 echo "####################################"
 echo "### Creating Test Pattern File 50M"
 echo "####################################"
 yes | dd of=$TESTSYSFILE50M bs=1k count=50000
+fi
+
 CKS50M=`eos-adler32 $TESTSYSFILE1M | awk '{print $4'} | sed s/adler32=//`
 echo "adler32 (50M) = $CKS50M"
+
+if [ ! -d $EOS_TEST_RAIN_DIR ]; then
 echo "############################################"
 echo "### Creating RAIN Dir"
 echo "############################################"
@@ -118,6 +146,8 @@ cp $EOS_TEST_RAIN_DIR/file2.rain $EOS_TEST_RAIN_DIR/file2.io
 (echo "0 4194304"; echo "1048576 2097152"; echo "3145728 7340032"; echo "5242880 6291456"; echo "7340032 15728640"; echo "14680064 17825792"; echo "16777216 18664448") >> $EOS_TEST_RAIN_DIR/file2.io.pattern
 cp $EOS_TEST_RAIN_DIR/file3.rain $EOS_TEST_RAIN_DIR/file3.io
 #(echo "0 524288"; echo "409600 786432"; echo "614400 1048576"; echo "1024000 1589248") >> $EOS_TEST_RAIN_DIR/file3.io.pattern
+fi
+fi
 ################################################################################################################
 
 
@@ -320,6 +350,13 @@ runtest () {
 	echo "# Test $testcnt: $*" >> $EOSCERTLOG 2>&1		
 	echo "-------------------------------------------------------------" >> $EOSCERTLOG 2>&1
 
+	if [ "$firsttest" = "list" ]; then
+	  printf "# [ %-7s ]" $categorie ;
+	  printf " ID %02d" $testcnt;
+   	  echo " $*"
+	  return
+        fi
+
 	START=$(date +%s.%N)
 	echo $testcnt | awk '{printf("%04d ",$1);}'
 	echo -n `date +"%x %X"` "$1"
@@ -331,17 +368,52 @@ runtest () {
 	shift
 	shift
 	shift
-	if [ $auth = "krb5" ] ; then ( eval export X509_USER_CERT=/tmp/illegal X509_USER_KEY=/tmp/illegal $renv; $* ) ; ret=$?; fi
-	if [ $auth = "gsi"  ] ; then ( eval export KRB5CCNAME=/tmp/illegal                                $renv; $* ) ; ret=$?; fi
-	if [ $auth = "unix" ] ; then ( eval export XrdSecPROTOCOL=unix                                    $renv; $* ) ; ret=$?; fi
-	if [ $auth = "sss"  ] ; then ( eval export XrdSecPROTOCOL=sss                                     $renv; $* ) ; ret=$?; fi
-	echo
-	if [ $res -eq 0 ] ; then if [ $ret -eq 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
-	if [ $res -eq 1 ] ; then if [ $ret -ne 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
-	if [ $res -eq 2 ] ; then success; ((success++)); fi
-	END=$(date +%s.%N)
-	DIFF=$(echo "$END - $START" | bc)
-	echo "                         in $DIFF seconds"
+        skip=0
+        if [ $categorie != "prep" ] && [ $categorie != "clean" ]; then
+          # --- if $firsttest is set and $lasttest not we assume it is a categorie list
+          if [ "x$firsttest" != "x" ] && [ "x$lasttest" == "x" ]; then
+	    if [ "x$firsttest" = "x${firsttest/$categorie}" ] ; then
+	      echo
+              warning "skipped" ; echo -n " ... skipped"
+     	      echo
+	      skip=1
+            fi
+          else
+
+  	  # --- skip if start-range was given
+ 	  if [ "x$firsttest" != "x" ] ; then
+	    if [ $testcnt -lt $firsttest ]; then
+	      echo
+              warning "skipped" ; echo -n " ... skipped"
+     	      echo
+	      skip=1
+	    fi
+	  fi  
+	  # --- skip if end-range was given
+	  if [ "x$lasttest" != "x" ] ; then
+	    if [ $testcnt -gt $lasttest ]; then
+	      echo
+              warning "skipped" ; echo -n " ... skipped"
+     	      echo
+	      skip=1
+	    fi
+	  fi  
+          fi
+	fi
+
+    	if [ $skip = 0 ] ; then
+	  if [ $auth = "krb5" ] ; then ( eval export X509_USER_CERT=/tmp/illegal X509_USER_KEY=/tmp/illegal $renv; $* ) ; ret=$?; fi
+	  if [ $auth = "gsi"  ] ; then ( eval export KRB5CCNAME=/tmp/illegal                                $renv; $* ) ; ret=$?; fi
+	  if [ $auth = "unix" ] ; then ( eval export XrdSecPROTOCOL=unix                                    $renv; $* ) ; ret=$?; fi
+	  if [ $auth = "sss"  ] ; then ( eval export XrdSecPROTOCOL=sss                                     $renv; $* ) ; ret=$?; fi
+	  echo
+	  if [ $res -eq 0 ] ; then if [ $ret -eq 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
+	  if [ $res -eq 1 ] ; then if [ $ret -ne 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
+	  if [ $res -eq 2 ] ; then success; ((success++)); fi
+	  END=$(date +%s.%N)
+	  DIFF=$(echo "$END - $START" | bc)
+	  echo "                         in $DIFF seconds"
+        fi
 	echo "--------------------------------------------------------------------------------------------------------------------"
     fi
 }
@@ -372,6 +444,9 @@ showtoken >> $EOSCERTLOG 2>&1
 ################################################################################################################
 # Preparation
 ################################################################################################################
+# --------------------------------------------------------------------------------------------------------------
+categorie="prep"
+# --------------------------------------------------------------------------------------------------------------
 runtest "### Access    " unix 2 "" eos "access rm stall r"
 runtest "### Access    " unix 2 "" eos "access rm redirect"
 runtest "### Access    " unix 2 "" eos "access unban user nobody"
@@ -395,6 +470,9 @@ runtest "### Help      " unix 0 "" eos "help | grep \"Display this text\""
 ################################################################################################################
 # Upload,Download,Stat,Rename
 ################################################################################################################
+# --------------------------------------------------------------------------------------------------------------
+categorie="core"
+# --------------------------------------------------------------------------------------------------------------
 runtest "### Upload    " unix 1 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-ODeos.space=default"
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-ODeos.space=default"
@@ -540,6 +618,9 @@ runtest "### Rm        " unix 0 "" eos "rm /eos/$EOS_TEST_INSTANCE/test/instance
 ################################################################################################################
 # Quota Tests
 ################################################################################################################
+# --------------------------------------------------------------------------------------------------------------
+categorie="quota"
+# --------------------------------------------------------------------------------------------------------------
 $XROOTSYS/bin/eos -b space status default | grep quota | grep on >& /dev/null 2>&1
 if [ $? -eq 0 ]; then
 # --------------------------
@@ -557,6 +638,9 @@ fi
 ################################################################################################################
 # RECYCLE BIN TEST
 ################################################################################################################
+# --------------------------------------------------------------------------------------------------------------
+categorie="recycle"
+# --------------------------------------------------------------------------------------------------------------
 recyclesize=`$XROOTSYS/bin/eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR recycle -m | grep maxbytes | awk '{print $3}' | sed s/maxbytes=//`
 recycletime=`$XROOTSYS/bin/eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR recycle -m | grep lifetime | awk '{print $6}' | sed s/lifetime=//`
 test -z $recyclesize && recyclesize=0
@@ -589,7 +673,10 @@ runtest "### Rem       " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instan
 
 ################################################################################################################
 # STRESS
-################################################################################################################
+###############################################################################################################
+## --------------------------------------------------------------------------------------------------------------
+categorie="stress"
+# --------------------------------------------------------------------------------------------------------------
 if [ "x${EOS_TEST_NO_STRESS}" = "x" ]; then
 runtest "### Chmod      " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/"
 runtest "### Attr Set   " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test |grep success | wc -l | grep -w 6"
@@ -620,6 +707,9 @@ runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.nstripes /eos/$EOS_T
 ################################################################################################################
 # NAMESPACE
 ################################################################################################################
+# --------------------------------------------------------------------------------------------------------------
+categorie="ns"
+# --------------------------------------------------------------------------------------------------------------
 runtest "### Cd        " unix 1 "" eos cd /__dont_exists
 runtest "### Cd        " unix 0 "" eos cd /eos/$EOS_TEST_INSTANCE/test
 runtest "### Ls        " unix 1 "" eos ls /__dont_exist 
@@ -669,6 +759,9 @@ runtest "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/t
 ################################################################################
 # eoscp tests
 ################################################################################
+# --------------------------------------------------------------------------------------------------------------
+categorie="eoscp"
+# --------------------------------------------------------------------------------------------------------------
 runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp -d /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp
 runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp -
 runtest "### eoscp     " unix 0 "EOSROLE='-r 0 0'" eos cp /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp /eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp/passwd.eoscp.1
@@ -678,7 +771,9 @@ runtest "### eoscp     " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instan
 ################################################################################
 # eos FUSE tests
 ################################################################################
-
+# --------------------------------------------------------------------------------------------------------------
+categorie="fuse"
+# --------------------------------------------------------------------------------------------------------------
 if [ -e "/eos/$EOS_TEST_INSTANCE" ];
 then
 echo "### Running FUSE tests ... disabling krb5/x509 ..."
@@ -727,6 +822,9 @@ fi
 ################################################################################
 # Third party copy tests
 ################################################################################
+# --------------------------------------------------------------------------------------------------------------
+categorie="tpc"
+# --------------------------------------------------------------------------------------------------------------
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc"
 runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc"
 runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/tpc/file.tpc.1" 
@@ -737,6 +835,9 @@ runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instan
 ################################################################################
 # HTTP tests
 ################################################################################
+# --------------------------------------------------------------------------------------------------------------
+categorie="http"
+# --------------------------------------------------------------------------------------------------------------
 HTTPDIR=eos/$EOS_TEST_INSTANCE/test/instancetest/http.dir
 
 runtest "### Mkdir        " unix 0 "" eos mkdir $HTTPDIR
@@ -771,6 +872,9 @@ runtest "### Http GET     " unix 1 "" curl --location --fail --silent --range 51
 ################################################################################
 # WebDAV tests
 ################################################################################
+# --------------------------------------------------------------------------------------------------------------
+categorie="dav"
+# --------------------------------------------------------------------------------------------------------------
 runtest "### WebDAV Ls    " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR     <<< ls"
 runtest "### WebDAV Ls    " unix 0 "" tgrep "404"       "cadaver http://$EOS_TEST_REDIRECTOR:8000$HTTPDIR/foo  <<< ls"
 runtest "### WebDAV Mkdir " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR     <<< \"mkdir sub.dir\""
@@ -810,7 +914,9 @@ runtest "### WebDAV Rm    " unix 0 "" tgrep "succeeded" "cadaver http://$EOS_TES
 ################################################################################
 # Amazon S3 tests
 ################################################################################
-
+# --------------------------------------------------------------------------------------------------------------
+categorie="s3"
+# --------------------------------------------------------------------------------------------------------------
 export S3_ACCESS_KEY_ID="test"
 export S3_SECRET_ACCESS_KEY="0123456789"
 export S3_HOSTNAME=$EOS_TEST_REDIRECTOR
@@ -822,6 +928,9 @@ runtest "### Attr         " unix 0 "" eos attr set sys.s3.path.test="/eos/$EOS_T
 #######################################################################################
 # RAIN-LIKE LAYOUT TESTS FOR WR/RD AND RECOVERY - RUN ONLY IF AT LEAST 6 FSTs PRESENT
 ######################################################################################
+# --------------------------------------------------------------------------------------------------------------
+categorie="rain"
+# --------------------------------------------------------------------------------------------------------------
 NUM_FST=$($XROOTSYS/bin/eos -b $EOSROLE fs ls | awk '{ if (($6 ~ /booted/) || ($7 ~ /booted/)) c++} END {print c}')
 if [ $NUM_FST -ge 6 ]; then
    #----------------------------------------------------------------------------   
@@ -893,6 +1002,9 @@ runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/eos
 ################################################################################################################
 # FINAL CLEANUP 
 ################################################################################################################
+# --------------------------------------------------------------------------------------------------------------
+categorie="clean"
+# --------------------------------------------------------------------------------------------------------------
 runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress"
 runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/rain"

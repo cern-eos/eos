@@ -203,7 +203,7 @@ fi
 #...............................................................................
 # Check that there are at least 6 FST in the EOS setup so that we can run the test
 #...............................................................................
-ret=$( $SUDO $EOS -b fs ls | grep booted | wc -l | grep -w 6 )
+ret=$( $SUDO $EOS -b fs ls | grep booted | wc -l )
 
 if [[ $ret -le 5 ]]; then
     echo "The EOS instance needs at least 6 FST's to run this test."
@@ -215,7 +215,7 @@ fi
 # Do all write-read-check tests in: $EOS_DEST ...
 #...............................................................................
 echo "Do all write-read-check tests in: $EOS_DEST"
-
+date 
 # loop over all files in the pattern and test them in EOS
 for file in $ROOT_PATH/*.rain; do
     if [[ -f $file ]]; then
@@ -229,8 +229,8 @@ done
 # Disable one FST and redo the read test...
 #...............................................................................
 echo "Disable one FST and redo the read test..."
-
-
+date
+date
 # loop over all files in the pattern and test them in EOS
 for file in $ROOT_PATH/*.rain; do
     if [[ -f $file ]]; then 
@@ -258,7 +258,7 @@ done
 # Disable each two FST's and redo the read tests...
 #...............................................................................
 echo "Disable each two FST's and redo the read tests..."
-
+date
 # loop over all files in the pattern and test them in EOS
 for file in $ROOT_PATH/*.rain; do
     if [[ -f $file ]]; then
@@ -291,7 +291,7 @@ done
 # Clean up all the files written in EOS
 #...............................................................................
 echo "Delete files in EOS"
-
+date
 # loop over all files in the pattern and test them in EOS
 for file in $ROOT_PATH/*.rain; do
     if [[ -f $file ]]; then
