@@ -432,10 +432,11 @@ XrdFileCache::waitWritesAndRemove(FileAbstraction &fileAbst)
   if (fileAbst.getSizeWrites() != 0) {
     cacheImpl->flushWrites(fileAbst);
     fileAbst.waitFinishWrites();
-    if (!fileAbst.isInUse(false)) {
-      removeFileInode(fileAbst.getInode(), false);
-    }
   }
+  
+  if (!fileAbst.isInUse(false)) {
+    removeFileInode(fileAbst.getInode(), false);
+  } 
 }
 
 

@@ -1694,9 +1694,10 @@ int
 xrd_close(int fildes, unsigned long inode)
 {
   eos_static_info("fd=%d inode=%lu", fildes, inode);
+  
   if (XFC && inode) {
     FileAbstraction* fAbst = XFC->getFileObj(inode, false);
-    if (fAbst && (fAbst->getSizeWrites() != 0)) {
+    if (fAbst) {
       XFC->waitWritesAndRemove(*fAbst);
     }
   }
