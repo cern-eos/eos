@@ -2400,7 +2400,7 @@ xrd_close (int fildes, unsigned long inode)
   if (XFC && inode)
   {
     FileAbstraction* fAbst = XFC->GetFileObj(inode, 0);
-    if (fAbst && (fAbst->GetSizeWrites() != 0))
+    if (fAbst)
     {
       XFC->WaitWritesAndRemove(*fAbst);
     }
