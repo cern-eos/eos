@@ -79,7 +79,6 @@
 #define OSPAGESIZE 65536
 #endif
 
-static XrdCl::FileSystem* fs;
 static XrdFileCache* XFC;
 
 static XrdOucHash<XrdOucString>* passwdstore;
@@ -1322,8 +1321,14 @@ xrd_stat (const char* path, struct stat* buf)
   request += "?";
   request += "mgm.pcmd=stat";
   arg.FromString(request);
-  XrdCl::XRootDStatus status = fs->Query(XrdCl::QueryCode::OpaqueFile,
+
+  xrd_lock_environment();
+  XrdCl::URL Url(xrd_user_url(2, 0));
+  XrdCl::FileSystem fs(Url);
+  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                          arg, response);
+
+  xrd_unlock_environment();
   COMMONTIMING("GETPLUGIN", &stattiming);
 
   errno = 0;
@@ -1466,8 +1471,14 @@ xrd_statfs (const char* path, struct statvfs* stbuf)
   request += "path=";
   request += path;
   arg.FromString(request);
-  XrdCl::XRootDStatus status = fs->Query(XrdCl::QueryCode::OpaqueFile,
+
+  xrd_lock_environment();
+  XrdCl::URL Url(xrd_user_url(2,0));
+  XrdCl::FileSystem fs(Url);
+  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                          arg, response);
+  xrd_unlock_environment();
+
   COMMONTIMING("END", &statfstiming);
 
   errno = 0;
@@ -1737,7 +1748,10 @@ xrd_access (const char* path,
     //..........................................................................
     int items = sscanf(response->GetBuffer(), "%s retc=%d", tag, &retc);
 
-    fprintf(stderr, "access-retc=%d", retc);
+    if (EOS_LOGS_DEBUG) {
+      fprintf(stderr, "access-retc=%d\n", retc);
+    }
+
     if ((items != 2) || (strcmp(tag, "access:")))
     {
       errno = EFAULT;
@@ -2240,7 +2254,11 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
     std::string request = file_path;
     request += "?mgm.pcmd=open";
     arg.FromString(request);
-    status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+
+    xrd_lock_environment();
+    XrdCl::URL Url(xrd_user_url(uid, pid));
+    XrdCl::FileSystem fs(Url);
+    status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
 
     if (status.IsOK())
     {
@@ -2950,11 +2968,6 @@ xrd_init ()
   //............................................................................
   // Initialise the XrdClFileSystem object
   //............................................................................
-  if (fs)
-  {
-    delete fs;
-    fs = 0;
-  }
 
   std::string address = getenv("EOS_RDRURL");
   if (address == "")
@@ -2974,13 +2987,6 @@ xrd_init ()
 
   MgmHost = address.c_str();
   MgmHost.replace("root://", "");
-
-  fs = new XrdCl::FileSystem(url);
-
-  if (fs)
-  {
-    eos_static_info("Got new FileSystem object.");
-  }
 
   //............................................................................
   // Check if we should set files executable
