@@ -340,6 +340,17 @@ extern "C"
                          struct timespec mtime,
                          struct dirbuf** b);
 
+  //----------------------------------------------------------------------------
+  //!
+  //! Forget a cached directory
+  //!
+  //! @param inode inode value of the directory to be forgotten
+  //! @return true if found, otherwise false
+  //!
+  //----------------------------------------------------------------------------
+  int xrd_dir_cache_forget (unsigned long long inode);
+
+
 
   //----------------------------------------------------------------------------
   //! Get a subentry from a cached directory

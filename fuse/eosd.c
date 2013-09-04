@@ -909,6 +909,8 @@ eosfs_ll_rmdir (fuse_req_t req, fuse_ino_t parent, const char* name)
 
   int retc = xrd_rmdir (fullpath, req->ctx.uid, req->ctx.pid);
 
+  xrd_dir_cache_forget((unsigned long long) parent);
+  
   if (!retc)
   {
     fuse_reply_err (req, 0);
@@ -996,6 +998,7 @@ eosfs_ll_rename (fuse_req_t req,
 
       xrd_forget_p2i ((unsigned long long) stbuf.st_ino);
       xrd_store_p2i ((unsigned long long) stbuf.st_ino, iparentpath);
+      xrd_dir_cache_forget((unsigned long long) parent);
     }
 
     fuse_reply_err (req, 0);

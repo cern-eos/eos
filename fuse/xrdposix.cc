@@ -564,6 +564,21 @@ xrd_dir_cache_get (unsigned long long inode,
   return retc;
 }
 
+//------------------------------------------------------------------------------
+// Forget a cached directory
+//------------------------------------------------------------------------------
+int
+xrd_dir_cache_forget (unsigned long long inode)
+{
+  eos::common::RWMutexWriteLock wr_lock(mutex_fuse_cache);
+
+  if (inode2cache.count(inode) )
+  {
+    inode2cache.erase(inode);
+    return true;
+  }
+  return false;
+}
 
 //------------------------------------------------------------------------------
 // Add or update a cache directory entry
