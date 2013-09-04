@@ -999,6 +999,10 @@ eosfs_ll_rename (fuse_req_t req,
       xrd_forget_p2i ((unsigned long long) stbuf.st_ino);
       xrd_store_p2i ((unsigned long long) stbuf.st_ino, iparentpath);
       xrd_dir_cache_forget((unsigned long long) parent);
+      if ( parent != newparent )
+      {
+	xrd_dir_cache_forget((unsigned long long) newparent);
+      }
     }
 
     fuse_reply_err (req, 0);
