@@ -382,7 +382,8 @@ public:
                const char *opaqueO = 0,
                const char *opaqueN = 0,
                bool updateCTime = false,
-               bool checkQuota = false);
+               bool checkQuota = false,
+	       bool overwrite = false);
 
   // ---------------------------------------------------------------------------
   // stat file

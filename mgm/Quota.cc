@@ -963,7 +963,8 @@ SpaceQuota::CheckWriteQuota (uid_t uid, gid_t gid, long long desiredspace, unsig
   {
     if (((GetQuota(kUserFilesTarget, uid, false)) - (GetQuota(kUserFilesIs, uid, false))) > (inodes))
     {
-      hasuserquota = true;
+      if ( !uservolumequota )
+	hasuserquota = true;
     }
     else
     {
@@ -987,7 +988,8 @@ SpaceQuota::CheckWriteQuota (uid_t uid, gid_t gid, long long desiredspace, unsig
   {
     if ((((GetQuota(kGroupFilesTarget, gid, false)) - (GetQuota(kGroupFilesIs, gid, false))) > (inodes)))
     {
-      hasgroupquota = true;
+      if ( !groupvolumequota )
+	hasgroupquota = true;
     }
     else
     {

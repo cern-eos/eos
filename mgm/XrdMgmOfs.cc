@@ -2844,7 +2844,7 @@ XrdMgmOfs::rename (const char *old_name,
 
     return SFS_ERROR;
   }
-  return _rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN);
+  return _rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, false, false, true);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2856,7 +2856,8 @@ XrdMgmOfs::_rename (const char *old_name,
                     const char *infoO,
                     const char *infoN,
                     bool updateCTime,
-                    bool checkQuota
+                    bool checkQuota,
+		    bool overwrite
                     )
 /*----------------------------------------------------------------------------*/
 /*
@@ -2870,6 +2871,7 @@ XrdMgmOfs::_rename (const char *old_name,
  * @param infoN CGI of the new name
  * @param updateCTime indicates to update the change time of a directory
  * @param checkQuota indicates to check the quota during a rename operation
+ * @param overwrite indicates if the target name can be overwritten
  * @return SFS_OK on success otherwise SFS_ERROR
  * 
  * There are three flavours of rename function, two external and one internal
@@ -2908,8 +2910,17 @@ XrdMgmOfs::_rename (const char *old_name,
   {
     if (file_exists == XrdSfsFileExistIsFile)
     {
-      errno = EEXIST;
-      return Emsg(epname, error, EEXIST, "rename - target file name exists");
+      if (overwrite) 
+      {
+	// delete the existing target
+	if (gOFS->_rem(new_name, error, vid, infoN ))
+	  return SFS_ERROR;
+      }
+      else 
+      {
+	errno = EEXIST;
+	return Emsg(epname, error, EEXIST, "rename - target file name exists");
+      }
     }
     if (file_exists == XrdSfsFileExistIsDirectory)
     {
