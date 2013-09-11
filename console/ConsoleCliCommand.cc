@@ -1,0 +1,359 @@
+#include <sstream>
+#include <string.h>
+#include "ConsoleCliCommand.hh"
+
+#define HELP_PADDING 30
+
+std::vector<std::string> *
+split_keywords (std::string keywords, char delimiter)
+{
+  std::string token;
+  std::istringstream to_split(keywords);
+  std::vector<std::string> *split_keywords = new std::vector<std::string>;
+
+  while (std::getline(to_split, token, delimiter))
+  {
+    split_keywords->push_back(token);
+  }
+
+  return split_keywords;
+}
+
+CliBaseOption::CliBaseOption(std::string name, std::string desc)
+  : m_name(name),
+    m_description(desc),
+    m_required(false)
+{};
+
+CliBaseOption::~CliBaseOption() {};
+
+CliOption::CliOption(std::string name, std::string desc, std::string keywords)
+  : CliBaseOption(name, desc)
+{
+  m_keywords = split_keywords(keywords, ',');
+};
+
+CliOption::CliOption(const CliOption &option)
+  : CliBaseOption(option.m_name, option.m_description)
+{
+  m_keywords = new std::vector<std::string>;
+
+  for (std::vector<std::string>::const_iterator it = option.m_keywords->cbegin();
+       it != option.m_keywords->cend(); it++)
+    m_keywords->push_back(*it);
+}
+
+CliOption::~CliOption()
+{
+  delete m_keywords;
+  m_keywords = 0;
+}
+
+std::string
+CliOption::has_keyword(std::string keyword)
+{
+  std::vector<std::string>::const_iterator it = m_keywords->cbegin();
+  for (; it != m_keywords->cend(); it++)
+  {
+    if (keyword.compare(*it) == 0)
+      return *it;
+  }
+
+  return "";
+}
+
+AnalysisResult *
+CliOption::analyse(std::vector<std::string> &cli_args)
+{
+  std::pair<std::string, std::vector<std::string>> ret;
+  std::vector<std::string>::iterator it = cli_args.begin();
+  AnalysisResult *res = new AnalysisResult;
+
+  for (; it != cli_args.end(); it++)
+  {
+    if (has_keyword(*it) != "")
+    {
+      ret.first = m_name;
+      break;
+    }
+  }
+
+  res->values = ret;
+  res->start = it;
+  res->end = it;
+
+  return res;
+}
+
+std::string
+CliOption::join_keywords()
+{
+  std::string keyword("");
+
+  for (size_t i = 0; i < m_keywords->size(); i++)
+  {
+    keyword += m_keywords->at(i);
+    if (i < m_keywords->size() - 1)
+      keyword += std::string("|");
+  }
+
+  return keyword;
+}
+
+char *
+CliOption::keywords_repr()
+{
+  char *repr = NULL;
+  std::string keyword = join_keywords();
+
+  if (keyword != "")
+  {
+    if (!m_required)
+      keyword = "[" + keyword + "]";
+    repr = strdup(keyword.c_str());
+  }
+
+  return repr;
+}
+
+char *
+CliOption::help_string()
+{
+  char *help_str = 0;
+  std::string keyword("");
+
+  for (size_t i = 0; i < m_keywords->size(); i++)
+    {
+      keyword += m_keywords->at(i);
+      if (i < m_keywords->size() - 1)
+	keyword += std::string("|");
+    }
+
+  if (keyword != "")
+  {
+    int str_size = keyword.length() + m_description.length() + HELP_PADDING + 10;
+    help_str = new char[str_size];
+  }
+
+  sprintf(help_str, "%*s\t\t- %s\n", HELP_PADDING, keyword.c_str(), m_description.c_str());
+
+  return help_str;
+}
+
+CliOptionWithArgs::CliOptionWithArgs(std::string name,
+                                     std::string keywords,
+                                     std::string desc,
+				     std::string joint_keywords,
+				     int min_num_args,
+				     int max_num_args)
+  : CliOption::CliOption(name, keywords, desc)
+{
+  m_min_num_args = min_num_args;
+  m_max_num_args = max_num_args;
+  m_joint_keywords = split_keywords(joint_keywords, ',');
+}
+
+// std::string
+// CliOptionWithArgs::has_keyword(std::string keyword)
+// {
+//   CliOption::has_keyword(keyword);
+
+//   std::vector<std::string>::iterator it = m_joint_keywords->begin();
+//   for (; it != m_joint_keywords->end(); it++)
+//   {
+//     std::string current = *it;
+//     if (keyword.compare(0, current.length(), current) == 0)
+//       return "true";
+//   }
+
+//   return "";
+// }
+
+AnalysisResult *
+CliOptionWithArgs::analyse(std::vector<std::string> &cli_args)
+{
+  std::pair<std::string, std::vector<std::string>> ret;
+  std::vector<std::string>::iterator it = cli_args.begin();
+  AnalysisResult *res = new AnalysisResult;
+
+  for (; it != cli_args.end(); it++)
+  {
+    std::string keyword = *it;
+    std::string matched_kw = has_keyword(keyword);
+
+    if (matched_kw == "")
+      continue;
+
+    ret.first = m_name;
+    res->start = it;
+    // If the max number of args is -1, we take it till the 
+    int n_args = m_max_num_args;
+    it++;
+    while (n_args != 0 && it != cli_args.end())
+    {
+      ret.second.push_back(*it);
+
+      if (n_args != -1)
+	n_args--;
+
+      it++;
+    }
+
+    res->end = it;
+    break;
+  }
+
+  res->values = ret;
+
+  return res;
+}
+
+char *
+CliOptionWithArgs::keywords_repr()
+{
+  char *repr = NULL;
+  std::string keyword = join_keywords();
+
+  if (keyword != "")
+  {
+    if (!m_required)
+      keyword = "[" + keyword + "]";
+    repr = strdup(keyword.c_str());
+  }
+
+  return repr;
+}
+
+ConsoleCliCommand::ConsoleCliCommand(const std::string &name,
+                                     const std::string &description)
+  : m_name(name),
+    m_description(description)
+{
+  m_options = new std::vector<CliOption *>();
+}
+
+ConsoleCliCommand::~ConsoleCliCommand()
+{
+  size_t i;
+  for(i = 0; i < m_options->size(); i++)
+  {
+    delete m_options->at(i);
+  }
+  delete m_options;
+  m_options = 0;
+}
+
+void
+ConsoleCliCommand::add_option(CliOption *option)
+{
+  m_options->push_back(option);
+}
+
+void
+ConsoleCliCommand::add_option(const CliOption &option)
+{
+  CliOption *new_obj = new CliOption(option);
+  m_options->push_back(new_obj);
+}
+
+void
+ConsoleCliCommand::add_options(std::vector<CliOption> options)
+{
+  std::vector<CliOption>::const_iterator it = options.cbegin();
+  for (; it != options.cend(); it++)
+  {
+    add_option(*it);
+  }
+}
+
+void
+ConsoleCliCommand::parse(std::vector<std::string> &cli_args)
+{
+  std::vector<CliOption *>::iterator it = m_options->begin();
+  for (; it != m_options->end(); it++)
+  {
+    AnalysisResult *res = (*it)->analyse(cli_args);
+    if (res->values.first != "")
+    {
+      m_options_map.insert(res->values);
+      cli_args.erase(res->start, res->end);
+    }
+    delete res;
+  }
+}
+
+void
+ConsoleCliCommand::parse(std::string &cli_args)
+{
+  std::vector<std::string>* cli_args_vector = split_keywords(cli_args, ' ');
+  parse(*cli_args_vector);
+}
+
+void
+ConsoleCliCommand::parse(std::string cli_args)
+{
+  std::vector<std::string>* cli_args_vector = split_keywords(cli_args, ' ');
+  parse(*cli_args_vector);
+}
+
+bool
+ConsoleCliCommand::has_value(std::string option_name)
+{
+  return m_options_map.count(option_name);
+}
+
+bool
+ConsoleCliCommand::has_values()
+{
+  return !m_options_map.empty();
+}
+
+std::vector<std::string>
+ConsoleCliCommand::get_value (std::string option_name)
+{
+  return m_options_map[option_name];
+}
+
+void
+ConsoleCliCommand::print_help()
+{
+  for (std::vector<CliOption *>::const_iterator it = m_options->cbegin();
+       it != m_options->cend(); it++)
+  {
+    char *str = (*it)->help_string();
+
+    if (str != NULL)
+      fprintf(stdout, str);
+
+    free(str);
+  }
+}
+
+void
+ConsoleCliCommand::print_usage()
+{
+  char *repr = keywords_repr();
+  std::string command_and_options(repr);
+  command_and_options = m_name + " " + command_and_options;
+  fprintf(stdout, "Usage: %s", command_and_options.c_str());
+  if (m_description != "") {
+    fprintf(stdout, " : %s\n", m_description.c_str());
+  }
+  print_help();
+  free(repr);
+}
+
+char*
+ConsoleCliCommand::keywords_repr()
+{
+  std::string repr("");
+
+  for (size_t i = 0; i < m_options->size(); i++)
+  {
+    repr += m_options->at(i)->keywords_repr();
+    if (i < m_options->size() - 1)
+      repr += " ";
+  }
+
+  return strdup(repr.c_str());
+}

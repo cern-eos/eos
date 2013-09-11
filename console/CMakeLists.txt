@@ -35,6 +35,8 @@ add_executable( eos
 		ConsoleMain.hh	
 		ConsolePipe.cc
 		ConsolePipe.hh
+		ConsoleCliCommand.cc
+		ConsoleCliCommand.hh
 #                ../common/Logging.cc
 #                ../common/Fmd.cc
 #                ../common/SymKeys.cc
