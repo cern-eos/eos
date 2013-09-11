@@ -1,0 +1,11 @@
+package eos.auth;
+
+//------------------------------------------------------------------------------
+// XrdOucErrInfo request protocol buffer message - only required fileds
+//------------------------------------------------------------------------------
+
+message XrdOucErrInfoProto {	
+  required string user = 1;
+  optional int64 code  = 2;
+  optional string message = 3;
+}

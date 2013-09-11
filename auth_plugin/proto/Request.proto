@@ -1,0 +1,25 @@
+package eos.auth;
+
+import "proto/Stat.proto";
+import "proto/Fsctl.proto";
+import "proto/FSctl.proto";
+
+//------------------------------------------------------------------------------
+// Request message sent to the server
+//------------------------------------------------------------------------------
+
+message RequestProto {
+  enum OperationType {
+     STAT = 0;
+     FSCTL =1;
+  }    	  
+
+  // Identifies which filed is filled in 
+  required OperationType type = 1;
+
+  // One of the following is filled in 
+  optional StatProto stat = 2;
+  optional FsctlProto fsctl1 = 3;
+  optional FSctlProto fsctl2 = 4;
+}
+

@@ -1,0 +1,72 @@
+;; -*- mode: emacs-lisp; coding: emacs-mule; -*-
+;; --------------------------------------------------------------------------
+;; Desktop File for Emacs
+;; --------------------------------------------------------------------------
+;; Created Tue Sep 10 18:23:05 2013
+;; Desktop file format version 206
+;; Emacs version 23.1.1
+
+;; Global section:
+(setq desktop-missing-file-warning nil)
+(setq tags-file-name nil)
+(setq tags-table-list nil)
+(setq search-ring '("FSCTL1_SRCS" "ZMQ" "ZMQ_LIBRARIES" "EosAuthOfs" "auth_pl" "zmq" "ZMq" "ZMQ" "add_sub"))
+(setq regexp-search-ring nil)
+(setq register-alist nil)
+
+;; Buffer section -- buffers listed in same order as in buffer list:
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/auth_plugin/src/EosAuthOfs.hh"
+  "EosAuthOfs.hh"
+  'c++-mode
+  '(abbrev-mode linum-mode)
+  4846
+  '(nil nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/auth_plugin/CMakeLists.txt"
+  "CMakeLists.txt<3>"
+  'text-mode
+  '(linum-mode)
+  3216
+  '(3311 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/auth_plugin/src/stat_stress.cc"
+  "stat_stress.cc"
+  'c++-mode
+  '(abbrev-mode linum-mode)
+  1
+  '(nil nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/auth_plugin/tests/FileSystemTest.cc"
+  "FileSystemTest.cc"
+  'c++-mode
+  '(abbrev-mode linum-mode)
+  272
+  '(nil nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/auth_plugin/tests/FileTest.cc"
+  "FileTest.cc"
+  'c++-mode
+  '(abbrev-mode linum-mode)
+  2589
+  '(nil nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+

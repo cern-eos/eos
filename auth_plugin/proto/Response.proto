@@ -1,0 +1,11 @@
+package eos.auth;
+
+//------------------------------------------------------------------------------
+// Response object received from the server for most of the requests
+//------------------------------------------------------------------------------
+message ResponseProto {
+  required int64 response   = 1;
+  optional bytes message    = 2;
+  optional int64 error_code = 3;  
+}
+

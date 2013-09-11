@@ -1,0 +1,10 @@
+# XRootD config for EOS OFS authentication plugin
+xrootd.fslib /usr/local/lib64/libEosAuthOfs.so
+xrd.port 1099 if exec xrootd
+all.pidpath /var/run/xrootd
+all.adminpath /var/spool/xrootd/
+all.export /
+xrootd.trace off 
+# Set the EOS instance to which we connect
+eosauth.instance pcitdss1400.cern.ch:5555
+
