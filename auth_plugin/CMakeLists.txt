@@ -45,12 +45,12 @@
 # ************************************************************************
 
 include_directories(./  
-	            ./proto/
+	            ../
                     ${ZMQ_INCLUDE_DIRS}
                     ${PROTOBUF_INCLUDE_DIRS}
-		    ${CMAKE_CURRENT_BINARY_DIR}
 		    ${XROOTD_INCLUDE_DIR} 
-		    ${XROOTD_PRIVATE_INCLUDE_DIR})
+		    ${XROOTD_PRIVATE_INCLUDE_DIR}
+		    ${CMAKE_CURRENT_BINARY_DIR})
 
 # Add the tests if CppUnit is present
 if (CPPUNIT_FOUND)
@@ -78,15 +78,20 @@ if (PROTOBUF_FOUND)
     ${XSE_HDRS}    ${XOEI_HDRS}   ${XSFS_HDRS} ${STAT_HDRS} 
     ${FSCTL1_HDRS} ${FSCTL2_HDRS} ${REQ_HDRS}  ${RESP_HDRS})
 
-  add_library(EosAuthOfs MODULE
-  	      EosAuthOfs.cc         EosAuthOfs.hh
-	      ${PROTO_SRCS}         ${PROTO_HDRS}
-	      ConcurrentQueue.hh)
+  add_library(eosAuthProto SHARED
+  	      ProtoUtils.cc ProtoUtils.hh
+              ${PROTO_SRCS} ${PROTO_HDRS})
+	      
+  target_link_libraries(eosAuthProto XrdSec ${PROTOBUF_LIBRARIES})
 
-  target_link_libraries(EosAuthOfs 
+  add_library(eosAuthOfs MODULE
+  	      EosAuthOfs.cc  EosAuthOfs.hh)
+
+  target_link_libraries(eosAuthOfs 
 			XrdOfs XrdServer XrdCl
-		      	${ZMQ_LIBRARIES}
- 		      	${PROTOBUF_LIBRARIES})
+			eosCommon
+			eosAuthProto
+		      	${ZMQ_LIBRARIES})
 
   add_executable(stat_stress
 		stat_stress.cc)
@@ -96,18 +101,16 @@ if (PROTOBUF_FOUND)
 		        ${CMAKE_THREAD_LIB_INIT})
 
   if (Linux)
-    set_target_properties (EosAuthOfs PROPERTIES
+    set_target_properties (eosAuthOfs eosAuthProto PROPERTIES
                            VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
                            SOVERSION ${VERSION_MAJOR}
                            CLEAN_DIRECT_OUTPUT 1)
   endif(Linux)
 
-  install(TARGETS EosAuthOfs stat_stress
+  install(TARGETS eosAuthOfs stat_stress
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}
 	  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
           ARCHIVE DESTINATION ${LIB_INSTALL_DIR})
 
 endif(PROTOBUF_FOUND)
-
-
 

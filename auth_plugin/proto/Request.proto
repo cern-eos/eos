@@ -11,7 +11,8 @@ import "proto/FSctl.proto";
 message RequestProto {
   enum OperationType {
      STAT = 0;
-     FSCTL =1;
+     FSCTL1 = 1;  // fsctl
+     FSCTL2 = 2;  // FSctl
   }    	  
 
   // Identifies which filed is filled in 

@@ -63,7 +63,6 @@
 #include <signal.h>
 #include <stdlib.h>
 /*----------------------------------------------------------------------------*/
-#include "StatProto.pb.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 /*----------------------------------------------------------------------------*/
 
@@ -8517,9 +8516,9 @@ XrdMgmOfs::AuthWorkerThread()
     eos::auth::RequestProto req_proto;
     req_proto.ParseFromString(msg_recv);
 
-    // Stat request 
     if (req_proto.type() == eos::auth::RequestProto_OperationType_STAT)
     {
+      // Stat request 
       /*
       eos_static_info("received a stat request for path:%s, opaque:%s",
                       req_proto.stat().path().c_str(),
@@ -8533,7 +8532,7 @@ XrdMgmOfs::AuthWorkerThread()
                            error, client, req_proto.stat().opaque().c_str());
 
       // Construct and send the stat response to the requester
-      eos::auth::StatRespProto resp_stat;
+      eos::auth::ResponseProto resp_stat;
       resp_stat.set_response(ret);
       resp_stat.set_error_code(ret);
       resp_stat.set_message(&buf, sizeof(struct stat));
@@ -8552,6 +8551,12 @@ XrdMgmOfs::AuthWorkerThread()
 
       eos_debug("auth worker process time: %ju", time_diff);
     }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_FSCTL1)
+    {
+      // fsctl request
+      eos_debug("dealing with a fstcl request");
+    }
+    
   }
 }
 

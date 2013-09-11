@@ -140,16 +140,8 @@
 /*----------------------------------------------------------------------------*/
 #include "zmq.hpp"
 /*----------------------------------------------------------------------------*/
-
-//! Forward declaration
-namespace eos
-{
-  namespace auth
-  {
-    class XrdSecEntityProto;
-  }
-}
-
+#include "auth_plugin/ProtoUtils.hh"
+/*----------------------------------------------------------------------------*/
 
 USE_EOSMGMNAMESPACE
 

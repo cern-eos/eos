@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------------
 // File: EosAuthOfs.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+// Author: Elvin-Alin Sindrilaru <esindril@cern.ch> CERN
 // -----------------------------------------------------------------------------
 
 /************************************************************************
@@ -29,6 +29,7 @@
 #include <sys/time.h>
 /*----------------------------------------------------------------------------*/
 #include "EosAuthOfs.hh"
+#include "ProtoUtils.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -39,7 +40,7 @@
 /*----------------------------------------------------------------------------*/
 
 // The global OFS handle
-EosAuthOfs* gOFS;
+eos::auth::EosAuthOfs* eos::auth::gOFS;
 
 extern XrdSysError OfsEroute;
 extern XrdOfs* XrdOfsFS;
@@ -61,21 +62,24 @@ extern "C"
     version += VERSION;
     OfsEroute.Say("++++++ (c) 2013 CERN/IT-DSS ", version.c_str());
     // Initialize the subsystems
-    gOFS = new EosAuthOfs();
-    gOFS->ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
+    eos::auth::gOFS = new eos::auth::EosAuthOfs();
+    eos::auth::gOFS->ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
 
-    if (gOFS->Configure(OfsEroute)) return 0;
+    if (eos::auth::gOFS->Configure(OfsEroute)) return 0;
 
-    XrdOfsFS = gOFS;
-    return gOFS;
+    XrdOfsFS = eos::auth::gOFS;
+    return eos::auth::gOFS;
   }
 }
+
+EOSAUTHNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 EosAuthOfs::EosAuthOfs():
   XrdOfs(),
+  eos::common::LogId(),
   mSizePoolSocket(5),
   mEosInstance("")
 {
@@ -174,6 +178,16 @@ EosAuthOfs::Configure(XrdSysError& error)
     }
   }
 
+  // Set Logging parameters
+  XrdOucString unit = "auth@localhost";
+
+  // setup the circular in-memory log buffer
+  // TODO: add configuration for the debug level
+  eos::common::Logging::Init();
+  eos::common::Logging::SetLogPriority(LOG_DEBUG);
+  eos::common::Logging::SetUnit(unit.c_str());
+  eos_info("info=\"logging configured\"");
+  
   return NoGo;
 
 }
@@ -208,7 +222,7 @@ EosAuthOfs::stat(const char*             path,
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);
-  eos::auth::RequestProto* req_proto = GetStatRequest(path, client, opaque);
+  RequestProto* req_proto = utils::GetStatRequest(path, client, opaque);
      
   if (!SendProtoBufRequest(socket, req_proto))
   {
@@ -216,8 +230,8 @@ EosAuthOfs::stat(const char*             path,
     return SFS_ERROR;
   }
 
-  eos::auth::ResponseProto* resp_stat =
-    static_cast<eos::auth::ResponseProto*>(GetResponse(socket));
+  ResponseProto* resp_stat =
+      static_cast<ResponseProto*>(GetResponse(socket));
   buf = static_cast<struct stat*>(memcpy((void*)buf,
                                          resp_stat->message().c_str(),
                                          sizeof(struct stat)));
@@ -245,7 +259,7 @@ EosAuthOfs::fsctl(const int cmd,
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);
-  eos::auth::RequestProto* req_proto = GetFsctlRequest(cmd, args, error, client);
+  RequestProto* req_proto = utils::GetFsctlRequest(cmd, args, error, client);
      
   if (!SendProtoBufRequest(socket, req_proto))
   {
@@ -253,8 +267,8 @@ EosAuthOfs::fsctl(const int cmd,
     return SFS_ERROR;
   }
 
-  eos::auth::ResponseProto* resp_stat =
-    static_cast<eos::auth::ResponseProto*>(GetResponse(socket));
+  ResponseProto* resp_stat =
+      static_cast<ResponseProto*>(GetResponse(socket));
 
   retc = resp_stat->response();
   delete resp_stat;
@@ -264,6 +278,10 @@ EosAuthOfs::fsctl(const int cmd,
   mPoolSocket.push(socket);
   return retc;
 }
+
+
+
+
 
 
 //------------------------------------------------------------------------------
@@ -294,140 +312,10 @@ EosAuthOfs::GetResponse(zmq::socket_t* socket)
   zmq::message_t reply;
   socket->recv(&reply);
   std::string resp_str = std::string(static_cast<char*>(reply.data()), reply.size());
-  eos::auth::ResponseProto* resp_stat = new eos::auth::ResponseProto();
+  ResponseProto* resp_stat = new ResponseProto();
   resp_stat->ParseFromString(resp_str);
   return resp_stat;
 }
 
-
-//------------------------------------------------------------------------------
-// Convert XrdSecEntity object to ProtocolBuffers representation
-//------------------------------------------------------------------------------
-void
-EosAuthOfs::ConvertToProtoBuf(const XrdSecEntity* obj,
-                              eos::auth::XrdSecEntityProto*& proto)
-{
-  proto->set_prot(obj->prot);
-
-  if (obj->name)
-    proto->set_name(obj->name);
-  else
-    proto->set_name("");
-
-  if (obj->host)
-    proto->set_host(obj->host);
-  else
-    proto->set_host("");
-
-  if (obj->vorg)
-    proto->set_vorg(obj->vorg);
-  else
-    proto->set_vorg("");
-
-  if (obj->role)
-    proto->set_role(obj->role);
-  else
-    proto->set_role("");
-
-  if (obj->grps)
-    proto->set_grps(obj->grps);
-  else
-    proto->set_grps("");
-
-  if (obj->endorsements)
-     proto->set_endorsements(obj->endorsements);
-  else
-    proto->set_endorsements("");
-
-  if (obj->creds)
-    proto->set_creds(obj->creds);
-  else
-    proto->set_creds("");
-  
-  proto->set_credslen(obj->credslen);
-
-  if (obj->moninfo)
-    proto->set_moninfo(obj->moninfo);
-  else
-    proto->set_moninfo("");
-
-  if (obj->tident)
-    proto->set_tident(obj->tident);
-  else
-    proto->set_tident("");
-}
-
-
-//------------------------------------------------------------------------------
-// Convert XrdOucErrInfo object to ProtocolBuffers representation
-//------------------------------------------------------------------------------
-void
-EosAuthOfs::ConvertToProtoBuf(XrdOucErrInfo* obj,
-                              eos::auth::XrdOucErrInfoProto*& proto)
-{
-  proto->set_user(obj->getErrUser());
-  proto->set_code(obj->getErrInfo());
-  proto->set_message(obj->getErrText());
-}
-
-
-//------------------------------------------------------------------------------
-// Convert XrSfsFSctl object to ProtocolBuffers representation
-//------------------------------------------------------------------------------
-void
-EosAuthOfs::ConvertToProtoBuf(const XrdSfsFSctl* obj,
-                              eos::auth::XrdSfsFSctlProto*& proto)
-{
-  proto->set_arg1(obj->Arg1);
-  proto->set_arg1len(obj->Arg1Len);
-  proto->set_arg2len(obj->Arg2Len);
-  proto->set_arg2(obj->Arg2);
-}
-
-
-//------------------------------------------------------------------------------
-// Create StatProto object
-//------------------------------------------------------------------------------
-eos::auth::RequestProto*
-EosAuthOfs::GetStatRequest(const char* path,
-                           const XrdSecEntity* error,
-                           const char* opaque)
-{
-  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
-  eos::auth::StatProto* stat_proto = req_proto->mutable_stat();
-  eos::auth::XrdSecEntityProto* error_proto = stat_proto->mutable_error();
-  
-  ConvertToProtoBuf(error, error_proto);
-  stat_proto->set_path(path);
-
-  if (opaque)
-    stat_proto->set_opaque(opaque);
-  else
-    stat_proto->set_opaque("");
-
-  req_proto->set_type(eos::auth::RequestProto_OperationType_STAT);
-  return req_proto;
-}
-
-
-//------------------------------------------------------------------------------
-// Create fsctl request ProtocolBuffer object
-//------------------------------------------------------------------------------
-eos::auth::RequestProto*
-EosAuthOfs::GetFsctlRequest(const int cmd,
-                            const char* args,
-                            XrdOucErrInfo& error,
-                            const XrdSecEntity* client)
-{
-  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
-  eos::auth::FsctlProto* fsctl_proto = req_proto->mutable_fsctl1();
-  eos::auth::XrdOucErrInfoProto* xoei_proto = fsctl_proto->mutable_error();
-  eos::auth::XrdSecEntityProto* xse_proto = fsctl_proto->mutable_client();
-
-  fsctl_proto->set_args(args);
-  ConvertToProtoBuf(&error, xoei_proto);
-  ConvertToProtoBuf(client, xse_proto);
-  req_proto->set_type(eos::auth::RequestProto_OperationType_FSCTL);
-  return req_proto;
-}
+EOSAUTHNAMESPACE_END
 

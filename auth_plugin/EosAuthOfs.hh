@@ -30,16 +30,23 @@
 /*----------------------------------------------------------------------------*/
 #include "zmq.hpp"
 /*----------------------------------------------------------------------------*/
-#include "ConcurrentQueue.hh"
-#include "proto/Request.pb.h"
-#include "proto/Response.pb.h"
+#include "common/ConcurrentQueue.hh"
+#include "Namespace.hh"
 /*----------------------------------------------------------------------------*/
 
+//! Forward declaration
+namespace google {
+  namespace protobuf {
+    class Message;
+  }
+}
+
+EOSAUTHNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class EosAuthOfs built on top of XrdOfs
 //------------------------------------------------------------------------------
-class EosAuthOfs: public XrdOfs
+class EosAuthOfs: public XrdOfs, public eos::common::LogId
 {
   public:
 
@@ -84,74 +91,10 @@ class EosAuthOfs: public XrdOfs
 
     int mSizePoolSocket; ///< maximum size of the socket pool
     zmq::context_t* mContext; ///< ZMQ context 
-    ConcurrentQueue<zmq::socket_t*> mPoolSocket; ///< ZMQ socket pool
+    eos::common::ConcurrentQueue<zmq::socket_t*> mPoolSocket; ///< ZMQ socket pool
     std::string mEosInstance; ///< EOS instance to which requests are dispatched
 
   
-    //--------------------------------------------------------------------------
-    //! Convert XrdSecEntity object to ProtocolBuffers representation
-    //!
-    //! @param obj initial object to convert
-    //! @param proto ProtocolBuffer representation
-    //!
-    //--------------------------------------------------------------------------
-    void ConvertToProtoBuf(const XrdSecEntity* obj,
-                           eos::auth::XrdSecEntityProto*& proto);
-
-
-    //--------------------------------------------------------------------------
-    //! Convert XrdOucErrInfo object to ProtocolBuffers representation
-    //!
-    //! @param obj initial object to convert
-    //! @param proto ProtocolBuffer representation
-    //!
-    //--------------------------------------------------------------------------
-    void ConvertToProtoBuf(XrdOucErrInfo* obj,
-                           eos::auth::XrdOucErrInfoProto*& proto);
-  
-
-    //--------------------------------------------------------------------------
-    //! Convert XrSfsFsctl object to ProtocolBuffers representation
-    //!
-    //! @param obj initial object to convert
-    //! @param proto ProtocolBuffer representation
-    //!
-    //--------------------------------------------------------------------------
-    void ConvertToProtoBuf(const XrdSfsFSctl* client,
-                           eos::auth::XrdSfsFSctlProto*& proto);
-  
-  
-    //--------------------------------------------------------------------------
-    //! Create stat request ProtocolBuffer object
-    //!
-    //! @param path file path
-    //! @param error client security information obj
-    //! @param opaque opaque information
-    //!
-    //! @return request ProtoBuffer object
-    //!
-    //--------------------------------------------------------------------------
-    eos::auth::RequestProto* GetStatRequest(const char* path,
-                                            const XrdSecEntity* client,
-                                            const char* opaque);
-
-
-    //--------------------------------------------------------------------------
-    //! Create fsctl request ProtocolBuffer object
-    //!
-    //! @param path file path
-    //! @param error client security information obj
-    //! @param opaque opaque information
-    //!
-    //! @return request ProtoBuffer object
-    //!
-    //--------------------------------------------------------------------------
-    eos::auth::RequestProto* GetFsctlRequest(const int cmd,
-                                             const char* args,
-                                             XrdOucErrInfo& error,
-                                             const XrdSecEntity* client);
-    
-   
     //--------------------------------------------------------------------------
     //! Send ProtocolBuffer object using ZMQ
     //!
@@ -183,6 +126,7 @@ class EosAuthOfs: public XrdOfs
 //------------------------------------------------------------------------------
 extern EosAuthOfs* gOFS;
 
+EOSAUTHNAMESPACE_END
 
 #endif //__EOS_EOSAUTHOFS_HH__
 

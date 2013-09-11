@@ -21,7 +21,8 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ 
+include_directories( ./
+		     ../ 
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${XROOTD_PRIVATE_INCLUDE_DIR} 
 		     ${SPARSEHASH_INCLUDE_DIR} 
@@ -29,16 +30,14 @@ include_directories( ../
 		     ${LDAP_INCLUDE_DIR}
 		     ${Z_INCLUDE_DIR}
 		     ${ZMQ_INCLUDE_DIRS}
-		     ${PROTOBUF_INCLUDE_DIRS}
 		     ${CMAKE_CURRENT_BINARY_DIR}
+		     ${CMAKE_BINARY_DIR}
+		     ${CMAKE_BINARY_DIR}/auth_plugin/	
 )
 
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} 
 		  ${XROOTD_LIB_DIR}
 		  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
-
-# Compile the protocol buffers header and source files
-PROTOBUF_GENERATE_CPP(STAT_SRCS STAT_HDRS PROTOFILES StatProto.proto)
 
 add_library (XrdEosMgm MODULE
             Access.cc         
@@ -110,7 +109,7 @@ add_library (XrdEosMgm MODULE
             http/webdav/WebDAVResponse.cc
             http/webdav/PropFindResponse.cc
             Converter.cc
-	     ${STAT_SRCS}          ${STAT_HDRS}
+	    ${STAT_SRCS}     ${STAT_HDRS}
             )
 
 target_link_libraries( XrdEosMgm 
@@ -118,13 +117,12 @@ target_link_libraries( XrdEosMgm
                        XrdUtils             XrdOfs 
                        eosCommon            eosCommonServer
                        eosNamespace-Static  eosCapability-Static
-                       XrdMqClient-Static 
+                       XrdMqClient-Static   eosAuthProto
                        crypto               
 		       dl
 		       ${NCURSES_LIBRARIES} ${LDAP_LIBRARIES}
 		       ${ZMQ_LIBRARIES}     ${Z_LIBRARIES}
 		       ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
-		       ${PROTOBUF_LIBRARIES}
 )
 
 add_executable ( testmgmview
@@ -157,4 +155,5 @@ install ( TARGETS XrdEosMgm
           ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
 )
 
-INSTALL ( FILES eos-repair-tool DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR} PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )
+INSTALL ( FILES eos-repair-tool DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR} 
+	  PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )
