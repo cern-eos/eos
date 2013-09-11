@@ -170,12 +170,11 @@ public:
              XrdOucErrInfo& out_error,
              const XrdSecEntity* client);
 
-  int
-  mkdir (const char* dirName,
-         XrdSfsMode Mode,
-         XrdOucErrInfo& out_error,
-         const XrdSecEntity* client,
-         const char* opaque = 0)
+  int mkdir (const char* dirName,
+             XrdSfsMode Mode,
+             XrdOucErrInfo& out_error,
+             const XrdSecEntity* client,
+             const char* opaque = 0)
   {
     return SFS_OK;
   }

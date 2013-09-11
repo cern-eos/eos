@@ -8517,6 +8517,7 @@ XrdMgmOfs::AuthWorkerThread()
     eos::auth::RequestProto req_proto;
     req_proto.ParseFromString(msg_recv);
 
+    // Stat request 
     if (req_proto.type() == eos::auth::RequestProto_OperationType_STAT)
     {
       /*
