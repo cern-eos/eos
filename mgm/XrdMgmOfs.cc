@@ -5434,8 +5434,8 @@ XrdMgmOfs::FSctl (const int cmd,
       MAYREDIRECT;
 
       gOFS->MgmStats.Add("OpenLayout", vid.uid, vid.gid, 1);
-
-      XrdMgmOfsFile* file = new XrdMgmOfsFile();
+      XrdMgmOfsFile* file = new XrdMgmOfsFile(client->tident);
+            
       if (file)
       {
         opaque += "&eos.cli.access=pio";
