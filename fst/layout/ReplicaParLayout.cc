@@ -237,8 +237,7 @@ ReplicaParLayout::Open (const std::string& path,
          //....................................................................
          // Write case
          //....................................................................
-         if (file->Open(mReplicaUrl[i], SFS_O_CREAT | SFS_O_WRONLY,
-                        mode, opaque, mTimeout))
+         if (file->Open(mReplicaUrl[i], flags, mode, opaque, mTimeout))
          {
            eos_err("Failed to open stripes - remote open failed on ",
                    maskUrl.c_str());
