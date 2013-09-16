@@ -128,6 +128,17 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
                XrdOucErrInfo& error,
                const XrdSecEntity* client,
                const char* opaque = 0);
+
+
+    //--------------------------------------------------------------------------
+    //! Create directory
+    //--------------------------------------------------------------------------
+    int mkdir (const char *dirName,
+               XrdSfsMode Mode,
+               XrdOucErrInfo &out_error,
+               const XrdSecEntity *client,
+               const char *opaque = 0);
+
   
   private:
 

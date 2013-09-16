@@ -298,4 +298,32 @@ utils::GetExistsRequest(const char* path,
   return req_proto;
 }
 
+
+//------------------------------------------------------------------------------
+// Create mkdir request ProtocolBuffer object
+//------------------------------------------------------------------------------
+RequestProto*
+utils::GetMkdirRequest(const char *path,
+                       int mode,
+                       XrdOucErrInfo &error,
+                       const XrdSecEntity *client,
+                       const char *opaque)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::MkdirProto* mkdir_proto = req_proto->mutable_mkdir();
+  eos::auth::XrdOucErrInfoProto* xoei_proto = mkdir_proto->mutable_error();
+  eos::auth::XrdSecEntityProto* xse_proto = mkdir_proto->mutable_client();
+
+  mkdir_proto->set_path(path);
+  mkdir_proto->set_mode(mode);
+  ConvertToProtoBuf(&error, xoei_proto);
+  ConvertToProtoBuf(client, xse_proto);
+
+  if (opaque)
+    mkdir_proto->set_opaque(opaque);
+
+  req_proto->set_type(RequestProto_OperationType_MKDIR);
+  return req_proto;
+}
+
 EOSAUTHNAMESPACE_END

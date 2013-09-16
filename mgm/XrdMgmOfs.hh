@@ -287,7 +287,7 @@ public:
   int mkdir (const char *dirName,
              XrdSfsMode Mode,
              XrdOucErrInfo &out_error,
-             const XrdSecClientName *client = 0,
+             const XrdSecEntity *client = 0,
              const char *opaque = 0);
 
   // ---------------------------------------------------------------------------

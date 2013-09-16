@@ -218,7 +218,7 @@ EosAuthOfs::stat(const char*         path,
                  const char*         opaque)
 {
   int retc;
-  eos_debug("stat1 path=%s", path);
+  eos_debug("stat path=%s", path);
 
   // Get a socket object from the pool
   zmq::socket_t* socket;
@@ -228,7 +228,7 @@ EosAuthOfs::stat(const char*         path,
      
   if (!SendProtoBufRequest(socket, req_proto))
   {
-    OfsEroute.Emsg("stat1", "unable to send request");
+    OfsEroute.Emsg("stat", "unable to send request");
     return SFS_ERROR;
   }
 
@@ -324,7 +324,7 @@ EosAuthOfs::fsctl(const int cmd,
      
   if (!SendProtoBufRequest(socket, req_proto))
   {
-    OfsEroute.Emsg("stat", "unable to send request");
+    OfsEroute.Emsg("fsctl", "unable to send request");
     return SFS_ERROR;
   }
 
@@ -366,7 +366,7 @@ EosAuthOfs::chmod (const char *path,
      
   if (!SendProtoBufRequest(socket, req_proto))
   {
-    OfsEroute.Emsg("stat", "unable to send request");
+    OfsEroute.Emsg("chmod", "unable to send request");
     return SFS_ERROR;
   }
 
@@ -410,7 +410,7 @@ EosAuthOfs::chksum(csFunc func,
      
   if (!SendProtoBufRequest(socket, req_proto))
   {
-    OfsEroute.Emsg("stat", "unable to send request");
+    OfsEroute.Emsg("chksum", "unable to send request");
     return SFS_ERROR;
   }
 
@@ -444,7 +444,7 @@ EosAuthOfs::exists(const char* path,
                    const char* opaque)
 {
   int retc;
-  eos_debug("exists path=%s csName=%s", path);
+  eos_debug("exists path=%s", path);
 
   // Get a socket object from the pool
   zmq::socket_t* socket;
@@ -453,7 +453,7 @@ EosAuthOfs::exists(const char* path,
      
   if (!SendProtoBufRequest(socket, req_proto))
   {
-    OfsEroute.Emsg("stat", "unable to send request");
+    OfsEroute.Emsg("exists", "unable to send request");
     return SFS_ERROR;
   }
 
@@ -473,6 +473,53 @@ EosAuthOfs::exists(const char* path,
   }
   
   delete resp_exists;
+  delete req_proto;
+
+  // Put back the socket object in the pool
+  mPoolSocket.push(socket);
+  return retc;
+}
+
+
+//------------------------------------------------------------------------------
+// Create directory
+// Note: the mode set here is actually ignored if the directoy is not the top
+// one. The new directory inherits the mode bits from its parent directory.
+// This is typical only of EOS since in a normal XRootD server the access bits
+// specified in the mkdir command are actually applied as expected.
+//------------------------------------------------------------------------------
+int
+EosAuthOfs::mkdir (const char* path,
+                   XrdSfsMode mode,  // Ignored in EOS if it has a parent dir
+                   XrdOucErrInfo& error,
+                   const XrdSecEntity* client,
+                   const char* opaque)
+{
+  int retc;
+  eos_debug("mkdir path=%s mode=%o", path, mode);
+
+  // Get a socket object from the pool
+  zmq::socket_t* socket;
+  mPoolSocket.wait_pop(socket);
+  RequestProto* req_proto = utils::GetMkdirRequest(path, mode, error, client, opaque);
+     
+  if (!SendProtoBufRequest(socket, req_proto))
+  {
+    OfsEroute.Emsg("mkdir", "unable to send request");
+    return SFS_ERROR;
+  }
+
+  ResponseProto* resp_mkdir = static_cast<ResponseProto*>(GetResponse(socket));
+  retc = resp_mkdir->response();
+  eos_debug("mkdir retc=%i", retc);
+  
+  if (resp_mkdir->has_error())
+  {
+    error.setErrInfo(resp_mkdir->error().code(),
+                     resp_mkdir->error().message().c_str());
+  }
+  
+  delete resp_mkdir;
   delete req_proto;
 
   // Put back the socket object in the pool

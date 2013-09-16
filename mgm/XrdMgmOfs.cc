@@ -8672,6 +8672,32 @@ XrdMgmOfs::AuthWorkerThread()
       DeleteXrdSecEntity(client);
       eos_debug("auth worker end process exists request");
     }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_MKDIR)
+    {
+       // mkdir request
+      std::shared_ptr<XrdOucErrInfo> error(eos::auth::utils::GetXrdOucErrInfo(req_proto.mkdir().error()));
+      XrdSecEntity* client = eos::auth::utils::GetXrdSecEntity(req_proto.mkdir().client());
+      ret = gOFS->mkdir(req_proto.mkdir().path().c_str(),
+                        (XrdSfsMode)req_proto.mkdir().mode(),
+                        *error.get(), client, req_proto.mkdir().opaque().c_str());
+      
+      // Construct and send the fsctl response to the requester
+      eos_debug("mkdir error msg: %s", error->getErrText());
+      
+      eos::auth::ResponseProto resp_mkdir;
+      resp_mkdir.set_response(ret);
+      eos::auth::XrdOucErrInfoProto* err_proto = resp_mkdir.mutable_error();
+      eos::auth::utils::ConvertToProtoBuf(error.get(), err_proto);
+    
+      int reply_size = resp_mkdir.ByteSize();
+      zmq::message_t reply(reply_size);
+      google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
+      
+      resp_mkdir.SerializeToZeroCopyStream(&aos);
+      responder.send(reply);
+      DeleteXrdSecEntity(client);
+      eos_debug("auth worker end process mkdir request");
+    }
     else
     {
       eos_debug("no such operation supported");   

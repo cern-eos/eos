@@ -189,6 +189,24 @@ namespace utils
                                  const XrdSecEntity* client,
                                  const char* opaque = 0);
 
+
+  //--------------------------------------------------------------------------
+  //! Create mkdir request ProtocolBuffer object
+  //!
+  //! @param path directory path
+  //! @param Mode mode 
+  //! @param out_error error information object
+  //! @param client client security information object 
+  //! @param opaque opaque information
+  //!
+  //! @return request ProtoBuffer object
+  //!
+  //--------------------------------------------------------------------------
+  RequestProto* GetMkdirRequest(const char *path,
+                                int mode,
+                                XrdOucErrInfo &error,
+                                const XrdSecEntity *client,
+                                const char *opaque = 0);
 }
 
 EOSAUTHNAMESPACE_END
