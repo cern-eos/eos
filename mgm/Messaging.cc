@@ -42,7 +42,8 @@ Messaging::Messaging (const char* url, const char* defaultreceiverqueue, bool ad
 {
   SharedObjectManager = som;
 
-  if (gMessageClient.AddBroker(url, advisorystatus, advisoryquery))
+  // we add to a broker with the flushbacklog flag since we don't want to block message flow in case of a master/slave MGM where one got stuck or too slow
+  if (gMessageClient.AddBroker(url, advisorystatus, advisoryquery , true))
   {
     zombie = false;
   }
