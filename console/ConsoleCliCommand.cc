@@ -258,32 +258,51 @@ CliPositionalOption::analyse(std::vector<std::string> &cli_args)
 ConsoleCliCommand::ConsoleCliCommand(const std::string &name,
                                      const std::string &description)
   : m_name(name),
-    m_description(description)
-{
-  m_options = new std::vector<CliOption *>();
-  m_positional_options = new std::map<int, CliPositionalOption *>;
-}
+    m_description(description),
+    m_options(0),
+    m_positional_options(0)
+{}
 
 ConsoleCliCommand::~ConsoleCliCommand()
 {
-  size_t i;
-  for(i = 0; i < m_options->size(); i++)
+  if (m_options)
   {
-    delete m_options->at(i);
+    size_t i;
+    for(i = 0; i < m_options->size(); i++)
+      {
+        delete m_options->at(i);
+      }
+    delete m_options;
+    m_options = 0;
   }
-  delete m_options;
-  m_options = 0;
+
+  if (m_positional_options)
+  {
+    size_t i;
+    for(i = 0; i < m_positional_options->size(); i++)
+      {
+        delete m_positional_options->at(i);
+      }
+    delete m_positional_options;
+    m_positional_options = 0;
+  }
 }
 
 void
 ConsoleCliCommand::add_option(CliOption *option)
 {
+  if (m_options == 0)
+    m_options = new std::vector<CliOption *>();
+
   m_options->push_back(option);
 }
 
 void
 ConsoleCliCommand::add_option(CliPositionalOption *option)
 {
+  if (m_positional_options == 0)
+    m_positional_options = new std::map<int, CliPositionalOption *>;
+
   int pos = option->position();
   if (m_positional_options->count(pos) != 0)
   {
@@ -320,27 +339,33 @@ ConsoleCliCommand::add_options(std::vector<CliOption> options)
 void
 ConsoleCliCommand::parse(std::vector<std::string> &cli_args)
 {
-  std::vector<CliOption *>::iterator it = m_options->begin();
-  for (; it != m_options->end(); it++)
+  if (m_options)
   {
-    AnalysisResult *res = (*it)->analyse(cli_args);
-    if (res->values.first != "")
-    {
-      m_options_map.insert(res->values);
-      cli_args.erase(res->start, res->end);
-    }
-    delete res;
+    std::vector<CliOption *>::iterator it = m_options->begin();
+    for (; it != m_options->end(); it++)
+      {
+        AnalysisResult *res = (*it)->analyse(cli_args);
+        if (res->values.first != "")
+          {
+            m_options_map.insert(res->values);
+            cli_args.erase(res->start, res->end);
+          }
+        delete res;
+      }
   }
 
-  std::map<int, CliPositionalOption *>::iterator pos_it = m_positional_options->begin();
-  for (; pos_it != m_positional_options->end(); pos_it++)
+  if (m_positional_options)
   {
-    AnalysisResult *res = (*pos_it).second->analyse(cli_args);
-    if (res)
-    {
-      m_options_map.insert(res->values);
-    }
-    delete res;
+    std::map<int, CliPositionalOption *>::iterator pos_it = m_positional_options->begin();
+    for (; pos_it != m_positional_options->end(); pos_it++)
+      {
+        AnalysisResult *res = (*pos_it).second->analyse(cli_args);
+        if (res)
+          {
+            m_options_map.insert(res->values);
+          }
+        delete res;
+      }
   }
 }
 
