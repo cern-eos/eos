@@ -18,6 +18,7 @@ public:
   virtual char* help_string() { return strdup(""); };
   virtual char* keywords_repr() { return strdup(""); };
   virtual const char* name() const { return m_name.c_str(); };
+  virtual const char* description() const { return m_description.c_str(); };
 
 protected:
   std::string m_name;
@@ -58,11 +59,27 @@ private:
   std::vector<std::string> *m_joint_keywords;
 };
 
-class ConsoleCliOptions {
+class CliPositionalOption : public CliBaseOption {
+public:
+  CliPositionalOption(std::string name, std::string desc, int position, std::string repr);
+  CliPositionalOption(const CliPositionalOption &option);
+  ~CliPositionalOption();
+  virtual AnalysisResult* analyse(std::vector<std::string> &cli_args);
+  virtual char* help_string();
+  int position() { return m_position; };
+
+private:
+  int m_position;
+  std::string m_repr;
+};
+
+class ConsoleCliCommand {
 public:
   ConsoleCliCommand (const std::string &name, const std::string &description);
   ~ConsoleCliCommand ();
   void add_option(CliOption *option);
+  void add_option(CliPositionalOption *option);
+  void add_option(const CliPositionalOption &option);
   void add_option(const CliOption &option);
   void add_options(std::vector<CliOption> options);
   void parse(std::vector<std::string> &cli_args);
@@ -79,5 +96,6 @@ private:
   std::string m_name;
   std::string m_description;
   std::vector<CliOption *> *m_options;
+  std::map<int, CliPositionalOption *> *m_positional_options;
   std::map<std::string, std::vector<std::string>> m_options_map;
 };
