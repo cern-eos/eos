@@ -297,7 +297,7 @@ void
 ConsoleCliCommand::add_option(const CliOption &option)
 {
   CliOption *new_obj = new CliOption(option);
-  m_options->push_back(new_obj);
+  add_option(new_obj);
 }
 
 void
