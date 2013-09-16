@@ -209,7 +209,7 @@ namespace utils
 
 
   //--------------------------------------------------------------------------
-  //! Create mkdir request ProtocolBuffer object
+  //! Create remdir request ProtocolBuffer object
   //!
   //! @param path directory path
   //! @param Mode mode 
@@ -224,6 +224,24 @@ namespace utils
                                  XrdOucErrInfo &error,
                                  const XrdSecEntity *client,
                                  const char *opaque = 0);
+
+
+  //--------------------------------------------------------------------------
+  //! Create rem request ProtocolBuffer object
+  //!
+  //! @param path file path
+  //! @param Mode mode 
+  //! @param out_error error information object
+  //! @param client client security information object 
+  //! @param opaque opaque information
+  //!
+  //! @return request ProtoBuffer object
+  //!
+  //--------------------------------------------------------------------------
+  RequestProto* GetRemRequest(const char *path,
+                             XrdOucErrInfo &error,
+                             const XrdSecEntity *client,
+                             const char *opaque = 0);
   
 }
 

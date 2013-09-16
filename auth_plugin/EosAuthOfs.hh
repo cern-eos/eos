@@ -148,6 +148,15 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
                const XrdSecEntity* client,
                const char* opaque = 0);
 
+
+    //--------------------------------------------------------------------------
+    //! Rem file
+    //--------------------------------------------------------------------------
+    int rem(const char* path,
+            XrdOucErrInfo& error,
+            const XrdSecEntity* client,
+            const char* opaque = 0);
+  
   
   private:
 

@@ -8723,6 +8723,31 @@ XrdMgmOfs::AuthWorkerThread()
       DeleteXrdSecEntity(client);
       eos_debug("auth worker end process remdir request");
     }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_REM)
+    {
+      // rem request
+      std::shared_ptr<XrdOucErrInfo> error(eos::auth::utils::GetXrdOucErrInfo(req_proto.rem().error()));
+      XrdSecEntity* client = eos::auth::utils::GetXrdSecEntity(req_proto.rem().client());
+      ret = gOFS->rem(req_proto.rem().path().c_str(),
+                        *error.get(), client, req_proto.rem().opaque().c_str());
+      
+      // Construct and send the fsctl response to the requester
+      eos_debug("rem error msg: %s", error->getErrText());
+      
+      eos::auth::ResponseProto resp_rem;
+      resp_rem.set_response(ret);
+      eos::auth::XrdOucErrInfoProto* err_proto = resp_rem.mutable_error();
+      eos::auth::utils::ConvertToProtoBuf(error.get(), err_proto);
+    
+      int reply_size = resp_rem.ByteSize();
+      zmq::message_t reply(reply_size);
+      google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
+      
+      resp_rem.SerializeToZeroCopyStream(&aos);
+      responder.send(reply);
+      DeleteXrdSecEntity(client);
+      eos_debug("auth worker end process rem request");
+    }
     else
     {
       eos_debug("no such operation supported");   

@@ -329,7 +329,7 @@ utils::GetMkdirRequest(const char *path,
 
 
 //------------------------------------------------------------------------------
-// Create mkdir request ProtocolBuffer object
+// Create remdir request ProtocolBuffer object
 //------------------------------------------------------------------------------
 RequestProto*
 utils::GetRemdirRequest(const char *path,
@@ -350,6 +350,32 @@ utils::GetRemdirRequest(const char *path,
     remdir_proto->set_opaque(opaque);
 
   req_proto->set_type(RequestProto_OperationType_REMDIR);
+  return req_proto;
+}
+
+
+//------------------------------------------------------------------------------
+// Create rem request ProtocolBuffer object
+//------------------------------------------------------------------------------
+RequestProto*
+utils::GetRemRequest(const char *path,
+                     XrdOucErrInfo &error,
+                     const XrdSecEntity *client,
+                     const char *opaque)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::RemProto* rem_proto = req_proto->mutable_rem();
+  eos::auth::XrdOucErrInfoProto* xoei_proto = rem_proto->mutable_error();
+  eos::auth::XrdSecEntityProto* xse_proto = rem_proto->mutable_client();
+
+  rem_proto->set_path(path);
+  ConvertToProtoBuf(&error, xoei_proto);
+  ConvertToProtoBuf(client, xse_proto);
+
+  if (opaque)
+    rem_proto->set_opaque(opaque);
+
+  req_proto->set_type(RequestProto_OperationType_REM);
   return req_proto;
 }
 

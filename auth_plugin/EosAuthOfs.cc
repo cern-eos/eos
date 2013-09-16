@@ -571,6 +571,48 @@ EosAuthOfs::remdir(const char* path,
 
 
 //------------------------------------------------------------------------------
+// Remove file
+//------------------------------------------------------------------------------
+int
+EosAuthOfs::rem(const char* path,
+                   XrdOucErrInfo& error,
+                   const XrdSecEntity* client,
+                   const char* opaque)
+{
+  int retc;
+  eos_debug("rem path=%s", path);
+
+  // Get a socket object from the pool
+  zmq::socket_t* socket;
+  mPoolSocket.wait_pop(socket);
+  RequestProto* req_proto = utils::GetRemRequest(path, error, client, opaque);
+     
+  if (!SendProtoBufRequest(socket, req_proto))
+  {
+    OfsEroute.Emsg("rem", "unable to send request");
+    return SFS_ERROR;
+  }
+
+  ResponseProto* resp_rem = static_cast<ResponseProto*>(GetResponse(socket));
+  retc = resp_rem->response();
+  eos_debug("rem retc=%i", retc);
+  
+  if (resp_rem->has_error())
+  {
+    error.setErrInfo(resp_rem->error().code(),
+                     resp_rem->error().message().c_str());
+  }
+  
+  delete resp_rem;
+  delete req_proto;
+
+  // Put back the socket object in the pool
+  mPoolSocket.push(socket);
+  return retc;
+}
+
+
+//------------------------------------------------------------------------------
 // Send ProtocolBuffer object using ZMQ
 //------------------------------------------------------------------------------
 bool
