@@ -3345,7 +3345,7 @@ XrdMgmOfs::_stat (const char *path,
   catch (eos::MDException &e)
   {
     errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\" ",
               e.getErrno(), e.getMessage().str().c_str());
   }
 
@@ -8518,7 +8518,7 @@ XrdMgmOfs::AuthWorkerThread()
     {
       struct stat buf;
       XrdOucErrInfo error;
-      XrdSecEntity* client = eos::auth::utils::GetXrdSecEntity(req_proto.stat().error());
+      XrdSecEntity* client = eos::auth::utils::GetXrdSecEntity(req_proto.stat().client());
       ret = gOFS->stat(req_proto.stat().path().c_str(), &buf,
                        error, client, req_proto.stat().opaque().c_str());
       
@@ -8536,8 +8536,31 @@ XrdMgmOfs::AuthWorkerThread()
       resp_stat.SerializeToZeroCopyStream(&aos);
       responder.send(reply);
       DeleteXrdSecEntity(client);
-
       eos_debug("auth worker end process stat request");
+    }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_STATM)
+    {
+      XrdOucErrInfo error;
+      XrdSecEntity* client = eos::auth::utils::GetXrdSecEntity(req_proto.stat().client());
+      mode_t mode;
+      ret = gOFS->stat(req_proto.stat().path().c_str(), mode,
+                       error, client, req_proto.stat().opaque().c_str());
+      
+      // Construct and send the stat response to the requester
+      eos::auth::ResponseProto resp_stat;
+      resp_stat.set_response(ret);
+      eos::auth::XrdOucErrInfoProto* err_proto = resp_stat.mutable_error();
+      eos::auth::utils::ConvertToProtoBuf(&error, err_proto);
+      resp_stat.set_message(&mode, sizeof(mode_t));
+
+      int reply_size = resp_stat.ByteSize();
+      zmq::message_t reply(reply_size);
+      google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
+      
+      resp_stat.SerializeToZeroCopyStream(&aos);
+      responder.send(reply);
+      DeleteXrdSecEntity(client);
+      eos_debug("auth worker end process statm request");
     }
     else if (req_proto.type() == eos::auth::RequestProto_OperationType_FSCTL1)
     {
@@ -8548,7 +8571,7 @@ XrdMgmOfs::AuthWorkerThread()
                         *error.get(), client);
 
       // Construct and send the fsctl response to the requester
-      eos_debug("error msg: %s", error->getErrText());
+      eos_debug("fsctl error msg: %s", error->getErrText());
       
       eos::auth::ResponseProto resp_fsctl1;
       resp_fsctl1.set_response(ret);
@@ -8562,8 +8585,92 @@ XrdMgmOfs::AuthWorkerThread()
       resp_fsctl1.SerializeToZeroCopyStream(&aos);
       responder.send(reply);
       DeleteXrdSecEntity(client);
-      
       eos_debug("auth worker end process fsctl1 request");
+    }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_CHMOD)
+    {
+      // chmod request
+      std::shared_ptr<XrdOucErrInfo> error(eos::auth::utils::GetXrdOucErrInfo(req_proto.chmod().error()));
+      XrdSecEntity* client = eos::auth::utils::GetXrdSecEntity(req_proto.chmod().client());
+      ret = gOFS->chmod(req_proto.chmod().path().c_str(), (XrdSfsMode)req_proto.chmod().mode(),
+                        *error.get(), client, req_proto.chmod().opaque().c_str());
+      
+      // Construct and send the fsctl response to the requester
+      eos_debug("chmod error msg: %s", error->getErrText());
+      
+      eos::auth::ResponseProto resp_chmod;
+      resp_chmod.set_response(ret);
+      eos::auth::XrdOucErrInfoProto* err_proto = resp_chmod.mutable_error();
+      eos::auth::utils::ConvertToProtoBuf(error.get(), err_proto);
+     
+      int reply_size = resp_chmod.ByteSize();
+      zmq::message_t reply(reply_size);
+      google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
+      
+      resp_chmod.SerializeToZeroCopyStream(&aos);
+      responder.send(reply);
+      DeleteXrdSecEntity(client);
+      eos_debug("auth worker end process chmod request");
+    }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_CHKSUM)
+    {
+      // chksum request
+      std::shared_ptr<XrdOucErrInfo> error(eos::auth::utils::GetXrdOucErrInfo(req_proto.chksum().error()));
+      XrdSecEntity* client = eos::auth::utils::GetXrdSecEntity(req_proto.chksum().client());
+      ret = gOFS->chksum((csFunc) req_proto.chksum().func(),
+                         req_proto.chksum().csname().c_str(),
+                         req_proto.chksum().path().c_str(),
+                         *error.get(), client,
+                         req_proto.chksum().opaque().c_str());
+      
+      // Construct and send the fsctl response to the requester
+      eos_debug("chksum error msg: %s", error->getErrText());
+      
+      eos::auth::ResponseProto resp_chksum;
+      resp_chksum.set_response(ret);
+      eos::auth::XrdOucErrInfoProto* err_proto = resp_chksum.mutable_error();
+      eos::auth::utils::ConvertToProtoBuf(error.get(), err_proto);
+     
+      int reply_size = resp_chksum.ByteSize();
+      zmq::message_t reply(reply_size);
+      google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
+      
+      resp_chksum.SerializeToZeroCopyStream(&aos);
+      responder.send(reply);
+      DeleteXrdSecEntity(client);
+      eos_debug("auth worker end process chksum request");
+    }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_EXISTS)
+    {
+      // exists request
+      std::shared_ptr<XrdOucErrInfo> error(eos::auth::utils::GetXrdOucErrInfo(req_proto.exists().error()));
+      XrdSecEntity* client = eos::auth::utils::GetXrdSecEntity(req_proto.exists().client());
+      XrdSfsFileExistence exists_flag;
+      ret = gOFS->exists(req_proto.exists().path().c_str(),
+                         exists_flag, *error.get(), client,
+                         req_proto.exists().opaque().c_str());
+      
+      // Construct and send the fsctl response to the requester
+      eos_debug("exists error msg: %s", error->getErrText());
+      
+      eos::auth::ResponseProto resp_exists;
+      resp_exists.set_response(ret);
+      eos::auth::XrdOucErrInfoProto* err_proto = resp_exists.mutable_error();
+      eos::auth::utils::ConvertToProtoBuf(error.get(), err_proto);
+      
+      // Set the status of the exists for the request
+      std::ostringstream sstr;
+      sstr << (int)exists_flag;
+      resp_exists.set_message(sstr.str().c_str());      
+     
+      int reply_size = resp_exists.ByteSize();
+      zmq::message_t reply(reply_size);
+      google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
+      
+      resp_exists.SerializeToZeroCopyStream(&aos);
+      responder.send(reply);
+      DeleteXrdSecEntity(client);
+      eos_debug("auth worker end process exists request");
     }
     else
     {

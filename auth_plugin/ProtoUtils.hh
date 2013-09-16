@@ -28,6 +28,7 @@
 #include "Namespace.hh"
 #include "proto/Request.pb.h"
 #include "proto/Response.pb.h"
+#include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 
 //! Forward declarations
@@ -108,9 +109,11 @@ namespace utils
   //! @return request ProtoBuffer object
   //!
   //--------------------------------------------------------------------------
-  RequestProto* GetStatRequest(const char* path,
+  RequestProto* GetStatRequest(RequestProto_OperationType type,
+                               const char* path,
+                               XrdOucErrInfo& error,
                                const XrdSecEntity* client,
-                               const char* opaque);
+                               const char* opaque = 0);
 
   
   //--------------------------------------------------------------------------
@@ -127,6 +130,65 @@ namespace utils
                                 const char* args,
                                 XrdOucErrInfo& error,
                                 const XrdSecEntity* client);
+
+
+  //--------------------------------------------------------------------------
+  //! Create chmod request ProtocolBuffer object
+  //!
+  //! @param path directory path
+  //! @param Mode mode 
+  //! @param out_error error information object
+  //! @param client client security information object 
+  //! @param opaque opaque information
+  //!
+  //! @return request ProtoBuffer object
+  //!
+  //--------------------------------------------------------------------------
+  RequestProto* GetChmodRequest(const char *path,
+                                int mode,
+                                XrdOucErrInfo &error,
+                                const XrdSecEntity *client,
+                                const char *opaque = 0);
+
+
+  //--------------------------------------------------------------------------
+  //! Create chksum request ProtocolBuffer object
+  //!
+  //! @param func checksum function
+  //! @param csname checksum name  
+  //! @param inpath input path
+  //! @param error error information object
+  //! @param client client security information object
+  //! @param opaque opaque information
+  //!
+  //! @return request ProtoBuffer object
+  //!
+  //--------------------------------------------------------------------------
+  RequestProto* GetChksumRequest(XrdSfsFileSystem::csFunc func,
+                                 const char *csname,
+                                 const char *inpath,
+                                 XrdOucErrInfo &error,
+                                 const XrdSecEntity *client = 0,
+                                 const char *opaque = 0);
+
+
+  //--------------------------------------------------------------------------
+  //! Create exitst request ProtocolBuffer object
+  //!
+  //! @param path file/directory path
+  //! @param exists_flag flag value defined in XrdSfsInterface.hh
+  //! @param error error information object
+  //! @param client client security information object
+  //! @param opaque opaque information
+  //!
+  //! @return request ProtoBuffer object
+  //!
+  //--------------------------------------------------------------------------
+  RequestProto* GetExistsRequest(const char* path,
+                                 XrdOucErrInfo& error,
+                                 const XrdSecEntity* client,
+                                 const char* opaque = 0);
+
 }
 
 EOSAUTHNAMESPACE_END

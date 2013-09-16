@@ -4,15 +4,14 @@ import "proto/XrdOucErrInfo.proto";
 import "proto/XrdSecEntity.proto";
 
 //------------------------------------------------------------------------------
-// Stat request protocol buffer message
+// Chmod request protocol buffer message 
 //------------------------------------------------------------------------------
 
-message StatProto {	
-  required string path              = 1;
-  required XrdOucErrInfoProto error = 2;
-  required XrdSecEntityProto client = 3;
-  optional string            opaque = 4 [default = ""];
-}  
-
-
- 
+message ChmodProto {
+  required string path = 1;
+  required int64 mode = 2;
+  required XrdOucErrInfoProto error = 3;
+  required XrdSecEntityProto client = 4;
+  optional string opaque = 5 [default = ""];
+}
+  

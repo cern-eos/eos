@@ -157,23 +157,27 @@ utils::GetXrdOucErrInfo(const XrdOucErrInfoProto& proto_obj)
 // Create StatProto object
 //------------------------------------------------------------------------------
 RequestProto*
-utils::GetStatRequest(const char* path,
-                      const XrdSecEntity* error,
+utils::GetStatRequest(RequestProto_OperationType type,
+                      const char* path,
+                      XrdOucErrInfo& error,
+                      const XrdSecEntity* client,
                       const char* opaque)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
   eos::auth::StatProto* stat_proto = req_proto->mutable_stat();
-  eos::auth::XrdSecEntityProto* error_proto = stat_proto->mutable_error();
-  
-  ConvertToProtoBuf(error, error_proto);
+  eos::auth::XrdOucErrInfoProto* xoei_proto = stat_proto->mutable_error();
+  eos::auth::XrdSecEntityProto* xse_proto = stat_proto->mutable_client();
+
   stat_proto->set_path(path);
+  ConvertToProtoBuf(&error, xoei_proto);
+  ConvertToProtoBuf(client, xse_proto);
 
   if (opaque)
     stat_proto->set_opaque(opaque);
-  else
-    stat_proto->set_opaque("");
 
-  req_proto->set_type(RequestProto_OperationType_STAT);
+  // This can either be a stat to get a struct stat or just to retrieve the
+  // mode of the file/directory
+  req_proto->set_type(type);
   return req_proto;
 }
 
@@ -196,7 +200,101 @@ utils::GetFsctlRequest(const int cmd,
   fsctl_proto->set_args(args);
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
+  
   req_proto->set_type(RequestProto_OperationType_FSCTL1);
+  return req_proto;
+}
+
+
+//------------------------------------------------------------------------------
+// Create chmod request ProtocolBuffer object
+//------------------------------------------------------------------------------
+RequestProto*
+utils::GetChmodRequest(const char *path,
+                       int mode,
+                       XrdOucErrInfo &error,
+                       const XrdSecEntity *client,
+                       const char *opaque)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::ChmodProto* chmod_proto = req_proto->mutable_chmod();
+  eos::auth::XrdOucErrInfoProto* xoei_proto = chmod_proto->mutable_error();
+  eos::auth::XrdSecEntityProto* xse_proto = chmod_proto->mutable_client();
+
+  chmod_proto->set_path(path);
+  chmod_proto->set_mode(mode);
+  ConvertToProtoBuf(&error, xoei_proto);
+  ConvertToProtoBuf(client, xse_proto);
+
+  if (opaque)
+    chmod_proto->set_opaque(opaque);
+
+  req_proto->set_type(RequestProto_OperationType_CHMOD);
+  return req_proto;
+}
+
+
+//------------------------------------------------------------------------------
+// Create chksum request ProtocolBuffer object
+//------------------------------------------------------------------------------
+RequestProto*
+utils::GetChksumRequest(XrdSfsFileSystem::csFunc func,
+                        const char *csname,
+                        const char *inpath,
+                        XrdOucErrInfo &error,
+                        const XrdSecEntity *client,
+                        const char *opaque)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::ChksumProto* chksum_proto = req_proto->mutable_chksum();
+  eos::auth::XrdOucErrInfoProto* xoei_proto = chksum_proto->mutable_error();
+
+  chksum_proto->set_func(func);
+  chksum_proto->set_csname(csname);
+
+  if (inpath)
+    chksum_proto->set_path(inpath);
+  else
+    chksum_proto->set_path("");
+    
+  ConvertToProtoBuf(&error, xoei_proto);
+    
+  if (client)
+  {
+    eos::auth::XrdSecEntityProto* xse_proto = chksum_proto->mutable_client();
+    ConvertToProtoBuf(client, xse_proto);
+  }
+
+  if (opaque)
+    chksum_proto->set_opaque(opaque);  
+  
+  req_proto->set_type(RequestProto_OperationType_CHKSUM);
+  return req_proto;
+}
+
+
+//------------------------------------------------------------------------------
+// Create exitst request ProtocolBuffer object
+//------------------------------------------------------------------------------
+RequestProto*
+utils::GetExistsRequest(const char* path,
+                        XrdOucErrInfo& error,
+                        const XrdSecEntity* client,
+                        const char* opaque)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::ExistsProto* exists_proto = req_proto->mutable_exists();
+  eos::auth::XrdOucErrInfoProto* xoei_proto = exists_proto->mutable_error();
+  eos::auth::XrdSecEntityProto* xse_proto = exists_proto->mutable_client();
+
+  exists_proto->set_path(path);
+  ConvertToProtoBuf(&error, xoei_proto);
+  ConvertToProtoBuf(client, xse_proto);
+
+  if (opaque)
+    exists_proto->set_opaque(opaque);
+
+  req_proto->set_type(RequestProto_OperationType_EXISTS);
   return req_proto;
 }
 

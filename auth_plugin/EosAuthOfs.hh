@@ -35,8 +35,10 @@
 /*----------------------------------------------------------------------------*/
 
 //! Forward declaration
-namespace google {
-  namespace protobuf {
+namespace google
+{
+  namespace protobuf
+  {
     class Message;
   }
 }
@@ -73,32 +75,72 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
     //--------------------------------------------------------------------------
     int stat(const char* path,
              struct stat* buf,
-             XrdOucErrInfo& out_error,
+             XrdOucErrInfo& error,
              const XrdSecEntity* client,
              const char* opaque = 0);
 
 
     //--------------------------------------------------------------------------
+    //! Stat function to retrieve mode
+    //--------------------------------------------------------------------------
+    int stat(const char* name,
+             mode_t& mode,
+             XrdOucErrInfo& out_error,
+             const XrdSecEntity* client,
+             const char* opaque = 0);
+  
+
+    //--------------------------------------------------------------------------
     //! Execute file system command
     //--------------------------------------------------------------------------
-    int fsctl (const int cmd,
-               const char* args,
-               XrdOucErrInfo& out_error,
-               const XrdSecEntity* client);
+    int fsctl(const int cmd,
+              const char* args,
+              XrdOucErrInfo& out_error,
+              const XrdSecEntity* client);
 
 
+    //--------------------------------------------------------------------------
+    //! Chmod function
+    //--------------------------------------------------------------------------
+    int chmod(const char* path,
+              XrdSfsMode mopde,
+              XrdOucErrInfo& error,
+              const XrdSecEntity* client,
+              const char* opaque = 0);
+
+
+    //--------------------------------------------------------------------------
+    //! Chksum function
+    //--------------------------------------------------------------------------
+    int chksum(csFunc func,
+               const char* csName,
+               const char* path,
+               XrdOucErrInfo& error,
+               const XrdSecEntity* client = 0,
+               const char* opaque = 0);
+
+
+    //--------------------------------------------------------------------------
+    //! Exists function
+    //--------------------------------------------------------------------------
+    int exists(const char* path,
+               XrdSfsFileExistence& exists_flag,
+               XrdOucErrInfo& error,
+               const XrdSecEntity* client,
+               const char* opaque = 0);
+  
   private:
 
     int mSizePoolSocket; ///< maximum size of the socket pool
-    zmq::context_t* mContext; ///< ZMQ context 
+    zmq::context_t* mContext; ///< ZMQ context
     eos::common::ConcurrentQueue<zmq::socket_t*> mPoolSocket; ///< ZMQ socket pool
     std::string mEosInstance; ///< EOS instance to which requests are dispatched
 
-  
+
     //--------------------------------------------------------------------------
     //! Send ProtocolBuffer object using ZMQ
     //!
-    //! @param socket ZMQ socket object 
+    //! @param socket ZMQ socket object
     //! @param object to be sent over the wire
     //!
     //! @return true if object sent successfully, otherwise false

@@ -1,0 +1,18 @@
+package eos.auth;
+
+import "proto/XrdOucErrInfo.proto";
+import "proto/XrdSecEntity.proto";
+
+//------------------------------------------------------------------------------
+// Chksum request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message ChksumProto {
+  required int64 func = 1;
+  required string csname = 2;
+  required string path = 3;
+  required XrdOucErrInfoProto error = 4;
+  optional XrdSecEntityProto client = 5 ;
+  optional string opaque = 6 [default = ""];
+}
+  
