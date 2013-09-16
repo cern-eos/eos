@@ -613,6 +613,51 @@ EosAuthOfs::rem(const char* path,
 
 
 //------------------------------------------------------------------------------
+// Rename file
+//------------------------------------------------------------------------------
+int
+EosAuthOfs::rename (const char *oldName,
+                    const char *newName,
+                    XrdOucErrInfo &error,
+                    const XrdSecEntity *client,
+                    const char *opaqueO,
+                    const char *opaqueN)
+{
+  int retc;
+  eos_debug("rename oldname=%s newname=%s", oldName, newName);
+
+  // Get a socket object from the pool
+  zmq::socket_t* socket;
+  mPoolSocket.wait_pop(socket);
+  RequestProto* req_proto = utils::GetRenameRequest(oldName, newName, error,
+                                                    client, opaqueO, opaqueN);
+     
+  if (!SendProtoBufRequest(socket, req_proto))
+  {
+    OfsEroute.Emsg("rename", "unable to send request");
+    return SFS_ERROR;
+  }
+
+  ResponseProto* resp_rename = static_cast<ResponseProto*>(GetResponse(socket));
+  retc = resp_rename->response();
+  eos_debug("rename retc=%i", retc);
+  
+  if (resp_rename->has_error())
+  {
+    error.setErrInfo(resp_rename->error().code(),
+                     resp_rename->error().message().c_str());
+  }
+  
+  delete resp_rename;
+  delete req_proto;
+
+  // Put back the socket object in the pool
+  mPoolSocket.push(socket);
+  return retc;
+}
+
+
+//------------------------------------------------------------------------------
 // Send ProtocolBuffer object using ZMQ
 //------------------------------------------------------------------------------
 bool

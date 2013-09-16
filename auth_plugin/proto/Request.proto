@@ -9,6 +9,7 @@ import "proto/Exists.proto";
 import "proto/Mkdir.proto";
 import "proto/Remdir.proto";
 import "proto/Rem.proto";
+import "proto/Rename.proto";
 
 //------------------------------------------------------------------------------
 // Request message sent to the server
@@ -25,7 +26,8 @@ message RequestProto {
      STATM  = 6;  // stat mode
      MKDIR  = 7;
      REMDIR = 8;
-     REM     = 9;
+     REM    = 9;
+     RENAME = 10;
   }    	  
 
   // Identifies which filed is filled in 
@@ -42,5 +44,6 @@ message RequestProto {
   optional MkdirProto mkdir   = 9;
   optional RemdirProto remdir = 10;
   optional RemProto rem       = 11;
+  optional RenameProto rename = 12;
 }
 

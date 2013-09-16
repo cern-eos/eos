@@ -212,8 +212,7 @@ namespace utils
   //! Create remdir request ProtocolBuffer object
   //!
   //! @param path directory path
-  //! @param Mode mode 
-  //! @param out_error error information object
+  //! @param error error information object
   //! @param client client security information object 
   //! @param opaque opaque information
   //!
@@ -230,8 +229,7 @@ namespace utils
   //! Create rem request ProtocolBuffer object
   //!
   //! @param path file path
-  //! @param Mode mode 
-  //! @param out_error error information object
+  //! @param error error information object
   //! @param client client security information object 
   //! @param opaque opaque information
   //!
@@ -242,7 +240,27 @@ namespace utils
                              XrdOucErrInfo &error,
                              const XrdSecEntity *client,
                              const char *opaque = 0);
-  
+
+
+  //--------------------------------------------------------------------------
+  //! Create rename request ProtocolBuffer object
+  //!
+  //! @param oldName old name
+  //! @param newName new name 
+  //! @param error error information object
+  //! @param client client security information object 
+  //! @param opaqueO opaque information for old name
+  //! @param opaqueN opaque information for new name
+  //!
+  //! @return request ProtoBuffer object
+  //!
+  //--------------------------------------------------------------------------
+  RequestProto* GetRenameRequest(const char *oldName,
+                                 const char *newName,
+                                 XrdOucErrInfo &error,
+                                 const XrdSecEntity *client,
+                                 const char *opaqueO,
+                                 const char *opaqueN);  
 }
 
 EOSAUTHNAMESPACE_END

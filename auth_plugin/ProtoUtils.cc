@@ -379,4 +379,36 @@ utils::GetRemRequest(const char *path,
   return req_proto;
 }
 
+
+//------------------------------------------------------------------------------
+// Create rename request ProtocolBuffer object
+//------------------------------------------------------------------------------
+RequestProto*
+utils::GetRenameRequest(const char *oldName,
+                        const char *newName,
+                        XrdOucErrInfo &error,
+                        const XrdSecEntity *client,
+                        const char *opaqueO,
+                        const char *opaqueN)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::RenameProto* rename_proto = req_proto->mutable_rename();
+  eos::auth::XrdOucErrInfoProto* xoei_proto = rename_proto->mutable_error();
+  eos::auth::XrdSecEntityProto* xse_proto = rename_proto->mutable_client();
+
+  rename_proto->set_oldname(oldName);
+  rename_proto->set_newname(newName);
+  ConvertToProtoBuf(&error, xoei_proto);
+  ConvertToProtoBuf(client, xse_proto);
+
+  if (opaqueO)
+    rename_proto->set_opaqueo(opaqueO);
+
+  if (opaqueN)
+    rename_proto->set_opaqueo(opaqueN);
+
+  req_proto->set_type(RequestProto_OperationType_RENAME);
+  return req_proto;
+}
+
 EOSAUTHNAMESPACE_END

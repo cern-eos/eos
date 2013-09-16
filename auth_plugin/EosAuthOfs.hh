@@ -156,7 +156,17 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
             XrdOucErrInfo& error,
             const XrdSecEntity* client,
             const char* opaque = 0);
+
   
+    //--------------------------------------------------------------------------
+    //! Rename file
+    //--------------------------------------------------------------------------
+     int rename (const char *oldName,
+                 const char *newName,
+                 XrdOucErrInfo &error,
+                 const XrdSecEntity *client,
+                 const char *opaqueO = 0,
+                 const char *opaqueN = 0);
   
   private:
 
