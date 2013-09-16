@@ -388,6 +388,7 @@ XrdMqOfsFile::open(const char                *queuename,
 
   bool advisorystatus=false;
   bool advisoryquery=false;
+  bool advisoryflushbacklog=false;
   const char* val;
   if ( (val = queueenv.Get(XMQCADVISORYSTATUS))) {
     advisorystatus = atoi(val);
@@ -395,9 +396,14 @@ XrdMqOfsFile::open(const char                *queuename,
   if ( (val = queueenv.Get(XMQCADVISORYQUERY))) {
     advisoryquery = atoi(val);
   }
+  if ( (val = queueenv.Get(XMQCADVISORYFLUSHBACKLOG))) {
+    advisoryflushbacklog = atoi(val);
+  }
 
   Out->AdvisoryStatus = advisorystatus;
   Out->AdvisoryQuery  = advisoryquery;
+  Out->AdvisoryFlushBackLog = advisoryflushbacklog;
+  Out->BrokenByFlush = false;
 
   gMqFS->QueueOut.insert(std::pair<std::string, XrdMqMessageOut*>(squeue, Out));
 

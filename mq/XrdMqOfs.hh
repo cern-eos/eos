@@ -114,14 +114,18 @@ class XrdMqMessageOut : public XrdSysMutex {
 public:
   bool AdvisoryStatus;
   bool AdvisoryQuery; 
+  bool AdvisoryFlushBackLog;
+
+  bool BrokenByFlush;
+
   int  nQueued;
   int  WaitOnStat;
-
+  
   XrdOucString QueueName;
   XrdSysSemWait DeletionSem; 
   XrdSysSemWait MessageSem; 
   std::deque<XrdSmartOucEnv*> MessageQueue;
-  XrdMqMessageOut(const char* queuename){MessageBuffer="";AdvisoryStatus=false; AdvisoryQuery=false; nQueued=0;QueueName=queuename;MessageQueue.clear();};
+  XrdMqMessageOut(const char* queuename){MessageBuffer="";AdvisoryStatus=false; AdvisoryQuery=false; AdvisoryFlushBackLog=false; BrokenByFlush=false; nQueued=0;QueueName=queuename;MessageQueue.clear();};
   std::string MessageBuffer;
   size_t RetrieveMessages();
   virtual ~XrdMqMessageOut(){

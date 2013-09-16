@@ -85,7 +85,7 @@ class XrdMqClient
 
     void CheckBrokerXrdClientReceiver( int i );
 
-    bool AddBroker( const char* brokerurl, bool advisorystatus = false, bool advisoryquery = false );
+    bool AddBroker( const char* brokerurl, bool advisorystatus = false, bool advisoryquery = false, bool advisoryflushbacklog = false );
   
     void Disconnect();
 

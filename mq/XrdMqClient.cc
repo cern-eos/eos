@@ -433,7 +433,8 @@ XrdMqClient::ReNewBrokerXrdClientReceiver( int i )
 //------------------------------------------------------------------------------
 bool XrdMqClient::AddBroker( const char* brokerurl,
                              bool        advisorystatus,
-                             bool        advisoryquery )
+                             bool        advisoryquery,
+			     bool        advisoryflushbacklog)
 {
   bool exists = false;
 
@@ -453,6 +454,11 @@ bool XrdMqClient::AddBroker( const char* brokerurl,
   newBrokerUrl += XMQCADVISORYQUERY;
   newBrokerUrl += "=";
   newBrokerUrl += advisoryquery;
+  newBrokerUrl += "&";
+  newBrokerUrl += XMQCADVISORYFLUSHBACKLOG;
+  newBrokerUrl += "=";
+  newBrokerUrl += advisoryflushbacklog;
+
   printf( "==> new Broker %s\n", newBrokerUrl.c_str() );
 
   for ( int i = 0; i < kBrokerN; i++ ) {

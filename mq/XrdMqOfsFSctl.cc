@@ -138,35 +138,57 @@ XrdMqOfs::Deliver(XrdMqOfsMatches &Matches) {
 
       // check for backlog on this queue and set a warning flag
       if (Out->nQueued > MaxQueueBacklog ) {
-        Matches.backlog =true;
+	// only set the backlog flag if the queue has not set the advisory flush back log flag
+	if (!Out->AdvisoryFlushBackLog)
+	  Matches.backlog =true;
+	else {
+	  if (!Out->BrokenByFlush) {
+	    Out->BrokenByFlush = true;
+	    TRACES("warning: queue " << Out->QueueName << " is broken by backlog flush of " << MaxQueueBacklog  << " message!");
+	  }
+	}
+
         Matches.backlogqueues += Out->QueueName;
         Matches.backlogqueues += ":";
         gMqFS->QueueBacklogHits++;
-        TRACES("warning: queue " << Out->QueueName << " exceeds backlog of " << MaxQueueBacklog  << " message!");
+	if (!Out->BrokenByFlush)
+	  TRACES("warning: queue " << Out->QueueName << " exceeds backlog of " << MaxQueueBacklog  << " message!");
       }
     
       if (Out->nQueued > RejectQueueBacklog ) {
-        Matches.backlogrejected =true;
+	// only set the reject flag if the queue has not set the advisory flush back log flag
+	if (!Out->AdvisoryFlushBackLog)
+	  Matches.backlogrejected =true;
+	else {
+	  if (!Out->BrokenByFlush) {
+	    Out->BrokenByFlush = true;
+	    TRACES("warning: queue " << Out->QueueName << " is broken by backlog flush of " << RejectQueueBacklog  << " message!");
+	  }
+	}
         Matches.backlogqueues += Out->QueueName;
         Matches.backlogqueues += ":";
         gMqFS->BacklogDeferred++;
-        TRACES("error: queue " << Out->QueueName << " exceeds max. accepted backlog of " << RejectQueueBacklog << " message!");
+	if (!Out->BrokenByFlush)
+	  TRACES("error: queue " << Out->QueueName << " exceeds max. accepted backlog of " << RejectQueueBacklog << " message!");
       } else {
-        Matches.matches++;
-        if (Matches.matches == 1) {
-          // add to the message hash 
-          gMqFS->MessagesMutex.Lock();
-          std::string messageid = Matches.message->Get(XMQHEADER);
-          gMqFS->Messages.insert(std::pair<std::string, XrdSmartOucEnv*> (messageid,Matches.message));
-          gMqFS->MessagesMutex.UnLock();
-        }
+	if (!Out->BrokenByFlush) {
+	  // we deliver only to not broken clients, they have to reconnect to get out of this situation
+	  Matches.matches++;
+	  if (Matches.matches == 1) {
+	    // add to the message hash 
+	    gMqFS->MessagesMutex.Lock();
+	    std::string messageid = Matches.message->Get(XMQHEADER);
+	    gMqFS->Messages.insert(std::pair<std::string, XrdSmartOucEnv*> (messageid,Matches.message));
+	    gMqFS->MessagesMutex.UnLock();
+	  }
 
-        ZTRACE(fsctl,"Adding Message to Queuename: "<< Out->QueueName.c_str());
-        //      fprintf(stderr, "%s adding message %llu\n", Out->QueueName.c_str(), (unsigned long long)Matches.message);
-        Out->MessageQueue.push_back((Matches.message));
-        Matches.message->AddRefs(1);
-
-        Out->nQueued++;
+	  ZTRACE(fsctl,"Adding Message to Queuename: "<< Out->QueueName.c_str());
+	  //      fprintf(stderr, "%s adding message %llu\n", Out->QueueName.c_str(), (unsigned long long)Matches.message);
+	  Out->MessageQueue.push_back((Matches.message));
+	  Matches.message->AddRefs(1);
+	  
+	  Out->nQueued++;
+	}
         //      Out->MessageSem.Post();
       }
     }

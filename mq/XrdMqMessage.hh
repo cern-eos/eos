@@ -54,6 +54,8 @@
 
 #define XMQCADVISORYSTATUS "xmqclient.advisory.status"
 #define XMQCADVISORYQUERY  "xmqclient.advisory.query"
+#define XMQCADVISORYFLUSHBACKLOG "xmqclient.advisory.flushbacklog"
+
 #define XMQCIPHER EVP_des_cbc
 
 
