@@ -213,7 +213,7 @@ LRU::LRUr ()
               // ----------------------------------------------------------------- 
               // remove empty directories older than <age>
               // -----------------------------------------------------------------
-              AgeExpireEmtpy(it->first.c_str(), map["sys.lru.expire.empty"]);
+              AgeExpireEmpty(it->first.c_str(), map["sys.lru.expire.empty"]);
             }
 
             if (map.count("sys.lru.expire.match"))
@@ -264,7 +264,7 @@ LRU::LRUr ()
 
 /*----------------------------------------------------------------------------*/
 void
-LRU::AgeExpireEmtpy (const char* dir, std::string& policy)
+LRU::AgeExpireEmpty (const char* dir, std::string& policy)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief remove empty directories if they are older than age given in policy
@@ -337,7 +337,8 @@ LRU::AgeExpire (const char* dir,
 
   for (auto it = lMatchMap.begin(); it != lMatchMap.end(); it++)
   {
-    time_t t = strtoul(it->second.c_str(), 0, 10);
+    XrdOucString sage = it->second.c_str();
+    time_t t = StringConversion::GetSizeFromString(sage);
     if (errno)
     {
       eos_static_err("msg=\"LRU match attribute has illegal age\" "

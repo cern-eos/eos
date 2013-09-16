@@ -108,7 +108,7 @@ public:
   
   /* expire by age if empty
    */
-  void AgeExpireEmtpy(const char* dir, std::string& policy);
+  void AgeExpireEmpty(const char* dir, std::string& policy);
   
   /* expire by age
    */
