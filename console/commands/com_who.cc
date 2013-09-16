@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_who.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -29,67 +30,42 @@
 int
 com_who (char* arg1)
 {
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
   XrdOucString option = "";
   XrdOucString options = "";
-
   XrdOucString in = "";
+  ConsoleCliCommand cliCommand("who",
+                               "print statistics about active users "
+                               "(idle<5min)");
+  cliCommand.addOptions({{"client", "break down by client host", "-c"},
+                         {"ids", "print id's instead of names", "-n"},
+                         {"auth", "print auth protocols", "-z"},
+                         {"all", "print all", "-a"},
+                         {"monitor", "print in monitoring format <key>=<value>",
+                                                                          "-m"},
+                         {"summary", "print summary for clients", "-s"}
+                        });
 
-  if (wants_help(arg1))
-    goto com_who_usage;
+  addHelpOptionRecursively(&cliCommand);
+
+  cliCommand.parse(arg1);
+
+  if (checkHelpAndErrors(&cliCommand))
+    return 0;
 
   in = "mgm.cmd=who";
-  do
+  const char *commandsAndOption[] = {"client", "c",
+                                     "ids", "n",
+                                     "auth", "z",
+                                     "all", "a",
+                                     "monitor", "m",
+                                     "summary", "s",
+                                     0};
+
+  for (int i = 0; commandsAndOption[i]; i += 2)
   {
-    option = subtokenizer.GetToken();
-    if (!option.length())
-      break;
-    if (option == "-c")
-    {
-      options += "c";
-    }
-    else
-    {
-      if (option == "-n")
-      {
-        options += "n";
-      }
-      else
-      {
-        if (option == "-a")
-        {
-          options += "a";
-        }
-        else
-        {
-          if (option == "-z")
-          {
-            options += "z";
-          }
-          else
-          {
-            if (option == "-m")
-            {
-              options += "m";
-            }
-            else
-            {
-              if (option == "-s")
-              {
-                options += "s";
-              }
-              else
-              {
-                goto com_who_usage;
-              }
-            }
-          }
-        }
-      }
-    }
+    if (cliCommand.hasValue(commandsAndOption[i]))
+      options += commandsAndOption[i + 1];
   }
-  while (1);
 
   if (options.length())
   {
@@ -98,15 +74,5 @@ com_who (char* arg1)
   }
 
   global_retc = output_result(client_user_command(in));
-  return (0);
-
-com_who_usage:
-  fprintf(stdout, "usage: who [-c] [-n] [-z] [-a] [-m] [-s]                             :  print statistics about active users (idle<5min)\n");
-  fprintf(stdout, "                -c                                                   -  break down by client host\n");
-  fprintf(stdout, "                -n                                                   -  print id's instead of names\n");
-  fprintf(stdout, "                -z                                                   -  print auth protocols\n");
-  fprintf(stdout, "                -a                                                   -  print all\n");
-  fprintf(stdout, "                -s                                                   -  print summary for clients\n");
-  fprintf(stdout, "                -m                                                   -  print in monitoring format <key>=<value>\n");
   return (0);
 }
