@@ -1,11 +1,13 @@
 package eos.auth;
 
+import "proto/XrdOucErrInfo.proto";
+
 //------------------------------------------------------------------------------
 // Response object received from the server for most of the requests
 //------------------------------------------------------------------------------
 message ResponseProto {
-  required int64 response   = 1;
-  optional bytes message    = 2;
-  optional int64 error_code = 3;  
+  required int64 response = 1;
+  optional bytes message = 2;
+  optional XrdOucErrInfoProto error = 3;
 }
 

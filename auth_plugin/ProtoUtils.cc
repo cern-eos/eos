@@ -107,12 +107,49 @@ utils::ConvertToProtoBuf(XrdOucErrInfo* obj,
 //------------------------------------------------------------------------------
 void
 utils::ConvertToProtoBuf(const XrdSfsFSctl* obj,
-                         eos::auth::XrdSfsFSctlProto*& proto)
+                         XrdSfsFSctlProto*& proto)
 {
   proto->set_arg1(obj->Arg1);
   proto->set_arg1len(obj->Arg1Len);
   proto->set_arg2len(obj->Arg2Len);
   proto->set_arg2(obj->Arg2);
+}
+
+
+
+//------------------------------------------------------------------------------
+// Get XrdSecEntity object from protocol buffer object
+//------------------------------------------------------------------------------
+XrdSecEntity*
+utils::GetXrdSecEntity(const XrdSecEntityProto& proto_obj)
+{
+  XrdSecEntity* obj = new XrdSecEntity();
+  strncpy(obj->prot, proto_obj.prot().c_str(), XrdSecPROTOIDSIZE -1);
+  obj->prot[XrdSecPROTOIDSIZE - 1] = '\0';
+  obj->name = strdup(proto_obj.name().c_str());
+  obj->host = strdup(proto_obj.host().c_str());
+  obj->host = strdup(proto_obj.host().c_str());
+  obj->vorg = strdup(proto_obj.vorg().c_str());
+  obj->role = strdup(proto_obj.role().c_str());
+  obj->grps = strdup(proto_obj.grps().c_str());
+  obj->endorsements = strdup(proto_obj.endorsements().c_str());
+  obj->creds = strdup(proto_obj.creds().c_str());
+  obj->credslen = proto_obj.credslen();
+  obj->moninfo = strdup(proto_obj.moninfo().c_str());
+  obj->tident = strdup(proto_obj.tident().c_str());
+  return obj;
+}
+
+
+//------------------------------------------------------------------------------
+// Get XrdOucErrInfo object from protocol buffer object
+//------------------------------------------------------------------------------
+XrdOucErrInfo*
+utils::GetXrdOucErrInfo(const XrdOucErrInfoProto& proto_obj)
+{
+  XrdOucErrInfo* obj = new XrdOucErrInfo(proto_obj.user().c_str());
+  obj->setErrInfo(proto_obj.code(), proto_obj.message().c_str());
+  return obj;
 }
 
 
@@ -155,6 +192,7 @@ utils::GetFsctlRequest(const int cmd,
   eos::auth::XrdOucErrInfoProto* xoei_proto = fsctl_proto->mutable_error();
   eos::auth::XrdSecEntityProto* xse_proto = fsctl_proto->mutable_client();
 
+  fsctl_proto->set_cmd(cmd);
   fsctl_proto->set_args(args);
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);

@@ -230,8 +230,7 @@ EosAuthOfs::stat(const char*             path,
     return SFS_ERROR;
   }
 
-  ResponseProto* resp_stat =
-      static_cast<ResponseProto*>(GetResponse(socket));
+  ResponseProto* resp_stat = static_cast<ResponseProto*>(GetResponse(socket));
   buf = static_cast<struct stat*>(memcpy((void*)buf,
                                          resp_stat->message().c_str(),
                                          sizeof(struct stat)));
@@ -255,6 +254,7 @@ EosAuthOfs::fsctl(const int cmd,
                   const XrdSecEntity* client)
 {
   int retc;
+  eos_debug("fsctl with cmd=%i, args=%s", cmd, args);
 
   // Get a socket object from the pool
   zmq::socket_t* socket;
@@ -267,21 +267,18 @@ EosAuthOfs::fsctl(const int cmd,
     return SFS_ERROR;
   }
 
-  ResponseProto* resp_stat =
+  ResponseProto* resp_fsctl1 =
       static_cast<ResponseProto*>(GetResponse(socket));
 
-  retc = resp_stat->response();
-  delete resp_stat;
+  retc = resp_fsctl1->response();
+  error.setErrInfo(resp_fsctl1->error().code(), resp_fsctl1->error().message().c_str());
+  delete resp_fsctl1;
   delete req_proto;
 
   // Put back the socket object in the pool
   mPoolSocket.push(socket);
   return retc;
 }
-
-
-
-
 
 
 //------------------------------------------------------------------------------
@@ -312,9 +309,9 @@ EosAuthOfs::GetResponse(zmq::socket_t* socket)
   zmq::message_t reply;
   socket->recv(&reply);
   std::string resp_str = std::string(static_cast<char*>(reply.data()), reply.size());
-  ResponseProto* resp_stat = new ResponseProto();
-  resp_stat->ParseFromString(resp_str);
-  return resp_stat;
+  ResponseProto* resp = new ResponseProto();
+  resp->ParseFromString(resp_str);
+  return resp;
 }
 
 EOSAUTHNAMESPACE_END

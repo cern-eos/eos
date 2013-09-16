@@ -955,17 +955,7 @@ private:
 
   eos::common::Mapping::VirtualIdentity vid; //< virtual identity
 
-  //----------------------------------------------------------------------------
-  //! Get XrdSecEntity bbject from protocol buffer object
-  //!
-  //! @param proto_obj protocol buffer object
-  //!
-  //! @return converted XrdSecEntiry object
-  //!
-  //----------------------------------------------------------------------------
-  XrdSecEntity* GetXrdSecEntity(const eos::auth::XrdSecEntityProto& proto_client);
-
-
+  
   //----------------------------------------------------------------------------
   //! Delete XrdSecEntity object
   //!

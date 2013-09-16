@@ -45,7 +45,7 @@
 # ************************************************************************
 
 include_directories(./  
-	            ../
+		    ../
                     ${ZMQ_INCLUDE_DIRS}
                     ${PROTOBUF_INCLUDE_DIRS}
 		    ${XROOTD_INCLUDE_DIR} 
@@ -107,7 +107,7 @@ if (PROTOBUF_FOUND)
                            CLEAN_DIRECT_OUTPUT 1)
   endif(Linux)
 
-  install(TARGETS eosAuthOfs stat_stress
+  install(TARGETS eosAuthOfs eosAuthProto stat_stress
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}
 	  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
           ARCHIVE DESTINATION ${LIB_INSTALL_DIR})

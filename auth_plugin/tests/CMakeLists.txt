@@ -40,5 +40,5 @@ target_link_libraries(EosAuthTests
       	              ${CPPUNIT_LIBRARIES})
 
 add_executable(text-runner-auth TextRunner.cc PathProcessor.hh)
-target_link_libraries(text-runner-auth dl pthread ${CPPUNIT_LIBRARIES})
+target_link_libraries(text-runner-auth dl ${CPPUNIT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 

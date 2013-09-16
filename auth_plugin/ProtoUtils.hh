@@ -75,6 +75,29 @@ namespace utils
   void ConvertToProtoBuf(const XrdSfsFSctl* client,
                          XrdSfsFSctlProto*& proto);
 
+  
+  //----------------------------------------------------------------------------
+  //! Get XrdSecEntity object from protocol buffer object
+  //!
+  //! @param proto_obj protocol buffer object
+  //!
+  //! @return converted XrdSecEntiry object
+  //!
+  //----------------------------------------------------------------------------
+  XrdSecEntity* GetXrdSecEntity(const eos::auth::XrdSecEntityProto& proto_obj);
+
+
+  //----------------------------------------------------------------------------
+  //! Get XrdOucErrInfo object from protocol buffer object
+  //!
+  //! @param proto_obj protocol buffer object
+  //!
+  //! @return converted XrdOucErrInfo object
+  //!
+  //----------------------------------------------------------------------------
+  XrdOucErrInfo* GetXrdOucErrInfo(const eos::auth::XrdOucErrInfoProto& proto_obj);
+
+  
   //--------------------------------------------------------------------------
   //! Create stat request ProtocolBuffer object
   //!

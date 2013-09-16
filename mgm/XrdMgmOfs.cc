@@ -62,6 +62,7 @@
 #include <execinfo.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <memory>
 /*----------------------------------------------------------------------------*/
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 /*----------------------------------------------------------------------------*/
@@ -8496,12 +8497,10 @@ XrdMgmOfs::StartAuthWorkerThread(void *pp)
 void
 XrdMgmOfs::AuthWorkerThread()
 {
+  int ret;
   eos_static_info("authentication worker thread started");
   zmq::socket_t responder(*mZmqContext, ZMQ_REP);
   responder.connect("inproc://authbackend");
-
-  struct timeval start, end;
-  unsigned long long time_diff;
   
   while (1)
   {
@@ -8509,7 +8508,6 @@ XrdMgmOfs::AuthWorkerThread()
     
     // Wait for next request
     responder.recv(&request);
-    gettimeofday(&start, NULL);
 
     // Read in the ProtocolBuffer object just received
     std::string msg_recv((char*)request.data(), request.size());
@@ -8518,23 +8516,17 @@ XrdMgmOfs::AuthWorkerThread()
 
     if (req_proto.type() == eos::auth::RequestProto_OperationType_STAT)
     {
-      // Stat request 
-      /*
-      eos_static_info("received a stat request for path:%s, opaque:%s",
-                      req_proto.stat().path().c_str(),
-                      req_proto.stat().opaque().c_str());
-      */
-
       struct stat buf;
       XrdOucErrInfo error;
-      XrdSecEntity* client = GetXrdSecEntity(req_proto.stat().error());
-      int ret = gOFS->stat(req_proto.stat().path().c_str(), &buf,
-                           error, client, req_proto.stat().opaque().c_str());
-
+      XrdSecEntity* client = eos::auth::utils::GetXrdSecEntity(req_proto.stat().error());
+      ret = gOFS->stat(req_proto.stat().path().c_str(), &buf,
+                       error, client, req_proto.stat().opaque().c_str());
+      
       // Construct and send the stat response to the requester
       eos::auth::ResponseProto resp_stat;
       resp_stat.set_response(ret);
-      resp_stat.set_error_code(ret);
+      eos::auth::XrdOucErrInfoProto* err_proto = resp_stat.mutable_error();
+      eos::auth::utils::ConvertToProtoBuf(&error, err_proto);
       resp_stat.set_message(&buf, sizeof(struct stat));
 
       int reply_size = resp_stat.ByteSize();
@@ -8545,43 +8537,39 @@ XrdMgmOfs::AuthWorkerThread()
       responder.send(reply);
       DeleteXrdSecEntity(client);
 
-      gettimeofday(&end, NULL);
-      time_diff = (end.tv_sec * 1000000 + end.tv_usec) -
-                  (start.tv_sec * 1000000 + start.tv_usec);
-
-      eos_debug("auth worker process time: %ju", time_diff);
+      eos_debug("auth worker end process stat request");
     }
     else if (req_proto.type() == eos::auth::RequestProto_OperationType_FSCTL1)
     {
       // fsctl request
-      eos_debug("dealing with a fstcl request");
+      std::shared_ptr<XrdOucErrInfo> error(eos::auth::utils::GetXrdOucErrInfo(req_proto.fsctl1().error()));
+      XrdSecEntity* client = eos::auth::utils::GetXrdSecEntity(req_proto.fsctl1().client());
+      ret = gOFS->fsctl(req_proto.fsctl1().cmd(), req_proto.fsctl1().args().c_str(),
+                        *error.get(), client);
+
+      // Construct and send the fsctl response to the requester
+      eos_debug("error msg: %s", error->getErrText());
+      
+      eos::auth::ResponseProto resp_fsctl1;
+      resp_fsctl1.set_response(ret);
+      eos::auth::XrdOucErrInfoProto* err_proto = resp_fsctl1.mutable_error();
+      eos::auth::utils::ConvertToProtoBuf(error.get(), err_proto);
+     
+      int reply_size = resp_fsctl1.ByteSize();
+      zmq::message_t reply(reply_size);
+      google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
+      
+      resp_fsctl1.SerializeToZeroCopyStream(&aos);
+      responder.send(reply);
+      DeleteXrdSecEntity(client);
+      
+      eos_debug("auth worker end process fsctl1 request");
     }
-    
+    else
+    {
+      eos_debug("no such operation supported");   
+    }
   }
-}
-
-
-//------------------------------------------------------------------------------
-// Get XrdSecEntity object from protocol buffer object
-//------------------------------------------------------------------------------
-XrdSecEntity*
-XrdMgmOfs::GetXrdSecEntity(const eos::auth::XrdSecEntityProto& proto_client)
-{
-  XrdSecEntity* client = new XrdSecEntity();
-  strncpy(client->prot, proto_client.prot().c_str(), XrdSecPROTOIDSIZE -1);
-  client->prot[XrdSecPROTOIDSIZE - 1] = '\0';
-  client->name = strdup(proto_client.name().c_str());
-  client->host = strdup(proto_client.host().c_str());
-  client->host = strdup(proto_client.host().c_str());
-  client->vorg = strdup(proto_client.vorg().c_str());
-  client->role = strdup(proto_client.role().c_str());
-  client->grps = strdup(proto_client.grps().c_str());
-  client->endorsements = strdup(proto_client.endorsements().c_str());
-  client->creds = strdup(proto_client.creds().c_str());
-  client->credslen = proto_client.credslen();
-  client->moninfo = strdup(proto_client.moninfo().c_str());
-  client->tident = strdup(proto_client.tident().c_str());
-  return client;
 }
 
 
