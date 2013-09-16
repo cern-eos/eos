@@ -136,8 +136,8 @@ namespace utils
   //! Create chmod request ProtocolBuffer object
   //!
   //! @param path directory path
-  //! @param Mode mode 
-  //! @param out_error error information object
+  //! @param mode mode 
+  //! @param error error information object
   //! @param client client security information object 
   //! @param opaque opaque information
   //!
@@ -176,7 +176,6 @@ namespace utils
   //! Create exitst request ProtocolBuffer object
   //!
   //! @param path file/directory path
-  //! @param exists_flag flag value defined in XrdSfsInterface.hh
   //! @param error error information object
   //! @param client client security information object
   //! @param opaque opaque information
@@ -194,8 +193,8 @@ namespace utils
   //! Create mkdir request ProtocolBuffer object
   //!
   //! @param path directory path
-  //! @param Mode mode 
-  //! @param out_error error information object
+  //! @param mode mode 
+  //! @param error error information object
   //! @param client client security information object 
   //! @param opaque opaque information
   //!
@@ -207,6 +206,25 @@ namespace utils
                                 XrdOucErrInfo &error,
                                 const XrdSecEntity *client,
                                 const char *opaque = 0);
+
+
+  //--------------------------------------------------------------------------
+  //! Create mkdir request ProtocolBuffer object
+  //!
+  //! @param path directory path
+  //! @param Mode mode 
+  //! @param out_error error information object
+  //! @param client client security information object 
+  //! @param opaque opaque information
+  //!
+  //! @return request ProtoBuffer object
+  //!
+  //--------------------------------------------------------------------------
+  RequestProto* GetRemdirRequest(const char *path,
+                                 XrdOucErrInfo &error,
+                                 const XrdSecEntity *client,
+                                 const char *opaque = 0);
+  
 }
 
 EOSAUTHNAMESPACE_END

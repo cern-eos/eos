@@ -140,6 +140,15 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
                const char *opaque = 0);
 
   
+    //--------------------------------------------------------------------------
+    //! Remove directory
+    //--------------------------------------------------------------------------
+    int remdir(const char* path,
+               XrdOucErrInfo& error,
+               const XrdSecEntity* client,
+               const char* opaque = 0);
+
+  
   private:
 
     int mSizePoolSocket; ///< maximum size of the socket pool

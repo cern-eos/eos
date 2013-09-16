@@ -7,6 +7,7 @@ import "proto/Chmod.proto";
 import "proto/Chksum.proto";
 import "proto/Exists.proto";
 import "proto/Mkdir.proto";
+import "proto/Remdir.proto";
 
 //------------------------------------------------------------------------------
 // Request message sent to the server
@@ -22,6 +23,7 @@ message RequestProto {
      EXISTS = 5;
      STATM  = 6;  // stat mode
      MKDIR  = 7;
+     REMDIR = 8;
   }    	  
 
   // Identifies which filed is filled in 
@@ -36,5 +38,6 @@ message RequestProto {
   optional ExistsProto exists = 7;
   optional StatProto statm    = 8;
   optional MkdirProto mkdir   = 9;
+  optional RemdirProto remdir = 10;
 }
 

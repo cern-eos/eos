@@ -326,4 +326,31 @@ utils::GetMkdirRequest(const char *path,
   return req_proto;
 }
 
+
+
+//------------------------------------------------------------------------------
+// Create mkdir request ProtocolBuffer object
+//------------------------------------------------------------------------------
+RequestProto*
+utils::GetRemdirRequest(const char *path,
+                               XrdOucErrInfo &error,
+                               const XrdSecEntity *client,
+                               const char *opaque)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::RemdirProto* remdir_proto = req_proto->mutable_remdir();
+  eos::auth::XrdOucErrInfoProto* xoei_proto = remdir_proto->mutable_error();
+  eos::auth::XrdSecEntityProto* xse_proto = remdir_proto->mutable_client();
+
+  remdir_proto->set_path(path);
+  ConvertToProtoBuf(&error, xoei_proto);
+  ConvertToProtoBuf(client, xse_proto);
+
+  if (opaque)
+    remdir_proto->set_opaque(opaque);
+
+  req_proto->set_type(RequestProto_OperationType_REMDIR);
+  return req_proto;
+}
+
 EOSAUTHNAMESPACE_END
