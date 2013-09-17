@@ -8649,6 +8649,26 @@ XrdMgmOfs::AuthWorkerThread()
                            *error.get(), client,
                            req_proto.truncate().opaque().c_str());
       eos_debug("truncate error msg: %s", error->getErrText());
+    }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_GSTATS)
+    {
+      // getStats request
+      char* buf = 0;
+      int blen = 0;
+      ret = gOFS->getStats(buf, blen);
+      eos_debug("getStats executed");
+      resp.set_response(ret);
+
+      int reply_size = resp.ByteSize();
+      zmq::message_t reply(reply_size);
+      google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
+      
+      resp.SerializeToZeroCopyStream(&aos);
+      responder.send(reply);
+      // Continue since we already replied to the client. This is done here
+      // because the response does no contain an error message like in all
+      // other cases.
+      continue;
     }   
     else
     {

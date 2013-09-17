@@ -318,6 +318,14 @@ namespace utils
                                    const XrdSecEntity* client,
                                    const char* opaque);
 
+
+  //--------------------------------------------------------------------------
+  //! Create getStats request ProtocolBuffer object
+  //!
+  //! @return request ProtoBuffer object
+  //!
+  //--------------------------------------------------------------------------
+  RequestProto* GetStatsRequest();
 }
 
 EOSAUTHNAMESPACE_END

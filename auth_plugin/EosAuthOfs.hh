@@ -185,6 +185,13 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
                  XrdOucErrInfo& error,
                  const XrdSecEntity* client = 0,
                  const char* opaque = 0);
+
+
+    //--------------------------------------------------------------------------
+    //! getStats function
+    //--------------------------------------------------------------------------
+    int getStats (char *buff, int blen);
+ 
   
   private:
 

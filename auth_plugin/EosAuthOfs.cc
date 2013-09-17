@@ -336,7 +336,7 @@ EosAuthOfs::fsctl(const int cmd,
     error.setErrInfo(resp_fsctl1->error().code(),
                      resp_fsctl1->error().message().c_str());
   }
-  
+
   delete resp_fsctl1;
   delete req_proto;
 
@@ -741,6 +741,39 @@ EosAuthOfs::truncate(const char* path,
   return retc;
 }
 
+
+
+//------------------------------------------------------------------------------
+// getStats function
+//------------------------------------------------------------------------------
+int
+EosAuthOfs::getStats (char *buff, int blen)
+{
+  int retc;
+  eos_debug("getStats");
+
+  // Get a socket object from the pool
+  zmq::socket_t* socket;
+  mPoolSocket.wait_pop(socket);
+  RequestProto* req_proto = utils::GetStatsRequest();
+     
+  if (!SendProtoBufRequest(socket, req_proto))
+  {
+    OfsEroute.Emsg("getStats", "unable to send request");
+    return SFS_ERROR;
+  }
+
+  ResponseProto* resp_getStats = static_cast<ResponseProto*>(GetResponse(socket));
+  retc = resp_getStats->response();
+  eos_debug("getStats retc=%i", retc);
+ 
+  delete resp_getStats;
+  delete req_proto;
+
+  // Put back the socket object in the pool
+  mPoolSocket.push(socket);
+  return retc;
+}
 
 
 //------------------------------------------------------------------------------
