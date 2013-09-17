@@ -11,6 +11,7 @@ import "proto/Remdir.proto";
 import "proto/Rem.proto";
 import "proto/Rename.proto";
 import "proto/Prepare.proto";
+import "proto/Truncate.proto";
 
 //------------------------------------------------------------------------------
 // Request message sent to the server
@@ -18,35 +19,37 @@ import "proto/Prepare.proto";
 
 message RequestProto {
   enum OperationType {
-     STAT   = 0;  // stat to get struct stat
-     FSCTL1 = 1;  // fsctl
-     FSCTL2 = 2;  // FSctl
-     CHMOD  = 3;
-     CHKSUM = 4;
-     EXISTS = 5;
-     STATM  = 6;  // stat mode
-     MKDIR  = 7;
-     REMDIR = 8;
-     REM    = 9;
-     RENAME = 10;
-     PREPARE = 11;
+     STAT     = 0;  // stat to get struct stat
+     FSCTL1   = 1;  // fsctl
+     FSCTL2   = 2;  // FSctl
+     CHMOD    = 3;
+     CHKSUM   = 4;
+     EXISTS   = 5;
+     STATM    = 6;  // stat mode
+     MKDIR    = 7;
+     REMDIR   = 8;
+     REM      = 9;
+     RENAME   = 10;
+     PREPARE  = 11;
+     TRUNCATE = 12;
   }    	  
 
   // Identifies which filed is filled in 
   required OperationType type = 1;
 
   // One of the following is filled in 
-  optional StatProto stat     = 2;
-  optional FsctlProto fsctl1  = 3;
-  optional FSctlProto fsctl2  = 4;
-  optional ChmodProto chmod   = 5;
-  optional ChksumProto chksum = 6;
-  optional ExistsProto exists = 7;
-  optional StatProto statm    = 8;
-  optional MkdirProto mkdir   = 9;
-  optional RemdirProto remdir = 10;
-  optional RemProto rem       = 11;
-  optional RenameProto rename = 12;
-  optional PrepareProto prepare = 13;
+  optional StatProto stat         = 2;
+  optional FsctlProto fsctl1      = 3;
+  optional FSctlProto fsctl2      = 4;
+  optional ChmodProto chmod       = 5;
+  optional ChksumProto chksum     = 6;
+  optional ExistsProto exists     = 7;
+  optional StatProto statm        = 8;
+  optional MkdirProto mkdir       = 9;
+  optional RemdirProto remdir     = 10;
+  optional RemProto rem           = 11;
+  optional RenameProto rename     = 12;
+  optional PrepareProto prepare   = 13;
+  optional TruncateProto truncate = 14;
 }
 

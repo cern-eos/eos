@@ -484,4 +484,31 @@ utils::GetPrepareRequest(XrdSfsPrep& pargs,
 }
 
 
+//--------------------------------------------------------------------------
+//! Create truncate request ProtocolBuffer object
+//--------------------------------------------------------------------------
+RequestProto*
+utils::GetTruncateRequest(const char* path,
+                          XrdSfsFileOffset fileOffset,
+                          XrdOucErrInfo& error,
+                          const XrdSecEntity* client,
+                          const char* opaque)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::TruncateProto* truncate_proto = req_proto->mutable_truncate();
+  eos::auth::XrdOucErrInfoProto* xoei_proto = truncate_proto->mutable_error();
+  eos::auth::XrdSecEntityProto* xse_proto = truncate_proto->mutable_client();
+
+  truncate_proto->set_path(path);
+  truncate_proto->set_fileoffset(fileOffset);
+  ConvertToProtoBuf(&error, xoei_proto);
+  ConvertToProtoBuf(client, xse_proto);
+
+  if (opaque)
+    truncate_proto->set_opaque(opaque);
+    
+  req_proto->set_type(RequestProto_OperationType_TRUNCATE);
+  return req_proto;
+}
+
 EOSAUTHNAMESPACE_END

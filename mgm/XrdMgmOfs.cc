@@ -8639,6 +8639,17 @@ XrdMgmOfs::AuthWorkerThread()
       eos_debug("prepare error msg: %s", error->getErrText());
       delete pargs;
     }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_TRUNCATE)
+    {
+      // truncate request
+      error.reset(eos::auth::utils::GetXrdOucErrInfo(req_proto.truncate().error()));
+      client = eos::auth::utils::GetXrdSecEntity(req_proto.truncate().client());
+      ret = gOFS->truncate(req_proto.truncate().path().c_str(),
+                           (XrdSfsFileOffset)req_proto.truncate().fileoffset(),
+                           *error.get(), client,
+                           req_proto.truncate().opaque().c_str());
+      eos_debug("truncate error msg: %s", error->getErrText());
+    }   
     else
     {
       eos_debug("no such operation supported");

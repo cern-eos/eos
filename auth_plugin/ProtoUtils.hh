@@ -297,7 +297,27 @@ namespace utils
   //--------------------------------------------------------------------------
   RequestProto* GetPrepareRequest(XrdSfsPrep& pargs,
                                   XrdOucErrInfo &error,
-                                  const XrdSecEntity *client);    
+                                  const XrdSecEntity *client);
+
+
+  //--------------------------------------------------------------------------
+  //! Create truncate request ProtocolBuffer object
+  //!
+  //! @param path file to be trunacted
+  //! @param fileOffset truncate offset value
+  //! @param error error information object
+  //! @param client client security information object
+  //! @param opaque opaque information
+  //!
+  //! @return request ProtoBuffer object
+  //!
+  //--------------------------------------------------------------------------
+  RequestProto* GetTruncateRequest(const char* path,
+                                   XrdSfsFileOffset fileOffset,
+                                   XrdOucErrInfo& error,
+                                   const XrdSecEntity* client,
+                                   const char* opaque);
+
 }
 
 EOSAUTHNAMESPACE_END

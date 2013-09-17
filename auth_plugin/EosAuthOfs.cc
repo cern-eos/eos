@@ -699,6 +699,51 @@ EosAuthOfs::prepare(XrdSfsPrep& pargs,
 
 
 //------------------------------------------------------------------------------
+// Truncate file
+//------------------------------------------------------------------------------
+int
+EosAuthOfs::truncate(const char* path,
+                     XrdSfsFileOffset fileOffset,
+                     XrdOucErrInfo& error,
+                     const XrdSecEntity* client,
+                     const char* opaque)
+{
+  int retc;
+  eos_debug("truncate");
+
+  // Get a socket object from the pool
+  zmq::socket_t* socket;
+  mPoolSocket.wait_pop(socket);
+  RequestProto* req_proto = utils::GetTruncateRequest(path, fileOffset, error,
+                                                      client, opaque);
+     
+  if (!SendProtoBufRequest(socket, req_proto))
+  {
+    OfsEroute.Emsg("truncate", "unable to send request");
+    return SFS_ERROR;
+  }
+
+  ResponseProto* resp_truncate = static_cast<ResponseProto*>(GetResponse(socket));
+  retc = resp_truncate->response();
+  eos_debug("truncate retc=%i", retc);
+  
+  if (resp_truncate->has_error())
+  {
+    error.setErrInfo(resp_truncate->error().code(),
+                     resp_truncate->error().message().c_str());
+  }
+  
+  delete resp_truncate;
+  delete req_proto;
+
+  // Put back the socket object in the pool
+  mPoolSocket.push(socket);
+  return retc;
+}
+
+
+
+//------------------------------------------------------------------------------
 // Send ProtocolBuffer object using ZMQ
 //------------------------------------------------------------------------------
 bool
