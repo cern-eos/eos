@@ -954,16 +954,6 @@ public:
 private:
 
   eos::common::Mapping::VirtualIdentity vid; //< virtual identity
-
-  
-  //----------------------------------------------------------------------------
-  //! Delete XrdSecEntity object
-  //!
-  //! @param client object to be deleted
-  //!
-  //----------------------------------------------------------------------------
-  void DeleteXrdSecEntity(XrdSecEntity*& client);
-
   
 };
 /*----------------------------------------------------------------------------*/

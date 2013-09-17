@@ -91,12 +91,21 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
   
 
     //--------------------------------------------------------------------------
-    //! Execute file system command
+    //! Execute file system command !!! fsctl !!!
     //--------------------------------------------------------------------------
     int fsctl(const int cmd,
               const char* args,
               XrdOucErrInfo& out_error,
               const XrdSecEntity* client);
+
+
+    //--------------------------------------------------------------------------
+    //! Execute file system command !!! FSctl !!!
+    //--------------------------------------------------------------------------
+    int FSctl(const int cmd,
+              XrdSfsFSctl& args,
+              XrdOucErrInfo& error,
+              const XrdSecEntity* client = 0);
 
 
     //--------------------------------------------------------------------------

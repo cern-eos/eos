@@ -165,9 +165,29 @@ utils::GetXrdSecEntity(const XrdSecEntityProto& proto_obj)
 }
 
 
-//----------------------------------------------------------------------------
-//! Get XrdSfsPrep object from protocol buffer object
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Delete XrdSecEntity object 
+//------------------------------------------------------------------------------
+void
+utils::DeleteXrdSecEntity(XrdSecEntity*& obj)
+{
+  free(obj->name);
+  free(obj->host);
+  free(obj->vorg);
+  free(obj->role);
+  free(obj->grps);
+  free(obj->endorsements);
+  free(obj->creds);
+  free(obj->moninfo);
+  free(obj->tident);
+  delete obj;
+  obj = 0;      
+}
+
+
+//------------------------------------------------------------------------------
+// Get XrdSfsPrep object from protocol buffer object
+//------------------------------------------------------------------------------
 XrdSfsPrep*
 utils::GetXrdSfsPrep(const eos::auth::XrdSfsPrepProto& proto_obj)
 {
@@ -195,11 +215,39 @@ utils::GetXrdSfsPrep(const eos::auth::XrdSfsPrepProto& proto_obj)
 // Get XrdOucErrInfo object from protocol buffer object
 //------------------------------------------------------------------------------
 XrdOucErrInfo*
-utils::GetXrdOucErrInfo(const XrdOucErrInfoProto& proto_obj)
+utils::GetXrdOucErrInfo(const eos::auth::XrdOucErrInfoProto& proto_obj)
 {
   XrdOucErrInfo* obj = new XrdOucErrInfo(proto_obj.user().c_str());
   obj->setErrInfo(proto_obj.code(), proto_obj.message().c_str());
   return obj;
+}
+
+
+//------------------------------------------------------------------------------
+// Get XrdSfsFSctl object from protocol buffer object
+//------------------------------------------------------------------------------
+XrdSfsFSctl*
+utils::GetXrdSfsFSctl(const eos::auth::XrdSfsFSctlProto& proto_obj)
+{
+  XrdSfsFSctl* obj = new XrdSfsFSctl();
+  obj->Arg1 = strdup(proto_obj.arg1().c_str());
+  obj->Arg1Len = proto_obj.arg1len();
+  obj->Arg2Len = proto_obj.arg2len();
+  obj->Arg2 = strdup(proto_obj.arg2().c_str());
+  return obj;
+}
+
+
+//------------------------------------------------------------------------------
+// Delete XrdSfsFSctl object
+//------------------------------------------------------------------------------
+void
+utils::DeleteXrdSfsFSctl(XrdSfsFSctl*& obj)
+{
+  free((void*)obj->Arg1);
+  free((void*)obj->Arg2);
+  delete obj;
+  obj = 0;
 }
 
 
@@ -252,6 +300,31 @@ utils::GetFsctlRequest(const int cmd,
   ConvertToProtoBuf(client, xse_proto);
   
   req_proto->set_type(RequestProto_OperationType_FSCTL1);
+  return req_proto;
+}
+
+
+//------------------------------------------------------------------------------
+// Create FSctl request ProtocolBuffer object
+//------------------------------------------------------------------------------
+RequestProto*
+utils::GetFSctlRequest(const int cmd,
+                       XrdSfsFSctl& args,
+                       XrdOucErrInfo& error,
+                       const XrdSecEntity* client)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::FSctlProto* fsctl_proto = req_proto->mutable_fsctl2();
+  eos::auth::XrdSfsFSctlProto* args_proto = fsctl_proto->mutable_args();
+  eos::auth::XrdOucErrInfoProto* xoei_proto = fsctl_proto->mutable_error();
+  eos::auth::XrdSecEntityProto* xse_proto = fsctl_proto->mutable_client();
+
+  fsctl_proto->set_cmd(cmd);
+  ConvertToProtoBuf(&args, args_proto);
+  ConvertToProtoBuf(&error, xoei_proto);
+  ConvertToProtoBuf(client, xse_proto);
+  
+  req_proto->set_type(RequestProto_OperationType_FSCTL2);
   return req_proto;
 }
 

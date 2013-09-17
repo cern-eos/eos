@@ -347,6 +347,47 @@ EosAuthOfs::fsctl(const int cmd,
 
 
 //------------------------------------------------------------------------------
+// Execute file system command !!! FSctl !!!
+//------------------------------------------------------------------------------
+int
+EosAuthOfs::FSctl(const int cmd,
+                  XrdSfsFSctl& args,
+                  XrdOucErrInfo& error,
+                  const XrdSecEntity* client)
+{
+  int retc;
+  eos_debug("FSctl with cmd=%i", cmd);
+
+  // Get a socket object from the pool
+  zmq::socket_t* socket;
+  mPoolSocket.wait_pop(socket);
+  RequestProto* req_proto = utils::GetFSctlRequest(cmd, args, error, client);
+     
+  if (!SendProtoBufRequest(socket, req_proto))
+  {
+    OfsEroute.Emsg("FSctl", "unable to send request");
+    return SFS_ERROR;
+  }
+
+  ResponseProto* resp_fsctl2 = static_cast<ResponseProto*>(GetResponse(socket));
+  retc = resp_fsctl2->response();
+
+  if (resp_fsctl2->has_error())
+  {
+    error.setErrInfo(resp_fsctl2->error().code(),
+                     resp_fsctl2->error().message().c_str());
+  }
+
+  delete resp_fsctl2;
+  delete req_proto;
+
+  // Put back the socket object in the pool
+  mPoolSocket.push(socket);
+  return retc;
+}
+
+
+//------------------------------------------------------------------------------
 // Chmod by client
 //------------------------------------------------------------------------------
 int

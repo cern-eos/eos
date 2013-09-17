@@ -8497,6 +8497,7 @@ XrdMgmOfs::StartAuthWorkerThread(void *pp)
 void
 XrdMgmOfs::AuthWorkerThread()
 {
+  using namespace eos::auth;
   int ret;
   eos_static_info("authentication worker thread started");
   zmq::socket_t responder(*mZmqContext, ZMQ_REP);
@@ -8552,6 +8553,16 @@ XrdMgmOfs::AuthWorkerThread()
                         *error.get(), client);
       eos_debug("fsctl error msg: %s", error->getErrText());      
     }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_FSCTL2)
+    {
+      // FSctl request
+      error.reset(eos::auth::utils::GetXrdOucErrInfo(req_proto.fsctl2().error()));
+      client = eos::auth::utils::GetXrdSecEntity(req_proto.fsctl2().client());
+      XrdSfsFSctl* obj = eos::auth::utils::GetXrdSfsFSctl(req_proto.fsctl2().args());
+      ret = gOFS->FSctl(req_proto.fsctl2().cmd(), *obj, *error.get(), client);
+      eos_debug("FSctl error msg: %s", error->getErrText());      
+    }
+
     else if (req_proto.type() == eos::auth::RequestProto_OperationType_CHMOD)
     {
       // chmod request
@@ -8687,28 +8698,8 @@ XrdMgmOfs::AuthWorkerThread()
     
     resp.SerializeToZeroCopyStream(&aos);
     responder.send(reply);
-    DeleteXrdSecEntity(client);
+    eos::auth::utils::DeleteXrdSecEntity(client);
   }
-}
-
-
-//------------------------------------------------------------------------------
-// Delete XrdSecEntity object 
-//------------------------------------------------------------------------------
-void
-XrdMgmOfs::DeleteXrdSecEntity(XrdSecEntity*& client)
-{
-  free(client->name);
-  free(client->host);
-  free(client->vorg);
-  free(client->role);
-  free(client->grps);
-  free(client->endorsements);
-  free(client->creds);
-  free(client->moninfo);
-  free(client->tident);
-  delete client;
-  client = NULL;      
 }
 
 
