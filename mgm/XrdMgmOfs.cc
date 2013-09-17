@@ -8629,6 +8629,16 @@ XrdMgmOfs::AuthWorkerThread()
                          req_proto.rename().opaquen().c_str());
       eos_debug("rename error msg: %s", error->getErrText());
     }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_PREPARE)
+    {
+      // prepare request
+      error.reset(eos::auth::utils::GetXrdOucErrInfo(req_proto.prepare().error()));
+      client = eos::auth::utils::GetXrdSecEntity(req_proto.prepare().client());
+      XrdSfsPrep* pargs = eos::auth::utils::GetXrdSfsPrep(req_proto.prepare().pargs());
+      ret = gOFS->prepare(*pargs, *error.get(), client);
+      eos_debug("prepare error msg: %s", error->getErrText());
+      delete pargs;
+    }
     else
     {
       eos_debug("no such operation supported");

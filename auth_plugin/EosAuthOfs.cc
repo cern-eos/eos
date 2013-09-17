@@ -658,6 +658,47 @@ EosAuthOfs::rename (const char *oldName,
 
 
 //------------------------------------------------------------------------------
+// Prepare request
+//-----------------------------------------------------------------------------
+int
+EosAuthOfs::prepare(XrdSfsPrep& pargs,
+                    XrdOucErrInfo& error,
+                    const XrdSecEntity* client)
+{
+  int retc;
+  eos_debug("prepare");
+
+  // Get a socket object from the pool
+  zmq::socket_t* socket;
+  mPoolSocket.wait_pop(socket);
+  RequestProto* req_proto = utils::GetPrepareRequest(pargs, error, client);
+     
+  if (!SendProtoBufRequest(socket, req_proto))
+  {
+    OfsEroute.Emsg("prepare", "unable to send request");
+    return SFS_ERROR;
+  }
+
+  ResponseProto* resp_prepare = static_cast<ResponseProto*>(GetResponse(socket));
+  retc = resp_prepare->response();
+  eos_debug("prepare retc=%i", retc);
+  
+  if (resp_prepare->has_error())
+  {
+    error.setErrInfo(resp_prepare->error().code(),
+                     resp_prepare->error().message().c_str());
+  }
+  
+  delete resp_prepare;
+  delete req_proto;
+
+  // Put back the socket object in the pool
+  mPoolSocket.push(socket);
+  return retc;
+}
+
+
+//------------------------------------------------------------------------------
 // Send ProtocolBuffer object using ZMQ
 //------------------------------------------------------------------------------
 bool

@@ -73,8 +73,19 @@ namespace utils
   //! @param proto ProtocolBuffer representation
   //!
   //--------------------------------------------------------------------------
-  void ConvertToProtoBuf(const XrdSfsFSctl* client,
+  void ConvertToProtoBuf(const XrdSfsFSctl* obj,
                          XrdSfsFSctlProto*& proto);
+
+
+  //--------------------------------------------------------------------------
+  //! Convert XrSfsPrep object to ProtocolBuffers representation
+  //!
+  //! @param obj initial object to convert
+  //! @param proto ProtocolBuffer representation
+  //!
+  //--------------------------------------------------------------------------
+  void ConvertToProtoBuf(const XrdSfsPrep* obj,
+                         XrdSfsPrepProto*& proto);
 
   
   //----------------------------------------------------------------------------
@@ -97,6 +108,17 @@ namespace utils
   //!
   //----------------------------------------------------------------------------
   XrdOucErrInfo* GetXrdOucErrInfo(const eos::auth::XrdOucErrInfoProto& proto_obj);
+
+
+  //----------------------------------------------------------------------------
+  //! Get XrdSfsPrep object from protocol buffer object
+  //!
+  //! @param proto_obj protocol buffer object
+  //!
+  //! @return converted XrdSfsPrep object
+  //!
+  //----------------------------------------------------------------------------
+  XrdSfsPrep* GetXrdSfsPrep(const eos::auth::XrdSfsPrepProto& proto_obj);
 
   
   //--------------------------------------------------------------------------
@@ -260,7 +282,22 @@ namespace utils
                                  XrdOucErrInfo &error,
                                  const XrdSecEntity *client,
                                  const char *opaqueO,
-                                 const char *opaqueN);  
+                                 const char *opaqueN);
+
+  
+  //--------------------------------------------------------------------------
+  //! Create prepare request ProtocolBuffer object
+  //!
+  //! @param pargs prepare operation arguments
+  //! @param error error information object
+  //! @param client client security information object 
+  //!
+  //! @return request ProtoBuffer object
+  //!
+  //--------------------------------------------------------------------------
+  RequestProto* GetPrepareRequest(XrdSfsPrep& pargs,
+                                  XrdOucErrInfo &error,
+                                  const XrdSecEntity *client);    
 }
 
 EOSAUTHNAMESPACE_END

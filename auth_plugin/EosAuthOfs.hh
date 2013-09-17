@@ -167,6 +167,15 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
                  const XrdSecEntity *client,
                  const char *opaqueO = 0,
                  const char *opaqueN = 0);
+
+  
+    //--------------------------------------------------------------------------
+    //! Prepare request
+    //--------------------------------------------------------------------------
+    int prepare(XrdSfsPrep& pargs,
+                XrdOucErrInfo& error,
+                const XrdSecEntity* client = 0);
+
   
   private:
 

@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "ProtoUtils.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSec/XrdSecEntity.hh"
@@ -116,6 +117,29 @@ utils::ConvertToProtoBuf(const XrdSfsFSctl* obj,
 }
 
 
+//------------------------------------------------------------------------------
+// Convert XrSfsPrep object to ProtocolBuffers representation
+//------------------------------------------------------------------------------
+void
+utils::ConvertToProtoBuf(const XrdSfsPrep* obj,
+                         XrdSfsPrepProto*& proto)
+{
+  proto->set_reqid(obj->reqid ?  obj->reqid : "");
+  proto->set_notify(obj->notify ? obj->notify : "");
+  proto->set_opts(obj->opts);
+
+  XrdOucTList* next_path = obj->paths;
+  XrdOucTList* next_oinfo = obj->oinfo;
+  
+  while (next_path && next_oinfo)
+  {
+    proto->add_paths(next_path->text);
+    proto->add_oinfo(next_oinfo->text);
+    next_path = next_path->next;
+    next_oinfo = next_oinfo->next;
+  }
+}
+
 
 //------------------------------------------------------------------------------
 // Get XrdSecEntity object from protocol buffer object
@@ -137,6 +161,32 @@ utils::GetXrdSecEntity(const XrdSecEntityProto& proto_obj)
   obj->credslen = proto_obj.credslen();
   obj->moninfo = strdup(proto_obj.moninfo().c_str());
   obj->tident = strdup(proto_obj.tident().c_str());
+  return obj;
+}
+
+
+//----------------------------------------------------------------------------
+//! Get XrdSfsPrep object from protocol buffer object
+//----------------------------------------------------------------------------
+XrdSfsPrep*
+utils::GetXrdSfsPrep(const eos::auth::XrdSfsPrepProto& proto_obj)
+{
+  XrdSfsPrep* obj = new XrdSfsPrep();
+  obj->reqid = ((proto_obj.reqid() == "") ? 0 : strdup(proto_obj.reqid().c_str()));
+  obj->notify = ((proto_obj.notify() == "") ? 0 : strdup(proto_obj.notify().c_str()));
+  obj->opts = proto_obj.opts();
+
+  XrdOucTList* next_paths = obj->paths;
+  XrdOucTList* next_oinfo = obj->oinfo;
+  
+  for (int i = 0; i < proto_obj.paths_size(); i++)
+  {
+    next_paths = new XrdOucTList(proto_obj.paths(i).c_str());
+    next_oinfo = new XrdOucTList(proto_obj.oinfo(i).c_str());
+    next_paths = next_paths->next;
+    next_oinfo = next_oinfo->next;   
+  }
+
   return obj;
 }
 
@@ -410,5 +460,28 @@ utils::GetRenameRequest(const char *oldName,
   req_proto->set_type(RequestProto_OperationType_RENAME);
   return req_proto;
 }
+
+
+//--------------------------------------------------------------------------
+// Create prepare request ProtocolBuffer object
+//--------------------------------------------------------------------------
+RequestProto*
+utils::GetPrepareRequest(XrdSfsPrep& pargs,
+                         XrdOucErrInfo &error,
+                         const XrdSecEntity *client)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::PrepareProto* prepare_proto = req_proto->mutable_prepare();
+  eos::auth::XrdSfsPrepProto* xsp_proto = prepare_proto->mutable_pargs();
+  eos::auth::XrdOucErrInfoProto* xoei_proto = prepare_proto->mutable_error();
+  eos::auth::XrdSecEntityProto* xse_proto = prepare_proto->mutable_client();
+
+  ConvertToProtoBuf(&pargs, xsp_proto);
+  ConvertToProtoBuf(&error, xoei_proto);
+  ConvertToProtoBuf(client, xse_proto);
+  req_proto->set_type(RequestProto_OperationType_PREPARE);
+  return req_proto;
+}
+
 
 EOSAUTHNAMESPACE_END
