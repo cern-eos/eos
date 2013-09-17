@@ -231,6 +231,8 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
                         "dn=\"%s\"username=\"%s\"", dn.c_str(), username.c_str());
         break;
       }
+      
+      username = "";
 
       // Try to match with kerberos username
       pos = remoteUser.find_last_of("@");
