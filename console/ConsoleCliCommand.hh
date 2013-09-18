@@ -87,9 +87,9 @@ public:
   void add_option(const CliPositionalOption &option);
   void add_option(const CliOption &option);
   void add_options(std::vector<CliOption> options);
-  void parse(std::vector<std::string> &cli_args);
-  void parse(std::string &cli_args);
-  void parse(std::string cli_args);
+  ConsoleCliCommand* parse(std::vector<std::string> &cli_args);
+  ConsoleCliCommand* parse(std::string &cli_args);
+  ConsoleCliCommand* parse(std::string cli_args);
   bool has_value(std::string option_name);
   bool has_values();
   std::vector<std::string> get_value(std::string option_name);

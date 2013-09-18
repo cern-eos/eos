@@ -372,9 +372,27 @@ ConsoleCliCommand::is_subcommand(std::vector<std::string> &cli_args)
   return 0;
 }
 
-void
+ConsoleCliCommand *
 ConsoleCliCommand::parse(std::vector<std::string> &cli_args)
 {
+  if (cli_args.size() == 0)
+  {
+    return this;
+  }
+
+  if (m_subcommands)
+  {
+    ConsoleCliCommand *subcommand = is_subcommand(cli_args);
+
+    if (subcommand)
+    {
+      std::vector<std::string> subcommand_args(cli_args);
+      subcommand_args.erase(subcommand_args.begin());
+
+      return subcommand->parse(subcommand_args);
+    }
+  }
+
   if (m_options)
   {
     std::vector<CliOption *>::iterator it = m_options->begin();
@@ -403,20 +421,22 @@ ConsoleCliCommand::parse(std::vector<std::string> &cli_args)
         delete res;
       }
   }
+
+  return this;
 }
 
-void
+ConsoleCliCommand *
 ConsoleCliCommand::parse(std::string &cli_args)
 {
   std::vector<std::string>* cli_args_vector = split_keywords(cli_args, ' ');
-  parse(*cli_args_vector);
+  return parse(*cli_args_vector);
 }
 
-void
+ConsoleCliCommand *
 ConsoleCliCommand::parse(std::string cli_args)
 {
   std::vector<std::string>* cli_args_vector = split_keywords(cli_args, ' ');
-  parse(*cli_args_vector);
+  return parse(*cli_args_vector);
 }
 
 bool
