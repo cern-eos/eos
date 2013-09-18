@@ -271,6 +271,15 @@ CliPositionalOption::analyse(std::vector<std::string> &cli_args)
   return res;
 }
 
+std::string
+CliPositionalOption::repr()
+{
+  if (!m_required)
+    return "[" + m_repr + "]";
+
+  return m_repr;
+}
+
 ConsoleCliCommand::ConsoleCliCommand(const std::string &name,
                                      const std::string &description)
   : m_name(name),

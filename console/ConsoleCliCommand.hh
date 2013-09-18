@@ -69,6 +69,7 @@ public:
   ~CliPositionalOption();
   virtual AnalysisResult* analyse(std::vector<std::string> &cli_args);
   virtual char* help_string();
+  virtual std::string repr();
   int position() { return m_position; };
 
 private:
