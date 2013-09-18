@@ -270,8 +270,10 @@ ConsoleCliCommand::ConsoleCliCommand(const std::string &name,
                                      const std::string &description)
   : m_name(name),
     m_description(description),
+    m_subcommands(0),
     m_options(0),
-    m_positional_options(0)
+    m_positional_options(0),
+    m_parent_command(0)
 {}
 
 ConsoleCliCommand::~ConsoleCliCommand()
@@ -324,6 +326,16 @@ ConsoleCliCommand::add_option(CliPositionalOption *option)
 }
 
 void
+ConsoleCliCommand::add_subcommand(ConsoleCliCommand *subcommand)
+{
+  if (m_subcommands == 0)
+    m_subcommands = new std::vector<ConsoleCliCommand *>;
+
+  m_subcommands->push_back(subcommand);
+  subcommand->set_parent(this);
+}
+
+void
 ConsoleCliCommand::add_option(const CliOption &option)
 {
   CliOption *new_obj = new CliOption(option);
@@ -345,6 +357,19 @@ ConsoleCliCommand::add_options(std::vector<CliOption> options)
   {
     add_option(*it);
   }
+}
+
+ConsoleCliCommand *
+ConsoleCliCommand::is_subcommand(std::vector<std::string> &cli_args)
+{
+  std::vector<ConsoleCliCommand *>::const_iterator it = m_subcommands->cbegin();
+  for (; it != m_subcommands->cend(); it++)
+  {
+    if ((*it)->name().compare(cli_args[0]) == 0)
+      return *it;
+  }
+
+  return 0;
 }
 
 void
@@ -439,6 +464,12 @@ ConsoleCliCommand::print_usage()
   }
   print_help();
   free(repr);
+}
+
+void
+ConsoleCliCommand::set_parent(const ConsoleCliCommand *parent)
+{
+  m_parent_command = parent;
 }
 
 char*

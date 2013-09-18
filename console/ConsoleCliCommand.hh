@@ -81,6 +81,7 @@ class ConsoleCliCommand {
 public:
   ConsoleCliCommand (const std::string &name, const std::string &description);
   ~ConsoleCliCommand ();
+  void add_subcommand(ConsoleCliCommand *subcommand);
   void add_option(CliOption *option);
   void add_option(CliPositionalOption *option);
   void add_option(const CliPositionalOption &option);
@@ -95,11 +96,16 @@ public:
   char* keywords_repr();
   void print_help();
   void print_usage();
+  void set_parent(const ConsoleCliCommand *parent);
 
 private:
   std::string m_name;
   std::string m_description;
+  std::vector<ConsoleCliCommand *> *m_subcommands;
   std::vector<CliOption *> *m_options;
   std::map<int, CliPositionalOption *> *m_positional_options;
+  const ConsoleCliCommand *m_parent_command;
   std::map<std::string, std::vector<std::string>> m_options_map;
+
+  ConsoleCliCommand* is_subcommand(std::vector<std::string> &cli_args);
 };
