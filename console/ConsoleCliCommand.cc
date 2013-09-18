@@ -244,10 +244,6 @@ CliPositionalOption::help_string()
 {
   char *help_str;
   std::string repr = m_repr;
-
-  if (!m_required)
-    repr = "[" + repr + "]";
-
   int str_length = m_description.length() + repr.length() + HELP_PADDING + 10;
   help_str = new char[str_length];
 
