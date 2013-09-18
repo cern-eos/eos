@@ -336,9 +336,9 @@ ConsoleCliCommand::ConsoleCliCommand(const std::string &name,
 
 ConsoleCliCommand::~ConsoleCliCommand()
 {
+  size_t i;
   if (m_options)
   {
-    size_t i;
     for(i = 0; i < m_options->size(); i++)
       {
         delete m_options->at(i);
@@ -349,13 +349,22 @@ ConsoleCliCommand::~ConsoleCliCommand()
 
   if (m_positional_options)
   {
-    size_t i;
-    for(i = 0; i < m_positional_options->size(); i++)
-      {
-        delete m_positional_options->at(i);
-      }
+    std::map<int, CliPositionalOption *>::const_iterator it;
+    for (it = m_positional_options->cbegin(); it != m_positional_options->cend(); it++)
+      delete (*it).second;
+
     delete m_positional_options;
     m_positional_options = 0;
+  }
+
+  if (m_subcommands)
+  {
+    for(i = 0; i < m_subcommands->size(); i++)
+      {
+        delete m_subcommands->at(i);
+      }
+    delete m_subcommands;
+    m_subcommands = 0;
   }
 }
 
