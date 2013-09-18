@@ -526,15 +526,32 @@ ConsoleCliCommand::get_value (std::string option_name)
 void
 ConsoleCliCommand::print_help()
 {
-  for (std::vector<CliOption *>::const_iterator it = m_options->cbegin();
-       it != m_options->cend(); it++)
+  if (m_options)
   {
-    char *str = (*it)->help_string();
+    for (std::vector<CliOption *>::const_iterator it = m_options->cbegin();
+         it != m_options->cend(); it++)
+    {
+      char *str = (*it)->help_string();
 
-    if (str != NULL)
-      fprintf(stdout, str);
+      if (str != NULL)
+        fprintf(stdout, str);
 
-    free(str);
+      free(str);
+    }
+  }
+
+  if (m_positional_options)
+  {
+    std::map<int, CliPositionalOption *>::const_iterator it;
+    for (it = m_positional_options->cbegin(); it != m_positional_options->cend(); it++)
+    {
+      char *str = (*it).second->help_string();
+
+      if (str != NULL)
+        fprintf(stdout, str);
+
+      free(str);
+    }
   }
 }
 
