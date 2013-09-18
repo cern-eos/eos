@@ -1,4 +1,3 @@
-#include <sstream>
 #include <string.h>
 #include <assert.h>
 #include "ConsoleCliCommand.hh"
@@ -8,14 +7,31 @@
 std::vector<std::string> *
 split_keywords (std::string keywords, char delimiter)
 {
-  std::string token;
-  std::istringstream to_split(keywords);
   std::vector<std::string> *split_keywords = new std::vector<std::string>;
 
-  while (std::getline(to_split, token, delimiter))
+  if (keywords.length() == 0)
+    return split_keywords;
+
+  size_t i = 0;
+  std::string token("");
+
+  while (i < keywords.length())
   {
-    split_keywords->push_back(token);
+    if (keywords[i] == delimiter)
+    {
+      if (token != "")
+      {
+        split_keywords->push_back(token);
+        token = "";
+      }
+    }
+    else
+      token += keywords[i];
+
+    i++;
   }
+  if (token != "")
+    split_keywords->push_back(token);
 
   return split_keywords;
 }
@@ -413,6 +429,9 @@ ConsoleCliCommand::has_errors()
 ConsoleCliCommand *
 ConsoleCliCommand::is_subcommand(std::vector<std::string> &cli_args)
 {
+  if (cli_args.size() == 0)
+    return 0;
+
   std::vector<ConsoleCliCommand *>::const_iterator it = m_subcommands->cbegin();
   for (; it != m_subcommands->cend(); it++)
   {
@@ -426,11 +445,6 @@ ConsoleCliCommand::is_subcommand(std::vector<std::string> &cli_args)
 ConsoleCliCommand *
 ConsoleCliCommand::parse(std::vector<std::string> &cli_args)
 {
-  if (cli_args.size() == 0)
-  {
-    return this;
-  }
-
   if (m_subcommands)
   {
     ConsoleCliCommand *subcommand = is_subcommand(cli_args);
