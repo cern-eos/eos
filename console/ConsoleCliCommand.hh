@@ -79,6 +79,8 @@ public:
   CliPositionalOption(std::string name, std::string desc, int position,
                       int num_args, std::string repr);
   CliPositionalOption(std::string name, std::string desc, int position,
+                      int num_args, std::string repr, bool required);
+  CliPositionalOption(std::string name, std::string desc, int position,
                       std::string repr);
   CliPositionalOption(const CliPositionalOption &option);
   ~CliPositionalOption();

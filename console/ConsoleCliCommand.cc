@@ -248,12 +248,22 @@ CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
 }
 
 CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
+                                         int position, int num_args,
+                                         std::string repr, bool required)
+  : CliPositionalOption(name, desc, position, 1, repr)
+{
+  m_required = required;
+}
+
+CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
                                          int position, std::string repr)
   : CliPositionalOption(name, desc, position, 1, repr)
 {}
 
 CliPositionalOption::CliPositionalOption(const CliPositionalOption &option)
-  : CliPositionalOption(option.name(), option.description(), option.m_position, option.m_repr)
+  : CliPositionalOption(option.name(), option.description(),
+                        option.m_position, option.m_num_args, option.m_repr,
+                        option.m_required)
 {}
 
 CliPositionalOption::~CliPositionalOption() {};
