@@ -89,6 +89,7 @@ CliOption::analyse(std::vector<std::string> &cli_args)
   }
 
   res->values = ret;
+  res->error_msg = "";
 
   return res;
 }
@@ -183,6 +184,7 @@ CliOptionWithArgs::analyse(std::vector<std::string> &cli_args)
   std::pair<std::string, std::vector<std::string>> ret;
   std::vector<std::string>::iterator it = cli_args.begin();
   AnalysisResult *res = new AnalysisResult;
+  res->error_msg = "";
 
   for (; it != cli_args.end(); it++)
   {
@@ -257,13 +259,26 @@ CliPositionalOption::help_string()
 AnalysisResult *
 CliPositionalOption::analyse(std::vector<std::string> &cli_args)
 {
-  AnalysisResult *res = new AnalysisResult;
+  AnalysisResult *res;
+
+  if (cli_args.size() == 0 || m_position > (int) cli_args.size())
+  {
+    if (!m_required)
+      return NULL;
+
+    res = new AnalysisResult;
+    res->values.first = m_name;
+    res->error_msg = "Error: Too few arguments.";
+
+    return res;
+  }
 
   res = new AnalysisResult;
   int init_pos = m_position - 1;
 
   res->values.first = m_name;
   res->start = cli_args.begin() + init_pos;
+  res->error_msg = "";
 
   int num_args = m_num_args;
   if (m_num_args == -1)
@@ -274,6 +289,9 @@ CliPositionalOption::analyse(std::vector<std::string> &cli_args)
     res->values.second.push_back(cli_args.at(i));
 
   res->end = res->start + i;
+
+  if (m_num_args != -1 && i < init_pos + num_args)
+    res->error_msg = "Error: Too few arguments for " + m_repr + " argument.";
 
   return res;
 }
@@ -445,19 +463,30 @@ ConsoleCliCommand::parse(std::vector<std::string> &cli_args)
       }
   }
 
+  int num_args_processed = (int) cli_args.size();
   if (m_positional_options)
   {
     std::map<int, CliPositionalOption *>::iterator pos_it = m_positional_options->begin();
     for (; pos_it != m_positional_options->end(); pos_it++)
       {
         AnalysisResult *res = (*pos_it).second->analyse(cli_args);
-        if (res)
-          {
-            m_options_map.insert(res->values);
-          }
+
+        if (!res) // not required and not found
+          continue;
+
+        if (res->error_msg == "")
+          m_options_map.insert(res->values);
+        else
+          add_error(new ParseError((*pos_it).second, res->error_msg));
+
+        num_args_processed -= (res->end - res->start);
+
         delete res;
       }
   }
+
+  if (num_args_processed > 0)
+    add_error(new ParseError(0, "Error: Wrong number of arguments."));
 
   return this;
 }
