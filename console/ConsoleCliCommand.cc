@@ -144,6 +144,9 @@ CliOption::keywords_repr()
 char *
 CliOption::help_string()
 {
+  if (m_description == "")
+    return NULL;
+
   char *help_str = 0;
   std::string keyword("");
 
@@ -258,6 +261,9 @@ CliPositionalOption::~CliPositionalOption() {};
 char *
 CliPositionalOption::help_string()
 {
+  if (m_description == "")
+    return NULL;
+
   char *help_str;
   std::string repr = m_repr;
   int str_length = m_description.length() + repr.length() + HELP_PADDING + 10;
@@ -544,9 +550,10 @@ ConsoleCliCommand::print_help()
       char *str = (*it)->help_string();
 
       if (str != NULL)
+      {
         fprintf(stdout, str);
-
-      free(str);
+        free(str);
+      }
     }
   }
 
@@ -558,9 +565,10 @@ ConsoleCliCommand::print_help()
       char *str = (*it).second->help_string();
 
       if (str != NULL)
+      {
         fprintf(stdout, str);
-
-      free(str);
+        free(str);
+      }
     }
   }
 }
