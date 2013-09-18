@@ -20,6 +20,11 @@ split_keywords (std::string keywords, char delimiter)
   return split_keywords;
 }
 
+ParseError::ParseError(CliBaseOption *option, std::string message)
+  : m_option(option),
+    m_message(message)
+{}
+
 CliBaseOption::CliBaseOption(std::string name, std::string desc)
   : m_name(name),
     m_description(desc),
@@ -289,7 +294,8 @@ ConsoleCliCommand::ConsoleCliCommand(const std::string &name,
     m_subcommands(0),
     m_options(0),
     m_positional_options(0),
-    m_parent_command(0)
+    m_parent_command(0),
+    m_errors(0)
 {}
 
 ConsoleCliCommand::~ConsoleCliCommand()
@@ -373,6 +379,21 @@ ConsoleCliCommand::add_options(std::vector<CliOption> options)
   {
     add_option(*it);
   }
+}
+
+void
+ConsoleCliCommand::add_error(const ParseError *error)
+{
+  if (!m_errors)
+    m_errors = new std::vector<const ParseError *>;
+
+  m_errors->push_back(error);
+}
+
+bool
+ConsoleCliCommand::has_errors()
+{
+  return m_errors && !m_errors->empty();
 }
 
 ConsoleCliCommand *
@@ -513,6 +534,21 @@ ConsoleCliCommand::print_usage()
     fprintf(stdout, " : %s\n", m_description.c_str());
   }
   print_help();
+}
+
+void
+ConsoleCliCommand::print_errors()
+{
+  if (!m_errors)
+    return;
+
+  std::string errors_str("");
+  std::vector<const ParseError*>::const_iterator it;
+  for (it = m_errors->cbegin(); it != m_errors->cend(); it++)
+  {
+    errors_str += (*it)->message() + "\n";
+  }
+  fprintf(stdout, errors_str.c_str());
 }
 
 void

@@ -3,11 +3,26 @@
 #include <utility>
 #include <map>
 
+class CliBaseOption;
+class ConsoleCliCommand;
+
+class ParseError {
+public:
+  ParseError(CliBaseOption *option, std::string message);
+  CliBaseOption* option() const { return m_option; };
+  std::string message() const { return m_message; };
+
+private:
+  CliBaseOption *m_option;
+  std::string m_message;
+};
+
 typedef struct
 {
   std::pair<std::string, std::vector<std::string>> values;
   std::vector<std::string>::iterator start;
   std::vector<std::string>::iterator end;
+  std::string error_msg;
 } AnalysisResult;
 
 class CliBaseOption {
@@ -88,6 +103,7 @@ public:
   void add_option(const CliPositionalOption &option);
   void add_option(const CliOption &option);
   void add_options(std::vector<CliOption> options);
+  bool has_errors();
   ConsoleCliCommand* parse(std::vector<std::string> &cli_args);
   ConsoleCliCommand* parse(std::string &cli_args);
   ConsoleCliCommand* parse(std::string cli_args);
@@ -96,6 +112,7 @@ public:
   std::vector<std::string> get_value(std::string option_name);
   void print_help();
   void print_usage();
+  void print_errors();
   std::string name() const { return m_name;};
   void set_parent(const ConsoleCliCommand *parent);
 
@@ -107,9 +124,11 @@ private:
   std::map<int, CliPositionalOption *> *m_positional_options;
   const ConsoleCliCommand *m_parent_command;
   std::map<std::string, std::vector<std::string>> m_options_map;
+  std::vector<const ParseError *> *m_errors;
 
   ConsoleCliCommand* is_subcommand(std::vector<std::string> &cli_args);
   std::string keywords_repr();
   std::string subcommands_repr();
   std::string positional_options_repr();
+  void add_error(const ParseError *);
 };
