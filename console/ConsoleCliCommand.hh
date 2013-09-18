@@ -61,7 +61,10 @@ private:
 
 class CliPositionalOption : public CliBaseOption {
 public:
-  CliPositionalOption(std::string name, std::string desc, int position, std::string repr);
+  CliPositionalOption(std::string name, std::string desc, int position,
+                      int num_args, std::string repr);
+  CliPositionalOption(std::string name, std::string desc, int position,
+                      std::string repr);
   CliPositionalOption(const CliPositionalOption &option);
   ~CliPositionalOption();
   virtual AnalysisResult* analyse(std::vector<std::string> &cli_args);
@@ -70,6 +73,7 @@ public:
 
 private:
   int m_position;
+  int m_num_args;
   std::string m_repr;
 };
 

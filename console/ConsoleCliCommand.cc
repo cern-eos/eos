@@ -209,15 +209,18 @@ CliOptionWithArgs::analyse(std::vector<std::string> &cli_args)
 }
 
 CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
-                                         int position, std::string repr)
+                                         int position, int num_args, std::string repr)
   : CliBaseOption(name, desc),
     m_position(position),
+    m_num_args(num_args),
     m_repr(repr)
+CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
+                                         int position, std::string repr)
+  : CliPositionalOption(name, desc, position, 1, repr)
 {}
 
 CliPositionalOption::CliPositionalOption(const CliPositionalOption &option)
-  : CliBaseOption(option.m_name, option.m_description),
-    m_position(option.m_position)
+  : CliPositionalOption(option.name(), option.description(), option.m_position, option.m_repr)
 {}
 
 CliPositionalOption::~CliPositionalOption() {};
@@ -244,13 +247,21 @@ CliPositionalOption::analyse(std::vector<std::string> &cli_args)
 {
   AnalysisResult *res = new AnalysisResult;
 
-  if (m_position > (int) cli_args.size())
-    return NULL;
+  res = new AnalysisResult;
+  int init_pos = m_position - 1;
 
   res->values.first = m_name;
-  res->values.second.push_back(cli_args.at(m_position));
-  res->start = cli_args.begin() + m_position;
-  res->end = res->start;
+  res->start = cli_args.begin() + init_pos;
+
+  int num_args = m_num_args;
+  if (m_num_args == -1)
+    num_args = cli_args.size() - init_pos;
+
+  int i;
+  for (i = init_pos; i < init_pos + num_args && i < (int) cli_args.size(); i++)
+    res->values.second.push_back(cli_args.at(i));
+
+  res->end = res->start + i;
 
   return res;
 }
