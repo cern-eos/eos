@@ -489,15 +489,28 @@ ConsoleCliCommand::print_help()
 void
 ConsoleCliCommand::print_usage()
 {
-  char *repr = keywords_repr();
-  std::string command_and_options(repr);
-  command_and_options = m_name + " " + command_and_options;
+  std::string subcomm_repr = subcommands_repr();
+  std::string kw_repr = keywords_repr();
+  std::string pos_options_repr = positional_options_repr();
+  std::string command_and_options = m_name;
+
+  if (subcomm_repr != "")
+    command_and_options += " " + subcomm_repr;
+
+  if (kw_repr != "")
+    command_and_options += " " + kw_repr;
+
+  if (pos_options_repr != "")
+    command_and_options += " " + pos_options_repr;
+
+  if (m_parent_command)
+    command_and_options = m_parent_command->name() + " " + command_and_options;
+
   fprintf(stdout, "Usage: %s", command_and_options.c_str());
   if (m_description != "") {
     fprintf(stdout, " : %s\n", m_description.c_str());
   }
   print_help();
-  free(repr);
 }
 
 void
@@ -506,10 +519,13 @@ ConsoleCliCommand::set_parent(const ConsoleCliCommand *parent)
   m_parent_command = parent;
 }
 
-char*
+std::string
 ConsoleCliCommand::keywords_repr()
 {
   std::string repr("");
+
+  if (!m_options)
+    return repr;
 
   for (size_t i = 0; i < m_options->size(); i++)
   {
@@ -518,5 +534,45 @@ ConsoleCliCommand::keywords_repr()
       repr += " ";
   }
 
-  return strdup(repr.c_str());
+  return repr;
+}
+
+std::string
+ConsoleCliCommand::subcommands_repr()
+{
+  std::string repr("");
+
+  if (!m_subcommands)
+    return repr;
+
+  for (size_t i = 0; i < m_subcommands->size(); i++)
+  {
+    repr += m_subcommands->at(i)->name();
+    if (i < m_subcommands->size() - 1)
+      repr += "|";
+  }
+
+  return repr;
+}
+
+std::string
+ConsoleCliCommand::positional_options_repr()
+{
+  std::string repr("");
+
+  if (!m_positional_options)
+    return repr;
+
+  std::map<int, CliPositionalOption *>::const_iterator it;
+  for (it = m_positional_options->cbegin(); it != m_positional_options->cend(); it++)
+  {
+    repr += (*it).second->repr();
+
+    if (++it == m_positional_options->cend())
+      break;
+
+    repr += " ";
+  }
+
+  return repr;
 }

@@ -94,9 +94,9 @@ public:
   bool has_value(std::string option_name);
   bool has_values();
   std::vector<std::string> get_value(std::string option_name);
-  char* keywords_repr();
   void print_help();
   void print_usage();
+  std::string name() const { return m_name;};
   void set_parent(const ConsoleCliCommand *parent);
 
 private:
@@ -109,4 +109,7 @@ private:
   std::map<std::string, std::vector<std::string>> m_options_map;
 
   ConsoleCliCommand* is_subcommand(std::vector<std::string> &cli_args);
+  std::string keywords_repr();
+  std::string subcommands_repr();
+  std::string positional_options_repr();
 };
