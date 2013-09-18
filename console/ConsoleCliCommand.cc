@@ -68,20 +68,22 @@ CliOption::analyse(std::vector<std::string> &cli_args)
 {
   std::pair<std::string, std::vector<std::string>> ret;
   std::vector<std::string>::iterator it = cli_args.begin();
+
   AnalysisResult *res = new AnalysisResult;
+  res->start = res->end = it;
 
   for (; it != cli_args.end(); it++)
   {
     if (has_keyword(*it) != "")
     {
       ret.first = m_name;
+      res->start = it;
+      res->end = it + 1;
       break;
     }
   }
 
   res->values = ret;
-  res->start = it;
-  res->end = it;
 
   return res;
 }
