@@ -1,5 +1,6 @@
 #include <sstream>
 #include <string.h>
+#include <assert.h>
 #include "ConsoleCliCommand.hh"
 
 #define HELP_PADDING 30
@@ -214,6 +215,10 @@ CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
     m_position(position),
     m_num_args(num_args),
     m_repr(repr)
+{
+  assert(m_position > 0 || m_position == -1);
+}
+
 CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
                                          int position, std::string repr)
   : CliPositionalOption(name, desc, position, 1, repr)
