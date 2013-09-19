@@ -25,11 +25,14 @@
 #define __EOS_AUTH_PROTOUTILS_HH__
 
 /*----------------------------------------------------------------------------*/
+#include <string>
+/*----------------------------------------------------------------------------*/
 #include "Namespace.hh"
 #include "proto/Request.pb.h"
 #include "proto/Response.pb.h"
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
+
 
 //! Forward declarations
 class XrdSecEntity;
@@ -373,6 +376,61 @@ namespace utils
   //!
   //----------------------------------------------------------------------------
   RequestProto* GetStatsRequest();
+
+
+  //--------------------------------------------------------------------------
+  //! Create directory open request ProtocolBuffer object
+  //!
+  //! @param uuid unqiue identifier for the current directory
+  //! @param name name of the directory
+  //! @param client client security information object
+  //! @param opaque opaque information
+  //! @param user user name passed initially to the constructor
+  //! @param monid MonID value passed initally to the constructor
+  //!
+  //! @return request ProtoBuffer object
+  //!
+  //--------------------------------------------------------------------------
+  RequestProto* GetDirOpenRequest(std::string&& uuid,
+                                  const char* name,
+                                  const XrdSecEntity *client,
+                                  const char *opaque = 0,
+                                  const char* user = 0,
+                                  int monid = 0);
+
+
+  //--------------------------------------------------------------------------
+  //! Create directory next entry request ProtocolBuffer object
+  //!
+  //! @param uuid unqiue identifier for the current directory
+  //!
+  //! @return request ProtoBuffer object
+  //!
+  //--------------------------------------------------------------------------
+  RequestProto* GetDirReadRequest(std::string&& uuid);
+
+
+  //--------------------------------------------------------------------------
+  //! Create directory FName request ProtocolBuffer object
+  //!
+  //! @param uuid unqiue identifier for the current directory
+  //!
+  //! @return request ProtoBuffer object
+  //!
+  //--------------------------------------------------------------------------
+  RequestProto* GetDirFnameRequest(std::string&& uuid);
+
+
+  //--------------------------------------------------------------------------
+  //! Create directory close request ProtocolBuffer object
+  //!
+  //! @param uuid unqiue identifier for the current directory
+  //!
+  //! @return request ProtoBuffer object
+  //!
+  //--------------------------------------------------------------------------
+  RequestProto* GetDirCloseRequest(std::string&& uuid);
+
 }
 
 EOSAUTHNAMESPACE_END

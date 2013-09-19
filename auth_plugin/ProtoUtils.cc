@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "ProtoUtils.hh"
+#include <sstream>
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
@@ -593,6 +594,81 @@ utils::GetStatsRequest()
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
   req_proto->set_type(RequestProto_OperationType_GSTATS);
+  return req_proto;
+}
+
+
+//--------------------------------------------------------------------------
+// Create directory open request ProtocolBuffer object
+//--------------------------------------------------------------------------
+RequestProto*
+utils::GetDirOpenRequest(std::string&& uuid,
+                         const char* name,
+                         const XrdSecEntity *client,
+                         const char *opaque,
+                         const char* user,
+                         int monid)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::DirOpenProto* diropen_proto = req_proto->mutable_diropen();
+  eos::auth::XrdSecEntityProto* xse_proto = diropen_proto->mutable_client();
+
+  // Save the address of the directory object
+  diropen_proto->set_uuid(uuid);
+  diropen_proto->set_name(name);
+  ConvertToProtoBuf(client, xse_proto);
+
+  if (opaque)
+    diropen_proto->set_opaque(opaque);
+
+  diropen_proto->set_user(user);
+  diropen_proto->set_monid(monid);
+  req_proto->set_type(RequestProto_OperationType_DIROPEN);
+  return req_proto;
+}
+
+
+//------------------------------------------------------------------------------
+// Create directory next entry request ProtocolBuffer object
+//------------------------------------------------------------------------------
+RequestProto*
+utils::GetDirReadRequest(std::string&& uuid)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::DirReadProto* dirread_proto = req_proto->mutable_dirread();
+
+  dirread_proto->set_uuid(uuid);
+  req_proto->set_type(RequestProto_OperationType_DIRREAD);
+  return req_proto;
+}
+
+
+//------------------------------------------------------------------------------
+//! Create directory FName request ProtocolBuffer object
+//------------------------------------------------------------------------------
+RequestProto*
+utils::GetDirFnameRequest(std::string&& uuid)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::DirFnameProto* dirfname_proto = req_proto->mutable_dirfname();
+  
+  dirfname_proto->set_uuid(uuid);
+  req_proto->set_type(RequestProto_OperationType_DIRFNAME);
+  return req_proto;
+}
+
+
+//------------------------------------------------------------------------------
+//! Create directory close request ProtocolBuffer object
+//------------------------------------------------------------------------------
+RequestProto*
+utils::GetDirCloseRequest(std::string&& uuid)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::DirCloseProto* dirclose_proto = req_proto->mutable_dirclose();
+  
+  dirclose_proto->set_uuid(uuid);
+  req_proto->set_type(RequestProto_OperationType_DIRCLOSE);
   return req_proto;
 }
 

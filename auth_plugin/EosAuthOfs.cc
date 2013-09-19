@@ -30,11 +30,13 @@
 /*----------------------------------------------------------------------------*/
 #include "EosAuthOfs.hh"
 #include "ProtoUtils.hh"
+#include "EosAuthOfsDirectory.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdSec/XrdSecEntity.hh"
+#include "XrdSys/XrdSysDNS.hh"
 /*----------------------------------------------------------------------------*/
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 /*----------------------------------------------------------------------------*/
@@ -89,6 +91,20 @@ EosAuthOfs::EosAuthOfs():
 
 
 //------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+EosAuthOfs::~EosAuthOfs()
+{
+  zmq::socket_t* socket;
+
+  while (mPoolSocket.try_pop(socket))
+    delete socket;
+  
+  delete mContext;
+}
+
+
+//------------------------------------------------------------------------------
 // Configure routine
 //------------------------------------------------------------------------------
 int
@@ -108,10 +124,24 @@ EosAuthOfs::Configure(XrdSysError& error)
     return NoGo;
   }
 
+  unsigned int ip = 0;
+
+  if (XrdSysDNS::Host2IP(HostName, &ip))
+  {
+    char buff[1024];
+    XrdSysDNS::IP2String(ip, 0, buff, 1024);
+    mManagerIp = buff;
+    mManagerPort = myPort;
+  }
+  else
+  {
+    return OfsEroute.Emsg("Config", errno, "convert hostname to IP address", HostName);
+  }
+
   // extract the manager from the config file
   XrdOucStream Config(&error, getenv("XRDINSTANCE"));
 
-  // Read in the rucio configuration from the xrd.cf.rucio file
+  // Read in the auth configuration from the xrd.cf.auth file
   if (!ConfigFN || !*ConfigFN)
   {
     NoGo = 1;
@@ -193,17 +223,26 @@ EosAuthOfs::Configure(XrdSysError& error)
 }
 
 
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-EosAuthOfs::~EosAuthOfs()
-{
-  zmq::socket_t* socket;
 
-  while (mPoolSocket.try_pop(socket))
-    delete socket;
+//------------------------------------------------------------------------------
+// Get directory object
+//------------------------------------------------------------------------------
+XrdSfsDirectory*
+EosAuthOfs::newDir (char *user, int MonID)
+{
+  return static_cast<XrdSfsDirectory*>(new EosAuthOfsDirectory(user, MonID));
+}
+
   
-  delete mContext;
+//------------------------------------------------------------------------------
+// Get file object
+//------------------------------------------------------------------------------
+XrdSfsFile*
+EosAuthOfs::newFile (char *user, int MonID)
+{
+  // TODO: fix this
+  //return static_cast<XrdSfsFile*>(new EosAuthOfsFile(user, MonID);
+  return NULL;
 }
 
 
@@ -316,7 +355,23 @@ EosAuthOfs::fsctl(const int cmd,
 {
   int retc;
   eos_debug("fsctl with cmd=%i, args=%s", cmd, args);
+  int opcode = cmd & SFS_FSCTL_CMD;
 
+  // For the server configuration query we asnwer with the information of the
+  // authentication XRootD server i.e. don't frw it to the real MGM.
+  if (opcode == SFS_FSCTL_LOCATE)
+  {
+    char locResp[4096];
+    char rType[3], *Resp[] = {rType, locResp};
+    rType[0] = 'S';
+    // don't manage writes via global redirection - therefore we mark the files as 'r'
+    rType[1] = 'r';
+    rType[2] = '\0';
+    sprintf(locResp, "[::%s]:%d ", (char*) gOFS->mManagerIp.c_str(), gOFS->mManagerPort);
+    error.setErrInfo(strlen(locResp) + 3, (const char **) Resp, 2);
+    return SFS_DATA;
+  }
+  
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);

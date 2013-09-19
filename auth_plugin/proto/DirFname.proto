@@ -1,0 +1,9 @@
+package eos.auth;
+
+//------------------------------------------------------------------------------
+// DirFname request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message DirFnameProto {
+   required string uuid = 1;  ///< this is the pointer to the local directory object
+}

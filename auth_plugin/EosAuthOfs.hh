@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOS_EOSAUTHOFS_HH__
-#define __EOS_EOSAUTHOFS_HH__
+#ifndef __EOSAUTH_OFS_HH__
+#define __EOSAUTH_OFS_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "XrdOfs/XrdOfs.hh"
@@ -35,6 +35,8 @@
 /*----------------------------------------------------------------------------*/
 
 //! Forward declaration
+class EosAuthOfsDirectory;
+
 namespace google
 {
   namespace protobuf
@@ -50,6 +52,9 @@ EOSAUTHNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class EosAuthOfs: public XrdOfs, public eos::common::LogId
 {
+  friend class EosAuthOfsDirectory;
+  //friend class EosAuthOfsFile;
+  
   public:
 
     //--------------------------------------------------------------------------
@@ -68,6 +73,18 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
     //! Configure routine
     //--------------------------------------------------------------------------
     virtual int Configure(XrdSysError& error);
+
+
+    //--------------------------------------------------------------------------
+    //! Get directory object
+    //--------------------------------------------------------------------------
+    XrdSfsDirectory* newDir (char *user = 0, int MonID = 0);
+
+  
+    //--------------------------------------------------------------------------
+    // Get file object
+    //--------------------------------------------------------------------------
+    XrdSfsFile* newFile (char *user = 0, int MonID = 0);
 
 
     //--------------------------------------------------------------------------
@@ -208,6 +225,8 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
     zmq::context_t* mContext; ///< ZMQ context
     eos::common::ConcurrentQueue<zmq::socket_t*> mPoolSocket; ///< ZMQ socket pool
     std::string mEosInstance; ///< EOS instance to which requests are dispatched
+    std::string mManagerIp; ///< the IP address of the auth instance
+    int mManagerPort;   ///< port on which the current auth runs
 
 
     //--------------------------------------------------------------------------
@@ -243,6 +262,6 @@ extern EosAuthOfs* gOFS;
 
 EOSAUTHNAMESPACE_END
 
-#endif //__EOS_EOSAUTHOFS_HH__
+#endif //__EOSAUTH_OFS_HH__
 
 

@@ -1,0 +1,11 @@
+package eos.auth;
+
+import "proto/XrdSecEntity.proto";
+
+//------------------------------------------------------------------------------
+// DirClose request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message DirCloseProto {
+   required string uuid = 1;  ///< this is the pointer to the local directory object
+}

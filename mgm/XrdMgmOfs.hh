@@ -145,6 +145,10 @@
 
 USE_EOSMGMNAMESPACE
 
+//! Forward declaration
+class XrdMgmOfsFile;
+class XrdMgmOfsDirectory;
+
 /*----------------------------------------------------------------------------*/
 //! Class implementing atomic meta data commands
 /*----------------------------------------------------------------------------*/
@@ -954,6 +958,10 @@ public:
 private:
 
   eos::common::Mapping::VirtualIdentity vid; //< virtual identity
+  std::map<std::string, XrdMgmOfsDirectory*> mMapDirs; ///< uuid to directory obj. mapping
+  std::map<std::string, XrdMgmOfsFile*> mMapFiles; ///< uuid to file obj. mapping
+  XrdSysMutex mMutexDirs; ///< mutex for protecting the access at the dirs map
+  XrdSysMutex mMutexFiles; ///< mutex for protecting the access at the files map
   
 };
 /*----------------------------------------------------------------------------*/

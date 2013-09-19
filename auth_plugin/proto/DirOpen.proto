@@ -1,0 +1,17 @@
+package eos.auth;
+
+import "proto/XrdSecEntity.proto";
+
+//------------------------------------------------------------------------------
+// DirOpen request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message DirOpenProto {
+   required string uuid = 1;  ///< this is the pointer to the local directory object
+   required string name = 2;
+   optional XrdSecEntityProto client = 3 ;
+   optional string opaque = 4 [default = ""];
+   optional string user = 5 [default = ""]; ///< this and the following are the values passed
+   optional int64 monid = 6 [default = 0];  ///< to the constructor of the directory object
+}
+  

@@ -12,6 +12,10 @@ import "proto/Rem.proto";
 import "proto/Rename.proto";
 import "proto/Prepare.proto";
 import "proto/Truncate.proto";
+import "proto/DirOpen.proto";
+import "proto/DirRead.proto";
+import "proto/DirFname.proto";
+import "proto/DirClose.proto";
 
 //------------------------------------------------------------------------------
 // Request message sent to the server
@@ -33,6 +37,10 @@ message RequestProto {
      PREPARE  = 11;
      TRUNCATE = 12;
      GSTATS   = 13; // does not have a corresponding protobuf obj
+     DIROPEN  = 14;
+     DIRFNAME = 15;
+     DIRREAD  = 16;
+     DIRCLOSE = 17;
   }    	  
 
   // Identifies which filed is filled in 
@@ -52,5 +60,9 @@ message RequestProto {
   optional RenameProto rename     = 12;
   optional PrepareProto prepare   = 13;
   optional TruncateProto truncate = 14;
+  optional DirOpenProto diropen   = 15;
+  optional DirReadProto dirread   = 16;
+  optional DirFnameProto dirfname = 17;
+  optional DirCloseProto dirclose = 18;
 }
 

@@ -8515,8 +8515,8 @@ XrdMgmOfs::AuthWorkerThread()
     eos::auth::RequestProto req_proto;
     req_proto.ParseFromString(msg_recv);
     eos::auth::ResponseProto resp;
-    std::shared_ptr<XrdOucErrInfo> error;
-    XrdSecEntity* client;
+    std::shared_ptr<XrdOucErrInfo> error(static_cast<XrdOucErrInfo*>(0));
+    XrdSecEntity* client = 0;
 
     if (req_proto.type() == eos::auth::RequestProto_OperationType_STAT)
     {
@@ -8669,6 +8669,8 @@ XrdMgmOfs::AuthWorkerThread()
       ret = gOFS->getStats(buf, blen);
       eos_debug("getStats executed");
       resp.set_response(ret);
+       
+      // TODO: fix this so that it is more uniform
 
       int reply_size = resp.ByteSize();
       zmq::message_t reply(reply_size);
@@ -8680,25 +8682,134 @@ XrdMgmOfs::AuthWorkerThread()
       // because the response does no contain an error message like in all
       // other cases.
       continue;
-    }   
+    }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_DIROPEN)
+    {
+      // dir open request
+      XrdMgmOfsDirectory* dir = static_cast<XrdMgmOfsDirectory*>(
+                                 gOFS->newDir((char*)req_proto.diropen().user().c_str(),
+                                              req_proto.diropen().monid()));
+
+      // add new directory to mapping
+      auto result = mMapDirs.insert(std::make_pair(req_proto.diropen().uuid(), dir));
+      error.reset(new XrdOucErrInfo());
+
+      if (result.second == false)
+      {
+        eos_err("directory entry already in map at MGM");
+        error->setErrInfo(XrdCl::errInvalidOp, "directory already in map at MGM");
+        ret = SFS_ERROR;
+      }
+      else
+      {
+        client = eos::auth::utils::GetXrdSecEntity(req_proto.rename().client());
+        ret = dir->open(req_proto.diropen().name().c_str(), client,
+                  req_proto.diropen().opaque().c_str());
+        error->setErrInfo(dir->error.getErrInfo(), dir->error.getErrText());       
+      }                
+    }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_DIRFNAME)
+    {
+      // get directory name
+      auto iter = mMapDirs.end(); 
+      {
+        XrdSysMutexHelper scope_lock(mMutexDirs);
+        iter = mMapDirs.find(req_proto.dirfname().uuid());
+      }
+
+      if (iter == mMapDirs.end())
+      {
+        eos_err("directory not found in map for reading the name");
+        ret = SFS_ERROR;        
+      }
+      else {
+        // Fill in particular info for the directory name
+        XrdMgmOfsDirectory* dir = iter->second;
+        resp.set_message(dir->FName(), strlen(dir->FName()));
+        ret = SFS_OK;
+      }
+    }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_DIRREAD)
+    {
+      // read next entry from directory
+      auto iter = mMapDirs.end(); 
+      {
+        XrdSysMutexHelper scope_lock(mMutexDirs);
+        iter = mMapDirs.find(req_proto.dirread().uuid());
+      }
+
+      if (iter == mMapDirs.end())
+      {
+        eos_err("directory not found in map for reading next entry");
+        ret = SFS_ERROR;        
+      }
+      else {
+        XrdMgmOfsDirectory* dir = iter->second;
+        const char* entry = dir->nextEntry();
+        // Fill in particular info for next entry request
+        if (entry)
+        {
+          resp.set_message(entry, strlen(entry));
+          ret = SFS_OK;
+        }
+        else
+        {
+          // If no more entries send SFS_ERROR
+          ret = SFS_ERROR;
+        }
+      }
+    }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_DIRCLOSE)
+    {
+      // close directory
+      auto iter = mMapDirs.end();
+      {
+        XrdSysMutexHelper scope_lock(mMutexDirs);
+        iter = mMapDirs.find(req_proto.dirclose().uuid());
+      }
+
+      if (iter == mMapDirs.end())
+      {
+        eos_err("directory not found in map for closing it");
+        ret = SFS_ERROR;        
+      }
+      else {
+        // close directory and remove from mapping
+        XrdMgmOfsDirectory* dir = iter->second;
+        {
+          XrdSysMutex scope_lock(mMutexDirs);
+          mMapDirs.erase(iter);
+        }
+        dir->close();
+        delete dir;
+        ret = SFS_OK;
+      }
+    }
     else
     {
       eos_debug("no such operation supported");
       continue;
     }
 
+    // Add error object only if it exists
+    if (error.get())
+    {
+      eos::auth::XrdOucErrInfoProto* err_proto = resp.mutable_error();
+      eos::auth::utils::ConvertToProtoBuf(error.get(), err_proto);
+    }
+    
     // Construct and send response to the requester
     resp.set_response(ret);
-    eos::auth::XrdOucErrInfoProto* err_proto = resp.mutable_error();
-    eos::auth::utils::ConvertToProtoBuf(error.get(), err_proto);
-    
     int reply_size = resp.ByteSize();
     zmq::message_t reply(reply_size);
     google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
     
     resp.SerializeToZeroCopyStream(&aos);
     responder.send(reply);
-    eos::auth::utils::DeleteXrdSecEntity(client);
+
+    // Free memory
+    if (client)
+      eos::auth::utils::DeleteXrdSecEntity(client);
   }
 }
 
