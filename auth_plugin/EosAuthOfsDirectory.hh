@@ -57,7 +57,7 @@ public:
   //----------------------------------------------------------------------------
   //! Open a directory
   //----------------------------------------------------------------------------
-  int open(const char *dirName,
+  int open(const char *name,
            const XrdSecClientName *client = 0,
            const char *opaque = 0);
   

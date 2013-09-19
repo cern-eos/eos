@@ -26,7 +26,6 @@
 #include "EosAuthOfs.hh"
 #include "ProtoUtils.hh"
 /*----------------------------------------------------------------------------*/
-#include "zmq.hpp"
 #include <sstream>
 /*----------------------------------------------------------------------------*/
 
@@ -79,11 +78,11 @@ EosAuthOfsDirectory::open(const char* name,
     return SFS_ERROR;
   }
 
-  ResponseProto* resp_diropen = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
-  retc = resp_diropen->response();
+  ResponseProto* resp_open = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
+  retc = resp_open->response();
   eos_debug("got response for dir open request");
 
-  delete resp_diropen;
+  delete resp_open;
   delete req_proto;
 
   // Put back the socket object in the pool
@@ -114,8 +113,8 @@ EosAuthOfsDirectory::nextEntry()
     return static_cast<const char*>(0);
   }
 
-  ResponseProto* resp_dirread = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
-  retc = resp_dirread->response();
+  ResponseProto* resp_read = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
+  retc = resp_read->response();
   eos_debug("got response for dir read request");
 
   if (retc == SFS_ERROR)
@@ -125,11 +124,11 @@ EosAuthOfsDirectory::nextEntry()
   }
   else 
   {
-    eos_debug("next entry is: %s", resp_dirread->message().c_str());
-    mNextEntry = resp_dirread->message();
+    eos_debug("next entry is: %s", resp_read->message().c_str());
+    mNextEntry = resp_read->message();
   }
 
-  delete resp_dirread;
+  delete resp_read;
   delete req_proto;
 
   // Put back the socket object in the pool
@@ -160,11 +159,11 @@ EosAuthOfsDirectory::close()
     return SFS_ERROR;
   }
 
-  ResponseProto* resp_dirclose = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
-  retc = resp_dirclose->response();
+  ResponseProto* resp_close = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
+  retc = resp_close->response();
   eos_debug("got response dir close request");
 
-  delete resp_dirclose;
+  delete resp_close;
   delete req_proto;
 
   // Put back the socket object in the pool
@@ -187,7 +186,7 @@ EosAuthOfsDirectory::FName()
   gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
   sstr << this;
-  RequestProto* req_proto = utils::GetDirReadRequest(sstr.str());
+  RequestProto* req_proto = utils::GetDirFnameRequest(sstr.str());
      
   if (!gOFS->SendProtoBufRequest(socket, req_proto))
   {
@@ -195,22 +194,22 @@ EosAuthOfsDirectory::FName()
     return static_cast<const char*>(0);
   }
 
-  ResponseProto* resp_dirfname = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
-  retc = resp_dirfname->response();
+  ResponseProto* resp_fname = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
+  retc = resp_fname->response();
   eos_debug("got response for dirfname request");
 
   if (retc == SFS_ERROR)
   {
-    eos_debug("fname not found or error on server side");
+    eos_debug("dir fname not found or error on server side");
     return static_cast<const char*>(0);
   }
   else 
   {
-    eos_debug("dir fname is: %s", resp_dirfname->message().c_str());
-    mName = resp_dirfname->message();
+    eos_debug("dir fname is: %s", resp_fname->message().c_str());
+    mName = resp_fname->message();
   }
 
-  delete resp_dirfname;
+  delete resp_fname;
   delete req_proto;
 
   // Put back the socket object in the pool

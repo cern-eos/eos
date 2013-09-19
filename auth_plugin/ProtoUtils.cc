@@ -672,4 +672,123 @@ utils::GetDirCloseRequest(std::string&& uuid)
   return req_proto;
 }
 
+
+//------------------------------------------------------------------------------
+//! Create file open request ProtocolBuffer object
+//------------------------------------------------------------------------------
+RequestProto*
+utils::GetFileOpenRequest(std::string&& uuid,
+                          const char* fileName,
+                          int openMode,
+                          mode_t createMode,
+                          const XrdSecEntity *client,
+                          const char *opaque,
+                          const char* user,
+                          int monid)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::FileOpenProto* fileopen_proto = req_proto->mutable_fileopen();
+  eos::auth::XrdSecEntityProto* xse_proto = fileopen_proto->mutable_client();
+
+  // Save the address of the file object
+  fileopen_proto->set_uuid(uuid);
+  fileopen_proto->set_name(fileName);
+  fileopen_proto->set_openmode(openMode);
+  fileopen_proto->set_createmode(createMode);
+  ConvertToProtoBuf(client, xse_proto);
+
+  if (opaque)
+    fileopen_proto->set_opaque(opaque);
+
+  fileopen_proto->set_user(user);
+  fileopen_proto->set_monid(monid);
+  req_proto->set_type(RequestProto_OperationType_FILEOPEN);
+  return req_proto;
+}
+
+
+//------------------------------------------------------------------------------
+// Create file FName request ProtocolBuffer object
+//------------------------------------------------------------------------------
+RequestProto*
+utils::GetFileFnameRequest(std::string&& uuid)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::FileFnameProto* ffname_proto = req_proto->mutable_filefname();
+  
+  ffname_proto->set_uuid(uuid);
+  req_proto->set_type(RequestProto_OperationType_FILEFNAME);
+  return req_proto;
+}
+
+
+//------------------------------------------------------------------------------
+// Create file stat request ProtocolBuffer object
+//-----------------------------------------------------------------------------
+RequestProto*
+utils::GetFileStatRequest(std::string&& uuid)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::FileStatProto* filestat_proto = req_proto->mutable_filestat();
+  
+  filestat_proto->set_uuid(uuid);
+  req_proto->set_type(RequestProto_OperationType_FILESTAT);
+  return req_proto;
+}
+
+
+//------------------------------------------------------------------------------
+// Create file read request ProtocolBuffer object
+//------------------------------------------------------------------------------
+RequestProto*
+utils::GetFileReadRequest(std::string&& uuid,
+                          long long offset,
+                          int length)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::FileReadProto* fread_proto = req_proto->mutable_fileread();
+  
+  fread_proto->set_uuid(uuid);
+  fread_proto->set_offset(offset);
+  fread_proto->set_length(length);
+  req_proto->set_type(RequestProto_OperationType_FILEREAD);
+  return req_proto;
+}
+
+
+//------------------------------------------------------------------------------
+// Create file write request ProtocolBuffer object
+//-----------------------------------------------------------------------------
+RequestProto*
+utils::GetFileWriteRequest(std::string&& uuid,
+                           long long offset,
+                           const char* buff,
+                           int length)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::FileWriteProto* fwrite_proto = req_proto->mutable_filewrite();
+  
+  fwrite_proto->set_uuid(uuid);
+  fwrite_proto->set_offset(offset);
+  fwrite_proto->set_buff(buff);
+  fwrite_proto->set_length(length);
+  req_proto->set_type(RequestProto_OperationType_FILEWRITE);
+  return req_proto;
+}
+
+
+//------------------------------------------------------------------------------
+// Create file close request ProtocolBuffer object
+//-----------------------------------------------------------------------------
+RequestProto*
+utils::GetFileCloseRequest(std::string&& uuid)
+{
+  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
+  eos::auth::FileCloseProto* fileclose_proto = req_proto->mutable_fileclose();
+  
+  fileclose_proto->set_uuid(uuid);
+  req_proto->set_type(RequestProto_OperationType_FILECLOSE);
+  return req_proto;
+}
+
 EOSAUTHNAMESPACE_END

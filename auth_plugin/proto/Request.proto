@@ -16,6 +16,12 @@ import "proto/DirOpen.proto";
 import "proto/DirRead.proto";
 import "proto/DirFname.proto";
 import "proto/DirClose.proto";
+import "proto/FileOpen.proto";
+import "proto/FileFname.proto";
+import "proto/FileStat.proto";
+import "proto/FileRead.proto";
+import "proto/FileWrite.proto";
+import "proto/FileClose.proto";
 
 //------------------------------------------------------------------------------
 // Request message sent to the server
@@ -23,24 +29,30 @@ import "proto/DirClose.proto";
 
 message RequestProto {
   enum OperationType {
-     STAT     = 0;  // stat to get struct stat
-     FSCTL1   = 1;  // fsctl
-     FSCTL2   = 2;  // FSctl
-     CHMOD    = 3;
-     CHKSUM   = 4;
-     EXISTS   = 5;
-     STATM    = 6;  // stat mode
-     MKDIR    = 7;
-     REMDIR   = 8;
-     REM      = 9;
-     RENAME   = 10;
-     PREPARE  = 11;
-     TRUNCATE = 12;
-     GSTATS   = 13; // does not have a corresponding protobuf obj
-     DIROPEN  = 14;
-     DIRFNAME = 15;
-     DIRREAD  = 16;
-     DIRCLOSE = 17;
+     STAT      = 0;  // stat to get struct stat
+     FSCTL1    = 1;  // fsctl
+     FSCTL2    = 2;  // FSctl
+     CHMOD     = 3;
+     CHKSUM    = 4;
+     EXISTS    = 5;
+     STATM     = 6;  // stat mode
+     MKDIR     = 7;
+     REMDIR    = 8;
+     REM       = 9;
+     RENAME    = 10;
+     PREPARE   = 11;
+     TRUNCATE  = 12;
+     GSTATS    = 13; // does not have a corresponding protobuf obj
+     DIROPEN   = 14;
+     DIRFNAME  = 15;
+     DIRREAD   = 16;
+     DIRCLOSE  = 17;
+     FILEOPEN  = 18;
+     FILEFNAME = 19;
+     FILESTAT  = 20;
+     FILEREAD  = 21;
+     FILEWRITE = 22;
+     FILECLOSE = 23;
   }    	  
 
   // Identifies which filed is filled in 
@@ -64,5 +76,11 @@ message RequestProto {
   optional DirReadProto dirread   = 16;
   optional DirFnameProto dirfname = 17;
   optional DirCloseProto dirclose = 18;
+  optional FileOpenProto fileopen = 19;
+  optional FileFnameProto filefname = 20;
+  optional FileStatProto filestat   = 21;
+  optional FileReadProto fileread   = 22;
+  optional FileWriteProto filewrite = 23;
+  optional FileCloseProto fileclose = 24;
 }
 

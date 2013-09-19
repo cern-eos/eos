@@ -36,6 +36,7 @@
 
 //! Forward declaration
 class EosAuthOfsDirectory;
+class EosAuthOfsFile;
 
 namespace google
 {
@@ -53,7 +54,7 @@ EOSAUTHNAMESPACE_BEGIN
 class EosAuthOfs: public XrdOfs, public eos::common::LogId
 {
   friend class EosAuthOfsDirectory;
-  //friend class EosAuthOfsFile;
+  friend class EosAuthOfsFile;
   
   public:
 

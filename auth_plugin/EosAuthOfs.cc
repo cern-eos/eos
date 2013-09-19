@@ -31,6 +31,7 @@
 #include "EosAuthOfs.hh"
 #include "ProtoUtils.hh"
 #include "EosAuthOfsDirectory.hh"
+#include "EosAuthOfsFile.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -240,9 +241,7 @@ EosAuthOfs::newDir (char *user, int MonID)
 XrdSfsFile*
 EosAuthOfs::newFile (char *user, int MonID)
 {
-  // TODO: fix this
-  //return static_cast<XrdSfsFile*>(new EosAuthOfsFile(user, MonID);
-  return NULL;
+  return static_cast<XrdSfsFile*>(new EosAuthOfsFile(user, MonID));
 }
 
 
@@ -904,6 +903,37 @@ EosAuthOfs::GetResponse(zmq::socket_t* socket)
   resp->ParseFromString(resp_str);
   return resp;
 }
+
+
+//------------------------------------------------------------------------------
+// Create error message
+//------------------------------------------------------------------------------
+int
+EosAuthOfsFile::Emsg (const char* pfx,
+                      XrdOucErrInfo& einfo,
+                      int ecode,
+                      const char* op,
+                      const char* target)
+{
+  char *etext, buffer[4096], unkbuff[64];
+
+  // Get the reason for the error
+  if (ecode < 0) ecode = -ecode;
+  if (!(etext = strerror(ecode)))
+  {
+    sprintf(unkbuff, "reason unknown (%d)", ecode);
+    etext = unkbuff;
+  }
+
+  // Format the error message
+  snprintf(buffer, sizeof (buffer), "Unable to %s %s; %s", op, target, etext);
+  eos_err("Unable to %s %s; %s", op, target, etext);
+
+  // Place the error message in the error object and return
+  einfo.setErrInfo(ecode, buffer);
+  return SFS_ERROR;
+}
+
 
 EOSAUTHNAMESPACE_END
 

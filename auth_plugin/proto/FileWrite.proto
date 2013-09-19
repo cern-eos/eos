@@ -1,0 +1,13 @@
+package eos.auth;
+
+//------------------------------------------------------------------------------
+// FileWrite request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message FileWriteProto {
+   required string uuid  = 1;  ///< this is the pointer to the local directory object
+   required int64 offset = 2;
+   required bytes buff   = 3;
+   required int64 length = 4;
+}
+  

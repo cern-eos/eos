@@ -8667,21 +8667,8 @@ XrdMgmOfs::AuthWorkerThread()
       char* buf = 0;
       int blen = 0;
       ret = gOFS->getStats(buf, blen);
-      eos_debug("getStats executed");
       resp.set_response(ret);
-       
-      // TODO: fix this so that it is more uniform
-
-      int reply_size = resp.ByteSize();
-      zmq::message_t reply(reply_size);
-      google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
-      
-      resp.SerializeToZeroCopyStream(&aos);
-      responder.send(reply);
-      // Continue since we already replied to the client. This is done here
-      // because the response does no contain an error message like in all
-      // other cases.
-      continue;
+      eos_debug("getStats executed");
     }
     else if (req_proto.type() == eos::auth::RequestProto_OperationType_DIROPEN)
     {
@@ -8691,10 +8678,15 @@ XrdMgmOfs::AuthWorkerThread()
                                               req_proto.diropen().monid()));
 
       // add new directory to mapping
-      auto result = mMapDirs.insert(std::make_pair(req_proto.diropen().uuid(), dir));
-      error.reset(new XrdOucErrInfo());
+      bool found = false;
+      {
+        XrdSysMutexHelper scope_lock(mMutexDirs);
+        auto result = mMapDirs.insert(std::make_pair(req_proto.diropen().uuid(), dir));
+        found = result.second;
+        error.reset(new XrdOucErrInfo());
+      }
 
-      if (result.second == false)
+      if (found == false)
       {
         eos_err("directory entry already in map at MGM");
         error->setErrInfo(XrdCl::errInvalidOp, "directory already in map at MGM");
@@ -8702,7 +8694,7 @@ XrdMgmOfs::AuthWorkerThread()
       }
       else
       {
-        client = eos::auth::utils::GetXrdSecEntity(req_proto.rename().client());
+        client = eos::auth::utils::GetXrdSecEntity(req_proto.diropen().client());
         ret = dir->open(req_proto.diropen().name().c_str(), client,
                   req_proto.diropen().opaque().c_str());
         error->setErrInfo(dir->error.getErrInfo(), dir->error.getErrText());       
@@ -8782,6 +8774,160 @@ XrdMgmOfs::AuthWorkerThread()
         }
         dir->close();
         delete dir;
+        ret = SFS_OK;
+      }
+    }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_FILEOPEN)
+    {
+      // file open request
+      XrdMgmOfsFile* file = static_cast<XrdMgmOfsFile*>(
+                             gOFS->newFile((char*)req_proto.fileopen().user().c_str(),
+                                           req_proto.fileopen().monid()));
+
+      // add new file to mapping
+      bool found = false;
+      {
+        XrdSysMutexHelper scope_lock(mMutexFiles);
+        auto result = mMapFiles.insert(std::make_pair(req_proto.fileopen().uuid(), file));
+        found = result.second;
+        error.reset(new XrdOucErrInfo());
+      }
+
+      if (found == false)
+      {
+        eos_err("file entry already in map at MGM");
+        error->setErrInfo(XrdCl::errInvalidOp, "file already in map at MGM");
+        ret = SFS_ERROR;
+      }
+      else
+      {
+        client = eos::auth::utils::GetXrdSecEntity(req_proto.fileopen().client());
+        ret = file->open(req_proto.fileopen().name().c_str(),
+                         req_proto.fileopen().openmode(),
+                         (mode_t) req_proto.fileopen().createmode(),
+                         client, req_proto.fileopen().opaque().c_str());
+        error->setErrInfo(file->error.getErrInfo(), file->error.getErrText());       
+      }                
+    }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_FILESTAT)
+    {
+      // file stat request
+      struct stat buf;
+      auto iter = mMapFiles.end();
+      {
+        XrdSysMutexHelper scope_lock(mMutexFiles);
+        iter = mMapFiles.find(req_proto.filestat().uuid());
+      }
+
+      if (iter == mMapFiles.end())
+      {
+        eos_err("file not found in map for stat");
+        memset(&buf, 0, sizeof(struct stat));
+        ret = SFS_ERROR;        
+      }
+      else
+      {
+        XrdMgmOfsFile* file = iter->second;
+        file->stat(&buf);
+        ret = SFS_OK;
+      }
+
+      resp.set_message(&buf, sizeof(struct stat));
+    }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_FILEFNAME)
+    {
+      // file fname request
+      auto iter = mMapFiles.end();
+      {
+        XrdSysMutexHelper scope_lock(mMutexFiles);
+        iter = mMapFiles.find(req_proto.filefname().uuid());
+      }
+
+      if (iter == mMapFiles.end())
+      {
+        eos_err("file not found in map for fname call");
+        ret = SFS_ERROR;        
+      }
+      else
+        {
+        XrdMgmOfsFile* file = iter->second;
+        resp.set_message(file->FName());
+        ret = SFS_OK;
+      }
+    }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_FILEREAD)
+    {
+      // file read request
+      auto iter = mMapFiles.end();
+      {
+        XrdSysMutexHelper scope_lock(mMutexFiles);
+        iter = mMapFiles.find(req_proto.fileread().uuid());
+      }
+
+      if (iter == mMapFiles.end())
+      {
+        eos_err("file not found in map for read");
+        ret = 0;        
+      }
+      else
+      {
+        XrdMgmOfsFile* file = iter->second;
+        eos_debug("read offset=%li, length=%i", (long long) req_proto.fileread().offset(),
+                  (int) req_proto.fileread().length());
+        char* tmp_buff = new char[req_proto.fileread().length()];
+        //resp.mutable_message()->reserve(req_proto.fileread().length());
+        ret = file->read((XrdSfsFileOffset)req_proto.fileread().offset(),
+                         tmp_buff, (XrdSfsXferSize)req_proto.fileread().length());
+        resp.set_message(tmp_buff);
+        delete[] tmp_buff;
+      }
+    }
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_FILEWRITE)
+    {
+      // file write request
+      auto iter = mMapFiles.end();
+      {
+        XrdSysMutexHelper scope_lock(mMutexFiles);
+        iter = mMapFiles.find(req_proto.filewrite().uuid());
+      }
+
+      if (iter == mMapFiles.end())
+      {
+        eos_err("file not found in map for write");
+        ret = 0;        
+      }
+      else
+      {
+        XrdMgmOfsFile* file = iter->second;
+        ret = file->write(req_proto.filewrite().offset(),
+                          req_proto.filewrite().buff().c_str(),
+                          req_proto.filewrite().length());
+      }      
+    }
+   else if (req_proto.type() == eos::auth::RequestProto_OperationType_FILECLOSE)
+    {
+      // close file
+      auto iter = mMapFiles.end();
+      {
+        XrdSysMutexHelper scope_lock(mMutexFiles);
+        iter = mMapFiles.find(req_proto.fileclose().uuid());
+      }
+
+      if (iter == mMapFiles.end())
+      {
+        eos_err("file not found in map for closing it");
+        ret = SFS_ERROR;        
+      }
+      else {
+        // close file and remove from mapping
+        XrdMgmOfsFile* file = iter->second;
+        {
+          XrdSysMutex scope_lock(mMutexFiles);
+          mMapFiles.erase(iter);
+        }
+        
+        file->close();
+        delete file;
         ret = SFS_OK;
       }
     }
