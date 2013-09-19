@@ -98,20 +98,6 @@ public:
     return fname;
   }
 
-  // ---------------------------------------------------------------------------
-  //! fs command faking always ok
-  // ---------------------------------------------------------------------------
-
-  int
-  Fscmd (const char* path, 
-         const char* path2, 
-         const char* orgipath, 
-         const XrdSecEntity *client, 
-         XrdOucErrInfo &error, 
-         const char* info)
-  {
-    return SFS_OK;
-  }
 
   // ---------------------------------------------------------------------------
   //! return mmap address (we don't need it)
