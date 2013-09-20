@@ -365,13 +365,12 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
 /******************************************************************************/
 /******************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-XrdMgmOfs::XrdMgmOfs (XrdSysError *ep) 
-/*----------------------------------------------------------------------------*/
-/* 
- * @brief the MGM Ofs object constructor
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Constructor MGM Ofs
+//------------------------------------------------------------------------------
+XrdMgmOfs::XrdMgmOfs (XrdSysError *ep):
+  mFrontendPort(0),
+  mNumAuthThreads(0)
 {
   eDest = ep;
   ConfigFN = 0;
@@ -379,8 +378,6 @@ XrdMgmOfs::XrdMgmOfs (XrdSysError *ep)
   eos::common::LogId::SetSingleShotLogId();
 
   fsconfiglistener_tid = stats_tid = deletion_tid = 0;
-  // TODO: set this as a configuration option in the config file
-  mNumAuthThreads = 8;
   mZmqContext = new zmq::context_t(1);
 }
 
@@ -395,7 +392,6 @@ XrdMgmOfs::Init (XrdSysError &ep)
  */
 /*----------------------------------------------------------------------------*/
 {
-
   return true;
 }
 
@@ -8466,8 +8462,9 @@ XrdMgmOfs::AuthMasterThread ()
 {
   // Socket facing clients 
   zmq::socket_t frontend(*mZmqContext, ZMQ_ROUTER);
-  // TODO: make the port a configurable value
-  frontend.bind("tcp://*:5555");
+  std::ostringstream sstr;
+  sstr << "tcp://*:" << mFrontendPort;
+  frontend.bind(sstr.str().c_str());
 
   // Socket facing worker threads
   zmq::socket_t backend(*mZmqContext, ZMQ_DEALER);

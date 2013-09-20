@@ -469,6 +469,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
             MgmOfsName = val;
           }
         }
+        
         if (!strcmp("targetport", var))
         {
           if (!(val = Config.GetWord()))
@@ -927,6 +928,36 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
           gMgmOfsTrace.What = trval;
         }
+
+        // Configure the number of authentication worker threads
+        if (!strcmp("auththreads", var))
+        {
+          if (!(val = Config.GetWord()))
+          {
+            Eroute.Emsg("Config", "argument for number of auth threads is invalid.");
+            NoGo = 1;
+          }
+          else
+          {
+            Eroute.Say("=====> mgmofs.auththreads: ", val, "");
+            mNumAuthThreads = atoi(val);
+          }
+        }
+
+        // Configure frontend port number on which clients submit requests
+        if (!strcmp("authport", var))
+        {
+          if (!(val = Config.GetWord()))
+          {
+            Eroute.Emsg("Config", "argument for frontend port invalid.");
+            NoGo = 1;
+          }
+          else
+          {
+            Eroute.Say("=====> mgmofs.authport: ", val, "");
+            mFrontendPort = atoi(val);
+          }
+        }
       }
     }
   }
@@ -968,6 +999,20 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   if (!MgmAuthDir.length())
   {
     Eroute.Say("Config error: auth directory is not defined: mgm.authdir=</var/eos/auth/>");
+    return 1;
+  }
+
+  if (mNumAuthThreads == 0)
+  {
+    Eroute.Say("Config error: number of authentication worker threads is 0, set a positive value"
+               " e.g. mgm.auththreads= 10");
+    return 1;
+  }
+
+  if (mFrontendPort == 0)
+  {
+    Eroute.Say("Config error: frontend port for authentication plugin not configured"
+               " e.g. mgm.authport= 5555");
     return 1;
   }
 

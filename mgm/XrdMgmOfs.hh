@@ -909,6 +909,7 @@ public:
   pthread_t fsconfiglistener_tid; //< Thread ID of the fs listener/config change thread
   pthread_t auth_tid; ///< Thread Id of the authentication thread
   std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
+  unsigned int mFrontendPort; ///< frontend port number for incoming requests
   unsigned int mNumAuthThreads; ///< max number of auth worker threads
   zmq::context_t* mZmqContext; ///< ZMQ context for all the sockets
   

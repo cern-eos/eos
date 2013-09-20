@@ -57,5 +57,9 @@ mgmofs.autosaveconfig true
 # this has to be defined if we have a failover configuration via alias - can be overwritten by EOS_MGM_ALIAS in /etc/sysconfig/eos
 #mgmofs.alias eosdev.cern.ch
 
+# Set the number of authentication worker threads running on the mgm
+mgmofs.auththreads 10
 
+# Set the front end port number for incoming authentication requests
+mgmofs.authport 15555
 ###########################################################
