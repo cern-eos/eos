@@ -58,8 +58,8 @@ mgmofs.autosaveconfig true
 #mgmofs.alias eosdev.cern.ch
 
 # Set the number of authentication worker threads running on the mgm
-mgmofs.auththreads 10
+#mgmofs.auththreads 10
 
 # Set the front end port number for incoming authentication requests
-mgmofs.authport 15555
+#mgmofs.authport 15555
 ###########################################################
