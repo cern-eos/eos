@@ -228,6 +228,7 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
     std::string mEosInstance; ///< EOS instance to which requests are dispatched
     std::string mManagerIp; ///< the IP address of the auth instance
     int mManagerPort;   ///< port on which the current auth server runs
+    int mLogLevel; ///< log level value 0 -7 (LOG_EMERG - LOG_DEBUG)
 
 
     //--------------------------------------------------------------------------

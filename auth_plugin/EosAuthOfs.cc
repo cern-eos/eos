@@ -84,7 +84,8 @@ EosAuthOfs::EosAuthOfs():
   XrdOfs(),
   eos::common::LogId(),
   mSizePoolSocket(5),
-  mEosInstance("")
+  mEosInstance(""),
+  mLogLevel(LOG_INFO)
 {
   // Initialise the ZMQ client
   mContext = new zmq::context_t(1);
@@ -184,7 +185,37 @@ EosAuthOfs::Configure(XrdSysError& error)
             error.Emsg("Configure ", "No EOS instance specified e.g. eosxx.cern.ch:5555");
           else
             mSizePoolSocket = atoi(val);
-        }        
+        }
+        
+        // Get log level by default LOG_INFO
+        option_tag = "loglevel";
+
+        if (!strncmp(var,option_tag.c_str(), option_tag.length()))
+        {
+          if (!(val = Config.GetWord()))
+          {
+            error.Emsg("Config", "argument for debug level invalid set to ERR.");
+            mLogLevel = LOG_INFO;
+          }
+          else
+          {
+            std::string str_val(val);
+            
+            if (isdigit(str_val[0]))
+            {
+              // The level is given as a number
+              mLogLevel = atoi(val);
+            }
+            else
+            {
+              // The level is given as a string
+              mLogLevel = eos::common::Logging::GetPriorityByString(val);
+            }
+            
+            error.Say("=====> eosauth.loglevel: ",
+                       eos::common::Logging::GetPriorityString(mLogLevel), "");
+          }
+        }       
       }
     }
 
@@ -215,7 +246,7 @@ EosAuthOfs::Configure(XrdSysError& error)
   // setup the circular in-memory log buffer
   // TODO: add configuration for the debug level
   eos::common::Logging::Init();
-  eos::common::Logging::SetLogPriority(LOG_DEBUG);
+  eos::common::Logging::SetLogPriority(mLogLevel);
   eos::common::Logging::SetUnit(unit.c_str());
   eos_info("info=\"logging configured\"");
   return NoGo;
