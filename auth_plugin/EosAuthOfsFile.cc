@@ -34,15 +34,15 @@ EOSAUTHNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-EosAuthOfsFile::EosAuthOfsFile(char *user, int MonID):
-    XrdSfsFile(user, MonID),
-    eos::common::LogId(),
-    mName("")
+EosAuthOfsFile::EosAuthOfsFile(char* user, int MonID):
+  XrdSfsFile(user, MonID),
+  eos::common::LogId(),
+  mName("")
 {
   // emtpy
 }
 
-  
+
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
@@ -65,17 +65,18 @@ EosAuthOfsFile::open(const char* fileName,
   int retc;
   eos_debug("file open name=%s opaque=%s", fileName, opaque);
   mName = fileName;
-
+  
   // Get a socket object from the pool
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
+  
+  // Save file pointer value which is used as a key on the MGM instance
   std::ostringstream sstr;
   sstr << this;
-  eos_debug("file pointer: %s", sstr.str().c_str());
-  RequestProto* req_proto = utils::GetFileOpenRequest(sstr.str(), fileName, openMode,
-                                                      createMode, client, opaque,
-                                                      error.getErrUser(), error.getErrMid());
-     
+  RequestProto* req_proto = utils::GetFileOpenRequest(sstr.str(), fileName,
+                                   openMode, createMode, client, opaque,
+                                   error.getErrUser(), error.getErrMid());
+
   if (!gOFS->SendProtoBufRequest(socket, req_proto))
   {
     eos_err("file open - unable to send request");
@@ -86,15 +87,18 @@ EosAuthOfsFile::open(const char* fileName,
   retc = resp_open->response();
   eos_debug("got response for file open request: %i", retc);
 
+  if (resp_open->has_error())
+    error.setErrInfo(resp_open->error().code(), resp_open->error().message().c_str());
+
   delete resp_open;
   delete req_proto;
-
+  
   // Put back the socket object in the pool
   gOFS->mPoolSocket.push(socket);
   return retc;
 }
 
-  
+
 //------------------------------------------------------------------------------
 // Read function
 //------------------------------------------------------------------------------
@@ -105,15 +109,15 @@ EosAuthOfsFile::read(XrdSfsFileOffset offset,
 {
   int retc;
   eos_debug("read off=%li len=%i", (long long)offset, (int)length);
-
+  
   // Get a socket object from the pool
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
   sstr << this;
-  eos_debug("file pointer=%s, offset=%li, length=%i", sstr.str().c_str(), offset, length);
+  eos_debug("fptr=%s, off=%li, len=%i", sstr.str().c_str(), offset, length);
   RequestProto* req_proto = utils::GetFileReadRequest(sstr.str(), offset, length);
-     
+
   if (!gOFS->SendProtoBufRequest(socket, req_proto))
   {
     eos_err("file read - unable to send request");
@@ -122,22 +126,20 @@ EosAuthOfsFile::read(XrdSfsFileOffset offset,
 
   ResponseProto* resp_fread = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
   retc = resp_fread->response();
-  eos_debug("got response for file read request: %i and data is: %s",
-            retc, resp_fread->message().c_str());
 
-  if (resp_fread->has_message())
+  if (retc && resp_fread->has_message())
   {
     buffer = static_cast<char*>(memcpy((void*)buffer,
                                        resp_fread->message().c_str(),
                                        resp_fread->message().length()));
   }
-  
+
   delete resp_fread;
   delete req_proto;
-
+  
   // Put back the socket object in the pool
   gOFS->mPoolSocket.push(socket);
-  return retc;  
+  return retc;
 }
 
 
@@ -159,7 +161,7 @@ EosAuthOfsFile::write(XrdSfsFileOffset offset,
   sstr << this;
   eos_debug("file pointer: %s", sstr.str().c_str());
   RequestProto* req_proto = utils::GetFileWriteRequest(sstr.str(), offset, buffer, length);
-     
+
   if (!gOFS->SendProtoBufRequest(socket, req_proto))
   {
     eos_err("file write - unable to send request");
@@ -169,6 +171,7 @@ EosAuthOfsFile::write(XrdSfsFileOffset offset,
   ResponseProto* resp_fwrite = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
   retc = resp_fwrite->response();
   eos_debug("got response for file write request");
+
   delete resp_fwrite;
   delete req_proto;
 
@@ -194,7 +197,7 @@ EosAuthOfsFile::FName()
   sstr << this;
   eos_debug("file pointer: %s", sstr.str().c_str());
   RequestProto* req_proto = utils::GetFileFnameRequest(sstr.str());
-     
+
   if (!gOFS->SendProtoBufRequest(socket, req_proto))
   {
     eos_err("file fname - unable to send request");
@@ -210,7 +213,7 @@ EosAuthOfsFile::FName()
     eos_debug("file fname not found or error on server side");
     return static_cast<const char*>(0);
   }
-  else 
+  else
   {
     eos_debug("file fname is: %s", resp_fname->message().c_str());
     mName = resp_fname->message();
@@ -218,10 +221,10 @@ EosAuthOfsFile::FName()
 
   delete resp_fname;
   delete req_proto;
-
+  
   // Put back the socket object in the pool
   gOFS->mPoolSocket.push(socket);
-  return mName.c_str();  
+  return mName.c_str();
 }
 
 
@@ -229,7 +232,7 @@ EosAuthOfsFile::FName()
 // Stat function
 //------------------------------------------------------------------------------
 int
-EosAuthOfsFile::stat(struct stat *buf)
+EosAuthOfsFile::stat(struct stat* buf)
 {
   int retc;
   eos_debug("stat file name=%s", mName.c_str());
@@ -241,7 +244,7 @@ EosAuthOfsFile::stat(struct stat *buf)
   sstr << this;
   eos_debug("file pointer: %s", sstr.str().c_str());
   RequestProto* req_proto = utils::GetFileStatRequest(sstr.str());
-     
+
   if (!gOFS->SendProtoBufRequest(socket, req_proto))
   {
     eos_err("file stat - unable to send request");
@@ -255,17 +258,18 @@ EosAuthOfsFile::stat(struct stat *buf)
                                          resp_fstat->message().c_str(),
                                          sizeof(struct stat)));
   eos_debug("got response for fstat request: %i", retc);
+  
   delete resp_fstat;
   delete req_proto;
-
+  
   // Put back the socket object in the pool
   gOFS->mPoolSocket.push(socket);
-  return retc;  
+  return retc;
 }
-  
- 
+
+
 //------------------------------------------------------------------------------
-//! Close file 
+//! Close file
 //------------------------------------------------------------------------------
 int
 EosAuthOfsFile::close()
@@ -280,7 +284,7 @@ EosAuthOfsFile::close()
   sstr << this;
   eos_debug("file pointer: %s", sstr.str().c_str());
   RequestProto* req_proto = utils::GetFileCloseRequest(sstr.str());
-     
+
   if (!gOFS->SendProtoBufRequest(socket, req_proto))
   {
     eos_err("file close - unable to send request");
@@ -290,13 +294,114 @@ EosAuthOfsFile::close()
   ResponseProto* resp_close = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
   retc = resp_close->response();
   eos_debug("got response for file close request: %i", retc);
-
+  
   delete resp_close;
   delete req_proto;
-
+  
   // Put back the socket object in the pool
   gOFS->mPoolSocket.push(socket);
   return retc;
+}
+
+
+//------------------------------------------------------------------------------
+//!!!!!!!!! THE FOLLOWING OPERATIONS ARE NOT SUPPORTED !!!!!!!!!
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// fctl fakes ok (not supported)
+//------------------------------------------------------------------------------
+int
+EosAuthOfsFile::fctl(int, const char*, XrdOucErrInfo&)
+{
+  return 0;
+}
+
+
+//------------------------------------------------------------------------------
+// Return mmap address (not supported)
+//------------------------------------------------------------------------------
+int
+EosAuthOfsFile::getMmap(void** Addr, off_t& Size)
+{
+  if (Addr) Addr = 0;
+
+  Size = 0;
+  return SFS_OK;
+}
+
+
+//------------------------------------------------------------------------------
+// File pre-read fakes ok (not supported)
+//------------------------------------------------------------------------------
+int
+EosAuthOfsFile::read(XrdSfsFileOffset fileOffset, XrdSfsXferSize preread_sz)
+{
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// File read in async mode (not supported)
+//------------------------------------------------------------------------------
+int
+EosAuthOfsFile::read(XrdSfsAio* aioparm)
+{
+  static const char* epname = "read";
+  return Emsg(epname, error, EOPNOTSUPP, "read", mName.c_str());
+}
+
+
+//------------------------------------------------------------------------------
+// File write in async mode (not supported)
+//------------------------------------------------------------------------------
+int
+EosAuthOfsFile::write(XrdSfsAio* aiop)
+{
+  static const char* epname = "write";
+  return Emsg(epname, error, EOPNOTSUPP, "write", mName.c_str());
+}
+
+
+//------------------------------------------------------------------------------
+// File sync (not supported)
+//------------------------------------------------------------------------------
+int
+EosAuthOfsFile::sync()
+{
+  static const char* epname = "sync";
+  return Emsg(epname, error, EOPNOTSUPP, "sync", mName.c_str());
+}
+
+
+//------------------------------------------------------------------------------
+// File async sync (not supported)
+//------------------------------------------------------------------------------
+int
+EosAuthOfsFile::sync(XrdSfsAio* aiop)
+{
+  static const char* epname = "sync";
+  return Emsg(epname, error, EOPNOTSUPP, "sync", mName.c_str());
+}
+
+
+//------------------------------------------------------------------------------
+// File truncate (not supported)
+//------------------------------------------------------------------------------
+int
+EosAuthOfsFile::truncate(XrdSfsFileOffset flen)
+{
+  static const char* epname = "trunc";
+  return Emsg(epname, error, EOPNOTSUPP, "truncate", mName.c_str());
+}
+
+
+//------------------------------------------------------------------------------
+// Get checksum info (returns nothing - not supported)
+//------------------------------------------------------------------------------
+int
+EosAuthOfsFile::getCXinfo(char cxtype[4], int& cxrsz)
+{
+  return cxrsz = 0;
 }
 
 EOSAUTHNAMESPACE_END

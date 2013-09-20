@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: EosAuthOfsDirectory.cc
 // Author: Elvin-Alin Sindrilau <esindril@cern.ch> CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -34,10 +34,10 @@ EOSAUTHNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-EosAuthOfsDirectory::EosAuthOfsDirectory(char *user, int MonID):
-    XrdSfsDirectory(user, MonID),
-    LogId(),
-    mName("")
+EosAuthOfsDirectory::EosAuthOfsDirectory(char* user, int MonID):
+  XrdSfsDirectory(user, MonID),
+  LogId(),
+  mName("")
 {
   // empty
 }
@@ -57,21 +57,21 @@ EosAuthOfsDirectory::~EosAuthOfsDirectory()
 //------------------------------------------------------------------------------
 int
 EosAuthOfsDirectory::open(const char* name,
-                          const XrdSecClientName *client,
-                          const char *opaque)
+                          const XrdSecClientName* client,
+                          const char* opaque)
 {
   int retc;
   eos_debug("dir open name=%s", name);
   mName = name;
-
+  
   // Get a socket object from the pool
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
   sstr << this;
-  RequestProto* req_proto = utils::GetDirOpenRequest(sstr.str(), name, client, opaque,
-                                                     error.getErrUser(), error.getErrMid());
-     
+  RequestProto* req_proto = utils::GetDirOpenRequest(sstr.str(), name, client,
+                                   opaque, error.getErrUser(), error.getErrMid());
+
   if (!gOFS->SendProtoBufRequest(socket, req_proto))
   {
     eos_err("dir open - unable to send request");
@@ -84,12 +84,12 @@ EosAuthOfsDirectory::open(const char* name,
 
   delete resp_open;
   delete req_proto;
-
+  
   // Put back the socket object in the pool
   gOFS->mPoolSocket.push(socket);
   return retc;
 }
-   
+
 
 //------------------------------------------------------------------------------
 // Get entry of an open directory
@@ -106,7 +106,7 @@ EosAuthOfsDirectory::nextEntry()
   std::ostringstream sstr;
   sstr << this;
   RequestProto* req_proto = utils::GetDirReadRequest(sstr.str());
-     
+
   if (!gOFS->SendProtoBufRequest(socket, req_proto))
   {
     eos_err("dir read - unable to send request");
@@ -122,7 +122,7 @@ EosAuthOfsDirectory::nextEntry()
     eos_debug("no more entries or error on server side");
     return static_cast<const char*>(0);
   }
-  else 
+  else
   {
     eos_debug("next entry is: %s", resp_read->message().c_str());
     mNextEntry = resp_read->message();
@@ -130,13 +130,13 @@ EosAuthOfsDirectory::nextEntry()
 
   delete resp_read;
   delete req_proto;
-
+  
   // Put back the socket object in the pool
   gOFS->mPoolSocket.push(socket);
   return mNextEntry.c_str();
 }
 
-  
+
 //------------------------------------------------------------------------------
 // Close an open directory
 //------------------------------------------------------------------------------
@@ -152,7 +152,7 @@ EosAuthOfsDirectory::close()
   std::ostringstream sstr;
   sstr << this;
   RequestProto* req_proto = utils::GetDirCloseRequest(sstr.str());
-     
+
   if (!gOFS->SendProtoBufRequest(socket, req_proto))
   {
     eos_err("dir close - unable to send request");
@@ -162,16 +162,15 @@ EosAuthOfsDirectory::close()
   ResponseProto* resp_close = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
   retc = resp_close->response();
   eos_debug("got response dir close request");
-
   delete resp_close;
   delete req_proto;
-
+  
   // Put back the socket object in the pool
   gOFS->mPoolSocket.push(socket);
   return retc;
 }
 
-  
+
 //------------------------------------------------------------------------------
 // Get name of an open directory
 //------------------------------------------------------------------------------
@@ -180,14 +179,14 @@ EosAuthOfsDirectory::FName()
 {
   int retc;
   eos_debug("dir fname");
-
+  
   // Get a socket object from the pool
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
   sstr << this;
   RequestProto* req_proto = utils::GetDirFnameRequest(sstr.str());
-     
+
   if (!gOFS->SendProtoBufRequest(socket, req_proto))
   {
     eos_err("dir fname - unable to send request");
@@ -203,7 +202,7 @@ EosAuthOfsDirectory::FName()
     eos_debug("dir fname not found or error on server side");
     return static_cast<const char*>(0);
   }
-  else 
+  else
   {
     eos_debug("dir fname is: %s", resp_fname->message().c_str());
     mName = resp_fname->message();
@@ -211,10 +210,10 @@ EosAuthOfsDirectory::FName()
 
   delete resp_fname;
   delete req_proto;
-
+  
   // Put back the socket object in the pool
   gOFS->mPoolSocket.push(socket);
-  return mName.c_str();  
+  return mName.c_str();
 }
 
 EOSAUTHNAMESPACE_END

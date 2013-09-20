@@ -1,7 +1,7 @@
-// -----------------------------------------------------------------------------
-// File: EosAuthOfs.hh
+//------------------------------------------------------------------------------
+// File: EosAuthOfs.cc
 // Author: Elvin-Alin Sindrilaru <esindril@cern.ch> CERN
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -218,9 +218,7 @@ EosAuthOfs::Configure(XrdSysError& error)
   eos::common::Logging::SetLogPriority(LOG_DEBUG);
   eos::common::Logging::SetUnit(unit.c_str());
   eos_info("info=\"logging configured\"");
-  
   return NoGo;
-
 }
 
 
@@ -229,7 +227,7 @@ EosAuthOfs::Configure(XrdSysError& error)
 // Get directory object
 //------------------------------------------------------------------------------
 XrdSfsDirectory*
-EosAuthOfs::newDir (char *user, int MonID)
+EosAuthOfs::newDir(char *user, int MonID)
 {
   return static_cast<XrdSfsDirectory*>(new EosAuthOfsDirectory(user, MonID));
 }
@@ -239,21 +237,21 @@ EosAuthOfs::newDir (char *user, int MonID)
 // Get file object
 //------------------------------------------------------------------------------
 XrdSfsFile*
-EosAuthOfs::newFile (char *user, int MonID)
+EosAuthOfs::newFile(char *user, int MonID)
 {
   return static_cast<XrdSfsFile*>(new EosAuthOfsFile(user, MonID));
 }
 
 
 //------------------------------------------------------------------------------
-//! Stat method 
+//! Stat method
 //------------------------------------------------------------------------------
 int
-EosAuthOfs::stat(const char*         path,
-                 struct stat*        buf,
-                 XrdOucErrInfo&      error,
+EosAuthOfs::stat(const char* path,
+                 struct stat* buf,
+                 XrdOucErrInfo& error,
                  const XrdSecEntity* client,
-                 const char*         opaque)
+                 const char* opaque)
 {
   int retc;
   eos_debug("stat path=%s", path);
@@ -263,7 +261,7 @@ EosAuthOfs::stat(const char*         path,
   mPoolSocket.wait_pop(socket);
   RequestProto* req_proto = utils::GetStatRequest(RequestProto_OperationType_STAT,
                                                   path, error, client, opaque);
-     
+
   if (!SendProtoBufRequest(socket, req_proto))
   {
     OfsEroute.Emsg("stat", "unable to send request");
@@ -580,7 +578,7 @@ EosAuthOfs::exists(const char* path,
 // Create directory
 // Note: the mode set here is actually ignored if the directoy is not the top
 // one. The new directory inherits the mode bits from its parent directory.
-// This is typical only of EOS since in a normal XRootD server the access bits
+// This is typical only for EOS since in a normal XRootD server the access bits
 // specified in the mkdir command are actually applied as expected.
 //------------------------------------------------------------------------------
 int
@@ -670,9 +668,9 @@ EosAuthOfs::remdir(const char* path,
 //------------------------------------------------------------------------------
 int
 EosAuthOfs::rem(const char* path,
-                   XrdOucErrInfo& error,
-                   const XrdSecEntity* client,
-                   const char* opaque)
+                XrdOucErrInfo& error,
+                const XrdSecEntity* client,
+                const char* opaque)
 {
   int retc;
   eos_debug("rem path=%s", path);
@@ -881,9 +879,9 @@ EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
   // Send the request
   int msg_size = message->ByteSize();
   zmq::message_t request(msg_size);
-  google::protobuf::io::ArrayOutputStream aos(request.data(), msg_size); 
+  google::protobuf::io::ArrayOutputStream aos(request.data(), msg_size);
 
-  // Use google::protobuf::io::ArrayOutputStream which is way faster than 
+  // Use google::protobuf::io::ArrayOutputStream which is way faster than
   // StringOutputStream as it avoids copying data
   message->SerializeToZeroCopyStream(&aos);
   return socket->send(request);
@@ -909,16 +907,17 @@ EosAuthOfs::GetResponse(zmq::socket_t* socket)
 // Create error message
 //------------------------------------------------------------------------------
 int
-EosAuthOfsFile::Emsg (const char* pfx,
-                      XrdOucErrInfo& einfo,
-                      int ecode,
-                      const char* op,
-                      const char* target)
+EosAuthOfsFile::Emsg(const char* pfx,
+                     XrdOucErrInfo& einfo,
+                     int ecode,
+                     const char* op,
+                     const char* target)
 {
-  char *etext, buffer[4096], unkbuff[64];
+  char* etext, buffer[4096], unkbuff[64];
 
   // Get the reason for the error
   if (ecode < 0) ecode = -ecode;
+
   if (!(etext = strerror(ecode)))
   {
     sprintf(unkbuff, "reason unknown (%d)", ecode);
@@ -926,7 +925,7 @@ EosAuthOfsFile::Emsg (const char* pfx,
   }
 
   // Format the error message
-  snprintf(buffer, sizeof (buffer), "Unable to %s %s; %s", op, target, etext);
+  snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
   eos_err("Unable to %s %s; %s", op, target, etext);
 
   // Place the error message in the error object and return

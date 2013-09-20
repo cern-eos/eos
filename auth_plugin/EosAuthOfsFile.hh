@@ -40,177 +40,147 @@ EOSAUTHNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class EosAuthOfsFile: public XrdSfsFile, public eos::common::LogId
 {
-public:
+  public:
 
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  EosAuthOfsFile(char *user = 0, int MonID = 0);
-
-  
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  ~EosAuthOfsFile();
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //--------------------------------------------------------------------------
+    EosAuthOfsFile(char* user = 0, int MonID = 0);
 
 
-  //----------------------------------------------------------------------------
-  //! Open a file
-  //----------------------------------------------------------------------------
-  int open(const char* fileName,
-           XrdSfsFileOpenMode openMode,
-           mode_t createMode,
-           const XrdSecEntity* client,
-           const char* opaque = 0);  
-
-  
-  //----------------------------------------------------------------------------
-  //! Read function
-  //----------------------------------------------------------------------------
-  virtual XrdSfsXferSize read(XrdSfsFileOffset offset,
-                              char* buffer,
-                              XrdSfsXferSize length);
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
+    ~EosAuthOfsFile();
 
 
-  //----------------------------------------------------------------------------
-  //! Write function
-  //----------------------------------------------------------------------------
-  virtual XrdSfsXferSize write(XrdSfsFileOffset offset,
-                               const char* buffer,
-                               XrdSfsXferSize length);
-  
-
-  //----------------------------------------------------------------------------
-  //! Stat function
-  //----------------------------------------------------------------------------
-  virtual int stat(struct stat *buf);
-  
- 
-  //----------------------------------------------------------------------------
-  //! Close file 
-  //----------------------------------------------------------------------------
-  int close();
-
-  
-  //----------------------------------------------------------------------------
-  //! Get name of file
-  //----------------------------------------------------------------------------
-  const char* FName();
-
-  
-  //!!! THE FOLLOWING OPERATIONS ARE NOT IMPLEMENTED !!!
-  
-  //----------------------------------------------------------------------------
-  //! fctl fakes ok
-  //----------------------------------------------------------------------------
-  int fctl (int, const char*, XrdOucErrInfo&)
-  {
-    return 0;
-  }
+    //--------------------------------------------------------------------------
+    //! Open a file
+    //--------------------------------------------------------------------------
+    int open(const char* fileName,
+             XrdSfsFileOpenMode openMode,
+             mode_t createMode,
+             const XrdSecEntity* client,
+             const char* opaque = 0);
 
 
-  //----------------------------------------------------------------------------
-  //! Return mmap address (we don't need it)
-  //----------------------------------------------------------------------------
-  int getMmap (void **Addr, off_t &Size)
-  {
-    if (Addr) Addr = 0;
-    Size = 0;
-    return SFS_OK;
-  }
+    //--------------------------------------------------------------------------
+    //! Read function
+    //--------------------------------------------------------------------------
+    virtual XrdSfsXferSize read(XrdSfsFileOffset offset,
+                                char* buffer,
+                                XrdSfsXferSize length);
 
 
-  //----------------------------------------------------------------------------
-  //! File pre-read fakes ok (we don't need it)
-  //----------------------------------------------------------------------------
-  int read (XrdSfsFileOffset fileOffset, XrdSfsXferSize preread_sz)
-  {
-    return SFS_OK;
-  }
-
-  //----------------------------------------------------------------------------
-  //! File read in async mode (not supported)
-  //----------------------------------------------------------------------------
-  int read (XrdSfsAio *aioparm)
-  {
-    static const char *epname = "read";
-    return Emsg(epname, error, EOPNOTSUPP, "read", mName.c_str());
-  }
+    //--------------------------------------------------------------------------
+    //! Write function
+    //--------------------------------------------------------------------------
+    virtual XrdSfsXferSize write(XrdSfsFileOffset offset,
+                                 const char* buffer,
+                                 XrdSfsXferSize length);
 
 
-  //----------------------------------------------------------------------------
-  //! File write in async mode (not supported)
-  //----------------------------------------------------------------------------
-  int write (XrdSfsAio * aiop)
-  {
-    static const char *epname = "write";
-    return Emsg(epname, error, EOPNOTSUPP, "write", mName.c_str());
-  }
+    //--------------------------------------------------------------------------
+    //! Stat function
+    //--------------------------------------------------------------------------
+    virtual int stat(struct stat* buf);
 
 
-  //----------------------------------------------------------------------------
-  //! File sync (not supported)
-  //----------------------------------------------------------------------------
-  int sync ()
-  {
-    static const char *epname = "sync";
-    return Emsg(epname, error, EOPNOTSUPP, "sync", mName.c_str());
-  }
+    //--------------------------------------------------------------------------
+    //! Close file
+    //--------------------------------------------------------------------------
+    int close();
 
 
-  //----------------------------------------------------------------------------
-  //! File async sync (not supported)
-  //----------------------------------------------------------------------------
-  int sync (XrdSfsAio * aiop)
-  {
-    static const char *epname = "sync";
-    return Emsg(epname, error, EOPNOTSUPP, "sync", mName.c_str());
-  }
+    //--------------------------------------------------------------------------
+    //! Get name of file
+    //--------------------------------------------------------------------------
+    const char* FName();
 
 
-  //----------------------------------------------------------------------------
-  //! File truncate (not supported)
-  //----------------------------------------------------------------------------
-  int truncate (XrdSfsFileOffset flen)
-  {
-    static const char *epname = "trunc";
-    return Emsg(epname, error, EOPNOTSUPP, "truncate", mName.c_str());
-  }
+//------------------------------------------------------------------------------
+//!!!!!!!!! THE FOLLOWING OPERATIONS ARE NOT SUPPORTED !!!!!!!!!
+//------------------------------------------------------------------------------
 
 
-  //----------------------------------------------------------------------------
-  //! get checksum info (returns nothing - not supported)
-  //----------------------------------------------------------------------------
-  int getCXinfo (char cxtype[4], int &cxrsz)
-  {
-    return cxrsz = 0;
-  }
+    //--------------------------------------------------------------------------
+    //! fctl fakes ok (not supported)
+    //--------------------------------------------------------------------------
+    int fctl(int, const char*, XrdOucErrInfo&);
 
-  
- private:
 
-  std::string mName; ///< file name
+    //--------------------------------------------------------------------------
+    //! Return mmap address (not supported)
+    //--------------------------------------------------------------------------
+    int getMmap(void** Addr, off_t& Size);
 
-  //----------------------------------------------------------------------------
-  //! Create an error message for a file object
-  //!
-  //! @param pfx message prefix value
-  //! @param einfo error text/code object
-  //! @param ecode error code
-  //! @param op name of the operation performed
-  //! @param target target of the operation e.g. file name etc.
-  //! 
-  //! @return SFS_ERROR in all cases
-  //! 
-  //! This routines prints also an error message into the EOS log.
-  //!
-  //----------------------------------------------------------------------------
-  int Emsg (const char *pfx,
-            XrdOucErrInfo &einfo,
-            int ecode,
-            const char *op,
-            const char *target);
-      
+
+    //--------------------------------------------------------------------------
+    //! File pre-read fakes ok (not supported)
+    //--------------------------------------------------------------------------
+    int read(XrdSfsFileOffset fileOffset, XrdSfsXferSize preread_sz);
+
+
+    //--------------------------------------------------------------------------
+    //! File read in async mode (not supported)
+    //--------------------------------------------------------------------------
+    int read(XrdSfsAio* aioparm);
+
+
+    //--------------------------------------------------------------------------
+    //! File write in async mode (not supported)
+    //--------------------------------------------------------------------------
+    int write(XrdSfsAio* aiop);
+
+
+    //--------------------------------------------------------------------------
+    //! File sync (not supported)
+    //--------------------------------------------------------------------------
+    int sync();
+
+
+    //--------------------------------------------------------------------------
+    //! File async sync (not supported)
+    //--------------------------------------------------------------------------
+    int sync(XrdSfsAio* aiop);
+
+
+    //--------------------------------------------------------------------------
+    //! File truncate (not supported)
+    //--------------------------------------------------------------------------
+    int truncate(XrdSfsFileOffset flen);
+
+
+    //--------------------------------------------------------------------------
+    //! get checksum info (returns nothing - not supported)
+    //--------------------------------------------------------------------------
+    int getCXinfo(char cxtype[4], int& cxrsz);
+
+
+  private:
+
+    std::string mName; ///< file name
+
+    //--------------------------------------------------------------------------
+    //! Create an error message for a file object
+    //!
+    //! @param pfx message prefix value
+    //! @param einfo error text/code object
+    //! @param ecode error code
+    //! @param op name of the operation performed
+    //! @param target target of the operation e.g. file name etc.
+    //!
+    //! @return SFS_ERROR in all cases
+    //!
+    //! This routines prints also an error message into the EOS log.
+    //!
+    //--------------------------------------------------------------------------
+    int Emsg(const char* pfx,
+             XrdOucErrInfo& einfo,
+             int ecode,
+             const char* op,
+             const char* target);
+
 };
 
 EOSAUTHNAMESPACE_END

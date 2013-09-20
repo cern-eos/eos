@@ -227,7 +227,7 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
     eos::common::ConcurrentQueue<zmq::socket_t*> mPoolSocket; ///< ZMQ socket pool
     std::string mEosInstance; ///< EOS instance to which requests are dispatched
     std::string mManagerIp; ///< the IP address of the auth instance
-    int mManagerPort;   ///< port on which the current auth runs
+    int mManagerPort;   ///< port on which the current auth server runs
 
 
     //--------------------------------------------------------------------------

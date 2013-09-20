@@ -8779,35 +8779,39 @@ XrdMgmOfs::AuthWorkerThread()
     }
     else if (req_proto.type() == eos::auth::RequestProto_OperationType_FILEOPEN)
     {
-      // file open request
-      XrdMgmOfsFile* file = static_cast<XrdMgmOfsFile*>(
-                             gOFS->newFile((char*)req_proto.fileopen().user().c_str(),
-                                           req_proto.fileopen().monid()));
-
-      // add new file to mapping
-      bool found = false;
+      if (mMapFiles.count(req_proto.fileopen().uuid()))
       {
-        XrdSysMutexHelper scope_lock(mMutexFiles);
-        auto result = mMapFiles.insert(std::make_pair(req_proto.fileopen().uuid(), file));
-        found = result.second;
-        error.reset(new XrdOucErrInfo());
-      }
-
-      if (found == false)
-      {
-        eos_err("file entry already in map at MGM");
-        error->setErrInfo(XrdCl::errInvalidOp, "file already in map at MGM");
-        ret = SFS_ERROR;
+        eos_debug("file:%s is already in mapping", req_proto.fileopen().name().c_str());
+        ret = SFS_OK;
       }
       else
       {
+        // file open request
+        XrdMgmOfsFile* file = static_cast<XrdMgmOfsFile*>(
+                                gOFS->newFile((char*)req_proto.fileopen().user().c_str(),
+                                              req_proto.fileopen().monid()));
+        
         client = eos::auth::utils::GetXrdSecEntity(req_proto.fileopen().client());
         ret = file->open(req_proto.fileopen().name().c_str(),
                          req_proto.fileopen().openmode(),
                          (mode_t) req_proto.fileopen().createmode(),
                          client, req_proto.fileopen().opaque().c_str());
-        error->setErrInfo(file->error.getErrInfo(), file->error.getErrText());       
-      }                
+        error.reset(new XrdOucErrInfo());
+        error->setErrInfo(file->error.getErrInfo(), file->error.getErrText());
+        
+        if ((ret == SFS_REDIRECT) || (ret == SFS_ERROR))
+        {
+          // Drop the file object since we redirected to the FST node or if
+          // there was an error we will not receive a close so we might as well
+          // clean it up now
+          delete file;
+        }
+        else
+        {
+          XrdSysMutexHelper scope_lock(mMutexFiles);
+          auto result = mMapFiles.insert(std::make_pair(req_proto.fileopen().uuid(), file));
+        }
+      }              
     }
     else if (req_proto.type() == eos::auth::RequestProto_OperationType_FILESTAT)
     {
@@ -8872,14 +8876,11 @@ XrdMgmOfs::AuthWorkerThread()
       else
       {
         XrdMgmOfsFile* file = iter->second;
-        eos_debug("read offset=%li, length=%i", (long long) req_proto.fileread().offset(),
-                  (int) req_proto.fileread().length());
-        char* tmp_buff = new char[req_proto.fileread().length()];
-        //resp.mutable_message()->reserve(req_proto.fileread().length());
+        resp.mutable_message()->resize(req_proto.fileread().length());
         ret = file->read((XrdSfsFileOffset)req_proto.fileread().offset(),
-                         tmp_buff, (XrdSfsXferSize)req_proto.fileread().length());
-        resp.set_message(tmp_buff);
-        delete[] tmp_buff;
+                         (char*)resp.mutable_message()->c_str(), 
+                         (XrdSfsXferSize)req_proto.fileread().length());
+        resp.mutable_message()->resize(ret);
       }
     }
     else if (req_proto.type() == eos::auth::RequestProto_OperationType_FILEWRITE)
@@ -8904,7 +8905,7 @@ XrdMgmOfs::AuthWorkerThread()
                           req_proto.filewrite().length());
       }      
     }
-   else if (req_proto.type() == eos::auth::RequestProto_OperationType_FILECLOSE)
+    else if (req_proto.type() == eos::auth::RequestProto_OperationType_FILECLOSE)
     {
       // close file
       auto iter = mMapFiles.end();
@@ -8918,7 +8919,8 @@ XrdMgmOfs::AuthWorkerThread()
         eos_err("file not found in map for closing it");
         ret = SFS_ERROR;        
       }
-      else {
+      else
+      {
         // close file and remove from mapping
         XrdMgmOfsFile* file = iter->second;
         {
@@ -8926,9 +8928,8 @@ XrdMgmOfs::AuthWorkerThread()
           mMapFiles.erase(iter);
         }
         
-        file->close();
+        ret = file->close();
         delete file;
-        ret = SFS_OK;
       }
     }
     else

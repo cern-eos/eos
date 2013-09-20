@@ -1,7 +1,7 @@
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: ProtoUtils.hh
 // Author: Elvin-Alin Sindrilaru <esindril@cern.ch> CERN
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -393,8 +393,8 @@ namespace utils
   //--------------------------------------------------------------------------
   RequestProto* GetDirOpenRequest(std::string&& uuid,
                                   const char* name,
-                                  const XrdSecEntity *client,
-                                  const char *opaque = 0,
+                                  const XrdSecEntity* client,
+                                  const char* opaque = 0,
                                   const char* user = 0,
                                   int monid = 0);
 
@@ -451,8 +451,8 @@ namespace utils
                                    const char* fileName,
                                    int openMode,
                                    mode_t createMode,
-                                   const XrdSecEntity *client,
-                                   const char *opaque = 0,
+                                   const XrdSecEntity* client,
+                                   const char* opaque = 0,
                                    const char* user = 0,
                                    int monid = 0);
 
@@ -510,7 +510,7 @@ namespace utils
                                     const char* buff,
                                     int length);
 
-  
+
   //--------------------------------------------------------------------------
   //! Create file close request ProtocolBuffer object
   //!
@@ -525,6 +525,6 @@ namespace utils
 
 EOSAUTHNAMESPACE_END
 
-#endif // __EOS_AUTH_PROTOUTILS_HH__
+#endif //__EOS_AUTH_PROTOUTILS_HH__
 
 

@@ -1,7 +1,7 @@
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: ProtoUtils.cc
 // Author: Elvin-Alin Sindrilaru <esindril@cern.ch> CERN
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -68,7 +68,7 @@ utils::ConvertToProtoBuf(const XrdSecEntity* obj,
     proto->set_grps("");
 
   if (obj->endorsements)
-     proto->set_endorsements(obj->endorsements);
+    proto->set_endorsements(obj->endorsements);
   else
     proto->set_endorsements("");
 
@@ -76,7 +76,7 @@ utils::ConvertToProtoBuf(const XrdSecEntity* obj,
     proto->set_creds(obj->creds);
   else
     proto->set_creds("");
-  
+
   proto->set_credslen(obj->credslen);
 
   if (obj->moninfo)
@@ -128,10 +128,9 @@ utils::ConvertToProtoBuf(const XrdSfsPrep* obj,
   proto->set_reqid(obj->reqid ?  obj->reqid : "");
   proto->set_notify(obj->notify ? obj->notify : "");
   proto->set_opts(obj->opts);
-
   XrdOucTList* next_path = obj->paths;
   XrdOucTList* next_oinfo = obj->oinfo;
-  
+
   while (next_path && next_oinfo)
   {
     proto->add_paths(next_path->text);
@@ -149,7 +148,7 @@ XrdSecEntity*
 utils::GetXrdSecEntity(const XrdSecEntityProto& proto_obj)
 {
   XrdSecEntity* obj = new XrdSecEntity();
-  strncpy(obj->prot, proto_obj.prot().c_str(), XrdSecPROTOIDSIZE -1);
+  strncpy(obj->prot, proto_obj.prot().c_str(), XrdSecPROTOIDSIZE - 1);
   obj->prot[XrdSecPROTOIDSIZE - 1] = '\0';
   obj->name = strdup(proto_obj.name().c_str());
   obj->host = strdup(proto_obj.host().c_str());
@@ -167,7 +166,7 @@ utils::GetXrdSecEntity(const XrdSecEntityProto& proto_obj)
 
 
 //------------------------------------------------------------------------------
-// Delete XrdSecEntity object 
+// Delete XrdSecEntity object
 //------------------------------------------------------------------------------
 void
 utils::DeleteXrdSecEntity(XrdSecEntity*& obj)
@@ -182,7 +181,7 @@ utils::DeleteXrdSecEntity(XrdSecEntity*& obj)
   free(obj->moninfo);
   free(obj->tident);
   delete obj;
-  obj = 0;      
+  obj = 0;
 }
 
 
@@ -196,16 +195,15 @@ utils::GetXrdSfsPrep(const eos::auth::XrdSfsPrepProto& proto_obj)
   obj->reqid = ((proto_obj.reqid() == "") ? 0 : strdup(proto_obj.reqid().c_str()));
   obj->notify = ((proto_obj.notify() == "") ? 0 : strdup(proto_obj.notify().c_str()));
   obj->opts = proto_obj.opts();
-
   XrdOucTList* next_paths = obj->paths;
   XrdOucTList* next_oinfo = obj->oinfo;
-  
+
   for (int i = 0; i < proto_obj.paths_size(); i++)
   {
     next_paths = new XrdOucTList(proto_obj.paths(i).c_str());
     next_oinfo = new XrdOucTList(proto_obj.oinfo(i).c_str());
     next_paths = next_paths->next;
-    next_oinfo = next_oinfo->next;   
+    next_oinfo = next_oinfo->next;
   }
 
   return obj;
@@ -266,7 +264,6 @@ utils::GetStatRequest(RequestProto_OperationType type,
   eos::auth::StatProto* stat_proto = req_proto->mutable_stat();
   eos::auth::XrdOucErrInfoProto* xoei_proto = stat_proto->mutable_error();
   eos::auth::XrdSecEntityProto* xse_proto = stat_proto->mutable_client();
-
   stat_proto->set_path(path);
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
@@ -294,12 +291,10 @@ utils::GetFsctlRequest(const int cmd,
   eos::auth::FsctlProto* fsctl_proto = req_proto->mutable_fsctl1();
   eos::auth::XrdOucErrInfoProto* xoei_proto = fsctl_proto->mutable_error();
   eos::auth::XrdSecEntityProto* xse_proto = fsctl_proto->mutable_client();
-
   fsctl_proto->set_cmd(cmd);
   fsctl_proto->set_args(args);
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
-  
   req_proto->set_type(RequestProto_OperationType_FSCTL1);
   return req_proto;
 }
@@ -319,12 +314,10 @@ utils::GetFSctlRequest(const int cmd,
   eos::auth::XrdSfsFSctlProto* args_proto = fsctl_proto->mutable_args();
   eos::auth::XrdOucErrInfoProto* xoei_proto = fsctl_proto->mutable_error();
   eos::auth::XrdSecEntityProto* xse_proto = fsctl_proto->mutable_client();
-
   fsctl_proto->set_cmd(cmd);
   ConvertToProtoBuf(&args, args_proto);
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
-  
   req_proto->set_type(RequestProto_OperationType_FSCTL2);
   return req_proto;
 }
@@ -334,17 +327,16 @@ utils::GetFSctlRequest(const int cmd,
 // Create chmod request ProtocolBuffer object
 //------------------------------------------------------------------------------
 RequestProto*
-utils::GetChmodRequest(const char *path,
+utils::GetChmodRequest(const char* path,
                        int mode,
-                       XrdOucErrInfo &error,
-                       const XrdSecEntity *client,
-                       const char *opaque)
+                       XrdOucErrInfo& error,
+                       const XrdSecEntity* client,
+                       const char* opaque)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
   eos::auth::ChmodProto* chmod_proto = req_proto->mutable_chmod();
   eos::auth::XrdOucErrInfoProto* xoei_proto = chmod_proto->mutable_error();
   eos::auth::XrdSecEntityProto* xse_proto = chmod_proto->mutable_client();
-
   chmod_proto->set_path(path);
   chmod_proto->set_mode(mode);
   ConvertToProtoBuf(&error, xoei_proto);
@@ -363,16 +355,15 @@ utils::GetChmodRequest(const char *path,
 //------------------------------------------------------------------------------
 RequestProto*
 utils::GetChksumRequest(XrdSfsFileSystem::csFunc func,
-                        const char *csname,
-                        const char *inpath,
-                        XrdOucErrInfo &error,
-                        const XrdSecEntity *client,
-                        const char *opaque)
+                        const char* csname,
+                        const char* inpath,
+                        XrdOucErrInfo& error,
+                        const XrdSecEntity* client,
+                        const char* opaque)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
   eos::auth::ChksumProto* chksum_proto = req_proto->mutable_chksum();
   eos::auth::XrdOucErrInfoProto* xoei_proto = chksum_proto->mutable_error();
-
   chksum_proto->set_func(func);
   chksum_proto->set_csname(csname);
 
@@ -380,9 +371,9 @@ utils::GetChksumRequest(XrdSfsFileSystem::csFunc func,
     chksum_proto->set_path(inpath);
   else
     chksum_proto->set_path("");
-    
+
   ConvertToProtoBuf(&error, xoei_proto);
-    
+
   if (client)
   {
     eos::auth::XrdSecEntityProto* xse_proto = chksum_proto->mutable_client();
@@ -390,8 +381,8 @@ utils::GetChksumRequest(XrdSfsFileSystem::csFunc func,
   }
 
   if (opaque)
-    chksum_proto->set_opaque(opaque);  
-  
+    chksum_proto->set_opaque(opaque);
+
   req_proto->set_type(RequestProto_OperationType_CHKSUM);
   return req_proto;
 }
@@ -410,7 +401,6 @@ utils::GetExistsRequest(const char* path,
   eos::auth::ExistsProto* exists_proto = req_proto->mutable_exists();
   eos::auth::XrdOucErrInfoProto* xoei_proto = exists_proto->mutable_error();
   eos::auth::XrdSecEntityProto* xse_proto = exists_proto->mutable_client();
-
   exists_proto->set_path(path);
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
@@ -427,17 +417,16 @@ utils::GetExistsRequest(const char* path,
 // Create mkdir request ProtocolBuffer object
 //------------------------------------------------------------------------------
 RequestProto*
-utils::GetMkdirRequest(const char *path,
+utils::GetMkdirRequest(const char* path,
                        int mode,
-                       XrdOucErrInfo &error,
-                       const XrdSecEntity *client,
-                       const char *opaque)
+                       XrdOucErrInfo& error,
+                       const XrdSecEntity* client,
+                       const char* opaque)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
   eos::auth::MkdirProto* mkdir_proto = req_proto->mutable_mkdir();
   eos::auth::XrdOucErrInfoProto* xoei_proto = mkdir_proto->mutable_error();
   eos::auth::XrdSecEntityProto* xse_proto = mkdir_proto->mutable_client();
-
   mkdir_proto->set_path(path);
   mkdir_proto->set_mode(mode);
   ConvertToProtoBuf(&error, xoei_proto);
@@ -456,16 +445,15 @@ utils::GetMkdirRequest(const char *path,
 // Create remdir request ProtocolBuffer object
 //------------------------------------------------------------------------------
 RequestProto*
-utils::GetRemdirRequest(const char *path,
-                               XrdOucErrInfo &error,
-                               const XrdSecEntity *client,
-                               const char *opaque)
+utils::GetRemdirRequest(const char* path,
+                        XrdOucErrInfo& error,
+                        const XrdSecEntity* client,
+                        const char* opaque)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
   eos::auth::RemdirProto* remdir_proto = req_proto->mutable_remdir();
   eos::auth::XrdOucErrInfoProto* xoei_proto = remdir_proto->mutable_error();
   eos::auth::XrdSecEntityProto* xse_proto = remdir_proto->mutable_client();
-
   remdir_proto->set_path(path);
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
@@ -482,16 +470,15 @@ utils::GetRemdirRequest(const char *path,
 // Create rem request ProtocolBuffer object
 //------------------------------------------------------------------------------
 RequestProto*
-utils::GetRemRequest(const char *path,
-                     XrdOucErrInfo &error,
-                     const XrdSecEntity *client,
-                     const char *opaque)
+utils::GetRemRequest(const char* path,
+                     XrdOucErrInfo& error,
+                     const XrdSecEntity* client,
+                     const char* opaque)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
   eos::auth::RemProto* rem_proto = req_proto->mutable_rem();
   eos::auth::XrdOucErrInfoProto* xoei_proto = rem_proto->mutable_error();
   eos::auth::XrdSecEntityProto* xse_proto = rem_proto->mutable_client();
-
   rem_proto->set_path(path);
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
@@ -508,18 +495,17 @@ utils::GetRemRequest(const char *path,
 // Create rename request ProtocolBuffer object
 //------------------------------------------------------------------------------
 RequestProto*
-utils::GetRenameRequest(const char *oldName,
-                        const char *newName,
-                        XrdOucErrInfo &error,
-                        const XrdSecEntity *client,
-                        const char *opaqueO,
-                        const char *opaqueN)
+utils::GetRenameRequest(const char* oldName,
+                        const char* newName,
+                        XrdOucErrInfo& error,
+                        const XrdSecEntity* client,
+                        const char* opaqueO,
+                        const char* opaqueN)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
   eos::auth::RenameProto* rename_proto = req_proto->mutable_rename();
   eos::auth::XrdOucErrInfoProto* xoei_proto = rename_proto->mutable_error();
   eos::auth::XrdSecEntityProto* xse_proto = rename_proto->mutable_client();
-
   rename_proto->set_oldname(oldName);
   rename_proto->set_newname(newName);
   ConvertToProtoBuf(&error, xoei_proto);
@@ -541,15 +527,14 @@ utils::GetRenameRequest(const char *oldName,
 //--------------------------------------------------------------------------
 RequestProto*
 utils::GetPrepareRequest(XrdSfsPrep& pargs,
-                         XrdOucErrInfo &error,
-                         const XrdSecEntity *client)
+                         XrdOucErrInfo& error,
+                         const XrdSecEntity* client)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
   eos::auth::PrepareProto* prepare_proto = req_proto->mutable_prepare();
   eos::auth::XrdSfsPrepProto* xsp_proto = prepare_proto->mutable_pargs();
   eos::auth::XrdOucErrInfoProto* xoei_proto = prepare_proto->mutable_error();
   eos::auth::XrdSecEntityProto* xse_proto = prepare_proto->mutable_client();
-
   ConvertToProtoBuf(&pargs, xsp_proto);
   ConvertToProtoBuf(&error, xoei_proto);
   ConvertToProtoBuf(client, xse_proto);
@@ -572,7 +557,6 @@ utils::GetTruncateRequest(const char* path,
   eos::auth::TruncateProto* truncate_proto = req_proto->mutable_truncate();
   eos::auth::XrdOucErrInfoProto* xoei_proto = truncate_proto->mutable_error();
   eos::auth::XrdSecEntityProto* xse_proto = truncate_proto->mutable_client();
-
   truncate_proto->set_path(path);
   truncate_proto->set_fileoffset(fileOffset);
   ConvertToProtoBuf(&error, xoei_proto);
@@ -580,7 +564,7 @@ utils::GetTruncateRequest(const char* path,
 
   if (opaque)
     truncate_proto->set_opaque(opaque);
-    
+
   req_proto->set_type(RequestProto_OperationType_TRUNCATE);
   return req_proto;
 }
@@ -604,25 +588,24 @@ utils::GetStatsRequest()
 RequestProto*
 utils::GetDirOpenRequest(std::string&& uuid,
                          const char* name,
-                         const XrdSecEntity *client,
-                         const char *opaque,
+                         const XrdSecEntity* client,
+                         const char* opaque,
                          const char* user,
                          int monid)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
-  eos::auth::DirOpenProto* diropen_proto = req_proto->mutable_diropen();
-  eos::auth::XrdSecEntityProto* xse_proto = diropen_proto->mutable_client();
-
+  eos::auth::DirOpenProto* dopen_proto = req_proto->mutable_diropen();
+  eos::auth::XrdSecEntityProto* xse_proto = dopen_proto->mutable_client();
   // Save the address of the directory object
-  diropen_proto->set_uuid(uuid);
-  diropen_proto->set_name(name);
+  dopen_proto->set_uuid(uuid);
+  dopen_proto->set_name(name);
   ConvertToProtoBuf(client, xse_proto);
 
   if (opaque)
-    diropen_proto->set_opaque(opaque);
+    dopen_proto->set_opaque(opaque);
 
-  diropen_proto->set_user(user);
-  diropen_proto->set_monid(monid);
+  dopen_proto->set_user(user);
+  dopen_proto->set_monid(monid);
   req_proto->set_type(RequestProto_OperationType_DIROPEN);
   return req_proto;
 }
@@ -635,9 +618,8 @@ RequestProto*
 utils::GetDirReadRequest(std::string&& uuid)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
-  eos::auth::DirReadProto* dirread_proto = req_proto->mutable_dirread();
-
-  dirread_proto->set_uuid(uuid);
+  eos::auth::DirReadProto* dread_proto = req_proto->mutable_dirread();
+  dread_proto->set_uuid(uuid);
   req_proto->set_type(RequestProto_OperationType_DIRREAD);
   return req_proto;
 }
@@ -650,9 +632,8 @@ RequestProto*
 utils::GetDirFnameRequest(std::string&& uuid)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
-  eos::auth::DirFnameProto* dirfname_proto = req_proto->mutable_dirfname();
-  
-  dirfname_proto->set_uuid(uuid);
+  eos::auth::DirFnameProto* dfname_proto = req_proto->mutable_dirfname();
+  dfname_proto->set_uuid(uuid);
   req_proto->set_type(RequestProto_OperationType_DIRFNAME);
   return req_proto;
 }
@@ -665,9 +646,8 @@ RequestProto*
 utils::GetDirCloseRequest(std::string&& uuid)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
-  eos::auth::DirCloseProto* dirclose_proto = req_proto->mutable_dirclose();
-  
-  dirclose_proto->set_uuid(uuid);
+  eos::auth::DirCloseProto* dclose_proto = req_proto->mutable_dirclose();
+  dclose_proto->set_uuid(uuid);
   req_proto->set_type(RequestProto_OperationType_DIRCLOSE);
   return req_proto;
 }
@@ -681,27 +661,26 @@ utils::GetFileOpenRequest(std::string&& uuid,
                           const char* fileName,
                           int openMode,
                           mode_t createMode,
-                          const XrdSecEntity *client,
-                          const char *opaque,
+                          const XrdSecEntity* client,
+                          const char* opaque,
                           const char* user,
                           int monid)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
-  eos::auth::FileOpenProto* fileopen_proto = req_proto->mutable_fileopen();
-  eos::auth::XrdSecEntityProto* xse_proto = fileopen_proto->mutable_client();
-
+  eos::auth::FileOpenProto* fopen_proto = req_proto->mutable_fileopen();
+  eos::auth::XrdSecEntityProto* xse_proto = fopen_proto->mutable_client();
   // Save the address of the file object
-  fileopen_proto->set_uuid(uuid);
-  fileopen_proto->set_name(fileName);
-  fileopen_proto->set_openmode(openMode);
-  fileopen_proto->set_createmode(createMode);
+  fopen_proto->set_uuid(uuid);
+  fopen_proto->set_name(fileName);
+  fopen_proto->set_openmode(openMode);
+  fopen_proto->set_createmode(createMode);
   ConvertToProtoBuf(client, xse_proto);
 
   if (opaque)
-    fileopen_proto->set_opaque(opaque);
+    fopen_proto->set_opaque(opaque);
 
-  fileopen_proto->set_user(user);
-  fileopen_proto->set_monid(monid);
+  fopen_proto->set_user(user);
+  fopen_proto->set_monid(monid);
   req_proto->set_type(RequestProto_OperationType_FILEOPEN);
   return req_proto;
 }
@@ -715,7 +694,6 @@ utils::GetFileFnameRequest(std::string&& uuid)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
   eos::auth::FileFnameProto* ffname_proto = req_proto->mutable_filefname();
-  
   ffname_proto->set_uuid(uuid);
   req_proto->set_type(RequestProto_OperationType_FILEFNAME);
   return req_proto;
@@ -729,9 +707,8 @@ RequestProto*
 utils::GetFileStatRequest(std::string&& uuid)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
-  eos::auth::FileStatProto* filestat_proto = req_proto->mutable_filestat();
-  
-  filestat_proto->set_uuid(uuid);
+  eos::auth::FileStatProto* fstat_proto = req_proto->mutable_filestat();
+  fstat_proto->set_uuid(uuid);
   req_proto->set_type(RequestProto_OperationType_FILESTAT);
   return req_proto;
 }
@@ -747,7 +724,6 @@ utils::GetFileReadRequest(std::string&& uuid,
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
   eos::auth::FileReadProto* fread_proto = req_proto->mutable_fileread();
-  
   fread_proto->set_uuid(uuid);
   fread_proto->set_offset(offset);
   fread_proto->set_length(length);
@@ -767,7 +743,6 @@ utils::GetFileWriteRequest(std::string&& uuid,
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
   eos::auth::FileWriteProto* fwrite_proto = req_proto->mutable_filewrite();
-  
   fwrite_proto->set_uuid(uuid);
   fwrite_proto->set_offset(offset);
   fwrite_proto->set_buff(buff);
@@ -784,9 +759,8 @@ RequestProto*
 utils::GetFileCloseRequest(std::string&& uuid)
 {
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
-  eos::auth::FileCloseProto* fileclose_proto = req_proto->mutable_fileclose();
-  
-  fileclose_proto->set_uuid(uuid);
+  eos::auth::FileCloseProto* fclose_proto = req_proto->mutable_fileclose();
+  fclose_proto->set_uuid(uuid);
   req_proto->set_type(RequestProto_OperationType_FILECLOSE);
   return req_proto;
 }
