@@ -34,11 +34,14 @@ public:
   virtual char* keywords_repr() { return strdup(""); };
   virtual const char* name() const { return m_name.c_str(); };
   virtual const char* description() const { return m_description.c_str(); };
+  virtual bool hidden() const { return m_hidden; };
+  virtual void set_hidden(bool hidden) { m_hidden = hidden; };
 
 protected:
   std::string m_name;
   std::string m_description;
   bool m_required;
+  bool m_hidden;
 };
 
 class CliOption : public CliBaseOption {

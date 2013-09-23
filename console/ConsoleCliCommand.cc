@@ -44,7 +44,8 @@ ParseError::ParseError(CliBaseOption *option, std::string message)
 CliBaseOption::CliBaseOption(std::string name, std::string desc)
   : m_name(name),
     m_description(desc),
-    m_required(false)
+    m_required(false),
+    m_hidden(false)
 {};
 
 CliBaseOption::~CliBaseOption() {};
@@ -56,9 +57,9 @@ CliOption::CliOption(std::string name, std::string desc, std::string keywords)
 };
 
 CliOption::CliOption(const CliOption &option)
-  : CliBaseOption(option.m_name, option.m_description)
+  : CliOption(option.m_name, option.m_description, "")
 {
-  m_keywords = new std::vector<std::string>;
+  m_hidden = option.hidden();
 
   for (std::vector<std::string>::const_iterator it = option.m_keywords->cbegin();
        it != option.m_keywords->cend(); it++)
