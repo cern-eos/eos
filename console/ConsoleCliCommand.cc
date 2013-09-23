@@ -1,5 +1,6 @@
 #include <string.h>
 #include <assert.h>
+#include <algorithm>
 #include "ConsoleCliCommand.hh"
 
 #define HELP_PADDING 30
@@ -51,7 +52,8 @@ CliBaseOption::CliBaseOption(std::string name, std::string desc)
 CliBaseOption::~CliBaseOption() {};
 
 CliOption::CliOption(std::string name, std::string desc, std::string keywords)
-  : CliBaseOption(name, desc)
+  : CliBaseOption(name, desc),
+    m_group(0)
 {
   m_keywords = split_keywords(keywords, ',');
 };
@@ -71,6 +73,18 @@ CliOption::~CliOption()
 {
   delete m_keywords;
   m_keywords = 0;
+}
+
+void
+CliOption::set_group(OptionsGroup *group)
+{
+  if (m_group == group)
+    return;
+
+  if (m_group)
+    m_group->remove_option(this);
+
+  m_group = group;
 }
 
 std::string
@@ -346,23 +360,29 @@ ConsoleCliCommand::ConsoleCliCommand(const std::string &name,
   : m_name(name),
     m_description(description),
     m_subcommands(0),
-    m_options(0),
+    m_main_group(0),
     m_positional_options(0),
     m_parent_command(0),
-    m_errors(0)
+    m_errors(0),
+    m_groups(0)
 {}
 
 ConsoleCliCommand::~ConsoleCliCommand()
 {
   size_t i;
-  if (m_options)
+
+  delete m_main_group;
+  m_main_group = 0;
+
+  if (m_groups)
   {
-    for(i = 0; i < m_options->size(); i++)
-      {
-        delete m_options->at(i);
-      }
-    delete m_options;
-    m_options = 0;
+    for(i = 0; i < m_groups->size(); i++)
+    {
+      delete m_groups->at(i);
+    }
+
+    delete m_groups;
+    m_groups = 0;
   }
 
   if (m_positional_options)
@@ -389,10 +409,10 @@ ConsoleCliCommand::~ConsoleCliCommand()
 void
 ConsoleCliCommand::add_option(CliOption *option)
 {
-  if (m_options == 0)
-    m_options = new std::vector<CliOption *>();
+  if (m_main_group == 0)
+    m_main_group = new OptionsGroup;
 
-  m_options->push_back(option);
+  m_main_group->add_option(option);
 }
 
 void
@@ -444,6 +464,35 @@ ConsoleCliCommand::add_options(std::vector<CliOption> options)
   }
 }
 
+OptionsGroup*
+ConsoleCliCommand::add_grouped_options(std::vector<CliOption> options)
+{
+  if (options.size() == 0)
+    return 0;
+
+  OptionsGroup *group = new OptionsGroup;
+  add_group(group);
+
+  std::vector<CliOption>::const_iterator it = options.cbegin();
+  for (; it != options.cend(); it++)
+  {
+    CliOption *option_ptr = new CliOption(*it);
+    group->add_option(option_ptr);
+  }
+
+  return group;
+}
+
+void
+ConsoleCliCommand::add_group(OptionsGroup *group)
+{
+  if (!m_groups)
+    m_groups = new std::vector<OptionsGroup *>;
+
+  if (std::find(m_groups->begin(), m_groups->end(), group) == m_groups->end())
+    m_groups->push_back(group);
+}
+
 void
 ConsoleCliCommand::add_error(const ParseError *error)
 {
@@ -475,6 +524,35 @@ ConsoleCliCommand::is_subcommand(std::vector<std::string> &cli_args)
   return 0;
 }
 
+void
+ConsoleCliCommand::analyse_group(OptionsGroup *group, std::vector<std::string> &cli_args)
+{
+  std::vector<CliOption *>* options = group->options();
+  if (options)
+  {
+    bool option_found = false;
+    std::vector<CliOption *>::iterator it = options->begin();
+    for (; it != options->end(); it++)
+      {
+        AnalysisResult *res = (*it)->analyse(cli_args);
+        if (res->values.first != "")
+        {
+          if (option_found && group != m_main_group)
+          {
+            add_error(new ParseError(0, "Error: Use only one option: " + group->options_repr()));
+            delete res;
+            return;
+          }
+
+          m_options_map.insert(res->values);
+          cli_args.erase(res->start, res->end);
+          option_found = true;
+        }
+        delete res;
+      }
+  }
+}
+
 ConsoleCliCommand *
 ConsoleCliCommand::parse(std::vector<std::string> &cli_args)
 {
@@ -491,19 +569,14 @@ ConsoleCliCommand::parse(std::vector<std::string> &cli_args)
     }
   }
 
-  if (m_options)
+  if (m_main_group)
+    analyse_group(m_main_group, cli_args);
+
+  if (m_groups)
   {
-    std::vector<CliOption *>::iterator it = m_options->begin();
-    for (; it != m_options->end(); it++)
-      {
-        AnalysisResult *res = (*it)->analyse(cli_args);
-        if (res->values.first != "")
-          {
-            m_options_map.insert(res->values);
-            cli_args.erase(res->start, res->end);
-          }
-        delete res;
-      }
+    std::vector<OptionsGroup *>::const_iterator it;
+    for (it = m_groups->cbegin(); it != m_groups->cend(); it++)
+      analyse_group(*it, cli_args);
   }
 
   int num_args_processed = (int) cli_args.size();
@@ -567,21 +640,31 @@ ConsoleCliCommand::get_value (std::string option_name)
 }
 
 void
+ConsoleCliCommand::print_help_for_options(std::vector<CliOption *>* options)
+{
+  std::vector<CliOption *>::const_iterator it;
+  for (it = options->cbegin(); it != options->cend(); it++)
+  {
+    char *str = (*it)->help_string();
+
+    if (str != NULL)
+    {
+      fprintf(stdout, str);
+      free(str);
+    }
+  }
+}
+
+void
 ConsoleCliCommand::print_help()
 {
-  if (m_options)
-  {
-    for (std::vector<CliOption *>::const_iterator it = m_options->cbegin();
-         it != m_options->cend(); it++)
-    {
-      char *str = (*it)->help_string();
+  if (m_main_group)
+    print_help_for_options(m_main_group->options());
 
-      if (str != NULL)
-      {
-        fprintf(stdout, str);
-        free(str);
-      }
-    }
+  if (m_groups)
+  {
+    for (size_t i = 0; i < m_groups->size(); i++)
+      print_help_for_options(m_groups->at(i)->options());
   }
 
   if (m_positional_options)
@@ -613,6 +696,16 @@ ConsoleCliCommand::print_usage()
 
   if (kw_repr != "")
     command_and_options += " " + kw_repr;
+
+  if (m_groups)
+  {
+    std::vector<OptionsGroup *>::const_iterator it;
+    for (it = m_groups->cbegin(); it != m_groups->cend(); it++)
+    {
+      std::string group_repr = (*it)->options_repr();
+      command_and_options += " " + ((*it)->required() ? group_repr : "[" + group_repr + "]");
+    }
+  }
 
   if (pos_options_repr != "")
     command_and_options += " " + pos_options_repr;
@@ -651,15 +744,30 @@ ConsoleCliCommand::set_parent(const ConsoleCliCommand *parent)
 std::string
 ConsoleCliCommand::keywords_repr()
 {
+  std::vector<CliOption *>* options;
   std::string repr("");
 
-  if (!m_options)
+  if (!m_main_group)
     return repr;
 
-  for (size_t i = 0; i < m_options->size(); i++)
+  options = m_main_group->options();
+
+  if (!options)
+    return repr;
+
+  for (size_t i = 0; i < options->size(); i++)
   {
-    repr += m_options->at(i)->keywords_repr();
-    if (i < m_options->size() - 1)
+    if (options->at(i)->hidden())
+      continue;
+
+    std::string option_repr = options->at(i)->repr();
+
+    if (!options->at(i)->required())
+      option_repr = "[" + option_repr + "]";
+
+    repr += option_repr;
+
+    if (i < options->size() - 2)
       repr += " ";
   }
 
@@ -701,6 +809,78 @@ ConsoleCliCommand::positional_options_repr()
       break;
 
     repr += " ";
+  }
+
+  return repr;
+}
+
+OptionsGroup::OptionsGroup()
+  : m_options(0),
+    m_required(false)
+{}
+
+OptionsGroup::~OptionsGroup()
+{
+  if (m_options)
+  {
+    size_t i;
+    for(i = 0; i < m_options->size(); i++)
+    {
+      delete m_options->at(i);
+    }
+    delete m_options;
+    m_options = 0;
+  }
+}
+
+void
+OptionsGroup::add_option(CliOption *option)
+{
+  if (!m_options)
+    m_options = new std::vector<CliOption *>;
+
+  if (option->group() != this)
+  {
+    option->set_group(this);
+    m_options->push_back(option);
+  }
+}
+
+void
+OptionsGroup::remove_option(CliOption *option)
+{
+  option->set_group(0);
+
+  if (!m_options)
+    return;
+
+  std::vector<CliOption *>::iterator it;
+  for (it = m_options->begin(); it != m_options->end(); it++)
+  {
+    if (*it == option)
+    {
+      m_options->erase(it);
+      return;
+    }
+  }
+}
+
+std::string
+OptionsGroup::options_repr()
+{
+  std::string repr = "";
+
+  if (!m_options)
+    return repr;
+
+  size_t i;
+  std::vector<const CliOption *>::iterator it;
+  for (i = 0; i < m_options->size(); i++)
+  {
+    repr += m_options->at(i)->repr();
+
+    if (i != m_options->size() - 1)
+      repr += "|";
   }
 
   return repr;
