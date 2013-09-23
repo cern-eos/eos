@@ -279,6 +279,13 @@ extern "C"
   //              ******* POSIX opened file descriptors *******
   //----------------------------------------------------------------------------
 
+  struct fd_ref
+  {
+    unsigned long long fd;
+    int numRef;
+  };
+
+  typedef struct fd_ref FdRef;
 
   //----------------------------------------------------------------------------
   //! Create an artificial file descriptor
@@ -297,13 +304,16 @@ extern "C"
 
   //----------------------------------------------------------------------------
   //! Release a file descriptor held by a user ona file
+  //!
+  //! @return true if file descriptor was released, otherwise false
+  //!
   //----------------------------------------------------------------------------
-  void xrd_release_open_fd (unsigned long long inode, uid_t uid);
+  int xrd_release_open_fd (unsigned long long inode, uid_t uid);
 
   //----------------------------------------------------------------------------
   //! Add fd as an open file descriptor to speed-up mknod
   //----------------------------------------------------------------------------
-  void xrd_add_open_fd (int fd, unsigned long long inode, uid_t uid);
+  void xrd_add_open_fd (int fd, unsigned long long inode, uid_t uid, int num_ref);
 
   //----------------------------------------------------------------------------
   //! Return posix fd for inode

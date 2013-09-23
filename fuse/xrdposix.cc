@@ -822,7 +822,7 @@ xrd_remove_fd2file (int fd)
 
 
 // Map <inode, user> to a file descriptor
-google::dense_hash_map<std::string, unsigned long long> inodeuser2fd;
+google::dense_hash_map<std::string, FdRef> inodeuser2fd;
 
 // Mutex to protecte the map
 XrdSysMutex mutex_inodeuser2fd;
@@ -830,16 +830,18 @@ XrdSysMutex mutex_inodeuser2fd;
 
 //------------------------------------------------------------------------------
 // Add fd as an open file descriptor to speed-up mknod
+// It is called with num_ref = 0 from the mknod method and with num_ref = 1 from 
+// the open method
 //------------------------------------------------------------------------------
 
 void
-xrd_add_open_fd (int fd, unsigned long long inode, uid_t uid)
+xrd_add_open_fd (int fd, unsigned long long inode, uid_t uid, int num_ref = 0)
 {
-  eos_static_debug("Calling function inode = %llu, uid = %lu.",
-                   inode, (unsigned long) uid);
+  eos_static_debug("Calling function inode = %llu, uid = %lu.", inode, (unsigned long) uid);
 
   XrdSysMutexHelper lock(mutex_inodeuser2fd);
-  inodeuser2fd[generate_index(inode, uid)] = fd;
+  FdRef elem = {(unsigned long long )fd, num_ref};
+  inodeuser2fd[generate_index(inode, uid)] = elem;
 }
 
 
@@ -858,7 +860,8 @@ xrd_get_open_fd (unsigned long long inode, uid_t uid)
 
   if (inodeuser2fd.count(index))
   {
-    return inodeuser2fd[index];
+    inodeuser2fd[index].numRef++;
+    return inodeuser2fd[index].fd;
   }
 
   return 0;
@@ -869,7 +872,7 @@ xrd_get_open_fd (unsigned long long inode, uid_t uid)
 // Relelase file descriptor
 //------------------------------------------------------------------------------
 
-void
+int
 xrd_release_open_fd (unsigned long long inode, uid_t uid)
 {
   eos_static_debug("Calling function inode = %llu, uid = %lu.",
@@ -880,10 +883,17 @@ xrd_release_open_fd (unsigned long long inode, uid_t uid)
 
   if (inodeuser2fd.count(index))
   {
-    inodeuser2fd.erase(index);
-  }
-}
+    eos_static_debug("Number of ref: %i", inodeuser2fd[index].numRef);
 
+    if (--inodeuser2fd[index].numRef == 0)
+    {
+      inodeuser2fd.erase(index);
+      return 1;
+    }
+  }
+
+  return 0;
+}
 
 
 //------------------------------------------------------------------------------

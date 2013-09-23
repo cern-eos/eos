@@ -690,6 +690,7 @@ eosfs_ll_mknod (fuse_req_t req,
 {
   int res;
 
+
   if (S_ISREG (mode))
   {
     const char* parentpath = NULL;
@@ -759,7 +760,7 @@ eosfs_ll_mknod (fuse_req_t req,
     }
     else
     {
-      xrd_add_open_fd (res, (unsigned long long) e.ino, req->ctx.uid);
+      xrd_add_open_fd (res, (unsigned long long) e.ino, req->ctx.uid, 0);
       xrd_store_p2i ((unsigned long long) e.ino, ifullpath);
 
       if (isdebug)
@@ -1076,6 +1077,7 @@ eosfs_ll_open (fuse_req_t req,
                struct fuse_file_info* fi)
 {
   int res;
+  int shared_fd = 0;
   struct stat stbuf;
   char fullpath[16384];
   const char* name = NULL;
@@ -1100,6 +1102,7 @@ eosfs_ll_open (fuse_req_t req,
   {
     if ((res = xrd_get_open_fd ((unsigned long long) ino, req->ctx.uid)) > 0)
     {
+      shared_fd = 1;
       if (isdebug)
       {
         fprintf (stderr, "[%s]: inode=%llu path=%s attaching to res=%d\n",
@@ -1130,10 +1133,15 @@ eosfs_ll_open (fuse_req_t req,
     return;
   }
 
-  fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof ( struct fd_user_info));
+  fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof (struct fd_user_info));
   info->fd = res;
   info->uid = req->ctx.uid;
   fi->fh = (uint64_t) info;
+
+  // Add the new file descriptor only if it was not created by a previous call
+  if (shared_fd == 0)
+    xrd_add_open_fd(info->fd, (unsigned long long) ino, req->ctx.uid, 1);
+    
 
   if ((getenv ("EOS_FUSE_KERNELCACHE")) &&
       (!strcmp (getenv ("EOS_FUSE_KERNELCACHE"), "1")))
@@ -1275,29 +1283,37 @@ eosfs_ll_release (fuse_req_t req,
 {
   if (fi->fh)
   {
+    int res = 0;
     struct fd_user_info* info = (fd_user_info*) fi->fh;
+    int fd = info->fd;
+
     if (isdebug)
     {
       fprintf (stderr, "[%s]: inode=%lld fh=%lld\n",
-               __FUNCTION__, (long long) ino, (long long) info->fd);
+               __FUNCTION__, (long long)ino, (long long)fd) ;
     }
-
-    int res = 0;
-    int fd = info->fd;
-
-    res = xrd_close (fd, ino);
-    xrd_release_read_buffer (fd);
-    xrd_release_open_fd (ino, info->uid);
-    xrd_remove_fd2file (fd);
-
-    // Free memory
-    free (info);
-    fi->fh = 0;
-
-    if (res)
+    
+    if (xrd_release_open_fd(ino, info->uid) == 1)
     {
-      fuse_reply_err (req, -res);
-      return;
+      //fprintf (stderr, "[%s]: Do real close file fd=%i\n", __FUNCTION__, fd) ;
+      res = xrd_close (fd, ino);
+      xrd_release_read_buffer (fd);
+      xrd_remove_fd2file (fd);
+      
+      // Free memory
+      free (info);
+      fi->fh = 0;
+    
+      if (res)
+      {
+        fuse_reply_err (req, -res);
+        return;
+      }
+    }
+    else 
+    {
+      //fprintf (stderr, "[%s]: Deffer closing file fd=%lld inode=%lld\n",
+      //         __FUNCTION__, (long long)fd, (long long) ino) ;
     }
   }
 
