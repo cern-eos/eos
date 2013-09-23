@@ -513,7 +513,9 @@ public:
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
     if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
     {
-      return mHash->Get(key);
+      // avoid to return a string with a 0 pointer !
+      std::string tmp =  mHash->Get(key);
+      return (tmp.length()?tmp:"");
     }
     else
     {
