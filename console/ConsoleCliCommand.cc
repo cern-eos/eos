@@ -812,7 +812,7 @@ ConsoleCliCommand::positional_options_repr()
   {
     repr += (*it).second->repr();
 
-    if (++it == m_positional_options->cend())
+    if (it == --m_positional_options->cend())
       break;
 
     repr += " ";
