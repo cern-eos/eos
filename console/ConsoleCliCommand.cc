@@ -59,6 +59,7 @@ CliOption::CliOption(std::string name, std::string desc, std::string keywords)
 CliOption::CliOption(const CliOption &option)
   : CliOption(option.m_name, option.m_description, "")
 {
+  m_required = option.required();
   m_hidden = option.hidden();
 
   for (std::vector<std::string>::const_iterator it = option.m_keywords->cbegin();

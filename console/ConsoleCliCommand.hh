@@ -34,6 +34,8 @@ public:
   virtual char* keywords_repr() { return strdup(""); };
   virtual const char* name() const { return m_name.c_str(); };
   virtual const char* description() const { return m_description.c_str(); };
+  virtual bool required() const { return m_required; };
+  virtual void set_required(bool req) { m_required = req; };
   virtual bool hidden() const { return m_hidden; };
   virtual void set_hidden(bool hidden) { m_hidden = hidden; };
 
