@@ -433,6 +433,8 @@ ConsoleCliCommand::add_option(CliPositionalOption *option)
 void
 ConsoleCliCommand::add_subcommand(ConsoleCliCommand *subcommand)
 {
+  assert(subcommand != this);
+
   if (m_subcommands == 0)
     m_subcommands = new std::vector<ConsoleCliCommand *>;
 
