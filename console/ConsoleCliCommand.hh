@@ -54,6 +54,7 @@ public:
   virtual AnalysisResult* analyse(std::vector<std::string> &cli_args);
   virtual char* help_string();
   virtual char* keywords_repr();
+  virtual std::string repr();
 
 protected:
   std::vector<std::string> *m_keywords;

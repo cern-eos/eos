@@ -143,6 +143,12 @@ CliOption::keywords_repr()
   return repr;
 }
 
+std::string
+CliOption::repr()
+{
+  return m_keywords->at(0);
+}
+
 char *
 CliOption::help_string()
 {
