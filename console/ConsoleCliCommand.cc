@@ -703,7 +703,11 @@ ConsoleCliCommand::print_usage()
     std::vector<OptionsGroup *>::const_iterator it;
     for (it = m_groups->cbegin(); it != m_groups->cend(); it++)
     {
-      std::string group_repr = (*it)->options_repr();
+      std::string group_repr((*it)->name());
+
+      if (group_repr == "")
+        group_repr = (*it)->options_repr();
+
       command_and_options += " " + ((*it)->required() ? group_repr : "[" + group_repr + "]");
     }
   }
@@ -815,9 +819,14 @@ ConsoleCliCommand::positional_options_repr()
   return repr;
 }
 
-OptionsGroup::OptionsGroup()
-  : m_options(0),
+OptionsGroup::OptionsGroup(std::string name)
+  : m_name(name),
+    m_options(0),
     m_required(false)
+{}
+
+OptionsGroup::OptionsGroup()
+  : OptionsGroup("")
 {}
 
 OptionsGroup::~OptionsGroup()

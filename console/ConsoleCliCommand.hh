@@ -108,6 +108,7 @@ private:
 class OptionsGroup {
 public:
   OptionsGroup();
+  OptionsGroup(std::string name);
   virtual ~OptionsGroup();
   void add_option(CliOption *option);
   void remove_option(CliOption *option);
@@ -115,8 +116,11 @@ public:
   bool required() const { return m_required; };
   void set_required(bool req) { m_required = req; };
   std::string options_repr();
+  std::string name() const { return m_name; };
+  void set_name(std::string name) { m_name = name; };
 
 private:
+  std::string m_name;
   std::vector<CliOption *> *m_options;
   bool m_required;
 };
