@@ -467,6 +467,16 @@ ConsoleCliCommand::add_options(std::vector<CliOption> options)
   }
 }
 
+void
+ConsoleCliCommand::add_options(std::vector<CliPositionalOption> options)
+{
+  std::vector<CliPositionalOption>::const_iterator it = options.cbegin();
+  for (; it != options.cend(); it++)
+  {
+    add_option(*it);
+  }
+}
+
 OptionsGroup*
 ConsoleCliCommand::add_grouped_options(std::vector<CliOption> options)
 {

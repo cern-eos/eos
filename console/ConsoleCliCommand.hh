@@ -135,6 +135,7 @@ public:
   void add_option(const CliPositionalOption &option);
   void add_option(const CliOption &option);
   void add_options(std::vector<CliOption> options);
+  void add_options(std::vector<CliPositionalOption> options);
   void add_group(OptionsGroup *group);
   OptionsGroup* add_grouped_options(std::vector<CliOption> options);
   bool has_errors();
