@@ -835,7 +835,7 @@ XrdSysMutex mutex_inodeuser2fd;
 //------------------------------------------------------------------------------
 
 void
-xrd_add_open_fd (int fd, unsigned long long inode, uid_t uid, int num_ref = 0)
+xrd_add_open_fd (int fd, unsigned long long inode, uid_t uid, int num_ref)
 {
   eos_static_debug("Calling function inode = %llu, uid = %lu.", inode, (unsigned long) uid);
 
