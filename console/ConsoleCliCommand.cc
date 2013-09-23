@@ -436,7 +436,8 @@ ConsoleCliCommand::add_subcommand(ConsoleCliCommand *subcommand)
   if (m_subcommands == 0)
     m_subcommands = new std::vector<ConsoleCliCommand *>;
 
-  m_subcommands->push_back(subcommand);
+  if (std::find(m_subcommands->begin(), m_subcommands->end(), subcommand) == m_subcommands->end())
+    m_subcommands->push_back(subcommand);
   subcommand->set_parent(this);
 }
 
