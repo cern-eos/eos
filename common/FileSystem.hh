@@ -403,7 +403,8 @@ public:
     }
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
     if ( (mHash = mSom->GetObject(mQueuePath.c_str(),"hash"))) {
-      return mHash->Get(key);
+      std::string s=mHash->Get(key);
+      return s.length()?s:std::string("");
     } else {
       skey="";
       return skey; 
