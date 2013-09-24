@@ -486,12 +486,7 @@ ConsoleCliCommand::add_grouped_options(std::vector<CliOption> options)
   OptionsGroup *group = new OptionsGroup;
   add_group(group);
 
-  std::vector<CliOption>::const_iterator it = options.cbegin();
-  for (; it != options.cend(); it++)
-  {
-    CliOption *option_ptr = new CliOption(*it);
-    group->add_option(option_ptr);
-  }
+  group->add_options(options);
 
   return group;
 }
@@ -867,6 +862,24 @@ OptionsGroup::add_option(CliOption *option)
     m_options->push_back(option);
   }
 }
+
+void
+OptionsGroup::add_option(CliOption option)
+{
+  CliOption *option_ptr = new CliOption(option);
+  add_option(option_ptr);
+}
+
+void
+OptionsGroup::add_options(std::vector<CliOption> options)
+{
+  std::vector<CliOption>::const_iterator it = options.cbegin();
+  for (; it != options.cend(); it++)
+  {
+    add_option(*it);
+  }
+}
+
 
 void
 OptionsGroup::remove_option(CliOption *option)

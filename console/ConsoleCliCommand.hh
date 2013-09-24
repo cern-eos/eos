@@ -111,6 +111,8 @@ public:
   OptionsGroup(std::string name);
   virtual ~OptionsGroup();
   void add_option(CliOption *option);
+  void add_option(CliOption option);
+  void add_options(std::vector<CliOption> options);
   void remove_option(CliOption *option);
   std::vector<CliOption *>* options() { return m_options; };
   bool required() const { return m_required; };
