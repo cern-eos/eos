@@ -25,6 +25,7 @@
 #include <assert.h>
 #include <algorithm>
 #include "ConsoleCliCommand.hh"
+#include "common/StringTokenizer.hh"
 
 #define HELP_PADDING 30
 
@@ -32,30 +33,15 @@ std::vector<std::string> *
 splitKeywords (std::string keywords, char delimiter)
 {
   std::vector<std::string> *splitKeywords = new std::vector<std::string>;
+  eos::common::StringTokenizer tokenizer(keywords, delimiter);
+  tokenizer.GetLine();
+  const char *token = tokenizer.GetToken();
 
-  if (keywords.length() == 0)
-    return splitKeywords;
-
-  size_t i = 0;
-  std::string token("");
-
-  while (i < keywords.length())
+  while(token)
   {
-    if (keywords[i] == delimiter)
-    {
-      if (token != "")
-      {
-        splitKeywords->push_back(token);
-        token = "";
-      }
-    }
-    else
-      token += keywords[i];
-
-    i++;
-  }
-  if (token != "")
     splitKeywords->push_back(token);
+    token = tokenizer.GetToken();
+  }
 
   return splitKeywords;
 }
