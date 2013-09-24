@@ -318,7 +318,7 @@ CliPositionalOption::analyse(std::vector<std::string> &cli_args)
 
     res = new AnalysisResult;
     res->values.first = m_name;
-    res->error_msg = "Error: Too few arguments.";
+    res->error_msg = "Error: Please specify " + repr() + ".";
 
     return res;
   }
@@ -341,7 +341,7 @@ CliPositionalOption::analyse(std::vector<std::string> &cli_args)
   res->end = res->start + i;
 
   if (m_num_args != -1 && i < init_pos + num_args)
-    res->error_msg = "Error: Too few arguments for " + m_repr + " argument.";
+    res->error_msg = "Error: Too few arguments for " + m_repr + ".";
 
   return res;
 }
