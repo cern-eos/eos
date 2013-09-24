@@ -10,12 +10,12 @@ class OptionsGroup;
 class ParseError {
 public:
   ParseError(CliBaseOption *option, std::string message);
-  CliBaseOption* option() const { return m_option; };
-  std::string message() const { return m_message; };
+  CliBaseOption* option() const { return mOption; };
+  std::string message() const { return mMessage; };
 
 private:
-  CliBaseOption *m_option;
-  std::string m_message;
+  CliBaseOption *mOption;
+  std::string mMessage;
 };
 
 typedef struct
@@ -23,28 +23,28 @@ typedef struct
   std::pair<std::string, std::vector<std::string>> values;
   std::vector<std::string>::iterator start;
   std::vector<std::string>::iterator end;
-  std::string error_msg;
+  std::string errorMsg;
 } AnalysisResult;
 
 class CliBaseOption {
 public:
   CliBaseOption(std::string name, std::string desc);
   virtual ~CliBaseOption();
-  virtual AnalysisResult* analyse(std::vector<std::string> &cli_args) = 0;
-  virtual char* help_string() { return strdup(""); };
-  virtual char* keywords_repr() { return strdup(""); };
-  virtual const char* name() const { return m_name.c_str(); };
-  virtual const char* description() const { return m_description.c_str(); };
-  virtual bool required() const { return m_required; };
-  virtual void set_required(bool req) { m_required = req; };
-  virtual bool hidden() const { return m_hidden; };
-  virtual void set_hidden(bool hidden) { m_hidden = hidden; };
+  virtual AnalysisResult* analyse(std::vector<std::string> &cliArgs) = 0;
+  virtual char* helpString() { return strdup(""); };
+  virtual char* keywordsRepr() { return strdup(""); };
+  virtual const char* name() const { return mName.c_str(); };
+  virtual const char* description() const { return mDescription.c_str(); };
+  virtual bool required() const { return mRequired; };
+  virtual void setRequired(bool req) { mRequired = req; };
+  virtual bool hidden() const { return mHidden; };
+  virtual void setHidden(bool hidden) { mHidden = hidden; };
 
 protected:
-  std::string m_name;
-  std::string m_description;
-  bool m_required;
-  bool m_hidden;
+  std::string mName;
+  std::string mDescription;
+  bool mRequired;
+  bool mHidden;
 };
 
 class CliOption : public CliBaseOption {
@@ -52,57 +52,57 @@ public:
   CliOption(std::string name, std::string desc, std::string keywords);
   CliOption(const CliOption &option);
   virtual ~CliOption();
-  virtual AnalysisResult* analyse(std::vector<std::string> &cli_args);
-  virtual char* help_string();
-  virtual char* keywords_repr();
+  virtual AnalysisResult* analyse(std::vector<std::string> &cliArgs);
+  virtual char* helpString();
+  virtual char* keywordsRepr();
   virtual std::string repr();
-  virtual void set_group(OptionsGroup *group);
-  virtual const OptionsGroup *group() const { return m_group; };
+  virtual void setGroup(OptionsGroup *group);
+  virtual const OptionsGroup *group() const { return mGroup; };
 
 protected:
-  std::vector<std::string> *m_keywords;
-  OptionsGroup *m_group;
+  std::vector<std::string> *mKeywords;
+  OptionsGroup *mGroup;
 
-  virtual std::string has_keyword(std::string keyword);
-  virtual std::string join_keywords();
+  virtual std::string hasKeyword(std::string keyword);
+  virtual std::string joinKeywords();
 };
 
 class CliOptionWithArgs : public CliOption {
 public:
   CliOptionWithArgs(std::string name, std::string desc, std::string keywords,
-                    std::string joint_keywords,
-                    int min_num_args, int max_num_args);
+                    std::string jointKeywords,
+                    int minNumArgs, int maxNumArgs);
   CliOptionWithArgs(std::string name, std::string desc,
                     std::string keywords,
-                    int min_num_args, int max_num_args,
+                    int minNumArgs, int maxNumArgs,
                     bool required);
-  virtual AnalysisResult* analyse(std::vector<std::string> &cli_args);
+  virtual AnalysisResult* analyse(std::vector<std::string> &cliArgs);
 
 private:
-  int m_min_num_args;
-  int m_max_num_args;
-  std::vector<std::string> *m_joint_keywords;
+  int mMinNumArgs;
+  int mMaxNumArgs;
+  std::vector<std::string> *mJointKeywords;
 };
 
 class CliPositionalOption : public CliBaseOption {
 public:
   CliPositionalOption(std::string name, std::string desc, int position,
-                      int num_args, std::string repr);
+                      int numArgs, std::string repr);
   CliPositionalOption(std::string name, std::string desc, int position,
-                      int num_args, std::string repr, bool required);
+                      int numArgs, std::string repr, bool required);
   CliPositionalOption(std::string name, std::string desc, int position,
                       std::string repr);
   CliPositionalOption(const CliPositionalOption &option);
   ~CliPositionalOption();
-  virtual AnalysisResult* analyse(std::vector<std::string> &cli_args);
-  virtual char* help_string();
+  virtual AnalysisResult* analyse(std::vector<std::string> &cliArgs);
+  virtual char* helpString();
   virtual std::string repr();
-  int position() { return m_position; };
+  int position() { return mPosition; };
 
 private:
-  int m_position;
-  int m_num_args;
-  std::string m_repr;
+  int mPosition;
+  int mNumArgs;
+  std::string mRepr;
 };
 
 class OptionsGroup {
@@ -110,65 +110,65 @@ public:
   OptionsGroup();
   OptionsGroup(std::string name);
   virtual ~OptionsGroup();
-  void add_option(CliOption *option);
-  void add_option(CliOption option);
-  void add_options(std::vector<CliOption> options);
-  void remove_option(CliOption *option);
-  std::vector<CliOption *>* options() { return m_options; };
-  bool required() const { return m_required; };
-  void set_required(bool req) { m_required = req; };
-  std::string options_repr();
-  std::string name() const { return m_name; };
-  void set_name(std::string name) { m_name = name; };
+  void addOption(CliOption *option);
+  void addOption(CliOption option);
+  void addOptions(std::vector<CliOption> options);
+  void removeOption(CliOption *option);
+  std::vector<CliOption *>* options() { return mOptions; };
+  bool required() const { return mRequired; };
+  void setRequired(bool req) { mRequired = req; };
+  std::string optionsRepr();
+  std::string name() const { return mName; };
+  void setName(std::string name) { mName = name; };
 
 private:
-  std::string m_name;
-  std::vector<CliOption *> *m_options;
-  bool m_required;
+  std::string mName;
+  std::vector<CliOption *> *mOptions;
+  bool mRequired;
 };
 
 class ConsoleCliCommand {
 public:
   ConsoleCliCommand (const std::string &name, const std::string &description);
   ~ConsoleCliCommand ();
-  void add_subcommand(ConsoleCliCommand *subcommand);
-  void add_option(CliOption *option);
-  void add_option(CliPositionalOption *option);
-  void add_option(const CliPositionalOption &option);
-  void add_option(const CliOption &option);
-  void add_options(std::vector<CliOption> options);
-  void add_options(std::vector<CliPositionalOption> options);
-  void add_group(OptionsGroup *group);
-  OptionsGroup* add_grouped_options(std::vector<CliOption> options);
-  bool has_errors();
-  ConsoleCliCommand* parse(std::vector<std::string> &cli_args);
-  ConsoleCliCommand* parse(std::string &cli_args);
-  ConsoleCliCommand* parse(std::string cli_args);
-  bool has_value(std::string option_name);
-  bool has_values();
-  std::vector<std::string> get_value(std::string option_name);
-  void print_help();
-  void print_usage();
-  void print_errors();
-  std::string name() const { return m_name;};
-  void set_parent(const ConsoleCliCommand *parent);
+  void addSubcommand(ConsoleCliCommand *subcommand);
+  void addOption(CliOption *option);
+  void addOption(CliPositionalOption *option);
+  void addOption(const CliPositionalOption &option);
+  void addOption(const CliOption &option);
+  void addOptions(std::vector<CliOption> options);
+  void addOptions(std::vector<CliPositionalOption> options);
+  void addGroup(OptionsGroup *group);
+  OptionsGroup* addGroupedOptions(std::vector<CliOption> options);
+  bool hasErrors();
+  ConsoleCliCommand* parse(std::vector<std::string> &cliArgs);
+  ConsoleCliCommand* parse(std::string &cliArgs);
+  ConsoleCliCommand* parse(std::string cliArgs);
+  bool hasValue(std::string optionName);
+  bool hasValues();
+  std::vector<std::string> getValue(std::string optionName);
+  void printHelp();
+  void printUsage();
+  void printErrors();
+  std::string name() const { return mName;};
+  void setParent(const ConsoleCliCommand *parent);
 
 private:
-  std::string m_name;
-  std::string m_description;
-  std::vector<ConsoleCliCommand *> *m_subcommands;
-  OptionsGroup *m_main_group;
-  std::map<int, CliPositionalOption *> *m_positional_options;
-  const ConsoleCliCommand *m_parent_command;
-  std::map<std::string, std::vector<std::string>> m_options_map;
-  std::vector<const ParseError *> *m_errors;
-  std::vector<OptionsGroup *> *m_groups;
-  void analyse_group(OptionsGroup *group, std::vector<std::string> &cli_args);
-  ConsoleCliCommand* is_subcommand(std::vector<std::string> &cli_args);
-  void print_help_for_options(std::vector<CliOption *>* options);
+  std::string mName;
+  std::string mDescription;
+  std::vector<ConsoleCliCommand *> *mSubcommands;
+  OptionsGroup *mMainGroup;
+  std::map<int, CliPositionalOption *> *mPositionalOptions;
+  const ConsoleCliCommand *mParentCommand;
+  std::map<std::string, std::vector<std::string>> mOptionsMap;
+  std::vector<const ParseError *> *mErrors;
+  std::vector<OptionsGroup *> *mGroups;
+  void analyseGroup(OptionsGroup *group, std::vector<std::string> &cliArgs);
+  ConsoleCliCommand* isSubcommand(std::vector<std::string> &cliArgs);
+  void printHelpForOptions(std::vector<CliOption *>* options);
 
-  std::string keywords_repr();
-  std::string subcommands_repr();
-  std::string positional_options_repr();
-  void add_error(const ParseError *);
+  std::string keywordsRepr();
+  std::string subcommandsRepr();
+  std::string positionalOptionsRepr();
+  void addError(const ParseError *);
 };
