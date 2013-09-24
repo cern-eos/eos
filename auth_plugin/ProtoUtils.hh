@@ -369,15 +369,6 @@ namespace utils
                                    const char* opaque);
 
 
-  //----------------------------------------------------------------------------
-  //! Create getStats request ProtocolBuffer object
-  //!
-  //! @return request ProtoBuffer object
-  //!
-  //----------------------------------------------------------------------------
-  RequestProto* GetStatsRequest();
-
-
   //--------------------------------------------------------------------------
   //! Create directory open request ProtocolBuffer object
   //!

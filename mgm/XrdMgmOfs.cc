@@ -8658,15 +8658,6 @@ XrdMgmOfs::AuthWorkerThread()
                            req_proto.truncate().opaque().c_str());
       eos_debug("truncate error msg: %s", error->getErrText());
     }
-    else if (req_proto.type() == RequestProto_OperationType_GSTATS)
-    {
-      // getStats request
-      char* buf = 0;
-      int blen = 0;
-      ret = gOFS->getStats(buf, blen);
-      resp.set_response(ret);
-      eos_debug("getStats executed");
-    }
     else if (req_proto.type() == RequestProto_OperationType_DIROPEN)
     {
       // dir open request

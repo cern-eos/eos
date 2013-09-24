@@ -890,37 +890,14 @@ EosAuthOfs::truncate(const char* path,
 }
 
 
-
 //------------------------------------------------------------------------------
-// getStats function
+// getStats function - not supported by EOS, fake ok response
 //------------------------------------------------------------------------------
 int
 EosAuthOfs::getStats (char *buff, int blen)
 {
-  int retc;
+  int retc = SFS_OK;
   eos_debug("getStats");
-
-  // Get a socket object from the pool
-  zmq::socket_t* socket;
-  mPoolSocket.wait_pop(socket);
-  RequestProto* req_proto = utils::GetStatsRequest();
-     
-  if (!SendProtoBufRequest(socket, req_proto))
-  {
-    OfsEroute.Emsg("getStats", "unable to send request");
-    retc = SFS_ERROR;
-  }
-  else
-  {
-    ResponseProto* resp_getStats = static_cast<ResponseProto*>(GetResponse(socket));
-    retc = resp_getStats->response();
-    eos_debug("getStats retc=%i", retc);
-    delete resp_getStats;
-  }
-
-  // Release socket and free memory
-  gOFS->mPoolSocket.push(socket);
-  delete req_proto;
   return retc;
 }
 

@@ -570,18 +570,6 @@ utils::GetTruncateRequest(const char* path,
 }
 
 
-//------------------------------------------------------------------------------
-// Create getStats request ProtocolBuffer object
-//------------------------------------------------------------------------------
-RequestProto*
-utils::GetStatsRequest()
-{
-  eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
-  req_proto->set_type(RequestProto_OperationType_GSTATS);
-  return req_proto;
-}
-
-
 //--------------------------------------------------------------------------
 // Create directory open request ProtocolBuffer object
 //--------------------------------------------------------------------------

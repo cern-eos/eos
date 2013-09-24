@@ -42,17 +42,16 @@ message RequestProto {
      RENAME    = 10;
      PREPARE   = 11;
      TRUNCATE  = 12;
-     GSTATS    = 13; // does not have a corresponding protobuf obj
-     DIROPEN   = 14;
-     DIRFNAME  = 15;
-     DIRREAD   = 16;
-     DIRCLOSE  = 17;
-     FILEOPEN  = 18;
-     FILEFNAME = 19;
-     FILESTAT  = 20;
-     FILEREAD  = 21;
-     FILEWRITE = 22;
-     FILECLOSE = 23;
+     DIROPEN   = 13;
+     DIRFNAME  = 14;
+     DIRREAD   = 15;
+     DIRCLOSE  = 16;
+     FILEOPEN  = 17;
+     FILEFNAME = 18;
+     FILESTAT  = 19;
+     FILEREAD  = 20;
+     FILEWRITE = 21;
+     FILECLOSE = 22;
   }    	  
 
   // Identifies which filed is filled in 
