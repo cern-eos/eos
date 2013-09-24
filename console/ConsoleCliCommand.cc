@@ -800,10 +800,10 @@ ConsoleCliCommand::keywordsRepr()
     if (!options->at(i)->required())
       optionRepr = "[" + optionRepr + "]";
 
-    repr += optionRepr;
-
-    if (i < options->size() - 2)
+    if (repr != "")
       repr += " ";
+
+    repr += optionRepr;
   }
 
   return repr;
