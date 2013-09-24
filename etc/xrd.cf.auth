@@ -1,9 +1,9 @@
 # EOS Authentication Plugin configuration which can run on the same box as the 
 # MGM instance or on a different port. Do not forget to open the MGM port in iptables.
 xrd.port 1099
-xrootd.fslib /usr/lib64/libeosAuthOfs.so
+xrootd.fslib /usr/lib64/libEosAuthOfs.so
 xrootd.seclib libXrdSec.so
-eosauth.instance xyz.xyz.xyz:15555
+eosauth.instance localhost:15555
 eosauth.loglevel info
 xrootd.chksum eos
 # UNIX authentication + any other type of authentication
