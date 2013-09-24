@@ -427,6 +427,24 @@ ConsoleCliCommand::~ConsoleCliCommand()
     delete mSubcommands;
     mSubcommands = 0;
   }
+
+  clean();
+
+  mErrors = 0;
+}
+
+void
+ConsoleCliCommand::clean()
+{
+  if (mErrors)
+  {
+    for (size_t i = 0; i < mErrors->size(); i++)
+      delete mErrors->at(i);
+
+    mErrors->clear();
+  }
+
+  mOptionsMap.clear();
 }
 
 void
@@ -587,6 +605,8 @@ ConsoleCliCommand::analyseGroup(OptionsGroup *group, std::vector<std::string> &c
 ConsoleCliCommand *
 ConsoleCliCommand::parse(std::vector<std::string> &cliArgs)
 {
+  clean();
+
   if (mSubcommands)
   {
     ConsoleCliCommand *subcommand = isSubcommand(cliArgs);

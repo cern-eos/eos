@@ -194,4 +194,5 @@ private:
   std::string subcommandsRepr();
   std::string positionalOptionsRepr();
   void addError(const ParseError *);
+  void clean();
 };
