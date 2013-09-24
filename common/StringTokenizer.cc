@@ -107,48 +107,41 @@ StringTokenizer::GetLine ()
   if (fCurrentLine < (int) fLineStart.size())
   {
     char* line = fBuffer + fLineStart[fCurrentLine];
+    size_t line_length = strlen(line);
     char* wordptr = line;
     bool inquote = false;
 
-    if (line[0] != 0)
-      fLineArgs.push_back(0);
-
-    for (size_t i = 0; i < strlen(line); i++)
+    for (size_t i = 0; i < line_length; i++)
     {
       if (line[i] == '"')
+        inquote = !inquote;
+
+      if (inquote)
+        continue;
+
+      if (i == line_length - 1)
       {
-        if (inquote)
+        fLineArgs.push_back(wordptr);
+        break;
+      }
+
+      bool charIsEscaped = (i > 1) && (line[i - 1] == '\\');
+      if (line[i] == '\n' || (line[i] == fDelimeter && !charIsEscaped))
+      {
+        // Strip spaces
+        if (*wordptr == ' ')
         {
-          inquote = false;
-        }
-        else
-        {
-          inquote = true;
+          wordptr++;
+          continue;
         }
 
-        if (line[i] == fDelimeter)
-        {
-          if (!inquote)
-          {
-            if ((i > 1) && (line[i] == '\\'))
-            {
-              // don't start a new word here
-            }
-            else
-            {
-              line[i] = 0;
-              fLineArgs.push_back(wordptr);
-              // start a new word here
-              wordptr = line + i + 1;
-            }
-          }
-        }
-      }
-      if (line[i] == '\n')
-      {
         line[i] = 0;
+        fLineArgs.push_back(wordptr);
+        // start a new word here
+        wordptr = line + i + 1;
       }
     }
+
     return line;
   }
   else
