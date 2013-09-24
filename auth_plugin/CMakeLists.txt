@@ -21,29 +21,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-# ----------------------------------------------------------------------
-# File: CMakeLists.txt
-# Author: Elvin-Alin Sindrilaru <esindril@cern.ch> CERN
-# ----------------------------------------------------------------------
-
-# ************************************************************************
-# * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2013 CERN/Switzerland                                  *
-# *                                                                      *
-# * This program is free software: you can redistribute it and/or modify *
-# * it under the terms of the GNU General Public License as published by *
-# * the Free Software Foundation, either version 3 of the License, or    *
-# * (at your option) any later version.                                  *
-# *                                                                      *
-# * This program is distributed in the hope that it will be useful,      *
-# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
-# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
-# * GNU General Public License for more details.                         *
-# *                                                                      *
-# * You should have received a copy of the GNU General Public License    *
-# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
-# ************************************************************************
-
 include_directories(./  
 		    ../
                     ${ZMQ_INCLUDE_DIRS}
@@ -107,21 +84,21 @@ if (PROTOBUF_FOUND)
     ${DFNAME_HDRS}  ${DCLOSE_HDRS}   ${FOPEN_HDRS}  ${FCLOSE_HDRS}
     ${FFNAME_HDRS}  ${FSTAT_HDRS}    ${FREAD_HDRS}  ${FWRITE_HDRS})
 
-  add_library(eosAuthProto SHARED
+  add_library(EosAuthProto SHARED
   	      ProtoUtils.cc ProtoUtils.hh
               ${PROTO_SRCS} ${PROTO_HDRS})
 	      
-  target_link_libraries(eosAuthProto XrdSec ${PROTOBUF_LIBRARIES})
+  target_link_libraries(EosAuthProto XrdSec ${PROTOBUF_LIBRARIES})
 
-  add_library(eosAuthOfs MODULE
+  add_library(EosAuthOfs MODULE
   	      EosAuthOfs.cc  EosAuthOfs.hh
 	      EosAuthOfsFile.cc EosAuthOfsFile.hh	
  	      EosAuthOfsDirectory.cc EosAuthOfsDirectory.hh)
 
-  target_link_libraries(eosAuthOfs 
+  target_link_libraries(EosAuthOfs 
 			XrdOfs XrdServer XrdCl
 			eosCommon
-			eosAuthProto
+			EosAuthProto
 		      	${ZMQ_LIBRARIES})
 
   add_executable(stat_stress
@@ -132,13 +109,13 @@ if (PROTOBUF_FOUND)
 		        ${CMAKE_THREAD_LIB_INIT})
 
   if (Linux)
-    set_target_properties (eosAuthOfs eosAuthProto PROPERTIES
+    set_target_properties (EosAuthOfs EosAuthProto PROPERTIES
                            VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
                            SOVERSION ${VERSION_MAJOR}
                            CLEAN_DIRECT_OUTPUT 1)
   endif(Linux)
 
-  install(TARGETS eosAuthOfs eosAuthProto stat_stress
+  install(TARGETS EosAuthOfs EosAuthProto stat_stress
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}
 	  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
           ARCHIVE DESTINATION ${LIB_INSTALL_DIR})

@@ -37,3 +37,15 @@ add_library(EosAuthTests MODULE
 target_link_libraries(EosAuthTests 
 		      XrdCl
       	              ${CPPUNIT_LIBRARIES})
+if (Linux)
+  set_target_properties(EosAuthTests PROPERTIES
+                        VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+ 			SOVERSION ${VERSION_MAJOR}
+                        CLEAN_DIRECT_OUTPUT 1)
+endif(Linux)
+
+install(TARGETS EosAuthTests
+        LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        ARCHIVE DESTINATION ${LIB_INSTALL_DIR})
+
