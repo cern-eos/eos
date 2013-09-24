@@ -62,7 +62,7 @@ EosAuthOfsDirectory::open(const char* name,
 {
   int retc;
   eos_debug("dir open name=%s", name);
-  mName = name;
+  mName = name; // save only for debugging purposes
   
   // Get a socket object from the pool
   zmq::socket_t* socket;
@@ -75,18 +75,19 @@ EosAuthOfsDirectory::open(const char* name,
   if (!gOFS->SendProtoBufRequest(socket, req_proto))
   {
     eos_err("dir open - unable to send request");
-    return SFS_ERROR;
+    retc = SFS_ERROR;
   }
-
-  ResponseProto* resp_open = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
-  retc = resp_open->response();
-  eos_debug("got response for dir open request");
-
-  delete resp_open;
-  delete req_proto;
-  
-  // Put back the socket object in the pool
+  else
+  {
+    ResponseProto* resp_open = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
+    retc = resp_open->response();
+    eos_debug("got response for dir open request");
+    delete resp_open;
+  }
+    
+  // Release socket and free memory
   gOFS->mPoolSocket.push(socket);
+  delete req_proto;
   return retc;
 }
 
@@ -110,30 +111,31 @@ EosAuthOfsDirectory::nextEntry()
   if (!gOFS->SendProtoBufRequest(socket, req_proto))
   {
     eos_err("dir read - unable to send request");
-    return static_cast<const char*>(0);
-  }
-
-  ResponseProto* resp_read = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
-  retc = resp_read->response();
-  eos_debug("got response for dir read request");
-
-  if (retc == SFS_ERROR)
-  {
-    eos_debug("no more entries or error on server side");
-    return static_cast<const char*>(0);
+    retc = SFS_ERROR;
   }
   else
   {
-    eos_debug("next entry is: %s", resp_read->message().c_str());
-    mNextEntry = resp_read->message();
+    ResponseProto* resp_read = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
+    retc = resp_read->response();
+    eos_debug("got response for dir read request");
+
+    if (retc == SFS_OK)
+    {
+      eos_debug("next entry is: %s", resp_read->message().c_str());
+      mNextEntry = resp_read->message();
+    }
+    else 
+    {
+      eos_debug("no more entries or error on server side");
+    }
+
+    delete resp_read;
   }
 
-  delete resp_read;
-  delete req_proto;
-  
-  // Put back the socket object in the pool
+  // Release socket and free memory
   gOFS->mPoolSocket.push(socket);
-  return mNextEntry.c_str();
+  delete req_proto;
+  return (retc ? static_cast<const char*>(0) : mNextEntry.c_str());
 }
 
 
@@ -156,17 +158,19 @@ EosAuthOfsDirectory::close()
   if (!gOFS->SendProtoBufRequest(socket, req_proto))
   {
     eos_err("dir close - unable to send request");
-    return SFS_ERROR;
+    retc = SFS_ERROR;
   }
-
-  ResponseProto* resp_close = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
-  retc = resp_close->response();
-  eos_debug("got response dir close request");
-  delete resp_close;
-  delete req_proto;
+  else
+  {
+    ResponseProto* resp_close = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
+    retc = resp_close->response();
+    eos_debug("got response dir close request");
+    delete resp_close;
+  }
   
-  // Put back the socket object in the pool
+  // Release socket and free memory
   gOFS->mPoolSocket.push(socket);
+  delete req_proto;
   return retc;
 }
 
@@ -190,30 +194,31 @@ EosAuthOfsDirectory::FName()
   if (!gOFS->SendProtoBufRequest(socket, req_proto))
   {
     eos_err("dir fname - unable to send request");
-    return static_cast<const char*>(0);
-  }
-
-  ResponseProto* resp_fname = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
-  retc = resp_fname->response();
-  eos_debug("got response for dirfname request");
-
-  if (retc == SFS_ERROR)
-  {
-    eos_debug("dir fname not found or error on server side");
-    return static_cast<const char*>(0);
+    retc = SFS_ERROR;
   }
   else
   {
-    eos_debug("dir fname is: %s", resp_fname->message().c_str());
-    mName = resp_fname->message();
-  }
+    ResponseProto* resp_fname = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
+    retc = resp_fname->response();
+    eos_debug("got response for dirfname request");
+    
+    if (retc == SFS_OK)
+    {
+      eos_debug("dir fname is: %s", resp_fname->message().c_str());
+      mName = resp_fname->message();
+    }
+    else 
+    {
+      eos_debug("dir fname not found or error on server side");
+    }
 
-  delete resp_fname;
-  delete req_proto;
+    delete resp_fname;
+  }
   
-  // Put back the socket object in the pool
+  // Release socket and free memory
   gOFS->mPoolSocket.push(socket);
-  return mName.c_str();
+  delete req_proto;
+  return (retc ? static_cast<const char*>(0) : mNextEntry.c_str());
 }
 
 EOSAUTHNAMESPACE_END
