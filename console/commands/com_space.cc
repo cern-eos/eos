@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_space.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -24,275 +25,288 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
+#include <climits>
+/*----------------------------------------------------------------------------*/
 
 using namespace eos::common;
+
+static void
+printConfigHelp()
+{
+
+  std::vector<std::pair<std::string, std::string>> configHelp =
+    {{"space.nominalsize=<value>", "configure the nominal size for this space"},
+     {"space.balancer=on|off ",
+      "enable/disable the space balancer [default=off]"},
+     {"space.balancer.threshold=<percent>",
+      "configure the used bytes deviation which triggers balancing "
+      "[ default=20 (%%) ]"},
+     {"space.balancer.node.rate=<MB/s>",
+      "configure the nominal transfer bandwith per running transfer on a node "
+      "[ default=25 (MB/s) ]"},
+     {"space.balancer.node.ntx=<#>",
+      "configure the number of parallel balancing transfers per node "
+      "[ default=2 (streams) ]"},
+     {"space.converter=on|off ",
+      "enable/disable the space converter [default=off]"},
+     {"space.converter.ntx=<#>",
+      "configure the number of parallel conversions per space "
+      "[ default=2 (streams) ]"},
+     {"space.drainer.node.rate=<MB/s>",
+      "configure the nominal transfer bandwith per running transfer on a node "
+      "[ default=25 (MB/s) ]"},
+     {"space.drainer.node.ntx=<#>",
+      "configure the number of parallel draining transfers per node "
+      "[ default=2 (streams) ]"},
+     {"space.headroom=<size>",
+      "configure the default disk headroom if not defined on a filesystem "
+      "(see fs for details)"},
+     {"space.scaninterval=<sec>",
+      "configure the default scan interval if not defined on a filesystem "
+      "(see fs for details)"},
+     {"space.drainperiod=<sec>",
+      "configure the default drain  period if not defined on a filesystem "
+      "(see fs for details)"},
+     {"space.graceperiod=<sec>",
+      "configure the default grace  period if not defined on a filesystem "
+      "(see fs for details)"},
+     {"space.autorepair=on|off",
+      "enable auto-repair of faulty replica's/files "
+      "(the converter has to be enabled too)"},
+     {"fs.<key>=<value>",
+      "configure file system parameters for each filesystem in this space "
+      "(see help of 'fs config' for detail"}};
+
+  fprintf(stdout, "  KEY=VALUE can be one of:\n");
+
+  for (size_t i = 0; i < configHelp.size(); i++)
+    fprintf(stdout, "\t%-*s\t\t- %s\n",
+            35, configHelp[i].first.c_str(), configHelp[i].second.c_str());
+  fprintf(stdout,
+          "  (size can be given also like 10T, 20G, 2P ... "
+          "without space before the unit)\n");
+}
 
 /* Space listing, configuration, manipulation */
 int
 com_space (char* arg1)
 {
-  XrdOucString in = "";
+  std::string in("");
   bool silent = false;
-  bool printusage = false;
   bool highlighting = true;
-  XrdOucString option = "";
+  XrdOucString command;
   XrdOucEnv* result = 0;
-  bool ok = false;
-  bool sel = false;
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString subcommand = subtokenizer.GetToken();
+  ConsoleCliCommand *parsedCmd, *spaceCmd, *lsSubCmd, *statusSubCmd, *rmSubCmd,
+    *defineSubCmd, *setSubCmd, *quotaSubCmd, *configSubCmd;
 
-  if (wants_help(arg1))
-    goto com_space_usage;
+  spaceCmd = new ConsoleCliCommand("space", "space configuration");
 
-  if (subcommand == "ls")
+  lsSubCmd = new ConsoleCliCommand("ls", "list spaces");
+  lsSubCmd->addOption({"silent", "silent mode", "-s"});
+  lsSubCmd->addGroupedOptions({
+        {"monitor", "print in monitoring format <key>=<value>", "-m"},
+        {"long", "long output - list also file systems after each space", "-l"},
+        {"io", "print IO satistics", "--io"},
+        {"fsck", "print filesystem check statistics", "--fsck"}
+       });
+  lsSubCmd->addOption({"space", "a specific space to list", 1, "<space>"});
+  spaceCmd->addSubcommand(lsSubCmd);
+
+  statusSubCmd = new ConsoleCliCommand("status", "print all defined variables "
+                                       "for a space");
+  statusSubCmd->addOption({"space", "", 1, 1, "<space>", true});
+  spaceCmd->addSubcommand(statusSubCmd);
+
+  rmSubCmd = new ConsoleCliCommand("rm", "remove space");
+  rmSubCmd->addOption({"space", "", 1, 1, "<space>", true});
+  spaceCmd->addSubcommand(rmSubCmd);
+
+  defineSubCmd = new ConsoleCliCommand("define", "define how many filesystems "
+                                       "can end up in one scheduling group "
+                                       "<group-size> (default=0)");
+  defineSubCmd->addOption({"space", "the name for the space", 1, 1, "<space>",
+                           true});
+  CliPositionalOption *groupSize = new CliPositionalOption("groupsize",
+                           "a value of 0 means that no groups are built "
+                           "within a space, otherwise it should be the maximum "
+                           "number of nodes in a scheduling group",
+                           2, 1,
+                           "<group-size>", false);
+  groupSize->addEvalFunction(optionIsIntegerEvalFunc, 0);
+  std::pair<float, float> groupSizeRange = {0.0, 1024};
+  groupSize->addEvalFunction(optionIsNumberInRangeEvalFunc, &groupSizeRange);
+  defineSubCmd->addOption(groupSize);
+  CliPositionalOption *groupMod = new CliPositionalOption("groupmod",
+                           "defines the maximun number of filesystems per node",
+                           3, 1, "<group-mod>", false);
+  groupMod->addEvalFunction(optionIsIntegerEvalFunc, 0);
+  std::pair<float, float> groupModRange = {0.0, 256.0};
+  groupMod->addEvalFunction(optionIsNumberInRangeEvalFunc, &groupModRange);
+  defineSubCmd->addOption(groupMod);
+  spaceCmd->addSubcommand(defineSubCmd);
+
+  setSubCmd = new ConsoleCliCommand("set", "enables/disables all groups under "
+                                    "that space (not the nodes!)");
+  CliPositionalOption activeOption = {"active","", 2, 1,"on|off", true};
+  std::vector<std::string> choices = {"on", "off"};
+  activeOption.addEvalFunction(optionIsChoiceEvalFunc, &choices);
+  setSubCmd->addOption({"space", "", 1, 1, "<space>", true});
+  setSubCmd->addOption(activeOption);
+  spaceCmd->addSubcommand(setSubCmd);
+
+  quotaSubCmd = new ConsoleCliCommand("quota", "enables/disables quota");
+  quotaSubCmd->addOption({"space", "", 1, 1, "<space>", true});
+  quotaSubCmd->addOption(activeOption);
+  spaceCmd->addSubcommand(quotaSubCmd);
+
+  configSubCmd = new ConsoleCliCommand("config", "enables/disables quota");
+  configSubCmd->addOption({"space", "", 1, 1, "<space>", true});
+  configSubCmd->addOption({"config_keyValue", "", 2, 1, "KEY=VALUE", true});
+  spaceCmd->addSubcommand(configSubCmd);
+
+  addHelpOptionRecursively(spaceCmd);
+
+  parsedCmd = spaceCmd->parse(arg1);
+
+  if (parsedCmd == spaceCmd && !spaceCmd->hasValues())
+  {
+    spaceCmd->printUsage();
+    goto bailout;
+  }
+
+  if (checkHelpAndErrors(parsedCmd))
+  {
+    if (parsedCmd == configSubCmd)
+      printConfigHelp();
+
+    goto bailout;
+  }
+
+  if (parsedCmd == lsSubCmd)
   {
     in = "mgm.cmd=space&mgm.subcmd=ls";
-    option = "";
 
-    do
+    silent = lsSubCmd->hasValue("silent");
+
+    if (lsSubCmd->hasValue("monitor"))
     {
-      ok = false;
-      subtokenizer.GetLine();
-      option = subtokenizer.GetToken();
-      if (option.length())
-      {
-        if (option == "-m")
-        {
-          in += "&mgm.outformat=m";
-          ok = true;
-          highlighting = false;
-        }
-        if (option == "-l")
-        {
-          in += "&mgm.outformat=l";
-          ok = true;
-        }
-        if (option == "--io")
-        {
-          in += "&mgm.outformat=io";
-          ok = true;
-        }
-        if (option == "--fsck")
-        {
-          in += "&mgm.outformat=fsck";
-          ok = true;
-        }
-        if (option == "-s")
-        {
-          silent = true;
-          ok = true;
-        }
-        if (!option.beginswith("-"))
-        {
-          in += "&mgm.selection=";
-          in += option;
-          if (!sel)
-            ok = true;
-          sel = true;
-        }
-
-        if (!ok)
-          printusage = true;
-      }
-      else
-      {
-        ok = true;
-      }
+      in += "&mgm.outformat=m";
+      highlighting = false;
     }
-    while (option.length());
+    if (lsSubCmd->hasValue("long"))
+      in += "&mgm.outformat=l";
+    if (lsSubCmd->hasValue("io"))
+      in += "&mgm.outformat=io";
+    if (lsSubCmd->hasValue("fsck"))
+      in += "&mgm.outformat=fsck";
+    if (lsSubCmd->hasValue("space"))
+    {
+      in += "&mgm.selection=";
+      in += lsSubCmd->getValue("space");
+    }
   }
-
-  if (subcommand == "define")
+  else if (parsedCmd == defineSubCmd)
   {
-    in = "mgm.cmd=space&mgm.subcmd=define";
-    XrdOucString nodename = subtokenizer.GetToken();
-    XrdOucString groupsize = subtokenizer.GetToken();
-    XrdOucString groupmod = subtokenizer.GetToken();
+    in = "mgm.cmd=space&mgm.subcmd=define&mgm.space=";
+    in += defineSubCmd->getValue("space");
 
-    if (groupsize == "")
-    {
-      groupsize = "0";
-    }
-
-    if (groupmod == "")
-    {
-      groupmod = 24;
-    }
-
-    if (!nodename.length())
-      printusage = true;
-
-    in += "&mgm.space=";
-    in += nodename;
     in += "&mgm.space.groupsize=";
-    in += groupsize;
+    if (defineSubCmd->hasValue("groupsize"))
+      in += defineSubCmd->getValue("groupsize");
+    else
+      in += "0";
+
     in += "&mgm.space.groupmod=";
-    in += groupmod;
-    ok = true;
+    if (defineSubCmd->hasValue("groupmod"))
+      in += defineSubCmd->getValue("groupmod");
+    else
+      in += "24";
   }
-
-  if (subcommand == "set")
+  else if (parsedCmd == setSubCmd || parsedCmd == quotaSubCmd)
   {
-    in = "mgm.cmd=space&mgm.subcmd=set";
-    XrdOucString nodename = subtokenizer.GetToken();
-    XrdOucString active = subtokenizer.GetToken();
+    std::string active, realCmd;
 
-    if ((!nodename.length()) || (!active.length()))
-      printusage = true;
+    if (parsedCmd->hasValue("active"))
+      active = parsedCmd->getValue("active");
 
-    if ((active != "on") && (active != "off"))
+    in = "mgm.cmd=space&mgm.subcmd=";
+    if (parsedCmd == setSubCmd)
     {
-      printusage = true;
+      in += "set";
+      realCmd = "state";
+    }
+    else
+    {
+      in += "quota";
+      realCmd = "quota";
     }
 
     in += "&mgm.space=";
-    in += nodename;
-    in += "&mgm.space.state=";
+    in += parsedCmd->getValue("space");
+
+    in += "&mgm.space.";
+    in += realCmd;
+    in += "=";
     in += active;
-    ok = true;
   }
-
-  if (subcommand == "rm")
+  else if (parsedCmd == statusSubCmd || parsedCmd == rmSubCmd)
   {
-    in = "mgm.cmd=space&mgm.subcmd=rm";
-    XrdOucString spacename = subtokenizer.GetToken();
+    in = "mgm.cmd=space&mgm.subcmd=";
 
-    if (!spacename.length())
-      printusage = true;
-    in += "&mgm.space=";
-    in += spacename;
-    ok = true;
-  }
+    if (parsedCmd == rmSubCmd)
+      in += "rm";
+    else
+      in += "status";
 
-
-  if (subcommand == "status")
-  {
-    in = "mgm.cmd=space&mgm.subcmd=status";
-    XrdOucString spacename = subtokenizer.GetToken();
-
-    if (!spacename.length())
-      printusage = true;
-    in += "&mgm.space=";
-    in += spacename;
-    ok = true;
-  }
-
-  if (subcommand == "quota")
-  {
-    in = "mgm.cmd=space&mgm.subcmd=quota";
-    XrdOucString spacename = subtokenizer.GetToken();
-    XrdOucString onoff = subtokenizer.GetToken();
-    if ((!spacename.length()) || (!onoff.length()))
+    if (parsedCmd->hasValue("space"))
     {
-      goto com_space_usage;
+      in += "&mgm.space=";
+      in += parsedCmd->getValue("space");
     }
-
-    in += "&mgm.space=";
-    in += spacename;
-    in += "&mgm.space.quota=";
-    in += onoff;
-    ok = true;
   }
-
-  if (subcommand == "config")
+  else if (parsedCmd == configSubCmd)
   {
-    XrdOucString spacename = subtokenizer.GetToken();
-    XrdOucString keyval = subtokenizer.GetToken();
+    configSubCmd->hasValue("config_keyValue");
+    std::string value = configSubCmd->getValue("config_keyValue");
 
-    if ((!spacename.length()) || (!keyval.length()))
-    {
-      goto com_space_usage;
-    }
-
-    if ((keyval.find("=")) == STR_NPOS)
-    {
-      // not like <key>=<val>
-      goto com_space_usage;
-    }
-
-    std::string is = keyval.c_str();
     std::vector<std::string> token;
     std::string delimiter = "=";
-    eos::common::StringConversion::Tokenize(is, token, delimiter);
+    eos::common::StringConversion::Tokenize(value, token, delimiter);
 
     if (token.size() != 2)
-      goto com_space_usage;
+    {
+      parsedCmd->printUsage();
+      printConfigHelp();
 
-    XrdOucString in = "mgm.cmd=space&mgm.subcmd=config&mgm.space.name=";
-    in += spacename;
+      goto bailout;
+    }
+
+    in = "mgm.cmd=space&mgm.subcmd=config&mgm.space.name=";
+    in += configSubCmd->getValue("space");
     in += "&mgm.space.key=";
-    in += token[0].c_str();
+    in += token[0];
     in += "&mgm.space.value=";
-    in += token[1].c_str();
-
-    global_retc = output_result(client_admin_command(in));
-    return (0);
+    in += token[1];
   }
 
-  if (printusage || (!ok))
-    goto com_space_usage;
-
-  result = client_admin_command(in);
+  command = in.c_str();
+  result = client_admin_command(command);
 
   if (!silent)
   {
     global_retc = output_result(result, highlighting);
   }
+  else if (result)
+  {
+    global_retc = 0;
+  }
   else
   {
-    if (result)
-    {
-      global_retc = 0;
-    }
-    else
-    {
-      global_retc = EINVAL;
-    }
+    global_retc = EINVAL;
   }
 
-  return (0);
+ bailout:
+  delete spaceCmd;
 
-com_space_usage:
-
-  fprintf(stdout, "usage: space ls                                                  : list spaces\n");
-  fprintf(stdout, "usage: space ls [-s] [-m|-l|--io|--fsck] [<space>]                   : list in all spaces or select only <space>\n");
-  fprintf(stdout, "                                                                  -s : silent mode\n");
-  fprintf(stdout, "                                                                  -m : monitoring key=value output format\n");
-  fprintf(stdout, "                                                                  -l : long output - list also file systems after each space\n");
-  fprintf(stdout, "                                                                --io : print IO satistics\n");
-  fprintf(stdout, "                                                              --fsck : print filesystem check statistics\n");
-  fprintf(stdout, "       space config <space-name> space.nominalsize=<value>           : configure the nominal size for this space\n");
-  fprintf(stdout, "       space config <space-name> space.balancer=on|off               : enable/disable the space balancer [default=off]\n");
-  fprintf(stdout, "       space config <space-name> space.balancer.threshold=<percent>  : configure the used bytes deviation which triggers balancing            [ default=20 (%%)     ] \n");
-  fprintf(stdout, "       space config <space-name> space.balancer.node.rate=<MB/s>     : configure the nominal transfer bandwith per running transfer on a node [ default=25 (MB/s)   ]\n");
-  fprintf(stdout, "       space config <space-name> space.balancer.node.ntx=<#>         : configure the number of parallel balancing transfers per node          [ default=2 (streams) ]\n");
-  fprintf(stdout, "       space config <space-name> space.converter=on|off              : enable/disable the space converter [default=off]\n");
-  fprintf(stdout, "       space config <space-name> space.converter.ntx=<#>             : configure the number of parallel conversions per space                 [ default=2 (streams) ]\n");
-  fprintf(stdout, "       space config <space-name> space.drainer.node.rate=<MB/s >     : configure the nominal transfer bandwith per running transfer on a node [ default=25 (MB/s)   ]\n");
-  fprintf(stdout, "       space config <space-name> space.drainer.node.ntx=<#>          : configure the number of parallel draining transfers per node           [ default=2 (streams) ]\n");
-  fprintf(stdout, "       space config <space-name> space.lru=on|off                    : enable/disable the LRU policy engine [default=off]\n");
-  fprintf(stdout, "       space config <space-name> space.lru.interval=<sec>            : configure the default lru scan interval\n");
-  fprintf(stdout, "       space config <space-name> space.headroom=<size>               : configure the default disk headroom if not defined on a filesystem (see fs for details)\n");
-  fprintf(stdout, "       space config <space-name> space.scaninterval=<sec>            : configure the default scan interval if not defined on a filesystem (see fs for details)\n");
-  fprintf(stdout, "       space config <space-name> space.drainperiod=<sec>             : configure the default drain  period if not defined on a filesystem (see fs for details)\n");
-  fprintf(stdout, "       space config <space-name> space.graceperiod=<sec>             : configure the default grace  period if not defined on a filesystem (see fs for details)\n");
-  fprintf(stdout, "       space config <space-name> space.autorepair=on|off             : enable auto-repair of faulty replica's/files (the converter has to be enabled too)");
-  fprintf(stdout, "                                                                       => size can be given also like 10T, 20G, 2P ... without space before the unit \n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "       space config <space-name> fs.<key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "       space define <space-name> [<groupsize> [<groupmod>]]             : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "                                                                       => <groupsize>=0 means, that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n");
-  fprintf(stdout, "                                                                       => <groupmod> defines the maximun number of filesystems per node\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "       space status <space-name>                                     : print's all defined variables for space\n");
-  fprintf(stdout, "       space set <space-name> on|off                                 : enables/disabels all groups under that space ( not the nodes !) \n");
-  fprintf(stdout, "       space rm <space-name>                                         : remove space\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "       space quota <space-name> on|off                               : enable/disable quota\n");
   return (0);
 }
