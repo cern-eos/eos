@@ -28,7 +28,6 @@ include_directories(./
 link_directories(${CPPUNIT_LIBRARY}
 		 ${XROOTD_LIB_DIR})
 
-
 add_library(EosAuthTests MODULE
 			 FileTest.cc         
 			 FileSystemTest.cc  
@@ -38,7 +37,3 @@ add_library(EosAuthTests MODULE
 target_link_libraries(EosAuthTests 
 		      XrdCl
       	              ${CPPUNIT_LIBRARIES})
-
-add_executable(text-runner-auth TextRunner.cc PathProcessor.hh)
-target_link_libraries(text-runner-auth dl ${CPPUNIT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-

@@ -24,7 +24,7 @@
 #ifndef __EOSAUTHTEST_NAMESPACE_HH__
 #define __EOSAUTHTEST_NAMESPACE_HH__
 
-#define EOSAUTHTEST_NAMESPACE_BEGIN namespace eosauth { namespace test {
-#define EOSAUTHTEST_NAMESPACE_END }}
+#define EOSAUTHTEST_NAMESPACE_BEGIN namespace eos{  namespace auth { namespace test {
+#define EOSAUTHTEST_NAMESPACE_END }}}
 
 #endif // __EOSAUTHTEST_NAMESPACE_HH__

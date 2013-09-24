@@ -158,9 +158,6 @@ else (NOT MICROHTTPD_FOUND)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
 endif (NOT MICROHTTPD_FOUND)
 
-# Build the authorization plugin only if this is specified by the user
-set(BUILD_AUTH_PLUGIN OFF CACHE STRING "Build authorization plugin?")
-
 ################################################################################
 # install targets
 ################################################################################
@@ -189,11 +186,7 @@ else (CLIENT)
   add_subdirectory (man)
   add_subdirectory (test)
   add_subdirectory (utils)
-
-  if (${BUILD_AUTH_PLUGIN} STREQUAL "ON")
-    add_subdirectory (auth_plugin)  
-    message("++ Notice: Building also the authorization plugin")
-  endif (${BUILD_AUTH_PLUGIN} STREQUAL "ON")
+  add_subdirectory (auth_plugin)  
       
   if (HTTPD_FOUND) 
     if (APR_FOUND)

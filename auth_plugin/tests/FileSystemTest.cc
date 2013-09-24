@@ -67,7 +67,7 @@ class FileSystemTest: public CppUnit::TestCase
  private:
 
   XrdCl::FileSystem* mFs;       ///< XrdCl::FileSystem instance used in the tests
-  eosauth::test::TestEnv* mEnv; ///< testing envirionment object
+  eos::auth::test::TestEnv* mEnv; ///< testing envirionment object
 };
 
 
@@ -80,10 +80,8 @@ CPPUNIT_TEST_SUITE_REGISTRATION(FileSystemTest);
 void
 FileSystemTest::setUp()
 {
-  using namespace eosauth::test;
-  
   // Initialise
-  mEnv = new TestEnv();
+  mEnv = new eos::auth::test::TestEnv();
   std::string address = "root://" + mEnv->GetMapping("server");
   XrdCl::URL url(address);
   CPPUNIT_ASSERT(url.IsValid());
