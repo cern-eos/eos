@@ -633,7 +633,7 @@ ConsoleCliCommand::parse(std::vector<std::string> &cliArgs)
   }
 
   if (numArgsProcessed > 0)
-    addError(new ParseError(0, "Error: Wrong number of arguments."));
+    addError(new ParseError(0, "Error: Unknown arguments found."));
 
   return this;
 }
