@@ -35,7 +35,8 @@ EOSCOMMONNAMESPACE_BEGIN
  * 
  */
 /*----------------------------------------------------------------------------*/
-StringTokenizer::StringTokenizer (const char* s)
+StringTokenizer::StringTokenizer (const char* s, char delimeter)
+  : fDelimeter(delimeter)
 {
   // -----------------------------------------------------------
   // the constructor just parses lines not token's within a line
@@ -125,7 +126,7 @@ StringTokenizer::GetLine ()
           inquote = true;
         }
 
-        if (line[i] == ' ')
+        if (line[i] == fDelimeter)
         {
           if (!inquote)
           {

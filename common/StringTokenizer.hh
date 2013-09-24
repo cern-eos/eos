@@ -55,23 +55,26 @@ EOSCOMMONNAMESPACE_BEGIN
 class StringTokenizer
 {
  char* fBuffer;
+ char fDelimeter;
  int fCurrentLine;
  int fCurrentArg;
  std::vector<size_t> fLineStart;
  std::vector<std::string> fLineArgs;
 
 public:
- StringTokenizer (const char* s);
+ StringTokenizer (const char* s, char delimeter);
+ StringTokenizer (const char* s) : StringTokenizer(s, ' ') {}
 
- StringTokenizer (XrdOucString s)
- {
-  StringTokenizer (s.c_str ());
- }
+ StringTokenizer (XrdOucString s, char delimeter)
+  : StringTokenizer(s.c_str(), delimeter)
+ {}
+ StringTokenizer (XrdOucString s) : StringTokenizer (s, ' ') {};
 
- StringTokenizer (std::string s)
- {
-  StringTokenizer (s.c_str ());
- }
+ StringTokenizer (std::string s, char delimeter)
+  : StringTokenizer (s.c_str (), delimeter)
+ {}
+ StringTokenizer (std::string s) : StringTokenizer (s, ' ') {};
+
  ~StringTokenizer ();
 
  const char* GetLine (); // return the next parsed line seperated by \n
