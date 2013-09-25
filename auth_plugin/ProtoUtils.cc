@@ -111,10 +111,14 @@ void
 utils::ConvertToProtoBuf(const XrdSfsFSctl* obj,
                          XrdSfsFSctlProto*& proto)
 {
-  proto->set_arg1(obj->Arg1);
+  if (obj->Arg1)
+    proto->set_arg1(obj->Arg1);
+
+  if (obj->Arg2)
+    proto->set_arg2(obj->Arg2);
+  
   proto->set_arg1len(obj->Arg1Len);
   proto->set_arg2len(obj->Arg2Len);
-  proto->set_arg2(obj->Arg2);
 }
 
 
@@ -134,9 +138,13 @@ utils::ConvertToProtoBuf(const XrdSfsPrep* obj,
   while (next_path && next_oinfo)
   {
     proto->add_paths(next_path->text);
-    proto->add_oinfo(next_oinfo->text);
     next_path = next_path->next;
-    next_oinfo = next_oinfo->next;
+
+    if (next_oinfo && next_oinfo->text)
+    {
+      proto->add_oinfo(next_oinfo->text);
+      next_oinfo = next_oinfo->next;
+    }
   }
 }
 
@@ -201,9 +209,13 @@ utils::GetXrdSfsPrep(const eos::auth::XrdSfsPrepProto& proto_obj)
   for (int i = 0; i < proto_obj.paths_size(); i++)
   {
     next_paths = new XrdOucTList(proto_obj.paths(i).c_str());
-    next_oinfo = new XrdOucTList(proto_obj.oinfo(i).c_str());
     next_paths = next_paths->next;
-    next_oinfo = next_oinfo->next;
+    
+    if (proto_obj.oinfo_size())
+    {
+      next_oinfo = new XrdOucTList(proto_obj.oinfo(i).c_str());
+      next_oinfo = next_oinfo->next;
+    }
   }
 
   return obj;
@@ -229,10 +241,17 @@ XrdSfsFSctl*
 utils::GetXrdSfsFSctl(const eos::auth::XrdSfsFSctlProto& proto_obj)
 {
   XrdSfsFSctl* obj = new XrdSfsFSctl();
-  obj->Arg1 = strdup(proto_obj.arg1().c_str());
+  obj->Arg1 = static_cast<const char*>(0);
+  obj->Arg2 = static_cast<const char*>(0);
   obj->Arg1Len = proto_obj.arg1len();
   obj->Arg2Len = proto_obj.arg2len();
-  obj->Arg2 = strdup(proto_obj.arg2().c_str());
+
+  if (proto_obj.has_arg1())
+    obj->Arg1 = strdup(proto_obj.arg1().c_str());
+
+  if (proto_obj.has_arg2())
+    obj->Arg2 = strdup(proto_obj.arg2().c_str());
+  
   return obj;
 }
 

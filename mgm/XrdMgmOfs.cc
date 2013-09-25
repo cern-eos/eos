@@ -8557,7 +8557,12 @@ XrdMgmOfs::AuthWorkerThread()
       client = utils::GetXrdSecEntity(req_proto.fsctl2().client());
       XrdSfsFSctl* obj = utils::GetXrdSfsFSctl(req_proto.fsctl2().args());
       ret = gOFS->FSctl(req_proto.fsctl2().cmd(), *obj, *error.get(), client);
-      eos_debug("FSctl error msg: %s", error->getErrText());      
+      eos_debug("FSctl error msg: %s", error->getErrText());
+
+      // Free memory
+      free(obj->Arg1);
+      free(obj->Arg2);
+      delete obj;
     }
 
     else if (req_proto.type() == RequestProto_OperationType_CHMOD)

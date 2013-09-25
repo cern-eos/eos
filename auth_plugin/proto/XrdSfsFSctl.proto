@@ -8,6 +8,6 @@ package eos.auth;
 message XrdSfsFSctlProto {
   required string Arg1    = 1;
   required int64  Arg1Len = 2; 
-  required int64  Arg2Len = 3;
-  required string Arg2    = 4;
+  optional int64  Arg2Len = 3 [default = 0];
+  optional string Arg2    = 4;
 }

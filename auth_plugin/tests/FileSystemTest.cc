@@ -25,6 +25,7 @@
 #include <cppunit/extensions/HelperMacros.h>
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClFile.hh"
 #include "TestEnv.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -38,6 +39,15 @@ class FileSystemTest: public CppUnit::TestCase
     CPPUNIT_TEST(StatTest);
     CPPUNIT_TEST(StatFailTest);
     CPPUNIT_TEST(TruncateTest);
+    CPPUNIT_TEST(StatVFSTest);
+    CPPUNIT_TEST(RenameTest);
+    CPPUNIT_TEST(ChksumTest);
+    CPPUNIT_TEST(MkRemDirTest);
+    CPPUNIT_TEST(ChmodTest);
+    CPPUNIT_TEST(PrepareTest);
+    CPPUNIT_TEST(RemTest);
+    CPPUNIT_TEST(FSctlTest);
+    CPPUNIT_TEST(fsctlTest);
   CPPUNIT_TEST_SUITE_END();
 
  public:
@@ -62,6 +72,10 @@ class FileSystemTest: public CppUnit::TestCase
   //----------------------------------------------------------------------------
   void StatFailTest();
 
+  //----------------------------------------------------------------------------
+  //! StatVFS test
+  //----------------------------------------------------------------------------
+  void StatVFSTest();
 
   //----------------------------------------------------------------------------
   //! Truncate test
@@ -74,11 +88,6 @@ class FileSystemTest: public CppUnit::TestCase
   void RenameTest();
 
   //----------------------------------------------------------------------------
-  //! Remdir test
-  //----------------------------------------------------------------------------
-  void RemdirTest();
-
-  //----------------------------------------------------------------------------
   //! Rem test
   //----------------------------------------------------------------------------
   void RemTest();
@@ -89,9 +98,9 @@ class FileSystemTest: public CppUnit::TestCase
   void PrepareTest();
 
   //----------------------------------------------------------------------------
-  //! Mkdir test
+  //! MkRemDir test
   //----------------------------------------------------------------------------
-  void MkdirTest();
+  void MkRemDirTest();
 
   //----------------------------------------------------------------------------
   //! fsctl test
@@ -101,10 +110,10 @@ class FileSystemTest: public CppUnit::TestCase
   //----------------------------------------------------------------------------
   //! FSctl test
   //----------------------------------------------------------------------------
-  void FScltTest();
+  void FSctlTest();
 
   //----------------------------------------------------------------------------
-  //! Exists test
+  //! Exists test - I have no idea how to trigger such a call ...
   //----------------------------------------------------------------------------
   void ExistsTest();
 
@@ -136,12 +145,12 @@ FileSystemTest::setUp()
 {
   // Initialise
   mEnv = new eos::auth::test::TestEnv();
-  std::string address = "root://" + mEnv->GetMapping("server");
+  std::string address = "root://root@" + mEnv->GetMapping("server");
   XrdCl::URL url(address);
   CPPUNIT_ASSERT(url.IsValid());
   
   mFs = new XrdCl::FileSystem(url);
-  CPPUNIT_ASSERT(mFs != 0);
+  CPPUNIT_ASSERT(mFs);
 }
 
 
@@ -164,11 +173,12 @@ void
 FileSystemTest::StatTest()
 {
   XrdCl::StatInfo *stat = 0;
-  std::string file_path = mEnv->GetMapping("file");
-  XrdCl::XRootDStatus status = mFs->Stat(file_path, stat);
+  uint64_t file_size = atoi(mEnv->GetMapping("file_size").c_str());
+  std::string file_name = mEnv->GetMapping("file_name");
+  XrdCl::XRootDStatus status = mFs->Stat(file_name, stat);
   CPPUNIT_ASSERT(status.IsOK());
   CPPUNIT_ASSERT(stat);
-  CPPUNIT_ASSERT(stat->GetSize() == 1048576); // 1MB
+  CPPUNIT_ASSERT(stat->GetSize() == file_size); // 1MB
   CPPUNIT_ASSERT(stat->TestFlags(XrdCl::StatInfo::IsReadable)) ;
   delete stat;
   stat = 0;
@@ -182,12 +192,26 @@ void
 FileSystemTest::StatFailTest()
 {
   XrdCl::StatInfo *stat = 0;
-  std::string file_path = mEnv->GetMapping("file_missing");
-  XrdCl::XRootDStatus status = mFs->Stat(file_path, stat);
+  std::string file_name = mEnv->GetMapping("file_missing");
+  XrdCl::XRootDStatus status = mFs->Stat(file_name, stat);
   CPPUNIT_ASSERT(!status.IsOK());
   CPPUNIT_ASSERT(stat == 0);
   delete stat;
   stat = 0;
+}
+
+
+//------------------------------------------------------------------------------
+// StatVFS test - this request goes to the XrdMgmOfs::fsctl with command id
+// SFS_FSCTL_STATFS = 2 and is not supported by EOS i.e. returns an error
+//------------------------------------------------------------------------------
+void
+FileSystemTest::StatVFSTest()
+{
+  XrdCl::StatInfoVFS* statvfs = 0;
+  XrdCl::XRootDStatus status = mFs->StatVFS("/", statvfs);
+  CPPUNIT_ASSERT(status.IsError());
+  CPPUNIT_ASSERT(status.code == XrdCl::errErrorResponse);
 }
 
 
@@ -197,8 +221,8 @@ FileSystemTest::StatFailTest()
 void
 FileSystemTest::TruncateTest()
 {
-  std::string file_path = mEnv->GetMapping("file");
-  XrdCl::XRootDStatus status = mFs->Truncate(file_path, 1024);
+  std::string file_name = mEnv->GetMapping("file_name");
+  XrdCl::XRootDStatus status = mFs->Truncate(file_name, 1024);
   CPPUNIT_ASSERT(status.IsError());
   CPPUNIT_ASSERT(status.code == XrdCl::errErrorResponse);
 }
@@ -210,19 +234,34 @@ FileSystemTest::TruncateTest()
 void
 FileSystemTest::RenameTest()
 {
+  uint64_t file_size = atoi(mEnv->GetMapping("file_size").c_str());
+  std::string file_name = mEnv->GetMapping("file_name");
+  std::string rename_path = mEnv->GetMapping("file_rename");
+  XrdCl::XRootDStatus status = mFs->Mv(file_name, rename_path);
+  CPPUNIT_ASSERT(status.IsOK());
 
+  // Stat the renamed file 
+  XrdCl::StatInfo *stat = 0;
+  status = mFs->Stat(rename_path, stat);
+  CPPUNIT_ASSERT(status.IsOK());
+  CPPUNIT_ASSERT(stat);
+  CPPUNIT_ASSERT(stat->GetSize() == file_size);
+  CPPUNIT_ASSERT(stat->TestFlags(XrdCl::StatInfo::IsReadable)) ;
+  delete stat;
+  stat = 0;
 
-}
+  // Rename back to initial file name
+  status = mFs->Mv(rename_path, file_name);
+  CPPUNIT_ASSERT(status.IsOK());
 
-
-//------------------------------------------------------------------------------
-// Remdir test
-//------------------------------------------------------------------------------
-void
-FileSystemTest::RemdirTest()
-{
-
-
+  // Stat again the initial file name
+  status = mFs->Stat(file_name, stat);
+  CPPUNIT_ASSERT(status.IsOK());
+  CPPUNIT_ASSERT(stat);
+  CPPUNIT_ASSERT(stat->GetSize() == file_size);
+  CPPUNIT_ASSERT(stat->TestFlags(XrdCl::StatInfo::IsReadable)) ;
+  delete stat;
+  stat = 0;
 }
 
 
@@ -232,19 +271,54 @@ FileSystemTest::RemdirTest()
 void
 FileSystemTest::RemTest()
 {
+  using namespace XrdCl;
+  // Create a dummy file
+  std::string address = "root://root@" + mEnv->GetMapping("server") + "/";
+  XrdCl::URL url(address);
+  CPPUNIT_ASSERT(url.IsValid());
 
+  // Construct the file path
+  std::string file_path = mEnv->GetMapping("dir_name") + "/to_delete.dat";
+  std::string file_url = address + "/";
+  file_url += file_path;
 
+  // Fill 1MB buffer with random content
+  int buff_size = atoi(mEnv->GetMapping("file_size").c_str());
+  char* buffer = new char[buff_size];
+  std::fstream urand("/dev/urandom");
+  urand.read(buffer, buff_size);
+  urand.close();
+
+  // Create and write a 1MB file
+  File file;
+  CPPUNIT_ASSERT(file.Open(file_url, OpenFlags::Delete | OpenFlags::Update,
+                           Access::UR | Access::UW | Access::GR | Access::OR).IsOK());
+  CPPUNIT_ASSERT(file.Write(0, buff_size, buffer).IsOK());
+  CPPUNIT_ASSERT(file.Sync().IsOK());
+  CPPUNIT_ASSERT(file.Close().IsOK());
+
+  // Delete the newly created file
+  CPPUNIT_ASSERT(mFs->Rm(file_path).IsOK());
+  delete[] buffer;
 }
 
 
 //------------------------------------------------------------------------------
-// Prepare test
+// Prepare test - EOS does not support this, it just returns SFS_OK. It seems
+// no one knows what it should do exactly ... :)
 //------------------------------------------------------------------------------
 void
 FileSystemTest::PrepareTest()
 {
-
-
+  using namespace XrdCl;
+  std::string file_name = mEnv->GetMapping("file_name");
+  std::vector<std::string> file_list;
+  file_list.push_back(file_name);
+  Buffer* response = 0;
+  XRootDStatus status = mFs->Prepare(file_list, PrepareFlags::Flags::WriteMode,
+                                     3, response );
+  CPPUNIT_ASSERT(status.IsOK());
+  delete response;
 }
 
 
@@ -252,43 +326,98 @@ FileSystemTest::PrepareTest()
 // Mkdir test
 //------------------------------------------------------------------------------
 void
-FileSystemTest::MkdirTest()
+FileSystemTest::MkRemDirTest()
 {
+  using namespace XrdCl;
+  std::string dir_path = mEnv->GetMapping("dir_new");
+  MkDirFlags::Flags flags = MkDirFlags::Flags::MakePath;
+  Access::Mode mode = Access::Mode::UR | Access::Mode::UW |
+                      Access::Mode::GR | Access::Mode::OR;
+  XRootDStatus status = mFs->MkDir(dir_path, flags, mode);
+  CPPUNIT_ASSERT(status.IsOK());
 
-
+  // Delete the newly created directory
+  status = mFs->RmDir(dir_path);
+  CPPUNIT_ASSERT(status.IsOK());
 }
 
 
 //------------------------------------------------------------------------------
-// fsctl test
+// fsctl test - in XRootD this is called for the following: query for space,
+// locate, stats or xattr. In practice in EOS we only support locate and stats
 //------------------------------------------------------------------------------
 void
 FileSystemTest::fsctlTest()
 {
+  using namespace XrdCl;
+  Buffer* response = 0;
+  Buffer arg;
+  arg.FromString("/");
 
+  // SFS_FSCTL_STATLS is supported
+  XRootDStatus status = mFs->Query(QueryCode::Code::Space, arg, response);
+  CPPUNIT_ASSERT(status.IsOK());
+  CPPUNIT_ASSERT(response->GetSize());
+  delete response;
+  response = 0;
 
+  // This calls getStats() on the EosAutOfs
+  status = mFs->Query(QueryCode::Code::Stats, arg, response);
+  CPPUNIT_ASSERT(status.IsOK());
+  delete response;
+  response = 0;
+
+  // This is not supported - should return an error
+  status = mFs->Query(QueryCode::Code::XAttr, arg, response);
+  CPPUNIT_ASSERT(status.IsError());
+  delete response;
+  response = 0;
+
+  // Test xattr query which calls fsctl with cmd = SFS_FSCTL_STATXS on the
+  // server side which is not supported in EOS
+  status = mFs->Query(QueryCode::Code::XAttr, arg, response);
+  CPPUNIT_ASSERT(status.IsError());
+  delete response;
+  response = 0;
+
+  // Test Locate which calls fsctl with cmd = SFS_FSCTL_LOCATE on the server size
+  std::string file_name = mEnv->GetMapping("file_name");
+  LocationInfo* location;
+  status = mFs->Locate(file_name, OpenFlags::Flags::Read, location);
+  CPPUNIT_ASSERT(status.IsOK());
+  CPPUNIT_ASSERT(location);
+  delete location;
 }
 
 
 //------------------------------------------------------------------------------
-// FSctl test
+// FSctl test - this is called only when we do an opaque query
+//
+// Note: QueryCode::Code::Opaque     -> SFS_FSCTL_PLUGIO
+//       QueryCode::Code::OpaqueFile -> SFS_FSCTL_PLUGIN
+//
 //------------------------------------------------------------------------------
 void
-FileSystemTest::FScltTest()
+FileSystemTest::FSctlTest()
 {
+  using namespace XrdCl;
+  Buffer* response = 0;
+  Buffer arg;
 
+  // SFS_FSCTL_PLUGIN not supported - we expect an error
+  XRootDStatus status = mFs->Query(QueryCode::Code::Opaque, arg, response);
+  CPPUNIT_ASSERT(status.IsError());
+  arg.Release();
+  delete response;
+  response = 0;
 
-}
-
-
-//------------------------------------------------------------------------------
-// Exists test
-//------------------------------------------------------------------------------
-void
-FileSystemTest::ExistsTest()
-{
-
-
+  // Do stat on a file - which is an SFS_FSCTL_PLUGIO and is supported
+  std::ostringstream sstr;
+  sstr << "/?mgm.pcmd=stat&mgm.path=" << mEnv->GetMapping("file_name");
+  arg.FromString(sstr.str());
+  status = mFs->Query(QueryCode::Code::OpaqueFile, arg, response);
+  CPPUNIT_ASSERT(status.IsOK());
+  CPPUNIT_ASSERT(response->GetSize());
 }
 
 
@@ -298,19 +427,49 @@ FileSystemTest::ExistsTest()
 void
 FileSystemTest::ChksumTest()
 {
-
-
+  using namespace XrdCl;
+  std::string file_chksum = mEnv->GetMapping("file_chksum");
+  Buffer* response = 0;
+  Buffer arg;
+  arg.FromString(mEnv->GetMapping("file_name"));
+  XRootDStatus status = mFs->Query(QueryCode::Code::Checksum, arg, response);
+  CPPUNIT_ASSERT(status.IsOK());
+  CPPUNIT_ASSERT(response);
+  CPPUNIT_ASSERT(response->GetSize());
+  CPPUNIT_ASSERT(response->ToString() == file_chksum);  
 }
 
 
 //------------------------------------------------------------------------------
-// Chmod test
+// Chmod test - only works on directories in EOS
 //------------------------------------------------------------------------------
 void
 FileSystemTest::ChmodTest()
 {
+  using namespace XrdCl;
+  std::string dir_name = mEnv->GetMapping("dir_new");
+  std::string file_name = mEnv->GetMapping("file_name");
 
+  //Create dummy directory
+  MkDirFlags::Flags flags = MkDirFlags::Flags::MakePath;
+  Access::Mode mode = Access::Mode::UR | Access::Mode::UW |
+                      Access::Mode::GR | Access::Mode::OR;
+  XRootDStatus status = mFs->MkDir(dir_name, flags, mode);
+  CPPUNIT_ASSERT(status.IsOK());
 
+  // Chmod dir
+  status = mFs->ChMod(dir_name,
+                      Access::Mode::UR | Access::Mode::UW | Access::Mode::UX |
+                      Access::Mode::GR | Access::Mode::GW | Access::Mode::GX |
+                      Access::Mode::OR | Access::Mode::OW | Access::Mode::OX);
+  CPPUNIT_ASSERT(status.IsOK());
+
+  // Chmod file
+  status = mFs->ChMod(file_name,
+                      Access::Mode::UR | Access::Mode::UW | Access::Mode::UX |
+                      Access::Mode::GR | Access::Mode::GW | Access::Mode::GX |
+                      Access::Mode::OR | Access::Mode::OW | Access::Mode::OX);
+  CPPUNIT_ASSERT(status.IsError());
 }
 
 

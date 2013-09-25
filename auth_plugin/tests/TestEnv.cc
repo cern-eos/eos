@@ -31,12 +31,26 @@ EOSAUTHTEST_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Constructor
+//
+// Notice:
+// File /eos/dev/test/auth/file1MB.dat is created as follows:
+// dd if=/dev/zero count=1024 bs=1024 | tr '\000' '\001' > /eos/dev/file1MB.dat
+//
+// And the extended attributes on the /eos/dev/test/auth directory are:
+// sys.forced.checksum="adler"
+//  sys.forced.space="default"
+//
 //------------------------------------------------------------------------------
 TestEnv::TestEnv()
 {
-  mMapParam.insert(std::make_pair("server",       "localhost:1099"));
-  mMapParam.insert(std::make_pair("file",         "/eos/plain/file1MB.dat"));
-  mMapParam.insert(std::make_pair("file_missing", "/eos/plain/file_unknown.dat"));
+  mMapParam.insert(std::make_pair("server","localhost:1099"));
+  mMapParam.insert(std::make_pair("file_name", "/eos/dev/test/auth/file1MB.dat"));
+  mMapParam.insert(std::make_pair("file_size", "1048576")); // 1MB
+  mMapParam.insert(std::make_pair("file_chksum", "eos 71e800f1")); 
+  mMapParam.insert(std::make_pair("file_missing", "/eos/dev/test/auth/file_unknown.dat"));
+  mMapParam.insert(std::make_pair("file_rename", "/eos/dev/test/auth/file1MB.dat_rename"));
+  mMapParam.insert(std::make_pair("dir_name", "/eos/dev/test/auth"));
+  mMapParam.insert(std::make_pair("dir_new", "/eos/dev/test/auth/dummy"));  
 }
 
 

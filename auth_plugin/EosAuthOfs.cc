@@ -489,7 +489,7 @@ EosAuthOfs::chmod (const char *path,
                    const char *opaque)
 {
   int retc;
-  eos_debug("chmod path=%s mode=%i", path, mode);
+  eos_debug("chmod path=%s mode=%o", path, mode);
 
   // Get a socket object from the pool
   zmq::socket_t* socket;
@@ -803,7 +803,7 @@ EosAuthOfs::rename (const char *oldName,
 
 //------------------------------------------------------------------------------
 // Prepare request
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int
 EosAuthOfs::prepare(XrdSfsPrep& pargs,
                     XrdOucErrInfo& error,
@@ -891,7 +891,8 @@ EosAuthOfs::truncate(const char* path,
 
 
 //------------------------------------------------------------------------------
-// getStats function - not supported by EOS, fake ok response
+// getStats function - not supported by EOS, fake ok response HERE i.e. do not
+// build and send a request to the real MGM
 //------------------------------------------------------------------------------
 int
 EosAuthOfs::getStats (char *buff, int blen)

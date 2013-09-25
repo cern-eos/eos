@@ -202,6 +202,7 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
     int prepare(XrdSfsPrep& pargs,
                 XrdOucErrInfo& error,
                 const XrdSecEntity* client = 0);
+  
 
 
     //--------------------------------------------------------------------------
@@ -215,7 +216,8 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
 
 
     //--------------------------------------------------------------------------
-    //! getStats function
+    //! getStats function - fake an ok response HERE i.e. do not build and sent
+    //! a request to the real MGM
     //--------------------------------------------------------------------------
     int getStats (char *buff, int blen);
  
