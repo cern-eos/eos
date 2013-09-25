@@ -670,8 +670,14 @@ ConsoleCliCommand::hasValues()
   return !mOptionsMap.empty();
 }
 
-std::vector<std::string>
+std::string
 ConsoleCliCommand::getValue (std::string optionName)
+{
+  return mOptionsMap[optionName][0];
+}
+
+std::vector<std::string>
+ConsoleCliCommand::getValues (std::string optionName)
 {
   return mOptionsMap[optionName];
 }

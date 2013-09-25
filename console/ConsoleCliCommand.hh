@@ -169,7 +169,8 @@ public:
   ConsoleCliCommand* parse(std::string cliArgs);
   bool hasValue(std::string optionName);
   bool hasValues();
-  std::vector<std::string> getValue(std::string optionName);
+  std::vector<std::string> getValues(std::string optionName);
+  std::string getValue(std::string optionName);
   void printHelp();
   void printUsage();
   void printErrors();
