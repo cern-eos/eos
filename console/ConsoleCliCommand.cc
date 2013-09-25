@@ -29,6 +29,25 @@
 
 #define HELP_PADDING 30
 
+bool isNumber (const CliCheckableOption *option,
+               std::vector<std::string> args,
+               std::string **error,
+               void *userData)
+{
+  for (size_t i = 0; i < args.size(); i++)
+  {
+    for (size_t s = 0; s < args[i].length(); s++)
+    {
+      if (!std::isdigit(args[i][s]))
+      {
+        if (error)
+          error = new std::string("Error: Option needs a number");
+      }
+    }
+  }
+  return true;
+}
+
 std::vector<std::string> *
 splitKeywords (std::string keywords, char delimiter)
 {
@@ -199,6 +218,30 @@ CliOption::helpString()
   return helpStr;
 }
 
+CliCheckableOption::~CliCheckableOption()
+{
+  if (mEvalFunctions)
+    delete mEvalFunctions;
+  mEvalFunctions = 0;
+
+  if (mUserData)
+    delete mUserData;
+  mUserData = 0;
+}
+
+void
+CliCheckableOption::addEvalFunction(evalFuncCb func, void *userData)
+{
+  if (!mEvalFunctions)
+  {
+    mEvalFunctions = new std::vector<evalFuncCb>;
+    mUserData = new std::vector<void *>;
+  }
+
+  mEvalFunctions->push_back(func);
+  mUserData->push_back(userData);
+}
+
 CliOptionWithArgs::CliOptionWithArgs(std::string name,
                                      std::string keywords,
                                      std::string desc,
@@ -295,7 +338,12 @@ CliPositionalOption::CliPositionalOption(const CliPositionalOption &option)
   : CliPositionalOption(option.name(), option.description(),
                         option.mPosition, option.mNumArgs, option.mRepr,
                         option.mRequired)
-{}
+{
+  if (option.mEvalFunctions)
+    mEvalFunctions = new std::vector<evalFuncCb>(*option.mEvalFunctions);
+  if (option.mUserData)
+    mUserData = new std::vector<void *>(*option.mUserData);
+}
 
 CliPositionalOption::~CliPositionalOption() {};
 
@@ -343,14 +391,42 @@ CliPositionalOption::analyse(std::vector<std::string> &cliArgs)
   if (mNumArgs == -1)
     numArgs = cliArgs.size() - initPos;
 
+  std::string *evalErrorMsg = 0;
+
+  if (mNumArgs != -1 && initPos + numArgs > (int) cliArgs.size())
+  {
+    res->errorMsg = "Error: Too few arguments for " + mRepr + ".";
+    goto bailout;
+  }
+
+  if (shouldEvaluate())
+  {
+    for (size_t f = 0; f < mEvalFunctions->size(); f++)
+    {
+      std::vector<std::string>::const_iterator first = cliArgs.cbegin() + initPos;
+      std::vector<std::string>::const_iterator end =
+        cliArgs.cbegin() + std::min(initPos + numArgs, (int) cliArgs.size());
+      std::vector<std::string> args(first, end);
+
+      if (!mEvalFunctions->at(f)(this, args, &evalErrorMsg, mUserData->at(f)))
+      {
+        res->end = res->start + initPos + numArgs;
+        goto bailout;
+      }
+    }
+  }
+
   int i;
   for (i = initPos; i < initPos + numArgs && i < (int) cliArgs.size(); i++)
     res->values.second.push_back(cliArgs.at(i));
 
   res->end = res->start + i;
 
-  if (mNumArgs != -1 && i < initPos + numArgs)
-    res->errorMsg = "Error: Too few arguments for " + mRepr + ".";
+ bailout:
+  if (evalErrorMsg)
+    res->errorMsg = std::string(evalErrorMsg->c_str());
+
+  delete evalErrorMsg;
 
   return res;
 }

@@ -27,8 +27,19 @@
 #include <map>
 
 class CliBaseOption;
+class CliCheckableOption;
 class ConsoleCliCommand;
 class OptionsGroup;
+
+typedef bool (*evalFuncCb) (const CliCheckableOption *option,
+                            std::vector<std::string> &args,
+                            std::string **error,
+                            void *userData);
+
+typedef bool (*isNumber) (const CliCheckableOption *option,
+                          std::vector<std::string> args,
+                          std::string **error,
+                          void *userData);
 
 class ParseError {
 public:
@@ -91,7 +102,18 @@ protected:
   virtual std::string joinKeywords();
 };
 
-class CliOptionWithArgs : public CliOption {
+class CliCheckableOption {
+public:
+  CliCheckableOption() : mEvalFunctions(0), mUserData(0) {}
+  virtual ~CliCheckableOption();
+  bool shouldEvaluate() const { return mEvalFunctions && mUserData; };
+  void addEvalFunction(evalFuncCb func, void *userData);
+protected:
+  std::vector<evalFuncCb> *mEvalFunctions;
+  std::vector<void *> *mUserData;
+};
+
+class CliOptionWithArgs : public CliOption, public CliCheckableOption {
 public:
   CliOptionWithArgs(std::string name, std::string desc, std::string keywords,
                     std::string jointKeywords,
@@ -108,7 +130,7 @@ private:
   std::vector<std::string> *mJointKeywords;
 };
 
-class CliPositionalOption : public CliBaseOption {
+class CliPositionalOption : public CliBaseOption, public CliCheckableOption {
 public:
   CliPositionalOption(std::string name, std::string desc, int position,
                       int numArgs, std::string repr);
