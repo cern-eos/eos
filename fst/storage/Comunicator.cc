@@ -77,7 +77,8 @@ Storage::Communicator ()
 
         if (!queue.beginswith(Config::gConfig.FstQueue))
         {
-          if (queue.beginswith("/config/") && queue.endswith(Config::gConfig.FstHostPort))
+	  // ! endswith seems to be buggy if the comparable suffix is longer than the string !
+          if (queue.beginswith("/config/") && (queue.length() > Config::gConfig.FstHostPort.length()) && queue.endswith(Config::gConfig.FstHostPort))
           {
             // this is the configuration entry and we should store it to have access to it since it's name depends on the instance name and we don't know (yet)
             Config::gConfig.FstNodeConfigQueue = queue;
