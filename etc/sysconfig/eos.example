@@ -86,6 +86,9 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Disable parallel IO mode (default on)
 #export EOS_FUSE_NOPIO=1
 
+# Disable multithreading in FUSE (default on)
+#export EOS_FUSE_NO_MT=1
+
 # ------------------------------------------------------------------
 # HTTPD Configuration
 # ------------------------------------------------------------------
