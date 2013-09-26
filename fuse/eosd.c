@@ -1520,7 +1520,12 @@ int main(int argc, char *argv[])
     if (se != NULL) {
       if (fuse_set_signal_handlers(se) != -1) {
 	fuse_session_add_chan(se, ch);
-	err = fuse_session_loop(se);
+	if ( getenv("EOS_FUSE_NO_MT") &&
+             (!strcmp (getenv ("EOS_FUSE_NO_MT"), "1")) ) {
+          err = fuse_session_loop (se);
+        } else {
+          err = fuse_session_loop_mt (se);
+        }
 	fuse_remove_signal_handlers(se);
 	fuse_session_remove_chan(ch);
       }

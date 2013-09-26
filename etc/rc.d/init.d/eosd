@@ -79,6 +79,8 @@ start() {
 	export EOS_FUSE_CACHE_WRITE=${EOS_FUSE_CACHE_WRITE-1}
 	export EOS_FUSE_BIGWRITES=${EOS_FUSE_BIGWRITES-0}	
         export EOS_FUSE_EXEC=${EOS_FUSE_EXEC-0}
+	export EOS_FUSE_NO_MT={{EOS_FUSE_NO_MT-0}
+
 	export FUSE_OPT=""
 	if [ "x$EOS_FUSE_BIGWRITES" = "x1" ]; then
 	  FUSE_OPT="big_writes,"
@@ -115,6 +117,7 @@ start() {
 	    echo "EOS_FUSE_CACHE_WRITE : ${EOS_FUSE_CACHE_WRITE}"
 	    echo "EOS_FUSE_BIGWRITES   : ${EOS_FUSE_BIGWRITES}"
 	    echo "EOS_FUSE_EXEC        : ${EOS_FUSE_EXEC}"
+            echo "EOS_FUSE_NO_MT       : ${EOS_FUSE_NO_MT}"
 	else 
             echo eosd already running. Pid is $eosdpid 
             echo Stop it first with 'service eosd stop'
