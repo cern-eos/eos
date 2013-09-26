@@ -273,6 +273,8 @@ com_space_usage:
   fprintf(stdout, "       space config <space-name> space.converter.ntx=<#>             : configure the number of parallel conversions per space                 [ default=2 (streams) ]\n");
   fprintf(stdout, "       space config <space-name> space.drainer.node.rate=<MB/s >     : configure the nominal transfer bandwith per running transfer on a node [ default=25 (MB/s)   ]\n");
   fprintf(stdout, "       space config <space-name> space.drainer.node.ntx=<#>          : configure the number of parallel draining transfers per node           [ default=2 (streams) ]\n");
+  fprintf(stdout, "       space config <space-name> space.lru=on|off                    : enable/disable the LRU policy engine [default=off]\n");
+  fprintf(stdout, "       space config <space-name> space.lru.interval=<sec>            : configure the default lru scan interval\n");
   fprintf(stdout, "       space config <space-name> space.headroom=<size>               : configure the default disk headroom if not defined on a filesystem (see fs for details)\n");
   fprintf(stdout, "       space config <space-name> space.scaninterval=<sec>            : configure the default scan interval if not defined on a filesystem (see fs for details)\n");
   fprintf(stdout, "       space config <space-name> space.drainperiod=<sec>             : configure the default drain  period if not defined on a filesystem (see fs for details)\n");

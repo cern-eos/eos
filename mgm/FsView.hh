@@ -326,6 +326,12 @@ public:
       // set two converter streams by default
       if (GetConfigMember("converter.ntx") == "")
         SetConfigMember("converter.ntx", "2", true, "/eos/*/mgm");
+      // disable lru by default
+      if (GetConfigMember("lru") == "")
+        SetConfigMember("converter", "off", true, "/eos/*/mgm");
+      // set one week lru interval by default
+      if (GetConfigMember("lru.interval") == "604800")
+        SetConfigMember("converter.ntx", "2", true, "/eos/*/mgm");
     }
 
 #endif

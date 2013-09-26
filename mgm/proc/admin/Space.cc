@@ -255,10 +255,12 @@ ProcCommand::Space ()
                 (key == "drainer.node.rate") ||
                 (key == "drainer.node.ntx") ||
                 (key == "converter") ||
+                (key == "lru") ||
+                (key == "lru.interval") ||
                 (key == "converter.ntx") ||
                 (key == "balancer.threshold"))
             {
-              if ( (key == "balancer") || (key == "converter") )
+              if ( (key == "balancer") || (key == "converter") || (key == "lru") )
               {
                 if ((value != "on") && (value != "off"))
                 {

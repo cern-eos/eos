@@ -137,9 +137,23 @@ LRU::LRUr ()
     // -------------------------------------------------------------------------
 
     XrdSysThread::SetCancelOff();
+    bool IsEnabledLRU;
+    time_t lLRUInterval;
+    time_t lStartTime=time(NULL);
+    time_t lStopTime;
+
+    {
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      if (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on")
+	IsEnabledLRU = true;
+      else
+	IsEnabledLRU = false;
+      lLRUInterval =
+	atoi(FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru.interval").c_str());
+    }
 
     // only a master needs to run LRU
-    if (gOFS->MgmMaster.IsMaster())
+    if (gOFS->MgmMaster.IsMaster() && IsEnabledLRU)
     {
       // -------------------------------------------------------------------------
       // do a slow find
@@ -253,11 +267,37 @@ LRU::LRUr ()
                       lrudirs.size()
                       );
     }
-    eos_static_info("snooze-time=%llu", snoozetime);
+
+    lStopTime = time(NULL);
+
+    if ( (lStopTime-lStartTime) < lLRUInterval) 
+    {
+      snoozetime = lLRUInterval - (lStopTime-lStartTime);
+    }
+
+    eos_static_info("snooze-time=%llu enabled=%d", snoozetime, IsEnabledLRU);
     XrdSysThread::SetCancelOn();
     XrdSysTimer sleeper;
-    sleeper.Snooze(snoozetime);
-
+    time_t snoozeinterval = 60;
+    size_t snoozeloop = snoozetime/60;
+    for (size_t i=0 ; i<snoozeloop; i++) 
+    {
+      sleeper.Snooze(snoozeinterval);
+      {
+	// check if the setting changes
+	eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+	if ( FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on") 
+	{
+	  if (!IsEnabledLRU)
+	    break;
+	}
+	else
+	{
+	  if (IsEnabledLRU)
+	    break;
+	}
+      }
+    }
   };
   return 0;
 }
