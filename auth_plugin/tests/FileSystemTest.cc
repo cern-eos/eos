@@ -226,6 +226,7 @@ FileSystemTest::StatVFSTest()
   XrdCl::XRootDStatus status = mFs->StatVFS("/", statvfs);
   CPPUNIT_ASSERT(status.IsError());
   CPPUNIT_ASSERT(status.code == XrdCl::errErrorResponse);
+  delete statvfs;
 }
 
 
@@ -432,6 +433,7 @@ FileSystemTest::FSctlTest()
   status = mFs->Query(QueryCode::Code::OpaqueFile, arg, response);
   CPPUNIT_ASSERT(status.IsOK());
   CPPUNIT_ASSERT(response->GetSize());
+  delete response;
 }
 
 
@@ -450,7 +452,8 @@ FileSystemTest::ChksumTest()
   CPPUNIT_ASSERT(status.IsOK());
   CPPUNIT_ASSERT(response);
   CPPUNIT_ASSERT(response->GetSize());
-  CPPUNIT_ASSERT(response->ToString() == file_chksum);  
+  CPPUNIT_ASSERT(response->ToString() == file_chksum);
+  delete response;
 }
 
 
@@ -505,6 +508,7 @@ FileSystemTest::DirListTest()
   CPPUNIT_ASSERT(status.IsOK());
   CPPUNIT_ASSERT(list_dirs->GetSize() == 1);
   CPPUNIT_ASSERT(list_dirs->GetParentName() == dir_path);
+  delete list_dirs;
 }
 
 
