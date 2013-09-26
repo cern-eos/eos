@@ -26,6 +26,11 @@
 #include <utility>
 #include <map>
 
+#define optionIsFloatEvalFunc ((evalFuncCb) isFloatEvalFunc)
+#define optionIsIntegerEvalFunc ((evalFuncCb) isIntegerEvalFunc)
+#define optionIsNumberInRangeEvalFunc ((evalFuncCb) isNumberInRangeEvalFunc)
+#define optionIsChoiceEvalFunc ((evalFuncCb) isChoiceEvalFunc)
+
 class CliBaseOption;
 class CliCheckableOption;
 class ConsoleCliCommand;
@@ -36,10 +41,25 @@ typedef bool (*evalFuncCb) (const CliCheckableOption *option,
                             std::string **error,
                             void *userData);
 
-typedef bool (*isNumber) (const CliCheckableOption *option,
-                          std::vector<std::string> args,
-                          std::string **error,
-                          void *userData);
+bool isFloatEvalFunc (const CliCheckableOption *option,
+                      std::vector<std::string> &args,
+                      std::string **error,
+                      void *userData);
+
+bool isIntegerEvalFunc (const CliCheckableOption *option,
+                        std::vector<std::string> &args,
+                        std::string **error,
+                        void *userData);
+
+bool isNumberInRangeEvalFunc (const CliCheckableOption *option,
+                              std::vector<std::string> &args,
+                              std::string **error,
+                              const std::pair<float, float> *range);
+
+bool isChoiceEvalFunc (const CliCheckableOption *option,
+                       std::vector<std::string> &args,
+                       std::string **error,
+                       const std::vector<std::string> *choices);
 
 class ParseError {
 public:

@@ -23,26 +23,106 @@
 
 #include <string.h>
 #include <assert.h>
+#include <sstream>
 #include <algorithm>
 #include "ConsoleCliCommand.hh"
 #include "common/StringTokenizer.hh"
 
 #define HELP_PADDING 30
 
-bool isNumber (const CliCheckableOption *option,
-               std::vector<std::string> args,
-               std::string **error,
-               void *userData)
+bool isFloatEvalFunc (const CliCheckableOption *option,
+                      std::vector<std::string> &args,
+                      std::string **error,
+                      void *userData)
 {
   for (size_t i = 0; i < args.size(); i++)
   {
     for (size_t s = 0; s < args[i].length(); s++)
     {
+      istringstream ss(args[i]);
+      float number;
+      if (!(ss >> number))
+      {
+        if (error)
+          *error = new std::string("Error: Option " + dynamic_cast<const CliBaseOption *>(option)->repr() + " needs a float.");
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool isIntegerEvalFunc (const CliCheckableOption *option,
+                        std::vector<std::string> &args,
+                        std::string **error,
+                        void *userData)
+{
+  for (size_t i = 0; i < args.size(); i++)
+  {
+    size_t s = 0;
+
+    if (args[i][0] == '-')
+      s++;
+
+    for (; s < args[i].length(); s++)
+    {
       if (!std::isdigit(args[i][s]))
       {
         if (error)
-          error = new std::string("Error: Option needs a number");
+          *error = new std::string("Error: Option " + dynamic_cast<const CliBaseOption *>(option)->repr() + " needs an integer.");
+        return false;
       }
+    }
+  }
+  return true;
+}
+
+bool isNumberInRangeEvalFunc (const CliCheckableOption *option,
+                              std::vector<std::string> &args,
+                              std::string **error,
+                              const std::pair<float, float> *range)
+{
+  for (size_t i = 0; i < args.size(); i++)
+  {
+    for (size_t s = 0; s < args[i].length(); s++)
+    {
+      istringstream ss(args[i]);
+      float number;
+      if (!(ss >> number) || (range->first > number || number > range->second))
+      {
+        ostringstream limit;
+        if (error)
+        {
+          *error = new std::string("Error: Option " + dynamic_cast<const CliBaseOption *>(option)->repr() + " needs to be between ");
+          limit << range->first << " and " << range->second;
+          (*error)->append(limit.str());
+        }
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool isChoiceEvalFunc (const CliCheckableOption *option,
+                       std::vector<std::string> &args,
+                       std::string **error,
+                       const std::vector<std::string> *choices)
+{
+  assert(choices->size() != 0);
+
+  for (size_t i = 0; i < args.size(); i++)
+  {
+    if (std::find(choices->begin(), choices->end(), args[i]) == choices->end())
+    {
+      if (error)
+      {
+        *error = new std::string("Error: Option " + dynamic_cast<const CliBaseOption *>(option)->repr() + " needs to be");
+        (*error)->append(" " + choices->at(0));
+        for (size_t c = 1; c < choices->size(); c++)
+          (*error)->append((c == choices->size() - 1 ? " or " : ", ") + choices->at(c));
+      }
+      return false;
     }
   }
   return true;
