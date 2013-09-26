@@ -167,7 +167,7 @@ CliOption::keywordsRepr()
 }
 
 std::string
-CliOption::repr()
+CliOption::repr() const
 {
   return mKeywords->at(0);
 }
@@ -356,7 +356,7 @@ CliPositionalOption::analyse(std::vector<std::string> &cliArgs)
 }
 
 std::string
-CliPositionalOption::repr()
+CliPositionalOption::repr() const
 {
   if (!mRequired)
     return "[" + mRepr + "]";

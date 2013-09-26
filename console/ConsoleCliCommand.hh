@@ -62,6 +62,7 @@ public:
   virtual void setRequired(bool req) { mRequired = req; };
   virtual bool hidden() const { return mHidden; };
   virtual void setHidden(bool hidden) { mHidden = hidden; };
+  virtual std::string repr() const = 0;
 
 protected:
   std::string mName;
@@ -78,7 +79,7 @@ public:
   virtual AnalysisResult* analyse(std::vector<std::string> &cliArgs);
   virtual char* helpString();
   virtual char* keywordsRepr();
-  virtual std::string repr();
+  virtual std::string repr() const;
   virtual void setGroup(OptionsGroup *group);
   virtual const OptionsGroup *group() const { return mGroup; };
 
@@ -119,7 +120,7 @@ public:
   ~CliPositionalOption();
   virtual AnalysisResult* analyse(std::vector<std::string> &cliArgs);
   virtual char* helpString();
-  virtual std::string repr();
+  virtual std::string repr() const;
   int position() { return mPosition; };
 
 private:
