@@ -247,10 +247,10 @@ utils::GetXrdSfsFSctl(const eos::auth::XrdSfsFSctlProto& proto_obj)
   obj->Arg2Len = proto_obj.arg2len();
 
   if (proto_obj.has_arg1())
-    obj->Arg1 = strdup(proto_obj.arg1().c_str());
+    obj->Arg1 = const_cast<const char*>(strdup(proto_obj.arg1().c_str()));
 
   if (proto_obj.has_arg2())
-    obj->Arg2 = strdup(proto_obj.arg2().c_str());
+    obj->Arg2 = const_cast<const char*>(strdup(proto_obj.arg2().c_str()));
   
   return obj;
 }

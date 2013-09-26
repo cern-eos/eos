@@ -48,6 +48,8 @@ class FileSystemTest: public CppUnit::TestCase
     CPPUNIT_TEST(RemTest);
     CPPUNIT_TEST(FSctlTest);
     CPPUNIT_TEST(fsctlTest);
+    CPPUNIT_TEST(DirListTest);
+    CPPUNIT_TEST(ProcCommandTest);
   CPPUNIT_TEST_SUITE_END();
 
  public:
@@ -127,6 +129,18 @@ class FileSystemTest: public CppUnit::TestCase
   //----------------------------------------------------------------------------
   void ChmodTest();
 
+  //----------------------------------------------------------------------------
+  //! Directory listing test
+  //----------------------------------------------------------------------------
+  void DirListTest();
+
+
+  //----------------------------------------------------------------------------
+  //! Proc command test which actually tests the File implementation
+  //----------------------------------------------------------------------------
+  void ProcCommandTest();
+
+
  private:
 
   XrdCl::FileSystem* mFs; ///< XrdCl::FileSystem instance used in the tests
@@ -174,8 +188,8 @@ FileSystemTest::StatTest()
 {
   XrdCl::StatInfo *stat = 0;
   uint64_t file_size = atoi(mEnv->GetMapping("file_size").c_str());
-  std::string file_name = mEnv->GetMapping("file_name");
-  XrdCl::XRootDStatus status = mFs->Stat(file_name, stat);
+  std::string file_path = mEnv->GetMapping("file_path");
+  XrdCl::XRootDStatus status = mFs->Stat(file_path, stat);
   CPPUNIT_ASSERT(status.IsOK());
   CPPUNIT_ASSERT(stat);
   CPPUNIT_ASSERT(stat->GetSize() == file_size); // 1MB
@@ -192,8 +206,8 @@ void
 FileSystemTest::StatFailTest()
 {
   XrdCl::StatInfo *stat = 0;
-  std::string file_name = mEnv->GetMapping("file_missing");
-  XrdCl::XRootDStatus status = mFs->Stat(file_name, stat);
+  std::string file_path = mEnv->GetMapping("file_missing");
+  XrdCl::XRootDStatus status = mFs->Stat(file_path, stat);
   CPPUNIT_ASSERT(!status.IsOK());
   CPPUNIT_ASSERT(stat == 0);
   delete stat;
@@ -221,8 +235,8 @@ FileSystemTest::StatVFSTest()
 void
 FileSystemTest::TruncateTest()
 {
-  std::string file_name = mEnv->GetMapping("file_name");
-  XrdCl::XRootDStatus status = mFs->Truncate(file_name, 1024);
+  std::string file_path = mEnv->GetMapping("file_path");
+  XrdCl::XRootDStatus status = mFs->Truncate(file_path, 1024);
   CPPUNIT_ASSERT(status.IsError());
   CPPUNIT_ASSERT(status.code == XrdCl::errErrorResponse);
 }
@@ -235,9 +249,9 @@ void
 FileSystemTest::RenameTest()
 {
   uint64_t file_size = atoi(mEnv->GetMapping("file_size").c_str());
-  std::string file_name = mEnv->GetMapping("file_name");
+  std::string file_path = mEnv->GetMapping("file_path");
   std::string rename_path = mEnv->GetMapping("file_rename");
-  XrdCl::XRootDStatus status = mFs->Mv(file_name, rename_path);
+  XrdCl::XRootDStatus status = mFs->Mv(file_path, rename_path);
   CPPUNIT_ASSERT(status.IsOK());
 
   // Stat the renamed file 
@@ -251,11 +265,11 @@ FileSystemTest::RenameTest()
   stat = 0;
 
   // Rename back to initial file name
-  status = mFs->Mv(rename_path, file_name);
+  status = mFs->Mv(rename_path, file_path);
   CPPUNIT_ASSERT(status.IsOK());
 
   // Stat again the initial file name
-  status = mFs->Stat(file_name, stat);
+  status = mFs->Stat(file_path, stat);
   CPPUNIT_ASSERT(status.IsOK());
   CPPUNIT_ASSERT(stat);
   CPPUNIT_ASSERT(stat->GetSize() == file_size);
@@ -266,7 +280,8 @@ FileSystemTest::RenameTest()
 
 
 //------------------------------------------------------------------------------
-// Rem test
+// Rem test. This also tests the normal writing mode in EOS i.e. the redirection
+// to the FST node.
 //------------------------------------------------------------------------------
 void
 FileSystemTest::RemTest()
@@ -279,8 +294,7 @@ FileSystemTest::RemTest()
 
   // Construct the file path
   std::string file_path = mEnv->GetMapping("dir_name") + "/to_delete.dat";
-  std::string file_url = address + "/";
-  file_url += file_path;
+  std::string file_url = address + file_path;
 
   // Fill 1MB buffer with random content
   int buff_size = atoi(mEnv->GetMapping("file_size").c_str());
@@ -311,9 +325,9 @@ void
 FileSystemTest::PrepareTest()
 {
   using namespace XrdCl;
-  std::string file_name = mEnv->GetMapping("file_name");
+  std::string file_path = mEnv->GetMapping("file_path");
   std::vector<std::string> file_list;
-  file_list.push_back(file_name);
+  file_list.push_back(file_path);
   Buffer* response = 0;
   XRootDStatus status = mFs->Prepare(file_list, PrepareFlags::Flags::WriteMode,
                                      3, response );
@@ -381,9 +395,9 @@ FileSystemTest::fsctlTest()
   response = 0;
 
   // Test Locate which calls fsctl with cmd = SFS_FSCTL_LOCATE on the server size
-  std::string file_name = mEnv->GetMapping("file_name");
+  std::string file_path = mEnv->GetMapping("file_path");
   LocationInfo* location;
-  status = mFs->Locate(file_name, OpenFlags::Flags::Read, location);
+  status = mFs->Locate(file_path, OpenFlags::Flags::Read, location);
   CPPUNIT_ASSERT(status.IsOK());
   CPPUNIT_ASSERT(location);
   delete location;
@@ -413,7 +427,7 @@ FileSystemTest::FSctlTest()
 
   // Do stat on a file - which is an SFS_FSCTL_PLUGIO and is supported
   std::ostringstream sstr;
-  sstr << "/?mgm.pcmd=stat&mgm.path=" << mEnv->GetMapping("file_name");
+  sstr << "/?mgm.pcmd=stat&mgm.path=" << mEnv->GetMapping("file_path");
   arg.FromString(sstr.str());
   status = mFs->Query(QueryCode::Code::OpaqueFile, arg, response);
   CPPUNIT_ASSERT(status.IsOK());
@@ -431,7 +445,7 @@ FileSystemTest::ChksumTest()
   std::string file_chksum = mEnv->GetMapping("file_chksum");
   Buffer* response = 0;
   Buffer arg;
-  arg.FromString(mEnv->GetMapping("file_name"));
+  arg.FromString(mEnv->GetMapping("file_path"));
   XRootDStatus status = mFs->Query(QueryCode::Code::Checksum, arg, response);
   CPPUNIT_ASSERT(status.IsOK());
   CPPUNIT_ASSERT(response);
@@ -447,25 +461,29 @@ void
 FileSystemTest::ChmodTest()
 {
   using namespace XrdCl;
-  std::string dir_name = mEnv->GetMapping("dir_new");
-  std::string file_name = mEnv->GetMapping("file_name");
+  std::string dir_path = mEnv->GetMapping("dir_new");
+  std::string file_path = mEnv->GetMapping("file_path");
 
   //Create dummy directory
   MkDirFlags::Flags flags = MkDirFlags::Flags::MakePath;
   Access::Mode mode = Access::Mode::UR | Access::Mode::UW |
                       Access::Mode::GR | Access::Mode::OR;
-  XRootDStatus status = mFs->MkDir(dir_name, flags, mode);
+  XRootDStatus status = mFs->MkDir(dir_path, flags, mode);
   CPPUNIT_ASSERT(status.IsOK());
 
   // Chmod dir
-  status = mFs->ChMod(dir_name,
+  status = mFs->ChMod(dir_path,
                       Access::Mode::UR | Access::Mode::UW | Access::Mode::UX |
                       Access::Mode::GR | Access::Mode::GW | Access::Mode::GX |
                       Access::Mode::OR | Access::Mode::OW | Access::Mode::OX);
   CPPUNIT_ASSERT(status.IsOK());
 
+  // Delete the newly created directory
+  status = mFs->RmDir(dir_path);
+  CPPUNIT_ASSERT(status.IsOK());
+
   // Chmod file
-  status = mFs->ChMod(file_name,
+  status = mFs->ChMod(file_path,
                       Access::Mode::UR | Access::Mode::UW | Access::Mode::UX |
                       Access::Mode::GR | Access::Mode::GW | Access::Mode::GX |
                       Access::Mode::OR | Access::Mode::OW | Access::Mode::OX);
@@ -473,4 +491,60 @@ FileSystemTest::ChmodTest()
 }
 
 
+//------------------------------------------------------------------------------
+// Directory listing test - the initial directory should contain only the
+// initial test file: file1MB.dat 
+//------------------------------------------------------------------------------
+void
+FileSystemTest::DirListTest()
+{
+  using namespace XrdCl;
+  std::string dir_path = mEnv->GetMapping("dir_name");
+  DirectoryList* list_dirs = 0;
+  XRootDStatus status = mFs->DirList(dir_path, DirListFlags::None, list_dirs);
+  CPPUNIT_ASSERT(status.IsOK());
+  CPPUNIT_ASSERT(list_dirs->GetSize() == 1);
+  CPPUNIT_ASSERT(list_dirs->GetParentName() == dir_path);
+}
 
+
+//------------------------------------------------------------------------------
+// Proc command test which actually tests the File implementation. Try to do an
+// "fs ls" command as an administrator.
+//------------------------------------------------------------------------------
+void
+FileSystemTest::ProcCommandTest()
+{
+  using namespace XrdCl;
+  std::string address = "root://root@" + mEnv->GetMapping("server") + "/";
+  XrdCl::URL url(address);
+  CPPUNIT_ASSERT(url.IsValid());
+  
+  // Construct the file path
+  std::string command = "mgm.cmd=fs&mgm.subcmd=ls&eos.ruid=0&eos.rgid=0";
+  std::string file_path = "/proc/admin/?" + command;
+  std::string file_url = address + file_path + command;
+
+  // Open the file for reading - which triggers the command to be executed and
+  // then we just need to read the result of the command from the same file
+  File file;
+  CPPUNIT_ASSERT(file.Open(file_url, OpenFlags::Read).IsOK());
+
+  // Prepare buffer which contains the result
+  std::string output("");
+  uint64_t offset = 0;
+  uint32_t nread = 0;
+  char buffer[4096 + 1];
+  XRootDStatus status = file.Read(offset, 4096, buffer, nread);
+
+  while (status.IsOK() && (nread > 0))
+  {
+    buffer[nread] = '\0';
+    output += buffer;
+    offset += nread;
+    status = file.Read(offset, 4096, buffer, nread);    
+  }
+
+  CPPUNIT_ASSERT(output.length());
+  CPPUNIT_ASSERT(file.Close().IsOK());
+}

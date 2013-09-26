@@ -8560,8 +8560,8 @@ XrdMgmOfs::AuthWorkerThread()
       eos_debug("FSctl error msg: %s", error->getErrText());
 
       // Free memory
-      free(obj->Arg1);
-      free(obj->Arg2);
+      free(const_cast<char*>(obj->Arg1));
+      free(const_cast<char*>(obj->Arg2));
       delete obj;
     }
 
