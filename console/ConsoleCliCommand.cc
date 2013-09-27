@@ -698,6 +698,13 @@ ConsoleCliCommand::addOption(const CliOption &option)
 }
 
 void
+ConsoleCliCommand::addOption(const CliOptionWithArgs &option)
+{
+  CliOptionWithArgs *newObj = new CliOptionWithArgs(option);
+  addOption(newObj);
+}
+
+void
 ConsoleCliCommand::addOption(const CliPositionalOption &option)
 {
   CliPositionalOption *newObj = new CliPositionalOption(option);
