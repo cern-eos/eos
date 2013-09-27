@@ -135,19 +135,18 @@ protected:
 
 class CliOptionWithArgs : public CliOption, public CliCheckableOption {
 public:
-  CliOptionWithArgs(std::string name, std::string desc, std::string keywords,
-                    std::string jointKeywords,
-                    int minNumArgs, int maxNumArgs);
   CliOptionWithArgs(std::string name, std::string desc,
-                    std::string keywords,
-                    int minNumArgs, int maxNumArgs,
-                    bool required);
+                    std::string keywords, int numArgs,
+                    std::string repr, bool required);
   virtual AnalysisResult* analyse(std::vector<std::string> &cliArgs);
+  virtual std::string repr() const;
+
+protected:
+  virtual std::string hasKeyword(std::string keyword);
 
 private:
-  int mMinNumArgs;
-  int mMaxNumArgs;
-  std::vector<std::string> *mJointKeywords;
+  int mNumArgs;
+  std::string mRepr;
 };
 
 class CliPositionalOption : public CliBaseOption, public CliCheckableOption {

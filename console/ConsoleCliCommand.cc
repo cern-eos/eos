@@ -323,70 +323,134 @@ CliCheckableOption::addEvalFunction(evalFuncCb func, void *userData)
 }
 
 CliOptionWithArgs::CliOptionWithArgs(std::string name,
-                                     std::string keywords,
                                      std::string desc,
-				     std::string jointKeywords,
-				     int minNumArgs,
-				     int maxNumArgs)
-  : CliOption::CliOption(name, keywords, desc)
+                                     std::string keywords,
+                                     int numArgs,
+                                     std::string repr,
+                                     bool required)
+  : CliOption::CliOption(name, desc, keywords),
+    mRepr(repr)
 {
-  mMinNumArgs = minNumArgs;
-  mMaxNumArgs = maxNumArgs;
-  mJointKeywords = splitKeywords(jointKeywords, ',');
+  mRequired = required;
 }
 
-// std::string
-// CliOptionWithArgs::hasKeyword(std::string keyword)
-// {
-//   CliOption::hasKeyword(keyword);
 
-//   std::vector<std::string>::iterator it = mJointKeywords->begin();
-//   for (; it != mJointKeywords->end(); it++)
-//   {
-//     std::string current = *it;
-//     if (keyword.compare(0, current.length(), current) == 0)
-//       return "true";
-//   }
+std::string
+CliOptionWithArgs::hasKeyword(std::string keyword)
+{
+  std::vector<std::string>::const_iterator it = mKeywords->cbegin();
+  for (; it != mKeywords->cend(); it++)
+  {
+    if (keyword.compare(*it) == 0)
+      return *it;
 
-//   return "";
-// }
+    const std::string& kw = *it;
+    // If the current keyword ends up in an '=' we check
+    // if its a prefix of the given arguemtn
+    if (kw.back() == '=' &&
+        keyword.compare(0, kw.length(), kw) == 0)
+    {
+      return *it;
+    }
+  }
+
+  return "";
+}
+
+std::string
+CliOptionWithArgs::repr() const
+{
+  std::string reprStr = mRepr;
+
+  if (reprStr != "" && mKeywords)
+  {
+    const std::string &firstKw = mKeywords->front();
+    reprStr = firstKw + (firstKw.back() == '=' ? "" : " ") + reprStr;
+  }
+
+  if (!mRequired)
+    return "[" + reprStr + "]";
+
+  return reprStr;
+}
 
 AnalysisResult *
 CliOptionWithArgs::analyse(std::vector<std::string> &cliArgs)
 {
-  std::pair<std::string, std::vector<std::string>> ret;
-  std::vector<std::string>::iterator it = cliArgs.begin();
-  AnalysisResult *res = new AnalysisResult;
-  res->errorMsg = "";
+  AnalysisResult *res;
 
-  for (; it != cliArgs.end(); it++)
+  std::string firstArg("");
+  size_t initPos;
+  std::vector<std::string> optionArgs;
+  int numArgs = mNumArgs == -1 ? cliArgs.size() : mNumArgs;
+
+  for (initPos = 0; initPos < cliArgs.size(); initPos++)
   {
-    std::string keyword = *it;
-    std::string matchedKw = hasKeyword(keyword);
-
-    if (matchedKw == "")
-      continue;
-
-    ret.first = mName;
-    res->start = it;
-    // If the max number of args is -1, we take it till the 
-    int nArgs = mMaxNumArgs;
-    it++;
-    while (nArgs != 0 && it != cliArgs.end())
+    const std::string &foundKw = hasKeyword(cliArgs[initPos]);
+    if (foundKw != "")
     {
-      ret.second.push_back(*it);
+      if (foundKw[foundKw.length() - 1] == '=')
+        firstArg = cliArgs[initPos].substr(foundKw.length());
 
-      if (nArgs != -1)
-	nArgs--;
-
-      it++;
+      break;
     }
-
-    res->end = it;
-    break;
   }
 
-  res->values = ret;
+  initPos++;
+
+  if (initPos - 1 + numArgs <= cliArgs.size())
+    optionArgs = std::vector<std::string>(cliArgs.cbegin() + initPos,
+                                          cliArgs.cbegin() + initPos - 1 + numArgs);
+
+  if (firstArg != "")
+    optionArgs.insert(optionArgs.begin(), firstArg);
+
+  if (optionArgs.size() == 0 ||
+      numArgs > (int) optionArgs.size())
+  {
+    if (!mRequired)
+      return NULL;
+
+    res = new AnalysisResult;
+    res->values.first = mName;
+    res->start = cliArgs.begin() + initPos;
+    res->end = res->start + 1;
+    res->errorMsg = "Error: Please specify " + repr() + ".";
+
+    return res;
+  }
+
+  res = new AnalysisResult;
+
+  res->values.first = mName;
+  res->start = cliArgs.begin() + initPos;
+  res->errorMsg = "";
+
+  std::string *evalErrorMsg = 0;
+
+  if (shouldEvaluate())
+  {
+    for (size_t f = 0; f < mEvalFunctions->size(); f++)
+    {
+      if (!mEvalFunctions->at(f)(this, optionArgs, &evalErrorMsg, mUserData->at(f)))
+      {
+        res->end = res->start + initPos + optionArgs.size();
+        goto bailout;
+      }
+    }
+  }
+
+  int i;
+  for (i = initPos; i < (int) optionArgs.size(); i++)
+    res->values.second.push_back(optionArgs.at(i));
+
+  res->end = res->start + i;
+
+ bailout:
+  if (evalErrorMsg)
+    res->errorMsg = std::string(evalErrorMsg->c_str());
+
+  delete evalErrorMsg;
 
   return res;
 }
@@ -726,6 +790,10 @@ ConsoleCliCommand::analyseGroup(OptionsGroup *group, std::vector<std::string> &c
     for (; it != options->end(); it++)
       {
         AnalysisResult *res = (*it)->analyse(cliArgs);
+
+        if (!res)
+          continue;
+
         if (res->values.first != "")
         {
           if (optionFound && group != mMainGroup)
@@ -735,7 +803,11 @@ ConsoleCliCommand::analyseGroup(OptionsGroup *group, std::vector<std::string> &c
             return;
           }
 
-          mOptionsMap.insert(res->values);
+          if (res->errorMsg == "")
+            mOptionsMap.insert(res->values);
+          else
+            addError(new ParseError(*it, res->errorMsg));
+
           cliArgs.erase(res->start, res->end);
           optionFound = true;
         }
