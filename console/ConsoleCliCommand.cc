@@ -1127,7 +1127,7 @@ OptionsGroup::addOption(CliOption *option)
 }
 
 void
-OptionsGroup::addOption(CliOption option)
+OptionsGroup::addOption(const CliOption &option)
 {
   CliOption *optionPtr = new CliOption(option);
   addOption(optionPtr);

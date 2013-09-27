@@ -176,7 +176,7 @@ public:
   OptionsGroup(std::string name);
   virtual ~OptionsGroup();
   void addOption(CliOption *option);
-  void addOption(CliOption option);
+  void addOption(const CliOption &option);
   void addOptions(std::vector<CliOption> options);
   void removeOption(CliOption *option);
   std::vector<CliOption *>* options() { return mOptions; };
