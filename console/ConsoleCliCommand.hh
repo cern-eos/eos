@@ -32,31 +32,31 @@
 #define optionIsChoiceEvalFunc ((evalFuncCb) isChoiceEvalFunc)
 
 class CliBaseOption;
-class CliCheckableOption;
+class CliOptionWithArgs;
 class ConsoleCliCommand;
 class OptionsGroup;
 
-typedef bool (*evalFuncCb) (const CliCheckableOption *option,
+typedef bool (*evalFuncCb) (const CliOptionWithArgs *option,
                             std::vector<std::string> &args,
                             std::string **error,
                             void *userData);
 
-bool isFloatEvalFunc (const CliCheckableOption *option,
+bool isFloatEvalFunc (const CliOptionWithArgs *option,
                       std::vector<std::string> &args,
                       std::string **error,
                       void *userData);
 
-bool isIntegerEvalFunc (const CliCheckableOption *option,
+bool isIntegerEvalFunc (const CliOptionWithArgs *option,
                         std::vector<std::string> &args,
                         std::string **error,
                         void *userData);
 
-bool isNumberInRangeEvalFunc (const CliCheckableOption *option,
+bool isNumberInRangeEvalFunc (const CliOptionWithArgs *option,
                               std::vector<std::string> &args,
                               std::string **error,
                               const std::pair<float, float> *range);
 
-bool isChoiceEvalFunc (const CliCheckableOption *option,
+bool isChoiceEvalFunc (const CliOptionWithArgs *option,
                        std::vector<std::string> &args,
                        std::string **error,
                        const std::vector<std::string> *choices);
@@ -122,29 +122,23 @@ protected:
   virtual std::string joinKeywords();
 };
 
-class CliCheckableOption {
-public:
-  CliCheckableOption() : mEvalFunctions(0), mUserData(0) {}
-  virtual ~CliCheckableOption();
-  bool shouldEvaluate() const { return mEvalFunctions && mUserData; };
-  void addEvalFunction(evalFuncCb func, void *userData);
-protected:
-  std::vector<evalFuncCb> *mEvalFunctions;
-  std::vector<void *> *mUserData;
-};
-
-class CliOptionWithArgs : public CliOption, public CliCheckableOption {
+class CliOptionWithArgs : public CliOption{
 public:
   CliOptionWithArgs(std::string name, std::string desc,
                     std::string keywords, int numArgs,
                     std::string repr, bool required);
+  ~CliOptionWithArgs();
   virtual AnalysisResult* analyse(std::vector<std::string> &cliArgs);
   virtual std::string repr() const;
+  bool shouldEvaluate() const { return mEvalFunctions && mUserData; };
+  void addEvalFunction(evalFuncCb func, void *userData);
 
 protected:
   virtual std::string hasKeyword(std::string keyword);
   std::string mRepr;
   int mNumArgs;
+  std::vector<evalFuncCb> *mEvalFunctions;
+  std::vector<void *> *mUserData;
 
   AnalysisResult* commonAnalysis(std::vector<std::string> &cliArgs,
                                  int initPos,

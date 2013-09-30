@@ -30,7 +30,7 @@
 
 #define HELP_PADDING 30
 
-bool isFloatEvalFunc (const CliCheckableOption *option,
+bool isFloatEvalFunc (const CliOptionWithArgs *option,
                       std::vector<std::string> &args,
                       std::string **error,
                       void *userData)
@@ -44,7 +44,7 @@ bool isFloatEvalFunc (const CliCheckableOption *option,
       if (!(ss >> number))
       {
         if (error)
-          *error = new std::string("Error: Option " + dynamic_cast<const CliBaseOption *>(option)->repr() + " needs a float.");
+          *error = new std::string("Error: Option " + option->repr() + " needs a float.");
         return false;
       }
     }
@@ -52,7 +52,7 @@ bool isFloatEvalFunc (const CliCheckableOption *option,
   return true;
 }
 
-bool isIntegerEvalFunc (const CliCheckableOption *option,
+bool isIntegerEvalFunc (const CliOptionWithArgs *option,
                         std::vector<std::string> &args,
                         std::string **error,
                         void *userData)
@@ -69,7 +69,7 @@ bool isIntegerEvalFunc (const CliCheckableOption *option,
       if (!std::isdigit(args[i][s]))
       {
         if (error)
-          *error = new std::string("Error: Option " + dynamic_cast<const CliBaseOption *>(option)->repr() + " needs an integer.");
+          *error = new std::string("Error: Option " + option->repr() + " needs an integer.");
         return false;
       }
     }
@@ -77,7 +77,7 @@ bool isIntegerEvalFunc (const CliCheckableOption *option,
   return true;
 }
 
-bool isNumberInRangeEvalFunc (const CliCheckableOption *option,
+bool isNumberInRangeEvalFunc (const CliOptionWithArgs *option,
                               std::vector<std::string> &args,
                               std::string **error,
                               const std::pair<float, float> *range)
@@ -93,7 +93,7 @@ bool isNumberInRangeEvalFunc (const CliCheckableOption *option,
         ostringstream limit;
         if (error)
         {
-          *error = new std::string("Error: Option " + dynamic_cast<const CliBaseOption *>(option)->repr() + " needs to be between ");
+          *error = new std::string("Error: Option " + option->repr() + " needs to be between ");
           limit << range->first << " and " << range->second;
           (*error)->append(limit.str());
         }
@@ -104,7 +104,7 @@ bool isNumberInRangeEvalFunc (const CliCheckableOption *option,
   return true;
 }
 
-bool isChoiceEvalFunc (const CliCheckableOption *option,
+bool isChoiceEvalFunc (const CliOptionWithArgs *option,
                        std::vector<std::string> &args,
                        std::string **error,
                        const std::vector<std::string> *choices)
@@ -117,7 +117,7 @@ bool isChoiceEvalFunc (const CliCheckableOption *option,
     {
       if (error)
       {
-        *error = new std::string("Error: Option " + dynamic_cast<const CliBaseOption *>(option)->repr() + " needs to be");
+        *error = new std::string("Error: Option " + option->repr() + " needs to be");
         (*error)->append(" " + choices->at(0));
         for (size_t c = 1; c < choices->size(); c++)
           (*error)->append((c == choices->size() - 1 ? " or " : ", ") + choices->at(c));
@@ -312,7 +312,22 @@ CliOption::helpString()
   return helpStr;
 }
 
-CliCheckableOption::~CliCheckableOption()
+CliOptionWithArgs::CliOptionWithArgs(std::string name,
+                                     std::string desc,
+                                     std::string keywords,
+                                     int numArgs,
+                                     std::string repr,
+                                     bool required)
+  : CliOption::CliOption(name, desc, keywords),
+    mRepr(repr),
+    mNumArgs(numArgs),
+    mEvalFunctions(0),
+    mUserData(0)
+{
+  mRequired = required;
+}
+
+CliOptionWithArgs::~CliOptionWithArgs()
 {
   if (mEvalFunctions)
     delete mEvalFunctions;
@@ -324,7 +339,7 @@ CliCheckableOption::~CliCheckableOption()
 }
 
 void
-CliCheckableOption::addEvalFunction(evalFuncCb func, void *userData)
+CliOptionWithArgs::addEvalFunction(evalFuncCb func, void *userData)
 {
   if (!mEvalFunctions)
   {
@@ -335,20 +350,6 @@ CliCheckableOption::addEvalFunction(evalFuncCb func, void *userData)
   mEvalFunctions->push_back(func);
   mUserData->push_back(userData);
 }
-
-CliOptionWithArgs::CliOptionWithArgs(std::string name,
-                                     std::string desc,
-                                     std::string keywords,
-                                     int numArgs,
-                                     std::string repr,
-                                     bool required)
-  : CliOption::CliOption(name, desc, keywords),
-    mRepr(repr),
-    mNumArgs(numArgs)
-{
-  mRequired = required;
-}
-
 
 std::string
 CliOptionWithArgs::hasKeyword(std::string keyword)
