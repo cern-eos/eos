@@ -370,7 +370,8 @@ public:
               XrdOucErrInfo &out_error,
               eos::common::Mapping::VirtualIdentity &vid,
               const char *opaqueO = 0,
-              const char *opaqueN = 0);
+              const char *opaqueN = 0,
+	      bool overwrite = false);
 
   // ---------------------------------------------------------------------------
   // rename file by vid

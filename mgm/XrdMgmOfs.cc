@@ -2767,8 +2767,7 @@ XrdMgmOfs::rename (const char *old_name,
   MAYSTALL;
   MAYREDIRECT;
 
-  return rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN);
-
+  return rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, true);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2778,7 +2777,8 @@ XrdMgmOfs::rename (const char *old_name,
                    XrdOucErrInfo &error,
                    eos::common::Mapping::VirtualIdentity& vid,
                    const char *infoO,
-                   const char *infoN)
+                   const char *infoN,
+		   bool overwrite)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief rename a file or directory
@@ -2844,7 +2844,7 @@ XrdMgmOfs::rename (const char *old_name,
 
     return SFS_ERROR;
   }
-  return _rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, false, false, true);
+  return _rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, false, false, overwrite);
 }
 
 /*----------------------------------------------------------------------------*/
