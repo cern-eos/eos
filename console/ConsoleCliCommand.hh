@@ -143,13 +143,15 @@ public:
 
 protected:
   virtual std::string hasKeyword(std::string keyword);
-
-private:
-  int mNumArgs;
   std::string mRepr;
+  int mNumArgs;
+
+  AnalysisResult* commonAnalysis(std::vector<std::string> &cliArgs,
+                                 int initPos,
+                                 const std::string &firstArg);
 };
 
-class CliPositionalOption : public CliBaseOption, public CliCheckableOption {
+class CliPositionalOption : public CliOptionWithArgs {
 public:
   CliPositionalOption(std::string name, std::string desc, int position,
                       int numArgs, std::string repr);
@@ -166,8 +168,6 @@ public:
 
 private:
   int mPosition;
-  int mNumArgs;
-  std::string mRepr;
 };
 
 class OptionsGroup {

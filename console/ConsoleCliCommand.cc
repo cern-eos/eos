@@ -343,7 +343,8 @@ CliOptionWithArgs::CliOptionWithArgs(std::string name,
                                      std::string repr,
                                      bool required)
   : CliOption::CliOption(name, desc, keywords),
-    mRepr(repr)
+    mRepr(repr),
+    mNumArgs(numArgs)
 {
   mRequired = required;
 }
@@ -392,38 +393,24 @@ CliOptionWithArgs::repr() const
 }
 
 AnalysisResult *
-CliOptionWithArgs::analyse(std::vector<std::string> &cliArgs)
+CliOptionWithArgs::commonAnalysis(std::vector<std::string> &cliArgs,
+                                  int initPos, const std::string &firstArg)
 {
   AnalysisResult *res;
-
-  std::string firstArg("");
-  size_t initPos;
   std::vector<std::string> optionArgs;
-  int numArgs = mNumArgs == -1 ? cliArgs.size() : mNumArgs;
-
-  for (initPos = 0; initPos < cliArgs.size(); initPos++)
-  {
-    const std::string &foundKw = hasKeyword(cliArgs[initPos]);
-    if (foundKw != "")
-    {
-      if (foundKw[foundKw.length() - 1] == '=')
-        firstArg = cliArgs[initPos].substr(foundKw.length());
-
-      break;
-    }
-  }
-
-  initPos++;
-
-  if (initPos - 1 + numArgs <= cliArgs.size())
-    optionArgs = std::vector<std::string>(cliArgs.cbegin() + initPos,
-                                          cliArgs.cbegin() + initPos - 1 + numArgs);
+  int numArgs = mNumArgs == -1 ? max((int) cliArgs.size(), 1) : mNumArgs;
 
   if (firstArg != "")
+  {
     optionArgs.insert(optionArgs.begin(), firstArg);
+    numArgs--;
+  }
 
-  if (optionArgs.size() == 0 ||
-      numArgs > (int) optionArgs.size())
+  if (initPos + numArgs <= (int) cliArgs.size())
+    optionArgs = std::vector<std::string>(cliArgs.cbegin() + initPos,
+                                          cliArgs.cbegin() + initPos + numArgs);
+
+  if (numArgs > (int) optionArgs.size())
   {
     if (!mRequired)
       return NULL;
@@ -431,8 +418,17 @@ CliOptionWithArgs::analyse(std::vector<std::string> &cliArgs)
     res = new AnalysisResult;
     res->values.first = mName;
     res->start = cliArgs.begin() + initPos;
-    res->end = res->start + 1;
-    res->errorMsg = "Error: Please specify " + repr() + ".";
+
+    if (optionArgs.size() == 0)
+    {
+      res->end = res->start;
+      res->errorMsg = "Error: Please specify " + repr() + ".";
+    }
+    else
+    {
+      res->end = res->start + min((int) optionArgs.size(), numArgs);
+      res->errorMsg = "Error: Too few arguments for " + repr() + ".";
+    }
 
     return res;
   }
@@ -472,22 +468,41 @@ CliOptionWithArgs::analyse(std::vector<std::string> &cliArgs)
   return res;
 }
 
+AnalysisResult *
+CliOptionWithArgs::analyse(std::vector<std::string> &cliArgs)
+{
+  size_t initPos;
+  std::string firstArg("");
+
+  for (initPos = 0; initPos < cliArgs.size(); initPos++)
+  {
+    const std::string &foundKw = hasKeyword(cliArgs[initPos]);
+    if (foundKw != "")
+    {
+      if (foundKw[foundKw.length() - 1] == '=')
+        firstArg = cliArgs[initPos].substr(foundKw.length());
+
+      break;
+    }
+  }
+
+  initPos++;
+
+  return commonAnalysis(cliArgs, initPos, firstArg);
+}
+
 CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
                                          int position, int numArgs, std::string repr)
-  : CliBaseOption(name, desc),
-    mPosition(position),
-    mNumArgs(numArgs),
-    mRepr(repr)
-{
-  assert(mPosition > 0 || mPosition == -1);
-}
+  : CliPositionalOption(name, desc, position, numArgs, repr, false)
+{}
 
 CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
                                          int position, int numArgs,
                                          std::string repr, bool required)
-  : CliPositionalOption(name, desc, position, 1, repr)
+  : CliOptionWithArgs(name, desc, "", numArgs, repr, required),
+    mPosition(position)
 {
-  mRequired = required;
+  assert(mPosition > 0 || mPosition == -1);
 }
 
 CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
@@ -527,69 +542,7 @@ CliPositionalOption::helpString()
 AnalysisResult *
 CliPositionalOption::analyse(std::vector<std::string> &cliArgs)
 {
-  AnalysisResult *res;
-
-  if (cliArgs.size() == 0 || mPosition > (int) cliArgs.size())
-  {
-    if (!mRequired)
-      return NULL;
-
-    res = new AnalysisResult;
-    res->values.first = mName;
-    res->errorMsg = "Error: Please specify " + repr() + ".";
-
-    return res;
-  }
-
-  res = new AnalysisResult;
-  int initPos = mPosition - 1;
-
-  res->values.first = mName;
-  res->start = cliArgs.begin() + initPos;
-  res->errorMsg = "";
-
-  int numArgs = mNumArgs;
-  if (mNumArgs == -1)
-    numArgs = cliArgs.size() - initPos;
-
-  std::string *evalErrorMsg = 0;
-
-  if (mNumArgs != -1 && initPos + numArgs > (int) cliArgs.size())
-  {
-    res->errorMsg = "Error: Too few arguments for " + mRepr + ".";
-    goto bailout;
-  }
-
-  if (shouldEvaluate())
-  {
-    for (size_t f = 0; f < mEvalFunctions->size(); f++)
-    {
-      std::vector<std::string>::const_iterator first = cliArgs.cbegin() + initPos;
-      std::vector<std::string>::const_iterator end =
-        cliArgs.cbegin() + std::min(initPos + numArgs, (int) cliArgs.size());
-      std::vector<std::string> args(first, end);
-
-      if (!mEvalFunctions->at(f)(this, args, &evalErrorMsg, mUserData->at(f)))
-      {
-        res->end = res->start + initPos + numArgs;
-        goto bailout;
-      }
-    }
-  }
-
-  int i;
-  for (i = initPos; i < initPos + numArgs && i < (int) cliArgs.size(); i++)
-    res->values.second.push_back(cliArgs.at(i));
-
-  res->end = res->start + i;
-
- bailout:
-  if (evalErrorMsg)
-    res->errorMsg = std::string(evalErrorMsg->c_str());
-
-  delete evalErrorMsg;
-
-  return res;
+  return commonAnalysis(cliArgs, mPosition - 1, "");
 }
 
 std::string
