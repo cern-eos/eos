@@ -88,7 +88,7 @@ export TESTSYSFILE50M=$EOS_TEST_TESTSYS/file.50M
 
 ################################################################################################################
 
-if [ $1 != "list" ]; then 
+if [ "x$1" != "xlist" ]; then 
 
 if [ ! -e $TESTSYSFILE0K ]; then
 echo "####################################"
@@ -125,14 +125,16 @@ echo "####################################"
 yes | dd of=$TESTSYSFILE50M bs=1k count=50000
 fi
 
-CKS50M=`eos-adler32 $TESTSYSFILE1M | awk '{print $4'} | sed s/adler32=//`
+CKS50M=`eos-adler32 $TESTSYSFILE50M | awk '{print $4'} | sed s/adler32=//`
 echo "adler32 (50M) = $CKS50M"
+
+export EOS_TEST_RAIN_DIR=$EOS_TEST_TESTSYS/rain
 
 if [ ! -d $EOS_TEST_RAIN_DIR ]; then
 echo "############################################"
 echo "### Creating RAIN Dir"
 echo "############################################"
-export EOS_TEST_RAIN_DIR=$EOS_TEST_TESTSYS/rain
+
 mkdir -p $EOS_TEST_TESTSYS/rain
 dd if=/dev/urandom of=$EOS_TEST_RAIN_DIR/file1.rain bs=1552K count=1
 dd if=/dev/urandom of=$EOS_TEST_RAIN_DIR/file2.rain bs=18227K count=1
@@ -626,7 +628,7 @@ if [ $? -eq 0 ]; then
 # --------------------------
 # if quota is enabled
 # --------------------------
-runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 0
+runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1
 runtest "### Upload    " unix 1 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=99" "-DITransactionTimeout 1"
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=99" "-DITransactionTimeout 1"
