@@ -179,7 +179,7 @@ SpaceQuota::RemoveQuotaNode (XrdOucString &msg, int &retc)
 void
 SpaceQuota::UpdateLogicalSizeFactor ()
 {
-  // ------------------------------------------------------------------------------------------------------
+  // ------------------A------------------------------------------------------------------------------------
   // ! this routine calculates the default factor for a quota node to calculate the logical available bytes
   // ------------------------------------------------------------------------------------------------------
 
@@ -260,13 +260,13 @@ SpaceQuota::AddQuota (unsigned long tag, unsigned long id, long long value, bool
   if (lock) Mutex.Lock();
   eos_static_debug("add quota tag=%lu id=%lu value=%llu", tag, id, value);
 
-  if (id && (Quota[Index(kGroupBytesTarget, Quota::gProjectId)] > 0))
+  /*  if (id && (Quota[Index(kGroupBytesTarget, Quota::gProjectId)] > 0))
   {
     // project quota implementation accounts on '99' group
     if ((((long long) Quota[Index(tag, Quota::gProjectId)]) + (long long) value) >= 0)
       Quota[Index(tag, Quota::gProjectId)] += value;
   }
-  else
+  else*/
   {
     // user/group quota implementation
     // fix for avoiding negative numbers
@@ -380,6 +380,7 @@ SpaceQuota::UpdateFromQuotaNode (uid_t uid, gid_t gid, bool calc_project_quota)
     ResetQuota(kUserBytesIs, Quota::gProjectId, false);
     ResetQuota(kUserLogicalBytesIs, Quota::gProjectId, false);
     ResetQuota(kUserFilesIs, Quota::gProjectId, false);
+
     ResetQuota(kGroupBytesIs, Quota::gProjectId, false);
     ResetQuota(kGroupFilesIs, Quota::gProjectId, false);
     ResetQuota(kGroupLogicalBytesIs, Quota::gProjectId, false);
@@ -391,10 +392,6 @@ SpaceQuota::UpdateFromQuotaNode (uid_t uid, gid_t gid, bool calc_project_quota)
     AddQuota(kGroupBytesIs, gid, QuotaNode->getPhysicalSpaceByGroup(gid), false);
     AddQuota(kGroupLogicalBytesIs, gid, QuotaNode->getUsedSpaceByGroup(gid), false);
     AddQuota(kGroupFilesIs, gid, QuotaNode->getNumFilesByGroup(gid), false);
-
-    AddQuota(kGroupBytesIs, Quota::gProjectId, QuotaNode->getPhysicalSpaceByGroup(Quota::gProjectId), false);
-    AddQuota(kGroupLogicalBytesIs, Quota::gProjectId, QuotaNode->getUsedSpaceByUser(Quota::gProjectId), false);
-    AddQuota(kGroupFilesIs, Quota::gProjectId, QuotaNode->getNumFilesByGroup(Quota::gProjectId), false);
 
     if (calc_project_quota)
     {
@@ -1650,6 +1647,7 @@ Quota::NodeToSpaceQuota (const char* name)
     // insert current state of a single quota node into a SpaceQuota
     eos::QuotaNode::UserMap::const_iterator itu;
     eos::QuotaNode::GroupMap::const_iterator itg;
+
     spacequota->ResetQuota(SpaceQuota::kGroupBytesIs, gProjectId);
     spacequota->ResetQuota(SpaceQuota::kGroupFilesIs, gProjectId);
     spacequota->ResetQuota(SpaceQuota::kGroupLogicalBytesIs, gProjectId);
@@ -1673,6 +1671,7 @@ Quota::NodeToSpaceQuota (const char* name)
       // dont' update the project quota directory from the quota 
       if (itg->first == gProjectId)
         continue;
+
       spacequota->ResetQuota(SpaceQuota::kGroupBytesIs, itg->first);
       spacequota->AddQuota(SpaceQuota::kGroupBytesIs, itg->first, itg->second.physicalSpace);
       spacequota->ResetQuota(SpaceQuota::kGroupFilesIs, itg->first);
