@@ -878,7 +878,8 @@ xrd_release_open_fd (unsigned long long inode, uid_t uid)
   eos_static_debug("Calling function inode = %llu, uid = %lu.",
                    inode, (unsigned long) uid);
 
-  XrdSysMutexHelper lock(mutex_inodeuser2fd);
+  XrdSysMutexHelper lock (mutex_inodeuser2fd);
+
   std::string index = generate_index(inode, uid);
 
   if (inodeuser2fd.count(index))
@@ -1326,13 +1327,40 @@ xrd_listxattr (const char* path,
 }
 
 
+long long
+xrd_size_fd (int fd)
+{
+  eos_static_info("fd=%d", fd);
+  eos::common::Timing stattiming("xrd_size_fd");
+  long long size=-1;
+  COMMONTIMING("START", &stattiming);
+  eos::fst::Layout* file = xrd_get_file(fd);
+
+  if (file) 
+  {
+    struct stat buf;
+    if (!file->Stat(&buf))
+      size = (long long) buf.st_size;
+    eos_static_info("size-fd=%lld", size);
+  }
+
+COMMONTIMING("END", &stattiming);
+
+  if (EOS_LOGS_DEBUG)
+  {
+    stattiming.Print();
+  }
+
+  return size;
+}
+
 //------------------------------------------------------------------------------
 // Return file attributes. If a field is meaningless or semi-meaningless
 // (e.g., st_ino) then it should be set to 0 or given a "reasonable" value.
 //------------------------------------------------------------------------------
 
 int
-xrd_stat (const char* path, struct stat* buf)
+xrd_stat (const char* path, struct stat* buf, uid_t uid, unsigned long inode)
 {
   eos_static_info("path=%s", path);
   eos::common::Timing stattiming("xrd_stat");
@@ -1431,6 +1459,31 @@ xrd_stat (const char* path, struct stat* buf)
       buf->st_mode &= (~S_ISVTX); // clear the vxt bit
       buf->st_mode &= (~S_ISUID); // clear suid
       buf->st_mode &= (~S_ISGID); // clear sgid
+
+      if (inode) {
+	// try to stat via an open file
+	unsigned long long ofd = xrd_get_open_fd(inode,uid);
+	
+	if (ofd>0) {
+	  eos_static_info("path=%s open fd=\n", path, ofd);
+	  long long size_new = xrd_size_fd(ofd);
+	  if (size_new >=0) 
+	    buf->st_size = size_new;
+
+	  // no reference left, need to call close
+	  if (xrd_release_open_fd(inode, uid)) {
+	    // no reference left, call close
+	    xrd_close(ofd,inode);
+	    xrd_release_read_buffer (ofd);
+	    xrd_remove_fd2file (ofd);
+	  } else {
+	  }
+	} else {
+	  eos_static_info("path=%s not open\n", path);
+	}
+      } else {
+	eos_static_info("path=%s no inode\n", path);
+      }
     }
   }
   else
@@ -1446,6 +1499,7 @@ xrd_stat (const char* path, struct stat* buf)
     stattiming.Print();
   }
 
+  eos_static_info("path=%s st-size=%llu", path, buf->st_size);
   delete response;
   return errno;
 }
@@ -2409,7 +2463,7 @@ xrd_close (int fildes, unsigned long inode)
 
   if (XFC && inode)
   {
-    FileAbstraction* fAbst = XFC->GetFileObj(inode, 0);
+    FileAbstraction* fAbst = XFC->GetFileObj(fildes, 0);
     if (fAbst)
     {
       XFC->WaitWritesAndRemove(*fAbst);
@@ -2420,6 +2474,7 @@ xrd_close (int fildes, unsigned long inode)
   if (file)
   {
     ret = file->Close();
+    eos_static_info("fd=%d inode=%lu [closed]", fildes, inode);
     if (ret)
     {
       return -errno;
@@ -2445,7 +2500,7 @@ xrd_flush (int fd, unsigned long inode)
 
   if (XFC && inode)
   {
-    FileAbstraction* fAbst = XFC->GetFileObj(inode, false);
+    FileAbstraction* fAbst = XFC->GetFileObj(fd, false);
     if (fAbst)
     {
       XFC->WaitFinishWrites(*fAbst);
@@ -2479,7 +2534,7 @@ xrd_truncate (int fildes, off_t offset, unsigned long inode)
 
   if (XFC && inode)
   {
-    FileAbstraction* fAbst = XFC->GetFileObj(inode, false);
+    FileAbstraction* fAbst = XFC->GetFileObj(fildes, false);
     if (fAbst)
     {
       XFC->WaitFinishWrites(*fAbst);
@@ -2532,7 +2587,7 @@ xrd_pread (int fildes,
   if (XFC && fuse_cache_read && inode)
   {
     FileAbstraction* fAbst = 0;
-    fAbst = XFC->GetFileObj(inode, 1);
+    fAbst = XFC->GetFileObj(fildes, 1);
     XFC->WaitFinishWrites(*fAbst);
     COMMONTIMING("Wait writes", &xpr);
 
@@ -2619,7 +2674,7 @@ xrd_pwrite (int fildes,
 
   if (XFC && fuse_cache_write && inode)
   {
-    XFC->SubmitWrite(file, inode, const_cast<void*> (buf), offset, nbyte);
+    XFC->SubmitWrite(file, fildes, const_cast<void*> (buf), offset, nbyte);
     ret = nbyte;
   }
   else
@@ -2655,7 +2710,7 @@ xrd_fsync (int fildes, unsigned long inode)
 
   if (XFC && inode)
   {
-    FileAbstraction* fAbst = XFC->GetFileObj(inode, false);
+    FileAbstraction* fAbst = XFC->GetFileObj(fildes, false);
     if (fAbst)
     {
       XFC->WaitFinishWrites(*fAbst);

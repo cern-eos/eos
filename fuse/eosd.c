@@ -115,7 +115,7 @@ eosfs_ll_getattr (fuse_req_t req,
              __FUNCTION__, (long long) ino, fullpath);
   }
 
-  int retc = xrd_stat (fullpath, &stbuf);
+  int retc = xrd_stat (fullpath, &stbuf, req->ctx.uid, ino);
 
   if (!retc)
   {
@@ -262,7 +262,7 @@ eosfs_ll_setattr (fuse_req_t req,
 
   if (!retc)
   {
-    retc = xrd_stat (fullpath, &newattr);
+    retc = xrd_stat (fullpath, &newattr,req->ctx.uid, ino);
 
     if (!retc)
     {
@@ -353,7 +353,7 @@ eosfs_ll_lookup (fuse_req_t req,
 
     e.attr_timeout = attrcachetime;
     e.entry_timeout = entrycachetime;
-    int retc = xrd_stat (fullpath, &e.attr);
+    int retc = xrd_stat (fullpath, &e.attr, req->ctx.uid, entry_inode);
 
     if (!retc)
     {
@@ -504,7 +504,7 @@ eosfs_ll_readdir (fuse_req_t req,
     //..........................................................................
     // No dirview entry, try to use the directory cache
     //..........................................................................
-    retc = xrd_stat (dirfullpath, &attr);
+    retc = xrd_stat (dirfullpath, &attr, req->ctx.uid, ino);
 
 #ifdef __APPLE__
     dir_status = xrd_dir_cache_get (ino, attr.st_mtimespec, &tmp_buf);
@@ -742,15 +742,17 @@ eosfs_ll_mknod (fuse_req_t req,
       return;
     }
 
+    xrd_close(res, 0);
+
     struct fuse_entry_param e;
     memset (&e, 0, sizeof ( e));
-    e.attr_timeout = attrcachetime;
-    e.entry_timeout = entrycachetime;
+    e.attr_timeout = 0;
+    e.entry_timeout = 0;
 
     //..........................................................................
     // Update the entry
     //..........................................................................
-    int retc = xrd_stat (partialpath, &e.attr);
+    int retc = xrd_stat (partialpath, &e.attr, req->ctx.uid,0);
     e.ino = e.attr.st_ino;
 
     if (retc)
@@ -760,7 +762,6 @@ eosfs_ll_mknod (fuse_req_t req,
     }
     else
     {
-      xrd_add_open_fd (res, (unsigned long long) e.ino, req->ctx.uid, 0);
       xrd_store_p2i ((unsigned long long) e.ino, ifullpath);
 
       if (isdebug)
@@ -817,7 +818,7 @@ eosfs_ll_mkdir (fuse_req_t req,
     e.attr_timeout = attrcachetime;
     e.entry_timeout = entrycachetime;
     struct stat newbuf;
-    int retc = xrd_stat (fullpath, &e.attr);
+    int retc = xrd_stat (fullpath, &e.attr, req->ctx.uid,0);
     e.ino = e.attr.st_ino;
 
     if (retc)
@@ -974,7 +975,8 @@ eosfs_ll_rename (fuse_req_t req,
   xrd_unlock_r_p2i (); // <=
 
   struct stat stbuf;
-  int retcold = xrd_stat (fullpath, &stbuf);
+
+  int retcold = xrd_stat (fullpath, &stbuf, req->ctx.uid,0);
 
   if (isdebug)
   {
@@ -1100,7 +1102,7 @@ eosfs_ll_open (fuse_req_t req,
 
   if (fi->flags & (O_RDWR | O_WRONLY | O_CREAT))
   {
-    if ((res = xrd_get_open_fd ((unsigned long long) ino, req->ctx.uid)) > 0)
+    if (0 && (res = xrd_get_open_fd ((unsigned long long) ino, req->ctx.uid)) > 0)
     {
       shared_fd = 1;
       if (isdebug)
@@ -1292,29 +1294,6 @@ eosfs_ll_release (fuse_req_t req,
       fprintf (stderr, "[%s]: inode=%lld fh=%lld\n",
                __FUNCTION__, (long long)ino, (long long)fd) ;
     }
-    
-    if (xrd_release_open_fd(ino, info->uid) == 1)
-    {
-      //fprintf (stderr, "[%s]: Do real close file fd=%i\n", __FUNCTION__, fd) ;
-      res = xrd_close (fd, ino);
-      xrd_release_read_buffer (fd);
-      xrd_remove_fd2file (fd);
-      
-      // Free memory
-      free (info);
-      fi->fh = 0;
-    
-      if (res)
-      {
-        fuse_reply_err (req, -res);
-        return;
-      }
-    }
-    else 
-    {
-      //fprintf (stderr, "[%s]: Deffer closing file fd=%lld inode=%lld\n",
-      //         __FUNCTION__, (long long)fd, (long long) ino) ;
-    }
   }
 
   fuse_reply_err (req, 0);
@@ -1408,12 +1387,33 @@ eosfs_ll_flush (fuse_req_t req,
         xrd_unlock_r_p2i (); // <=
       }
 
-      int retc = (fullpath[0] ? xrd_stat (fullpath, &stbuf) : -1);
+      int retc = (fullpath[0] ? xrd_stat (fullpath, &stbuf, req->ctx.uid,ino) : -1);
       if (retc)
       {
         errno = EIO;
       }
     }
+    if (xrd_release_open_fd(ino, info->uid) == 1)
+      {
+	fprintf (stderr, "[%s]: Do real close file fd=%i\n", __FUNCTION__, info->fd) ;
+	int res = xrd_close (info->fd, ino);
+	xrd_release_read_buffer (info->fd);
+	xrd_remove_fd2file (info->fd);
+	
+	// Free memory
+	free (info);
+	fi->fh = 0;
+	
+	if (res)
+	{
+	  errno = -res;
+	}
+      }
+    else 
+      {
+	//fprintf (stderr, "[%s]: Deffer closing file fd=%lld inode=%lld\n",
+	//         __FUNCTION__, (long long)fd, (long long) ino) ;
+      }
   }
 
   fuse_reply_err (req, errno);

@@ -93,7 +93,7 @@ eosdfs_getattr (const char* path, struct stat* stbuf)
   rootpath[0] = '\0';
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
-  res = xrd_stat (rootpath, stbuf);
+  res = xrd_stat (rootpath, stbuf,0,0);
 
   if (res == 0)
   {
