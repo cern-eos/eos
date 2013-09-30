@@ -1011,6 +1011,14 @@ main (int argc, char* argv[])
 
               if (replicationType != "replica")
               {
+		int qpos=orig_file.rfind("?");
+		if (qpos != STR_NPOS) 
+		{
+		  opaqueInfo+="&";
+		  opaqueInfo+=orig_file.substr(qpos+1);
+		  file_path.erase(qpos);
+		}
+
                 for (int i = 0; i < nsrc; i++)
                 {
                   tag = "pio.";
@@ -1031,6 +1039,11 @@ main (int argc, char* argv[])
                     address = std::string(stripe_path.c_str(), 0, pos + 1);
                     file_path = std::string(stripe_path.c_str(), pos + 1, stripe_path.length() - pos - 1);
                   }
+
+		  // remove the ?xyz from the individual source URL
+		  int qpos = file_path.rfind("?");
+		  if (qpos != STR_NPOS) 
+		    file_path.erase(qpos);
 
                   src_location.push_back(std::make_pair(address, file_path));
                   src_type.push_back(RAID_ACCESS);
