@@ -136,6 +136,9 @@ splitKeywords (std::string keywords, char delimiter)
   tokenizer.GetLine();
   const char *token = tokenizer.GetToken();
 
+  if (token == 0)
+    return 0;
+
   while(token)
   {
     splitKeywords->push_back(token);
@@ -172,9 +175,14 @@ CliOption::CliOption(const CliOption &option)
   mRequired = option.required();
   mHidden = option.hidden();
 
-  for (std::vector<std::string>::const_iterator it = option.mKeywords->cbegin();
-       it != option.mKeywords->cend(); it++)
-    mKeywords->push_back(*it);
+  if (option.mKeywords)
+  {
+    mKeywords = new std::vector<std::string>;
+    std::vector<std::string>::const_iterator it;
+
+    for (it = option.mKeywords->cbegin(); it != option.mKeywords->cend(); it++)
+      mKeywords->push_back(*it);
+  }
 }
 
 CliOption::~CliOption()
@@ -198,6 +206,9 @@ CliOption::setGroup(OptionsGroup *group)
 std::string
 CliOption::hasKeyword(std::string keyword)
 {
+  if (!mKeywords)
+    return "";
+
   std::vector<std::string>::const_iterator it = mKeywords->cbegin();
   for (; it != mKeywords->cend(); it++)
   {
@@ -239,6 +250,9 @@ CliOption::joinKeywords()
 {
   std::string keyword("");
 
+  if (!mKeywords)
+    return "";
+
   for (size_t i = 0; i < mKeywords->size(); i++)
   {
     keyword += mKeywords->at(i);
@@ -268,13 +282,13 @@ CliOption::keywordsRepr()
 std::string
 CliOption::repr() const
 {
-  return mKeywords->at(0);
+  return mKeywords ? mKeywords->at(0) : "";
 }
 
 char *
 CliOption::helpString()
 {
-  if (mDescription == "")
+  if (mDescription == "" || !mKeywords)
     return NULL;
 
   char *helpStr = 0;
@@ -338,6 +352,9 @@ CliOptionWithArgs::CliOptionWithArgs(std::string name,
 std::string
 CliOptionWithArgs::hasKeyword(std::string keyword)
 {
+  if (!mKeywords)
+    return "";
+
   std::vector<std::string>::const_iterator it = mKeywords->cbegin();
   for (; it != mKeywords->cend(); it++)
   {
