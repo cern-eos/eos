@@ -40,6 +40,7 @@
 #include "XrdSys/XrdSysDNS.hh"
 /*----------------------------------------------------------------------------*/
 #include "google/protobuf/io/zero_copy_stream_impl.h"
+
 /*----------------------------------------------------------------------------*/
 
 // The global OFS handle
@@ -184,7 +185,7 @@ EosAuthOfs::Configure(XrdSysError& error)
             mgm_instance = val;
 
             if (mgm_instance.find(":") != string::npos)
-              mEosInstances.push_back(mgm_instance);
+              mBackend.push_back(std::make_pair(mgm_instance, (zmq::socket_t*)0));
           }
         }
 
@@ -232,7 +233,7 @@ EosAuthOfs::Configure(XrdSysError& error)
     }
 
     // Check and connect to the EOS instance
-    if (!mEosInstances.empty())
+    if (!mBackend.empty())
     {
       if ((XrdSysThread::Run(&proxy_tid, EosAuthOfs::StartAuthProxyThread,
                              static_cast<void *>(this), 0, "Auth Proxy Thread")))
@@ -308,25 +309,169 @@ EosAuthOfs::StartAuthProxyThread(void *pp)
 void
 EosAuthOfs::AuthProxyThread()
 {
-  // Bind the client facing socket 
-  zmq::socket_t frontend(*mZmqContext, ZMQ_ROUTER);
-  frontend.bind("inproc://proxyfrontend");
-
-  // Socket facing the MGM instances
-  for (auto iter = mEosInstances.begin(); iter != mEosInstances.end(); iter++)
+  if (mBackend.size() != 2)
   {
-    zmq::socket_t* socket = new zmq::socket_t(*mZmqContext, ZMQ_DEALER);
-    std::ostringstream sstr;
-    sstr << "tcp://" << *iter;
-    OfsEroute.Say("connect to MGM instance ", iter->c_str());
-    socket->connect(sstr.str().c_str());
-    backend.push_back(socket);
+    OfsEroute.Emsg("AuthProxyThread", "need the endpoints for the master and server");
+    return;
   }
 
-  OfsEroute.Say("started the auth proxy thread");
+  // Bind the client facing socket
+  mFrontend = new zmq::socket_t(*mZmqContext, ZMQ_ROUTER);
+  mFrontend->bind("inproc://proxyfrontend");
 
+  // Connect sockets facing the MGM nodes - master and slave
+  std::ostringstream sstr;
+  mBackend[0] = std::make_pair(mBackend[0].first,
+                               new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
+  sstr << "tcp://" << mBackend[0].first;
+  OfsEroute.Say("=====> connected to first MGM: ", mBackend[0].first.c_str());
+  mBackend[0].second->connect(sstr.str().c_str());
+
+  mBackend[1] = std::make_pair(mBackend[1].first,
+                               new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
+  sstr.str("");
+  sstr << "tcp://" << mBackend[1].first;
+  OfsEroute.Say("=====> connected to second MGM: ", mBackend[1].first.c_str());
+  mBackend[1].second->connect(sstr.str().c_str());
+  
+  // Set the master to point to the first backend - no need for lock
+  mMaster = mBackend[0].second;
+
+  int rc;
+  zmq::message_t msg;
+  
   // Start the poxy using the first entry
-  zmq_device(ZMQ_QUEUE, frontend, *backend.at(0));
+  int more;
+  size_t moresz;
+  zmq_pollitem_t items [] = {
+    { *mFrontend, 0, ZMQ_POLLIN, 0},
+    { *mBackend[0].second, 0, ZMQ_POLLIN, 0},
+    { *mBackend[1].second, 0, ZMQ_POLLIN, 0}
+  };
+  
+  // Main loop in which the proxy thread accepts request from the clients and
+  // then he forwards them to the current master MGM. The master MGM can change
+  // at any point.
+  while (true)
+  {
+    // Wait while there are either requests or replies to process
+    rc = zmq::poll(&items[0], 3, -1);
+    
+    if (rc < 0)
+    {
+      OfsEroute.Emsg("AuthProxyThread ", "error in poll");
+      return;
+    }
+
+    // Process a request
+    if (items[0].revents & ZMQ_POLLIN)
+    {
+      OfsEroute.Say("got frontend event");
+      
+      while (true)
+      {
+        if (!mFrontend->recv(&msg))
+        {
+          OfsEroute.Emsg("AuthProxyThread ", "error while recv on frontend");
+          return;
+        }
+      
+        try
+        {
+          moresz = sizeof more;
+          mFrontend->getsockopt(ZMQ_RCVMORE, &more, &moresz);
+        }
+        catch (zmq::error_t& err)
+        {
+          OfsEroute.Emsg("AuthProxyThread ", "exception in getsockopt");
+          return;
+        }
+        
+        // Send request to the current master MGM
+        {
+          XrdSysMutexHelper scoped_lock(mMutexMaster);
+          if (!mMaster->send(msg, more ? ZMQ_SNDMORE : 0))
+          {
+            OfsEroute.Emsg("AuthProxyThread ", "error while sending to master");
+            return;
+          }
+        }
+
+        if (more == 0)
+          break;
+      }
+    }
+
+    // Process a reply from the first MGM
+    if (items[1].revents & ZMQ_POLLIN)
+    {
+      OfsEroute.Say("got mBackend1 event");
+      
+      while (true)
+      {
+        if (!mBackend[0].second->recv(&msg))
+        {
+          OfsEroute.Emsg("AuthProxyThread ", "error while recv on mBackend1");
+          return;
+        }
+        
+        moresz = sizeof more;
+        try
+        {
+          mBackend[0].second->getsockopt(ZMQ_RCVMORE, &more, &moresz);
+        }
+        catch (zmq::error_t& err)
+        {
+          OfsEroute.Emsg("AuthProxyThread ", "exception in getsockopt");
+          return;
+        }
+
+        if (!mFrontend->send(msg, more ? ZMQ_SNDMORE : 0))
+        {
+          OfsEroute.Emsg("AuthProxyThread", "error while send to frontend(1)");
+          return;
+        }
+       
+        if (more == 0)
+          break;
+      }
+    }
+
+    // Process a reply from the second MGM
+    if (items[2].revents & ZMQ_POLLIN)
+    {
+      OfsEroute.Say("got mBackend2 event");
+      
+      while (true)
+      {
+        if (!mBackend[1].second->recv(&msg))
+        {
+          OfsEroute.Emsg("AuthProxyThread ", "error while recv on mBackend2");
+          return;
+        }
+        
+        moresz = sizeof more;
+        try
+        {
+          mBackend[1].second->getsockopt(ZMQ_RCVMORE, &more, &moresz);
+        }
+        catch (zmq::error_t& err)
+        {
+          OfsEroute.Emsg("AuthProxyThread ", "exception in getsockopt");
+          return;
+        }
+
+        if (!mFrontend->send(msg, more ? ZMQ_SNDMORE : 0))
+        {
+          OfsEroute.Emsg("AuthProxyThread", "error while send to frontend(2)");
+          return;
+        }
+
+        if (more == 0)
+          break;
+      }
+    }
+  }
 }
 
 
@@ -991,7 +1136,6 @@ EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
 }
 
 
-
 //------------------------------------------------------------------------------
 // Get ProtocolBuffer response object using ZMQ
 //------------------------------------------------------------------------------
@@ -1009,8 +1153,69 @@ EosAuthOfs::GetResponse(zmq::socket_t* socket)
     resp->ParseFromString(resp_str);
   }
 
+  // If response is redirect and the error information matches one of the MGM
+  // nodes specified in the configuration, this means there was a master/slave
+  // switch and we need to update the socket to which requests are sent.
+  if (resp->response() == SFS_REDIRECT)
+  {
+    if (resp->has_error())
+    {
+      std::ostringstream sstr;
+      sstr << resp->error().message() << ":" << resp->error().code();
+      std::string redirect_host = sstr.str();
+      // Update the master MGM instance
+      if (UpdateMaster(redirect_host))
+      {
+        eos_debug("successfully update the master MGM to: %s", redirect_host.c_str());
+        resp->set_response(SFS_STALL);
+      }
+      else
+      {
+        eos_err("failed to update the master MGM or redirect is for FST node");
+      }
+    }
+    else
+    {
+      eos_err("redirect message without error information - change to error");
+      resp->set_response(SFS_ERROR);
+    }    
+  }
+  
   return resp;
 }
+
+
+//------------------------------------------------------------------------------
+// Update the socket pointing to the master MGM instance
+//------------------------------------------------------------------------------
+bool
+EosAuthOfs::UpdateMaster(std::string& new_master)
+{
+  bool found = false;
+  zmq::socket_t* upd_socket;
+
+  // Chech if the new master was also specified in the configuration
+  for (auto iter = mBackend.begin(); iter != mBackend.end(); ++iter)
+  {
+    if (iter->first == new_master)
+    {
+      upd_socket = iter->second;
+      found = true;
+      break;
+    }
+  }
+
+  if (found)
+  {
+    XrdSysMutexHelper scoped_lock(mMutexMaster);
+    if (mMaster != upd_socket)
+      mMaster = upd_socket;    
+  }
+
+  return found;
+}
+
+
 
 EOSAUTHNAMESPACE_END
 

@@ -229,10 +229,13 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
 
     pthread_t proxy_tid; ///< id of the proxy thread
     zmq::context_t* mZmqContext; ///< ZMQ context
-    std::vector<zmq::socket_t*> backend; ///< sockets facing the MGM instaces
+    zmq::socket_t* mFrontend; ///< proxy socket facing the clients
+    zmq::socket_t* mMaster; ///< socket pointing to the MGM master
+    XrdSysMutex mMutexMaster; ///< mutex for switching the MGM master
     int mSizePoolSocket; ///< maximum size of the client socket pool
     eos::common::ConcurrentQueue<zmq::socket_t*> mPoolSocket; ///< ZMQ client socket pool
-    std::vector<std::string> mEosInstances; ///< MGMs to which requests can be dispatched
+    ///! MGM endpoints to which requests can be dispatched and the corresponding sockets
+    std::vector< std::pair<std::string, zmq::socket_t*> > mBackend; 
     std::string mManagerIp; ///< the IP address of the auth instance
     int mManagerPort;   ///< port on which the current auth server runs
     int mLogLevel; ///< log level value 0 -7 (LOG_EMERG - LOG_DEBUG)
@@ -274,6 +277,20 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
     //!
     //--------------------------------------------------------------------------
     google::protobuf::Message* GetResponse(zmq::socket_t* socket);
+
+
+    //--------------------------------------------------------------------------
+    //! Update the socket pointing to the master MGM instance
+    //!
+    //! @param new_master new host and port values for the master MGM
+    //!                   the format is: "host:port"
+    //!
+    //! @return true if update was successful, false otherwise
+    //!
+    //--------------------------------------------------------------------------
+    bool UpdateMaster(std::string& new_master);
+
+  
 };
 
 
