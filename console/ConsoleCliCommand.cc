@@ -1153,6 +1153,13 @@ OptionsGroup::addOption(const CliOption &option)
 }
 
 void
+OptionsGroup::addOption(const CliOptionWithArgs &option)
+{
+  CliOptionWithArgs *optionPtr = new CliOptionWithArgs(option);
+  addOption(optionPtr);
+}
+
+void
 OptionsGroup::addOptions(std::vector<CliOption> options)
 {
   std::vector<CliOption>::const_iterator it = options.cbegin();
@@ -1162,6 +1169,15 @@ OptionsGroup::addOptions(std::vector<CliOption> options)
   }
 }
 
+void
+OptionsGroup::addOptions(std::vector<CliOptionWithArgs> options)
+{
+  std::vector<CliOptionWithArgs>::const_iterator it = options.cbegin();
+  for (; it != options.cend(); it++)
+  {
+    addOption(*it);
+  }
+}
 
 void
 OptionsGroup::removeOption(CliOption *option)

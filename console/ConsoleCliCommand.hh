@@ -186,7 +186,9 @@ public:
   virtual ~OptionsGroup();
   void addOption(CliOption *option);
   void addOption(const CliOption &option);
+  void addOption(const CliOptionWithArgs &option);
   void addOptions(std::vector<CliOption> options);
+  void addOptions(std::vector<CliOptionWithArgs> options);
   void removeOption(CliOption *option);
   std::vector<CliOption *>* options() { return mOptions; };
   bool required() const { return mRequired; };
