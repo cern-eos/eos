@@ -120,3 +120,4 @@ extern COMMAND commands[];
 
 extern int done;
 
+XrdOucString cleanPath(const std::string &pathToHandle);

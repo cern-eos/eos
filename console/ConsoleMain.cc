@@ -1553,3 +1553,20 @@ stripwhite (char *string)
   return s;
 }
 
+/* Strips quotes, replaces quoted spaces and sets the
+   absolute path from the given one */
+XrdOucString
+cleanPath(const std::string &pathToHandle)
+{
+  XrdOucString path = pathToHandle.c_str();
+
+  if (path[0] == '"')
+    path.erase(0, 1);
+  if (path[path.length() - 1] == '"')
+    path.erase(path.length() - 1, 1);
+
+  path.replace("\\ ", " ");
+  path = abspath(path.c_str());
+
+  return path;
+}
