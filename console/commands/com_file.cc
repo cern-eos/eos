@@ -26,90 +26,108 @@
 #include "fst/FmdSqlite.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 /*----------------------------------------------------------------------------*/
+#include <algorithm>
+#include <climits>
+/*----------------------------------------------------------------------------*/
 
 using namespace eos::common;
 
 /* File handling */
 
+static XrdOucString
+handlePath(const std::string &pathToHandle)
+{
+  XrdOucString path = pathToHandle.c_str();
+
+  if (path[0] == '"')
+    path.erase(0, 1);
+  if (path[path.length() - 1] == '"')
+    path.erase(path.length() - 1, 1);
+
+  path.replace("\\ ", " ");
+
+  if ((!path.beginswith("fid:")) && (!path.beginswith("fxid:")))
+    path = abspath(path.c_str());
+
+  return path;
+}
+
 /* Get file information */
 int
 com_fileinfo (char* arg1)
 {
-  XrdOucString savearg = arg1;
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString path = subtokenizer.GetToken();
-  XrdOucString option = "";
-  do
-  {
-    XrdOucString newoption = subtokenizer.GetToken();
-    if (!newoption.length())
-    {
-      break;
-    }
-    else
-    {
-      if (newoption == "s")
-      {
-        option += "silent";
-      }
-      else
-      {
-        option += newoption;
-      }
-    }
-  }
-  while (1);
-
+  XrdOucString path("");
+  std::string option("");
   XrdOucString in = "mgm.cmd=fileinfo&";
 
-  if (wants_help(savearg.c_str()))
-    goto com_fileinfo_usage;
+  ConsoleCliCommand *fileInfoCmd =
+    new ConsoleCliCommand("fileinfo", "print file information for <path>");
+  fileInfoCmd->addOption({"path", "the path or file id; giving fxid:<fid-hex> "
+                          "prints the file information for fid <fid-hex>; "
+                          "giving fid:<fid-dec> prints the file infomation for "
+                          "<fid-dec>", 1, 1, "<path>", true});
+  fileInfoCmd->addOptions({{"help", "print help", "-h,--help"},
+                           {"path-info", "adds the path information to the "
+                            "output", "--path"},
+                           {"fxid", "adds the hex file id information to the "
+                            "output", "--fxid"},
+                           {"fid", "adds the base10 file id information to the output",
+                            "--fid"},
+                           {"size", "adds the size information to the output",
+                            "--size"},
+                           {"checksum", "adds the checksum information to the "
+                            "output", "--checksum"},
+                           {"fullpath", "full path information to each "
+                            "replica", "--fullpath"},
+                           {"monitor", "print single line in monitoring format",
+                             "-m,--monitor"},
+                           {"env", "print in OucEnv format", "--env"},
+                           {"silent", "suppresses all information for each "
+                            "replic to be printed", "-s,--silent"}
+                          });
+  fileInfoCmd->parse(arg1);
 
-  if (!path.length())
+  if (checkHelpAndErrors(fileInfoCmd))
+    goto bailout;
+
+  path = handlePath(fileInfoCmd->getValue("path"));
+  in += "mgm.path=" + path;
+
+  if (fileInfoCmd->hasValue("silent"))
+    goto bailout;
+
+  if (fileInfoCmd->hasValue("path-info"))
+    option += "--path";
+  if (fileInfoCmd->hasValue("fxid"))
+    option += "--fxid";
+  if (fileInfoCmd->hasValue("fid"))
+    option += "--fid";
+  if (fileInfoCmd->hasValue("size"))
+    option += "-size";
+  if (fileInfoCmd->hasValue("checksum"))
+    option += "--checksum";
+  if (fileInfoCmd->hasValue("fullpath"))
+    option += "--fullpath";
+  if (fileInfoCmd->hasValue("monitor"))
+    option += "-m";
+  if (fileInfoCmd->hasValue("env"))
+    option += "--env";
+
+  if (option.length())
   {
-    goto com_fileinfo_usage;
-
+    in += "&mgm.file.info.option=";
+    in += option.c_str();
   }
+
+  global_retc = output_result(client_user_command(in));
+
+ bailout:
+  if (fileInfoCmd->parent())
+    delete fileInfoCmd->parent();
   else
-  {
-    if (path.beginswith("-"))
-    {
-      goto com_fileinfo_usage;
-    }
-    if ((!path.beginswith("fid:")) && (!path.beginswith("fxid:")))
-      path = abspath(path.c_str());
-    in += "mgm.path=";
-    in += path;
-    if (option.length())
-    {
-      in += "&mgm.file.info.option=";
-      in += option;
-    }
+    delete fileInfoCmd;
 
-    if ((option.find("silent") == STR_NPOS))
-    {
-      global_retc = output_result(client_user_command(in));
-    }
-    return (0);
-  }
-
-com_fileinfo_usage:
-  fprintf(stdout, "usage: fileinfo <path> [--path] [--fxid] [--fid] [--size] [--checksum] [--fullpath] [-m] [--silent] [--env] :  print file information for <path>\n");
-  fprintf(stdout, "       fileinfo fxid:<fid-hex>                                           :  print file information for fid <fid-hex>\n");
-  fprintf(stdout, "       fileinfo fid:<fid-dec>                                            :  print file information for fid <fid-dec>\n");
-  fprintf(stdout, "                                                                 --path  :  selects to add the path information to the output\n");
-  fprintf(stdout, "                                                                 --fxid  :  selects to add the hex file id information to the output\n");
-  fprintf(stdout, "                                                                 --fid   :  selects to add the base10 file id information to the output\n");
-  fprintf(stdout, "                                                                 --size  :  selects to add the size information to the output\n");
-  fprintf(stdout, "                                                              --checksum :  selects to add the checksum information to the output\n");
-  fprintf(stdout, "                                                              --fullpath :  selects to add the full path information to each replica\n");
-  fprintf(stdout, "                                                                  -m     :  print single line in monitoring format\n");
-  fprintf(stdout, "                                                                  --env  :  print in OucEnv format\n");
-  fprintf(stdout, "                                                                  -s     :  silent - used to run as internal command\n");
   return (0);
-
 }
 
 int
@@ -117,342 +135,363 @@ com_file (char* arg1)
 {
   XrdOucString savearg = arg1;
   XrdOucString arg = arg1;
-  XrdOucTokenizer subtokenizer(arg1);
   XrdOucString option = "";
-  XrdOucString path = "";
-  subtokenizer.GetLine();
-
-
-  XrdOucString cmd = subtokenizer.GetToken();
-  XrdOucString tmpArg;
-
-  do
-  {
-    tmpArg = subtokenizer.GetToken();
-    if (tmpArg.beginswith("-"))
-    {
-      while (tmpArg.replace("-", ""))
-      {
-      }
-      option += tmpArg;
-    }
-    else
-    {
-      path = tmpArg;
-      break;
-    }
-  }
-  while (1);
-
-  XrdOucString fsid1 = subtokenizer.GetToken();
-  XrdOucString fsid2 = subtokenizer.GetToken();
-
-  if ((!path.beginswith("fid:")) && (!path.beginswith("fxid:")))
-    path = abspath(path.c_str());
-
+  XrdOucString path("");
   XrdOucString in = "mgm.cmd=file";
+  int ret = 0;
+  ConsoleCliCommand *parsedCmd, *fileCmd, *touchSubCmd, *copySubCmd,
+    *renameSubCmd, *replicateSubCmd, *moveSubCmd, *adjustReplicaSubCmd,
+    *dropSubCmd, *layoutSubCmd, *verifySubCmd, *convertSubCmd, *checkSubCmd,
+    *infoSubCmd;
 
-  if (wants_help(savearg.c_str()))
-    goto com_file_usage;
+  fileCmd = new ConsoleCliCommand("file", "file related tools");
 
-  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert"))
+  touchSubCmd = new ConsoleCliCommand("touch", "create a 0-size/0-replica file "
+                                      "if <path> does not exist or update "
+                                      "modification time of an existing file "
+                                      "to the present time");
+  touchSubCmd->addOptions({{"path", "", 1, 1, "<path>", true}});
+  fileCmd->addSubcommand(touchSubCmd);
+
+  copySubCmd = new ConsoleCliCommand("copy", "synchronous third party copy");
+  copySubCmd->addOptions({{"force", "overwrite <dst> if it is an existin file",
+                           "-f"},
+                          {"silent", "silent mode", "-s"}
+                         });
+  copySubCmd->addOptions({{"source", "a file or a directory to be copied",
+                           1, 1, "<src>", true},
+                          {"destination", "the destination of the copy "
+                           "(if given a directory, it will copy <source> "
+                           "to that directory)",
+                           2, 1, "<dst>", true}
+                          });
+  fileCmd->addSubcommand(copySubCmd);
+
+  renameSubCmd = new ConsoleCliCommand("rename", "rename files and directories. "
+                                       "This only works for the 'root' user "
+                                       "and the renamed file/directory has to "
+                                       "stay in the same parent directory");
+  renameSubCmd->addOptions({{"old", "the file or directory to be renamed",
+                           1, 1, "<old>", true},
+                          {"new", "the new name",
+                           2, 1, "<new>", true}
+                          });
+  fileCmd->addSubcommand(renameSubCmd);
+
+  replicateSubCmd = new ConsoleCliCommand("replicate", "replicate file <path> "
+                                          "part on <fsid1> to <fsid2>");
+  replicateSubCmd->addOptions({{"path", "", 1, 1, "<path>", true},
+                               {"fsid1", "", 2, 1, "<fsid1>", true},
+                               {"fsid2", "", 3, 1, "<fsid2>", true}
+                              });
+  fileCmd->addSubcommand(replicateSubCmd);
+
+  moveSubCmd = new ConsoleCliCommand("move", "move the file <path> from "
+                                     "<fsid1> to <fsid2>");
+  moveSubCmd->addOptions({{"path", "", 1, 1, "<path>", true},
+                          {"fsid1", "", 2, 1, "<fsid1>", true},
+                          {"fsid2", "", 3, 1, "<fsid2>", true}
+                         });
+  fileCmd->addSubcommand(moveSubCmd);
+
+  adjustReplicaSubCmd = new ConsoleCliCommand("adjustreplica", "tries to bring "
+                                              "a files with replica layouts to "
+                                              "the nominal replica level (needs "
+                                              "to be root)");
+  adjustReplicaSubCmd->addOptions({{"path", "", 1, 1,
+                                    "<path>|fid:<fid-dec>|fxid:<fid-hex>", true},
+                                   {"space", "", 2, 1, "<space>", false},
+                                   {"subgroup", "", 3, 1, "<subgroup>", false}
+                                  });
+  fileCmd->addSubcommand(adjustReplicaSubCmd);
+
+  dropSubCmd = new ConsoleCliCommand("drop", "drop the file <path> from "
+                                     "<fsid>");
+  dropSubCmd->addOption({"force", "removes replica without trigger/wait for "
+                         "deletion (used to retire a filesystem)",
+                         "-f,--force"});
+  dropSubCmd->addOptions({{"path", "", 1, 1, "<path>", true},
+                          {"fsid", "", 2, 1, "<fsid>", true}
+                         });
+  fileCmd->addSubcommand(dropSubCmd);
+
+  layoutSubCmd = new ConsoleCliCommand("layout", "change the number of stripes "
+                                       "of a file with replica layout to "
+                                       "<stripes>");
+  layoutSubCmd->addOption({"path", "", 1, 1,
+                           "<path>|<fid:<fid-desc>|<fxid:fid-desc>", true});
+  CliPositionalOption stripes("stripes", "", 2, 1, "<stripes>", true);
+  stripes.addEvalFunction(optionIsIntegerEvalFunc, 0);
+  stripes.addEvalFunction(optionIsPositiveNumberEvalFunc, 0);
+  layoutSubCmd->addOption(stripes);
+  fileCmd->addSubcommand(layoutSubCmd);
+
+  verifySubCmd = new ConsoleCliCommand("verify", "verify a file against the "
+                                       "disk images");
+  verifySubCmd->addOptions({{"path", "", 1, 1,
+                             "<path>|<fid:<fid-desc>|<fxid:fid-desc>", true},
+                            {"filter", "restrict the verification to replicas "
+                             "on the filesystem <fs-id>", 2, 1,
+                             "<fs-id>", false}
+                           });
+  verifySubCmd->addOptions({{"checksum", "trigger the checksum calculation "
+                             "during the verification process", "--checksum"},
+                            {"commit-checksum", "commit the computed checksum "
+                             "to the MGM", "--commit-checksum"},
+                            {"commit-size", "commit the file size to the MGM",
+                             "--commit-size"},
+                            {"commit-fmd", "commit the file metadata to the MGM",
+                             "--commit-fmd"}
+                           });
+  CliOptionWithArgs rate("rate",
+                         "restrict the verification speed to <rate> per node",
+                         "-r,--rate=", "<rate>", false);
+  rate.addEvalFunction(optionIsFloatEvalFunc, 0);
+  verifySubCmd->addOption(rate);
+  fileCmd->addSubcommand(verifySubCmd);
+
+  convertSubCmd = new ConsoleCliCommand("convert", "convert the layout of a "
+                                        "file");
+  convertSubCmd->addGroupedOptions({{"sync", "run convertion in synchronous "
+                                     "mode (by default conversions are "
+                                     "asynchronous)", "--sync"},
+                                    {"rewrite", "run convertion rewriting the "
+                                     "file as is creating new copies and "
+                                     "dropping old", "--rewrite"}
+                                   })->setRequired(false);
+  convertSubCmd->addGroupedOptions({{"layout", "specify the hexadecimal layout "
+                                     "id", "--layout-hex-id=", "<id>", true},
+                                    {"layout-stripes", "specify the target "
+                                     "layout and number of stripes",
+                                     "--layout-with-stripes=",
+                                     "<layout>:<stripes>", true},
+                                    {"attr", "specify the name of the "
+                                     "attribute sys.conversion.<name> in the "
+                                     "parent directory of <path> defining the "
+                                     "target layout", "--attr-name",
+                                     "<sys.attribute.name>", true}
+                                   });
+  convertSubCmd->addOptions({{"path", "", 1, 1, "<path>", true},
+                             {"space", "name of the target space or group e.g. "
+                              "default or default.3", 2, 1, "<target-space>",
+                              false}
+                            });
+  fileCmd->addSubcommand(convertSubCmd);
+
+  checkSubCmd = new ConsoleCliCommand("check", "retrieves stat information "
+                                      "from the physical replicas and verifies "
+                                      "the correctness");
+  checkSubCmd->addOption({"path", "", 1, 1, "<path>", true});
+  checkSubCmd->addOptions({{"size", "return with an error code if there is a "
+                            "mismatch between the size meta data information", "--size"},
+                           {"checksum", "return with an error code if there "
+                            "is a mismatch between the checksum meta data "
+                            "information", "-c,--checksum"},
+                           {"nr-rep", "return with an error code if there is "
+                            "a mismatch between the layout number of replicas "
+                            "and the existing replicas", "-n,--nr-replicas"},
+                           {"checksum-attr", "return with an error code if "
+                            "there is a mismatch between the checksum in the "
+                            "extended attributes on the FST and the FMD "
+                            "checksum", "-t,--checksum-attr"},
+                           {"silent", "suppresses all information for each "
+                            "replic to be printed", "-s,--silent"},
+                           {"force", "forces to get the MD even if the node "
+                            "is down", "-f,--force"},
+                           {"output", "prints lines with inconsitency "
+                            "information", "-o,--output"}
+                          });
+  fileCmd->addSubcommand(checkSubCmd);
+
+  infoSubCmd = new ConsoleCliCommand("info", "alias command of 'fileinfo'");
+  fileCmd->addSubcommand(infoSubCmd);
+
+  addHelpOptionRecursively(fileCmd);
+
+  parsedCmd = fileCmd->parse(std::string(arg1));
+
+  if (parsedCmd == fileCmd && !fileCmd->hasValues())
   {
-    goto com_file_usage;
+    fileCmd->printUsage();
+    goto bailout;
   }
+
+  if (parsedCmd != infoSubCmd && checkHelpAndErrors(parsedCmd))
+    goto bailout;
 
   // convenience function
-  if (cmd == "info")
+  if (parsedCmd == infoSubCmd)
   {
-    if (arg == "info")
-    {
-      arg.replace("info", "");
-    }
-    else
-    {
-      arg.replace("info ", "");
-    }
-    return com_fileinfo((char*) arg.c_str());
+    return com_fileinfo(arg1 + infoSubCmd->name().length());
   }
 
-  if (cmd == "rename")
+  if (parsedCmd == renameSubCmd)
   {
-    if (!path.length() || !fsid1.length())
-      goto com_file_usage;
-
-    fsid1 = abspath(fsid1.c_str());
+    path = handlePath(renameSubCmd->getValue("old"));
     in += "&mgm.path=";
     in += path;
     in += "&mgm.subcmd=rename";
     in += "&mgm.file.source=";
-    in += path.c_str();
-    in += "&mgm.file.target=";
-    in += fsid1.c_str();
-  }
-
-  if (cmd == "touch")
-  {
-    if (!path.length())
-      goto com_file_usage;
-    in += "&mgm.path=";
     in += path;
+    in += "&mgm.file.target=";
+    in += handlePath(renameSubCmd->getValue("new"));
+  }
+  else if (parsedCmd == touchSubCmd)
+  {
+    path = handlePath(touchSubCmd->getValue("path"));
+    in += "&mgm.path=" + path;
     in += "&mgm.subcmd=touch";
   }
-
-  if (cmd == "drop")
+  else if (parsedCmd == dropSubCmd)
   {
-    if (!path.length() || !fsid1.length())
-      goto com_file_usage;
-
+    path = handlePath(touchSubCmd->getValue("path"));
     in += "&mgm.subcmd=drop";
-    in += "&mgm.path=";
-    in += path;
+    in += "&mgm.path=" + path;
     in += "&mgm.file.fsid=";
-    in += fsid1;
+    in += handlePath(touchSubCmd->getValue("fsid1"));
 
-    if (fsid2 == "-f")
+    if (touchSubCmd->hasValue("force"))
     {
       in += "&mgm.file.force=1";
     }
-    else
-    {
-      if (fsid2.length())
-        goto com_file_usage;
-    }
   }
-
-  if (cmd == "move")
+  else if (parsedCmd == copySubCmd)
   {
-    if (!path.length() || !fsid1.length() || !fsid2.length())
-      goto com_file_usage;
-    in += "&mgm.subcmd=move";
-    in += "&mgm.path=";
-    in += path;
-    in += "&mgm.file.sourcefsid=";
-    in += fsid1;
-    in += "&mgm.file.targetfsid=";
-    in += fsid2;
-  }
-
-  if (cmd == "copy")
-  {
-    XrdOucString dest_path = fsid1;
-    if (!path.length() || !dest_path.length())
-      goto com_file_usage;
+    path = handlePath(copySubCmd->getValue("source").c_str());
     in += "&mgm.subcmd=copy";
-    in += "&mgm.path=";
-    in += path;
-    if (option.length())
-    {
-      if ((option != "f") &&
-          (option != "sf") &&
-          (option != "fs") &&
-          (option != "s"))
-        goto com_file_usage;
+    in += "&mgm.path=" + path;
 
-      in += "&mgm.file.option=";
+    if (copySubCmd->hasValue("force"))
+      option += "f";
+    if (copySubCmd->hasValue("silent"))
+      option += "s";
 
-    }
-    dest_path = abspath(dest_path.c_str());
-    in += "&mgm.file.target=";
-    in += dest_path;
+    if (option.length() > 0)
+      in += "&mgm.file.option=" + option;
+
+    in += "&mgm.file.target=" + handlePath(copySubCmd->getValue("destination"));
   }
-
-  if (cmd == "convert")
+  else if (parsedCmd == convertSubCmd)
   {
-    XrdOucString layout = fsid1;
-    XrdOucString space = fsid2;
-    if (!path.length())
-      goto com_file_usage;
+    path = handlePath(convertSubCmd->getValue("path"));
     in += "&mgm.subcmd=convert";
-    in += "&mgm.path=";
-    in += path;
-    if (layout.length())
+    in += "&mgm.path=" + path;
+
+    in += "&mgm.convert.layout=";
+    if (convertSubCmd->hasValue("layout"))
     {
-      in += "&mgm.convert.layout=";
-      in += layout;
+      in += convertSubCmd->getValue("layout").c_str();
     }
-    if (space.length())
+    else if (convertSubCmd->hasValue("layout-stripes"))
+    {
+      in += convertSubCmd->getValue("layout-stripes").c_str();
+    }
+    else if (convertSubCmd->hasValue("attr"))
+    {
+      in += convertSubCmd->getValue("attr").c_str();
+    }
+
+    if (convertSubCmd->hasValue("space"))
     {
       in += "&mgm.convert.space=";
-      in += space;
+      in += convertSubCmd->getValue("space").c_str();
     }
-    if (option == "sync")
+
+    if (convertSubCmd->hasValue("sync"))
     {
-      fprintf(stderr, "error: --sync is currently not supported\n");
-      goto com_file_usage;
+      fprintf(stderr, "Error: --sync is currently not supported\n");
+
+      goto bailout;
     }
-    if (option == "rewrite") 
+
+    if (convertSubCmd->hasValue("rewrite"))
     {
       in += "&mgm.option=rewrite";
-    } 
-    else 
-    {
-      if (option.length())
-      {
-        goto com_file_usage;
-      }
     }
   }
-
-  if (cmd == "replicate")
+  else if (parsedCmd == replicateSubCmd || parsedCmd == moveSubCmd)
   {
-    if (!path.length() || !fsid1.length() || !fsid2.length())
-      goto com_file_usage;
     in += "&mgm.subcmd=replicate";
+
+    if (parsedCmd == replicateSubCmd)
+      in += "replicate";
+    else
+      in += "move";
+
     in += "&mgm.path=";
-    in += path;
+    in += handlePath(replicateSubCmd->getValue("path"));
     in += "&mgm.file.sourcefsid=";
-    in += fsid1;
+    in += handlePath(replicateSubCmd->getValue("fsid1"));
     in += "&mgm.file.targetfsid=";
-    in += fsid2;
+    in += handlePath(replicateSubCmd->getValue("fsid2"));
   }
-
-  if (cmd == "adjustreplica")
+  else if (parsedCmd == adjustReplicaSubCmd)
   {
-    if (!path.length())
-      goto com_file_usage;
-
     in += "&mgm.subcmd=adjustreplica";
     in += "&mgm.path=";
-    in += path;
-    if (fsid1.length())
+    in += handlePath(replicateSubCmd->getValue("path"));
+
+    if (replicateSubCmd->hasValue("space"))
     {
       in += "&mgm.file.desiredspace=";
-      in += fsid1;
-      if (fsid2.length())
-      {
-        in += "&mgm.file.desiredsubgroup=";
-        in += fsid2;
-      }
+      in += handlePath(replicateSubCmd->getValue("space"));
+    }
+
+    if (replicateSubCmd->hasValue("subgroup"))
+    {
+      in += "&mgm.file.desiredsubgroup=";
+      in += handlePath(replicateSubCmd->getValue("subgroup"));
     }
   }
-
-  if (cmd == "layout")
+  else if (parsedCmd == layoutSubCmd)
   {
-    if (!path.length())
-      goto com_file_usage;
-
+    path = handlePath(layoutSubCmd->getValue("path"));
     in += "&mgm.subcmd=layout";
-    in += "&mgm.path=";
-    in += path;
-    if (fsid1 != "-stripes")
-      goto com_file_usage;
-    if (!fsid2.length())
-      goto com_file_usage;
-
+    in += "&mgm.path=" + path;
     in += "&mgm.file.layout.stripes=";
-    in += fsid2;
+    in += layoutSubCmd->getValue("stripes").c_str();
   }
-
-  if (cmd == "verify")
+  else if (parsedCmd == verifySubCmd)
   {
-    if (!path.length())
-      goto com_file_usage;
-
-    XrdOucString option[6];
-
+    path = handlePath(verifySubCmd->getValue("path"));
     in += "&mgm.subcmd=verify";
-    in += "&mgm.path=";
-    in += path;
-    if (fsid1.length())
-    {
-      if ((fsid1 != "-checksum") && (fsid1 != "-commitchecksum") && (fsid1 != "-commitsize") && (fsid1 != "-commitfmd") && (fsid1 != "-rate"))
-      {
-        if (fsid1.beginswith("-"))
-          goto com_file_usage;
+    in += "&mgm.path=" + path;
 
-        in += "&mgm.file.verify.filterid=";
-        in += fsid1;
-        if (fsid2.length())
-        {
-          option[0] = fsid2;
-          option[1] = subtokenizer.GetToken();
-          option[2] = subtokenizer.GetToken();
-          option[3] = subtokenizer.GetToken();
-          option[4] = subtokenizer.GetToken();
-          option[5] = subtokenizer.GetToken();
-        }
-      }
-      else
-      {
-        option[0] = fsid1;
-        option[1] = fsid2;
-        option[2] = subtokenizer.GetToken();
-        option[3] = subtokenizer.GetToken();
-        option[4] = subtokenizer.GetToken();
-        option[5] = subtokenizer.GetToken();
-      }
+    if (verifySubCmd->hasValue("filter"))
+    {
+      in += "&mgm.file.verify.filterid=";
+      in += verifySubCmd->getValue("filter").c_str();
     }
-
-    for (int i = 0; i < 6; i++)
+    if (verifySubCmd->hasValue("checksum"))
+      in += "&mgm.file.compute.checksum=1";
+    if (verifySubCmd->hasValue("commit-checksum"))
+      in += "&mgm.file.commit.checksum=1";
+    if (verifySubCmd->hasValue("commit-size"))
+      in += "&mgm.file.commit.size=1";
+    if (verifySubCmd->hasValue("commit-fmd"))
+      in += "&mgm.file.commit.fmd=1";
+    if (verifySubCmd->hasValue("rate"))
     {
-      if (option[i].length())
-      {
-        if (option[i] == "-checksum")
-        {
-          in += "&mgm.file.compute.checksum=1";
-        }
-        else
-        {
-          if (option[i] == "-commitchecksum")
-          {
-            in += "&mgm.file.commit.checksum=1";
-          }
-          else
-          {
-            if (option[i] == "-commitsize")
-            {
-              in += "&mgm.file.commit.size=1";
-            }
-            else
-            {
-              if (option[i] == "-commitfmd")
-              {
-                in += "&mgm.file.commit.fmd=1";
-              }
-              else
-              {
-                if (option[i] == "-rate")
-                {
-                  in += "&mgm.file.verify.rate=";
-                  if ((i == 5) || (!option[i + 1].length()))
-                    goto com_file_usage;
-                  in += option[i + 1];
-                  i++;
-                  continue;
-                }
-                else
-                {
-                  goto com_file_usage;
-                }
-              }
-            }
-          }
-        }
-      }
+      in += "&mgm.file.verify.rate=";
+      in += verifySubCmd->getValue("rate").c_str();
     }
   }
-
-  if (cmd == "check")
+  else if (parsedCmd == checkSubCmd)
   {
-    if (!path.length())
-      goto com_file_usage;
-
+    path = handlePath(checkSubCmd->getValue("path"));
     in += "&mgm.subcmd=getmdlocation";
-    in += "&mgm.path=";
-    in += path;
-
-    XrdOucString option = fsid1;
+    in += "&mgm.path=" + path;
 
     XrdOucEnv* result = client_user_command(in);
 
     if (!result)
     {
-      fprintf(stderr, "error: getmdlocation query failed\n");
-      return EINVAL;
+      fprintf(stderr, "Error: getmdlocation query failed\n");
+      ret = EINVAL;
+      goto bailout;
     }
-    int envlen = 0;
 
+    int envlen = 0;
     XrdOucEnv* newresult = new XrdOucEnv(result->Env(envlen));
     delete result;
 
@@ -467,7 +506,7 @@ com_file (char* arg1)
       XrdOucString checksum = newresult->Get("mgm.checksum");
       XrdOucString size = newresult->Get("mgm.size");
 
-      if ((option.find("%silent") == STR_NPOS) && (!silent))
+      if (!checkSubCmd->hasValue("silent"))
       {
         fprintf(stdout, "path=\"%-32s\" fid=\"%4s\" size=\"%s\" nrep=\"%s\" "
                 "checksumtype=\"%s\" checksum=\"%s\"\n",
@@ -505,7 +544,8 @@ com_file (char* arg1)
           if (!url.IsValid())
           {
             fprintf(stderr, "error=URL is not valid: %s", address.c_str());
-            return EINVAL;
+            ret = EINVAL;
+            goto bailout;
           }
 
           //.............................................................................
@@ -516,7 +556,8 @@ com_file (char* arg1)
           if (!fs)
           {
             fprintf(stderr, "error=failed to get new FS object");
-            return ECOMM;
+            ret = ECOMM;
+            goto bailout;
           }
 
           XrdOucString bs = newresult->Get(repbootstat.c_str());
@@ -533,19 +574,16 @@ com_file (char* arg1)
           int retc = 0;
           int oldsilent = silent;
 
-          if ((option.find("%silent")) != STR_NPOS)
-          {
-            silent = true;
-          }
+          silent = checkSubCmd->hasValue("silent");
 
-          if (down && ((option.find("%force")) == STR_NPOS))
+          if (down && checkSubCmd->hasValue("force"))
           {
             consistencyerror = true;
             inconsistencylable = "DOWN";
 
             if (!silent)
             {
-              fprintf(stderr, "error: unable to retrieve file meta data from %s [ status=%s ]\n",
+              fprintf(stderr, "Error: unable to retrieve file meta data from %s [ status=%s ]\n",
                       newresult->Get(repurl.c_str()), bs.c_str());
             }
           }
@@ -553,7 +591,7 @@ com_file (char* arg1)
           {
             // fprintf( stderr,"%s %s %s\n",newresult->Get(repurl.c_str()),
             //          newresult->Get(repfid.c_str()),newresult->Get(repfsid.c_str()) );
-            if ((option.find("%checksumattr") != STR_NPOS))
+            if (checkSubCmd->hasValue("checksum-attr"))
             {
               checksumattribute = "";
               if ((retc = eos::fst::gFmdClient.GetRemoteAttribute(
@@ -564,7 +602,7 @@ com_file (char* arg1)
               {
                 if (!silent)
                 {
-                  fprintf(stderr, "error: unable to retrieve extended attribute from %s [%d]\n",
+                  fprintf(stderr, "Error: unable to retrieve extended attribute from %s [%d]\n",
                           newresult->Get(repurl.c_str()), retc);
                 }
               }
@@ -574,9 +612,6 @@ com_file (char* arg1)
             // Do a remote stat using XrdCl::FileSystem
             //..................................................................
             uint64_t rsize;
-	    uint64_t id = 0;
-	    uint64_t flags = 0;
-	    uint64_t modtime = 0;
 
             status = fs->Stat(newresult->Get(repfstpath.c_str()), stat_info);
 
@@ -588,10 +623,7 @@ com_file (char* arg1)
             }
             else
             {
-              id = static_cast<uint64_t> (atoll(stat_info->GetId().c_str()));
               rsize = stat_info->GetSize();
-              flags = stat_info->GetFlags();
-              modtime = stat_info->GetModTime();
             }
 
             //..................................................................
@@ -607,7 +639,7 @@ com_file (char* arg1)
             {
               if (!silent)
               {
-                fprintf(stderr, "error: unable to retrieve file meta data from %s [%d]\n",
+                fprintf(stderr, "Error: unable to retrieve file meta data from %s [%d]\n",
                         newresult->Get(repurl.c_str()), retc);
               }
               consistencyerror = true;
@@ -621,7 +653,7 @@ com_file (char* arg1)
               {
                 cx += "00";
               }
-              if ((option.find("%size")) != STR_NPOS)
+              if (checkSubCmd->hasValue("size"))
               {
                 char ss[1024];
                 sprintf(ss, "%llu", fmd.size);
@@ -644,7 +676,7 @@ com_file (char* arg1)
                 }
               }
 
-              if ((option.find("%checksum")) != STR_NPOS)
+              if (checkSubCmd->hasValue("checksum"))
               {
                 if (cx != checksum)
                 {
@@ -653,9 +685,10 @@ com_file (char* arg1)
                 }
               }
 
-              if ((option.find("%checksumattr") != STR_NPOS))
+              if (checkSubCmd->hasValue("checksum-attr"))
               {
-                if ((checksumattribute.length() < 8) || (!cx.beginswith(checksumattribute)))
+                if ((checksumattribute.length() < 8) ||
+                    (!cx.beginswith(checksumattribute)))
                 {
                   consistencyerror = true;
                   inconsistencylable = "CHECKSUMATTR";
@@ -666,8 +699,9 @@ com_file (char* arg1)
 
               if (!silent)
               {
-                fprintf(stdout, "nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" "
-                        "size=\"%llu\" statsize=\"%llu\" checksum=\"%s\"",
+                fprintf(stdout, "nrep=\"%02d\" fsid=\"%s\" host=\"%s\" "
+                        "fstpath=\"%s\" size=\"%llu\" statsize=\"%llu\" "
+                        "checksum=\"%s\"",
                         i, newresult->Get(repfsid.c_str()),
                         newresult->Get(repurl.c_str()),
                         newresult->Get(repfstpath.c_str()),
@@ -675,9 +709,11 @@ com_file (char* arg1)
                         static_cast<long long> (rsize),
                         cx.c_str());
               }
-              if ((option.find("%checksumattr") != STR_NPOS))
+              if (checkSubCmd->hasValue("checksum-attr"))
               {
-                if (!silent)fprintf(stdout, " checksumattr=\"%s\"\n", checksumattribute.c_str());
+                if (!silent)
+                  fprintf(stdout, " checksumattr=\"%s\"\n",
+                          checksumattribute.c_str());
               }
               else
               {
@@ -686,7 +722,7 @@ com_file (char* arg1)
             }
           }
 
-          if ((option.find("%silent")) != STR_NPOS)
+          if (checkSubCmd->hasValue("silent"))
           {
             silent = oldsilent;
           }
@@ -697,7 +733,7 @@ com_file (char* arg1)
         }
       }
 
-      if ((option.find("%nrep")) != STR_NPOS)
+      if (checkSubCmd->hasValue("nr-rep"))
       {
         int nrep = 0;
         int stripes = 0;
@@ -719,21 +755,44 @@ com_file (char* arg1)
         }
       }
 
-      if ((option.find("%output")) != STR_NPOS)
+      if (checkSubCmd->hasValue("output"))
       {
         if (consistencyerror)
-          fprintf(stdout, "INCONSISTENCY %s path=%-32s fid=%s size=%s stripes=%s nrep=%s nrepstored=%d nreponline=%d checksumtype=%s checksum=%s\n", inconsistencylable.c_str(), path.c_str(), newresult->Get("mgm.fid0"), size.c_str(), newresult->Get("mgm.stripes"), newresult->Get("mgm.nrep"), i, nreplicaonline, checksumtype.c_str(), newresult->Get("mgm.checksum"));
+          fprintf(stdout, "INCONSISTENCY %s path=%-32s fid=%s size=%s "
+                  "stripes=%s nrep=%s nrepstored=%d nreponline=%d "
+                  "checksumtype=%s checksum=%s\n",
+                  inconsistencylable.c_str(), path.c_str(),
+                  newresult->Get("mgm.fid0"), size.c_str(),
+                  newresult->Get("mgm.stripes"), newresult->Get("mgm.nrep"),
+                  i, nreplicaonline, checksumtype.c_str(),
+                  newresult->Get("mgm.checksum"));
       }
 
       delete newresult;
     }
     else
     {
-      fprintf(stderr, "error: %s", newresult->Get("mgm.proc.stderr"));
+      fprintf(stderr, "Error: %s", newresult->Get("mgm.proc.stderr"));
     }
-    return (consistencyerror);
+
+    ret = consistencyerror;
+    goto bailout;
   }
 
+  if (checkSubCmd->hasValue("size"))
+    option += "%size";
+  if (checkSubCmd->hasValue("checksum"))
+    option += "%checksum";
+  if (checkSubCmd->hasValue("nr-rep"))
+    option += "%nrep";
+  if (checkSubCmd->hasValue("checksum-attr"))
+    option += "%checksumattr";
+  if (checkSubCmd->hasValue("silent"))
+    option += "%silent";
+  if (checkSubCmd->hasValue("force"))
+    option += "%force";
+  if (checkSubCmd->hasValue("output"))
+    option += "%output";
 
   if (option.length())
   {
@@ -742,60 +801,10 @@ com_file (char* arg1)
   }
 
   global_retc = output_result(client_user_command(in));
-  return (0);
 
-com_file_usage:
-  fprintf(stdout, "Usage: file adjustreplica|check|convert|copy|drop|info|layout|move|rename|replicate|verify ...\n");
-  fprintf(stdout, "'[eos] file ..' provides the file management interface of EOS.\n");
-  fprintf(stdout, "Options:\n");
-  fprintf(stdout, "file adjustreplica [--nodrop] <path>|fid:<fid-dec>|fxid:<fid-hex> [space [subgroup]] :\n");
-  fprintf(stdout, "                                                  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
-  fprintf(stdout, "file check <path> [%%size%%checksum%%nrep%%checksumattr%%force%%output%%silent] :\n");
-  fprintf(stdout, "                                                  retrieves stat information from the physical replicas and verifies the correctness\n");
-  fprintf(stdout, "       - %%size                                                       :  return with an error code if there is a mismatch between the size meta data information\n");
-  fprintf(stdout, "       - %%checksum                                                   :  return with an error code if there is a mismatch between the checksum meta data information\n");
-  fprintf(stdout, "       - %%nrep                                                       :  return with an error code if there is a mismatch between the layout number of replicas and the existing replicas\n");
-  fprintf(stdout, "       - %%checksumattr                                               :  return with an error code if there is a mismatch between the checksum in the extended attributes on the FST and the FMD checksum\n");
-  fprintf(stdout, "       - %%silent                                                     :  suppresses all information for each replic to be printed\n");
-  fprintf(stdout, "       - %%force                                                      :  forces to get the MD even if the node is down\n");
-  fprintf(stdout, "       - %%output                                                     :  prints lines with inconsitency information\n");
-  fprintf(stdout, "file convert [--sync|--rewrite] <path> [<layout>:<stripes> | <layout-id> | <sys.attribute.name>] [target-space]:\n");
-  fprintf(stdout, "                                                                         convert the layout of a file\n");
-  fprintf(stdout, "        <layout>:<stripes>   : specify the target layout and number of stripes\n");
-  fprintf(stdout, "        <layout-id>          : specify the hexadecimal layout id \n");
-  fprintf(stdout, "        <conversion-name>    : specify the name of the attribute sys.conversion.<name> in the parent directory of <path> defining the target layout\n");
-  fprintf(stdout, "        <target-space>       : optional name of the target space or group e.g. default or default.3\n");
-  fprintf(stdout, "        --sync               : run convertion in synchronous mode (by default conversions are asynchronous) - not supported yet\n");
-  fprintf(stdout, "        --rewrite            : run convertion rewriting the file as is creating new copies and dropping old\n");
-  fprintf(stdout, "file copy [-f] [-s] <src> <dst>                                       :  synchronous third party copy from <src> to <dst>\n");
-  fprintf(stdout, "         <src>                                                         :  source can be a file or a directory\n");
-  fprintf(stdout, "         <dst>                                                         :  destination can be a file (if source is a file) or a directory\n");
-  fprintf(stdout, "file drop <path> <fsid> [-f] :\n");
-  fprintf(stdout, "                                                  drop the file <path> from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem) \n");
-  fprintf(stdout, "file info <path> :\n");
-  fprintf(stdout, "                                                  convenience function aliasing to 'fileinfo' command\n");
-  fprintf(stdout, "file layout <path>|fid:<fid-dec>|fxid:<fid-hex>  -stripes <n> :\n");
-  fprintf(stdout, "                                                  change the number of stripes of a file with replica layout to <n>\n");
-  fprintf(stdout, "file move <path> <fsid1> <fsid2> :\n");
-  fprintf(stdout, "                                                  move the file <path> from  <fsid1> to <fsid2>\n");
+ bailout:
+  delete fileCmd;
 
-  fprintf(stdout, "file rename <old> <new> :\n");
-  fprintf(stdout, "                                                  rename from <old> to <new> name (works for files and directories!). This only works for the 'root' user and the renamed file/directory has to stay in the same parent directory\n");
-  fprintf(stdout, "file replicate <path> <fsid1> <fsid2> :\n");
-  fprintf(stdout, "                                                  replicate file <path> part on <fsid1> to <fsid2>\n");
-
-  fprintf(stdout, "file touch <path> :\n");
-  fprintf(stdout, "                                                   create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
-
-  fprintf(stdout, "file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : \n");
-  fprintf(stdout, "                                                  verify a file against the disk images\n");
-  fprintf(stdout, "       <fsid>          : verifies only the replica on <fsid>\n");
-  fprintf(stdout, "       -checksum       : trigger the checksum calculation during the verification process\n");
-  fprintf(stdout, "       -commitchecksum : commit the computed checksum to the MGM\n");
-  fprintf(stdout, "       -commitsize     : commit the file size to the MGM\n");
-  fprintf(stdout, "       -rate <rate>    : restrict the verification speed to <rate> per node\n");
-  fprintf(stdout, "\n");
-
-  return (0);
+  return ret;
 }
 
