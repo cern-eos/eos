@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_attr.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -29,55 +30,97 @@
 int
 com_attr (char* arg1)
 {
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString subcommand = subtokenizer.GetToken();
   XrdOucString option = "";
-  XrdOucString optionstring = "";
   XrdOucString in = "mgm.cmd=attr";
-  XrdOucString arg = "";
+  XrdOucString path;
+  ConsoleCliCommand *parsedCmd, *attrCmd, *lsSubCmd, *setSubCmd,
+    *getSubCmd, *rmSubCmd, *resetSubCmd;
 
-  if (wants_help(arg1))
-    goto com_attr_usage;
+  attrCmd = new ConsoleCliCommand("attr", "provides the extended attribute "
+                                  "interface for directories in EOS.");
 
-  if (subcommand.beginswith("-"))
+  CliPositionalOption pathOption("path", "", 1, 1, "<path>", true);
+
+  lsSubCmd = new ConsoleCliCommand("ls", "list attributes of path");
+  CliOption recursiveOption("recursive",
+                            "list recursively all directory children", "-r");
+  lsSubCmd->addOption(recursiveOption);
+  lsSubCmd->addOption(pathOption);
+  attrCmd->addSubcommand(lsSubCmd);
+
+  resetSubCmd = new ConsoleCliCommand("reset", "set attributes of path to the "
+                                      "EOS defaults");
+  resetSubCmd->addGroupedOptions({{"replica", "set the attributes of <path> to "
+                                   "the EOS's defaults for replicas",
+                                   "--replica"},
+                                  {"raiddp", "set the attributes of <path> to "
+                                   "the EOS's defaults for dual-parity-raid "
+                                   "(4+2)", "--raiddp"},
+                                  {"raid6", "set the attributes of <path> to "
+                                   "the EOS's defaults for raid-6 (4+2)",
+                                   "--raid6"},
+                                  {"archive", "set the attributes of <path> to "
+                                   "the EOS's defaults for archive layouts "
+                                   "(5+3)", "--archive"}
+                                 })->setRequired(true);
+  resetSubCmd->addOption(pathOption);
+  recursiveOption.setDescription("reset recursively on all directory children");
+  resetSubCmd->addOption(recursiveOption);
+  attrCmd->addSubcommand(resetSubCmd);
+
+  pathOption.setPosition(2);
+  setSubCmd = new ConsoleCliCommand("set", "set attributes of path");
+  setSubCmd->addOption({"key-value", "", 1, 1, "<key>=<value>", true});
+  setSubCmd->addOption(pathOption);
+  recursiveOption.setDescription("set recursively on all directory children");
+  setSubCmd->addOption(recursiveOption);
+  attrCmd->addSubcommand(setSubCmd);
+
+  CliPositionalOption keyOption("key", "", 1, 1, "<key>", true);
+  getSubCmd = new ConsoleCliCommand("get", "get attributes of path");
+  recursiveOption.setDescription("get recursively on all directory children");
+  getSubCmd->addOption(recursiveOption);
+  getSubCmd->addOption(keyOption);
+  getSubCmd->addOption(pathOption);
+  attrCmd->addSubcommand(getSubCmd);
+
+  rmSubCmd = new ConsoleCliCommand("rm", "rm attributes of path");
+  recursiveOption.setDescription("delete recursively on all directory children");
+  rmSubCmd->addOption(recursiveOption);
+  rmSubCmd->addOption(keyOption);
+  rmSubCmd->addOption(pathOption);
+  attrCmd->addSubcommand(rmSubCmd);
+
+  addHelpOptionRecursively(attrCmd);
+
+  parsedCmd = attrCmd->parse(arg1);
+
+  if (parsedCmd == attrCmd)
   {
-    option = subcommand;
-    option.erase(0, 1);
-    optionstring += subcommand;
-    optionstring += " ";
-    subcommand = subtokenizer.GetToken();
-    arg = subtokenizer.GetToken();
-    in += "&mgm.option=";
-    in += option;
+    if (!checkHelpAndErrors(attrCmd))
+      parsedCmd->printUsage();
+
+    goto com_examples;
   }
-  else
+  if (checkHelpAndErrors(parsedCmd))
+    goto bailout;
+
+  if (parsedCmd->hasValue("recursive"))
+    in += "&mgm.option=r";
+
+  path = cleanPath(parsedCmd->getValue("path"));
+
+  if (parsedCmd == lsSubCmd)
   {
-    arg = subtokenizer.GetToken();
-  }
-
-  if ((!subcommand.length()) || (!arg.length()) ||
-      ((subcommand != "ls") && (subcommand != "set") && (subcommand != "get") && (subcommand != "rm")))
-    goto com_attr_usage;
-
-  if (subcommand == "ls")
-  {
-    XrdOucString path = arg;
-    if (!path.length())
-      goto com_attr_usage;
-
-    path = abspath(path.c_str());
-
     in += "&mgm.subcmd=ls";
-    in += "&mgm.path=";
-    in += path;
+    in += "&mgm.path=" + path;
   }
-
-  if (subcommand == "set")
+  else if (parsedCmd == setSubCmd)
   {
-    XrdOucString key = arg;
+    XrdOucString key = setSubCmd->getValue("key-value").c_str();
     XrdOucString value = "";
     int epos = key.find("=");
+
     if (epos != STR_NPOS)
     {
       value = key;
@@ -85,230 +128,84 @@ com_attr (char* arg1)
       key.erase(epos);
     }
     else
-    {
       value = "";
-    }
 
-    if (!value.length())
-      goto com_attr_usage;
-
-    if (value.beginswith("\""))
+    if (!key.length() || !value.length())
     {
-      if (!value.endswith("\""))
-      {
-        do
-        {
-          XrdOucString morevalue = subtokenizer.GetToken();
-
-          if (morevalue.endswith("\""))
-          {
-            value += " ";
-            value += morevalue;
-            break;
-          }
-          if (!morevalue.length())
-          {
-            goto com_attr_usage;
-          }
-          value += " ";
-          value += morevalue;
-        }
-        while (1);
-      }
+      fprintf(stdout, "Error: Please provide a key and a value in the "
+              "following way <key>=<value>\n");
+      setSubCmd->printUsage();
     }
 
-    XrdOucString path = subtokenizer.GetToken();
-    if (!key.length() || !value.length() || !path.length())
-      goto com_attr_usage;
+    in += "&mgm.subcmd=set&mgm.attr.key=" + key;
+    in += "&mgm.attr.value=" + value;
+    in += "&mgm.path=" + path;
+  }
+  else if (parsedCmd == resetSubCmd)
+  {
+    std::string blocksize, layout, nstripes;
 
-    path = abspath(path.c_str());
-
-    in += "&mgm.subcmd=set&mgm.attr.key=";
-    in += key;
-    in += "&mgm.attr.value=";
-    in += value;
-    in += "&mgm.path=";
-    in += path;
-
-    if (key == "default")
+    if (resetSubCmd->hasValue("replica"))
     {
-      if (value == "replica")
-      {
-        XrdOucString d1 = optionstring;
-        d1 += "set ";
-        d1 += "sys.forced.blocksize=4k ";
-        d1 += path;
-        XrdOucString d2 = optionstring;
-        d2 += "set ";
-        d2 += "sys.forced.checksum=adler ";
-        d2 += path;
-        XrdOucString d3 = optionstring;
-        d3 += "set ";
-        d3 += "sys.forced.layout=replica ";
-        d3 += path;
-        XrdOucString d4 = optionstring;
-        d4 += "set ";
-        d4 += "sys.forced.nstripes=2 ";
-        d4 += path;
-        XrdOucString d5 = optionstring;
-        d5 += "set ";
-        d5 += "sys.forced.space=default ";
-        d5 += path;
-        XrdOucString d6 = optionstring;
-        d6 += "set ";
-        d6 += "sys.forced.blockchecksum=crc32c ";
-        d6 += path;
-        global_retc = com_attr((char*) d1.c_str()) || com_attr((char*) d2.c_str()) || com_attr((char*) d3.c_str()) || com_attr((char*) d4.c_str()) || com_attr((char*) d5.c_str()) || com_attr((char*) d6.c_str());
-        return (0);
-      }
-      if (value == "raiddp")
-      {
-        XrdOucString d1 = optionstring;
-        d1 += "set ";
-        d1 += "sys.forced.blocksize=1M ";
-        d1 += path;
-        XrdOucString d2 = optionstring;
-        d2 += "set ";
-        d2 += "sys.forced.checksum=adler ";
-        d2 += path;
-        XrdOucString d3 = optionstring;
-        d3 += "set ";
-        d3 += "sys.forced.layout=raiddp ";
-        d3 += path;
-        XrdOucString d4 = optionstring;
-        d4 += "set ";
-        d4 += "sys.forced.nstripes=6 ";
-        d4 += path;
-        XrdOucString d5 = optionstring;
-        d5 += "set ";
-        d5 += "sys.forced.space=default ";
-        d5 += path;
-        XrdOucString d6 = optionstring;
-        d6 += "set ";
-        d6 += "sys.forced.blockchecksum=crc32c ";
-        d6 += path;
-        global_retc = com_attr((char*) d1.c_str()) || com_attr((char*) d2.c_str()) || com_attr((char*) d3.c_str()) || com_attr((char*) d4.c_str()) || com_attr((char*) d5.c_str()) || com_attr((char*) d6.c_str());
-        return (0);
-      }
-      if (value == "raid6")
-      {
-        XrdOucString d1 = optionstring;
-        d1 += "set ";
-        d1 += "sys.forced.blocksize=1M ";
-        d1 += path;
-        XrdOucString d2 = optionstring;
-        d2 += "set ";
-        d2 += "sys.forced.checksum=adler ";
-        d2 += path;
-        XrdOucString d3 = optionstring;
-        d3 += "set ";
-        d3 += "sys.forced.layout=raid6 ";
-        d3 += path;
-        XrdOucString d4 = optionstring;
-        d4 += "set ";
-        d4 += "sys.forced.nstripes=6 ";
-        d4 += path;
-        XrdOucString d5 = optionstring;
-        d5 += "set ";
-        d5 += "sys.forced.space=default ";
-        d5 += path;
-        XrdOucString d6 = optionstring;
-        d6 += "set ";
-        d6 += "sys.forced.blockchecksum=crc32c ";
-        d6 += path;
-        global_retc = com_attr((char*) d1.c_str()) || com_attr((char*) d2.c_str()) || com_attr((char*) d3.c_str()) || com_attr((char*) d4.c_str()) || com_attr((char*) d5.c_str()) || com_attr((char*) d6.c_str());
-        return (0);
-      }
-      if (value == "archive")
-      {
-        XrdOucString d1 = optionstring;
-        d1 += "set ";
-        d1 += "sys.forced.blocksize=1M ";
-        d1 += path;
-        XrdOucString d2 = optionstring;
-        d2 += "set ";
-        d2 += "sys.forced.checksum=adler ";
-        d2 += path;
-        XrdOucString d3 = optionstring;
-        d3 += "set ";
-        d3 += "sys.forced.layout=archive ";
-        d3 += path;
-        XrdOucString d4 = optionstring;
-        d4 += "set ";
-        d4 += "sys.forced.nstripes=8 ";
-        d4 += path;
-        XrdOucString d5 = optionstring;
-        d5 += "set ";
-        d5 += "sys.forced.space=default ";
-        d5 += path;
-        XrdOucString d6 = optionstring;
-        d6 += "set ";
-        d6 += "sys.forced.blockchecksum=crc32c ";
-        d6 += path;
-        global_retc = com_attr((char*) d1.c_str()) || com_attr((char*) d2.c_str()) || com_attr((char*) d3.c_str()) || com_attr((char*) d4.c_str()) || com_attr((char*) d5.c_str()) || com_attr((char*) d6.c_str());
-        return (0);
-      }
-      goto com_attr_usage;
+      blocksize = "4k";
+      layout = "replica";
+      nstripes = "2";
     }
-  }
+    else if (resetSubCmd->hasValue("raiddp"))
+    {
+      blocksize = "1M";
+      layout = "raiddp";
+      nstripes = "6";
+    }
+    else if (resetSubCmd->hasValue("raid6"))
+    {
+      blocksize = "1M";
+      layout = "raid6";
+      nstripes = "6";
+    }
+    else if (resetSubCmd->hasValue("archive"))
+    {
+      blocksize = "1M";
+      layout = "archive";
+      nstripes = "8";
+    }
 
-  if (subcommand == "get")
-  {
-    XrdOucString key = arg;
-    XrdOucString path = subtokenizer.GetToken();
-    if (!key.length() || !path.length())
-      goto com_attr_usage;
-    path = abspath(path.c_str());
-    in += "&mgm.subcmd=get&mgm.attr.key=";
-    in += key;
-    in += "&mgm.path=";
-    in += path;
-  }
+    const std::string args[] = {"sys.forced.blocksize=" + blocksize,
+                                "sys.forced.checksum=adler",
+                                "sys.forced.layout=" + layout,
+                                "sys.forced.nstripes=" + nstripes,
+                                "sys.forced.space=default",
+                                "sys.forced.blockchecksum=crc32c",
+                                ""};
 
-  if (subcommand == "rm")
+    for (int i = 0; args[i].length() > 0; i++)
+    {
+      std::string command = "set ";
+      if (resetSubCmd->hasValue("recursive"))
+        command += " -r ";
+      command += args[i] + " " + path.c_str();
+
+      global_retc = global_retc || com_attr((char *) command.c_str());
+    }
+
+    goto bailout;
+  }
+  else if (parsedCmd == getSubCmd || parsedCmd == rmSubCmd)
   {
-    XrdOucString key = arg;
-    XrdOucString path = subtokenizer.GetToken();
-    if (!key.length() || !path.length())
-      goto com_attr_usage;
-    path = abspath(path.c_str());
-    in += "&mgm.subcmd=rm&mgm.attr.key=";
-    in += key;
-    in += "&mgm.path=";
-    in += path;
+    in += "&mgm.subcmd=";
+    in += parsedCmd == rmSubCmd ? "rm" : "get";
+    in += "&mgm.attr.key=";
+    in += getSubCmd->getValue("key").c_str();
+    in += "&mgm.path=" + path;
   }
 
   global_retc = output_result(client_user_command(in));
-  return (0);
 
-com_attr_usage:
-  fprintf(stdout, "'[eos] attr ..' provides the extended attribute interface for directories in EOS.\n");
-  fprintf(stdout, "Usage: attr [OPTIONS] ls|set|get|rm ...\n");
-  fprintf(stdout, "Options:\n");
+  goto bailout;
 
-  fprintf(stdout, "attr [-r] ls <path> :\n");
-  fprintf(stdout, "                                                : list attributes of path\n");
-  fprintf(stdout, " -r : list recursive on all directory children\n");
-  fprintf(stdout, "attr [-r] set <key>=<value> <path> :\n");
-  fprintf(stdout, "                                                : set attributes of path (-r recursive)\n");
-  fprintf(stdout, "attr [-r] set default=replica|raiddp|raid6|archive <path> :\n");
-  fprintf(stdout, "                                                : set attributes of path (-r recursive) to the EOS defaults for replicas,dual-parity-raid (4+2), raid-6 (4+2) or archive layouts (5+3).\n");
+com_examples:
 
-  //  fprintf(stdout,"attr [-r] set default=raiddp <path> :\n");
-  //  fprintf(stdout,"                                                : set attributes of path (-r recursive) to the EOS defaults for dual parity raid (4+2).\n");
-
-  //  fprintf(stdout,"attr [-r] set default=reeds <path> :\n");
-  //  fprintf(stdout,"                                                : set attributes of path (-r recursive) to the EOS defaults for reed solomon (4+2).\n");
-
-  fprintf(stdout, " -r : set recursive on all directory children\n");
-  fprintf(stdout, "attr [-r] get <key> <path> :\n");
-  fprintf(stdout, "                                                : get attributes of path (-r recursive)\n");
-  fprintf(stdout, " -r : get recursive on all directory children\n");
-  fprintf(stdout, "attr [-r] rm  <key> <path> :\n");
-  fprintf(stdout, "                                                : delete attributes of path (-r recursive)\n\n");
-  fprintf(stdout, " -r : delete recursive on all directory children\n");
-
-  fprintf(stdout, "If <key> starts with 'sys.' you have to be member of the sudoer group to see this attributes or modify.\n\n");
+  fprintf(stdout, "\nIf <key> starts with 'sys.' you have to be member of the sudoer group to see this attributes or modify.\n\n");
 
   fprintf(stdout, "Administrator Variables:\n");
   // ---------------------------------------------------------------------------
@@ -339,7 +236,7 @@ com_attr_usage:
   fprintf(stdout, "\n");
   fprintf(stdout, "         sys.lru.convert.match=[match1:<age1>,match2:<age2>...]\n");
   fprintf(stdout, "                                                 defines the rule that files with a given match will be converted to the layouts defined by sys.conversion.<match> when their access time reaches <age>.\n");
-  fprintf(stdout, "\n"); 
+  fprintf(stdout, "\n");
   // ---------------------------------------------------------------------------
   fprintf(stdout, "         sys.stall.unavailable=<sec>           : stall clients for <sec> seconds if a needed file system is unavailable\n");
   fprintf(stdout, "         sys.heal.unavailable=<tries>          : try to heal an unavailable file for atleast <tries> times - must be >= 3 !!\n");
@@ -388,13 +285,13 @@ com_attr_usage:
   fprintf(stdout,"....... Layouts ...\n");
   fprintf(stdout,"...................\n");
   fprintf(stdout,"- set 2 replica as standard layout ...\n");
-  fprintf(stdout,"     |eos> attr set default=replicae /eos/instance/2-replica\n");
+  fprintf(stdout,"     |eos> attr reset --replica /eos/instance/2-replica\n");
   fprintf(stdout,"--------------------------------------------------------------------------------\n");
   fprintf(stdout,"- set RAID-6 4+2 as standard layout ...\n");
-  fprintf(stdout,"     |eos> attr set default=raid6 /eos/instance/raid-6\n");
+  fprintf(stdout,"     |eos> attr reset --raid6 /eos/instance/raid-6\n");
   fprintf(stdout,"--------------------------------------------------------------------------------\n");
   fprintf(stdout,"- set ARCHIVE 5+3 as standard layout ...\n");
-  fprintf(stdout,"     |eos> attr set default=archive /eos/instance/archive\n");
+  fprintf(stdout,"     |eos> attr reset --archive /eos/instance/archive\n");
   fprintf(stdout,"--------------------------------------------------------------------------------\n");
   fprintf(stdout,"- re-configure a layout for different number of stripes (e.g. 10) ...\n");
   fprintf(stdout,"     |eos> attr set sys.forced.stripes=10 /eos/instance/archive\n");
@@ -439,6 +336,9 @@ com_attr_usage:
   fprintf(stdout,"     |eos> recycle config --lifetime 604800                                     # set the lifetime to 1 week\n");
   fprintf(stdout,"     |eos> recycle config --size 100T                                           # set the size of 100T\n");
   fprintf(stdout,"     |eos> recycle config --add-bin /eos/dev/instance/                          # add's the recycle bin to the subtree /eos/dev/instance\n");
+
+ bailout:
+  delete attrCmd;
 
   return (0);
 }
