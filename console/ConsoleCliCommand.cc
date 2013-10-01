@@ -425,9 +425,6 @@ CliOptionWithArgs::repr() const
     reprStr = firstKw + (firstKw.back() == '=' ? "" : " ") + reprStr;
   }
 
-  if (!mRequired)
-    return "[" + reprStr + "]";
-
   return reprStr;
 }
 
@@ -595,9 +592,6 @@ CliPositionalOption::analyse(std::vector<std::string> &cliArgs)
 std::string
 CliPositionalOption::repr() const
 {
-  if (!mRequired)
-    return "[" + mRepr + "]";
-
   return mRepr;
 }
 
@@ -1102,7 +1096,8 @@ ConsoleCliCommand::positionalOptionsRepr()
   std::map<int, CliPositionalOption *>::const_iterator it;
   for (it = mPositionalOptions->cbegin(); it != mPositionalOptions->cend(); it++)
   {
-    repr += (*it).second->repr();
+    const std::string &currentRepr = (*it).second->repr();
+    repr += (*it).second->required() ? currentRepr : "[" + currentRepr + "]";
 
     if (it == --mPositionalOptions->cend())
       break;
