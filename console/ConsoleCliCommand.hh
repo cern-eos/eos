@@ -177,6 +177,7 @@ public:
   virtual char* helpString();
   virtual std::string repr() const;
   int position() { return mPosition; };
+  void setPosition(int position) { mPosition = position; }
 
 private:
   int mPosition;
