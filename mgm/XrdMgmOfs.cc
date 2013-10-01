@@ -1210,7 +1210,7 @@ XrdMgmOfs::_chmod (const char *path,
     Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
             attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid);
 
-    if ((cmd->getCUid() == vid.uid) || // the owner
+    if ( ((cmd->getCUid() == vid.uid) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
         (!vid.uid) || // the root user
         (vid.uid == 3) || // the admin user
         (vid.gid == 4) || // the admin group

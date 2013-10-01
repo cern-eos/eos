@@ -64,6 +64,7 @@ class Acl
   bool canChmod; ///< acl allows mode change
   bool canChown; ///< acl allows chown change
   bool canNotDelete; ///< acl forbids deletion
+  bool canNotChmod; ///< acl forbids chmod
   bool canDelete; ///< acl allows deletion
   bool canSetQuota; ///< acl allows to set quota
   bool hasAcl; ///< acl is valid
@@ -81,6 +82,7 @@ public:
     canUpdate = false;
     canBrowse = false;
     canChmod = false;
+    canNotChmod = false;
     canChown = false;
     canNotDelete = false;
     canDelete = false;
@@ -160,6 +162,13 @@ public:
   /// allowed to change mod
   {
     return canChmod;
+  }
+
+  bool
+  CanNotChmod ()
+  /// not allowed to change mod
+  {
+    return canNotChmod;
   }
 
   bool

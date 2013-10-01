@@ -91,6 +91,7 @@ Acl::Set (std::string sysacl,
   canUpdate = true;
   canBrowse = false;
   canChmod = false;
+  canNotChmod = false;
   canChown = false;
   canNotDelete = false;
   canDelete = false;
@@ -205,7 +206,14 @@ Acl::Set (std::string sysacl,
       // -----------------------------------------------------------------------
       if ((entry[2].find("m")) != std::string::npos)
       {
-        canChmod = true;
+	if ((entry[2].find("!m")) != std::string::npos) 
+	{
+	  canNotChmod = true;
+	} 
+        else 
+	{
+	  canChmod = true;
+	}
         hasAcl = true;
       }
 
@@ -318,7 +326,7 @@ Acl::IsValid (const std::string value,
   int regexErrorCode;
   int result;
   regex_t regex;
-  std::string regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-]+)))|(egroup:([\\.[:alnum:]-]+))):(r|w|wo|x|m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+  std::string regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-]+)))|(egroup:([\\.[:alnum:]-]+))):(r|w|wo|x|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
 
   // -----------------------------------------------------------------------
   // Compile regex
