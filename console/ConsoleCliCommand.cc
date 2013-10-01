@@ -357,6 +357,14 @@ CliOptionWithArgs::CliOptionWithArgs(std::string name,
   mRequired = required;
 }
 
+CliOptionWithArgs::CliOptionWithArgs(std::string name,
+                                     std::string desc,
+                                     std::string keywords,
+                                     std::string repr,
+                                     bool required)
+  : CliOptionWithArgs(name, desc, keywords, 1, repr, required)
+{}
+
 CliOptionWithArgs::~CliOptionWithArgs()
 {
   if (mEvalFunctions)

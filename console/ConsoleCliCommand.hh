@@ -139,6 +139,9 @@ public:
   CliOptionWithArgs(std::string name, std::string desc,
                     std::string keywords, int numArgs,
                     std::string repr, bool required);
+  CliOptionWithArgs(std::string name, std::string desc,
+                    std::string keywords, std::string repr,
+                    bool required);
   ~CliOptionWithArgs();
   virtual AnalysisResult* analyse(std::vector<std::string> &cliArgs);
   virtual std::string repr() const;
