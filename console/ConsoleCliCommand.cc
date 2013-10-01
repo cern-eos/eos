@@ -756,6 +756,20 @@ ConsoleCliCommand::addGroupedOptions(std::vector<CliOption> options)
   return group;
 }
 
+OptionsGroup*
+ConsoleCliCommand::addGroupedOptions(std::vector<CliOptionWithArgs> options)
+{
+  if (options.size() == 0)
+    return 0;
+
+  OptionsGroup *group = new OptionsGroup;
+  addGroup(group);
+
+  group->addOptions(options);
+
+  return group;
+}
+
 void
 ConsoleCliCommand::addGroup(OptionsGroup *group)
 {

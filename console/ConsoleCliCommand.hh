@@ -217,6 +217,7 @@ public:
   void addOptions(std::vector<CliPositionalOption> options);
   void addGroup(OptionsGroup *group);
   OptionsGroup* addGroupedOptions(std::vector<CliOption> options);
+  OptionsGroup* addGroupedOptions(std::vector<CliOptionWithArgs> options);
   bool hasErrors();
   ConsoleCliCommand* parse(std::vector<std::string> &cliArgs);
   ConsoleCliCommand* parse(std::string &cliArgs);
