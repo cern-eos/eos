@@ -414,6 +414,59 @@ CliOptionWithArgs::~CliOptionWithArgs()
   mUserData = 0;
 }
 
+char *
+CliOptionWithArgs::helpString()
+{
+  if (mDescription == "" || !mKeywords)
+    return NULL;
+
+  char *helpStr = 0;
+  std::string keyword("");
+  ostringstream helpRepr(mRepr);
+
+  if (helpRepr == "")
+  {
+    if (mNumArgs == -1)
+      helpRepr << "<value1> <value2> ...";
+    else
+    {
+      for (int i = 1; i <= mNumArgs; i++)
+      {
+        helpRepr << "<value" << i << ">" << (i == mNumArgs ? "" : " ");
+      }
+      helpRepr << "...";
+    }
+  }
+
+  for (size_t i = 0; i < mKeywords->size(); i++)
+    {
+      keyword += mKeywords->at(i);
+
+      if (keyword.back() == '=')
+        keyword += helpRepr.str();
+      else
+        keyword += " " + helpRepr.str();
+
+      if (i < mKeywords->size() - 1)
+	keyword += std::string("|");
+    }
+
+  if (keyword != "")
+  {
+    int strSize = keyword.length() + HELP_PADDING + 10;
+    helpStr = new char[strSize];
+  }
+
+  sprintf(helpStr, "%*s\t- ", HELP_PADDING, keyword.c_str());
+
+  std::string help(helpStr);
+  help += truncateDescString(mDescription, "\t  ");
+
+  delete[] helpStr;
+
+  return strdup(help.c_str());
+}
+
 void
 CliOptionWithArgs::addEvalFunction(evalFuncCb func, void *userData)
 {

@@ -145,6 +145,7 @@ public:
   ~CliOptionWithArgs();
   virtual AnalysisResult* analyse(std::vector<std::string> &cliArgs);
   virtual std::string repr() const;
+  virtual char* helpString();
   bool shouldEvaluate() const { return mEvalFunctions && mUserData; };
   void addEvalFunction(evalFuncCb func, void *userData);
 
