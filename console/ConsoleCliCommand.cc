@@ -1163,6 +1163,7 @@ void
 OptionsGroup::addOption(const CliOption &option)
 {
   CliOption *optionPtr = new CliOption(option);
+  optionPtr->setRequired(false);
   addOption(optionPtr);
 }
 
@@ -1170,6 +1171,7 @@ void
 OptionsGroup::addOption(const CliOptionWithArgs &option)
 {
   CliOptionWithArgs *optionPtr = new CliOptionWithArgs(option);
+  optionPtr->setRequired(false);
   addOption(optionPtr);
 }
 
