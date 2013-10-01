@@ -74,6 +74,10 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # The FUSE mount should lock the environment for the KRB5CCNAME/X509_USER_PROXY exports (e.g. if you want KRB5/GSI you have to set this, if you want UNIX don't set it for performance reasons
 # export EOS_FUSE_LOCK_ENVIRONMENT=1 #unset the variable to disable locking 
 
+# Run in multithreaded mode (does not work well with the old xrootd client
+# export EOS_FUSE_NO_MT=0 # default is single threaded
+
+
 # ------------------------------------------------------------------
 # Federation Configuration
 # ------------------------------------------------------------------
