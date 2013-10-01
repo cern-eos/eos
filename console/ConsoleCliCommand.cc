@@ -29,7 +29,8 @@
 #include "ConsoleCliCommand.hh"
 #include "common/StringTokenizer.hh"
 
-#define HELP_PADDING 30
+#define HELP_PADDING 50
+#define DESC_LINE_LENGTH 70
 
 bool isFloatEvalFunc (const CliOptionWithArgs *option,
                       std::vector<std::string> &args,
@@ -315,6 +316,38 @@ CliOption::repr() const
   return mKeywords ? mKeywords->at(0) : "";
 }
 
+static std::string
+truncateDescString(const std::string &description, const std::string &prefix)
+{
+  std::string desc("");
+  size_t lineStart = 0, lineEnd = 0;
+
+  for (size_t i = 0; i < description.length(); i++)
+  {
+    if (i - lineStart > DESC_LINE_LENGTH || i == description.length() - 1)
+    {
+      if (lineEnd > DESC_LINE_LENGTH)
+        desc += "\n" + std::string(HELP_PADDING, ' ') + prefix;
+
+      if (i == description.length() - 1)
+        lineEnd = i + 1;
+
+      desc += std::string(description, lineStart, lineEnd - lineStart);
+
+      lineStart = lineEnd + 1;
+
+      continue;
+    }
+
+    if (description[i] == ' ' || description[i] == '\n')
+      lineEnd = i;
+  }
+
+  desc += "\n";
+
+  return desc;
+}
+
 char *
 CliOption::helpString()
 {
@@ -333,13 +366,18 @@ CliOption::helpString()
 
   if (keyword != "")
   {
-    int strSize = keyword.length() + mDescription.length() + HELP_PADDING + 10;
+    int strSize = keyword.length() + HELP_PADDING + 10;
     helpStr = new char[strSize];
   }
 
-  sprintf(helpStr, "%*s\t\t- %s\n", HELP_PADDING, keyword.c_str(), mDescription.c_str());
+  sprintf(helpStr, "%*s\t- ", HELP_PADDING, keyword.c_str());
 
-  return helpStr;
+  std::string help(helpStr);
+  help += truncateDescString(mDescription, "\t  ");
+
+  delete[] helpStr;
+
+  return strdup(help.c_str());
 }
 
 CliOptionWithArgs::CliOptionWithArgs(std::string name,
@@ -575,12 +613,17 @@ CliPositionalOption::helpString()
 
   char *helpStr;
   std::string repr = mRepr;
-  int strLength = mDescription.length() + repr.length() + HELP_PADDING + 10;
+  int strLength = repr.length() + HELP_PADDING + 10;
   helpStr = new char[strLength];
 
-  sprintf(helpStr, "%*s\t\t- %s\n", HELP_PADDING, repr.c_str(), mDescription.c_str());
+  sprintf(helpStr, "%*s\t- ", HELP_PADDING, repr.c_str());
 
-  return helpStr;
+  std::string help(helpStr);
+  help += truncateDescString(mDescription, "\t  ");
+
+  delete[] helpStr;
+
+  return strdup(help.c_str());
 }
 
 AnalysisResult *
