@@ -260,19 +260,11 @@ SpaceQuota::AddQuota (unsigned long tag, unsigned long id, long long value, bool
   if (lock) Mutex.Lock();
   eos_static_debug("add quota tag=%lu id=%lu value=%llu", tag, id, value);
 
-  /*  if (id && (Quota[Index(kGroupBytesTarget, Quota::gProjectId)] > 0))
-  {
-    // project quota implementation accounts on '99' group
-    if ((((long long) Quota[Index(tag, Quota::gProjectId)]) + (long long) value) >= 0)
-      Quota[Index(tag, Quota::gProjectId)] += value;
-  }
-  else*/
-  {
-    // user/group quota implementation
-    // fix for avoiding negative numbers
-    if ((((long long) Quota[Index(tag, id)]) + (long long) value) >= 0)
-      Quota[Index(tag, id)] += value;
-  }
+  
+  // user/group quota implementation
+  // fix for avoiding negative numbers
+  if ((((long long) Quota[Index(tag, id)]) + (long long) value) >= 0)
+    Quota[Index(tag, id)] += value;
 
   eos_static_debug("sum quota tag=%lu id=%lu value=%llu", tag, id, Quota[Index(tag, id)]);
   if (lock) Mutex.UnLock();
@@ -1662,9 +1654,12 @@ Quota::NodeToSpaceQuota (const char* name)
       spacequota->ResetQuota(SpaceQuota::kUserLogicalBytesIs, itu->first);
       spacequota->AddQuota(SpaceQuota::kUserLogicalBytesIs, itu->first, itu->second.space);
 
-      spacequota->AddQuota(SpaceQuota::kGroupBytesIs, gProjectId, itu->second.physicalSpace);
-      spacequota->AddQuota(SpaceQuota::kGroupLogicalBytesIs, gProjectId, itu->second.space);
-      spacequota->AddQuota(SpaceQuota::kGroupFilesIs, gProjectId, itu->second.files);
+      if (spacequota->GetQuota(SpaceQuota::kGroupBytesTarget, gProjectId) > 0) {
+	// only account in project quota noes
+	spacequota->AddQuota(SpaceQuota::kGroupBytesIs, gProjectId, itu->second.physicalSpace);
+	spacequota->AddQuota(SpaceQuota::kGroupLogicalBytesIs, gProjectId, itu->second.space);
+	spacequota->AddQuota(SpaceQuota::kGroupFilesIs, gProjectId, itu->second.files);
+      }
     }
     for (itg = spacequota->GetQuotaNode()->groupUsageBegin(); itg != spacequota->GetQuotaNode()->groupUsageEnd(); itg++)
     {
