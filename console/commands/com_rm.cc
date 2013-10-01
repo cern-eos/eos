@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_rm.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -30,104 +31,61 @@
 int
 com_rm (char* arg1)
 {
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString s1 = subtokenizer.GetToken();
-  XrdOucString s2 = subtokenizer.GetToken();
   XrdOucString path;
-  XrdOucString option;
+  XrdOucString option = "";
   eos::common::Path* cPath = 0;
   XrdOucString in = "mgm.cmd=rm&";
+  ConsoleCliCommand cliCommand("rm", "remove file <path>");
+  cliCommand.addOptions({{"recursive", "delete recursively", "-r"}});
+  cliCommand.addOption({"path", "", 1, -1, "<path>", true});
 
-  if (wants_help(arg1))
-    goto com_rm_usage;
+  addHelpOptionRecursively(&cliCommand);
 
-  if ((s1 == "--help") || (s1 == "-h"))
-  {
-    goto com_rm_usage;
-  }
+  cliCommand.parse(arg1);
 
-  if (s1 == "-r")
-  {
+  if (checkHelpAndErrors(&cliCommand))
+    return 0;
+
+  if (cliCommand.hasValue("recursive"))
     option = "r";
-    path = s2;
-  }
-  else
-  {
-    option = "";
-    path = s1;
-  }
 
+  path = cleanPath(cliCommand.getValue("path"));
 
-  do
+  in += "mgm.path=" + path;
+  in += "&mgm.option=" + option;
+
+  cPath = new eos::common::Path(path.c_str());
+
+  if ( (option == "r") && (cPath->GetSubPathSize() < 4) )
   {
-    XrdOucString param = subtokenizer.GetToken();
-    if (param.length())
+    string s;
+    fprintf(stdout, "Do you really want to delete ALL files starting at %s ?\n", path.c_str());
+    fprintf(stdout, "Confirm the deletion by typing => ");
+    XrdOucString confirmation = "";
+    for (int i = 0; i < 10; i++)
     {
-      path += " ";
-      path += param;
+      confirmation += (int) (9.0 * rand() / RAND_MAX);
+    }
+    fprintf(stdout, "%s\n", confirmation.c_str());
+    fprintf(stdout, "                               => ");
+    getline(std::cin, s);
+    std::string sconfirmation = confirmation.c_str();
+    if (s == sconfirmation)
+    {
+      fprintf(stdout, "\nDeletion confirmed\n");
+      in += "&mgm.deletion=deep";
+      delete cPath;
     }
     else
     {
-      break;
+      fprintf(stdout, "\nDeletion aborted\n");
+      global_retc = EINTR;
+      delete cPath;
+      return (0);
     }
   }
-  while (1);
 
-  // remove escaped blanks
-  while (path.replace("\\ ", " "))
-  {
-  }
+  global_retc = output_result(client_user_command(in));
 
-  if (!path.length())
-  {
-    goto com_rm_usage;
-
-  }
-  else
-  {
-    path = abspath(path.c_str());
-    in += "mgm.path=";
-    in += path;
-    in += "&mgm.option=";
-    in += option;
-
-    cPath = new eos::common::Path(path.c_str());
-
-    if ( (option == "r") && (cPath->GetSubPathSize() < 4) )
-    {
-      string s;
-      fprintf(stdout, "Do you really want to delete ALL files starting at %s ?\n", path.c_str());
-      fprintf(stdout, "Confirm the deletion by typing => ");
-      XrdOucString confirmation = "";
-      for (int i = 0; i < 10; i++)
-      {
-        confirmation += (int) (9.0 * rand() / RAND_MAX);
-      }
-      fprintf(stdout, "%s\n", confirmation.c_str());
-      fprintf(stdout, "                               => ");
-      getline(std::cin, s);
-      std::string sconfirmation = confirmation.c_str();
-      if (s == sconfirmation)
-      {
-        fprintf(stdout, "\nDeletion confirmed\n");
-        in += "&mgm.deletion=deep";
-        delete cPath;
-      }
-      else
-      {
-        fprintf(stdout, "\nDeletion aborted\n");
-        global_retc = EINTR;
-        delete cPath;
-        return (0);
-      }
-    }
-    global_retc = output_result(client_user_command(in));
-    return (0);
-  }
-
-com_rm_usage:
-  fprintf(stdout, "usage: rm [-r] <path>                                                  :  remove file <path>\n");
   return (0);
 }
