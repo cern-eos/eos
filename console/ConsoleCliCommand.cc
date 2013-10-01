@@ -446,8 +446,8 @@ CliOptionWithArgs::commonAnalysis(std::vector<std::string> &cliArgs,
   }
 
   if (initPos + numArgs <= (int) cliArgs.size())
-    optionArgs = std::vector<std::string>(cliArgs.cbegin() + initPos,
-                                          cliArgs.cbegin() + initPos + numArgs);
+    optionArgs.insert(optionArgs.end(), cliArgs.cbegin() + initPos,
+                      cliArgs.cbegin() + initPos + numArgs);
 
   if (numArgs > (int) optionArgs.size())
   {
@@ -486,19 +486,19 @@ CliOptionWithArgs::commonAnalysis(std::vector<std::string> &cliArgs,
     {
       if (!mEvalFunctions->at(f)(this, optionArgs, &evalErrorMsg, mUserData->at(f)))
       {
-        res->end = res->start + initPos + optionArgs.size();
         goto bailout;
       }
     }
   }
 
   int i;
-  for (i = initPos; i < (int) optionArgs.size(); i++)
+  for (i = 0; i < (int) optionArgs.size(); i++)
     res->values.second.push_back(optionArgs.at(i));
 
-  res->end = res->start + i;
 
  bailout:
+  res->end = res->start + numArgs;
+
   if (evalErrorMsg)
     res->errorMsg = std::string(evalErrorMsg->c_str());
 
@@ -510,6 +510,7 @@ CliOptionWithArgs::commonAnalysis(std::vector<std::string> &cliArgs,
 AnalysisResult *
 CliOptionWithArgs::analyse(std::vector<std::string> &cliArgs)
 {
+  AnalysisResult *res;
   size_t initPos;
   std::string firstArg("");
 
@@ -527,7 +528,14 @@ CliOptionWithArgs::analyse(std::vector<std::string> &cliArgs)
 
   initPos++;
 
-  return commonAnalysis(cliArgs, initPos, firstArg);
+  res = commonAnalysis(cliArgs, initPos, firstArg);
+
+  // we decrease the start of our options because we need to include
+  // the keyword used.
+  if (res && initPos <=  cliArgs.size())
+    res->start = res->start - 1;
+
+  return res;
 }
 
 CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
