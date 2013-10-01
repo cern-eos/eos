@@ -941,6 +941,10 @@ ConsoleCliCommand::analyseGroup(OptionsGroup *group, std::vector<std::string> &c
         }
         delete res;
       }
+
+    if (!optionFound && group->required())
+      addError(new ParseError(0, "Error: You have to use at least one "
+                                 "of these options: " + group->optionsRepr()));
   }
 }
 
