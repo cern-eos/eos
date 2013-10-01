@@ -169,9 +169,6 @@ splitKeywords (std::string keywords, char delimiter)
   tokenizer.GetLine();
   const char *token = tokenizer.GetToken();
 
-  if (token == 0)
-    return 0;
-
   while(token)
   {
     splitKeywords->push_back(token);
