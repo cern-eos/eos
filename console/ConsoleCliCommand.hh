@@ -30,6 +30,8 @@
 #define optionIsIntegerEvalFunc ((evalFuncCb) isIntegerEvalFunc)
 #define optionIsNumberInRangeEvalFunc ((evalFuncCb) isNumberInRangeEvalFunc)
 #define optionIsChoiceEvalFunc ((evalFuncCb) isChoiceEvalFunc)
+#define optionIsPositiveNumberEvalFunc ((evalFuncCb) isPositiveNumberEvalFunc)
+#define optionIsNegativeNumberEvalFunc ((evalFuncCb) isNegativeNumberEvalFunc)
 
 class CliBaseOption;
 class CliOptionWithArgs;
@@ -55,6 +57,16 @@ bool isNumberInRangeEvalFunc (const CliOptionWithArgs *option,
                               std::vector<std::string> &args,
                               std::string **error,
                               const std::pair<float, float> *range);
+
+bool isPositiveNumberEvalFunc (const CliOptionWithArgs *option,
+                               std::vector<std::string> &args,
+                               std::string **error,
+                               void *data);
+
+bool isNegativeNumberEvalFunc (const CliOptionWithArgs *option,
+                               std::vector<std::string> &args,
+                               std::string **error,
+                               void *data);
 
 bool isChoiceEvalFunc (const CliOptionWithArgs *option,
                        std::vector<std::string> &args,

@@ -25,6 +25,7 @@
 #include <assert.h>
 #include <sstream>
 #include <algorithm>
+#include <climits>
 #include "ConsoleCliCommand.hh"
 #include "common/StringTokenizer.hh"
 
@@ -101,6 +102,38 @@ bool isNumberInRangeEvalFunc (const CliOptionWithArgs *option,
       }
     }
   }
+  return true;
+}
+
+bool isPositiveNumberEvalFunc(const CliOptionWithArgs *option,
+                              std::vector<std::string> &args,
+                              std::string **error,
+                              void *data)
+{
+  std::pair<float, float> groupSizeRange = {0.0, (float) INT_MAX};
+  if (!isNumberInRangeEvalFunc (option, args, 0, &groupSizeRange))
+  {
+    *error = new std::string("Error: Option " + option->repr() + " needs to be "
+                             "a positive number.");
+    return false;
+  }
+
+  return true;
+}
+
+bool isNegativeNumberEvalFunc(const CliOptionWithArgs *option,
+                              std::vector<std::string> &args,
+                              std::string **error,
+                              void *data)
+{
+  std::pair<float, float> groupSizeRange = {(float) -INT_MAX, 0};
+  if (!isNumberInRangeEvalFunc (option, args, 0, &groupSizeRange))
+  {
+    *error = new std::string("Error: Option " + option->repr() + " needs to be "
+                             "a negative number.");
+    return false;
+  }
+
   return true;
 }
 
