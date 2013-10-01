@@ -2,7 +2,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.3.1
-Release: 15
+Release: 16
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -323,6 +323,8 @@ Contains an instance test script and some test executables
 /usr/sbin/xrdcppartial
 /usr/sbin/xrdstress
 /usr/sbin/xrdstress.exe
+/usr/sbin/eos-io-test
+/usr/sbin/eos-io-tool
 
 #######################################################################################
 # the cleanup package 
