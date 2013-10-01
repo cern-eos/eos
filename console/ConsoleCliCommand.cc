@@ -905,17 +905,14 @@ ConsoleCliCommand::parse(std::vector<std::string> &cliArgs)
 }
 
 ConsoleCliCommand *
-ConsoleCliCommand::parse(std::string &cliArgs)
+ConsoleCliCommand::parse(const std::string &cliArgs)
 {
   std::vector<std::string>* cliArgsVector = splitKeywords(cliArgs, ' ');
-  return parse(*cliArgsVector);
-}
+  ConsoleCliCommand *cmd = parse(*cliArgsVector);
 
-ConsoleCliCommand *
-ConsoleCliCommand::parse(std::string cliArgs)
-{
-  std::vector<std::string>* cliArgsVector = splitKeywords(cliArgs, ' ');
-  return parse(*cliArgsVector);
+  delete cliArgsVector;
+
+  return cmd;
 }
 
 bool

@@ -220,8 +220,7 @@ public:
   OptionsGroup* addGroupedOptions(std::vector<CliOptionWithArgs> options);
   bool hasErrors();
   ConsoleCliCommand* parse(std::vector<std::string> &cliArgs);
-  ConsoleCliCommand* parse(std::string &cliArgs);
-  ConsoleCliCommand* parse(std::string cliArgs);
+  ConsoleCliCommand* parse(const std::string &cliArgs);
   bool hasValue(std::string optionName);
   bool hasValues();
   std::vector<std::string> getValues(std::string optionName);
