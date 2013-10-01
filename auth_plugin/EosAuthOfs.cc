@@ -83,12 +83,12 @@ EOSAUTHNAMESPACE_BEGIN
 EosAuthOfs::EosAuthOfs():
   XrdOfs(),
   eos::common::LogId(),
+  proxy_tid(0),
   mSizePoolSocket(5),
-  mEosInstance(""),
   mLogLevel(LOG_INFO)
 {
   // Initialise the ZMQ client
-  mContext = new zmq::context_t(1);
+  mZmqContext = new zmq::context_t(1);
 }
 
 
@@ -99,10 +99,17 @@ EosAuthOfs::~EosAuthOfs()
 {
   zmq::socket_t* socket;
 
+  // Kill the auth proxy thread
+  if (proxy_tid)
+  {
+    XrdSysThread::Cancel(proxy_tid);
+    XrdSysThread::Join(proxy_tid, 0);
+  }
+    
   while (mPoolSocket.try_pop(socket))
     delete socket;
   
-  delete mContext;
+  delete mZmqContext;
 }
 
 
@@ -170,10 +177,15 @@ EosAuthOfs::Configure(XrdSysError& error)
 
         if (!strncmp(var, option_tag.c_str(), option_tag.length()))
         {
-          if (!(val = Config.GetWord()))
-            error.Emsg("Configure ", "No EOS instance specified e.g. eosxx.cern.ch:5555");
-          else
-            mEosInstance = val;
+          std::string mgm_instance;
+          
+          while ((val = Config.GetWord()))
+          {
+            mgm_instance = val;
+
+            if (mgm_instance.find(":") != string::npos)
+              mEosInstances.push_back(mgm_instance);
+          }
         }
 
         // Get number of sockets in the pool by default 10
@@ -220,16 +232,41 @@ EosAuthOfs::Configure(XrdSysError& error)
     }
 
     // Check and connect to the EOS instance
-    if (!mEosInstance.empty())
+    if (!mEosInstances.empty())
     {
-      error.Say("Connecting to the EOS MGM instance: ", mEosInstance.c_str());
-      // Create a pool of sockets
+      if ((XrdSysThread::Run(&proxy_tid, EosAuthOfs::StartAuthProxyThread,
+                             static_cast<void *>(this), 0, "Auth Proxy Thread")))
+      {
+        error.Emsg("Connect", "cannot start the authentication proxy thread");
+        NoGo = 1;
+      }    
+      
+      // Create a pool of sockets connected to the master proxy service 
       for (int i = 0; i < mSizePoolSocket; i++)
       {
-        zmq::socket_t* socket = new zmq::socket_t(*mContext, ZMQ_REQ);
-        std::string endpoint = "tcp://";
-        endpoint += mEosInstance;
-        socket->connect(endpoint.c_str());
+        // Set socket receive timeout to 5 seconds
+        zmq::socket_t* socket = new zmq::socket_t(*mZmqContext, ZMQ_REQ);
+        int timeout_mili = 5000;
+        socket->setsockopt(ZMQ_RCVTIMEO, &timeout_mili, sizeof timeout_mili);
+        std::string endpoint = "inproc://proxyfrontend";
+        
+        // Try in a loop to connect to the proxyfrontend as it can take a while for
+        // the poxy thread to do the binding, therefore connect can fail
+        while (1)
+        {
+          try
+          {
+            socket->connect(endpoint.c_str());
+          }
+          catch (zmq::error_t& err)
+          {
+            error.Say("dealing with connect exception");
+            continue;
+          }
+
+          break;
+        }
+        
         mPoolSocket.push(socket);
       }
     }
@@ -244,7 +281,6 @@ EosAuthOfs::Configure(XrdSysError& error)
   XrdOucString unit = "auth@localhost";
 
   // setup the circular in-memory log buffer
-  // TODO: add configuration for the debug level
   eos::common::Logging::Init();
   eos::common::Logging::SetLogPriority(mLogLevel);
   eos::common::Logging::SetUnit(unit.c_str());
@@ -252,6 +288,46 @@ EosAuthOfs::Configure(XrdSysError& error)
   return NoGo;
 }
 
+
+//------------------------------------------------------------------------------
+// Authentication proxy thread startup function
+//------------------------------------------------------------------------------
+void*
+EosAuthOfs::StartAuthProxyThread(void *pp)
+{
+  EosAuthOfs* ofs = static_cast<EosAuthOfs*>(pp);
+  ofs->AuthProxyThread();
+  return 0;  
+}
+
+
+//--------------------------------------------------------------------------
+//! Authentication proxt thread which forwards requests form the clients
+//! to the proper MGM intance.
+//--------------------------------------------------------------------------
+void
+EosAuthOfs::AuthProxyThread()
+{
+  // Bind the client facing socket 
+  zmq::socket_t frontend(*mZmqContext, ZMQ_ROUTER);
+  frontend.bind("inproc://proxyfrontend");
+
+  // Socket facing the MGM instances
+  for (auto iter = mEosInstances.begin(); iter != mEosInstances.end(); iter++)
+  {
+    zmq::socket_t* socket = new zmq::socket_t(*mZmqContext, ZMQ_DEALER);
+    std::ostringstream sstr;
+    sstr << "tcp://" << *iter;
+    OfsEroute.Say("connect to MGM instance ", iter->c_str());
+    socket->connect(sstr.str().c_str());
+    backend.push_back(socket);
+  }
+
+  OfsEroute.Say("started the auth proxy thread");
+
+  // Start the poxy using the first entry
+  zmq_device(ZMQ_QUEUE, frontend, *backend.at(0));
+}
 
 
 //------------------------------------------------------------------------------
@@ -284,7 +360,7 @@ EosAuthOfs::stat(const char* path,
                  const XrdSecEntity* client,
                  const char* opaque)
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("stat path=%s", path);
 
   // Get a socket object from the pool
@@ -293,31 +369,30 @@ EosAuthOfs::stat(const char* path,
   RequestProto* req_proto = utils::GetStatRequest(RequestProto_OperationType_STAT,
                                                   path, error, client, opaque);
 
-  if (!SendProtoBufRequest(socket, req_proto))
-  {
-    OfsEroute.Emsg("stat", "unable to send request");
-    retc = SFS_ERROR;
-  }
-  else
+  if (SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_stat = static_cast<ResponseProto*>(GetResponse(socket));
-    retc = resp_stat->response();
+
+    if (resp_stat)
+     {
+       retc = resp_stat->response();
     
-    if (resp_stat->has_error())
-    {
-      error.setErrInfo(resp_stat->error().code(),
-                       resp_stat->error().message().c_str());
-    }
-    
-    // We retrieve the struct stat if response is ok
-    if ((retc == SFS_OK) && resp_stat->has_message())
-    {
-      buf = static_cast<struct stat*>(memcpy((void*)buf,
-                                             resp_stat->message().c_str(),
-                                             sizeof(struct stat)));
-    }
-    
-    delete resp_stat;
+       if (resp_stat->has_error())
+       {
+         error.setErrInfo(resp_stat->error().code(),
+                          resp_stat->error().message().c_str());
+       }
+       
+       // We retrieve the struct stat if response is ok
+       if ((retc == SFS_OK) && resp_stat->has_message())
+       {
+         buf = static_cast<struct stat*>(memcpy((void*)buf,
+                                                resp_stat->message().c_str(),
+                                                sizeof(struct stat)));
+       }
+       
+       delete resp_stat;
+     }
   }
     
   // Release socket and free memory
@@ -337,7 +412,7 @@ EosAuthOfs::stat(const char* path,
                  const XrdSecEntity* client,
                  const char* opaque)
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("statm path=%s", path);
 
   // Get a socket object from the pool
@@ -346,27 +421,26 @@ EosAuthOfs::stat(const char* path,
   RequestProto* req_proto = utils::GetStatRequest(RequestProto_OperationType_STATM,
                                                   path, error, client, opaque);
      
-  if (!SendProtoBufRequest(socket, req_proto))
-  {
-    OfsEroute.Emsg("statm", "unable to send request");
-    retc = SFS_ERROR;
-  }
-  else
+  if (SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_stat = static_cast<ResponseProto*>(GetResponse(socket));
-    retc = resp_stat->response();
-    
-    if (resp_stat->has_error())
+
+    if (resp_stat)
     {
-      error.setErrInfo(resp_stat->error().code(),
-                       resp_stat->error().message().c_str());
+      retc = resp_stat->response();
+      
+      if (resp_stat->has_error())
+      {
+        error.setErrInfo(resp_stat->error().code(),
+                         resp_stat->error().message().c_str());
+      }
+      
+      // We retrieve the open mode if response if ok
+      if ((retc == SFS_OK) && resp_stat->has_message())
+        memcpy((void*)&mode, resp_stat->message().c_str(), sizeof(mode_t));
+      
+      delete resp_stat;
     }
-    
-    // We retrieve the open mode if response if ok
-    if ((retc == SFS_OK) && resp_stat->has_message())
-      memcpy((void*)&mode, resp_stat->message().c_str(), sizeof(mode_t));
-    
-    delete resp_stat;
   }
   
   // Release socket and free memory
@@ -385,7 +459,7 @@ EosAuthOfs::fsctl(const int cmd,
                   XrdOucErrInfo& error,
                   const XrdSecEntity* client)
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("fsctl with cmd=%i, args=%s", cmd, args);
   int opcode = cmd & SFS_FSCTL_CMD;
 
@@ -409,23 +483,22 @@ EosAuthOfs::fsctl(const int cmd,
   mPoolSocket.wait_pop(socket);
   RequestProto* req_proto = utils::GetFsctlRequest(cmd, args, error, client);
      
-  if (!SendProtoBufRequest(socket, req_proto))
-  {
-    OfsEroute.Emsg("fsctl", "unable to send request");
-    retc = SFS_ERROR;
-  }
-  else
+  if (SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_fsctl1 = static_cast<ResponseProto*>(GetResponse(socket));
-    retc = resp_fsctl1->response();
-    
-    if (resp_fsctl1->has_error())
+
+    if(resp_fsctl1)
     {
-      error.setErrInfo(resp_fsctl1->error().code(),
-                       resp_fsctl1->error().message().c_str());
+      retc = resp_fsctl1->response();
+      
+      if (resp_fsctl1->has_error())
+      {
+        error.setErrInfo(resp_fsctl1->error().code(),
+                         resp_fsctl1->error().message().c_str());
+      }
+      
+      delete resp_fsctl1;
     }
-    
-    delete resp_fsctl1;
   }
 
   // Release socket and free memory
@@ -444,7 +517,7 @@ EosAuthOfs::FSctl(const int cmd,
                   XrdOucErrInfo& error,
                   const XrdSecEntity* client)
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("FSctl with cmd=%i", cmd);
 
   // Get a socket object from the pool
@@ -452,23 +525,22 @@ EosAuthOfs::FSctl(const int cmd,
   mPoolSocket.wait_pop(socket);
   RequestProto* req_proto = utils::GetFSctlRequest(cmd, args, error, client);
      
-  if (!SendProtoBufRequest(socket, req_proto))
-  {
-    OfsEroute.Emsg("FSctl", "unable to send request");
-    retc = SFS_ERROR;
-  }
-  else
+  if (SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_fsctl2 = static_cast<ResponseProto*>(GetResponse(socket));
-    retc = resp_fsctl2->response();
-    
-    if (resp_fsctl2->has_error())
+
+    if (resp_fsctl2)
     {
-      error.setErrInfo(resp_fsctl2->error().code(),
-                       resp_fsctl2->error().message().c_str());
+      retc = resp_fsctl2->response();
+      
+      if (resp_fsctl2->has_error())
+      {
+        error.setErrInfo(resp_fsctl2->error().code(),
+                         resp_fsctl2->error().message().c_str());
+      }
+      
+      delete resp_fsctl2;
     }
-    
-    delete resp_fsctl2;
   }
   
   // Release socket and free memory
@@ -488,7 +560,7 @@ EosAuthOfs::chmod (const char *path,
                    const XrdSecEntity *client,
                    const char *opaque)
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("chmod path=%s mode=%o", path, mode);
 
   // Get a socket object from the pool
@@ -496,23 +568,22 @@ EosAuthOfs::chmod (const char *path,
   mPoolSocket.wait_pop(socket);
   RequestProto* req_proto = utils::GetChmodRequest(path, mode, error, client, opaque);
      
-  if (!SendProtoBufRequest(socket, req_proto))
-  {
-    OfsEroute.Emsg("chmod", "unable to send request");
-    retc = SFS_ERROR;
-  }
-  else
+  if (SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_chmod = static_cast<ResponseProto*>(GetResponse(socket));
-    retc = resp_chmod->response();
-    
-    if (resp_chmod->has_error())
+
+    if (resp_chmod)
     {
-      error.setErrInfo(resp_chmod->error().code(),
-                     resp_chmod->error().message().c_str());
+      retc = resp_chmod->response();
+      
+      if (resp_chmod->has_error())
+      {
+        error.setErrInfo(resp_chmod->error().code(),
+                         resp_chmod->error().message().c_str());
+      }
+      
+      delete resp_chmod;
     }
-    
-    delete resp_chmod;
   }
   
   // Release socket and free memory
@@ -533,7 +604,7 @@ EosAuthOfs::chksum(csFunc func,
                    const XrdSecEntity* client,
                    const char* opaque)
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("chksum path=%s csName=%s", path, csName);
 
   // Get a socket object from the pool
@@ -542,26 +613,25 @@ EosAuthOfs::chksum(csFunc func,
   RequestProto* req_proto = utils::GetChksumRequest(func, csName, path, error,
                                                     client, opaque);
      
-  if (!SendProtoBufRequest(socket, req_proto))
-  {
-    OfsEroute.Emsg("chksum", "unable to send request");
-    retc = SFS_ERROR;
-  }
-  else
+  if (SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_chksum = static_cast<ResponseProto*>(GetResponse(socket));
-    retc = resp_chksum->response();
-    eos_debug("chksum retc=%i", retc);
-    
-    if (resp_chksum->has_error())
-    {
-      error.setErrInfo(resp_chksum->error().code(),
-                       resp_chksum->error().message().c_str());
-    }
-    
-    delete resp_chksum;
-  }
 
+    if (resp_chksum)
+    {
+      retc = resp_chksum->response();
+      eos_debug("chksum retc=%i", retc);
+      
+      if (resp_chksum->has_error())
+      {
+        error.setErrInfo(resp_chksum->error().code(),
+                         resp_chksum->error().message().c_str());
+      }
+      
+      delete resp_chksum;
+    }
+  }
+ 
   // Release socket and free memory
   gOFS->mPoolSocket.push(socket);
   delete req_proto;
@@ -579,7 +649,7 @@ EosAuthOfs::exists(const char* path,
                    const XrdSecEntity* client,
                    const char* opaque)
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("exists path=%s", path);
 
   // Get a socket object from the pool
@@ -587,27 +657,26 @@ EosAuthOfs::exists(const char* path,
   mPoolSocket.wait_pop(socket);
   RequestProto* req_proto = utils::GetExistsRequest(path, error, client, opaque);
      
-  if (!SendProtoBufRequest(socket, req_proto))
-  {
-    OfsEroute.Emsg("exists", "unable to send request");
-    retc = SFS_ERROR;
-  }
-  else
+  if (SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_exists = static_cast<ResponseProto*>(GetResponse(socket));
-    retc = resp_exists->response();
-    eos_debug("exists retc=%i", retc);
-    
-    if (resp_exists->has_error())
+
+    if (resp_exists)
     {
-      error.setErrInfo(resp_exists->error().code(),
-                       resp_exists->error().message().c_str());
-    }
+      retc = resp_exists->response();
+      eos_debug("exists retc=%i", retc);
+      
+      if (resp_exists->has_error())
+      {
+        error.setErrInfo(resp_exists->error().code(),
+                         resp_exists->error().message().c_str());
+      }
     
-    if (resp_exists->has_message())
-      exists_flag = (XrdSfsFileExistence)atoi(resp_exists->message().c_str());
-       
-    delete resp_exists;
+      if (resp_exists->has_message())
+        exists_flag = (XrdSfsFileExistence)atoi(resp_exists->message().c_str());
+      
+      delete resp_exists;
+    }
   }
   
   // Release socket and free memory
@@ -631,7 +700,7 @@ EosAuthOfs::mkdir (const char* path,
                    const XrdSecEntity* client,
                    const char* opaque)
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("mkdir path=%s mode=%o", path, mode);
 
   // Get a socket object from the pool
@@ -639,24 +708,23 @@ EosAuthOfs::mkdir (const char* path,
   mPoolSocket.wait_pop(socket);
   RequestProto* req_proto = utils::GetMkdirRequest(path, mode, error, client, opaque);
      
-  if (!SendProtoBufRequest(socket, req_proto))
-  {
-    OfsEroute.Emsg("mkdir", "unable to send request");
-    retc = SFS_ERROR;
-  }
-  else
+  if (SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_mkdir = static_cast<ResponseProto*>(GetResponse(socket));
-    retc = resp_mkdir->response();
-    eos_debug("mkdir retc=%i", retc);
-    
-    if (resp_mkdir->has_error())
+
+    if (resp_mkdir)
     {
-      error.setErrInfo(resp_mkdir->error().code(),
-                       resp_mkdir->error().message().c_str());
+      retc = resp_mkdir->response();
+      eos_debug("mkdir retc=%i", retc);
+      
+      if (resp_mkdir->has_error())
+      {
+        error.setErrInfo(resp_mkdir->error().code(),
+                         resp_mkdir->error().message().c_str());
+      }
+      
+      delete resp_mkdir;
     }
-    
-    delete resp_mkdir;
   }
   
   // Release socket and free memory
@@ -675,7 +743,7 @@ EosAuthOfs::remdir(const char* path,
                    const XrdSecEntity* client,
                    const char* opaque)
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("remdir path=%s", path);
 
   // Get a socket object from the pool
@@ -683,24 +751,23 @@ EosAuthOfs::remdir(const char* path,
   mPoolSocket.wait_pop(socket);
   RequestProto* req_proto = utils::GetRemdirRequest(path, error, client, opaque);
      
-  if (!SendProtoBufRequest(socket, req_proto))
-  {
-    OfsEroute.Emsg("remdir", "unable to send request");
-    retc = SFS_ERROR;
-  }
-  else
+  if (SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_remdir = static_cast<ResponseProto*>(GetResponse(socket));
-    retc = resp_remdir->response();
-    eos_debug("remdir retc=%i", retc);
-    
-    if (resp_remdir->has_error())
+
+    if (resp_remdir)
     {
-      error.setErrInfo(resp_remdir->error().code(),
-                       resp_remdir->error().message().c_str());
+      retc = resp_remdir->response();
+      eos_debug("remdir retc=%i", retc);
+      
+      if (resp_remdir->has_error())
+      {
+        error.setErrInfo(resp_remdir->error().code(),
+                         resp_remdir->error().message().c_str());
+      }
+      
+      delete resp_remdir;
     }
-    
-    delete resp_remdir;
   }
   
   // Release socket and free memory
@@ -719,7 +786,7 @@ EosAuthOfs::rem(const char* path,
                 const XrdSecEntity* client,
                 const char* opaque)
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("rem path=%s", path);
 
   // Get a socket object from the pool
@@ -727,24 +794,23 @@ EosAuthOfs::rem(const char* path,
   mPoolSocket.wait_pop(socket);
   RequestProto* req_proto = utils::GetRemRequest(path, error, client, opaque);
      
-  if (!SendProtoBufRequest(socket, req_proto))
-  {
-    OfsEroute.Emsg("rem", "unable to send request");
-    retc = SFS_ERROR;
-  }
-  else
+  if (SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_rem = static_cast<ResponseProto*>(GetResponse(socket));
-    retc = resp_rem->response();
-    eos_debug("rem retc=%i", retc);
-    
-    if (resp_rem->has_error())
+
+    if (resp_rem)
     {
-      error.setErrInfo(resp_rem->error().code(),
-                       resp_rem->error().message().c_str());
+      retc = resp_rem->response();
+      eos_debug("rem retc=%i", retc);
+      
+      if (resp_rem->has_error())
+      {
+        error.setErrInfo(resp_rem->error().code(),
+                         resp_rem->error().message().c_str());
+      }
+      
+      delete resp_rem;  
     }
-    
-    delete resp_rem;
   }
 
   // Release socket and free memory
@@ -765,7 +831,7 @@ EosAuthOfs::rename (const char *oldName,
                     const char *opaqueO,
                     const char *opaqueN)
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("rename oldname=%s newname=%s", oldName, newName);
 
   // Get a socket object from the pool
@@ -774,24 +840,23 @@ EosAuthOfs::rename (const char *oldName,
   RequestProto* req_proto = utils::GetRenameRequest(oldName, newName, error,
                                                     client, opaqueO, opaqueN);
      
-  if (!SendProtoBufRequest(socket, req_proto))
-  {
-    OfsEroute.Emsg("rename", "unable to send request");
-    retc = SFS_ERROR;
-  }
-  else
+  if (SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_rename = static_cast<ResponseProto*>(GetResponse(socket));
-    retc = resp_rename->response();
-    eos_debug("rename retc=%i", retc);
-    
-    if (resp_rename->has_error())
+
+    if (resp_rename)
     {
-      error.setErrInfo(resp_rename->error().code(),
-                       resp_rename->error().message().c_str());
+      retc = resp_rename->response();
+      eos_debug("rename retc=%i", retc);
+      
+      if (resp_rename->has_error())
+      {
+        error.setErrInfo(resp_rename->error().code(),
+                         resp_rename->error().message().c_str());
+      }
+      
+      delete resp_rename;
     }
-    
-    delete resp_rename;
   }
 
   // Release socket and free memory
@@ -809,7 +874,7 @@ EosAuthOfs::prepare(XrdSfsPrep& pargs,
                     XrdOucErrInfo& error,
                     const XrdSecEntity* client)
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("prepare");
 
   // Get a socket object from the pool
@@ -817,26 +882,25 @@ EosAuthOfs::prepare(XrdSfsPrep& pargs,
   mPoolSocket.wait_pop(socket);
   RequestProto* req_proto = utils::GetPrepareRequest(pargs, error, client);
      
-  if (!SendProtoBufRequest(socket, req_proto))
-  {
-    OfsEroute.Emsg("prepare", "unable to send request");
-    retc = SFS_ERROR;
-  }
-  else
+  if (SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_prepare = static_cast<ResponseProto*>(GetResponse(socket));
-    retc = resp_prepare->response();
-    eos_debug("prepare retc=%i", retc);
-    
-    if (resp_prepare->has_error())
-    {
-      error.setErrInfo(resp_prepare->error().code(),
-                       resp_prepare->error().message().c_str());
-    }
-    
-    delete resp_prepare;
-  }
 
+    if (resp_prepare)
+    {
+      retc = resp_prepare->response();
+      eos_debug("prepare retc=%i", retc);
+      
+      if (resp_prepare->has_error())
+      {
+        error.setErrInfo(resp_prepare->error().code(),
+                         resp_prepare->error().message().c_str());
+      }
+      
+      delete resp_prepare;
+    }
+  }
+  
   // Release socket and free memory
   gOFS->mPoolSocket.push(socket);
   delete req_proto;
@@ -854,7 +918,7 @@ EosAuthOfs::truncate(const char* path,
                      const XrdSecEntity* client,
                      const char* opaque)
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("truncate");
 
   // Get a socket object from the pool
@@ -863,26 +927,25 @@ EosAuthOfs::truncate(const char* path,
   RequestProto* req_proto = utils::GetTruncateRequest(path, fileOffset, error,
                                                       client, opaque);
      
-  if (!SendProtoBufRequest(socket, req_proto))
-  {
-    OfsEroute.Emsg("truncate", "unable to send request");
-    retc = SFS_ERROR;
-  }
-  else
+  if (SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_truncate = static_cast<ResponseProto*>(GetResponse(socket));
-    retc = resp_truncate->response();
-    eos_debug("truncate retc=%i", retc);
-    
-    if (resp_truncate->has_error())
-    {
-      error.setErrInfo(resp_truncate->error().code(),
-                       resp_truncate->error().message().c_str());
-    }
-    
-    delete resp_truncate;
-  }
 
+    if (resp_truncate)
+    {
+      retc = resp_truncate->response();
+      eos_debug("truncate retc=%i", retc);
+      
+      if (resp_truncate->has_error())
+      {
+        error.setErrInfo(resp_truncate->error().code(),
+                         resp_truncate->error().message().c_str());
+      }
+      
+      delete resp_truncate;
+    }
+  }
+  
   // Release socket and free memory
   gOFS->mPoolSocket.push(socket);
   delete req_proto;
@@ -910,6 +973,7 @@ bool
 EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
                                 google::protobuf::Message* message)
 {
+  bool sent = false;
   // Send the request
   int msg_size = message->ByteSize();
   zmq::message_t request(msg_size);
@@ -918,8 +982,14 @@ EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
   // Use google::protobuf::io::ArrayOutputStream which is way faster than
   // StringOutputStream as it avoids copying data
   message->SerializeToZeroCopyStream(&aos);
-  return socket->send(request);
+  sent = socket->send(request, ZMQ_NOBLOCK);
+
+  if (!sent)
+    eos_err("unable to send request");
+
+  return sent;
 }
+
 
 
 //------------------------------------------------------------------------------
@@ -929,44 +999,18 @@ google::protobuf::Message*
 EosAuthOfs::GetResponse(zmq::socket_t* socket)
 {
   zmq::message_t reply;
-  socket->recv(&reply);
-  std::string resp_str = std::string(static_cast<char*>(reply.data()), reply.size());
-  ResponseProto* resp = new ResponseProto();
-  resp->ParseFromString(resp_str);
-  return resp;
-}
-
-
-//------------------------------------------------------------------------------
-// Create error message
-//------------------------------------------------------------------------------
-int
-EosAuthOfsFile::Emsg(const char* pfx,
-                     XrdOucErrInfo& einfo,
-                     int ecode,
-                     const char* op,
-                     const char* target)
-{
-  char* etext, buffer[4096], unkbuff[64];
-
-  // Get the reason for the error
-  if (ecode < 0) ecode = -ecode;
-
-  if (!(etext = strerror(ecode)))
+  ResponseProto* resp = static_cast<ResponseProto*>(0);
+  bool done = socket->recv(&reply);
+  
+  if (done)
   {
-    sprintf(unkbuff, "reason unknown (%d)", ecode);
-    etext = unkbuff;
+    std::string resp_str = std::string(static_cast<char*>(reply.data()), reply.size());
+    resp = new ResponseProto();
+    resp->ParseFromString(resp_str);
   }
 
-  // Format the error message
-  snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
-  eos_err("Unable to %s %s; %s", op, target, etext);
-
-  // Place the error message in the error object and return
-  einfo.setErrInfo(ecode, buffer);
-  return SFS_ERROR;
+  return resp;
 }
-
 
 EOSAUTHNAMESPACE_END
 

@@ -62,7 +62,7 @@ EosAuthOfsFile::open(const char* fileName,
                      const XrdSecEntity* client,
                      const char* opaque)
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("file open name=%s opaque=%s", fileName, opaque);
   mName = fileName;
   
@@ -77,21 +77,20 @@ EosAuthOfsFile::open(const char* fileName,
                                    openMode, createMode, client, opaque,
                                    error.getErrUser(), error.getErrMid());
 
-  if (!gOFS->SendProtoBufRequest(socket, req_proto))
-  {
-    eos_err("file open - unable to send request");
-    retc = SFS_ERROR;
-  }
-  else 
+  if (gOFS->SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_open = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
-    retc = resp_open->response();
-    eos_debug("got response for file open request: %i", retc);
-    
-    if (resp_open->has_error())
-      error.setErrInfo(resp_open->error().code(), resp_open->error().message().c_str());
 
-    delete resp_open;
+    if (resp_open)
+    {
+      retc = resp_open->response();
+      eos_debug("got response for file open request: %i", retc);
+      
+      if (resp_open->has_error())
+        error.setErrInfo(resp_open->error().code(), resp_open->error().message().c_str());
+      
+      delete resp_open;
+    }
   }
 
   // Release socket and free memory
@@ -109,7 +108,7 @@ EosAuthOfsFile::read(XrdSfsFileOffset offset,
                      char* buffer,
                      XrdSfsXferSize length)
 {
-  int retc;
+  int retc = 0;  // this means read 0 bytes and NOT SFS_OK :)
   eos_debug("read off=%li len=%i", (long long)offset, (int)length);
   
   // Get a socket object from the pool
@@ -120,24 +119,23 @@ EosAuthOfsFile::read(XrdSfsFileOffset offset,
   eos_debug("fptr=%s, off=%li, len=%i", sstr.str().c_str(), offset, length);
   RequestProto* req_proto = utils::GetFileReadRequest(sstr.str(), offset, length);
 
-  if (!gOFS->SendProtoBufRequest(socket, req_proto))
-  {
-    eos_err("file read - unable to send request");
-    retc = 0; // this means read 0 bytes and NOT SFS_OK :)
-  }
-  else
+  if (gOFS->SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_fread = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
-    retc = resp_fread->response();
 
-    if (retc && resp_fread->has_message())
+    if (resp_fread)
     {
-      buffer = static_cast<char*>(memcpy((void*)buffer,
-                                         resp_fread->message().c_str(),
-                                         resp_fread->message().length()));
+      retc = resp_fread->response();
+
+      if (retc && resp_fread->has_message())
+      {
+        buffer = static_cast<char*>(memcpy((void*)buffer,
+                                           resp_fread->message().c_str(),
+                                           resp_fread->message().length()));
+      }
+      
+      delete resp_fread;
     }
-    
-    delete resp_fread;
   }
   
   // Release socket and free memory
@@ -155,7 +153,7 @@ EosAuthOfsFile::write(XrdSfsFileOffset offset,
                       const char* buffer,
                       XrdSfsXferSize length)
 {
-  int retc;
+  int retc = 0;  // this means written 0 bytes and NOT SFS_OK :)
   eos_debug("write off=%ll len=%i", offset, length);
 
   // Get a socket object from the pool
@@ -166,19 +164,18 @@ EosAuthOfsFile::write(XrdSfsFileOffset offset,
   eos_debug("file pointer: %s", sstr.str().c_str());
   RequestProto* req_proto = utils::GetFileWriteRequest(sstr.str(), offset, buffer, length);
 
-  if (!gOFS->SendProtoBufRequest(socket, req_proto))
-  {
-    eos_err("file write - unable to send request");
-    retc = 0; // this means written 0 bytes and NOT SFS_OK :)
-  }
-  else
+  if (gOFS->SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_fwrite = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
-    retc = resp_fwrite->response();
-    eos_debug("got response for file write request");
-    delete resp_fwrite;
-  }
 
+    if (resp_fwrite)
+    {
+      retc = resp_fwrite->response();
+      eos_debug("got response for file write request");
+      delete resp_fwrite;
+    }
+  }
+ 
   // Release socket and free memory
   gOFS->mPoolSocket.push(socket);
   delete req_proto;
@@ -192,7 +189,7 @@ EosAuthOfsFile::write(XrdSfsFileOffset offset,
 const char*
 EosAuthOfsFile::FName()
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("file fname");
 
   // Get a socket object from the pool
@@ -203,28 +200,27 @@ EosAuthOfsFile::FName()
   eos_debug("file pointer: %s", sstr.str().c_str());
   RequestProto* req_proto = utils::GetFileFnameRequest(sstr.str());
 
-  if (!gOFS->SendProtoBufRequest(socket, req_proto))
-  {
-    eos_err("file fname - unable to send request");
-    retc = SFS_ERROR;
-  }
-  else
+  if (gOFS->SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_fname = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
-    retc = resp_fname->response();
-    eos_debug("got response for filefname request");
-    
-    if (retc == SFS_OK)
+
+    if (resp_fname)
     {
-      eos_debug("file fname is: %s", resp_fname->message().c_str());
-      mName = resp_fname->message();
+      retc = resp_fname->response();
+      eos_debug("got response for filefname request");
+      
+      if (retc == SFS_OK)
+      {
+        eos_debug("file fname is: %s", resp_fname->message().c_str());
+        mName = resp_fname->message();
+      }
+      else
+      { 
+        eos_debug("file fname not found or error on server side");
+      }
+      
+      delete resp_fname;
     }
-    else
-    { 
-      eos_debug("file fname not found or error on server side");
-    }
-    
-    delete resp_fname;
   }
  
   // Release socket and free memory
@@ -240,7 +236,7 @@ EosAuthOfsFile::FName()
 int
 EosAuthOfsFile::stat(struct stat* buf)
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("stat file name=%s", mName.c_str());
 
   // Get a socket object from the pool
@@ -251,21 +247,24 @@ EosAuthOfsFile::stat(struct stat* buf)
   eos_debug("file pointer: %s", sstr.str().c_str());
   RequestProto* req_proto = utils::GetFileStatRequest(sstr.str());
 
-  if (!gOFS->SendProtoBufRequest(socket, req_proto))
+  if (gOFS->SendProtoBufRequest(socket, req_proto))
   {
-    eos_err("file stat - unable to send request");
-    memset(buf, 0, sizeof(struct stat));
-    retc = SFS_ERROR;
+    ResponseProto* resp_fstat = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
+
+    if (resp_fstat)
+    {
+      retc = resp_fstat->response();
+      buf = static_cast<struct stat*>(memcpy((void*)buf,
+                                             resp_fstat->message().c_str(),
+                                             sizeof(struct stat)));
+      eos_debug("got response for fstat request: %i", retc);
+      delete resp_fstat;
+    }
   }
   else
   {
-    ResponseProto* resp_fstat = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
-    retc = resp_fstat->response();
-    buf = static_cast<struct stat*>(memcpy((void*)buf,
-                                           resp_fstat->message().c_str(),
-                                           sizeof(struct stat)));
-    eos_debug("got response for fstat request: %i", retc);
-    delete resp_fstat;
+    eos_err("file stat - unable to send request");
+    memset(buf, 0, sizeof(struct stat));
   }
   
   // Release socket and free memory
@@ -281,7 +280,7 @@ EosAuthOfsFile::stat(struct stat* buf)
 int
 EosAuthOfsFile::close()
 {
-  int retc;
+  int retc = SFS_ERROR;
   eos_debug("close");
 
   // Get a socket object from the pool
@@ -292,17 +291,16 @@ EosAuthOfsFile::close()
   eos_debug("file pointer: %s", sstr.str().c_str());
   RequestProto* req_proto = utils::GetFileCloseRequest(sstr.str());
 
-  if (!gOFS->SendProtoBufRequest(socket, req_proto))
-  {
-    eos_err("file close - unableto send request");
-    retc = SFS_ERROR;
-  }
-  else
+  if (gOFS->SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_close = static_cast<ResponseProto*>(gOFS->GetResponse(socket));
-    retc = resp_close->response();
-    eos_debug("got response for file close request: %i", retc);
-    delete resp_close;
+
+    if (resp_close)
+    {
+      retc = resp_close->response();
+      eos_debug("got response for file close request: %i", retc);
+      delete resp_close;
+    }
   }
   
   // Release socket and free memory
@@ -410,6 +408,37 @@ int
 EosAuthOfsFile::getCXinfo(char cxtype[4], int& cxrsz)
 {
   return cxrsz = 0;
+}
+
+
+//------------------------------------------------------------------------------
+// Create error message
+//------------------------------------------------------------------------------
+int
+EosAuthOfsFile::Emsg(const char* pfx,
+                     XrdOucErrInfo& einfo,
+                     int ecode,
+                     const char* op,
+                     const char* target)
+{
+  char* etext, buffer[4096], unkbuff[64];
+
+  // Get the reason for the error
+  if (ecode < 0) ecode = -ecode;
+
+  if (!(etext = strerror(ecode)))
+  {
+    sprintf(unkbuff, "reason unknown (%d)", ecode);
+    etext = unkbuff;
+  }
+
+  // Format the error message
+  snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
+  eos_err("Unable to %s %s; %s", op, target, etext);
+
+  // Place the error message in the error object and return
+  einfo.setErrInfo(ecode, buffer);
+  return SFS_ERROR;
 }
 
 EOSAUTHNAMESPACE_END

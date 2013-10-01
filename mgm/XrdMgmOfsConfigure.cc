@@ -1914,8 +1914,6 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       NoGo = 1;
     }
     
-    XrdSysTimer sleeper;
-    sleeper.Wait(1000);
     eos_info("starting the authentication worker threads");
     
     for (unsigned int i = 0; i < mNumAuthThreads; i++)

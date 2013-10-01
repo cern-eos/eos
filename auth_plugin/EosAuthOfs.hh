@@ -50,6 +50,9 @@ EOSAUTHNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class EosAuthOfs built on top of XrdOfs
+/*! Decription: TODO:
+
+ */
 //------------------------------------------------------------------------------
 class EosAuthOfs: public XrdOfs, public eos::common::LogId
 {
@@ -224,14 +227,29 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
   
   private:
 
-    int mSizePoolSocket; ///< maximum size of the socket pool
-    zmq::context_t* mContext; ///< ZMQ context
-    eos::common::ConcurrentQueue<zmq::socket_t*> mPoolSocket; ///< ZMQ socket pool
-    std::string mEosInstance; ///< EOS instance to which requests are dispatched
+    pthread_t proxy_tid; ///< id of the proxy thread
+    zmq::context_t* mZmqContext; ///< ZMQ context
+    std::vector<zmq::socket_t*> backend; ///< sockets facing the MGM instaces
+    int mSizePoolSocket; ///< maximum size of the client socket pool
+    eos::common::ConcurrentQueue<zmq::socket_t*> mPoolSocket; ///< ZMQ client socket pool
+    std::vector<std::string> mEosInstances; ///< MGMs to which requests can be dispatched
     std::string mManagerIp; ///< the IP address of the auth instance
     int mManagerPort;   ///< port on which the current auth server runs
     int mLogLevel; ///< log level value 0 -7 (LOG_EMERG - LOG_DEBUG)
 
+
+    //--------------------------------------------------------------------------
+    //! Authentication proxy thread which forwards requests form the clients
+    //! to the proper MGM intance.
+    //--------------------------------------------------------------------------
+    void AuthProxyThread();
+
+
+    //--------------------------------------------------------------------------
+    //! Authentication proxy thread startup function
+    //--------------------------------------------------------------------------
+    static void* StartAuthProxyThread(void *pp);
+  
 
     //--------------------------------------------------------------------------
     //! Send ProtocolBuffer object using ZMQ

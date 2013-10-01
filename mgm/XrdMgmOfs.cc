@@ -224,6 +224,22 @@ xrdmgmofs_shutdown (int sig)
     // we don't really care about any exception here!
   }
 
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop auth worker threads ... ");
+  for (auto iter = gOFS->mVectTid.begin(); iter != gOFS->mVectTid.end(); ++iter)
+  {
+    XrdSysThread::Cancel(*iter);
+    XrdSysThread::Join(*iter, 0);
+  }
+
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop auth master thread ... ");
+  if (gOFS->auth_tid)
+  {
+    XrdSysThread::Cancel(gOFS->auth_tid);
+    XrdSysThread::Join(gOFS->auth_tid, 0);
+  }
+
 #ifdef HAVE_ZMQ
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop ZMQ...");
@@ -8498,8 +8514,25 @@ XrdMgmOfs::AuthWorkerThread()
   int ret;
   eos_static_info("authentication worker thread started");
   zmq::socket_t responder(*mZmqContext, ZMQ_REP);
-  responder.connect("inproc://authbackend");
-  
+
+  // Try to connect to proxy thread - the bind can take a longer time so threfore
+  // keep trying until it is successful
+  while (1)
+  {
+    try
+    {
+      responder.connect("inproc://authbackend");
+    }
+    catch (zmq::error_t& err)
+    {
+      eos_static_debug("auth worker connection failed - retry");
+      continue;
+    }
+
+    break;
+  }
+
+  // Main loop of the worker thread
   while (1)
   {
     zmq::message_t request;
@@ -8944,7 +8977,7 @@ XrdMgmOfs::AuthWorkerThread()
     google::protobuf::io::ArrayOutputStream aos(reply.data(), reply_size);
     
     resp.SerializeToZeroCopyStream(&aos);
-    responder.send(reply);
+    responder.send(reply, ZMQ_NOBLOCK);
 
     // Free memory
     if (client)
