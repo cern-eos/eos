@@ -101,6 +101,8 @@ public:
   virtual char* keywordsRepr() { return strdup(""); };
   virtual const char* name() const { return mName.c_str(); };
   virtual const char* description() const { return mDescription.c_str(); };
+  virtual void setName(const std::string &name) { mName = name; };
+  virtual void setDescription(const std::string &desc) { mDescription = desc; };
   virtual bool required() const { return mRequired; };
   virtual void setRequired(bool req) { mRequired = req; };
   virtual bool hidden() const { return mHidden; };
