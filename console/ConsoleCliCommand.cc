@@ -324,17 +324,20 @@ truncateDescString(const std::string &description, const std::string &prefix)
 
   for (size_t i = 0; i < description.length(); i++)
   {
-    if (i - lineStart > DESC_LINE_LENGTH || i == description.length() - 1)
-    {
-      if (lineEnd > DESC_LINE_LENGTH)
-        desc += "\n" + std::string(HELP_PADDING, ' ') + prefix;
-
-      if (i == description.length() - 1)
+    if (i == description.length() - 1)
         lineEnd = i + 1;
+
+    if (lineEnd != lineStart &&
+        (i - lineStart > DESC_LINE_LENGTH || i == description.length() - 1 ||
+         description[lineEnd] == '\n'))
+    {
+      if (lineEnd > DESC_LINE_LENGTH || desc.back() == '\n')
+        desc += "\n" + std::string(HELP_PADDING, ' ') + prefix;
 
       desc += std::string(description, lineStart, lineEnd - lineStart);
 
       lineStart = lineEnd + 1;
+      lineEnd = lineStart;
 
       continue;
     }
