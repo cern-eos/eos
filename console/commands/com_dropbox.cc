@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_dropbox.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -30,51 +31,94 @@
 int
 com_dropbox (char *arg)
 {
-  XrdOucTokenizer subtokenizer(arg);
-  subtokenizer.GetLine();
-  XrdOucString subcommand = subtokenizer.GetToken();
-
   XrdOucString homedirectory = getenv("HOME");
   XrdOucString configdirectory = homedirectory + "/.eosdropboxd";
+  ConsoleCliCommand *parsedCmd, *dropboxCmd, *addSubCmd, *rmSubCmd, *lsSubCmd,
+    *stopSubCmd, *startSubCmd;
 
   if (!getenv("HOME"))
   {
-    fprintf(stderr, "error: your HOME environment variable is not defined - I need that!\n");
+    fprintf(stderr, "Error: your HOME environment variable is not defined - I need that!\n");
     global_retc = -1;
     return (0);
   }
-  if ((subcommand.find("--help") != STR_NPOS) || (subcommand.find("-h") != STR_NPOS))
-    goto com_dropbox_usage;
 
-  if ((subcommand != "add") && (subcommand != "rm") && (subcommand != "start") && (subcommand != "stop") && (subcommand != "ls"))
+  CliOption helpOption("help", "print help", "-h,--help");
+  helpOption.setHidden(true);
+
+  dropboxCmd = new ConsoleCliCommand("dropbox", "provides DropBox "
+                                     "functionality for EOS");
+  dropboxCmd->addOption(helpOption);
+
+  addSubCmd = new ConsoleCliCommand("add", "add DropBox configuration to "
+                                    "synchronize from <eos-dir> to "
+                                    "<local-dir>");
+  addSubCmd->addOption(helpOption);
+  addSubCmd->addOptions({{"eos-dir", "", 1, 1, "<eos-dir>", true},
+                         {"local-dir", "", 2, 1, "<local-dir>", true}
+                        });
+  dropboxCmd->addSubcommand(addSubCmd);
+
+  rmSubCmd = new ConsoleCliCommand("rm", "remove dropbox configuration to "
+                                   "synchronize from <eos-dir>");
+  rmSubCmd->addOption(helpOption);
+  rmSubCmd->addOption({"eos-dir", "", 1, 1, "<eos-dir>", true});
+  dropboxCmd->addSubcommand(rmSubCmd);
+
+  lsSubCmd = new ConsoleCliCommand("ls", "list configured DropBox daemons "
+                                   "and their status");
+  lsSubCmd->addOption(helpOption);
+  dropboxCmd->addSubcommand(lsSubCmd);
+
+  stopSubCmd = new ConsoleCliCommand("stop", "stop the DropBox daemon for all "
+                                     "configured dropbox directories");
+  stopSubCmd->addOption(helpOption);
+  dropboxCmd->addSubcommand(stopSubCmd);
+
+  startSubCmd = new ConsoleCliCommand("start", "start the DropBox daemon for "
+                                      "all configured dropbox directories");
+  startSubCmd->addOption(helpOption);
+  startSubCmd->addOption({"resync", "resync the local directory from scratch "
+                          "from the remote directory", "--resync,-r"});
+  dropboxCmd->addSubcommand(startSubCmd);
+
+  addHelpOptionRecursively(dropboxCmd);
+
+  parsedCmd = dropboxCmd->parse(arg);
+
+  if (parsedCmd == dropboxCmd)
   {
-    goto com_dropbox_usage;
+    if (!checkHelpAndErrors(dropboxCmd))
+      dropboxCmd->printUsage();
+    goto bailout;
   }
+  if (checkHelpAndErrors(parsedCmd))
+    goto bailout;
 
-  if (subcommand == "add")
+  if (parsedCmd == addSubCmd)
   {
-    XrdOucString remotedir = subtokenizer.GetToken();
-    XrdOucString localdir = subtokenizer.GetToken();
+    XrdOucString remotedir = addSubCmd->getValue("eos-dir").c_str();
+    XrdOucString localdir = addSubCmd->getValue("local-dir").c_str();
 
     if (localdir.beginswith("/eos"))
     {
       fprintf(stderr, "error: the local directory can not start with /eos!\n");
       global_retc = -1;
-      return (0);
+      goto bailout;
     }
 
     if (!remotedir.beginswith("/eos"))
     {
       fprintf(stderr, "error: the remote directory has to start with /eos!\n");
       global_retc = -1;
-      return (0);
+      goto bailout;
     }
 
     if ((!remotedir.endswith("/dropbox/") && (!remotedir.endswith("/dropbox"))))
     {
       fprintf(stderr, "error: your remote directory has to be named '/dropbox'\n");
       global_retc = -1;
-      return (0);
+      goto bailout;
     }
 
     XrdOucString configdummy = configdirectory + "/dummy";
@@ -83,7 +127,7 @@ com_dropbox (char *arg)
     {
       fprintf(stderr, "error: cannot create %s\n", configdirectory.c_str());
       global_retc = -EPERM;
-      return (0);
+      goto bailout;
     }
 
     XrdOucString localdirdummy = localdir + "/dummy";
@@ -92,7 +136,7 @@ com_dropbox (char *arg)
     {
       fprintf(stderr, "error: cannot access %s\n", localdirdummy.c_str());
       global_retc = -EPERM;
-      return (0);
+      goto bailout;
     }
 
     XrdOucString localdircontracted = localdir;
@@ -108,7 +152,7 @@ com_dropbox (char *arg)
     {
       fprintf(stderr, "error: there is already a configuration for the local directory %s\n", localdir.c_str());
       global_retc = EEXIST;
-      return (0);
+      goto bailout;
     }
 
     // we store the remote dir configuration in the target of a symlink!
@@ -116,45 +160,40 @@ com_dropbox (char *arg)
     {
       fprintf(stderr, "error: failed to symlink the new configuration entry %s\n", localdir.c_str());
       global_retc = errno;
-      return (0);
+      goto bailout;
     }
 
     fprintf(stderr, "success: created dropbox configuration from %s |==> %s\n", remotedir.c_str(), localdir.c_str());
     global_retc = 0;
-    return (0);
+    goto bailout;
   }
 
-  if (subcommand == "start")
+  if (parsedCmd == startSubCmd)
   {
-    XrdOucString resync = subtokenizer.GetToken();
-    if (resync.length())
+    std::string command("eosdropboxd");
+
+    if (startSubCmd->hasValue("resync"))
+      command += " --resync";
+
+    int rc = system(command.c_str());
+
+    if (WEXITSTATUS(rc))
     {
-      int rc = system("eosdropboxd --resync");
-      if (WEXITSTATUS(rc))
-      {
-        fprintf(stderr, "error: failed to run eosdropboxd --resync\n");
-      }
+      fprintf(stderr, "error: failed to run %s\n", command.c_str());
     }
-    else
-    {
-      int rc = system("eosdropboxd");
-      if (WEXITSTATUS(rc))
-      {
-        fprintf(stderr, "error: failed to run eosdropboxd\n");
-      }
-    }
+
     global_retc = 0;
-    return (0);
+    goto bailout;
   }
 
-  if (subcommand == "rm")
+  if (parsedCmd == rmSubCmd)
   {
 
     global_retc = 0;
-    return (0);
+    goto bailout;
   }
 
-  if (subcommand == "stop")
+  if (parsedCmd == stopSubCmd)
   {
     int rc = system("pkill -15 eosdropboxd >& /dev/null");
     if (WEXITSTATUS(rc))
@@ -162,17 +201,17 @@ com_dropbox (char *arg)
       fprintf(stderr, "warning: didn't kill any esodropboxd");
     }
     global_retc = 0;
-    return (0);
+    goto bailout;
   }
 
-  if (subcommand == "ls")
+  if (parsedCmd == lsSubCmd)
   {
     DIR* dir = opendir(configdirectory.c_str());
     if (!dir)
     {
       fprintf(stderr, "error: cannot opendir %s\n", configdirectory.c_str());
       global_retc = errno;
-      return (0);
+      goto bailout;
     }
     struct dirent* entry = 0;
     while ((entry = readdir(dir)))
@@ -202,23 +241,10 @@ com_dropbox (char *arg)
     }
     closedir(dir);
     global_retc = 0;
-    return (0);
   }
 
-com_dropbox_usage:
-  fprintf(stdout, "Usage: dropbox add|rm|start|stop|add|rm|ls ...\n");
-  fprintf(stdout, "'[eos] dropbox ...' provides dropbox functionality for eos.\n");
+ bailout:
+  delete dropboxCmd;
 
-  fprintf(stdout, "Options:\n");
-  fprintf(stdout, "dropbox add <eos-dir> <local-dir>   :\n");
-  fprintf(stdout, "                                                  add drop box configuration to synchronize from <eos-dir> to <local-dir>!\n");
-  fprintf(stdout, "dropbox rm <eos-dir>                :\n");
-  fprintf(stdout, "                                                  remove drop box configuration to synchronize from <eos-dir>!\n");
-  fprintf(stdout, "dropbox start [--resync]             :\n");
-  fprintf(stdout, "                                                  start the drop box daemon for all configured dropbox directories! If the --resync flag is given, the local directory is resynced from scratch from the remote directory!\n");
-  fprintf(stdout, "dropbox stop                        :\n");
-  fprintf(stdout, "                                                  stop the drop box daemon for all configured dropbox directories!\n");
-  fprintf(stdout, "dropbox ls                          :\n");
-  fprintf(stdout, "                                                  list configured drop box daemons and their status\n");
   return (0);
 }
