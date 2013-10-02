@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_role.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -29,25 +30,28 @@
 int
 com_role (char *arg)
 {
-  XrdOucTokenizer subtokenizer(arg);
-  subtokenizer.GetLine();
-  user_role = subtokenizer.GetToken();
-  group_role = subtokenizer.GetToken();
+  ConsoleCliCommand roleCmd("role", "select user role <user-role> [and group "
+                            "role <group-role>]");
+  roleCmd.addOptions({{"user-role", "can be a virtual user ID (unsigned int) "
+                       "or a user mapping alias", 1, 1, "<user-role>", true},
+                      {"group-role", "can be a virtual group ID (unsigned int) "
+                       "or a group mapping alias", 2, 1, "<group-role>", false}
+                     });
 
-  if (wants_help(arg))
-    goto com_role_usage;
+  addHelpOptionRecursively(&roleCmd);
+
+  roleCmd.parse(arg);
+
+  if (checkHelpAndErrors(&roleCmd))
+    return 0;
+
+  user_role = roleCmd.getValue("user-role").c_str();
+
+  if (roleCmd.hasValue("group-role"))
+    group_role = roleCmd.getValue("group-role").c_str();
 
   if (!silent)
     fprintf(stdout, "=> selected user role ruid=<%s> and group role rgid=<%s>\n", user_role.c_str(), group_role.c_str());
 
-  if (user_role.beginswith("-"))
-    goto com_role_usage;
-
-  return (0);
-com_role_usage:
-  fprintf(stdout, "usage: role <user-role> [<group-role>]                       : select user role <user-role> [and group role <group-role>]\n");
-
-  fprintf(stdout, "            <user-role> can be a virtual user ID (unsigned int) or a user mapping alias\n");
-  fprintf(stdout, "            <group-role> can be a virtual group ID (unsigned int) or a group mapping alias\n");
   return (0);
 }
