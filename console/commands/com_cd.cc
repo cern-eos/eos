@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_cd.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -23,6 +24,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "console/ConsoleCliCommand.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Change working directory &*/
@@ -35,24 +37,36 @@ com_cd (char *arg)
   XrdOucString newpath;
   XrdOucString oldpwd;
 
-  if (!strcmp(arg, "--help") || !strcmp(arg, "-h"))
-    goto com_cd_usage;
+  ConsoleCliCommand cdCmd("cd", "provides the namespace change directory "
+                          "command in EOS.");
+  CliOption helpOption("help", "print help", "-h,--help");
+  helpOption.setHidden(true);
+  cdCmd.addOption(helpOption);
+  CliPositionalOption dirOption("dir",
+                                "can be a directory path or symbol, e.g.:\n"
+                                "cd -  : change to the previous directory\n"
+                                "cd .. : change to the directory one level up\n"
+                                "cd ~  : change to the directory pointed by "
+                                "EOS_HOME; the same happens if no argument is "
+                                "provided", 1, 1, "<dir>", false);
+  cdCmd.addOption(dirOption);
 
+  cdCmd.parse(arg);
 
-  // cd -
-  if (!strcmp(arg, "-"))
+  if (cdCmd.hasValue("help"))
   {
-    oopwd = opwd;
-    arg = (char*) opwd.c_str();
+    cdCmd.printUsage();
+    return 0;
+  }
+  else if (cdCmd.hasErrors())
+  {
+    cdCmd.printErrors();
+    cdCmd.printUsage();
+    return 0;
   }
 
-  opwd = pwd;
-
-  newpath = abspath(arg);
-  oldpwd = pwd;
-
   // cd ~ (home)
-  if (!arg || (!strlen(arg)) || (!strcmp(arg, "~")))
+  if (!cdCmd.hasValue("dir") || cdCmd.getValue("dir") == "~")
   {
     if (getenv("EOS_HOME"))
     {
@@ -64,16 +78,28 @@ com_cd (char *arg)
       newpath = opwd;
     }
   }
+  // cd -
+  else if (cdCmd.getValue("dir") == "-")
+  {
+    oopwd = opwd;
+    newpath = abspath(opwd.c_str());
+  }
+  // cd <dir>
+  else
+  {
+    newpath = abspath(cdCmd.getValue("dir").c_str());
+  }
 
+  opwd = pwd;
+  oldpwd = pwd;
   pwd = newpath;
 
   if (!pwd.endswith("/"))
     pwd += "/";
 
   // filter "/./";
-  while (pwd.replace("/./", "/"))
-  {
-  }
+  while (pwd.replace("/./", "/")) {}
+
   // filter "..";
   int dppos;
   dppos = 0;
@@ -128,19 +154,5 @@ com_cd (char *arg)
       fprintf(stderr, "warning: unable to store CWD to %s\n", pwdfile.c_str());
     }
   }
-  return (0);
-
-com_cd_usage:
-  fprintf(stdout, "'[eos] cd ...' provides the namespace change directory command in EOS.\n");
-  fprintf(stdout, "Usage: cd <dir>|-|..|~\n");
-  fprintf(stdout, "Options:\n");
-  fprintf(stdout, "cd <dir> :\n");
-  fprintf(stdout, "                                                  change into direcotry <dir>. If it does not exist, the current directory will stay as before!\n");
-  fprintf(stdout, "cd - :\n");
-  fprintf(stdout, "                                                  change into the previous directory\n");
-  fprintf(stdout, "cd .. :\n");
-  fprintf(stdout, "                                                  change into the directory one level up\n");
-  fprintf(stdout, "cd ~ :\n");
-  fprintf(stdout, "                                                  change into the directory defined via the environment variable EOS_HOME\n");
   return (0);
 }
