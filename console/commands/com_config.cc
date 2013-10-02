@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_config.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -29,257 +30,196 @@
 int
 com_config (char* arg1)
 {
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString subcommand = subtokenizer.GetToken();
-  XrdOucString arg = subtokenizer.GetToken();
+  XrdOucString in;
+  ConsoleCliCommand *configCmd, *parsedCmd, *lsSubCmd, *dumpSubCmd, *saveSubCmd,
+    *loadSubCmd, *resetSubCmd, *diffSubCmd, *changelogSubCmd, *autosaveSubCmd;
 
-  if (wants_help(arg1))
-    goto com_config_usage;
+  configCmd = new ConsoleCliCommand("config", "provides the configuration "
+                                    "interface to EOS");
+  CliOption helpOption("help", "print help", "-h,--help");
+  helpOption.setHidden(true);
+  configCmd->addOption(helpOption);
 
-  if (subcommand == "dump")
+  lsSubCmd = new ConsoleCliCommand("ls", "list existing configurations");
+  lsSubCmd->addOption(helpOption);
+  lsSubCmd->addOption({"backup", "show also backup & autosave files",
+                       "-b,--backup"});
+  configCmd->addSubcommand(lsSubCmd);
+
+  dumpSubCmd = new ConsoleCliCommand("dump", "dump current configuration or "
+                                     "configuration with name <name>");
+  dumpSubCmd->addOption(helpOption);
+  dumpSubCmd->addOptions({{"fs", "dump only file system config", "-f,--fs"},
+                          {"vid", "dump only virtual id config", "-v,--vid"},
+                          {"quota", "dump only quota config", "-q,--quota"},
+                          {"comment", "dump only comment config", "-c,--comment"},
+                          {"policy", "dump only policy config", "-p,--policy"},
+                          {"global", "dump only global config", "-g,--global"},
+                          {"access", "dump only access config", "-a,--access"},
+                          {"mapping", "dump only mapping config", "-m,--mapping"}
+                         });
+  dumpSubCmd->addOption({"name", "", 1, 1, "<name>", false});
+  configCmd->addSubcommand(dumpSubCmd);
+
+  saveSubCmd = new ConsoleCliCommand("save", "save config (optionally under "
+                                     "<name>)");
+  saveSubCmd->addOption(helpOption);
+  saveSubCmd->addOptions({{"force", "overwrite existing config name and create "
+                           "a timestamped backup", "-f,--force"}
+                         });
+  saveSubCmd->addOption({"name", "the name for the configuration file;\n"
+                         "IMPORTANT: if no name is specified the current "
+                         "config file is overwritten", 1, 1, "<name>", false});
+  saveSubCmd->addOption({"comment", "an optional comment about this "
+                         "configuration", "-c,--comment=", 1, "<comment>", false});
+  configCmd->addSubcommand(saveSubCmd);
+
+  loadSubCmd = new ConsoleCliCommand("load", "load configuration");
+  loadSubCmd->addOption(helpOption);
+  loadSubCmd->addOption({"name", "name of the configuration file",
+                         1, 1, "<name>", true});
+  configCmd->addSubcommand(loadSubCmd);
+
+  resetSubCmd = new ConsoleCliCommand("reset", "reset all configuration to "
+                                      "empty state");
+  resetSubCmd->addOption(helpOption);
+  configCmd->addSubcommand(resetSubCmd);
+
+  diffSubCmd = new ConsoleCliCommand("diff", "show changes since last "
+                                     "load/save operation");
+  diffSubCmd->addOption(helpOption);
+  configCmd->addSubcommand(diffSubCmd);
+
+  changelogSubCmd = new ConsoleCliCommand("changelog", "show the last <#> "
+                                          "lines from the changelog - default "
+                                          "is -10");
+  changelogSubCmd->addOption(helpOption);
+  CliPositionalOption nrLines("nr-lines", "", 1, 1, "-#lines", false);
+  std::pair<float, float> range = {-100.0, 100.0};
+  nrLines.addEvalFunction(optionIsNumberInRangeEvalFunc, &range);
+  changelogSubCmd->addOption(nrLines);
+  configCmd->addSubcommand(changelogSubCmd);
+
+  autosaveSubCmd = new ConsoleCliCommand("autosave", "without on/off just "
+                                         "prints the state otherwise set's "
+                                         "autosave to on or off");
+  autosaveSubCmd->addOption(helpOption);
+  CliPositionalOption activeOption("active", "", 1, 1, "on|off", true);
+  std::vector<std::string> choices = {"on", "off"};
+  activeOption.addEvalFunction(optionIsChoiceEvalFunc, &choices);
+  autosaveSubCmd->addOption(activeOption);
+  configCmd->addSubcommand(autosaveSubCmd);
+
+  addHelpOptionRecursively(configCmd);
+
+  parsedCmd = configCmd->parse(arg1);
+
+  if (parsedCmd == configCmd)
   {
-    XrdOucString in = "mgm.cmd=config&mgm.subcmd=dump";
-    if (arg.length())
-    {
-      do
-      {
-        if ((arg == "--fs") || (arg == "-f"))
-        {
-          in += "&mgm.config.fs=1";
-          arg = subtokenizer.GetToken();
-        }
-        else
-          if ((arg == "--vid") || (arg == "-v"))
-        {
-          in += "&mgm.config.vid=1";
-          arg = subtokenizer.GetToken();
-        }
-        else
-          if ((arg == "--quota") || (arg == "-q"))
-        {
-          in += "&mgm.config.quota=1";
-          arg = subtokenizer.GetToken();
-        }
-        else
-          if ((arg == "--comment") || (arg == "-c"))
-        {
-          in += "&mgm.config.comment=1";
-          arg = subtokenizer.GetToken();
-        }
-        else
-          if ((arg == "--policy") || (arg == "-p"))
-        {
-          in += "&mgm.config.policy=1";
-          arg = subtokenizer.GetToken();
-        }
-        else
-          if ((arg == "--global") || (arg == "-g"))
-        {
-          in += "&mgm.config.global=1";
-          arg = subtokenizer.GetToken();
-        }
-        else
-          if ((arg == "--map") || (arg == "-m"))
-        {
-          in += "&mgm.config.map=1";
-          arg = subtokenizer.GetToken();
-        }
-        else
-          if ((arg == "--access") || (arg == "-a"))
-        {
-          in += "mgm.config.access=1";
-          arg = subtokenizer.GetToken();
-        }
-        else
-          if (!arg.beginswith("-"))
-        {
-          in += "&mgm.config.file=";
-          in += arg;
-          arg = subtokenizer.GetToken();
-        }
-        else
-        {
-          goto com_config_usage;
-        }
-      }
-      while (arg.length());
-    }
-
-    global_retc = output_result(client_admin_command(in));
-    return (0);
+    if (!checkHelpAndErrors(configCmd))
+      configCmd->printUsage();
+    goto bailout;
   }
+  if (checkHelpAndErrors(parsedCmd))
+    goto bailout;
 
-
-
-  if (subcommand == "ls")
+  if (parsedCmd == dumpSubCmd)
   {
-    XrdOucString in = "mgm.cmd=config&mgm.subcmd=ls";
-    if ((arg == "--backup") || (arg == "-b"))
+    in = "mgm.cmd=config&mgm.subcmd=dump";
+
+    if (dumpSubCmd->hasValue("fs"))
+      in += "&mgm.config.fs=1";
+
+    if (dumpSubCmd->hasValue("vid"))
+      in += "&mgm.config.vid=1";
+
+    if (dumpSubCmd->hasValue("quota"))
+      in += "&mgm.config.quota=1";
+
+    if (dumpSubCmd->hasValue("comment"))
+      in += "&mgm.config.comment=1";
+
+    if (dumpSubCmd->hasValue("policy"))
+      in += "&mgm.config.policy=1";
+
+    if (dumpSubCmd->hasValue("global"))
+      in += "&mgm.config.global=1";
+
+    if (dumpSubCmd->hasValue("mapping"))
+      in += "&mgm.config.map=1";
+
+    if (dumpSubCmd->hasValue("access"))
+      in += "mgm.config.access=1";
+
+    if (dumpSubCmd->hasValue("name"))
     {
+      in += "&mgm.config.file=";
+      in += dumpSubCmd->getValue("name").c_str();
+    }
+  }
+  else if (parsedCmd == lsSubCmd)
+  {
+    in = "mgm.cmd=config&mgm.subcmd=ls";
+
+    if (lsSubCmd->hasValue("backup"))
       in += "&mgm.config.showbackup=1";
-    }
-    global_retc = output_result(client_admin_command(in));
-    return (0);
   }
-
-  if (subcommand == "load")
+  else if (parsedCmd == loadSubCmd)
   {
-    XrdOucString in = "mgm.cmd=config&mgm.subcmd=load&mgm.config.file=";
-    if (!arg.length())
-      goto com_config_usage;
-
-    in += arg;
-    global_retc = output_result(client_admin_command(in));
-    return (0);
+    in = "mgm.cmd=config&mgm.subcmd=load&mgm.config.file=";
+    in += loadSubCmd->getValue("name").c_str();
   }
-
-  if (subcommand == "autosave")
+  else if (parsedCmd == autosaveSubCmd)
   {
-    XrdOucString in = "mgm.cmd=config&mgm.subcmd=autosave&mgm.config.state=";
-    in += arg;
-    global_retc = output_result(client_admin_command(in));
-    return (0);
+    in = "mgm.cmd=config&mgm.subcmd=autosave&mgm.config.state=";
+    in += autosaveSubCmd->getValue("active").c_str();
   }
-
-  if (subcommand == "reset")
+  else if (parsedCmd == resetSubCmd)
   {
-    XrdOucString in = "mgm.cmd=config&mgm.subcmd=reset";
-    global_retc = output_result(client_admin_command(in));
-    return (0);
+    in = "mgm.cmd=config&mgm.subcmd=reset";
   }
-
-  if (subcommand == "save")
+  else if (parsedCmd == saveSubCmd)
   {
-    XrdOucString in = "mgm.cmd=config&mgm.subcmd=save";
-    bool hasfile = false;
-    bool match = false;
-    do
+    in = "mgm.cmd=config&mgm.subcmd=save";
+
+    if (saveSubCmd->hasValue("force"))
+      in += "&mgm.config.force=1";
+
+    if (saveSubCmd->hasValue("comment"))
     {
-      match = false;
-      if (arg == "-f")
-      {
-        in += "&mgm.config.force=1";
-        arg = subtokenizer.GetToken();
-        match = true;
-      }
-
-      if ((arg == "--comment") || (arg == "-c"))
-      {
-        in += "&mgm.config.comment=";
-        arg = subtokenizer.GetToken();
-        if ((arg.beginswith("\"") || (arg.beginswith("'"))))
-        {
-          arg.replace("'", "\"");
-          if (arg.length())
-          {
-            do
-            {
-              in += " ";
-              in += arg;
-              arg = subtokenizer.GetToken();
-            }
-            while (arg.length() && (!arg.endswith("\"")) && (!arg.endswith("'")));
-
-            if (arg.endswith("\"") || arg.endswith("'"))
-            {
-              in += " ";
-              arg.replace("'", "\"");
-              in += arg;
-            }
-            arg = subtokenizer.GetToken();
-          }
-        }
-        match = true;
-      }
-
-      if (!arg.beginswith("-"))
-      {
-        in += "&mgm.config.file=";
-        in += arg;
-        hasfile = true;
-        arg = subtokenizer.GetToken();
-        match = true;
-      }
-      if (!match)
-        arg = subtokenizer.GetToken();
-
+      in += "&mgm.config.comment=";
+      in += saveSubCmd->getValue("comment").c_str();
     }
-    while (arg.length() && match);
 
-    if (!match) goto com_config_usage;
-    if (!hasfile) goto com_config_usage;
-    global_retc = output_result(client_admin_command(in));
-    return (0);
-  }
-
-  if (subcommand == "diff")
-  {
-    XrdOucString in = "mgm.cmd=config&mgm.subcmd=diff";
-    arg = subtokenizer.GetToken();
-    if (arg.length())
-      goto com_config_usage;
-
-    global_retc = output_result(client_admin_command(in));
-    return (0);
-  }
-
-
-  if (subcommand == "changelog")
-  {
-    XrdOucString in = "mgm.cmd=config&mgm.subcmd=changelog";
-    if (arg.length())
+    if (saveSubCmd->hasValue("name"))
     {
-      if (arg.beginswith("-"))
-      {
-        // allow -100 and 100 
-        arg.erase(0, 1);
-      }
+      in += "&mgm.config.file=";
+      in += saveSubCmd->getValue("name").c_str();
+    }
+  }
+  else if (parsedCmd == diffSubCmd)
+  {
+    in = "mgm.cmd=config&mgm.subcmd=diff";
+  }
+  else if (parsedCmd == changelogSubCmd)
+  {
+    in = "mgm.cmd=config&mgm.subcmd=changelog";
+
+    if (changelogSubCmd->hasValue("nr-lines"))
+    {
+      std::string nrLines = changelogSubCmd->getValue("nr-lines");
       in += "&mgm.config.lines=";
-      in += arg;
+
+      if (nrLines.front() == '-')
+        nrLines.erase(0, 1);
+      in += nrLines.c_str();
     }
-
-    arg = subtokenizer.GetToken();
-    if (arg.length())
-      goto com_config_usage;
-
-    global_retc = output_result(client_admin_command(in));
-    return (0);
   }
 
-com_config_usage:
-  fprintf(stdout, "Usage: config ls|dump|load|save|diff|changelog|reset|autosave [OPTIONS]\n");
-  fprintf(stdout, "'[eos] config' provides the configuration interface to EOS.\n\n");
-  fprintf(stdout, "Options:\n");
-  fprintf(stdout, "config ls   [--backup|-b] :\n");
-  fprintf(stdout, "                                                  list existing configurations\n");
-  fprintf(stdout, "            --backup|-b : show also backup & autosave files\n");
+  global_retc = output_result(client_admin_command(in));
 
-  fprintf(stdout, "config dump [--fs|-f] [--vid|-v] [--quota|-q] [--policy|-p] [--comment|-c] [--global|-g] [--access|-a] [<name>] [--map|-m]] : \n");
-  fprintf(stdout, "                                                  dump current configuration or configuration with name <name>\n");
-  fprintf(stdout, "            -f : dump only file system config\n");
-  fprintf(stdout, "            -v : dump only virtual id config\n");
-  fprintf(stdout, "            -q : dump only quota config\n");
-  fprintf(stdout, "            -p : dump only policy config\n");
-  fprintf(stdout, "            -g : dump only global config\n");
-  fprintf(stdout, "            -a : dump only access config\n");
-  fprintf(stdout, "            -m : dump only mapping config\n");
-
-  fprintf(stdout, "config save [-f] [<name>] [--comment|-c \"<comment>\"] ] :\n");
-  fprintf(stdout, "                                                  save config (optionally under name)\n");
-  fprintf(stdout, "            -f : overwrite existing config name and create a timestamped backup\n");
-  fprintf(stdout, "=>   if no name is specified the current config file is overwritten\n\n");
-  fprintf(stdout, "config load <name> :\n");
-  fprintf(stdout, "                                                  load config (optionally with name)\n");
-  fprintf(stdout, "config diff :\n");
-  fprintf(stdout, "                                                  show changes since last load/save operation\n");
-  fprintf(stdout, "config changelog [-#lines] :\n");
-  fprintf(stdout, "                                                  show the last <#> lines from the changelog - default is -10 \n");
-  fprintf(stdout, "config reset :\n");
-  fprintf(stdout, "                                                  reset all configuration to empty state\n");
-  fprintf(stdout, "config autosave [on|off] :\n");
-  fprintf(stdout, "                                                  without on/off just prints the state otherwise set's autosave to on or off\n");
+ bailout:
+  delete configCmd;
 
   return (0);
 }
