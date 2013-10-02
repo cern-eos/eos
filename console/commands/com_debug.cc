@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_debug.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -23,83 +24,96 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "console/ConsoleCliCommand.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Debug Level Setting */
 int
 com_debug (char* arg1)
 {
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString level = subtokenizer.GetToken();
-  XrdOucString nodequeue = subtokenizer.GetToken();
-  XrdOucString filterlist = "";
+  XrdOucString in;
+  std::string level;
 
-  if ((level != "-h") && (level != "--help"))
+  CliOption helpOption("help", "print help", "-h,--help");
+  helpOption.setHidden(true);
+
+  ConsoleCliCommand debugCmd("debug", "allows to modify the verbosity of the "
+                             "EOS log files in MGM and FST services");
+  debugCmd.addOption(helpOption);
+  debugCmd.addOption({"filter", "a comma seperated list of strings of software "
+                      "units which should be filtered out in the message log;\n"
+                      "The default filter list is 'Process,AddQuota,UpdateHint,"
+                      "UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,"
+                      "PrintOut,RegisterNode,SharedHash'", "--filter=,-f",
+                      1, "<unit-list>", false});
+
+  CliPositionalOption levelOption("level", "the debug level to set;\n"
+                                  "The allowed values are: debug, info, warning, "
+                                  "notice, err, crit, alert, emerg or this\n"
+                                  "The level 'this' will toggle the shell's "
+                                  "debug mode", 1, 1, "<level>", true);
+  std::vector<std::string> choices = {"debug", "info", "warning", "notice",
+                                      "err", "crit", "alert", "emerg", "this"};
+  levelOption.addEvalFunction(optionIsChoiceEvalFunc, &choices);
+  debugCmd.addOption(levelOption);
+  debugCmd.addOption({"node-queue", "the <node-queue> to which the debug "
+                      "level should be set.\n<node-queue> are internal EOS "
+                      "names e.g. '/eos/<hostname>:<port>/fst",
+                      2, 1, "<node-queue>", false});
+
+  debugCmd.parse(arg1);
+
+  if (debugCmd.hasValue("help"))
   {
-
-    if (level == "this")
-    {
-      fprintf(stdout, "info: toggling shell debugmode to debug=%d\n", debug);
-      debug = !debug;
-      if (debug)
-      {
-        eos::common::Logging::SetLogPriority(LOG_DEBUG);
-      }
-      else
-      {
-        eos::common::Logging::SetLogPriority(LOG_NOTICE);
-      }
-      return (0);
-    }
-    if (level.length())
-    {
-      XrdOucString in = "mgm.cmd=debug&mgm.debuglevel=";
-      in += level;
-
-      if (nodequeue.length())
-      {
-        if (nodequeue == "-filter")
-        {
-          filterlist = subtokenizer.GetToken();
-          in += "&mgm.filter=";
-          in += filterlist;
-        }
-        else
-        {
-          in += "&mgm.nodename=";
-          in += nodequeue;
-          nodequeue = subtokenizer.GetToken();
-          if (nodequeue == "-filter")
-          {
-            filterlist = subtokenizer.GetToken();
-            in += "&mgm.filter=";
-            in += filterlist;
-          }
-        }
-      }
-
-
-
-      global_retc = output_result(client_admin_command(in));
-      return (0);
-    }
+    debugCmd.printUsage();
+    goto com_debugexamples;
+  }
+  else if (debugCmd.hasErrors())
+  {
+    debugCmd.printErrors();
+    debugCmd.printUsage();
+    return 0;
   }
 
-  fprintf(stdout, "Usage: debug [node-queue] this|<level> [-filter <unitlist>]\n");
-  fprintf(stdout, "'[eos] debug ...' allows to modify the verbosity of the EOS log files in MGM and FST services.\n\n");
-  fprintf(stdout, "Options:\n");
-  fprintf(stdout, "debug  <level> [-filter <unitlist>] :\n");
-  fprintf(stdout, "                                                  set the MGM where the console is connected to into debug level <level>\n");
-  fprintf(stdout, "debug  <node-queue> <level> [-filter <unitlist>] :\n");
-  fprintf(stdout, "                                                  set the <node-queue> into debug level <level>. <node-queue> are internal EOS names e.g. '/eos/<hostname>:<port>/fst'\n");
-  fprintf(stdout, "     <unitlist> : a comma seperated list of strings of software units which should be filtered out in the message log ! The default filter list is 'Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash'.\n\n");
-  fprintf(stdout, "The allowed debug levels are: debug info warning notice err crit alert emerg\n\n");
+  level = debugCmd.getValue("level");
+  if (level == "this")
+  {
+    fprintf(stdout, "info: toggling shell debugmode to debug=%d\n", debug);
+    debug = !debug;
+
+    if (debug)
+      eos::common::Logging::SetLogPriority(LOG_DEBUG);
+    else
+      eos::common::Logging::SetLogPriority(LOG_NOTICE);
+
+    return (0);
+  }
+
+  in = "mgm.cmd=debug&mgm.debuglevel=";
+  in += level.c_str();
+
+  if (debugCmd.hasValue("filter"))
+  {
+    in += "&mgm.filter=";
+    in += debugCmd.getValue("filter").c_str();
+  }
+
+  if (debugCmd.hasValue("node-queue"))
+  {
+    in += "&mgm.nodename=";
+    in += debugCmd.getValue("node-queue").c_str();
+  }
+
+  global_retc = output_result(client_admin_command(in));
+
+  return (0);
+
+ com_debugexamples:
   fprintf(stdout, "Examples:\n");
   fprintf(stdout, "  debug info *                        set MGM & all FSTs into debug mode 'info'\n\n");
   fprintf(stdout, "  debug err /eos/*/fst                set all FSTs into debug mode 'info'\n\n");
   fprintf(stdout, "  debug crit /eos/*/mgm               set MGM into debug mode 'crit'\n\n");
   fprintf(stdout, "  debug debug -filter MgmOfsMessage   set MGM into debug mode 'debug' and filter only messages comming from unit 'MgmOfsMessage'.\n\n");
+
   return (0);
 }
