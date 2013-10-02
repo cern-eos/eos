@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_chmod.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -23,50 +24,53 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "console/ConsoleCliCommand.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Mode Interface */
 int
 com_chmod (char* arg1)
 {
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString mode = subtokenizer.GetToken();
-  XrdOucString option = "";
   XrdOucString in = "mgm.cmd=chmod";
-  XrdOucString arg = "";
 
-  if (mode.beginswith("-"))
+  CliOption helpOption("help", "print help", "-h,--help");
+  helpOption.setHidden(true);
+
+  ConsoleCliCommand chmodCmd("chmod", "set mode for <path>");
+  chmodCmd.addOption(helpOption);
+  chmodCmd.addOption({"recursive", "change mode recursively", "-r"});
+
+  CliPositionalOption modeOption("mode",
+                                 "can be only numerical like 755, 644, 700 "
+                                 "are automatically changed to 2755, 2644, "
+                                 "2700, respectively;\n"
+                                 "to disable attribute inheritance use 4755, "
+                                 "4644, 4700, ...", 1, 1, "<mode>", true);
+  modeOption.addEvalFunction(optionIsPositiveNumberEvalFunc, 0);
+  chmodCmd.addOption(modeOption);
+  chmodCmd.addOption({"path", "", 2, 1, "<path>", true});
+
+  chmodCmd.parse(arg1);
+
+  if (chmodCmd.hasValue("help"))
   {
-    option = mode;
-    option.erase(0, 1);
-    mode = subtokenizer.GetToken();
-    in += "&mgm.option=";
-    in += option;
+    chmodCmd.printUsage();
+    return 0;
+  }
+  else if (chmodCmd.hasErrors())
+  {
+    chmodCmd.printErrors();
+    chmodCmd.printUsage();
+    return 0;
   }
 
-  XrdOucString path = subtokenizer.GetToken();
+  if (chmodCmd.hasValue("recursive"))
+    in += "&mgm.option=r";
 
-  if (wants_help(arg1))
-    goto com_chmod_usage;
-
-  if (!path.length() || !mode.length())
-    goto com_chmod_usage;
-
-  path = abspath(path.c_str());
-
-  in += "&mgm.path=";
-  in += path;
+  in += "&mgm.path=" + cleanPath(chmodCmd.getValue("path"));
   in += "&mgm.chmod.mode=";
-  in += mode;
+  in += chmodCmd.getValue("mode").c_str();
 
   global_retc = output_result(client_user_command(in));
-  return (0);
-
-com_chmod_usage:
-  fprintf(stdout, "usage: chmod [-r] <mode> <path>                             : set mode for <path> (-r recursive)\n");
-  fprintf(stdout, "                 <mode> can be only numerical like 755, 644, 700\n");
-  fprintf(stdout, "                 <mode> are automatically changed to 2755, 2644, 2700 respectivly\n");
-  fprintf(stdout, "                 <mode> to disable attribute inheritance use 4755, 4644, 4700 ...\n");
   return (0);
 }
