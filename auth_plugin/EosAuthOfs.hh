@@ -51,7 +51,7 @@ EOSAUTHNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Class EosAuthOfs built on top of XrdOfs
 /*! Decription: The libEosAuthOfs.so is inteded to be used as an OFS library
-    plugin with a vanilla XRootD server. What is does it to connect using ZMQ
+    plugin with a vanilla XRootD server. What it does is to connect using ZMQ
     sockets to the real MGM nodes (in general it should connect to a master and
     a slave MGM). It does this by reading out the endpoints it needs to connect
     to from the configuration file (/etc/xrd.cf.auth). These need to follow the
@@ -62,17 +62,18 @@ EOSAUTHNAMESPACE_BEGIN
     client using ProtocolBuffers and sends this request using ZMQ to the master
     MGM node.
 
-    There are reveral tunable parameters for this configuration (auth + MGMs):
+    There are several tunable parameters for this configuration (auth + MGMs):
 
     AUTH - configuration
     ====================
-    - eosauth.instance - hostnames and the ports to which ZMQ can connect to 
-        the MGM nodes so that it can forward requests and receive responses
+    - eosauth.instance - contains hostnames and the ports to which ZMQ can 
+        connect to the MGM nodes so that it can forward requests and receive 
+        responses
     - eosauth.numsockets - once a clients wants to send a request the thread
         allocated to him in XRootD will require a socket to send the request
-        to the MGM node. Therefore, we establish a pool of sockets from the
+        to the MGM node. Therefore, we set up a pool of sockets from the
         begining which can be used to send/receiver requests/responses.
-        Default is 10 sockets.
+        The default size is 10 sockets.
 
     MGM - configuration
     ===================
@@ -89,7 +90,9 @@ EOSAUTHNAMESPACE_BEGIN
     should redirect all clients with write requests to the master node. Care
     should be taken when specifying the two endpoints since the switch is done
     ONLY IF the redirection HOST matches one of the two endpoints specified in
-    the config of the authentication plugin.
+    the configuration  of the authentication plugin (namely eosauth.instance).
+    Once the switch is done all requests be them read or write are sent to the 
+    new master MGM node.
 */
 //------------------------------------------------------------------------------
 class EosAuthOfs: public XrdOfs, public eos::common::LogId
