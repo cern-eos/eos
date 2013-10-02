@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_clear.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -23,17 +24,26 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "console/ConsoleCliCommand.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Clear the terminal screen */
 int
 com_clear (char *arg) {
-  if (!strcmp(arg,"-h") || (!strcmp(arg,"--help"))) {
-    fprintf(stdout,"Usage: clear\n");
-    fprintf(stdout,"'[eos] clear' is equivalent to the interactive shell command to clear the screen.\n");
-    return (0);
-  }
-  
-  int rc = system("clear");
+  int rc = 0;
+  CliOption helpOption("help", "print help", "-h,--help");
+  helpOption.setHidden(true);
+
+  ConsoleCliCommand clearCmd("clear", "is equivalent to the interactive shell "
+                             "command to clear the screen");
+  clearCmd.addOption(helpOption);
+
+  clearCmd.parse(arg);
+
+  if (clearCmd.hasValue("help"))
+    clearCmd.printUsage();
+  else
+    rc = system("clear");
+
   return (rc); 
 }
