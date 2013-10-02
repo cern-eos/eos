@@ -1877,16 +1877,19 @@ XrdMgmOfs::_mkdir (const char *path,
           vid.gid = d_gid;
         }
       }
-      bool stdpermcheck = true;
-      ;
+      bool stdpermcheck = false;
+
       if (acl.HasAcl())
       {
         if ((!acl.CanWrite()) && (!acl.CanWriteOnce()))
         {
           // we have to check the standard permissions
           stdpermcheck = true;
-        }
+        } 
+      } else {
+	stdpermcheck = true;
       }
+
 
       // admin's can always create a directory
       if (stdpermcheck && (!dir->access(vid.uid, vid.gid, X_OK | W_OK)))

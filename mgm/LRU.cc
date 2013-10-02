@@ -144,12 +144,19 @@ LRU::LRUr ()
 
     {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-      if (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on")
+      if (FsView::gFsView.mSpaceView.count("default") && (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on"))
 	IsEnabledLRU = true;
       else
 	IsEnabledLRU = false;
-      lLRUInterval =
-	atoi(FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru.interval").c_str());
+      if (FsView::gFsView.mSpaceView.count("default")) 
+      {
+	lLRUInterval =
+	  atoi(FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru.interval").c_str());
+      } 
+      else
+      {
+	lLRUInterval = 0;
+      }
     }
 
     // only a master needs to run LRU
@@ -286,7 +293,7 @@ LRU::LRUr ()
       {
 	// check if the setting changes
 	eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-	if ( FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on") 
+	if ( FsView::gFsView.mSpaceView.count("default") && (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on"))
 	{
 	  if (!IsEnabledLRU)
 	    break;
