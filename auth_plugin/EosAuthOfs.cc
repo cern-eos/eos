@@ -366,7 +366,7 @@ EosAuthOfs::AuthProxyThread()
     // Process a request
     if (items[0].revents & ZMQ_POLLIN)
     {
-      OfsEroute.Say("got frontend event");
+      //OfsEroute.Say("got frontend event");
       
       while (true)
       {
@@ -405,7 +405,7 @@ EosAuthOfs::AuthProxyThread()
     // Process a reply from the first MGM
     if (items[1].revents & ZMQ_POLLIN)
     {
-      OfsEroute.Say("got mBackend1 event");
+      //OfsEroute.Say("got mBackend1 event");
       
       while (true)
       {
@@ -440,7 +440,7 @@ EosAuthOfs::AuthProxyThread()
     // Process a reply from the second MGM
     if (items[2].revents & ZMQ_POLLIN)
     {
-      OfsEroute.Say("got mBackend2 event");
+      //OfsEroute.Say("got mBackend2 event");
       
       while (true)
       {
@@ -1151,34 +1151,38 @@ EosAuthOfs::GetResponse(zmq::socket_t* socket)
     std::string resp_str = std::string(static_cast<char*>(reply.data()), reply.size());
     resp = new ResponseProto();
     resp->ParseFromString(resp_str);
-  }
 
-  // If response is redirect and the error information matches one of the MGM
-  // nodes specified in the configuration, this means there was a master/slave
-  // switch and we need to update the socket to which requests are sent.
-  if (resp->response() == SFS_REDIRECT)
-  {
-    if (resp->has_error())
+    // If response is redirect and the error information matches one of the MGM
+    // nodes specified in the configuration, this means there was a master/slave
+    // switch and we need to update the socket to which requests are sent.
+    if (resp->response() == SFS_REDIRECT)
     {
-      std::ostringstream sstr;
-      sstr << resp->error().message() << ":" << resp->error().code();
-      std::string redirect_host = sstr.str();
-      // Update the master MGM instance
-      if (UpdateMaster(redirect_host))
+      if (resp->has_error())
       {
-        eos_debug("successfully update the master MGM to: %s", redirect_host.c_str());
-        resp->set_response(SFS_STALL);
+        std::ostringstream sstr;
+        sstr << resp->error().message();
+        std::string redirect_host = sstr.str();
+        // Update the master MGM instance
+        if (UpdateMaster(redirect_host))
+        {
+          eos_debug("successfully update the master MGM to: %s", redirect_host.c_str());
+          resp->set_response(SFS_STALL);
+        }
+        else
+        {
+          eos_warning("failed to update the master MGM or redirect is for FST node");
+        }
       }
       else
       {
-        eos_err("failed to update the master MGM or redirect is for FST node");
-      }
-    }
-    else
-    {
-      eos_err("redirect message without error information - change to error");
-      resp->set_response(SFS_ERROR);
+        eos_err("redirect message without error information - change to error");
+        resp->set_response(SFS_ERROR);
+      }    
     }    
+  }
+  else
+  {
+    eos_err("socket error/timeout during receive");
   }
   
   return resp;
@@ -1189,15 +1193,18 @@ EosAuthOfs::GetResponse(zmq::socket_t* socket)
 // Update the socket pointing to the master MGM instance
 //------------------------------------------------------------------------------
 bool
-EosAuthOfs::UpdateMaster(std::string& new_master)
+EosAuthOfs::UpdateMaster(std::string& redirect_host)
 {
   bool found = false;
   zmq::socket_t* upd_socket;
-
+  
   // Chech if the new master was also specified in the configuration
   for (auto iter = mBackend.begin(); iter != mBackend.end(); ++iter)
   {
-    if (iter->first == new_master)
+    eos_debug("redirect_host:%s, config option:%s",
+              redirect_host.c_str(), iter->first.c_str());
+    
+    if (iter->first.find(redirect_host) != string::npos)
     {
       upd_socket = iter->second;
       found = true;

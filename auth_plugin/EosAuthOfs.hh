@@ -50,9 +50,47 @@ EOSAUTHNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class EosAuthOfs built on top of XrdOfs
-/*! Decription: TODO:
+/*! Decription: The libEosAuthOfs.so is inteded to be used as an OFS library
+    plugin with a vanilla XRootD server. What is does it to connect using ZMQ
+    sockets to the real MGM nodes (in general it should connect to a master and
+    a slave MGM). It does this by reading out the endpoints it needs to connect
+    to from the configuration file (/etc/xrd.cf.auth). These need to follow the
+    format: "host:port" and the first one should be the endpoint corresponding
+    to the master MGM and the second one to the slave MGM. The EosAuthOfs plugin
+    then tries to replay all the requests it receives from the clients to the
+    master MGM node. It does this by marshalling the request and identity of the
+    client using ProtocolBuffers and sends this request using ZMQ to the master
+    MGM node.
 
- */
+    There are reveral tunable parameters for this configuration (auth + MGMs):
+
+    AUTH - configuration
+    ====================
+    - eosauth.instance - hostnames and the ports to which ZMQ can connect to 
+        the MGM nodes so that it can forward requests and receive responses
+    - eosauth.numsockets - once a clients wants to send a request the thread
+        allocated to him in XRootD will require a socket to send the request
+        to the MGM node. Therefore, we establish a pool of sockets from the
+        begining which can be used to send/receiver requests/responses.
+        Default is 10 sockets.
+
+    MGM - configuration
+    ===================
+    - mgmofs.auththreads - since we now receive requests using ZMQ, we no longer
+        use the default thread pool from XRootD and we need threads for dealing
+        with the requests. This parameter sets the thread pool size when starting
+        the MGM node.
+    - mgmofs.authport - this is the endpoint where the MGM listens for ZMQ
+        requests from any EosAuthOfs plugins. This port needs to be opened also
+        in the firewall.
+
+    In case of a master <=> slave switch the EosAuthOfs plugin adapts
+    automatically based on the information provided by the slave MGM which
+    should redirect all clients with write requests to the master node. Care
+    should be taken when specifying the two endpoints since the switch is done
+    ONLY IF the redirection HOST matches one of the two endpoints specified in
+    the config of the authentication plugin.
+*/
 //------------------------------------------------------------------------------
 class EosAuthOfs: public XrdOfs, public eos::common::LogId
 {
