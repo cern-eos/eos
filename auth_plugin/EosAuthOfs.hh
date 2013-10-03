@@ -66,9 +66,10 @@ EOSAUTHNAMESPACE_BEGIN
 
     AUTH - configuration
     ====================
-    - eosauth.instance - contains hostnames and the ports to which ZMQ can 
-        connect to the MGM nodes so that it can forward requests and receive 
-        responses
+    - eosauth.mastermgm and eosauth.slavemgm - contain the hostnames and the
+        ports to which ZMQ can connect to the MGM nodes so that it can forward
+        requests and receive responses. Only the mastermgm parameter is mandatory
+        the other one is optional and can be left out.
     - eosauth.numsockets - once a clients wants to send a request the thread
         allocated to him in XRootD will require a socket to send the request
         to the MGM node. Therefore, we set up a pool of sockets from the

@@ -4,7 +4,8 @@ xrd.port 1099
 xrootd.fslib /usr/lib64/libEosAuthOfs.so
 xrootd.seclib libXrdSec.so
 # Set the real hostname, not localhost as ZMQ is picky about this 
-eosauth.instance xyz.xyz.master:15555 abc.abc.slave:15555
+eosauth.mastermgm xyz.xyz.master:15555 
+eosauth.slavemgm abc.abc.slave:15555
 eosauth.loglevel info
 xrootd.chksum eos
 # UNIX authentication + any other type of authentication

@@ -222,10 +222,11 @@ There are several tunable parameters for this configuration (auth + MGMs):
 
 AUTH - configuration
 --------------------
-- eosauth.instance - contains the hostnames and ports to which ZMQ can 
-    connect to the MGM nodes, so that it can forward requests and receive 
-    responses
-- eosauth.numsockets - once a clients wants to send a request the thread
+- **eosauth.mastermgm** and **eosauth.slavemgm** - contain the hostnames and the
+   ports to which ZMQ can connect to the MGM nodes so that it can forward
+   requests and receive responses. Only the mastermgm parameter is mandatory
+   the other one is optional and can be left out.
+- **eosauth.numsockets** - once a clients wants to send a request the thread
     allocated to him in XRootD will require a socket to send the request
     to the MGM node. Therefore, we set up a pool of sockets from the
     begining which can be used to send/receiver requests/responses.
@@ -233,11 +234,11 @@ AUTH - configuration
 
 MGM - configuration
 -------------------
-- mgmofs.auththreads - since we now receive requests using ZMQ, we no longer
+- **mgmofs.auththreads** - since we now receive requests using ZMQ, we no longer
     use the default thread pool from XRootD and we need threads for dealing
     with the requests. This parameter sets the thread pool size when starting
     the MGM node.
-- mgmofs.authport - this is the endpoint where the MGM listens for ZMQ
+- **mgmofs.authport** - this is the endpoint where the MGM listens for ZMQ
     requests from any EosAuthOfs plugins. This port needs to be opened also
     in the firewall.
 

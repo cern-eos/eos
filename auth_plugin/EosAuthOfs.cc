@@ -338,7 +338,7 @@ EosAuthOfs::AuthProxyThread()
   // Connect sockets facing the MGM nodes - master and slave
   std::ostringstream sstr;
   mBackend1 = std::make_pair(mBackend1.first,
-                                  new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
+                             new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
   sstr << "tcp://" << mBackend1.first;
   OfsEroute.Say("=====> connected to master MGM: ", mBackend1.first.c_str());
   mBackend1.second->connect(sstr.str().c_str());
@@ -348,7 +348,7 @@ EosAuthOfs::AuthProxyThread()
   {
     sstr.str("");
     mBackend2 = std::make_pair(mBackend2.first,
-                                   new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
+                               new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
     sstr << "tcp://" << mBackend2.first;
     OfsEroute.Say("=====> connected to slave MGM: ", mBackend2.first.c_str());
     mBackend2.second->connect(sstr.str().c_str());
