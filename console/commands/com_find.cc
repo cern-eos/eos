@@ -28,16 +28,21 @@
 
 extern int com_file (char*);
 
+static void
+print_find_help(const ConsoleCliCommand *command, const char **options)
+{
+  fprintf (stdout, "find OPTIONS : %s\n", command->description().c_str());
+  command->printHelp();
+  fprintf (stdout, "\nIn addition, you can use the following options to print "
+	   "the respective metadata:\n");
+  for (int i = 0; options[i] != NULL; i++)
+    fprintf (stdout, "\t\t--%s\n", options[i]);
+}
+
 /* Find files/directories */
 int
 com_find (char* arg1)
 {
-  // split subcommands
-  XrdOucString oarg = arg1;
-
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString s1;
   XrdOucString path;
   XrdOucString option = "";
   XrdOucString attribute = "";
@@ -49,271 +54,168 @@ com_find (char* arg1)
 
   XrdOucString in = "mgm.cmd=find&";
 
-  bool valid = false;
+  CliOption helpOption("help", "print help", "-h,--help");
+  helpOption.setHidden(true);
 
-  if ( wants_help(arg1))
-    goto com_find_usage;
+  const char* printOptions[] = {"nrep", "nunlink", "size",
+			        "fileinfo", "online", "hosts",
+			        "partition", "fid", "fs",
+			        "checksum", "ctime", "mtime",
+				NULL
+                               };
 
-  while ((s1 = subtokenizer.GetToken()).length() && (s1.beginswith("-")))
+  ConsoleCliCommand findCmd("find", "find files and print out the requested "
+                            "meta data as key value pairs");
+  findCmd.addOption(helpOption);
+  findCmd.addOptions({{"childcount", "print the number of children in each "
+                       "directory", "--childcount"},
+                      {"count", "just print global counters for files/dirs "
+                       "found", "--count"},
+                      {"silent", "run in silent mode", "-s"},
+                      {"files", "find files in <path>", "-f"},
+                      {"directories", "find directories in <path>", "-d"},
+                      {"zero-files", "find 0-size files", "-0"},
+                      {"groups", "find files with mixed scheduling groups",
+                       "-g"},
+                      {"balance", "query the server balance of the files "
+                       "found", "-b"},
+                      {"1-hour", "find files which are atleast 1 hour old",
+                       "-1"},
+                      {"stripe-diff", "find files which have not the nominal "
+                       "number of stripes (replicas)", "--stripediff"},
+                      {"faulty-acl", "find directories with illegal ACLs",
+		       "--faultyacl"},
+		      {"m", "", "-m"}
+                     });
+  findCmd.addOptions({{"key-value", "find entries with <key>=<val>",
+                       "-x", "<key>=<value>", false},
+                      {"tags", "find all files with inconsistencies "
+                       "defined by %%tags [ see help of 'file check' command]",
+                       "-c", "<%%tags>", false},
+                      {"creation-time", "if +<n>, find files older than <n> "
+		       "days;\nif -<n>, find files younger than <n> days",
+                       "--ctime=", "+<n>|-<n>", false},
+                      {"mod-time", "if +<n>, find files which were modified "
+		       "more than <n> days ago;\nif -<n>, find files which "
+		       "were modified less than <n> days ago",
+                       "--mtime=", "+<n>|-<n>", false},
+                      {"layout-stripes", "apply new layout with <n> stripes to "
+                       "all files found", "--layoutstripes=", "<n>", false},
+                      {"print-key", "additionally print the value of <key> "
+                       "for each entry", "-p", "<key>", false}
+                     });
+  findCmd.addOption({"path", "", 1, 1, "<path>"});
+
+  for (int i = 0; printOptions[i] != NULL; i++)
   {
-    if (s1 == "-s")
+    CliOption option(printOptions[i], "", std::string("--") + printOptions[i]);
+    option.setHidden(true);
+    findCmd.addOption(option);
+  }
+
+  findCmd.parse(arg1);
+
+  if (findCmd.hasValue("help"))
+  {
+    print_find_help(&findCmd, printOptions);
+    return 0;
+  }
+  else if (findCmd.hasErrors())
+  {
+    findCmd.printErrors();
+    print_find_help(&findCmd, printOptions);
+    return 0;
+  }
+
+  const char *optionsAndValues[] = {"silent", "s",
+				    "files", "f",
+				    "directories", "d",
+				    "zero-files", "f0",
+				    "balance", "b",
+				    "1-hour", "1",
+				    "stripe-diff", "D",
+				    "faulty-acl", "A",
+				    "count", "Z",
+				    "childcount", "l",
+				    "size", "S",
+				    "fs", "L",
+				    "checksum", "X",
+				    "ctime", "C",
+				    "mtime", "M",
+				    "fid", "F",
+				    "nrep", "R",
+				    "online", "O",
+				    "fileinfo", "I",
+				    "nunlink", "U",
+				    "hosts", "H",
+				    "partition", "P",
+				    "m", "fG",
+				    NULL
+  };
+
+  for (int i = 0; optionsAndValues[i] != NULL; i += 2)
+  {
+    if (findCmd.hasValue(optionsAndValues[i]))
+      option += optionsAndValues[i + 1];
+  }
+
+  if (findCmd.hasValue("key-value"))
+  {
+    option += "x";
+    attribute = findCmd.getValue("key-value").c_str();
+  }
+
+  if (findCmd.hasValue("tags"))
+  {
+    option += "c";
+    filter = findCmd.getValue("tags").c_str();
+  }
+
+  if (findCmd.hasValue("layoutstripes"))
+    stripes = findCmd.getValue("layoutstripes").c_str();
+
+  if (findCmd.hasValue("print-key"))
+  {
+    option += "p";
+    printkey = findCmd.getValue("print-key").c_str();
+  }
+
+  if (findCmd.hasValue("creation-time") || findCmd.hasValue("mod-time"))
+  {
+    XrdOucString period = "";
+
+    if (findCmd.hasValue("creation-time"))
     {
-      option += "s";
-      valid = true;
-    }
-
-    if (s1 == "-d")
-    {
-      option += "d";
-      valid = true;
-    }
-
-    if (s1 == "-f")
-    {
-      option += "f";
-      valid = true;
-    }
-
-    if (s1 == "-0")
-    {
-      option += "f0";
-      valid = true;
-    }
-
-    if (s1 == "-m")
-    {
-      option += "fG";
-      valid = true;
-    }
-
-    if (s1 == "--size")
-    {
-      option += "S";
-      valid = true;
-    }
-
-
-    if (s1 == "--fs")
-    {
-      option += "L";
-      valid = true;
-    }
-
-    if (s1 == "--checksum")
-    {
-      option += "X";
-      valid = true;
-    }
-
-
-    if (s1 == "--ctime")
-    {
+      period = findCmd.getValue("creation-time").c_str();
       option += "C";
-      valid = true;
     }
-
-    if (s1 == "--mtime")
+    else
     {
+      period = findCmd.getValue("mod-time").c_str();
       option += "M";
-      valid = true;
     }
 
-    if (s1 == "--fid")
-    {
-      option += "F";
-      valid = true;
-    }
+    bool do_olderthan = period.beginswith("+");
+    bool do_youngerthan = period.beginswith("-");
 
-    if (s1 == "--nrep")
-    {
-      option += "R";
-      valid = true;
-    }
-
-    if (s1 == "--online")
-    {
-      option += "O";
-      valid = true;
-    }
-
-    if (s1 == "--fileinfo")
-    {
-      option += "I";
-      valid = true;
-    }
-
-    if (s1 == "--nunlink")
-    {
-      option += "U";
-      valid = true;
-    }
-
-    if (s1 == "--stripediff")
-    {
-      option += "D";
-      valid = true;
-    }
-
-    if (s1 == "--faultyacl")
-    {
-      option += "A";
-      valid = true;
-    }
-
-    if (s1 == "--count")
-    {
-      option += "Z";
-      valid = true;
-    }
-
-    if (s1 == "--hosts")
-    {
-      option += "H";
-      valid = true;
-    }
-
-    if (s1 == "--partition")
-    {
-      option += "P";
-      valid = true;
-    }
-
-    if (s1 == "--childcount")
-    {
-      option += "l";
-      valid = true;
-    }
-
-    if (s1 == "-1")
-    {
-      option += "1";
-      valid = true;
-    }
-
-    if (s1.beginswith("-h") || (s1.beginswith("--help")))
-    {
-      goto com_find_usage;
-    }
-
-    if (s1 == "-x")
-    {
-      option += "x";
-      valid = true;
-
-      attribute = subtokenizer.GetToken();
-
-      if (!attribute.length())
-        goto com_find_usage;
-
-      if ((attribute.find("&")) != STR_NPOS)
-        goto com_find_usage;
-    }
-
-    if ((s1 == "-ctime") || (s1 == "-mtime"))
-    {
-      valid = true;
-      XrdOucString period = "";
-      period = subtokenizer.GetToken();
-
-      if (!period.length())
-        goto com_find_usage;
-
-      bool do_olderthan;
-      do_olderthan = false;
-      bool do_youngerthan;
-      do_youngerthan = false;
-
-      if (period.beginswith("+"))
-      {
-        do_olderthan = true;
-      }
-
-      if (period.beginswith("-"))
-      {
-        do_youngerthan = true;
-      }
-
-      if ((!do_olderthan) && (!do_youngerthan))
-      {
-        goto com_find_usage;
-      }
-
+    if (do_youngerthan || do_olderthan)
       period.erase(0, 1);
-      time_t now = time(NULL);
-      now -= (86400 * strtoul(period.c_str(), 0, 10));
-      char snow[1024];
-      snprintf(snow, sizeof (snow) - 1, "%lu", now);
-      if (do_olderthan)
-      {
-        olderthan = snow;
-      }
-      if (do_youngerthan)
-      {
-        youngerthan = snow;
-      }
-      if (s1 == "-ctime")
-      {
-        option += "C";
-      }
-      if (s1 == "-mtime")
-      {
-        option += "M";
-      }
-    }
 
-    if (s1 == "-c")
-    {
-      valid = true;
-      option += "c";
+    do_olderthan = !do_youngerthan;
 
-      filter = subtokenizer.GetToken();
-      if (!filter.length())
-        goto com_find_usage;
+    time_t now = time(NULL);
+    now -= (86400 * strtoul(period.c_str(), 0, 10));
+    char snow[1024];
+    snprintf(snow, sizeof (snow) - 1, "%lu", now);
 
-      if ((filter.find("%%")) != STR_NPOS)
-      {
-        goto com_find_usage;
-      }
-    }
-
-    if (s1 == "-layoutstripes")
-    {
-      valid = true;
-      stripes = subtokenizer.GetToken();
-      if (!stripes.length())
-        goto com_find_usage;
-    }
-
-    if (s1 == "-p")
-    {
-      valid = true;
-      option += "p";
-
-      printkey = subtokenizer.GetToken();
-
-      if (!printkey.length())
-        goto com_find_usage;
-    }
-
-    if (s1 == "-b")
-    {
-      valid = true;
-      option += "b";
-    }
-
-    if (!valid)
-      goto com_find_usage;
+    if (do_olderthan)
+      olderthan = snow;
+    if (do_youngerthan)
+      youngerthan = snow;
   }
 
-  if (s1.length())
-  {
-    path = s1;
-  }
-
-  if (path == "help")
-  {
-    goto com_find_usage;
-  }
+  if (findCmd.hasValue("path"))
+    path = findCmd.getValue("path").c_str();
 
   if (!path.endswith("/"))
   {
@@ -340,7 +242,7 @@ com_find (char* arg1)
 
     if (path == "/")
     {
-      fprintf(stderr, "error: I won't do a find on '/'\n");
+      fprintf(stderr, "Error: I won't do a find on '/'\n");
       global_retc = EINVAL;
       return (0);
     }
@@ -461,7 +363,7 @@ com_find (char* arg1)
     int rc = system("which s3 >&/dev/null");
     if (WEXITSTATUS(rc))
     {
-      fprintf(stderr, "error: you miss the <s3> executable provided by libs3 in your PATH\n");
+      fprintf(stderr, "Error: you miss the <s3> executable provided by libs3 in your PATH\n");
       exit(-1);
     }
 
@@ -498,7 +400,7 @@ com_find (char* arg1)
         !getenv("S3_HOSTNAME") ||
         !getenv("S3_SECRET_ACCESS_KEY"))
     {
-      fprintf(stderr, "error: you have to set the S3 environment variables S3_ACCESS_KEY_ID | S3_ACCESS_ID, S3_HOSTNAME (or use a URI), S3_SECRET_ACCESS_KEY | S3_ACCESS_KEY\n");
+      fprintf(stderr, "Error: you have to set the S3 environment variables S3_ACCESS_KEY_ID | S3_ACCESS_ID, S3_HOSTNAME (or use a URI), S3_SECRET_ACCESS_KEY | S3_ACCESS_KEY\n");
       global_retc = EINVAL;
       return (0);
     }
@@ -536,7 +438,7 @@ com_find (char* arg1)
     }
     if ((!bucket.length()) || (bucket.find("*") != STR_NPOS))
     {
-      fprintf(stderr, "error: no bucket specified or wildcard in bucket name!\n");
+      fprintf(stderr, "Error: no bucket specified or wildcard in bucket name!\n");
       global_retc = EINVAL;
       return (0);
     }
@@ -569,18 +471,18 @@ com_find (char* arg1)
     rc = system(cmd.c_str());
     if (WEXITSTATUS(rc))
     {
-      fprintf(stderr, "error: failed to run %s\n", cmd.c_str());
+      fprintf(stderr, "Error: failed to run %s\n", cmd.c_str());
     }
   }
 
   // the find to change a layout
   if ((stripes.length()))
   {
-    XrdOucString subfind = oarg;
+    XrdOucString subfind = arg1;
     XrdOucString repstripes = " ";
     repstripes += stripes;
     repstripes += " ";
-    subfind.replace("-layoutstripes", "");
+    subfind.replace("--layoutstripes=", "");
     subfind.replace(repstripes, " -f -s ");
     int rc = com_find((char*) subfind.c_str());
     std::vector<std::string> files_found;
@@ -597,7 +499,7 @@ com_find (char* arg1)
 
       XrdOucString cline = "layout ";
       cline += files_found[i].c_str();
-      cline += " -stripes ";
+      cline += " ";
       cline += stripes;
       rc = com_file((char*) cline.c_str());
       if (rc)
@@ -621,7 +523,7 @@ com_find (char* arg1)
   // the find with consistency check 
   if ((option.find("c")) != STR_NPOS)
   {
-    XrdOucString subfind = oarg;
+    XrdOucString subfind = arg1;
     subfind.replace("-c", "-s -f");
     subfind.replace(filter, "");
     int rc = com_find((char*) subfind.c_str());
@@ -663,9 +565,9 @@ com_find (char* arg1)
 
   path = abspath(path.c_str());
 
-  if (!s1.length() && (path == "/"))
+  if (path == "/")
   {
-    fprintf(stderr, "error: you didnt' provide any path and would query '/' - will not do that!\n");
+    fprintf(stderr, "Error: you didnt' provide any path and would query '/' - will not do that!\n");
     return EINVAL;
   }
 
@@ -713,31 +615,6 @@ com_find (char* arg1)
       global_retc = EINVAL;
     }
   }
-  return (0);
 
-com_find_usage:
-  fprintf(stdout, "usage: find [--childcount] [--count] [-s] [-d] [-f] [-0] [-1] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
-  fprintf(stdout, "                                                                        -f -d :  find files(-f) or directories (-d) in <path>\n");
-  fprintf(stdout, "                                                               -x <key>=<val> :  find entries with <key>=<val>\n");
-  fprintf(stdout, "                                                                           -0 :  find 0-size files \n");
-  fprintf(stdout, "                                                                           -g :  find files with mixed scheduling groups\n");
-  fprintf(stdout, "                                                                     -p <key> :  additionally print the value of <key> for each entry\n");
-  fprintf(stdout, "                                                                           -b :  query the server balance of the files found\n");
-  fprintf(stdout, "                                                                    -c %%tags  :  find all files with inconsistencies defined by %%tags [ see help of 'file check' command]\n");
-  fprintf(stdout, "                                                                           -s :  run as a subcommand (in silent mode)\n");
-  fprintf(stdout, "                                                                  -ctime +<n> :  find files older than <n> days\n");
-  fprintf(stdout, "                                                                  -ctime -<n> :  find files younger than <n> days\n");
-  fprintf(stdout, "                                                           -layoutstripes <n> :  apply new layout with <n> stripes to all files found\n");
-  fprintf(stdout, "                                                                           -1 :  find files which are atleast 1 hour old\n");
-  fprintf(stdout, "                                                                 --stripediff :  find files which have not the nominal number of stripes(replicas)\n");
-  fprintf(stdout, "                                                                  --faultyacl :  find directories with illegal ACLs");
-  fprintf(stdout, "                                                                      --count :  just print global counters for files/dirs found\n");
-  fprintf(stdout, "                                                                 --childcount :  print the number of children in each directory\n");
-  fprintf(stdout, "                                                                      default :  find files and directories\n");
-  fprintf(stdout, "       find [--nrep] [--nunlink] [--size] [--fileinfo] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] <path>   :  find files and print out the requested meta data as key value pairs\n");
-  fprintf(stdout, "                                                               path=file:...  :  do a find in the local file system (options ignored) - 'file:' is the current working directory \n");
-  fprintf(stdout, "                                                               path=root:...  :  do a find on a plain XRootD server (options ignored) - does not work on native XRootD clusters\n");
-  fprintf(stdout, "                                                               path=as3:...   :  do a find on an S3 bucket\n");
-  fprintf(stdout, "                                                               path=...       :  all other paths are considered to be EOS paths!\n");
   return (0);
 }
