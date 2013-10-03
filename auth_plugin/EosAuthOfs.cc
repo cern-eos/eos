@@ -90,6 +90,8 @@ EosAuthOfs::EosAuthOfs():
 {
   // Initialise the ZMQ client
   mZmqContext = new zmq::context_t(1);
+  mBackend1 = std::make_pair(std::string(""), (zmq::socket_t*)0);
+  mBackend2 = std::make_pair(std::string(""), (zmq::socket_t*)0);
 }
 
 
@@ -173,19 +175,39 @@ EosAuthOfs::Configure(XrdSysError& error)
         var += auth_tag.length();
         
         // Get EOS instance to which we dispatch requests. Note that the port is the one
-        // waiting for authentication requests and not the usual one i.e 1094
-        std::string option_tag = "instance";
+        // waiting for authentication requests and not the usual one i.e 1094. The presence
+        // of the mastermgm parameter is mandatory.
+        std::string mgm_instance;
+        std::string option_tag = "mastermgm";
 
         if (!strncmp(var, option_tag.c_str(), option_tag.length()))
         {
-          std::string mgm_instance;
-          
-          while ((val = Config.GetWord()))
+          if ((val = Config.GetWord()))
           {
             mgm_instance = val;
 
             if (mgm_instance.find(":") != string::npos)
-              mBackend.push_back(std::make_pair(mgm_instance, (zmq::socket_t*)0));
+              mBackend1 = std::make_pair(mgm_instance, (zmq::socket_t*)0);
+          }
+          else
+          {
+            // This parameter is critical
+            error.Emsg("Configure ", "No EOS mastermgm instance provided");
+            NoGo = 1;
+          }
+        }
+
+        // Look for the slavemgm tag
+        option_tag = "slavemgm";
+        
+        if (!strncmp(var, option_tag.c_str(), option_tag.length()))
+        {
+         if ((val = Config.GetWord()))
+          {
+            mgm_instance = val;
+
+            if (mgm_instance.find(":") != string::npos)
+              mBackend2 = std::make_pair(mgm_instance, (zmq::socket_t*)0);
           }
         }
 
@@ -195,7 +217,7 @@ EosAuthOfs::Configure(XrdSysError& error)
         if (!strncmp(var, option_tag.c_str(), option_tag.length()))
         {
           if (!(val = Config.GetWord()))
-            error.Emsg("Configure ", "No EOS instance specified e.g. eosxx.cern.ch:5555");
+            error.Emsg("Configure ", "No number of sockets specified");
           else
             mSizePoolSocket = atoi(val);
         }
@@ -232,8 +254,8 @@ EosAuthOfs::Configure(XrdSysError& error)
       }
     }
 
-    // Check and connect to the EOS instance
-    if (!mBackend.empty())
+    // Check and connect at least to an MGM master
+    if (!mBackend1.first.empty())
     {
       if ((XrdSysThread::Run(&proxy_tid, EosAuthOfs::StartAuthProxyThread,
                              static_cast<void *>(this), 0, "Auth Proxy Thread")))
@@ -273,7 +295,7 @@ EosAuthOfs::Configure(XrdSysError& error)
     }
     else
     {
-      error.Emsg("Configure ", "No EOS instance specified e.g. eosxx.cern.ch:5555");
+      error.Emsg("Configure ", "No master MGM specified e.g. eosxx.cern.ch:5555");
       NoGo = 1;
     }
   }
@@ -309,33 +331,31 @@ EosAuthOfs::StartAuthProxyThread(void *pp)
 void
 EosAuthOfs::AuthProxyThread()
 {
-  if (mBackend.size() != 2)
-  {
-    OfsEroute.Emsg("AuthProxyThread", "need the endpoints for the master and server");
-    return;
-  }
-
   // Bind the client facing socket
   mFrontend = new zmq::socket_t(*mZmqContext, ZMQ_ROUTER);
   mFrontend->bind("inproc://proxyfrontend");
 
   // Connect sockets facing the MGM nodes - master and slave
   std::ostringstream sstr;
-  mBackend[0] = std::make_pair(mBackend[0].first,
-                               new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
-  sstr << "tcp://" << mBackend[0].first;
-  OfsEroute.Say("=====> connected to first MGM: ", mBackend[0].first.c_str());
-  mBackend[0].second->connect(sstr.str().c_str());
-
-  mBackend[1] = std::make_pair(mBackend[1].first,
-                               new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
-  sstr.str("");
-  sstr << "tcp://" << mBackend[1].first;
-  OfsEroute.Say("=====> connected to second MGM: ", mBackend[1].first.c_str());
-  mBackend[1].second->connect(sstr.str().c_str());
+  mBackend1 = std::make_pair(mBackend1.first,
+                                  new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
+  sstr << "tcp://" << mBackend1.first;
+  OfsEroute.Say("=====> connected to master MGM: ", mBackend1.first.c_str());
+  mBackend1.second->connect(sstr.str().c_str());
   
-  // Set the master to point to the first backend - no need for lock
-  mMaster = mBackend[0].second;
+  // Connect to the slave if present
+  if (!mBackend2.first.empty())
+  {
+    sstr.str("");
+    mBackend2 = std::make_pair(mBackend2.first,
+                                   new zmq::socket_t(*mZmqContext, ZMQ_DEALER));
+    sstr << "tcp://" << mBackend2.first;
+    OfsEroute.Say("=====> connected to slave MGM: ", mBackend2.first.c_str());
+    mBackend2.second->connect(sstr.str().c_str());
+  }
+  
+  // Set the master to point to the master MGM - no need for lock
+  mMaster = mBackend1.second;
 
   int rc;
   zmq::message_t msg;
@@ -343,11 +363,16 @@ EosAuthOfs::AuthProxyThread()
   // Start the poxy using the first entry
   int more;
   size_t moresz;
-  zmq_pollitem_t items [] = {
-    { *mFrontend, 0, ZMQ_POLLIN, 0},
-    { *mBackend[0].second, 0, ZMQ_POLLIN, 0},
-    { *mBackend[1].second, 0, ZMQ_POLLIN, 0}
-  };
+  int poll_size = 2;
+  zmq_pollitem_t items [3];
+  items[0] = {*mFrontend, 0, ZMQ_POLLIN, 0};
+  items[1] = {*mBackend1.second, 0, ZMQ_POLLIN, 0};
+    
+  if (!mBackend2.first.empty())
+  {
+    poll_size = 3;
+    items[2] = {*mBackend2.second, 0, ZMQ_POLLIN, 0};
+  }
   
   // Main loop in which the proxy thread accepts request from the clients and
   // then he forwards them to the current master MGM. The master MGM can change
@@ -355,7 +380,7 @@ EosAuthOfs::AuthProxyThread()
   while (true)
   {
     // Wait while there are either requests or replies to process
-    rc = zmq::poll(&items[0], 3, -1);
+    rc = zmq::poll(&items[0], poll_size, -1);
     
     if (rc < 0)
     {
@@ -389,7 +414,7 @@ EosAuthOfs::AuthProxyThread()
         
         // Send request to the current master MGM
         {
-          XrdSysMutexHelper scoped_lock(mMutexMaster);
+          XrdSysMutexHelper scop_lock(mMutexMaster);
           if (!mMaster->send(msg, more ? ZMQ_SNDMORE : 0))
           {
             OfsEroute.Emsg("AuthProxyThread ", "error while sending to master");
@@ -409,7 +434,7 @@ EosAuthOfs::AuthProxyThread()
       
       while (true)
       {
-        if (!mBackend[0].second->recv(&msg))
+        if (!mBackend1.second->recv(&msg))
         {
           OfsEroute.Emsg("AuthProxyThread ", "error while recv on mBackend1");
           return;
@@ -418,7 +443,7 @@ EosAuthOfs::AuthProxyThread()
         moresz = sizeof more;
         try
         {
-          mBackend[0].second->getsockopt(ZMQ_RCVMORE, &more, &moresz);
+          mBackend1.second->getsockopt(ZMQ_RCVMORE, &more, &moresz);
         }
         catch (zmq::error_t& err)
         {
@@ -438,13 +463,13 @@ EosAuthOfs::AuthProxyThread()
     }
 
     // Process a reply from the second MGM
-    if (items[2].revents & ZMQ_POLLIN)
+    if ((poll_size == 3) && (items[2].revents & ZMQ_POLLIN))
     {
       //OfsEroute.Say("got mBackend2 event");
       
       while (true)
       {
-        if (!mBackend[1].second->recv(&msg))
+        if (!mBackend2.second->recv(&msg))
         {
           OfsEroute.Emsg("AuthProxyThread ", "error while recv on mBackend2");
           return;
@@ -453,7 +478,7 @@ EosAuthOfs::AuthProxyThread()
         moresz = sizeof more;
         try
         {
-          mBackend[1].second->getsockopt(ZMQ_RCVMORE, &more, &moresz);
+          mBackend2.second->getsockopt(ZMQ_RCVMORE, &more, &moresz);
         }
         catch (zmq::error_t& err)
         {
@@ -1170,7 +1195,9 @@ EosAuthOfs::GetResponse(zmq::socket_t* socket)
         }
         else
         {
-          eos_warning("failed to update the master MGM or redirect is for FST node");
+          eos_warning("redirect host:%s is not among our known MGM nodes -  "
+                      "failed update master MGM; it migth well be an FST node",
+                      redirect_host.c_str());
         }
       }
       else
@@ -1197,24 +1224,23 @@ EosAuthOfs::UpdateMaster(std::string& redirect_host)
 {
   bool found = false;
   zmq::socket_t* upd_socket;
+  eos_debug("redirect_host:%s", redirect_host.c_str());
   
   // Chech if the new master was also specified in the configuration
-  for (auto iter = mBackend.begin(); iter != mBackend.end(); ++iter)
+  if (mBackend1.first.find(redirect_host) != string::npos)
   {
-    eos_debug("redirect_host:%s, config option:%s",
-              redirect_host.c_str(), iter->first.c_str());
-    
-    if (iter->first.find(redirect_host) != string::npos)
-    {
-      upd_socket = iter->second;
-      found = true;
-      break;
-    }
+    upd_socket = mBackend1.second;
+    found = true;
+  }
+  else if (mBackend2.first.find(redirect_host) != string::npos)
+  {
+    upd_socket = mBackend2.second;
+    found = true;
   }
 
   if (found)
   {
-    XrdSysMutexHelper scoped_lock(mMutexMaster);
+    XrdSysMutexHelper scop_lock(mMutexMaster);
     if (mMaster != upd_socket)
       mMaster = upd_socket;    
   }

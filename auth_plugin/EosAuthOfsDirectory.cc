@@ -68,7 +68,9 @@ EosAuthOfsDirectory::open(const char* name,
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
-  sstr << this;
+  // Add the current machine's IP to the uuid in order to avoid collisions in case
+  // we have multiple auth plugins connecting to the same MGM node 
+  sstr << gOFS->mManagerIp << ":" << this;
   RequestProto* req_proto = utils::GetDirOpenRequest(sstr.str(), name, client,
                                    opaque, error.getErrUser(), error.getErrMid());
 
@@ -104,7 +106,7 @@ EosAuthOfsDirectory::nextEntry()
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
-  sstr << this;
+  sstr << gOFS->mManagerIp << ":" << this;
   RequestProto* req_proto = utils::GetDirReadRequest(sstr.str());
 
   if (gOFS->SendProtoBufRequest(socket, req_proto))
@@ -150,7 +152,7 @@ EosAuthOfsDirectory::close()
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
-  sstr << this;
+  sstr << gOFS->mManagerIp << ":" << this;
   RequestProto* req_proto = utils::GetDirCloseRequest(sstr.str());
 
   if (gOFS->SendProtoBufRequest(socket, req_proto))
@@ -185,7 +187,7 @@ EosAuthOfsDirectory::FName()
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
-  sstr << this;
+  sstr << gOFS->mManagerIp << ":" << this;
   RequestProto* req_proto = utils::GetDirFnameRequest(sstr.str());
 
   if (gOFS->SendProtoBufRequest(socket, req_proto))

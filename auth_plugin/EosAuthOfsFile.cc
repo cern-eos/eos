@@ -72,7 +72,9 @@ EosAuthOfsFile::open(const char* fileName,
   
   // Save file pointer value which is used as a key on the MGM instance
   std::ostringstream sstr;
-  sstr << this;
+  // Add the current machine's IP to the uuid in order to avoid collisions in case
+  // we have multiple auth plugins connecting to the same MGM node 
+  sstr << gOFS->mManagerIp << ":" << this;
   RequestProto* req_proto = utils::GetFileOpenRequest(sstr.str(), fileName,
                                    openMode, createMode, client, opaque,
                                    error.getErrUser(), error.getErrMid());
@@ -115,7 +117,7 @@ EosAuthOfsFile::read(XrdSfsFileOffset offset,
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
-  sstr << this;
+  sstr << gOFS->mManagerIp << ":" << this;
   eos_debug("fptr=%s, off=%li, len=%i", sstr.str().c_str(), offset, length);
   RequestProto* req_proto = utils::GetFileReadRequest(sstr.str(), offset, length);
 
@@ -160,8 +162,8 @@ EosAuthOfsFile::write(XrdSfsFileOffset offset,
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
-  sstr << this;
-  eos_debug("file pointer: %s", sstr.str().c_str());
+  sstr << gOFS->mManagerIp << ":" << this;
+  eos_debug("fptr=%s, off=%li, len=%i", sstr.str().c_str(), offset, length);
   RequestProto* req_proto = utils::GetFileWriteRequest(sstr.str(), offset, buffer, length);
 
   if (gOFS->SendProtoBufRequest(socket, req_proto))
@@ -196,7 +198,7 @@ EosAuthOfsFile::FName()
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
-  sstr << this;
+  sstr << gOFS->mManagerIp << ":" << this;
   eos_debug("file pointer: %s", sstr.str().c_str());
   RequestProto* req_proto = utils::GetFileFnameRequest(sstr.str());
 
@@ -243,7 +245,7 @@ EosAuthOfsFile::stat(struct stat* buf)
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
-  sstr << this;
+  sstr << gOFS->mManagerIp << ":" << this;
   eos_debug("file pointer: %s", sstr.str().c_str());
   RequestProto* req_proto = utils::GetFileStatRequest(sstr.str());
 
@@ -287,7 +289,7 @@ EosAuthOfsFile::close()
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
-  sstr << this;
+  sstr << gOFS->mManagerIp << ":" << this;
   eos_debug("file pointer: %s", sstr.str().c_str());
   RequestProto* req_proto = utils::GetFileCloseRequest(sstr.str());
 

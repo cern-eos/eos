@@ -276,7 +276,8 @@ class EosAuthOfs: public XrdOfs, public eos::common::LogId
     int mSizePoolSocket; ///< maximum size of the client socket pool
     eos::common::ConcurrentQueue<zmq::socket_t*> mPoolSocket; ///< ZMQ client socket pool
     ///! MGM endpoints to which requests can be dispatched and the corresponding sockets
-    std::vector< std::pair<std::string, zmq::socket_t*> > mBackend; 
+    std::pair<std::string, zmq::socket_t*> mBackend1;
+    std::pair<std::string, zmq::socket_t*> mBackend2;
     std::string mManagerIp; ///< the IP address of the auth instance
     int mManagerPort;   ///< port on which the current auth server runs
     int mLogLevel; ///< log level value 0 -7 (LOG_EMERG - LOG_DEBUG)
