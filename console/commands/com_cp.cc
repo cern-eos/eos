@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_cp.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -24,6 +25,7 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "common/Path.hh"
+#include "console/ConsoleCliCommand.hh"
 /*----------------------------------------------------------------------------*/
 #include <vector>
 /*----------------------------------------------------------------------------*/
@@ -32,28 +34,33 @@ extern XrdOucString serveruri;
 extern char* com_fileinfo (char* arg1);
 extern int com_transfer (char* argin);
 
-int
-com_cp_usage ()
+bool verifySrcAndDstEvalFunc(const CliOptionWithArgs *option,
+                             std::vector<std::string> &args,
+                             std::string **error,
+                             void *userData)
 {
-  fprintf(stdout, "Usage: cp [--async] [--rate=<rate>] [--streams=<n>] [--recursive|-R|-r] [-a] [-n] [-S] [-s|--silent] [-d] [--checksum] <src> <dst>");
-  fprintf(stdout, "'[eos] cp ..' provides copy functionality to EOS.\n");
-  fprintf(stdout, "Options:\n");
-  fprintf(stdout, "                                                             <src>|<dst> can be root://<host>/<path>, a local path /tmp/../ or an eos path /eos/ in the connected instanace...\n");
-  fprintf(stdout, "       --async         : run an asynchronous transfer via a gateway server (see 'transfer submit --sync' for the full options)\n");
-  fprintf(stdout, "       --rate          : limit the cp rate to <rate>\n");
-  fprintf(stdout, "       --streams       : use <#> parallel streams\n");
-  fprintf(stdout, "       --checksum      : output the checksums\n");
-  fprintf(stdout, " -p |--preserve : preserves file creation and modification time from the source\n");
-  fprintf(stdout, "       -a              : append to the target, don't truncate\n");
-  fprintf(stdout, "       -n              : hide progress bar\n");
-  fprintf(stdout, "       -S              : print summary\n");
-  fprintf(stdout, "       -s --silent     : no output just return code\n");
-  fprintf(stdout, "       -d              : enable debug information\n");
-  fprintf(stdout, "   -k | --no-overwrite : disable overwriting of files\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "Remark: \n");
-  fprintf(stdout, "       If you deal with directories always add a '/' in the end of source or target paths e.g. if the target should be a directory and not a file put a '/' in the end. To copy a directory hierarchy use '-r' and source and target directories terminated with '/' !\n");
-  fprintf(stdout, "\n");
+  if (args.size() < 2)
+  {
+    *error = new std::string("Error: Please provide the <src> and "
+                             "<dst> arguments");
+
+    return false;
+  }
+
+  if (args.back().back() != '/')
+  {
+    *error = new std::string("Error: The <dst> argument needs to "
+                             "end in a '/'\n");
+
+    return false;
+  }
+
+  return true;
+}
+
+int
+com_cp_examples ()
+{
   fprintf(stdout, "Examples: \n");
   fprintf(stdout, "       eos cp /var/data/myfile /eos/foo/user/data/                   : copy 'myfile' to /eos/foo/user/data/myfile\n");
   fprintf(stdout, "       eos cp /var/data/ /eos/foo/user/data/                         : copy all plain files in /var/data to /eos/foo/user/data/\n");
@@ -86,8 +93,6 @@ com_cp (char* argin)
   XrdOucString sarg = argin;
 
   // split subcommands
-  XrdOucTokenizer subtokenizer(argin);
-  subtokenizer.GetLine();
   XrdOucString rate = "0";
   XrdOucString streams = "0";
   XrdOucString option = "";
@@ -121,110 +126,76 @@ com_cp (char* argin)
   struct timeval tv1, tv2;
   struct timezone tz;
 
+  CliOption helpOption("help", "print help", "-h,--help");
+  helpOption.setHidden(true);
+
+  ConsoleCliCommand cpCmd("cp", "provides copy functionality to EOS");
+  cpCmd.addOption(helpOption);
+  cpCmd.addOptions({{"rate", "limit the cp rate to <rate>", "--rate=", 1,
+                     "<rate>", false},
+                    {"streams", "use <#> parallel streams", "--streams=", 1,
+                     "<#>", false}
+                   });
+  cpCmd.addOptions({{"async", "run an asynchronous transfer via a gateway "
+                     "server (see 'transfer submit --sync' for the full "
+                     "options)", "--async"},
+                    {"recursive", "copy directories recursively",
+                     "-R,-r,--recursive"},
+                    {"append", "append to the target, don't truncate",
+                     "-a,--append"},
+                    {"no-progress", "hide progress bar", "-n"},
+                    {"summary", "print summary", "-S"},
+                    {"debug", "enable debug information", "-d"},
+                    {"checksum", "output the checksums", "--checksum"},
+                    {"no-overwrite", "disable overwriting of files",
+                     "-k,--no-overwrite"},
+                    {"preserve", "preserve the modification times",
+                     "--preserve,-p"},
+                    {"silent", "run silently", "--silent,-s"}
+                   });
+  CliPositionalOption srcDst("src-dst", "", 1, -1,
+                             "<src1> [<src2> ...] <dst>", true);
+  srcDst.addEvalFunction((evalFuncCb) verifySrcAndDstEvalFunc, 0);
+  cpCmd.addOption(srcDst);
+
+  cpCmd.parse(argin);
+
+  if (cpCmd.hasValue("help"))
+  {
+    cpCmd.printUsage();
+    com_cp_examples();
+    return 0;
+  }
+  else if (cpCmd.hasErrors())
+  {
+    cpCmd.printErrors();
+    cpCmd.printUsage();
+    return 0;
+  }
+
   // check if this is an 'async' command
-  if ((sarg.find("--async")) != STR_NPOS)
+  if (cpCmd.hasValue("async"))
   {
     sarg.replace("--async", "submit --sync");
     snprintf(fullcmd, sizeof (fullcmd) - 1, "%s", sarg.c_str());
     return com_transfer(fullcmd);
   }
-  do
-  {
-    option = subtokenizer.GetToken();
-    if (!option.length())
-      break;
-    if (option.beginswith("--rate="))
-    {
-      rate = option;
-      rate.replace("--rate=", "");
-    }
-    else
-    {
-      if (option.beginswith("--streams="))
-      {
-        streams = option;
-        streams.replace("--streams=", "");
-      }
-      else
-      {
-        if ((option == "--recursive") ||
-            (option == "-R") ||
-            (option == "-r"))
-        {
-          recursive = true;
-        }
-        else
-        {
-          if (option == "-n")
-          {
-            noprogress = true;
-          }
-          else
-          {
-            if (option == "-a")
-            {
-              append = true;
-            }
-            else
-            {
-              if (option == "-S")
-              {
-                summary = true;
-              }
-              else
-              {
-                if ((option == "-s") || (option == "--silent"))
-                {
-                  silent = true;
-                }
-                else
-                {
-                  if ((option == "-k") || (option == "--no-overwrite"))
-                  {
-                    nooverwrite = true;
-                  }
-                  else
-                  {
-                    if (option == "--checksum")
-                    {
-                      checksums = true;
-                    }
-                    else
-                    {
-                      if (option == "-d")
-                      {
-                        debug = true;
-                      }
-                      else
-                      {
-                        if ((option == "--preserve") || (option == "-p"))
-                        {
-                          preserve = true;
-                        }
-                        else
-                        {
-                          if (option.beginswith("-"))
-                          {
-                            return com_cp_usage();
-                          }
-                          else
-                          {
-                            source_list.push_back(option.c_str());
-                            break;
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  while (1);
+
+  if (cpCmd.hasValue("rate"))
+    rate = cpCmd.getValue("rate").c_str();
+
+  if (cpCmd.hasValue("streams"))
+    streams = cpCmd.getValue("streams").c_str();
+
+  recursive = cpCmd.hasValue("recursive");
+  noprogress = cpCmd.hasValue("no-progress");
+  append = cpCmd.hasValue("append");
+  summary = cpCmd.hasValue("summary");
+  silent = cpCmd.hasValue("silent");
+  nooverwrite = cpCmd.hasValue("no-overwrite");
+  checksums = cpCmd.hasValue("checksum");
+  debug = cpCmd.hasValue("debug");
+  preserve = cpCmd.hasValue("preserve");
 
   if (silent)
     noprogress = true;
@@ -232,25 +203,25 @@ com_cp (char* argin)
   if (!hasterminal)
     noprogress = true;
 
-  nextarg = subtokenizer.GetToken();
-  lastarg = subtokenizer.GetToken();
-  do
+  std::vector<std::string> paths = cpCmd.getValues("src-dst");
+
+  if (paths.size() < 2)
   {
-    if (lastarg.length())
-    {
-      source_list.push_back(nextarg.c_str());
-      nextarg = lastarg;
-      lastarg = subtokenizer.GetToken();
-    }
-    else
-    {
-      target = nextarg;
-      if (debug)
-        fprintf(stderr, "[eos-cp] Setting target %s\n", target.c_str());
-      break;
-    }
+    fprintf(stdout, "Error: Please provide the <src> and <dst> arguments\n");
+    cpCmd.printUsage();
+
+    return 0;
   }
-  while (1);
+
+  for (size_t i = 0; i < paths.size() - 1; i++)
+  {
+    source_list.push_back(paths[i].c_str());
+  }
+
+  target = paths.back().c_str();
+
+  if (debug)
+    fprintf(stderr, "[eos-cp] Setting target %s\n", target.c_str());
 
   if (debug)
   {
@@ -259,13 +230,6 @@ com_cp (char* argin)
       fprintf(stderr, "[eos-cp] Copylist: %s\n", source_list[l].c_str());
     }
   }
-
-  if ((!target.length()))
-    return com_cp_usage();
-
-  if ((source_list.size() > 1) && (!target.endswith("/")))
-    return com_cp_usage();
-
 
   if (!recursive)
   {
@@ -289,7 +253,7 @@ com_cp (char* argin)
            (source_find_list[l].beginswith("gsiftp:"))) &&
           (source_find_list[l].endswith("/")))
       {
-        fprintf(stderr, "error: directory copy not implemented for that protocol\n");
+        fprintf(stderr, "Error: directory copy not implemented for that protocol\n");
         continue;
       }
 
@@ -350,7 +314,7 @@ com_cp (char* argin)
         FILE* fp = popen(l.c_str(), "r");
         if (!fp)
         {
-          fprintf(stderr, "error: unable to run 'eos' - I need it in the path");
+          fprintf(stderr, "Error: unable to run 'eos' - I need it in the path");
           exit(-1);
         }
         int item;
@@ -394,14 +358,15 @@ com_cp (char* argin)
       {
         if (!source_find_list[nfile].endswith("/"))
         {
-          fprintf(stderr, "error: for recursive copy you have to give a directory name ending with '/'\n");
-          return com_cp_usage();
+          fprintf(stderr, "Error: for recursive copy you have to give a directory name ending with '/'\n");
+          cpCmd.printUsage();
+          return 0;
         }
       }
       if ((source_find_list[nfile].beginswith("http:")) ||
           (source_find_list[nfile].beginswith("gsiftp:")))
       {
-        fprintf(stderr, "error: recursive copy not implemented for that protocol\n");
+        fprintf(stderr, "Error: recursive copy not implemented for that protocol\n");
         continue;
       }
       XrdOucString l = "";
@@ -460,7 +425,7 @@ com_cp (char* argin)
   if (!source_list.size())
   {
     fprintf(stderr, "warning: there is no file to copy!\n");
-    //    fprintf(stderr,"error: your source seems not to exist or does not match any file!\n");
+    //    fprintf(stderr,"Error: your source seems not to exist or does not match any file!\n");
     global_retc = 0;
     exit(0);
   }
@@ -482,7 +447,7 @@ com_cp (char* argin)
         }
         if (access(target.c_str(), R_OK | W_OK))
         {
-          fprintf(stderr, "error: cannot create/access your target directory!\n");
+          fprintf(stderr, "Error: cannot create/access your target directory!\n");
           exit(0);
         }
       }
@@ -499,7 +464,7 @@ com_cp (char* argin)
         }
         if (access(cTarget.GetParentPath(), R_OK | W_OK))
         {
-          fprintf(stderr, "error: cannot create/access your target directory!\n");
+          fprintf(stderr, "Error: cannot create/access your target directory!\n");
           exit(0);
         }
       }
@@ -526,9 +491,10 @@ com_cp (char* argin)
       {
         if (S_ISDIR(buf.st_mode))
         {
-          fprintf(stderr, "error: %s is a directory - use '-r' to copy directories!\n",
+          fprintf(stderr, "Error: %s is a directory - use '-r' to copy directories!\n",
                   source_list[nfile].c_str());
-          return com_cp_usage();
+          cpCmd.printUsage();
+          return 0;
         }
         if (debug)
         {
@@ -572,7 +538,7 @@ com_cp (char* argin)
       const char* v = 0;
       if (!(v = eos::common::StringConversion::ParseUrl(source_list[nfile].c_str(), protocol, hostport)))
       {
-        fprintf(stderr, "error: illegal url <%s>\n", source_list[nfile].c_str());
+        fprintf(stderr, "Error: illegal url <%s>\n", source_list[nfile].c_str());
         global_retc = EINVAL;
         return (0);
       }
@@ -611,7 +577,7 @@ com_cp (char* argin)
           !getenv("S3_HOSTNAME") ||
           !getenv("S3_SECRET_ACCESS_KEY"))
       {
-        fprintf(stderr, "error: you have to set the S3 environment variables "
+        fprintf(stderr, "Error: you have to set the S3 environment variables "
                 "S3_ACCESS_KEY_ID | S3_ACCESS_ID, S3_HOSTNAME (or use a URI), "
                 "S3_SECRET_ACCESS_KEY | S3_ACCESS_KEY\n");
         exit(-1);
@@ -638,7 +604,7 @@ com_cp (char* argin)
       long long size = eos::common::StringConversion::LongLongFromShellCmd(sizecmd.c_str());
       if ((!size) || (size == LLONG_MAX))
       {
-        fprintf(stderr, "error: cannot obtain the size of the <s3> source file or it has 0 size!\n");
+        fprintf(stderr, "Error: cannot obtain the size of the <s3> source file or it has 0 size!\n");
         exit(-1);
       }
       if (debug)fprintf(stderr, "[eos-cp] path=%s size=%lld\n", source_list[nfile].c_str(), size);
@@ -666,9 +632,10 @@ com_cp (char* argin)
       {
         if (S_ISDIR(buf.st_mode))
         {
-          fprintf(stderr, "error: %s is a directory - use '-r' to copy directories\n",
+          fprintf(stderr, "Error: %s is a directory - use '-r' to copy directories\n",
                   source_list[nfile].c_str());
-          return com_cp_usage();
+          cpCmd.printUsage();
+          return 0;
         }
 
         if (debug)
@@ -704,9 +671,10 @@ com_cp (char* argin)
       {
         if (S_ISDIR(buf.st_mode))
         {
-          fprintf(stderr, "error: %s is a directory - use '-r' to copy directories\n",
+          fprintf(stderr, "Error: %s is a directory - use '-r' to copy directories\n",
                   source_list[nfile].c_str());
-          return com_cp_usage();
+          cpCmd.printUsage();
+          return 0;
         }
         if (debug)
         {
@@ -733,7 +701,7 @@ com_cp (char* argin)
 
     if (!statok)
     {
-      fprintf(stderr, "error: we don't support this protocol or we cannot get the file size of source file %s\n", source_list[nfile].c_str());
+      fprintf(stderr, "Error: we don't support this protocol or we cannot get the file size of source file %s\n", source_list[nfile].c_str());
       exit(-1);
     }
   }
@@ -877,7 +845,7 @@ com_cp (char* argin)
       int rc = system("which curl >&/dev/null");
       if (WEXITSTATUS(rc))
       {
-        fprintf(stderr, "error: you miss the <curl> executable in your PATH\n");
+        fprintf(stderr, "Error: you miss the <curl> executable in your PATH\n");
         exit(-1);
       }
     }
@@ -887,7 +855,7 @@ com_cp (char* argin)
       int rc = system("which s3 >&/dev/null");
       if (WEXITSTATUS(rc))
       {
-        fprintf(stderr, "error: you miss the <s3> executable provided by libs3 in your PATH\n");
+        fprintf(stderr, "Error: you miss the <s3> executable provided by libs3 in your PATH\n");
         exit(-1);
       }
     }
@@ -897,7 +865,7 @@ com_cp (char* argin)
       int rc = system("which globus-url-copy >&/dev/null");
       if (WEXITSTATUS(rc))
       {
-        fprintf(stderr, "error: you miss the <globus-url-copy> executable in your PATH\n");
+        fprintf(stderr, "Error: you miss the <globus-url-copy> executable in your PATH\n");
         exit(-1);
       }
     }
@@ -941,7 +909,7 @@ com_cp (char* argin)
         }
         if (!XrdPosixXrootd::Stat(url.c_str(), &buf))
         {
-          fprintf(stderr, "error: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
+          fprintf(stderr, "Error: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
           continue;
         }
       }
@@ -951,7 +919,7 @@ com_cp (char* argin)
         {
           if (!stat(targetfile.c_str(), &buf))
           {
-            fprintf(stderr, "error: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
+            fprintf(stderr, "Error: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
             continue;
           }
         }
@@ -1133,7 +1101,7 @@ com_cp (char* argin)
       {
         if ((source_size[nfile]) && (buf.st_size != (off_t) source_size[nfile]))
         {
-          fprintf(stderr, "error: filesize differ between source and target file!\n");
+          fprintf(stderr, "Error: filesize differ between source and target file!\n");
           lrc = 0xffff00;
         }
         else
@@ -1188,7 +1156,7 @@ com_cp (char* argin)
       }
       else
       {
-        fprintf(stderr, "error: target file was not created!\n");
+        fprintf(stderr, "Error: target file was not created!\n");
         lrc = 0xffff00;
       }
     }
@@ -1204,7 +1172,7 @@ com_cp (char* argin)
         {
           if ((source_size[nfile]) && (buf.st_size != (off_t) source_size[nfile]))
           {
-            fprintf(stderr, "error: filesize differ between source and target file!\n");
+            fprintf(stderr, "Error: filesize differ between source and target file!\n");
             lrc = 0xffff00;
           }
           else
@@ -1226,7 +1194,7 @@ com_cp (char* argin)
         }
         else
         {
-          fprintf(stderr, "error: target file was not created!\n");
+          fprintf(stderr, "Error: target file was not created!\n");
           lrc = 0xffff00;
         }
       }
@@ -1243,7 +1211,7 @@ com_cp (char* argin)
 
           if (!url.IsValid())
           {
-            fprintf(stderr, "error: the file system URL is not valid.\n");
+            fprintf(stderr, "Error: the file system URL is not valid.\n");
             return (0);
           }
 
@@ -1270,7 +1238,7 @@ com_cp (char* argin)
           }
           else
           {
-            fprintf(stdout, "error: getting checksum for path=%s size=%llu\n",
+            fprintf(stdout, "Error: getting checksum for path=%s size=%llu\n",
                     source_list[nfile].c_str(), source_size[nfile]);
           }
 
@@ -1301,7 +1269,7 @@ com_cp (char* argin)
           int rc = system(cmdline.c_str());
           if (WEXITSTATUS(rc))
           {
-            fprintf(stderr, "error: failed to upload to <s3>\n");
+            fprintf(stderr, "Error: failed to upload to <s3>\n");
             uploadok = false;
           }
           else
@@ -1311,12 +1279,12 @@ com_cp (char* argin)
         }
         if (upload_target.beginswith("http:"))
         {
-          fprintf(stderr, "error: we don't support file uploads with http/https protocol\n");
+          fprintf(stderr, "Error: we don't support file uploads with http/https protocol\n");
           uploadok = false;
         }
         if (upload_target.beginswith("https:"))
         {
-          fprintf(stderr, "error: we don't support file uploads with http/https protocol\n");
+          fprintf(stderr, "Error: we don't support file uploads with http/https protocol\n");
           uploadok = false;
         }
         if (upload_target.beginswith("gsiftp:"))
@@ -1336,7 +1304,7 @@ com_cp (char* argin)
           int rc = system(cmdline.c_str());
           if (WEXITSTATUS(rc))
           {
-            fprintf(stderr, "error: failed to upload to <gsiftp>\n");
+            fprintf(stderr, "Error: failed to upload to <gsiftp>\n");
             uploadok = false;
           }
           else
