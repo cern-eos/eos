@@ -95,6 +95,7 @@ public:
   Path(const char* path){
     fullPath = path;
     parentPath = "";
+    lastPath= "";
     if (fullPath == "/")
       return;
 
