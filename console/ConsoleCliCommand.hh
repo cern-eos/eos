@@ -234,6 +234,7 @@ public:
   void printUsage() const;
   void printErrors() const;
   std::string name() const { return mName;};
+  std::string description() const { return mDescription; };
   void setParent(const ConsoleCliCommand *parent);
 
 private:
