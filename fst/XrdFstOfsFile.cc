@@ -310,7 +310,8 @@ XrdFstOfsFile::open (const char* path,
       {
         return gOFS.Emsg(epname, error, EPERM, "open - tpc key expired", path);
       }
-      if (gOFS.TpcMap[isRW][tpc_key].org != tpc_org)
+      // TODO: we disable this one since a native XRootD server tpc does not provide this
+      if ( 0 && (gOFS.TpcMap[isRW][tpc_key].org != tpc_org))
       {
         return gOFS.Emsg(epname, error, EPERM, "open - tpc origin mismatch", path);
       }
