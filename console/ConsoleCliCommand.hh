@@ -230,9 +230,9 @@ public:
   bool hasValues();
   std::vector<std::string> getValues(std::string optionName);
   std::string getValue(std::string optionName);
-  void printHelp();
-  void printUsage();
-  void printErrors();
+  void printHelp() const;
+  void printUsage() const;
+  void printErrors() const;
   std::string name() const { return mName;};
   void setParent(const ConsoleCliCommand *parent);
 
@@ -246,13 +246,13 @@ private:
   std::map<std::string, std::vector<std::string>> mOptionsMap;
   std::vector<const ParseError *> *mErrors;
   std::vector<OptionsGroup *> *mGroups;
+
   void analyseGroup(OptionsGroup *group, std::vector<std::string> &cliArgs);
   ConsoleCliCommand* isSubcommand(std::vector<std::string> &cliArgs);
-  void printHelpForOptions(std::vector<CliOption *>* options);
-
-  std::string keywordsRepr();
-  std::string subcommandsRepr();
-  std::string positionalOptionsRepr();
+  void printHelpForOptions(std::vector<CliOption *>* options) const;
+  std::string keywordsRepr() const;
+  std::string subcommandsRepr() const;
+  std::string positionalOptionsRepr() const;
   void addError(const ParseError *);
   void clean();
 };

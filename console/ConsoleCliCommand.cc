@@ -1053,7 +1053,7 @@ ConsoleCliCommand::getValues (std::string optionName)
 }
 
 void
-ConsoleCliCommand::printHelpForOptions(std::vector<CliOption *>* options)
+ConsoleCliCommand::printHelpForOptions(std::vector<CliOption *>* options) const
 {
   std::vector<CliOption *>::const_iterator it;
   for (it = options->cbegin(); it != options->cend(); it++)
@@ -1069,7 +1069,7 @@ ConsoleCliCommand::printHelpForOptions(std::vector<CliOption *>* options)
 }
 
 void
-ConsoleCliCommand::printHelp()
+ConsoleCliCommand::printHelp() const
 {
   if (mMainGroup)
     printHelpForOptions(mMainGroup->options());
@@ -1097,7 +1097,7 @@ ConsoleCliCommand::printHelp()
 }
 
 void
-ConsoleCliCommand::printUsage()
+ConsoleCliCommand::printUsage() const
 {
   std::string subcommRepr = subcommandsRepr();
   std::string kwRepr = keywordsRepr();
@@ -1138,7 +1138,7 @@ ConsoleCliCommand::printUsage()
 }
 
 void
-ConsoleCliCommand::printErrors()
+ConsoleCliCommand::printErrors() const
 {
   if (!mErrors)
     return;
@@ -1159,7 +1159,7 @@ ConsoleCliCommand::setParent(const ConsoleCliCommand *parent)
 }
 
 std::string
-ConsoleCliCommand::keywordsRepr()
+ConsoleCliCommand::keywordsRepr() const
 {
   std::vector<CliOption *>* options;
   std::string repr("");
@@ -1192,7 +1192,7 @@ ConsoleCliCommand::keywordsRepr()
 }
 
 std::string
-ConsoleCliCommand::subcommandsRepr()
+ConsoleCliCommand::subcommandsRepr() const
 {
   std::string repr("");
 
@@ -1210,7 +1210,7 @@ ConsoleCliCommand::subcommandsRepr()
 }
 
 std::string
-ConsoleCliCommand::positionalOptionsRepr()
+ConsoleCliCommand::positionalOptionsRepr() const
 {
   std::string repr("");
 
