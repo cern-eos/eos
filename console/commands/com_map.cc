@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_map.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -29,78 +30,61 @@
 int
 com_map (char* arg1)
 {
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString subcommand = subtokenizer.GetToken();
-  XrdOucString option = "";
-  XrdOucString optionstring = "";
   XrdOucString in = "mgm.cmd=map";
-  XrdOucString arg = "";
+  ConsoleCliCommand *parsedCmd, *mapCmd, *lsSubCmd, *linkSubCmd, *unlinkSubCmd;
 
-  if (wants_help(arg1))
-    goto com_map_usage;
+  mapCmd = new ConsoleCliCommand("map", "provides a namespace mapping "
+                                 "interface for directories in EOS");
 
-  if (subcommand.beginswith("-"))
+  lsSubCmd = new ConsoleCliCommand("ls", "list all defined mappings");
+  mapCmd->addSubcommand(lsSubCmd);
+
+  linkSubCmd = new ConsoleCliCommand("link", "create a symbolic link from "
+                                     "<source-path> to <destination-path>");
+  linkSubCmd->addOptions({{"src-path", "", 1, 1, "<source-path>", true},
+                          {"dst-path", "", 2, 1, "<destination-path>", true},
+                         });
+  mapCmd->addSubcommand(linkSubCmd);
+
+  unlinkSubCmd = new ConsoleCliCommand("unlink", "remove symbolic link from "
+                                       "source-path");
+  unlinkSubCmd->addOption({"src-path", "", 1, 1, "<source-path>", true});
+  mapCmd->addSubcommand(unlinkSubCmd);
+
+  addHelpOptionRecursively(mapCmd);
+
+  parsedCmd = mapCmd->parse(arg1);
+
+  if (parsedCmd == mapCmd)
   {
-    option = subcommand;
-    option.erase(0, 1);
-    optionstring += subcommand;
-    optionstring += " ";
-    subcommand = subtokenizer.GetToken();
-    arg = subtokenizer.GetToken();
-    in += "&mgm.option=";
-    in += option;
+    if (!checkHelpAndErrors(mapCmd))
+      mapCmd->printUsage();
+    goto bailout;
   }
-  else
-  {
-    arg = subtokenizer.GetToken();
-  }
+  else if (checkHelpAndErrors(parsedCmd))
+    goto bailout;
 
-  if ((!subcommand.length()) ||
-      ((subcommand != "ls") && (subcommand != "link") && (subcommand != "unlink")))
-    goto com_map_usage;
-
-  if (subcommand == "ls")
+  if (parsedCmd == lsSubCmd)
   {
     in += "&mgm.subcmd=ls";
   }
-
-  if (subcommand == "link")
+  else if (parsedCmd == linkSubCmd)
   {
-    XrdOucString key = arg;
-    XrdOucString value = subtokenizer.GetToken();
-
-    if ((!key.length()) || (!value.length()))
-      goto com_map_usage;
-
     in += "&mgm.subcmd=link&mgm.map.src=";
-    in += key;
+    in += linkSubCmd->getValue("src-path").c_str();
     in += "&mgm.map.dest=";
-    in += value;
+    in += linkSubCmd->getValue("dst-path").c_str();
   }
-
-  if (subcommand == "unlink")
+  else if (parsedCmd == unlinkSubCmd)
   {
-    XrdOucString key = arg;
-    if (!key.length())
-      goto com_map_usage;
     in += "&mgm.subcmd=unlink&mgm.map.src=";
-    in += key;
+    in += linkSubCmd->getValue("src-path").c_str();;
   }
 
   global_retc = output_result(client_user_command(in));
-  return (0);
 
-com_map_usage:
-  fprintf(stdout, "'[eos] map ..' provides a namespace mapping interface for directories in EOS.\n");
-  fprintf(stdout, "Usage: map [OPTIONS] ls|link|unlink ...\n");
-  fprintf(stdout, "Options:\n");
+ bailout:
+  delete mapCmd;
 
-  fprintf(stdout, "map ls :\n");
-  fprintf(stdout, "                                                : list all defined mappings\n");
-  fprintf(stdout, "map link <source-path> <destination-path> :\n");
-  fprintf(stdout, "                                                : create a symbolic link from source-path to destination-path\n");
-  fprintf(stdout, "map unlink <source-path> :\n");
-  fprintf(stdout, "                                                : remove symbolic link from source-path\n");
   return (0);
 }
