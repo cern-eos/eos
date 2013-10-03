@@ -219,6 +219,7 @@ public:
   void addOption(const CliOptionWithArgs &option);
   void addOptions(std::vector<CliOption> options);
   void addOptions(std::vector<CliPositionalOption> options);
+  void addOptions(std::vector<CliOptionWithArgs> options);
   void addGroup(OptionsGroup *group);
   OptionsGroup* addGroupedOptions(std::vector<CliOption> options);
   OptionsGroup* addGroupedOptions(std::vector<CliOptionWithArgs> options);
