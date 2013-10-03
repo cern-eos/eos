@@ -157,7 +157,7 @@ Policy::GetLayoutAndSpace (const char* path, eos::ContainerMD::XAttrMap &attrmap
         layoutstring += attrmap["user.forced.blockchecksum"].c_str();
         XrdOucEnv layoutenv(layoutstring.c_str());
         // we force to use a specified checksumming in this directory even if the user wants something else
-        xsum = eos::common::LayoutId::GetBlockChecksumFromEnv(layoutenv);
+        bxsum = eos::common::LayoutId::GetBlockChecksumFromEnv(layoutenv);
         eos_static_debug("user.forced.blockchecksum in %s", path);
       }
 
