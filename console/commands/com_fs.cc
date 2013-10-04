@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_fs.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -34,69 +35,265 @@ using namespace eos::common;
 
 /*----------------------------------------------------------------------------*/
 
+static void
+print_config_examples(void)
+{
+  fprintf(stdout, "\nExample:\n");
+  fprintf(stdout, "\tfs config <fsid> configstatus=rw|wo|ro|drain|off :\n");
+  fprintf(stdout, "\t\tWhere:\n");
+  fprintf(stdout, "\t\t    rw : filesystem set in read write mode\n");
+  fprintf(stdout, "\t\t    wo : filesystem set in write-once mode\n");
+  fprintf(stdout, "\t\t    ro : filesystem set in read-only mode\n");
+  fprintf(stdout, "\t\t drain : filesystem set in drain mode\n");
+  fprintf(stdout, "\t\t   off : filesystem set disabled\n");
+  fprintf(stdout, "\t\t empty : filesystem is set to empty - possible only "
+          "if there are no files stored anymore\n\n");
+  fprintf(stdout, "\tfs config <fsid> headroom=<size> : the headroom to keep "
+          "per filesystem (e.g. you can write '1G' for 1 GB)\n");
+  fprintf(stdout, "\t\t<size> can be (>0)[BMGT]\n\n");
+  fprintf(stdout, "\tfs config <fsid> scaninterval=<seconds> : "
+          "configures a scanner thread on each FST to recheck the file & block "
+          "checksums of all stored files every <seconds> seconds. 0 disables "
+          "the scanning.\n\n");
+  fprintf(stdout, "\tfs config <fsid> graceperiod=<seconds> : grace period "
+          "before a filesystem with an operation error get's automatically "
+          "drained\n\n");
+  fprintf(stdout, "\tfs config <fsid> drainperiod=<seconds> : drain period a "
+          "drain job is waiting to finish the drain procedure\n\n");
+}
+
 /* Filesystem listing, configuration, manipulation */
 int
 com_fs (char* arg1)
 {
   // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString subcommand = subtokenizer.GetToken();
   bool temp_silent = false;
 
-  if (wants_help(arg1))
-    goto com_fs_usage;
+  ConsoleCliCommand *parsedCmd, *fsCmd, *lsSubCmd, *addSubCmd, *mvSubCmd,
+    *configSubCmd, *rmSubCmd, *dropDeletionSubCmd, *dropFilesSubCmd,
+    *bootSubCmd, *dumpMdSubCmd, *statusSubCmd, *cloneSubCmd, *compareSubCmd,
+    *verifySubCmd;
 
-  if (subcommand == "add")
+  CliOption helpOption("help", "print help", "-h,--help");
+  helpOption.setHidden(true);
+
+  fsCmd = new ConsoleCliCommand("fs", "provides the filesystem "
+                                "interface of EOS");
+
+  lsSubCmd = new ConsoleCliCommand("ls", "list all filesystems in default "
+                                   "output format");
+  lsSubCmd->addGroupedOptions({{"monitor", "list all filesystem parameters "
+                                "in monitoring format", "-m"},
+                               {"long", "display all filesystem parameters "
+                                "in long format", "-l"},
+                               {"error", "display all filesystems in "
+                                "error state", "-e"},
+                               {"io", "display all filesystems in IO "
+                                "output format", "--io"},
+                               {"fsck", "display filesystem check "
+                                "statistics", "--fsck"},
+                               {"drain", "display all filesystems in drain or "
+                                "draindead status with drain progress and "
+                                "statistics", "--drain,-d"}
+                              });
+  lsSubCmd->addOption({"silent", "run in silent mode", "-s"});
+  lsSubCmd->addOption({"selection", "", 1, 1, "<selection>"});
+  fsCmd->addSubcommand(lsSubCmd);
+
+  addSubCmd = new ConsoleCliCommand("add", "add a filesystem and dynamically "
+                                    "assign a filesystem id based on the "
+                                    "unique identifier for the disk <uuid>");
+  CliOptionWithArgs manualOption("manual", "add with user specified <fsid> and "
+                                 "<schedgroup> - no automatic assignment;\n"
+                                 "<fsid> is a numeric filesystem id 1..65535",
+                                 "-m,--manual=", "<fsid>", false);
+  std::pair<float, float> range = {0.0, 65535.0};
+  manualOption.addEvalFunction(optionIsNumberInRangeEvalFunc, &range);
+  addSubCmd->addOption(manualOption);
+  addSubCmd->addOptions({{"uuid", "arbitrary string unique to this particular "
+                          "filesystem", 1, 1, "<uuid>", true},
+                         {"host-port", "internal EOS identifier for a "
+                          "node,port,mountpoint description, e.g.:\n"
+                          "/eos/<host>:<port>/fst , "
+                          "/eos/myhost.cern.ch:1095/fst [you should prefer the "
+                          "host:port syntax]", 2, 1,
+                          "<node-queue>|<host>[:<port>]", true},
+                         {"mountpoint", "local path of the mounted filesystem "
+                          "e.g. /data", 3, 1, "<mountpoint>", true},
+                         {"schedgroup", "scheduling group where the filesystem "
+                          "should be inserted;\ndefault is 'default'", 4, 1,
+                          "<schedgroup>", false},
+                         {"status", "file system status after the insert;\n"
+                          "default is 'off', in most cases should be 'rw'",
+                          5, 1, "<status>", false},
+                        });
+  fsCmd->addSubcommand(addSubCmd);
+
+  mvSubCmd = new ConsoleCliCommand("mv", "move a filesystem into a different "
+                                   "scheduling group");
+  mvSubCmd->addOptions({{"src", "source system id or source space;\n"
+                         "If the source is a <space>, a filesystem will be "
+                         "chosen to fit into the destionation group or space",
+                         1, 1, "<src-fsid>|<src-space>", true},
+                        {"dst", "destination scheduling group or destination "
+                         "space; If the destination is a <space>, a scheduling "
+                         "group is auto-selected where the filesystem can be "
+                         "placed.\n", 2, 1, "<dst-schedgroup>|<dst-space>", true}
+                       });
+  fsCmd->addSubcommand(mvSubCmd);
+
+  configSubCmd = new ConsoleCliCommand("config", "configure filesystem "
+                                       "parameter for a single filesystem "
+                                       "identified by host:port/path, "
+                                       "filesystem id or filesystem UUID");
+  configSubCmd->addOptions({{"fsid", "", 1, 1,
+                             "<host>:<port><path>|<fsid>|<uuid>", true},
+                            {"key-value", "the key and value to set", 2, 1,
+                             "<key>=<value>", true}
+                           });
+  fsCmd->addSubcommand(configSubCmd);
+
+  rmSubCmd = new ConsoleCliCommand("rm", "remove filesystem "
+                                   "configuration by various identifiers");
+  rmSubCmd->addOptions({{"fsid", "", 1, 1,
+                         "<fs-id>|<node-queue>|<mount-point>|<hostname>", true},
+                        {"mountpoint", "", 2, 1, "<mountpoint>", false}
+                       });
+  fsCmd->addSubcommand(rmSubCmd);
+
+  dropDeletionSubCmd = new ConsoleCliCommand("dropdeletion", "drop pending "
+                                             "deletions on a filesystem "
+                                             "represented by <fs-id>");
+  dropDeletionSubCmd->addOption({"fsid", "", 1, 1, "<fs-id>", true});
+  fsCmd->addSubcommand(dropDeletionSubCmd);
+
+  dropFilesSubCmd = new ConsoleCliCommand("dropfiles", "allows to drop all "
+                                          "files on <fs-id>");
+  dropFilesSubCmd->addOption({"force", "unlinks/removes files at the time from "
+                              "the NS (you have to cleanup or remove the files "
+                              "from disk)", "-f,--force"});
+  dropFilesSubCmd->addOption({"fsid", "", 1, 1, "<fs-id>", true});
+  fsCmd->addSubcommand(dropFilesSubCmd);
+
+  bootSubCmd = new ConsoleCliCommand("boot", "boot filesystem with ID <fs-id> "
+                                     "or name <node-queue> or all (*)");
+  bootSubCmd->addOption({"sync-mgm", "force an MGM resynchronization during "
+                         "the boot", "--syncmgm"});
+  bootSubCmd->addOption({"fsid", "", 1, 1, "<fs-id>|<node-queue>|*", true});
+  fsCmd->addSubcommand(bootSubCmd);
+
+  dumpMdSubCmd = new ConsoleCliCommand("dumpmd", "dump all file meta data on "
+                                       "this filesystem in query format");
+  dumpMdSubCmd->addGroupedOptions({{"silent", "don't printout keep an "
+                                    "internal reference", "-s"},
+                                   {"monitor", "print the full meta data "
+                                    "record in env format", "-m"}
+                                  });
+  dumpMdSubCmd->addOptions({{"fid", "dump a list of file IDs stored on this "
+                             "filesystem", "--fid"},
+                            {"path", "dump a list of file names stored on this "
+                             "filesystem", "--path"},
+                            {"size", "dump a list of file sizes stored on this "
+                             "filesystem", "--size"}
+                           });
+  dumpMdSubCmd->addOption({"fsid", "", 1, 1, "<fs-id>", true});
+  fsCmd->addSubcommand(dumpMdSubCmd);
+
+  statusSubCmd = new ConsoleCliCommand("status", "returns all status variables "
+                                       "of a filesystem and calculates the "
+                                       "risk of data loss if this filesystem "
+                                       "get's removed ");
+  statusSubCmd->addOptions({{"fsid", "filesystem ID <fs-id> or mount point, in "
+                             "which case the host is set as <this-host>",
+                             1, 1, "<fs-id>|<mount-point>", true},
+                            {"host", "specifies the host name", 2, 1,
+                             "<host>", false}
+                           });
+  fsCmd->addSubcommand(statusSubCmd);
+
+  cloneSubCmd = new ConsoleCliCommand("clone", "replicate all files in "
+                                      "filesystem <src-fs-id> to "
+                                      "filesystem <dst-fs-id>");
+  cloneSubCmd->addOptions({{"src", "", 1, 1, "<src-fs-id>", true},
+                           {"dst", "", 2, 1, "<target-fs-id>", true}
+                           });
+  fsCmd->addSubcommand(cloneSubCmd);
+
+  compareSubCmd = new ConsoleCliCommand("compare", "compare filesystem "
+                                        "<fs-id-1> with <fs-id-2> showing "
+                                        "which files are found or not, in each "
+                                        "filesystem");
+  compareSubCmd->addOptions({{"fsid1", "", 1, 1, "<fs-id-1>", true},
+                             {"fsid2", "", 2, 1, "<fs-id-2>", true}
+                            });
+  fsCmd->addSubcommand(compareSubCmd);
+
+  verifySubCmd = new ConsoleCliCommand("verify", "verify all files in "
+                                       "filesystem <fs-id>");
+  verifySubCmd->addOptions({{"checksum", "trigger the checksum calculation "
+                             "during the verification process", "--checksum"},
+                            {"commit-checksum", "commit the computed checksum "
+                             "to the MGM", "--commit-checksum"},
+                            {"commit-size", "commit the file size to the MGM",
+                             "--commit-size"},
+                            {"commit-fmd", "commit the file metadata to the MGM",
+                             "--commit-fmd"}
+                           });
+  CliOptionWithArgs rate("rate",
+                         "restrict the verification speed to <rate> per node",
+                         "-r,--rate=", 1, "<rate>", false);
+  rate.addEvalFunction(optionIsFloatEvalFunc, 0);
+  verifySubCmd->addOption(rate);
+  verifySubCmd->addOption({"fsid", "", 1, 1, "<fs-id>", true});
+  fsCmd->addSubcommand(verifySubCmd);
+
+  addHelpOptionRecursively(fsCmd);
+
+  parsedCmd = fsCmd->parse(arg1);
+
+  if (parsedCmd == fsCmd)
+  {
+    if (!checkHelpAndErrors(parsedCmd))
+      fsCmd->printUsage();
+
+    goto com_fs_usage;
+  }
+  else if (checkHelpAndErrors(parsedCmd))
+  {
+    if (parsedCmd->hasValue("help") && parsedCmd == configSubCmd)
+      print_config_examples();
+
+    goto bailout;
+  }
+
+  if (parsedCmd == addSubCmd)
   {
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=add";
-    XrdOucString uuid = "";
-    XrdOucString manual = subtokenizer.GetToken();
-    XrdOucString fsid = "";
-    if ((manual == "-m") || (manual == "--manual"))
-    {
-      fsid = subtokenizer.GetToken();
-      if (fsid.length())
-      {
-        int ifsid = atoi(fsid.c_str());
-        if (ifsid == 0)
-          goto com_fs_usage;
-        uuid = subtokenizer.GetToken();
-      }
-      else
-      {
-        goto com_fs_usage;
-      }
-    }
-    else
-    {
-      uuid = manual;
-    }
+    XrdOucString uuid("");
+    XrdOucString manual("");
+    XrdOucString fsid("");
+    XrdOucString space("default");
+    XrdOucString configstatus("off");
 
-    XrdOucString hostport = subtokenizer.GetToken();
-    XrdOucString mountpoint = subtokenizer.GetToken();
-    XrdOucString space = subtokenizer.GetToken();
-    XrdOucString configstatus = subtokenizer.GetToken();
+    if (addSubCmd->hasValue("manual"))
+      fsid = addSubCmd->getValue("manual").c_str();
 
-    if (!uuid.length())
-      goto com_fs_usage;
+    uuid = addSubCmd->getValue("uuid").c_str();
 
-    if (!hostport.length())
-      goto com_fs_usage;
+    XrdOucString hostport = addSubCmd->getValue("host-port").c_str();
+    XrdOucString mountpoint = addSubCmd->getValue("mountpoint").c_str();
+
+    if (addSubCmd->hasValue("schedgroup"))
+      space = addSubCmd->getValue("schedgroup").c_str();
+
+    if (addSubCmd->hasValue("status"))
+      configstatus = addSubCmd->getValue("status").c_str();
 
     if (!hostport.beginswith("/eos/"))
     {
       hostport.insert("/eos/", 0);
       hostport.append("/fst");
     }
-    if (!mountpoint.length())
-      goto com_fs_usage;
-
-    if (!space.length())
-      space = "default";
-
-    if (!configstatus.length())
-      configstatus = "off";
 
     if (fsid.length())
     {
@@ -118,131 +315,82 @@ com_fs (char* arg1)
     XrdOucEnv* result = client_admin_command(in);
     global_retc = output_result(result);
 
-    return (0);
+    goto bailout;
   }
 
-  if (subcommand == "mv")
+  if (parsedCmd == mvSubCmd)
   {
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=mv";
-    XrdOucString fsid = subtokenizer.GetToken();
-    XrdOucString space = subtokenizer.GetToken();
-    if ((!fsid.length()) || (!space.length()))
-      goto com_fs_usage;
+
     in += "&mgm.fs.id=";
-    in += fsid;
+    in += mvSubCmd->getValue("src").c_str();
     in += "&mgm.space=";
-    in += space;
+    in += mvSubCmd->getValue("dst").c_str();
 
     XrdOucEnv* result = client_admin_command(in);
     global_retc = output_result(result);
-    return (0);
+    goto bailout;
   }
 
-  if (subcommand == "ls")
+  if (parsedCmd == lsSubCmd)
   {
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=ls";
     XrdOucString option = "";
     bool highlighting = true;
-    bool ok;
-    bool sel = false;
 
-    do
+    if (lsSubCmd->hasValue("monitor"))
     {
-      ok = false;
-      subtokenizer.GetLine();
-      option = subtokenizer.GetToken();
-      if (option.length())
-      {
-        if (option == "-m")
-        {
-          in += "&mgm.outformat=m";
-          ok = true;
-          highlighting = false;
-        }
-        if (option == "-l")
-        {
-          in += "&mgm.outformat=l";
-          ok = true;
-        }
-        if (option == "--io")
-        {
-          in += "&mgm.outformat=io";
-          ok = true;
-        }
-        if (option == "--fsck")
-        {
-          in += "&mgm.outformat=fsck";
-          ok = true;
-        }
-        if ((option == "--drain") || (option == "-d"))
-        {
-          in += "&mgm.outformat=d";
-          ok = true;
-        }
-        if (option == "-s")
-        {
-          temp_silent = true;
-          ok = true;
-        }
-        if (option == "-e")
-        {
-          in += "&mgm.outformat=e";
-          ok = true;
-        }
-        if (!option.beginswith("-"))
-        {
-          in += "&mgm.selection=";
-          in += option;
-          if (!sel)
-            ok = true;
-          sel = true;
-        }
-      }
-      else
-      {
-        ok = true;
-      }
-
-      if (!ok)
-        goto com_fs_usage;
-
+      in += "&mgm.outformat=m";
+      highlighting = false;
     }
-    while (option.length());
+
+    if (lsSubCmd->hasValue("long"))
+      in += "&mgm.outformat=l";
+
+    if (lsSubCmd->hasValue("io"))
+      in += "&mgm.outformat=io";
+
+    if (lsSubCmd->hasValue("fsck"))
+      in += "&mgm.outformat=fsck";
+
+    if (lsSubCmd->hasValue("drain"))
+      in += "&mgm.outformat=d";
+
+    if (lsSubCmd->hasValue("error"))
+      in += "&mgm.outformat=e";
+
+    if (lsSubCmd->hasValue("silent"))
+      temp_silent = true;
+
+    if (lsSubCmd->hasValue("selection"))
+    {
+      in += "&mgm.selection=";
+      in += lsSubCmd->getValue("selection").c_str();
+    }
 
     XrdOucEnv* result = client_admin_command(in);
     if (!silent && (!temp_silent))
-    {
       global_retc = output_result(result, highlighting);
-    }
     else
     {
       if (result)
-      {
         global_retc = 0;
-      }
       else
-      {
         global_retc = EINVAL;
-      }
     }
 
-    return (0);
+    goto bailout;
   }
 
-  if (subcommand == "config")
+  if (parsedCmd == configSubCmd)
   {
-    XrdOucString identifier = subtokenizer.GetToken();
-    XrdOucString keyval = subtokenizer.GetToken();
-
-    if ((!identifier.length()) || (!keyval.length()))
-    {
-      goto com_fs_usage;
-    }
+    XrdOucString identifier = configSubCmd->getValue("fsid").c_str();
+    XrdOucString keyval = configSubCmd->getValue("key-value").c_str();
 
     if ((keyval.find("=")) == STR_NPOS)
     {
-      // not like <key>=<val>
-      goto com_fs_usage;
+      configSubCmd->printUsage();
+      print_config_examples();
     }
 
     std::string is = keyval.c_str();
@@ -251,7 +399,10 @@ com_fs (char* arg1)
     eos::common::StringConversion::Tokenize(is, token, delimiter);
 
     if (token.size() != 2)
-      goto com_fs_usage;
+    {
+      configSubCmd->printUsage();
+      print_config_examples();
+    }
 
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=config&mgm.fs.identifier=";
     in += identifier;
@@ -261,17 +412,12 @@ com_fs (char* arg1)
     in += token[1].c_str();
 
     global_retc = output_result(client_admin_command(in));
-    return (0);
+    goto bailout;
   }
 
-
-  if (subcommand == "rm")
+  if (parsedCmd == rmSubCmd)
   {
-    XrdOucString arg = subtokenizer.GetToken();
-    if (!arg.c_str())
-    {
-      goto com_fs_usage;
-    }
+    XrdOucString arg = rmSubCmd->getValue("fsid").c_str();
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=rm";
     int fsid = atoi(arg.c_str());
     char r1fsid[128];
@@ -286,10 +432,12 @@ com_fs (char* arg1)
     }
     else
     {
-      XrdOucString mp = subtokenizer.GetToken();
+      XrdOucString mp("");
       XrdOucString hostport = arg;
 
-      if (!mp.length())
+      if (rmSubCmd->hasValue("mountpoint"))
+        mp = rmSubCmd->getValue("mountpoint").c_str();
+      else
       {
         mp = arg;
         hostport = XrdSysDNS::getHostName();
@@ -309,8 +457,6 @@ com_fs (char* arg1)
       in += hostport;
 
       in += "&mgm.fs.mountpoint=";
-      if (!mp.length())
-        goto com_fs_usage;
 
       while (mp.endswith("/"))
       {
@@ -320,22 +466,17 @@ com_fs (char* arg1)
 
       if (access(mp.c_str(), R_OK | X_OK))
       {
-        goto com_fs_usage;
+        rmSubCmd->printUsage();
       }
     }
 
     global_retc = output_result(client_admin_command(in));
-    return (0);
+    goto bailout;
   }
 
-
-  if (subcommand == "dropdeletion")
+  if (parsedCmd == dropDeletionSubCmd)
   {
-    XrdOucString arg = subtokenizer.GetToken();
-    if (!arg.c_str())
-    {
-      goto com_fs_usage;
-    }
+    XrdOucString arg = dropDeletionSubCmd->getValue("fsid").c_str();
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=dropdeletion";
     int fsid = atoi(arg.c_str());
     char r1fsid[128];
@@ -349,21 +490,16 @@ com_fs (char* arg1)
       in += arg;
     }
     else
-    {
-      goto com_fs_usage;
-    }
+      dropDeletionSubCmd->printUsage();
 
     global_retc = output_result(client_admin_command(in));
-    return (0);
+    goto bailout;
   }
 
-  if (subcommand == "boot")
+  if (parsedCmd == bootSubCmd)
   {
-    XrdOucString arg = subtokenizer.GetToken();
-    XrdOucString option = subtokenizer.GetToken();
+    XrdOucString arg = bootSubCmd->getValue("fsid").c_str();
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=boot";
-    if (!arg.length())
-      goto com_fs_usage;
     int fsid = atoi(arg.c_str());
     char r1fsid[128];
     sprintf(r1fsid, "%d", fsid);
@@ -375,34 +511,21 @@ com_fs (char* arg1)
       in += "&mgm.fs.id=";
     }
     else
-    {
       in += "&mgm.fs.node=";
-    }
 
     in += arg;
 
-    if (option.length())
-    {
-      if (option != "--syncmgm")
-      {
-        goto com_fs_usage;
-      }
-      else
-      {
-        in += "&mgm.fs.forcemgmsync=1";
-      }
-    }
+    if (bootSubCmd->hasValue("sync-mgm"))
+      in += "&mgm.fs.forcemgmsync=1";
 
     global_retc = output_result(client_admin_command(in));
-    return (0);
+    goto bailout;
   }
 
-  if (subcommand == "status")
+  if (parsedCmd == statusSubCmd)
   {
-    XrdOucString arg = subtokenizer.GetToken();
+    XrdOucString arg = statusSubCmd->getValue("fsid").c_str();
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=status";
-    if (!arg.length())
-      goto com_fs_usage;
     int fsid = atoi(arg.c_str());
     char r1fsid[128];
     sprintf(r1fsid, "%d", fsid);
@@ -416,53 +539,40 @@ com_fs (char* arg1)
     }
     else
     {
-      XrdOucString arg2 = subtokenizer.GetToken();
       XrdOucString mp = arg;
-      if (!arg2.length())
+      in += "&mgm.fs.node=";
+      if (statusSubCmd->hasValue("host"))
+        in += statusSubCmd->getValue("host").c_str();
+      else
       {
         // status by mount point
         char* HostName = XrdSysDNS::getHostName();
-        in += "&mgm.fs.node=";
         in += HostName;
-        in += "&mgm.fs.mountpoint=";
-        in += arg;
-        mp = arg;
       }
-      else
-      {
-        in += "&mgm.fs.node=";
-        in += arg;
-        in += "&mgm.fs.mountpoint=";
-        in += arg2;
-        mp = arg2;
-      }
+
+      in += "&mgm.fs.mountpoint=" + arg;
 
       while (mp.endswith("/"))
       {
         mp.erase(mp.length() - 1);
       }
+
       if (access(mp.c_str(), R_OK | X_OK))
-      {
-        goto com_fs_usage;
-      }
+        statusSubCmd->printUsage();
     }
 
     global_retc = output_result(client_admin_command(in));
-    return (0);
+    goto bailout;
   }
 
-  if (subcommand == "clone")
+  if (parsedCmd == cloneSubCmd)
   {
-    XrdOucString sourceid;
-    sourceid = subtokenizer.GetToken();
-    XrdOucString targetid;
-    targetid = subtokenizer.GetToken();
-    if ((!sourceid.length()) || (!targetid.length()))
-      goto com_fs_usage;
+    XrdOucString sourceid = cloneSubCmd->getValue("src").c_str();
+    XrdOucString targetid = cloneSubCmd->getValue("dst").c_str();
 
     XrdOucString subcmd = "dumpmd -s ";
     subcmd += sourceid;
-    subcmd += " -path";
+    subcmd += " --path";
 
     com_fs((char*) subcmd.c_str());
 
@@ -503,21 +613,17 @@ com_fs (char* arg1)
       }
     }
 
-    return (0);
+    goto bailout;
   }
 
-  if (subcommand == "compare")
+  if (parsedCmd == compareSubCmd)
   {
-    XrdOucString sourceid;
-    sourceid = subtokenizer.GetToken();
-    XrdOucString targetid;
-    targetid = subtokenizer.GetToken();
-    if (!sourceid.length() || !targetid.length())
-      goto com_fs_usage;
+    XrdOucString sourceid = compareSubCmd->getValue("fsid1").c_str();
+    XrdOucString targetid = compareSubCmd->getValue("fsid2").c_str();
 
     XrdOucString subcmd1 = "dumpmd -s ";
     subcmd1 += sourceid;
-    subcmd1 += " -path";
+    subcmd1 += " --path";
 
     com_fs((char*) subcmd1.c_str());
 
@@ -540,7 +646,7 @@ com_fs (char* arg1)
 
     XrdOucString subcmd2 = "dumpmd -s ";
     subcmd2 += targetid;
-    subcmd2 += " -path";
+    subcmd2 += " --path";
 
     com_fs((char*) subcmd2.c_str());
 
@@ -581,36 +687,27 @@ com_fs (char* arg1)
     for (unsigned int i = 0; i < files_miss1.size(); i++)
     {
       if (files_miss1[i].length())
-        fprintf(stderr, "error: %s => found in %s - missing in %s\n", files_miss1[i].c_str(), sourceid.c_str(), targetid.c_str());
+        fprintf(stderr, "Error: %s => found in %s - missing in %s\n",
+                files_miss1[i].c_str(), sourceid.c_str(), targetid.c_str());
     }
 
     for (unsigned int i = 0; i < files_found2.size(); i++)
     {
       if (files_found2[i].length())
-        fprintf(stderr, "error: %s => found in %s - missing in %s\n", files_found2[i].c_str(), targetid.c_str(), sourceid.c_str());
+        fprintf(stderr, "Error: %s => found in %s - missing in %s\n",
+                files_found2[i].c_str(), targetid.c_str(), sourceid.c_str());
     }
 
-    return (0);
+    goto bailout;
   }
 
-  if (subcommand == "dropfiles")
+  if (parsedCmd == dropFilesSubCmd)
   {
-    XrdOucString id;
-    XrdOucString option;
-    id = subtokenizer.GetToken();
-    option = subtokenizer.GetToken();
-
-    if (!id.length())
-      goto com_fs_usage;
-
-    if (option.length() && (option != "-f"))
-    {
-      goto com_fs_usage;
-    }
+    XrdOucString id = dropFilesSubCmd->getValue("fsid").c_str();
 
     XrdOucString subcmd = "dumpmd -s ";
     subcmd += id;
-    subcmd += " -path";
+    subcmd += " --path";
 
     com_fs((char*) subcmd.c_str());
 
@@ -631,13 +728,14 @@ com_fs (char* arg1)
       }
 
       string s;
-      fprintf(stdout, "Do you really want to delete ALL %u replica's from filesystem %s ?\n", (int) files_found.size(), id.c_str());
+      fprintf(stdout, "Do you really want to delete ALL %u replica's from "
+                      "filesystem %s ?\n", (int) files_found.size(), id.c_str());
       fprintf(stdout, "Confirm the deletion by typing => ");
+
       XrdOucString confirmation = "";
       for (int i = 0; i < 10; i++)
-      {
         confirmation += (int) (9.0 * rand() / RAND_MAX);
-      }
+
       fprintf(stdout, "%s\n", confirmation.c_str());
       fprintf(stdout, "                               => ");
       getline(std::cin, s);
@@ -649,6 +747,7 @@ com_fs (char* arg1)
         {
           if (!files_found[i].length())
             continue;
+
           XrdOucString line = files_found[i].c_str();
           if (line.beginswith("path="))
           {
@@ -659,15 +758,15 @@ com_fs (char* arg1)
             subcmd += line;
             subcmd += " ";
             subcmd += id;
-            if (option.length())
-            {
-              subcmd += " ";
-              subcmd += option;
-            }
+
+            if (dropFilesSubCmd->hasValue("force"))
+              subcmd += " -f";
+
             com_file((char*) subcmd.c_str());
           }
         }
-        fprintf(stdout, "=> Deleted %u replicas from filesystem %s\n", (unsigned int) files_found.size(), id.c_str());
+        fprintf(stdout, "=> Deleted %u replicas from filesystem %s\n",
+                (unsigned int) files_found.size(), id.c_str());
       }
       else
       {
@@ -675,47 +774,34 @@ com_fs (char* arg1)
       }
     }
 
-
-
-    return (0);
+    goto bailout;
   }
 
-  if (subcommand == "verify")
+  if (parsedCmd == verifySubCmd)
   {
-    XrdOucString id;
-    XrdOucString option = "";
-    id = subtokenizer.GetToken();
-    XrdOucString options[5];
+    XrdOucString id = verifySubCmd->getValue("fsid").c_str();
+    XrdOucString options("");
+    const char *fileVerifyOptions[] = {"checksum", "commit-checksum",
+                                       "commit-size", "commit-fmd", NULL};
 
-    options[0] = subtokenizer.GetToken();
-    options[1] = subtokenizer.GetToken();
-    options[2] = subtokenizer.GetToken();
-    options[3] = subtokenizer.GetToken();
-    options[4] = subtokenizer.GetToken();
-
-    if (!id.length())
-      goto com_fs_usage;
-
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; fileVerifyOptions[i] != NULL; i++)
     {
-      if (options[i].length() &&
-          (options[i] != "-checksum") && (options[i] != "-commitchecksum") && (options[i] != "-commitsize") && (options[i] != "-rate"))
+      if (verifySubCmd->hasValue(fileVerifyOptions[i]))
       {
-        goto com_fs_usage;
+        options += "--";
+        options += fileVerifyOptions[i];
       }
-      option += options[i];
-      option += " ";
-      if (options[i] == "-rate")
-      {
-        option += options[i + 1];
-        option += " ";
-        i++;
-      }
+    }
+
+    if (verifySubCmd->hasValue("rate"))
+    {
+      options += "--rate=";
+      options += verifySubCmd->getValue("rate").c_str();
     }
 
     XrdOucString subcmd = "dumpmd -s ";
     subcmd += id;
-    subcmd += " -path";
+    subcmd += " --path";
 
     com_fs((char*) subcmd.c_str());
 
@@ -750,45 +836,23 @@ com_fs (char* arg1)
           subcmd += " ";
           subcmd += id;
           subcmd += " ";
-          if (option.length())
-          {
-            subcmd += option;
-          }
+          subcmd += options;
           com_file((char*) subcmd.c_str());
         }
       }
     }
-    return (0);
+    goto bailout;
   }
 
-  if (subcommand == "dumpmd")
+  if (parsedCmd == dumpMdSubCmd)
   {
-    bool silentcommand = false;
-    bool monitor = false;
-    XrdOucString arg = subtokenizer.GetToken();
-    if (arg == "-s")
-    {
-      silentcommand = true;
-      arg = subtokenizer.GetToken();
-    }
-
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=dumpmd";
+    bool silentcommand = dumpMdSubCmd->hasValue("silent");
+    bool monitor = dumpMdSubCmd->hasValue("monitor");
+    XrdOucString arg = dumpMdSubCmd->getValue("fsid").c_str();
 
-    if (arg == "-m")
-    {
-      arg = subtokenizer.GetToken();
-      monitor = true;
+    if (monitor)
       in += "&mgm.dumpmd.option=m";
-
-    }
-
-    XrdOucString option1 = subtokenizer.GetToken();
-    XrdOucString option2 = subtokenizer.GetToken();
-    XrdOucString option3 = subtokenizer.GetToken();
-
-
-    if (!arg.length())
-      goto com_fs_usage;
 
     int fsid = atoi(arg.c_str());
     in += "&mgm.fsid=";
@@ -796,142 +860,39 @@ com_fs (char* arg1)
 
     if (!monitor)
     {
-      if ((option1 == "-path") || (option2 == "-path") || (option3 == "-path"))
-      {
+      if (dumpMdSubCmd->hasValue("path"))
         in += "&mgm.dumpmd.path=1";
-      }
 
-      if ((option1 == "-fid") || (option2 == "-fid") || (option3 == "-fid"))
-      {
+      if (dumpMdSubCmd->hasValue("fid"))
         in += "&mgm.dumpmd.fid=1";
-      }
 
-      if ((option1 == "-size") || (option2 == "-size") || (option3 == "-size"))
-      {
+      if (dumpMdSubCmd->hasValue("size"))
         in += "&mgm.dumpmd.size=1";
-      }
-
-      if (option1.length() && (option1 != "-path") && (option1 != "-fid") && (option1 != "-size"))
-        goto com_fs_usage;
-
-      if (option2.length() && (option2 != "-path") && (option2 != "-fid") && (option2 != "-size"))
-        goto com_fs_usage;
-
-      if (option3.length() && (option3 != "-path") && (option3 != "-fid") && (option3 != "-size"))
-        goto com_fs_usage;
     }
 
     XrdOucEnv* result = client_admin_command(in);
     if (!silentcommand)
-    {
       global_retc = output_result(result);
-    }
+    else if (result)
+      global_retc = 0;
     else
-    {
-      if (result)
-      {
-        global_retc = 0;
-      }
-      else
-      {
-        global_retc = EINVAL;
-      }
-    }
+      global_retc = EINVAL;
 
-    return (0);
+    goto bailout;
   }
 
 com_fs_usage:
 
-
-  fprintf(stdout, "'[eos] fs ..' provides the filesystem interface of EOS.\n");
-  fprintf(stdout, "Usage: fs add|boot|config|dropfiles|dumpmd|mv|ls|rm|status [OPTIONS]\n");
-  fprintf(stdout, "Options:\n");
-  fprintf(stdout, "fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s]   :\n");
-  fprintf(stdout, "                                                  list all filesystems in default output format\n");
-  fprintf(stdout, "            -m                                  : list all filesystem parameters in monitoring format\n");
-  fprintf(stdout, "            -l                                  : display all filesystem parameters in long format\n");
-  fprintf(stdout, "            -e                                  : display all filesystems in error state\n");
-  fprintf(stdout, "            --io                                : display all filesystems in IO output format\n");
-  fprintf(stdout, "            --fsck                              : display filesystem check statistics\n");
-  fprintf(stdout, "            -d,--drain                          : display all filesystems in drain or draindead status with drain progress and statistics\n");
-
-  fprintf(stdout, "fs add [-m|--manual <fsid>] <uuid> <node-queue>|<host>[:<port>] <mountpoint> [<schedgroup>] [<status] :\n");
-  fprintf(stdout, "                                                  add a filesystem and dynamically assign a filesystem id based on the unique identifier for the disk <uuid>\n");
-  fprintf(stdout, "            -m,--manual <fsid>                  : add with user specified <fsid> and <schedgroup> - no automatic assignment\n");
-  fprintf(stdout, "            <fsid>                              : numeric filesystem id 1..65535\n");
-  fprintf(stdout, "            <uuid>                              : arbitrary string unique to this particular filesystem\n");
-  fprintf(stdout, "            <node-queue>                        : internal EOS identifier for a node,port,mountpoint description ... /eos/<host>:<port>/fst e.g. /eos/myhost.cern.ch:1095/fst [you should prefer the host:port syntax]\n");
-  fprintf(stdout, "            <host>                              : fully qualified hostname where the filesystem is mounted\n");
-  fprintf(stdout, "            <port>                              : port where xrootd is running on the FST [normally 1095]\n");
-  fprintf(stdout, "            <mountpoint>                        : local path of the mounted filesystem e.g. /data\n");
-  fprintf(stdout, "            <schedgroup>                        : scheduling group where the filesystem should be inserted ... default is 'default'\n");
-  fprintf(stdout, "            <status>                            : file system status after the insert ... default is 'off', in most cases should be 'rw'\n");
-
-  fprintf(stdout, "fs mv <src-fsid|src-space> <dst-schedgroup|dst-space> :\n");
-  fprintf(stdout, "                                                  move a filesystem into a different scheduling group\n");
-  fprintf(stdout, "            <src-fsid>                          : source filesystem id\n");
-  fprintf(stdout, "            <src-space>                         : source space\n");
-  fprintf(stdout, "            <dst-schedgroup>                    : destination scheduling group\n");
-  fprintf(stdout, "            <dst-space>                         : destination space\n");
-  fprintf(stdout, "If the source is a <space> a filesystem will be chosen to fit into the destionation group or space.\n");
-  fprintf(stdout, "If the target is a <space> : a scheduling group is auto-selected where the filesystem can be placed.\n\n");
-
-
-  fprintf(stdout, "fs config <host>:<port><path>|<fsid>|<uuid> <key>=<value> :\n");
-  fprintf(stdout, "                                                   configure filesystem parameter for a single filesystem identified by host:port/path, filesystem id or filesystem UUID.\n");
-
-  fprintf(stdout, "fs config <fsid> configstatus=rw|wo|ro|drain|off :\n");
-  fprintf(stdout, "                    <status> can be \n");
-  fprintf(stdout, "                                    rw          : filesystem set in read write mode\n");
-  fprintf(stdout, "                                    wo          : filesystem set in write-once mode\n");
-  fprintf(stdout, "                                    ro          : filesystem set in read-only mode\n");
-  fprintf(stdout, "                                    drain       : filesystem set in drain mode\n");
-  fprintf(stdout, "                                    off         : filesystem set disabled\n");
-  fprintf(stdout, "                                    empty       : filesystem is set to empty - possible only if there are no files stored anymore");
-  fprintf(stdout, "fs config <fsid> headroom=<size>\n");
-  fprintf(stdout, "                    <size> can be (>0)[BMGT]    : the headroom to keep per filesystem (e.g. you can write '1G' for 1 GB)\n");
-  fprintf(stdout, "fs config <fsid> scaninterval=<seconds>: \n");
-  fprintf(stdout, "                                                  configures a scanner thread on each FST to recheck the file & block checksums of all stored files every <seconds> seconds. 0 disables the scanning.\n\n");
-  fprintf(stdout, "fs config <fsid> graceperiod=<seconds> :\n");
-  fprintf(stdout, "                                                  grace period before a filesystem with an operation error get's automatically drained\n");
-  fprintf(stdout, "fs config <fsid> drainperiod=<seconds> : \n");
-  fprintf(stdout, "                                                  drain period a drain job is waiting to finish the drain procedure\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "fs rm    <fs-id>|<node-queue>|<mount-point>|<hostname> <mountpoint> :\n");
-  fprintf(stdout, "                                                  remove filesystem configuration by various identifiers\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "fs boot  <fs-id>|<node-queue>|* [--syncmgm]:\n");
-  fprintf(stdout, "                                                  boot filesystem with ID <fs-id> or name <node-queue> or all (*)\n");
-  fprintf(stdout, "                                                                   --syncmgm : force an MGM resynchronization during the boot\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "fs dropfiles <fs-id> [-f] :\n");
-  fprintf(stdout, "                                                  allows to drop all files on <fs-id> - force\n");
-  fprintf(stdout, "                                                                  -f    : unlinks/removes files at the time from the NS (you have to cleanup or remove the files from disk) \n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "fs dumpmd [-s|-m] <fs-id> [-fid] [-path] :\n");
-  fprintf(stdout, "                                                  dump all file meta data on this filesystem in query format\n");
-
-  fprintf(stdout, "                                                                  -s    : don't printout keep an internal reference\n");
-  fprintf(stdout, "                                                                  -m    : print the full meta data record in env format\n");
-  fprintf(stdout, "                                                                  -fid  : dump only a list of file id's stored on this filesystem\n");
-  fprintf(stdout, "                                                                  -path : dump only a list of file names stored on this filesystem\n");
-
-
-  fprintf(stdout, "\n");
-  fprintf(stdout, "fs status <fs-id> :\n");
-  fprintf(stdout, "                                                  returns all status variables of a filesystem and calculates the risk of data loss if this filesystem get's removed\n");
-  fprintf(stdout, "fs status <mount-point> :\n");
-  fprintf(stdout, "                                                  as before but accepts the mount point as input parameters and set's host=<this host>\n");
-
-  fprintf(stdout, "fs status <host> <mount-point> :\n");
-  fprintf(stdout, "                                                  as before but accepts the mount point and hostname as input parameters\n");
   fprintf(stdout, "Examples:\n");
-  fprintf(stdout, "  fs ls --io             List all filesystems with IO statistics\n\n");
-  fprintf(stdout, "  fs boot *              Send boot request to all filesystems\n\n");
-  fprintf(stdout, "  fs dumpmd 100 -path    Dump all logical path names on filesystem 100\n\n");
-  fprintf(stdout, "  fs mv spare default    Move one filesystem from the sapre space into the default space. If default has subgroups the smallest subgroup is selected.\n\n");
-  fprintf(stdout, "  fs mv 100 default.0    Move filesystem 100 into scheduling group default.0\n\n");
+  fprintf(stdout, "\tfs ls --io             List all filesystems with IO statistics\n\n");
+  fprintf(stdout, "\tfs boot *              Send boot request to all filesystems\n\n");
+  fprintf(stdout, "\tfs dumpmd 100 --path    Dump all logical path names on filesystem 100\n\n");
+  fprintf(stdout, "\tfs mv spare default    Move one filesystem from the sapre space into the default space. If default has subgroups the smallest subgroup is selected.\n\n");
+  fprintf(stdout, "\tfs mv 100 default.0    Move filesystem 100 into scheduling group default.0\n\n");
   fprintf(stdout, "Report bugs to eos-dev@cern.ch.\n");
+
+ bailout:
+  delete fsCmd;
+
   return (0);
 }
