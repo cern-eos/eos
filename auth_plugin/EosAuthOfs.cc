@@ -117,10 +117,14 @@ EosAuthOfs::~EosAuthOfs()
     XrdSysThread::Cancel(proxy_tid);
     XrdSysThread::Join(proxy_tid, 0);
   }
-    
+
+  // Release memory    
   while (mPoolSocket.try_pop(socket))
     delete socket;
-  
+
+  delete mFrontend;
+  delete mBackend1.second;
+  delete mBackend2.second;
   delete mZmqContext;
 }
 
