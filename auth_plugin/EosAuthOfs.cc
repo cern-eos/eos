@@ -92,6 +92,15 @@ EosAuthOfs::EosAuthOfs():
   mZmqContext = new zmq::context_t(1);
   mBackend1 = std::make_pair(std::string(""), (zmq::socket_t*)0);
   mBackend2 = std::make_pair(std::string(""), (zmq::socket_t*)0);
+
+  // Set Logging parameters
+  XrdOucString unit = "auth@localhost";
+
+  // setup the circular in-memory log buffer
+  eos::common::Logging::Init();
+  eos::common::Logging::SetLogPriority(mLogLevel);
+  eos::common::Logging::SetUnit(unit.c_str());
+  eos_info("info=\"logging configured\"");
 }
 
 
@@ -250,6 +259,9 @@ EosAuthOfs::Configure(XrdSysError& error)
             error.Say("=====> eosauth.loglevel: ",
                        eos::common::Logging::GetPriorityString(mLogLevel), "");
           }
+
+          // Set the new log level
+          eos::common::Logging::SetLogPriority(mLogLevel);
         }       
       }
     }
@@ -260,7 +272,7 @@ EosAuthOfs::Configure(XrdSysError& error)
       if ((XrdSysThread::Run(&proxy_tid, EosAuthOfs::StartAuthProxyThread,
                              static_cast<void *>(this), 0, "Auth Proxy Thread")))
       {
-        error.Emsg("Connect", "cannot start the authentication proxy thread");
+        eos_err("cannot start the authentication proxy thread");
         NoGo = 1;
       }    
       
@@ -283,7 +295,7 @@ EosAuthOfs::Configure(XrdSysError& error)
           }
           catch (zmq::error_t& err)
           {
-            error.Say("dealing with connect exception");
+            eos_warning("dealing with connect exception");
             continue;
           }
 
@@ -295,19 +307,11 @@ EosAuthOfs::Configure(XrdSysError& error)
     }
     else
     {
-      error.Emsg("Configure ", "No master MGM specified e.g. eosxx.cern.ch:5555");
+      eos_err("No master MGM specified e.g. eos.master.cern.ch:15555");
       NoGo = 1;
     }
   }
 
-  // Set Logging parameters
-  XrdOucString unit = "auth@localhost";
-
-  // setup the circular in-memory log buffer
-  eos::common::Logging::Init();
-  eos::common::Logging::SetLogPriority(mLogLevel);
-  eos::common::Logging::SetUnit(unit.c_str());
-  eos_info("info=\"logging configured\"");
   return NoGo;
 }
 
@@ -384,20 +388,20 @@ EosAuthOfs::AuthProxyThread()
     
     if (rc < 0)
     {
-      OfsEroute.Emsg("AuthProxyThread ", "error in poll");
+      eos_err("error in poll");
       return;
     }
 
     // Process a request
     if (items[0].revents & ZMQ_POLLIN)
     {
-      //OfsEroute.Say("got frontend event");
+      eos_debug("got frontend event");
       
       while (true)
       {
         if (!mFrontend->recv(&msg))
         {
-          OfsEroute.Emsg("AuthProxyThread ", "error while recv on frontend");
+          eos_err("error while recv on frontend");
           return;
         }
       
@@ -408,7 +412,7 @@ EosAuthOfs::AuthProxyThread()
         }
         catch (zmq::error_t& err)
         {
-          OfsEroute.Emsg("AuthProxyThread ", "exception in getsockopt");
+          eos_err("exception in getsockopt");
           return;
         }
         
@@ -417,7 +421,7 @@ EosAuthOfs::AuthProxyThread()
           XrdSysMutexHelper scop_lock(mMutexMaster);
           if (!mMaster->send(msg, more ? ZMQ_SNDMORE : 0))
           {
-            OfsEroute.Emsg("AuthProxyThread ", "error while sending to master");
+            eos_err("error while sending to master");
             return;
           }
         }
@@ -430,13 +434,13 @@ EosAuthOfs::AuthProxyThread()
     // Process a reply from the first MGM
     if (items[1].revents & ZMQ_POLLIN)
     {
-      //OfsEroute.Say("got mBackend1 event");
+      eos_debug("got mBackend1 event");
       
       while (true)
       {
         if (!mBackend1.second->recv(&msg))
         {
-          OfsEroute.Emsg("AuthProxyThread ", "error while recv on mBackend1");
+          eos_err("error while recv on mBackend1");
           return;
         }
         
@@ -447,13 +451,13 @@ EosAuthOfs::AuthProxyThread()
         }
         catch (zmq::error_t& err)
         {
-          OfsEroute.Emsg("AuthProxyThread ", "exception in getsockopt");
+          eos_err("exception in getsockopt");
           return;
         }
 
         if (!mFrontend->send(msg, more ? ZMQ_SNDMORE : 0))
         {
-          OfsEroute.Emsg("AuthProxyThread", "error while send to frontend(1)");
+          eos_err("error while send to frontend(1)");
           return;
         }
        
@@ -465,13 +469,13 @@ EosAuthOfs::AuthProxyThread()
     // Process a reply from the second MGM
     if ((poll_size == 3) && (items[2].revents & ZMQ_POLLIN))
     {
-      //OfsEroute.Say("got mBackend2 event");
+      eos_debug("got mBackend2 event");
       
       while (true)
       {
         if (!mBackend2.second->recv(&msg))
         {
-          OfsEroute.Emsg("AuthProxyThread ", "error while recv on mBackend2");
+          eos_err("error while recv on mBackend2");
           return;
         }
         
@@ -482,13 +486,13 @@ EosAuthOfs::AuthProxyThread()
         }
         catch (zmq::error_t& err)
         {
-          OfsEroute.Emsg("AuthProxyThread ", "exception in getsockopt");
+          eos_err("exception in getsockopt");
           return;
         }
 
         if (!mFrontend->send(msg, more ? ZMQ_SNDMORE : 0))
         {
-          OfsEroute.Emsg("AuthProxyThread", "error while send to frontend(2)");
+          eos_err("error while send to frontend(2)");
           return;
         }
 
