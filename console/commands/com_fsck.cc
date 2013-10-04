@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // FiBle: com_fsck.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -23,100 +24,151 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
+#include "console/ConsoleCliCommand.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Namespace Interface */
 int
 com_fsck (char* arg1)
 {
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString cmd = subtokenizer.GetToken();
   XrdOucString option;
   XrdOucString options = "";
   XrdOucString path = "";
   XrdOucString in = "";
-  XrdOucString selection = "";
+  ConsoleCliCommand *parsedCmd, *fsckCmd, *statSubCmd, *enableSubCmd,
+    *disableSubCmd, *reportSubCmd, *repairSubCmd;
 
-  if (wants_help(arg1))
-    goto com_fsck_usage;
+  fsckCmd = new ConsoleCliCommand("fsck", "filesystem consistency check");
 
-  if ((cmd != "stat") && (cmd != "enable") && (cmd != "disable") && (cmd != "report") && (cmd != "repair"))
+  statSubCmd = new ConsoleCliCommand("stat", "print status of consistency "
+                                     "check");
+  fsckCmd->addSubcommand(statSubCmd);
+
+  enableSubCmd = new ConsoleCliCommand("enable", "enable fsck");
+  CliPositionalOption interval("interval", "check interval in minutes "
+                               "(default: 30 minutes)", 1, 1, "<interval>");
+  interval.addEvalFunction(optionIsPositiveNumberEvalFunc, 0);
+  enableSubCmd->addOption(interval);
+  fsckCmd->addSubcommand(enableSubCmd);
+
+  disableSubCmd = new ConsoleCliCommand("disable", "stop fsck");
+  fsckCmd->addSubcommand(disableSubCmd);
+
+  reportSubCmd = new ConsoleCliCommand("report", "report consistency check "
+                                       "results");
+  reportSubCmd->addOptions({{"all", "break down statistics per filesystem", "-a"},
+                            {"ids", "print concerned file ids", "-i"},
+                            {"logical", "print concerned logical names", "-l"},
+                            {"json", "select JSON output format", "--json"}
+                           });
+  reportSubCmd->addOption({"error", "select to report only error tag <tag>",
+                           "--error=", "<tag>", false});
+  fsckCmd->addSubcommand(reportSubCmd);
+
+  repairSubCmd = new ConsoleCliCommand("repair", "filesystem consistency "
+                                       "repair functions");
+  repairSubCmd->addOptions({{"checksum", "issues a 'verify' operation on all "
+                             "files with checksum errors", "--checksum"},
+                            {"checksum-commit", "issues a 'verify' operation "
+                             "on all files with checksum errors and forces a "
+                             "commit of size and checksum to the MGM",
+                             "--checksum-commit"},
+                            {"resync", "issues a 'resync' operation on all "
+                             "files with any error. This will resync the MGM "
+                             "meta data to the storage node and will clean-up "
+                             "'ghost' entries in the FST meta data cache.",
+                             "--resync"},
+                            {"unlink-unregistered", "unlink replicas which are "
+                             "not connected/registered to their logical name",
+                             "--unlink-unregistered"},
+                            {"unlink-orphans", "unlink replicas which don't "
+                             "belong to any logical name", "--unlink-orphans"},
+                            {"adjust-replicas", "try to fix all replica "
+                             "inconsistencies", "--adjust-replicas"},
+                            {"drop-missing-replicas", "just drop replicas from "
+                             "the namespace if they cannot be found on disk",
+                             "--drop-missing-replicas"},
+                            {"unlink-zero-replicas", "drop all files which "
+                             "have no replica's attached and are older than 48 "
+                             "hours!", "--unlink-zero-replicas"},
+                            {"all", "do all the repair actions above, besides "
+                             "--checksum-commit", "--all"}
+                           });
+  repairSubCmd->addOption({"error", "select to repair only error tag <tag>",
+                           "--error=", "<tag>", false});
+  fsckCmd->addSubcommand(repairSubCmd);
+
+  addHelpOptionRecursively(fsckCmd);
+
+  parsedCmd = fsckCmd->parse(arg1);
+
+  if (parsedCmd == fsckCmd)
   {
-    goto com_fsck_usage;
+    if (!checkHelpAndErrors(parsedCmd))
+      fsckCmd->printUsage();
+    goto bailout;
   }
+  else if (checkHelpAndErrors(parsedCmd))
+    goto bailout;
 
   in = "mgm.cmd=fsck&";
-  if (cmd == "enable")
+
+  if (parsedCmd == enableSubCmd)
   {
-    XrdOucString interval = subtokenizer.GetToken();
-    if (interval.length() && ((atoi(interval.c_str())) <= 0))
-    {
-      goto com_fsck_usage;
-    }
+    XrdOucString interval("");
+
     in += "mgm.subcmd=enable";
-    if (interval.length())
+    if (enableSubCmd->hasValue("interval"))
     {
       in += "&mgm.fsck.interval=";
-      in += interval.c_str();
+      in += enableSubCmd->getValue("interval").c_str();
     }
   }
-  if (cmd == "disable")
+  else if (parsedCmd == disableSubCmd)
   {
     in += "mgm.subcmd=disable";
   }
-
-  if (cmd == "stat")
-  {
+  else if (parsedCmd == statSubCmd)
     in += "mgm.subcmd=stat";
-  }
-
-  if (cmd == "report")
+  else if (parsedCmd == reportSubCmd)
   {
     in += "mgm.subcmd=report";
-    do
-    {
-      option = subtokenizer.GetToken();
-      if (option.length())
-      {
-        if (option == "--error")
-        {
-          selection = subtokenizer.GetToken();
-          if (!selection.length())
-          {
-            goto com_fsck_usage;
-          }
-          continue;
-        }
-        while (option.replace("-", ""))
-        {
-        }
-        options += option;
-      }
-    }
-    while (option.length());
-  }
 
-  if (cmd == "repair")
+    if (reportSubCmd->hasValue("error"))
+    {
+      in += "&mgm.fsck.selection=";
+      in += reportSubCmd->getValue("error").c_str();
+    }
+
+    if (reportSubCmd->hasValue("a"))
+      options += "a";
+    if (reportSubCmd->hasValue("ids"))
+      options += "i";
+    if (reportSubCmd->hasValue("logical"))
+      options += "l";
+    if (reportSubCmd->hasValue("json"))
+      options += "json";
+  }
+  else if (parsedCmd == repairSubCmd)
   {
     in += "mgm.subcmd=repair";
-    option = subtokenizer.GetToken();
-    if ((!option.length()) ||
-        ((option != "--checksum") &&
-         (option != "--checksum-commit") &&
-         (option != "--resync") &&
-         (option != "--unlink-unregistered") &&
-         (option != "--unlink-orphans") &&
-         (option != "--adjust-replicas") &&
-         (option != "--drop-missing-replicas") &&
-         (option != "--unlink-zero-replicas") &&
-         (option != "--all")))
-      goto com_fsck_usage;
-    option.replace("--", "");
-    in += "&mgm.option=";
-    in += option;
-  }
 
+    const char* repairOptions[] = {"checksum", "checksum-commit", "resync",
+                                   "unlink-unregistered", "unlink-orphans",
+                                   "unlink-replicas", "drop-missing-replicas",
+                                   "unlink-zero-replicas", "all"};
+    for (int i = 0; repairOptions[i]; i++)
+    {
+      if (repairSubCmd->hasValue(repairOptions[i]))
+        options += repairOptions[i];
+    }
+
+    if (options.length() == 0)
+    {
+      repairSubCmd->printUsage();
+      goto bailout;
+    }
+  }
 
   if (options.length())
   {
@@ -124,49 +176,10 @@ com_fsck (char* arg1)
     in += options;
   }
 
-  if (selection.length())
-  {
-    in += "&mgm.fsck.selection=";
-    in += selection;
-  }
-
   global_retc = output_result(client_admin_command(in));
-  return (0);
 
-com_fsck_usage:
-  fprintf(stdout, "usage: fsck stat                                                  :  print status of consistency check\n");
-  fprintf(stdout, "       fsck enable [<interval>]                                   :  enable fsck\n");
-  fprintf(stdout, "                                                       <interval> :  check interval in minutes - default 30 minutes");
-  fprintf(stdout, "       fsck disable                                               :  disable fsck\n");
-  fprintf(stdout, "       fsck report [-h] [-a] [-i] [-l] [--json] [--error <tag> ]  :  report consistency check results");
-  fprintf(stdout, "                                                               -a :  break down statistics per filesystem\n");
-  fprintf(stdout, "                                                               -i :  print concerned file ids\n");
-  fprintf(stdout, "                                                               -l :  print concerned logical names\n");
-  fprintf(stdout, "                                                           --json :  select JSON output format\n");
-  fprintf(stdout, "                                                          --error :  select to report only error tag <tag>\n");
-  fprintf(stdout, "                                                               -h :  print help explaining the individual tags!\n");
-
-  fprintf(stdout, "       fsck repair --checksum\n");
-  fprintf(stdout, "                                                                  :  issues a 'verify' operation on all files with checksum errors\n");
-  fprintf(stdout, "       fsck repair --checksum-commit\n");
-  fprintf(stdout, "                                                                  :  issues a 'verify' operation on all files with checksum errors and forces a commit of size and checksum to the MGM\n");
-  fprintf(stdout, "       fsck repair --resync\n");
-  fprintf(stdout, "                                                                  :  issues a 'resync' operation on all files with any error. This will resync the MGM meta data to the storage node and will clean-up 'ghost' entries in the FST meta data cache.\n");
-
-  fprintf(stdout, "       fsck repair --unlink-unregistered\n");
-  fprintf(stdout, "                                                                  :  unlink replicas which are not connected/registered to their logical name\n");
-  fprintf(stdout, "       fsck repair --unlink-orphans\n");
-  fprintf(stdout, "                                                                  :  unlink replicas which don't belong to any logical name\n");
-  fprintf(stdout, "       fsck repair --adjust-replicas\n");
-  fprintf(stdout, "                                                                  :  try to fix all replica inconsistencies\n");
-  fprintf(stdout, "       fsck repair --drop-missing-replicas\n");
-  fprintf(stdout, "                                                                  :  just drop replicas from the namespace if they cannot be found on disk\n");
-  fprintf(stdout, "       fsck repair --unlink-zero-replicas\n");
-  fprintf(stdout, "                                                                  :  drop all files which have no replica's attached and are older than 48 hours!\n");
-  fprintf(stdout, "       fsck repair --all                                          :  do all the repair actions besides <checksum-commit>\n");
-
-
-
+ bailout:
+  delete fsckCmd;
 
   return (0);
 }
