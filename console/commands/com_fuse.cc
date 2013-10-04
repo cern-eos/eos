@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_fuse.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // -----------------------------------B-----------------------------------
 
 /************************************************************************
@@ -37,16 +38,13 @@ com_fuse (char* arg1)
 {
   if (interactive)
   {
-    fprintf(stderr, "error: don't call <fuse> from an interactive shell - call via 'eos fuse ...'!\n");
+    fprintf(stderr, "Error: don't call <fuse> from an interactive shell - call via 'eos fuse ...'!\n");
     global_retc = -1;
     return 0;
   }
 
-  // split subcommands
+  ConsoleCliCommand *parsedCmd, *fuseCmd, *mountSubCmd, *umountSubCmd;
   XrdOucString mountpoint = "";
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString cmd = subtokenizer.GetToken();
   XrdOucString option = "";
   XrdOucString logfile = "";
   XrdOucString fsname = serveruri;
@@ -54,45 +52,43 @@ com_fuse (char* arg1)
   XrdOucString params = "kernel_cache,attr_timeout=30,entry_timeout=30,max_readahead=131072,max_write=4194304,fsname=";
   params += fsname;
 
-  if (wants_help(arg1))
-    goto com_fuse_usage;
+  fuseCmd = new ConsoleCliCommand("fuse", "mount or unmount EOS pool");
 
-  if ((cmd != "mount") && (cmd != "umount"))
-    goto com_fuse_usage;
+  CliPositionalOption mountpointOption("mountpoint", "", 1, 1,
+                                       "<mount-point>", true);
 
-  do
+  mountSubCmd = new ConsoleCliCommand("mount", "mount connected EOS pool on "
+                                  "<mount-point>");
+  mountSubCmd->addOption(mountpointOption);
+  mountSubCmd->addOptions({{"parameters", "", "-o", "<parameter-list>", false},
+                           {"log-file", "", "-l", "<log-file>", false}
+                          });
+  fuseCmd->addSubcommand(mountSubCmd);
+
+  umountSubCmd = new ConsoleCliCommand("umount", "unmount EOS pool from "
+                                   "<mount-point>");
+  umountSubCmd->addOption(mountpointOption);
+  fuseCmd->addSubcommand(umountSubCmd);
+
+  addHelpOptionRecursively(fuseCmd);
+
+  parsedCmd = fuseCmd->parse(arg1);
+
+  if (parsedCmd == fuseCmd)
   {
-    option = subtokenizer.GetToken();
-    if (!option.length())
-      break;
-    if (option.beginswith("-o"))
-    {
-      params = subtokenizer.GetToken();
-      if (!params.length())
-        goto com_fuse_usage;
-    }
-    else
-    {
-      if (option.beginswith("-l"))
-      {
-        logfile = subtokenizer.GetToken();
-        if (!logfile.length())
-          goto com_fuse_usage;
-      }
-      else
-      {
-        break;
-      }
-    }
+    if (!checkHelpAndErrors(fuseCmd))
+      fuseCmd->printUsage();
+
+    exit(-1);
+    return 0;
   }
-  while (1);
+  if (checkHelpAndErrors(parsedCmd))
+  {
+    exit(parsedCmd->hasValue("help") ? 0 : -1);
+    return 0;
+  }
 
-  mountpoint = option;
-  if (!mountpoint.length())
-    goto com_fuse_usage;
-
-  if (mountpoint.beginswith("-"))
-    goto com_fuse_usage;
+  mountpoint = parsedCmd->getValue("mountpoint").c_str();
 
   if (!mountpoint.beginswith("/"))
   {
@@ -105,8 +101,14 @@ com_fuse (char* arg1)
     mountpoint.insert(pwd.c_str(), 0);
   }
 
-  if (cmd == "mount")
+  if (parsedCmd == mountSubCmd)
   {
+    if (mountSubCmd->hasValue("parameters"))
+      params = mountSubCmd->getValue("parameters").c_str();
+
+    if (mountSubCmd->hasValue("log-file"))
+      logfile = mountSubCmd->getValue("log-file").c_str();
+
     struct stat buf;
     struct stat buf2;
     if (stat(mountpoint.c_str(), &buf))
@@ -118,10 +120,9 @@ com_fuse (char* arg1)
       int rc = system(createdir.c_str());
       if (WEXITSTATUS(rc))
       {
-        fprintf(stderr, "error: creation of mountpoint failed");
+        fprintf(stderr, "Error: creation of mountpoint failed");
       }
     }
-
 
     if (stat(mountpoint.c_str(), &buf))
     {
@@ -245,7 +246,7 @@ com_fuse (char* arg1)
       int rc = system(mount.c_str());
       if (WEXITSTATUS(rc))
       {
-        fprintf(stderr, "error: mount failed");
+        fprintf(stderr, "Error: mount failed");
       }
       sleep(1);
     }
@@ -255,20 +256,19 @@ com_fuse (char* arg1)
       int rc = system(mount.c_str());
       if (WEXITSTATUS(rc))
       {
-        fprintf(stderr, "error: mount failed");
+        fprintf(stderr, "Error: mount failed");
       }
     }
 
 
     if ((stat(mountpoint.c_str(), &buf2) || (buf2.st_ino == buf.st_ino)))
     {
-      fprintf(stderr, "error: mount failed at %s\n", mountpoint.c_str());
+      fprintf(stderr, "Error: mount failed at %s\n", mountpoint.c_str());
       exit(-1);
     }
 
   }
-
-  if (cmd == "umount")
+  else if (parsedCmd == umountSubCmd)
   {
     struct stat buf2;
 
@@ -277,7 +277,7 @@ com_fuse (char* arg1)
 
     if ((stat(mountpoint.c_str(), &buf) || (buf.st_ino != 1)))
     {
-      fprintf(stderr, "error: there is no eos mount at %s\n", mountpoint.c_str());
+      fprintf(stderr, "Error: there is no eos mount at %s\n", mountpoint.c_str());
       exit(-1);
     }
 #endif
@@ -296,27 +296,24 @@ com_fuse (char* arg1)
     int rc = system(umount.c_str());
     if (WEXITSTATUS(rc))
     {
-      fprintf(stderr, "error: umount failed\n");
+      fprintf(stderr, "Error: umount failed\n");
     }
     if ((stat(mountpoint.c_str(), &buf2)))
     {
-      fprintf(stderr, "error: mount directoy disappeared from %s\n", mountpoint.c_str());
+      fprintf(stderr, "Error: mount directoy disappeared from %s\n", mountpoint.c_str());
       exit(-1);
     }
 
 #ifndef __APPLE__
     if (buf.st_ino == buf2.st_ino)
     {
-      fprintf(stderr, "error: umount didn't work\n");
+      fprintf(stderr, "Error: umount didn't work\n");
       exit(-1);
     }
 #endif
   }
 
-  exit(0);
+  delete fuseCmd;
 
-com_fuse_usage:
-  fprintf(stdout, "usage: fuse mount  <mount-point> [-o <fuseparamaterlist>] [-l <logfile>] : mount connected eos pool on <mount-point>\n");
-  fprintf(stdout, "       fuse umount <mount-point>                                         : unmount eos pool from <mount-point>\n");
-  exit(-1);
+  return 0;
 }
