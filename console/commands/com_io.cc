@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_io.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -29,213 +30,155 @@
 int
 com_io (char* arg1)
 {
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString cmd = subtokenizer.GetToken();
-  XrdOucString option = "";
   XrdOucString options = "";
   XrdOucString path = "";
   XrdOucString in = "";
   XrdOucString target = "";
+  ConsoleCliCommand *parsedCmd, *ioCmd, *statSubCmd, *enableSubCmd,
+    *disableSubCmd, *reportSubCmd, *nsSubCmd;
 
-  if (wants_help(arg1))
-    goto com_io_usage;
+  ioCmd = new ConsoleCliCommand("io", "IO related functions");
 
-  if ((cmd != "stat") && (cmd != "enable") && (cmd != "disable") && (cmd != "report") && (cmd != "ns"))
+  statSubCmd = new ConsoleCliCommand("stat", "print IO statistics");
+  statSubCmd->addOptions({{"summary", "show summary information (this is the "
+                           "default if -t,-d,-x is not selected)", "-l"},
+                          {"all", "break down by uid/gid", "-a"},
+                          {"monitor", "print in <key>=<val> monitoring format",
+                           "-m"},
+                          {"numerical", "print numerical uid/gids", "-n"},
+                          {"top", "print top user stats", "-t"},
+                          {"domains", "break down by domains", "-d"},
+                          {"app", "break down by application", "-x"},
+                         });
+  ioCmd->addSubcommand(statSubCmd);
+
+  enableSubCmd = new ConsoleCliCommand("enable", "enable collection of IO "
+                                       "reports");
+  enableSubCmd->addOptions({{"reports", "enable collection of IO reports", "-r"},
+                            {"popularity", "enable popularity accounting", "-p"},
+                            {"namespace", "enable report namespace", "-n"}
+                           });
+  enableSubCmd->addOption({"target", "add a UDP message target for IO UDP "
+                           "packets (the configured targets are shown by "
+                           "'io stat -l'", "--udp=", "<address>", false});
+  ioCmd->addSubcommand(enableSubCmd);
+
+  disableSubCmd = new ConsoleCliCommand("disable", "disable collection of IO "
+                                       "reports");
+  disableSubCmd->addOptions({{"reports", "disable collection of IO reports",
+                              "-r"},
+                             {"popularity", "disable popularity accounting",
+                              "-p"},
+                             {"namespace", "disable report namespace", "-n"}
+                            });
+  disableSubCmd->addOption({"target", "remove a UDP message target for IO UDP "
+                            "packets (the configured targets are shown by "
+                            "'io stat -l'", "--udp=", "<address>", false});
+  ioCmd->addSubcommand(disableSubCmd);
+
+  reportSubCmd = new ConsoleCliCommand("report", "show contents of report "
+                                       "namespace for <path>");
+  reportSubCmd->addOption({"path", "", 1, 1, "<path>", true});
+  ioCmd->addSubcommand(reportSubCmd);
+
+  nsSubCmd = new ConsoleCliCommand("ns", "show namespace IO ranking "
+                                   "(popularity)");
+  nsSubCmd->addOptions({{"all", "don't limit the output list", "-a"},
+                        {"monitor", "print in <key>=<val> monitoring format",
+                         "-m"},
+                        {"accesses", "show ranking by number of accesses", "-n"},
+                        {"bytes", "show ranking by number of bytes", "-b"},
+                        {"week", "show history for the last 7 days", "-w"}
+                       });
+  nsSubCmd->addGroupedOptions({{"100", "show the first 100 in the ranking",
+                                "-100"},
+                               {"1000", "show the first 1000 in the ranking",
+                                "-1000,-1k"},
+                               {"1000", "show the first 10000 in the ranking",
+                                "-10000,-10k"}
+                              });
+  ioCmd->addSubcommand(nsSubCmd);
+
+  addHelpOptionRecursively(ioCmd);
+
+  parsedCmd = ioCmd->parse(arg1);
+
+  if (parsedCmd == ioCmd)
   {
-    goto com_io_usage;
+    if (!checkHelpAndErrors(ioCmd))
+      ioCmd->printUsage();
+    goto bailout;
   }
+  else if (checkHelpAndErrors(parsedCmd))
+    goto bailout;
 
   in = "mgm.cmd=io&";
 
-  if (cmd == "enable")
+  if (parsedCmd == enableSubCmd || parsedCmd == disableSubCmd)
   {
-    in += "mgm.subcmd=enable";
-  }
-  if (cmd == "disable")
-  {
-    in += "mgm.subcmd=disable";
-  }
+    in += "mgm.subcmd=";
+    in += parsedCmd == enableSubCmd ? "enable" : "disable";
 
-  if (cmd == "stat")
+    if (parsedCmd->hasValue("target"))
+      target = parsedCmd->getValue("target").c_str();
+
+    const char *enableOptions[] = {"namespace", "n",
+                                   "reports", "r",
+                                   "popularity", "p",
+                                   NULL
+                                  };
+
+    for (int i = 0; enableOptions[i] != NULL; i += 2)
+    {
+      if (parsedCmd->hasValue(enableOptions[i]))
+        options += enableOptions[i + 1];
+    }
+  }
+  else if (parsedCmd == statSubCmd)
   {
     in += "mgm.subcmd=stat";
+    const char *statOptions[] = {"summary", "l",
+                                 "all", "a",
+                                 "monitor", "m",
+                                 "numerical", "n",
+                                 "top", "t",
+                                 "domains", "d",
+                                 "app", "x",
+                                 NULL
+                                };
+    for (int i = 0; statOptions[i] != NULL; i += 2)
+    {
+      if (statSubCmd->hasValue(statOptions[i]))
+        options += statOptions[i + 1];
+    }
   }
-
-  if (cmd == "report")
+  else if (parsedCmd == reportSubCmd)
   {
     in += "mgm.subcmd=report";
-    path = subtokenizer.GetToken();
-
-    if (!path.length())
-      goto com_io_usage;
     in += "&mgm.io.path=";
-    in += path;
+    in += reportSubCmd->getValue("path").c_str();
   }
-  else
+  else if (parsedCmd == nsSubCmd)
   {
-    if (cmd == "ns")
-    {
-      in += "mgm.subcmd=ns";
-      do
-      {
-        option = subtokenizer.GetToken();
-        if (!option.length())
-          break;
-        if (option == "-m")
-        {
-          options += "-m";
-        }
-        else
-        {
-          if (option == "-100")
-          {
-            options += "-100";
-          }
-          else
-          {
-            if (option == "-1000")
-            {
-              options += "-1000";
-            }
-            else
-            {
-              if (option == "-10000")
-              {
-                options += "-10000";
-              }
-              else
-              {
-                if (option == "-a")
-                {
-                  options += "-a";
-                }
-                else
-                {
-                  if (option == "-b")
-                  {
-                    options += "-b";
-                  }
-                  else
-                  {
-                    if (option == "-n")
-                    {
-                      options += "-n";
-                    }
-                    else
-                    {
-                      if (option == "-w")
-                      {
-                        options += "-w";
-                      }
-                      else
-                      {
-                        goto com_io_usage;
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-      while (1);
-    }
-    else
-    {
-      do
-      {
-        option = subtokenizer.GetToken();
-        if (!option.length())
-          break;
-        if (option == "-a")
-        {
-          options += "a";
-        }
-        else
-        {
-          if (option == "-m")
-          {
-            options += "m";
-          }
-          else
-          {
-            if (option == "-n")
-            {
-              options += "n";
-            }
-            else
-            {
-              if (option == "-t")
-              {
-                options += "t";
-              }
-              else
-              {
-                if (option == "-r")
-                {
-                  options += "r";
-                }
-                else
-                {
-                  if (option == "-n")
-                  {
-                    options += "n";
-                  }
-                  else
-                  {
-                    if (option == "-d")
-                    {
-                      options += "d";
-                    }
-                    else
-                    {
-                      if (option == "-x")
-                      {
-                        options += "x";
-                      }
-                      else
-                      {
-                        if (option == "-l")
-                        {
-                          options += "l";
-                        }
-                        else
-                        {
-                          if (option == "-p")
-                          {
-                            options += "p";
-                          }
-                          else
-                          {
-                            if (option == "--udp")
-                            {
-                              target = subtokenizer.GetToken();
-                              if ((!target.length()) || (target.beginswith("-")))
-                              {
-                                goto com_io_usage;
-                              }
-                            }
-                            else
-                            {
-                              goto com_io_usage;
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-      while (1);
-    }
-  }
+    in += "mgm.subcmd=ns";
 
+    const char *nsOptions[] = {"all", "a",
+                               "monitor", "m",
+                               "accesses", "n",
+                               "bytes", "b",
+                               "week", "w",
+                               "100", "-100",
+                               "1000", "-1000",
+                               "10000", "-10000",
+                               NULL
+                              };
+    for (int i = 0; nsOptions[i] != NULL; i += 2)
+    {
+      if (nsSubCmd->hasValue(nsOptions[i]))
+        options += nsOptions[i + 1];
+    }
+
+  }
 
   if (options.length())
   {
@@ -247,36 +190,11 @@ com_io (char* arg1)
     in += "&mgm.udptarget=";
     in += target;
   }
-  global_retc = output_result(client_admin_command(in));
-  return (0);
 
-com_io_usage:
-  fprintf(stdout, "usage: io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x]               :  print io statistics\n");
-  fprintf(stdout, "                -l                                                   -  show summary information (this is the default if -t,-d,-x is not selected)\n");
-  fprintf(stdout, "                -a                                                   -  break down by uid/gid\n");
-  fprintf(stdout, "                -m                                                   -  print in <key>=<val> monitoring format\n");
-  fprintf(stdout, "                -n                                                   -  print numerical uid/gids\n");
-  fprintf(stdout, "                -t                                                   -  print top user stats\n");
-  fprintf(stdout, "                -d                                                   -  break down by domains\n");
-  fprintf(stdout, "                -x                                                   -  break down by application\n");
-  fprintf(stdout, "       io enable [-r] [-p] [-n] [--udp <address>]                 :  enable collection of io statistics\n");
-  fprintf(stdout, "                                                               -r    enable collection of io reports\n");
-  fprintf(stdout, "                                                               -p    enable popularity accounting\n");
-  fprintf(stdout, "                                                               -n    enable report namespace\n");
-  fprintf(stdout, "                                                               --udp <address> add a UDP message target for io UDP packtes (the configured targets are shown by 'io stat -l'\n");
-  fprintf(stdout, "       io disable [-r] [-p] [-n]                                       :  disable collection of io statistics\n");
-  fprintf(stdout, "                                                               -r    disable collection of io reports\n");
-  fprintf(stdout, "                                                               -p    disable popularity accounting\n");
-  fprintf(stdout, "                                                               --udp <address> remove a UDP message target for io UDP packtes\n");
-  fprintf(stdout, "                                                               -n    disable report namespace\n");
-  fprintf(stdout, "       io report <path>                                           :  show contents of report namespace for <path>\n");
-  fprintf(stdout, "       io ns [-a] [-n] [-b] [-100|-1000|-10000] [-w]              :  show namespace IO ranking (popularity)\n");
-  fprintf(stdout, "                                                               -a    don't limit the output list\n");
-  fprintf(stdout, "                                                               -n :  show ranking by number of accesses \n");
-  fprintf(stdout, "                                                               -b :  show ranking by number of bytes\n");
-  fprintf(stdout, "                                                             -100 :  show the first 100 in the ranking\n");
-  fprintf(stdout, "                                                            -1000 :  show the first 1000 in the ranking\n");
-  fprintf(stdout, "                                                           -10000 :  show the first 10000 in the ranking\n");
-  fprintf(stdout, "                                                               -w :  show history for the last 7 days\n");
+  global_retc = output_result(client_admin_command(in));
+
+ bailout:
+  delete ioCmd;
+
   return (0);
 }
