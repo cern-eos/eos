@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_rmdir.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -29,58 +30,22 @@
 int
 com_rmdir (char* arg1)
 {
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString path = subtokenizer.GetToken();
+  XrdOucString path;
   XrdOucString in = "mgm.cmd=rmdir&";
 
-  if (wants_help(arg1))
-    goto com_rmdir_usage;
+  ConsoleCliCommand rmdirCmd("rmdir", "remote directory <path>");
+  rmdirCmd.addOption({"path", "", 1, 1, "<path>", true});
 
-  if ((path == "--help") || (path == "-h"))
-  {
-    goto com_rmdir_usage;
-  }
+  addHelpOptionRecursively(&rmdirCmd);
 
-  do
-  {
-    XrdOucString param;
-    param = subtokenizer.GetToken();
-    if (param.length())
-    {
-      path += " ";
-      path += param;
-    }
-    else
-    {
-      break;
-    }
-  }
-  while (1);
+  rmdirCmd.parse(arg1);
 
-  // remove escaped blanks
-  while (path.replace("\\ ", " "))
-  {
-  }
+  if (checkHelpAndErrors(&rmdirCmd))
+    return 0;
 
-  if (!path.length())
-  {
-    goto com_rmdir_usage;
+  path = cleanPath(rmdirCmd.getValue("path"));
+  in += "mgm.path=" + path;
 
-  }
-  else
-  {
-    path = abspath(path.c_str());
-    in += "mgm.path=";
-    in += path;
-
-    global_retc = output_result(client_user_command(in));
-    return (0);
-  }
-
-com_rmdir_usage:
-  fprintf(stdout, "usage: rmdir <path>                                                   :  remote directory <path>\n");
+  global_retc = output_result(client_user_command(in));
   return (0);
-
 }
