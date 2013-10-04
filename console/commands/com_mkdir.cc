@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_mkdir.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -29,67 +30,26 @@
 int
 com_mkdir (char* arg1)
 {
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString path = subtokenizer.GetToken();
+  XrdOucString path;
   XrdOucString in = "mgm.cmd=mkdir";
 
-  if (wants_help(arg1))
-    goto com_mkdir_usage;
+  ConsoleCliCommand mkdirCmd("mkdir", "set mode for <path>");
+  mkdirCmd.addOption({"parents", "make parent directories as needed", "-p"});
+  mkdirCmd.addOption({"path", "", 1, 1, "<path>", true});
 
-  if (path == "-p")
-  {
-    path = subtokenizer.GetToken();
+  addHelpOptionRecursively(&mkdirCmd);
+
+  mkdirCmd.parse(arg1);
+
+  if (checkHelpAndErrors(&mkdirCmd))
+    return 0;
+
+  if (mkdirCmd.hasValue("parents"))
     in += "&mgm.option=p";
-  }
-  else
-  {
-    if (path.beginswith("-"))
-    {
-      goto com_mkdir_usage;
-    }
-  }
 
-  do
-  {
-    // read space seperated names as a single directory name
-    XrdOucString param;
-    param = subtokenizer.GetToken();
-    if (param.length())
-    {
-      path += " ";
-      path += param;
-    }
-    else
-    {
-      break;
-    }
-  }
-  while (1);
+  path = cleanPath(mkdirCmd.getValue("path"));
+  in += "&mgm.path=" + path;
 
-  // remove escaped blanks
-  while (path.replace("\\ ", " "))
-  {
-  }
-
-  if (!path.length())
-  {
-    goto com_mkdir_usage;
-
-  }
-  else
-  {
-    path = abspath(path.c_str());
-    in += "&mgm.path=";
-    in += path;
-
-    global_retc = output_result(client_user_command(in));
-    return (0);
-  }
-
-com_mkdir_usage:
-  fprintf(stdout, "usage: mkdir -p <path>                                                :  create directory <path>\n");
+  global_retc = output_result(client_user_command(in));
   return (0);
-
 }
