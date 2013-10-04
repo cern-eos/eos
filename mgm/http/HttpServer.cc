@@ -223,7 +223,10 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
 
       dn       = (*it).substr(1, pos - 2); // Remove quotes around DN
       username = (*it).substr(pos + 1);
-
+      
+      // for proxies clientDN as appended a ../CN=... which has to be removed
+      std::string clientDNproxy = clientDN;
+      clientDNproxy.erase(clientDN.rfind("/CN="));
       // Try to match with SSL header
       if (dn == clientDN)
       {
@@ -231,28 +234,35 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
                         "dn=\"%s\"username=\"%s\"", dn.c_str(), username.c_str());
         break;
       }
+
+      if (dn == clientDNproxy)
+      {
+        eos_static_info("msg=\"mapped client proxy certificate successfully\" "
+                        "dn=\"%s\"username=\"%s\"", dn.c_str(), username.c_str());
+        break;
+      }
       
       username = "";
+    }
 
-      // Try to match with kerberos username
-      pos = remoteUser.find_last_of("@");
-      std::string remoteUserName = remoteUser.substr(0, pos);
-
-      std::vector<std::string> tokens;
-      eos::common::StringConversion::Tokenize(dn, tokens, "/");
-
-      for (auto it = tokens.begin(); it != tokens.end(); ++it)
+    // Try to match with kerberos username
+    pos = remoteUser.find_last_of("@");
+    std::string remoteUserName = remoteUser.substr(0, pos);
+    
+    std::vector<std::string> tokens;
+    eos::common::StringConversion::Tokenize(dn, tokens, "/");
+    
+    for (auto it = tokens.begin(); it != tokens.end(); ++it)
+    {       
+      pos            = (*it).find_last_of("=");
+      std::string cn = (*it).substr(pos + 1);
+      
+      if (cn == remoteUserName)
       {
-        pos            = (*it).find_last_of("=");
-        std::string cn = (*it).substr(pos + 1);
-
-        if (cn == remoteUserName)
-        {
-          username = (*it).substr(pos + 1);
-          eos_static_info("msg=\"mapped client krb5 username successfully\" "
-                          "username=\"%s\"", username.c_str());
-          break;
-        }
+	username = (*it).substr(pos + 1);
+	eos_static_info("msg=\"mapped client krb5 username successfully\" "
+			"username=\"%s\"", username.c_str());
+	break;
       }
     }
   }
