@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_group.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -33,113 +34,95 @@ com_group (char* arg1)
 {
   XrdOucString in = "";
   bool silent = false;
-  bool printusage = false;
   bool highlighting = true;
   XrdOucString option = "";
   XrdOucEnv* result = 0;
-  bool ok = false;
-  bool sel = false;
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString subcommand = subtokenizer.GetToken();
+  ConsoleCliCommand *parsedCmd, *groupCmd, *lsSubCmd, *rmSubCmd, *setSubCmd;
 
-  if (wants_help(arg1))
-    goto com_group_usage;
+  groupCmd = new ConsoleCliCommand("group", "group related functions");
 
-  if (subcommand == "ls")
+  CliPositionalOption groupOption("group", "", 1, 1, "<group>", false);
+
+  lsSubCmd = new ConsoleCliCommand("ls", "list groups or only <group>");
+  lsSubCmd->addOption({"silent", "silent mode", "-s"});
+  lsSubCmd->addGroupedOptions({{"monitor", "monitoring key=value output format",
+                                "-m"},
+                               {"long", "long output - list also file systems "
+                                "after each group", "-l"},
+                               {"io", "print IO statistics for the group",
+                                "--io"},
+                               {"IO", "print IO statistics for each "
+                                "filesystem", "--IO"}
+                           });
+  lsSubCmd->addOption(groupOption);
+  groupCmd->addSubcommand(lsSubCmd);
+
+  groupOption.setRequired(true);
+
+  rmSubCmd = new ConsoleCliCommand("rm", "remove group");
+  rmSubCmd->addOption(groupOption);
+  groupCmd->addSubcommand(rmSubCmd);
+
+  setSubCmd = new ConsoleCliCommand("set", "activate/deactivate a group\nasas");
+  setSubCmd->addOption(groupOption);
+  CliPositionalOption activeOption("active", "", 2, 1, "on|off", true);
+  std::vector<std::string> choices = {"on", "off"};
+  activeOption.addEvalFunction(optionIsChoiceEvalFunc, &choices);
+  setSubCmd->addOption(activeOption);
+  groupCmd->addSubcommand(setSubCmd);
+
+  addHelpOptionRecursively(groupCmd);
+
+  parsedCmd = groupCmd->parse(arg1);
+
+  if (parsedCmd == groupCmd)
+  {
+    if (!checkHelpAndErrors(groupCmd))
+      groupCmd->printUsage();
+    goto bailout;
+  }
+  if (checkHelpAndErrors(parsedCmd))
+    goto bailout;
+
+  if (parsedCmd == lsSubCmd)
   {
     in = "mgm.cmd=group&mgm.subcmd=ls";
     option = "";
 
-    do
+    silent = lsSubCmd->hasValue("silent");
+
+    if (lsSubCmd->hasValue("monitor"))
     {
-      ok = false;
-      subtokenizer.GetLine();
-      option = subtokenizer.GetToken();
-      if (option.length())
-      {
-        if (option == "-m")
-        {
-          in += "&mgm.outformat=m";
-          ok = true;
-          highlighting = false;
-        }
-        if (option == "-l")
-        {
-          in += "&mgm.outformat=l";
-          ok = true;
-        }
-        if (option == "--io")
-        {
-          in += "&mgm.outformat=io";
-          ok = true;
-        }
-        if (option == "--IO")
-        {
-          in += "&mgm.outformat=IO";
-          ok = true;
-        }
-        if (option == "-s")
-        {
-          silent = true;
-          ok = true;
-        }
-        if (!option.beginswith("-"))
-        {
-          in += "&mgm.selection=";
-          in += option;
-          if (!sel)
-            ok = true;
-          sel = true;
-        }
-
-        if (!ok)
-          printusage = true;
-      }
-      else
-      {
-        ok = true;
-      }
+      in += "&mgm.outformat=m";
+      highlighting = false;
     }
-    while (option.length());
-  }
+    else if (lsSubCmd->hasValue("long"))
+      in += "&mgm.outformat=l";
+    else if (lsSubCmd->hasValue("io"))
+      in += "&mgm.outformat=io";
+    else if (lsSubCmd->hasValue("IO"))
+      in += "&mgm.outformat=IO";
 
-  if (subcommand == "set")
+    if (lsSubCmd->hasValue("group"))
+    {
+      in += "&mgm.selection=";
+      in += lsSubCmd->getValue("group").c_str();
+    }
+  }
+  else if (parsedCmd == setSubCmd)
   {
     in = "mgm.cmd=group&mgm.subcmd=set";
-    XrdOucString nodename = subtokenizer.GetToken();
-    XrdOucString active = subtokenizer.GetToken();
-
-    if ((active != "on") && (active != "off"))
-    {
-      printusage = true;
-    }
-
-    if (!nodename.length())
-      printusage = true;
     in += "&mgm.group=";
-    in += nodename;
+    in += setSubCmd->getValue("group").c_str();
     in += "&mgm.group.state=";
-    in += active;
-    ok = true;
+    in += setSubCmd->getValue("active").c_str();
   }
-
-  if (subcommand == "rm")
+  else if (parsedCmd == rmSubCmd)
   {
     in = "mgm.cmd=group&mgm.subcmd=rm";
-    XrdOucString groupname = subtokenizer.GetToken();
-
-    if (!groupname.length())
-      printusage = true;
     in += "&mgm.group=";
-    in += groupname;
-    ok = true;
+    in += rmSubCmd->getValue("group").c_str();
   }
-
-
-  if (printusage || (!ok))
-    goto com_group_usage;
 
   result = client_admin_command(in);
 
@@ -159,20 +142,8 @@ com_group (char* arg1)
     }
   }
 
-  return (0);
+ bailout:
+  delete groupCmd;
 
-com_group_usage:
-
-  fprintf(stdout, "usage: group ls                                                      : list groups\n");
-  fprintf(stdout, "usage: group ls [-s] [-m|-l|--io] [<group>]                          : list groups or only <group>\n");
-  fprintf(stdout, "                                                                  -s : silent mode\n");
-  fprintf(stdout, "                                                                  -m : monitoring key=value output format\n");
-  fprintf(stdout, "                                                                  -l : long output - list also file systems after each group\n");
-  fprintf(stdout, "                                                                --io : print IO statistics for the group\n");
-  fprintf(stdout, "                                                                --IO : print IO statistics for each filesystem\n");
-  fprintf(stdout, "       group rm <group-name>                                         : remove group\n");
-  fprintf(stdout, "       group set <group-name> on|off                                 : activate/deactivate group\n");
-  fprintf(stdout, "                                                                       => when a group is (re-)enabled, the drain pull flag is recomputed for all filesystems within a group\n");
-  fprintf(stdout, "                                                                       => when a group is (re-)disabled, the drain pull flag is removed from all members in the group\n");
   return (0);
 }
