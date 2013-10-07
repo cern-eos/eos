@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_reconnect.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -30,47 +31,55 @@
 int
 com_reconnect (char* arg1)
 {
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString param = "";
-  XrdOucString option = "";
-  param = subtokenizer.GetToken();
+  XrdOucString param("");
+  const char *options[] = {"gsi", "krb5", "unix", "sss", 0};
+  ConsoleCliCommand reconnectCmd("reconnect", "reconnect to the management "
+                                 "node (using the specified protocol)");
 
-  if ((!param.length()) ||
-      (param == "gsi") ||
-      (param == "krb5") ||
-      (param == "unix") ||
-      (param == "sss"))
+  std::vector<CliOption> optionsVector;
+  for (int i = 0; options[i]; i++)
+    optionsVector.push_back({options[i], "", options[i]});
+
+  reconnectCmd.addGroupedOptions(optionsVector);
+
+  addHelpOptionRecursively(&reconnectCmd);
+
+  reconnectCmd.parse(arg1);
+
+  if (checkHelpAndErrors(&reconnectCmd))
+    return 0;
+
+  for (int i = 0; options[i]; i++)
   {
-    if (param.length())
+    if (reconnectCmd.hasValue(options[i]))
     {
-      fprintf(stdout, "# reconnecting to %s with <%s> authentication\n", serveruri.c_str(), param.c_str());
-      setenv("XrdSecPROTOCOL", param.c_str(), 1);
+      param = options[i];
+      break;
     }
-    else
-    {
-      fprintf(stdout, "# reconnecting to %s\n", serveruri.c_str());
-    }
+  }
 
-    XrdOucString path = serveruri;
-    path += "//proc/admin/";
-
-    /* - NOT SUPPORTED IN THE NEW CLIENT 
-    XrdClientAdmin admin(path.c_str());
-    admin.Connect();
-    if (admin.GetClientConn()) {
-      admin.GetClientConn()->Disconnect(true);
-    }
-     */
-
-    if (debug)
-      fprintf(stdout, "debug: %s\n", path.c_str());
-    return (0);
+  if (param.length())
+  {
+    fprintf(stdout, "# reconnecting to %s with <%s> authentication\n",
+            serveruri.c_str(), param.c_str());
+    setenv("XrdSecPROTOCOL", param.c_str(), 1);
   }
   else
-  {
-    fprintf(stdout, "usage: reconnect [gsi,krb5,unix,sss]                                    :  reconnect to the management node [using the specified protocol]\n");
-    return (0);
-  }
+    fprintf(stdout, "# reconnecting to %s\n", serveruri.c_str());
+
+  XrdOucString path = serveruri;
+  path += "//proc/admin/";
+
+  /* - NOT SUPPORTED IN THE NEW CLIENT 
+     XrdClientAdmin admin(path.c_str());
+     admin.Connect();
+     if (admin.GetClientConn()) {
+     admin.GetClientConn()->Disconnect(true);
+     }
+  */
+
+  if (debug)
+    fprintf(stdout, "debug: %s\n", path.c_str());
+
+  return (0);
 }
