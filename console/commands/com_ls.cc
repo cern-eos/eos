@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_ls.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -25,61 +26,76 @@
 #include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
+#define HELP_PADDING 50
+
+void
+printLsHelp(void)
+{
+  const char *options[] = {"-l", "show long listing",
+                           "-a", "show hidden files",
+                           "-n", "show numerical user/group IDs",
+                           "-i", "add inode information",
+                           "-s", "checks only if the directory exists, "
+                                 "without listing it",
+                           NULL};
+
+  for (int i = 0; options[i]; i += 2)
+  {
+    const char *optionName = options[i];
+    const char *optionDesc = options[i + 1];
+    fprintf(stdout, "%*s\t- %s\n", HELP_PADDING, optionName, optionDesc);
+  }
+}
+
 /* List a directory */
 int
 com_ls (char* arg1)
 {
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
   XrdOucString param = "";
   XrdOucString option = "";
   XrdOucString path = "";
   XrdOucString in = "mgm.cmd=ls";
+  ConsoleCliCommand lsCmd("ls", "list directory <path>");
 
-  do
+  lsCmd.addOptions({{"option", "", 1, 1, "-lani"},
+                    {"path", "the path to list, e.g.:\n"
+                     "if <path> is file:..., list on a local file system\n"
+                     "if <path> is root:..., list on a plain XRootD server "
+                     "(does not work on native XRootD clusters)\n"
+                     "if <path> is ..., all other paths are considered to be "
+                     "EOS paths",
+                     2, 1, "<path>"}
+                   });
+
+  addHelpOptionRecursively(&lsCmd);
+
+  lsCmd.parse(arg1);
+
+  if (checkHelpAndErrors(&lsCmd))
   {
-    param = subtokenizer.GetToken();
-    if (!param.length())
-      break;
-    if (param == "--help")
-      goto com_ls_usage;
-    if (param == "-h")
-      goto com_ls_usage;
+    printLsHelp();
+    return 0;
+  }
+
+  if (lsCmd.hasValue("option"))
+  {
+    param = lsCmd.getValue("option").c_str();
 
     if (param.beginswith("-"))
-    {
       option += param;
-      if ((option.find("&")) != STR_NPOS)
-      {
-        goto com_ls_usage;
-      }
-    }
     else
-    {
-      if (path.length())
-      {
-        // this allows for spaces in path names
-        path += " ";
-        path += param;
-      }
-      else
-      {
-        path = param;
-      }
-    }
+      path = param;
   }
-  while (1);
+
+  if (path.length() == 0 && lsCmd.hasValue("path"))
+    path = lsCmd.getValue("path").c_str();
 
   if (!path.length())
   {
     path = pwd;
   }
 
-  // remove escaped blanks
-  while (path.replace("\\ ", " "))
-  {
-  }
+  path = cleanPath(path.c_str());
 
   if ((path.beginswith("as3:")))
   {
@@ -273,24 +289,9 @@ com_ls (char* arg1)
     return (0);
   }
 
-  path = abspath(path.c_str());
-
-  in += "&mgm.path=";
-  in += path;
-  in += "&mgm.option=";
-  in += option;
+  in += "&mgm.path=" + path;
+  in += "&mgm.option=" + option;
   global_retc = output_result(client_user_command(in));
-  return (0);
 
-com_ls_usage:
-  fprintf(stdout, "usage: ls [-lani] <path>                                                  :  list directory <path>\n");
-  fprintf(stdout, "                    -l : show long listing\n");
-  fprintf(stdout, "                    -a : show hidden files\n");
-  fprintf(stdout, "                    -i : add inode information\n");
-  fprintf(stdout, "                    -n : show numerical user/group ids\n");
-  fprintf(stdout, "                    -s : checks only if the directory exists without listing\n");
-  fprintf(stdout, "         path=file:... : list on a local file system\n");
-  fprintf(stdout, "         path=root:... : list on a plain XRootD server (does not work on native XRootD clusters\n");
-  fprintf(stdout, "         path=...      : all other paths are considered to be EOS paths!\n");
   return (0);
 }
