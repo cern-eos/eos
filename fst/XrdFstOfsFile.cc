@@ -195,19 +195,22 @@ XrdFstOfsFile::open (const char* path,
     isRW = true;
   }
 
-  eos_info("path=%s info=%s isRW=%d open_mode=%x",
-           Path.c_str(), maskOpaque.c_str(), isRW, open_mode);
   
   // ----------------------------------------------------------------------------
   // extract tpc keys
   // ----------------------------------------------------------------------------
   XrdOucEnv tmpOpaque(stringOpaque.c_str());
 
+  SetLogId(0, client, tident);
+  
   if ((val = tmpOpaque.Get("mgm.logid")))
   {
-    SetLogId(val, tident);
+    SetLogId(val, client, tident);
   }
 
+  eos_info("path=%s info=%s isRW=%d open_mode=%x",
+           Path.c_str(), maskOpaque.c_str(), isRW, open_mode);
+  
   std::string tpc_stage = tmpOpaque.Get("tpc.stage") ?
     tmpOpaque.Get("tpc.stage") : "";
   std::string tpc_key = tmpOpaque.Get("tpc.key") ?
@@ -249,6 +252,19 @@ XrdFstOfsFile::open (const char* path,
         //.......................................................................
         return gOFS.Emsg(epname, error, EINVAL, "open - tpc key missing", path);
       }
+
+      //.........................................................................
+      // Compute the tpc origin e.g. <name>:<pid>@<host.domain>
+      //.........................................................................
+
+      // TODO: Xrootd 4.0      std::string origin_host = client->addrInfo->Name();
+      std::string origin_host = client->host?client->host:"<sss-auth>";
+      std::string origin_tident = client->tident;
+      origin_tident.erase(origin_tident.find(":"));
+      tpc_org = origin_tident;
+      tpc_org += "@";
+      tpc_org += origin_host;
+
       //.........................................................................
       // Store the TPC initialization
       //.........................................................................
@@ -310,8 +326,7 @@ XrdFstOfsFile::open (const char* path,
       {
         return gOFS.Emsg(epname, error, EPERM, "open - tpc key expired", path);
       }
-      // TODO: we disable this one since a native XRootD server tpc does not provide this
-      if ( 0 && (gOFS.TpcMap[isRW][tpc_key].org != tpc_org))
+      if (gOFS.TpcMap[isRW][tpc_key].org != tpc_org)
       {
         return gOFS.Emsg(epname, error, EPERM, "open - tpc origin mismatch", path);
       }
@@ -2684,6 +2699,7 @@ XrdFstOfsFile::sync ()
 
     XrdIo tpcIO; // the remote IO object
 
+    eos_info("sync-url=%s sync-cgi=%s\n", src_url.c_str(), src_cgi.c_str());
     if (tpcIO.Open(src_url.c_str(), 0, 0, src_cgi.c_str(), 10))
     {
       XrdOucString msg = "sync - TPC open failed for url=";
