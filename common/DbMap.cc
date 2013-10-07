@@ -703,21 +703,45 @@ SqliteDbLogInterface::ArchiveThread (void *dummy)
     eos::common::Timing::GetTimeSpec(now);
 
     // process and erase the entry of the queue of which are outdated
-    if (archqueue.size() != 0)
-      for (tTimeToPeriodedFile::iterator it = archqueue.begin(); it != archqueue.end(); it = archqueue.begin())
+    long int nextinthefuture=-1;
+    if (archqueue.size() != 0) {
+      for (tTimeToPeriodedFile::iterator it = archqueue.begin(); it != archqueue.end(); )
       {
-        if (now < it->first) break;
-        Archive(it);
-        UpdateArchiveSchedule(it);
+        if (now < it->first) {
+          nextinthefuture = it->first.tv_sec;
+          break;
+        }
+        if(!Archive(it))
+          UpdateArchiveSchedule(it++); // if the archiving was successful, plan the next one for the same log
+        // if it was not successful leave this archiving task in the queue
+        else {
+          eos_static_warning("Error trying to archive %s, will retry soon",it->second.first.c_str());
+          it++;
+        }
       }
+    }
     // sleep untill the next archving has to happen or untill a new archive is added to the queue
-    now.tv_sec += 3600; // add 1 hour in case the queue is empty
-    int waketime = (int) (archqueue.empty() ? &now : &archqueue.begin()->first)->tv_sec;
+    const long int failedArchivingRetryDelay = 300; // retry the failed archiving operations in 5 minutes
+    int waketime;
+    if(archqueue.empty())
+      waketime = now.tv_sec + 3600;
+    else {
+      if(now < archqueue.begin()->first) {
+        waketime = archqueue.begin()->first.tv_sec; // the first task in the queue is in the future
+      }
+      else {
+        if( nextinthefuture >0 ) // there is a task in the future and some failed tasks to run again
+          waketime = std::min( now.tv_sec+failedArchivingRetryDelay , nextinthefuture  );
+        else // there are only failed tasks to run again
+          waketime = now.tv_sec+failedArchivingRetryDelay;
+      }
+    }
     int timedout = archmutex.Wait(waketime - time(0));
     if (timedout) sleep(5); // a timeout to let the db requests started just before the deadline complete, possible cancellation point
   }
   pthread_cleanup_pop(0);
   return NULL;
+
 }
 
 int
@@ -764,7 +788,8 @@ SqliteDbLogInterface::Archive (const tTimeToPeriodedFile::iterator &entry)
 
   char *stmt = new char[1024 + filename.size() + 256 * 2 + 4];
   sprintf(stmt, "ATTACH \'%s\' AS archive;", archivename);
-  ExecNoCallback2(stmt);
+  if(sqlite3_exec(db, stmt, NULL, NULL, NULL)!=SQLITE_OK) return 1;
+    
   sprintf(stmt, "CREATE TABLE IF NOT EXISTS archive.ondisk (timestamp UNSIGNED BIG INT , timestampstr TEXT, seqid INTEGER, writer TEXT, key TEXT, value TEXT,comment TEXT, PRIMARY KEY(timestamp,writer) );");
   ExecNoCallback2(stmt);
   uniqmutex.Lock();
@@ -1142,16 +1167,39 @@ LvDbDbLogInterface::ArchiveThread (void *dummy)
     eos::common::Timing::GetTimeSpec(now);
 
     // process and erase the entry of the queue of which are outdated
-    if (archqueue.size() != 0)
-      for (tTimeToPeriodedFile::iterator it = archqueue.begin(); it != archqueue.end(); it = archqueue.begin())
+    long int nextinthefuture=-1;
+    if (archqueue.size() != 0) {
+      for (tTimeToPeriodedFile::iterator it = archqueue.begin(); it != archqueue.end(); )
       {
-        if (now < it->first) break;
-        Archive(it);
-        UpdateArchiveSchedule(it);
+        if (now < it->first) {
+          nextinthefuture = it->first.tv_sec;
+          break;
+        }
+        if(!Archive(it))
+          UpdateArchiveSchedule(it++); // if the archiving was successful, plan the next one for the same log
+        // if it was not successful leave this archiving task in the queue
+        else {
+          eos_static_warning("Error trying to archive %s, will retry soon",it->second.first.c_str());
+          it++;
+        }
       }
+    }
     // sleep untill the next archving has to happen or untill a new archive is added to the queue
-    now.tv_sec += 3600; // add 1 hour in case the queue is empty
-    int waketime = (int) (archqueue.empty() ? &now : &archqueue.begin()->first)->tv_sec;
+    const long int failedArchivingRetryDelay = 300; // retry the failed archiving operations in 5 minutes
+    int waketime;
+    if(archqueue.empty())
+      waketime = now.tv_sec + 3600; 
+    else {
+      if(now < archqueue.begin()->first) {
+        waketime = archqueue.begin()->first.tv_sec; // the first task in the queue is in the future
+      }
+      else {
+        if( nextinthefuture >0 ) // there is a task in the future and some failed tasks to run again
+          waketime = std::min( now.tv_sec+failedArchivingRetryDelay , nextinthefuture  );
+        else // there are only failed tasks to run again
+          waketime = now.tv_sec+failedArchivingRetryDelay;
+      }
+    }
     int timedout = archmutex.Wait(waketime - time(0));
     if (timedout) sleep(5); // a timeout to let the db requests started just before the deadline complete, possible cancellation point
   }
@@ -1207,6 +1255,7 @@ LvDbDbLogInterface::Archive (const tTimeToPeriodedFile::iterator &entry)
   options.create_if_missing = true;
   leveldb::Status status = leveldb::DB::Open(options, archivename, &archivedb);
   if (debugmode) printf("LEVELDB>> opening db %s --> %p\n", archivename, archivedb);
+  if(!status.ok()) return 1; 
   TestLvDbError(status, NULL);
   leveldb::WriteBatch batchcp;
   leveldb::WriteBatch batchrm;
