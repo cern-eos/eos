@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_quota.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -29,284 +30,169 @@
 int
 com_quota (char* arg1)
 {
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString subcommand = subtokenizer.GetToken();
-  XrdOucString arg = subtokenizer.GetToken();
+  XrdOucString in("");
   bool highlighting = true;
+  ConsoleCliCommand *parsedCmd, *quotaCmd, *lsSubCmd, *setSubCmd, *rmSubCmd,
+    *rmnodeSubCmd;
+  CliOption monitorOption("monitor", "print information in monitoring "
+			  "<key>=<value> format", "-m");
 
-  if (subcommand == "-m")
+  quotaCmd = new ConsoleCliCommand("quota", "show personal quota for all or "
+				   "only the quota node responsible for "
+				   "<path>");
+  quotaCmd->addOption(monitorOption);
+  quotaCmd->addOption({"path", "", 1, 1, "<path>"});
+
+  lsSubCmd = new ConsoleCliCommand("ls", "list configured quota and quota "
+                                   "node(s)");
+  lsSubCmd->addOption(monitorOption);
+  lsSubCmd->addOption({"numerical", "don't translate ids, print uid+gid "
+                       "number", "-n"});
+  lsSubCmd->addOptions({{"uid", "print information only for uid <uid>",
+                         "-u,--uid", "<uid>", false},
+                        {"gid", "print information only for gid <gid>",
+                         "-g,--gid", "<gid>", false}
+                       });
+  lsSubCmd->addOption({"path", "print information only for path <path>",
+                       1, 1, "<path>"});
+  quotaCmd->addSubcommand(lsSubCmd);
+
+  rmSubCmd = new ConsoleCliCommand("rm", "list configured quota and quota "
+                                   "node(s)");
+  rmSubCmd->addGroupedOptions({{"uid", "", "-u,--uid", "<uid>", false},
+                               {"gid", "", "-g,--gid", "<gid>", false}
+                              });
+  rmSubCmd->addOption({"path", "", 1, 1, "<path>", true});
+  quotaCmd->addSubcommand(rmSubCmd);
+
+  setSubCmd = new ConsoleCliCommand("set", "set volume and/or inode quota by "
+                                    "uid or gid");
+  setSubCmd->addGroupedOptions({{"uid", "", "-u,--uid", "<uid>", false},
+                                {"gid", "", "-g,--gid", "<gid>", false}
+                               });
+  setSubCmd->addOptions({{"volume", "set the volume limit to <bytes>",
+                          "-v,--volume", "<bytes>", false},
+                         {"inodes", "set the inodes limit to <inodes>",
+                          "-i,--inodes", "<inodes>", false}
+                        });
+  setSubCmd->addOption({"path", "if omitted, 'default' is used instead",
+                        1, 1, "<path>", false});
+  quotaCmd->addSubcommand(setSubCmd);
+
+  rmnodeSubCmd = new ConsoleCliCommand("rmnode", "remove quota node and every "
+                                       "defined quota on that node");
+  rmnodeSubCmd->addOption({"path", "", 1, 1, "<path>"});
+  quotaCmd->addSubcommand(rmnodeSubCmd);
+
+  addHelpOptionRecursively(quotaCmd);
+
+  parsedCmd = quotaCmd->parse(arg1);
+
+  if (checkHelpAndErrors(parsedCmd))
+    goto bailout;
+
+  if (parsedCmd == quotaCmd)
   {
-    subcommand = "";
-    arg = "-m";
-  }
-  if (subcommand == "" || subcommand.beginswith("/"))
-  {
-    XrdOucString in = "mgm.cmd=quota&mgm.subcmd=lsuser";
-    if (subcommand.beginswith("/"))
+    in = "mgm.cmd=quota&mgm.subcmd=lsuser";
+
+    if (quotaCmd->hasValue("path"))
     {
       in += "&mgm.quota.space=";
-      in += subcommand;
+      in += quotaCmd->getValue("path").c_str();
     }
-    if (arg == "-m") {
-      in += "&mgm.quota.format=m";  
+
+    if (quotaCmd->hasValue("monitor"))
+      in += "&mgm.quota.format=m";
+  }
+  else if (parsedCmd == lsSubCmd)
+  {
+    in = "mgm.cmd=quota&mgm.subcmd=ls";
+
+    if (lsSubCmd->hasValue("uid"))
+    {
+      in += "&mgm.quota.uid=";
+      in += lsSubCmd->getValue("uid").c_str();
     }
-    global_retc = output_result(client_user_command(in));
-    return (0);
+
+    if (lsSubCmd->hasValue("gid"))
+    {
+      in += "&mgm.quota.gid=";
+      in += lsSubCmd->getValue("gid").c_str();
+    }
+
+    if (lsSubCmd->hasValue("path"))
+    {
+      in += "&mgm.quota.space=";
+      in += lsSubCmd->getValue("path").c_str();
+    }
+
+    if (lsSubCmd->hasValue("numerical"))
+      in += "&mgm.quota.printid=n";
+
+    if (lsSubCmd->hasValue("monitor"))
+    {
+      in += "&mgm.quota.format=m";
+      highlighting = false;
+    }
   }
-
-  bool has_space = false;
-
-  if (wants_help(arg1))
-    goto com_quota_usage;
-
-  if (subcommand == "ls")
+  else if (parsedCmd == setSubCmd)
   {
-    XrdOucString in = "mgm.cmd=quota&mgm.subcmd=ls";
-    if (arg.length())
-      do
-      {
-        if ((arg == "--uid") || (arg == "-u"))
-        {
-          XrdOucString uid = subtokenizer.GetToken();
-          if (!uid.length())
-            goto com_quota_usage;
-          in += "&mgm.quota.uid=";
-          in += uid;
-          arg = subtokenizer.GetToken();
-        }
-        else
-          if ((arg == "--gid") || (arg == "-g"))
-        {
-          XrdOucString gid = subtokenizer.GetToken();
-          if (!gid.length())
-            goto com_quota_usage;
-          in += "&mgm.quota.gid=";
-          in += gid;
-          arg = subtokenizer.GetToken();
-        }
-        else
-          if ((arg == "--path") || (arg == "-p"))
-        {
-          if (has_space)
-          {
-            goto com_quota_usage;
-          }
-
-          XrdOucString space = subtokenizer.GetToken();
-          if (space.c_str())
-          {
-            in += "&mgm.quota.space=";
-            in += space;
-            arg = subtokenizer.GetToken();
-            has_space = true;
-          }
-        }
-        else
-          if ((arg == "-m"))
-        {
-          in += "&mgm.quota.format=m";
-          arg = subtokenizer.GetToken();
-          highlighting = false;
-        }
-        else
-          if ((arg == "-n"))
-        {
-          in += "&mgm.quota.printid=n";
-          arg = subtokenizer.GetToken();
-        }
-        else
-        {
-          if ((arg.beginswith("/")) && (!has_space))
-          {
-            in += "&mgm.quota.space=";
-            in += arg;
-            has_space = true;
-            arg = subtokenizer.GetToken();
-          }
-          else
-          {
-            goto com_quota_usage;
-          }
-        }
-      }
-      while (arg.length());
-
-
-    global_retc = output_result(client_user_command(in), highlighting);
-    return (0);
-  }
-
-  if (subcommand == "set")
-  {
-    XrdOucString in = "mgm.cmd=quota&mgm.subcmd=set";
+    in = "mgm.cmd=quota&mgm.subcmd=set";
     XrdOucString space = "default";
-    do
-    {
-      if ((arg == "--uid") || (arg == "-u"))
-      {
-        XrdOucString uid = subtokenizer.GetToken();
-        if (!uid.length())
-          goto com_quota_usage;
-        in += "&mgm.quota.uid=";
-        in += uid;
-        arg = subtokenizer.GetToken();
-      }
-      else
-        if ((arg == "--gid") || (arg == "-g"))
-      {
-        XrdOucString gid = subtokenizer.GetToken();
-        if (!gid.length())
-          goto com_quota_usage;
-        in += "&mgm.quota.gid=";
-        in += gid;
-        arg = subtokenizer.GetToken();
-      }
-      else
-        if ((arg == "--path") || (arg == "-p"))
-      {
-        if (has_space)
-        {
-          goto com_quota_usage;
-        }
-        space = subtokenizer.GetToken();
-        if (!space.length())
-          goto com_quota_usage;
 
-        in += "&mgm.quota.space=";
-        in += space;
-        arg = subtokenizer.GetToken();
-        has_space = true;
-      }
-      else
-        if ((arg == "--volume") || (arg == "-v"))
-      {
-        XrdOucString bytes = subtokenizer.GetToken();
-        if (!bytes.length())
-          goto com_quota_usage;
+    if (setSubCmd->hasValue("uid"))
+    {
+      in += "&mgm.quota.uid=";
+      in += setSubCmd->getValue("uid").c_str();
+    }
+    else if (setSubCmd->hasValue("gid"))
+    {
+      in += "&mgm.quota.gid=";
+      in += setSubCmd->getValue("gid").c_str();
+    }
+
+    if (setSubCmd->hasValue("volume"))
+    {
         in += "&mgm.quota.maxbytes=";
-        in += bytes;
-        arg = subtokenizer.GetToken();
-      }
-      else
-        if ((arg == "--inodes") || (arg == "-i"))
-      {
-        XrdOucString inodes = subtokenizer.GetToken();
-        if (!inodes.length())
-          goto com_quota_usage;
+        in += setSubCmd->getValue("volume").c_str();
+    }
+
+    if (setSubCmd->hasValue("inodes"))
+    {
         in += "&mgm.quota.maxinodes=";
-        in += inodes;
-        arg = subtokenizer.GetToken();
-      }
-      else
-      {
-        if ((arg.beginswith("/")) && (!has_space))
-        {
-          in += "&mgm.quota.space=";
-          in += arg;
-          has_space = true;
-          arg = subtokenizer.GetToken();
-        }
-        else
-        {
-          goto com_quota_usage;
-        }
-      }
+        in += setSubCmd->getValue("inodes").c_str();
     }
-    while (arg.length());
 
-    global_retc = output_result(client_user_command(in));
-    return (0);
-  }
-
-  if (subcommand == "rm")
-  {
-    XrdOucString in = "mgm.cmd=quota&mgm.subcmd=rm";
-    do
+    if (setSubCmd->hasValue("path"))
     {
-      if ((arg == "--uid") || (arg == "-u"))
-      {
-        XrdOucString uid = subtokenizer.GetToken();
-        if (!uid.length())
-          goto com_quota_usage;
-        in += "&mgm.quota.uid=";
-        in += uid;
-        arg = subtokenizer.GetToken();
-      }
-      else
-        if ((arg == "--gid") || (arg == "-g"))
-      {
-        XrdOucString gid = subtokenizer.GetToken();
-        if (!gid.length())
-          goto com_quota_usage;
-        in += "&mgm.quota.gid=";
-        in += gid;
-        arg = subtokenizer.GetToken();
-      }
-      else
-        if ((arg == "--path") || (arg == "-p"))
-      {
-        if (has_space)
-        {
-          goto com_quota_usage;
-        }
-        XrdOucString space = subtokenizer.GetToken();
-        if (!space.length())
-          goto com_quota_usage;
-
-        in += "&mgm.quota.space=";
-        in += space;
-        arg = subtokenizer.GetToken();
-        has_space = true;
-      }
-      else
-      {
-        if ((arg.beginswith("/")) && (!has_space))
-        {
-          in += "&mgm.quota.space=";
-          in += arg;
-          has_space = true;
-          arg = subtokenizer.GetToken();
-        }
-        else
-        {
-          goto com_quota_usage;
-        }
-      }
+      in += "&mgm.quota.space=";
+      in += setSubCmd->getValue("path").c_str();
     }
-    while (arg.length());
-
-
-    global_retc = output_result(client_user_command(in));
-    return (0);
   }
-
-  if (subcommand == "rmnode")
+  else if (parsedCmd == rmSubCmd)
   {
-    XrdOucString in = "mgm.cmd=quota&mgm.subcmd=rmnode";
-    XrdOucString space = "";
-    do
+    in = "mgm.cmd=quota&mgm.subcmd=rm";
+
+    if (rmSubCmd->hasValue("uid"))
     {
-      if ((arg == "--path") || (arg == "-p"))
-      {
-        space = subtokenizer.GetToken();
-        if (!space.length())
-          goto com_quota_usage;
-
-        in += "&mgm.quota.space=";
-        in += space;
-        arg = subtokenizer.GetToken();
-      }
-      else
-      {
-        goto com_quota_usage;
-      }
+      in += "&mgm.quota.uid=";
+      in += rmSubCmd->getValue("uid").c_str();
     }
-    while (arg.length());
+    else if (rmSubCmd->hasValue("gid"))
+    {
+      in += "&mgm.quota.gid=";
+      in += rmSubCmd->getValue("gid").c_str();
+    }
 
-    if (!space.length())
-      goto com_quota_usage;
+    in += "&mgm.quota.space=";
+    in += rmSubCmd->getValue("path").c_str();
+  }
+  else if (parsedCmd == rmnodeSubCmd)
+  {
+    in = "mgm.cmd=quota&mgm.subcmd=rmnode";
+    XrdOucString space = rmnodeSubCmd->getValue("path").c_str();
+
+    in += "&mgm.quota.space=" + space;
 
     string s;
     fprintf(stdout, "Do you really want to delete the quota node under path %s ?\n", space.c_str());
@@ -331,34 +217,14 @@ com_quota (char* arg1)
       fprintf(stdout, "\nDeletion aborted!\n");
       global_retc = -1;
     }
-    return (0);
+
+    goto bailout;
   }
 
+  global_retc = output_result(client_user_command(in), highlighting);
 
-
-com_quota_usage:
-  fprintf(stdout, "usage: quota [<path>]                                                                              : show personal quota for all or only the quota node responsible for <path>\n");
-  fprintf(stdout, "       quota ls [-n] [-m] [-u <uid>] [-g <gid>] [-p <path> ]                                       : list configured quota and quota node(s)\n");
-  fprintf(stdout, "       quota ls [-n] [-m] [-u <uid>] [-g <gid>] [<path>]                                           : list configured quota and quota node(s)\n");
-  fprintf(stdout, "       quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] -p <path>                            : set volume and/or inode quota by uid or gid \n");
-  fprintf(stdout, "       quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] <path>                               : set volume and/or inode quota by uid or gid \n");
-  fprintf(stdout, "       quota rm  -u <uid>|-g <gid> -p <path>                                                       : remove configured quota for uid/gid in path\n");
-  fprintf(stdout, "       quota rm  -u <uid>|-g <gid> <path>                                                          : remove configured quota for uid/gid in path\n");
-  fprintf(stdout, "                                                 -m                  : print information in monitoring <key>=<value> format\n");
-  fprintf(stdout, "                                                 -n                  : don't translate ids, print uid+gid number\n");
-  fprintf(stdout, "                                                 -u/--uid <uid>      : print information only for uid <uid>\n");
-  fprintf(stdout, "                                                 -g/--gid <gid>      : print information only for gid <gid>\n");
-  fprintf(stdout, "                                                 -p/--path <path>    : print information only for path <path> - this can also be given without -p or --path\n");
-  fprintf(stdout, "                                                 -v/--volume <bytes> : set the volume limit to <bytes>\n");
-  fprintf(stdout, "                                                 -i/--inodes <inodes>: set the inodes limit to <inodes>\n");
-  fprintf(stdout, "     => you have to specify either the user or the group identified by the unix id or the user/group name\n");
-  fprintf(stdout, "     => the space argument is by default assumed as 'default'\n");
-  fprintf(stdout, "     => you have to specify at least a volume or an inode limit to set quota\n");
-  fprintf(stdout, "     => for convenience all commands can just use <path> as last argument ommitting the -p|--path e.g. quota ls /eos/ ...\n");
-  fprintf(stdout, "     => if <path> is not terminated with a '/' it is assumed to be a file so it want match the quota node with <path>/ !\n");
-  fprintf(stdout, "       quota rmnode -p <path>                                                                      : remove quota node and every defined quota on that node\n");
-
-
+ bailout:
+  delete quotaCmd;
 
   return (0);
 }
