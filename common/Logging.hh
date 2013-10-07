@@ -54,6 +54,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysLogger.hh"
+#include "XrdSec/XrdSecEntity.hh"
 /*----------------------------------------------------------------------------*/
 #include <string.h>
 #include <sys/syslog.h>
@@ -165,6 +166,26 @@ public:
   // ---------------------------------------------------------------------------
 
   void
+  SetLogId (const char* newlogid, 
+            const XrdSecEntity* client, 
+            const char* td = "<service>")
+  {
+    if (newlogid)
+      SetLogId(newlogid, td);
+    if (client) 
+    {
+      vid.name = client->name;
+      vid.host = (client->host)?client->host:"?";
+      vid.prot = client->prot;
+    }
+  }
+
+
+  // ---------------------------------------------------------------------------
+  //! Set's the logid, vid and trace identifier
+  // ---------------------------------------------------------------------------
+
+  void
   SetLogId (const char* newlogid, Mapping::VirtualIdentity &vid_in, const char* td = "")
   {
     Mapping::Copy(vid_in, vid);
@@ -219,7 +240,7 @@ public:
   static XrdSysMutex gMutex; //< global mutex
   static XrdOucString gUnit; //< global unit name
   static XrdOucHash<const char*> gAllowFilter; ///< global list of function names allowed to log
-  static XrdOucHash<const char*> gDenyFilter;  ///< global list of function names denied to log
+  static XrdOucHash<const char*> gDenyFilter; ///< global list of function names denied to log
   static int gShortFormat; //< indiciating if the log-output is in short format
   static std::map<std::string, FILE*> gLogFanOut; //< here one can define log fan-out to different file descriptors than stderr
 
@@ -260,13 +281,13 @@ public:
     // Clear both maps 
     gDenyFilter.Purge();
     gAllowFilter.Purge();
-    
+
     if ((pos = sfilter.find(pass_tag)) != STR_NPOS)
     {
       // Extract the function names which are allowed to log       
       pos += pass_tag.length();
-      
-      while ((pos = sfilter.tokenize(token, pos , del)) != -1)
+
+      while ((pos = sfilter.tokenize(token, pos, del)) != -1)
       {
         gAllowFilter.Add(token.c_str(), NULL, 0, Hash_data_is_key);
       }
@@ -275,8 +296,8 @@ public:
     {
       // Extract the function names which are denied to log
       pos = 0;
-      
-      while ((pos = sfilter.tokenize(token, pos , del)) != -1)
+
+      while ((pos = sfilter.tokenize(token, pos, del)) != -1)
       {
         gDenyFilter.Add(token.c_str(), NULL, 0, Hash_data_is_key);
       }
@@ -338,6 +359,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Add a tag fanout alias to the logging module
   // ---------------------------------------------------------------------------
+
   static void
   AddFanOutAlias (const char* alias, const char* tag)
   {
@@ -350,19 +372,21 @@ public:
   // ---------------------------------------------------------------------------
   //! Get a color for a given logging level
   // ---------------------------------------------------------------------------
-  static const char* GetLogColour(const char* loglevel)
+
+  static const char*
+  GetLogColour (const char* loglevel)
   {
-    if (!strcmp(loglevel,"INFO ")) return EOS_TEXTGREEN;
-    if (!strcmp(loglevel,"ERROR")) return EOS_TEXTRED;
-    if (!strcmp(loglevel,"WARN ")) return EOS_TEXTYELLOW;
-    if (!strcmp(loglevel,"NOTE ")) return EOS_TEXTBLUE;
-    if (!strcmp(loglevel,"CRIT ")) return EOS_TEXTREDERROR;
-    if (!strcmp(loglevel,"EMERG")) return EOS_TEXTBLUEERROR;
-    if (!strcmp(loglevel,"ALERT")) return EOS_TEXTREDERROR;
-    if (!strcmp(loglevel,"DEBUG")) return "";
+    if (!strcmp(loglevel, "INFO ")) return EOS_TEXTGREEN;
+    if (!strcmp(loglevel, "ERROR")) return EOS_TEXTRED;
+    if (!strcmp(loglevel, "WARN ")) return EOS_TEXTYELLOW;
+    if (!strcmp(loglevel, "NOTE ")) return EOS_TEXTBLUE;
+    if (!strcmp(loglevel, "CRIT ")) return EOS_TEXTREDERROR;
+    if (!strcmp(loglevel, "EMERG")) return EOS_TEXTBLUEERROR;
+    if (!strcmp(loglevel, "ALERT")) return EOS_TEXTREDERROR;
+    if (!strcmp(loglevel, "DEBUG")) return "";
     return "";
   }
-  
+
   // ---------------------------------------------------------------------------
   //! Check if we should log in the defined level/filter
   // ---------------------------------------------------------------------------
