@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_node.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -33,161 +34,182 @@ com_node (char* arg1)
 {
   XrdOucString in = "";
   bool silent = false;
-  bool printusage = false;
   bool highlighting = true;
-  XrdOucString option = "";
   XrdOucEnv* result = 0;
-  bool ok = false;
-  bool sel = false;
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString subcommand = subtokenizer.GetToken();
+  ConsoleCliCommand *parsedCmd, *nodeCmd, *lsSubCmd, *configSubCmd, *setSubCmd,
+    *rmSubCmd, *registerSubCmd, *gwSubCmd, *statusSubCmd;
 
-  if (wants_help(arg1))
-    goto com_node_usage;
+  nodeCmd = new ConsoleCliCommand("node", "node related functions");
 
-  if (subcommand == "ls")
+  lsSubCmd = new ConsoleCliCommand("ls", "list all nodes or only <node>");
+  lsSubCmd->addGroupedOptions({{"monitor", "monitoring key=value output format",
+                                "-m"},
+                               {"long", "long output - list also file systems "
+                                "after each node", "-l"},
+                               {"io", "print IO statistics", "--io"},
+                               {"sys", "print SYS statistics (memory + threads)",
+                                "--sys"},
+                               {"fsck", "print filesystem check statistics",
+                                "--fsck"},
+                              });
+  lsSubCmd->addOption({"silent", "run in silent mode", "-s"});
+  lsSubCmd->addOption({"node", "", 1, 1, "<node>"});
+  nodeCmd->addSubcommand(lsSubCmd);
+
+  configSubCmd = new ConsoleCliCommand("config", "configure file system "
+				       "parameters for each filesystem of "
+				       "this node");
+  configSubCmd->addOptions({{"node", "", 1, 1, "<host:port>", true},
+	                    {"key-value", "the key to set and its value, e.g.:\n"
+			     "gw.rate=<mb/s> - set the transfer speed per "
+			     "gateway transfer\n"
+			     "gw.ntx=<#>     - set the number of concurrent "
+			     "transfers for a gateway node\n"
+			     "error.simulation=io_read|io_write|xs_read|xs_write\n"
+			     "\tio_read  : simulate read  errors\n"
+			     "\tio_write : simulate write errors\n"
+			     "\txs_read  : simulate checksum errors when "
+			     "reading a file\n"
+			     "\txs_write : simulate checksum errors when "
+			     "writing a file\n"
+			     "<none>   : disable error simulation (every value "
+			     "than the previous ones are fine!)\n"
+			     "publish.interval=<sec> - set the filesystem "
+			     "state publication interval to <sec> seconds\n"
+			     "debug.level=<level> - set the node into debug "
+			     "level <level> [default=notice] -> see debug "
+			     "--help for available levels\n"
+			     "for other keys see help of 'fs config' for details",
+			     2, 1, "<key>=<value>", true}
+                           });
+  nodeCmd->addSubcommand(configSubCmd);
+
+  setSubCmd = new ConsoleCliCommand("set", "list all nodes or only <node>");
+  setSubCmd->addOption({"node", "", 1, 1, "<queue-name>|<host:port>", true});
+  CliPositionalOption activeOption("active", "", 2, 1, "on|off", true);
+  std::vector<std::string> choices = {"on", "off"};
+  activeOption.addEvalFunction(optionIsChoiceEvalFunc, &choices);
+  setSubCmd->addOption(activeOption);
+  nodeCmd->addSubcommand(setSubCmd);
+
+  rmSubCmd = new ConsoleCliCommand("rm", "remove a node");
+  rmSubCmd->addOption({"node", "", 1, 1, "<queue-name>|<host:port>", true});
+  nodeCmd->addSubcommand(rmSubCmd);
+
+  registerSubCmd = new ConsoleCliCommand("register", "register filesystems on "
+					 "node <host:port>");
+  registerSubCmd->addOptions({{"force", "removes any existing filesystem label "
+	                       "and re-registers", "--force,-f"},
+	                      {"root", "allows to register paths on the root "
+			       "partition", "--root"}
+	                     });
+  registerSubCmd->addOptions({{"node", "", 1, 1, "<queue-name>|<host:port>",
+                               true},
+                              {"path2reg", "used as a match for the filesystems "
+                               "to register e.g. ""/data matches filesystems "
+                               "/data01 /data02 etc. ... /data/ registers all "
+                               "subdirectories in /data/", 2, 1,
+                               "<path2register>", true},
+                              {"space2reg", "formed as <space>:<n> where "
+                               "<space> is the space name and <n> must be "
+                               "equal to the number of filesystems which are "
+                               "matched by <path2register> e.g. data:4 or "
+                               "spare:22 ...", 3, 1, "<space2register>", true}
+                             });
+  nodeCmd->addSubcommand(registerSubCmd);
+
+  gwSubCmd = new ConsoleCliCommand("gw", "enable (on) or disable (off) node as "
+				   "a transfer gateway");
+  gwSubCmd->addOption({"node", "", 1, 1, "<queue-name>|<host:port>", true});
+  gwSubCmd->addOption(activeOption);
+  nodeCmd->addSubcommand(gwSubCmd);
+
+  statusSubCmd = new ConsoleCliCommand("status", "print's all defined "
+				       "variables for a node");
+  statusSubCmd->addOption({"node", "", 1, 1, "<queue-name>|<host:port>", true});
+  nodeCmd->addSubcommand(statusSubCmd);
+
+  addHelpOptionRecursively(nodeCmd);
+
+  parsedCmd = nodeCmd->parse(arg1);
+
+  if (parsedCmd == nodeCmd)
+  {
+    if (!checkHelpAndErrors(nodeCmd))
+      nodeCmd->printUsage();
+    goto bailout;
+  }
+  if (checkHelpAndErrors(parsedCmd))
+    goto bailout;
+
+  if (parsedCmd == lsSubCmd)
   {
     in = "mgm.cmd=node&mgm.subcmd=ls";
-    option = "";
 
-    do
+    if (lsSubCmd->hasValue("monitor"))
     {
-      ok = false;
-      subtokenizer.GetLine();
-      option = subtokenizer.GetToken();
-      if (option.length())
-      {
-        if (option == "-m")
-        {
-          in += "&mgm.outformat=m";
-          ok = true;
-          highlighting = false;
-        }
-        if (option == "-l")
-        {
-          in += "&mgm.outformat=l";
-          ok = true;
-        }
-        if (option == "--io")
-        {
-          in += "&mgm.outformat=io";
-          ok = true;
-        }
-        if (option == "--sys")
-        {
-          in += "&mgm.outformat=sys";
-          ok = true;
-        }
-        if (option == "--fsck")
-        {
-          in += "&mgm.outformat=fsck";
-          ok = true;
-        }
-        if (option == "-s")
-        {
-          silent = true;
-          ok = true;
-        }
-        if (!option.beginswith("-"))
-        {
-          in += "&mgm.selection=";
-          in += option;
-          if (!sel)
-            ok = true;
-          sel = true;
-        }
-
-        if (!ok)
-          printusage = true;
-      }
-      else
-      {
-        ok = true;
-      }
+      in += "&mgm.outformat=m";
+      highlighting = false;
     }
-    while (option.length());
-  }
 
-  if (subcommand == "set")
+    if (lsSubCmd->hasValue("long"))
+      in += "&mgm.outformat=l";
+
+    if (lsSubCmd->hasValue("io"))
+      in += "&mgm.outformat=io";
+
+    if (lsSubCmd->hasValue("sys"))
+      in += "&mgm.outformat=sys";
+
+    if (lsSubCmd->hasValue("fsck"))
+      in += "&mgm.outformat=fsck";
+
+    silent = lsSubCmd->hasValue("silent");
+
+    if (lsSubCmd->hasValue("node"))
+    {
+      in += "&mgm.selection=";
+      in += lsSubCmd->getValue("node").c_str();
+    }
+  }
+  else if (parsedCmd == setSubCmd)
   {
     in = "mgm.cmd=node&mgm.subcmd=set";
-    XrdOucString nodename = subtokenizer.GetToken();
-    XrdOucString active = subtokenizer.GetToken();
-
-    if ((active != "on") && (active != "off"))
-    {
-      printusage = true;
-    }
-
-    if (!nodename.length())
-      printusage = true;
     in += "&mgm.node=";
-    in += nodename;
+    in += setSubCmd->getValue("node").c_str();
     in += "&mgm.node.state=";
-    in += active;
-    ok = true;
+    in += setSubCmd->getValue("active").c_str();
   }
-
-  if (subcommand == "status")
+  else if (parsedCmd == statusSubCmd)
   {
     in = "mgm.cmd=node&mgm.subcmd=status";
-    XrdOucString nodename = subtokenizer.GetToken();
-
-    if (!nodename.length())
-      printusage = true;
     in += "&mgm.node=";
-    in += nodename;
-    ok = true;
+    in += statusSubCmd->getValue("node").c_str();
   }
-
-  if (subcommand == "gw")
+  else if (parsedCmd == gwSubCmd)
   {
     in = "mgm.cmd=node&mgm.subcmd=set";
-    XrdOucString nodename = subtokenizer.GetToken();
-    XrdOucString active = subtokenizer.GetToken();
-
-    if ((active != "on") && (active != "off"))
-    {
-      printusage = true;
-    }
-
-    if (!nodename.length())
-      printusage = true;
     in += "&mgm.node=";
-    in += nodename;
+    in += gwSubCmd->getValue("node").c_str();
     in += "&mgm.node.txgw=";
-    in += active;
-    ok = true;
+    in += gwSubCmd->getValue("active").c_str();
   }
-
-  if (subcommand == "rm")
+  else if (parsedCmd == rmSubCmd)
   {
     in = "mgm.cmd=node&mgm.subcmd=rm";
-    XrdOucString nodename = subtokenizer.GetToken();
-
-    if (!nodename.length())
-      printusage = true;
     in += "&mgm.node=";
-    in += nodename;
-    ok = true;
+    in += rmSubCmd->getValue("node").c_str();
   }
-
-  if (subcommand == "config")
+  else if (parsedCmd == configSubCmd)
   {
-    XrdOucString nodename = subtokenizer.GetToken();
-    XrdOucString keyval = subtokenizer.GetToken();
-
-    if ((!nodename.length()) || (!keyval.length()))
-    {
-      goto com_node_usage;
-    }
+    XrdOucString nodename = configSubCmd->getValue("node").c_str();
+    XrdOucString keyval = configSubCmd->getValue("key-value").c_str();
 
     if ((keyval.find("=")) == STR_NPOS)
     {
       // not like <key>=<val>
-      goto com_node_usage;
+      parsedCmd->printUsage();
+      goto bailout;
     }
 
     std::string is = keyval.c_str();
@@ -196,7 +218,10 @@ com_node (char* arg1)
     eos::common::StringConversion::Tokenize(is, token, delimiter);
 
     if (token.size() != 2)
-      goto com_node_usage;
+    {
+      parsedCmd->printUsage();
+      goto bailout;
+    }
 
     XrdOucString in = "mgm.cmd=node&mgm.subcmd=config&mgm.node.name=";
     in += nodename;
@@ -208,81 +233,24 @@ com_node (char* arg1)
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
-
-  if (subcommand == "register")
+  else if (parsedCmd == registerSubCmd)
   {
-    XrdOucString nodename = subtokenizer.GetToken();
-    XrdOucString path2register = subtokenizer.GetToken();
-    XrdOucString space2register = subtokenizer.GetToken();
-    XrdOucString flag1 = subtokenizer.GetToken();
-    XrdOucString flag2 = subtokenizer.GetToken();
-    bool forceflag = false;
-    bool rootflag = false;
-
-    if (flag1.length())
-    {
-      if (flag1 == "--force")
-      {
-        forceflag = true;
-      }
-      else
-      {
-        if (flag1 == "--root")
-        {
-          rootflag = true;
-        }
-        else
-        {
-          goto com_node_usage;
-        }
-      }
-      if (flag2.length())
-      {
-        if (flag2 == "--force")
-        {
-          forceflag = true;
-        }
-        else
-        {
-          if (flag2 == "--root")
-          {
-            rootflag = true;
-          }
-          else
-          {
-            goto com_node_usage;
-          }
-        }
-      }
-    }
-
-    if ((!nodename.length()) || (!path2register.length()) || (!space2register.length()))
-    {
-      goto com_node_usage;
-    }
-
     XrdOucString in = "mgm.cmd=node&mgm.subcmd=register&mgm.node.name=";
-    in += nodename;
+    in += registerSubCmd->getValue("node").c_str();
     in += "&mgm.node.path2register=";
-    in += path2register;
+    in += registerSubCmd->getValue("path2reg").c_str();
     in += "&mgm.node.space2register=";
-    in += space2register;
+    in += registerSubCmd->getValue("space2reg").c_str();
 
-    if (forceflag)
-    {
+    if (registerSubCmd->hasValue("force"))
       in += "&mgm.node.force=true";
-    }
 
-    if (rootflag)
-    {
+    if (registerSubCmd->hasValue("root"))
       in += "&mgm.node.root=true";
-    }
+
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
-
-  if (printusage || (!ok))
-    goto com_node_usage;
 
   result = client_admin_command(in);
 
@@ -302,39 +270,8 @@ com_node (char* arg1)
     }
   }
 
-  return (0);
+ bailout:
+  delete nodeCmd;
 
-com_node_usage:
-
-  fprintf(stdout, "usage: node ls [-s] [-m|-l|--sys|--io|--fsck] [<node>]                     : list all nodes or only <node>\n");
-  fprintf(stdout, "                                                                  -s : silent mode\n");
-  fprintf(stdout, "                                                                  -m : monitoring key=value output format\n");
-  fprintf(stdout, "                                                                  -l : long output - list also file systems after each node\n");
-  fprintf(stdout, "                                                                --io : print IO statistics\n");
-  fprintf(stdout, "                                                              --sys  : print SYS statistics (memory + threads)\n");
-  fprintf(stdout, "                                                              --fsck : print filesystem check statistcis\n");
-  fprintf(stdout, "       node config <host:port> <key>=<value>                    : configure file system parameters for each filesystem of this node\n");
-  fprintf(stdout, "                                                               <key> : gw.rate=<mb/s> - set the transfer speed per gateway transfer\n");
-  fprintf(stdout, "                                                               <key> : gw.ntx=<#>     - set the number of concurrent transfers for a gateway node\n");
-  fprintf(stdout, "                                                               <key> : error.simulation=io_read|io_write|xs_read|xs_write\n");
-  fprintf(stdout, "                                                                       io_read  : simulate read  errors\n");
-  fprintf(stdout, "                                                                       io_write : simulate write errors\n");
-  fprintf(stdout, "                                                                       xs_read  : simulate checksum errors when reading a file\n");
-  fprintf(stdout, "                                                                       xs_write : simulate checksum errors when writing a file\n");
-  fprintf(stdout, "                                                                       <none>   : disable error simulation (every value than the previous ones are fine!)\n");
-  fprintf(stdout, "                                                               <key> : publish.interval=<sec> - set the filesystem state publication interval to <sec> seconds\n");
-  fprintf(stdout, "                                                               <key> : debug.level=<level> - set the node into debug level <level> [default=notice] -> see debug --help for available levels\n");
-  fprintf(stdout, "                                                               <key> : for other keys see help of 'fs config' for details\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "       node set <queue-name>|<host:port> on|off                 : activate/deactivate node\n");
-  fprintf(stdout, "       node rm  <queue-name>|<host:port>                        : remove a node\n");
-  fprintf(stdout, "       node register <host:port|*> <path2register> <space2register> [--force] [--root]\n");
-  fprintf(stdout, "       node gw <queue-name>|<host:port> <on|off>                : enable (on) or disable (off) node as a transfer gateway\n");
-  fprintf(stdout, "                                                                : register filesystems on node <host:port>\n");
-  fprintf(stdout, "                                                                  <path2register> is used as match for the filesystems to register e.g. /data matches filesystems /data01 /data02 etc. ... /data/ registers all subdirectories in /data/\n");
-  fprintf(stdout, "                                                                  <space2register> is formed as <space>:<n> where <space> is the space name and <n> must be equal to the number of filesystems which are matched by <path2register> e.g. data:4 or spare:22 ...\n");
-  fprintf(stdout, "                                                                --force : removes any existing filesystem label and re-registers\n");
-  fprintf(stdout, "                                                                --root  : allows to register paths on the root partition\n");
-  fprintf(stdout, "       node status <queue-name>|<host:port>                     : print's all defined variables for a node\n");
   return (0);
 }
