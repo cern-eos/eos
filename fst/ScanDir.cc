@@ -56,11 +56,6 @@ ioprio_set (int which, int who, int ioprio)
 #endif
 }
 
-//static int ioprio_get(int which, int who)
-//{
-//  return syscall(SYS_ioprio_get, which, who);
-//}
-
 /*
  * Gives us 8 prio classes with 13-bits of data for each class
  */
@@ -328,7 +323,7 @@ ScanDir::CheckFile (const char* filepath)
           if (filecxerror || blockcxerror)
           {
             // ask the meta data handling class to update the error flags for this file
-            gFmdSqliteHandler.ResyncDisk(filePath.c_str(), fsId, false);
+            gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
           }
         }
       }

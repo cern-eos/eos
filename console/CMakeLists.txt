@@ -21,26 +21,27 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ 
+include_directories( ../
+             ${PROTOBUF_INCLUDE_DIRS}
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${XROOTD_PRIVATE_INCLUDE_DIR} 
 		     ${SPARSEHASH_INCLUDE_DIR} )
 
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}
-		  ${XROOTD_LIB_DIR} )
+		  ${XROOTD_LIB_DIR} 
+          ${PROTOBUF_LIB_DIR})
 
+set_source_generating_rules()
 
 add_executable( eos
 	      	ConsoleMain.cc
 		ConsoleMain.hh	
 		ConsolePipe.cc
 		ConsolePipe.hh
-#                ../common/Logging.cc
-#                ../common/Fmd.cc
-#                ../common/SymKeys.cc
-#		../common/Attr.cc
-#		../fst/FmdSqlite.cc
         ../fst/FmdClient.cc
+        ../fst/Fmd.cc
+        ../fst/FmdBase.pb.cc
+        ../fst/FmdBase.pb.h
 		../fst/checksum/CheckSum.cc
 		../fst/checksum/Adler.cc
 		../fst/checksum/crc32c.cc
@@ -76,7 +77,7 @@ add_executable( eos
 		commands/com_quit.cc 
 		commands/com_quota.cc 
 		commands/com_reconnect.cc 
-                commands/com_recycle.cc
+    commands/com_recycle.cc
 		commands/com_rm.cc 
 		commands/com_rmdir.cc 
 		commands/com_role.cc 
@@ -107,7 +108,7 @@ target_link_libraries( eos
 		       crypto           curses
 		       dl               z
                        readline         ${CMAKE_THREAD_LIBS_INIT}
-                       ${UUID_LIBRARIES} 			       
+                       ${UUID_LIBRARIES} ${PROTOBUF_LIBRARIES}
                      )
 else (CLIENT)
 target_link_libraries( eos 
@@ -116,7 +117,7 @@ target_link_libraries( eos
                        readline          XrdMqClient-Static
 		       crypto            curses
 		       dl                z
-                       ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT}
+                       ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${PROTOBUF_LIBRARIES}
                      )
 endif(CLIENT)
 

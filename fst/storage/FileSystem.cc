@@ -74,7 +74,7 @@ FileSystem::~FileSystem ()
   // we call the FmdSqliteHandler shutdown function for this filesystem
   // ----------------------------------------------------------------------------
 
-  gFmdSqliteHandler.ShutdownDB(GetId());
+  gFmdDbMapHandler.ShutdownDB(GetId());
 
   // ----------------------------------------------------------------------------
   // @todo we accept this tiny memory leak to be able to let running 
@@ -223,8 +223,8 @@ FileSystem::SyncTransactions ()
         eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(),
                                                 localprefix, fstPath);
         unsigned long long fid = eos::common::FileId::Hex2Fid(hexfid.c_str());
-        FmdSqlite* fMd = 0;
-        fMd = gFmdSqliteHandler.GetFmd(fid, GetId(), 0, 0, 0, 0, true);
+        FmdHelper* fMd = 0;
+        fMd = gFmdDbMapHandler.GetFmd(fid, GetId(), 0, 0, 0, 0, true);
         if (fMd)
         {
 

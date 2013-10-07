@@ -23,7 +23,7 @@
 
 include_directories( 
 		     ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd
-                     ${CMAKE_BINARY_DIR}/xrootd/src/include/
+             ${CMAKE_BINARY_DIR}/xrootd/src/include/
 		     ../ ${XROOTD_INCLUDE_DIR} 
 		     ${SPARSEHASH_INCLUDE_DIR} 
 		     ${NCURSES_INCLUDE_DIR}
@@ -36,7 +36,8 @@ include_directories(
 )
 endif(LEVELDB_FOUND)
 
-link_directories( 
+link_directories(
+          ${PROTOBUF_LIBRARIES}  
 		  ${CMAKE_INSTALL_FULL_LIBDIR}
 		  ${XROOTD_LIB_DIR} 
 		  ${LEVELDB_LIB_DIR}
@@ -80,6 +81,9 @@ add_library (eosCommonServer SHARED
             TransferJob.cc
             sqlite/sqlite3.c
             DbMap.cc
+            DbMapSqlite.cc
+            DbMapLevelDb.cc
+            DbMapCommon.cc
             http/HttpServer.cc
             http/HttpRequest.cc
             http/HttpResponse.cc
@@ -89,6 +93,7 @@ add_library (eosCommonServer SHARED
 
 add_executable ( dbmaptestfunc
        dbmaptest/DbMapTestFunc.cc
+       dbmaptest/test.pb.cc
 )
 add_executable ( dbmaptestburn
        dbmaptest/DbMapTestBurn.cc
@@ -138,7 +143,7 @@ if (MICROHTTPD_FOUND)
 target_link_libraries ( eosCommonServer ${MICROHTTPD_LIBRARIES} ) 
 endif(MICROHTTPD_FOUND)
 
-target_link_libraries ( dbmaptestfunc eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries ( dbmaptestfunc eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT} ${PROTOBUF_LIBRARIES} )
 target_link_libraries ( dbmaptestburn eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries ( mutextest eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 

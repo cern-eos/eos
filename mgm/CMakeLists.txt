@@ -30,7 +30,7 @@ include_directories( ../
          ${Z_INCLUDE_DIR}
 )
 
-link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR})
+link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR} ${PROTOBUF_LIB_DIR})
 
 add_library (XrdEosMgm MODULE
             Access.cc         
@@ -114,6 +114,7 @@ target_link_libraries( XrdEosMgm
                        ${LDAP_LIBRARIES}
                        dl                   ${Z_LIBRARIES}
                        ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
+                       ${PROTOBUF_LIBRARIES}
                      )
 
 add_executable ( testmgmview

@@ -23,12 +23,14 @@
 
 include_directories( ../ ../../ ${XROOTD_INCLUDE_DIR} )
 link_directories( ${XROOTD_LIB_DIR} )
+set_source_generating_rules()
 
 add_library( XrdCache SHARED
-	     CacheImpl.cc
+    	     CacheImpl.cc
              XrdFileCache.cc
              CacheEntry.cc
              FileAbstraction.cc
+             ../../fst/FmdBase.pb.h
            )
 
 add_library( XrdCache-Static STATIC
@@ -36,6 +38,7 @@ add_library( XrdCache-Static STATIC
              XrdFileCache.cc
              CacheEntry.cc
              FileAbstraction.cc
+             ../../fst/FmdBase.pb.h
            )
 
 set_target_properties( XrdCache PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )

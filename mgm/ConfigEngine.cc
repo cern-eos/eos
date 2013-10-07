@@ -60,42 +60,14 @@ ConfigEngineChangeLog::ConfigEngineChangeLog ()
 void
 ConfigEngineChangeLog::Init (const char* changelogfile)
 {
+  if(!map.attachLog(changelogfile, eos::common::SqliteDbLogInterface::daily, 0644))
   {
-    std::ifstream testfile(changelogfile);
-    if (testfile.good())
-    {
-      testfile.close();
-      if (!IsDbMapFile(changelogfile))
-      {
-#ifndef EOS_SQLITE_DBMAP
-        if (IsSqliteFile(changelogfile))
-        { // case : sqlite -> leveldb
-          std::string bakname = changelogfile;
-          bakname += ".sqlite";
-          if (eos::common::ConvertSqlite2LevelDb(changelogfile, changelogfile, bakname))
-            eos_notice("autoconverted changelogfile %s from sqlite format to leveldb format", changelogfile);
-          else
-          {
-            eos_emerg("failed to autoconvert changelogfile %s from sqlite format to leveldb format", changelogfile);
-            exit(-1);
-          }
-        }
-        else
-#endif
-        { // case : old plain text -> leveldb or sqlite
-          if (LegacyFile2DbMapFile(changelogfile))
-            eos_notice("autoconverted changelogfile %s from legacy txt format to %s format", changelogfile, eos::common::DbMap::GetDbType().c_str());
-          else
-          {
-            eos_emerg("failed to autoconvert changelogfile %s from legacy txt format to %s format", changelogfile, eos::common::DbMap::GetDbType().c_str());
-            exit(-1);
-          }
-        }
-      }
-    }
+    eos_emerg("failed to open %s config changelog file %s", eos::common::DbMap::getDbType().c_str(), changelogfile);
+    exit(-1);
   }
-  this->changelogfile = changelogfile;
-  map.AttachLog(changelogfile, eos::common::SqliteDbLogInterface::daily, 0644);
+  else {
+    this->changelogfile = changelogfile;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -110,172 +82,7 @@ ConfigEngineChangeLog::~ConfigEngineChangeLog ()
 
 /*----------------------------------------------------------------------------*/
 bool
-ConfigEngineChangeLog::IsSqliteFile (const char* file)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Check for SQLITE file
- * @param file filename to check
- */
-/*----------------------------------------------------------------------------*/
-{
-  int fd = open(file, O_RDONLY);
-  bool result = false;
-  char buf[16];
-  if (fd > 0)
-  {
-    size_t nread = read(fd, buf, 16);
-    if (nread == 16)
-    {
-      if (strncmp(buf, "SQLite format 3", 16) == 0)
-        result = true;
-    }
-    close(fd);
-  }
-
-  return result;
-}
-
-/*----------------------------------------------------------------------------*/
-bool
-ConfigEngineChangeLog::IsLevelDbFile (const char* file)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Constructor
- * @param file filename to check
- */
-/*----------------------------------------------------------------------------*/
-{
-  XrdOucString path = file;
-  // the least we can ask to a leveldb directory is to have a "CURRENT" file
-  path += "/CURRENT";
-  struct stat ss;
-  if (stat(path.c_str(), &ss)) return false;
-  return true;
-}
-
-/*----------------------------------------------------------------------------*/
-bool
-ConfigEngineChangeLog::IsDbMapFile (const char* file)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Check for DbMap File
- * @param file filename to check
- */
-/*----------------------------------------------------------------------------*/
-{
-#ifdef EOS_SQLITE_DBMAP
-  return IsSqliteFile(file);
-#else
-  return IsLevelDbFile(file);
-#endif
-}
-
-/*----------------------------------------------------------------------------*/
-bool
-ConfigEngineChangeLog::LegacyFile2DbMapFile (const char *file)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Convert a legacy to DBMap file
- * @param file filename to convert
- */
-/*----------------------------------------------------------------------------*/
-{
-  bool result = false;
-  bool renamed = false;
-
-  XrdOucString dbtype(eos::common::DbMap::GetDbType().c_str());
-
-  // stat the file to copy the permission
-  struct stat st;
-  stat(file, &st);
-  // rename the file
-  XrdOucString newname(file);
-  newname += ".oldfmt";
-
-  if (rename(file, newname.c_str()) == 0)
-  {
-    renamed = true;
-    // convert the file
-    eos::common::DbMap map;
-    std::ifstream legfile(newname.c_str());
-    if (map.AttachLog(file, 0, st.st_mode) && legfile.is_open())
-    {
-      int cnt = 0, lcnt = 0;
-      bool loopagain = true;
-      size_t timestamp, prevtimestamp;
-      std::string trash, buffer, action, key, value;
-      map.BeginSetSequence();
-      while (loopagain)
-      {
-        lcnt++; // update the line counter
-        prevtimestamp = timestamp;
-        timestamp = (ssize_t) - 1;
-        legfile >> timestamp; // field 0 of legacy format is the timestamp
-        if (timestamp == (size_t) - 1)
-        {
-          loopagain = false;
-          break;
-        }
-        timestamp *= 1000000000; // time is in nanoseconds
-        if (prevtimestamp / 1000000000 == timestamp / 1000000000) timestamp += (++cnt); // a little trick to make sure that all the timestamps are different
-        else cnt = 0;
-        for (int k = 0; k < 5; k++) legfile >> trash; // fields 1 to 5 of legacy format is the time stamp string
-        buffer = "";
-        getline(legfile, buffer);
-        if (buffer.size() == 0)
-        {
-          loopagain = false;
-          break;
-        } // this is the end of the file
-        if (!ParseTextEntry(buffer.c_str(), key, value, action)) break;
-        map.Set(timestamp, key, value, action);
-      }
-      map.EndSetSequence();
-      if (loopagain)
-      {
-        eos_err("failed to convert changelogfile %s from legacy txt format to new DbMap (%s) format at line %d", file, dbtype.c_str(), lcnt);
-      }
-      else result = true;
-    }
-    else
-    {
-      if (legfile.is_open())
-        eos_err("failed to open %s target DB %s to convert file format", dbtype.c_str(), file);
-      else
-        eos_err("failed to open legacy txt source file %s to convert file format", newname.c_str());
-    }
-  }
-  else
-  {
-    eos_err("failed to rename file %s to %s to convert file format", file, newname.c_str());
-  }
-
-  // reverse rename if error
-  if (renamed && !result)
-  {
-    remove(file); // at this point, the db file should be closed because the DbMap object should be destroyed
-    // reverting the renaming
-    rename(newname.c_str(), file);
-  }
-
-  return result;
-}
-
-/*----------------------------------------------------------------------------*/
-bool
-ConfigEngineChangeLog::ParseTextEntry (const char *entry,
-                                       std::string &key,
-                                       std::string &value,
-                                       std::string &action)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Parse a text line into key value pairs
- * @param entry entry to parse
- * @param key key parsed
- * @param value value parsed
- * @param action action parsed
- */
-/*----------------------------------------------------------------------------*/
+ConfigEngineChangeLog::ParseTextEntry (const char *entry, std::string &key, std::string &value, std::string &action)
 {
   std::stringstream ss(entry);
   std::string tmp;
@@ -351,7 +158,7 @@ ConfigEngineChangeLog::AddEntry (const char* info)
     Mutex.UnLock();
     return false;
   }
-  map.Set(key, value, action);
+  map.set(key, value, action);
   Mutex.UnLock();
 
   configChanges += info;
@@ -379,7 +186,7 @@ ConfigEngineChangeLog::Tail (unsigned int nlines, XrdOucString &tail)
     eos_err("failed to read ", changelogfile.c_str());
     return false;
   }
-  logfile.GetTail(nlines, qresult);
+  logfile.getTail(nlines, &qresult);
   tail = "";
   for (eos::common::DbLog::TlogentryVec::iterator it = qresult.begin(); it != qresult.end(); it++)
   {
@@ -1140,7 +947,6 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
       *err += def->c_str();
       *err += "\n";
     }
-
     return 0;
   }
 
@@ -1155,7 +961,6 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
       *err += def->c_str();
       *err += "\n";
     }
-
     return 0;
   }
 
@@ -1406,7 +1211,6 @@ ConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
 
       if (filtered)
       {
-
         out += sinputline;
         out += "\n";
       }

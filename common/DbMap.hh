@@ -23,827 +23,1209 @@
 
 /**
  * @file   DbMap.hh
- * 
- * @brief  Classes for a simple logging facility into a DB.
- *		   The default underlying DB is leveldb from google.
+ *
+ * @brief  Classes for a key-value container stored into an underlying DB/key-value store.
+ *         Especially, changes issued to this container can be logged to a db file.
+ *         The default underlying DB is leveldb from google.
  *         If the EOS_SQLITE_DBMAP is defined, then SQLITE3 is used instead
  *         Note that the SQLITE3 implementation is roughly 10 times slower for write operations
  *
  */
+/*----------------------------------------------------------------------------*/
+#include "common/DbMapCommon.hh"
+#include "common/DbMapLevelDb.hh"
+#include "common/DbMapSqlite.hh"
+/*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
+#include <regex.h>
+/*----------------------------------------------------------------------------*/
 
 #ifndef __EOSCOMMON_DBMAP_HH__
 #define __EOSCOMMON_DBMAP_HH__
-
-/*----------------------------------------------------------------------------*/
-#include "common/Namespace.hh"
-#include "common/Logging.hh"
-#include "common/sqlite/sqlite3.h"
-#ifndef EOS_SQLITE_DBMAP
-#include "leveldb/db.h"
-#include "leveldb/write_batch.h"
-#include "leveldb/filter_policy.h"
-#endif
-#include "common/RWMutex.hh"
-#include "common/stringencoders/modp_numtoa.h"
-/*----------------------------------------------------------------------------*/
-#include "XrdOuc/XrdOucString.hh"
-#include "XrdSys/XrdSysAtomics.hh"
-/*----------------------------------------------------------------------------*/
-#include <pthread.h>
-#include <time.h>
-#include <vector>
-#include <set>
-#include <map>
-#include <cmath>
-
-// By default, the LEVELDB implementation is used
-// define this macro to enable the SQLITE3 implementation
-// #define EOS_SQLITE_DBMAP
-
 EOSCOMMONNAMESPACE_BEGIN
 
-inline bool operator<(const timespec &t1, const timespec &t2) { return (t1.tv_sec)<(t2.tv_sec); }
-inline bool operator<=(const timespec &t1, const timespec &t2) { return (t1.tv_sec)<=(t2.tv_sec); }
-struct mytimespecordering {
-  inline bool operator() (const timespec &t1, const timespec &t2) const {return t1<t2;};
-};
-
-/*-------------------------  DATA TYPES  --------------------------------*/
-/*----------------------------------------------------------------------------*/
-//! Class provides the data types for the DbMap implementation
-/*----------------------------------------------------------------------------*/
-class DbMapTypes {
+class RegexBranch
+{
 public:
-  typedef std::string Tkey;
-  struct Tlogentry {
-    std::string timestamp;
-    std::string timestampstr;
-    std::string seqid;
-    std::string writer;			// each map has a unique name. This name is reported for each entry in the log.
-    std::string key;
-    std::string value;
-    std::string comment;
-  };
-  struct Tval {
-    size_t timestamp;
-    std::string timestampstr;
-    unsigned long seqid;
-    std::string writer;
-    std::string value;
-    std::string comment;
-  };
-  typedef std::vector<Tlogentry> TlogentryVec;
-};
-bool operator == ( const DbMapTypes::Tlogentry &l, const DbMapTypes::Tlogentry &r);
-DbMapTypes::Tval Tlogentry2Tval (const DbMapTypes::Tlogentry &tle);
-/*----------------------------------------------------------------------------*/
-
-
-/*------------------------    INTERFACES     ---------------------------------*/
-// The following abstract classes are interface to the db representation for the DbMap and DbLog class. These classes work as a pair and should be implemented as is.
-/*----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
-//! This class provides an interface to implement the necessary functions for the representation in a DB of the DbLog class
-//! This should implement an in-memory six columns table. Each column should contain string
-//! The names of the column are timestamp, logid, key, value, comment. There must be an uniqueness constraint on the timestamp (which should also be the primary key).
-/*----------------------------------------------------------------------------*/
-class DbLogInterface {
-public:
-  typedef DbMapTypes::Tkey Tkey;
-  typedef DbMapTypes::Tval Tval;
-  typedef DbMapTypes::Tlogentry Tlogentry;
-  typedef DbMapTypes::TlogentryVec TlogentryVec;
-
-  virtual bool SetDbFile( const std::string &dbname, int sliceduration, int createperm)=0;
-  virtual bool IsOpen() const=0;
-  virtual std::string GetDbFile() const =0;
-  virtual size_t GetAll( TlogentryVec &retvec, size_t nmax=0, Tlogentry *startafter=NULL ) const =0;
-  virtual size_t GetByRegex( const std::string &regex, TlogentryVec &retvec, size_t nmax=0, Tlogentry *startafter=NULL ) const=0;
-  virtual size_t GetTail( int nentries, TlogentryVec &retvec) const=0;
-  virtual ~DbLogInterface() {}
-
-};
-/*----------------------------------------------------------------------------*/
-//! this class provides an interface to implement the necessary functions for the representation in a DB of the DbMap class
-//! this should implement an in-memory six columns table. Each column should contain string
-//! the names of the column are timestamp, timestampstr, logid, key, value, comment. There must be an uniqueness constraint on the key.
-/*----------------------------------------------------------------------------*/
-class DbMapInterface {
-public:
-  typedef DbMapTypes::Tkey Tkey;
-  typedef DbMapTypes::Tval Tval;
-  typedef DbMapTypes::Tlogentry Tlogentry;
-  virtual void SetName( const std::string &)=0;
-  virtual const std::string & GetName() const =0;
-  virtual bool BeginTransaction()=0;
-  virtual bool EndTransaction()=0;
-  virtual bool InsertEntry(const Tkey &key, const Tval &val)=0;
-  virtual bool ChangeEntry(const Tkey &key, const Tval &val)=0;
-  virtual bool RemoveEntry(const Tkey &key)=0;
-  virtual bool AttachDbLog(const std::string &dbname, int sliceduration, int createperm)=0;
-  virtual bool DetachDbLog(const std::string &dbname)=0;
-  virtual bool AttachDbLog(DbLogInterface *dblogint)=0;
-  virtual bool DetachDbLog(DbLogInterface *dblogint)=0;
-  virtual ~DbMapInterface() {}
-};
-/*----------------------------------------------------------------------------*/
-
-
-/*-----------------    SQLITE INTERFACE IMPLEMENTATION     -------------------*/
-//! Here follows the implementation of the DbMap/DbLog interfaces for sqlite3
-/*----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
-//! this base class provides some sqlite helpers to implement the sqlite interfaces
-//! sqlite is accessed using a unique connection to ":memory" (which is supposed to be thread-safely implemented in sqlite3).
-//! The db files are attached.
-//! the number of attached dbs (including redundant attachments) cannot exceed SQLITE_MAX_ATTACHED that in turns cannot exceed 62
-/*----------------------------------------------------------------------------*/
-class SqliteInterfaceBase : public eos::common::LogId {
-protected:
-  static RWMutex transactionmutex;
-
-  mutable char stmt[1024];
-  static bool debugmode;
-  static bool abortonsqliteerror;
-  static sqlite3 *db;
-  static unsigned ninstances;
-  mutable DbMapTypes::TlogentryVec *retvecptr;
-  char tablename[32];
-  mutable char *errstr;
-  mutable int rc;
-  friend void _TestSqliteError_(const char* str, const int *rc, char **errstr, void* _this, const char* __file, int __line);
-
-  int ExecNoCallback(const char *);
-  static int ExecNoCallback2(const char *); // for the second thread
-  int Exec(const char *);
-  static int Exec2(const char *);		   // for the second thread
-  int WrapperCallback(void*unused,int,char**,char**);
-  inline static int StaticWrapperCallback(void *_this,int n,char** k,char** v) {return ((SqliteInterfaceBase*)_this)->WrapperCallback(NULL,n,k,v);}
-  static int PrintCallback(void *unused,int n,char** key,char** val) {for(int k=0;k<n;k++) printf("%s = %s\t",key[k],val[k]); printf("\n"); return 0;}
-  static void user_regexp(sqlite3_context *context, int argc, sqlite3_value **argv);
-public :
-  SqliteInterfaceBase() : retvecptr(NULL), errstr(NULL) {
-    AtomicInc(ninstances);
-    if(debugmode) printf("SQLITE3>> number of SqliteInterfaces instances %u\n",ninstances);
-    int rc; if(ninstances==1) {
-      if((rc=sqlite3_open_v2(":memory:",&db,SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_WAL,NULL))!=SQLITE_OK) {
-        eos_err("Error Opening Sqlite3 Database, return code is %d\n",rc);
-      }
-      else {
-        sqlite3_create_function(db, "REGEXP", 2, SQLITE_UTF8, NULL, &user_regexp, NULL, NULL);
-        sqlite3_config(SQLITE_CONFIG_SERIALIZED);
-        sprintf(stmt,"PRAGMA locking_mode = NORMAL;"); ExecNoCallback(stmt);
-        sprintf(stmt,"PRAGMA encoding = \"UTF-8\";"); ExecNoCallback(stmt);
-        // ==> Might need to modify these parameters to tune the performances
-        // ==> Member functions may be coded to alter these parameters
-        //sprintf(stmt,"PRAGMA journal_mode = OFF;"); ExecNoCallback(stmt);
-        //sprintf(stmt,"PRAGMA synchronous = 0;"); ExecNoCallback(stmt); // already in the embedded compilation of SQLITE
-        //sprintf(stmt,"PRAGMA default_cache_size = 20000"); ExecNoCallback(stmt);
-      }
-    }
-    while(db==NULL) usleep(10000); // to wait for the openning if another thread is doing it
+  RegexBranch()
+  {
+    pContent=new Content;
+    pContent->ptrcount=1;
   }
-  static void SetDebugMode(bool on) {debugmode=on;}
-  virtual ~SqliteInterfaceBase() {
-    AtomicDec(ninstances);
-    if(debugmode) printf("SQLITE3>> number of SqliteInterfaces instances %u\n",ninstances);
-    if(ninstances==0) {
-      if(debugmode) printf("SQLITE3>> closing db connection\n");
-      sqlite3_close(db);
+
+  /*----------------------------------------------------------------------------*/
+  //! Construct a branch out of a variable name and a pattern
+  //!
+  //! If any value of these two arguments is wrong, HasError return true
+  /*----------------------------------------------------------------------------*/
+  RegexBranch(const std::string &variable, const std::string &pattern)
+  {
+    pContent=new Content;
+    pContent->ptrcount=1;
+    pContent->op=Content::op_expr;
+    pContent->pattern=pattern;
+    re_set_syntax(RE_SYNTAX_POSIX_EGREP);
+    pContent->buffer=new re_pattern_buffer;
+    memset(pContent->buffer, 0, sizeof (*pContent->buffer));
+    if(re_compile_pattern(pattern.data(), pattern.size(), pContent->buffer))
+    {
+      //eos_err("DbMap: Error Compiling Regex");
+      pContent->op=Content::op_error;
+    }
+
+    if(variable=="key") pContent->var=Content::var_key;
+    else if(variable=="value") pContent->var=Content::var_val;
+    else if(variable=="writer") pContent->var=Content::var_writer;
+    else if(variable=="seqid") pContent->var=Content::var_seqid;
+    else if(variable=="comment") pContent->var=Content::var_comment;
+    else if(variable=="timestampstr") pContent->var=Content::var_tstampstr;
+    else pContent->op=Content::op_error;
+  }
+
+  ~RegexBranch()
+  {
+    clear();
+  }
+
+  RegexBranch( const RegexBranch &rb) : pContent(rb.pContent)
+  {
+    pContent->ptrcount++;
+  }
+
+  /*----------------------------------------------------------------------------*/
+  //! Assignment operator
+  //!
+  //! Note that no content is copied, it uses a smart pointer mechanism
+  /*----------------------------------------------------------------------------*/
+  RegexBranch& operator = (const RegexBranch &model)
+  {
+    clear();
+    pContent=model.pContent;
+    pContent->ptrcount++;
+    if(pContent->buffer)
+    {
+      regfree(pContent->buffer);
+      delete pContent->buffer;
+    }
+    return *this;
+  }
+
+  /*----------------------------------------------------------------------------*/
+  //! Evaluate the logical value of the regex branch for the given entry
+  //!
+  //! Note that any part of the branch having an error is evaluated to false.
+  //! So it's an advisable practice to check the branch for error before
+  //! evaluating its logical value for a given entry.
+  /*----------------------------------------------------------------------------*/
+  bool eval(const DbMapTypes::Tlogentry &entry) const
+  {
+    bool result;
+    switch(pContent->op)
+    {
+      case Content::op_expr:
+      switch(pContent->var)
+      {
+        case Content::var_key:
+        result = re_match(pContent->buffer, entry.key.data(), entry.key.size(), 0, NULL)>=0;
+        break;
+        case Content::var_val:
+        result = re_match(pContent->buffer, entry.value.data(), entry.value.size(), 0, NULL)>=0;
+        break;
+        case Content::var_comment:
+        result = re_match(pContent->buffer, entry.comment.data(), entry.comment.size(), 0, NULL)>=0;
+        break;
+        case Content::var_seqid:
+        result = re_match(pContent->buffer, entry.seqid.data(), entry.seqid.size(), 0, NULL)>=0;
+        break;
+        case Content::var_writer:
+        result = re_match(pContent->buffer, entry.writer.data(), entry.writer.size(), 0, NULL)>=0;
+        break;
+        case Content::var_tstampstr:
+        result = re_match(pContent->buffer, entry.timestampstr.data(), entry.timestampstr.size(), 0, NULL)>=0;
+        break;
+        default:
+        result=false;
+        break;
+      }
+      return result;
+      break;
+      case Content::op_not:
+      return ! pContent->right->eval(entry);
+      case Content::op_and:
+      return pContent->left->eval(entry) && pContent->right->eval(entry);
+      case Content::op_or:
+      return pContent->left->eval(entry) || pContent->right->eval(entry);
+      default:
+      return false;
     }
   }
-  static void SetAbortOnSqliteError(bool b) {abortonsqliteerror=b;}
-};
-/*----------------------------------------------------------------------------*/
-//! This function looks for sqlite3 error and prints it if some is found
-/*----------------------------------------------------------------------------*/
-inline void _TestSqliteError_(const char* str, const int *rc, char **errstr, void* _this, const char* __file, int __line) {
-  if(SqliteInterfaceBase::abortonsqliteerror && (*rc!=SQLITE_OK) && (*rc!=SQLITE_DONE) ) {
-    //fprintf(stderr," Sqlite 3 Error in %s at line %d , object %p\t Executing %s (as uid=%lu,gid=%lu) returned %d\t The error message was %s\n",__file,__line,_this,str,(unsigned)geteuid(),(unsigned)getegid(),*rc,*errstr);
-    eos_static_emerg(" Sqlite 3 Error in %s at line %d , object %p\t Executing %s (as uid=%lu,gid=%lu) returned %d\t The error message was %s\n",__file,__line,_this,str,(unsigned)geteuid(),(unsigned)getegid(),*rc,*errstr);
+
+  RegexBranch operator ! () const
+  {
+    RegexBranch ret;
+    ret.pContent->op=Content::op_not;
+    ret.pContent->right=new RegexBranch(*this);
+    return ret;
   }
-}
-#define TestSqliteError(stmt,returncode,errstr,_this) _TestSqliteError_(stmt,returncode,errstr,_this,__FILE__,__LINE__);
-/*----------------------------------------------------------------------------*/
-//! This class implements the DbLogInterface using Sqlite3
-/*----------------------------------------------------------------------------*/
-class SqliteDbLogInterface : public SqliteInterfaceBase, public DbLogInterface {
-public:
-  typedef std::pair<std::string,int> tCountedSqname;
-  typedef std::map<std::string,tCountedSqname> tMapFileToSqname; // filename -> attach-name, number of DbLogInterfaces
-  typedef std::pair<std::string,int> tPeriodedFile;
-  typedef std::multimap<timespec,tPeriodedFile,mytimespecordering> tTimeToPeriodedFile; // next update -> filename,
-private:
-  friend class SqliteDbMapInterface;
-  static unsigned ninstances;
 
-  // management of the uniqueness of the db attachments
-  static XrdSysMutex uniqmutex;
-  static tMapFileToSqname file2sqname;
-  static std::set<int> idpool;
-  std::string sqname;
-  inline const std::string & GetSqName() const {return sqname;}
+  RegexBranch operator || (const RegexBranch &right) const
+  {
+    RegexBranch ret;
+    ret.pContent->op=Content::op_or;
+    ret.pContent->left = new RegexBranch(*this);
+    ret.pContent->right = new RegexBranch(right);
+    return ret;
+  }
 
-  // archiving management
-  static tTimeToPeriodedFile archqueue;
-  static pthread_t archthread;
-  static bool archthreadstarted;
-  static void ArchiveThreadCleanup(void *dummy=NULL);
-  static void* ArchiveThread(void*dummy=NULL);
-  static XrdSysCondVar archmutex;
-  static pthread_cond_t archcond;
-  static int Archive(const tTimeToPeriodedFile::iterator &entry );
-  static int UpdateArchiveSchedule(const tTimeToPeriodedFile::iterator &entry);
+  RegexBranch operator && (const RegexBranch & right) const
+  {
+    RegexBranch ret;
+    ret.pContent->op=Content::op_and;
+    ret.pContent->left = new RegexBranch(*this);
+    ret.pContent->right = new RegexBranch(right);
+    return ret;
+  }
 
-  std::string dbname;
-  bool isopen;
+  /*----------------------------------------------------------------------------*/
+  //! Non-recursively check if the branch is blank.
+  /*----------------------------------------------------------------------------*/
+  bool isBlank() const
+  {
+    return pContent->op==Content::op_error
+    && pContent->pattern.empty()
+    && pContent->var==Content::var_none;
+  }
 
-  void Init();
-  SqliteDbLogInterface(const SqliteDbLogInterface &);
-public:
-  typedef enum {testly=10, hourly=3600, daily=3600*24, weekly=3600*24*7} period;
-  SqliteDbLogInterface();
-  SqliteDbLogInterface(const std::string &dbname, int sliceduration, int createperm);
-  bool SetDbFile( const std::string &dbname, int sliceduration, int createperm);
-  bool IsOpen() const;
-  std::string GetDbFile() const;
-  static std::string GetDbType() { return "Sqlite3";}
-  size_t GetAll( TlogentryVec &retvec , size_t nmax=0, Tlogentry *startafter=NULL ) const;
-  size_t GetByRegex( const std::string &regex, TlogentryVec &retvec , size_t nmax=0, Tlogentry *startafter=NULL ) const;
-  size_t GetTail( int nentries, TlogentryVec &retvec ) const;
-  static int SetArchivingPeriod(const std::string &dbname, int sliceduration);
-  virtual ~SqliteDbLogInterface();
-};
+  /*----------------------------------------------------------------------------*/
+  //! Recursively check if the branch contains any error
+  /*----------------------------------------------------------------------------*/
+  bool hasError() const
+  {
+    if(isBlank()) return false;
+    switch(pContent->op)
+    {
+      case Content::op_expr:
+      return false; // it's fine
+      case Content::op_error:
+      return true;// something is wrong
+      default:
+      bool result=false;
+      if(pContent->left) result|=pContent->left->hasError();
+      if(pContent->right) result|=pContent->right->hasError();
+      return result;
+    }
+  }
 
-/*----------------------------------------------------------------------------*/
-//! This class implements the DbMapInterface using Sqlite3
-/*----------------------------------------------------------------------------*/
-class SqliteDbMapInterface : public SqliteInterfaceBase, public DbMapInterface {
-  friend class SqliteDbLogInterface;
+  /*----------------------------------------------------------------------------*/
+  //! Non-recursively return the pattern of the branch.
+  /*----------------------------------------------------------------------------*/
+  const std::string &getPattern() const
+  { return pContent->pattern;}
 
-  std::string name;
-  sqlite3_stmt *insert_stmt,*change_stmt,*remove_stmt;
-  std::vector<sqlite3_stmt *> export_stmts;
-
-  typedef std::pair<SqliteDbLogInterface*,bool> tOwnedSDLIptr; // pointer, ownit
-  std::map<std::string,tOwnedSDLIptr> attacheddbs;
-
-  int PrepareStatements();
-  int PrepareExportStatement();
-  SqliteDbMapInterface(const SqliteDbMapInterface &);
-public:
-  SqliteDbMapInterface();
-  void SetName( const std::string &);
-  static std::string GetDbType() { return "Sqlite3";}
-  const std::string & GetName() const;
-  bool BeginTransaction();
-  bool EndTransaction();
-  bool InsertEntry(const Tkey &key, const Tval &val);
-  bool ChangeEntry(const Tkey &key, const Tval &val);
-  bool RemoveEntry(const Tkey &key);
-  bool AttachDbLog(const std::string &dbname,int sliceduration, int createperm);
-  bool DetachDbLog(const std::string &dbname);
-  bool AttachDbLog(DbLogInterface *dbname);
-  bool DetachDbLog(DbLogInterface *dbname);
-  virtual ~SqliteDbMapInterface();
-};
-/*----------------------------------------------------------------------------*/
-
-#ifndef EOS_SQLITE_DBMAP
-/*-----------------    LEVELDB INTERFACE IMPLEMENTATION     -------------------*/
-//! Here follows the implementation of the DbMap/DbLog interfaces for LevelDb
-/*----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
-//! this base class provides some LevelDb helpers to implement the LevelDb interfaces
-//! the db is accessed using via a unique leveldb::DB which is supposed to be thread-safely implemented in leveldb.
-//! each transaction (batch in LevelDb words) is instanciated as a leveldb::batch object which is NOT thread-safe
-//! Contrary to the sqlite3 implementation, the DbMap does NOT have a representation into the DB library.
-//! Although the function to maintain such a representation are provided, they actually do NOTHING in leveldb
-//! The actual interaction with leveldb is in the DbLog interface.
-/*----------------------------------------------------------------------------*/
-class LvDbInterfaceBase : public eos::common::LogId {
 protected:
-  friend void _TestLvDbError_(const leveldb::Status &s, void* _this, const char* __file, int __line);
-  static bool abortonlvdberror;
-  static bool debugmode;
-  static unsigned ninstances;
-public :
-  static void SetDebugMode(bool on) {debugmode=on;}
-  static void SetAbortOnLvDbError(bool b) {abortonlvdberror=b;}
-
-};
-/*----------------------------------------------------------------------------*/
-//! This function looks for leveldb error and prints it if some is found
-/*----------------------------------------------------------------------------*/
-inline void _TestLvDbError_(const leveldb::Status &s, void* _this, const char* __file, int __line) {
-  if(LvDbInterfaceBase::abortonlvdberror && !s.ok() ) {
-    //fprintf(stderr," LevelDb Error (as uid=%lu,gid=%lu) in %s at line %d involving object %p : %s\n",(unsigned)geteuid(),(unsigned)getegid(),__file,__line,_this,s.ToString().c_str());
-    eos_static_emerg(" LevelDb Error (as uid=%lu,gid=%lu) in %s at line %d involving object %p : %s\n",(unsigned)geteuid(),(unsigned)getegid(),__file,__line,_this,s.ToString().c_str());
+  void clear()
+  {
+    if(!--pContent->ptrcount)
+    {
+      if(pContent->left) delete pContent->left;
+      if(pContent->left) delete pContent->right;
+      delete pContent;
+    }
   }
+
+  struct Content
+  {
+    //! this enum describes what type of logical operation in this branch if any
+    enum t_op
+    { op_error,op_expr,op_and,op_or,op_not};
+    //! this enum describes what on what field the regex should be run
+    enum t_var
+    { var_none,var_key,var_val,var_comment,var_seqid,var_writer,var_tstampstr};
+
+    //! counts the number of pointers on this object
+    size_t ptrcount;
+    //! logical operation in this branch
+    t_op op;
+    //! variable to run the regex
+    t_var var;
+    //! regex pattern
+    std::string pattern;
+    //! compiled regex
+    struct re_pattern_buffer *buffer;
+    //! left subranch
+    RegexBranch *left;
+    //! right subranch
+    RegexBranch *right;
+
+    Content() : ptrcount(0), op(op_error), var(var_none), pattern(), buffer(NULL), left(NULL), right(NULL)
+    {}
+  };
+  Content *pContent;
+};
+
+/*----------------------------------------------------------------------------*/
+//! Helper function to create RegexBranches
+//! @param[in] variable
+//!  the name of the variable to be matched with the regex
+//! @param[in] regex
+//!  the regular expression to match (POSIX regexp)
+/*----------------------------------------------------------------------------*/
+inline RegexBranch RegexAtom(const std::string &variable, const std::string &regex)
+{
+  return RegexBranch(variable,regex);
 }
-#define TestLvDbError(s,_this) _TestLvDbError_(s,_this,__FILE__,__LINE__);
+
 /*----------------------------------------------------------------------------*/
-//! This class implements the DbLogInterface using leveldb
+//! Helper Predicate to use with std::algorithm
 /*----------------------------------------------------------------------------*/
-class LvDbDbLogInterface : public LvDbInterfaceBase, public DbLogInterface {
+class RegexPredicate : std::unary_function<DbMapTypes::Tlogentry,bool>
+{
+  RegexBranch mRegex;
 public:
-  typedef std::pair<leveldb::DB*,leveldb::FilterPolicy*> DbAndFilter;
-  typedef std::pair<DbAndFilter,int> tCountedDbAndFilter;
-  typedef std::map<std::string,tCountedDbAndFilter> tMapFileToDb; // filename -> attach-name, number of DbLogInterfaces
-  typedef std::pair<std::string,int> tPeriodedFile;
-  typedef std::multimap<timespec,tPeriodedFile,mytimespecordering> tTimeToPeriodedFile; // next update -> filename,
-private:
-  friend class LvDbDbMapInterface;
-
-  // management of the uniqueness of the db attachments
-  static XrdSysMutex uniqmutex;
-  static tMapFileToDb file2db ;
-  static std::set<int> idpool;
-  //std::string db;
-  leveldb::DB *db;
-
-  // archiving management
-  static tTimeToPeriodedFile archqueue;
-  static pthread_t archthread;
-  static bool archthreadstarted;
-  static void ArchiveThreadCleanup(void *dummy=NULL);
-  static void* ArchiveThread(void*dummy=NULL);
-  static XrdSysCondVar archmutex;
-  static pthread_cond_t archcond;
-  static int Archive(const tTimeToPeriodedFile::iterator &entry );
-  static int UpdateArchiveSchedule(const tTimeToPeriodedFile::iterator &entry);
-
-  std::string dbname;
-  bool isopen;
-
-  void Init();
-  LvDbDbLogInterface(const LvDbDbLogInterface &);
-public:
-  typedef enum {testly=10, hourly=3600, daily=3600*24, weekly=3600*24*7} period;
-  LvDbDbLogInterface();
-  LvDbDbLogInterface(const std::string &dbname, int sliceduration, int createperm);
-  bool SetDbFile( const std::string &dbname, int sliceduration, int createperm);
-  bool IsOpen() const;
-  std::string GetDbFile() const;
-  static std::string GetDbType() { return "LevelDB";}
-  size_t GetAll( TlogentryVec &retvec , size_t nmax=0, Tlogentry *startafter=NULL ) const;
-  size_t GetByRegex( const std::string &regex, TlogentryVec &retvec , size_t nmax=0, Tlogentry *startafter=NULL ) const;
-  size_t GetTail( int nentries, TlogentryVec &retvec ) const;
-  static int SetArchivingPeriod(const std::string &dbname, int sliceduration);
-  virtual ~LvDbDbLogInterface();
+  RegexPredicate (const RegexBranch &regex) : mRegex(regex)
+  {}
+  bool operator () (const DbMapTypes::Tlogentry &entry) const
+  {
+    bool regeval=mRegex.eval(entry);
+    return !regeval;
+  }
 };
-
-/*----------------------------------------------------------------------------*/
-//! This class implements the DbMapInterface using LvDb
-//! Note that the map doesn't have a LevelDb representation in memory
-/*----------------------------------------------------------------------------*/
-class LvDbDbMapInterface : public LvDbInterfaceBase, public DbMapInterface {
-  friend class LvDbDbLogInterface;
-
-  std::string name;
-
-  RWMutex batchmutex;
-  leveldb::WriteBatch writebatch;
-  bool batched;
-
-  typedef std::pair<LvDbDbLogInterface*,bool> tOwnedLDLIptr; // pointer, ownit
-  std::map<std::string,tOwnedLDLIptr> attacheddbs;
-
-  LvDbDbMapInterface(const LvDbDbMapInterface &);
-public:
-  LvDbDbMapInterface();
-  void SetName( const std::string &);
-  static std::string GetDbType() { return "LevelDB";}
-  const std::string & GetName() const;
-  bool BeginTransaction();
-  bool EndTransaction();
-  bool InsertEntry(const Tkey &key, const Tval &val);
-  bool ChangeEntry(const Tkey &key, const Tval &val);
-  bool RemoveEntry(const Tkey &key);
-  bool AttachDbLog(const std::string &dbname,int sliceduration, int createperm);
-  bool DetachDbLog(const std::string &dbname);
-  bool AttachDbLog(DbLogInterface *dbname);
-  bool DetachDbLog(DbLogInterface *dbname);
-  virtual ~LvDbDbMapInterface();
-};
-/*----------------------------------------------------------------------------*/
-#endif
 
 /*------------    DbMap and DbLog TEMPLATE IMPLEMENTATIONS     ---------------*/
 template<class TDbMapInterface, class TDbLogInterface> class DbLogT; // the definition of this template comes later in the same file
 
 /*----------------------------------------------------------------------------*/
-//! this class is like a map which has both an in memory storage and a db storage.
+//! this class is like a map its content lays in a db or in memory or both.
+//! If the data lays only in the db, it's called out of core.
 //! it maps a key (a string) to a value (a string) and a comment (a string).
 //! Additional informations are automatically added into the map, namely :
-//! a timestamp (a size_t), a string representation of the timestamp, a sequence id ( an integer ).
-//! The db storage aims at implementing logging facilities by using the DbLog class.
+//! a time stamp (a size_t), a string representation of the timestamp, a sequence id ( an integer ).
+//! Any modification to the content data can be logged thanks to the DbLog Class.
 /*----------------------------------------------------------------------------*/
-template<class TDbMapInterface,class TDbLogInterface> class DbMapT : public eos::common::LogId  {
+template<class TDbMapInterface,class TDbLogInterface> class DbMapT : public eos::common::LogId
+{
 public:
   // typedefs
   typedef DbMapTypes::Tkey Tkey;
   typedef DbMapTypes::Tval Tval;
+  typedef DbMapTypes::TvalSlice TvalSlice;
+  typedef DbMapTypes::Tlogentry Tlogentry;
+  typedef DbMapTypes::TlogentryVec TlogentryVec;
   typedef std::pair<Tkey,Tval> Tkeyval;
+  typedef typename TDbMapInterface::Option Toption;
+#ifdef EOS_STDMAP_DBMAP
   typedef std::map<Tkey,Tval> Tmap;
+#else
+  typedef ::google::dense_hash_map<Tkey,Tval> Tmap;
+#endif
   typedef std::vector<Tkeyval> Tlist;
 
 private:
-  //------------------------------------------------------------------------
+  // ------------------------------------------------------------------------
+  //! some db interface parameters
+  // ------------------------------------------------------------------------
+  static size_t pDbIterationChunkSize;
+
+  // ------------------------------------------------------------------------
   //! this set makes sure that every name is unique
-  //------------------------------------------------------------------------
-  static std::set<std::string> names;
+  // ------------------------------------------------------------------------
+  static std::set<std::string> gNames;
 
-  static RWMutex namesmutex;
+  static RWMutex gNamesMutex;
+  static RWMutex gTimeMutex;
 
-  //------------------------------------------------------------------------
+  // ------------------------------------------------------------------------
   //! the name of the DbMap instance. Default is db%p where %p is the value of 'this' pointer. it can be changed
   //! this name is used as the 'writer' value into the DbLog
-  //------------------------------------------------------------------------
-  std::string name;
+  // ------------------------------------------------------------------------
+  std::string pName;
 
-  //------------------------------------------------------------------------
-  //! iterating shows that the instance is being iterated (const_iteration is the only available). all others threads trying to access to the instance are blocked while a thread is iterating iterating.
-  //------------------------------------------------------------------------
-  mutable bool iterating;
+  // ------------------------------------------------------------------------
+  //! this variable shows if the content of the db should be kept in memory inside a map.
+  //! Then all read operations are issued from the memory and write operations are issued to both memory and db.
+  // ------------------------------------------------------------------------
+  mutable bool pUseMap;
 
-  //------------------------------------------------------------------------
+  // ------------------------------------------------------------------------
+  //! this variable shows if the content sequence id should be used. It requires a look up each time a value is written.
+  // ------------------------------------------------------------------------
+  mutable bool pUseSeqId;
+
+  // ------------------------------------------------------------------------
+  //! this variable shows that the instance is being iterated (const_iteration is the only available). all others threads trying to access to the instance are blocked while a thread is iterating iterating.
+  // ------------------------------------------------------------------------
+  mutable bool pIterating;
+
+  // ------------------------------------------------------------------------
+  //! This is the thread id of the thread currently iterating over the DbMap (if it's being iterated). It allows to have a set sequence while iterating.
+  // ------------------------------------------------------------------------
+  mutable pthread_t pItThreadId;
+
+  // ------------------------------------------------------------------------
   //! this is the map containing the data. Any read access to the instance is made to this map without accessing it. Any write access to the instance is made on both this map and the DB.
-  //------------------------------------------------------------------------
-  Tmap map;
+  // ------------------------------------------------------------------------
+  Tmap pMap;
 
-  //------------------------------------------------------------------------
-  //! this is the underlying iterator to the const_iteration feature
-  //------------------------------------------------------------------------
-  mutable Tmap::const_iterator it;
+  // ------------------------------------------------------------------------
+  //! this map is meant to allow to get values without interrupting a set sequence by updating the db. All pending changes are there.
+  // ------------------------------------------------------------------------
+  Tmap pSetSeqMap;
 
-  //------------------------------------------------------------------------
-  //! this list is used to accumulate pair of key values during a "set" sequence.
-  //------------------------------------------------------------------------
-  Tlist setseqlist;
+  // ------------------------------------------------------------------------
+  //! this is the underlying iterator to the const_iteration feature from the memory
+  // ------------------------------------------------------------------------
+  mutable Tmap::const_iterator pIt;
 
-  //------------------------------------------------------------------------
+  // ------------------------------------------------------------------------
+  //! this is the underlying iterator to the const_iteration feature from the db
+  // ------------------------------------------------------------------------
+  mutable TlogentryVec::const_iterator pDbIt;
+
+  // ------------------------------------------------------------------------
+  //! this list is used to accumulate pairs of key values during a "set" sequence.
+  // ------------------------------------------------------------------------
+  Tlist pSetSeqList;
+
+  // ------------------------------------------------------------------------
+  //! this list is used to iterate through the db by block
+  // ------------------------------------------------------------------------
+  mutable TlogentryVec pDbItList;
+
+  // ------------------------------------------------------------------------
+  //! these members are used for the iteration through the map
+  // ------------------------------------------------------------------------
+  mutable Tkey pDbItKey;
+  mutable Tval pDbItVal;
+
+  // ------------------------------------------------------------------------
   //! setsequence is true if an ongoing set sequence is running. It doesn't lock the instance.
-  //------------------------------------------------------------------------
-  mutable bool setsequence;
+  // ------------------------------------------------------------------------
+  mutable bool pSetSequence;
 
-  //------------------------------------------------------------------------
+  // ------------------------------------------------------------------------
   //! db is a pointer to the db manager of the data
   //! the TDmapInterface is not supposed to be thread-safe. So db must be protected by a lock.
-  //------------------------------------------------------------------------
-  TDbMapInterface *db;
+  // ------------------------------------------------------------------------
+  TDbMapInterface *pDb;
 
-  //------------------------------------------------------------------------
+  // ------------------------------------------------------------------------
   //! this is mutex at instance granularity
-  //------------------------------------------------------------------------
-  mutable RWMutex mutex;
+  // ------------------------------------------------------------------------
+  mutable RWMutex pMutex;
 
-  //------------------------------------------------------------------------
+  // ------------------------------------------------------------------------
   //! this are the counters of 'set' and 'get' calls to this instance
-  //------------------------------------------------------------------------
-  mutable size_t setCounter, getCounter;
+  // ------------------------------------------------------------------------
+  mutable size_t pSetCounter, pGetCounter;
+  mutable size_t pNestedSetSeq;
 
-  //------------------------------------------------------------------------
-  //! this tells if fractional seconds should be added to timestamp string in the db. it Doesn't impact the precision the timestamp.
-  //------------------------------------------------------------------------
-  bool secfract;
-
-  size_t Now() const {
-    struct timespec ts;
-#ifdef __APPLE__
-    struct timeval tv;
-    gettimeofday(&tv, 0);
-    ts.tv_sec = tv.tv_sec;
-    ts.tv_nsec = tv.tv_usec * 1000;
-#else
-    clock_gettime(CLOCK_REALTIME, &ts);
-#endif
-    return 1e9*ts.tv_sec+ts.tv_nsec;
-  }
-
-  std::string IntTimeToStr(const size_t &d) const {
-    char buffer[64];
-    time_t sec=floor(d/(int)1e9);
-    size_t nsec=size_t((d-sec)%(int)1e9);
-    // Convert a time_t into a struct tm using your current time zone
-    struct tm ptm;
-    localtime_r(&sec,&ptm);
-    size_t offset=strftime(buffer, 64, "%Y-%m-%d %H:%M:%S", &ptm);
-    //if(secfract)  sprintf(buffer+offset,".%9.9ld",nsec);
-    if(secfract)  sprintf(buffer+offset, "%9.9lu",nsec);
-    return buffer;
-  }
-  //------------------------------------------------------------------------
-  //! this function is used when closing a set sequence it flushes setseqlist to both 'map' and 'db'
-  //! it returns the number of processed elements in the list
-  //------------------------------------------------------------------------
-  unsigned long ProcessSetSeqList() {
-    unsigned long rc=(unsigned long)setseqlist.size();
-    db->BeginTransaction();
-    for(Tlist::iterator it=setseqlist.begin();it!=setseqlist.end();it++) {
-      DoSet(it->first,it->second);
+protected:
+  // ------------------------------------------------------------------------
+  //! this function generates a new time stamp suffixed by a sequence tag
+  // ------------------------------------------------------------------------
+  static bool now( time_t *timearg, size_t *orderarg)
+  {
+    RWMutexWriteLock lock(gTimeMutex);
+    static size_t orderinsec=0;
+    static time_t prevtime=0;
+    time_t now = time(0);
+    if(now==prevtime)
+    orderinsec++;
+    else
+    {
+      prevtime=now;
+      orderinsec=0;
     }
-    db->EndTransaction();
+    *timearg=now;
+    *orderarg=orderinsec;
+    return orderinsec==0;
+  }
+
+  // ------------------------------------------------------------------------
+  //! generates a new time stamp suffixed by a sequence tag and build a string representation.
+  // ------------------------------------------------------------------------
+  static void nowStr(const char** timestrarg,time_t *timet=NULL)
+  {
+    // this function is thread-safe
+    // each thread has its own static variables and update them when needed
+    static __thread char timestr[64];
+    static __thread time_t prevtime=0;
+    static __thread size_t offset;
+    time_t time;
+    size_t order;
+    now(&time,&order);
+    if(time!=prevtime)
+    {
+      // convert time to str
+      struct tm ptm;
+      localtime_r(&time,&ptm);
+      offset=strftime(timestr, 64, "%Y-%m-%d %H:%M:%S", &ptm);
+      timestr[offset++]='#';
+      prevtime=time;
+    }
+    // convert the ordernumber
+    sprintf(timestr+offset, "%9.9lu",order);
+
+    *timestrarg=timestr;
+    if(timet!=NULL) *timet=time;
+  }
+
+  // ------------------------------------------------------------------------
+  //! this function is used when closing a set sequence it flushes setseqlist to 'db' and to 'db' if necessary
+  //! it returns the number of processed elements in the list
+  // ------------------------------------------------------------------------
+  int processSetSeqList()
+  {
+    unsigned long rc=(unsigned long)pSetSeqList.size();
+    int i=0;
+    pDb->beginTransaction();
+    for(Tlist::iterator it=pSetSeqList.begin();it!=pSetSeqList.end();it++)
+    {
+      i++;
+      if(it->second.seqid==0)
+      {
+        if(!doRemove(it->first,it->second)) return -1;
+      }
+      else
+      if(!doSet(it->first,it->second)) return -1;
+    }
+    pDb->endTransaction();
     return rc;
   }
 
-  void DoSet(const Tkey& key, const std::string& value, const std::string& comment) {
-    size_t d=Now();
-    Tval val= {d,IntTimeToStr(d),1,"",value,comment};
-    DoSet(key,val);
+  // ------------------------------------------------------------------------
+  //! this function sets an entry in the DbMap.
+  //! it returns the number of entries buffered in the seqlist. It means 0 if the set sequence is not enabled.
+  // ------------------------------------------------------------------------
+  int set( const Slice& timestr, const Slice& key, const Slice& value, const Slice& comment)
+  {
+    RWMutexWriteLock lock(pMutex);
+    Tval gval;
+    TvalSlice val=
+    { timestr,1,pName,value,comment};
+    if(pUseSeqId)
+    {
+      bool keyfound=doGet(key,&gval);
+      if(keyfound) val.seqid=gval.seqid+1;
+    }
+
+    if(pSetSequence)
+    {
+      pSetSeqList.push_back( Tkeyval(key.ToString(),val) );
+      pSetSeqMap[key.ToString()]=val;
+      return pSetSeqList.size();
+    }
+    else
+    {
+      if(doSet(key,val))
+      return 0;
+      else
+      return -1;
+
+    }
   }
 
-  void DoSet(const size_t &time, const Tkey& key, const std::string& value, const std::string& comment) {
-    size_t d=time;
-    Tval val= {d,IntTimeToStr(d),1,"",value,comment};
-    DoSet(key,val);
+  // ------------------------------------------------------------------------
+  //! This function sets an entry in the DbMap of which is the time stamp is set to now
+  // ------------------------------------------------------------------------
+  bool doSet(const Slice& key, const Slice& value, const Slice& comment)
+  {
+    const char *tstr;
+    nowStr(&tstr);
+    Slice tstrslice(tstr,strlen(tstr));
+    TvalSlice val=
+    { tstrslice,1,pName,value,comment};
+    return doSet(key,val);
   }
 
-  void DoSet(const Tkey& key, Tval& val) {
-    Tmap::iterator it=map.find(key);
-    if(it!=map.end()) {
-      val.seqid=it->second.seqid+1;
-      it->second=val;
-      db->ChangeEntry(key,val);
+  // ------------------------------------------------------------------------
+  //! This function sets an entry in the DbMap
+  // ------------------------------------------------------------------------
+  bool doSet(const Slice &timestr, const Slice& key, const Slice& value, const Slice& comment)
+  {
+    TvalSlice val=
+    { timestr,1,pName,value,comment};
+
+    return doSet(key,val);
+  }
+
+  // ------------------------------------------------------------------------
+  //! This function sets an entry in the DbMap of which is the time stamp is set to now
+  // ------------------------------------------------------------------------
+  bool doSet(const Slice& key, const TvalSlice& val)
+  {
+    Tmap::iterator it;
+    if(pUseMap)
+    { // using memory map and updating the db
+      pMap[key.ToString()]=(Tval)val;
     }
-    else {
-      db->InsertEntry(key,val);
-      map[key]=val;
+    if(pDb->setEntry(key,val))
+    {
+      AtomicInc(pSetCounter);
+      return true;}
+    else
+    return false;
+  }
+
+  // ------------------------------------------------------------------------
+  //! This function removes an entry from the DbMap
+  // ------------------------------------------------------------------------
+  bool doRemove(const Slice& key, const TvalSlice& val)
+  {
+    if(pUseMap)
+    {
+      std::string keystr(key.ToString());
+      Tmap::iterator it=pMap.find(keystr);
+      if(it!=pMap.end())
+      {
+        pMap.erase(it);
+      }
     }
-    AtomicInc(setCounter);
+    return pDb->removeEntry(key,val);
+  }
+
+  // ------------------------------------------------------------------------
+  //! This function retrieves the data associated to a given key.
+  // ------------------------------------------------------------------------
+  bool doGet (const Slice& key,Tval *val) const
+  {
+    std::string keystr;
+    if(pSetSequence || pUseMap) keystr=key.ToString();
+    if(pSetSequence)
+    {
+      Tmap::const_iterator it=pSetSeqMap.find(keystr);
+      if(it!=pSetSeqMap.end())
+      {
+        *val=(it->second);
+        return true;
+      }
+    }
+    if(pUseMap)
+    { // NOT out-of-core
+      Tmap::const_iterator it=pMap.find(keystr);
+      if(it!=pMap.end())
+      {
+        *val=(it->second);
+        return true;
+      }
+      else
+      return false;
+    }
+    else // out-of-core
+    return pDb->getEntry(key,val);
+  }
+
+  // ------------------------------------------------------------------------
+  //! Removes an entry from the DbMap
+  //! @param[in] key the key of which the entry is to be removed
+  //! @param[in] value is a place holder for some information
+  //! @return the number of entries buffered in the seqlist. It means 0 if the set sequence is not enabled.
+  //!         -1 if an error occurs
+  // ------------------------------------------------------------------------
+  int remove (const Slice& key, const TvalSlice &val)
+  {
+    RWMutexWriteLock lock(pMutex);
+    if(pSetSequence)
+    {
+      std::string keystr(key.ToString());
+      pSetSeqList.push_back( Tkeyval(keystr,val) );
+      pSetSeqMap.erase(keystr);
+      return pSetSeqList.size();
+    }
+    else
+    {
+      if(doRemove(key,val))
+      return 0;
+      else
+      return -1;
+    }
   }
 
 public:
-  //------------------------------------------------------------------------
+  // ------------------------------------------------------------------------
   /// capacity
-  //------------------------------------------------------------------------
-  bool Empty()	const { return map.empty();	}
-  size_t Size()	const { return map.size(); 	}
+  // ------------------------------------------------------------------------
 
-  //------------------------------------------------------------------------
-  /// counters
-  //------------------------------------------------------------------------
-  size_t GetReadCount() const		{ return getCounter; }
-  size_t GetWriteCount() const	{ return setCounter; }
-
-  //------------------------------------------------------------------------
-  /// logging
-  //------------------------------------------------------------------------
-
-  //------------------------------------------------------------------------
-  //! this function return true if the dbname was attached else it returns false (it maybe because the file is already attached)
-  //------------------------------------------------------------------------
-  bool AttachLog(const std::string &dbname,int sliceduration=-1, int createperm=0) {
-    mutex.LockWrite();
-    bool rc=db->AttachDbLog(dbname,sliceduration,createperm);
-    mutex.UnLockWrite();
-    return rc;
-  }
-
-  //------------------------------------------------------------------------
-  //! this function return true if the dbname was attached else it returns false (it maybe because the file is already attached)
-  //------------------------------------------------------------------------
-  bool AttachLog(DbLogT<TDbMapInterface,TDbLogInterface>* dblog) {
-    mutex.LockWrite();
-    bool rc=db->AttachDbLog(dblog->db);
-    mutex.UnLockWrite();
-    return rc;
-  }
-
-  //------------------------------------------------------------------------
-  //! this function return true if the dbname was detached else it returns false (it maybe because the file has already been attached)
-  //------------------------------------------------------------------------
-  bool DetachLog(const std::string &dbname) {
-    mutex.LockWrite();
-    bool rc=db->DetachDbLog(dbname);
-    mutex.UnLockWrite();
-    return rc;
-  }
-
-  //------------------------------------------------------------------------
-  //! this function return true if the dbname was detached else it returns false (it maybe because the file has already been attached)
-  //------------------------------------------------------------------------
-  bool DetachLog(DbLogT<TDbMapInterface,TDbLogInterface>* dblog) {
-    mutex.LockWrite();
-    bool rc=db->DetachDbLog(dblog->db);
-    mutex.UnLockWrite();
-    return rc;
-  }
-
-  //------------------------------------------------------------------------
-  /// constr , destr
-  //------------------------------------------------------------------------
-  DbMapT() : iterating(false), setsequence(false), setCounter(0), getCounter(0), secfract(false) {
-    db = new TDbMapInterface();
-    char buffer[32];
-    sprintf(buffer,"dbmap%p",this);
-    name = buffer;
-    namesmutex.LockWrite();
-    names.insert(name);
-    namesmutex.UnLockWrite();
-    db->SetName(name);
-  }
-  ~DbMapT() {
-    namesmutex.LockWrite();
-    names.erase(name);
-    namesmutex.UnLockWrite();
-    delete static_cast<TDbMapInterface*>(db);
-  }
-
-  //------------------------------------------------------------------------
-  //! this function returns true if the name of the instance was successfully set. If the return value is false, the name is alreday given to another instance.
-  //------------------------------------------------------------------------
-  bool SetName(const std::string &name) {
-    namesmutex.LockWrite();
-    if(names.find(name)!=names.end()) {
-      namesmutex.UnLockWrite();
-      return false;
+  // ------------------------------------------------------------------------
+  //! Get the number of entries in the DbMap
+  //! @return the number of entries in the DbMap
+  // ------------------------------------------------------------------------
+  size_t size() const
+  {
+    if(!pDb->getAttachedDbName().empty())
+    {
+      RWMutexReadLock lock(pMutex);
+      return pDb->size();
     }
-    names.erase(this->name);
-    names.insert(name);
-    this->name=name;
-    db->SetName(name);
-    namesmutex.UnLockWrite();
+    else
+    return pMap.size();
+  }
+
+  // ------------------------------------------------------------------------
+  //! Check if the DbMap is empty
+  //! @return true is the DbMap is empty, false else.
+  // ------------------------------------------------------------------------
+  bool empty() const
+  { return size()==0;}
+  size_t Count(const Slice &key) const
+  {
+    if(!pDb->getAttachedDbName().empty())
+    {
+      RWMutexReadLock lock(pMutex);
+      return pDb->count(key);
+    }
+    else
+    return pMap.count(key.ToString());
+  }
+
+  // ------------------------------------------------------------------------
+  /// counters
+  // ------------------------------------------------------------------------
+
+  // ------------------------------------------------------------------------
+  //! Get the number of reads in the DbMap
+  //! @return the number of reads in the DbMap
+  // ------------------------------------------------------------------------
+  size_t getReadCount() const
+  { return pGetCounter;}
+
+  // ------------------------------------------------------------------------
+  //! Get the number of writes in the DbMap
+  //! @return the number of writes in the DbMap
+  // ------------------------------------------------------------------------
+  size_t getWriteCount() const
+  { return pSetCounter;}
+
+  // ------------------------------------------------------------------------
+  /// Persistency
+  // ------------------------------------------------------------------------
+
+  // ------------------------------------------------------------------------
+  //! Attach a db to the DbMap.
+  //! When using out-of-core, this function should be used first.
+  //! At most one db can be attached to a given instance of a DbMap.
+  //! If a db is already attached or if an error occurs, the return value is false.
+  //! @param[in] dbname the file name of the db to be attached
+  //! @param[in] repair if true, a repair will attempted if opening the db fails
+  //! @param[in] create createperm UNIX permission flag in case the file would have to be created
+  //! @param[in] option a pointer to a struct containing parameters for the underlying db
+  //! @return true if the attach is successful. false otherwise.
+  // ------------------------------------------------------------------------
+  bool attachDb(const std::string &dbname, bool repair=false, int createperm=0, Toption *option=NULL)
+  {
+    RWMutexWriteLock lock(pMutex);
+    return pDb->attachDb(dbname,repair, createperm, option) && pDb->syncFromDb(&pMap);
+  }
+
+  // ------------------------------------------------------------------------
+  //! Consolidate the underlying db.
+  //! @return true if the operation succeeded. False otherwise.
+  // ------------------------------------------------------------------------
+  bool trimDb()
+  {
+    RWMutexWriteLock lock(pMutex);
+    return pDb->trimDb();
+  }
+
+  // ------------------------------------------------------------------------
+  //! Detach the currently attached db from the DbMap.
+  //! @return true if successfully detached or if no db previously attached db, false otherwise
+  // ------------------------------------------------------------------------
+  bool detachDb()
+  {
+    if(!pDb->getAttachedDbName().empty())
+    {
+      RWMutexWriteLock lock(pMutex);
+      return pDb->detachDb();
+    }
     return true;
   }
 
-  //------------------------------------------------------------------------
-  //!
-  //------------------------------------------------------------------------
-  void SetFractionalSec(bool b) {
-    secfract=b;
-  }
-
-  //------------------------------------------------------------------------
-  //! this function begins a const_iteration. It blocks the access to all other thread as long the iteration is not over.
-  //! the actual iteration are done by calling Iterate
-  //! the iteration can be terminated using StopIter() or if it reaches the end.
-  //------------------------------------------------------------------------
-  void BeginIter() const {
-    mutex.LockWrite(); // to prevent collisions in multiple threads iterating simultaneously
-    it=map.begin();
-    iterating=true;
-  }
-
-  //------------------------------------------------------------------------
-  //! this function returns in its argumets the nex pair of (key,value) in the iteration
-  //! it returns true if another iteration could be done then
-  //! it returns false if the iteration reaches the end
-  //------------------------------------------------------------------------
-  bool Iterate(const Tkey** keyOut, const Tval **valOut) const {
-    if(!iterating) return false;
-    bool ret=(it!=map.end());
-    if(ret) {
-      *keyOut=&it->first;
-      *valOut=&it->second;
-      AtomicInc(getCounter);
-      it++;
-      return true;
+  // ------------------------------------------------------------------------
+  //! Turn out-of-core mode on or off.
+  //! It means that the data are not stored in memory (apart from any caching of the underlying db)
+  //! A necessary condition to turn ofc on is to have a db attached to the DbMap.
+  //! @param[in] ofc specify if out-of-core should be on
+  //! @return true if the out-of-core was successfully set as requested, false otherwise
+  // ------------------------------------------------------------------------
+  bool outOfCore(bool ofc)
+  {
+    if(pUseMap==ofc)
+    {
+      RWMutexWriteLock lock(pMutex);
+      if(this->pDb->getAttachedDbName().empty())
+      return false;
+      if(pSetSequence)
+      endSetSequence();
+      if(pIterating)
+      endIter();
+      if(ofc)
+      { // moving to out of core
+        pMap.clear();
+        pUseMap=false;
+        return true;
+      }
+      else
+      { // leaving out of core
+        const DbMapTypes::Tkey *key;
+        const DbMapTypes::Tval *val;
+        for (beginIter(false); iterate(&key, &val,false);)
+        {
+          pMap[*key]=*val;
+          pUseMap=true;
+          return true;
+        }
+      }
     }
-    else {
-      StopIter();
+    return true; // nothing to do, so the change is ok
+  }
+
+  // ------------------------------------------------------------------------
+  //! Turn the sequence id on or off.
+  //! If on, a version number is associated to each key. it's incremented every time the value is modified.
+  //! It needs an additional lookup every time the value is modified
+  //! @param[in] on specify if the sequence id should be enabled
+  // ------------------------------------------------------------------------
+  void useSeqId(bool on)
+  {
+    RWMutexWriteLock lock(pMutex);
+    pUseSeqId=on;
+  }
+
+  // ------------------------------------------------------------------------
+  /// logging
+  // ------------------------------------------------------------------------
+
+  // ------------------------------------------------------------------------
+  //! Attach a log to the DbMap
+  //! all operations are logged to the db. The name of the DbMap is refered as writer in the log.
+  //! Multiple log can be attached to a DbMap.
+  //! A log can attached to several DbMap.
+  //! @param[in] dbname the file name of the db to be attached
+  //! @param[in] volumeduration the duration in seconds of each volume of the dblog (if set to -1, no splitting is processed)
+  //! @param[in] createperm the unix permission in case the file is to be created.
+  //! @param[in] option a pointer to a structure holding some parameters for the underlying db.
+  //! @return true if the dbname was attached, false otherwise (it maybe because the file is already attached to this DbMap)
+  // ------------------------------------------------------------------------
+  bool attachLog(const std::string &dbname,int volumeduration=-1, int createperm=0, Toption *option=NULL)
+  {
+    RWMutexWriteLock lock(pMutex);
+    return pDb->attachDbLog(dbname,volumeduration,createperm,(void*)option);
+  }
+
+  // ------------------------------------------------------------------------
+  //! Attach a log to the DbMap
+  //! @param[in] dblog an existing DbLog. This DbLog instance is not destroyed when the DbMap is destroyed.
+  //! @return true if the dbname was attached, false otherwise (it maybe because the file is already attached to this DbMap)
+  // ------------------------------------------------------------------------
+  bool attachLog(DbLogT<TDbMapInterface,TDbLogInterface>* dblog)
+  {
+    RWMutexWriteLock lock(pMutex);
+    return pDb->attachDbLog(dblog->pDb);
+  }
+
+  // ------------------------------------------------------------------------
+  //! Detach a previously attached DbLog.
+  //! Then all subsequent operations on the DbMap are not logged anymore into that DbLog.
+  //! @param[in] dbname the file name of the db to be detached
+  //! @return true if the dbname was successfully detached, false otherwise (it may be because the file has already been detached)
+  // ------------------------------------------------------------------------
+  bool detachLog(const std::string &dbname)
+  {
+    RWMutexWriteLock lock(pMutex);
+    return pDb->detachDbLog(dbname);
+  }
+
+  // ------------------------------------------------------------------------
+  //! Detach a previously attached DbLog. Note that the DbLog instance is not destroyed.
+  //! Then all subsequent operations on the DbMap are not logged anymore into that DbLog.
+  //! @param[in] dblog an existing DbLog. This DbLog instance is not destroyed.
+  //! @return true if the dbname was successfully detached, false otherwise (it may be because the file has already been detached)
+  // ------------------------------------------------------------------------
+  bool detachLog(DbLogT<TDbMapInterface,TDbLogInterface>* dblog)
+  {
+    RWMutexWriteLock lock(pMutex);
+    return pDb->detachDbLog(dblog->pDb);
+  }
+
+  // ------------------------------------------------------------------------
+  /// constr , destr
+  // ------------------------------------------------------------------------
+  DbMapT() : pUseMap(true), pUseSeqId(true), pIterating(false), pSetSequence(false), pSetCounter(0), pGetCounter(0), pNestedSetSeq(0)
+  {
+    pDb = new TDbMapInterface();
+    char buffer[32];
+    sprintf(buffer,"dbmap%p",this);
+    pName = buffer;
+    gNamesMutex.LockWrite();
+    gNames.insert(pName);
+    gNamesMutex.UnLockWrite();
+    pDb->setName(pName);
+#ifndef EOS_STDMAP_DBMAP
+    pMap.set_empty_key("\x01");
+    pMap.set_deleted_key("\x02");
+    pSetSeqMap.set_empty_key("\x01");
+    pSetSeqMap.set_deleted_key("\x02");
+#endif
+  }
+  ~DbMapT()
+  {
+    gNamesMutex.LockWrite();
+    gNames.erase(pName);
+    gNamesMutex.UnLockWrite();
+    delete static_cast<TDbMapInterface*>(pDb);
+  }
+
+  // ------------------------------------------------------------------------
+  //! Set the name of the DbMap. This name is used in the logs attached to this DbMap.
+  //! if not changed with this function the default name of a dbmap is dbmap%p where %p is the pointer to the DbMap Object.
+  //! this avoid any conflict at any time but doesn't guarantee consistency over time.
+  //! @param[in] name the name used for this DbMap as the writer in the logs
+  //! @return true if the name of the instance was successfully set. If the return value is false, the name is already given to another instance.
+  // ------------------------------------------------------------------------
+  bool setName(const std::string &name)
+  {
+    gNamesMutex.LockWrite();
+    if(gNames.find(name)!=gNames.end())
+    {
+      gNamesMutex.UnLockWrite();
       return false;
     }
+    gNames.erase(this->pName);
+    gNames.insert(name);
+    this->pName=name;
+    pDb->setName(name);
+    gNamesMutex.UnLockWrite();
+    return true;
   }
 
-  //------------------------------------------------------------------------
-  //! call this function to stop an ongoing iteration
-  //! WARINING : if an ongoing iteration is not stopped, no readings or writings can be done oh the instance.
-  //------------------------------------------------------------------------
-  void StopIter() const {
-    iterating=false;
-    mutex.UnLockWrite();
-  }
-
-  //------------------------------------------------------------------------
-  //! element access
-  //! this function returns the number of entries buffered in the seqlist. If means 0 if the set sequence is not enabled.
-  //------------------------------------------------------------------------
-  unsigned long Set (const Tkey& key, const std::string& value, const std::string& comment) {
-    mutex.LockWrite();
-    if(setsequence) {
-      Tval val;
-      val.value=value;
-      val.comment=comment;
-      val.seqid=1;
-      val.timestamp=Now();
-      val.timestampstr=IntTimeToStr(val.timestamp);
-      setseqlist.push_back( Tkeyval(key,val) );
-      mutex.UnLockWrite();
-      return setseqlist.size();
+  // ------------------------------------------------------------------------
+  //! Begin a const_iteration. It blocks the access to all the other threads as long as the iteration is not over.
+  //! the actual iteration steps are done by calling iterate
+  //! the iteration can be terminated using EndIter().
+  //! the iteration is automatically stopped if it reaches the end.
+  //! @param[in] lockit should be given true (default value)
+  // ------------------------------------------------------------------------
+  void beginIter(bool lockit=true) const
+  {
+    if (lockit) pMutex.LockWrite(); // to prevent collisions in multiple threads iterating simultaneously
+    if(pUseMap)
+    {
+      pIt=pMap.begin();
     }
-    else {
-      DoSet(key, value, comment);
-      mutex.UnLockWrite();
+    else
+    {
+      pDbItList.clear();
+      pDb->getAll( &pDbItList, pDbIterationChunkSize,NULL );
+      pDbIt=pDbItList.begin();
+    }
+    pIterating=true;
+    pItThreadId=pthread_self();
+  }
+
+  // ------------------------------------------------------------------------
+  //! Get the next pair of (key,value) in the iteration
+  //! @param[out] keyOut a pointer to the const C-string holding the key
+  //! @param[out] valOut a pointer to the const C-string holding the value
+  //! @param[in] unlockit should be given true (default value)
+  //! @return true if there is at least one more step in the iteration after the current one. false otherwise.
+  // ------------------------------------------------------------------------
+  bool iterate(const Tkey** keyOut, const Tval **valOut, bool unlockit=true) const
+  {
+    if(!pIterating) return false;
+    if(pUseMap)
+    {
+      bool ret=(pIt!=pMap.end());
+      if(ret)
+      {
+        *keyOut=&pIt->first;
+        *valOut=&pIt->second;
+        Tval valdb;
+
+        AtomicInc(pGetCounter);
+        pIt++;
+        return true;
+      }
+      else
+      {
+        endIter(unlockit);
+        return false;
+      }
+    }
+    else
+    { // iter directly from the db
+      if(pDbIt==pDbItList.end())
+      {
+        Tlogentry entry;
+        Tlogentry* lastentry;
+        if(pDbItList.empty())
+        {
+          lastentry=NULL;
+        }
+        else
+        {
+          entry=*--pDbIt;
+          lastentry=&entry;
+        }
+        pDbItList.clear();
+        if(pDb->getAll( &pDbItList, pDbIterationChunkSize, lastentry )==0)
+        {
+          endIter();
+          return false;
+        }
+      }
+      // dbit actually points to something
+      Tkeyval entry;
+      pDbItKey=pDbIt->key;
+      Tlogentry2Tval(*pDbIt,&pDbItVal);
+      *keyOut=&pDbItKey;
+      *valOut=&pDbItVal;
+
+      pDbIt++;
+      return true;
+    }
+  }
+
+  // ------------------------------------------------------------------------
+  //! Stop an ongoing iteration
+  //! WARNING : if an ongoing iteration is not stopped, no readings or writings can be done oh the instance.
+  //! @param[in] unlockit should be given true (default value)
+  // ------------------------------------------------------------------------
+  void endIter(bool unlockit=true) const
+  {
+    if(pIterating)
+    {
+      pIterating=false;
+      if(unlockit) pMutex.UnLockWrite();
+    }
+  }
+
+  // ------------------------------------------------------------------------
+  //! Set a Key / Value / Comment Entry
+  //! this function returns the number of entries buffered in the seqlist. It means 0 if the set sequence is not enabled.
+  // ------------------------------------------------------------------------
+  unsigned long set (const Slice& key, const Slice& value, const Slice& comment)
+  {
+    const char *tstr;
+    nowStr(&tstr);
+
+    return set(tstr,key,value,comment);
+  }
+
+  // ------------------------------------------------------------------------
+  //! Set a Key / full Value
+  //! @param[in] key the key
+  //! @param[in] val the full value struct
+  //! @return the number of entries buffered in the seqlist. It means 0 if the set sequence is not enabled.
+  //!         -1 if an error occurs
+  // ------------------------------------------------------------------------
+  int set( const Slice& key, const TvalSlice& val)
+  {
+    // RWMutexWriteLock lock(mutex);
+    if(pSetSequence)
+    {
+      if(!pIterating || pItThreadId!=pthread_self()) pMutex.LockWrite(); // if the current thread is iterating through the dbmap, don't lock
+      // On the other hand, it allows to do some set inside an iteration by using a setsequence
+      // then endSetSequence should be called after Enditerate
+      std::string keystr(key.ToString());
+      pSetSeqList.push_back( Tkeyval(keystr,val) );
+      pSetSeqMap[keystr]=val;
+      unsigned long ret=pSetSeqList.size();
+      if(!pIterating || pItThreadId!=pthread_self()) pMutex.UnLockWrite();
+
+      return ret;
+    }
+    else
+    {
+      RWMutexWriteLock lock(pMutex);
+      if(doSet(key,val))
       return 0;
+      else
+      return -1;
     }
   }
 
-  //------------------------------------------------------------------------
-  //! element access
-  //! this function returns the number of entries buffered in the seqlist. If means 0 if the set sequence is not enabled.
-  //------------------------------------------------------------------------
-  unsigned long Set( const size_t &time, const Tkey& key, const std::string& value, const std::string& comment) {
-    mutex.LockWrite();
-    if(setsequence) {
-      Tval val;
-      val.value=value;
-      val.comment=comment;
-      val.seqid=1;
-      val.timestamp=time;
-      val.timestampstr=IntTimeToStr(val.timestamp);
-      setseqlist.push_back( Tkeyval(key,val) );
-      mutex.UnLockWrite();
-      return setseqlist.size();
+  // ------------------------------------------------------------------------
+  //! Remove an entry from the DbMap
+  //! @param[in] key the key of which the entry is to be removed
+  //! @return the number of entries buffered in the seqlist. It means 0 if the set sequence is not enabled.
+  //!         -1 if an error occurs
+  // ------------------------------------------------------------------------
+  int remove (const Slice& key)
+  {
+    const char *tstr;
+    nowStr(&tstr);
+
+    Tval val=
+    { tstr,0,pName,"","!DELETE"};
+    return remove(key,val);
+  }
+
+  // ------------------------------------------------------------------------
+  //! Erase all the entries in the DbMap
+  //! WARNING : if a db is attached, its content is erased
+  //! @return false if an error occurs, true otherwise
+  // ------------------------------------------------------------------------
+  bool clear ()
+  {
+    pMutex.LockWrite();
+    if(pDb->clear())
+    pMap.clear();
+    else
+    {
+      pMutex.UnLockWrite();
+      return false;
     }
-    else {
-      DoSet(time, key, value, comment);
-      mutex.UnLockWrite();
-      return 0;
+
+    pMutex.UnLockWrite();
+    return true;
+  }
+
+  // ------------------------------------------------------------------------
+  //! Get the value associated with a key.
+  //! @param[in] key the key of which the value is to be retreived
+  //! @param[out] val a pointer to a struct where the full value is to be written
+  //! @return false if an error occurs, true otherwise
+  // ------------------------------------------------------------------------
+  bool get (const Slice& key, Tval* val) const
+  {
+    RWMutexReadLock lock(pMutex);
+    if(doGet(key,val))
+    {
+      AtomicInc(pGetCounter);
+      return true;
+    }
+    return false;
+  }
+
+  // ------------------------------------------------------------------------
+  /// transactions
+  // ------------------------------------------------------------------------
+
+  // ------------------------------------------------------------------------
+  //! Begin a set sequence
+  //! when using a set sequence all subsequent 'set' operations are cached into a list.
+  //! it can be filled by multiple thread which are actually serialized.
+  //! beware, the setsequence status of an instance can be changed from multiple threads.
+  // ------------------------------------------------------------------------
+  void beginSetSequence() const
+  {
+    RWMutexWriteLock lock(pMutex);
+    AtomicInc(pNestedSetSeq);
+    //assert(!setsequence);
+    if(!pSetSequence)
+    {
+      pSetSequence=true;
     }
   }
 
-  //------------------------------------------------------------------------
-  //! element access
-  //! this function returns the number of entries buffered in the seqlist. If means 0 if the set sequence is not enabled.
-  //------------------------------------------------------------------------
-  unsigned long Set( const Tkey& key, const Tval& val) {
-    mutex.LockWrite();
-    if(setsequence) {
-      setseqlist.push_back( Tkeyval(key,val) );
-      mutex.UnLockWrite();
-      return setseqlist.size();
+  // ------------------------------------------------------------------------
+  //! Terminate a set sequence
+  //! when a write sequence ends. All the pending 'set' and 'remove' are committed atomically.
+  //! @return the number of committed changes.
+  // ------------------------------------------------------------------------
+  unsigned long endSetSequence()
+  {
+    RWMutexWriteLock lock(pMutex);
+    //assert(setsequence);
+    AtomicDec(pNestedSetSeq);
+    if(pSetSequence && pNestedSetSeq==0)
+    {
+      unsigned long ret=processSetSeqList();
+      pSetSeqList.clear();
+      pSetSeqMap.clear();
+      pSetSequence=false;
+      return ret;
     }
-    else {
-      Tval val2(val);
-      DoSet(key,val2);
-      mutex.UnLockWrite();
-      return 0;
-    }
-  }
-
-  //------------------------------------------------------------------------
-  //! this function returns the number of elements actually removed from the map (0 or 1)
-  //------------------------------------------------------------------------
-  unsigned long Remove (const Tkey& key) {
-    mutex.LockWrite();
-    Tmap::iterator it=map.find(key);
-    if(it!=map.end()) {
-      db->RemoveEntry(key);
-      map.erase(it);
-      mutex.UnLockWrite();
-      return 1;
-    }
-    mutex.UnLockWrite();
     return 0;
   }
 
-  //------------------------------------------------------------------------
-  //! this function return a pointer to the value associated with the key if there is some. It returns a null pointer otherwise.
-  //------------------------------------------------------------------------
-  const Tval* Get (const Tkey& key) const {
-    mutex.LockRead();
-    const Tval* retptr=NULL;
-    Tmap::const_iterator it=map.find(key);
-    if(it!=map.end()) retptr=&(it->second);
-    AtomicInc(getCounter);
-    mutex.UnLockRead();
-    return retptr;
+  // ------------------------------------------------------------------------
+  //! Replay the operations recorded into a logdb
+  //! @param[in] dblogint a pointer to an existing dblog
+  //! @return -1 if any error occurs, otherwise the number of replayed changes.
+  // ------------------------------------------------------------------------
+  int loadDbLog(const DbLogT<TDbMapInterface,TDbLogInterface> *dblogint)
+  {
+    const int blocksize=1000;
+    DbMapTypes::Tlogentry entry;
+    DbMapTypes::TlogentryVec entryvec;
+    DbMapTypes::TlogentryVec::const_iterator entryit;
+    entryvec.reserve(blocksize);
+    int count=0;
+    for(; dblogint->getAll(&entryvec,blocksize,&entry); entryvec.clear() )
+    {
+      beginSetSequence();
+      for( entryit=entryvec.begin(); entryit!=entryvec.end(); entryit++ )
+      {
+        count++;
+        Tval val;
+        Tlogentry2Tval(*entryit,&val);
+        if(val.seqid==0)
+        {
+          if(remove(entryit->key,val)<0) return -1;
+        }
+        else
+        {
+          if(set(entryit->key,val)<0) return -1;
+        }
+      }
+      endSetSequence();
+    }
+    return count;
   }
 
-  //------------------------------------------------------------------------
-  /// caching
-  //------------------------------------------------------------------------
-
-  //------------------------------------------------------------------------
-  //!  when using a set sequence all subsequent 'set' operations are cached into a list.
-  //!  it can be filled by multiple thread which are actually serialized.
-  //!  beware, the setsequence status of an instance can be changed from multiple threads.
-  //------------------------------------------------------------------------
-  void BeginSetSequence() const {
-    mutex.LockWrite();
-    setsequence=true;
-    mutex.UnLockWrite();
+  // ------------------------------------------------------------------------
+  //! Replay the operations recorded into a logdb and attaches this logdb
+  //! WARNING: This is not an atomic operation.
+  //! Another thread might issue some change to the content between the Load and the Attach.
+  //! @param[in] dblogint a pointer to an existing dblog. This object is never destroyed by the DbMap.
+  //! @return -1 if any error occurs, otherwise the number of replayed changes.
+  // ------------------------------------------------------------------------
+  int loadAndattachDbLog(DbLogT<TDbMapInterface,TDbLogInterface> *dblogint)
+  {
+    int count=loadDbLog(dblogint);
+    if(count>=0)
+    attachLog(dblogint);
+    return count;
   }
 
-  //------------------------------------------------------------------------
-  //! when a write sequence ends. All the cached 'set' operations are actually done both in the map and in the db.
-  //! this function return the number of flushed set operations.
-  //------------------------------------------------------------------------
-  unsigned long EndSetSequence() {
-    mutex.LockWrite();
-    unsigned long ret=ProcessSetSeqList();
-    setseqlist.clear();
-    setsequence=false;
-    mutex.UnLockWrite();
-    return ret;
+  // ------------------------------------------------------------------------
+  //! Replay the operations recorded into a logdb
+  //! @param[in] dbname the file name of the dblog to be replayed
+  //! @return -1 if any error occurs, otherwise the number of replayed changes.
+  // ------------------------------------------------------------------------
+  int loadDbLog(const std::string &dbname)
+  {
+    DbLogT<TDbMapInterface,TDbLogInterface> dblg(dbname);
+    return loadDbLog(&dblg);
   }
 
-  static std::string GetDbType() { return TDbMapInterface::GetDbType();}
+  // ------------------------------------------------------------------------
+  //! Replay the operations recorded into a logdb and attaches this logdb
+  //! WARNING: This is not an atomic operation.
+  //! Another thread might issue some change to the content between the Load and the Attach.
+  //! @param[in] dbname the file name of the dblog to be replayed and attached
+  //! @param[in] volumeduration the duration in seconds of each volume of the dblog (if set to -1, no splitting is processed)
+  //! @param[in] createperm the unix permission in case the file is to be created.
+  //! @param[in] option a pointer to a structure holding some parameters for the underlying db.
+  //! @return true if the dbname was successfully replayed and attached,
+  //!         false otherwise (it maybe because the file is already attached to this DbMap)
+  // ------------------------------------------------------------------------
+  int loadAndattachDbLog(const std::string &dbname, int volumeduration, int createperm, Toption *option)
+  {
+    int count=loadDbLog(dbname);
+    if(count>=0)
+    attachLog(dbname,volumeduration,createperm,option);
+    return count;
+  }
 
+  // ------------------------------------------------------------------------
+  //! Get the underlying db system
+  //! @return a string containing the name of the underlying db system
+  // ------------------------------------------------------------------------
+  static std::string getDbType()
+  { return TDbMapInterface::getDbType();}
 };
 
 /*----------------------------------------------------------------------------*/
@@ -851,56 +1233,173 @@ public:
 //! It provides some reading facilities.
 //! Writing to this class must be done via the TDbMap class.
 /*----------------------------------------------------------------------------*/
-template<class TDbMapInterface, class TDbLogInterface> class DbLogT : public eos::common::LogId  {
+template<class TDbMapInterface, class TDbLogInterface> class DbLogT : public eos::common::LogId
+{
   friend class DbMapT<TDbMapInterface,TDbLogInterface>;
   // db is a pointer to the db manager of the data
-  // the TDmapInterface is not supposed to be thread-safe. So db must be protected by a lock.
-  TDbLogInterface *db;
-  mutable RWMutex mutex;
+  // the TDbMapInterface is not supposed to be thread-safe. So db must be protected by a lock.
+  TDbLogInterface *pDb;
+  mutable RWMutex pMutex;
 public:
   // typedefs
   typedef DbMapTypes::Tkey Tkey;
   typedef DbMapTypes::Tval Tval;
+  typedef DbMapTypes::TvalSlice TvalSlice;
   typedef DbMapTypes::Tlogentry Tlogentry;
   typedef DbMapTypes::TlogentryVec TlogentryVec;
   typedef std::pair<Tkey,Tval> Tkeyval;
   typedef std::map<Tkey,Tval> Tmap;
   typedef std::vector<Tkeyval> Tlist;
+  typedef typename TDbLogInterface::Option Toption;
 
-  DbLogT() {
-    db=new TDbLogInterface();
+  // ------------------------------------------------------------------------
+  /// constr , destr
+  // ------------------------------------------------------------------------
+  DbLogT()
+  {
+    pDb=new TDbLogInterface();
   }
 
-  DbLogT(const std::string dbfile,int sliceduration=-1, int createperm=0) {
-    db=new TDbLogInterface(dbfile,sliceduration, createperm);
+  DbLogT(const std::string dbfile,int volumeduration=-1, int createperm=0, Toption *option=NULL)
+  {
+    pDb=new TDbLogInterface(dbfile,volumeduration, createperm, option);
   };
-  ~DbLogT(){RWMutexWriteLock lock(mutex); delete db;}
-  bool SetDbFile( const std::string &dbname, int sliceduration=-1, int createperm=0)	{
-    RWMutexWriteLock lock(mutex);
-    return db->SetDbFile(dbname,sliceduration, createperm);
-  }
-  bool IsOpen() {
-    return db->IsOpen();
-  }
-  std::string GetDbFile() const {
-    RWMutexWriteLock lock(mutex);
-    return db->GetDbFile();
-  }
-  size_t GetAll( TlogentryVec &retvec, size_t nmax=0, Tlogentry *startafter=NULL ) const {
-    RWMutexReadLock lock(mutex);
-    return db->GetAll(retvec,nmax,startafter);
-  }
-  size_t GetByRegex( const std::string &regex, TlogentryVec &retvec , size_t nmax=0, Tlogentry *startafter=NULL ) const {
-    RWMutexReadLock lock(mutex);
-    return db->GetByRegex(regex,retvec,nmax,startafter);
+  ~DbLogT()
+  { RWMutexWriteLock lock(pMutex); delete pDb;}
+  bool SetDbFile( const std::string &dbname, int volumeduration=-1, int createperm=0, Toption* option=NULL)
+  {
+    RWMutexWriteLock lock(pMutex);
+    return pDb->setDbFile(dbname,volumeduration, createperm, (void*)option);
   }
 
-  size_t GetTail( int nentries, TlogentryVec &retvec ) const {
-    RWMutexReadLock lock(mutex);
-    return db->GetTail(nentries,retvec);
+  // ------------------------------------------------------------------------
+  //! Check if the underlying db is properly opened
+  //! @return true if the underlying db is open, false otherzise
+  // ------------------------------------------------------------------------
+  bool isOpen()
+  {
+    return pDb->isOpen();
   }
 
-  static std::string GetDbType() { return TDbLogInterface::GetDbType();}
+  // ------------------------------------------------------------------------
+  //! Get the name of the underlying db file
+  //! @return the name of the underlying dbfile
+  // ------------------------------------------------------------------------
+  std::string getDbFile() const
+  {
+    RWMutexWriteLock lock(pMutex);
+    return pDb->getDbFile();
+  }
+
+  // ------------------------------------------------------------------------
+  //! Get all the entries of the DbLog optionally by block and optionally matching a regexp
+  //! @param[out] retvec a pointer to a vector of entries to which the result of the operation will be appended
+  //! @param[in] nmax maximum number of elements to get at once
+  //! @param[in,out] startafter before execution : position at which the search is to be started
+  //!                           after  execution : position at which the search has to start at the next iteration
+  //! @param[in] regex the regular expression the entries need to match
+  //! @return the number of entries appended to the result vector retvec
+  // ------------------------------------------------------------------------
+  int getAll( TlogentryVec *retvec, size_t nmax=0, Tlogentry *startafter=NULL, RegexBranch regex=RegexBranch() ) const
+  {
+    if(regex.hasError()) return -1;
+    int startsize=retvec->size();
+    RWMutexReadLock lock(pMutex);
+    pDb->getAll(retvec,nmax,startafter);
+    if(regex.isBlank()) return retvec->size()-startsize;
+    RegexPredicate rmpred(regex);
+    TlogentryVec::iterator newend=std::remove_if(retvec->begin(),retvec->end(),rmpred);
+    retvec->erase(newend,retvec->end());
+    return retvec->size()-startsize;
+  }
+
+  // ------------------------------------------------------------------------
+  //! Get the latest entries of the DbLog optionally matching a regexp
+  //! @param[in] nentries maximum number of elements to run the search on starting from the end
+  //! @param[out] retvec a pointer to a vector of entries to which the result of the operation will be appended
+  //! @param[in] regex the regular expression the entries need to match
+  //! @return the number of entries appended to the result vector retvec
+  // ------------------------------------------------------------------------
+  int getTail( int nentries, TlogentryVec *retvec, RegexBranch regex=RegexBranch()) const
+  {
+    if(regex.hasError()) return -1;
+    int startsize=retvec->size();
+    RWMutexReadLock lock(pMutex);
+    pDb->getTail(nentries,retvec);
+    if(regex.isBlank()) return retvec->size()-startsize;
+    RegexPredicate rmpred(regex);
+    TlogentryVec::iterator newend=std::remove_if(retvec->begin(),retvec->end(),rmpred);
+    retvec->erase(newend,retvec->end());
+    return retvec->size()-startsize;
+  }
+
+  // ------------------------------------------------------------------------
+  //! Clear the content of the DbLog
+  //! @return false if an error occurs, true otherwise
+  // ------------------------------------------------------------------------
+  bool clear()
+  {
+    RWMutexReadLock lock(pMutex);
+    return pDb->clear();
+  }
+
+  // ------------------------------------------------------------------------
+  //! Compactify a DbLog in place i.e. reduce the set of changes to the minimum equivalent set of changes.
+  //! for example set a = 2, set a = 3, remove a, set a = 4 => set a = 4
+  //! @return a pair containing first the number of entries before the compactation
+  //!                           and second the number of entries after the compactation
+  // ------------------------------------------------------------------------
+  std::pair<int,int> compactify()
+  {
+    std::pair<int,int> retval;
+    DbMapT<TDbMapInterface,TDbLogInterface> dbmap,dbmap2;
+    retval.second=0;
+    retval.first=dbmap.loadDbLog(this);
+    this->clear();
+    dbmap2.attachLog(this);
+    const DbMapTypes::Tkey *key;
+    const DbMapTypes::Tval *val;
+    dbmap2.beginSetSequence();
+    for (dbmap.beginIter(); dbmap.iterate(&key, &val);)
+    {
+      if(dbmap2.set(*key,*val))
+      retval.second++;
+    }
+    dbmap2.endSetSequence();
+    return retval;
+  }
+
+  // ------------------------------------------------------------------------
+  //! Compactify a DbLog to another db file i.e. reduce the set of changes to the minimum equivalent set of changes.
+  //! for example set a = 2, set a = 3, remove a, set a = 4 => set a = 4
+  //! @param[in] dbname the name of the db file to write the compacted version of the DbLog
+  //! @return a pair containing first the number of entries before the compactation
+  //!                           and second the number of entries after the compactation
+  // ------------------------------------------------------------------------
+  std::pair<int,int> compactifyTo( const string &dbname) const
+  {
+    std::pair<int,int> retval;
+    DbMapT<TDbMapInterface,TDbLogInterface> dbmap,dbmap2;
+    retval.first=dbmap.loadDbLog(this);
+    dbmap2.attachLog(dbname);
+    const DbMapTypes::Tkey *key;
+    const DbMapTypes::Tval *val;
+    dbmap2.beginSetSequence();
+    for (dbmap.beginIter(); dbmap.iterate(&key, &val);)
+    {
+      if(dbmap2.set(*key,*val))
+      retval.second++;
+    }
+    dbmap2.endSetSequence();
+    return retval;
+  }
+
+  // ------------------------------------------------------------------------
+  //! Get the underlying db system
+  //! @return a string containing the name of the underlying db system
+  // ------------------------------------------------------------------------
+  static std::string getDbType()
+  { return TDbLogInterface::getDbType();}
 };
 /*----------------------------------------------------------------------------*/
 
@@ -915,22 +1414,30 @@ typedef DbLogT<LvDbDbMapInterface,LvDbDbLogInterface> DbLog;
 /*----------------------------------------------------------------------------*/
 
 /*------------------------    DISPLAY HELPERS     ----------------------------*/
-std::ostream& operator << (std::ostream &os, const DbMap &map );
-std::ostream& operator << (std::ostream &os, const DbMapTypes::Tval &val );
-std::istream& operator >> (std::istream &is, DbMapTypes::Tval &val );
-std::ostream& operator << (std::ostream &os, const DbMapTypes::Tlogentry &entry );
-std::ostream& operator << (std::ostream &os, const DbMapTypes::TlogentryVec &entryvec );
+//std::ostream& operator << (std::ostream &os, const DbMap &map );
+template<class DbMapInterface, class DbLogInterface> std::ostream& operator << (std::ostream &os, const DbMapT<DbMapInterface,DbLogInterface> &map)
+{
+  const DbMapTypes::Tkey *key;
+  const DbMapTypes::Tval *val;
+  for (map.beginIter(); map.iterate(&key, &val);)
+  {
+    os << *key << " --> " << *val << std::endl;
+  }
+  return os;
+}
+
 /*----------------------------------------------------------------------------*/
 
 #ifndef EOS_SQLITE_DBMAP
 /*-----------------------    CONVERSION HELPERS     --------------------------*/
-DbMapT<SqliteDbMapInterface,SqliteDbLogInterface> DbMapLevelDb2Sqlite  (const DbMapT<LvDbDbMapInterface,LvDbDbLogInterface>&);
-DbMapT<LvDbDbMapInterface,LvDbDbLogInterface>     DbMapSqlite2LevelDb  (const DbMapT<SqliteDbMapInterface,SqliteDbLogInterface>&);
-bool                                              ConvertSqlite2LevelDb(const std::string &sqlpath, const std::string &lvdbpath, const std::string &sqlrename="");
-bool                                              ConvertLevelDb2Sqlite(const std::string &lvdbpath, const std::string &sqlpath, const std::string &lvdbrename="");
+DbMapT<SqliteDbMapInterface,SqliteDbLogInterface> DbMapLevelDb2Sqlite (const DbMapT<LvDbDbMapInterface,LvDbDbLogInterface>&);
+DbMapT<LvDbDbMapInterface,LvDbDbLogInterface> DbMapSqlite2LevelDb (const DbMapT<SqliteDbMapInterface,SqliteDbLogInterface>&);
+bool ConvertSqlite2LevelDb(const std::string &sqlpath, const std::string &lvdbpath, const std::string &sqlrename="");
+bool ConvertLevelDb2Sqlite(const std::string &lvdbpath, const std::string &sqlpath, const std::string &lvdbrename="");
 /*----------------------------------------------------------------------------*/
 #endif
 
 EOSCOMMONNAMESPACE_END
 
 #endif
+

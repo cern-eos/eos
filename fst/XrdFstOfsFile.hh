@@ -294,7 +294,7 @@ protected:
   
   int tpcState; //! uses kTPCXYZ enumgs above to tag the TPC state
   
-  FmdSqlite* fMd; //! pointer to the in-memory file meta data object             
+  FmdHelper* fMd; //! pointer to the in-memory file meta data object             
   eos::fst::CheckSum* checkSum; //! pointer to a checksum object
   Layout* layOut; //! pointer to a layout object
 
@@ -333,7 +333,7 @@ protected:
   struct timeval wTime; //! sum time to serve write requests in ms
   XrdOucString tIdent; //! tident
 
-  
+
   struct stat updateStat; //! stat struct to check if a file is updated between open-close
   //--------------------------------------------------------------------------
   //!

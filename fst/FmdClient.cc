@@ -93,27 +93,27 @@ FmdClient::EnvFstToFmdSqlite (XrdOucEnv &env, struct Fmd &fmd)
 
     return false;
 
-  fmd.fid = strtoull(env.Get("id"), 0, 10);
-  fmd.cid = strtoull(env.Get("cid"), 0, 10);
-  fmd.ctime = strtoul(env.Get("ctime"), 0, 10);
-  fmd.ctime_ns = strtoul(env.Get("ctime_ns"), 0, 10);
-  fmd.mtime = strtoul(env.Get("mtime"), 0, 10);
-  fmd.mtime_ns = strtoul(env.Get("mtime_ns"), 0, 10);
-  fmd.size = strtoull(env.Get("size"), 0, 10);
-  fmd.lid = strtoul(env.Get("lid"), 0, 10);
-  fmd.uid = (uid_t) strtoul(env.Get("uid"), 0, 10);
-  fmd.gid = (gid_t) strtoul(env.Get("gid"), 0, 10);
+  fmd.set_fid(strtoull(env.Get("id"), 0, 10));
+  fmd.set_cid(strtoull(env.Get("cid"), 0, 10));
+  fmd.set_ctime(strtoul(env.Get("ctime"), 0, 10));
+  fmd.set_ctime_ns(strtoul(env.Get("ctime_ns"), 0, 10));
+  fmd.set_mtime(strtoul(env.Get("mtime"), 0, 10));
+  fmd.set_mtime_ns(strtoul(env.Get("mtime_ns"), 0, 10));
+  fmd.set_size(strtoull(env.Get("size"), 0, 10));
+  fmd.set_lid(strtoul(env.Get("lid"), 0, 10));
+  fmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
+  fmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
   if (env.Get("checksum"))
   {
-    fmd.checksum = env.Get("checksum");
-    if (fmd.checksum=="none") 
+    fmd.set_checksum(env.Get("checksum"));
+    if (fmd.checksum()=="none") 
     {
-      fmd.checksum="";
+      fmd.set_checksum("");
     }
   }
   else
   {
-    fmd.checksum = "";
+    fmd.set_checksum("");
   }
 
   return true;
@@ -148,18 +148,18 @@ FmdClient::EnvMgmToFmdSqlite (XrdOucEnv &env, struct Fmd &fmd)
       !env.Get("gid"))
     return false;
 
-  fmd.fid = strtoull(env.Get("id"), 0, 10);
-  fmd.cid = strtoull(env.Get("cid"), 0, 10);
-  fmd.ctime = strtoul(env.Get("ctime"), 0, 10);
-  fmd.ctime_ns = strtoul(env.Get("ctime_ns"), 0, 10);
-  fmd.mtime = strtoul(env.Get("mtime"), 0, 10);
-  fmd.mtime_ns = strtoul(env.Get("mtime_ns"), 0, 10);
-  fmd.mgmsize = strtoull(env.Get("size"), 0, 10);
-  fmd.lid = strtoul(env.Get("lid"), 0, 10);
-  fmd.uid = (uid_t) strtoul(env.Get("uid"), 0, 10);
-  fmd.gid = (gid_t) strtoul(env.Get("gid"), 0, 10);
-  fmd.mgmchecksum = env.Get("checksum");
-  fmd.locations = env.Get("location") ? env.Get("location") : "";
+  fmd.set_fid(strtoull(env.Get("id"), 0, 10));
+  fmd.set_cid(strtoull(env.Get("cid"), 0, 10));
+  fmd.set_ctime(strtoul(env.Get("ctime"), 0, 10));
+  fmd.set_ctime_ns(strtoul(env.Get("ctime_ns"), 0, 10));
+  fmd.set_mtime(strtoul(env.Get("mtime"), 0, 10));
+  fmd.set_mtime_ns(strtoul(env.Get("mtime_ns"), 0, 10));
+  fmd.set_mgmsize(strtoull(env.Get("size"), 0, 10));
+  fmd.set_lid(strtoul(env.Get("lid"), 0, 10));
+  fmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
+  fmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
+  fmd.set_mgmchecksum(env.Get("checksum"));
+  fmd.set_locations(env.Get("location") ? env.Get("location") : "");
   return true;
 }
 
@@ -268,10 +268,10 @@ FmdClient::GetMgmFmd (const char* manager,
     return EIO;
   }
   // very simple check
-  if (fmd.fid != fid)
+  if (fmd.fid() != fid)
   {
     eos_static_err("Uups! Received wrong meta data from remote server - fid is %lu instead of %lu !",
-        fmd.fid, fid);
+        fmd.fid(), fid);
     delete response;
     return EIO;
   }
@@ -474,10 +474,10 @@ int FmdClient::GetRemoteFmdSqlite (const char* manager,
     return EIO;
   }
   // very simple check
-  if (fmd.fid != eos::common::FileId::Hex2Fid(shexfid))
+  if (fmd.fid() != eos::common::FileId::Hex2Fid(shexfid))
   {
     eos_static_err("Uups! Received wrong meta data from remote server - fid is %lu instead of %lu !",
-        fmd.fid, eos::common::FileId::Hex2Fid(shexfid));
+        fmd.fid(), eos::common::FileId::Hex2Fid(shexfid));
     delete response;
     return EIO;
   }

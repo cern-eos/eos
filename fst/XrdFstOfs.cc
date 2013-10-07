@@ -25,7 +25,7 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-#include "fst/FmdSqlite.hh"
+#include "fst/FmdDbMap.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
@@ -75,8 +75,8 @@ extern "C"
 
   XrdSfsFileSystem*
   XrdSfsGetFileSystem (XrdSfsFileSystem* native_fs,
-                       XrdSysLogger* lp,
-                       const char* configfn)
+      XrdSysLogger* lp,
+      const char* configfn)
   {
     OfsEroute.SetPrefix("FstOfs_");
     OfsEroute.logger(lp);
@@ -87,7 +87,7 @@ extern "C"
     XrdOucString version = "FstOfs (Object Storage File System) ";
     version += VERSION;
     OfsEroute.Say("++++++ (c) 2010 CERN/IT-DSS ",
-                  version.c_str());
+        version.c_str());
 
     // -------------------------------------------------------------------------
     // Initialize the subsystems
@@ -116,18 +116,18 @@ eos::common::LogId ()
   TransferScheduler = 0;
   if (!getenv("EOS_NO_SHUTDOWN")) 
   {
-    //-------------------------------------------
-    // add Shutdown handler
-    //-------------------------------------------
-    (void) signal(SIGINT, xrdfstofs_shutdown);
-    (void) signal(SIGTERM, xrdfstofs_shutdown);
-    (void) signal(SIGQUIT, xrdfstofs_shutdown);
-    //-------------------------------------------
-    // add SEGV handler
-    //-------------------------------------------
-    (void) signal(SIGSEGV, xrdfstofs_stacktrace);
-    (void) signal(SIGABRT, xrdfstofs_stacktrace);
-    (void) signal(SIGBUS, xrdfstofs_stacktrace);
+  //-------------------------------------------
+  // add Shutdown handler
+  //-------------------------------------------
+  (void) signal(SIGINT, xrdfstofs_shutdown);
+  (void) signal(SIGTERM, xrdfstofs_shutdown);
+  (void) signal(SIGQUIT, xrdfstofs_shutdown);
+  //-------------------------------------------
+  // add SEGV handler
+  //-------------------------------------------
+  (void) signal(SIGSEGV, xrdfstofs_stacktrace);
+  (void) signal(SIGABRT, xrdfstofs_stacktrace);
+  (void) signal(SIGBUS, xrdfstofs_stacktrace);
   }
 
   TpcMap.emplace(TpcMap.end());
@@ -242,12 +242,12 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
   }
   eos_static_warning("op=shutdown msg=\"stop messaging\"");
 
-  eos_static_warning("%s", "op=shutdown msg=\"shutdown fmdsqlite handler\"");
-  gFmdSqliteHandler.Shutdown();
-  kill(watchdog,9);
-  wait();
+  eos_static_warning("%s", "op=shutdown msg=\"shutdown fmddbmap handler\"");
 
-  eos_static_warning("%s", "op=shutdown status=sqliteclosed");
+  gFmdDbMapHandler.Shutdown();
+  kill(9, watchdog);
+
+  eos_static_warning("%s", "op=shutdown status=dbmapclosed");
 
   // sync & close all file descriptors
   eos::common::SyncAll::AllandClose();
@@ -258,7 +258,7 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
   (void) signal(SIGINT,  SIG_IGN);
   (void) signal(SIGTERM, SIG_IGN);
   (void) signal(SIGQUIT, SIG_IGN);
-  kill(getpid(),9);
+  kill(getpid(), 9);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -379,6 +379,34 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
             {
               eos::fst::Config::gConfig.autoBoot = true;
             }
+          }
+        }
+
+        if (!strcmp("fmd.leveldb.cachesize", var))
+        {
+          unsigned cachesizemb=0;
+          if ( (!(val = Config.GetWord())) || ( sscanf(val,"%u",&cachesizemb)!=1 ) )
+          {
+            Eroute.Emsg("Config", "argument 2 for fmd.leveldb.cachesize illegal or missing. Should be a positive value in MB!");
+            NoGo = 1;
+          }
+          else
+          {
+            gFmdDbMapHandler.SetLevelDbCacheMb(cachesizemb);
+          }
+        }
+
+        if (!strcmp("fmd.leveldb.bloomlen", var))
+        {
+          unsigned bloomlen=0;
+          if ( (!(val = Config.GetWord())) || ( sscanf(val,"%u",&bloomlen)!=1 ) )
+          {
+            Eroute.Emsg("Config", "argument 2 for fmd.leveldb.bloomlen illegal or missing. Should be a positive value in bits!");
+            NoGo = 1;
+          }
+          else
+          {
+            gFmdDbMapHandler.SetLevelDbCacheMb(bloomlen);
           }
         }
 
@@ -675,10 +703,10 @@ XrdFstOfs::SetSimulationError (const char* tag)
 /*----------------------------------------------------------------------------*/
 int
 XrdFstOfs::stat (const char* path,
-                 struct stat* buf,
-                 XrdOucErrInfo& out_error,
-                 const XrdSecEntity* client,
-                 const char* opaque)
+    struct stat* buf,
+    XrdOucErrInfo& out_error,
+    const XrdSecEntity* client,
+    const char* opaque)
 {
   EPNAME("stat");
   memset(buf, 0, sizeof ( struct stat));
@@ -700,10 +728,10 @@ XrdFstOfs::stat (const char* path,
 
 int
 XrdFstOfs::CallManager (XrdOucErrInfo* error,
-                        const char* path,
-                        const char* manager,
-                        XrdOucString& capOpaqueFile,
-                        XrdOucString* return_result)
+    const char* path,
+    const char* manager,
+    XrdOucString& capOpaqueFile,
+    XrdOucString* return_result)
 {
   EPNAME("CallManager");
   int rc = SFS_OK;
@@ -752,10 +780,10 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
     msg = (status.GetErrorMessage().c_str());
     rc = SFS_ERROR;
 
-    if (msg.find("[EIDRM]") != STR_NPOS) 
+    if (msg.find("[EIDRM]") != STR_NPOS)
       rc = -EIDRM;
 
-    if (msg.find("[EBADE]") != STR_NPOS) 
+    if (msg.find("[EBADE]") != STR_NPOS)
       rc = -EBADE;
 
     if (msg.find("[EBADR]") != STR_NPOS)
@@ -992,9 +1020,9 @@ XrdFstOfs::SendFsck (XrdMqMessage* message)
 /*----------------------------------------------------------------------------*/
 int
 XrdFstOfs::rem (const char* path,
-                XrdOucErrInfo& error,
-                const XrdSecEntity* client,
-                const char* opaque)
+    XrdOucErrInfo& error,
+    const XrdSecEntity* client,
+    const char* opaque)
 {
   EPNAME("rem");
   XrdOucString stringOpaque = opaque;
@@ -1037,13 +1065,13 @@ XrdFstOfs::rem (const char* path,
 /*----------------------------------------------------------------------------*/
 int
 XrdFstOfs::_rem (const char* path,
-                 XrdOucErrInfo& error,
-                 const XrdSecEntity* client,
-                 XrdOucEnv* capOpaque,
-                 const char* fstpath,
-                 unsigned long long fid,
-                 unsigned long fsid,
-                 bool ignoreifnotexist)
+    XrdOucErrInfo& error,
+    const XrdSecEntity* client,
+    XrdOucEnv* capOpaque,
+    const char* fstpath,
+    unsigned long long fid,
+    unsigned long fsid,
+    bool ignoreifnotexist)
 {
   EPNAME("rem");
   int retc = SFS_OK;
@@ -1136,7 +1164,7 @@ XrdFstOfs::_rem (const char* path,
     return rc;
   }
 
-  if (!gFmdSqliteHandler.DeleteFmd(fid, fsid))
+  if (!gFmdDbMapHandler.DeleteFmd(fid, fsid))
   {
     eos_notice("unable to delete fmd for fid %llu on filesystem %lu", fid, fsid);
     return gOFS.Emsg(epname, error, EIO, "delete file meta data ", fstPath.c_str());
@@ -1147,9 +1175,9 @@ XrdFstOfs::_rem (const char* path,
 
 int
 XrdFstOfs::fsctl (const int cmd,
-                  const char* args,
-                  XrdOucErrInfo& error,
-                  const XrdSecEntity* client)
+    const char* args,
+    XrdOucErrInfo& error,
+    const XrdSecEntity* client)
 
 {
   static const char* epname = "fsctl";
@@ -1174,9 +1202,9 @@ XrdFstOfs::fsctl (const int cmd,
 /*----------------------------------------------------------------------------*/
 int
 XrdFstOfs::FSctl (const int cmd,
-                  XrdSfsFSctl& args,
-                  XrdOucErrInfo& error,
-                  const XrdSecEntity* client)
+    XrdSfsFSctl& args,
+    XrdOucErrInfo& error,
+    const XrdSecEntity* client)
 {
   char ipath[16384];
   char iopaque[16384];
@@ -1267,7 +1295,7 @@ XrdFstOfs::FSctl (const int cmd,
 
       unsigned long long fileid = eos::common::FileId::Hex2Fid(afid);
       unsigned long fsid = atoi(afsid);
-      FmdSqlite* fmd = gFmdSqliteHandler.GetFmd(fileid, fsid, 0, 0, 0, false, true);
+      FmdHelper* fmd = gFmdDbMapHandler.GetFmd(fileid, fsid, 0, 0, 0, false, true);
 
       if (!fmd)
       {
@@ -1277,7 +1305,7 @@ XrdFstOfs::FSctl (const int cmd,
         return SFS_DATA;
       }
 
-      XrdOucEnv* fmdenv = fmd->FmdSqliteToEnv();
+      XrdOucEnv* fmdenv = fmd->FmdToEnv();
       int envlen;
       XrdOucString fmdenvstring = fmdenv->Env(envlen);
       delete fmdenv;
@@ -1394,8 +1422,8 @@ XrdFstOfs::OpenFidString (unsigned long fsid, XrdOucString& outstring)
 
 int
 XrdFstOfs::Stall (XrdOucErrInfo& error, // Error text & code
-                  int stime, // Seconds to stall
-                  const char* msg) // Message to give
+    int stime, // Seconds to stall
+    const char* msg) // Message to give
 {
   XrdOucString smessage = msg;
   smessage += "; come back in ";
@@ -1415,8 +1443,8 @@ XrdFstOfs::Stall (XrdOucErrInfo& error, // Error text & code
 /*----------------------------------------------------------------------------*/
 int
 XrdFstOfs::Redirect (XrdOucErrInfo& error, // Error text & code
-                     const char* host,
-                     int& port)
+    const char* host,
+    int& port)
 {
   EPNAME("Redirect");
   const char* tident = error.getErrUser();
@@ -1432,8 +1460,8 @@ XrdFstOfs::Redirect (XrdOucErrInfo& error, // Error text & code
 /*----------------------------------------------------------------------------*/
 int
 XrdFstOfsDirectory::open (const char* dirName,
-                          const XrdSecClientName* client,
-                          const char* opaque)
+    const XrdSecClientName* client,
+    const char* opaque)
 {
   // ----------------------------------------------------------------------------
   // dummy implementation doing nothing

@@ -21,6 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "fst/FmdSqlite.hh"
@@ -608,7 +611,7 @@ com_file (char* arg1)
             }
             else
             {
-              XrdOucString cx = fmd.checksum.c_str();
+              XrdOucString cx = fmd.checksum().c_str();
 
               for (unsigned int k = (cx.length() / 2); k < SHA_DIGEST_LENGTH; k++)
               {
@@ -617,7 +620,7 @@ com_file (char* arg1)
               if ((option.find("%size")) != STR_NPOS)
               {
                 char ss[1024];
-                sprintf(ss, "%llu", fmd.size);
+                sprintf(ss, "%" PRIu64, fmd.size());
                 XrdOucString sss = ss;
                 if (sss != size)
                 {
@@ -626,7 +629,7 @@ com_file (char* arg1)
                 }
                 else
                 {
-                  if (fmd.size != (unsigned long long) rsize)
+                  if (fmd.size() != (unsigned long long) rsize)
                   {
                     if (!consistencyerror)
                     {
@@ -660,11 +663,11 @@ com_file (char* arg1)
               if (!silent)
               {
                 fprintf(stdout, "nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" "
-                        "size=\"%llu\" statsize=\"%llu\" checksum=\"%s\"",
+                        "size=\"%" PRIu64 "\" statsize=\"%llu\" checksum=\"%s\"",
                         i, newresult->Get(repfsid.c_str()),
                         newresult->Get(repurl.c_str()),
                         newresult->Get(repfstpath.c_str()),
-                        fmd.size,
+                        fmd.size(),
                         static_cast<long long> (rsize),
                         cx.c_str());
               }

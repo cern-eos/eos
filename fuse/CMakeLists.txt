@@ -21,7 +21,8 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ 
+include_directories( ../
+             ${PROTOBUF_INCLUDE_DIRS}
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${XROOTD_PRIVATE_INCLUDE_DIR}	
 		     ${FUSE_INCLUDE_DIR} 
@@ -30,18 +31,22 @@ include_directories( ../
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}
 		  ${XROOTD_LIB_DIR} )
 
+set_source_generating_rules()
+
 add_subdirectory(XrdCache)
 
 add_executable ( eosfsd
                  eosfs.c
                  xrdposix.cc            xrdposix.hh
-		 FuseCacheEntry.cc	FuseCacheEntry.hh
+                 FuseCacheEntry.cc	FuseCacheEntry.hh
+                 ../fst/FmdBase.pb.h
 )
 
 add_executable ( eosd
                  eosd.c
                  xrdposix.cc            xrdposix.hh
-		 FuseCacheEntry.cc	FuseCacheEntry.hh
+                 FuseCacheEntry.cc	FuseCacheEntry.hh
+                 ../fst/FmdBase.pb.h
 )
 
 

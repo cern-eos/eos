@@ -25,6 +25,7 @@ set (CMAKE_CXX_FLAGS "-Wall -g -O0 -std=gnu++0x -DHAVE_ATOMICS=1 ")
 #-------------------------------------------------------------------------------
 
 include_directories( ./
+             ${PROTOBUF_INCLUDE_DIRS}
 		     ../ 
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${XROOTD_PRIVATE_INCLUDE_DIR}
@@ -33,8 +34,10 @@ include_directories( ./
 )
 
 link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} 
-		  ${XROOTD_LIB_DIR}
+		  ${XROOTD_LIB_DIR} ${PROTOBUF_LIB_DIR}
 )
+
+set_source_generating_rules()
 
 add_subdirectory(benchmark)
 
@@ -112,11 +115,13 @@ add_executable (eoshashbench
 
 add_executable( eos-io-tool
                 eos_io_tool.cc
+                ../fst/FmdBase.pb.cc
+                ../fst/FmdBase.pb.h
 )
 
 add_executable (testhmacsha256
 	        TestHmacSha256.cc
-		../common/SymKeys.hh            ../common/SymKeys.cc
+		    ../common/SymKeys.hh            ../common/SymKeys.cc
 )					
 
 target_link_libraries(xrdstress.exe XrdPosix XrdUtils  ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
@@ -132,7 +137,7 @@ target_link_libraries(xrdcptruncate XrdPosix XrdUtils)
 target_link_libraries(xrdcpposixcache XrdPosix XrdUtils)
 target_link_libraries(xrdcppartial XrdPosix XrdUtils)
 target_link_libraries(eoschecksumbench XrdPosix eosCommon XrdUtils ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(eos-io-tool XrdCl XrdServer EosFstIo-Static)
+target_link_libraries(eos-io-tool XrdCl XrdServer EosFstIo-Static ${PROTOBUF_LIBRARIES} )
 
 target_link_libraries(eos-udp-dumper)
 target_link_libraries(eosnsbench eosCommon-Static eosNamespace-Static)

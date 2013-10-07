@@ -83,7 +83,7 @@ find_package(uuid REQUIRED)
 find_package(z REQUIRED)
 find_package(rt REQUIRED)
 find_package(ldap REQUIRED)
-find_package(ProtocolBuffers)
+find_package(ProtocolBuffers REQUIRED)
 find_package(leveldb)
 find_package(CPPUnit)
 find_package(XRootD REQUIRED)
@@ -117,6 +117,27 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif (CMAKE_COMPILER_IS_GNUCXX)
 
 
+######################################################################################################################
+# Source generation rule for ProtocolBuffers
+find_program(PROTOC protoc)
+function(protobuf_find_files)
+    file(GLOB_RECURSE ProtoFiles "${CMAKE_CURRENT_SOURCE_DIR}/*.proto")
+    set(ENV{CMAKE_EOS_PROTO_FILES} "${ProtoFiles}")
+endfunction()
+
+function( set_source_generating_rules )
+    foreach(ProtoFile $ENV{CMAKE_EOS_PROTO_FILES})
+        get_filename_component( ProtoFilePath ${ProtoFile} PATH )
+        get_filename_component( ProtoFileNameWE ${ProtoFile} NAME_WE )
+        add_custom_command(OUTPUT "${ProtoFilePath}/${ProtoFileNameWE}.pb.cc" "${ProtoFilePath}/${ProtoFileNameWE}.pb.h"
+                           COMMAND ${PROTOC}  ${ProtoFile} -I ${ProtoFilePath} --cpp_out=${ProtoFilePath} 
+                           DEPENDS ${ProtoFile})
+        SET_SOURCE_FILES_PROPERTIES(${ProtoFilePath}/${ProtoFileNameWE}.pb.cc PROPERTIES GENERATED TRUE)
+        SET_SOURCE_FILES_PROPERTIES(${ProtoFilePath}/${ProtoFileNameWE}.pb.h PROPERTIES GENERATED TRUE)
+    endforeach(ProtoFile)        
+endfunction()
+    
+protobuf_find_files()
 ######################################################################################################################
 # Platform Specific
 
