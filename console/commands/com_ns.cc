@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_ns.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -30,155 +31,158 @@
 int
 com_ns (char* arg1)
 {
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString cmd = subtokenizer.GetToken();
   XrdOucString option = "";
   XrdOucString options = "";
-
   XrdOucString in = "";
-  XrdOucString state;
-  XrdOucString delay;
   XrdOucString interval;
+  ConsoleCliCommand *parsedCmd, *nsCmd, *statSubCmd,
+    *compactSubCmd, *compactOnSubCmd, *compactOffSubCmd, *masterSubCmd;
+#ifdef EOS_INSTRUMENTED_RWMUTEX
+  ConsoleCliCommand *mutexSubCmd;
+#endif
 
-  if (wants_help(arg1))
-    goto com_ns_usage;
+  nsCmd = new ConsoleCliCommand("ns", "print basic namespace parameters");
 
-  if ((cmd != "stat") && (cmd != "") && (cmd != "compact") && (cmd != "master") && (cmd != "mutex"))
+  statSubCmd = new ConsoleCliCommand("stat", "print namespace statistics");
+  statSubCmd->addOptions({{"all", "break down by uid/gid", "-a"},
+                          {"monitor", "print in <key>=<val> monitoring format",
+                           "-m"},
+                          {"numerical", "print numerical uid/gids", "-n"},
+                          {"reset", "reset namespace counter", "--reset"}
+                         });
+  nsCmd->addSubcommand(statSubCmd);
+
+#ifdef EOS_INSTRUMENTED_RWMUTEX
+  mutexSubCmd = new ConsoleCliCommand("mutex", "print namespace mutexistics");
+  mutexSubCmd->addOptions({{"timing", "toggle the timing", "--toggletiming"},
+                           {"order", "toggle the order checking",
+                            "--toggleorder"},
+                          {"rate1", "set the timing sample rate at 1% "
+                           "(default, almost no slow-down)", "--smplrate1"},
+                          {"rate10", "set the timing sample rate at 10% "
+                           "(medium no slow-down)", "--smplrate10"},
+                          {"rate100", "set the timing sample rate at 100% "
+                           "(severe slow-down)", "--smplrate100"}
+                         });
+  nsCmd->addSubcommand(mutexSubCmd);
+#endif // EOS_INSTRUMENTED_RWMUTEX
+
+  compactSubCmd = new ConsoleCliCommand("compact", "");
+  nsCmd->addSubcommand(compactSubCmd);
+
+  compactOnSubCmd = new ConsoleCliCommand("on", "enable online "
+                                          "compactification after <delay> "
+                                          "seconds");
+  CliPositionalOption delayOption("delay", "", 1, 1, "<delay>", true);
+  delayOption.addEvalFunction(optionIsPositiveNumberEvalFunc, 0);
+  compactOnSubCmd->addOption(delayOption);
+  CliPositionalOption intervalOption("interval", "if <interval> is >0 the "
+                                     "compactifcation is repeated "
+                                     "automatically after <interval> seconds!",
+                                     2, 1, "<interval>", false);
+  intervalOption.addEvalFunction(optionIsPositiveNumberEvalFunc, 0);
+  compactOnSubCmd->addOption(intervalOption);
+  compactSubCmd->addSubcommand(compactOnSubCmd);
+
+  compactOffSubCmd = new ConsoleCliCommand("off", "disable online "
+                                           "compactification");
+  compactSubCmd->addSubcommand(compactOffSubCmd);
+
+  masterSubCmd = new ConsoleCliCommand("master", "master/slave operation");
+  OptionsGroup *group = masterSubCmd->addGroupedOptions({
+      {"log", "show the master log (this also happens if no option is given)",
+       "--log"},
+      {"log-clear", "clean the master log", "--log-clear"},
+      {"disable", "disable the slave/master supervisor thread modifying "
+       "stall/redirection variables", "--disable"},
+      {"enable", "enable the slave/master supervisor thread modifying "
+       "stall/redirection variables", "--enable"}
+     });
+  group->addOption({"name", "set the host name of the MGM RW master daemon",
+                    "--set=", "<master-hostname>", false});
+  nsCmd->addSubcommand(masterSubCmd);
+
+  addHelpOptionRecursively(nsCmd);
+
+  parsedCmd = nsCmd->parse(arg1);
+
+  if (parsedCmd == compactSubCmd)
   {
-    goto com_ns_usage;
+    fprintf(stdout, "Use one of the following subcommands:\n");
+    compactOnSubCmd->printUsage();
+    compactOffSubCmd->printUsage();
+    goto bailout;
   }
+  if (checkHelpAndErrors(parsedCmd))
+    goto bailout;
 
   in = "mgm.cmd=ns&";
-  if (cmd == "stat")
+
+  if (parsedCmd == statSubCmd)
   {
     in += "mgm.subcmd=stat";
-  }
 
-  if (cmd == "compact")
+    if (statSubCmd->hasValue("all"))
+      options += "a";
+    if (statSubCmd->hasValue("monitor"))
+      options += "m";
+    if (statSubCmd->hasValue("numerical"))
+      options += "n";
+    if (statSubCmd->hasValue("reset"))
+      options += "r";
+  }
+  else if (parsedCmd == compactOnSubCmd || parsedCmd == compactOffSubCmd)
   {
     in += "mgm.subcmd=compact";
-    state = subtokenizer.GetToken();
-    if ((state != "on") && (state != "off"))
-      goto com_ns_usage;
     in += "&mgm.ns.compact=";
-    in += state;
-    delay = subtokenizer.GetToken();
-    interval = subtokenizer.GetToken();
-    if (delay.length())
+    in += parsedCmd == compactOnSubCmd ? "on" : "off";
+
+    if (parsedCmd == compactOnSubCmd)
     {
-      int idelay = atoi(delay.c_str());
-      if (!idelay)
-        goto com_ns_usage;
-
       in += "&mgm.ns.compact.delay=";
-      in += delay;
+      in += compactOnSubCmd->getValue("delay").c_str();
 
-      if (!interval.length())
-      {
+      if (compactOnSubCmd->hasValue("interval"))
+        interval = compactOnSubCmd->getValue("interval").c_str();
+      else
         interval = "0";
-      }
-      int iinterval = atoi(interval.c_str());
 
-      if (!iinterval)
-      {
-        if (interval != "0")
-          goto com_ns_usage;
-      }
-      in += "&mgm.ns.compact.interval=";
-      in += interval;
+      in += "&mgm.ns.compact.interval=" + interval;
     }
   }
-
-  if (cmd == "master")
+  else if (parsedCmd == masterSubCmd)
   {
     in += "mgm.subcmd=master";
-    XrdOucString master = subtokenizer.GetToken();
     in += "&mgm.master=";
-    in += master;
-  }
 
+    if (masterSubCmd->hasValue("log-clear"))
+      in += "--log-clear";
+    else if (masterSubCmd->hasValue("disable"))
+      in += "--disable";
+    else if (masterSubCmd->hasValue("enable"))
+      in += "--enable";
+    else if (masterSubCmd->hasValue("name"))
+      in += masterSubCmd->getValue("name").c_str();
+    else
+      in += "--log";
+  }
 #ifdef EOS_INSTRUMENTED_RWMUTEX
-  if (cmd == "mutex")
+  else if (parsedCmd == mutexSubCmd)
   {
     in += "mgm.subcmd=mutex";
+
+    if (statSubCmd->hasValue("timing"))
+      options += "t";
+    if (statSubCmd->hasValue("order"))
+      options += "o";
+    if (statSubCmd->hasValue("rate1"))
+      options += "1";
+    if (statSubCmd->hasValue("rate10"))
+      options += "s";
+    if (statSubCmd->hasValue("rate100"))
+      options += "f";
   }
-#endif
-  do
-  {
-    option = subtokenizer.GetToken();
-    if (!option.length())
-      break;
-    if (option == "-a")
-    {
-      options += "a";
-    }
-    else
-    {
-      if (option == "-m")
-      {
-        options += "m";
-      }
-      else
-      {
-        if (option == "-n")
-        {
-          options += "n";
-        }
-        else
-        {
-          if (option == "--reset")
-          {
-            options += "r";
-          }
-          else
-          {
-#ifdef EOS_INSTRUMENTED_RWMUTEX
-            if (option == "--toggletiming")
-            {
-              options += "t";
-            }
-            else
-            {
-              if (option == "--toggleorder")
-              {
-                options += "o";
-              }
-              else
-              {
-                if (option == "--smplrate1")
-                {
-                  options += "1";
-                }
-                else
-                {
-                  if (option == "--smplrate10")
-                  {
-                    options += "s";
-                  }
-                  else
-                  {
-                    if (option == "--smplrate100")
-                    {
-                      options += "f";
-                    }
-                    else
-                    {
-                      goto com_ns_usage;
-                    }
-                  }
-                }
-              }
-            }
-#else
-            goto com_ns_usage;
-#endif
-          }
-        }
-      }
-    }
-  }
-  while (1);
+#endif // EOS_INSTRUMENTED_RWMUTEX
 
   if (options.length())
   {
@@ -187,32 +191,9 @@ com_ns (char* arg1)
   }
 
   global_retc = output_result(client_admin_command(in));
-  return (0);
 
-com_ns_usage:
-  fprintf(stdout, "Usage: ns                                                         :  print basic namespace parameters\n");
-  fprintf(stdout, "       ns stat [-a] [-m] [-n]                                     :  print namespace statistics\n");
-  fprintf(stdout, "                -a                                                   -  break down by uid/gid\n");
-  fprintf(stdout, "                -m                                                   -  print in <key>=<val> monitoring format\n");
-  fprintf(stdout, "                -n                                                   -  print numerical uid/gids\n");
-  fprintf(stdout, "                --reset                                              -  reset namespace counter\n");
-#ifdef EOS_INSTRUMENTED_RWMUTEX
-  fprintf(stdout, "       ns mutex                                                   :  manage mutex monitoring\n");
-  fprintf(stdout, "                --toggletiming                                       -  toggle the timing\n");
-  fprintf(stdout, "                --toggleorder                                        -  toggle the order checking\n");
-  fprintf(stdout, "                --smplrate1                                          -  set the timing sample rate at 1%%   (default, almost no slow-down)\n");
-  fprintf(stdout, "                --smplrate10                                         -  set the timing sample rate at 10%%  (medium slow-down)\n");
-  fprintf(stdout, "                --smplrate100                                        -  set the timing sample rate at 100%% (severe slow-down)\n");
-#endif
-  fprintf(stdout, "       ns compact on <delay> [<interval>]                            -  enable online compactification after <delay> seconds\n");
-  fprintf(stdout, "                                                                     -  if <interval> is >0 the compactifcation is repeated automatically after <interval> seconds!\n");
-  fprintf(stdout, "       ns compact off                                                -  disable online compactification\n");
-  fprintf(stdout, "       ns master <master-hostname>|[--log]|--log-clear            :  master/slave operation\n");
-  fprintf(stdout, "       ns master <master-hostname>                                   -  set the host name of the MGM RW master daemon\n");
-  fprintf(stdout, "       ns master                                                     -  show the master log\n");
-  fprintf(stdout, "       ns master --log                                               -  show the master log\n");
-  fprintf(stdout, "       ns master --log-clear                                         -  clean the master log\n");
-  fprintf(stdout, "       ns master --disable                                           -  disable the slave/master supervisor thread modifying stall/redirection variables\n");
-  fprintf(stdout, "       ns master --enable                                            -  enable  the slave/master supervisor thread modifying stall/redirectino variables\n");
+ bailout:
+  delete nsCmd;
+
   return (0);
 }
