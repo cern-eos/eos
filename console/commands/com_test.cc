@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_test.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -33,119 +34,112 @@ extern int com_ls (char*);
 int
 com_test (char* arg1)
 {
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
+  ConsoleCliCommand testCmd("test", "set mode for <path>");
+  testCmd.addGroupedOptions({{"mkdir", "", "mkdir"},
+                             {"rmdir", "", "rmdir"},
+                             {"ls", "", "ls"},
+                             {"lsla", "", "lsla"}
+                            })->setRequired(true);
+  CliPositionalOption loopOption("loop", "loop number", 1, 1, "<loop-number>",
+                                 true);
+  loopOption.addEvalFunction(optionIsPositiveNumberEvalFunc, 0);
+  testCmd.addOption(loopOption);
 
-  do
+  addHelpOptionRecursively(&testCmd);
+
+  testCmd.parse(arg1);
+
+  if (checkHelpAndErrors(&testCmd))
+    return 0;
+
+  int n = atoi(testCmd.getValue("loop").c_str());
+  fprintf(stdout, "info: doing directory test with loop <n>=%d", n);
+
+  if (testCmd.hasValue("mkdir"))
   {
-    XrdOucString tag = subtokenizer.GetToken();
-    if (!tag.length())
-      break;
+    XrdMqTiming timing("mkdir");
 
-    XrdOucString sn = subtokenizer.GetToken();
-    if (!sn.length())
+    TIMING("start", &timing);
+
+    for (int i = 0; i < 10; i++)
     {
-      goto com_test_usage;
-    }
+      char dname[1024];
+      sprintf(dname, "/test/%02d", i);
+      XrdOucString cmd = "";
+      cmd += dname;
+      //      fprintf(stdout,"===> %s\n", cmd.c_str());
+      com_mkdir((char*) cmd.c_str());
 
-    int n = atoi(sn.c_str());
-    fprintf(stdout, "info: doing directory test with loop <n>=%d", n);
-
-    if (tag == "mkdir")
-    {
-      XrdMqTiming timing("mkdir");
-
-      TIMING("start", &timing);
-
-      for (int i = 0; i < 10; i++)
+      for (int j = 0; j < n / 10; j++)
       {
-        char dname[1024];
-        sprintf(dname, "/test/%02d", i);
+        sprintf(dname, "/test/%02d/%05d", i, j);
         XrdOucString cmd = "";
         cmd += dname;
         //      fprintf(stdout,"===> %s\n", cmd.c_str());
         com_mkdir((char*) cmd.c_str());
-
-        for (int j = 0; j < n / 10; j++)
-        {
-          sprintf(dname, "/test/%02d/%05d", i, j);
-          XrdOucString cmd = "";
-          cmd += dname;
-          //      fprintf(stdout,"===> %s\n", cmd.c_str());
-          com_mkdir((char*) cmd.c_str());
-        }
       }
-      TIMING("stop", &timing);
-      timing.Print();
     }
+    TIMING("stop", &timing);
+    timing.Print();
+  }
+  else if (testCmd.hasValue("rmdir"))
+  {
+    XrdMqTiming timing("rmdir");
+    TIMING("start", &timing);
 
-    if (tag == "rmdir")
+    for (int i = 0; i < 10; i++)
     {
-      XrdMqTiming timing("rmdir");
-      TIMING("start", &timing);
+      char dname[1024];
+      sprintf(dname, "/test/%02d", i);
+      XrdOucString cmd = "";
+      cmd += dname;
+      //fprintf(stdout,"===> %s\n", cmd.c_str());
 
-      for (int i = 0; i < 10; i++)
+      for (int j = 0; j < n / 10; j++)
       {
-        char dname[1024];
-        sprintf(dname, "/test/%02d", i);
+        sprintf(dname, "/test/%02d/%05d", i, j);
         XrdOucString cmd = "";
         cmd += dname;
         //fprintf(stdout,"===> %s\n", cmd.c_str());
-
-        for (int j = 0; j < n / 10; j++)
-        {
-          sprintf(dname, "/test/%02d/%05d", i, j);
-          XrdOucString cmd = "";
-          cmd += dname;
-          //fprintf(stdout,"===> %s\n", cmd.c_str());
-          com_rmdir((char*) cmd.c_str());
-        }
         com_rmdir((char*) cmd.c_str());
       }
-      TIMING("stop", &timing);
-      timing.Print();
+      com_rmdir((char*) cmd.c_str());
     }
-
-    if (tag == "ls")
-    {
-      XrdMqTiming timing("ls");
-      TIMING("start", &timing);
-
-      for (int i = 0; i < 10; i++)
-      {
-        char dname[1024];
-        sprintf(dname, "/test/%02d", i);
-        XrdOucString cmd = "";
-        cmd += dname;
-        com_ls((char*) cmd.c_str());
-      }
-      TIMING("stop", &timing);
-      timing.Print();
-    }
-
-    if (tag == "lsla")
-    {
-      XrdMqTiming timing("lsla");
-      TIMING("start", &timing);
-
-      for (int i = 0; i < 10; i++)
-      {
-        char dname[1024];
-        sprintf(dname, "/test/%02d", i);
-        XrdOucString cmd = "-la ";
-        cmd += dname;
-        com_ls((char*) cmd.c_str());
-      }
-      TIMING("stop", &timing);
-      timing.Print();
-    }
+    TIMING("stop", &timing);
+    timing.Print();
   }
-  while (1);
+  else if (testCmd.hasValue("ls"))
+  {
+    XrdMqTiming timing("ls");
+    TIMING("start", &timing);
+
+    for (int i = 0; i < 10; i++)
+    {
+      char dname[1024];
+      sprintf(dname, "/test/%02d", i);
+      XrdOucString cmd = "";
+      cmd += dname;
+      com_ls((char*) cmd.c_str());
+    }
+    TIMING("stop", &timing);
+    timing.Print();
+  }
+  else if (testCmd.hasValue("lsla"))
+  {
+    XrdMqTiming timing("lsla");
+    TIMING("start", &timing);
+
+    for (int i = 0; i < 10; i++)
+    {
+      char dname[1024];
+      sprintf(dname, "/test/%02d", i);
+      XrdOucString cmd = "-la ";
+      cmd += dname;
+      com_ls((char*) cmd.c_str());
+    }
+    TIMING("stop", &timing);
+    timing.Print();
+  }
 
   return (0);
-com_test_usage:
-  fprintf(stdout, "usage: test [mkdir|rmdir|ls|lsla <N> ]                                             :  run performance test\n");
-  return (0);
-
 }
