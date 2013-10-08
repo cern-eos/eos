@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_recycle.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -30,165 +31,108 @@
 int
 com_recycle (char* arg1)
 {
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
   XrdOucString in = "mgm.cmd=recycle&";
-  std::vector<std::string> args;
-  std::vector<std::string> options;
+  ConsoleCliCommand *parsedCmd, *recycleCmd, *lsSubCmd, *purgeSubCmd,
+    *restoreSubCmd, *configSubCmd;
 
-  bool monitoring = false;
-  bool translateids = false;
+  recycleCmd = new ConsoleCliCommand("recycle", "print status of recycle bin "
+                                     "and if executed by root the recycle bin "
+                                     "configuration settings");
 
-  XrdOucString subcmd = subtokenizer.GetToken();
+  CliOption monitorOption("monitor", "print information in monitoring "
+                          "<key>=<value> format", "-m");
 
-  if (wants_help(arg1))
-    goto com_recycle_usage;
+  lsSubCmd = new ConsoleCliCommand("ls", "list files in the recycle bin");
+  lsSubCmd->addOption(monitorOption);
+  lsSubCmd->addOption({"numerical", "print uid+gid number", "-n"});
+  recycleCmd->addSubcommand(lsSubCmd);
 
-  if ((subcmd != "") &&
-      (subcmd != "config") &&
-      (subcmd != "ls") &&
-      (subcmd != "purge") &&
-      (subcmd != "restore") &&
-      (!subcmd.beginswith("-")))
-    goto com_recycle_usage;
+  purgeSubCmd = new ConsoleCliCommand("purge", "purge files in the recycle bin");
+  recycleCmd->addSubcommand(purgeSubCmd);
 
+  restoreSubCmd = new ConsoleCliCommand("restore", "undo the deletion "
+                                        "identified by <recycle-key>");
+  restoreSubCmd->addOption({"force", "move's deleted files/dirs back to the "
+                            "original location (otherwise the key entry will "
+                            "have a <.inode> suffix",
+                            "--force-original-name,-f"});
+  restoreSubCmd->addOption({"key", "", 1, 1, "<recycle-key>", true});
+  recycleCmd->addSubcommand(restoreSubCmd);
 
-  do
+  configSubCmd = new ConsoleCliCommand("config", "configuration functions for "
+                                       "the recycle bin");
+  configSubCmd->addOption(monitorOption);
+  CliOptionWithArgs lifetimeOption("lifetime", "configure the FIFO lifetime "
+                                   "of the recycle bin", "--lifetime",
+                                   "<seconds>", false);
+  lifetimeOption.addEvalFunction(optionIsPositiveNumberEvalFunc, 0);
+  OptionsGroup *group = configSubCmd->addGroupedOptions({
+      {"add-bin", "configures to use the recycle bin for deletions in "
+       "<sub-tree>", "--add-bin", "<sub-tree>", false},
+      {"remove-bin", "disables usage of recycle bin for <sub-tree>",
+       "--remove-bin", "<sub-tree>", false},
+      {"size", "set the size of the recycle bin", "--size", "<size>", false}
+    });
+  group->addOption(lifetimeOption);
+  group->setRequired(true);
+  recycleCmd->addSubcommand(configSubCmd);
+
+  addHelpOptionRecursively(recycleCmd);
+
+  parsedCmd = recycleCmd->parse(arg1);
+
+  if (parsedCmd == recycleCmd)
   {
-    XrdOucString param = subtokenizer.GetToken();
-    if (!param.length())
-    {
-      if (subcmd.beginswith("-"))
-      {
-        param = subcmd;
-        subcmd = "";
-      }
-      else
-      {
-        break;
-      }
-    }
-    if (param.beginswith("-"))
-    {
-      if (param == "-m")
-      {
-        monitoring = true;
-      }
-      else
-      {
-        if (param == "-n")
-        {
-          translateids = true;
-        }
-        else
-        {
-          options.push_back(param.c_str());
-        }
-      }
-    }
-    else
-    {
-      args.push_back(param.c_str());
-    }
+    if (!checkHelpAndErrors(recycleCmd))
+      recycleCmd->printUsage();
+    goto bailout;
   }
-  while (1);
+  if (checkHelpAndErrors(parsedCmd))
+      goto bailout;
 
-  if ((subcmd == "ls") && options.size())
-    goto com_recycle_usage;
-
-  if ((subcmd == "ls") && args.size())
-    goto com_recycle_usage;
-
-  if ((subcmd == "purge") && options.size())
-    goto com_recycle_usage;
-
-  if ((subcmd == "purge") && args.size())
-    goto com_recycle_usage;
-
-  if ((subcmd == "config") && (options.size() > 0) &&
-      (options[0] != "--add-bin") &&
-      (options[0] != "--remove-bin") &&
-      (options[0] != "--lifetime") &&
-      (options[0] != "--size"))
-    goto com_recycle_usage;
-
-  if ((subcmd == "config") && (options.size() == 1) && (args.size() != 1))
-    goto com_recycle_usage;
-  if ((subcmd == "config") && (options.size() > 1))
-    goto com_recycle_usage;
-
-  if ((subcmd == "restore") && (options.size() > 0) &&
-      (options[0] != "--force-original-name") &&
-      (options[0] != "-f"))
-    goto com_recycle_usage;
-
-  if ((subcmd == "restore") && (args.size() != 1))
-    goto com_recycle_usage;
-
-  for (size_t i = 0; i < options.size(); i++)
+  if (parsedCmd == lsSubCmd)
   {
-    if ((options[i] == "-h") || (options[i] == "--help"))
-      goto com_recycle_usage;
+    in += "&mgm.subcmd=ls";
+
+    if (lsSubCmd->hasValue("numerical"))
+      in += "&mgm.recycle.format=n";
+
+    if (lsSubCmd->hasValue("monitor"))
+      in += "&mgm.recycle.format=m";
   }
-
-  in += "&mgm.subcmd=";
-  in += subcmd;
-  if (options.size())
+  else if (parsedCmd == purgeSubCmd)
+    in += "&mgm.subcmd=purge";
+  else if (parsedCmd == restoreSubCmd)
   {
-    in += "&mgm.option=";
-    in += options[0].c_str();
-  }
-
-  if (args.size())
-  {
+    in += "&mgm.subcmd=restore";
     in += "&mgm.recycle.arg=";
-    if ((options.size()) &&
-        ((options[0] == "--add-bin") ||
-         (options[0] == "--remove-bin")))
-    {
-      args[0] = abspath(args[0].c_str());
-    }
-    in += args[0].c_str();
-  }
+    in += restoreSubCmd->getValue("key").c_str();
 
-  if (monitoring)
-  {
-    in += "&mgm.recycle.format=m";
+    if (restoreSubCmd->hasValue("force"))
+      in += "&mgm.option=-f";
   }
-
-  if (translateids)
+  else if (parsedCmd == configSubCmd)
   {
-    in += "&mgm.recycle.printid=n";
+    in += "&mgm.subcmd=config";
+    in += "&mgm.recycle.arg=";
+
+    if (configSubCmd->hasValue("add-bin"))
+      in += cleanPath(configSubCmd->getValue("add-bin"));
+    else if (configSubCmd->hasValue("remove-bin"))
+      in += cleanPath(configSubCmd->getValue("remove-bin"));
+    else if (configSubCmd->hasValue("lifetime"))
+      in += configSubCmd->getValue("lifetime").c_str();
+    else if (configSubCmd->hasValue("size"))
+      in += configSubCmd->getValue("size").c_str();
+
+    if (configSubCmd->hasValue("monitor"))
+      in += "&mgm.recycle.format=m";
   }
 
   global_retc = output_result(client_user_command(in));
-  return (0);
 
+ bailout:
+  delete recycleCmd;
 
-com_recycle_usage:
-  fprintf(stdout, "Usage: recycle ls|purge|restore|config ...\n");
-  fprintf(stdout, "'[eos] recycle ..' provides recycle bin functionality to EOS.\n");
-  fprintf(stdout, "Options:\n");
-  fprintf(stdout, "recycle :\n");
-  fprintf(stdout, "                                                  print status of recycle bin and if executed by root the recycle bin configuration settings.\n");
-  fprintf(stdout, "recycle ls :\n");
-  fprintf(stdout, "                                                  list files in the recycle bin\n");
-  fprintf(stdout, "recycle purge :\n");
-  fprintf(stdout, "                                                  purge files in the recycle bin\n");
-  fprintf(stdout, "recycle restore [--force-original-name|-f] <recycle-key> :\n");
-  fprintf(stdout, "                                                  undo the deletion identified by <recycle-key>\n");
-  fprintf(stdout, "       --force-original-name : move's deleted files/dirs back to the original location (otherwise the key entry will have a <.inode> suffix\n");
-  fprintf(stdout, "recycle config --add-bin <sub-tree>:\n");
-  fprintf(stdout, "                                                  configures to use the recycle bin for deletions in <sub-tree>\n");
-  fprintf(stdout, "recycle config --remove-bin <sub-tree> :\n");
-  fprintf(stdout, "                                                  disables usage of recycle bin for <sub-tree>\n");
-  fprintf(stdout, "recycle config --lifetime <seconds> :\n");
-  fprintf(stdout, "                                                  configure the FIFO lifetime of the recycle bin\n");
-  fprintf(stdout, "recycle config --size <size> :\n");
-  fprintf(stdout, "                                                  set the size of the recycle bin\n");
-  fprintf(stdout, "'ls' and 'config' support the '-m' flag to give monitoring format output!\n");
-  fprintf(stdout, "'ls' supports the '-n' flag to give numeric user/group ids instead of names!\n");
   return (0);
 }
-
