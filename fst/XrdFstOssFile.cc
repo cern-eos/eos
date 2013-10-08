@@ -229,6 +229,113 @@ XrdFstOssFile::ReadRaw (void* buffer, off_t offset, size_t length)
 }
 
 
+
+//------------------------------------------------------------------------------
+// Vector read
+//------------------------------------------------------------------------------
+ssize_t
+XrdFstOssFile::ReadV(XrdOucIOVec *readV, int n)
+{
+  ssize_t rdsz;
+  ssize_t totBytes = 0;
+  int i;
+
+// For platforms that support fadvise, pre-advise what we will be reading
+#if defined(__linux__) && defined(HAVE_ATOMICS)
+  long long begOff, endOff, begLst = -1, endLst = -1;
+  int nPR = n;
+  
+  // Indicate we are in preread state and see if we have exceeded the limit
+  if (XrdFstSS->mPrDepth
+      && (AtomicInc((XrdFstSS->mPrActive)) < XrdFstSS->mPrQSize)
+      && (n > 2))
+  {
+    int faBytes = 0;
+    for (nPR=0; (nPR < XrdFstSS->mPrDepth) && (faBytes < XrdFstSS->mPrBytes); nPR++)
+      if (readV[nPR].size > 0)
+      {
+        begOff = XrdFstSS->mPrPMask & readV[nPR].offset;
+        endOff = XrdFstSS->mPrPBits | (readV[nPR].offset+readV[nPR].size);
+        rdsz = endOff - begOff + 1;
+        
+        if ((begOff > endLst || endOff < begLst) && (rdsz < XrdFstSS->mPrBytes))
+        {
+          posix_fadvise(fd, begOff, rdsz, POSIX_FADV_WILLNEED);
+          eos_debug("fadvise fd=%i off=%lli len=%ji", fd, begOff, rdsz);
+          faBytes += rdsz;
+         }
+        
+        begLst = begOff; endLst = endOff;
+      }
+  }
+#endif
+  
+  // Read in the vector and do a pre-advise if we support that
+  for (i = 0; i < n; i++)
+  {
+    do {rdsz = pread(fd, readV[i].data, readV[i].size, readV[i].offset);}
+    while(rdsz < 0 && errno == EINTR);
+    
+    if (rdsz < 0 || rdsz != readV[i].size)
+    {
+      totBytes =  (rdsz < 0 ? -errno : -ESPIPE);
+      break;
+    }
+    
+    totBytes += rdsz;
+#if defined(__linux__) && defined(HAVE_ATOMICS)
+    if (nPR < n && readV[nPR].size > 0)
+    {
+      begOff = XrdFstSS->mPrPMask &  readV[nPR].offset;
+      endOff = XrdFstSS->mPrPBits | (readV[nPR].offset+readV[nPR].size);
+      rdsz = endOff - begOff + 1;
+      
+      if ((begOff > endLst || endOff < begLst)
+           &&  rdsz <= XrdFstSS->mPrBytes)
+       {
+         posix_fadvise(fd, begOff, rdsz, POSIX_FADV_WILLNEED);
+         eos_debug("fadvise fd=%i off=%lli len=%ji", fd, begOff, rdsz);
+       }
+       begLst = begOff; endLst = endOff;
+     }
+     nPR++;
+#endif
+   }
+   
+// All done, return bytes read.
+#if defined(__linux__) && defined(HAVE_ATOMICS)
+ if (XrdFstSS->mPrDepth) AtomicDec((XrdFstSS->mPrActive));
+#endif
+ return totBytes;
+}
+
+
+//------------------------------------------------------------------------------
+// Vector write
+//------------------------------------------------------------------------------
+ssize_t
+XrdFstOssFile::WriteV(XrdOucIOVec *writeV, int n)
+{
+  ssize_t nbytes = 0;
+  ssize_t curCount = 0;
+
+  for (int i = 0; i < n; i++) {
+    curCount = Write((void *)writeV[i].data,
+                     (off_t)writeV[i].offset,
+                     (size_t)writeV[i].size);
+
+    if (curCount != writeV[i].size) {
+      if (curCount < 0)
+        return curCount;
+      return -ESPIPE;
+    }
+    
+    nbytes += curCount;
+  }
+  return nbytes;
+}
+
+
 //------------------------------------------------------------------------------
 // Write
 //------------------------------------------------------------------------------

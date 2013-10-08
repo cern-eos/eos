@@ -103,6 +103,30 @@ public:
 
 
   //--------------------------------------------------------------------------
+  //! Vector read
+  //!
+  //! @param readV generic data structure for vector reads 
+  //! @param n number of individual reads in the vector request
+  //!
+  //! @return is successful total number of bytes read, otherwise -ESPIPE
+  //!
+  //--------------------------------------------------------------------------
+  ssize_t ReadV(XrdOucIOVec *readV, int n);
+
+
+  //--------------------------------------------------------------------------
+  //! Vector write
+  //!
+  //! @param writeV generic data structure for vector writes
+  //! @param n number of individual reads in the vector request
+  //!
+  //! @return is successful total number of bytes written, otherwise -ESPIPE
+  //!
+  //--------------------------------------------------------------------------
+  ssize_t WriteV(XrdOucIOVec *writeV, int n);
+
+
+  //--------------------------------------------------------------------------
   //! Write
   //!
   //! @param buffer data container for write operation
