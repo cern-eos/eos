@@ -29,7 +29,6 @@ link_directories(${CPPUNIT_LIBRARY}
 		 ${XROOTD_LIB_DIR})
 
 add_library(EosAuthTests MODULE
-			 FileTest.cc         
 			 FileSystemTest.cc  
 			 Namespace.hh
 			 TestEnv.cc        TestEnv.hh)

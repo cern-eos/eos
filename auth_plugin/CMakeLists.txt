@@ -101,13 +101,6 @@ if (PROTOBUF_FOUND)
 			EosAuthProto
 		      	${ZMQ_LIBRARIES})
 
-  add_executable(stat_stress
-		stat_stress.cc)
-
-  target_link_libraries(stat_stress 
-  		        XrdCl 
-		        ${CMAKE_THREAD_LIB_INIT})
-
   if (Linux)
     set_target_properties (EosAuthOfs EosAuthProto PROPERTIES
                            VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
@@ -115,7 +108,7 @@ if (PROTOBUF_FOUND)
                            CLEAN_DIRECT_OUTPUT 1)
   endif(Linux)
 
-  install(TARGETS EosAuthOfs EosAuthProto stat_stress
+  install(TARGETS EosAuthOfs EosAuthProto
           LIBRARY DESTINATION ${LIB_INSTALL_DIR}
 	  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
           ARCHIVE DESTINATION ${LIB_INSTALL_DIR})
