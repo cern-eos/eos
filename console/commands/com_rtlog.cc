@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_rtlog.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -30,55 +31,63 @@
 int
 com_rtlog (char* arg1)
 {
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString queue = subtokenizer.GetToken();
-  XrdOucString lines = subtokenizer.GetToken();
-  XrdOucString tag = subtokenizer.GetToken();
-  XrdOucString filter = subtokenizer.GetToken();
+  XrdOucString tag("err");
+  XrdOucString lines("10");
+  XrdOucString queue(".");
   XrdOucString in = "mgm.cmd=rtlog&mgm.rtlog.queue=";
-  
-  if (wants_help(arg1))
-    goto com_rtlog_usage;
 
-  if (!queue.length())
-    goto com_rtlog_usage;
+  ConsoleCliCommand rtlogCmd("rtlog", "real-time log");
+  rtlogCmd.addOptions({{"queue", "if '*' is used, it will query all nodes;\n"
+                        "if '.' is used, it will query only the connected mgm\n"
+                        "if no argument is given, '.' is assumed", 1, 1,
+                        "<queue>|*|.", false},
+                       {"filter", "filter by word <filter-word>", 4, 1,
+                        "<filter-word>", false}
+                      });
+  CliPositionalOption linesOption("lines", "print the last <lines> of the log "
+                                  "(default = 10)", 2, 1, "<lines>");
+  linesOption.addEvalFunction(optionIsPositiveNumberEvalFunc, 0);
+  rtlogCmd.addOption(linesOption);
+  CliPositionalOption debugOption("debug", "filter by debug level "
+                                  "<debug-level> (default = err)",
+                                  3, 1, "<debug-level>");
+  std::vector<std::string> choices = {"info", "debug", "err", "emerg",
+                                      "alert", "crit", "warning"};
+  debugOption.addEvalFunction(optionIsChoiceEvalFunc, &choices);
+  rtlogCmd.addOption(debugOption);
 
-  if ((queue != ".") && (queue != "*") && (!queue.beginswith("/eos/")))
+  addHelpOptionRecursively(&rtlogCmd);
+
+  rtlogCmd.parse(arg1);
+
+  if (checkHelpAndErrors(&rtlogCmd))
+    return 0;
+
+  if (rtlogCmd.hasValue("queue"))
+    queue = rtlogCmd.getValue("queue").c_str();
+
+  in += queue;
+
+  if (rtlogCmd.hasValue("lines"))
+    lines = rtlogCmd.getValue("lines").c_str();
+  else
+    goto call_command;
+
+  if (rtlogCmd.hasValue("debug"))
+    tag = rtlogCmd.getValue("debug").c_str();
+  else
+    goto call_command;
+
+  if (rtlogCmd.hasValue("filter"))
   {
-    // there is no queue argument and means to talk with the mgm directly
-    filter = tag;
-    tag = lines;
-    lines = queue;
-    queue = ".";
+    in += "&mgm.rtlog.filter=";
+    in += rtlogCmd.getValue("filter").c_str();
   }
 
-  if (queue.length())
-  {
-    in += queue;
-    if (!lines.length())
-      in += "&mgm.rtlog.lines=10";
-    else
-      in += "&mgm.rtlog.lines=";
-    in += lines;
-    if (!tag.length())
-      in += "&mgm.rtlog.tag=err";
-    else
-      in += "&mgm.rtlog.tag=";
-    in += tag;
+ call_command:
+  in += "&mgm.rtlog.lines=" + lines;
+  in += "&mgm.rtlog.tag=" + tag;
 
-    if (filter.length())
-      in += "&mgm.rtlog.filter=";
-    in += filter;
-
-    global_retc = output_result(client_admin_command(in));
-    return (0);
-  }
-
-com_rtlog_usage:
-  fprintf(stdout, "usage: rtlog [<queue>|*|.] [<sec in the past>=3600] [<debug>=err] [filter-word]\n");
-  fprintf(stdout, "                     - '*' means to query all nodes\n");
-  fprintf(stdout, "                     - '.' means to query only the connected mgm\n");
-  fprintf(stdout, "                     - if the first argument is ommitted '.' is assumed\n");
+  global_retc = output_result(client_admin_command(in));
   return (0);
 }
