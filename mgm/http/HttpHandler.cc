@@ -400,10 +400,10 @@ HttpHandler::Get (eos::common::HttpRequest *request)
         }
 
         // show creation date
-        result += "<td style=\"padding-right: 5px\"><font face=\"Courier New\" color=\"darkgrey\">";
+        result += "<td style=\"padding-right: 5px\"><font size=\"2\" face=\"Courier New\" color=\"darkgrey\">";
         result += t_creat;
         // show permissions
-        result += "<td style=\"padding-right: 5px\"><font face=\"Courier New\" color=\"darkgrey\">";
+        result += "<td style=\"padding-right: 5px\"><font size=\"2\" face=\"Courier New\" color=\"darkgrey\">";
         result += modestr;
 
         // show user name
