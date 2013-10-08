@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_stat.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -29,64 +30,37 @@
 int
 com_stat (char* arg1)
 {
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString param = "";
-  XrdOucString option = "";
   XrdOucString path = "";
   XrdOucString sizestring;
   struct stat buf;
   XrdOucString url = serveruri.c_str();
- 
-  if (wants_help(arg1))
-    goto com_stat_usage;
+  ConsoleCliCommand statCmd("stat", "stat <path> or current directory, "
+                            "if <path> is not given");
+  statCmd.addGroupedOptions({{"check-file", "checks if <path> is a file", "-f"},
+                             {"check-dir", "checks if <path> is a directory",
+                              "-d"}
+                            });
+  statCmd.addOption({"path", "", 1, 1, "<path>", false});
 
-  do
-  {
-    param = subtokenizer.GetToken();
-    if (!param.length())
-      break;
-    if (param == "--help")
-      goto com_stat_usage;
-    if (param == "-h")
-      goto com_stat_usage;
+  addHelpOptionRecursively(&statCmd);
 
-    if (param.beginswith("-"))
-    {
-      while (param.replace("-", ""))
-      {
-      }
-      option += param;
-      if ((option.find("&")) != STR_NPOS)
-      {
-        goto com_stat_usage;
-      }
-    }
-    else
-    {
-      path = param;
-      break;
-    }
-  }
-  while (1);
+  statCmd.parse(arg1);
 
-  if (!path.length())
-  {
+  if (checkHelpAndErrors(&statCmd))
+    return 0;
+
+  if (statCmd.hasValue("path"))
+    path = statCmd.getValue("path").c_str();
+  else
     path = pwd;
-  }
-  if ((option.length()) && ((option != "f") && (option != "d")))
-  {
-    goto com_stat_usage;
-  }
 
-  path = abspath(path.c_str());
+  path = cleanPath(path.c_str());
 
   url += "/";
   url += path;
   if (!XrdPosixXrootd::Stat(url.c_str(), &buf))
   {
-    if ((option.find("f") != STR_NPOS))
+    if (statCmd.hasValue("check-file"))
     {
       if (S_ISREG(buf.st_mode))
       {
@@ -99,7 +73,7 @@ com_stat (char* arg1)
         return (0);
       }
     }
-    if ((option.find("d") != STR_NPOS))
+    if (statCmd.hasValue("check-dir"))
     {
       if (S_ISDIR(buf.st_mode))
       {
@@ -131,11 +105,5 @@ com_stat (char* arg1)
     return (0);
   }
 
-  return (0);
-
-com_stat_usage:
-  fprintf(stdout, "usage: stat [-f|-d]    <path>                                                  :  stat <path>\n");
-  fprintf(stdout, "                    -f : checks if <path> is a file\n");
-  fprintf(stdout, "                    -d : checks if <path> is a directory\n");
   return (0);
 }
