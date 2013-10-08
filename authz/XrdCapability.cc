@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "authz/XrdCapability.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdVersion.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
@@ -187,8 +188,18 @@ XrdCapability::Extract(XrdOucEnv *inenv, XrdOucEnv* &outenv)
   return 0;
 }
 
-/*----------------------------------------------------------------------------*/
-XrdCapability::~XrdCapability() {}
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+XrdCapability::~XrdCapability()
+{
+  // empty
+}
+
+
+// Set the version information
+XrdVERSIONINFO(XrdAccAuthorizeObject, EosCapability);
+
 /* XrdAccAuthorizeObject() is called to obtain an instance of the auth object
    that will be used for all subsequent authorization decisions. If it returns
    a null pointer; initialization fails and the program exits. The args are:

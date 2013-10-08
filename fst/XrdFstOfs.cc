@@ -67,6 +67,9 @@ extern XrdOss* XrdOfsOss;
 extern XrdOfs* XrdOfsFS;
 extern XrdOucTrace OfsTrace;
 
+// Set the version information
+XrdVERSIONINFO(XrdSfsGetFileSystem, FstOfs);
+
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------

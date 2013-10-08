@@ -299,6 +299,10 @@ xrdmgmofs_shutdown (int sig)
   kill(getpid(), 9);
 }
 
+
+// Set the version information
+XrdVERSIONINFO(XrdSfsGetFileSystem, MgmOfs);
+
 /*----------------------------------------------------------------------------*/
 extern "C"
 XrdSfsFileSystem *
@@ -316,7 +320,7 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
  */
 /*----------------------------------------------------------------------------*/
 {
-  gMgmOfsEroute.SetPrefix("mgmofs_");
+  gMgmOfsEroute.SetPrefix("MgmOfs_");
   gMgmOfsEroute.logger(lp);
 
   static XrdMgmOfs myFS(&gMgmOfsEroute);
@@ -5530,8 +5534,7 @@ XrdMgmOfs::FSctl (const int cmd,
       MAYREDIRECT;
 
       gOFS->MgmStats.Add("OpenLayout", vid.uid, vid.gid, 1);
-      XrdMgmOfsFile* file = new XrdMgmOfsFile(client->tident);
-
+      XrdMgmOfsFile* file = new XrdMgmOfsFile(const_cast<char*>(client->tident));
       if (file)
       {
         opaque += "&eos.cli.access=pio";
