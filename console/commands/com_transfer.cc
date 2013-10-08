@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_transfers.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -36,175 +37,188 @@ txcancel_handler (int)
   signal(SIGINT, exit_handler);
 }
 
+static bool
+checkUrlValidity(const CliOptionWithArgs *option,
+                 std::vector<std::string> &args,
+                 std::string **error,
+                 void *userData)
+{
+  const std::string &url = args[0];
+  const char *validUrlPrefixes[] = {"root://", "as3://", "gsiftp://",
+                                    "http://", "https://", "/eos/", 0};
+  std::string prefixesRepr("");
+  for (int i = 0; validUrlPrefixes[i]; i++)
+  {
+    const int prefixLength = strlen(validUrlPrefixes[i]);
+    if (url.compare(0, prefixLength, validUrlPrefixes[i]) == 0)
+      return true;
+
+    if (i != 0)
+      prefixesRepr += "|";
+
+    prefixesRepr += validUrlPrefixes[i];
+  }
+
+  *error = new std::string("Error: Option " + option->repr() + " needs to start "
+                           "with one of these prefixes: " + prefixesRepr);
+
+  return false;
+}
+
 /* Transfer Interface */
 int
 com_transfer (char* argin)
 {
-  // split subcommands
-  XrdOucTokenizer subtokenizer(argin);
-  subtokenizer.GetLine();
-  XrdOucString subcmd = subtokenizer.GetToken();
   XrdOucString rate = "0";
   XrdOucString streams = "0";
   XrdOucString group = "";
   XrdOucString in = "mgm.cmd=transfer&mgm.subcmd=";
   XrdOucString option = "";
-  XrdOucString foption = "";
-  XrdOucString xid = "";
-  XrdOucString arg1 = "";
-  XrdOucString arg2 = "";
-  bool sync = false;
+  ConsoleCliCommand *parsedCmd, *transferCmd, *submitSubCmd, *cancelSubCmd,
+    *lsSubCmd, *enableSubCmd, *disableSubCmd, *resetSubCmd, *clearSubCmd,
+    *resubmitSubCmd, *killSubCmd, *purgeSubCmd;
 
-  if (wants_help(argin))
-    goto com_transfer_usage;
+  transferCmd = new ConsoleCliCommand("transfer", "provides the transfer "
+                                      "interface of EOS");
 
-  if ((subcmd != "submit") && (subcmd != "cancel") && (subcmd != "ls") && (subcmd != "enable") && (subcmd != "disable") && (subcmd != "reset") && (subcmd != "clear") && (subcmd != "log") && (subcmd != "resubmit") && (subcmd != "kill") && (subcmd != "purge"))
-    goto com_transfer_usage;
+  submitSubCmd = new ConsoleCliCommand("submit", "transfer a file from URL1 to "
+                                       "URL2");
+  CliOptionWithArgs rateOption("rate", "limit the transfer rate to <rate>",
+                               "--rate=", "<rate>", false);
+  rateOption.addEvalFunction(optionIsPositiveNumberEvalFunc, 0);
+  CliOptionWithArgs streamsOption("streams", "use <#> parallel streams",
+                                  "--streams=", "<streams>", false);
+  streamsOption.addEvalFunction(optionIsPositiveNumberEvalFunc, 0);
+  submitSubCmd->addOption(rateOption);
+  submitSubCmd->addOption(streamsOption);
+  submitSubCmd->addOption({"group", "set the group name for this transfer",
+                           "--group=", "<group-name>", false});
+  submitSubCmd->addOptions({{"sync", "transfer synchronously", "--sync"},
+                            {"silent", "run in silent mode", "--silent"},
+                            {"no-progress", "don't show the progress "
+                             "bar", "--no-progress,-n"}
+                           });
+  CliPositionalOption url1Option("url1", "", 1, 1, "<URL-1>", true);
+  url1Option.addEvalFunction(checkUrlValidity, 0);
+  CliPositionalOption url2Option("url2", "", 2, 1, "<URL-2>", true);
+  url2Option.addEvalFunction(checkUrlValidity, 0);
+  submitSubCmd->addOption(url1Option);
+  submitSubCmd->addOption(url2Option);
+  transferCmd->addSubcommand(submitSubCmd);
 
-  in += subcmd;
+  cancelSubCmd = new ConsoleCliCommand("cancel", "cancel transfer with ID <id> "
+                                       "or by group <groupname>");
+  cancelSubCmd->addGroupedOptions({{"id", "the transfer ID;\nif it is '*', "
+                                    "cancels all transfers (only root can do "
+                                    "that)", "--id=", "<id>", false},
+                                   {"group", "", "--group=", "<group>", false}
+                                  })->setRequired(true);
+  transferCmd->addSubcommand(cancelSubCmd);
 
-  do
+  enableSubCmd = new ConsoleCliCommand("enable", "start the transfer engine "
+                                       "(you have to be root to do that)");
+  transferCmd->addSubcommand(enableSubCmd);
+
+  disableSubCmd = new ConsoleCliCommand("disable", "stop the transfer engine "
+                                       "(you have to be root to do that)");
+  transferCmd->addSubcommand(disableSubCmd);
+
+  clearSubCmd = new ConsoleCliCommand("clear", "clear's the transfer database "
+                                      "(you have to be root to do that)");
+  transferCmd->addSubcommand(clearSubCmd);
+
+  lsSubCmd = new ConsoleCliCommand("ls", "ls's the transfer database "
+                                      "(you have to be root to do that)");
+  lsSubCmd->addOptions({{"all", "list all transfers not only of the current "
+                         "role", "-a"},
+                        {"monitor", "list all transfers in monitoring format "
+                         "(key-val pairs)", "-m"},
+                        {"summary", "print transfer summary", "-s"},
+                        {"sync", "follow the transfer in interactive mode "
+                         "(like interactive third party 'cp')", "--sync"}
+                       });
+  lsSubCmd->addOption({"group", "list all transfers for group <group>",
+                       "--group=", "<group>", false});
+  lsSubCmd->addOption({"id", "id of the transfer to list", 1, 1, "<id>"});
+  transferCmd->addSubcommand(lsSubCmd);
+
+  resetSubCmd = new ConsoleCliCommand("reset", "resets transfers to "
+                                      "'inserted' state (you have to be root "
+                                      "to do that); if no transfer is "
+                                      "specified, it acts on all transfers");
+  resetSubCmd->addGroupedOptions({{"id", "", "--id=", "<id>", false},
+                                  {"group", "", "--group=", "<group>", false}
+                                 });
+  transferCmd->addSubcommand(resetSubCmd);
+
+  resubmitSubCmd = new ConsoleCliCommand("resubmit", "resubmits a transfer");
+  resubmitSubCmd->addGroupedOptions({{"id", "", "--id=", "<id>", false},
+                                     {"group", "", "--group=", "<group>", false}
+                                    })->setRequired(true);
+  transferCmd->addSubcommand(resubmitSubCmd);
+
+  killSubCmd = new ConsoleCliCommand("kill", "kills a running transfer");
+  killSubCmd->addGroupedOptions({{"id", "", "--id=", "<id>", false},
+                                 {"group", "", "--group=", "<group>", false}
+                                })->setRequired(true);
+  transferCmd->addSubcommand(killSubCmd);
+
+  purgeSubCmd = new ConsoleCliCommand("purge", "remove 'failed' transfers from "
+                                      "the transfer queue by id, group or all "
+                                      "if not specified");
+  purgeSubCmd->addGroupedOptions({{"id", "", "--id=", "<id>", false},
+                                  {"group", "", "--group=", "<group>", false}
+                                 });
+  transferCmd->addSubcommand(purgeSubCmd);
+
+  addHelpOptionRecursively(transferCmd);
+
+  parsedCmd = transferCmd->parse(argin);
+
+  if (parsedCmd == transferCmd)
   {
-    option = subtokenizer.GetToken();
-    if (!option.length())
-      break;
-    if (option.beginswith("--rate="))
-    {
-      rate = option;
-      rate.replace("--rate=", "");
-    }
-    else
-    {
-      if (option == "--sync")
-      {
-        sync = true;
-      }
-      else
-      {
-        if (option.beginswith("--streams="))
-        {
-          streams = option;
-          streams.replace("--streams=", "");
-        }
-        else
-        {
-          if (option.beginswith("--group="))
-          {
-            group = option;
-            group.replace("--group=", "");
-          }
-          else
-          {
-            if (option == "-a")
-            {
-              foption += "a";
-            }
-            else
-            {
-              if (option == "-m")
-              {
-                foption = "m";
-              }
-              else
-              {
-                if (option == "-p")
-                {
-                  foption = "mp";
-                }
-                else
-                {
-                  if (option == "-s")
-                  {
-                    foption = "s";
-                  }
-                  else
-                  {
-                    if (option == "-n")
-                    {
-                      foption = "n";
-                    }
-                    else
-                    {
-                      if (option.beginswith("-"))
-                      {
-                        goto com_transfer_usage;
-                      }
-                      else
-                      {
-                        arg1 = option;
-                        arg2 = subtokenizer.GetToken();
-                        break;
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+    if (!checkHelpAndErrors(transferCmd))
+      transferCmd->printUsage();
+    goto bailout;
   }
-  while (1);
+  if (checkHelpAndErrors(parsedCmd))
+    goto bailout;
 
-  if (subcmd == "submit")
+  in += parsedCmd->name().c_str();
+
+  if (parsedCmd == submitSubCmd)
   {
-
-    if ((!arg2.beginswith("root://")) &&
-        (!arg2.beginswith("as3://")) &&
-        (!arg2.beginswith("gsiftp://")) &&
-        (!arg2.beginswith("http://")) &&
-        (!arg2.beginswith("https://")) &&
-        (!arg2.beginswith("/eos/")))
-    {
-      goto com_transfer_usage;
-    }
-
-    if ((!arg1.beginswith("/eos/")) &&
-        (!arg1.beginswith("as3://")) &&
-        (!arg1.beginswith("gsiftp://")) &&
-        (!arg1.beginswith("http://")) &&
-        (!arg1.beginswith("https://")) &&
-        (!arg1.beginswith("root://")))
-    {
-      goto com_transfer_usage;
-    }
-
     bool noprogress = false;
+    silent = submitSubCmd->hasValue("silent");
+    noprogress = submitSubCmd->hasValue("no-progress");
 
-    if ((foption.find("s")) != STR_NPOS)
-    {
-      while (foption.replace("s", ""))
-      {
-      }
-      silent = true;
-    }
-
-    if ((foption.find("n")) != STR_NPOS)
-    {
-      while (foption.replace("n", ""))
-      {
-      }
-      noprogress = true;
-    }
-
-    if (foption.length())
-    {
-      goto com_transfer_usage;
-    }
+    XrdOucString url1(submitSubCmd->getValue("url1").c_str());
+    XrdOucString url2(submitSubCmd->getValue("url2").c_str());
 
     in += "&mgm.txsrc=";
-    in += XrdMqMessage::Seal(arg1);
+    in += XrdMqMessage::Seal(url1);
     in += "&mgm.txdst=";
-    in += XrdMqMessage::Seal(arg2);
-    in += "&mgm.txrate=";
-    in += rate;
-    in += "&mgm.txstreams=";
-    in += streams;
-    in += "&mgm.txgroup=";
-    in += group;
+    in += XrdMqMessage::Seal(url2);
 
-    if (!sync)
+    if (submitSubCmd->hasValue("rate"))
+    {
+      in += "&mgm.txrate=";
+      in += submitSubCmd->getValue("rate").c_str();
+    }
+
+    if (submitSubCmd->hasValue("streams"))
+    {
+      in += "&mgm.txstreams=";
+      in += submitSubCmd->getValue("streams").c_str();
+    }
+
+    if (submitSubCmd->hasValue("group"))
+    {
+      in += "&mgm.txgroup=";
+      in += submitSubCmd->getValue("group").c_str();
+    }
+
+    if (!submitSubCmd->hasValue("sync"))
     {
       global_retc = output_result(client_admin_command(in));
     }
@@ -236,9 +250,10 @@ com_transfer (char* argin)
           long lid = strtol(id.c_str(), 0, 10);
           if (errno || (lid == LONG_MIN) || (lid == LONG_MAX))
           {
-            fprintf(stderr, "error: submission of transfer probably failed - check with 'transfer ls'\n");
+            fprintf(stderr, "Error: submission of transfer probably failed - "
+                    "check with 'transfer ls'\n");
             global_retc = EFAULT;
-            return (0);
+            goto bailout;
           }
           // prepare the get progress command
           in = "mgm.cmd=transfer&mgm.subcmd=ls&mgm.txoption=mp&mgm.txid=";
@@ -283,7 +298,8 @@ com_transfer (char* argin)
                       fprintf(stdout, ".");
                     }
                   }
-                  fprintf(stdout, "| %5s%% : %us\r", txinfo.Get("tx.progress"), (unsigned int) (time(NULL) - starttime));
+                  fprintf(stdout, "| %5s%% : %us\r", txinfo.Get("tx.progress"),
+                          (unsigned int) (time(NULL) - starttime));
                   fflush(stdout);
                 }
               }
@@ -316,11 +332,13 @@ com_transfer (char* argin)
                   }
                   if (status == "done")
                   {
-                    fprintf(stdout, "|  100.0%% : %us\n", (unsigned int) (time(NULL) - starttime));
+                    fprintf(stdout, "|  100.0%% : %us\n",
+                            (unsigned int) (time(NULL) - starttime));
                   }
                   else
                   {
-                    fprintf(stdout, "|    0.0%% : %us\n", (unsigned int) (time(NULL) - starttime));
+                    fprintf(stdout, "|    0.0%% : %us\n",
+                            (unsigned int) (time(NULL) - starttime));
                   }
                   fflush(stdout);
                 }
@@ -340,7 +358,7 @@ com_transfer (char* argin)
                 {
                   global_retc = EFAULT;
                 }
-                return (0);
+                goto bailout;
               }
               for (size_t i = 0; i < 10; i++)
               {
@@ -352,15 +370,15 @@ com_transfer (char* argin)
                   in += id.c_str();
                   output_result(client_admin_command(in));
                   global_retc = ECONNABORTED;
-                  return (0);
+                  goto bailout;
                 }
               }
             }
             else
             {
-              fprintf(stderr, "error: transfer has been canceled externnaly!\n");
+              fprintf(stderr, "Error: transfer has been canceled externnaly!\n");
               global_retc = EFAULT;
-              return (0);
+              goto bailout;
             }
           }
         }
@@ -368,87 +386,58 @@ com_transfer (char* argin)
     }
     return (0);
   }
-
-  if (subcmd == "ls")
+  else if (parsedCmd == lsSubCmd)
   {
-    if (arg2.length())
+    XrdOucString options("");
+
+    if (lsSubCmd->hasValue("monitor"))
+      options += "m";
+    if (lsSubCmd->hasValue("all"))
+      options += "a";
+    if (lsSubCmd->hasValue("summary"))
+      options += "s";
+
+    if (options != "")
     {
-      goto com_transfer_usage;
+      in += "&mgm.txoption=";
+      in += options;
     }
 
-    in += "&mgm.txoption=";
-    in += foption;
-    in += "&mgm.txgroup=";
-    in += group;
-    in += "&mgm.txid=";
-    in += arg1;
-
-    global_retc = output_result(client_admin_command(in));
-    return (0);
-  }
-
-  if ((subcmd == "enable") || (subcmd == "disable") || (subcmd == "clear"))
-  {
-    global_retc = output_result(client_admin_command(in));
-    return (0);
-  }
-
-  if ((subcmd == "cancel") || (subcmd == "log") || (subcmd == "resubmit") || (subcmd == "kill") || (subcmd == "purge") || (subcmd == "reset"))
-  {
-    xid = arg1;
-    if ((subcmd != "purge") && ((subcmd != "reset")) && (!xid.length() && (!group.length())))
-    {
-      goto com_transfer_usage;
-    }
-    if (!xid.length())
+    if (lsSubCmd->hasValue("group"))
     {
       in += "&mgm.txgroup=";
-      in += group;
+      in += lsSubCmd->getValue("group").c_str();
     }
-    else
+
+    if (lsSubCmd->hasValue("id"))
     {
       in += "&mgm.txid=";
-      in += xid;
+      in += lsSubCmd->getValue("id").c_str();
     }
-
-    global_retc = output_result(client_admin_command(in));
-    return (0);
+  }
+  else if (parsedCmd == enableSubCmd || parsedCmd == disableSubCmd ||
+      parsedCmd == clearSubCmd)
+  {
+    // We do nothing here because it has no parameters
+  }
+  else
+  {
+    if (parsedCmd->hasValue("group"))
+    {
+      in += "&mgm.txgroup=";
+      in += parsedCmd->getValue("group").c_str();
+    }
+    else if (parsedCmd->hasValue("id"))
+    {
+      in += "&mgm.txid=";
+      in += parsedCmd->getValue("id").c_str();
+    }
   }
 
- com_transfer_usage:
-  fprintf(stdout, "Usage: transfer submit|cancel|ls|enable|disable|reset|clear|resubmit|log ..");
-  fprintf(stdout, "'[eos] transfer ..' provides the transfer interface of EOS.\n");
-  fprintf(stdout, "Options:\n");
-  fprintf(stdout, "transfer submit [--rate=<rate>] [--streams=<#>] [--group=<groupname>] [--sync] <URL1> <URL2> :\n");
-  fprintf(stdout, "                                                  transfer a file from URL1 to URL2\n");
-  fprintf(stdout, "                                                             <URL> can be root://<host>/<path> or a local path /eos/...\n");
-  fprintf(stdout, "       --rate          : limit the transfer rate to <rate>\n");
-  fprintf(stdout, "       --streams       : use <#> parallel streams\n\n");
-  fprintf(stdout, "       --group         : set the group name for this transfer\n");
-  fprintf(stdout, "transfer cancel <id>|--group=<groupname>\n");
-  fprintf(stdout, "                                                  cancel transfer with ID <id> or by group <groupname>\n");
-  fprintf(stdout, "       <id>=*          : cancel all transfers (only root can do that)\n\n");
-  fprintf(stdout, "transfer ls [-a] [-m] [s] [--group=<groupname>] [id] \n");
-  fprintf(stdout, "       -a              : list all transfers not only of the current role\n");
-  fprintf(stdout, "       -m              : list all transfers in monitoring format (key-val pairs)\n");
-  fprintf(stdout, "       -s              : print transfer summary\n");
-  fprintf(stdout, "       --group         : list all transfers in this group\n");
-  fprintf(stdout, "       --sync          : follow the transfer in interactive mode (like interactive third party 'cp')\n");
-  fprintf(stdout, "                  <id> : id of the transfer to list\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "transfer enable\n");
-  fprintf(stdout, "                       : start the transfer engine (you have to be root to do that)\n");
-  fprintf(stdout, "transfer disable\n");
-  fprintf(stdout, "                       : stop the transfer engine (you have to be root to do that)\n");
-  fprintf(stdout, "transfer reset [<id>|--group=<groupname>]\n");
-  fprintf(stdout, "                       : reset all transfers to 'inserted' state (you have to be root to do that)\n");
-  fprintf(stdout, "transfer clear \n");
-  fprintf(stdout, "                       : clear's the transfer database (you have to be root to do that)\n");
-  fprintf(stdout, "transfer resubmit <id> [--group=<groupname>]\n");
-  fprintf(stdout, "                       : resubmit's a transfer\n");
-  fprintf(stdout, "transfer kill <id>|--group=<groupname>\n");
-  fprintf(stdout, "                       : kill a running transfer\n");
-  fprintf(stdout, "transfer purge [<id>|--group=<groupname>]\n");
-  fprintf(stdout, "                       : remove 'failed' transfers from the transfer queue by id, group or all if not specified\n");
+  global_retc = output_result(client_admin_command(in));
+
+ bailout:
+  delete transferCmd;
+
   return (0);
 }
