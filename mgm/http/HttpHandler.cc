@@ -243,11 +243,25 @@ HttpHandler::Get (eos::common::HttpRequest *request)
       result += "<hr style=\"border:solid #00ffff 3px;background-color:#0000ff;"
         "height:10px;width:400px;text-align:left;\">";
       result += "<h2> <font color=\"#2C3539\">[ ";
+      // show [ name@instance ]
+      result += client.name;
+      result += "@";
       result += gOFS-> MgmOfsInstanceName.c_str();
       result += " ]:</font> ";
       result += url.c_str();
       result += "</h2>";
-      result += "<div><table>\n";
+      result += "<div><table border:1px solid #aaa !important;\"\n";
+      //      result += "<div><table>\n";
+
+      // put the header
+      result += "<tr>\n";
+      result += "<th style=\"min-width:150px\">Path</th> <th style=\"min-width:150px\">Size</th> "
+        "<th style=\"min-width:150px\">Created</th> <th style=\"min_width:100\">Mode</th> "
+        "<th style=\"min-width:60px\">owner</th> <th style=\"min-width:60px\">group</th> "
+        "<th style=\"min-width:150px\">Acl</th>\n";
+      result += "</tr>\n";
+
+
       while ((val = directory.nextEntry()))
       {
         XrdOucString entryname = val;
@@ -259,7 +273,7 @@ HttpHandler::Get (eos::common::HttpRequest *request)
           continue;
 
         result += "<tr>\n";
-        result += "  <td>";
+        result += "  <td style=\"padding-right: 5px\">";
         result += "<a href=\"";
         if (entryname == ".")
         {
@@ -307,13 +321,112 @@ HttpHandler::Get (eos::common::HttpRequest *request)
             result += "/";
 
         result += "  </td>\n";
-        result += "  <td>";
+        result += "  <td style=\"padding-right: 5px\">";
         result += "<font size=\"2\">";
         if (S_ISDIR(buf.st_mode))
           result += "";
         else
           result += eos::common::StringConversion::GetReadableSizeString(sizestring, buf.st_size, "Bytes");
         result += "</font>";
+        result += "</td>\n";
+
+        char uidlimit[16];
+        char gidlimit[16];
+        // try to translate with password database
+        int terrc = 0;
+        std::string username = "";
+        username = eos::common::Mapping::UidToUserName(buf.st_uid, terrc);
+        if (!terrc)
+        {
+          snprintf(uidlimit, 12, "%-12s", username.c_str());
+        }
+        else
+        {
+          snprintf(uidlimit, 12, "%d", buf.st_uid);
+        }
+        // try to translate with password database
+        std::string groupname = "";
+        groupname = eos::common::Mapping::GidToGroupName(buf.st_gid, terrc);
+        if (!terrc)
+        {
+          snprintf(gidlimit, 12, "%-12s", groupname.c_str());
+        }
+        else
+        {
+          snprintf(gidlimit, 12, "%d", buf.st_gid);
+        }
+
+        char t_creat[36];
+        char modestr[11];
+
+        {
+          char ftype[8];
+          unsigned int ftype_v[7];
+          char fmode[10];
+          int fmode_v[9];
+          strcpy(ftype, "pcdb-ls");
+          ftype_v[0] = S_IFIFO;
+          ftype_v[1] = S_IFCHR;
+          ftype_v[2] = S_IFDIR;
+          ftype_v[3] = S_IFBLK;
+          ftype_v[4] = S_IFREG;
+          ftype_v[5] = S_IFLNK;
+          ftype_v[6] = S_IFSOCK;
+          strcpy(fmode, "rwxrwxrwx");
+          fmode_v[0] = S_IRUSR;
+          fmode_v[1] = S_IWUSR;
+          fmode_v[2] = S_IXUSR;
+          fmode_v[3] = S_IRGRP;
+          fmode_v[4] = S_IWGRP;
+          fmode_v[5] = S_IXGRP;
+          fmode_v[6] = S_IROTH;
+          fmode_v[7] = S_IWOTH;
+          fmode_v[8] = S_IXOTH;
+          struct tm *t_tm;
+          struct tm t_tm_local;
+          int i;
+
+          t_tm = localtime_r(&buf.st_ctime, &t_tm_local);
+
+          strcpy(modestr, "----------");
+          for (i = 0; i < 6; i++) if (ftype_v[i] == (S_IFMT & buf.st_mode)) break;
+          modestr[0] = ftype[i];
+          for (i = 0; i < 9; i++) if (fmode_v[i] & buf.st_mode) modestr[i + 1] = fmode[i];
+          if (S_ISUID & buf.st_mode) modestr[3] = 's';
+          if (S_ISGID & buf.st_mode) modestr[6] = 's';
+          if (S_ISVTX & buf.st_mode) modestr[9] = '+';
+
+          strftime(t_creat, 13, "%b %d %Y %H:%M", t_tm);
+        }
+
+        // show creation date
+        result += "<td style=\"padding-right: 5px\"><font face=\"Courier New\" color=\"darkgrey\">";
+        result += t_creat;
+        // show permissions
+        result += "<td style=\"padding-right: 5px\"><font face=\"Courier New\" color=\"darkgrey\">";
+        result += modestr;
+
+        // show user name
+        result += "<td style=\"padding-right: 5px\"><font color=\"darkgrey\">\n";
+        result += uidlimit;
+        result += "</font></td>\n";
+
+        // show group name
+        result += "<td style=\"padding-right: 5px\"><font color=\"grey\">\n";
+        result += gidlimit;
+        result += "</font></td>\n";
+        // show acl's if there
+        XrdOucString acl;
+        result += "<td style=\"padding-right: 5px\"><font color=\"#81DAF5\">";
+        if (!gOFS->attr_get(linkname.c_str(),
+                            error,
+                            &client,
+                            "",
+                            "sys.acl",
+                            acl))
+        {
+          result += acl.c_str();
+        }
         result += "</td>\n";
         result += "</tr>\n";
       }
