@@ -270,8 +270,9 @@ extern "C"
   //----------------------------------------------------------------------------
   //! Returns a buffer for a directory inode
   //----------------------------------------------------------------------------
-  struct dirbuf* xrd_dirview_getbuffer (unsigned long long dirinode,
-                                        int get_lock);
+  struct dirbuf*
+  xrd_dirview_getbuffer (unsigned long long dirinode,
+                         int get_lock);
 
 
 
@@ -320,17 +321,6 @@ extern "C"
   //! Return posix fd for inode
   //----------------------------------------------------------------------------
   unsigned long long xrd_get_open_fd (unsigned long long inode, uid_t uid);
-
-
-
-  //----------------------------------------------------------------------------
-  //              ******* Global auth environment lock  *******
-  //----------------------------------------------------------------------------
-
-  void xrd_lock_environment ();
-
-  void xrd_unlock_environment ();
-
 
   //----------------------------------------------------------------------------
   //              ******* FUSE Directory Cache *******
@@ -421,7 +411,11 @@ extern "C"
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  int xrd_stat (const char* path, struct stat* buf, uid_t uid, unsigned long inode);
+  int xrd_stat (const char* path,
+                struct stat* buf,
+                uid_t uid,
+                gid_t gid,
+                unsigned long inode);
 
   //----------------------------------------------------------------------------
   //!
@@ -438,6 +432,7 @@ extern "C"
                     char** xattr_value,
                     size_t* size,
                     uid_t uid,
+                    gid_t gid,
                     pid_t pid
                     );
 
@@ -448,6 +443,7 @@ extern "C"
                      char** xattr_list,
                      size_t* size,
                      uid_t uid,
+                     gid_t gid,
                      pid_t pid
                      );
 
@@ -459,6 +455,7 @@ extern "C"
                     const char* xattr_value,
                     size_t size,
                     uid_t uid,
+                    gid_t gid,
                     pid_t pid
                     );
 
@@ -468,6 +465,7 @@ extern "C"
   int xrd_rmxattr (const char* path,
                    const char* xattr_name,
                    uid_t uid,
+                   gid_t gid,
                    pid_t pid
                    );
 
@@ -475,8 +473,10 @@ extern "C"
   //!
   //----------------------------------------------------------------------------
   struct dirent* xrd_readdir (const char* path_dir,
-                              size_t *size, 
-                              uid_t uid, pid_t pid
+                              size_t *size,
+                              uid_t uid,
+                              gid_t gid,
+                              pid_t pid
                               );
 
   //----------------------------------------------------------------------------
@@ -485,6 +485,7 @@ extern "C"
   int xrd_mkdir (const char* path,
                  mode_t mode,
                  uid_t uid,
+                 gid_t gid,
                  pid_t pid
                  );
 
@@ -493,13 +494,19 @@ extern "C"
   //----------------------------------------------------------------------------
   int xrd_rmdir (const char* path,
                  uid_t uid,
+                 gid_t gid,
                  pid_t pid
                  );
 
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  int xrd_open (const char* pathname, int flags, mode_t mode, uid_t uid, pid_t pid);
+  int xrd_open (const char* pathname,
+                int flags,
+                mode_t mode,
+                uid_t uid,
+                gid_t gid,
+                pid_t pid);
 
   //----------------------------------------------------------------------------
   //!
@@ -550,6 +557,7 @@ extern "C"
   //----------------------------------------------------------------------------
   int xrd_unlink (const char* path,
                   uid_t uid,
+                  gid_t gid,
                   pid_t pid
                   );
 
@@ -559,6 +567,7 @@ extern "C"
   int xrd_rename (const char* oldpath,
                   const char* newpath,
                   uid_t uid,
+                  gid_t gid,
                   pid_t pid
                   );
 
@@ -568,6 +577,7 @@ extern "C"
   int xrd_chmod (const char* path,
                  mode_t mode,
                  uid_t uid,
+                 gid_t gid,
                  pid_t pid
                  );
 
@@ -578,7 +588,8 @@ extern "C"
   int xrd_access (const char* path,
                   int mode,
                   uid_t uid,
-                  pid_t pid 
+                  gid_t gid,
+                  pid_t pid
                   );
 
   //----------------------------------------------------------------------------
@@ -587,23 +598,28 @@ extern "C"
   int xrd_utimes (const char* path,
                   struct timespec* tvp,
                   uid_t uid,
+                  gid_t gid,
                   pid_t pid
                   );
 
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  int xrd_inodirlist (unsigned long long dirinode, const char* path, uid_t uid, pid_t pid);
+  int xrd_inodirlist (unsigned long long dirinode,
+                      const char* path,
+                      uid_t uid,
+                      gid_t gid,
+                      pid_t pid);
 
   //----------------------------------------------------------------------------
   //! Do user mapping
   //----------------------------------------------------------------------------
-  const char* xrd_mapuser (uid_t uid, pid_t pid);
+  const char* xrd_mapuser (uid_t uid, gid_t gid, pid_t pid);
 
   //----------------------------------------------------------------------------
-  //! Create an URL with a user private physical channel e.g. root://<name>@<host
+  //! Create an URL with a user private physical channel e.g. root://<uid-gid>@<host
   //----------------------------------------------------------------------------
-  const char* xrd_user_url (uid_t uid, pid_t pid);
+  const char* xrd_user_url (uid_t uid, gid_t gid, pid_t pid);
 
   //----------------------------------------------------------------------------
   //! Return the CGI of an URL

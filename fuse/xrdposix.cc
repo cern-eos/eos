@@ -88,7 +88,7 @@ XrdSysMutex passwdstoremutex;
 XrdSysMutex stringstoremutex;
 XrdSysMutex environmentmutex;
 XrdSysMutex connectionIdMutex;
-int connectionId;
+int connectionId = 0;
 
 int fuse_cache_read;
 int fuse_cache_write;
@@ -97,7 +97,6 @@ bool fuse_exec = false; // indicates if files should be make exectuble
 
 bool fuse_shared = false; // inidicated if this is eosd = true or eosfsd = false
 
-bool fuse_environment_lock = false; // indicating if commands have to run in a locked environment to guarantee private authentication
 XrdOucString MgmHost; // host name of our FUSE contact point
 
 using eos::common::LayoutId;
@@ -141,40 +140,6 @@ google::dense_hash_map<std::string, unsigned long long> path2inode;
 
 // Mapping inode to path name
 google::dense_hash_map<unsigned long long, std::string> inode2path;
-
-
-//------------------------------------------------------------------------------
-// Lock for environment variables 
-//------------------------------------------------------------------------------
-
-void
-xrd_lock_environment ()
-{
-  if (fuse_environment_lock)
-  {
-    eos_static_debug("env-locked");
-    unsetenv("KRB5CCNAME");
-    unsetenv("X509_USER_PROXY");
-    environmentmutex.Lock();
-  }
-}
-
-//------------------------------------------------------------------------------
-// Unlock for environment variables 
-//------------------------------------------------------------------------------
-
-void
-xrd_unlock_environment ()
-{
-  if (fuse_environment_lock)
-  {
-    eos_static_debug("env-unlocked");
-    unsetenv("KRB5CCNAME");
-    unsetenv("X509_USER_PROXY");
-    environmentmutex.UnLock();
-  }
-}
-
 
 //------------------------------------------------------------------------------
 // Lock read
@@ -237,15 +202,19 @@ xrd_basename (unsigned long long inode)
 //----------------------------------------------------------------------------
 //! Return the CGI of an URL
 //----------------------------------------------------------------------------
-const char* get_cgi (const char* url)
+
+const char*
+get_cgi (const char* url)
 {
-  return url?(strchr(url,'?')):0;
+  return url ? (strchr(url, '?')) : 0;
 }
 
 //----------------------------------------------------------------------------
 //! Return the CGI of an URL
 //----------------------------------------------------------------------------
-XrdOucString get_url_nocgi (const char* url)
+
+XrdOucString
+get_url_nocgi (const char* url)
 {
   XrdOucString surl = url;
   surl.erase(surl.find("?"));
@@ -567,12 +536,13 @@ xrd_dir_cache_get (unsigned long long inode,
 //------------------------------------------------------------------------------
 // Forget a cached directory
 //------------------------------------------------------------------------------
+
 int
 xrd_dir_cache_forget (unsigned long long inode)
 {
   eos::common::RWMutexWriteLock wr_lock(mutex_fuse_cache);
 
-  if (inode2cache.count(inode) )
+  if (inode2cache.count(inode))
   {
     inode2cache.erase(inode);
     return true;
@@ -702,7 +672,8 @@ std::queue<int> pool_fd;
 //------------------------------------------------------------------------------
 
 static std::string
-generate_index (unsigned long long inode, uid_t uid)
+generate_index (unsigned long long inode,
+                uid_t uid)
 {
   char index[256];
   snprintf(index, sizeof ( index) - 1, "%llu-%u", inode, uid);
@@ -835,12 +806,15 @@ XrdSysMutex mutex_inodeuser2fd;
 //------------------------------------------------------------------------------
 
 void
-xrd_add_open_fd (int fd, unsigned long long inode, uid_t uid, int num_ref)
+xrd_add_open_fd (int fd,
+                 unsigned long long inode,
+                 uid_t uid,
+                 int num_ref)
 {
   eos_static_debug("Calling function inode = %llu, uid = %lu.", inode, (unsigned long) uid);
 
   XrdSysMutexHelper lock(mutex_inodeuser2fd);
-  FdRef elem = {(unsigned long long )fd, num_ref};
+  FdRef elem = {(unsigned long long) fd, num_ref};
   inodeuser2fd[generate_index(inode, uid)] = elem;
 }
 
@@ -878,7 +852,7 @@ xrd_release_open_fd (unsigned long long inode, uid_t uid)
   eos_static_debug("Calling function inode = %llu, uid = %lu.",
                    inode, (unsigned long) uid);
 
-  XrdSysMutexHelper lock (mutex_inodeuser2fd);
+  XrdSysMutexHelper lock(mutex_inodeuser2fd);
 
   std::string index = generate_index(inode, uid);
 
@@ -1017,6 +991,7 @@ int
 xrd_rmxattr (const char* path,
              const char* xattr_name,
              uid_t uid,
+             gid_t gid,
              pid_t pid)
 {
   eos_static_info("path=%s xattr_name=%s uid=%u pid=%u", path, xattr_name, uid, pid);
@@ -1034,13 +1009,11 @@ xrd_rmxattr (const char* path,
   request += xattr_name;
   arg.FromString(request);
 
-  xrd_lock_environment();
-  XrdCl::URL Url(xrd_user_url(uid, pid));
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
 
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
-  xrd_unlock_environment();
   COMMONTIMING("GETPLUGIN", &rmxattrtiming);
 
   errno = 0;
@@ -1093,6 +1066,7 @@ xrd_setxattr (const char* path,
               const char* xattr_value,
               size_t size,
               uid_t uid,
+              gid_t gid,
               pid_t pid)
 {
   eos_static_info("path=%s xattr_name=%s xattr_value=%s uid=%u pid=%u", path, xattr_name, xattr_value, uid, pid);
@@ -1113,12 +1087,10 @@ xrd_setxattr (const char* path,
   request += xattr_value;
   arg.FromString(request);
 
-  xrd_lock_environment();
-  XrdCl::URL Url(xrd_user_url(uid, pid));
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
-  xrd_unlock_environment();
   COMMONTIMING("GETPLUGIN", &setxattrtiming);
 
   errno = 0;
@@ -1167,6 +1139,7 @@ xrd_getxattr (const char* path,
               char** xattr_value,
               size_t* size,
               uid_t uid,
+              gid_t gid,
               pid_t pid)
 {
   eos_static_info("path=%s xattr_name=%s uid=%u pid=%u", path, xattr_name, uid, pid);
@@ -1185,12 +1158,10 @@ xrd_getxattr (const char* path,
   request += xattr_name;
   arg.FromString(request);
 
-  xrd_lock_environment();
-  XrdCl::URL Url(xrd_user_url(uid, pid));
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
-  xrd_unlock_environment();
   COMMONTIMING("GETPLUGIN", &getxattrtiming);
 
   errno = 0;
@@ -1254,6 +1225,7 @@ xrd_listxattr (const char* path,
                char** xattr_list,
                size_t* size,
                uid_t uid,
+               gid_t gid,
                pid_t pid)
 {
   eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
@@ -1271,12 +1243,10 @@ xrd_listxattr (const char* path,
   request += "mgm.subcmd=ls";
   arg.FromString(request);
 
-  xrd_lock_environment();
-  XrdCl::URL Url(xrd_user_url(uid, pid));
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
-  xrd_unlock_environment();
   COMMONTIMING("GETPLUGIN", &listxattrtiming);
 
   errno = 0;
@@ -1326,17 +1296,16 @@ xrd_listxattr (const char* path,
   return errno;
 }
 
-
 long long
 xrd_size_fd (int fd)
 {
   eos_static_info("fd=%d", fd);
   eos::common::Timing stattiming("xrd_size_fd");
-  long long size=-1;
+  long long size = -1;
   COMMONTIMING("START", &stattiming);
   eos::fst::Layout* file = xrd_get_file(fd);
 
-  if (file) 
+  if (file)
   {
     struct stat buf;
     if (!file->Stat(&buf))
@@ -1344,7 +1313,7 @@ xrd_size_fd (int fd)
     eos_static_info("size-fd=%lld", size);
   }
 
-COMMONTIMING("END", &stattiming);
+  COMMONTIMING("END", &stattiming);
 
   if (EOS_LOGS_DEBUG)
   {
@@ -1360,7 +1329,11 @@ COMMONTIMING("END", &stattiming);
 //------------------------------------------------------------------------------
 
 int
-xrd_stat (const char* path, struct stat* buf, uid_t uid, unsigned long inode)
+xrd_stat (const char* path,
+          struct stat* buf,
+          uid_t uid,
+          gid_t gid,
+          unsigned long inode)
 {
   eos_static_info("path=%s", path);
   eos::common::Timing stattiming("xrd_stat");
@@ -1375,13 +1348,10 @@ xrd_stat (const char* path, struct stat* buf, uid_t uid, unsigned long inode)
   request += "mgm.pcmd=stat";
   arg.FromString(request);
 
-  xrd_lock_environment();
-  XrdCl::URL Url(xrd_user_url(2, 0));
+  XrdCl::URL Url(xrd_user_url(2, 2, 0));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
-                                         arg, response);
-
-  xrd_unlock_environment();
+                                        arg, response);
   COMMONTIMING("GETPLUGIN", &stattiming);
 
   errno = 0;
@@ -1460,29 +1430,38 @@ xrd_stat (const char* path, struct stat* buf, uid_t uid, unsigned long inode)
       buf->st_mode &= (~S_ISUID); // clear suid
       buf->st_mode &= (~S_ISGID); // clear sgid
 
-      if (inode) {
-	// try to stat via an open file
-	unsigned long long ofd = xrd_get_open_fd(inode,uid);
-	
-	if (ofd>0) {
-	  eos_static_info("path=%s open fd=\n", path, ofd);
-	  long long size_new = xrd_size_fd(ofd);
-	  if (size_new >=0) 
-	    buf->st_size = size_new;
+      if (inode)
+      {
+        // try to stat via an open file
+        unsigned long long ofd = xrd_get_open_fd(inode, uid);
 
-	  // no reference left, need to call close
-	  if (xrd_release_open_fd(inode, uid)) {
-	    // no reference left, call close
-	    xrd_close(ofd,inode);
-	    xrd_release_read_buffer (ofd);
-	    xrd_remove_fd2file (ofd);
-	  } else {
-	  }
-	} else {
-	  eos_static_info("path=%s not open\n", path);
-	}
-      } else {
-	eos_static_info("path=%s no inode\n", path);
+        if (ofd > 0)
+        {
+          eos_static_info("path=%s open fd=\n", path, ofd);
+          long long size_new = xrd_size_fd(ofd);
+          if (size_new >= 0)
+            buf->st_size = size_new;
+
+          // no reference left, need to call close
+          if (xrd_release_open_fd(inode, uid))
+          {
+            // no reference left, call close
+            xrd_close(ofd, inode);
+            xrd_release_read_buffer(ofd);
+            xrd_remove_fd2file(ofd);
+          }
+          else
+          {
+          }
+        }
+        else
+        {
+          eos_static_info("path=%s not open\n", path);
+        }
+      }
+      else
+      {
+        eos_static_info("path=%s no inode\n", path);
       }
     }
   }
@@ -1551,12 +1530,10 @@ xrd_statfs (const char* path, struct statvfs* stbuf)
   request += path;
   arg.FromString(request);
 
-  xrd_lock_environment();
-  XrdCl::URL Url(xrd_user_url(2,0));
+  XrdCl::URL Url(xrd_user_url(2, 2, 0));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
-                                         arg, response);
-  xrd_unlock_environment();
+                                        arg, response);
 
   COMMONTIMING("END", &statfstiming);
 
@@ -1625,6 +1602,7 @@ int
 xrd_chmod (const char* path,
            mode_t mode,
            uid_t uid,
+           gid_t gid,
            pid_t pid)
 {
   eos_static_info("path=%s mode=%x uid=%u pid=%u", path, mode, uid, pid);
@@ -1642,12 +1620,10 @@ xrd_chmod (const char* path,
   request += smode.c_str();
   arg.FromString(request);
 
-  xrd_lock_environment();
-  XrdCl::URL Url(xrd_user_url(uid, pid));
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
-  xrd_unlock_environment();
   COMMONTIMING("END", &chmodtiming);
 
   errno = 0;
@@ -1699,6 +1675,7 @@ int
 xrd_utimes (const char* path,
             struct timespec* tvp,
             uid_t uid,
+            gid_t gid,
             pid_t pid)
 {
   eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
@@ -1726,12 +1703,10 @@ xrd_utimes (const char* path,
   request += lltime;
   arg.FromString(request);
 
-  xrd_lock_environment();
-  XrdCl::URL Url(xrd_user_url(uid, pid));
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
-  xrd_unlock_environment();
   COMMONTIMING("END", &utimestiming);
 
   errno = 0;
@@ -1778,6 +1753,7 @@ int
 xrd_access (const char* path,
             int mode,
             uid_t uid,
+            gid_t gid,
             pid_t pid
             )
 {
@@ -1799,16 +1775,13 @@ xrd_access (const char* path,
 
   arg.FromString(request);
 
-  xrd_lock_environment();
-
-  XrdCl::URL Url(xrd_user_url(uid, pid));
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
 
 
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
 
-  xrd_unlock_environment();
 
   COMMONTIMING("STOP", &accesstiming);
 
@@ -1827,7 +1800,8 @@ xrd_access (const char* path,
     //..........................................................................
     int items = sscanf(response->GetBuffer(), "%s retc=%d", tag, &retc);
 
-    if (EOS_LOGS_DEBUG) {
+    if (EOS_LOGS_DEBUG)
+    {
       fprintf(stderr, "access-retc=%d\n", retc);
     }
 
@@ -1855,7 +1829,11 @@ xrd_access (const char* path,
 //------------------------------------------------------------------------------
 
 int
-xrd_inodirlist (unsigned long long dirinode, const char* path, uid_t uid, pid_t pid)
+xrd_inodirlist (unsigned long long dirinode,
+                const char* path,
+                uid_t uid,
+                gid_t gid,
+                pid_t pid)
 {
   eos_static_info("inode=%llu path=%s", dirinode, path);
   eos::common::Timing inodirtiming("xrd_inodirlist");
@@ -1870,12 +1848,10 @@ xrd_inodirlist (unsigned long long dirinode, const char* path, uid_t uid, pid_t 
   COMMONTIMING("GETSTSTREAM", &inodirtiming);
 
 
-  xrd_lock_environment();
-  request.insert(0, xrd_user_url(uid, pid));
+  request.insert(0, xrd_user_url(uid, gid, pid));
   XrdCl::File* file = new XrdCl::File();
   XrdCl::XRootDStatus status = file->Open(request.c_str(),
                                           XrdCl::OpenFlags::Flags::Read);
-  xrd_unlock_environment();
 
   errno = 0;
 
@@ -1997,7 +1973,10 @@ xrd_inodirlist (unsigned long long dirinode, const char* path, uid_t uid, pid_t 
 //------------------------------------------------------------------------------
 
 struct dirent*
-xrd_readdir (const char* path_dir, size_t *size, uid_t uid, pid_t pid)
+xrd_readdir (const char* path_dir, size_t *size,
+             uid_t uid,
+             gid_t gid,
+             pid_t pid)
 {
   eos_static_info("path=%s", path_dir);
 
@@ -2006,11 +1985,9 @@ xrd_readdir (const char* path_dir, size_t *size, uid_t uid, pid_t pid)
   XrdCl::DirListFlags::Flags flags = XrdCl::DirListFlags::None;
   string path_str = path_dir;
 
-  xrd_lock_environment();
-  XrdCl::URL Url(xrd_user_url(uid, pid));
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.DirList(path_str, flags, response);
-  xrd_unlock_environment();
 
   if (status.IsOK())
   {
@@ -2058,17 +2035,16 @@ int
 xrd_mkdir (const char* path,
            mode_t mode,
            uid_t uid,
+           gid_t gid,
            pid_t pid)
 {
   eos_static_info("path=%s mode=%d uid=%u pid=%u", path, mode, uid, pid);
   XrdCl::Access::Mode mode_XrdCl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
-  xrd_lock_environment();
-  XrdCl::URL Url(xrd_user_url(uid, pid));
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.MkDir(path,
                                         XrdCl::MkDirFlags::MakePath,
                                         mode_XrdCl);
-  xrd_unlock_environment();
   if (xrd_error_retc_map(status.errNo))
     return errno;
   else
@@ -2079,15 +2055,17 @@ xrd_mkdir (const char* path,
 //------------------------------------------------------------------------------
 // Remove the given directory
 //------------------------------------------------------------------------------
+
 int
-xrd_rmdir (const char* path, uid_t uid, pid_t pid)
+xrd_rmdir (const char* path,
+           uid_t uid,
+           gid_t gid,
+           pid_t pid)
 {
   eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
-  xrd_lock_environment();
-  XrdCl::URL Url(xrd_user_url(uid, pid));
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.RmDir(path);
-  xrd_unlock_environment();
 
   if (xrd_error_retc_map(status.errNo))
     return errno;
@@ -2099,6 +2077,7 @@ xrd_rmdir (const char* path, uid_t uid, pid_t pid)
 //------------------------------------------------------------------------------
 // Map open return codes to errno's
 //------------------------------------------------------------------------------
+
 int
 xrd_error_retc_map (int retc)
 {
@@ -2211,17 +2190,22 @@ xrd_error_retc_map (int retc)
 //------------------------------------------------------------------------------
 
 int
-xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
+xrd_open (const char* path,
+          int oflags,
+          mode_t mode,
+          uid_t uid,
+          gid_t gid,
+          pid_t pid)
 {
   eos_static_info("path=%s flags=%d mode=%d uid=%u pid=%u",
                   path, oflags, mode, uid, pid);
   int retc = -1;
-  XrdOucString spath = xrd_user_url(uid, pid);
+  XrdOucString spath = xrd_user_url(uid, gid, pid);
   XrdSfsFileOpenMode flags_sfs = eos::common::LayoutId::MapFlagsPosix2Sfs(oflags);
   spath += path;
   errno = 0;
   int t0;
-  
+
   if ((t0 = spath.find("/proc/")) != STR_NPOS)
   {
     // Clean the path
@@ -2251,7 +2235,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
                                                          eos::common::LayoutId::kXrdCl);
 
       XrdOucString open_path = get_url_nocgi(spath.c_str());
-      XrdOucString open_cgi  = get_cgi(spath.c_str());
+      XrdOucString open_cgi = get_cgi(spath.c_str());
 
       retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str());
       eos_static_info("open returned retc=%d", retc);
@@ -2274,7 +2258,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
       eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                          eos::common::LayoutId::kXrdCl);
       XrdOucString open_path = get_url_nocgi(spath.c_str());
-      XrdOucString open_cgi  = get_cgi(spath.c_str());
+      XrdOucString open_cgi = get_cgi(spath.c_str());
 
       retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str());
 
@@ -2299,7 +2283,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
                                                          eos::common::LayoutId::kXrdCl);
 
       XrdOucString open_path = get_url_nocgi(spath.c_str());
-      XrdOucString open_cgi  = get_cgi(spath.c_str());
+      XrdOucString open_cgi = get_cgi(spath.c_str());
 
       retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str());
 
@@ -2334,8 +2318,7 @@ xrd_open (const char* path, int oflags, mode_t mode, uid_t uid, pid_t pid)
     request += "?mgm.pcmd=open";
     arg.FromString(request);
 
-    xrd_lock_environment();
-    XrdCl::URL Url(xrd_user_url(uid, pid));
+    XrdCl::URL Url(xrd_user_url(uid, gid, pid));
     XrdCl::FileSystem fs(Url);
     status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
 
@@ -2737,14 +2720,13 @@ xrd_fsync (int fildes, unsigned long inode)
 int
 xrd_unlink (const char* path,
             uid_t uid,
+            gid_t gid,
             pid_t pid)
 {
   eos_static_info("path=%s uid=%u, pid=%u", path, uid, pid);
-  xrd_lock_environment();
-  XrdCl::URL Url(xrd_user_url(uid, pid));
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Rm(path);
-  xrd_unlock_environment();
 
   if (xrd_error_retc_map(status.errNo))
     return errno;
@@ -2761,14 +2743,13 @@ int
 xrd_rename (const char* oldpath,
             const char* newpath,
             uid_t uid,
+            gid_t gid,
             pid_t pid)
 {
   eos_static_info("oldpath=%s newpath=%s", oldpath, newpath, uid, pid);
-  xrd_lock_environment();
-  XrdCl::URL Url(xrd_user_url(uid, pid));
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Mv(oldpath, newpath);
-  xrd_unlock_environment();
 
   if (xrd_error_retc_map(status.errNo))
     return errno;
@@ -2782,147 +2763,30 @@ xrd_rename (const char* oldpath,
 //------------------------------------------------------------------------------
 
 const char*
-xrd_mapuser (uid_t uid, pid_t pid)
+xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
 {
-  eos_static_debug("uid=%lu pid=%lu", (unsigned long) uid, (unsigned long) pid);
-  struct passwd* pw;
+  eos_static_debug("uid=%lu gid=%lu pid=%lu",
+                   (unsigned long) uid,
+                   (unsigned long) gid,
+                   (unsigned long) pid);
+
   XrdOucString sid = "";
-  XrdOucString* spw = NULL;
-  sid += (int) (uid);
-  passwdstoremutex.Lock();
 
-  if (!(spw = passwdstore->Find(sid.c_str())))
-  {
-    pw = getpwuid(uid);
-
-    if (pw)
-    {
-      spw = new XrdOucString(pw->pw_name);
-      passwdstore->Add(sid.c_str(), spw, 60);
-      passwdstoremutex.UnLock();
-    }
-    else
-    {
-      passwdstoremutex.UnLock();
-      return NULL;
-    }
-  }
-
-  passwdstoremutex.UnLock();
-
-  time_t now = time(NULL);
-
-  if (fuse_environment_lock)
-  {
-    //............................................................................
-    // export X509_USER_PROXY && KRB5CCNAME from the calling process
-    // change the effective user id in this case
-    //............................................................................
-    static XrdSysMutex exportCacheMutex;
-    static std::map <uid_t, std::map< std::string, std::string> > exportCache;
-    static std::map <uid_t, time_t> exportCacheRefreshTime;
-
-    XrdSysMutexHelper cLock(exportCacheMutex);
-
-    if (exportCacheRefreshTime.count(uid) && (exportCacheRefreshTime[uid] > now))
-    {
-      if (exportCache.count(uid) && exportCache[uid].count("KRB5CCNAME"))
-        setenv("KRB5CCNAME", exportCache[uid]["KRB5CCNAME"].c_str(), 1);
-      if (exportCache.count(uid) && exportCache[uid].count("X509_USER_PROXY"))
-        setenv("X509_USER_PROXY", exportCache[uid]["X509_USER_PROXY"].c_str(), 1);
-    }
-    else
-    {
-      // we do some gymnastic for the export variables
-
-      char envBuffer[65536];
-      envBuffer[0] = 0;
-      // read the environment of the process and extract the krb5/x509 setting
-      XrdOucString envFile = "/proc/";
-      envFile += (int) pid;
-      envFile += "/environ";
-
-      if (exportCache.count(uid))
-        exportCache[uid].erase("KRB5CCNAME");
-      if (exportCache.count(uid))
-        exportCache[uid].erase("X509_USER_PROXY");
-
-      int fd = open(envFile.c_str(), O_RDONLY);
-      eos_static_info("env-file=%s", envFile.c_str());
-      if (fd > 0)
-      {
-        std::string krb5cc;
-        std::string x509userproxy;
-
-        // read the stuff
-        ssize_t nread = read(fd, envBuffer, sizeof (envBuffer));
-	if (nread==-1) 
-        {
-	  fprintf(stderr,"error: failed to read environment %s\n", envFile.c_str());
-	}
-
-        envBuffer[65535] = 0;
-        int krb5ccnamespos = -1;
-        int x509proxypos = -1;
-        for (size_t i = 0; i< sizeof (envBuffer) - strlen("KRB5CCNAME="); i++)
-        {
-
-          if (!strncmp(envBuffer + i, "KRB5CCNAME=", strlen("KRB5CCNAME=")))
-          {
-            krb5ccnamespos = i + strlen("KRB5CCNAME=");
-            krb5cc = (envBuffer + krb5ccnamespos);
-          }
-
-          if (!strncmp(envBuffer + i, "X509_USER_PROXY", strlen("X509_USER_PROXY")))
-          {
-            x509proxypos = i + strlen("X509_USER_PROXY=");
-            x509userproxy = (envBuffer + x509proxypos);
-          }
-        }
-
-        if (krb5ccnamespos == -1)
-        {
-          krb5cc = "FILE:/tmp/krb5cc_";
-          char suid[16];
-          snprintf(suid, sizeof (suid) - 1, "%u", uid);
-          krb5cc += suid;
-        }
-
-        if (x509proxypos == -1)
-        {
-          x509userproxy = "/tmp/x509u_";
-          char suid[16];
-          snprintf(suid, sizeof (suid) - 1, "%u", uid);
-          x509userproxy += suid;
-        }
-
-        eos_static_info("export KRB5CCNAME=%s", krb5cc.c_str());
-        setenv("KRB5CCNAME", krb5cc.c_str(), 1);
-        exportCache[uid]["KRB5CCNAME"] = krb5cc.c_str();
-        exportCacheRefreshTime[uid] = now + 300;
-
-        eos_static_info("export X509_USER_PROXY=", x509userproxy.c_str());
-        setenv("X509_USER_PROXY", x509userproxy.c_str(), 1);
-        exportCache[uid]["X509_USER_PROXY"] = x509userproxy.c_str();
-        exportCacheRefreshTime[uid] = now + 300;
-
-        close(fd);
-      }
-    }
-  }
-
-  XrdOucString role = spw->c_str();
+  char usergroup[16];
+  // we user <hex-uid><hex-gid> as connection identifier 
+  snprintf(usergroup,sizeof(usergroup)-1,"%04x%04x", uid,gid);
+  sid += usergroup;
 
   {
     XrdSysMutexHelper cLock(connectionIdMutex);
     if (connectionId)
     {
-      role = "";
-      role += connectionId;
+      sid = ".";
+      sid += connectionId;
     }
   }
   //............................................................................
-  return STRINGSTORE(role.c_str());
+  return STRINGSTORE(sid.c_str());
 }
 
 //------------------------------------------------------------------------------
@@ -2931,19 +2795,24 @@ xrd_mapuser (uid_t uid, pid_t pid)
 //------------------------------------------------------------------------------
 
 const char*
-xrd_user_url (uid_t uid, pid_t pid)
+xrd_user_url (uid_t uid,
+              gid_t gid,
+              pid_t pid)
 {
   XrdOucString url = "root://";
   if (fuse_shared)
   {
-    url += xrd_mapuser(uid, pid);
+    url += xrd_mapuser(uid, gid, pid);
     url += "@";
   }
 
   url += MgmHost.c_str();
   url += "/";
 
-  eos_static_debug("uid=%lu pid=%lu url=%s", (unsigned long) uid, (unsigned long) pid, url.c_str());
+  eos_static_debug("uid=%lu gid=%lu pid=%lu url=%s",
+                   (unsigned long) uid,
+                   (unsigned long) gid,
+                   (unsigned long) pid, url.c_str());
   return STRINGSTORE(url.c_str());
 }
 
@@ -2972,18 +2841,15 @@ xrd_init ()
     {
       fprintf(stderr, "error: cannot open log file %s\n", logfile);
     }
-    else 
+    else
     {
-      chmod(logfile,S_IRUSR | S_IWUSR |S_IRGRP| S_IROTH );
+      chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     }
   }
   else
   {
     fuse_shared = true; //eosfsd
-    if (getenv("EOS_FUSE_LOCK_ENVIRONMENT") && (!strcmp(getenv("EOS_FUSE_LOCK_ENVIRONMENT"), "1")))
-    {
-      fuse_environment_lock = true;
-    }
+
     //..........................................................................
     // Running as root ... we log into /var/log/eos/fuse
     //..........................................................................
@@ -2994,9 +2860,9 @@ xrd_init ()
     {
       fprintf(stderr, "error: cannot open log file %s\n", cPath.GetPath());
     }
-    else 
+    else
     {
-      chmod(cPath.GetPath(),S_IRUSR | S_IWUSR);
+      chmod(cPath.GetPath(), S_IRUSR | S_IWUSR);
     }
   }
 

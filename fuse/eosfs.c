@@ -72,6 +72,7 @@ char mountprefix[1024];
 static time_t eosatime;
 
 uid_t uid;
+gid_t gid;
 pid_t pid;
 
 //------------------------------------------------------------------------------
@@ -93,7 +94,7 @@ eosdfs_getattr (const char* path, struct stat* stbuf)
   rootpath[0] = '\0';
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
-  res = xrd_stat (rootpath, stbuf,0,0);
+  res = xrd_stat (rootpath, stbuf,0,0,0);
 
   if (res == 0)
   {
@@ -172,7 +173,7 @@ eosdfs_readdir (const char* path,
     filler (buf, "..", NULL, 0);
   }
 
-  de = xrd_readdir (rootpath, &size, uid, pid);
+  de = xrd_readdir (rootpath, &size, uid, gid, pid);
   fprintf (stderr, "[%s] The size is: %zu. \n", __FUNCTION__, size);
 
   if (size)
@@ -222,7 +223,7 @@ eosdfs_mknod (const char* path, mode_t mode, dev_t rdev)
     res = xrd_open (rootpath,
                     O_CREAT | O_EXCL | O_WRONLY,
                     S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
-                    uid, pid);
+                    uid, gid, pid);
 
     if (res)
       return -errno;
@@ -249,7 +250,7 @@ eosdfs_mkdir (const char* path, mode_t mode)
   rootpath[0] = '\0';
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
-  res = xrd_mkdir (rootpath, mode, uid, pid);
+  res = xrd_mkdir (rootpath, mode, uid, gid, pid);
 
   if (res)
     return -errno;
@@ -272,7 +273,7 @@ eosdfs_unlink (const char* path)
   rootpath[0] = '\0';
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
-  res = xrd_unlink (rootpath, uid, pid);
+  res = xrd_unlink (rootpath, uid, gid, pid);
 
   if (res)
   {
@@ -301,7 +302,7 @@ eosdfs_rmdir (const char* path)
   rootpath[0] = '\0';
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
-  res = xrd_rmdir (rootpath, uid, pid);
+  res = xrd_rmdir (rootpath, uid, gid, pid);
 
   if (res)
     return -errno;
@@ -327,7 +328,7 @@ eosdfs_rename (const char* from, const char* to)
   strcat (to_path, mountprefix);
   strcat (to_path, to);
 
-  if (xrd_rename (from_path, to_path, uid, pid) != 0)
+  if (xrd_rename (from_path, to_path, uid, gid, pid) != 0)
     return -errno;
 
   return 0;
@@ -346,7 +347,7 @@ eosdfs_chmod (const char* path, mode_t mode)
   rootpath[0] = '\0';
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
-  if (xrd_chmod (rootpath, mode, uid, pid) != 0)
+  if (xrd_chmod (rootpath, mode, uid, gid, pid) != 0)
     return -errno;
   return 0;
 }
@@ -391,7 +392,7 @@ eosdfs_truncate (const char* path, off_t size)
   //............................................................................
   res = xrd_open (rootpath,
                   O_WRONLY | O_TRUNC,
-                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, uid, pid);
+                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, uid, gid, pid);
 
   if (res)
     return -errno;
@@ -422,7 +423,7 @@ eosdfs_utimens (const char* path, const struct timespec ts[2])
   tv[0].tv_nsec = ts[0].tv_nsec;
   tv[1].tv_sec = ts[1].tv_sec;
   tv[1].tv_nsec = ts[1].tv_nsec;
-  res = xrd_utimes (rootpath, tv, uid, pid);
+  res = xrd_utimes (rootpath, tv, uid, gid, pid);
 
   if (res)
     return -errno;
@@ -443,7 +444,12 @@ eosdfs_open (const char* path, struct fuse_file_info* fi)
   char rootpath[4096] = "";
   sprintf (rootpath, "root://%s%s%s", mounthostport, mountprefix, path);
   eosatime = time (0);
-  res = xrd_open (rootpath, fi->flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, uid, pid);
+  res = xrd_open (rootpath, 
+                  fi->flags, 
+                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, 
+                  uid, 
+                  gid,
+                  pid);
 
   if (res == -1)
     return -errno;
@@ -879,6 +885,7 @@ main (int argc, char* argv[])
   //  }
 
   uid = getuid();
+  gid = getgid();
   pid = getpid(); 
   return fuse_main (margc, argv, &eosdfs_oper, NULL);
 }
