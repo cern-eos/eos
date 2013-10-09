@@ -26,7 +26,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
-#include "fst/FmdSqlite.hh"
+#include "fst/FmdDbMap.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 /*----------------------------------------------------------------------------*/
 

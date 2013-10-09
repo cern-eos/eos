@@ -71,7 +71,7 @@ FileSystem::~FileSystem ()
   }
 
   // ----------------------------------------------------------------------------
-  // we call the FmdSqliteHandler shutdown function for this filesystem
+  // we call the FmdDbMapHandler shutdown function for this filesystem
   // ----------------------------------------------------------------------------
 
   gFmdDbMapHandler.ShutdownDB(GetId());

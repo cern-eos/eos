@@ -210,7 +210,7 @@ Storage::Publish ()
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.fused", (fileSystemsVector[i]->GetLongLong("stat.statfs.files") - fileSystemsVector[i]->GetLongLong("stat.statfs.ffree")) * fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
           {
             eos::common::RWMutexReadLock lock(gFmdDbMapHandler.Mutex);
-            success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", (long long) (gFmdDbMapHandler.FmdMap.count(fsid) ? gFmdSqliteHandler.FmdMap[fsid].size() : 0));
+            success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", (long long) (gFmdDbMapHandler.FmdMap.count(fsid) ? gFmdDbMapHandler.FmdMap[fsid]->size() : 0));
           }
 
           success &= fileSystemsVector[i]->SetString("stat.boot", fileSystemsVector[i]->GetString("stat.boot").c_str());

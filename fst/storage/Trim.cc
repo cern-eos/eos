@@ -41,20 +41,7 @@ Storage::Trim ()
     sleeper.Snooze(30 * 86400);
     std::map<eos::common::FileSystem::fsid_t, sqlite3*>::iterator it;
 
-    for (it = gFmdSqliteHandler.GetDB()->begin(); it != gFmdSqliteHandler.GetDB()->end(); ++it)
-    {
-      eos_static_info("Trimming fsid=%llu ", it->first);
-      int fsid = it->first;
-
-      if (!gFmdSqliteHandler.TrimDBFile(fsid))
-      {
-        eos_static_err("Cannot trim the SQLITE DB file for fsid=%llu ", it->first);
-      }
-      else
-      {
-        eos_static_info("Called vaccuum on SQLITE DB file for fsid=%llu ", it->first);
-      }
-    }
+    gFmdDbMapHandler.TrimDB();
   }
 }
 

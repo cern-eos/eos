@@ -13,7 +13,7 @@
  * (at your option) any later version.                                  *
  *                                                                      *
  * This program is distributed in the hope that it will be useful,      *
- * but WITHOUT ANY WARRANTY; without even the implied waDon'trranty of  *
+ * but WITHOUT ANY WARRANTY; without even the implied waDon'trranty of       *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
  * GNU General Public License for more details.                         *
  *                                                                      *
@@ -772,7 +772,7 @@ XrdFstOfsFile::open (const char* path,
   //............................................................................
   // Attach meta data
   //............................................................................
-  fMd = gFmdSqliteHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
+  fMd = gFmdDbMapHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
 
   if (!fMd)
   {
@@ -882,12 +882,12 @@ XrdFstOfsFile::open (const char* path,
       // the size of the initial file, therefore we take the value from the DB
       if (!isReconstruction)
       {
-        openSize = fMd->fMd.size();
-      }
-      else
-      {
-        openSize = statinfo.st_size;
-      }
+      openSize = fMd->fMd.size();
+    }
+    else
+    {
+      openSize = statinfo.st_size;
+    }
     }
     else
     {
@@ -1408,7 +1408,7 @@ XrdFstOfsFile::verifychecksum ()
       //............................................................................
       // Copy checksum into meta data
       //............................................................................
-      fMd->fMd.set_checksum( checkSum->GetHexChecksum());
+      fMd->fMd.set_checksum(checkSum->GetHexChecksum());
 
       if (haswrite)
       {

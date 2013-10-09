@@ -130,6 +130,7 @@ add_library( XrdEosFst MODULE
 	     txqueue/TransferQueue.cc
          ../fst/FmdBase.pb.h
          ../fst/FmdBase.pb.cc
+             Fmd.cc
 	     FmdHandler.cc
 	     FmdSqlite.cc
 	     FmdDbMap.cc
@@ -182,6 +183,7 @@ add_executable( eos-compute-blockxs
 add_executable( eos-scan-fs 
                 ScanDir.cc
                 tools/ScanXS.cc
+                Fmd.cc
                 FmdHandler.cc
         		FmdSqlite.cc
                 ../fst/FmdBase.pb.h
