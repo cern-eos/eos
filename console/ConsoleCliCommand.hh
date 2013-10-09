@@ -224,6 +224,7 @@ public:
   void addOptions(std::vector<CliPositionalOption> options);
   void addOptions(std::vector<CliOptionWithArgs> options);
   void addGroup(OptionsGroup *group);
+  CliOption *getOption(const std::string &name) const;
   OptionsGroup* addGroupedOptions(std::vector<CliOption> options);
   OptionsGroup* addGroupedOptions(std::vector<CliOptionWithArgs> options);
   bool hasErrors();

@@ -881,6 +881,31 @@ ConsoleCliCommand::addOptions(std::vector<CliPositionalOption> options)
   }
 }
 
+CliOption *
+ConsoleCliCommand::getOption(const std::string &name) const
+{
+  CliOption *ret = 0;
+
+  if (mMainGroup)
+    ret = mMainGroup->getOption(name);
+
+  if (!ret && mPositionalOptions)
+  {
+    std::map<int, CliPositionalOption *>::iterator pos_it = mPositionalOptions->begin();
+    for (; pos_it != mPositionalOptions->end(); pos_it++)
+    {
+      if ((*pos_it).second->name() == name)
+        return (*pos_it).second;
+    }
+  }
+
+  std::vector<OptionsGroup *>::const_iterator it;
+  for (it = mGroups->cbegin(); !ret && it != mGroups->cend(); it++)
+    ret = (*it)->getOption(name);
+
+  return ret;
+}
+
 OptionsGroup*
 ConsoleCliCommand::addGroupedOptions(std::vector<CliOption> options)
 {
