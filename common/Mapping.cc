@@ -265,39 +265,40 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     eos_static_debug("https mapping");
     if (gVirtualUidMap.count("https:\"<pwd>\":uid"))
     {
-      if (gVirtualGidMap["https:\"<pwd>\":uid"] == 0) {
-	// use physical mapping for https names
-	Mapping::getPhysicalIds(client->name, vid);
-	vid.gid = 99;
-	vid.gid_list.clear();
+      if (gVirtualGidMap["https:\"<pwd>\":uid"] == 0)
+      {
+        // use physical mapping for https names
+        Mapping::getPhysicalIds(client->name, vid);
+        vid.gid = 99;
+        vid.gid_list.clear();
       }
       else
       {
-	vid.uid_list.clear();
+        vid.uid_list.clear();
         vid.uid_list.push_back(gVirtualGidMap["https:\"<pwd>\":uid"]);
         vid.uid_list.push_back(99);
-	vid.gid = 99;
-	vid.gid_list.clear();
+        vid.gid = 99;
+        vid.gid_list.clear();
       }
     }
 
     if (gVirtualGidMap.count("https:\"<pwd>\":gid"))
     {
-      if (gVirtualGidMap["https:\"<pwd>\":gid"] == 0) 
+      if (gVirtualGidMap["https:\"<pwd>\":gid"] == 0)
       {
-	// use physical mapping for gsi names
-	uid_t uid = vid.uid;
-	Mapping::getPhysicalIds(client->name, vid);
-	vid.uid = uid;
-	vid.uid_list.clear();
-	vid.uid_list.push_back(uid);
-	vid.uid_list.push_back(99);
+        // use physical mapping for gsi names
+        uid_t uid = vid.uid;
+        Mapping::getPhysicalIds(client->name, vid);
+        vid.uid = uid;
+        vid.uid_list.clear();
+        vid.uid_list.push_back(uid);
+        vid.uid_list.push_back(99);
       }
       else
       {
-	vid.gid_list.clear();
-	vid.gid_list.push_back(gVirtualGidMap["https:\"<pwd>\":gid"]);
-	vid.gid_list.push_back(99);
+        vid.gid_list.clear();
+        vid.gid_list.push_back(gVirtualGidMap["https:\"<pwd>\":gid"]);
+        vid.gid_list.push_back(99);
       }
     }
   }
@@ -422,12 +423,16 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   stident += "\"";
   stident += ReduceTident(vid.tident, wildcardtident, mytident, host);
 
-  if (host == "127.0.0.1") {
+  if (host == "127.0.0.1")
+  {
     host = "localhost";
   }
 
   myrole = mytident;
   myrole.erase(mytident.find("@"));
+  // FUSE select's now the role via <uid>[:connectionid]
+  // the connection id is already removed by ReduceTident
+  myrole.erase(myrole.find("."));
 
   XrdOucString swctident = "tident:";
   swctident += "\"";
@@ -522,17 +527,15 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
         eos_static_debug("tident uid mapping");
         vid.uid_list.clear();
         // use physical mapping 
-        if ((myrole != "root"))
-        {
-          if ((vid.prot == "unix"))
-            Mapping::getPhysicalIds(myrole.c_str(), vid);
-          else
-            Mapping::getPhysicalIds(client->name, vid);
-        }
+
+        // unix protocol maps to the role if the client is the root account
+        // otherwise it maps to the unix ID on the client host
+        if (((vid.prot == "unix") && (vid.name == "root")) ||
+            ((vid.prot == "sss") && (vid.name == "daemon")))
+          Mapping::getPhysicalIds(myrole.c_str(), vid);
         else
-        {
           Mapping::getPhysicalIds(client->name, vid);
-        }
+
       }
     }
     else
@@ -566,17 +569,12 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
         eos_static_debug("tident gid mapping");
         uid_t uid = vid.uid;
 
-        if ((myrole != "root"))
-        {
-          if ((vid.prot == "unix"))
-            Mapping::getPhysicalIds(myrole.c_str(), vid);
-          else
-            Mapping::getPhysicalIds(client->name, vid);
-        }
+        if (((vid.prot == "unix") && (vid.name == "root")) ||
+            ((vid.prot == "sss") && (vid.name == "daemon")))
+          Mapping::getPhysicalIds(myrole.c_str(), vid);
         else
-        {
           Mapping::getPhysicalIds(client->name, vid);
-        }
+
         vid.uid = uid;
         vid.uid_list.clear();
         vid.uid_list.push_back(uid);
@@ -1005,10 +1003,10 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity &vid)
   if (!name)
     return;
 
-  memset(&passwdinfo, 0, sizeof (passwdinfo))
-    ;
   gid_vector * gv;
   id_pair * id;
+
+  memset(&passwdinfo, 0, sizeof (passwdinfo));
 
   eos_static_debug("find in uid cache %s", name);
 
@@ -1018,15 +1016,57 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity &vid)
   if (!(id = gPhysicalUidCache.Find(name)))
   {
     eos_static_debug("not found in uid cache");
-    struct passwd *pwbufp = 0;
 
-    if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp))
+    XrdOucString sname = name;
+    if (sname.length() == 8)
     {
-      return;
+      // -------------------------------------------------------------------------
+      // check if name is a 8 digit hex number indication <uid-hex><gid-hex>
+      // -------------------------------------------------------------------------
+      unsigned long long hexid = strtoull(sname.c_str(), 0, 16);
+      char rhexid[16];
+      snprintf(rhexid, sizeof (rhexid) - 1, "%08llx", hexid);
+      eos_static_debug("hexname=%s hexid=%llu name=%s", rhexid, hexid, name);
+      if (sname == rhexid)
+      {
+        // that is a hex id
+        XrdOucString suid = sname;
+        suid.erase(4);
+        XrdOucString sgid = sname;
+        sgid.erase(0, 4);
+
+        id = new id_pair(strtol(suid.c_str(), 0, 16), strtol(sgid.c_str(), 0, 16));
+        eos_static_debug("using hexmapping %s %d %d", sname.c_str(), id->uid, id->gid);
+        if (!id->uid || !id->gid)
+          return;
+
+        vid.uid = id->uid;
+        vid.gid = id->gid;
+        vid.uid_list.clear();
+        vid.uid_list.push_back(vid.uid);
+        vid.gid_list.clear();
+        vid.gid_list.push_back(vid.gid);
+
+        gid_vector* vec = new uid_vector;
+        *vec = vid.gid_list;
+
+        gPhysicalUidCache.Add(name, id, 3600);
+        eos_static_debug("adding to cache uid=%u gid=%u", id->uid, id->gid);
+        gPhysicalGidCache.Add(name, vec, 3600);
+      }
     }
-    id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
-    gPhysicalUidCache.Add(name, id, 3600);
-    eos_static_debug("adding to cache uid=%u gid=%u", id->uid, id->gid);
+    else
+    {
+      struct passwd *pwbufp = 0;
+
+      if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp))
+      {
+        return;
+      }
+      id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
+      gPhysicalUidCache.Add(name, id, 3600);
+      eos_static_debug("adding to cache uid=%u gid=%u", id->uid, id->gid);
+    }
   };
 
   vid.uid = id->uid;
