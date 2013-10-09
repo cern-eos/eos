@@ -1234,7 +1234,7 @@ FmdSqliteHandler::ResyncAllMgm (eos::common::FileSystem::fsid_t fsid, const char
 
   // we run an external command and parse the output
   char* tmpfile = tempnam("/tmp/", "efstd");
-  XrdOucString cmd = "env XrdSecPROTOCOL=sss xrdcp -s \"";
+  XrdOucString cmd = "env XrdSecPROTOCOL=sss xrdcopy -s \"";
   cmd += url;
   cmd += "\" ";
   cmd += tmpfile;
