@@ -242,6 +242,7 @@ public:
   void setName(const std::string &name) { mName = name;};
   void setDescription(const std::string &desc) { mDescription = desc; };
   void setParent(const ConsoleCliCommand *parent);
+  const ConsoleCliCommand *parent() const { return mParentCommand; };
 
 private:
   std::string mName;
