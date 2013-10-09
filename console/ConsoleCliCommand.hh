@@ -187,6 +187,7 @@ class OptionsGroup {
 public:
   OptionsGroup();
   OptionsGroup(std::string name);
+  OptionsGroup(const OptionsGroup &otherGroup);
   virtual ~OptionsGroup();
   void addOption(CliOption *option);
   void addOption(const CliOption &option);

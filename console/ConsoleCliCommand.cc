@@ -1242,6 +1242,18 @@ OptionsGroup::OptionsGroup()
   : OptionsGroup("")
 {}
 
+OptionsGroup::OptionsGroup(const OptionsGroup &otherGroup)
+  : OptionsGroup(otherGroup.mName)
+{
+  mRequired = otherGroup.mRequired;
+
+  if (otherGroup.mOptions)
+  {
+    for (size_t i = 0; i < otherGroup.mOptions->size(); i++)
+      addOption(*otherGroup.mOptions->at(i));
+  }
+}
+
 OptionsGroup::~OptionsGroup()
 {
   if (mOptions)
