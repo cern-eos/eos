@@ -211,6 +211,7 @@ private:
 class ConsoleCliCommand {
 public:
   ConsoleCliCommand (const std::string &name, const std::string &description);
+  ConsoleCliCommand (const ConsoleCliCommand &otherCmd);
   ~ConsoleCliCommand ();
   void addSubcommand(ConsoleCliCommand *subcommand);
   void addOption(CliOption *option);

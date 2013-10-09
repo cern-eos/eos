@@ -706,6 +706,36 @@ ConsoleCliCommand::ConsoleCliCommand(const std::string &name,
     mGroups(0)
 {}
 
+ConsoleCliCommand::ConsoleCliCommand(const ConsoleCliCommand &otherCmd)
+  : ConsoleCliCommand(otherCmd.mName, otherCmd.mDescription)
+{
+  if (otherCmd.mMainGroup)
+    mMainGroup = new OptionsGroup(*otherCmd.mMainGroup);
+
+  if (otherCmd.mPositionalOptions)
+  {
+    std::map<int, CliPositionalOption *>::const_iterator it;
+    for (it = otherCmd.mPositionalOptions->cbegin();
+         it != otherCmd.mPositionalOptions->cend(); it++)
+      addOption(*(*it).second);
+  }
+
+  if (otherCmd.mGroups)
+  {
+    for (size_t i = 0; i < otherCmd.mGroups->size(); i++)
+    {
+      OptionsGroup *newGroup = new OptionsGroup(*otherCmd.mGroups->at(i));
+      addGroup(newGroup);
+    }
+  }
+
+  if (otherCmd.mSubcommands)
+    mSubcommands = new std::vector<ConsoleCliCommand *>(*otherCmd.mSubcommands);
+
+  if (otherCmd.mParentCommand)
+    const_cast<ConsoleCliCommand *>(otherCmd.mParentCommand)->addSubcommand(this);
+}
+
 ConsoleCliCommand::~ConsoleCliCommand()
 {
   size_t i;
