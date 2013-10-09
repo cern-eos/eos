@@ -1187,8 +1187,10 @@ ConsoleCliCommand::printUsage() const
 
   fprintf(stdout, "Usage: %s", commandAndOptions.c_str());
   if (mDescription != "") {
-    fprintf(stdout, " : %s\n", mDescription.c_str());
+    fprintf(stdout, " : %s", mDescription.c_str());
   }
+  fprintf(stdout, "\n");
+
   printHelp();
 }
 
