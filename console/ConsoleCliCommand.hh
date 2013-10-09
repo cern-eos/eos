@@ -239,6 +239,8 @@ public:
   void printErrors() const;
   std::string name() const { return mName;};
   std::string description() const { return mDescription; };
+  void setName(const std::string &name) { mName = name;};
+  void setDescription(const std::string &desc) { mDescription = desc; };
   void setParent(const ConsoleCliCommand *parent);
 
 private:
