@@ -194,6 +194,7 @@ public:
   void addOption(const CliOptionWithArgs &option);
   void addOptions(std::vector<CliOption> options);
   void addOptions(std::vector<CliOptionWithArgs> options);
+  CliOption *getOption(const std::string &name) const;
   void removeOption(CliOption *option);
   std::vector<CliOption *>* options() { return mOptions; };
   bool required() const { return mRequired; };

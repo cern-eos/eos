@@ -1347,6 +1347,19 @@ OptionsGroup::addOptions(std::vector<CliOptionWithArgs> options)
   }
 }
 
+CliOption *
+OptionsGroup::getOption(const std::string &name) const
+{
+  std::vector<CliOption *>::iterator it;
+  for (it = mOptions->begin(); it != mOptions->end(); it++)
+  {
+    if ((*it)->name() == name)
+      return *it;
+  }
+
+  return 0;
+}
+
 void
 OptionsGroup::removeOption(CliOption *option)
 {
