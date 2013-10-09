@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_access.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -29,287 +30,224 @@
 int
 com_access (char* arg1)
 {
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString option = "";
-  XrdOucString options = "";
-  bool ok = false;
+  ConsoleCliCommand *parsedCmd, *accessCmd, *banSubCmd, *unbanSubCmd, *lsSubCmd,
+    *allowSubCmd, *disallowSubCmd, *setSubCmd, *rmSubCmd, *setRedirectSubCmd,
+    *setStallSubCmd, *setLimitSubCmd, *rmRedirectSubCmd, *rmStallSubCmd,
+    *rmLimitSubCmd;
   XrdOucString in = "";
   in = "mgm.cmd=access";
 
-  XrdOucString subcmd = subtokenizer.GetToken();
+  accessCmd = new ConsoleCliCommand("access", "provides the access interface "
+                                    "of EOS to allow/disallow hosts and/or "
+                                    "users");
 
-  if (wants_help(arg1))
-    goto com_access_usage;
+  CliPositionalOption idOption("id", "can be a user name, user id, group name, "
+                               "group id, hostname or IP", 1, 1,
+                               "<identifier>", true);
+  banSubCmd = new ConsoleCliCommand("ban", "ban user,group or host with "
+                                    "identifier <identifier>");
+  banSubCmd->addGroupedOptions({{"user", "", "user"},
+                                {"group", "", "group"},
+                                {"host", "", "host"}
+                               })->setRequired(true);
+  banSubCmd->addOption(idOption);
+  accessCmd->addSubcommand(banSubCmd);
 
-  if (subcmd == "ban")
+  unbanSubCmd = new ConsoleCliCommand(*banSubCmd);
+  unbanSubCmd->setName("unban");
+  unbanSubCmd->setDescription("unban user,group or host with "
+                              "identifier <identifier>");
+
+  allowSubCmd = new ConsoleCliCommand(*banSubCmd);
+  allowSubCmd->setName("allow");
+  allowSubCmd->setDescription("allow user,group or host with "
+                              "identifier <identifier>");
+  CliOption *idOptionPtr = allowSubCmd->getOption("id");
+  idOptionPtr->setDescription(std::string(idOptionPtr->description()) +
+                              "\nHINT:  if you add any 'allow' the instance "
+                              "allows only the listed users;\nA banned "
+                              "identifier will still overrule an allowed "
+                              "identifier!");
+
+  disallowSubCmd = new ConsoleCliCommand(*banSubCmd);
+  disallowSubCmd->setName("disallow");
+  disallowSubCmd->setDescription("disallow user,group "
+                                 "or host with identifier <identifier>");
+
+  lsSubCmd = new ConsoleCliCommand("ls", "print banned,unbanned user, group, "
+                                   "hosts");
+  lsSubCmd->addOptions({{"monitor", "output in monitoring format with "
+                         "<key>=<value>", "-m"},
+                        {"numerical", "don't translate uid/gids to names", "-n"}
+                       });
+  accessCmd->addSubcommand(lsSubCmd);
+
+  setSubCmd = new ConsoleCliCommand("set", "");
+  accessCmd->addSubcommand(setSubCmd);
+
+  setRedirectSubCmd = new ConsoleCliCommand("redirect", "allows to set a global "
+                                            "redirection to <target-host>");
+  setRedirectSubCmd->addGroupedOptions({{"read", "set stall time for read "
+                                         "requests", "-r,--read"},
+                                        {"write", "set stall time for write "
+                                         "requests", "-w,--write"},
+                                        {"ENOENT", "set a redirect if a file "
+                                         "does not exist", "--ENOENT"},
+                                        {"ENONET", "set a redirect if a file "
+                                         "is offline", "--ENONET"}
+                                       });
+  setRedirectSubCmd->addOption({"target", "hostname to which all requests "
+                                "get redirected", 1, 1, "<target-host>", true});
+  setSubCmd->addSubcommand(setRedirectSubCmd);
+
+  setStallSubCmd = new ConsoleCliCommand("stall", "allows to set a global "
+                                         "stall time");
+  setStallSubCmd->addGroupedOptions({{"read", "set stall time for read "
+                                      "requests", "-r,--read"},
+                                     {"write", "set stall time for write "
+                                      "requests", "-w,--write"},
+                                     {"ENOENT", "set a stall if a file "
+                                      "does not exist", "--ENOENT"},
+                                     {"ENONET", "set a stall if a file "
+                                      "is offline", "--ENONET"}
+                                    });
+  setStallSubCmd->addOption({"target", "time in seconds after which clients "
+                             "should rebounce", 1, 1, "<stall-time>", true});
+  setSubCmd->addSubcommand(setStallSubCmd);
+
+  setLimitSubCmd = new ConsoleCliCommand("limit", "stall the defined user "
+                                         "group for 5s if the <counter> "
+                                         "exceeds a frequency of <frequency> "
+                                         "in a 5s interval");
+  setLimitSubCmd->addOptions({{"frequency", "", 1, 1, "<frequency>", true},
+                              {"rate", "the instantanious rate can exceed this "
+                               "value by 33%;\nrate:user:*:<counter> : apply "
+                               "to all users based on user counter;\n"
+                               "rate:group:*:<counter>: apply to all groups "
+                               "based on group counter", 2, 1,
+                               "rate:{user,group}:{name}:<counter>", true}
+                             });
+  setSubCmd->addSubcommand(setLimitSubCmd);
+
+  rmSubCmd = new ConsoleCliCommand("rm", "");
+  accessCmd->addSubcommand(rmSubCmd);
+
+  rmRedirectSubCmd = new ConsoleCliCommand("redirect", "removes global "
+                                           "redirection");
+  rmSubCmd->addSubcommand(rmRedirectSubCmd);
+
+  rmStallSubCmd = new ConsoleCliCommand("stall", "removes global stall time");
+  rmStallSubCmd->addGroupedOptions({{"read", "remove stall time for read "
+                                      "requests", "-r,--read"},
+                                     {"write", "remove stall time for write "
+                                      "requests", "-w,--write"},
+                                     {"ENOENT", "remove stall if a file "
+                                      "does not exist", "--ENOENT"},
+                                     {"ENONET", "remove stall if a file "
+                                      "is offline", "--ENONET"}
+                                    });
+  rmSubCmd->addSubcommand(rmStallSubCmd);
+
+  rmLimitSubCmd = new ConsoleCliCommand("limit", "remove rate limitation");
+  rmLimitSubCmd->addOption({"rate", "", 1, 1,
+                            "rate:{user,group}:{name}:<counter>", true});
+  rmSubCmd->addSubcommand(rmLimitSubCmd);
+
+  addHelpOptionRecursively(accessCmd);
+
+  parsedCmd = accessCmd->parse(arg1);
+
+  if (parsedCmd == accessCmd || parsedCmd == setSubCmd || parsedCmd == rmSubCmd)
   {
-    ok = true;
+    if (!checkHelpAndErrors(parsedCmd))
+      parsedCmd->printUsage();
+    goto com_access_examples;
+  }
+  if (checkHelpAndErrors(parsedCmd))
+    goto com_access_examples;
+
+  if (parsedCmd == banSubCmd)
     in += "&mgm.subcmd=ban";
-  }
-
-  if (subcmd == "unban")
-  {
+  else if (parsedCmd == unbanSubCmd)
     in += "&mgm.subcmd=unban";
-    ok = true;
-  }
-
-  if (subcmd == "allow")
-  {
+  else if (parsedCmd == allowSubCmd)
     in += "&mgm.subcmd=allow";
-    ok = true;
-  }
-
-  if (subcmd == "unallow")
-  {
+  else if (parsedCmd == disallowSubCmd)
     in += "&mgm.subcmd=unallow";
-    ok = true;
-  }
+  else if (parsedCmd == lsSubCmd)
+    in += "&mgm.subcmd=ls";
+  else if (parsedCmd->parent() == setSubCmd)
+    in += "&mgm.subcmd=set";
+  else if (parsedCmd->parent() == rmSubCmd)
+    in += "&mgm.subcmd=rm";
 
-  if (subcmd == "ls")
+  if (parsedCmd == lsSubCmd)
   {
     in += "&mgm.subcmd=ls";
-    ok = true;
+    XrdOucString option("");
+
+    if (lsSubCmd->hasValue("monitor"))
+      option += "m";
+    if (lsSubCmd->hasValue("numerical"))
+      option += "n";
+
+    if (option != "")
+    {
+      in += "&mgm.access.option=";
+      in += option;
+    }
   }
-
-  if (subcmd == "set")
+  else if (parsedCmd == banSubCmd || parsedCmd == unbanSubCmd ||
+           parsedCmd == allowSubCmd || parsedCmd == disallowSubCmd)
   {
-    in += "&mgm.subcmd=set";
-    ok = true;
+    if (parsedCmd->hasValue("host"))
+      in += "&mgm.access.host=";
+    if (parsedCmd->hasValue("user"))
+      in += "&mgm.access.user=";
+    if (parsedCmd->hasValue("group"))
+      in += "&mgm.access.group=";
+
+    in += parsedCmd->getValue("id").c_str();
   }
-
-  if (subcmd == "rm")
+  else if (parsedCmd == setLimitSubCmd)
   {
-    in += "&mgm.subcmd=rm";
-    ok = true;
-  }
+    in += "&mgm.access.stall=";
+    in += parsedCmd->getValue("frequency").c_str();
 
-  if (ok)
-  {
-    ok = false;
-    XrdOucString type = "";
-    XrdOucString maybeoption = subtokenizer.GetToken();
-    while (maybeoption.beginswith("-"))
+    XrdOucString rate = parsedCmd->getValue("rate").c_str();
+    if ((rate.beginswith("rate:user:") || rate.beginswith("rate:group:")) &&
+        rate.find(":", 11) != STR_NPOS)
     {
-      if ((subcmd == "ls") && (maybeoption != "-m") && (maybeoption != "-n"))
-        goto com_access_usage;
-      if ((subcmd != "ls"))
-        goto com_access_usage;
-
-      maybeoption.replace("-", "");
-      option += maybeoption;
-      maybeoption = subtokenizer.GetToken();
+      in += "&mgm.access.type=" + rate;
     }
-
-    if (subcmd == "ls")
-    {
-      ok = true;
-    }
-
-    if ((subcmd == "ban") || (subcmd == "unban") || (subcmd == "allow") || (subcmd == "unallow"))
-    {
-      type = maybeoption;
-      XrdOucString id = subtokenizer.GetToken();
-      if ((!type.length()) || (!id.length()))
-        goto com_access_usage;
-
-      if (type == "host")
-      {
-        in += "&mgm.access.host=";
-        in += id;
-        ok = true;
-      }
-      if (type == "user")
-      {
-        in += "&mgm.access.user=";
-        in += id;
-        ok = true;
-      }
-      if (type == "group")
-      {
-        in += "&mgm.access.group=";
-        in += id;
-        ok = true;
-      }
-    }
-
-    if ((subcmd == "set") || (subcmd == "rm"))
-    {
-      type = maybeoption;
-      XrdOucString id = subtokenizer.GetToken();
-      if ((subcmd != "rm") && ((!type.length()) || (!id.length())))
-        goto com_access_usage;
-
-      XrdOucString rtype = subtokenizer.GetToken();
-      if (subcmd == "rm")
-      {
-        rtype = id;
-      }
-
-      if (!id.length())
-      {
-        id = "dummy";
-      }
-      if (type == "redirect")
-      {
-        in += "&mgm.access.redirect=";
-        in += id;
-        if (rtype.length())
-        {
-          if (rtype == "r")
-          {
-            in += "&mgm.access.type=r";
-            ok = true;
-          }
-          else
-          {
-            if (rtype == "w")
-            {
-              in += "&mgm.access.type=w";
-              ok = true;
-            }
-            else
-            {
-              if (rtype == "ENONET")
-              {
-                in += "&mgm.access.type=ENONET";
-                ok = true;
-              }
-              else
-              {
-                if (rtype == "ENOENT")
-                {
-                  in += "&mgm.access.type=ENOENT";
-                }
-              }
-            }
-          }
-        }
-        else
-        {
-          ok = true;
-        }
-      }
-      if (type == "stall")
-      {
-        in += "&mgm.access.stall=";
-        in += id;
-        if (rtype.length())
-        {
-          if (rtype == "r")
-          {
-            in += "&mgm.access.type=r";
-            ok = true;
-          }
-          else
-          {
-            if (rtype == "w")
-            {
-              in += "&mgm.access.type=w";
-              ok = true;
-            }
-            else
-            {
-              if (rtype == "ENONET")
-              {
-                in += "&mgm.access.type=ENONET";
-                ok = true;
-              }
-              else
-              {
-                if (rtype == "ENOENT")
-                {
-                  in += "&mgm.access.type=ENOENT";
-                }
-              }
-            }
-          }
-        }
-        else
-        {
-          ok = true;
-        }
-      }
-      if (type == "limit")
-      {
-        in += "&mgm.access.stall=";
-        in += id;
-        if ((rtype.beginswith("rate:user:")) || (rtype.beginswith("rate:group:")))
-        {
-          if ((rtype.find(":"), 11) != STR_NPOS)
-          {
-            in += "&mgm.access.type=";
-            in += rtype;
-            ok = true;
-          }
-        }
-      }
-    }
-    if (!ok)
-      goto com_access_usage;
   }
   else
   {
-    goto com_access_usage;
-  }
+    if (parsedCmd == setRedirectSubCmd || parsedCmd == rmRedirectSubCmd)
+      in += "&mgm.access.redirect=";
+    if (parsedCmd == setStallSubCmd || parsedCmd == rmStallSubCmd)
+      in += "&mgm.access.stall=";
 
-  if (option.length())
-  {
-    in += "&mgm.access.option=";
-    in += option;
+    if (parsedCmd == setRedirectSubCmd || parsedCmd == setStallSubCmd)
+      in += parsedCmd->getValue("target").c_str();
+    else
+      in += "dummy";
+
+    if (parsedCmd->hasValue("read"))
+      in += "&mgm.access.type=r";
+    else if (parsedCmd->hasValue("write"))
+      in += "&mgm.access.type=w";
+    else if (parsedCmd->hasValue("ENOENT"))
+      in += "&mgm.access.type=ENOENT";
+    else if (parsedCmd->hasValue("ENONET"))
+      in += "&mgm.access.type=ENONET";
   }
 
   global_retc = output_result(client_admin_command(in));
-  return (0);
+  goto bailout;
 
-com_access_usage:
-  fprintf(stdout, "'[eos] access ..' provides the access interface of EOS to allow/disallow hosts and/or users\n");
-  fprintf(stdout, "Usage: access ban|unban|allow|unallow|set|rm|ls ...\n\n");
-  fprintf(stdout, "Options:\n");
-  fprintf(stdout, "access ban user|group|host <identifier> : \n");
-
-  fprintf(stdout, "                                                  ban user,group or host with identifier <identifier>\n");
-  fprintf(stdout, "                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP \n");
-  fprintf(stdout, "access unban user|group|host <identifier> :\n");
-  fprintf(stdout, "                                                  unban user,group or host with identifier <identifier>\n");
-  fprintf(stdout, "                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP \n");
-  fprintf(stdout, "access allow user|group|host <identifier> :\n");
-  fprintf(stdout, "                                                  allows this user,group or host access\n");
-  fprintf(stdout, "                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP \n");
-  fprintf(stdout, "access unallow user|group|host <identifier> :\n");
-  fprintf(stdout, "                                                  unallows this user,group or host access\n");
-  fprintf(stdout, "                                   <identifier> : can be a user name, user id, group name, group id, hostname or IP \n");
-  fprintf(stdout, "HINT:  if you add any 'allow' the instance allows only the listed users.\nA banned identifier will still overrule an allowed identifier!\n\n");
-  fprintf(stdout, "access set redirect <target-host> [r|w|ENOENT|ENONET] :\n");
-  fprintf(stdout, "                                                  allows to set a global redirection to <target-host>\n");
-  fprintf(stdout, "                                  <target-host> : hostname to which all requests get redirected\n");
-  fprintf(stdout, "                                          [r|w] : optional set a redirect for read/write requests seperatly\n");
-  fprintf(stdout, "                                       [ENONET] : optional set a redirect if a file is offline (ENONET) \n");
-  fprintf(stdout, "                                       [ENOENT] : optional set a redirect if a file is not existing     \n");
-
-  fprintf(stdout, "access rm  redirect :\n");
-  fprintf(stdout, "                                                  removes global redirection\n");
-  fprintf(stdout, "access set stall <stall-time> [r|w|ENOENT|ENONET]\n");
-  fprintf(stdout, "                                                  allows to set a global stall time\n");
-  fprintf(stdout, "                                   <stall-time> : time in seconds after which clients should rebounce\n");
-  fprintf(stdout, "                                          [r|w] : optional set stall time for read/write requests seperatly\n");
-  fprintf(stdout, "                                       [ENONET] : optional set a stall if a file is offline (ENONET) \n");
-  fprintf(stdout, "                                       [ENOENT] : optional set a stall if a file is not existing     \n");
-  fprintf(stdout, "access set limit <frequency> rate:{user,group}:{name}:<counter>\n");
-  fprintf(stdout, "       rate:{user:group}:{name}:<counter>       : stall the defined user group for 5s if the <counter> exceeds a frequency of <frequency> in a 5s interval\n");
-  fprintf(stdout, "                                                  - the instantanious rate can exceed this value by 33%%\n");
-  fprintf(stdout, "                                                  rate:user:*:<counter> : apply to all users based on user counter\n");
-  fprintf(stdout, "                                                  rate:group:*:<counter>: apply to all groups based on group counter\n");
-  fprintf(stdout, "access rm  stall [r|w|ENOENT|ENOENT]:\n");
-  fprintf(stdout, "                                                  removes global stall time\n");
-  fprintf(stdout, "                                          [r|w] : removes stall time for read or write requests\n");
-  fprintf(stdout, "       rm limit rate:{user,group}:{name}:<counter\n");
-  fprintf(stdout, "                                                : remove rate limitation\n");
-  fprintf(stdout, "access ls [-m] [-n] :\n");
-  fprintf(stdout, "                                                  print banned,unbanned user,group, hosts\n");
-  fprintf(stdout, "                                                                  -m    : output in monitoring format with <key>=<value>\n");
-  fprintf(stdout, "                                                                  -n    : don't translate uid/gids to names\n");
-  fprintf(stdout, "Examples:\n");
+com_access_examples:
+  fprintf(stdout, "\nExamples:\n");
   fprintf(stdout, "  access ban foo           Ban host foo\n");
   fprintf(stdout, "  access set redirect foo  Redirect all requests to host foo\n");
   fprintf(stdout, "  access rm redirect       Remove redirection to previously defined host foo\n");
@@ -318,5 +256,9 @@ com_access_usage:
   fprintf(stdout, "  access set limit 100  rate:user:*:OpenRead      Limit the rate of open for read to a frequency of 100 Hz for all users\n");
   fprintf(stdout, "  access set limit 2000 rate:group:zp:Stat        Limit the stat rate for the zp group to 2kHz\n");
   fprintf(stdout, "  access rm limit rate:user:*:OpenRead            Removes the defined limit\n");
+
+ bailout:
+  delete accessCmd;
+
   return (0);
 }
