@@ -1,6 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_vid.cc
 // Author: Andreas-Joachim Peters - CERN
+// Author: Joaquim Rocha - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -29,341 +30,298 @@
 int
 com_vid (char* arg1)
 {
-  // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString subcommand = subtokenizer.GetToken();
+  XrdOucString in("");
+  ConsoleCliCommand *parsedCmd, *vidCmd, *lsSubCmd, *membershiSetSubCmd,
+    *membershipRmSubCmd, *rmSubCmd, *membershipSubCmd, *mapSubCmd,
+    *geotagSubCmd, *gatewaySubCmd, *enableSubCmd, *disableSubCmd;
 
-  if (wants_help(arg1))
-    goto com_vid_usage;
+  vidCmd = new ConsoleCliCommand("vid", "virtual ID functions");
 
-  if (subcommand == "ls")
+  lsSubCmd = new ConsoleCliCommand("ls", "list configured policies");
+  lsSubCmd->addOptions({{"user", "show only user role mappings", "-u"},
+                        {"group", "show only group role mappings", "-g"},
+                        {"user-alias", "show user alias mapping", "-U"},
+                        {"group-alias", "show group alias mapping", "-G"},
+                        {"sudoers", "show list of sudoers", "-s"},
+                        {"gateways", "show configured gateways", "-w"},
+                        {"auth", "show authentication", "-a"},
+                        {"geo", "show geo location mapping", "-l"},
+                        {"numerical", "show numerical ids instead of "
+                         "user/group names", "-n"}
+                       });
+  vidCmd->addSubcommand(lsSubCmd);
+
+  membershipSubCmd = new ConsoleCliCommand("membership", "membership related "
+                                           "functions");
+  vidCmd->addSubcommand(membershipSubCmd);
+
+  membershiSetSubCmd = new ConsoleCliCommand("set", "");
+  membershiSetSubCmd->addOption({"uid", "", 1, 1, "<uid>", true});
+  OptionsGroup *membershipGroup =
+    membershiSetSubCmd->addGroupedOptions({
+      {"uids", "", "--uids=", 1, "<uid1>[,<uid2>,...]", false},
+      {"gids", "", "--gids=", 1, "<gid1>[,<gid2>,...]", false}
+    });
+  membershipGroup->addOptions({{"+sudo", "", "+sudo"}, {"-sudo", "", "-sudo"}});
+  membershipGroup->setRequired(true);
+  membershipSubCmd->addSubcommand(membershiSetSubCmd);
+
+  membershipRmSubCmd = new ConsoleCliCommand("rm", "delete the membership "
+                                             "entries for <uid>");
+  membershipRmSubCmd->addOption({"uid", "", 1, 1, "<uid>", true});
+  membershipSubCmd->addSubcommand(membershipRmSubCmd);
+
+  mapSubCmd = new ConsoleCliCommand("map", "");
+  const char *mapOptions[] = {"krb5", "gsi", "https", "sss",
+                              "unix", "tident", 0};
+  OptionsGroup *mapGroup = new OptionsGroup("");
+  for (int i = 0; mapOptions[i]; i++)
+    mapGroup->addOption({mapOptions[i], "", std::string("--") + mapOptions[i]});
+  mapGroup->addOption({"voms", "<pattern> is <group>:<role> e.g. to map VOMS "
+                       "attribute /dteam/cern/Role=NULL/Capability=NULL one "
+                       "should define <pattern>=/dteam/cern:",
+                       "--voms", "<pattern>", false});
+  mapGroup->setRequired(true);
+  mapSubCmd->addGroup(mapGroup);
+  mapSubCmd->addOptions({{"vuid", "", "--vuid=", "<vuid:uid>", false},
+                         {"vgid", "", "--vgid=", "<vgid:gid>", false},
+                        });
+  vidCmd->addSubcommand(mapSubCmd);
+
+  geotagSubCmd = new ConsoleCliCommand("geotag", "add to all IP's matching the "
+                                       "prefix <IP-prefix> the geo location tag "
+                                       "<geotag>;\nN.B. specify the default "
+                                       "assumption via 'vid geotag default "
+                                       "<default-tag>'");
+  geotagSubCmd->addOptions({{"ip", "", 1, 1, "<IP-prefix>", true},
+                            {"tag", "", 2, 1, "<geotag>", true}
+                           });
+  vidCmd->addSubcommand(geotagSubCmd);
+
+  rmSubCmd = new ConsoleCliCommand("rm", "remove configured vid with name key "
+                                   "- hint: use config dump to see the key "
+                                   "names of vid rules");
+  rmSubCmd->addOption({"key", "", 1, 1, "<key>", true});
+
+  enableSubCmd = new ConsoleCliCommand("enable", "enable the default "
+                                       "mapping via password database");
+
+  OptionsGroup *enableDisableGroup = new OptionsGroup("");
+  for (int i = 0; mapOptions[i]; i++)
+    enableDisableGroup->addOption({mapOptions[i], "", mapOptions[i]});
+
+  enableSubCmd->addGroup(enableDisableGroup);
+  vidCmd->addSubcommand(enableSubCmd);
+
+  disableSubCmd = new ConsoleCliCommand(*enableSubCmd);
+  disableSubCmd->setName("disable");
+  disableSubCmd->setDescription("disable the default mapping via "
+                                "password database");
+  vidCmd->addSubcommand(disableSubCmd);
+
+  gatewaySubCmd = new ConsoleCliCommand("gateway", "adds/removes a host as a "
+                                        "(fuse) gateway with 'su' priviledges");
+  gatewaySubCmd->addGroupedOptions({{"add", "", "--add"},
+                                    {"remove", "", "--remove,--rm"}
+                                   })->setRequired(true);
+  gatewaySubCmd->addOption({"host", "", 1, 1, "<hostname>", true});
+  OptionsGroup *gatewayGroup = new OptionsGroup("");
+  for (int i = 0; mapOptions[i] && strcmp(mapOptions[i], "tident") != 0; i++)
+    gatewayGroup->addOption({mapOptions[i], "", mapOptions[i]});
+  gatewaySubCmd->addGroup(gatewayGroup);
+  vidCmd->addSubcommand(gatewaySubCmd);
+
+  addHelpOptionRecursively(vidCmd);
+
+  parsedCmd = vidCmd->parse(arg1);
+
+  if (parsedCmd == vidCmd || parsedCmd == membershipSubCmd)
   {
-    XrdOucString in = "mgm.cmd=vid&mgm.subcmd=ls";
+    if (!checkHelpAndErrors(parsedCmd))
+      parsedCmd->printUsage();
+    goto bailout;
+  }
+  if (checkHelpAndErrors(parsedCmd))
+    goto bailout;
+
+  if (parsedCmd == lsSubCmd)
+  {
+    in = "mgm.cmd=vid&mgm.subcmd=ls";
     XrdOucString soption = "";
     XrdOucString option = "";
-    do
+
+    const char *lsOptions[] = {"user", "u",
+                               "group", "g",
+                               "user-alias", "U",
+                               "group-alias", "G",
+                               "sudoers", "s",
+                               "gateways", "y",
+                               "auth", "a",
+                               "geo", "l",
+                               "numerical", "n",
+                               0
+                              };
+
+    for (int i = 0; lsOptions[i]; i += 2)
     {
-      option = subtokenizer.GetToken();
-      if (option.beginswith("-"))
-      {
-        option.erase(0, 1);
-        soption += option;
-        if (option.beginswith("h") || option.beginswith("-h"))
-          goto com_vid_usage;
-      }
+      if (lsSubCmd->hasValue(lsOptions[i]))
+        soption += lsOptions[i + 1];
     }
-    while (option.length());
 
     if (soption.length())
     {
       in += "&mgm.vid.option=";
       in += soption;
     }
+
     global_retc = output_result(client_admin_command(in));
-    return (0);
+    goto bailout;
   }
-
-  if (subcommand == "set")
+  else if (parsedCmd == geotagSubCmd)
   {
-    XrdOucString in = "mgm.cmd=vid&mgm.subcmd=set";
-    XrdOucString key = subtokenizer.GetToken();
-    if (!key.length())
-      goto com_vid_usage;
+    in += "mgm.cmd=vid&mgm.subcmd=set";
+    in += "&mgm.vid.cmd=geotag";
+    XrdOucString vidkey("");
+    vidkey = "geotag:";
+    vidkey += geotagSubCmd->getValue("ip").c_str();
+    in += "&mgm.vid.key=" + vidkey;
+    in += "&mgm.vid.geotag=";
+    in += geotagSubCmd->getValue("tag").c_str();
 
-    if (key.beginswith("-h") || key.beginswith("=-h"))
-      goto com_vid_usage;
+    global_retc = output_result(client_admin_command(in));
+    goto bailout;
+  }
+  else if (parsedCmd == membershiSetSubCmd)
+  {
+    in = "mgm.cmd=vid&mgm.subcmd=set";
+    XrdOucString uid = membershiSetSubCmd->getValue("uid").c_str();
+    XrdOucString vidkey = uid;
 
-    XrdOucString vidkey = "";
+    in += "&mgm.vid.cmd=membership";
+    in += "&mgm.vid.source.uid=";
+    in += uid;
 
-
-    if (key == "geotag")
+    if (membershiSetSubCmd->hasValue("uids"))
     {
-      XrdOucString match = subtokenizer.GetToken();
-      if (!match.length())
-      {
-        goto com_vid_usage;
-      }
-
-      if (match.beginswith("-h") || match.beginswith("=-h"))
-        goto com_vid_usage;
-
-      XrdOucString target = subtokenizer.GetToken();
-      if (!target.length())
-      {
-        goto com_vid_usage;
-      }
-
-      vidkey = "geotag:";
-      vidkey += match;
-      in += "&mgm.vid.cmd=geotag";
+      vidkey += ":uids";
       in += "&mgm.vid.key=";
-      in += vidkey.c_str();
-      in += "&mgm.vid.geotag=";
-      in += target.c_str();
-
-      global_retc = output_result(client_admin_command(in));
-      return (0);
+      in += vidkey;
+      in += "&mgm.vid.target.uid=";
+      in += membershiSetSubCmd->getValue("uids").c_str();
     }
 
-    if (key == "membership")
+    if (membershiSetSubCmd->hasValue("gids"))
     {
-
-      XrdOucString uid = subtokenizer.GetToken();
-
-      if (!uid.length())
-        goto com_vid_usage;
-
-      if (uid.beginswith("-h") || uid.beginswith("=-h"))
-        goto com_vid_usage;
-
-      vidkey += uid;
-
-      XrdOucString type = subtokenizer.GetToken();
-
-      if (!type.length())
-        goto com_vid_usage;
-
-      in += "&mgm.vid.cmd=membership";
-      in += "&mgm.vid.source.uid=";
-      in += uid;
-
-      XrdOucString list = "";
-      if ((type == "-uids"))
-      {
-        vidkey += ":uids";
-        list = subtokenizer.GetToken();
-        in += "&mgm.vid.key=";
-        in += vidkey;
-        in += "&mgm.vid.target.uid=";
-        in += list;
-      }
-
-      if ((type == "-gids"))
-      {
-        vidkey += ":gids";
-        list = subtokenizer.GetToken();
-        in += "&mgm.vid.key=";
-        in += vidkey;
-        in += "&mgm.vid.target.gid=";
-        in += list;
-      }
-
-      if ((type == "+sudo"))
-      {
-        vidkey += ":root";
-        list = " "; // fake
-        in += "&mgm.vid.key=";
-        in += vidkey;
-        in += "&mgm.vid.target.sudo=true";
-      }
-
-      if ((type == "-sudo"))
-      {
-        vidkey += ":root";
-        list = " "; // fake
-        in += "&mgm.vid.key=";
-        in += vidkey;
-        in += "&mgm.vid.target.sudo=false";
-      }
-      if (!list.length())
-      {
-        goto com_vid_usage;
-      }
-      global_retc = output_result(client_admin_command(in));
-      return (0);
+      vidkey += ":gids";
+      in += "&mgm.vid.key=";
+      in += vidkey;
+      in += "&mgm.vid.target.gid=";
+      in += membershiSetSubCmd->getValue("gids").c_str();
     }
-
-    if (key == "map")
+    else
     {
-      in += "&mgm.vid.cmd=map";
-      XrdOucString type = subtokenizer.GetToken();
+      vidkey += ":root";
+      in += "&mgm.vid.key= "; // fake using key=' '
+      in += vidkey;
+      in += "&mgm.vid.target.sudo=";
 
-      if (!type.length())
-        goto com_vid_usage;
-
-      if (type.beginswith("-h") || type.beginswith("=-h"))
-        goto com_vid_usage;
-
-      bool hastype = false;
-      if ((type == "-krb5"))
-      {
-        in += "&mgm.vid.auth=krb5";
-        hastype = true;
-      }
-      if ((type == "-gsi"))
-      {
-        in += "&mgm.vid.auth=gsi";
-        hastype = true;
-      }
-      if ((type == "-https"))
-      {
-        in += "&mgm.vid.auth=https";
-        hastype = true;
-      }
-      if ((type == "-sss"))
-      {
-        in += "&mgm.vid.auth=sss";
-        hastype = true;
-      }
-      if ((type == "-unix"))
-      {
-        in += "&mgm.vid.auth=unix";
-        hastype = true;
-      }
-      if ((type == "-tident"))
-      {
-        in += "&mgm.vid.auth=tident";
-        hastype = true;
-      }
-      if ((type == "-voms"))
-      {
-        in += "&mgm.vid.auth=voms";
-        hastype = true;
-      }
-
-      if (!hastype)
-        goto com_vid_usage;
-
-
-      XrdOucString pattern = subtokenizer.GetToken();
-      // deal with patterns containing spaces but inside ""
-      if (pattern.beginswith("\""))
-      {
-        if (!pattern.endswith("\""))
-          do
-          {
-            XrdOucString morepattern = subtokenizer.GetToken();
-
-            if (morepattern.endswith("\""))
-            {
-              pattern += " ";
-              pattern += morepattern;
-              break;
-            }
-            if (!morepattern.length())
-            {
-              goto com_vid_usage;
-            }
-            pattern += " ";
-            pattern += morepattern;
-          }
-          while (1);
-      }
-      if (!pattern.length())
-        goto com_vid_usage;
-
-      in += "&mgm.vid.pattern=";
-      in += pattern;
-
-      XrdOucString vid = subtokenizer.GetToken();
-      if (!vid.length())
-        goto com_vid_usage;
-
-      if (vid.beginswith("vuid:"))
-      {
-        vid.replace("vuid:", "");
-        in += "&mgm.vid.uid=";
-        in += vid;
-
-        XrdOucString vid = subtokenizer.GetToken();
-        if (vid.length())
-        {
-          fprintf(stderr, "Got %s\n", vid.c_str());
-          if (vid.beginswith("vgid:"))
-          {
-            vid.replace("vgid:", "");
-            in += "&mgm.vid.gid=";
-            in += vid;
-          }
-          else
-          {
-            goto com_vid_usage;
-          }
-        }
-      }
+      if (membershiSetSubCmd->hasValue("+sudo"))
+        in += "true";
       else
-      {
-        if (vid.beginswith("vgid:"))
-        {
-          vid.replace("vgid:", "");
-          in += "&mgm.vid.gid=";
-          in += vid;
-        }
-        else
-        {
-          goto com_vid_usage;
-        }
-      }
-
-      in += "&mgm.vid.key=";
-      in += "<key>";
-
-      global_retc = output_result(client_admin_command(in));
-      return (0);
+        in += "false";
     }
+
+    global_retc = output_result(client_admin_command(in));
+    goto bailout;
   }
+  else if (parsedCmd == membershipRmSubCmd)
+    {
+      in = "mgm.cmd=vid&mgm.subcmd=rm";
 
-  if ((subcommand == "enable") || (subcommand == "disable"))
+      XrdOucString key = membershipRmSubCmd->getValue("uid").c_str();
+      key.insert("vid:", 0);
+
+      XrdOucString in1 = in;
+      in1 += "&mgm.vid.key=" + key + ":uids";
+
+      XrdOucString in2 = in;
+      in2 += "&mgm.vid.key=" + key + ":gids";
+
+      global_retc = output_result(client_admin_command(in1));
+      global_retc |= output_result(client_admin_command(in2));
+      goto bailout;
+    }
+  else if (parsedCmd == mapSubCmd)
   {
-    XrdOucString in = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=map";
-    XrdOucString disableu = "mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
-    XrdOucString disableg = "mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
-    XrdOucString type = subtokenizer.GetToken();
-    if (!type.length())
-      goto com_vid_usage;
+    in = "mgm.cmd=vid&mgm.subcmd=set";
+    XrdOucString type("");
+    in += "&mgm.vid.cmd=map";
 
-    if (type.beginswith("-h") || type.beginswith("--h"))
-      goto com_vid_usage;
+    for (int i = 0; mapOptions[i]; i++)
+    {
+      if (mapSubCmd->hasValue(mapOptions[i]))
+      {
+        type = mapOptions[i];
+        break;
+      }
+    }
 
-    bool hastype = false;
-    if ((type == "krb5"))
+    in += "&mgm.vid.auth=" + type;
+
+    if (type == "")
     {
-      in += "&mgm.vid.auth=krb5";
-      disableu += "krb5:\"<pwd>\":uid";
-      disableg += "krb5:\"<pwd>\":gid";
-      hastype = true;
+      in += "voms";
+      in += "&mgm.vid.pattern=";
+      in += mapSubCmd->getValue("voms").c_str();
     }
-    if ((type == "sss"))
+
+    bool hasUidOrGid = false;
+    if (mapSubCmd->hasValue("vuid"))
     {
-      in += "&mgm.vid.auth=sss";
-      disableu += "sss:\"<pwd>\":uid";
-      disableg += "sss:\"<pwd>\":gid";
-      hastype = true;
+      in += "&mgm.vid.uid=";
+      in += mapSubCmd->getValue("vuid").c_str();
+      hasUidOrGid = true;
     }
-    if ((type == "gsi"))
+    if (mapSubCmd->hasValue("vgid"))
     {
-      in += "&mgm.vid.auth=gsi";
-      disableu += "gsi:\"<pwd>\":uid";
-      disableg += "gsi:\"<pwd>\":gid";
-      hastype = true;
+      in += "&mgm.vid.gid=";
+      in += mapSubCmd->getValue("vgid").c_str();
+      hasUidOrGid = true;
     }
-    if ((type == "https"))
+
+    if (!hasUidOrGid)
     {
-      in += "&mgm.vid.auth=https";
-      disableu += "https:\"<pwd>\":uid";
-      disableg += "https:\"<pwd>\":gid";
-      hastype = true;
+      fprintf(stdout, "Error: Please specify --vuid or --vgid\n");
+      mapSubCmd->printUsage();
     }
-    if ((type == "unix"))
+
+    in += "&mgm.vid.key=";
+    in += "<key>";
+
+    global_retc = output_result(client_admin_command(in));
+    goto bailout;
+  }
+  else if (parsedCmd == enableSubCmd || parsedCmd == disableSubCmd)
+  {
+    in = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=";
+    XrdOucString disableu = in + "unmap&mgm.vid.key=";
+    XrdOucString disableg = disableu;
+    in += "map";
+
+    const char *protocol = 0;
+    for (int i = 0; mapOptions[i]; i++)
     {
-      in += "&mgm.vid.auth=unix";
-      disableu += "unix:\"<pwd>\":uid";
-      disableg += "unix:\"<pwd>\":gid";
-      hastype = true;
+      protocol = mapOptions[i];
+      in += "&mgm.vid.auth=";
+      in += protocol;
+      disableu += protocol;
+      disableu += ":\"<pwd>\":uid";
+      disableg += protocol;
+      disableg += ":\"<pwd>\":gid";
     }
-    if ((type == "tident"))
-    {
-      in += "&mgm.vid.auth=tident";
-      disableu += "tident:\"<pwd>\":uid";
-      disableg += "tident:\"<pwd>\":gid";
-      hastype = true;
-    }
-    if (!hastype)
-      goto com_vid_usage;
 
     in += "&mgm.vid.pattern=<pwd>";
-    if (type != "unix")
+    if (strcmp(protocol, "unix") != 0)
     {
       in += "&mgm.vid.uid=0";
       in += "&mgm.vid.gid=0";
@@ -377,34 +335,33 @@ com_vid (char* arg1)
     in += "&mgm.vid.key=";
     in += "<key>";
 
-    if ((subcommand == "enable"))
+    if (parsedCmd == enableSubCmd)
       global_retc = output_result(client_admin_command(in));
-
-    if ((subcommand == "disable"))
+    else if (parsedCmd == disableSubCmd)
     {
       global_retc = output_result(client_admin_command(disableu));
       global_retc |= output_result(client_admin_command(disableg));
     }
-    return (0);
+    goto bailout;
   }
-
-  if ((subcommand == "add") || (subcommand == "remove"))
+  else if (parsedCmd == gatewaySubCmd)
   {
-    XrdOucString gw = subtokenizer.GetToken();
-    if (gw != "gateway")
-      goto com_vid_usage;
-    XrdOucString host = subtokenizer.GetToken();
-    if (!host.length())
-      goto com_vid_usage;
-    XrdOucString protocol = subtokenizer.GetToken();
-    if (protocol.length() && ((protocol != "sss") && (protocol != "gsi") && (protocol != "krb5") && (protocol != "unix") && (protocol != "https") ) )
-      goto com_vid_usage;
-    if (!protocol.length())
-      protocol = "*";
+    XrdOucString host = gatewaySubCmd->getValue("host").c_str();
+    XrdOucString protocol("*");
 
-    XrdOucString in = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=map";
-    XrdOucString disableu = "mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
-    XrdOucString disableg = "mgm.cmd=vid&mgm.subcmd=rm&mgm.vid.cmd=unmap&mgm.vid.key=";
+    for (int i = 0; mapOptions[i]; i++)
+    {
+      if (gatewaySubCmd->hasValue(mapOptions[i]))
+      {
+        protocol = mapOptions[i];
+        break;
+      }
+    }
+
+    XrdOucString in = "mgm.cmd=vid&mgm.subcmd=set&mgm.vid.cmd=";
+    XrdOucString disableu = in + "unmap&mgm.vid.key=";
+    in += "map";
+    XrdOucString disableg = disableu;
 
     in += "&mgm.vid.auth=tident";
     in += "&mgm.vid.pattern=\"";
@@ -428,83 +385,28 @@ com_vid (char* arg1)
     in += "&mgm.vid.key=";
     in += "<key>";
 
-    if ((subcommand == "add"))
+    if (gatewaySubCmd->hasValue("add"))
       global_retc = output_result(client_admin_command(in));
 
-    if ((subcommand == "remove"))
+    if (gatewaySubCmd->hasValue("remove"))
     {
       global_retc = output_result(client_admin_command(disableu));
       global_retc |= output_result(client_admin_command(disableg));
     }
-    return (0);
+    goto bailout;
   }
-
-  if (subcommand == "rm")
+  else if (parsedCmd == rmSubCmd)
   {
     XrdOucString in = "mgm.cmd=vid&mgm.subcmd=rm";
-    XrdOucString key = subtokenizer.GetToken();
-    if (key == "membership")
-    {
-      key = subtokenizer.GetToken();
-      key.insert("vid:", 0);
-      XrdOucString key1 = key;
-      XrdOucString key2 = key;
-      XrdOucString in1 = in;
-      XrdOucString in2 = in;
-      key1 += ":uids";
-      key2 += ":gids";
-      in1 += "&mgm.vid.key=";
-      in1 += key1;
-      in2 += "&mgm.vid.key=";
-      in2 += key2;
-
-      global_retc = output_result(client_admin_command(in1));
-      global_retc |= output_result(client_admin_command(in2));
-      return (0);
-    }
-
-    if ((!key.length()))
-      goto com_vid_usage;
-
-    if (key.beginswith("-h") || key.beginswith("--h"))
-      goto com_vid_usage;
-
     in += "&mgm.vid.key=";
-    in += key;
+    in += rmSubCmd->getValue("key").c_str();
 
     global_retc = output_result(client_admin_command(in));
-    return (0);
+    goto bailout;
   }
 
-com_vid_usage:
-  fprintf(stdout, "usage: vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a] [-l] [-n]                                          : list configured policies\n");
-  fprintf(stdout, "                                        -u : show only user role mappings\n");
-  fprintf(stdout, "                                        -g : show only group role mappings\n");
-  fprintf(stdout, "                                        -s : show list of sudoers\n");
-  fprintf(stdout, "                                        -U : show user  alias mapping\n");
-  fprintf(stdout, "                                        -G : show group alias mapping\n");
-  fprintf(stdout, "                                        -y : show configured gateways\n");
-  fprintf(stdout, "                                        -a : show authentication\n");
-  fprintf(stdout, "                                        -l : show geo location mapping\n");
-  fprintf(stdout, "                                        -n : show numerical ids instead of user/group names\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "       vid set membership <uid> -uids [<uid1>,<uid2>,...]\n");
-  fprintf(stdout, "       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n");
-  fprintf(stdout, "       vid rm membership <uid>             : delete the membership entries for <uid>.\n");
-  fprintf(stdout, "       vid set membership <uid> [+|-]sudo \n");
-  fprintf(stdout, "       vid set map -krb5|-gsi|-https|-sss|-unix|-tident|-voms <pattern> [vuid:<uid>] [vgid:<gid>] \n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "                                                                                                      -voms <pattern>  : <pattern> is <group>:<role> e.g. to map VOMS attribute /dteam/cern/Role=NULL/Capability=NULL one should define <pattern>=/dteam/cern: \n");
-  fprintf(stdout, "       vid set geotag <IP-prefix> <geotag>  : add to all IP's matching the prefix <prefix> the geo location tag <geotag>\n");
-  fprintf(stdout, "                                              N.B. specify the default assumption via 'vid set geotag default <default-tag>'\n");
-  fprintf(stdout, "       vid rm <key>                         : remove configured vid with name key - hint: use config dump to see the key names of vid rules\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "       vid enable|disable krb5|gsi|sss|unix|https\n");
-  fprintf(stdout, "                                            : enable/disables the default mapping via password database\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "       vid add|remove gateway <hostname> [krb5|gsi|sss|unix]\n");
-  fprintf(stdout, "                                            : adds/removes a host as a (fuse) gateway with 'su' priviledges\n");
-  fprintf(stdout, "                                              [<prot>] restricts the gateway role change to the specified authentication method\n");
+ bailout:
+  delete vidCmd;
 
   return (0);
 }
