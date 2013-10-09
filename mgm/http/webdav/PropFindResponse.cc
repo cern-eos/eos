@@ -156,7 +156,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
 
   SetResponseCode(HttpResponse::MULTI_STATUS);
   AddHeader("Content-Length", std::to_string((long long) responseString.size()));
-  AddHeader("Content-Type", "text/xml; charset=\"utf-8\"");
+  AddHeader("Content-Type", "application/xml; charset=utf-8");
   SetBody(responseString);
 
   return this;
