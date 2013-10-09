@@ -61,7 +61,7 @@ ProcCommand::Fsck ()
      XrdOucString option = "";
      XrdOucString mSelection = "";
      option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") : "";
-     mSelection = pOpaque->Get("mgm.fsck.mSelection") ? pOpaque->Get("mgm.fsck.mSelection") : "";
+     mSelection = pOpaque->Get("mgm.fsck.selection") ? pOpaque->Get("mgm.fsck.selection") : "";
      if (gOFS->FsCheck.Report(stdOut, stdErr, option, mSelection))
        retc = 0;
      else

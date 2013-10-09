@@ -138,7 +138,7 @@ com_fsck_usage:
   fprintf(stdout, "       fsck enable [<interval>]                                   :  enable fsck\n");
   fprintf(stdout, "                                                       <interval> :  check interval in minutes - default 30 minutes");
   fprintf(stdout, "       fsck disable                                               :  disable fsck\n");
-  fprintf(stdout, "       fsck report [-h] [-g] [-a] [-i] [-l] [--json] [--error <tag> ]:  report consistency check results");
+  fprintf(stdout, "       fsck report [-h] [-a] [-i] [-l] [--json] [--error <tag> ]  :  report consistency check results");
   fprintf(stdout, "                                                               -a :  break down statistics per filesystem\n");
   fprintf(stdout, "                                                               -i :  print concerned file ids\n");
   fprintf(stdout, "                                                               -l :  print concerned logical names\n");
