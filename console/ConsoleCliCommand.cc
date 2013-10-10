@@ -195,9 +195,9 @@ CliBaseOption::~CliBaseOption() {};
 
 CliOption::CliOption(std::string name, std::string desc, std::string keywords)
   : CliBaseOption(name, desc),
+    mKeywords(splitKeywords(keywords, ',')),
     mGroup(0)
 {
-  mKeywords = splitKeywords(keywords, ',');
 };
 
 CliOption::CliOption(const CliOption &option)
@@ -208,7 +208,6 @@ CliOption::CliOption(const CliOption &option)
 
   if (option.mKeywords)
   {
-    mKeywords = new std::vector<std::string>;
     std::vector<std::string>::const_iterator it;
 
     for (it = option.mKeywords->cbegin(); it != option.mKeywords->cend(); it++)
