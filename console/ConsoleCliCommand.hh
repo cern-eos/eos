@@ -243,6 +243,7 @@ public:
   void setDescription(const std::string &desc) { mDescription = desc; };
   void setParent(const ConsoleCliCommand *parent);
   const ConsoleCliCommand *parent() const { return mParentCommand; };
+  std::vector<ConsoleCliCommand *> *subcommands() const { return mSubcommands; };
 
 private:
   std::string mName;
