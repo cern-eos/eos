@@ -1597,3 +1597,50 @@ addHelpOptionRecursively(ConsoleCliCommand *command)
       addHelpOptionRecursively(*it);
   }
 }
+
+static void
+printHelpRecursively(ConsoleCliCommand *command)
+{
+  std::vector<ConsoleCliCommand *> *subcommands;
+
+  command->printUsage();
+
+  subcommands = command->subcommands();
+  if (subcommands)
+  {
+    std::vector<ConsoleCliCommand *>::iterator it;
+    for (it = subcommands->begin(); it != subcommands->end(); it++)
+    {
+      fprintf(stdout, "\n");
+      printHelpRecursively(*it);
+    }
+  }
+}
+
+/* Checks if the user asked for help or if there are errors to
+   be shown. This should be run for the command returned by the
+   ConsoleCliCommand::parse method.
+   Returns true if help or errors were shown, false otherwise. */
+bool
+checkHelpAndErrors(ConsoleCliCommand *command)
+{
+  if (command->hasValue("help"))
+  {
+    command->printUsage();
+    return true;
+  }
+  else if (command->hasValue("help-all"))
+  {
+    printHelpRecursively(command);
+
+    return true;
+  }
+  else if (command->hasErrors())
+  {
+    command->printErrors();
+    command->printUsage();
+    return true;
+  }
+
+  return false;
+}

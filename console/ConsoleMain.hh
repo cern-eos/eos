@@ -124,3 +124,4 @@ extern int done;
 XrdOucString cleanPath(const std::string &pathToHandle);
 
 void addHelpOptionRecursively(ConsoleCliCommand *command);
+bool checkHelpAndErrors(ConsoleCliCommand *command);
