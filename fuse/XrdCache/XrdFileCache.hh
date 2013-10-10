@@ -60,14 +60,14 @@ class XrdFileCache
     //! Add a write request
     //!
     //! @param file file layout type handler
-    //! @param inode file inode value
+    //! @param fd file descriptor
     //! @param buf data to be written
     //! @param off offset
     //! @param len length
     //!
     // -------------------------------------------------------------------------
     void SubmitWrite( eos::fst::Layout*& file,
-                      unsigned long      inode,
+                      int                fd,
                       void*              buf,
                       off_t              off,
                       size_t             len );
@@ -132,36 +132,36 @@ class XrdFileCache
     //! used (for the strong case the file has to have  no read or write blocks
     //! in cache and the number of references held to it has to be 0).
     //!
-    //! @param inode file inode
+    //! @param fd file descriptor
     //! @param strongConstraint enforce tighter constraints
     //!
     //! @return true if file obj was removed, otherwise false
     //!
     // -------------------------------------------------------------------------
-    bool RemoveFileInode( unsigned long inode, bool strongConstraint );
+    bool RemoveFileDescriptor( int fd, bool strongConstraint );
 
   
     // -------------------------------------------------------------------------
     //! Get handler to the errors queue
     //!
-    //! @param inode file inode
+    //! @param fd file descriptor
     //!
     //! @return error queue
     //!
     // -------------------------------------------------------------------------
-    eos::common::ConcurrentQueue<error_type>& GetErrorQueue( unsigned long inode );
+    eos::common::ConcurrentQueue<error_type>& GetErrorQueue(int fd);
 
   
     // -------------------------------------------------------------------------
     //! Get handler to the file abstraction object
     //!
-    //! @param inode file inode
+    //! @param fd file descriptor
     //! @param getNew if true then force creation of a new object
     //!
     //! @return FileAbstraction handler
     //!
     // -------------------------------------------------------------------------
-    FileAbstraction* GetFileObj( unsigned long inode, bool getNew );
+    FileAbstraction* GetFileObj( int fd, bool getNew );
 
 
   private:
@@ -199,8 +199,8 @@ class XrdFileCache
     //! File indices used and available to recycle
     eos::common::ConcurrentQueue<int>* mpUsedIndxQueue;
 
-    //! Map of inodes <-> FileAbst objects
-    std::map<unsigned long, FileAbstraction*> mInode2fAbst;
+    //! Map of file descriptors <-> FileAbst objects
+    std::map<unsigned long, FileAbstraction*> mFd2fAbst;
 
     CacheImpl* mpCacheImpl;   ///< handler to the low-level cache implementation
 };

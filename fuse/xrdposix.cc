@@ -1434,16 +1434,19 @@ xrd_stat (const char* path,
       {
         // try to stat via an open file
         unsigned long long ofd = xrd_get_open_fd(inode, uid);
+        eos_static_debug("inode=%lu, uid=%i, ofd=%lu", inode, uid, ofd);
 
         if (ofd > 0)
         {
-          eos_static_info("path=%s open fd=\n", path, ofd);
           long long size_new = xrd_size_fd(ofd);
           if (size_new >= 0)
             buf->st_size = size_new;
 
+          xrd_release_open_fd(inode, uid);
+          
           // no reference left, need to call close
-          if (xrd_release_open_fd(inode, uid))
+          /*           
+          if (xrd_release_open_fd(inode, uid) == 1)
           {
             // no reference left, call close
             xrd_close(ofd, inode);
@@ -1453,6 +1456,7 @@ xrd_stat (const char* path,
           else
           {
           }
+          */
         }
         else
         {
@@ -2417,7 +2421,7 @@ xrd_open (const char* path,
                                                      eos::common::LayoutId::kXrdCl);
 
 
-  retc = file->Open(spath.c_str(), flags_sfs, mode, "eos.app=fuse");
+  retc = file->Open(spath.c_str(), flags_sfs, mode, "eos.app=fuse&eos.bookingsize=0");
 
   if (retc)
   {

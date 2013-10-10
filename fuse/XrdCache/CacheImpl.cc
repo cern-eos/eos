@@ -575,7 +575,7 @@ CacheImpl::RemoveReadBlock ()
 
     if (!pEntry->GetParentFile()->IsInUse(true))
     {
-      mpMgmCache->RemoveFileInode(pEntry->GetParentFile()->GetInode(), true);
+      mpMgmCache->RemoveFileDescriptor(pEntry->GetParentFile()->GetFd(), true);
     }
 
     //..........................................................................

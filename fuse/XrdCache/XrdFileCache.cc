@@ -111,15 +111,15 @@ XrdFileCache::WriteThreadProc (void* arg)
 //------------------------------------------------------------------------------
 
 FileAbstraction*
-XrdFileCache::GetFileObj (unsigned long inode, bool getNew)
+XrdFileCache::GetFileObj (int fd, bool getNew)
 {
   int key = -1;
   FileAbstraction* fRet = NULL;
   mRwLock.ReadLock(); //read lock
   std::map<unsigned long, FileAbstraction*>::iterator iter =
-    mInode2fAbst.find(inode);
+    mFd2fAbst.find(fd);
 
-  if (iter != mInode2fAbst.end())
+  if (iter != mFd2fAbst.end())
   {
     fRet = iter->second;
     key = fRet->GetId();
@@ -136,14 +136,14 @@ XrdFileCache::GetFileObj (unsigned long inode, bool getNew)
         mpCacheImpl->RemoveReadBlock();
       }
 
-      fRet = new FileAbstraction(key, inode);
-      mInode2fAbst.insert(std::pair<unsigned long, FileAbstraction*>(inode, fRet));
+      fRet = new FileAbstraction(key, fd);
+      mFd2fAbst.insert(std::pair<unsigned long, FileAbstraction*>(fd, fRet));
     }
     else
     {
       key = mIndexFile;
-      fRet = new FileAbstraction(key, inode);
-      mInode2fAbst.insert(std::pair<unsigned long, FileAbstraction*>(inode, fRet));
+      fRet = new FileAbstraction(key, fd);
+      mFd2fAbst.insert(std::pair<unsigned long, FileAbstraction*>(fd, fRet));
       mIndexFile++;
     }
   }
@@ -158,7 +158,7 @@ XrdFileCache::GetFileObj (unsigned long inode, bool getNew)
   //............................................................................
   fRet->IncrementNoReferences();
   mRwLock.UnLock(); //unlock map
-  eos_static_debug("inode=%lu, key=%i", inode, key);
+  eos_static_debug("fd=%lu, key=%i", fd, key);
   return fRet;
 }
 
@@ -169,7 +169,7 @@ XrdFileCache::GetFileObj (unsigned long inode, bool getNew)
 
 void
 XrdFileCache::SubmitWrite (eos::fst::Layout*& file,
-                           unsigned long inode,
+                           int fd,
                            void* buf,
                            off_t off,
                            size_t len)
@@ -178,7 +178,7 @@ XrdFileCache::SubmitWrite (eos::fst::Layout*& file,
   long long int key;
   off_t written_offset = 0;
   char* pBuf = static_cast<char*> (buf);
-  FileAbstraction* pAbst = GetFileObj(inode, true);
+  FileAbstraction* pAbst = GetFileObj(fd, true);
 
   //............................................................................
   // While write bigger than block size, break in smaller blocks
@@ -311,16 +311,16 @@ XrdFileCache::PutRead (eos::fst::Layout*& file,
 //------------------------------------------------------------------------------
 
 bool
-XrdFileCache::RemoveFileInode (unsigned long inode, bool strongConstraint)
+XrdFileCache::RemoveFileDescriptor (int fd, bool strongConstraint)
 {
   bool do_deletion = false;
-  eos_static_debug("inode=%lu", inode);
+  eos_static_debug("fd=%i", fd);
   FileAbstraction* ptr = NULL;
   mRwLock.WriteLock(); //write lock map
   std::map<unsigned long, FileAbstraction*>::iterator iter =
-    mInode2fAbst.find(inode);
+    mFd2fAbst.find(fd);
 
-  if (iter != mInode2fAbst.end())
+  if (iter != mFd2fAbst.end())
   {
     ptr = static_cast<FileAbstraction*> ((*iter).second);
 
@@ -346,7 +346,7 @@ XrdFileCache::RemoveFileInode (unsigned long inode, bool strongConstraint)
       //........................................................................
       int id = ptr->GetId();
       delete ptr;
-      mInode2fAbst.erase(iter);
+      mFd2fAbst.erase(iter);
       mpUsedIndxQueue->push(id);
     }
   }
@@ -361,10 +361,10 @@ XrdFileCache::RemoveFileInode (unsigned long inode, bool strongConstraint)
 //------------------------------------------------------------------------------
 
 eos::common::ConcurrentQueue<error_type>&
-XrdFileCache::GetErrorQueue (unsigned long inode)
+XrdFileCache::GetErrorQueue (int fd)
 {
   eos::common::ConcurrentQueue<error_type>* tmp = NULL;
-  FileAbstraction* pAbst = GetFileObj(inode, false);
+  FileAbstraction* pAbst = GetFileObj(fd, false);
 
   if (pAbst)
   {
@@ -388,12 +388,6 @@ XrdFileCache::WaitFinishWrites (FileAbstraction& rFileAbst)
   {
     mpCacheImpl->FlushWrites(rFileAbst);
     rFileAbst.WaitFinishWrites();
-
-    /*
-    if ( !rFileAbst.IsInUse( false ) ) {
-      RemoveFileInode( rFileAbst.GetInode(), false );
-    }
-     */
   }
 }
 
@@ -415,7 +409,7 @@ XrdFileCache::WaitWritesAndRemove (FileAbstraction &fileAbst)
 
   if (!fileAbst.IsInUse(false))
   {
-    RemoveFileInode(fileAbst.GetInode(), false);
+    RemoveFileDescriptor(fileAbst.GetFd(), false);
   }
 }
 

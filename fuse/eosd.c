@@ -758,7 +758,9 @@ eosfs_ll_mknod (fuse_req_t req,
       return;
     }
 
+    // Drop also the fd to file mapping which was added int the xrd_open
     xrd_close (res, 0);
+    xrd_remove_fd2file(res);
 
     struct fuse_entry_param e;
     memset (&e, 0, sizeof ( e));
@@ -771,8 +773,10 @@ eosfs_ll_mknod (fuse_req_t req,
     int retc = xrd_stat (partialpath, 
                          &e.attr, 
                          req->ctx.uid,
-                         req->ctx.gid,0);
+                         req->ctx.gid, 0);
+
     e.ino = e.attr.st_ino;
+    fprintf (stderr, "[%s]: update inode=%lu\n", __FUNCTION__, (long long) e.ino);
 
     if (retc)
     {
@@ -1341,6 +1345,28 @@ eosfs_ll_release (fuse_req_t req,
       fprintf (stderr, "[%s]: inode=%lld fh=%lld\n",
                __FUNCTION__, (long long) ino, (long long) fd);
     }
+
+    if (xrd_release_open_fd (ino, info->uid) == 1)
+    {
+      fprintf (stderr, "[%s]: Do real close file fd=%i\n", __FUNCTION__, info->fd);
+      int res = xrd_close (info->fd, ino);
+      xrd_release_read_buffer (info->fd);
+      xrd_remove_fd2file (info->fd);
+
+      // Free memory
+      free (info);
+      fi->fh = 0;
+
+      if (res)
+      {
+        errno = -res;
+      }
+    }
+    else
+    {
+      //fprintf (stderr, "[%s]: Deffer closing file fd=%lld inode=%lld\n",
+      //         __FUNCTION__, (long long)fd, (long long) ino) ;
+    }
   }
 
   fuse_reply_err (req, 0);
@@ -1443,27 +1469,6 @@ eosfs_ll_flush (fuse_req_t req,
       {
         errno = EIO;
       }
-    }
-    if (xrd_release_open_fd (ino, info->uid) == 1)
-    {
-      fprintf (stderr, "[%s]: Do real close file fd=%i\n", __FUNCTION__, info->fd);
-      int res = xrd_close (info->fd, ino);
-      xrd_release_read_buffer (info->fd);
-      xrd_remove_fd2file (info->fd);
-
-      // Free memory
-      free (info);
-      fi->fh = 0;
-
-      if (res)
-      {
-        errno = -res;
-      }
-    }
-    else
-    {
-      //fprintf (stderr, "[%s]: Deffer closing file fd=%lld inode=%lld\n",
-      //         __FUNCTION__, (long long)fd, (long long) ino) ;
     }
   }
 

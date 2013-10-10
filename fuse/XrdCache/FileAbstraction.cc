@@ -32,10 +32,10 @@
 // Constructor
 //------------------------------------------------------------------------------
 
-FileAbstraction::FileAbstraction (int id, unsigned long ino) :
+FileAbstraction::FileAbstraction (int id, int fd) :
 mIdFile (id),
 mNoReferences (0),
-mInode (ino),
+mFd (fd),
 mSizeWrites (0),
 mSizeReads (0),
 mNoWrBlocks (0)
@@ -328,8 +328,8 @@ FileAbstraction::GetErrorQueue () const
 //------------------------------------------------------------------------------
 
 unsigned long
-FileAbstraction::GetInode () const
+FileAbstraction::GetFd () const
 {
-  return mInode;
+  return mFd;
 }
 

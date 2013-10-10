@@ -50,10 +50,10 @@ class FileAbstraction
     //! Constructor
     //!
     //! @param id file id
-    //! @param ino file inode
+    //! @param fd file descriptor
     //!
     // -------------------------------------------------------------------------
-    FileAbstraction( int id, unsigned long ino );
+    FileAbstraction( int id, int fd );
 
     // -------------------------------------------------------------------------
     //! Destructor
@@ -91,9 +91,9 @@ class FileAbstraction
     long long int GetNoWriteBlocks();
 
     // -------------------------------------------------------------------------
-    //! Get inode value
+    //! Get fd value
     // -------------------------------------------------------------------------
-    unsigned long GetInode() const;
+    unsigned long GetFd() const;
 
     // -------------------------------------------------------------------------
     //! Get last possible key value
@@ -183,7 +183,7 @@ class FileAbstraction
 
     int mIdFile;                  ///< internally assigned key
     int mNoReferences;            ///< number of held referencess to this file
-    unsigned long mInode;         ///< inode of current file
+    unsigned long mFd;         ///< file descriptor of current file
     size_t mSizeWrites;           ///< the size of write blocks in cache
     size_t mSizeReads;            ///< the size of read blocks in cache
     long long int mNoWrBlocks;    ///< no. of blocks in cache for this file
