@@ -896,6 +896,7 @@ client_user_command (XrdOucString &in)
     }
 
     client->Close();
+
     XrdMqMessage::UnSeal(out);
     TIMING("stop", &mytiming);
 
@@ -915,6 +916,9 @@ client_user_command (XrdOucString &in)
     errmsg = status.GetErrorMessage();
     fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo,errmsg.c_str());
   }
+
+  delete client;
+
   return 0;
 }
 
