@@ -21,6 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#ifndef CONSOLE_CLI_COMMAND_HH
+#define CONSOLE_CLI_COMMAND_HH
+
 #include <string>
 #include <vector>
 #include <utility>
@@ -265,3 +268,5 @@ private:
   void addError(const ParseError *);
   void clean();
 };
+
+#endif // CONSOLE_CLI_COMMAND_HH
