@@ -1181,7 +1181,9 @@ ConsoleCliCommand::printUsage() const
   std::string subcommRepr = subcommandsRepr();
   std::string kwRepr = keywordsRepr();
   std::string posOptionsRepr = positionalOptionsRepr();
-  std::string commandAndOptions = mName;
+  std::string commandAndOptions = "";
+  std::string fullCommandName = mName;
+  const ConsoleCliCommand *parent;
 
   if (subcommRepr != "")
     commandAndOptions += " " + subcommRepr;
@@ -1206,8 +1208,10 @@ ConsoleCliCommand::printUsage() const
   if (posOptionsRepr != "")
     commandAndOptions += " " + posOptionsRepr;
 
-  if (mParentCommand)
-    commandAndOptions = mParentCommand->name() + " " + commandAndOptions;
+  for (parent = mParentCommand; parent; parent = parent->parent())
+    fullCommandName = parent->name() + " " + fullCommandName;
+
+  commandAndOptions = fullCommandName + commandAndOptions;
 
   fprintf(stdout, "Usage: %s", commandAndOptions.c_str());
   if (mDescription != "") {
