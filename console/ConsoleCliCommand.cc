@@ -405,6 +405,31 @@ CliOptionWithArgs::CliOptionWithArgs(std::string name,
   : CliOptionWithArgs(name, desc, keywords, 1, repr, required)
 {}
 
+CliOptionWithArgs::CliOptionWithArgs(const CliOptionWithArgs &otherOption)
+  : CliOptionWithArgs(otherOption.mName, otherOption.mDescription,
+                      "", otherOption.mNumArgs, otherOption.mRepr,
+                      otherOption.mRequired)
+{
+  mHidden = otherOption.hidden();
+
+  if (otherOption.mKeywords)
+  {
+    std::vector<std::string>::const_iterator it;
+
+    for (it = otherOption.mKeywords->cbegin();
+         it != otherOption.mKeywords->cend(); it++)
+      mKeywords->push_back(*it);
+  }
+
+  if (otherOption.mEvalFunctions)
+  {
+    mEvalFunctions = new std::vector<evalFuncCb>(*otherOption.mEvalFunctions);
+
+    if (otherOption.mUserData)
+      mUserData = new std::vector<void *>(*otherOption.mUserData);
+  }
+}
+
 CliOptionWithArgs::~CliOptionWithArgs()
 {
   if (mEvalFunctions)
