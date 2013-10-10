@@ -1570,3 +1570,30 @@ cleanPath(const std::string &pathToHandle)
 
   return path;
 }
+
+/* Adds the -h|-help option to all commands and sub-commands
+   as well as --help-all which shows all sub-commands' usage
+*/
+void
+addHelpOptionRecursively(ConsoleCliCommand *command)
+{
+  std::vector<ConsoleCliCommand *> *subcommands;
+  CliOption helpOption("help", "print help", "-h,--help");
+  helpOption.setHidden(true);
+
+  command->addOption(helpOption);
+
+  subcommands = command->subcommands();
+  if (subcommands)
+  {
+    CliOption helpAllOption("help-all", "print help for all subcommands",
+                            "-H,--help-all");
+    helpAllOption.setHidden(true);
+
+    command->addOption(helpAllOption);
+
+    std::vector<ConsoleCliCommand *>::iterator it;
+    for (it = subcommands->begin(); it != subcommands->end(); it++)
+      addHelpOptionRecursively(*it);
+  }
+}
