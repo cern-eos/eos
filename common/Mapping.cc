@@ -1018,6 +1018,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity &vid)
     eos_static_debug("not found in uid cache");
 
     XrdOucString sname = name;
+    bool use_pw=true;
     if (sname.length() == 8)
     {
       // -------------------------------------------------------------------------
@@ -1053,9 +1054,10 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity &vid)
         gPhysicalUidCache.Add(name, id, 3600);
         eos_static_debug("adding to cache uid=%u gid=%u", id->uid, id->gid);
         gPhysicalGidCache.Add(name, vec, 3600);
+	use_pw = false;
       }
     }
-    else
+    if (use_pw)
     {
       struct passwd *pwbufp = 0;
 
