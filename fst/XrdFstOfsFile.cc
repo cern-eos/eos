@@ -173,7 +173,8 @@ XrdFstOfsFile::open (const char* path,
   gettimeofday(&openTime, &tz);
   XrdOucString stringOpaque = opaque;
   XrdOucString opaqueCheckSum = "";
-
+  std::string sec_protocol = client->prot;
+  
   while (stringOpaque.replace("?", "&"))
   {
   }
@@ -326,7 +327,9 @@ XrdFstOfsFile::open (const char* path,
       {
         return gOFS.Emsg(epname, error, EPERM, "open - tpc key expired", path);
       }
-      if (gOFS.TpcMap[isRW][tpc_key].org != tpc_org)
+      
+      // we trust 'sss' anyway and we miss the host name in the 'sss' entity
+      if ((sec_protocol != "sss") && (gOFS.TpcMap[isRW][tpc_key].org != tpc_org))
       {
         return gOFS.Emsg(epname, error, EPERM, "open - tpc origin mismatch", path);
       }
@@ -834,6 +837,7 @@ XrdFstOfsFile::open (const char* path,
   //............................................................................
   // Open layout implementation
   //............................................................................
+
   int rc = layOut->Open(fstPath.c_str(), open_mode, create_mode, oss_opaque.c_str());
 
   if ((!rc) && isCreation && bookingsize)
