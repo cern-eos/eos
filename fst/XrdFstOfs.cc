@@ -406,7 +406,7 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
           }
           else
           {
-            gFmdDbMapHandler.SetLevelDbCacheMb(bloomlen);
+            gFmdDbMapHandler.SetLevelDbBloomLength(bloomlen);
           }
         }
 

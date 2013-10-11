@@ -276,12 +276,14 @@ public:
   void
   SetLevelDbCacheMb ( const unsigned &sizemb )
   {
+    eos_info("setting up LevelDb cache size %u MB",sizemb);
     lvdboption.CacheSizeMb = sizemb;
   }
 
   void
-  SetLevelBloomLength ( const unsigned &bloomlength )
+  SetLevelDbBloomLength ( const unsigned &bloomlength )
   {
+    eos_info("setting up LevelDb bloom filter length %u bit",bloomlength);
     lvdboption.BloomFilterNbits = bloomlength;
   }
 #endif
