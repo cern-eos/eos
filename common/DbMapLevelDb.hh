@@ -61,6 +61,60 @@ protected:
   static bool pDebugMode;
   static unsigned pNInstances;
   leveldb::Options pOptions;
+
+  static RWMutex pDbMgmtMutex;
+  static std::map<std::string , std::pair< std::pair<leveldb::DB*,leveldb::Options* > , int> > pName2CountedDb;
+  static std::map<leveldb::DB* , std::pair<std::string,int> > pDb2CountedName;
+
+  static leveldb::Status dbOpen( const leveldb::Options &options, const std::string &dbname, leveldb::DB** db , const size_t cacheSizeMb=0  , const size_t bloomFilterNbits=0)
+  {
+    RWMutexWriteLock lock(pDbMgmtMutex);
+
+    if(!pName2CountedDb.count(dbname)) // this db is not opened yet, open it
+    {
+      leveldb::Status status = leveldb::DB::Open(options, dbname, db);
+      if(!status.ok()) return status;
+      leveldb::Options *op = new leveldb::Options(options);
+      if(cacheSizeMb) op->block_cache = leveldb::NewLRUCache(cacheSizeMb * 1048576);
+      if(bloomFilterNbits) op->filter_policy = leveldb::NewBloomFilterPolicy(bloomFilterNbits);
+      //eos_static_debug("LevelDB OPEN : %s\n",dbname.c_str()); // fflush(stdout);
+      pName2CountedDb[dbname] = std::make_pair( std::make_pair(*db, op ) , 1 );
+      pDb2CountedName[*db] = std::make_pair( dbname , 1);
+      return status;
+    }
+    else // this db is already opened , just increment the reference counters
+    {
+      pName2CountedDb[dbname].second++;
+      pDb2CountedName[*db].second++;
+      //eos_static_debug("LevelDB REF : %s -> %d\n",dbname.c_str(),pDb2CountedName[*db].second); //fflush(stdout);
+      return leveldb::Status();
+    }
+  }
+
+  static void dbClose( leveldb::DB* db) {
+    RWMutexWriteLock lock(pDbMgmtMutex);
+
+    if(pDb2CountedName.count(db))
+    { // if the db is open, close (destroy) it and update references
+      std::string dbname = pDb2CountedName[db].first;
+
+      fflush(stdout);
+      pName2CountedDb[dbname].second--;
+      pDb2CountedName[db].second--;
+      //eos_static_debug("LevelDB REF : %s -> %d\n",pDb2CountedName[db].first.c_str(),pDb2CountedName[db].second); //fflush(stdout);
+      if( (! pDb2CountedName[db].second )  && ( ! pName2CountedDb[ pDb2CountedName[db].first ].second ) ) {
+        delete db;
+        leveldb::Options *op = pName2CountedDb[ pDb2CountedName[db].first ].first.second;
+        if(op->block_cache) delete op->block_cache;
+        if(op->filter_policy) delete op->filter_policy;
+        delete op;
+        pName2CountedDb.erase(dbname);
+        pDb2CountedName.erase(db);
+        //eos_static_debug("LevelDB CLOSE : %s\n",dbname.c_str()); // fflush(stdout);
+      }
+    }
+  }
+
 public :
   static void setDebugMode(bool on)
   { pDebugMode=on;}

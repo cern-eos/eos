@@ -61,9 +61,6 @@ FmdDbMapHandler gFmdDbMapHandler; //< static
 bool
 FmdDbMapHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString option)
 {
-  eos_debug("");
-  bool retval=true;
-
   bool isattached = false;
   {
     // we first check if we have already this DB open - in this case we first do a shutdown
@@ -84,9 +81,9 @@ FmdDbMapHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString opt
     dbmap[fsid]=new eos::common::DbMap();
 
 
-  //! -when we successfully attach to an SQLITE3 DB we set the mode to S_IRUSR
-  //! -when we shutdown the daemon clean we set the mode back to S_IRWXU
-  //! -when we attach and the mode is S_IRUSR we know that the DB has not been shutdown properly and we set a 'dirty' flag to force a full resynchronization
+  //! -when we successfully attach to a DB we set the mode to S_IRWXU & ~S_IRGRP
+  //! -when we shutdown the daemon clean we set the mode back to S_IRWXU | S_IRGRP
+  //! -when we attach and the mode is S_IRWXU & ~S_IRGRP we know that the DB has not been shutdown properly and we set a 'dirty' flag to force a full resynchronization
 
   char fsDBFileName[1024];
   sprintf(fsDBFileName, "%s.%04d.%s", dbfileprefix, fsid, eos::common::DbMap::getDbType().c_str());
@@ -98,16 +95,16 @@ FmdDbMapHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString opt
   // check the mode of the DB
   struct stat buf;
   int src = 0;
-  if ((src = stat(fsDBFileName, &buf)) || ((buf.st_mode & S_IRWXU) != S_IRWXU))
+  if ((src = stat(fsDBFileName, &buf)) || ((buf.st_mode & S_IRGRP) != S_IRGRP))
   {
     isDirty[fsid] = true;
     stayDirty[fsid] = true;
     eos_warning("setting %s file dirty - unclean shutdown detected", eos::common::DbMap::getDbType().c_str());
     if (!src)
     {
-      if (chmod(DBfilename[fsid].c_str(), S_IRWXU))
+      if (chmod(DBfilename[fsid].c_str(), S_IRWXU | S_IRGRP))
       {
-        eos_crit("failed to switch the %s database file mode to S_IRWXU errno=%d", eos::common::DbMap::getDbType().c_str(), errno);
+        eos_crit("failed to switch the %s database file mode to S_IRWXU | S_IRGRP errno=%d", eos::common::DbMap::getDbType().c_str(), errno);
       }
     }
   }
@@ -124,20 +121,20 @@ FmdDbMapHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString opt
 
   if(!dbmap[fsid]->attachDb(fsDBFileName,true,0,dbopt)) {
     eos_err("failed to attach %s database file %s", eos::common::DbMap::getDbType().c_str(), fsDBFileName);
-    retval=false;
+    return false;
   }
   else {
     dbmap[fsid]->outOfCore(true);
   }
 
-  // set the mode to S_IRUSR
-  if (chmod(fsDBFileName, S_IRUSR))
+  // set the mode to S_IRWXU & ~S_IRGRP
+  if (chmod(fsDBFileName, S_IRWXU & ~S_IRGRP))
   {
-    eos_crit("failed to switch the %s database file mode to S_IRUSR errno=%d", eos::common::DbMap::getDbType().c_str(), errno);
-    retval=false;
+    eos_crit("failed to switch the %s database file mode to S_IRWXU & ~S_IRGRP errno=%d", eos::common::DbMap::getDbType().c_str(), errno);
+    return false;
   }
 
-  return retval;
+  return true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -160,14 +157,15 @@ FmdDbMapHandler::ShutdownDB (eos::common::FileSystem::fsid_t fsid)
     if (!stayDirty[fsid])
     {
       // if there was a complete boot procedure done, we remove the dirty flag
-      // set the mode back to S_IRWXU
-      if (chmod(DBfilename[fsid].c_str(), S_IRWXU))
+      // set the mode back to S_IRWXU | S_IRGRP
+      if (chmod(DBfilename[fsid].c_str(), S_IRWXU | S_IRGRP))
       {
-        eos_crit("failed to switch the %s database file to S_IRWXU errno=%d", eos::common::DbMap::getDbType().c_str(), errno);
+        eos_crit("failed to switch the %s database file to S_IRWXU | S_IRGRP errno=%d", eos::common::DbMap::getDbType().c_str(), errno);
       }
     }
     if (dbmap[fsid]->detachDb())
     {
+      delete dbmap[fsid];
       return true;
     }
   }
@@ -580,10 +578,11 @@ FmdDbMapHandler::UpdateFromMgm (eos::common::FileSystem::fsid_t fsid, eos::commo
     valfmd.set_locations(locations);
 
     // truncate the checksum to the right string length
+    unsigned long cslen = eos::common::LayoutId::GetChecksumLen(lid)*2;
     valfmd.set_mgmchecksum(
-        std::string(valfmd.mgmchecksum()).erase(eos::common::LayoutId::GetChecksumLen(lid)*2) );
+        std::string(valfmd.mgmchecksum()).erase( std::min( valfmd.mgmchecksum().length(), cslen )) );
     valfmd.set_checksum(
-        std::string(valfmd.checksum()).erase(eos::common::LayoutId::GetChecksumLen(lid)*2) );
+        std::string(valfmd.checksum()).erase( std::min( valfmd.checksum().length(), cslen )) );
     return PutFmd(fid,fsid,valfmd);
   }
   else
@@ -762,7 +761,7 @@ FmdDbMapHandler::ResyncDisk (const char* path,
           }
         }
 
-        // now updaAte the SQLITE DB
+        // now updaAte the DB
         if (!UpdateFromDisk(fsid, fid, disksize, diskchecksum, checktime, (filecxError == "1") ? 1 : 0, (blockcxError == "1") ? 1 : 0, flaglayouterror))
         {
           eos_err("failed to update %s DB for fsid=%lu fid=%08llx", eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid, fid);
@@ -783,7 +782,7 @@ FmdDbMapHandler::ResyncDisk (const char* path,
 
 /*----------------------------------------------------------------------------*/
 /** 
- * Resync files under path into SQLITE DB
+ * Resync files under path into DB
  * 
  * @param path path to scan
  * @param fsid file system id
@@ -984,7 +983,7 @@ FmdDbMapHandler::ResyncMgm (eos::common::FileSystem::fsid_t fsid,
 
 /*----------------------------------------------------------------------------*/
 /** 
- * Resync all meta data from MGM into SQLITE DB
+ * Resync all meta data from MGM into DB
  * 
  * @param fsid filesystem id
  * 
@@ -1129,7 +1128,7 @@ FmdDbMapHandler::GetInconsistencyStatistics (eos::common::FileSystem::fsid_t fsi
     return false;
 
   // query in-memory
-  statistics["mem_n"] = 0; // number of files in SQLITE DB 
+  statistics["mem_n"] = 0; // number of files in DB
 
   statistics["d_sync_n"] = 0; // number of synced files from disk
   statistics["m_sync_n"] = 0; // number of synced files from MGM server
@@ -1292,7 +1291,7 @@ FmdDbMapHandler::TrimDB()
 
     if (!it->second->trimDb())
     {
-      eos_static_err("Cannot trim the SQLITE DB file for fsid=%llu ", it->first);
+      eos_static_err("Cannot trim the DB file for fsid=%llu ", it->first);
       return false;
     }
     else
@@ -1305,7 +1304,7 @@ FmdDbMapHandler::TrimDB()
 
 /*----------------------------------------------------------------------------*/
 /** 
- * Trim the SQLITE DB for a given filesystem id
+ * Trim the DB for a given filesystem id
  * 
  * @param fsid file system id
  * @param option - not used

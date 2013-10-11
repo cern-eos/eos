@@ -293,7 +293,6 @@ SqliteDbMapInterface::getEntry(const Slice &key, Tval *val)
 #define sqlitecheck  TestSqliteError("Compiled Statement",&pRc,&pErrStr,this);
   if(!pAttachedDbName.empty())
   {
-    //rc = sqlite3_bind_text(get_stmt, 1, key.data(), key.size(), NULL);
     pRc = sqlite3_bind_blob(pGetStmt, 1, key.data(), key.size(), NULL);
     sqlitecheck;
 
@@ -303,7 +302,6 @@ SqliteDbMapInterface::getEntry(const Slice &key, Tval *val)
     bool ret=false;
     if(pRc == SQLITE_ROW)
     {
-      //val.value = (char*)sqlite3_column_text(get_stmt, 1);
       val->value = std::string((char*)sqlite3_column_blob(pGetStmt, 1),(size_t)sqlite3_column_bytes(pGetStmt,1));
       val->comment = (char*)sqlite3_column_text(pGetStmt, 2);
       val->timestampstr = (char*)sqlite3_column_text(pGetStmt, 3);
@@ -358,7 +356,6 @@ SqliteDbMapInterface::setEntry (const Slice &key, const TvalSlice &val)
       sqlitecheck;
       pRc = sqlite3_bind_text(pExportStmts[i], 3, writer.c_str(), -1, NULL);
       sqlitecheck;
-      //rc = sqlite3_bind_text(export_stmts[i], 4, key.data(), key.size(), NULL);
       pRc = sqlite3_bind_blob(pExportStmts[i], 4, key.data(), key.size(), NULL);
       sqlitecheck;
       pRc = sqlite3_bind_blob(pExportStmts[i], 5, val.value.data(), val.value.size(), NULL);
@@ -384,7 +381,6 @@ SqliteDbMapInterface::removeEntry (const Slice &key, const TvalSlice &val)
   setEntry(key,val); // update the logdb
   if(!pAttachedDbName.empty())
   {
-    //rc = sqlite3_bind_text(remove_stmt, 1, key.data(), key.size(), NULL);
     pRc = sqlite3_bind_blob(pRemoveStmt, 1, key.data(), key.size(), NULL);
     sqlitecheck;
     pRc = sqlite3_step(pRemoveStmt);// update the db
@@ -417,8 +413,6 @@ size_t SqliteDbMapInterface::size() const
   size_t retval=0;
   if(!pAttachedDbName.empty())
   {
-    //rc = sqlite3_bind_blob(set_stmt, 2, val.value.data(), val.value.size(), NULL);
-    //sqlitecheck;
     pRc = sqlite3_step(pSizeStmt);
     sqlitecheck;
     if(pRc == SQLITE_ROW)
@@ -505,7 +499,6 @@ SqliteDbMapInterface::attachDb(const std::string &dbname, bool repair, int creat
       system(sqlite3cmd.c_str());
     }
     execNoCallback(pStmt);
-    //sprintf(stmt, "CREATE TABLE IF NOT EXISTS DbMap%p.dbmap (key TEXT, value BLOB,comment TEXT, timestampstr TEXT, seqid INTEGER, writer TEXT, PRIMARY KEY(key) );", this);
     sprintf(pStmt, "CREATE TABLE IF NOT EXISTS DbMap%p.dbmap (key BLOB, value BLOB,comment TEXT, timestampstr TEXT, seqid INTEGER, writer TEXT, PRIMARY KEY(key) );", this);
     execNoCallback(pStmt,100000);
     bool rc= prepareStatements()==SQLITE_OK;
@@ -724,18 +717,47 @@ SqliteDbLogInterface::archiveThread (void *dummy)
     eos::common::Timing::GetTimeSpec(now);
 
     // process and erase the entry of the queue of which are outdated
+    long int nextinthefuture=-1;
     if (gArchQueue.size() != 0)
-    for (tTimeToPeriodedFile::iterator it = gArchQueue.begin(); it != gArchQueue.end(); it = gArchQueue.begin())
     {
-      if (now < it->first) break;
-      archive(it);
-      updateArchiveSchedule(it);
+      for (tTimeToPeriodedFile::iterator it = gArchQueue.begin(); it != gArchQueue.end(); )
+      {
+        if (now < it->first)
+        {
+          nextinthefuture = it->first.tv_sec;
+          break;
+        }
+        if(!archive(it))
+        updateArchiveSchedule(it++); // if the archiving was successful, plan the next one for the same log
+        // if it was not successful leave this archiving task in the queue
+        else
+        {
+          eos_static_warning("Error trying to archive %s, will retry soon",it->second.first.c_str());
+          it++;
+        }
+      }
     }
     // sleep untill the next archving has to happen or untill a new archive is added to the queue
-    now.tv_sec += 3600;// add 1 hour in case the queue is empty
-    int waketime = (int) (gArchQueue.empty() ? &now : &gArchQueue.begin()->first)->tv_sec;
+    const long int failedArchivingRetryDelay = 300;// retry the failed archiving operations in 5 minutes
+    int waketime;
+    if(gArchQueue.empty())
+    waketime = now.tv_sec + 3600;
+    else
+    {
+      if(now < gArchQueue.begin()->first)
+      {
+        waketime = gArchQueue.begin()->first.tv_sec; // the first task in the queue is in the future
+      }
+      else
+      {
+        if( nextinthefuture >0 ) // there is a task in the future and some failed tasks to run again
+        waketime = std::min( now.tv_sec+failedArchivingRetryDelay , nextinthefuture );
+        else// there are only failed tasks to run again
+        waketime = now.tv_sec+failedArchivingRetryDelay;
+      }
+    }
     int timedout = gArchMutex.Wait(waketime - time(0));
-    if (timedout) sleep(5);// a timeout to let the db requests started just before the deadline complete, possible cancellation point
+    if (timedout) sleep(5); // a timeout to let the db requests started just before the deadline complete, possible cancellation point
   }
   pthread_cleanup_pop(0);
   return NULL;
@@ -789,8 +811,7 @@ SqliteDbLogInterface::archive (const tTimeToPeriodedFile::iterator &entry)
   gTransactionMutex.LockWrite();
 
   sprintf(stmt, "ATTACH \'%s\' AS archive;", archivename);
-  execNoCallback2(stmt);
-  //sprintf(stmt, "CREATE TABLE IF NOT EXISTS archive.ondisk (timestampstr TEXT, seqid INTEGER, writer TEXT, key TEXT, value BLOB,comment TEXT, PRIMARY KEY(timestampstr) );");
+  if(sqlite3_exec(gDb, stmt, NULL, NULL, NULL)!=SQLITE_OK) return 1;
   sprintf(stmt, "CREATE TABLE IF NOT EXISTS archive.ondisk (timestampstr TEXT, seqid INTEGER, writer TEXT, key BLOB, value BLOB,comment TEXT, PRIMARY KEY(timestampstr) );");
   execNoCallback2(stmt);
   TimeToStr(tt=mktime(&t2),dbuf1);
@@ -1016,7 +1037,6 @@ SqliteDbLogInterface::setDbFile (const string &dbname, int volumeduration, int c
       gTransactionMutex.LockWrite();
       sprintf(stmt, "ATTACH \'%s\' AS %s;", dbname.c_str(), pSqName.c_str());// attached dbs for the logs are
       execNoCallback(stmt);
-      //sprintf(stmt, "CREATE TABLE IF NOT EXISTS %s.ondisk (timestampstr TEXT, seqid INTEGER, writer TEXT, key TEXT, value BLOB,comment TEXT, PRIMARY KEY(timestampstr) );", sqname.c_str());
       sprintf(stmt, "CREATE TABLE IF NOT EXISTS %s.ondisk (timestampstr TEXT, seqid INTEGER, writer TEXT, key BLOB, value BLOB,comment TEXT, PRIMARY KEY(timestampstr) );", pSqName.c_str());
       execNoCallback(stmt);
       if(halttransaction) execNoCallback("BEGIN TRANSACTION;");

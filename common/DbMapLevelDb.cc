@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/DbMapLevelDb.hh"
 /*----------------------------------------------------------------------------*/
+#ifndef EOS_SQLITE_DBMAP
 /*----------------------------------------------------------------------------*/
 #include <sys/stat.h>
 /*----------------------------------------------------------------------------*/
@@ -35,6 +36,10 @@ LvDbInterfaceBase::Option LvDbInterfaceBase::gDefaultOption =
 unsigned LvDbInterfaceBase::pNInstances = 0;
 bool LvDbInterfaceBase::pDebugMode = false;
 bool LvDbInterfaceBase::pAbortOnLvDbError = true;
+RWMutex LvDbInterfaceBase::pDbMgmtMutex;
+std::map<std::string , std::pair< std::pair<leveldb::DB*,leveldb::Options* > , int> > LvDbInterfaceBase::pName2CountedDb;
+std::map<leveldb::DB* , std::pair<std::string,int> > LvDbInterfaceBase::pDb2CountedName;
+
 pthread_t LvDbDbLogInterface::gArchThread;
 bool LvDbDbLogInterface::gArchThreadStarted = false;
 XrdSysMutex LvDbDbLogInterface::gUniqMutex;
@@ -99,18 +104,47 @@ LvDbDbLogInterface::archiveThread (void *dummy)
     eos::common::Timing::GetTimeSpec(now);
 
     // process and erase the entry of the queue of which are outdated
+    long int nextinthefuture=-1;
     if (gArchQueue.size() != 0)
-    for (tTimeToPeriodedFile::iterator it = gArchQueue.begin(); it != gArchQueue.end(); it = gArchQueue.begin())
     {
-      if (now < it->first) break;
-      archive(it);
-      updateArchiveSchedule(it);
+      for (tTimeToPeriodedFile::iterator it = gArchQueue.begin(); it != gArchQueue.end(); )
+      {
+        if (now < it->first)
+        {
+          nextinthefuture = it->first.tv_sec;
+          break;
+        }
+        if(!archive(it))
+        updateArchiveSchedule(it++); // if the archiving was successful, plan the next one for the same log
+        // if it was not successful leave this archiving task in the queue
+        else
+        {
+          eos_static_warning("Error trying to archive %s, will retry soon",it->second.first.c_str());
+          it++;
+        }
+      }
     }
     // sleep untill the next archving has to happen or untill a new archive is added to the queue
-    now.tv_sec += 3600;// add 1 hour in case the queue is empty
-    int waketime = (int) (gArchQueue.empty() ? &now : &gArchQueue.begin()->first)->tv_sec;
+    const long int failedArchivingRetryDelay = 300;// retry the failed archiving operations in 5 minutes
+    int waketime;
+    if(gArchQueue.empty())
+    waketime = now.tv_sec + 3600;
+    else
+    {
+      if(now < gArchQueue.begin()->first)
+      {
+        waketime = gArchQueue.begin()->first.tv_sec; // the first task in the queue is in the future
+      }
+      else
+      {
+        if( nextinthefuture >0 ) // there is a task in the future and some failed tasks to run again
+        waketime = std::min( now.tv_sec+failedArchivingRetryDelay , nextinthefuture );
+        else// there are only failed tasks to run again
+        waketime = now.tv_sec+failedArchivingRetryDelay;
+      }
+    }
     int timedout = gArchmutex.Wait(waketime - time(0));
-    if (timedout) sleep(5);// a timeout to let the db requests started just before the deadline complete, possible cancellation point
+    if (timedout) sleep(5); // a timeout to let the db requests started just before the deadline complete, possible cancellation point
   }
   pthread_cleanup_pop(0);
   return NULL;
@@ -165,10 +199,10 @@ LvDbDbLogInterface::archive (const tTimeToPeriodedFile::iterator &entry)
   leveldb::DB *archivedb = NULL;
   leveldb::Options options;
   options.create_if_missing = true;
-  leveldb::Status status = leveldb::DB::Open(options, archivename, &archivedb);
+  leveldb::Status status = dbOpen(options, archivename, &archivedb);
 
   if (pDebugMode) printf("LEVELDB>> opening db %s --> %p\n", archivename, archivedb);
-  TestLvDbError(status, NULL);
+  if(!status.ok()) return 1;
   leveldb::WriteBatch batchcp;
   leveldb::WriteBatch batchrm;
   leveldb::Iterator *it = db->NewIterator(leveldb::ReadOptions());
@@ -201,7 +235,7 @@ LvDbDbLogInterface::archive (const tTimeToPeriodedFile::iterator &entry)
 
   delete it;
   if (pDebugMode) printf("LEVELDB>> closing db --> %p\n", archivedb);
-  delete archivedb;
+  dbClose(archivedb);
   delete[] archivename;
 
   return 0;
@@ -339,7 +373,7 @@ LvDbDbLogInterface::setDbFile (const string &dbname, int volumeduration, int cre
     { // we do the check only if the file to attach is not yet attached
       options.create_if_missing = true;
       options.error_if_exists = false;
-      leveldb::Status status = leveldb::DB::Open(options, dbname.c_str(), &testdb);
+      leveldb::Status status = dbOpen(options, dbname.c_str(), &testdb);
       if (!status.ok())
       {
         gArchmutex.UnLock();
@@ -364,8 +398,7 @@ LvDbDbLogInterface::setDbFile (const string &dbname, int volumeduration, int cre
         }
       }
       if (pDebugMode) printf("LEVELDB>> closing db --> %p\n", csqn.first.first);
-      delete csqn.first.first; // close the DB
-      //delete csqn.first.second; // delete the filter
+      dbClose(csqn.first.first);
       gFile2Db.erase(this->pDbName);
       this->pDb = NULL;
       this->pDbName = "";
@@ -647,7 +680,6 @@ LvDbDbMapInterface::getEntry(const Slice &key, Tval *val)
   leveldb::Status s;
   if(!pAttachedDbname.empty())
   s=AttachedDb->Get(leveldb::ReadOptions(),key,&sval);
-  //s=attacheddb->Get(leveldb::ReadOptions(),leveldb::Slice(key.data(),key.size()),&sval);
   else return false;
   if(s.IsNotFound()) return false;
 
@@ -808,24 +840,17 @@ bool LvDbDbMapInterface::attachDb(const std::string &dbname, bool repair, int cr
     mkdir(dbname.c_str(), createperm ? createperm | 0111 : 0644 | 0111);
     pOptions.create_if_missing = true;
     pOptions.error_if_exists = false;
-    if(opt->CacheSizeMb) pOptions.block_cache = leveldb::NewLRUCache(opt->CacheSizeMb * 1048576);
-    if(opt->BloomFilterNbits) pOptions.filter_policy = leveldb::NewBloomFilterPolicy(opt->BloomFilterNbits);
-    leveldb::Status status = leveldb::DB::Open(pOptions, dbname.c_str(), &AttachedDb);
+    leveldb::Status status = dbOpen(pOptions, dbname, &AttachedDb,opt->CacheSizeMb,opt->BloomFilterNbits);
     if(repair && !status.ok())
     {
       leveldb::RepairDB(dbname.c_str(),leveldb::Options());
-      status = leveldb::DB::Open(pOptions, dbname.c_str(), &AttachedDb);
+      status = dbOpen(pOptions, dbname, &AttachedDb,opt->CacheSizeMb,opt->BloomFilterNbits);
     }
     TestLvDbError(status, this);
     if(status.ok())
     {
       pAttachedDbname=dbname;
       rebuildSize();
-    }
-    else
-    {
-      if(pOptions.block_cache) delete pOptions.block_cache;
-      if(pOptions.filter_policy) delete pOptions.filter_policy;
     }
     return status.ok();
   }
@@ -896,12 +921,7 @@ bool LvDbDbMapInterface::detachDb()
   {
     endTransaction();
     pAttachedDbname.clear();
-    delete AttachedDb;
-    if(pOptions.block_cache)
-    {
-      delete pOptions.block_cache;
-    }
-    if(pOptions.filter_policy) delete pOptions.filter_policy;
+    dbClose(AttachedDb);
     return true;
   }
   return false;
@@ -997,7 +1017,7 @@ LvDbDbMapInterface::detachDbLog (const string &dbname)
 {
   if (pAttachedDbs.find(dbname) != pAttachedDbs.end())
   {
-    delete pAttachedDbs[dbname].first; // the ownership should be true
+    dbClose((leveldb::DB*)pAttachedDbs[dbname].first);// the ownership should be true
     pAttachedDbs.erase(dbname);
     return true;
   }
@@ -1005,3 +1025,5 @@ LvDbDbMapInterface::detachDbLog (const string &dbname)
 }
 
 EOSCOMMONNAMESPACE_END
+
+#endif

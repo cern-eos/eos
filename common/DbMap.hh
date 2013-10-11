@@ -973,6 +973,7 @@ public:
           endIter();
           return false;
         }
+        pDbIt=pDbItList.begin();
       }
       // dbit actually points to something
       Tkeyval entry;

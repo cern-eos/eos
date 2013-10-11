@@ -258,8 +258,7 @@ public:
     std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*>::const_iterator it;
     for (it = dbmap.begin(); it != dbmap.end(); it++)
     {
-      //it->second->DetachDb();
-      delete it->second;
+      ShutdownDB(it->first);
     }
 
     {

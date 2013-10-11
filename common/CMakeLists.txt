@@ -30,6 +30,8 @@ include_directories(
 		     ${Z_INCLUDE_DIR}
 )
 
+set_source_generating_rules()
+
 if(LEVELDB_FOUND)
 include_directories(
                      ${LEVELDB_INCLUDE_DIR}

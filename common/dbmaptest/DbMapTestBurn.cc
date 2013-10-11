@@ -47,7 +47,7 @@ const char* dbfile = "/tmp/testlog.log";
 int total, transacSize;
 bool outofcore = true;
 bool useseqid = true;
-bool uselog = false;
+bool uselog = true;
 bool prefilltest = true;
 bool overwrite;
 DbMap *globmap;
