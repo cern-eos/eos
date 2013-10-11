@@ -2485,6 +2485,12 @@ xrd_flush (int fd, unsigned long inode)
   int errc = 0;
   eos_static_info("fd=%d ", fd);
 
+  if (!fd)
+  {
+    errno = EINVAL;
+    return -1;
+  }
+  
   if (XFC && inode)
   {
     FileAbstraction* fAbst = XFC->GetFileObj(fd, false);

@@ -223,8 +223,8 @@ eosfs_ll_setattr (fuse_req_t req,
       }
 
       if ((fd = xrd_open (fullpath, O_WRONLY,
-                          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, 
-                          req->ctx.uid, 
+                          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
+                          req->ctx.uid,
                           req->ctx.gid,
                           req->ctx.pid)) > 0)
       {
@@ -248,8 +248,8 @@ eosfs_ll_setattr (fuse_req_t req,
       fprintf (stderr, "[%s]: set attr time ino=%lld atime=%ld mtime=%ld\n",
                __FUNCTION__, (long long) ino, (long) attr->st_atime, (long) attr->st_mtime);
     }
-    retc = xrd_utimes (fullpath, tvp, 
-                       req->ctx.uid, 
+    retc = xrd_utimes (fullpath, tvp,
+                       req->ctx.uid,
                        req->ctx.gid,
                        req->ctx.pid);
   }
@@ -261,9 +261,9 @@ eosfs_ll_setattr (fuse_req_t req,
 
   if (!retc)
   {
-    retc = xrd_stat (fullpath, 
-                     &newattr, 
-                     req->ctx.uid, 
+    retc = xrd_stat (fullpath,
+                     &newattr,
+                     req->ctx.uid,
                      req->ctx.gid,
                      ino);
 
@@ -356,9 +356,9 @@ eosfs_ll_lookup (fuse_req_t req,
 
     e.attr_timeout = attrcachetime;
     e.entry_timeout = entrycachetime;
-    int retc = xrd_stat (fullpath, 
-                         &e.attr, 
-                         req->ctx.uid, 
+    int retc = xrd_stat (fullpath,
+                         &e.attr,
+                         req->ctx.uid,
                          req->ctx.gid,
                          entry_inode);
 
@@ -496,10 +496,10 @@ eosfs_ll_readdir (fuse_req_t req,
   {
     // if ACCESS is disabled we have to make sure that we can actually read this directory if we are not 'root'
 
-    if (xrd_access (dirfullpath, 
-                    R_OK | X_OK, 
-                    req->ctx.uid, 
-                    req->ctx.gid, 
+    if (xrd_access (dirfullpath,
+                    R_OK | X_OK,
+                    req->ctx.uid,
+                    req->ctx.gid,
                     req->ctx.pid))
     {
       fprintf (stderr, "no access to %s\n", dirfullpath);
@@ -528,9 +528,9 @@ eosfs_ll_readdir (fuse_req_t req,
       //........................................................................
       // Dir not in cache or invalid, fall-back to normal reading
       //........................................................................
-      xrd_inodirlist ((unsigned long long) ino, 
-                      fullpath, 
-                      req->ctx.uid, 
+      xrd_inodirlist ((unsigned long long) ino,
+                      fullpath,
+                      req->ctx.uid,
                       req->ctx.gid,
                       req->ctx.pid);
       xrd_lock_r_dirview (); // =>
@@ -746,8 +746,8 @@ eosfs_ll_mknod (fuse_req_t req,
 
     res = xrd_open (fullpath,
                     O_CREAT | O_EXCL | O_RDWR,
-                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, 
-                    req->ctx.uid, 
+                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
+                    req->ctx.uid,
                     req->ctx.gid,
                     req->ctx.pid);
 
@@ -760,7 +760,7 @@ eosfs_ll_mknod (fuse_req_t req,
 
     // Drop also the fd to file mapping which was added int the xrd_open
     xrd_close (res, 0);
-    xrd_remove_fd2file(res);
+    xrd_remove_fd2file (res);
 
     struct fuse_entry_param e;
     memset (&e, 0, sizeof ( e));
@@ -770,8 +770,8 @@ eosfs_ll_mknod (fuse_req_t req,
     //..........................................................................
     // Update the entry
     //..........................................................................
-    int retc = xrd_stat (partialpath, 
-                         &e.attr, 
+    int retc = xrd_stat (partialpath,
+                         &e.attr,
                          req->ctx.uid,
                          req->ctx.gid, 0);
 
@@ -832,9 +832,9 @@ eosfs_ll_mkdir (fuse_req_t req,
 
   if (isdebug) fprintf (stderr, "[%s]: path=%s\n", __FUNCTION__, fullpath);
 
-  int retc = xrd_mkdir (fullpath, 
-                        mode, 
-                        req->ctx.uid, 
+  int retc = xrd_mkdir (fullpath,
+                        mode,
+                        req->ctx.uid,
                         req->ctx.gid,
                         req->ctx.pid);
 
@@ -845,8 +845,8 @@ eosfs_ll_mkdir (fuse_req_t req,
     e.attr_timeout = attrcachetime;
     e.entry_timeout = entrycachetime;
     struct stat newbuf;
-    int retc = xrd_stat (fullpath, 
-                         &e.attr, 
+    int retc = xrd_stat (fullpath,
+                         &e.attr,
                          req->ctx.uid,
                          req->ctx.gid,
                          0);
@@ -900,7 +900,7 @@ eosfs_ll_unlink (fuse_req_t req, fuse_ino_t parent, const char* name)
     fprintf (stderr, "[%s]: path=%s\n", __FUNCTION__, fullpath);
   }
 
-  int retc = xrd_unlink (fullpath, 
+  int retc = xrd_unlink (fullpath,
                          req->ctx.uid,
                          req->ctx.gid,
                          req->ctx.pid);
@@ -943,8 +943,8 @@ eosfs_ll_rmdir (fuse_req_t req, fuse_ino_t parent, const char* name)
 
   if (isdebug) fprintf (stderr, "[%s]: path=%s\n", __FUNCTION__, fullpath);
 
-  int retc = xrd_rmdir (fullpath, 
-                        req->ctx.uid, 
+  int retc = xrd_rmdir (fullpath,
+                        req->ctx.uid,
                         req->ctx.gid,
                         req->ctx.pid);
 
@@ -1013,7 +1013,7 @@ eosfs_ll_rename (fuse_req_t req,
 
   struct stat stbuf;
 
-  int retcold = xrd_stat (fullpath, &stbuf, req->ctx.uid, req->ctx.gid,0);
+  int retcold = xrd_stat (fullpath, &stbuf, req->ctx.uid, req->ctx.gid, 0);
 
   if (isdebug)
   {
@@ -1021,10 +1021,10 @@ eosfs_ll_rename (fuse_req_t req,
              __FUNCTION__, fullpath, newfullpath, (unsigned long long) stbuf.st_ino, retcold);
   }
 
-  int retc = xrd_rename (fullpath, 
-                         newfullpath, 
-                         req->ctx.uid, 
-                         req->ctx.gid, 
+  int retc = xrd_rename (fullpath,
+                         newfullpath,
+                         req->ctx.uid,
+                         req->ctx.gid,
                          req->ctx.pid);
 
   if (!retc)
@@ -1097,9 +1097,9 @@ eosfs_ll_access (fuse_req_t req, fuse_ino_t ino, int mask)
     return;
   }
 
-  int retc = xrd_access (fullpath, 
-                         mask, 
-                         req->ctx.uid, 
+  int retc = xrd_access (fullpath,
+                         mask,
+                         req->ctx.uid,
                          req->ctx.gid,
                          req->ctx.pid);
 
@@ -1145,31 +1145,21 @@ eosfs_ll_open (fuse_req_t req,
 
   if (fi->flags & (O_RDWR | O_WRONLY | O_CREAT))
   {
-    if (0 && (res = xrd_get_open_fd ((unsigned long long) ino, req->ctx.uid)) > 0)
-    {
-      shared_fd = 1;
-      if (isdebug)
-      {
-        fprintf (stderr, "[%s]: inode=%llu path=%s attaching to res=%d\n",
-                 __FUNCTION__, (long long) ino, fullpath, res);
-      }
-    }
-    else
-    {
-      res = xrd_open (fullpath, 
-                      fi->flags, 
-                      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, 
-                      req->ctx.uid, 
-                      req->ctx.gid,
-                      req->ctx.pid);
-    }
+
+    res = xrd_open (fullpath,
+                    fi->flags,
+                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
+                    req->ctx.uid,
+                    req->ctx.gid,
+                    req->ctx.pid);
+
   }
   else
   {
-    res = xrd_open (fullpath, 
-                    fi->flags, 
-                    0, 
-                    req->ctx.uid, 
+    res = xrd_open (fullpath,
+                    fi->flags,
+                    0,
+                    req->ctx.uid,
                     req->ctx.gid,
                     req->ctx.pid);
   }
@@ -1460,9 +1450,9 @@ eosfs_ll_flush (fuse_req_t req,
         xrd_unlock_r_p2i (); // <=
       }
 
-      int retc = (fullpath[0] ? xrd_stat (fullpath, 
-                                          &stbuf, 
-                                          req->ctx.uid, 
+      int retc = (fullpath[0] ? xrd_stat (fullpath,
+                                          &stbuf,
+                                          req->ctx.uid,
                                           req->ctx.gid,
                                           ino) : -1);
       if (retc)
@@ -1523,11 +1513,11 @@ eosfs_ll_getxattr (fuse_req_t req,
   }
 
   char* xattr_value = NULL;
-  retc = xrd_getxattr (fullpath, 
-                       xattr_name, 
-                       &xattr_value, 
-                       &size, 
-                       req->ctx.uid, 
+  retc = xrd_getxattr (fullpath,
+                       xattr_name,
+                       &xattr_value,
+                       &size,
+                       req->ctx.uid,
                        req->ctx.gid,
                        req->ctx.pid);
 
@@ -1586,10 +1576,10 @@ eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
   }
 
   char* xattr_list = NULL;
-  retc = xrd_listxattr (fullpath, 
-                        &xattr_list, 
-                        &size, 
-                        req->ctx.uid, 
+  retc = xrd_listxattr (fullpath,
+                        &xattr_list,
+                        &size,
+                        req->ctx.uid,
                         req->ctx.gid,
                         req->ctx.pid);
 
@@ -1648,12 +1638,12 @@ eosfs_ll_removexattr (fuse_req_t req,
              __FUNCTION__, (long long) ino, fullpath);
   }
 
-  retc = xrd_rmxattr (fullpath, 
-                      xattr_name, 
-                      req->ctx.uid, 
+  retc = xrd_rmxattr (fullpath,
+                      xattr_name,
+                      req->ctx.uid,
                       req->ctx.gid,
                       req->ctx.pid);
-  
+
   fuse_reply_err (req, retc);
 }
 
@@ -1695,11 +1685,11 @@ eosfs_ll_setxattr (fuse_req_t req,
              __FUNCTION__, (long long) ino, fullpath);
   }
 
-  retc = xrd_setxattr (fullpath, 
-                       xattr_name, 
-                       xattr_value, 
-                       strlen (xattr_value), 
-                       req->ctx.uid, 
+  retc = xrd_setxattr (fullpath,
+                       xattr_name,
+                       xattr_value,
+                       strlen (xattr_value),
+                       req->ctx.uid,
                        req->ctx.gid,
                        req->ctx.pid);
   fuse_reply_err (req, retc);
