@@ -156,6 +156,34 @@ public:
 
 
   //--------------------------------------------------------------------------
+  //! Vector read - sync
+  //!
+  //! @param readV vector read structure
+  //! @param readCount number of elements in the vector read structure
+  //!
+  //! @return number of bytes read of -1 if error
+  //!
+  //--------------------------------------------------------------------------
+  virtual int64_t Readv (XrdOucIOVec* readV,
+                         int readCount,
+                         uint16_t timeout = 0);
+
+
+  //--------------------------------------------------------------------------
+  //! Vector read - async
+  //!
+  //! @param readV vector read structure
+  //! @param readCount number of elements in the vector read structure
+  //!
+  //! @return number of bytes read of -1 if error
+  //!
+  //--------------------------------------------------------------------------
+  virtual int64_t ReadvAsync (XrdOucIOVec* readV,
+                              int readCount,
+                              uint16_t timeout = 0);
+
+  
+  //--------------------------------------------------------------------------
   //! Write to file - sync
   //!
   //! @param offset offset

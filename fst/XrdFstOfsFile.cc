@@ -2348,6 +2348,31 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
 
 
 //------------------------------------------------------------------------------
+// Vector read - low level ofs method which is called from one of the
+// layout plugins
+//------------------------------------------------------------------------------
+XrdSfsXferSize
+XrdFstOfsFile::readvofs(XrdOucIOVec* readV,
+                        int readCount)
+{
+  eos_debug("read count=%i", readCount);
+  return XrdOfsFile::readv(readV, readCount);
+}
+
+  
+//------------------------------------------------------------------------------
+// Vector read - OFS interface method
+//------------------------------------------------------------------------------
+XrdSfsXferSize
+XrdFstOfsFile::readv(XrdOucIOVec* readV,
+                     int readCount)
+{
+  eos_debug("read count=%i", readCount);
+  return layOut->Readv(readV, readCount);
+}
+
+
+//------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
 
@@ -2370,7 +2395,7 @@ XrdFstOfsFile::writeofs (XrdSfsFileOffset fileOffset,
   if (gOFS.Simulate_IO_write_error)
   {
     writeErrorFlag = kOfsSimulatedIoError;
-    return gOFS.Emsg("readofs", error, EIO, "write file - simulated IO error fn=", capOpaque ? (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") : FName()) : FName());
+    return gOFS.Emsg("writeofs", error, EIO, "write file - simulated IO error fn=", capOpaque ? (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") : FName()) : FName());
   }
 
   if (fsid)

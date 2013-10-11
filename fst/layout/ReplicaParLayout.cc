@@ -325,6 +325,49 @@ ReplicaParLayout::Read (XrdSfsFileOffset offset,
  return rc;
 }
 
+
+
+//------------------------------------------------------------------------------
+// Vector read 
+//------------------------------------------------------------------------------
+int64_t
+ReplicaParLayout::Readv (XrdOucIOVec* readV,
+                         int readCount)
+{
+ int64_t rc = 0;
+ eos_debug("read count=%i", readCount);
+
+ for (unsigned int i = 0; i < mReplicaFile.size(); i++)
+ {
+   rc = mReplicaFile[i]->Readv(readV, readCount, mTimeout);
+
+   if (rc == SFS_ERROR)
+   {
+     XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
+     // Mask some opaque parameters to shorten the logging
+     eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
+     eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
+     eos::common::StringConversion::MaskTag(maskUrl, "authz");
+     eos_warning("Failed to readv from replica -%s", maskUrl.c_str());
+     continue;
+   }
+   else
+   {
+     // Read was scucessful no need to read from another replica
+     break;
+   }
+ }
+
+ if (rc == SFS_ERROR)
+ {
+   eos_err("Failed to readv from any replica");
+   return gOFS.Emsg("ReplicaParRead", *mError, EREMOTEIO, "readv replica failed");
+ }
+
+ return rc;
+}
+
+
 //------------------------------------------------------------------------------
 // Write to file
 //------------------------------------------------------------------------------

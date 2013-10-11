@@ -133,9 +133,36 @@ public:
 
 
   //--------------------------------------------------------------------------
-  //!
+  //! 
   //--------------------------------------------------------------------------
   int read (XrdSfsAio* aioparm);
+
+
+  //--------------------------------------------------------------------------
+  //! Vector read - low level ofs method which is called from one of the
+  //! layout plugins
+  //!
+  //! @param readV vector read structure
+  //! @param readCount number of entries in the vector read structure
+  //!
+  //! @return number of bytes read upon success, otherwise SFS_ERROR
+  //! 
+  //--------------------------------------------------------------------------
+  XrdSfsXferSize readvofs(XrdOucIOVec* readV,
+                       int readCount);
+
+  
+  //--------------------------------------------------------------------------
+  //! Vector read - OFS interface method
+  //!
+  //! @param readV vector read structure
+  //! @param readCount number of entries in the vector read structure
+  //!
+  //! @return number of bytes read upon success, otherwise SFS_ERROR
+  //! 
+  //--------------------------------------------------------------------------
+  XrdSfsXferSize readv(XrdOucIOVec* readV,
+                       int readCount);
 
 
   //--------------------------------------------------------------------------

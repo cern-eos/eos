@@ -103,6 +103,31 @@ LocalIo::Read (XrdSfsFileOffset offset,
 
 
 //------------------------------------------------------------------------------
+// Vector read - sync
+//------------------------------------------------------------------------------
+int64_t
+LocalIo::Readv (XrdOucIOVec* readV,
+                int readCount,
+                uint16_t timeout)
+{
+  eos_debug("read count=%i", readCount);
+  return mLogicalFile->readvofs(readV, readCount);
+}
+
+
+//--------------------------------------------------------------------------
+// Vector read - async - in this case it is the same as the sync one
+//--------------------------------------------------------------------------
+int64_t
+LocalIo::ReadvAsync (XrdOucIOVec* readV,
+                     int readCount,
+                     uint16_t timeout)
+{
+  return Readv(readV, readCount, timeout);
+}
+
+
+//------------------------------------------------------------------------------
 // Write to file - sync
 //------------------------------------------------------------------------------
 
@@ -261,7 +286,7 @@ LocalIo::Sync (uint16_t timeout)
 int
 LocalIo::Stat (struct stat* buf, uint16_t timeout)
 {
-  XrdOfsFile* pOfsFile = mLogicalFile;
+  XrdOfsFile* pOfsFile = static_cast<XrdOfsFile*>(mLogicalFile);
   return pOfsFile->XrdOfsFile::stat(buf);
 }
 

@@ -195,6 +195,55 @@ XrdIo::Read (XrdSfsFileOffset offset,
 
 
 //------------------------------------------------------------------------------
+// Vector read - sync
+//------------------------------------------------------------------------------
+ int64_t
+ XrdIo::Readv (XrdOucIOVec* readV,
+               int readCount,
+               uint16_t timeout)
+ {
+   eos_debug("read count=%i", readCount);
+   XrdCl::VectorReadInfo* vReadInfo = 0;
+
+   // Copy the XrdOucIOVec structure to a ChunkList structure used by XrdCl
+   int64_t total_bytes = 0;
+   XrdCl::ChunkList chunks;
+   
+   for (int i = 0; i < readCount; i++)
+   {
+     total_bytes+= readV[i].size;
+     chunks.push_back(XrdCl::ChunkInfo(readV[i].offset,
+                                       readV[i].size,
+                                       readV[i].data));
+   }
+   
+   XrdCl::XRootDStatus status = mXrdFile->VectorRead(chunks, 0, vReadInfo, timeout);
+   delete vReadInfo;
+
+   if (!status.IsOK())
+   {
+     errno = status.errNo;
+     return SFS_ERROR;
+   }
+
+   return total_bytes;       
+ }
+
+
+//--------------------------------------------------------------------------
+//! Vector read - async
+//--------------------------------------------------------------------------
+int64_t
+XrdIo::ReadvAsync (XrdOucIOVec* readV,
+                   int readCount,
+                   uint16_t timeout)
+{
+  // TODO: fix to do async requests
+  return Readv(readV, readCount, timeout);
+}
+
+
+//------------------------------------------------------------------------------
 // Write to file - sync
 //------------------------------------------------------------------------------
 

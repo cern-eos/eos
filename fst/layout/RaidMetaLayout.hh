@@ -125,6 +125,19 @@ public:
 
 
   //--------------------------------------------------------------------------
+  //! Vector read 
+  //!
+  //! @param readV vector read structure
+  //! @param readCount number of elements in the vector read structure
+  //!
+  //! @return number of bytes read of -1 if error
+  //!
+  //--------------------------------------------------------------------------
+  virtual int64_t Readv (XrdOucIOVec* readV,
+                         int readCount);
+
+
+  //--------------------------------------------------------------------------
   //! Write to file
   //!
   //! @param offset offset

@@ -242,6 +242,7 @@ XrdFstOssFile::ReadV(XrdOucIOVec *readV, int n)
 
 // For platforms that support fadvise, pre-advise what we will be reading
 #if defined(__linux__) && defined(HAVE_ATOMICS)
+  eos_debug("with atomics read count=%i", n);
   long long begOff, endOff, begLst = -1, endLst = -1;
   int nPR = n;
   
@@ -270,6 +271,7 @@ XrdFstOssFile::ReadV(XrdOucIOVec *readV, int n)
   }
 #endif
   
+  eos_debug("actual read with count=%i", n);
   // Read in the vector and do a pre-advise if we support that
   for (i = 0; i < n; i++)
   {

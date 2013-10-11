@@ -85,6 +85,18 @@ PlainLayout::Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length)
 
 
 //------------------------------------------------------------------------------
+// Vector read 
+//------------------------------------------------------------------------------
+int64_t
+PlainLayout::Readv (XrdOucIOVec* readV,
+                    int readCount)
+{
+  return mPlainFile->Readv(readV, readCount);
+}
+
+
+
+//------------------------------------------------------------------------------
 // Write to file
 //------------------------------------------------------------------------------
 

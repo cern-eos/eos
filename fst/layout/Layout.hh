@@ -34,6 +34,7 @@
 #include "fst/io/FileIoPlugin.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdOuc/XrdOucIOVec.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -159,7 +160,20 @@ public:
                         char* buffer,
                         XrdSfsXferSize length) = 0;
 
+  
+  //--------------------------------------------------------------------------
+  //! Vector read 
+  //!
+  //! @param readV vector read structure
+  //! @param readCount number of elements in the vector read structure
+  //!
+  //! @return number of bytes read of -1 if error
+  //!
+  //--------------------------------------------------------------------------
+  virtual int64_t Readv (XrdOucIOVec* readV,
+                         int readCount) = 0;
 
+  
   //--------------------------------------------------------------------------
   //! Write to file
   //!

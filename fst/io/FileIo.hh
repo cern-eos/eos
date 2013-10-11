@@ -31,7 +31,7 @@
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
-
+#include "XrdOuc/XrdOucIOVec.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -115,6 +115,34 @@ public:
 
 
   //--------------------------------------------------------------------------
+  //! Vector read - sync
+  //!
+  //! @param readV vector read structure
+  //! @param readCount number of elements in the vector read structure
+  //!
+  //! @return number of bytes read of -1 if error
+  //!
+  //--------------------------------------------------------------------------
+  virtual int64_t Readv (XrdOucIOVec* readV,
+                         int readCount,
+                         uint16_t timeout = 0) = 0;
+
+
+  //--------------------------------------------------------------------------
+  //! Vector read - async
+  //!
+  //! @param readV vector read structure
+  //! @param readCount number of elements in the vector read structure
+  //!
+  //! @return number of bytes read of -1 if error
+  //!
+  //--------------------------------------------------------------------------
+  virtual int64_t ReadvAsync (XrdOucIOVec* readV,
+                              int readCount,
+                              uint16_t timeout = 0) = 0;
+
+ 
+  //--------------------------------------------------------------------------
   //! Write to file - sync
   //!
   //! @param offset offset
@@ -164,7 +192,7 @@ public:
   virtual int64_t WriteAsync (XrdSfsFileOffset offset,
                               const char* buffer,
                               XrdSfsXferSize length,
-                                uint16_t timeout = 0) = 0;
+                              uint16_t timeout = 0) = 0;
   
 
   //--------------------------------------------------------------------------
