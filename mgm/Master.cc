@@ -129,6 +129,12 @@ Master::Init ()
     fRemoteHost = getenv("EOS_MGM_MASTER1");
   }
 
+  // ---------------------------------------------------------------
+  //! start the online compacting background thread
+  // ---------------------------------------------------------------
+  XrdSysThread::Run(&fCompactingThread, Master::StaticOnlineCompacting, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Master OnlineCompacting Thread");
+
+  
   if (fThisHost == fRemoteHost)
   {
     // no master slave configuration ... also fine
@@ -136,7 +142,7 @@ Master::Init ()
     return true;
   }
 
-  // open a /dev/null looger/error object
+  // open a /dev/null logger/error object
   fDevNull = open("/dev/null", 0);
 
   fDevNullLogger = new XrdSysLogger(fDevNull);
@@ -207,11 +213,6 @@ Master::Init ()
 
   // start the heartbeat thread anyway
   XrdSysThread::Run(&fThread, Master::StaticSupervisor, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Master Supervisor Thread");
-
-  // ---------------------------------------------------------------
-  //! start the online compacting background thread
-  // ---------------------------------------------------------------
-  XrdSysThread::Run(&fThread, Master::StaticOnlineCompacting, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Master OnlineCompacting Thread");
 
   // get sync up if it is not up
   int rc = system("service eos status sync || service eos start sync");
