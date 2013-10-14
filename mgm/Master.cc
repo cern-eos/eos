@@ -782,7 +782,7 @@ Master::Compacting ()
           fCompactingStart = 0;
         }
 
-        if (fRemoteMasterOk)
+        if (fRemoteMasterOk && (fThisHost != fRemoteHost))
         {
           // if we have a remote master we have to signal it to bounce to us
           SignalRemoteBounceToMaster();
@@ -830,7 +830,7 @@ Master::Compacting ()
       {
         MasterLog(eos_info("msg=\"compact done\" elapsed=%lu", time(NULL) - now));
 
-        if (fRemoteMasterOk)
+        if (fRemoteMasterOk && (fThisHost != fRemoteHost))
         {
           // if we have a remote master we have to signal it to bounce to us
           SignalRemoteReload();
