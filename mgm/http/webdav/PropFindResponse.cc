@@ -116,7 +116,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
         }
 
         // one response node for each file...
-        eos::common::Path path((request->GetUrl() + std::string(val)).c_str());
+        eos::common::Path path((request->GetUrl() + std::string("/") + std::string(val)).c_str());
         responseNode = BuildResponseNode(path.GetPath());
         if (responseNode)
         {
