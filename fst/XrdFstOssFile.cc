@@ -283,7 +283,19 @@ XrdFstOssFile::ReadV(XrdOucIOVec *readV, int n)
       totBytes =  (rdsz < 0 ? -errno : -ESPIPE);
       break;
     }
-    
+
+    if (mBlockXs)
+    {
+      XrdSysRWLockHelper wr_lock(mRWLockXs, 0);
+
+      if ((rdsz > 0) && (!mBlockXs->CheckBlockSum(readV[i].offset, readV[i].data, rdsz)))
+      {
+        eos_err("error=read block-xs error offset=%zu, length=%zu",
+                readV[i].offset, rdsz);
+        return -EIO;
+      }
+    }
+   
     totBytes += rdsz;
 #if defined(__linux__) && defined(HAVE_ATOMICS)
     if (nPR < n && readV[nPR].size > 0)
