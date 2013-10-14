@@ -52,7 +52,7 @@ Group: Applications/File
 The EOS server installation containing MGM, FST & MQ service.
 
 
-Requires: xrootd = 3.3.3
+Requires: xrootd >= 3.3.3
 Requires: xrootd-cl
 Requires: eos-client
 Requires: libmicrohttpd
