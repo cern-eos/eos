@@ -582,7 +582,7 @@ XrdFstOfsFile::open (const char* path,
   eos::common::FileId::FidPrefix2FullPath(hexfid, localPrefix.c_str(), fstPath);
   fileid = eos::common::FileId::Hex2Fid(hexfid);
   fsid = atoi(sfsid);
-  lid = atoi(slid);
+  lid = (unsigned long)atoi(slid);
   cid = strtoull(scid, 0, 10);
 
   //............................................................................

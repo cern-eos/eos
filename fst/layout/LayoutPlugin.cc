@@ -56,7 +56,7 @@ LayoutPlugin::~LayoutPlugin () {
 
 Layout*
 LayoutPlugin::GetLayoutObject (XrdFstOfsFile* file,
-                               unsigned int layoutId,
+                               unsigned long layoutId,
                                const XrdSecEntity* client,
                                XrdOucErrInfo* error,
                                eos::common::LayoutId::eIoType io,

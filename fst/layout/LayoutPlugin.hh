@@ -70,7 +70,7 @@ public:
   //!
   //--------------------------------------------------------------------------
   static Layout* GetLayoutObject (XrdFstOfsFile* file,
-                                  unsigned int layoutId,
+                                  unsigned long layoutId,
                                   const XrdSecEntity* client,
                                   XrdOucErrInfo* error,
                                   eos::common::LayoutId::eIoType accessType,

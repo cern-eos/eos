@@ -50,7 +50,7 @@ public:
   //!
   //--------------------------------------------------------------------------
   PlainLayout (XrdFstOfsFile* file,
-               int lid,
+               unsigned long lid,
                const XrdSecEntity* client,
                XrdOucErrInfo* outError,
                eos::common::LayoutId::eIoType io,

@@ -72,7 +72,7 @@ public:
   //!
   //--------------------------------------------------------------------------
   Layout (XrdFstOfsFile* file,
-          int lid,
+          unsigned long lid,
           const XrdSecEntity* client,
           XrdOucErrInfo* outError,
           eos::common::LayoutId::eIoType io,
@@ -111,7 +111,7 @@ public:
   //! Get layout id
   //--------------------------------------------------------------------------
 
-  inline unsigned int
+  inline unsigned long
   GetLayoutId ()
   {
     return mLayoutId;
@@ -279,7 +279,7 @@ public:
 protected:
 
   bool mIsEntryServer; ///< mark entry server
-  unsigned int mLayoutId; ///< layout id
+  unsigned long mLayoutId; ///< layout id
   XrdOucString mName; ///< layout name
   XrdFstOfsFile* mOfsFile; ///< handler to logical file
   std::string mLocalPath; ///< path to local file
