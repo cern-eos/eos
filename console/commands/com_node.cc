@@ -84,7 +84,7 @@ com_node (char* arg1)
                            });
   nodeCmd->addSubcommand(configSubCmd);
 
-  setSubCmd = new ConsoleCliCommand("set", "list all nodes or only <node>");
+  setSubCmd = new ConsoleCliCommand("set", "activate/deactivate node");
   setSubCmd->addOption({"node", "", 1, 1, "<queue-name>|<host:port>", true});
   CliPositionalOption activeOption("active", "", 2, 1, "on|off", true);
   std::vector<std::string> choices = {"on", "off"};
