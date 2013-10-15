@@ -195,7 +195,7 @@ com_attr (char* arg1)
     in += "&mgm.subcmd=";
     in += parsedCmd == rmSubCmd ? "rm" : "get";
     in += "&mgm.attr.key=";
-    in += getSubCmd->getValue("key").c_str();
+    in += parsedCmd->getValue("key").c_str();
     in += "&mgm.path=" + path;
   }
 
