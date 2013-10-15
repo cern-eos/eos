@@ -1448,7 +1448,7 @@ main (int argc, char* argv[])
 
   if ((!replicamode) && createdir)
   {
-    mode_t mode = 0;
+    mode_t mode = S_IRWXU | S_IRGRP | S_IROTH | S_IXGRP | S_IXOTH;
 
     //..........................................................................
     // Loop over the destination paths
