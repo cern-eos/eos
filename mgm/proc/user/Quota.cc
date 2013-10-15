@@ -197,7 +197,7 @@ ProcCommand::Quota ()
                 int errc;
                 long uid = eos::common::Mapping::UserNameToUid(suid, errc);
                 long gid = eos::common::Mapping::GroupNameToGid(sgid, errc);
-                if (!Quota::SetQuota(space, uid_sel.length() ? uid : -1, gid_sel.length() ? gid : -1, svolume.length() ? size : 0, sinodes.length() ? inodes : 0, msg, retc))
+                if (!Quota::SetQuota(space, uid_sel.length() ? uid : -1, gid_sel.length() ? gid : -1, svolume.length() ? size : -2, sinodes.length() ? inodes : -2, msg, retc))
                 {
                   stdErr = msg;
                 }
