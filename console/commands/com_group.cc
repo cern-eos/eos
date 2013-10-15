@@ -63,7 +63,7 @@ com_group (char* arg1)
   rmSubCmd->addOption(groupOption);
   groupCmd->addSubcommand(rmSubCmd);
 
-  setSubCmd = new ConsoleCliCommand("set", "activate/deactivate a group\nasas");
+  setSubCmd = new ConsoleCliCommand("set", "activate/deactivate a group");
   setSubCmd->addOption(groupOption);
   CliPositionalOption activeOption("active", "", 2, 1, "on|off", true);
   std::vector<std::string> choices = {"on", "off"};
