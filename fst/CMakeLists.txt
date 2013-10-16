@@ -30,8 +30,13 @@ include_directories( ../
 		     ${Z_INCLUDE_DIR}
 )
 
-link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
-                  ${XROOTD_LIB_DIR} )
+link_directories( ${XROOTD_LIB_DIR}
+		  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} )
+
+# Add the tests if CppUnit is present
+if (CPPUNIT_FOUND)
+  add_subdirectory(tests)	
+endif(CPPUNIT_FOUND)
 
 add_library( EosFstOss MODULE
 	     XrdFstOss.cc           XrdFstOss.hh
