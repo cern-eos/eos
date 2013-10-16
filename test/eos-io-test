@@ -99,8 +99,8 @@ function write_read_sequential()
 
 
 #-------------------------------------------------------------------------------
-# Do sparse IO operations on a file by first writing it to EOS, the reading
-# it back and in the end verifying that the checksum of the inital files matches
+# Do sparse IO operations on a file by first writing it to EOS, then reading
+# it back and in the end verifying that the checksum of the inital file matches
 # the one of the file read back from EOS. We use a special file which contains
 # the pattern used for reading and writing. e.g if the file is called file1.io
 # then we look of the pattern file file1.io.pattern

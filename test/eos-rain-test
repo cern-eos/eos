@@ -22,7 +22,7 @@
 # ************************************************************************/
 
 #------------------------------------------------------------------------------
-# Description: The script is used to test the RAID-like layouts from EOS. 
+# Description: The script is used to test the RAIN-like layouts from EOS. 
 # Usage: 
 # eos-rain-test raiddp/raid6/archive/plain dir_test_files root://host//eos_raid_dir tmp_location_dir
 #  - first argument is the type of test made 
@@ -36,7 +36,7 @@
 #     of the test. 
 #
 # The script copies the files in the EOS directories which are using some form
-# of RAID-layout and then tries to read them back and compares the checksum of 
+# of RAIN-layout and then tries to read them back and compares the checksum of 
 # the inital file put in EOS with the one read back. In the second stage, each
 # file system in the EOS configuration is shutdown one by one and the file is 
 # read again from EOS to verify if the single stripe recovery mechanism is 
@@ -152,7 +152,7 @@ ARG=$1
 # Location where the initial files reside
 ROOT_PATH=$2
 
-# EOS directory with the correct RAID extended attributes
+# EOS directory with the correct RAIN extended attributes
 EOS_DEST=$3
 
 # Tmp location where files are saved when read from EOS
