@@ -2290,9 +2290,9 @@ XrdMgmOfs::_rem (const char *path,
     bool stdpermcheck = false;
     if (acl.HasAcl())
     {
-      eos_info("acl=%d r=%d w=%d wo=%d egroup=%d",
+      eos_info("acl=%d r=%d w=%d wo=%d egroup=%d delete=%d not-delete=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-               acl.HasEgroup());
+               acl.HasEgroup(), acl.CanDelete(), acl.CanNotDelete());
 
       if ((!acl.CanWrite()) && (!acl.CanWriteOnce()))
       {
@@ -2323,14 +2323,17 @@ XrdMgmOfs::_rem (const char *path,
         return Emsg(epname, error, EPERM, "remove existing file - you are write-once user");
       }
 
-      if ((vid.uid) && (vid.uid != container->getCUid()) &&
-          (vid.uid != 3) && (vid.gid != 4) && (acl.CanNotDelete()))
+      // if there is a !d policy we cannot delete files which we don't own
+      if ( ((vid.uid) &&  (vid.uid != 3) && (vid.gid != 4) && (acl.CanNotDelete())) &&
+	   ( (fmd->getCUid() != vid.uid) ) )
+
       {
         gOFS->eosViewRWMutex.UnLockWrite();
         errno = EPERM;
         // deletion is forbidden for not-owner
         return Emsg(epname, error, EPERM, "remove existing file - ACL forbids file deletion");
       }
+
       if ((!stdpermcheck) && (!acl.CanWrite()))
       {
         gOFS->eosViewRWMutex.UnLockWrite();

@@ -180,9 +180,16 @@ public:
 
   bool
   CanNotDelete ()
-  /// allowed to delete
+  /// not allowed to delete
   {
     return canNotDelete;
+  }
+
+  bool
+  CanDelete ()
+  /// allowed to delete
+  {
+    return canDelete;
   }
 
   bool
