@@ -486,6 +486,7 @@ CacheImpl::GetRecycledBlock (eos::fst::Layout*& file,
     {
       mutex_helper.UnLock();
       mRecycleQueue->wait_pop(pRecycledObj);
+      pRecycledObj->DoRecycle(file, buf, off, len, rFileAbst, isWr);
     }
     else
     {
