@@ -548,11 +548,7 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
   int rc = SFS_ERROR;
   XrdCl::StatInfo* stat = 0;
   //............................................................................
-  // TODO: once Stat works properly in XRootD, one can revert the flag on the
-  // first position to true, so that stat is forced and not taken from the
-  // cache as it is the case now
-  //............................................................................
-  XrdCl::XRootDStatus status = mXrdFile->Stat(false, stat, timeout);
+  XrdCl::XRootDStatus status = mXrdFile->Stat(true, stat, timeout);
 
   if (!status.IsOK())
   {

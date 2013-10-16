@@ -400,8 +400,15 @@ ReplicaParLayout::Truncate (XrdSfsFileOffset offset)
 int
 ReplicaParLayout::Stat (struct stat* buf)
 {
- XrdOfsFile* pOfsFile = mOfsFile;
- return pOfsFile->XrdOfsFile::stat(buf);
+  int rc = 0;
+  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
+  {
+    rc = mReplicaFile[i]->Stat(buf, mTimeout);
+    // we stop with the first stat which works
+    if (!rc) 
+      break;
+  }
+  return rc;
 }
 
 //------------------------------------------------------------------------------
