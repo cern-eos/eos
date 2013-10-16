@@ -38,7 +38,7 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 RaidMetaLayout::RaidMetaLayout (XrdFstOfsFile* file,
-                                int lid,
+                                unsigned long lid,
                                 const XrdSecEntity* client,
                                 XrdOucErrInfo* outError,
                                 eos::common::LayoutId::eIoType io,
@@ -225,9 +225,8 @@ RaidMetaLayout::Open (const std::string& path,
  mStripeFiles.push_back(file);
  mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
 
- //......................................................................
  // Read header information for the local file
- //......................................................................
+
  HeaderCRC* hd = mHdrInfo.back();
  file = mStripeFiles.back();
 
@@ -244,26 +243,20 @@ RaidMetaLayout::Open (const std::string& path,
    mapLP.insert(std::pair<int, int>(0, 0));
  }
 
- //............................................................................
  // Operations done only by the entry server
- //............................................................................
  if (mPhysicalStripeIndex == mStripeHead)
  {
    int nmissing = 0;
    std::vector<std::string> stripe_urls;
    mIsEntryServer = true;
 
-   //...........................................................................
    // Allocate memory for blocks - used only by the entry server
-   //...........................................................................
    for (unsigned int i = 0; i < mNbTotalBlocks; i++)
    {
      mDataBlocks.push_back(new char[mStripeWidth]);
    }
    
-   //............................................................................
    // Assign stripe urls and check minimal requirements
-   //............................................................................
    for (unsigned int i = 0; i < mNbTotalFiles; i++)
    {
      XrdOucString stripetag = "mgm.url";
@@ -296,9 +289,7 @@ RaidMetaLayout::Open (const std::string& path,
      return SFS_ERROR;
    }
 
-   //..........................................................................
    // Open remote stripes
-   //..........................................................................
    for (unsigned int i = 0; i < stripe_urls.size(); i++)
    {
      if (i != (unsigned int) mPhysicalStripeIndex)
@@ -311,9 +302,7 @@ RaidMetaLayout::Open (const std::string& path,
        stripe_urls[i] += remoteOpenPath.c_str();
        stripe_urls[i] += "?";
 
-       //.......................................................................
        // Create the opaque information for the next stripe file
-       //.......................................................................
        if ((val = mOfsFile->openOpaque->Get("mgm.replicaindex")))
        {
          XrdOucString oldindex = "mgm.replicaindex=";
@@ -333,9 +322,7 @@ RaidMetaLayout::Open (const std::string& path,
        FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kXrdCl,
                                                 mOfsFile, mSecEntity);
 
-       //.......................................................................
        // Set the correct open flags for the stripe
-       //.......................................................................
        if (mStoreRecovery || (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY)))
        {
          mIsRw = true;
@@ -347,10 +334,7 @@ RaidMetaLayout::Open (const std::string& path,
          eos_debug("Read case with flags=%x.", flags);
        }
 
-
-       //........................................................................
        // Doing the actual open
-       //........................................................................
        ret = file->Open(stripe_urls[i], flags, mode, enhanced_opaque.c_str(), mTimeout);
 
        if (ret == SFS_ERROR)
@@ -363,9 +347,7 @@ RaidMetaLayout::Open (const std::string& path,
        mStripeFiles.push_back(file);
        mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
 
-       //......................................................................
        // Read header information for remote files
-       //......................................................................
        unsigned int pos = mHdrInfo.size() - 1;
        hd = mHdrInfo.back();
        file = mStripeFiles.back();
@@ -383,9 +365,7 @@ RaidMetaLayout::Open (const std::string& path,
      }
    }
 
-   //..........................................................................
    // Consistency checks
-   //..........................................................................
    if (mStripeFiles.size() != mNbTotalFiles)
    {
      eos_err("error=number of files opened is different from the one expected");
@@ -393,9 +373,7 @@ RaidMetaLayout::Open (const std::string& path,
      return SFS_ERROR;
    }
 
-   //..........................................................................
    // Only the head node does the validation of the headers
-   //..........................................................................
    if (!ValidateHeader())
    {
      eos_err("error=headers invalid - can not continue");
@@ -404,9 +382,7 @@ RaidMetaLayout::Open (const std::string& path,
    }
  }
 
- //............................................................................
  // Get file size based on the data stored in the local stripe header
- //............................................................................
  mFileSize = -1;
 
  if (mHdrInfo[0]->IsValid())
@@ -454,9 +430,7 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
 {
  std::vector<std::string> stripe_urls = stripeUrls;
 
- //.............................................................................
  // Do some minimal checkups
- //.............................................................................
  if (mNbTotalFiles < 2)
  {
    eos_err("error=failed open layout - stripe size at least 2");
@@ -469,17 +443,13 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    return SFS_ERROR;
  }
 
- //.............................................................................
  // Allocate memory for blocks - done only once
- //.............................................................................
  for (unsigned int i = 0; i < mNbTotalBlocks; i++)
  {
    mDataBlocks.push_back(new char[mStripeWidth]);
  }
   
- //.............................................................................
  // Set the correct open flags for the stripe
- //.............................................................................
  if (mStoreRecovery ||
      (flags & (SFS_O_CREAT | SFS_O_WRONLY | SFS_O_RDWR | SFS_O_TRUNC)))
  {
@@ -493,9 +463,7 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    eos_debug("Read case.");
  }
 
- //..........................................................................
  // Open stripes
- //..........................................................................
  for (unsigned int i = 0; i < stripe_urls.size(); i++)
  {
    int ret = -1;
@@ -537,9 +505,7 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    mStripeFiles.push_back(file);
    mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
 
-   //......................................................................
    // Read header information for remote files
-   //......................................................................
    unsigned int pos = mHdrInfo.size() - 1;
    HeaderCRC* hd = mHdrInfo.back();
    file = mStripeFiles.back();
@@ -667,9 +633,7 @@ RaidMetaLayout::ValidateHeader ()
    {
      if (find(used_stripes.begin(), used_stripes.end(), i) == used_stripes.end())
      {
-       //......................................................................
        // Add the new mapping
-       //......................................................................
        mapPL[physical_id] = i;
        used_stripes.insert(i);
        mHdrInfo[physical_id]->SetIdStripe(i);
@@ -677,9 +641,7 @@ RaidMetaLayout::ValidateHeader ()
        mHdrInfo[physical_id]->SetNoBlocks(mHdrInfo[hd_id_valid]->GetNoBlocks());
        mHdrInfo[physical_id]->SetSizeLastBlock(mHdrInfo[hd_id_valid]->GetSizeLastBlock());
 
-       //......................................................................
        // If file successfully opened, we need to store the info
-       //......................................................................
        if (mStoreRecovery && mStripeFiles[physical_id])
        {
          mHdrInfo[physical_id]->WriteToFile(mStripeFiles[physical_id], mTimeout);
@@ -731,17 +693,13 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
 
  if (!mIsEntryServer)
  {
-   //..........................................................................
    // Non-entry server doing only local read operation
-   //..........................................................................
    if (mStripeFiles[0])
      read_length = mStripeFiles[0]->Read(offset, buffer, length, mTimeout);
  }
  else
  {
-   //..........................................................................
    // Only entry server does this
-   //..........................................................................
    if (offset > mFileSize)
    {
      eos_warning("warning=offset:%lld larger then file size:%lld", offset, mFileSize);
@@ -756,15 +714,11 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
 
    if ((offset < 0) && (mIsRw))
    {
-     //........................................................................
      // Force recover file mode - use first extra block as dummy buffer
-     //........................................................................
      offset = 0;
      int64_t len = mFileSize;
 
-     //........................................................................
      // If file smaller than a group, set the read size to the size of the group
-     //........................................................................
      if (mFileSize < mSizeGroup)
      {
        len = mSizeGroup;
@@ -794,9 +748,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
    }
    else
    {
-     //.........................................................................
      // Reset all the async handlers
-     //.........................................................................
      for (unsigned int i = 0; i < mStripeFiles.size(); i++)
      {
        if (mStripeFiles[i])
@@ -806,10 +758,8 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
            ptr_handler->Reset();
        }
      }
-     
-     //........................................................................
+
      // TODO: Align to blockchecksum size by expanding the requested range
-     //........................................................................
      XrdSfsFileOffset align_offset;
      XrdSfsFileOffset current_offset;
      XrdSfsXferSize align_length;
@@ -846,15 +796,11 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
        }
        else
        {
-         //....................................................................
          // File not opened, we register it as a read error
-         //....................................................................
          got_error = true;
        }
 
-       //......................................................................
        // Save errors in the map to be recovered
-       //......................................................................
        if (got_error)
        {
          map_all_errors.insert(GetMatchingPart(offset, length, current_offset));
@@ -862,9 +808,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
        }
      }
 
-     //........................................................................
      // Collect errros
-     //........................................................................
      size_t len = 0;
      std::map<uint64_t, uint32_t> map_tmp_errors;
 
@@ -918,14 +862,10 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
        }
      }
 
-     //........................................................................
      // Copy any info from the extra blocks to the data buffer
-     //........................................................................
      CopyExtraBlocks(buffer, offset, length, align_offset, align_length);
 
-     //........................................................................
      // Try to recover any corrupted blocks
-     //........................................................................
      if (do_recovery && (!RecoverPieces(offset_init, buffer, map_all_errors)))
      {
        eos_err("error=read recovery failed");
@@ -950,6 +890,10 @@ RaidMetaLayout::Readv (XrdOucIOVec* readV,
                        int readCount)
 {
   // TODO: fix this
+
+
+  
+  
   return SFS_ERROR;
 }
 
@@ -976,17 +920,13 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
 
  if (!mIsEntryServer)
  {
-   //...........................................................................
    // Non-entry server doing only local operations
-   //...........................................................................
    if (mStripeFiles[0])
      write_length = mStripeFiles[0]->Write(offset, buffer, length, mTimeout);
  }
  else
  {
-   //...........................................................................
    // Detect if this is a non-streaming write
-   //...........................................................................
    if (mIsStreaming && (offset != mLastWriteOffset))
    {
      mIsStreaming= false;
@@ -994,9 +934,7 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
    
    mLastWriteOffset += length;
 
-   //...........................................................................
    // Only entry server does this
-   //...........................................................................
    while (length)
    {
      stripe_id = (offset / mStripeWidth) % mNbDataFiles;
@@ -1015,9 +953,7 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
      offset_local += mSizeHeader;
      COMMONTIMING("write remote", &wt);
 
-     //.........................................................................
      // Write to stripe
-     //.........................................................................
      if (mStripeFiles[physical_id])
      {
        nbytes = mStripeFiles[physical_id]->WriteAsync(offset_local, buffer,
@@ -1048,9 +984,7 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
      write_length += nwrite;
    }
 
-   //..........................................................................
    // Non-streaming mode - try to compute parity if enough data
-   //..........................................................................
    if (!mIsStreaming && !SparseParityComputation(false))
    {
      eos_err("error=failed while doing SparseParityComputation");
@@ -1080,16 +1014,12 @@ RaidMetaLayout::DoBlockParity (off_t offsetGroup)
   eos::common::Timing up("parity");
   COMMONTIMING("Compute-In", &up);
   
-  //............................................................................
   // Compute parity blocks
-  //............................................................................
   if ((done = ComputeParity()))
   {
    COMMONTIMING("Compute-Out", &up);
 
-   //...........................................................................
    // Write parity blocks to files
-   //...........................................................................
    if (WriteParityToFiles(offsetGroup) == SFS_ERROR)
      done = false;
   
@@ -1352,9 +1282,7 @@ RaidMetaLayout::GetOffsetGroups (std::set<off_t>& offsetGroups, bool forceAll)
          elem = std::make_pair(offset, (off_group - offset));
        }
 
-       //......................................................................
        // Save group offset in the list
-       //......................................................................
        offsetGroups.insert(off_group);
        off_group += mSizeGroup;
      }
@@ -1416,9 +1344,7 @@ RaidMetaLayout::Sync ()
  
  if (mIsOpen)
  {
-   //..........................................................................
    // Sync local file
-   //..........................................................................
    if (mStripeFiles[0])
    {
      if (mStripeFiles[0]->Sync(mTimeout))
@@ -1434,9 +1360,7 @@ RaidMetaLayout::Sync ()
 
    if (mIsEntryServer)
    {
-     //........................................................................
      // Sync remote files
-     //........................................................................
      for (unsigned int i = 1; i < mStripeFiles.size(); i++)
      {
        if (mStripeFiles[i])
@@ -1476,9 +1400,7 @@ RaidMetaLayout::Remove ()
 
   if (mIsEntryServer)
   {
-    //..........................................................................
     // Unlink remote stripes
-    //..........................................................................
     for (unsigned int i = 1; i < mStripeFiles.size(); i++)
     {
       if (mStripeFiles[i])
@@ -1496,9 +1418,7 @@ RaidMetaLayout::Remove ()
     }
   }
 
-  //..........................................................................
   // Unlink local stripe
-  //..........................................................................
   if (mStripeFiles[0])
   {
     if (mStripeFiles[0]->Remove(mTimeout))
@@ -1703,9 +1623,7 @@ RaidMetaLayout::Close ()
        }
      }
 
-     //........................................................................
      // Close remote files
-     //........................................................................
      for (unsigned int i = 1; i < mStripeFiles.size(); i++)
      {
        if (mStripeFiles[i])
@@ -1723,9 +1641,7 @@ RaidMetaLayout::Close ()
      }
    }
 
-   //..........................................................................
    // Close local file
-   //..........................................................................
    if (mStripeFiles[0])
    {
      if (mStripeFiles[0]->Close(mTimeout))
@@ -1800,9 +1716,7 @@ RaidMetaLayout::AlignExpandBlocks (char* ptrBuffer,
  }
  else
  {
-   //..........................................................................
    // There are multiple blocks
-   //..........................................................................
    tmp_offset = alignedOffset;
 
    if (alignedOffset < offset)
@@ -1891,9 +1805,7 @@ RaidMetaLayout::CopyExtraBlocks (char* buffer,
  XrdSfsFileOffset end_raw_offset = offset + length;
  XrdSfsFileOffset end_aligned_offset = alignedOffset + alignedLength;
 
- //............................................................................
  // There is just one block
- //............................................................................
  if (alignedLength == mStripeWidth)
  {
    if ((alignedOffset < offset) || (end_aligned_offset > end_raw_offset))
@@ -1908,14 +1820,10 @@ RaidMetaLayout::CopyExtraBlocks (char* buffer,
  }
  else
  {
-   //..........................................................................
    // There are multiple blocks
-   //..........................................................................
    if (alignedOffset < offset)
    {
-     //........................................................................
      // Copy the first extra block
-     //........................................................................
      match_pair = GetMatchingPart(offset, length, alignedOffset);
      eos_debug("Copy from the first extra block with matching offset=%lli, length=%lu"
                " and initial length = %lu",
@@ -1927,9 +1835,7 @@ RaidMetaLayout::CopyExtraBlocks (char* buffer,
 
    if (end_aligned_offset > end_raw_offset)
    {
-     //........................................................................
      // Copy the last extra block
-     //........................................................................
      XrdSfsFileOffset tmp_offset = end_aligned_offset - mStripeWidth;
      match_pair = GetMatchingPart(offset, length, tmp_offset);
      eos_debug("Copy from the last extra block with matching offset=%lli, length=%lu, tmp_offset=%lli"
@@ -1940,6 +1846,69 @@ RaidMetaLayout::CopyExtraBlocks (char* buffer,
      ptr_buff = static_cast<char*> (memcpy(ptr_buff, ptr_extra, match_pair.second));
    }
  }
+}
+
+
+//------------------------------------------------------------------------------
+// Split vector read request into request for each of the data stripes
+//------------------------------------------------------------------------------
+std::vector<XrdCl::ChunkList>
+RaidMetaLayout::SplitReadV(XrdOucIOVec* readV, int readCount)
+{
+  uint32_t sz; ///< size of the first split block
+  long long block_end;  ///< end offset of the first split block
+  int indx; ///< logical stripe index a read block belongs to 
+  uint64_t local_off; 
+
+  std::vector<XrdCl::ChunkInfo> min_readv; ///< readV request spanning one stripe
+  std::vector<XrdCl::ChunkList> stripe_readv; ///< readV request per stripe files
+  stripe_readv.reserve(mNbDataFiles);
+  
+  for (unsigned int i = 0; i < mNbDataFiles; ++i)
+  {
+    stripe_readv.push_back(XrdCl::ChunkList());
+  }
+
+  // Split any pieces spanning two chunks so that each piece is from one chunk
+  for (int i = 0; i < readCount; i++)
+  {
+    uint64_t off = readV[i].offset;
+    uint32_t len = readV[i].size;
+    char* ptr_data = readV[i].data;
+    
+    while (off / mStripeWidth != (off + len) / mStripeWidth)
+    {
+      block_end = ((off / mStripeWidth) + 1) * mStripeWidth;
+      sz = block_end - off;
+
+      // Add piece
+      min_readv.push_back(XrdCl::ChunkInfo(off, sz, (void*)ptr_data));
+      off += sz;
+      len -= sz;
+      ptr_data += sz;
+    }
+
+    if (len)
+    {
+      min_readv.push_back(XrdCl::ChunkInfo(off, len, (void*)ptr_data)); 
+    }
+  }
+ 
+  // Split each readV request to the corresponding stripe file from which we
+  // need to read it, adjusting the relative offset inside the stripe file
+  for (auto iter = min_readv.begin(); iter != min_readv.end(); ++iter)
+  {
+    eos_debug("min_off=%ji, min_len=%ji", iter->offset, iter->length);
+    local_off = (iter->offset / mSizeGroup) * mSizeLine +
+      (iter->offset / mSizeLine) * mStripeWidth + (iter->offset % mStripeWidth);
+    
+    indx = (iter->offset % mSizeLine) / mStripeWidth;
+    stripe_readv[indx].push_back(XrdCl::ChunkInfo((uint64_t)local_off,
+                                                  iter->length,
+                                                  iter->buffer));
+  }
+
+  return stripe_readv;  
 }
 
 

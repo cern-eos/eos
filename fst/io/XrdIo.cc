@@ -208,6 +208,7 @@ XrdIo::Read (XrdSfsFileOffset offset,
    // Copy the XrdOucIOVec structure to a ChunkList structure used by XrdCl
    int64_t total_bytes = 0;
    XrdCl::ChunkList chunks;
+   chunks.reserve(readCount);
    
    for (int i = 0; i < readCount; i++)
    {

@@ -284,6 +284,7 @@ XrdFstOssFile::ReadV(XrdOucIOVec *readV, int n)
       break;
     }
 
+    // TODO: non-matching edge is not checked
     if (mBlockXs)
     {
       XrdSysRWLockHelper wr_lock(mRWLockXs, 0);

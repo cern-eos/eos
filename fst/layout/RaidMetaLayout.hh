@@ -33,6 +33,7 @@
 #include "fst/layout/Layout.hh"
 #include "fst/io/HeaderCRC.hh"
 #include "fst/XrdFstOfsFile.hh"
+#include "fst/tests/FileTest.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -42,6 +43,8 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class RaidMetaLayout : public Layout
 {
+  friend class FileTest;
+  
 public:
 
   //--------------------------------------------------------------------------
@@ -59,7 +62,7 @@ public:
   //!
   //--------------------------------------------------------------------------
   RaidMetaLayout (XrdFstOfsFile* file,
-                  int lid,
+                  unsigned long lid,
                   const XrdSecEntity* client,
                   XrdOucErrInfo* outError,
                   eos::common::LayoutId::eIoType io,
@@ -223,6 +226,21 @@ public:
   //!
   //--------------------------------------------------------------------------
   virtual int Stat (struct stat* buf);
+
+
+  //--------------------------------------------------------------------------
+  //! Split vector read request into request for each of the data stripes
+  //!
+  //! @param readV original vector read structure
+  //! @param readCount number of elements in the vector read structure 
+  //!
+  //! @return vector of ChunkInfo structures containing the readv requests
+  //!         corresponding to each of the stripe files making up the original
+  //!         file
+  //!
+  //--------------------------------------------------------------------------
+  std::vector<XrdCl::ChunkList> SplitReadV(XrdOucIOVec* readV, int readCount);
+
 
 
 protected:
@@ -471,7 +489,6 @@ private:
   std::pair<off_t, size_t> GetMatchingPart (XrdSfsFileOffset offset,
                                             XrdSfsXferSize length,
                                             XrdSfsFileOffset blockOffset);
-
 };
 
 EOSFSTNAMESPACE_END
