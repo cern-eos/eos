@@ -18,9 +18,9 @@ BuildRequires: cmake28 >= 2.8
 %define cmake_cmd cmake28
 %endif
 
-BuildRequires: xrootd >= 3.3.3
-BuildRequires: xrootd-server-devel >= 3.3.3
-BuildRequires: xrootd-private-devel  >= 3.3.3
+BuildRequires: xrootd >= 3.3.4
+BuildRequires: xrootd-server-devel >= 3.3.4
+BuildRequires: xrootd-private-devel  >= 3.3.4
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: libattr-devel, openldap-devel
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
@@ -52,7 +52,7 @@ Group: Applications/File
 The EOS server installation containing MGM, FST & MQ service.
 
 
-Requires: xrootd >= 3.3.3
+Requires: xrootd >= 3.3.4
 Requires: xrootd-cl
 Requires: eos-client
 Requires: libmicrohttpd
