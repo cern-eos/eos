@@ -24,7 +24,7 @@ BuildRequires: xrootd-private-devel  >= 3.3.4
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: libattr-devel, openldap-devel
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
-BuildRequires: fuse-devel, fuse
+BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: xrootd-cl-devel
 BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel

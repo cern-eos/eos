@@ -201,19 +201,15 @@ eosdfs_readdir (const char* path,
 
 
 //------------------------------------------------------------------------------
-//
+// If the file does not exist, first create it with the specified mode, and
+// then open it.
 //------------------------------------------------------------------------------
-
 static int
-eosdfs_mknod (const char* path, mode_t mode, dev_t rdev)
+eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
 {
   fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
   int res;
   eosatime = time (0);
-  //............................................................................
-  // On Linux this could just be 'mknod(path, mode, rdev)' but this
-  // is more portable
-  //............................................................................
   char rootpath[4096];
 
   if (S_ISREG (mode))
@@ -225,11 +221,15 @@ eosdfs_mknod (const char* path, mode_t mode, dev_t rdev)
                     S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
                     uid, gid, pid);
 
-    if (res)
+    if (res == 0)
       return -errno;
 
-    xrd_close (res, 0);
-    xrd_remove_fd2file (res);
+    // This memory  has to be freed once we're done with the file, usually in
+    // the close/release method
+    fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof(struct fd_user_info));
+    info->fd = res;
+    info->uid = 0;
+    fi->fh = (uint64_t) info;  
   }
 
   return 0;
@@ -687,7 +687,7 @@ static struct fuse_operations eosdfs_oper = {
   .getattr = eosdfs_getattr,
   .access = eosdfs_access,
   .readdir = eosdfs_readdir,
-  .mknod = eosdfs_mknod,
+  .create = eosdfs_create,
   .mkdir = eosdfs_mkdir,
   .rmdir = eosdfs_rmdir,
   .rename = eosdfs_rename,

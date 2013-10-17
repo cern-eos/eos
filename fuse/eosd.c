@@ -693,116 +693,6 @@ eosfs_ll_statfs (fuse_req_t req, fuse_ino_t ino)
 
 
 //------------------------------------------------------------------------------
-// Make a special (device) file, FIFO, or socket
-//------------------------------------------------------------------------------
-
-static void
-eosfs_ll_mknod (fuse_req_t req,
-                fuse_ino_t parent,
-                const char* name,
-                mode_t mode,
-                dev_t rdev)
-{
-  int res;
-
-
-  if (S_ISREG (mode))
-  {
-    const char* parentpath = NULL;
-    char partialpath[16384];
-    char fullpath[16384];
-    char ifullpath[16384];
-
-    xrd_lock_r_p2i (); // =>
-    parentpath = xrd_path ((unsigned long long) parent);
-
-    if (!parentpath)
-    {
-      fuse_reply_err (req, ENXIO);
-      xrd_unlock_r_p2i (); // <=
-      return;
-    }
-
-    sprintf (partialpath, "/%s%s/%s", mountprefix, parentpath, name);
-
-    FULLPARENTPATH (fullpath, mountprefix, parentpath, name);
-
-    if ((strlen (parentpath) == 1) && (parentpath[0] == '/'))
-    {
-      sprintf (ifullpath, "/%s", name);
-    }
-    else
-    {
-      sprintf (ifullpath, "%s/%s", parentpath, name);
-    }
-
-    xrd_unlock_r_p2i (); // <=
-
-    if (isdebug)
-    {
-      fprintf (stderr, "[%s]: parent=%lld path=%s uid=%d\n",
-               __FUNCTION__, (long long) parent, fullpath, req->ctx.uid);
-    }
-
-    res = xrd_open (fullpath,
-                    O_CREAT | O_EXCL | O_RDWR,
-                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
-                    req->ctx.uid,
-                    req->ctx.gid,
-                    req->ctx.pid);
-
-
-    if (res == -1)
-    {
-      fuse_reply_err (req, errno);
-      return;
-    }
-
-    // Drop also the fd to file mapping which was added int the xrd_open
-    xrd_close (res, 0);
-    xrd_remove_fd2file (res);
-
-    struct fuse_entry_param e;
-    memset (&e, 0, sizeof ( e));
-    e.attr_timeout = 0;
-    e.entry_timeout = 0;
-
-    //..........................................................................
-    // Update the entry
-    //..........................................................................
-    int retc = xrd_stat (partialpath,
-                         &e.attr,
-                         req->ctx.uid,
-                         req->ctx.gid, 0);
-
-    e.ino = e.attr.st_ino;
-    fprintf (stderr, "[%s]: update inode=%lu\n", __FUNCTION__, (long long) e.ino);
-
-    if (retc)
-    {
-      fuse_reply_err (req, -retc);
-      return;
-    }
-    else
-    {
-      xrd_store_p2i ((unsigned long long) e.ino, ifullpath);
-
-      if (isdebug)
-      {
-        fprintf (stderr, "[%s]: storeinode=%lld path=%s\n",
-                 __FUNCTION__, (long long) e.ino, ifullpath);
-      }
-
-      fuse_reply_entry (req, &e);
-      return;
-    }
-  }
-
-  fuse_reply_err (req, EINVAL);
-}
-
-
-//------------------------------------------------------------------------------
 // Create a directory with a given name
 //------------------------------------------------------------------------------
 
@@ -1124,7 +1014,6 @@ eosfs_ll_open (fuse_req_t req,
                struct fuse_file_info* fi)
 {
   int res;
-  int shared_fd = 0;
   struct stat stbuf;
   char fullpath[16384];
   const char* name = NULL;
@@ -1181,10 +1070,8 @@ eosfs_ll_open (fuse_req_t req,
   info->uid = req->ctx.uid;
   fi->fh = (uint64_t) info;
 
-  // Add the new file descriptor only if it was not created by a previous call
-  if (shared_fd == 0)
-    xrd_add_open_fd (info->fd, (unsigned long long) ino, req->ctx.uid, 1);
-
+  // Add the new file descriptor for stat using file object 
+  xrd_add_open_fd (info->fd, (unsigned long long) ino, req->ctx.uid, 1);
 
   if ((getenv ("EOS_FUSE_KERNELCACHE")) &&
       (!strcmp (getenv ("EOS_FUSE_KERNELCACHE"), "1")))
@@ -1698,13 +1585,146 @@ eosfs_ll_setxattr (fuse_req_t req,
 
 
 //------------------------------------------------------------------------------
+// Create a new file 
+//------------------------------------------------------------------------------
+static void
+eosfs_ll_create(fuse_req_t req, 
+                fuse_ino_t parent, 
+                const char *name, 
+                mode_t mode, 
+                struct fuse_file_info *fi)
+{
+  int res;
+
+  if (S_ISREG (mode))
+  {
+    const char* parentpath = NULL;
+    char partialpath[16384];
+    char fullpath[16384];
+    char ifullpath[16384];
+
+    xrd_lock_r_p2i (); // =>
+    parentpath = xrd_path ((unsigned long long) parent);
+
+    if (!parentpath)
+    {
+      fuse_reply_err (req, ENXIO);
+      xrd_unlock_r_p2i (); // <=
+      return;
+    }
+
+    sprintf (partialpath, "/%s%s/%s", mountprefix, parentpath, name);
+
+    FULLPARENTPATH (fullpath, mountprefix, parentpath, name);
+
+    if ((strlen (parentpath) == 1) && (parentpath[0] == '/'))
+    {
+      sprintf (ifullpath, "/%s", name);
+    }
+    else
+    {
+      sprintf (ifullpath, "%s/%s", parentpath, name);
+    }
+
+    xrd_unlock_r_p2i (); // <=
+
+    if (isdebug)
+    {
+      fprintf (stderr, "[%s]: parent=%lld path=%s uid=%d\n",
+               __FUNCTION__, (long long) parent, fullpath, req->ctx.uid);
+    }
+
+    res = xrd_open (fullpath,
+                    O_CREAT | O_EXCL | O_RDWR,
+                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
+                    req->ctx.uid,
+                    req->ctx.gid,
+                    req->ctx.pid);
+
+
+    if (res == -1)
+    {
+      fuse_reply_err (req, errno);
+      return;
+    }
+
+    // Update file information structure
+    fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof (struct fd_user_info));
+    info->fd = res;
+    info->uid = req->ctx.uid;
+    fi->fh = (uint64_t) info;
+
+    // Update the entry parameters
+    struct fuse_entry_param e;
+    memset (&e, 0, sizeof ( e));
+    e.attr_timeout = 0;
+    e.entry_timeout = 0;
+    int retc = xrd_stat(partialpath, &e.attr, req->ctx.uid, req->ctx.gid, 0);
+    e.ino = e.attr.st_ino;
+    fprintf (stderr, "[%s]: update inode=%lu\n", __FUNCTION__, (long long) e.ino);
+
+    if (retc)
+    {
+      fuse_reply_err (req, -retc);
+      return;
+    }
+    else
+    {
+      xrd_store_p2i ((unsigned long long) e.ino, ifullpath);
+
+      if (isdebug)
+      {
+        fprintf (stderr, "[%s]: storeinode=%lld path=%s\n",
+                 __FUNCTION__, (long long) e.ino, ifullpath);
+      }
+
+      // Add the new file descriptor for stat using file object 
+      xrd_add_open_fd(info->fd, e.ino, req->ctx.uid, 1);
+
+      if ((getenv ("EOS_FUSE_KERNELCACHE")) &&
+          (!strcmp (getenv ("EOS_FUSE_KERNELCACHE"), "1")))
+      {
+        // TODO: this should be improved
+        if (strstr (fullpath, "/proc/"))
+        {
+          fi->keep_cache = 0;
+        }
+        else
+        {
+          fi->keep_cache = 1;
+        }
+      }
+      else
+      {
+        fi->keep_cache = 0;
+      }
+
+      if ((getenv ("EOS_FUSE_DIRECTIO")) &&
+          (!strcmp (getenv ("EOS_FUSE_DIRECTIO"), "1")))
+      {
+        fi->direct_io = 1;
+      }
+      else
+      {
+        fi->direct_io = 0;
+      }
+      
+      fuse_reply_create (req, &e, fi);
+      return;
+    }
+  }
+
+  fuse_reply_err (req, EINVAL);
+}
+
+
+//------------------------------------------------------------------------------
 static struct fuse_lowlevel_ops eosfs_ll_oper = {
   .getattr = eosfs_ll_getattr,
   .lookup = eosfs_ll_lookup,
   .setattr = eosfs_ll_setattr,
   .access = eosfs_ll_access,
   .readdir = eosfs_ll_readdir,
-  .mknod = eosfs_ll_mknod,
   .mkdir = eosfs_ll_mkdir,
   .unlink = eosfs_ll_unlink,
   .rmdir = eosfs_ll_rmdir,
@@ -1721,7 +1741,8 @@ static struct fuse_lowlevel_ops eosfs_ll_oper = {
   .setxattr = eosfs_ll_setxattr,
   .getxattr = eosfs_ll_getxattr,
   .listxattr = eosfs_ll_listxattr,
-  .removexattr = eosfs_ll_removexattr
+  .removexattr = eosfs_ll_removexattr,
+  .create = eosfs_ll_create
 };
 
 
