@@ -2,7 +2,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.3.1
-Release: 19
+Release: 20
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -48,16 +48,15 @@ The EOS software package.
 #######################################################################################
 Summary: The EOS server installation
 Group: Applications/File
-%description -n eos-server
-The EOS server installation containing MGM, FST & MQ service.
-
-
 Requires: xrootd >= 3.3.4
 Requires: xrootd-cl
 Requires: eos-client
 Requires: libmicrohttpd
 Requires: acl
 Requires: gdb
+
+%description -n eos-server
+The EOS server installation containing MGM, FST & MQ service.
 
 %prep
 
