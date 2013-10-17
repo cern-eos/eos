@@ -36,6 +36,7 @@ typedef struct globus_l_gfs_xrood_handle_s {
   // because if threading is disbaled in the globus build
   // then, the thread model doesn't lock the mutexes because it's semantically equivalent in that case
   // but the XRootD client is multithreaded anyway
+  bool isInit;
   pthread_mutex_t mutex;
   XrdFileIo *fileIo;
   globus_result_t cached_res;
@@ -48,6 +49,10 @@ typedef struct globus_l_gfs_xrood_handle_s {
   /* if use_uuid is true we will use uuid and fullDestPath in the
        file accessing commands */
   globus_bool_t use_uuid;
+
+  globus_l_gfs_xrood_handle_s () : isInit(false)
+  {}
+
 } globus_l_gfs_xrootd_handle_t;
 
 static void globus_l_gfs_file_net_read_cb

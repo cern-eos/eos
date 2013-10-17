@@ -131,7 +131,7 @@ function get_file_fs()
     local eos_file=$1
     local rec=$($SUDO $EOS -b file info $eos_file)
 
-    VECT_FS=( $(echo "$rec" | awk '{ if ( $7 ~ /booted/ ) print $2 }') )
+    VECT_FS=( $(echo "$rec" | awk '{ if (($6 ~ /booted/) || ($7 ~ /booted/)) print $2 }') )
 }
 
 
