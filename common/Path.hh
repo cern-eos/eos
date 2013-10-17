@@ -96,8 +96,13 @@ public:
     fullPath = path;
     parentPath = "";
     lastPath= "";
-    if (fullPath == "/")
+    if ( (fullPath == "/") || 
+	 (fullPath == "/.") ||
+	 (fullPath == "/..") ) 
+    {
+      fullPath = "/";
       return;
+    }
 
     if (fullPath.endswith('/')) 
       fullPath.erase(fullPath.length()-1);
