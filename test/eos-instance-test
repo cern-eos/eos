@@ -462,6 +462,7 @@ runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.layouts /eos/$EOS_TEST
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.nstripes /eos/$EOS_TEST_INSTANCE/test/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.space /eos/$EOS_TEST_INSTANCE/test/
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
+runtest "### Quota     " unix 0 "" eos quota set -u 100 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix 0 "" eos quota set -u 3 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest "### Rm        " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
@@ -679,7 +680,6 @@ runtest "### Rem       " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instan
 ## --------------------------------------------------------------------------------------------------------------
 categorie="stress"
 # --------------------------------------------------------------------------------------------------------------
-if [ "x${EOS_TEST_NO_STRESS}" = "x" ]; then
 runtest "### Chmod      " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/"
 runtest "### Attr Set   " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test |grep success | wc -l | grep -w 6"
 runtest "### Stress Wpp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 -c -p"
@@ -688,13 +688,14 @@ runtest "### Find       " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE
 runtest "### Stress Rp  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c"
 runtest "### Stress Rpp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c -p"
 runtest "### Cleanup    " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress/*"
-# NOTE: The same thing but not concurrently, not so interesting ...
-#runtest "### Stress Wp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 -p"
-#runtest "### Stress W  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 "
-#runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=1000"
-#runtest "### Stress R  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 "
-#runtest "### Stress Rp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -p"
-fi
+runtest "### Ls        " unix 0 "" eos ls "/eos/$EOS_TEST_INSTANCE/test | grep [a-z] | wc -l | grep -w 2"
+runtest "### Ls        " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 2"
+runtest "### Ls        " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 4"
+runtest "### Find      " unix 0 "" eos "find 2>&1 | grep error"
+runtest "### Find      " unix 0 "" eos find -f "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l |grep -w 100"
+runtest "### Find      " unix 0 "" eos find --count "/eos/$EOS_TEST_INSTANCE/test | grep 100"
+runtest "### Find      " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l | grep -w 3"
+
 ################################################################################################################
 # ATTRIBUTES
 ###################################################A#############################################################
@@ -715,15 +716,7 @@ categorie="ns"
 runtest "### Cd        " unix 1 "" eos cd /__dont_exists
 runtest "### Cd        " unix 0 "" eos cd /eos/$EOS_TEST_INSTANCE/test
 runtest "### Ls        " unix 1 "" eos ls /__dont_exist 
-if [ "x${EOS_TEST_NO_STRESS}" = "x" ]; then
-runtest "### Ls        " unix 0 "" eos ls "/eos/$EOS_TEST_INSTANCE/test | grep [a-z] | wc -l | grep -w 2"
-runtest "### Ls        " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 2"
-runtest "### Ls        " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 4"
-runtest "### Find      " unix 0 "" eos "find 2>&1 | grep error"
-runtest "### Find      " unix 0 "" eos find -f "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l |grep -w 100"
-runtest "### Find      " unix 0 "" eos find --count "/eos/$EOS_TEST_INSTANCE/test | grep 100"
-runtest "### Find      " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l | grep -w 3"
-fi
+
 runtest "### Chmod     " unix 0 "" eos chmod 700 /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Ls        " unix 1 "EOSROLE='-r 99 99'" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Ls        " unix 0 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/
@@ -735,15 +728,17 @@ runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwox /eos/$EOS_
 runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
 runtest "### Upload    " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
 runtest "### Rm        " unix 1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
-runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwx,u:100:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
+runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.100.1k" "-ODeos.ruid=100\&eos.rgid=100"
 runtest "### Chmod     " unix 0 "" eos chmod 777 /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwox /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Rm        " unix 1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest/
-runtest "### Rm        " unix 1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
-runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwx+d,g:nobody:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Rm        " unix 1 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.100.1k
 runtest "### Rm        " unix 0 "EOSROLE='-r 99 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
+runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:100:rwx+d,g:nobody:rwx!d /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Rm        " unix 0 "EOSROLE='-r 100 99'" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.100.1k
 runtest "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr set sys.acl=u:nobody:rwx!u /eos/$EOS_TEST_INSTANCE/test/instancetest
 runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=99\&eos.rgid=99"
