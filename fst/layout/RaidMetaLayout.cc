@@ -1850,17 +1850,44 @@ RaidMetaLayout::CopyExtraBlocks (char* buffer,
 
 
 //------------------------------------------------------------------------------
+// Split read request into requests spanning just one chunk so that each
+// one is read from its corresponding stripe file
+//------------------------------------------------------------------------------
+std::vector<XrdCl::ChunkInfo>
+RaidMetaLayout::SplitRead(uint64_t off, uint32_t len, char* buff)
+{
+  uint32_t sz;
+  uint64_t block_end;
+  char* ptr_data = buff;
+  std::vector<XrdCl::ChunkInfo> split_read;
+  split_read.reserve((len / mStripeWidth) + 2); // worst case
+
+  while ((off / mStripeWidth != (off + len) / mStripeWidth) || (len))
+  {
+    block_end = ((off / mStripeWidth) + 1) * mStripeWidth;
+    sz = block_end - off;
+    
+    // Deal with last piece case
+    if (sz > len)
+      sz = len;
+    
+    // Add piece
+    split_read.push_back(XrdCl::ChunkInfo(off, sz, (void*)ptr_data));
+    off += sz;
+    len -= sz;
+    ptr_data += sz;
+  }
+
+  return split_read;
+}
+
+
+//------------------------------------------------------------------------------
 // Split vector read request into request for each of the data stripes
 //------------------------------------------------------------------------------
 std::vector<XrdCl::ChunkList>
 RaidMetaLayout::SplitReadV(XrdOucIOVec* readV, int readCount)
 {
-  uint32_t sz; ///< size of the first split block
-  long long block_end;  ///< end offset of the first split block
-  int indx; ///< logical stripe index a read block belongs to 
-  uint64_t local_off; 
-
-  std::vector<XrdCl::ChunkInfo> min_readv; ///< readV request spanning one stripe
   std::vector<XrdCl::ChunkList> stripe_readv; ///< readV request per stripe files
   stripe_readv.reserve(mNbDataFiles);
   
@@ -1869,44 +1896,22 @@ RaidMetaLayout::SplitReadV(XrdOucIOVec* readV, int readCount)
     stripe_readv.push_back(XrdCl::ChunkList());
   }
 
-  // Split any pieces spanning two chunks so that each piece is from one chunk
+  // Split any pieces spanning more than one chunk
   for (int i = 0; i < readCount; i++)
   {
-    uint64_t off = readV[i].offset;
-    uint32_t len = readV[i].size;
-    char* ptr_data = readV[i].data;
+    std::vector<XrdCl::ChunkInfo> split_read = SplitRead((uint64_t)readV[i].offset,
+                                                         (uint32_t)readV[i].size,
+                                                         readV[i].data);
     
-    while (off / mStripeWidth != (off + len) / mStripeWidth)
+    // Split each readV request to the corresponding stripe file from which we
+    // need to read it, adjusting the relative offset inside the stripe file
+    for (auto iter = split_read.begin(); iter != split_read.end(); ++iter)
     {
-      block_end = ((off / mStripeWidth) + 1) * mStripeWidth;
-      sz = block_end - off;
-
-      // Add piece
-      min_readv.push_back(XrdCl::ChunkInfo(off, sz, (void*)ptr_data));
-      off += sz;
-      len -= sz;
-      ptr_data += sz;
-    }
-
-    if (len)
-    {
-      min_readv.push_back(XrdCl::ChunkInfo(off, len, (void*)ptr_data)); 
-    }
-  }
- 
-  // Split each readV request to the corresponding stripe file from which we
-  // need to read it, adjusting the relative offset inside the stripe file
-  for (auto iter = min_readv.begin(); iter != min_readv.end(); ++iter)
-  {
-    eos_debug("min_off=%ji, min_len=%ji", iter->offset, iter->length);
-    local_off = (iter->offset / mSizeGroup) * mSizeLine +
-      (iter->offset / mSizeLine) * mStripeWidth + (iter->offset % mStripeWidth);
-    
-    indx = (iter->offset % mSizeLine) / mStripeWidth;
-    stripe_readv[indx].push_back(XrdCl::ChunkInfo((uint64_t)local_off,
-                                                  iter->length,
-                                                  iter->buffer));
-  }
+      auto pos = GetLocalPos(iter->offset);
+      iter->offset = pos.second;
+      stripe_readv[pos.first].push_back(*iter);
+    }    
+  } 
 
   return stripe_readv;  
 }

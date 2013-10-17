@@ -194,6 +194,36 @@ private:
 
 
   //--------------------------------------------------------------------------
+  //! Convert a global offset (from the inital file) to a local offset within
+  //! a stripe file. The initial block does *NOT* span multiple chunks (stripes)
+  //! therefore if the original length is bigger than one chunk the splitting
+  //! must be done before calling this method.
+  //!
+  //! @param global_off initial offset
+  //!
+  //! @return tuple made up of the logical index of the stripe file the piece
+  //!         belongs to and the local offset within that file. 
+  //!
+  //--------------------------------------------------------------------------
+  virtual std::pair<int, uint64_t>
+  GetLocalPos(uint64_t global_off);
+
+
+  //--------------------------------------------------------------------------
+  //! Convert a local position (from a stripe file) to a global position
+  //! within the initial file file
+  //!
+  //! @param stripe_id logical stripe index
+  //! @param local_off local offset
+  //!
+  //! @return offset in the initial file of the local given piece
+  //!
+  //--------------------------------------------------------------------------
+  virtual uint64_t
+  GetGlobalOff(int stripe_id, uint64_t local_off);
+
+
+  //--------------------------------------------------------------------------
   //! Disable copy constructor
   //--------------------------------------------------------------------------
   ReedSLayout (const ReedSLayout&) = delete;

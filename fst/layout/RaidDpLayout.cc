@@ -1055,5 +1055,38 @@ RaidDpLayout::Fdeallocate (XrdSfsFileOffset fromOffset,
   return mStripeFiles[0]->Fdeallocate(from_size, to_size);
 }
 
+
+//------------------------------------------------------------------------------
+// Convert a global offset (from the inital file) to a local offset within
+// a stripe file. The initial block does *NOT* span multiple chunks (stripes)
+// therefore if the original length is bigger than one chunk the splitting
+// must be done before calling this method.
+//------------------------------------------------------------------------------
+std::pair<int, uint64_t>
+RaidDpLayout::GetLocalPos(uint64_t global_off)
+{
+  uint64_t local_off = (global_off / mSizeGroup) * mSizeLine +
+                       (global_off / mSizeLine) * mStripeWidth +
+                       (global_off % mStripeWidth);
+  int stripe_id = (global_off / mStripeWidth) % mNbDataFiles;  
+  return std::make_pair(stripe_id, local_off);
+}
+
+
+//------------------------------------------------------------------------------
+// Convert a local position (from a stripe file) to a global position
+// within the initial file file
+//------------------------------------------------------------------------------
+uint64_t
+RaidDpLayout::GetGlobalOff(int stripe_id, uint64_t local_off)
+{
+  uint64_t global_off = (local_off / mSizeLine) * mSizeGroup +
+                        (local_off / mStripeWidth) * mSizeLine +
+                        (stripe_id * mStripeWidth) +
+                        (local_off % mStripeWidth);  
+  return global_off;
+}
+
+
 EOSFSTNAMESPACE_END
 

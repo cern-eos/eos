@@ -229,9 +229,10 @@ public:
 
 
   //--------------------------------------------------------------------------
-  //! Split vector read request into request for each of the data stripes
+  //! Split vector read request into requests for each of the data stripes with
+  //! the offset and length of the new chunks adjusted to the local file stripe
   //!
-  //! @param readV original vector read structure
+  //! @param readV original vector read structure 
   //! @param readCount number of elements in the vector read structure 
   //!
   //! @return vector of ChunkInfo structures containing the readv requests
@@ -241,6 +242,20 @@ public:
   //--------------------------------------------------------------------------
   std::vector<XrdCl::ChunkList> SplitReadV(XrdOucIOVec* readV, int readCount);
 
+
+  //--------------------------------------------------------------------------
+  //! Split read request into requests spanning just one chunk so that each
+  //! one is read from its corresponding stripe file
+  //!
+  //! @param off read offset
+  //! @param len read length 
+  //! @param buff buffer hoding the read data
+  //!
+  //! @return vector of ChunkInfo structures containing the read requests
+  //!         corresponding to each of the chunks making up the original file
+  //!
+  //--------------------------------------------------------------------------
+  std::vector<XrdCl::ChunkInfo> SplitRead(uint64_t off, uint32_t len, char* buff);
 
 
 protected:
@@ -485,10 +500,42 @@ private:
   //!
   //! @return the overlapping part in terms of offset and length in the
   //!         original file
+  //!
   //--------------------------------------------------------------------------
   std::pair<off_t, size_t> GetMatchingPart (XrdSfsFileOffset offset,
                                             XrdSfsXferSize length,
                                             XrdSfsFileOffset blockOffset);
+
+
+  //--------------------------------------------------------------------------
+  //! Convert a global offset (from the inital file) to a local offset within
+  //! a stripe file. The initial block does *NOT* span multiple chunks (stripes)
+  //! therefore if the original length is bigger than one chunk the splitting
+  //! must be done before calling this method.
+  //!
+  //! @param global_off initial offset
+  //!
+  //! @return tuple made up of the logical index of the stripe file the piece
+  //!         belongs to and the local offset within that file. 
+  //!
+  //--------------------------------------------------------------------------
+  virtual std::pair<int, uint64_t>
+  GetLocalPos(uint64_t global_off) = 0;
+
+
+  //--------------------------------------------------------------------------
+  //! Convert a local position (from a stripe file) to a global position
+  //! within the initial file file
+  //!
+  //! @param stripe_id logical stripe index
+  //! @param local_off local offset
+  //!
+  //! @return offset in the initial file of the local given piece
+  //!
+  //--------------------------------------------------------------------------
+  virtual uint64_t
+  GetGlobalOff(int stripe_id, uint64_t local_off) = 0;
+
 };
 
 EOSFSTNAMESPACE_END
