@@ -280,16 +280,16 @@ protected:
   unsigned int mNbDataBlocks; ///< no. data blocks in a group
   unsigned int mNbTotalBlocks; ///< no. data and parity blocks in a group
 
-  off_t mLastWriteOffset; ///< offset of the last write request 
-  off_t mStripeWidth; ///< stripe width
-  off_t mSizeHeader; ///< size of header = 4KB
-  off_t mFileSize; ///< total size of current file
-  off_t mTargetSize; ///< expected final size (?!)
-  off_t mSizeLine; ///< size of a line in a group
-  off_t mOffGroupParity; ///< offset of the last group for which we
-                         ///< computed the parity blocks
-  off_t mSizeGroup; ///< size of a group of blocks
-                    ///< eg. RAIDDP: group = noDataStr^2 blocks
+  uint64_t mLastWriteOffset; ///< offset of the last write request 
+  uint64_t mStripeWidth; ///< stripe width
+  uint64_t mSizeHeader; ///< size of header = 4KB
+  uint64_t mFileSize; ///< total size of current file
+  uint64_t mTargetSize; ///< expected final size (?!)
+  uint64_t mSizeLine; ///< size of a line in a group
+  int64_t mOffGroupParity; ///< offset of the last group for which we
+                           ///< computed the parity blocks
+  uint64_t mSizeGroup; ///< size of a group of blocks
+                       ///< eg. RAIDDP: group = noDataStr^2 blocks
 
   std::string mBookingOpaque; ///< opaque information
   std::vector<char*> mDataBlocks; ///< vector containing the data in a group
@@ -297,8 +297,8 @@ protected:
   std::vector<HeaderCRC*> mHdrInfo; ///< headers of the stripe files
   std::map<unsigned int, unsigned int> mapLP; ///< map of url to stripes
   std::map<unsigned int, unsigned int> mapPL; ///< map of stripes to url
-  std::map<off_t, size_t> mMapPieces; ///< map of pieces written for which parity
-                                      ///< computation has not been done yet
+  std::map<uint64_t, uint32_t> mMapPieces; ///< map of pieces written for which
+                                  ///< parity computation has not been done yet
 
   char* mFirstBlock; ///< first extra block for reading aligned
   char* mLastBlock; ///< last extra block for reading aligned
@@ -321,9 +321,9 @@ protected:
   //! @return true if recovery successful, false otherwise
   //!
   //--------------------------------------------------------------------------
-  virtual bool RecoverPieces (off_t offsetInit,
+  virtual bool RecoverPieces (uint64_t offsetInit,
                               char* buffer,
-                              std::map<off_t, size_t>& mapPieces);
+                              std::map<uint64_t, uint32_t>& mapPieces);
 
 
   //--------------------------------------------------------------------------
@@ -335,7 +335,7 @@ protected:
   //!         corresponding files, otherwise false
   //!
   //--------------------------------------------------------------------------
-  virtual bool DoBlockParity (off_t offsetGroup);
+  virtual bool DoBlockParity (uint64_t offGroup);
 
 
   //--------------------------------------------------------------------------
@@ -348,9 +348,9 @@ protected:
   //! @return true if recovery successful, false otherwise
   //!
   //--------------------------------------------------------------------------
-  virtual bool RecoverPiecesInGroup (off_t offsetInit,
+  virtual bool RecoverPiecesInGroup (uint64_t offsetInit,
                                      char* buffer,
-                                     std::map<off_t, size_t>& mapPieces) = 0;
+                                     std::map<uint64_t, uint32_t>& mapPieces) = 0;
 
 
   //--------------------------------------------------------------------------
@@ -362,7 +362,9 @@ protected:
   //! @param length length of the data
   //!
   //--------------------------------------------------------------------------
-  virtual void AddDataBlock (off_t offset, const char* buffer, size_t length) = 0;
+  virtual void AddDataBlock (uint64_t offset, 
+                             const char* buffer,  
+                             uint32_t length) = 0;
 
 
   //----------------------------------------------------------------------------
@@ -382,7 +384,7 @@ protected:
   //! @return 0 if successful, otherwise error
   //!
   //--------------------------------------------------------------------------
-  virtual int WriteParityToFiles (off_t offsetGroup) = 0;
+  virtual int WriteParityToFiles (uint64_t offsetGroup) = 0;
 
 
   //--------------------------------------------------------------------------
@@ -422,7 +424,7 @@ private:
   //! @param length length of the new piece added
   //!
   //--------------------------------------------------------------------------
-  void AddPiece (off_t offset, size_t length);
+  void AddPiece (uint64_t offset, uint32_t length);
 
 
   //--------------------------------------------------------------------------
@@ -440,7 +442,7 @@ private:
   //! @param forceAll if true return also offsets of incomplete groups
   //!
   //--------------------------------------------------------------------------
-  void GetOffsetGroups (std::set<off_t>& offsetGroups, bool forceAll);
+  void GetOffsetGroups (std::set<uint64_t>& offsetGroups, bool forceAll);
 
 
   //--------------------------------------------------------------------------
@@ -452,71 +454,19 @@ private:
   //! @return true if operation successful, otherwise error
   //!
   //--------------------------------------------------------------------------
-  bool ReadGroup (off_t offsetGroup);
-
-
-  //--------------------------------------------------------------------------
-  //! Expand the current range so that it is aligned with respect to the
-  //! block xs size 
-  //!
-  //! @param offset offset
-  //! @param length length
-  //! @param sizeBlockXs block xs size
-  //! @param alignedOffset aligned offset value
-  //! @param alignedLength aligned length value
-  //!
-  //--------------------------------------------------------------------------
-  void AlignExpandBlocks (char* ptrBuffer,
-                          XrdSfsFileOffset offset,
-                          XrdSfsXferSize sizeBlockXs,
-                          XrdSfsFileOffset& alignedOffset,
-                          XrdSfsXferSize& alignedLength);
-
-
-  //--------------------------------------------------------------------------
-  //!Copy any data from the extra block back to the original buffer
-  //!
-  //! @param buffer pointer to original buffer
-  //! @param offset original offset
-  //! @param length original length
-  //! @param alignedOffset aligned offset value
-  //! @param alignedLength aligned length value
-  //!
-  //--------------------------------------------------------------------------
-  void CopyExtraBlocks (char* buffer,
-                        XrdSfsFileOffset offset,
-                        XrdSfsXferSize length,
-                        XrdSfsFileOffset alignedOffset,
-                        XrdSfsXferSize alignedLength);
-
-
-  //--------------------------------------------------------------------------
-  //! Return matching part between original buffer and the extra block which 
-  //! was read, so that we can copy back only the required data
-  //!
-  //! @param offset original offset
-  //! @param length original length
-  //! @param blockOffset offset of extra block
-  //!
-  //! @return the overlapping part in terms of offset and length in the
-  //!         original file
-  //!
-  //--------------------------------------------------------------------------
-  std::pair<off_t, size_t> GetMatchingPart (XrdSfsFileOffset offset,
-                                            XrdSfsXferSize length,
-                                            XrdSfsFileOffset blockOffset);
+  bool ReadGroup (uint64_t offsetGroup);
 
 
   //--------------------------------------------------------------------------
   //! Convert a global offset (from the inital file) to a local offset within
-  //! a stripe file. The initial block does *NOT* span multiple chunks (stripes)
-  //! therefore if the original length is bigger than one chunk the splitting
-  //! must be done before calling this method.
+  //! a stripe data file. The initial block does *NOT* span multiple chunks
+  //! (stripes) therefore if the original length is bigger than one chunk the
+  //! splitting must be done before calling this method.
   //!
   //! @param global_off initial offset
   //!
-  //! @return tuple made up of the logical index of the stripe file the piece
-  //!         belongs to and the local offset within that file. 
+  //! @return tuple made up of the logical index of the stripe data file the
+  //!         piece belongs to and the local offset within that file. 
   //!
   //--------------------------------------------------------------------------
   virtual std::pair<int, uint64_t>
@@ -524,8 +474,10 @@ private:
 
 
   //--------------------------------------------------------------------------
-  //! Convert a local position (from a stripe file) to a global position
-  //! within the initial file file
+  //! Convert a local position (from a stripe data file) to a global position
+  //! within the initial file file. Note that the local offset has to come
+  //! from a stripe data file since there is no corresponde in the original
+  //! file for a piece which is in the parity stripe.
   //!
   //! @param stripe_id logical stripe index
   //! @param local_off local offset

@@ -152,7 +152,7 @@ private:
   //! @return 0 if successful, otherwise error
   //!
   //--------------------------------------------------------------------------
-  virtual int WriteParityToFiles (off_t offsetGroup);
+  virtual int WriteParityToFiles (uint64_t offsetGroup);
 
 
   //--------------------------------------------------------------------------
@@ -166,9 +166,9 @@ private:
   //! @return true if recovery was successful, otherwise false
   //!
   //--------------------------------------------------------------------------
-  virtual bool RecoverPiecesInGroup (off_t offset,
+  virtual bool RecoverPiecesInGroup (uint64_t offset,
                                      char* pBuffer,
-                                     std::map<off_t, size_t>& rMapPieces);
+                                     std::map<uint64_t, uint32_t>& rMapPieces);
 
 
   //--------------------------------------------------------------------------
@@ -179,7 +179,9 @@ private:
   //! @param length data length
   //!
   //--------------------------------------------------------------------------
-  virtual void AddDataBlock (off_t offset, const char* pBuffer, size_t length);
+  virtual void AddDataBlock (uint64_t offset,
+                             const char* pBuffer,
+                             uint32_t length);
 
 
   //--------------------------------------------------------------------------
@@ -195,14 +197,14 @@ private:
 
   //--------------------------------------------------------------------------
   //! Convert a global offset (from the inital file) to a local offset within
-  //! a stripe file. The initial block does *NOT* span multiple chunks (stripes)
-  //! therefore if the original length is bigger than one chunk the splitting
-  //! must be done before calling this method.
+  //! a stripe data file. The initial block does *NOT* span multiple chunks
+  //! (stripes) therefore if the original length is bigger than one chunk the
+  //! splitting must be done before calling this method.
   //!
   //! @param global_off initial offset
   //!
-  //! @return tuple made up of the logical index of the stripe file the piece
-  //!         belongs to and the local offset within that file. 
+  //! @return tuple made up of the logical index of the stripe data file the
+  //!         piece belongs to and the local offset within that file. 
   //!
   //--------------------------------------------------------------------------
   virtual std::pair<int, uint64_t>
@@ -210,8 +212,10 @@ private:
 
 
   //--------------------------------------------------------------------------
-  //! Convert a local position (from a stripe file) to a global position
-  //! within the initial file file
+  //! Convert a local position (from a stripe data file) to a global position
+  //! within the initial file file. Note that the local offset has to come
+  //! from a stripe data file since there is no corresponde in the original
+  //! file for a piece which is in the parity stripe.
   //!
   //! @param stripe_id logical stripe index
   //! @param local_off local offset
