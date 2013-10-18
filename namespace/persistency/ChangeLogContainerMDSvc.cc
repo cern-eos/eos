@@ -183,7 +183,7 @@ namespace eos
                   // remove container with old name
                   // -----------------------------------------------------------
                   itP->second.ptr->removeContainer(it->second.ptr->getName());
-                  delete itP->second.ptr;
+                  delete it->second.ptr;
                   // -----------------------------------------------------------
                   // add container with new name
                   // -----------------------------------------------------------
