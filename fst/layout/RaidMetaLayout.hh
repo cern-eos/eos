@@ -293,17 +293,12 @@ protected:
 
   std::string mBookingOpaque; ///< opaque information
   std::vector<char*> mDataBlocks; ///< vector containing the data in a group
-  std::vector<FileIo*> mStripeFiles; ///< vector containing the file IO layout
+  std::vector<FileIo*> mStripe; ///< file IO layout obj for each stripe
   std::vector<HeaderCRC*> mHdrInfo; ///< headers of the stripe files
   std::map<unsigned int, unsigned int> mapLP; ///< map of url to stripes
   std::map<unsigned int, unsigned int> mapPL; ///< map of stripes to url
   std::map<uint64_t, uint32_t> mMapPieces; ///< map of pieces written for which
                                   ///< parity computation has not been done yet
-
-  char* mFirstBlock; ///< first extra block for reading aligned
-  char* mLastBlock; ///< last extra block for reading aligned
-  std::vector<char*> mPtrBlocks; ///< vector containing pointers to where
-                                 ///< new blocks are to be read
 
   //--------------------------------------------------------------------------
   //! Test and recover any corrupted headers in the stripe files
