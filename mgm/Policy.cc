@@ -36,7 +36,13 @@ EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 void
-Policy::GetLayoutAndSpace (const char* path, eos::ContainerMD::XAttrMap &attrmap, const eos::common::Mapping::VirtualIdentity &vid, unsigned long &layoutId, XrdOucString &space, XrdOucEnv &env, unsigned long &forcedfsid)
+Policy::GetLayoutAndSpace (const char* path, 
+                           eos::ContainerMD::XAttrMap &attrmap, 
+                           const eos::common::Mapping::VirtualIdentity &vid, 
+                           unsigned long &layoutId, XrdOucString &space, 
+                           XrdOucEnv &env, 
+                           unsigned long &forcedfsid,
+                           long &forcedgroup)
 
 {
   // this is for the moment only defaulting or manual selection
@@ -45,7 +51,6 @@ Policy::GetLayoutAndSpace (const char* path, eos::ContainerMD::XAttrMap &attrmap
   unsigned long bxsum = eos::common::LayoutId::GetBlockChecksumFromEnv(env);
   unsigned long stripes = eos::common::LayoutId::GetStripeNumberFromEnv(env);
   unsigned long blocksize = eos::common::LayoutId::GetBlocksizeFromEnv(env);
-
 
   const char* val = 0;
   if ((val = env.Get("eos.space")))
@@ -57,6 +62,17 @@ Policy::GetLayoutAndSpace (const char* path, eos::ContainerMD::XAttrMap &attrmap
     space = "default";
   }
 
+  if ((val = env.Get("eos.group")))
+  {
+    // we force an explicit group
+    forcedgroup = strtol(val,0,10);
+  }
+  else
+  {
+    // we don't force an explicit group
+    forcedgroup = -1;
+  }
+  
   if ((vid.uid == 0) && (val = env.Get("eos.layout.noforce")))
   {
     // root can request not to apply any forced settings
@@ -70,6 +86,13 @@ Policy::GetLayoutAndSpace (const char* path, eos::ContainerMD::XAttrMap &attrmap
       eos_static_debug("sys.forced.space in %s", path);
     }
 
+    if (attrmap.count("sys.forced.group"))
+    {
+      // we force to use a certain group in this directory even if the user wants something else
+      forcedgroup = strtol(attrmap["sys.forced.group"].c_str(),0,10);
+      eos_static_debug("sys.forced.group in %s", path);
+    }
+    
     if (attrmap.count("sys.forced.layout"))
     {
       XrdOucString layoutstring = "eos.layout.type=";

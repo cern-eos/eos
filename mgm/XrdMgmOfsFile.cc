@@ -802,6 +802,10 @@ XrdMgmOfsFile::open (const char *inpath,
   unsigned long layoutId = (isCreation) ? eos::common::LayoutId::kPlain : fmdlid;
   // the client can force to read a file on a defined file system
   unsigned long forcedFsId = 0;
+  
+  // the client can force to place a file in a specified group of a space
+  long forcedGroup = -1;
+  
   // this is the filesystem defining the client access point in the selection 
   // vector - for writes it is always 0, for reads it comes out of the 
   // FileAccess function
@@ -816,7 +820,8 @@ XrdMgmOfsFile::open (const char *inpath,
                             newlayoutId,
                             space,
                             *openOpaque,
-                            forcedFsId);
+                            forcedFsId,
+                            forcedGroup);
 
 
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex); // lock order 1
@@ -1013,7 +1018,9 @@ XrdMgmOfsFile::open (const char *inpath,
     }
     retc = quotaspace->FilePlacement(path, vid, containertag, layoutId,
                                      selectedfs, selectedfs,
-                                     open_mode & SFS_O_TRUNC, -1, bookingsize);
+                                     open_mode & SFS_O_TRUNC, 
+                                     forcedGroup, 
+                                     bookingsize);
   }
   else
   {
@@ -1377,7 +1384,7 @@ XrdMgmOfsFile::open (const char *inpath,
 
       retc = quotaspace->FilePlacement(path, vid, containertag, plainLayoutId,
                                        selectedfs, PioReplacementFsList,
-                                       false, -1,
+                                       false, forcedGroup,
                                        plainBookingSize);
 
       if (retc)

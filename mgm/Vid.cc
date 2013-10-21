@@ -338,10 +338,94 @@ Vid::Rm (XrdOucEnv &env,
     nerased += eos::common::Mapping::gVirtualGidMap.erase(skey.c_str());
   }
 
+  if (vidcmd == "map")
+  {
+    while(1) {
+    XrdOucString auth = env.Get("mgm.vid.auth");
+    if ((auth != "voms") && (auth != "krb5") && (auth != "sss") && (auth != "unix") && (auth != "tident") && (auth != "gsi") && (auth != "https") )
+    {
+      eos_static_err("invalid auth mode");
+      break;
+    }
+
+    XrdOucString pattern = env.Get("mgm.vid.pattern");
+    if (!pattern.length())
+    {
+      eos_static_err("missing pattern");
+      break;
+    }
+
+    if (!pattern.beginswith("\""))
+    {
+      pattern.insert("\"", 0);
+    }
+
+    if (!pattern.endswith("\""))
+    {
+      pattern += "\"";
+    }
+
+    skey = auth;
+    skey += ":";
+    skey += pattern;
+
+    if ((!env.Get("mgm.vid.uid")) && (!env.Get("mgm.vid.gid")))
+    {
+      eos_static_err("missing uid|gid");
+      break;
+    }
+
+    XrdOucString newuid = env.Get("mgm.vid.uid");
+    XrdOucString newgid = env.Get("mgm.vid.gid");
+
+    if (newuid.length())
+    {
+      uid_t muid = (uid_t) atoi(newuid.c_str());
+      XrdOucString cx = "";
+      cx += (int) muid;
+      if (cx != newuid)
+      {
+        eos_static_err("strings differ %s %s", cx.c_str(), newuid.c_str());
+	break;
+      }
+      skey += ":";
+      skey += "uid";
+      eos::common::Mapping::gVirtualUidMap[skey.c_str()] = muid;
+
+      if (storeConfig) gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
+      nerased++;
+    }
+
+    skey = auth;
+    skey += ":";
+    skey += pattern;
+
+    if (newgid.length())
+    {
+      gid_t mgid = (gid_t) atoi(newgid.c_str());
+      XrdOucString cx = "";
+      cx += (int) mgid;
+      if (cx != newgid)
+      {
+        eos_static_err("strings differ %s %s", cx.c_str(), newgid.c_str());
+	break;
+      }
+      skey += ":";
+      skey += "gid";
+      eos::common::Mapping::gVirtualGidMap[skey.c_str()] = mgid;
+
+      if (storeConfig) gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
+      nerased++;
+    }
+    skey="";
+    break;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // delete the entry from the config engine
   // ---------------------------------------------------------------------------
-  if (storeConfig) gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
+  if (storeConfig && skey.length()) gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
 
   if (nerased)
   {

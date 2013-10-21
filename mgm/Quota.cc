@@ -203,9 +203,17 @@ SpaceQuota::UpdateLogicalSizeFactor ()
     unsigned long layoutId;
     XrdOucEnv env;
     unsigned long forcedfsid;
+    long forcedgroup;
     XrdOucString spn = SpaceName;
     // get the layout in this quota node
-    Policy::GetLayoutAndSpace(SpaceName.c_str(), map, vid, layoutId, spn, env, forcedfsid);
+    Policy::GetLayoutAndSpace(SpaceName.c_str(), 
+                              map, 
+                              vid, 
+                              layoutId, 
+                              spn, 
+                              env, 
+                              forcedfsid,
+                              forcedgroup);
     LayoutSizeFactor = eos::common::LayoutId::GetSizeFactor(layoutId);
   }
   else
