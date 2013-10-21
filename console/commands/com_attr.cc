@@ -313,6 +313,7 @@ com_attr_usage:
   fprintf(stdout, "Administrator Variables:\n");
   // ---------------------------------------------------------------------------
   fprintf(stdout, "         sys.forced.space=<space>              : enforces to use <space>    [configuration dependend]\n");
+  fprintf(stdout, "         sys.forced.group=<group>              : enforces to use <group>, where <group> is the numerical index of <space>.<n>    [configuration dependend]\n");
   //  fprintf(stdout,"         sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica,raiddp,reeds)]\n");
   fprintf(stdout, "         sys.forced.layout=<layout>            : enforces to use <layout>   [<layout>=(plain,replica)]\n");
   fprintf(stdout, "         sys.forced.checksum=<checksum>        : enforces to use file-level checksum <checksum>\n");
