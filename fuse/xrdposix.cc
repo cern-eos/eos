@@ -49,6 +49,7 @@
 #include <libgen.h>
 #include <pwd.h>
 #include <string.h>
+#include <pthread.h>
 /*----------------------------------------------------------------------------*/
 #include "XrdCache/XrdFileCache.hh"
 #include "XrdCache/FileAbstraction.hh"
@@ -881,8 +882,8 @@ class IoBuf;
 // Protecting the IO buffer map
 XrdSysMutex IoBufferLock;
 
-// IO buffer table
-std::map<int, IoBuf> IoBufferMap;
+// IO buffer table. Each fuse thread has its own read buffer
+std::map<pthread_t, IoBuf> IoBufferMap;
 
 
 //------------------------------------------------------------------------------
@@ -958,11 +959,11 @@ public:
 //------------------------------------------------------------------------------
 
 char*
-xrd_attach_read_buffer (int fd, size_t size)
+xrd_attach_read_buffer (pthread_t tid, size_t size)
 {
   XrdSysMutexHelper lock(IoBufferLock);
-  IoBufferMap[fd].Resize(size);
-  return (char*) IoBufferMap[fd].GetBuffer();
+  IoBufferMap[tid].Resize(size);
+  return (char*) IoBufferMap[tid].GetBuffer();
 }
 
 
@@ -971,10 +972,10 @@ xrd_attach_read_buffer (int fd, size_t size)
 //------------------------------------------------------------------------------
 
 void
-xrd_release_read_buffer (int fd)
+xrd_release_read_buffer (pthread_t tid)
 {
   XrdSysMutexHelper lock(IoBufferLock);
-  IoBufferMap.erase(fd);
+  IoBufferMap.erase(tid);
   return;
 }
 

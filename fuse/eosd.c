@@ -1120,8 +1120,8 @@ eosfs_ll_read (fuse_req_t req,
   if (fi->fh)
   {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
-    char* buf = xrd_attach_read_buffer (info->fd, size);
-
+    char* buf = xrd_attach_read_buffer (pthread_self(), size);
+    
     if (isdebug)
     {
       fprintf (stderr, "[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n",
@@ -1227,7 +1227,7 @@ eosfs_ll_release (fuse_req_t req,
     {
       fprintf (stderr, "[%s]: Do real close file fd=%i\n", __FUNCTION__, info->fd);
       int res = xrd_close (info->fd, ino);
-      xrd_release_read_buffer (info->fd);
+      xrd_release_read_buffer (pthread_self());
       xrd_remove_fd2file (info->fd);
 
       // Free memory

@@ -570,7 +570,7 @@ eosdfs_release (const char* path, struct fuse_file_info* fi)
   fd = (int) info->fd;
 
   xrd_close (fd, 0);
-  xrd_release_read_buffer (fd);
+  xrd_release_read_buffer (pthread_self());
   xrd_remove_fd2file (fd);
 
   //............................................................................

@@ -208,12 +208,12 @@ extern "C"
   //----------------------------------------------------------------------------
   //! Guarantee a buffer for reading of at least 'size' for the specified fd
   //----------------------------------------------------------------------------
-  char* xrd_attach_read_buffer (int fd, size_t size);
+  char* xrd_attach_read_buffer (pthread_t tid, size_t size);
 
   //----------------------------------------------------------------------------
   //! Release a read buffer for the specified fd
   //----------------------------------------------------------------------------
-  void xrd_release_read_buffer (int fd);
+  void xrd_release_read_buffer (pthread_t tid);
 
 
 
