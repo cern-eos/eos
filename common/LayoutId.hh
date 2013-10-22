@@ -707,6 +707,15 @@ public:
     unsigned long long lid = strtoll(layout.c_str(), 0, 16);
     if (errno)
       return NULL;
+
+    std::string group("");
+    std::string spaceStripped("");
+    if (eos::common::StringConversion::SplitKeyValue(space, spaceStripped,
+                                                     group, "."))
+    {
+      space = spaceStripped;
+    }
+
     out = "eos.layout.type=";
     out += GetLayoutTypeString(lid);
     out += "&eos.layout.nstripes=";
@@ -719,6 +728,13 @@ public:
     out += GetBlockSizeString(lid);
     out += "&eos.space=";
     out += space.c_str();
+
+    if (group != "")
+    {
+      out += "&eos.group=";
+      out += group.c_str();
+    }
+
     return out.c_str();
   }
 
