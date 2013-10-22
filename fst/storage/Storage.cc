@@ -1733,7 +1733,7 @@ Storage::Communicator()
       }
 
       if (! queue.beginswith(Config::gConfig.FstQueue)) {
-	if (queue.beginswith("/config/") && queue.endswith(Config::gConfig.FstHostPort)) {
+	if (queue.beginswith("/config/") && (queue.length() > Config::gConfig.FstHostPort.length()) && queue.endswith(Config::gConfig.FstHostPort)) {
 	  // this is the configuration entry and we should store it to have access to it since it's name depends on the instance name and we don't know (yet)
 	  Config::gConfig.FstNodeConfigQueue = queue;
 	  eos_static_info("storing config queue name <%s>", Config::gConfig.FstNodeConfigQueue.c_str());
