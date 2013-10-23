@@ -93,30 +93,30 @@ public:
   //--------------------------------------------------------------------------
   //! Vector read - sync
   //!
-  //! @param readV vector read structure
-  //! @param readCount number of elements in the vector read structure
+  //! @param chunkList list of chunks for the vector read
+  //! @param timeout timeout value
   //!
   //! @return number of bytes read of -1 if error
   //!
   //--------------------------------------------------------------------------
-  virtual int64_t Readv (XrdOucIOVec* readV,
-                         int readCount,
+  virtual int64_t ReadV (XrdCl::ChunkList& chunkList,
                          uint16_t timeout = 0);
 
 
-  //--------------------------------------------------------------------------
-  //! Vector read - async
+  //----------------------------------------------------------------------------
+  //! Vector read - async 
   //!
-  //! @param readV vector read structure
-  //! @param readCount number of elements in the vector read structure
+  //! @param chunkList list of chunks for the vector read
+  //! @param timeout timeout value
   //!
-  //! @return number of bytes read of -1 if error
+  //! @return number of bytes read of -1 if error; this actually calls the
+  //!         ReadV sync method
   //!
-  //--------------------------------------------------------------------------
-  virtual int64_t ReadvAsync (XrdOucIOVec* readV,
-                              int readCount,
+  //----------------------------------------------------------------------------
+  virtual int64_t ReadVAsync (XrdCl::ChunkList& chunkList,
                               uint16_t timeout = 0);
 
+  
   //--------------------------------------------------------------------------
   //! Write to file - sync
   //!

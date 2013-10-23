@@ -29,6 +29,8 @@
 #include "fst/checksum/ChecksumPlugins.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOss/XrdOssApi.hh"
+#include "XrdOuc/XrdOucIOVec.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 /*----------------------------------------------------------------------------*/
 #include <math.h>
 /*----------------------------------------------------------------------------*/
@@ -2368,7 +2370,17 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV,
                      int readCount)
 {
   eos_debug("read count=%i", readCount);
-  return layOut->Readv(readV, readCount);
+  // Copy the XrdOucIOVec structure to XrdCl::ChunkList
+  XrdCl::ChunkList chunkList;
+
+  for (int i = 0; i < readCount; ++i)
+  {
+    chunkList.push_back(XrdCl::ChunkInfo((uint64_t)readV[i].offset,
+                                         (uint32_t)readV[i].size,
+                                         (char*)readV[i].data));
+  }
+  
+  return layOut->ReadV(chunkList);
 }
 
 

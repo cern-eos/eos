@@ -37,7 +37,7 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 LocalIo::LocalIo (XrdFstOfsFile* file,
-                          const XrdSecEntity* client) :
+                  const XrdSecEntity* client) :
     FileIo(),
     mLogicalFile(file),
     mSecEntity(client)
@@ -106,12 +106,24 @@ LocalIo::Read (XrdSfsFileOffset offset,
 // Vector read - sync
 //------------------------------------------------------------------------------
 int64_t
-LocalIo::Readv (XrdOucIOVec* readV,
-                int readCount,
-                uint16_t timeout)
+LocalIo::ReadV (XrdCl::ChunkList& chunkList,
+                uint16_t timeout )
 {
-  eos_debug("read count=%i", readCount);
-  return mLogicalFile->readvofs(readV, readCount);
+  eos_debug("read count=%i", chunkList.size());
+
+  // Copy ChunkList structure to XrdOucVectIO
+  XrdOucIOVec* readV = new XrdOucIOVec[chunkList.size()];
+
+  for (uint32_t i = 0; i < chunkList.size(); ++i)
+  {
+    readV[i].offset = chunkList[i].offset;
+    readV[i].size = chunkList[i].length;
+    readV[i].data = (char*)chunkList[i].buffer;
+  }
+
+  int64_t nread = mLogicalFile->readvofs(readV, chunkList.size());
+  delete[] readV;
+  return nread;
 }
 
 
@@ -119,11 +131,10 @@ LocalIo::Readv (XrdOucIOVec* readV,
 // Vector read - async - in this case it is the same as the sync one
 //--------------------------------------------------------------------------
 int64_t
-LocalIo::ReadvAsync (XrdOucIOVec* readV,
-                     int readCount,
+LocalIo::ReadVAsync (XrdCl::ChunkList& chunkList,
                      uint16_t timeout)
 {
-  return Readv(readV, readCount, timeout);
+  return ReadV(chunkList, timeout);
 }
 
 

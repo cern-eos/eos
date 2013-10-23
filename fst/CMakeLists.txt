@@ -62,6 +62,7 @@ add_library( EosFstIo-Static STATIC
 	     io/HeaderCRC.cc                io/HeaderCRC.hh
 	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
 	     io/ChunkHandler.cc             io/ChunkHandler.hh
+	     io/VectChunkHandler.cc         io/VectChunkHandler.hh
 	     io/SimpleHandler.cc            io/SimpleHandler.hh
 	     checksum/CheckSum.cc           checksum/CheckSum.hh	     
 	     checksum/Adler.cc   	    checksum/Adler.hh
@@ -120,6 +121,7 @@ add_library( XrdEosFst MODULE
 	     io/HeaderCRC.cc                io/HeaderCRC.hh
 	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
 	     io/ChunkHandler.cc             io/ChunkHandler.hh
+	     io/VectChunkHandler.cc             io/VectChunkHandler.hh
 	     io/SimpleHandler.cc            io/SimpleHandler.hh
 	     Config.cc
 	     Load.cc

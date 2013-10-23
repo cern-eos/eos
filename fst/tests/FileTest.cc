@@ -135,8 +135,8 @@ FileTest::SplitReadVTest()
   
   // Create readV request
   char* buff = new char[1024*1024];
-  std::vector<XrdOucIOVec> readV;
-  std::vector<XrdOucIOVec> correct_rdv; 
+  XrdCl::ChunkList readV;
+  XrdCl::ChunkList correct_rdv;
   std::ostringstream sstr;
   std::string str_off;
   std::string str_len;
@@ -162,12 +162,13 @@ FileTest::SplitReadVTest()
     while ((ptr_off = tok_off.GetToken()) &&  (ptr_len = tok_len.GetToken()))
     {
       //std::cout << "off = " << ptr_off << " len = " << ptr_len << std::endl;
-      XrdOucIOVec entry = { atoi(ptr_off), atoi(ptr_len), 0, buff };
-      readV.push_back(entry);
+      readV.push_back(XrdCl::ChunkInfo((uint64_t)atoi(ptr_off),
+                                       (uint32_t)atoi(ptr_len),
+                                       (void*)0));
     }
 
     int indx = 0;
-    std::vector<XrdCl::ChunkList> result = ((RaidMetaLayout*)file)->SplitReadV(&readV[0], readV.size());
+    std::vector<XrdCl::ChunkList> result = ((RaidMetaLayout*)file)->SplitReadV(readV);
 
     // Loop through the answers for each stripe and compare with the correct values
     for (auto it_stripe = result.begin(); it_stripe != result.end(); ++it_stripe)
@@ -189,8 +190,9 @@ FileTest::SplitReadVTest()
       
       while ((ptr_off = tok_off.GetToken()) &&  (ptr_len = tok_len.GetToken()))
       {
-        XrdOucIOVec entry = { atoi(ptr_off), atoi(ptr_len), 0, buff };
-        correct_rdv.push_back(entry);
+        correct_rdv.push_back(XrdCl::ChunkInfo((uint64_t)atoi(ptr_off),
+                                               (uint32_t)atoi(ptr_len),
+                                               buff));
       }
       
       // Test same length
@@ -200,8 +202,8 @@ FileTest::SplitReadVTest()
       for (auto it_chunk = it_stripe->begin(), it_resp = correct_rdv.begin();
            it_chunk != it_stripe->end(); ++it_chunk, ++it_resp)
       {
-        CPPUNIT_ASSERT(it_chunk->offset == (uint64_t)it_resp->offset);
-        CPPUNIT_ASSERT(it_chunk->length == (uint32_t)it_resp->size);          
+        CPPUNIT_ASSERT(it_chunk->offset == it_resp->offset);
+        CPPUNIT_ASSERT(it_chunk->length == it_resp->length);          
       }
       
       indx++;

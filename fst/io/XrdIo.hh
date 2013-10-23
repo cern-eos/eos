@@ -158,32 +158,17 @@ public:
   //--------------------------------------------------------------------------
   //! Vector read - sync
   //!
-  //! @param readV vector read structure
-  //! @param readCount number of elements in the vector read structure
+  //! @param chunkList list of chunks for the vector read
+  //! @param timeout timeout value
   //!
   //! @return number of bytes read of -1 if error
   //!
   //--------------------------------------------------------------------------
-  virtual int64_t Readv (XrdOucIOVec* readV,
-                         int readCount,
+  virtual int64_t ReadV (XrdCl::ChunkList& chunkList,
                          uint16_t timeout = 0);
 
-
-  //--------------------------------------------------------------------------
-  //! Vector read - async
-  //!
-  //! @param readV vector read structure
-  //! @param readCount number of elements in the vector read structure
-  //!
-  //! @return number of bytes read of -1 if error
-  //!
-  //--------------------------------------------------------------------------
-  virtual int64_t ReadvAsync (XrdOucIOVec* readV,
-                              int readCount,
-                              uint16_t timeout = 0);
-
-  
-  //--------------------------------------------------------------------------
+ 
+  //----------------------------------------------------------------------------
   //! Write to file - sync
   //!
   //! @param offset offset
@@ -193,14 +178,14 @@ public:
   //!
   //! @return number of bytes written or -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int64_t Write (XrdSfsFileOffset offset,
                          const char* buffer,
                          XrdSfsXferSize length,
                          uint16_t timeout = 0);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Read from file - async
   //!
   //! @param offset offset in file
@@ -209,9 +194,9 @@ public:
   //! @param readahead true if readahead is to be enabled, otherwise false
   //! @param timeout timeout value
   //!
-  //! @return number of bytes read or -1 if error
+  //! @return number of bytes written or -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int64_t ReadAsync (XrdSfsFileOffset offset,
                              char* buffer,
                              XrdSfsXferSize length,
@@ -219,7 +204,20 @@ public:
                              uint16_t timeout = 0);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Vector read - async 
+  //!
+  //! @param chunkList list of chunks for the vector read
+  //! @param timeout timeout value
+  //!
+  //! @return 0(SFS_OK) if request successfully sent, otherwise -1(SFS_ERROR)
+  //!
+  //----------------------------------------------------------------------------
+  virtual int64_t ReadVAsync (XrdCl::ChunkList& chunkList,
+                              uint16_t timeout = 0);
+
+  
+  //----------------------------------------------------------------------------
   //! Write to file - async
   //!
   //! @param offset offset
@@ -229,7 +227,7 @@ public:
   //!
   //! @return number of bytes written or -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int64_t WriteAsync (XrdSfsFileOffset offset,
                               const char* buffer,
                               XrdSfsXferSize length,

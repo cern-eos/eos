@@ -174,7 +174,7 @@ ReedSLayout::RecoverPiecesInGroup(uint64_t offsetInit,
   uint64_t offset_local = (offset / mSizeGroup) * mStripeWidth;
   uint64_t offset_group = (offset / mSizeGroup) * mSizeGroup;
   uint32_t length = 0;
-  AsyncMetaHandler* ptr_handler = 0;
+  AsyncMetaHandler* phandler = 0;
   offset_local += mSizeHeader;
 
   for (unsigned int i = 0; i < mNbTotalFiles; i++)
@@ -184,15 +184,14 @@ ReedSLayout::RecoverPiecesInGroup(uint64_t offsetInit,
     // Read data from stripe
     if (mStripe[physical_id])
     {
-      ptr_handler = static_cast<AsyncMetaHandler*>
-                    (mStripe[physical_id]->GetAsyncHandler());
+      phandler = static_cast<AsyncMetaHandler*>(mStripe[physical_id]->GetAsyncHandler());
 
-      if (ptr_handler)
-        ptr_handler->Reset();
+      if (phandler)
+        phandler->Reset();
 
       // Enable readahead
       nread = mStripe[physical_id]->ReadAsync(offset_local, mDataBlocks[i],
-              mStripeWidth, true, mTimeout);
+                                              mStripeWidth, true, mTimeout);
 
       if (nread != (int64_t)mStripeWidth)
       {
@@ -214,12 +213,12 @@ ReedSLayout::RecoverPiecesInGroup(uint64_t offsetInit,
 
     if (mStripe[physical_id])
     {
-      ptr_handler = static_cast<AsyncMetaHandler*>
+      phandler = static_cast<AsyncMetaHandler*>
                     (mStripe[physical_id]->GetAsyncHandler());
 
-      if (ptr_handler)
+      if (phandler)
       {
-        uint16_t error_type = ptr_handler->WaitOK();
+        uint16_t error_type = phandler->WaitOK();
 
         if (error_type != XrdCl::errNone)
         {
@@ -297,11 +296,11 @@ ReedSLayout::RecoverPiecesInGroup(uint64_t offsetInit,
 
     if (mStoreRecovery && mStripe[physical_id])
     {
-      ptr_handler =
+      phandler =
         static_cast<AsyncMetaHandler*>(mStripe[physical_id]->GetAsyncHandler());
 
-      if (ptr_handler)
-        ptr_handler->Reset();
+      if (phandler)
+        phandler->Reset();
 
       nwrite = mStripe[physical_id]->WriteAsync(offset_local,
                                                      mDataBlocks[stripe_id],
@@ -345,12 +344,12 @@ ReedSLayout::RecoverPiecesInGroup(uint64_t offsetInit,
 
     if (mStoreRecovery && mStripe[physical_id])
     {
-      ptr_handler = static_cast<AsyncMetaHandler*>
+      phandler = static_cast<AsyncMetaHandler*>
                     (mStripe[physical_id]->GetAsyncHandler());
 
-      if (ptr_handler)
+      if (phandler)
       {
-        uint16_t error_type = ptr_handler->WaitOK();
+        uint16_t error_type = phandler->WaitOK();
 
         if (error_type != XrdCl::errNone)
         {
@@ -456,7 +455,7 @@ ReedSLayout::WriteParityToFiles(uint64_t offsetGroup)
     if (mStripe[physical_id])
     {
       nwrite = mStripe[physical_id]->WriteAsync(offset_local, mDataBlocks[i],
-               mStripeWidth, mTimeout);
+                                                mStripeWidth, mTimeout);
 
       if (nwrite != (int64_t)mStripeWidth)
       {

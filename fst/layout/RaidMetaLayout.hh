@@ -130,14 +130,13 @@ public:
   //--------------------------------------------------------------------------
   //! Vector read 
   //!
-  //! @param readV vector read structure
-  //! @param readCount number of elements in the vector read structure
+  //! @param chunkList list of chunks for the vector read
   //!
   //! @return number of bytes read of -1 if error
   //!
   //--------------------------------------------------------------------------
-  virtual int64_t Readv (XrdOucIOVec* readV,
-                         int readCount);
+  virtual int64_t ReadV (XrdCl::ChunkList& chunkList);
+
 
 
   //--------------------------------------------------------------------------
@@ -230,22 +229,25 @@ public:
 
   //--------------------------------------------------------------------------
   //! Split vector read request into requests for each of the data stripes with
-  //! the offset and length of the new chunks adjusted to the local file stripe
+  //! the offset and length of the new chunks adjusted to the LOCAL file stripe
   //!
-  //! @param readV original vector read structure 
-  //! @param readCount number of elements in the vector read structure 
+  //! @param chunkList list of chunks to read from the whole file
+  //! @param sizeHdr header size for local file which needs to be added to the
+  //!        final local offset value
   //!
   //! @return vector of ChunkInfo structures containing the readv requests
   //!         corresponding to each of the stripe files making up the original
-  //!         file
+  //!         file.
   //!
   //--------------------------------------------------------------------------
-  std::vector<XrdCl::ChunkList> SplitReadV(XrdOucIOVec* readV, int readCount);
+  std::vector<XrdCl::ChunkList> SplitReadV(XrdCl::ChunkList& chunkList,
+                                           uint32_t sizeHdr = 0);
 
 
   //--------------------------------------------------------------------------
   //! Split read request into requests spanning just one chunk so that each
-  //! one is read from its corresponding stripe file
+  //! one is read from its corresponding stripe file. The offset values are
+  //! GLOBAL i.e. they are relative to their position in the original file
   //!
   //! @param off read offset
   //! @param len read length 

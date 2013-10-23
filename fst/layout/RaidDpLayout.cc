@@ -217,7 +217,7 @@ RaidDpLayout::RecoverPiecesInGroup (uint64_t offsetInit,
   set<int> exclude_ids;
   uint64_t offset = rMapToRecover.begin()->first;
   uint64_t offset_group = (offset / mSizeGroup) * mSizeGroup;
-  AsyncMetaHandler* ptr_handler = 0;
+  AsyncMetaHandler* phandler = 0;
   std::map<uint64_t, uint32_t> map_errors;
   vector<unsigned int> simple_parity = GetSimpleParityIndices();
   vector<unsigned int> double_parity = GetDoubleParityIndices();
@@ -228,9 +228,9 @@ RaidDpLayout::RecoverPiecesInGroup (uint64_t offsetInit,
   {
     if (mStripe[i])
     {
-      ptr_handler  = static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
-      if (ptr_handler)
-        ptr_handler->Reset();
+      phandler  = static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
+      if (phandler)
+        phandler->Reset();
     }
   }
 
@@ -270,16 +270,16 @@ RaidDpLayout::RecoverPiecesInGroup (uint64_t offsetInit,
   {
     if (mStripe[i])
     {
-      ptr_handler  = static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
+      phandler  = static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
     
-      if (ptr_handler)
+      if (phandler)
       {
-        uint16_t error_type = ptr_handler->WaitOK();
+        uint16_t error_type = phandler->WaitOK();
         
         if (error_type != XrdCl::errNone)
         {
           // Get type of error and the errors map 
-          map_errors = ptr_handler->GetErrors();
+          map_errors = phandler->GetErrors();
                          
           for (auto iter = map_errors.begin(); iter != map_errors.end(); iter++)
           {
@@ -300,7 +300,7 @@ RaidDpLayout::RecoverPiecesInGroup (uint64_t offsetInit,
         }
 
         if (mStripe[i])
-          ptr_handler->Reset();
+          phandler->Reset();
       }
     }
   }
@@ -420,9 +420,9 @@ RaidDpLayout::RecoverPiecesInGroup (uint64_t offsetInit,
         if (mStoreRecovery && mStripe[physical_id])
         {
           nwrite = mStripe[physical_id]->WriteAsync(offset_local,
-                                                         mDataBlocks[id_corrupted],
-                                                         mStripeWidth,
-                                                         mTimeout);
+                                                    mDataBlocks[id_corrupted],
+                                                    mStripeWidth,
+                                                    mTimeout);
 
           if (nwrite != (int64_t)mStripeWidth)
           {
@@ -475,11 +475,11 @@ RaidDpLayout::RecoverPiecesInGroup (uint64_t offsetInit,
   {
     if (mStoreRecovery && mStripe[i])
     {
-      ptr_handler = static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
+      phandler = static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
       
-      if (ptr_handler)
+      if (phandler)
       {
-        uint16_t error_type = ptr_handler->WaitOK();
+        uint16_t error_type = phandler->WaitOK();
         
         if (error_type != XrdCl::errNone)
         {
@@ -594,9 +594,9 @@ RaidDpLayout::WriteParityToFiles (uint64_t offGroup)
     if (mStripe[physical_pindex])
     {
       nwrite = mStripe[physical_pindex]->WriteAsync(off_parity_local,
-                                                         mDataBlocks[index_pblock],
-                                                         mStripeWidth,
-                                                         mTimeout);
+                                                    mDataBlocks[index_pblock],
+                                                    mStripeWidth,
+                                                    mTimeout);
       if (nwrite != (int64_t)mStripeWidth)
       {
         eos_err("error while writing simple parity information");
@@ -615,9 +615,9 @@ RaidDpLayout::WriteParityToFiles (uint64_t offGroup)
     if (mStripe[physical_dpindex])
     {
       nwrite = mStripe[physical_dpindex]->WriteAsync(off_parity_local,
-                                                          mDataBlocks[index_dpblock],
-                                                          mStripeWidth,
-                                                          mTimeout);
+                                                     mDataBlocks[index_dpblock],
+                                                     mStripeWidth,
+                                                     mTimeout);
       if (nwrite != (int64_t)mStripeWidth)
       {
         eos_err("error while writing double parity information");

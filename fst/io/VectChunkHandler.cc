@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: ChunkHandler.cc
+// File: VectChunkHandler.cc
 // Author: Elvin-Alin Sindrilaru <esindril@cern.ch> - CERN
 //------------------------------------------------------------------------------
 
@@ -22,7 +22,7 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "fst/io/ChunkHandler.hh"
+#include "fst/io/VectChunkHandler.hh"
 
 /*----------------------------------------------------------------------------*/
 
@@ -31,37 +31,45 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ChunkHandler::ChunkHandler (AsyncMetaHandler* metaHandler,
-                            uint64_t offset,
-                            uint32_t length,
-                            const char* buff,
-                            bool isWrite) :
+VectChunkHandler::VectChunkHandler (AsyncMetaHandler* metaHandler,
+                                    XrdCl::ChunkList& chunks,
+                                    const char* wrBuf,
+                                    bool isWrite) :
 XrdCl::ResponseHandler(),
 mBuffer(0),
 mMetaHandler (metaHandler),
-mOffset (offset),
-mLength (length),
 mCapacity (0),
+mLength (0),
 mRespLength (0),
 mIsWrite (isWrite)
 {
+  // Copy the list of chunks and compute buffer size
+  for (auto chunk = chunks.begin(); chunk != chunks.end(); ++chunk)
+  {
+    mLength += chunk->length;
+    mChunkList.push_back(*chunk);
+  }
+
+  mCapacity = mLength;
+
+  /*
+  NOTE: Vector writes are not supported yet
   if (mIsWrite)
   {
-    mCapacity = length;
+    // Copy the write buffer to the local one
     mBuffer = static_cast<char*>(calloc(mCapacity, sizeof(char)));
     
     if (mBuffer)
-    {
-      mBuffer = static_cast<char*>(memcpy(mBuffer, buff, length));
-    }
+      mBuffer = static_cast<char*>(memcpy(mBuffer, wrBuf, mLength));
   }
+  */
 }
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-ChunkHandler::~ChunkHandler ()
+VectChunkHandler::~VectChunkHandler ()
 {
   if (mBuffer)
   {
@@ -74,28 +82,36 @@ ChunkHandler::~ChunkHandler ()
 // Update function
 //------------------------------------------------------------------------------
 void
-ChunkHandler::Update (AsyncMetaHandler* metaHandler,
-                      uint64_t offset,
-                      uint32_t length,
-                      const char* buff,
-                      bool isWrite)
+VectChunkHandler::Update (AsyncMetaHandler* metaHandler,
+                          XrdCl::ChunkList& chunks,
+                          const char* wrBuf,
+                          bool isWrite)
 {
   mMetaHandler = metaHandler;
-  mOffset = offset;
-  mLength = length;
   mRespLength = 0;
+  mLength = 0;
   mIsWrite = isWrite;
+  
+  // Copy the list of chunks and compute buffer size
+  for (auto chunk = chunks.begin(); chunk != chunks.end(); ++chunk)
+  {
+    mLength += chunk->length;
+    mChunkList.push_back(*chunk);
+  }
 
+  /*
+  NOTE: vector writes are not supported yet
   if (mIsWrite)
   {
-    if (length > mCapacity)
+    if (mLength > mCapacity)
     {
-      mCapacity = length;
+      mCapacity = mLength;
       mBuffer = static_cast<char*>(realloc(mBuffer, mCapacity));
     }
-    
-    mBuffer = static_cast<char*>(memcpy(mBuffer, buff, length));
+
+    mBuffer = static_cast<char*>(memcpy(mBuffer, wrBuf, mLength));
   }
+  */
 }
 
 
@@ -103,22 +119,18 @@ ChunkHandler::Update (AsyncMetaHandler* metaHandler,
 // Handle response
 //------------------------------------------------------------------------------
 void
-ChunkHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
-                              XrdCl::AnyObject* pResponse)
+VectChunkHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
+                                  XrdCl::AnyObject* pResponse)
 {
-  //............................................................................
   // Do some extra check for the read case
-  //............................................................................
   if ((mIsWrite == false) && (pResponse))
   {
-    XrdCl::ChunkInfo* chunk = 0;
-    pResponse->Get(chunk);
-    mRespLength = chunk->length;
+    XrdCl::VectorReadInfo* vrd_info = 0;
+    pResponse->Get(vrd_info);
+    mRespLength = vrd_info->GetSize();
 
-    //..........................................................................
-    // Notice if we received less then we initially requested - usually this means
-    // we reached the end of the file, but we will treat it as an error
-    //..........................................................................
+    // Notice if we received less then we initially requested - for readv it
+    // means there was an error
     if (mLength != mRespLength)
     {
       pStatus->status = XrdCl::stError;
@@ -136,3 +148,4 @@ ChunkHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 }
 
 EOSFSTNAMESPACE_END
+

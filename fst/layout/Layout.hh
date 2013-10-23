@@ -34,8 +34,8 @@
 #include "fst/io/FileIoPlugin.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucIOVec.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -164,14 +164,12 @@ public:
   //--------------------------------------------------------------------------
   //! Vector read 
   //!
-  //! @param readV vector read structure
-  //! @param readCount number of elements in the vector read structure
+  //! @param chunkList list of chunks for the vector read
   //!
   //! @return number of bytes read of -1 if error
   //!
   //--------------------------------------------------------------------------
-  virtual int64_t Readv (XrdOucIOVec* readV,
-                         int readCount) = 0;
+  virtual int64_t ReadV (XrdCl::ChunkList& chunkList) = 0;
 
   
   //--------------------------------------------------------------------------

@@ -50,7 +50,6 @@ ReplicaParLayout::ReplicaParLayout (XrdFstOfsFile* file,
 //------------------------------------------------------------------------------
 // Open file
 //------------------------------------------------------------------------------
-
 int
 ReplicaParLayout::Open (const std::string& path,
                         XrdSfsFileOpenMode flags,
@@ -268,7 +267,6 @@ ReplicaParLayout::Open (const std::string& path,
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-
 ReplicaParLayout::~ReplicaParLayout ()
 {
  while (!mReplicaFile.empty())
@@ -283,7 +281,6 @@ ReplicaParLayout::~ReplicaParLayout ()
 //------------------------------------------------------------------------------
 // Read from file
 //------------------------------------------------------------------------------
-
 int64_t
 ReplicaParLayout::Read (XrdSfsFileOffset offset,
                         char* buffer,
@@ -295,7 +292,7 @@ ReplicaParLayout::Read (XrdSfsFileOffset offset,
  {
    rc = mReplicaFile[i]->Read(offset, buffer, length, mTimeout);
 
-   if (rc == SFS_ERROR)
+   if (rc != length)
    {
      XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
      // mask some opaque parameters to shorten the logging
@@ -308,9 +305,7 @@ ReplicaParLayout::Read (XrdSfsFileOffset offset,
    }
    else
    {
-     //......................................................................
-     // Read was scucessful no need to read from another replica
-     //......................................................................
+     // Read was successful no need to read from another replica
      break;
    }
  }
@@ -330,16 +325,16 @@ ReplicaParLayout::Read (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 // Vector read 
 //------------------------------------------------------------------------------
+//--------------------------------------------------------------------------
 int64_t
-ReplicaParLayout::Readv (XrdOucIOVec* readV,
-                         int readCount)
+ReplicaParLayout::ReadV (XrdCl::ChunkList& chunkList) 
 {
  int64_t rc = 0;
- eos_debug("read count=%i", readCount);
+ eos_debug("read count=%i", chunkList.size());
 
  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
  {
-   rc = mReplicaFile[i]->Readv(readV, readCount, mTimeout);
+   rc = mReplicaFile[i]->ReadV(chunkList, mTimeout);
 
    if (rc == SFS_ERROR)
    {
@@ -353,7 +348,7 @@ ReplicaParLayout::Readv (XrdOucIOVec* readV,
    }
    else
    {
-     // Read was scucessful no need to read from another replica
+     // Read was successful no need to read from another replica
      break;
    }
  }
@@ -371,7 +366,6 @@ ReplicaParLayout::Readv (XrdOucIOVec* readV,
 //------------------------------------------------------------------------------
 // Write to file
 //------------------------------------------------------------------------------
-
 int64_t
 ReplicaParLayout::Write (XrdSfsFileOffset offset,
                          const char* buffer,
@@ -439,7 +433,6 @@ ReplicaParLayout::Truncate (XrdSfsFileOffset offset)
 //------------------------------------------------------------------------------
 // Get stats for file
 //------------------------------------------------------------------------------
-
 int
 ReplicaParLayout::Stat (struct stat* buf)
 {
@@ -457,7 +450,6 @@ ReplicaParLayout::Stat (struct stat* buf)
 //------------------------------------------------------------------------------
 // Sync file to disk
 //------------------------------------------------------------------------------
-
 int
 ReplicaParLayout::Sync ()
 {
@@ -489,7 +481,6 @@ ReplicaParLayout::Sync ()
 //------------------------------------------------------------------------------
 // Remove file and all replicas
 //------------------------------------------------------------------------------
-
 int
 ReplicaParLayout::Remove ()
 {
@@ -527,7 +518,6 @@ ReplicaParLayout::Remove ()
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
-
 int
 ReplicaParLayout::Close ()
 {
@@ -574,7 +564,6 @@ ReplicaParLayout::Close ()
 //------------------------------------------------------------------------------
 // Reserve space for file
 //------------------------------------------------------------------------------
-
 int
 ReplicaParLayout::Fallocate (XrdSfsFileOffset length)
 {
@@ -585,7 +574,6 @@ ReplicaParLayout::Fallocate (XrdSfsFileOffset length)
 //------------------------------------------------------------------------------
 // Deallocate reserved space
 //------------------------------------------------------------------------------
-
 int
 ReplicaParLayout::Fdeallocate (XrdSfsFileOffset fromOffset,
                                XrdSfsFileOffset toOffset)

@@ -648,11 +648,11 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
  unsigned int stripe_id;
  unsigned int physical_id;
  int64_t read_length = 0;
- uint64_t offset_local = 0;
- uint64_t offset_global = 0;
+ uint64_t off_local = 0;
+ uint64_t off_global = 0;
  uint64_t offset_init = (uint64_t)offset;
  uint64_t end_raw_offset = (uint64_t)(offset + length);
- AsyncMetaHandler* ptr_handler = 0;
+ AsyncMetaHandler* phandler = 0;
  std::map<uint64_t, uint32_t> map_all_errors;
 
  if (!mIsEntryServer)
@@ -721,39 +721,38 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
      {
        if (mStripe[i])
        {
-         ptr_handler = static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
-         if (ptr_handler)
-           ptr_handler->Reset();
+         phandler = static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
+         if (phandler)
+           phandler->Reset();
        }
      }
 
-     // Split read in chunks and send requests
+     // Split original read in chunks which can be read from one stripe and return
+     // their relative offsets in the original file
      int64_t nbytes = 0;
      bool do_recovery = false;
      bool got_error = false;
-     std::vector<XrdCl::ChunkInfo> chunks = SplitRead(offset, length, buffer);
+     std::vector<XrdCl::ChunkInfo> split_chunk = SplitRead(offset, length, buffer);
 
-     for (auto chunk = chunks.begin(); chunk != chunks.end(); ++chunk)
+     for (auto chunk = split_chunk.begin(); chunk != split_chunk.end(); ++chunk)
      {
        COMMONTIMING("read remote in", &rt);
        got_error = false;
        auto local_pos = GetLocalPos(chunk->offset);
        physical_id = mapLP[local_pos.first];
-       offset_local = local_pos.second + mSizeHeader;
+       off_local = local_pos.second + mSizeHeader;
 
        if (mStripe[physical_id])
        {
          eos_debug("Read stripe_id=%i, logic_offset=%ji, local_offset=%ji, length=%ji",
-                   local_pos.first, chunk->offset, offset_local, chunk->length);
-         nbytes = mStripe[physical_id]->ReadAsync(offset_local,
-                                                       (char*)chunk->buffer,
-                                                       chunk->length,
-                                                       true, mTimeout); 
-
+                   local_pos.first, chunk->offset, off_local, chunk->length);
+         nbytes = mStripe[physical_id]->ReadAsync(off_local,
+                                                  (char*)chunk->buffer,
+                                                  chunk->length,
+                                                  true, mTimeout); 
+         
          if (nbytes != chunk->length)
-         {
            got_error = true;
-         }
        }
        else
        {
@@ -770,29 +769,29 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
      }
 
      // Collect errros
-     std::map<uint64_t, uint32_t> map_tmp_errors;
+     std::map<uint64_t, uint32_t> map_err;
 
      for (unsigned int j = 0; j < mStripe.size(); j++)
      {
        if (mStripe[j])
        {
-         ptr_handler = static_cast<AsyncMetaHandler*>(mStripe[j]->GetAsyncHandler());
+         phandler = static_cast<AsyncMetaHandler*>(mStripe[j]->GetAsyncHandler());
        
-         if (ptr_handler)
+         if (phandler)
          {
-           uint16_t error_type = ptr_handler->WaitOK();
+           uint16_t error_type = phandler->WaitOK();
            
            if (error_type != XrdCl::errNone)
            {
              // Get the type of error and the map
-             map_tmp_errors = ptr_handler->GetErrors();
+             map_err = phandler->GetErrors();
              stripe_id = mapPL[j];
 
-             for (auto iter = map_tmp_errors.begin(); iter != map_tmp_errors.end(); iter++)
+             for (auto iter = map_err.begin(); iter != map_err.end(); iter++)
              {
-               offset_local = iter->first - mSizeHeader;
-               offset_global = GetGlobalOff(stripe_id, offset_local);
-               map_all_errors.insert(std::make_pair(offset_global, iter->second));
+               off_local = iter->first - mSizeHeader;
+               off_global = GetGlobalOff(stripe_id, off_local);
+               map_all_errors.insert(std::make_pair(off_global, iter->second));
              }
              
              do_recovery = true;
@@ -832,15 +831,131 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
 // Vector read 
 //------------------------------------------------------------------------------
 int64_t
-RaidMetaLayout::Readv (XrdOucIOVec* readV,
-                       int readCount)
+RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList)
 {
-  // TODO: fix this
+  int64_t total_read = 0;
+  uint64_t off_local = 0;
+  uint64_t off_global = 0;
+  AsyncMetaHandler* phandler = 0;
+  std::map<uint64_t, uint32_t> map_all_errors;
 
+  if (!mIsEntryServer)
+  {
+    // Non-entry server doing local readv operations
+    if (mStripe[0])
+      total_read = mStripe[0]->ReadV(chunkList);
+  }
+  else
+  {
+    // Reset all the async handlers
+    for (unsigned int i = 0; i < mStripe.size(); i++)
+    {
+      if (mStripe[i])
+      {
+        phandler = static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
+        if (phandler)
+          phandler->Reset();
+      }
+    }
+    
+    // Entry server splits requests per stripe returning the relative position of
+    // each chunks inside the stripe file including the header offset
+    int64_t nread = 0;
+    bool do_recovery = false;
+    bool got_error = false;
+    uint32_t stripe_id;
+    uint32_t physical_id;
+    std::vector<XrdCl::ChunkList> stripe_chunks = SplitReadV(chunkList, mSizeHeader);
 
+    for (stripe_id = 0; stripe_id < stripe_chunks.size(); ++stripe_id)
+    {
+      physical_id = mapLP[stripe_id];
+
+      if (mStripe[physical_id])
+      {
+        eos_debug("readv stripe=%u, read_count=%i", stripe_id,
+                  stripe_chunks[stripe_id].size());
+        nread = mStripe[physical_id]->ReadVAsync(stripe_chunks[physical_id], mTimeout);
+      
+        if (nread == SFS_ERROR)
+          got_error = true;
+      }    
+      else
+      {
+        // File not opened, we register it as a read error
+        got_error = true;
+      }
+      
+      // Save errors in the map to be recovered
+      if (got_error)
+      {
+        do_recovery = true;
+        
+        for (auto chunk = stripe_chunks[physical_id].begin();
+             chunk != stripe_chunks[physical_id].end(); ++chunk)
+        {
+          off_local = chunk->offset - mSizeHeader;
+          off_global = GetGlobalOff(stripe_id, off_local);
+          map_all_errors.insert(std::make_pair(off_global, chunk->length));
+        }
+      }
+    }
+    
+    // Collect errors
+    std::map<uint64_t, uint32_t> map_err;
+
+    for (unsigned int j = 0; j < mStripe.size(); j++)
+    {
+      if (mStripe[j])
+      {
+        phandler = static_cast<AsyncMetaHandler*>(mStripe[j]->GetAsyncHandler());
+        
+        if (phandler)
+        {
+          uint16_t error_type = phandler->WaitOK();
+          
+          if (error_type != XrdCl::errNone)
+          {
+            // Get the type of error and the map
+            map_err = phandler->GetErrors();
+            stripe_id = mapPL[j];
+            
+            for (auto iter = map_err.begin(); iter != map_err.end(); iter++)
+            {
+              off_local = iter->first - mSizeHeader;
+              off_global = GetGlobalOff(stripe_id, off_local);
+              map_all_errors.insert(std::make_pair(off_global, iter->second));
+            }
+             
+            do_recovery = true;
+            
+            // If timeout error, then disable current file as we asume that
+            // the server is down
+            if (error_type == XrdCl::errOperationExpired)
+            {
+              eos_debug("debug=calling close on the file after a timeout error");
+              mStripe[j]->Close(mTimeout);
+              delete mStripe[j];
+              mStripe[j] = NULL;
+            }
+          }        
+        }
+      }
+    }
+
+    // Try to recover any corrupted blocks
+    /*
+    if (do_recovery && (!RecoverPieces(offset_init, buffer, map_all_errors)))
+    {
+      eos_err("read recovery failed");
+      return SFS_ERROR;
+    }
+    */
+    
+    // TODO: compute total_read
+  }       
   
-  
-  return SFS_ERROR;
+  return total_read;
 }
 
 
@@ -858,7 +973,7 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
  int64_t nwrite;
  int64_t nbytes;
  int64_t write_length = 0;
- uint64_t offset_local;
+ uint64_t off_local;
  uint64_t offset_end = offset + length;
  unsigned int physical_id;
 
@@ -883,8 +998,8 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
    {
      auto pos = GetLocalPos(offset);
      physical_id = mapLP[pos.first];  
-     offset_local = pos.second;
-     offset_local += mSizeHeader;
+     off_local = pos.second;
+     off_local += mSizeHeader;
      nwrite = (length < (int64_t)mStripeWidth) ? length : mStripeWidth;
 
      // Deal with the case when offset is not aligned (sparse writing) and the
@@ -900,7 +1015,7 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
      // Write to stripe
      if (mStripe[physical_id])
      {
-       nbytes = mStripe[physical_id]->WriteAsync(offset_local, buffer,
+       nbytes = mStripe[physical_id]->WriteAsync(off_local, buffer,
                                                       nwrite, mTimeout);
 
        if (nbytes != nwrite)
@@ -1085,28 +1200,28 @@ bool
 RaidMetaLayout::ReadGroup (uint64_t offGroup)
 {
  unsigned int physical_id;
- uint64_t offset_local;
+ uint64_t off_local;
  bool ret = true;
  unsigned int id_stripe;
  int64_t nread = 0;
- AsyncMetaHandler* ptr_handler = 0;
+ AsyncMetaHandler* phandler = 0;
 
  // Collect all the write the responses and reset all the handlers
  for ( unsigned int i = 0; i < mStripe.size(); i++ )
  {
    if (mStripe[i])
    {
-     ptr_handler = static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
+     phandler = static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
      
-     if (ptr_handler)
+     if (phandler)
      {
-       if (ptr_handler->WaitOK() != XrdCl::errNone)
+       if (phandler->WaitOK() != XrdCl::errNone)
        {
          eos_err("write failed in previous requests.");
          return false;
        }
        
-       ptr_handler->Reset();
+       phandler->Reset();
      }
    }
  }
@@ -1115,19 +1230,19 @@ RaidMetaLayout::ReadGroup (uint64_t offGroup)
  {
    id_stripe = i % mNbDataFiles;
    physical_id = mapLP[id_stripe];
-   offset_local = ((offGroup / mSizeLine) + (i / mNbDataFiles)) * mStripeWidth;
-   offset_local += mSizeHeader;
+   off_local = ((offGroup / mSizeLine) + (i / mNbDataFiles)) * mStripeWidth;
+   off_local += mSizeHeader;
 
    if (mStripe[physical_id])
    {
      // Do read operation - chunk info is not interesting at this point
      // !!!Here we can only do normal async requests without readahead as this
      // would lead to corruptions in the parity information computed!!!
-     nread = mStripe[physical_id]->ReadAsync(offset_local,
-                                                  mDataBlocks[MapSmallToBig(i)],
-                                                  mStripeWidth,
-                                                  false, mTimeout);
-
+     nread = mStripe[physical_id]->ReadAsync(off_local,
+                                             mDataBlocks[MapSmallToBig(i)],
+                                             mStripeWidth,
+                                             false, mTimeout);
+     
      if (nread != (int64_t)mStripeWidth)
      {
        eos_err("error while reading local data blocks stripe=%u", id_stripe);
@@ -1150,9 +1265,9 @@ RaidMetaLayout::ReadGroup (uint64_t offGroup)
    
    if (mStripe[physical_id])
    {  
-     ptr_handler = static_cast<AsyncMetaHandler*>(mStripe[physical_id]->GetAsyncHandler());
+     phandler = static_cast<AsyncMetaHandler*>(mStripe[physical_id]->GetAsyncHandler());
    
-     if (ptr_handler && (ptr_handler->WaitOK() != XrdCl::errNone))
+     if (phandler && (phandler->WaitOK() != XrdCl::errNone))
      {
        eos_err("error while reading data blocks stripe=%u", i);
        ret = false;
@@ -1484,18 +1599,18 @@ RaidMetaLayout::Close ()
        {
          if (mStripe[i])
          {
-           AsyncMetaHandler* ptr_handler =
+           AsyncMetaHandler* phandler =
              static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
 
-           if (ptr_handler)
+           if (phandler)
            {
-             if (ptr_handler->WaitOK() != XrdCl::errNone)
+             if (phandler->WaitOK() != XrdCl::errNone)
              {
                eos_err("write failed in previous requests.");
                rc = SFS_ERROR;
              }
 
-             ptr_handler->Reset();
+             phandler->Reset();
            }
          }
        }
@@ -1629,32 +1744,30 @@ RaidMetaLayout::SplitRead(uint64_t off, uint32_t len, char* buff)
 
 
 //------------------------------------------------------------------------------
-// Split vector read request into request for each of the data stripes
+// Split vector read request into LOCAL request for each of the data stripes
 //------------------------------------------------------------------------------
 std::vector<XrdCl::ChunkList>
-RaidMetaLayout::SplitReadV(XrdOucIOVec* readV, int readCount)
+RaidMetaLayout::SplitReadV(XrdCl::ChunkList& chunkList, uint32_t sizeHdr)
 {
   std::vector<XrdCl::ChunkList> stripe_readv; ///< readV request per stripe files
   stripe_readv.reserve(mNbDataFiles);
   
   for (unsigned int i = 0; i < mNbDataFiles; ++i)
-  {
     stripe_readv.push_back(XrdCl::ChunkList());
-  }
-
+  
   // Split any pieces spanning more than one chunk
-  for (int i = 0; i < readCount; i++)
+  for (auto chunk = chunkList.begin(); chunk != chunkList.end(); ++chunk)
   {
-    std::vector<XrdCl::ChunkInfo> split_read = SplitRead((uint64_t)readV[i].offset,
-                                                         (uint32_t)readV[i].size,
-                                                         readV[i].data);
+    std::vector<XrdCl::ChunkInfo> split_read = SplitRead(chunk->offset,
+                                                         chunk->length,
+                                                         static_cast<char*>(chunk->buffer));
     
     // Split each readV request to the corresponding stripe file from which we
     // need to read it, adjusting the relative offset inside the stripe file
     for (auto iter = split_read.begin(); iter != split_read.end(); ++iter)
     {
       auto pos = GetLocalPos(iter->offset);
-      iter->offset = pos.second;
+      iter->offset = pos.second + sizeHdr;
       stripe_readv[pos.first].push_back(*iter);
     }    
   } 

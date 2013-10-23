@@ -27,6 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/io/XrdIo.hh"
 #include "fst/io/ChunkHandler.hh"
+#include "fst/io/VectChunkHandler.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
 /*----------------------------------------------------------------------------*/
@@ -39,7 +40,6 @@ const uint32_t XrdIo::sNumRdAheadBlocks = 2;
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-
 XrdIo::XrdIo () :
 FileIo(),
 mDoReadahead (false),
@@ -56,7 +56,6 @@ mMetaHandler(new AsyncMetaHandler())
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-
 XrdIo::~XrdIo ()
 {
   if (mDoReadahead)
@@ -85,7 +84,6 @@ XrdIo::~XrdIo ()
 //------------------------------------------------------------------------------
 // Open file
 //------------------------------------------------------------------------------
-
 int
 XrdIo::Open (const std::string& path,
              XrdSfsFileOpenMode flags,
@@ -166,7 +164,6 @@ XrdIo::Open (const std::string& path,
 //------------------------------------------------------------------------------
 // Read from file - sync
 //------------------------------------------------------------------------------
-
 int64_t
 XrdIo::Read (XrdSfsFileOffset offset,
              char* buffer,
@@ -198,28 +195,15 @@ XrdIo::Read (XrdSfsFileOffset offset,
 // Vector read - sync
 //------------------------------------------------------------------------------
  int64_t
- XrdIo::Readv (XrdOucIOVec* readV,
-               int readCount,
+ XrdIo::ReadV (XrdCl::ChunkList& chunkList,
                uint16_t timeout)
  {
-   eos_debug("read count=%i", readCount);
+   eos_debug("read count=%i", chunkList.size());
+   int64_t nread = 0;
    XrdCl::VectorReadInfo* vReadInfo = 0;
-
-   // Copy the XrdOucIOVec structure to a ChunkList structure used by XrdCl
-   int64_t total_bytes = 0;
-   XrdCl::ChunkList chunks;
-   chunks.reserve(readCount);
-   
-   for (int i = 0; i < readCount; i++)
-   {
-     total_bytes+= readV[i].size;
-     chunks.push_back(XrdCl::ChunkInfo(readV[i].offset,
-                                       readV[i].size,
-                                       readV[i].data));
-   }
-   
-   XrdCl::XRootDStatus status = mXrdFile->VectorRead(chunks, 0, vReadInfo, timeout);
-   delete vReadInfo;
+    
+   XrdCl::XRootDStatus status = mXrdFile->VectorRead(chunkList, 0,
+                                                     vReadInfo, timeout);
 
    if (!status.IsOK())
    {
@@ -227,7 +211,9 @@ XrdIo::Read (XrdSfsFileOffset offset,
      return SFS_ERROR;
    }
 
-   return total_bytes;       
+   nread = vReadInfo->GetSize();
+   delete vReadInfo;
+   return nread;       
  }
 
 
@@ -235,48 +221,42 @@ XrdIo::Read (XrdSfsFileOffset offset,
 //! Vector read - async
 //--------------------------------------------------------------------------
 int64_t
-XrdIo::ReadvAsync (XrdOucIOVec* readV,
-                   int readCount,
+XrdIo::ReadVAsync (XrdCl::ChunkList& chunkList,
                    uint16_t timeout)
 {
-  // TODO: fix to do async requests
-  return Readv(readV, readCount, timeout);
-}
+  eos_debug("read count=%i", chunkList.size());
+  VectChunkHandler* vhandler = 0;
+  XrdCl::XRootDStatus status;
+ 
+  // Get vector handler and send async request
+  vhandler = mMetaHandler->Register(chunkList, NULL, false);
 
-
-//------------------------------------------------------------------------------
-// Write to file - sync
-//------------------------------------------------------------------------------
-
-int64_t
-XrdIo::Write (XrdSfsFileOffset offset,
-              const char* buffer,
-              XrdSfsXferSize length,
-              uint16_t timeout)
-{
-  eos_debug("offset=%llu length=%llu",
-            static_cast<uint64_t> (offset),
-            static_cast<uint64_t> (length));
-
-  XrdCl::XRootDStatus status = mXrdFile->Write(static_cast<uint64_t> (offset),
-                                               static_cast<uint32_t> (length),
-                                               buffer,
-                                               timeout);
-
+  if (!vhandler)
+    return SFS_ERROR;    
+  
+  status = mXrdFile->VectorRead(chunkList, 
+                                static_cast<void *> (0),
+                                static_cast<XrdCl::ResponseHandler*> (vhandler),
+                                timeout);
+  
   if (!status.IsOK())
   {
-    errno = status.errNo;
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // TODO: for the time being we call this ourselves but this should be
+    // dropped once XrdCl will call the handler for a request as it knows it
+    // has already failed 
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    mMetaHandler->HandleResponse(&status, vhandler);
     return SFS_ERROR;
   }
-
-  return length;
+  
+  return SFS_OK;
 }
 
 
 //------------------------------------------------------------------------------
 // Read from file - async
 //------------------------------------------------------------------------------
-
 int64_t
 XrdIo::ReadAsync (XrdSfsFileOffset offset,
                   char* buffer,
@@ -306,9 +286,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
     // If previous read requests failed with a timeout error then we won't
     // get a new handler and we return directly an error
     if (!handler)
-    {
       return SFS_ERROR;    
-    }
     
     status = mXrdFile->Read(static_cast<uint64_t> (offset),
                             static_cast<uint32_t> (length),
@@ -318,11 +296,11 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
 
     if (!status.IsOK())
     {
-      //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      //------------------------------------------------------------------------
       // TODO: for the time being we call this ourselves but this should be
       // dropped once XrdCl will call the handler for a request as it knows it
       // has already failed 
-      //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      //------------------------------------------------------------------------
       mMetaHandler->HandleResponse(&status, handler);
     }
     
@@ -344,16 +322,12 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
       
       if (iter != mMapBlocks.end())
       {
-        //......................................................................
         // Block found in prefetched blocks
-        //......................................................................
         SimpleHandler* sh = iter->second->handler;
         shift = offset - iter->first;
 
-        //....................................................................
         // We can prefetch another block if we still have available blocks in
         // the queue or if first read was from second prefetched block
-        //....................................................................
         if (!mQueueBlocks.empty() || (iter != mMapBlocks.begin()))
         {
           if (iter != mMapBlocks.begin())
@@ -395,9 +369,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
         }
         else
         {
-          //....................................................................
           // Error while prefetching, remove block from map
-          //....................................................................
           mQueueBlocks.push(iter->second);
           mMapBlocks.erase(iter);
           eos_err("error=prefetching failed, disable it and remove block from map");
@@ -407,13 +379,11 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
       }
       else
       {
-        //......................................................................
         // Remove all elements from map so that we can align with the new 
         // requests and prefetch a new block. But first we need to collect any
         // responses which are in-flight as otherwise these response might
         // arrive later on, when we are expecting replies for other blocks since
         // we are recycling the SimpleHandler objects.
-        //......................................................................
         while (!mMapBlocks.empty())
         {
           SimpleHandler* sh = mMapBlocks.begin()->second->handler;
@@ -446,7 +416,6 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
 
     //..........................................................................
     // If readahead not useful, use the classic way to read
-    //..........................................................................
     if (length)
     {
       eos_debug("debug=readahead useless, use the classic way for reading");
@@ -466,11 +435,11 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
                               timeout);
       if (!status.IsOK())
       {
-        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        //......................................................................
         // TODO: for the time being we call this ourselves but this should be
         // dropped once XrdCl will call the handler for a request as it knows it
         // has already failed 
-        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        //......................................................................
         mMetaHandler->HandleResponse(&status, handler);
       }
 
@@ -525,6 +494,34 @@ XrdIo::FindBlock(uint64_t offset)
 
 
 //------------------------------------------------------------------------------
+// Write to file - sync
+//------------------------------------------------------------------------------
+int64_t
+XrdIo::Write (XrdSfsFileOffset offset,
+              const char* buffer,
+              XrdSfsXferSize length,
+              uint16_t timeout)
+{
+  eos_debug("offset=%llu length=%llu",
+            static_cast<uint64_t> (offset),
+            static_cast<uint64_t> (length));
+
+  XrdCl::XRootDStatus status = mXrdFile->Write(static_cast<uint64_t> (offset),
+                                               static_cast<uint32_t> (length),
+                                               buffer,
+                                               timeout);
+
+  if (!status.IsOK())
+  {
+    errno = status.errNo;
+    return SFS_ERROR;
+  }
+
+  return length;
+}
+
+
+//------------------------------------------------------------------------------
 // Write to file - async
 //------------------------------------------------------------------------------
 int64_t
@@ -534,18 +531,13 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset,
                    uint16_t timeout)
 {
   eos_debug("offset=%llu length=%i", static_cast<uint64_t>(offset), length);
-
-  ChunkHandler* handler;
   XrdCl::XRootDStatus status;
-
-  handler = mMetaHandler->Register(offset, length, buffer, true);
+  ChunkHandler* handler = mMetaHandler->Register(offset, length, buffer, true);
 
   // If previous write requests failed then we won't get a new handler
   // and we return directly an error
   if (!handler)
-  {
     return SFS_ERROR;    
-  }
   
   // Obs: Use the handler buffer for write requests
   status = mXrdFile->Write(static_cast<uint64_t> (offset),
@@ -553,6 +545,7 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset,
                            handler->GetBuffer(),
                            handler,
                            timeout);
+  
   return length;
 }
 

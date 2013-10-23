@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: ChunkHandler.hh
+// File: VectChunkHandler.hh
 // Author: Elvin-Alin Sindrilaru <esindril@cern.ch> - CERN
 //------------------------------------------------------------------------------
 
@@ -22,27 +22,28 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-//! @file ChunkHandler.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class holding information about an asynchronous request and a pointer
-//!        to the file the request belongs to. This class notifies the
-//!        AsyncMetaHandler corresponding to the file object of any errors during
-//!        transfer.
+//! @file VectChunkHandler.hh
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>- CERN
+//! @brief Class holding information about an asynchronous vector request and
+//!        a pointer to the file the request belongs to. This class notifies
+//!        the AsyncMetaHandler corresponding to the file object of of any
+//!        errors during transfer.
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_CHUNKHANDLER_HH__
-#define __EOS_CHUNKHANDLER_HH__
+#ifndef __EOS_VECTCHUNKHANDLER_HH__
+#define __EOS_VECTCHUNKHANDLER_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "fst/io/AsyncMetaHandler.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
 // -----------------------------------------------------------------------------
-//! Class holding information about an asynchronous request
+//! Class holding information about an asynchronous vector request
 // -----------------------------------------------------------------------------
-class ChunkHandler : public XrdCl::ResponseHandler
+class VectChunkHandler : public XrdCl::ResponseHandler
 {
 public:
 
@@ -50,23 +51,20 @@ public:
   //! Constructor
   //!
   //! @param reqHandler handler to the file meta handler
-  //! @param offset request offset
-  //! @param length request length
-  //! @param buff holder for the data
+  //! @param chunks chunks concerning the vector operation
   //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
-  ChunkHandler (AsyncMetaHandler* reqHandler,
-                uint64_t offset,
-                uint32_t length,
-                const char* buff,
-                bool isWrite);
+  VectChunkHandler (AsyncMetaHandler* reqHandler,
+                    XrdCl::ChunkList& chunks,
+                    const char* wrBuf,
+                    bool isWrite);
 
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ChunkHandler ();
+  virtual ~VectChunkHandler ();
 
 
   //----------------------------------------------------------------------------
@@ -80,9 +78,8 @@ public:
   //!
   //----------------------------------------------------------------------------
   void Update (AsyncMetaHandler* reqHandler,
-               uint64_t offset,
-               uint32_t length,
-               const char* buff,
+               XrdCl::ChunkList& chunks,
+               const char* wrBuf,
                bool isWrite);
 
 
@@ -93,26 +90,6 @@ public:
   GetBuffer() const
   {
     return mBuffer;
-  };
-  
-
-  //----------------------------------------------------------------------------
-  //! Get request chunk offset
-  //----------------------------------------------------------------------------
-  inline uint64_t
-  GetOffset () const
-  {
-    return mOffset;
-  };
-
-
-  //----------------------------------------------------------------------------
-  //! Get request chunk length
-  //----------------------------------------------------------------------------
-  inline uint32_t
-  GetLength () const
-  {
-    return mLength;
   };
 
 
@@ -151,13 +128,13 @@ private:
 
   char* mBuffer;  ///< holder for data for write requests
   AsyncMetaHandler* mMetaHandler; ///< handler to the whole file meta handler
-  uint64_t mOffset; ///< offset of the request
-  uint32_t mLength; ///< length of the request
+  XrdCl::ChunkList mChunkList; ///< vector operation chunks
   uint32_t mCapacity; ///< capacity of the buffer
+  uint32_t mLength; ///< length of the vector request
   uint32_t mRespLength; ///< length of response received, only for reads
   bool mIsWrite; ///< operation type is write
 };
 
 EOSFSTNAMESPACE_END
 
-#endif   // __EOS_CHUNKHANDLER_HH__
+#endif   // __EOS_VECTCHUNKHANDLER_HH__

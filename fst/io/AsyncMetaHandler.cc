@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: AsyncMetaHandler.cc
-// Author: Elvin-Alin Sindrilaru - CERN
+// Author: Elvin-Alin Sindrilaru <esindril@cern.ch> - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/io/ChunkHandler.hh"
+#include "fst/io/VectChunkHandler.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -36,12 +37,13 @@ const unsigned int AsyncMetaHandler::msMaxNumAsyncObj = 20;
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-
 AsyncMetaHandler::AsyncMetaHandler () :
 eos::common::LogId(),
 mErrorType (XrdCl::errNone),
 mAsyncReq (0),
-mChunkToDelete(NULL)
+mAsyncVReq (0),
+mChunkToDelete(NULL),
+mVChunkToDelete(NULL)
 {
   mCond = XrdSysCondVar(0);
 }
@@ -50,9 +52,9 @@ mChunkToDelete(NULL)
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-
 AsyncMetaHandler::~AsyncMetaHandler ()
 {
+  // Drop all chunks handlers
   ChunkHandler* ptr_chunk = NULL;
 
   while (!mQRecycle.empty())
@@ -63,11 +65,30 @@ AsyncMetaHandler::~AsyncMetaHandler ()
       ptr_chunk = 0;
     }
   }
+
+  // Drop all vector handlers
+  VectChunkHandler* ptr_vchunk = NULL;
+
+  while (!mQVRecycle.empty())
+  {
+    if (mQVRecycle.try_pop(ptr_vchunk))
+    {
+      delete ptr_vchunk;
+      ptr_vchunk = 0;
+    }
+  }
+
   
   if (mChunkToDelete)
   {
     delete mChunkToDelete;
     mChunkToDelete = 0;
+  }
+
+  if (mVChunkToDelete)
+  {
+    delete mVChunkToDelete;
+    mVChunkToDelete = 0;
   }
 
   mMapErrors.clear();
@@ -77,7 +98,6 @@ AsyncMetaHandler::~AsyncMetaHandler ()
 //------------------------------------------------------------------------------
 // Register a new handler for the current file
 //------------------------------------------------------------------------------
-
 ChunkHandler*
 AsyncMetaHandler::Register (uint64_t offset,
                             uint32_t length,
@@ -114,10 +134,47 @@ AsyncMetaHandler::Register (uint64_t offset,
 }
 
 
+//--------------------------------------------------------------------------
+//! Register a new vector request for the current file
+//--------------------------------------------------------------------------
+VectChunkHandler*
+AsyncMetaHandler::Register (XrdCl::ChunkList& chunks,
+                            const char* wrBuf,
+                            bool isWrite)
+{
+  VectChunkHandler* ptr_vchunk = NULL;
+  mCond.Lock();  // -->
+
+  // If any of the the previous requests failed with a timeout then stop trying
+  // and return an error
+  if (mErrorType == XrdCl::errOperationExpired)
+  {
+    mCond.UnLock(); // <--
+    return NULL;
+  }
+
+  mAsyncVReq++;
+  
+  if (mQVRecycle.size() + mAsyncVReq >= msMaxNumAsyncObj)
+  {
+    mCond.UnLock();   // <--    
+    mQVRecycle.wait_pop(ptr_vchunk);
+    ptr_vchunk->Update(this, chunks, wrBuf, isWrite);
+  }
+  else
+  {
+   // Create new request
+    mCond.UnLock();   // <--            
+    ptr_vchunk = new VectChunkHandler(this, chunks, wrBuf, isWrite);
+  }
+  
+  return ptr_vchunk;
+}
+
+
 //------------------------------------------------------------------------------
 // Handle response
 //------------------------------------------------------------------------------
-
 void
 AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
                                   ChunkHandler* chunk)
@@ -135,7 +192,6 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
   {
     eos_debug("Got error message with status:%u, code:%u, errNo:%lu",
               pStatus->status, pStatus->code, (unsigned long)pStatus->errNo);
-    
     mMapErrors.insert(std::make_pair(chunk->GetOffset(), chunk->GetLength()));
 
     // If we got a timeout in the previous requests then we keep the error code
@@ -152,10 +208,8 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
   }
 
   if (--mAsyncReq == 0)
-  {
     mCond.Signal();
-  }
-
+  
   if (!mQRecycle.push_size(chunk, msMaxNumAsyncObj))
   {
     // Save the pointer to the chunk object to be deleted by the next arriving
@@ -168,10 +222,61 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 }
 
 
+//--------------------------------------------------------------------------
+//! Handle response vector response
+//--------------------------------------------------------------------------
+void
+AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
+                                  VectChunkHandler* vchunk)
+{
+
+    mCond.Lock(); // -->
+
+  // See last comment for motivation
+  if (mVChunkToDelete)
+  {
+    delete mVChunkToDelete;
+    mVChunkToDelete = NULL;
+  }
+
+  if (pStatus->status != XrdCl::stOK)
+  {
+    //eos_debug("Got error message with status:%u, code:%u, errNo:%lu",
+    //          pStatus->status, pStatus->code, (unsigned long)pStatus->errNo);
+    
+    //mMapErrors.insert(std::make_pair(chunk->GetOffset(), chunk->GetLength()));
+
+    // If we got a timeout in the previous requests then we keep the error code
+    if (mErrorType != XrdCl::errOperationExpired)
+    {
+      mErrorType = pStatus->code;
+
+      if (mErrorType == XrdCl::errOperationExpired)
+      {
+        // eos_debug("Got a timeout error for request off=%zu, len=%lu",
+        //          chunk->GetOffset(), (unsigned long)chunk->GetLength());
+      }    
+    }
+  }
+
+  if (--mAsyncVReq == 0)
+   mCond.Signal();
+
+  if (!mQVRecycle.push_size(vchunk, msMaxNumAsyncObj))
+  {
+    // Save the pointer to the chunk object to be deleted by the next arriving
+    // response. This can not be done here as we are currently called from the
+    // same chunk handler object that we want to delete. 
+    mVChunkToDelete = vchunk;
+  }
+
+  mCond.UnLock();  // <--
+}
+
+
 //------------------------------------------------------------------------------
 // Get map of errors
 //------------------------------------------------------------------------------
-
 const std::map<uint64_t, uint32_t>&
 AsyncMetaHandler::GetErrors ()
 {
@@ -182,22 +287,20 @@ AsyncMetaHandler::GetErrors ()
 //------------------------------------------------------------------------------
 // Wait for responses
 //------------------------------------------------------------------------------
-
 uint16_t
 AsyncMetaHandler::WaitOK ()
 {
   uint16_t ret = XrdCl::errNone;
-  
   mCond.Lock();   // -->
   
   while (mAsyncReq > 0)
-  {
     mCond.Wait();
-  }
+
+  while (mAsyncVReq > 0)
+    mCond.Wait();
 
   ret = mErrorType;
   mCond.UnLock(); // <--
-  
   return ret;
 }
 
@@ -205,13 +308,13 @@ AsyncMetaHandler::WaitOK ()
 //------------------------------------------------------------------------------
 // Reset
 //------------------------------------------------------------------------------
-
 void
 AsyncMetaHandler::Reset ()
 {
   mCond.Lock();
   mErrorType = XrdCl::errNone;
   mAsyncReq = 0;
+  mAsyncVReq = 0;
   mMapErrors.clear();
   mCond.UnLock();
 }

@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: AsyncMetaHandler.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+// Author: Elvin-Alin Sindrilaru <esindril@cern.ch> - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -45,11 +45,11 @@ EOSFSTNAMESPACE_BEGIN
 
 // Forward declaration 
 class ChunkHandler;
+class VectChunkHandler;
 
 //------------------------------------------------------------------------------
 //! Class for handling async responses
 //------------------------------------------------------------------------------
-
 class AsyncMetaHandler: public eos::common::LogId
 {
 public:
@@ -64,27 +64,6 @@ public:
   //! Destructor
   //--------------------------------------------------------------------------
   virtual ~AsyncMetaHandler ();
-
-
-  //--------------------------------------------------------------------------
-  //! Handle response
-  //!
-  //! @param pStatus status of the request
-  //! @param chunk received chunk response
-  //!
-  //--------------------------------------------------------------------------
-  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
-                               ChunkHandler* chunk);
-
-
-  //--------------------------------------------------------------------------
-  //! Wait for responses
-  //!
-  //! @return error type, if no error occurs return XrdCl::errNone
-  //!  For further details on possible error codes look into XrdClStatus.hh
-  //!
-  //--------------------------------------------------------------------------
-  uint16_t WaitOK ();
 
 
   //--------------------------------------------------------------------------
@@ -105,6 +84,54 @@ public:
 
 
   //--------------------------------------------------------------------------
+  //! Register a new vector request for the current file
+  //!
+  //! @param chunks list of chunks used for the vector request
+  //! @param wrBuff write buffer, ignored if it's a read operation
+  //! @param isWrite set if it is a write request
+  //!
+  //! @return new vector chunk async handler object
+  //! 
+  //--------------------------------------------------------------------------
+  VectChunkHandler* Register (XrdCl::ChunkList& chunks,
+                              const char* wrBuf,
+                              bool isWrite);
+
+
+  
+  //--------------------------------------------------------------------------
+  //! Handle response normal response
+  //!
+  //! @param pStatus status of the request
+  //! @param chunk received chunk response
+  //!
+  //--------------------------------------------------------------------------
+  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
+                               ChunkHandler* chunk);
+
+
+  //--------------------------------------------------------------------------
+  //! Handle response vector response
+  //!
+  //! @param pStatus status of the request
+  //! @param chunks received vector response
+  //!
+  //--------------------------------------------------------------------------
+  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
+                               VectChunkHandler* chunks);
+
+  
+  //--------------------------------------------------------------------------
+  //! Wait for responses
+  //!
+  //! @return error type, if no error occurs return XrdCl::errNone
+  //!  For further details on possible error codes look into XrdClStatus.hh
+  //!
+  //--------------------------------------------------------------------------
+  uint16_t WaitOK ();
+
+  
+  //--------------------------------------------------------------------------
   //! Get map of errors
   //!
   //! @return map of errors
@@ -121,14 +148,17 @@ public:
 private:
 
   uint16_t mErrorType; ///< type of error, we are mostly interested in timeouts
-  unsigned int mAsyncReq; ///< number of async requests in flight (for which no response was received)
+  uint32_t mAsyncReq; ///< number of async requests in flight (for which no response was received)
+  uint32_t mAsyncVReq; ///< number of async VECTOR req. in flight (for which no response was received)
   XrdSysCondVar mCond; ///< condition variable to signal the receival of all responses
-  ChunkHandler* mChunkToDelete; ///< pointer to the ChunkHandler to be deleted
+  ChunkHandler* mChunkToDelete; ///< pointer to obj to be deleted
+  VectChunkHandler* mVChunkToDelete; ///< pointer to obj to be deleted
 
-  eos::common::ConcurrentQueue<ChunkHandler*> mQRecycle; ///< recyclable obj
+  eos::common::ConcurrentQueue<ChunkHandler*> mQRecycle; ///< recyclable normal handlers
+  eos::common::ConcurrentQueue<VectChunkHandler*> mQVRecycle; ///< recyclable vector handlers
   std::map<uint64_t, uint32_t> mMapErrors; ///< chunks for which the request failed
 
-  //! maxium number of async requests in flight and also the maximum number
+  //! Maxium number of async requests in flight and also the maximum number
   //! of ChunkHandler object that can be saved in cache
   static const unsigned int msMaxNumAsyncObj; 
 
