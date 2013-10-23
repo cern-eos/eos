@@ -102,6 +102,7 @@ add_library (XrdEosMgm MODULE
             http/webdav/WebDAVResponse.cc
             http/webdav/PropFindResponse.cc
             Converter.cc
+            GroupBalancer.cc
             )
 
 target_link_libraries( XrdEosMgm 

@@ -259,9 +259,14 @@ ProcCommand::Space ()
                 (key == "lru.interval") ||
                 (key == "converter.ntx") ||
                 (key == "autorepair") ||
+                (key == "groupbalancer") ||
+                (key == "groupbalancer.ntx") ||
+                (key == "groupbalancer.threshold") ||
                 (key == "balancer.threshold"))
             {
-              if ((key == "balancer") || (key == "converter") || (key == "lru") || (key == "autorepair"))
+              if ((key == "balancer") || (key == "converter") ||
+                  (key == "autorepair") || (key == "lru") ||
+                  (key== "groupbalancer") )
               {
                 if ((value != "on") && (value != "off"))
                 {
@@ -298,6 +303,13 @@ ProcCommand::Space ()
                       else
                         stdOut += "success: auto-repair is dieabled!";
                     }
+                    if (key == "groupbalancer")
+                    {
+                      if (value == "on")
+                        stdOut += "success: groupbalancer is enabled!";
+                      else
+                        stdOut += "success: groupbalancer is disabled!";
+                    }
                   }
                 }
               }
@@ -307,7 +319,8 @@ ProcCommand::Space ()
                 unsigned long long size = eos::common::StringConversion::GetSizeFromString(value.c_str());
                 if (!errno)
                 {
-                  if (key != "balancer.threshold")
+                  if (key != "balancer.threshold" ||
+                      key != "groupbalancer.threshold")
                   {
                     // the threshold is allowed to be decimal!
                     char ssize[1024];

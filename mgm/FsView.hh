@@ -26,10 +26,10 @@
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/Balancer.hh"
+#include "mgm/GroupBalancer.hh"
 #include "mgm/Converter.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
-#include "mgm/FsView.hh"
 #include "common/RWMutex.hh"
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
@@ -258,6 +258,10 @@ public:
 
   ///threaded object running layout conversion jobs
   Converter* mConverter;
+
+  /// threaded object running group balancing
+  GroupBalancer* mGroupBalancer;
+
 #endif
 
   /// this variable is set when a configuration get's loaded to avoid overwriting of the loaded values by default values
@@ -277,6 +281,7 @@ public:
 #ifndef EOSMGMFSVIEWTEST
     mBalancer = new Balancer(name);
     mConverter = new Converter(name);
+    mGroupBalancer = new GroupBalancer(name);
 
     if (!gDisableDefaults)
     {
@@ -326,6 +331,14 @@ public:
       // set two converter streams by default
       if (GetConfigMember("converter.ntx") == "")
         SetConfigMember("converter.ntx", "2", true, "/eos/*/mgm");
+      if (GetConfigMember("groupbalancer") == "")
+        SetConfigMember("groupbalancer", "off", true, "/eos/*/mgm");
+      // set the groupbalancer max number of scheduled files by default
+      if (GetConfigMember("groupbalancer.ntx") == "")
+        SetConfigMember("groupbalancer.ntx", "10", true, "/eos/*/mgm");
+      // set the groupbalancer threshold by default
+      if (GetConfigMember("groupbalancer.threshold") == "")
+        SetConfigMember("groupbalancer.threshold", "5", true, "/eos/*/mgm");
       // disable lru by default
       if (GetConfigMember("lru") == "")
         SetConfigMember("converter", "off", true, "/eos/*/mgm");
@@ -352,6 +365,8 @@ public:
       mBalancer->Stop();
     if (mConverter)
       mConverter->Stop();
+    if (mGroupBalancer)
+      mGroupBalancer->Stop();
 #endif
   }
 
@@ -368,8 +383,10 @@ public:
 #ifndef EOSMGMFSVIEWTEST
     if (mBalancer) delete mBalancer;
     if (mConverter) delete mConverter;
+    if (mGroupBalancer) delete mGroupBalancer;
     mBalancer = 0;
     mConverter = 0;
+    mGroupBalancer = 0;
 #endif
   };
 
