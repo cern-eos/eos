@@ -215,7 +215,7 @@ eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
   if (S_ISREG (mode))
   {
     rootpath[0] = '\0';
-    sprintf (rootpath, "root://%s%s%s", mounthostport, mountprefix, path);
+    sprintf (rootpath, "%s", path);
     res = xrd_open (rootpath,
                     O_CREAT | O_EXCL | O_WRONLY,
                     S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
@@ -277,9 +277,6 @@ eosdfs_unlink (const char* path)
 
   if (res)
   {
-    //..........................................................................
-    // ofs.notify rm may have already done the job on CNS
-    //..........................................................................
     return -errno;
   }
 
@@ -384,7 +381,6 @@ eosdfs_truncate (const char* path, off_t size)
   char rootpath[4096];
   eosatime = time (0);
   rootpath[0] = '\0';
-  strcat (rootpath, mountprefix);
   strcat (rootpath, path);
 
   //............................................................................
@@ -442,7 +438,7 @@ eosdfs_open (const char* path, struct fuse_file_info* fi)
   fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
   int res;
   char rootpath[4096] = "";
-  sprintf (rootpath, "root://%s%s%s", mounthostport, mountprefix, path);
+  sprintf (rootpath, "%s", path);
   eosatime = time (0);
   res = xrd_open (rootpath, 
                   fi->flags, 
@@ -701,6 +697,7 @@ static struct fuse_operations eosdfs_oper = {
   .statfs = eosdfs_statfs,
   .release = eosdfs_release,
   .fsync = eosdfs_fsync,
+  .unlink = eosdfs_unlink,
 #ifdef HAVE_SETXATTR
   .setxattr = eosdfs_setxattr,
   .getxattr = eosdfs_getxattr,
