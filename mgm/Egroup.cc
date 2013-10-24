@@ -54,7 +54,10 @@ Egroup::Start ()
   // run an asynchronous refresh thread
   eos_static_info("Start");
   mThread = 0;
-  XrdSysThread::Run(&mThread, Egroup::StaticRefresh, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Egroup refresh Thread");
+  XrdSysThread::Run(&mThread, Egroup::StaticRefresh,
+                    static_cast<void *> (this),
+                    XRDSYSTHREAD_HOLD,
+                    "Egroup refresh Thread");
   return (mThread ? true : false);
 }
 
@@ -168,7 +171,9 @@ Egroup::Member (std::string &username, std::string & egroupname)
       timeout.tv_sec = 5;
       timeout.tv_usec = 0;
       int rc = ldap_search_ext_s(ld, sbase.c_str(), LDAP_SCOPE_SUBTREE,
-                                 filter.c_str(), attrs, 0, NULL, NULL, &timeout, LDAP_NO_LIMIT, &res);
+                                 filter.c_str(), 
+                                 attrs, 0, NULL, NULL, 
+                                 &timeout, LDAP_NO_LIMIT, &res);
       if ((rc == LDAP_SUCCESS) && (ldap_count_entries(ld, res) != 0))
       {
         LDAPMessage* e = NULL;
@@ -194,6 +199,14 @@ Egroup::Member (std::string &username, std::string & egroupname)
           }
         }
       }
+      else
+      {
+        eos_static_warning("member=false user=\"%s\" e-group=\"%s\" "
+                         "cachetime=<stall-information> "
+                         "msg=\"ldap query failed or timed out\"",
+                         username.c_str());
+
+      }
 
       ldap_msgfree(res);
 
@@ -204,9 +217,13 @@ Egroup::Member (std::string &username, std::string & egroupname)
     }
 
     if (isMember)
-      eos_static_info("member=true user=\"%s\" e-group=\"%s\" cachetime=%lu", username.c_str(), egroupname.c_str(), now + EOSEGROUPCACHETIME);
+      eos_static_info("member=true user=\"%s\" e-group=\"%s\" cachetime=%lu", 
+                      username.c_str(), egroupname.c_str(), 
+                      now + EOSEGROUPCACHETIME);
     else
-      eos_static_info("member=false user=\"%s\" e-group=\"%s\" cachetime=%lu", username.c_str(), egroupname.c_str(), now + EOSEGROUPCACHETIME);
+      eos_static_info("member=false user=\"%s\" e-group=\"%s\" cachetime=%lu", 
+                      username.c_str(), egroupname.c_str(), 
+                      now + EOSEGROUPCACHETIME);
 
 
     Mutex.Lock();
@@ -328,13 +345,15 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
   }
   Mutex.UnLock();
 
-  eos_static_info("msg=\"async-lookup\" user=\"%s\" e-group=\"%s\"", username.c_str(), egroupname.c_str());
+  eos_static_info("msg=\"async-lookup\" user=\"%s\" e-group=\"%s\"", 
+                  username.c_str(), egroupname.c_str());
   // run the LDAP query
   LDAP *ld = NULL;
   int version = LDAP_VERSION3;
   // currently hard coded to server name 'xldap'
   ldap_initialize(&ld, "ldap://xldap");
 
+  bool keepCached = true;
   if (ld == NULL)
   {
     fprintf(stderr, "error: failed to initialize LDAP\n");
@@ -363,11 +382,12 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
     timeout.tv_sec = 5;
     timeout.tv_usec = 0;
     int rc = ldap_search_ext_s(ld, sbase.c_str(), LDAP_SCOPE_SUBTREE,
-                               filter.c_str(), attrs, 0, NULL, NULL, &timeout, LDAP_NO_LIMIT, &res);
+                               filter.c_str(), attrs, 0, NULL, NULL, 
+                               &timeout, LDAP_NO_LIMIT, &res);
     if ((rc == LDAP_SUCCESS) && (ldap_count_entries(ld, res) != 0))
     {
       LDAPMessage* e = NULL;
-
+      keepCached = false;
       for (e = ldap_first_entry(ld, res); e != NULL; e = ldap_next_entry(ld, e))
       {
         struct berval **v = ldap_get_values_len(ld, e, attr.c_str());
@@ -398,19 +418,45 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
     }
   }
 
-  if (isMember)
-    eos_static_info("member=true user=\"%s\" e-group=\"%s\" cachetime=%lu", username.c_str(), egroupname.c_str(), now + EOSEGROUPCACHETIME);
+  if (!keepCached)
+  {
+    if (isMember)
+      eos_static_info("member=true user=\"%s\" e-group=\"%s\" cachetime=%lu", 
+                      username.c_str(), egroupname.c_str(), 
+                      now + EOSEGROUPCACHETIME);
+    else
+      eos_static_info("member=false user=\"%s\" e-group=\"%s\" cachetime=%lu", 
+                      username.c_str(), egroupname.c_str(), 
+                      now + EOSEGROUPCACHETIME);
+
+    Mutex.Lock();
+
+    Map[egroupname][username] = isMember;
+
+    LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
+
+    Mutex.UnLock();
+  }
   else
-    eos_static_info("member=false user=\"%s\" e-group=\"%s\" cachetime=%lu", username.c_str(), egroupname.c_str(), now + EOSEGROUPCACHETIME);
-
-
-  Mutex.Lock();
-
-  Map[egroupname][username] = isMember;
-
-  LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
-
-  Mutex.UnLock();
+  {
+    Mutex.Lock();
+    isMember = Map[egroupname][username];
+    Mutex.UnLock();
+    if (isMember)
+    {
+      eos_static_warning("member=true user=\"%s\" e-group=\"%s\" "
+                         "cachetime=<stale-information",
+                         username.c_str(),
+                         egroupname.c_str());
+    }
+    else
+    {
+      eos_static_warning("member=false user=\"%s\" e-group=\"%s\" "
+                         "cachetime=<stale-information",
+                         username.c_str(),
+                         egroupname.c_str());
+    }
+  }
   return;
 }
 
