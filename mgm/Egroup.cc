@@ -53,6 +53,7 @@ Egroup::Member(std::string &username, std::string &egroupname)
   }
   Mutex.UnLock();
   bool isMember = false;
+  bool keepCached = true;
 
   // run the command not in the locked section !!!
   {
@@ -83,13 +84,13 @@ Egroup::Member(std::string &username, std::string &egroupname)
       attrs[1] = NULL;
       LDAPMessage *res = NULL;
       struct timeval timeout;
-      timeout.tv_sec=5;
+      timeout.tv_sec=10;
       timeout.tv_usec=0;
       int rc = ldap_search_ext_s (ld, sbase.c_str(), LDAP_SCOPE_SUBTREE,
 				  filter.c_str(), attrs, 0, NULL, NULL, &timeout, LDAP_NO_LIMIT, &res);
       if ( ( rc == LDAP_SUCCESS ) && ( ldap_count_entries( ld, res ) != 0 ) ) {
 	LDAPMessage* e = NULL;
-    
+	keepCached = false;
 	for ( e = ldap_first_entry( ld, res ); e != NULL; e = ldap_next_entry( ld, e ) ) {
 	  struct berval **v = ldap_get_values_len( ld, e, attr.c_str() );
 	  
@@ -114,26 +115,40 @@ Egroup::Member(std::string &username, std::string &egroupname)
 	ldap_unbind_ext( ld, NULL, NULL );
       }
     }
-    if (isMember)
-      eos_static_info("member=true user=\"%s\" e-group=\"%s\" cachetime=%lu", username.c_str(), egroupname.c_str(), now+EOSEGROUPCACHETIME);
-    else
-      eos_static_info("member=false user=\"%s\" e-group=\"%s\" cachetime=%lu", username.c_str(), egroupname.c_str(), now+EOSEGROUPCACHETIME);
+    if (!keepCached) {
+      if (isMember)
+	eos_static_info("member=true user=\"%s\" e-group=\"%s\" cachetime=%lu", username.c_str(), egroupname.c_str(), now+EOSEGROUPCACHETIME);
+      else
+	eos_static_info("member=false user=\"%s\" e-group=\"%s\" cachetime=%lu", username.c_str(), egroupname.c_str(), now+EOSEGROUPCACHETIME);
+    }
   }
 
   Mutex.Lock();
-
-  if (isMember) {
-    Map[egroupname][username] = true;
-    LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
-
+  if (keepCached) {
+    // the query timed out :-( or failed
+    if (Map.count(egroupname)) {
+      if (Map[egroupname].count(username)) {
+	Mutex.UnLock();
+	eos_static_info("member=true user=\"%s\" e-group=\"%s\" cachetime=<stale information>", username.c_str(), egroupname.c_str());
+	return true;
+      }
+    }
     Mutex.UnLock();
-    return true;
-  } else {
-    Map[egroupname][username] = false;
-    LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
-
-    Mutex.UnLock();
+    eos_static_info("member=false user=\"%s\" e-group=\"%s\" cachetime=<stale information>", username.c_str(), egroupname.c_str());
     return false;
+  }
+  else {
+    if (isMember) {
+      Map[egroupname][username] = true;
+      LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
+      Mutex.UnLock();
+      return true;
+    } else {
+      Map[egroupname][username] = false;
+      LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
+      Mutex.UnLock();
+      return false;
+    }
   }
 }
  
