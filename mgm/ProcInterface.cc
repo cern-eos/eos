@@ -504,7 +504,7 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
     else
     {
       // command is not implemented
-      stdErr += "errro: no such admin command '";
+      stdErr += "error: no such admin command '";
       stdErr += mCmd;
       stdErr += "'";
       retc = EINVAL;
