@@ -168,7 +168,7 @@ Egroup::Member (std::string &username, std::string & egroupname)
       attrs[1] = NULL;
       LDAPMessage *res = NULL;
       struct timeval timeout;
-      timeout.tv_sec = 5;
+      timeout.tv_sec = 10;
       timeout.tv_usec = 0;
       int rc = ldap_search_ext_s(ld, sbase.c_str(), LDAP_SCOPE_SUBTREE,
                                  filter.c_str(), 
@@ -379,7 +379,7 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
     attrs[1] = NULL;
     LDAPMessage *res = NULL;
     struct timeval timeout;
-    timeout.tv_sec = 5;
+    timeout.tv_sec = 10;
     timeout.tv_usec = 0;
     int rc = ldap_search_ext_s(ld, sbase.c_str(), LDAP_SCOPE_SUBTREE,
                                filter.c_str(), attrs, 0, NULL, NULL, 
