@@ -185,6 +185,7 @@ ConverterJob::DoIt ()
     mTPCJob.target.SetUserName("root");
     mTPCJob.target.SetParams(cgi);
     mTPCJob.source.SetPath(source);
+    mTPCJob.source.SetParams("eos.ruid=0&eos.rgid=0");
     mTPCJob.target.SetPath(target);
     mTPCJob.sourceLimit = 1;
     mTPCJob.checkSumPrint = false;
@@ -278,20 +279,18 @@ ConverterJob::DoIt ()
     // -------------------------------------------------------------------------
     // we set owner nobody to indicate that this is a failed/faulty entry
     // -------------------------------------------------------------------------
-    if (!gOFS->_chown(mProcPath.c_str(),
-                      99,
-                      99,
-                      error,
-                      rootvid,
-                      (const char*) 0))
+    if (!gOFS->_rem(mProcPath.c_str(),
+		    error,
+		    rootvid,
+		    (const char*) 0))
     {
-      eos_static_info("msg=\"tagged failed conversion entry with owner nobody\" name=\"%s\"",
+      eos_static_info("msg=\"removed failed conversion entry\" name=\"%s\"",
                       mConversionLayout.c_str());
     }
     else
     {
 
-      eos_static_err("msg=\"failed to tag with owner nobody failed conversion job entry\" name=\"%s\"",
+      eos_static_err("msg=\"failed to removefailed conversion job entry\" name=\"%s\"",
                      mConversionLayout.c_str());
     }
     gOFS->MgmStats.Add("ConversionFailed", owner_uid, owner_gid, 1);
