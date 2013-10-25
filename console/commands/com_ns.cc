@@ -99,7 +99,7 @@ com_ns (char* arg1)
        "stall/redirection variables", "--enable"}
      });
   group->addOption({"name", "set the host name of the MGM RW master daemon",
-                    "--set=", "<master-hostname>", false});
+                    "set", "<master-hostname>", false});
   nsCmd->addSubcommand(masterSubCmd);
 
   addHelpOptionRecursively(nsCmd);
