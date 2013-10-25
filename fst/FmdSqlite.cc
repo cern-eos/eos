@@ -930,7 +930,8 @@ FmdSqliteHandler::ResetMgmInformation (eos::common::FileSystem::fsid_t fsid)
 bool
 FmdSqliteHandler::ResyncDisk (const char* path,
                               eos::common::FileSystem::fsid_t fsid,
-                              bool flaglayouterror)
+                              bool flaglayouterror,
+                              bool callautorepair)
 {
   bool retc = true;
   eos::common::Path cPath(path);

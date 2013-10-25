@@ -319,7 +319,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Resync a single entry from Disk
   // ---------------------------------------------------------------------------
-  bool ResyncDisk (const char* fstpath, eos::common::FileSystem::fsid_t fsid, bool flaglayouterror);
+  bool ResyncDisk (const char* fstpath, eos::common::FileSystem::fsid_t fsid, bool flaglayouterror, bool callautorepair=false);
 
   // ---------------------------------------------------------------------------
   //! Resync a single entry from Mgm

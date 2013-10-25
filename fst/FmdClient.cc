@@ -106,9 +106,9 @@ FmdClient::EnvFstToFmdSqlite (XrdOucEnv &env, struct Fmd &fmd)
   if (env.Get("checksum"))
   {
     fmd.checksum = env.Get("checksum");
-    if (fmd.checksum=="none") 
+    if (fmd.checksum == "none")
     {
-      fmd.checksum="";
+      fmd.checksum = "";
     }
   }
   else
@@ -165,7 +165,6 @@ FmdClient::EnvMgmToFmdSqlite (XrdOucEnv &env, struct Fmd &fmd)
 
 /*----------------------------------------------------------------------------*/
 
-
 /** 
  * Return Fmd from an mgm
  * 
@@ -177,8 +176,8 @@ FmdClient::EnvMgmToFmdSqlite (XrdOucEnv &env, struct Fmd &fmd)
  */
 int
 FmdClient::GetMgmFmd (const char* manager,
-    eos::common::FileId::fileid_t fid,
-    struct Fmd& fmd)
+                      eos::common::FileId::fileid_t fid,
+                      struct Fmd& fmd)
 {
   if ((!manager) || (!fid))
   {
@@ -224,13 +223,13 @@ FmdClient::GetMgmFmd (const char* manager,
   {
     rc = 0;
     eos_static_debug("got replica file meta data from mgm %s for fid=%08llx",
-        manager, fid);
+                     manager, fid);
   }
   else
   {
     rc = ECOMM;
     eos_static_err("Unable to retrieve meta data from mgm %s for fid=%08llx",
-        manager, fid);
+                   manager, fid);
   }
 
   delete fs;
@@ -247,7 +246,7 @@ FmdClient::GetMgmFmd (const char* manager,
   {
     // remote side couldn't get the record
     eos_static_info("Unable to retrieve meta data on remote mgm %s for fid=%08llx - result=%s",
-        manager, fid, response->GetBuffer());
+                    manager, fid, response->GetBuffer());
     delete response;
     return ENODATA;
   }
@@ -271,7 +270,7 @@ FmdClient::GetMgmFmd (const char* manager,
   if (fmd.fid != fid)
   {
     eos_static_err("Uups! Received wrong meta data from remote server - fid is %lu instead of %lu !",
-        fmd.fid, fid);
+                   fmd.fid, fid);
     delete response;
     return EIO;
   }
@@ -295,10 +294,11 @@ FmdClient::GetMgmFmd (const char* manager,
  */
 
 /*----------------------------------------------------------------------------*/
-int FmdClient::GetRemoteAttribute (const char* manager,
-    const char* key,
-    const char* path,
-    XrdOucString& attribute)
+int
+FmdClient::GetRemoteAttribute (const char* manager,
+                               const char* key,
+                               const char* path,
+                               XrdOucString& attribute)
 {
   if ((!manager) || (!key) || (!path))
   {
@@ -344,13 +344,13 @@ int FmdClient::GetRemoteAttribute (const char* manager,
   {
     rc = 0;
     eos_debug("got attribute meta data from server %s for key=%s path=%s"
-        " attribute=%s", manager, key, path, response->GetBuffer());
+              " attribute=%s", manager, key, path, response->GetBuffer());
   }
   else
   {
     rc = ECOMM;
     eos_err("Unable to retrieve meta data from server %s for key=%s path=%s",
-        manager, key, path);
+            manager, key, path);
   }
 
   delete fs;
@@ -365,7 +365,7 @@ int FmdClient::GetRemoteAttribute (const char* manager,
   {
     // remote side couldn't get the record
     eos_info("Unable to retrieve meta data on remote server %s for key=%s path=%s",
-        manager, key, path);
+             manager, key, path);
     delete response;
     return ENODATA;
   }
@@ -386,10 +386,11 @@ int FmdClient::GetRemoteAttribute (const char* manager,
  * 
  * @return 
  */
-int FmdClient::GetRemoteFmdSqlite (const char* manager,
-    const char* shexfid,
-    const char* sfsid,
-    struct Fmd& fmd)
+int
+FmdClient::GetRemoteFmdSqlite (const char* manager,
+                               const char* shexfid,
+                               const char* sfsid,
+                               struct Fmd& fmd)
 {
   if ((!manager) || (!shexfid) || (!sfsid))
   {
@@ -436,13 +437,13 @@ int FmdClient::GetRemoteFmdSqlite (const char* manager,
   {
     rc = 0;
     eos_static_debug("got replica file meta data from server %s for fid=%s fsid=%s",
-        manager, shexfid, sfsid);
+                     manager, shexfid, sfsid);
   }
   else
   {
     rc = ECOMM;
     eos_static_err("Unable to retrieve meta data from server %s for fid=%s fsid=%s",
-        manager, shexfid, sfsid);
+                   manager, shexfid, sfsid);
   }
 
   // delete the FileSystem object
@@ -458,7 +459,7 @@ int FmdClient::GetRemoteFmdSqlite (const char* manager,
   {
     // remote side couldn't get the record
     eos_static_info("Unable to retrieve meta data on remote server %s for fid=%s fsid=%s",
-        manager, shexfid, sfsid);
+                    manager, shexfid, sfsid);
     delete response;
     return ENODATA;
   }
@@ -477,7 +478,7 @@ int FmdClient::GetRemoteFmdSqlite (const char* manager,
   if (fmd.fid != eos::common::FileId::Hex2Fid(shexfid))
   {
     eos_static_err("Uups! Received wrong meta data from remote server - fid is %lu instead of %lu !",
-        fmd.fid, eos::common::FileId::Hex2Fid(shexfid));
+                   fmd.fid, eos::common::FileId::Hex2Fid(shexfid));
     delete response;
     return EIO;
   }
@@ -486,5 +487,74 @@ int FmdClient::GetRemoteFmdSqlite (const char* manager,
   return 0;
 }
 
+int
+FmdClient::CallAutoRepair (const char* manager,
+                           eos::common::FileId::fileid_t fid)
+{
+  if ((!manager) || (!fid))
+  {
+    return EINVAL;
+  }
+
+  int rc = 0;
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  XrdCl::XRootDStatus status;
+  XrdOucString fmdquery = "/?mgm.pcmd=rewrite&mgm.fxid=";
+  XrdOucString shexfid;
+  eos::common::FileId::Fid2Hex(fid, shexfid);
+  fmdquery += shexfid;
+
+  XrdOucString address = "root://";
+  address += manager;
+  address += "//dummy";
+  XrdCl::URL url(address.c_str());
+
+  if (!url.IsValid())
+  {
+    eos_static_err("error=URL is not valid: %s", address.c_str());
+    return EINVAL;
+  }
+
+  //............................................................................
+  // Get XrdCl::FileSystem object
+  //............................................................................
+  XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
+
+  if (!fs)
+  {
+    eos_static_err("error=failed to get new FS object");
+    return EINVAL;
+  }
+
+  arg.FromString(fmdquery.c_str());
+  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+
+
+
+  if (status.IsOK())
+  {
+    rc = 0;
+    eos_static_debug("scheduled a repair at %s for fid=%s ",
+                     manager,shexfid.c_str());
+  }
+  else
+  {
+    rc = ECOMM;
+    eos_static_err("Unable to schedule repair at server %s for fid=%s",
+                   manager, shexfid.c_str());
+  }
+
+  // delete the FileSystem object
+  delete fs;
+
+  if (rc)
+  {
+    delete response;
+    return EIO;
+  }
+  delete response;
+  return 0;
+}
 EOSFSTNAMESPACE_END
 

@@ -26,13 +26,14 @@
 #include "common/Attr.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/FmdSqlite.hh"
+#include "fst/Config.hh"
 #include "common/LayoutId.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
 eos::fst::FmdSqliteHandler gFmdSqliteHandler; // needed for compilation
-
+eos::fst::Config eos::fst::Config::gConfig; // needed for compilation
 /*----------------------------------------------------------------------------*/
 
 int

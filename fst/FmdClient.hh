@@ -148,6 +148,17 @@ public:
       const char* sfsid,
       struct Fmd& fmd);
 
+  
+  /**
+   * @brief call the 'auto repair' function e.g. 'file convert --rewrite'
+   * 
+   * @param manager host:port of the server to contact
+   * @param fid file id to auto-repair
+   * 
+   * @return 
+   */
+  int CallAutoRepair ( const char* manager,
+                       eos::common::FileId::fileid_t fid);
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
