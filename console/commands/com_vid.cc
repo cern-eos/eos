@@ -31,7 +31,7 @@ int
 com_vid (char* arg1)
 {
   XrdOucString in("");
-  ConsoleCliCommand *parsedCmd, *vidCmd, *lsSubCmd, *membershiSetSubCmd,
+  ConsoleCliCommand *parsedCmd, *vidCmd, *lsSubCmd, *membershipSetSubCmd,
     *membershipRmSubCmd, *rmSubCmd, *membershipSubCmd, *mapSubCmd,
     *mapSetSubCmd, *mapRmSubCmd, *geotagSubCmd, *geotagSetSubCmd,
     *geotagRmSubCmd, *gatewaySubCmd, *enableSubCmd, *disableSubCmd;
@@ -56,16 +56,16 @@ com_vid (char* arg1)
                                            "functions");
   vidCmd->addSubcommand(membershipSubCmd);
 
-  membershiSetSubCmd = new ConsoleCliCommand("set", "");
-  membershiSetSubCmd->addOption({"uid", "", 1, 1, "<uid>", true});
+  membershipSetSubCmd = new ConsoleCliCommand("set", "");
+  membershipSetSubCmd->addOption({"uid", "", 1, 1, "<uid>", true});
   OptionsGroup *membershipGroup =
-    membershiSetSubCmd->addGroupedOptions({
+    membershipSetSubCmd->addGroupedOptions({
       {"uids", "", "--uids=", 1, "<uid1>[,<uid2>,...]", false},
       {"gids", "", "--gids=", 1, "<gid1>[,<gid2>,...]", false}
     });
   membershipGroup->addOptions({{"+sudo", "", "+sudo"}, {"-sudo", "", "-sudo"}});
   membershipGroup->setRequired(true);
-  membershipSubCmd->addSubcommand(membershiSetSubCmd);
+  membershipSubCmd->addSubcommand(membershipSetSubCmd);
 
   membershipRmSubCmd = new ConsoleCliCommand("rm", "delete the membership "
                                              "entries for <uid>");
@@ -214,32 +214,32 @@ com_vid (char* arg1)
     global_retc = output_result(client_admin_command(in));
     goto bailout;
   }
-  else if (parsedCmd == membershiSetSubCmd)
+  else if (parsedCmd == membershipSetSubCmd)
   {
     in = "mgm.cmd=vid&mgm.subcmd=set";
-    XrdOucString uid = membershiSetSubCmd->getValue("uid").c_str();
+    XrdOucString uid = membershipSetSubCmd->getValue("uid").c_str();
     XrdOucString vidkey = uid;
 
     in += "&mgm.vid.cmd=membership";
     in += "&mgm.vid.source.uid=";
     in += uid;
 
-    if (membershiSetSubCmd->hasValue("uids"))
+    if (membershipSetSubCmd->hasValue("uids"))
     {
       vidkey += ":uids";
       in += "&mgm.vid.key=";
       in += vidkey;
       in += "&mgm.vid.target.uid=";
-      in += membershiSetSubCmd->getValue("uids").c_str();
+      in += membershipSetSubCmd->getValue("uids").c_str();
     }
 
-    if (membershiSetSubCmd->hasValue("gids"))
+    if (membershipSetSubCmd->hasValue("gids"))
     {
       vidkey += ":gids";
       in += "&mgm.vid.key=";
       in += vidkey;
       in += "&mgm.vid.target.gid=";
-      in += membershiSetSubCmd->getValue("gids").c_str();
+      in += membershipSetSubCmd->getValue("gids").c_str();
     }
     else
     {
@@ -248,7 +248,7 @@ com_vid (char* arg1)
       in += vidkey;
       in += "&mgm.vid.target.sudo=";
 
-      if (membershiSetSubCmd->hasValue("+sudo"))
+      if (membershipSetSubCmd->hasValue("+sudo"))
         in += "true";
       else
         in += "false";
