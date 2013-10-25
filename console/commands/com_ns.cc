@@ -102,6 +102,8 @@ com_ns (char* arg1)
                     "set", "<master-hostname>", false});
   nsCmd->addSubcommand(masterSubCmd);
 
+  nsCmd->setStandalone(true);
+
   addHelpOptionRecursively(nsCmd);
 
   parsedCmd = nsCmd->parse(arg1);

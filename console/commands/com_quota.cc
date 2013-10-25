@@ -84,6 +84,8 @@ com_quota (char* arg1)
   rmnodeSubCmd->addOption({"path", "", 1, 1, "<path>"});
   quotaCmd->addSubcommand(rmnodeSubCmd);
 
+  quotaCmd->setStandalone(true);
+
   addHelpOptionRecursively(quotaCmd);
 
   parsedCmd = quotaCmd->parse(arg1);
