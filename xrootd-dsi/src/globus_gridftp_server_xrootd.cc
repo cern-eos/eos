@@ -1120,7 +1120,7 @@ extern "C"
 
     if (XrootPath::SplitURL(myPath, myServerPart, myPathPart, MAXPATHLEN))
     {
-      result = GlobusGFSErrorSystemError("stat", ECANCELED );
+      result = GlobusGFSErrorSystemError("stat", ECANCELED);
       globus_gridftp_server_finished_stat(op, result, NULL, 0);
       return;
     }
@@ -1133,7 +1133,7 @@ extern "C"
     {
       if (xrdstatinfo)
         delete xrdstatinfo;
-      result = GlobusGFSErrorSystemError("stat", XrootStatUtils::mapError(status.errNo) );
+      result = GlobusGFSErrorSystemError("stat", XrootStatUtils::mapError(status.errNo));
       goto error_stat1;
     }
 
@@ -1165,7 +1165,7 @@ extern "C"
 
       stat_count = dirlist->GetSize();
 
-      stat_array = (globus_gfs_stat_t *) globus_malloc(sizeof(globus_gfs_stat_t) * (stat_count+1));
+      stat_array = (globus_gfs_stat_t *) globus_malloc(sizeof(globus_gfs_stat_t) * (stat_count + 1));
       if (!stat_array)
       {
         if (dirlist)
@@ -1266,13 +1266,13 @@ extern "C"
     {
     case GLOBUS_GFS_CMD_MKD:
       (status = fs.MkDir(myPathPart, XrdCl::MkDirFlags::None, (XrdCl::Access::Mode) XrootStatUtils::mapModePos2Xrd(0777))).IsError() && (rc =
-          GlobusGFSErrorGeneric( (std::string("mkdir() fail : ")+=status.ToString()).c_str() ));
+          GlobusGFSErrorGeneric((std::string("mkdir() fail : ") += status.ToString()).c_str()));
       break;
     case GLOBUS_GFS_CMD_RMD:
-      (status = fs.RmDir(myPathPart)).IsError() && (rc = GlobusGFSErrorGeneric( (std::string("rmdir() fail")+=status.ToString()).c_str() ));
+      (status = fs.RmDir(myPathPart)).IsError() && (rc = GlobusGFSErrorGeneric((std::string("rmdir() fail") += status.ToString()).c_str()));
       break;
     case GLOBUS_GFS_CMD_DELE:
-      (fs.Rm(myPathPart)).IsError() && (rc = GlobusGFSErrorGeneric( (std::string("rm() fail")+=status.ToString()).c_str() ));
+      (fs.Rm(myPathPart)).IsError() && (rc = GlobusGFSErrorGeneric((std::string("rm() fail") += status.ToString()).c_str()));
       break;
     case GLOBUS_GFS_CMD_SITE_RDEL:
       /*
@@ -1291,7 +1291,7 @@ extern "C"
         globus_gridftp_server_finished_command(op, rc, NULL);
         return;
       }
-      (status = fs.Mv(myPathPart2, myPathPart)).IsError() && (rc = GlobusGFSErrorGeneric( (std::string("rename() fail")+=status.ToString()).c_str() ));
+      (status = fs.Mv(myPathPart2, myPathPart)).IsError() && (rc = GlobusGFSErrorGeneric((std::string("rename() fail") += status.ToString()).c_str()));
       break;
     case GLOBUS_GFS_CMD_SITE_CHMOD:
       if (config.EosChmod)
@@ -1320,8 +1320,8 @@ extern "C"
       }
       else
       { // Using XRoot Chmod
-        (status = fs.ChMod(myPathPart, (XrdCl::Access::Mode) XrootStatUtils::mapModePos2Xrd(cmd_info->chmod_mode))).IsError() && (rc =
-            GlobusGFSErrorGeneric( (std::string("chmod() fail")+=status.ToString()).c_str() ));
+        (status = fs.ChMod(myPathPart, (XrdCl::Access::Mode) XrootStatUtils::mapModePos2Xrd(cmd_info->chmod_mode))).IsError()
+            && (rc = GlobusGFSErrorGeneric((std::string("chmod() fail") += status.ToString()).c_str()));
       }
       break;
     case GLOBUS_GFS_CMD_CKSM:
@@ -1372,7 +1372,7 @@ extern "C"
       { // Using XRootD checksum
         if ((status = XrdUtils::GetRemoteCheckSum(cks, cmd_info->cksm_alg, myServerPart, myPathPart)).IsError() || (cks.size() >= MAXPATHLEN))
         { //UPPER CASE CHECKSUM ?
-          rc = GlobusGFSErrorGeneric( (std::string("checksum() fail")+=status.ToString()).c_str() );
+          rc = GlobusGFSErrorGeneric((std::string("checksum() fail") += status.ToString()).c_str());
           break;
         }
         strcpy(cmd_data, cks.c_str());
@@ -1533,7 +1533,7 @@ extern "C"
 
     pthread_mutex_lock(&xrootd_handle->mutex);
     // allocations of the buffers
-    buffers = (globus_byte_t**) globus_malloc(xrootd_handle->optimal_count*sizeof(globus_byte_t**));
+    buffers = (globus_byte_t**) globus_malloc(xrootd_handle->optimal_count * sizeof(globus_byte_t**));
     if (!buffers)
       goto error_alloc;
     if (buffers != 0)
@@ -1621,12 +1621,12 @@ extern "C"
       flags |= O_TRUNC;
 
     std::string error;
-    rc = xrootd_open_file(pathname, flags, 0644, xrootd_handle,&error);
+    rc = xrootd_open_file(pathname, flags, 0644, xrootd_handle, &error);
 
     if (rc)
     {
       //result = globus_l_gfs_make_error("open/create", errno);
-      result = GlobusGFSErrorGeneric((std::string("open/create : ")+error).c_str());
+      result = GlobusGFSErrorGeneric((std::string("open/create : ") + error).c_str());
       delete xrootd_handle->fileIo;
       globus_gridftp_server_finished_transfer(op, result);
       return;
@@ -1679,13 +1679,13 @@ extern "C"
     pathname = strdup(transfer_info->pathname);
 
     std::string error;
-    rc = xrootd_open_file(pathname, O_RDONLY, 0, xrootd_handle,&error); /* mode is ignored */
+    rc = xrootd_open_file(pathname, O_RDONLY, 0, xrootd_handle, &error); /* mode is ignored */
 
     if (rc)
     {
       delete xrootd_handle->fileIo;
       //result = globus_l_gfs_make_error("open", errno);
-      result = GlobusGFSErrorGeneric((std::string("open : ")+error).c_str());
+      result = GlobusGFSErrorGeneric((std::string("open : ") + error).c_str());
       globus_gridftp_server_finished_transfer(op, result);
       free(pathname);
       return;
@@ -1835,7 +1835,7 @@ extern "C"
 
     pthread_mutex_lock(&xrootd_handle->mutex);
     // allocations of the buffers
-    buffers = (globus_byte_t**) globus_malloc(xrootd_handle->optimal_count*sizeof(globus_byte_t**));
+    buffers = (globus_byte_t**) globus_malloc(xrootd_handle->optimal_count * sizeof(globus_byte_t**));
     if (!buffers)
       goto error_alloc;
     if (buffers != 0)
@@ -1902,7 +1902,7 @@ extern "C"
   NULL, /* data destroy */
   globus_l_gfs_xrootd_command, globus_l_gfs_xrootd_stat, NULL, NULL };
 /// no need to change this
-  GlobusExtensionDefineModule(globus_gridftp_server_xrootd) =
+  GlobusExtensionDefineModule (globus_gridftp_server_xrootd) =
   { (char*) "globus_gridftp_server_xrootd", globus_l_gfs_xrootd_activate, globus_l_gfs_xrootd_deactivate, NULL, NULL, &local_version, NULL };
 
   static int
@@ -1914,7 +1914,59 @@ extern "C"
     for (char **env = environ; *env; ++env)
       globus_gfs_log_message(GLOBUS_GFS_LOG_INFO, "%s:     %s\n", *env);
     globus_gfs_log_message(GLOBUS_GFS_LOG_INFO, "%s: Activating XRootD DSI plugin\n", "globus_l_gfs_xrootd_activate");
+    if(config.XrootdVmp.empty())
+    {
+      globus_gfs_log_message(GLOBUS_GFS_LOG_ERR, "%s: XRootD Virtual Mount Point is NOT set. DSI plugin cannot start. \n", "globus_l_gfs_xrootd_activate");
+      return 1;
+    }
     globus_gfs_log_message(GLOBUS_GFS_LOG_INFO, "%s: XRootD Virtual Mount Point is set to: %s\n", "globus_l_gfs_xrootd_activate", config.XrootdVmp.c_str());
+    {
+      const char *PathName;
+      char myServerPart[MAXPATHLEN], myPathPart[MAXPATHLEN];
+      GlobusGFSName(__FUNCTION__);
+      PathName = "/";//(config.XrootdVmp+"/").c_str();
+
+      std::string request(MAXPATHLEN * 2, '\0');
+      XrdCl::Buffer arg;
+      XrdCl::StatInfo* xrdstatinfo = 0;
+      XrdCl::XRootDStatus status;
+      XrdCl::URL server;
+      /*
+       If we do stat_info->pathname++, it will cause third-party transfer
+       hanging if there is a leading // in path. Don't know why. To work
+       around, we replaced it with PathName.
+       */
+      while ((strlen(PathName) > 1) && (PathName[0] == '/' && PathName[1] == '/'))
+      {
+        PathName++;
+      }
+
+      const char *myPath;
+      char buff[2048];
+      if (!(myPath = XP.BuildURL(PathName, buff, sizeof(buff))))
+        myPath = PathName;
+
+      if (XrootPath::SplitURL(myPath, myServerPart, myPathPart, MAXPATHLEN))
+      {
+        globus_gfs_log_message(GLOBUS_GFS_LOG_ERR, "%s: Error : cannot parse Xrootd Virtual Mount Point %s. DSI plugin cannot start. \n", "globus_l_gfs_xrootd_activate",
+            myPath);
+        return 1;
+      }
+
+      arg.FromString(myPathPart);
+      server.FromString(myServerPart);
+      XrdCl::FileSystem fs(server);
+      status = fs.Stat(myPathPart, xrdstatinfo);
+      if (status.IsError())
+      {
+        if (xrdstatinfo)
+          delete xrdstatinfo;
+        globus_gfs_log_message(GLOBUS_GFS_LOG_ERR, "%s: Error : cannot stat Xrootd Virtual Mount Point %s. DSI plugin cannot start. \n", "globus_l_gfs_xrootd_activate",
+            config.XrootdVmp.c_str());
+        return 1;
+      }
+
+    }
     globus_gfs_log_message(GLOBUS_GFS_LOG_INFO, "%s: XRootD Read Ahead Block Size is set to: %d\n", "globus_l_gfs_xrootd_activate",
         config.XrdReadAheadBlockSize);
     globus_gfs_log_message(GLOBUS_GFS_LOG_INFO, "%s: XRootD number of Read Ahead Blocks is set to: %d\n", "globus_l_gfs_xrootd_activate",
