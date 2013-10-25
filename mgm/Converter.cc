@@ -94,7 +94,9 @@ ConverterJob::DoIt ()
 
   eos::ContainerMD::XAttrMap attrmap;
 
-
+  XrdOucString sourceChecksum;
+  XrdOucString sourceAfterChecksum;
+  XrdOucString sourceSize;
   Converter* startConverter = 0;
   Converter* stopConverter = 0;
   {
@@ -119,6 +121,19 @@ ConverterJob::DoIt ()
       {
         attrmap[it->first] = it->second;
       }
+
+      // get the checksum string if defined
+      for (unsigned int i = 0;
+        i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
+      {
+        char hb[3];
+        sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
+        sourceChecksum += hb;
+      }
+
+      // get the size string
+      eos::common::StringConversion::GetSizeString(sourceSize,
+                                                   (unsigned long long) fmd->getSize());
 
       std::string conversionattribute = "sys.conversion.";
       conversionattribute += mConversionLayout.c_str();
@@ -175,7 +190,13 @@ ConverterJob::DoIt ()
     std::string cgi = "eos.ruid=2&eos.rgid=2&";
     cgi += mTargetCGI.c_str();
     cgi += "&eos.app=converter";
-
+    cgi += "&eos.targetsize=";
+    cgi += sourceSize.c_str();
+    if (sourceChecksum.length())
+    {
+      cgi += "&eos.checksum=";
+      cgi += sourceChecksum.c_str();
+    }
     mTPCJob.source.SetProtocol("root");
     mTPCJob.source.SetHostName("localhost");
     mTPCJob.source.SetUserName("root");
@@ -230,6 +251,39 @@ ConverterJob::DoIt ()
     success = false;
   }
 
+  // ---------------------------------------------------------------------------
+  // check if the file is still the same on source side
+  // ---------------------------------------------------------------------------
+  {
+    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
+    try
+    {
+      fmd = gOFS->eosFileService->getFileMD(mFid);
+
+      // get the checksum string if defined
+      for (unsigned int i = 0;
+        i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
+      {
+        char hb[3];
+        sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
+        sourceAfterChecksum += hb;
+      }
+    }
+    catch (eos::MDException &e)
+    {
+      errno = e.getErrno();
+      eos_static_err("fid=%016x errno=%d msg=\"%s\"\n",
+                     mFid, e.getErrno(), e.getMessage().str().c_str());
+    }
+    
+    if (sourceChecksum!=sourceAfterChecksum)
+    {
+      success=false;
+      eos_static_err("fid=%016x conversion failed since file was modified",
+                     mFid);
+    }
+  }
+
   eos_static_info("msg=\"stop tpc job\" fxid=%016x layout=%s",
                   mFid, mConversionLayout.c_str());
 
@@ -280,9 +334,9 @@ ConverterJob::DoIt ()
     // we set owner nobody to indicate that this is a failed/faulty entry
     // -------------------------------------------------------------------------
     if (!gOFS->_rem(mProcPath.c_str(),
-		    error,
-		    rootvid,
-		    (const char*) 0))
+                    error,
+                    rootvid,
+                    (const char*) 0))
     {
       eos_static_info("msg=\"removed failed conversion entry\" name=\"%s\"",
                       mConversionLayout.c_str());
@@ -335,7 +389,7 @@ Converter::Converter (const char* spacename)
 }
 
 /*----------------------------------------------------------------------------*/
-void 
+void
 Converter::Stop ()
 /*----------------------------------------------------------------------------*/
 /**
