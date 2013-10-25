@@ -1473,9 +1473,13 @@ OptionsGroup::optionsRepr()
   std::vector<const CliOption *>::iterator it;
   for (i = 0; i < mOptions->size(); i++)
   {
+    if (mOptions->at(i)->hidden())
+      continue;
+
     repr += mOptions->at(i)->repr();
 
-    if (i != mOptions->size() - 1)
+    if (i != mOptions->size() - 1 &&
+        !mOptions->at(i + 1)->hidden())
       repr += "|";
   }
 
