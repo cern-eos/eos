@@ -935,7 +935,7 @@ XrdMgmOfs::PathRemap (const char* inpath,
   {
     if (PathMap.count(cPath.GetSubPath(i)))
     {
-      outpath.replace(cPath.GetSubPath(i), PathMap[cPath.GetSubPath(i)].c_str(), 0,strlen(cPath.GetSubPath(i)));
+      outpath.replace(cPath.GetSubPath(i), PathMap[cPath.GetSubPath(i)].c_str(), 0, strlen(cPath.GetSubPath(i)));
       outpath.erase(outpath.length() - 1);
       return;
     }
@@ -1210,7 +1210,7 @@ XrdMgmOfs::_chmod (const char *path,
     Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
             attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid);
 
-    if ( ((cmd->getCUid() == vid.uid) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
+    if (((cmd->getCUid() == vid.uid) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
         (!vid.uid) || // the root user
         (vid.uid == 3) || // the admin user
         (vid.gid == 4) || // the admin group
@@ -1885,9 +1885,11 @@ XrdMgmOfs::_mkdir (const char *path,
         {
           // we have to check the standard permissions
           stdpermcheck = true;
-        } 
-      } else {
-	stdpermcheck = true;
+        }
+      }
+      else
+      {
+        stdpermcheck = true;
       }
 
 
@@ -2324,8 +2326,8 @@ XrdMgmOfs::_rem (const char *path,
       }
 
       // if there is a !d policy we cannot delete files which we don't own
-      if ( ((vid.uid) &&  (vid.uid != 3) && (vid.gid != 4) && (acl.CanNotDelete())) &&
-	   ( (fmd->getCUid() != vid.uid) ) )
+      if (((vid.uid) && (vid.uid != 3) && (vid.gid != 4) && (acl.CanNotDelete())) &&
+          ((fmd->getCUid() != vid.uid)))
 
       {
         gOFS->eosViewRWMutex.UnLockWrite();
@@ -2784,7 +2786,7 @@ XrdMgmOfs::rename (const char *old_name,
                    eos::common::Mapping::VirtualIdentity& vid,
                    const char *infoO,
                    const char *infoN,
-		   bool overwrite)
+                   bool overwrite)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief rename a file or directory
@@ -2863,7 +2865,7 @@ XrdMgmOfs::_rename (const char *old_name,
                     const char *infoN,
                     bool updateCTime,
                     bool checkQuota,
-		    bool overwrite
+                    bool overwrite
                     )
 /*----------------------------------------------------------------------------*/
 /*
@@ -2916,16 +2918,16 @@ XrdMgmOfs::_rename (const char *old_name,
   {
     if (file_exists == XrdSfsFileExistIsFile)
     {
-      if (overwrite) 
+      if (overwrite)
       {
-	// delete the existing target
-	if (gOFS->_rem(new_name, error, vid, infoN ))
-	  return SFS_ERROR;
+        // delete the existing target
+        if (gOFS->_rem(new_name, error, vid, infoN))
+          return SFS_ERROR;
       }
-      else 
+      else
       {
-	errno = EEXIST;
-	return Emsg(epname, error, EEXIST, "rename - target file name exists");
+        errno = EEXIST;
+        return Emsg(epname, error, EEXIST, "rename - target file name exists");
       }
     }
     if (file_exists == XrdSfsFileExistIsDirectory)
@@ -3334,7 +3336,7 @@ XrdMgmOfs::_stat (const char *path,
 
   try
   {
-    fprintf(stderr,"in %s\n out %s\n", path, cPath.GetPath());
+    fprintf(stderr, "in %s\n out %s\n", path, cPath.GetPath());
     fmd = gOFS->eosView->getFile(cPath.GetPath());
   }
   catch (eos::MDException &e)
@@ -3996,10 +3998,10 @@ XrdMgmOfs::_find (const char *path,
                                    (const char*) 0, key, attr, true))
               {
                 found_dirs[deepness + 1].push_back(fpath.c_str());
-                if ( (val == std::string("*")) || (attr == val) )
+                if ((val == std::string("*")) || (attr == val))
                 {
                   found[fpath].size();
-                } 
+                }
               }
             }
           }
@@ -4678,6 +4680,93 @@ XrdMgmOfs::FSctl (const int cmd,
         const char* ok = "OK";
         error.setErrInfo(strlen(ok) + 1, ok);
         EXEC_TIMING_END("AdjustReplica");
+        return SFS_DATA;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Repair file (repair after scan error e.g. use the converter to rewrite)
+    // -------------------------------------------------------------------------
+
+    if (execmd == "rewrite")
+    {
+      REQUIRE_SSS_OR_LOCAL_AUTH;
+      ACCESSMODE_W;
+      MAYSTALL;
+      MAYREDIRECT;
+
+      EXEC_TIMING_BEGIN("Rewrite");
+
+      bool IsEnabledAutoRepair = false;
+      {
+        // check if 'autorepair' is enabled
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        if (FsView::gFsView.mSpaceView.count("default") && (FsView::gFsView.mSpaceView["default"]->GetConfigMember("autorepair") == "on"))
+          IsEnabledAutoRepair = true;
+        else
+          IsEnabledAutoRepair = false;
+
+      }
+
+      char* hexfid = env.Get("mgm.fxid");
+
+      if (!IsEnabledAutoRepair)
+      {
+        eos_thread_info("msg=\"suppressing auto-repair\" fxid=\"%s\"", (hexfid) ?
+                        hexfid : "<missing>");
+        // the rewrite was suppressed!
+        const char* ok = "OK";
+        error.setErrInfo(strlen(ok) + 1, ok);
+        EXEC_TIMING_END("Rewrite");
+        return SFS_DATA;
+      }
+      eos::common::Mapping::VirtualIdentity vid;
+      eos::common::Mapping::Root(vid);
+
+      // convert fxid to path
+      const char* spath = 0;
+      errno = 0;
+      std::string fullpath = "";
+      eos::common::FileId::fileid_t fid = strtoul(hexfid, 0, 16);
+      if (!errno && fid)
+      {
+        eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
+        eos::FileMD* fmd = 0;
+        try
+        {
+          fmd = gOFS->eosFileService->getFileMD(fid);
+          fullpath = gOFS->eosView->getUri(fmd);
+          spath = fullpath.c_str();
+        }
+        catch (eos::MDException &e)
+        {
+          eos_thread_err("msg=\"unable to reference fid=%lu in namespacen", fid);
+          return Emsg(epname, error, EIO, "[EIO] rewrite", spath);
+        }
+      }
+      // execute a proc command                                                                                                                                                                            
+      ProcCommand Cmd;
+      XrdOucString info = "mgm.cmd=file&mgm.subcmd=convert&";
+      info += "mgm.path=";
+      info += spath;
+      info += "&mgm.option=rewrite&mgm.format=fuse";
+      if (spath)
+      {
+        Cmd.open("/proc/user", info.c_str(), vid, &error);
+        Cmd.close();
+        gOFS->MgmStats.Add("Rewrite", 0, 0, 1);
+      }
+      if (Cmd.GetRetc())
+      {
+        // the rewrite failed
+        return Emsg(epname, error, EIO, "[EIO] rewrite", spath);
+      }
+      else
+      {
+        // the rewrite succeeded!
+        const char* ok = "OK";
+        error.setErrInfo(strlen(ok) + 1, ok);
+        EXEC_TIMING_END("Rewrite");
         return SFS_DATA;
       }
     }
@@ -5442,7 +5531,7 @@ XrdMgmOfs::FSctl (const int cmd,
 
       gOFS->MgmStats.Add("OpenLayout", vid.uid, vid.gid, 1);
       XrdMgmOfsFile* file = new XrdMgmOfsFile(client->tident);
-            
+
       if (file)
       {
         opaque += "&eos.cli.access=pio";
@@ -5602,17 +5691,17 @@ XrdMgmOfs::FSctl (const int cmd,
         // here we put some cache to avoid too heavy space recomputations
         if ((time(NULL) - laststat) > (10 + (int) rand() / RAND_MAX))
         {
-	  // take the sum's from all file systems in 'default'
-	  if (FsView::gFsView.mSpaceView.count("default"))
+          // take the sum's from all file systems in 'default'
+          if (FsView::gFsView.mSpaceView.count("default"))
           {
-	    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-	    freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
-	    freefiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree");
-	    
-	    maxbytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
-	    maxfiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files");
-	  }
-	}
+            eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+            freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
+            freefiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree");
+
+            maxbytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
+            maxfiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files");
+          }
+        }
         statvfsmutex.UnLock();
         response = "statvfs: retc=0";
         char val[1025];
@@ -7562,14 +7651,14 @@ XrdMgmOfs::_attr_rem (const char *path,
       errno = EPERM;
     else
     {
-      if (dh->hasAttribute(key)) 
+      if (dh->hasAttribute(key))
       {
-	dh->removeAttribute(key);
-	eosView->updateContainerStore(dh);
+        dh->removeAttribute(key);
+        eosView->updateContainerStore(dh);
       }
       else
       {
-	errno = ENODATA;
+        errno = ENODATA;
       }
     }
   }
