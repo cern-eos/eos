@@ -258,9 +258,10 @@ ProcCommand::Space ()
                 (key == "lru") ||
                 (key == "lru.interval") ||
                 (key == "converter.ntx") ||
+                (key == "autorepair") ||
                 (key == "balancer.threshold"))
             {
-              if ( (key == "balancer") || (key == "converter") || (key == "lru") )
+              if ((key == "balancer") || (key == "converter") || (key == "lru") || (key == "autorepair"))
               {
                 if ((value != "on") && (value != "off"))
                 {
@@ -289,6 +290,13 @@ ProcCommand::Space ()
                         stdOut += "success: converter is enabled!";
                       else
                         stdOut += "success: converter is disabled!";
+                    }
+                    if (key == "autorepair")
+                    {
+                      if (key == "on")
+                        stdOut += "success: auto-repair is enabled!";
+                      else
+                        stdOut += "success: auto-repair is dieabled!";
                     }
                   }
                 }

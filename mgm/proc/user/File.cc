@@ -521,7 +521,7 @@ ProcCommand::File ()
           }
 
           int dstat = gOFS->_stat(dst.c_str(), &dstbuf, *mError, *pVid, "");
-           
+
           if ((option.find("f") == STR_NPOS) &&
               !dstat)
           {
@@ -576,17 +576,18 @@ ProcCommand::File ()
                       src_path += *fileit;
                       std::string dst_path = dst.c_str();
                       dst_path += end_path;
-                      dst_path += *fileit; 
+                      dst_path += *fileit;
                       lCopySourceList.push_back(src_path.c_str());
                       lCopyTargetList.push_back(dst_path.c_str());
-                      stdOut += "info: copying '"; stdOut += src_path.c_str();
+                      stdOut += "info: copying '";
+                      stdOut += src_path.c_str();
                       stdOut += "' => '";
                       stdOut += dst_path.c_str();
                       stdOut += "' ... \n";
                     }
                   }
                 }
-                else 
+                else
                 {
                   stdErr += "error: find failed";
                 }
@@ -600,7 +601,7 @@ ProcCommand::File ()
                 lCopyTargetList.push_back(dst.c_str());
               }
 
-              for (size_t i = 0 ; i< lCopySourceList.size(); i++) 
+              for (size_t i = 0; i < lCopySourceList.size(); i++)
               {
                 // ---------------------------------------------------------------
                 // setup a TPC job
@@ -614,7 +615,7 @@ ProcCommand::File ()
 
                 std::string source = lCopySourceList[i];
                 std::string target = lCopyTargetList[i];
-                
+
                 std::string sizestring;
                 std::string cgi = "eos.ruid=";
                 cgi += eos::common::StringConversion::GetSizeString(sizestring,
@@ -657,7 +658,8 @@ ProcCommand::File ()
                                   lTpcStatus.IsOK());
                   if (lTpcStatus.IsOK())
                   {
-                    if (!silent) {
+                    if (!silent)
+                    {
                       stdOut += "success: copy done '";
                       stdOut += source.c_str();
                       stdOut += "'\n";
@@ -669,7 +671,7 @@ ProcCommand::File ()
                     stdErr += source.c_str();
                     stdErr += "' - ";
                     stdErr += lTpcStatus.ToStr().c_str();
-                    
+
                     retc = EIO;
                   }
                 }
@@ -701,134 +703,115 @@ ProcCommand::File ()
       }
       else
       {
-
-        XrdOucString layout = pOpaque->Get("mgm.convert.layout");
-        XrdOucString space = pOpaque->Get("mgm.convert.space");
-
-        if (!space.length())
+        while (1)
         {
-          // -------------------------------------------------------------------
-          // retrieve the target space from the layout settings
-          // -------------------------------------------------------------------
-          eos::common::Path cPath(spath.c_str());
-          eos::ContainerMD::XAttrMap map;
-          int rc = gOFS->_attr_ls(cPath.GetParentPath(), *mError, *pVid, (const char *) 0, map);
-          if (rc || (!map.count("sys.forced.space") && !map.count("user.forced.space")))
+          XrdOucString layout = pOpaque->Get("mgm.convert.layout");
+          XrdOucString space = pOpaque->Get("mgm.convert.space");
+          XrdOucString option = pOpaque->Get("mgm.option");
+          if (!space.length())
           {
-            stdErr += "error: cannot get default space settings from parent directory attributes";
-            retc = EINVAL;
-          }
-          else
-          {
-            if (map.count("sys.forced.space"))
-              space = map["sys.forced.space"].c_str();
-            else
-              space = map["user.forced.space"].c_str();
-          }
-        }
-
-	if (space.length())
-        {
-
-          if (!layout.length())
-          {
-            stdErr += "error: conversion layout has to be defined";
-            retc = EINVAL;
-          }
-          else
-          {
-            // get the file meta data
-            eos::FileMD* fmd = 0;
-
-            eos::common::LayoutId::layoutid_t layoutid = 0;
-            eos::common::FileId::fileid_t fileid = 0;
+            // -------------------------------------------------------------------
+            // retrieve the target space from the layout settings
+            // -------------------------------------------------------------------
+            eos::common::Path cPath(spath.c_str());
+            eos::ContainerMD::XAttrMap map;
+            int rc = gOFS->_attr_ls(cPath.GetParentPath(), *mError, *pVid, (const char *) 0, map);
+            if (rc || (!map.count("sys.forced.space") && !map.count("user.forced.space")))
             {
-              eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-              try
-              {
-                fmd = gOFS->eosView->getFile(spath.c_str());
-                layoutid = fmd->getLayoutId();
-                fileid = fmd->getId();
-              }
-              catch (eos::MDException &e)
-              {
-                errno = e.getErrno();
-                eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
-              }
-            }
-
-            if (!fmd)
-            {
-              stdErr += "error: unable to get file meta data of file ";
-              stdErr += spath.c_str();
-              retc = errno;
+              stdErr += "error: cannot get default space settings from parent directory attributes";
+              retc = EINVAL;
             }
             else
             {
-              char conversiontagfile[1024];
+              if (map.count("sys.forced.space"))
+                space = map["sys.forced.space"].c_str();
+              else
+                space = map["user.forced.space"].c_str();
+            }
+          }
 
-              if (eos::common::StringConversion::IsHexNumber(layout.c_str(), "%08x"))
+          if (space.length())
+          {
+
+            if (!layout.length() && (option != "rewrite"))
+            {
+              stdErr += "error: conversion layout has to be defined";
+              retc = EINVAL;
+            }
+            else
+            {
+              // get the file meta data
+              eos::FileMD* fmd = 0;
+              int fsid=0;
+              
+              eos::common::LayoutId::layoutid_t layoutid = 0;
+              eos::common::FileId::fileid_t fileid = 0;
               {
-                // we hand over as an conversion layout ID
-                snprintf(conversiontagfile,
-                         sizeof (conversiontagfile) - 1,
-                         "%s/%016llx:%s#%s",
-                         gOFS->MgmProcConversionPath.c_str(),
-                         fileid,
-                         space.c_str(),
-                         layout.c_str());
-                stdOut += "info: conversion based on hexadecimal layout id\n";
+                eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+                try
+                {
+                  fmd = gOFS->eosView->getFile(spath.c_str());
+                  layoutid = fmd->getLayoutId();
+                  fileid = fmd->getId();
+                  if (fmd->getNumLocation())
+                    fsid = *(fmd->locationsBegin());
+                }
+                catch (eos::MDException &e)
+                {
+                  errno = e.getErrno();
+                  eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+                }
+              }
+
+              if (!fmd)
+              {
+                stdErr += "error: unable to get file meta data of file ";
+                stdErr += spath.c_str();
+                retc = errno;
               }
               else
               {
-                unsigned long layout_type = 0;
-                unsigned long layout_stripes = 0;
+                char conversiontagfile[1024];
 
-                // check if it was provided as <layout>:<stripes>
-                std::string lLayout = layout.c_str();
-                std::string lLayoutName;
-                std::string lLayoutStripes;
-                if (eos::common::StringConversion::SplitKeyValue(lLayout,
-                                                                 lLayoutName,
-                                                                 lLayoutStripes))
+                if (option == "rewrite")
                 {
-                  XrdOucString lLayoutString = "eos.layout.type=";
-                  lLayoutString += lLayoutName.c_str();
-                  lLayoutString += "&eos.layout.nstripes=";
-                  lLayoutString += lLayoutStripes.c_str();
-                  // ---------------------------------------------------------------
-                  // add block checksumming and the default blocksize of 4 M
-                  // ---------------------------------------------------------------
-
-                  XrdOucEnv lLayoutEnv(lLayoutString.c_str());
-                  layout_type =
-                    eos::common::LayoutId::GetLayoutFromEnv(lLayoutEnv);
-                  layout_stripes =
-                    eos::common::LayoutId::GetStripeNumberFromEnv(lLayoutEnv);
-                  // ---------------------------------------------------------------
-                  // re-create layout id by merging in the layout stripes & type
-                  // ---------------------------------------------------------------
-                  layoutid =
-                    eos::common::LayoutId::GetId(layout_type,
-                                                 eos::common::LayoutId::kAdler,
-                                                 layout_stripes,
-                                                 eos::common::LayoutId::k4M,
-                                                 eos::common::LayoutId::kCRC32C,
-                                                 eos::common::LayoutId::GetRedundancyStripeNumber(layoutid));
-
-
-                  snprintf(conversiontagfile,
-                           sizeof (conversiontagfile) - 1,
-                           "%s/%016llx:%s#%08lx",
-                           gOFS->MgmProcConversionPath.c_str(),
-                           fileid,
-                           space.c_str(),
-                           (unsigned long) layoutid);
-                  stdOut += "info: conversion based layout+stripe arguments\n";
+                  stdOut += "info: rewriting file with identical layout id\n";
+                  // we just rewrite the file as it was
+                  char hexlayout[17];
+                  snprintf(hexlayout, sizeof(hexlayout)-1,"%08llx", 
+                           (long long)layoutid);
+                  layout = hexlayout;
+                  // get the space this file is currently hosted   
+                  if (!fsid)
+                  {
+                    // bummer, this file has not even a single replica 
+                    stdErr += "error: file has no replica attached\n";
+                    retc = ENODEV;
+                    break;
+                  }
+                  
+                  // figure out which space this fsid is in ...
+                  {
+                    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+                    FileSystem* filesystem = 0;
+                    if (FsView::gFsView.mIdView.count((int) fsid))
+                      filesystem = FsView::gFsView.mIdView[(int) fsid];
+                    if (!filesystem) {
+                      stdErr += "error: couldn't find filesystem in view\n";
+                      retc = EINVAL;
+                      break;
+                    }
+                    // get the space of that filesystem
+                    space = filesystem->GetString("schedgroup").c_str();
+                    space.erase(space.find("."));
+                    stdOut += "info:: rewriting into space '";
+                    stdOut += space; stdOut += "'\n";
+                  }
                 }
-                else
+
+                if (eos::common::StringConversion::IsHexNumber(layout.c_str(), "%08x"))
                 {
-                  // assume this is the name of an attribute
+                  // we hand over as an conversion layout ID
                   snprintf(conversiontagfile,
                            sizeof (conversiontagfile) - 1,
                            "%s/%016llx:%s#%s",
@@ -836,26 +819,87 @@ ProcCommand::File ()
                            fileid,
                            space.c_str(),
                            layout.c_str());
-                  stdOut += "info: conversion based conversion attribute name\n";
+                  stdOut += "info: conversion based on hexadecimal layout id\n";
                 }
-              }
-              eos::common::Mapping::VirtualIdentity rootvid;
-              eos::common::Mapping::Root(rootvid);
-              if (gOFS->_touch(conversiontagfile, *mError, rootvid, 0))
-              {
-                stdErr += "error: unable to create conversion job '";
-                stdErr += conversiontagfile;
-                stdErr += "'";
-                retc = errno;
-              }
-              else
-              {
-                stdOut += "success: created conversion job '";
-                stdOut += conversiontagfile;
-                stdOut += "'";
+                else
+                {
+                  unsigned long layout_type = 0;
+                  unsigned long layout_stripes = 0;
+
+                  // check if it was provided as <layout>:<stripes>
+                  std::string lLayout = layout.c_str();
+                  std::string lLayoutName;
+                  std::string lLayoutStripes;
+                  if (eos::common::StringConversion::SplitKeyValue(lLayout,
+                                                                   lLayoutName,
+                                                                   lLayoutStripes))
+                  {
+                    XrdOucString lLayoutString = "eos.layout.type=";
+                    lLayoutString += lLayoutName.c_str();
+                    lLayoutString += "&eos.layout.nstripes=";
+                    lLayoutString += lLayoutStripes.c_str();
+                    // ---------------------------------------------------------------
+                    // add block checksumming and the default blocksize of 4 M
+                    // ---------------------------------------------------------------
+
+                    XrdOucEnv lLayoutEnv(lLayoutString.c_str());
+                    layout_type =
+                      eos::common::LayoutId::GetLayoutFromEnv(lLayoutEnv);
+                    layout_stripes =
+                      eos::common::LayoutId::GetStripeNumberFromEnv(lLayoutEnv);
+                    // ---------------------------------------------------------------
+                    // re-create layout id by merging in the layout stripes & type
+                    // ---------------------------------------------------------------
+                    layoutid =
+                      eos::common::LayoutId::GetId(layout_type,
+                                                   eos::common::LayoutId::kAdler,
+                                                   layout_stripes,
+                                                   eos::common::LayoutId::k4M,
+                                                   eos::common::LayoutId::kCRC32C,
+                                                   eos::common::LayoutId::GetRedundancyStripeNumber(layoutid));
+
+
+                    snprintf(conversiontagfile,
+                             sizeof (conversiontagfile) - 1,
+                             "%s/%016llx:%s#%08lx",
+                             gOFS->MgmProcConversionPath.c_str(),
+                             fileid,
+                             space.c_str(),
+                             (unsigned long) layoutid);
+                    stdOut += "info: conversion based layout+stripe arguments\n";
+                  }
+                  else
+                  {
+                    // assume this is the name of an attribute
+                    snprintf(conversiontagfile,
+                             sizeof (conversiontagfile) - 1,
+                             "%s/%016llx:%s#%s",
+                             gOFS->MgmProcConversionPath.c_str(),
+                             fileid,
+                             space.c_str(),
+                             layout.c_str());
+                    stdOut += "info: conversion based conversion attribute name\n";
+                  }
+                }
+                eos::common::Mapping::VirtualIdentity rootvid;
+                eos::common::Mapping::Root(rootvid);
+                if (gOFS->_touch(conversiontagfile, *mError, rootvid, 0))
+                {
+                  stdErr += "error: unable to create conversion job '";
+                  stdErr += conversiontagfile;
+                  stdErr += "'";
+                  retc = errno;
+                }
+                else
+                {
+                  stdOut += "success: created conversion job '";
+                  stdOut += conversiontagfile;
+                  stdOut += "'";
+                }
               }
             }
           }
+          break; // while 1
         }
       }
     }
