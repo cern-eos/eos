@@ -4,11 +4,11 @@
 
 Summary: XROOTD gridftp DSI plugin
 Name: xrootd-dsi
-Version: 0.3.0
+Version: 0.3.2
 Release: 1
 License: none
 Group: Applications/File
-Source0: xrootd-dsi-0.3.0-%{release}.tar.gz
+Source0: xrootd-dsi-0.3.2-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 Requires: xrootd-cl >= 3.3.0
@@ -46,9 +46,11 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root,-)
 %{_libdir}/*.so*
-%_sysconfdir/sysconfig/xrootd-gridftp-server
 %_sysconfdir/init.d/xrootd-gridftp
 %_sysconfdir/logrotate.d/xrootd-gridftp
+%config %_sysconfdir/sysconfig/xrootd-gridftp-server
+
+
 %doc
 
 %post
@@ -59,7 +61,7 @@ echo Starting conditional XROOTD grid-ftp services
 if [ $1 = 0 ]; then
         echo Stopping XROOTD grid-ftp services
         /sbin/service xrootd-gridftp stop > /dev/null 2>&1 
-        /sbin/chkconfig --del xrootd
+        /sbin/chkconfig --del xrootd-gridftp
 fi
 
 %changelog
