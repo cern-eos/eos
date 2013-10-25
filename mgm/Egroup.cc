@@ -204,7 +204,8 @@ Egroup::Member (std::string &username, std::string & egroupname)
         eos_static_warning("member=false user=\"%s\" e-group=\"%s\" "
                          "cachetime=<stall-information> "
                          "msg=\"ldap query failed or timed out\"",
-                         username.c_str());
+			   username.c_str(),
+			   egroupname.c_str());
 
       }
 
