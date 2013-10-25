@@ -74,14 +74,6 @@ com_fuse (char* arg1)
 
   parsedCmd = fuseCmd->parse(arg1);
 
-  if (parsedCmd == fuseCmd)
-  {
-    if (!checkHelpAndErrors(fuseCmd))
-      fuseCmd->printUsage();
-
-    exit(-1);
-    return 0;
-  }
   if (checkHelpAndErrors(parsedCmd))
   {
     exit(parsedCmd->hasValue("help") ? 0 : -1);

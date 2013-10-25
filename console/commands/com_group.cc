@@ -75,12 +75,6 @@ com_group (char* arg1)
 
   parsedCmd = groupCmd->parse(arg1);
 
-  if (parsedCmd == groupCmd)
-  {
-    if (!checkHelpAndErrors(groupCmd))
-      groupCmd->printUsage();
-    goto bailout;
-  }
   if (checkHelpAndErrors(parsedCmd))
     goto bailout;
 

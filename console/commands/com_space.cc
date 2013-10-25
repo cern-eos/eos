@@ -168,12 +168,6 @@ com_space (char* arg1)
 
   parsedCmd = spaceCmd->parse(arg1);
 
-  if (parsedCmd == spaceCmd && !spaceCmd->hasValues())
-  {
-    spaceCmd->printUsage();
-    goto bailout;
-  }
-
   if (checkHelpAndErrors(parsedCmd))
   {
     if (parsedCmd == configSubCmd)

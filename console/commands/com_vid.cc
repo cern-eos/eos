@@ -148,13 +148,6 @@ com_vid (char* arg1)
 
   parsedCmd = vidCmd->parse(arg1);
 
-  if (parsedCmd == vidCmd || parsedCmd == membershipSubCmd ||
-      parsedCmd == mapSubCmd || parsedCmd == geotagSubCmd)
-  {
-    if (!checkHelpAndErrors(parsedCmd))
-      parsedCmd->printUsage();
-    goto bailout;
-  }
   if (checkHelpAndErrors(parsedCmd))
     goto bailout;
 

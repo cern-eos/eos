@@ -133,12 +133,6 @@ com_node (char* arg1)
 
   parsedCmd = nodeCmd->parse(arg1);
 
-  if (parsedCmd == nodeCmd)
-  {
-    if (!checkHelpAndErrors(nodeCmd))
-      nodeCmd->printUsage();
-    goto bailout;
-  }
   if (checkHelpAndErrors(parsedCmd))
     goto bailout;
 

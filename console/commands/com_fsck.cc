@@ -102,13 +102,7 @@ com_fsck (char* arg1)
 
   parsedCmd = fsckCmd->parse(arg1);
 
-  if (parsedCmd == fsckCmd)
-  {
-    if (!checkHelpAndErrors(parsedCmd))
-      fsckCmd->printUsage();
-    goto bailout;
-  }
-  else if (checkHelpAndErrors(parsedCmd))
+  if (checkHelpAndErrors(parsedCmd))
     goto bailout;
 
   in = "mgm.cmd=fsck&";

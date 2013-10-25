@@ -81,12 +81,6 @@ com_recycle (char* arg1)
 
   parsedCmd = recycleCmd->parse(arg1);
 
-  if (parsedCmd == recycleCmd)
-  {
-    if (!checkHelpAndErrors(recycleCmd))
-      recycleCmd->printUsage();
-    goto bailout;
-  }
   if (checkHelpAndErrors(parsedCmd))
       goto bailout;
 

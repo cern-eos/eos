@@ -103,13 +103,7 @@ com_io (char* arg1)
 
   parsedCmd = ioCmd->parse(arg1);
 
-  if (parsedCmd == ioCmd)
-  {
-    if (!checkHelpAndErrors(ioCmd))
-      ioCmd->printUsage();
-    goto bailout;
-  }
-  else if (checkHelpAndErrors(parsedCmd))
+  if (checkHelpAndErrors(parsedCmd))
     goto bailout;
 
   in = "mgm.cmd=io&";

@@ -55,13 +55,7 @@ com_map (char* arg1)
 
   parsedCmd = mapCmd->parse(arg1);
 
-  if (parsedCmd == mapCmd)
-  {
-    if (!checkHelpAndErrors(mapCmd))
-      mapCmd->printUsage();
-    goto bailout;
-  }
-  else if (checkHelpAndErrors(parsedCmd))
+  if (checkHelpAndErrors(parsedCmd))
     goto bailout;
 
   if (parsedCmd == lsSubCmd)

@@ -175,12 +175,6 @@ com_transfer (char* argin)
 
   parsedCmd = transferCmd->parse(argin);
 
-  if (parsedCmd == transferCmd)
-  {
-    if (!checkHelpAndErrors(transferCmd))
-      transferCmd->printUsage();
-    goto bailout;
-  }
   if (checkHelpAndErrors(parsedCmd))
     goto bailout;
 

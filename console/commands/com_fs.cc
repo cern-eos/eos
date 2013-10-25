@@ -251,16 +251,11 @@ com_fs (char* arg1)
 
   parsedCmd = fsCmd->parse(arg1);
 
-  if (parsedCmd == fsCmd)
+  if (checkHelpAndErrors(parsedCmd))
   {
-    if (!checkHelpAndErrors(parsedCmd))
-      fsCmd->printUsage();
-
-    goto com_fs_usage;
-  }
-  else if (checkHelpAndErrors(parsedCmd))
-  {
-    if (parsedCmd->hasValue("help") && parsedCmd == configSubCmd)
+    if (parsedCmd == fsCmd)
+      goto com_fs_usage;
+    else if (parsedCmd->hasValue("help") && parsedCmd == configSubCmd)
       print_config_examples();
 
     goto bailout;
