@@ -1628,15 +1628,15 @@ printHelpRecursively(ConsoleCliCommand *command)
 bool
 checkHelpAndErrors(ConsoleCliCommand *command)
 {
-  if (command->hasValue("help"))
-  {
-    command->printUsage();
-    return true;
-  }
-  else if (command->hasValue("help-all"))
+  if (command->hasValue("help-all"))
   {
     printHelpRecursively(command);
 
+    return true;
+  }
+  if (!command->standalone() || command->hasValue("help"))
+  {
+    command->printUsage();
     return true;
   }
   else if (command->hasErrors())
