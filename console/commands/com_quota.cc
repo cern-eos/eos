@@ -43,33 +43,51 @@ com_quota (char* arg1)
   quotaCmd->addOption(monitorOption);
   quotaCmd->addOption({"path", "", 1, 1, "<path>"});
 
+  /* work-around for backward compatibility; should be removed after experiments
+   * no longer need it () */
+  CliOption pathDummyOption("path-arg", "", "-p,--path");
+  pathDummyOption.setHidden(true);
+  CliOptionWithArgs uidOption("uid", "", "--uid", "", false);
+  uidOption.setHidden(true);
+  CliOptionWithArgs gidOption("gid", "", "--gid", "", false);
+  gidOption.setHidden(true);
+
   lsSubCmd = new ConsoleCliCommand("ls", "list configured quota and quota "
                                    "node(s)");
   lsSubCmd->addOption(monitorOption);
   lsSubCmd->addOption({"numerical", "don't translate ids, print uid+gid "
                        "number", "-n"});
   lsSubCmd->addOptions({{"uid", "print information only for uid <uid>",
-                         "-u,--uid", "<uid>", false},
+                         "-u,--uid=", "<uid>", false},
                         {"gid", "print information only for gid <gid>",
-                         "-g,--gid", "<gid>", false}
+                         "-g,--gid=", "<gid>", false}
                        });
+  lsSubCmd->addOption(uidOption);
+  lsSubCmd->addOption(gidOption);
   lsSubCmd->addOption({"path", "print information only for path <path>",
                        1, 1, "<path>"});
+  lsSubCmd->addOption(pathDummyOption);
   quotaCmd->addSubcommand(lsSubCmd);
 
   rmSubCmd = new ConsoleCliCommand("rm", "list configured quota and quota "
                                    "node(s)");
-  rmSubCmd->addGroupedOptions({{"uid", "", "-u,--uid", "<uid>", false},
-                               {"gid", "", "-g,--gid", "<gid>", false}
-                              });
+  OptionsGroup *group;
+  group = rmSubCmd->addGroupedOptions({{"uid", "", "-u,--uid=", "<uid>", false},
+                                       {"gid", "", "-g,--gid=", "<gid>", false}
+                                      });
+  group->addOption(uidOption);
+  group->addOption(gidOption);
   rmSubCmd->addOption({"path", "", 1, 1, "<path>", true});
+  rmSubCmd->addOption(pathDummyOption);
   quotaCmd->addSubcommand(rmSubCmd);
 
   setSubCmd = new ConsoleCliCommand("set", "set volume and/or inode quota by "
                                     "uid or gid");
-  setSubCmd->addGroupedOptions({{"uid", "", "-u,--uid", "<uid>", false},
-                                {"gid", "", "-g,--gid", "<gid>", false}
-                               });
+  group = setSubCmd->addGroupedOptions({{"uid", "", "-u,--uid=", "<uid>", false},
+                                        {"gid", "", "-g,--gid=", "<gid>", false}
+                                       });
+  group->addOption(uidOption);
+  group->addOption(gidOption);
   setSubCmd->addOptions({{"volume", "set the volume limit to <bytes>",
                           "-v,--volume", "<bytes>", false},
                          {"inodes", "set the inodes limit to <inodes>",
@@ -81,7 +99,8 @@ com_quota (char* arg1)
 
   rmnodeSubCmd = new ConsoleCliCommand("rmnode", "remove quota node and every "
                                        "defined quota on that node");
-  rmnodeSubCmd->addOption({"path", "", 1, 1, "<path>"});
+  rmnodeSubCmd->addOption({"path", "", 1, 1, "<path>", true});
+  rmnodeSubCmd->addOption(pathDummyOption);
   quotaCmd->addSubcommand(rmnodeSubCmd);
 
   quotaCmd->setStandalone(true);
@@ -166,10 +185,10 @@ com_quota (char* arg1)
     }
 
     if (setSubCmd->hasValue("path"))
-    {
-      in += "&mgm.quota.space=";
-      in += setSubCmd->getValue("path").c_str();
-    }
+      space = setSubCmd->getValue("path").c_str();
+
+    in += "&mgm.quota.space=";
+    in += space;
   }
   else if (parsedCmd == rmSubCmd)
   {
