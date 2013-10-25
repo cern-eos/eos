@@ -248,6 +248,8 @@ public:
   void setParent(const ConsoleCliCommand *parent);
   const ConsoleCliCommand *parent() const { return mParentCommand; };
   std::vector<ConsoleCliCommand *> *subcommands() const { return mSubcommands; };
+  void setStandalone(bool standalone) { mStandalone = standalone; };
+  bool standalone() const { return mStandalone; };
 
 private:
   std::string mName;
@@ -259,6 +261,13 @@ private:
   std::map<std::string, std::vector<std::string>> mOptionsMap;
   std::vector<const ParseError *> *mErrors;
   std::vector<OptionsGroup *> *mGroups;
+  /* mStandalone dictates whether this command can be used without any
+   * subcommands; When adding the first subcommand to a command, the latter
+   * will become non-standalone so, if it should be, remember to call
+   * setStandalone(true) on it; adding other subcommand (after the first) will
+   * not change the standalone setting because it means that the user might
+   * have already changed it! */
+  bool mStandalone;
 
   void analyseGroup(OptionsGroup *group, std::vector<std::string> &cliArgs);
   ConsoleCliCommand* isSubcommand(std::vector<std::string> &cliArgs);

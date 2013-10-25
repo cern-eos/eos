@@ -727,7 +727,8 @@ ConsoleCliCommand::ConsoleCliCommand(const std::string &name,
     mPositionalOptions(0),
     mParentCommand(0),
     mErrors(0),
-    mGroups(0)
+    mGroups(0),
+    mStandalone(true)
 {}
 
 ConsoleCliCommand::ConsoleCliCommand(const ConsoleCliCommand &otherCmd)
@@ -847,7 +848,10 @@ ConsoleCliCommand::addSubcommand(ConsoleCliCommand *subcommand)
   assert(subcommand != this);
 
   if (mSubcommands == 0)
+  {
     mSubcommands = new std::vector<ConsoleCliCommand *>;
+    mStandalone = false;
+  }
 
   if (std::find(mSubcommands->begin(), mSubcommands->end(), subcommand) == mSubcommands->end())
     mSubcommands->push_back(subcommand);
@@ -1290,6 +1294,9 @@ ConsoleCliCommand::subcommandsRepr() const
     if (i < mSubcommands->size() - 1)
       repr += "|";
   }
+
+  if (mStandalone)
+    repr = "[" + repr + "]";
 
   return repr;
 }
