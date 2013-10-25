@@ -33,7 +33,8 @@ com_vid (char* arg1)
   XrdOucString in("");
   ConsoleCliCommand *parsedCmd, *vidCmd, *lsSubCmd, *membershiSetSubCmd,
     *membershipRmSubCmd, *rmSubCmd, *membershipSubCmd, *mapSubCmd,
-    *geotagSubCmd, *gatewaySubCmd, *enableSubCmd, *disableSubCmd;
+    *mapSetSubCmd, *mapRmSubCmd, *geotagSubCmd, *geotagSetSubCmd,
+    *geotagRmSubCmd, *gatewaySubCmd, *enableSubCmd, *disableSubCmd;
 
   vidCmd = new ConsoleCliCommand("vid", "virtual ID functions");
 
@@ -43,7 +44,7 @@ com_vid (char* arg1)
                         {"user-alias", "show user alias mapping", "-U"},
                         {"group-alias", "show group alias mapping", "-G"},
                         {"sudoers", "show list of sudoers", "-s"},
-                        {"gateways", "show configured gateways", "-w"},
+                        {"gateways", "show configured gateways", "-y"},
                         {"auth", "show authentication", "-a"},
                         {"geo", "show geo location mapping", "-l"},
                         {"numerical", "show numerical ids instead of "
@@ -72,6 +73,7 @@ com_vid (char* arg1)
   membershipSubCmd->addSubcommand(membershipRmSubCmd);
 
   mapSubCmd = new ConsoleCliCommand("map", "");
+  mapSetSubCmd = new ConsoleCliCommand("set", "");
   const char *mapOptions[] = {"krb5", "gsi", "https", "sss",
                               "unix", "tident", 0};
   OptionsGroup *mapGroup = new OptionsGroup("");
@@ -80,22 +82,33 @@ com_vid (char* arg1)
   mapGroup->addOption({"voms", "<pattern> is <group>:<role> e.g. to map VOMS "
                        "attribute /dteam/cern/Role=NULL/Capability=NULL one "
                        "should define <pattern>=/dteam/cern:",
-                       "--voms", "<pattern>", false});
+                       "--voms=", "<pattern>", false});
   mapGroup->setRequired(true);
-  mapSubCmd->addGroup(mapGroup);
-  mapSubCmd->addOptions({{"vuid", "", "--vuid=", "<vuid:uid>", false},
-                         {"vgid", "", "--vgid=", "<vgid:gid>", false},
-                        });
+  mapSetSubCmd->addGroup(mapGroup);
+  mapSetSubCmd->addOptions({{"vuid", "", "--vuid=", "<vuid:uid>", false},
+                            {"vgid", "", "--vgid=", "<vgid:gid>", false},
+                           });
+  mapRmSubCmd = new ConsoleCliCommand(*mapSetSubCmd);
+  mapRmSubCmd->setName("rm");
+  mapRmSubCmd->getOption("voms")->setDescription("");
+  mapSubCmd->addSubcommand(mapSetSubCmd);
+  mapSubCmd->addSubcommand(mapRmSubCmd);
   vidCmd->addSubcommand(mapSubCmd);
 
-  geotagSubCmd = new ConsoleCliCommand("geotag", "add to all IP's matching the "
-                                       "prefix <IP-prefix> the geo location tag "
-                                       "<geotag>;\nN.B. specify the default "
-                                       "assumption via 'vid geotag default "
-                                       "<default-tag>'");
-  geotagSubCmd->addOptions({{"ip", "", 1, 1, "<IP-prefix>", true},
-                            {"tag", "", 2, 1, "<geotag>", true}
-                           });
+  geotagSubCmd = new ConsoleCliCommand("geotag", "");
+  geotagSetSubCmd = new ConsoleCliCommand("set", "add to all IP's matching the "
+                                          "prefix <IP-prefix> the geo location "
+                                          "tag <geotag>;\nN.B. specify the "
+                                          "default assumption via 'vid geotag "
+                                          "default <default-tag>'");
+  geotagSetSubCmd->addOptions({{"ip", "", 1, 1, "<IP-prefix>", true},
+                               {"tag", "", 2, 1, "<geotag>", true}
+                              });
+  geotagSubCmd->addSubcommand(geotagSetSubCmd);
+  geotagRmSubCmd = new ConsoleCliCommand("rm", "remove the previously set geo "
+                                         "location using the <IP-prefix>");
+  geotagRmSubCmd->addOption({"ip", "", 1, 1, "<IP-prefix>", true});
+  geotagSubCmd->addSubcommand(geotagRmSubCmd);
   vidCmd->addSubcommand(geotagSubCmd);
 
   rmSubCmd = new ConsoleCliCommand("rm", "remove configured vid with name key "
@@ -121,8 +134,8 @@ com_vid (char* arg1)
 
   gatewaySubCmd = new ConsoleCliCommand("gateway", "adds/removes a host as a "
                                         "(fuse) gateway with 'su' priviledges");
-  gatewaySubCmd->addGroupedOptions({{"add", "", "--add"},
-                                    {"remove", "", "--remove,--rm"}
+  gatewaySubCmd->addGroupedOptions({{"set", "", "set"},
+                                    {"remove", "", "rm"}
                                    })->setRequired(true);
   gatewaySubCmd->addOption({"host", "", 1, 1, "<hostname>", true});
   OptionsGroup *gatewayGroup = new OptionsGroup("");
@@ -135,7 +148,8 @@ com_vid (char* arg1)
 
   parsedCmd = vidCmd->parse(arg1);
 
-  if (parsedCmd == vidCmd || parsedCmd == membershipSubCmd)
+  if (parsedCmd == vidCmd || parsedCmd == membershipSubCmd ||
+      parsedCmd == mapSubCmd || parsedCmd == geotagSubCmd)
   {
     if (!checkHelpAndErrors(parsedCmd))
       parsedCmd->printUsage();
@@ -177,16 +191,25 @@ com_vid (char* arg1)
     global_retc = output_result(client_admin_command(in));
     goto bailout;
   }
-  else if (parsedCmd == geotagSubCmd)
+  else if (parsedCmd == geotagSetSubCmd || parsedCmd == geotagRmSubCmd)
   {
-    in += "mgm.cmd=vid&mgm.subcmd=set";
+    in += "mgm.cmd=vid&mgm.subcmd=";
+    if (parsedCmd == geotagRmSubCmd)
+      in += "rm";
+    else
+      in += "set";
+
     in += "&mgm.vid.cmd=geotag";
     XrdOucString vidkey("");
     vidkey = "geotag:";
     vidkey += geotagSubCmd->getValue("ip").c_str();
     in += "&mgm.vid.key=" + vidkey;
-    in += "&mgm.vid.geotag=";
-    in += geotagSubCmd->getValue("tag").c_str();
+
+    if (parsedCmd == geotagSetSubCmd)
+    {
+      in += "&mgm.vid.geotag=";
+      in += geotagSubCmd->getValue("tag").c_str();
+    }
 
     global_retc = output_result(client_admin_command(in));
     goto bailout;
@@ -251,9 +274,15 @@ com_vid (char* arg1)
       global_retc |= output_result(client_admin_command(in2));
       goto bailout;
     }
-  else if (parsedCmd == mapSubCmd)
+  else if (parsedCmd == mapSetSubCmd || parsedCmd == mapRmSubCmd)
   {
-    in = "mgm.cmd=vid&mgm.subcmd=set";
+    in = "mgm.cmd=vid&mgm.subcmd=";
+
+    if (parsedCmd == mapSetSubCmd)
+      in += "set";
+    else
+      in += "rm";
+
     XrdOucString type("");
     in += "&mgm.vid.cmd=map";
 
@@ -385,7 +414,7 @@ com_vid (char* arg1)
     in += "&mgm.vid.key=";
     in += "<key>";
 
-    if (gatewaySubCmd->hasValue("add"))
+    if (gatewaySubCmd->hasValue("set"))
       global_retc = output_result(client_admin_command(in));
 
     if (gatewaySubCmd->hasValue("remove"))
