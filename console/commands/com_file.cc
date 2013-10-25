@@ -281,9 +281,16 @@ com_file (char* arg1)
       fprintf(stderr, "error: --sync is currently not supported\n");
       goto com_file_usage;
     }
-    if (option.length())
+    if (option == "rewrite") 
     {
-      goto com_file_usage;
+      in += "&mgm.option=rewrite";
+    } 
+    else 
+    {
+      if (option.length())
+      {
+        goto com_file_usage;
+      }
     }
   }
 
@@ -752,13 +759,14 @@ com_file_usage:
   fprintf(stdout, "       - %%silent                                                     :  suppresses all information for each replic to be printed\n");
   fprintf(stdout, "       - %%force                                                      :  forces to get the MD even if the node is down\n");
   fprintf(stdout, "       - %%output                                                     :  prints lines with inconsitency information\n");
-  fprintf(stdout, "file convert [--sync] <path> [<layout>:<stripes> | <layout-id> | <sys.attribute.name>] [target-space]:\n");
+  fprintf(stdout, "file convert [--sync|--rewrite] <path> [<layout>:<stripes> | <layout-id> | <sys.attribute.name>] [target-space]:\n");
   fprintf(stdout, "                                                                         convert the layout of a file\n");
   fprintf(stdout, "        <layout>:<stripes>   : specify the target layout and number of stripes\n");
   fprintf(stdout, "        <layout-id>          : specify the hexadecimal layout id \n");
   fprintf(stdout, "        <conversion-name>    : specify the name of the attribute sys.conversion.<name> in the parent directory of <path> defining the target layout\n");
   fprintf(stdout, "        <target-space>       : optional name of the target space or group e.g. default or default.3\n");
-  fprintf(stdout, "        --sync               : run convertion in synchronous mode (by default conversions are asynchronous)\n");
+  fprintf(stdout, "        --sync               : run convertion in synchronous mode (by default conversions are asynchronous) - not supported yet\n");
+  fprintf(stdout, "        --rewrite            : run convertion rewriting the file as is creating new copies and dropping old\n");
   fprintf(stdout, "file copy [-f] [-s] <src> <dst>                                       :  synchronous third party copy from <src> to <dst>\n");
   fprintf(stdout, "         <src>                                                         :  source can be a file or a directory\n");
   fprintf(stdout, "         <dst>                                                         :  destination can be a file (if source is a file) or a directory\n");
