@@ -1335,7 +1335,27 @@ OptionsGroup::OptionsGroup(const OptionsGroup &otherGroup)
   if (otherGroup.mOptions)
   {
     for (size_t i = 0; i < otherGroup.mOptions->size(); i++)
+    {
+      CliPositionalOption *positionalOption =
+        dynamic_cast<CliPositionalOption *>(otherGroup.mOptions->at(i));
+
+      if (positionalOption)
+      {
+        addOption(*positionalOption);
+        continue;
+      }
+
+      CliOptionWithArgs *optionWithArgs =
+        dynamic_cast<CliOptionWithArgs *>(otherGroup.mOptions->at(i));
+
+      if (optionWithArgs)
+      {
+        addOption(*optionWithArgs);
+        continue;
+      }
+
       addOption(*otherGroup.mOptions->at(i));
+    }
   }
 }
 
