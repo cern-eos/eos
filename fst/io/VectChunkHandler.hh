@@ -102,6 +102,17 @@ public:
     return mRespLength;
   };
 
+
+  //----------------------------------------------------------------------------
+  //! Get the list of chunks
+  //----------------------------------------------------------------------------
+  inline XrdCl::ChunkList&
+  GetChunkList ()
+  {
+    return mChunkList;
+  };
+
+
   
   //----------------------------------------------------------------------------
   //! Test if chunk is from a write operation 

@@ -281,7 +281,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
 
   if (!readahead)
   {
-    handler = mMetaHandler->Register(offset, length, NULL, false);
+    handler = mMetaHandler->Register(offset, length, buffer, false);
 
     // If previous read requests failed with a timeout error then we won't
     // get a new handler and we return directly an error
@@ -419,7 +419,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
     if (length)
     {
       eos_debug("debug=readahead useless, use the classic way for reading");
-      handler = mMetaHandler->Register(offset, length, NULL, false);
+      handler = mMetaHandler->Register(offset, length, buffer, false);
 
       // If previous read requests failed then we won't get a new handler
       // and we return directly an error
@@ -532,7 +532,7 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset,
 {
   eos_debug("offset=%llu length=%i", static_cast<uint64_t>(offset), length);
   XrdCl::XRootDStatus status;
-  ChunkHandler* handler = mMetaHandler->Register(offset, length, buffer, true);
+  ChunkHandler* handler = mMetaHandler->Register(offset, length, (char*)buffer, true);
 
   // If previous write requests failed then we won't get a new handler
   // and we return directly an error

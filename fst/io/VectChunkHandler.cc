@@ -23,7 +23,6 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/io/VectChunkHandler.hh"
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -129,7 +128,7 @@ VectChunkHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
     pResponse->Get(vrd_info);
     mRespLength = vrd_info->GetSize();
 
-    // Notice if we received less then we initially requested - for readv it
+    // Notice if we receive less then we initially requested - for readv it
     // means there was an error
     if (mLength != mRespLength)
     {

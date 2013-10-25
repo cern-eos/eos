@@ -79,7 +79,7 @@ public:
   //--------------------------------------------------------------------------
   ChunkHandler* Register (uint64_t offset,
                           uint32_t length,
-                          const char* buffer,
+                          char* buffer,
                           bool isWrite);
 
 
@@ -137,7 +137,7 @@ public:
   //! @return map of errors
   //!
   //--------------------------------------------------------------------------
-  const std::map<uint64_t, uint32_t>& GetErrors ();
+  const XrdCl::ChunkList& GetErrors ();
 
 
   //--------------------------------------------------------------------------
@@ -151,12 +151,12 @@ private:
   uint32_t mAsyncReq; ///< number of async requests in flight (for which no response was received)
   uint32_t mAsyncVReq; ///< number of async VECTOR req. in flight (for which no response was received)
   XrdSysCondVar mCond; ///< condition variable to signal the receival of all responses
-  ChunkHandler* mChunkToDelete; ///< pointer to obj to be deleted
-  VectChunkHandler* mVChunkToDelete; ///< pointer to obj to be deleted
+  ChunkHandler* mHandlerDel; ///< pointer to handler to be deleted
+  VectChunkHandler* mVHandlerDel; ///< pointer to VECTOR handler to be deleted
 
   eos::common::ConcurrentQueue<ChunkHandler*> mQRecycle; ///< recyclable normal handlers
   eos::common::ConcurrentQueue<VectChunkHandler*> mQVRecycle; ///< recyclable vector handlers
-  std::map<uint64_t, uint32_t> mMapErrors; ///< chunks for which the request failed
+  XrdCl::ChunkList mErrors; ///< chunks for which the request failed
 
   //! Maxium number of async requests in flight and also the maximum number
   //! of ChunkHandler object that can be saved in cache

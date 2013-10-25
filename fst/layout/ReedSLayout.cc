@@ -146,9 +146,7 @@ ReedSLayout::ComputeParity()
 // belonging to the same group
 //------------------------------------------------------------------------------
 bool
-ReedSLayout::RecoverPiecesInGroup(uint64_t offsetInit,
-                                  char* pBuffer,
-                                  std::map<uint64_t, uint32_t>& rMapErrors)
+ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 {
   // Initialise Jerasure structures if not done already
   if (!mDoneInitialisation)
@@ -170,10 +168,9 @@ ReedSLayout::RecoverPiecesInGroup(uint64_t offsetInit,
   // Use "set" as we might add the same stripe index twice as a result of an early
   // error detected when sending the request and by the async handler
   set<unsigned int> invalid_ids;
-  uint64_t offset = rMapErrors.begin()->first;
+  uint64_t offset = grp_errs.begin()->offset;
   uint64_t offset_local = (offset / mSizeGroup) * mStripeWidth;
   uint64_t offset_group = (offset / mSizeGroup) * mSizeGroup;
-  uint32_t length = 0;
   AsyncMetaHandler* phandler = 0;
   offset_local += mSizeHeader;
 
@@ -286,7 +283,6 @@ ReedSLayout::RecoverPiecesInGroup(uint64_t offsetInit,
   }  
   
   // Update the files in which we found invalid blocks
-  char* pBuff;
   unsigned int stripe_id;
 
   for (auto iter = invalid_ids.begin(); iter != invalid_ids.end(); ++iter)
@@ -320,18 +316,16 @@ ReedSLayout::RecoverPiecesInGroup(uint64_t offsetInit,
     if (stripe_id < mNbDataFiles)
     {
       // If one of the data blocks
-      for (auto itPiece = rMapErrors.begin(); itPiece != rMapErrors.end(); itPiece++)
+      for (auto chunk = grp_errs.begin(); chunk != grp_errs.end(); chunk++)
       {
-        offset = itPiece->first;
-        length = itPiece->second;
+        offset = chunk->offset;
 
         if ((offset >= (offset_group + stripe_id * mStripeWidth)) &&
             (offset < (offset_group + (stripe_id + 1) * mStripeWidth)))
         {
-          pBuff = pBuffer + (offset - offsetInit);
-          pBuff = static_cast<char*>(memcpy(pBuff,
-                                            mDataBlocks[stripe_id] + (offset % mStripeWidth),
-                                            length));
+          chunk->buffer = static_cast<char*>(memcpy(chunk->buffer,
+                                                    mDataBlocks[stripe_id] + (offset % mStripeWidth),
+                                                    chunk->length));
         }
       }
     }

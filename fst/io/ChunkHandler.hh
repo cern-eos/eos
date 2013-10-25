@@ -52,14 +52,14 @@ public:
   //! @param reqHandler handler to the file meta handler
   //! @param offset request offset
   //! @param length request length
-  //! @param buff holder for the data
+  //! @param buff pointer to the read or write buffer
   //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
   ChunkHandler (AsyncMetaHandler* reqHandler,
                 uint64_t offset,
                 uint32_t length,
-                const char* buff,
+                char* buff,
                 bool isWrite);
 
 
@@ -75,19 +75,19 @@ public:
   //! @param reqHandler handler to the file meta handler
   //! @param offset request offset
   //! @param length request length
-  //! @param buffer holder for data 
+  //! @param buffer pointer to the read or write buffer
   //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
   void Update (AsyncMetaHandler* reqHandler,
                uint64_t offset,
                uint32_t length,
-               const char* buff,
+               char* buff,
                bool isWrite);
 
 
   //----------------------------------------------------------------------------
-  //! Get buffer
+  //! Get buffer pointer
   //----------------------------------------------------------------------------
   inline char*
   GetBuffer() const

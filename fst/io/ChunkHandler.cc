@@ -34,10 +34,10 @@ EOSFSTNAMESPACE_BEGIN
 ChunkHandler::ChunkHandler (AsyncMetaHandler* metaHandler,
                             uint64_t offset,
                             uint32_t length,
-                            const char* buff,
+                            char* buff,
                             bool isWrite) :
 XrdCl::ResponseHandler(),
-mBuffer(0),
+mBuffer(buff),
 mMetaHandler (metaHandler),
 mOffset (offset),
 mLength (length),
@@ -63,7 +63,7 @@ mIsWrite (isWrite)
 //------------------------------------------------------------------------------
 ChunkHandler::~ChunkHandler ()
 {
-  if (mBuffer)
+  if (mIsWrite && mBuffer)
   {
     free(mBuffer);
   }
@@ -77,17 +77,29 @@ void
 ChunkHandler::Update (AsyncMetaHandler* metaHandler,
                       uint64_t offset,
                       uint32_t length,
-                      const char* buff,
+                      char* buff,
                       bool isWrite)
 {
   mMetaHandler = metaHandler;
   mOffset = offset;
   mLength = length;
   mRespLength = 0;
-  mIsWrite = isWrite;
 
-  if (mIsWrite)
+  if (mIsWrite && !isWrite)
   {
+    // write -> read
+    free(mBuffer);
+    mBuffer = buff;
+    mCapacity = 0;
+  }
+  else if (!mIsWrite && !isWrite)
+  {
+    // read -> read
+    mBuffer = buff;
+  }
+  else if (mIsWrite && isWrite)
+  {
+    // write -> write
     if (length > mCapacity)
     {
       mCapacity = length;
@@ -96,6 +108,15 @@ ChunkHandler::Update (AsyncMetaHandler* metaHandler,
     
     mBuffer = static_cast<char*>(memcpy(mBuffer, buff, length));
   }
+  else
+  {
+    // read -> write
+    mCapacity = length;
+    mBuffer = static_cast<char*>(calloc(mCapacity, sizeof(char)));
+    mBuffer = static_cast<char*>(memcpy(mBuffer, buff, length));    
+  }
+  
+  mIsWrite = isWrite;
 }
 
 

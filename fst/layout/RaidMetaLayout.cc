@@ -649,11 +649,9 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
  unsigned int physical_id;
  int64_t read_length = 0;
  uint64_t off_local = 0;
- uint64_t off_global = 0;
- uint64_t offset_init = (uint64_t)offset;
  uint64_t end_raw_offset = (uint64_t)(offset + length);
  AsyncMetaHandler* phandler = 0;
- std::map<uint64_t, uint32_t> map_all_errors;
+ XrdCl::ChunkList all_errs;
 
  if (!mIsEntryServer)
  {
@@ -688,23 +686,25 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
        len = mSizeGroup;
      }
 
-     char* mRecoverBlock = new char[mStripeWidth];
+     char* recover_block = new char[mStripeWidth];
 
      while ((uint32_t)len >= mStripeWidth)
      {
        nread = mStripeWidth;
-       map_all_errors.insert(std::make_pair(offset, nread));
-       
+       all_errs.push_back(XrdCl::ChunkInfo((uint64_t)offset,
+                                           (uint32_t)nread,
+                                           (void*)recover_block));
+                          
        if (offset % mSizeGroup == 0)
        {
-         if (!RecoverPieces(offset, mRecoverBlock, map_all_errors))
+         if (!RecoverPieces(all_errs))
          {
            eos_err("failed recovery of stripe");
            return SFS_ERROR;
          }
          else
          {
-           map_all_errors.clear();
+           all_errs.clear();
          }
        }
 
@@ -712,7 +712,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
        offset += mSizeGroup;
      }
 
-     delete[] mRecoverBlock;
+     delete[] recover_block;
    }
    else
    {
@@ -732,7 +732,8 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
      int64_t nbytes = 0;
      bool do_recovery = false;
      bool got_error = false;
-     std::vector<XrdCl::ChunkInfo> split_chunk = SplitRead(offset, length, buffer);
+     std::vector<XrdCl::ChunkInfo> split_chunk = SplitRead((uint64_t)offset,
+                                                           (uint32_t)length, buffer);
 
      for (auto chunk = split_chunk.begin(); chunk != split_chunk.end(); ++chunk)
      {
@@ -749,8 +750,8 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
          nbytes = mStripe[physical_id]->ReadAsync(off_local,
                                                   (char*)chunk->buffer,
                                                   chunk->length,
-                                                  true, mTimeout); 
-         
+                                                  true, mTimeout);
+
          if (nbytes != chunk->length)
            got_error = true;
        }
@@ -763,13 +764,13 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
        // Save errors in the map to be recovered
        if (got_error)
        {
-         map_all_errors.insert(std::make_pair(chunk->offset, chunk->length));
+         all_errs.push_back(*chunk);
          do_recovery = true;
        }
      }
 
      // Collect errros
-     std::map<uint64_t, uint32_t> map_err;
+     XrdCl::ChunkList local_errs;
 
      for (unsigned int j = 0; j < mStripe.size(); j++)
      {
@@ -783,20 +784,20 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
            
            if (error_type != XrdCl::errNone)
            {
-             // Get the type of error and the map
-             map_err = phandler->GetErrors();
+             local_errs = phandler->GetErrors();
              stripe_id = mapPL[j];
 
-             for (auto iter = map_err.begin(); iter != map_err.end(); iter++)
+             // Translate local to global errors
+             for (auto err = local_errs.begin(); err != local_errs.end(); err++)
              {
-               off_local = iter->first - mSizeHeader;
-               off_global = GetGlobalOff(stripe_id, off_local);
-               map_all_errors.insert(std::make_pair(off_global, iter->second));
+               err->offset = GetGlobalOff(stripe_id, (err->offset - mSizeHeader));
+               all_errs.push_back(*err);
              }
-             
+
+             local_errs.clear();
              do_recovery = true;
 
-             // If timeout error, then disable current file as we asume that
+             // If timeout error, then disable current file as we assume that
              // the server is down
              if (error_type == XrdCl::errOperationExpired)
              {
@@ -811,7 +812,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
      }
 
      // Try to recover any corrupted blocks
-     if (do_recovery && (!RecoverPieces(offset_init, buffer, map_all_errors)))
+     if (do_recovery && (!RecoverPieces(all_errs)))
      {
        eos_err("read recovery failed");
        return SFS_ERROR;
@@ -834,10 +835,8 @@ int64_t
 RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList)
 {
   int64_t total_read = 0;
-  uint64_t off_local = 0;
-  uint64_t off_global = 0;
   AsyncMetaHandler* phandler = 0;
-  std::map<uint64_t, uint32_t> map_all_errors;
+  XrdCl::ChunkList all_errs;
 
   if (!mIsEntryServer)
   {
@@ -894,15 +893,14 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList)
         for (auto chunk = stripe_chunks[physical_id].begin();
              chunk != stripe_chunks[physical_id].end(); ++chunk)
         {
-          off_local = chunk->offset - mSizeHeader;
-          off_global = GetGlobalOff(stripe_id, off_local);
-          map_all_errors.insert(std::make_pair(off_global, chunk->length));
+          chunk->offset = GetGlobalOff(stripe_id, chunk->offset - mSizeHeader);
+          all_errs.push_back(*chunk);
         }
       }
     }
     
     // Collect errors
-    std::map<uint64_t, uint32_t> map_err;
+    XrdCl::ChunkList local_errs;
 
     for (unsigned int j = 0; j < mStripe.size(); j++)
     {
@@ -917,16 +915,15 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList)
           if (error_type != XrdCl::errNone)
           {
             // Get the type of error and the map
-            map_err = phandler->GetErrors();
+            local_errs = phandler->GetErrors();
             stripe_id = mapPL[j];
             
-            for (auto iter = map_err.begin(); iter != map_err.end(); iter++)
+            for (auto chunk = local_errs.begin(); chunk != local_errs.end(); chunk++)
             {
-              off_local = iter->first - mSizeHeader;
-              off_global = GetGlobalOff(stripe_id, off_local);
-              map_all_errors.insert(std::make_pair(off_global, iter->second));
+              chunk->offset = GetGlobalOff(stripe_id, chunk->offset - mSizeHeader);
+              all_errs.push_back(*chunk);
             }
-             
+
             do_recovery = true;
             
             // If timeout error, then disable current file as we asume that
@@ -945,7 +942,7 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList)
 
     // Try to recover any corrupted blocks
     /*
-    if (do_recovery && (!RecoverPieces(offset_init, buffer, map_all_errors)))
+    if (do_recovery && (!RecoverPieces(offset_init, buffer, all_errs)))
     {
       eos_err("read recovery failed");
       return SFS_ERROR;
@@ -1094,36 +1091,32 @@ RaidMetaLayout::DoBlockParity (uint64_t offGroup)
 // the corrupted pieces in the initial file. 
 //------------------------------------------------------------------------------
 bool
-RaidMetaLayout::RecoverPieces (uint64_t offsetInit,
-                               char* pBuffer,
-                               std::map<uint64_t, uint32_t>& mapErrs)
+RaidMetaLayout::RecoverPieces (XrdCl::ChunkList& errs)
 {
  bool success = true;
- std::map<uint64_t, uint32_t> grp_errs;
+ XrdCl::ChunkList grp_errs;
 
- while (!mapErrs.empty())
+ while (!errs.empty())
  {
-   uint64_t group_off = (mapErrs.begin()->first / mSizeGroup) * mSizeGroup;
+   uint64_t group_off = (errs.begin()->offset / mSizeGroup) * mSizeGroup;
 
-   for (auto iter = mapErrs.begin(); iter != mapErrs.end(); /**/)
+   for (auto chunk = errs.begin(); chunk != errs.end(); /**/)
    {
-     if ((iter->first >= group_off) &&
-         (iter->first < group_off + mSizeGroup))
+     if ((chunk->offset >= group_off) &&
+         (chunk->offset < group_off + mSizeGroup))
      {
-       grp_errs.insert(std::make_pair(iter->first, iter->second));
-       mapErrs.erase(iter++);
+       grp_errs.push_back(*chunk);
+       chunk = errs.erase(chunk);
      }
      else
      {
-       // This is an optimisation as we can safely assume that elements
-       // in the map are sorted, so no reason to continue iteration
-       break;
+       ++chunk;
      }
    }
 
    if (!grp_errs.empty())
    {
-     success = success && RecoverPiecesInGroup(offsetInit, pBuffer, grp_errs);
+     success = success && RecoverPiecesInGroup(grp_errs);
      grp_errs.clear();
    }
    else
@@ -1714,13 +1707,13 @@ RaidMetaLayout::Close ()
 // Split read request into requests spanning just one chunk so that each
 // one is read from its corresponding stripe file
 //------------------------------------------------------------------------------
-std::vector<XrdCl::ChunkInfo>
+XrdCl::ChunkList
 RaidMetaLayout::SplitRead(uint64_t off, uint32_t len, char* buff)
 {
   uint32_t sz;
   uint64_t block_end;
   char* ptr_data = buff;
-  std::vector<XrdCl::ChunkInfo> split_read;
+  XrdCl::ChunkList split_read;
   split_read.reserve((len / mStripeWidth) + 2); // worst case
 
   while ((off / mStripeWidth != (off + len) / mStripeWidth) || (len))

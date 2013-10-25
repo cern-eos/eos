@@ -257,7 +257,7 @@ public:
   //!         corresponding to each of the chunks making up the original file
   //!
   //--------------------------------------------------------------------------
-  std::vector<XrdCl::ChunkInfo> SplitRead(uint64_t off, uint32_t len, char* buff);
+  XrdCl::ChunkList SplitRead(uint64_t off, uint32_t len, char* buff);
 
 
 protected:
@@ -309,18 +309,14 @@ protected:
 
 
   //--------------------------------------------------------------------------
-  //! Recover corrupted pieces for the whole file
+  //! Recover corrupted chunks for the whole file
   //!
-  //! @param offsetInit file offset corresponding to byte 0 from the buffer
-  //! @param buffer container where we read the data
-  //! @param mapPieces map of corrupted pieces from the whole file
+  //! @param errs list of chunks for which recovery is to be done
   //!
   //! @return true if recovery successful, false otherwise
   //!
   //--------------------------------------------------------------------------
-  virtual bool RecoverPieces (uint64_t offsetInit,
-                              char* buffer,
-                              std::map<uint64_t, uint32_t>& mapPieces);
+  virtual bool RecoverPieces (XrdCl::ChunkList& errs);
 
 
   //--------------------------------------------------------------------------
@@ -336,18 +332,14 @@ protected:
 
 
   //--------------------------------------------------------------------------
-  //! Recover corrupted pieces from the current group
+  //! Recover corrupted chunks from the current group
   //!
-  //! @param offsetInit file offset corresponding to byte 0 from the buffer
-  //! @param buffer container where we read the data
-  //! @param mapPieces map of corrupted pieces in the current group
+  //! @param grp_errs chunks to be recovered
   //!
   //! @return true if recovery successful, false otherwise
   //!
   //--------------------------------------------------------------------------
-  virtual bool RecoverPiecesInGroup (uint64_t offsetInit,
-                                     char* buffer,
-                                     std::map<uint64_t, uint32_t>& mapPieces) = 0;
+  virtual bool RecoverPiecesInGroup (XrdCl::ChunkList& grp_errs) = 0;
 
 
   //--------------------------------------------------------------------------

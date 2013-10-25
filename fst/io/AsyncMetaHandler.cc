@@ -42,8 +42,8 @@ eos::common::LogId(),
 mErrorType (XrdCl::errNone),
 mAsyncReq (0),
 mAsyncVReq (0),
-mChunkToDelete(NULL),
-mVChunkToDelete(NULL)
+mHandlerDel(NULL),
+mVHandlerDel(NULL)
 {
   mCond = XrdSysCondVar(0);
 }
@@ -79,19 +79,19 @@ AsyncMetaHandler::~AsyncMetaHandler ()
   }
 
   
-  if (mChunkToDelete)
+  if (mHandlerDel)
   {
-    delete mChunkToDelete;
-    mChunkToDelete = 0;
+    delete mHandlerDel;
+    mHandlerDel = 0;
   }
 
-  if (mVChunkToDelete)
+  if (mVHandlerDel)
   {
-    delete mVChunkToDelete;
-    mVChunkToDelete = 0;
+    delete mVHandlerDel;
+    mVHandlerDel = 0;
   }
 
-  mMapErrors.clear();
+  mErrors.clear();
 }
 
 
@@ -101,7 +101,7 @@ AsyncMetaHandler::~AsyncMetaHandler ()
 ChunkHandler*
 AsyncMetaHandler::Register (uint64_t offset,
                             uint32_t length,
-                            const char* buffer,
+                            char* buffer,
                             bool isWrite)
 {
   ChunkHandler* ptr_chunk = NULL;
@@ -182,18 +182,20 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
   mCond.Lock(); // -->
 
   // See last comment for motivation
-  if (mChunkToDelete)
+  if (mHandlerDel)
   {
-    delete mChunkToDelete;
-    mChunkToDelete = NULL;
+    delete mHandlerDel;
+    mHandlerDel = NULL;
   }
 
   if (pStatus->status != XrdCl::stOK)
   {
     eos_debug("Got error message with status:%u, code:%u, errNo:%lu",
               pStatus->status, pStatus->code, (unsigned long)pStatus->errNo);
-    mMapErrors.insert(std::make_pair(chunk->GetOffset(), chunk->GetLength()));
-
+    mErrors.push_back(XrdCl::ChunkInfo(chunk->GetOffset(),
+                                       chunk->GetLength(),
+                                       (void*)chunk->GetBuffer()));
+                      
     // If we got a timeout in the previous requests then we keep the error code
     if (mErrorType != XrdCl::errOperationExpired)
     {
@@ -215,7 +217,7 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
     // Save the pointer to the chunk object to be deleted by the next arriving
     // response. This can not be done here as we are currently called from the
     // same chunk handler object that we want to delete. 
-    mChunkToDelete = chunk;
+    mHandlerDel = chunk;
   }
 
   mCond.UnLock();  // <--
@@ -227,24 +229,27 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 //--------------------------------------------------------------------------
 void
 AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
-                                  VectChunkHandler* vchunk)
+                                  VectChunkHandler* vhandler)
 {
 
     mCond.Lock(); // -->
 
   // See last comment for motivation
-  if (mVChunkToDelete)
+  if (mVHandlerDel)
   {
-    delete mVChunkToDelete;
-    mVChunkToDelete = NULL;
+    delete mVHandlerDel;
+    mVHandlerDel = NULL;
   }
 
   if (pStatus->status != XrdCl::stOK)
   {
-    //eos_debug("Got error message with status:%u, code:%u, errNo:%lu",
-    //          pStatus->status, pStatus->code, (unsigned long)pStatus->errNo);
-    
-    //mMapErrors.insert(std::make_pair(chunk->GetOffset(), chunk->GetLength()));
+    eos_debug("Got error message with status:%u, code:%u, errNo:%lu",
+              pStatus->status, pStatus->code, (unsigned long)pStatus->errNo);
+
+    // Add all the chunks of the current failed vector read to the list of
+    // errrors to be recovered
+    XrdCl::ChunkList chunks = vhandler->GetChunkList();
+    mErrors.insert(mErrors.end(), chunks.begin(), chunks.end());
 
     // If we got a timeout in the previous requests then we keep the error code
     if (mErrorType != XrdCl::errOperationExpired)
@@ -262,12 +267,12 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
   if (--mAsyncVReq == 0)
    mCond.Signal();
 
-  if (!mQVRecycle.push_size(vchunk, msMaxNumAsyncObj))
+  if (!mQVRecycle.push_size(vhandler, msMaxNumAsyncObj))
   {
     // Save the pointer to the chunk object to be deleted by the next arriving
     // response. This can not be done here as we are currently called from the
     // same chunk handler object that we want to delete. 
-    mVChunkToDelete = vchunk;
+    mVHandlerDel = vhandler;
   }
 
   mCond.UnLock();  // <--
@@ -277,10 +282,10 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 //------------------------------------------------------------------------------
 // Get map of errors
 //------------------------------------------------------------------------------
-const std::map<uint64_t, uint32_t>&
+ const XrdCl::ChunkList&
 AsyncMetaHandler::GetErrors ()
 {
-  return mMapErrors;
+  return mErrors;
 }
 
 
@@ -315,7 +320,7 @@ AsyncMetaHandler::Reset ()
   mErrorType = XrdCl::errNone;
   mAsyncReq = 0;
   mAsyncVReq = 0;
-  mMapErrors.clear();
+  mErrors.clear();
   mCond.UnLock();
 }
 

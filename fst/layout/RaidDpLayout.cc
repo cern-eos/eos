@@ -200,25 +200,21 @@ RaidDpLayout::OperationXOR (char* pBlock1,
 // group, all errors in the map belong to the same group
 //------------------------------------------------------------------------------
 bool
-RaidDpLayout::RecoverPiecesInGroup (uint64_t offsetInit,
-                                    char* pBuffer,
-                                    std::map<uint64_t, uint32_t>& rMapToRecover)
+RaidDpLayout::RecoverPiecesInGroup (XrdCl::ChunkList& grp_errs)
 {
   // Obs: RecoverPiecesInGroup also checks the simple and double parity blocks
   int64_t nread = 0;
   bool ret = true;
   bool* status_blocks;
-  char* pBuff;
-  size_t length;
   uint64_t offset_local;
   unsigned int stripe_id;
   unsigned int physical_id;
   set<int> corrupt_ids;
   set<int> exclude_ids;
-  uint64_t offset = rMapToRecover.begin()->first;
+  uint64_t offset = grp_errs.begin()->offset;
   uint64_t offset_group = (offset / mSizeGroup) * mSizeGroup;
   AsyncMetaHandler* phandler = 0;
-  std::map<uint64_t, uint32_t> map_errors;
+  XrdCl::ChunkList found_errs;
   vector<unsigned int> simple_parity = GetSimpleParityIndices();
   vector<unsigned int> double_parity = GetDoubleParityIndices();
   status_blocks = static_cast<bool*> (calloc(mNbTotalBlocks, sizeof ( bool)));
@@ -279,16 +275,18 @@ RaidDpLayout::RecoverPiecesInGroup (uint64_t offsetInit,
         if (error_type != XrdCl::errNone)
         {
           // Get type of error and the errors map 
-          map_errors = phandler->GetErrors();
+          found_errs = phandler->GetErrors();
                          
-          for (auto iter = map_errors.begin(); iter != map_errors.end(); iter++)
+          for (auto chunk = found_errs.begin(); chunk != found_errs.end(); chunk++)
           {
-            offset_local = iter->first - mSizeHeader;
+            offset_local = chunk->offset - mSizeHeader;
             int line = ((offset_local % mSizeLine) / mStripeWidth);
             int index = line * mNbTotalFiles + mapPL[i];
             status_blocks[index] = false;
             corrupt_ids.insert(index);
           }
+
+          found_errs.clear();
 
           // If timeout error, then disable current file 
           if (error_type == XrdCl::errOperationExpired)
@@ -363,10 +361,9 @@ RaidDpLayout::RecoverPiecesInGroup (uint64_t offsetInit,
       }
     
       // Return corrected information to the buffer
-      for (auto iter = rMapToRecover.begin(); iter != rMapToRecover.end(); iter++)
+      for (auto chunk = grp_errs.begin(); chunk != grp_errs.end(); chunk++)
       {
-        offset = iter->first;
-        length = iter->second;
+        offset = chunk->offset;
 
         // If not SP or DP, maybe we have to return it
         if (find(simple_parity.begin(), simple_parity.end(), id_corrupted) == simple_parity.end() &&
@@ -375,10 +372,9 @@ RaidDpLayout::RecoverPiecesInGroup (uint64_t offsetInit,
           if ((offset >= (offset_group + MapBigToSmall(id_corrupted) * mStripeWidth)) &&
               (offset < (offset_group + (MapBigToSmall(id_corrupted) + 1) * mStripeWidth)))
           {
-            pBuff = pBuffer + (offset - offsetInit);
-            pBuff = static_cast<char*> (memcpy(pBuff,
-                                               mDataBlocks[id_corrupted] + (offset % mStripeWidth),
-                                               length));
+            chunk->buffer = static_cast<char*> (memcpy(chunk->buffer,
+                                                       mDataBlocks[id_corrupted] + (offset % mStripeWidth),
+                                                       chunk->length));
           }
         }
       }
@@ -433,10 +429,9 @@ RaidDpLayout::RecoverPiecesInGroup (uint64_t offsetInit,
         }
       
         // Return corrected information to the buffer
-        for (auto iter = rMapToRecover.begin(); iter != rMapToRecover.end(); iter++)
+        for (auto chunk = grp_errs.begin(); chunk != grp_errs.end(); chunk++)
         {
-          offset = iter->first;
-          length = iter->second;
+          offset = chunk->offset;
 
           // If not SP or DP, maybe we have to return it
           if (find(simple_parity.begin(), simple_parity.end(), id_corrupted) == simple_parity.end() &&
@@ -445,10 +440,9 @@ RaidDpLayout::RecoverPiecesInGroup (uint64_t offsetInit,
             if ((offset >= (offset_group + MapBigToSmall(id_corrupted) * mStripeWidth)) &&
                 (offset < (offset_group + (MapBigToSmall(id_corrupted) + 1) * mStripeWidth)))
             {
-              pBuff = pBuffer + (offset - offsetInit);
-              pBuff = static_cast<char*> (memcpy(pBuff,
-                                                 mDataBlocks[id_corrupted] + (offset % mStripeWidth),
-                                                 length));
+              chunk->buffer = static_cast<char*> (memcpy(chunk->buffer,
+                                                         mDataBlocks[id_corrupted] + (offset % mStripeWidth),
+                                                         chunk->length));
             }
           }
         }

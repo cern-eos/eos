@@ -156,19 +156,14 @@ private:
 
 
   //--------------------------------------------------------------------------
-  //! Recover pieces of corrupted data in the current group
+  //! Recover corrupted chunks from the current group
   //!
-  //! @param offset file offset corresponding to byte 0 from the buffer
-  //! @param pBuffer place where to save the recovered piece
-  //! @param rMapPiece map of pieces to be recovered <offset in file, length>
-  //!                  which belong to the same group
+  //! @param grp_errs chunks to be recovered
   //!
-  //! @return true if recovery was successful, otherwise false
+  //! @return true if recovery successful, false otherwise
   //!
   //--------------------------------------------------------------------------
-  virtual bool RecoverPiecesInGroup (uint64_t offset,
-                                     char* pBuffer,
-                                     std::map<uint64_t, uint32_t>& rMapPieces);
+  virtual bool RecoverPiecesInGroup (XrdCl::ChunkList& grp_errs);
 
 
   //--------------------------------------------------------------------------
