@@ -65,7 +65,14 @@ if [ $1 = 0 ]; then
 fi
 
 %changelog
-* Tue Feb 05 2013 <geoffray.adde@cern.ch> - dsi 0.3.0-0 
+* Fri Oct 25 2013 <geoffray.adde@cern.ch> - dsi 0.3.2-1
+- add extra checkings on plugin init to see if XROOTD_VMP is properly set and add error reporting
+- fix the the preuninstall script in the rpm
+- mark config files as such in the rpm
+* Thu Oct 17 2013 <geoffray.adde@cern.ch> - dsi 0.3.1-1
+- add protection for memory unallocation against unallocated memory while an unsucessful authentication happens
+- fix a bug related to XROOTD_DSI_EOS* environment variables poetentialy not taken into account
+* Tue Feb 05 2013 <geoffray.adde@cern.ch> - dsi 0.3.0-1 
 - changing name to XRootD plugin (eos features are now optional and can be configured in /etc/sysconfig/xrootd-gridftp-server)
 - moving to CMake build
 - moving to xrootd 3.3.0 ( move from XrdPosix to XrdCl, XrdCl being part of the xrootd package)
