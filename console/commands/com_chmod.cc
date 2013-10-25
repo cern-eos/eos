@@ -33,11 +33,7 @@ com_chmod (char* arg1)
 {
   XrdOucString in = "mgm.cmd=chmod";
 
-  CliOption helpOption("help", "print help", "-h,--help");
-  helpOption.setHidden(true);
-
   ConsoleCliCommand chmodCmd("chmod", "set mode for <path>");
-  chmodCmd.addOption(helpOption);
   chmodCmd.addOption({"recursive", "change mode recursively", "-r"});
 
   CliPositionalOption modeOption("mode",
@@ -50,19 +46,12 @@ com_chmod (char* arg1)
   chmodCmd.addOption(modeOption);
   chmodCmd.addOption({"path", "", 2, 1, "<path>", true});
 
+  addHelpOptionRecursively(&chmodCmd);
+
   chmodCmd.parse(arg1);
 
-  if (chmodCmd.hasValue("help"))
-  {
-    chmodCmd.printUsage();
+  if (checkHelpAndErrors(&chmodCmd))
     return 0;
-  }
-  else if (chmodCmd.hasErrors())
-  {
-    chmodCmd.printErrors();
-    chmodCmd.printUsage();
-    return 0;
-  }
 
   if (chmodCmd.hasValue("recursive"))
     in += "&mgm.option=r";

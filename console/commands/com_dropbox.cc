@@ -43,17 +43,12 @@ com_dropbox (char *arg)
     return (0);
   }
 
-  CliOption helpOption("help", "print help", "-h,--help");
-  helpOption.setHidden(true);
-
   dropboxCmd = new ConsoleCliCommand("dropbox", "provides DropBox "
                                      "functionality for EOS");
-  dropboxCmd->addOption(helpOption);
 
   addSubCmd = new ConsoleCliCommand("add", "add DropBox configuration to "
                                     "synchronize from <eos-dir> to "
                                     "<local-dir>");
-  addSubCmd->addOption(helpOption);
   addSubCmd->addOptions({{"eos-dir", "", 1, 1, "<eos-dir>", true},
                          {"local-dir", "", 2, 1, "<local-dir>", true}
                         });
@@ -61,23 +56,19 @@ com_dropbox (char *arg)
 
   rmSubCmd = new ConsoleCliCommand("rm", "remove dropbox configuration to "
                                    "synchronize from <eos-dir>");
-  rmSubCmd->addOption(helpOption);
   rmSubCmd->addOption({"eos-dir", "", 1, 1, "<eos-dir>", true});
   dropboxCmd->addSubcommand(rmSubCmd);
 
   lsSubCmd = new ConsoleCliCommand("ls", "list configured DropBox daemons "
                                    "and their status");
-  lsSubCmd->addOption(helpOption);
   dropboxCmd->addSubcommand(lsSubCmd);
 
   stopSubCmd = new ConsoleCliCommand("stop", "stop the DropBox daemon for all "
                                      "configured dropbox directories");
-  stopSubCmd->addOption(helpOption);
   dropboxCmd->addSubcommand(stopSubCmd);
 
   startSubCmd = new ConsoleCliCommand("start", "start the DropBox daemon for "
                                       "all configured dropbox directories");
-  startSubCmd->addOption(helpOption);
   startSubCmd->addOption({"resync", "resync the local directory from scratch "
                           "from the remote directory", "--resync,-r"});
   dropboxCmd->addSubcommand(startSubCmd);
@@ -86,13 +77,7 @@ com_dropbox (char *arg)
 
   parsedCmd = dropboxCmd->parse(arg);
 
-  if (parsedCmd == dropboxCmd)
-  {
-    if (!checkHelpAndErrors(dropboxCmd))
-      dropboxCmd->printUsage();
-    goto bailout;
-  }
-  if (checkHelpAndErrors(parsedCmd))
+  if (checkHelpAndErrors(dropboxCmd))
     goto bailout;
 
   if (parsedCmd == addSubCmd)

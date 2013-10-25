@@ -33,12 +33,8 @@ com_chown (char* arg1)
 {
   XrdOucString in = "mgm.cmd=chown";
 
-  CliOption helpOption("help", "print help", "-h,--help");
-  helpOption.setHidden(true);
-
   ConsoleCliCommand chownCmd("chown", "provides the change owner "
                              "interface of EOS");
-  chownCmd.addOption(helpOption);
   chownCmd.addOption({"recursive", "change mode recursively", "-r"});
   chownCmd.addOptions({{"owner-group", "<owner> has to be a user id or user "
                         "name;\n<group> is optional and has to be a group id "
@@ -47,19 +43,12 @@ com_chown (char* arg1)
                         "<path>", true}
                       });
 
+  addHelpOptionRecursively(&chownCmd);
+
   chownCmd.parse(arg1);
 
-  if (chownCmd.hasValue("help"))
-  {
-    chownCmd.printUsage();
+  if (checkHelpAndErrors(&chownCmd))
     return 0;
-  }
-  else if (chownCmd.hasErrors())
-  {
-    chownCmd.printErrors();
-    chownCmd.printUsage();
-    return 0;
-  }
 
   if (chownCmd.hasValue("recursive"))
     in += "&mgm.chown.option=r";

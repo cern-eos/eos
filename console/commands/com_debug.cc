@@ -34,12 +34,8 @@ com_debug (char* arg1)
   XrdOucString in;
   std::string level;
 
-  CliOption helpOption("help", "print help", "-h,--help");
-  helpOption.setHidden(true);
-
   ConsoleCliCommand debugCmd("debug", "allows to modify the verbosity of the "
                              "EOS log files in MGM and FST services");
-  debugCmd.addOption(helpOption);
   debugCmd.addOption({"filter", "a comma seperated list of strings of software "
                       "units which should be filtered out in the message log;\n"
                       "The default filter list is 'Process,AddQuota,UpdateHint,"
@@ -61,19 +57,12 @@ com_debug (char* arg1)
                       "names e.g. '/eos/<hostname>:<port>/fst",
                       2, 1, "<node-queue>", false});
 
+  addHelpOptionRecursively(&debugCmd);
+
   debugCmd.parse(arg1);
 
-  if (debugCmd.hasValue("help"))
-  {
-    debugCmd.printUsage();
+  if (checkHelpAndErrors(&debugCmd))
     goto com_debugexamples;
-  }
-  else if (debugCmd.hasErrors())
-  {
-    debugCmd.printErrors();
-    debugCmd.printUsage();
-    return 0;
-  }
 
   level = debugCmd.getValue("level");
   if (level == "this")

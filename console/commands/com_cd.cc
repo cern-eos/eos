@@ -39,9 +39,6 @@ com_cd (char *arg)
 
   ConsoleCliCommand cdCmd("cd", "provides the namespace change directory "
                           "command in EOS.");
-  CliOption helpOption("help", "print help", "-h,--help");
-  helpOption.setHidden(true);
-  cdCmd.addOption(helpOption);
   CliPositionalOption dirOption("dir",
                                 "can be a directory path or symbol, e.g.:\n"
                                 "cd -  : change to the previous directory\n"
@@ -51,19 +48,12 @@ com_cd (char *arg)
                                 "provided", 1, 1, "<dir>", false);
   cdCmd.addOption(dirOption);
 
+  addHelpOptionRecursively(&cdCmd);
+
   cdCmd.parse(arg);
 
-  if (cdCmd.hasValue("help"))
-  {
-    cdCmd.printUsage();
+  if (checkHelpAndErrors(&cdCmd))
     return 0;
-  }
-  else if (cdCmd.hasErrors())
-  {
-    cdCmd.printErrors();
-    cdCmd.printUsage();
-    return 0;
-  }
 
   // cd ~ (home)
   if (!cdCmd.hasValue("dir") || cdCmd.getValue("dir") == "~")

@@ -36,19 +36,13 @@ com_config (char* arg1)
 
   configCmd = new ConsoleCliCommand("config", "provides the configuration "
                                     "interface to EOS");
-  CliOption helpOption("help", "print help", "-h,--help");
-  helpOption.setHidden(true);
-  configCmd->addOption(helpOption);
-
   lsSubCmd = new ConsoleCliCommand("ls", "list existing configurations");
-  lsSubCmd->addOption(helpOption);
   lsSubCmd->addOption({"backup", "show also backup & autosave files",
                        "-b,--backup"});
   configCmd->addSubcommand(lsSubCmd);
 
   dumpSubCmd = new ConsoleCliCommand("dump", "dump current configuration or "
                                      "configuration with name <name>");
-  dumpSubCmd->addOption(helpOption);
   dumpSubCmd->addOptions({{"fs", "dump only file system config", "-f,--fs"},
                           {"vid", "dump only virtual id config", "-v,--vid"},
                           {"quota", "dump only quota config", "-q,--quota"},
@@ -63,7 +57,6 @@ com_config (char* arg1)
 
   saveSubCmd = new ConsoleCliCommand("save", "save config (optionally under "
                                      "<name>)");
-  saveSubCmd->addOption(helpOption);
   saveSubCmd->addOptions({{"force", "overwrite existing config name and create "
                            "a timestamped backup", "-f,--force"}
                          });
@@ -75,25 +68,21 @@ com_config (char* arg1)
   configCmd->addSubcommand(saveSubCmd);
 
   loadSubCmd = new ConsoleCliCommand("load", "load configuration");
-  loadSubCmd->addOption(helpOption);
   loadSubCmd->addOption({"name", "name of the configuration file",
                          1, 1, "<name>", true});
   configCmd->addSubcommand(loadSubCmd);
 
   resetSubCmd = new ConsoleCliCommand("reset", "reset all configuration to "
                                       "empty state");
-  resetSubCmd->addOption(helpOption);
   configCmd->addSubcommand(resetSubCmd);
 
   diffSubCmd = new ConsoleCliCommand("diff", "show changes since last "
                                      "load/save operation");
-  diffSubCmd->addOption(helpOption);
   configCmd->addSubcommand(diffSubCmd);
 
   changelogSubCmd = new ConsoleCliCommand("changelog", "show the last <#> "
                                           "lines from the changelog - default "
                                           "is -10");
-  changelogSubCmd->addOption(helpOption);
   CliPositionalOption nrLines("nr-lines", "", 1, 1, "-#lines", false);
   std::pair<float, float> range = {-100.0, 100.0};
   nrLines.addEvalFunction(optionIsNumberInRangeEvalFunc, &range);
@@ -103,7 +92,6 @@ com_config (char* arg1)
   autosaveSubCmd = new ConsoleCliCommand("autosave", "without on/off just "
                                          "prints the state otherwise set's "
                                          "autosave to on or off");
-  autosaveSubCmd->addOption(helpOption);
   CliPositionalOption activeOption("active", "", 1, 1, "on|off", true);
   std::vector<std::string> choices = {"on", "off"};
   activeOption.addEvalFunction(optionIsChoiceEvalFunc, &choices);
@@ -114,12 +102,6 @@ com_config (char* arg1)
 
   parsedCmd = configCmd->parse(arg1);
 
-  if (parsedCmd == configCmd)
-  {
-    if (!checkHelpAndErrors(configCmd))
-      configCmd->printUsage();
-    goto bailout;
-  }
   if (checkHelpAndErrors(parsedCmd))
     goto bailout;
 
