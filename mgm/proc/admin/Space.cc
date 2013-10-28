@@ -319,8 +319,8 @@ ProcCommand::Space ()
                 unsigned long long size = eos::common::StringConversion::GetSizeFromString(value.c_str());
                 if (!errno)
                 {
-                  if (key != "balancer.threshold" ||
-                      key != "groupbalancer.threshold")
+                  if ((key != "balancer.threshold") &&
+                      (key != "groupbalancer.threshold"))
                   {
                     // the threshold is allowed to be decimal!
                     char ssize[1024];
