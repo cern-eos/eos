@@ -998,6 +998,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   lFanOutTags.push_back("Recycle");
   lFanOutTags.push_back("LRU");
   lFanOutTags.push_back("GroupBalancer");
+  lFanOutTags.push_back("GeoBalancer");
   lFanOutTags.push_back("#");
  
   // get the XRootD log directory

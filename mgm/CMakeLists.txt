@@ -103,6 +103,7 @@ add_library (XrdEosMgm MODULE
             http/webdav/PropFindResponse.cc
             Converter.cc
             GroupBalancer.cc
+            GeoBalancer.cc
             )
 
 target_link_libraries( XrdEosMgm 

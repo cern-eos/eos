@@ -27,6 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Balancer.hh"
 #include "mgm/GroupBalancer.hh"
+#include "mgm/GeoBalancer.hh"
 #include "mgm/Converter.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/FileSystem.hh"
@@ -262,6 +263,9 @@ public:
   /// threaded object running group balancing
   GroupBalancer* mGroupBalancer;
 
+  /// threaded object running geotag balancing
+  GeoBalancer* mGeoBalancer;
+
 #endif
 
   /// this variable is set when a configuration get's loaded to avoid overwriting of the loaded values by default values
@@ -282,6 +286,7 @@ public:
     mBalancer = new Balancer(name);
     mConverter = new Converter(name);
     mGroupBalancer = new GroupBalancer(name);
+    mGeoBalancer = new GeoBalancer(name);
 
     if (!gDisableDefaults)
     {
@@ -339,6 +344,14 @@ public:
       // set the groupbalancer threshold by default
       if (GetConfigMember("groupbalancer.threshold") == "")
         SetConfigMember("groupbalancer.threshold", "5", true, "/eos/*/mgm");
+      if (GetConfigMember("geotagbalancer") == "")
+        SetConfigMember("geotagbalancer", "off", true, "/eos/*/mgm");
+      // set the geotagbalancer max number of scheduled files by default
+      if (GetConfigMember("geotagbalancer.ntx") == "")
+        SetConfigMember("geotagbalancer.ntx", "10", true, "/eos/*/mgm");
+      // set the geotagbalancer threshold by default
+      if (GetConfigMember("geotagbalancer.threshold") == "")
+        SetConfigMember("geotagbalancer.threshold", "5", true, "/eos/*/mgm");
       // disable lru by default
       if (GetConfigMember("lru") == "")
         SetConfigMember("converter", "off", true, "/eos/*/mgm");
@@ -367,6 +380,8 @@ public:
       mConverter->Stop();
     if (mGroupBalancer)
       mGroupBalancer->Stop();
+    if (mGeoBalancer)
+      mGeoBalancer->Stop();
 #endif
   }
 
@@ -384,9 +399,11 @@ public:
     if (mBalancer) delete mBalancer;
     if (mConverter) delete mConverter;
     if (mGroupBalancer) delete mGroupBalancer;
+    if (mGeoBalancer) delete mGeoBalancer;
     mBalancer = 0;
     mConverter = 0;
     mGroupBalancer = 0;
+    mGeoBalancer = 0;
 #endif
   };
 
