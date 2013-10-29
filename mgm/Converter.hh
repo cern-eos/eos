@@ -172,21 +172,39 @@ public:
   // ---------------------------------------------------------------------------
   //! Decrement the number of active jobs in this converter
   // ---------------------------------------------------------------------------
-
   void DecActiveJobs ()
   {
     mActiveJobs--;
+    PublishActiveJobs();
   }
+
+  // ---------------------------------------------------------------------------
+  //! Increment the number of active jobs in this converter
+  // ---------------------------------------------------------------------------
+  void IncActiveJobs ()
+  {
+    mActiveJobs++;
+    PublishActiveJobs();
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Publish the number of active jobs in this converter
+  // ---------------------------------------------------------------------------
+  void PublishActiveJobs ();
 
   // ---------------------------------------------------------------------------
   //! Return active jobs
   // ---------------------------------------------------------------------------
-
   size_t GetActiveJobs () const
   {
     return mActiveJobs;
   }
 
+  // ---------------------------------------------------------------------------
+  //! Reset pending conversion entries
+  // ---------------------------------------------------------------------------
+  void ResetJobs ();
+  
   /// the scheduler class is providing a destructor-less object, 
   /// so we have to create once a singleton of this and keep/share it
   static XrdSysMutex gSchedulerMutex;

@@ -275,10 +275,10 @@ ConverterJob::DoIt ()
       eos_static_err("fid=%016x errno=%d msg=\"%s\"\n",
                      mFid, e.getErrno(), e.getMessage().str().c_str());
     }
-    
-    if (sourceChecksum!=sourceAfterChecksum)
+
+    if (sourceChecksum != sourceAfterChecksum)
     {
-      success=false;
+      success = false;
       eos_static_err("fid=%016x conversion failed since file was modified",
                      mFid);
     }
@@ -409,13 +409,12 @@ Converter::~Converter ()
 /*----------------------------------------------------------------------------*/
 {
   Stop();
-  if (!gOFS->Shutdown)
+  
   {
     XrdSysThread::Join(mThread, NULL);
   }
 
   {
-
     XrdSysMutexHelper cLock(Converter::gConverterMapMutex);
     gConverterMap[mSpaceName] = 0;
   }
@@ -470,6 +469,12 @@ Converter::Convert (void)
 
   XrdSysTimer sleeper;
   sleeper.Snooze(10);
+  
+  // ---------------------------------------------------------------------------
+  // Reset old jobs pending from service restart/crash
+  // ---------------------------------------------------------------------------
+  ResetJobs();
+  
   // ---------------------------------------------------------------------------
   // loop forever until cancelled
   // ---------------------------------------------------------------------------
@@ -645,7 +650,7 @@ Converter::Convert (void)
         // use the global shared scheduler
         XrdSysMutexHelper sLock(gSchedulerMutex);
         gScheduler->Schedule((XrdJob*) job);
-        mActiveJobs++;
+        IncActiveJobs();
         // remove the entry from the conversion map
         lConversionFidMap.erase(lConversionFidMap.begin());
       }
@@ -666,4 +671,80 @@ Converter::Convert (void)
   return 0;
 }
 
+/*----------------------------------------------------------------------------*/
+void
+Converter::PublishActiveJobs ()
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief publish the active job number in the space view
+ *
+ */
+/*----------------------------------------------------------------------------*/
+{
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  char sactive[256];
+  snprintf(sactive, sizeof (sactive) - 1, "%lu", mActiveJobs);
+  FsView::gFsView.mSpaceView[mSpaceName.c_str()]->SetConfigMember
+    ("stat.converter.active",
+     sactive,
+     true,
+     "/eos/*/mgm",
+     true);
+}
+
+/*----------------------------------------------------------------------------*/
+void
+Converter::ResetJobs ()
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief publish the active job number in the space view
+ *
+ */
+/*----------------------------------------------------------------------------*/
+{
+  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::Mapping::Root(rootvid);
+  XrdOucErrInfo error;
+  
+  XrdMgmOfsDirectory dir;
+  int listrc = dir.open(gOFS->MgmProcConversionPath.c_str(),
+                    rootvid,
+                    (const char*) 0);
+  if (listrc == SFS_OK)
+  {
+    const char* val;
+    while ((val = dir.nextEntry()))
+    {
+      XrdOucString sfxid = val;
+      if ((sfxid == ".") ||
+          (sfxid == ".."))
+      {
+        continue;
+      }
+
+      std::string lFullConversionFilePath =
+        gOFS->MgmProcConversionPath.c_str();
+      lFullConversionFilePath += "/";
+      lFullConversionFilePath += val;
+      
+      if (!gOFS->_chown(lFullConversionFilePath.c_str(),
+                        0,
+                        0,
+                        error,
+                        rootvid,
+                        (const char*) 0))
+      {
+        eos_static_info("msg=\"reset scheduled conversion entry with owner root\" name=\"%s\"",
+                        lFullConversionFilePath.c_str());
+      }
+      else
+      {
+
+        eos_static_err("msg=\"failed to reset with owner root scheduled old job entry\" name=\"%s\"",
+                       lFullConversionFilePath.c_str());
+      }
+    }
+  }
+  dir.close();
+}
 EOSMGMNAMESPACE_END
