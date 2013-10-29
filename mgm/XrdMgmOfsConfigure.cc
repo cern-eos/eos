@@ -270,7 +270,7 @@ XrdMgmOfs::InitializeFileView ()
   // load all the quota nodes from the namespace
   Quota::LoadNodes();
   Quota::NodesToSpaceQuota();
-  
+
 
   return 0;
 }
@@ -999,14 +999,15 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   lFanOutTags.push_back("LRU");
   lFanOutTags.push_back("GroupBalancer");
   lFanOutTags.push_back("#");
- 
+
   // get the XRootD log directory
   char *logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
-  
-  if (logdir) {
+
+  if (logdir)
+  {
     for (size_t i = 0; i < lFanOutTags.size(); i++)
-    { 
+    {
       std::string lLogFile = logdir;
       lLogFile += "/";
       if (lFanOutTags[i] == "#")
@@ -1029,11 +1030,11 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       }
     }
   }
-  
+
   // ---------------------------------------------------------------------------
   // add some alias for the logging
   // ---------------------------------------------------------------------------
-  
+
   // ---------------------------------------------------------------------------
   // HTTP module
   // ---------------------------------------------------------------------------
@@ -1048,7 +1049,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   eos::common::Logging::AddFanOutAlias("WebDAVReponse", "Http");
   eos::common::Logging::AddFanOutAlias("S3Handler", "Http");
   eos::common::Logging::AddFanOutAlias("S3Store", "Http");
-  
+
   eos::common::Logging::SetUnit(MgmOfsBrokerUrl.c_str());
 
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");
@@ -1133,7 +1134,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   eos::common::Logging::SetLogPriority(LOG_INFO);
   eos::common::Logging::SetUnit(unit.c_str());
   std::string filter = "Process,AddQuota,UpdateHint,Update,UpdateQuotaStatus,SetConfigValue,"
-                       "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash";
+    "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash";
   eos::common::Logging::SetFilter(filter.c_str());
   Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,Update"
              "UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,"
@@ -1520,7 +1521,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     try
     {
       eosmd = gOFS->eosView->getContainer(MgmProcConversionPath.c_str());
-      eosmd->setMode(S_IFDIR | S_IRWXU );
+      eosmd->setMode(S_IFDIR | S_IRWXU);
       eosmd->setCUid(2); // conversion directory is owned by daemon
       gOFS->eosView->updateContainerStore(eosmd);
     }
@@ -1858,17 +1859,20 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     }
   }
 
-  if (!getenv("EOS_NO_SHUTDOWN")) 
+  if (!getenv("EOS_NO_SHUTDOWN"))
   {
     // add shutdown handler
     (void) signal(SIGINT, xrdmgmofs_shutdown);
     (void) signal(SIGTERM, xrdmgmofs_shutdown);
     (void) signal(SIGQUIT, xrdmgmofs_shutdown);
-    
-    // add SEGV handler                                                                                                                                                                
-    (void) signal(SIGSEGV, xrdmgmofs_stacktrace);
-    (void) signal(SIGABRT, xrdmgmofs_stacktrace);
-    (void) signal(SIGBUS, xrdmgmofs_stacktrace);
+
+    // add SEGV handler   
+    if (!getenv("EOS_NO_STACKTRACE"))
+    {
+      (void) signal(SIGSEGV, xrdmgmofs_stacktrace);
+      (void) signal(SIGABRT, xrdmgmofs_stacktrace);
+      (void) signal(SIGBUS, xrdmgmofs_stacktrace);
+    }
   }
 
   XrdSysTimer sleeper;
