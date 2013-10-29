@@ -135,7 +135,7 @@ echo "############################################"
 echo "### Creating RAIN Dir"
 echo "############################################"
 
-mkdir -p $EOS_TEST_TESTSYS/rain
+mkdir -p $EOS_TEST_RAIN_DIR
 dd if=/dev/urandom of=$EOS_TEST_RAIN_DIR/file1.rain bs=1552K count=1
 dd if=/dev/urandom of=$EOS_TEST_RAIN_DIR/file2.rain bs=18227K count=1
 dd if=/dev/urandom of=$EOS_TEST_RAIN_DIR/file3.rain bs=1M count=34
@@ -147,7 +147,7 @@ cp $EOS_TEST_RAIN_DIR/file1.rain $EOS_TEST_RAIN_DIR/file1.io
 cp $EOS_TEST_RAIN_DIR/file2.rain $EOS_TEST_RAIN_DIR/file2.io
 (echo "0 4194304"; echo "1048576 2097152"; echo "3145728 7340032"; echo "5242880 6291456"; echo "7340032 15728640"; echo "14680064 17825792"; echo "16777216 18664448") >> $EOS_TEST_RAIN_DIR/file2.io.pattern
 cp $EOS_TEST_RAIN_DIR/file3.rain $EOS_TEST_RAIN_DIR/file3.io
-#(echo "0 524288"; echo "409600 786432"; echo "614400 1048576"; echo "1024000 1589248") >> $EOS_TEST_RAIN_DIR/file3.io.pattern
+(echo "0 524288"; echo "409600 786432"; echo "614400 1048576"; echo "1024000 1589248") >> $EOS_TEST_RAIN_DIR/file3.io.pattern
 fi
 fi
 ################################################################################################################

@@ -409,7 +409,7 @@ ReadPattern(XrdCl::URL& url,
 
 
 //------------------------------------------------------------------------------
-// Write file sequentially in sync/async mode
+// Write file sequentially to EOS in sync/async mode
 //------------------------------------------------------------------------------
 bool
 WriteSequentially(XrdCl::URL& url,
