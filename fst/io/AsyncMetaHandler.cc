@@ -138,7 +138,7 @@ AsyncMetaHandler::Register (uint64_t offset,
 //! Register a new vector request for the current file
 //--------------------------------------------------------------------------
 VectChunkHandler*
-AsyncMetaHandler::Register (XrdCl::ChunkList& chunks,
+AsyncMetaHandler::Register (XrdCl::ChunkList& chunkList,
                             const char* wrBuf,
                             bool isWrite)
 {
@@ -159,13 +159,13 @@ AsyncMetaHandler::Register (XrdCl::ChunkList& chunks,
   {
     mCond.UnLock();   // <--    
     mQVRecycle.wait_pop(ptr_vchunk);
-    ptr_vchunk->Update(this, chunks, wrBuf, isWrite);
+    ptr_vchunk->Update(this, chunkList, wrBuf, isWrite);
   }
   else
   {
    // Create new request
     mCond.UnLock();   // <--            
-    ptr_vchunk = new VectChunkHandler(this, chunks, wrBuf, isWrite);
+    ptr_vchunk = new VectChunkHandler(this, chunkList, wrBuf, isWrite);
   }
   
   return ptr_vchunk;
@@ -248,8 +248,8 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 
     // Add all the chunks of the current failed vector read to the list of
     // errrors to be recovered
-    XrdCl::ChunkList chunks = vhandler->GetChunkList();
-    mErrors.insert(mErrors.end(), chunks.begin(), chunks.end());
+    XrdCl::ChunkList chunkList = vhandler->GetChunkList();
+    mErrors.insert(mErrors.end(), chunkList.begin(), chunkList.end());
 
     // If we got a timeout in the previous requests then we keep the error code
     if (mErrorType != XrdCl::errOperationExpired)

@@ -94,16 +94,19 @@ public:
                         char* buffer,
                         XrdSfsXferSize length);
 
-
+  
   //--------------------------------------------------------------------------
   //! Vector read 
   //!
   //! @param chunkList list of chunks for the vector read
+  //! @param len total length of the vector read
   //!
   //! @return number of bytes read of -1 if error
   //!
   //--------------------------------------------------------------------------
-  virtual int64_t ReadV (XrdCl::ChunkList& chunkList);
+  virtual int64_t ReadV (XrdCl::ChunkList& chunkList,
+                         uint32_t len);
+
 
   
   //--------------------------------------------------------------------------

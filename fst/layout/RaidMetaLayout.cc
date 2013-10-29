@@ -832,9 +832,9 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
 // Vector read 
 //------------------------------------------------------------------------------
 int64_t
-RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList)
+RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
 {
-  int64_t total_read = 0;
+  int64_t nread = 0;
   AsyncMetaHandler* phandler = 0;
   XrdCl::ChunkList all_errs;
 
@@ -842,7 +842,15 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList)
   {
     // Non-entry server doing local readv operations
     if (mStripe[0])
-      total_read = mStripe[0]->ReadV(chunkList);
+    {
+      nread = mStripe[0]->ReadV(chunkList);
+
+      if (nread != len)
+      {
+        eos_err("error local vector read");
+        return SFS_ERROR;
+      }
+    }
   }
   else
   {
@@ -859,7 +867,7 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList)
     
     // Entry server splits requests per stripe returning the relative position of
     // each chunks inside the stripe file including the header offset
-    int64_t nread = 0;
+
     bool do_recovery = false;
     bool got_error = false;
     uint32_t stripe_id;
@@ -872,9 +880,9 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList)
 
       if (mStripe[physical_id])
       {
-        eos_debug("readv stripe=%u, read_count=%i", stripe_id,
-                  stripe_chunks[stripe_id].size());
-        nread = mStripe[physical_id]->ReadVAsync(stripe_chunks[physical_id], mTimeout);
+        eos_debug("readv stripe=%u, read_count=%i physical_id=%u ",
+                  stripe_id, stripe_chunks[stripe_id].size(), physical_id);
+        nread = mStripe[physical_id]->ReadVAsync(stripe_chunks[stripe_id], mTimeout);
       
         if (nread == SFS_ERROR)
           got_error = true;
@@ -890,8 +898,8 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList)
       {
         do_recovery = true;
         
-        for (auto chunk = stripe_chunks[physical_id].begin();
-             chunk != stripe_chunks[physical_id].end(); ++chunk)
+        for (auto chunk = stripe_chunks[stripe_id].begin();
+             chunk != stripe_chunks[stripe_id].end(); ++chunk)
         {
           chunk->offset = GetGlobalOff(stripe_id, chunk->offset - mSizeHeader);
           all_errs.push_back(*chunk);
@@ -940,19 +948,15 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList)
       }
     }
 
-    // Try to recover any corrupted blocks
-    /*
-    if (do_recovery && (!RecoverPieces(offset_init, buffer, all_errs)))
-    {
-      eos_err("read recovery failed");
-      return SFS_ERROR;
-    }
-    */
-    
-    // TODO: compute total_read
+     // Try to recover any corrupted blocks
+     if (do_recovery && (!RecoverPieces(all_errs)))
+     {
+       eos_err("read recovery failed");
+       return SFS_ERROR;
+     }
   }       
   
-  return total_read;
+  return (uint64_t)len;
 }
 
 

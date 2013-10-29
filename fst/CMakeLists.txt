@@ -21,8 +21,8 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ 
-                     ./
+include_directories( ${PROJECT_SOURCE_DIR}
+		     ${CMAKE_CURRENT_SOURCE_DIR}
                      ${XROOTD_INCLUDE_DIR} 
                      ${XROOTD_PRIVATE_INCLUDE_DIR}
                      ${SPARSEHASH_INCLUDE_DIR}

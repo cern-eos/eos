@@ -2371,16 +2371,19 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV,
 {
   eos_debug("read count=%i", readCount);
   // Copy the XrdOucIOVec structure to XrdCl::ChunkList
+  uint32_t total_read = 0;
   XrdCl::ChunkList chunkList;
+  chunkList.reserve(readCount);
 
   for (int i = 0; i < readCount; ++i)
   {
+    total_read += (uint32_t)readV[i].size;
     chunkList.push_back(XrdCl::ChunkInfo((uint64_t)readV[i].offset,
                                          (uint32_t)readV[i].size,
-                                         (char*)readV[i].data));
+                                         (void*)readV[i].data));
   }
   
-  return layOut->ReadV(chunkList);
+  return layOut->ReadV(chunkList, total_read);
 }
 
 

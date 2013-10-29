@@ -88,7 +88,7 @@ PlainLayout::Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length)
 // Vector read 
 //------------------------------------------------------------------------------
 int64_t
-PlainLayout::ReadV (XrdCl::ChunkList& chunkList)
+PlainLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
 {
   return mPlainFile->ReadV(chunkList);
 }

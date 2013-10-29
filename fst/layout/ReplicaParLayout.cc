@@ -327,7 +327,7 @@ ReplicaParLayout::Read (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 //--------------------------------------------------------------------------
 int64_t
-ReplicaParLayout::ReadV (XrdCl::ChunkList& chunkList) 
+ReplicaParLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len) 
 {
  int64_t rc = 0;
  eos_debug("read count=%i", chunkList.size());

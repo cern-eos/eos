@@ -51,12 +51,12 @@ public:
   //! Constructor
   //!
   //! @param reqHandler handler to the file meta handler
-  //! @param chunks chunks concerning the vector operation
+  //! @param chunkList chunks concerning the vector operation
   //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
   VectChunkHandler (AsyncMetaHandler* reqHandler,
-                    XrdCl::ChunkList& chunks,
+                    XrdCl::ChunkList& chunkList,
                     const char* wrBuf,
                     bool isWrite);
 
@@ -100,6 +100,16 @@ public:
   GetRespLength () const
   {
     return mRespLength;
+  };
+
+
+  //----------------------------------------------------------------------------
+  //! Get total length of vector request
+  //----------------------------------------------------------------------------
+  inline uint32_t
+  GetLength () const
+  {
+    return mLength;
   };
 
 

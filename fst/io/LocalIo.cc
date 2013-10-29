@@ -109,15 +109,14 @@ int64_t
 LocalIo::ReadV (XrdCl::ChunkList& chunkList,
                 uint16_t timeout )
 {
-  eos_debug("read count=%i", chunkList.size());
-
   // Copy ChunkList structure to XrdOucVectIO
+  eos_debug("read count=%i", chunkList.size());
   XrdOucIOVec* readV = new XrdOucIOVec[chunkList.size()];
 
   for (uint32_t i = 0; i < chunkList.size(); ++i)
   {
-    readV[i].offset = chunkList[i].offset;
-    readV[i].size = chunkList[i].length;
+    readV[i].offset = (long long)chunkList[i].offset;
+    readV[i].size = (int)chunkList[i].length;
     readV[i].data = (char*)chunkList[i].buffer;
   }
 

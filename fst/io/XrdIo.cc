@@ -174,11 +174,11 @@ XrdIo::Read (XrdSfsFileOffset offset,
             static_cast<uint64_t> (offset),
             static_cast<uint64_t> (length));
 
-  uint32_t bytes_read = 0;
+  uint32_t nread = 0;
   XrdCl::XRootDStatus status = mXrdFile->Read(static_cast<uint64_t> (offset),
                                               static_cast<uint32_t> (length),
                                               buffer,
-                                              bytes_read,
+                                              nread,
                                               timeout);
 
   if (!status.IsOK())
@@ -187,7 +187,7 @@ XrdIo::Read (XrdSfsFileOffset offset,
     return SFS_ERROR;
   }
 
-  return bytes_read;
+  return static_cast<int64_t>(nread);
 }
 
 
@@ -201,10 +201,9 @@ XrdIo::Read (XrdSfsFileOffset offset,
    eos_debug("read count=%i", chunkList.size());
    int64_t nread = 0;
    XrdCl::VectorReadInfo* vReadInfo = 0;
-    
    XrdCl::XRootDStatus status = mXrdFile->VectorRead(chunkList, 0,
                                                      vReadInfo, timeout);
-
+   
    if (!status.IsOK())
    {
      errno = status.errNo;
@@ -224,15 +223,19 @@ int64_t
 XrdIo::ReadVAsync (XrdCl::ChunkList& chunkList,
                    uint16_t timeout)
 {
-  eos_debug("read count=%i", chunkList.size());
   VectChunkHandler* vhandler = 0;
   XrdCl::XRootDStatus status;
  
   // Get vector handler and send async request
+  eos_debug("read count=%i", chunkList.size());
   vhandler = mMetaHandler->Register(chunkList, NULL, false);
+  int64_t nread = vhandler->GetLength();
 
   if (!vhandler)
-    return SFS_ERROR;    
+  {
+    eos_err("unable to get vector handler");
+    return SFS_ERROR;
+  }
   
   status = mXrdFile->VectorRead(chunkList, 
                                 static_cast<void *> (0),
@@ -250,7 +253,7 @@ XrdIo::ReadVAsync (XrdCl::ChunkList& chunkList,
     return SFS_ERROR;
   }
   
-  return SFS_OK;
+  return nread;
 }
 
 

@@ -31,7 +31,7 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 VectChunkHandler::VectChunkHandler (AsyncMetaHandler* metaHandler,
-                                    XrdCl::ChunkList& chunks,
+                                    XrdCl::ChunkList& chunkList,
                                     const char* wrBuf,
                                     bool isWrite) :
 XrdCl::ResponseHandler(),
@@ -43,7 +43,7 @@ mRespLength (0),
 mIsWrite (isWrite)
 {
   // Copy the list of chunks and compute buffer size
-  for (auto chunk = chunks.begin(); chunk != chunks.end(); ++chunk)
+  for (auto chunk = chunkList.begin(); chunk != chunkList.end(); ++chunk)
   {
     mLength += chunk->length;
     mChunkList.push_back(*chunk);
@@ -82,7 +82,7 @@ VectChunkHandler::~VectChunkHandler ()
 //------------------------------------------------------------------------------
 void
 VectChunkHandler::Update (AsyncMetaHandler* metaHandler,
-                          XrdCl::ChunkList& chunks,
+                          XrdCl::ChunkList& chunkList,
                           const char* wrBuf,
                           bool isWrite)
 {
@@ -92,7 +92,7 @@ VectChunkHandler::Update (AsyncMetaHandler* metaHandler,
   mIsWrite = isWrite;
   
   // Copy the list of chunks and compute buffer size
-  for (auto chunk = chunks.begin(); chunk != chunks.end(); ++chunk)
+  for (auto chunk = chunkList.begin(); chunk != chunkList.end(); ++chunk)
   {
     mLength += chunk->length;
     mChunkList.push_back(*chunk);
