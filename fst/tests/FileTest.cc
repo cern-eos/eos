@@ -24,10 +24,10 @@
 /*----------------------------------------------------------------------------*/
 #include "FileTest.hh"
 #include "common/LayoutId.hh"
-#include "common/StringTokenizer.hh"
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/RaidMetaLayout.hh"
+#include "fst/checksum/CRC32C.hh"
 /*----------------------------------------------------------------------------*/
 
 CPPUNIT_TEST_SUITE_REGISTRATION(FileTest);
@@ -64,7 +64,7 @@ FileTest::ReadVTest()
   XRootDStatus status;
   uint32_t file_size = (uint32_t)atoi(mEnv->GetMapping("file_size").c_str());
   std::string address = "root://root@" + mEnv->GetMapping("server");
-  std::string file_path = mEnv->GetMapping("file_path");
+  std::string file_path = mEnv->GetMapping("raiddp_file");
   URL url(address);
   CPPUNIT_ASSERT(url.IsValid());
 
@@ -89,31 +89,75 @@ FileTest::ReadVTest()
   uint32_t size_chunk = 4096;
   uint32_t size_gap = 1024 *1024;
   int num_chunks = file_size / size_gap;
-  char* buffer = new char[num_chunks * size_chunk];
-  char* ptr_buff;
+  char* buff_readv = new char[num_chunks * size_chunk];
+  char* buff_read = new char[num_chunks * size_chunk];
+  char* ptr_readv;
+  char* ptr_read;
   uint64_t off;
   ChunkList readv_list;
+  ChunkList read_list;
 
-  // Create the readv list 
+  // Create the readv list and the list for normal reads
   for (int i = 0; i < num_chunks; i++)
   {
     off = i * size_gap ;
-    ptr_buff = buffer + i * size_chunk;
-    readv_list.push_back(ChunkInfo(off, size_chunk, ptr_buff));
+    ptr_readv = buff_readv + i * size_chunk;
+    ptr_read = buff_read + i * size_chunk;
+    //std::cout << off << " " << size_chunk << std::endl;
+    readv_list.push_back(ChunkInfo(off, size_chunk, ptr_readv));
+    read_list.push_back(ChunkInfo(off, size_chunk, ptr_read));
   }
 
   // Issue the readV request
+  uint32_t nread;
   VectorReadInfo* vread_info = 0;
   status = mFile->VectorRead(readv_list, 0, vread_info);
   CPPUNIT_ASSERT(status.IsOK());
   CPPUNIT_ASSERT(vread_info->GetSize() == num_chunks * size_chunk);
   delete vread_info;
   
+  // Issue the normal read requests
+  for (auto chunk = read_list.begin(); chunk != read_list.end(); ++chunk)
+  {
+    status = mFile->Read(chunk->offset, chunk->length, chunk->buffer, nread);
+
+    if (!status.IsOK() || (nread != chunk->length))
+    {
+      std::cerr << "Error while reading at off:" << chunk->offset
+                << " len:" << chunk->length << std::endl;
+      break;
+    }
+  }
+
+  // Compute CRC32C checksum for the readv buffer and normal reads
+  eos::fst::CRC32C* chksumv = new eos::fst::CRC32C();
+  if (!chksumv->Add(buff_readv, num_chunks * size_chunk, 0))
+  {
+    std::cerr << "Checksum error: offset unaligned - skip computation" << std::endl;
+    CPPUNIT_FAIL("Error computing readv checksum");
+  }
+
+  eos::fst::CRC32C* chksum = new eos::fst::CRC32C();
+  if (!chksum->Add(buff_read, num_chunks * size_chunk, 0))
+  {
+    std::cerr << "Checksum error: offset unaligned - skip computation" << std::endl;
+    CPPUNIT_FAIL("Error computing readv checksum");
+  }
+
+  std::string schksumv = chksumv->GetHexChecksum();
+  std::string schksum = chksum->GetHexChecksum();
+  std::cout << "schksumv: " << schksumv << " and schksum: " << schksum << std::endl;
+  CPPUNIT_ASSERT(schksumv == schksum);
+  
   // Close and delete file object
+  delete chksumv;
+  delete chksum;
   status = mFile->Close();
   CPPUNIT_ASSERT(status.IsOK());
   delete mFile;
   mFile = 0;
+  delete[] buff_readv;
+  delete[] buff_read;
 }
 
 

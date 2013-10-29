@@ -21,33 +21,38 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(./
-		    ${eos_SOURCE_DIR}
-		    ${XROOTD_INCLUDE_DIR}
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
+                    ${OPENSSL_INCLUDE_DIR}
 		    ${CPPUNIT_INCLUDE_DIRS})
 
-link_directories(${CPPUNIT_LIBRARY}
-		 ${XROOTD_LIB_DIR})
+LINK_DIRECTORIES(${OPENSSL_LIBRARIES}
+	         ${CPPUNIT_LIBRARIES})
 
-add_library(EosFstTests MODULE
+ADD_LIBRARY(EosFstTests MODULE
 	    FileTest.cc  FileTest.hh
-	    TestEnv.cc   TestEnv.hh)
+	    TestEnv.cc   TestEnv.hh
+	    ${PROJECT_SOURCE_DIR}/fst/checksum/CRC32C.hh
+	    ${PROJECT_SOURCE_DIR}/fst/checksum/CheckSum.cc 
+	    ${PROJECT_SOURCE_DIR}/fst/checksum/CheckSum.hh
+	    ${PROJECT_SOURCE_DIR}/fst/checksum/crc32c.cc   
+	    ${PROJECT_SOURCE_DIR}/fst/checksum/crc32ctables.cc)
 
-target_link_libraries(EosFstTests 
+TARGET_LINK_LIBRARIES(EosFstTests 
 		      XrdCl   
 		      XrdUtils
 		      eosCommon	      
 		      EosFstIo-Static
+		      ${OPENSSL_LIBRARIES}
 	              ${CPPUNIT_LIBRARIES})
 
-if (Linux)
-  set_target_properties(EosFstTests PROPERTIES
+IF (Linux)
+  SET_TARGET_PROPERTIES(EosFstTests PROPERTIES
                         VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
 			SOVERSION ${VERSION_MAJOR}
                         CLEAN_DIRECT_OUTPUT 1)
-endif(Linux)
+ENDIF (Linux)
 
-install(TARGETS EosFstTests
+INSTALL(TARGETS EosFstTests
         LIBRARY DESTINATION ${LIB_INSTALL_DIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         ARCHIVE DESTINATION ${LIB_INSTALL_DIR})

@@ -44,7 +44,9 @@ EOSFSTTEST_NAMESPACE_BEGIN
 TestEnv::TestEnv()
 {
   mMapParam.insert(std::make_pair("server","localhost"));
-  mMapParam.insert(std::make_pair("file_path", "/eos/dev/test/fst/file32MB.dat"));
+  mMapParam.insert(std::make_pair("plain_file", "/eos/dev/test/fst/plain/file32MB.dat"));
+  mMapParam.insert(std::make_pair("raiddp_file", "/eos/dev/test/fst/raiddp/file32MB.dat"));
+  mMapParam.insert(std::make_pair("reeds_file", "/eos/dev/test/fst/raid6/file32MB.dat"));
   mMapParam.insert(std::make_pair("file_size", "33554432")); // 32MB
   // ReadV sequences used for testing
   // 4KB read out of each MB
