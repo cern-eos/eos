@@ -113,7 +113,7 @@ Fsck::Stop (bool store)
     Log(false, "disabled check");
     if (store)
       return StoreFsckConfig();
-    else 
+    else
       return true;
   }
   else
@@ -230,11 +230,11 @@ Fsck::Check (void)
       XrdSysMutexHelper(gOFS->InitializationMutex);
       if (gOFS->Initialized == gOFS->kBooted)
       {
-	go = true;
+        go = true;
       }
-      else       
+      else
       {
-	sleeper.Snooze(10);
+        sleeper.Snooze(10);
       }
     }
   }
@@ -248,6 +248,19 @@ Fsck::Check (void)
     ClearLog();
     Log(false, "started check");
 
+    // -------------------------------------------------------------------------
+    // don't run fsck if we are not a master
+    // -------------------------------------------------------------------------
+    bool IsMaster = false;
+    while (!IsMaster) {
+      IsMaster = gOFS->MgmMaster.IsMaster();
+      if (!IsMaster) {
+        XrdSysThread::SetCancelOn();
+        sleeper.Snooze(60);
+      }
+    }
+    XrdSysThread::SetCancelOff();
+    
     // -------------------------------------------------------------------------
     // run through the fst's 
     // compare files on disk with files in the namespace
@@ -426,8 +439,8 @@ Fsck::Check (void)
       unsigned long long >::const_iterator unavailit;
 
     for (unavailit = eFsUnavail.begin();
-         unavailit != eFsUnavail.end();
-         unavailit++)
+      unavailit != eFsUnavail.end();
+      unavailit++)
     {
       std::string host = "not configured";
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -451,14 +464,14 @@ Fsck::Check (void)
       std::set <eos::common::FileId::fileid_t>::const_iterator it;
       std::set <eos::common::FileId::fileid_t> fid2check;
       for (it = eMap["rep_offline"].begin();
-           it != eMap["rep_offline"].end();
-           it++)
+        it != eMap["rep_offline"].end();
+        it++)
       {
         fid2check.insert(*it);
       }
       for (it = eMap["rep_diff_n"].begin();
-           it != eMap["rep_diff_n"].end();
-           it++)
+        it != eMap["rep_diff_n"].end();
+        it++)
       {
         fid2check.insert(*it);
       }
@@ -704,8 +717,8 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
           out += "    \"fxid\": [";
           std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
           for (fidit = emapit->second.begin();
-               fidit != emapit->second.end();
-               fidit++)
+            fidit != emapit->second.end();
+            fidit++)
           {
             XrdOucString hexstring;
             eos::common::FileId::Fid2Hex(*fidit, hexstring);
@@ -723,8 +736,8 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
           out += "    \"lfn\": [";
           std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
           for (fidit = emapit->second.begin();
-               fidit != emapit->second.end();
-               fidit++)
+            fidit != emapit->second.end();
+            fidit++)
           {
             eos::FileMD* fmd = 0;
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -784,8 +797,8 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
           std::set < eos::common::FileId::fileid_t >> ::const_iterator efsmapit;
 
         for (efsmapit = eFsMap[emapit->first].begin();
-             efsmapit != eFsMap[emapit->first].end();
-             efsmapit++)
+          efsmapit != eFsMap[emapit->first].end();
+          efsmapit++)
         {
           if (emapit->first == "zero_replica")
           {
@@ -811,8 +824,8 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
             out += "        \"fxid\": [";
             std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
             for (fidit = efsmapit->second.begin();
-                 fidit != efsmapit->second.end();
-                 fidit++)
+              fidit != efsmapit->second.end();
+              fidit++)
             {
               XrdOucString hexstring;
               eos::common::FileId::Fid2Hex(*fidit, hexstring);
@@ -830,8 +843,8 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
             out += "        \"lfn\": [";
             std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
             for (fidit = efsmapit->second.begin();
-                 fidit != efsmapit->second.end();
-                 fidit++)
+              fidit != efsmapit->second.end();
+              fidit++)
             {
               eos::FileMD* fmd = 0;
               eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -922,8 +935,8 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
           out += " fxid=";
           std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
           for (fidit = emapit->second.begin();
-               fidit != emapit->second.end();
-               fidit++)
+            fidit != emapit->second.end();
+            fidit++)
           {
             XrdOucString hexstring;
             eos::common::FileId::Fid2Hex(*fidit, hexstring);
@@ -941,8 +954,8 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
           out += " lfn=";
           std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
           for (fidit = emapit->second.begin();
-               fidit != emapit->second.end();
-               fidit++)
+            fidit != emapit->second.end();
+            fidit++)
           {
             eos::FileMD* fmd = 0;
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -1006,8 +1019,8 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
         // loop over filesystems
         //----------------------------------------------------------------------
         for (efsmapit = eFsMap[emapit->first].begin();
-             efsmapit != eFsMap[emapit->first].end();
-             efsmapit++)
+          efsmapit != eFsMap[emapit->first].end();
+          efsmapit++)
         {
           if (emapit->first == "zero_replica")
           {
@@ -1037,8 +1050,8 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
             out += " fxid=";
             std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
             for (fidit = efsmapit->second.begin();
-                 fidit != efsmapit->second.end();
-                 fidit++)
+              fidit != efsmapit->second.end();
+              fidit++)
             {
               XrdOucString hexstring;
               eos::common::FileId::Fid2Hex(*fidit, hexstring);
@@ -1058,8 +1071,8 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
               out += " lfn=";
               std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
               for (fidit = efsmapit->second.begin();
-                   fidit != efsmapit->second.end();
-                   fidit++)
+                fidit != efsmapit->second.end();
+                fidit++)
               {
                 eos::FileMD* fmd = 0;
                 eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -1137,8 +1150,8 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
     // loop over all filesystems
     // -------------------------------------------------------------------------
     for (efsmapit = eFsMap["m_cx_diff"].begin();
-         efsmapit != eFsMap["m_cx_diff"].end();
-         efsmapit++)
+      efsmapit != eFsMap["m_cx_diff"].end();
+      efsmapit++)
     {
       std::set <eos::common::FileId::fileid_t>::const_iterator it;
 
@@ -1146,8 +1159,8 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       // loop over all fids
       // -----------------------------------------------------------------------
       for (it = efsmapit->second.begin();
-           it != efsmapit->second.end();
-           it++)
+        it != efsmapit->second.end();
+        it++)
       {
         fid2check[efsmapit->first].insert(*it);
       }
@@ -1157,8 +1170,8 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
     // loop over all filesystems
     // -------------------------------------------------------------------------
     for (efsmapit = eFsMap["d_cx_diff"].begin();
-         efsmapit != eFsMap["d_cx_diff"].end();
-         efsmapit++)
+      efsmapit != eFsMap["d_cx_diff"].end();
+      efsmapit++)
     {
       std::set <eos::common::FileId::fileid_t>::const_iterator it;
 
@@ -1358,8 +1371,8 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
     // loop over all filesystems
     // -------------------------------------------------------------------------
     for (efsmapit = eFsMap["unreg_n"].begin();
-         efsmapit != eFsMap["unreg_n"].end();
-         efsmapit++)
+      efsmapit != eFsMap["unreg_n"].end();
+      efsmapit++)
     {
       std::set <eos::common::FileId::fileid_t>::const_iterator it;
 
@@ -1458,8 +1471,8 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
     // loop over all filesystems
     // -------------------------------------------------------------------------
     for (efsmapit = eFsMap["orphans_n"].begin();
-         efsmapit != eFsMap["orphans_n"].end();
-         efsmapit++)
+      efsmapit != eFsMap["orphans_n"].end();
+      efsmapit++)
     {
       std::set <eos::common::FileId::fileid_t>::const_iterator it;
 
@@ -1537,8 +1550,8 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
     // loop over all filesystems
     // -------------------------------------------------------------------------
     for (efsmapit = eFsMap["rep_diff_n"].begin();
-         efsmapit != eFsMap["rep_diff_n"].end();
-         efsmapit++)
+      efsmapit != eFsMap["rep_diff_n"].end();
+      efsmapit++)
     {
       std::set <eos::common::FileId::fileid_t>::const_iterator it;
 
@@ -1600,10 +1613,10 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
     // -------------------------------------------------------------------------
     // unlink all orphaned files
     // -------------------------------------------------------------------------
-    std::map < eos::common::FileSystem::fsid_t, 
+    std::map < eos::common::FileSystem::fsid_t,
       std::set < eos::common::FileId::fileid_t >> ::const_iterator efsmapit;
-    
-    std::map < eos::common::FileSystem::fsid_t, 
+
+    std::map < eos::common::FileSystem::fsid_t,
       std::set < eos::common::FileId::fileid_t >> fid2check;
 
     eos::common::Mapping::VirtualIdentity vid;
@@ -1613,9 +1626,9 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
     // -------------------------------------------------------------------------
     // loop over all filesystems
     // -------------------------------------------------------------------------
-    for (efsmapit = eFsMap["rep_missing_n"].begin(); 
-         efsmapit != eFsMap["rep_missing_n"].end(); 
-         efsmapit++)
+    for (efsmapit = eFsMap["rep_missing_n"].begin();
+      efsmapit != eFsMap["rep_missing_n"].end();
+      efsmapit++)
     {
       std::set <eos::common::FileId::fileid_t>::const_iterator it;
 
@@ -1649,19 +1662,19 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
           if (gOFS->DeleteExternal(efsmapit->first, *it))
           {
             char outline[1024];
-            snprintf(outline, 
-                     sizeof (outline) - 1, 
-                     "success: send unlink to fsid=%u fxid=%llx\n", 
+            snprintf(outline,
+                     sizeof (outline) - 1,
+                     "success: send unlink to fsid=%u fxid=%llx\n",
                      efsmapit->first, *it);
             out += outline;
           }
           else
           {
             char errline[1024];
-            snprintf(errline, 
-                     sizeof (errline) - 1, 
-                     "err: unable to send unlink to fsid=%u fxid=%llx\n", 
-                     efsmapit->first, *it);          
+            snprintf(errline,
+                     sizeof (errline) - 1,
+                     "err: unable to send unlink to fsid=%u fxid=%llx\n",
+                     efsmapit->first, *it);
             out += errline;
           }
         }
@@ -1672,25 +1685,25 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
             // -----------------------------------------------------------------
             // drop in the namespace 
             // -----------------------------------------------------------------
-            if (gOFS->_dropstripe(path.c_str(), 
-                                  error, 
-                                  vid, 
-                                  efsmapit->first, 
+            if (gOFS->_dropstripe(path.c_str(),
+                                  error,
+                                  vid,
+                                  efsmapit->first,
                                   false))
             {
               char outline[1024];
-              snprintf(outline, 
-                       sizeof (outline) - 1, 
-                       "error: unable to drop stripe on fsid=%u fxid=%llx\n", 
+              snprintf(outline,
+                       sizeof (outline) - 1,
+                       "error: unable to drop stripe on fsid=%u fxid=%llx\n",
                        efsmapit->first, *it);
               out += outline;
             }
             else
             {
               char outline[1024];
-              snprintf(outline, 
-                       sizeof (outline) - 1, 
-                       "success: send dropped stripe on fsid=%u fxid=%llx\n", 
+              snprintf(outline,
+                       sizeof (outline) - 1,
+                       "success: send dropped stripe on fsid=%u fxid=%llx\n",
                        efsmapit->first, *it);
               out += outline;
             }
@@ -1732,10 +1745,10 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
     // -------------------------------------------------------------------------
     // loop over all fids
     // -------------------------------------------------------------------------
-    
-    for (it = eMap["zero_replica"].begin(); 
-         it != eMap["zero_replica"].end(); 
-         it++)
+
+    for (it = eMap["zero_replica"].begin();
+      it != eMap["zero_replica"].end();
+      it++)
     {
       eos::FileMD* fmd = 0;
       std::string path = "";
@@ -1773,18 +1786,18 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
           if (!gOFS->_rem(path.c_str(), error, vid))
           {
             char outline[1024];
-            snprintf(outline, 
-                     sizeof (outline) - 1, 
-                     "success: removed path=%s fxid=%llx\n", 
+            snprintf(outline,
+                     sizeof (outline) - 1,
+                     "success: removed path=%s fxid=%llx\n",
                      path.c_str(), *it);
             out += outline;
           }
           else
           {
             char errline[1024];
-            snprintf(errline, 
-                     sizeof (errline) - 1, 
-                     "err: unable to remove path=%s fxid=%llx\n", 
+            snprintf(errline,
+                     sizeof (errline) - 1,
+                     "err: unable to remove path=%s fxid=%llx\n",
                      path.c_str(), *it);
             out += errline;
           }
