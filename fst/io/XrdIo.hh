@@ -283,6 +283,7 @@ private:
   AsyncMetaHandler* mMetaHandler; ///< async requests meta handler
   PrefetchMap mMapBlocks; ///< map of block read/prefetched
   std::queue<ReadaheadBlock*> mQueueBlocks; ///< queue containing available blocks
+  XrdSysMutex mPrefetchMutex; ///< mutex to serialise the prefetch step
 
   
   //--------------------------------------------------------------------------
