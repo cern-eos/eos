@@ -91,7 +91,7 @@ ConverterJob::DoIt ()
   eos::ContainerMD* cmd = 0;
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
-
+  unsigned long long size = 0;
   eos::ContainerMD::XAttrMap attrmap;
 
   XrdOucString sourceChecksum;
@@ -111,7 +111,7 @@ ConverterJob::DoIt ()
       fmd = gOFS->eosFileService->getFileMD(mFid);
       owner_uid = fmd->getCUid();
       owner_gid = fmd->getCGid();
-
+      size = fmd->getSize();
       mSourcePath = gOFS->eosView->getUri(fmd);
       eos::common::Path cPath(mSourcePath.c_str());
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
@@ -178,8 +178,18 @@ ConverterJob::DoIt ()
     // prepare the TPC copy job
     // -------------------------------------------------------------------------
 
-    mTPCJob.thirdParty = true;
-    mTPCJob.thirdPartyFallBack = false;
+    if (!size)
+    {
+      // empty files don't work/need with TPC
+      mTPCJob.thirdParty = false;
+      mTPCJob.thirdPartyFallBack = false;
+    }
+    else
+    {
+      // non-empty files run with TPC
+      mTPCJob.thirdParty = true;
+      mTPCJob.thirdPartyFallBack = false;
+    }
     mTPCJob.force = true;
     mTPCJob.posc = false;
     mTPCJob.coerce = false;
@@ -409,7 +419,7 @@ Converter::~Converter ()
 /*----------------------------------------------------------------------------*/
 {
   Stop();
-  
+
   {
     XrdSysThread::Join(mThread, NULL);
   }
@@ -469,12 +479,12 @@ Converter::Convert (void)
 
   XrdSysTimer sleeper;
   sleeper.Snooze(10);
-  
+
   // ---------------------------------------------------------------------------
   // Reset old jobs pending from service restart/crash
   // ---------------------------------------------------------------------------
   ResetJobs();
-  
+
   // ---------------------------------------------------------------------------
   // loop forever until cancelled
   // ---------------------------------------------------------------------------
@@ -705,11 +715,11 @@ Converter::ResetJobs ()
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo error;
-  
+
   XrdMgmOfsDirectory dir;
   int listrc = dir.open(gOFS->MgmProcConversionPath.c_str(),
-                    rootvid,
-                    (const char*) 0);
+                        rootvid,
+                        (const char*) 0);
   if (listrc == SFS_OK)
   {
     const char* val;
@@ -726,7 +736,7 @@ Converter::ResetJobs ()
         gOFS->MgmProcConversionPath.c_str();
       lFullConversionFilePath += "/";
       lFullConversionFilePath += val;
-      
+
       if (!gOFS->_chown(lFullConversionFilePath.c_str(),
                         0,
                         0,
