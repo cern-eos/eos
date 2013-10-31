@@ -204,7 +204,7 @@ FsView::GetGroupFormat (std::string option)
   if (option == "l")
   {
     // long format
-    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s";
+    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.status:width=12:format=s|sep= |key=stat.geotag:width=16:format=s|sep= |member=nofs:width=5:format=s";
   }
   // default format
   return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=-s|sep= |member=cfg.status:width=12:format=s|sep= |member=nofs:width=5:format=s|sep= |maxdev=stat.statfs.filled:width=12:format=f:unit=p|sep= |avg=stat.statfs.filled:width=12:format=f:unit=p|sep= |sig=stat.statfs.filled:width=12:format=f:unit=p|sep= |member=cfg.stat.balancing:width=10:format=-s|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
