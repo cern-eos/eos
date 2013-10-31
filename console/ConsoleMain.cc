@@ -828,6 +828,8 @@ client_admin_command (XrdOucString &in)
     client->Close();
     TIMING("stop", &mytiming);
 
+    delete client;
+
     if (timing)
     {
       mytiming.Print();
@@ -896,6 +898,8 @@ client_user_command (XrdOucString &in)
     client->Close();
     XrdMqMessage::UnSeal(out);
     TIMING("stop", &mytiming);
+
+    delete client;
 
     if (timing)
     {
@@ -1009,12 +1013,7 @@ int
 main (int argc, char* argv[])
 {
   char *line, *s;
-  serveruri = (char*) "root://";
-  XrdOucString HostName = XrdSysDNS::getHostName();
-  // serveruri += HostName;
-  // serveruri += ":1094";
-  serveruri += "localhost";
-
+  serveruri = (char*) "root://localhost";
 
   if (getenv("EOS_MGM_URL"))
   {
