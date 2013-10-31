@@ -98,9 +98,11 @@ WebDAVHandler::MkCol (eos::common::HttpRequest *request)
   eos::common::HttpResponse *response = 0;
 
   XrdSecEntity client;
+  
   client.name   = const_cast<char*>(mVirtualIdentity->name.c_str());
   client.host   = const_cast<char*>(mVirtualIdentity->host.c_str());
   client.tident = const_cast<char*>(mVirtualIdentity->tident.c_str());
+  snprintf(client.prot,sizeof(client.prot)-1,mVirtualIdentity->prot.c_str()); 
 
   if (!request->GetUrl().size())
   {
@@ -204,6 +206,7 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
   client.name   = const_cast<char*>(mVirtualIdentity->name.c_str());
   client.host   = const_cast<char*>(mVirtualIdentity->host.c_str());
   client.tident = const_cast<char*>(mVirtualIdentity->tident.c_str());
+  snprintf(client.prot,sizeof(client.prot)-1,mVirtualIdentity->prot.c_str()); 
 
   if (!request->GetUrl().size())
   {
@@ -353,6 +356,7 @@ WebDAVHandler::Copy (eos::common::HttpRequest *request)
   client.name   = const_cast<char*>(mVirtualIdentity->name.c_str());
   client.host   = const_cast<char*>(mVirtualIdentity->host.c_str());
   client.tident = const_cast<char*>(mVirtualIdentity->tident.c_str());
+  snprintf(client.prot,sizeof(client.prot)-1,mVirtualIdentity->prot.c_str()); 
 
   if (!request->GetUrl().size())
   {

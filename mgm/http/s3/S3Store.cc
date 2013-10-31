@@ -818,7 +818,8 @@ S3Store::GetObject (eos::common::HttpRequest *request,
       client.name = strdup(id.c_str());
       client.host = strdup(request->GetHeaders()["Host"].c_str());
       client.tident = strdup("http");
-
+      snprintf(client.prot,sizeof(client.prot)-1,"https"); 
+      
       int rc = file->open(objectpath.c_str(), 0, 0, &client, query.c_str());
       if (rc == SFS_REDIRECT)
       {
@@ -933,7 +934,8 @@ S3Store::PutObject (eos::common::HttpRequest *request,
     client.name = strdup(id.c_str());
     client.host = strdup(request->GetHeaders()["Host"].c_str());
     client.tident = strdup("http");
-
+    snprintf(client.prot,sizeof(client.prot)-1,"https"); 
+    
     int rc = file->open(objectpath.c_str(), SFS_O_TRUNC, SFS_O_MKPTH, &client,
                         query.c_str());
     if (rc == SFS_REDIRECT)
