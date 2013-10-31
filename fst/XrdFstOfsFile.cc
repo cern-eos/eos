@@ -599,10 +599,7 @@ XrdFstOfsFile::open (const char* path,
     isReplication = true;
   }
 
-  open_mode |= SFS_O_MKPTH;
   create_mode |= SFS_O_MKPTH;
-
-  struct stat statinfo;
 
   if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &updateStat)))
   {
@@ -830,12 +827,10 @@ XrdFstOfsFile::open (const char* path,
   oss_opaque += slid;
   oss_opaque += "&mgm.bookingsize=";
   oss_opaque += static_cast<int> (bookingsize);
-  oss_opaque += "&mgm.targetsize=";
-  oss_opaque += static_cast<int> (targetsize);
+  
   //............................................................................
   // Open layout implementation
   //............................................................................
-
   int rc = layOut->Open(fstPath.c_str(), open_mode, create_mode, oss_opaque.c_str());
 
   if ((!rc) && isCreation && bookingsize)
@@ -882,6 +877,8 @@ XrdFstOfsFile::open (const char* path,
     //..........................................................................
     // Get the real size of the file, not the local stripe size!
     //..........................................................................
+    struct stat statinfo;
+
     if ((retc = layOut->Stat(&statinfo)))
     {
       return gOFS.Emsg(epname, error, EIO, "open - cannot stat layout to determine file size", Path.c_str());
