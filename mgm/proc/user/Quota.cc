@@ -36,17 +36,20 @@ ProcCommand::Quota ()
 {
   XrdOucString space = pOpaque->Get("mgm.quota.space");
   gOFS->MgmStats.Add("Quota", pVid->uid, pVid->gid, 1);
-  
-  // evt. correct the space variable to be a directory path (+/)
-  struct stat buf;
-  XrdOucString sspace=space;
-  if (!space.endswith("/"))
-    sspace += "/";
-  
-  if (!gOFS->_stat(sspace.c_str(),&buf,*mError, *pVid, 0))
+
+  if (space.length())
   {
-    // this exists, so we rewrite space as asspace
-    space = sspace;
+    // evt. correct the space variable to be a directory path (+/)
+    struct stat buf;
+    XrdOucString sspace = space;
+    if (!space.endswith("/"))
+      sspace += "/";
+
+    if (!gOFS->_stat(sspace.c_str(), &buf, *mError, *pVid, 0))
+    {
+      // this exists, so we rewrite space as asspace
+      space = sspace;
+    }
   }
   
   if (mSubCmd == "lsuser")
