@@ -828,6 +828,8 @@ client_admin_command (XrdOucString &in)
     client->Close();
     TIMING("stop", &mytiming);
 
+    delete client;
+
     if (timing)
     {
       mytiming.Print();
@@ -896,6 +898,8 @@ client_user_command (XrdOucString &in)
     client->Close();
     XrdMqMessage::UnSeal(out);
     TIMING("stop", &mytiming);
+
+    delete client;
 
     if (timing)
     {
