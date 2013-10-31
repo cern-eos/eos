@@ -1009,12 +1009,7 @@ int
 main (int argc, char* argv[])
 {
   char *line, *s;
-  serveruri = (char*) "root://";
-  XrdOucString HostName = XrdSysDNS::getHostName();
-  // serveruri += HostName;
-  // serveruri += ":1094";
-  serveruri += "localhost";
-
+  serveruri = (char*) "root://localhost";
 
   if (getenv("EOS_MGM_URL"))
   {
