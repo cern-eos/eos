@@ -607,8 +607,18 @@ ProcCommand::File ()
                 // setup a TPC job
                 // ---------------------------------------------------------------
                 struct XrdCl::JobDescriptor lTPCJob;
-                lTPCJob.thirdParty = true;
-                lTPCJob.thirdPartyFallBack = false;
+                if (srcbuf.st_size)
+                {
+                  // TPC for non-empty files
+                  lTPCJob.thirdParty = true;
+                  lTPCJob.thirdPartyFallBack = false;
+                }
+                else
+                {
+                  // non-TPC for 0-size files
+                  lTPCJob.thirdParty = false;
+                  lTPCJob.thirdPartyFallBack = false;
+                }
                 lTPCJob.force = true;
                 lTPCJob.posc = false;
                 lTPCJob.coerce = false;
@@ -742,8 +752,8 @@ ProcCommand::File ()
             {
               // get the file meta data
               eos::FileMD* fmd = 0;
-              int fsid=0;
-              
+              int fsid = 0;
+
               eos::common::LayoutId::layoutid_t layoutid = 0;
               eos::common::FileId::fileid_t fileid = 0;
               {
@@ -778,8 +788,8 @@ ProcCommand::File ()
                   stdOut += "info: rewriting file with identical layout id\n";
                   // we just rewrite the file as it was
                   char hexlayout[17];
-                  snprintf(hexlayout, sizeof(hexlayout)-1,"%08llx", 
-                           (long long)layoutid);
+                  snprintf(hexlayout, sizeof (hexlayout) - 1, "%08llx",
+                           (long long) layoutid);
                   layout = hexlayout;
                   // get the space this file is currently hosted   
                   if (!fsid)
@@ -789,14 +799,15 @@ ProcCommand::File ()
                     retc = ENODEV;
                     break;
                   }
-                  
+
                   // figure out which space this fsid is in ...
                   {
                     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
                     FileSystem* filesystem = 0;
                     if (FsView::gFsView.mIdView.count((int) fsid))
                       filesystem = FsView::gFsView.mIdView[(int) fsid];
-                    if (!filesystem) {
+                    if (!filesystem)
+                    {
                       stdErr += "error: couldn't find filesystem in view\n";
                       retc = EINVAL;
                       break;
@@ -805,7 +816,8 @@ ProcCommand::File ()
                     space = filesystem->GetString("schedgroup").c_str();
                     space.erase(space.find("."));
                     stdOut += "info:: rewriting into space '";
-                    stdOut += space; stdOut += "'\n";
+                    stdOut += space;
+                    stdOut += "'\n";
                   }
                 }
 
