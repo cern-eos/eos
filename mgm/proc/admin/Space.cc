@@ -262,11 +262,14 @@ ProcCommand::Space ()
                 (key == "groupbalancer") ||
                 (key == "groupbalancer.ntx") ||
                 (key == "groupbalancer.threshold") ||
+                (key == "geobalancer") ||
+                (key == "geobalancer.ntx") ||
+                (key == "geobalancer.threshold") ||
                 (key == "balancer.threshold"))
             {
               if ((key == "balancer") || (key == "converter") ||
                   (key == "autorepair") || (key == "lru") ||
-                  (key== "groupbalancer") )
+                  (key== "groupbalancer") || (key== "geobalancer"))
               {
                 if ((value != "on") && (value != "off"))
                 {
@@ -310,6 +313,13 @@ ProcCommand::Space ()
                       else
                         stdOut += "success: groupbalancer is disabled!";
                     }
+                    if (key == "geobalancer")
+                    {
+                      if (value == "on")
+                        stdOut += "success: geobalancer is enabled!";
+                      else
+                        stdOut += "success: geobalancer is disabled!";
+                    }
                   }
                 }
               }
@@ -320,7 +330,8 @@ ProcCommand::Space ()
                 if (!errno)
                 {
                   if ((key != "balancer.threshold") &&
-                      (key != "groupbalancer.threshold"))
+                      (key != "groupbalancer.threshold") &&
+		      (key != "geobalancer.threshold"))
                   {
                     // the threshold is allowed to be decimal!
                     char ssize[1024];
