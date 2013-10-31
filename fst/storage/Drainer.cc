@@ -464,7 +464,7 @@ Storage::Drainer ()
       }
     }
     // ************************************************************************>
-    drainJobNotification.Wait(1);
+    drainJobNotification.WaitMS(1000);
   }
 }
 

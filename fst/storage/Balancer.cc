@@ -440,7 +440,7 @@ Storage::Balancer ()
       }
     }
     // ************************************************************************>
-    balanceJobNotification.Wait(1);
+    balanceJobNotification.WaitMS(1000);
   }
 }
 
