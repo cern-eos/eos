@@ -63,6 +63,14 @@ ProcCommand::Ls ()
     int listrc = 0;
     XrdOucString filter = "";
 
+    
+    if (spath.find("*")!= STR_NPOS) 
+    {
+      eos::common::Path cPath(spath.c_str());
+      spath = cPath.GetParentPath();
+      filter = cPath.GetName();
+    }
+    
     XrdOucString ls_file;
 
     if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, (const char*) 0))
@@ -123,7 +131,7 @@ ProcCommand::Ls ()
             // skip over . .. and hidden files
             continue;
           }
-          if ((filter.length()) && (filter != entryname))
+          if ((filter.length()) && (!entryname.matches(filter.c_str())))
           {
             // apply filter
             continue;

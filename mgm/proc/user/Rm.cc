@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Access.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Recycle.hh"
@@ -42,6 +43,9 @@ ProcCommand::Rm ()
   const char* inpath = spath.c_str();
   eos::common::Path cPath(inpath);
 
+  XrdOucString filter = "";
+  std::set<std::string> rmList;
+
   NAMESPACEMAP;
   info = 0;
   if (info)info = 0; // for compiler happyness
@@ -57,6 +61,13 @@ ProcCommand::Rm ()
   }
   else
   {
+    if (spath.find("*"))
+    {
+      // this is wildcard deletion 
+      eos::common::Path cPath(spath.c_str());
+      spath = cPath.GetParentPath();
+      filter = cPath.GetName();
+    }
     // check if this file exists
     XrdSfsFileExistence file_exists;
     if (gOFS->_exists(spath.c_str(), file_exists, *mError, *pVid, 0))
@@ -64,16 +75,48 @@ ProcCommand::Rm ()
       stdErr += "error: unable to run exists on path '";
       stdErr += spath.c_str();
       stdErr += "'";
-      retc = errno;  
+      retc = errno;
       return SFS_OK;
     }
-    
+
     if (file_exists == XrdSfsFileExistIsFile)
     {
       // if we have rm -r <file> we remove the -r flag
       option = "";
     }
-    
+
+    if ((file_exists == XrdSfsFileExistIsDirectory) && filter.length())
+    {
+      XrdMgmOfsDirectory dir;
+      // list the path and match against filter
+      int listrc = dir.open(spath.c_str(), *pVid, (const char*) 0);
+      if (!listrc)
+      {
+        const char* val;
+        while ((val = dir.nextEntry()))
+        {
+          XrdOucString mpath = spath;
+          XrdOucString entry=val;
+          mpath += val;
+          if ( (entry == ".") ||
+               (entry == ".."))
+          {
+            continue;
+          }
+          if (entry.matches(filter.c_str()))
+          {
+            rmList.insert(mpath.c_str());
+          }
+        }
+      }
+      // if we have rm * (whatever wildcard) we remove the -r flag
+      option = "";
+    }
+    else
+    {
+      rmList.insert(spath.c_str());
+    }
+
     // find everything to be deleted
     if (option == "r")
     {
@@ -226,10 +269,15 @@ ProcCommand::Rm ()
     }
     else
     {
-      if (gOFS->_rem(spath.c_str(), *mError, *pVid, (const char*) 0))
+      for (auto it = rmList.begin(); it != rmList.end(); ++it)
       {
-        stdErr += "error: unable to remove file/directory";
-        retc = errno;
+        if (gOFS->_rem(it->c_str(), *mError, *pVid, (const char*) 0))
+        {
+          stdErr += "error: unable to remove file/directory '";
+          stdErr += it->c_str();
+          stdErr += "'";
+          retc |= errno;
+        }
       }
     }
   }
