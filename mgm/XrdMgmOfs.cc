@@ -6383,8 +6383,60 @@ XrdMgmOfs::FSctl (const int cmd,
       static std::map<std::string, size_t> sGroupCycle;
       static XrdSysMutex sGroupCycleMutex;
       static XrdSysMutex sScheduledFidMutex;
+      static XrdSysMutex sZeroMoveMutex;
       static std::map<eos::common::FileSystem::fsid_t, time_t> sScheduledFid;
+      static std::map < eos::common::FileId::fileid_t, std::pair < eos::common::FileSystem::fsid_t, eos::common::FileSystem::fsid_t >> sZeroMove;
       static time_t sScheduledFidCleanupTime = 0;
+
+      // -----------------------------------------------------------------------
+      // deal with 0-size files 'scheduled' before, which just need 
+      // a move in the namespace
+      // -----------------------------------------------------------------------
+      bool has_zero_mv_files = false;
+      // deal with the 0-size files
+      {
+        XrdSysMutexHelper sZeroMoveMutex;
+        if (sZeroMove.size())
+        {
+          has_zero_mv_files = true;
+        }
+      }
+
+      if (has_zero_mv_files)
+      {
+        // ---------------------------------------------------------------------
+        // write lock the namespace
+        // ---------------------------------------------------------------------
+        eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex);
+        // ---------------------------------------------------------------------
+        // lock the ZeroMove;
+        // ---------------------------------------------------------------------
+        XrdSysMutexHelper sZeroMoveMutex;
+        auto it = sZeroMove.begin();
+        while (it != sZeroMove.end())
+        {
+          eos::FileMD* fmd = 0;
+          try
+          {
+            fmd = gOFS->eosFileService->getFileMD(it->first);
+            if (!fmd->getSize())
+            {
+              fmd->unlinkLocation(it->second.first);
+              fmd->removeLocation(it->second.first);
+              fmd->addLocation(it->second.second);
+              gOFS->eosView->updateFileStore(fmd);
+              eos_info("msg=\"drained 0-size file\" fxid=%llx source-fsid=%u "
+                "target-fsid=%u", it->first, it->second.first,it->second.second);
+            }
+          }
+          catch (eos::MDException &e)
+          {
+            errno = e.getErrno();
+            eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+          }
+          sZeroMove.erase(it++);
+        }
+      }
 
       if (alogid)
       {
@@ -6840,25 +6892,35 @@ XrdMgmOfs::FSctl (const int cmd,
 
                 if (!simulate)
                 {
-                  if (target_fs->GetDrainQueue()->Add(txjob))
+                  if (!size)
                   {
-                    eos_thread_info("cmd=schedule2drain msg=queued fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
-                    eos_thread_debug("cmd=schedule2drain job=%s", fullcapability.c_str());
-
-                    if (!simulate)
-                    {
-                      // this file fits
-                      sScheduledFid[fid] = time(NULL) + 3600;
-                    }
-
-                    // send submitted response
-                    XrdOucString response = "submitted";
-                    error.setErrInfo(response.length() + 1, response.c_str());
+                    // this is a zero size file, we just move the location by adding it to the static move map
+                    eos_thread_info("cmd=schedule2drain msg=zero-move fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
+                    XrdSysMutexHelper zLock(sZeroMoveMutex);
+                    sZeroMove[fid] = std::make_pair<eos::common::FileSystem::fsid_t, eos::common::FileSystem::fsid_t>(source_fsid, target_fsid);
                   }
                   else
                   {
-                    eos_thread_err("cmd=schedule2drain msg=\"failed to submit job\" job=%s", fullcapability.c_str());
-                    error.setErrInfo(0, "");
+                    if (target_fs->GetDrainQueue()->Add(txjob))
+                    {
+                      eos_thread_info("cmd=schedule2drain msg=queued fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
+                      eos_thread_debug("cmd=schedule2drain job=%s", fullcapability.c_str());
+
+                      if (!simulate)
+                      {
+                        // this file fits
+                        sScheduledFid[fid] = time(NULL) + 3600;
+                      }
+
+                      // send submitted response
+                      XrdOucString response = "submitted";
+                      error.setErrInfo(response.length() + 1, response.c_str());
+                    }
+                    else
+                    {
+                      eos_thread_err("cmd=schedule2drain msg=\"failed to submit job\" job=%s", fullcapability.c_str());
+                      error.setErrInfo(0, "");
+                    }
                   }
                 }
 
