@@ -27,6 +27,9 @@
 #include <XrdPosix/XrdPosixXrootd.hh>
 #include <XrdClient/XrdClient.hh>
 #include <XrdOuc/XrdOucString.hh>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 /*-----------------------------------------------------------------------------*/
 
 XrdPosixXrootd posixXrootd;
@@ -41,7 +44,7 @@ int main (int argc, char* argv[]) {
   
   
   int fdWrite = XrdPosixXrootd::Open(urlFile.c_str(),
-				     kXR_async | kXR_mkpath | kXR_open_updt | kXR_new,
+				     O_CREAT|O_RDWR|O_TRUNC,
 				     kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or );
  
   if (fdWrite>=0) {

@@ -86,6 +86,10 @@ add_executable (xrdcppartial
  	        XrdCpPartial.cc
 )
 
+add_executable (xrdcpupdate
+ 	        XrdCpUpdate.cc
+)
+
 add_executable (eoschecksumbench
  	        EosChecksumBenchmark.cc
 		../fst/checksum/Adler.cc
@@ -131,6 +135,7 @@ target_link_libraries(xrdcpshrink XrdPosix XrdUtils)
 target_link_libraries(xrdcptruncate XrdPosix XrdUtils)
 target_link_libraries(xrdcpposixcache XrdPosix XrdUtils)
 target_link_libraries(xrdcppartial XrdPosix XrdUtils)
+target_link_libraries(xrdcpupdate XrdPosix XrdUtils)
 target_link_libraries(eoschecksumbench XrdPosix eosCommon XrdUtils ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(eos-io-tool XrdCl XrdServer EosFstIo-Static)
 
@@ -150,13 +155,14 @@ set_target_properties ( xrdcpdownloadrandom PROPERTIES COMPILE_FLAGS "-D_FILE_OF
 set_target_properties ( xrdcpshrink PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcptruncate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcppartial PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcpupdate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( xrdcpposixcache PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( eosnsbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( eoshashbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
 set_target_properties ( eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -msse4.2" )
 
 INSTALL( TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcpappend
-	 xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial
+	 xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpupdate
 	 xrdcpposixcache eoschecksumbench eosnsbench eoshashbench eos-udp-dumper eos-mmap
 	 eos-io-tool
 	 RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR} )
