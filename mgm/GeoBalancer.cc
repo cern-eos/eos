@@ -41,7 +41,7 @@
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
 
-#define CACHE_LIFE_TIME 60 // seconds
+#define CACHE_LIFE_TIME 300 // seconds
 
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
@@ -318,7 +318,13 @@ GeoBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
 
       if (fmd->getContainerId() == 0)
         return 0;
-
+    
+      if (fmd->getSize() == 0)
+        return 0;
+       
+      if (fmd->getNumLocation() == 0)
+        return 0;
+      
       if (fileIsInDifferentLocations(fmd))
       {
         eos_static_debug("filename=%s fid=%d is already in more than "
