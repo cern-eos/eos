@@ -167,3 +167,23 @@
         rotate 200
         compress
 }
+
+/var/log/eos/mgm/GroupBalancer.log {
+	missingok
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
+
+/var/log/eos/mgm/GeoBalancer.log {
+	missingok
+	daily
+        copytruncate
+        create 755 root root
+        dateext
+        rotate 200
+        compress
+}
