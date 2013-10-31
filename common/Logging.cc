@@ -206,13 +206,13 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
     {
       buffer[15] = 0;
 
-      fprintf(gLogFanOut[File.c_str()], "%s %s%s%s %-30s %s \n", 
-              buffer, 
-              GetLogColour(GetPriorityString(priority)), 
-              GetPriorityString(priority), 
-              EOS_TEXTNORMAL, 
-	      sourceline,
-	      ptr);
+      fprintf(gLogFanOut[File.c_str()], "%s %s%s%s %-30s %s \n",
+              buffer,
+              GetLogColour(GetPriorityString(priority)),
+              GetPriorityString(priority),
+              EOS_TEXTNORMAL,
+              sourceline,
+              ptr);
 
       fflush(gLogFanOut[File.c_str()]);
       buffer[15] = ' ';
@@ -221,17 +221,18 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
     {
       if (gLogFanOut.count("#"))
       {
-	buffer[15] = 0;
+        buffer[15] = 0;
 
-        fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %16s %s \n",
+        fprintf(gLogFanOut["#"], "%s %s%s%s [%05d/%05d] %16s ::%-16s %s \n",
                 buffer,
-		GetLogColour(GetPriorityString(priority)),
-		GetPriorityString(priority),
+                GetLogColour(GetPriorityString(priority)),
+                GetPriorityString(priority),
                 EOS_TEXTNORMAL,
                 vid.uid,
                 vid.gid,
-		truncname.c_str(),
-		ptr
+                truncname.c_str(),
+                func,
+                ptr
                 );
 
         fflush(gLogFanOut["#"]);

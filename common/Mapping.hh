@@ -128,6 +128,7 @@ public:
     vid.gid_list.clear();
     vid.uid_list.push_back(99);
     vid.gid_list.push_back(99);
+    vid.name="nobody";
     vid.sudoer = false;
   }
 
@@ -143,6 +144,9 @@ public:
     vid.gid_list.clear();
     vid.uid_list.push_back(0);
     vid.gid_list.push_back(0);
+    vid.name="root";
+    vid.prot="local";
+    vid.tident="service@localhost";
     vid.sudoer = false;
   }
 
