@@ -143,9 +143,7 @@ XrdFstOfsFile::openofs (const char* path,
                         XrdSfsFileOpenMode open_mode,
                         mode_t create_mode,
                         const XrdSecEntity* client,
-                        const char* opaque,
-                        bool openBlockXS,
-                        unsigned long lid)
+                        const char* opaque)
 {
   return XrdOfsFile::open(path, open_mode, create_mode, client, opaque);
 }
