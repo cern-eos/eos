@@ -3,7 +3,7 @@
 Citrine
 ========
 
-Citrine is code name for the EOS development branch in 2014.
+``2014++`` Citrine is code name for the EOS development branch in 2014.
 
 Tentative Roadmap
 -----------------
