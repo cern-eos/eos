@@ -188,6 +188,21 @@ XrdFstOfsFile::open (const char* path,
   eos::common::StringConversion::MaskTag(maskOpaque, "cap.msg");
   eos::common::StringConversion::MaskTag(maskOpaque, "authz");
 
+  // For RAIN layouts if the opaque information contains the tag fst.store=1 the 
+  // corrupted files are recovered back on disk. There is no other way to make
+  // the distinction between and open for write and open for recovery since XrdCl
+  // open in RDWR mode for cases
+  bool store_recovery = false;
+  XrdOucEnv recvOpaque(stringOpaque.c_str());
+
+  if ((val = recvOpaque.Get("fst.store")))
+  {
+    if (strncmp(val, "1", 1) == 0)
+    {
+      store_recovery = true;
+      open_mode = SFS_O_RDWR;
+    }
+  }
   
   if ((open_mode & (SFS_O_WRONLY | SFS_O_RDWR | SFS_O_CREAT | SFS_O_TRUNC)) != 0)
   {
@@ -374,7 +389,6 @@ XrdFstOfsFile::open (const char* path,
   stringOpaque += "&mgm.path=";
   stringOpaque += Path.c_str();
   openOpaque = new XrdOucEnv(stringOpaque.c_str());
-
 
   if ((val = openOpaque->Get("mgm.logid")))
   {
@@ -599,8 +613,6 @@ XrdFstOfsFile::open (const char* path,
     isReplication = true;
   }
 
-  create_mode |= SFS_O_MKPTH;
-
   if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &updateStat)))
   {
     //..........................................................................
@@ -614,6 +626,7 @@ XrdFstOfsFile::open (const char* path,
     updateStat.st_mtime = 0;
     // force the create flag
     open_mode |= SFS_O_CREAT;
+    create_mode |= SFS_O_MKPTH;
   }
   else
   {
@@ -751,17 +764,6 @@ XrdFstOfsFile::open (const char* path,
   }
 
   SetLogId(logId, vid, tident);
-
-  // For RAIN layouts if the opaque information contains the tag fst.store=1
-  // the corrupted files are recovered back on disk 
-  bool store_recovery = false;
-
-  if ((val = openOpaque->Get("fst.store")))
-  {
-    if (strncmp(val, "1", 1) == 0)
-      store_recovery = true;
-  }
-
   eos_info("fstpath=%s", fstPath.c_str());
 
   //............................................................................

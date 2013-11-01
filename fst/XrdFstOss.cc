@@ -494,7 +494,7 @@ XrdFstOss::Stat (const char* path,
   }
   else
   {
-    retc = errno;
+    retc = (errno ? -errno : -ENOMSG);
   }
 
   return retc;
