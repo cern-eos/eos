@@ -155,6 +155,11 @@ else (NOT MICROHTTPD_FOUND)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
 endif (NOT MICROHTTPD_FOUND)
 
+#####################################################
+# generate client commands doc
+#####################################################
+ADD_CUSTOM_TARGET(doc COMMAND python ${PROJECT_SOURCE_DIR}/doc/generate_cli_command_docs.py)
+
 ######################################################################################################################
 # install targets
 ######################################################################################################################
