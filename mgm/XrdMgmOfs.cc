@@ -6897,7 +6897,7 @@ XrdMgmOfs::FSctl (const int cmd,
                     // this is a zero size file, we just move the location by adding it to the static move map
                     eos_thread_info("cmd=schedule2drain msg=zero-move fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
                     XrdSysMutexHelper zLock(sZeroMoveMutex);
-                    sZeroMove[fid] = std::make_pair<eos::common::FileSystem::fsid_t, eos::common::FileSystem::fsid_t>(source_fsid, target_fsid);
+                    sZeroMove[fid] = std::make_pair(source_fsid, target_fsid);
                   }
                   else
                   {
