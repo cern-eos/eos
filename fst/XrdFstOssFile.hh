@@ -35,7 +35,6 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOss/XrdOss.hh"
 #include "XrdSys/XrdSysPthread.hh"
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -195,11 +194,28 @@ public:
   virtual int Close (long long* retsz = 0);
 
 private:
-
+ 
   XrdOucString mPath; ///< path of the file
   bool mIsRW; ///< mark if opened for rw operations
   XrdSysRWLock* mRWLockXs; ///< rw lock for the block xs
   CheckSum* mBlockXs; ///< block xs object
+  char* mPieceStart; ///< start piece aligned to the blockxs offset
+  char* mPieceEnd; ///< end piece aligned to the blockxs offset
+
+  //--------------------------------------------------------------------------
+  //! Align request to the blockchecksum offset so that the whole request is
+  //! checksummed
+  //!
+  //! @param buffer buffer holding the data
+  //! @param offset request offset
+  //! @param lenght request length
+  //!
+  //! @return vector of aligned requests. There should never be more than 3
+  //!         requests since at most both end are unaligned
+  //!
+  //--------------------------------------------------------------------------
+  std::vector<XrdOucIOVec> AlignBuffer(void* buffer, off_t offset, size_t length);
+
 };
 
 EOSFSTNAMESPACE_END
