@@ -1,5 +1,8 @@
 .. highlight:: rst
 
+.. index::
+   single: Auto Repair
+
 Auto Repair
 ===========
 

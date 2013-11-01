@@ -1,5 +1,8 @@
 .. highlight:: rst
 
+.. index::
+   pair: HTTP; WebDAV
+
 HTTP access
 =======================
 
@@ -59,7 +62,7 @@ Kerberos REALM and keytab file:
    export EOS_NGINX_GSS_REALM=CERN.CH
 
 Frontend- or Backend- Redirection
-+++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++
 NGINX is configured by default to forward redirects to the client.  
 However many WebDAV clients don't follow redirects. You can enable
 internal (backend-) redirection proxying the full traffic like this:

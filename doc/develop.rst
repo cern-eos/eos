@@ -1,4 +1,6 @@
 .. highlight:: rst
+.. index::
+   single: Developing EOS
 
 Develop
 =======================

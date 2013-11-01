@@ -1,5 +1,8 @@
 .. highlight:: rst
 
+.. index::
+   single: Permission System
+
 Permission System
 =================
 

@@ -1,5 +1,8 @@
 .. highlight:: rst
 
+.. index::
+   single: Amber
+
 Amber
 ========
 .. note::

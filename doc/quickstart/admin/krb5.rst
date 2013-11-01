@@ -1,5 +1,5 @@
 .. index::
-   single: Enable kerberos security
+   single: Kerberos Security 
 
 .. _eos_admin_krb5:
 

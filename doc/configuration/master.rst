@@ -1,5 +1,8 @@
 .. highlight:: rst
 
+.. index::
+   single: Master/Slave Configuration
+
 Master/Slave Configuration
 ==========================
 

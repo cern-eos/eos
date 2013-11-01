@@ -1,5 +1,5 @@
 .. index::
-   single: EOS Installation
+   single: Installation
 
 .. _eos_base_install:
 

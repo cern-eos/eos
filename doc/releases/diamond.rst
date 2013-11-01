@@ -1,5 +1,8 @@
 .. highlight:: rst
 
+.. index::
+   single: Diamon
+
 Diamond
 ========
 

@@ -1,5 +1,9 @@
 .. highlight:: rst
 
+.. index::
+   pair: Mounting EOS; FUSE
+
+
 FUSE Client
 ===========
 
@@ -18,7 +22,7 @@ There a two FUSE client modes available:
 
 
 **eosfsd** End-User mount
-----------------------
+-------------------------
 The end user mount supports the strong authentication methods in EOS:
 
 * **KRB5**
@@ -78,7 +82,7 @@ Log File
 In case of troubles you can find a log file for private mounts under ``/tmp/eos-fuse-<uid>.log``.
 
 **eosd** Shared mount
-------------------
+---------------------
 If you have machines shared by many users like batch nodes it makes sense to use 
 the shared FUSE mount.
 

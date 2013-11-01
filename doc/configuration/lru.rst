@@ -1,5 +1,9 @@
 .. highlight:: rst
 
+.. index::
+   single:: LRU Policies
+   see: Polcies; LRU Policies
+
 LRU Engine
 ==========
 The LRU engine scans in a defined interval the full directory hierarchy and applies 

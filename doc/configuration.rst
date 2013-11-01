@@ -1,5 +1,9 @@
 .. _configuration:
 
+.. index::
+   single: Configuring EOS 
+
+
 Configuration
 ===============================
 

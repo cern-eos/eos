@@ -1,5 +1,8 @@
 .. highlight:: rst
 
+.. index::
+   single: Transfer System
+
 Transfer System
 ================
 
@@ -207,14 +210,15 @@ The transfer state machine is as follows:
 
 .. epigraph::
     
-   ==========
+   ============================== =
    state
-   ==========
+   ============================== =
    inserted
    validated
    scheduled
    stagein | stageout | running
    done | failed
+   ============================== =
 
 Interaction with the transfer queue is done via the **eos transfer** CLI.
 

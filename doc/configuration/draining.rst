@@ -1,5 +1,8 @@
 .. highlight:: rst
 
+.. index::
+   single: Drain System
+
 Drain System
 ============
 
@@ -124,7 +127,7 @@ applied to all filesystems in that space when they are moved into or registered)
 
 One can see the settings via the space command:
 
-.. code-block::
+.. code-block:: bash
    EOS Console [root://localhost] |/> space status default
    # ------------------------------------------------------------------------------------
    # Space Variables
@@ -146,7 +149,7 @@ One can see the settings via the space command:
 They can be modified by setting the *drainperiod* or *graceperiod* variable in 
 number of seconds:
 
-.. code-block::
+.. code-block:: bash
 
    EOS Console [root://localhost] |/> space config default space.drainperiod=86400
    success: setting drainperiod=86400
@@ -160,7 +163,7 @@ number of seconds:
 If you want to apply this setting to all filesystems in that space, 
 you have additionally to call:
 
-.. code-block:: 
+.. code-block:: bash
 
    EOS Console [root://localhost] |/> space config default fs.drainperiod=86400
    EOS Console [root://localhost] |/> space config default fs.graceperiod=86400
@@ -168,7 +171,7 @@ you have additionally to call:
 If you want a global overview about running drain processes, you can get the 
 number of running drain transfers by space, by group, by node and by filesystem:
 
-.. code-block::
+.. code-block:: bash
 
    EOS Console [root://localhost] |/> space ls --io
    #----------------------------------------------------------------------------------------------------------------------------------------------------------------------
