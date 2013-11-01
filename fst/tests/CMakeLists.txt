@@ -41,6 +41,7 @@ TARGET_LINK_LIBRARIES(EosFstTests
 		      XrdCl   
 		      XrdUtils
 		      eosCommon	      
+                      EosFstOss
 		      EosFstIo-Static
 		      ${OPENSSL_LIBRARIES}
 	              ${CPPUNIT_LIBRARIES})

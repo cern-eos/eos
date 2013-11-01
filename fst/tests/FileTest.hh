@@ -31,6 +31,14 @@
 #include "TestEnv.hh"
 /*----------------------------------------------------------------------------*/
 
+//! Ugly hack to expose the private functions for testing
+#define protected public
+#define private   public
+#include "fst/XrdFstOssFile.hh"
+#include "fst/layout/RaidMetaLayout.hh"
+#undef protected
+#undef private
+
 //------------------------------------------------------------------------------
 //! Declaration of FileTest class
 //------------------------------------------------------------------------------
@@ -39,6 +47,7 @@ class FileTest: public CppUnit::TestCase
   CPPUNIT_TEST_SUITE(FileTest);
     CPPUNIT_TEST(ReadVTest);
     CPPUNIT_TEST(SplitReadVTest);
+    CPPUNIT_TEST(AlignBufferTest);
   CPPUNIT_TEST_SUITE_END();
 
  public:
@@ -64,7 +73,13 @@ class FileTest: public CppUnit::TestCase
   //! readV request to all the corresponding stripe files
   //----------------------------------------------------------------------------
   void SplitReadVTest();
-  
+
+
+  //----------------------------------------------------------------------------
+  //! Test the align method used in ht XrdFstOssFile to align requests to the
+  //! block checksum size
+  //----------------------------------------------------------------------------
+  void AlignBufferTest();
 
  private:
 

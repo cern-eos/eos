@@ -26,7 +26,7 @@
 #include "common/LayoutId.hh"
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/layout/RaidDpLayout.hh"
-#include "fst/layout/RaidMetaLayout.hh"
+#include "fst/layout/ReedSLayout.hh"
 #include "fst/checksum/CRC32C.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -178,6 +178,7 @@ FileTest::SplitReadVTest()
                                            eos::common::LayoutId::kXrdCl);
   
   // Create readV request
+  int num_datasets = 4;
   char* buff = new char[1024*1024];
   XrdCl::ChunkList readV;
   XrdCl::ChunkList correct_rdv;
@@ -187,7 +188,7 @@ FileTest::SplitReadVTest()
   char* ptr_off, *ptr_len;
   
   // Loop through all the sets of data in the test environment
-  for (int i = 1; i < 4; i++)
+  for (int i = 1; i < num_datasets; i++)
   {
     // Read the initial offsets
     sstr.str("");
@@ -259,4 +260,80 @@ FileTest::SplitReadVTest()
   // Free memory
   delete[] buff;
 }
+
+
+//------------------------------------------------------------------------------
+// Test the align method used in ht XrdFstOssFile to align requests to the
+// block checksum size
+//------------------------------------------------------------------------------
+void
+FileTest::AlignBufferTest()
+{
+  using namespace eos::fst;
+  int num_datasets = 4;
+  char* ptr_off, *ptr_len;
+  size_t len_req;
+  off_t off_req;
+  std::string str_off;
+  std::string str_len;
+  std::stringstream sstr;
+  XrdFstOssFile* ossfile = new XrdFstOssFile("test_id");
+  std::vector<XrdOucIOVec> expect_resp;
+
+  for (int set = 1; set < num_datasets; ++set)
+  {
+    // Read in the offset and legth of the request
+    sstr.str("");
+    sstr << "align" << set << "_off";
+    off_req = (off_t)atoi(mEnv->GetMapping(sstr.str()).c_str());
+    sstr.str("");
+    sstr << "align" << set << "_len";
+    len_req = (size_t)atoi(mEnv->GetMapping(sstr.str()).c_str());
+    char* buffer = new char[len_req];
+
+    //Read the correct answer to compare with
+    // Read the initial offsets
+    sstr.str("");
+    sstr << "align" << set << "_resp_off";
+    str_off = mEnv->GetMapping(sstr.str());
+    XrdOucTokenizer tok_off = XrdOucTokenizer((char*)str_off.c_str());
+
+    // Read the initial lengths
+    sstr.str("");
+    sstr << "align" << set << "_resp_len";
+    str_len = mEnv->GetMapping(sstr.str());
+    XrdOucTokenizer tok_len = XrdOucTokenizer((char*)str_len.c_str());
+    ptr_off = tok_off.GetLine();
+    ptr_len = tok_len.GetLine();
+    expect_resp.clear();
+    
+    while ((ptr_off = tok_off.GetToken()) &&  (ptr_len = tok_len.GetToken()))
+    {
+      XrdOucIOVec expect_piece = {atol(ptr_off), atoi(ptr_len), 0, 0};
+      expect_resp.push_back(expect_piece);
+    }
+
+    // Compute the alignment 
+    std::vector<XrdOucIOVec> resp = ossfile->AlignBuffer(buffer, off_req, len_req);
+    //std::cout << "size exp:" << expect_resp.size()
+    //          << " size resp:" << resp.size() << std::endl;
+    CPPUNIT_ASSERT(resp.size() == expect_resp.size());
+      
+    for (uint32_t indx = 0; indx < resp.size(); ++indx)
+    {
+      //std::cout << "resp off:" << resp[indx].offset
+      //          << " len:" << resp[indx].size << std::endl;
+      //std::cout << "exp off:" << expect_resp[indx].offset
+      //          << " len:" << expect_resp[indx].size << std::endl;
+      CPPUNIT_ASSERT(resp[indx].offset == expect_resp[indx].offset);
+      CPPUNIT_ASSERT(resp[indx].size == expect_resp[indx].size);
+    }
+  
+    delete[] buffer;
+  }
+
+  delete ossfile;
+}
+
+
 

@@ -228,40 +228,6 @@ public:
   //--------------------------------------------------------------------------
   virtual int Stat (struct stat* buf);
 
-
-  //--------------------------------------------------------------------------
-  //! Split vector read request into requests for each of the data stripes with
-  //! the offset and length of the new chunks adjusted to the LOCAL file stripe
-  //!
-  //! @param chunkList list of chunks to read from the whole file
-  //! @param sizeHdr header size for local file which needs to be added to the
-  //!        final local offset value
-  //!
-  //! @return vector of ChunkInfo structures containing the readv requests
-  //!         corresponding to each of the stripe files making up the original
-  //!         file.
-  //!
-  //--------------------------------------------------------------------------
-  std::vector<XrdCl::ChunkList> SplitReadV(XrdCl::ChunkList& chunkList,
-                                           uint32_t sizeHdr = 0);
-
-
-  //--------------------------------------------------------------------------
-  //! Split read request into requests spanning just one chunk so that each
-  //! one is read from its corresponding stripe file. The offset values are
-  //! GLOBAL i.e. they are relative to their position in the original file
-  //!
-  //! @param off read offset
-  //! @param len read length 
-  //! @param buff buffer hoding the read data
-  //!
-  //! @return vector of ChunkInfo structures containing the read requests
-  //!         corresponding to each of the chunks making up the original file
-  //!
-  //--------------------------------------------------------------------------
-  XrdCl::ChunkList SplitRead(uint64_t off, uint32_t len, char* buff);
-
-
 protected:
 
   bool mIsRw; ///< mark for writing
@@ -478,6 +444,40 @@ private:
   //--------------------------------------------------------------------------
   virtual uint64_t
   GetGlobalOff(int stripe_id, uint64_t local_off) = 0;
+
+  
+  //--------------------------------------------------------------------------
+  //! Split vector read request into requests for each of the data stripes with
+  //! the offset and length of the new chunks adjusted to the LOCAL file stripe
+  //!
+  //! @param chunkList list of chunks to read from the whole file
+  //! @param sizeHdr header size for local file which needs to be added to the
+  //!        final local offset value
+  //!
+  //! @return vector of ChunkInfo structures containing the readv requests
+  //!         corresponding to each of the stripe files making up the original
+  //!         file.
+  //!
+  //--------------------------------------------------------------------------
+  std::vector<XrdCl::ChunkList> SplitReadV(XrdCl::ChunkList& chunkList,
+                                           uint32_t sizeHdr = 0);
+
+
+  //--------------------------------------------------------------------------
+  //! Split read request into requests spanning just one chunk so that each
+  //! one is read from its corresponding stripe file. The offset values are
+  //! GLOBAL i.e. they are relative to their position in the original file
+  //!
+  //! @param off read offset
+  //! @param len read length 
+  //! @param buff buffer hoding the read data
+  //!
+  //! @return vector of ChunkInfo structures containing the read requests
+  //!         corresponding to each of the chunks making up the original file
+  //!
+  //--------------------------------------------------------------------------
+  XrdCl::ChunkList SplitRead(uint64_t off, uint32_t len, char* buff);
+
 
 };
 

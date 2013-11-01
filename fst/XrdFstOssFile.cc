@@ -188,7 +188,7 @@ XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
   
   if (!mBlockXs)
   {
-    // If we don't have blockxs enabled then there is no point in alinging
+    // If we don't have blockxs enabled then there is no point in aligning
     XrdOucIOVec piece = {(long long)offset, int(length), 0, (char*)buffer};
     pieces.push_back(piece);
   }

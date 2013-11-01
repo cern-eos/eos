@@ -33,12 +33,8 @@ EOSFSTTEST_NAMESPACE_BEGIN
 // Constructor
 //
 // Notice:
-// File /eos/dev/test/auth/file1MB.dat is created as follows:
-// dd if=/dev/zero count=1024 bs=1024 | tr '\000' '\001' > /eos/dev/file1MB.dat
-//
-// And the extended attributes on the /eos/dev/test/auth directory are:
-// sys.forced.checksum="adler"
-// sys.forced.space="default"
+// File file32MB.dat is created as follows:
+// dd if=/dev/zero count=32 bs=1M | tr '\000' '\001' > /eos/dev/test/fst/plain/file32MB.dat
 //
 //------------------------------------------------------------------------------
 TestEnv::TestEnv()
@@ -48,6 +44,8 @@ TestEnv::TestEnv()
   mMapParam.insert(std::make_pair("raiddp_file", "/eos/dev/test/fst/raiddp/file32MB.dat"));
   mMapParam.insert(std::make_pair("reeds_file", "/eos/dev/test/fst/raid6/file32MB.dat"));
   mMapParam.insert(std::make_pair("file_size", "33554432")); // 32MB
+
+
   // ReadV sequences used for testing
   // 4KB read out of each MB
   mMapParam.insert(std::make_pair("off1", "0 1048576 2097152 3145728 4194304 5242880 "));
@@ -80,7 +78,7 @@ TestEnv::TestEnv()
   // Test set 3
   mMapParam.insert(std::make_pair("off3", "1048576"));
   mMapParam.insert(std::make_pair("len3", "2097169"));
-  // Correct responses for set 2
+  // Correct responses for set 3
   mMapParam.insert(std::make_pair("off3_stripe0", ""));
   mMapParam.insert(std::make_pair("len3_stripe0", ""));
   mMapParam.insert(std::make_pair("off3_stripe1", "0"));
@@ -89,7 +87,24 @@ TestEnv::TestEnv()
   mMapParam.insert(std::make_pair("len3_stripe2", "1048576"));
   mMapParam.insert(std::make_pair("off3_stripe3", "0"));
   mMapParam.insert(std::make_pair("len3_stripe3", "17"));
-    
+
+  
+  // Test sequences for the AlingBuffer method
+  // Test set 1
+  mMapParam.insert(std::make_pair("align1_off", "4095"));
+  mMapParam.insert(std::make_pair("align1_len", "8194"));
+  mMapParam.insert(std::make_pair("align1_resp_off", "0, 4096, 12288"));
+  mMapParam.insert(std::make_pair("align1_resp_len", "4096, 8192, 4096"));
+  // Test set 2
+  mMapParam.insert(std::make_pair("align2_off", "4095"));
+  mMapParam.insert(std::make_pair("align2_len", "1048576"));
+  mMapParam.insert(std::make_pair("align2_resp_off", "0 4096 1048576"));
+  mMapParam.insert(std::make_pair("align2_resp_len", "4096 1044480 4096"));
+  // Test set 3
+  mMapParam.insert(std::make_pair("align3_off", "4096"));
+  mMapParam.insert(std::make_pair("align3_len", "1048576"));
+  mMapParam.insert(std::make_pair("align3_resp_off", "4096"));
+  mMapParam.insert(std::make_pair("align3_resp_len", "1048576"));    
 }
 
 
