@@ -5,7 +5,8 @@ Configuration
 
 .. toctree::
    :maxdepth: 1
-    
+
+   configuration/autorepair    
    configuration/balancing
    configuration/converter	
    configuration/draining      
