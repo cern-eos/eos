@@ -14,6 +14,7 @@ Here is a list of new features coming with this version
    ====================================== ===============================================================
    Feature                                Description  
    ====================================== ===============================================================
+   :doc:`../configuration/autorepair`     Autorepair broken files detected during an FST scan 
    :doc:`../configuration/balancing`      Re-implementation of balancing algorithm
    :doc:`../configuration/converter`      Asynchronous conversion queue doing file conversion
    :doc:`../configuration/draining`       Re-implementation of drain algorithm
