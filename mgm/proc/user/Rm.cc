@@ -61,7 +61,7 @@ ProcCommand::Rm ()
   }
   else
   {
-    if (spath.find("*"))
+    if (spath.find("*")!=STR_NPOS)
     {
       // this is wildcard deletion 
       eos::common::Path cPath(spath.c_str());
