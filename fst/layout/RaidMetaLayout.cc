@@ -193,7 +193,7 @@ RaidMetaLayout::Open (const std::string& path,
  //............................................................................
  if (mStoreRecovery)
  {
-   flags |= SFS_O_RDWR;
+   flags = SFS_O_RDWR;
  }
  else if (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY))
  {
@@ -716,6 +716,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
                       XrdSfsXferSize length)
 {
  eos_debug("offset=%llu, length=%i", offset, length);
+ XrdSysMutexHelper scope_lock(mExclAccess);
  eos::common::Timing rt("read");
  COMMONTIMING("start", &rt);
  off_t nread = 0;
@@ -950,6 +951,7 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
                        const char* buffer,
                        XrdSfsXferSize length)
 {
+ XrdSysMutexHelper scope_lock(mExclAccess);
  eos::common::Timing wt("write");
  COMMONTIMING("start", &wt);
  int64_t nwrite;
@@ -1399,7 +1401,7 @@ int
 RaidMetaLayout::Sync ()
 {
  int ret = SFS_OK;
-
+ 
  if (mIsOpen)
  {
    //..........................................................................
@@ -1574,6 +1576,7 @@ RaidMetaLayout::Stat (struct stat* buf)
 int
 RaidMetaLayout::Close ()
 {
+ XrdSysMutexHelper scope_lock(mExclAccess);
  eos::common::Timing ct("close");
  COMMONTIMING("start", &ct);
  int rc = SFS_OK;

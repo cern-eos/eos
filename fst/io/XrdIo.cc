@@ -286,6 +286,8 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
     uint32_t shift;
     std::map<uint64_t, ReadaheadBlock*>::iterator iter;
 
+    mPrefetchMutex.Lock(); // -->
+
     while (length)
     {
       iter = FindBlock(offset);
@@ -315,6 +317,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
           if (!PrefetchBlock(offset + mBlocksize, false, timeout))
           {
             eos_warning("warning=failed to send prefetch request(2)");
+            break;
           }
         }
         
@@ -388,6 +391,8 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
         }
       }
     }
+
+    mPrefetchMutex.UnLock(); // -->
 
     //..........................................................................
     // If readahead not useful, use the classic way to read

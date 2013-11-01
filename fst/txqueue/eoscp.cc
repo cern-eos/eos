@@ -874,7 +874,7 @@ main (int argc, char* argv[])
       {
         // If we don't need to recover the source and we were not told explicitly
         // that this is a RAIN transfer
-        if (!isRaidTransfer)
+        if (!isRaidTransfer && !doStoreRecovery)
         {
           //.......................................................................
           // Test if we can do parallel IO access
@@ -1648,9 +1648,14 @@ main (int argc, char* argv[])
       }
 
       location = src_location[i].first + src_location[i].second;
+      XrdCl::OpenFlags::Flags xrdcl_flags = XrdCl::OpenFlags::Read;
+      XrdCl::Access::Mode xrdcl_mode = XrdCl::Access::UR |  XrdCl::Access::UW |
+        XrdCl::Access::GR | XrdCl::Access::OR;
 
       if (doStoreRecovery)
       {
+        xrdcl_flags = XrdCl::OpenFlags::Update;
+        
         if ((location.find("?") == std::string::npos))
           location += "?fst.store=1";
         else
@@ -1658,7 +1663,7 @@ main (int argc, char* argv[])
       }
       
       XrdCl::File* file = new XrdCl::File();
-      status = file->Open(location, XrdCl::OpenFlags::Read);
+      status = file->Open(location, xrdcl_flags, xrdcl_mode);
       if (!status.IsOK())
       {
         std::string errmsg;

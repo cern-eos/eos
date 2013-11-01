@@ -273,6 +273,7 @@ protected:
   XrdSecEntity* mSecEntity; ///< security information
   eos::common::LayoutId::eIoType mIoType; ///< type of access ( ofs/xrd )
   uint16_t mTimeout; ///< timeout value used for all operations on this file
+  XrdSysMutex mExclAccess; ///< mutex to ensure exclusive access
 
 };
 

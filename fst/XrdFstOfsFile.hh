@@ -83,9 +83,7 @@ public:
                XrdSfsFileOpenMode openMode,
                mode_t createMode,
                const XrdSecEntity* client,
-               const char* opaque = 0,
-               bool openBlockXS = false,
-               unsigned long lid = 0);
+               const char* opaque = 0);
 
 
   //--------------------------------------------------------------------------
