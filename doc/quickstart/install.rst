@@ -23,11 +23,21 @@ For client
 
    yum install eos-client
 
-For admin
+For server 
 
 .. code-block:: text
 
    yum install eos-server eos-client eos-testkeytab eos-fuse jemalloc
+
+For HTTP server
+   
+.. code-block:: text
+    
+   yum install eos-nginx
+
+For GridFTP server
+
+   yum install eos-dsi
 
 For EOS test on MGM (namespace node)
 

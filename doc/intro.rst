@@ -11,7 +11,8 @@ The first release has been put into production in June 2010.
 
 Software Versions
 -----------------
-The current production version is called Amber (v0.2.38) and a new production branch Beryll is in preparation (v0.3.X).
+The stable but phaseing-out production version is called **Amber** v0.2.46 and 
+the a new production version called **Beryll** is v0.3.1-24. 
 
 License
 -------
@@ -19,7 +20,8 @@ Since release version 0.1.1 EOS is now available under GPL v3 license.
 
 Production Systems
 ------------------
-We run currently five EOS instances at CERN and one at FERMILAB based on the 0.2 amber release managing more than 20k harddisks.
+We run currently five EOS instances at CERN and one at FERMILAB based on 
+**Amber** and **Beryll** releases managing more than 20k harddisks.
 
 .. image:: http://eos.cern.ch/images/stories/Screen_Shot_2013-05-31_at_11.10.25_AM_copy.png
      :align: center

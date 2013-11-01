@@ -4,14 +4,18 @@ Configuration
 ===============================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
     
-   configuration/converter	      
+   configuration/balancing
+   configuration/converter	
+   configuration/draining      
    configuration/groupbalancer   
    configuration/geobalancer
-   configuration/master
    configuration/http
    configuration/lru
+   configuration/master
+   configuration/permission
    configuration/quota
    configuration/recyclebin
+   configuration/transfer
 
