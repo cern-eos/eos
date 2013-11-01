@@ -9,6 +9,7 @@ Configuration
    configuration/balancing
    configuration/converter	
    configuration/draining      
+   configuration/fuse
    configuration/groupbalancer   
    configuration/geobalancer
    configuration/http

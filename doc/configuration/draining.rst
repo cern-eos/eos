@@ -154,7 +154,7 @@ number of seconds:
    EOS Console [root://localhost] |/> space config default space.graceperiod=86400
    success: setting graceperiod=86400
 
-.. ::warning 
+.. warning:: 
    This defines the variables only if filesystems are registered or moved into that space.
 
 If you want to apply this setting to all filesystems in that space, 

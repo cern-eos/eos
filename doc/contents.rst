@@ -11,6 +11,8 @@ Documentation
    install
    quickstart
    develop
+   using
+   releases
 
 
 
