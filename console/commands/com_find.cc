@@ -31,7 +31,8 @@ extern int com_file (char*);
 static void
 print_find_help(const ConsoleCliCommand *command, const char **options)
 {
-  fprintf (stdout, "find OPTIONS : %s\n", command->description().c_str());
+  fprintf (stdout, "Usage: find OPTIONS : %s\n",
+           command->description().c_str());
   command->printHelp();
   fprintf (stdout, "\nIn addition, you can use the following options to print "
 	   "the respective metadata:\n");
