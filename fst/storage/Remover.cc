@@ -64,7 +64,7 @@ Storage::Remover ()
         // delete the file
         XrdOucString hexstring = "";
         eos::common::FileId::Fid2Hex(todelete.fIdVector[j], hexstring);
-        static XrdOucErrInfo error;
+        XrdOucErrInfo error;
 
         XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
         XrdOucString OpaqueString = "";
@@ -123,6 +123,7 @@ Storage::Remover ()
       managerQuery += "&mgm.logid=";
       managerQuery += logId;
 
+      XrdOucErrInfo error;
       XrdOucString response = "";
       int rc = gOFS.CallManager(&error, "/", manager.c_str(), managerQuery, &response);
       if (rc)
