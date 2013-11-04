@@ -58,7 +58,7 @@ XrdMgmOfsDirectory::open (const char *inpath,
                           const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
- * @brief open a directory browsing cursor like 'opendir'
+ * @brief open a directory object with bouncing/mapping & namespace mapping
  * 
  * @param inpath directory path to open
  * @param client XRootD authentication object
@@ -80,26 +80,57 @@ XrdMgmOfsDirectory::open (const char *inpath,
 
   eos::common::Mapping::IdMap(client, info, tident, vid);
 
-  eos_info("path=%s", path);
-  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+  BOUNCE_NOT_ALLOWED;
+  ACCESSMODE_R;
+  MAYSTALL;
+  MAYREDIRECT;
 
+  return _open(path, vid, info);
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfsDirectory::open (const char *inpath,
+                          eos::common::Mapping::VirtualIdentity &vid,
+                          const char *ininfo)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief open a directory object with bouncing & namespace mapping
+ * 
+ * @param dir_path directory path to open
+ * @param vid EOS virtual identity
+ * @param info CGI
+ * 
+ * @return SFS_OK otherwise SFS_ERROR
+ * 
+ * We create during the open the full directory listing which then is retrieved
+ * via nextEntry() and cleaned up with close().
+ */
+/*----------------------------------------------------------------------------*/
+{
+  static const char *epname = "opendir";
+
+  NAMESPACEMAP;
+  BOUNCE_ILLEGAL_NAMES;
+
+  XrdOucEnv Open_Env(info);
 
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
 
-  return open(path, vid, info);
+  return _open(path, vid, info);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfsDirectory::open (const char *dir_path,
+XrdMgmOfsDirectory::_open (const char *dir_path,
                           eos::common::Mapping::VirtualIdentity &vid,
                           const char *info)
 /*----------------------------------------------------------------------------*/
 /*
- * @brief open a directory object
+ * @brief open a directory object (without bouncing/mapping)
  * 
  * @param dir_path directory path to open
  * @param vid EOS virtual identity
@@ -259,6 +290,7 @@ XrdMgmOfsDirectory::nextEntry ()
   dh_it++;
   return tmp_it->c_str();
 }
+
 
 /*----------------------------------------------------------------------------*/
 int

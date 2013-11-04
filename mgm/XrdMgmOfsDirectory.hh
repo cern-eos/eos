@@ -69,6 +69,13 @@ public:
             const char *opaque = 0);
 
   // ---------------------------------------------------------------------------
+  // open a directory by vid
+  // ---------------------------------------------------------------------------
+  int _open (const char *dirName,
+            eos::common::Mapping::VirtualIdentity &vid,
+            const char *opaque = 0);
+  
+  // ---------------------------------------------------------------------------
   // return entry of an open directory
   // ---------------------------------------------------------------------------
   const char *nextEntry ();
