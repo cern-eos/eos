@@ -49,6 +49,7 @@ class FileTest: public CppUnit::TestCase
     CPPUNIT_TEST(ReadVTest);
     CPPUNIT_TEST(SplitReadVTest);
     CPPUNIT_TEST(AlignBufferTest);
+    CPPUNIT_TEST(DeleteFlagTest);
   CPPUNIT_TEST_SUITE_END();
   
  public:
@@ -84,6 +85,14 @@ class FileTest: public CppUnit::TestCase
   //! block checksum size
   //----------------------------------------------------------------------------
   void AlignBufferTest();
+
+
+  //----------------------------------------------------------------------------
+  //! Test the deletion of a file to which the delete flag is sent using the
+  //! fctl function on the file object
+  //----------------------------------------------------------------------------
+  void DeleteFlagTest();
+
 
   
  private:

@@ -40,6 +40,7 @@ EOSFSTTEST_NAMESPACE_BEGIN
 TestEnv::TestEnv()
 {
   mMapParam.insert(std::make_pair("server", "localhost"));
+  mMapParam.insert(std::make_pair("dummy_file", "/eos/dev/test/fst/plain/dummy.dat"));
   mMapParam.insert(std::make_pair("plain_file", "/eos/dev/test/fst/plain/file32MB.dat"));
   mMapParam.insert(std::make_pair("raiddp_file", "/eos/dev/test/fst/raiddp/file32MB.dat"));
   mMapParam.insert(std::make_pair("reeds_file", "/eos/dev/test/fst/raid6/file32MB.dat"));

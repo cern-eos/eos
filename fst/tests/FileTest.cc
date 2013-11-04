@@ -332,4 +332,54 @@ FileTest::AlignBufferTest()
 }
 
 
+//----------------------------------------------------------------------------
+//! Test the deletion of a file to which the delete flag is sent using the
+//! fctl function on the file object
+//----------------------------------------------------------------------------
+void
+FileTest::DeleteFlagTest()
+{
+  using namespace XrdCl;
+
+  // Fill buffer with random characters
+  uint64_t offset = 0;
+  uint32_t block_size = 4 * 1024;
+  char* buffer = new char[block_size];
+  std::ifstream urandom("/dev/urandom", std::ios::in | std::ios::binary);
+  urandom.read(buffer, block_size);
+  urandom.close();
+  
+  // Initialise
+  XRootDStatus status;
+  std::string address = "root://root@" + mEnv->GetMapping("server");
+  std::string file_path = mEnv->GetMapping("dummy_file");
+  URL url(address);
+  CPPUNIT_ASSERT(url.IsValid());
+  std::string file_url = address + "/" + file_path;
+  mFile = new File();
+  status = mFile->Open(file_url, OpenFlags::Delete | OpenFlags::Update,
+                       Access::Mode::UR | Access::Mode::UW);
+  CPPUNIT_ASSERT(status.IsOK());
+
+  // Write some data to the file
+  for (uint32_t i = 0; i < 10; i++)
+  {
+    status = mFile->Write(offset, block_size, buffer);
+    offset += block_size;
+    CPPUNIT_ASSERT(status.IsOK());
+  }
+
+  // Send the delete command using Fcntl
+  Buffer arg;
+  Buffer* response;
+  arg.FromString("delete");
+  status = mFile->Fcntl(arg, response);
+  CPPUNIT_ASSERT(status.IsOK());
+
+  // Close the file and then test for its existance
+  status = mFile->Close();
+  status = mFile->Open(file_url, OpenFlags::Read, Access::Mode::None);
+  CPPUNIT_ASSERT(!status.IsOK());
+  delete[] buffer;
+}
 
