@@ -3,7 +3,7 @@
 Third Party Copy
 ================
 
-EOS Beryll and XRootD >=3.3.x supports native third party copy.
+EOS Beryl and XRootD >=3.3.x supports native third party copy.
 
 You can run a third party copy using the **xrdcp** command:
 

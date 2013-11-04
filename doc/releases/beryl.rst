@@ -1,13 +1,13 @@
 .. highlight:: rst
 
 .. index::
-   single: Beryll
+   single: Beryl
 
-Beryll
+Beryl
 ========
 
 ``Lifetime: 2013-2015``
-The **Beryll** release is the second generation of the production version of EOS. 
+The **Beryl** release is the second generation of the production version of EOS. 
 It has been used since September 2013.
 
 Here is a list of new features coming with this version
