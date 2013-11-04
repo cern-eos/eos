@@ -23,7 +23,7 @@ IO is bridged via dedicated transfer gateways as explained in the following.
 
 .. ::note
 
-   The **Beryll** version of EOS supports the third-party-copy mechnism in XRootD >=3.3 using the standard
+   The **Beryl** version of EOS supports the third-party-copy mechnism in XRootD >=3.3 using the standard
    **xrdcp --tpc** command.
 
 eos cp
