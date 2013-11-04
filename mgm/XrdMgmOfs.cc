@@ -3336,7 +3336,6 @@ XrdMgmOfs::_stat (const char *path,
 
   try
   {
-    fprintf(stderr, "in %s\n out %s\n", path, cPath.GetPath());
     fmd = gOFS->eosView->getFile(cPath.GetPath());
   }
   catch (eos::MDException &e)
