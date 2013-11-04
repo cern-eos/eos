@@ -7,11 +7,15 @@ Documentation
    :maxdepth: 1
 
    intro
-   quickstart
-   install
    configuration
+   install
+   quickstart
    develop
    clicommands
+   using
+   releases
+
+>>>>>>> master
 
 
 

@@ -332,7 +332,8 @@ public:
              const char* key = 0, 
              const char* val = 0, 
              bool nofiles = false,
-             time_t millisleep = 0
+             time_t millisleep = 0,
+             bool nscounter = true
              );
 
   // ---------------------------------------------------------------------------

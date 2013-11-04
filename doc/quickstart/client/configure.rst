@@ -1,5 +1,5 @@
 .. index::
-   single: EOS client configuration
+   single: Client Configuration
 
 .. _eos_client_configure:
 

@@ -802,10 +802,10 @@ XrdMgmOfsFile::open (const char *inpath,
   unsigned long layoutId = (isCreation) ? eos::common::LayoutId::kPlain : fmdlid;
   // the client can force to read a file on a defined file system
   unsigned long forcedFsId = 0;
-  
+
   // the client can force to place a file in a specified group of a space
   long forcedGroup = -1;
-  
+
   // this is the filesystem defining the client access point in the selection 
   // vector - for writes it is always 0, for reads it comes out of the 
   // FileAccess function
@@ -853,28 +853,42 @@ XrdMgmOfsFile::open (const char *inpath,
     eos_info("blocksize=%llu lid=%x",
              eos::common::LayoutId::GetBlocksize(newlayoutId), newlayoutId);
     layoutId = newlayoutId;
-    // set the layout and commit new meta data 
-    fmd->setLayoutId(layoutId);
-    // -------------------------------------------------------------------------
-    // if specified set an external modification/creation time 
-    // -------------------------------------------------------------------------
-    if (external_mtime)
-    {
-      eos::FileMD::ctime_t mtime;
-      mtime.tv_sec = external_mtime;
-      mtime.tv_nsec = 0;
-      fmd->setMTime(mtime);
-    }
-    if (external_ctime)
-    {
-      eos::FileMD::ctime_t ctime;
-      ctime.tv_sec = external_ctime;
-      ctime.tv_nsec = 0;
-      fmd->setCTime(ctime);
-    }
+
     {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-      // -----------------------------------------------------------------------      
+      eos::FileMD* fmdnew = 0;
+      try
+      {
+        fmdnew = gOFS->eosView->getFile(path);
+      }
+      catch (eos::MDException &e)
+      {
+        if (fmdnew != fmd)
+        {
+          // file has been recreated in the meanwhile
+          return Emsg(epname, error, EEXIST, "open file (file recreated)", path);
+        }
+      }
+      // -----------------------------------------------------------------------   
+      // set the layout and commit new meta data 
+      fmd->setLayoutId(layoutId);
+      // -------------------------------------------------------------------------
+      // if specified set an external modification/creation time 
+      // -------------------------------------------------------------------------
+      if (external_mtime)
+      {
+        eos::FileMD::ctime_t mtime;
+        mtime.tv_sec = external_mtime;
+        mtime.tv_nsec = 0;
+        fmd->setMTime(mtime);
+      }
+      if (external_ctime)
+      {
+        eos::FileMD::ctime_t ctime;
+        ctime.tv_sec = external_ctime;
+        ctime.tv_nsec = 0;
+        fmd->setCTime(ctime);
+      }
       try
       {
         gOFS->eosView->updateFileStore(fmd);
@@ -1018,8 +1032,8 @@ XrdMgmOfsFile::open (const char *inpath,
     }
     retc = quotaspace->FilePlacement(path, vid, containertag, layoutId,
                                      selectedfs, selectedfs,
-                                     open_mode & SFS_O_TRUNC, 
-                                     forcedGroup, 
+                                     open_mode & SFS_O_TRUNC,
+                                     forcedGroup,
                                      bookingsize);
   }
   else
@@ -1223,19 +1237,21 @@ XrdMgmOfsFile::open (const char *inpath,
     {
       if (isCreation && hasClientBookingSize && (bookingsize == 0))
       {
-        // -----------------------------------------------------------------------
+        // ---------------------------------------------------------------------
         // if this is a creation we commit the scheduled replicas NOW
-        // -----------------------------------------------------------------------
+        // ---------------------------------------------------------------------
         {
-          for (int i = 0; i < (int) selectedfs.size(); i++)
-          {
-            fmd->addLocation(selectedfs[i]);
-          }
-
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-          // ---------------------------------------------------------------------      
+          // -------------------------------------------------------------------
+
           try
           {
+            fmd = gOFS->eosView->getFile(path);
+
+            for (int i = 0; i < (int) selectedfs.size(); i++)
+            {
+              fmd->addLocation(selectedfs[i]);
+            }
             gOFS->eosView->updateFileStore(fmd);
           }
           catch (eos::MDException &e)
@@ -1247,9 +1263,9 @@ XrdMgmOfsFile::open (const char *inpath,
             gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
             return Emsg(epname, error, errno, "open file", errmsg.c_str());
           }
-          // ---------------------------------------------------------------------
+          // -------------------------------------------------------------------
         }
-        isZeroSizeFile=true;
+        isZeroSizeFile = true;
         return SFS_OK;
       }
     }

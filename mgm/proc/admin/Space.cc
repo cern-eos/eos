@@ -301,10 +301,10 @@ ProcCommand::Space ()
                     }
                     if (key == "autorepair")
                     {
-                      if (key == "on")
+                      if (value == "on")
                         stdOut += "success: auto-repair is enabled!";
                       else
-                        stdOut += "success: auto-repair is dieabled!";
+                        stdOut += "success: auto-repair is disabled!";
                     }
                     if (key == "groupbalancer")
                     {

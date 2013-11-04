@@ -219,6 +219,7 @@ TransferJob::SendState (int state, const char* logfile, float progress)
   // assemble the opaque tags to be send to the manager
   XrdOucString txinfo = "/?mgm.pcmd=txstate&tx.id=";
   XrdOucString sizestring;
+  XrdOucErrInfo error;
 
   txinfo += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) mId);
 
@@ -276,7 +277,7 @@ TransferJob::SendState (int state, const char* logfile, float progress)
   int rc = 0;
   if (manager.length())
   {
-    rc = gOFS.CallManager(0, 0, manager.c_str(), txinfo, 0);
+    rc = gOFS.CallManager(&error, 0, manager.c_str(), txinfo, 0);
     if (rc)
     {
       if (rc != -EIDRM)

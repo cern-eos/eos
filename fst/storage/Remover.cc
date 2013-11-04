@@ -83,7 +83,7 @@ Storage::Remover ()
         }
 
         // update the manager
-        int rc = gOFS.CallManager(0, 0, todelete.managerId.c_str(), capOpaqueString);
+        int rc = gOFS.CallManager(&error, 0, todelete.managerId.c_str(), capOpaqueString);
         if (rc)
         {
           eos_static_err("unable to drop file id %s fsid %u at manager %s", hexstring.c_str(), todelete.fsId, todelete.managerId.c_str());
@@ -115,7 +115,6 @@ Storage::Remover ()
 
       lastAskedForDeletions = now;
       eos_static_debug("asking for new deletions");
-      XrdOucErrInfo error;
       XrdOucString managerQuery = "/?";
       managerQuery += "mgm.pcmd=schedule2delete";
       managerQuery += "&mgm.target.nodename=";
@@ -124,6 +123,7 @@ Storage::Remover ()
       managerQuery += "&mgm.logid=";
       managerQuery += logId;
 
+      XrdOucErrInfo error;
       XrdOucString response = "";
       int rc = gOFS.CallManager(&error, "/", manager.c_str(), managerQuery, &response);
       if (rc)

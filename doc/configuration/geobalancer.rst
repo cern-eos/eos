@@ -1,5 +1,8 @@
 .. highlight:: rst
 
+.. index::
+   single: GEO Balancer
+
 GEO Balancer
 ==============================
 
@@ -13,7 +16,7 @@ Configuration
 GEO balancing uses the relative filling state of a geo tag and not absolute byte
 values.
 
-GEO balncing is enabled/disabled by space:
+GEO balancing is enabled/disabled by space:
 
 .. code-block:: bash
 

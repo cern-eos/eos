@@ -1,5 +1,5 @@
 .. index::
-   single: EOS admin configuration
+   single: Admin Configuration
 
 .. _eos_admin_configure:
 

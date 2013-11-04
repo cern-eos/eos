@@ -202,7 +202,8 @@ LRU::LRUr ()
                        gLRUPolicyPrefix,
                        "*",
                        true,
-                       ms
+                       ms,
+                       false
                        )
           )
       {

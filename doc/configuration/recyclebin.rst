@@ -1,5 +1,8 @@
 .. highlight:: rst
 
+.. index::
+   single: Recycle Bin
+
 Recycle Bin
 ===========
 
@@ -33,6 +36,7 @@ If you want to get the current state and configuration of the recycle bin you
 run the recycle command:
 
 .. code-block:: bash
+
    EOS Console [root://localhost] |/eos/> recycle
 
    # _______________________________________________________________________________________________

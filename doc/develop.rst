@@ -1,4 +1,6 @@
 .. highlight:: rst
+.. index::
+   single: Developing EOS
 
 Develop
 =======================
@@ -30,10 +32,10 @@ Dependencies
    ===============================  =========
    Package                          Version                        
    ===============================  =========
-   xrootd-server                    = 3.3.3                       
-   xrootd-server-devel              = 3.3.3                       
-   xrootd-private-devel             = 3.3.3                       
-   xrootd-cl-devel                  = 3.3.3                       
+   xrootd-server                    = 3.3.4                       
+   xrootd-server-devel              = 3.3.4                       
+   xrootd-private-devel             = 3.3.4                       
+   xrootd-cl-devel                  = 3.3.4                       
    readline-devel                   default                        
    ncurses-devel                    default                        
    libattr-devel                    default                        

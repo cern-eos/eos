@@ -3336,7 +3336,6 @@ XrdMgmOfs::_stat (const char *path,
 
   try
   {
-    fprintf(stderr, "in %s\n out %s\n", path, cPath.GetPath());
     fmd = gOFS->eosView->getFile(cPath.GetPath());
   }
   catch (eos::MDException &e)
@@ -3847,7 +3846,8 @@ XrdMgmOfs::_find (const char *path,
                   const char* key,
                   const char* val,
                   bool nofiles,
-                  time_t millisleep
+                  time_t millisleep,
+                  bool nscounter
                   )
 /*----------------------------------------------------------------------------*/
 /*
@@ -3888,8 +3888,11 @@ XrdMgmOfs::_find (const char *path,
 
   EXEC_TIMING_BEGIN("Find");
 
-  gOFS->MgmStats.Add("Find", vid.uid, vid.gid, 1);
-
+  if (nscounter)
+  {
+    gOFS->MgmStats.Add("Find", vid.uid, vid.gid, 1);
+  }
+  
   if (!(sPath.endswith('/')))
     Path += "/";
 
@@ -4088,7 +4091,10 @@ XrdMgmOfs::_find (const char *path,
     found[found_dirs[0][0].c_str()].size();
   }
 
-  EXEC_TIMING_END("Find");
+  if (nscounter) 
+  {
+    EXEC_TIMING_END("Find");
+  }
   return SFS_OK;
 }
 

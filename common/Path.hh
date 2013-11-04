@@ -43,6 +43,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -53,136 +54,164 @@ EOSCOMMONNAMESPACE_BEGIN
 
 class Path {
 private:
-  XrdOucString fullPath;  //< the full path stored
-  XrdOucString parentPath;//< path of the parent directory
-  XrdOucString lastPath;  //< the base name/file name
+  XrdOucString fullPath; //< the full path stored
+  XrdOucString parentPath; //< path of the parent directory
+  XrdOucString lastPath; //< the base name/file name
   std::vector<std::string> subPath; //< a vector with all partial sub-paths
 
 public:
   // ---------------------------------------------------------------------------
   //! Return basename/filename
   // ---------------------------------------------------------------------------
-  const char* GetName()                  { return lastPath.c_str();}
-  
+
+  const char*
+  GetName () {
+    return lastPath.c_str();
+  }
+
   // ---------------------------------------------------------------------------
   //! Return full path
   // ---------------------------------------------------------------------------
-  const char* GetPath()                  { return fullPath.c_str();}
+
+  const char*
+  GetPath () {
+    return fullPath.c_str();
+  }
 
   // ---------------------------------------------------------------------------
   //! Return path of the parent directory
   // ---------------------------------------------------------------------------
-  const char* GetParentPath()            { return parentPath.c_str();    }
+
+  const char*
+  GetParentPath () {
+    return parentPath.c_str();
+  }
 
   // ---------------------------------------------------------------------------
   //! Return full path
   // ---------------------------------------------------------------------------
-  XrdOucString& GetFullPath()            { return fullPath;        }
+
+  XrdOucString&
+  GetFullPath () {
+    return fullPath;
+  }
 
   // ---------------------------------------------------------------------------
   //! Return sub path with depth i (0 is / 1 is /eos/ aso....)
   // ---------------------------------------------------------------------------
-  const char* GetSubPath(unsigned int i) { if (i<subPath.size()) return subPath[i].c_str(); else return 0; }
+
+  const char*
+  GetSubPath (unsigned int i) {
+    if (i < subPath.size()) return subPath[i].c_str();
+    else return 0;
+  }
 
   // ---------------------------------------------------------------------------
   //! Return number of sub paths stored
   // ---------------------------------------------------------------------------
-  unsigned int GetSubPathSize()          { return subPath.size();  }
+
+  unsigned int
+  GetSubPathSize () {
+    return subPath.size();
+  }
 
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-  Path(const char* path){
+
+  Path (const char* path) {
     fullPath = path;
     parentPath = "";
-    lastPath= "";
-    if ( (fullPath == "/") || 
-	 (fullPath == "/.") ||
-	 (fullPath == "/..") ) 
-    {
+    lastPath = "";
+    if ((fullPath == "/") ||
+        (fullPath == "/.") ||
+        (fullPath == "/..")) {
       fullPath = "/";
       return;
     }
 
-    if (fullPath.endswith('/')) 
-      fullPath.erase(fullPath.length()-1);
-    
+    if (fullPath.endswith('/'))
+      fullPath.erase(fullPath.length() - 1);
+
     // remove  /.$
     if (fullPath.endswith("/.")) {
-      fullPath.erase(fullPath.length()-2);
+      fullPath.erase(fullPath.length() - 2);
     }
 
-    if (!fullPath.beginswith("/"))
-    {
-      lastPath=fullPath;
+    if (!fullPath.beginswith("/")) {
+      lastPath = fullPath;
       return;
     }
 
     int bppos;
 
     // convert /./
-    while ( (bppos = fullPath.find("/./")) != STR_NPOS) {
-      fullPath.erase(bppos,2);
+    while ((bppos = fullPath.find("/./")) != STR_NPOS) {
+      fullPath.erase(bppos, 2);
     }
 
     // convert /..
-    while ( (bppos = fullPath.find("/..")) != STR_NPOS) {
-      int spos = fullPath.rfind("/",bppos-1);
+    while ((bppos = fullPath.find("/..")) != STR_NPOS) {
+      int spos = fullPath.rfind("/", bppos - 1);
       if (spos != STR_NPOS) {
-	fullPath.erase(bppos,3);
-	fullPath.erase(spos+1, bppos-spos-1);
+        fullPath.erase(bppos, 3);
+        fullPath.erase(spos + 1, bppos - spos - 1);
       }
     }
 
     if (!fullPath.length()) {
-      fullPath="/";
+      fullPath = "/";
     }
 
-    int lastpos=0;
-    int pos=0;
+    int lastpos = 0;
+    int pos = 0;
     do {
-      pos = fullPath.find("/",pos);
+      pos = fullPath.find("/", pos);
       std::string subpath;
-      if (pos!=STR_NPOS) {
-        subpath.assign(fullPath.c_str(),pos+1);
+      if (pos != STR_NPOS) {
+        subpath.assign(fullPath.c_str(), pos + 1);
         subPath.push_back(subpath);
         lastpos = pos;
         pos++;
       }
-    } while (pos!=STR_NPOS);
-    parentPath.assign(fullPath,0,lastpos);
-    lastPath.assign(fullPath,lastpos+1);
+    }
+    while (pos != STR_NPOS);
+    parentPath.assign(fullPath, 0, lastpos);
+    lastPath.assign(fullPath, lastpos + 1);
   }
 
   // ---------------------------------------------------------------------------
   //! Convenience function to auto-create all needed parent paths for this path object with mode
   // ---------------------------------------------------------------------------
-  bool MakeParentPath(mode_t mode) {
-    int retc=0;
+
+  bool
+  MakeParentPath (mode_t mode) {
+    int retc = 0;
     struct stat buf;
-        
-    if (stat(GetParentPath(),&buf)) {
-      for (int i=GetSubPathSize(); i>=0; i--) {
+
+    if (stat(GetParentPath(), &buf)) {
+      for (int i = GetSubPathSize(); i >= 0; i--) {
         // go backwards until the directory exists
         if (!stat(GetSubPath(i), &buf)) {
           // this exists
-          for (int j=i+1 ;  j < (int)GetSubPathSize(); j++) {
-            retc |= (mkdir(GetSubPath(j), mode)?((errno==EEXIST)?0:-1):0);
+          for (int j = i + 1; j < (int) GetSubPathSize(); j++) {
+            retc |= (mkdir(GetSubPath(j), mode) ? ((errno == EEXIST) ? 0 : -1) : 0);
           }
           break;
         }
       }
     }
-    
+
     if (retc)
       return false;
     return true;
   }
-  
+
   // ---------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
-  ~Path(){};
+
+  ~Path () { };
 };
 /*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END

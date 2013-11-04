@@ -767,7 +767,7 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
     if (msg.find("[EADV]") != STR_NPOS)
       rc = -EADV;
 
-    if (error && (rc != SFS_ERROR) )
+    if (rc != SFS_ERROR)
       gOFS.Emsg(epname, *error, -rc, msg.c_str(), path);
     else
       gOFS.Emsg(epname, *error, ECOMM, msg.c_str(), path);

@@ -1,5 +1,8 @@
 .. highlight:: rst
 
+.. index::
+   single: Quota System
+
 Quota System
 ============
 
@@ -47,7 +50,7 @@ As you may notice EOS distinguishes between logical bytes and (physical) bytes.
 Imagine a quota node subtree is configured to store 2 replica for each file, 
 then a 1 TB quota allows you effectivly to store 0.5 TB (aval logib = 0.5 TB!). 
 
-.. ::warning
+.. warning::
 
    All quota set via the 'quota set' command is defining the (physical) bytes 
    and EOS displays the logical bytes value based on the layout definition on 
