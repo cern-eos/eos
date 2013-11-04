@@ -1,6 +1,10 @@
 //------------------------------------------------------------------------------
-// File: ChunkHandler.hh
-// Author: Elvin-Alin Sindrilaru <esindril@cern.ch> - CERN
+//! @file ChunkHandler.hh
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
+//! @brief Class holding information about an asynchronous request and a pointer
+//!        to the file the request belongs to. This class notifies the
+//!        AsyncMetaHandler corresponding to the file object of any errors during
+//!        transfers
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,15 +25,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-//! @file ChunkHandler.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class holding information about an asynchronous request and a pointer
-//!        to the file the request belongs to. This class notifies the
-//!        AsyncMetaHandler corresponding to the file object of any errors during
-//!        transfer.
-//------------------------------------------------------------------------------
-
 #ifndef __EOS_CHUNKHANDLER_HH__
 #define __EOS_CHUNKHANDLER_HH__
 
@@ -39,9 +34,9 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Class holding information about an asynchronous request
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 class ChunkHandler : public XrdCl::ResponseHandler
 {
 public:
@@ -84,6 +79,18 @@ public:
                uint32_t length,
                char* buff,
                bool isWrite);
+
+
+  //----------------------------------------------------------------------------
+  //! Handle response
+  //!
+  //! @param pStatus status of the response
+  //! @param pResponse object containing extra info about the response
+  //! 
+  //----------------------------------------------------------------------------
+  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
+                               XrdCl::AnyObject* pResponse);
+
 
 
   //----------------------------------------------------------------------------
@@ -134,18 +141,6 @@ public:
   {
     return mIsWrite;
   };
-
-
-  //----------------------------------------------------------------------------
-  //! Handle response
-  //!
-  //! @param pStatus status of the response
-  //! @param pResponse object containing extra info about the response
-  //! 
-  //----------------------------------------------------------------------------
-  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
-                               XrdCl::AnyObject* pResponse);
-
 
 private:
 

@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: TestEnv.hh
-// Author: Elvin Sindrilaru <esindril@cern.ch> CERN
+//! @file TestEnv.hh
+//! @author Elvin Sindrilaru <esindril@cern.ch>
+//! @bried Class containing all the variables need for the test done on the FST
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -36,19 +37,19 @@ EOSFSTTEST_NAMESPACE_BEGIN
 class TestEnv
 {
  public:
-
+  
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
   TestEnv();
-
-
+  
+  
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~TestEnv();
-
-
+  
+  
   //----------------------------------------------------------------------------
   //! Add new entry to the map of parameters
   //!
@@ -57,8 +58,8 @@ class TestEnv
   //!
   //----------------------------------------------------------------------------
   void SetMapping(const std::string& key, const std::string& value);
-
-
+  
+  
   //----------------------------------------------------------------------------
   //! Get value corresponding to the key from the map
   //!
@@ -68,10 +69,10 @@ class TestEnv
   //!
   //----------------------------------------------------------------------------
   std::string GetMapping(const std::string& key) const;
-
-
+  
+  
  private:
-
+  
   std::map<std::string, std::string> mMapParam; ///< map testing parameters
 };
 

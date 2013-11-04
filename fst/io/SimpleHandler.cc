@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: SimpleHandler.cc
-// Author: Elvin-Alin Sindrilaru - CERN
+// Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -50,8 +50,8 @@ mHasReq (false)
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-
-SimpleHandler::~SimpleHandler () {
+SimpleHandler::~SimpleHandler ()
+{
   // emtpy
 }
 
@@ -59,7 +59,6 @@ SimpleHandler::~SimpleHandler () {
 //------------------------------------------------------------------------------
 // Update function
 //------------------------------------------------------------------------------
-
 void
 SimpleHandler::Update (uint64_t offset,
                        uint32_t length,
@@ -78,14 +77,11 @@ SimpleHandler::Update (uint64_t offset,
 //------------------------------------------------------------------------------
 // Handle response
 //------------------------------------------------------------------------------
-
 void
 SimpleHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
                                XrdCl::AnyObject* pResponse)
 {
-  //............................................................................
   // Do some extra check for the read case
-  //............................................................................
   if ((mIsWrite == false) && (pResponse))
   {
     XrdCl::ChunkInfo* chunk = 0;
@@ -98,26 +94,20 @@ SimpleHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
   mReqDone = true;
   mCond.Signal(); //signal
   mCond.UnLock();
-
   delete pStatus;
 
   if (pResponse)
-  {
     delete pResponse;
-  }
-
 }
 
 
 //------------------------------------------------------------------------------
 // Wait for responses
 //------------------------------------------------------------------------------
-
 bool
 SimpleHandler::WaitOK ()
 {
   bool req_status;
-
   mCond.Lock();
 
   while (!mReqDone)
@@ -128,7 +118,6 @@ SimpleHandler::WaitOK ()
   req_status = mRespOK;
   mHasReq = false;
   mCond.UnLock();
-
   return req_status;
 }
 
@@ -136,18 +125,14 @@ SimpleHandler::WaitOK ()
 //------------------------------------------------------------------------------
 //! Get if there is any request to process
 //------------------------------------------------------------------------------
-
 bool
 SimpleHandler::HasRequest ()
 {
   bool ret = false;
-
   mCond.Lock();
   ret = mHasReq;
   mCond.UnLock();
-
   return ret;
 }
-
 
 EOSFSTNAMESPACE_END

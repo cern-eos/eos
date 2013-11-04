@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: VectChunkHandler.cc
-// Author: Elvin-Alin Sindrilaru <esindril@cern.ch> - CERN
+// Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -71,9 +71,7 @@ mIsWrite (isWrite)
 VectChunkHandler::~VectChunkHandler ()
 {
   if (mBuffer)
-  {
     free(mBuffer);
-  }
 }
 
 
@@ -138,9 +136,7 @@ VectChunkHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
   }
 
   if (pResponse)
-  {
     delete pResponse;
-  }
    
   mMetaHandler->HandleResponse(pStatus, this);
   delete pStatus;

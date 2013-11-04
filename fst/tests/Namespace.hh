@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: Namespace.hh
-// Author: Elvin Sindrilaru <esindril@cern.ch> CERN
+//! @file Namespace.hh
+//! @author Elvin Sindrilaru <esindril@cern.ch>
+//! @brief eos::fst::test namespace definition
 //------------------------------------------------------------------------------
 
 /************************************************************************

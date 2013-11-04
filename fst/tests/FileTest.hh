@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: FileTest.hh
-// Author: Elvin Sindrilaru <esindril@cern.ch> CERN
+//! @file FileTest.hh
+//! @author Elvin Sindrilaru <esindril@cern.ch>
+//! @brief Class containing unit test for the FST component
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -49,18 +50,20 @@ class FileTest: public CppUnit::TestCase
     CPPUNIT_TEST(SplitReadVTest);
     CPPUNIT_TEST(AlignBufferTest);
   CPPUNIT_TEST_SUITE_END();
-
+  
  public:
+
   //----------------------------------------------------------------------------
   //! setUp function
   //----------------------------------------------------------------------------
   void setUp(void);
 
+  
   //----------------------------------------------------------------------------
   //! tearDown function
   //----------------------------------------------------------------------------
   void tearDown(void);
-
+  
  protected:
   
   //----------------------------------------------------------------------------
@@ -68,21 +71,23 @@ class FileTest: public CppUnit::TestCase
   //----------------------------------------------------------------------------
   void ReadVTest();
 
+  
   //----------------------------------------------------------------------------
   //! SplitReadV test used for the RAIN like files to distribute the inital
   //! readV request to all the corresponding stripe files
   //----------------------------------------------------------------------------
   void SplitReadVTest();
 
-
+  
   //----------------------------------------------------------------------------
   //! Test the align method used in ht XrdFstOssFile to align requests to the
   //! block checksum size
   //----------------------------------------------------------------------------
   void AlignBufferTest();
 
+  
  private:
-
+  
   XrdCl::File* mFile; ///< XrdCl::File instance used in the tests
   eos::fst::test::TestEnv* mEnv; ///< test environment object
 };

@@ -23,35 +23,35 @@
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
                     ${OPENSSL_INCLUDE_DIR}
-		    ${CPPUNIT_INCLUDE_DIRS})
+                    ${CPPUNIT_INCLUDE_DIRS})
 
 LINK_DIRECTORIES(${OPENSSL_LIBRARIES}
-	         ${CPPUNIT_LIBRARIES})
+                 ${CPPUNIT_LIBRARIES})
 
 ADD_LIBRARY(EosFstTests MODULE
-	    FileTest.cc  FileTest.hh
-	    TestEnv.cc   TestEnv.hh
-	    ${PROJECT_SOURCE_DIR}/fst/checksum/CRC32C.hh
-	    ${PROJECT_SOURCE_DIR}/fst/checksum/CheckSum.cc 
-	    ${PROJECT_SOURCE_DIR}/fst/checksum/CheckSum.hh
-	    ${PROJECT_SOURCE_DIR}/fst/checksum/crc32c.cc   
-	    ${PROJECT_SOURCE_DIR}/fst/checksum/crc32ctables.cc)
+            FileTest.cc  FileTest.hh
+            TestEnv.cc   TestEnv.hh
+            ${PROJECT_SOURCE_DIR}/fst/checksum/CRC32C.hh
+            ${PROJECT_SOURCE_DIR}/fst/checksum/CheckSum.cc
+            ${PROJECT_SOURCE_DIR}/fst/checksum/CheckSum.hh
+            ${PROJECT_SOURCE_DIR}/fst/checksum/crc32c.cc
+            ${PROJECT_SOURCE_DIR}/fst/checksum/crc32ctables.cc)
 
-TARGET_LINK_LIBRARIES(EosFstTests 
-		      XrdCl   
-		      XrdUtils
-		      eosCommon	      
+TARGET_LINK_LIBRARIES(EosFstTests
+                      XrdCl
+                      XrdUtils
+                      eosCommon
                       EosFstOss
-		      EosFstIo-Static
-		      ${OPENSSL_LIBRARIES}
-	              ${CPPUNIT_LIBRARIES})
+                      EosFstIo-Static
+                      ${OPENSSL_LIBRARIES}
+                      ${CPPUNIT_LIBRARIES})
 
-IF (Linux)
-  SET_TARGET_PROPERTIES(EosFstTests PROPERTIES
-                        VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-			SOVERSION ${VERSION_MAJOR}
-                        CLEAN_DIRECT_OUTPUT 1)
-ENDIF (Linux)
+IF(Linux)
+SET_TARGET_PROPERTIES(EosFstTests PROPERTIES
+                      VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+                      SOVERSION ${VERSION_MAJOR}
+                      CLEAN_DIRECT_OUTPUT 1)
+ENDIF(Linux)
 
 INSTALL(TARGETS EosFstTests
         LIBRARY DESTINATION ${LIB_INSTALL_DIR}

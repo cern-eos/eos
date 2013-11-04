@@ -40,7 +40,7 @@ ReplicaParLayout::ReplicaParLayout (XrdFstOfsFile* file,
                                     XrdOucErrInfo* outError,
                                     eos::common::LayoutId::eIoType io,
                                     uint16_t timeout) :
-    Layout (file, lid, client, outError, io, timeout)
+Layout (file, lid, client, outError, io, timeout)
 {
  mNumReplicas = eos::common::LayoutId::GetStripeNumber(lid) + 1; // this 1=0x0 16=0xf :-)
  ioLocal = false;
@@ -56,10 +56,8 @@ ReplicaParLayout::Open (const std::string& path,
                         mode_t mode,
                         const char* opaque)
 {
- //............................................................................
  // No replica index definition indicates that this is gateway access just
  // forwarding to another remote server
- //............................................................................
  int replica_index = -1;
  int replica_head = -1;
  bool is_gateway = false;
@@ -107,9 +105,7 @@ ReplicaParLayout::Open (const std::string& path,
                     "open replica - no replica head defined");
  }
 
- //............................................................................
  // Define the replication head
- //............................................................................
  eos_info("replica_head=%i, replica_index = %i.", replica_head, replica_index);
 
  if (replica_index == replica_head)
@@ -117,9 +113,7 @@ ReplicaParLayout::Open (const std::string& path,
    is_head_server = true;
  }
 
- //............................................................................
  // Define if this is the first client contact point
- //............................................................................
  if (is_gateway || (!is_gateway && is_head_server))
  {
    mIsEntryServer = true;
@@ -129,14 +123,10 @@ ReplicaParLayout::Open (const std::string& path,
  XrdOucString remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
  XrdOucString remoteOpenPath = mOfsFile->openOpaque->Get("mgm.path");
 
- //............................................................................
  // Only a gateway or head server needs to contact others
- //............................................................................
  if (is_gateway || is_head_server)
  {
-   //..........................................................................
    // Assign stripe URLs
-   //..........................................................................
    std::string replica_url;
 
    for (int i = 0; i < mNumReplicas; i++)
@@ -154,15 +144,12 @@ ReplicaParLayout::Open (const std::string& path,
                         reptag.c_str());
      }
 
-     //........................................................................
      // Check if the first replica is remote
-     //........................................................................
      replica_url = rep;
      replica_url += remoteOpenPath.c_str();
      replica_url += "?";
-     //........................................................................
+
      // Prepare the index for the next target
-     //........................................................................
      remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
 
      if (index)
@@ -175,9 +162,7 @@ ReplicaParLayout::Open (const std::string& path,
      }
      else
      {
-       //......................................................................
        // This points now to the head
-       //......................................................................
        remoteOpenOpaque += "&mgm.replicaindex=";
        remoteOpenOpaque += head;
      }
@@ -188,16 +173,12 @@ ReplicaParLayout::Open (const std::string& path,
    }
  }
 
- //............................................................................
  // Open all the replicas needed
- //............................................................................
  for (int i = 0; i < mNumReplicas; i++)
  {
    if ((ioLocal) && (i == replica_index))
    {
-     //........................................................................
      // Only the referenced entry URL does local IO
-     //........................................................................
      mLocalPath = path;
      mReplicaUrl.push_back(mLocalPath);
      FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kLocal,
@@ -210,16 +191,12 @@ ReplicaParLayout::Open (const std::string& path,
                         "open replica - local open failed ", path.c_str());
      }
 
-     //........................................................................
      // Local replica is always on the first position in the vector
-     //........................................................................
      mReplicaFile.insert(mReplicaFile.begin(), file);
    }
    else
    {
-     //........................................................................
      // Gateway contacts the head, head contacts all
-     //........................................................................
      if ((is_gateway && (i == replica_head)) ||
          (is_head_server && (i != replica_index)))
      {
@@ -233,9 +210,7 @@ ReplicaParLayout::Open (const std::string& path,
          FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kXrdCl,
                                                   mOfsFile, mSecEntity);
 
-         //....................................................................
          // Write case
-         //....................................................................
          if (file->Open(mReplicaUrl[i], flags, mode, opaque, mTimeout))
          {
            eos_err("Failed to open stripes - remote open failed on ",
@@ -250,9 +225,7 @@ ReplicaParLayout::Open (const std::string& path,
        }
        else
        {
-         //....................................................................
          // Read case just uses one replica
-         //....................................................................
          eos_debug("Read case uses just one replica.");
          continue;
        }
@@ -325,7 +298,6 @@ ReplicaParLayout::Read (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 // Vector read 
 //------------------------------------------------------------------------------
-//--------------------------------------------------------------------------
 int64_t
 ReplicaParLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len) 
 {
@@ -401,7 +373,6 @@ ReplicaParLayout::Write (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
-
 int
 ReplicaParLayout::Truncate (XrdSfsFileOffset offset)
 {
@@ -446,6 +417,7 @@ ReplicaParLayout::Stat (struct stat* buf)
   }
   return rc;
 }
+
 
 //------------------------------------------------------------------------------
 // Sync file to disk

@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 //! @file XrdIo.hh
-//! @author Elvin-Alin Sindrilaru - CERN
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
 //! @brief Class used for doing remote IO operations unsing the xrd client
 //------------------------------------------------------------------------------
 
@@ -43,7 +43,6 @@ typedef std::map<uint64_t, ReadaheadBlock*> PrefetchMap;
 //------------------------------------------------------------------------------
 //! Struct that holds a readahead buffer and corresponding handler
 //------------------------------------------------------------------------------
-
 struct ReadaheadBlock
 {
   static const uint64_t sDefaultBlocksize; ///< default value for readahead
@@ -54,7 +53,6 @@ struct ReadaheadBlock
   //! @param blocksize the size of the readahead
   //!
   //----------------------------------------------------------------------------
-
   ReadaheadBlock(uint64_t blocksize = sDefaultBlocksize)
   {
     buffer = new char[blocksize];
@@ -70,7 +68,6 @@ struct ReadaheadBlock
   //! @param isWrite true if write request, otherwise false
   //!
   //----------------------------------------------------------------------------
-
   void Update(uint64_t offset, uint32_t length, bool isWrite)
   {
     handler->Update(offset, length, isWrite);
@@ -80,12 +77,11 @@ struct ReadaheadBlock
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-
   virtual ~ReadaheadBlock()
   {
     delete[] buffer;
     delete handler;
-  }
+  };
 
   char* buffer; ///< pointer to where the data is read
   SimpleHandler* handler; ///< async handler for the requests
@@ -95,7 +91,6 @@ struct ReadaheadBlock
 //------------------------------------------------------------------------------
 //! Class used for doing remote IO operations using the Xrd client
 //------------------------------------------------------------------------------
-
 class XrdIo : public FileIo
 {
 public:

@@ -1,6 +1,10 @@
 //------------------------------------------------------------------------------
-// File: VectChunkHandler.hh
-// Author: Elvin-Alin Sindrilaru <esindril@cern.ch> - CERN
+//! @file VectChunkHandler.hh
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
+//! @brief Class holding information about an asynchronous vector request and
+//!        a pointer to the file the request belongs to. This class notifies
+//!        the AsyncMetaHandler corresponding to the file object of of any
+//!        errors during transfer.
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -20,15 +24,6 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-//------------------------------------------------------------------------------
-//! @file VectChunkHandler.hh
-//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>- CERN
-//! @brief Class holding information about an asynchronous vector request and
-//!        a pointer to the file the request belongs to. This class notifies
-//!        the AsyncMetaHandler corresponding to the file object of of any
-//!        errors during transfer.
-//------------------------------------------------------------------------------
 
 #ifndef __EOS_VECTCHUNKHANDLER_HH__
 #define __EOS_VECTCHUNKHANDLER_HH__
@@ -84,6 +79,17 @@ public:
 
 
   //----------------------------------------------------------------------------
+  //! Handle response
+  //!
+  //! @param pStatus status of the response
+  //! @param pResponse object containing extra info about the response
+  //! 
+  //----------------------------------------------------------------------------
+  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
+                               XrdCl::AnyObject* pResponse);
+                          
+
+  //----------------------------------------------------------------------------
   //! Get buffer
   //----------------------------------------------------------------------------
   inline char*
@@ -122,7 +128,6 @@ public:
     return mChunkList;
   };
 
-
   
   //----------------------------------------------------------------------------
   //! Test if chunk is from a write operation 
@@ -133,18 +138,7 @@ public:
     return mIsWrite;
   };
 
-
-  //----------------------------------------------------------------------------
-  //! Handle response
-  //!
-  //! @param pStatus status of the response
-  //! @param pResponse object containing extra info about the response
-  //! 
-  //----------------------------------------------------------------------------
-  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
-                               XrdCl::AnyObject* pResponse);
-
-
+  
 private:
 
   char* mBuffer;  ///< holder for data for write requests

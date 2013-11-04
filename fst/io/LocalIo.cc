@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: LocalIo.cc
-// Author: Elvin-Alin Sindrilaru - CERN
+// Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -28,7 +28,6 @@
 #ifndef __APPLE__
 #include <xfs/xfs.h>
 #endif
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -42,18 +41,15 @@ LocalIo::LocalIo (XrdFstOfsFile* file,
     mLogicalFile(file),
     mSecEntity(client)
 {  
-  //............................................................................
   // In this case the logical file is the same as the local physical file
-  //............................................................................
-  // empty
 }
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-
-LocalIo::~LocalIo () {
+LocalIo::~LocalIo ()
+{
   //empty
 }
 
@@ -61,7 +57,6 @@ LocalIo::~LocalIo () {
 //------------------------------------------------------------------------------
 // Open file
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Open (const std::string& path,
                    XrdSfsFileOpenMode flags,
@@ -88,7 +83,6 @@ LocalIo::Open (const std::string& path,
 //------------------------------------------------------------------------------
 // Read from file - sync
 //------------------------------------------------------------------------------
-
 int64_t
 LocalIo::Read (XrdSfsFileOffset offset,
                    char* buffer,
@@ -140,7 +134,6 @@ LocalIo::ReadVAsync (XrdCl::ChunkList& chunkList,
 //------------------------------------------------------------------------------
 // Write to file - sync
 //------------------------------------------------------------------------------
-
 int64_t
 LocalIo::Write (XrdSfsFileOffset offset,
                 const char* buffer,
@@ -157,7 +150,6 @@ LocalIo::Write (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 // Read from file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
-
 int64_t
 LocalIo::ReadAsync (XrdSfsFileOffset offset,
                     char* buffer,
@@ -172,7 +164,6 @@ LocalIo::ReadAsync (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 // Write to file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
-
 int64_t
 LocalIo::WriteAsync (XrdSfsFileOffset offset,
                      const char* buffer,
@@ -186,7 +177,6 @@ LocalIo::WriteAsync (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
@@ -197,7 +187,6 @@ LocalIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 //------------------------------------------------------------------------------
 // Allocate space for file
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Fallocate (XrdSfsFileOffset length)
 {
@@ -217,9 +206,7 @@ LocalIo::Fallocate (XrdSfsFileOffset length)
 
   if (platform_test_xfs_fd(fd))
   {
-    //..........................................................................
     // Select the fast XFS allocation function if available
-    //..........................................................................
     xfs_flock64_t fl;
     fl.l_whence = 0;
     fl.l_start = 0;
@@ -238,7 +225,6 @@ LocalIo::Fallocate (XrdSfsFileOffset length)
 //------------------------------------------------------------------------------
 // Deallocate space reserved for file
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Fdeallocate (XrdSfsFileOffset fromOffset,
                       XrdSfsFileOffset toOffset)
@@ -258,9 +244,7 @@ LocalIo::Fdeallocate (XrdSfsFileOffset fromOffset,
   {
     if (platform_test_xfs_fd(fd))
     {
-      //........................................................................
       // Select the fast XFS deallocation function if available
-      //........................................................................
       xfs_flock64_t fl;
       fl.l_whence = 0;
       fl.l_start = fromOffset;
@@ -281,7 +265,6 @@ LocalIo::Fdeallocate (XrdSfsFileOffset fromOffset,
 //------------------------------------------------------------------------------
 // Sync file to disk
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Sync (uint16_t timeout)
 {
@@ -292,7 +275,6 @@ LocalIo::Sync (uint16_t timeout)
 //------------------------------------------------------------------------------
 // Get stats about the file
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Stat (struct stat* buf, uint16_t timeout)
 {
@@ -304,7 +286,6 @@ LocalIo::Stat (struct stat* buf, uint16_t timeout)
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Close (uint16_t timeout)
 {
@@ -315,7 +296,6 @@ LocalIo::Close (uint16_t timeout)
 //------------------------------------------------------------------------------
 // Remove file
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Remove (uint16_t timeout)
 {
@@ -323,9 +303,7 @@ LocalIo::Remove (uint16_t timeout)
 
   if (Stat(&buf))
   {
-    //..........................................................................
     // Only try to delete if there is something to delete!
-    //..........................................................................
     return unlink(mLogicalFile->GetFstPath().c_str());
   }
 

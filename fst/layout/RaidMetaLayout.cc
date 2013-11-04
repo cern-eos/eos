@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: RaidMetaLayout.cc
-// Author: Elvin-Alin Sindrilaru - CERN
+// Author Elvin-Alin Sindrilaru <esindril@cern.ch> 
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -46,7 +46,7 @@ RaidMetaLayout::RaidMetaLayout (XrdFstOfsFile* file,
                                 bool storeRecovery,
                                 off_t targetSize,
                                 std::string bookingOpaque) :
-  Layout (file, lid, client, outError, io, timeout),
+Layout (file, lid, client, outError, io, timeout),
 mIsRw (false),
 mIsOpen (false),
 mIsPio (false),
@@ -423,7 +423,9 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
  {
    mDataBlocks.push_back(new char[mStripeWidth]);
  }
-  
+
+ //!!!!
+ // TODO: allow open only in read only mode
  // Set the correct open flags for the stripe
  if (mStoreRecovery ||
      (flags & (SFS_O_CREAT | SFS_O_WRONLY | SFS_O_RDWR | SFS_O_TRUNC)))
@@ -867,7 +869,6 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
     
     // Entry server splits requests per stripe returning the relative position of
     // each chunks inside the stripe file including the header offset
-
     bool do_recovery = false;
     bool got_error = false;
     uint32_t stripe_id;
@@ -1276,9 +1277,9 @@ RaidMetaLayout::ReadGroup (uint64_t offGroup)
 }
 
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Get a list of the group offsets for which we can compute the parity info
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void
 RaidMetaLayout::GetOffsetGroups (std::set<uint64_t>& offGroups, bool forceAll)
 {

@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: ChunkHandler.cc
-// Author: Elvin-Alin Sindrilaru <esindril@cern.ch> - CERN
+// Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -23,7 +23,6 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/io/ChunkHandler.hh"
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -51,9 +50,7 @@ mIsWrite (isWrite)
     mBuffer = static_cast<char*>(calloc(mCapacity, sizeof(char)));
     
     if (mBuffer)
-    {
       mBuffer = static_cast<char*>(memcpy(mBuffer, buff, length));
-    }
   }
 }
 
@@ -64,9 +61,7 @@ mIsWrite (isWrite)
 ChunkHandler::~ChunkHandler ()
 {
   if (mIsWrite && mBuffer)
-  {
     free(mBuffer);
-  }
 }
 
 
@@ -127,19 +122,15 @@ void
 ChunkHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
                               XrdCl::AnyObject* pResponse)
 {
-  //............................................................................
   // Do some extra check for the read case
-  //............................................................................
   if ((mIsWrite == false) && (pResponse))
   {
     XrdCl::ChunkInfo* chunk = 0;
     pResponse->Get(chunk);
     mRespLength = chunk->length;
 
-    //..........................................................................
     // Notice if we received less then we initially requested - usually this means
     // we reached the end of the file, but we will treat it as an error
-    //..........................................................................
     if (mLength != mRespLength)
     {
       pStatus->status = XrdCl::stError;
@@ -148,9 +139,7 @@ ChunkHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
   }
 
   if (pResponse)
-  {
     delete pResponse;
-  }
    
   mMetaHandler->HandleResponse(pStatus, this);
   delete pStatus;

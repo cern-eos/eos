@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: AsyncMetaHandler.cc
-// Author: Elvin-Alin Sindrilaru <esindril@cern.ch> - CERN
+// Author: Elvin-Alin Sindrilaru <esindril@cern.ch> 
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -26,7 +26,6 @@
 #include "fst/io/VectChunkHandler.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 /*----------------------------------------------------------------------------*/
-
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -134,9 +133,9 @@ AsyncMetaHandler::Register (uint64_t offset,
 }
 
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Register a new vector request for the current file
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 VectChunkHandler*
 AsyncMetaHandler::Register (XrdCl::ChunkList& chunkList,
                             const char* wrBuf,
@@ -224,15 +223,14 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 }
 
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Handle response vector response
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void
 AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
                                   VectChunkHandler* vhandler)
 {
-
-    mCond.Lock(); // -->
+  mCond.Lock(); // -->
 
   // See last comment for motivation
   if (mVHandlerDel)
@@ -258,8 +256,7 @@ AsyncMetaHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
 
       if (mErrorType == XrdCl::errOperationExpired)
       {
-        // eos_debug("Got a timeout error for request off=%zu, len=%lu",
-        //          chunk->GetOffset(), (unsigned long)chunk->GetLength());
+        eos_debug("Got a timeout error for vector request");
       }    
     }
   }

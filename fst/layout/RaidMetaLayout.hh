@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 //! @file RaidMetaLayout.hh
-//! @author Elvin-Alin Sindrilaru - CERN
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch> 
 //! @brief Generic class to read/write RAID-like layout files using a gateway
 //------------------------------------------------------------------------------
 
@@ -43,11 +43,9 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class RaidMetaLayout : public Layout
 {
-  friend class FileTest;
-  
 public:
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param file handler to current file
@@ -60,7 +58,7 @@ public:
   //! @param targetSize initial file size
   //! @param bookingOpaque opaque information
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   RaidMetaLayout (XrdFstOfsFile* file,
                   unsigned long lid,
                   const XrdSecEntity* client,
@@ -72,13 +70,13 @@ public:
                   std::string bookingOpaque);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Destructor
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual ~RaidMetaLayout ();
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Open file using a gateway
   //!
   //! @param path path to the file
@@ -88,14 +86,14 @@ public:
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Open (const std::string& path,
                     XrdSfsFileOpenMode flags,
                     mode_t mode,
                     const char* opaque);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Open file using parallel IO
   //!
   //! @param flags flags O_RDWR/O_RDONLY/O_WRONLY
@@ -104,7 +102,7 @@ public:
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int OpenPio (std::vector<std::string> stripeUrls,
                        XrdSfsFileOpenMode flags,
                        mode_t mode = 0,
@@ -112,7 +110,7 @@ public:
 
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Read from file
   //!
   //! @param offset offset
@@ -121,13 +119,13 @@ public:
   //!
   //! @return number of bytes read or -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int64_t Read (XrdSfsFileOffset offset,
                         char* buffer,
                         XrdSfsXferSize length);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Vector read 
   //!
   //! @param chunkList list of chunks for the vector read
@@ -135,13 +133,13 @@ public:
   //!
   //! @return number of bytes read of -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int64_t ReadV (XrdCl::ChunkList& chunkList,
                          uint32_t len);
 
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Write to file
   //!
   //! @param offset offset
@@ -150,35 +148,35 @@ public:
   //!
   //! @return number of bytes written or -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int64_t Write (XrdSfsFileOffset offset,
                          const char* buffer,
                          XrdSfsXferSize length);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Truncate
   //!
   //! @param offset truncate file to this value
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Truncate (XrdSfsFileOffset offset) = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Allocate file space
   //!
   //! @param length space to be allocated
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Fallocate (XrdSfsFileOffset lenght) = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Deallocate file space
   //!
   //! @param fromOffset offset start
@@ -186,46 +184,46 @@ public:
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Fdeallocate (XrdSfsFileOffset fromOffset,
                            XrdSfsFileOffset toOffset) = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Remove file
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Remove ();
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Sync file to disk
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Sync ();
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Close file
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Close ();
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get stats about the file
   //!
   //! @param buf stat buffer
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Stat (struct stat* buf);
 
 protected:
@@ -270,24 +268,24 @@ protected:
   std::map<uint64_t, uint32_t> mMapPieces; ///< map of pieces written for which
                                   ///< parity computation has not been done yet
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Test and recover any corrupted headers in the stripe files
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool ValidateHeader ();
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Recover corrupted chunks for the whole file
   //!
   //! @param errs list of chunks for which recovery is to be done
   //!
   //! @return true if recovery successful, false otherwise
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool RecoverPieces (XrdCl::ChunkList& errs);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Compute and write parity blocks corresponding to a group of blocks
   //!
   //! @param offsetGroup offset of group of blocks
@@ -295,22 +293,22 @@ protected:
   //! @return true if successfully computed the parity and wrote it to the
   //!         corresponding files, otherwise false
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool DoBlockParity (uint64_t offGroup);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Recover corrupted chunks from the current group
   //!
   //! @param grp_errs chunks to be recovered
   //!
   //! @return true if recovery successful, false otherwise
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool RecoverPiecesInGroup (XrdCl::ChunkList& grp_errs) = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Add new data block to the current group for parity computation, used
   //! when writing a file in streaming mode
   //!
@@ -318,44 +316,44 @@ protected:
   //! @param buffer data contained in the block
   //! @param length length of the data
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual void AddDataBlock (uint64_t offset, 
                              const char* buffer,  
                              uint32_t length) = 0;
 
 
-  //----------------------------------------------------------------------------
+  //------------------------------------------------------------------------------
   //! Compute error correction blocks
   //!
   //! @return true if parity info computed successfully, otherwise false
   //!
-  //----------------------------------------------------------------------------
+  //------------------------------------------------------------------------------
   virtual bool ComputeParity () = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Write parity information corresponding to a group to files
   //!
   //! @param offsetGroup offset of the group of blocks
   //!
   //! @return 0 if successful, otherwise error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int WriteParityToFiles (uint64_t offsetGroup) = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Map index from mNbDataBlocks representation to mNbTotalBlocks
   //!
   //! @param idSmall with values between 0 and 15, for exmaple in RAID-DP
   //!
   //! @return index with values between 0 and 23, -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual unsigned int MapSmallToBig (unsigned int idSmall) = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Non-streaming operation
   //! Compute parity for the non-streaming case and write it to files
   //!
@@ -366,43 +364,43 @@ protected:
   //!
   //! @return true if successful, otherwise error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   bool SparseParityComputation (bool force);
 
 
 
 private:
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Non-streaming operation
   //! Add a new piece to the map of pieces written to the file
   //!
   //! @param offset offset of the new piece added
   //! @param length length of the new piece added
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void AddPiece (uint64_t offset, uint32_t length);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Non-streaming operation
   //! Merge in place the pieces from the map
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void MergePieces ();
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Non-streaming operation
   //! Get a list of the group offsets for which we can compute the parity info
   //!
   //! @param offsetGroups set of group offsets
   //! @param forceAll if true return also offsets of incomplete groups
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void GetOffsetGroups (std::set<uint64_t>& offsetGroups, bool forceAll);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Non-streaming operation
   //! Read data from the current group for parity computation
   //!
@@ -410,11 +408,11 @@ private:
   //!
   //! @return true if operation successful, otherwise error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   bool ReadGroup (uint64_t offsetGroup);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Convert a global offset (from the inital file) to a local offset within
   //! a stripe data file. The initial block does *NOT* span multiple chunks
   //! (stripes) therefore if the original length is bigger than one chunk the
@@ -425,12 +423,12 @@ private:
   //! @return tuple made up of the logical index of the stripe data file the
   //!         piece belongs to and the local offset within that file. 
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual std::pair<int, uint64_t>
   GetLocalPos(uint64_t global_off) = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Convert a local position (from a stripe data file) to a global position
   //! within the initial file file. Note that the local offset has to come
   //! from a stripe data file since there is no corresponde in the original
@@ -441,12 +439,12 @@ private:
   //!
   //! @return offset in the initial file of the local given piece
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual uint64_t
   GetGlobalOff(int stripe_id, uint64_t local_off) = 0;
 
   
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Split vector read request into requests for each of the data stripes with
   //! the offset and length of the new chunks adjusted to the LOCAL file stripe
   //!
@@ -458,12 +456,12 @@ private:
   //!         corresponding to each of the stripe files making up the original
   //!         file.
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   std::vector<XrdCl::ChunkList> SplitReadV(XrdCl::ChunkList& chunkList,
                                            uint32_t sizeHdr = 0);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Split read request into requests spanning just one chunk so that each
   //! one is read from its corresponding stripe file. The offset values are
   //! GLOBAL i.e. they are relative to their position in the original file
@@ -475,9 +473,20 @@ private:
   //! @return vector of ChunkInfo structures containing the read requests
   //!         corresponding to each of the chunks making up the original file
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   XrdCl::ChunkList SplitRead(uint64_t off, uint32_t len, char* buff);
 
+
+  //----------------------------------------------------------------------------
+  //! Disable copy constructor
+  //----------------------------------------------------------------------------
+  RaidMetaLayout (const RaidMetaLayout&) = delete;
+
+
+  //----------------------------------------------------------------------------
+  //! Disable assign operator
+  //----------------------------------------------------------------------------
+  RaidMetaLayout& operator = (const RaidMetaLayout&) = delete;
 
 };
 

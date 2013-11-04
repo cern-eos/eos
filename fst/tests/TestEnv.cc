@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: TestEnv.hh
-// Author: Elvin Sindrilaru <esindril@cern.ch> CERN
+// Author: Elvin Sindrilaru <esindril@cern.ch> 
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -39,15 +39,14 @@ EOSFSTTEST_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 TestEnv::TestEnv()
 {
-  mMapParam.insert(std::make_pair("server","localhost"));
+  mMapParam.insert(std::make_pair("server", "localhost"));
   mMapParam.insert(std::make_pair("plain_file", "/eos/dev/test/fst/plain/file32MB.dat"));
   mMapParam.insert(std::make_pair("raiddp_file", "/eos/dev/test/fst/raiddp/file32MB.dat"));
   mMapParam.insert(std::make_pair("reeds_file", "/eos/dev/test/fst/raid6/file32MB.dat"));
   mMapParam.insert(std::make_pair("file_size", "33554432")); // 32MB
 
-
   // ReadV sequences used for testing
-  // 4KB read out of each MB
+  // Test set 1 - 4KB read out of each MB
   mMapParam.insert(std::make_pair("off1", "0 1048576 2097152 3145728 4194304 5242880 "));
   mMapParam.insert(std::make_pair("len1", "4096 4096 4096 4096 4096 4096"));
   // Correct responses for the set 1
@@ -59,18 +58,24 @@ TestEnv::TestEnv()
   mMapParam.insert(std::make_pair("len1_stripe2", "4096"));
   mMapParam.insert(std::make_pair("off1_stripe3", "0"));
   mMapParam.insert(std::make_pair("len1_stripe3", "4096"));
-    
-  // 16KB read around each MB
-  mMapParam.insert(std::make_pair("off2", "1040384 2088960 3137536 4186112 5234688 "
+
+  // Test set 2 - 16KB read around each MB
+  mMapParam.insert(std::make_pair("off2",
+                                  "1040384 2088960 3137536 4186112 5234688 "
                                   "6283264 7331840 8380416 9428992 10477568"));
-  mMapParam.insert(std::make_pair("len2", "16384 16384 16384 16384 16384 16384 16384 "
+  mMapParam.insert(std::make_pair("len2",
+                                  "16384 16384 16384 16384 16384 16384 16384 "
                                   "16384 16384 16384"));
   // Correct responses for set 2
-  mMapParam.insert(std::make_pair("off2_stripe0", "1040384 1048576 2088960 2097152 3137536"));
+  mMapParam.insert(std::make_pair("off2_stripe0",
+                                  "1040384 1048576 2088960 2097152 3137536"));
   mMapParam.insert(std::make_pair("len2_stripe0", "8192 8192 8192 8192 8192"));
-  mMapParam.insert(std::make_pair("off2_stripe1", "0 1040384 1048576 2088960 2097152 3137536"));
-  mMapParam.insert(std::make_pair("len2_stripe1", "8192 8192 8192 8192 8192 8192"));
-  mMapParam.insert(std::make_pair("off2_stripe2", "0 1040384 1048576 2088960 2097152"));
+  mMapParam.insert(std::make_pair("off2_stripe1",
+                                  "0 1040384 1048576 2088960 2097152 3137536"));
+  mMapParam.insert(std::make_pair("len2_stripe1",
+                                  "8192 8192 8192 8192 8192 8192"));
+  mMapParam.insert(std::make_pair("off2_stripe2",
+                                  "0 1040384 1048576 2088960 2097152"));
   mMapParam.insert(std::make_pair("len2_stripe2", "8192 8192 8192 8192 8192"));
   mMapParam.insert(std::make_pair("off2_stripe3", "0 1040384 1048576 2088960"));
   mMapParam.insert(std::make_pair("len2_stripe3", "8192 8192 8192 8192"));
@@ -88,7 +93,6 @@ TestEnv::TestEnv()
   mMapParam.insert(std::make_pair("off3_stripe3", "0"));
   mMapParam.insert(std::make_pair("len3_stripe3", "17"));
 
-  
   // Test sequences for the AlingBuffer method
   // Test set 1
   mMapParam.insert(std::make_pair("align1_off", "4095"));
@@ -104,7 +108,7 @@ TestEnv::TestEnv()
   mMapParam.insert(std::make_pair("align3_off", "4096"));
   mMapParam.insert(std::make_pair("align3_len", "1048576"));
   mMapParam.insert(std::make_pair("align3_resp_off", "4096"));
-  mMapParam.insert(std::make_pair("align3_resp_len", "1048576"));    
+  mMapParam.insert(std::make_pair("align3_resp_len", "1048576"));
 }
 
 

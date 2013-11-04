@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: ReedSLayout.cc
-// Author: Elvin-Alin Sindrilaru - CERN
+// Author Elvin-Alin Sindrilaru <esindril@cern.ch> 
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -249,15 +249,11 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
   char* data[mNbDataFiles];
 
   for (unsigned int i = 0; i < mNbDataFiles; i++)
-  {
     data[i] = (char*) mDataBlocks[i];
-  }
 
   for (unsigned int i = 0; i < mNbParityFiles; i++)
-  {
     coding[i] = (char*) mDataBlocks[mNbDataFiles + i];
-  }
-
+ 
   // Array of ids of erased pieces (corrupted)
   int *erasures = new int[invalid_ids.size() + 1];
   int index = 0;
@@ -535,9 +531,9 @@ ReedSLayout::MapSmallToBig(unsigned int idSmall)
 }
 
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Allocate file space ( reserve )
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int
 ReedSLayout::Fallocate(XrdSfsFileOffset length)
 {
@@ -546,9 +542,9 @@ ReedSLayout::Fallocate(XrdSfsFileOffset length)
 }
 
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Deallocate file space
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int
 ReedSLayout::Fdeallocate(XrdSfsFileOffset fromOffset,
                          XrdSfsFileOffset toOffset)

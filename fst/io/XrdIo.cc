@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: XrdIo.cc
-// Author: Elvin-Alin Sindrilaru - CERN
+// Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -93,15 +93,11 @@ XrdIo::Open (const std::string& path,
 {
   const char* val = 0;
   std::string request;
-
   std::string lOpaque;
   size_t qpos = 0;
-
   mFilePath = path;
 
-  //............................................................................
   // Opaque info can be part of the 'path' 
-  //............................................................................
   if ( ( (qpos = path.find("?")) != std::string::npos) ) {
     lOpaque = path.substr(qpos+1);
     mFilePath.erase(qpos);
@@ -113,9 +109,7 @@ XrdIo::Open (const std::string& path,
 
   XrdOucEnv open_opaque(lOpaque.c_str());
 
-  //............................................................................
   // Decide if readahead is used and the block size
-  //............................................................................
   if ((val = open_opaque.Get("fst.readahead")) &&
       (strncmp(val, "true", 4) == 0))
   {
@@ -216,9 +210,9 @@ XrdIo::Read (XrdSfsFileOffset offset,
  }
 
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Vector read - async
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int64_t
 XrdIo::ReadVAsync (XrdCl::ChunkList& chunkList,
                    uint16_t timeout)
@@ -244,11 +238,9 @@ XrdIo::ReadVAsync (XrdCl::ChunkList& chunkList,
   
   if (!status.IsOK())
   {
-    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     // TODO: for the time being we call this ourselves but this should be
     // dropped once XrdCl will call the handler for a request as it knows it
     // has already failed 
-    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     mMetaHandler->HandleResponse(&status, vhandler);
     return SFS_ERROR;
   }
@@ -299,11 +291,9 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
 
     if (!status.IsOK())
     {
-      //------------------------------------------------------------------------
       // TODO: for the time being we call this ourselves but this should be
       // dropped once XrdCl will call the handler for a request as it knows it
       // has already failed 
-      //------------------------------------------------------------------------
       mMetaHandler->HandleResponse(&status, handler);
     }
     
@@ -417,7 +407,6 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
 
     mPrefetchMutex.UnLock(); // -->
 
-    //..........................................................................
     // If readahead not useful, use the classic way to read
     if (length)
     {
@@ -438,11 +427,9 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
                               timeout);
       if (!status.IsOK())
       {
-        //......................................................................
         // TODO: for the time being we call this ourselves but this should be
         // dropped once XrdCl will call the handler for a request as it knows it
         // has already failed 
-        //......................................................................
         mMetaHandler->HandleResponse(&status, handler);
       }
 
@@ -484,13 +471,9 @@ XrdIo::FindBlock(uint64_t offset)
       iter--;
       
       if ((iter->first <= offset) && ( offset < (iter->first + mBlocksize)))
-      {
         return iter;
-      }
       else
-      {
         return mMapBlocks.end();
-      }
     }
   }  
 }
@@ -598,14 +581,9 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
 {
   int rc = SFS_ERROR;
   XrdCl::StatInfo* stat = 0;
-  //............................................................................
   XrdCl::XRootDStatus status = mXrdFile->Stat(true, stat, timeout);
 
-  if (!status.IsOK())
-  {
-    errno = status.errNo;
-  }
-  else
+  if (status.IsOK())
   {
     buf->st_dev = static_cast<dev_t> (atoi(stat->GetId().c_str()));
     buf->st_mode = static_cast<mode_t> (stat->GetFlags());
@@ -613,11 +591,11 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
     buf->st_mtime = static_cast<time_t> (stat->GetModTime());
     rc = SFS_OK;
   }
-
+  else
+    errno = status.errNo;
+  
   if (stat)
-  {
     delete stat;
-  }
 
   return rc;
 }
@@ -633,9 +611,7 @@ XrdIo::Close (uint16_t timeout)
 
   if (mDoReadahead)
   {
-    //..........................................................................
     // Wait for any requests on the fly and then close
-    //..........................................................................
     while (!mMapBlocks.empty())
     {
       SimpleHandler* shandler = mMapBlocks.begin()->second->handler;
@@ -650,15 +626,10 @@ XrdIo::Close (uint16_t timeout)
   
   XrdCl::XRootDStatus status = mXrdFile->Close(timeout);
 
-  if (!status.IsOK())
+  // If close failed or any async errors then return error
+  if (!status.IsOK() || !async_ok)
   {
     errno = status.errNo;
-    return SFS_ERROR;
-  }
-
-  // If any of the async requests failed then we have an error
-  if (!async_ok)
-  {
     return SFS_ERROR;
   }
 
@@ -672,9 +643,7 @@ XrdIo::Close (uint16_t timeout)
 int
 XrdIo::Remove (uint16_t timeout)
 {
-  //............................................................................
   // Remove the file by truncating using the special value offset
-  //............................................................................
   XrdCl::XRootDStatus status = mXrdFile->Truncate(EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN, timeout);
 
   if (!status.IsOK())

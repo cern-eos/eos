@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 //! @file RaidDpLayout.hh
-//! @author Elvin-Alin Sindrilaru - CERN
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch> 
 //! @brief Implementation of the RAID-double parity layout
 //------------------------------------------------------------------------------
 
@@ -42,7 +42,7 @@ class RaidDpLayout : public RaidMetaLayout
 {
 public:
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param file handler to current file
@@ -55,7 +55,7 @@ public:
   //! @param targetSize expected final size
   //! @param bookingOpaque opaque information
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   RaidDpLayout (XrdFstOfsFile* file,
                 unsigned long lid,
                 const XrdSecEntity* client,
@@ -67,29 +67,29 @@ public:
                 std::string bookingOpaque = "oss.size");
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Truncate file
   //!
   //! @param offset truncate value
   //!
   //! @return 0 if successful, otherwise error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Truncate (XrdSfsFileOffset offset);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Allocate file space
   //!
   //! @param length space to be allocated
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Fallocate (XrdSfsFileOffset lenght);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Deallocate file space
   //!
   //! @param fromOffset offset start
@@ -97,20 +97,20 @@ public:
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Fdeallocate (XrdSfsFileOffset fromOffset,
                            XrdSfsFileOffset toOffset);
 
   
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Destructor
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual ~RaidDpLayout ();
 
 
 private:
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Add data block to compute parity stripes for current group of blocks
   //! - used for the streaming mode
   //!
@@ -118,31 +118,31 @@ private:
   //! @param buffer data buffer
   //! @param length data length
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual void AddDataBlock (uint64_t offset, const char* buffer, uint32_t length);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Compute parity information
   //!
   //! @return true if parity info computed successfully, otherwise false
   //!
-  //----------------------------------------------------------------------------
+  //------------------------------------------------------------------------------
   virtual bool ComputeParity ();
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Write parity information corresponding to a group to files
   //!
   //! @param offsetGroup offset of the group of blocks
   //!
   //! @return 0 if successful, otherwise error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int WriteParityToFiles (uint64_t offsetGroup);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Compute XOR operation for two blocks of any size
   //!
   //! @param pBlock1 first input block
@@ -150,36 +150,36 @@ private:
   //! @param pResult result of XOR operation
   //! @param totalBytes size of input blocks
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void OperationXOR (char* pBlock1,
                      char* pBlock2,
                      char* pResult,
                      size_t totalBytes);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Recover corrupted chunks from the current group
   //!
   //! @param grp_errs chunks to be recovered
   //!
   //! @return true if recovery successful, false otherwise
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual bool RecoverPiecesInGroup (XrdCl::ChunkList& grp_errs);
  
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Return diagonal stripe corresponding to current block
   //!
   //! @param blockId block id
   //!
   //! @return vector containing the blocks on the diagonal stripe
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   std::vector<unsigned int> GetDiagonalStripe (unsigned int blockId);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Validate horizontal stripe for a block index
   //!
   //! @param rStripes horizontal stripe for current block id
@@ -188,13 +188,13 @@ private:
   //!
   //! @return true if successful, otherwise false
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   bool ValidHorizStripe (std::vector<unsigned int>& rStripes,
                          bool* pStatusBlock,
                          unsigned int blockId);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Validate diagonal stripe for a block index
   //!
   //! @param rStripes diagonal stripe for current block id
@@ -203,75 +203,75 @@ private:
   //!
   //! @return true if successful, otherwise false
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   bool ValidDiagStripe (std::vector<unsigned int>& rStripes,
                         bool* pStatusBlock,
                         unsigned int blockId);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get indices of the simple parity blocks
   //!
   //! @return vecttor containing the values of the simple parity indices
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   std::vector<unsigned int> GetSimpleParityIndices ();
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get indices of the double parity blocks
   //!
   //! @return vector containing the values of the double parity indices
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   std::vector<unsigned int> GetDoubleParityIndices ();
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get simple parity block corresponding to current block
   //!
   //! @param elemFromStripe any element from the current stripe
   //!
   //! @return value of the simple parity index
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   unsigned int GetSParityBlock (unsigned int elemFromStripe);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get double parity blocks corresponding to current stripe
   //!
   //! @param rStripe elements from the current stripe
   //!
   //! @return value of the double parity block
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   unsigned int GetDParityBlock (std::vector<unsigned int>& rStripe);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Map index from nTotalBlocks representation to nDataBlocks
   //!
   //! @param idBig with values between 0 ans 23
   //!
   //! @return index with values between 0 and 15, -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   unsigned int MapBigToSmall (unsigned int idBig);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Map index from nDataBlocks representation to nTotalBlocks
   //!
   //! @param idSmall with values between 0 and 15
   //!
   //! @return index with values between 0 and 23, -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual unsigned int MapSmallToBig (unsigned int idSmall);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Convert a global offset (from the inital file) to a local offset within
   //! a stripe data file. The initial block does *NOT* span multiple chunks
   //! (stripes) therefore if the original length is bigger than one chunk the
@@ -282,12 +282,12 @@ private:
   //! @return tuple made up of the logical index of the stripe data file the
   //!         piece belongs to and the local offset within that file. 
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual std::pair<int, uint64_t>
   GetLocalPos(uint64_t global_off);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Convert a local position (from a stripe data file) to a global position
   //! within the initial file file. Note that the local offset has to come
   //! from a stripe data file since there is no corresponde in the original
@@ -298,20 +298,20 @@ private:
   //!
   //! @return offset in the initial file of the local given piece
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual uint64_t
   GetGlobalOff(int stripe_id, uint64_t local_off);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Disable copy constructor
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   RaidDpLayout (const RaidDpLayout&) = delete;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Disable assign operator
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   RaidDpLayout& operator = (const RaidDpLayout&) = delete;
 
 };

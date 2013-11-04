@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 //! @file ReedSLayout.hh
-//! @author Elvin-Alin Sindrilaru - CERN
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch> 
 //! @brief Implementation of the Reed-Solomon layout
 //------------------------------------------------------------------------------
 
