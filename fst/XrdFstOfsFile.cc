@@ -2854,7 +2854,6 @@ XrdFstOfsFile::sync (XrdSfsAio * aiop)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-
 int
 XrdFstOfsFile::truncateofs (XrdSfsFileOffset fileOffset)
 {
@@ -2878,19 +2877,10 @@ XrdFstOfsFile::truncateofs (XrdSfsFileOffset fileOffset)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-
 int
 XrdFstOfsFile::truncate (XrdSfsFileOffset fileOffset)
 {
-  if (fileOffset == EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN)
-  {
-    eos_warning("Deletion flag for file %s indicated", fstPath.c_str());
-    // this truncate offset indicates to delete the file during the close operation
-    viaDelete = true;
-    return SFS_OK;
-  }
-
-  eos_info("subcmd=truncate openSize=%llu fileOffset=%llu ", openSize, fileOffset);
+  eos_info("openSize=%llu fileOffset=%llu ", openSize, fileOffset);
 
   if (fileOffset != openSize)
   {
@@ -2936,10 +2926,35 @@ XrdFstOfsFile::stat (struct stat * buf)
 }
 
 
+
+//------------------------------------------------------------------------------
+// Do operation on an open file object
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::fctl(const int cmd,
+                    const char* args,
+                    XrdOucErrInfo& out_error)
+{
+  eos_debug("cmd=%i, args=%s", cmd, args);
+  
+  if (cmd == SFS_FCTL_SPEC1)
+  {
+    if (strncmp(args, "delete", 6))
+    {
+      eos_warning("setting deletion flag for file %s", fstPath.c_str());
+      // This indicates to delete the file during the close operation
+      viaDelete = true;
+      return SFS_OK;
+    }
+  }
+  
+  return SFS_ERROR;
+}
+
+
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-
 std::string
 XrdFstOfsFile::GetFstPath ()
 {

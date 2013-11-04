@@ -83,8 +83,7 @@ add_library( EosFstIo-Static STATIC
 
 target_link_libraries( EosFstIo-Static
 		       eosCommon
-		       XrdCl	
-		       XrdUtils 
+		       XrdCl		       XrdUtils 
 		       crypto                  ${NCURSES_LIBRARIES}
 		       dl                      ${Z_LIBRARIES}  
                        ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
@@ -132,9 +131,9 @@ add_library( XrdEosFst MODULE
 	     txqueue/TransferQueue.cc
 	     FmdSqlite.cc
 	     FmdClient.cc 
-         http/HttpServer.cc
-         http/HttpHandler.cc
-         http/s3/S3Handler.cc
+             http/HttpServer.cc
+             http/HttpHandler.cc
+             http/s3/S3Handler.cc
 	     layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
 	     layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
 	     layout/jerasure/liberation.cc      layout/jerasure/liberation.hh

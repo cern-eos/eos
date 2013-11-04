@@ -643,12 +643,16 @@ XrdIo::Close (uint16_t timeout)
 int
 XrdIo::Remove (uint16_t timeout)
 {
-  // Remove the file by truncating using the special value offset
-  XrdCl::XRootDStatus status = mXrdFile->Truncate(EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN, timeout);
+  // Send opaque coamand to file object to mark it for deletion
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  arg.FromString("delete");
+  XrdCl::XRootDStatus status = mXrdFile->Fcntl(arg, response, timeout);
+  delete response;
 
   if (!status.IsOK())
   {
-    eos_err("error=failed to truncate file with deletion offset - %s", mPath.c_str());
+    eos_err("failed to mark the file for deletion:%s", mPath.c_str());
     return SFS_ERROR;
   }
 

@@ -77,6 +77,21 @@ public:
 
 
   //--------------------------------------------------------------------------
+  //! Do operation on an open file object
+  //!
+  //! @param cmd command type
+  //! @param args arguments 
+  //! @param out_error error information object
+  //!
+  //! @return 0 if successfull, otherwise -1
+  //!
+  //--------------------------------------------------------------------------
+  virtual int fctl(const int cmd,
+                   const char* args,
+                   XrdOucErrInfo& out_error);
+   
+
+  //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
   int openofs (const char* fileName,
