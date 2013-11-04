@@ -182,6 +182,7 @@ XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
   char* ptr_piece;
   char* ptr_buff;
   std::vector<XrdOucIOVec> pieces;
+  eos_debug("off=%ji len=%ji", offset, length);
 
   if (fd < 0)
     return static_cast<ssize_t> (-EBADF);
@@ -223,7 +224,7 @@ XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
     
     if (piece->offset < offset)
     {
-      // Copy back piece at the beginning
+      // Copy back begin edge 
       ptr_buff = (char*)buffer;
       off_copy = offset - piece->offset;
       len_copy = piece->size - off_copy;
@@ -233,7 +234,7 @@ XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
     }
     else if ((off_t)(offset + length) < piece->offset + piece->size)
     {
-      // Copy back piece end
+      // Copy back end edge
       len_copy = offset + length - piece->offset;
       ptr_piece = piece->data;
       ptr_buff = (char*)buffer + (piece->offset - offset);
@@ -308,7 +309,6 @@ XrdFstOssFile::ReadRaw (void* buffer, off_t offset, size_t length)
 }
 
 
-
 //------------------------------------------------------------------------------
 // Vector read
 //------------------------------------------------------------------------------
@@ -317,11 +317,9 @@ XrdFstOssFile::ReadV(XrdOucIOVec *readV, int n)
 {
   ssize_t rdsz;
   ssize_t totBytes = 0;
-  int i;
 
 // For platforms that support fadvise, pre-advise what we will be reading
 #if defined(__linux__) && defined(HAVE_ATOMICS)
-  eos_debug("with atomics read count=%i", n);
   long long begOff, endOff, begLst = -1, endLst = -1;
   int nPR = n;
   
@@ -345,36 +343,25 @@ XrdFstOssFile::ReadV(XrdOucIOVec *readV, int n)
           faBytes += rdsz;
          }
         
-        begLst = begOff; endLst = endOff;
+        begLst = begOff;
+        endLst = endOff;
       }
   }
 #endif
   
-  eos_debug("actual read with count=%i", n);
   // Read in the vector and do a pre-advise if we support that
-  for (i = 0; i < n; i++)
+  for (int i = 0; i < n; i++)
   {
-    do {rdsz = pread(fd, readV[i].data, readV[i].size, readV[i].offset);}
-    while(rdsz < 0 && errno == EINTR);
-    
+    // Use normal block read since it also does the blockxs and we have the
+    // guarantee that the previous advice was issued for the full block to
+    // be read even with the 4K alignment since fadvice does this on its own
+    rdsz = Read(readV[i].data, readV[i].offset, readV[i].size);
+
     if (rdsz < 0 || rdsz != readV[i].size)
     {
       totBytes =  (rdsz < 0 ? -errno : -ESPIPE);
       break;
-    }
-
-    // TODO: non-matching edge is not checked
-    if (mBlockXs)
-    {
-      XrdSysRWLockHelper wr_lock(mRWLockXs, 0);
-
-      if ((rdsz > 0) && (!mBlockXs->CheckBlockSum(readV[i].offset, readV[i].data, rdsz)))
-      {
-        eos_err("error=read block-xs error offset=%zu, length=%zu",
-                readV[i].offset, rdsz);
-        return -EIO;
-      }
-    }
+    }              
    
     totBytes += rdsz;
 #if defined(__linux__) && defined(HAVE_ATOMICS)
