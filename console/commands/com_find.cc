@@ -34,8 +34,8 @@ print_find_help(const ConsoleCliCommand *command, const char **options)
   fprintf (stdout, "Usage: find OPTIONS : %s\n",
            command->description().c_str());
   command->printHelp();
-  fprintf (stdout, "\nIn addition, you can use the following options to print "
-	   "the respective metadata:\n");
+  fprintf (stdout, "\n\nIn addition, you can use the following options to "
+	   "print the respective metadata:\n");
   for (int i = 0; options[i] != NULL; i++)
     fprintf (stdout, "\t\t--%s\n", options[i]);
 }

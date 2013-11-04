@@ -98,7 +98,7 @@ com_debug (char* arg1)
   return (0);
 
  com_debugexamples:
-  fprintf(stdout, "Examples:\n");
+  fprintf(stdout, "\nExamples:\n");
   fprintf(stdout, "  debug info *                        set MGM & all FSTs into debug mode 'info'\n\n");
   fprintf(stdout, "  debug err /eos/*/fst                set all FSTs into debug mode 'info'\n\n");
   fprintf(stdout, "  debug crit /eos/*/mgm               set MGM into debug mode 'crit'\n\n");

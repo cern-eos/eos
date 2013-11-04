@@ -878,7 +878,7 @@ com_fs (char* arg1)
 
 com_fs_usage:
 
-  fprintf(stdout, "Examples:\n");
+  fprintf(stdout, "\nExamples:\n");
   fprintf(stdout, "\tfs ls --io             List all filesystems with IO statistics\n\n");
   fprintf(stdout, "\tfs boot *              Send boot request to all filesystems\n\n");
   fprintf(stdout, "\tfs dumpmd 100 --path    Dump all logical path names on filesystem 100\n\n");

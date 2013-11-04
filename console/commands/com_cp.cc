@@ -61,7 +61,7 @@ bool verifySrcAndDstEvalFunc(const CliOptionWithArgs *option,
 int
 com_cp_examples ()
 {
-  fprintf(stdout, "Examples: \n");
+  fprintf(stdout, "\nExamples: \n");
   fprintf(stdout, "       eos cp /var/data/myfile /eos/foo/user/data/                   : copy 'myfile' to /eos/foo/user/data/myfile\n");
   fprintf(stdout, "       eos cp /var/data/ /eos/foo/user/data/                         : copy all plain files in /var/data to /eos/foo/user/data/\n");
   fprintf(stdout, "       eos cp -r /var/data/ /eos/foo/user/data/                      : copy the full hierarchy from /var/data/ to /var/data to /eos/foo/user/data/ => empty directories won't show up on the target!\n");
