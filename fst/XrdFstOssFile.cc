@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include <fcntl.h>
+#include <algorithm>
 /*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOss.hh"
 #include "fst/XrdFstOssFile.hh"
@@ -199,7 +200,7 @@ XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
     // pieces in the beginning and/or at the end of the requested piece
     pieces = AlignBuffer(buffer, offset, length);
   }
-
+  
   // Loop through all the pieces and read them in
   for (auto piece = pieces.begin(); piece != pieces.end(); ++piece)
   {
@@ -221,28 +222,31 @@ XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
         return -EIO;
       }
     }
-    
-    if (piece->offset < offset)
+
+    if (nread)
     {
-      // Copy back begin edge 
-      ptr_buff = (char*)buffer;
-      off_copy = offset - piece->offset;
-      len_copy = piece->size - off_copy;
-      ptr_piece = piece->data + off_copy;
-      ptr_buff = (char*)memcpy((void*)ptr_buff, ptr_piece, len_copy);
-      retval += len_copy;      
+      if (piece->offset < offset)
+      {
+        // Copy back begin edge 
+        ptr_buff = (char*)buffer;
+        off_copy = offset - piece->offset;
+        len_copy = nread - off_copy;
+        ptr_piece = piece->data + off_copy;
+        ptr_buff = (char*)memcpy((void*)ptr_buff, ptr_piece, len_copy);
+        retval += len_copy;      
+      }
+      else if ((offset < piece->offset) &&
+               (off_t)(offset + length) < piece->offset + nread)
+      {
+        // Copy back end edge
+        len_copy = std::min((off_t)(offset + length - piece->offset), nread);     
+        ptr_buff = (char*)buffer + (piece->offset - offset);
+        ptr_buff = (char*)memcpy((void*)ptr_buff, piece->data, len_copy);
+        retval += len_copy;      
+      }
+      else
+        retval += nread;
     }
-    else if ((off_t)(offset + length) < piece->offset + piece->size)
-    {
-      // Copy back end edge
-      len_copy = offset + length - piece->offset;
-      ptr_piece = piece->data;
-      ptr_buff = (char*)buffer + (piece->offset - offset);
-      ptr_buff = (char*)memcpy((void*)ptr_buff, ptr_piece, len_copy);
-      retval += len_copy;      
-    }
-    else
-      retval += nread;
   }
 
   return ( retval >= 0 ? retval : static_cast<ssize_t> (-errno));
