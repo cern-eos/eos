@@ -1582,7 +1582,7 @@ void
 addHelpOptionRecursively(ConsoleCliCommand *command)
 {
   std::vector<ConsoleCliCommand *> *subcommands;
-  CliOption helpOption("help", "print help", "-h,--help");
+  CliOption helpOption("help", "", "-h,--help");
   helpOption.setHidden(true);
 
   command->addOption(helpOption);
