@@ -52,33 +52,41 @@ EOSCOMMONNAMESPACE_BEGIN
 //! Utility class with convenience functions for string command line parsing 
 //! Works like XrdOucTokenizer but carse about escaped blanks and double quotes
 /*----------------------------------------------------------------------------*/
-class StringTokenizer
-{
- char* fBuffer;
- char fDelimeter;
- int fCurrentLine;
- int fCurrentArg;
- std::vector<size_t> fLineStart;
- std::vector<std::string> fLineArgs;
+class StringTokenizer {
+  char* fBuffer;
+  char fDelimeter;
+  int fCurrentLine;
+  int fCurrentArg;
+  std::vector<size_t> fLineStart;
+  std::vector<std::string> fLineArgs;
 
 public:
- StringTokenizer (const char* s, char delimeter);
- StringTokenizer (const char* s) : StringTokenizer(s, ' ') {}
+  StringTokenizer (const char* s, char delimeter);
 
- StringTokenizer (XrdOucString s, char delimeter)
-  : StringTokenizer(s.c_str(), delimeter)
- {}
- StringTokenizer (XrdOucString s) : StringTokenizer (s, ' ') {};
+  StringTokenizer (const char* s) {
+    StringTokenizer(s, ' ');
+  }
 
- StringTokenizer (std::string s, char delimeter)
-  : StringTokenizer (s.c_str (), delimeter)
- {}
- StringTokenizer (std::string s) : StringTokenizer (s, ' ') {};
+  StringTokenizer (XrdOucString s, char delimeter) {
+    StringTokenizer(s.c_str(), delimeter);
+  }
 
- ~StringTokenizer ();
+  StringTokenizer (XrdOucString s) {
+    StringTokenizer(s, ' ');
+  }
 
- const char* GetLine (); // return the next parsed line seperated by \n
- const char* GetToken (); // return the next token 
+  StringTokenizer (std::string s, char delimeter) {
+    StringTokenizer(s.c_str(), delimeter);
+  }
+
+  StringTokenizer (std::string s) {
+    StringTokenizer(s, ' ');
+  }
+
+  ~StringTokenizer ();
+
+  const char* GetLine (); // return the next parsed line seperated by \n
+  const char* GetToken (); // return the next token 
 };
 
 EOSCOMMONNAMESPACE_END
