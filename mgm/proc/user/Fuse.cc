@@ -25,6 +25,7 @@
 #include "mgm/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "mgm/Access.hh"
 #include "mgm/Macros.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -34,9 +35,20 @@ int
 ProcCommand::Fuse ()
 {
   gOFS->MgmStats.Add("Fuse-Dirlist", pVid->uid, pVid->gid, 1);
-  XrdOucString path = pOpaque->Get("mgm.path");
+  XrdOucString spath = pOpaque->Get("mgm.path");
+  
+  const char* inpath = spath.c_str();
+
+  NAMESPACEMAP;
+  info = 0;
+  if (info)info = 0; // for compiler happyness
+  PROC_BOUNCE_ILLEGAL_NAMES;
+  PROC_BOUNCE_NOT_ALLOWED;
+
+  spath = path;
+  
   mResultStream = "inodirlist: retc=";
-  if (!path.length())
+  if (!spath.length())
   {
     mResultStream += EINVAL;
   }
@@ -49,7 +61,7 @@ ProcCommand::Fuse ()
       return SFS_ERROR;
     }
 
-    if ((retc = inodir->open(path.c_str(), *pVid, 0)) != SFS_OK)
+    if ((retc = inodir->_open(path, *pVid, 0)) != SFS_OK)
     {
       delete inodir;
       retc = -retc;
