@@ -21,10 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_NAMESPACE_HH__
-#define __EOSFST_NAMESPACE_HH__
+#ifndef __EOSVST_NAMESPACE_HH__
+#define __EOSVST_NAMESPACE_HH__
 
-#define EOSFSTNAMESPACE_BEGIN namespace eos { namespace fst {
-#define EOSFSTNAMESPACE_END }}
+#define EOSVSTNAMESPACE_BEGIN namespace eos { namespace vst {
+#define EOSVSTNAMESPACE_END }}
 
 #endif

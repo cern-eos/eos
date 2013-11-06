@@ -35,6 +35,8 @@ link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
 
 add_library( XrdEosVst MODULE
 	     XrdVstOfs.cc                   XrdVstOfs.hh
+        XrdVstOfsFile.cc
+        XrdVstOfsDirectory.cc
 )
 
 
