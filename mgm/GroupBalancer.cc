@@ -297,7 +297,7 @@ GroupBalancer::populateGroupsInfo ()
 }
 
 /*----------------------------------------------------------------------------*/
-char *
+std::string
 GroupBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
                                                FsGroup *group,
                                                uint64_t *size)
@@ -308,10 +308,12 @@ GroupBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid
  * @param fid the file ID
  * @param group the group to which the file will be transferred
  * @param size return address for the size of the file
+ * 
+ * @return name of the proc transfer file
  */
 /*----------------------------------------------------------------------------*/
 {
-  char *fileName = new char[1024];
+  char fileName[1024];
   eos::FileMD* fmd = 0;
   eos::common::LayoutId::layoutid_t layoutid = 0;
   eos::common::FileId::fileid_t fileid = 0;
@@ -325,7 +327,7 @@ GroupBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid
       fileid = fmd->getId();
 
       if (fmd->getContainerId() == 0)
-        return 0;
+        return std::string("");
 
       if (size)
         *size = fmd->getSize();
@@ -334,7 +336,7 @@ GroupBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid
     {
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                        e.getMessage().str().c_str());
-      return 0;
+      return std::string("");
     }
   }
 
@@ -346,7 +348,7 @@ GroupBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid
            group->mName.c_str(),
            (unsigned long) layoutid);
 
-  return fileName;
+  return std::string(fileName);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -394,26 +396,24 @@ GroupBalancer::scheduleTransfer (eos::common::FileId::fileid_t fid,
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo mError;
   uint64_t size = -1;
-  char *fileName = getFileProcTransferNameAndSize(fid, targetGroup, &size);
+  std::string fileName = getFileProcTransferNameAndSize(fid, targetGroup, &size);
 
-  if (fileName == 0)
+  if (fileName == "")
     return;
 
-  if (!gOFS->_touch(fileName, mError, rootvid, 0))
+  if (!gOFS->_touch(fileName.c_str(), mError, rootvid, 0))
   {
-    eos_static_info("scheduledfile=%s", fileName);
+    eos_static_info("scheduledfile=%s", fileName.c_str());
   }
   else
   {
     eos_static_err("msg=\"failed to schedule transfer\" schedulingfile=\"%s\"",
-                   fileName);
+                   fileName.c_str());
   }
 
-  mTransfers[fid] = fileName;
+  mTransfers[fid] = fileName.c_str();
   mGroupSizes[sourceGroup->mName]->swapFile(mGroupSizes[targetGroup->mName],
                                             size);
-
-  delete[] fileName;
 
   updateGroupAvgCache(sourceGroup);
   updateGroupAvgCache(targetGroup);

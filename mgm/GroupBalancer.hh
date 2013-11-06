@@ -114,7 +114,7 @@ private:
   /// transfers scheduled (maps files' ids with their path in proc)
   std::map<eos::common::FileId::fileid_t, std::string> mTransfers;
 
-  char* getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
+  std::string getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
                                         FsGroup *group,
                                         uint64_t *size);
 

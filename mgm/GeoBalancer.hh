@@ -45,6 +45,7 @@
  * @brief Balancing among geo locations
  *
  */
+
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
@@ -65,11 +66,13 @@ public:
     return mSize;
   };
 
-  void setUsedBytes (uint64_t usedBytes) {
+  void
+  setUsedBytes (uint64_t usedBytes) {
     mSize = usedBytes;
   };
 
-  void setCapacity (uint64_t capacity) {
+  void
+  setCapacity (uint64_t capacity) {
     mCapacity = capacity;
   };
 
@@ -107,7 +110,7 @@ private:
   double mThreshold;
 
   /// geotags and respective filesystems
-  std::map<std::string, std::vector<eos::common::FileSystem::fsid_t>> mGeotagFs;
+  std::map<std::string, std::vector<eos::common::FileSystem::fsid_t >> mGeotagFs;
   /// fs->geotag cache
   std::map<eos::common::FileSystem::fsid_t, std::string> mFsGeotag;
   /// geotags' sizes cache
@@ -124,8 +127,8 @@ private:
   /// transfers scheduled (maps files' ids with their path in proc)
   std::map<eos::common::FileId::fileid_t, std::string> mTransfers;
 
-  char* getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
-                                        uint64_t *size);
+  std::string getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
+                                              uint64_t *size);
 
   eos::common::FileId::fileid_t chooseFidFromGeotag (const std::string &geotag);
 
@@ -148,7 +151,7 @@ private:
 
   void updateTransferList (void);
 
-  bool fileIsInDifferentLocations(const eos::FileMD *fmd);
+  bool fileIsInDifferentLocations (const eos::FileMD *fmd);
 
 public:
 

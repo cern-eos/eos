@@ -290,7 +290,7 @@ GeoBalancer::fileIsInDifferentLocations(const eos::FileMD *fmd)
 }
 
 /*----------------------------------------------------------------------------*/
-char *
+std::string
 GeoBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
                                              uint64_t *size)
 /*----------------------------------------------------------------------------*/
@@ -303,7 +303,7 @@ GeoBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
  */
 /*----------------------------------------------------------------------------*/
 {
-  char *fileName = new char[1024];
+  char fileName[1024];
   eos::FileMD* fmd = 0;
   eos::common::LayoutId::layoutid_t layoutid = 0;
   eos::common::FileId::fileid_t fileid = 0;
@@ -317,19 +317,19 @@ GeoBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
       fileid = fmd->getId();
 
       if (fmd->getContainerId() == 0)
-        return 0;
+        return std::string("");
     
       if (fmd->getSize() == 0)
-        return 0;
+        return std::string("");
        
       if (fmd->getNumLocation() == 0)
-        return 0;
+        return std::string("");
       
       if (fileIsInDifferentLocations(fmd))
       {
         eos_static_debug("filename=%s fid=%d is already in more than "
                          "one location", fmd->getName().c_str(), fileid);
-        return 0;
+        return std::string("");
       }
 
       if (size)
@@ -339,7 +339,7 @@ GeoBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
     {
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                        e.getMessage().str().c_str());
-      return 0;
+      return std::string("");
     }
 
     eos_static_debug("found file for transfering file=%s",
@@ -354,7 +354,7 @@ GeoBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
            mSpaceName.c_str(),
            (unsigned long) layoutid);
 
-  return fileName;
+  return std::string(fileName);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -401,27 +401,25 @@ GeoBalancer::scheduleTransfer (eos::common::FileId::fileid_t fid,
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo mError;
   uint64_t size = 0;
-  char *fileName = getFileProcTransferNameAndSize(fid, &size);
+  std::string fileName = getFileProcTransferNameAndSize(fid, &size);
 
-  if (fileName == 0)
+  if (fileName == "")
     return false;
 
-  if (!gOFS->_touch(fileName, mError, rootvid, 0))
+  if (!gOFS->_touch(fileName.c_str(), mError, rootvid, 0))
   {
-    eos_static_info("scheduledfile=%s", fileName);
+    eos_static_info("scheduledfile=%s", fileName.c_str());
   }
   else
   {
     eos_static_err("msg=\"failed to schedule transfer\" schedulingfile=\"%s\"",
-                   fileName);
+                   fileName.c_str());
   }
 
-  mTransfers[fid] = fileName;
+  mTransfers[fid] = fileName.c_str();
 
   uint64_t usedBytes = mGeotagSizes[fromGeotag]->usedBytes();
   mGeotagSizes[fromGeotag]->setUsedBytes(usedBytes - size);
-
-  delete[] fileName;
 
   fillGeotagsByAvg();
 
