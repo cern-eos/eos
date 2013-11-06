@@ -338,6 +338,16 @@ GroupBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid
                        e.getMessage().str().c_str());
       return std::string("");
     }
+    
+    XrdOucString fileURI = gOFS->eosView->getUri(fmd).c_str());
+    if (fileURI.beginswith(gOFS->MgmProcPath.c_str()))
+    {
+      // don't touch files in any ../proc/ directory
+      return std::string("");
+    }
+    
+    eos_static_debug("found file for transfering file=%s",
+                     fileURI.c_str());
   }
 
   snprintf(fileName,

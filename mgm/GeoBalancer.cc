@@ -342,8 +342,15 @@ GeoBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
       return std::string("");
     }
 
+    XrdOucString fileURI = gOFS->eosView->getUri(fmd).c_str());
+    if (fileURI.beginswith(gOFS->MgmProcPath.c_str()))
+    {
+      // don't touch files in any ../proc/ directory
+      return std::string("");
+    }
+    
     eos_static_debug("found file for transfering file=%s",
-                     gOFS->eosView->getUri(fmd).c_str());
+                     fileURI.c_str());
   }
 
   snprintf(fileName,
