@@ -21,9 +21,46 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-INSTALL ( FILES eos.keytab DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/ PERMISSIONS OWNER_READ OWNER_WRITE )
-INSTALL ( FILES xrd.cf.fst xrd.cf.mgm xrd.cf.mq xrd.cf.sync xrd.cf.fed xrd.cf.prefix xrd.cf.vst fuse.conf fuse.conf.eos DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/ )
-INSTALL ( FILES rc.d/init.d/eos rc.d/init.d/eosha rc.d/init.d/eosslave rc.d/init.d/eossync rc.d/init.d/eosd DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/rc.d/init.d PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-INSTALL ( FILES sysconfig/eos.example sysconfig/xrootd.example DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/ )
-INSTALL ( FILES cron.d/eos-logs cron.d/eos-reports DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/cron.d/ )
-INSTALL ( FILES logrotate.d/eos-logs logrotate.d/eos-fuse-logs DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/logrotate.d/ )
+include_directories( ../ 
+                     ./
+                     ${XROOTD_INCLUDE_DIR} 
+                     ${XROOTD_PRIVATE_INCLUDE_DIR}
+                     ${SPARSEHASH_INCLUDE_DIR}
+                     ${NCURSES_INCLUDE_DIR}
+		     ${Z_INCLUDE_DIR}
+)
+
+link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
+                  ${XROOTD_LIB_DIR} )
+
+add_library( XrdEosVst MODULE
+	     XrdVstOfs.cc                   XrdVstOfs.hh
+)
+
+
+target_link_libraries( XrdEosVst 
+		       eosCommon
+		       eosCommonServer      
+		       XrdMqClient-Static      XrdCl	
+		       XrdUtils                XrdOfs 
+		       crypto                  ${NCURSES_LIBRARIES}
+		       dl                      ${Z_LIBRARIES}  
+		       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
+		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
+)
+
+
+if (Linux)
+  set_target_properties (XrdEosVst PROPERTIES
+    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+    SOVERSION ${VERSION_MAJOR}
+    CLEAN_DIRECT_OUTPUT 1
+  )
+endif(Linux)
+
+
+install( TARGETS XrdEosVst
+       	 LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+         RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+         ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+)
