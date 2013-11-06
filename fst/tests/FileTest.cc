@@ -375,6 +375,7 @@ FileTest::DeleteFlagTest()
   arg.FromString("delete");
   status = mFile->Fcntl(arg, response);
   CPPUNIT_ASSERT(status.IsOK());
+  delete response;
 
   // Close the file and then test for its existance
   status = mFile->Close();

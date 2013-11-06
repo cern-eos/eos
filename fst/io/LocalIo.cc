@@ -193,10 +193,8 @@ LocalIo::Fallocate (XrdSfsFileOffset length)
   eos_debug("fallocate with length = %lli", length);
   XrdOucErrInfo error;
 
-  if (mLogicalFile->fctl(SFS_FCTL_GETFD, 0, error))
-  {
+  if (mLogicalFile->XrdOfsFile::fctl(SFS_FCTL_GETFD, 0, error))
     return SFS_ERROR;
-  }
 
 #ifdef __APPLE__
   // no pre-allocation
@@ -232,7 +230,7 @@ LocalIo::Fdeallocate (XrdSfsFileOffset fromOffset,
   eos_debug("fdeallocate from = %lli to = %lli", fromOffset, toOffset);
   XrdOucErrInfo error;
 
-  if (mLogicalFile->fctl(SFS_FCTL_GETFD, 0, error))
+  if (mLogicalFile->XrdOfsFile::fctl(SFS_FCTL_GETFD, 0, error))
     return SFS_ERROR;
 
 #ifdef __APPLE__

@@ -75,22 +75,29 @@ public:
   //--------------------------------------------------------------------------
   virtual ~XrdFstOfsFile ();
 
-
-  //--------------------------------------------------------------------------
-  //! Do operation on an open file object
+  
+  //----------------------------------------------------------------------------
+  //! Execute special operation on the file (version 2)
   //!
-  //! @param cmd command type
-  //! @param args arguments 
-  //! @param out_error error information object
+  //! @param  cmd    - The operation to be performed:
+  //!                  SFS_FCTL_SPEC1    Perform implementation defined action
+  //! @param  alen   - Length of data pointed to by args.
+  //! @param  args   - Data sent with request, zero if alen is zero.
+  //! @param  eInfo  - The object where error info or results are to be returned.
+  //! @param  client - Client's identify (see common description).
   //!
-  //! @return 0 if successfull, otherwise -1
-  //!
-  //--------------------------------------------------------------------------
+  //! @return SFS_OK   a null response is sent.
+  //! @return SFS_DATA error.code    length of the data to be sent.
+  //!                  error.message contains the data to be sent.
+  //!         o/w      one of SFS_ERROR, SFS_REDIRECT, or SFS_STALL.
+  //----------------------------------------------------------------------------
   virtual int fctl(const int cmd,
+                   int alen,
                    const char* args,
-                   XrdOucErrInfo& out_error);
-   
+                   XrdOucErrInfo& eInfo,
+                   const XrdSecEntity* client);
 
+  
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------

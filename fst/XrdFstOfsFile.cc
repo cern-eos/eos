@@ -1354,7 +1354,7 @@ XrdFstOfsFile::verifychecksum ()
       unsigned long long scansize = 0;
       float scantime = 0; // is ms
 
-      if (!fctl(SFS_FCTL_GETFD, 0, error))
+      if (!XrdOfsFile::fctl(SFS_FCTL_GETFD, 0, error))
       {
         int fd = error.getErrInfo();
 
@@ -2928,18 +2928,20 @@ XrdFstOfsFile::stat (struct stat * buf)
 
 
 //------------------------------------------------------------------------------
-// Do operation on an open file object
+// Execute command on an open file object (version 1)
 //------------------------------------------------------------------------------
 int
 XrdFstOfsFile::fctl(const int cmd,
+                    int alen,
                     const char* args,
-                    XrdOucErrInfo& out_error)
+                    XrdOucErrInfo& eInfo,
+                    const XrdSecEntity* client)
 {
   eos_debug("cmd=%i, args=%s", cmd, args);
   
   if (cmd == SFS_FCTL_SPEC1)
   {
-    if (strncmp(args, "delete", 6))
+    if (strncmp(args, "delete", alen) == 0)
     {
       eos_warning("setting deletion flag for file %s", fstPath.c_str());
       // This indicates to delete the file during the close operation
@@ -2948,6 +2950,7 @@ XrdFstOfsFile::fctl(const int cmd,
     }
   }
   
+  eInfo.setErrInfo(EEXIST, "fctl command not supported");
   return SFS_ERROR;
 }
 
