@@ -60,7 +60,8 @@ com_fuse (char* arg1)
   mountSubCmd = new ConsoleCliCommand("mount", "mount connected EOS pool on "
                                   "<mount-point>");
   mountSubCmd->addOption(mountpointOption);
-  mountSubCmd->addOptions({{"parameters", "", "-o", "<parameter-list>", false},
+  mountSubCmd->addOptions(std::vector<CliOptionWithArgs>
+			  {{"parameters", "", "-o", "<parameter-list>", false},
                            {"log-file", "", "-l", "<log-file>", false}
                           });
   fuseCmd->addSubcommand(mountSubCmd);

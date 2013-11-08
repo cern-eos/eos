@@ -42,7 +42,8 @@ com_node (char* arg1)
   nodeCmd = new ConsoleCliCommand("node", "node related functions");
 
   lsSubCmd = new ConsoleCliCommand("ls", "list all nodes or only <node>");
-  lsSubCmd->addGroupedOptions({{"monitor", "monitoring key=value output format",
+  lsSubCmd->addGroupedOptions(std::vector<CliOption>
+                              {{"monitor", "monitoring key=value output format",
                                 "-m"},
                                {"long", "long output - list also file systems "
                                 "after each node", "-l"},
@@ -59,7 +60,8 @@ com_node (char* arg1)
   configSubCmd = new ConsoleCliCommand("config", "configure file system "
 				       "parameters for each filesystem of "
 				       "this node");
-  configSubCmd->addOptions({{"node", "", 1, 1, "<host:port>", true},
+  configSubCmd->addOptions(std::vector<CliPositionalOption>
+                           {{"node", "", 1, 1, "<host:port>", true},
 	                    {"key-value", "the key to set and its value, e.g.:\n"
 			     "gw.rate=<mb/s> - set the transfer speed per "
 			     "gateway transfer\n"
@@ -98,12 +100,14 @@ com_node (char* arg1)
 
   registerSubCmd = new ConsoleCliCommand("register", "register filesystems on "
 					 "node <host:port>");
-  registerSubCmd->addOptions({{"force", "removes any existing filesystem label "
+  registerSubCmd->addOptions(std::vector<CliOption>
+                             {{"force", "removes any existing filesystem label "
 	                       "and re-registers", "--force,-f"},
 	                      {"root", "allows to register paths on the root "
 			       "partition", "--root"}
 	                     });
-  registerSubCmd->addOptions({{"node", "", 1, 1, "<queue-name>|<host:port>",
+  registerSubCmd->addOptions(std::vector<CliPositionalOption>
+                             {{"node", "", 1, 1, "<queue-name>|<host:port>",
                                true},
                               {"path2reg", "used as a match for the filesystems "
                                "to register e.g. ""/data matches filesystems "

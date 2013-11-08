@@ -37,7 +37,8 @@ com_rtlog (char* arg1)
   XrdOucString in = "mgm.cmd=rtlog&mgm.rtlog.queue=";
 
   ConsoleCliCommand rtlogCmd("rtlog", "real-time log");
-  rtlogCmd.addOptions({{"queue", "if '*' is used, it will query all nodes;\n"
+  rtlogCmd.addOptions(std::vector<CliPositionalOption>
+                      {{"queue", "if '*' is used, it will query all nodes;\n"
                         "if '.' is used, it will query only the connected mgm\n"
                         "if no argument is given, '.' is assumed", 1, 1,
                         "<queue>|*|.", false},

@@ -36,7 +36,8 @@ com_who (char* arg1)
   ConsoleCliCommand cliCommand("who",
                                "print statistics about active users "
                                "(idle<5min)");
-  cliCommand.addOptions({{"client", "break down by client host", "-c"},
+  cliCommand.addOptions(std::vector<CliOption>
+			{{"client", "break down by client host", "-c"},
                          {"ids", "print id's instead of names", "-n"},
                          {"auth", "print auth protocols", "-z"},
                          {"all", "print all", "-a"},

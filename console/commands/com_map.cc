@@ -41,7 +41,8 @@ com_map (char* arg1)
 
   linkSubCmd = new ConsoleCliCommand("link", "create a symbolic link from "
                                      "<source-path> to <destination-path>");
-  linkSubCmd->addOptions({{"src-path", "", 1, 1, "<source-path>", true},
+  linkSubCmd->addOptions(std::vector<CliPositionalOption>
+                         {{"src-path", "", 1, 1, "<source-path>", true},
                           {"dst-path", "", 2, 1, "<destination-path>", true},
                          });
   mapCmd->addSubcommand(linkSubCmd);

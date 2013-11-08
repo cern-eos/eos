@@ -67,7 +67,8 @@ com_fileinfo (char* arg1)
                           "prints the file information for fid <fid-hex>; "
                           "giving fid:<fid-dec> prints the file infomation for "
                           "<fid-dec>", 1, 1, "<path>", true});
-  fileInfoCmd->addOptions({{"help", "print help", "-h,--help"},
+  fileInfoCmd->addOptions(std::vector<CliOption>
+                          {{"help", "print help", "-h,--help"},
                            {"path-info", "adds the path information to the "
                             "output", "--path"},
                            {"fxid", "adds the hex file id information to the "
@@ -151,15 +152,17 @@ com_file (char* arg1)
                                       "if <path> does not exist or update "
                                       "modification time of an existing file "
                                       "to the present time");
-  touchSubCmd->addOptions({{"path", "", 1, 1, "<path>", true}});
+  touchSubCmd->addOption({"path", "", 1, 1, "<path>", true});
   fileCmd->addSubcommand(touchSubCmd);
 
   copySubCmd = new ConsoleCliCommand("copy", "synchronous third party copy");
-  copySubCmd->addOptions({{"force", "overwrite <dst> if it is an existin file",
+  copySubCmd->addOptions(std::vector<CliOption>
+                         {{"force", "overwrite <dst> if it is an existin file",
                            "-f"},
                           {"silent", "silent mode", "-s"}
                          });
-  copySubCmd->addOptions({{"source", "a file or a directory to be copied",
+  copySubCmd->addOptions(std::vector<CliPositionalOption>
+                         {{"source", "a file or a directory to be copied",
                            1, 1, "<src>", true},
                           {"destination", "the destination of the copy "
                            "(if given a directory, it will copy <source> "
@@ -172,16 +175,18 @@ com_file (char* arg1)
                                        "This only works for the 'root' user "
                                        "and the renamed file/directory has to "
                                        "stay in the same parent directory");
-  renameSubCmd->addOptions({{"old", "the file or directory to be renamed",
-                           1, 1, "<old>", true},
-                          {"new", "the new name",
-                           2, 1, "<new>", true}
-                          });
+  renameSubCmd->addOptions(std::vector<CliPositionalOption>
+                           {{"old", "the file or directory to be renamed",
+                             1, 1, "<old>", true},
+                            {"new", "the new name",
+                             2, 1, "<new>", true}
+                           });
   fileCmd->addSubcommand(renameSubCmd);
 
   replicateSubCmd = new ConsoleCliCommand("replicate", "replicate file <path> "
                                           "part on <fsid1> to <fsid2>");
-  replicateSubCmd->addOptions({{"path", "", 1, 1, "<path>", true},
+  replicateSubCmd->addOptions(std::vector<CliPositionalOption>
+                              {{"path", "", 1, 1, "<path>", true},
                                {"fsid1", "", 2, 1, "<fsid1>", true},
                                {"fsid2", "", 3, 1, "<fsid2>", true}
                               });
@@ -189,7 +194,8 @@ com_file (char* arg1)
 
   moveSubCmd = new ConsoleCliCommand("move", "move the file <path> from "
                                      "<fsid1> to <fsid2>");
-  moveSubCmd->addOptions({{"path", "", 1, 1, "<path>", true},
+  moveSubCmd->addOptions(std::vector<CliPositionalOption>
+                         {{"path", "", 1, 1, "<path>", true},
                           {"fsid1", "", 2, 1, "<fsid1>", true},
                           {"fsid2", "", 3, 1, "<fsid2>", true}
                          });
@@ -199,7 +205,8 @@ com_file (char* arg1)
                                               "a files with replica layouts to "
                                               "the nominal replica level (needs "
                                               "to be root)");
-  adjustReplicaSubCmd->addOptions({{"path", "", 1, 1,
+  adjustReplicaSubCmd->addOptions(std::vector<CliPositionalOption>
+                                  {{"path", "", 1, 1,
                                     "<path>|fid:<fid-dec>|fxid:<fid-hex>", true},
                                    {"space", "", 2, 1, "<space>", false},
                                    {"subgroup", "", 3, 1, "<subgroup>", false}
@@ -211,7 +218,8 @@ com_file (char* arg1)
   dropSubCmd->addOption({"force", "removes replica without trigger/wait for "
                          "deletion (used to retire a filesystem)",
                          "-f,--force"});
-  dropSubCmd->addOptions({{"path", "", 1, 1, "<path>", true},
+  dropSubCmd->addOptions(std::vector<CliPositionalOption>
+                         {{"path", "", 1, 1, "<path>", true},
                           {"fsid", "", 2, 1, "<fsid>", true}
                          });
   fileCmd->addSubcommand(dropSubCmd);
@@ -229,13 +237,15 @@ com_file (char* arg1)
 
   verifySubCmd = new ConsoleCliCommand("verify", "verify a file against the "
                                        "disk images");
-  verifySubCmd->addOptions({{"path", "", 1, 1,
+  verifySubCmd->addOptions(std::vector<CliPositionalOption>
+                           {{"path", "", 1, 1,
                              "<path>|<fid:<fid-desc>|<fxid:fid-desc>", true},
                             {"filter", "restrict the verification to replicas "
                              "on the filesystem <fs-id>", 2, 1,
                              "<fs-id>", false}
                            });
-  verifySubCmd->addOptions({{"checksum", "trigger the checksum calculation "
+  verifySubCmd->addOptions(std::vector<CliOption>
+                           {{"checksum", "trigger the checksum calculation "
                              "during the verification process", "--checksum"},
                             {"commit-checksum", "commit the computed checksum "
                              "to the MGM", "--commit-checksum"},
@@ -253,14 +263,16 @@ com_file (char* arg1)
 
   convertSubCmd = new ConsoleCliCommand("convert", "convert the layout of a "
                                         "file");
-  convertSubCmd->addGroupedOptions({{"sync", "run convertion in synchronous "
+  convertSubCmd->addGroupedOptions(std::vector<CliOption>
+                                   {{"sync", "run convertion in synchronous "
                                      "mode (by default conversions are "
                                      "asynchronous)", "--sync"},
                                     {"rewrite", "run convertion rewriting the "
                                      "file as is creating new copies and "
                                      "dropping old", "--rewrite"}
                                    })->setRequired(false);
-  convertSubCmd->addGroupedOptions({{"layout", "specify the hexadecimal layout "
+  convertSubCmd->addGroupedOptions(std::vector<CliOptionWithArgs>
+                                   {{"layout", "specify the hexadecimal layout "
                                      "id", "--layout-hex-id=", "<id>", true},
                                     {"layout-stripes", "specify the target "
                                      "layout and number of stripes",
@@ -272,7 +284,8 @@ com_file (char* arg1)
                                      "target layout", "--attr-name",
                                      "<sys.attribute.name>", true}
                                    });
-  convertSubCmd->addOptions({{"path", "", 1, 1, "<path>", true},
+  convertSubCmd->addOptions(std::vector<CliPositionalOption>
+                            {{"path", "", 1, 1, "<path>", true},
                              {"space", "name of the target space or group e.g. "
                               "default or default.3", 2, 1, "<target-space>",
                               false}
@@ -283,7 +296,8 @@ com_file (char* arg1)
                                       "from the physical replicas and verifies "
                                       "the correctness");
   checkSubCmd->addOption({"path", "", 1, 1, "<path>", true});
-  checkSubCmd->addOptions({{"size", "return with an error code if there is a "
+  checkSubCmd->addOptions(std::vector<CliOption>
+                          {{"size", "return with an error code if there is a "
                             "mismatch between the size meta data information", "--size"},
                            {"checksum", "return with an error code if there "
                             "is a mismatch between the checksum meta data "

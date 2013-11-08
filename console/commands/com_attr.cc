@@ -50,7 +50,8 @@ com_attr (char* arg1)
 
   resetSubCmd = new ConsoleCliCommand("reset", "set attributes of path to the "
                                       "EOS defaults");
-  resetSubCmd->addGroupedOptions({{"replica", "set the attributes of <path> to "
+  resetSubCmd->addGroupedOptions(std::vector<CliOption>
+                                 {{"replica", "set the attributes of <path> to "
                                    "the EOS's defaults for replicas",
                                    "--replica"},
                                   {"raiddp", "set the attributes of <path> to "

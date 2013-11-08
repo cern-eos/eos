@@ -45,7 +45,8 @@ com_group (char* arg1)
 
   lsSubCmd = new ConsoleCliCommand("ls", "list groups or only <group>");
   lsSubCmd->addOption({"silent", "silent mode", "-s"});
-  lsSubCmd->addGroupedOptions({{"monitor", "monitoring key=value output format",
+  lsSubCmd->addGroupedOptions(std::vector<CliOption>
+                              {{"monitor", "monitoring key=value output format",
                                 "-m"},
                                {"long", "long output - list also file systems "
                                 "after each group", "-l"},
@@ -53,7 +54,7 @@ com_group (char* arg1)
                                 "--io"},
                                {"IO", "print IO statistics for each "
                                 "filesystem", "--IO"}
-                           });
+                              });
   lsSubCmd->addOption(groupOption);
   groupCmd->addSubcommand(lsSubCmd);
 

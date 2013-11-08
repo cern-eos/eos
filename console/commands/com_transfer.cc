@@ -93,7 +93,8 @@ com_transfer (char* argin)
   submitSubCmd->addOption(streamsOption);
   submitSubCmd->addOption({"group", "set the group name for this transfer",
                            "--group=", "<group-name>", false});
-  submitSubCmd->addOptions({{"sync", "transfer synchronously", "--sync"},
+  submitSubCmd->addOptions(std::vector<CliOption>
+                           {{"sync", "transfer synchronously", "--sync"},
                             {"silent", "run in silent mode", "--silent"},
                             {"no-progress", "don't show the progress "
                              "bar", "--no-progress,-n"}
@@ -108,7 +109,8 @@ com_transfer (char* argin)
 
   cancelSubCmd = new ConsoleCliCommand("cancel", "cancel transfer with ID <id> "
                                        "or by group <groupname>");
-  cancelSubCmd->addGroupedOptions({{"id", "the transfer ID;\nif it is '*', "
+  cancelSubCmd->addGroupedOptions(std::vector<CliOptionWithArgs>
+                                  {{"id", "the transfer ID;\nif it is '*', "
                                     "cancels all transfers (only root can do "
                                     "that)", "--id=", "<id>", false},
                                    {"group", "", "--group=", "<group>", false}
@@ -129,7 +131,8 @@ com_transfer (char* argin)
 
   lsSubCmd = new ConsoleCliCommand("ls", "ls's the transfer database "
                                       "(you have to be root to do that)");
-  lsSubCmd->addOptions({{"all", "list all transfers not only of the current "
+  lsSubCmd->addOptions(std::vector<CliOption>
+                       {{"all", "list all transfers not only of the current "
                          "role", "-a"},
                         {"monitor", "list all transfers in monitoring format "
                          "(key-val pairs)", "-m"},
@@ -146,19 +149,22 @@ com_transfer (char* argin)
                                       "'inserted' state (you have to be root "
                                       "to do that); if no transfer is "
                                       "specified, it acts on all transfers");
-  resetSubCmd->addGroupedOptions({{"id", "", "--id=", "<id>", false},
+  resetSubCmd->addGroupedOptions(std::vector<CliOptionWithArgs>
+                                 {{"id", "", "--id=", "<id>", false},
                                   {"group", "", "--group=", "<group>", false}
                                  });
   transferCmd->addSubcommand(resetSubCmd);
 
   resubmitSubCmd = new ConsoleCliCommand("resubmit", "resubmits a transfer");
-  resubmitSubCmd->addGroupedOptions({{"id", "", "--id=", "<id>", false},
+  resubmitSubCmd->addGroupedOptions(std::vector<CliOptionWithArgs>
+                                    {{"id", "", "--id=", "<id>", false},
                                      {"group", "", "--group=", "<group>", false}
                                     })->setRequired(true);
   transferCmd->addSubcommand(resubmitSubCmd);
 
   killSubCmd = new ConsoleCliCommand("kill", "kills a running transfer");
-  killSubCmd->addGroupedOptions({{"id", "", "--id=", "<id>", false},
+  killSubCmd->addGroupedOptions(std::vector<CliOptionWithArgs>
+                                {{"id", "", "--id=", "<id>", false},
                                  {"group", "", "--group=", "<group>", false}
                                 })->setRequired(true);
   transferCmd->addSubcommand(killSubCmd);
@@ -166,7 +172,8 @@ com_transfer (char* argin)
   purgeSubCmd = new ConsoleCliCommand("purge", "remove 'failed' transfers from "
                                       "the transfer queue by id, group or all "
                                       "if not specified");
-  purgeSubCmd->addGroupedOptions({{"id", "", "--id=", "<id>", false},
+  purgeSubCmd->addGroupedOptions(std::vector<CliOptionWithArgs>
+                                 {{"id", "", "--id=", "<id>", false},
                                   {"group", "", "--group=", "<group>", false}
                                  });
   transferCmd->addSubcommand(purgeSubCmd);

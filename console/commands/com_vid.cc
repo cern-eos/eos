@@ -39,7 +39,8 @@ com_vid (char* arg1)
   vidCmd = new ConsoleCliCommand("vid", "virtual ID functions");
 
   lsSubCmd = new ConsoleCliCommand("ls", "list configured policies");
-  lsSubCmd->addOptions({{"user", "show only user role mappings", "-u"},
+  lsSubCmd->addOptions(std::vector<CliOption>
+                       {{"user", "show only user role mappings", "-u"},
                         {"group", "show only group role mappings", "-g"},
                         {"user-alias", "show user alias mapping", "-U"},
                         {"group-alias", "show group alias mapping", "-G"},
@@ -59,11 +60,12 @@ com_vid (char* arg1)
   membershipSetSubCmd = new ConsoleCliCommand("set", "");
   membershipSetSubCmd->addOption({"uid", "", 1, 1, "<uid>", true});
   OptionsGroup *membershipGroup =
-    membershipSetSubCmd->addGroupedOptions({
-      {"uids", "", "--uids=", 1, "<uid1>[,<uid2>,...]", false},
+    membershipSetSubCmd->addGroupedOptions(std::vector<CliOptionWithArgs>
+     {{"uids", "", "--uids=", 1, "<uid1>[,<uid2>,...]", false},
       {"gids", "", "--gids=", 1, "<gid1>[,<gid2>,...]", false}
-    });
-  membershipGroup->addOptions({{"+sudo", "", "+sudo"}, {"-sudo", "", "-sudo"}});
+     });
+  membershipGroup->addOptions(std::vector<CliOption>
+                              {{"+sudo", "", "+sudo"}, {"-sudo", "", "-sudo"}});
   membershipGroup->setRequired(true);
   membershipSubCmd->addSubcommand(membershipSetSubCmd);
 
@@ -85,7 +87,8 @@ com_vid (char* arg1)
                        "--voms=", "<pattern>", false});
   mapGroup->setRequired(true);
   mapSetSubCmd->addGroup(mapGroup);
-  mapSetSubCmd->addOptions({{"vuid", "", "--vuid=", "<vuid:uid>", false},
+  mapSetSubCmd->addOptions(std::vector<CliOptionWithArgs>
+                           {{"vuid", "", "--vuid=", "<vuid:uid>", false},
                             {"vgid", "", "--vgid=", "<vgid:gid>", false},
                            });
   mapRmSubCmd = new ConsoleCliCommand(*mapSetSubCmd);
@@ -101,7 +104,8 @@ com_vid (char* arg1)
                                           "tag <geotag>;\nN.B. specify the "
                                           "default assumption via 'vid geotag "
                                           "default <default-tag>'");
-  geotagSetSubCmd->addOptions({{"ip", "", 1, 1, "<IP-prefix>", true},
+  geotagSetSubCmd->addOptions(std::vector<CliPositionalOption>
+                              {{"ip", "", 1, 1, "<IP-prefix>", true},
                                {"tag", "", 2, 1, "<geotag>", true}
                               });
   geotagSubCmd->addSubcommand(geotagSetSubCmd);
@@ -134,7 +138,8 @@ com_vid (char* arg1)
 
   gatewaySubCmd = new ConsoleCliCommand("gateway", "adds/removes a host as a "
                                         "(fuse) gateway with 'su' priviledges");
-  gatewaySubCmd->addGroupedOptions({{"set", "", "set"},
+  gatewaySubCmd->addGroupedOptions(std::vector<CliOption>
+                                   {{"set", "", "set"},
                                     {"remove", "", "rm"}
                                    })->setRequired(true);
   gatewaySubCmd->addOption({"host", "", 1, 1, "<hostname>", true});

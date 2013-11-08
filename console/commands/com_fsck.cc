@@ -56,7 +56,8 @@ com_fsck (char* arg1)
 
   reportSubCmd = new ConsoleCliCommand("report", "report consistency check "
                                        "results");
-  reportSubCmd->addOptions({{"all", "break down statistics per filesystem", "-a"},
+  reportSubCmd->addOptions(std::vector<CliOption>
+                           {{"all", "break down statistics per filesystem", "-a"},
                             {"ids", "print concerned file ids", "-i"},
                             {"logical", "print concerned logical names", "-l"},
                             {"json", "select JSON output format", "--json"}
@@ -67,7 +68,8 @@ com_fsck (char* arg1)
 
   repairSubCmd = new ConsoleCliCommand("repair", "filesystem consistency "
                                        "repair functions");
-  repairSubCmd->addOptions({{"checksum", "issues a 'verify' operation on all "
+  repairSubCmd->addOptions(std::vector<CliOption>
+                           {{"checksum", "issues a 'verify' operation on all "
                              "files with checksum errors", "--checksum"},
                             {"checksum-commit", "issues a 'verify' operation "
                              "on all files with checksum errors and forces a "

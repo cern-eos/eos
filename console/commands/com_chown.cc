@@ -36,7 +36,8 @@ com_chown (char* arg1)
   ConsoleCliCommand chownCmd("chown", "provides the change owner "
                              "interface of EOS");
   chownCmd.addOption({"recursive", "change mode recursively", "-r"});
-  chownCmd.addOptions({{"owner-group", "<owner> has to be a user id or user "
+  chownCmd.addOptions(std::vector<CliPositionalOption>
+                      {{"owner-group", "<owner> has to be a user id or user "
                         "name;\n<group> is optional and has to be a group id "
                         "or group name", 1, 1, "<owner>[:<group>]", true},
                        {"path", "the file/directory to modify", 2, 1,

@@ -57,7 +57,8 @@ com_ls (char* arg1)
   XrdOucString in = "mgm.cmd=ls";
   ConsoleCliCommand lsCmd("ls", "list directory <path>");
 
-  lsCmd.addOptions({{"option", "", 1, 1, "-lani"},
+  lsCmd.addOptions(std::vector<CliPositionalOption>
+		   {{"option", "", 1, 1, "-lani"},
                     {"path", "the path to list, e.g.:\n"
                      "if <path> is file:..., list on a local file system\n"
                      "if <path> is root:..., list on a plain XRootD server "

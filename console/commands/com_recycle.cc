@@ -66,8 +66,9 @@ com_recycle (char* arg1)
                                    "of the recycle bin", "--lifetime",
                                    "<seconds>", false);
   lifetimeOption.addEvalFunction(optionIsPositiveNumberEvalFunc, 0);
-  OptionsGroup *group = configSubCmd->addGroupedOptions({
-      {"add-bin", "configures to use the recycle bin for deletions in "
+  OptionsGroup *group =
+    configSubCmd->addGroupedOptions(std::vector<CliOptionWithArgs>
+    {{"add-bin", "configures to use the recycle bin for deletions in "
        "<sub-tree>", "--add-bin", "<sub-tree>", false},
       {"remove-bin", "disables usage of recycle bin for <sub-tree>",
        "--remove-bin", "<sub-tree>", false},

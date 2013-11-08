@@ -103,8 +103,8 @@ com_space (char* arg1)
 
   lsSubCmd = new ConsoleCliCommand("ls", "list spaces");
   lsSubCmd->addOption({"silent", "silent mode", "-s"});
-  lsSubCmd->addGroupedOptions({
-        {"monitor", "print in monitoring format <key>=<value>", "-m"},
+  lsSubCmd->addGroupedOptions(std::vector<CliOption>
+       {{"monitor", "print in monitoring format <key>=<value>", "-m"},
         {"long", "long output - list also file systems after each space", "-l"},
         {"io", "print IO satistics", "--io"},
         {"fsck", "print filesystem check statistics", "--fsck"}

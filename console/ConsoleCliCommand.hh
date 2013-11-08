@@ -97,7 +97,7 @@ typedef struct
 
 class CliBaseOption {
 public:
-  CliBaseOption(std::string name, std::string desc);
+  CliBaseOption(std::string name = "", std::string desc = "");
   virtual ~CliBaseOption();
   virtual AnalysisResult* analyse(std::vector<std::string> &cliArgs) = 0;
   virtual char* helpString() { return strdup(""); };
@@ -122,6 +122,7 @@ protected:
 class CliOption : public CliBaseOption {
 public:
   CliOption(std::string name, std::string desc, std::string keywords);
+  CliOption();
   CliOption(const CliOption &option);
   virtual ~CliOption();
   virtual AnalysisResult* analyse(std::vector<std::string> &cliArgs);
@@ -147,8 +148,9 @@ public:
   CliOptionWithArgs(std::string name, std::string desc,
                     std::string keywords, std::string repr,
                     bool required);
+  CliOptionWithArgs();
   CliOptionWithArgs(const CliOptionWithArgs &otherOption);
-  ~CliOptionWithArgs();
+  virtual ~CliOptionWithArgs();
   virtual AnalysisResult* analyse(std::vector<std::string> &cliArgs);
   virtual std::string repr() const;
   virtual char* helpString();
@@ -176,7 +178,7 @@ public:
   CliPositionalOption(std::string name, std::string desc, int position,
                       std::string repr);
   CliPositionalOption(const CliPositionalOption &option);
-  ~CliPositionalOption();
+  virtual ~CliPositionalOption();
   virtual AnalysisResult* analyse(std::vector<std::string> &cliArgs);
   virtual char* helpString();
   virtual std::string repr() const;

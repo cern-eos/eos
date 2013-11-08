@@ -40,7 +40,8 @@ com_io (char* arg1)
   ioCmd = new ConsoleCliCommand("io", "IO related functions");
 
   statSubCmd = new ConsoleCliCommand("stat", "print IO statistics");
-  statSubCmd->addOptions({{"summary", "show summary information (this is the "
+  statSubCmd->addOptions(std::vector<CliOption>
+                         {{"summary", "show summary information (this is the "
                            "default if -t,-d,-x is not selected)", "-l"},
                           {"all", "break down by uid/gid", "-a"},
                           {"monitor", "print in <key>=<val> monitoring format",
@@ -54,7 +55,8 @@ com_io (char* arg1)
 
   enableSubCmd = new ConsoleCliCommand("enable", "enable collection of IO "
                                        "reports");
-  enableSubCmd->addOptions({{"reports", "enable collection of IO reports", "-r"},
+  enableSubCmd->addOptions(std::vector<CliOption>
+                           {{"reports", "enable collection of IO reports", "-r"},
                             {"popularity", "enable popularity accounting", "-p"},
                             {"namespace", "enable report namespace", "-n"}
                            });
@@ -65,7 +67,8 @@ com_io (char* arg1)
 
   disableSubCmd = new ConsoleCliCommand("disable", "disable collection of IO "
                                        "reports");
-  disableSubCmd->addOptions({{"reports", "disable collection of IO reports",
+  disableSubCmd->addOptions(std::vector<CliOption>
+                            {{"reports", "disable collection of IO reports",
                               "-r"},
                              {"popularity", "disable popularity accounting",
                               "-p"},
@@ -83,14 +86,16 @@ com_io (char* arg1)
 
   nsSubCmd = new ConsoleCliCommand("ns", "show namespace IO ranking "
                                    "(popularity)");
-  nsSubCmd->addOptions({{"all", "don't limit the output list", "-a"},
+  nsSubCmd->addOptions(std::vector<CliOption>
+                       {{"all", "don't limit the output list", "-a"},
                         {"monitor", "print in <key>=<val> monitoring format",
                          "-m"},
                         {"accesses", "show ranking by number of accesses", "-n"},
                         {"bytes", "show ranking by number of bytes", "-b"},
                         {"week", "show history for the last 7 days", "-w"}
                        });
-  nsSubCmd->addGroupedOptions({{"100", "show the first 100 in the ranking",
+  nsSubCmd->addGroupedOptions(std::vector<CliOption>
+                              {{"100", "show the first 100 in the ranking",
                                 "-100"},
                                {"1000", "show the first 1000 in the ranking",
                                 "-1000,-1k"},

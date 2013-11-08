@@ -43,7 +43,8 @@ com_config (char* arg1)
 
   dumpSubCmd = new ConsoleCliCommand("dump", "dump current configuration or "
                                      "configuration with name <name>");
-  dumpSubCmd->addOptions({{"fs", "dump only file system config", "-f,--fs"},
+  dumpSubCmd->addOptions(std::vector<CliOption>
+                         {{"fs", "dump only file system config", "-f,--fs"},
                           {"vid", "dump only virtual id config", "-v,--vid"},
                           {"quota", "dump only quota config", "-q,--quota"},
                           {"comment", "dump only comment config", "-c,--comment"},
@@ -57,9 +58,8 @@ com_config (char* arg1)
 
   saveSubCmd = new ConsoleCliCommand("save", "save config (optionally under "
                                      "<name>)");
-  saveSubCmd->addOptions({{"force", "overwrite existing config name and create "
-                           "a timestamped backup", "-f,--force"}
-                         });
+  saveSubCmd->addOption({"force", "overwrite existing config name and create "
+                         "a timestamped backup", "-f,--force"});
   saveSubCmd->addOption({"name", "the name for the configuration file;\n"
                          "IMPORTANT: if no name is specified the current "
                          "config file is overwritten", 1, 1, "<name>", false});
@@ -192,7 +192,7 @@ com_config (char* arg1)
       std::string nrLines = changelogSubCmd->getValue("nr-lines");
       in += "&mgm.config.lines=";
 
-      if (nrLines.front() == '-')
+      if (nrLines[0] == '-')
         nrLines.erase(0, 1);
       in += nrLines.c_str();
     }

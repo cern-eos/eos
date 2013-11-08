@@ -82,7 +82,8 @@ com_fs (char* arg1)
 
   lsSubCmd = new ConsoleCliCommand("ls", "list all filesystems in default "
                                    "output format");
-  lsSubCmd->addGroupedOptions({{"monitor", "list all filesystem parameters "
+  lsSubCmd->addGroupedOptions(std::vector<CliOption>
+			      {{"monitor", "list all filesystem parameters "
                                 "in monitoring format", "-m"},
                                {"long", "display all filesystem parameters "
                                 "in long format", "-l"},
@@ -110,7 +111,8 @@ com_fs (char* arg1)
   std::pair<float, float> range = {0.0, 65535.0};
   manualOption.addEvalFunction(optionIsNumberInRangeEvalFunc, &range);
   addSubCmd->addOption(manualOption);
-  addSubCmd->addOptions({{"uuid", "arbitrary string unique to this particular "
+  addSubCmd->addOptions(std::vector<CliPositionalOption>
+			{{"uuid", "arbitrary string unique to this particular "
                           "filesystem", 1, 1, "<uuid>", true},
                          {"host-port", "internal EOS identifier for a "
                           "node,port,mountpoint description, e.g.:\n"
@@ -131,7 +133,8 @@ com_fs (char* arg1)
 
   mvSubCmd = new ConsoleCliCommand("mv", "move a filesystem into a different "
                                    "scheduling group");
-  mvSubCmd->addOptions({{"src", "source system id or source space;\n"
+  mvSubCmd->addOptions(std::vector<CliPositionalOption>
+		       {{"src", "source system id or source space;\n"
                          "If the source is a <space>, a filesystem will be "
                          "chosen to fit into the destionation group or space",
                          1, 1, "<src-fsid>|<src-space>", true},
@@ -146,7 +149,8 @@ com_fs (char* arg1)
                                        "parameter for a single filesystem "
                                        "identified by host:port/path, "
                                        "filesystem id or filesystem UUID");
-  configSubCmd->addOptions({{"fsid", "", 1, 1,
+  configSubCmd->addOptions(std::vector<CliPositionalOption>
+			   {{"fsid", "", 1, 1,
                              "<host>:<port><path>|<fsid>|<uuid>", true},
                             {"key-value", "the key and value to set", 2, 1,
                              "<key>=<value>", true}
@@ -155,7 +159,8 @@ com_fs (char* arg1)
 
   rmSubCmd = new ConsoleCliCommand("rm", "remove filesystem "
                                    "configuration by various identifiers");
-  rmSubCmd->addOptions({{"fsid", "", 1, 1,
+  rmSubCmd->addOptions(std::vector<CliPositionalOption>
+		       {{"fsid", "", 1, 1,
                          "<fs-id>|<node-queue>|<mount-point>|<hostname>", true},
                         {"mountpoint", "", 2, 1, "<mountpoint>", false}
                        });
@@ -184,12 +189,14 @@ com_fs (char* arg1)
 
   dumpMdSubCmd = new ConsoleCliCommand("dumpmd", "dump all file meta data on "
                                        "this filesystem in query format");
-  dumpMdSubCmd->addGroupedOptions({{"silent", "don't printout keep an "
+  dumpMdSubCmd->addGroupedOptions(std::vector<CliOption>
+				  {{"silent", "don't printout keep an "
                                     "internal reference", "-s"},
                                    {"monitor", "print the full meta data "
                                     "record in env format", "-m"}
                                   });
-  dumpMdSubCmd->addOptions({{"fid", "dump a list of file IDs stored on this "
+  dumpMdSubCmd->addOptions(std::vector<CliOption>
+			   {{"fid", "dump a list of file IDs stored on this "
                              "filesystem", "--fid"},
                             {"path", "dump a list of file names stored on this "
                              "filesystem", "--path"},
@@ -203,7 +210,8 @@ com_fs (char* arg1)
                                        "of a filesystem and calculates the "
                                        "risk of data loss if this filesystem "
                                        "get's removed ");
-  statusSubCmd->addOptions({{"fsid", "filesystem ID <fs-id> or mount point, in "
+  statusSubCmd->addOptions(std::vector<CliPositionalOption>
+			   {{"fsid", "filesystem ID <fs-id> or mount point, in "
                              "which case the host is set as <this-host>",
                              1, 1, "<fs-id>|<mount-point>", true},
                             {"host", "specifies the host name", 2, 1,
@@ -214,23 +222,26 @@ com_fs (char* arg1)
   cloneSubCmd = new ConsoleCliCommand("clone", "replicate all files in "
                                       "filesystem <src-fs-id> to "
                                       "filesystem <dst-fs-id>");
-  cloneSubCmd->addOptions({{"src", "", 1, 1, "<src-fs-id>", true},
+  cloneSubCmd->addOptions(std::vector<CliPositionalOption>
+			  {{"src", "", 1, 1, "<src-fs-id>", true},
                            {"dst", "", 2, 1, "<target-fs-id>", true}
-                           });
+                          });
   fsCmd->addSubcommand(cloneSubCmd);
 
   compareSubCmd = new ConsoleCliCommand("compare", "compare filesystem "
                                         "<fs-id-1> with <fs-id-2> showing "
                                         "which files are found or not, in each "
                                         "filesystem");
-  compareSubCmd->addOptions({{"fsid1", "", 1, 1, "<fs-id-1>", true},
+  compareSubCmd->addOptions(std::vector<CliPositionalOption>
+			    {{"fsid1", "", 1, 1, "<fs-id-1>", true},
                              {"fsid2", "", 2, 1, "<fs-id-2>", true}
                             });
   fsCmd->addSubcommand(compareSubCmd);
 
   verifySubCmd = new ConsoleCliCommand("verify", "verify all files in "
                                        "filesystem <fs-id>");
-  verifySubCmd->addOptions({{"checksum", "trigger the checksum calculation "
+  verifySubCmd->addOptions(std::vector<CliOption>
+			   {{"checksum", "trigger the checksum calculation "
                              "during the verification process", "--checksum"},
                             {"commit-checksum", "commit the computed checksum "
                              "to the MGM", "--commit-checksum"},

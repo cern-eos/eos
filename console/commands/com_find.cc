@@ -68,7 +68,8 @@ com_find (char* arg1)
   ConsoleCliCommand findCmd("find", "find files and print out the requested "
                             "meta data as key value pairs");
   findCmd.addOption(helpOption);
-  findCmd.addOptions({{"childcount", "print the number of children in each "
+  findCmd.addOptions(std::vector<CliOption>
+		     {{"childcount", "print the number of children in each "
                        "directory", "--childcount"},
                       {"count", "just print global counters for files/dirs "
                        "found", "--count"},
@@ -88,7 +89,8 @@ com_find (char* arg1)
 		       "--faultyacl"},
 		      {"m", "", "-m"}
                      });
-  findCmd.addOptions({{"key-value", "find entries with <key>=<val>",
+  findCmd.addOptions(std::vector<CliOptionWithArgs>
+		     {{"key-value", "find entries with <key>=<val>",
                        "-x", "<key>=<value>", false},
                       {"tags", "find all files with inconsistencies "
                        "defined by %%tags [ see help of 'file check' command]",

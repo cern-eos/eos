@@ -57,7 +57,8 @@ com_quota (char* arg1)
   lsSubCmd->addOption(monitorOption);
   lsSubCmd->addOption({"numerical", "don't translate ids, print uid+gid "
                        "number", "-n"});
-  lsSubCmd->addOptions({{"uid", "print information only for uid <uid>",
+  lsSubCmd->addOptions(std::vector<CliOptionWithArgs>
+                       {{"uid", "print information only for uid <uid>",
                          "-u,--uid=", "<uid>", false},
                         {"gid", "print information only for gid <gid>",
                          "-g,--gid=", "<gid>", false}
@@ -72,7 +73,8 @@ com_quota (char* arg1)
   rmSubCmd = new ConsoleCliCommand("rm", "list configured quota and quota "
                                    "node(s)");
   OptionsGroup *group;
-  group = rmSubCmd->addGroupedOptions({{"uid", "", "-u,--uid=", "<uid>", false},
+  group = rmSubCmd->addGroupedOptions(std::vector<CliOptionWithArgs>
+                                      {{"uid", "", "-u,--uid=", "<uid>", false},
                                        {"gid", "", "-g,--gid=", "<gid>", false}
                                       });
   group->addOption(uidOption);
@@ -83,12 +85,14 @@ com_quota (char* arg1)
 
   setSubCmd = new ConsoleCliCommand("set", "set volume and/or inode quota by "
                                     "uid or gid");
-  group = setSubCmd->addGroupedOptions({{"uid", "", "-u,--uid=", "<uid>", false},
+  group = setSubCmd->addGroupedOptions(std::vector<CliOptionWithArgs>
+                                       {{"uid", "", "-u,--uid=", "<uid>", false},
                                         {"gid", "", "-g,--gid=", "<gid>", false}
                                        });
   group->addOption(uidOption);
   group->addOption(gidOption);
-  setSubCmd->addOptions({{"volume", "set the volume limit to <bytes>",
+  setSubCmd->addOptions(std::vector<CliOptionWithArgs>
+                        {{"volume", "set the volume limit to <bytes>",
                           "-v,--volume", "<bytes>", false},
                          {"inodes", "set the inodes limit to <inodes>",
                           "-i,--inodes", "<inodes>", false}

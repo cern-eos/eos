@@ -47,7 +47,8 @@ bool verifySrcAndDstEvalFunc(const CliOptionWithArgs *option,
     return false;
   }
 
-  if (args.back().back() != '/')
+  const std::string &lastArg = args[args.size() - 1];
+  if (lastArg[lastArg.length() - 1] != '/')
   {
     *error = new std::string("Error: The <dst> argument needs to "
                              "end in a '/'\n");
@@ -131,12 +132,14 @@ com_cp (char* argin)
 
   ConsoleCliCommand cpCmd("cp", "provides copy functionality to EOS");
   cpCmd.addOption(helpOption);
-  cpCmd.addOptions({{"rate", "limit the cp rate to <rate>", "--rate=", 1,
+  cpCmd.addOptions(std::vector<CliOptionWithArgs>
+                   {{"rate", "limit the cp rate to <rate>", "--rate=", 1,
                      "<rate>", false},
                     {"streams", "use <#> parallel streams", "--streams=", 1,
                      "<#>", false}
                    });
-  cpCmd.addOptions({{"async", "run an asynchronous transfer via a gateway "
+  cpCmd.addOptions(std::vector<CliOption>
+                   {{"async", "run an asynchronous transfer via a gateway "
                      "server (see 'transfer submit --sync' for the full "
                      "options)", "--async"},
                     {"recursive", "copy directories recursively",

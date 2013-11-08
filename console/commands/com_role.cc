@@ -32,7 +32,8 @@ com_role (char *arg)
 {
   ConsoleCliCommand roleCmd("role", "select user role <user-role> [and group "
                             "role <group-role>]");
-  roleCmd.addOptions({{"user-role", "can be a virtual user ID (unsigned int) "
+  roleCmd.addOptions(std::vector<CliPositionalOption>
+                     {{"user-role", "can be a virtual user ID (unsigned int) "
                        "or a user mapping alias", 1, 1, "<user-role>", true},
                       {"group-role", "can be a virtual group ID (unsigned int) "
                        "or a group mapping alias", 2, 1, "<group-role>", false}

@@ -35,7 +35,8 @@ int
 com_test (char* arg1)
 {
   ConsoleCliCommand testCmd("test", "set mode for <path>");
-  testCmd.addGroupedOptions({{"mkdir", "", "mkdir"},
+  testCmd.addGroupedOptions(std::vector<CliOption>
+                            {{"mkdir", "", "mkdir"},
                              {"rmdir", "", "rmdir"},
                              {"ls", "", "ls"},
                              {"lsla", "", "lsla"}

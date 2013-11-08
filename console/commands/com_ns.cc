@@ -44,7 +44,8 @@ com_ns (char* arg1)
   nsCmd = new ConsoleCliCommand("ns", "print basic namespace parameters");
 
   statSubCmd = new ConsoleCliCommand("stat", "print namespace statistics");
-  statSubCmd->addOptions({{"all", "break down by uid/gid", "-a"},
+  statSubCmd->addOptions(std::vector<CliOption>
+                         {{"all", "break down by uid/gid", "-a"},
                           {"monitor", "print in <key>=<val> monitoring format",
                            "-m"},
                           {"numerical", "print numerical uid/gids", "-n"},
@@ -54,7 +55,8 @@ com_ns (char* arg1)
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   mutexSubCmd = new ConsoleCliCommand("mutex", "print namespace mutexistics");
-  mutexSubCmd->addOptions({{"timing", "toggle the timing", "--toggletiming"},
+  mutexSubCmd->addOptions(std::vector<CliOption>
+                          {{"timing", "toggle the timing", "--toggletiming"},
                            {"order", "toggle the order checking",
                             "--toggleorder"},
                           {"rate1", "set the timing sample rate at 1% "
@@ -89,8 +91,8 @@ com_ns (char* arg1)
   compactSubCmd->addSubcommand(compactOffSubCmd);
 
   masterSubCmd = new ConsoleCliCommand("master", "master/slave operation");
-  OptionsGroup *group = masterSubCmd->addGroupedOptions({
-      {"log", "show the master log (this also happens if no option is given)",
+  OptionsGroup *group = masterSubCmd->addGroupedOptions(std::vector<CliOption>
+     {{"log", "show the master log (this also happens if no option is given)",
        "--log"},
       {"log-clear", "clean the master log", "--log-clear"},
       {"disable", "disable the slave/master supervisor thread modifying "

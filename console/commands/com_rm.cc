@@ -36,7 +36,7 @@ com_rm (char* arg1)
   eos::common::Path* cPath = 0;
   XrdOucString in = "mgm.cmd=rm&";
   ConsoleCliCommand cliCommand("rm", "remove file <path>");
-  cliCommand.addOptions({{"recursive", "delete recursively", "-r"}});
+  cliCommand.addOption({"recursive", "delete recursively", "-r"});
   cliCommand.addOption({"path", "", 1, -1, "<path>", true});
 
   addHelpOptionRecursively(&cliCommand);

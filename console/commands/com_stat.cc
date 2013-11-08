@@ -36,7 +36,8 @@ com_stat (char* arg1)
   XrdOucString url = serveruri.c_str();
   ConsoleCliCommand statCmd("stat", "stat <path> or current directory, "
                             "if <path> is not given");
-  statCmd.addGroupedOptions({{"check-file", "checks if <path> is a file", "-f"},
+  statCmd.addGroupedOptions(std::vector<CliOption>
+                            {{"check-file", "checks if <path> is a file", "-f"},
                              {"check-dir", "checks if <path> is a directory",
                               "-d"}
                             });

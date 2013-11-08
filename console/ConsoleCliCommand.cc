@@ -200,9 +200,16 @@ CliOption::CliOption(std::string name, std::string desc, std::string keywords)
 {
 };
 
-CliOption::CliOption(const CliOption &option)
-  : CliOption(option.mName, option.mDescription, "")
+CliOption::CliOption()
 {
+  CliOption("", "", "");
+}
+
+CliOption::CliOption(const CliOption &option)
+  : CliBaseOption(option.mName, option.mDescription)
+{
+  CliOption(option.mName, option.mDescription, "");
+
   mRequired = option.required();
   mHidden = option.hidden();
 
@@ -330,7 +337,7 @@ truncateDescString(const std::string &description, const std::string &prefix)
         (i - lineStart > DESC_LINE_LENGTH || i == description.length() - 1 ||
          description[lineEnd] == '\n'))
     {
-      if (lineEnd > DESC_LINE_LENGTH || desc.back() == '\n')
+      if (lineEnd > DESC_LINE_LENGTH || desc[desc.length() - 1] == '\n')
         desc += "\n" + std::string(HELP_PADDING, ' ') + prefix;
 
       desc += std::string(description, lineStart, lineEnd - lineStart);
@@ -402,14 +409,21 @@ CliOptionWithArgs::CliOptionWithArgs(std::string name,
                                      std::string keywords,
                                      std::string repr,
                                      bool required)
-  : CliOptionWithArgs(name, desc, keywords, 1, repr, required)
-{}
+{
+  CliOptionWithArgs(name, desc, keywords, 1, repr, required);
+}
+
+CliOptionWithArgs::CliOptionWithArgs()
+{
+  CliOptionWithArgs("", "", "", 1, "", false);
+}
 
 CliOptionWithArgs::CliOptionWithArgs(const CliOptionWithArgs &otherOption)
-  : CliOptionWithArgs(otherOption.mName, otherOption.mDescription,
-                      "", otherOption.mNumArgs, otherOption.mRepr,
-                      otherOption.mRequired)
 {
+  CliOptionWithArgs(otherOption.mName, otherOption.mDescription,
+                    "", otherOption.mNumArgs, otherOption.mRepr,
+                    otherOption.mRequired);
+
   mHidden = otherOption.hidden();
 
   if (otherOption.mKeywords)
@@ -451,7 +465,7 @@ CliOptionWithArgs::helpString()
   std::string keyword("");
   ostringstream helpRepr(mRepr);
 
-  if (helpRepr == "")
+  if (helpRepr.str() == "")
   {
     if (mNumArgs == -1)
       helpRepr << "<value1> <value2> ...";
@@ -469,7 +483,7 @@ CliOptionWithArgs::helpString()
     {
       keyword += mKeywords->at(i);
 
-      if (keyword.back() == '=')
+      if (keyword[keyword.length() - 1] == '=')
         keyword += helpRepr.str();
       else
         keyword += " " + helpRepr.str();
@@ -522,7 +536,7 @@ CliOptionWithArgs::hasKeyword(std::string keyword)
     const std::string& kw = *it;
     // If the current keyword ends up in an '=' we check
     // if its a prefix of the given arguemtn
-    if (kw.back() == '=' &&
+    if (kw[kw.length() - 1] == '=' &&
         keyword.compare(0, kw.length(), kw) == 0)
     {
       return *it;
@@ -540,7 +554,7 @@ CliOptionWithArgs::repr() const
   if (reprStr != "" && mKeywords)
   {
     const std::string &firstKw = mKeywords->front();
-    reprStr = firstKw + (firstKw.back() == '=' ? "" : " ") + reprStr;
+    reprStr = firstKw + (firstKw[firstKw.length() - 1] == '=' ? "" : " ") + reprStr;
   }
 
   return reprStr;
@@ -655,8 +669,9 @@ CliOptionWithArgs::analyse(std::vector<std::string> &cliArgs)
 
 CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
                                          int position, int numArgs, std::string repr)
-  : CliPositionalOption(name, desc, position, numArgs, repr, false)
-{}
+{
+  CliPositionalOption(name, desc, position, numArgs, repr, false);
+}
 
 CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
                                          int position, int numArgs,
@@ -669,14 +684,16 @@ CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
 
 CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
                                          int position, std::string repr)
-  : CliPositionalOption(name, desc, position, 1, repr)
-{}
+{
+  CliPositionalOption(name, desc, position, 1, repr);
+}
 
 CliPositionalOption::CliPositionalOption(const CliPositionalOption &option)
-  : CliPositionalOption(option.name(), option.description(),
-                        option.mPosition, option.mNumArgs, option.mRepr,
-                        option.mRequired)
 {
+  CliPositionalOption(option.name(), option.description(),
+                      option.mPosition, option.mNumArgs, option.mRepr,
+                      option.mRequired);
+
   if (option.mEvalFunctions)
     mEvalFunctions = new std::vector<evalFuncCb>(*option.mEvalFunctions);
   if (option.mUserData)
@@ -732,8 +749,9 @@ ConsoleCliCommand::ConsoleCliCommand(const std::string &name,
 {}
 
 ConsoleCliCommand::ConsoleCliCommand(const ConsoleCliCommand &otherCmd)
-  : ConsoleCliCommand(otherCmd.mName, otherCmd.mDescription)
 {
+  ConsoleCliCommand(otherCmd.mName, otherCmd.mDescription);
+
   if (otherCmd.mMainGroup)
     mMainGroup = new OptionsGroup(*otherCmd.mMainGroup);
 
@@ -1331,12 +1349,14 @@ OptionsGroup::OptionsGroup(std::string name)
 {}
 
 OptionsGroup::OptionsGroup()
-  : OptionsGroup("")
-{}
+{
+  OptionsGroup("");
+}
 
 OptionsGroup::OptionsGroup(const OptionsGroup &otherGroup)
-  : OptionsGroup(otherGroup.mName)
 {
+  OptionsGroup(otherGroup.mName);
+
   mRequired = otherGroup.mRequired;
 
   if (otherGroup.mOptions)

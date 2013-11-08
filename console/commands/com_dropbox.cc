@@ -49,7 +49,8 @@ com_dropbox (char *arg)
   addSubCmd = new ConsoleCliCommand("add", "add DropBox configuration to "
                                     "synchronize from <eos-dir> to "
                                     "<local-dir>");
-  addSubCmd->addOptions({{"eos-dir", "", 1, 1, "<eos-dir>", true},
+  addSubCmd->addOptions(std::vector<CliPositionalOption>
+                        {{"eos-dir", "", 1, 1, "<eos-dir>", true},
                          {"local-dir", "", 2, 1, "<local-dir>", true}
                         });
   dropboxCmd->addSubcommand(addSubCmd);

@@ -46,7 +46,8 @@ com_access (char* arg1)
                                "<identifier>", true);
   banSubCmd = new ConsoleCliCommand("ban", "ban user,group or host with "
                                     "identifier <identifier>");
-  banSubCmd->addGroupedOptions({{"user", "", "user"},
+  banSubCmd->addGroupedOptions(std::vector<CliOption>
+                               {{"user", "", "user"},
                                 {"group", "", "group"},
                                 {"host", "", "host"}
                                })->setRequired(true);
@@ -76,7 +77,8 @@ com_access (char* arg1)
 
   lsSubCmd = new ConsoleCliCommand("ls", "print banned,unbanned user, group, "
                                    "hosts");
-  lsSubCmd->addOptions({{"monitor", "output in monitoring format with "
+  lsSubCmd->addOptions(std::vector<CliOption>
+                       {{"monitor", "output in monitoring format with "
                          "<key>=<value>", "-m"},
                         {"numerical", "don't translate uid/gids to names", "-n"}
                        });
@@ -87,7 +89,8 @@ com_access (char* arg1)
 
   setRedirectSubCmd = new ConsoleCliCommand("redirect", "allows to set a global "
                                             "redirection to <target-host>");
-  setRedirectSubCmd->addGroupedOptions({{"read", "set stall time for read "
+  setRedirectSubCmd->addGroupedOptions(std::vector<CliOption>
+                                       {{"read", "set stall time for read "
                                          "requests", "-r,--read"},
                                         {"write", "set stall time for write "
                                          "requests", "-w,--write"},
@@ -102,7 +105,8 @@ com_access (char* arg1)
 
   setStallSubCmd = new ConsoleCliCommand("stall", "allows to set a global "
                                          "stall time");
-  setStallSubCmd->addGroupedOptions({{"read", "set stall time for read "
+  setStallSubCmd->addGroupedOptions(std::vector<CliOption>
+                                    {{"read", "set stall time for read "
                                       "requests", "-r,--read"},
                                      {"write", "set stall time for write "
                                       "requests", "-w,--write"},
@@ -119,7 +123,8 @@ com_access (char* arg1)
                                          "group for 5s if the <counter> "
                                          "exceeds a frequency of <frequency> "
                                          "in a 5s interval");
-  setLimitSubCmd->addOptions({{"frequency", "", 1, 1, "<frequency>", true},
+  setLimitSubCmd->addOptions(std::vector<CliPositionalOption>
+                             {{"frequency", "", 1, 1, "<frequency>", true},
                               {"rate", "the instantanious rate can exceed this "
                                "value by 33%;\nrate:user:*:<counter> : apply "
                                "to all users based on user counter;\n"
@@ -137,7 +142,8 @@ com_access (char* arg1)
   rmSubCmd->addSubcommand(rmRedirectSubCmd);
 
   rmStallSubCmd = new ConsoleCliCommand("stall", "removes global stall time");
-  rmStallSubCmd->addGroupedOptions({{"read", "remove stall time for read "
+  rmStallSubCmd->addGroupedOptions(std::vector<CliOption>
+                                   {{"read", "remove stall time for read "
                                       "requests", "-r,--read"},
                                      {"write", "remove stall time for write "
                                       "requests", "-w,--write"},
