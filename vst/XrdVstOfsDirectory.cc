@@ -24,6 +24,8 @@
 /*----------------------------------------------------------------------------*/
 #include "vst/XrdVstOfs.hh"
 
+EOSVSTNAMESPACE_BEGIN
+
 /*----------------------------------------------------------------------------*/
 XrdSfsDirectory*
 XrdVstOfs::newDir (char* user, int MonID)
@@ -37,5 +39,8 @@ XrdVstOfs::newDir (char* user, int MonID)
  */
 /*----------------------------------------------------------------------------*/
 {
-  return static_cast<XrdSfsDirectory*> (new XrdVstOfsDirectory(user, MonID));
+  return 0;
+  //  return static_cast<XrdSfsDirectory*> (new XrdVstOfsDirectory(user, MonID));
 }
+
+EOSVSTNAMESPACE_END

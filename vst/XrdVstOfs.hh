@@ -35,7 +35,7 @@
 
 EOSVSTNAMESPACE_BEGIN
 
-class XrdVstOfs {
+class XrdVstOfs : public XrdSfsFileSystem {
 public:
 
   //-----------------------------------------------------------------------------
@@ -429,7 +429,7 @@ class XrdSfsAio;
 class XrdSfsDio;
 class XrdSfsXio;
 
-class XrdVstOfsFile {
+class XrdVstOfsFile : public XrdSfsFile {
 public:
 
   //-----------------------------------------------------------------------------
@@ -579,7 +579,7 @@ public:
   //! @return SFS_ERROR File could not be read, error holds the reason.
   //-----------------------------------------------------------------------------
 
-  virtual XrdSfsXferSize read (XrdSfsAio *aioparm);
+  virtual XrdSfsXferSize read (XrdSfsAio *aioparm) {return 0;}
 
   //-----------------------------------------------------------------------------
   //! Given an array of read requests (size rdvCnt), read them from the file
@@ -654,7 +654,7 @@ public:
   //! @return !0       Request not accepted, returned value is errno.
   //-----------------------------------------------------------------------------
 
-  virtual int write (XrdSfsAio *aioparm);
+  virtual int write (XrdSfsAio *aioparm) {return 0;}
 
   //-----------------------------------------------------------------------------
   //! Given an array of write requests (size wdvcnt), write them to the file
@@ -714,7 +714,7 @@ public:
   //! @return SFS_ERROR Request could not be accepted, return error has reason.
   //-----------------------------------------------------------------------------
 
-  virtual int sync (XrdSfsAio *aiop);
+  virtual int sync (XrdSfsAio *aiop) { return 0;}
 
   //-----------------------------------------------------------------------------
   //! Truncate the file.
@@ -777,7 +777,7 @@ public:
 //! the caller wants to be able to perform directory oriented operations.
 //------------------------------------------------------------------------------
 
-class XrdVstOfsDirectory {
+class XrdVstOfsDirectory : public XrdSfsDirectory {
 public:
 
   //-----------------------------------------------------------------------------

@@ -24,9 +24,11 @@
 /*----------------------------------------------------------------------------*/
 #include "vst/XrdVstOfs.hh"
 
+EOSVSTNAMESPACE_BEGIN
+
 /*----------------------------------------------------------------------------*/
 XrdSfsFile*
-XrdFstOfs::newFile (char* user, int MonID)
+XrdVstOfs::newFile (char* user, int MonID)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief return new Vst file object
@@ -37,5 +39,8 @@ XrdFstOfs::newFile (char* user, int MonID)
  */
 /*----------------------------------------------------------------------------*/
 {
-  return static_cast<XrdSfsFile*> (new XrdFstOfsFile(user, MonID));
+  return 0;
+  //  return static_cast<XrdSfsFile*> (new XrdVstOfsFile(user, MonID));
 }
+
+EOSVSTNAMESPACE_END
