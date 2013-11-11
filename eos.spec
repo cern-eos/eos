@@ -2,7 +2,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.3.2
-Release: 4
+Release: 5
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -25,7 +25,7 @@ BuildRequires: readline-devel, ncurses-devel
 BuildRequires: libattr-devel, openldap-devel
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
 BuildRequires: fuse-devel, fuse >= 2.5
-BuildRequires: xrootd-cl-devel
+BuildRequires: xrootd-client-devel
 BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: git
@@ -49,7 +49,7 @@ The EOS software package.
 Summary: The EOS server installation
 Group: Applications/File
 Requires: xrootd >= 3.3.4
-Requires: xrootd-cl
+Requires: xrootd-client
 Requires: eos-client
 Requires: libmicrohttpd
 Requires: acl
@@ -162,7 +162,7 @@ fi
 #######################################################################################
 Summary: The EOS shell client
 Group: Applications/File
-Requires: xrootd-cl
+Requires: xrootd-client
 %description -n eos-client
 The EOS shell client.
 %files -n eos-client
@@ -188,7 +188,7 @@ The EOS shell client.
 Summary: The EOS fuse client
 Group: Applications/File
 
-Requires: xrootd-cl
+Requires: xrootd-client
 Requires: eos-client
 
 %description -n eos-fuse
