@@ -2330,7 +2330,7 @@ xrd_open (const char* path,
                                                      eos::common::LayoutId::kXrdCl);
 
 
-  retc = file->Open(spath.c_str(), flags_sfs, mode, "eos.app=fuse");
+  retc = file->Open(spath.c_str(), flags_sfs, mode, "eos.app=fuse&eos.bookingsize=0");
 
   if (retc)
   {

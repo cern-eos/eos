@@ -1266,7 +1266,6 @@ XrdMgmOfsFile::open (const char *inpath,
           // -------------------------------------------------------------------
         }
         isZeroSizeFile = true;
-        return SFS_OK;
       }
     }
     else
