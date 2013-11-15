@@ -2605,15 +2605,25 @@ xrd_pread (int fildes,
   }
   else
   {
+    // Flush all writes before doing a read
+    if (XFC && fuse_cache_write && inode)
+    {
+      FileAbstraction* fAbst = XFC->GetFileObj(fildes, false);
+      
+      if (fAbst)
+      {
+        XFC->WaitFinishWrites(*fAbst);
+        fAbst->DecrementNoReferences();
+        COMMONTIMING("Wait writes", &xpr);
+      }
+    }
+    
     file = xrd_get_file(fildes);
+
     if (file)
-    {
       ret = file->Read(offset, static_cast<char*> (buf), nbyte);
-    }
     else
-    {
       ret = EIO;
-    }
   }
 
   COMMONTIMING("end", &xpr);
