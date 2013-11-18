@@ -844,6 +844,16 @@ XrdFstOfsFile::open (const char* path,
 
     if (gOFS.Storage->fileSystemFullMap[fsid])
     {
+      if (layOut->IsEntryServer() && (!isReplication))
+      {
+        writeErrorFlag = kOfsDiskFullError;
+        layOut->Remove();
+        int ecode = 1094;
+        eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
+                    RedirectManager.c_str(), ecode);
+        return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
+      }
+      
       writeErrorFlag = kOfsDiskFullError;
       return gOFS.Emsg("writeofs", error, ENOSPC, "create file - disk space (headroom) exceeded fn=",
                        capOpaque ? (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") : FName()) : FName());
@@ -1475,6 +1485,25 @@ XrdFstOfsFile::verifychecksum ()
       //............................................................................
       // This is a read with checksum check, compare with fMD
       //............................................................................
+      bool isopenforwrite=false;
+      
+      // if the file is currently open to be written we don't check checksums!
+      gOFS.OpenFidMutex.Lock();      
+      if (gOFS.WOpenFid[fsid].count(fileid))
+      {
+	if (gOFS.WOpenFid[fsid][fileid] > 0)
+	{
+	  isopenforwrite=true;
+	}
+      }
+      gOFS.OpenFidMutex.UnLock();
+
+      if (isopenforwrite)
+      {
+	eos_info("(read)  disabling checksum check: file is currently written");
+	return false;
+      }
+
       eos_info("(read)  checksum type: %s checksum hex: %s fmd-checksum: %s",
                checkSum->GetName(),
                checkSum->GetHexChecksum(),
@@ -2892,6 +2921,9 @@ XrdFstOfsFile::stat (struct stat * buf)
     rc = gOFS.Emsg(epname, error, ENXIO, "stat - no layout to determine file size ", Path.c_str());
   }
 
+  // store the file id as inode number
+  if (!rc)
+    buf->st_ino = fileid;
   return rc;
 }
 
