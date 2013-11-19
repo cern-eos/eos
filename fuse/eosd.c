@@ -203,8 +203,7 @@ eosfs_ll_setattr (fuse_req_t req,
                             req->ctx.pid)) > 0)
         {
           retc = xrd_truncate (fd, attr->st_size, ino);
-          xrd_close (fd, ino);
-          xrd_remove_fd2file (fd);
+          xrd_close (fd, ino, fullpath, req->ctx.uid);
         }
         else
         {
@@ -229,8 +228,7 @@ eosfs_ll_setattr (fuse_req_t req,
                           req->ctx.pid)) > 0)
       {
         retc = xrd_truncate (fd, attr->st_size, ino);
-        xrd_close (fd, ino);
-        xrd_remove_fd2file (fd);
+        xrd_close (fd, ino, fullpath, req->ctx.uid);
       }
     }
   }
@@ -1070,9 +1068,6 @@ eosfs_ll_open (fuse_req_t req,
   info->uid = req->ctx.uid;
   fi->fh = (uint64_t) info;
 
-  // Add the new file descriptor for stat using file object 
-  xrd_add_open_fd (info->fd, (unsigned long long) ino, req->ctx.uid, 1);
-
   if ((getenv ("EOS_FUSE_KERNELCACHE")) &&
       (!strcmp (getenv ("EOS_FUSE_KERNELCACHE"), "1")))
   {
@@ -1223,27 +1218,17 @@ eosfs_ll_release (fuse_req_t req,
                __FUNCTION__, (long long) ino, (long long) fd);
     }
 
-    if (xrd_release_open_fd (ino, info->uid) == 1)
-    {
-      fprintf (stderr, "[%s]: Do real close file fd=%i\n", __FUNCTION__, info->fd);
-      int res = xrd_close (info->fd, ino);
-      xrd_release_read_buffer (pthread_self());
-      xrd_remove_fd2file (info->fd);
-
-      // Free memory
-      free (info);
-      fi->fh = 0;
-
-      if (res)
-      {
-        errno = -res;
-      }
-    }
-    else
-    {
-      //fprintf (stderr, "[%s]: Deffer closing file fd=%lld inode=%lld\n",
-      //         __FUNCTION__, (long long)fd, (long long) ino) ;
-    }
+    fprintf (stderr, "[%s]: Do real close file fd=%i\n", __FUNCTION__, info->fd);
+    res = xrd_close (info->fd, ino, info->path, info->uid);
+    xrd_release_read_buffer (pthread_self());
+    
+    // Free memory
+    free(info->path);
+    free (info);
+    fi->fh = 0;
+    
+    if (res)
+      errno = -res;
   }
 
   fuse_reply_err (req, 0);
@@ -1652,6 +1637,7 @@ eosfs_ll_create(fuse_req_t req,
     fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof (struct fd_user_info));
     info->fd = res;
     info->uid = req->ctx.uid;
+    info->path = strdup(fullpath);
     fi->fh = (uint64_t) info;
 
     // Update the entry parameters
@@ -1659,7 +1645,7 @@ eosfs_ll_create(fuse_req_t req,
     memset (&e, 0, sizeof ( e));
     e.attr_timeout = 0;
     e.entry_timeout = 0;
-    int retc = xrd_stat(partialpath, &e.attr, req->ctx.uid, req->ctx.gid, 0);
+    int retc = xrd_stat(fullpath, &e.attr, req->ctx.uid, req->ctx.gid, 0);
     e.ino = e.attr.st_ino;
     fprintf (stderr, "[%s]: update inode=%lu\n", __FUNCTION__, (long long) e.ino);
 
@@ -1677,9 +1663,6 @@ eosfs_ll_create(fuse_req_t req,
         fprintf (stderr, "[%s]: storeinode=%lld path=%s\n",
                  __FUNCTION__, (long long) e.ino, ifullpath);
       }
-
-      // Add the new file descriptor for stat using file object 
-      xrd_add_open_fd(info->fd, e.ino, req->ctx.uid, 1);
 
       if ((getenv ("EOS_FUSE_KERNELCACHE")) &&
           (!strcmp (getenv ("EOS_FUSE_KERNELCACHE"), "1")))
