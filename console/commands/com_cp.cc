@@ -371,9 +371,12 @@ com_cp (char* argin)
       }
       else
       {
-	source_find_list[l]+="?";
-	source_find_list[l]+=source_opaque;
-        source_list.push_back(source_find_list[l].c_str());
+	if (source_opaque.length()) 
+	{
+	  source_find_list[l]+="?";
+	  source_find_list[l]+=source_opaque;
+	}
+	source_list.push_back(source_find_list[l].c_str());
       }
     }
   }
@@ -755,7 +758,10 @@ com_cp (char* argin)
     XrdOucString transfersize = ""; // used for STDIN pipes to specify the target size ot eoscp
 
     cmdline = "";
-    eos::common::Path cPath(source_list[nfile].c_str());
+    XrdOucString prot;
+    XrdOucString hostport;
+    const char* urlpath = (eos::common::StringConversion::ParseUrl(source_list[nfile].c_str(), prot, hostport));
+    eos::common::Path cPath( urlpath?urlpath:source_list[nfile].c_str());
     arg1 = source_list[nfile];
 
     if (arg1.beginswith("./"))
@@ -831,6 +837,7 @@ com_cp (char* argin)
       }
       else
       {
+	fprintf(stderr,"append: %s %s\n", cPath.GetPath(),cPath.GetName());
         arg2.append(cPath.GetName());
       }
     }
