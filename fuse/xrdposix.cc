@@ -663,23 +663,12 @@ xrd_dir_cache_add_entry (unsigned long long inode,
 eos::common::RWMutex rwmutex_fd2fobj;
 google::dense_hash_map<int, eos::fst::Layout*> fd2fobj;
 
+// Map <path, user> to a file descriptor - used only in the xrd_stat method
+google::dense_hash_map<std::string, int> pathuser2fd;
+
 // Pool of available file descriptors
 unsigned int base_fd = 1;
 std::queue<int> pool_fd;
-
-
-//------------------------------------------------------------------------------
-// Generate string by concatenating the inode and uid information
-//------------------------------------------------------------------------------
-
-static std::string
-generate_index (unsigned long long inode,
-                uid_t uid)
-{
-  char index[256];
-  snprintf(index, sizeof ( index) - 1, "%llu-%u", inode, uid);
-  return index;
-}
 
 
 //------------------------------------------------------------------------------
@@ -716,9 +705,9 @@ xrd_generate_fd ()
 //------------------------------------------------------------------------------
 
 int
-xrd_add_fd2file (eos::fst::Layout* obj)
+xrd_add_fd2file (eos::fst::Layout* obj, const char* path, uid_t uid)
 {
-  eos_static_debug("Calling function.");
+  eos_static_debug("path=%s, uid=%lu", path, (unsigned long)uid);
   int fd = -1;
   eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fobj);
   fd = xrd_generate_fd();
@@ -726,6 +715,17 @@ xrd_add_fd2file (eos::fst::Layout* obj)
   if (fd > 0)
   {
     fd2fobj[fd] = obj;
+    
+    // Add mapping also to to pathuser2fd
+    std::ostringstream sstr;
+    sstr << path << ":" << (unsigned long)uid;
+    auto iter_fd = pathuser2fd.find(sstr.str());
+    
+    // If the mapping exitst, not much to do currently ... :(
+    if (iter_fd != pathuser2fd.end())
+      eos_static_warning("the pathuser mapping exists, just overwrite ...");
+    else 
+      pathuser2fd[sstr.str()] = fd;    
   }
   else
   {
@@ -744,15 +744,11 @@ eos::fst::Layout*
 xrd_get_file (int fd)
 {
   eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fobj);
-
+  
   if (fd2fobj.count(fd))
-  {
     return fd2fobj[fd];
-  }
   else
-  {
     return 0;
-  }
 }
 
 
@@ -760,102 +756,39 @@ xrd_get_file (int fd)
 // Remove entry from mapping
 //------------------------------------------------------------------------------
 
-void
-xrd_remove_fd2file (int fd)
+int
+xrd_remove_fd2file (int fd, const char* path, uid_t uid)
 {
-  eos_static_debug("Calling function.");
+  int retc = 0;
+  eos_static_debug("fd=%i, path=%s", fd, path);
   eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fobj);
 
   if (fd2fobj.count(fd))
   {
-    google::dense_hash_map<int, eos::fst::Layout*>::iterator iter = fd2fobj.find(fd);
+    auto iter = fd2fobj.find(fd);
     eos::fst::Layout* fobj = static_cast<eos::fst::Layout*> (iter->second);
+    retc = fobj->Close();
     delete fobj;
     fobj = 0;
     fd2fobj.erase(iter);
 
+    // Remove entry also from the pathuser2fd
+    std::ostringstream sstr;
+    sstr << path << ":" << (unsigned long)uid;
+    auto iter1 = pathuser2fd.find(sstr.str());
+
+    if (iter1 != pathuser2fd.end())
+      pathuser2fd.erase(iter1);
+
     // Return fd to the pool
     pool_fd.push(fd);
   }
-}
-
-
-// Map <inode, user> to a file descriptor
-google::dense_hash_map<std::string, FdRef> inodeuser2fd;
-
-// Mutex to protecte the map
-XrdSysMutex mutex_inodeuser2fd;
-
-
-//------------------------------------------------------------------------------
-// Add fd as an open file descriptor to speed-up mknod
-// It is called with num_ref = 0 from the mknod method and with num_ref = 1 from 
-// the open method
-//------------------------------------------------------------------------------
-
-void
-xrd_add_open_fd (int fd,
-                 unsigned long long inode,
-                 uid_t uid,
-                 int num_ref)
-{
-  eos_static_debug("Calling function inode = %llu, uid = %lu.", inode, (unsigned long) uid);
-
-  XrdSysMutexHelper lock(mutex_inodeuser2fd);
-  FdRef elem = {(unsigned long long) fd, num_ref};
-  inodeuser2fd[generate_index(inode, uid)] = elem;
-}
-
-
-//------------------------------------------------------------------------------
-// Return file descriptor held by a user for a file
-//------------------------------------------------------------------------------
-
-unsigned long long
-xrd_get_open_fd (unsigned long long inode, uid_t uid)
-{
-  eos_static_debug("Calling function inode = %llu, uid = %lu.",
-                   inode, (unsigned long) uid);
-
-  XrdSysMutexHelper lock(mutex_inodeuser2fd);
-  std::string index = generate_index(inode, uid);
-
-  if (inodeuser2fd.count(index))
+  else 
   {
-    inodeuser2fd[index].numRef++;
-    return inodeuser2fd[index].fd;
+    eos_static_warning("fd=%i no long in map, maybe already close ...");
   }
-
-  return 0;
-}
-
-
-//------------------------------------------------------------------------------
-// Relelase file descriptor
-//------------------------------------------------------------------------------
-
-int
-xrd_release_open_fd (unsigned long long inode, uid_t uid)
-{
-  eos_static_debug("Calling function inode = %llu, uid = %lu.",
-                   inode, (unsigned long) uid);
-
-  XrdSysMutexHelper lock(mutex_inodeuser2fd);
-
-  std::string index = generate_index(inode, uid);
-
-  if (inodeuser2fd.count(index))
-  {
-    eos_static_debug("Number of ref: %i", inodeuser2fd[index].numRef);
-
-    if (--inodeuser2fd[index].numRef == 0)
-    {
-      inodeuser2fd.erase(index);
-      return 1;
-    }
-  }
-
-  return 0;
+  
+  return retc;
 }
 
 
@@ -1284,32 +1217,6 @@ xrd_listxattr (const char* path,
   return errno;
 }
 
-long long
-xrd_size_fd (int fd)
-{
-  eos_static_info("fd=%d", fd);
-  eos::common::Timing stattiming("xrd_size_fd");
-  long long size = -1;
-  COMMONTIMING("START", &stattiming);
-  eos::fst::Layout* file = xrd_get_file(fd);
-
-  if (file)
-  {
-    struct stat buf;
-    if (!file->Stat(&buf))
-      size = (long long) buf.st_size;
-    eos_static_info("size-fd=%lld", size);
-  }
-
-  COMMONTIMING("END", &stattiming);
-
-  if (EOS_LOGS_DEBUG)
-  {
-    stattiming.Print();
-  }
-
-  return size;
-}
 
 //------------------------------------------------------------------------------
 // Return file attributes. If a field is meaningless or semi-meaningless
@@ -1420,46 +1327,52 @@ xrd_stat (const char* path,
 
       if (inode)
       {
-        // try to stat via an open file
-        unsigned long long ofd = xrd_get_open_fd(inode, uid);
-        eos_static_debug("inode=%lu, uid=%i, ofd=%lu", inode, uid, ofd);
-
-        if (ofd > 0)
+        // Try to stat via an open file - first find the file descriptor using the 
+        // pathuser2fd map and then find the file object using the fd2fobj map. 
+        // Meanwhile keep the mutex locked for read so that no other thread can 
+        // delete the file object
+        std::string spath = path;
+        eos_static_debug("path=%s, uid=%lu", path, (unsigned long) uid);
+        eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fobj);
+        std::ostringstream sstr;
+        sstr << spath << ":" << (unsigned long)uid;
+        google::dense_hash_map<std::string, int>::iterator
+          iter_fd = pathuser2fd.find(sstr.str());
+        
+        if (iter_fd != pathuser2fd.end())
         {
-          long long size_new = xrd_size_fd(ofd);
-          if (size_new >= 0)
-            buf->st_size = size_new;
+          google::dense_hash_map<int, eos::fst::Layout*>::iterator
+            iter_file = fd2fobj.find(iter_fd->second);
 
-          xrd_release_open_fd(inode, uid);
-          
-          // no reference left, need to call close
-          /*           
-          if (xrd_release_open_fd(inode, uid) == 1)
+          if (iter_file != fd2fobj.end())
           {
-            // no reference left, call close
-            xrd_close(ofd, inode);
-            xrd_release_read_buffer(ofd);
-            xrd_remove_fd2file(ofd);
+            struct stat tmp;
+            eos::fst::Layout* file = iter_file->second;
+                        
+            if (!file->Stat(&tmp) && tmp.st_size >= 0)
+              buf->st_size = tmp.st_size;            
+
+            eos_static_info("size-fd=%lld", buf->st_size);
           }
-          else
+          else 
           {
+            eos_static_err("fd=%i not found in file obj map", iter_fd->second);
           }
-          */
         }
         else
         {
-          eos_static_info("path=%s not open\n", path);
+          eos_static_info("path=%s not open", path);
         }
       }
       else
       {
-        eos_static_info("path=%s no inode\n", path);
+        eos_static_info("path=%s no inode", path);
       }
     }
   }
   else
   {
-    eos_static_err("error=status is NOT ok.");
+    eos_static_err("error=status is NOT ok");
     errno = EFAULT;
   }
 
@@ -2238,7 +2151,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file);
+        retc = xrd_add_fd2file(file, path, uid);
         return retc;
       }
     }
@@ -2261,7 +2174,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file);
+        retc = xrd_add_fd2file(file, path, uid);
         return retc;
       }
 
@@ -2286,7 +2199,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file);
+        retc = xrd_add_fd2file(file, path, uid);
         return retc;
       }
     }
@@ -2387,14 +2300,14 @@ xrd_open (const char* path,
           }
           else
           {
-            retc = xrd_add_fd2file(file);
+            retc = xrd_add_fd2file(file, path, uid);
             return retc;
           }
         }
       }
       else
       {
-        eos_static_debug("error=opque info not what we expected");
+        eos_static_debug("error=opaque info not what we expected");
       }
     }
     else
@@ -2404,7 +2317,6 @@ xrd_open (const char* path,
   }
 
   eos_static_debug("the spath is:%s", spath.c_str());
-
   eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                      eos::common::LayoutId::kXrdCl);
 
@@ -2419,7 +2331,7 @@ xrd_open (const char* path,
   }
   else
   {
-    retc = xrd_add_fd2file(file);
+    retc = xrd_add_fd2file(file, path, uid);
     return retc;
   }
 }
@@ -2431,7 +2343,7 @@ xrd_open (const char* path,
 //------------------------------------------------------------------------------
 
 int
-xrd_close (int fildes, unsigned long inode)
+xrd_close (int fildes, unsigned long inode, const char* path, uid_t uid)
 {
   eos_static_info("fd=%d inode=%lu", fildes, inode);
   int ret = 0;
@@ -2439,26 +2351,17 @@ xrd_close (int fildes, unsigned long inode)
   if (XFC && inode)
   {
     FileAbstraction* fAbst = XFC->GetFileObj(fildes, 0);
+
     if (fAbst)
-    {
       XFC->WaitWritesAndRemove(*fAbst);
-    }
   }
 
-  eos::fst::Layout* file = xrd_get_file(fildes);
-  if (file)
-  {
-    ret = file->Close();
-    eos_static_info("fd=%d inode=%lu [closed]", fildes, inode);
-    if (ret)
-    {
-      return -errno;
-    }
-  }
-  else
-  {
-    eos_static_debug("File was already closed and removed from the map.");
-  }
+  // Close file and remove it from all mappings
+  ret = xrd_remove_fd2file(fildes, path, uid);
+
+  if (ret)
+    return -errno;
+
   return ret;
 }
 
@@ -2893,8 +2796,8 @@ xrd_init ()
   inode2cache.set_empty_key(0);
   inode2cache.set_deleted_key(0xffffffffll);
 
-  inodeuser2fd.set_empty_key("");
-  inodeuser2fd.set_deleted_key("#__deleted__#");
+  pathuser2fd.set_empty_key("");
+  pathuser2fd.set_deleted_key("#__deleted__#");
 
   fd2fobj.set_empty_key(-1);
   fd2fobj.set_deleted_key(-2);
