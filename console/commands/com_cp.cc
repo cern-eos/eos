@@ -371,6 +371,8 @@ com_cp (char* argin)
       }
       else
       {
+	source_find_list[l]+="?";
+	source_find_list[l]+=source_opaque;
         source_list.push_back(source_find_list[l].c_str());
       }
     }
@@ -1022,7 +1024,6 @@ com_cp (char* argin)
     {
       rstdout = true;
     }
-
     if (arg1.beginswith("root:"))
     {
       if ((arg1.find("?") == STR_NPOS))
