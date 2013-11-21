@@ -671,6 +671,7 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
     SpaceQuota* spacequota = Quota::GetResponsibleSpaceQuota((Recycle::gRecyclingPrefix + "/").c_str());
     if (spacequota)
     {
+      spacequota->Refresh();
       unsigned long long usedbytes = spacequota->GetQuota(SpaceQuota::kGroupBytesIs, Quota::gProjectId);
       unsigned long long maxbytes = spacequota->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId);
       unsigned long long usedfiles = spacequota->GetQuota(SpaceQuota::kGroupFilesIs, Quota::gProjectId);
