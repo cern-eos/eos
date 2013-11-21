@@ -583,6 +583,8 @@ public:
   }
   void PrintOut (XrdOucString& output, long uid_sel = -1, long gid_sel = -1, bool monitoring = false, bool translateids = false);
 
+  void Refresh ();
+
   unsigned long long
   Index (unsigned long tag, unsigned long id)
   {

@@ -445,6 +445,16 @@ SpaceQuota::UpdateFromQuotaNode (uid_t uid, gid_t gid, bool calc_project_quota)
 
 /*----------------------------------------------------------------------------*/
 void
+SpaceQuota::Refresh()
+{
+  Quota::NodeToSpaceQuota(SpaceName.c_str());
+  UpdateLogicalSizeFactor();
+  UpdateIsSums();
+  UpdateTargetSums();
+}
+
+/*----------------------------------------------------------------------------*/
+void
 SpaceQuota::PrintOut (XrdOucString &output, long uid_sel, long gid_sel, bool monitoring, bool translateids)
 {
   char headerline[4096];
@@ -452,12 +462,7 @@ SpaceQuota::PrintOut (XrdOucString &output, long uid_sel, long gid_sel, bool mon
 
   std::map<long long, unsigned long long>::const_iterator it;
 
-  Quota::NodeToSpaceQuota(SpaceName.c_str());
-
-  UpdateLogicalSizeFactor();
-  UpdateIsSums();
-  UpdateTargetSums();
-
+  Refresh();
 
   int* sortuidarray = (int*) malloc(sizeof (int) * (Quota.size() + 1));
   int* sortgidarray = (int*) malloc(sizeof (int) * (Quota.size() + 1));

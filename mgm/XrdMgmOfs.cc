@@ -4491,11 +4491,27 @@ XrdMgmOfs::fsctl (const int cmd,
     // -------------------------------------------------------------------------
     if (FsView::gFsView.mSpaceView.count("default"))
     {
-
-      space = "default";
-      eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-      freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
-      maxbytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
+      std::string path = args;
+      if ( (path == "/") || (path == "") ) {
+	space = "default";
+	eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+	freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
+	maxbytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
+      }
+      else 
+      {
+	if (path.substr(path.length()-1,1) != "/") {
+	  path += "/";
+	}
+	eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+	SpaceQuota* space = Quota::GetResponsibleSpaceQuota(path.c_str());
+	if (space) 
+	{
+	  space->Refresh();
+	  maxbytes = space->GetQuota(SpaceQuota::kAllGroupBytesTarget,0);
+	  freebytes = maxbytes - space->GetQuota(SpaceQuota::kAllGroupBytesIs, 0);
+	}
+      }
     }
 
     static const char *Resp = "oss.cgroup=%s&oss.space=%lld&oss.free=%lld"
