@@ -82,7 +82,6 @@ extern "C"
   {
     unsigned long long fd;
     uid_t uid;
-    char* path;
   } fd_user_info;
 
 
@@ -294,6 +293,17 @@ extern "C"
 
 
   //----------------------------------------------------------------------------
+  //! Add new inodeuser to fd mapping used when doing stat through the file obj.
+  //! 
+  //! @param inode inode number
+  //! @param uid user uid
+  //! @param fd file descriptor
+  //!
+  //----------------------------------------------------------------------------
+  void xrd_add_inodeuser_fd(unsigned long inode, uid_t uid, int fd);
+
+
+  //----------------------------------------------------------------------------
   //              ******* FUSE Directory Cache *******
   //----------------------------------------------------------------------------
 
@@ -495,7 +505,7 @@ extern "C"
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  int xrd_close (int fd, unsigned long inode, const char* path, uid_t uid);
+  int xrd_close (int fd, unsigned long inode, uid_t uid);
 
 
   //----------------------------------------------------------------------------
