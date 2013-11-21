@@ -167,7 +167,7 @@ eosdfs_readdir (const char* path,
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
 
-  if (!strcmp (path, "/"))
+  if (strcmp (path, "/"))
   {
     filler (buf, ".", NULL, 0);
     filler (buf, "..", NULL, 0);

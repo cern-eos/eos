@@ -2122,6 +2122,7 @@ xrd_open (const char* path,
 
   if ((t0 = spath.find("/proc/")) != STR_NPOS)
   {
+    XrdOucString orig_path=spath;
     // Clean the path
     int t1 = spath.find("//");
     int t2 = spath.find("//", t1 + 2);
@@ -2212,6 +2213,7 @@ xrd_open (const char* path,
         return retc;
       }
     }
+    spath=orig_path;
   }
 
   // Try to open file using PIO (parallel io) only in read mode
