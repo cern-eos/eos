@@ -394,7 +394,7 @@ eosdfs_truncate (const char* path, off_t size)
     return -errno;
 
   xrd_truncate (res, size, 0);
-  xrd_close (res, 0, path, 0);
+  xrd_close (res, 0, 0);
   return 0;
 }
 
@@ -564,7 +564,7 @@ eosdfs_release (const char* path, struct fuse_file_info* fi)
   struct fd_user_info* info = (struct fd_user_info*) fi->fh;
   fd = (int) info->fd;
 
-  xrd_close (fd, 0, path, 0);
+  xrd_close (fd, 0, 0);
   xrd_release_read_buffer (pthread_self());
 
   //............................................................................

@@ -663,8 +663,8 @@ xrd_dir_cache_add_entry (unsigned long long inode,
 eos::common::RWMutex rwmutex_fd2fobj;
 google::dense_hash_map<int, eos::fst::Layout*> fd2fobj;
 
-// Map <path, user> to a file descriptor - used only in the xrd_stat method
-google::dense_hash_map<std::string, int> pathuser2fd;
+// Map <inode, user> to a file descriptor - used only in the xrd_stat method
+google::dense_hash_map<std::string, int> inodeuser2fd;
 
 // Pool of available file descriptors
 unsigned int base_fd = 1;
@@ -701,6 +701,33 @@ xrd_generate_fd ()
 
 
 //------------------------------------------------------------------------------
+// Add new inodeuser to fd mapping used when doing stat through the file obj.
+//------------------------------------------------------------------------------
+void xrd_add_inodeuser_fd(unsigned long inode, uid_t uid, int fd)
+{
+  eos_static_debug("inode=%lu, uid=%lu", inode, (unsigned long)uid);
+  std::ostringstream sstr;
+  sstr << inode << ":" << (unsigned long)uid;
+
+  // Use the same mutex as for fd2fobj!
+  eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fobj);
+  auto iter_fd = inodeuser2fd.find(sstr.str());
+  
+  // If the mapping exitst, not much to do currently ... :(
+  if (iter_fd != inodeuser2fd.end())
+  {
+    eos_static_warning("the pathuser mapping exists, just overwrite ..."
+                       " old_fd=%i, new_fd=%i", iter_fd->second, fd);
+    
+    inodeuser2fd[sstr.str()] = fd;      
+  }
+  else 
+    inodeuser2fd[sstr.str()] = fd;      
+}
+
+
+
+//------------------------------------------------------------------------------
 // Add new mapping between fd and XrdCl::File object
 //------------------------------------------------------------------------------
 
@@ -713,33 +740,17 @@ xrd_add_fd2file (eos::fst::Layout* obj, const char* path, uid_t uid)
   fd = xrd_generate_fd();
 
   if (fd > 0)
-  {
     fd2fobj[fd] = obj;
-    
-    // Add mapping also to to pathuser2fd
-    std::ostringstream sstr;
-    sstr << path << ":" << (unsigned long)uid;
-    auto iter_fd = pathuser2fd.find(sstr.str());
-    
-    // If the mapping exitst, not much to do currently ... :(
-    if (iter_fd != pathuser2fd.end())
-      eos_static_warning("the pathuser mapping exists, just overwrite ...");
-    else 
-      pathuser2fd[sstr.str()] = fd;    
-  }
   else
-  {
     eos_static_err("error=error while getting file descriptor");
-  }
-
+ 
   return fd;
 }
 
 
 //------------------------------------------------------------------------------
-// Get the XrdCl::File object corresponding to the fd
+// Get the file object corresponding to the fd
 //------------------------------------------------------------------------------
-
 eos::fst::Layout*
 xrd_get_file (int fd)
 {
@@ -755,12 +766,11 @@ xrd_get_file (int fd)
 //------------------------------------------------------------------------------
 // Remove entry from mapping
 //------------------------------------------------------------------------------
-
 int
-xrd_remove_fd2file (int fd, const char* path, uid_t uid)
+xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid)
 {
   int retc = 0;
-  eos_static_debug("fd=%i, path=%s", fd, path);
+  eos_static_debug("fd=%i, inode=%lu", fd, inode);
   eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fobj);
 
   if (fd2fobj.count(fd))
@@ -772,13 +782,13 @@ xrd_remove_fd2file (int fd, const char* path, uid_t uid)
     fobj = 0;
     fd2fobj.erase(iter);
 
-    // Remove entry also from the pathuser2fd
+    // Remove entry also from the inodeuser2fd
     std::ostringstream sstr;
-    sstr << path << ":" << (unsigned long)uid;
-    auto iter1 = pathuser2fd.find(sstr.str());
+    sstr << inode << ":" << (unsigned long)uid;
+    auto iter1 = inodeuser2fd.find(sstr.str());
 
-    if (iter1 != pathuser2fd.end())
-      pathuser2fd.erase(iter1);
+    if (iter1 != inodeuser2fd.end())
+      inodeuser2fd.erase(iter1);
 
     // Return fd to the pool
     pool_fd.push(fd);
@@ -1328,18 +1338,17 @@ xrd_stat (const char* path,
       if (inode)
       {
         // Try to stat via an open file - first find the file descriptor using the 
-        // pathuser2fd map and then find the file object using the fd2fobj map. 
+        // inodeuser2fd map and then find the file object using the fd2fobj map. 
         // Meanwhile keep the mutex locked for read so that no other thread can 
         // delete the file object
-        std::string spath = path;
         eos_static_debug("path=%s, uid=%lu", path, (unsigned long) uid);
         eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fobj);
         std::ostringstream sstr;
-        sstr << spath << ":" << (unsigned long)uid;
+        sstr << inode << ":" << (unsigned long)uid;
         google::dense_hash_map<std::string, int>::iterator
-          iter_fd = pathuser2fd.find(sstr.str());
+          iter_fd = inodeuser2fd.find(sstr.str());
         
-        if (iter_fd != pathuser2fd.end())
+        if (iter_fd != inodeuser2fd.end())
         {
           google::dense_hash_map<int, eos::fst::Layout*>::iterator
             iter_file = fd2fobj.find(iter_fd->second);
@@ -2343,7 +2352,7 @@ xrd_open (const char* path,
 //------------------------------------------------------------------------------
 
 int
-xrd_close (int fildes, unsigned long inode, const char* path, uid_t uid)
+xrd_close (int fildes, unsigned long inode, uid_t uid)
 {
   eos_static_info("fd=%d inode=%lu", fildes, inode);
   int ret = 0;
@@ -2357,7 +2366,7 @@ xrd_close (int fildes, unsigned long inode, const char* path, uid_t uid)
   }
 
   // Close file and remove it from all mappings
-  ret = xrd_remove_fd2file(fildes, path, uid);
+  ret = xrd_remove_fd2file(fildes, inode, uid);
 
   if (ret)
     return -errno;
@@ -2796,8 +2805,8 @@ xrd_init ()
   inode2cache.set_empty_key(0);
   inode2cache.set_deleted_key(0xffffffffll);
 
-  pathuser2fd.set_empty_key("");
-  pathuser2fd.set_deleted_key("#__deleted__#");
+  inodeuser2fd.set_empty_key("");
+  inodeuser2fd.set_deleted_key("#__deleted__#");
 
   fd2fobj.set_empty_key(-1);
   fd2fobj.set_deleted_key(-2);
