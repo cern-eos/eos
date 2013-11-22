@@ -206,7 +206,8 @@ CliOption::CliOption()
 }
 
 CliOption::CliOption(const CliOption &option)
-  : CliBaseOption(option.mName, option.mDescription)
+  : CliBaseOption(option.mName, option.mDescription),
+    mGroup(0)
 {
   CliOption(option.mName, option.mDescription, "");
 
