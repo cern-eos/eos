@@ -216,6 +216,7 @@ CliOption::CliOption(const CliOption &option)
 
   if (option.mKeywords)
   {
+    mKeywords = new std::vector<std::string>;
     std::vector<std::string>::const_iterator it;
 
     for (it = option.mKeywords->cbegin(); it != option.mKeywords->cend(); it++)
