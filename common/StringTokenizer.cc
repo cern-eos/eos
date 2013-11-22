@@ -30,16 +30,18 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-/** 
- * Constructor
- * 
+/**
+ * Constructor delegate.
+ *
  */
 /*----------------------------------------------------------------------------*/
-StringTokenizer::StringTokenizer (const char* s, char delimeter)
-  : fDelimeter(delimeter)
+void
+StringTokenizer::init (const char* s, char delimeter)
 {
+  fDelimeter = delimeter;
+
   // -----------------------------------------------------------
-  // the constructor just parses lines not token's within a line
+  // the init just parses lines not token's within a line
   // -----------------------------------------------------------
 
   if (s)
