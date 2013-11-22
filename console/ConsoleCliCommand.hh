@@ -167,6 +167,9 @@ protected:
   AnalysisResult* commonAnalysis(std::vector<std::string> &cliArgs,
                                  int initPos,
                                  const std::string &firstArg);
+
+private:
+  void init(int numArgs, std::string repr, bool required);
 };
 
 class CliPositionalOption : public CliOptionWithArgs {
@@ -279,6 +282,7 @@ private:
   std::string positionalOptionsRepr() const;
   void addError(const ParseError *);
   void clean();
+  void init(const std::string &name, const std::string &description);
 };
 
 #endif // CONSOLE_CLI_COMMAND_HH

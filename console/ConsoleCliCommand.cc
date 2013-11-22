@@ -389,40 +389,49 @@ CliOption::helpString()
   return strdup(help.c_str());
 }
 
-CliOptionWithArgs::CliOptionWithArgs(std::string name,
-                                     std::string desc,
-                                     std::string keywords,
-                                     int numArgs,
-                                     std::string repr,
-                                     bool required)
-  : CliOption::CliOption(name, desc, keywords),
-    mRepr(repr),
-    mNumArgs(numArgs),
-    mEvalFunctions(0),
-    mUserData(0)
+void
+CliOptionWithArgs::init(int numArgs,
+                        std::string repr,
+                        bool required)
 {
+  mNumArgs = numArgs;
+  mRepr = repr;
+  mEvalFunctions = 0;
+  mUserData = 0;
   mRequired = required;
 }
 
 CliOptionWithArgs::CliOptionWithArgs(std::string name,
                                      std::string desc,
                                      std::string keywords,
+                                     int numArgs,
                                      std::string repr,
                                      bool required)
+  : CliOption::CliOption(name, desc, keywords)
 {
-  CliOptionWithArgs(name, desc, keywords, 1, repr, required);
+  init(numArgs, repr, required);
+}
+
+CliOptionWithArgs::CliOptionWithArgs(std::string name,
+                                     std::string desc,
+                                     std::string keywords,
+                                     std::string repr,
+                                     bool required)
+  : CliOption::CliOption(name, desc, keywords)
+{
+  init(1, repr, required);
 }
 
 CliOptionWithArgs::CliOptionWithArgs()
+  : CliOption::CliOption("", "", "")
 {
-  CliOptionWithArgs("", "", "", 1, "", false);
+  init(1, "", false);
 }
 
 CliOptionWithArgs::CliOptionWithArgs(const CliOptionWithArgs &otherOption)
+  : CliOption::CliOption(otherOption.mName, otherOption.mDescription, "")
 {
-  CliOptionWithArgs(otherOption.mName, otherOption.mDescription,
-                    "", otherOption.mNumArgs, otherOption.mRepr,
-                    otherOption.mRequired);
+  init(otherOption.mNumArgs, otherOption.mRepr, otherOption.mRequired);
 
   mHidden = otherOption.hidden();
 
@@ -669,8 +678,10 @@ CliOptionWithArgs::analyse(std::vector<std::string> &cliArgs)
 
 CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
                                          int position, int numArgs, std::string repr)
+  : CliOptionWithArgs(name, desc, "", numArgs, repr, false),
+    mPosition(position)
 {
-  CliPositionalOption(name, desc, position, numArgs, repr, false);
+  assert(mPosition > 0 || mPosition == -1);
 }
 
 CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
@@ -684,15 +695,17 @@ CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
 
 CliPositionalOption::CliPositionalOption(std::string name, std::string desc,
                                          int position, std::string repr)
+  : CliOptionWithArgs(name, desc, "", 1, repr, false),
+    mPosition(position)
 {
-  CliPositionalOption(name, desc, position, 1, repr);
+  assert(mPosition > 0 || mPosition == -1);
 }
 
 CliPositionalOption::CliPositionalOption(const CliPositionalOption &option)
+  : CliOptionWithArgs(option.name(), option.description(), "",
+                      option.mNumArgs, option.mRepr, option.mRequired),
+    mPosition(option.mPosition)
 {
-  CliPositionalOption(option.name(), option.description(),
-                      option.mPosition, option.mNumArgs, option.mRepr,
-                      option.mRequired);
 
   if (option.mEvalFunctions)
     mEvalFunctions = new std::vector<evalFuncCb>(*option.mEvalFunctions);
@@ -735,22 +748,30 @@ CliPositionalOption::repr() const
   return mRepr;
 }
 
+void
+ConsoleCliCommand::init(const std::string &name,
+                        const std::string &description)
+{
+  mName = name;
+  mDescription = description;
+  mSubcommands = 0;
+  mMainGroup = 0;
+  mPositionalOptions = 0;
+  mParentCommand = 0;
+  mErrors = 0;
+  mGroups = 0;
+  mStandalone = true;
+}
+
 ConsoleCliCommand::ConsoleCliCommand(const std::string &name,
                                      const std::string &description)
-  : mName(name),
-    mDescription(description),
-    mSubcommands(0),
-    mMainGroup(0),
-    mPositionalOptions(0),
-    mParentCommand(0),
-    mErrors(0),
-    mGroups(0),
-    mStandalone(true)
-{}
+{
+  init(name, description);
+}
 
 ConsoleCliCommand::ConsoleCliCommand(const ConsoleCliCommand &otherCmd)
 {
-  ConsoleCliCommand(otherCmd.mName, otherCmd.mDescription);
+  init(otherCmd.mName, otherCmd.mDescription);
 
   if (otherCmd.mMainGroup)
     mMainGroup = new OptionsGroup(*otherCmd.mMainGroup);
@@ -1349,8 +1370,10 @@ OptionsGroup::OptionsGroup(std::string name)
 {}
 
 OptionsGroup::OptionsGroup()
+  : mName(""),
+    mOptions(0),
+    mRequired(false)
 {
-  OptionsGroup("");
 }
 
 OptionsGroup::OptionsGroup(const OptionsGroup &otherGroup)
