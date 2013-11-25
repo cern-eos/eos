@@ -711,9 +711,9 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     unsigned int ipaddr;
 
     // if we have a default geo location we assume that a client in that one
-    if (gGeoMap.count("geotag:default"))
+    if (gGeoMap.count("default"))
     {
-      vid.geolocation = gGeoMap["geotag:default"];
+      vid.geolocation = gGeoMap["default"];
     }
     if (XrdSysDNS::Host2IP(host.c_str(), &ipaddr) == 1)
     {
