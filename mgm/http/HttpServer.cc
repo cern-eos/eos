@@ -33,6 +33,7 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 #include <sstream>
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -43,14 +44,14 @@ EOSMGMNAMESPACE_BEGIN
 #ifdef EOS_MICRO_HTTPD
 /*----------------------------------------------------------------------------*/
 int
-HttpServer::Handler (void                  *cls,
+HttpServer::Handler (void *cls,
                      struct MHD_Connection *connection,
-                     const char            *url,
-                     const char            *method,
-                     const char            *version,
-                     const char            *uploadData,
-                     size_t                *uploadDataSize,
-                     void                 **ptr)
+                     const char *url,
+                     const char *method,
+                     const char *version,
+                     const char *uploadData,
+                     size_t *uploadDataSize,
+                     void **ptr)
 {
   std::map<std::string, std::string> headers;
 
@@ -81,7 +82,7 @@ HttpServer::Handler (void                  *cls,
   }
 
   // Retrieve the protocol handler stored in *ptr
-  eos::common::ProtocolHandler *protocolHandler = (eos::common::ProtocolHandler*) *ptr;
+  eos::common::ProtocolHandler *protocolHandler = (eos::common::ProtocolHandler*) * ptr;
 
   // For requests which have a body (i.e. uploadDataSize != 0) we must handle
   // the body data on the second reentrant call to this function. We must
@@ -106,9 +107,9 @@ HttpServer::Handler (void                  *cls,
     // Make a request object
     std::string body(uploadData, *uploadDataSize);
     eos::common::HttpRequest *request = new eos::common::HttpRequest(
-                                            headers, method, url,
-                                            query.c_str() ? query : "",
-                                            body, uploadDataSize, cookies);
+                                                                     headers, method, url,
+                                                                     query.c_str() ? query : "",
+                                                                     body, uploadDataSize, cookies);
     eos_static_debug("\n\n%s", request->ToString().c_str());
 
     // Handle the request and build a response based on the specific protocol
@@ -151,7 +152,7 @@ HttpServer::Handler (void                  *cls,
     // Queue the response
     int ret = MHD_queue_response(connection, response->GetResponseCode(),
                                  mhdResponse);
-    eos_static_info("msg=\"MHD_queue_response returned code %d\"", ret);
+    eos_static_info("msg=\"MHD_queue_response\" retc=%d", ret);
     MHD_destroy_response(mhdResponse);
     delete protocolHandler;
     return ret;
@@ -167,14 +168,14 @@ HttpServer::Handler (void                  *cls,
 
 /*----------------------------------------------------------------------------*/
 eos::common::Mapping::VirtualIdentity*
-HttpServer::Authenticate(std::map<std::string, std::string> &headers)
+HttpServer::Authenticate (std::map<std::string, std::string> &headers)
 {
   eos::common::Mapping::VirtualIdentity *vid = 0;
-  std::string clientDN   = headers["SSL_CLIENT_S_DN"];
+  std::string clientDN = headers["SSL_CLIENT_S_DN"];
   std::string remoteUser = headers["Remote-User"];
   std::string dn;
   std::string username;
-  unsigned    pos;
+  unsigned pos;
 
   if (clientDN.empty() && remoteUser.empty())
   {
@@ -193,7 +194,7 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
 
     // Initially load the file, or reload it if it was modified
     if (!mGridMapFileLastModTime.tv_sec ||
-         mGridMapFileLastModTime.tv_sec != info.st_mtim.tv_sec)
+        mGridMapFileLastModTime.tv_sec != info.st_mtim.tv_sec)
     {
       eos_static_info("msg=\"reloading gridmap file\"");
 
@@ -221,9 +222,9 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
         return NULL;
       }
 
-      dn       = (*it).substr(1, pos - 2); // Remove quotes around DN
+      dn = (*it).substr(1, pos - 2); // Remove quotes around DN
       username = (*it).substr(pos + 1);
-      
+
       // for proxies clientDN as appended a ../CN=... which has to be removed
       std::string clientDNproxy = clientDN;
       clientDNproxy.erase(clientDN.rfind("/CN="));
@@ -241,28 +242,28 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
                         "dn=\"%s\"username=\"%s\"", dn.c_str(), username.c_str());
         break;
       }
-      
+
       username = "";
     }
 
     // Try to match with kerberos username
     pos = remoteUser.find_last_of("@");
     std::string remoteUserName = remoteUser.substr(0, pos);
-    
+
     std::vector<std::string> tokens;
     eos::common::StringConversion::Tokenize(dn, tokens, "/");
-    
+
     for (auto it = tokens.begin(); it != tokens.end(); ++it)
-    {       
-      pos            = (*it).find_last_of("=");
+    {
+      pos = (*it).find_last_of("=");
       std::string cn = (*it).substr(pos + 1);
-      
+
       if (cn == remoteUserName)
       {
-	username = (*it).substr(pos + 1);
-	eos_static_info("msg=\"mapped client krb5 username successfully\" "
-			"username=\"%s\"", username.c_str());
-	break;
+        username = (*it).substr(pos + 1);
+        eos_static_info("msg=\"mapped client krb5 username successfully\" "
+                        "username=\"%s\"", username.c_str());
+        break;
       }
     }
   }
@@ -280,11 +281,11 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
   vid = new eos::common::Mapping::VirtualIdentity();
   eos::common::Mapping::getPhysicalIds(username.c_str(), *vid);
 
-  vid->dn     = dn;
-  vid->name   = XrdOucString(username.c_str());
-  vid->host   = headers["Host"];
+  vid->dn = dn;
+  vid->name = XrdOucString(username.c_str());
+  vid->host = headers["Host"];
   vid->tident = "dummy.0:0@localhost";
-  vid->prot   = "https";
+  vid->prot = "https";
 
   return vid;
 }

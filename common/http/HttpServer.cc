@@ -98,9 +98,9 @@ HttpServer::Run ()
                                  MHD_OPTION_CONNECTION_MEMORY_LIMIT,
                                  128 * 1024 * 1024 /* 128MB */,
                                  MHD_OPTION_THREAD_POOL_SIZE,
-                                 getenv("EOS_HTTP_THREADPOOL_SIZE")? 
-                                   (atoi(getenv("EOS_HTTP_THREADPOOL_SIZE"))>0)?
-                                     atoi(getenv("EOS_HTTP_THREADPOOL_SIZE")):16:16, 
+                                 getenv("EOS_HTTP_THREADPOOL_SIZE") ?
+                                 (atoi(getenv("EOS_HTTP_THREADPOOL_SIZE")) > 0) ?
+                                 atoi(getenv("EOS_HTTP_THREADPOOL_SIZE")) : 16 : 16,
                                  MHD_OPTION_END
                                  );
     }
@@ -363,6 +363,21 @@ HttpServer::HttpData (const char *data, int length)
   HttpResponse *response = new PlainHttpResponse();
   response->SetResponseCode(HttpResponse::ResponseCodes::OK);
   response->SetBody(std::string(data, length));
+  return response;
+}
+
+/*----------------------------------------------------------------------------*/
+HttpResponse*
+HttpServer::HttpHead (off_t length, std::string name)
+{
+  HttpResponse *response = new PlainHttpResponse();
+  response->SetResponseCode(HttpResponse::ResponseCodes::OK);
+  response->SetBody(std::string(""));
+  response->AddHeader("Content-Length", std::to_string((long long) length));
+  response->AddHeader("Content-Type", "application/octet-stream");
+  response->AddHeader("Accept-Ranges", "bytes");
+  response->AddHeader("Content-Disposition", std::string("filename=\"") + name
+                      + std::string("\""));
   return response;
 }
 

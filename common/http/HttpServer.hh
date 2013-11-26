@@ -122,6 +122,19 @@ public:
   HttpError (const char *errorText, int errorCode);
 
   /**
+   * Get an HTTP HEAD response object with an empty
+   * body.
+   *
+   * @param length  the size of the data page
+   * @param name basename to add to header
+   *
+   * @return an HTTP response object
+   */
+  static HttpResponse*
+  HttpHead (off_t length, std::string name);
+  
+  
+  /**
    * Get an HTTP data response object containing an HTML data page inside the
    * body.
    *
