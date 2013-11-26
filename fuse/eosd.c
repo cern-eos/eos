@@ -1606,13 +1606,9 @@ eosfs_ll_create(fuse_req_t req,
     FULLPARENTPATH (fullpath, mountprefix, parentpath, name);
 
     if ((strlen (parentpath) == 1) && (parentpath[0] == '/'))
-    {
       sprintf (ifullpath, "/%s", name);
-    }
     else
-    {
       sprintf (ifullpath, "%s/%s", parentpath, name);
-    }
 
     xrd_unlock_r_p2i (); // <=
 
