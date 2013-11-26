@@ -1240,7 +1240,7 @@ xrd_stat (const char* path,
           gid_t gid,
           unsigned long inode)
 {
-  eos_static_info("path=%s", path);
+  eos_static_info("path=%s, uid=%i, gid=%i", path, (int)uid, (int)gid);
   eos::common::Timing stattiming("xrd_stat");
 
   COMMONTIMING("START", &stattiming);
@@ -1253,7 +1253,7 @@ xrd_stat (const char* path,
   request += "mgm.pcmd=stat";
   arg.FromString(request);
 
-  XrdCl::URL Url(xrd_user_url(2, 2, 0));
+  XrdCl::URL Url(xrd_user_url(uid, gid, 0));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1341,7 +1341,7 @@ xrd_stat (const char* path,
         // inodeuser2fd map and then find the file object using the fd2fobj map. 
         // Meanwhile keep the mutex locked for read so that no other thread can 
         // delete the file object
-        eos_static_debug("path=%s, uid=%lu", path, (unsigned long) uid);
+        eos_static_info("path=%s, uid=%lu", path, (unsigned long) uid);
         eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fobj);
         std::ostringstream sstr;
         sstr << inode << ":" << (unsigned long)uid;
@@ -2444,14 +2444,10 @@ xrd_truncate (int fildes, off_t offset, unsigned long inode)
     ret = file->Truncate(offset);
 
     if (ret)
-    {
       eos_static_err("error=return is NOT ok with value %i. \n", errno);
-    }
   }
   else
-  {
     errno = EFAULT;
-  }
 
   return errno;
 }

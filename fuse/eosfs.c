@@ -76,25 +76,22 @@ gid_t gid;
 pid_t pid;
 
 //------------------------------------------------------------------------------
-//
+// Get attr
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_getattr (const char* path, struct stat* stbuf)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
+  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   int res;
   char rootpath[4096];
 
   if (strcmp (path, "/"))
-  {
     eosatime = time (0);
-  }
 
   rootpath[0] = '\0';
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
-  res = xrd_stat (rootpath, stbuf,0,0,0);
+  res = xrd_stat(rootpath, stbuf, uid, gid, xrd_inode(rootpath));
 
   if (res == 0)
   {
@@ -110,45 +107,86 @@ eosdfs_getattr (const char* path, struct stat* stbuf)
       stbuf->st_mode &= 0772777; // remove sticky bit and suid bit
 
       if (!strcmp (path, "/"))
-      {
         stbuf->st_atime = eosatime;
-      }
 
       fprintf (stderr, "[%s] Return 0 for directory. \n", __FUNCTION__);
       return 0;
     }
     else if (S_ISLNK (stbuf->st_mode))
-    {
       return 0;
-    }
     else
-    {
       return -EIO;
-    }
   }
   else
-  {
     return -errno;
-  }
 }
 
 
 //------------------------------------------------------------------------------
-//
+// Get fattr
 //------------------------------------------------------------------------------
+static int
+eosdfs_fgetattr (const char* path,
+                 struct stat* stbuf,
+                 struct fuse_file_info* fi)
+{
+  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  char rootpath[4096];
 
+  if (strcmp (path, "/"))
+    eosatime = time (0);
+
+  rootpath[0] = '\0';
+  strcat (rootpath, mountprefix);
+  strcat (rootpath, path);
+  struct fd_user_info* info = (fd_user_info*) fi->fh;
+
+  int res = xrd_stat(rootpath, stbuf, uid, gid, info->ino);
+
+  if (res == 0)
+  {
+    if (S_ISREG (stbuf->st_mode))
+    {
+      stbuf->st_mode &= 0772777; // remove sticky bit and suid bit
+      stbuf->st_blksize = 32768; // unfortunately, it is ignored, see include/fuse.h
+      fprintf (stderr, "[%s] Return 0 for file. \n", __FUNCTION__);
+      return 0;
+    }
+    else if (S_ISDIR (stbuf->st_mode))
+    {
+      stbuf->st_mode &= 0772777; // remove sticky bit and suid bit
+
+      if (!strcmp (path, "/"))
+        stbuf->st_atime = eosatime;
+
+      fprintf (stderr, "[%s] Return 0 for directory. \n", __FUNCTION__);
+      return 0;
+    }
+    else if (S_ISLNK (stbuf->st_mode))
+      return 0;
+    else
+      return -EIO;
+  }
+  else
+    return -errno;
+}
+
+
+//------------------------------------------------------------------------------
+// Access
+//------------------------------------------------------------------------------
 static int
 eosdfs_access (const char* path, int mask)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
+  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   // we don't call access, we have access control in every other call!
   return 0;
 }
 
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
 
+//------------------------------------------------------------------------------
+// Read directory
+//------------------------------------------------------------------------------
 static int
 eosdfs_readdir (const char* path,
                 void* buf,
@@ -156,7 +194,7 @@ eosdfs_readdir (const char* path,
                 off_t offset,
                 struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
+  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   size_t size = -1;
   struct dirent* de;
   eosatime = time (0);
@@ -174,28 +212,25 @@ eosdfs_readdir (const char* path,
   }
 
   de = xrd_readdir (rootpath, &size, uid, gid, pid);
-  fprintf (stderr, "[%s] The size is: %zu. \n", __FUNCTION__, size);
+  fprintf (stderr, "[%s] The size is: %ji\n", __FUNCTION__, size);
 
   if (size)
   {
     size_t i = 0;
     while (i < size)
     {
-      fprintf (stderr, "[%s] Name: %s. \n", __FUNCTION__, de[i].d_name);
+      fprintf (stderr, "[%s] Name:%s\n", __FUNCTION__, de[i].d_name);
+
       if (filler (buf, de[i].d_name, NULL, 0))
-      {
         break;
-      }
+
       i++;
     }
   }
 
-  //............................................................................
   // Free memory allocated in xrd_readdir
-  //............................................................................
   free (de);
-
-  fprintf (stderr, "[%s] Finish. \n", __FUNCTION__);
+  fprintf (stderr, "[%s] Finish\n", __FUNCTION__);
   return 0;
 }
 
@@ -207,29 +242,40 @@ eosdfs_readdir (const char* path,
 static int
 eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
-  int res;
+  fprintf (stderr, "[%s] path=%s, mode=%x\n", __FUNCTION__, path, mode);
   eosatime = time (0);
   char rootpath[4096];
 
   if (S_ISREG (mode))
   {
     rootpath[0] = '\0';
-    sprintf (rootpath, "%s", path);
-    res = xrd_open (rootpath,
-                    O_CREAT | O_EXCL | O_WRONLY,
-                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
-                    uid, gid, pid);
-
-    if (res == 0)
+    strcat (rootpath, mountprefix);
+    strcat (rootpath, path);
+    fprintf (stderr, "[%s] rootpath=%s\n", __FUNCTION__, rootpath);
+    int res = xrd_open(path,
+                       O_CREAT | O_EXCL | O_RDWR,
+                       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
+                       uid, gid, 0);
+    
+    if (res < 0)
       return -errno;
+
+    // Update the entry parameters
+    struct stat buf;
+    int retc = xrd_stat(rootpath, &buf, uid, gid, 0);
+    xrd_store_p2i ((unsigned long long) buf.st_ino, rootpath);
+    fprintf (stderr, "[%s]: update inode=%lu \n", __FUNCTION__, (long long) buf.st_ino);
 
     // This memory  has to be freed once we're done with the file, usually in
     // the close/release method
     fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof(struct fd_user_info));
     info->fd = res;
-    info->uid = 0;
+    info->uid = uid;
+    info->ino = buf.st_ino;
     fi->fh = (uint64_t) info;  
+
+    // Add the inodeuser to fd mapping for future stats
+    xrd_add_inodeuser_fd(info->ino, info->uid, info->fd);    
   }
 
   return 0;
@@ -237,20 +283,18 @@ eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
 
 
 //------------------------------------------------------------------------------
-//
+// Mkdir
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_mkdir (const char* path, mode_t mode)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
-  int res;
+  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   char rootpath[4096];
   eosatime = time (0);
   rootpath[0] = '\0';
-  strcat (rootpath, mountprefix);
-  strcat (rootpath, path);
-  res = xrd_mkdir (rootpath, mode, uid, gid, pid);
+  strcat(rootpath, mountprefix);
+  strcat(rootpath, path);
+  int res = xrd_mkdir(rootpath, mode, uid, gid, pid);
 
   if (res)
     return -errno;
@@ -260,46 +304,40 @@ eosdfs_mkdir (const char* path, mode_t mode)
 
 
 //------------------------------------------------------------------------------
-//
+// Unlink
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_unlink (const char* path)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
-  int res;
+  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   char rootpath[4096];
   eosatime = time (0);
   rootpath[0] = '\0';
-  strcat (rootpath, mountprefix);
-  strcat (rootpath, path);
-  res = xrd_unlink (rootpath, uid, gid, pid);
+  strcat(rootpath, mountprefix);
+  strcat(rootpath, path);
+  int res = xrd_unlink (rootpath, uid, gid, pid);
 
   if (res)
-  {
     return -errno;
-  }
 
-  xrd_forget_p2i (xrd_inode (path));
+  xrd_forget_p2i(xrd_inode(path));
   return 0;
 }
 
 
 //------------------------------------------------------------------------------
-//
+// Rmdir
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_rmdir (const char* path)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
-  int res;
+  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   char rootpath[4096];
   eosatime = time (0);
   rootpath[0] = '\0';
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
-  res = xrd_rmdir (rootpath, uid, gid, pid);
+  int res = xrd_rmdir (rootpath, uid, gid, pid);
 
   if (res)
     return -errno;
@@ -310,14 +348,12 @@ eosdfs_rmdir (const char* path)
 
 
 //------------------------------------------------------------------------------
-//
+// Rename 
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_rename (const char* from, const char* to)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, from);
-  int res;
+  fprintf (stderr, "[%s] from=%s, to=%s\n", __FUNCTION__, from, to);
   char from_path[4096] = "", to_path[4096] = "";
   eosatime = time (0);
   strcat (from_path, mountprefix);
@@ -332,13 +368,12 @@ eosdfs_rename (const char* from, const char* to)
 }
 
 //------------------------------------------------------------------------------
-//
+// Chmod
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_chmod (const char* path, mode_t mode)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
+  fprintf (stderr, "[%s] path=%s mode=%x\n", __FUNCTION__, path, mode);
   char rootpath[4096];
   eosatime = time (0);
   rootpath[0] = '\0';
@@ -351,50 +386,44 @@ eosdfs_chmod (const char* path, mode_t mode)
 
 
 //------------------------------------------------------------------------------
-//
+// Chown
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_chown (const char* path, uid_t uid, gid_t gid)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
-  //............................................................................
+  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+
   // We forbid chown via the mounted filesystem */
-  //............................................................................
   eosatime = time (0);
-  //............................................................................
+
   // Fake that it would work ...
-  //............................................................................
   return -EOPNOTSUPP;
 }
 
 
 //------------------------------------------------------------------------------
-//
+// Truncate file - through the File System
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_truncate (const char* path, off_t size)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
-  int res;
+  fprintf(stderr, "[%s] path=%s, size=%ji\n", __FUNCTION__, path, size);
   char rootpath[4096];
   eosatime = time (0);
   rootpath[0] = '\0';
+  strcat (rootpath, mountprefix);
   strcat (rootpath, path);
 
-  //............................................................................
   // Xrootd doesn't provide truncate(), So we use open() to truncate file to 0
-  //............................................................................
-  res = xrd_open (rootpath,
+  int fd = xrd_open (rootpath,
                   O_WRONLY | O_TRUNC,
                   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, uid, gid, pid);
 
-  if (res)
+  if (fd)
     return -errno;
 
-  xrd_truncate (res, size, 0);
-  xrd_close (res, 0, 0);
+  xrd_truncate (fd, size, 0);
+  xrd_close (fd, 0, uid);
   return 0;
 }
 
@@ -402,12 +431,10 @@ eosdfs_truncate (const char* path, off_t size)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_utimens (const char* path, const struct timespec ts[2])
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
-  int res;
+  fprintf(stderr, "[%s] path=%s\n", __FUNCTION__, path);
   char rootpath[4096];
   eosatime = time (0);
   rootpath[0] = '\0';
@@ -418,7 +445,7 @@ eosdfs_utimens (const char* path, const struct timespec ts[2])
   tv[0].tv_nsec = ts[0].tv_nsec;
   tv[1].tv_sec = ts[1].tv_sec;
   tv[1].tv_nsec = ts[1].tv_nsec;
-  res = xrd_utimes (rootpath, tv, uid, gid, pid);
+  int res = xrd_utimes (rootpath, tv, uid, gid, pid);
 
   if (res)
     return -errno;
@@ -428,44 +455,48 @@ eosdfs_utimens (const char* path, const struct timespec ts[2])
 
 
 //------------------------------------------------------------------------------
-//
+// Open file
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_open (const char* path, struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
-  int res;
-  char rootpath[4096] = "";
-  sprintf (rootpath, "%s", path);
+  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  char rootpath[4096];
+  rootpath[0] = '\0';
+  strcat (rootpath, mountprefix);
+  strcat (rootpath, path);
   eosatime = time (0);
-  res = xrd_open (rootpath, 
+  int res = xrd_open (path, 
                   fi->flags, 
                   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, 
-                  uid, 
-                  gid,
-                  pid);
+                  uid, gid, pid);
 
   if (res == -1)
     return -errno;
 
-  //............................................................................
+  // Get the new inode value
+  struct stat buf;
+  int retc = xrd_stat(rootpath, &buf, uid, gid, 0);
+  fprintf (stderr, "[%s]: update inode=%lu\n", __FUNCTION__, (long long) buf.st_ino);
+  
   // This memory  has to be freed once we're done with the file, usually in
   // the close/release method
-  //............................................................................
-  fd_user_info* info =
-          (struct fd_user_info*) calloc (1, sizeof ( struct fd_user_info));
+  fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof(struct fd_user_info));
   info->fd = res;
-  info->uid = 0;
-  fi->fh = (uint64_t) info;
+  info->uid = uid;
+  info->ino = buf.st_ino;
+  fi->fh = (uint64_t) info;  
+  
+  // Add the inodeuser to fd mapping for future stats
+  xrd_add_inodeuser_fd(info->ino, info->uid, info->fd);    
+  fprintf (stderr, "[%s] path=%s, fd=%i\n", __FUNCTION__, path, res);
   return 0;
 }
 
 
 //------------------------------------------------------------------------------
-//
+// Read
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_read (const char* path,
              char* buf,
@@ -473,13 +504,11 @@ eosdfs_read (const char* path,
              off_t offset,
              struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
-  int fd;
-  int res;
+  fprintf (stderr, "[%s] path=%s, offset=%ji, length=%ji\n", 
+           __FUNCTION__, path, offset, size);
   eosatime = time (0);
   struct fd_user_info* info = (fd_user_info*) fi->fh;
-  fd = (int) info->fd;
-  res = xrd_pread (fd, buf, size, offset, 0);
+  int res = xrd_pread (info->fd, buf, size, offset, info->ino);
 
   if (res == -1)
   {
@@ -494,9 +523,8 @@ eosdfs_read (const char* path,
 
 
 //------------------------------------------------------------------------------
-//
+// Write
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_write (const char* path,
               const char* buf,
@@ -504,18 +532,14 @@ eosdfs_write (const char* path,
               off_t offset,
               struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
-  int fd;
-  int res;
+  fprintf (stderr, "[%s] path=%s, offset=%ji, lenght=%ji\n", 
+           __FUNCTION__, path, offset, size);
 
-  //............................................................................
   // File already existed. FUSE uses eosdfs_open() and eosdfs_truncate()
   // to open and truncate a file before calling eosdfs_write()
-  //............................................................................
   eosatime = time (0);
   struct fd_user_info* info = (fd_user_info*) fi->fh;
-  fd = (int) info->fd;
-  res = xrd_pwrite (fd, buf, size, offset, 0);
+  int res = xrd_pwrite (info->fd, buf, size, offset, info->ino);
 
   if (res == -1)
     res = -errno;
@@ -525,14 +549,12 @@ eosdfs_write (const char* path,
 
 
 //------------------------------------------------------------------------------
-//
+// Statfs
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_statfs (const char* path, struct statvfs* stbuf)
 {
   fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
-  int res;
   eosatime = time (0);
   char rootpath[4096];
   eosatime = time (0);
@@ -540,7 +562,7 @@ eosdfs_statfs (const char* path, struct statvfs* stbuf)
   strcat (rootpath, mountprefix);
   strcat (rootpath, "/");
   strcat (rootpath, path);
-  res = xrd_statfs (rootpath, stbuf);
+  int res = xrd_statfs (rootpath, stbuf);
 
   if (res)
     return -errno;
@@ -550,26 +572,20 @@ eosdfs_statfs (const char* path, struct statvfs* stbuf)
 
 
 //------------------------------------------------------------------------------
-//
+// Release (close) file
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_release (const char* path, struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
-  int fd, oflag;
+  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   struct stat xrdfile, cnsfile;
   char rootpath[4096];
   eosatime = time (0);
   struct fd_user_info* info = (struct fd_user_info*) fi->fh;
-  fd = (int) info->fd;
+  xrd_close(info->fd, info->uid, info->uid);
+  xrd_release_read_buffer(pthread_self());
 
-  xrd_close (fd, 0, 0);
-  xrd_release_read_buffer (pthread_self());
-
-  //............................................................................
-  // Free memory allocated in eosdfs_open
-  //............................................................................
+  // Free memory allocated in eosdfs_open or eosdfs_create
   free (info);
   fi->fh = 0;
   return 0;
@@ -577,23 +593,40 @@ eosdfs_release (const char* path, struct fuse_file_info* fi)
 
 
 //------------------------------------------------------------------------------
-//
+// Fsync
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_fsync (const char* path,
               int isdatasync,
               struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
-  //............................................................................
+  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+
   // This method is optional and can safely be left unimplemented
-  //............................................................................
   eosatime = time (0);
   (void) path;
   (void) isdatasync;
   (void) fi;
   return 0;
+}
+
+
+//------------------------------------------------------------------------------
+// Truncate an opened file 
+//------------------------------------------------------------------------------
+static int 
+eosdfs_ftruncate(const char* path, 
+                 off_t size, 
+                 struct fuse_file_info* fi)
+{
+  fprintf (stderr, "[%s] path=%s, size=%ji\n", __FUNCTION__, path, size);
+  struct fd_user_info* info = (fd_user_info*) fi->fh;
+  int res = xrd_truncate (info->fd, size, info->ino);
+
+  if (res)
+    res = -errno;
+
+  return res;
 }
 
 
@@ -621,14 +654,13 @@ eosdfs_setxattr (const char* path, const char* name, const char* value,
 
 
 //------------------------------------------------------------------------------
-//
+// Get xattr
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_getxattr (const char* path, const char* name, char* value,
                  size_t size)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
+  fprintf (stderr, "[%s] path=%s, name=%s\n", __FUNCTION__, path, name);
   /*
     int res = lgetxattr(path, name, value, size);
     if (res == -1)
@@ -641,9 +673,8 @@ eosdfs_getxattr (const char* path, const char* name, char* value,
 
 
 //------------------------------------------------------------------------------
-//
+// List xattr
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_listxattr (const char* path, char* list, size_t size)
 {
@@ -660,13 +691,12 @@ eosdfs_listxattr (const char* path, char* list, size_t size)
 
 
 //------------------------------------------------------------------------------
-//
+// Remove xattr
 //------------------------------------------------------------------------------
-
 static int
 eosdfs_removexattr (const char* path, const char* name)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
+  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   /*
     int res = lremovexattr(path, name);
     if (res == -1)
@@ -675,6 +705,7 @@ eosdfs_removexattr (const char* path, const char* name)
   eosatime = time (0);
   return 0;
 }
+
 #endif /* HAVE_SETXATTR */
 
 static struct fuse_operations eosdfs_oper = {
@@ -696,6 +727,8 @@ static struct fuse_operations eosdfs_oper = {
   .release = eosdfs_release,
   .fsync = eosdfs_fsync,
   .unlink = eosdfs_unlink,
+  .ftruncate = eosdfs_ftruncate,
+  .fgetattr = eosdfs_fgetattr,
 #ifdef HAVE_SETXATTR
   .setxattr = eosdfs_setxattr,
   .getxattr = eosdfs_getxattr,

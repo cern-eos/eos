@@ -82,6 +82,7 @@ extern "C"
   {
     unsigned long long fd;
     uid_t uid;
+    long long ino;
   } fd_user_info;
 
 
