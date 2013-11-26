@@ -582,7 +582,7 @@ eosdfs_release (const char* path, struct fuse_file_info* fi)
   char rootpath[4096];
   eosatime = time (0);
   struct fd_user_info* info = (struct fd_user_info*) fi->fh;
-  xrd_close(info->fd, info->uid, info->uid);
+  xrd_close(info->fd, info->ino, info->uid);
   xrd_release_read_buffer(pthread_self());
 
   // Free memory allocated in eosdfs_open or eosdfs_create
