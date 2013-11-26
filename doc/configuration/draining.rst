@@ -303,6 +303,16 @@ You can modify these settings via:
 
 Transfer jobs show up on the FSTs as processes named *eosfstcp*.
 
+Drain State Reset 
+-----------------
+
+Under certain circumstances it might happen that FSTs stay in pull mode although there is no drainjob (certain restart/failover patterns).
+To recompute the proper pull state one can issue a drain state reset using:
+
+.. code-block:: bash
+ 
+   EOS Console [root://localhost] |/> space reset default
+
 
 Example Drain Process
 ---------------------
