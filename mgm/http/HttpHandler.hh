@@ -86,11 +86,12 @@ public:
    * Handle an HTTP GET request.
    *
    * @param request  the client request object
+   * @param isHEAD indicates that this is a HEAD request
    *
    * @return an HTTP response object
    */
   eos::common::HttpResponse*
-  Get (eos::common::HttpRequest *request);
+  Get (eos::common::HttpRequest *request, bool isHEAD=false);
 
   /**
    * Handle an HTTP HEAD request.

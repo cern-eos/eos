@@ -43,7 +43,7 @@ HttpHandler::Matches (const std::string &meth, HeaderMap &headers)
       method == PUT || method == DELETE || method == TRACE ||
       method == OPTIONS || method == CONNECT || method == PATCH)
   {
-    eos_static_info("Matched HTTP protocol for request");
+    eos_static_debug("Matched HTTP protocol for request");
     return true;
   }
   else return false;
@@ -53,7 +53,7 @@ HttpHandler::Matches (const std::string &meth, HeaderMap &headers)
 void
 HttpHandler::HandleRequest (eos::common::HttpRequest *request)
 {
-  eos_static_info("handling http request");
+  eos_static_debug("handling http request");
   eos::common::HttpResponse *response = 0;
 
   int meth = ParseMethodString(request->GetMethod());
@@ -97,7 +97,7 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-HttpHandler::Get (eos::common::HttpRequest *request)
+HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
 {
   XrdSecEntity client(mVirtualIdentity->prot.c_str());
   client.name = const_cast<char*> (mVirtualIdentity->name.c_str());
@@ -109,6 +109,7 @@ HttpHandler::Get (eos::common::HttpRequest *request)
   std::string url = request->GetUrl();
   std::string query = request->GetQuery();
   eos::common::HttpResponse *response = 0;
+  struct stat buf;
 
   XrdOucString spath = request->GetUrl().c_str();
   if (!spath.beginswith("/proc/"))
@@ -119,22 +120,43 @@ HttpHandler::Get (eos::common::HttpRequest *request)
     }
     else
     {
-      struct stat buf;
+      
       XrdOucErrInfo error;
       // find out if it is a file or directory
       if (gOFS->stat(url.c_str(), &buf, error, &client, ""))
       {
-        response = HttpServer::HttpError("Not such file or directory",
+        eos_static_info("method=GET error=ENOENT path=%s", 
+                          url.c_str());
+        response = HttpServer::HttpError("No such file or directory",
                                          response->NOT_FOUND);
         return response;
       }
       if (S_ISDIR(buf.st_mode))
         isfile = false;
+      else 
+      {
+        if (isHEAD)
+        {
+          std::string basename = url.substr(url.rfind("/")+1);
+          eos_static_info("cmd=GET(HEAD) size=%llu path=%s", 
+                          buf.st_size, 
+                          url.c_str());
+          // HEAD requests on files can return from the MGM without redirection
+          response = HttpServer::HttpHead(buf.st_size, basename);
+          return response;
+        }
+      }
     }
+  }
+  else
+  {
+    isfile = true;
   }
 
   if (isfile)
   {
+    eos_static_info("method=GET file=%s", 
+                          url.c_str());
     XrdSfsFile* file = gOFS->newFile(client.name);
     if (file)
     {
@@ -219,6 +241,9 @@ HttpHandler::Get (eos::common::HttpRequest *request)
   }
   else
   {
+    eos_static_info("method=GET dir=%s", 
+                          url.c_str());
+    errno = 0;
     XrdMgmOfsDirectory directory;
     int listrc = directory.open(request->GetUrl().c_str(), *mVirtualIdentity,
                                 (const char*) 0);
@@ -314,7 +339,7 @@ HttpHandler::Get (eos::common::HttpRequest *request)
         XrdOucString entrypath = spath.c_str();
         entrypath += "/";
         entrypath += entryname.c_str();
-        fprintf(stderr, "Stat %s\n", entrypath.c_str());
+        
         // find out if it is a file or directory
         if (!gOFS->stat(entrypath.c_str(), &buf, error, &client, ""))
           if (S_ISDIR(buf.st_mode))
@@ -418,14 +443,17 @@ HttpHandler::Get (eos::common::HttpRequest *request)
         // show acl's if there
         XrdOucString acl;
         result += "<td style=\"padding-right: 5px\"><font color=\"#81DAF5\">";
-        if (!gOFS->attr_get(linkname.c_str(),
-                            error,
-                            &client,
-                            "",
-                            "sys.acl",
-                            acl))
+        if (S_ISDIR(buf.st_mode))
         {
-          result += acl.c_str();
+          if (!gOFS->attr_get(linkname.c_str(),
+                              error,
+                              &client,
+                              "",
+                              "sys.acl",
+                              acl))
+          {
+            result += acl.c_str();
+          }
         }
         result += "</td>\n";
         result += "</tr>\n";
@@ -450,9 +478,8 @@ HttpHandler::Get (eos::common::HttpRequest *request)
 eos::common::HttpResponse *
 HttpHandler::Head (eos::common::HttpRequest * request)
 {
-  eos_static_info("Calling HEAD ");
-  eos::common::HttpResponse *response = Get(request);
-  response->SetBody(std::string(""));
+  eos::common::HttpResponse *response = Get(request, true);
+  response->mUseFileReaderCallback = false;
   return response;
 }
 
@@ -461,6 +488,9 @@ eos::common::HttpResponse *
 HttpHandler::Post (eos::common::HttpRequest * request)
 {
   using namespace eos::common;
+  std::string url = request->GetUrl();
+  eos_static_info("method=POST error=NOTIMPLEMENTED path=%s", 
+                          url.c_str());
   HttpResponse *response = new PlainHttpResponse();
   response->SetResponseCode(HttpResponse::ResponseCodes::NOT_IMPLEMENTED);
   return response;
@@ -475,9 +505,11 @@ HttpHandler::Put (eos::common::HttpRequest * request)
   client.host = const_cast<char*> (mVirtualIdentity->host.c_str());
   client.tident = const_cast<char*> (mVirtualIdentity->tident.c_str());
 
+  std::string url = request->GetUrl();
+  eos_static_info("method=PUT path=%s", 
+                          url.c_str());
   // Classify path to split between directory or file objects
   bool isfile = true;
-  std::string url = request->GetUrl();
   eos::common::HttpResponse *response = 0;
 
   XrdOucString spath = request->GetUrl().c_str();
@@ -580,7 +612,10 @@ HttpHandler::Delete (eos::common::HttpRequest * request)
   XrdOucErrInfo error;
   struct stat buf;
   ProcCommand cmd;
-
+  
+  std::string url = request->GetUrl();
+  eos_static_info("method=DELETE path=%s", 
+                          url.c_str());
   gOFS->_stat(request->GetUrl().c_str(), &buf, error, *mVirtualIdentity, "");
 
   XrdOucString info = "mgm.cmd=rm&mgm.path=";
@@ -620,6 +655,9 @@ eos::common::HttpResponse *
 HttpHandler::Trace (eos::common::HttpRequest * request)
 {
   using namespace eos::common;
+  std::string url = request->GetUrl();
+  eos_static_info("method=TRACE error=NOTIMPLEMENTED path=%s", 
+                          url.c_str());
   HttpResponse *response = new PlainHttpResponse();
   response->SetResponseCode(HttpResponse::ResponseCodes::NOT_IMPLEMENTED);
   return response;
@@ -643,6 +681,9 @@ eos::common::HttpResponse *
 HttpHandler::Connect (eos::common::HttpRequest * request)
 {
   using namespace eos::common;
+  std::string url = request->GetUrl();
+  eos_static_info("method=CONNECT error=NOTIMPLEMENTED path=%s", 
+                          url.c_str());
   HttpResponse *response = new PlainHttpResponse();
   response->SetResponseCode(HttpResponse::ResponseCodes::NOT_IMPLEMENTED);
   return response;
@@ -653,6 +694,9 @@ eos::common::HttpResponse *
 HttpHandler::Patch (eos::common::HttpRequest * request)
 {
   using namespace eos::common;
+  std::string url = request->GetUrl();
+  eos_static_info("method=PATCH error=NOTIMPLEMENTED path=%s", 
+                          url.c_str());
   HttpResponse *response = new PlainHttpResponse();
   response->SetResponseCode(HttpResponse::ResponseCodes::NOT_IMPLEMENTED);
   return response;
