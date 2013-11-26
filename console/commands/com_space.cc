@@ -97,7 +97,7 @@ com_space (char* arg1)
   XrdOucString command;
   XrdOucEnv* result = 0;
   ConsoleCliCommand *parsedCmd, *spaceCmd, *lsSubCmd, *statusSubCmd, *rmSubCmd,
-    *defineSubCmd, *setSubCmd, *quotaSubCmd, *configSubCmd;
+    *defineSubCmd, *setSubCmd, *quotaSubCmd, *configSubCmd, *resetSubCmd;
 
   spaceCmd = new ConsoleCliCommand("space", "space configuration");
 
@@ -119,7 +119,13 @@ com_space (char* arg1)
 
   rmSubCmd = new ConsoleCliCommand("rm", "remove space");
   rmSubCmd->addOption({"space", "", 1, 1, "<space>", true});
+
   spaceCmd->addSubcommand(rmSubCmd);
+
+  resetSubCmd = new ConsoleCliCommand("reset", "reset space draining state machine");
+  resetSubCmd->addOption({"space", "", 1, 1, "<space>", true});
+
+  spaceCmd->addSubcommand(resetSubCmd);
 
   defineSubCmd = new ConsoleCliCommand("define", "define how many filesystems "
                                        "can end up in one scheduling group "
@@ -243,14 +249,16 @@ com_space (char* arg1)
     in += "=";
     in += active;
   }
-  else if (parsedCmd == statusSubCmd || parsedCmd == rmSubCmd)
+  else if (parsedCmd == statusSubCmd || parsedCmd == rmSubCmd || parsedCmd == resetSubCmd )
   {
     in = "mgm.cmd=space&mgm.subcmd=";
 
     if (parsedCmd == rmSubCmd)
       in += "rm";
-    else
+    if (parsedCmd == statusSubCmd)
       in += "status";
+    if (parsedCmd == resetSubCmd)
+      in += "reset";
 
     if (parsedCmd->hasValue("space"))
     {
