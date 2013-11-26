@@ -809,10 +809,10 @@ FsView::Reset ()
   {
     eos::common::RWMutexReadLock viewlock(ViewMutex);
     // stop all the threads having only a read-lock
-    for (auto it=mSpaceView.begin();it!=mSpaceView.end(); it++)
+    for (auto it = mSpaceView.begin(); it != mSpaceView.end(); it++)
       it->second->Stop();
   }
-  
+
   eos::common::RWMutexWriteLock viewlock(ViewMutex);
   while (mSpaceView.size())
   {
@@ -2342,6 +2342,75 @@ FsSpace::ApplySpaceDefaultParameters (eos::mgm::FileSystem* fs, bool force)
   return modified;
 }
 
+/*----------------------------------------------------------------------------*/
+void
+FsSpace::ResetDraining ()
+{
+  // ---------------------------------------------------------------------------
+  //! re-evaluates the drainnig states in all groups and resets the state
+  // ------------------- -------------------------------------------------------
+  eos_static_info("msg=\"reset drain state\" space=\"%s\"", mName.c_str());
+  bool setactive = false;
+
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+  // iterate over all groups in this space
+  for (auto sgit = FsView::gFsView.mSpaceGroupView[mName].begin();
+    sgit != FsView::gFsView.mSpaceGroupView[mName].end();
+    sgit++)
+  {
+    std::string lGroup = (*sgit)->mName;
+
+    FsGroup::const_iterator git;
+
+    for (git = (*sgit)->begin();
+      git != (*sgit)->end(); git++)
+    {
+      if (FsView::gFsView.mIdView.count(*git))
+      {
+        int drainstatus =
+          (eos::common::FileSystem::GetDrainStatusFromString(
+                                                             FsView::gFsView.mIdView[*git]->GetString("stat.drain").c_str())
+           );
+
+        if ((drainstatus == eos::common::FileSystem::kDraining) ||
+            (drainstatus == eos::common::FileSystem::kDrainStalling))
+        {
+          // if any mGroup filesystem is draining, all the others have 
+          // to enable the pull for draining!
+          setactive = true;
+        }
+      }
+    }
+    // if the mGroup get's disabled we stop the draining
+    if (FsView::gFsView.mGroupView[lGroup]->GetConfigMember("status") != "on")
+    {
+      setactive = false;
+    }
+    for (git = (*sgit)->begin();
+      git != (*sgit)->end(); git++)
+    {
+      eos::mgm::FileSystem* fs = FsView::gFsView.mIdView[*git];
+      if (fs)
+      {
+        if (setactive)
+        {
+          if (fs->GetString("stat.drainer") != "on")
+          {
+            fs->SetString("stat.drainer", "on");
+          }
+        }
+        else
+        {
+          if (fs->GetString("stat.drainer") != "off")
+          {
+            fs->SetString("stat.drainer", "off");
+          }
+        }
+        eos_static_info("fsid=%05d state=%s",fs->GetId(), fs->GetString("stat.drainer").c_str());
+      }
+    }
+  }
+}
 #endif
 
 EOSMGMNAMESPACE_END

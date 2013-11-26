@@ -147,6 +147,24 @@ ProcCommand::Space ()
     }
   }
 
+  if (mSubCmd == "reset")
+  {
+    std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    if (FsView::gFsView.mSpaceView.count(spacename))
+    {
+      FsView::gFsView.mSpaceView[spacename]->ResetDraining();
+      stdOut = "info: reset draining in space '";
+      stdOut += spacename.c_str();
+      stdOut += "'";
+    }
+    else
+    {
+      stdErr = "error: illegal space name";
+      retc = EINVAL;
+    }
+  }
+
   if (mSubCmd == "define")
   {
     if (pVid->uid == 0)
@@ -269,7 +287,7 @@ ProcCommand::Space ()
             {
               if ((key == "balancer") || (key == "converter") ||
                   (key == "autorepair") || (key == "lru") ||
-                  (key== "groupbalancer") || (key== "geobalancer"))
+                  (key == "groupbalancer") || (key == "geobalancer"))
               {
                 if ((value != "on") && (value != "off"))
                 {
@@ -331,7 +349,7 @@ ProcCommand::Space ()
                 {
                   if ((key != "balancer.threshold") &&
                       (key != "groupbalancer.threshold") &&
-		      (key != "geobalancer.threshold"))
+                      (key != "geobalancer.threshold"))
                   {
                     // the threshold is allowed to be decimal!
                     char ssize[1024];
