@@ -105,6 +105,18 @@ com_space (char* arg1)
     while (option.length());
   }
 
+  if (subcommand == "reset")
+  {
+    in = "mgm.cmd=space&mgm.subcmd=reset";
+    XrdOucString spacename = subtokenizer.GetToken();
+
+    if (!spacename.length())
+      printusage = true;
+    in += "&mgm.space=";
+    in += spacename;
+    ok = true;
+  }
+
   if (subcommand == "define")
   {
     in = "mgm.cmd=space&mgm.subcmd=define";
@@ -289,6 +301,7 @@ com_space_usage:
   fprintf(stdout, "                                                                       => <groupsize>=0 means, that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n");
   fprintf(stdout, "                                                                       => <groupmod> defines the maximun number of filesystems per node\n");
   fprintf(stdout, "\n");
+  fprintf(stdout, "       space reset <space-name>                                      : reset a space e.g. recompute the drain state machine\n");
   fprintf(stdout, "       space status <space-name>                                     : print's all defined variables for space\n");
   fprintf(stdout, "       space set <space-name> on|off                                 : enables/disabels all groups under that space ( not the nodes !) \n");
   fprintf(stdout, "       space rm <space-name>                                         : remove space\n");

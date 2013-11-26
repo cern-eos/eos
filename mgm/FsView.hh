@@ -366,7 +366,7 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
-   * @brief stop function stopping threads before destructino
+   * @brief stop function stopping threads before destruction
    */
   // ---------------------------------------------------------------------------
 
@@ -434,6 +434,11 @@ public:
   // Apply the default space parameters 
   // ---------------------------------------------------------------------------
   bool ApplySpaceDefaultParameters (eos::mgm::FileSystem* fs, bool force = false);
+  
+  // ---------------------------------------------------------------------------
+  // Reset the Drain state
+  // ---------------------------------------------------------------------------
+  void ResetDraining();
 };
 
 /*----------------------------------------------------------------------------*/
