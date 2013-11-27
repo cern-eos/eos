@@ -51,7 +51,7 @@ const char *XrdMqOfsCVSID = "$Id: XrdMqOfs.cc,v 1.0.0 2007/10/04 01:34:19 ajp Ex
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
+#include <netdb.h>
 
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
