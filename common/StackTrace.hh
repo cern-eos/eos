@@ -62,7 +62,11 @@ public:
     systemline += what;
     systemline += "\" 2> /dev/null";
     systemline += "| awk '{if ($2 == \"quit\") {on=0} else { if (on ==1) {print}; if ($1 == \"(gdb)\") {on=1;};} }' 1>&2 ";
-    system(systemline.c_str());
+    int rc = system(systemline.c_str());
+    if (WEXITSTATUS(rc)) 
+    {
+      fprintf(stderr,"# error: stack trace failed\n");
+    }
   }
 };
 
