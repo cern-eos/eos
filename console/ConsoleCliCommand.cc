@@ -1186,7 +1186,7 @@ ConsoleCliCommand::printHelpForOptions(std::vector<CliOption *>* options) const
 
     if (str != NULL)
     {
-      fprintf(stdout, str);
+      fprintf(stdout, "%s", str);
       free(str);
     }
   }
@@ -1213,7 +1213,7 @@ ConsoleCliCommand::printHelp() const
 
       if (str != NULL)
       {
-        fprintf(stdout, str);
+        fprintf(stdout, "%s", str);
         free(str);
       }
     }
@@ -1279,7 +1279,7 @@ ConsoleCliCommand::printErrors() const
   {
     errorsStr += (*it)->message() + "\n";
   }
-  fprintf(stdout, errorsStr.c_str());
+  fprintf(stdout, "%s", errorsStr.c_str());
 }
 
 void
