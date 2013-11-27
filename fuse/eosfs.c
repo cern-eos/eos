@@ -264,7 +264,7 @@ eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
     struct stat buf;
     int retc = xrd_stat(rootpath, &buf, uid, gid, 0);
     xrd_store_p2i ((unsigned long long) buf.st_ino, rootpath);
-    fprintf (stderr, "[%s]: update inode=%lu \n", __FUNCTION__, (long long) buf.st_ino);
+    fprintf (stderr, "[%s]: update inode=%lld \n", __FUNCTION__, (long long) buf.st_ino);
 
     // This memory  has to be freed once we're done with the file, usually in
     // the close/release method
@@ -477,7 +477,7 @@ eosdfs_open (const char* path, struct fuse_file_info* fi)
   // Get the new inode value
   struct stat buf;
   int retc = xrd_stat(rootpath, &buf, uid, gid, 0);
-  fprintf (stderr, "[%s]: update inode=%lu\n", __FUNCTION__, (long long) buf.st_ino);
+  fprintf (stderr, "[%s]: update inode=%lld\n", __FUNCTION__, (long long) buf.st_ino);
   
   // This memory  has to be freed once we're done with the file, usually in
   // the close/release method
