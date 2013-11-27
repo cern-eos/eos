@@ -44,7 +44,11 @@ Storage::Publish ()
   char* tmpname = tmpnam(NULL);
   XrdOucString getnetspeed = "ip route list | sed -ne '/^default/s/.*dev //p' | xargs ethtool | grep Speed | cut -d ':' -f2 | cut -d 'M' -f1 >> ";
   getnetspeed += tmpname;
-  system(getnetspeed.c_str());
+  int rc = system(getnetspeed.c_str());
+  if (WEXITSTATUS(rc)) 
+  {
+    eos_static_err("ip route list call failed to get netspeed");
+  }
 
   XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ? getenv("EOS_GEOTAG") : "");
 
