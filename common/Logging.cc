@@ -163,8 +163,6 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
 
   XrdOucString truncname = vid.name;
 
-  size_t tident_len = 0;
-
   // we show only the last 16 bytes of the name
   if (truncname.length() > 16)
   {
@@ -184,7 +182,6 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
   {
     sprintf(fcident, "tident=%s sec=%4s uid=%d gid=%d name=%s geo=\"%s\"", cident, vid.prot.c_str(), vid.uid, vid.gid, truncname.c_str(), vid.geolocation.c_str());
     tm = localtime(&current_time);
-    tident_len = strlen(fcident);
     snprintf(sourceline, sizeof (sourceline) - 1, "%s:%s", File.c_str(), linen);
     sprintf(buffer, "%02d%02d%02d %02d:%02d:%02d time=%lu.%06lu func=%-24s level=%s logid=%s unit=%s tid=%016lx source=%-30s %s ", tm->tm_year - 100, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, current_time, (unsigned long) tv.tv_usec, func, GetPriorityString(priority), logid, gUnit.c_str(), (unsigned long) XrdSysThread::ID(), sourceline, fcident);
   }
