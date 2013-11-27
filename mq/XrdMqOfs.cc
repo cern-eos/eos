@@ -490,12 +490,14 @@ XrdMqOfsFile::stat(struct stat *buf) {
   EPNAME("stat");
   ZTRACE(read,"fstat");
 
+  static XrdOucErrInfo static_error;
+
   int port=0;                                              
   XrdOucString host="";                                    
   if (gMqFS->ShouldRedirect(host,port)) {
     // we have to close this object to make the client reopen it to be redirected
     this->close();
-    return gMqFS->Emsg(epname, error, EINVAL,"stat - forced close - you should be redirected");
+    return gMqFS->Emsg(epname, static_error, EINVAL,"stat - forced close - you should be redirected");
   }
 
 
