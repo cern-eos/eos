@@ -1222,7 +1222,7 @@ eosfs_ll_release (fuse_req_t req,
                __FUNCTION__, (long long) ino, (long long) fd);
     }
 
-    fprintf (stderr, "[%s]: Do real close file fd=%i\n", __FUNCTION__, info->fd);
+    fprintf (stderr, "[%s]: Do real close file fd=%llu\n", __FUNCTION__, info->fd);
     res = xrd_close (info->fd, ino, info->uid);
     xrd_release_read_buffer (pthread_self());
     
@@ -1645,7 +1645,7 @@ eosfs_ll_create(fuse_req_t req,
     e.entry_timeout = 0;
     int retc = xrd_stat(fullpath, &e.attr, req->ctx.uid, req->ctx.gid, 0);
     e.ino = e.attr.st_ino;
-    fprintf (stderr, "[%s]: update inode=%lu\n", __FUNCTION__, (long long) e.ino);
+    fprintf (stderr, "[%s]: update inode=%lld\n", __FUNCTION__, (long long) e.ino);
 
     // Add the inodeuser to fd mapping for future stats
     xrd_add_inodeuser_fd(e.ino, info->uid, info->fd);
