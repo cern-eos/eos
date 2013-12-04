@@ -104,6 +104,7 @@ void fillFileMD( eos::FileMD &fileMetadata, int i )
   fileMetadata.pId    = i;
   fileMetadata.setCTime( time );
   fileMetadata.setSize( i*987 );
+  fileMetadata.setFlag( i%16, true );
   fileMetadata.setContainerId( i*765 );
   fileMetadata.setChecksum( &chkSum, sizeof( chkSum ) );
   fileMetadata.setName( o.str() );
@@ -129,6 +130,8 @@ void checkFileMD( eos::FileMD &fileMetadata, unsigned i )
   CPPUNIT_ASSERT( time.tv_sec == i*1234 );
   CPPUNIT_ASSERT( time.tv_nsec == i*456 );
   CPPUNIT_ASSERT( fileMetadata.getSize() == i*987 );
+  for( unsigned k = 0; k < 16; ++k )
+    CPPUNIT_ASSERT( fileMetadata.getFlag( k ) == (k==i%16 ? true : false) );
   CPPUNIT_ASSERT( fileMetadata.getContainerId() == i*765 );
   CPPUNIT_ASSERT( fileMetadata.checksumMatch( &checkSum ) );
   CPPUNIT_ASSERT( fileMetadata.getCUid() == i*2 );
@@ -216,6 +219,7 @@ void ChangeLogTest::readWriteCorrectness()
                                file.storeRecord(
                                  eos::UPDATE_RECORD_MAGIC, buffer ) ) );
     fileMetadata.clearLocations();
+    fileMetadata.setFlags( 0 );
   }
   file.close();
 
@@ -301,6 +305,7 @@ void ChangeLogTest::followingTest()
             offsets.push_back( file.storeRecord(
                                    eos::UPDATE_RECORD_MAGIC, buffer ) ) );
     fileMetadata.clearLocations();
+    fileMetadata.setFlags( 0 );
     usleep( 60000 );
   }
   pthread_join( thread, 0 );
