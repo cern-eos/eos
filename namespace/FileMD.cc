@@ -37,6 +37,7 @@ namespace eos
     pCUid( 0 ),
     pCGid( 0 ),
     pLayoutId( 0 ),
+    pFlags( 0 ),
     pFileMDSvc( fileMDSvc ),
     pChecksum( 0 )
   {
@@ -232,7 +233,12 @@ namespace eos
     buffer.putData( &pId,          sizeof( pId ) );
     buffer.putData( &pCTime,       sizeof( pCTime ) );
     buffer.putData( &pMTime,       sizeof( pMTime ) );
-    buffer.putData( &pSize,        sizeof( pSize ) );
+
+    uint64_t tmp = pFlags;
+    tmp <<= 48;
+    tmp |= (pSize & 0x0000ffffffffffff);
+
+    buffer.putData( &tmp,          sizeof( tmp ) );
     buffer.putData( &pContainerId, sizeof( pContainerId ) );
 
     uint16_t len = pName.length()+1;
@@ -276,7 +282,13 @@ namespace eos
     offset = buffer.grabData( offset, &pId,          sizeof( pId ) );
     offset = buffer.grabData( offset, &pCTime,       sizeof( pCTime ) );
     offset = buffer.grabData( offset, &pMTime,       sizeof( pMTime ) );
-    offset = buffer.grabData( offset, &pSize,        sizeof( pSize ) );
+
+    uint64_t tmp;
+    offset = buffer.grabData( offset, &tmp,          sizeof( tmp ) );
+    pSize = tmp & 0x0000ffffffffffff;
+    tmp >>= 48;
+    pFlags = tmp & 0x000000000000ffff;
+
     offset = buffer.grabData( offset, &pContainerId, sizeof( pContainerId ) );
 
     uint16_t len = 0;
