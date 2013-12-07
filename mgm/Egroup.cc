@@ -119,7 +119,7 @@ Egroup::Member (std::string &username, std::string & egroupname)
     {
       member = Map[egroupname][username];
       // we know that user
-      if (LifeTime[egroupname][username] > now)
+      if (LifeTime[egroupname].count(username) && (LifeTime[egroupname][username] > now))
       {
         // that is ok, we can return member or not member from the cache
         Mutex.UnLock();
@@ -338,7 +338,7 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
     if (Map[egroupname].count(username))
     {
       // we know that user
-      if (LifeTime[egroupname][username] > now)
+      if (LifeTime[egroupname].count(username) && (LifeTime[egroupname][username] > now))
       {
         // we don't update, we have already a fresh value
         Mutex.UnLock();
