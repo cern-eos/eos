@@ -2903,13 +2903,19 @@ XrdMgmOfs::_rename (const char *old_name,
   eos::common::Path nPath(new_name);
   std::string oP = oPath.GetParentPath();
   std::string nP = nPath.GetParentPath();
-
+  
   if ((!old_name) || (!new_name))
   {
     errno = EINVAL;
     return Emsg(epname, error, EINVAL, "rename - 0 source or target name");
   }
 
+  if ( !strcmp(old_name,new_name ) ) 
+  {
+    // source and target are the same, nothing to do
+    return SFS_OK;  
+  }
+  
   gOFS->MgmStats.Add("Rename", vid.uid, vid.gid, 1);
 
   XrdSfsFileExistence file_exists;
