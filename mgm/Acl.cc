@@ -73,12 +73,12 @@ Acl::Set (std::string sysacl,
   {
     acl += sysacl;
   }
-
-  if (useracl.length())
+  else
   {
-    if (acl.length())
-      acl += ",";
-    acl += useracl;
+    if (useracl.length())
+    {
+      acl += useracl;
+    }
   }
 
   // ---------------------------------------------------------------------------
