@@ -286,6 +286,8 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
   vid->host = headers["Host"];
   vid->tident = "dummy.0:0@localhost";
   vid->prot = "https";
+  vid->uid_string = eos::common::Mapping::UidAsString(vid->uid);
+  vid->gid_string = eos::common::Mapping::GidAsString(vid->gid);
 
   return vid;
 }
