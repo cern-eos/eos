@@ -35,7 +35,8 @@ EOSMGMNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 Acl::Acl (std::string sysacl,
           std::string useracl,
-          eos::common::Mapping::VirtualIdentity &vid)
+          eos::common::Mapping::VirtualIdentity &vid,  
+	  bool allowUserAcl)
 /*----------------------------------------------------------------------------*/
 /** 
  * Constructor
@@ -45,17 +46,19 @@ Acl::Acl (std::string sysacl,
  * @param useracl user acl definition string 
  * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}'
  * @param vid virtual id to match ACL
+ * @param allowUserAcl if true evaluate also the user acl for the permissions
  */
 /*----------------------------------------------------------------------------*/
 {
-  Set(sysacl, useracl, vid);
+  Set(sysacl, useracl, vid, allowUserAcl);
 }
 
 /*----------------------------------------------------------------------------*/
 void
 Acl::Set (std::string sysacl,
           std::string useracl,
-          eos::common::Mapping::VirtualIdentity &vid)
+          eos::common::Mapping::VirtualIdentity &vid, 
+	  bool allowUserAcl)
 /*----------------------------------------------------------------------------*/
 /** 
  * @brief Sset the contents of an ACL and compute the canXX and hasXX booleans.
@@ -65,6 +68,7 @@ Acl::Set (std::string sysacl,
  * @param useracl user acl definition string 
  * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}'
  * @param vid virtual id to match ACL 
+ * @param allowUserAcl if true evaluate the user acl for permissions
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -73,10 +77,12 @@ Acl::Set (std::string sysacl,
   {
     acl += sysacl;
   }
-  else
+  if (allowUserAcl) 
   {
     if (useracl.length())
     {
+      if (sysacl.length())
+	acl += ",";
       acl += useracl;
     }
   }

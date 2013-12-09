@@ -1235,7 +1235,7 @@ XrdMgmOfs::_chmod (const char *path,
     }
     // acl of the parent!
     Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-	    attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid);
+	    attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid, attrmap.count("sys.eval.useracl"));
     
     if (((fmd && (fmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
 	((cmd && (cmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
@@ -1364,7 +1364,7 @@ XrdMgmOfs::_chown (const char *path,
     }
 
     // acl of the parent!
-    Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""), attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid);
+    Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""), attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid, attrmap.count("sys.eval.useracl"));
 
     cmd = gOFS->eosView->getContainer(path);
     if ((vid.uid) && (!eos::common::Mapping::HasUid(3, vid) &&
@@ -1895,7 +1895,8 @@ XrdMgmOfs::_mkdir (const char *path,
 
       // ACL and permission check
       Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-              attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid);
+              attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
+	      attrmap.count("sys.eval.useracl"));
 
       // Check for sys.owner.auth entries, which let people operate as the owner of the directory
       if (attrmap.count("sys.owner.auth"))
@@ -2022,7 +2023,8 @@ XrdMgmOfs::_mkdir (const char *path,
 
       // ACL and permission check
       Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-              attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid);
+              attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
+	      attrmap.count("sys.eval.useracl"));
 
       eos_info("acl=%d r=%d w=%d wo=%d egroup=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
@@ -2331,7 +2333,8 @@ XrdMgmOfs::_rem (const char *path,
 
     // ACL and permission check
     acl.Set(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-            attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid);
+            attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid, 
+	    attrmap.count("sys.eval.useracl"));
     bool stdpermcheck = false;
     if (acl.HasAcl())
     {
@@ -2661,7 +2664,8 @@ XrdMgmOfs::_remdir (const char *path,
     return Emsg(epname, error, errno, "rmdir", path);
   }
 
-  Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""), attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid);
+  Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""), attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
+	  attrmap.count("sys.eval.useracl"));
 
   bool stdpermcheck = false;
   bool aclok = false;
@@ -3701,7 +3705,8 @@ XrdMgmOfs::_access (const char *path,
       }
       // ACL and permission check
       Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-              attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid);
+              attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
+	      attrmap.count("sys.eval.useracl"));
 
       eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),

@@ -180,7 +180,8 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
       // ACL and permission check
       Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
               attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), 
-              vid);
+              vid,
+	      attrmap.count("sys.eval.useracl"));
 
       eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),

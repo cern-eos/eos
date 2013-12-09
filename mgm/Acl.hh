@@ -96,7 +96,8 @@ public:
   /*---------------------------------------------------------------------------*/
   Acl (std::string sysacl,
        std::string useracl,
-       eos::common::Mapping::VirtualIdentity &vid);
+       eos::common::Mapping::VirtualIdentity &vid,
+       bool allowUserAcl=false);
 
   /*--------------------------------------------------------------------------*/
   //! Destructor
@@ -109,7 +110,8 @@ public:
   /*--------------------------------------------------------------------------*/
   void Set (std::string sysacl,
             std::string useracl,
-            eos::common::Mapping::VirtualIdentity &vid);
+            eos::common::Mapping::VirtualIdentity &vid, 
+	    bool allowUserAcl=false);
 
   /*--------------------------------------------------------------------------*/
   //! Use regex to check ACL format / syntax

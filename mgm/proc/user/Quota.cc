@@ -112,7 +112,8 @@ ProcCommand::Quota ()
       ;
     }
 
-    Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""), attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid);
+    Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""), attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
+	    attrmap.count("sys.eval.useracl"));
     canQuota = acl.CanSetQuota();
   }
 

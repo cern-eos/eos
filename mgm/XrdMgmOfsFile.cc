@@ -534,7 +534,8 @@ XrdMgmOfsFile::open (const char *inpath,
     // -------------------------------------------------------------------------
     acl.Set(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
             attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""),
-            vid);
+            vid,
+	    attrmap.count("sys.eval.useracl"));
     eos_info("acl=%d r=%d w=%d wo=%d egroup=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.HasEgroup());
