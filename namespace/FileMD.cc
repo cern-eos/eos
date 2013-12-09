@@ -65,6 +65,7 @@ namespace eos
     pCUid        = other.pCUid;
     pCGid        = other.pCGid;
     pLayoutId    = other.pLayoutId;
+    pFlags       = other.pFlags;
     pLocation    = other.pLocation;
     pUnlinkedLocation = other.pUnlinkedLocation;
     pCTime       = other.pCTime;
