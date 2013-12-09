@@ -8886,8 +8886,8 @@ XrdMgmOfs::FsConfigListener ()
               {
                 gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, (void*) &err);
               }
-              gOFS->ObjectManager.HashMutex.UnLockRead();
             }
+	    gOFS->ObjectManager.HashMutex.UnLockRead();
           }
         }
         else
