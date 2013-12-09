@@ -124,24 +124,25 @@ void checkFileMD( eos::FileMD &fileMetadata, unsigned i )
   o << "filename_" << i;
   uint32_t checkSum = i*423;
   eos::FileMD::ctime_t time;
+  eos::FileMD localMD = fileMetadata;
 
-  fileMetadata.getCTime( time );
-  CPPUNIT_ASSERT( fileMetadata.pId == i );
+  localMD.getCTime( time );
+  CPPUNIT_ASSERT( localMD.pId == i );
   CPPUNIT_ASSERT( time.tv_sec == i*1234 );
   CPPUNIT_ASSERT( time.tv_nsec == i*456 );
-  CPPUNIT_ASSERT( fileMetadata.getSize() == i*987 );
+  CPPUNIT_ASSERT( localMD.getSize() == i*987 );
   for( unsigned k = 0; k < 16; ++k )
-    CPPUNIT_ASSERT( fileMetadata.getFlag( k ) == (k==i%16 ? true : false) );
-  CPPUNIT_ASSERT( fileMetadata.getContainerId() == i*765 );
-  CPPUNIT_ASSERT( fileMetadata.checksumMatch( &checkSum ) );
-  CPPUNIT_ASSERT( fileMetadata.getCUid() == i*2 );
-  CPPUNIT_ASSERT( fileMetadata.getCGid() == i*3 );
-  CPPUNIT_ASSERT( fileMetadata.getLayoutId() == i*4 );
+    CPPUNIT_ASSERT( localMD.getFlag( k ) == (k==i%16 ? true : false) );
+  CPPUNIT_ASSERT( localMD.getContainerId() == i*765 );
+  CPPUNIT_ASSERT( localMD.checksumMatch( &checkSum ) );
+  CPPUNIT_ASSERT( localMD.getCUid() == i*2 );
+  CPPUNIT_ASSERT( localMD.getCGid() == i*3 );
+  CPPUNIT_ASSERT( localMD.getLayoutId() == i*4 );
 
-  CPPUNIT_ASSERT( o.str() == fileMetadata.getName() );
+  CPPUNIT_ASSERT( o.str() == localMD.getName() );
 
   for( int j = 0; j < 5; ++j )
-    CPPUNIT_ASSERT( fileMetadata.hasLocation( i*j*2 ) );
+    CPPUNIT_ASSERT( localMD.hasLocation( i*j*2 ) );
 }
 
 //------------------------------------------------------------------------------
