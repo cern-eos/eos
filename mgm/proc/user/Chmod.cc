@@ -99,7 +99,7 @@ ProcCommand::Chmod ()
           {
             if (pVid->uid)
             {
-              stdOut += "success: mode of directory ";
+              stdOut += "success: mode of file/directory ";
               stdOut += foundit->first.c_str();
               stdOut += " is now '2";
               stdOut += mode;
@@ -107,7 +107,7 @@ ProcCommand::Chmod ()
             }
             else
             {
-              stdOut += "success: mode of directory ";
+              stdOut += "success: mode of file/directory ";
               stdOut += foundit->first.c_str();
               stdOut += " is now '";
               stdOut += mode;

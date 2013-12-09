@@ -1163,7 +1163,7 @@ XrdMgmOfs::_chmod (const char *path,
                    const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
- * @brief change mode of a directory
+ * @brief change mode of a directory or file
  * 
  * @param path where to chmod
  * @param Mode mode to set
@@ -1186,6 +1186,7 @@ XrdMgmOfs::_chmod (const char *path,
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   eos::ContainerMD* cmd = 0;
   eos::ContainerMD* pcmd = 0;
+  eos::FileMD* fmd = 0;
   eos::ContainerMD::XAttrMap attrmap;
 
   errno = 0;
@@ -1199,8 +1200,34 @@ XrdMgmOfs::_chmod (const char *path,
   try
   {
     cmd = gOFS->eosView->getContainer(path);
-    pcmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+  }
+  catch (eos::MDException &e)
+  {
+    errno = e.getErrno();
+  }
 
+  if (!cmd) 
+  {
+    errno = 0;
+    // ---------------------------------------------------------------------------
+    // try if this is a file
+    // ---------------------------------------------------------------------------
+    try 
+    {
+      fmd = gOFS->eosView->getFile(path);
+
+    }
+    catch (eos::MDException &e)
+    {
+      errno = e.getErrno();
+    }
+  }
+
+  if (cmd || fmd) 
+  try
+  {
+    pcmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+    
     eos::ContainerMD::XAttrMap::const_iterator it;
     for (it = pcmd->attributesBegin(); it != pcmd->attributesEnd(); ++it)
     {
@@ -1208,48 +1235,57 @@ XrdMgmOfs::_chmod (const char *path,
     }
     // acl of the parent!
     Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-            attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid);
-
-    if (((cmd->getCUid() == vid.uid) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
-        (!vid.uid) || // the root user
-        (vid.uid == 3) || // the admin user
-        (vid.gid == 4) || // the admin group
-        (acl.CanChmod()))
+	    attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid);
+    
+    if (((fmd && (fmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
+	((cmd && (cmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
+	(!vid.uid) || // the root user
+	(vid.uid == 3) || // the admin user
+	(vid.gid == 4) || // the admin group
+	(acl.CanChmod()))
     { // the chmod ACL entry
       // change the permission mask, but make sure it is set to a directory
       if (Mode & S_IFREG)
-        Mode ^= S_IFREG;
+	Mode ^= S_IFREG;
       if ((Mode & S_ISUID))
       {
-        Mode ^= S_ISUID;
+	Mode ^= S_ISUID;
       }
       else
       {
-        if (!(Mode & S_ISGID))
-        {
-          Mode |= S_ISGID;
-        }
+	if (!(Mode & S_ISGID))
+	{
+	  Mode |= S_ISGID;
+	  }
       }
-      cmd->setMode(Mode | S_IFDIR);
 
-      // store the in-memory modification time for parent and this directory
+      // store the in-memory modification time for parent 
       UpdateNowInmemoryDirectoryModificationTime(pcmd->getId());
-      UpdateNowInmemoryDirectoryModificationTime(cmd->getId());
-
-      eosView->updateContainerStore(cmd);
+      if (cmd) 
+      {
+	cmd->setMode(Mode | S_IFDIR);
+	// store the in-memory modification time for this directory
+	UpdateNowInmemoryDirectoryModificationTime(cmd->getId());
+	eosView->updateContainerStore(cmd);
+      }
+      if (fmd) 
+      {
+	// we just store 9 bits in flags
+	Mode &= (S_IRWXU | S_IRWXG | S_IRWXO );
+	fmd->setFlags(Mode);
+	eosView->updateFileStore(fmd);
+      }
       errno = 0;
     }
     else
     {
-      errno = EPERM;
+	errno = EPERM;
     }
   }
   catch (eos::MDException &e)
   {
     errno = e.getErrno();
-  };
-
-  // ---------------------------------------------------------------------------
+  }
 
   if (cmd && (!errno))
   {
@@ -1258,6 +1294,13 @@ XrdMgmOfs::_chmod (const char *path,
     return SFS_OK;
   }
 
+  if (fmd && (!errno))
+  {
+
+    EXEC_TIMING_END("Chmod");
+    return SFS_OK;
+  }
+  
   return Emsg(epname, error, errno, "chmod", path);
 }
 
@@ -3361,7 +3404,11 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_dev = 0xcaff;
     buf->st_ino = fmd->getId() << 28;
     buf->st_mode = S_IFREG;
-    buf->st_mode |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR);
+    uint16_t flags = fmd->getFlags();
+    if (!flags)
+      buf->st_mode |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR);
+    else
+      buf->st_mode |= flags;
     buf->st_nlink = fmd->getNumLocation();
     buf->st_uid = fmd->getCUid();
     buf->st_gid = fmd->getCGid();
@@ -3602,6 +3649,10 @@ XrdMgmOfs::_access (const char *path,
   eos::ContainerMD* dh = 0;
   eos::FileMD* fh = 0;
   bool permok = false;
+  uint16_t flags=0;
+  uid_t fuid=99;
+  gid_t fgid=99;
+
   // ---------------------------------------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
@@ -3609,6 +3660,17 @@ XrdMgmOfs::_access (const char *path,
   try
   {
     fh = gOFS->eosView->getFile(cPath.GetPath());
+    flags = fh->getFlags();
+    fuid = fh->getCUid();
+    fgid = fh->getCGid();
+  }
+  catch (eos::MDException &e)
+  {
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+  }
+
+  try
+  {
     dh = gOFS->eosView->getContainer(cPath.GetPath());
   }
   catch (eos::MDException &e)
@@ -3666,7 +3728,30 @@ XrdMgmOfs::_access (const char *path,
         {
           permok = false;
         }
-
+      }
+    }
+    if (fh && (mode & X_OK) && flags) 
+    {
+      // the execution permission is taken from the flags definition of a file
+      permok = false;
+      if (vid.uid == fuid) 
+      {
+	// user check
+	if (flags & S_IXUSR)
+	  permok = true;
+	else
+	  if (vid.gid == fgid) 
+	  {
+	    // group check
+	    if (flags & S_IXGRP)
+	      permok=true;
+	    else
+	    {
+	      // other check
+	      if (flags & S_IXOTH)
+		permok=true;
+	    }
+	  }
       }
     }
   }
@@ -5446,16 +5531,6 @@ XrdMgmOfs::FSctl (const int cmd,
                          error,
                          client,
                          0);
-
-        // if it is a file ....
-        if (!retc && S_ISREG(buf.st_mode))
-        {
-          // since we don't have permissions on files, we just acknoledge as ok
-          XrdOucString response = "chmod: retc=0";
-          error.setErrInfo(response.length() + 1, response.c_str());
-          return SFS_DATA;
-        }
-
 
         XrdSfsMode newmode = atoi(smode);
         retc = _chmod(spath.c_str(),
