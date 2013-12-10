@@ -28,16 +28,17 @@ add_library( XrdCache SHARED
 	     CacheImpl.cc
              XrdFileCache.cc
              CacheEntry.cc
-             FileAbstraction.cc
-           )
+             FileAbstraction.cc )
 
 add_library( XrdCache-Static STATIC
 	     CacheImpl.cc
              XrdFileCache.cc
              CacheEntry.cc
-             FileAbstraction.cc
-           )
+             FileAbstraction.cc )
+
+target_link_libraries( XrdCache XrdCl XrdUtils eosCommon ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( XrdCache-Static XrdCl XrdUtils eosCommon-Static ${CMAKE_THREAD_LIBS_INIT} )
 
 set_target_properties( XrdCache PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
-set_target_properties( XrdCache-Static PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
-target_link_libraries( XrdCache XrdCl XrdPosix XrdUtils eosCommon ${CMAKE_THREAD_LIBS_INIT} )
+set_target_properties( XrdCache-Static PROPERTIES 
+                                       COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -fPIC")
