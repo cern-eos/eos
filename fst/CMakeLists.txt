@@ -76,7 +76,7 @@ add_library( EosFstIo-Static STATIC
 )
 
 target_link_libraries( EosFstIo-Static
-		       eosCommon
+		       eosCommon-Static
 		       XrdCl	
 		       XrdUtils 
 		       crypto                  ${NCURSES_LIBRARIES}
