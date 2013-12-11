@@ -1379,10 +1379,10 @@ OptionsGroup::OptionsGroup()
 }
 
 OptionsGroup::OptionsGroup(const OptionsGroup &otherGroup)
+  : mName(otherGroup.mName),
+    mOptions(0),
+    mRequired(otherGroup.mRequired)
 {
-  OptionsGroup(otherGroup.mName);
-
-  mRequired = otherGroup.mRequired;
 
   if (otherGroup.mOptions)
   {
