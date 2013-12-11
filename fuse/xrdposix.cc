@@ -1242,9 +1242,53 @@ xrd_stat (const char* path,
 {
   eos_static_info("path=%s, uid=%i, gid=%i", path, (int)uid, (int)gid);
   eos::common::Timing stattiming("xrd_stat");
-
+  off_t file_size = -1;
+  errno = 0;
   COMMONTIMING("START", &stattiming);
 
+  if (inode)
+  {
+    // Try to stat via an open file - first find the file descriptor using the 
+    // inodeuser2fd map and then find the file object using the fd2fobj map. 
+    // Meanwhile keep the mutex locked for read so that no other thread can 
+    // delete the file object
+    eos_static_debug("path=%s, uid=%lu", path, (unsigned long) uid);
+    eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fobj);
+    std::ostringstream sstr;
+    sstr << inode << ":" << (unsigned long)uid;
+    google::dense_hash_map<std::string, int>::iterator
+      iter_fd = inodeuser2fd.find(sstr.str());
+    
+    if (iter_fd != inodeuser2fd.end())
+    {
+      google::dense_hash_map<int, eos::fst::Layout*>::iterator
+        iter_file = fd2fobj.find(iter_fd->second);
+      
+      if (iter_file != fd2fobj.end())
+      {
+        struct stat tmp;
+        eos::fst::Layout* file = iter_file->second;
+        
+        if (!file->Stat(&tmp))
+        {
+          file_size = tmp.st_size;
+          eos_static_info("size-fd=%lld", file_size);
+        }
+        else
+          eos_static_err("fd=%i stat failed on open file", iter_fd->second);
+      }
+      else 
+      {
+        eos_static_err("fd=%i not found in file obj map", iter_fd->second);
+      }
+    }
+    else
+    {
+      eos_static_info("path=%s not open", path);
+    }
+  }
+
+  // Do stat using the Fils System object
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
@@ -1258,9 +1302,7 @@ xrd_stat (const char* path,
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
   COMMONTIMING("GETPLUGIN", &stattiming);
-
-  errno = 0;
-
+  
   if (status.IsOK())
   {
     unsigned long long sval[10];
@@ -1288,7 +1330,7 @@ xrd_stat (const char* path,
                        (unsigned long long*) &ival[3],
                        (unsigned long long*) &ival[4],
                        (unsigned long long*) &ival[5]);
-
+    
     if ((items != 17) || (strcmp(tag, "stat:")))
     {
       errno = ENOENT;
@@ -1325,58 +1367,13 @@ xrd_stat (const char* path,
       buf->st_mtim.tv_nsec = (time_t) ival[4];
       buf->st_ctim.tv_nsec = (time_t) ival[5];
 #endif
-
+      
       if (S_ISREG(buf->st_mode) && fuse_exec)
-      {
         buf->st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
-      }
-
+      
       buf->st_mode &= (~S_ISVTX); // clear the vxt bit
       buf->st_mode &= (~S_ISUID); // clear suid
       buf->st_mode &= (~S_ISGID); // clear sgid
-
-      if (inode)
-      {
-        // Try to stat via an open file - first find the file descriptor using the 
-        // inodeuser2fd map and then find the file object using the fd2fobj map. 
-        // Meanwhile keep the mutex locked for read so that no other thread can 
-        // delete the file object
-        eos_static_info("path=%s, uid=%lu", path, (unsigned long) uid);
-        eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fobj);
-        std::ostringstream sstr;
-        sstr << inode << ":" << (unsigned long)uid;
-        google::dense_hash_map<std::string, int>::iterator
-          iter_fd = inodeuser2fd.find(sstr.str());
-        
-        if (iter_fd != inodeuser2fd.end())
-        {
-          google::dense_hash_map<int, eos::fst::Layout*>::iterator
-            iter_file = fd2fobj.find(iter_fd->second);
-
-          if (iter_file != fd2fobj.end())
-          {
-            struct stat tmp;
-            eos::fst::Layout* file = iter_file->second;
-                        
-            if (!file->Stat(&tmp) && tmp.st_size >= 0)
-              buf->st_size = tmp.st_size;            
-
-            eos_static_info("size-fd=%lld", buf->st_size);
-          }
-          else 
-          {
-            eos_static_err("fd=%i not found in file obj map", iter_fd->second);
-          }
-        }
-        else
-        {
-          eos_static_info("path=%s not open", path);
-        }
-      }
-      else
-      {
-        eos_static_info("path=%s no inode", path);
-      }
     }
   }
   else
@@ -1385,13 +1382,15 @@ xrd_stat (const char* path,
     errno = EFAULT;
   }
 
+  // If got size using opened file then return this value
+  if (file_size != -1)
+    buf->st_size = file_size;
+  
   COMMONTIMING("END", &stattiming);
-
+  
   if (EOS_LOGS_DEBUG)
-  {
     stattiming.Print();
-  }
-
+   
   eos_static_info("path=%s st-size=%llu", path, buf->st_size);
   delete response;
   return errno;
@@ -2111,7 +2110,7 @@ xrd_open (const char* path,
           gid_t gid,
           pid_t pid)
 {
-  eos_static_info("path=%s flags=%d mode=%d uid=%u pid=%u",
+  eos_static_info("path=%s flags=%08x mode=%d uid=%u pid=%u",
                   path, oflags, mode, uid, pid);
   int retc = -1;
   XrdOucString spath = xrd_user_url(uid, gid, pid);
@@ -2566,8 +2565,8 @@ xrd_pwrite (int fildes,
   eos::common::Timing xpw("xrd_pwrite");
 
   COMMONTIMING("start", &xpw);
-  eos_static_debug("fd=%d nbytes=%lu inode=%lu cache=%d cache-w=%d",
-                   fildes, (unsigned long) nbyte, (unsigned long) inode,
+  eos_static_debug("fd=%d, nbytes=%lu, offset=%ji, inode=%lu, cache=%d, cache-w=%d",
+                   fildes, (unsigned long) nbyte, offset, (unsigned long) inode,
                    XFC ? 1 : 0, fuse_cache_write);
   int64_t ret = 0;
   XrdCl::XRootDStatus status;
