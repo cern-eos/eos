@@ -106,6 +106,16 @@ public:
   virtual ~Egroup ();
 
   // ---------------------------------------------------------------------------
+  //! Reset all stored information
+  // ---------------------------------------------------------------------------
+  static void Reset ()
+  {
+    XrdSysMutexHelper mLock(Mutex);
+    Map.clear();
+    LifeTime.clear();
+  }
+
+  // ---------------------------------------------------------------------------
   // Start function to execute the asynchronous Egroup fetch thread
   // ---------------------------------------------------------------------------
   bool Start ();

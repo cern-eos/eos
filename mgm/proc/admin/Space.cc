@@ -163,6 +163,10 @@ ProcCommand::Space ()
       stdErr = "error: illegal space name";
       retc = EINVAL;
     }
+    Egroup::Reset();
+    stdOut += "\ninfo: clear cached EGroup information ...";
+    eos::common::Mapping::Reset();
+    stdOut += "\ninfo: clear all user/group uid/gid caches ...\n";
   }
 
   if (mSubCmd == "define")

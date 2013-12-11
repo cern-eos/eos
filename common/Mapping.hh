@@ -297,6 +297,27 @@ public:
   static bool gRootSquash;
 
   // ---------------------------------------------------------------------------
+  //! Reset clears all cached information
+  // ---------------------------------------------------------------------------
+  static void Reset()
+  {
+    {
+      XrdSysMutexHelper mLock(gPhysicalIdMutex);
+      gPhysicalUidCache.Purge();
+      gPhysicalGidCache.Purge();
+    }
+    {
+      XrdSysMutexHelper mLock(gPhysicalNameCacheMutex);
+      gPhysicalGroupNameCache.clear();
+      gPhysicalUserNameCache.clear();
+    }
+    {
+      XrdSysMutexHelper mLock(ActiveLock);
+      ActiveTidents.clear();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   //! Convert a komma separated uid string to a vector uid list
   // ---------------------------------------------------------------------------
 
