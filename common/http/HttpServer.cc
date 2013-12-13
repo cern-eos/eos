@@ -89,7 +89,7 @@ HttpServer::Run ()
 
     if (getenv("EOS_HTTP_THREADPOOL"))
     {
-      mDaemon = MHD_start_daemon(MHD_USE_DEBUG | MHD_USE_SELECT_INTERNALLY,
+      mDaemon = MHD_start_daemon(MHD_USE_DEBUG | MHD_USE_SELECT_INTERNALLY | MHD_USE_POLL,
                                  mPort,
                                  NULL,
                                  NULL,
