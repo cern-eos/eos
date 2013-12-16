@@ -241,7 +241,6 @@ com_fuse (char* arg1)
       {
         fprintf(stderr, "Error: mount failed");
       }
-      sleep(1);
     }
     else
     {
@@ -253,10 +252,12 @@ com_fuse (char* arg1)
       }
     }
 
+    // Give some headroom to the mounting process
+    sleep(2);
 
     if ((stat(mountpoint.c_str(), &buf2) || (buf2.st_ino == buf.st_ino)))
     {
-      fprintf(stderr, "Error: mount failed at %s\n", mountpoint.c_str());
+      fprintf(stderr, "Warning: mount could have failed at %s\n", mountpoint.c_str());
       exit(-1);
     }
 
