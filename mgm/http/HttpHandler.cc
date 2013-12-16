@@ -421,7 +421,7 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
           if (S_ISGID & buf.st_mode) modestr[6] = 's';
           if (S_ISVTX & buf.st_mode) modestr[9] = '+';
 
-          strftime(t_creat, 13, "%b %d %Y %H:%M", t_tm);
+          strftime(t_creat, 36, "%b %d %Y %H:%M", t_tm);
         }
 
         // show creation date
