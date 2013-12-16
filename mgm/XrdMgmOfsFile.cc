@@ -1471,12 +1471,11 @@ XrdMgmOfsFile::open (const char *inpath,
 
       if (!repfilesystem)
       {
-        return Emsg(epname,
-                    error,
-                    EINVAL,
-                    "get replica filesystem information",
-                    path);
+	// don't fail IO on a shadow file system but throw a ciritical error message
+	eos_crit("msg=\"Unable to get replica filesystem information\" path=\"%s\" fsid=%d", path, selectedfs[i]);
+	continue;
       }
+
       capability += "&mgm.url";
       capability += i;
       capability += "=root://";
