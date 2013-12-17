@@ -735,12 +735,16 @@ nofilestodrain:
    fs->SetLongLong("stat.drainbytesleft", 0);
    fs->SetLongLong("stat.timeleft", 0);
    SetDrainer();
-   //--------------------------------------------------------------------------
-   // we automatically switch this filesystem to the 'empty' state
-   //--------------------------------------------------------------------------
-   fs->SetString("configstatus", "empty");
-   FsView::gFsView.StoreFsConfig(fs);
-   fs->SetLongLong("stat.drainprogress", 100);
+   if (!gOFS->Shutdown) 
+   {
+     //--------------------------------------------------------------------------
+     // we automatically switch this filesystem to the 'empty' state - 
+     // if the system is not shutting down
+     //--------------------------------------------------------------------------
+     fs->SetString("configstatus", "empty");
+     FsView::gFsView.StoreFsConfig(fs);
+     fs->SetLongLong("stat.drainprogress", 100);
+   }
   }
   XrdSysThread::SetCancelOn();
   return 0;
