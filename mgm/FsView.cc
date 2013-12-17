@@ -1106,6 +1106,7 @@ BaseView::SetConfigMember (std::string key, std::string value, bool create, std:
   //----------------------------------------------------------------
 
   bool success = false;
+#ifndef EOSMGMFSVIEWTEST
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
   std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(), mName.c_str());
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
@@ -1139,9 +1140,9 @@ BaseView::SetConfigMember (std::string key, std::string value, bool create, std:
       }
     }
   }
+
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
 
-#ifndef EOSMGMFSVIEWTEST
   // register in the configuration engine
   if ((!isstatus) && (FsView::ConfEngine))
   {
@@ -1159,6 +1160,7 @@ BaseView::SetConfigMember (std::string key, std::string value, bool create, std:
 std::string
 BaseView::GetConfigMember (std::string key)
 {
+#ifndef EOSMGMFSVIEWTEST
   //----------------------------------------------------------------
   //! get a configuration member variable (stored in the config engine)
   //----------------------------------------------------------------
@@ -1172,6 +1174,7 @@ BaseView::GetConfigMember (std::string key)
   {
     return hash->Get(key);
   }
+#endif
   return "";
 }
 
@@ -1179,6 +1182,7 @@ BaseView::GetConfigMember (std::string key)
 bool
 BaseView::GetConfigKeys (std::vector<std::string> &keys)
 {
+#ifndef EOSMGMFSVIEWTEST
   XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
   std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(), mName.c_str());
   XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
@@ -1187,6 +1191,7 @@ BaseView::GetConfigKeys (std::vector<std::string> &keys)
     hash->GetKeys(keys);
     return true;
   }
+#endif
   return false;
 }
 

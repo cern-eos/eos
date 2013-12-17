@@ -33,7 +33,7 @@ int main() {
   Logging::Init();
 
   Logging::SetUnit("MgmViewTest");
-  Logging::SetLogPriority(LOG_INFO);
+  Logging::SetLogPriority(LOG_DEBUG);
 
   XrdMqMessage::Configure("");
   
@@ -67,7 +67,7 @@ int main() {
       schedgroup += m;
       //printf("Setting up schedgroup %s\n", schedgroup.c_str());
 
-      ObjectManager.CreateSharedHash(queuepath.c_str(), queue.c_str());
+      ObjectManager.CreateSharedHash(queuepath.c_str(), queue.c_str(), &ObjectManager);
       XrdMqSharedHash* hash = ObjectManager.GetObject(queuepath.c_str(),"hash");
       hash->OpenTransaction();
       hash->SetLongLong("id", (i*iloop) + j);

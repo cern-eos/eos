@@ -577,6 +577,7 @@ public:
   void
   SetNodeConfigDefault ()
   {
+#ifndef EOSMGMFSVIEWTEST
     // define the manager ID
     if (!(GetConfigMember("manager").length()))
     {
@@ -629,6 +630,7 @@ public:
     {
       SetConfigMember("domain", "MGM", true, mName.c_str(), true);
     }
+#endif
   }
 
   /// configuration queue prefix
