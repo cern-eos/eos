@@ -30,10 +30,11 @@ using namespace eos::common;
 using namespace eos::mgm;
 
 int main() {
+  srand(0);
   Logging::Init();
 
   Logging::SetUnit("MgmViewTest");
-  Logging::SetLogPriority(LOG_INFO);
+  Logging::SetLogPriority(LOG_DEBUG);
 
   XrdMqMessage::Configure("");
   
@@ -67,7 +68,7 @@ int main() {
       schedgroup += m;
       //printf("Setting up schedgroup %s\n", schedgroup.c_str());
 
-      ObjectManager.CreateSharedHash(queuepath.c_str(), queue.c_str());
+      ObjectManager.CreateSharedHash(queuepath.c_str(), queue.c_str(), &ObjectManager);
       XrdMqSharedHash* hash = ObjectManager.GetObject(queuepath.c_str(),"hash");
       hash->OpenTransaction();
       hash->SetLongLong("id", (i*iloop) + j);
@@ -82,6 +83,9 @@ int main() {
       hash->SetLongLong("bootSentTime",0);
       hash->SetLongLong("bootDoneTime",0);
       hash->SetLongLong("lastHeartBeat",0);
+      char geotag[1024];
+      snprintf(geotag,1024,"branch%1.1d::leaf%1.1d",(i+j)%2,(i+j)%3);
+      hash->Set("stat.geotag",geotag);
       hash->SetLongLong("statfs.disk.load",0);
       hash->SetLongLong("statfs.disk.in",0);
       hash->SetLongLong("statfs.disk.out",0);
@@ -105,38 +109,37 @@ int main() {
 
   // test the print function
   std::string output = "";
-  std::string format1 = "header=1:member=type:width=20:format=-s|sep=   |member=name:width=20:format=-s|sep=   |sum=statfs.blocks:width=20:format=-l|sep=   |avg=statfs.blocks:width=20:format=-f |sep=   |sig=statfs.blocks:width=20:format=-f";
-  std::string format2 = "header=1:member=type:width=20:format=+s|sep=   |member=name:width=20:format=+s|sep=   |sum=statfs.blocks:width=20:format=+l:unit=B|sep=   |avg=statfs.blocks:width=20:format=+f:unit=B|sep=   |sig=statfs.blocks:width=20:format=+f:unit=B";
-  std::string format3 = "header=1:member=type:width=1:format=os|sep=&|member=name:width=1:format=os|sep=&|sum=statfs.blocks:width=1:format=ol|sep=&|avg=statfs.blocks:width=1:format=ol|sep=&|sig=statfs.blocks:width=1:format=ol";
+  std::string format1 = "header=1:member=type:width=20:format=-s|sep=   |member=name:width=20:format=-s|sep=   |avg=stat.geotag:width=32:format=s|sep=   |sum=statfs.blocks:width=20:format=-l|sep=   |avg=statfs.blocks:width=20:format=-f |sep=   |sig=statfs.blocks:width=20:format=-f";
+  std::string format2 = "header=1:member=type:width=20:format=+s|sep=   |member=name:width=20:format=+s|sep=   |avg=stat.geotag:width=32:format=s|sep=   |sum=statfs.blocks:width=20:format=+l:unit=B|sep=   |avg=statfs.blocks:width=20:format=+f:unit=B|sep=   |sig=statfs.blocks:width=20:format=+f:unit=B";
+  std::string format3 = "header=1:member=type:width=1:format=os|sep=&|member=name:width=1:format=os|sep=&|avg=stat.geotag:width=1:format=os|sep=&|sum=statfs.blocks:width=1:format=ol|sep=&|avg=statfs.blocks:width=1:format=ol|sep=&|sig=statfs.blocks:width=1:format=ol";
 
-  std::string listformat1 = "header=1:key=queuepath:width=30:format=s|sep=   |key=schedgroup:width=10:format=s|sep=   |key=blocks:width=10:format=l|sep=   |key=statfs.wopen:width=10:format=l";
-
+  std::string listformat1 = "header=1:key=queuepath:width=30:format=s|sep=   |key=schedgroup:width=10:format=s|sep=   |key=blocks:width=10:format=l|sep=   |key=statfs.wopen:width=10:format=l|sep= |key=stat.geotag:width=16:format=s";
   std::string listformat2 = "key=queuepath:width=2:format=os|sep=&|key=schedgroup:width=1:format=os|sep=&|key=blocks:width=1:format=os|sep=&|key=statfs.wopen:width=1:format=os";
 
   output += "[ next test ]\n";
-  FsView::gFsView.mSpaceView["default"]->Print(output, format1,"");
+  FsView::gFsView.mSpaceView["default"]->Print(output, format1,"",2);
   output += "[ next test ]\n";
-  FsView::gFsView.PrintSpaces(output, format1, "");
+  FsView::gFsView.PrintSpaces(output, format1, "",2);
   output += "[ next test ]\n";
-  FsView::gFsView.PrintGroups(output, format1, "");
+  FsView::gFsView.PrintGroups(output, format1, "",2);
   output += "[ next test ]\n";
-  FsView::gFsView.PrintNodes(output, format1, "");
+  FsView::gFsView.PrintNodes(output, format1, "",2);
   output += "[ next test ]\n";
-  FsView::gFsView.mSpaceView["default"]->Print(output, format2,"");
+  FsView::gFsView.mSpaceView["default"]->Print(output, format2,"",2);
   output += "[ next test ]\n";
-  FsView::gFsView.PrintSpaces(output, format2, "");
+  FsView::gFsView.PrintSpaces(output, format2, "",2);
   output += "[ next test ]\n";
-  FsView::gFsView.PrintGroups(output, format2, "");
+  FsView::gFsView.PrintGroups(output, format2, "",2);
   output += "[ next test ]\n";
-  FsView::gFsView.PrintNodes(output, format2, "");
+  FsView::gFsView.PrintNodes(output, format2, "",2);
   output += "[ next test ]\n";
-  FsView::gFsView.PrintNodes(output, format3, "");
+  FsView::gFsView.PrintNodes(output, format3, "",2);
   output += "[ next test ]\n";
-  FsView::gFsView.PrintGroups(output, format2, listformat1);
+  FsView::gFsView.PrintGroups(output, format2, listformat1,2);
   output += "[ next test ]\n";
-  FsView::gFsView.PrintGroups(output, format2, listformat2);
+  FsView::gFsView.PrintGroups(output, format2, listformat2,2);
   output += "[ next test ]\n";
-  FsView::gFsView.PrintSpaces(output, format2, listformat1);
+  FsView::gFsView.PrintSpaces(output, format2, listformat1,2);
 
   fprintf(stdout,"%s\n", output.c_str());
 

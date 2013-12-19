@@ -6991,7 +6991,8 @@ XrdMgmOfs::FSctl (const int cmd,
       std::map<eos::common::FileSystem::fsid_t, eos::mgm::FileSystem*>::const_iterator it;
 
       {
-        std::set<eos::common::FileSystem::fsid_t>::const_iterator set_it;
+        //std::set<eos::common::FileSystem::fsid_t>::const_iterator set_it;
+        eos::mgm::BaseView::const_iterator set_it;
 
         // get all the filesystem's of that node
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);

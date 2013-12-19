@@ -138,7 +138,8 @@ Scheduler::FilePlacement (const char* path, //< path to place
     availablefs.clear();
     availablefsgeolocation.clear();
 
-    std::set<eos::common::FileSystem::fsid_t>::const_iterator fsit;
+    eos::mgm::BaseView::const_iterator fsit;
+
     eos::common::FileSystem::fsid_t fsid = 0;
 
     // create the string map key for this group/index pair

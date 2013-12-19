@@ -197,7 +197,7 @@ Balancer::Balance (void)
           bool hasdrainjob = false;
           // check if there is something draining
           {
-            std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
+            eos::mgm::BaseView::const_iterator it;
             totalfiles = 0;
             for (it = (*git)->begin(); it != (*git)->end(); it++)
             {
@@ -238,11 +238,11 @@ Balancer::Balance (void)
 
 
 
-          std::set<eos::common::FileSystem::fsid_t>::const_iterator fsit;
+          eos::mgm::BaseView::const_iterator fsit;
           double dev = 0;
           double avg = 0;
           double fsdev = 0;
-          if ((dev = (*git)->MaxDeviation("stat.statfs.filled", false)) >
+          if ((dev = (*git)->MaxAbsDeviation("stat.statfs.filled", false)) >
               SpaceDifferenceThreshold)
           {
             avg = (*git)->AverageDouble("stat.statfs.filled", false);
@@ -368,7 +368,7 @@ Balancer::Balance (void)
                 (*git)->SetConfigMember("stat.balancing.running", "0", false,
                                         "", true);
               }
-              std::set<eos::common::FileSystem::fsid_t>::const_iterator fsit;
+              eos::mgm::BaseView::const_iterator fsit;
               for (fsit = (*git)->begin(); fsit != (*git)->end(); fsit++)
               {
                 FileSystem* fs = FsView::gFsView.mIdView[*fsit];

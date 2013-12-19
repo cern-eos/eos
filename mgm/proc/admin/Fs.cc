@@ -42,7 +42,7 @@ ProcCommand::Fs ()
    mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
 
    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-   FsView::gFsView.PrintSpaces(output, format, mListFormat, mSelection);
+   FsView::gFsView.PrintSpaces(output, format, mListFormat, mOutDepth, mSelection);
    stdOut += output.c_str();
  }
 
@@ -216,7 +216,7 @@ ProcCommand::Fs ()
          else
          {
            stdOut += "success: boot message send to";
-           std::set<eos::common::FileSystem::fsid_t>::iterator it;
+           eos::mgm::BaseView::const_iterator it;
            for (it = FsView::gFsView.mNodeView[node]->begin(); it != FsView::gFsView.mNodeView[node]->end(); it++)
            {
 
@@ -316,7 +316,7 @@ ProcCommand::Fs ()
        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
        if (FsView::gFsView.mNodeView.count(node))
        {
-         std::set<eos::common::FileSystem::fsid_t>::iterator it;
+         eos::mgm::BaseView::const_iterator it;
          for (it = FsView::gFsView.mNodeView[node]->begin(); it != FsView::gFsView.mNodeView[node]->end(); it++)
          {
            if (FsView::gFsView.mIdView.count(*it))

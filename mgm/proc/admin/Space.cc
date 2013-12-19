@@ -43,7 +43,7 @@ ProcCommand::Space ()
         mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
 
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-      FsView::gFsView.PrintSpaces(output, format, mListFormat, mSelection);
+      FsView::gFsView.PrintSpaces(output, format, mListFormat, mOutDepth,mSelection);
       stdOut += output.c_str();
     }
   }
@@ -387,7 +387,7 @@ ProcCommand::Space ()
             bool autosave = gOFS->ConfEngine->GetAutoSave();
             gOFS->ConfEngine->SetAutoSave(false);
 
-            std::set<eos::common::FileSystem::fsid_t>::iterator it;
+            eos::mgm::BaseView::const_iterator it;
 
             // store these as a global parameter of the space
             if (((key == "headroom") || (key == "scaninterval") || (key == "graceperiod") || (key == "drainperiod")))

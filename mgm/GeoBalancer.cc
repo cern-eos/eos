@@ -207,7 +207,8 @@ GeoBalancer::populateGeotagsInfo ()
     return;
   }
 
-  std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
+  //std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
+  eos::mgm::BaseView::const_iterator it;
 
   for (it = spaceView->cbegin(); it != spaceView->cend(); it++)
   {

@@ -50,7 +50,7 @@ ProcCommand::Group ()
      }
 
      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-     FsView::gFsView.PrintGroups(output, format, mListFormat, mSelection);
+     FsView::gFsView.PrintGroups(output, format, mListFormat, mOutDepth ,mSelection);
      stdOut += output.c_str();
    }
  }

@@ -42,6 +42,10 @@ com_node (char* arg1)
   nodeCmd = new ConsoleCliCommand("node", "node related functions");
 
   lsSubCmd = new ConsoleCliCommand("ls", "list all nodes or only <node>");
+  CliOptionWithArgs geodepth({"geodepth", "aggregate group information along the instance topology tree up to geodepth", "-g,--geodepth=","<geodepth>",false});
+  geodepth.addEvalFunction(optionIsIntegerEvalFunc, 0);
+  geodepth.addEvalFunction(optionIsPositiveNumberEvalFunc, 0);
+  lsSubCmd->addOption(geodepth);
   lsSubCmd->addGroupedOptions(std::vector<CliOption>
                               {{"monitor", "monitoring key=value output format",
                                 "-m"},
@@ -169,6 +173,13 @@ com_node (char* arg1)
       in += "&mgm.selection=";
       in += lsSubCmd->getValue("node").c_str();
     }
+
+    if (lsSubCmd->hasValue("geodepth"))
+    {
+      in += "&mgm.outdepth=";
+      in += lsSubCmd->getValue("geodepth").c_str();
+    }
+
   }
   else if (parsedCmd == setSubCmd)
   {

@@ -220,7 +220,7 @@ proc_fs_config (std::string &identifier, std::string &key, std::string &value, X
 
           if (FsView::gFsView.mNodeView.count(identifier))
           {
-            std::set<eos::common::FileSystem::fsid_t>::iterator it;
+            eos::mgm::BaseView::const_iterator it;
             for (it = FsView::gFsView.mNodeView[identifier]->begin(); it != FsView::gFsView.mNodeView[identifier]->end(); it++)
             {
               if (FsView::gFsView.mIdView.count(*it))
@@ -491,7 +491,7 @@ proc_fs_add (std::string &sfsid, std::string &uuid, std::string &nodename, std::
                   else
                   {
                     bool exists = false;
-                    std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
+                    eos::mgm::BaseView::const_iterator it;
                     // check if this node has not already a filesystem in this group
                     for (it = FsView::gFsView.mGroupView[snewgroup]->begin(); it != FsView::gFsView.mGroupView[snewgroup]->end(); it++)
                     {
@@ -675,8 +675,8 @@ proc_fs_source (std::string source_group, std::string target_group)
     if (!FsView::gFsView.mGroupView.count(source_group))
       return 0;
 
-    std::set<eos::common::FileSystem::fsid_t>::const_iterator its;
-    std::set<eos::common::FileSystem::fsid_t>::const_iterator itt;
+    eos::mgm::BaseView::const_iterator its;
+    eos::mgm::BaseView::const_iterator itt;
     // loop over all filesystems and check if the corrensponding node is already part of target_group
     for (its = FsView::gFsView.mGroupView[source_group]->begin(); its != FsView::gFsView.mGroupView[source_group]->end(); its++)
     {
@@ -699,8 +699,8 @@ proc_fs_source (std::string source_group, std::string target_group)
     if (!FsView::gFsView.mSpaceView.count(splitspace))
       return 0;
 
-    std::set<eos::common::FileSystem::fsid_t>::const_iterator its;
-    std::set<eos::common::FileSystem::fsid_t>::const_iterator itt;
+    eos::mgm::BaseView::const_iterator its;
+    eos::mgm::BaseView::const_iterator itt;
     // loop over all filesystems and check if the corrensponding node is already part of target_group
     for (its = FsView::gFsView.mSpaceView[splitspace]->begin(); its != FsView::gFsView.mSpaceView[splitspace]->end(); its++)
     {

@@ -448,7 +448,7 @@ GroupBalancer::chooseFidFromGroup (FsGroup *group)
   for (size_t i = 0; i < group->size(); i++)
     validFsIndexes[i] = (int) i;
 
-  std::set<FileSystem::fsid_t>::iterator fs_it;
+  eos::mgm::BaseView::const_iterator fs_it;
 
   while (validFsIndexes.size() > 0)
   {
@@ -517,7 +517,7 @@ GroupBalancer::prepareTransfer ()
 {
   FsGroup *fromGroup, *toGroup;
   std::map<std::string, FsGroup *>::iterator over_it, under_it;
-  std::set<eos::common::FileSystem::fsid_t>::const_iterator fsid_it;
+  eos::mgm::BaseView::const_iterator fsid_it;
 
   if (mGroupsUnderAvg.size() == 0 || mGroupsOverAvg.size() == 0)
   {

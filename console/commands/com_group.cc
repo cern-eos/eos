@@ -45,6 +45,10 @@ com_group (char* arg1)
 
   lsSubCmd = new ConsoleCliCommand("ls", "list groups or only <group>");
   lsSubCmd->addOption({"silent", "silent mode", "-s"});
+  CliOptionWithArgs geodepth({"geodepth", "aggregate group information along the instance topology tree up to geodepth", "-g,--geodepth=","<geodepth>",false});
+  geodepth.addEvalFunction(optionIsIntegerEvalFunc, 0);
+  geodepth.addEvalFunction(optionIsPositiveNumberEvalFunc, 0);
+  lsSubCmd->addOption(geodepth);
   lsSubCmd->addGroupedOptions(std::vector<CliOption>
                               {{"monitor", "monitoring key=value output format",
                                 "-m"},
@@ -103,6 +107,13 @@ com_group (char* arg1)
       in += "&mgm.selection=";
       in += lsSubCmd->getValue("group").c_str();
     }
+
+    if (lsSubCmd->hasValue("geodepth"))
+    {
+      in += "&mgm.outdepth=";
+      in += lsSubCmd->getValue("geodepth").c_str();
+    }
+
   }
   else if (parsedCmd == setSubCmd)
   {

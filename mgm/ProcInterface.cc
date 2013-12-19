@@ -379,9 +379,12 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
   }
 
   mOutFormat = "";
+  mOutDepth = 0;
   mCmd = pOpaque->Get("mgm.cmd");
   mSubCmd = pOpaque->Get("mgm.subcmd");
   mOutFormat = pOpaque->Get("mgm.outformat");
+  long depth = pOpaque->GetInt("mgm.outdepth");
+  if(depth>0) mOutDepth = (unsigned)depth;
   mSelection = pOpaque->Get("mgm.selection");
   mComment = pOpaque->Get("mgm.mComment") ? pOpaque->Get("mgm.mComment") : "";
   int envlen = 0;

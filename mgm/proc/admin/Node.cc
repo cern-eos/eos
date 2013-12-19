@@ -43,7 +43,7 @@ ProcCommand::Node ()
        mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
 
      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-     FsView::gFsView.PrintNodes(output, format, mListFormat, mSelection);
+     FsView::gFsView.PrintNodes(output, format, mListFormat,mOutDepth, mSelection);
      stdOut += output.c_str();
    }
  }
@@ -300,7 +300,7 @@ ProcCommand::Node ()
        {
          if (key == "configstatus")
          {
-           std::set<eos::common::FileSystem::fsid_t>::iterator it;
+           eos::mgm::BaseView::const_iterator it;
            for (it = nodes[i]->begin(); it != nodes[i]->end(); it++)
            {
              if (FsView::gFsView.mIdView.count(*it))
