@@ -124,6 +124,14 @@ add_executable ( testmgmview
 )
 
 
+add_executable ( testschedulingtree
+           geotree/SchedulingTreeTest.cc
+	   geotree/SchedulingSlowTree.cc
+#           geotree/SchedulingFastTree.cc 
+           geotree/SchedulingTreeCommon.cc
+)
+
+
 target_link_libraries ( testmgmview 
                         XrdCl             XrdUtils 
                         eosCommon         eosCommonServer
