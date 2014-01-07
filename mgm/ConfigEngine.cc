@@ -1483,7 +1483,6 @@ ConfigEngine::SetConfigValue (const char* prefix,
   configDefinitions.Rep(configname.c_str(), sdef);
   eos_static_debug("%s => %s", key, val);
 
-  fprintf(stderr, "SetConfigValue %d %s", configBroadcast, key);
   if (configBroadcast)
   {
     // make this value visible between MGM's
