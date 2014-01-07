@@ -168,11 +168,6 @@ XrdFstOss::Unlink (const char* path, int opts, XrdOucEnv* ep)
   Adler xs; // the type does not matter here
   const char* xs_path = xs.MakeBlockXSPath(path);
 
-   //............................................................................
-  // Delete also any entries in the oss file <-> blockxs map
-  //............................................................................
-  DropXs(path, true);
-  
   if ((Stat(xs_path, &statinfo)))
   {
     eos_err("error=cannot stat closed file - probably already unlinked: %s",
