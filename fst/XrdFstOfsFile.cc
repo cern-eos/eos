@@ -925,6 +925,7 @@ XrdFstOfsFile::open (const char* path,
       //........................................................................
       // Preset with the last known checksum
       //........................................................................
+      eos_info("msg=\"reset init\" file-xs=%s", fMd->fMd.checksum.c_str());
       checkSum->ResetInit(0, openSize, fMd->fMd.checksum.c_str());
     }
   }
@@ -2299,10 +2300,14 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
   }
   int rc = layOut->Read(fileOffset, buffer, buffer_size);
 
+  eos_debug("layout read %d checkSum %d", rc, checkSum);
+
   if ((rc > 0) && (checkSum))
   {
     XrdSysMutexHelper cLock(ChecksumMutex);
-    checkSum->Add(buffer, rc, fileOffset);
+    checkSum->Add(buffer, 
+                  static_cast<size_t> (rc),
+                  static_cast<off_t> (fileOffset));
   }
 
   // ----------------------------------------------------------------------------
@@ -2361,8 +2366,6 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
   {
     if (checkSum)
     {
-      checkSum->Finalize();
-
       if (!checkSum->NeedsRecalculation())
       {
         // if this is the last read of sequential reading, we can verify the checksum now
