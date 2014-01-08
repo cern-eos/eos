@@ -239,7 +239,7 @@ ReplicaParLayout::Open (const std::string& path,
          //....................................................................
          if (file->Open(mReplicaUrl[i], flags, mode, opaque, mTimeout))
          {
-           eos_err("Failed to open stripes - remote open failed on ",
+           eos_err("Failed to open stripes - remote open failed on %s",
                    maskUrl.c_str());
            return gOFS.Emsg("ReplicaParOpen", *mError, EREMOTEIO,
                             "open stripes - remote open failed ",

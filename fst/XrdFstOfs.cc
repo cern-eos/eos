@@ -1009,9 +1009,9 @@ XrdFstOfs::rem (const char* path,
     // no capability - go away!
     if (capOpaque) delete capOpaque;
 
-    return gOFS.Emsg(epname, error, caprc, "open - capability illegal", path);
+    return gOFS.Emsg(epname, error, caprc, "remove - capability illegal", path);
   }
-
+  
   int envlen;
 
   if (capOpaque)
@@ -1087,7 +1087,8 @@ XrdFstOfs::_rem (const char* path,
   {
     if (!ignoreifnotexist)
     {
-      eos_notice("unable to delete file - file does not exist (anymore): %s fstpath=%s fsid=%lu id=%llu", path, fstPath.c_str(), fsid, fid);
+      eos_notice("unable to delete file - file does not exist (anymore): %s "
+                 "fstpath=%s fsid=%lu id=%llu", path, fstPath.c_str(), fsid, fid);
       return gOFS.Emsg(epname, error, ENOENT, "delete file - file does not exist", fstPath.c_str());
     }
   }
@@ -1097,14 +1098,12 @@ XrdFstOfs::_rem (const char* path,
 
   if (!retc)
   {
-    // unlink file
+    // unlink file and possible blockxs file
     errno = 0;
     rc = XrdOfs::rem(fstPath.c_str(), error, client, 0);
 
     if (rc)
-    {
       eos_info("rc=%d errno=%d", rc, errno);
-    }
   }
 
   if (ignoreifnotexist)
@@ -1113,22 +1112,11 @@ XrdFstOfs::_rem (const char* path,
     rc = 0;
   }
 
-  // unlink block checksum files
-  {
-    // this is not the 'best' solution, but we don't have any info about block checksums
-    Adler xs; // the type does not matter here
-    const char* path = xs.MakeBlockXSPath(fstPath.c_str());
-
-    if (!xs.UnlinkXSPath())
-    {
-      eos_info("info=\"removed block-xs\" path=%s", path);
-    }
-  }
-
   // cleanup eventual transactions
   if (!gOFS.Storage->CloseTransaction(fsid, fid))
   {
-    // it should be the normal case that there is no open transaction for that file, in any case there is nothing to do here
+    // it should be the normal case that there is no open transaction for that
+    // file, in any case there is nothing to do here
   }
 
   if (rc)
