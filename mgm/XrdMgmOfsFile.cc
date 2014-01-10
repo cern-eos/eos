@@ -131,12 +131,15 @@ XrdMgmOfsFile::open (const char *inpath,
   int isRW = 0;
   int isRewrite = 0;
   bool isCreation = false;
-
+  
   // flag indicating parallel IO access
   bool isPio = false;
 
-  // flag indicating acces with reconstruction
+  // flag indicating access with reconstruction
   bool isPioReconstruct = false;
+
+  // flag indicating FUSE file access
+  bool isFuse = false;
 
   // list of filesystem IDs to reconstruct
   std::vector<unsigned int> PioReconstructFsList;
@@ -210,6 +213,16 @@ XrdMgmOfsFile::open (const char *inpath,
 
   openOpaque = new XrdOucEnv(info);
 
+  {
+    // figure out if this is FUSE access
+    const char* val = 0;
+    if ( (val = openOpaque->Get("eos.app")) ) {
+      XrdOucString application = val;
+      if (application == "fuse") {
+	isFuse=true;
+      }
+    }
+  }
   // ---------------------------------------------------------------------------
   // PIO MODE CONFIGURATION
   // ---------------------------------------------------------------------------
@@ -1271,9 +1284,9 @@ XrdMgmOfsFile::open (const char *inpath,
     }
     else
     {
-      if (!fmd->getSize())
+      if (!isFuse && !fmd->getSize())
       {
-        // 0-size files can be read from the MGM
+        // 0-size files can be read from the MGM if this is not FUSE access!
         isZeroSizeFile = true;
         return SFS_OK;
       }
