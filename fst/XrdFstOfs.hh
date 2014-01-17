@@ -300,6 +300,9 @@ public:
   bool Simulate_XS_read_error; //! simulate a checksum error on read
   bool Simulate_XS_write_error; //! simulate a checksum error on write
 
+  static XrdSysMutex ShutdownMutex; //! protecting Shutdown variable
+  static bool Shutdown; //! indicating if a shutdown procedure is running
+
   HttpServer* httpd; //! embedded http server
 };
 

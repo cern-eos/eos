@@ -96,16 +96,36 @@ FileSystem::~FileSystem ()
 void
 FileSystem::BroadcastError (const char* msg)
 {
-  SetStatus(eos::common::FileSystem::kOpsError);
-  SetError(errno ? errno : EIO, msg);
+  bool shutdown=false;
+  {
+    XrdSysMutexHelper sLock(gOFS.ShutdownMutex);
+    if (gOFS.Shutdown)
+      shutdown = true;
+  }
+
+  if(!shutdown) 
+  {
+    SetStatus(eos::common::FileSystem::kOpsError);
+    SetError(errno ? errno : EIO, msg);
+  }
 }
 
 /*----------------------------------------------------------------------------*/
 void
 FileSystem::BroadcastError (int errc, const char* errmsg)
 {
-  SetStatus(eos::common::FileSystem::kOpsError);
-  SetError(errno ? errno : EIO, errmsg);
+  bool shutdown = false;
+  {
+    XrdSysMutexHelper sLock(gOFS.ShutdownMutex);
+    if (gOFS.Shutdown)
+      shutdown = true;
+  }
+
+  if (!shutdown) 
+  {
+    SetStatus(eos::common::FileSystem::kOpsError);
+    SetError(errno ? errno : EIO, errmsg);
+  }
 }
 
 /*----------------------------------------------------------------------------*/

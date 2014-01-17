@@ -61,6 +61,9 @@
 
 // The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
+XrdSysMutex eos::fst::XrdFstOfs::ShutdownMutex; 
+
+bool eos::fst::XrdFstOfs::Shutdown = false; 
 
 extern XrdSysError OfsEroute;
 extern XrdOss* XrdOfsOss;
@@ -207,6 +210,10 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
 {
   static XrdSysMutex ShutDownMutex;
   ShutDownMutex.Lock(); // this handler goes only one-shot .. sorry !
+  {
+    XrdSysMutexHelper sLock(ShutdownMutex);
+    Shutdown = true;
+  }
 
   pid_t watchdog;
   if (!(watchdog = fork()))
