@@ -377,14 +377,6 @@ SpaceQuota::UpdateFromQuotaNode (uid_t uid, gid_t gid, bool calc_project_quota)
     ResetQuota(kGroupFilesIs, gid, false);
     ResetQuota(kGroupLogicalBytesIs, gid, false);
 
-    ResetQuota(kUserBytesIs, Quota::gProjectId, false);
-    ResetQuota(kUserLogicalBytesIs, Quota::gProjectId, false);
-    ResetQuota(kUserFilesIs, Quota::gProjectId, false);
-
-    ResetQuota(kGroupBytesIs, Quota::gProjectId, false);
-    ResetQuota(kGroupFilesIs, Quota::gProjectId, false);
-    ResetQuota(kGroupLogicalBytesIs, Quota::gProjectId, false);
-
     AddQuota(kUserBytesIs, uid, QuotaNode->getPhysicalSpaceByUser(uid), false);
     AddQuota(kUserLogicalBytesIs, uid, QuotaNode->getUsedSpaceByUser(uid), false);
     AddQuota(kUserFilesIs, uid, QuotaNode->getNumFilesByUser(uid), false);
@@ -393,8 +385,13 @@ SpaceQuota::UpdateFromQuotaNode (uid_t uid, gid_t gid, bool calc_project_quota)
     AddQuota(kGroupLogicalBytesIs, gid, QuotaNode->getUsedSpaceByGroup(gid), false);
     AddQuota(kGroupFilesIs, gid, QuotaNode->getNumFilesByGroup(gid), false);
 
+    ResetQuota(kUserBytesIs, Quota::gProjectId, false);
+    ResetQuota(kUserLogicalBytesIs, Quota::gProjectId, false);
+    ResetQuota(kUserFilesIs, Quota::gProjectId, false);
+    
     if (calc_project_quota)
     {
+
       // -----------------------------------------------------------------------
       // we recalculate the project quota only every 5 seconds to boost perf.
       // -----------------------------------------------------------------------
@@ -1008,7 +1005,7 @@ SpaceQuota::CheckWriteQuota (uid_t uid, gid_t gid, long long desiredspace, unsig
   if (!userquota && !groupquota)
     projectquota = true;
 
-  eos_static_info("userquota=%d groupquota=%d userquota=%d groupquota=%d userinodequota=%d uservolumequota=%d\n", userquota, groupquota, hasuserquota, hasgroupquota, userinodequota, uservolumequota);
+  eos_static_info("userquota=%d groupquota=%d userquota=%d groupquota=%d userinodequota=%d uservolumequota=%d projectquota=%d hasprojectquota=%d\n", userquota, groupquota, hasuserquota, hasgroupquota, userinodequota, uservolumequota, projectquota, hasprojectquota);
   if ((userquota) && (groupquota))
   {
     // both are defined, we need to have both
@@ -1078,6 +1075,8 @@ SpaceQuota::FilePlacement (const char* path, //< path to place
       eos_static_err("no namespace quota found for path=%s", path);
       return EDQUOT;
     }
+  } else {
+    eos_static_debug("quota is disabled in space=%s", GetSpaceName());
   }
 
   std::string spacename = SpaceName.c_str();
