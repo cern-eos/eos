@@ -415,11 +415,12 @@ eosdfs_truncate (const char* path, off_t size)
   strcat (rootpath, path);
 
   // Xrootd doesn't provide truncate(), So we use open() to truncate file to 0
-  int fd = xrd_open (rootpath,
-                  O_WRONLY | O_TRUNC,
-                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, uid, gid, pid);
-
-  if (fd)
+  int fd = xrd_open(path,
+                    O_WRONLY | O_TRUNC,
+                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
+                    uid, gid, pid);
+  
+  if (fd < 0)
     return -errno;
 
   xrd_truncate (fd, size, 0);
