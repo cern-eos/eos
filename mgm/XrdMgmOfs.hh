@@ -632,6 +632,24 @@ public:
   }
 
   // ---------------------------------------------------------------------------
+  // make a file sharing path with signature
+  // ---------------------------------------------------------------------------
+  
+  std::string CreateSharePath(const char* path, 
+			      const char* info,
+			      time_t expires,
+			      XrdOucErrInfo &error,
+			      eos::common::Mapping::VirtualIdentity &vid);
+
+  // ---------------------------------------------------------------------------
+  // verify a file sharing path with signature
+  // ---------------------------------------------------------------------------
+
+  bool VerifySharePath(const char* path,
+		       XrdOucEnv* opaque);
+
+
+  // ---------------------------------------------------------------------------
   // create Ofs error messsage
   // ---------------------------------------------------------------------------
   int Emsg (const char *, XrdOucErrInfo&, int, const char *x,

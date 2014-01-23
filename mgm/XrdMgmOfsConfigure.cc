@@ -1794,6 +1794,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("OpenFileOffline", 0, 0, 0);
   gOFS->MgmStats.Add("OpenProc", 0, 0, 0);
   gOFS->MgmStats.Add("OpenRead", 0, 0, 0);
+  gOFS->MgmStats.Add("OpenShared", 0, 0, 0);
   gOFS->MgmStats.Add("OpenStalledHeal", 0, 0, 0);
   gOFS->MgmStats.Add("OpenStalled", 0, 0, 0);
   gOFS->MgmStats.Add("OpenStalled", 0, 0, 0);

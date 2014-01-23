@@ -393,6 +393,8 @@ XrdMgmOfsFile::open (const char *inpath,
     }
   }
 
+  bool isSharedFile = gOFS->VerifySharePath(path,openOpaque);
+
   // get the directory meta data if exists
   eos::ContainerMD* dmd = 0;
   eos::ContainerMD::XAttrMap attrmap;
@@ -549,9 +551,10 @@ XrdMgmOfsFile::open (const char *inpath,
             attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""),
             vid,
 	    attrmap.count("sys.eval.useracl"));
-    eos_info("acl=%d r=%d w=%d wo=%d egroup=%d",
+    eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-             acl.HasEgroup());
+             acl.HasEgroup(), 
+	     isSharedFile);
     if (acl.HasAcl())
     {
       if (isRW)
@@ -578,9 +581,10 @@ XrdMgmOfsFile::open (const char *inpath,
       stdpermcheck = true;
     }
 
-    if (stdpermcheck && (!dmd->access(vid.uid,
-                                      vid.gid,
-                                      (isRW) ? W_OK | X_OK : R_OK | X_OK)))
+    if ( ( (!isSharedFile) || (isSharedFile && isRW) ) &&  stdpermcheck 
+	 && (!dmd->access(vid.uid,
+			  vid.gid,
+			  (isRW) ? W_OK | X_OK : R_OK | X_OK)))
     {
       errno = EPERM;
       gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
@@ -786,7 +790,11 @@ XrdMgmOfsFile::open (const char *inpath,
       gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
       return Emsg(epname, error, errno, "open file", path);
     }
-    gOFS->MgmStats.Add("OpenRead", vid.uid, vid.gid, 1);
+    if (isSharedFile)
+      gOFS->MgmStats.Add("OpenShared", vid.uid, vid.gid, 1);
+    else
+      gOFS->MgmStats.Add("OpenRead", vid.uid, vid.gid, 1);
+
   }
 
   // ---------------------------------------------------------------------------

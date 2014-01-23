@@ -745,7 +745,6 @@ void
 ProcCommand::MakeResult ()
 {
   mResultStream = "";
-
   if (!fstdout)
   {
     XrdMqMessage::Sort(stdOut, mDoSort);
@@ -760,7 +759,6 @@ ProcCommand::MakeResult ()
       mResultStream += XrdMqMessage::Seal(stdErr);
       mResultStream += "&mgm.proc.retc=";
       mResultStream += retc;
-
     }
     if (mFuseFormat)
     {

@@ -457,6 +457,46 @@ ProcCommand::File ()
     }
 
     // -------------------------------------------------------------------------
+    // create URLs to share a file without authentication
+    // -------------------------------------------------------------------------
+    if (mSubCmd == "share") 
+    {
+      XrdOucString sexpires = pOpaque->Get("mgm.file.expires");
+      time_t expires = (sexpires.length()) ? 
+	strtoul(sexpires.c_str(), 0, 10) : 0;
+      std::string sharepath;
+      sharepath = gOFS->CreateSharePath(spath.c_str(), "", expires, *mError, *pVid);
+
+      if (vid.uid != 0) 
+      {
+	// non-root users cannot create shared URLs with validity > 90 days
+	if ( (expires - time(NULL) ) > (90* 86400) ) 
+	{
+	  stdErr += "error: you cannot request shared URLs with a validity longer than 90 days!\n";
+	  errno = EINVAL;
+	  retc = EINVAL;
+	  sharepath="";
+	}
+      }
+
+      if (!sharepath.length())
+      {
+	stdErr += "error: unable to create URLs for file sharing"; 
+	retc = errno;
+      }
+      else 
+      {
+	XrdOucString httppath="http://"; httppath += gOFS->HostName; httppath += ":8000/"; httppath += sharepath.c_str();
+	int pos = httppath.find("?");
+	// + from base64 is a problem 
+	while (httppath.replace("+", "%2B", pos)) {}
+
+	stdOut += "[ root ]: root://"; stdOut += gOFS->ManagerId; stdOut += "/"; stdOut += sharepath.c_str(); stdOut += "\n";
+	stdOut += "[ http ]: "; stdOut += httppath.c_str();  stdOut += "\n";
+      }
+    }
+
+    // -------------------------------------------------------------------------
     // rename a file or directory from source to target path
     // -------------------------------------------------------------------------
     if (mSubCmd == "rename")
