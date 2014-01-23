@@ -77,11 +77,14 @@ LocalIo::Open (const std::string& path,
 
   mFilePath = path;
   errno = 0;
-  return mLogicalFile->openofs(mFilePath.c_str(),
-                               flags,
-                               mode,
-                               mSecEntity,
-                               opaque.c_str());
+  int retc = mLogicalFile->openofs(mFilePath.c_str(),
+				   flags,
+				   mode,
+				   mSecEntity,
+				   opaque.c_str());
+  if (retc != SFS_OK) 
+    eos_err("error= openofs failed errno=%d", errno);
+  return retc;
 }
 
 
