@@ -206,8 +206,8 @@ ReplicaParLayout::Open (const std::string& path,
 
      if (file->Open(path, flags, mode, opaque, mTimeout))
      {
-       eos_err("Failed to open replica - local open failed on ", path.c_str());
-       return gOFS.Emsg("ReplicaOpen", *mError, EIO,
+       eos_err("Failed to open replica - local open failed on path=%s errno=%d", path.c_str(), errno);
+       return gOFS.Emsg("ReplicaOpen", *mError, errno,
                         "open replica - local open failed ", path.c_str());
      }
 

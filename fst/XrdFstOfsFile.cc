@@ -1049,17 +1049,17 @@ XrdFstOfsFile::open (const char* path,
         //........................................................................
         // Check if the local prefix matches a filesystem path ...
         //........................................................................
-        if ((errno != ENOENT) && (fstPath.beginswith(gOFS.Storage->fileSystemsVector[i]->GetPath().c_str())))
+        if ((error.getErrInfo() != EIO) && (fstPath.beginswith(gOFS.Storage->fileSystemsVector[i]->GetPath().c_str())))
         {
           //........................................................................
           // Broadcast error for this FS
           //........................................................................
-          eos_crit("disabling filesystem %u after IO error on path %s",
+          eos_crit("disabling filesystem %u after IO error on path %s errno=%d",
                    gOFS.Storage->fileSystemsVector[i]->GetId(),
-                   gOFS.Storage->fileSystemsVector[i]->GetPath().c_str());
+                   gOFS.Storage->fileSystemsVector[i]->GetPath().c_str(),
+		   error.getErrInfo());
           XrdOucString s = "local IO error";
-          gOFS.Storage->fileSystemsVector[i]->BroadcastError(EIO, s.c_str());
-          // gOFS.Storage->fileSystemsVector[i]->BroadcastError(error.getErrInfo(), "local IO error");
+          gOFS.Storage->fileSystemsVector[i]->BroadcastError(error.getErrInfo(), s.c_str());
           break;
         }
       }
