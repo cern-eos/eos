@@ -896,7 +896,6 @@ client_user_command (XrdOucString &in)
     }
 
     client->Close();
-    XrdMqMessage::UnSeal(out);
     TIMING("stop", &mytiming);
 
     delete client;
