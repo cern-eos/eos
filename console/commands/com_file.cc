@@ -155,7 +155,7 @@ com_file (char* arg1)
   if (wants_help(savearg.c_str()))
     goto com_file_usage;
 
-  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert"))
+  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert") && (cmd != "share") )
   {
     goto com_file_usage;
   }
@@ -187,6 +187,27 @@ com_file (char* arg1)
     in += path.c_str();
     in += "&mgm.file.target=";
     in += fsid1.c_str();
+  }
+
+  if (cmd == "share")
+  {
+    if (!path.length() )
+      goto com_file_usage;
+
+    path = abspath(path.c_str());
+    in += "&mgm.path=";
+    in += path;
+    in += "&mgm.subcmd=share";
+    in += "&mgm.file.expires=";
+    unsigned long long expires= (time(NULL) + 28*86400);
+
+    if (fsid1.length()) 
+    {
+      expires = time(NULL) + eos::common::StringConversion::GetSizeFromString(fsid1);
+    }
+    char sexpires[1024];
+    snprintf(sexpires,sizeof(sexpires)-1,"%llu", expires);
+    in += sexpires;
   }
 
   if (cmd == "touch")
@@ -794,6 +815,9 @@ com_file_usage:
   fprintf(stdout, "       -commitchecksum : commit the computed checksum to the MGM\n");
   fprintf(stdout, "       -commitsize     : commit the file size to the MGM\n");
   fprintf(stdout, "       -rate <rate>    : restrict the verification speed to <rate> per node\n");
+  fprintf(stdout, "file share <path> [lifetime] :\n");
+  fprintf(stdout, "       <path>          : path to create a share link\n");
+  fprintf(stdout,"        <lifetime>      : validity time of the share link like 1, 1s, 1d, 1w, 1mo, 1y, ... default is 28d\n");
   fprintf(stdout, "\n");
 
   return (0);
