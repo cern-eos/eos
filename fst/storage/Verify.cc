@@ -175,8 +175,11 @@ Storage::Verify ()
             cxError = true;
 
           // commit the disk checksum in case of differences between the in-memory value
-          if (fMd->fMd.diskchecksum != computedchecksum)
+          if (fMd->fMd.diskchecksum != computedchecksum) 
+	  {
+	    cxError = true;
             localUpdate = true;
+	  }
 
           if (cxError)
           {
