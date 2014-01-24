@@ -247,7 +247,6 @@ com_fuse (char* arg1)
       {
         fprintf(stderr, "error: mount failed");
       }
-      sleep(1);
     }
     else
     {
@@ -259,13 +258,25 @@ com_fuse (char* arg1)
       }
     }
 
+    bool mountok=false;
 
-    if ((stat(mountpoint.c_str(), &buf2) || (buf2.st_ino == buf.st_ino)))
+    for (size_t i=0; i< 30; i++) 
+    {
+      if(stat(mountpoint.c_str(), &buf2) && (buf2.st_ino == buf.st_ino) )
+      {
+	usleep(1000000);
+      }
+      else
+      {
+	mountok=true;
+	break;
+      }	
+    }
+    if (!mountok)
     {
       fprintf(stderr, "error: mount failed at %s\n", mountpoint.c_str());
       exit(-1);
     }
-
   }
 
   if (cmd == "umount")
