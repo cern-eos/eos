@@ -389,6 +389,7 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
 
   mFuseFormat = false;
   mJsonFormat = false;
+  mHttpFormat = false;
 
   // ----------------------------------------------------------------------------
   // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line 
@@ -405,7 +406,10 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
   {
     mJsonFormat = true;
   }
-
+  if (format == "http")
+  {
+    mHttpFormat = true;
+  }
   stdOut = "";
   stdErr = "";
   retc = 0;
@@ -748,7 +752,7 @@ ProcCommand::MakeResult ()
   if (!fstdout)
   {
     XrdMqMessage::Sort(stdOut, mDoSort);
-    if ((!mFuseFormat && !mJsonFormat))
+    if ((!mFuseFormat && !mJsonFormat && !mHttpFormat))
     {
       // ------------------------------------------------------------------------
       // the default format
@@ -760,8 +764,13 @@ ProcCommand::MakeResult ()
       mResultStream += "&mgm.proc.retc=";
       mResultStream += retc;
     }
-    if (mFuseFormat)
+    if (mFuseFormat || mHttpFormat)
     {
+      if (mHttpFormat) 
+      {
+	mResultStream += "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">\n";
+	mResultStream += "<TITLE>EOS-HTTP</TITLE> <link rel=\"stylesheet\" href=\"http://www.w3.org/StyleSheets/Core/Chocolate\" \n";
+      }
       // ------------------------------------------------------------------------
       // FUSE format contains only STDOUT
       // ------------------------------------------------------------------------

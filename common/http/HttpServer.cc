@@ -331,7 +331,7 @@ HttpServer::HttpError (const char *errorText, int errorCode)
   if (getenv("EOS_HTMLDIR"))
     html_dir = getenv("EOS_HTMLDIR");
   else
-    html_dir = "/var/share/eos/";
+    html_dir = "/var/eos/html/";
 
   std::string path = html_dir.c_str();
   path += std::string("error.html");

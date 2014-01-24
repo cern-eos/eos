@@ -463,7 +463,15 @@ ProcCommand::File ()
     {
       XrdOucString sexpires = pOpaque->Get("mgm.file.expires");
       time_t expires = (sexpires.length()) ? 
-	strtoul(sexpires.c_str(), 0, 10) : 0;
+	(time_t) strtoul(sexpires.c_str(), 0, 10) : 0;
+
+      fprintf(stderr,"%s %lu\n", sexpires.c_str(), expires);
+      if (!expires) 
+      {
+	// default is 30 days
+	expires = (time_t)(time(NULL) + (30*86400));
+      }
+      fprintf(stderr,"%s %lu\n", sexpires.c_str(), expires);
       std::string sharepath;
       sharepath = gOFS->CreateSharePath(spath.c_str(), "", expires, *mError, *pVid);
 
@@ -490,9 +498,31 @@ ProcCommand::File ()
 	int pos = httppath.find("?");
 	// + from base64 is a problem 
 	while (httppath.replace("+", "%2B", pos)) {}
-
-	stdOut += "[ root ]: root://"; stdOut += gOFS->ManagerId; stdOut += "/"; stdOut += sharepath.c_str(); stdOut += "\n";
-	stdOut += "[ http ]: "; stdOut += httppath.c_str();  stdOut += "\n";
+	
+	XrdOucString rootUrl = "root://"; rootUrl += gOFS->ManagerId; rootUrl += "/"; rootUrl += sharepath.c_str();
+	if (mHttpFormat) 
+        {
+	  stdOut += "<hr>\n";
+	  stdOut += "<h4>File Sharing Links: (valid 3 month)</h4>\n";
+	  stdOut += "<hr>\n";
+	  stdOut += path;
+	  stdOut += "<table border=\"0\"><tr><td>";
+          stdOut += "<img alt=\"\" src=\"data:image/gif;base64,R0lGODlhEAANAJEAAAJ6xv///wAAAAAAACH5BAkAAAEALAAAAAAQAA0AAAg0AAMIHEiwoMGDCBMqFAigIYCFDBsadPgwAMWJBB1axBix4kGPEhN6HDgyI8eTJBFSvEgwIAA7\">";
+          stdOut += "<a href=\"";
+	  stdOut += rootUrl.c_str();
+	  stdOut += "\">ROOT</a></td>";
+	  stdOut += "</tr><tr><td>";
+	  stdOut += "<img alt=\"\" src=\"data:image/gif;base64,R0lGODlhEAANAJEAAAJ6xv///wAAAAAAACH5BAkAAAEALAAAAAAQAA0AAAg0AAMIHEiwoMGDCBMqFAigIYCFDBsadPgwAMWJBB1axBix4kGPEhN6HDgyI8eTJBFSvEgwIAA7\">";
+	  stdOut += "<a href=\"";
+	  stdOut += httppath.c_str();
+	  stdOut += "\">HTTP</a></td>";
+	  stdOut += "</tr></table>\n";
+	}
+	else 
+	{
+	  stdOut += "[ root ]: "; stdOut += rootUrl; stdOut += "\n";
+	  stdOut += "[ http ]: "; stdOut += httppath;  stdOut += "\n";
+	}
       }
     }
 

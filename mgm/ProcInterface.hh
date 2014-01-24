@@ -114,6 +114,7 @@ private:
 
   bool mFuseFormat; //< indicates FUSE format
   bool mJsonFormat; //< indicates JSON format
+  bool mHttpFormat; //< indicates HTTP format
   bool mClosed; //< indicates the proc command has been closed already
 public:
 
