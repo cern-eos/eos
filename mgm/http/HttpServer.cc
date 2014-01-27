@@ -111,6 +111,7 @@ HttpServer::Handler (void *cls,
                                                                      query.c_str() ? query : "",
                                                                      body, uploadDataSize, cookies);
     eos_static_debug("\n\n%s", request->ToString().c_str());
+    eos_static_debug("%s\n", body.c_str());
 
     // Handle the request and build a response based on the specific protocol
     protocolHandler->HandleRequest(request);
@@ -227,7 +228,9 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
 
       // for proxies clientDN as appended a ../CN=... which has to be removed
       std::string clientDNproxy = clientDN;
-      clientDNproxy.erase(clientDN.rfind("/CN="));
+      if (!clientDN.empty())
+	clientDNproxy.erase(clientDN.rfind("/CN="));
+
       // Try to match with SSL header
       if (dn == clientDN)
       {
