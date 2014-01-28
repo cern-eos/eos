@@ -2776,14 +2776,15 @@ XrdMgmOfs::rename (const char *old_name,
   static const char *epname = "rename";
   const char *tident = error.getErrUser();
 
-  eos_info("old-name=%s new-name=%s", old_name, new_name);
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
   XrdSecEntity mappedclient;
 
-
   eos::common::Mapping::IdMap(client, infoO, tident, vid);
+
+  eos_info("old-name=%s new-name=%s", old_name, new_name);
+
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
 
   errno = 0;
@@ -3715,24 +3716,30 @@ XrdMgmOfs::_access (const char *path,
       // browse permission by ACL
       if (acl.HasAcl())
       {
-        if ((mode & W_OK) && acl.CanWrite())
-        {
-          permok = true;
-        }
-
-        if ((mode & R_OK) && acl.CanRead())
-        {
-          permok = true;
-        }
-
-        if ((mode & R_OK) && acl.CanBrowse())
-        {
-          permok = true;
-        }
-        else
+	permok = true;
+        if ((mode & W_OK) && !acl.CanWrite())
         {
           permok = false;
         }
+
+        if (mode & R_OK) 
+	{
+	  if (!acl.CanRead() &&
+	      (!dh->access(vid.uid, vid.gid, R_OK)) )
+	  {
+	    permok = false;
+	  }
+	}
+
+	if (mode & X_OK) 
+	{
+	  if ( (!acl.CanBrowse()) &&
+	       (!dh->access(vid.uid, vid.gid, X_OK) ) )
+
+	  {
+	    permok = false;
+	  }
+	}
       }
     }
     if (fh && (mode & X_OK) && flags) 
