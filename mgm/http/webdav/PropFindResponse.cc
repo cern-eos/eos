@@ -197,7 +197,7 @@ PropFindResponse::ParseRequestPropertyTypes(rapidxml::xml_node<> *node)
   while (property)
   {
     XrdOucString propertyName = property->name();
-    eos_static_debug("msg=\"ound xml property: %s\"", propertyName.c_str());
+    eos_static_debug("msg=\"found xml property: %s\"", propertyName.c_str());
 
     int colon = 0;
     if ((colon = propertyName.find(':')) != STR_NPOS)
