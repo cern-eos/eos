@@ -299,7 +299,7 @@ EosAuthOfs::Configure(XrdSysError& error)
           }
           catch (zmq::error_t& err)
           {
-            eos_warning("dealing with connect exception");
+            eos_warning("dealing with connect exception, retrying ...");
             continue;
           }
 
@@ -332,10 +332,10 @@ EosAuthOfs::StartAuthProxyThread(void *pp)
 }
 
 
-//--------------------------------------------------------------------------
-//! Authentication proxt thread which forwards requests form the clients
-//! to the proper MGM intance.
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Authentication proxt thread which forwards requests form the clients
+// to the proper MGM intance.
+//------------------------------------------------------------------------------
 void
 EosAuthOfs::AuthProxyThread()
 {
