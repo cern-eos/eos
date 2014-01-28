@@ -111,7 +111,6 @@ HttpServer::Handler (void *cls,
                                                                      query.c_str() ? query : "",
                                                                      body, uploadDataSize, cookies);
     eos_static_debug("\n\n%s", request->ToString().c_str());
-    eos_static_debug("%s\n", body.c_str());
 
     // Handle the request and build a response based on the specific protocol
     protocolHandler->HandleRequest(request);
@@ -230,7 +229,6 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
       std::string clientDNproxy = clientDN;
       if (!clientDN.empty())
 	clientDNproxy.erase(clientDN.rfind("/CN="));
-
       // Try to match with SSL header
       if (dn == clientDN)
       {
@@ -249,25 +247,18 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
       username = "";
     }
 
-    // Try to match with kerberos username
-    pos = remoteUser.find_last_of("@");
-    std::string remoteUserName = remoteUser.substr(0, pos);
+    //! TODO: make this more secure
+    //! a client can set the Remote-User header and change ID
+    //! if access to PORT 8000 is open for other people than the GW
 
-    std::vector<std::string> tokens;
-    eos::common::StringConversion::Tokenize(dn, tokens, "/");
-
-    for (auto it = tokens.begin(); it != tokens.end(); ++it)
+    if (remoteUser.length()) 
     {
-      pos = (*it).find_last_of("=");
-      std::string cn = (*it).substr(pos + 1);
-
-      if (cn == remoteUserName)
-      {
-        username = (*it).substr(pos + 1);
-        eos_static_info("msg=\"mapped client krb5 username successfully\" "
-                        "username=\"%s\"", username.c_str());
-        break;
-      }
+      // extract kerberos username
+      pos = remoteUser.find_last_of("@");
+      std::string remoteUserName = remoteUser.substr(0, pos);
+      username = remoteUserName;
+      eos_static_info("msg=\"mapped client krb5 username successfully\" "
+		      "username=\"%s\"", username.c_str());
     }
   }
 
@@ -291,7 +282,6 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
   vid->prot = "https";
   vid->uid_string = eos::common::Mapping::UidAsString(vid->uid);
   vid->gid_string = eos::common::Mapping::GidAsString(vid->gid);
-
   return vid;
 }
 
