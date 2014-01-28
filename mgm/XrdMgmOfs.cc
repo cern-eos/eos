@@ -3256,11 +3256,8 @@ XrdMgmOfs::stat (const char *inpath,
 /*----------------------------------------------------------------------------*/
 
 {
-  struct timeval start, end;
-  gettimeofday(&start, NULL);
   static const char *epname = "stat";
   const char *tident = error.getErrUser();
-
 
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
@@ -3291,10 +3288,6 @@ XrdMgmOfs::stat (const char *inpath,
     MAYSTALL_ENOENT;
   }
 
-  gettimeofday(&end , NULL);
-  unsigned long long diff = (end.tv_sec * 1000000 + end.tv_usec) -
-                            (start.tv_sec * 1000000 + start.tv_usec);
-  eos_debug("eos raw stat time: %ju", diff);
   return rc;
 }
 
