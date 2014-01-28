@@ -26,7 +26,7 @@ Configuration
 
 Engine
 ++++++
-The LRU engine is enabled/disabled by in the default space:
+The LRU engine has to be enabled/disabled in the default space only:
 
 .. code-block:: bash
 
