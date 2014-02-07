@@ -127,7 +127,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   if (!client)
     return;
 
-  eos_static_debug("name:%s role:%s group:%s", client->name, client->role, client->grps);
+  eos_static_debug("name:%s role:%s group:%s tident:%s", client->name, client->role, client->grps, client->tident);
 
   // you first are 'nobody'
   Nobody(vid);
