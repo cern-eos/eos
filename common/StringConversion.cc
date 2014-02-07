@@ -109,7 +109,7 @@ const char*
 StringConversion::GetReadableSizeString (XrdOucString& sizestring, unsigned long long insize, const char* unit)
 {
   char formsize[1024];
-  if (insize >= 1000)
+  if (insize >= 10000)
   {
     if (insize >= (1000 * 1000))
     {
@@ -150,7 +150,6 @@ StringConversion::GetReadableSizeString (XrdOucString& sizestring, unsigned long
     }
     else
     {
-      // kB
       sprintf(formsize, "%.02f k%s", insize * 1.0 / (1000), unit);
     }
   }
@@ -158,11 +157,11 @@ StringConversion::GetReadableSizeString (XrdOucString& sizestring, unsigned long
   {
     if (strlen(unit))
     {
-      sprintf(formsize, "%.02f %s", insize * 1.0, unit);
+      sprintf(formsize, "%llu %s", insize , unit);
     }
     else
     {
-      sprintf(formsize, "%.02f", insize * 1.0);
+      sprintf(formsize, "%llu", insize );
     }
   }
   sizestring = formsize;
@@ -359,7 +358,7 @@ StringConversion::GetSizeString (XrdOucString& sizestring, double insize)
 }
 
 // ---------------------------------------------------------------------------
-/** 
+/** A
  * Split a 'key:value' definition into key + value
  * 
  * @param keyval key-val string 'key:value'
@@ -425,33 +424,51 @@ StringConversion::SplitKeyValue (XrdOucString keyval, XrdOucString &key, XrdOucS
  * @param mapstring map string to parse
  * @param map return map after parsing if ok
  * @param split seperator used to seperate key from value default ":"
+ * @param delimiter seperator used to seperate individual key value pairs
+ * @param keyvector returns optional the order of the keys in a vector
  * @return true if format ok, otherwise false
  */
 // ---------------------------------------------------------------------------
 
 bool
 StringConversion::GetKeyValueMap (const char* mapstring,
-                std::map<std::string, std::string> &map,
-                const char* split)
+                                  std::map<std::string, std::string> &map,
+                                  const char* split,
+                                  const char* sdelimiter,
+                                  std::vector<std::string>* keyvector
+                                  )
 {
   if (!mapstring)
     return false;
 
   std::string is = mapstring;
-  std::string delimiter = ",";
+  std::string delimiter = sdelimiter;
   std::vector<std::string> slist;
   Tokenize(is, slist, delimiter);
 
-  if (!slist.size()) {
+  if (!slist.size())
+  {
     return false;
   }
-  
+
+  size_t keyvectorindex = 0;
   for (auto it = slist.begin(); it != slist.end(); it++)
   {
     std::string key;
     std::string val;
     if (SplitKeyValue(*it, key, val, split))
     {
+      if (keyvector && !map.count(key))
+      {
+        if (std::find(keyvector->begin(), keyvector->end(), key) == keyvector->end())
+        {
+          std::vector<std::string>::iterator it = keyvector->begin();
+
+          std::advance(it, keyvectorindex);
+          keyvector->insert(it, key);
+        }
+      }
+      keyvectorindex++;
       map[key] = val;
     }
     else
