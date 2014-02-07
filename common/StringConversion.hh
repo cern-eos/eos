@@ -40,6 +40,7 @@
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <map>
 #include <set>
 #include <stdio.h>
@@ -239,13 +240,17 @@ public:
    * @param mapstring map string to parse
    * @param map return map after parsing if ok
    * @param split seperator used to seperate key from value default ":"
+   * @param delimiter seperator used to seperate individual key value pairs
+   * @param keyvector returns optional the order of the keys in a vector
    * @return true if format ok, otherwise false
    */
   // ---------------------------------------------------------------------------
   static bool
   GetKeyValueMap (const char* mapstring,
                   std::map<std::string, std::string> &map,
-                  const char* split = ":");
+                  const char* split = ":", 
+		  const char* delimiter = ",",
+		  std::vector<std::string>* keyvector=0);
 
 
   // ---------------------------------------------------------------------------  
