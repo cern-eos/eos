@@ -99,6 +99,8 @@ HttpServer::Handler (void *cls,
     MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND,
                               &HttpServer::BuildQueryString, (void*) &query);
 
+    query+="&eos.app=http";
+
     // Get the cookies
     std::map<std::string, std::string> cookies;
     MHD_get_connection_values(connection, MHD_COOKIE_KIND,
@@ -247,12 +249,9 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
       username = "";
     }
 
-    //! TODO: make this more secure
-    //! a client can set the Remote-User header and change ID
-    //! if access to PORT 8000 is open for other people than the GW
-
     if (remoteUser.length()) 
     {
+      fprintf(stderr,"==> host is %s\n", headers["Host"].c_str());
       // extract kerberos username
       pos = remoteUser.find_last_of("@");
       std::string remoteUserName = remoteUser.substr(0, pos);
@@ -271,17 +270,26 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
     username = "nobody";
   }
 
-  // Make a virtual identity object
-  vid = new eos::common::Mapping::VirtualIdentity();
-  eos::common::Mapping::getPhysicalIds(username.c_str(), *vid);
+  XrdSecEntity client((clientDN.empty() && remoteUser.empty())?"http":"https");
+  XrdOucString tident = username.c_str();
+  tident += ".1:1@"; tident += headers["Host"].c_str();
+  client.name = const_cast<char*> (username.c_str());
+  client.host = const_cast<char*> (headers["Host"].c_str());
+  client.tident = const_cast<char*> (tident.c_str());
+
+  {
+    // Make a virtual identity object
+    vid = new eos::common::Mapping::VirtualIdentity();
+    eos::common::Mapping::IdMap (&client, "eos.app=http", client.tident, *vid, true);
+
+    // if we have been mapped to nobody, change also the name accordingly
+    if (vid->uid == 99)
+      vid->name = const_cast<char*> ("nobody");
+  }
 
   vid->dn = dn;
-  vid->name = XrdOucString(username.c_str());
-  vid->host = headers["Host"];
-  vid->tident = "dummy.0:0@localhost";
+  vid->tident = tident.c_str();
   vid->prot = "https";
-  vid->uid_string = eos::common::Mapping::UidAsString(vid->uid);
-  vid->gid_string = eos::common::Mapping::GidAsString(vid->gid);
   return vid;
 }
 
