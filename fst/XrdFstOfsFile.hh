@@ -298,8 +298,6 @@ protected:
   unsigned long lid; //! layout id
   unsigned long long cid; //! container id
 
-  XrdOucString hostName; //! our hostname
-
   bool closed; //! indicator the file is closed
   bool opened; //! indicator that file is opened
   bool haswrite; //! indicator that file was written/modified

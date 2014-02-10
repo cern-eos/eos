@@ -301,6 +301,7 @@ public:
   bool Simulate_XS_write_error; //! simulate a checksum error on write
 
   HttpServer* httpd; //! embedded http server
+  const char* mHostName; ///< FST hostname 
 };
 
 //------------------------------------------------------------------------------

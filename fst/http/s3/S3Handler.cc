@@ -324,7 +324,7 @@ S3Handler::Put (eos::common::HttpRequest *request)
   // add some S3 specific tags to the response object
   responseheader["x-amz-version-id"] = sFileId;
   responseheader["x-amz-request-id"] = mLogId;
-  responseheader["Server"] = gOFS.HostName;
+  responseheader["Server"] = gOFS.mHostName;
   responseheader["Connection"] = "close";
   responseheader["ETag"] = sFileId;
 

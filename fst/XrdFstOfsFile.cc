@@ -169,7 +169,6 @@ XrdFstOfsFile::open (const char* path,
   isRW = false;
   int retc = SFS_OK;
   Path = path;
-  hostName = gOFS.HostName;
   gettimeofday(&openTime, &tz);
   XrdOucString stringOpaque = opaque;
   XrdOucString opaqueCheckSum = "";
@@ -1202,7 +1201,7 @@ XrdFstOfsFile::MakeReportEnv (XrdOucString & reportString)
              , this->vid.uid
              , this->vid.gid
              , tIdent.c_str()
-             , hostName.c_str()
+             , gOFS.mHostName
              , lid, fileid
              , fsid
              , openTime.tv_sec
