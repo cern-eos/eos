@@ -109,6 +109,8 @@ private:
   // -------------------------------------------------------------------------
   void MakeResult ();
 
+  // helper function able to detect key value pair output and convert to http table format
+  bool KeyValToHttpTable(XrdOucString &stdOut);
   bool mAdminCmd; // < indicates an admin command
   bool mUserCmd; //< indicates a user command
 

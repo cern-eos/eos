@@ -42,6 +42,7 @@
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "build/_CPack_Packages/Linux-Source/TGZ/eos-0.3.9-2/common/http/HttpServer.hh"
 /*----------------------------------------------------------------------------*/
 #include <iostream>
 #include <fstream>
@@ -766,15 +767,55 @@ ProcCommand::MakeResult ()
     }
     if (mFuseFormat || mHttpFormat)
     {
-      if (mHttpFormat) 
+      if (mFuseFormat)
       {
-	mResultStream += "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2 Final//EN\">\n";
-	mResultStream += "<TITLE>EOS-HTTP</TITLE> <link rel=\"stylesheet\" href=\"http://www.w3.org/StyleSheets/Core/Chocolate\" \n";
+        mResultStream += stdOut;
       }
-      // ------------------------------------------------------------------------
-      // FUSE format contains only STDOUT
-      // ------------------------------------------------------------------------
-      mResultStream += stdOut;
+      else
+      {
+        mResultStream += "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">\n";
+        mResultStream += "<html>\n";
+        mResultStream += "<TITLE>EOS-HTTP</TITLE> <link rel=\"stylesheet\" href=\"http://www.w3.org/StyleSheets/Core/Midnight\"> \n";
+        mResultStream += "<meta charset=\"utf-8\"> \n";
+        mResultStream += "<div class=\"httptable\" id=\"";
+        mResultStream += mCmd;
+        mResultStream += "_";
+        mResultStream += mSubCmd;
+        mResultStream += "\">\n";
+
+        // ------------------------------------------------------------------------
+        // FUSE format contains only STDOUT
+        // ------------------------------------------------------------------------
+        if (stdOut.length() && KeyValToHttpTable(stdOut))
+        {
+          mResultStream += stdOut;
+        }
+        else
+        {
+          if (stdErr.length() || retc)
+          {
+            mResultStream += stdOut;
+            mResultStream += "<h3>&#9888;&nbsp;<font color=\"red\">";
+            mResultStream += stdErr;
+            mResultStream += "</font></h3>";
+          }
+          else
+          {
+            mResultStream += "<h3>&#10004;&nbsp;";
+
+            if (!stdOut.length())
+            {
+              mResultStream += "Success!";
+            }
+            else
+            {
+              mResultStream += stdOut;
+            }
+            mResultStream += "</h3>";
+          }
+        }
+        mResultStream += "</div>";
+      }
     }
     if (mJsonFormat)
     {
@@ -862,12 +903,127 @@ ProcCommand::MakeResult ()
       }
       else
       {
+
         eos_static_err("cannot seek to position 0 in result files");
       }
     }
   }
 }
 
+
+/*----------------------------------------------------------------------------*/
+/**
+ * Try to detect and convert a monitor output format and convert it into a  
+ * nice http table
+ */
+
+/*----------------------------------------------------------------------------*/
+bool
+ProcCommand::KeyValToHttpTable (XrdOucString & stdOut)
+{
+  while (stdOut.replace("= ", "=\"\""))
+  {
+  }
+  std::string stmp = stdOut.c_str();
+  XrdOucTokenizer tokenizer((char*) stmp.c_str());
+  const char* line;
+  bool ok = true;
+
+  std::vector<std::string> keys;
+  std::vector < std::map < std::string, std::string >> keyvaluetable;
+  std::string table;
+
+  while ((line = tokenizer.GetLine()))
+  {
+    fprintf(stderr, "line=%s\n", line);
+    if (strlen(line) <= 1)
+      continue;
+
+    std::map<std::string, std::string> keyval;
+    if (eos::common::StringConversion::GetKeyValueMap(line,
+                                                      keyval,
+                                                      "=",
+                                                      " ",
+                                                      &keys))
+    {
+      keyvaluetable.push_back(keyval);
+    }
+    else
+    {
+      fprintf(stderr, "GetKeyValue failed for |%s|\n", line);
+      ok = false;
+      break;
+    }
+  }
+  if (ok)
+  {
+    table +=
+      R"literal(<style> 
+table
+{
+  table-layout:auto;
+} 
+</style>
+)literal";
+
+    table += "<table border=\"8\" cellspacing=\"10\" cellpadding=\"20\">\n";
+    // build the header
+    table += "<tr>\n";
+    for (size_t i = 0; i < keys.size(); i++)
+    {
+      table += "<th>";
+      table += "<font size=\"2\">";
+      // for keys don't print lengthy strings like a.b.c.d ... just print d
+      std::string dotkeys = keys[i];
+      size_t pos = dotkeys.rfind(".");
+      if (pos != std::string::npos)
+        dotkeys.erase(0, pos + 1);
+      //table += dotkeys;
+      table += keys[i];
+      table += "</font>";
+      table += "</th>";
+      table += "\n";
+    }
+    table += "</tr>\n";
+
+    // build the rows
+
+    for (size_t i = 0; i < keyvaluetable.size(); i++)
+    {
+      table += "<tr>\n";
+      for (size_t j = 0; j < keys.size(); j++)
+      {
+        table += "<td nowrap=\"nowrap\">";
+        table += "<font size=\"2\">";
+        XrdOucString sizestring = keyvaluetable[i][keys[j]].c_str();
+        unsigned long long val = eos::common::StringConversion::GetSizeFromString(sizestring);
+        if (errno || val == 0 || (!sizestring.isdigit()))
+        {
+          XrdOucString decodeURI = keyvaluetable[i][keys[j]].c_str();
+          // we need to remove URI encoded spaces now
+          while (decodeURI.replace("%20", " "))
+          {
+          }
+          table += decodeURI.c_str();
+        }
+        else
+        {
+          eos::common::StringConversion::GetReadableSizeString(sizestring, val, "");
+          table += sizestring.c_str();
+        }
+        table += "</font>";
+        table += "</td>";
+      }
+      table += "</tr>\n";
+      table += "\n";
+    }
+
+
+    table += "</table>\n";
+    stdOut = table.c_str();
+  }
+  return ok;
+}
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_END
