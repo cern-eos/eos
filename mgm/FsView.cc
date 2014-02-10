@@ -60,7 +60,7 @@ FsView::GetNodeFormat (std::string option)
   if (option == "m")
   {
     // monitoring format
-    return "member=type:width=1:format=os|sep= |member=hostport:width=1:format=os|sep= |member=status:width=1:format=os|sep= |member=cfg.status:width=1:format=os|sep= |member=cfg.txgw:width=1:format=os|sep= |member=heartbeatdelta:width=1:format=os|sep= |member=nofs:width=1:format=os|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffree:width=1:format=ol|sep= |sum=stat.statfs.fused:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |sum=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |sum=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running|sep= |member=stat.gw.queued:width=1:format=os:tag=stat.gw.queued";
+    return "member=type:width=1:format=os|sep= |member=hostport:width=1:format=os|sep= |member=status:width=1:format=os|sep= |member=cfg.status:width=1:format=os|sep= |member=cfg.txgw:width=1:format=os|sep= |member=heartbeatdelta:width=1:format=os|sep= |member=nofs:width=1:format=ol|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffree:width=1:format=ol|sep= |sum=stat.statfs.fused:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |sum=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |sum=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running|sep= |member=stat.gw.queued:width=1:format=os:tag=stat.gw.queued";
   }
 
   if (option == "io")
@@ -105,7 +105,7 @@ FsView::GetFileSystemFormat (std::string option)
   if (option == "m")
   {
     // monitoring format
-    return "key=host:width=1:format=os|sep= |key=port:width=1:format=os|sep= |key=id:width=1:format=os|sep= |key=uuid:width=1:format=os|sep= |key=path:width=1:format=os|sep= |key=schedgroup:width=1:format=os|sep= |key=stat.boot:width=1:format=os|sep= |key=configstatus:width=1:format=os|sep= |key=headroom:width=1:format=os|sep= |key=stat.errc:width=1:format=os|sep= |key=stat.errmsg:width=1:format=os|sep= |key=stat.disk.load:width=1:format=of|sep= |key=stat.disk.readratemb:width=1:format=ol|sep= |key=stat.disk.writeratemb:width=1:format=ol|sep= |key=stat.net.ethratemib:width=1:format=ol|sep= |key=stat.net.inratemib:width=1:format=ol|sep= |key=stat.net.outratemib:width=1:format=ol|sep= |key=stat.ropen:width=1:format=ol|sep= |key=stat.wopen:width=1:format=ol|sep= |key=stat.statfs.freebytes:width=1:format=ol|sep= |key=stat.statfs.usedbytes:width=1:format=ol|sep= |key=stat.statfs.capacity:width=1:format=ol|sep= |key=stat.usedfiles:width=1:format=ol|sep= |key=stat.statfs.ffree:width=1:format=ol|sep= |key=stat.statfs.fused:width=1:format=ol|sep= |key=stat.statfs.files:width=1:format=ol|sep= |key=stat.drain:width=1:format=os|sep= |key=stat.drainprogress:width=1:format=ol:tag=progress|sep= |key=stat.drainfiles:width=1:format=ol|sep= |key=stat.drainbytesleft:width=1:format=ol|sep= |key=stat.drainretry:width=1:format=ol|sep= |key=graceperiod:width=1:format=ol|sep= |key=stat.timeleft:width=1:format=ol|sep= |key=stat.active:width=1:format=os|sep= |key=scaninterval:width=1:format=os|sep= |key=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |key=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running";
+    return "key=host:width=1:format=os|sep= |key=port:width=1:format=os|sep= |key=id:width=1:format=os|sep= |key=uuid:width=1:format=os|sep= |key=path:width=1:format=os|sep= |key=schedgroup:width=1:format=os|sep= |key=stat.boot:width=1:format=os|sep= |key=configstatus:width=1:format=os|sep= |key=headroom:width=1:format=os|sep= |key=stat.errc:width=1:format=os|sep= |key=stat.errmsg:width=1:format=oqs|sep= |key=stat.disk.load:width=1:format=of|sep= |key=stat.disk.readratemb:width=1:format=ol|sep= |key=stat.disk.writeratemb:width=1:format=ol|sep= |key=stat.net.ethratemib:width=1:format=ol|sep= |key=stat.net.inratemib:width=1:format=ol|sep= |key=stat.net.outratemib:width=1:format=ol|sep= |key=stat.ropen:width=1:format=ol|sep= |key=stat.wopen:width=1:format=ol|sep= |key=stat.statfs.freebytes:width=1:format=ol|sep= |key=stat.statfs.usedbytes:width=1:format=ol|sep= |key=stat.statfs.capacity:width=1:format=ol|sep= |key=stat.usedfiles:width=1:format=ol|sep= |key=stat.statfs.ffree:width=1:format=ol|sep= |key=stat.statfs.fused:width=1:format=ol|sep= |key=stat.statfs.files:width=1:format=ol|sep= |key=stat.drain:width=1:format=os|sep= |key=stat.drainprogress:width=1:format=ol:tag=progress|sep= |key=stat.drainfiles:width=1:format=ol|sep= |key=stat.drainbytesleft:width=1:format=ol|sep= |key=stat.drainretry:width=1:format=ol|sep= |key=graceperiod:width=1:format=ol|sep= |key=stat.timeleft:width=1:format=ol|sep= |key=stat.active:width=1:format=os|sep= |key=scaninterval:width=1:format=os|sep= |key=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |key=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running";
   }
 
   if (option == "io")
@@ -156,7 +156,7 @@ FsView::GetSpaceFormat (std::string option)
   if (option == "m")
   {
     // monitoring format
-    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=cfg.groupsize:width=1:format=os|sep= |member=cfg.groupmod:width=1|sep= |member=nofs:width=1:format=os|sep= |member=cfg.quota:width=1|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffiles:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |sum=stat.statfs.capacity?configstatus@rw:width=1:format=ol|sep= |sum=<n>?configstatus@rw:width=1:format=ol|sep= |member=cfg.quota:width=1:format=os|sep= |member=cfg.nominalsize:width=1:format=os|sep= |member=cfg.balancer:width=1:format=os|sep= |member=cfg.balancer.threshold:width=1:format=ol|sep= |sum=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |sum=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running";
+    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=cfg.groupsize:width=1:format=ol|sep= |member=cfg.groupmod:width=1:format=ol|sep= |member=nofs:width=1:format=ol|sep= |member=cfg.quota:width=1|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffiles:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |sum=stat.statfs.capacity?configstatus@rw:width=1:format=ol|sep= |sum=<n>?configstatus@rw:width=1:format=ol|sep= |member=cfg.quota:width=1:format=os|sep= |member=cfg.nominalsize:width=1:format=ol|sep= |member=cfg.balancer:width=1:format=os|sep= |member=cfg.balancer.threshold:width=1:format=ol|sep= |sum=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |sum=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running";
   }
 
   if (option == "io")
@@ -192,7 +192,7 @@ FsView::GetGroupFormat (std::string option)
   if (option == "m")
   {
     // monitoring format
-    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=nofs:width=1:format=os|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffree:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |maxdev=stat.statfs.filled:width=1:format=of|sep= |avg=stat.statfs.filled:width=1:format=of|sep= |sig=stat.statfs.filled:width=1:format=of|member=cfg.stat.balancing:width=1:format=os:tag=stat.balancing|sep= |sum=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |sum=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running";
+    return "member=type:width=1:format=os|sep= |member=name:width=1:format=os|sep= |member=nofs:width=1:format=os|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffree:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |maxdev=stat.statfs.filled:width=1:format=of|sep= |avg=stat.statfs.filled:width=1:format=of|sep= |sig=stat.statfs.filled:width=1:format=of|sep= |member=cfg.stat.balancing:width=1:format=os:tag=stat.balancing|sep= |sum=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |sum=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running";
   }
 
   if (option == "io")
@@ -1921,7 +1921,10 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
 
       if ((formattags["format"].find("s")) != std::string::npos)
         snprintf(lformat, sizeof (lformat) - 1, "%%s");
-
+      
+      if ((formattags["format"].find("s")) != std::string::npos)
+        snprintf(lformat, sizeof (lformat) - 1, "\"%%s\"");
+      
       if ((formattags["format"].find("l")) != std::string::npos)
         snprintf(lformat, sizeof (lformat) - 1, "%%lld");
 
@@ -1954,7 +1957,10 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
         }
         else
         {
-          snprintf(tmpline, sizeof (tmpline) - 1, lformat, GetMember(formattags["member"]).c_str());
+          if (((formattags["format"].find("l")) != std::string::npos))
+            snprintf(tmpline, sizeof (tmpline) - 1, lformat, strtoll(GetMember(formattags["member"]).c_str(),0,10));
+          else
+            snprintf(tmpline, sizeof (tmpline) - 1, lformat, GetMember(formattags["member"]).c_str());
           snprintf(line, sizeof (line) - 1, lenformat, tmpline);
         }
 
@@ -2195,25 +2201,35 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
       {
         char keyval[4096];
         buildheader = false; // auto disable header
+        
+        XrdOucString noblankline=line;
+        {
+          // replace all inner blanks with %20
+          std::string snoblankline=line;
+          size_t pos=snoblankline.find_last_not_of(" ");
+          if (noblankline.length()>1)
+            while (noblankline.replace(" ", "%20", 0, (pos==std::string::npos)?-1:pos)) {}
+        }
+        
         if (formattags.count("member"))
         {
-          snprintf(keyval, sizeof (keyval) - 1, "%s=%s", formattags["member"].c_str(), line);
+          snprintf(keyval, sizeof (keyval) - 1, "%s=%s", formattags["member"].c_str(), noblankline.c_str());
         }
         if (formattags.count("sum"))
         {
-          snprintf(keyval, sizeof (keyval) - 1, "sum.%s=%s", formattags["sum"].c_str(), line);
+          snprintf(keyval, sizeof (keyval) - 1, "sum.%s=%s", formattags["sum"].c_str(), noblankline.c_str());
         }
         if (formattags.count("avg"))
         {
-          snprintf(keyval, sizeof (keyval) - 1, "avg.%s=%s", formattags["avg"].c_str(), line);
+          snprintf(keyval, sizeof (keyval) - 1, "avg.%s=%s", formattags["avg"].c_str(), noblankline.c_str());
         }
         if (formattags.count("sig"))
         {
-          snprintf(keyval, sizeof (keyval) - 1, "sig.%s=%s", formattags["sig"].c_str(), line);
+          snprintf(keyval, sizeof (keyval) - 1, "sig.%s=%s", formattags["sig"].c_str(), noblankline.c_str());
         }
         if (formattags.count("maxdev"))
         {
-          snprintf(keyval, sizeof (keyval) - 1, "dev.%s=%s", formattags["maxdev"].c_str(), line);
+          snprintf(keyval, sizeof (keyval) - 1, "dev.%s=%s", formattags["maxdev"].c_str(), noblankline.c_str());
         }
         body += keyval;
       }
