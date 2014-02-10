@@ -79,7 +79,11 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
   //............................................................................
   // Return an error if this object is already open
   //............................................................................
-  if (fd >= 0) return -EBADF;
+  if (fd >= 0)
+  {
+    eos_err("msg=\"file is already open\" path=%s", path);
+    return -EBADF;
+  } 
 
   if ((val = env.Get("mgm.lid")))
   {

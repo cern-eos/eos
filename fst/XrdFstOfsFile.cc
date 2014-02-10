@@ -1037,33 +1037,9 @@ XrdFstOfsFile::open (const char* path,
   else
   {
     //..........................................................................
-    // If we have local errors in open we might disable ourselfs
+    // If we have local errors in open we don't disable a filesystem - 
+    // this is done by the Scrub thread if necessary!
     //..........................................................................
-    if (error.getErrInfo() != EREMOTEIO)
-    {
-      eos::common::RWMutexReadLock(gOFS.Storage->fsMutex);
-      std::vector <eos::fst::FileSystem*>::const_iterator it;
-
-      for (unsigned int i = 0; i < gOFS.Storage->fileSystemsVector.size(); i++)
-      {
-        //........................................................................
-        // Check if the local prefix matches a filesystem path ...
-        //........................................................................
-        if ((error.getErrInfo() != EIO) && (fstPath.beginswith(gOFS.Storage->fileSystemsVector[i]->GetPath().c_str())))
-        {
-          //........................................................................
-          // Broadcast error for this FS
-          //........................................................................
-          eos_crit("disabling filesystem %u after IO error on path %s errno=%d",
-                   gOFS.Storage->fileSystemsVector[i]->GetId(),
-                   gOFS.Storage->fileSystemsVector[i]->GetPath().c_str(),
-		   error.getErrInfo());
-          XrdOucString s = "local IO error";
-          gOFS.Storage->fileSystemsVector[i]->BroadcastError(error.getErrInfo(), s.c_str());
-          break;
-        }
-      }
-    }
 
     //..........................................................................
     // In any case we just redirect back to the manager if we are the 1st entry
