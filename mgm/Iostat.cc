@@ -38,7 +38,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-  const char* Iostat::gIostatCollect = "iostat::collect";
+const char* Iostat::gIostatCollect = "iostat::collect";
 const char* Iostat::gIostatReport = "iostat::report";
 const char* Iostat::gIostatReportNamespace = "iostat::reportnamespace";
 const char* Iostat::gIostatPopularity = "iostat::popularity";
@@ -91,12 +91,18 @@ Iostat::Iostat ()
   mReport = true;
 }
 
-/* ------------------------------------------------------------------------- */
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 void
 Iostat::StartCirculate ()
 {
-  // we have to do after the name of the dump file was set, therefore the StartCirculate is an extra call
-  XrdSysThread::Run(&cthread, Iostat::StaticCirculate, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Report Circulation Thread");
+  // We have to do after the name of the dump file was set, therefore the
+  // StartCirculate is an extra call
+  XrdSysThread::Run(&cthread, Iostat::StaticCirculate,
+                    static_cast<void *>(this), XRDSYSTHREAD_HOLD,
+                    "Report Circulation Thread");
 }
 
 /* ------------------------------------------------------------------------- */
@@ -266,6 +272,7 @@ Iostat::Receive (void)
       Add("bytes_read", report->uid, report->gid, report->rb, report->ots, report->cts);
       Add("bytes_written", report->uid, report->gid, report->wb, report->ots, report->cts);
       Add("read_calls", report->uid, report->gid, report->nrc, report->ots, report->cts);
+      Add("readv_calls", report->uid, report->gid, report->rc_sum, report->ots, report->cts);      
       Add("write_calls", report->uid, report->gid, report->nwc, report->ots, report->cts);
       Add("fwd_seeks", report->uid, report->gid, report->nfwds, report->ots, report->cts);
       Add("bwd_seeks", report->uid, report->gid, report->nbwds, report->ots, report->cts);
@@ -382,7 +389,8 @@ Iostat::Receive (void)
         if (localtime_r(&now, &nowtm))
         {
           static char logfile[4096];
-          snprintf(logfile, sizeof (logfile) - 1, "%s/%04u/%02u/%04u%02u%02u.eosreport", gOFS->IoReportStorePath.c_str(),
+          snprintf(logfile, sizeof (logfile) - 1, "%s/%04u/%02u/%04u%02u%02u.eosreport",
+                   gOFS->IoReportStorePath.c_str(),
                    1900 + nowtm.tm_year,
                    nowtm.tm_mon + 1,
                    1900 + nowtm.tm_year,
@@ -453,7 +461,9 @@ Iostat::Receive (void)
 
 /* ------------------------------------------------------------------------- */
 void
-Iostat::PrintOut (XrdOucString &out, bool summary, bool details, bool monitoring, bool numerical, bool top, bool domain, bool apps, XrdOucString option)
+Iostat::PrintOut (XrdOucString &out, bool summary, bool details,
+                  bool monitoring, bool numerical, bool top,
+                  bool domain, bool apps, XrdOucString option)
 {
   Mutex.Lock();
   std::vector<std::string> tags;
@@ -1603,11 +1613,14 @@ Iostat::UdpBroadCast (eos::common::Report* report)
       u += fs;
       u += ",\n";
       /* -- we have currently no access to this information */
-      /*      u += " \"read_single_average\": ";  u += "0"; u += ",\n";
-      u += " \"read_single_bytes\": ";    u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += ",\n";
+      /*
+      u += " \"read_single_average\": ";  u += "0"; u += ",\n";
+      u += " \"read_single_bytes\": ";
+      u += eos::common::StringConversion::GetSizeString(sizestring, report->rb); u += ",\n";
       u += " \"read_single_max\": ";      u += "0"; u += ",\n";
       u += " \"read_single_min\": ";      u += "0"; u += ",\n";
-      u += " \"read_single_operations\": ";    u += eos::common::StringConversion::GetSizeString(sizestring, report->nrc); u += ",\n";
+      u += " \"read_single_operations\": ";
+      u += eos::common::StringConversion::GetSizeString(sizestring, report->nrc); u += ",\n";
       u += " \"read_single_sigma\": ";    u += "0"; u += ",\n";
       u += " \"read_vector_average\": ";  u += "0"; u += ",\n";
       u += " \"read_vector_bytes\": ";    u += "0"; u += ",\n";

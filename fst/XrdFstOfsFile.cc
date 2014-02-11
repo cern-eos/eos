@@ -62,8 +62,10 @@ eos::common::LogId ()
   isRW = 0;
   isCreation = 0;
   rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes = sXlBwdBytes = rOffset = wOffset = 0;
-  rTime.tv_sec = wTime.tv_sec = lrTime.tv_sec = lwTime.tv_sec = cTime.tv_sec = 0;
-  rTime.tv_usec = wTime.tv_usec = lrTime.tv_usec = lwTime.tv_usec = cTime.tv_usec = 0;
+  rTime.tv_sec = lrTime.tv_sec = rvTime.tv_sec = lrvTime.tv_sec = 0;
+  rTime.tv_usec = lrTime.tv_usec = rvTime.tv_usec = lrvTime.tv_usec = 0;
+  wTime.tv_sec = lwTime.tv_sec = cTime.tv_sec = 0;
+  wTime.tv_usec = lwTime.tv_usec = cTime.tv_usec = 0;
   fileid = 0;
   fsid = 0;
   lid = 0;
@@ -1093,23 +1095,34 @@ XrdFstOfsFile::open (const char* path,
 
 
 //------------------------------------------------------------------------------
-//
+// Compute total time to serve read requests
 //------------------------------------------------------------------------------
-
 void
 XrdFstOfsFile::AddReadTime ()
 {
-  unsigned long mus = ((lrTime.tv_sec - cTime.tv_sec) * 1000000) +
-    lrTime.tv_usec - cTime.tv_usec;
+  unsigned long mus = (lrTime.tv_sec - cTime.tv_sec) * 1000000 +
+                      (lrTime.tv_usec - cTime.tv_usec);
   rTime.tv_sec += (mus / 1000000);
   rTime.tv_usec += (mus % 1000000);
 }
 
 
 //------------------------------------------------------------------------------
-//
+// Compute total time to serve readV requests
 //------------------------------------------------------------------------------
+void
+XrdFstOfsFile::AddReadVTime ()
+{
+  unsigned long mus = (lrvTime.tv_sec - cTime.tv_sec) * 1000000 +
+                      (lrvTime.tv_usec - cTime.tv_usec);
+  rvTime.tv_sec += (mus / 1000000);
+  rvTime.tv_usec += (mus % 1000000);
+}
 
+
+//------------------------------------------------------------------------------
+// Compute total time to serve write requests
+//------------------------------------------------------------------------------
 void
 XrdFstOfsFile::AddWriteTime ()
 {
@@ -1127,91 +1140,46 @@ XrdFstOfsFile::AddWriteTime ()
 void
 XrdFstOfsFile::MakeReportEnv (XrdOucString & reportString)
 {
-  // compute avg, min, max, sigma for read and written bytes
+  // Compute avg, min, max, sigma for read and written bytes
   unsigned long long rmin, rmax, rsum;
+  unsigned long long rvmin, rvmax, rvsum; // readv bytes
+  unsigned long long rsmin, rsmax, rssum; // read single bytes
+  unsigned long rcmin, rcmax, rcsum;      // readv count 
   unsigned long long wmin, wmax, wsum;
-  double ravg, wavg;
-  double rsum2, wsum2;
-  double rsigma, wsigma;
-  // ---------------------------------------
-  // compute for read
-  // ---------------------------------------
-  rmax = rsum = 0;
-  rmin = 0xffffffff;
-  ravg = rsum2 = rsigma = 0;
+  double rsigma, rvsigma, rssigma, rcsigma, wsigma;
+ 
   {
     XrdSysMutexHelper vecLock(vecMutex);
+    ComputeStatistics(rvec, rmin, rmax, rsum, rsigma);
+    ComputeStatistics(wvec, wmin, wmax, wsum, wsigma);
+    ComputeStatistics(monReadvBytes, rvmin, rvmax, rvsum, rvsigma);
+    ComputeStatistics(monReadSingleBytes, rsmin, rsmax, rssum, rssigma);
+    ComputeStatistics(monReadvCount, rcmin, rcmax, rcsum, rcsigma);
 
-    for (size_t i = 0; i < rvec.size(); i++)
-    {
-      if (rvec[i] > rmax) rmax = rvec[i];
-
-      if (rvec[i] < rmin) rmin = rvec[i];
-
-      rsum += rvec[i];
-    }
-
-    ravg = rvec.size() ? (1.0 * rsum / rvec.size()) : 0;
-
-    for (size_t i = 0; i < rvec.size(); i++)
-    {
-      rsum2 += ((rvec[i] - ravg) * (rvec[i] - ravg));
-    }
-
-    rsigma = rvec.size() ? (sqrt(rsum2 / rvec.size())) : 0;
-    // ---------------------------------------
-    // compute for write
-    // ---------------------------------------
-    wmax = wsum = 0;
-    wmin = 0xffffffff;
-    wavg = wsum2 = wsigma = 0;
-
-    for (size_t i = 0; i < wvec.size(); i++)
-    {
-      if (wvec[i] > wmax) wmax = wvec[i];
-
-      if (wvec[i] < wmin) wmin = wvec[i];
-
-      wsum += wvec[i];
-    }
-
-    wavg = wvec.size() ? (1.0 * wsum / wvec.size()) : 0;
-
-    for (size_t i = 0; i < wvec.size(); i++)
-    {
-      wsum2 += ((wvec[i] - wavg) * (wvec[i] - wavg));
-    }
-
-    wsigma = wvec.size() ? (sqrt(wsum2 / wvec.size())) : 0;
     char report[16384];
-
-    if (rmin == 0xffffffff)
-      rmin = 0;
-
-    if (wmin == 0xffffffff)
-      wmin = 0;
-
-    snprintf(report, sizeof ( report) - 1, "log=%s&path=%s&ruid=%u&rgid=%u&td=%s&host=%s&"
-             "lid=%lu&fid=%llu&fsid=%lu&ots=%lu&otms=%lu&cts=%lu&ctms=%lu&rb=%llu&"
-             "rb_min=%llu&rb_max=%llu&rb_sigma=%.02f&wb=%llu&wb_min=%llu&wb_max=%llu&&"
-             "wb_sigma=%.02f&sfwdb=%llu&sbwdb=%llu&sxlfwdb=%llu&sxlbwdb=%llu&nrc=%lu&nwc=%lu&nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&rt=%.02f&wt=%.02f&"
-             "osize=%llu&csize=%llu&%s"
-             , this->logId
-             , Path.c_str()
-             , this->vid.uid
-             , this->vid.gid
-             , tIdent.c_str()
-             , gOFS.mHostName
-             , lid, fileid
-             , fsid
-             , openTime.tv_sec
-             , (unsigned long) openTime.tv_usec / 1000
-             , closeTime.tv_sec
-             , (unsigned long) closeTime.tv_usec / 1000
-             , rsum
-             , rmin
-             , rmax
-             , rsigma
+    snprintf(report, sizeof ( report) - 1,
+             "log=%s&path=%s&ruid=%u&rgid=%u&td=%s&"
+             "host=%s&lid=%lu&fid=%llu&fsid=%lu&"
+             "ots=%lu&otms=%lu&"
+             "cts=%lu&ctms=%lu&"
+             "nrc=%lu&nwc=%lu&"
+             "rb=%llu&rb_min=%llu&rb_max=%llu&rb_sigma=%.02f&"
+             "rv_op=%llu&rvb_min=%llu&rvb_max=%llu&rvb_sum=%llu&rvb_sigma=%.02f&"
+             "rs_op=%llu&rsb_min=%llu&rsb_max=%llu&rsb_sum=%llu&rsb_sigma=%.02f&"
+             "rc_min=%lu&rc_max=%lu&rc_sum=%lu&rc_sigma=%.02f&"
+             "wb=%llu&wb_min=%llu&wb_max=%llu&wb_sigma=%.02f&"
+             "sfwdb=%llu&sbwdb=%llu&sxlfwdb=%llu&sxlbwdb=%llu"
+             "nfwds=%lu&nbwds=%lu&nxlfwds=%lu&nxlbwds=%lu&"
+             "rt=%.02f&rvt=%.02f&wt=%.02f&osize=%llu&csize=%llu&%s"
+             , this->logId, Path.c_str(), this->vid.uid, this->vid.gid, tIdent.c_str()
+             , gOFS.mHostName, lid, fileid, fsid
+             , openTime.tv_sec, (unsigned long) openTime.tv_usec / 1000
+             , closeTime.tv_sec, (unsigned long) closeTime.tv_usec / 1000
+             , rCalls, wCalls
+             , rsum, rmin, rmax, rsigma
+             , monReadvOp, rvmin, rvmax, rvsum, rvsigma
+             , monReadSingleOp, rsmin, rsmax, rssum, rssigma
+             , rcmin, rcmax, rcsum, rcsigma
              , wsum
              , wmin
              , wmax
@@ -1220,13 +1188,12 @@ XrdFstOfsFile::MakeReportEnv (XrdOucString & reportString)
              , sBwdBytes
              , sXlFwdBytes
              , sXlBwdBytes
-             , rCalls
-             , wCalls
              , nFwdSeeks
              , nBwdSeeks
              , nXlFwdSeeks
              , nXlBwdSeeks
              , ((rTime.tv_sec * 1000.0) + (rTime.tv_usec / 1000.0))
+             , ((rvTime.tv_sec * 1000.0) + (rvTime.tv_usec / 1000.0))
              , ((wTime.tv_sec * 1000.0) + (wTime.tv_usec / 1000.0))
              , (unsigned long long) openSize
              , (unsigned long long) closeSize
@@ -2354,10 +2321,28 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
 //------------------------------------------------------------------------------
 XrdSfsXferSize
 XrdFstOfsFile::readvofs(XrdOucIOVec* readV,
-                        int readCount)
+                        uint32_t readCount)
 {
   eos_debug("read count=%i", readCount);
-  return XrdOfsFile::readv(readV, readCount);
+  gettimeofday(&cTime, &tz);
+  XrdSfsXferSize sz = XrdOfsFile::readv(readV, readCount);
+  gettimeofday(&lrvTime, &tz);
+  AddReadVTime();
+
+  // Collect monitoring info
+  {
+    XrdSysMutexHelper scope_lock(vecMutex);
+
+    for (uint32_t i = 0; i < readCount; ++i)
+      monReadSingleBytes.push_back(readV[i].size);
+   
+    monReadSingleOp += readCount;
+    monReadvBytes.push_back(sz);
+    monReadvCount.push_back(readCount);
+    monReadvOp++;
+  }
+
+  return sz;
 }
 
   
@@ -2369,6 +2354,7 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV,
                      int readCount)
 {
   eos_debug("read count=%i", readCount);
+    
   // Copy the XrdOucIOVec structure to XrdCl::ChunkList
   uint32_t total_read = 0;
   XrdCl::ChunkList chunkList;
@@ -2389,7 +2375,6 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV,
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-
 int
 XrdFstOfsFile::read (XrdSfsAio * aioparm)
 {
@@ -2400,7 +2385,6 @@ XrdFstOfsFile::read (XrdSfsAio * aioparm)
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
-
 XrdSfsXferSize
 XrdFstOfsFile::writeofs (XrdSfsFileOffset fileOffset,
                          const char* buffer,

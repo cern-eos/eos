@@ -29,13 +29,13 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-/** 
- * Create a Report object based on a report env representation
- * 
- * @param report 
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! 
+//! Create a Report object based on a report env representation
+//! 
+//!  @param report 
+//! 
+//------------------------------------------------------------------------------
 Report::Report (XrdOucEnv &report)
 {
   ots = report.Get("ots") ? strtoull(report.Get("ots"), 0, 10) : 0;
@@ -63,6 +63,20 @@ Report::Report (XrdOucEnv &report)
   rb_min = strtoull(report.Get("rb_min") ? report.Get("rb_min") : "0", 0, 10);
   rb_max = strtoull(report.Get("rb_max") ? report.Get("rb_max") : "0", 0, 10);
   rb_sigma = strtoull(report.Get("rb_sigma") ? report.Get("rb_sigma") : "0", 0, 10);
+  rv_op = strtoull(report.Get("rv_op") ? report.Get("rv_op") : "0", 0, 10);
+  rvb_min = strtoull(report.Get("rvb_min") ? report.Get("rvb_min") : "0", 0, 10);
+  rvb_max = strtoull(report.Get("rvb_max") ? report.Get("rvb_max") : "0", 0, 10);  
+  rvb_sum = strtoull(report.Get("rvb_sum") ? report.Get("rvb_sum") : "0", 0, 10);  
+  rvb_sigma = strtoull(report.Get("rvb_sigma") ? report.Get("rvb_sigma") : "0", 0, 10);  
+  rs_op = strtoull(report.Get("rs_op") ? report.Get("rs_op") : "0", 0, 10);  
+  rsb_min = strtoull(report.Get("rsb_min") ? report.Get("rsb_min") : "0", 0, 10);
+  rsb_max = strtoull(report.Get("rsb_max") ? report.Get("rsb_max") : "0", 0, 10);
+  rsb_sum = strtoull(report.Get("rsb_sum") ? report.Get("rsb_sum") : "0", 0, 10);
+  rsb_sigma = strtoull(report.Get("rsb_sigma") ? report.Get("rsb_sigma") : "0", 0, 10);
+  rc_min = strtoul(report.Get("rc_min") ? report.Get("rc_min") : "0", 0, 10);
+  rc_max = strtoul(report.Get("rc_max") ? report.Get("rc_max") : "0", 0, 10);
+  rc_sum = strtoul(report.Get("rc_sum") ? report.Get("rc_sum") : "0", 0, 10);
+  rc_sigma = strtoul(report.Get("rc_sigma") ? report.Get("rc_sigma") : "0", 0, 10);
   wb = strtoull(report.Get("wb") ? report.Get("wb") : "0", 0, 10);
   wb_min = strtoull(report.Get("wb_min") ? report.Get("wb_min") : "0", 0, 10);
   wb_max = strtoull(report.Get("wb_max") ? report.Get("wb_max") : "0", 0, 10);
@@ -78,6 +92,7 @@ Report::Report (XrdOucEnv &report)
   nxlfwds = strtoull(report.Get("nxlfwds") ? report.Get("nxlfwds") : "0", 0, 10);
   nxlbwds = strtoull(report.Get("nxlbwds") ? report.Get("nxlbwds") : "0", 0, 10);
   rt = atof(report.Get("rt") ? report.Get("rt") : "0.0");
+  rvt = atof(report.Get("rvt") ? report.Get("rvt") : "0.0");
   wt = atof(report.Get("wt") ? report.Get("wt") : "0.0");
   osize = strtoull(report.Get("osize") ? report.Get("osize") : "0", 0, 10);
   csize = strtoull(report.Get("csize") ? report.Get("csize") : "0", 0, 10);
@@ -102,25 +117,52 @@ Report::Report (XrdOucEnv &report)
   }
 }
 
-/*----------------------------------------------------------------------------*/
-/** 
- * Dump the report contents into a string in human readable key=value format
- * 
- * @param out string containing the report
- */
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! 
+//! Dump the report contents into a string in human readable key=value format
+//! 
+//! @param out string containing the report
+//! @param dumpsec if true dump alos sec info 
+//! 
+//------------------------------------------------------------------------------
 void
 Report::Dump (XrdOucString &out, bool dumpsec)
 {
   char dumpline[16384];
-  snprintf(dumpline, sizeof (dumpline) - 1, "uid=%d gid=%d rb=%llu rb_min=%llu rb_max=%llu rb_sigma=%.02f wb=%llu wb_min=%llu wb_max=%llu wb_sigma=%.02f sfwdb=%llu sbwdb=%llu sxlfwdb=%llu sxlbwdb=%llu nrc=%llu nwc=%llu nfwds=%llu nbwds=%llu nxlfwds=%llu nxlbwds=%llu rt=%.02f wt=%.02f osize=%llu csize=%llu ots=%llu.%llu cts=%llu.%llu td=%s host=%s logid=%s", uid, gid, rb, rb_min, rb_max, rb_sigma, wb, wb_min, wb_max, wb_sigma, sfwdb, sbwdb, sxlfwdb, sxlbwdb, nrc, nwc, nfwds, nbwds, nxlfwds, nxlbwds, rt, wt, osize, csize, ots, otms, cts, ctms, td.c_str(), host.c_str(), logid.c_str());
+  snprintf(dumpline, sizeof (dumpline) - 1,
+           "uid=%d gid=%d rb=%llu rb_min=%llu rb_max=%llu rb_sigma=%.02f "
+           "rv_op=%llu rvb_min=%llu rvb_max=%llu rvb_sum=%llu rvb_sigma=%.02f "
+           "rs_op=%llu rsb_min=%llu rsb_max=%llu rsb_sum=%llu rsb_sigma=%.02f "
+           "rc_min=%lu rc_max=%lu rc_sum=%lu rc_sigma=%.02f "
+           "wb=%llu wb_min=%llu wb_max=%llu wb_sigma=%.02f sfwdb=%llu "
+           "sbwdb=%llu sxlfwdb=%llu sxlbwdb=%llu nrc=%llu nwc=%llu "
+           "nfwds=%llu nbwds=%llu nxlfwds=%llu nxlbwds=%llu rt=%.02f rvt=%.02f"
+           "wt=%.02f osize=%llu csize=%llu ots=%llu.%llu cts=%llu.%llu "
+           "td=%s host=%s logid=%s",
+           uid, gid, rb, rb_min, rb_max, rb_sigma,
+           rv_op, rvb_min, rvb_max, rvb_sum, rvb_sigma, 
+           rs_op, rsb_min, rsb_max, rsb_sum, rsb_sigma,
+           rc_min, rc_max, rc_sum, rc_sigma,
+           wb, wb_min, wb_max, wb_sigma, sfwdb,
+           sbwdb, sxlfwdb, sxlbwdb, nrc, nwc,
+           nfwds, nbwds, nxlfwds, nxlbwds, rt, rvt,
+           wt, osize, csize, ots, otms, cts, ctms,
+           td.c_str(), host.c_str(), logid.c_str());
   out += dumpline;
+  
   if (dumpsec)
   {
-    snprintf(dumpline, sizeof (dumpline) - 1, " sec_prot=\"%s\" sec_name=\"%s\" sec_host=\"%s\" sec_vorg=\"%s\" sec_grps=\"%s\" sec_role=\"%s\" sec_info=\"%s\" sec_app=\"%s\"", sec_prot.c_str(), sec_name.c_str(), sec_host.c_str(), sec_vorg.c_str(), sec_grps.c_str(), sec_role.c_str(), sec_info.c_str(), sec_app.c_str());
+    snprintf(dumpline, sizeof (dumpline) - 1,
+             " sec_prot=\"%s\" sec_name=\"%s\" sec_host=\"%s\" "
+             "sec_vorg=\"%s\" sec_grps=\"%s\" sec_role=\"%s\" "
+             "sec_info=\"%s\" sec_app=\"%s\"",
+             sec_prot.c_str(), sec_name.c_str(), sec_host.c_str(),
+             sec_vorg.c_str(), sec_grps.c_str(), sec_role.c_str(),
+             sec_info.c_str(), sec_app.c_str());
     out += dumpline;
   }
+  
   out += "\n";
 }
 /*----------------------------------------------------------------------------*/
