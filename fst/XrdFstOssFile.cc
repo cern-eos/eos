@@ -181,7 +181,7 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
   }
 
   eos_info("fd=%d", fd);
-  return XrdOssOK;
+  return (fd < 0 ? fd : XrdOssOK);
 }
 
 
