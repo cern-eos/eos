@@ -33,37 +33,75 @@ int
 ProcCommand::Whoami ()
 {
   gOFS->MgmStats.Add("WhoAmI", pVid->uid, pVid->gid, 1);
-  stdOut += "Virtual Identity: uid=";
-  stdOut += (int) pVid->uid;
-  stdOut += " (";
-  for (unsigned int i = 0; i < pVid->uid_list.size(); i++)
+  std::string option = (pOpaque->Get("mgm.option")) ? pOpaque->Get("mgm.option") : "";
+  if ((option.find("m")) != std::string::npos)
   {
-    stdOut += (int) pVid->uid_list[i];
-    stdOut += ",";
-  }
-  stdOut.erase(stdOut.length() - 1);
-  stdOut += ") gid=";
-  stdOut += (int) pVid->gid;
-  stdOut += " (";
-  for (unsigned int i = 0; i < pVid->gid_list.size(); i++)
-  {
-    stdOut += (int) pVid->gid_list[i];
-    stdOut += ",";
-  }
-  stdOut.erase(stdOut.length() - 1);
-  stdOut += ")";
-  stdOut += " [authz:";
-  stdOut += pVid->prot;
-  stdOut += "]";
-  if (pVid->sudoer)
-    stdOut += " sudo*";
+    stdOut += "uid=";
+    stdOut += (int) pVid->uid;
+    
+    stdOut += " uids=";
+    for (unsigned int i = 0; i < pVid->uid_list.size(); i++)
+    {
+      stdOut += (int) pVid->uid_list[i];
+      stdOut += ",";
+    }
+    if (pVid->uid_list.size())
+      stdOut.erase(stdOut.length() - 1);
 
-  stdOut += " host=";
-  stdOut += pVid->host.c_str();
-  if (pVid->geolocation.length())
+    stdOut += " gid=";
+    stdOut += (int) pVid->gid;
+
+    stdOut += " gids=";
+    for (unsigned int i = 0; i < pVid->gid_list.size(); i++)
+    {
+      stdOut += (int) pVid->gid_list[i];
+      stdOut += ",";
+    }
+    if (pVid->gid_list.size())
+      stdOut.erase(stdOut.length() - 1);
+    stdOut += " authz=";
+    stdOut += pVid->prot;
+    stdOut += " sudo=";
+    if (pVid->sudoer)
+      stdOut += "true";
+    else
+      stdOut += "false";
+    //! the host/geo location is not reported
+  } 
+  else 
   {
-    stdOut += " geo-location=";
-    stdOut += pVid->geolocation.c_str();
+    stdOut += "Virtual Identity: uid=";
+    stdOut += (int) pVid->uid;
+    stdOut += " (";
+    for (unsigned int i = 0; i < pVid->uid_list.size(); i++)
+    {
+      stdOut += (int) pVid->uid_list[i];
+      stdOut += ",";
+    }
+    stdOut.erase(stdOut.length() - 1);
+    stdOut += ") gid=";
+    stdOut += (int) pVid->gid;
+    stdOut += " (";
+    for (unsigned int i = 0; i < pVid->gid_list.size(); i++)
+    {
+      stdOut += (int) pVid->gid_list[i];
+      stdOut += ",";
+    }
+    stdOut.erase(stdOut.length() - 1);
+    stdOut += ")";
+    stdOut += " [authz:";
+    stdOut += pVid->prot;
+    stdOut += "]";
+    if (pVid->sudoer)
+      stdOut += " sudo*";
+    
+    stdOut += " host=";
+    stdOut += pVid->host.c_str();
+    if (pVid->geolocation.length())
+    {
+      stdOut += " geo-location=";
+      stdOut += pVid->geolocation.c_str();
+    }
   }
   return SFS_OK;
 }
