@@ -377,10 +377,8 @@ protected:
   std::vector<unsigned long long> monReadvBytes; 
   //! size of each read call coming from readv requests -> to compute min,max, etc.
   std::vector<unsigned long long> monReadSingleBytes;
-  //! number of individual read op. in each readv call -> to compute min,max,etc.
+  //! number of individual read op. in each readv call -> to compute min,max, etc.
   std::vector<unsigned long> monReadvCount; 
-  unsigned long long monReadSingleOp; ///< total number of read op. from readv requests
-  unsigned long long monReadvOp; ///< total number of readv operations
 
   struct timeval cTime; ///< current time
   struct timeval lrTime; ///<last read time

@@ -272,7 +272,7 @@ Iostat::Receive (void)
       Add("bytes_read", report->uid, report->gid, report->rb, report->ots, report->cts);
       Add("bytes_written", report->uid, report->gid, report->wb, report->ots, report->cts);
       Add("read_calls", report->uid, report->gid, report->nrc, report->ots, report->cts);
-      Add("readv_calls", report->uid, report->gid, report->rc_sum, report->ots, report->cts);      
+      Add("readv_calls", report->uid, report->gid, report->rv_op, report->ots, report->cts);      
       Add("write_calls", report->uid, report->gid, report->nwc, report->ots, report->cts);
       Add("fwd_seeks", report->uid, report->gid, report->nfwds, report->ots, report->cts);
       Add("bwd_seeks", report->uid, report->gid, report->nbwds, report->ots, report->cts);

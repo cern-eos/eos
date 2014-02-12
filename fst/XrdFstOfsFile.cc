@@ -1177,8 +1177,8 @@ XrdFstOfsFile::MakeReportEnv (XrdOucString & reportString)
              , closeTime.tv_sec, (unsigned long) closeTime.tv_usec / 1000
              , rCalls, wCalls
              , rsum, rmin, rmax, rsigma
-             , monReadvOp, rvmin, rvmax, rvsum, rvsigma
-             , monReadSingleOp, rsmin, rsmax, rssum, rssigma
+             , (unsigned long long)monReadvBytes.size(), rvmin, rvmax, rvsum, rvsigma
+             , (unsigned long long)monReadSingleBytes.size(), rsmin, rsmax, rssum, rssigma
              , rcmin, rcmax, rcsum, rcsigma
              , wsum
              , wmin
@@ -2171,82 +2171,26 @@ XrdFstOfsFile::close ()
 
 
 //------------------------------------------------------------------------------
-//
+// Low level read function
 //------------------------------------------------------------------------------
-
 XrdSfsXferSize
 XrdFstOfsFile::readofs (XrdSfsFileOffset fileOffset,
                         char* buffer,
                         XrdSfsXferSize buffer_size)
 {
-  int retc = XrdOfsFile::read(fileOffset, buffer, buffer_size);
-  eos_debug("read %llu %llu %i retc=%d", this, fileOffset, buffer_size, retc);
+  gettimeofday(&cTime, &tz);
+  rCalls++;
+
+  int rc = XrdOfsFile::read(fileOffset, buffer, buffer_size);
+  eos_debug("read %llu %llu %i rc=%d", this, fileOffset, buffer_size, rc);
 
   if (gOFS.Simulate_IO_read_error)
   {
-    return gOFS.Emsg("readofs", error, EIO, "read file - simulated IO error fn=", capOpaque ? (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") : FName()) : FName());
+    return gOFS.Emsg("readofs", error, EIO, "read file - simulated IO error fn=",
+                     capOpaque ? (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") : FName()) : FName());
   }
 
-  return retc;
-}
-
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-
-int
-XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
-                     XrdSfsXferSize amount)
-{
-  //  EPNAME("read");
-  int rc = XrdOfsFile::read(fileOffset, amount);
-  eos_debug("rc=%d offset=%lu size=%llu", rc, fileOffset, amount);
-  return rc;
-}
-
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-
-XrdSfsXferSize
-XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
-                     char* buffer,
-                     XrdSfsXferSize buffer_size)
-{
-  //  EPNAME("read");
-  gettimeofday(&cTime, &tz);
-  rCalls++;
-  eos_debug("XrdFstOfsFile: read - fileOffset: %lli, buffer_size: %i",
-            fileOffset, buffer_size);
-
-
-  if (tpcFlag == kTpcSrcRead)
-  {
-    if (!(rCalls % 10))
-    {
-      // for TPC reads we check every 10th read call if the TPC has been
-      // interrupted from the client e.g. the TPC KEY has been deleted
-      XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
-      if (!TpcValid())
-      {
-        eos_err("msg=\"tcp interrupted by control-c - cancel tcp read\" key=%s", TpcKey.c_str());
-        return gOFS.Emsg("read", error, EINTR, "read - tpc transfer interrupted by client disconnect", FName());
-      }
-    }
-  }
-  int rc = layOut->Read(fileOffset, buffer, buffer_size);
-
-  if ((rc > 0) && (checkSum))
-  {
-    XrdSysMutexHelper cLock(ChecksumMutex);
-    checkSum->Add(buffer, rc, fileOffset);
-  }
-
-  // ----------------------------------------------------------------------------
-  // account seeks for report logs
-  // ----------------------------------------------------------------------------
+  // Account seeks for monitoring
   if (rOffset != static_cast<unsigned long long> (fileOffset))
   {
     if (rOffset < static_cast<unsigned long long> (fileOffset))
@@ -2271,6 +2215,7 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
       nXlBwdSeeks++;
     }
   }
+
   if (rc > 0)
   {
     XrdSysMutexHelper vecLock(vecMutex);
@@ -2280,10 +2225,60 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
 
   gettimeofday(&lrTime, &tz);
   AddReadTime();
+  return rc;
+}
+
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
+                     XrdSfsXferSize amount)
+{
+  //  EPNAME("read");
+  int rc = XrdOfsFile::read(fileOffset, amount);
+  eos_debug("rc=%d offset=%lu size=%llu", rc, fileOffset, amount);
+  return rc;
+}
+
+
+//------------------------------------------------------------------------------
+// OFS layer read entry point
+//------------------------------------------------------------------------------
+XrdSfsXferSize
+XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
+                     char* buffer,
+                     XrdSfsXferSize buffer_size)
+{
+  eos_debug("fileOffset=%lli, buffer_size=%i", fileOffset, buffer_size);
+
+  if (tpcFlag == kTpcSrcRead)
+  {
+    if (!(rCalls % 10))
+    {
+      // for TPC reads we check every 10th read call if the TPC has been
+      // interrupted from the client e.g. the TPC KEY has been deleted
+      XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+      if (!TpcValid())
+      {
+        eos_err("msg=\"tcp interrupted by control-c - cancel tcp read\" key=%s", TpcKey.c_str());
+        return gOFS.Emsg("read", error, EINTR, "read - tpc transfer interrupted by client disconnect", FName());
+      }
+    }
+  }
+  
+  int rc = layOut->Read(fileOffset, buffer, buffer_size);
+
+  if ((rc > 0) && (checkSum))
+  {
+    XrdSysMutexHelper cLock(ChecksumMutex);
+    checkSum->Add(buffer, rc, fileOffset);
+  }
 
   if (rc < 0)
   {
-    // here we might take some other action
+    // Here we might take some other action
     int envlen = 0;
     eos_crit("block-read error=%d offset=%llu len=%llu file=%s",
              error.getErrInfo(),
@@ -2304,7 +2299,7 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
 
       if (!checkSum->NeedsRecalculation())
       {
-        // if this is the last read of sequential reading, we can verify the checksum now
+        // If this is the last read of sequential reading, we can verify the checksum now
         if (verifychecksum())
           return gOFS.Emsg("read", error, EIO, "read file - wrong file checksum fn=", FName());
       }
@@ -2336,10 +2331,8 @@ XrdFstOfsFile::readvofs(XrdOucIOVec* readV,
     for (uint32_t i = 0; i < readCount; ++i)
       monReadSingleBytes.push_back(readV[i].size);
    
-    monReadSingleOp += readCount;
     monReadvBytes.push_back(sz);
     monReadvCount.push_back(readCount);
-    monReadvOp++;
   }
 
   return sz;
@@ -2383,7 +2376,7 @@ XrdFstOfsFile::read (XrdSfsAio * aioparm)
 
 
 //------------------------------------------------------------------------------
-//
+// Low level write function
 //------------------------------------------------------------------------------
 XrdSfsXferSize
 XrdFstOfsFile::writeofs (XrdSfsFileOffset fileOffset,
@@ -2393,98 +2386,57 @@ XrdFstOfsFile::writeofs (XrdSfsFileOffset fileOffset,
   if (gOFS.Simulate_IO_write_error)
   {
     writeErrorFlag = kOfsSimulatedIoError;
-    return gOFS.Emsg("writeofs", error, EIO, "write file - simulated IO error fn=", capOpaque ? (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") : FName()) : FName());
+    return gOFS.Emsg("writeofs", error, EIO, "write file - simulated IO error fn=",
+                     capOpaque ? (capOpaque->Get("mgm.path") ?
+                                  capOpaque->Get("mgm.path") : FName()) : FName());
   }
 
   if (fsid)
   {
     if (targetsize && (targetsize == bookingsize))
     {
-      //............................................................
-      // space has been successfully pre-allocated, let client write
-      //............................................................
+      // Space has been successfully pre-allocated, let client write
     }
     else
     {
-      //............................................................
-      // check if the file system is full
-      //............................................................
+      // Check if the file system is full
       XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
 
       if (gOFS.Storage->fileSystemFullMap[fsid])
       {
         writeErrorFlag = kOfsDiskFullError;
-        return gOFS.Emsg("writeofs", error, ENOSPC, "write file - disk space (headroom) exceeded fn=", capOpaque ? (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") : FName()) : FName());
+        return gOFS.Emsg("writeofs", error, ENOSPC, "write file - disk space (headroom) exceeded fn=",
+                         capOpaque ? (capOpaque->Get("mgm.path") ?
+                                      capOpaque->Get("mgm.path") : FName()) : FName());
       }
     }
   }
 
   if (maxsize)
   {
-    //...............................................................
-    // check that the user didn't exceed the maximum file size policy
-    //...............................................................
+    // Check that the user didn't exceed the maximum file size policy
     if ((fileOffset + buffer_size) > maxsize)
     {
       writeErrorFlag = kOfsMaxSizeError;
-      return gOFS.Emsg("writeofs", error, ENOSPC, "write file - your file exceeds the maximum file size setting of bytes<=", capOpaque ? (capOpaque->Get("mgm.maxsize") ? capOpaque->Get("mgm.maxsize") : "<undef>") : "undef");
+      return gOFS.Emsg("writeofs", error, ENOSPC, "write file - your file exceeds"
+                       " the maximum file size setting of bytes<=",
+                       capOpaque ? (capOpaque->Get("mgm.maxsize") ?
+                                    capOpaque->Get("mgm.maxsize") : "<undef>") : "undef");
     }
   }
 
+  gettimeofday(&cTime, &tz);
+  wCalls++;
+  
   int rc = XrdOfsFile::write(fileOffset, buffer, buffer_size);
 
   if (rc != buffer_size)
   {
-    //..........................
-    // tag an io error
-    //..........................
+    // Tag an io error
     writeErrorFlag = kOfsIoError;
   };
 
-  return rc;
-}
-
-
-//------------------------------------------------------------------------------
-//
-//------------------------------------------------------------------------------
-
-XrdSfsXferSize
-XrdFstOfsFile::write (XrdSfsFileOffset fileOffset,
-                      const char* buffer,
-                      XrdSfsXferSize buffer_size)
-{
-  //  EPNAME("write");
-  gettimeofday(&cTime, &tz);
-  wCalls++;
-  int rc = layOut->Write(fileOffset, const_cast<char*> (buffer), buffer_size);
-
-  if ((rc < 0) && isCreation && (error.getErrInfo() == EREMOTEIO))
-  {
-    if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica)
-    {
-      //...............................................................................
-      // if we see a remote IO error, we don't fail,
-      // we just call a repair action afterwards (only for replica layouts!)
-      //...............................................................................
-      repairOnClose = true;
-      rc = buffer_size;
-    }
-  }
-
-  // evt. add checksum
-  if ((rc > 0) && (checkSum))
-  {
-    XrdSysMutexHelper cLock(ChecksumMutex);
-    checkSum->Add(buffer,
-                  static_cast<size_t> (rc),
-                  static_cast<off_t> (fileOffset));
-  }
-
-
-  // ----------------------------------------------------------------------------
-  // account seeks for report logs
-  // ----------------------------------------------------------------------------
+  // Account seeks for monitoring
   if (wOffset != static_cast<unsigned long long> (fileOffset))
   {
     if (wOffset < static_cast<unsigned long long> (fileOffset))
@@ -2514,19 +2466,57 @@ XrdFstOfsFile::write (XrdSfsFileOffset fileOffset,
   {
     XrdSysMutexHelper(vecMutex);
     wvec.push_back(rc);
-    wOffset = fileOffset + rc;
+    wOffset = fileOffset + rc;    
+  }
 
+  gettimeofday(&lwTime, &tz);
+  AddWriteTime();
+  return rc;
+}
+
+
+//------------------------------------------------------------------------------
+// OFS layer write entry point
+//------------------------------------------------------------------------------
+XrdSfsXferSize
+XrdFstOfsFile::write (XrdSfsFileOffset fileOffset,
+                      const char* buffer,
+                      XrdSfsXferSize buffer_size)
+{
+  int rc = layOut->Write(fileOffset, const_cast<char*> (buffer), buffer_size);
+
+  if ((rc < 0) && isCreation && (error.getErrInfo() == EREMOTEIO))
+  {
+    if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica)
+    {
+      // If we see a remote IO error, we don't fail,
+      // we just call a repair action afterwards (only for replica layouts!)
+      repairOnClose = true;
+      rc = buffer_size;
+    }
+  }
+
+  // evt. add checksum
+  if ((rc > 0) && (checkSum))
+  {
+    XrdSysMutexHelper cLock(ChecksumMutex);
+    checkSum->Add(buffer,
+                  static_cast<size_t> (rc),
+                  static_cast<off_t> (fileOffset));
+  }
+
+  if (rc > 0)
+  {
     if (static_cast<unsigned long long> (fileOffset + buffer_size) >
         static_cast<unsigned long long> (maxOffsetWritten))
       maxOffsetWritten = (fileOffset + buffer_size);
   }
 
-  gettimeofday(&lwTime, &tz);
-  AddWriteTime();
   haswrite = true;
   eos_debug("rc=%d offset=%lu size=%lu", rc, fileOffset,
             static_cast<unsigned long> (buffer_size));
 
+  /* THIS SEEMS REDUNDANT ?!
   if (rc < 0)
   {
     int envlen = 0;
@@ -2537,49 +2527,41 @@ XrdFstOfsFile::write (XrdSfsFileOffset fileOffset,
              FName(),
              capOpaque ? capOpaque->Env(envlen) : FName());
   }
+  */
 
   if (rc < 0)
   {
     int envlen = 0;
-    //............................................
-    // indicate the deletion flag for write errors
-    //............................................
+    // Set the deletion flag for write errors
     writeDelete = true;
     XrdOucString errdetail;
 
     if (isCreation)
     {
       XrdOucString newerr;
-      //..........................................................................
-      // add to the error message that this file has been removed after the error,
+      // Add to the error message that this file has been removed after the error,
       // which happens for creations
-      //..........................................................................
       newerr = error.getErrText();
 
       if (writeErrorFlag == kOfsSimulatedIoError)
       {
-        //.................................
-        // simulated IO error
-        //.................................
+        // Simulated IO error
         errdetail += " => file has been removed because of a simulated IO error";
       }
       else
       {
         if (writeErrorFlag == kOfsDiskFullError)
         {
-          //.................................
-          // disk full error
-          //.................................
+          // Sisk full error
           errdetail += " => file has been removed because the target filesystem  was full";
         }
         else
         {
           if (writeErrorFlag == kOfsMaxSizeError)
           {
-            //.................................
-            // maximum file size error
-            //.................................
-            errdetail += " => file has been removed because the maximum target filesize defined for that subtree was exceeded (maxsize=";
+            // Maximum file size error
+            errdetail += " => file has been removed because the maximum target "
+                         "filesize defined for that subtree was exceeded (maxsize=";
             char smaxsize[16];
             snprintf(smaxsize, sizeof ( smaxsize) - 1, "%llu", (unsigned long long) maxsize);
             errdetail += smaxsize;
@@ -2589,9 +2571,7 @@ XrdFstOfsFile::write (XrdSfsFileOffset fileOffset,
           {
             if (writeErrorFlag == kOfsIoError)
             {
-              //.................................
-              // generic IO error
-              //.................................
+              // Generic IO error
               errdetail += " => file has been removed due to an IO error on the target filesystem";
             }
             else
