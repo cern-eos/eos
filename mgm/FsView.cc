@@ -1922,9 +1922,6 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
       if ((formattags["format"].find("s")) != std::string::npos)
         snprintf(lformat, sizeof (lformat) - 1, "%%s");
       
-      if ((formattags["format"].find("s")) != std::string::npos)
-        snprintf(lformat, sizeof (lformat) - 1, "\"%%s\"");
-      
       if ((formattags["format"].find("l")) != std::string::npos)
         snprintf(lformat, sizeof (lformat) - 1, "%%lld");
 
