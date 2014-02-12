@@ -42,7 +42,6 @@
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSfs/XrdSfsInterface.hh"
-#include "build/_CPack_Packages/Linux-Source/TGZ/eos-0.3.9-2/common/http/HttpServer.hh"
 /*----------------------------------------------------------------------------*/
 #include <iostream>
 #include <fstream>
