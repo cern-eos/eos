@@ -54,6 +54,56 @@ FileTest::tearDown()
 
 
 //------------------------------------------------------------------------------
+// Write test
+//------------------------------------------------------------------------------
+void
+FileTest::WriteTest()
+{
+  using namespace XrdCl;
+
+  // Initialise
+  XRootDStatus status;
+  uint32_t file_size = (uint32_t)atoi(mEnv->GetMapping("file_size").c_str());
+  std::string address = "root://root@" + mEnv->GetMapping("server");
+  std::string file_path = mEnv->GetMapping("plain_file");
+  URL url(address);
+  CPPUNIT_ASSERT(url.IsValid());
+  std::string file_url = address + "/" + file_path;
+  mFile = new File();
+  status = mFile->Open(file_url, OpenFlags::Update | OpenFlags::Delete, Access::Mode::None);
+  CPPUNIT_ASSERT(status.IsOK());
+
+  // Write file using 4MB chunks
+  uint64_t off;
+  uint32_t size_chunk = 1024 * 1024;
+  int num_chunks = file_size / size_chunk;
+  char* buff_write = new char[size_chunk];
+  std::ifstream urandom("/dev/urandom", std::ios::in | std::ios::binary);
+  urandom.read(buff_write, size_chunk);
+  urandom.close();
+ 
+  // Create the readv list and the list for normal reads
+  for (int i = 0; i < num_chunks; i++)
+  {
+    off = i * size_chunk ;
+    status = mFile->Write(off, size_chunk, buff_write);
+
+    if (!status.IsOK())
+    {
+      std::cerr << "Error while writing at off:" << off << std::endl;
+      break;
+    }
+  }
+  
+  status = mFile->Close();
+  CPPUNIT_ASSERT(status.IsOK());
+  delete mFile;
+  mFile = 0;
+  delete[] buff_write;  
+}
+
+
+//------------------------------------------------------------------------------
 // Vector read test
 //------------------------------------------------------------------------------
 void

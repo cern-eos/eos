@@ -46,6 +46,7 @@
 class FileTest: public CppUnit::TestCase
 {
   CPPUNIT_TEST_SUITE(FileTest);
+    CPPUNIT_TEST(WriteTest);
     CPPUNIT_TEST(ReadVTest);
     CPPUNIT_TEST(SplitReadVTest);
     CPPUNIT_TEST(AlignBufferTest);
@@ -94,6 +95,11 @@ class FileTest: public CppUnit::TestCase
   void DeleteFlagTest();
 
 
+  //----------------------------------------------------------------------------
+  // Write test
+  //----------------------------------------------------------------------------
+  void WriteTest();
+  
   
  private:
   
