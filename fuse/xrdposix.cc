@@ -2825,8 +2825,14 @@ xrd_init ()
     eos::common::Logging::SetLogPriority(LOG_DEBUG);
   }
   else
-  {
-    eos::common::Logging::SetLogPriority(LOG_INFO);
+  { 
+    if ((getenv("EOS_FUSE_LOGLEVEL"))) {
+      eos::common::Logging::SetLogPriority(atoi(getenv("EOS_FUSE_LOGLEVEL")));
+    } 
+    else 
+    {
+      eos::common::Logging::SetLogPriority(LOG_INFO);
+    }
   }
   //............................................................................
   // Initialise the XrdClFileSystem object

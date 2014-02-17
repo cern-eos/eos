@@ -83,6 +83,10 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Enable FUSE debugging mode (default off)
 #export EOS_FUSE_DEBUG=1
 
+# Specify the FUSE logging level (default=7 is LOG_INFO ... see /usr/include/sys/syslog.h LOG_XXX definitions)
+# EOS_FUSE_DEBUG=1 overwrites these settings
+#export EOS_FUSE_LOGLEVEL=7
+
 # Disable parallel IO mode (default on)
 #export EOS_FUSE_NOPIO=1
 
