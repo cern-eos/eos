@@ -21,7 +21,8 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(./
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}
+                    ${CMAKE_SOURCE_DIR}
 		    ${XROOTD_INCLUDE_DIR}
 		    ${CPPUNIT_INCLUDE_DIRS})
 
@@ -29,7 +30,7 @@ link_directories(${CPPUNIT_LIBRARY}
 		 ${XROOTD_LIB_DIR})
 
 add_library(EosAuthTests MODULE
-			 FileSystemTest.cc  
+			 AuthFsTest.cc  
 			 Namespace.hh
 			 TestEnv.cc        TestEnv.hh)
 

@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: FileSystemTest.cc
+// File: AuthFsTest.cc
 // Author: Elvin Sindrilaru  <esindril@cern.ch> CERN
 //------------------------------------------------------------------------------
 
@@ -26,16 +26,18 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClFile.hh"
+#include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdSec/XrdSecEntity.hh"
 #include "TestEnv.hh"
 /*----------------------------------------------------------------------------*/
 
 
 //------------------------------------------------------------------------------
-//! FileSystemTest class 
+//! AuthFsTest class 
 //------------------------------------------------------------------------------
-class FileSystemTest: public CppUnit::TestCase
+class AuthFsTest: public CppUnit::TestCase
 {
-  CPPUNIT_TEST_SUITE(FileSystemTest);
+  CPPUNIT_TEST_SUITE(AuthFsTest);
     CPPUNIT_TEST(StatTest);
     CPPUNIT_TEST(StatFailTest);
     CPPUNIT_TEST(TruncateTest);
@@ -134,13 +136,12 @@ class FileSystemTest: public CppUnit::TestCase
   //----------------------------------------------------------------------------
   void DirListTest();
 
-
   //----------------------------------------------------------------------------
   //! Proc command test which actually tests the File implementation
   //----------------------------------------------------------------------------
   void ProcCommandTest();
 
-
+  
  private:
 
   XrdCl::FileSystem* mFs; ///< XrdCl::FileSystem instance used in the tests
@@ -148,14 +149,14 @@ class FileSystemTest: public CppUnit::TestCase
 };
 
 
-CPPUNIT_TEST_SUITE_REGISTRATION(FileSystemTest);
+CPPUNIT_TEST_SUITE_REGISTRATION(AuthFsTest);
 
 
 //------------------------------------------------------------------------------
 // setUp function called before each test is done
 //------------------------------------------------------------------------------
 void
-FileSystemTest::setUp()
+AuthFsTest::setUp()
 {
   // Initialise
   mEnv = new eos::auth::test::TestEnv();
@@ -172,7 +173,7 @@ FileSystemTest::setUp()
 // tearDown function after each test is done
 //----------------------------------------------------------------------------
 void
-FileSystemTest::tearDown()
+AuthFsTest::tearDown()
 {
   delete mEnv;
   delete mFs;
@@ -184,7 +185,7 @@ FileSystemTest::tearDown()
 // File stat test - for a file which exists in EOS
 //------------------------------------------------------------------------------
 void
-FileSystemTest::StatTest()
+AuthFsTest::StatTest()
 {
   XrdCl::StatInfo *stat = 0;
   uint64_t file_size = atoi(mEnv->GetMapping("file_size").c_str());
@@ -203,7 +204,7 @@ FileSystemTest::StatTest()
 // File stat test - for a file which does not exits in EOS
 //------------------------------------------------------------------------------
 void
-FileSystemTest::StatFailTest()
+AuthFsTest::StatFailTest()
 {
   XrdCl::StatInfo *stat = 0;
   std::string file_path = mEnv->GetMapping("file_missing");
@@ -220,7 +221,7 @@ FileSystemTest::StatFailTest()
 // SFS_FSCTL_STATFS = 2 and is not supported by EOS i.e. returns an error
 //------------------------------------------------------------------------------
 void
-FileSystemTest::StatVFSTest()
+AuthFsTest::StatVFSTest()
 {
   XrdCl::StatInfoVFS* statvfs = 0;
   XrdCl::XRootDStatus status = mFs->StatVFS("/", statvfs);
@@ -234,7 +235,7 @@ FileSystemTest::StatVFSTest()
 // Truncate test
 //------------------------------------------------------------------------------
 void
-FileSystemTest::TruncateTest()
+AuthFsTest::TruncateTest()
 {
   std::string file_path = mEnv->GetMapping("file_path");
   XrdCl::XRootDStatus status = mFs->Truncate(file_path, 1024);
@@ -247,7 +248,7 @@ FileSystemTest::TruncateTest()
 // Rename test
 //------------------------------------------------------------------------------
 void
-FileSystemTest::RenameTest()
+AuthFsTest::RenameTest()
 {
   uint64_t file_size = atoi(mEnv->GetMapping("file_size").c_str());
   std::string file_path = mEnv->GetMapping("file_path");
@@ -285,7 +286,7 @@ FileSystemTest::RenameTest()
 // to the FST node.
 //------------------------------------------------------------------------------
 void
-FileSystemTest::RemTest()
+AuthFsTest::RemTest()
 {
   using namespace XrdCl;
   // Create a dummy file
@@ -323,7 +324,7 @@ FileSystemTest::RemTest()
 // no one knows what it should do exactly ... :)
 //------------------------------------------------------------------------------
 void
-FileSystemTest::PrepareTest()
+AuthFsTest::PrepareTest()
 {
   using namespace XrdCl;
   std::string file_path = mEnv->GetMapping("file_path");
@@ -341,7 +342,7 @@ FileSystemTest::PrepareTest()
 // Mkdir test
 //------------------------------------------------------------------------------
 void
-FileSystemTest::MkRemDirTest()
+AuthFsTest::MkRemDirTest()
 {
   using namespace XrdCl;
   std::string dir_path = mEnv->GetMapping("dir_new");
@@ -362,7 +363,7 @@ FileSystemTest::MkRemDirTest()
 // locate, stats or xattr. In practice in EOS we only support locate and stats
 //------------------------------------------------------------------------------
 void
-FileSystemTest::fsctlTest()
+AuthFsTest::fsctlTest()
 {
   using namespace XrdCl;
   Buffer* response = 0;
@@ -413,7 +414,7 @@ FileSystemTest::fsctlTest()
 //
 //------------------------------------------------------------------------------
 void
-FileSystemTest::FSctlTest()
+AuthFsTest::FSctlTest()
 {
   using namespace XrdCl;
   Buffer* response = 0;
@@ -441,7 +442,7 @@ FileSystemTest::FSctlTest()
 // Chksum test
 //------------------------------------------------------------------------------
 void
-FileSystemTest::ChksumTest()
+AuthFsTest::ChksumTest()
 {
   using namespace XrdCl;
   std::string file_chksum = mEnv->GetMapping("file_chksum");
@@ -461,7 +462,7 @@ FileSystemTest::ChksumTest()
 // Chmod test - only works on directories in EOS
 //------------------------------------------------------------------------------
 void
-FileSystemTest::ChmodTest()
+AuthFsTest::ChmodTest()
 {
   using namespace XrdCl;
   std::string dir_path = mEnv->GetMapping("dir_new");
@@ -499,7 +500,7 @@ FileSystemTest::ChmodTest()
 // initial test file: file1MB.dat 
 //------------------------------------------------------------------------------
 void
-FileSystemTest::DirListTest()
+AuthFsTest::DirListTest()
 {
   using namespace XrdCl;
   std::string dir_path = mEnv->GetMapping("dir_name");
@@ -517,7 +518,7 @@ FileSystemTest::DirListTest()
 // "fs ls" command as an administrator.
 //------------------------------------------------------------------------------
 void
-FileSystemTest::ProcCommandTest()
+AuthFsTest::ProcCommandTest()
 {
   using namespace XrdCl;
   std::string address = "root://root@" + mEnv->GetMapping("server") + "/";
@@ -552,3 +553,4 @@ FileSystemTest::ProcCommandTest()
   CPPUNIT_ASSERT(output.length());
   CPPUNIT_ASSERT(file.Close().IsOK());
 }
+
