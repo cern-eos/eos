@@ -56,30 +56,36 @@ message RequestProto {
 
   // Identifies which filed is filled in 
   required OperationType type = 1;
+  // Encrypted sha1 of the string represenation of the object excluding
+  // the field 'hmac' which is to be considered as empty string ("") during
+  // the computation and then updated at the end to the new value
+  required string hmac = 2;
 
   // One of the following is filled in 
-  optional StatProto stat         = 2;
-  optional FsctlProto fsctl1      = 3;
-  optional FSctlProto fsctl2      = 4;
-  optional ChmodProto chmod       = 5;
-  optional ChksumProto chksum     = 6;
-  optional ExistsProto exists     = 7;
-  optional StatProto statm        = 8;
-  optional MkdirProto mkdir       = 9;
-  optional RemdirProto remdir     = 10;
-  optional RemProto rem           = 11;
-  optional RenameProto rename     = 12;
-  optional PrepareProto prepare   = 13;
-  optional TruncateProto truncate = 14;
-  optional DirOpenProto diropen   = 15;
-  optional DirReadProto dirread   = 16;
-  optional DirFnameProto dirfname = 17;
-  optional DirCloseProto dirclose = 18;
-  optional FileOpenProto fileopen = 19;
-  optional FileFnameProto filefname = 20;
-  optional FileStatProto filestat   = 21;
-  optional FileReadProto fileread   = 22;
-  optional FileWriteProto filewrite = 23;
-  optional FileCloseProto fileclose = 24;
+  optional StatProto stat         = 3;
+  optional FsctlProto fsctl1      = 4;
+  optional FSctlProto fsctl2      = 5;
+  optional ChmodProto chmod       = 6;
+  optional ChksumProto chksum     = 7;
+  optional ExistsProto exists     = 8;
+  optional StatProto statm        = 9;
+  optional MkdirProto mkdir       = 10;
+  optional RemdirProto remdir     = 11;
+  optional RemProto rem           = 12;
+  optional RenameProto rename     = 13;
+  optional PrepareProto prepare   = 14;
+  optional TruncateProto truncate = 15;
+  optional DirOpenProto diropen   = 16;
+  optional DirReadProto dirread   = 17;
+  optional DirFnameProto dirfname = 18;
+  optional DirCloseProto dirclose = 19;
+  optional FileOpenProto fileopen = 20;
+  optional FileFnameProto filefname = 21;
+  optional FileStatProto filestat   = 22;
+  optional FileReadProto fileread   = 23;
+  optional FileWriteProto filewrite = 24;
+  optional FileCloseProto fileclose = 25;
+
+
 }
 

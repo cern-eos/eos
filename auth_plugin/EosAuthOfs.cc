@@ -27,11 +27,13 @@
 #include <fcntl.h>
 #include <syscall.h>
 #include <sys/time.h>
+#include <zlib.h>
 /*----------------------------------------------------------------------------*/
 #include "EosAuthOfs.hh"
 #include "ProtoUtils.hh"
 #include "EosAuthOfsDirectory.hh"
 #include "EosAuthOfsFile.hh"
+#include "common/SymKeys.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -316,6 +318,46 @@ EosAuthOfs::Configure(XrdSysError& error)
     }
   }
 
+  //----------------------------------------------------------------------------
+  // Build the adler & sha1 checksum of the default keytab file
+  //----------------------------------------------------------------------------
+  XrdOucString keytabcks = "unaccessible";
+  int fd = ::open("/etc/eos.keytab", O_RDONLY);
+  XrdOucString symkey = "";
+
+  if (fd > 0)
+  {
+    char buffer[65535];
+    char keydigest[SHA_DIGEST_LENGTH + 1];
+    SHA_CTX sha1;
+    SHA1_Init(&sha1);
+    size_t nread = ::read(fd, buffer, sizeof (buffer));
+    
+    if (nread > 0)
+    {
+      unsigned int adler;
+      SHA1_Update(&sha1, (const char*) buffer, nread);
+      adler = adler32(0L, Z_NULL, 0);
+      adler = adler32(adler, (const Bytef*) buffer, nread);
+      char sadler[1024];
+      snprintf(sadler, sizeof (sadler) - 1, "%08x", adler);
+      keytabcks = sadler;
+    }
+    
+    SHA1_Final((unsigned char*) keydigest, &sha1);
+    eos::common::SymKey::Base64Encode(keydigest, SHA_DIGEST_LENGTH, symkey);
+    close(fd);
+  }
+
+  eos_notice("AUTH_HOST=%s AUTH_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s SYMKEY=%s",
+             HostName, myPort, VERSION, RELEASE, keytabcks.c_str(), symkey.c_str());
+
+  if (!eos::common::gSymKeyStore.SetKey64(symkey.c_str(), 0))
+  {
+    eos_crit("unable to store the created symmetric key %s", symkey.c_str());
+    NoGo = 1;
+  }
+
   return NoGo;
 }
 
@@ -541,11 +583,21 @@ EosAuthOfs::stat(const char* path,
   int retc = SFS_ERROR;
   eos_debug("stat path=%s", path);
 
+  // Create request object
+  RequestProto* req_proto = utils::GetStatRequest(RequestProto_OperationType_STAT,
+                                                  path, error, client, opaque);
+
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC FS stat");
+    delete req_proto;
+    return retc;
+  }  
+ 
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);
-  RequestProto* req_proto = utils::GetStatRequest(RequestProto_OperationType_STAT,
-                                                  path, error, client, opaque);
 
   if (SendProtoBufRequest(socket, req_proto))
   {
@@ -592,12 +644,21 @@ EosAuthOfs::stat(const char* path,
 {
   int retc = SFS_ERROR;
   eos_debug("statm path=%s", path);
+  RequestProto* req_proto = utils::GetStatRequest(RequestProto_OperationType_STATM,
+                                                  path, error, client, opaque);
 
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC FS statm");
+    delete req_proto;
+    return retc;
+  }  
+  
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);
-  RequestProto* req_proto = utils::GetStatRequest(RequestProto_OperationType_STATM,
-                                                  path, error, client, opaque);
+
      
   if (SendProtoBufRequest(socket, req_proto))
   {
@@ -655,11 +716,20 @@ EosAuthOfs::fsctl(const int cmd,
     error.setErrInfo(strlen(locResp) + 3, (const char **) Resp, 2);
     return SFS_DATA;
   }
-  
+
+  RequestProto* req_proto = utils::GetFsctlRequest(cmd, args, error, client);
+
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC FS fsctl");
+    delete req_proto;
+    return retc;
+  }  
+    
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);
-  RequestProto* req_proto = utils::GetFsctlRequest(cmd, args, error, client);
      
   if (SendProtoBufRequest(socket, req_proto))
   {
@@ -697,11 +767,19 @@ EosAuthOfs::FSctl(const int cmd,
 {
   int retc = SFS_ERROR;
   eos_debug("FSctl with cmd=%i", cmd);
+  RequestProto* req_proto = utils::GetFSctlRequest(cmd, args, error, client);
 
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC FS FSctl");
+    delete req_proto;
+    return retc;
+  }  
+  
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);
-  RequestProto* req_proto = utils::GetFSctlRequest(cmd, args, error, client);
      
   if (SendProtoBufRequest(socket, req_proto))
   {
@@ -740,11 +818,19 @@ EosAuthOfs::chmod (const char *path,
 {
   int retc = SFS_ERROR;
   eos_debug("chmod path=%s mode=%o", path, mode);
+  RequestProto* req_proto = utils::GetChmodRequest(path, mode, error, client, opaque);
 
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC FS chmod");
+    delete req_proto;
+    return retc;
+  }  
+  
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);
-  RequestProto* req_proto = utils::GetChmodRequest(path, mode, error, client, opaque);
      
   if (SendProtoBufRequest(socket, req_proto))
   {
@@ -784,12 +870,20 @@ EosAuthOfs::chksum(csFunc func,
 {
   int retc = SFS_ERROR;
   eos_debug("chksum path=%s csName=%s", path, csName);
+  RequestProto* req_proto = utils::GetChksumRequest(func, csName, path, error,
+                                                    client, opaque);
+
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC FS chksum");
+    delete req_proto;
+    return retc;
+  }
 
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);
-  RequestProto* req_proto = utils::GetChksumRequest(func, csName, path, error,
-                                                    client, opaque);
      
   if (SendProtoBufRequest(socket, req_proto))
   {
@@ -829,11 +923,19 @@ EosAuthOfs::exists(const char* path,
 {
   int retc = SFS_ERROR;
   eos_debug("exists path=%s", path);
+  RequestProto* req_proto = utils::GetExistsRequest(path, error, client, opaque);
 
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC FS exists");
+    delete req_proto;
+    return retc;
+  }
+  
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);
-  RequestProto* req_proto = utils::GetExistsRequest(path, error, client, opaque);
      
   if (SendProtoBufRequest(socket, req_proto))
   {
@@ -880,12 +982,20 @@ EosAuthOfs::mkdir (const char* path,
 {
   int retc = SFS_ERROR;
   eos_debug("mkdir path=%s mode=%o", path, mode);
+  RequestProto* req_proto = utils::GetMkdirRequest(path, mode, error, client, opaque);
+
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC FS mkdir");
+    delete req_proto;
+    return retc;
+  }
 
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);
-  RequestProto* req_proto = utils::GetMkdirRequest(path, mode, error, client, opaque);
-     
+    
   if (SendProtoBufRequest(socket, req_proto))
   {
     ResponseProto* resp_mkdir = static_cast<ResponseProto*>(GetResponse(socket));
@@ -923,11 +1033,19 @@ EosAuthOfs::remdir(const char* path,
 {
   int retc = SFS_ERROR;
   eos_debug("remdir path=%s", path);
+  RequestProto* req_proto = utils::GetRemdirRequest(path, error, client, opaque);
 
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC FS remdir");
+    delete req_proto;
+    return retc;
+  }
+  
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);
-  RequestProto* req_proto = utils::GetRemdirRequest(path, error, client, opaque);
      
   if (SendProtoBufRequest(socket, req_proto))
   {
@@ -966,11 +1084,19 @@ EosAuthOfs::rem(const char* path,
 {
   int retc = SFS_ERROR;
   eos_debug("rem path=%s", path);
+  RequestProto* req_proto = utils::GetRemRequest(path, error, client, opaque);
 
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC FS rem");
+    delete req_proto;
+    return retc;
+  }
+  
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);
-  RequestProto* req_proto = utils::GetRemRequest(path, error, client, opaque);
      
   if (SendProtoBufRequest(socket, req_proto))
   {
@@ -1011,12 +1137,20 @@ EosAuthOfs::rename (const char *oldName,
 {
   int retc = SFS_ERROR;
   eos_debug("rename oldname=%s newname=%s", oldName, newName);
+  RequestProto* req_proto = utils::GetRenameRequest(oldName, newName, error,
+                                                    client, opaqueO, opaqueN);
 
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC FS rename");
+    delete req_proto;
+    return retc;
+  }
+  
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);
-  RequestProto* req_proto = utils::GetRenameRequest(oldName, newName, error,
-                                                    client, opaqueO, opaqueN);
      
   if (SendProtoBufRequest(socket, req_proto))
   {
@@ -1054,11 +1188,19 @@ EosAuthOfs::prepare(XrdSfsPrep& pargs,
 {
   int retc = SFS_ERROR;
   eos_debug("prepare");
-
+  RequestProto* req_proto = utils::GetPrepareRequest(pargs, error, client);
+  
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC FS prepare");
+    delete req_proto;
+    return retc;
+  }
+  
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);
-  RequestProto* req_proto = utils::GetPrepareRequest(pargs, error, client);
      
   if (SendProtoBufRequest(socket, req_proto))
   {
@@ -1098,12 +1240,20 @@ EosAuthOfs::truncate(const char* path,
 {
   int retc = SFS_ERROR;
   eos_debug("truncate");
+  RequestProto* req_proto = utils::GetTruncateRequest(path, fileOffset, error,
+                                                      client, opaque);
 
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC FS truncate");
+    delete req_proto;
+    return retc;
+  }
+  
   // Get a socket object from the pool
   zmq::socket_t* socket;
   mPoolSocket.wait_pop(socket);
-  RequestProto* req_proto = utils::GetTruncateRequest(path, fileOffset, error,
-                                                      client, opaque);
      
   if (SendProtoBufRequest(socket, req_proto))
   {
@@ -1151,8 +1301,8 @@ bool
 EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
                                 google::protobuf::Message* message)
 {
-  bool sent = false;
   // Send the request
+  bool sent = false;
   int msg_size = message->ByteSize();
   zmq::message_t request(msg_size);
   google::protobuf::io::ArrayOutputStream aos(request.data(), msg_size);
@@ -1163,7 +1313,7 @@ EosAuthOfs::SendProtoBufRequest(zmq::socket_t* socket,
   sent = socket->send(request, ZMQ_NOBLOCK);
 
   if (!sent)
-    eos_err("unable to send request");
+    eos_err("unable to send request using zmq");
 
   return sent;
 }

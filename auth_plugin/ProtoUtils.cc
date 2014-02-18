@@ -25,6 +25,10 @@
 #include "ProtoUtils.hh"
 #include <sstream>
 /*----------------------------------------------------------------------------*/
+#include "common/Logging.hh"
+#include "common/SymKeys.hh"
+/*----------------------------------------------------------------------------*/
+#include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -266,6 +270,40 @@ utils::DeleteXrdSfsFSctl(XrdSfsFSctl*& obj)
   free((void*)obj->Arg2);
   delete obj;
   obj = 0;
+}
+
+
+//------------------------------------------------------------------------------
+// Compute HMAC value of the RequestProto object and append it to the
+// object using the required field hmac
+//------------------------------------------------------------------------------
+bool
+utils::ComputeHMAC(RequestProto*& req)
+{
+  std::string smsg;
+  req->set_hmac(""); // set it temporarily, we update it later
+ 
+  if (!req->SerializeToString(&smsg))
+  {
+    eos_static_err("unable to serialize message to string for HMAC computation");
+    return false;
+  }
+
+  std::string key = eos::common::gSymKeyStore.GetCurrentKey()->GetKey();
+  std::string hmac = eos::common::SymKey::HmacSha1(key, smsg);
+  XrdOucString base64hmac;
+  bool do_encoding = eos::common::SymKey::Base64Encode((char*)hmac.c_str(), 
+                                           hmac.length(), base64hmac);
+
+  if (!do_encoding)
+  {
+    eos_static_err("unable to do base64encoding on HMAC");
+    return do_encoding;
+  }
+
+  // Update the HMAC value
+  req->set_hmac(base64hmac.c_str());
+  return true;
 }
 
 
@@ -633,7 +671,7 @@ utils::GetDirReadRequest(std::string&& uuid)
 
 
 //------------------------------------------------------------------------------
-//! Create directory FName request ProtocolBuffer object
+// Create directory FName request ProtocolBuffer object
 //------------------------------------------------------------------------------
 RequestProto*
 utils::GetDirFnameRequest(std::string&& uuid)
@@ -647,7 +685,7 @@ utils::GetDirFnameRequest(std::string&& uuid)
 
 
 //------------------------------------------------------------------------------
-//! Create directory close request ProtocolBuffer object
+// Create directory close request ProtocolBuffer object
 //------------------------------------------------------------------------------
 RequestProto*
 utils::GetDirCloseRequest(std::string&& uuid)
@@ -661,7 +699,7 @@ utils::GetDirCloseRequest(std::string&& uuid)
 
 
 //------------------------------------------------------------------------------
-//! Create file open request ProtocolBuffer object
+// Create file open request ProtocolBuffer object
 //------------------------------------------------------------------------------
 RequestProto*
 utils::GetFileOpenRequest(std::string&& uuid,
@@ -676,6 +714,7 @@ utils::GetFileOpenRequest(std::string&& uuid,
   eos::auth::RequestProto* req_proto = new eos::auth::RequestProto();
   eos::auth::FileOpenProto* fopen_proto = req_proto->mutable_fileopen();
   eos::auth::XrdSecEntityProto* xse_proto = fopen_proto->mutable_client();
+
   // Save the address of the file object
   fopen_proto->set_uuid(uuid);
   fopen_proto->set_name(fileName);

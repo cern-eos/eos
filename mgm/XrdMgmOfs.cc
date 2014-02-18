@@ -8537,11 +8537,19 @@ XrdMgmOfs::AuthWorkerThread()
     std::string msg_recv((char*)request.data(), request.size());
     RequestProto req_proto;
     req_proto.ParseFromString(msg_recv);
+     
     ResponseProto resp;
     std::shared_ptr<XrdOucErrInfo> error(static_cast<XrdOucErrInfo*>(0));
     XrdSecEntity* client = 0;
 
-    if (req_proto.type() == RequestProto_OperationType_STAT)
+    if (!ValidAuthRequest(&req_proto))
+    {
+       eos_err("message HMAC received is not valid, dropping request");
+       error.reset(new XrdOucErrInfo("admin"));
+       error.get()->setErrInfo(EKEYREJECTED, "request HMAC value is wrong"); 
+       ret = SFS_ERROR;
+    }
+    else if (req_proto.type() == RequestProto_OperationType_STAT)
     {
       // stat request
       struct stat buf;
@@ -8976,6 +8984,50 @@ XrdMgmOfs::AuthWorkerThread()
     if (client)
       utils::DeleteXrdSecEntity(client);
   }
+}
+
+
+//------------------------------------------------------------------------------
+// Check that the ProtocolBuffers message has not been tampered with 
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::ValidAuthRequest(eos::auth::RequestProto* reqProto)
+{
+  std::string smsg;
+  std::string recv_hmac = reqProto->hmac();
+  reqProto->set_hmac("");
+  
+  // Compute hmac value of the message ignoring the hmac
+  if (!reqProto->SerializeToString(&smsg))
+  {
+    eos_err("unable to serialize to string message");
+    return false;
+  }
+    
+  std::string key = eos::common::gSymKeyStore.GetCurrentKey()->GetKey();
+  std::string comp_hmac = eos::common::SymKey::HmacSha1(key, smsg);
+  XrdOucString base64hmac;
+  bool do_encoding = eos::common::SymKey::Base64Encode((char*)comp_hmac.c_str(),
+                                                       comp_hmac.length(), base64hmac);
+
+  if (!do_encoding)
+  {
+    eos_err("unable to do base64encoding on hmac");
+    return do_encoding;
+  }
+  
+  eos_info("comp_hmac=%s comp_size=%i, recv_hmac=%s, recv_size=%i",
+           base64hmac.c_str(), base64hmac.length(), recv_hmac.c_str(), recv_hmac.length());
+
+  if (((size_t)base64hmac.length() != recv_hmac.length()) ||
+      strncmp(base64hmac.c_str(), recv_hmac.c_str(), base64hmac.length()))
+  {
+    eos_err("computed HMAC different from the received one, this message"
+            "has been tampered with ... ");
+    return false;
+  }
+  
+  return true;   
 }
 
 

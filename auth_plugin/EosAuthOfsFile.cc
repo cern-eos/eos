@@ -65,11 +65,7 @@ EosAuthOfsFile::open(const char* fileName,
   int retc = SFS_ERROR;
   eos_debug("file open name=%s opaque=%s", fileName, opaque);
   mName = fileName;
-  
-  // Get a socket object from the pool
-  zmq::socket_t* socket;
-  gOFS->mPoolSocket.wait_pop(socket);
-  
+
   // Save file pointer value which is used as a key on the MGM instance
   std::ostringstream sstr;
   // Add the current machine's IP to the uuid in order to avoid collisions in case
@@ -78,6 +74,18 @@ EosAuthOfsFile::open(const char* fileName,
   RequestProto* req_proto = utils::GetFileOpenRequest(sstr.str(), fileName,
                                    openMode, createMode, client, opaque,
                                    error.getErrUser(), error.getErrMid());
+
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC file open");
+    delete req_proto;
+    return retc;
+  }
+  
+  // Get a socket object from the pool
+  zmq::socket_t* socket;
+  gOFS->mPoolSocket.wait_pop(socket);
 
   if (gOFS->SendProtoBufRequest(socket, req_proto))
   {
@@ -112,14 +120,22 @@ EosAuthOfsFile::read(XrdSfsFileOffset offset,
 {
   int retc = 0;  // this means read 0 bytes and NOT SFS_OK :)
   eos_debug("read off=%li len=%i", (long long)offset, (int)length);
-  
-  // Get a socket object from the pool
-  zmq::socket_t* socket;
-  gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
   sstr << gOFS->mManagerIp << ":" << this;
   eos_debug("fptr=%s, off=%li, len=%i", sstr.str().c_str(), offset, length);
   RequestProto* req_proto = utils::GetFileReadRequest(sstr.str(), offset, length);
+
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC file read");
+    delete req_proto;
+    return retc;
+  }
+ 
+  // Get a socket object from the pool
+  zmq::socket_t* socket;
+  gOFS->mPoolSocket.wait_pop(socket);
 
   if (gOFS->SendProtoBufRequest(socket, req_proto))
   {
@@ -157,14 +173,22 @@ EosAuthOfsFile::write(XrdSfsFileOffset offset,
 {
   int retc = 0;  // this means written 0 bytes and NOT SFS_OK :)
   eos_debug("write off=%ll len=%i", offset, length);
-
-  // Get a socket object from the pool
-  zmq::socket_t* socket;
-  gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
   sstr << gOFS->mManagerIp << ":" << this;
   eos_debug("fptr=%s, off=%li, len=%i", sstr.str().c_str(), offset, length);
   RequestProto* req_proto = utils::GetFileWriteRequest(sstr.str(), offset, buffer, length);
+  
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC file write");
+    delete req_proto;
+    return retc;
+  }
+  
+  // Get a socket object from the pool
+  zmq::socket_t* socket;
+  gOFS->mPoolSocket.wait_pop(socket);
 
   if (gOFS->SendProtoBufRequest(socket, req_proto))
   {
@@ -193,14 +217,22 @@ EosAuthOfsFile::FName()
 {
   int retc = SFS_ERROR;
   eos_debug("file fname");
-
-  // Get a socket object from the pool
-  zmq::socket_t* socket;
-  gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
   sstr << gOFS->mManagerIp << ":" << this;
   eos_debug("file pointer: %s", sstr.str().c_str());
   RequestProto* req_proto = utils::GetFileFnameRequest(sstr.str());
+
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC file name");
+    delete req_proto;
+    return static_cast<const char*>(0);
+  }
+  
+  // Get a socket object from the pool
+  zmq::socket_t* socket;
+  gOFS->mPoolSocket.wait_pop(socket);
 
   if (gOFS->SendProtoBufRequest(socket, req_proto))
   {
@@ -240,14 +272,22 @@ EosAuthOfsFile::stat(struct stat* buf)
 {
   int retc = SFS_ERROR;
   eos_debug("stat file name=%s", mName.c_str());
-
-  // Get a socket object from the pool
-  zmq::socket_t* socket;
-  gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
   sstr << gOFS->mManagerIp << ":" << this;
   eos_debug("file pointer: %s", sstr.str().c_str());
   RequestProto* req_proto = utils::GetFileStatRequest(sstr.str());
+
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC file stat");
+    delete req_proto;
+    return retc;
+  }
+
+  // Get a socket object from the pool
+  zmq::socket_t* socket;
+  gOFS->mPoolSocket.wait_pop(socket);
 
   if (gOFS->SendProtoBufRequest(socket, req_proto))
   {
@@ -284,14 +324,22 @@ EosAuthOfsFile::close()
 {
   int retc = SFS_ERROR;
   eos_debug("close");
-
-  // Get a socket object from the pool
-  zmq::socket_t* socket;
-  gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
   sstr << gOFS->mManagerIp << ":" << this;
   eos_debug("file pointer: %s", sstr.str().c_str());
   RequestProto* req_proto = utils::GetFileCloseRequest(sstr.str());
+
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC file close");
+    delete req_proto;
+    return retc;
+  }
+  
+  // Get a socket object from the pool
+  zmq::socket_t* socket;
+  gOFS->mPoolSocket.wait_pop(socket);
 
   if (gOFS->SendProtoBufRequest(socket, req_proto))
   {

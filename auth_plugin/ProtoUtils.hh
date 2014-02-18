@@ -154,6 +154,19 @@ namespace utils
 
 
   //----------------------------------------------------------------------------
+  //! Compute HMAC value of the RequestProto object and append it to the
+  //! object using the required field hmac.
+  //!
+  //! @param req RequestProto object
+  //!
+  //! @return true if computation successful and attribute updated, otherwise
+  //!         false
+  //----------------------------------------------------------------------------
+  bool ComputeHMAC(RequestProto*& req);
+
+
+
+  //----------------------------------------------------------------------------
   //! Create stat request ProtocolBuffer object
   //!
   //! @param path file path
@@ -397,33 +410,33 @@ namespace utils
   //!
   //! @return request ProtoBuffer object
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   RequestProto* GetDirReadRequest(std::string&& uuid);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Create directory FName request ProtocolBuffer object
   //!
   //! @param uuid unqiue identifier for the current directory
   //!
   //! @return request ProtoBuffer object
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   RequestProto* GetDirFnameRequest(std::string&& uuid);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Create directory close request ProtocolBuffer object
   //!
   //! @param uuid unqiue identifier for the current directory
   //!
   //! @return request ProtoBuffer object
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   RequestProto* GetDirCloseRequest(std::string&& uuid);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Create file open request ProtocolBuffer object
   //!
   //! @param uuid unqiue identifier for the current file
@@ -437,7 +450,7 @@ namespace utils
   //!
   //! @return request ProtoBuffer object
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   RequestProto* GetFileOpenRequest(std::string&& uuid,
                                    const char* fileName,
                                    int openMode,
@@ -448,29 +461,29 @@ namespace utils
                                    int monid = 0);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Create file FName request ProtocolBuffer object
   //!
   //! @param uuid unqiue identifier for the current file
   //!
   //! @return request ProtoBuffer object
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   RequestProto* GetFileFnameRequest(std::string&& uuid);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Create file stat request ProtocolBuffer object
   //!
   //! @param uuid unqiue identifier for the current file
   //!
   //! @return request ProtoBuffer object
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   RequestProto* GetFileStatRequest(std::string&& uuid);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Create file read request ProtocolBuffer object
   //!
   //! @param uuid unqiue identifier for the current file
@@ -479,13 +492,13 @@ namespace utils
   //!
   //! @return request ProtoBuffer object
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   RequestProto* GetFileReadRequest(std::string&& uuid,
                                    long long offset,
                                    int length);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Create file write request ProtocolBuffer object
   //!
   //! @param uuid unqiue identifier for the current file
@@ -495,23 +508,22 @@ namespace utils
   //!
   //! @return request ProtoBuffer object
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   RequestProto* GetFileWriteRequest(std::string&& uuid,
                                     long long offset,
                                     const char* buff,
                                     int length);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Create file close request ProtocolBuffer object
   //!
   //! @param uuid unqiue identifier for the current directory
   //!
   //! @return request ProtoBuffer object
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   RequestProto* GetFileCloseRequest(std::string&& uuid);
-
 }
 
 EOSAUTHNAMESPACE_END

@@ -21,8 +21,8 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(./  
-		    ../
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} 
+		    ${CMAKE_SOURCE_DIR}
                     ${ZMQ_INCLUDE_DIRS}
                     ${PROTOBUF_INCLUDE_DIRS}
 		    ${XROOTD_INCLUDE_DIR} 
@@ -88,7 +88,8 @@ if (PROTOBUF_FOUND)
   	      ProtoUtils.cc ProtoUtils.hh
               ${PROTO_SRCS} ${PROTO_HDRS})
 	      
-  target_link_libraries(EosAuthProto XrdSec ${PROTOBUF_LIBRARIES})
+  target_link_libraries(EosAuthProto 
+  		        eosCommon XrdSec ${PROTOBUF_LIBRARIES})
 
   add_library(EosAuthOfs MODULE
   	      EosAuthOfs.cc  EosAuthOfs.hh

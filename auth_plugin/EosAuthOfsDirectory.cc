@@ -63,16 +63,24 @@ EosAuthOfsDirectory::open(const char* name,
   int retc = SFS_ERROR;
   eos_debug("dir open name=%s", name);
   mName = name; // save only for debugging purposes
-  
-  // Get a socket object from the pool
-  zmq::socket_t* socket;
-  gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
   // Add the current machine's IP to the uuid in order to avoid collisions in case
   // we have multiple auth plugins connecting to the same MGM node 
   sstr << gOFS->mManagerIp << ":" << this;
   RequestProto* req_proto = utils::GetDirOpenRequest(sstr.str(), name, client,
                                    opaque, error.getErrUser(), error.getErrMid());
+
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC dir open");
+    delete req_proto;
+    return retc;
+  }
+  
+  // Get a socket object from the pool
+  zmq::socket_t* socket;
+  gOFS->mPoolSocket.wait_pop(socket);
 
   if (gOFS->SendProtoBufRequest(socket, req_proto))
   {
@@ -101,13 +109,21 @@ EosAuthOfsDirectory::nextEntry()
 {
   int retc = SFS_ERROR;
   eos_debug("dir read name=%s", mName.c_str());
-
-  // Get a socket object from the pool
-  zmq::socket_t* socket;
-  gOFS->mPoolSocket.wait_pop(socket);
   std::ostringstream sstr;
   sstr << gOFS->mManagerIp << ":" << this;
   RequestProto* req_proto = utils::GetDirReadRequest(sstr.str());
+
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC dir nextEntry");
+    delete req_proto;
+    return static_cast<const char*>(0) ;
+  }
+  
+  // Get a socket object from the pool
+  zmq::socket_t* socket;
+  gOFS->mPoolSocket.wait_pop(socket);
 
   if (gOFS->SendProtoBufRequest(socket, req_proto))
   {
@@ -147,13 +163,21 @@ EosAuthOfsDirectory::close()
 {
   int retc = SFS_ERROR;
   eos_debug("dir close name=%s", mName.c_str());
+  std::ostringstream sstr;
+  sstr << gOFS->mManagerIp << ":" << this;
+  RequestProto* req_proto = utils::GetDirCloseRequest(sstr.str());
+
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error dir close");
+    delete req_proto;
+    return retc;
+  }
 
   // Get a socket object from the pool
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
-  std::ostringstream sstr;
-  sstr << gOFS->mManagerIp << ":" << this;
-  RequestProto* req_proto = utils::GetDirCloseRequest(sstr.str());
 
   if (gOFS->SendProtoBufRequest(socket, req_proto))
   {
@@ -182,13 +206,21 @@ EosAuthOfsDirectory::FName()
 {
   int retc = SFS_ERROR;
   eos_debug("dir fname");
+  std::ostringstream sstr;
+  sstr << gOFS->mManagerIp << ":" << this;
+  RequestProto* req_proto = utils::GetDirFnameRequest(sstr.str());
+
+  // Compute HMAC for request object
+  if (!utils::ComputeHMAC(req_proto))
+  {
+    eos_err("error HMAC dir fname");
+    delete req_proto;
+    return static_cast<const char*>(0) ;
+  }
   
   // Get a socket object from the pool
   zmq::socket_t* socket;
   gOFS->mPoolSocket.wait_pop(socket);
-  std::ostringstream sstr;
-  sstr << gOFS->mManagerIp << ":" << this;
-  RequestProto* req_proto = utils::GetDirFnameRequest(sstr.str());
 
   if (gOFS->SendProtoBufRequest(socket, req_proto))
   {

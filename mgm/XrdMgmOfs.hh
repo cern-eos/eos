@@ -968,6 +968,17 @@ private:
   std::map<std::string, XrdMgmOfsFile*> mMapFiles; ///< uuid to file obj. mapping
   XrdSysMutex mMutexDirs; ///< mutex for protecting the access at the dirs map
   XrdSysMutex mMutexFiles; ///< mutex for protecting the access at the files map
+
+
+  //------------------------------------------------------------------------------
+  //! Check that the auth ProtocolBuffer request has not been tampered with
+  //!
+  //! @param reqProto request ProtocolBuffer from an authentication plugin
+  //!
+  //! @return true if request is valid, otherwise false
+  //! 
+  //------------------------------------------------------------------------------
+  bool ValidAuthRequest(eos::auth::RequestProto* reqProto);
   
 };
 /*----------------------------------------------------------------------------*/
