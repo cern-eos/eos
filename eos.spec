@@ -1,4 +1,4 @@
-i%define _unpackaged_files_terminate_build 0
+%define _unpackaged_files_terminate_build 0
 Summary: The EOS project
 Name: eos
 Version: 0.3.17
