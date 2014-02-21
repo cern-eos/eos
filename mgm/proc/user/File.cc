@@ -534,7 +534,7 @@ ProcCommand::File ()
       XrdOucString source = pOpaque->Get("mgm.file.source");
       XrdOucString target = pOpaque->Get("mgm.file.target");
 
-      if (gOFS->rename(source.c_str(), target.c_str(), *mError, *pVid, 0, 0))
+      if (gOFS->rename(source.c_str(), target.c_str(), *mError, *pVid, 0, 0,true))
       {
         stdErr += "error: unable to rename";
         retc = errno;
