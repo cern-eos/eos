@@ -1374,6 +1374,7 @@ xrd_stat (const char* path,
       buf->st_mode &= (~S_ISVTX); // clear the vxt bit
       buf->st_mode &= (~S_ISUID); // clear suid
       buf->st_mode &= (~S_ISGID); // clear sgid
+      errno = 0;
     }
   }
   else
