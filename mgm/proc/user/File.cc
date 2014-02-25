@@ -1178,6 +1178,9 @@ ProcCommand::File ()
 
             if (nreplayout > nreponline)
             {
+              eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex); // lock order 1
+              eos::common::RWMutexReadLock lock(Quota::gQuotaMutex); // lock order 2
+              
               // set the desired space & subgroup if provided
               if (creationspace.length())
               {
