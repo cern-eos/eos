@@ -800,17 +800,16 @@ ProcCommand::MakeResult ()
           }
           else
           {
-            mResultStream += "<h3>&#10004;&nbsp;";
-
             if (!stdOut.length())
             {
+              mResultStream += "<h3>&#10004;&nbsp;";
               mResultStream += "Success!";
+ 	      mResultStream += "</h3>";
             }
             else
             {
               mResultStream += stdOut;
             }
-            mResultStream += "</h3>";
           }
         }
         mResultStream += "</div>";
