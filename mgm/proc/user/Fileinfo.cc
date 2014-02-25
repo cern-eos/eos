@@ -426,7 +426,7 @@ ProcCommand::Fileinfo ()
                 if (!Monitoring)
                 {
                   std::string out = "";
-                  stdOut += "<#> <fs-id> ";
+                  stdOut += " #   fs-id  ";
                   std::string format = "header=1|indent=12|headeronly=1|key=host:width=24:format=s|sep= |sep= |key=schedgroup:width=16:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s|sep= |key=stat.geotag:width=24:format=s";
                   filesystem->Print(out, format);
                   stdOut += out.c_str();

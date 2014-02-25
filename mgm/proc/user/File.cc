@@ -459,70 +459,83 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     // create URLs to share a file without authentication
     // -------------------------------------------------------------------------
-    if (mSubCmd == "share") 
+    if (mSubCmd == "share")
     {
       XrdOucString sexpires = pOpaque->Get("mgm.file.expires");
-      time_t expires = (sexpires.length()) ? 
-	(time_t) strtoul(sexpires.c_str(), 0, 10) : 0;
+      time_t expires = (sexpires.length()) ?
+        (time_t) strtoul(sexpires.c_str(), 0, 10) : 0;
 
-      fprintf(stderr,"%s %lu\n", sexpires.c_str(), expires);
-      if (!expires) 
+      if (!expires)
       {
-	// default is 30 days
-	expires = (time_t)(time(NULL) + (30*86400));
+        // default is 30 days
+        expires = (time_t) (time(NULL) + (30 * 86400));
       }
-      fprintf(stderr,"%s %lu\n", sexpires.c_str(), expires);
       std::string sharepath;
       sharepath = gOFS->CreateSharePath(spath.c_str(), "", expires, *mError, *pVid);
 
-      if (vid.uid != 0) 
+      if (vid.uid != 0)
       {
-	// non-root users cannot create shared URLs with validity > 90 days
-	if ( (expires - time(NULL) ) > (90* 86400) ) 
-	{
-	  stdErr += "error: you cannot request shared URLs with a validity longer than 90 days!\n";
-	  errno = EINVAL;
-	  retc = EINVAL;
-	  sharepath="";
-	}
+        // non-root users cannot create shared URLs with validity > 90 days
+        if ((expires - time(NULL)) > (90 * 86400))
+        {
+          stdErr += "error: you cannot request shared URLs with a validity longer than 90 days!\n";
+          errno = EINVAL;
+          retc = EINVAL;
+          sharepath = "";
+        }
       }
 
       if (!sharepath.length())
       {
-	stdErr += "error: unable to create URLs for file sharing"; 
-	retc = errno;
+        stdErr += "error: unable to create URLs for file sharing";
+        retc = errno;
       }
-      else 
+      else
       {
-	XrdOucString httppath="http://"; httppath += gOFS->HostName; httppath += ":8000/"; httppath += sharepath.c_str();
-	int pos = httppath.find("?");
-	// + from base64 is a problem 
-	while (httppath.replace("+", "%2B", pos)) {}
-	
-	XrdOucString rootUrl = "root://"; rootUrl += gOFS->ManagerId; rootUrl += "/"; rootUrl += sharepath.c_str();
-	if (mHttpFormat) 
+        XrdOucString httppath = "http://";
+        httppath += gOFS->HostName;
+        httppath += ":8000/";
+        httppath += sharepath.c_str();
+        int pos = httppath.find("?");
+        // + from base64 is a problem 
+        while (httppath.replace("+", "%2B", pos))
         {
-	  stdOut += "<hr>\n";
-	  stdOut += "<h4>File Sharing Links: (valid 3 month)</h4>\n";
-	  stdOut += "<hr>\n";
-	  stdOut += path;
-	  stdOut += "<table border=\"0\"><tr><td>";
+        }
+
+        XrdOucString rootUrl = "root://";
+        rootUrl += gOFS->ManagerId;
+        rootUrl += "/";
+        rootUrl += sharepath.c_str();
+        if (mHttpFormat)
+        {
+          stdOut += "<h4 id=\"sharevalidity\" >File Sharing Links: [ valid until  ";
+          struct tm *newtime;
+          newtime = localtime( &expires );
+          stdOut += asctime(newtime);
+          stdOut.erase(stdOut.length()-1);
+          stdOut += " ]</h4>\n";
+          stdOut += path;
+          stdOut += "<table border=\"0\"><tr><td>";
           stdOut += "<img alt=\"\" src=\"data:image/gif;base64,R0lGODlhEAANAJEAAAJ6xv///wAAAAAAACH5BAkAAAEALAAAAAAQAA0AAAg0AAMIHEiwoMGDCBMqFAigIYCFDBsadPgwAMWJBB1axBix4kGPEhN6HDgyI8eTJBFSvEgwIAA7\">";
-          stdOut += "<a href=\"";
-	  stdOut += rootUrl.c_str();
-	  stdOut += "\">ROOT</a></td>";
-	  stdOut += "</tr><tr><td>";
-	  stdOut += "<img alt=\"\" src=\"data:image/gif;base64,R0lGODlhEAANAJEAAAJ6xv///wAAAAAAACH5BAkAAAEALAAAAAAQAA0AAAg0AAMIHEiwoMGDCBMqFAigIYCFDBsadPgwAMWJBB1axBix4kGPEhN6HDgyI8eTJBFSvEgwIAA7\">";
-	  stdOut += "<a href=\"";
-	  stdOut += httppath.c_str();
-	  stdOut += "\">HTTP</a></td>";
-	  stdOut += "</tr></table>\n";
-	}
-	else 
-	{
-	  stdOut += "[ root ]: "; stdOut += rootUrl; stdOut += "\n";
-	  stdOut += "[ http ]: "; stdOut += httppath;  stdOut += "\n";
-	}
+          stdOut += "<a id=\"httpshare\" href=\"";
+          stdOut += rootUrl.c_str();
+          stdOut += "\">ROOT</a></td>";
+          stdOut += "</tr><tr><td>";
+          stdOut += "<img alt=\"\" src=\"data:image/gif;base64,R0lGODlhEAANAJEAAAJ6xv///wAAAAAAACH5BAkAAAEALAAAAAAQAA0AAAg0AAMIHEiwoMGDCBMqFAigIYCFDBsadPgwAMWJBB1axBix4kGPEhN6HDgyI8eTJBFSvEgwIAA7\">";
+          stdOut += "<a id=\"rootshare\" href=\"";
+          stdOut += httppath.c_str();
+          stdOut += "\">HTTP</a></td>";
+          stdOut += "</tr></table>\n";
+        }
+        else
+        {
+          stdOut += "[ root ]: ";
+          stdOut += rootUrl;
+          stdOut += "\n";
+          stdOut += "[ http ]: ";
+          stdOut += httppath;
+          stdOut += "\n";
+        }
       }
     }
 
