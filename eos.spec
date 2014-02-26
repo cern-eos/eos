@@ -1,7 +1,7 @@
 %define _unpackaged_files_terminate_build 0
 Summary: The EOS project
 Name: eos
-Version: 0.3.19
+Version: 0.3.20
 Release: 1
 Prefix: /usr
 License: none
@@ -18,9 +18,9 @@ BuildRequires: cmake28 >= 2.8
 %define cmake_cmd cmake28
 %endif
 
-BuildRequires: xrootd >= 3.3.4
-BuildRequires: xrootd-server-devel >= 3.3.4
-BuildRequires: xrootd-private-devel  >= 3.3.4
+BuildRequires: xrootd >= 3.3.6
+BuildRequires: xrootd-server-devel >= 3.3.6
+BuildRequires: xrootd-private-devel  >= 3.3.6
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: libattr-devel, openldap-devel
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
@@ -48,7 +48,7 @@ The EOS software package.
 #######################################################################################
 Summary: The EOS server installation
 Group: Applications/File
-Requires: xrootd >= 3.3.4
+Requires: xrootd >= 3.3.6-2.CERN
 Requires: xrootd-client
 Requires: eos-client
 Requires: libmicrohttpd
@@ -82,7 +82,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files -n eos-server
 %defattr(-,root,root)
-/usr/lib64/libXrdMqOfs.so.0.3.19
+/usr/lib64/libXrdMqOfs.so.0.3.20
 /usr/lib64/libXrdMqOfs.so.0
 /usr/lib64/libXrdMqOfs.so
 /usr/bin/xrdmqdumper
@@ -90,16 +90,16 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eoshapl
 /usr/sbin/eosfilesync
 /usr/sbin/eosdirsync
-/usr/lib64/libeosCommonServer.so.0.3.19
+/usr/lib64/libeosCommonServer.so.0.3.20
 /usr/lib64/libeosCommonServer.so.0
 /usr/lib64/libeosCommonServer.so
-/usr/lib64/libXrdEosAuth.so.0.3.19
+/usr/lib64/libXrdEosAuth.so.0.3.20
 /usr/lib64/libXrdEosAuth.so.0
 /usr/lib64/libXrdEosAuth.so
-/usr/lib64/libXrdEosFst.so.0.3.19
+/usr/lib64/libXrdEosFst.so.0.3.20
 /usr/lib64/libXrdEosFst.so.0
 /usr/lib64/libXrdEosFst.so
-/usr/lib64/libEosFstOss.so.0.3.19
+/usr/lib64/libEosFstOss.so.0.3.20
 /usr/lib64/libEosFstOss.so.0
 /usr/lib64/libEosFstOss.so
 /usr/sbin/eosfstregister
@@ -112,7 +112,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eos-adler32
 /usr/sbin/eos-mmap
 /usr/sbin/eos-repair-tool
-/usr/lib64/libXrdEosMgm.so.0.3.19
+/usr/lib64/libXrdEosMgm.so.0.3.20
 /usr/lib64/libXrdEosMgm.so.0
 /usr/lib64/libXrdEosMgm.so
 /usr/sbin/eos-log-compact
@@ -169,10 +169,10 @@ The EOS shell client.
 /usr/bin/eos
 /usr/bin/eosdropboxd
 /usr/bin/eoscp
-/usr/lib64/libXrdMqClient.so.0.3.19
+/usr/lib64/libXrdMqClient.so.0.3.20
 /usr/lib64/libXrdMqClient.so.0
 /usr/lib64/libXrdMqClient.so
-/usr/lib64/libeosCommon.so.0.3.19
+/usr/lib64/libeosCommon.so.0.3.20
 /usr/lib64/libeosCommon.so.0
 /usr/lib64/libeosCommon.so
 
