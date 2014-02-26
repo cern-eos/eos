@@ -3610,6 +3610,9 @@ XrdMgmOfs::access (const char *inpath,
 
   AUTHORIZE(client, &access_Env, AOP_Stat, "access", inpath, error);
 
+  // use a thread private vid
+  eos::common::Mapping::VirtualIdentity vid;
+
   eos::common::Mapping::IdMap(client, info, tident, vid);
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
 
