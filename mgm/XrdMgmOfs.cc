@@ -8839,6 +8839,14 @@ XrdMgmOfs::CreateSharePath(const char* inpath,
     return std::string("");
   }
 
+  struct stat buf;
+  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::Mapping::Root(rootvid);
+  if (_stat(path, &buf, error, rootvid)) 
+  {
+    return std::string("");
+  }
+
   std::string signit = path;
   signit += "?";
 
@@ -8846,6 +8854,11 @@ XrdMgmOfs::CreateSharePath(const char* inpath,
   snprintf(sexpires,sizeof(sexpires)-1,"%u", (unsigned int) expires);
   signit += "eos.share.expires=";
   signit += sexpires;
+  signit += "&eos.share.fxid=";
+  XrdOucString hexstring = "";
+  eos::common::FileId::Fid2Hex(buf.st_ino, hexstring);
+  signit += hexstring.c_str();
+
   signit += "&eos.share.signature=";
 
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
@@ -8855,7 +8868,7 @@ XrdMgmOfs::CreateSharePath(const char* inpath,
     return std::string("");
   }
  
-  XrdOucString ouc_sign = sexpires; ouc_sign += path; ouc_sign += sexpires; ouc_sign += gOFS->MgmOfsInstanceName;
+  XrdOucString ouc_sign = sexpires; ouc_sign += path; ouc_sign += sexpires; ouc_sign += gOFS->MgmOfsInstanceName; ouc_sign += hexstring;
   XrdOucString ouc_signed;
 
   if (!XrdMqMessage::SymmetricStringEncrypt(ouc_sign,
@@ -8894,6 +8907,30 @@ XrdMgmOfs::VerifySharePath(const char* path,
   if (!expires.length() || expires == "0") 
     return false;
 
+  // check if this has fid
+  XrdOucString fxid = opaque->Get("eos.share.fxid");
+  if (!fxid.length() ) 
+    return false;
+
+  // get the fid
+  struct stat buf;
+  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::Mapping::Root(rootvid);
+  XrdOucErrInfo error;
+  if (_stat(path, &buf, error, rootvid)) 
+  {
+    return false;
+  }
+
+  XrdOucString hexstring = "";
+  eos::common::FileId::Fid2Hex(buf.st_ino, hexstring);
+
+  if (fxid != hexstring)  
+  {
+    eos_warning("msg=\"shared file has changed file id - share URL not valid anymore\"");
+    return false;
+  }
+
   // check that it is not yet expired
   time_t expired = strtoul(expires.c_str(),0,10);
   time_t now = time(NULL);
@@ -8913,7 +8950,7 @@ XrdMgmOfs::VerifySharePath(const char* path,
 
    
   // verify the signature
-  XrdOucString ouc_sign = expires; ouc_sign += path; ouc_sign += expires; ouc_sign += gOFS->MgmOfsInstanceName;
+  XrdOucString ouc_sign = expires; ouc_sign += path; ouc_sign += expires; ouc_sign += gOFS->MgmOfsInstanceName; ouc_sign += hexstring;
   XrdOucString ouc_signed;
 
   if (!XrdMqMessage::SymmetricStringEncrypt(ouc_sign,
