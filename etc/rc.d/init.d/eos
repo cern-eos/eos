@@ -451,7 +451,7 @@ if [ "$1" != "status" ]; then
     /etc/init.d/eosd status 2>&1 | grep running >& /dev/null
     eosdstatus=$?
     if [ $eoshastatus = "0" ]; then
-        if [ "$1" != "restart" ] && [ "$1" != "condrestart" ]; then 
+        if [ "$1" != "restart" ] && [ "$1" != "condrestart" ] && [ "$1" != "master" ] && [ "$1" != "slave" ] ; then 
 
             echo "Stop eosha to do that (service eosha stop) - you can do only restart while eosha is active"
             exit -1;
