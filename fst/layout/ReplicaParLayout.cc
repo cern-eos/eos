@@ -185,7 +185,7 @@ ReplicaParLayout::Open (const std::string& path,
 
      replica_url += remoteOpenOpaque.c_str();
      mReplicaUrl.push_back(replica_url);
-     eos_info("added replica_url = %s, index = %i", replica_url.c_str(), i);
+     eos_debug("added replica_url = %s, index = %i", replica_url.c_str(), i);
    }
  }
 
