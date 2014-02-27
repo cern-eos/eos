@@ -97,6 +97,30 @@ Recycle::Recycler ()
   bool show_attribute_missing = true;
 
   eos_static_info("msg=\"async recycling thread started\"");
+
+  // ---------------------------------------------------------------------------
+  // wait that the namespace is initialized
+  // ---------------------------------------------------------------------------
+  bool go = false;
+  do
+    {
+      XrdSysThread::SetCancelOff();
+      {
+	XrdSysMutexHelper(gOFS->InitializationMutex);
+	if (gOFS->Initialized == gOFS->kBooted)
+	  {
+	    go = true;
+	  }
+      }
+      XrdSysThread::SetCancelOn();
+      XrdSysTimer sleeper;
+      sleeper.Wait(1000);
+    }
+  while (!go);
+
+  XrdSysTimer sleeper;
+  sleeper.Snooze(10);
+
   while (1)
   {
     //...........................................................................
