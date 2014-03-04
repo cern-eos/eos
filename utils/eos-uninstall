@@ -31,7 +31,7 @@ echo "# [ to execute the cleaning of the MGM give '--do-uninstall' as option ] .
 
 ECHO="echo"
 if [ "$runtest" = "no" ]; then
-  echo=""
+  ECHOo=""
 fi
 
 for name in `rpm -qa | grep ^eos- | grep -v eos-cleanup` ; do 
