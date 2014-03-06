@@ -235,7 +235,7 @@ Storage::ScrubFs (const char* path, unsigned long long free, unsigned long long 
       }
       if (eberrors)
       {
-        eos_static_alert("%d block errors on filesystem %lu scrubfile %s", id, scrubfile[k].c_str());
+        eos_static_alert("%d block errors on filesystem %lu scrubfile %s", eberrors, id, scrubfile[k].c_str());
         fserrors++;
       }
       close(ff);
