@@ -1808,6 +1808,14 @@ main (int argc, char* argv[])
 
   pmounthostport = strstr (rdr, "root://");
 
+#ifndef __APPLE__
+  if (access("/bin/fusermount",X_OK)) 
+  {
+    fprintf (stderr,"error: /bin/fusermount is not executable for you!\n");
+    exit (-1);
+  }
+#endif
+
   if (!pmounthostport)
   {
     fprintf (stderr, "error: EOS_RDRURL or url option is not valid\n");
