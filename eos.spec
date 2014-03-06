@@ -259,7 +259,7 @@ Contains an example keytab file.
 Summary: The EOS test package
 Group: Applications/File
 
-Requires: eos-server cadaver
+Requires: eos-server cadaver bc
 
 %description -n eos-test
 Contains an instance test script and some test executables
