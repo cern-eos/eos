@@ -79,7 +79,7 @@ com_dropbox (char *arg)
 
     XrdOucString configdummy = configdirectory + "/dummy";
     eos::common::Path cPath(configdummy.c_str());
-    if (!cPath.MakeParentPath(S_IRUSR | S_IWUSR))
+    if (!cPath.MakeParentPath(S_IRUSR | S_IWUSR | S_IXUSR))
     {
       fprintf(stderr, "error: cannot create %s\n", configdirectory.c_str());
       global_retc = -EPERM;
