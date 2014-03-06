@@ -81,7 +81,7 @@ ProcCommand::Ls ()
     else
     {
       // if this is a directory open it and list
-      if (S_ISDIR(buf.st_mode))
+      if (S_ISDIR(buf.st_mode) && ((option.find("d")) == STR_NPOS) )
       {
         listrc = dir.open(spath.c_str(), *pVid, (const char*) 0);
       }
