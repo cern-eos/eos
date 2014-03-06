@@ -76,6 +76,14 @@ if [ -e /etc/eos.keytab ]; then
 	chmod 400 /etc/eos.keytab
 fi
 
+# make /var/eos/ readable but hide /var/eos/md/ /var/eos/cofnig/
+mkdir -p /var/eos/md/
+chmod 700 /var/eos/md/
+mkdir -p /var/eos/config/
+chmod 700 /var/eos/config/
+chmod 755 /var/eos/
+mkdir -p /var/eos/report/
+chmod 755 /var/eos/report/
 #
 EOS_CONFIGDIR=${EOS_CONFIGDIR-`cat /etc/xrd.cf.mgm | grep -v "^#" | grep mgmofs.configdir | awk '{print \$2}' 2>/dev/null`/`hostname -f`};
 
