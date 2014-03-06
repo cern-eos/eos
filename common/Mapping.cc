@@ -646,8 +646,14 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   {
     if (!IsUid(ruid, sel_uid))
     {
+      int errc=0;
       // try alias conversion
+      std::string luid=ruid.c_str();
       sel_uid = (gVirtualUidMap.count(ruid.c_str())) ? gVirtualUidMap[ruid.c_str() ] : 99;
+      if (sel_uid == 99)
+        sel_uid = UserNameToUid(luid, errc);
+      if (errc)
+	sel_uid=99;
     }
   }
 
@@ -655,8 +661,14 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   {
     if (!IsGid(rgid, sel_gid))
     {
+      int errc=0;
       // try alias conversion
+      std::string lgid=rgid.c_str();
       sel_gid = (gVirtualGidMap.count(rgid.c_str())) ? gVirtualGidMap[rgid.c_str()] : 99;
+      if (sel_gid == 99)
+	sel_gid = GroupNameToGid(lgid, errc);
+      if (errc)
+	sel_gid=99;
     }
   }
 
