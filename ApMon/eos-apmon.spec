@@ -5,8 +5,8 @@
 
 Summary: eos-apmon package
 Name: eos-apmon
-Version: 1.1.2
-Release: 2
+Version: 1.1.3
+Release: 1
 URL: none
 Source0: %{name}-%{version}.tar.gz
 License: OpenSource
