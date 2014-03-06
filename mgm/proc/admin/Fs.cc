@@ -297,7 +297,13 @@ ProcCommand::Fs ()
      std::string fsids = (pOpaque->Get("mgm.fs.id")) ? pOpaque->Get("mgm.fs.id") : "";
      std::string node = (pOpaque->Get("mgm.fs.node")) ? pOpaque->Get("mgm.fs.node") : "";
      std::string mount = (pOpaque->Get("mgm.fs.mountpoint")) ? pOpaque->Get("mgm.fs.mountpoint") : "";
+     std::string option = (pOpaque->Get("mgm.fs.option")) ? pOpaque->Get("mgm.fs.option") : "";
      eos::common::FileSystem::fsid_t fsid = atoi(fsids.c_str());
+
+     XrdOucString filelisting="";
+     bool listfile=false;
+     if (option.find("l")!=std::string::npos) 
+       listfile=true;
 
      if (!fsid)
      {
@@ -412,12 +418,24 @@ ProcCommand::Fs ()
                      if (nloc_ok == 0)
                      {
                        nfids_inaccessible++;
+		       if (listfile) 
+                       {
+			 filelisting += "status=offline path=";
+			 filelisting += gOFS->eosView->getUri(fmd).c_str();
+			 filelisting += "\n";
+		       }
                      }
                      else
                      {
                        if (nloc_ok < nloc)
                        {
                          nfids_risky++;
+			 if (listfile)
+			 {
+			   filelisting += "status=atrisk  path=";
+			   filelisting += gOFS->eosView->getUri(fmd).c_str();
+			   filelisting += "\n";
+			 }
                        }
                      }
                    }
@@ -427,6 +445,12 @@ ProcCommand::Fs ()
                    if (nloc_ok != nloc)
                    {
                      nfids_inaccessible++;
+		     if (listfile) 
+		     {
+		       filelisting += "status=offline path=";
+		       filelisting += gOFS->eosView->getUri(fmd).c_str();
+		       filelisting += "\n";
+		     }
                    }
                  }
                }
@@ -445,6 +469,8 @@ ProcCommand::Fs ()
              snprintf(line, sizeof (line) - 1, "%-32s := %10s\n", "files pending deletion", eos::common::StringConversion::GetSizeString(sizestring, nfids_todelete));
              stdOut += line;
              stdOut += "# ------------------------------------------------------------------------------------\n";
+	     if (listfile)
+	       stdOut += filelisting;
            }
            catch (eos::MDException &e)
            {

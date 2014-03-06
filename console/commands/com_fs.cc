@@ -399,10 +399,17 @@ com_fs (char* arg1)
 
   if (subcommand == "status")
   {
+    XrdOucString option="";
     XrdOucString arg = subtokenizer.GetToken();
     XrdOucString in = "mgm.cmd=fs&mgm.subcmd=status";
     if (!arg.length())
       goto com_fs_usage;
+    while ( arg.beginswith("-")) {
+      arg.erase(0,1);
+      option+= arg;
+      arg = subtokenizer.GetToken();
+    }
+
     int fsid = atoi(arg.c_str());
     char r1fsid[128];
     sprintf(r1fsid, "%d", fsid);
@@ -445,6 +452,12 @@ com_fs (char* arg1)
       {
         goto com_fs_usage;
       }
+    }
+
+    if (option.length()) 
+    {
+      in += "&mgm.fs.option=";
+      in += option;
     }
 
     global_retc = output_result(client_admin_command(in));
@@ -919,13 +932,14 @@ com_fs_usage:
 
 
   fprintf(stdout, "\n");
-  fprintf(stdout, "fs status <fs-id> :\n");
+  fprintf(stdout, "fs status [-l] <fs-id> :\n");
   fprintf(stdout, "                                                  returns all status variables of a filesystem and calculates the risk of data loss if this filesystem get's removed\n");
-  fprintf(stdout, "fs status <mount-point> :\n");
+  fprintf(stdout, "fs status [-l] mount-point> :\n");
   fprintf(stdout, "                                                  as before but accepts the mount point as input parameters and set's host=<this host>\n");
 
-  fprintf(stdout, "fs status <host> <mount-point> :\n");
+  fprintf(stdout, "fs status [-l] <host> <mount-point> :\n");
   fprintf(stdout, "                                                  as before but accepts the mount point and hostname as input parameters\n");
+  fprintf(stdout, "                                                                  -l    : list all files at risk and files which are offline\n");
   fprintf(stdout, "Examples:\n");
   fprintf(stdout, "  fs ls --io             List all filesystems with IO statistics\n\n");
   fprintf(stdout, "  fs boot *              Send boot request to all filesystems\n\n");
