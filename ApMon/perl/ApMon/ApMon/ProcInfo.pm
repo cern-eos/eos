@@ -284,7 +284,13 @@ sub readUptimeAndLoadAvg {
 
 sub readEosDiskValues {
     my $this = shift;
-    if (open IN, "df -P -B 1 | grep data | grep -v Filesystem | awk '{a+=\$2;b+=\$3;c+=\$4;print a,b,c}' | tail -1|") {
+    my $storagepath=$ENV{"APMON_STORAGEPATH"};
+
+    if ( $storagepath eq "" ) {
+	$storagepath = "data";
+    }
+
+    if (open IN, "df -P -B 1 | grep $storagepath | grep -v Filesystem | awk '{a+=\$2;b+=\$3;c+=\$4;print a,b,c}' | tail -1|") {
 	my $all = <IN>;
 	if ($all) {
 	    my @vals = split (" ",$all);
