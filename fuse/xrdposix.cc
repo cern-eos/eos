@@ -51,8 +51,8 @@
 #include <string.h>
 #include <pthread.h>
 /*----------------------------------------------------------------------------*/
-#include "XrdCache/XrdFileCache.hh"
-#include "XrdCache/FileAbstraction.hh"
+#include "FuseCache/FuseWriteCache.hh"
+#include "FuseCache/FileAbstraction.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -80,7 +80,7 @@
 #define OSPAGESIZE 65536
 #endif
 
-static XrdFileCache* XFC;
+static FuseWriteCache* XFC;
 
 static XrdOucHash<XrdOucString>* passwdstore;
 static XrdOucHash<XrdOucString>* stringstore;
@@ -407,9 +407,7 @@ void
 xrd_dirview_create (unsigned long long inode)
 {
   eos_static_debug("inode=%llu", inode);
-  //............................................................................
   //Obs: path should be attached beforehand into path translation
-  //............................................................................
   eos::common::RWMutexWriteLock vLock(mutex_dir2inodelist);
   dir2inodelist[inode].clear();
   dir2dirbuf[inode].p = 0;
@@ -444,7 +442,6 @@ xrd_dirview_delete (unsigned long long inode)
 //------------------------------------------------------------------------------
 // Get entry's inode with index 'index' from directory
 //------------------------------------------------------------------------------
-
 unsigned long long
 xrd_dirview_entry (unsigned long long dirinode,
                    size_t index,
@@ -456,9 +453,7 @@ xrd_dirview_entry (unsigned long long dirinode,
 
   if ((dir2inodelist.count(dirinode)) &&
       (dir2inodelist[dirinode].size() > index))
-  {
     return dir2inodelist[dirinode][index];
-  }
 
   return 0;
 }
@@ -467,7 +462,6 @@ xrd_dirview_entry (unsigned long long dirinode,
 //------------------------------------------------------------------------------
 // Get dirbuf corresponding to inode
 //------------------------------------------------------------------------------
-
 struct dirbuf*
 xrd_dirview_getbuffer (unsigned long long inode, int get_lock)
 {
@@ -478,7 +472,6 @@ xrd_dirview_getbuffer (unsigned long long inode, int get_lock)
   else
     return 0;
 }
-
 
 
 //------------------------------------------------------------------------------
@@ -505,7 +498,6 @@ google::dense_hash_map<unsigned long long, FuseCacheEntry*> inode2cache;
 //------------------------------------------------------------------------------
 // Get a cached directory
 //------------------------------------------------------------------------------
-
 int
 xrd_dir_cache_get (unsigned long long inode,
                    struct timespec mtime,
@@ -522,9 +514,7 @@ xrd_dir_cache_get (unsigned long long inode,
     if ((oldtime.tv_sec == mtime.tv_sec) &&
         (oldtime.tv_nsec == mtime.tv_nsec))
     {
-      //........................................................................
       // Dir in cache and valid
-      //........................................................................
       *b = static_cast<struct dirbuf*> (calloc(1, sizeof ( dirbuf)));
       dir->GetDirbuf(*b);
       retc = 1; // found
@@ -534,10 +524,10 @@ xrd_dir_cache_get (unsigned long long inode,
   return retc;
 }
 
+
 //------------------------------------------------------------------------------
 // Forget a cached directory
 //------------------------------------------------------------------------------
-
 int
 xrd_dir_cache_forget (unsigned long long inode)
 {
@@ -554,7 +544,6 @@ xrd_dir_cache_forget (unsigned long long inode)
 //------------------------------------------------------------------------------
 // Add or update a cache directory entry
 //------------------------------------------------------------------------------
-
 void
 xrd_dir_cache_sync (unsigned long long inode,
                     int nentries,
@@ -570,14 +559,10 @@ xrd_dir_cache_sync (unsigned long long inode,
   }
   else
   {
-    //..........................................................................
     // Add new entry
-    //..........................................................................
     if (inode2cache.size() >= GetMaxCacheSize())
     {
-      //........................................................................
       // Size control of the cache
-      //........................................................................
       unsigned long long indx = 0;
       unsigned long long entries_del =
         static_cast<unsigned long long> (0.25 * GetMaxCacheSize());
@@ -604,7 +589,6 @@ xrd_dir_cache_sync (unsigned long long inode,
 //------------------------------------------------------------------------------
 // Get a subentry from a cached directory
 //------------------------------------------------------------------------------
-
 int
 xrd_dir_cache_get_entry (fuse_req_t req,
                          unsigned long long inode,
@@ -636,7 +620,6 @@ xrd_dir_cache_get_entry (fuse_req_t req,
 //------------------------------------------------------------------------------
 // Add new subentry to a cached directory
 //------------------------------------------------------------------------------
-
 void
 xrd_dir_cache_add_entry (unsigned long long inode,
                          unsigned long long entry_inode,
@@ -646,11 +629,7 @@ xrd_dir_cache_add_entry (unsigned long long inode,
   FuseCacheEntry* dir = 0;
 
   if ((inode2cache.count(inode)) && (dir = inode2cache[inode]))
-  {
     dir->AddEntry(entry_inode, e);
-  }
-
-  return;
 }
 
 
@@ -660,21 +639,20 @@ xrd_dir_cache_add_entry (unsigned long long inode,
 //------------------------------------------------------------------------------
 
 // Map used for associating file descriptors with XrdCl::File objects
-eos::common::RWMutex rwmutex_fd2fobj;
-google::dense_hash_map<int, eos::fst::Layout*> fd2fobj;
+eos::common::RWMutex rwmutex_fd2fabst;
+google::dense_hash_map<int, FileAbstraction*> fd2fabst;
 
 // Map <inode, user> to a file descriptor - used only in the xrd_stat method
 google::dense_hash_map<std::string, int> inodeuser2fd;
 
 // Pool of available file descriptors
-unsigned int base_fd = 1;
+int base_fd = 1;
 std::queue<int> pool_fd;
 
 
 //------------------------------------------------------------------------------
-// Create a simulated file descriptor
+// Create artificial file descriptor
 //------------------------------------------------------------------------------
-
 int
 xrd_generate_fd ()
 {
@@ -685,7 +663,7 @@ xrd_generate_fd ()
     retc = pool_fd.front();
     pool_fd.pop();
   }
-  else if (base_fd < UINT_MAX)
+  else if (base_fd < INT_MAX)
   {
     base_fd++;
     retc = base_fd;
@@ -709,57 +687,65 @@ void xrd_add_inodeuser_fd(unsigned long inode, uid_t uid, int fd)
   std::ostringstream sstr;
   sstr << inode << ":" << (unsigned long)uid;
 
-  // Use the same mutex as for fd2fobj!
-  eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fobj);
+  // Use the same mutex as for fd2fabst!
+  eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
   auto iter_fd = inodeuser2fd.find(sstr.str());
   
-  // If the mapping exitst, not much to do currently ... :(
+  // If there is already an entry for the current user and the current inode
+  // then we append the new fd along with its type 
   if (iter_fd != inodeuser2fd.end())
   {
-    eos_static_warning("the pathuser mapping exists, just overwrite ..."
+    eos_static_warning("inodeuid mapping exists, just overwrite"
                        " old_fd=%i, new_fd=%i", iter_fd->second, fd);
-    
-    inodeuser2fd[sstr.str()] = fd;      
   }
-  else 
-    inodeuser2fd[sstr.str()] = fd;      
+
+  inodeuser2fd[sstr.str()] = fd;      
 }
 
 
-
 //------------------------------------------------------------------------------
-// Add new mapping between fd and XrdCl::File object
+// Add new mapping between fd and raw file object
 //------------------------------------------------------------------------------
-
 int
-xrd_add_fd2file (eos::fst::Layout* obj, const char* path, uid_t uid)
+xrd_add_fd2file (eos::fst::Layout* raw_file)
 {
-  eos_static_debug("path=%s, uid=%lu", path, (unsigned long)uid);
-  int fd = -1;
-  eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fobj);
-  fd = xrd_generate_fd();
+  eos_static_debug("file raw ptr=%p", raw_file);
+  eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
+  int fd = xrd_generate_fd();
 
   if (fd > 0)
-    fd2fobj[fd] = obj;
+  {
+    FileAbstraction* fabst = new FileAbstraction(fd, raw_file);
+    fd2fabst[fd] = fabst;
+  }
   else
+  {
     eos_static_err("error=error while getting file descriptor");
+    delete raw_file;
+  }
  
   return fd;
 }
 
 
 //------------------------------------------------------------------------------
-// Get the file object corresponding to the fd
+// Get the file abstraction object corresponding to the fd
 //------------------------------------------------------------------------------
-eos::fst::Layout*
+FileAbstraction*
 xrd_get_file (int fd)
 {
-  eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fobj);
-  
-  if (fd2fobj.count(fd))
-    return fd2fobj[fd];
-  else
+  eos_static_debug("fd=%i", fd);
+  eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fabst);
+  auto iter = fd2fabst.find(fd);
+ 
+  if (iter == fd2fabst.end())
+  {
+    eos_static_err("no file abst for fd=%i", fd);
     return 0;
+  }
+
+  iter->second->IncNumRef();
+  return iter->second;
 }
 
 
@@ -771,32 +757,38 @@ xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid)
 {
   int retc = 0;
   eos_static_debug("fd=%i, inode=%lu", fd, inode);
-  eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fobj);
+  eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
+  auto iter = fd2fabst.find(fd);
 
-  if (fd2fobj.count(fd))
+  if (iter != fd2fabst.end())
   {
-    auto iter = fd2fobj.find(fd);
-    eos::fst::Layout* fobj = static_cast<eos::fst::Layout*> (iter->second);
-    retc = fobj->Close();
-    delete fobj;
-    fobj = 0;
-    fd2fobj.erase(iter);
+    FileAbstraction* fabst = iter->second;
 
-    // Remove entry also from the inodeuser2fd
-    std::ostringstream sstr;
-    sstr << inode << ":" << (unsigned long)uid;
-    auto iter1 = inodeuser2fd.find(sstr.str());
-
-    if (iter1 != inodeuser2fd.end())
-      inodeuser2fd.erase(iter1);
-
-    // Return fd to the pool
-    pool_fd.push(fd);
+    if (!fabst->IsInUse())
+    {
+      eos_static_debug("fd=%i is not in use, remove it", fd);
+      eos::fst::Layout* raw_file = fabst->GetRawFile();
+      retc = raw_file->Close();
+      delete fabst;
+      fabst = 0;
+      fd2fabst.erase(iter);
+      
+      // Remove entry also from the inodeuser2fd
+      std::ostringstream sstr;
+      sstr << inode << ":" << (unsigned long)uid;
+      auto iter1 = inodeuser2fd.find(sstr.str());
+      
+      if (iter1 != inodeuser2fd.end())
+        inodeuser2fd.erase(iter1);
+      
+      // Return fd to the pool
+      pool_fd.push(fd);
+    }
+    else
+      eos_static_debug("fd=%i is still in use, cannot remove", fd);
   }
   else 
-  {
-    eos_static_warning("fd=%i no long in map, maybe already close ...");
-  }
+    eos_static_warning("fd=%i no long in map, maybe already closed ...", fd);
   
   return retc;
 }
@@ -819,7 +811,6 @@ std::map<pthread_t, IoBuf> IoBufferMap;
 //------------------------------------------------------------------------------
 //! Class IoBuf 
 //------------------------------------------------------------------------------
-
 class IoBuf
 {
 private:
@@ -831,47 +822,44 @@ public:
   //..........................................................................
   //! Constructor
   //..........................................................................
-
   IoBuf ()
   {
     buffer = 0;
     size = 0;
   }
 
+
   //..........................................................................
   //! Destructor 
   //..........................................................................
-
   virtual
   ~IoBuf ()
   {
     if (buffer && size) free(buffer);
   }
 
+
   //..........................................................................
   //! Get buffer
   //..........................................................................
-
   char*
   GetBuffer ()
   {
     return (char*) buffer;
   }
 
+
   //..........................................................................
   //! Get size of buffer
   //..........................................................................
-
   size_t
   GetSize ()
   {
     return size;
   }
 
-  //..........................................................................
-  //! Resize buffer
-  //..........................................................................
 
+  //! Resize buffer
   void
   Resize (size_t newsize)
   {
@@ -885,11 +873,10 @@ public:
 
 
 //------------------------------------------------------------------------------
-// Guarantee a buffer for reading of at least 'size' for the specified fd
+// Guarantee a buffer for reading of at least 'size' for the specified thread
 //------------------------------------------------------------------------------
-
 char*
-xrd_attach_read_buffer (pthread_t tid, size_t size)
+xrd_attach_rd_buff (pthread_t tid, size_t size)
 {
   XrdSysMutexHelper lock(IoBufferLock);
   IoBufferMap[tid].Resize(size);
@@ -898,11 +885,10 @@ xrd_attach_read_buffer (pthread_t tid, size_t size)
 
 
 //------------------------------------------------------------------------------
-// Release read buffer corresponding to the file
+// Release read buffer corresponding to the thread
 //------------------------------------------------------------------------------
-
 void
-xrd_release_read_buffer (pthread_t tid)
+xrd_release_rd_buff (pthread_t tid)
 {
   XrdSysMutexHelper lock(IoBufferLock);
   IoBufferMap.erase(tid);
@@ -917,7 +903,6 @@ xrd_release_read_buffer (pthread_t tid)
 //------------------------------------------------------------------------------
 // Remove extended attribute
 //------------------------------------------------------------------------------
-
 int
 xrd_rmxattr (const char* path,
              const char* xattr_name,
@@ -928,7 +913,6 @@ xrd_rmxattr (const char* path,
   eos_static_info("path=%s xattr_name=%s uid=%u pid=%u", path, xattr_name, uid, pid);
   eos::common::Timing rmxattrtiming("rmxattr");
   COMMONTIMING("START", &rmxattrtiming);
-  int retc = 0;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
@@ -946,51 +930,37 @@ xrd_rmxattr (const char* path,
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
   COMMONTIMING("GETPLUGIN", &rmxattrtiming);
-
   errno = 0;
 
   if (status.IsOK())
   {
+    int retc = 0;
     int items = 0;
     char tag[1024];
-    //..........................................................................
     // Parse output
-    //..........................................................................
-    items = sscanf(response->GetBuffer(), "%sp retc=%i", tag, &retc);
+    items = sscanf(response->GetBuffer(), "%s retc=%i", tag, &retc);
 
     if ((items != 2) || (strcmp(tag, "rmxattr:")))
-    {
       errno = ENOENT;
-      retc = -1;
-    }
     else
-    {
       errno = retc;
-      if (errno) retc = -1;
-    }
   }
   else
-  {
     errno = EFAULT;
-    retc = errno;
-  }
 
   COMMONTIMING("END", &rmxattrtiming);
 
   if (EOS_LOGS_DEBUG)
-  {
     rmxattrtiming.Print();
-  }
 
   delete response;
-  return retc;
+  return errno;
 }
 
 
 //------------------------------------------------------------------------------
 // Set extended attribute
 //------------------------------------------------------------------------------
-
 int
 xrd_setxattr (const char* path,
               const char* xattr_name,
@@ -1000,10 +970,10 @@ xrd_setxattr (const char* path,
               gid_t gid,
               pid_t pid)
 {
-  eos_static_info("path=%s xattr_name=%s xattr_value=%s uid=%u pid=%u", path, xattr_name, xattr_value, uid, pid);
+  eos_static_info("path=%s xattr_name=%s xattr_value=%s uid=%u pid=%u", 
+                  path, xattr_name, xattr_value, uid, pid);
   eos::common::Timing setxattrtiming("setxattr");
   COMMONTIMING("START", &setxattrtiming);
-  int retc = 0;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
@@ -1028,32 +998,24 @@ xrd_setxattr (const char* path,
 
   if (status.IsOK())
   {
+    int retc = 0;
     int items = 0;
     char tag[1024];
-    //..........................................................................
     // Parse output
-    //..........................................................................
     items = sscanf(response->GetBuffer(), "%s retc=%i", tag, &retc);
 
     if ((items != 2) || (strcmp(tag, "setxattr:")))
-    {
       errno = ENOENT;
-    }
     else
-    {
       errno = retc;
-    }
   }
   else
-  {
     errno = EFAULT;
-  }
+
   COMMONTIMING("END", &setxattrtiming);
 
   if (EOS_LOGS_DEBUG)
-  {
     setxattrtiming.Print();
-  }
 
   delete response;
   return errno;
@@ -1063,7 +1025,6 @@ xrd_setxattr (const char* path,
 //------------------------------------------------------------------------------
 // Read an extended attribute
 //------------------------------------------------------------------------------
-
 int
 xrd_getxattr (const char* path,
               const char* xattr_name,
@@ -1077,7 +1038,6 @@ xrd_getxattr (const char* path,
   eos::common::Timing getxattrtiming("getxattr");
 
   COMMONTIMING("START", &getxattrtiming);
-  int retc = 0;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
@@ -1094,23 +1054,19 @@ xrd_getxattr (const char* path,
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
   COMMONTIMING("GETPLUGIN", &getxattrtiming);
-
   errno = 0;
 
   if (status.IsOK())
   {
+    int retc = 0;
     int items = 0;
     char tag[1024];
     char rval[4096];
-    //..........................................................................
     // Parse output
-    //..........................................................................
     items = sscanf(response->GetBuffer(), "%s retc=%i value=%s", tag, &retc, rval);
 
     if ((items != 3) || (strcmp(tag, "getxattr:")))
-    {
       errno = EFAULT;
-    }
     else
     {
       if (strcmp(xattr_name, "user.eos.XS") == 0)
@@ -1131,16 +1087,12 @@ xrd_getxattr (const char* path,
     }
   }
   else
-  {
     errno = EFAULT;
-  }
 
   COMMONTIMING("END", &getxattrtiming);
 
   if (EOS_LOGS_DEBUG)
-  {
     getxattrtiming.Print();
-  }
 
   delete response;
   return errno;
@@ -1150,7 +1102,6 @@ xrd_getxattr (const char* path,
 //------------------------------------------------------------------------------
 // List extended attributes
 //------------------------------------------------------------------------------
-
 int
 xrd_listxattr (const char* path,
                char** xattr_list,
@@ -1161,10 +1112,7 @@ xrd_listxattr (const char* path,
 {
   eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
   eos::common::Timing listxattrtiming("listxattr");
-
   COMMONTIMING("START", &listxattrtiming);
-
-  int retc = 0;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
@@ -1179,22 +1127,19 @@ xrd_listxattr (const char* path,
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
   COMMONTIMING("GETPLUGIN", &listxattrtiming);
-
   errno = 0;
+  
   if (status.IsOK())
   {
+    int retc = 0;
     int items = 0;
     char tag[1024];
     char rval[16384];
-    //..........................................................................
     // Parse output
-    //..........................................................................
     items = sscanf(response->GetBuffer(), "%s retc=%i %s", tag, &retc, rval);
 
     if ((items != 3) || (strcmp(tag, "lsxattr:")))
-    {
       errno = ENOENT;
-    }
     else
     {
       *size = strlen(rval);
@@ -1212,16 +1157,12 @@ xrd_listxattr (const char* path,
     }
   }
   else
-  {
     errno = EFAULT;
-  }
-
+  
   COMMONTIMING("END", &listxattrtiming);
 
   if (EOS_LOGS_DEBUG)
-  {
     listxattrtiming.Print();
-  }
 
   delete response;
   return errno;
@@ -1232,7 +1173,6 @@ xrd_listxattr (const char* path,
 // Return file attributes. If a field is meaningless or semi-meaningless
 // (e.g., st_ino) then it should be set to 0 or given a "reasonable" value.
 //------------------------------------------------------------------------------
-
 int
 xrd_stat (const char* path,
           struct stat* buf,
@@ -1241,7 +1181,8 @@ xrd_stat (const char* path,
           unsigned long inode
           )
 {
-  eos_static_info("path=%s, uid=%i, gid=%i", path, (int)uid, (int)gid);
+  eos_static_info("path=%s, uid=%i, gid=%i inode=%lu",
+                  path, (int)uid, (int)gid, inode);
   eos::common::Timing stattiming("xrd_stat");
   off_t file_size = -1;
   errno = 0;
@@ -1250,11 +1191,12 @@ xrd_stat (const char* path,
   if (inode)
   {
     // Try to stat via an open file - first find the file descriptor using the 
-    // inodeuser2fd map and then find the file object using the fd2fobj map. 
+    // inodeuser2fd map and then find the file object using the fd2fabst map. 
     // Meanwhile keep the mutex locked for read so that no other thread can 
     // delete the file object
-    eos_static_debug("path=%s, uid=%lu", path, (unsigned long) uid);
-    eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fobj);
+    eos_static_debug("path=%s, uid=%lu, inode=%lu",
+                     path, (unsigned long) uid, inode);
+    eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fabst);
     std::ostringstream sstr;
     sstr << inode << ":" << (unsigned long)uid;
     google::dense_hash_map<std::string, int>::iterator
@@ -1262,31 +1204,27 @@ xrd_stat (const char* path,
     
     if (iter_fd != inodeuser2fd.end())
     {
-      google::dense_hash_map<int, eos::fst::Layout*>::iterator
-        iter_file = fd2fobj.find(iter_fd->second);
+      google::dense_hash_map<int, FileAbstraction*>::iterator
+        iter_file = fd2fabst.find(iter_fd->second);
       
-      if (iter_file != fd2fobj.end())
+      if (iter_file != fd2fabst.end())
       {
         struct stat tmp;
-        eos::fst::Layout* file = iter_file->second;
+        eos::fst::Layout* file = iter_file->second->GetRawFile();
         
         if (!file->Stat(&tmp))
         {
           file_size = tmp.st_size;
-          eos_static_info("size-fd=%lld", file_size);
+          eos_static_info("fd=%i, size-fd=%lld", iter_fd->second, file_size);
         }
         else
           eos_static_err("fd=%i stat failed on open file", iter_fd->second);
       }
       else 
-      {
         eos_static_err("fd=%i not found in file obj map", iter_fd->second);
-      }
     }
     else
-    {
       eos_static_info("path=%s not open", path);
-    }
   }
 
   // Do stat using the Fils System object
@@ -1310,9 +1248,7 @@ xrd_stat (const char* path,
     unsigned long long sval[10];
     unsigned long long ival[6];
     char tag[1024];
-    //..........................................................................
     // Parse output
-    //..........................................................................
     int items = sscanf(response->GetBuffer(),
                        "%s %llu %llu %llu %llu %llu %llu %llu %llu "
                        "%llu %llu %llu %llu %llu %llu %llu %llu",
@@ -1394,7 +1330,7 @@ xrd_stat (const char* path,
   if (EOS_LOGS_DEBUG)
     stattiming.Print();
    
-  eos_static_info("path=%s st-size=%llu", path, buf->st_size);
+  eos_static_info("path=%s st-size=%llu errno=%i", path, buf->st_size, errno);
   delete response;
   return errno;
 }
@@ -1403,7 +1339,6 @@ xrd_stat (const char* path,
 //------------------------------------------------------------------------------
 // Return statistics about the filesystem
 //------------------------------------------------------------------------------
-
 int
 xrd_statfs (const char* path, struct statvfs* stbuf)
 {
@@ -1415,8 +1350,8 @@ xrd_statfs (const char* path, struct statvfs* stbuf)
   static XrdSysMutex statmutex;
   static time_t laststat = 0;
   statmutex.Lock();
-
   errno = 0;
+  
   if ((time(NULL) - laststat) < ((15 + (int) 5.0 * rand() / RAND_MAX)))
   {
     stbuf->f_bsize = 4096;
@@ -1429,13 +1364,12 @@ xrd_statfs (const char* path, struct statvfs* stbuf)
     stbuf->f_fsid = 0xcafe;
     stbuf->f_namemax = 256;
     statmutex.UnLock();
-    return 0;
+    return errno;
   }
 
   eos::common::Timing statfstiming("xrd_statfs");
   COMMONTIMING("START", &statfstiming);
 
-  int retc;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
@@ -1445,36 +1379,26 @@ xrd_statfs (const char* path, struct statvfs* stbuf)
   request += "path=";
   request += path;
   arg.FromString(request);
-
   XrdCl::URL Url(xrd_user_url(2, 2, 0));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
-
-  COMMONTIMING("END", &statfstiming);
-
   errno = 0;
-
-  if (EOS_LOGS_DEBUG)
-  {
-    statfstiming.Print();
-  }
 
   if (status.IsOK())
   {
+    int retc;
     char tag[1024];
 
     if (!response->GetBuffer())
     {
       statmutex.UnLock();
-      delete response;\
+      delete response;
       errno = EFAULT;
       return errno;
     }
 
-    //..........................................................................
     // Parse output
-    //..........................................................................
     int items = sscanf(response->GetBuffer(),
                        "%s retc=%d f_avail_bytes=%llu f_avail_files=%llu "
                        "f_max_bytes=%llu f_max_files=%llu",
@@ -1488,7 +1412,7 @@ xrd_statfs (const char* path, struct statvfs* stbuf)
       return errno;
     }
 
-    retc = -retc;
+    errno = retc;
     laststat = time(NULL);
     statmutex.UnLock();
     stbuf->f_bsize = 4096;
@@ -1505,6 +1429,11 @@ xrd_statfs (const char* path, struct statvfs* stbuf)
     errno = EFAULT;
   }
 
+  COMMONTIMING("END", &statfstiming);
+
+  if (EOS_LOGS_DEBUG)
+    statfstiming.Print();
+
   delete response;
   return errno;
 }
@@ -1513,7 +1442,6 @@ xrd_statfs (const char* path, struct statvfs* stbuf)
 //------------------------------------------------------------------------------
 // Change permissions for the file
 //------------------------------------------------------------------------------
-
 int
 xrd_chmod (const char* path,
            mode_t mode,
@@ -1545,9 +1473,7 @@ xrd_chmod (const char* path,
   errno = 0;
 
   if (EOS_LOGS_DEBUG)
-  {
     chmodtiming.Print();
-  }
 
   if (status.IsOK())
   {
@@ -1560,24 +1486,16 @@ xrd_chmod (const char* path,
       return errno;
     }
 
-    //..........................................................................
     // Parse output
-    //..........................................................................
     int items = sscanf(response->GetBuffer(), "%s retc=%d", tag, &retc);
 
     if ((items != 2) || (strcmp(tag, "chmod:")))
-    {
       errno = EFAULT;
-    }
     else
-    {
       errno = retc;
-    }
   }
   else
-  {
     errno = EFAULT;
-  }
 
   delete response;
   return errno;
@@ -1586,7 +1504,6 @@ xrd_chmod (const char* path,
 //------------------------------------------------------------------------------
 // Update the last access time and last modification time
 //------------------------------------------------------------------------------
-
 int
 xrd_utimes (const char* path,
             struct timespec* tvp,
@@ -1598,7 +1515,6 @@ xrd_utimes (const char* path,
   eos::common::Timing utimestiming("xrd_utimes");
 
   COMMONTIMING("START", &utimestiming);
-  int retc = 0;
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
@@ -1624,35 +1540,25 @@ xrd_utimes (const char* path,
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
   COMMONTIMING("END", &utimestiming);
-
   errno = 0;
 
   if (EOS_LOGS_DEBUG)
-  {
     utimestiming.Print();
-  }
 
   if (status.IsOK())
   {
+    int retc = 0;
     char tag[1024];
-    //..........................................................................
     // Parse output
-    //..........................................................................
     int items = sscanf(response->GetBuffer(), "%s retc=%d", tag, &retc);
 
     if ((items != 2) || (strcmp(tag, "utimes:")))
-    {
       errno = EFAULT;
-    }
     else
-    {
       errno = retc;
-    }
   }
   else
-  {
     errno = EFAULT;
-  }
 
   delete response;
   return errno;
@@ -1664,7 +1570,6 @@ xrd_utimes (const char* path,
 // permission isn't available, or 0 for success. Note that it can be called
 // on files, directories, or any other object that appears in the filesystem.
 //------------------------------------------------------------------------------
-
 int
 xrd_access (const char* path,
             int mode,
@@ -1683,57 +1588,39 @@ xrd_access (const char* path,
   XrdCl::Buffer* response = 0;
   char smode[16];
   snprintf(smode, sizeof (smode) - 1, "%d", mode);
-
   request = path;
   request += "?";
   request += "mgm.pcmd=access&mode=";
   request += smode;
-
   arg.FromString(request);
-
   XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
-
 
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
 
-
   COMMONTIMING("STOP", &accesstiming);
-
   errno = 0;
 
   if (EOS_LOGS_DEBUG)
-  {
     accesstiming.Print();
-  }
 
   if (status.IsOK())
   {
     char tag[1024];
-    //..........................................................................
     // Parse output
-    //..........................................................................
     int items = sscanf(response->GetBuffer(), "%s retc=%d", tag, &retc);
 
     if (EOS_LOGS_DEBUG)
-    {
       fprintf(stderr, "access-retc=%d\n", retc);
-    }
 
     if ((items != 2) || (strcmp(tag, "access:")))
-    {
       errno = EFAULT;
-    }
     else
-    {
       errno = retc;
-    }
   }
   else
-  {
     errno = EFAULT;
-  }
 
   delete response;
   return errno;
@@ -1743,7 +1630,6 @@ xrd_access (const char* path,
 //------------------------------------------------------------------------------
 // Get list of entries in directory
 //------------------------------------------------------------------------------
-
 int
 xrd_inodirlist (unsigned long long dirinode,
                 const char* path,
@@ -1760,15 +1646,11 @@ xrd_inodirlist (unsigned long long dirinode,
   char* value = 0;
   int doinodirlist = -1;
   std::string request = path;
-
   COMMONTIMING("GETSTSTREAM", &inodirtiming);
-
-
   request.insert(0, xrd_user_url(uid, gid, pid));
   XrdCl::File* file = new XrdCl::File();
   XrdCl::XRootDStatus status = file->Open(request.c_str(),
                                           XrdCl::OpenFlags::Flags::Read);
-
   errno = 0;
 
   if (!status.IsOK())
@@ -1779,14 +1661,11 @@ xrd_inodirlist (unsigned long long dirinode,
     return errno;
   }
 
-  //............................................................................
   // Start to read
-  //............................................................................
   int npages = 1;
   off_t offset = 0;
   unsigned int nbytes = 0;
   value = (char*) malloc(PAGESIZE + 1);
-
   COMMONTIMING("READSTSTREAM", &inodirtiming);
 
   status = file->Read(offset, PAGESIZE, value + offset, nbytes);
@@ -1804,9 +1683,7 @@ xrd_inodirlist (unsigned long long dirinode,
   value[offset] = 0;
   delete file;
   xrd_dirview_create((unsigned long long) dirinode);
-
   COMMONTIMING("PARSESTSTREAM", &inodirtiming);
-
   xrd_lock_w_dirview(); // =>
 
   if (status.IsOK())
@@ -1814,9 +1691,7 @@ xrd_inodirlist (unsigned long long dirinode,
     char dirpath[4096];
     unsigned long long inode;
     char tag[128];
-    //..........................................................................
     // Parse output
-    //..........................................................................
     int items = sscanf(value, "%s retc=%d", tag, &retc);
 
     if (retc)
@@ -1840,7 +1715,6 @@ xrd_inodirlist (unsigned long long dirinode,
 
     ptr = strchr(value, ' ');
     if (ptr) ptr = strchr(ptr + 1, ' ');
-
     char* endptr = value + strlen(value) - 1;
 
     while ((ptr) && (ptr < endptr))
@@ -1875,9 +1749,7 @@ xrd_inodirlist (unsigned long long dirinode,
   COMMONTIMING("END", &inodirtiming);
 
   if (EOS_LOGS_DEBUG)
-  {
     //inodirtiming.Print();
-  }
 
   free(value);
   return doinodirlist;
@@ -1885,9 +1757,8 @@ xrd_inodirlist (unsigned long long dirinode,
 
 
 //------------------------------------------------------------------------------
-//
+// Get directory entries
 //------------------------------------------------------------------------------
-
 struct dirent*
 xrd_readdir (const char* path_dir, size_t *size,
              uid_t uid,
@@ -1895,7 +1766,6 @@ xrd_readdir (const char* path_dir, size_t *size,
              pid_t pid)
 {
   eos_static_info("path=%s", path_dir);
-
   struct dirent* dirs = NULL;
   XrdCl::DirectoryList* response = 0;
   XrdCl::DirListFlags::Flags flags = XrdCl::DirListFlags::None;
@@ -1908,9 +1778,9 @@ xrd_readdir (const char* path_dir, size_t *size,
   if (status.IsOK())
   {
     *size = response->GetSize();
-
     dirs = static_cast<struct dirent*> (calloc(*size, sizeof ( struct dirent)));
     int i = 0;
+
     for (XrdCl::DirectoryList::ConstIterator iter = response->Begin();
       iter != response->End();
       ++iter)
@@ -1946,7 +1816,6 @@ xrd_readdir (const char* path_dir, size_t *size,
 //------------------------------------------------------------------------------
 // Create a directory with the given name
 //------------------------------------------------------------------------------
-
 int
 xrd_mkdir (const char* path,
            mode_t mode,
@@ -1974,7 +1843,6 @@ xrd_mkdir (const char* path,
 
   XrdCl::URL Url(xrd_user_url(uid, gid, 0));
   XrdCl::FileSystem fs(Url);
-
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
   COMMONTIMING("GETPLUGIN", &mkdirtiming);
@@ -2073,12 +1941,8 @@ xrd_mkdir (const char* path,
 //------------------------------------------------------------------------------
 // Remove the given directory
 //------------------------------------------------------------------------------
-
 int
-xrd_rmdir (const char* path,
-           uid_t uid,
-           gid_t gid,
-           pid_t pid)
+xrd_rmdir (const char* path, uid_t uid, gid_t gid, pid_t pid)
 {
   eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
   XrdCl::URL Url(xrd_user_url(uid, gid, pid));
@@ -2095,110 +1959,69 @@ xrd_rmdir (const char* path,
 //------------------------------------------------------------------------------
 // Map open return codes to errno's
 //------------------------------------------------------------------------------
-
 int
 xrd_error_retc_map (int retc)
 {
   if (retc) errno = retc;
   if (retc == kXR_ArgInvalid)
-  {
     errno = EINVAL;
-  }
 
   if (retc == kXR_ArgMissing)
-  {
     errno = EINVAL;
-  }
 
   if (retc == kXR_ArgTooLong)
-  {
     errno = E2BIG;
-  }
 
   if (retc == kXR_FileNotOpen)
-  {
     errno = EBADF;
-  }
 
   if (retc == kXR_FSError)
-  {
     errno = EIO;
-  }
 
   if (retc == kXR_InvalidRequest)
-  {
     errno = EINVAL;
-  }
 
   if (retc == kXR_IOError)
-  {
     errno = EIO;
-  }
 
   if (retc == kXR_NoMemory)
-  {
     errno = ENOMEM;
-  }
 
   if (retc == kXR_NoSpace)
-  {
     errno = ENOSPC;
-  }
 
   if (retc == kXR_ServerError)
-  {
     errno = EIO;
-  }
 
   if (retc == kXR_NotAuthorized)
-  {
     errno = EPERM;
-  }
 
   if (retc == kXR_NotFound)
-  {
     errno = ENOENT;
-  }
 
   if (retc == kXR_Unsupported)
-  {
     errno = ENOTSUP;
-  }
 
   if (retc == kXR_NotFile)
-  {
     errno = EISDIR;
-  }
 
   if (retc == kXR_isDirectory)
-  {
     errno = EISDIR;
-  }
 
   if (retc == kXR_Cancelled)
-  {
     errno = ECANCELED;
-  }
 
   if (retc == kXR_ChkLenErr)
-  {
     errno = ERANGE;
-  }
 
   if (retc == kXR_ChkSumErr)
-  {
     errno = ERANGE;
-  }
 
   if (retc == kXR_inProgress)
-  {
     errno = EAGAIN;
-  }
 
   if (retc)
-  {
     return -1;
-  }
 
   return 0;
 }
@@ -2206,7 +2029,6 @@ xrd_error_retc_map (int retc)
 //------------------------------------------------------------------------------
 // Open a file
 //------------------------------------------------------------------------------
-
 int
 xrd_open (const char* path,
           int oflags,
@@ -2233,9 +2055,7 @@ xrd_open (const char* path,
     int t2 = spath.find("//", t1 + 2);
     spath.erase(t2 + 2, t0 - t2 - 2);
 
-    while (spath.replace("///", "//"))
-    {
-    };
+    while (spath.replace("///", "//")) { };
 
     // Force a reauthentication to the head node
     if (spath.endswith("/proc/reconnect"))
@@ -2266,7 +2086,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file, path, uid);
+        retc = xrd_add_fd2file(file);
         return retc;
       }
     }
@@ -2289,10 +2109,9 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file, path, uid);
+        retc = xrd_add_fd2file(file);
         return retc;
       }
-
     }
 
     if (spath.endswith("/proc/quota"))
@@ -2314,7 +2133,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file, path, uid);
+        retc = xrd_add_fd2file(file);
         return retc;
       }
     }
@@ -2331,9 +2150,7 @@ xrd_open (const char* path,
     size_t spos = file_path.rfind("//");
 
     if (spos != std::string::npos)
-    {
       file_path.erase(0, spos + 1);
-    }
 
     std::string request = file_path;
     request += "?mgm.pcmd=open";
@@ -2356,13 +2173,9 @@ xrd_open (const char* path,
       // Add the eos.app=fuse tag to all future PIO open requests
       origResponse += "&eos.app=fuse";
 
-      while (stringOpaque.replace("?", "&"))
-      {
-      }
+      while (stringOpaque.replace("?", "&")) {}
 
-      while (stringOpaque.replace("&&", "&"))
-      {
-      }
+      while (stringOpaque.replace("&&", "&")) {}
 
       XrdOucEnv* openOpaque = new XrdOucEnv(stringOpaque.c_str());
       char* opaqueInfo = (char*) strstr(origResponse.c_str(), "&mgm.logid");
@@ -2416,20 +2229,16 @@ xrd_open (const char* path,
           }
           else
           {
-            retc = xrd_add_fd2file(file, path, uid);
+            retc = xrd_add_fd2file(file);
             return retc;
           }
         }
       }
       else
-      {
         eos_static_debug("error=opaque info not what we expected");
-      }
     }
     else
-    {
       eos_static_err("error=failed get request for pio read");
-    }
   }
 
   eos_static_debug("the spath is:%s", spath.c_str());
@@ -2473,24 +2282,22 @@ xrd_open (const char* path,
 // Release is called when FUSE is completely done with a file; at that point,
 // you can free up any temporarily allocated data structures.
 //------------------------------------------------------------------------------
-
 int
 xrd_close (int fildes, unsigned long inode, uid_t uid)
 {
-  eos_static_info("fd=%d inode=%lu", fildes, inode);
+  eos_static_info("fd=%d inode=%lu, uid=%i", fildes, inode, uid);
   int ret = 0;
+  FileAbstraction* fabst = xrd_get_file(fildes);
 
-  if (XFC && inode)
-  {
-    FileAbstraction* fAbst = XFC->GetFileObj(fildes, 0);
+  if (!fabst)
+    return -ENOENT;
 
-    if (fAbst)
-      XFC->WaitWritesAndRemove(*fAbst);
-  }
+  if (XFC)
+    XFC->ForceAllWrites(fabst);
 
   // Close file and remove it from all mappings
   ret = xrd_remove_fd2file(fildes, inode, uid);
-
+  
   if (ret)
     return -errno;
 
@@ -2501,9 +2308,8 @@ xrd_close (int fildes, unsigned long inode, uid_t uid)
 //------------------------------------------------------------------------------
 // Flush file data to disk
 //------------------------------------------------------------------------------
-
 int
-xrd_flush (int fd, unsigned long inode)
+xrd_flush (int fd)
 {
   int errc = 0;
   eos_static_info("fd=%d ", fd);
@@ -2514,13 +2320,14 @@ xrd_flush (int fd, unsigned long inode)
     return -1;
   }
   
-  if (XFC && inode)
+  if (XFC)
   {
-    FileAbstraction* fAbst = XFC->GetFileObj(fd, false);
-    if (fAbst)
+    FileAbstraction* fabst = xrd_get_file(fd);
+    
+    if (fabst)
     {
-      XFC->WaitFinishWrites(*fAbst);
-      eos::common::ConcurrentQueue<error_type> err_queue = fAbst->GetErrorQueue();
+      XFC->ForceAllWrites(fabst);
+      eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
       error_type error;
 
       if (err_queue.try_pop(error))
@@ -2529,7 +2336,7 @@ xrd_flush (int fd, unsigned long inode)
         errc = error.first;
       }
 
-      fAbst->DecrementNoReferences();
+      fabst->DecNumRef();
     }
   }
 
@@ -2540,37 +2347,31 @@ xrd_flush (int fd, unsigned long inode)
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
-
 int
-xrd_truncate (int fildes, off_t offset, unsigned long inode)
+xrd_truncate (int fildes, off_t offset)
 {
-  eos_static_info("fd=%d offset=%llu inode=%lu",
-                  fildes, (unsigned long long) offset, inode);
-  int ret = 0;
-
-  if (XFC && inode)
-  {
-    FileAbstraction* fAbst = XFC->GetFileObj(fildes, false);
-    if (fAbst)
-    {
-      XFC->WaitFinishWrites(*fAbst);
-      fAbst->DecrementNoReferences();
-    }
-  }
-
   errno = 0;
-  eos::fst::Layout* file = xrd_get_file(fildes);
-  if (file)
+  int ret = -1;
+  eos_static_info("fd=%d offset=%llu", fildes, (unsigned long long) offset);
+  FileAbstraction* fabst = xrd_get_file(fildes);
+
+  if (!fabst)
   {
-    ret = file->Truncate(offset);
-
-    if (ret)
-      eos_static_err("error=return is NOT ok with value %i. \n", errno);
+    errno = ENOENT;
+    return ret;
   }
-  else
-    errno = EFAULT;
 
-  return errno;
+  if (XFC)
+    XFC->ForceAllWrites(fabst);
+
+  eos::fst::Layout* file = fabst->GetRawFile();
+  ret = file->Truncate(offset);
+  fabst->DecNumRef();
+
+  if (ret == -1)
+    errno = EIO;
+
+  return ret;
 }
 
 
@@ -2578,96 +2379,45 @@ xrd_truncate (int fildes, off_t offset, unsigned long inode)
 // Read from file. Returns the number of bytes transferred, or 0 if offset
 // was at or beyond the end of the file
 //------------------------------------------------------------------------------
-
 ssize_t
 xrd_pread (int fildes,
            void* buf,
            size_t nbyte,
-           off_t offset,
-           unsigned long inode)
+           off_t offset)
 {
   eos::common::Timing xpr("xrd_pread");
   COMMONTIMING("start", &xpr);
 
-  eos_static_debug("fd=%d nbytes=%lu offset=%llu inode=%lu",
+  eos_static_debug("fd=%d nbytes=%lu offset=%llu",
                    fildes, (unsigned long) nbyte,
-                   (unsigned long long) offset,
-                   (unsigned long) inode);
-  int64_t ret;
-  eos::fst::Layout* file;
+                   (unsigned long long) offset);
+  int64_t ret = -1;
+  FileAbstraction* fabst = xrd_get_file(fildes);
 
-  if (XFC && fuse_cache_read && inode)
+  if (!fabst)
   {
-    FileAbstraction* fAbst = 0;
-    fAbst = XFC->GetFileObj(fildes, 1);
-    XFC->WaitFinishWrites(*fAbst);
-    COMMONTIMING("Wait writes", &xpr);
-
-    if ((ret = XFC->GetRead(*fAbst, buf, offset, nbyte)) != (int64_t) nbyte)
-    {
-      COMMONTIMING("read in", &xpr);
-      eos_static_debug("Block not found in cache: off=%zu, len=%zu", offset, nbyte);
-      file = xrd_get_file(fildes);
-
-      if (file)
-      {
-        ret = file->Read(offset, static_cast<char*> (buf), nbyte);
-
-        if (ret != -1)
-        {
-          COMMONTIMING("read out", &xpr);
-          XFC->PutRead(file, *fAbst, buf, offset, nbyte);
-          COMMONTIMING("put read", &xpr);
-        }
-
-        fAbst->DecrementNoReferences();
-      }
-      else
-      {
-        eos_static_err("error=file pointer is NULL");
-        ret = -1;
-      }
-    }
-    else
-    {
-      eos_static_debug("Block found in cache: off=%zu, len=%zu", offset, nbyte);
-      COMMONTIMING("block in cache", &xpr);
-    }
+    errno = ENOENT;
+    return ret;
   }
-  else
-  {
-    // Flush all writes before doing a read
-    if (XFC && fuse_cache_write && inode)
-    {
-      FileAbstraction* fAbst = XFC->GetFileObj(fildes, false);
-      
-      if (fAbst)
-      {
-        XFC->WaitFinishWrites(*fAbst);
-        fAbst->DecrementNoReferences();
-        COMMONTIMING("Wait writes", &xpr);
-      }
-    }
+
+  if (XFC && fuse_cache_write)
+    XFC->ForceAllWrites(fabst);
     
-    file = xrd_get_file(fildes);
+  eos::fst::Layout* file = fabst->GetRawFile();
+  ret = file->Read(offset, static_cast<char*> (buf), nbyte);
 
-    if (file)
-      ret = file->Read(offset, static_cast<char*> (buf), nbyte);
-    else
-      ret = EIO;
-  }
-
+  // Release file reference
+  fabst->DecNumRef();
   COMMONTIMING("end", &xpr);
 
   if (ret == -1)
   {
     eos_static_err("error=failed to do read");
+    errno = EIO;
   }
 
   if (EOS_LOGS_DEBUG)
-  {
     xpr.Print();
-  }
 
   return ret;
 }
@@ -2676,45 +2426,46 @@ xrd_pread (int fildes,
 //------------------------------------------------------------------------------
 // Write to file
 //------------------------------------------------------------------------------
-
 ssize_t
 xrd_pwrite (int fildes,
             const void* buf,
             size_t nbyte,
-            off_t offset,
-            unsigned long inode)
+            off_t offset)
 {
   eos::common::Timing xpw("xrd_pwrite");
-
   COMMONTIMING("start", &xpw);
-  eos_static_debug("fd=%d, nbytes=%lu, offset=%ji, inode=%lu, cache=%d, cache-w=%d",
-                   fildes, (unsigned long) nbyte, offset, (unsigned long) inode,
-                   XFC ? 1 : 0, fuse_cache_write);
-  int64_t ret = 0;
-  XrdCl::XRootDStatus status;
-  eos::fst::Layout* file = xrd_get_file(fildes);
+  eos_static_debug("fd=%d nbytes=%lu cache=%d cache-w=%d",
+                   fildes, (unsigned long) nbyte, XFC ? 1 : 0,
+                   fuse_cache_write);
+  int64_t ret = -1;
+  FileAbstraction* fabst = xrd_get_file(fildes);
 
-  if (XFC && fuse_cache_write && inode)
+  if (!fabst)
   {
-    XFC->SubmitWrite(file, fildes, const_cast<void*> (buf), offset, nbyte);
+    errno = ENOENT;
+    return ret;
+  }
+ 
+  if (XFC && fuse_cache_write)
+  {
+    XFC->SubmitWrite(fabst, const_cast<void*> (buf), offset, nbyte);
     ret = nbyte;
   }
   else
   {
+    eos::fst::Layout* file = fabst->GetRawFile();
     ret = file->Write(offset, static_cast<const char*> (buf), nbyte);
 
     if (ret == -1)
-    {
       errno = EIO;
-    }
   }
 
+  // Release file reference
+  fabst->DecNumRef();
   COMMONTIMING("end", &xpw);
 
   if (EOS_LOGS_DEBUG)
-  {
     xpw.Print();
-  }
 
   return ret;
 }
@@ -2723,31 +2474,30 @@ xrd_pwrite (int fildes,
 //------------------------------------------------------------------------------
 // Flush any dirty information about the file to disk
 //------------------------------------------------------------------------------
-
 int
-xrd_fsync (int fildes, unsigned long inode)
+xrd_fsync (int fildes)
 {
-  eos_static_info("fd=%d inode=%lu", fildes, (unsigned long) inode);
-  int ret = 0;
+  eos_static_info("fd=%d", fildes);
+  int ret = -1;
+  FileAbstraction* fabst = xrd_get_file(fildes);
 
-  if (XFC && inode)
+  if (!fabst)
   {
-    FileAbstraction* fAbst = XFC->GetFileObj(fildes, false);
-    if (fAbst)
-    {
-      XFC->WaitFinishWrites(*fAbst);
-      fAbst->DecrementNoReferences();
-    }
+    errno = ENOENT;
+    return ret;
   }
+  
+  if (XFC && fuse_cache_write)
+    XFC->ForceAllWrites(fabst);
 
-  eos::fst::Layout* file = xrd_get_file(fildes);
-  if (file)
-  {
-    ret = file->Sync();
-    if (ret)
-      return -1;
-  }
+  eos::fst::Layout* file = fabst->GetRawFile();
+  ret = file->Sync();
 
+  if (ret)
+    errno = EIO;
+
+  // Release file reference
+  fabst->DecNumRef();
   return ret;
 }
 
@@ -2755,7 +2505,6 @@ xrd_fsync (int fildes, unsigned long inode)
 //------------------------------------------------------------------------------
 // Remove (delete) the given file, symbolic link, hard link, or special node
 //------------------------------------------------------------------------------
-
 int
 xrd_unlink (const char* path,
             uid_t uid,
@@ -2777,7 +2526,6 @@ xrd_unlink (const char* path,
 //------------------------------------------------------------------------------
 // Rename file/dir
 //------------------------------------------------------------------------------
-
 int
 xrd_rename (const char* oldpath,
             const char* newpath,
@@ -2800,7 +2548,6 @@ xrd_rename (const char* oldpath,
 //------------------------------------------------------------------------------
 // Get user name from the uid and change the effective user ID of the thread
 //------------------------------------------------------------------------------
-
 const char*
 xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
 {
@@ -2829,7 +2576,7 @@ xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
       sid += connectionId;
     }
   }
-  //............................................................................
+
   return STRINGSTORE(sid.c_str());
 }
 
@@ -2837,7 +2584,6 @@ xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
 // Get a user private physical connection URL like root://<user>@<host>
 // - if we are a user private mount we don't need to specify that
 //------------------------------------------------------------------------------
-
 const char*
 xrd_user_url (uid_t uid,
               gid_t gid,
@@ -2863,57 +2609,41 @@ xrd_user_url (uid_t uid,
 //------------------------------------------------------------------------------
 // Init function
 //------------------------------------------------------------------------------
-
 void
 xrd_init ()
 {
   FILE* fstderr;
 
-  //............................................................................
   // Open log file
-  //..........................................................................
   if (getuid())
   {
     fuse_shared = false; //eosfsd
     char logfile[1024];
     snprintf(logfile, sizeof ( logfile) - 1, "/tmp/eos-fuse.%d.log", getuid());
 
-    //..........................................................................
     // Running as a user ... we log into /tmp/eos-fuse.$UID.log
-    //..........................................................................
     if (!(fstderr = freopen(logfile, "a+", stderr)))
-    {
       fprintf(stderr, "error: cannot open log file %s\n", logfile);
-    }
     else
-    {
       chmod(logfile, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-    }
   }
   else
   {
     fuse_shared = true; //eosfsd
 
-    //..........................................................................
     // Running as root ... we log into /var/log/eos/fuse
-    //..........................................................................
     eos::common::Path cPath("/var/log/eos/fuse/fuse.log");
     cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IROTH);
 
     if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr)))
-    {
       fprintf(stderr, "error: cannot open log file %s\n", cPath.GetPath());
-    }
     else
-    {
       chmod(cPath.GetPath(), S_IRUSR | S_IWUSR);
-    }
   }
 
   setvbuf(fstderr, (char*) NULL, _IONBF, 0);
-  //............................................................................
+
   // Initialize hashes
-  //............................................................................
   path2inode.set_empty_key("");
   path2inode.set_deleted_key("#__deleted__#");
 
@@ -2932,12 +2662,10 @@ xrd_init ()
   inodeuser2fd.set_empty_key("");
   inodeuser2fd.set_deleted_key("#__deleted__#");
 
-  fd2fobj.set_empty_key(-1);
-  fd2fobj.set_deleted_key(-2);
+  fd2fabst.set_empty_key(-1);
+  fd2fabst.set_deleted_key(-2);
 
-  //............................................................................
   // Create the root entry
-  //............................................................................
   path2inode["/"] = 1;
   inode2path[1] = "/";
   eos::common::Mapping::VirtualIdentity_t vid;
@@ -2948,9 +2676,7 @@ xrd_init ()
   XrdOucString fusedebug = getenv("EOS_FUSE_DEBUG");
 
   if ((getenv("EOS_FUSE_DEBUG")) && (fusedebug != "0"))
-  {
     eos::common::Logging::SetLogPriority(LOG_DEBUG);
-  }
   else
   { 
     if ((getenv("EOS_FUSE_LOGLEVEL"))) {
@@ -2964,7 +2690,6 @@ xrd_init ()
   //............................................................................
   // Initialise the XrdClFileSystem object
   //............................................................................
-
   std::string address = getenv("EOS_RDRURL");
   if (address == "")
   {
@@ -2984,17 +2709,11 @@ xrd_init ()
   MgmHost = address.c_str();
   MgmHost.replace("root://", "");
 
-  //............................................................................
   // Check if we should set files executable
-  //............................................................................
   if (getenv("EOS_FUSE_EXEC") && (!strcmp(getenv("EOS_FUSE_EXEC"), "1")))
-  {
     fuse_exec = true;
-  }
 
-  //............................................................................
   // Initialise the XrdFileCache
-  //............................................................................
   fuse_cache_read = false;
   fuse_cache_write = false;
 
@@ -3006,9 +2725,7 @@ xrd_init ()
   else
   {
     if (!getenv("EOS_FUSE_CACHE_SIZE"))
-    {
       setenv("EOS_FUSE_CACHE_SIZE", "30000000", 1); // ~300MB
-    }
 
     eos_static_notice("cache=true size=%s cache-read=%s cache-write=%s exec=%d",
                       getenv("EOS_FUSE_CACHE_SIZE"),
@@ -3016,17 +2733,13 @@ xrd_init ()
                       getenv("EOS_FUSE_CACHE_WRITE"),
                       fuse_exec);
 
-    XFC = XrdFileCache::GetInstance(static_cast<size_t> (atol(getenv("EOS_FUSE_CACHE_SIZE"))));
+    XFC = FuseWriteCache::GetInstance(static_cast<size_t> (atol(getenv("EOS_FUSE_CACHE_SIZE"))));
 
     if (getenv("EOS_FUSE_CACHE_READ") && atoi(getenv("EOS_FUSE_CACHE_READ")))
-    {
       fuse_cache_read = true;
-    }
 
     if (getenv("EOS_FUSE_CACHE_WRITE") && atoi(getenv("EOS_FUSE_CACHE_WRITE")))
-    {
       fuse_cache_write = true;
-    }
   }
 
   passwdstore = new XrdOucHash<XrdOucString > ();

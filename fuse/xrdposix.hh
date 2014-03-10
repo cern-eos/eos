@@ -65,7 +65,6 @@
 
 
 //! Dirbuf structure used to save the list of subentries in a directory
-
 struct dirbuf
 {
   char* p;
@@ -93,7 +92,6 @@ extern "C"
   struct fuse_ll;
 
   //! Structure copied from fuse<XX>.cc - it might change in the future
-
   struct fuse_req
   {
     struct fuse_ll* f;
@@ -106,7 +104,6 @@ extern "C"
 
     union
     {
-
       struct
       {
         uint64_t unique;
@@ -123,7 +120,6 @@ extern "C"
   };
 
   //! Structure copied from fuse<XX>.cc - it might change in the future
-
   struct fuse_ll
   {
     int debug;
@@ -139,53 +135,45 @@ extern "C"
     int got_destroy;
   };
 
-  // ---------------------------------------------------------------------------
-  //                ******* C interface functions *******
-  // ---------------------------------------------------------------------------
-
   //----------------------------------------------------------------------------
   //                ******* Path translation *******
   //----------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------
-  //! Lock for path or inode translation (read)
+  //! Read lock for path or inode translation
   //----------------------------------------------------------------------------
   void xrd_lock_r_p2i ();
 
+
   //----------------------------------------------------------------------------
-  //! Unlock after path or inode translation (read)
+  //! Read unlock after path or inode translation
   //----------------------------------------------------------------------------
   void xrd_unlock_r_p2i ();
 
-  //----------------------------------------------------------------------------
-  //! Lock for path or inode translation (write)
-  //----------------------------------------------------------------------------
-  void xrd_lock_w_p2i ();
-
-  //----------------------------------------------------------------------------
-  //! Unlock after path or inode translation (write)
-  //----------------------------------------------------------------------------
-  void xrd_unlock_w_p2i ();
 
   //----------------------------------------------------------------------------
   //! Translate from inode to path
   //----------------------------------------------------------------------------
   const char* xrd_path (unsigned long long inode);
 
+
   //----------------------------------------------------------------------------
   //! Return the basename of a file
   //----------------------------------------------------------------------------
   char* xrd_basename (unsigned long long inode);
+
 
   //----------------------------------------------------------------------------
   //! Translate from path to inode
   //----------------------------------------------------------------------------
   unsigned long long xrd_inode (const char* path);
 
+
   //----------------------------------------------------------------------------
   //! Store an inode/path mapping
   //----------------------------------------------------------------------------
   void xrd_store_p2i (unsigned long long inode, const char* path);
+
 
   //----------------------------------------------------------------------------
   //! Store an inode/path mapping starting from the parent:
@@ -194,6 +182,7 @@ extern "C"
   void xrd_store_child_p2i (unsigned long long inode,
                             unsigned long long childinode,
                             const char* name);
+
 
   //----------------------------------------------------------------------------
   //! Forget an inode/path mapping by inode
@@ -207,14 +196,24 @@ extern "C"
   //----------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------
-  //! Guarantee a buffer for reading of at least 'size' for the specified fd
+  //! Guarantee a buffer for reading of at least 'size' for the specified thread
+  //!
+  //! @param tid thread id
+  //! @param size size of the read buffer
+  //!
+  //! @return pointer to buffer region
+  //!
   //----------------------------------------------------------------------------
-  char* xrd_attach_read_buffer (pthread_t tid, size_t size);
+  char* xrd_attach_rd_buff (pthread_t tid, size_t size);
+
 
   //----------------------------------------------------------------------------
-  //! Release a read buffer for the specified fd
+  //! Release a read buffer for the specified thread id
+  //!
+  //! @param tid thread id 
+  //!
   //----------------------------------------------------------------------------
-  void xrd_release_read_buffer (pthread_t tid);
+  void xrd_release_rd_buff (pthread_t tid);
 
 
 
@@ -227,20 +226,24 @@ extern "C"
   //----------------------------------------------------------------------------
   void xrd_lock_r_dirview ();
 
+
   //----------------------------------------------------------------------------
   //! Unlock dirview (read)
   //----------------------------------------------------------------------------
   void xrd_unlock_r_dirview ();
+
 
   //----------------------------------------------------------------------------
   //! Lock dirview (write)
   //----------------------------------------------------------------------------
   void xrd_lock_w_dirview ();
 
+
   //----------------------------------------------------------------------------
   //! Unlock dirview (write)
   //----------------------------------------------------------------------------
   void xrd_unlock_w_dirview ();
+
 
   //----------------------------------------------------------------------------
   //! Create a new directory listing. Path should be attached beforehand into
@@ -248,11 +251,13 @@ extern "C"
   //----------------------------------------------------------------------------
   void xrd_dirview_create (unsigned long long inode);
 
+
   //----------------------------------------------------------------------------
   //! Delete a directory listing. Path should be attached beforehand into
   //! path translation.
   //----------------------------------------------------------------------------
   void xrd_dirview_delete (unsigned long long inode);
+
 
   //----------------------------------------------------------------------------
   //! Returns subentry with index 'index' from the directory
@@ -268,8 +273,9 @@ extern "C"
                                         size_t index,
                                         int get_lock);
 
+
   //----------------------------------------------------------------------------
-  //! Returns a buffer for a directory inode
+  //! Get dirbuf structure for a directory inode
   //----------------------------------------------------------------------------
   struct dirbuf*
   xrd_dirview_getbuffer (unsigned long long dirinode,
@@ -280,17 +286,11 @@ extern "C"
   //----------------------------------------------------------------------------
   //              ******* POSIX opened file descriptors *******
   //----------------------------------------------------------------------------
-
+  
   //----------------------------------------------------------------------------
   //! Create an artificial file descriptor
   //----------------------------------------------------------------------------
   int xrd_generate_fd ();
-
-
-  //----------------------------------------------------------------------------
-  //! Remove file descriptor from mapping
-  //----------------------------------------------------------------------------
-  int xrd_remove_fd2file (int fd);
 
 
   //----------------------------------------------------------------------------
@@ -302,6 +302,12 @@ extern "C"
   //!
   //----------------------------------------------------------------------------
   void xrd_add_inodeuser_fd(unsigned long inode, uid_t uid, int fd);
+
+
+  //----------------------------------------------------------------------------
+  //! Remove file descriptor from mapping
+  //----------------------------------------------------------------------------
+  int xrd_remove_fd2file (int fd);
 
 
   //----------------------------------------------------------------------------
@@ -491,19 +497,21 @@ extern "C"
   //!
   //----------------------------------------------------------------------------
   int xrd_error_retc_map (int retc);
+
+
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  int xrd_truncate (int fildes, off_t offset, unsigned long inode);
+  int xrd_truncate (int fildes, off_t offset);
 
+  
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
   ssize_t xrd_pread (int fildes,
                      void* buf,
                      size_t nbyte,
-                     off_t offset,
-                     unsigned long inode);
+                     off_t offset);
 
   //----------------------------------------------------------------------------
   //!
@@ -514,7 +522,7 @@ extern "C"
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  int xrd_flush (int fd, unsigned long inode);
+  int xrd_flush (int fd);
 
   //----------------------------------------------------------------------------
   //!
@@ -522,14 +530,12 @@ extern "C"
   ssize_t xrd_pwrite (int fildes,
                       const void* buf,
                       size_t nbyte,
-                      off_t offset,
-                      unsigned long inode
-                      );
+                      off_t offset);
 
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  int xrd_fsync (int fildes, unsigned long inode);
+  int xrd_fsync (int fildes);
 
   //----------------------------------------------------------------------------
   //!

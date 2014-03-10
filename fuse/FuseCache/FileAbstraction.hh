@@ -1,7 +1,6 @@
 //------------------------------------------------------------------------------
-//! @file: CacheEntry.hh
-//! @author: Elvin-Alin Sindrilaru - CERN
-//! @brief Class representing a block saved in cache
+// File FileAbstraction.hh
+// Author: Elvin-Alin Sindrilaru <esindril@cern.ch> CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,160 +21,179 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOS_CACHEENTRY_HH__
-#define __EOS_CACHEENTRY_HH__
+#ifndef __EOS_FUSE_FILEABSTRACTION_HH__
+#define __EOS_FUSE_FILEABSTRACTION_HH__
 
-/*----------------------------------------------------------------------------*/
-#include <map>
-/*----------------------------------------------------------------------------*/
-#include <sys/time.h>
+//------------------------------------------------------------------------------
+#include <utility>
 #include <sys/types.h>
-/*----------------------------------------------------------------------------*/
-#include "FileAbstraction.hh"
-/*----------------------------------------------------------------------------*/
-#include "../../fst/layout/Layout.hh"
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+#include <XrdSys/XrdSysPthread.hh>
+//------------------------------------------------------------------------------
+#include "common/ConcurrentQueue.hh"
+//------------------------------------------------------------------------------
+
+//! Forward declaration
+namespace eos
+{
+  namespace fst
+  {
+    class Layout;
+  }
+};
+
+//! Definition of an error occurring in a write operation
+typedef std::pair<int, off_t> error_type;
 
 
 //------------------------------------------------------------------------------
-//! Class representing a block saved in cache
+//! Class that keeps track of the operations done at file level
 //------------------------------------------------------------------------------
-class CacheEntry
+class FileAbstraction
 {
   public:
+
+    //! Errors collected during writes
+    eos::common::ConcurrentQueue<error_type>* errorsQueue;
 
     //--------------------------------------------------------------------------
     //! Constructor
     //!
-    //! @param file file layout type handler
-    //! @param buf data buffer
-    //! @param off offset
-    //! @param len length
-    //! @param rFileAbst FileAbstraction handler
-    //! @param isWr set if entry is for writing
+    //! @param fd file descriptor
+    //! @param file raw file object
     //!
     //--------------------------------------------------------------------------
-    CacheEntry( eos::fst::Layout*& file,
-                char*              buf,
-                off_t              off,
-                size_t             len,
-                FileAbstraction&   rFileAbst,
-                bool               isWr );
+    FileAbstraction(int fd, eos::fst::Layout* file);
+
 
     //--------------------------------------------------------------------------
     //! Destructor
     //--------------------------------------------------------------------------
-    ~CacheEntry();
+    ~FileAbstraction();
+
 
     //--------------------------------------------------------------------------
-    //! Get maximum size of the cache
+    //! Get size of writes in cache for current file
     //--------------------------------------------------------------------------
-    static const size_t GetMaxSize() {
-      return msMaxSize;
-    }
+    size_t GetSizeWrites();
+
 
     //--------------------------------------------------------------------------
-    //! Get handler to the data buffer
+    //! Get number of write blocks in cache for the file
     //--------------------------------------------------------------------------
-    char* GetDataBuffer();
+    long long int GetNoWriteBlocks();
+
 
     //--------------------------------------------------------------------------
-    //! Get the size of meaningful data
+    //! Get fd value
     //--------------------------------------------------------------------------
-    size_t GetSizeData() const;
+    inline int GetFd() const
+    {
+      return mFd;
+    };
+
 
     //--------------------------------------------------------------------------
-    //! Get total capacity of the object
+    //! Get undelying raw file object
     //--------------------------------------------------------------------------
-    size_t GetCapacity() const;
+    inline eos::fst::Layout* GetRawFile() const
+    {
+      return mFile;
+    };
+
 
     //--------------------------------------------------------------------------
-    //! Get start offset value
+    //! Get first possible key value
     //--------------------------------------------------------------------------
-    off_t  GetOffsetStart() const;
+    inline long long GetFirstPossibleKey() const
+    {
+      return mFirstPossibleKey;
+    };
+
 
     //--------------------------------------------------------------------------
-    //! Get end offset value
+    //! Get last possible key value
     //--------------------------------------------------------------------------
-    off_t  GetOffsetEnd() const;
+    inline long long GetLastPossibleKey() const
+    {
+      return mLastPossibleKey;
+    };
+
 
     //--------------------------------------------------------------------------
-    //! Try to get a piece from the current block
+    //! Increment the size of writes
     //!
-    //! @param buf place where to save the data
-    //! @param off offset
-    //! @param len length
-    //!
-    //! @return true if piece found, otherwise false
-    //!
-    //--------------------------------------------------------------------------
-    bool GetPiece( char* buf, off_t off, size_t len );
-
-    //--------------------------------------------------------------------------
-    //! Get handler to the parent file object
-    //--------------------------------------------------------------------------
-    FileAbstraction* GetParentFile() const;
-
-    //--------------------------------------------------------------------------
-    //! Test if block is for writing
-    //--------------------------------------------------------------------------
-    bool IsWr();
-
-    //--------------------------------------------------------------------------
-    //! Test if block full with meaningfull data
-    //--------------------------------------------------------------------------
-    bool IsFull();
-
-    //--------------------------------------------------------------------------
-    //! Method that does the actual writing
-    //--------------------------------------------------------------------------
-    int64_t DoWrite();
-
-    //--------------------------------------------------------------------------
-    //! Add a new piece to the block
-    //!
-    //! @param buf buffer from where to take the data
-    //! @param off offset
-    //! @param len length
-    //!
-    //! @return the actual size increase of the meaningful data after adding the
-    //!         current piece (does not include the overwritten sections)
+    //! @param sizeWrite size writes
+    //! @param newBlock mark if a new write block is added
     //!
     //--------------------------------------------------------------------------
-    size_t AddPiece( const char* buf, off_t off, size_t len );
+    void IncrementWrites(size_t sizeWrite, bool newBlock);
+
 
     //--------------------------------------------------------------------------
-    //! Method to recycle a previously used block
+    //! Decrement the size of writes
     //!
-    //! @param file file layout type handler
-    //! @param buf data buffer
-    //! @param off offset
-    //! @param len length
-    //! @param rFileAbst FileAbstraction handler
-    //! @param isWr set of entry is for writing
+    //! @param sizeWrite size writes
+    //! @param fullBlock mark if it is a full block
     //!
     //--------------------------------------------------------------------------
-    void DoRecycle( eos::fst::Layout*& file,
-                    char*              buf,
-                    off_t              off,
-                    size_t             len,
-                    FileAbstraction&   rFileAbst,
-                    bool               isWr );
+    void DecrementWrites(size_t sizeWrite, bool fullBlock);
 
+
+    //--------------------------------------------------------------------------
+    //! Increment the number of references
+    //--------------------------------------------------------------------------
+    void IncNumRef();
+
+
+    //--------------------------------------------------------------------------
+    //! Decrement the number of references
+    //--------------------------------------------------------------------------
+    void DecNumRef();
+
+
+    //--------------------------------------------------------------------------
+    //! Decide if the file is still in use
+    //!
+    //! @return true if file is in use, otherwise false
+    //!
+    //--------------------------------------------------------------------------
+    bool IsInUse();
+
+
+    //--------------------------------------------------------------------------
+    //! Method used to wait for writes to be done
+    //--------------------------------------------------------------------------
+    void WaitFinishWrites();
+
+
+    //--------------------------------------------------------------------------
+    //! Genereate block key
+    //!
+    //! @param offset offset piece
+    //!
+    //! @return block key
+    //!
+    //--------------------------------------------------------------------------
+    long long int GenerateBlockKey(off_t offset);
+
+  
+    //--------------------------------------------------------------------------
+    //! Get the queue of errros
+    //--------------------------------------------------------------------------
+    eos::common::ConcurrentQueue<error_type>& GetErrorQueue() const;
+
+  
   private:
 
-    static size_t msMaxSize;     ///< max size of entry
-
-    eos::fst::Layout* mpFile;    ///< file layout type handler
-    bool mIsWrType;              ///< is write block type
-    char*  mpBuffer;             ///< buffer of the object
-    size_t mCapacity;            ///< total capcity 512 KB ~ 4MB
-    size_t mSizeData;            ///< size of useful data
-    off_t  mOffsetStart;         ///< offset relative to the file
-
-    std::map<off_t, size_t> mMapPieces; ///< pieces read/to be written
-    FileAbstraction* pParentFile;       ///< pointer to parent file
+    int mFd; ///< file descriptor used for the block key range
+    eos::fst::Layout* mFile; ///< raw file object
+    int mNoReferences; ///< number of held referencess to this file
+    size_t mSizeWrites; ///< the size of write blocks in cache
+    long long int mNoWrBlocks; ///< no. of blocks in cache for this file
+    long long mLastPossibleKey; ///< last possible offset in file
+    long long mFirstPossibleKey; ///< first possible offset in file
+    XrdSysCondVar mCondUpdate; ///< cond variable for updating file attributes
 };
 
-#endif
-
+#endif // __EOS_FUSE_FILEABSTRACTION_HH__

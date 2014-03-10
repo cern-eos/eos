@@ -21,24 +21,42 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ ../../ ${XROOTD_INCLUDE_DIR} )
+include_directories( ${CMAKE_SOURCE_DIR}
+		     ${CMAKE_CURRENT_SOURCE_DIR}
+		     ${XROOTD_INCLUDE_DIR} )
+
 link_directories( ${XROOTD_LIB_DIR} )
 
-add_library( XrdCache SHARED
-	     CacheImpl.cc
-             XrdFileCache.cc
-             CacheEntry.cc
-             FileAbstraction.cc )
+add_library( 
+  FuseCache SHARED
+  FuseWriteCache.cc  FuseWriteCache.hh
+  CacheEntry.cc      CacheEntry.hh
+  FileAbstraction.cc FileAbstraction.hh )
 
-add_library( XrdCache-Static STATIC
-	     CacheImpl.cc
-             XrdFileCache.cc
-             CacheEntry.cc
-             FileAbstraction.cc )
+add_library( 
+  FuseCache-Static STATIC
+  FuseWriteCache.cc  FuseWriteCache.hh
+  CacheEntry.cc      CacheEntry.hh
+  FileAbstraction.cc FileAbstraction.hh )
 
-target_link_libraries( XrdCache XrdCl XrdUtils eosCommon ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries( XrdCache-Static XrdCl XrdUtils eosCommon-Static ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( 
+  FuseCache 
+  XrdCl    
+  XrdUtils 
+  EosFstIo-Static 
+  eosCommon 
+  ${CMAKE_THREAD_LIBS_INIT} )
 
-set_target_properties( XrdCache PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
-set_target_properties( XrdCache-Static PROPERTIES 
+target_link_libraries( 
+  FuseCache-Static 
+  XrdCl 
+  XrdUtils   
+  EosFstIo-Static 
+  eosCommon-Static 
+  ${CMAKE_THREAD_LIBS_INIT} )
+
+set_target_properties( FuseCache PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
+set_target_properties( FuseCache-Static PROPERTIES 
                                        COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -fPIC")
+
+

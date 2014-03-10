@@ -85,7 +85,6 @@ double readopentime = 5.0;
 //------------------------------------------------------------------------------
 // Get file attributes
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_getattr (fuse_req_t req,
                   fuse_ino_t ino,
@@ -118,20 +117,15 @@ eosfs_ll_getattr (fuse_req_t req,
   int retc = xrd_stat (fullpath, &stbuf, req->ctx.uid, req->ctx.gid, ino);
 
   if (!retc)
-  {
     fuse_reply_attr (req, &stbuf, attrcachetime);
-  }
   else
-  {
     fuse_reply_err (req, -retc);
-  }
 }
 
 
 //------------------------------------------------------------------------------
 // Change attributes of the file
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_setattr (fuse_req_t req,
                   fuse_ino_t ino,
@@ -185,7 +179,7 @@ eosfs_ll_setattr (fuse_req_t req,
       if (fi->fh)
       {
         struct fd_user_info* info = (struct fd_user_info*) fi->fh;
-        retc = xrd_truncate ((unsigned long long) info->fd, attr->st_size, ino);
+        retc = xrd_truncate ((unsigned long long) info->fd, attr->st_size);
       }
       else
       {
@@ -202,7 +196,7 @@ eosfs_ll_setattr (fuse_req_t req,
                             req->ctx.gid,
                             req->ctx.pid,0)) > 0)
         {
-          retc = xrd_truncate (fd, attr->st_size, ino);
+          retc = xrd_truncate (fd, attr->st_size);
           xrd_close (fd, ino, req->ctx.uid);
         }
         else
@@ -227,7 +221,7 @@ eosfs_ll_setattr (fuse_req_t req,
                           req->ctx.gid,
                           req->ctx.pid,0)) > 0)
       {
-        retc = xrd_truncate (fd, attr->st_size, ino);
+        retc = xrd_truncate (fd, attr->st_size);
         xrd_close (fd, ino, req->ctx.uid);
       }
     }
@@ -259,25 +253,15 @@ eosfs_ll_setattr (fuse_req_t req,
 
   if (!retc)
   {
-    retc = xrd_stat (fullpath,
-                     &newattr,
-                     req->ctx.uid,
-                     req->ctx.gid,
-                     ino);
+    retc = xrd_stat (fullpath, &newattr, req->ctx.uid, req->ctx.gid, ino);
 
     if (!retc)
-    {
       fuse_reply_attr (req, &newattr, attrcachetime);
-    }
     else
-    {
       fuse_reply_err (req, errno);
-    }
   }
   else
-  {
     fuse_reply_err (req, errno);
-  }
 }
 
 
@@ -307,19 +291,13 @@ eosfs_ll_lookup (fuse_req_t req,
   }
 
   if (name[0] == '/')
-  {
     sprintf (ifullpath, "%s%s", parentpath, name);
-  }
   else
   {
     if ((strlen (parentpath) == 1) && (parentpath[0] == '/'))
-    {
       sprintf (ifullpath, "/%s", name);
-    }
     else
-    {
       sprintf (ifullpath, "%s/%s", parentpath, name);
-    }
   }
 
   FULLPATH (fullpath, mountprefix, ifullpath);
@@ -336,29 +314,22 @@ eosfs_ll_lookup (fuse_req_t req,
 
   if (entry_inode)
   {
-    //..........................................................................
     // Try to get entry from cache
-    //..........................................................................
     entry_found = xrd_dir_cache_get_entry (req, parent, entry_inode, ifullpath);
 
     if (isdebug)
-    {
       fprintf (stderr, "[%s] subentry_found = %i \n", __FUNCTION__, entry_found);
-    }
   }
 
   if (!entry_found)
   {
     struct fuse_entry_param e;
-    memset (&e, 0, sizeof ( e));
+    memset (&e, 0, sizeof (e));
 
     e.attr_timeout = attrcachetime;
     e.entry_timeout = entrycachetime;
-    int retc = xrd_stat (fullpath,
-                         &e.attr,
-                         req->ctx.uid,
-                         req->ctx.gid,
-                         entry_inode);
+    int retc = xrd_stat (fullpath, &e.attr, req->ctx.uid,
+                         req->ctx.gid, entry_inode);
 
     if (!retc)
     {
@@ -372,9 +343,7 @@ eosfs_ll_lookup (fuse_req_t req,
       xrd_store_p2i (e.attr.st_ino, ifullpath);
       fuse_reply_entry (req, &e);
 
-      //..........................................................................
       // Add entry to cached dir
-      //..........................................................................
       xrd_dir_cache_add_entry (parent, e.attr.st_ino, &e);
     }
     else
@@ -385,9 +354,7 @@ eosfs_ll_lookup (fuse_req_t req,
         fuse_reply_entry (req, &e);
       }
       else
-      {
         fuse_reply_err (req, errno);
-      }
     }
   }
 }
@@ -396,7 +363,6 @@ eosfs_ll_lookup (fuse_req_t req,
 //------------------------------------------------------------------------------
 // Add direntry to dirbuf structure
 //------------------------------------------------------------------------------
-
 static void
 dirbuf_add (fuse_req_t req,
             struct dirbuf* b,
@@ -405,13 +371,10 @@ dirbuf_add (fuse_req_t req,
 {
   struct stat stbuf;
   size_t oldsize = b->size;
-
   memset (&stbuf, 0, sizeof ( stbuf));
   stbuf.st_ino = ino;
-
   b->size += fuse_add_direntry (req, NULL, 0, name, NULL, 0);
   b->p = (char*) realloc (b->p, b->size);
-
   fuse_add_direntry (req, b->p + oldsize, b->size - oldsize, name,
                      &stbuf, b->size);
 }
@@ -420,7 +383,6 @@ dirbuf_add (fuse_req_t req,
 //------------------------------------------------------------------------------
 // Reply with only a part of the buffer ( used for readdir )
 //------------------------------------------------------------------------------
-
 static int
 reply_buf_limited (fuse_req_t req,
                    const char* buf,
@@ -429,21 +391,15 @@ reply_buf_limited (fuse_req_t req,
                    size_t maxsize)
 {
   if (off < bufsize)
-  {
-    return fuse_reply_buf (req, buf + off,
-                           min (bufsize - off, maxsize));
-  }
+    return fuse_reply_buf (req, buf + off, min (bufsize - off, maxsize));
   else
-  {
     return fuse_reply_buf (req, NULL, 0);
-  }
 }
 
 
 //------------------------------------------------------------------------------
 // Read the entries from a directory
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_readdir (fuse_req_t req,
                   fuse_ino_t ino,
@@ -465,9 +421,7 @@ eosfs_ll_readdir (fuse_req_t req,
   const char* tmpname = xrd_path ((unsigned long long) ino);
 
   if (tmpname)
-  {
     name = strdup (tmpname);
-  }
 
   xrd_unlock_r_p2i (); // <=
 
@@ -477,9 +431,7 @@ eosfs_ll_readdir (fuse_req_t req,
     return;
   }
 
-
   FULLPATH (dirfullpath, mountprefix, name);
-
   sprintf (fullpath, "/proc/user/?mgm.cmd=fuse&"
            "mgm.subcmd=inodirlist&mgm.path=/%s%s", mountprefix, name);
 
@@ -510,9 +462,7 @@ eosfs_ll_readdir (fuse_req_t req,
 
   if (!(b = xrd_dirview_getbuffer (ino, 1)))
   {
-    //..........................................................................
     // No dirview entry, try to use the directory cache
-    //..........................................................................
     retc = xrd_stat (dirfullpath, &attr, req->ctx.uid, req->ctx.gid, ino);
 
 #ifdef __APPLE__
@@ -523,14 +473,10 @@ eosfs_ll_readdir (fuse_req_t req,
 
     if (!dir_status)
     {
-      //........................................................................
       // Dir not in cache or invalid, fall-back to normal reading
-      //........................................................................
-      xrd_inodirlist ((unsigned long long) ino,
-                      fullpath,
-                      req->ctx.uid,
-                      req->ctx.gid,
-                      req->ctx.pid);
+      xrd_inodirlist ((unsigned long long) ino, fullpath,
+                      req->ctx.uid, req->ctx.gid, req->ctx.pid);
+
       xrd_lock_r_dirview (); // =>
       b = xrd_dirview_getbuffer ((unsigned long long) ino, 0);
 
@@ -619,7 +565,6 @@ eosfs_ll_readdir (fuse_req_t req,
 //------------------------------------------------------------------------------
 // Drop directory view
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_releasedir (fuse_req_t req,
                      fuse_ino_t ino,
@@ -633,7 +578,6 @@ eosfs_ll_releasedir (fuse_req_t req,
 //------------------------------------------------------------------------------
 // Return statistics about the filesystem
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_statfs (fuse_req_t req, fuse_ino_t ino)
 {
@@ -646,9 +590,7 @@ eosfs_ll_statfs (fuse_req_t req, fuse_ino_t ino)
   const char* tmppath = xrd_path ((unsigned long long) ino);
 
   if (tmppath)
-  {
     path = strdup (tmppath);
-  }
 
   xrd_unlock_r_p2i (); // <=
 
@@ -667,7 +609,6 @@ eosfs_ll_statfs (fuse_req_t req, fuse_ino_t ino)
 
   sprintf (rootpath, "/%s", mountprefix);
   strcat (rootpath, path);
-
   res = xrd_statfs (rootpath, &svfs2);
   free (path);
 
@@ -682,9 +623,7 @@ eosfs_ll_statfs (fuse_req_t req, fuse_ino_t ino)
     fuse_reply_statfs (req, &svfs);
   }
   else
-  {
     fuse_reply_statfs (req, &svfs2);
-  }
 
   return;
 }
@@ -693,7 +632,6 @@ eosfs_ll_statfs (fuse_req_t req, fuse_ino_t ino)
 //------------------------------------------------------------------------------
 // Create a directory with a given name
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_mkdir (fuse_req_t req,
                 fuse_ino_t parent,
@@ -737,29 +675,21 @@ eosfs_ll_mkdir (fuse_req_t req,
     e.ino = e.attr.st_ino;
 
     if (retc)
-    {
       fuse_reply_err (req, errno);
-      return;
-    }
     else
     {
       xrd_store_p2i ((unsigned long long) e.attr.st_ino, ifullpath);
       fuse_reply_entry (req, &e);
-      return;
     }
   }
   else
-  {
     fuse_reply_err (req, errno);
-    return;
-  }
 }
 
 
 //------------------------------------------------------------------------------
 // Remove (delete) the given file, symbolic link, hard link, or special node
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_unlink (fuse_req_t req, fuse_ino_t parent, const char* name)
 {
@@ -780,32 +710,20 @@ eosfs_ll_unlink (fuse_req_t req, fuse_ino_t parent, const char* name)
   xrd_unlock_r_p2i (); // <=
 
   if (isdebug)
-  {
     fprintf (stderr, "[%s]: path=%s\n", __FUNCTION__, fullpath);
-  }
 
-  int retc = xrd_unlink (fullpath,
-                         req->ctx.uid,
-                         req->ctx.gid,
-                         req->ctx.pid);
+  int retc = xrd_unlink (fullpath, req->ctx.uid, req->ctx.gid, req->ctx.pid);
 
   if (!retc)
-  {
     fuse_reply_buf (req, NULL, 0);
-    return;
-  }
   else
-  {
     fuse_reply_err (req, errno);
-    return;
-  }
 }
 
 
 //------------------------------------------------------------------------------
 // Remove the given directory
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_rmdir (fuse_req_t req, fuse_ino_t parent, const char* name)
 {
@@ -835,26 +753,19 @@ eosfs_ll_rmdir (fuse_req_t req, fuse_ino_t parent, const char* name)
   xrd_dir_cache_forget ((unsigned long long) parent);
 
   if (!retc)
-  {
     fuse_reply_err (req, 0);
-  }
   else
   {
     if (errno == ENOSYS)
-    {
       fuse_reply_err (req, ENOTEMPTY);
-    }
     else
-    {
       fuse_reply_err (req, errno);
-    }
   }
 }
 
 //------------------------------------------------------------------------------
 // Rename the file, directory, or other object
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_rename (fuse_req_t req,
                  fuse_ino_t parent,
@@ -888,7 +799,6 @@ eosfs_ll_rename (fuse_req_t req,
   }
 
   const char* user = xrd_mapuser (req->ctx.uid, req->ctx.gid, req->ctx.pid);
-
   FULLPARENTPATH (fullpath, mountprefix, parentpath, name);
   FULLPARENTPATH (newfullpath, mountprefix, newparentpath, newname);
   sprintf (iparentpath, "%s/%s", newparentpath, newname);
@@ -896,7 +806,6 @@ eosfs_ll_rename (fuse_req_t req,
   xrd_unlock_r_p2i (); // <=
 
   struct stat stbuf;
-
   int retcold = xrd_stat (fullpath, &stbuf, req->ctx.uid, req->ctx.gid, 0);
 
   if (isdebug)
@@ -905,17 +814,12 @@ eosfs_ll_rename (fuse_req_t req,
              __FUNCTION__, fullpath, newfullpath, (unsigned long long) stbuf.st_ino, retcold);
   }
 
-  int retc = xrd_rename (fullpath,
-                         newfullpath,
-                         req->ctx.uid,
-                         req->ctx.gid,
-                         req->ctx.pid);
+  int retc = xrd_rename (fullpath, newfullpath, req->ctx.uid,
+                         req->ctx.gid, req->ctx.pid);
 
   if (!retc)
   {
-    //..........................................................................
     // Update the inode store
-    //..........................................................................
     if (!retcold)
     {
       if (isdebug)
@@ -927,18 +831,15 @@ eosfs_ll_rename (fuse_req_t req,
       xrd_forget_p2i ((unsigned long long) stbuf.st_ino);
       xrd_store_p2i ((unsigned long long) stbuf.st_ino, iparentpath);
       xrd_dir_cache_forget ((unsigned long long) parent);
+
       if (parent != newparent)
-      {
         xrd_dir_cache_forget ((unsigned long long) newparent);
-      }
     }
 
     fuse_reply_err (req, 0);
   }
   else
-  {
     fuse_reply_err (req, errno);
-  }
 }
 
 
@@ -947,7 +848,6 @@ eosfs_ll_rename (fuse_req_t req,
 // permission isn't available, or 0 for success. Note that it can be called
 // on files, directories, or any other object that appears in the filesystem.
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_access (fuse_req_t req, fuse_ino_t ino, int mask)
 {
@@ -965,7 +865,6 @@ eosfs_ll_access (fuse_req_t req, fuse_ino_t ino, int mask)
   }
 
   FULLPATH (fullpath, mountprefix, name);
-
   xrd_unlock_r_p2i (); // <=
 
   if (isdebug)
@@ -981,27 +880,19 @@ eosfs_ll_access (fuse_req_t req, fuse_ino_t ino, int mask)
     return;
   }
 
-  int retc = xrd_access (fullpath,
-                         mask,
-                         req->ctx.uid,
-                         req->ctx.gid,
-                         req->ctx.pid);
+  int retc = xrd_access (fullpath, mask, req->ctx.uid,
+                         req->ctx.gid, req->ctx.pid);
 
   if (!retc)
-  {
     fuse_reply_err (req, 0);
-  }
   else
-  {
     fuse_reply_err (req, errno);
-  }
 }
 
 
 //------------------------------------------------------------------------------
 // Open a file
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_open (fuse_req_t req,
                fuse_ino_t ino,
@@ -1009,6 +900,7 @@ eosfs_ll_open (fuse_req_t req,
 {
   int res;
   struct stat stbuf;
+  mode_t mode = 0;
   char fullpath[16384];
   const char* name = NULL;
 
@@ -1023,30 +915,15 @@ eosfs_ll_open (fuse_req_t req,
   }
 
   FULLPATH (fullpath, mountprefix, name);
-
   xrd_unlock_r_p2i (); // <=
 
   if (fi->flags & (O_RDWR | O_WRONLY | O_CREAT))
-  {
-
-    res = xrd_open (fullpath,
-                    fi->flags,
-                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
-                    req->ctx.uid,
-                    req->ctx.gid,
-                    req->ctx.pid,0);
-
-  }
-  else
-  {
-    res = xrd_open (fullpath,
-                    fi->flags,
-                    0,
-                    req->ctx.uid,
-                    req->ctx.gid,
-                    req->ctx.pid,0);
-  }
-
+    mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+    
+  // Do open
+  res = xrd_open (fullpath, fi->flags, mode, req->ctx.uid,
+                  req->ctx.gid, req->ctx.pid);
+  
   if (isdebug)
   {
     fprintf (stderr, "[%s]: inode=%lld path=%s res=%d\n",
@@ -1067,34 +944,22 @@ eosfs_ll_open (fuse_req_t req,
   // Add the inodeuser to fd mapping for future stats
   xrd_add_inodeuser_fd(ino, info->uid, info->fd);
   
-
   if ((getenv ("EOS_FUSE_KERNELCACHE")) &&
       (!strcmp (getenv ("EOS_FUSE_KERNELCACHE"), "1")))
   {
     // TODO: this should be improved
     if (strstr (fullpath, "/proc/"))
-    {
       fi->keep_cache = 0;
-    }
     else
-    {
-      fi->keep_cache = 1;
-    }
+        fi->keep_cache = 1;
   }
   else
-  {
     fi->keep_cache = 0;
-  }
 
-  if ((getenv ("EOS_FUSE_DIRECTIO")) &&
-      (!strcmp (getenv ("EOS_FUSE_DIRECTIO"), "1")))
-  {
+  if ((getenv ("EOS_FUSE_DIRECTIO")) && (!strcmp (getenv ("EOS_FUSE_DIRECTIO"), "1")))
     fi->direct_io = 1;
-  }
   else
-  {
     fi->direct_io = 0;
-  }
 
   fuse_reply_open (req, fi);
 }
@@ -1104,7 +969,6 @@ eosfs_ll_open (fuse_req_t req,
 // Read from file. Returns the number of bytes transferred, or 0 if offset
 // was at or beyond the end of the file.
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_read (fuse_req_t req,
                fuse_ino_t ino,
@@ -1112,10 +976,13 @@ eosfs_ll_read (fuse_req_t req,
                off_t off,
                struct fuse_file_info* fi)
 {
+  fprintf (stderr, "[%s]: inode=%ji size=%ji off=%ji \n", 
+           __FUNCTION__, ino, size, off);
+
   if (fi->fh)
   {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
-    char* buf = xrd_attach_read_buffer (pthread_self(), size);
+    char* buf = xrd_attach_rd_buff (pthread_self(), size);
     
     if (isdebug)
     {
@@ -1124,17 +991,13 @@ eosfs_ll_read (fuse_req_t req,
                (long long) off, (long long) buf, (long long) info->fd);
     }
 
-    int res = xrd_pread (info->fd, buf, size, off, ino);
+    int res = xrd_pread (info->fd, buf, size, off);
 
     if (res == -1)
     {
-      //........................................................................
       // Map file system errors to IO errors!
-      //........................................................................
       if (errno == ENOSYS)
-      {
         errno = EIO;
-      }
 
       fuse_reply_err (req, errno);
       return;
@@ -1143,16 +1006,13 @@ eosfs_ll_read (fuse_req_t req,
     fuse_reply_buf (req, buf, res);
   }
   else
-  {
     fuse_reply_err (req, ENXIO);
-  }
 }
 
 
 //------------------------------------------------------------------------------
 // Write function
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_write (fuse_req_t req,
                 fuse_ino_t ino,
@@ -1161,9 +1021,10 @@ eosfs_ll_write (fuse_req_t req,
                 off_t off,
                 struct fuse_file_info* fi)
 {
-  if (fi->fh)
+  if (fi && fi->fh)
   {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
+    
     if (isdebug)
     {
       fprintf (stderr, "[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n",
@@ -1171,17 +1032,13 @@ eosfs_ll_write (fuse_req_t req,
                (long long) off, (long long) buf, (long long) info->fd);
     }
 
-    int res = xrd_pwrite (info->fd, buf, size, off, ino);
+    int res = xrd_pwrite (info->fd, buf, size, off);
 
     if (res == -1)
     {
-      //........................................................................
       // Map file system errors to IO errors!
-      //........................................................................
       if (errno == ENOSYS)
-      {
         errno = EIO;
-      }
 
       fuse_reply_err (req, errno);
       return;
@@ -1190,9 +1047,7 @@ eosfs_ll_write (fuse_req_t req,
     fuse_reply_write (req, res);
   }
   else
-  {
     fuse_reply_err (req, ENXIO);
-  }
 }
 
 
@@ -1200,15 +1055,13 @@ eosfs_ll_write (fuse_req_t req,
 // Release is called when FUSE is completely done with a file; at that point,
 // you can free up any temporarily allocated data structures.
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_release (fuse_req_t req,
                   fuse_ino_t ino,
                   struct fuse_file_info* fi)
 {
-  if (fi->fh)
+  if (fi && fi->fh)
   {
-    int res = 0;
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     int fd = info->fd;
 
@@ -1219,8 +1072,8 @@ eosfs_ll_release (fuse_req_t req,
     }
 
     fprintf (stderr, "[%s]: Do real close file fd=%llu\n", __FUNCTION__, info->fd);
-    res = xrd_close (info->fd, ino, info->uid);
-    xrd_release_read_buffer (pthread_self());
+    int res = xrd_close (info->fd, ino, info->uid);
+    xrd_release_rd_buff (pthread_self());
     
     // Free memory
     free (info);
@@ -1237,14 +1090,13 @@ eosfs_ll_release (fuse_req_t req,
 //------------------------------------------------------------------------------
 // Flush any dirty information about the file to disk
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_fsync (fuse_req_t req,
                 fuse_ino_t ino,
                 int datasync,
                 struct fuse_file_info* fi)
 {
-  if (fi->fh)
+  if (fi && fi->fh)
   {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     if (isdebug)
@@ -1253,11 +1105,10 @@ eosfs_ll_fsync (fuse_req_t req,
                __FUNCTION__, (long long) ino, (long long) info->fd);
     }
 
-    int res = xrd_fsync (info->fd, ino);
-
-    if (res)
+    if (xrd_fsync (info->fd))
     {
       fuse_reply_err (req, errno);
+      return;
     }
   }
 
@@ -1268,7 +1119,6 @@ eosfs_ll_fsync (fuse_req_t req,
 //------------------------------------------------------------------------------
 // Forget inode <-> path mapping
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_forget (fuse_req_t req, fuse_ino_t ino, unsigned long nlookup)
 {
@@ -1282,24 +1132,20 @@ eosfs_ll_forget (fuse_req_t req, fuse_ino_t ino, unsigned long nlookup)
 // Important: there may be more than one flush call for each open.
 // Note: There is no guarantee that flush will ever be called at all!
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_flush (fuse_req_t req,
                 fuse_ino_t ino,
                 struct fuse_file_info* fi)
 {
-  int errc_flush = 0;
-
   errno = 0;
-  if (fi->fh)
+  
+  if (fi && fi->fh)
   {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
-    errc_flush = xrd_flush (info->fd, (unsigned long) ino);
+    int err_flush = xrd_flush (info->fd);
 
-    if (errc_flush)
-    {
+    if (err_flush)
       errno = EIO;
-    }
   }
 
   fuse_reply_err (req, errno);
@@ -1309,7 +1155,6 @@ eosfs_ll_flush (fuse_req_t req,
 //------------------------------------------------------------------------------
 // Get an extended attribute
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_getxattr (fuse_req_t req,
                    fuse_ino_t ino,
@@ -1320,9 +1165,7 @@ eosfs_ll_getxattr (fuse_req_t req,
       (!strcmp (xattr_name, "system.posix_acl_default") ||
        (!strcmp (xattr_name, "security.capability"))))
   {
-    //..........................................................................
     // Filter out specific requests to increase performance
-    //..........................................................................
     fuse_reply_err (req, ENODATA);
     return;
   }
@@ -1343,7 +1186,6 @@ eosfs_ll_getxattr (fuse_req_t req,
   }
 
   FULLPATH (fullpath, mountprefix, name);
-
   xrd_unlock_r_p2i (); // <=
 
   if (isdebug)
@@ -1353,13 +1195,8 @@ eosfs_ll_getxattr (fuse_req_t req,
   }
 
   char* xattr_value = NULL;
-  retc = xrd_getxattr (fullpath,
-                       xattr_name,
-                       &xattr_value,
-                       &size,
-                       req->ctx.uid,
-                       req->ctx.gid,
-                       req->ctx.pid);
+  retc = xrd_getxattr (fullpath, xattr_name, &xattr_value, &size,
+                       req->ctx.uid, req->ctx.gid, req->ctx.pid);
 
   if (retc)
     fuse_reply_err (req, ENODATA);
@@ -1386,7 +1223,6 @@ eosfs_ll_getxattr (fuse_req_t req,
 //------------------------------------------------------------------------------
 // List extended attributes
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
 {
@@ -1406,7 +1242,6 @@ eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
   }
 
   FULLPATH (fullpath, mountprefix, name);
-
   xrd_unlock_r_p2i (); // <=
 
   if (isdebug)
@@ -1416,12 +1251,8 @@ eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
   }
 
   char* xattr_list = NULL;
-  retc = xrd_listxattr (fullpath,
-                        &xattr_list,
-                        &size,
-                        req->ctx.uid,
-                        req->ctx.gid,
-                        req->ctx.pid);
+  retc = xrd_listxattr (fullpath, &xattr_list, &size, req->ctx.uid,
+                        req->ctx.gid, req->ctx.pid);
 
   if (retc)
     fuse_reply_err (req, retc);
@@ -1448,7 +1279,6 @@ eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
 //------------------------------------------------------------------------------
 // Remove extended attribute
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_removexattr (fuse_req_t req,
                       fuse_ino_t ino,
@@ -1478,11 +1308,8 @@ eosfs_ll_removexattr (fuse_req_t req,
              __FUNCTION__, (long long) ino, fullpath);
   }
 
-  retc = xrd_rmxattr (fullpath,
-                      xattr_name,
-                      req->ctx.uid,
-                      req->ctx.gid,
-                      req->ctx.pid);
+  retc = xrd_rmxattr (fullpath, xattr_name, req->ctx.uid,
+                      req->ctx.gid, req->ctx.pid);
 
   fuse_reply_err (req, retc);
 }
@@ -1491,7 +1318,6 @@ eosfs_ll_removexattr (fuse_req_t req,
 //------------------------------------------------------------------------------
 // Set extended attribute
 //------------------------------------------------------------------------------
-
 static void
 eosfs_ll_setxattr (fuse_req_t req,
                    fuse_ino_t ino,
@@ -1516,7 +1342,6 @@ eosfs_ll_setxattr (fuse_req_t req,
   }
 
   FULLPATH (fullpath, mountprefix, name);
-
   xrd_unlock_r_p2i (); // <=
 
   if (isdebug)
@@ -1525,13 +1350,8 @@ eosfs_ll_setxattr (fuse_req_t req,
              __FUNCTION__, (long long) ino, fullpath);
   }
 
-  retc = xrd_setxattr (fullpath,
-                       xattr_name,
-                       xattr_value,
-                       strlen (xattr_value),
-                       req->ctx.uid,
-                       req->ctx.gid,
-                       req->ctx.pid);
+  retc = xrd_setxattr (fullpath, xattr_name, xattr_value, strlen (xattr_value),
+                       req->ctx.uid, req->ctx.gid, req->ctx.pid);
   fuse_reply_err (req, retc);
   return;
 }
@@ -1568,7 +1388,6 @@ eosfs_ll_create(fuse_req_t req,
     }
 
     sprintf (partialpath, "/%s%s/%s", mountprefix, parentpath, name);
-
     FULLPARENTPATH (fullpath, mountprefix, parentpath, name);
 
     if ((strlen (parentpath) == 1) && (parentpath[0] == '/'))
@@ -1584,14 +1403,12 @@ eosfs_ll_create(fuse_req_t req,
                __FUNCTION__, (long long) parent, fullpath, req->ctx.uid);
     }
 
-    res = xrd_open (fullpath,
-                    O_CREAT | O_EXCL | O_RDWR,
+    res = xrd_open (fullpath, O_CREAT | O_EXCL | O_RDWR,
                     S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
                     req->ctx.uid,
                     req->ctx.gid,
                     req->ctx.pid,
                     &return_inode);
-
 
     if (res == -1)
     {
@@ -1646,29 +1463,19 @@ eosfs_ll_create(fuse_req_t req,
       {
         // TODO: this should be improved
         if (strstr (fullpath, "/proc/"))
-        {
           fi->keep_cache = 0;
-        }
         else
-        {
           fi->keep_cache = 1;
-        }
       }
       else
-      {
         fi->keep_cache = 0;
-      }
 
       if ((getenv ("EOS_FUSE_DIRECTIO")) &&
           (!strcmp (getenv ("EOS_FUSE_DIRECTIO"), "1")))
-      {
         fi->direct_io = 1;
-      }
       else
-      {
         fi->direct_io = 0;
-      }
-      
+
       fuse_reply_create (req, &e, fi);
       return;
     }
@@ -1709,7 +1516,6 @@ static struct fuse_lowlevel_ops eosfs_ll_oper = {
 //------------------------------------------------------------------------------
 // Main function
 //------------------------------------------------------------------------------
-
 int
 main (int argc, char* argv[])
 {
@@ -1728,9 +1534,7 @@ main (int argc, char* argv[])
   for (i = 0; i < argc; i++)
   {
     if (!strcmp (argv[i], "-d"))
-    {
       isdebug = 1;
-    }
   }
 
   if (getenv ("EOS_SOCKS4_HOST") && getenv ("EOS_SOCKS4_PORT"))
@@ -1751,9 +1555,7 @@ main (int argc, char* argv[])
         *(spos) = 0;
 
         if (*(spos - 1) == ',')
-        {
           *(spos - 1) = 0;
-        }
 
         setenv ("EOS_RDRURL", spos + 4, 1);
       }
@@ -1776,9 +1578,7 @@ main (int argc, char* argv[])
     exit (-1);
   }
 
-  //............................................................................
   // Move the mounthostport starting with the host name
-  //............................................................................
   char* pmounthostport = 0;
   char* smountprefix = 0;
 
@@ -1814,9 +1614,7 @@ main (int argc, char* argv[])
     strcpy (mountprefix, smountprefix);
 
     while (mountprefix[strlen (mountprefix) - 1] == '/')
-    {
       mountprefix[strlen (mountprefix) - 1] = '\0';
-    }
   }
 
   if (!isdebug)
@@ -1833,9 +1631,7 @@ main (int argc, char* argv[])
     // Kill the parent
     //..........................................................................
     if (m_pid > 0)
-    {
       exit (0);
-    }
 
     umask (0);
     pid_t sid;
@@ -1868,7 +1664,6 @@ main (int argc, char* argv[])
       (ch = fuse_mount (mountpoint, &args)) != NULL)
   {
     struct fuse_session* se;
-
     se = fuse_lowlevel_new (&args, &eosfs_ll_oper, sizeof ( eosfs_ll_oper), NULL);
 
     if (se != NULL)
@@ -1885,6 +1680,7 @@ main (int argc, char* argv[])
         {
           err = fuse_session_loop_mt (se);
         }
+        
         fuse_remove_signal_handlers (se);
         fuse_session_remove_chan (ch);
       }

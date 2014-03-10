@@ -423,7 +423,7 @@ eosdfs_truncate (const char* path, off_t size)
   if (fd < 0)
     return -errno;
 
-  xrd_truncate (fd, size, 0);
+  xrd_truncate (fd, size);
   xrd_close (fd, 0, uid);
   return 0;
 }
@@ -509,7 +509,7 @@ eosdfs_read (const char* path,
            __FUNCTION__, path, offset, size);
   eosatime = time (0);
   struct fd_user_info* info = (fd_user_info*) fi->fh;
-  int res = xrd_pread (info->fd, buf, size, offset, info->ino);
+  int res = xrd_pread (info->fd, buf, size, offset);
 
   if (res == -1)
   {
@@ -540,7 +540,7 @@ eosdfs_write (const char* path,
   // to open and truncate a file before calling eosdfs_write()
   eosatime = time (0);
   struct fd_user_info* info = (fd_user_info*) fi->fh;
-  int res = xrd_pwrite (info->fd, buf, size, offset, info->ino);
+  int res = xrd_pwrite (info->fd, buf, size, offset);
 
   if (res == -1)
     res = -errno;
@@ -584,7 +584,7 @@ eosdfs_release (const char* path, struct fuse_file_info* fi)
   eosatime = time (0);
   struct fd_user_info* info = (struct fd_user_info*) fi->fh;
   xrd_close(info->fd, info->ino, info->uid);
-  xrd_release_read_buffer(pthread_self());
+  xrd_release_rd_buff(pthread_self());
 
   // Free memory allocated in eosdfs_open or eosdfs_create
   free (info);
@@ -622,7 +622,7 @@ eosdfs_ftruncate(const char* path,
 {
   fprintf (stderr, "[%s] path=%s, size=%ji\n", __FUNCTION__, path, size);
   struct fd_user_info* info = (fd_user_info*) fi->fh;
-  int res = xrd_truncate (info->fd, size, info->ino);
+  int res = xrd_truncate (info->fd, size);
 
   if (res)
     res = -errno;

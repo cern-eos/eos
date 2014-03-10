@@ -1,7 +1,7 @@
-# ----------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # File: CMakeLists.txt
 # Author: Andreas-Joachim Peters - CERN
-# ----------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ 
+include_directories( ${CMAKE_SOURCE_DIR}
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${XROOTD_PRIVATE_INCLUDE_DIR}	
 		     ${FUSE_INCLUDE_DIR} 
@@ -30,50 +30,57 @@ include_directories( ../
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}
 		  ${XROOTD_LIB_DIR} )
 
-add_subdirectory(XrdCache)
+add_subdirectory(tests)
+add_subdirectory(FuseCache)
 
-add_executable ( eosfsd
-                 eosfs.c
-                 xrdposix.cc            xrdposix.hh
-		 FuseCacheEntry.cc	FuseCacheEntry.hh
-)
+add_executable ( 
+ eosfsd
+ eosfs.c
+ xrdposix.cc        xrdposix.hh
+ FuseCacheEntry.cc  FuseCacheEntry.hh )
 
-add_executable ( eosd
-                 eosd.c
-                 xrdposix.cc            xrdposix.hh
-		 FuseCacheEntry.cc	FuseCacheEntry.hh
-)
+add_executable ( 
+  eosd
+  eosd.c
+  xrdposix.cc        xrdposix.hh
+  FuseCacheEntry.cc  FuseCacheEntry.hh )
 
+target_link_libraries ( 
+  eosfsd 
+  XrdCl
+  XrdUtils 
+  EosFstIo-Static
+  FuseCache-Static
+  eosCommon-Static
+  ${FUSE_LIBRARY} 
+  ${CMAKE_THREAD_LIBS_INIT} )
 
+target_link_libraries ( 
+  eosd 
+  XrdCl
+  XrdUtils 
+  EosFstIo-Static
+  FuseCache-Static
+  eosCommon-Static
+  ${FUSE_LIBRARY}
+  ${UUID_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT} )
 
-target_link_libraries ( eosfsd 
-		        XrdCl
-			XrdUtils 
-			EosFstIo-Static
-			XrdCache-Static
-			eosCommon-Static
-			${FUSE_LIBRARY} 
-			${CMAKE_THREAD_LIBS_INIT} )
+if( MacOSX )
+  set_target_properties ( 
+    eosd eosfsd 
+    PROPERTIES 
+    COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE" )
+else( MacOSX )
+  set_target_properties ( 
+    eosd eosfsd 
+    PROPERTIES 
+    COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
+endif( MacOSX )
 
-target_link_libraries ( eosd 
-     		      	XrdCl
-			XrdUtils 
-			EosFstIo-Static
-			XrdCache-Static
-			eosCommon-Static
-			${FUSE_LIBRARY}
-			${UUID_LIBRARIES}
-			${CMAKE_THREAD_LIBS_INIT} )
-
-if(MacOSX)
-set_target_properties ( eosd eosfsd PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE")
-else(MacOSX)
-set_target_properties ( eosd eosfsd PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
-endif(MacOSX)
 install_programs( ${CMAKE_INSTALL_SBINDIR} FILES eosd )
 
 install ( TARGETS eosfsd
           LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
           RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-)
+          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR} )
