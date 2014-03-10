@@ -88,7 +88,7 @@ com_dropbox (char *arg)
 
     XrdOucString localdirdummy = localdir + "/dummy";
     eos::common::Path lPath(localdirdummy.c_str());
-    if ((!lPath.MakeParentPath(S_IRUSR | S_IWUSR)) || (access(localdir.c_str(), W_OK | X_OK)))
+    if ((!lPath.MakeParentPath(S_IRUSR | S_IWUSR | S_IXUSR)) || (access(localdir.c_str(), W_OK | X_OK)))
     {
       fprintf(stderr, "error: cannot access %s\n", localdirdummy.c_str());
       global_retc = -EPERM;
