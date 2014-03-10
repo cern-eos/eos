@@ -778,7 +778,7 @@ TransferJob::DoIt ()
     }
     else
     {
-      command << "unset XrdSecPROTOCOL; ";
+      command << "export XrdSecPROTOCOL=sss; ";
     }
   }
 
