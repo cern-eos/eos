@@ -200,7 +200,7 @@ XrdFstOfsFile::open (const char* path,
     if (strncmp(val, "1", 1) == 0)
     {
       store_recovery = true;
-      open_mode = SFS_O_RDWR;
+      open_mode = SFS_O_RDWR | SFS_O_CREAT;
     }
   }
   

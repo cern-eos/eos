@@ -966,7 +966,6 @@ XrdFstOfs::SendFsck (XrdMqMessage* message)
               stdOut += "\n";
               XrdMqMessage repmessage("fsck reply message");
               repmessage.SetBody(stdOut.c_str());
-              fprintf(stderr, "Sending %s\n", stdOut.c_str());
 
               if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message))
               {
