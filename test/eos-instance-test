@@ -692,8 +692,6 @@ runtest "### Ls        " unix 0 "" eos ls "/eos/$EOS_TEST_INSTANCE/test | grep [
 runtest "### Ls        " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 2"
 runtest "### Ls        " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 4"
 runtest "### Find      " unix 0 "" eos "find 2>&1 | grep error"
-runtest "### Find      " unix 0 "" eos find -f "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l |grep -w 100"
-runtest "### Find      " unix 0 "" eos find --count "/eos/$EOS_TEST_INSTANCE/test | grep 100"
 runtest "### Find      " unix 0 "" eos find -d "/eos/$EOS_TEST_INSTANCE/test | grep eos | wc -l | grep -w 3"
 
 ################################################################################################################
