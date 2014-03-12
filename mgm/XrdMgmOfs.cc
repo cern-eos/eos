@@ -6850,8 +6850,8 @@ XrdMgmOfs::FSctl (const int cmd,
                                                             lid,
                                                             locationfs,
                                                             fsindex,
-                                                            false, (
-                                                                    long long unsigned) 0,
+                                                            false, 
+							    (long long unsigned) 0,
                                                             unavailfs)))
                   {
                     // inaccessible files we let retry after 60 seconds

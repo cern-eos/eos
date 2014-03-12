@@ -802,20 +802,27 @@ XrdMgmOfsFile::open (const char *inpath,
   // ---------------------------------------------------------------------------
   XrdOucString capability = "";
 
-  if (isRW)
+  if (isPioReconstruct) 
   {
-    if (isRewrite)
+    capability += "&mgm.access=update";
+  } 
+  else 
+  {
+    if (isRW)
     {
-      capability += "&mgm.access=update";
+      if (isRewrite)
+      {
+	capability += "&mgm.access=update";
+      }
+      else
+      {
+	capability += "&mgm.access=create";
+      }
     }
     else
     {
-      capability += "&mgm.access=create";
+      capability += "&mgm.access=read";
     }
-  }
-  else
-  {
-    capability += "&mgm.access=read";
   }
 
   // ---------------------------------------------------------------------------
@@ -1079,8 +1086,9 @@ XrdMgmOfsFile::open (const char *inpath,
       return Emsg(epname, error, ENODEV, "open - no replica exists", path);
     }
 
+    // reconstruction opens files in RW mode but we actually need RO mode in this case
     retc = quotaspace->FileAccess(vid, forcedFsId, space.c_str(), layoutId,
-                                  selectedfs, fsIndex, isRW, fmd->getSize(),
+                                  selectedfs, fsIndex, isPioReconstruct?false:isRW, fmd->getSize(),
                                   unavailfs);
 
     if (retc == EXDEV)
@@ -1419,7 +1427,10 @@ XrdMgmOfsFile::open (const char *inpath,
       plainBookingSize += 4096;
       plainBookingSize *= PioReconstructFsList.size();
 
-      retc = quotaspace->FilePlacement(path, vid, containertag, plainLayoutId,
+      eos::common::Mapping::VirtualIdentity rootvid;
+      eos::common::Mapping::Root(rootvid);
+
+      retc = quotaspace->FilePlacement(path, rootvid, containertag, plainLayoutId,
                                        selectedfs, PioReplacementFsList,
                                        false, forcedGroup,
                                        plainBookingSize);
@@ -1427,8 +1438,8 @@ XrdMgmOfsFile::open (const char *inpath,
       if (retc)
       {
         // the placement didn't work, we cannot schedule reconstruction
-        gOFS->MgmStats.Add("OpenFailedReconstruct", vid.uid, vid.gid, 1);
-        return Emsg(epname, error, errno, "schedule stripes for reconstruction", path);
+        gOFS->MgmStats.Add("OpenFailedReconstruct", rootvid.uid, rootvid.gid, 1);
+        return Emsg(epname, error, retc, "schedule stripes for reconstruction", path);
       }
 
       for (int i = 0; i < (int) PioReplacementFsList.size(); i++)
