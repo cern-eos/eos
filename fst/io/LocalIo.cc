@@ -77,6 +77,7 @@ LocalIo::Open (const std::string& path,
 
   mFilePath = path;
   errno = 0;
+  eos_info("flags=%x", flags);
   int retc = mLogicalFile->openofs(mFilePath.c_str(),
 				   flags,
 				   mode,

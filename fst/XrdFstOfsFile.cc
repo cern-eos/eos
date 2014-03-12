@@ -200,7 +200,8 @@ XrdFstOfsFile::open (const char* path,
     if (strncmp(val, "1", 1) == 0)
     {
       store_recovery = true;
-      open_mode = SFS_O_RDWR | SFS_O_CREAT;
+      open_mode = SFS_O_RDWR | SFS_O_CREAT ;
+      eos_info("enabling file creation for RAIN store recovery");
     }
   }
   
@@ -630,6 +631,7 @@ XrdFstOfsFile::open (const char* path,
   }
   else
   {
+    eos_warning("removing creation flag because of %d %d", retc, errno);
     // remove the creat flag
     if (open_mode & SFS_O_CREAT)
       open_mode -= SFS_O_CREAT;
@@ -833,6 +835,7 @@ XrdFstOfsFile::open (const char* path,
   //............................................................................
   // Open layout implementation
   //............................................................................
+  eos_info("fstpath=%s open-mode=%x create-mode=%x layout-name=%s", fstPath.c_str(), open_mode, create_mode, layOut->GetName());
   int rc = layOut->Open(fstPath.c_str(), open_mode, create_mode, oss_opaque.c_str());
 
   if ((!rc) && isCreation && bookingsize)

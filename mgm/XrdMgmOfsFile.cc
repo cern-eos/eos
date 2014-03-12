@@ -1309,7 +1309,7 @@ XrdMgmOfsFile::open (const char *inpath,
     }
   }
   // ---------------------------------------------------------------------------
-  // get the redirection host from the first entry in the vector
+  // get the redirection host from the selected entry in the vector
   // ---------------------------------------------------------------------------
   if (!selectedfs[fsIndex])
   {
@@ -1506,6 +1506,19 @@ XrdMgmOfsFile::open (const char *inpath,
 	// don't fail IO on a shadow file system but throw a ciritical error message
 	eos_crit("msg=\"Unable to get replica filesystem information\" path=\"%s\" fsid=%d", path, selectedfs[i]);
 	continue;
+      } 
+      else
+      {
+	if (replace) {
+	  // we have now a new target host which will do the reconstruction
+	  targethost = repfilesystem->GetString("host").c_str();
+	  targetport = atoi(repfilesystem->GetString("port").c_str());
+	  
+	  redirectionhost = targethost;
+	  redirectionhost += "?";
+	  // point into the right vector entry
+	  fsIndex=i;
+	}
       }
 
       capability += "&mgm.url";

@@ -180,7 +180,7 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
     fcntl(fd, F_SETFD, FD_CLOEXEC);
   }
 
-  eos_info("fd=%d", fd);
+  eos_info("fd=%d flags=%x", fd, flags);
   return (fd < 0 ? fd : XrdOssOK);
 }
 

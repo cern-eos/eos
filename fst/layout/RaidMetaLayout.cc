@@ -189,13 +189,9 @@ RaidMetaLayout::Open (const std::string& path,
                                           mOfsFile, mSecEntity);
 
  //............................................................................
- // When recovery enabled we open the files in RDWR mode
+ // When recovery enabled we open the files in RDWR + CREATE mode
  //............................................................................
- if (mStoreRecovery)
- {
-   flags = SFS_O_RDWR;
- }
- else if (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY))
+ if (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY))
  {
    mStoreRecovery = true;
    flags |= (SFS_O_RDWR | SFS_O_TRUNC);
