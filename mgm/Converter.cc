@@ -177,74 +177,68 @@ ConverterJob::DoIt ()
     // -------------------------------------------------------------------------
     // prepare the TPC copy job
     // -------------------------------------------------------------------------
+    XrdCl::PropertyList properties;
+    XrdCl::PropertyList result;
 
-    if (!size)
-    {
-      // empty files don't work/need with TPC
-      mTPCJob.thirdParty = false;
-      mTPCJob.thirdPartyFallBack = false;
-    }
-    else
+    if (size)
     {
       // non-empty files run with TPC
-      mTPCJob.thirdParty = true;
-      mTPCJob.thirdPartyFallBack = false;
+      properties.Set("thirdParty", "only");
     }
-    mTPCJob.force = true;
-    mTPCJob.posc = false;
-    mTPCJob.coerce = false;
+
+    properties.Set("force", true);
+    properties.Set("posc", false);
+    properties.Set("coerce", false);
 
     std::string source = mSourcePath.c_str();
     std::string target = mProcPath.c_str();
-
     std::string cgi = "eos.ruid=2&eos.rgid=2&";
     cgi += mTargetCGI.c_str();
     cgi += "&eos.app=converter";
     cgi += "&eos.targetsize=";
     cgi += sourceSize.c_str();
+
     if (sourceChecksum.length())
     {
       cgi += "&eos.checksum=";
       cgi += sourceChecksum.c_str();
     }
-    mTPCJob.source.SetProtocol("root");
-    mTPCJob.source.SetHostName("localhost");
-    mTPCJob.source.SetUserName("root");
-    mTPCJob.source.SetParams("eos.app=converter");
-    mTPCJob.target.SetProtocol("root");
-    mTPCJob.target.SetHostName("localhost");
-    mTPCJob.target.SetUserName("root");
-    mTPCJob.target.SetParams(cgi);
-    mTPCJob.source.SetPath(source);
-    mTPCJob.source.SetParams("eos.ruid=0&eos.rgid=0");
-    mTPCJob.target.SetPath(target);
-    mTPCJob.sourceLimit = 1;
-    mTPCJob.checkSumPrint = false;
-    mTPCJob.chunkSize = 4 * 1024 * 1024;
-    mTPCJob.parallelChunks = 1;
+    
+    XrdCl::URL url_src;
+    url_src.SetProtocol("root");
+    url_src.SetHostName("localhost");
+    url_src.SetUserName("root");
+    url_src.SetParams("eos.app=converter");
+    url_src.SetPath(source);
+    url_src.SetParams("eos.ruid=0&eos.rgid=0");
+
+    XrdCl::URL url_trg;    
+    url_trg.SetProtocol("root");
+    url_trg.SetHostName("localhost");
+    url_trg.SetUserName("root");
+    url_trg.SetParams(cgi);
+    url_trg.SetPath(target);
+        
+    properties.Set("source", url_src);
+    properties.Set("target", url_trg);
+    properties.Set("sourceLimit", (uint16_t) 1);
+    properties.Set("chunkSize", (uint32_t) (4 * 1024 * 1024));
+    properties.Set("parallelChunks", (uint8_t) 1);
 
     XrdCl::CopyProcess lCopyProcess;
-    lCopyProcess.AddJob(&mTPCJob);
+    lCopyProcess.AddJob(properties, &result);
 
     XrdCl::XRootDStatus lTpcPrepareStatus = lCopyProcess.Prepare();
-
     eos_static_info("[tpc]: %s=>%s %s",
-                    mTPCJob.source.GetURL().c_str(),
-                    mTPCJob.target.GetURL().c_str(),
+                    url_src.GetURL().c_str(),
+                    url_trg.GetURL().c_str(),
                     lTpcPrepareStatus.ToStr().c_str());
 
     if (lTpcPrepareStatus.IsOK())
     {
       XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);
       eos_static_info("[tpc]: %s %d", lTpcStatus.ToStr().c_str(), lTpcStatus.IsOK());
-      if (lTpcStatus.IsOK())
-      {
-        success = true;
-      }
-      else
-      {
-        success = false;
-      }
+      success = lTpcStatus.IsOK();
     }
     else
     {
