@@ -2966,13 +2966,38 @@ XrdMgmOfs::_rename (const char *old_name,
   
   gOFS->MgmStats.Add("Rename", vid.uid, vid.gid, 1);
 
+  eos::ContainerMD* dir = 0;
+  eos::ContainerMD* newdir = 0;
+  eos::ContainerMD* rdir = 0;
+  eos::FileMD* file = 0;
+  bool renameFile = false;
+  bool renameDir = false;
+  bool findOk = false;
+
   XrdSfsFileExistence file_exists;
+
+  if (_exists(old_name, file_exists, error, vid, infoN))
+  {
+    errno = ENOENT;
+    return Emsg(epname, error, ENOENT, "rename - source does not exist");
+  }
+  else
+  {
+    if (file_exists == XrdSfsFileExistIsFile)
+    {
+      renameFile = true;
+    }
+    if (file_exists == XrdSfsFileExistIsDirectory)
+    {
+      renameDir = true;
+    }
+  }
 
   if (!_exists(new_name, file_exists, error, vid, infoN))
   {
     if (file_exists == XrdSfsFileExistIsFile)
     {
-      if (overwrite)
+      if (overwrite && renameFile)
       {
         // delete the existing target
         if (gOFS->_rem(new_name, error, vid, infoN))
@@ -2989,31 +3014,6 @@ XrdMgmOfs::_rename (const char *old_name,
       errno = EEXIST;
       return Emsg(epname, error, EEXIST,
                   "rename - target directory name exists");
-    }
-  }
-
-  eos::ContainerMD* dir = 0;
-  eos::ContainerMD* newdir = 0;
-  eos::ContainerMD* rdir = 0;
-  eos::FileMD* file = 0;
-  bool renameFile = false;
-  bool renameDir = false;
-  bool findOk = false;
-
-  if (_exists(old_name, file_exists, error, vid, infoN))
-  {
-    errno = ENOENT;
-    return Emsg(epname, error, ENOENT, "rename - source does not exist");
-  }
-  else
-  {
-    if (file_exists == XrdSfsFileExistIsFile)
-    {
-      renameFile = true;
-    }
-    if (file_exists == XrdSfsFileExistIsDirectory)
-    {
-      renameDir = true;
     }
   }
 
