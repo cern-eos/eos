@@ -806,7 +806,7 @@ com_file_usage:
   fprintf(stdout, "                                                  move the file <path> from  <fsid1> to <fsid2>\n");
 
   fprintf(stdout, "file rename <old> <new> :\n");
-  fprintf(stdout, "                                                  rename from <old> to <new> name (works for files and directories!). This only works for the 'root' user and the renamed file/directory has to stay in the same parent directory\n");
+  fprintf(stdout, "                                                  rename from <old> to <new> name (works for files and directories!).\n ");
   fprintf(stdout, "file replicate <path> <fsid1> <fsid2> :\n");
   fprintf(stdout, "                                                  replicate file <path> part on <fsid1> to <fsid2>\n");
 
