@@ -353,7 +353,7 @@ com_file (char* arg1)
     if (!path.length())
       goto com_file_usage;
 
-    in += "&mgm.subcmd=layout";
+    in += "&mgm.subcmAd=layout";
     in += "&mgm.path=";
     in += path;
     if (fsid1 != "-stripes")
@@ -460,17 +460,18 @@ com_file (char* arg1)
       goto com_file_usage;
 
     in += "&mgm.subcmd=getmdlocation";
+    in += "&mgm.format=fuse";
     in += "&mgm.path=";
     in += path;
 
     XrdOucString option = fsid1;
 
     XrdOucEnv* result = client_user_command(in);
-
     if (!result)
     {
       fprintf(stderr, "error: getmdlocation query failed\n");
-      return EINVAL;
+      global_retc = EINVAL;
+      return (0);
     }
     int envlen = 0;
 
@@ -481,7 +482,7 @@ com_file (char* arg1)
 
     bool consistencyerror = false;
     bool down = false;
-    if (!newresult->Get("mgm.proc.stderr"))
+    if (envlen)
     {
 
       XrdOucString checksumtype = newresult->Get("mgm.checksumtype");
@@ -490,7 +491,7 @@ com_file (char* arg1)
 
       if ((option.find("%silent") == STR_NPOS) && (!silent))
       {
-        fprintf(stdout, "path=\"%-32s\" fid=\"%4s\" size=\"%s\" nrep=\"%s\" "
+        fprintf(stdout, "path=\"%s\" fid=\"%4s\" size=\"%s\" nrep=\"%s\" "
                 "checksumtype=\"%s\" checksum=\"%s\"\n",
                 path.c_str(), newresult->Get("mgm.fid0"),
                 size.c_str(), newresult->Get("mgm.nrep"),
@@ -526,7 +527,8 @@ com_file (char* arg1)
           if (!url.IsValid())
           {
             fprintf(stderr, "error=URL is not valid: %s", address.c_str());
-            return EINVAL;
+	    global_retc = EINVAL;
+	    return (0);
           }
 
           //.............................................................................
@@ -537,7 +539,8 @@ com_file (char* arg1)
           if (!fs)
           {
             fprintf(stderr, "error=failed to get new FS object");
-            return ECOMM;
+	    global_retc = ECOMM;
+	    return (0);
           }
 
           XrdOucString bs = newresult->Get(repbootstat.c_str());
@@ -750,7 +753,9 @@ com_file (char* arg1)
     }
     else
     {
-      fprintf(stderr, "error: %s", newresult->Get("mgm.proc.stderr"));
+      fprintf(stderr, "error: couldn't get meta data information\n");
+      global_retc = EIO;
+      return (0);
     }
     return (consistencyerror);
   }
