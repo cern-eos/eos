@@ -191,7 +191,7 @@ XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
   if (!mBlockXs)
   {
     // If we don't have blockxs enabled then there is no point in aligning
-    XrdOucIOVec piece = {(long long)offset, int(length), 0, (char*)buffer};
+    XrdOucIOVec piece = {(long long)offset, (int)length, 0, (char*)buffer};
     pieces.push_back(piece);
   }
   else
@@ -230,23 +230,29 @@ XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
         // Copy back begin edge 
         ptr_buff = (char*)buffer;
         off_copy = offset - piece->offset;
-        len_copy = nread - off_copy;
+        len_copy = std::min(nread - off_copy, (ssize_t)length);
         ptr_piece = piece->data + off_copy;
         ptr_buff = (char*)memcpy((void*)ptr_buff, ptr_piece, len_copy);
-        retval += len_copy;      
+        retval += len_copy;
       }
-      else if ((offset < piece->offset) &&
+      else if ((piece->offset >= offset) &&
                (off_t)(offset + length) < piece->offset + nread)
       {
         // Copy back end edge
         len_copy = std::min((off_t)(offset + length - piece->offset), nread);     
         ptr_buff = (char*)buffer + (piece->offset - offset);
         ptr_buff = (char*)memcpy((void*)ptr_buff, piece->data, len_copy);
-        retval += len_copy;      
+        retval += len_copy;
       }
       else
         retval += nread;
     }
+  }
+
+  if (retval > (ssize_t)length)
+  {
+    eos_err("read ret=%ji more than requested length=%ju", retval, length);
+    return -EIO;
   }
 
   return ( retval >= 0 ? retval : static_cast<ssize_t> (-errno));
@@ -267,7 +273,7 @@ XrdFstOssFile::AlignBuffer(void* buffer, off_t offset, size_t length)
   off_t chunk_end = offset + length;
   off_t align_start = (offset / blk_size) * blk_size;
   off_t align_end = (chunk_end / blk_size) * blk_size;
-  
+
   if (align_start < offset)
   {
     // Extra piece at the beginning
@@ -281,12 +287,15 @@ XrdFstOssFile::AlignBuffer(void* buffer, off_t offset, size_t length)
   // Add rest of pieces if this was not all
   if (align_start < chunk_end)
   {
-    // Add the main piece
-    char* ptr_buff = (char*)buffer + (align_start - offset);
-    piece = {(long long) align_start,
-             (int) (align_end - align_start), 0,
-             ptr_buff};
-    resp.push_back(piece);
+    if (align_start != align_end)
+    {
+      // Add the main piece
+      char* ptr_buff = (char*)buffer + (align_start - offset);
+      piece = {(long long) align_start,
+               (int) (align_end - align_start), 0,
+               ptr_buff};
+      resp.push_back(piece);
+    }
     
     if (((off_t)align_end < chunk_end) &&
         ((off_t)(align_end + blk_size) > chunk_end))

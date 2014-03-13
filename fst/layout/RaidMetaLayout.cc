@@ -646,7 +646,6 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
  XrdSysMutexHelper scope_lock(mExclAccess);
  eos::common::Timing rt("read");
  COMMONTIMING("start", &rt);
- int64_t nread = 0;
  unsigned int stripe_id;
  unsigned int physical_id;
  int64_t read_length = 0;
@@ -673,7 +672,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
    if (end_raw_offset > (uint64_t)mFileSize)
    {
      eos_warning("read to big, resizing the read length");
-     length = mFileSize - offset;
+     length = static_cast<int>(mFileSize - offset);
    }
 
    if ((offset < 0) && (mIsRw))
@@ -692,9 +691,8 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
 
      while ((uint32_t)len >= mStripeWidth)
      {
-       nread = mStripeWidth;
        all_errs.push_back(XrdCl::ChunkInfo((uint64_t)offset,
-                                           (uint32_t)nread,
+                                           (uint32_t) mStripeWidth,
                                            (void*)recover_block));
                           
        if (offset % mSizeGroup == 0)
@@ -735,7 +733,8 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
      bool do_recovery = false;
      bool got_error = false;
      std::vector<XrdCl::ChunkInfo> split_chunk = SplitRead((uint64_t)offset,
-                                                           (uint32_t)length, buffer);
+                                                           (uint32_t)length,
+                                                           buffer);
 
      for (auto chunk = split_chunk.begin(); chunk != split_chunk.end(); ++chunk)
      {
@@ -747,7 +746,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset,
 
        if (mStripe[physical_id])
        {
-         eos_debug("Read stripe_id=%i, logic_offset=%ji, local_offset=%ji, length=%ji",
+         eos_debug("Read stripe_id=%i, logic_offset=%ji, local_offset=%ji, length=%d",
                    local_pos.first, chunk->offset, off_local, chunk->length);
          nbytes = mStripe[physical_id]->ReadAsync(off_local,
                                                   (char*)chunk->buffer,
@@ -978,6 +977,7 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
  uint64_t off_local;
  uint64_t offset_end = offset + length;
  unsigned int physical_id;
+ eos_debug("off=%ji, len=%i", offset, length);
 
  if (!mIsEntryServer)
  {
@@ -990,6 +990,7 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
    // Detect if this is a non-streaming write
    if (mIsStreaming && ((uint64_t)offset != mLastWriteOffset))
    {
+     eos_debug("enable non-streaming mode");
      mIsStreaming= false;
    }
    
@@ -1018,7 +1019,7 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
      if (mStripe[physical_id])
      {
        nbytes = mStripe[physical_id]->WriteAsync(off_local, buffer,
-                                                      nwrite, mTimeout);
+                                                 nwrite, mTimeout);
 
        if (nbytes != nwrite)
        {
@@ -1721,10 +1722,10 @@ RaidMetaLayout::SplitRead(uint64_t off, uint32_t len, char* buff)
   XrdCl::ChunkList split_read;
   split_read.reserve((len / mStripeWidth) + 2); // worst case
 
-  while ((off / mStripeWidth != (off + len) / mStripeWidth) || (len))
+  while (((off / mStripeWidth) != ((off + len) / mStripeWidth)) || (len))
   {
     block_end = ((off / mStripeWidth) + 1) * mStripeWidth;
-    sz = block_end - off;
+    sz = static_cast<uint32_t>(block_end - off);
     
     // Deal with last piece case
     if (sz > len)

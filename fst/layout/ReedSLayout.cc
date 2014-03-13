@@ -489,7 +489,7 @@ ReedSLayout::Truncate(XrdSfsFileOffset offset)
 
     for (unsigned int i = 1; i < mStripe.size(); i++)
     {
-      eos_debug("Truncate stripe %i, to file_offset = %lli, stripe_offset = %zu",
+      eos_debug("Truncate stripe %i, to file_offset=%lli, stripe_offset=%zu",
                 i, offset, truncate_offset);
 
       if (mStripe[i])
