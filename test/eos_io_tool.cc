@@ -205,7 +205,7 @@ ReadSequentially(XrdCl::URL& url, std::string& ext_file)
 //------------------------------------------------------------------------------
 void
 LoadPattern(std::string& pattern_file,
-            std::map<uint64_t, uint32_t>& map_pattern)
+            std::multimap<uint64_t, uint32_t>& map_pattern)
 {
   // Open file containing the pattern to read
   uint64_t off_start;
@@ -270,7 +270,7 @@ ReadPattern(XrdCl::URL& url,
   eos::fst::AsyncMetaHandler* ptr_handler = NULL;
   eos::fst::FileIo* eosf = eos::fst::FileIoPlugin::GetIoObject(
                              eos::common::LayoutId::kXrdCl);
-  std::map<uint64_t, uint32_t> map_pattern;
+  std::multimap<uint64_t, uint32_t> map_pattern;
   XrdOucString open_opaque = "";
 
   // Enable the readahead in async mode
@@ -563,7 +563,7 @@ WritePattern(XrdCl::URL& url,
   XrdOucString open_opaque = "";
   XrdSfsFileOpenMode flags_sfs;
   XrdSfsMode mode_sfs = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH  ;
-  std::map<uint64_t, uint32_t> map_pattern;
+  std::multimap<uint64_t, uint32_t> map_pattern;
 
   // Open the file for update or truncate it
   if (do_update)
