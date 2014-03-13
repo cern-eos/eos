@@ -2897,7 +2897,6 @@ int
 XrdFstOfsFile::fctl(const int cmd,
                     int alen,
                     const char* args,
-                    XrdOucErrInfo& eInfo,
                     const XrdSecEntity* client)
 {
   eos_debug("cmd=%i, args=%s", cmd, args);
@@ -2913,7 +2912,7 @@ XrdFstOfsFile::fctl(const int cmd,
     }
   }
   
-  eInfo.setErrInfo(EEXIST, "fctl command not supported");
+  error.setErrInfo(ENOTSUP, "fctl command not supported");
   return SFS_ERROR;
 }
 
