@@ -319,7 +319,7 @@ void
 FileTest::AlignBufferTest()
 {
   using namespace eos::fst;
-  int num_datasets = 4;
+  int num_datasets = 8;
   char* ptr_off, *ptr_len;
   size_t len_req;
   off_t off_req;
@@ -361,7 +361,8 @@ FileTest::AlignBufferTest()
 
     // Compute the alignment
     std::vector<XrdOucIOVec> resp = ossfile->AlignBuffer(buffer, off_req, len_req);
-    //std::cout << "size exp:" << expect_resp.size()
+    //std::cout << "set:" << set
+    //          << " size exp:" << expect_resp.size()
     //          << " size resp:" << resp.size() << std::endl;
     CPPUNIT_ASSERT(resp.size() == expect_resp.size());
 

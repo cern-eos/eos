@@ -110,6 +110,32 @@ TestEnv::TestEnv()
   mMapParam.insert(std::make_pair("align3_len", "1048576"));
   mMapParam.insert(std::make_pair("align3_resp_off", "4096"));
   mMapParam.insert(std::make_pair("align3_resp_len", "1048576"));
+
+  // Test set 4
+  mMapParam.insert(std::make_pair("align4_off", "20971520"));
+  mMapParam.insert(std::make_pair("align4_len", "2048"));
+  mMapParam.insert(std::make_pair("align4_resp_off", "20971520"));
+  mMapParam.insert(std::make_pair("align4_resp_len", "4096"));
+
+  // Test set 5
+  mMapParam.insert(std::make_pair("align5_off", "20972544"));
+  mMapParam.insert(std::make_pair("align5_len", "3072"));
+  mMapParam.insert(std::make_pair("align5_resp_off", "20971520"));
+  mMapParam.insert(std::make_pair("align5_resp_len", "4096"));
+
+  // Test set 6
+  mMapParam.insert(std::make_pair("align6_off", "20972544"));
+  mMapParam.insert(std::make_pair("align6_len", "4096"));
+  mMapParam.insert(std::make_pair("align6_resp_off", "20971520 20975616"));
+  mMapParam.insert(std::make_pair("align6_resp_len", "4096 4096"));
+
+  // Test set 7
+  mMapParam.insert(std::make_pair("align7_off", "20972544"));
+  mMapParam.insert(std::make_pair("align7_len", "9216"));
+  mMapParam.insert(std::make_pair("align7_resp_off", "20971520 20975616 20979712"));
+  mMapParam.insert(std::make_pair("align7_resp_len", "4096 4096 4096"));
+
+  
 }
 
 
