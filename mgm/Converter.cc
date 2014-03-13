@@ -67,7 +67,6 @@ mConverterName (convertername)
   mProcPath += "/";
   char xfid[20];
   snprintf(xfid, sizeof (xfid), "%016llx", (long long) mFid);
-  mProcPath += "/";
   mProcPath += xfid;
   mProcPath += ":";
   mProcPath += conversionlayout;
@@ -209,8 +208,8 @@ ConverterJob::DoIt ()
     url_src.SetHostName("localhost");
     url_src.SetUserName("root");
     url_src.SetParams("eos.app=converter");
-    url_src.SetPath(source);
     url_src.SetParams("eos.ruid=0&eos.rgid=0");
+    url_src.SetPath(source);
 
     XrdCl::URL url_trg;    
     url_trg.SetProtocol("root");
