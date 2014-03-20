@@ -353,7 +353,7 @@ com_file (char* arg1)
     if (!path.length())
       goto com_file_usage;
 
-    in += "&mgm.subcmAd=layout";
+    in += "&mgm.subcmd=layout";
     in += "&mgm.path=";
     in += path;
     if (fsid1 != "-stripes")
