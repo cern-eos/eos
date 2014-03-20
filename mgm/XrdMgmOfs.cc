@@ -2299,6 +2299,9 @@ XrdMgmOfs::_rem (const char *path,
   eos::ContainerMD::XAttrMap attrmap;
   Acl acl;
 
+  uid_t owner_uid=0;
+  gid_t owner_gid=0;
+
   bool doRecycle = false; // indicating two-step deletion via recycle-bin
 
   try
@@ -2314,6 +2317,9 @@ XrdMgmOfs::_rem (const char *path,
 
   if (fmd)
   {
+    owner_uid = fmd->getCUid();
+    owner_gid = fmd->getCGid();
+
     eos_info("got fmd=%lld", (unsigned long long) fmd);
     try
     {
@@ -2529,9 +2535,11 @@ XrdMgmOfs::_rem (const char *path,
 
   if (errno)
     return Emsg(epname, error, errno, "remove", path);
-
   else
+  {
+    eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u vid.uid=%u vid.gid=%u", path, doRecycle, owner_uid, owner_gid, vid.uid, vid.gid);
     return SFS_OK;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
