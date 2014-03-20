@@ -633,7 +633,7 @@ eosdfs_ftruncate(const char* path,
 
 //------------------------------------------------------------------------------
 //
-//------------------------------------------------------------------------------
+//-A-----------------------------------------------------------------------------
 #ifdef HAVE_SETXATTR
 //..............................................................................
 // Xattr operations are optional and can safely be left unimplemented
@@ -774,6 +774,14 @@ main (int argc, char* argv[])
   }
 
   int shift = 0;
+
+#ifndef __APPLE__
+  if (access("/bin/fusermount",X_OK))
+    {
+      fprintf (stderr,"error: /bin/fusermount is not executable for you!\n");
+      exit (-2);
+    }
+#endif
 
   for (i = 0; i < argc; i++)
   {

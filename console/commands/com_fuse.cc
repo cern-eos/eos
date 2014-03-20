@@ -254,17 +254,18 @@ com_fuse (char* arg1)
       int rc = system(mount.c_str());
       if (WEXITSTATUS(rc))
       {
-        fprintf(stderr, "error: mount failed");
+        fprintf(stderr, "error: mount failed\n");
+	exit(-1);
       }
     }
 
     bool mountok=false;
 
-    for (size_t i=0; i< 30; i++) 
+    for (size_t i=0; i< 50; i++) 
     {
-      if(stat(mountpoint.c_str(), &buf2) && (buf2.st_ino == buf.st_ino) )
+      if(stat(mountpoint.c_str(), &buf2) || (buf2.st_ino == buf.st_ino) )
       {
-	usleep(1000000);
+	usleep(100000);
       }
       else
       {
