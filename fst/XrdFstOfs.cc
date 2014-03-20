@@ -41,6 +41,7 @@
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdVersion.hh"
@@ -282,11 +283,11 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
     return rc;
 
   // Get the hostname
-  int host_len = myIF.GetName(XrdNetIF::ifType::Public, mHostName);
+  mHostName = XrdSysDNS::getHostName();
 
-  if (!host_len)
+  if (!mHostName)
   {
-    Eroute.Emsg("Config", "Hostname value is empty");
+    Eroute.Emsg("Config", "Hostname coud not be determined");
     NoGo = 1;
     return NoGo;
   }
@@ -297,9 +298,7 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   eos::fst::Config::gConfig.FstOfsBrokerUrl = "root://localhost:1097//eos/";
 
   if (getenv("EOS_BROKER_URL"))
-  {
     eos::fst::Config::gConfig.FstOfsBrokerUrl = getenv("EOS_BROKER_URL");
-  }
 
   {
     // set the start date as string
