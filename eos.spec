@@ -190,6 +190,7 @@ Group: Applications/File
 
 Requires: xrootd-client
 Requires: eos-client
+Requires: fuse
 
 %description -n eos-fuse
 The EOS fuse client.
