@@ -2537,7 +2537,7 @@ XrdMgmOfs::_rem (const char *path,
     return Emsg(epname, error, errno, "remove", path);
   else
   {
-    eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u vid.uid=%u vid.gid=%u", path, doRecycle, owner_uid, owner_gid, vid.uid, vid.gid);
+    eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u vid.uid=%u vid.gid=%u", doRecycle, path, owner_uid, owner_gid, vid.uid, vid.gid);
     return SFS_OK;
   }
 }
