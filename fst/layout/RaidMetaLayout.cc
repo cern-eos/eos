@@ -56,6 +56,7 @@ mDoneRecovery (false),
 mFullDataBlocks (false),
 mIsStreaming (true),
 mStoreRecovery (storeRecovery),
+mIsReconstruct(false),
 mLastWriteOffset( 0 ),
 mTargetSize (targetSize),
 mBookingOpaque (bookingOpaque)
@@ -215,7 +216,8 @@ RaidMetaLayout::Open (const std::string& path,
    }
    else
    {
-     mIsRw=true;
+     mIsRw = true;
+     mIsReconstruct = true;
    }
  }
    

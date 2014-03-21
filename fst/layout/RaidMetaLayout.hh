@@ -224,6 +224,7 @@ protected:
   bool mIsStreaming; ///< file is written in streaming mode
   bool mStoreRecovery; ///< set if recovery also triggers writing back to the
                        ///< files, this also means that all files must be available
+  bool mIsReconstruct; ///< stripe considered for reconstruction
 
   int mStripeHead; ///< head stripe value
   int mPhysicalStripeIndex; ///< physical index of the current stripe

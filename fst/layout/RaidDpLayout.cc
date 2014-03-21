@@ -1038,8 +1038,19 @@ RaidDpLayout::Truncate (XrdSfsFileOffset offset)
 int
 RaidDpLayout::Fallocate (XrdSfsFileOffset length)
 {
-  int64_t size = ceil( (1.0 * length) / mSizeGroup) * mSizeLine + mSizeHeader;
-  return mStripeFiles[0]->Fallocate(size);
+  // Fallocate only if this is not a reconstruction. When this is a
+  // reconstruction we leave the file empty so that when reading form it
+  // we get an error and therfore we can start reconstructing it. By fallocating
+  // we are missing the first xxMB of the file since reading them is now
+  // successful. Remember that we are recreating the file therefore the block
+  // checksum map is useless in this case.
+  if (!mIsReconstruct)
+  {
+    int64_t size = ceil( (1.0 * length) / mSizeGroup) * mSizeLine + mSizeHeader;
+    return mStripeFiles[0]->Fallocate(size);
+  }
+
+  return SFS_OK;
 }
 
 
