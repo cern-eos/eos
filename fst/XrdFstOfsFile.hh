@@ -235,6 +235,7 @@ protected:
   bool viaDelete;
   bool remoteDelete;
   bool writeDelete;
+  bool store_recovery;
 
   XrdOucString Path; //! local storage path
   XrdOucString localPrefix; //! prefix on the local storage
@@ -254,13 +255,17 @@ protected:
   bool closed; //! indicator the file is closed
   bool opened; //! indicator that file is opened
   bool haswrite; //! indicator that file was written/modified
+  bool hasReadError; //! indicator if a RAIN file could be reconstructed or not
   bool isRW; //! indicator that file is opened for rw
   bool isCreation; //! indicator that a new file is created
   bool isReplication; //! indicator that the opened file is a replica transfer
   bool isReconstruction; //! indicator that the opened file is in a RAIN reconstruction process
   bool deleteOnClose; //! indicator that the file has to be cleaned on close
   bool repairOnClose; //! indicator that the file should get repaired on close
-
+  bool commitReconstruction; //! indicator that this FST has to commmit after reconstruction
+  // <- if the reconstructed piece is not existing on disk we commit anyway since it is a creation.
+  // <- if it does exist maybe from a previous movement where the replica was not yet deleted, we would register another stripe without deleting one
+  // <- there fore we indicate with  openOpaque->Get("eos.pio.commitfs") which filesystem should actually commit during reconstruction
   enum
   {
     kOfsIoError = 1, //! generic IO error

@@ -1040,10 +1040,17 @@ main (int argc, char* argv[])
                     file_path = std::string(stripe_path.c_str(), pos + 1, stripe_path.length() - pos - 1);
                   }
 
-		  // remove the ?xyz from the individual source URL
-		  int qpos = file_path.rfind("?");
-		  if (qpos != STR_NPOS) 
-		    file_path.erase(qpos);
+                  // remove the ?xyz from the individual source URL
+                  int qpos = file_path.rfind("?");
+                  if (qpos != STR_NPOS)
+                    file_path.erase(qpos);
+
+                  tag = "mgm.drainfsid.";
+                  tag += i;
+                  if (openOpaque->Get(tag.c_str())) {
+                      file_path +="?mgm.drainfsid=";
+                      file_path += openOpaque->Get(tag.c_str());
+                  }
 
                   src_location.push_back(std::make_pair(address, file_path));
                   src_type.push_back(RAID_ACCESS);

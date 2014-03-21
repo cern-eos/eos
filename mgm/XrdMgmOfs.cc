@@ -5095,19 +5095,19 @@ XrdMgmOfs::FSctl (const int cmd,
           // check if this commit comes from a transfer and if the size/checksum is ok
           if (replication)
           {
-            eos_debug("fmd size=%lli, size=%lli", fmd->getSize(), size);
-            if (fmd->getSize() != size)
-            {
-              eos_thread_err("replication for fid=%lu resulted in a different file "
-                             "size on fsid=%llu - rejecting replica", fmd->getId(), fsid);
+            if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica) {
+              // we check filesize and the checksum only for replica layouts
 
-              gOFS->MgmStats.Add("ReplicaFailedSize", 0, 0, 1);
-              return Emsg(epname, error, EBADE, "commit replica - file size is wrong [EBADE]", "");
-            }
+	      eos_thread_debug("fmd size=%lli, size=%lli", fmd->getSize(), size);
+	      if (fmd->getSize() != size)
+	      {
+		eos_thread_err("replication for fid=%lu resulted in a different file "
+			       "size on fsid=%llu - rejecting replica", fmd->getId(), fsid);
+		
+		gOFS->MgmStats.Add("ReplicaFailedSize", 0, 0, 1);
+		return Emsg(epname, error, EBADE, "commit replica - file size is wrong [EBADE]", "");
+	      }
 
-            if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica)
-            {
-              // we check the checksum only for replica layouts
               bool cxError = false;
               size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
               for (size_t i = 0; i < cxlen; i++)

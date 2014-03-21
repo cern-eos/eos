@@ -189,9 +189,13 @@ RaidMetaLayout::Open (const std::string& path,
                                           mOfsFile, mSecEntity);
 
  //............................................................................
- // When recovery enabled we open the files in RDWR + CREATE mode
+ // When recovery enabled we open the files in RDWR mode
  //............................................................................
- if (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY))
+ if (mStoreRecovery)
+ {
+   flags = SFS_O_RDWR;
+ }
+ else if (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY))
  {
    mStoreRecovery = true;
    flags |= (SFS_O_RDWR | SFS_O_TRUNC);
@@ -199,13 +203,20 @@ RaidMetaLayout::Open (const std::string& path,
 
  eos_debug("open_mode=%x", flags);
  
- if (file && file->Open(path, flags, mode, enhanced_opaque.c_str(), mTimeout))
+ if (file && file->Open(path, flags, mode, enhanced_opaque.c_str(), mTimeout) )
  {
-   eos_err("error=failed to open local ", path.c_str());
-   errno = EIO;
-   delete file;
-   file = 0;
-   return SFS_ERROR;
+   if (file->Open(path, flags | SFS_O_CREAT, mode, enhanced_opaque.c_str() , mTimeout ) )
+   {
+     eos_err("error=failed to open local ", path.c_str());
+     errno = EIO;
+     delete file;
+     file = 0;
+     return SFS_ERROR;
+   }
+   else
+   {
+     mIsRw=true;
+   }
  }
    
  //........................................................................
@@ -323,6 +334,9 @@ RaidMetaLayout::Open (const std::string& path,
          remoteOpenOpaque += "&mgm.replicaindex=";
          remoteOpenOpaque += static_cast<int> (i);
        }
+       
+       //       if (mStoreRecovery)
+       //	 remoteOpenOpaque += "&fst.store=1";
 
        stripe_urls[i] += remoteOpenOpaque.c_str();
        int ret = -1;
@@ -1043,6 +1057,7 @@ RaidMetaLayout::Write (XrdSfsFileOffset offset,
 
    if (offset_end > mFileSize)
    {
+     eos_debug("setting mFileSize=%llu to offset_end=%llu", mFileSize, offset_end);
      mFileSize = offset_end;
      mDoTruncate = true;
    }

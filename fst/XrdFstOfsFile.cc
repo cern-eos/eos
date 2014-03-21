@@ -54,11 +54,13 @@ eos::common::LogId ()
   closed = false;
   opened = false;
   haswrite = false;
+  hasReadError = false;
   fMd = 0;
   checkSum = 0;
   layOut = 0;
   isRW = 0;
   isCreation = 0;
+  commitReconstruction = 0;
   rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes = sXlBwdBytes = rOffset = wOffset = 0;
   rTime.tv_sec = wTime.tv_sec = lrTime.tv_sec = lwTime.tv_sec = cTime.tv_sec = 0;
   rTime.tv_usec = wTime.tv_usec = lrTime.tv_usec = lwTime.tv_usec = cTime.tv_usec = 0;
@@ -192,7 +194,7 @@ XrdFstOfsFile::open (const char* path,
   // corrupted files are recovered back on disk. There is no other way to make
   // the distinction between and open for write and open for recovery since XrdCl
   // open in RDWR mode for cases
-  bool store_recovery = false;
+  store_recovery = false;
   XrdOucEnv recvOpaque(stringOpaque.c_str());
 
   if ((val = recvOpaque.Get("fst.store")))
@@ -200,7 +202,8 @@ XrdFstOfsFile::open (const char* path,
     if (strncmp(val, "1", 1) == 0)
     {
       store_recovery = true;
-      open_mode = SFS_O_RDWR | SFS_O_CREAT ;
+      //      open_mode = SFS_O_RDWR | SFS_O_CREAT ;
+      open_mode = SFS_O_RDWR;
       eos_info("enabling file creation for RAIN store recovery");
     }
   }
@@ -401,14 +404,6 @@ XrdFstOfsFile::open (const char* path,
     opaqueCheckSum = val;
   }
 
-  if ((val = openOpaque->Get("eos.pio.action")))
-  {
-    // figure out if this is a RAIN reconstruction
-    XrdOucString action = val;
-    if (action == "reconstruct")
-      isReconstruction = true;
-  }
-
   int caprc = 0;
 
   //.............................................................................
@@ -524,6 +519,16 @@ XrdFstOfsFile::open (const char* path,
     maxsize = 0;
   }
 
+  if ((val = openOpaque->Get("eos.pio.action")))
+  {
+    // figure out if this is a RAIN reconstruction
+    XrdOucString action = val;
+    if (action == "reconstruct") {
+      haswrite = true;
+      isReconstruction = true;
+    }
+  }
+
   //............................................................................
   // If we open a replica we have to take the right filesystem id and filesystem
   // prefix for that replica
@@ -589,6 +594,7 @@ XrdFstOfsFile::open (const char* path,
   //............................................................................
   // Check if this is an open for replication
   //............................................................................
+  eos_info("Path=%s beginswith=%d\n", Path.c_str(), Path.beginswith("/replicate:"));
   if (Path.beginswith("/replicate:"))
   {
     bool isopenforwrite = false;
@@ -674,7 +680,11 @@ XrdFstOfsFile::open (const char* path,
   else
   {
     if (!capOpaque->Get("mgm.access") 
-                        || (strcmp(capOpaque->Get("mgm.access"), "read")))
+	|| ( (strcmp(capOpaque->Get("mgm.access"), "read")) &&
+	     (strcmp(capOpaque->Get("mgm.access"), "create")) &&
+	     (strcmp(capOpaque->Get("mgm.access"), "write")) &&
+	     (strcmp(capOpaque->Get("mgm.access"), "update"))) )
+
     {
       return gOFS.Emsg(epname, 
                        error, 
@@ -1606,8 +1616,10 @@ XrdFstOfsFile::close ()
             (strcmp(layOut->GetName(), "raid6") == 0) ||
             (strcmp(layOut->GetName(), "archive") == 0))
         {
-          if (layOut->IsEntryServer())
+          // the entry server has to truncate only if this is not a recovery action
+          if (layOut->IsEntryServer() && !store_recovery)
           {
+            eos_info("msg=\"truncate RAIN layout\" truncate-offset=%llu", (unsigned long long) maxOffsetWritten);
             layOut->Truncate(maxOffsetWritten);
           }
         }
@@ -1720,7 +1732,7 @@ XrdFstOfsFile::close ()
       //........................................................................
       closeSize = openSize;
 
-      if ((!checksumerror) && (haswrite || isCreation) && (!minimumsizeerror))
+      if ((!checksumerror) && (haswrite || isCreation || commitReconstruction) && (!minimumsizeerror) && (!isReconstruction || !hasReadError))
       {
         //......................................................................
         // Commit meta data
@@ -1831,7 +1843,13 @@ XrdFstOfsFile::close ()
               //................................................................
               // indicate that this is a commit of a RAIN reconstruction
               //................................................................
-              capOpaqueFile += "mgm.reconstruction=1";
+              capOpaqueFile += "&mgm.reconstruction=1";
+              if (!hasReadError && openOpaque->Get("eos.pio.recfs"))
+              {
+                capOpaqueFile += "&mgm.drop.fsid=";
+                capOpaqueFile += openOpaque->Get("eos.pio.recfs");
+                commitReconstruction=true;
+              }
             }
             else
             {
@@ -1929,10 +1947,11 @@ XrdFstOfsFile::close ()
 
     closed = true;
 
-    if (closerc)
+    if (closerc || (isReconstruction && hasReadError))
     {
       // For RAIN layouts if there is an error on close when writing then we 
       // delete the whole file
+      // If we do RAIN reconstruction we cleanup this local replica which was not commited
       if ((eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) == eos::common::LayoutId::kRaidDP) ||
           (eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) == eos::common::LayoutId::kRaid6) ||
           (eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) == eos::common::LayoutId::kArchive))
@@ -2336,6 +2355,7 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
              static_cast<unsigned long long> (buffer_size),
              FName(),
              capOpaque ? capOpaque->Env(envlen) : FName());
+    hasReadError=true; // this is used to understand if a reconstruction of a RAIN file worked
   }
 
   eos_debug("rc=%d offset=%lu size=%llu", rc, fileOffset,

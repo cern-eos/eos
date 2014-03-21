@@ -321,6 +321,7 @@ ReedSLayout::RecoverPiecesInGroup(off_t offsetInit,
                                                      mStripeWidth,
                                                      mTimeout);
 
+      eos_debug("action=recovery nwrite=%d offset=%lld", nwrite, (long long) offset_local);
       if (nwrite != mStripeWidth)
       {
         eos_err("error=while doing write operation stripe=%u, offset=%lli",

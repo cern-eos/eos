@@ -1415,9 +1415,21 @@ XrdMgmOfsFile::open (const char *inpath,
                                              plainLayoutId,
                                              PioReconstructFsList.size() - 1
                                              );
-      eos_info("nstripes=%d => nstripes=%d",
+
+      // -----------------------------------------------------------------------
+      // get the original placement group of the first fs to reconstruct
+      {
+	eos::common::FileSystem::fs_snapshot orig_snapshot;
+	eos::mgm::FileSystem* origfs = FsView::gFsView.mIdView[PioReconstructFsList[0]];
+	origfs->SnapShotFileSystem(orig_snapshot);
+	forcedGroup = orig_snapshot.mGroupIndex;
+      }
+      // -----------------------------------------------------------------------
+
+      eos_info("nstripes=%d => nstripes=%d [ sub-group=%d ]",
                eos::common::LayoutId::GetStripeNumber(newlayoutId),
-               eos::common::LayoutId::GetStripeNumber(plainLayoutId));
+               eos::common::LayoutId::GetStripeNumber(plainLayoutId),
+	       forcedGroup);
       // -----------------------------------------------------------------------
       // compute the size of the stripes to be placed
       // -----------------------------------------------------------------------
@@ -1568,7 +1580,9 @@ XrdMgmOfsFile::open (const char *inpath,
           // -------------------------------------------------------------------
           // add the drop message to the replacement capability
           // -------------------------------------------------------------------
-          capability += "&mgm.drainfsid=";
+          capability += "&mgm.drainfsid";
+          capability += i;
+          capability += "=";
           capability += (int) replacedfs[i];
         }
 
