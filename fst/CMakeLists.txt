@@ -64,6 +64,11 @@ if(CPPUNIT_FOUND)
 endif(CPPUNIT_FOUND)
 
 #-------------------------------------------------------------------------------
+# Add xrdcl RAIN plugin library
+#-------------------------------------------------------------------------------
+add_subdirectory(xrdcl_plugins)
+
+#-------------------------------------------------------------------------------
 # Generate protocol buffer files used in several targets and make them visible
 # at the global scope
 #-------------------------------------------------------------------------------
