@@ -234,25 +234,13 @@ RaidMetaLayout::Open (const std::string& path,
  mStripeFiles.push_back(file);
  mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
 
- //......................................................................
  // Read header information for the local file
- //......................................................................
  HeaderCRC* hd = mHdrInfo.back();
  file = mStripeFiles.back();
 
- if (hd->ReadFromFile(file, mTimeout))
- {
-   mLogicalStripeIndex = hd->GetIdStripe();
-   mapPL.insert(std::pair<unsigned int, unsigned int>(0, hd->GetIdStripe()));
-   mapLP.insert(std::pair<unsigned int, unsigned int>(hd->GetIdStripe(), 0));
- }
- else
- {
-   mLogicalStripeIndex = 0;
-   mapPL.insert(std::pair<int, int>(0, 0));
-   mapLP.insert(std::pair<int, int>(0, 0));
- }
-
+ if (file && !hd->ReadFromFile(file, mTimeout))
+   eos_warning("reading header failed for local stripe - will try to recover");
+ 
  //............................................................................
  // Operations done only by the entry server
  //............................................................................
@@ -378,19 +366,13 @@ RaidMetaLayout::Open (const std::string& path,
        //......................................................................
        // Read header information for remote files
        //......................................................................
-       unsigned int pos = mHdrInfo.size() - 1;
        hd = mHdrInfo.back();
        file = mStripeFiles.back();
-
-       if (file && hd->ReadFromFile(file, mTimeout))
+       
+       if (file && !hd->ReadFromFile(file, mTimeout))
        {
-         mapPL.insert(std::make_pair(pos, hd->GetIdStripe()));
-         mapLP.insert(std::make_pair(hd->GetIdStripe(), pos));
-       }
-       else
-       {
-         mapPL.insert(std::make_pair(pos, pos));
-         mapLP.insert(std::make_pair(pos, pos));
+         eos_warning("reading header failed for remote stripe phyid=%i",
+                     mStripeFiles.size() - 1);
        }
      }
    }
@@ -556,20 +538,12 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    HeaderCRC* hd = mHdrInfo.back();
    file = mStripeFiles.back();
 
-   if (file && hd->ReadFromFile(file, mTimeout))
-   {
-     mapPL.insert(std::make_pair(pos, hd->GetIdStripe()));
-     mapLP.insert(std::make_pair(hd->GetIdStripe(), pos));
-   }
-   else
-   {
-     mapPL.insert(std::make_pair(pos, pos));
-     mapLP.insert(std::make_pair(pos, pos));
-   }
+   if (file && !hd->ReadFromFile(file, mTimeout))
+     eos_err("RAIN header invalid");
  }
 
  //..........................................................................
- // Only the head node does the validation of the headers
+ // For PIO if header invalid then we abort
  //..........................................................................
  if (!ValidateHeader())
  {
@@ -602,18 +576,31 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
 //------------------------------------------------------------------------------
 // Test and recover if headers are corrupted
 //------------------------------------------------------------------------------
-
 bool
 RaidMetaLayout::ValidateHeader ()
 {
  bool new_file = true;
  bool all_hd_valid = true;
- vector<unsigned int> physical_ids_invalid;
+ unsigned int hd_id_valid = -1;
+ std::vector<unsigned int> physical_ids_invalid;
+ std::set<unsigned int> used_stripes;
 
  for (unsigned int i = 0; i < mHdrInfo.size(); i++)
  {
    if (mHdrInfo[i]->IsValid())
    {
+     unsigned int sid = mHdrInfo[i]->GetIdStripe();
+
+     if (used_stripes.count(sid))
+     {
+       eos_err("found two physical files with the same stripe id - abort");
+       return false;
+     }
+     
+     mapPL[i] = sid;
+     mapLP[sid] = i;
+     used_stripes.insert(sid);
+     hd_id_valid = i;
      new_file = false;
    }
    else
@@ -625,7 +612,7 @@ RaidMetaLayout::ValidateHeader ()
 
  if (new_file || all_hd_valid)
  {
-   eos_debug("debug=file is either new or there are no corruptions.");
+   eos_debug("file is either new or there are no corruptions.");
 
    if (new_file)
    {
@@ -634,41 +621,20 @@ RaidMetaLayout::ValidateHeader ()
        mHdrInfo[i]->SetState(true); //set valid header
        mHdrInfo[i]->SetNoBlocks(0);
        mHdrInfo[i]->SetSizeLastBlock(0);
+       mapPL[i] = i;
+       mapLP[i] = i;
      }
    }
 
    return true;
  }
 
- //............................................................................
  // Can not recover from more than mNbParityFiles corruptions
- //............................................................................
  if (physical_ids_invalid.size() > mNbParityFiles)
  {
    eos_err("error=can not recover more than %u corruptions", mNbParityFiles);
    return false;
  }
-
- //............................................................................
- // Get stripe id's already used and a valid header
- //............................................................................
- unsigned int hd_id_valid = -1;
- std::set<unsigned int> used_stripes;
-
- for (unsigned int i = 0; i < mHdrInfo.size(); i++)
- {
-   if (mHdrInfo[i]->IsValid())
-   {
-     used_stripes.insert(mapPL[i]);
-     hd_id_valid = i;
-   }
-   else
-   {
-     mapPL.erase(i);
-   }
- }
-
- mapLP.clear();
 
  while (physical_ids_invalid.size())
  {
@@ -679,9 +645,7 @@ RaidMetaLayout::ValidateHeader ()
    {
      if (find(used_stripes.begin(), used_stripes.end(), i) == used_stripes.end())
      {
-       //......................................................................
        // Add the new mapping
-       //......................................................................
        mapPL[physical_id] = i;
        used_stripes.insert(i);
        mHdrInfo[physical_id]->SetIdStripe(i);
@@ -689,14 +653,10 @@ RaidMetaLayout::ValidateHeader ()
        mHdrInfo[physical_id]->SetNoBlocks(mHdrInfo[hd_id_valid]->GetNoBlocks());
        mHdrInfo[physical_id]->SetSizeLastBlock(mHdrInfo[hd_id_valid]->GetSizeLastBlock());
 
-       //......................................................................
        // If file successfully opened, we need to store the info
-       //......................................................................
        if (mStoreRecovery && mStripeFiles[physical_id])
-       {
          mHdrInfo[physical_id]->WriteToFile(mStripeFiles[physical_id], mTimeout);
-       }
-       
+      
        break;
      }
    }
@@ -704,9 +664,7 @@ RaidMetaLayout::ValidateHeader ()
 
  used_stripes.clear();
 
- //............................................................................
  // Populate the stripe url map
- //............................................................................
  for (unsigned int i = 0; i < mNbTotalFiles; i++)
  {
    mapLP[mapPL[i]] = i;

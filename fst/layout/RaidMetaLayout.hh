@@ -228,7 +228,6 @@ protected:
 
   int mStripeHead; ///< head stripe value
   int mPhysicalStripeIndex; ///< physical index of the current stripe
-  int mLogicalStripeIndex; ///< logical index of the current stripe
   unsigned int mNbParityFiles; ///< number of parity files
   unsigned int mNbDataFiles; ///< number of data files
   unsigned int mNbTotalFiles; ///< total number of files ( data + parity )
