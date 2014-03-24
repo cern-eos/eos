@@ -44,7 +44,9 @@ for name in `cat /var/eos/md/so.fst.dump | grep "key=path" | awk '{print $2}' | 
    $ECHO rm -rf /$name 2> /dev/null
 done
 echo "# Cleaning /var/eos ..."
-$ECHO rm -rf /var/eos/* 2> /dev/null
+for name in auth config html md report stage ; do 
+$ECHO rm -rf /var/eos/$name 2> /dev/null
+done
 echo "# Removing /etc/xrd.cf.fst ..."
 $ECHO rm -rf /etc/xrd.cf.fst 2> /dev/null
 echo "# Removing /etc/sysconfig/eos ..."
