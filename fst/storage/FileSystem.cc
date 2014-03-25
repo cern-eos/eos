@@ -64,8 +64,6 @@ FileSystem::FileSystem (const char* queuepath,
   mTxMultiplexer.Add(mTxExternQueue);
   mTxMultiplexer.Run();
 
-  // run a measurement to publish IOPS and bandwidth values
-  IoPing();
 }
 
 /*----------------------------------------------------------------------------*/

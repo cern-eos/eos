@@ -496,6 +496,7 @@ Storage::Boot (FileSystem *fs)
   fs->SyncTransactions();
   fs->CleanTransactions();
   fs->SetLongLong("stat.bootdonetime", (unsigned long long) time(NULL));
+  fs->IoPing();
   fs->SetStatus(eos::common::FileSystem::kBooted);
   fs->SetError(0, "");
   eos_info("msg=\"finished boot procedure\" fsid=%lu", (unsigned long) fsid);
