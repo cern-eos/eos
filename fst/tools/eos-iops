@@ -1,0 +1,46 @@
+#! /bin/bash
+# ----------------------------------------------------------------------
+# File: eos-ioseek
+# Author: Andreas-Joachim Peters - CERN
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2011 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+test -z $1 && echo 0 && exit -1
+
+path=`df $1 2>/dev/null| tail -1 | awk '{print $1}' `
+F=$path
+
+N=100
+
+DISKSIZE=`blockdev --getsize64 $F 2>/dev/null`
+test $? -eq 1 && echo 0 && exit -1
+BLOCKSIZE=4096
+MAXSEEK=$((DISKSIZE/BLOCKSIZE))
+RANDOM_MAX=32767
+TIMEFORMAT="%E"
+
+(
+for i in `seq 1 $N`
+do
+  SEEK=$(((RANDOM*MAXSEEK)/RANDOM_MAX))
+  A=`time dd if=$F of=/dev/null ibs=$BLOCKSIZE skip=$SEEK count=1 2>&1`
+  test $? -eq 1 && echo 0 && exit -1 
+done 2>&1
+) | awk '{n++; sum+= $1; printf("%.02f\n", 1.0*n/sum);}' | tail -1

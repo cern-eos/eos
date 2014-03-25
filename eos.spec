@@ -112,6 +112,9 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eos-adler32
 /usr/sbin/eos-mmap
 /usr/sbin/eos-repair-tool
+/usr/sbin/eos-ioping
+/usr/sbin/eos-iobw
+/usr/sbin/eos-iops
 /usr/lib64/libXrdEosMgm.so.0.3.24
 /usr/lib64/libXrdEosMgm.so.0
 /usr/lib64/libXrdEosMgm.so

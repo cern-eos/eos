@@ -66,6 +66,9 @@ private:
   std::map<std::string, size_t> inconsistency_stats;
   std::map<std::string, std::set<eos::common::FileId::fileid_t> > inconsistency_sets;
 
+  long long seqBandwidth; // measurement of sequential bandwidth
+  int IOPS; // measurement of IOPS
+
 public:
   FileSystem (const char* queuepath, const char* queue, XrdMqSharedObjectManager* som);
 
@@ -166,6 +169,10 @@ public:
 
   eos::common::Statfs* GetStatfs ();
 
+  void IoPing();
+
+  long long getSeqBandwidth() {return seqBandwidth;}
+  int getIOPS() {return IOPS;}
 };
 
 EOSFSTNAMESPACE_END

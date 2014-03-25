@@ -40,6 +40,9 @@ FileSystem::FileSystem (const char* queuepath,
 {
   last_blocks_free = 0;
   last_status_broadcast = 0;
+  seqBandwidth = 0;
+  IOPS = 0;
+
   transactionDirectory = "";
   statFs = 0;
   scanDir = 0;
@@ -60,6 +63,9 @@ FileSystem::FileSystem (const char* queuepath,
   mTxMultiplexer.Add(mTxBalanceQueue);
   mTxMultiplexer.Add(mTxExternQueue);
   mTxMultiplexer.Run();
+
+  // run a measurement to publish IOPS and bandwidth values
+  IoPing();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -274,7 +280,7 @@ FileSystem::RunScanner (Load* fstLoad, time_t interval)
   {
     delete scanDir;
   }
-
+  
   // create the object running the scanner thread
   scanDir = new ScanDir(GetPath().c_str(), GetId(), fstLoad, true, interval);
   eos_info("Started 'ScanDir' thread with interval time of %u seconds",
@@ -313,5 +319,34 @@ FileSystem::CloseTransaction (unsigned long long fid)
     return false;
   return true;
 }
+
+
+/*----------------------------------------------------------------------------*/
+void
+FileSystem::IoPing ()
+{
+  std::string cmdbw="eos-iobw "; cmdbw += GetPath().c_str();
+  std::string cmdiops="eos-iops "; cmdiops += GetPath().c_str();
+
+  eos_info("\"%s\" \"%s\"", cmdbw.c_str(), cmdiops.c_str());
+
+  std::string bwMeasurement = eos::common::StringConversion::StringFromShellCmd (cmdbw.c_str());
+  std::string iopsMeasurement = eos::common::StringConversion::StringFromShellCmd (cmdiops.c_str());
+
+  if ( 
+      bwMeasurement.length() &&
+      iopsMeasurement.length() )
+  {
+    seqBandwidth = strtol(bwMeasurement.c_str(),0,10);
+    IOPS = atoi(iopsMeasurement.c_str());
+  }
+  else
+  {
+    seqBandwidth = 0;
+    IOPS = 0;
+  }
+  eos_info("bw=%lld iops=%d",seqBandwidth,IOPS);
+}
+
 
 EOSFSTNAMESPACE_END

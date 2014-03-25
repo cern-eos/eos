@@ -222,6 +222,10 @@ Storage::Publish ()
           success &= fileSystemsVector[i]->SetLongLong("stat.drainer.running", fileSystemsVector[i]->GetDrainQueue()->GetRunningAndQueued());
           success &= fileSystemsVector[i]->SetLongLong("stat.balancer.running", fileSystemsVector[i]->GetBalanceQueue()->GetRunningAndQueued());
 
+	  // copy out IOPS + bandwidth measurement
+          success &= fileSystemsVector[i]->SetLongLong("stat.disk.iops", fileSystemsVector[i]->getIOPS());
+          success &= fileSystemsVector[i]->SetDouble("stat.disk.bw", fileSystemsVector[i]->getSeqBandwidth()); // in MB
+	  
           gOFS.OpenFidMutex.UnLock();
 
           {
