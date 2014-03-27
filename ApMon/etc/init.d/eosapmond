@@ -57,7 +57,7 @@ start() {
         # Check if eosapmond is already running
         avoid=$$;
 	if [ $MONALISA_HOST = "undef" ]; then
-	    echo "error: please configure the MONALISA_HOST variable in /etc/sysconfig/eos first!"
+	    echo "error: please configure the MONALISAHOST variable in /etc/sysconfig/eos first!"
 	    return 1
 	fi
 	
