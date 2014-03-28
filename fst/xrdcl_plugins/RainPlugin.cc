@@ -99,7 +99,7 @@ namespace
       unit += host_name;
       
       // Get log level from env variable XRD_LOGLEVEL
-      int log_level = 7; // LOG_DEBUG
+      int log_level = 6; // by default use LOG_INFO
       char* c = '\0';
       
       if ((c = getenv("XRD_LOGLEVEL")))
@@ -168,8 +168,8 @@ namespace
 
       if(fclose(mFp))
         fprintf(stderr, "[Error] failed to close log file\n");
-      else
-        fprintf(stderr, "[Info] log file closed successfully\n");
+      //else
+        //fprintf(stderr, "[Info] log file closed successfully\n");
     }
 
     FILE* mFp;

@@ -32,6 +32,15 @@
 
 using namespace XrdCl;
 
+// Forward declaration
+namespace eos
+{
+  namespace fst
+  {
+    class RaidMetaLayout;
+  }
+}
+
 EOSFSTNAMESPACE_BEGIN
 
 //----------------------------------------------------------------------------
@@ -172,6 +181,7 @@ class RainFile: public XrdCl::FilePlugIn, eos::common::LogId
 
   bool mIsOpen; 
   XrdCl::File* pFile;
+  eos::fst::RaidMetaLayout *pRainFile;
   
 };
 

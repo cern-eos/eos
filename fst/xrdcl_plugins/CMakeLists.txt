@@ -29,12 +29,11 @@ LINK_DIRECTORIES(${XROOTD_LIB_DIR})
 
 ADD_LIBRARY(EosRainClient MODULE
 	    RainPlugin.cc RainPlugin.hh
-            RainFile.cc   RainFile.hh
-#	    RainFs.cc     RainFs.hh
-	   )
+            RainFile.cc   RainFile.hh)
 
 TARGET_LINK_LIBRARIES(EosRainClient
                       eosCommon
+		      EosFstIo-Static
 	              XrdCl)
 
 IF(Linux)
