@@ -1045,13 +1045,6 @@ main (int argc, char* argv[])
                   if (qpos != STR_NPOS)
                     file_path.erase(qpos);
 
-                  tag = "mgm.drainfsid.";
-                  tag += i;
-                  if (openOpaque->Get(tag.c_str())) {
-                      file_path +="?mgm.drainfsid=";
-                      file_path += openOpaque->Get(tag.c_str());
-                  }
-
                   src_location.push_back(std::make_pair(address, file_path));
                   src_type.push_back(RAID_ACCESS);
 
@@ -1218,7 +1211,7 @@ main (int argc, char* argv[])
 
           if (!url.IsValid())
           {
-            fprintf(stderr, "error: the url address is not valid\n");
+            fprintf(stderr, "error: the url address is not valid url=%s\n", src_location[i].first.c_str());
             exit(-EPERM);
           }
 
@@ -1267,7 +1260,7 @@ main (int argc, char* argv[])
 
         if (!url.IsValid())
         {
-          fprintf(stderr, "error: the url address is not valid\n");
+          fprintf(stderr, "error: the url address is not valid url=%s\n",src_location[i].first.c_str());
           exit(-EPERM);
         }
 
@@ -1856,7 +1849,7 @@ main (int argc, char* argv[])
 
         if (!url.IsValid())
         {
-          fprintf(stderr, "error: the destination url address is not valid\n");
+          fprintf(stderr, "error: the destination url address is not valid url=%s\n", dst_location[i].first.c_str());
           exit(-EPERM);
         }
 

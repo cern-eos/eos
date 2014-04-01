@@ -161,6 +161,62 @@ Storage::Publish ()
             continue;
           }
 
+          XrdOucString r_open_hotfiles;
+          XrdOucString w_open_hotfiles;
+
+          // make a top hotfile list or read open files
+          {
+            std::map<unsigned int, std::set<unsigned long long>> Rhotfiles;
+            std::map<unsigned int, std::set<unsigned long long>> Whotfiles;
+            XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
+            if (gOFS.ROpenFid.count(fsid))
+            {
+              for ( auto it = gOFS.ROpenFid[fsid].begin(); it != gOFS.ROpenFid[fsid].end(); ++it )
+              {
+                Rhotfiles[it->second].insert(it->first);
+              }
+            }
+            if (gOFS.WOpenFid.count(fsid))
+            {
+              for ( auto it = gOFS.WOpenFid[fsid].begin(); it != gOFS.WOpenFid[fsid].end(); ++it )
+              {
+                Whotfiles[it->second].insert(it->first);
+              }
+            }
+
+            size_t cnt=0;
+            for ( auto it = Rhotfiles.rbegin(); it != Rhotfiles.rend(); ++it)
+            {
+              XrdOucString hexfid;
+              for ( auto fit = it->second.begin(); fit != it->second.end(); ++fit)
+              {
+                eos::common::FileId::Fid2Hex(*fit, hexfid);
+                r_open_hotfiles += (int) it->first;
+                r_open_hotfiles += ":";
+                r_open_hotfiles += hexfid.c_str();
+                r_open_hotfiles += " ";
+                if (cnt==10)
+                  break;
+              }
+            }
+
+            cnt=0;
+            for ( auto it = Whotfiles.rbegin(); it != Whotfiles.rend(); ++it)
+            {
+              XrdOucString hexfid;
+              for ( auto fit = it->second.begin(); fit != it->second.end(); ++fit)
+              {
+                eos::common::FileId::Fid2Hex(*fit, hexfid);
+                w_open_hotfiles += (int) it->first;
+                w_open_hotfiles += ":";
+                w_open_hotfiles += hexfid.c_str();
+                w_open_hotfiles += " ";
+                if (cnt==10)
+                  break;
+              }
+            }
+          }
+
           // Retrieve Statistics from the SQLITE DB
           std::map<std::string, size_t>::const_iterator isit;
 
@@ -222,10 +278,16 @@ Storage::Publish ()
           success &= fileSystemsVector[i]->SetLongLong("stat.drainer.running", fileSystemsVector[i]->GetDrainQueue()->GetRunningAndQueued());
           success &= fileSystemsVector[i]->SetLongLong("stat.balancer.running", fileSystemsVector[i]->GetBalanceQueue()->GetRunningAndQueued());
 
-	  // copy out IOPS + bandwidth measurement
+          // copy out IOPS + bandwidth measurement
           success &= fileSystemsVector[i]->SetLongLong("stat.disk.iops", fileSystemsVector[i]->getIOPS());
           success &= fileSystemsVector[i]->SetDouble("stat.disk.bw", fileSystemsVector[i]->getSeqBandwidth()); // in MB
-	  
+
+	  eos_info("Setting hotfilelists |%s|%s|", r_open_hotfiles.c_str(), w_open_hotfiles.c_str());
+          // copy out hot file list
+	  //          success &= fileSystemsVector[i]->SetString("stat.ropen.hotfiles", r_open_hotfiles.c_str());
+	  //          success &= fileSystemsVector[i]->SetString("stat.wopen.hotfiles", w_open_hotfiles.c_str());
+	  success &= fileSystemsVector[i]->SetString("stat.ropen.hotfiles","3:00064f63 2:00064f63 1:00064f63");
+	  success &= fileSystemsVector[i]->SetString("stat.wopen.hotfiles","3:00064f63 2:00064f63 1:00064f63");
           gOFS.OpenFidMutex.UnLock();
 
           {
