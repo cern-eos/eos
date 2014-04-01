@@ -130,7 +130,6 @@ Iostat::ApplyIostatConfig ()
       mReport = false;
     }
 
-
     if (ioreportns == "true")
     {
       mReportNamespace = true;
@@ -934,6 +933,7 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
   bool monitoring = false;
   bool bycount = false;
   bool bybytes = false;
+  bool hotfiles = false;
 
   if ((option.find("-m")) != STR_NPOS)
   {
@@ -978,6 +978,144 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
   if (!(bycount || bybytes))
   {
     bybytes = bycount = true;
+  }
+
+  if ((option.find("-f") != STR_NPOS))
+  {
+    hotfiles =true;
+  }
+
+  if (hotfiles)
+  {
+    eos::common::RWMutexReadLock rLock(FsView::gFsView.ViewMutex);
+    // print the hotfiles report
+    std::set<eos::common::FileSystem::fsid_t>::const_iterator it;
+    std::vector<std::string> r_open_vector;
+    std::vector<std::string> w_open_vector;
+    std::string key;
+    std::string val;
+    char outline[4096];
+
+    for (auto it = FsView::gFsView.mIdView.begin(); it != FsView::gFsView.mIdView.end(); it++) {
+      r_open_vector.clear();
+      w_open_vector.clear();
+      std::string r_open_hotfiles = FsView::gFsView.mIdView[it->first]->GetString("stat.ropen.hotfiles");
+      std::string w_open_hotfiles = FsView::gFsView.mIdView[it->first]->GetString("stat.wopen.hotfiles");
+      eos::common::StringConversion::Tokenize(r_open_hotfiles, r_open_vector);
+      eos::common::StringConversion::Tokenize(w_open_hotfiles, w_open_vector);
+
+      std::string host = FsView::gFsView.mIdView[it->first]->GetString("host");
+      std::string path="";
+      std::string id   = FsView::gFsView.mIdView[it->first]->GetString("id");
+
+      if (monitoring)
+      {
+        // monitoring format
+        for (size_t i=0; i < r_open_vector.size(); i++)
+        {
+          eos::common::StringConversion::SplitKeyValue(r_open_vector[i], key, val);
+
+          {
+            unsigned long fid=eos::common::FileId::Hex2Fid(val.c_str());
+            eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
+            try
+            {
+              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid));
+            }
+            catch (eos::MDException &e)
+            {
+              path = "<undef>";
+            }
+          }
+
+          snprintf(outline,sizeof(outline)-1, "measurement=hotfile access=read heat=%s fsid=%d path=%s fxid=%s\n",key.c_str(), it->first, path.c_str(), val.c_str());
+          out += outline;
+        }
+        for (size_t i=0; i < w_open_vector.size(); i++)
+        {
+          eos::common::StringConversion::SplitKeyValue(w_open_vector[i], key, val);
+
+          {
+            unsigned long fid=eos::common::FileId::Hex2Fid(val.c_str());
+            eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
+            try
+            {
+              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid));
+            }
+            catch (eos::MDException &e)
+            {
+              path = "<undef>";
+            }
+          }
+
+          snprintf(outline,sizeof(outline)-1,"measurement=hotfile access=write heat=%s fsid=%d host=%s path=%s fxid=%s\n",key.c_str(), it->first, host.c_str(), path.c_str(), val.c_str());
+          out += outline;
+        }
+      }
+      else
+      {
+        // human readable format
+        for (size_t i=0; i < r_open_vector.size(); i++)
+        {
+          eos::common::StringConversion::SplitKeyValue(r_open_vector[i], key, val);
+
+          int rank = 0;
+          if (key.c_str())
+            rank = atoi(key.c_str());
+
+          {
+            unsigned long fid=eos::common::FileId::Hex2Fid(val.c_str());
+            eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
+            try
+            {
+              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid));
+            }
+            catch (eos::MDException &e)
+            {
+              path = "<undef>";
+            }
+          }
+
+          if (rank > 1)
+          {
+            snprintf(outline,sizeof(outline)-1,"%5s %5s %5s %24s %s\n","read", key.c_str(), id.c_str(), host.c_str(), path.c_str());
+            out += outline;
+          }
+        }
+        for (size_t i=0; i < w_open_vector.size(); i++)
+        {
+          eos::common::StringConversion::SplitKeyValue(r_open_vector[i], key, val);
+          int rank = 0;
+          if (key.c_str())
+            rank = atoi(key.c_str());
+
+          {
+            unsigned long fid=eos::common::FileId::Hex2Fid(val.c_str());
+            eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
+            try
+            {
+              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid));
+            }
+            catch (eos::MDException &e)
+            {
+              path = "<undef>";
+            }
+          }
+
+          if (rank > 1)
+          {
+            snprintf(outline,sizeof(outline)-1,"%5s %5s %5s %24s %s\n","write", key.c_str(), id.c_str(), host.c_str(), path.c_str());
+            out += outline;
+          }
+        }
+	XrdMqMessage::Sort(out, true);
+	out.insert("# --------------------------------------------------------------------------------------\n",0);
+	snprintf(outline,sizeof(outline)-1,"%5s #%3s %5s %24s %s","type", "fs","heat","host","path");
+	out.insert(outline,0);
+	out.insert("# --------------------------------------------------------------------------------------\n",0);
+      }
+    }
+    return;
   }
 
   for (size_t pbin = 0; pbin < days; pbin++)
@@ -1087,10 +1225,6 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
       }
     }
 
-
-    /*    for (it = IostatPopularity[sbin].begin(); it != IostatPopularity[sbin].end(); it++) {
-
-      }*/
     PopularityMutex.UnLock();
   }
 }
