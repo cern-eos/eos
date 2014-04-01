@@ -305,19 +305,21 @@ sub readEosDiskValues {
 
 sub readEosRpmValues {
     my $this = shift;
-    if (open IN, "rpm -qa xrootd-server |") {
+    if (open IN, "rpm -qa xrootd |") {
 	my $all = <IN>;
 	if ($all) {
-	    $all =~ s/xrootd-server-//;
+	    chomp $all;
+	    $all =~ s/xrootd-//;
 	    $this->{DATA}->{"xrootd_rpm_version"} = $all;
 	}
 	close(IN);
     }
 
-    if (open IN, "rpm -qa eos |") {
+    if (open IN, "rpm -qa eos-server |") {
 	my $all = <IN>;
 	if ($all) {
-	    $all =~ s/eos-//;
+            chomp $all;
+	    $all =~ s/eos-server-//;
 	    $this->{DATA}->{"eos_rpm_version"} = $all;
 	}
 	close(IN);
