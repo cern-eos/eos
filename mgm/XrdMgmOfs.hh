@@ -403,7 +403,9 @@ public:
              struct stat *buf,
              XrdOucErrInfo &out_error,
              eos::common::Mapping::VirtualIdentity &vid,
-             const char *opaque = 0);
+             const char *opaque = 0, 
+	     std::string* etag = 0);
+	   
 
   // ---------------------------------------------------------------------------
   // stat file to retrieve mode

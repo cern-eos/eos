@@ -3350,7 +3350,8 @@ XrdMgmOfs::_stat (const char *path,
                   struct stat *buf,
                   XrdOucErrInfo &error,
                   eos::common::Mapping::VirtualIdentity &vid,
-                  const char *ininfo)
+                  const char *ininfo, 
+		  std::string* etag)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -3459,6 +3460,32 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_atim.tv_sec = atime.tv_sec;
     buf->st_atim.tv_nsec = atime.tv_nsec;
 #endif
+
+    if (etag) 
+    {
+      // if there is a checksum we use the checksum, otherwise we return inode+mtime
+      size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+      if (cxlen) 
+      {
+	// use inode + checksum
+	char setag[256];
+	snprintf(setag,sizeof(setag)-1,"%llu:", (unsigned long long)buf->st_ino);
+	*etag = setag;
+	for (unsigned int i = 0; i < cxlen; i++)
+	{
+	  char hb[3];
+	  sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPadded(i)) : 0);
+	  *etag += hb;
+	}      
+      }
+      else
+      {
+	// use inode + mtime
+	char setag[256];
+	snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)buf->st_ino, (unsigned long long)buf->st_mtime);
+	*etag = setag;
+      }
+    }
     EXEC_TIMING_END("Stat");
     return SFS_OK;
   }
@@ -3526,6 +3553,14 @@ XrdMgmOfs::_stat (const char *path,
 #endif
     }
     gOFS->MgmDirectoryModificationTimeMutex.UnLock();
+    
+    if (etag) 
+    {
+      // use inode + mtime
+      char setag[256];
+      snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)buf->st_ino, (unsigned long long)buf->st_mtime);
+      *etag = setag;
+    }
     // --|
     return SFS_OK;
   }
@@ -5757,7 +5792,7 @@ XrdMgmOfs::FSctl (const int cmd,
         {
           char hb[3];
           sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPadded(i)) : 0);
-          checksum += hb;
+	  checksum += hb;
         }
       }
       catch (eos::MDException &e)

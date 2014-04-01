@@ -69,8 +69,9 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
   // Is the requested resource a file or directory?
   XrdOucErrInfo error;
   struct stat   statInfo;
+  std::string etag;
   gOFS->_stat(request->GetUrl().c_str(), &statInfo, error, *mVirtualIdentity,
-             (const char*) 0);
+	      (const char*) 0, &etag);
 
   // Figure out what we actually need to do
   std::string depth = request->GetHeaders()["Depth"];
@@ -233,10 +234,11 @@ PropFindResponse::BuildResponseNode (const std::string &url)
   XrdMgmOfsDirectory directory;
   XrdOucErrInfo      error;
   struct stat        statInfo;
+  std::string etag;
 
   // Is the requested resource a file or directory?
   if (gOFS->_stat(url.c_str(), &statInfo, error, *mVirtualIdentity,
-                 (const char*) 0))
+		  (const char*) 0), &etag)
   {
     eos_static_err("msg=\"error stating %s: %s\"", url.c_str(),
                                                    error.getErrText());
@@ -327,9 +329,7 @@ PropFindResponse::BuildResponseNode (const std::string &url)
 
   if (eTag)
   {
-    std::string etag;
-    SetValue(eTag, eos::common::StringConversion::GetSizeString(etag,
-                                (unsigned long long) statInfo.st_ino));
+    SetValue(eTag, etag.c_str());
     propFound->append_node(eTag);
   }
 

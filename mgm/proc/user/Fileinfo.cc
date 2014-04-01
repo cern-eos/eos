@@ -267,6 +267,33 @@ ProcCommand::Fileinfo ()
           char fid[32];
           snprintf(fid, 32, "%llu", (unsigned long long) fmd->getId());
 
+	  std::string etag;
+	  // if there is a checksum we use the checksum, otherwise we return inode+mtime
+	  size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+	  if (cxlen)
+	  {
+	    // use inode + checksum
+	    char setag[256];
+	    snprintf(setag,sizeof(setag)-1,"%llu:", (unsigned long long)fmd->getId());
+	    etag = setag;
+	    for (unsigned int i = 0; i < cxlen; i++)
+	    {
+	      char hb[3];
+	      sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPadded(i)) : 0);
+	      etag += hb;
+	    }
+	  }
+	  else
+	  {
+	    // use inode + mtime
+	    char setag[256];
+	    eos::FileMD::ctime_t mtime;
+	    fmd->getMTime(mtime);
+	    time_t filemtime = (time_t) mtime.tv_sec;
+	    snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd->getId(), (unsigned long long)filemtime);
+	    etag = setag;
+	  }
+
           if (!Monitoring)
           {
             stdOut = "  File: '";
@@ -317,6 +344,8 @@ ProcCommand::Fileinfo ()
               sprintf(hb, "%02x ", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
               stdOut += hb;
             }
+	    stdOut += "    ETAG: ";
+	    stdOut += etag.c_str();
             stdOut += "\n";
             stdOut + "Layout: ";
             stdOut += eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId());
@@ -380,6 +409,9 @@ ProcCommand::Fileinfo ()
               stdOut += hb;
             }
             stdOut += " ";
+	    stdOut += "etag=";
+	    stdOut += etag.c_str();
+	    stdOut += " ";
             stdOut += "layout=";
             stdOut += eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId());
             stdOut += " nstripes=";
