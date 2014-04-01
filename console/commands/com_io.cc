@@ -127,11 +127,18 @@ com_io (char* arg1)
                       if (option == "-w")
                       {
                         options += "-w";
-                      }
-                      else
-                      {
-                        goto com_io_usage;
-                      }
+                      } 
+		      else
+		      {
+			if (option == "-f") 
+			{
+			  options += "-f";
+			}
+                        else
+                        {
+                          goto com_io_usage;
+                        }
+		      }
                     }
                   }
                 }
@@ -270,7 +277,7 @@ com_io_usage:
   fprintf(stdout, "                                                               --udp <address> remove a UDP message target for io UDP packtes\n");
   fprintf(stdout, "                                                               -n    disable report namespace\n");
   fprintf(stdout, "       io report <path>                                           :  show contents of report namespace for <path>\n");
-  fprintf(stdout, "       io ns [-a] [-n] [-b] [-100|-1000|-10000] [-w]              :  show namespace IO ranking (popularity)\n");
+  fprintf(stdout, "       io ns [-a] [-n] [-b] [-100|-1000|-10000] [-w] [-f]         :  show namespace IO ranking (popularity)\n");
   fprintf(stdout, "                                                               -a    don't limit the output list\n");
   fprintf(stdout, "                                                               -n :  show ranking by number of accesses \n");
   fprintf(stdout, "                                                               -b :  show ranking by number of bytes\n");
@@ -278,5 +285,6 @@ com_io_usage:
   fprintf(stdout, "                                                            -1000 :  show the first 1000 in the ranking\n");
   fprintf(stdout, "                                                           -10000 :  show the first 10000 in the ranking\n");
   fprintf(stdout, "                                                               -w :  show history for the last 7 days\n");
+  fprintf(stdout, "                                                               -f :  show the 'hotfiles' which are the files with highest number of present file opens\n");
   return (0);
 }
