@@ -11,7 +11,7 @@ select STDOUT; $| = 1;
 select STDERR; $| = 1;
 $apm->setLogLevel($ARGV[2]);
 $apm->setDestinations(["$ARGV[1]"]);
-$apm->setMonitorClusterNode("$ARGV[3]_Nodes", "$ARGV[4]");
+$apm->setMonitorClusterNode("$ARGV[3]_xrootd_Nodes", "$ARGV[4]");
 $apm->addJobToMonitor($ARGV[5], '', 'xrootd_Services', "$ARGV[4]");
 
 while(1){
