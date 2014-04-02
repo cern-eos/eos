@@ -3396,7 +3396,6 @@ XrdMgmOfs::_stat (const char *path,
 
   EXEC_TIMING_BEGIN("Stat");
 
-
   gOFS->MgmStats.Add("Stat", vid.uid, vid.gid, 1);
 
   // ---------------------------------------------------------------------------

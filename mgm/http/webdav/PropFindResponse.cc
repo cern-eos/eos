@@ -238,7 +238,7 @@ PropFindResponse::BuildResponseNode (const std::string &url)
 
   // Is the requested resource a file or directory?
   if (gOFS->_stat(url.c_str(), &statInfo, error, *mVirtualIdentity,
-		  (const char*) 0), &etag)
+		  (const char*) 0, &etag))
   {
     eos_static_err("msg=\"error stating %s: %s\"", url.c_str(),
                                                    error.getErrText());
