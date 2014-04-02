@@ -45,7 +45,8 @@ ProcCommand::Attr ()
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
 
-  spath = path;
+  eos::common::Path cPath(path);
+  spath = cPath.GetPath();
 
   if ((!spath.length()) ||
       ((mSubCmd != "set") && (mSubCmd != "get") && (mSubCmd != "ls") && (mSubCmd != "rm")))
