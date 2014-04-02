@@ -531,7 +531,6 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
    //......................................................................
    // Read header information for remote files
    //......................................................................
-   unsigned int pos = mHdrInfo.size() - 1;
    HeaderCRC* hd = mHdrInfo.back();
    file = mStripeFiles.back();
 
