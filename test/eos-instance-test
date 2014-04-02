@@ -249,7 +249,7 @@ timeout() {
 }
 
 meta() {
-    echo xrd $EOS_TEST_REDIRECTOR $1 $2\?$3 >& $EOSLASTLOG ; $XROOTSYS/bin/xrd $EOS_TEST_REDIRECTOR $1 $2\?$3 >> $EOSCERTLOG 2>&1
+    echo xrdfs $EOS_TEST_REDIRECTOR $1 $2\?$3 >& $EOSLASTLOG ; $XROOTSYS/bin/xrdfs $EOS_TEST_REDIRECTOR $1 $2\?$3 >> $EOSCERTLOG 2>&1
 }
 
 eos() {
@@ -480,7 +480,7 @@ runtest "### Upload    " unix 1 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTA
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-ODeos.space=default"
 runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
-runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
+runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
 runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" 
 runtest "### Part.Dwld " unix 0 "" partial   "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" 
 runtest "### Download  " unix 1 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.1"
