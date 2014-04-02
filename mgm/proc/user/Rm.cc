@@ -161,7 +161,9 @@ ProcCommand::Rm ()
         // see if we have a recycle policy set and if avoid to recycle inside 
         // the recycle bin
         //.......................................................................
-        if (attrmap.count(Recycle::gRecyclingAttribute) && (!spath.beginswith(Recycle::gRecyclingPrefix.c_str())))
+        if (attrmap.count(Recycle::gRecyclingAttribute) &&
+            (!spath.beginswith(Recycle::gRecyclingPrefix.c_str())) &&
+            (spath.find("/.sys.v#.") == STR_NPOS))
         {
           //.....................................................................
           // two step deletion via recycle bin

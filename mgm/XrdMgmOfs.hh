@@ -543,6 +543,15 @@ public:
                  const char *key);
 
   // ---------------------------------------------------------------------------
+  // clear all extended attributes by vid
+  // ---------------------------------------------------------------------------
+
+  int _attr_clear (const char *path,
+                   XrdOucErrInfo &out_error,
+                   eos::common::Mapping::VirtualIdentity &vid,
+                   const char *opaque);
+
+  // ---------------------------------------------------------------------------
   // drop stripe by vid 
   // ---------------------------------------------------------------------------
   int _dropstripe (const char *path,
@@ -612,6 +621,24 @@ public:
              XrdOucErrInfo &error,
              eos::common::Mapping::VirtualIdentity &vid
              );
+
+  // ---------------------------------------------------------------------------
+  // create a versioned file
+  // ---------------------------------------------------------------------------
+
+  int Version(eos::common::FileId::fileid_t fileid,
+              XrdOucErrInfo &error,
+              eos::common::Mapping::VirtualIdentity &vid,
+              int max_versions,
+              XrdOucString* versionedname=0);
+
+  // ---------------------------------------------------------------------------
+  // purge versioned files to max_versions
+  // ---------------------------------------------------------------------------
+
+  int PurgeVersion(const char* versiondir,
+                   XrdOucErrInfo &error,
+                   int max_versions);
 
   // ---------------------------------------------------------------------------
   // send resync command to a file system

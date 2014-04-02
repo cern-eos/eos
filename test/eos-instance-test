@@ -828,6 +828,49 @@ runtest "### TPC 2     " unix 0 "" tpc2 "/eos/$EOS_TEST_INSTANCE/test/instancete
 runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/tpc
 
 ################################################################################
+# Versioning tests
+################################################################################
+# --------------------------------------------------------------------------------------------------------------
+categorie="versioning"
+# --------------------------------------------------------------------------------------------------------------
+runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning"
+runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning"
+runtest "### Mkdir     " unix 0 "EOSROLE='-r 99 99'" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.bla"
+runtest "### Attr Ls   " unix 0 "EOSROLE='-r 99 99'" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.bla | wc -l | grep -w 0"
+runtest "### Rmdir     " unix 0 "EOSROLE='-r 99 99'" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.bla"
+runtest "### Attr Set  " unix 0 "" eos attr set sys.versioning=3 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 3"
+runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file version /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 99
+runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file version /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 99
+runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 5"
+runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 4
+runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 4"
+runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd -1
+runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 3"
+runtest "### File Vers." unix 0 "EOSROLE='-r 99 99'" eos file purge /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd 0
+runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
+runtest "### Rm        " unix 0 "EOSROLE='-r 99 99'" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Upload    " unix 0 "EOSROLE='-r 99 99'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/passwd"
+runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge -1 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
+runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 3"
+runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 2 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
+runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 2"
+runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 0 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
+runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
+runtest "### Cleanup"    unix 0 "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning"
+
+################################################################################
 # HTTP tests
 ################################################################################
 # --------------------------------------------------------------------------------------------------------------

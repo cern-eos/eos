@@ -1831,6 +1831,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("Truncate", 0, 0, 0);
   gOFS->MgmStats.Add("VerifyStripe", 0, 0, 0);
   gOFS->MgmStats.Add("Version", 0, 0, 0);
+  gOFS->MgmStats.Add("Versioning", 0, 0, 0);
   gOFS->MgmStats.Add("WhoAmI", 0, 0, 0);
 
   // set IO accounting file

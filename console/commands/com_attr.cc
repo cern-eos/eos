@@ -352,6 +352,7 @@ com_attr_usage:
   // ---------------------------------------------------------------------------
   fprintf(stdout, "         sys.recycle=....                      : define the recycle bin for that directory - WARNING: never modify this variables via 'attr' ... use the 'recycle' interface\n");
   fprintf(stdout, "         sys.recycle.keeptime=<seconds>        : define the time how long files stay in a recycle bin before final deletions taks place. This attribute has to defined on the recycle - WARNING: never modify this variables via 'attr' ... use the 'recycle' interface\n\n");
+  fprintf(stdout, "         sys.versioning=<n>                    : keep <n> versions of a file e.g. if you upload a file <n+10> times it will keep the last <n+1> versions\n");
 // ---------------------------------------------------------------------------
   fprintf(stdout, "         sys.acl=<acllist>                     : set's an ACL which is honoured for open,rm & rmdir operations\n");
   fprintf(stdout, "               => <acllist> = <rule1>,<rule2>...<ruleN> is a comma separated list of rules\n");
@@ -381,6 +382,7 @@ com_attr_usage:
   fprintf(stdout, "         user.forced.nofsselection=1           : s.a.\n");
   fprintf(stdout, "         user.stall.unavailable=<sec>          : s.a.\n");
   fprintf(stdout, "         user.acl=<acllist>                    : s.a.\n");
+  fprintf(stdout, "         user.versioning=<n>                   : s.a.\n");
   fprintf(stdout, "         user.tag=<tag>                        : Tag <tag> to group files for scheduling and flat file distribution. Use this tag to define datasets (if <tag> contains space use tag with quotes)\n");
   fprintf(stdout, "\n\n");
   fprintf(stdout,"--------------------------------------------------------------------------------\n");
@@ -426,12 +428,12 @@ com_attr_usage:
   fprintf(stdout,"--------------------------------------------------------------------------------\n");
   fprintf(stdout,"- configure automatic layout conversion if a file has reached a defined age ...\n");
   fprintf(stdout,"     |eos> attr set sys.lru.convert.match=\"*:1mo\" /eos/dev/instance/convert/    # convert all files older than a month to the layout defined next\n");
-  fprintf(stdout,"     |eos> attr set sys.conversion.*=20640542                                     # define the conversion layout (hex) for the match rule '*' - this is RAID6 4+2 \n");
+  fprintf(stdout,"     |eos> attr set sys.conversion.*=20640542 /eos/dev/instance/convert/          # define the conversion layout (hex) for the match rule '*' - this is RAID6 4+2 \n");
   fprintf(stdout,"--------------------------------------------------------------------------------\n");
   fprintf(stdout,"- configure automatic layout conversion if a file has not been used during the last 6 month ...\n");
   fprintf(stdout,"     |eos> attr set sys.force.atime=1w /eos/dev/instance/cache/                   # track atime with a time resolution of one week\n");
   fprintf(stdout,"     |eos> attr set sys.lru.convert.match=\"*:6mo\" /eos/dev/instance/convert/    # convert all files older than a month to the layout defined next\n");
-  fprintf(stdout,"     |eos> attr set sys.conversion.*=20640542                                     # define the conversion layout (hex) for the match rule '*' - this is RAID6 4+2 \n");
+  fprintf(stdout,"     |eos> attr set sys.conversion.*=20640542  /eos/dev/instance/convert/         # define the conversion layout (hex) for the match rule '*' - this is RAID6 4+2 \n");
   fprintf(stdout,"--------------------------------------------------------------------------------\n");
   fprintf(stdout,".......................\n");
   fprintf(stdout,"....... Recycle Bin ...\n");

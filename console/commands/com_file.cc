@@ -155,7 +155,7 @@ com_file (char* arg1)
   if (wants_help(savearg.c_str()))
     goto com_file_usage;
 
-  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert") && (cmd != "share") )
+  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert") && (cmd != "share") && (cmd != "purge") && (cmd != "version") )
   {
     goto com_file_usage;
   }
@@ -326,6 +326,22 @@ com_file (char* arg1)
     in += fsid1;
     in += "&mgm.file.targetfsid=";
     in += fsid2;
+  }
+
+  if ((cmd == "purge") || (cmd == "version") )
+  {
+    if (!path.length())
+      goto com_file_usage;
+
+    in += "&mgm.subcmd=";
+    in += cmd;
+    in += "&mgm.path=";
+    in += path;
+    in += "&mgm.purge.version=";
+    if (fsid1.length())
+      in += fsid1;
+    else
+      in += "-1";
   }
 
   if (cmd == "adjustreplica")
@@ -771,7 +787,7 @@ com_file (char* arg1)
   return (0);
 
 com_file_usage:
-  fprintf(stdout, "Usage: file adjustreplica|check|convert|copy|drop|info|layout|move|rename|replicate|verify ...\n");
+  fprintf(stdout, "Usage: file adjustreplica|check|convert|copy|drop|info|layout|move|purge|rename|replicate|verify|version ...\n");
   fprintf(stdout, "'[eos] file ..' provides the file management interface of EOS.\n");
   fprintf(stdout, "Options:\n");
   fprintf(stdout, "file adjustreplica [--nodrop] <path>|fid:<fid-dec>|fxid:<fid-hex> [space [subgroup]] :\n");
@@ -804,14 +820,15 @@ com_file_usage:
   fprintf(stdout, "                                                  change the number of stripes of a file with replica layout to <n>\n");
   fprintf(stdout, "file move <path> <fsid1> <fsid2> :\n");
   fprintf(stdout, "                                                  move the file <path> from  <fsid1> to <fsid2>\n");
-
+  fprintf(stdout, "file purge <path> [purge-version] :\n");
+  fprintf(stdout, "                                                  keep maximumg <purge-version> versions of a file. If not specified apply the attribute definition from sys.versioning.\n");
   fprintf(stdout, "file rename <old> <new> :\n");
   fprintf(stdout, "                                                  rename from <old> to <new> name (works for files and directories!).\n ");
   fprintf(stdout, "file replicate <path> <fsid1> <fsid2> :\n");
   fprintf(stdout, "                                                  replicate file <path> part on <fsid1> to <fsid2>\n");
 
   fprintf(stdout, "file touch <path> :\n");
-  fprintf(stdout, "                                                   create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
+  fprintf(stdout, "                                                  create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
 
   fprintf(stdout, "file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : \n");
   fprintf(stdout, "                                                  verify a file against the disk images\n");
@@ -820,6 +837,10 @@ com_file_usage:
   fprintf(stdout, "       -commitchecksum : commit the computed checksum to the MGM\n");
   fprintf(stdout, "       -commitsize     : commit the file size to the MGM\n");
   fprintf(stdout, "       -rate <rate>    : restrict the verification speed to <rate> per node\n");
+  fprintf(stdout, "file version <path> [purge-version] :\n");
+  fprintf( stdout, "                                                 create a new version of a file by cloning\n");
+  fprintf(stdout, "        <purge-version>: defines the max. number of versions to keep\n");
+  fprintf(stdout, "                         if not specified it will add a new version without purging any previous version\n");
   fprintf(stdout, "file share <path> [lifetime] :\n");
   fprintf(stdout, "       <path>          : path to create a share link\n");
   fprintf(stdout,"        <lifetime>      : validity time of the share link like 1, 1s, 1d, 1w, 1mo, 1y, ... default is 28d\n");

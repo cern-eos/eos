@@ -47,6 +47,8 @@ ProcCommand::Find ()
   XrdOucString attribute = pOpaque->Get("mgm.find.attribute");
   XrdOucString olderthan = pOpaque->Get("mgm.find.olderthan");
   XrdOucString youngerthan = pOpaque->Get("mgm.find.youngerthan");
+  XrdOucString purgeversion = pOpaque->Get("mgm.find.purge.versions");
+
 
   XrdOucString key = attribute;
   XrdOucString val = attribute;
@@ -119,6 +121,8 @@ ProcCommand::Find ()
   bool selectonline = false;
   bool printfileinfo = false;
   bool selectfaultyacl = false;
+  bool purge = false;
+  int  max_version = 999999;
 
   time_t selectoldertime = 0;
   time_t selectyoungertime = 0;
@@ -232,6 +236,19 @@ ProcCommand::Find ()
   if (option.find("A") != STR_NPOS)
   {
     selectfaultyacl = true;
+    option += "d";
+  }
+
+  if (purgeversion.length())
+  {
+    if ( ( atoi(purgeversion.c_str()) == 0 ) && (purgeversion != "0") )
+    {
+      fprintf(fstderr,"error: the max. version given to --purge has to be a valid number >=0");
+      retc = EINVAL;
+      return SFS_OK;
+    }
+    max_version = atoi(purgeversion.c_str());
+    purge = true;
     option += "d";
   }
 
@@ -695,6 +712,21 @@ ProcCommand::Find ()
     {
       for (foundit = (*found).begin(); foundit != (*found).end(); foundit++)
       {
+        // eventually call the version purge function if we own this version dir or we are root
+
+        if (purge && (foundit->first.find("/.sys.v#.") != std::string::npos))
+        {
+          struct stat buf;
+          if ( (!gOFS->_stat(foundit->first.c_str(), &buf, *mError, *pVid, (const char*) 0, 0)) &&
+              ( (pVid->uid == 0) || (pVid->uid == buf.st_uid) ) )
+          {
+            fprintf(fstdout, "# purging %s", foundit->first.c_str());
+
+            gOFS->PurgeVersion(foundit->first.c_str(),
+                               *mError,max_version);
+          }
+        }
+
         if (selectfaultyacl)
         {
           // get the attributes and call the verify function
@@ -742,7 +774,7 @@ ProcCommand::Find ()
             if (!printcounter)fprintf(fstdout, "%s=%-32s path=", printkey.c_str(), attr.c_str());
           }
         }
-        if (!printcounter)
+        if (!purge && !printcounter)
         {
           if (printchildcount)
           {

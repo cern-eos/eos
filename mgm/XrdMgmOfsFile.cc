@@ -401,6 +401,8 @@ XrdMgmOfsFile::open (const char *inpath,
   Acl acl;
   bool stdpermcheck = false;
 
+  int versioning=0;
+
   uid_t d_uid = vid.uid;
   gid_t d_gid = vid.gid;
 
@@ -600,6 +602,20 @@ XrdMgmOfsFile::open (const char *inpath,
   }
 
 
+  // set the versioning depth if it is defined
+
+  if (attrmap.count("sys.versioning"))
+  {
+    versioning = atoi(attrmap["sys.versioning"].c_str());
+  }
+  else
+  {
+    if (attrmap.count("user.versioning"))
+    {
+      versioning = atoi(attrmap["user.versioning"].c_str());
+    }
+  }
+
   if (isRW)
   {
     if (isRewrite &&
@@ -648,10 +664,21 @@ XrdMgmOfsFile::open (const char *inpath,
         }
       }
 
-      // drop the old file and create a new truncated one
-      if (gOFS->_rem(path, error, vid, info))
+      if (versioning)
       {
-        return Emsg(epname, error, errno, "remove file for truncation", path);
+        // handle the versioning for a specific file ID
+        if (gOFS->Version(fileId, error, vid, versioning))
+        {
+          return Emsg(epname, error, errno, "version file", path);
+        }
+      }
+      else
+      {
+        // drop the old file and create a new truncated one
+        if (gOFS->_rem(path, error, vid, info))
+        {
+          return Emsg(epname, error, errno, "remove file for truncation", path);
+        }
       }
 
       // invalidate the record

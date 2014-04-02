@@ -1697,6 +1697,107 @@ ProcCommand::File ()
         }
       }
     }
+
+    // -------------------------------------------------------------------------
+    // purge versions of a file
+    // -------------------------------------------------------------------------
+    if (mSubCmd == "purge")
+    {
+      XrdOucString max_count = pOpaque->Get("mgm.purge.version");
+      ProcCommand Cmd;
+      XrdOucString info;
+      if (!max_count.length())
+      {
+        stdErr = "error: illegal version count specified";
+        retc = EINVAL;
+        return SFS_OK;
+      }
+
+      // stat this file
+      struct stat buf;
+      if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, ""))
+      {
+        stdErr = "error; unable to stat path=";
+        stdErr += spath.c_str();
+        retc = errno;
+        return SFS_OK;
+      }
+
+
+      info = "mgm.cmd=find&mgm.find.purge.versions=";
+      info += max_count;
+      info += "&mgm.path=";
+
+      eos::common::Path cPath(spath.c_str());
+
+      info += cPath.GetParentPath();
+      info += "/.sys.v#.";
+      info += cPath.GetName();
+      info += "/";
+      info += "&mgm.option=fMS";
+      retc = Cmd.open("/proc/user", info.c_str(), *pVid, mError);
+      Cmd.AddOutput(stdOut, stdErr);
+      Cmd.close();
+    }
+
+    // -------------------------------------------------------------------------
+    // create a new version of a file
+    // -------------------------------------------------------------------------
+    if (mSubCmd == "version")
+    {
+      XrdOucString max_count = pOpaque->Get("mgm.purge.version");
+      int maxversion=0;
+      if (!max_count.length())
+      {
+        maxversion = -1;
+      }
+      else
+      {
+        maxversion = atoi(max_count.c_str());
+        if (!maxversion)
+        {
+          stdErr = "error: illegal version count specified version-cnt=";
+          stdErr += max_count.c_str();
+          retc = EINVAL;
+          return SFS_OK;
+        }
+      }
+
+
+      // stat this file
+      struct stat buf;
+      if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, ""))
+      {
+        stdErr = "error; unable to stat path=";
+        stdErr += spath.c_str();
+        retc = errno;
+        return SFS_OK;
+      }
+
+      XrdOucString versionedpath;
+      // make a version and third-party copy it
+      if (gOFS->Version((eos::common::FileId::fileid_t)buf.st_ino >> 28, *mError, *pVid, maxversion, &versionedpath))
+      {
+        stdErr += "error: unable to create a version of path=";
+        stdErr += spath.c_str();
+        stdErr += "\n";
+        stdErr += "error: ";
+        stdErr += mError->getErrText();
+        retc = mError->getErrInfo();
+        return SFS_OK;
+      }
+
+      ProcCommand Cmd;
+      // third party copy the file
+      XrdOucString info;
+      info += "&mgm.cmd=file&mgm.subcmd=copy&mgm.file.target=";
+      info += spath.c_str();
+      info += "&mgm.path=";
+      info += versionedpath;
+      retc = Cmd.open("/proc/user", info.c_str(), *pVid, mError);
+      Cmd.AddOutput(stdOut, stdErr);
+      Cmd.close();
+    }
   }
   return SFS_OK;
 }
