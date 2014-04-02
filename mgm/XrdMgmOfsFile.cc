@@ -1367,7 +1367,7 @@ XrdMgmOfsFile::open (const char *inpath,
                                  isPio ? eos::common::LayoutId::kPlain :
                                  eos::common::LayoutId::GetLayoutType(layoutId),
                                  isPio ? eos::common::LayoutId::kNone : eos::common::LayoutId::GetChecksum(layoutId),
-                                 static_cast<int> (selectedfs.size()),
+                                 isPioReconstruct?static_cast<int> (selectedfs.size()) + PioReconstructFsList.size() : static_cast<int> (selectedfs.size()),
                                  eos::common::LayoutId::GetBlocksizeType(layoutId),
                                  eos::common::LayoutId::GetBlockChecksum(layoutId));
 
@@ -1446,11 +1446,45 @@ XrdMgmOfsFile::open (const char *inpath,
       // -----------------------------------------------------------------------
       // get the original placement group of the first fs to reconstruct
       {
-	eos::common::FileSystem::fs_snapshot orig_snapshot;
-	eos::mgm::FileSystem* origfs = FsView::gFsView.mIdView[PioReconstructFsList[0]];
-	origfs->SnapShotFileSystem(orig_snapshot);
-	forcedGroup = orig_snapshot.mGroupIndex;
+        eos::common::FileSystem::fs_snapshot orig_snapshot;
+        // get an original filesystem which is not in the reconstruction list
+        unsigned int orig_fs=0;
+        for (unsigned int i = 0; i < fmd->getNumLocation(); i++)
+        {
+          orig_fs = fmd->getLocation(i);
+          bool isInReco=false;
+          for (unsigned int j = 0; j < PioReconstructFsList.size(); j++)
+          {
+            if ( orig_fs == PioReconstructFsList[j] )
+            {
+              isInReco=true;
+              break;
+            }
+          }
+          if (!isInReco)
+            break;
+          orig_fs = 0;
+        }
+
+        if (!orig_fs)
+        {
+          // there is no original filesystem which is not in reconstruction
+          return Emsg(epname, error, EINVAL, "get original filesystem for reconstruction", path);
+        }
+
+        if (!FsView::gFsView.mIdView.count(orig_fs))
+        {
+          // not existing original filesystem
+          return Emsg(epname, error, EINVAL, "reconstruct filesystem", path);
+        }
+
+        // get an original filesystem which is not in the reconstruction list
+
+        eos::mgm::FileSystem* origfs = FsView::gFsView.mIdView[orig_fs];
+        origfs->SnapShotFileSystem(orig_snapshot);
+        forcedGroup = orig_snapshot.mGroupIndex;
       }
+
       // -----------------------------------------------------------------------
 
       eos_info("nstripes=%d => nstripes=%d [ sub-group=%d ]",
@@ -1484,6 +1518,19 @@ XrdMgmOfsFile::open (const char *inpath,
       for (int i = 0; i < (int) PioReplacementFsList.size(); i++)
       {
         eos_debug("msg=\"scheduled fs for reconstruction\" rec-fsid=%lu nrecofs=%lu", PioReplacementFsList[i], PioReplacementFsList.size());
+      }
+
+      // add fsid=0 filesystems to the selection vector if it has less than the nominal replica
+      int selection_diff = (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1) - selectedfs.size();
+      eos_info("selection-diff=%d %d/%d", selection_diff, (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1), selectedfs.size());
+      if (selection_diff > 0)
+      {
+        unavailfs.push_back(0);
+        for (int i = 0; i< selection_diff; i++)
+        {
+         selectedfs.push_back(0);
+         eos_info("msg=\"adding fsid=0 as missing filesystem\"");
+        }
       }
     }
 
@@ -1542,22 +1589,23 @@ XrdMgmOfsFile::open (const char *inpath,
 
       if (!repfilesystem)
       {
-	// don't fail IO on a shadow file system but throw a ciritical error message
-	eos_crit("msg=\"Unable to get replica filesystem information\" path=\"%s\" fsid=%d", path, selectedfs[i]);
-	continue;
+        // don't fail IO on a shadow file system but throw a ciritical error message
+        eos_crit("msg=\"Unable to get replica filesystem information\" path=\"%s\" fsid=%d", path, selectedfs[i]);
+        continue;
       } 
       else
       {
-	if (replace) {
-	  // we have now a new target host which will do the reconstruction
-	  targethost = repfilesystem->GetString("host").c_str();
-	  targetport = atoi(repfilesystem->GetString("port").c_str());
-	  
-	  redirectionhost = targethost;
-	  redirectionhost += "?";
-	  // point into the right vector entry
-	  fsIndex=i;
-	}
+        if (replace)
+        {
+        // we have now a new target host which will do the reconstruction
+        targethost = repfilesystem->GetString("host").c_str();
+        targetport = atoi(repfilesystem->GetString("port").c_str());
+
+        redirectionhost = targethost;
+        redirectionhost += "?";
+        // point into the right vector entry
+        fsIndex=i;
+        }
       }
 
       capability += "&mgm.url";

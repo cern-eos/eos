@@ -192,8 +192,8 @@ XrdFstOfsFile::open (const char* path,
 
   // For RAIN layouts if the opaque information contains the tag fst.store=1 the 
   // corrupted files are recovered back on disk. There is no other way to make
-  // the distinction between and open for write and open for recovery since XrdCl
-  // open in RDWR mode for cases
+  // the distinction between an open for write an open for recovery since XrdCl
+  // open in RDWR mode for both cases
   store_recovery = false;
   XrdOucEnv recvOpaque(stringOpaque.c_str());
 
@@ -202,9 +202,8 @@ XrdFstOfsFile::open (const char* path,
     if (strncmp(val, "1", 1) == 0)
     {
       store_recovery = true;
-      //      open_mode = SFS_O_RDWR | SFS_O_CREAT ;
       open_mode = SFS_O_RDWR;
-      eos_info("enabling file creation for RAIN store recovery");
+      eos_info("msg=\"enabling RAIN store recovery\"");
     }
   }
   

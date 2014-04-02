@@ -56,7 +56,6 @@ mDoneRecovery (false),
 mFullDataBlocks (false),
 mIsStreaming (true),
 mStoreRecovery (storeRecovery),
-mIsReconstruct(false),
 mLastWriteOffset( 0 ),
 mTargetSize (targetSize),
 mBookingOpaque (bookingOpaque)
@@ -195,16 +194,19 @@ RaidMetaLayout::Open (const std::string& path,
  if (mStoreRecovery)
  {
    flags = SFS_O_RDWR;
+   mIsRw=true;
  }
  else if (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY))
  {
    mStoreRecovery = true;
+   mIsRw=true;
    flags |= (SFS_O_RDWR | SFS_O_TRUNC);
  }
 
- eos_debug("open_mode=%x", flags);
+ eos_debug("open_mode=%x truncate=%d", flags, ((mStoreRecovery && (mPhysicalStripeIndex == mStripeHead) )?1:0));
  
- if (file && file->Open(path, flags, mode, enhanced_opaque.c_str(), mTimeout) )
+ // the local stripe is expected to be reconstructed in a recovery on the gateway server, since it might exist it is truncated
+ if (file && file->Open(path, flags | ((mStoreRecovery && (mPhysicalStripeIndex == mStripeHead) )?SFS_O_TRUNC:0), mode, enhanced_opaque.c_str(), mTimeout) )
  {
    if (file->Open(path, flags | SFS_O_CREAT, mode, enhanced_opaque.c_str() , mTimeout ) )
    {
@@ -213,11 +215,6 @@ RaidMetaLayout::Open (const std::string& path,
      delete file;
      file = 0;
      return SFS_ERROR;
-   }
-   else
-   {
-     mIsRw = true;
-     mIsReconstruct = true;
    }
  }
    
