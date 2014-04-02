@@ -5,7 +5,7 @@
 
 Summary: eos-apmon package
 Name: eos-apmon
-Version: 1.1.3
+Version: 1.1.4
 Release: 1
 URL: none
 Source0: %{name}-%{version}.tar.gz
@@ -64,3 +64,6 @@ rm -rf $RPM_BUILD_ROOT
 %changelog
 * Mon Mar 12 2011 root <peters@pcsmd01.cern.ch> - 1.1.0-0
 - Initial build.
+* Wed Apr  2 2014 root <root@eosdevsrv1.cern.ch> - 1.1.4-1
+- add "_xrootd_" to the instance name
+- fix RPM version discovery for EOS and XRootD packages
