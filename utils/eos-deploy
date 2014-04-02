@@ -567,7 +567,7 @@ if ($isalice) {
     system("eos -b mkdir /eos/$instance/grid ");
     system("eos -b chown 10367:1395 /eos/$instance/grid");
     system("eos -b chmod 750 /eos/$instance/grid");
-    system("eos -b vid set map -unix <pwd> vgid:10367");
+    system("eos -b vid set map -unix <pwd> vuid:10367");
     system("eos -b vid set map -unix <pwd> vgid:1395");
 }
 
