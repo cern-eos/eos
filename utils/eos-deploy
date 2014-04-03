@@ -298,7 +298,7 @@ system ("test -e /usr/sbin/eos-mgm-clean && /usr/sbin/eos-mgm-clean --do-cleanup
 system ("test -e /usr/sbin/eos-fst-clean && /usr/sbin/eos-fst-clean --do-cleanup");
 system ("test -e /usr/sbin/eos-log-clean && /usr/sbin/eos-log-clean --do-cleanup");
 
-system ("yum install -y eos-server eos-client eos-nginx eos-fuse eos-apmon eos-cleanup jemalloc nscd $addpackage");
+system ("yum install -y eos-server eos-client eos-nginx eos-fuse eos-test eos-apmon eos-cleanup jemalloc nscd $addpackage");
 
 printf "# -----------------------------------------------------------------------------------------\n";
 printf "# Creating your private sss keytab file for you under /etc/eos.keytab ...\n";
@@ -511,7 +511,7 @@ if ($mgm2 ne "") {
     system("scp /etc/grid-security/certificates/nginx-bundle.pem $mgm2:/etc/grid-security/certificates/nginx-bundle.pem");
     system("ssh $mgm2 yum install -y lcg-CA");
     printf "# -----------------------------------------------------------------------------------------\n";
-    system ("ssh $mgm2 \"yum install -y eos-server eos-client eos-nginx eos-fuse eos-apmon eos-cleanup jemalloc nscd $addpackage\"");
+    system ("ssh $mgm2 \"yum install -y eos-server eos-client eos-nginx eos-fuse eos-test eos-apmon eos-cleanup jemalloc nscd $addpackage\"");
     printf "# Disabling temporarily the firewall on port 1094,1096,1097 and 8000,443,8443 on $mgm2\n";
     system("ssh $mgm2 \"iptables -I INPUT -p tcp --dport 1094 -j ACCEPT ; iptables -I INPUT -p tcp --dport 1096 -j ACCEPT;iptables -I INPUT -p tcp --dport 1097 -j ACCEPT;iptables -I INPUT -p tcp --dport 8000 -j ACCEPT;iptables -I INPUT -p tcp --dport 443 -j ACCEPT; iptables -I INPUT -p tcp --dport 8443 -j ACCEPT\"");
     printf "# (Re-)Starting nscd on $mgm2 (MGM) ...\n";
