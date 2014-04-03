@@ -9361,7 +9361,7 @@ XrdMgmOfs::FsConfigListener ()
         // ---------------------------------------------------------------------
         // handle subject creation
         // ---------------------------------------------------------------------
-        eos_static_debug("received creation on subject %s\n", newsubject.c_str());
+        eos_static_info("received creation on subject %s\n", newsubject.c_str());
         gOFS->ObjectManager.SubjectsMutex.Lock();
         continue;
       }
@@ -9371,7 +9371,7 @@ XrdMgmOfs::FsConfigListener ()
         // ---------------------------------------------------------------------
         // handle subject deletion
         // ---------------------------------------------------------------------
-        eos_static_debug("received deletion on subject %s\n", newsubject.c_str());
+        eos_static_info("received deletion on subject %s\n", newsubject.c_str());
 
         gOFS->ObjectManager.SubjectsMutex.Lock();
         continue;
@@ -9404,7 +9404,7 @@ XrdMgmOfs::FsConfigListener ()
           // -------------------------------------------------------------------
           if (!gOFS->MgmMaster.IsMaster())
           {
-            // only an MGM slave needs to aplly this
+            // only an MGM slave needs to apply this
 
             gOFS->ObjectManager.HashMutex.LockRead();
             XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
@@ -9412,12 +9412,22 @@ XrdMgmOfs::FsConfigListener ()
             {
               XrdOucString err;
               XrdOucString value = hash->Get(key).c_str();
+              gOFS->ObjectManager.HashMutex.UnLockRead();
               if (value.c_str())
               {
+                eos_info("Call SetConfig %s %s", key.c_str(), value.c_str());
+                gOFS->ConfEngine->SetConfigValue (0,
+                                                  key.c_str(),
+                                                  value.c_str(),
+                                                  false);
+
                 gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, (void*) &err);
               }
             }
-	    gOFS->ObjectManager.HashMutex.UnLockRead();
+            else
+            {
+              gOFS->ObjectManager.HashMutex.UnLockRead();
+            }
           }
         }
         else
@@ -9487,7 +9497,7 @@ XrdMgmOfs::FsConfigListener ()
         // ---------------------------------------------------------------------
         // handle subject key deletion
         // ---------------------------------------------------------------------
-        eos_static_debug("received deletion on subject %s\n", newsubject.c_str());
+        eos_static_info("received deletion on subject %s\n", newsubject.c_str());
 
         std::string key = newsubject;
         std::string queue = newsubject;
@@ -9497,6 +9507,10 @@ XrdMgmOfs::FsConfigListener ()
           key.erase(0, dpos + 1);
           queue.erase(dpos);
         }
+
+        gOFS->ConfEngine->DeleteConfigValue (0,
+                                             key.c_str(),
+                                             false);
 
         gOFS->ConfEngine->ApplyKeyDeletion(key.c_str());
 

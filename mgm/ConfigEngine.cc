@@ -976,12 +976,6 @@ ConfigEngine::ApplyKeyDeletion (const char* key)
 
   eos_static_debug("key=%s ", skey.c_str());
 
-  if (skey.beginswith("fs:"))
-  {
-    // 
-    return 0;
-  }
-
   if (skey.beginswith("global:"))
   {
     //
@@ -1062,6 +1056,28 @@ ConfigEngine::ApplyKeyDeletion (const char* key)
     Vid::Rm(videnv, retc, stdOut, stdErr, false);
 
     return 0;
+  }
+
+  if (skey.beginswith("fs:"))
+  {
+    XrdOucString stdOut;
+    XrdOucString stdErr;
+    std::string tident;
+    std::string id;
+    eos::common::Mapping::VirtualIdentity rootvid;
+    eos::common::Mapping::Root(rootvid);
+
+    skey.erase(0,3);
+    int spos1 = skey.find("/",1);
+    int spos2 = skey.find("/",spos1+1);
+    int spos3 = skey.find("/",spos2+1);
+    std::string nodename = skey.c_str();
+    std::string mountpoint = skey.c_str();
+    nodename.erase(spos3);
+    mountpoint.erase(0,spos3);
+
+    eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+    proc_fs_rm (id, nodename, mountpoint, stdOut, stdErr, tident, rootvid);
   }
 
   return 0;
@@ -1469,21 +1485,42 @@ ConfigEngine::SetConfigValue (const char* prefix,
 /*----------------------------------------------------------------------------*/
 {
   XrdOucString cl = "set config ";
-  cl += prefix;
-  cl += ":";
-  cl += key;
+  if (prefix)
+  {
+    // if there is a prefix
+    cl += prefix;
+    cl += ":";
+    cl += key;
+  }
+  else
+  {
+    // if not it is included in the key
+    cl += key;
+  }
+
   cl += " => ";
   cl += val;
   if (tochangelog)
     changeLog.AddEntry(cl.c_str());
-  XrdOucString configname = prefix;
-  configname += ":";
+  XrdOucString configname;
+  if (prefix)
+  {
+    configname = prefix;
+    configname += ":";
+    configname += key;
+  }
+  else
+  {
+    configname = key;
+  }
+
   XrdOucString * sdef = new XrdOucString(val);
-  configname += key;
+
   configDefinitions.Rep(configname.c_str(), sdef);
+
   eos_static_debug("%s => %s", key, val);
 
-  if (configBroadcast)
+  if (configBroadcast && gOFS->MgmMaster.IsMaster() )
   {
     // make this value visible between MGM's
     XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
@@ -1539,15 +1576,24 @@ ConfigEngine::DeleteConfigValue (const char* prefix,
 /*----------------------------------------------------------------------------*/
 {
   XrdOucString cl = "del config ";
-  cl += prefix;
-  cl += ":";
-  cl += key;
+  XrdOucString configname;
 
-  XrdOucString configname = prefix;
-  configname += ":";
-  configname += key;
+  if (prefix)
+  {
+    cl += prefix;
+    cl += ":";
+    cl += key;
+    configname = prefix;
+    configname += ":";
+    configname += key;
+  }
+  else
+  {
+    cl += key;
+    configname = key;
+  }
 
-  if (configBroadcast)
+  if (configBroadcast && gOFS->MgmMaster.IsMaster() )
   {
     eos_static_info("Deleting %s\n", configname.c_str());
     // make this value visible between MGM's

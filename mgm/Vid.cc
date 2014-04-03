@@ -338,6 +338,16 @@ Vid::Rm (XrdOucEnv &env,
     nerased += eos::common::Mapping::gVirtualGidMap.erase(skey.c_str());
   }
 
+  if (skey.endswith(":root"))
+  {
+    // revoke sudo permission
+    XrdOucString lkey = skey;
+    lkey.erase("vid:");
+    lkey.replace(":root", "");
+    uid_t uid = atoi(lkey.c_str());
+    eos::common::Mapping::gSudoerMap[uid] = 0;
+  }
+
   if (vidcmd == "map")
   {
     while(1) {

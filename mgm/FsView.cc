@@ -1444,7 +1444,17 @@ FsView::ApplyFsConfig (const char* inkey, std::string &val)
 
   eos::common::RWMutexWriteLock viewlock(ViewMutex);
   eos::common::FileSystem::fsid_t fsid = atoi(configmap["id"].c_str());
-  FileSystem* fs = new FileSystem(configmap["queuepath"].c_str(), configmap["queue"].c_str(), eos::common::GlobalConfig::gConfig.SOM());
+
+  FileSystem* fs = 0;
+  // apply only the registration fo a new filesystem if it does not exist
+  if (!FsView::gFsView.mIdView.count(fsid))
+  {
+    fs = new FileSystem(configmap["queuepath"].c_str(), configmap["queue"].c_str(), eos::common::GlobalConfig::gConfig.SOM());
+  }
+  else
+  {
+    fs = FsView::gFsView.mIdView[fsid];
+  }
 
   if (fs)
   {
@@ -1465,8 +1475,6 @@ FsView::ApplyFsConfig (const char* inkey, std::string &val)
     }
     // insert into the mapping
     FsView::gFsView.ProvideMapping(configmap["uuid"], fsid);
-
-
     return true;
   }
   return false;
