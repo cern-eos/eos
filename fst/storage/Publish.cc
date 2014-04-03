@@ -282,12 +282,10 @@ Storage::Publish ()
           success &= fileSystemsVector[i]->SetLongLong("stat.disk.iops", fileSystemsVector[i]->getIOPS());
           success &= fileSystemsVector[i]->SetDouble("stat.disk.bw", fileSystemsVector[i]->getSeqBandwidth()); // in MB
 
-	  eos_info("Setting hotfilelists |%s|%s|", r_open_hotfiles.c_str(), w_open_hotfiles.c_str());
           // copy out hot file list
-	  //          success &= fileSystemsVector[i]->SetString("stat.ropen.hotfiles", r_open_hotfiles.c_str());
-	  //          success &= fileSystemsVector[i]->SetString("stat.wopen.hotfiles", w_open_hotfiles.c_str());
-	  success &= fileSystemsVector[i]->SetString("stat.ropen.hotfiles","3:00064f63 2:00064f63 1:00064f63");
-	  success &= fileSystemsVector[i]->SetString("stat.wopen.hotfiles","3:00064f63 2:00064f63 1:00064f63");
+          success &= fileSystemsVector[i]->SetString("stat.ropen.hotfiles", r_open_hotfiles.c_str());
+          success &= fileSystemsVector[i]->SetString("stat.wopen.hotfiles", w_open_hotfiles.c_str());
+
           gOFS.OpenFidMutex.UnLock();
 
           {

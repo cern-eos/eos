@@ -996,7 +996,8 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
     std::string val;
     char outline[4096];
 
-    for (auto it = FsView::gFsView.mIdView.begin(); it != FsView::gFsView.mIdView.end(); it++) {
+    for (auto it = FsView::gFsView.mIdView.begin(); it != FsView::gFsView.mIdView.end(); it++)
+    {
       r_open_vector.clear();
       w_open_vector.clear();
       std::string r_open_hotfiles = FsView::gFsView.mIdView[it->first]->GetString("stat.ropen.hotfiles");
@@ -1108,12 +1109,16 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
             out += outline;
           }
         }
-	XrdMqMessage::Sort(out, true);
-	out.insert("# --------------------------------------------------------------------------------------\n",0);
-	snprintf(outline,sizeof(outline)-1,"%5s #%3s %5s %24s %s","type", "fs","heat","host","path");
-	out.insert(outline,0);
-	out.insert("# --------------------------------------------------------------------------------------\n",0);
       }
+    }
+
+    if (!monitoring)
+    {
+      XrdMqMessage::Sort(out, true);
+      out.insert("# --------------------------------------------------------------------------------------\n",0);
+      snprintf(outline,sizeof(outline)-1,"%5s #%3s %5s %24s %s","type", "fs","heat","host","path");
+      out.insert(outline,0);
+      out.insert("# --------------------------------------------------------------------------------------\n",0);
     }
     return;
   }
