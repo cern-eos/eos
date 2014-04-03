@@ -138,6 +138,14 @@ public:
       fullPath.erase(fullPath.length() - 2);
     }
 
+    // recompute /..$
+    if (fullPath.endswith("/..")) {
+      int spos = fullPath.rfind("/", fullPath.length()-4);
+      if (spos != STR_NPOS) {
+        fullPath.erase(spos+1);
+      }
+    }
+
     if (!fullPath.beginswith("/")) {
       lastPath = fullPath;
       return;
@@ -151,10 +159,10 @@ public:
     }
 
     // convert /..
-    while ((bppos = fullPath.find("/..")) != STR_NPOS) {
+    while ((bppos = fullPath.find("/../")) != STR_NPOS) {
       int spos = fullPath.rfind("/", bppos - 1);
       if (spos != STR_NPOS) {
-        fullPath.erase(bppos, 3);
+        fullPath.erase(bppos, 4);
         fullPath.erase(spos + 1, bppos - spos - 1);
       }
     }
