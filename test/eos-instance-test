@@ -463,6 +463,7 @@ runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.nstripes /eos/$EOS_TES
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.space /eos/$EOS_TEST_INSTANCE/test/
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix 0 "" eos quota set -u 100 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
+runtest "### Quota     " unix 0 "" eos quota set -u 2 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix 0 "" eos quota set -u 3 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest "### Rm        " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
@@ -509,6 +510,16 @@ runtest "### Rename    " unix 0 "" eos "file rename /eos/$EOS_TEST_INSTANCE/test
 runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.rename"
 runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-ODeos.space=default"
 runtest "### Rmdir     " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/rename"
+
+runtest "### MkSpace   " unix 0 "" eos "space define __test__"
+runtest "### SetSpace  " unix 0 "" eos "space set __test__ on "
+runtest "### RmSpace   " unix 0 "" eos "space rm __test__"
+
+runtest "### MkGroup   " unix 0 "" eos "group set __test__ on"
+runtest "### RmGroup   " unix 0 "" eos "group rm __test__"
+
+runtest "### MkNode    " unix 0 "" eos "node set __test__ on"
+runtest "### RmNode    " unix 0 "" eos "node rm __test__"
 
 # --------------------------
 # Constrain minimum file size
@@ -792,7 +803,7 @@ runtest "### FUSE mkdr " unix 0 "" shell rmdir "/eos/$EOS_TEST_INSTANCE/test/ins
 runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest "### FUSE chmd " unix 1 "" shell chmod 755 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
 runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
-runtest "### Chown     " unix 0 "" eos chown 99:99 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
+runtest "### Chown     " unix 0 "" eos chown 2:2 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
 runtest "### FUSE chmd " unix 0 "" shell chmod 555 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
 runtest "### FUSE mv   " unix 1 "" shell mv "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file.1k" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file.1k.forbidden" 
 runtest "### FUSE chmd " unix 0 "" shell chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse"
