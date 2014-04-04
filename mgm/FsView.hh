@@ -395,6 +395,7 @@ public:
   virtual
   ~FsSpace ()
   {
+
 #ifndef EOSMGMFSVIEWTEST
     if (mBalancer) delete mBalancer;
     if (mConverter) delete mConverter;

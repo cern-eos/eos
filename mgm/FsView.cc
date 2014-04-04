@@ -658,6 +658,7 @@ FsView::UnRegisterNode (const char* nodename)
     {
       // we have to explicitly remove the node from the view here because no fs was removed
       retc = (mNodeView.erase(nodename) ? true : false);
+      delete mNodeView[nodename];
     }
   }
 
@@ -718,6 +719,7 @@ FsView::UnRegisterSpace (const char* spacename)
     if (!hasfs)
     {
       // we have to explicitly remove the space from the view here because no fs was removed
+      delete mSpaceView[spacename];
       retc = (mSpaceView.erase(spacename) ? true : false);
     }
   }
@@ -788,6 +790,7 @@ FsView::UnRegisterGroup (const char* groupname)
       }
       // we have to explicitly remove the group from the view here because no fs was removed
       retc = (mGroupView.erase(groupname) ? true : false);
+      delete mGroupView[groupname];
       eos::common::StringConversion::SplitByPoint(groupname, spacename, index);
     }
   }
