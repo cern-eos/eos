@@ -413,6 +413,8 @@ system("iptables -I INPUT -p tcp --dport 443 -j ACCEPT");
 system("iptables -I INPUT -p tcp --dport 8443 -j ACCEPT");
 printf "# (Re-)Starting nscd on this host (MGM) ...\n";
 system("service nscd restart");
+printf "# Allowing daemon to use /etc/krb5.keytab (MGM) ...\n";
+system("test -f /etc/krb5.keytab && chmod 660 /etc/krb5.keytab && chown root:daemon /etc/krb5.keytab");
 system("cp /etc/sysconfig/eos.mgm /etc/sysconfig/eos");
 printf "# Making your MGM a master for the EOS MGM & MQ services...\n";
 system("service eos master mgm; service eos master mq");
@@ -514,6 +516,8 @@ if ($mgm2 ne "") {
     system ("ssh $mgm2 \"yum install -y eos-server eos-client eos-nginx eos-fuse eos-test eos-apmon eos-cleanup jemalloc nscd $addpackage\"");
     printf "# Disabling temporarily the firewall on port 1094,1096,1097 and 8000,443,8443 on $mgm2\n";
     system("ssh $mgm2 \"iptables -I INPUT -p tcp --dport 1094 -j ACCEPT ; iptables -I INPUT -p tcp --dport 1096 -j ACCEPT;iptables -I INPUT -p tcp --dport 1097 -j ACCEPT;iptables -I INPUT -p tcp --dport 8000 -j ACCEPT;iptables -I INPUT -p tcp --dport 443 -j ACCEPT; iptables -I INPUT -p tcp --dport 8443 -j ACCEPT\"");
+    printf "# Allowing daemon to use /etc/krb5.keytab (MGM) ...\n";
+    system("ssh $mgm2 \"test -f /etc/krb5.keytab && chmod 660 /etc/krb5.keytab && chown root:daemon /etc/krb5.keytab\"");
     printf "# (Re-)Starting nscd on $mgm2 (MGM) ...\n";
     system("ssh $mgm2 service nscd restart");
     printf "# Making MGM $mgm2 a slave for the EOS MGM & MQ services...\n";
