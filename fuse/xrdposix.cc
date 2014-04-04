@@ -2690,6 +2690,11 @@ xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
 
   XrdOucString sid = "";
 
+  if (uid == 0)
+  {
+    uid = gid = 2;
+  }
+
   char usergroup[16];
   // we user <hex-uid><hex-gid> as connection identifier 
   snprintf(usergroup,sizeof(usergroup)-1,"%04x%04x", uid,gid);
