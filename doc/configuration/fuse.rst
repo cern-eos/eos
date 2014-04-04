@@ -142,6 +142,12 @@ Add a FUSE host
 
    vid add gateway fusehost.foo.bar unix
 
+It is also possible now to add a set of hosts matching a hostname pattern:
+
+.. code-block:: bash
+
+   vid add gateway lxplus* sss
+
 Remove a FUSE host
 ++++++++++++++++++
 
