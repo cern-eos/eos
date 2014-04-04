@@ -502,7 +502,7 @@ com_vid_usage:
   fprintf(stdout, "       vid enable|disable krb5|gsi|sss|unix|https\n");
   fprintf(stdout, "                                            : enable/disables the default mapping via password database\n");
   fprintf(stdout, "\n");
-  fprintf(stdout, "       vid add|remove gateway <hostname> [krb5|gsi|sss|unix]\n");
+  fprintf(stdout, "       vid add|remove gateway <hostname> [krb5|gsi|sss|unix|https]\n");
   fprintf(stdout, "                                            : adds/removes a host as a (fuse) gateway with 'su' priviledges\n");
   fprintf(stdout, "                                              [<prot>] restricts the gateway role change to the specified authentication method\n");
 
