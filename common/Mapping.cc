@@ -47,6 +47,8 @@ bool Mapping::gRootSquash = true;
 
 Mapping::GeoLocationMap_t Mapping::gGeoMap;
 
+Mapping::AllowedTidentMatches_t Mapping::gAllowedTidentMatches;
+
 XrdSysMutex Mapping::ActiveLock;
 google::dense_hash_map<std::string, time_t> Mapping::ActiveTidents;
 
@@ -490,6 +492,28 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
       // there is a protocol specific entry "<prot>@<host>:uid"
       tuid = sprotuidtident.c_str();
     }
+    else
+    {
+      if ( gAllowedTidentMatches.size() )
+      {
+        std::string sprot=vid.prot.c_str();
+        for (auto it = gAllowedTidentMatches.begin(); it != gAllowedTidentMatches.end(); ++it)
+        {
+          if ( sprot != it->first.c_str() )
+            continue;
+
+          if ( host.matches(it->second.c_str()) )
+          {
+            sprotuidtident.replace(host.c_str(), it->second.c_str());
+            if ( gVirtualUidMap.count(sprotuidtident.c_str()) )
+            {
+              tuid = sprotuidtident.c_str();
+              break;
+            }
+          }
+        }
+      }
+    }
   }
 
   if (gVirtualGidMap.count(swcgidtident.c_str()))
@@ -503,6 +527,28 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     {
       // there is a protocol specific entry "<prot>@<host>:uid"
       tgid = sprotgidtident.c_str();
+    }
+    else
+    {
+      if ( gAllowedTidentMatches.size() )
+      {
+        std::string sprot=vid.prot.c_str();
+        for (auto it = gAllowedTidentMatches.begin(); it != gAllowedTidentMatches.end(); ++it)
+        {
+          if ( sprot != it->first.c_str() )
+            continue;
+
+          if ( host.matches(it->second.c_str()) )
+          {
+            sprotuidtident.replace(host.c_str(), it->second.c_str());
+            if ( gVirtualUidMap.count(sprotuidtident.c_str()) )
+            {
+              tuid = sprotuidtident.c_str();
+              break;
+            }
+          }
+        }
+      }
     }
   }
 
@@ -989,9 +1035,18 @@ Mapping::Print (XrdOucString &stdOut, XrdOucString option)
     eos::common::Mapping::GeoLocationMap_t::const_iterator it;
     for (it = gGeoMap.begin(); it != gGeoMap.end(); it++)
     {
-
       char sline[1024];
       snprintf(sline, sizeof (sline) - 1, "geotag:\"%s\" => \"%s\"\n", it->first.c_str(), it->second.c_str());
+      stdOut += sline;
+    }
+  }
+
+  if ((!option.length()))
+  {
+    for ( auto it = gAllowedTidentMatches.begin(); it != gAllowedTidentMatches.end();  ++it)
+    {
+      char sline[1024];
+      snprintf(sline, sizeof (sline) - 1, "hostmatch:\"protocol=%s pattern=%s\n", it->first.c_str(), it->second.c_str());
       stdOut += sline;
     }
   }

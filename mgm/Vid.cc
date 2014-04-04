@@ -62,7 +62,6 @@ Vid::Set (const char* value,
     {
       XrdOucString gkey = skey;
       gkey.erase("geotag:");
-      fprintf(stderr, "Setting %s => %s (%s)\n", gkey.c_str(), val, value);
       eos::common::Mapping::gGeoMap[gkey.c_str()] = val;
       if (storeConfig) gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), value);
       set = true;
@@ -183,6 +182,19 @@ Vid::Set (const char* value,
       skey += ":";
       skey += "uid";
       eos::common::Mapping::gVirtualUidMap[skey.c_str()] = muid;
+
+      // extract a hostname pattern and add it to the to allowed tident match set
+      if (auth=="tident" && (pattern.find("*", pattern.find("@"))!=STR_NPOS) )
+      {
+
+        XrdOucString hostmatch = pattern.c_str();
+        XrdOucString protocol = pattern.c_str();
+        while (hostmatch.replace("\"","")){}
+        while (protocol.replace("\"","")){}
+        hostmatch.erase(0, hostmatch.find("@")+1);
+        protocol.erase(protocol.find("@"));
+        eos::common::Mapping::gAllowedTidentMatches.insert(std::make_pair (std::string(protocol.c_str()), std::string(hostmatch.c_str())) );
+      }
       set = true;
 
       // no '&' are allowed here
@@ -336,6 +348,32 @@ Vid::Rm (XrdOucEnv &env,
   {
     nerased += eos::common::Mapping::gVirtualUidMap.erase(skey.c_str());
     nerased += eos::common::Mapping::gVirtualGidMap.erase(skey.c_str());
+  }
+
+  if (skey.beginswith("tident"))
+  {
+    skey.replace("tident:\"","");
+    if(skey.find("*",skey.find("@"))!=STR_NPOS)
+    {
+      XrdOucString hostmatch = skey.c_str();
+      XrdOucString protocol = skey.c_str();
+      while (hostmatch.replace("\"","")){}
+      while (hostmatch.replace(":uid","")){}
+      while (hostmatch.replace(":gid","")){}
+      while (protocol.replace("\"","")){}
+      hostmatch.erase(0, hostmatch.find("@")+1);
+      protocol.erase(protocol.find("@"));
+      for ( auto it=eos::common::Mapping::gAllowedTidentMatches.begin(); it !=eos::common::Mapping::gAllowedTidentMatches.end(); ++it)
+      {
+        XrdOucString auth = it->first.c_str();
+        XrdOucString pattern = it->second.c_str();
+        if ( (auth == protocol) && (pattern == hostmatch) )
+        {
+          eos::common::Mapping::gAllowedTidentMatches.erase(it);
+          break;
+        }
+      }
+    }
   }
 
   if (skey.endswith(":root"))

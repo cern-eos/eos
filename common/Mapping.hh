@@ -47,6 +47,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <map>
+#include <set>
 #include <vector>
 #include <string>
 #include <google/dense_hash_map>
@@ -68,6 +69,7 @@ public:
   typedef std::map<std::string, gid_t> VirtualGroupMap_t; //< typedef of map storing translation rules from auth methods to gids
   typedef std::map<uid_t, bool > SudoerMap_t; //< typde of map storing members of the suid group
   typedef std::map<std::string, std::string> GeoLocationMap_t; //< typdef of map storing translation of string(IP) => geo location string
+  typedef std::set<std::pair<std::string,std::string>> AllowedTidentMatches_t; //< typdef of set storing all host patterns which are allowed to use tident mapping
 
   // ---------------------------------------------------------------------------
   //! Class wrapping an uid/gid pari
@@ -236,7 +238,13 @@ public:
 
   // ---------------------------------------------------------------------------
   //! Map keeping the geo location HostName=>GeoTag translation
+  // ---------------------------------------------------------------------------
   static GeoLocationMap_t gGeoMap;
+
+  // ---------------------------------------------------------------------------
+  //! Vector having pattern matches of hosts which are allowed to use tident mapping
+  // ---------------------------------------------------------------------------
+  static AllowedTidentMatches_t gAllowedTidentMatches;
 
   // ---------------------------------------------------------------------------
   //! A cache for physical user id caching (e.g. from user name to uid)

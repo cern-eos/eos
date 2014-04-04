@@ -837,6 +837,7 @@ ConfigEngine::ResetConfig ()
   eos::common::Mapping::gVirtualUidMap.clear();
   eos::common::Mapping::gVirtualGidMap.clear();
   eos::common::Mapping::gMapMutex.UnLockWrite();
+  eos::common::Mapping::gAllowedTidentMatches.clear();
 
   Access::Reset();
 
@@ -883,6 +884,7 @@ ConfigEngine::ApplyConfig (XrdOucString &err)
   eos::common::Mapping::gVirtualUidMap.clear();
   eos::common::Mapping::gVirtualGidMap.clear();
   eos::common::Mapping::gMapMutex.UnLockWrite();
+  eos::common::Mapping::gAllowedTidentMatches.clear();
 
   Access::Reset();
 
