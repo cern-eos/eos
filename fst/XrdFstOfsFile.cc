@@ -341,10 +341,10 @@ XrdFstOfsFile::open (const char* path,
 
       bool exists=false;
 
-      for (size_t i=0; i< 150; i++) {
+      for (size_t i=0; i< 150; i++) 
       {
 	XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
-	if (gOFS.TcpMap[isRW].count(tpc_key)) 
+	if (gOFS.TpcMap[isRW].count(tpc_key))
 	  exists=true;
 	if (!exists)
 	{
