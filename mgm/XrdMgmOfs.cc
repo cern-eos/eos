@@ -3852,8 +3852,8 @@ XrdMgmOfs::_access (const char *path,
     return Emsg(epname, error, ENOENT, "access", path);
   }
 
-  // root/daemon can always access
-  if ((vid.uid == 0) || (vid.uid == 2))
+  // root/daemon can always access, daemon only for reading!
+  if ((vid.uid == 0) || ((vid.uid == 2) && (!(mode &W_OK)) ))
     permok = true;
 
   if (dh)
