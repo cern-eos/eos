@@ -334,6 +334,29 @@ XrdFstOfsFile::open (const char* path,
       //.........................................................................
       // Verify a TPC entry in the TpcMap 
       //.........................................................................
+
+      // since the destination's open can now come before the transfer has been setup
+      // we now have to give some time for the TPC client to deposit the key
+      // the not so nice side effect is that this thread stays busy during that time
+
+      bool exists=false;
+
+      for (size_t i=0; i< 150; i++) {
+      {
+	XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+	if (gOFS.TcpMap[isRW].count(tpc_key)) 
+	  exists=true;
+	if (!exists)
+	{
+	  XrdSysTimer timer;
+	  timer.Wait(100);
+	}
+	else
+	{
+	  break;
+	}
+      }
+      
       XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
       if (!gOFS.TpcMap[isRW].count(tpc_key))
       {
