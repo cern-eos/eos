@@ -62,8 +62,9 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_sitearch}/ApMon/
 
 %changelog
-* Mon Mar 12 2011 root <peters@pcsmd01.cern.ch> - 1.1.0-0
-- Initial build.
 * Wed Apr  2 2014 root <root@eosdevsrv1.cern.ch> - 1.1.4-1
 - add "_xrootd_" to the instance name
 - fix RPM version discovery for EOS and XRootD packages
+
+* Mon Mar 12 2011 root <peters@pcsmd01.cern.ch> - 1.1.0-0
+- Initial build.
