@@ -160,7 +160,7 @@ public:
   // retrieve the access configuration from the global shared 
   // hash/config engine and fill all static access configuration variables
   // ---------------------------------------------------------------------------
-  static void ApplyAccessConfig ();
+  static void ApplyAccessConfig (bool applystallandredirection=true);
 
   // ---------------------------------------------------------------------------
   // store the global access configuration variable into the global

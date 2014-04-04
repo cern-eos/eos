@@ -132,7 +132,7 @@ Access::Reset ()
 
 /*----------------------------------------------------------------------------*/
 void
-Access::ApplyAccessConfig ()
+Access::ApplyAccessConfig (bool applyredirectandstall)
 /*----------------------------------------------------------------------------*/
 /** 
  * @brief Static function to retrieve the access configuration from the global 
@@ -225,65 +225,68 @@ Access::ApplyAccessConfig ()
     }
   }
 
-  tokens.clear();
-  delimiter = ",";
-  eos::common::StringConversion::Tokenize(stall, tokens, delimiter);
-  for (size_t i = 0; i < tokens.size(); i++)
+  if (applyredirectandstall)
   {
-    if (tokens[i].length())
+    tokens.clear();
+    delimiter = ",";
+    eos::common::StringConversion::Tokenize(stall, tokens, delimiter);
+    for (size_t i = 0; i < tokens.size(); i++)
     {
-      subtokens.clear();
-      eos::common::StringConversion::Tokenize(tokens[i],
-                                              subtokens,
-                                              subdelimiter);
-      if (subtokens.size() >= 2)
+      if (tokens[i].length())
       {
-        Access::gStallRules[subtokens[0]] = subtokens[1];
-        if (subtokens[0] == ("r:*"))
+        subtokens.clear();
+        eos::common::StringConversion::Tokenize(tokens[i],
+                                                subtokens,
+                                                subdelimiter);
+        if (subtokens.size() >= 2)
         {
-          gStallRead = true;
-        }
-        if (subtokens[0] == ("w:*"))
-        {
-          gStallWrite = true;
-        }
-        if (subtokens[0] == ("*"))
-        {
-          gStallGlobal = true;
-        }
-        if ((subtokens[0].find("rate:") == 0))
-        {
-          gStallUserGroup = true;
-        }
-        if (subtokens.size() == 3)
-        {
-          XrdOucString comment = subtokens[2].c_str();
-          while (comment.replace("_#KOMMA#_", ","))
+          Access::gStallRules[subtokens[0]] = subtokens[1];
+          if (subtokens[0] == ("r:*"))
           {
+            gStallRead = true;
           }
-          while (comment.replace("_#TILDE#_", "~"))
+          if (subtokens[0] == ("w:*"))
           {
+            gStallWrite = true;
           }
-          Access::gStallComment[subtokens[0]] = comment.c_str();
+          if (subtokens[0] == ("*"))
+          {
+            gStallGlobal = true;
+          }
+           if ((subtokens[0].find("rate:") == 0))
+          {
+            gStallUserGroup = true;
+          }
+          if (subtokens.size() == 3)
+          {
+            XrdOucString comment = subtokens[2].c_str();
+            while (comment.replace("_#KOMMA#_", ","))
+            {
+            }
+            while (comment.replace("_#TILDE#_", "~"))
+            {
+            }
+            Access::gStallComment[subtokens[0]] = comment.c_str();
+          }
         }
       }
     }
-  }
 
-  tokens.clear();
-  delimiter = ",";
-  eos::common::StringConversion::Tokenize(redirect, tokens, delimiter);
-  for (size_t i = 0; i < tokens.size(); i++)
-  {
-    if (tokens[i].length())
+    tokens.clear();
+    delimiter = ",";
+    eos::common::StringConversion::Tokenize(redirect, tokens, delimiter);
+    for (size_t i = 0; i < tokens.size(); i++)
     {
-      subtokens.clear();
-      eos::common::StringConversion::Tokenize(tokens[i],
-                                              subtokens,
-                                              subdelimiter);
-      if (subtokens.size() == 2)
+      if (tokens[i].length())
       {
-        Access::gRedirectionRules[subtokens[0]] = subtokens[1];
+        subtokens.clear();
+        eos::common::StringConversion::Tokenize(tokens[i],
+                                                subtokens,
+                                                subdelimiter);
+        if (subtokens.size() == 2)
+        {
+         Access::gRedirectionRules[subtokens[0]] = subtokens[1];
+        }
       }
     }
   }

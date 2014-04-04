@@ -1157,6 +1157,9 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
       *err += "\n";
     }
 
+    // apply the access settings but not the redirection rules
+    Access::ApplyAccessConfig(false);
+
     return 0;
   }
 
