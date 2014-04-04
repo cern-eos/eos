@@ -100,7 +100,7 @@ ProcCommand::Space ()
       }
       else
       {
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
         if (!FsView::gFsView.mSpaceView.count(spacename))
         {
           stdErr = "error: no such space - define one using 'space define' or add a filesystem under that space!";
@@ -204,7 +204,7 @@ ProcCommand::Space ()
       }
       else
       {
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
         if (!FsView::gFsView.mSpaceView.count(spacename))
         {
           stdOut = "info: creating space '";

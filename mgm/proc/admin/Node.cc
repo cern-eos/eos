@@ -139,7 +139,7 @@ ProcCommand::Node ()
        }
      }
 
-     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+     eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 
      if ((pVid->uid != 0) && ((pVid->prot != "sss") || tident.compare(0, tident.length(), rnodename, 0, tident.length())))
      {

@@ -70,7 +70,7 @@ ProcCommand::Group ()
      }
      else
      {
-       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+       eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
        if (!FsView::gFsView.mGroupView.count(groupname))
        {
          stdOut = "info: creating group '";
