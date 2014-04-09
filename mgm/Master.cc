@@ -1296,7 +1296,7 @@ Master::Slave2Master ()
     }
     MasterLog(eos_crit("slave=>master transition aborted since sync was down"));
     fRunningState = kIsNothing;
-    rc = system("service eos sync start");
+    rc = system("service eos start sync");
     if (WEXITSTATUS(rc))
     {
       MasterLog(eos_warning("failed to start sync service"));
@@ -1469,7 +1469,7 @@ Master::Slave2Master ()
     MasterLog(eos_crit("slave=>master transition returned ec=%d %s", e.getErrno(), e.getMessage().str().c_str()));
     fRunningState = kIsNothing;
 
-    rc = system("service eos sync start");
+    rc = system("service eos start sync");
     if (WEXITSTATUS(rc))
     {
       MasterLog(eos_warning("slave=>master transition - sync didnt' start"));
@@ -1478,7 +1478,7 @@ Master::Slave2Master ()
   };
   fRunningState = kIsRunningMaster;
 
-  rc = system("service eos sync start");
+  rc = system("service eos start sync");
   if (WEXITSTATUS(rc))
   {
     MasterLog(eos_warning("failed to start sync service"));
