@@ -525,6 +525,25 @@ public:
   }
 
   //------------------------------------------------------------------------
+  //! Get the string value by key.
+  //------------------------------------------------------------------------
+
+  double
+  GetAge (const char* key)
+  {
+    XrdMqRWMutexReadLock lock(mSom->HashMutex);
+    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
+    {
+      // avoid to return a string with a 0 pointer !
+      return mHash->GetAgeInSeconds(key);
+    }
+    else
+    {
+      return 0;
+    }
+  }
+
+  //------------------------------------------------------------------------
   //! Get a long long value by key.
   //------------------------------------------------------------------------
 
