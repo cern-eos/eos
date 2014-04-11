@@ -61,11 +61,69 @@ public:
     systemline += "\"";
     systemline += what;
     systemline += "\" 2> /dev/null";
-    systemline += "| awk '{if ($2 == \"quit\") {on=0} else { if (on ==1) {print}; if ($1 == \"(gdb)\") {on=1;};} }' 1>&2 ";
-    int rc = system(systemline.c_str());
-    if (WEXITSTATUS(rc)) 
+    systemline += "| awk '{if ($2 == \"quit\") {on=0} else { if (on ==1) {print}; if ($1 == \"(gdb)\") {on=1;};} }' 2>&1 ";
+    std::string gdbdump = eos::common::StringConversion::StringFromShellCmd(systemline.c_str());
+    fprintf(stderr,"%s\n",gdbdump.c_str());
+    if (!strcmp("thread apply all bt", what))
     {
-      fprintf(stderr,"# error: stack trace failed\n");
+      // we can extract the signal thread from all thread back traces
+      GdbSignaledTrace(gdbdump);
+    }
+    return;
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Extract the thread stack trace creating responsible signal
+  // ---------------------------------------------------------------------------
+  static void GdbSignaledTrace(std::string &trace)
+  {
+    // analyze the trace until we find '<signal handler called>' and extract this trace
+    std::vector<std::string> lines;
+    eos::common::StringConversion::Tokenize(trace, lines, "\n");
+    size_t thread_start=0;
+    size_t thread_stop=0;
+    size_t trace_start = 0;
+    for (size_t i=0; i< lines.size(); i++)
+    {
+      if (lines[i].substr(0,6) == "Thread")
+      {
+        thread_start = i;
+      }
+
+      if (lines[i].length() <2)
+      {
+        thread_stop = i;
+        if (trace_start)
+          break;
+      }
+      if (lines[i].find("<signal handler called>") != std::string::npos)
+      {
+        trace_start = i;
+      }
+    }
+
+    if (!thread_stop)
+      thread_stop = lines.size()-1;
+
+    if ( (thread_start < trace_start) &&
+         (trace_start < thread_stop ) )
+    {
+      fprintf(stderr,"#########################################################################\n");
+      fprintf(stderr,"# -----------------------------------------------------------------------\n");
+      fprintf(stderr,"# Responsible thread =>\n");
+      fprintf(stderr,"# -----------------------------------------------------------------------\n");
+      fprintf(stderr,"# %s\n", lines[thread_start].c_str());
+      fprintf(stderr,"#########################################################################\n");
+      for (size_t l=trace_start; l<=thread_stop; l++)
+      {
+        fprintf(stderr,"%s\n",lines[l].c_str());
+      }
+    }
+    else
+    {
+      fprintf(stderr,"#########################################################################\n");
+      fprintf(stderr,"# warning: failed to parse the thread responsible for signal [%u %u %u\]n", thread_start, trace_start, thread_stop);
+      fprintf(stderr,"#########################################################################\n");
     }
   }
 };
