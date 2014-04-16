@@ -1,4 +1,4 @@
-// ----------------------------------------------------------------------
+// --------A--------------------------------------------------------------
 // File: StringConversion.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
@@ -695,7 +695,7 @@ StringConversion::LongLongFromShellCmd (const char* shellcommand)
   FILE* fd = popen(shellcommand, "r");
   if (fd)
   {
-    char buffer[1024];
+    char buffer[1025];
     buffer[0] = 0;
     int nread = fread((void*) buffer, 1, 1024, fd);
     pclose(fd);
@@ -721,17 +721,22 @@ std::string
 StringConversion::StringFromShellCmd (const char* shellcommand)
 {
   FILE* fd = popen(shellcommand, "r");
+  std::string shellstring;
+
   if (fd)
   {
-    char buffer[1024];
+    char buffer[1025];
     buffer[0] = 0;
-    int nread = fread((void*) buffer, 1, 1024, fd);
-    pclose(fd);
-    if ((nread > 0) && (nread < 1024))
-    {
+    int nread = 0; 
+
+    while ( (nread = fread((void*) buffer, 1, 1024, fd)) > 0 ) {
       buffer[nread] = 0;
-      return std::string(buffer);
+      shellstring += buffer;
+      if (nread != 1024)
+	break;
     }
+    pclose(fd);
+    return shellstring;
   }
   return "<none>";
 }
