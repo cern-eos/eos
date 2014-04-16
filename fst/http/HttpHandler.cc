@@ -284,6 +284,13 @@ HttpHandler::Head (eos::common::HttpRequest *request)
 {
   eos::common::HttpResponse *response = Get(request);
   response->mUseFileReaderCallback = false;
+  if (mFile)
+  {
+    mFile->close();
+    delete mFile;
+    mFile = 0;
+  }
+
   return response;
 }
 

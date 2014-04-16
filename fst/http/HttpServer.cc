@@ -174,6 +174,7 @@ HttpServer::Handler (void                  *cls,
     int ret = MHD_queue_response(connection, response->GetResponseCode(),
                                  mhdResponse);
     eos_static_info("MHD_queue_response ret=%d", ret);
+    MHD_destroy_response(mhdResponse);
     return ret;
   }
   else
@@ -304,7 +305,11 @@ HttpServer::FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max)
 
       if (max)
       {
-        return httpHandle->mFile->read(pos, buf, max);
+        size_t nread = httpHandle->mFile->read(pos, buf, max);
+	if (nread == 0)
+	  return -1;
+	else
+	  return nread;
       }
       else
       {
@@ -320,7 +325,10 @@ void
 HttpServer::FileCloseCallback (void *cls)
 {
   // callback function to close the file object
-  HttpHandler* httpHandle = static_cast<HttpHandler*> (cls);
+  eos::common::ProtocolHandler *handler = static_cast<eos::common::ProtocolHandler*> (cls);
+  eos::fst::HttpHandler *httpHandle = dynamic_cast<eos::fst::HttpHandler*> (handler);
+
+  eos_static_debug("handle=%llu file=%llu", httpHandle, httpHandle?httpHandle->mFile:0);
   if (httpHandle && httpHandle->mFile)
   {
     httpHandle->mCloseCode = httpHandle->mFile->close();
