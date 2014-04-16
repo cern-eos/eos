@@ -2947,7 +2947,10 @@ XrdFstOfsFile::stat (struct stat * buf)
 
   // store the file id as inode number
   if (!rc)
-    buf->st_ino = fileid;
+    buf->st_ino = fileid << 28;
+
+  
+  eos_notice("path=%s inode=%lu", Path.c_str(), fileid);
   return rc;
 }
 
