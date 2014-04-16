@@ -264,6 +264,15 @@ HttpHandler::Get (eos::common::HttpRequest *request)
         response->mResponseLength = mRequestSize;
         response->AddHeader("Content-Type", "application/octet-stream");
         response->AddHeader("Content-Length", clength);
+
+	std::string query = request->GetQuery();
+	XrdOucEnv queryenv(query.c_str());
+	const char* etag=0;
+	if ( (etag = queryenv.Get("mgm.etag")) )
+	{
+	  //
+	  response->AddHeader("ETag",etag);
+	}
         response->SetResponseCode(response->OK);
       }
     }

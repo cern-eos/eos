@@ -1735,6 +1735,24 @@ XrdMgmOfsFile::open (const char *inpath,
     redirectionhost += "&mgm.replicahead=";
     redirectionhost += (int) fsIndex;
   }
+
+  if (vid.prot == "https")
+  {
+    struct stat buf;
+    std::string etag;
+    eos::common::Mapping::VirtualIdentity rootvid;
+    eos::common::Mapping::Root(rootvid);
+    
+    // get the current ETAG
+    gOFS->_stat(path,&buf,error, rootvid, "", &etag);
+    redirectionhost += "&mgm.etag=";
+    redirectionhost += etag.c_str();
+  }
+
+  // add the MGM hex id for this file
+  redirectionhost += "&mgm.id=";
+  redirectionhost += hexfid;
+
   // Always redirect
   ecode = targetport;
   rcode = SFS_REDIRECT;

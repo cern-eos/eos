@@ -369,7 +369,7 @@ PropFindResponse::BuildResponseNode (const std::string &url)
     }
     if (contentType)
     {
-      SetValue(contentType, HttpResponse::ContentType(url).c_str());
+      SetValue(contentType, HttpResponse::ContentType(url.c_str()).c_str());
       propFound->append_node(contentType);
     }
   }
