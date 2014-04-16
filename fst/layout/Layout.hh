@@ -116,6 +116,14 @@ public:
     return mLayoutId;
   }
 
+  //--------------------------------------------------------------------------
+  //! Get last remote URL (if available)
+  //--------------------------------------------------------------------------
+  const std::string&
+  GetLastUrl ()
+  {
+    return mLastUrl;
+  }
 
   //--------------------------------------------------------------------------
   //! Test if we are at the entry server
@@ -267,6 +275,7 @@ protected:
   bool mIsEntryServer; ///< mark entry server
   unsigned int mLayoutId; ///< layout id
   XrdOucString mName; ///< layout name
+  std::string mLastUrl; ///< last URL for remote files
   XrdFstOfsFile* mOfsFile; ///< handler to logical file
   std::string mLocalPath; ///< path to local file
   XrdOucErrInfo* mError; ///< error information

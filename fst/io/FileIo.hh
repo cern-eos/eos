@@ -283,9 +283,19 @@ public:
     return mFilePath;
   }
 
+  //--------------------------------------------------------------------------
+  //! Get last used URL to current file
+  //--------------------------------------------------------------------------
+  const std::string&
+  GetLastUrl ()
+  {
+    return mLastUrl;
+  }
+
 protected:
 
   std::string mFilePath; ///< path to current physical file
+  std::string mLastUrl;  ///< last used url if remote file
 
 };
 

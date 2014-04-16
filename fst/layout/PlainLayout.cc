@@ -69,7 +69,9 @@ PlainLayout::Open (const std::string& path,
                    const char* opaque)
 {
   mLocalPath = path;
-  return mPlainFile->Open(path, flags, mode, opaque, mTimeout);
+  int retc = mPlainFile->Open(path, flags, mode, opaque, mTimeout);
+  mLastUrl = mPlainFile->GetLastUrl();
+  return retc;
 }
 
 

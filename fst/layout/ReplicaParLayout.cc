@@ -211,6 +211,7 @@ ReplicaParLayout::Open (const std::string& path,
                         "open replica - local open failed ", path.c_str());
      }
 
+     mLastUrl = file->GetLastUrl();
      //........................................................................
      // Local replica is always on the first position in the vector
      //........................................................................
@@ -245,7 +246,7 @@ ReplicaParLayout::Open (const std::string& path,
                             "open stripes - remote open failed ",
                             maskUrl.c_str());
          }
-
+	 mLastUrl = file->GetLastUrl();
          mReplicaFile.push_back(file);
          eos_debug("Opened remote file for IO: %s.", maskUrl.c_str());
        }

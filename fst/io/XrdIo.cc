@@ -159,6 +159,13 @@ XrdIo::Open (const std::string& path,
   {
     errno = 0;
   }
+
+  //............................................................................   
+  // store the last URL we are connected after open
+  //............................................................................
+
+  XrdCl::URL cUrl = mXrdFile->GetLastURL();
+  mLastUrl = cUrl.GetURL();
   return SFS_OK;
 }
 
