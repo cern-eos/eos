@@ -1350,12 +1350,24 @@ FsView::PrintSpaces (std::string &out, std::string headerformat, std::string lis
   //----------------------------------------------------------------
 
   std::map<std::string, FsSpace* >::iterator it;
+
+  std::vector<std::string> selections;
+  std::string selected = selection?selection:"";
+  if (selection)
+    eos::common::StringConversion::Tokenize(selected, selections ,",");
+
   for (it = mSpaceView.begin(); it != mSpaceView.end(); it++)
   {
     if (selection)
     {
-      if ((it->second->mName.find(selection)) == std::string::npos)
-        continue;
+      bool found=false;
+      for (size_t i=0; i<selections.size(); i++)
+      {
+	if ((it->second->mName.find(selections[i])) != std::string::npos)
+	  found=true;
+      }
+      if (!found)
+	continue;
     }
     it->second->Print(out, headerformat, listformat);
     if (!listformat.length() && ((headerformat.find("header=1:")) == 0))
@@ -1374,12 +1386,24 @@ FsView::PrintGroups (std::string &out, std::string headerformat, std::string lis
   //----------------------------------------------------------------
 
   std::map<std::string, FsGroup* >::iterator it;
+
+  std::vector<std::string> selections;
+  std::string selected = selection?selection:"";
+  if (selection)
+    eos::common::StringConversion::Tokenize(selected, selections ,",");
+
   for (it = mGroupView.begin(); it != mGroupView.end(); it++)
   {
     if (selection)
     {
-      if ((it->second->mName.find(selection)) == std::string::npos)
-        continue;
+      bool found=false;
+      for (size_t i=0; i<selections.size(); i++)
+      {
+	if ((it->second->mName.find(selections[i])) != std::string::npos)
+	  found=true;
+      }
+      if (!found)
+	continue;
     }
     it->second->Print(out, headerformat, listformat);
     if (!listformat.length() && ((headerformat.find("header=1:")) == 0))
@@ -1396,14 +1420,25 @@ FsView::PrintNodes (std::string &out, std::string headerformat, std::string list
   //----------------------------------------------------------------
   //! print node information to out
   //----------------------------------------------------------------
-
   std::map<std::string, FsNode* >::iterator it;
+
+  std::vector<std::string> selections;
+  std::string selected = selection?selection:"";
+  if (selection)
+    eos::common::StringConversion::Tokenize(selected, selections ,",");
+
   for (it = mNodeView.begin(); it != mNodeView.end(); it++)
   {
     if (selection)
     {
-      if ((it->second->mName.find(selection)) == std::string::npos)
-        continue;
+      bool found=false;
+      for (size_t i=0; i<selections.size(); i++)
+      {
+	if ((it->second->mName.find(selections[i])) != std::string::npos)
+	  found=true;
+      }
+      if (!found)
+	continue;
     }
     it->second->Print(out, headerformat, listformat);
     if (!listformat.length() && ((headerformat.find("header=1:")) == 0))

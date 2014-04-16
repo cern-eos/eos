@@ -860,8 +860,8 @@ com_fs_usage:
   fprintf(stdout, "'[eos] fs ..' provides the filesystem interface of EOS.\n");
   fprintf(stdout, "Usage: fs add|boot|config|dropfiles|dumpmd|mv|ls|rm|status [OPTIONS]\n");
   fprintf(stdout, "Options:\n");
-  fprintf(stdout, "fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s]   :\n");
-  fprintf(stdout, "                                                  list all filesystems in default output format\n");
+  fprintf(stdout, "fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s] [<space>] :\n");
+  fprintf(stdout, "                                                  list all filesystems in default output format. <space> is an optional substring match for the space name and can be a comma separated list\n");
   fprintf(stdout, "            -m                                  : list all filesystem parameters in monitoring format\n");
   fprintf(stdout, "            -l                                  : display all filesystem parameters in long format\n");
   fprintf(stdout, "            -e                                  : display all filesystems in error state\n");

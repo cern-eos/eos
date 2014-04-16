@@ -306,7 +306,7 @@ com_node (char* arg1)
 
 com_node_usage:
 
-  fprintf(stdout, "usage: node ls [-s] [-m|-l|--sys|--io|--fsck] [<node>]                     : list all nodes or only <node>\n");
+  fprintf(stdout, "usage: node ls [-s] [-m|-l|--sys|--io|--fsck] [<node>]                     : list all nodes or only <node>. <node> is a substring match and can be a comma seperated list\n");
   fprintf(stdout, "                                                                  -s : silent mode\n");
   fprintf(stdout, "                                                                  -m : monitoring key=value output format\n");
   fprintf(stdout, "                                                                  -l : long output - list also file systems after each node\n");

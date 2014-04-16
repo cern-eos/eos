@@ -270,7 +270,7 @@ com_space (char* arg1)
 com_space_usage:
 
   fprintf(stdout, "usage: space ls                                                  : list spaces\n");
-  fprintf(stdout, "usage: space ls [-s] [-m|-l|--io|--fsck] [<space>]                   : list in all spaces or select only <space>\n");
+  fprintf(stdout, "usage: space ls [-s] [-m|-l|--io|--fsck] [<space>]                   : list in all spaces or select only <space>. <space> is a substring match and can be a comma seperated list\n");
   fprintf(stdout, "                                                                  -s : silent mode\n");
   fprintf(stdout, "                                                                  -m : monitoring key=value output format\n");
   fprintf(stdout, "                                                                  -l : long output - list also file systems after each space\n");
