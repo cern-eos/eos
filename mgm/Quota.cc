@@ -1170,6 +1170,41 @@ Quota::GetSpaceNameList (const char* key, SpaceQuota* spacequota, void *Arg)
 
 /*----------------------------------------------------------------------------*/
 void
+Quota::GetIndividualQuota (eos::common::Mapping::VirtualIdentity_t &vid, const char* path, long long &maxbytes, long long &freebytes)
+{
+  eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+  SpaceQuota* space = Quota::GetResponsibleSpaceQuota(path);
+  if (space)
+  {
+    long long maxbytes_user, maxbytes_group, maxbytes_project;
+    long long freebytes_user, freebytes_group, freebytes_project;
+    freebytes_user = freebytes_group = freebytes_project = 0;
+    maxbytes_user = maxbytes_group = maxbytes_project = 0;
+    space->Refresh();
+    maxbytes_user  = space->GetQuota(SpaceQuota::kUserBytesTarget,vid.uid);
+    maxbytes_group = space->GetQuota(SpaceQuota::kGroupBytesTarget,vid.gid);
+    maxbytes_project = space->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId);
+    freebytes_user = maxbytes_user - space->GetQuota(SpaceQuota::kUserBytesIs, vid.uid);
+    freebytes_group = maxbytes_group - space->GetQuota(SpaceQuota::kGroupBytesIs, vid.gid);
+    freebytes_project = maxbytes_project - space->GetQuota(SpaceQuota::kGroupBytesIs, Quota::gProjectId);
+
+    if (freebytes_user > freebytes)
+      freebytes = freebytes_user;
+    if (freebytes_group > freebytes)
+      freebytes = freebytes_group;
+    if (freebytes_project > freebytes)
+      freebytes = freebytes_project;
+    if (maxbytes_user > maxbytes)
+      maxbytes = maxbytes_user;
+    if (maxbytes_group > maxbytes)
+      maxbytes = maxbytes_group;
+    if (maxbytes_project > maxbytes)
+      maxbytes = maxbytes_project;
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+void
 Quota::PrintOut (const char* space, XrdOucString &output, long uid_sel, long gid_sel, bool monitoring, bool translateids)
 {
   {

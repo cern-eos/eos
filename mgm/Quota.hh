@@ -638,6 +638,8 @@ public:
   // builds a list with the names of all spaces
   static int GetSpaceNameList (const char* key, SpaceQuota* spacequota, void *Arg);
 
+  static void GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t &vid, const char* path, long long &maxbytes, long long &freebytes);
+
   static void PrintOut (const char* space, XrdOucString &output, long uid_sel = -1, long gid_sel = -1, bool monitoring = false, bool translateids = false);
 
   static bool SetQuota (XrdOucString space, long uid_sel, long gid_sel, long long bytes, long long files, XrdOucString &msg, int &retc); // -1 means it is not set for all long/long long values
