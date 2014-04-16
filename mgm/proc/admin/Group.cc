@@ -189,6 +189,26 @@ ProcCommand::Group ()
        }
        else
        {
+         for (auto it = FsView::gFsView.mGroupView[groupname]->begin(); it != FsView::gFsView.mGroupView[groupname]->end(); it++)
+         {
+           if (FsView::gFsView.mIdView.count(*it))
+           {
+             FileSystem* fs = FsView::gFsView.mIdView[*it];
+             if (fs)
+             {
+               // check that all filesystems are empty
+               if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty))
+               {
+                 stdErr = "error: unable to remove group '";
+                 stdErr += groupname.c_str();
+                 stdErr += "' - filesystems are not all in empty state - try list the group and drain them or set: fs config <fsid> configstatus=empty\n";
+                 retc = EBUSY;
+                 return SFS_OK;
+               }
+             }
+           }
+         }
+
          std::string groupconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsGroup::sGetConfigQueuePrefix(), groupname.c_str());
          if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(groupconfigname.c_str()))
          {

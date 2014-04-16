@@ -216,6 +216,34 @@ ProcCommand::Node ()
        }
        else
        {
+         // we only remove a node if it has no heartbeat anymore
+         if ( (time(NULL)-FsView::gFsView.mNodeView[nodename]->GetHeartBeat()) < 5 )
+         {
+           stdErr = "error: this node was still sending a heartbeat < 5 seconds ago - stop the FST daemon first!\n";
+           retc = EBUSY;
+           return SFS_OK;
+         }
+
+         // we can only remove a node if all filesystems are in empty state
+         for (auto it = FsView::gFsView.mNodeView[nodename]->begin(); it != FsView::gFsView.mNodeView[nodename]->end(); it++)
+         {
+           if (FsView::gFsView.mIdView.count(*it))
+           {
+             FileSystem* fs = FsView::gFsView.mIdView[*it];
+             if (fs)
+             {
+               // check the empty state
+               if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty))
+               {
+                 stdErr = "error: unable to remove node '";
+                 stdErr += nodename.c_str();
+                 stdErr += "' - filesystems are not all in empty state - try to drain them or: node config <name> configstatus=empty\n";
+                 retc = EBUSY;
+                 return SFS_OK;
+               }
+             }
+           }
+         }
          std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsNode::sGetConfigQueuePrefix(), nodename.c_str());
          if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(nodeconfigname.c_str()))
          {

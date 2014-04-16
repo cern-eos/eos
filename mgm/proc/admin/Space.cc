@@ -538,6 +538,26 @@ ProcCommand::Space ()
         }
         else
         {
+          for (auto it = FsView::gFsView.mSpaceView[spacename]->begin(); it != FsView::gFsView.mSpaceView[spacename]->end(); it++)
+          {
+            if (FsView::gFsView.mIdView.count(*it))
+            {
+              FileSystem* fs = FsView::gFsView.mIdView[*it];
+              if (fs)
+              {
+                // check that filesystems are empty
+                if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty))
+                {
+                  stdErr = "error: unable to remove space '";
+                  stdErr += spacename.c_str();
+                  stdErr += "' - filesystems are not all in empty state - try to drain them or: space config <name> configstatus=empty\n";
+                  retc = EBUSY;
+                  return SFS_OK;
+                }
+              }
+            }
+          }
+
           std::string spaceconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsSpace::sGetConfigQueuePrefix(), spacename.c_str());
           if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(spaceconfigname.c_str()))
           {
