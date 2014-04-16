@@ -976,7 +976,7 @@ ConfigEngine::ApplyKeyDeletion (const char* key)
 {
   XrdOucString skey = key;
 
-  eos_static_debug("key=%s ", skey.c_str());
+  eos_static_info("key=%s ", skey.c_str());
 
   if (skey.beginswith("global:"))
   {
@@ -1079,7 +1079,7 @@ ConfigEngine::ApplyKeyDeletion (const char* key)
     mountpoint.erase(0,spos3);
 
     eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-    proc_fs_rm (id, nodename, mountpoint, stdOut, stdErr, tident, rootvid);
+    proc_fs_rm (nodename, mountpoint, id, stdOut, stdErr, tident, rootvid);
   }
 
   return 0;
