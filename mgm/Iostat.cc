@@ -1002,6 +1002,32 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
       w_open_vector.clear();
       std::string r_open_hotfiles = FsView::gFsView.mIdView[it->first]->GetString("stat.ropen.hotfiles");
       std::string w_open_hotfiles = FsView::gFsView.mIdView[it->first]->GetString("stat.wopen.hotfiles");
+
+      double age_r = FsView::gFsView.mIdView[it->first]->GetAge("stat.ropen.hotfiles");
+      double age_w = FsView::gFsView.mIdView[it->first]->GetAge("stat.wopen.hotfiles");
+		
+      fprintf(stderr,"%f %f\n",age_r, age_w);
+      // we only show the reports from the last minute, there could be pending values
+      if ( (age_r > 60) )
+      {
+        r_open_hotfiles="";
+      }
+
+      if ( (age_w > 60) )
+      {
+        w_open_hotfiles="";
+      }
+      
+      if (r_open_hotfiles == " ")
+      {
+	r_open_hotfiles = "";
+      }
+
+      if (w_open_hotfiles == " ")
+      {
+	w_open_hotfiles = "";
+      }
+
       eos::common::StringConversion::Tokenize(r_open_hotfiles, r_open_vector);
       eos::common::StringConversion::Tokenize(w_open_hotfiles, w_open_vector);
 
@@ -1116,7 +1142,7 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
     {
       XrdMqMessage::Sort(out, true);
       out.insert("# --------------------------------------------------------------------------------------\n",0);
-      snprintf(outline,sizeof(outline)-1,"%5s #%3s %5s %24s %s","type", "fs","heat","host","path");
+      snprintf(outline,sizeof(outline)-1,"%5s #%3s %5s %24s %s\n","type", "heat","fs","host","path");
       out.insert(outline,0);
       out.insert("# --------------------------------------------------------------------------------------\n",0);
     }
