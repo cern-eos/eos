@@ -282,10 +282,20 @@ Storage::Publish ()
           success &= fileSystemsVector[i]->SetLongLong("stat.disk.iops", fileSystemsVector[i]->getIOPS());
           success &= fileSystemsVector[i]->SetDouble("stat.disk.bw", fileSystemsVector[i]->getSeqBandwidth()); // in MB
 
-          // copy out hot file list
-          success &= fileSystemsVector[i]->SetString("stat.ropen.hotfiles", r_open_hotfiles.c_str());
-          success &= fileSystemsVector[i]->SetString("stat.wopen.hotfiles", w_open_hotfiles.c_str());
-
+	  {
+            // we have to set something which is not empty to update the value
+            if (!r_open_hotfiles.length())
+	    {
+	      r_open_hotfiles=" ";
+            }
+            if (!w_open_hotfiles.length())
+	    {
+              w_open_hotfiles=" ";
+	    }
+            // copy out hot file list
+            success &= fileSystemsVector[i]->SetString("stat.ropen.hotfiles", r_open_hotfiles.c_str());
+            success &= fileSystemsVector[i]->SetString("stat.wopen.hotfiles", w_open_hotfiles.c_str());
+	  }
           gOFS.OpenFidMutex.UnLock();
 
           {
