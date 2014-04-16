@@ -112,7 +112,6 @@ xrdmgmofs_stacktrace (int sig)
 
   backtrace_symbols_fd(array, size, 2);
 
-  eos::common::StackTrace::GdbTrace("xrootd", getpid(), "where");
   eos::common::StackTrace::GdbTrace("xrootd", getpid(), "thread apply all bt");
 
   if (getenv("EOS_CORE_DUMP"))
