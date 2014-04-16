@@ -185,7 +185,6 @@ XrdFstOfs::xrdfstofs_stacktrace (int sig)
   fprintf(stderr, "error: received signal %d:\n", sig);
   backtrace_symbols_fd(array, size, 2);
 
-  eos::common::StackTrace::GdbTrace("xrootd", getpid(), "where");
   eos::common::StackTrace::GdbTrace("xrootd", getpid(), "thread apply all bt");
 
   if (getenv("EOS_CORE_DUMP"))

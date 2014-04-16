@@ -87,6 +87,11 @@ public:
     {
       if (lines[i].substr(0,6) == "Thread")
       {
+	if (thread_start && trace_start) 
+	{
+	  thread_stop = i -1;
+	  break;
+	}
         thread_start = i;
       }
 
@@ -122,7 +127,7 @@ public:
     else
     {
       fprintf(stderr,"#########################################################################\n");
-      fprintf(stderr,"# warning: failed to parse the thread responsible for signal [%u %u %u\]n", thread_start, trace_start, thread_stop);
+      fprintf(stderr,"# warning: failed to parse the thread responsible for signal [%u %u %u]n", (unsigned int)thread_start, (unsigned int)trace_start, (unsigned int)thread_stop);
       fprintf(stderr,"#########################################################################\n");
     }
   }
