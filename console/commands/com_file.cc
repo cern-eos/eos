@@ -707,7 +707,7 @@ com_file (char* arg1)
               if (!silent)
               {
                 fprintf(stdout, "nrep=\"%02d\" fsid=\"%s\" host=\"%s\" fstpath=\"%s\" "
-                        "size=\"%llu\" statsize=\"%llu\" checksum=\"%s\"",
+                        "size=\"%llu\" statsize=\"%lld\" checksum=\"%s\"",
                         i, newresult->Get(repfsid.c_str()),
                         newresult->Get(repurl.c_str()),
                         newresult->Get(repfstpath.c_str()),
