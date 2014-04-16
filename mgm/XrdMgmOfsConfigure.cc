@@ -1763,6 +1763,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("Find", 0, 0, 0);
   gOFS->MgmStats.Add("Fuse", 0, 0, 0);
   gOFS->MgmStats.Add("Fuse-Statvfs", 0, 0, 0);
+  gOFS->MgmStats.Add("Fuse-Mkdir", 0, 0, 0);
   gOFS->MgmStats.Add("Fuse-Stat", 0, 0, 0);
   gOFS->MgmStats.Add("Fuse-Chmod", 0, 0, 0);
   gOFS->MgmStats.Add("Fuse-Chown", 0, 0, 0);
@@ -1809,6 +1810,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("Redirect", 0, 0, 0);
   gOFS->MgmStats.Add("RedirectR", 0, 0, 0);
   gOFS->MgmStats.Add("RedirectW", 0, 0, 0);
+  gOFS->MgmStats.Add("RedirectR-Master", 0, 0, 0);
   gOFS->MgmStats.Add("RedirectENOENT", 0, 0, 0);
   gOFS->MgmStats.Add("RedirectENONET", 0, 0, 0);
   gOFS->MgmStats.Add("Rename", 0, 0, 0);

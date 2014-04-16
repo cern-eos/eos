@@ -463,7 +463,8 @@ extern "C"
                  mode_t mode,
                  uid_t uid,
                  gid_t gid,
-                 pid_t pid
+                 pid_t pid,
+                 struct stat* buf
                  );
 
   //----------------------------------------------------------------------------
@@ -483,7 +484,8 @@ extern "C"
                 mode_t mode,
                 uid_t uid,
                 gid_t gid,
-                pid_t pid);
+                pid_t pid,
+                unsigned long* return_inode);
 
   //----------------------------------------------------------------------------
   //!

@@ -479,7 +479,7 @@ XrdMgmOfs::ShouldStall (const char* function,
       smsg = Access::gStallComment[std::string("*")];
     }
     else
-      if (IS_ACCESSMODE_R && (Access::gStallRead))
+      if ( (IS_ACCESSMODE_R && (Access::gStallRead))|| (IS_ACCESSMODE_R_MASTER && (Access::gStallRead)) )
     {
       // READ STALL
       stalltime = atoi(Access::gStallRules[std::string("r:*")].c_str());
@@ -637,7 +637,8 @@ XrdMgmOfs::ShouldRedirect (const char* function,
     bool c1 = Access::gRedirectionRules.count(std::string("*"));
     bool c3 = (IS_ACCESSMODE_R && Access::gRedirectionRules.count(std::string("r:*")));
     bool c2 = (IS_ACCESSMODE_W && Access::gRedirectionRules.count(std::string("w:*")));
-    if (c1 || c2 || c3)
+    bool c4 = (IS_ACCESSMODE_R_MASTER && Access::gRedirectionRules.count(std::string("w:*")));
+    if (c1 || c2 || c3 || c4)
     {
       // redirect
       std::string delimiter = ":";
@@ -660,6 +661,14 @@ XrdMgmOfs::ShouldRedirect (const char* function,
           {
             eos::common::StringConversion::Tokenize(Access::gRedirectionRules[std::string("r:*")], tokens, delimiter);
             gOFS->MgmStats.Add("RedirectR", vid.uid, vid.gid, 1);
+          }
+          else
+          {
+            if (c4)
+            {
+              eos::common::StringConversion::Tokenize(Access::gRedirectionRules[std::string("w:*")], tokens, delimiter);
+              gOFS->MgmStats.Add("RedirectR-Master", vid.uid, vid.gid, 1);
+            }
           }
         }
       }
@@ -5529,13 +5538,13 @@ XrdMgmOfs::FSctl (const int cmd,
     if (execmd == "stat")
     {
       // -----------------------------------------------------------------------
-      // Stat a file/dir
+      // Stat a file/dir - this we always redirect to the RW master
       // -----------------------------------------------------------------------
-      ACCESSMODE_R;
+      ACCESSMODE_R_MASTER;
       MAYSTALL;
       MAYREDIRECT;
 
-      gOFS->MgmStats.Add("Fuse-Dirlist", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("Fuse-Stat", vid.uid, vid.gid, 1);
 
       struct stat buf;
 
@@ -5583,6 +5592,83 @@ XrdMgmOfs::FSctl (const int cmd,
       else
       {
         XrdOucString response = "stat: retc=";
+        response += errno;
+        error.setErrInfo(response.length() + 1, response.c_str());
+        return SFS_DATA;
+      }
+    }
+
+    if (execmd == "mkdir")
+    {
+      // -----------------------------------------------------------------------
+      // Make a directory and return it's inode
+      // -----------------------------------------------------------------------
+      ACCESSMODE_W;
+      MAYSTALL;
+      MAYREDIRECT;
+
+      gOFS->MgmStats.Add("Fuse-Mkdir", vid.uid, vid.gid, 1);
+
+      struct stat buf;
+      XrdSfsMode mode=0;
+      const char* smode=0;
+
+      if ((smode = env.Get("mode")))
+      {
+        mode = atoi(smode);
+      }
+
+      int retc1 = _mkdir(spath.c_str(),mode, error, vid, 0);
+
+
+      int retc2 = 0;
+
+      if (!retc1) {
+        retc2 = lstat(spath.c_str(),
+                      &buf,
+                      error,
+                      client,
+                      0);
+      }
+
+      if ( (retc1 == SFS_OK) && (retc2 == SFS_OK) )
+      {
+        char statinfo[16384];
+        // convert into a char stream
+        sprintf(statinfo, "mkdir: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu\n",
+                (unsigned long long) buf.st_dev,
+                (unsigned long long) buf.st_ino,
+                (unsigned long long) buf.st_mode,
+                (unsigned long long) buf.st_nlink,
+                (unsigned long long) buf.st_uid,
+                (unsigned long long) buf.st_gid,
+                (unsigned long long) buf.st_rdev,
+                (unsigned long long) buf.st_size,
+                (unsigned long long) buf.st_blksize,
+                (unsigned long long) buf.st_blocks,
+#ifdef __APPLE__
+          (unsigned long long) buf.st_atimespec.tv_sec,
+                (unsigned long long) buf.st_mtimespec.tv_sec,
+                (unsigned long long) buf.st_ctimespec.tv_sec,
+                (unsigned long long) buf.st_atimespec.tv_nsec,
+                (unsigned long long) buf.st_mtimespec.tv_nsec,
+                (unsigned long long) buf.st_ctimespec.tv_nsec
+#else
+          (unsigned long long) buf.st_atime,
+                (unsigned long long) buf.st_mtime,
+                (unsigned long long) buf.st_ctime,
+                (unsigned long long) buf.st_atim.tv_nsec,
+                (unsigned long long) buf.st_mtim.tv_nsec,
+                (unsigned long long) buf.st_ctim.tv_nsec
+#endif
+          );
+
+        error.setErrInfo(strlen(statinfo) + 1, statinfo);
+        return SFS_DATA;
+      }
+      else
+      {
+        XrdOucString response = "mkdir: retc=";
         response += errno;
         error.setErrInfo(response.length() + 1, response.c_str());
         return SFS_DATA;

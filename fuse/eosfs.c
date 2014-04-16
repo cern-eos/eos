@@ -245,6 +245,7 @@ eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
   fprintf (stderr, "[%s] path=%s, mode=%x\n", __FUNCTION__, path, mode);
   eosatime = time (0);
   char rootpath[4096];
+  unsigned long return_inode;
 
   if (S_ISREG (mode))
   {
@@ -255,23 +256,22 @@ eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
     int res = xrd_open(path,
                        O_CREAT | O_EXCL | O_RDWR,
                        S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
-                       uid, gid, 0);
+                       uid, gid, 0, &return_inode);
     
     if (res < 0)
       return -errno;
 
     // Update the entry parameters
-    struct stat buf;
-    int retc = xrd_stat(rootpath, &buf, uid, gid, 0);
-    xrd_store_p2i ((unsigned long long) buf.st_ino, rootpath);
-    fprintf (stderr, "[%s]: update inode=%lld \n", __FUNCTION__, (long long) buf.st_ino);
+
+    xrd_store_p2i ((unsigned long long) return_inode, rootpath);
+    fprintf (stderr, "[%s]: update inode=%lld \n", __FUNCTION__, (long long) return_inode);
 
     // This memory  has to be freed once we're done with the file, usually in
     // the close/release method
     fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof(struct fd_user_info));
     info->fd = res;
     info->uid = uid;
-    info->ino = buf.st_ino;
+    info->ino = return_inode;
     fi->fh = (uint64_t) info;  
 
     // Add the inodeuser to fd mapping for future stats
@@ -294,7 +294,7 @@ eosdfs_mkdir (const char* path, mode_t mode)
   rootpath[0] = '\0';
   strcat(rootpath, mountprefix);
   strcat(rootpath, path);
-  int res = xrd_mkdir(rootpath, mode, uid, gid, pid);
+  int res = xrd_mkdir(rootpath, mode, uid, gid, pid, 0);
 
   if (res)
     return -errno;
@@ -418,7 +418,7 @@ eosdfs_truncate (const char* path, off_t size)
   int fd = xrd_open(path,
                     O_WRONLY | O_TRUNC,
                     S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
-                    uid, gid, pid);
+                    uid, gid, pid, 0);
   
   if (fd < 0)
     return -errno;
@@ -470,7 +470,7 @@ eosdfs_open (const char* path, struct fuse_file_info* fi)
   int res = xrd_open (path, 
                   fi->flags, 
                   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, 
-                  uid, gid, pid);
+                  uid, gid, pid, 0);
 
   if (res == -1)
     return -errno;

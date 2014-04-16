@@ -1238,7 +1238,8 @@ xrd_stat (const char* path,
           struct stat* buf,
           uid_t uid,
           gid_t gid,
-          unsigned long inode)
+          unsigned long inode
+          )
 {
   eos_static_info("path=%s, uid=%i, gid=%i", path, (int)uid, (int)gid);
   eos::common::Timing stattiming("xrd_stat");
@@ -1299,6 +1300,7 @@ xrd_stat (const char* path,
 
   XrdCl::URL Url(xrd_user_url(uid, gid, 0));
   XrdCl::FileSystem fs(Url);
+
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
   COMMONTIMING("GETPLUGIN", &stattiming);
@@ -1950,19 +1952,121 @@ xrd_mkdir (const char* path,
            mode_t mode,
            uid_t uid,
            gid_t gid,
-           pid_t pid)
+           pid_t pid,
+           struct stat* buf)
 {
   eos_static_info("path=%s mode=%d uid=%u pid=%u", path, mode, uid, pid);
-  XrdCl::Access::Mode mode_XrdCl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
-  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+
+
+  eos::common::Timing mkdirtiming("xrd_mkdir");
+  errno = 0;
+  COMMONTIMING("START", &mkdirtiming);
+
+  std::string request;
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  request = path;
+  request += "?";
+  request += "mgm.pcmd=mkdir";
+  request += "&mode=";
+  request += (int) mode;
+  arg.FromString(request);
+
+  XrdCl::URL Url(xrd_user_url(uid, gid, 0));
   XrdCl::FileSystem fs(Url);
-  XrdCl::XRootDStatus status = fs.MkDir(path,
-                                        XrdCl::MkDirFlags::MakePath,
-                                        mode_XrdCl);
-  if (xrd_error_retc_map(status.errNo))
-    return errno;
+
+  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
+                                        arg, response);
+  COMMONTIMING("GETPLUGIN", &mkdirtiming);
+
+  if (status.IsOK())
+  {
+    unsigned long long sval[10];
+    unsigned long long ival[6];
+    char tag[1024];
+    //..........................................................................
+    // Parse output
+    //..........................................................................
+    int items = sscanf(response->GetBuffer(),
+                       "%s %llu %llu %llu %llu %llu %llu %llu %llu "
+                       "%llu %llu %llu %llu %llu %llu %llu %llu",
+                       tag, (unsigned long long*) &sval[0],
+                       (unsigned long long*) &sval[1],
+                       (unsigned long long*) &sval[2],
+                       (unsigned long long*) &sval[3],
+                       (unsigned long long*) &sval[4],
+                       (unsigned long long*) &sval[5],
+                       (unsigned long long*) &sval[6],
+                       (unsigned long long*) &sval[7],
+                       (unsigned long long*) &sval[8],
+                       (unsigned long long*) &sval[9],
+                       (unsigned long long*) &ival[0],
+                       (unsigned long long*) &ival[1],
+                       (unsigned long long*) &ival[2],
+                       (unsigned long long*) &ival[3],
+                       (unsigned long long*) &ival[4],
+                       (unsigned long long*) &ival[5]);
+
+    if ((items != 17) || (strcmp(tag, "mkdir:")))
+    {
+      errno = ENOENT;
+      delete response;
+      return errno;
+    }
+    else
+    {
+      buf->st_dev = (dev_t) sval[0];
+      buf->st_ino = (ino_t) sval[1];
+      buf->st_mode = (mode_t) sval[2];
+      buf->st_nlink = (nlink_t) sval[3];
+      buf->st_uid = (uid_t) sval[4];
+      buf->st_gid = (gid_t) sval[5];
+      buf->st_rdev = (dev_t) sval[6];
+      buf->st_size = (off_t) sval[7];
+      buf->st_blksize = (blksize_t) sval[8];
+      buf->st_blocks = (blkcnt_t) sval[9];
+#ifdef __APPLE__
+      buf->st_atimespec.tv_sec = (time_t) ival[0];
+      buf->st_mtimespec.tv_sec = (time_t) ival[1];
+      buf->st_ctimespec.tv_sec = (time_t) ival[2];
+      buf->st_atimespec.tv_nsec = (time_t) ival[3];
+      buf->st_mtimespec.tv_nsec = (time_t) ival[4];
+      buf->st_ctimespec.tv_nsec = (time_t) ival[5];
+#else
+      buf->st_atime = (time_t) ival[0];
+      buf->st_mtime = (time_t) ival[1];
+      buf->st_ctime = (time_t) ival[2];
+      buf->st_atim.tv_sec = (time_t) ival[0];
+      buf->st_mtim.tv_sec = (time_t) ival[1];
+      buf->st_ctim.tv_sec = (time_t) ival[2];
+      buf->st_atim.tv_nsec = (time_t) ival[3];
+      buf->st_mtim.tv_nsec = (time_t) ival[4];
+      buf->st_ctim.tv_nsec = (time_t) ival[5];
+#endif
+
+      if (S_ISREG(buf->st_mode) && fuse_exec)
+        buf->st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
+
+      buf->st_mode &= (~S_ISVTX); // clear the vxt bit
+      buf->st_mode &= (~S_ISUID); // clear suid
+      buf->st_mode &= (~S_ISGID); // clear sgid
+      errno = 0;
+    }
+  }
   else
-    return 0;
+  {
+    eos_static_err("error=status is NOT ok");
+    errno = EFAULT;
+  }
+
+  COMMONTIMING("END", &mkdirtiming);
+
+  if (EOS_LOGS_DEBUG)
+    mkdirtiming.Print();
+
+  eos_static_info("path=%s inode=%llu", path, buf->st_ino);
+  delete response;
+  return errno;
 }
 
 
@@ -2109,7 +2213,8 @@ xrd_open (const char* path,
           mode_t mode,
           uid_t uid,
           gid_t gid,
-          pid_t pid)
+          pid_t pid,
+          unsigned long* return_inode)
 {
   eos_static_info("path=%s flags=%08x mode=%d uid=%u pid=%u",
                   path, oflags, mode, uid, pid);
@@ -2342,6 +2447,22 @@ xrd_open (const char* path,
   }
   else
   {
+    if (return_inode)
+    {
+      // try to extract the inode from the opaque redirection
+
+      XrdOucEnv RedEnv = file->GetLastUrl().c_str();
+      const char* sino = RedEnv.Get("mgm.id");
+      if (sino)
+      {
+        *return_inode = eos::common::FileId::Hex2Fid(sino);
+      }
+      else
+      {
+        *return_inode = 0;
+      }
+      eos_static_info("path=%s created ino=%lu", path, (unsigned long)*return_inode);
+    }
     retc = xrd_add_fd2file(file, path, uid);
     return retc;
   }

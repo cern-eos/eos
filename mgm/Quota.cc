@@ -450,6 +450,7 @@ SpaceQuota::Refresh()
   UpdateTargetSums();
 }
 
+
 /*----------------------------------------------------------------------------*/
 void
 SpaceQuota::PrintOut (XrdOucString &output, long uid_sel, long gid_sel, bool monitoring, bool translateids)

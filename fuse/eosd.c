@@ -200,7 +200,7 @@ eosfs_ll_setattr (fuse_req_t req,
         if ((fd = xrd_open (fullpath, O_WRONLY,
                             S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid,
                             req->ctx.gid,
-                            req->ctx.pid)) > 0)
+                            req->ctx.pid,0)) > 0)
         {
           retc = xrd_truncate (fd, attr->st_size, ino);
           xrd_close (fd, ino, req->ctx.uid);
@@ -225,7 +225,7 @@ eosfs_ll_setattr (fuse_req_t req,
                           S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
                           req->ctx.uid,
                           req->ctx.gid,
-                          req->ctx.pid)) > 0)
+                          req->ctx.pid,0)) > 0)
       {
         retc = xrd_truncate (fd, attr->st_size, ino);
         xrd_close (fd, ino, req->ctx.uid);
@@ -720,24 +720,20 @@ eosfs_ll_mkdir (fuse_req_t req,
 
   if (isdebug) fprintf (stderr, "[%s]: path=%s\n", __FUNCTION__, fullpath);
 
+  struct fuse_entry_param e;
+  memset (&e, 0, sizeof ( e));
+  e.attr_timeout = attrcachetime;
+  e.entry_timeout = entrycachetime;
+
   int retc = xrd_mkdir (fullpath,
                         mode,
                         req->ctx.uid,
                         req->ctx.gid,
-                        req->ctx.pid);
+                        req->ctx.pid,
+                        &e.attr);
 
   if (!retc)
   {
-    struct fuse_entry_param e;
-    memset (&e, 0, sizeof ( e));
-    e.attr_timeout = attrcachetime;
-    e.entry_timeout = entrycachetime;
-    struct stat newbuf;
-    int retc = xrd_stat (fullpath,
-                         &e.attr,
-                         req->ctx.uid,
-                         req->ctx.gid,
-                         0);
     e.ino = e.attr.st_ino;
 
     if (retc)
@@ -1038,7 +1034,7 @@ eosfs_ll_open (fuse_req_t req,
                     S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
                     req->ctx.uid,
                     req->ctx.gid,
-                    req->ctx.pid);
+                    req->ctx.pid,0);
 
   }
   else
@@ -1048,7 +1044,7 @@ eosfs_ll_open (fuse_req_t req,
                     0,
                     req->ctx.uid,
                     req->ctx.gid,
-                    req->ctx.pid);
+                    req->ctx.pid,0);
   }
 
   if (isdebug)
@@ -1583,6 +1579,7 @@ eosfs_ll_create(fuse_req_t req,
                 struct fuse_file_info *fi)
 {
   int res;
+  unsigned long return_inode=0;
 
   if (S_ISREG (mode))
   {
@@ -1623,7 +1620,8 @@ eosfs_ll_create(fuse_req_t req,
                     S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
                     req->ctx.uid,
                     req->ctx.gid,
-                    req->ctx.pid);
+                    req->ctx.pid,
+                    &return_inode);
 
 
     if (res == -1)
@@ -1643,20 +1641,29 @@ eosfs_ll_create(fuse_req_t req,
     memset (&e, 0, sizeof ( e));
     e.attr_timeout = 0;
     e.entry_timeout = 0;
-    int retc = xrd_stat(fullpath, &e.attr, req->ctx.uid, req->ctx.gid, 0);
-    e.ino = e.attr.st_ino;
-    fprintf (stderr, "[%s]: update inode=%lld\n", __FUNCTION__, (long long) e.ino);
+    e.ino = return_inode;
+    e.attr.st_mode = S_IFREG;
+    e.attr.st_atime = time(NULL);
+    e.attr.st_mtime = time(NULL);
+    e.attr.st_ctime = time(NULL);
+    e.attr.st_uid = req->ctx.uid;
+    e.attr.st_gid = req->ctx.gid;
+    e.attr.st_dev = 0;
+    fprintf (stderr, "[%s]: update inode=%llu\n", __FUNCTION__, (unsigned long long) e.ino);
 
-    // Add the inodeuser to fd mapping for future stats
-    xrd_add_inodeuser_fd(e.ino, info->uid, info->fd);
 
-    if (retc)
+
+
+    if (!return_inode)
     {
-      fuse_reply_err (req, -retc);
+      xrd_close(res, 0, req->ctx.uid);
+      fuse_reply_err (req, -res);
       return;
     }
     else
     {
+      // Add the inodeuser to fd mapping for future stats
+      xrd_add_inodeuser_fd(e.ino, info->uid, info->fd);
       xrd_store_p2i ((unsigned long long) e.ino, ifullpath);
 
       if (isdebug)

@@ -64,6 +64,9 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 /// defines operation mode to be write 
 #define ACCESSMODE_W int __AccessMode__ = 1
 
+/// defines operation mode to be read on master
+#define ACCESSMODE_R_MASTER int __AccessMode__ = 2
+
 /// set's operation mode to be write 
 #define SET_ACCESSMODE_W __AccessMode__ = 1
 
@@ -72,6 +75,9 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 
 /// check if we are in write access mode
 #define IS_ACCESSMODE_W (__AccessMode__ == 1)
+
+/// check if we are in master read access mode
+#define IS_ACCESSMODE_R_MASTER (__AccessMode__ == 2)
 
 // -----------------------------------------------------------------------------
 //! Stall Macro
