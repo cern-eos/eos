@@ -9500,14 +9500,38 @@ XrdMgmOfs::FsConfigListener ()
               gOFS->ObjectManager.HashMutex.UnLockRead();
               if (value.c_str())
               {
-                eos_info("Call SetConfig %s %s", key.c_str(), value.c_str());
-                gOFS->ConfEngine->SetConfigValue (0,
-                                                  key.c_str(),
-                                                  value.c_str(),
-                                                  false);
+		// here we might get a change without the namespace, in this case we add the global namespace
+		if ( (key.substr(0,4)!="map:") &&
+		     (key.substr(0,3)!="fs:") &&
+		     (key.substr(0,6)!="quota:") &&
+		     (key.substr(0,4)!="vid:") &&
+		     (key.substr(0,7)!="policy:") )
+		{
+		  XrdOucString skey=key.c_str();
+		  eos_info("Calling Apply for %s %s", key.c_str(), value.c_str());
+		  Access::ApplyAccessConfig(false);
 
-                gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, (void*) &err);
-              }
+		  if (skey.beginswith("iostat:"))
+		  {
+		    gOFS->IoStats.ApplyIostatConfig();
+		  }
+		  if (skey.beginswith("fsck"))
+		  {
+		    gOFS->FsCheck.ApplyFsckConfig();
+		  }
+		}
+		else
+		{
+		  eos_info("Call SetConfig %s %s", key.c_str(), value.c_str());
+		  
+		  gOFS->ConfEngine->SetConfigValue (0,
+						    key.c_str(),
+						    value.c_str(),
+						    false);
+		  
+		  gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, (void*) &err);
+		}
+	      }
             }
             else
             {
