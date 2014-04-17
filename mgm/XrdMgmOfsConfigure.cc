@@ -212,8 +212,9 @@ XrdMgmOfs::InitializeFileView ()
 	}
       }
     }
-    time_t tstop = time(0);
-    gOFS->MgmMaster.MasterLog(eos_notice("eos namespace file loading stopped after %d seconds", (tstop - tstart)));
+
+    gOFS->eosViewRWMutex.UnLockWrite();
+
     if (!MgmMaster.IsMaster())
     {
       eos_static_info("msg=\"starting slave listener\"");
@@ -221,6 +222,7 @@ XrdMgmOfs::InitializeFileView ()
       struct stat buf;
       buf.st_size=0;
       ::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &buf);
+
 
       gOFS->eosFileService->startSlave();
       gOFS->eosDirectoryService->startSlave();
@@ -238,6 +240,10 @@ XrdMgmOfs::InitializeFileView ()
 	Initialized = kBooted;
       }
     }
+
+    time_t tstop = time(0);
+
+    gOFS->MgmMaster.MasterLog(eos_notice("eos namespace file loading stopped after %d seconds", (tstop - tstart)));
 
     {
       eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
@@ -259,7 +265,6 @@ XrdMgmOfs::InitializeFileView ()
       }
       Access::gStallGlobal = oldstallglobal;
     }
-    gOFS->eosViewRWMutex.UnLockWrite();
   }
   catch (eos::MDException &e)
   {
