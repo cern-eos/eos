@@ -431,6 +431,8 @@ Master::Supervisor ()
 
       if (!lDiskFull)
       {
+	MasterLog(eos_static_debug("ismaster=%d remote-ok=%d remote-wr=%d thishost=%s remotehost=%s masterhost=%s ", IsMaster(), fRemoteMasterOk, fRemoteMasterRW, fThisHost.c_str(), fRemoteHost.c_str(), fMasterHost.c_str()));
+	    
         eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
         if (!IsMaster())
         {
@@ -1579,11 +1581,13 @@ Master::MasterRO2Slave ()
     // put an appropriate stall
     if (fRemoteMasterOk)
     {
+      Access::gStallRules[std::string("w:*")] = "60";
       Access::gStallRules[std::string("*")] = "100";
       Access::gStallGlobal = true;
     }
     else
     {
+      Access::gStallRules[std::string("w:*")] = "60";
       Access::gStallRules[std::string("*")] = "60";
       Access::gStallGlobal = true;
     }

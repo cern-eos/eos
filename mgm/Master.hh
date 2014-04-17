@@ -379,8 +379,11 @@ public:
   void
   MasterLog (const char* log)
   {
-    if (log) fMasterLog += log;
-    fMasterLog += "\n";
+    if (log) 
+    {
+      fMasterLog += log;
+      fMasterLog += "\n";
+    }
   }
 
   //------------------------------------------------------------------------
