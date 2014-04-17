@@ -205,11 +205,11 @@ XrdMgmOfs::InitializeFileView ()
           fmd->setSize(4096);
           gOFS->eosView->updateFileStore(fmd);
         }
-      }
 
-      {
-        XrdSysMutexHelper lock(InitializationMutex);
-        Initialized = kBooted;
+	{
+	  XrdSysMutexHelper lock(InitializationMutex);
+	  Initialized = kBooted;
+	}
       }
     }
     time_t tstop = time(0);
@@ -217,8 +217,26 @@ XrdMgmOfs::InitializeFileView ()
     if (!MgmMaster.IsMaster())
     {
       eos_static_info("msg=\"starting slave listener\"");
+
+      struct stat buf;
+      buf.st_size=0;
+      ::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &buf);
+
       gOFS->eosFileService->startSlave();
       gOFS->eosDirectoryService->startSlave();
+      
+      // wait that the follower reaches the offset seen now
+      while (gOFS->eosFileService->getFollowOffset() < (uint64_t) buf.st_size) 
+      {
+	XrdSysTimer sleeper;
+	sleeper.Wait(200);
+	eos_static_debug("msg=\"waiting for the namespace to reach the follow point\" is-offset=%llu follow-offset=%llu", gOFS->eosFileService->getFollowOffset(), (uint64_t) buf.st_size);
+      }
+
+      {
+	XrdSysMutexHelper lock(InitializationMutex);
+	Initialized = kBooted;
+      }
     }
 
     {
