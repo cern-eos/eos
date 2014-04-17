@@ -1239,7 +1239,22 @@ Master::Set (XrdOucString &mastername, XrdOucString &stdOut, XrdOucString &stdEr
 
   // set back to the previous master
   if (!arc)
+  {
     fMasterHost = lOldMaster;
+    // put back the old MGM configuration status file
+    if (fThisHost == fMasterHost)
+    {
+      gOFS->ObjectManager.EnableBroadCast(true); // we are the master and we broadcast every configuration change
+      if (!CreateStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE))
+	return false;
+    }
+    else
+    {
+      gOFS->ObjectManager.EnableBroadCast(false); // we are the slave and we just listen and don't broad cast anythiing
+      if (!RemoveStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE))
+	return false;
+    }
+  }
   return arc;
 }
 
