@@ -28,6 +28,7 @@
 #include "common/SecEntity.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysDNS.hh"
+#include <regex>
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -1310,8 +1311,18 @@ Mapping::UserNameToUid (std::string &username, int &errc)
   getpwnam_r(username.c_str(), &pwbuf, buffer, buflen, &pwbufp);
   if (!pwbufp)
   {
+    bool is_number = true;
+    for (size_t i=0; i< username.length(); i++) 
+    {
+      if (!isdigit(username[i]))
+      {
+	is_number = false;
+	break;
+      }
+    }
+
     uid = atoi(username.c_str());
-    if (uid != 0)
+    if ( (uid != 0) && (is_number) )
       errc = 0;
     else
     {
