@@ -93,10 +93,7 @@ ProcCommand::Chown ()
      gid = "0";
    }
 
-   uidt = (uid_t) atoi(uid.c_str());
-   gidt = (gid_t) atoi(gid.c_str());
-
-   if ((uid != "0") && (!uidt))
+   if ((uid != "0"))
    {
      int terrc = 0;
      uidt = eos::common::Mapping::UserNameToUid(uid, terrc);
@@ -109,7 +106,7 @@ ProcCommand::Chown ()
      }
    }
 
-   if ((gid != "0") && (!gidt))
+   if ((gid != "0") )
    {
      // try to translate with password database
      int terrc = 0;
