@@ -56,7 +56,7 @@ class XrdMqClient
     bool Subscribe( const char* queue = 0 );
     bool Unsubscribe( const char* queue = 0 );
 
-    bool        SendMessage( XrdMqMessage& msg, const char* receiverid = 0, bool sign = false, bool encrypt = false );
+    bool        SendMessage( XrdMqMessage& msg, const char* receiverid = 0, bool sign = false, bool encrypt = false, bool asynchronous = false);
     bool        ReplyMessage( XrdMqMessage& replymsg, XrdMqMessage& inmsg, bool sign = false, bool encrypt = false ) {
       replymsg.SetReply( inmsg );
       return SendMessage( replymsg, inmsg.kMessageHeader.kSenderId.c_str(), sign, encrypt );

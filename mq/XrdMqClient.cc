@@ -128,7 +128,7 @@ XrdMqClient::Disconnect()
 // SendMessage
 //------------------------------------------------------------------------------
 bool
-XrdMqClient::SendMessage( XrdMqMessage& msg, const char* receiverid, bool sign, bool encrypt )
+XrdMqClient::SendMessage( XrdMqMessage& msg, const char* receiverid, bool sign, bool encrypt, bool asynchronous )
 {
   XrdSysMutexHelper lock( Mutex );
   bool rc = true;
@@ -191,7 +191,14 @@ XrdMqClient::SendMessage( XrdMqMessage& msg, const char* receiverid, bool sign, 
     }
 
     arg.FromString( message.c_str() );
-    status = fs->Query( XrdCl::QueryCode::OpaqueFile, arg, response );
+
+    if (asynchronous) {
+      // don't wait for responses if not required
+      static XrdCl::ResponseHandler nohandler;
+      status = fs->Query (XrdCl::QueryCode::OpaqueFile, arg, &nohandler );
+    } else {
+      status = fs->Query( XrdCl::QueryCode::OpaqueFile, arg, response );
+    }
     rc = status.IsOK();
 
     // we continue until any of the brokers accepts the message

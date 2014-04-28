@@ -167,7 +167,7 @@ XrdMqSharedObjectManager::DeleteSharedHash (const char* subject, bool broadcast)
       XrdMqMessage message("XrdMqSharedHashMessage");
       message.SetBody(txmessage.c_str());
       message.MarkAsMonitor();
-      XrdMqMessaging::gMessageClient.SendMessage(message);
+      XrdMqMessaging::gMessageClient.SendMessage(message,0, false, false, true);
     }
     delete (hashsubjects[ss]);
     hashsubjects.erase(ss);
@@ -207,7 +207,7 @@ XrdMqSharedObjectManager::DeleteSharedQueue (const char* subject, bool broadcast
       XrdMqMessage message("XrdMqSharedHashMessage");
       message.SetBody(txmessage.c_str());
       message.MarkAsMonitor();
-      XrdMqMessaging::gMessageClient.SendMessage(message);
+      XrdMqMessaging::gMessageClient.SendMessage(message, 0, false, false, true);
     }
 
     queuesubjects.erase(ss);
@@ -830,7 +830,7 @@ XrdMqSharedObjectManager::CloseMuxTransaction ()
       XrdMqMessage message("XrdMqSharedHashMessage");
       message.SetBody(txmessage.c_str());
       message.MarkAsMonitor();
-      XrdMqMessaging::gMessageClient.SendMessage(message, MuxTransactionBroadCastQueue.c_str());
+      XrdMqMessaging::gMessageClient.SendMessage(message, MuxTransactionBroadCastQueue.c_str(), false, false, true);
     }
 
     IsMuxTransaction = false;
@@ -1017,7 +1017,7 @@ XrdMqSharedHash::CloseTransaction ()
         XrdMqMessage message("XrdMqSharedHashMessage");
         message.SetBody(txmessage.c_str());
         message.MarkAsMonitor();
-        retval &= XrdMqMessaging::gMessageClient.SendMessage(message, BroadCastQueue.c_str());
+        retval &= XrdMqMessaging::gMessageClient.SendMessage(message, BroadCastQueue.c_str(), false, false, true);
       }
       Transactions.clear();
     }
@@ -1027,7 +1027,7 @@ XrdMqSharedHash::CloseTransaction ()
       XrdMqMessage message("XrdMqSharedHashMessage");
       message.SetBody(txmessage.c_str());
       message.MarkAsMonitor();
-      retval &= XrdMqMessaging::gMessageClient.SendMessage(message, BroadCastQueue.c_str());
+      retval &= XrdMqMessaging::gMessageClient.SendMessage(message, BroadCastQueue.c_str(), false, false, true);
     }
   }
 
@@ -1039,7 +1039,7 @@ XrdMqSharedHash::CloseTransaction ()
     XrdMqMessage message("XrdMqSharedHashMessage");
     message.SetBody(txmessage.c_str());
     message.MarkAsMonitor();
-    retval &= XrdMqMessaging::gMessageClient.SendMessage(message, BroadCastQueue.c_str());
+    retval &= XrdMqMessaging::gMessageClient.SendMessage(message, BroadCastQueue.c_str(), false, false, true);
   }
 
   IsTransaction = false;
@@ -1136,7 +1136,7 @@ XrdMqSharedHash::BroadCastEnvString (const char* receiver)
     message.SetBody(txmessage.c_str());
     message.MarkAsMonitor();
     if (XrdMqSharedObjectManager::debug)fprintf(stderr, "XrdMqSharedObjectManager::BroadCastEnvString=>[%s]=>%s \n", Subject.c_str(), receiver);
-    return XrdMqMessaging::gMessageClient.SendMessage(message, receiver);
+    return XrdMqMessaging::gMessageClient.SendMessage(message, receiver, false, false, true);
   }
   return true;
 }
@@ -1230,7 +1230,7 @@ XrdMqSharedHash::BroadCastRequest (const char* requesttarget)
   out += Type.c_str();
   message.SetBody(out.c_str());
   message.MarkAsMonitor();
-  return XrdMqMessaging::gMessageClient.SendMessage(message, requesttarget);
+  return XrdMqMessaging::gMessageClient.SendMessage(message, requesttarget, false, false, true);
 }
 
 /*----------------------------------------------------------------------------*/
