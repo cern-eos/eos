@@ -372,7 +372,7 @@ GroupBalancer::updateTransferList ()
 /*----------------------------------------------------------------------------*/
 {
   std::map<eos::common::FileId::fileid_t, std::string>::iterator it;
-  for (it = mTransfers.begin(); it != mTransfers.end(); it++)
+  for (it = mTransfers.begin(); it != mTransfers.end();)
   {
     eos::common::Mapping::VirtualIdentity rootvid;
     eos::common::Mapping::Root(rootvid);
@@ -381,7 +381,9 @@ GroupBalancer::updateTransferList ()
     struct stat buf;
 
     if (gOFS->_stat(fileName.c_str(), &buf, error, rootvid, ""))
-      mTransfers.erase(it);
+      mTransfers.erase(it++);
+    else
+      ++it;
   }
 
   eos_static_info("scheduledtransfers=%d", mTransfers.size());
