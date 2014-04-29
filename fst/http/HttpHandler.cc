@@ -386,6 +386,14 @@ HttpHandler::Put (eos::common::HttpRequest *request)
     else
     {
       eos_static_info("entering close handler");
+
+      eos::common::HttpRequest::HeaderMap header = request->GetHeaders();
+      if (header.count("X-OC-Mtime"))
+      {
+	// there is an X-OC-Mtime header to force the mtime for that file
+	mFile->SetForcedMtime(strtoull(header["X-OC-MTime"].c_str(),0,10),0);
+      }
+
       mCloseCode = mFile->close();
       if (mCloseCode)
       {
@@ -397,6 +405,11 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       else
       {
         response = new eos::common::PlainHttpResponse();
+	response->AddHeader("ETag",mFile->GetETag());
+	if (header.count("X-OC-MTime"))
+	{
+	  response->AddHeader("X-OC-MTime","accepted");
+	}
         return response;
       }
     }
