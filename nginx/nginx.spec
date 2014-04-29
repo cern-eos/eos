@@ -78,7 +78,7 @@ A second third party modul, nginx-auth-ldap has been added.
 
 %build
 
-git clone http://github.com/stnoonan/spnego-http-auth-nginx-module \
+git clone https://github.com/stnoonan/spnego-http-auth-nginx-module \
           %{_builddir}/spnego-http-auth-nginx-module
 
 git clone https://github.com/kvspb/nginx-auth-ldap.git \
@@ -159,6 +159,7 @@ done
 %clean
 rm -rf %{buildroot}
 rm -rf %{_builddir}/spnego-http-auth-nginx-module
+rm -rf %{_builddir}/nginx-auth-ldap-module
 
 %pre
 %{_sbindir}/useradd -c "Nginx user" -s /bin/false -r -d %{nginx_home} %{nginx_user} 2>/dev/null || :
