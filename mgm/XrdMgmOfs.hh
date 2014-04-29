@@ -393,6 +393,14 @@ public:
   int stat (const char *Name,
             struct stat *buf,
             XrdOucErrInfo &out_error,
+	    std::string* etag,
+            const XrdSecEntity *client = 0,
+            const char *opaque = 0
+	    );
+
+  int stat (const char *Name,
+            struct stat *buf,
+            XrdOucErrInfo &out_error,
             const XrdSecEntity *client = 0,
             const char *opaque = 0);
 

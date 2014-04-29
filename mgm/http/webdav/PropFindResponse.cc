@@ -25,6 +25,7 @@
 #include "mgm/http/webdav/PropFindResponse.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "mgm/Quota.hh"
 #include "common/Logging.hh"
 #include "common/Timing.hh"
 #include "common/Path.hh"
@@ -43,6 +44,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
   // Get the namespaces (if any)
   ParseNamespaces();
 
+  eos_static_info("\n%s", request->GetBody().c_str());
   // Root node <propfind/>
   xml_node<> *rootNode = mXMLRequestDocument.first_node();
   if (!rootNode)
@@ -70,17 +72,29 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
   XrdOucErrInfo error;
   struct stat   statInfo;
   std::string etag;
+  memset(&statInfo, 0, sizeof(struct stat));
+
   gOFS->_stat(request->GetUrl().c_str(), &statInfo, error, *mVirtualIdentity,
 	      (const char*) 0, &etag);
 
   // Figure out what we actually need to do
   std::string depth = request->GetHeaders()["Depth"];
+  
+  // -----------------------------------------------------------------------------
+  // Owncloud patch
+  // -----------------------------------------------------------------------------
 
+  //  if ( (depth == "1") && (request->GetHeaders()["User-Agent"].find("csyncoC") != std::string::npos) )
+  //  {
+  //    depth = "1,noroot";
+  //  }
+
+  eos_static_info("depth=%s, isdir=%d", depth.c_str(), S_ISDIR(statInfo.st_mode));
   xml_node<> *responseNode = 0;
   if (depth == "0" || !S_ISDIR(statInfo.st_mode))
   {
-    // Simply stat the file or directory
-    responseNode = BuildResponseNode(request->GetUrl());
+    // Simply stat the file or direcAtory
+    responseNode = BuildResponseNode(request->GetUrl(), request->GetUrl(true));
     if (responseNode)
     {
       multistatusNode->append_node(responseNode);
@@ -98,7 +112,8 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
     int listrc = directory.open(request->GetUrl().c_str(), *mVirtualIdentity,
                                 (const char*) 0);
 
-    responseNode = BuildResponseNode(request->GetUrl());
+    responseNode = BuildResponseNode(request->GetUrl(), request->GetUrl(true));
+
     if (responseNode)
     {
       multistatusNode->append_node(responseNode);
@@ -118,7 +133,8 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
 
         // one response node for each file...
         eos::common::Path path((request->GetUrl() + std::string("/") + std::string(val)).c_str());
-        responseNode = BuildResponseNode(path.GetPath());
+        eos::common::Path refpath((request->GetUrl(true) + std::string("/") + std::string(val)).c_str());
+        responseNode = BuildResponseNode(path.GetPath(), refpath.GetPath());
         if (responseNode)
         {
           multistatusNode->append_node(responseNode);
@@ -227,7 +243,7 @@ PropFindResponse::ParseRequestPropertyTypes(rapidxml::xml_node<> *node)
 
 /*----------------------------------------------------------------------------*/
 rapidxml::xml_node<>*
-PropFindResponse::BuildResponseNode (const std::string &url)
+PropFindResponse::BuildResponseNode (const std::string &url, const std::string &hrefurl)
 {
   using namespace rapidxml;
 
@@ -236,22 +252,34 @@ PropFindResponse::BuildResponseNode (const std::string &url)
   struct stat        statInfo;
   std::string etag;
 
+  XrdOucString urlp=url.c_str();
+  XrdOucString hrefp=hrefurl.c_str();
+
+  while (urlp.replace("//","/")) {}
+  while (hrefp.replace("//","/")) {}
+
   // Is the requested resource a file or directory?
-  if (gOFS->_stat(url.c_str(), &statInfo, error, *mVirtualIdentity,
+  eos_static_info("url=%s", urlp.c_str());
+  if (gOFS->_stat(urlp.c_str(), &statInfo, error, *mVirtualIdentity,
 		  (const char*) 0, &etag))
   {
-    eos_static_err("msg=\"error stating %s: %s\"", url.c_str(),
+    eos_static_err("msg=\"error stating %s: %s\"", urlp.c_str(),
                                                    error.getErrText());
     SetResponseCode(ResponseCodes::NOT_FOUND);
     return NULL;
   }
+  eos_static_info("url=%s etag=%s", urlp.c_str(), etag.c_str());
 
   // <response/> node
   xml_node<> *responseNode = AllocateNode("d:response");
 
   // <href/> node
   xml_node<> *href = AllocateNode("d:href");
-  SetValue(href, url.c_str());
+
+  if (S_ISDIR(statInfo.st_mode))
+    hrefp+="/";
+
+  SetValue(href, hrefp.c_str());
   responseNode->append_node(href);
 
   // <propstat/> node for "found" properties
@@ -289,6 +317,8 @@ PropFindResponse::BuildResponseNode (const std::string &url)
   xml_node<> *eTag          = 0;
   xml_node<> *displayName   = 0;
   xml_node<> *contentType   = 0;
+  xml_node<> *quotaAvail    = 0;
+  xml_node<> *quotaUsed     = 0;
 
   if (mRequestPropertyTypes & PropertyTypes::GET_CONTENT_LENGTH)
     contentLength = AllocateNode("d:getcontentlength");
@@ -303,12 +333,44 @@ PropFindResponse::BuildResponseNode (const std::string &url)
   if (mRequestPropertyTypes & PropertyTypes::DISPLAY_NAME)
     displayName   = AllocateNode("d:displayname");
   if (mRequestPropertyTypes & PropertyTypes::GET_ETAG)
-    eTag          = AllocateNode("d:etag");
+    eTag          = AllocateNode("d:getetag");
   if (mRequestPropertyTypes & PropertyTypes::CHECKED_IN)
     checkedIn     = AllocateNode("d:checked-in");
   if (mRequestPropertyTypes & PropertyTypes::CHECKED_OUT)
     checkedOut    = AllocateNode("d:checked-out");
 
+  if ( (S_ISDIR(statInfo.st_mode)) &&
+       ( (mRequestPropertyTypes & PropertyTypes::QUOTA_AVAIL) ||
+         (mRequestPropertyTypes & PropertyTypes::QUOTA_USED) ) )
+  {
+    // -----------------------------------------------------------
+    // retrieve the current quota
+    // -----------------------------------------------------------
+    std::string path =urlp.c_str();
+    if (path.substr(path.length()-1,1) != "/") {
+      path += "/";
+    }
+
+    long long maxbytes  = 0;
+    long long freebytes = 0;
+    Quota::GetIndividualQuota(*mVirtualIdentity, path.c_str(), maxbytes, freebytes);
+
+    if (mRequestPropertyTypes & PropertyTypes::QUOTA_AVAIL) 
+    {
+      std::string sQuotaAvail;
+      quotaAvail  = AllocateNode("d:quota-available-bytes");
+      if (quotaAvail)
+	SetValue(quotaAvail, eos::common::StringConversion::GetSizeString(sQuotaAvail, (unsigned long long) freebytes));
+    }
+    if (mRequestPropertyTypes & PropertyTypes::QUOTA_USED)
+    {
+      std::string sQuotaUsed;
+      quotaUsed   = AllocateNode("d:quota-used-bytes");
+      if (quotaUsed)
+	SetValue(quotaUsed, eos::common::StringConversion::GetSizeString(sQuotaUsed, (unsigned long long) maxbytes-freebytes));
+    }
+  }
+    
   // getlastmodified, creationdate, displayname and getetag properties are
   // common to all resources
   if (lastModified)
@@ -335,7 +397,7 @@ PropFindResponse::BuildResponseNode (const std::string &url)
 
   if (displayName)
   {
-    eos::common::Path path(url.c_str());
+    eos::common::Path path(urlp.c_str());
     eos_static_debug("msg=\"display name: %s\"", path.GetName());
     SetValue(displayName, path.GetName());
     propFound->append_node(displayName);
@@ -355,6 +417,14 @@ PropFindResponse::BuildResponseNode (const std::string &url)
     {
       SetValue(contentType, "httpd/unix-directory");
       propFound->append_node(contentType);
+    }
+    if (quotaAvail)
+    {
+      propFound->append_node(quotaAvail);
+    }
+    if (quotaUsed)
+    {
+      propFound->append_node(quotaUsed);
     }
   }
 

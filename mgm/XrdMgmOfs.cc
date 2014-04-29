@@ -3324,6 +3324,18 @@ XrdMgmOfs::stat (const char *inpath,
                  XrdOucErrInfo &error,
                  const XrdSecEntity *client,
                  const char *ininfo)
+{
+  return stat(inpath, buf, error, 0, client, ininfo);
+}
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::stat (const char *inpath,
+                 struct stat *buf,
+                 XrdOucErrInfo &error,
+		 std::string *etag,
+                 const XrdSecEntity *client,
+                 const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -3333,6 +3345,7 @@ XrdMgmOfs::stat (const char *inpath,
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
+ * @param etag string to return the ETag for that object
  * @return SFS_OK on success otherwise SFS_ERROR
  * 
  * See the internal implemtation _stat for details.
@@ -3365,7 +3378,7 @@ XrdMgmOfs::stat (const char *inpath,
   MAYREDIRECT;
 
   errno = 0;
-  int rc = _stat(path, buf, error, vid, info);
+  int rc = _stat(path, buf, error, vid, info, etag);
   if (rc && (errno == ENOENT))
   {
 

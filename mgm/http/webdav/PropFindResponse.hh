@@ -73,11 +73,13 @@ public:
     GET_CONTENT_LENGTH = 0x0002,
     GET_LAST_MODIFIED  = 0x0004,
     RESOURCE_TYPE      = 0x0008,
-    CHECKED_IN         = 0x0016,
-    CHECKED_OUT        = 0x0032,
-    DISPLAY_NAME       = 0x0064,
-    GET_CONTENT_TYPE   = 0x0128,
-    GET_ETAG           = 0x0256,
+    CHECKED_IN         = 0x0010,
+    CHECKED_OUT        = 0x0020,
+    DISPLAY_NAME       = 0x0040,
+    GET_CONTENT_TYPE   = 0x0080,
+    GET_ETAG           = 0x0100,
+    QUOTA_AVAIL        = 0x0200,
+    QUOTA_USED         = 0x0400,
   };
 
 protected:
@@ -128,7 +130,7 @@ public:
    * @return the newly build response node
    */
   rapidxml::xml_node<>*
-  BuildResponseNode (const std::string &url);
+  BuildResponseNode (const std::string &url, const std::string &hrefurl);
 
   /**
    * Convert the given property type string into its integer constant
@@ -150,6 +152,8 @@ public:
     else if (property == "resourcetype")     return RESOURCE_TYPE;
     else if (property == "checked-in")       return CHECKED_IN;
     else if (property == "checked-out")      return CHECKED_OUT;
+    else if (property == "quota-available-bytes") return QUOTA_AVAIL;
+    else if (property == "quota-used-bytes")      return QUOTA_USED;
     else return NONE;
   }
 };

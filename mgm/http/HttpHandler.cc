@@ -127,6 +127,20 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
   }
 
   std::string etag="undef";
+  // ------------------------------------------------------------------------------
+  // owncloud protocol emulator
+  // ------------------------------------------------------------------------------
+  if (spath.endswith("status.php"))
+  {
+    std::string data ="{\"installed\":\"true\",\"version\":\"5.0.28\",\"versionstring\":\"5.0.14a\",\"edition\":\"Enterprise\"}";
+    response = HttpServer::HttpData(data.c_str(), data.length());
+    return response;
+  }
+
+  if (spath.endswith("remote.php/webdav/"))
+  {
+    spath.replace("remote.php/webdav/","");
+  }
 
   if (!spath.beginswith("/proc/"))
   {
@@ -274,6 +288,7 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
         while (1);
         file->close();
         response = new eos::common::PlainHttpResponse();
+	response->AddHeader("ETag",etag);
         response->SetBody(result);
       }
       // clean up the object
