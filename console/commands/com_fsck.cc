@@ -108,6 +108,7 @@ com_fsck (char* arg1)
          (option != "--unlink-unregistered") &&
          (option != "--unlink-orphans") &&
          (option != "--adjust-replicas") &&
+         (option != "--adjust-replicas-nodrop") &&
          (option != "--drop-missing-replicas") &&
          (option != "--unlink-zero-replicas") &&
          (option != "--all")))
@@ -157,8 +158,8 @@ com_fsck_usage:
   fprintf(stdout, "                                                                  :  unlink replicas which are not connected/registered to their logical name\n");
   fprintf(stdout, "       fsck repair --unlink-orphans\n");
   fprintf(stdout, "                                                                  :  unlink replicas which don't belong to any logical name\n");
-  fprintf(stdout, "       fsck repair --adjust-replicas\n");
-  fprintf(stdout, "                                                                  :  try to fix all replica inconsistencies\n");
+  fprintf(stdout, "       fsck repair --adjust-replicas[-nodrop]\n");
+  fprintf(stdout, "                                                                  :  try to fix all replica inconsistencies - if --adjust-replicas-nodrop is used replicas are only added but never removed!\n");
   fprintf(stdout, "       fsck repair --drop-missing-replicas\n");
   fprintf(stdout, "                                                                  :  just drop replicas from the namespace if they cannot be found on disk\n");
   fprintf(stdout, "       fsck repair --unlink-zero-replicas\n");

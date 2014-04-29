@@ -1129,6 +1129,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       (option != "unlink-unregistered") &&
       (option != "unlink-orphans") &&
       (option != "adjust-replicas") &&
+      (option != "adjust-replicas-nodrop") &&
       (option != "drop-missing-replicas") &&
       (option != "unlink-zero-replicas"))
   {
@@ -1534,7 +1535,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
     return true;
   }
 
-  if (option == "adjust-replicas")
+  if (option.beginswith("adjust-replicas"))
   {
     out += "# adjust replicas -------------------------------------------------------------------------\n";
     // -------------------------------------------------------------------------
@@ -1583,6 +1584,10 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
           XrdOucString info = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
           info += path.c_str();
           info += "&mgm.format=fuse";
+	  if ( option == "adjust-replicas-nodrop" )
+	  {
+	    info += "&mgm.file.option=nodrop";
+	  }
           Cmd.open("/proc/user", info.c_str(), vid, &error);
           Cmd.AddOutput(out, err);
           if (!out.endswith("\n"))
