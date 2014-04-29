@@ -148,6 +148,18 @@ com_find (char* arg1)
       valid = true;
     }
 
+    if (s1 == "--uid")
+    {
+      option += "u";
+      valid = true;
+    }
+
+    if (s1 == "--gid")
+    {
+      option += "g";
+      valid = true;
+    }
+
     if (s1 == "--stripediff")
     {
       option += "D";
@@ -749,7 +761,7 @@ com_find_usage:
   fprintf(stdout, "                                                                 --childcount :  print the number of children in each directory\n");
   fprintf(stdout, "                                                                  --purge <n> :  remove versioned files keeping <n> versions - to remove all old versions use --purge 0 ! To apply the settings of the extended attribute definition use <n>=-1 !\n"); 
   fprintf(stdout, "                                                                      default :  find files and directories\n");
-  fprintf(stdout, "       find [--nrep] [--nunlink] [--size] [--fileinfo] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] <path>   :  find files and print out the requested meta data as key value pairs\n");
+  fprintf(stdout, "       find [--nrep] [--nunlink] [--size] [--fileinfo] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] [--uid] [--gid] <path>   :  find files and print out the requested meta data as key value pairs\n");
   fprintf(stdout, "                                                               path=file:...  :  do a find in the local file system (options ignored) - 'file:' is the current working directory \n");
   fprintf(stdout, "                                                               path=root:...  :  do a find on a plain XRootD server (options ignored) - does not work on native XRootD clusters\n");
   fprintf(stdout, "                                                               path=as3:...   :  do a find on an S3 bucket\n");

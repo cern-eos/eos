@@ -106,6 +106,8 @@ ProcCommand::Find ()
   bool findgroupmix = false;
   bool printsize = false;
   bool printfid = false;
+  bool printuid = false;
+  bool printgid = false;
   bool printfs = false;
   bool printchecksum = false;
   bool printctime = false;
@@ -170,6 +172,16 @@ ProcCommand::Find ()
   if (option.find("X") != STR_NPOS)
   {
     printchecksum = true;
+  }
+
+  if (option.find("u") != STR_NPOS)
+  {
+    printuid = true;
+  }
+
+  if (option.find("g") != STR_NPOS)
+  {
+    printgid = true;
   }
 
   if (option.find("C") != STR_NPOS)
@@ -340,7 +352,7 @@ ProcCommand::Find ()
           fspath += *fileit;
           if (!calcbalance)
           {
-            if (findgroupmix || findzero || printsize || printfid || printfileinfo || printchecksum || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff || selectonehour || selectoldertime || selectyoungertime)
+            if (findgroupmix || findzero || printsize || printfid || printuid || printgid || printfileinfo || printchecksum || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff || selectonehour || selectoldertime || selectyoungertime)
             {
               //-------------------------------------------
 
@@ -449,7 +461,7 @@ ProcCommand::Find ()
                 }
                 else
                 {
-                  if (selected && (selectonehour || selectoldertime || selectyoungertime || printsize || printfid || printchecksum || printfileinfo || printfs || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff))
+                  if (selected && (selectonehour || selectoldertime || selectyoungertime || printsize || printfid || printuid || printgid || printchecksum || printfileinfo || printfs || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff))
                   {
                     XrdOucString sizestring;
                     bool printed = true;
@@ -479,6 +491,14 @@ ProcCommand::Find ()
                         {
                           if (!printcounter)fprintf(fstdout, " fid=%llu", (unsigned long long) fmd->getId());
                         }
+			if (printuid)
+			{
+			  if (!printcounter)fprintf(fstdout, " uid=%u", (unsigned int) fmd->getCUid());
+			}
+			if (printgid)
+			{
+			  if (!printcounter)fprintf(fstdout, " gid=%u", (unsigned int) fmd->getCGid());
+			}
                         if (printfs)
                         {
                           if (!printcounter)fprintf(fstdout, " fsid=");
@@ -779,7 +799,7 @@ ProcCommand::Find ()
           if (printchildcount)
           {
             //-------------------------------------------
-            gOFS->eosViewRWMutex.LockRead();
+	    eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
             eos::ContainerMD* mCmd = 0;
             unsigned long long childfiles = 0;
             unsigned long long childdirs = 0;
@@ -788,20 +808,39 @@ ProcCommand::Find ()
               mCmd = gOFS->eosView->getContainer(foundit->first.c_str());
               childfiles = mCmd->getNumFiles();
               childdirs = mCmd->getNumContainers();
-              gOFS->eosViewRWMutex.UnLockRead();
               fprintf(fstdout, "%s ndir=%llu nfiles=%llu\n", foundit->first.c_str(), childdirs, childfiles);
-              //-------------------------------------------
             }
             catch (eos::MDException &e)
             {
               eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
-              gOFS->eosViewRWMutex.UnLockRead();
-              //-------------------------------------------
             }
           }
           else
-          {
-            fprintf(fstdout, "%s\n", foundit->first.c_str());
+	  {
+	    fprintf(fstdout, "%s", foundit->first.c_str());
+
+	    if (printuid || printgid) 
+	    {
+	      eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
+	      eos::ContainerMD* mCmd = 0;
+	      try
+	      {
+		mCmd = gOFS->eosView->getContainer(foundit->first.c_str());
+		if (printuid)
+		{
+		  fprintf(fstdout, " uid=%u", (unsigned int) mCmd->getCUid());
+		}
+		if (printgid)
+		{
+		  fprintf(fstdout, " gid=%u", (unsigned int) mCmd->getCGid());
+		}
+	      }
+	      catch (eos::MDException&e)
+	      {
+		eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+	      }
+	    }
+	    fprintf(fstdout, "\n");
           }
         }
       }
