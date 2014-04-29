@@ -92,6 +92,7 @@ git clone https://github.com/kvspb/nginx-auth-ldap.git \
 # --with-http_memcached_module\
 # --with-http_ssi_module\
 
+export CFLAGS="-I/usr/include/et/"
 export DESTDIR=%{buildroot}
 ./configure \
     --user=%{nginx_user} \
