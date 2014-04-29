@@ -179,6 +179,9 @@ http {
         ssl_client_certificate EOS_NGINX_SSL_CLIENT_CERTIFICATE;
         ssl_verify_client      off;
         ssl_verify_depth       10;
+	ssl_ciphers            ALL:!kEDH!ADH:RC4+RSA:+HIGH:+EXP;	
+	ssl_session_cache      shared:SSL:10m;
+        ssl_session_timeout    10m;
 
         location / {
 
