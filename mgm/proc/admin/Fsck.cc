@@ -81,7 +81,7 @@ ProcCommand::Fsck ()
                gOFS->FsCheck.Repair(stdOut, stdErr, "unlink-orphans") &&
                gOFS->FsCheck.Repair(stdOut, stdErr, "adjust-replicas") &&
                gOFS->FsCheck.Repair(stdOut, stdErr, "drop-missing-replicas") &&
-               gOFS->FsCheck.Repair(stdOut, stdErr, "unlink-zero-replicas") &&
+	       //               gOFS->FsCheck.Repair(stdOut, stdErr, "unlink-zero-replicas") && // we don't do that anymore for the 'all' option
                gOFS->FsCheck.Repair(stdOut, stdErr, "resync"));
        if (retc)
          retc = 0;
