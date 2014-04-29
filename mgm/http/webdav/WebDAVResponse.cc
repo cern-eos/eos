@@ -36,9 +36,22 @@ WebDAVResponse::WebDAVResponse (eos::common::HttpRequest *request)
 {
   using namespace rapidxml;
 
+  std::string body;
   // Make a safe-to-modify copy of the request XML
-  mXMLRequestCopy = std::vector<char>(request->GetBody().begin(),
-                                      request->GetBody().end());
+
+  if (request->GetBody().length()) 
+  {
+    body = request->GetBody();
+  }
+  else
+  {
+    // empty body is an allprop request
+    body = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<propfind xmlns=\"DAV:\"><allprop/></propfind>";
+  }
+
+  
+  mXMLRequestCopy = std::vector<char>(body.begin(),
+				      body.end());
   mXMLRequestCopy.push_back('\0');
 
   // Parse the request
