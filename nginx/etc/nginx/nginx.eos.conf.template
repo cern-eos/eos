@@ -45,15 +45,6 @@ events {
     worker_connections  1024;
 }
 
-ldap_server auth_ldap {
-    url EOS_NGINX_LDAP_URL
-    binddn "EOS_NGINX_LDAP_BINDDN";
-    binddn_passwd EOS_NGINX_LDAP_BINDDN_PASSWORD;
-    group_attribute uniquemember;
-    group_attribute_is_dn on;
-    require valid_user;
-}
-
 http {
     default_type  application/octet-stream;
 
@@ -73,6 +64,15 @@ http {
     # Load config files from the /etc/nginx/conf.d directory
     # The default server is in conf.d/default.conf
     # include /etc/nginx/conf.d/*.conf;
+
+    ldap_server auth_ldap {
+        url EOS_NGINX_LDAP_URL
+        binddn "EOS_NGINX_LDAP_BINDDN";
+        binddn_passwd EOS_NGINX_LDAP_BINDDN_PASSWORD;
+        group_attribute uniquemember;
+        group_attribute_is_dn on;
+        require valid_user;
+    }
 
 
     # Virtual host 1: SSL with client certificate authentication

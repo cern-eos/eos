@@ -30,7 +30,7 @@ export EOS_NGINX_GSS_SERVICE_NAME=host/$EOS_NGINX_HOSTNAME
 export EOS_NGINX_LDAP_URL="ldap://"
 export EOS_NGINX_LDAP_BINDDN="TEST"
 export EOS_NGINX_LDAP_BINDDN_PASSWORD="TESTPWD"
-export EOS_NGINX_LDAP_SSL_PORT= 4443
+export EOS_NGINX_LDAP_SSL_PORT=4443
 
 # Set this to 0 to allow nginx to resolve redirects from the mgm internally,
 # i.e. not sending the 3xx response back to the client. This allows PUT and GET
