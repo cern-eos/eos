@@ -126,26 +126,48 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
     return response;
   }
 
+  std::string etag="undef";
+
   if (!spath.beginswith("/proc/"))
   {
+    XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
+
+    if (gOFS->stat(url.c_str(), &buf, error, &etag, &client, ""))
+    {
+      eos_static_info("method=GET error=ENOENT path=%s",
+		      url.c_str());
+      response = HttpServer::HttpError("No such file or directory",
+				       response->NOT_FOUND);
+      return response;
+    }
+
+    if (request->GetHeaders().count("If-Match") && (etag != request->GetHeaders()["If-Match"]))
+    {
+      // ETag mismatch
+      eos_static_info("method=GET error=precondition-failed path=%s etag=%s cond=match r-etag=%s",
+		      url.c_str(), etag.c_str(), request->GetHeaders()["If-Match"].c_str());
+      response = HttpServer::HttpError("ETag precondition failed",
+				       response->PRECONDITION_FAILED);
+      return response;
+    }
+
+    if (request->GetHeaders().count("If-Non-Match") && (etag == request->GetHeaders()["If-Non-Match"]))
+    {
+      // ETag match
+      eos_static_info("method=GET error=precondition-failed path=%s etag=%s cond=not-match r-etag=%s",
+		      url.c_str(), etag.c_str(), request->GetHeaders()["If-Not-Match"].c_str());
+      
+      response = HttpServer::HttpError("ETag is not modified",
+				       response->NOT_MODIFIED);
+    }
+    
     if (spath.endswith("/"))
     {
       isfile = false;
     }
     else
     {
-
-      XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
-
       // find out if it is a file or directory
-      if (gOFS->stat(url.c_str(), &buf, error, &client, ""))
-      {
-        eos_static_info("method=GET error=ENOENT path=%s",
-                        url.c_str());
-        response = HttpServer::HttpError("No such file or directory",
-                                         response->NOT_FOUND);
-        return response;
-      }
       if (S_ISDIR(buf.st_mode))
         isfile = false;
       else
@@ -158,6 +180,7 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
                           url.c_str());
           // HEAD requests on files can return from the MGM without redirection
           response = HttpServer::HttpHead(buf.st_size, basename);
+	  response->AddHeader("ETag",etag);
           return response;
         }
       }
@@ -227,6 +250,7 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
           response = HttpServer::HttpError("Unexpected result from file open",
                                            EOPNOTSUPP);
         }
+	response->AddHeader("ETag",etag);
       }
       else
       {
@@ -533,6 +557,7 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
       result += "       </html>\n";
       response = new eos::common::PlainHttpResponse();
       response->SetBody(result);
+      response->AddHeader("ETag",etag);
     }
     else
     {
@@ -591,6 +616,39 @@ HttpHandler::Put (eos::common::HttpRequest * request)
     }
   }
 
+  std::string etag;
+
+  {
+    // retrieve the ETag if existing ..
+    struct stat buf;
+    XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
+
+    if (gOFS->stat(url.c_str(), &buf, error, &etag, &client, ""))
+    {
+      etag="undef"; 
+    }
+  }
+
+  if (request->GetHeaders().count("If-Match") && (etag != request->GetHeaders()["If-Match"]))
+  {
+    // ETag mismatch
+    eos_static_info("method=PUT error=precondition-failed path=%s etag=%s cond=match r-etag=%s",
+	             url.c_str(), etag.c_str(), request->GetHeaders()["If-Match"].c_str());
+    response = HttpServer::HttpError("ETag precondition failed",
+		                     response->PRECONDITION_FAILED);
+    return response;
+  }
+
+  if (request->GetHeaders().count("If-Non-Match") && (etag == request->GetHeaders()["If-Non-Match"]))
+  {
+    // ETag match
+    eos_static_info("method=PUT error=precondition-failed path=%s etag=%s cond=not-match r-etag=%s",
+                    url.c_str(), etag.c_str(), request->GetHeaders()["If-Not-Match"].c_str());
+
+    response = HttpServer::HttpError("ETag is not modified",
+                                     response->NOT_MODIFIED);
+  }
+
   if (isfile)
   {
     XrdSfsFile* file = gOFS->newFile((char*) mVirtualIdentity->tident.c_str());
@@ -629,10 +687,20 @@ HttpHandler::Put (eos::common::HttpRequest * request)
       {
         if (rc == SFS_REDIRECT)
         {
-          // the embedded server on FSTs is hardcoded to run on port 8001
-          response = HttpServer::HttpRedirect(request->GetUrl(),
-                                              file->error.getErrText(),
-                                              8001, false);
+	  if (file->error.getErrInfo() == 1094)
+	  {
+	    // MGM redirect
+	    response = HttpServer::HttpRedirect(request->GetUrl(),
+						file->error.getErrText(),
+						8000, false);
+	  }
+	  else
+	  {
+	    // FST redirect
+	    response = HttpServer::HttpRedirect(request->GetUrl(),
+						file->error.getErrText(),
+						8001, false);
+	  }
         }
         else if (rc == SFS_ERROR)
         {
@@ -660,6 +728,17 @@ HttpHandler::Put (eos::common::HttpRequest * request)
         response = new eos::common::PlainHttpResponse();
         response->SetResponseCode(response->CREATED);
       }
+
+      std::string rurl = file->error.getErrText();
+      rurl.erase(0, rurl.find("?")+1);
+      XrdOucEnv env(rurl.c_str());
+      char* etag = env.Get("mgm.etag");
+      if (etag)
+      {
+	// add the ETag into the header
+	response->AddHeader("ETag",etag);
+      }
+
       // clean up the object
       delete file;
     }

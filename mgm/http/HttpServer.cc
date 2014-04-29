@@ -112,8 +112,8 @@ HttpServer::Handler (void *cls,
                                                                      headers, method, url,
                                                                      query.c_str() ? query : "",
                                                                      body, uploadDataSize, cookies);
-    eos_static_debug("\n\n%s", request->ToString().c_str());
-
+    eos_static_debug("\n\n%s\n%s\n", request->ToString().c_str(), request->GetBody().c_str());
+    
     // Handle the request and build a response based on the specific protocol
     protocolHandler->HandleRequest(request);
     delete request;
