@@ -21,9 +21,8 @@ Packager:       Justin Salmon <jsalmon@cern.ch>
 License:            BSD
 URL:                http://nginx.net/ 
 BuildRoot:          %{_tmppath}/%{name}-%{version}-%{release}-%(%{__id_u} -n)
-BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed),pam-devel,git
-Requires:           pcre,zlib,openssl
-Requires:           e2fsprogs-devel,openldap,openldap-devel
+BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed),pam-devel,git,e2fsprogs-devel,openldap-devel
+Requires:           pcre,zlib,openssl,openldap
 Requires:           perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
 # for /user/sbin/useradd
 Requires(pre):      shadow-utils
