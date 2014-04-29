@@ -78,8 +78,8 @@ ProcCommand::Chown ()
    std::string gid = owner.c_str();
    bool failure = false;
 
-   uid_t uidt;
-   gid_t gidt;
+   uid_t uidt=99;
+   gid_t gidt=99;
 
    int dpos = 0;
 
