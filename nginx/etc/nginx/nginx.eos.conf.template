@@ -45,6 +45,14 @@ events {
     worker_connections  1024;
 }
 
+ldap_server auth_ldap {
+    url EOS_NGINX_LDAP_URL
+    binddn "EOS_NGINX_LDAP_BINDDN";
+    binddn_passwd EOS_NGINX_LDAP_BINDDN_PASSWORD;
+    group_attribute uniquemember;
+    group_attribute_is_dn on;
+    require valid_user;
+}
 
 http {
     default_type  application/octet-stream;
@@ -250,6 +258,98 @@ http {
             proxy_pass $download_url;
         }
     }
+
+    # Virtual host 3: SSL with ldap basic authentication
+    server {
+        server_name  EOS_NGINX_HOSTNAME;
+        listen       EOS_NGINX_LDAP_SSL_PORT;
+
+        ssl                    on;
+        ssl_protocols          SSLv3 TLSv1 TLSv1.1 TLSv1.2;
+        ssl_certificate        EOS_NGINX_SSL_CERTIFICATE;
+        ssl_certificate_key    EOS_NGINX_SSL_KEY;
+        ssl_client_certificate EOS_NGINX_SSL_CLIENT_CERTIFICATE;
+        ssl_verify_client      off;
+        ssl_verify_depth       10;
+	ssl_ciphers            ALL:!kEDH!ADH:RC4+RSA:+HIGH:+EXP;	
+	ssl_session_cache      shared:SSL:10m;
+        ssl_session_timeout    10m;
+
+        auth_ldap "Forbidden";
+        auth_ldap_servers auth_ldap;
+
+        location / {
+            proxy_pass         http://localhost:8000/;
+
+            proxy_set_header   Host               $host;
+            proxy_set_header   X-Real-IP          $remote_addr;
+            proxy_set_header   X-Forwarded-For    $proxy_add_x_forwarded_for;
+            proxy_set_header      Remote-User $remote_user;
+
+            client_body_buffer_size     128k;
+
+            proxy_connect_timeout       90;
+            proxy_send_timeout          90;
+            proxy_read_timeout          90;
+
+            proxy_buffer_size           4k;
+            proxy_buffers               4 32k;
+            proxy_busy_buffers_size     64k;
+            proxy_temp_file_write_size  64k;
+        }
+
+        # Proxy download 
+        location ~* ^/internal_redirect/(.*):(.*?)/(.*) {
+
+            # Do not allow people to mess with this location directly
+            # Only internal redirects are allowed
+            internal;
+            
+            # Necessary when using variable proxy_pass directive
+            resolver 8.8.8.8 137.138.16.5 137.138.17.5;
+
+            # Location-specific logging
+            access_log 4443.internal_redirect.access.log main;
+            error_log  4443.internal_redirect.error.log  debug;
+
+            # Extract download url from the request
+            set $download_host $1;
+            set $download_port $2;
+            set $download_uri  $3;
+
+            # Compose download url
+            set $download_url http://$download_host:$download_port/$download_uri?$args;
+
+            # Set download request headers
+            proxy_set_header Host          $download_host:$download_port;
+            proxy_set_header Authorization '';
+
+            # The next two lines could be used if your storage 
+            # backend does not support Content-Disposition 
+            # headers used to specify file name browsers use 
+            # when save content to the disk
+            # proxy_hide_header Content-Disposition;
+            # add_header Content-Disposition 'attachment; filename="$args"';
+
+            # Do not touch local disks when proxying 
+            # content to clients
+            proxy_max_temp_file_size 0;
+
+
+            # If we are redirecting externally, return the redirect response
+            # back to the client.
+            set $redirect_externally EOS_NGINX_REDIRECT_EXTERNALLY;
+            if ($redirect_externally)
+            {
+                return 307 $download_url;
+            }
+
+            # Otherwise, download the file directly from the backend and stream
+            # it to the client.
+            proxy_pass $download_url;
+        }
+    }
+
 
     # Virtual host to redirect all plain HTTP requests to HTTPS ones
     server {

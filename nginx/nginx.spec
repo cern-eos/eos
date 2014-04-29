@@ -11,7 +11,7 @@
 
 Name:           eos-nginx
 Version:        1.4.2
-Release:        2
+Release:        3
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
 Packager:       Justin Salmon <jsalmon@cern.ch>
@@ -57,6 +57,7 @@ Nginx [engine x] is an HTTP(S) server, HTTP(S) reverse proxy and IMAP/POP3
 proxy server written by Igor Sysoev.
 
 One third party module, ngx_http_auth_spnego has been added.
+A second third party modul, nginx-auth-ldap has been added.
 
 %prep
 %setup -q -n nginx-%{version}
@@ -79,6 +80,9 @@ One third party module, ngx_http_auth_spnego has been added.
 
 git clone http://github.com/stnoonan/spnego-http-auth-nginx-module \
           %{_builddir}/spnego-http-auth-nginx-module
+
+git clone https://github.com/kvspb/nginx-auth-ldap.git \
+          %{_builddir}/nginx-auth-ldap-module
 
 # nginx does not utilize a standard configure script.  It has its own
 # and the standard configure options cause the nginx configure script
@@ -118,7 +122,8 @@ export DESTDIR=%{buildroot}
     --without-http_browser_module       \
     --without-mail_imap_module          \
     --without-mail_smtp_module          \
-    --add-module=%{_builddir}/spnego-http-auth-nginx-module
+    --add-module=%{_builddir}/spnego-http-auth-nginx-module \
+    --add-module=%{_builddir}/nginx-auth-ldap-module
     #--with-cc-opt="%{optflags} $(pcre-config --cflags)" \
 
 make %{?_smp_mflags} 

@@ -26,6 +26,11 @@ export EOS_NGINX_GSS_KEYTAB=/etc/krb5.keytab
 export EOS_NGINX_GSS_REALM=CERN.CH
 export EOS_NGINX_GSS_SERVICE_NAME=host/$EOS_NGINX_HOSTNAME
 
+# nginx LDAP basic auth configuration
+export EOS_NGINX_LDAP_URL="ldap://"
+export EOS_NGINX_LDAP_BINDDN="TEST"
+export EOS_NGINX_LDAP_BINDDN_PASSWORD="TESTPWD"
+export EOS_NGINX_LDAP_SSL_PORT= 4443
 
 # Set this to 0 to allow nginx to resolve redirects from the mgm internally,
 # i.e. not sending the 3xx response back to the client. This allows PUT and GET
@@ -47,3 +52,7 @@ perl -pi -e 's/EOS_NGINX_GSS_KEYTAB/$ENV{EOS_NGINX_GSS_KEYTAB}/g'               
 perl -pi -e 's/EOS_NGINX_GSS_REALM/$ENV{EOS_NGINX_GSS_REALM}/g'                           /etc/nginx/nginx.eos.conf
 perl -pi -e 's/EOS_NGINX_GSS_SERVICE_NAME/$ENV{EOS_NGINX_GSS_SERVICE_NAME}/g'             /etc/nginx/nginx.eos.conf
 perl -pi -e 's/EOS_NGINX_REDIRECT_EXTERNALLY/$ENV{EOS_NGINX_REDIRECT_EXTERNALLY}/g'       /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_LDAP_SSL_PORT/$ENV{EOS_NGINX_LDAP_SSL_PORT}/g'                   /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_LDAP_URL/$ENV{EOS_NGINX_LDAP_URL}/g'                             /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_LDAP_BINDDN/$ENV{EOS_NGINX_LDAP_BINDDN}/g'                       /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_LDAP_BINDDN_PASSWORD/$ENV{EOS_NGINX_LDAP_BINDDN_PASSWORD}/g'     /etc/nginx/nginx.eos.conf
