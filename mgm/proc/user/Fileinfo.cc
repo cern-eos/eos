@@ -32,12 +32,12 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+
 int
 ProcCommand::Fileinfo ()
 {
   gOFS->MgmStats.Add("FileInfo", pVid->uid, pVid->gid, 1);
   XrdOucString spath = pOpaque->Get("mgm.path");
-  XrdOucString option = pOpaque->Get("mgm.file.info.option");
 
   const char* inpath = spath.c_str();
 
@@ -47,14 +47,33 @@ ProcCommand::Fileinfo ()
   PROC_BOUNCE_ILLEGAL_NAMES;
   PROC_BOUNCE_NOT_ALLOWED;
 
-  spath = path;
+  // stat the path
 
-  if (!spath.length())
+  struct stat buf;
+  if (gOFS->_stat(path,&buf,*mError, *pVid, (char*) 0))
   {
-    stdErr = "error: you have to give a path name to call 'fileinfo'";
-    retc = EINVAL;
+    stdErr = "error: cannot stat ";
+    stdErr += path;
+    stdErr += "\n";
+    retc = ENOENT;
+    return SFS_OK;
+  }
+
+  if (S_ISDIR(buf.st_mode))
+  {
+    return DirInfo(path);
   }
   else
+  {
+    return FileInfo(path);
+  }
+}
+
+int
+ProcCommand::FileInfo (const char* path)
+{
+  XrdOucString option = pOpaque->Get("mgm.file.info.option");
+  XrdOucString spath = path;
   {
     eos::FileMD* fmd = 0;
 
@@ -274,7 +293,7 @@ ProcCommand::Fileinfo ()
 	  {
 	    // use inode + checksum
 	    char setag[256];
-	    snprintf(setag,sizeof(setag)-1,"%llu:", (unsigned long long)fmd->getId());
+        snprintf(setag,sizeof(setag)-1,"%llu:", (unsigned long long)fmd->getId()<<28);
 	    etag = setag;
 	    for (unsigned int i = 0; i < cxlen; i++)
 	    {
@@ -290,7 +309,7 @@ ProcCommand::Fileinfo ()
 	    eos::FileMD::ctime_t mtime;
 	    fmd->getMTime(mtime);
 	    time_t filemtime = (time_t) mtime.tv_sec;
-	    snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd->getId(), (unsigned long long)filemtime);
+        snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd->getId()<<28, (unsigned long long)filemtime);
 	    etag = setag;
 	  }
 
@@ -537,4 +556,290 @@ ProcCommand::Fileinfo ()
   return SFS_OK;
 }
 
+int
+ProcCommand::DirInfo (const char* path)
+{
+  XrdOucString option = pOpaque->Get("mgm.file.info.option");
+  XrdOucString spath = path;
+  {
+    eos::ContainerMD* fmd = 0;
+
+    if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
+    {
+      unsigned long long fid = 0;
+      if (spath.beginswith("fid:"))
+      {
+        spath.replace("fid:", "");
+        fid = strtoull(spath.c_str(), 0, 10);
+      }
+      if (spath.beginswith("fxid:"))
+      {
+        spath.replace("fxid:", "");
+        fid = strtoull(spath.c_str(), 0, 16);
+      }
+
+      // reference by fid+fsid
+      //-------------------------------------------
+      gOFS->eosViewRWMutex.LockRead();
+      try
+      {
+        fmd = gOFS->eosDirectoryService->getContainerMD(fid);
+        std::string fullpath = gOFS->eosView->getUri(fmd);
+        spath = fullpath.c_str();
+      }
+      catch (eos::MDException &e)
+      {
+        errno = e.getErrno();
+        stdErr = "error: cannot retrieve directory meta data - ";
+        stdErr += e.getMessage().str().c_str();
+        eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+      }
+    }
+    else
+    {
+      // reference by path
+      //-------------------------------------------
+      gOFS->eosViewRWMutex.LockRead();
+      try
+      {
+        fmd = gOFS->eosView->getContainer(spath.c_str());
+      }
+      catch (eos::MDException &e)
+      {
+        errno = e.getErrno();
+        stdErr = "error: cannot retrieve directory meta data - ";
+        stdErr += e.getMessage().str().c_str();
+        eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+      }
+    }
+
+
+
+    if (!fmd)
+    {
+      retc = errno;
+      gOFS->eosViewRWMutex.UnLockRead();
+      //-------------------------------------------
+
+    }
+    else
+    {
+      // make a copy of the meta data
+      eos::ContainerMD fmdCopy(*fmd);
+      fmd = &fmdCopy;
+      gOFS->eosViewRWMutex.UnLockRead();
+      //-------------------------------------------
+
+      XrdOucString sizestring;
+      XrdOucString hexfidstring;
+      XrdOucString hexpidstring;
+      bool Monitoring = false;
+      bool Envformat = false;
+
+      eos::common::FileId::Fid2Hex(fmd->getId(), hexfidstring);
+      eos::common::FileId::Fid2Hex(fmd->getParentId(), hexpidstring);
+
+      if ((option.find("-m")) != STR_NPOS)
+      {
+        Monitoring = true;
+      }
+
+      if ((option.find("-env")) != STR_NPOS)
+      {
+        Envformat = true;
+        Monitoring = false;
+      }
+
+      {
+        if ((option.find("-path")) != STR_NPOS)
+        {
+          if (!Monitoring)
+          {
+            stdOut += "path:   ";
+            stdOut += spath;
+            stdOut += "\n";
+          }
+          else
+          {
+            stdOut += "path=";
+            stdOut += spath;
+            stdOut += " ";
+          }
+        }
+
+        if ((option.find("-fxid")) != STR_NPOS)
+        {
+          if (!Monitoring)
+          {
+            stdOut += "fxid:   ";
+            stdOut += hexfidstring;
+            stdOut += "\n";
+          }
+          else
+          {
+            stdOut += "fxid=";
+            stdOut += hexfidstring;
+            stdOut += " ";
+          }
+        }
+
+        if ((option.find("-fid")) != STR_NPOS)
+        {
+          char fid[32];
+          snprintf(fid, 32, "%llu", (unsigned long long) fmd->getId());
+          if (!Monitoring)
+          {
+            stdOut += "fid:    ";
+            stdOut += fid;
+            stdOut += "\n";
+          }
+          else
+          {
+            stdOut += "fid=";
+            stdOut += fid;
+            stdOut += " ";
+          }
+        }
+
+        if ((option.find("-size")) != STR_NPOS)
+        {
+          if (!Monitoring)
+          {
+            stdOut += "size:   ";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getNumContainers()+fmd->getNumFiles());
+            stdOut += "\n";
+          }
+          else
+          {
+            stdOut += "size=";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getNumContainers()+fmd->getNumFiles());
+            stdOut += " ";
+          }
+        }
+
+        if (Monitoring || (!(option.length())) || (option == "--fullpath") || (option == "-m"))
+        {
+          char ctimestring[4096];
+          char mtimestring[4096];
+          eos::FileMD::ctime_t mtime;
+          eos::FileMD::ctime_t ctime;
+          fmd->getCTime(ctime);
+          {
+            XrdSysMutexHelper vLock(gOFS->MgmDirectoryModificationTimeMutex);
+            mtime.tv_sec = gOFS->MgmDirectoryModificationTime[fmd->getId()].tv_sec;
+            mtime.tv_nsec = gOFS->MgmDirectoryModificationTime[fmd->getId()].tv_nsec;
+	    if (!mtime.tv_sec)
+	    {
+	      mtime.tv_sec = ctime.tv_sec;
+	      mtime.tv_nsec = ctime.tv_nsec;
+	    }
+          }
+
+          time_t filectime = (time_t) ctime.tv_sec;
+          time_t filemtime = (time_t) mtime.tv_sec;
+          char fid[32];
+          snprintf(fid, 32, "%llu", (unsigned long long) fmd->getId());
+
+          std::string etag;
+
+          // use inode + mtime
+          char setag[256];
+          filemtime = (time_t) mtime.tv_sec;
+          snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd->getId(), (unsigned long long)filemtime);
+          etag = setag;
+
+          if (!Monitoring)
+          {
+            stdOut = "  Directory: '";
+            stdOut += spath;
+            stdOut += "'";
+            stdOut += "  Container: ";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getNumContainers());
+            stdOut += "  Files: ";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getNumFiles());
+            stdOut += "\n";
+            stdOut += "Modify: ";
+            stdOut += ctime_r(&filemtime, mtimestring);
+            stdOut.erase(stdOut.length() - 1);
+            stdOut += " Timestamp: ";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) mtime.tv_sec);
+            stdOut += ".";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) mtime.tv_nsec);
+            stdOut += "\n";
+            stdOut += "Change: ";
+            stdOut += ctime_r(&filectime, ctimestring);
+            stdOut.erase(stdOut.length() - 1);
+            stdOut += " Timestamp: ";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) ctime.tv_sec);
+            stdOut += ".";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) ctime.tv_nsec);
+            stdOut += "\n";
+            stdOut += "  CUid: ";
+            stdOut += (int) fmd->getCUid();
+            stdOut += " CGid: ";
+            stdOut += (int) fmd->getCGid();
+
+            stdOut += "  Fxid: ";
+            stdOut += hexfidstring;
+            stdOut += " ";
+            stdOut += "Fid: ";
+            stdOut += fid;
+            stdOut += " ";
+            stdOut += "   Pid: ";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getParentId());
+            stdOut += "   Pxid: ";
+            stdOut += hexpidstring;
+            stdOut += "\n";
+            stdOut += "  ETAG: ";
+            stdOut += etag.c_str();
+            stdOut += "\n";
+          }
+          else
+          {
+            stdOut = "file=";
+            stdOut += spath;
+            stdOut += " ";
+            stdOut += "container=";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getNumContainers());
+            stdOut += " ";
+            stdOut += "files=";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getNumFiles());
+            stdOut += " ";
+            stdOut += "mtime=";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) mtime.tv_sec);
+            stdOut += ".";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) mtime.tv_nsec);
+            stdOut += " ";
+            stdOut += "ctime=";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) ctime.tv_sec);
+            stdOut += ".";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) ctime.tv_nsec);
+            stdOut += " ";
+            stdOut += "uid=";
+            stdOut += (int) fmd->getCUid();
+            stdOut += " gid=";
+            stdOut += (int) fmd->getCGid();
+            stdOut += " ";
+            stdOut += "fxid=";
+            stdOut += hexfidstring;
+            stdOut += " ";
+            stdOut += "fid=";
+            stdOut += fid;
+            stdOut += " ";
+            stdOut += "pid=";
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getParentId());
+            stdOut += " ";
+            stdOut += "pxid=";
+            stdOut += hexpidstring;
+            stdOut += " ";
+            stdOut += "etag=";
+            stdOut += etag.c_str();
+            stdOut += " ";
+          }
+        }
+      }
+    }
+  }
+  return SFS_OK;
+}
 EOSMGMNAMESPACE_END
