@@ -823,15 +823,36 @@ XrdMgmOfs::UpdateInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id,
  * @param mtime modification time to store
  * 
  * We don't store directory modification times persistent in the namespace for
- * performance reasonse. But to give (FUSE) clients the possiblity to do 
+ * performance reasonse. But to give (FUSE+Sync) clients the possiblity to do 
  * caching and see when there was a modification we keep an inmemory table
- * with this modification times.
+ * with this modification times. We support upstream propagation of mtims for
+ * sync clients to discover changes in a subtree if sys.mtime.propagation was
+ * set as a directory attribute.
  */
 /*----------------------------------------------------------------------------*/
 {
   XrdSysMutexHelper vLock(gOFS->MgmDirectoryModificationTimeMutex);
-  gOFS->MgmDirectoryModificationTime[id].tv_sec = mtime.tv_sec;
-  gOFS->MgmDirectoryModificationTime[id].tv_nsec = mtime.tv_nsec;
+  {
+    eos::ContainerMD::id_t cid = id;
+    // mtime upstream hierarchy-up-propagation
+    do
+    {      
+      try 
+      {
+	eos::ContainerMD* dmd = gOFS->eosDirectoryService->getContainerMD(cid);	
+	gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_sec = mtime.tv_sec;
+	gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_nsec = mtime.tv_nsec;
+	if (!dmd->hasAttribute("sys.mtime.propagation"))
+	  break;
+	cid = dmd->getParentId();       
+      }
+      catch (eos::MDException &e)
+      {
+	break;
+      }
+    }
+    while(cid>1);
+  }
 }
 
 /*----------------------------------------------------------------------------*/
