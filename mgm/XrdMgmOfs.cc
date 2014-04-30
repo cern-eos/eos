@@ -3623,7 +3623,7 @@ XrdMgmOfs::_stat (const char *path,
     {
       // use inode + mtime
       char setag[256];
-      snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)buf->st_ino, (unsigned long long)buf->st_mtime);
+      snprintf(setag,sizeof(setag)-1,"\"%llu:%llu\"", (unsigned long long)buf->st_ino, (unsigned long long)buf->st_mtime);
       *etag = setag;
     }
     // --|
