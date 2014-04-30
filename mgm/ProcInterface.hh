@@ -52,9 +52,9 @@ EOSMGMNAMESPACE_BEGIN
  * Proc commands are executed in the 'open' function and the results
  * are provided as stdOut,stdErr and a return code which is assembled in an
  * opaque output stream with 3 keys indicating the three return objects.
- * The resultstream is streamed by a client like a file read using 'xrdcp' 
+ * The resultstream is streamed by a client like a file read using 'xrdcp'
  * issuing several read requests. On close the resultstream is freed.
- * 
+ *
  * The implementations of user commands are found under mgm/proc/user/X.cc
  * The implementations of admin commands are found under mgm/proc/admin/X.cc
  * A new command has to be added to the if-else construct in the open function.
@@ -78,7 +78,7 @@ private:
   XrdOucString stdErr; //< stdErr returned by proc command
   XrdOucString stdJson; //< JSON output returned by proc command
   int retc; //< return code from the proc command
-  XrdOucString mResultStream; //< string containing the assembled stream 
+  XrdOucString mResultStream; //< string containing the assembled stream
   XrdOucEnv* pOpaque; //< pointer to the opaque information object
   const char* ininfo; //< original opaque info string
   bool mDoSort; //< sort flag (true = sorting)
@@ -87,7 +87,7 @@ private:
 
 
   // -------------------------------------------------------------------------
-  //! the 'find' command does not keep results in memory but writes to 
+  //! the 'find' command does not keep results in memory but writes to
   //! a temporary output file which is streamed to the client
   // -------------------------------------------------------------------------
   FILE* fstdout;
@@ -141,7 +141,7 @@ public:
   int stat (struct stat* buf);
 
   // -------------------------------------------------------------------------
-  //! close a proc command 
+  //! close a proc command
   // -------------------------------------------------------------------------
   int close ();
 
@@ -177,9 +177,11 @@ public:
   int Attr ();
   int Cd ();
   int Chmod ();
+  int DirInfo (const char* path);
   int Find ();
   int File ();
   int Fileinfo ();
+  int FileInfo (const char* path);
   int Fuse ();
   int Ls ();
   int Map ();
