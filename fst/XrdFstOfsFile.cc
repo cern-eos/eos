@@ -85,6 +85,9 @@ eos::common::LogId ()
   writeErrorFlag = 0;
   tpcFlag = kTpcNone;
   tpcState = kTpcIdle;
+  ETag = "";
+  mForcedMtime = 0;
+  mForcedMtime_ms = 0;
 }
 
 
@@ -223,6 +226,12 @@ XrdFstOfsFile::open (const char* path,
   if ((val = tmpOpaque.Get("mgm.logid")))
   {
     SetLogId(val, client, tident);
+  }
+
+  if ((val = tmpOpaque.Get("mgm.etag")))
+  {
+    // extract our ETag from the redirection URL if available
+    ETag = val;
   }
 
   eos_info("path=%s info=%s isRW=%d open_mode=%x",
@@ -1845,9 +1854,9 @@ XrdFstOfsFile::close ()
             }
 
             capOpaqueFile += "&mgm.mtime=";
-            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long) fMd->fMd.mtime);
+            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime?mForcedMtime:(unsigned long long) fMd->fMd.mtime);
             capOpaqueFile += "&mgm.mtime_ns=";
-            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long) fMd->fMd.mtime_ns);
+            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime?mForcedMtime_ms:(unsigned long long) fMd->fMd.mtime_ns);
             capOpaqueFile += "&mgm.add.fsid=";
             capOpaqueFile += (int) fMd->fMd.fsid;
 
@@ -1950,7 +1959,29 @@ XrdFstOfsFile::close ()
     {
       if (rc == SFS_OK)
       {
-        gOFS.Storage->CloseTransaction(fsid, fileid);
+        gOFS.Storage->CloseTransaction(fsid, fileid); 
+      }
+    }
+
+
+    // ----------------------------------------------------------------------------------------------------------------------
+    // recompute our ETag
+    // ----------------------------------------------------------------------------------------------------------------------
+    {
+      // if there is a checksum we use the checksum, otherwise we return inode+mtime
+      if (checkSum)
+      {
+	// use inode + checksum
+	char setag[256];
+	snprintf(setag,sizeof(setag)-1,"\"%llu:%s\"", (unsigned long long)fMd->fMd.fid<<28,fMd->fMd.checksum.c_str() );
+	ETag = setag;
+      }
+      else
+      {
+        // use inode + mtime
+	char setag[256];
+        snprintf(setag,sizeof(setag)-1,"\"%llu:%llu\"", (unsigned long long)fMd->fMd.fid<<28, (unsigned long long) fMd->fMd.mtime);
+        ETag = setag;
       }
     }
 

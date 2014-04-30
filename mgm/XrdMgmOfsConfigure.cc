@@ -1068,7 +1068,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   eos::common::Logging::AddFanOutAlias("S3", "Http");
   eos::common::Logging::AddFanOutAlias("S3Store", "Http");
   eos::common::Logging::AddFanOutAlias("WebDAV", "Http");
-  eos::common::Logging::AddFanOutAlias("PropFindReponse", "Http");
+  eos::common::Logging::AddFanOutAlias("PropFindResponse", "Http");
   eos::common::Logging::AddFanOutAlias("WebDAVHandler", "Http");
   eos::common::Logging::AddFanOutAlias("WebDAVReponse", "Http");
   eos::common::Logging::AddFanOutAlias("S3Handler", "Http");

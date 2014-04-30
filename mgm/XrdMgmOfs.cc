@@ -3512,7 +3512,7 @@ XrdMgmOfs::_stat (const char *path,
       {
 	// use inode + checksum
 	char setag[256];
-	snprintf(setag,sizeof(setag)-1,"%llu:", (unsigned long long)buf->st_ino);
+	snprintf(setag,sizeof(setag)-1,"\"%llu:", (unsigned long long)buf->st_ino);
 	*etag = setag;
 	for (unsigned int i = 0; i < cxlen; i++)
 	{
@@ -3520,12 +3520,13 @@ XrdMgmOfs::_stat (const char *path,
 	  sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPadded(i)) : 0);
 	  *etag += hb;
 	}      
+	*etag += "\"";
       }
       else
       {
 	// use inode + mtime
 	char setag[256];
-	snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)buf->st_ino, (unsigned long long)buf->st_mtime);
+	snprintf(setag,sizeof(setag)-1,"\"%llu:%llu\"", (unsigned long long)buf->st_ino, (unsigned long long)buf->st_mtime);
 	*etag = setag;
       }
     }

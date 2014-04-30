@@ -77,6 +77,23 @@ public:
 
 
   //--------------------------------------------------------------------------
+  //! Return the Etag
+  //--------------------------------------------------------------------------
+  const char* GetETag ()
+  {
+    return ETag.c_str();
+  }
+
+  //--------------------------------------------------------------------------
+  //! Enforce an mtime on close
+  //--------------------------------------------------------------------------
+  void SetForcedMtime (unsigned long long mtime, unsigned long long mtime_ms)
+  {
+    mForcedMtime = mtime;
+    mForcedMtime_ms = mtime_ms;
+  }
+
+  //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
   int openofs (const char* fileName,
@@ -243,12 +260,16 @@ protected:
   XrdOucString SecString; //! string containing security summary
   XrdSysMutex ChecksumMutex; //! mutex protecting the checksum class
   XrdOucString TpcKey; //! TPC key for a tpc file operation
+  XrdOucString ETag; //! current and new ETag (recomputed in close)
 
   bool hasBlockXs; //! mark if file has blockxs assigned
   unsigned long long fileid; //! file id
   unsigned long fsid; //! file system id
   unsigned long lid; //! layout id
   unsigned long long cid; //! container id
+  
+  unsigned long long mForcedMtime;
+  unsigned long long mForcedMtime_ms;
 
   XrdOucString hostName; //! our hostname
 
