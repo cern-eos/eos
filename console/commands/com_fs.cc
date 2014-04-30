@@ -858,7 +858,7 @@ com_fs_usage:
 
 
   fprintf(stdout, "'[eos] fs ..' provides the filesystem interface of EOS.\n");
-  fprintf(stdout, "Usage: fs add|boot|config|dropfiles|dumpmd|mv|ls|rm|status [OPTIONS]\n");
+  fprintf(stdout, "Usage: fs add|boot|config|dropdeletion|dropfiles|dumpmd|mv|ls|rm|status [OPTIONS]\n");
   fprintf(stdout, "Options:\n");
   fprintf(stdout, "fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s] [<space>] :\n");
   fprintf(stdout, "                                                  list all filesystems in default output format. <space> is an optional substring match for the space name and can be a comma separated list\n");
@@ -918,6 +918,8 @@ com_fs_usage:
   fprintf(stdout, "                                                  boot filesystem with ID <fs-id> or name <node-queue> or all (*)\n");
   fprintf(stdout, "                                                                   --syncmgm : force an MGM resynchronization during the boot\n");
   fprintf(stdout, "\n");
+  fprintf(stdout, "fs dropfdeletion <fs-id> :\n");
+  fprintf(stdout, "                                                  allows to drop all pending deletions on <fs-id> \n");
   fprintf(stdout, "fs dropfiles <fs-id> [-f] :\n");
   fprintf(stdout, "                                                  allows to drop all files on <fs-id> - force\n");
   fprintf(stdout, "                                                                  -f    : unlinks/removes files at the time from the NS (you have to cleanup or remove the files from disk) \n");
