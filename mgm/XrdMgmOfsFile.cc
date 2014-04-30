@@ -141,6 +141,9 @@ XrdMgmOfsFile::open (const char *inpath,
   // flag indicating FUSE file access
   bool isFuse = false;
 
+  // flag indiciating an atomic upload where a file get's a hidden unique name and is renamed when it is closed
+  bool isAtomicUpload = false;
+
   // list of filesystem IDs to reconstruct
   std::vector<unsigned int> PioReconstructFsList;
 
@@ -616,6 +619,23 @@ XrdMgmOfsFile::open (const char *inpath,
     }
   }
 
+  if ( attrmap.count("sys.forced.atomic") )
+  {
+    isAtomicUpload = atoi(attrmap["sys.forced.atomic"].c_str());
+  }
+  else
+  {
+    if ( attrmap.count("user.forced.atomic") )
+    {
+      isAtomicUpload = atoi(attrmap["user.forced.atomic"].c_str());
+    } else {
+      if (openOpaque->Get("eos.atomic"))
+      {
+	isAtomicUpload = true;
+      }
+    }
+  }
+    
   if (isRW)
   {
     if (isRewrite &&
@@ -729,14 +749,20 @@ XrdMgmOfsFile::open (const char *inpath,
       else
       {
         // creation of a new file
-
         {
           // -------------------------------------------------------------------
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
           try
           {
+	    std::string creation_path=path;
             // we create files with the uid/gid of the parent directory
-            fmd = gOFS->eosView->createFile(path, vid.uid, vid.gid);
+	    if (isAtomicUpload) 
+	    {
+	      eos::common::Path cPath(path);
+	      creation_path = cPath.GetAtomicPath();
+	    }
+
+	    fmd = gOFS->eosView->createFile(creation_path.c_str(), vid.uid, vid.gid);
             fileId = fmd->getId();
             fmdlid = fmd->getLayoutId();
             cid = fmd->getContainerId();
@@ -919,7 +945,7 @@ XrdMgmOfsFile::open (const char *inpath,
       }
       catch (eos::MDException &e)
       {
-        if (fmdnew != fmd)
+        if ((!isAtomicUpload) && (fmdnew != fmd))
         {
           // file has been recreated in the meanwhile
           return Emsg(epname, error, EEXIST, "open file (file recreated)", path);

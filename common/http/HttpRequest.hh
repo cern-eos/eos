@@ -96,9 +96,25 @@ public:
   /**
    * @return the client request URL
    */
-  inline const std::string&
-  GetUrl () { return mRequestUrl; }
-
+  inline const std::string
+  GetUrl (bool orig=false) { 
+    std::string ocurl;
+    if (orig || (mRequestUrl.find("remote.php/webdav") == std::string::npos))
+      return mRequestUrl;
+    else 
+    {
+      // ---------------
+      // owncloud patch
+      // ---------------
+      ocurl = mRequestUrl;
+      if (mRequestUrl.find("remote.php/webdav/") != std::string::npos)
+	ocurl.erase(mRequestUrl.find("remote.php/webdav/"),18);
+      else
+	ocurl.erase(mRequestUrl.find("remote.php/webdav"),17);
+      return ocurl;
+    }
+  }
+  
   /**
    * @return the client request query string (GET parameters)
    */

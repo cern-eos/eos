@@ -327,6 +327,7 @@ com_attr_usage:
   fprintf(stdout, "         sys.forced.bookingsize=<bytes>        : set's the number of bytes which get for each new created replica\n");
   fprintf(stdout, "         sys.forced.minimumsize=<bytes>        : set's the minimum number of bytes a file to be stored must have\n");
   fprintf(stdout, "         sys.forced.maximumsize=<bytes>        : set's the maximum number of bytes a file to be stored can have\n");
+  fprintf(stdout, "         sys.forced.atomic=1                   : if present enforce atomic uploads e.g. files appear only when their upload is complete - during the upload they have the name <dirname>/.<basename>.<uuid>\n");
   // ---------------------------------------------------------------------------
   fprintf(stdout, "         sys.force.atime=<age>                 : enables atime tagging under that directory. <age> is the minimum age before the access time is stored as change time.\n");
   fprintf(stdout, "\n");
@@ -380,6 +381,7 @@ com_attr_usage:
   fprintf(stdout, "         user.forced.blocksize=<w>             : s.a.\n");
   fprintf(stdout, "         user.forced.nouserlayout=1            : s.a.\n");
   fprintf(stdout, "         user.forced.nofsselection=1           : s.a.\n");
+  fprintf(stdout, "         user.forced.atomic=1                  : s.a.\n");
   fprintf(stdout, "         user.stall.unavailable=<sec>          : s.a.\n");
   fprintf(stdout, "         user.acl=<acllist>                    : s.a.\n");
   fprintf(stdout, "         user.versioning=<n>                   : s.a.\n");
@@ -442,6 +444,9 @@ com_attr_usage:
   fprintf(stdout,"     |eos> recycle config --lifetime 604800                                     # set the lifetime to 1 week\n");
   fprintf(stdout,"     |eos> recycle config --size 100T                                           # set the size of 100T\n");
   fprintf(stdout,"     |eos> recycle config --add-bin /eos/dev/instance/                          # add's the recycle bin to the subtree /eos/dev/instance\n");
-
+  fprintf(stdout,".......................\n");
+  fprintf(stdout,".... Atomic Uploads ...\n");
+  fprintf(stdout,".......................\n");
+  fprintf(stdout,"     |eos> attr set sys.forced.atomic=1 /eos/dev/instance/atomic/\n");
   return (0);
 }

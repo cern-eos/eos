@@ -35,11 +35,12 @@ extern int com_transfer (char* argin);
 int
 com_cp_usage ()
 {
-  fprintf(stdout, "Usage: cp [--async] [--rate=<rate>] [--streams=<n>] [--recursive|-R|-r] [-a] [-n] [-S] [-s|--silent] [-d] [--checksum] <src> <dst>");
+  fprintf(stdout, "Usage: cp [--async] [--atomic] [--rate=<rate>] [--streams=<n>] [--recursive|-R|-r] [-a] [-n] [-S] [-s|--silent] [-d] [--checksum] <src> <dst>");
   fprintf(stdout, "'[eos] cp ..' provides copy functionality to EOS.\n");
   fprintf(stdout, "Options:\n");
   fprintf(stdout, "                                                             <src>|<dst> can be root://<host>/<path>, a local path /tmp/../ or an eos path /eos/ in the connected instanace...\n");
   fprintf(stdout, "       --async         : run an asynchronous transfer via a gateway server (see 'transfer submit --sync' for the full options)\n");
+  fprintf(stdout, "       --atomic        : run an atomic upload where files are only visible with the target name when their are completly uploaded [ adds ?eos.atomic=1 to the target URL ]\n");
   fprintf(stdout, "       --rate          : limit the cp rate to <rate>\n");
   fprintf(stdout, "       --streams       : use <#> parallel streams\n");
   fprintf(stdout, "       --checksum      : output the checksums\n");
@@ -114,6 +115,7 @@ com_cp (char* argin)
   bool silent = false;
   bool nooverwrite = false;
   bool preserve = false;
+  XrdOucString atomic = "";
   unsigned long long copysize = 0;
   int retc = 0;
   int copiedok = 0;
@@ -128,6 +130,7 @@ com_cp (char* argin)
     snprintf(fullcmd, sizeof (fullcmd) - 1, "%s", sarg.c_str());
     return com_transfer(fullcmd);
   }
+
   do
   {
     option = subtokenizer.GetToken();
@@ -203,15 +206,20 @@ com_cp (char* argin)
                         }
                         else
                         {
-                          if (option.beginswith("-"))
-                          {
-                            return com_cp_usage();
-                          }
-                          else
-                          {
-                            source_list.push_back(option.c_str());
-                            break;
-                          }
+			  if ( option == "--atomic" )
+			  {
+			    atomic = "&eos.atomic=1";
+			  } else {
+			    if (option.beginswith("-"))
+                            {
+			      return com_cp_usage();
+			    }
+			    else
+                            {
+			      source_list.push_back(option.c_str());
+			      break;
+			    }
+			  }
                         }
                       }
                     }
@@ -866,7 +874,7 @@ com_cp (char* argin)
       {
         arg2 += "&";
       }
-      snprintf(targetadd, sizeof (targetadd) - 1, "eos.targetsize=%llu&eos.bookingsize=%llu&eos.app=eoscp", source_size[nfile], source_size[nfile]);
+      snprintf(targetadd, sizeof (targetadd) - 1, "eos.targetsize=%llu&eos.bookingsize=%llu&eos.app=eoscp%s", source_size[nfile], source_size[nfile], atomic.c_str());
       arg2.append(targetadd);
       // put the proper role switches
       if (user_role.length() && group_role.length())

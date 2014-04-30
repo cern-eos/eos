@@ -379,6 +379,15 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mCurrentCallbackOffset += *request->GetBodySize();
 
         response = new eos::common::PlainHttpResponse();
+
+	std::string query = request->GetQuery();
+	XrdOucEnv queryenv(query.c_str());
+	const char* etag=0;
+	if ( (etag = queryenv.Get("mgm.etag")) )
+	{
+	  //
+	  response->AddHeader("ETag",etag);
+	}
         return response;
       }
     }

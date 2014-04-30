@@ -43,6 +43,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#include <uuid/uuid.h>
 
 /*----------------------------------------------------------------------------*/
 
@@ -57,6 +58,7 @@ private:
   XrdOucString fullPath; //< the full path stored
   XrdOucString parentPath; //< path of the parent directory
   XrdOucString lastPath; //< the base name/file name
+  XrdOucString atomicPath; //< temporary version of a path e.g. basename => .basename.<uuid>
   std::vector<std::string> subPath; //< a vector with all partial sub-paths
 
 public:
@@ -94,6 +96,51 @@ public:
   XrdOucString&
   GetFullPath () {
     return fullPath;
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Return atomic path
+  // ---------------------------------------------------------------------------
+  const char*
+  GetAtomicPath () {
+    if (atomicPath.length())
+      return atomicPath.c_str();
+    else
+      return MakeAtomicPath();
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Return a unique atomic version of that path
+  // ---------------------------------------------------------------------------
+  const char* MakeAtomicPath () {
+    // create from <dirname>/<basename> => <dirname>/.<basename>.<uuid>
+    char suuid[40];
+    uuid_t uuid;
+    uuid_generate_time(uuid);
+    uuid_unparse(uuid, suuid);
+    atomicPath = GetParentPath();
+    atomicPath += ".";
+    atomicPath += GetName();
+    atomicPath += ".";
+    atomicPath += suuid;
+    return atomicPath.c_str();
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Decode an atomic path
+  // ---------------------------------------------------------------------------
+  const char* DecodeAtomicPath () {
+    // create from <dirname>/.<basename>.<uuid> => <dirname>/<basename>
+    if (lastPath.beginswith(".") && 
+	(lastPath.length() > 37) &&
+	(lastPath[lastPath.length()-37] == '.') )
+    {
+      atomicPath = fullPath;
+      lastPath.erase(lastPath.length()-37);
+      lastPath.erase(0,1);
+      fullPath = parentPath + lastPath;
+    }
+    return fullPath.c_str();
   }
 
   // ---------------------------------------------------------------------------

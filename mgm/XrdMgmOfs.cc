@@ -5268,6 +5268,31 @@ XrdMgmOfs::FSctl (const int cmd,
 
             if (commitsize)
             {
+	      // check if this is an atomic path
+	      eos::common::Path atomic_path(fmd->getName().c_str());
+	      atomic_path.DecodeAtomicPath();
+	      if (fmd->getName() != atomic_path.GetName()) 
+	      {
+		eos_thread_debug("commit: de-atomize file %s => %s", fmd->getName().c_str(), atomic_path.GetName());
+		eos::ContainerMD* dir = 0;
+		// we have to deatomize the fmd name here e.g. make the temporary atomic name a persistent name
+		try
+		{
+		  dir = eosView->getContainer(atomic_path.GetParentPath());
+		  eosView->renameFile(fmd, atomic_path.GetName());
+		  UpdateNowInmemoryDirectoryModificationTime(dir->getId());
+		  eos_thread_info("msg=\"de-atomize file\" fid=%llu atomic-name=%s final-name=%s", fmd->getId(), fmd->getName().c_str(), atomic_path.GetName());
+		}
+		catch (eos::MDException &e)
+		{
+		  errno = e.getErrno();
+		  std::string errmsg = e.getMessage().str();
+		  eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+				   e.getErrno(), e.getMessage().str().c_str());
+
+		}
+	      }
+
               if (fmd->getSize() != size)
               {
                 isUpdate = true;
