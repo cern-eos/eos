@@ -130,14 +130,14 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
   // ------------------------------------------------------------------------------
   // owncloud protocol emulator
   // ------------------------------------------------------------------------------
-  if (spath.endswith("status.php"))
+  if (spath.find("/status.php") != STR_NPOS)
   {
     std::string data ="{\"installed\":\"true\",\"version\":\"5.0.28\",\"versionstring\":\"5.0.14a\",\"edition\":\"Enterprise\"}";
     response = HttpServer::HttpData(data.c_str(), data.length());
     return response;
   }
 
-  if (spath.endswith("remote.php/webdav/"))
+  if (spath.find("/remote.php/webdav/") != STR_NPOS)
   {
     spath.replace("remote.php/webdav/","");
   }
@@ -684,6 +684,18 @@ HttpHandler::Put (eos::common::HttpRequest * request)
       {
         query += "eos.bookingsize=0";
       }
+
+      // -----------------------------------------------------------
+      // OC clients are switched automatically to atomic upload mode
+      // -----------------------------------------------------------
+      if (request->GetHeaders().count("OC-Content-Length"))
+      {
+	if (query.length())
+	  query += "&";
+	query += "eos.atomic=1";
+      }
+
+
 
       int rc = file->open(url.c_str(), open_mode, create_mode, &client,
                           query.c_str());

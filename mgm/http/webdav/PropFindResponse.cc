@@ -44,7 +44,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
   // Get the namespaces (if any)
   ParseNamespaces();
 
-  eos_static_info("\n%s", request->GetBody().c_str());
+  eos_static_debug("\n%s", request->GetBody().c_str());
   // Root node <propfind/>
   xml_node<> *rootNode = mXMLRequestDocument.first_node();
   if (!rootNode)
@@ -168,7 +168,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
   }
 
   std::string responseString;
-  rapidxml::print(std::back_inserter(responseString), mXMLResponseDocument);
+  rapidxml::print(std::back_inserter(responseString), mXMLResponseDocument, rapidxml::print_no_indenting);
   mXMLResponseDocument.clear();
 
   SetResponseCode(HttpResponse::MULTI_STATUS);
@@ -277,7 +277,10 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   xml_node<> *href = AllocateNode("d:href");
 
   if (S_ISDIR(statInfo.st_mode))
-    hrefp+="/";
+  {
+    if (hrefp[hrefp.length()-1] != '/')
+      hrefp+="/";
+  }
 
   SetValue(href, hrefp.c_str());
   responseNode->append_node(href);
