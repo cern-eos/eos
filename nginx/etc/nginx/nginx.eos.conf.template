@@ -65,12 +65,10 @@ http {
     # The default server is in conf.d/default.conf
     # include /etc/nginx/conf.d/*.conf;
 
-    ldap_server auth_ldap {
-        url EOS_NGINX_LDAP_URL
-        binddn "EOS_NGINX_LDAP_BINDDN";
-        binddn_passwd EOS_NGINX_LDAP_BINDDN_PASSWORD;
-        group_attribute uniquemember;
-        group_attribute_is_dn on;
+    ldap_server auth_ldap_server {
+        url "EOS_NGINX_LDAP_URL";
+        binddn "EOS_NGINX_LDAP_BINDDN_USER";
+        binddn_passwd "EOS_NGINX_LDAP_BINDDN_PASSWORD";
         require valid_user;
     }
 
@@ -278,8 +276,8 @@ http {
 	ssl_session_cache      shared:SSL:10m;
         ssl_session_timeout    10m;
 
-        auth_ldap "Forbidden";
-        auth_ldap_servers auth_ldap;
+        auth_ldap "Please provide your account information here:";
+        auth_ldap_servers auth_ldap_server;
 
         location / {
             proxy_pass         http://localhost:8000/;

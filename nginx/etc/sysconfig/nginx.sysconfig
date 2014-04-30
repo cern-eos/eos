@@ -28,7 +28,7 @@ export EOS_NGINX_GSS_SERVICE_NAME=host/$EOS_NGINX_HOSTNAME
 
 # nginx LDAP basic auth configuration
 export EOS_NGINX_LDAP_URL="ldap://"
-export EOS_NGINX_LDAP_BINDDN="TEST"
+export EOS_NGINX_LDAP_BINDDN_USER="TEST"
 export EOS_NGINX_LDAP_BINDDN_PASSWORD="TESTPWD"
 export EOS_NGINX_LDAP_SSL_PORT=4443
 
@@ -54,5 +54,5 @@ perl -pi -e 's/EOS_NGINX_GSS_SERVICE_NAME/$ENV{EOS_NGINX_GSS_SERVICE_NAME}/g'   
 perl -pi -e 's/EOS_NGINX_REDIRECT_EXTERNALLY/$ENV{EOS_NGINX_REDIRECT_EXTERNALLY}/g'       /etc/nginx/nginx.eos.conf
 perl -pi -e 's/EOS_NGINX_LDAP_SSL_PORT/$ENV{EOS_NGINX_LDAP_SSL_PORT}/g'                   /etc/nginx/nginx.eos.conf
 perl -pi -e 's/EOS_NGINX_LDAP_URL/$ENV{EOS_NGINX_LDAP_URL}/g'                             /etc/nginx/nginx.eos.conf
-perl -pi -e 's/EOS_NGINX_LDAP_BINDDN/$ENV{EOS_NGINX_LDAP_BINDDN}/g'                       /etc/nginx/nginx.eos.conf
+perl -pi -e 's/EOS_NGINX_LDAP_BINDDN_USER/$ENV{EOS_NGINX_LDAP_BINDDN_USER}/g'             /etc/nginx/nginx.eos.conf
 perl -pi -e 's/EOS_NGINX_LDAP_BINDDN_PASSWORD/$ENV{EOS_NGINX_LDAP_BINDDN_PASSWORD}/g'     /etc/nginx/nginx.eos.conf
