@@ -232,6 +232,30 @@ public:
     time_t ts = mktime(&ctime) - timezone;
     return ts;
   }
+
+  static
+  std::string utctime(time_t ttime)
+  {
+    struct tm utc;
+    gmtime_r(&ttime, &utc);
+    static const char wday_name[][4] = {
+      "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+    };
+    static const char mon_name[][4] = {
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    };
+    static char result[40];
+    sprintf(result, "%.3s, %02d %.3s %d %.2d:%.2d:%.2d GMT",
+	    wday_name[utc.tm_wday],
+	    utc.tm_mday,
+	    mon_name[utc.tm_mon],
+	    1900 + utc.tm_year,
+	    utc.tm_hour,
+	    utc.tm_min, 
+	    utc.tm_sec);
+    return std::string(result);
+  }
 };
 
 // ---------------------------------------------------------------------------

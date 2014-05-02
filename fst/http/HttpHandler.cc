@@ -280,6 +280,8 @@ HttpHandler::Get (eos::common::HttpRequest *request)
 
   if (mFile)
   {
+    time_t mtime = mFile->GetMtime();
+    response->AddHeader("Last-Modified",eos::common::Timing::utctime(mtime));
     // We want to use the file callbacks
     response->mUseFileReaderCallback = true;
   }
@@ -395,8 +397,8 @@ HttpHandler::Put (eos::common::HttpRequest *request)
     else
     {
       eos_static_info("entering close handler");
-
       eos::common::HttpRequest::HeaderMap header = request->GetHeaders();
+
       if (header.count("X-OC-Mtime"))
       {
 	// there is an X-OC-Mtime header to force the mtime for that file

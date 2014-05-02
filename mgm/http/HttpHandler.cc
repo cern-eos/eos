@@ -195,6 +195,7 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
           // HEAD requests on files can return from the MGM without redirection
           response = HttpServer::HttpHead(buf.st_size, basename);
 	  response->AddHeader("ETag",etag);
+	  response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
           return response;
         }
       }
@@ -573,6 +574,7 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
       response = new eos::common::PlainHttpResponse();
       response->SetBody(result);
       response->AddHeader("ETag",etag);
+      response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
     }
     else
     {
