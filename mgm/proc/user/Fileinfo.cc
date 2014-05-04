@@ -835,6 +835,13 @@ ProcCommand::DirInfo (const char* path)
             stdOut += "etag=";
             stdOut += etag.c_str();
             stdOut += " ";
+
+            for (auto it_attr = fmd->attributesBegin(); it_attr != fmd->attributesEnd(); ++it_attr)
+            {
+              stdOut += "xattrn=";    stdOut += it_attr->first.c_str();
+              stdOut += " xattrv=";  stdOut += it_attr->second.c_str();
+              stdOut += " ";
+            }
           }
         }
       }
