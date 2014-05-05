@@ -16,7 +16,7 @@ index 79ffdbe..89c5bf8 100644
  NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_auth_ldap_module.c"
  
 -CORE_LIBS="$CORE_LIBS -lldap"
-+CORE_LIBS="$CORE_LIBS /usr/lib64/libldap-2.4.so.2"
++CORE_LIBS="$CORE_LIBS -l:libldap-2.4.so.2
  
  case "$NGX_PLATFORM" in
      SunOS:*)
