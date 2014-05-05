@@ -1,7 +1,7 @@
 From 25b314b7feef9340068554903cf34a61f710cfcd Mon Sep 17 00:00:00 2001
 From: Andreas-Joachim Peters <andreas.joachim.peters@cern.ch>
 Date: Mon, 5 May 2014 16:45:18 +0200
-Subject: [PATCH] Use OpenLDAP 2.4
+Subject: [PATCH 1/2] Use OpenLDAP 2.4
 
 ---
  config |    7 ++++---
@@ -29,6 +29,32 @@ index 79ffdbe..6361e2b 100644
 +CFLAGS="$CFLAGS -I /usr/include/openldap"
 +CFLAGS="$CFLAGS -I /usr/include/openldap"
 +
+-- 
+1.7.1
+
+
+From 500cf27089d4e644284ee933ab1d1ba5010380db Mon Sep 17 00:00:00 2001
+From: Andreas-Joachim Peters <andreas.joachim.peters@cern.ch>
+Date: Mon, 5 May 2014 17:08:17 +0200
+Subject: [PATCH 2/2] Fix include directory
+
+---
+ config |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/config b/config
+index 6361e2b..42daca2 100644
+--- a/config
++++ b/config
+@@ -10,6 +10,6 @@ case "$NGX_PLATFORM" in
+     ;;
+ esac
+ 
+-CFLAGS="$CFLAGS -I /usr/include/openldap"
+-CFLAGS="$CFLAGS -I /usr/include/openldap"
++CFLAGS="$CFLAGS -I /usr/include/openldap24"
++CFLAGS="$CFLAGS -I /usr/include/openldap24"
+ 
 -- 
 1.7.1
 
