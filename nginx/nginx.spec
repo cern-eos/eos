@@ -87,14 +87,11 @@ git clone https://github.com/kvspb/nginx-auth-ldap.git \
 
 # patches for openldap24
 %if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
-ls -la %{_sourcedir}/nginx-auth-ldap.patch 
-( cd %{_builddir}/nginx-auth-ldap-module; git am --signoff < %{_sourcedir}/nginx-auth-ldap.patch )
-test -e /usr/lib64/libldap-2.4.so || ln -s /usr/lib64/libldap-2.4.so.2 /usr/lib64/libldap-2.4.so
+( cd %{_builddir}/nginx-auth-ldap-module; echo '### Nothing to patch ###' )
 %else
 ( cd %{_builddir}/nginx-auth-ldap-module; git am --signoff < %{_sourcedir}/nginx-auth-ldap.patch )
-test -e /usr/lib64/libldap-2.4.so || ln -s /usr/lib64/libldap-2.4.so.2 /usr/lib64/libldap-2.4.so
 %endif
-
+echo $LD_LIBRARY_PATH
 # nginx does not utilize a standard configure script.  It has its own
 # and the standard configure options cause the nginx configure script
 # to error out.  This is is also the reason for the DESTDIR environment
@@ -102,6 +99,7 @@ test -e /usr/lib64/libldap-2.4.so || ln -s /usr/lib64/libldap-2.4.so.2 /usr/lib6
 # Patch2) in order to support installing into a build environment.
 # --with-http_memcached_module\
 # --with-http_ssi_module\
+
 
 export CFLAGS="-I/usr/include/et/"
 export DESTDIR=%{buildroot}
