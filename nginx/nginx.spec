@@ -91,7 +91,7 @@ git clone https://github.com/kvspb/nginx-auth-ldap.git \
 %else
 ( cd %{_builddir}/nginx-auth-ldap-module; git am --signoff < %{_sourcedir}/nginx-auth-ldap.patch )
 %endif
-echo $LD_LIBRARY_PATH
+
 # nginx does not utilize a standard configure script.  It has its own
 # and the standard configure options cause the nginx configure script
 # to error out.  This is is also the reason for the DESTDIR environment
