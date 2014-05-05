@@ -356,8 +356,10 @@ RaidMetaLayout::Open (const std::string& path,
          delete file;
          file = NULL;
        }
-
-       mLastUrl = file->GetLastUrl();
+       else
+       {
+         mLastUrl = file->GetLastUrl();
+       }
 
        mStripeFiles.push_back(file);
        mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));

@@ -62,7 +62,8 @@ public:
   //--------------------------------------------------------------------------
   FileIo () :
   eos::common::LogId (),
-  mFilePath ("")
+  mFilePath (""),
+  mLastUrl("")
   {
     //empty
   }
