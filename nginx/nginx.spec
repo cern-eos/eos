@@ -11,7 +11,7 @@
 
 Name:           eos-nginx
 Version:        1.4.2
-Release:        3
+Release:        4
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
 Packager:       Justin Salmon <jsalmon@cern.ch>
@@ -21,9 +21,16 @@ Packager:       Justin Salmon <jsalmon@cern.ch>
 License:            BSD
 URL:                http://nginx.net/ 
 BuildRoot:          %{_tmppath}/%{name}-%{version}-%{release}-%(%{__id_u} -n)
+
+%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
 BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed),pam-devel,git,e2fsprogs-devel,openldap-devel
 Requires:           pcre,zlib,openssl,openldap
-Requires:           perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
+%else
+BuildRequires:      pcre-devel,zlib-devel,openssl-devel,perl(ExtUtils::Embed),pam-devel,git,e2fsprogs-devel,openldap24-libs-devel
+Requires:           pcre,zlib,openssl,openldap24-libs
+%endif
+
+
 # for /user/sbin/useradd
 Requires(pre):      shadow-utils
 Requires(post):     chkconfig
@@ -52,6 +59,8 @@ Patch1:     nginx-auto-install.patch
 # etc.
 Patch2:     nginx-auto-options.patch
 
+Patch3:     nginx-auth-ldap.patch
+
 %description
 Nginx [engine x] is an HTTP(S) server, HTTP(S) reverse proxy and IMAP/POP3
 proxy server written by Igor Sysoev.
@@ -61,16 +70,6 @@ A second third party modul, nginx-auth-ldap has been added.
 
 %prep
 %setup -q -n nginx-%{version}
-#cd %{_topdir}/BUILD
-#rm -rf nginx-*
-#gzip -dc %{_sourcedir}/nginx-*.tar.gz | tar -xvvf -
-#if [ $? -ne 0 ]; then
-#  exit $?
-#fi
-#cd nginx-*
-#cd %{_topdir}/BUILD/nginx-*
-#chown -R root.root .
-#chmod -R a+rX,g-w,o-w .
 
 %patch0 -p0
 #%patch1 -p0
@@ -78,11 +77,23 @@ A second third party modul, nginx-auth-ldap has been added.
 
 %build
 
+rm -rf %{_builddir}/spnego-http-auth-nginx-module
 git clone https://github.com/stnoonan/spnego-http-auth-nginx-module \
           %{_builddir}/spnego-http-auth-nginx-module
 
+rm -rf %{_builddir}/nginx-auth-ldap-module
 git clone https://github.com/kvspb/nginx-auth-ldap.git \
           %{_builddir}/nginx-auth-ldap-module
+
+# patches for openldap24
+%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
+ls -la %{_sourcedir}/nginx-auth-ldap.patch 
+( cd %{_builddir}/nginx-auth-ldap-module; git am --signoff < %{_sourcedir}/nginx-auth-ldap.patch )
+test -e /usr/lib64/libldap-2.4.so || ln -s /usr/lib64/libldap-2.4.so.2 /usr/lib64/libldap-2.4.so
+%else
+( cd %{_builddir}/nginx-auth-ldap-module; git am --signoff < %{_sourcedir}/nginx-auth-ldap.patch )
+test -e /usr/lib64/libldap-2.4.so || ln -s /usr/lib64/libldap-2.4.so.2 /usr/lib64/libldap-2.4.so
+%endif
 
 # nginx does not utilize a standard configure script.  It has its own
 # and the standard configure options cause the nginx configure script
