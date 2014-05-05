@@ -1,0 +1,32 @@
+From 0ca837dccd83b7a44603dbf00fcb8bcef5174413 Mon Sep 17 00:00:00 2001
+From: Andreas-Joachim Peters <andreas.joachim.peters@cern.ch>
+Date: Mon, 5 May 2014 13:04:32 +0200
+Subject: [PATCH] Compile and link openldap-2.4
+
+---
+ config |    5 ++---
+ 1 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/config b/config
+index 79ffdbe..89c5bf8 100644
+--- a/config
++++ b/config
+@@ -2,7 +2,7 @@ ngx_addon_name=ngx_http_auth_ldap_module
+ HTTP_MODULES="$HTTP_MODULES ngx_http_auth_ldap_module"
+ NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_auth_ldap_module.c"
+ 
+-CORE_LIBS="$CORE_LIBS -lldap"
++CORE_LIBS="$CORE_LIBS -lldap-2.4"
+ 
+ case "$NGX_PLATFORM" in
+     SunOS:*)
+@@ -10,5 +10,4 @@ case "$NGX_PLATFORM" in
+     ;;
+ esac
+ 
+-CFLAGS="$CFLAGS"
+-CFLAGS="$CFLAGS"
++CFLAGS="$CFLAGS -I/usr/include/openldap24/"
+-- 
+1.7.1
+
