@@ -20,12 +20,11 @@ index 79ffdbe..89c5bf8 100644
  
  case "$NGX_PLATFORM" in
      SunOS:*)
-@@ -10,5 +10,4 @@ case "$NGX_PLATFORM" in
+@@ -10,4 +10,5 @@ case "$NGX_PLATFORM" in
      ;;
  esac
  
--CFLAGS="$CFLAGS"
--CFLAGS="$CFLAGS"
++CFLAGS="$CFLAGS -I/usr/include/openldap24/"
 +CFLAGS="$CFLAGS -I/usr/include/openldap24/"
 -- 
 1.7.1
