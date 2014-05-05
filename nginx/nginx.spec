@@ -89,7 +89,7 @@ git clone https://github.com/kvspb/nginx-auth-ldap.git \
 %if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
 ( cd %{_builddir}/nginx-auth-ldap-module; echo '### Nothing to patch ###' )
 %else
-( cd %{_builddir}/nginx-auth-ldap-module; git am --signoff < %{_sourcedir}/nginx-auth-ldap.patch )
+( cd %{_builddir}/nginx-auth-ldap-module; git config --global user.email "info@eos.cern.ch" ; git config --global user.name "EOS" ; git am --signoff < %{_sourcedir}/nginx-auth-ldap.patch )
 %endif
 
 # nginx does not utilize a standard configure script.  It has its own
