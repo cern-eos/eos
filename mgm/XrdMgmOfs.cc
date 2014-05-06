@@ -1357,7 +1357,7 @@ XrdMgmOfs::_chown (const char *path,
  * this operation in the Ofs interface. root can alwasy run the operation.
  * Users with the admin role can run the operation. Normal users can run the operation 
  * if they have the 'c' permissions in 'sys.acl'. File ownership can only be changed
- * with the root or admin role. 
+ * with the root or admin role. If gid=0xffffffff, we don't set the group
  */
 /*----------------------------------------------------------------------------*/
 
@@ -1407,7 +1407,7 @@ XrdMgmOfs::_chown (const char *path,
     {
       // change the owner
       cmd->setCUid(uid);
-      if (((!vid.uid) || (vid.uid == 3) || (vid.gid == 4)) && gid)
+      if (((!vid.uid) || (vid.uid == 3) || (vid.gid == 4)) && (gid!=0xffffffff))
       {
         // change the group
         cmd->setCGid(gid);

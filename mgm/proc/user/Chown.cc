@@ -87,10 +87,29 @@ ProcCommand::Chown ()
    {
      uid.erase(dpos);
      gid.erase(0, dpos + 1);
+
+     if ((gid != "0") )
+     {
+       // try to translate with password database
+       int terrc = 0;
+       gidt = eos::common::Mapping::GroupNameToGid(gid, terrc);
+       if (terrc)
+       {
+	 // cannot translate this name
+	 stdErr = "error: I cannot translate your gid string using the pwd database";
+	 retc = terrc;
+	 failure = true;
+       }
+     }
+     else
+     {
+       gidt=0;
+     }
    }
    else
    {
      gid = "0";
+     gidt = 0xffffffff;
    }
 
    if ((uid != "0"))
@@ -105,19 +124,9 @@ ProcCommand::Chown ()
        failure = true;
      }
    }
-
-   if ((gid != "0") )
+   else
    {
-     // try to translate with password database
-     int terrc = 0;
-     gidt = eos::common::Mapping::GroupNameToGid(gid, terrc);
-     if (terrc)
-     {
-       // cannot translate this name
-       stdErr = "error: I cannot translate your gid string using the pwd database";
-       retc = terrc;
-       failure = true;
-     }
+     uidt=0;
    }
 
    if (pVid->uid && ((!uidt) || (!gidt)))
