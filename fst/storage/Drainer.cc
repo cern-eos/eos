@@ -461,6 +461,12 @@ Storage::Drainer ()
           }
         }
         while (slotstofill && stillGotOneScheduled);
+
+	// reset the failed vector, otherwise we starve forever
+	for (size_t i = 0; i < drainfsindex.size(); i++)
+	{
+	  drainfsindexSchedulingFailed[i] = false;
+	}
       }
     }
     // ************************************************************************>

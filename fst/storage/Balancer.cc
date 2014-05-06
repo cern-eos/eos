@@ -437,6 +437,12 @@ Storage::Balancer ()
           }
         }
         while (slotstofill && stillGotOneScheduled);
+
+	// reset the failed vector, otherwise we starveforever
+        for (size_t i = 0; i < balancefsindex.size(); i++)
+	{
+	  balancefsindexSchedulingFailed[i] = false;
+	}
       }
     }
     // ************************************************************************>
