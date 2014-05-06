@@ -70,6 +70,7 @@ http {
         binddn "EOS_NGINX_LDAP_BINDDN_USER";
         binddn_passwd "EOS_NGINX_LDAP_BINDDN_PASSWORD";
         require valid_user;
+	satisfy any;
     }
 
 
@@ -123,8 +124,8 @@ http {
             resolver 8.8.8.8 137.138.16.5 137.138.17.5;
 
             # Location-specific logging
-            access_log 443.internal_redirect.access.log main;
-            error_log  443.internal_redirect.error.log  debug;
+            access_log x509.internal_redirect.access.log main;
+            error_log  x509.internal_redirect.error.log  debug;
 
             # Extract download url from the request
             set $download_host $1;
@@ -220,8 +221,8 @@ http {
             resolver 8.8.8.8 137.138.16.5 137.138.17.5;
 
             # Location-specific logging
-            access_log internal_redirect.access.log main;
-            error_log  internal_redirect.error.log  debug;
+            access_log krb5.internal_redirect.access.log main;
+            error_log  krb5.internal_redirect.error.log  debug;
 
             # Extract download url from the request
             set $download_uri  $2;
@@ -276,8 +277,16 @@ http {
 	ssl_session_cache      shared:SSL:10m;
         ssl_session_timeout    10m;
 
-        auth_ldap "Please provide your account information here:";
-        auth_ldap_servers auth_ldap_server;
+        # allow Owncloud clients to retrieve the server version without authentication
+	location ~* /(status.php)$ {
+
+            proxy_pass         http://localhost:8000;
+
+            proxy_set_header   Host               $host;
+            proxy_set_header   X-Real-IP          $remote_addr;
+            proxy_set_header   X-Forwarded-For    $proxy_add_x_forwarded_for;
+            proxy_set_header   Remote-User nobody;
+        }
 
         location / {
             proxy_pass         http://localhost:8000/;
@@ -297,6 +306,9 @@ http {
             proxy_buffers               4 32k;
             proxy_busy_buffers_size     64k;
             proxy_temp_file_write_size  64k;
+   
+            auth_ldap "Please provide your account information here:";
+            auth_ldap_servers auth_ldap_server;
         }
 
         # Proxy download 
@@ -310,8 +322,8 @@ http {
             resolver 8.8.8.8 137.138.16.5 137.138.17.5;
 
             # Location-specific logging
-            access_log 4443.internal_redirect.access.log main;
-            error_log  4443.internal_redirect.error.log  debug;
+            access_log ldap.internal_redirect.access.log main;
+            error_log  ldap.internal_redirect.error.log  debug;
 
             # Extract download url from the request
             set $download_host $1;
