@@ -383,7 +383,7 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
   mSubCmd = pOpaque->Get("mgm.subcmd");
   mOutFormat = pOpaque->Get("mgm.outformat");
   mSelection = pOpaque->Get("mgm.selection");
-  mComment = pOpaque->Get("mgm.mComment") ? pOpaque->Get("mgm.mComment") : "";
+  mComment = pOpaque->Get("mgm.comment") ? pOpaque->Get("mgm.comment") : "";
   int envlen = 0;
   mArgs = pOpaque->Env(envlen);
 
