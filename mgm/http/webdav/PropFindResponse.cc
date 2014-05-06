@@ -378,7 +378,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   // common to all resources
   if (lastModified)
   {
-    std::string lm = eos::common::Timing::UnixTimstamp_to_ISO8601(
+    std::string lm = eos::common::Timing::utctime(
                                           statInfo.st_mtim.tv_sec);
     SetValue(lastModified, lm.c_str());
     propFound->append_node(lastModified);
