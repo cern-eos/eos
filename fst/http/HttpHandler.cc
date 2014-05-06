@@ -399,7 +399,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       eos_static_info("entering close handler");
       eos::common::HttpRequest::HeaderMap header = request->GetHeaders();
 
-      if (header.count("X-OC-Mtime"))
+      if (header.count("X-OC-MTime"))
       {
 	// there is an X-OC-Mtime header to force the mtime for that file
 	mFile->SetForcedMtime(strtoull(header["X-OC-MTime"].c_str(),0,10),0);
@@ -473,9 +473,18 @@ HttpHandler::DecodeByteRange (std::string               rangeheader,
     {
       start = strtoull(sstart.c_str(), 0, 10);
     }
+    else
+    {
+      start = 0;
+    }
+
     if (sstop.length())
     {
       stop = strtoull(sstop.c_str(), 0, 10);
+    }
+    else
+    {
+      stop = filesize;
     }
 
     if ((start > filesize) || (stop > filesize))
