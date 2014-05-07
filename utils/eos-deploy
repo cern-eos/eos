@@ -23,7 +23,9 @@ my $monalisahost;
 my $email;
 my $mgm2;
 my $thishost=`hostname -f`;
+my $thishostshort=`hostname -s`;
 chomp $thishost;
+chomp $thishostshort;
 
 my $isalice=0;
 
@@ -435,7 +437,8 @@ printf "# ... enable sss mapping ...\n";
 system ("eos -b vid enable sss \n");
 printf "# ... enable https mapping ...\n";
 system ("eos -b vid enable https \n");
-
+printf "# ... allow fuse to be daemon as localhost root user\n");
+system ("eos -b vid add gateway $thishostshort");
 
 for (my $i=0; $i< $nfs; $i++) {
     printf "# ... create placement group default.$i  ...\n";
