@@ -591,9 +591,13 @@ XrdMgmOfsFile::open (const char *inpath,
 			  vid.gid,
 			  (isRW) ? W_OK | X_OK : R_OK | X_OK)))
     {
-      errno = EPERM;
-      gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
-      return Emsg(epname, error, errno, "open file", path);
+      if ( !( (vid.uid == 2) && (isPioReconstruct) ) ) 
+      {
+	// we don't apply this permission check for reconstruction jobs issued via the daemon account
+	errno = EPERM;
+	gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+	return Emsg(epname, error, errno, "open file", path);
+      }
     }
 
     // -------------------------------------------------------------------------
