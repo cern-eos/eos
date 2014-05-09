@@ -138,7 +138,7 @@ public:
   // ---------------------------------------------------------------------------
   // Print the view contents
   // ---------------------------------------------------------------------------
-  void Print (std::string &out, std::string headerformat, std::string listformat);
+  void Print (std::string &out, std::string headerformat, std::string listformat, std::vector<std::string> &selections);
 
   // ---------------------------------------------------------------------------
   // Return a member variable in the view

@@ -860,7 +860,7 @@ com_fs_usage:
   fprintf(stdout, "'[eos] fs ..' provides the filesystem interface of EOS.\n");
   fprintf(stdout, "Usage: fs add|boot|config|dropdeletion|dropfiles|dumpmd|mv|ls|rm|status [OPTIONS]\n");
   fprintf(stdout, "Options:\n");
-  fprintf(stdout, "fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s] [<space>] :\n");
+  fprintf(stdout, "fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s] [ [matchlist] ] :\n");
   fprintf(stdout, "                                                  list all filesystems in default output format. <space> is an optional substring match for the space name and can be a comma separated list\n");
   fprintf(stdout, "            -m                                  : list all filesystem parameters in monitoring format\n");
   fprintf(stdout, "            -l                                  : display all filesystem parameters in long format\n");
@@ -868,6 +868,9 @@ com_fs_usage:
   fprintf(stdout, "            --io                                : display all filesystems in IO output format\n");
   fprintf(stdout, "            --fsck                              : display filesystem check statistics\n");
   fprintf(stdout, "            -d,--drain                          : display all filesystems in drain or draindead status with drain progress and statistics\n");
+  fprintf(stdout, "                                   [matchlist]  : [matchlist] can be just the name of the space to display or a comma seperated list of spaces e.g 'default,space' \n");
+  fprintf(stdout, "                                   [matchlist]  : [matchlist] can be a grep style list to filter certain filesystems e.g. 'fs ls -d drain,bootfailure' \n");
+  fprintf(stdout, "                                   [matchlist]  : [matchlist] can be a combination of space filter and grep e.g. 'fs ls -l space:default,drain,bootfailure'\n");
 
   fprintf(stdout, "fs add [-m|--manual <fsid>] <uuid> <node-queue>|<host>[:<port>] <mountpoint> [<schedgroup>] [<status] :\n");
   fprintf(stdout, "                                                  add a filesystem and dynamically assign a filesystem id based on the unique identifier for the disk <uuid>\n");

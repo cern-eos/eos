@@ -1361,15 +1361,26 @@ FsView::PrintSpaces (std::string &out, std::string headerformat, std::string lis
     if (selection)
     {
       bool found=false;
+      bool spacefound=false;
       for (size_t i=0; i<selections.size(); i++)
       {
-	if ((it->second->mName.find(selections[i])) != std::string::npos)
+	std::string sel = selections[i];
+	// only apply space:... selections
+	if (sel.substr(0,6) == "space:")
+	{
+	  spacefound=true;
+	  sel.erase(0,6);
+	}
+	if ((it->second->mName.find(sel) != std::string::npos))
 	  found=true;
       }
+      if (selections.size() && (!spacefound))
+	found=true;
+
       if (!found)
 	continue;
     }
-    it->second->Print(out, headerformat, listformat);
+    it->second->Print(out, headerformat, listformat, selections);
     if (!listformat.length() && ((headerformat.find("header=1:")) == 0))
     {
       headerformat.erase(0, 9);
@@ -1405,7 +1416,8 @@ FsView::PrintGroups (std::string &out, std::string headerformat, std::string lis
       if (!found)
 	continue;
     }
-    it->second->Print(out, headerformat, listformat);
+    selections.clear();
+    it->second->Print(out, headerformat, listformat, selections);
     if (!listformat.length() && ((headerformat.find("header=1:")) == 0))
     {
       headerformat.erase(0, 9);
@@ -1440,7 +1452,8 @@ FsView::PrintNodes (std::string &out, std::string headerformat, std::string list
       if (!found)
 	continue;
     }
-    it->second->Print(out, headerformat, listformat);
+    selections.clear();
+    it->second->Print(out, headerformat, listformat, selections);
     if (!listformat.length() && ((headerformat.find("header=1:")) == 0))
     {
       headerformat.erase(0, 9);
@@ -1877,7 +1890,7 @@ BaseView::SigmaDouble (const char* param, bool lock)
 
 /*----------------------------------------------------------------------------*/
 void
-BaseView::Print (std::string &out, std::string headerformat, std::string listformat)
+BaseView::Print (std::string &out, std::string headerformat, std::string listformat, std::vector<std::string> &selections)
 {
   //----------------------------------------------------------------
   //! print userdefined format to out
@@ -2308,7 +2321,25 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
     // if a format was given for the filesystem children, forward the print to the filesystems
     for (it = begin(); it != end(); it++)
     {
-      FsView::gFsView.mIdView[*it]->Print(body, listformat);
+      std::string lbody;
+      bool matches=true;
+
+      FsView::gFsView.mIdView[*it]->Print(lbody, listformat);
+      // apply each selection as a find match in the string
+      if (selections.size())
+      {
+	for (size_t i=0; i< selections.size(); i++)
+	{
+	  if (selections[i].substr(0,6) == "space:")
+	    continue;
+	  if (lbody.find(selections[i]) == std::string::npos)
+	    matches=false;
+	}
+      }
+
+      if (matches)
+	body+=lbody;
+
       if (first)
       {
         // put the header format only in the first node printout
