@@ -96,7 +96,7 @@ http {
 
         location / {
 
-            proxy_pass         http://localhost:8000/;
+            proxy_pass         EOS_NGINX_MGM_URL;
 
             proxy_set_header   Host               $host;
             proxy_set_header   X-Real-IP          $remote_addr;
@@ -188,7 +188,7 @@ http {
 
         location / {
 
-            proxy_pass         http://localhost:8000/;
+            proxy_pass         EOS_NGINX_MGM_URL;
 
             proxy_set_header   Host               $host;
             proxy_set_header   X-Real-IP          $remote_addr;
@@ -285,7 +285,7 @@ http {
         # allow Owncloud clients to retrieve the server version without authentication
 	location ~* /(status.php)$ {
 
-            proxy_pass         http://localhost:8000;
+            proxy_pass         EOS_NGINX_MGM_URL;
 
             proxy_set_header   Host               $host;
             proxy_set_header   X-Real-IP          $remote_addr;
@@ -295,7 +295,7 @@ http {
         }
 
         location / {
-            proxy_pass         http://localhost:8000/;
+            proxy_pass         EOS_NGINX_MGM_URL;
             proxy_set_header   Authorization '';
 
             proxy_set_header   Host               $host;

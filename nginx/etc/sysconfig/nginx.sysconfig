@@ -8,6 +8,9 @@ export EOS_NGINX_USER=daemon
 # Hostname to use for nginx vhosts
 export EOS_NGINX_HOSTNAME=`hostname -f`
 
+# Proxy Forwarding Target e.g. MGM URL to proxy, don't end the URL with a '/' !
+export EOS_NGINX_MGM_URL=http://localhost:8000
+
 # nginx SSL configuration
 export EOS_NGINX_SSL_CERTIFICATE=/etc/grid-security/hostcert.pem
 export EOS_NGINX_SSL_KEY=/etc/grid-security/hostkey.pem
@@ -40,7 +43,8 @@ export EOS_NGINX_REDIRECT_EXTERNALLY=0
 # Make a copy of the template config file
 cp /etc/nginx/nginx.eos.conf.template /etc/nginx/nginx.eos.conf
 
-# Replace all the things
+# Replace all the thing
+perl -pi -e 's/EOS_NGINX_MGM_URL/$ENV{EOS_NGINX_MGM_URL}/g'                               /etc/nginx/nginx.eos.conf
 perl -pi -e 's/EOS_NGINX_USER/$ENV{EOS_NGINX_USER}/g'                                     /etc/nginx/nginx.eos.conf
 perl -pi -e 's/EOS_NGINX_HOSTNAME/$ENV{EOS_NGINX_HOSTNAME}/g'                             /etc/nginx/nginx.eos.conf
 perl -pi -e 's/EOS_NGINX_CLIENT_SSL_PORT/$ENV{EOS_NGINX_CLIENT_SSL_PORT}/g'               /etc/nginx/nginx.eos.conf
