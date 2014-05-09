@@ -7001,13 +7001,14 @@ XrdMgmOfs::FSctl (const int cmd,
                 XrdOucString fullcapability = "";
                 XrdOucString hexfid = "";
 
-                if ((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaidDP) ||
-                    (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kArchive) ||
-                    (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaid6))
+                if ( ((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaidDP) ||
+		      (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kArchive) ||
+		      (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaid6)) &&
+		     source_snapshot.mConfigStatus == eos::common::FileSystem::kDrainDead )
                 {
                   // -----------------------------------------------------------
                   // RAIN layouts (not replica) drain by running a 
-                  // reconstruction 'eoscp -c' ...
+                  // reconstruction 'eoscp -c' ... if they are in draindead
                   // they are easy to configure, they just call an open with 
                   // reconstruction/replacement option and the real scheduling
                   // is done when 'eoscp' is executed.
@@ -7054,23 +7055,30 @@ XrdMgmOfs::FSctl (const int cmd,
                   std::vector<unsigned int> unavailfs; // not used
                   eos::common::Mapping::VirtualIdentity_t h_vid;
                   eos::common::Mapping::Root(h_vid);
-                  if ((!space) || (retc = space->FileAccess(h_vid,
-                                                            (long unsigned int) 0,
-                                                            (const char*) 0,
-                                                            lid,
-                                                            locationfs,
-                                                            fsindex,
-                                                            false, 
-							    (long long unsigned) 0,
-                                                            unavailfs)))
-                  {
-                    // inaccessible files we let retry after 60 seconds
-                    eos_thread_err("cmd=schedule2drain msg=\"no access to file %llx retc=%d\"", fid, retc);
-                    sScheduledFid[fid] = time(NULL) + 60;
-                    // try with next file
-                    fit++;
-                    continue;
-                  }
+
+		  if ( ((eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaidDP) &&
+			(eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kArchive) &&
+			(eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaid6)) )
+		  {
+		    // exclude another scheduling for RAIN files - there is no alternitive location here
+		    if ((!space) || (retc = space->FileAccess(h_vid,
+							      (long unsigned int) 0,
+							      (const char*) 0,
+							      lid,
+							      locationfs,
+							      fsindex,
+							      false, 
+							      (long long unsigned) 0,
+							      unavailfs)))
+		    {
+		      // inaccessible files we let retry after 60 seconds
+		      eos_thread_err("cmd=schedule2drain msg=\"no access to file %llx retc=%d\"", fid, retc);
+		      sScheduledFid[fid] = time(NULL) + 60;
+		      // try with next file
+		      fit++;
+		      continue;
+		    }
+		  }
 
                   if ((size < freebytes))
                   {

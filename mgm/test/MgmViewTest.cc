@@ -114,7 +114,9 @@ int main() {
   std::string listformat2 = "key=queuepath:width=2:format=os|sep=&|key=schedgroup:width=1:format=os|sep=&|key=blocks:width=1:format=os|sep=&|key=statfs.wopen:width=1:format=os";
 
   output += "[ next test ]\n";
-  FsView::gFsView.mSpaceView["default"]->Print(output, format1,"");
+  std::vector<std::string> selections;
+
+  FsView::gFsView.mSpaceView["default"]->Print(output, format1,"", selections);
   output += "[ next test ]\n";
   FsView::gFsView.PrintSpaces(output, format1, "");
   output += "[ next test ]\n";
@@ -122,7 +124,7 @@ int main() {
   output += "[ next test ]\n";
   FsView::gFsView.PrintNodes(output, format1, "");
   output += "[ next test ]\n";
-  FsView::gFsView.mSpaceView["default"]->Print(output, format2,"");
+  FsView::gFsView.mSpaceView["default"]->Print(output, format2,"", selections);
   output += "[ next test ]\n";
   FsView::gFsView.PrintSpaces(output, format2, "");
   output += "[ next test ]\n";

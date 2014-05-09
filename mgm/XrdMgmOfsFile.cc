@@ -1392,12 +1392,23 @@ XrdMgmOfsFile::open (const char *inpath,
   // For 'pio' mode we hand out plain layouts to the client and add the IO 
   // layout as an extra field
   // ---------------------------------------------------------------------------
+
+  std::set<unsigned long> ufs;
+  {
+    // get the unique number of filesystems
+    for (size_t i=0; i < selectedfs.size();i++)
+      ufs.insert(selectedfs[i]);
+    for (size_t i=0; i < PioReconstructFsList.size(); i++)
+      ufs.insert(PioReconstructFsList[i]);
+  }
+		 
+
   newlayoutId =
     eos::common::LayoutId::GetId(
                                  isPio ? eos::common::LayoutId::kPlain :
                                  eos::common::LayoutId::GetLayoutType(layoutId),
                                  isPio ? eos::common::LayoutId::kNone : eos::common::LayoutId::GetChecksum(layoutId),
-                                 isPioReconstruct?static_cast<int> (selectedfs.size()) + PioReconstructFsList.size() : static_cast<int> (selectedfs.size()),
+                                 isPioReconstruct?static_cast<int> (ufs.size()) : static_cast<int> (selectedfs.size()),
                                  eos::common::LayoutId::GetBlocksizeType(layoutId),
                                  eos::common::LayoutId::GetBlockChecksum(layoutId));
 
@@ -1757,6 +1768,12 @@ XrdMgmOfsFile::open (const char *inpath,
     {
       redirectionhost += "&mgm.checksum=";
       redirectionhost += openOpaque->Get("eos.checksum");
+    }
+
+    if (openOpaque->Get("eos.mtime"))
+    {
+      redirectionhost += "&mgm.time=";
+      redirectionhost += openOpaque->Get("eos.mtime");
     }
 
     // For the moment we redirect only on storage nodes
