@@ -35,7 +35,7 @@
 
 
 user              EOS_NGINX_USER;
-worker_processes  256;
+worker_processes  64;
 error_log         /var/log/nginx/error.log info;
 pid               /var/run/nginx.pid;
 
@@ -61,6 +61,10 @@ http {
     #gzip                  on;
     #keepalive_timeout     0;
     
+    auth_ldap_cache_enabled on;
+    auth_ldap_cache_expiration_time 10000;
+    auth_ldap_cache_size 1000;
+
     # Load config files from the /etc/nginx/conf.d directory
     # The default server is in conf.d/default.conf
     # include /etc/nginx/conf.d/*.conf;
@@ -121,11 +125,11 @@ http {
             internal;
             
             # Necessary when using variable proxy_pass directive
-            resolver 8.8.8.8 137.138.16.5 137.138.17.5;
+            resolver 127.0.0.1;
 
             # Location-specific logging
-            access_log x509.internal_redirect.access.log main;
-            error_log  x509.internal_redirect.error.log  debug;
+            access_log /var/log/nginx/x509.internal_redirect.access.log main;
+            error_log  /var/log/nginx/x509.internal_redirect.error.log  ;
 
             # Extract download url from the request
             set $download_host $1;
@@ -218,11 +222,11 @@ http {
             internal;
             
             # Necessary when using variable proxy_pass directive
-            resolver 8.8.8.8 137.138.16.5 137.138.17.5;
+            resolver 127.0.0.1;
 
             # Location-specific logging
-            access_log krb5.internal_redirect.access.log main;
-            error_log  krb5.internal_redirect.error.log  debug;
+            access_log /var/log/nginx/krb5.internal_redirect.access.log main;
+            error_log  /var/log/nginx/krb5.internal_redirect.error.log  ;
 
             # Extract download url from the request
             set $download_uri  $2;
@@ -277,6 +281,7 @@ http {
 	ssl_session_cache      shared:SSL:10m;
         ssl_session_timeout    10m;
 
+
         # allow Owncloud clients to retrieve the server version without authentication
 	location ~* /(status.php)$ {
 
@@ -321,11 +326,11 @@ http {
             internal;
             
             # Necessary when using variable proxy_pass directive
-            resolver 8.8.8.8 137.138.16.5 137.138.17.5;
+            resolver 127.0.0.1;
 
             # Location-specific logging
-            access_log ldap.internal_redirect.access.log main;
-            error_log  ldap.internal_redirect.error.log  debug;
+            access_log /var/log/nginx/ldap.internal_redirect.access.log main;
+            error_log  /var/log/nginx/ldap.internal_redirect.error.log  ;
 
             # Extract download url from the request
             set $download_host $1;
