@@ -756,7 +756,7 @@ com_find_usage:
   fprintf(stdout, "                                                           -layoutstripes <n> :  apply new layout with <n> stripes to all files found\n");
   fprintf(stdout, "                                                                           -1 :  find files which are atleast 1 hour old\n");
   fprintf(stdout, "                                                                 --stripediff :  find files which have not the nominal number of stripes(replicas)\n");
-  fprintf(stdout, "                                                                  --faultyacl :  find directories with illegal ACLs");
+  fprintf(stdout, "                                                                  --faultyacl :  find directories with illegal ACLs\n");
   fprintf(stdout, "                                                                      --count :  just print global counters for files/dirs found\n");
   fprintf(stdout, "                                                                 --childcount :  print the number of children in each directory\n");
   fprintf(stdout, "                                                                  --purge <n> :  remove versioned files keeping <n> versions - to remove all old versions use --purge 0 ! To apply the settings of the extended attribute definition use <n>=-1 !\n"); 

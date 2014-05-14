@@ -56,6 +56,7 @@ add_library (XrdEosMgm MODULE
             proc/admin/Vid.cc
             proc/admin/Vst.cc
             proc/user/Attr.cc
+	    proc/user/Archive.cc
             proc/user/Cd.cc
             proc/user/Chmod.cc
             proc/user/Chown.cc

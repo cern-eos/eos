@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ 
+include_directories( ${CMAKE_SOURCE_DIR}
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${XROOTD_PRIVATE_INCLUDE_DIR} 
 		     ${SPARSEHASH_INCLUDE_DIR} )
@@ -41,7 +41,8 @@ add_executable( eos
 		../fst/checksum/crc32c.cc
 		../fst/checksum/crc32ctables.cc
 		commands/com_access.cc
-		commands/com_attr.cc
+		commands/com_archive.cc
+	        commands/com_attr.cc
 		commands/com_cd.cc
 		commands/com_chmod.cc 
 		commands/com_chown.cc 
