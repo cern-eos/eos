@@ -175,6 +175,7 @@ public:
   //! list of user proc commands
   // -------------------------------------------------------------------------
   int Attr ();
+  int Archive();
   int Cd ();
   int Chmod ();
   int DirInfo (const char* path);
@@ -196,7 +197,7 @@ public:
   int Whoami ();
 
   // -------------------------------------------------------------------------
-  //! list of addmin proc commands
+  //! list of admin proc commands
   // -------------------------------------------------------------------------
   int Access ();
   int Chown ();

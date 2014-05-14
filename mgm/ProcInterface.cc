@@ -122,6 +122,11 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
       ((cmd == "attr") &&
        ((subcmd == "set") ||
         (subcmd == "rm"))) ||
+      ((cmd == "archive") &&
+       ((subcmd == "create") ||
+        (subcmd == "stage")  ||
+        (subcmd == "migrate")||
+        (subcmd == "list"))) ||
       ((cmd == "mkdir")) ||
       ((cmd == "rmdir")) ||
       ((cmd == "rm")) ||
@@ -550,6 +555,11 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
   // ----------------------------------------------------------------------------
   if (mUserCmd)
   {
+    if (mCmd == "archive")
+    {
+      Archive();
+      mDoSort = false;
+    }
     if (mCmd == "motd")
     {
       Motd();
