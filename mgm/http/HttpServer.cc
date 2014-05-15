@@ -24,12 +24,14 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/http/HttpServer.hh"
 #include "mgm/http/ProtocolHandlerFactory.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "common/http/ProtocolHandler.hh"
 #include "common/http/HttpRequest.hh"
 #include "common/StringConversion.hh"
 #include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 #include <sstream>
@@ -54,6 +56,26 @@ HttpServer::Handler (void *cls,
                      void **ptr)
 {
   std::map<std::string, std::string> headers;
+  bool go=false;
+  do
+  {
+    // --------------------------------------------------------
+    // wait that the namespace is booted
+    // --------------------------------------------------------
+    {
+      XrdSysMutexHelper(gOFS->InitializationMutex);
+      if (gOFS->Initialized == gOFS->kBooted)
+      {
+	go = true;
+      }
+      else
+      {
+	XrdSysTimer sleeper;
+	sleeper.Wait(100);
+      }
+    }
+  }
+  while (!go);
 
   // If this is the first call, create an appropriate protocol handler based
   // on the headers and store it in *ptr. We should only return MHD_YES here
@@ -127,8 +149,6 @@ HttpServer::Handler (void *cls,
   if (*uploadDataSize != 0)
   {
     *uploadDataSize = 0;
-    delete protocolHandler;
-    *ptr = 0;
     return MHD_YES;
   }
 
@@ -160,7 +180,7 @@ HttpServer::Handler (void *cls,
     // Queue the response
     int ret = MHD_queue_response(connection, response->GetResponseCode(),
                                  mhdResponse);
-    eos_static_info("msg=\"MHD_queue_response\" retc=%d", ret);
+    eos_static_debug("msg=\"MHD_queue_response\" retc=%d", ret);
     MHD_destroy_response(mhdResponse);
     delete protocolHandler;
     *ptr = 0;
