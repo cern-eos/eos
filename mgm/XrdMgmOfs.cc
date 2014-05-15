@@ -5300,7 +5300,6 @@ XrdMgmOfs::FSctl (const int cmd,
 		// we have to deatomize the fmd name here e.g. make the temporary atomic name a persistent name
 		try
 		{
-		  dir = eosView->getContainer(atomic_path.GetParentPath());
 		  eosView->renameFile(fmd, atomic_path.GetName());
 		  UpdateNowInmemoryDirectoryModificationTime(dir->getId());
 		  eos_thread_info("msg=\"de-atomize file\" fid=%llu atomic-name=%s final-name=%s", fmd->getId(), fmd->getName().c_str(), atomic_path.GetName());
