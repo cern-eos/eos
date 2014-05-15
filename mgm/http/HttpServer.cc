@@ -78,7 +78,9 @@ HttpServer::Handler (void *cls,
     }
 
     *ptr = handler;
-    return MHD_YES;
+    // PUT has to run through to avoid the generation of 100-CONTINUE before a redirect
+    if ( strcmp(method,"PUT") )
+      return MHD_YES;
   }
 
   // Retrieve the protocol handler stored in *ptr
@@ -125,6 +127,8 @@ HttpServer::Handler (void *cls,
   if (*uploadDataSize != 0)
   {
     *uploadDataSize = 0;
+    delete protocolHandler;
+    *ptr = 0;
     return MHD_YES;
   }
 
@@ -132,6 +136,8 @@ HttpServer::Handler (void *cls,
   if (!response)
   {
     eos_static_crit("msg=\"response creation failed\"");
+    delete protocolHandler;
+    *ptr = 0;
     return MHD_NO;
   }
   eos_static_debug("\n\n%s", response->ToString().c_str());
@@ -157,11 +163,14 @@ HttpServer::Handler (void *cls,
     eos_static_info("msg=\"MHD_queue_response\" retc=%d", ret);
     MHD_destroy_response(mhdResponse);
     delete protocolHandler;
+    *ptr = 0;
     return ret;
   }
   else
   {
     eos_static_crit("msg=\"response creation failed\"");
+    delete protocolHandler;
+    *ptr = 0;
     return MHD_NO;
   }
 }
@@ -254,7 +263,6 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
 
     if (remoteUser.length()) 
     {
-      fprintf(stderr,"==> host is %s\n", headers["Host"].c_str());
       // extract kerberos username
       pos = remoteUser.find_last_of("@");
       std::string remoteUserName = remoteUser.substr(0, pos);

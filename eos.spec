@@ -1,7 +1,7 @@
 %define _unpackaged_files_terminate_build 0
 Summary: The EOS project
 Name: eos
-Version: 0.3.30
+Version: 0.3.31
 Release: 1
 Prefix: /usr
 License: none
@@ -28,7 +28,7 @@ BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: xrootd-client-devel
 BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
-BuildRequires: git
+BuildRequires: git gloox
 
 %if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
 %if %{?fedora}%{!?fedora:0} >= 18
@@ -82,7 +82,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files -n eos-server
 %defattr(-,root,root)
-/usr/lib64/libXrdMqOfs.so.0.3.30
+/usr/lib64/libXrdMqOfs.so.0.3.31
 /usr/lib64/libXrdMqOfs.so.0
 /usr/lib64/libXrdMqOfs.so
 /usr/bin/xrdmqdumper
@@ -90,16 +90,16 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eoshapl
 /usr/sbin/eosfilesync
 /usr/sbin/eosdirsync
-/usr/lib64/libeosCommonServer.so.0.3.30
+/usr/lib64/libeosCommonServer.so.0.3.31
 /usr/lib64/libeosCommonServer.so.0
 /usr/lib64/libeosCommonServer.so
-/usr/lib64/libXrdEosAuth.so.0.3.30
+/usr/lib64/libXrdEosAuth.so.0.3.31
 /usr/lib64/libXrdEosAuth.so.0
 /usr/lib64/libXrdEosAuth.so
-/usr/lib64/libXrdEosFst.so.0.3.30
+/usr/lib64/libXrdEosFst.so.0.3.31
 /usr/lib64/libXrdEosFst.so.0
 /usr/lib64/libXrdEosFst.so
-/usr/lib64/libEosFstOss.so.0.3.30
+/usr/lib64/libEosFstOss.so.0.3.31
 /usr/lib64/libEosFstOss.so.0
 /usr/lib64/libEosFstOss.so
 /usr/sbin/eosfstregister
@@ -115,7 +115,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eos-ioping
 /usr/sbin/eos-iobw
 /usr/sbin/eos-iops
-/usr/lib64/libXrdEosMgm.so.0.3.30
+/usr/lib64/libXrdEosMgm.so.0.3.31
 /usr/lib64/libXrdEosMgm.so.0
 /usr/lib64/libXrdEosMgm.so
 /usr/sbin/eos-log-compact
@@ -165,17 +165,17 @@ fi
 #######################################################################################
 Summary: The EOS shell client
 Group: Applications/File
-Requires: xrootd-client
+Requires: xrootd-client gloox
 %description -n eos-client
 The EOS shell client.
 %files -n eos-client
 /usr/bin/eos
 /usr/bin/eosdropboxd
 /usr/bin/eoscp
-/usr/lib64/libXrdMqClient.so.0.3.30
+/usr/lib64/libXrdMqClient.so.0.3.31
 /usr/lib64/libXrdMqClient.so.0
 /usr/lib64/libXrdMqClient.so
-/usr/lib64/libeosCommon.so.0.3.30
+/usr/lib64/libeosCommon.so.0.3.31
 /usr/lib64/libeosCommon.so.0
 /usr/lib64/libeosCommon.so
 
