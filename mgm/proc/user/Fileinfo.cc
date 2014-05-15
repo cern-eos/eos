@@ -421,12 +421,21 @@ ProcCommand::FileInfo (const char* path)
             stdOut += " ";
             stdOut += "xs=";
             size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
-            for (unsigned int i = 0; i < SHA_DIGEST_LENGTH; i++)
+
+            if (cxlen)
             {
-              char hb[3];
-              sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPadded(i)) : 0);
-              stdOut += hb;
+              for (unsigned int i = 0; i < cxlen; i++)
+              {
+                char hb[3];
+                sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
+                stdOut += hb;
+              }
             }
+            else
+            {
+              stdOut += "0";
+            }
+                  
             stdOut += " ";
 	    stdOut += "etag=";
 	    stdOut += etag.c_str();
