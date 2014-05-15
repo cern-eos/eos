@@ -28,7 +28,7 @@ BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: xrootd-client-devel
 BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
-BuildRequires: git gloox
+BuildRequires: git
 
 %if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
 %if %{?fedora}%{!?fedora:0} >= 18
@@ -165,7 +165,7 @@ fi
 #######################################################################################
 Summary: The EOS shell client
 Group: Applications/File
-Requires: xrootd-client gloox
+Requires: xrootd-client 
 %description -n eos-client
 The EOS shell client.
 %files -n eos-client
