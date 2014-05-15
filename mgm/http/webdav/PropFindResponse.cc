@@ -89,7 +89,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
   //    depth = "1,noroot";
   //  }
 
-  eos_static_info("depth=%s, isdir=%d", depth.c_str(), S_ISDIR(statInfo.st_mode));
+  eos_static_debug("depth=%s, isdir=%d", depth.c_str(), S_ISDIR(statInfo.st_mode));
   xml_node<> *responseNode = 0;
   if (depth == "0" || !S_ISDIR(statInfo.st_mode))
   {
@@ -259,7 +259,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   while (hrefp.replace("//","/")) {}
 
   // Is the requested resource a file or directory?
-  eos_static_info("url=%s", urlp.c_str());
+  eos_static_debug("url=%s", urlp.c_str());
   if (gOFS->_stat(urlp.c_str(), &statInfo, error, *mVirtualIdentity,
 		  (const char*) 0, &etag))
   {
@@ -268,7 +268,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
     SetResponseCode(ResponseCodes::NOT_FOUND);
     return NULL;
   }
-  eos_static_info("url=%s etag=%s", urlp.c_str(), etag.c_str());
+  eos_static_debug("url=%s etag=%s", urlp.c_str(), etag.c_str());
 
   // <response/> node
   xml_node<> *responseNode = AllocateNode("d:response");
