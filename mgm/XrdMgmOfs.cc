@@ -5296,12 +5296,11 @@ XrdMgmOfs::FSctl (const int cmd,
 	      if (fmd->getName() != atomic_path.GetName()) 
 	      {
 		eos_thread_debug("commit: de-atomize file %s => %s", fmd->getName().c_str(), atomic_path.GetName());
-		eos::ContainerMD* dir = 0;
 		// we have to deatomize the fmd name here e.g. make the temporary atomic name a persistent name
 		try
 		{
 		  eosView->renameFile(fmd, atomic_path.GetName());
-		  UpdateNowInmemoryDirectoryModificationTime(dir->getId());
+		  UpdateNowInmemoryDirectoryModificationTime(fmd->getContainerId());
 		  eos_thread_info("msg=\"de-atomize file\" fid=%llu atomic-name=%s final-name=%s", fmd->getId(), fmd->getName().c_str(), atomic_path.GetName());
 		}
 		catch (eos::MDException &e)
