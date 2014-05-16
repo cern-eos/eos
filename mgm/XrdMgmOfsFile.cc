@@ -409,6 +409,7 @@ XrdMgmOfsFile::open (const char *inpath,
   uid_t d_uid = vid.uid;
   gid_t d_gid = vid.gid;
 
+  std::string creation_path=path;
 
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -758,7 +759,6 @@ XrdMgmOfsFile::open (const char *inpath,
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
           try
           {
-	    std::string creation_path=path;
             // we create files with the uid/gid of the parent directory
 	    if (isAtomicUpload) 
 	    {
@@ -1333,7 +1333,7 @@ XrdMgmOfsFile::open (const char *inpath,
 
           try
           {
-            fmd = gOFS->eosView->getFile(path);
+            fmd = gOFS->eosView->getFile(creation_path);
 
             for (int i = 0; i < (int) selectedfs.size(); i++)
             {
