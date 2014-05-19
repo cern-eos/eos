@@ -749,7 +749,10 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     vid.gid = sel_gid;
   }
 
-  vid.host = host.c_str();
+  if (client->host)
+    vid.host = client->host;
+  else
+    vid.host = host.c_str();
 
   {
     int errc = 0;
@@ -817,7 +820,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   if (ActiveTidents.size() < 60000)
   {
     char actident[1024];
-    snprintf(actident, sizeof (actident) - 1, "%d:%s:%s", vid.uid, mytident.c_str(), vid.prot.c_str());
+    snprintf(actident, sizeof (actident) - 1, "%d^%s^%s^%s", vid.uid, mytident.c_str(), vid.prot.c_str(), vid.host.c_str());
     std::string intident = actident;
     ActiveTidents[intident] = now;
   }
@@ -826,7 +829,6 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   eos_static_debug("selected %d %d [%s %s]", vid.uid, vid.gid, ruid.c_str(), rgid.c_str());
   if (log)
   {
-
     eos_static_info("%s sec.tident=\"%s\"", eos::common::SecEntity::ToString(client, Env.Get("eos.app")).c_str(), tident);
   }
 }

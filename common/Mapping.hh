@@ -192,13 +192,13 @@ public:
     vidout.prot = vidin.prot;
     vidout.uid_list.clear();
     vidout.gid_list.clear();
-    vidout.host = vidin.host;
     vidout.uid_string = vidin.uid_string;
     vidout.gid_string = vidin.gid_string;
 
     for (unsigned int i = 0; i < vidin.uid_list.size(); i++) vidout.uid_list.push_back(vidin.uid_list[i]);
     for (unsigned int i = 0; i < vidin.gid_list.size(); i++) vidout.gid_list.push_back(vidin.gid_list[i]);
 
+    vidout.host = vidin.host;
     vidout.host = vidin.host;
     vidout.grps = vidin.grps;
     vidout.role = vidin.role;

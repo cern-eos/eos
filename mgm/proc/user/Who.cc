@@ -3,7 +3,7 @@
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
-/************************************************************************
+/******************A******************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
@@ -36,7 +36,7 @@ ProcCommand::Who ()
   std::map<std::string, int> usernamecount;
   std::map<std::string, int> authcount;
   std::vector<std::string> tokens;
-  std::string delimiter = ":";
+  std::string delimiter = "^";
   std::string option = (pOpaque->Get("mgm.option")) ? pOpaque->Get("mgm.option") : "";
   bool monitoring = false;
   //      bool translate  = true;
@@ -141,11 +141,11 @@ ProcCommand::Who ()
       time_t now = time(NULL);
       if (!monitoring)
       {
-        snprintf(formatline, sizeof (formatline) - 1, "client : %-10s               := %-30s (%4s) %lds idle time\n", username.c_str(), tokens[1].c_str(), tokens[2].c_str(), now - it->second);
+        snprintf(formatline, sizeof (formatline) - 1, "client : %-10s               := %-30s (%5s) [ %-32s ] %lds idle time \n", username.c_str(), tokens[1].c_str(), tokens[2].c_str(), tokens[3].c_str(), now - it->second);
       }
       else
       {
-        snprintf(formatline, sizeof (formatline) - 1, "client=%s uid=%s auth=%s idle=%ld\n", tokens[1].c_str(), username.c_str(), tokens[2].c_str(), now - it->second);
+        snprintf(formatline, sizeof (formatline) - 1, "client=%s uid=%s auth=%s idle=%ld gateway=\"%s\"\n", tokens[1].c_str(), username.c_str(), tokens[2].c_str(), now - it->second, tokens[3].c_str());
       }
       if (showsummary && (!monitoring))
       {

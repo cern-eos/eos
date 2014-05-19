@@ -96,11 +96,7 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # ------------------------------------------------------------------
 # HTTPD Configuration
 # ------------------------------------------------------------------
-# Enable multithreaded httpd
-export EOS_HTTP_THREADPOOL=1
-
-# Configure the thread-pool with 16 threads
-export EOS_HTTP_THREADPOOL_SIZE=16
+# HTTP is by default multithreaded, nothing to configure here
 
 # ------------------------------------------------------------------
 # Federation Configuration
