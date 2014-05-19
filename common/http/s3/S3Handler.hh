@@ -101,6 +101,15 @@ public:
   HandleRequest (eos::common::HttpRequest *request) = 0;
 
   /**
+   * Guess the default content type by suffix
+   *
+   * @param file path
+   * @return S3 content type string
+   */
+  static
+  std::string ContentType (const std::string &path);
+
+  /**
    * Analyze the header map, searching for HTTP and Amazon headers
    *
    * @param request  the client request object

@@ -55,6 +55,8 @@ WebDAVHandler::HandleRequest (eos::common::HttpRequest *request)
   eos_static_debug("msg=\"handling webdav request\"");
   eos::common::HttpResponse *response = 0;
 
+  request->AddEosApp();
+
   int meth = ParseMethodString(request->GetMethod());
   switch (meth)
   {

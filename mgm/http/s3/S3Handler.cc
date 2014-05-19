@@ -82,6 +82,7 @@ S3Handler::HandleRequest (eos::common::HttpRequest *request)
 
   if (VerifySignature())
   {
+    request->AddEosApp();
     int meth = ParseMethodString(request->GetMethod());
     switch (meth)
     {

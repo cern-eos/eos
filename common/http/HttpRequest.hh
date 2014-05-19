@@ -153,6 +153,13 @@ public:
    */
   std::string
   ToString();
+  
+  /**
+   * Add the eos HTTP application CGI query
+   */
+  void
+  AddEosApp () { mRequestQuery += "&eos.app=http"; }
+ 
 };
 
 /*----------------------------------------------------------------------------*/

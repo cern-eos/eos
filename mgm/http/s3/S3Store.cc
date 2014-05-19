@@ -294,7 +294,7 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
   std::string lPrefix = prefix;
   if (prefix == "")
   {
-    lPrefix = "/";
+    //    lPrefix = "/";
   }
 
   eos_static_info("msg=\"listing\" bucket=%s prefix=%s", bucket.c_str(),
@@ -322,6 +322,7 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
     result += "</Marker>";
   }
 
+  result += "<Delimiter>/</Delimiter>";
   result += "<MaxKeys>";
   char smaxkeys[16];
   snprintf(smaxkeys, sizeof (smaxkeys) - 1, "%llu",
@@ -335,7 +336,7 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
   result += "<IsTruncated>false</IsTruncated>";
 
   XrdOucString sPrefix = lPrefix.c_str();
-  if (!sPrefix.endswith("/"))
+  if (!sPrefix.endswith("/") && sPrefix.length())
   {
     lPrefix += "/";
   }
@@ -829,7 +830,7 @@ S3Store::GetObject (eos::common::HttpRequest *request,
                                             8001, false);
 
         response->AddHeader("x-amz-website-redirect-location",
-                            response->GetHeaders()["Location"]);
+			    response->GetHeaders()["Location"]);
 
         std::string body = XML_V1_UTF8;
         body += "<Error>"
@@ -935,9 +936,12 @@ S3Store::PutObject (eos::common::HttpRequest *request,
     client.host = strdup(request->GetHeaders()["Host"].c_str());
     client.tident = strdup("http");
     snprintf(client.prot,sizeof(client.prot)-1,"https"); 
-    
+
+    // force MD5 checksums for S3 file creation
+    std::string newquery=query;
+    newquery.insert(0,"&eos.checksum.noforce=1&eos.layout.checksum=md5");
     int rc = file->open(objectpath.c_str(), SFS_O_TRUNC, SFS_O_MKPTH, &client,
-                        query.c_str());
+                        newquery.c_str());
     if (rc == SFS_REDIRECT)
     {
 
@@ -947,7 +951,8 @@ S3Store::PutObject (eos::common::HttpRequest *request,
                                           8001, false);
 
       response->AddHeader("x-amz-website-redirect-location",
-                          response->GetHeaders()["Location"]);
+			  response->GetHeaders()["Location"]);
+
       std::string body = XML_V1_UTF8;
       body += "<Error>"
               "<Code>TemporaryRedirect</Code>"

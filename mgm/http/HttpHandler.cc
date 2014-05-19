@@ -55,6 +55,8 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
 {
   eos_static_debug("handling http request");
   eos::common::HttpResponse *response = 0;
+  
+  request->AddEosApp();
 
   int meth = ParseMethodString(request->GetMethod());
   switch (meth)
@@ -681,10 +683,14 @@ HttpHandler::Put (eos::common::HttpRequest * request)
       create_mode |= (SFS_O_MKPTH | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
       std::string query;
-      if (request->GetHeaders()["Content-Length"] == "0" ||
-          *request->GetBodySize() == 0)
+      if (request->GetHeaders().count("Content-Length"))
       {
-        query += "eos.bookingsize=0";
+	query += "eos.bookingsize=";
+	query += request->GetHeaders()["Content-Length"];
+      }
+      else 
+      {
+	query = "eos.bookingsize=0";
       }
 
       // -----------------------------------------------------------

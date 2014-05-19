@@ -89,7 +89,7 @@ HttpServer::Run ()
 
     if (getenv("EOS_HTTP_THREADPOOL"))
     {
-      mDaemon = MHD_start_daemon(MHD_USE_DEBUG | MHD_USE_SELECT_INTERNALLY | MHD_USE_POLL,
+      mDaemon = MHD_start_daemon(MHD_USE_DEBUG |  MHD_USE_THREAD_PER_CONNECTION,
                                  mPort,
                                  NULL,
                                  NULL,
@@ -97,10 +97,6 @@ HttpServer::Run ()
                                  (void*) 0,
                                  MHD_OPTION_CONNECTION_MEMORY_LIMIT,
                                  128 * 1024 * 1024 /* 128MB */,
-                                 MHD_OPTION_THREAD_POOL_SIZE,
-                                 getenv("EOS_HTTP_THREADPOOL_SIZE") ?
-                                 (atoi(getenv("EOS_HTTP_THREADPOOL_SIZE")) > 0) ?
-                                 atoi(getenv("EOS_HTTP_THREADPOOL_SIZE")) : 16 : 16,
                                  MHD_OPTION_END
                                  );
     }
@@ -221,7 +217,7 @@ HttpServer::BuildHeaderMap (void *cls,
     = static_cast<std::map<std::string, std::string>*> (cls);
   if (key && value && hMap)
   {
-    (*hMap)[key] = value;
+    (*hMap)[key] = value?value:"";
   }
   return MHD_YES;
 }
@@ -235,15 +231,26 @@ HttpServer::BuildQueryString (void *cls,
 {
   // Call back function to return the query string of an HTTP request
   std::string* qString = static_cast<std::string*> (cls);
-  if (key && value && qString)
+  if (key && qString)
   {
-    if (qString->length())
+    if (value) 
     {
-      *qString += "&";
+      if (qString->length())
+      {
+	*qString += "&";
+      }
+      *qString += key;
+      *qString += "=";
+      *qString += value;
     }
-    *qString += key;
-    *qString += "=";
-    *qString += value;
+    else
+    {
+      if (qString->length())
+      {
+	*qString += "&";
+      }
+      *qString += key;
+    }
   }
   return MHD_YES;
 }
