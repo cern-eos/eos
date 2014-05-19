@@ -99,6 +99,7 @@ http {
             proxy_pass         EOS_NGINX_MGM_URL;
 
             proxy_set_header   Host               $host;
+	    proxy_set_header   Auth-Type          "x509";
             proxy_set_header   X-Real-IP          $remote_addr;
             proxy_set_header   X-Forwarded-For    $proxy_add_x_forwarded_for;
             proxy_set_header   SSL_CLIENT_S_DN    $ssl_client_s_dn;
@@ -191,6 +192,7 @@ http {
             proxy_pass         EOS_NGINX_MGM_URL;
 
             proxy_set_header   Host               $host;
+	    proxy_set_header   Auth-Type          "krb5";
             proxy_set_header   X-Real-IP          $remote_addr;
             proxy_set_header   X-Forwarded-For    $proxy_add_x_forwarded_for;
 
@@ -288,6 +290,7 @@ http {
             proxy_pass         EOS_NGINX_MGM_URL;
 
             proxy_set_header   Host               $host;
+	    proxy_set_header   Auth-Type          "ldap";
             proxy_set_header   X-Real-IP          $remote_addr;
             proxy_set_header   X-Forwarded-For    $proxy_add_x_forwarded_for;
             proxy_set_header   Remote-User nobody;
@@ -299,6 +302,7 @@ http {
             proxy_set_header   Authorization '';
 
             proxy_set_header   Host               $host;
+	    proxy_set_header   Auth-Type          "ldap";
             proxy_set_header   X-Real-IP          $remote_addr;
             proxy_set_header   X-Forwarded-For    $proxy_add_x_forwarded_for;
             proxy_set_header      Remote-User $remote_user;
