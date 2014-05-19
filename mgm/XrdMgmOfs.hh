@@ -638,7 +638,8 @@ public:
               XrdOucErrInfo &error,
               eos::common::Mapping::VirtualIdentity &vid,
               int max_versions,
-              XrdOucString* versionedname=0);
+              XrdOucString* versionedname=0,
+	      bool simulate=false);
 
   // ---------------------------------------------------------------------------
   // purge versioned files to max_versions
