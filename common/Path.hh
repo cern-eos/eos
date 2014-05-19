@@ -102,24 +102,26 @@ public:
   //! Return atomic path
   // ---------------------------------------------------------------------------
   const char*
-  GetAtomicPath () {
+  GetAtomicPath (bool versioning) {
     if (atomicPath.length())
       return atomicPath.c_str();
     else
-      return MakeAtomicPath();
+      return MakeAtomicPath(versioning);
   }
 
   // ---------------------------------------------------------------------------
   //! Return a unique atomic version of that path
   // ---------------------------------------------------------------------------
-  const char* MakeAtomicPath () {
-    // create from <dirname>/<basename> => <dirname>/.<basename>.<uuid>
+  const char* MakeAtomicPath (bool versioning) {
+    // create from <dirname>/<basename> => <dirname>/.[.]<basename>.<uuid>
     char suuid[40];
     uuid_t uuid;
     uuid_generate_time(uuid);
     uuid_unparse(uuid, suuid);
     atomicPath = GetParentPath();
     atomicPath += ".";
+    if (versioning)
+      atomicPath += ".";
     atomicPath += GetName();
     atomicPath += ".";
     atomicPath += suuid;
@@ -129,15 +131,24 @@ public:
   // ---------------------------------------------------------------------------
   //! Decode an atomic path
   // ---------------------------------------------------------------------------
-  const char* DecodeAtomicPath () {
-    // create from <dirname>/.<basename>.<uuid> => <dirname>/<basename>
+  const char* DecodeAtomicPath (bool &isVersioning) {
+    // create from <dirname>/.[.]<basename>.<uuid> => <dirname>/<basename>
     if (lastPath.beginswith(".") && 
 	(lastPath.length() > 37) &&
 	(lastPath[lastPath.length()-37] == '.') )
     {
       atomicPath = fullPath;
       lastPath.erase(lastPath.length()-37);
-      lastPath.erase(0,1);
+      if (lastPath.beginswith(".."))
+      {
+	lastPath.erase(0,2);
+	isVersioning = true;
+      }
+      else
+      {
+	lastPath.erase(0,1);
+	isVersioning = false;
+      }
       fullPath = parentPath + lastPath;
     }
     return fullPath.c_str();

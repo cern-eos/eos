@@ -640,7 +640,11 @@ XrdMgmOfsFile::open (const char *inpath,
       }
     }
   }
-    
+
+  // disable atomic uploads for FUSE clients
+  if (isFuse)
+    isAtomicUpload = false;
+
   if (isRW)
   {
     if (isRewrite &&
@@ -691,11 +695,27 @@ XrdMgmOfsFile::open (const char *inpath,
 
       if (versioning)
       {
-        // handle the versioning for a specific file ID
-        if (gOFS->Version(fileId, error, vid, versioning))
-        {
-          return Emsg(epname, error, errno, "version file", path);
-        }
+	if (isAtomicUpload)
+	{
+	  eos::common::Path cPath(path);
+	  XrdOucString vdir;
+	  vdir += cPath.GetParentPath();
+	  vdir += "/.sys.v#.";
+	  vdir += cPath.GetName();
+	  // atomic uploads need just to purge version to max-1, the version is created on commit
+	  // purge might return an error if the file was not yet existing/versioned
+	  gOFS->PurgeVersion(vdir.c_str(), error, versioning-1);
+	  errno = 0; 
+       
+	}
+	else
+	{
+	  // handle the versioning for a specific file ID
+	  if (gOFS->Version(fileId, error, vid, versioning))
+	  {
+	    return Emsg(epname, error, errno, "version file", path);
+	  }
+	}
       }
       else
       {
@@ -762,7 +782,7 @@ XrdMgmOfsFile::open (const char *inpath,
 	    if (isAtomicUpload) 
 	    {
 	      eos::common::Path cPath(path);
-	      creation_path = cPath.GetAtomicPath();
+	      creation_path = cPath.GetAtomicPath(versioning);
 	    }
 
 	    fmd = gOFS->eosView->createFile(creation_path.c_str(), vid.uid, vid.gid);

@@ -52,6 +52,8 @@ Policy::GetLayoutAndSpace (const char* path,
   unsigned long stripes = eos::common::LayoutId::GetStripeNumberFromEnv(env);
   unsigned long blocksize = eos::common::LayoutId::GetBlocksizeFromEnv(env);
 
+  bool noforcedchecksum=false;
+
   const char* val = 0;
   if ((val = env.Get("eos.space")))
   {
@@ -72,7 +74,14 @@ Policy::GetLayoutAndSpace (const char* path,
     // we don't force an explicit group
     forcedgroup = -1;
   }
-  
+
+  if ((xsum != eos::common::LayoutId::kNone) && (val = env.Get("eos.checksum.noforce")))
+  {
+    // we don't force *.forced.checksum settings
+    // we need this flag to be able to force MD5 checksums for S3 uploads
+    noforcedchecksum = true;
+  }
+
   if ((vid.uid == 0) && (val = env.Get("eos.layout.noforce")))
   {
     // root can request not to apply any forced settings
@@ -103,7 +112,7 @@ Policy::GetLayoutAndSpace (const char* path,
       eos_static_debug("sys.forced.layout in %s", path);
     }
 
-    if (attrmap.count("sys.forced.checksum"))
+    if (attrmap.count("sys.forced.checksum") && (!noforcedchecksum ))
     {
       XrdOucString layoutstring = "eos.layout.checksum=";
       layoutstring += attrmap["sys.forced.checksum"].c_str();
@@ -164,7 +173,7 @@ Policy::GetLayoutAndSpace (const char* path,
         eos_static_debug("user.forced.layout in %s", path);
       }
 
-      if (attrmap.count("user.forced.checksum"))
+      if (attrmap.count("user.forced.checksum") && (!noforcedchecksum ))
       {
         XrdOucString layoutstring = "eos.layout.checksum=";
         layoutstring += attrmap["user.forced.checksum"].c_str();
