@@ -1971,10 +1971,21 @@ XrdFstOfsFile::close ()
       // if there is a checksum we use the checksum, otherwise we return inode+mtime
       if (checkSum)
       {
-	// use inode + checksum
-	char setag[256];
-	snprintf(setag,sizeof(setag)-1,"\"%llu:%s\"", (unsigned long long)fMd->fMd.fid<<28,fMd->fMd.checksum.c_str() );
-	ETag = setag;
+
+	if (strcmp(checkSum->GetName(),"md5")) 
+	{
+	  // use inode + checksum
+	  char setag[256];
+	  snprintf(setag,sizeof(setag)-1,"\"%llu:%s\"", (unsigned long long)fMd->fMd.fid<<28,fMd->fMd.checksum.c_str() );
+	  ETag = setag;
+	}
+	else
+	{
+	  // use checksum, S3 wants the pure MD5
+	  char setag[256];
+	  snprintf(setag,sizeof(setag)-1,"\"%s\"", fMd->fMd.checksum.c_str() );
+	  ETag = setag;
+	}	
       }
       else
       {
