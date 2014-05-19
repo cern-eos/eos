@@ -1300,37 +1300,6 @@ eosfs_ll_flush (fuse_req_t req,
     {
       errno = EIO;
     }
-    else
-    {
-      //........................................................................
-      // We have to stat the namespace to check if the file has not been cleaned
-      //........................................................................
-      struct stat stbuf;
-      memset (&stbuf, 0, sizeof (struct stat));
-      char fullpath[16384];
-      fullpath[0] = 0;
-      {
-        xrd_lock_r_p2i (); // =>
-        const char* name = xrd_path ((unsigned long long) ino);
-        if (name)
-        {
-          sprintf (fullpath, "/%s%s", mountprefix, name);
-          if (isdebug) fprintf (stderr, "[%s]: inode=%lld path=%s\n", __FUNCTION__,
-                                (long long) ino, fullpath);
-        }
-        xrd_unlock_r_p2i (); // <=
-      }
-
-      int retc = (fullpath[0] ? xrd_stat (fullpath,
-                                          &stbuf,
-                                          req->ctx.uid,
-                                          req->ctx.gid,
-                                          ino) : -1);
-      if (retc)
-      {
-        errno = EIO;
-      }
-    }
   }
 
   fuse_reply_err (req, errno);
