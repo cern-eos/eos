@@ -290,8 +290,16 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
         }
         while (1);
         file->close();
+
         response = new eos::common::PlainHttpResponse();
-	response->AddHeader("ETag",etag);
+
+	XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
+
+	if (!gOFS->stat(url.c_str(), &buf, error, &etag, &client, ""))
+	{
+	  response->AddHeader("ETag",etag);
+	  response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
+	}
         response->SetBody(result);
       }
       // clean up the object
