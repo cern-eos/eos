@@ -95,6 +95,45 @@ StringConversion::EmptyTokenize (const std::string& str,
 
 // ---------------------------------------------------------------------------
 /** 
+ * Convert a long long value into time s,m,h,d  scale
+ * 
+ * @param sizestring returned XrdOuc string representation
+ * @param seconds number to convert
+ * 
+ * @return sizestring.c_str()
+ */
+// ---------------------------------------------------------------------------
+
+const char*
+StringConversion::GetReadableAgeString (XrdOucString& sizestring,
+                      unsigned long long age)
+{
+  char formsize[1024];
+  if (age > 86400)
+  {
+    sprintf(formsize, "%llud", age / 86400);
+  }
+  else
+    if (age > 3600)
+  {
+    sprintf(formsize, "%lluh", age / 3600);
+  }
+  else
+    if (age > 60)
+  {
+    sprintf(formsize, "%llum", age / 60);
+  }
+  else
+  {
+    sprintf(formsize, "%llus", age);
+  }
+  sizestring = formsize;
+  return sizestring.c_str();
+}
+
+
+// ---------------------------------------------------------------------------
+/** 
  * Convert a long long value into K,M,G,T,P,E byte scale
  * 
  * @param sizestring returned XrdOuc string representation
@@ -157,11 +196,12 @@ StringConversion::GetReadableSizeString (XrdOucString& sizestring, unsigned long
   {
     if (strlen(unit))
     {
-      sprintf(formsize, "%llu %s", insize , unit);
+      sprintf(formsize, "%llu %s", insize, unit);
     }
     else
     {
-      sprintf(formsize, "%llu", insize );
+
+      sprintf(formsize, "%llu", insize);
     }
   }
   sizestring = formsize;
@@ -270,6 +310,7 @@ StringConversion::GetSizeFromString (XrdOucString sizestring)
   }
   else
   {
+
     return (strtoll(sizestring.c_str(), 0, 10) * convfactor);
   }
 }
@@ -290,6 +331,7 @@ StringConversion::GetSizeFromString (XrdOucString sizestring)
 const char*
 StringConversion::GetReadableSizeString (std::string& sizestring, unsigned long long insize, const char* unit)
 {
+
   const char* ptr = 0;
   XrdOucString oucsizestring = "";
   ptr = GetReadableSizeString(oucsizestring, insize, unit);
@@ -311,6 +353,7 @@ StringConversion::GetReadableSizeString (std::string& sizestring, unsigned long 
 const char*
 StringConversion::GetSizeString (std::string& sizestring, unsigned long long insize)
 {
+
   char buffer[1024];
   sprintf(buffer, "%llu", insize);
   sizestring = buffer;
@@ -331,6 +374,7 @@ StringConversion::GetSizeString (std::string& sizestring, unsigned long long ins
 const char*
 StringConversion::GetSizeString (XrdOucString& sizestring, unsigned long long insize)
 {
+
   char buffer[1024];
   sprintf(buffer, "%llu", insize);
   sizestring = buffer;
@@ -351,6 +395,7 @@ StringConversion::GetSizeString (XrdOucString& sizestring, unsigned long long in
 const char*
 StringConversion::GetSizeString (XrdOucString& sizestring, double insize)
 {
+
   char buffer[1024];
   sprintf(buffer, "%.02f", insize);
   sizestring = buffer;
@@ -382,6 +427,7 @@ StringConversion::SplitKeyValue (std::string keyval, std::string &key, std::stri
   }
   else
   {
+
     key = value = "";
     return false;
   }
@@ -412,6 +458,7 @@ StringConversion::SplitKeyValue (XrdOucString keyval, XrdOucString &key, XrdOucS
   }
   else
   {
+
     key = value = "";
     return false;
   }
@@ -473,6 +520,7 @@ StringConversion::GetKeyValueMap (const char* mapstring,
     }
     else
     {
+
       return false;
     }
   }
@@ -500,6 +548,7 @@ StringConversion::GetHostPortFromQueue (const char* queue)
     pos = hostport.find("/");
     if (pos != STR_NPOS)
     {
+
       hostport.erase(pos);
     }
   }
@@ -527,6 +576,7 @@ StringConversion::GetStringHostPortFromQueue (const char* queue)
     pos = hostport.find("/");
     if (pos != STR_NPOS)
     {
+
       hostport.erase(pos);
     }
   }
@@ -557,6 +607,7 @@ StringConversion::SplitByPoint (std::string in, std::string &pre, std::string &p
   }
   else
   {
+
     post = "";
   }
 }
@@ -584,6 +635,7 @@ StringConversion::StringToLineVector (char* in, std::vector<std::string> &out)
     pos++;
     old_pos = pos;
     // check for the end of string
+
     if ((pos - in) >= len)
       break;
   }
@@ -654,6 +706,7 @@ StringConversion::ParseStringIdSet (char* in, std::string& tag, unsigned long& i
       return true;
     }
   }
+
   while (1);
   return false;
 }
@@ -671,6 +724,7 @@ StringConversion::ParseStringIdSet (char* in, std::string& tag, unsigned long& i
 const char*
 StringConversion::LoadFileIntoString (const char* filename, std::string &out)
 {
+
   std::ifstream load(filename);
   std::stringstream buffer;
 
@@ -701,6 +755,7 @@ StringConversion::LongLongFromShellCmd (const char* shellcommand)
     pclose(fd);
     if ((nread > 0) && (nread < 1024))
     {
+
       buffer[nread] = 0;
       return strtoll(buffer, 0, 10);
     }
@@ -727,13 +782,15 @@ StringConversion::StringFromShellCmd (const char* shellcommand)
   {
     char buffer[1025];
     buffer[0] = 0;
-    int nread = 0; 
+    int nread = 0;
 
-    while ( (nread = fread((void*) buffer, 1, 1024, fd)) > 0 ) {
+    while ((nread = fread((void*) buffer, 1, 1024, fd)) > 0)
+    {
       buffer[nread] = 0;
       shellstring += buffer;
+
       if (nread != 1024)
-	break;
+        break;
     }
     pclose(fd);
     return shellstring;
@@ -752,6 +809,7 @@ StringConversion::StringFromShellCmd (const char* shellcommand)
 const char*
 StringConversion::TimeNowAsString (XrdOucString& stime)
 {
+
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts);
   char tb[128];
@@ -783,6 +841,7 @@ StringConversion::MaskTag (XrdOucString& line, const char* tag)
     }
     else
     {
+
       line.erase(spos);
     }
     smask += "<...>";
@@ -903,6 +962,7 @@ StringConversion::ParseUrl (const char* url, XrdOucString& protocol, XrdOucStrin
     int spos = hostport.find("/", 9);
     if (spos == STR_NPOS)
     {
+
       return 0;
     }
     hostport.erase(spos);
@@ -965,6 +1025,7 @@ StringConversion::CreateUrl (const char* protocol, const char* hostport, const c
   }
   if (!strcmp(protocol, "gsiftp"))
   {
+
     url = "gsiftp://";
     url += hostport;
     url += path;
@@ -977,6 +1038,7 @@ StringConversion::CreateUrl (const char* protocol, const char* hostport, const c
 bool
 StringConversion::IsHexNumber (const char* hexstring, const char* format)
 {
+
   if (!hexstring)
     return false;
 
@@ -1004,6 +1066,7 @@ StringConversion::GetPrettySize (float size)
   else if ((fsize = size / MB) >= 1) size_unit = "MB";
   else
   {
+
     fsize = size / KB;
     size_unit = "KB";
   }

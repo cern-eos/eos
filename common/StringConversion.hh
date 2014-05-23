@@ -54,8 +54,8 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-  //! Constants used throughout the code
-  const uint64_t KB = 1024;
+//! Constants used throughout the code
+const uint64_t KB = 1024;
 const uint64_t MB = 1024 * KB;
 const uint64_t GB = 1024 * MB;
 const uint64_t TB = 1024 * GB;
@@ -97,6 +97,21 @@ public:
                              std::vector<std::string>& tokens,
                              const std::string& delimiters = " ");
 
+  // ---------------------------------------------------------------------------
+  /** 
+   * Convert a long long value into time s,m,h,d  scale
+   * 
+   * @param sizestring returned XrdOuc string representation
+   * @param seconds number to convert
+   * 
+   * @return sizestring.c_str()
+   */
+  // ---------------------------------------------------------------------------
+
+  static const char*
+  GetReadableAgeString (XrdOucString& sizestring,
+                        unsigned long long age);
+  
   // ---------------------------------------------------------------------------
   /** 
    * Convert a long long value into K,M,G,T,P,E byte scale
