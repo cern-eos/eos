@@ -302,6 +302,9 @@ ProcCommand::Ns ()
      stdOut += "ALL      threads                          ";
      stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) pstat.threads);
      stdOut += "\n";
+     stdOut += "ALL      uptime                           ";
+     stdOut += (int)(time(NULL)-gOFS->StartTime);
+     stdOut += "\n";
 
      stdOut += "# ------------------------------------------------------------------------------------\n";
    }
@@ -371,6 +374,9 @@ ProcCommand::Ns ()
        stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) (-pstat.vsize + gOFS->LinuxStatsStartup.vsize));
        stdOut += "\n";
      }
+     stdOut += "uid=all gid=all ns.uptime=";
+     stdOut += (int)(time(NULL)-gOFS->StartTime);
+     stdOut += "\n";
    }
 
    if (mSubCmd == "stat")
