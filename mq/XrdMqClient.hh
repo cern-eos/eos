@@ -65,6 +65,11 @@ class XrdMqClient
     void        SetDefaultReceiverQueue( const char* defqueue ) {
       kDefaultReceiverQueue = defqueue;
     }
+
+    XrdOucString GetDefaultReceiverQueue () {
+      return kDefaultReceiverQueue;
+    }
+
     void        SetClientId( const char* clientid ) {
       kClientId = clientid;
     }
