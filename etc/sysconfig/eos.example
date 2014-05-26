@@ -33,7 +33,7 @@ export KRB5RCACHETYPE=none
 # multiple xrd's running with different options to be controlled via
 # the same initd script
 
-XRD_ROLES="mq sync mgm fst fed"
+XRD_ROLES="mq sync mgm fst fed global-mq"
 
 # ------------------------------------------------------------------
 # EOS Configuration
@@ -138,3 +138,15 @@ export EOS_TEST_GSMLOCKTIME=3600
 
 # max. time given to the test to finish
 export EOS_TEST_TESTTIMESLICE=300;
+
+# ------------------------------------------------------------------
+# Global Vstl Configuration
+# ------------------------------------------------------------------
+# define the global broker for subscription
+# export EOS_VST_BROKER_URL=root://eos.cern.ch:1099//eos/
+
+# disable subscription to the global broker if desired
+# export EOS_VST_BROKER_DISABLE=0
+
+# define which client we trust for querying this MGM
+# export EOS_VST_TRUSTED_HOST=eos.cern.ch

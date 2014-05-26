@@ -474,6 +474,10 @@ fi
 fi
 fi
 
+# Global Vst Subscription messaging
+export EOS_VST_BROKER_URL=${EOS_VST_BROKER_URL-"root://eos.cern.ch:1099//eos/"}
+export EOS_VST_BROKER_DISABLE=${EOS_VST_BROKER_DISABLE-"0"}
+
 # See how we were called
 case "$1" in
 
