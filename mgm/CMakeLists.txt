@@ -36,6 +36,7 @@ add_library (XrdEosMgm MODULE
             Access.cc         
             ConfigEngine.cc
             Messaging.cc
+            VstMessaging.cc
             Policy.cc  
             ProcInterface.cc
             proc/proc_fs.cc
@@ -53,6 +54,7 @@ add_library (XrdEosMgm MODULE
             proc/admin/Space.cc
             proc/admin/Transfer.cc
             proc/admin/Vid.cc
+            proc/admin/Vst.cc
             proc/user/Attr.cc
             proc/user/Cd.cc
             proc/user/Chmod.cc
@@ -76,6 +78,7 @@ add_library (XrdEosMgm MODULE
             Scheduler.cc
             Vid.cc
             FsView.cc
+            VstView.cc
             XrdMgmOfsConfigure.cc
             XrdMgmOfsFile.cc
             XrdMgmOfsDirectory.cc
@@ -130,7 +133,7 @@ target_link_libraries ( testmgmview
                         XrdMqClient-Static eosCapability-Static
                         crypto            ${NCURSES_LIBRARIES}
                         dl                ${Z_LIBRARIES}
-                        ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+                        ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 
 set_target_properties ( testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST" )
 

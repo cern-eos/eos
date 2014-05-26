@@ -213,6 +213,7 @@ public:
   int Space ();
   int Transfer ();
   int Vid ();
+  int Vst ();
 
   ProcCommand ();
   ~ProcCommand ();

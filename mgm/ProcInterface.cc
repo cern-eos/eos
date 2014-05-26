@@ -500,6 +500,12 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
       Vid();
     }
     else
+      if (mCmd == "vst")
+    {
+       Vst();
+       mDoSort = false;
+    }
+    else
       if (mCmd == "rtlog")
     {
       Rtlog();

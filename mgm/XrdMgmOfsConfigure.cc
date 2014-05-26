@@ -206,10 +206,10 @@ XrdMgmOfs::InitializeFileView ()
           gOFS->eosView->updateFileStore(fmd);
         }
 
-	{
-	  XrdSysMutexHelper lock(InitializationMutex);
-	  Initialized = kBooted;
-	}
+        {
+          XrdSysMutexHelper lock(InitializationMutex);
+          Initialized = kBooted;
+        }
       }
     }
 
@@ -220,24 +220,24 @@ XrdMgmOfs::InitializeFileView ()
       eos_static_info("msg=\"starting slave listener\"");
 
       struct stat buf;
-      buf.st_size=0;
+      buf.st_size = 0;
       ::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &buf);
 
 
       gOFS->eosFileService->startSlave();
       gOFS->eosDirectoryService->startSlave();
-      
+
       // wait that the follower reaches the offset seen now
-      while (gOFS->eosFileService->getFollowOffset() < (uint64_t) buf.st_size) 
+      while (gOFS->eosFileService->getFollowOffset() < (uint64_t) buf.st_size)
       {
-	XrdSysTimer sleeper;
-	sleeper.Wait(200);
-	eos_static_debug("msg=\"waiting for the namespace to reach the follow point\" is-offset=%llu follow-offset=%llu", gOFS->eosFileService->getFollowOffset(), (uint64_t) buf.st_size);
+        XrdSysTimer sleeper;
+        sleeper.Wait(200);
+        eos_static_debug("msg=\"waiting for the namespace to reach the follow point\" is-offset=%llu follow-offset=%llu", gOFS->eosFileService->getFollowOffset(), (uint64_t) buf.st_size);
       }
 
       {
-	XrdSysMutexHelper lock(InitializationMutex);
-	Initialized = kBooted;
+        XrdSysMutexHelper lock(InitializationMutex);
+        Initialized = kBooted;
       }
     }
 
@@ -313,6 +313,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   pthread_t tid = 0;
   IssueCapability = false;
   MgmRedirector = false;
+  StartTime = time(NULL);
 
   // add SEGV handler
   signal(SIGSEGV, xrdmgmofs_stacktrace);
@@ -350,6 +351,15 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   IoReportStorePath = "/var/tmp/eos/report";
 
+  if (getenv("EOS_VST_BROKER_URL"))
+  {
+    MgmOfsVstBrokerUrl = getenv("EOS_VST_BROKER_URL");
+  }
+  else
+  {
+    MgmOfsVstBrokerUrl = "";
+  }
+  
   // cleanup the query output cache directory
   XrdOucString systemline = "rm -rf /tmp/eos.mgm/* >& /dev/null &";
   int rrc = system(systemline.c_str());
@@ -652,10 +662,10 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
             }
           }
           if (ErrorLog)
-            Eroute.Say("=====> mgmofs.redirector : true");
+            Eroute.Say("=====> mgmofs.errorlog   : true");
           else
-            Eroute.Say("=====> mgmofs.redirector : false");
-        }
+            Eroute.Say("=====> mgmofs.errorlog   : false");
+	}
 
         if (!strcmp("configdir", var))
         {
@@ -954,7 +964,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     }
   }
 
-  if (MgmRedirector)
+    if (MgmRedirector)
     Eroute.Say("=====> mgmofs.redirector : true");
   else
     Eroute.Say("=====> mgmofs.redirector : false");
@@ -966,7 +976,13 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   if (!MgmOfsBrokerUrl.endswith("//eos/"))
   {
-    Eroute.Say("Config error: the broker url has to be of the form <rood://<hostname>[:<port>]//eos");
+    Eroute.Say("Config error: the broker url has to be of the form <root://<hostname>[:<port>]//");
+    return 1;
+  }
+
+  if (!MgmOfsVstBrokerUrl.endswith("//eos/"))
+  {
+    Eroute.Say("Config error: the vst broker url has to be of the form <root://<hostname>[:<port>]//");
     return 1;
   }
 
@@ -1001,6 +1017,14 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   MgmOfsBrokerUrl += HostName;
   MgmOfsBrokerUrl += "/mgm";
+
+  if (MgmOfsVstBrokerUrl.length())
+  {
+    MgmOfsVstBrokerUrl += MgmOfsInstanceName;
+    MgmOfsVstBrokerUrl += "/";
+    MgmOfsVstBrokerUrl += HostName;
+    MgmOfsVstBrokerUrl += "/vst";
+  }
 
   MgmOfsQueue = "/eos/";
   MgmOfsQueue += ManagerId;
@@ -1106,7 +1130,6 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     Eroute.Say("=====> mgmofs.errorlog : enabled");
   else
     Eroute.Say("=====> mgmofs.errorlog : disabled");
-
 
   // we need to specify this if the server was not started with the explicit manager option ... e.g. see XrdOfs
 
@@ -1590,6 +1613,20 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       return NoGo;
     }
 
+    if (MgmOfsVstBrokerUrl.length() &&
+        (!getenv("EOS_VST_BROKER_DISABLE") || (strcmp(getenv("EOS_VST_BROKER_DISABLE"), "1"))))
+    {
+      MgmOfsVstMessaging = new VstMessaging(MgmOfsVstBrokerUrl.c_str(), "/eos/*/vst", true, true, 0);
+      if (!MgmOfsVstMessaging->StartListenerThread()) NoGo = 1;
+      MgmOfsMessaging->SetLogId("MgmOfsVstMessaging");
+
+      if ((!MgmOfsVstMessaging) || (MgmOfsVstMessaging->IsZombie()))
+      {
+        Eroute.Emsg("Config", "cannot create vst messaging object(thread)");
+        return NoGo;
+      }
+    }
+
 #ifdef HAVE_ZMQ
     //-------------------------------------------
     // create the ZMQ processor
@@ -1644,7 +1681,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   {
     if (ErrorLog)
     {
-      // this 
+      // run the error log console
       XrdOucString errorlogkillline = "pkill -9 -f \"eos -b console log _MGMID_\"";
       int rrc = system(errorlogkillline.c_str());
       if (WEXITSTATUS(rrc))

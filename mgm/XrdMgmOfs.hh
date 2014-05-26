@@ -67,6 +67,7 @@
  * - Balancer
  * - Iostat
  * - Messaging
+ * - Vst
  * - Deletion
  * - Filesystem Listener
  * - Httpd
@@ -118,6 +119,7 @@
 #include "mgm/ZMQ.hh"
 #endif
 #include "mgm/Messaging.hh"
+#include "mgm/VstMessaging.hh"
 #include "mgm/ProcInterface.hh"
 #include "mgm/http/HttpServer.hh"
 #include "namespace/IView.hh"
@@ -837,7 +839,9 @@ public:
 
   XrdOucString MgmOfsBroker; //< Url of the message broker without MGM subject
   XrdOucString MgmOfsBrokerUrl; //< Url of the message broker with MGM subject 
+  XrdOucString MgmOfsVstBrokerUrl; //< Url of the message broker 
   Messaging* MgmOfsMessaging; //< messaging interface class
+  VstMessaging* MgmOfsVstMessaging; //< admin messaging interface class
   XrdOucString MgmDefaultReceiverQueue; //< Queue where we are sending to by default
   XrdOucString MgmOfsName; //< mount point of the filesystem
   XrdOucString MgmOfsAlias; //< alias of this MGM instance
@@ -869,6 +873,7 @@ public:
 
   eos::common::LinuxStat::linux_stat_t LinuxStatsStartup; // => process state after namespace load time
 
+  time_t StartTime; //< out starttime
   char* HostName; //< our hostname as derived in XrdOfs
   char* HostPref; //< our hostname as derived in XrdOfs without domain
 
