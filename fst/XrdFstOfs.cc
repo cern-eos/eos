@@ -1421,6 +1421,39 @@ XrdFstOfs::Redirect (XrdOucErrInfo& error, // Error text & code
   return SFS_REDIRECT;
 }
 
+*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
+                   const char *csName,
+                   const char *inpath,
+                   XrdOucErrInfo &error,
+                   const XrdSecEntity *client,
+                   const char *ininfo)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief retrieve a checksum
+ * 
+ * @param func function to be performed 'csCalc','csGet' or 'csSize'
+ * @param csName name of the checksum
+ * @param error error object
+ * @param client XRootD authentication object
+ * @param ininfo CGI
+ * @return SFS_OK on success otherwise SFS_ERROR
+ * 
+ * We publish checksums on the MGM
+ */
+/*----------------------------------------------------------------------------*/
+{
+  static const char *epname = "chksum";
+  const char *tident = error.getErrUser();
+  int ecode = 1094;
+  XrdOucString RedirectManager = gConfig.Manger;
+  int pos = RedirectManager.find(":");
+  if (pos!=STR_NPOS)
+    RedirectManager.erase(pos);
+  return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
+}
+
 /*----------------------------------------------------------------------------*/
 int
 XrdFstOfsDirectory::open (const char* dirName,

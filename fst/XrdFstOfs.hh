@@ -223,6 +223,14 @@ public:
     return SFS_OK;
   }
 
+
+  int chksum (XrdSfsFileSystem::csFunc Func,
+              const char *csName,
+              const char *Path,
+              XrdOucErrInfo &out_error,
+              const XrdSecEntity *client = 0,
+              const char *opaque = 0);
+  
   int stat (const char* path,
             struct stat* buf,
             XrdOucErrInfo& out_error,
