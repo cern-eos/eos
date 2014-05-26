@@ -229,8 +229,11 @@ Iostat::~Iostat ()
 {
   if (mRunning)
     Stop();
-  XrdSysThread::Cancel(cthread);
-  XrdSysThread::Join(cthread, NULL);
+  if (cthread)
+  {
+    XrdSysThread::Cancel(cthread);
+    XrdSysThread::Join(cthread, NULL);
+  }
 }
 
 /* ------------------------------------------------------------------------- */
@@ -982,7 +985,7 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
 
   if ((option.find("-f") != STR_NPOS))
   {
-    hotfiles =true;
+    hotfiles = true;
   }
 
   if (hotfiles)
@@ -1005,45 +1008,44 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
 
       double age_r = FsView::gFsView.mIdView[it->first]->GetAge("stat.ropen.hotfiles");
       double age_w = FsView::gFsView.mIdView[it->first]->GetAge("stat.wopen.hotfiles");
-		
-      fprintf(stderr,"%f %f\n",age_r, age_w);
+
       // we only show the reports from the last minute, there could be pending values
-      if ( (age_r > 60) )
+      if ((age_r > 60))
       {
-        r_open_hotfiles="";
+        r_open_hotfiles = "";
       }
 
-      if ( (age_w > 60) )
+      if ((age_w > 60))
       {
-        w_open_hotfiles="";
+        w_open_hotfiles = "";
       }
-      
+
       if (r_open_hotfiles == " ")
       {
-	r_open_hotfiles = "";
+        r_open_hotfiles = "";
       }
 
       if (w_open_hotfiles == " ")
       {
-	w_open_hotfiles = "";
+        w_open_hotfiles = "";
       }
 
       eos::common::StringConversion::Tokenize(r_open_hotfiles, r_open_vector);
       eos::common::StringConversion::Tokenize(w_open_hotfiles, w_open_vector);
 
       std::string host = FsView::gFsView.mIdView[it->first]->GetString("host");
-      std::string path="";
-      std::string id   = FsView::gFsView.mIdView[it->first]->GetString("id");
+      std::string path = "";
+      std::string id = FsView::gFsView.mIdView[it->first]->GetString("id");
 
       if (monitoring)
       {
         // monitoring format
-        for (size_t i=0; i < r_open_vector.size(); i++)
+        for (size_t i = 0; i < r_open_vector.size(); i++)
         {
           eos::common::StringConversion::SplitKeyValue(r_open_vector[i], key, val);
 
           {
-            unsigned long fid=eos::common::FileId::Hex2Fid(val.c_str());
+            unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
             eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
             try
             {
@@ -1055,15 +1057,15 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
             }
           }
 
-          snprintf(outline,sizeof(outline)-1, "measurement=hotfile access=read heat=%s fsid=%d path=%s fxid=%s\n",key.c_str(), it->first, path.c_str(), val.c_str());
+          snprintf(outline, sizeof (outline) - 1, "measurement=hotfile access=read heat=%s fsid=%d path=%s fxid=%s\n", key.c_str(), it->first, path.c_str(), val.c_str());
           out += outline;
         }
-        for (size_t i=0; i < w_open_vector.size(); i++)
+        for (size_t i = 0; i < w_open_vector.size(); i++)
         {
           eos::common::StringConversion::SplitKeyValue(w_open_vector[i], key, val);
 
           {
-            unsigned long fid=eos::common::FileId::Hex2Fid(val.c_str());
+            unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
             eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
             try
             {
@@ -1075,14 +1077,14 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
             }
           }
 
-          snprintf(outline,sizeof(outline)-1,"measurement=hotfile access=write heat=%s fsid=%d host=%s path=%s fxid=%s\n",key.c_str(), it->first, host.c_str(), path.c_str(), val.c_str());
+          snprintf(outline, sizeof (outline) - 1, "measurement=hotfile access=write heat=%s fsid=%d host=%s path=%s fxid=%s\n", key.c_str(), it->first, host.c_str(), path.c_str(), val.c_str());
           out += outline;
         }
       }
       else
       {
         // human readable format
-        for (size_t i=0; i < r_open_vector.size(); i++)
+        for (size_t i = 0; i < r_open_vector.size(); i++)
         {
           eos::common::StringConversion::SplitKeyValue(r_open_vector[i], key, val);
 
@@ -1091,7 +1093,7 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
             rank = atoi(key.c_str());
 
           {
-            unsigned long fid=eos::common::FileId::Hex2Fid(val.c_str());
+            unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
             eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
             try
             {
@@ -1105,11 +1107,11 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
 
           if (rank > 1)
           {
-            snprintf(outline,sizeof(outline)-1,"%5s %5s %5s %24s %s\n","read", key.c_str(), id.c_str(), host.c_str(), path.c_str());
+            snprintf(outline, sizeof (outline) - 1, "%5s %5s %5s %24s %s\n", "read", key.c_str(), id.c_str(), host.c_str(), path.c_str());
             out += outline;
           }
         }
-        for (size_t i=0; i < w_open_vector.size(); i++)
+        for (size_t i = 0; i < w_open_vector.size(); i++)
         {
           eos::common::StringConversion::SplitKeyValue(r_open_vector[i], key, val);
           int rank = 0;
@@ -1117,7 +1119,7 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
             rank = atoi(key.c_str());
 
           {
-            unsigned long fid=eos::common::FileId::Hex2Fid(val.c_str());
+            unsigned long fid = eos::common::FileId::Hex2Fid(val.c_str());
             eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
             try
             {
@@ -1131,7 +1133,7 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
 
           if (rank > 1)
           {
-            snprintf(outline,sizeof(outline)-1,"%5s %5s %5s %24s %s\n","write", key.c_str(), id.c_str(), host.c_str(), path.c_str());
+            snprintf(outline, sizeof (outline) - 1, "%5s %5s %5s %24s %s\n", "write", key.c_str(), id.c_str(), host.c_str(), path.c_str());
             out += outline;
           }
         }
@@ -1141,10 +1143,10 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
     if (!monitoring)
     {
       XrdMqMessage::Sort(out, true);
-      out.insert("# --------------------------------------------------------------------------------------\n",0);
-      snprintf(outline,sizeof(outline)-1,"%5s #%3s %5s %24s %s\n","type", "heat","fs","host","path");
-      out.insert(outline,0);
-      out.insert("# --------------------------------------------------------------------------------------\n",0);
+      out.insert("# --------------------------------------------------------------------------------------\n", 0);
+      snprintf(outline, sizeof (outline) - 1, "%5s #%3s %5s %24s %s\n", "type", "heat", "fs", "host", "path");
+      out.insert(outline, 0);
+      out.insert("# --------------------------------------------------------------------------------------\n", 0);
     }
     return;
   }
