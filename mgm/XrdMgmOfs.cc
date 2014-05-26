@@ -248,6 +248,13 @@ xrdmgmofs_shutdown (int sig)
   }
 
   // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop vst ... ");
+  if (gOFS->MgmOfsVstMessaging)
+  {
+    gOFS->MgmOfsVstMessaging->StopListener();
+  }
+  
+  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop deletion thread ... ");
   if (gOFS->deletion_tid)
   {
@@ -1023,7 +1030,7 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
 
   if (Func == XrdSfsFileSystem::csSize)
   {
-    if (CheckSumName == "eos")
+    if ( 1 ) 
     {
       // just return the length
       error.setErrCode(20);
@@ -1031,6 +1038,7 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
     }
     else
     {
+      eos_static_info("not supported");
       strcpy(buff, csName);
       strcat(buff, " checksum not supported.");
       error.setErrInfo(ENOTSUP, buff);
@@ -1052,7 +1060,7 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
   BOUNCE_ILLEGAL_NAMES;
   BOUNCE_NOT_ALLOWED;
 
-  ACCESSMODE_R;
+  ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
 
@@ -5367,7 +5375,7 @@ XrdMgmOfs::FSctl (const int cmd,
           atomic_path.DecodeAtomicPath(isVersioning);
           std::string dname;
 
-          if (fmdname != atomic_path.GetName())
+          if ((commitsize) && (fmdname != atomic_path.GetName()))
           {
             eos_thread_debug("commit: de-atomize file %s => %s", fmdname.c_str(), atomic_path.GetName());
             eos::ContainerMD* dir = 0;
