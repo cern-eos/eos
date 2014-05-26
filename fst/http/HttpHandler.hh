@@ -180,7 +180,7 @@ public:
                sizeof (srange) - 1,
                "%llu-%llu/%llu",
                (unsigned long long) it->first,
-               (unsigned long long) ((it->second) ? (it->first + it->second)
+               (unsigned long long) ((it->second) ? (it->first + it->second-1)
                                                   : mRangeRequestSize),
                (unsigned long long) mFileSize
                );
