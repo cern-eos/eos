@@ -1421,9 +1421,9 @@ XrdFstOfs::Redirect (XrdOucErrInfo& error, // Error text & code
   return SFS_REDIRECT;
 }
 
-*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
+XrdFstOfs::chksum (XrdSfsFileSystem::csFunc Func,
                    const char *csName,
                    const char *inpath,
                    XrdOucErrInfo &error,
@@ -1444,10 +1444,8 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "chksum";
-  const char *tident = error.getErrUser();
   int ecode = 1094;
-  XrdOucString RedirectManager = gConfig.Manger;
+  XrdOucString RedirectManager = eos::fst::Config::gConfig.Manager;
   int pos = RedirectManager.find(":");
   if (pos!=STR_NPOS)
     RedirectManager.erase(pos);
