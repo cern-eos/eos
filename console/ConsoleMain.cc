@@ -87,6 +87,7 @@ extern int com_timing (char*);
 extern int com_transfer (char*);
 extern int com_version (char*);
 extern int com_vid (char*);
+extern int com_vst (char*);
 extern int com_whoami (char*);
 extern int com_who (char*);
 
@@ -121,6 +122,7 @@ eos::common::IoPipe iopipe;
 int retcfd = 0;
 
 XrdOucEnv* CommandEnv = 0; // this is a pointer to the result of client_admin... or client_user.... = it get's invalid when the output_result function is called
+
 
 static sigjmp_buf sigjump_buf;
 
@@ -218,7 +220,6 @@ COMMAND commands[] = {
   { (char*) "motd", com_motd, (char*) "Message of the day"},
   { (char*) "node", com_node, (char*) "Node configuration"},
   { (char*) "ns", com_ns, (char*) "Namespace Interface"},
-  { (char*) "vid", com_vid, (char*) "Virtual ID System Configuration"},
   { (char*) "pwd", com_pwd, (char*) "Print working directory"},
   { (char*) "quit", com_quit, (char*) "Exit from EOS console"},
   { (char*) "quota", com_quota, (char*) "Quota System configuration"},
@@ -235,6 +236,8 @@ COMMAND commands[] = {
   { (char*) "timing", com_timing, (char*) "Toggle timing flag for execution time measurement"},
   { (char*) "transfer", com_transfer, (char*) "Transfer Interface"},
   { (char*) "version", com_version, (char*) "Verbose client/server version"},
+  { (char*) "vid", com_vid, (char*) "Virtual ID System Configuration"},
+  { (char*) "vst", com_vst, (char*) "Virtual Storage Interface"},
   { (char*) "whoami", com_whoami, (char*) "Determine how we are mapped on server side"},
   { (char*) "who", com_who, (char*) "Statistics about connected users"},
   { (char*) "?", com_help, (char*) "Synonym for `help'"},

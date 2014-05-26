@@ -44,6 +44,7 @@
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdCl/XrdClFile.hh"
+#include "XrdSys/XrdSysSemWait.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -62,6 +63,7 @@
 #include <vector>
 #include <fstream>
 #include <list>
+#include <deque>
 #include <map>
 #include <google/sparsehash/sparsehashtable.h>
 #include <google/sparse_hash_set>
