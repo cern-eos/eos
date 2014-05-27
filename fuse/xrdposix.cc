@@ -997,7 +997,7 @@ xrd_setxattr (const char* path,
   request += xattr_name;
   request += "&";
   request += "mgm.xattrvalue=";
-  request += xattr_value;
+  request += std::string(xattr_value, size);
   arg.FromString(request);
 
   XrdCl::URL Url(xrd_user_url(uid, gid, pid));
@@ -1005,7 +1005,6 @@ xrd_setxattr (const char* path,
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
   COMMONTIMING("GETPLUGIN", &setxattrtiming);
-
   errno = 0;
 
   if (status.IsOK())

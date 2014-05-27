@@ -1326,7 +1326,6 @@ eosfs_ll_setxattr (fuse_req_t req,
                    int flags)
 {
   int retc = 0;
-  size_t init_size = size;
   char fullpath[16384];
   const char* name = NULL;
 
@@ -1349,10 +1348,10 @@ eosfs_ll_setxattr (fuse_req_t req,
              __FUNCTION__, (long long) ino, fullpath);
   }
 
-  retc = xrd_setxattr (fullpath, xattr_name, xattr_value, strlen (xattr_value),
+  retc = xrd_setxattr (fullpath, xattr_name, xattr_value, size,
                        req->ctx.uid, req->ctx.gid, req->ctx.pid);
-  fuse_reply_err (req, retc);
-  return;
+  fprintf (stderr, "[%s]: setxattr_retc=%i\n", __FUNCTION__, retc);
+  fuse_reply_err(req, retc);
 }
 
 

@@ -6346,12 +6346,12 @@ XrdMgmOfs::FSctl (const int cmd,
           }
           else if (subcmd == "rm")
           { //rmxattr
-            response = "rmxattr: retc=0"; //error
+            response = "rmxattr: retc=38"; //error ENOSYS
             error.setErrInfo(response.length() + 1, response.c_str());
           }
           else if (subcmd == "set")
           { //setxattr
-            response = "setxattr: retc=0"; //error
+            response = "setxattr: retc=38"; //error ENOSYS
             error.setErrInfo(response.length() + 1, response.c_str());
           }
 
