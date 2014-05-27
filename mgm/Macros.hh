@@ -164,6 +164,18 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
   }									\
   size_t __i=0;								\
   size_t __n = store_path.length();					\
+  if (getenv("EOS_UTF8")) {                                             \
+  for (__i=0;__i<__n;__i++) {						\
+    if ( ((store_path[__i] != 0xa) && (store_path[__i] != 0xd )) /* CR,LF   */ \
+	 ) {								\
+      continue;								\
+    } else {								\
+      break;								\
+    }									\
+  }									\
+  }                                                                     \
+  else                                                                  \
+  {                                                                     \
   for (__i=0;__i<__n;__i++) {						\
     if ( ((store_path[__i] >= 97) && (store_path[__i] <= 122 )) || /* a-z   */ \
 	 ((store_path[__i] >= 64) && (store_path[__i] <= 90 ))  || /* @,A-Z */ \
@@ -184,6 +196,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       break;								\
     }									\
   }									\
+  }                                                                     \
   if ( (vid.uid != 0) && (__i != (__n) ) ) { /* root can use all letters */ \
     path = 0;								\
   } else {								\

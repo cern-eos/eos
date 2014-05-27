@@ -70,6 +70,9 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Disable shutdown/signal handlers for debugging
 #export EOS_NO_SHUTDOWN
 
+# Allow UTF-8 path names excluding only CR,LF
+#export EOS_UTF8=""
+
 # ------------------------------------------------------------------
 # FUSE Configuration
 # ------------------------------------------------------------------
