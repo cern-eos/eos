@@ -8014,6 +8014,7 @@ XrdMgmOfs::_attr_set (const char *path,
         }
         dh->setAttribute(key, value);
         eosView->updateContainerStore(dh);
+	UpdateNowInmemoryDirectoryModificationTime(dh->getId());
         errno = 0;
       }
     }
