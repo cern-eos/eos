@@ -164,7 +164,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
   }									\
   size_t __i=0;								\
   size_t __n = store_path.length();					\
-  if (getenv("EOS_UTF8")) {                                             \
+  if (gOFS->UTF8) {							\
   for (__i=0;__i<__n;__i++) {						\
     if ( ((store_path[__i] != 0xa) && (store_path[__i] != 0xd )) /* CR,LF   */ \
 	 ) {								\

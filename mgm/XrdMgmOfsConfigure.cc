@@ -329,7 +329,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   // set stream error window
   XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
 
-
+  UTF8 = getenv("EOS_UTF8")?true:false;
+  
   Shutdown = false;
 
   setenv("XrdSecPROTOCOL", "sss", 1);

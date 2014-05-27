@@ -972,7 +972,8 @@ public:
   Egroup EgroupRefresh; //<  Egroup refresh object running asynchronous Egroup fetch thread
 
   Recycle Recycler; //<  Recycle object running the recycle bin deletion thread
-
+  
+  bool UTF8; //< true if running in less restrictive character set mode
 private:
 
   eos::common::Mapping::VirtualIdentity vid; //< virtual identity
