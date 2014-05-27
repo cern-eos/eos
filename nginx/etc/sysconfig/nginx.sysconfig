@@ -30,7 +30,7 @@ export EOS_NGINX_GSS_REALM=CERN.CH
 export EOS_NGINX_GSS_SERVICE_NAME=host/$EOS_NGINX_HOSTNAME
 
 # nginx LDAP basic auth configuration
-export EOS_NGINX_LDAP_URL="ldap://cerndc.cern.ch/OU=Users,OU=Organic Units,DC=cern,DC=ch?samaccountname?sub?(objectClass=user)"
+export EOS_NGINX_LDAP_URL="ldaps://cerndc.cern.ch/OU=Users,OU=Organic Units,DC=cern,DC=ch?samaccountname?sub?(objectClass=user)"
 export EOS_NGINX_LDAP_BINDDN_USER="TEST"
 export EOS_NGINX_LDAP_BINDDN_PASSWORD="TESTPWD"
 export EOS_NGINX_LDAP_SSL_PORT=4443
