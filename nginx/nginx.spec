@@ -11,7 +11,7 @@
 
 Name:           eos-nginx
 Version:        1.4.2
-Release:        5
+Release:        6
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
 Packager:       Justin Salmon <jsalmon@cern.ch>

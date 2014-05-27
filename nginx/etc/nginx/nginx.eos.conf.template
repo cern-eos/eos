@@ -112,10 +112,10 @@ http {
             proxy_send_timeout          90;
             proxy_read_timeout          90;
 
-            proxy_buffer_size           4k;
-            proxy_buffers               4 32k;
-            proxy_busy_buffers_size     64k;
-            proxy_temp_file_write_size  64k;
+            proxy_buffer_size           256k;
+            proxy_buffers               8 256k;
+            proxy_busy_buffers_size     512k;
+            proxy_temp_file_write_size  512k;
         }
 
         # Proxy download 
@@ -202,10 +202,10 @@ http {
             proxy_send_timeout          90;
             proxy_read_timeout          90;
 
-            proxy_buffer_size           4k;
-            proxy_buffers               4 32k;
-            proxy_busy_buffers_size     64k;
-            proxy_temp_file_write_size  64k;
+            proxy_buffer_size           256k;
+            proxy_buffers               8 256k;
+            proxy_busy_buffers_size     512k;
+            proxy_temp_file_write_size  512k;
 
             # Kerberos
             auth_gss              on;
@@ -313,10 +313,10 @@ http {
             proxy_send_timeout          90;
             proxy_read_timeout          90;
 
-            proxy_buffer_size           4k;
-            proxy_buffers               4 32k;
-            proxy_busy_buffers_size     64k;
-            proxy_temp_file_write_size  64k;
+            proxy_buffer_size           256k;
+            proxy_buffers               8 256k;
+            proxy_busy_buffers_size     512k;
+            proxy_temp_file_write_size  512k;
    
             auth_ldap "Please provide your account information here:";
             auth_ldap_servers auth_ldap_server;
