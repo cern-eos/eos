@@ -136,7 +136,8 @@ eosfs_ll_setattr (fuse_req_t req,
   int retc = 0;
   char fullpath[16384];
   char url[1024];
-
+  unsigned long rinode = 0;
+  
   xrd_lock_r_p2i (); // =>
   const char* name = xrd_path ((unsigned long long) ino);
 
@@ -194,7 +195,8 @@ eosfs_ll_setattr (fuse_req_t req,
         if ((fd = xrd_open (fullpath, O_WRONLY,
                             S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid,
                             req->ctx.gid,
-                            req->ctx.pid,0)) > 0)
+                            req->ctx.pid,
+                            &rinode)) > 0)
         {
           retc = xrd_truncate (fd, attr->st_size);
           xrd_close (fd, ino, req->ctx.uid);
@@ -219,7 +221,8 @@ eosfs_ll_setattr (fuse_req_t req,
                           S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
                           req->ctx.uid,
                           req->ctx.gid,
-                          req->ctx.pid,0)) > 0)
+                          req->ctx.pid,
+                          &rinode)) > 0)
       {
         retc = xrd_truncate (fd, attr->st_size);
         xrd_close (fd, ino, req->ctx.uid);
@@ -922,7 +925,7 @@ eosfs_ll_open (fuse_req_t req,
     
   // Do open
   res = xrd_open (fullpath, fi->flags, mode, req->ctx.uid,
-                  req->ctx.gid, req->ctx.pid);
+                  req->ctx.gid, req->ctx.pid, &ino);
   
   if (isdebug)
   {
@@ -941,9 +944,6 @@ eosfs_ll_open (fuse_req_t req,
   info->uid = req->ctx.uid;
   fi->fh = (uint64_t) info;
 
-  // Add the inodeuser to fd mapping for future stats
-  xrd_add_inodeuser_fd(ino, info->uid, info->fd);
-  
   if ((getenv ("EOS_FUSE_KERNELCACHE")) &&
       (!strcmp (getenv ("EOS_FUSE_KERNELCACHE"), "1")))
   {
@@ -979,7 +979,7 @@ eosfs_ll_read (fuse_req_t req,
   fprintf (stderr, "[%s]: inode=%ji size=%ji off=%ji \n", 
            __FUNCTION__, ino, size, off);
 
-  if (fi->fh)
+  if (fi && fi->fh)
   {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     char* buf = xrd_attach_rd_buff (pthread_self(), size);
@@ -1060,6 +1060,8 @@ eosfs_ll_release (fuse_req_t req,
                   fuse_ino_t ino,
                   struct fuse_file_info* fi)
 {
+  errno = 0;
+
   if (fi && fi->fh)
   {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
@@ -1071,19 +1073,16 @@ eosfs_ll_release (fuse_req_t req,
                __FUNCTION__, (long long) ino, (long long) fd);
     }
 
-    fprintf (stderr, "[%s]: Do real close file fd=%llu\n", __FUNCTION__, info->fd);
+    fprintf (stderr, "[%s]: Try to close file fd=%llu\n", __FUNCTION__, info->fd);
     int res = xrd_close (info->fd, ino, info->uid);
     xrd_release_rd_buff (pthread_self());
-    
+
     // Free memory
     free (info);
     fi->fh = 0;
-    
-    if (res)
-      errno = -res;
   }
 
-  fuse_reply_err (req, 0);
+  fuse_reply_err (req, errno);
 }
 
 
@@ -1368,7 +1367,7 @@ eosfs_ll_create(fuse_req_t req,
                 struct fuse_file_info *fi)
 {
   int res;
-  unsigned long return_inode=0;
+  unsigned long rinode = 0;
 
   if (S_ISREG (mode))
   {
@@ -1408,7 +1407,7 @@ eosfs_ll_create(fuse_req_t req,
                     req->ctx.uid,
                     req->ctx.gid,
                     req->ctx.pid,
-                    &return_inode);
+                    &rinode);
 
     if (res == -1)
     {
@@ -1427,7 +1426,7 @@ eosfs_ll_create(fuse_req_t req,
     memset (&e, 0, sizeof ( e));
     e.attr_timeout = 0;
     e.entry_timeout = 0;
-    e.ino = return_inode;
+    e.ino = rinode;
     e.attr.st_mode = S_IFREG;
     e.attr.st_atime = time(NULL);
     e.attr.st_mtime = time(NULL);
@@ -1437,10 +1436,7 @@ eosfs_ll_create(fuse_req_t req,
     e.attr.st_dev = 0;
     fprintf (stderr, "[%s]: update inode=%llu\n", __FUNCTION__, (unsigned long long) e.ino);
 
-
-
-
-    if (!return_inode)
+    if (!rinode)
     {
       xrd_close(res, 0, req->ctx.uid);
       fuse_reply_err (req, -res);
@@ -1448,8 +1444,6 @@ eosfs_ll_create(fuse_req_t req,
     }
     else
     {
-      // Add the inodeuser to fd mapping for future stats
-      xrd_add_inodeuser_fd(e.ino, info->uid, info->fd);
       xrd_store_p2i ((unsigned long long) e.ino, ifullpath);
 
       if (isdebug)

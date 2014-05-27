@@ -273,9 +273,6 @@ eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
     info->uid = uid;
     info->ino = return_inode;
     fi->fh = (uint64_t) info;  
-
-    // Add the inodeuser to fd mapping for future stats
-    xrd_add_inodeuser_fd(info->ino, info->uid, info->fd);    
   }
 
   return 0;
@@ -487,9 +484,6 @@ eosdfs_open (const char* path, struct fuse_file_info* fi)
   info->uid = uid;
   info->ino = buf.st_ino;
   fi->fh = (uint64_t) info;  
-  
-  // Add the inodeuser to fd mapping for future stats
-  xrd_add_inodeuser_fd(info->ino, info->uid, info->fd);    
   fprintf (stderr, "[%s] path=%s, fd=%i\n", __FUNCTION__, path, res);
   return 0;
 }

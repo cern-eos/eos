@@ -307,8 +307,7 @@ extern "C"
   //----------------------------------------------------------------------------
   //! Remove file descriptor from mapping
   //----------------------------------------------------------------------------
-  int xrd_remove_fd2file (int fd);
-
+  int xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid);
 
   //----------------------------------------------------------------------------
   //              ******* FUSE Directory Cache *******
