@@ -1231,7 +1231,7 @@ xrd_stat (const char* path,
         if (!file->Stat(&tmp))
         {
           file_size = tmp.st_size;
-          eos_static_info("fd=%i, size-fd=%lld, raw_file=%p",
+          eos_static_debug("fd=%i, size-fd=%lld, raw_file=%p",
                           iter_fd->second, file_size, file);
         }
         else
@@ -1241,7 +1241,7 @@ xrd_stat (const char* path,
         eos_static_err("fd=%i not found in file obj map", iter_fd->second);
     }
     else
-      eos_static_info("path=%s not open", path);
+      eos_static_debug("path=%s not open", path);
   }
 
   // Do stat using the Fils System object
@@ -1841,8 +1841,6 @@ xrd_mkdir (const char* path,
            struct stat* buf)
 {
   eos_static_info("path=%s mode=%d uid=%u pid=%u", path, mode, uid, pid);
-
-
   eos::common::Timing mkdirtiming("xrd_mkdir");
   errno = 0;
   COMMONTIMING("START", &mkdirtiming);
@@ -1948,7 +1946,7 @@ xrd_mkdir (const char* path,
   if (EOS_LOGS_DEBUG)
     mkdirtiming.Print();
 
-  eos_static_info("path=%s inode=%llu", path, buf->st_ino);
+  eos_static_debug("path=%s inode=%llu", path, buf->st_ino);
   delete response;
   return errno;
 }
@@ -2101,7 +2099,7 @@ xrd_open (const char* path,
       XrdOucString open_cgi = get_cgi(spath.c_str());
 
       retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str());
-      eos_static_info("open returned retc=%d", retc);
+
       if (retc)
       {
         eos_static_err("error=open failed for %s", spath.c_str());
@@ -2262,7 +2260,7 @@ xrd_open (const char* path,
               else
                 *return_inode = 0;
               
-              eos_static_info("path=%s created ino=%lu", path, (unsigned long)*return_inode);
+              eos_static_debug("path=%s created ino=%lu", path, (unsigned long)*return_inode);
             }
             
             retc = xrd_add_fd2file(file, *return_inode, uid);
@@ -2301,7 +2299,7 @@ xrd_open (const char* path,
       else
         *return_inode = 0;
 
-      eos_static_info("path=%s created ino=%lu", path, (unsigned long)*return_inode);
+      eos_static_debug("path=%s created ino=%lu", path, (unsigned long)*return_inode);
     }
     
     retc = xrd_add_fd2file(file, *return_inode, uid);
@@ -2380,10 +2378,10 @@ xrd_flush (int fd)
 int
 xrd_truncate (int fildes, off_t offset)
 {
-  errno = 0;
   int ret = -1;
   eos_static_info("fd=%d offset=%llu", fildes, (unsigned long long) offset);
   FileAbstraction* fabst = xrd_get_file(fildes);
+  errno = 0;
 
   if (!fabst)
   {
@@ -2732,7 +2730,7 @@ xrd_init ()
 
   if (!url.IsValid())
   {
-    eos_static_info("URL is not valid.");
+    eos_static_err("URL is not valid: %s", address.c_str());
     exit(-1);
   }
 

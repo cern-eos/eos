@@ -103,13 +103,9 @@ void
 FileAbstraction::WaitFinishWrites()
 {
   XrdSysCondVarHelper scope_lock(mCondUpdate);
-  eos_static_debug("init mSizeWrites=%zu", mSizeWrites);
 
   while (mSizeWrites)
-  {
-    eos_static_debug("wait mSizeWrites=%zu", mSizeWrites);
     mCondUpdate.Wait();
-  }
 }
 
 

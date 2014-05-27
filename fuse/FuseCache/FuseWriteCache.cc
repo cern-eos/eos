@@ -249,7 +249,7 @@ FuseWriteCache::GetRecycledBlock(FileAbstraction* fabst,
       mMutexSize.UnLock();
       // Froce a write to get a CacheEntry object
       ForceWrite();
-      eos_info("wait for recycled cache entry");
+      eos_debug("wait for recycled cache entry");
       mRecycleQueue->wait_pop(entry);
       entry->DoRecycle(fabst, buf, off, len);
     }
@@ -321,7 +321,7 @@ FuseWriteCache::ForceWrite()
 void
 FuseWriteCache::ForceAllWrites(FileAbstraction* fabst)
 {
-  eos_debug("force all writes for fabst=%p", fabst);
+  eos_debug("fabst_ptr=%p force all writes", fabst);
 
   {
     XrdSysRWLockHelper wr_lock(mMapLock, 0); // write lock
@@ -331,7 +331,6 @@ FuseWriteCache::ForceAllWrites(FileAbstraction* fabst)
 
     while (iStart != iEnd)
     {
-      eos_info("force all entries to be written");
       pEntry = iStart->second;
       mWrReqQueue->push(pEntry);
       mKeyEntryMap.erase(iStart++);
@@ -340,7 +339,6 @@ FuseWriteCache::ForceAllWrites(FileAbstraction* fabst)
     eos_debug("map entries size=%ji", mKeyEntryMap.size());
   }
   
-  eos_debug("wait for writes to complete fabst=%p", fabst);
   fabst->WaitFinishWrites();
   eos_debug("writes completed fabst=%p", fabst);
 }

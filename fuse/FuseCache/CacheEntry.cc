@@ -46,7 +46,7 @@ mSizeData (len)
 
   if (len > msMaxSize)
   {
-    fprintf(stderr, "error=len should be smaller than msMaxSize\n");
+    eos_err("len=%ji should be smaller than msMaxSize=%ji", len, msMaxSize );
     exit(-1);
   }
 
@@ -387,7 +387,7 @@ CacheEntry::DoWrite ()
 
   for (/*empty*/; iCurrent != iEnd; iCurrent++)
   {
-    eos_info("write cache piece off=%ji len=%ji, raw_file=%p",
+    eos_debug("write cache piece off=%ji len=%ji, raw_file=%p",
              iCurrent->first, iCurrent->second, mParentFile->GetRawFile());
     off_relative = iCurrent->first % msMaxSize;
     // TODO: investigate using WriteAsync
