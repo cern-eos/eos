@@ -89,7 +89,7 @@ HttpServer::Run ()
 
     if (getenv("EOS_HTTP_THREADPOOL"))
     {
-      mDaemon = MHD_start_daemon(MHD_USE_DEBUG |  MHD_USE_THREAD_PER_CONNECTION,
+      mDaemon = MHD_start_daemon(MHD_USE_DEBUG |  MHD_USE_THREAD_PER_CONNECTION | MHD_USE_POLL,
                                  mPort,
                                  NULL,
                                  NULL,
@@ -190,6 +190,7 @@ HttpServer::StaticHandler (void *cls,
   // The static handler function calls back the original http object
   if (gHttp)
   {
+    fprintf(stderr,"url=%s\n", url);
     return gHttp->Handler(cls,
                           connection,
                           url,
@@ -231,6 +232,7 @@ HttpServer::BuildQueryString (void *cls,
 {
   // Call back function to return the query string of an HTTP request
   std::string* qString = static_cast<std::string*> (cls);
+  fprintf(stderr,"url: key=%s value=%s\n", key,value);
   if (key && qString)
   {
     if (value) 
