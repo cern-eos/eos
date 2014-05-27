@@ -124,20 +124,30 @@ class FileAbstraction
     //! Increment the size of writes
     //!
     //! @param sizeWrite size writes
-    //! @param newBlock mark if a new write block is added
     //!
     //--------------------------------------------------------------------------
-    void IncrementWrites(size_t sizeWrite, bool newBlock);
+    void IncrementWrites(size_t sizeWrite);
 
 
     //--------------------------------------------------------------------------
     //! Decrement the size of writes
     //!
     //! @param sizeWrite size writes
-    //! @param fullBlock mark if it is a full block
     //!
     //--------------------------------------------------------------------------
-    void DecrementWrites(size_t sizeWrite, bool fullBlock);
+    void DecrementWrites(size_t sizeWrite);
+
+
+    //--------------------------------------------------------------------------
+    //! Increment the number of open requests
+    //--------------------------------------------------------------------------
+    void IncNumOpen();
+
+
+    //--------------------------------------------------------------------------
+    //! Decrement the number of open requests
+    //--------------------------------------------------------------------------
+    void DecNumOpen();
 
 
     //--------------------------------------------------------------------------
@@ -189,8 +199,8 @@ class FileAbstraction
     int mFd; ///< file descriptor used for the block key range
     eos::fst::Layout* mFile; ///< raw file object
     int mNoReferences; ///< number of held referencess to this file
+    int mNumOpen; ///< number of open request without a matching close
     size_t mSizeWrites; ///< the size of write blocks in cache
-    long long int mNoWrBlocks; ///< no. of blocks in cache for this file
     long long mLastPossibleKey; ///< last possible offset in file
     long long mFirstPossibleKey; ///< first possible offset in file
     XrdSysCondVar mCondUpdate; ///< cond variable for updating file attributes

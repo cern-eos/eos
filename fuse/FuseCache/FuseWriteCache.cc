@@ -204,7 +204,7 @@ FuseWriteCache::AddWrite(FileAbstraction*& fabst,
 
     // Get CacheEntry obj - new or recycled
     pEntry = GetRecycledBlock(fabst, buf, off, len);
-    fabst->IncrementWrites(len, true);
+    fabst->IncrementWrites(len);
     eos_static_debug("got cache entry: key=%lli, off=%zu, len=%zu "
                      "size_added=%zu parentWrites=%zu entry_size=%ji",
                      k, off, len, len, fabst->GetSizeWrites(),
@@ -286,7 +286,7 @@ FuseWriteCache::ProcessWriteReq(CacheEntry* pEntry)
     pEntry->GetParentFile()->errorsQueue->push(error);
   }
   else
-    pEntry->GetParentFile()->DecrementWrites(pEntry->GetSizeData(), true);
+    pEntry->GetParentFile()->DecrementWrites(pEntry->GetSizeData());
 
   mRecycleQueue->push(pEntry);
 }
@@ -331,7 +331,7 @@ FuseWriteCache::ForceAllWrites(FileAbstraction* fabst)
 
     while (iStart != iEnd)
     {
-      eos_info("force entry to be written");
+      eos_info("force all entries to be written");
       pEntry = iStart->second;
       mWrReqQueue->push(pEntry);
       mKeyEntryMap.erase(iStart++);

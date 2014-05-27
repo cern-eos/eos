@@ -36,8 +36,8 @@ FileAbstraction::FileAbstraction(int fd, eos::fst::Layout* file) :
   mFd(fd),
   mFile(file),
   mNoReferences(0),
-  mSizeWrites(0),
-  mNoWrBlocks(0)
+  mNumOpen(1),
+  mSizeWrites(0)  
 {
   // Max file size we can deal with is ~ 90TB
   mFirstPossibleKey = static_cast<long long>(1e14 * mFd);
@@ -70,27 +70,13 @@ FileAbstraction::GetSizeWrites()
 
 
 //------------------------------------------------------------------------------
-// Get number of write blocks in cache
-//------------------------------------------------------------------------------
-long long int
-FileAbstraction::GetNoWriteBlocks()
-{
-  XrdSysCondVarHelper cond_helper(mCondUpdate);
-  return mNoWrBlocks;
-}
-
-
-//------------------------------------------------------------------------------
 // Increment the value of accumulated writes size
 //------------------------------------------------------------------------------
 void
-FileAbstraction::IncrementWrites(size_t size, bool newBlock)
+FileAbstraction::IncrementWrites(size_t size)
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
   mSizeWrites += size;
-
-  if (newBlock)
-    mNoWrBlocks++;
 }
 
 
@@ -98,18 +84,15 @@ FileAbstraction::IncrementWrites(size_t size, bool newBlock)
 // Decrement the value of writes size
 //------------------------------------------------------------------------------
 void
-FileAbstraction::DecrementWrites(size_t size, bool fullBlock)
+FileAbstraction::DecrementWrites(size_t size)
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
   eos_static_debug("old_sz=%zu, new_sz=%zu", mSizeWrites, mSizeWrites - size);
   mSizeWrites -= size;
 
-  if (fullBlock)
-    mNoWrBlocks--;
-
   // Notify pending reading processes
   if (mSizeWrites == 0)
-    mCondUpdate.Signal();
+    mCondUpdate.Broadcast();
 }
 
 
@@ -119,11 +102,14 @@ FileAbstraction::DecrementWrites(size_t size, bool fullBlock)
 void
 FileAbstraction::WaitFinishWrites()
 {
-  eos_static_debug("mSizeWrites=%zu", mSizeWrites);
   XrdSysCondVarHelper scope_lock(mCondUpdate);
+  eos_static_debug("init mSizeWrites=%zu", mSizeWrites);
 
-  if (mSizeWrites)
+  while (mSizeWrites)
+  {
+    eos_static_debug("wait mSizeWrites=%zu", mSizeWrites);
     mCondUpdate.Wait();
+  }
 }
 
 
@@ -135,6 +121,28 @@ FileAbstraction::GenerateBlockKey(off_t offset)
 {
   offset = (offset / CacheEntry::GetMaxSize()) * CacheEntry::GetMaxSize();
   return static_cast<long long int>((1e14 * mFd) + offset);
+}
+
+
+//------------------------------------------------------------------------------
+// Increment the number of open requests
+//------------------------------------------------------------------------------
+void
+FileAbstraction::IncNumOpen()
+{
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
+  mNumOpen++;
+}
+
+
+//------------------------------------------------------------------------------
+// Decrement the number of open requests
+//------------------------------------------------------------------------------
+void
+FileAbstraction::DecNumOpen()
+{
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
+  mNumOpen--;
 }
 
 
@@ -167,8 +175,9 @@ bool
 FileAbstraction::IsInUse()
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
-  eos_static_debug("write_sz=%zu, num_ref=%i", mSizeWrites, mNoReferences);
-  return ((mSizeWrites) || (mNoReferences > 1));
+  eos_static_debug("write_sz=%zu, num_ref=%i, num_open=%i", 
+                   mSizeWrites, mNoReferences, mNumOpen);
+  return ((mNumOpen > 1) || (mSizeWrites) || (mNoReferences > 1));
 }
 
 

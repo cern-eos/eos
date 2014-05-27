@@ -369,7 +369,7 @@ CacheEntry::AddPiece (const char* buf, off_t off, size_t len)
     mSizeData += size_added;
   }
 
-  mParentFile->IncrementWrites(size_added, false); 
+  mParentFile->IncrementWrites(size_added); 
   return size_added;
 }
 
@@ -387,7 +387,8 @@ CacheEntry::DoWrite ()
 
   for (/*empty*/; iCurrent != iEnd; iCurrent++)
   {
-    eos_info("write cache piece off=%ji len=%ji", iCurrent->first, iCurrent->second);
+    eos_info("write cache piece off=%ji len=%ji, raw_file=%p",
+             iCurrent->first, iCurrent->second, mParentFile->GetRawFile());
     off_relative = iCurrent->first % msMaxSize;
     // TODO: investigate using WriteAsync
     ret = mParentFile->GetRawFile()->Write(iCurrent->first,
