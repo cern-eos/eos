@@ -162,13 +162,8 @@ FuseFileTest::WriteStatTest()
   while (offset < sz_file)
   {                 
     CPPUNIT_ASSERT(!fstat(fd, &buf));
-
-    // Expect correct real size when we sync and discrepancies otherwise
-    if (count % 2) 
-      CPPUNIT_ASSERT(buf.st_size != offset);
-    else
-      CPPUNIT_ASSERT(buf.st_size == offset);
-        
+    // Expect correct real size all the time
+    CPPUNIT_ASSERT(buf.st_size == offset);
     CPPUNIT_ASSERT(S_ISREG(buf.st_mode));
     CPPUNIT_ASSERT((buf.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO)) == mode);
     CPPUNIT_ASSERT(write(fd, buff, sz_buff) == (ssize_t) sz_buff);
@@ -272,8 +267,8 @@ FuseFileTest::WriteReadTest()
 
 
 //------------------------------------------------------------------------------
-// Test that doing sparse write operations does not block the cache by
-// filling up with partial cache entries and never evicting them.
+// Test doing sparse write operations does not block the cache by filling up
+// with partial cache entries and never evicting them.
 //------------------------------------------------------------------------------
 void
 FuseFileTest::SparseWriteTest()
@@ -310,7 +305,7 @@ FuseFileTest::SparseWriteTest()
 
 
 //------------------------------------------------------------------------------
-// Have many files opened for writing which only contain an incomplete  cache
+// Have many files opened for writing which only contain an incomplete cache
 // entry such that the write cache is rapidly filled with parital entries. This
 // should trigger the automatic eviction of some cache entries such that the
 // writing does not block.

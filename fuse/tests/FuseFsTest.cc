@@ -198,11 +198,10 @@ FuseFsTest::ChmodFileTest()
   mode_t perm_mask = S_IRWXU | S_IRWXG | S_IRWXO;
   mode_t old_mode = buf.st_mode & perm_mask;
   mode_t new_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
-  // Set the new mode - this has no effect as in EOS we don't enforce
-  // permissions on file level but on directory level
   CPPUNIT_ASSERT(!chmod(fname.c_str(), new_mode));
   CPPUNIT_ASSERT(!stat(fname.c_str(), &buf));
-  CPPUNIT_ASSERT((buf.st_mode & perm_mask ) == old_mode);
+  CPPUNIT_ASSERT((buf.st_mode & perm_mask ) == new_mode);
+  CPPUNIT_ASSERT(!chmod(fname.c_str(), old_mode));
 }
 
 
