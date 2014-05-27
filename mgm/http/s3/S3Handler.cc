@@ -161,7 +161,28 @@ S3Handler::VerifySignature ()
   std::string verify_signature = b64mac1.c_str();
   eos_static_debug("in_signature=%s out_signature=%s\n",
                    GetSignature().c_str(), verify_signature.c_str());
-  return (verify_signature == GetSignature());
+
+  if (verify_signature != GetSignature())
+  {
+    // --------------------------------------------------------------------------
+    // try if the non-bucket path needs '/' encoded as '%2F' as done by Cyberduck
+    // e.g. /<bucket>/<path-without-slash-inthe-beginnging> 
+    // --------------------------------------------------------------------------
+    XrdOucString encodedPath=GetPath().c_str();
+    while (encodedPath.replace("/","%2F",1)){}
+    XrdOucString newstring2sign = string2sign.c_str();
+    newstring2sign.replace(GetPath().c_str(),encodedPath.c_str());
+    string2sign = newstring2sign.c_str();
+
+    hmac1 = eos::common::SymKey::HmacSha1(secure_key,
+					  string2sign);
+
+    b64mac1="";
+    eos::common::SymKey::Base64Encode((char*) hmac1.c_str(), hmac1.size(), b64mac1);
+    verify_signature = b64mac1.c_str();
+    return (verify_signature == GetSignature());
+  }
+  return true;
 }
 
 /*----------------------------------------------------------------------------*/
