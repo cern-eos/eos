@@ -25,6 +25,7 @@
 #include "mgm/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/VstView.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -41,6 +42,31 @@ ProcCommand::Vst ()
       VstView::gVstView.Print(out, option.c_str());
       stdOut += out.c_str();
       retc = 0;
+    }
+    if (mSubCmd == "udp")
+    {
+      std::string target = pOpaque->Get("mgm.vst.target") ? pOpaque->Get("mgm.vst.target") : "";
+      std::string myself = pOpaque->Get("mgm.vst.self") ? pOpaque->Get("mgm.vst.self") : "";
+      if (target.length())
+      {
+        // set a target
+        if (gOFS->MgmOfsVstMessaging->SetInfluxUdpEndpoint(target.c_str(), (myself=="true") ) )
+        {
+          stdOut += "info: target is now '";
+          stdOut += gOFS->MgmOfsVstMessaging->GetInfluxUdpEndpoint().c_str();
+	  if (myself=="true")
+	    stdOut += " [ publishing only own values ]";
+        }
+      }
+      else
+      {
+        // list the target
+        stdOut += "info: target=";
+        stdOut += gOFS->MgmOfsVstMessaging->GetInfluxUdpEndpoint().c_str();
+	if (gOFS->MgmOfsVstMessaging->GetPublishOnlySelf())
+	  stdOut += " [ publishing only own values ]";
+      }
+
     }
   }
   else

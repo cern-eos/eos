@@ -30,8 +30,11 @@
 #include "mq/XrdMqSharedObject.hh"
 #include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdSys/XrdSysDNS.hh"
 /*----------------------------------------------------------------------------*/
-
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -50,10 +53,26 @@ public:
   virtual void Process (XrdMqMessage* newmessage);
   // listener thread startup                                                                                                                                                                         
   static void* Start (void*);
+  
+  bool SetInfluxUdpEndpoint(const char*, bool onlyme);
+  int GetInfluxUdpPort() {return InfluxUdpPort;}
+  std::string& GetInfluxUdpHost() {return InfluxUdpHost;}
+  std::string& GetInfluxUdpEndpoint() {return InfluxUdpEndpoint;}
+  
+  bool PublishInfluxDbUdp();
+  bool KeyIsString(std::string key); //< defines if a published key should be treated as a String
+  bool GetPublishOnlySelf() { return PublishOnlySelf; }
 private:
   XrdMqClient mMessageClient;   
   std::string mVstMessage;
   std::string& PublishVst();
+  
+  std::string InfluxUdpEndpoint; //< UDP target host:port
+  std::string InfluxUdpHost; //< UDP target hostname
+  int InfluxUdpPort; //< UDP target port
+  int InfluxUdpSocket; //< UDP socket
+  struct sockaddr_in InfluxUdpSocketAddr; //< UDP socket addresss
+  bool PublishOnlySelf;
 };
 
 EOSMGMNAMESPACE_END

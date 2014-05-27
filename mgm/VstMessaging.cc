@@ -66,6 +66,10 @@ VstMessaging::VstMessaging (const char* url, const char* defaultreceiverqueue, b
   mMessageClient.Subscribe();
   mMessageClient.SetDefaultReceiverQueue(defaultreceiverqueue);
 
+  InfluxUdpPort = 0;
+  InfluxUdpSocket = 0;
+
+  PublishOnlySelf = false;
   eos::common::LogId();
 }
 
@@ -127,7 +131,7 @@ VstMessaging::Listen ()
         mMessageClient.SendMessage(message, 0, false, false, true);
         lPublishTime = time(NULL);
         eos_static_info("sending vst message %s", PublishVst().c_str());
-
+        PublishInfluxDbUdp();
       }
     }
     XrdSysThread::SetCancelOn();
@@ -222,6 +226,20 @@ VstMessaging::Process (XrdMqMessage* newmessage)
 }
 
 /*----------------------------------------------------------------------------*/
+bool
+VstMessaging::KeyIsString (std::string key)
+{
+  if (key == "instance") return true;
+  if (key == "host") return true;
+  if (key == "version") return true;
+  if (key == "mode") return true;
+  if (key == "url") return true;
+  if (key == "ip") return true;
+  if (key == "manager") return true;
+  return false;
+}
+
+/*----------------------------------------------------------------------------*/
 std::string&
 VstMessaging::PublishVst ()
 {
@@ -268,9 +286,9 @@ VstMessaging::PublishVst ()
 
       ropen = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.ropen");
       wopen = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.wopen");
-      
+
       nfsrw = FsView::gFsView.mSpaceView["default"]->SumLongLong("<n>?configstatus@rw");
-      iops  = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.iops?configstatus@rw");
+      iops = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.iops?configstatus@rw");
       bw = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.disk.bw?configstatus@rw");
     }
   }
@@ -285,7 +303,7 @@ VstMessaging::PublishVst ()
     lock_r = (unsigned long long) gOFS->MgmStats.GetTotalAvg300("NsLockR");
     lock_w = (unsigned long long) gOFS->MgmStats.GetTotalAvg300("NsLockW");
   }
-  
+
   unsigned long long files = 0;
   unsigned long long container = 0;
 
@@ -361,5 +379,124 @@ VstMessaging::PublishVst ()
   mVstMessage += info;
   return mVstMessage;
 }
+
+/*----------------------------------------------------------------------------*/
+bool
+VstMessaging::SetInfluxUdpEndpoint (const char* hostport, bool onlyme)
+{
+  // create an UDP socket for the specified target
+  int udpsocket = -1;
+  udpsocket = socket(AF_INET, SOCK_DGRAM, 0);
+  
+  PublishOnlySelf = onlyme;
+
+  if (udpsocket > 0)
+  {
+    // close previously defined UDP socket
+    if (InfluxUdpSocket)
+      close(InfluxUdpSocket);
+
+    XrdOucString a_host, a_port, hp;
+    int port = 0;
+    hp = hostport;
+    if (!eos::common::StringConversion::SplitKeyValue(hp, a_host, a_port))
+    {
+      a_host = hp;
+      a_port = "4444";
+    }
+    port = atoi(a_port.c_str());
+
+    if (!port)
+      return false;
+
+    InfluxUdpSocket = udpsocket;
+    InfluxUdpPort = port;
+    InfluxUdpHost = a_host.c_str();
+    {
+      char is[256];
+      snprintf(is, sizeof (is) - 1, "%s:%d", InfluxUdpHost.c_str(), InfluxUdpPort);
+      InfluxUdpEndpoint = is;
+    }
+
+    XrdSysDNS::getHostAddr(a_host.c_str(), (struct sockaddr*) &InfluxUdpSocketAddr);
+    InfluxUdpSocketAddr.sin_family = AF_INET;
+    InfluxUdpSocketAddr.sin_port = htons(port);
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+VstMessaging::PublishInfluxDbUdp ()
+{
+  if (InfluxUdpSocket)
+  {
+    // build a beautiful JSON document for the InfluxUdp receiver
+
+    for (auto it = VstView::gVstView.mView.begin(); it != VstView::gVstView.mView.end(); ++it)
+    {
+      if (PublishOnlySelf)
+	if (it->first != mMessageClient.GetDefaultReceiverQueue().c_str())
+	  continue;
+      std::string json_doc;
+      XrdSysMutexHelper vLock(VstView::gVstView.ViewMutex);
+      json_doc += "[\n";
+      json_doc += "  {\n";
+      json_doc += "    \"name\" : \"vst\",\n";
+      json_doc += "    \"columns\" : [";
+
+      for (auto sit = it->second.begin(); sit != it->second.end(); ++sit)
+      {
+        if (sit != it->second.begin())
+          json_doc += ",";
+        json_doc += "\"";
+        json_doc += sit->first;
+        json_doc += "\"";
+      }
+      json_doc += "],\n";
+      json_doc += "    \"points\" : [\n"
+                  "                   [";
+
+      for (auto sit = it->second.begin(); sit != it->second.end(); ++sit)
+      {
+        if (sit != it->second.begin())
+          json_doc += ",";
+
+        if (KeyIsString(sit->first))
+        {
+          json_doc += "\"";
+        }
+        json_doc += sit->second;
+        if (KeyIsString(sit->first))
+        {
+          json_doc += "\"";
+        }
+      }
+      json_doc += "]\n";
+      json_doc += "               ]\n";
+      json_doc += "  }\n";
+      json_doc += "]\n";
+
+      eos_static_debug("json=\n%s\n", json_doc.c_str());
+      int sendretc = sendto(InfluxUdpSocket, json_doc.c_str(), json_doc.length(), 0, (struct sockaddr *) &InfluxUdpSocketAddr, sizeof (struct sockaddr_in));
+      if (sendretc < 0)
+      {
+        eos_static_err("failed to send udp message to %s\n", InfluxUdpEndpoint.c_str());
+      }
+    }
+    return true;
+  }
+  else
+  {
+    return true;
+  }
+}
+
+
 EOSMGMNAMESPACE_END
+
 

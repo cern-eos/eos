@@ -66,12 +66,33 @@ com_vst (char* arg1)
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
+  
+  if (subcommand == "--udp")
+  {
+    XrdOucString in = "mgm.cmd=vst&mgm.subcmd=udp";    
+    XrdOucString target = subtokenizer.GetToken();
+    XrdOucString myself = subtokenizer.GetToken();
+    if (target.length())
+    {
+      in += "&mgm.vst.target=";
+      in += target;
+    }
+    if (myself.length() && (myself != "--self"))
+      goto com_vst_usage;
 
+    if (myself.length() )
+    {
+      in += "&mgm.vst.self=true";
+    }
+    global_retc = output_result(client_admin_command(in));
+    return (0);
+  }
 
 com_vst_usage:
   fprintf(stdout, "usage: vst ls [-m] [--io]                                       : list VSTs\n");
   fprintf(stdout, "                                        -m : monitoring format\n");
   fprintf(stdout, "                                      --io : IO format\n");
+  fprintf(stdout, "       vst --udp [<host:port>] [--self]                         : list[set] VST influxdb target\n");
   fprintf(stdout, "\n");
   return (0);
 }
