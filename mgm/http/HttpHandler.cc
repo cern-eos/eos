@@ -134,9 +134,21 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
   // ------------------------------------------------------------------------------
   if (spath.find("/status.php") != STR_NPOS)
   {
-    std::string data ="{\"installed\":\"true\",\"version\":\"5.0.28\",\"versionstring\":\"5.0.14a\",\"edition\":\"Enterprise\"}";
-    response = HttpServer::HttpData(data.c_str(), data.length());
-    return response;
+    XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
+    spath.replace("/status.php","");
+    XrdOucString val;
+    if (gOFS->attr_get(spath.c_str(),error, &client, "","sys.allow.oc.sync", val))
+    {
+      response = HttpServer::HttpError("No sync allowed in this tree",
+				       response->METHOD_NOT_ALLOWED);
+      return response;
+    }
+    else
+    {
+      std::string data ="{\"installed\":\"true\",\"version\":\"5.0.28\",\"versionstring\":\"5.0.14a\",\"edition\":\"Enterprise\"}";
+      response = HttpServer::HttpData(data.c_str(), data.length());
+      return response;
+    }
   }
 
   if (spath.find("/remote.php/webdav/") != STR_NPOS)
