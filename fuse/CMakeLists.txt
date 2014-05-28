@@ -30,7 +30,10 @@ include_directories( ${CMAKE_SOURCE_DIR}
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}
 		  ${XROOTD_LIB_DIR} )
 
-add_subdirectory(tests)
+if(CPPUNIT_FOUND)
+  add_subdirectory(tests)
+endif(CPPUNIT_FOUND)
+
 add_subdirectory(FuseCache)
 
 add_executable ( 
