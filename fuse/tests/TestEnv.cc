@@ -62,34 +62,63 @@ TestEnv::TestEnv()
   mMapParam.insert(std::make_pair("file_dummy", "/eos/dev/test/fuse/dummy.dat"));
   mMapParam.insert(std::make_pair("file_rename", "/eos/dev/test/fuse/file_rename.dat"));
 
-  // Get fuse write cache size
-  off_t sz_buff = 1024;
+  // Get fuse write cache size from eosd process environment
+  off_t sz_buff = 4096 * 4;
   char buff[sz_buff];
+  std::string result = "";
   std::string cmd = "ps aux | grep \"[e]osd \" | awk \'{print $2}\'";
-  FILE* pipe = popen(cmd.c_str(), "r");
+  FILE* eosd_pipe = popen(cmd.c_str(), "r");
 
-  if (!pipe)
+  if (!eosd_pipe)
   {
     std::cerr << "Error getting fuse cache size" << std::endl;
+    pclose(eosd_pipe);
     exit(1);
   }
 
-  std::string sz_cache;
-  std::string result = "";
-
-  while (!feof(pipe))
+  while (!feof(eosd_pipe))
   {
-    if (fgets(buff, sz_buff, pipe) != NULL)
+    if (fgets(buff, sz_buff, eosd_pipe) != NULL)
       result += buff;
   }
 
-  pclose(pipe);
-  int eosd_pid = atoi(result.c_str());
+  pclose(eosd_pipe);
+
+  if (result.empty())
+  {
+    // eosd is not running, try eosdfs
+    cmd = "ps aux | grep \"[e]osfsd \" | awk \'{print $2}\'";
+    FILE* eosdfs_pipe = popen(cmd.c_str(), "r");
+    
+    if (!eosdfs_pipe)
+    {
+      std::cerr << "Error getting fuse cache size" << std::endl;
+      exit(2);
+    }
+    
+    while (!feof(eosdfs_pipe))
+    {
+      if (fgets(buff, sz_buff, eosdfs_pipe) != NULL)
+        result += buff;
+    }
+    
+    pclose(eosdfs_pipe);
+
+    if (result.empty())
+    {
+      std::cerr << "No eosd or eosfs process running" << std::endl;
+      exit(3);
+    }
+  }
+
+  int pid = atoi(result.c_str());
+  //std::cout << "Pid: " << pid << std::endl;
 
   // Read fuse cache size value from environ file
+  std::string sz_cache;
   std::string key = "EOS_FUSE_CACHE_SIZE=";
   std::ostringstream oss;
-  oss << "/proc/" << eosd_pid << "/environ";
+  oss << "/proc/" << pid << "/environ";
   std::ifstream f(oss.str().c_str(), std::ios::in | std::ios::binary);
 
   if (!f.is_open())
@@ -98,20 +127,18 @@ TestEnv::TestEnv()
     exit(1);
   }
 
-  while (!f.eof())
+  while (f.good())
   {
     f.getline(buff, sz_buff, '\0');
     result = buff;
-
+    
     if (result.find(key) == 0)
-    {
       sz_cache = result.substr(key.length()).c_str();
-      //std::cout << "Size cache is: " << sz_cache << std::endl;
-    }
   }
 
   f.close();
   mMapParam.insert(std::make_pair("fuse_cache_size", sz_cache));
+  //std::cout << "Size cache is: " << sz_cache << std::endl;
 }
 
 
