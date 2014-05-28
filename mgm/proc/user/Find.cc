@@ -242,23 +242,29 @@ ProcCommand::Find ()
   if (option.find("I") != STR_NPOS)
   {
     printfileinfo = true;
-    option += "f";
+
+    // When just fileinfo is specified we print it for both files and directories
+    if ((option.find("d") == STR_NPOS) && (option.find("f") == STR_NPOS))
+      option += "df";      
   }
 
   if (option.find("A") != STR_NPOS)
   {
     selectfaultyacl = true;
-    option += "d";
+
+    if (option.find("d") == STR_NPOS)
+      option += "d";
   }
 
   if (purgeversion.length())
   {
-    if ( ( atoi(purgeversion.c_str()) == 0 ) && (purgeversion != "0") )
+    if ((atoi(purgeversion.c_str()) == 0) && (purgeversion != "0"))
     {
       fprintf(fstderr,"error: the max. version given to --purge has to be a valid number >=0");
       retc = EINVAL;
       return SFS_OK;
     }
+    
     max_version = atoi(purgeversion.c_str());
     purge = true;
     option += "d";
@@ -320,6 +326,7 @@ ProcCommand::Find ()
         option += "f";
       }
     }
+    
     if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, (*found), key.c_str(), val.c_str(), nofiles))
     {
       fprintf(fstderr, "%s", stdErr.c_str());
@@ -669,8 +676,9 @@ ProcCommand::Find ()
           }
           else
           {
-            // get location
-            //-------------------------------------------
+            //------------------------------------------------------------------
+            // Get location
+            //------------------------------------------------------------------
             gOFS->eosViewRWMutex.LockRead();
             eos::FileMD* fmd = 0;
             try
@@ -737,7 +745,7 @@ ProcCommand::Find ()
     }
 
 
-    if ((option.find("d")) != STR_NPOS)
+    if (option.find("d") != STR_NPOS)
     {
       for (foundit = (*found).begin(); foundit != (*found).end(); foundit++)
       {
