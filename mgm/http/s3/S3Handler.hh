@@ -134,6 +134,17 @@ public:
    */
   eos::common::HttpResponse*
   Delete (eos::common::HttpRequest *request);
+  
+  /**
+   * Encode an URI
+   * 
+   * @param path is the URI to encode
+   * 
+   * @return an XrdOucString with the encoded URI
+   */
+  XrdOucString
+  EncodeURI(const char* uri);
+  
 
 };
 
