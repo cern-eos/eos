@@ -140,9 +140,8 @@ eosdfs_fgetattr (const char* path,
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
   struct fd_user_info* info = (fd_user_info*) fi->fh;
-
   int res = xrd_stat(rootpath, stbuf, uid, gid, info->ino);
-
+  
   if (res == 0)
   {
     if (S_ISREG (stbuf->st_mode))
@@ -262,11 +261,10 @@ eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
       return -errno;
 
     // Update the entry parameters
-
     xrd_store_p2i ((unsigned long long) return_inode, rootpath);
     fprintf (stderr, "[%s]: update inode=%lld \n", __FUNCTION__, (long long) return_inode);
 
-    // This memory  has to be freed once we're done with the file, usually in
+    // This memory has to be freed once we're done with the file, usually in
     // the close/release method
     fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof(struct fd_user_info));
     info->fd = res;
@@ -291,7 +289,8 @@ eosdfs_mkdir (const char* path, mode_t mode)
   rootpath[0] = '\0';
   strcat(rootpath, mountprefix);
   strcat(rootpath, path);
-  int res = xrd_mkdir(rootpath, mode, uid, gid, pid, 0);
+  struct stat buf;
+  int res = xrd_mkdir(rootpath, mode, uid, gid, pid, &buf);
 
   if (res)
     return -errno;
@@ -406,6 +405,7 @@ eosdfs_truncate (const char* path, off_t size)
 {
   fprintf(stderr, "[%s] path=%s, size=%ji\n", __FUNCTION__, path, size);
   char rootpath[4096];
+  unsigned long rinode = 0;
   eosatime = time (0);
   rootpath[0] = '\0';
   strcat (rootpath, mountprefix);
@@ -415,13 +415,13 @@ eosdfs_truncate (const char* path, off_t size)
   int fd = xrd_open(path,
                     O_WRONLY | O_TRUNC,
                     S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
-                    uid, gid, pid, 0);
+                    uid, gid, pid, &rinode);
   
   if (fd < 0)
     return -errno;
 
   xrd_truncate (fd, size);
-  xrd_close (fd, 0, uid);
+  xrd_close (fd, rinode, uid);
   return 0;
 }
 
@@ -460,6 +460,7 @@ eosdfs_open (const char* path, struct fuse_file_info* fi)
 {
   fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   char rootpath[4096];
+  unsigned long rinode = 0;
   rootpath[0] = '\0';
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
@@ -467,24 +468,20 @@ eosdfs_open (const char* path, struct fuse_file_info* fi)
   int res = xrd_open (path, 
                   fi->flags, 
                   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, 
-                  uid, gid, pid, 0);
+                  uid, gid, pid, &rinode);
 
   if (res == -1)
     return -errno;
-
-  // Get the new inode value
-  struct stat buf;
-  int retc = xrd_stat(rootpath, &buf, uid, gid, 0);
-  fprintf (stderr, "[%s]: update inode=%lld\n", __FUNCTION__, (long long) buf.st_ino);
-  
+ 
   // This memory  has to be freed once we're done with the file, usually in
   // the close/release method
   fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof(struct fd_user_info));
   info->fd = res;
   info->uid = uid;
-  info->ino = buf.st_ino;
+  info->ino = rinode;
   fi->fh = (uint64_t) info;  
-  fprintf (stderr, "[%s] path=%s, fd=%i\n", __FUNCTION__, path, res);
+  fprintf (stderr, "[%s] path=%s, fd=%i, inode=%lu\n", __FUNCTION__, path, res,
+           (unsigned long) rinode);
   return 0;
 }
 
@@ -627,7 +624,7 @@ eosdfs_ftruncate(const char* path,
 
 //------------------------------------------------------------------------------
 //
-//-A-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 #ifdef HAVE_SETXATTR
 //..............................................................................
 // Xattr operations are optional and can safely be left unimplemented

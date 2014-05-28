@@ -1189,8 +1189,7 @@ xrd_stat (const char* path,
           struct stat* buf,
           uid_t uid,
           gid_t gid,
-          unsigned long inode
-          )
+          unsigned long inode)
 {
   eos_static_info("path=%s, uid=%i, gid=%i inode=%lu",
                   path, (int)uid, (int)gid, inode);
@@ -2259,7 +2258,8 @@ xrd_open (const char* path,
               else
                 *return_inode = 0;
               
-              eos_static_debug("path=%s created ino=%lu", path, (unsigned long)*return_inode);
+              eos_static_debug("path=%s created inode=%lu", path,
+                               (unsigned long)*return_inode);
             }
             
             retc = xrd_add_fd2file(file, *return_inode, uid);
@@ -2703,16 +2703,15 @@ xrd_init ()
   XrdOucString fusedebug = getenv("EOS_FUSE_DEBUG");
 
   if ((getenv("EOS_FUSE_DEBUG")) && (fusedebug != "0"))
+  {
     eos::common::Logging::SetLogPriority(LOG_DEBUG);
+  }
   else
   { 
-    if ((getenv("EOS_FUSE_LOGLEVEL"))) {
+    if ((getenv("EOS_FUSE_LOGLEVEL"))) 
       eos::common::Logging::SetLogPriority(atoi(getenv("EOS_FUSE_LOGLEVEL")));
-    } 
-    else 
-    {
-      eos::common::Logging::SetLogPriority(LOG_INFO);
-    }
+    else
+      eos::common::Logging::SetLogPriority(LOG_INFO);    
   }
   //............................................................................
   // Initialise the XrdClFileSystem object
