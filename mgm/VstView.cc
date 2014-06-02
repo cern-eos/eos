@@ -49,13 +49,13 @@ VstView::Print (std::string &out,
   if (option == "io")
     ioformating = true;
 
-  const char* format = "%s %-16s %-4s %-40s %-16s %-6s %-10s %-8s %12s %8s %5s %5s %7s %12s %12s %8s\n";
-  const char* ioformat = "%s %-20s %-4s %12s %8s %12s %12s %8s %5s %5s %10s %10s %10s %10s %5s %5s\n";
+  const char* format = "%s %-16s %-4s %-40s %-16s %-6s %-10s %-8s %12s %8s %5s %6s %8s %11s %11s %8s\n";
+  const char* ioformat = "%s %-20s %-4s %12s %8s %5s %11s %11s %8s %5s %5s %10s %10s %10s %10s %5s %5s\n";
   char line[4096];
   if (!monitoring)
   {
     if (ioformating)
-      snprintf(line, sizeof (line) - 1, ioformat, "#", "instance", "age", "space", "used", "n-fs", "files","directories", "ropen", "wopen", "diskr-MB/s", "diskw-MB/s", "ethi-MiB/s", "etho-MiB/s", "NsR/s","NsW/s");
+      snprintf(line, sizeof (line) - 1, ioformat, "#", "instance", "age", "space", "used", "n-fs", "files","directories", "clients", "ropen", "wopen", "diskr-MB/s", "diskw-MB/s", "ethi-MiB/s", "etho-MiB/s", "NsR/s","NsW/s");
     else
       snprintf(line, sizeof (line) - 1, format, "#", "instance", "age", "host", "ip", "mode", "version", "uptime", "space", "used", "n(fs)", "iops", "bw-MB/s", "files", "directories", "clients");
     out += "# _______________________________________________________________________________________________________________________________________________________________________________________\n";
@@ -107,7 +107,8 @@ VstView::Print (std::string &out,
         is+= "[W]";
       else
         is+= "[R]";
-      
+
+      //      snprintf(line, sizeof (line) - 1, ioformat, "#", "instance", "age", "space", "used", "n-fs", "files","directories", "ropen", "wopen", "diskr-MB/s", "diskw-MB/s", "ethi-MiB/s", "etho-MiB/s", "NsR/s","NsW/s");      
       if (ioformating)
         snprintf(line, sizeof (line) - 1, ioformat,
                  " ",
@@ -126,8 +127,7 @@ VstView::Print (std::string &out,
                  eos::common::StringConversion::GetSizeString(val3, ethout),
                  eos::common::StringConversion::GetSizeString(val4, ethin),
                  eos::common::StringConversion::GetSizeString(val7, rlock),
-                 eos::common::StringConversion::GetSizeString(val8, wlock),
-                 wlock
+                 eos::common::StringConversion::GetSizeString(val8, wlock)
                  );
       else
         snprintf(line, sizeof (line) - 1, format,
