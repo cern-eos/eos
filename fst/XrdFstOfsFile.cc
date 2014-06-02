@@ -1943,7 +1943,9 @@ XrdFstOfsFile::close ()
               }
               else
               {
-                eos_crit("commit returned an uncatched error msg=%s", error.getErrText());
+                eos_crit("commit returned an uncatched error msg=%s [probably timeout] - closing transaction to keep the file save", error.getErrText());
+		if (isRW)
+		  gOFS.Storage->CloseTransaction(fsid, fileid); 
               }
             }
             else
