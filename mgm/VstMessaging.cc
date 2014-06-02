@@ -387,7 +387,7 @@ VstMessaging::SetInfluxUdpEndpoint (const char* hostport, bool onlyme)
   // create an UDP socket for the specified target
   int udpsocket = -1;
   udpsocket = socket(AF_INET, SOCK_DGRAM, 0);
-  
+
   PublishOnlySelf = onlyme;
 
   if (udpsocket > 0)
@@ -440,13 +440,15 @@ VstMessaging::PublishInfluxDbUdp ()
     for (auto it = VstView::gVstView.mView.begin(); it != VstView::gVstView.mView.end(); ++it)
     {
       if (PublishOnlySelf)
-	if (it->first != mMessageClient.GetDefaultReceiverQueue().c_str())
-	  continue;
+	     if (it->first != mMessageClient.GetDefaultReceiverQueue().c_str())
+	       continue;
       std::string json_doc;
       XrdSysMutexHelper vLock(VstView::gVstView.ViewMutex);
       json_doc += "[\n";
       json_doc += "  {\n";
-      json_doc += "    \"name\" : \"vst\",\n";
+      json_doc += "    \"name\" : \"";
+      json_doc += it->second["instance"].c_str();
+      json_doc += "\",\n";
       json_doc += "    \"columns\" : [";
 
       for (auto sit = it->second.begin(); sit != it->second.end(); ++sit)
