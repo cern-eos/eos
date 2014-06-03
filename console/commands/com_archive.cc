@@ -43,11 +43,18 @@ com_archive(char* arg1)
   {
     path = subtokenizer.GetToken();
     XrdOucString dst = subtokenizer.GetToken();
-    XrdCl::URL dst_url = XrdCl::URL(dst.c_str());
 
-    if (!path.length() || !dst_url.IsValid())
+    if (!path.length() || !dst.length())
     {
-      fprintf(stdout, "Invalid destination URL");
+      fprintf(stdout, "Empty path or destination\n");
+      goto com_archive_usage;
+    }
+                       
+    XrdCl::URL dst_url = XrdCl::URL(path.c_str());
+
+    if (!dst_url.IsValid())
+    {
+      fprintf(stdout, "Invalid destination URL\n");
       goto com_archive_usage;
     }
 
@@ -65,7 +72,7 @@ com_archive(char* arg1)
   }
   else if (subcmd == "stage")
   {
-    XrdOucString fpath = subtokenizer.GetToken();
+    path = subtokenizer.GetToken();
 
     if (!path.length())
       goto com_archive_usage;
@@ -86,6 +93,8 @@ com_archive(char* arg1)
     else
       goto com_archive_usage;
   }
+  else
+    goto com_archive_usage;
 
   in = in_cmd.str().c_str();
   global_retc = output_result(client_admin_command(in));
