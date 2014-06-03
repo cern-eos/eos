@@ -118,17 +118,26 @@ private:
   bool mJsonFormat; //< indicates JSON format
   bool mHttpFormat; //< indicates HTTP format
   bool mClosed; //< indicates the proc command has been closed already
+
+  //----------------------------------------------------------------------------
+  //! Create archive file.
+  //!
+  //! @param archi_dir directory for which the archive file is created
+  //!
+  //! @return 0 if successfull, otherwise -1
+  //----------------------------------------------------------------------------
+  int ArchiveCreate(const XrdOucString& arch_dir);
+  
+  
 public:
 
   // -------------------------------------------------------------------------
-  //! the open function calls the requested cmd/subcmd and builds the result
+  //! The open function calls the requested cmd/subcmd and builds the result
   // -------------------------------------------------------------------------
-  int open (
-            const char* path,
+  int open (const char* path,
             const char* info,
             eos::common::Mapping::VirtualIdentity &vid,
-            XrdOucErrInfo *error
-            );
+            XrdOucErrInfo *error);
 
   // -------------------------------------------------------------------------
   //! read a part of the result stream created during open
