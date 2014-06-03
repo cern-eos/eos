@@ -80,6 +80,8 @@ XrdOucTrace
 gMgmOfsTrace (&gMgmOfsEroute);
 
 const char* XrdMgmOfs::gNameSpaceState[] = {"down", "booting", "booted", "failed", "compacting"};
+const std::string XrdMgmOfs::msArchiveEndpoint = "ipc:///tmp/archivebackend.ipc";
+const std::string XrdMgmOfs::msArchiveFname = "archive.json";
 
 XrdMgmOfs* gOFS = 0;
 

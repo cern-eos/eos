@@ -22,15 +22,19 @@
 # ************************************************************************
 
 include_directories( ../
-         ${XROOTD_INCLUDE_DIR}
-         ${XROOTD_PRIVATE_INCLUDE_DIR}
-         ${SPARSEHASH_INCLUDE_DIR}
-         ${NCURSES_INCLUDE_DIR}
-         ${LDAP_INCLUDE_DIR}
-         ${Z_INCLUDE_DIR}
+		     ${CMAKE_CURRENT_SOURCE_DIR}
+		     ${XROOTD_INCLUDE_DIR} 
+                     ${XROOTD_PRIVATE_INCLUDE_DIR} 
+                     ${SPARSEHASH_INCLUDE_DIR} 
+                     ${NCURSES_INCLUDE_DIR}
+                     ${LDAP_INCLUDE_DIR}
+                     ${Z_INCLUDE_DIR}
+		     ${ZMQ_INCLUDE_DIR}
 )
 
-link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR})
+link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} 
+		  ${XROOTD_LIB_DIR}
+		  ${ZMQ_LIBRARIES})
 
 add_library (XrdEosMgm MODULE
             Access.cc
@@ -115,10 +119,10 @@ target_link_libraries( XrdEosMgm
                        XrdUtils             XrdOfs
                        eosCommon            eosCommonServer
                        eosNamespace-Static  eosCapability-Static
-                       XrdMqClient-Static
-                       crypto               ${NCURSES_LIBRARIES}
-                       ${LDAP_LIBRARIES}
-                       dl                   ${Z_LIBRARIES}
+                       XrdMqClient-Static 
+                       crypto               dl
+		       ${LDAP_LIBRARIES}    ${NCURSES_LIBRARIES} 
+		       ${ZMQ_LIBRARIES}     ${Z_LIBRARIES}
                        ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
                      )
 
@@ -133,7 +137,8 @@ target_link_libraries ( testmgmview
                         eosCommon         eosCommonServer
                         XrdMqClient-Static eosCapability-Static
                         crypto            ${NCURSES_LIBRARIES}
-                        dl                ${Z_LIBRARIES}
+                        dl                
+			${ZMQ_LIBRARIES}  ${Z_LIBRARIES}
                         ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 
 set_target_properties ( testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST" )

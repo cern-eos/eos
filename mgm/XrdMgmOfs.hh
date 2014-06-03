@@ -139,9 +139,8 @@
 #include "XrdSys/XrdSysTimer.hh"
 /*----------------------------------------------------------------------------*/
 #include <dirent.h>
-
+#include "zmq.hpp"
 /*----------------------------------------------------------------------------*/
-
 
 USE_EOSMGMNAMESPACE
 
@@ -974,6 +973,10 @@ public:
   Recycle Recycler; //<  Recycle object running the recycle bin deletion thread
 
   bool UTF8; //< true if running in less restrictive character set mode
+
+  static const std::string msArchiveFname; ///< archive filename
+  static const std::string msArchiveEndpoint; ///< archive connection endpoint
+  
 private:
 
   eos::common::Mapping::VirtualIdentity vid; //< virtual identity
