@@ -1,7 +1,12 @@
 ###########################################################
+set MGM=$EOS_MGM_ALIAS
+###########################################################
+
 xrootd.fslib libXrdEosFst.so
 xrootd.async off nosf
 xrd.network keepalive
+xrootd.redirect $(MGM):1094 chksum
+
 ###########################################################
 xrootd.seclib libXrdSec.so
 sec.protocol unix
