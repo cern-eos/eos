@@ -24,13 +24,13 @@
 /*----------------------------------------------------------------------------*/
 /**
  * @file   XrdMgmOfs.hh
- * 
+ *
  * @brief  XRootD OFS plugin implementing meta data handling of EOS
- * 
+ *
  * This class is the OFS plugin which is implemented the meta data and
  * management server part. To understand the functionality of the MGM you start
  * here. The class implements three objects, the MgmOfs object for generic
- * meta data operations, configuration and EOS thread daemon startup, 
+ * meta data operations, configuration and EOS thread daemon startup,
  * the MgmOfsFile class which implements operations on files - in the case of
  * an MGM this is mainly 'open' for redirection to an FST. There is one exception
  * the so called EOS 'proc' commands. Every EOS shell command is implemented as
@@ -46,7 +46,7 @@
  * - eos::common::RWMutexXXXLock lock(gOFS->eosViewRWMutex)       : lock 3
  * The XXX is either Read or Write depending what has to be done on the
  * objects they are protecting. The first mutex is the file system view object
- * (FsView.cc) which contains the current state of the storage 
+ * (FsView.cc) which contains the current state of the storage
  * filesystem/node/group/space configuration. The second mutex is protecting
  * the quota configuration and scheduling. The last mutex is protecting the
  * namespace.
@@ -57,11 +57,11 @@
  * "::access" and an internal function "::_access". The main function applies
  * typically the mentioned macros and converts the XRootD client identity object
  * into an EOS virtual identity. The interal function requires an EOS virtual
- * identity and contains the full implementation. This allows to apply 
- * mapping & stall/redirection rules once and use the interval function 
+ * identity and contains the full implementation. This allows to apply
+ * mapping & stall/redirection rules once and use the interval function
  * implementation from other main functions e.g. the "rename" function can use
- * the "_access" internal function to check some permissions etc.  
- * The MGM run's the following sub-services 
+ * the "_access" internal function to check some permissions etc.
+ * The MGM run's the following sub-services
  * (implemented by objects and threaded daemons):
  * - Fsck
  * - Balancer
@@ -73,7 +73,7 @@
  * - Httpd
  * - Recycler
  * - LRU
- * 
+ *
  * Many functions in the MgmOfs interface take CGI parameters. The supported
  * CGI parameter are:
  * "eos.ruid" - uid role the client wants
@@ -87,9 +87,9 @@
  * "eos.app" - set the application name reported by monitoring
  * "eos.targetsize" - expected size of a file to be uploaded
  * "eos.blockchecksum=ignore" - disable block checksum verification
- * 
+ *
  * All path related functions take as parameters 'inpath' and 'ininfo'. These
- * parameters are remapped by the NAMESPACEMAP macro to path & info variables 
+ * parameters are remapped by the NAMESPACEMAP macro to path & info variables
  * which are not visible in the declaration of each function!
  */
 /*----------------------------------------------------------------------------*/
@@ -99,7 +99,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "authz/XrdCapability.hh"
-#include "common/Mapping.hh"  
+#include "common/Mapping.hh"
 #include "common/SymKeys.hh"
 #include "common/Logging.hh"
 #include "common/GlobalConfig.hh"
@@ -148,8 +148,7 @@ USE_EOSMGMNAMESPACE
 /*----------------------------------------------------------------------------*/
 //! Class implementing atomic meta data commands
 /*----------------------------------------------------------------------------*/
-class XrdMgmOfs : public XrdSfsFileSystem, public eos::common::LogId
-{
+class XrdMgmOfs : public XrdSfsFileSystem, public eos::common::LogId {
   friend class XrdMgmOfsFile;
   friend class XrdMgmOfsDirectory;
   friend class ProcCommand;
@@ -174,7 +173,7 @@ public:
 
   // ---------------------------------------------------------------------------
   // meta data functions
-  // - the _XYZ functions are the internal version of XYZ when XrdSecEntity 
+  // - the _XYZ functions are the internal version of XYZ when XrdSecEntity
   // - objects have been mapped to VirtuIdentity's.
   // ---------------------------------------------------------------------------
 
@@ -244,8 +243,7 @@ public:
            eos::common::Mapping::VirtualIdentity &vid,
            const char *opaque = 0);
 
-  enum eFSCTL
-  {
+  enum eFSCTL {
     kFsctlMgmOfsOffset = 40000
   };
 
@@ -307,7 +305,7 @@ public:
                const XrdSecEntity *client = 0);
 
   // ---------------------------------------------------------------------------
-  // delete file 
+  // delete file
   // ---------------------------------------------------------------------------
   int rem (const char *path,
            XrdOucErrInfo &out_error,
@@ -331,8 +329,8 @@ public:
              XrdOucString &stdErr,
              eos::common::Mapping::VirtualIdentity &vid,
              std::map<std::string, std::set<std::string> > &found,
-             const char* key = 0, 
-             const char* val = 0, 
+             const char* key = 0,
+             const char* val = 0,
              bool nofiles = false,
              time_t millisleep = 0,
              bool nscounter = true
@@ -374,7 +372,7 @@ public:
               eos::common::Mapping::VirtualIdentity &vid,
               const char *opaqueO = 0,
               const char *opaqueN = 0,
-	      bool overwrite = false);
+              bool overwrite = false);
 
   // ---------------------------------------------------------------------------
   // rename file by vid
@@ -387,7 +385,7 @@ public:
                const char *opaqueN = 0,
                bool updateCTime = false,
                bool checkQuota = false,
-	       bool overwrite = false);
+               bool overwrite = false);
 
   // ---------------------------------------------------------------------------
   // stat file
@@ -395,10 +393,10 @@ public:
   int stat (const char *Name,
             struct stat *buf,
             XrdOucErrInfo &out_error,
-	    std::string* etag,
+            std::string* etag,
             const XrdSecEntity *client = 0,
             const char *opaque = 0
-	    );
+            );
 
   int stat (const char *Name,
             struct stat *buf,
@@ -413,9 +411,9 @@ public:
              struct stat *buf,
              XrdOucErrInfo &out_error,
              eos::common::Mapping::VirtualIdentity &vid,
-             const char *opaque = 0, 
-	     std::string* etag = 0);
-	   
+             const char *opaque = 0,
+             std::string* etag = 0);
+
 
   // ---------------------------------------------------------------------------
   // stat file to retrieve mode
@@ -435,7 +433,7 @@ public:
   }
 
   // ---------------------------------------------------------------------------
-  // stat link 
+  // stat link
   // ---------------------------------------------------------------------------
   int lstat (const char *Name,
              struct stat *buf,
@@ -562,7 +560,7 @@ public:
                    const char *opaque);
 
   // ---------------------------------------------------------------------------
-  // drop stripe by vid 
+  // drop stripe by vid
   // ---------------------------------------------------------------------------
   int _dropstripe (const char *path,
                    XrdOucErrInfo &error,
@@ -636,20 +634,20 @@ public:
   // create a versioned file
   // ---------------------------------------------------------------------------
 
-  int Version(eos::common::FileId::fileid_t fileid,
-              XrdOucErrInfo &error,
-              eos::common::Mapping::VirtualIdentity &vid,
-              int max_versions,
-              XrdOucString* versionedname=0,
-	      bool simulate=false);
+  int Version (eos::common::FileId::fileid_t fileid,
+               XrdOucErrInfo &error,
+               eos::common::Mapping::VirtualIdentity &vid,
+               int max_versions,
+               XrdOucString* versionedname = 0,
+               bool simulate = false);
 
   // ---------------------------------------------------------------------------
   // purge versioned files to max_versions
   // ---------------------------------------------------------------------------
 
-  int PurgeVersion(const char* versiondir,
-                   XrdOucErrInfo &error,
-                   int max_versions);
+  int PurgeVersion (const char* versiondir,
+                    XrdOucErrInfo &error,
+                    int max_versions);
 
   // ---------------------------------------------------------------------------
   // send resync command to a file system
@@ -674,19 +672,19 @@ public:
   // ---------------------------------------------------------------------------
   // make a file sharing path with signature
   // ---------------------------------------------------------------------------
-  
-  std::string CreateSharePath(const char* path, 
-			      const char* info,
-			      time_t expires,
-			      XrdOucErrInfo &error,
-			      eos::common::Mapping::VirtualIdentity &vid);
+
+  std::string CreateSharePath (const char* path,
+                               const char* info,
+                               time_t expires,
+                               XrdOucErrInfo &error,
+                               eos::common::Mapping::VirtualIdentity &vid);
 
   // ---------------------------------------------------------------------------
   // verify a file sharing path with signature
   // ---------------------------------------------------------------------------
 
-  bool VerifySharePath(const char* path,
-		       XrdOucEnv* opaque);
+  bool VerifySharePath (const char* path,
+                        XrdOucEnv* opaque);
 
 
   // ---------------------------------------------------------------------------
@@ -701,19 +699,21 @@ public:
   XrdMgmOfs (XrdSysError *lp);
 
   // ---------------------------------------------------------------------------
-  //! Destructor 
+  //! Destructor
   // ---------------------------------------------------------------------------
 
   virtual
-  ~XrdMgmOfs () { }
+  ~XrdMgmOfs ()
+  {
+  }
 
   // ---------------------------------------------------------------------------
-  // Configuration routine 
+  // Configuration routine
   // ---------------------------------------------------------------------------
   virtual int Configure (XrdSysError &);
 
   // ---------------------------------------------------------------------------
-  // Namespace file view initialization thread start function 
+  // Namespace file view initialization thread start function
   // ---------------------------------------------------------------------------
   static void* StaticInitializeFileView (void* arg);
 
@@ -803,12 +803,12 @@ public:
   bool AddPathMap (const char* source, const char* target); // add a mapping to the path map
 
   // ---------------------------------------------------------------------------
-  // Reset path mapping 
+  // Reset path mapping
   // ---------------------------------------------------------------------------
   void ResetPathMap (); // reset/empty the path map
 
   // ---------------------------------------------------------------------------
-  // Send an explicit deletion message to any fsid/fid pair 
+  // Send an explicit deletion message to any fsid/fid pair
   // ---------------------------------------------------------------------------
   bool DeleteExternal (eos::common::FileSystem::fsid_t fsid,
                        unsigned long long fid);
@@ -838,8 +838,8 @@ public:
   XrdCapability* CapabilityEngine; //< authorization module for token encryption/decryption
 
   XrdOucString MgmOfsBroker; //< Url of the message broker without MGM subject
-  XrdOucString MgmOfsBrokerUrl; //< Url of the message broker with MGM subject 
-  XrdOucString MgmOfsVstBrokerUrl; //< Url of the message broker 
+  XrdOucString MgmOfsBrokerUrl; //< Url of the message broker with MGM subject
+  XrdOucString MgmOfsVstBrokerUrl; //< Url of the message broker
   Messaging* MgmOfsMessaging; //< messaging interface class
   VstMessaging* MgmOfsVstMessaging; //< admin messaging interface class
   XrdOucString MgmDefaultReceiverQueue; //< Queue where we are sending to by default
@@ -848,7 +848,7 @@ public:
   XrdOucString MgmOfsTargetPort; //< xrootd port where redirections go on the OSTs -default is 1094
   XrdOucString MgmOfsQueue; //< our mgm queue name
   XrdOucString MgmOfsInstanceName; //< name of the EOS instance
-  XrdOucString MgmConfigDir; //< Directory where config files are stored 
+  XrdOucString MgmConfigDir; //< Directory where config files are stored
   XrdOucString MgmConfigAutoLoad; //< Name of the automatically loaded configuration file
   XrdOucString MgmProcPath; //< Directory with proc files
   XrdOucString MgmProcConversionPath; //< Directory with conversion files (used as temporary files when a layout is changed using third party copy)
@@ -856,7 +856,7 @@ public:
   XrdOucString AuthLib; //< path to a possible authorizationn library
   XrdOucString MgmNsFileChangeLogFile; //< path to namespace changelog file for files
   XrdOucString MgmNsDirChangeLogFile; //< path to namespace changelog file for directories
-  XrdOucString MgmConfigQueue; //< name of the mgm-wide broadcasted shared hash 
+  XrdOucString MgmConfigQueue; //< name of the mgm-wide broadcasted shared hash
   XrdOucString AllConfigQueue; //< name of the cluster-wide broadcasted shared hash
   XrdOucString FstConfigQueue; //< name of the fst-wide broadcasted shared hash
 
@@ -864,7 +864,7 @@ public:
   XrdOucString NodeConfigQueuePrefix; //< name of the prefix for node configuration
   XrdOucString GroupConfigQueuePrefix; //< name of the prefix for group configuration
 
-  XrdOucString MgmTxDir; //<  Directory containing the transfer database and archive 
+  XrdOucString MgmTxDir; //<  Directory containing the transfer database and archive
   XrdOucString MgmAuthDir; //< Directory containing exported authentication token
 
   XrdOucString ManagerId; //< manager id in <host>:<port> format
@@ -887,8 +887,7 @@ public:
   // namespace specific variables
   // ---------------------------------------------------------------------------
 
-  enum eNamespace
-  {
+  enum eNamespace {
     kDown = 0, kBooting = 1, kBooted = 2, kFailed = 3, kCompacting = 4
   };
 
@@ -903,11 +902,11 @@ public:
   // state variables
   // ---------------------------------------------------------------------------
 
-  bool IsReadOnly; //< true if this is a read-only redirector 
+  bool IsReadOnly; //< true if this is a read-only redirector
   bool IsRedirect; //< true if the Redirect function should be called to redirect
   bool IsStall; //< true if the Stall function should be called to send a wait
   bool IsWriteStall; //< true if the Stall function should be called to send a wait to everything doing 'writes'
-  bool authorize; //< determins if the autorization should be applied or not 
+  bool authorize; //< determins if the autorization should be applied or not
   bool IssueCapability; //< defines if the Mgm issues capabilities
   bool MgmRedirector; //<  Act's only as a redirector, disables many components in the MGM
   bool ErrorLog; //<  Mgm writes error log with cluster collected file into /var/log/eos/error.log if <true>
@@ -968,11 +967,11 @@ public:
   HttpServer Httpd; //<  Http daemon if available
 
   LRU LRUd; //< LRU object running the LRU policy engine
-  
+
   Egroup EgroupRefresh; //<  Egroup refresh object running asynchronous Egroup fetch thread
 
   Recycle Recycler; //<  Recycle object running the recycle bin deletion thread
-  
+
   bool UTF8; //< true if running in less restrictive character set mode
 private:
 

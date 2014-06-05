@@ -90,21 +90,21 @@
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfsFile::open (const char *inpath,
-                     XrdSfsFileOpenMode open_mode,
-                     mode_t Mode,
-                     const XrdSecEntity *client,
-                     const char *ininfo)
+        XrdSfsFileOpenMode open_mode,
+        mode_t Mode,
+        const XrdSecEntity *client,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief open a given file with the indicated mode
- * 
+ *
  * @param inpath path to open
  * @param open_mode SFS_O_RDONLY,SFS_O_WRONLY,SFS_O_RDWR,SFS_O_CREAT,SFS_TRUNC
  * @param Mode posix access mode bits to be assigned
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @return SFS_OK on succes, otherwise SFS_ERROR on error or redirection
- * 
+ *
  * Mode may also contain SFS_O_MKPATH if one desires to automatically create
  * all missing directories for a file (if possible).
  *
@@ -131,7 +131,7 @@ XrdMgmOfsFile::open (const char *inpath,
   int isRW = 0;
   int isRewrite = 0;
   bool isCreation = false;
-  
+
   // flag indicating parallel IO access
   bool isPio = false;
 
@@ -164,25 +164,25 @@ XrdMgmOfsFile::open (const char *inpath,
   switch (open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
                        SFS_O_CREAT | SFS_O_TRUNC))
   {
-  case SFS_O_CREAT: open_flag = O_RDWR | O_CREAT | O_EXCL;
-    crOpts |= XRDOSS_new;
-    isRW = 1;
-    break;
-  case SFS_O_TRUNC: open_flag |= O_RDWR | O_CREAT | O_TRUNC;
-    isRW = 1;
-    break;
-  case SFS_O_RDONLY: open_flag = O_RDONLY;
-    isRW = 0;
-    break;
-  case SFS_O_WRONLY: open_flag = O_WRONLY;
-    isRW = 1;
-    break;
-  case SFS_O_RDWR: open_flag = O_RDWR;
-    isRW = 1;
-    break;
-  default: open_flag = O_RDONLY;
-    isRW = 0;
-    break;
+    case SFS_O_CREAT: open_flag = O_RDWR | O_CREAT | O_EXCL;
+      crOpts |= XRDOSS_new;
+      isRW = 1;
+      break;
+    case SFS_O_TRUNC: open_flag |= O_RDWR | O_CREAT | O_TRUNC;
+      isRW = 1;
+      break;
+    case SFS_O_RDONLY: open_flag = O_RDONLY;
+      isRW = 0;
+      break;
+    case SFS_O_WRONLY: open_flag = O_WRONLY;
+      isRW = 1;
+      break;
+    case SFS_O_RDWR: open_flag = O_RDWR;
+      isRW = 1;
+      break;
+    default: open_flag = O_RDONLY;
+      isRW = 0;
+      break;
   }
 
   XrdOucString pinfo = info ? info : "";
@@ -219,10 +219,12 @@ XrdMgmOfsFile::open (const char *inpath,
   {
     // figure out if this is FUSE access
     const char* val = 0;
-    if ( (val = openOpaque->Get("eos.app")) ) {
+    if ((val = openOpaque->Get("eos.app")))
+    {
       XrdOucString application = val;
-      if (application == "fuse") {
-	isFuse=true;
+      if (application == "fuse")
+      {
+        isFuse = true;
       }
     }
   }
@@ -237,7 +239,7 @@ XrdMgmOfsFile::open (const char *inpath,
   // action is defined ('eos.pio.action=reconstruct'). The client can specify
   // a list of filesystem's which should be excluded. In case they are used
   // in the layout the stripes on the explicitly referenced filesystems and
-  // all other unavailable filesystems get reconstructed into stripes on 
+  // all other unavailable filesystems get reconstructed into stripes on
   // new machines.
   // ---------------------------------------------------------------------------
 
@@ -254,7 +256,7 @@ XrdMgmOfsFile::open (const char *inpath,
   // discover PIO reconstruction mode
   // ---------------------------------------------------------------------------
   XrdOucString sPioRecover = (openOpaque) ?
-    openOpaque->Get("eos.pio.action") : "";
+          openOpaque->Get("eos.pio.action") : "";
   if (sPioRecover == "reconstruct")
   {
     isPioReconstruct = true;
@@ -265,8 +267,8 @@ XrdMgmOfsFile::open (const char *inpath,
     // discover PIO reconstruction filesystems (stripes to be replaced)
     // -------------------------------------------------------------------------
     std::string sPioRecoverFs = (openOpaque) ?
-      (openOpaque->Get("eos.pio.recfs") ? openOpaque->Get("eos.pio.recfs") : "")
-      : "";
+            (openOpaque->Get("eos.pio.recfs") ? openOpaque->Get("eos.pio.recfs") : "")
+            : "";
     std::vector<std::string> fsToken;
     eos::common::StringConversion::Tokenize(sPioRecoverFs, fsToken, ",");
 
@@ -396,7 +398,7 @@ XrdMgmOfsFile::open (const char *inpath,
     }
   }
 
-  bool isSharedFile = gOFS->VerifySharePath(path,openOpaque);
+  bool isSharedFile = gOFS->VerifySharePath(path, openOpaque);
 
   // get the directory meta data if exists
   eos::ContainerMD* dmd = 0;
@@ -404,12 +406,12 @@ XrdMgmOfsFile::open (const char *inpath,
   Acl acl;
   bool stdpermcheck = false;
 
-  int versioning=0;
+  int versioning = 0;
 
   uid_t d_uid = vid.uid;
   gid_t d_gid = vid.gid;
 
-  std::string creation_path=path;
+  std::string creation_path = path;
 
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -524,7 +526,7 @@ XrdMgmOfsFile::open (const char *inpath,
     }
 
     // -------------------------------------------------------------------------
-    // Check for sys.ownerauth entries, which let people operate as the owner of 
+    // Check for sys.ownerauth entries, which let people operate as the owner of
     // the directory
     // -------------------------------------------------------------------------
     if (attrmap.count("sys.owner.auth"))
@@ -543,7 +545,7 @@ XrdMgmOfsFile::open (const char *inpath,
       if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos)
       {
         eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"", path, vid.uid, vid.gid, d_uid, d_gid);
-        // yes the client can operate as the owner, we rewrite the virtual 
+        // yes the client can operate as the owner, we rewrite the virtual
         // identity to the directory uid/gid pair
         vid.uid = d_uid;
         vid.gid = d_gid;
@@ -556,11 +558,11 @@ XrdMgmOfsFile::open (const char *inpath,
     acl.Set(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
             attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""),
             vid,
-	    attrmap.count("sys.eval.useracl"));
+            attrmap.count("sys.eval.useracl"));
     eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-             acl.HasEgroup(), 
-	     isSharedFile);
+             acl.HasEgroup(),
+             isSharedFile);
     if (acl.HasAcl())
     {
       if (isRW)
@@ -587,26 +589,19 @@ XrdMgmOfsFile::open (const char *inpath,
       stdpermcheck = true;
     }
 
-    if ( ( (!isSharedFile) || (isSharedFile && isRW) ) &&  stdpermcheck 
-	 && (!dmd->access(vid.uid,
-			  vid.gid,
-			  (isRW) ? W_OK | X_OK : R_OK | X_OK)))
+    if (((!isSharedFile) || (isSharedFile && isRW)) && stdpermcheck
+        && (!dmd->access(vid.uid,
+                         vid.gid,
+                         (isRW) ? W_OK | X_OK : R_OK | X_OK)))
     {
-      if ( !( (vid.uid == 2) && (isPioReconstruct) ) ) 
+      if (!((vid.uid == 2) && (isPioReconstruct)))
       {
-	// we don't apply this permission check for reconstruction jobs issued via the daemon account
-	errno = EPERM;
-	gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
-	return Emsg(epname, error, errno, "open file", path);
+        // we don't apply this permission check for reconstruction jobs issued via the daemon account
+        errno = EPERM;
+        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+        return Emsg(epname, error, errno, "open file", path);
       }
     }
-
-    // -------------------------------------------------------------------------
-    // store the in-memory modification time
-    // we get the current time, but we don't update the creation time
-    // -------------------------------------------------------------------------
-    gOFS->UpdateNowInmemoryDirectoryModificationTime(dmd->getId());
-    // -------------------------------------------------------------------------
   }
 
 
@@ -624,19 +619,21 @@ XrdMgmOfsFile::open (const char *inpath,
     }
   }
 
-  if ( attrmap.count("sys.forced.atomic") )
+  if (attrmap.count("sys.forced.atomic"))
   {
     isAtomicUpload = atoi(attrmap["sys.forced.atomic"].c_str());
   }
   else
   {
-    if ( attrmap.count("user.forced.atomic") )
+    if (attrmap.count("user.forced.atomic"))
     {
       isAtomicUpload = atoi(attrmap["user.forced.atomic"].c_str());
-    } else {
+    }
+    else
+    {
       if (openOpaque->Get("eos.atomic"))
       {
-	isAtomicUpload = true;
+        isAtomicUpload = true;
       }
     }
   }
@@ -695,27 +692,27 @@ XrdMgmOfsFile::open (const char *inpath,
 
       if (versioning)
       {
-	if (isAtomicUpload)
-	{
-	  eos::common::Path cPath(path);
-	  XrdOucString vdir;
-	  vdir += cPath.GetParentPath();
-	  vdir += "/.sys.v#.";
-	  vdir += cPath.GetName();
-	  // atomic uploads need just to purge version to max-1, the version is created on commit
-	  // purge might return an error if the file was not yet existing/versioned
-	  gOFS->PurgeVersion(vdir.c_str(), error, versioning-1);
-	  errno = 0; 
-       
-	}
-	else
-	{
-	  // handle the versioning for a specific file ID
-	  if (gOFS->Version(fileId, error, vid, versioning))
-	  {
-	    return Emsg(epname, error, errno, "version file", path);
-	  }
-	}
+        if (isAtomicUpload)
+        {
+          eos::common::Path cPath(path);
+          XrdOucString vdir;
+          vdir += cPath.GetParentPath();
+          vdir += "/.sys.v#.";
+          vdir += cPath.GetName();
+          // atomic uploads need just to purge version to max-1, the version is created on commit
+          // purge might return an error if the file was not yet existing/versioned
+          gOFS->PurgeVersion(vdir.c_str(), error, versioning - 1);
+          errno = 0;
+
+        }
+        else
+        {
+          // handle the versioning for a specific file ID
+          if (gOFS->Version(fileId, error, vid, versioning))
+          {
+            return Emsg(epname, error, errno, "version file", path);
+          }
+        }
       }
       else
       {
@@ -779,13 +776,13 @@ XrdMgmOfsFile::open (const char *inpath,
           try
           {
             // we create files with the uid/gid of the parent directory
-	    if (isAtomicUpload) 
-	    {
-	      eos::common::Path cPath(path);
-	      creation_path = cPath.GetAtomicPath(versioning);
-	    }
+            if (isAtomicUpload)
+            {
+              eos::common::Path cPath(path);
+              creation_path = cPath.GetAtomicPath(versioning);
+            }
 
-	    fmd = gOFS->eosView->createFile(creation_path.c_str(), vid.uid, vid.gid);
+            fmd = gOFS->eosView->createFile(creation_path.c_str(), vid.uid, vid.gid);
             fileId = fmd->getId();
             fmdlid = fmd->getLayoutId();
             cid = fmd->getContainerId();
@@ -807,6 +804,12 @@ XrdMgmOfsFile::open (const char *inpath,
           return Emsg(epname, error, errno, "create file", path);
         }
         isCreation = true;
+        // -------------------------------------------------------------------------
+        // store the in-memory modification time
+        // we get the current time, but we don't update the creation time
+        // -------------------------------------------------------------------------
+        gOFS->UpdateNowInmemoryDirectoryModificationTime(cid);
+        // -------------------------------------------------------------------------
       }
     }
     else
@@ -878,21 +881,21 @@ XrdMgmOfsFile::open (const char *inpath,
   // ---------------------------------------------------------------------------
   XrdOucString capability = "";
 
-  if (isPioReconstruct) 
+  if (isPioReconstruct)
   {
     capability += "&mgm.access=update";
-  } 
-  else 
+  }
+  else
   {
     if (isRW)
     {
       if (isRewrite)
       {
-	capability += "&mgm.access=update";
+        capability += "&mgm.access=update";
       }
       else
       {
-	capability += "&mgm.access=create";
+        capability += "&mgm.access=create";
       }
     }
     else
@@ -911,8 +914,8 @@ XrdMgmOfsFile::open (const char *inpath,
   // the client can force to place a file in a specified group of a space
   long forcedGroup = -1;
 
-  // this is the filesystem defining the client access point in the selection 
-  // vector - for writes it is always 0, for reads it comes out of the 
+  // this is the filesystem defining the client access point in the selection
+  // vector - for writes it is always 0, for reads it comes out of the
   // FileAccess function
   unsigned long fsIndex = 0;
   XrdOucString space = "default";
@@ -974,11 +977,11 @@ XrdMgmOfsFile::open (const char *inpath,
           return Emsg(epname, error, EEXIST, "open file (file recreated)", path);
         }
       }
-      // -----------------------------------------------------------------------   
-      // set the layout and commit new meta data 
+      // -----------------------------------------------------------------------
+      // set the layout and commit new meta data
       fmd->setLayoutId(layoutId);
       // -------------------------------------------------------------------------
-      // if specified set an external modification/creation time 
+      // if specified set an external modification/creation time
       // -------------------------------------------------------------------------
       if (external_mtime)
       {
@@ -1054,7 +1057,7 @@ XrdMgmOfsFile::open (const char *inpath,
     capability += attrmap["user.tag"].c_str();
   }
 
-  // the size which will be reserved with a placement of one replica 
+  // the size which will be reserved with a placement of one replica
   // for that file
   unsigned long long bookingsize;
   bool hasClientBookingSize = false;
@@ -1128,7 +1131,7 @@ XrdMgmOfsFile::open (const char *inpath,
   if (isCreation || ((open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation())))
   {
     // -------------------------------------------------------------------------
-    // place a new file 
+    // place a new file
     // -------------------------------------------------------------------------
     const char* containertag = 0;
     if (attrmap.count("user.tag"))
@@ -1164,7 +1167,7 @@ XrdMgmOfsFile::open (const char *inpath,
 
     // reconstruction opens files in RW mode but we actually need RO mode in this case
     retc = quotaspace->FileAccess(vid, forcedFsId, space.c_str(), layoutId,
-                                  selectedfs, fsIndex, isPioReconstruct?false:isRW, fmd->getSize(),
+                                  selectedfs, fsIndex, isPioReconstruct ? false : isRW, fmd->getSize(),
                                   unavailfs);
 
     if (retc == EXDEV)
@@ -1198,7 +1201,7 @@ XrdMgmOfsFile::open (const char *inpath,
         // if there was already a healing
         if (nheal >= nmaxheal)
         {
-          // we tried nmaxheal times to heal, so we abort now and 
+          // we tried nmaxheal times to heal, so we abort now and
           // return an error to the client
           gOFS->MgmHealMap.erase(fileId);
           gOFS->MgmHealMap.resize(0);
@@ -1406,30 +1409,30 @@ XrdMgmOfsFile::open (const char *inpath,
   redirectionhost += "?";
 
   // ---------------------------------------------------------------------------
-  // Rebuild the layout ID (for read it should indicate only the number of 
+  // Rebuild the layout ID (for read it should indicate only the number of
   // available stripes for reading);
-  // For 'pio' mode we hand out plain layouts to the client and add the IO 
+  // For 'pio' mode we hand out plain layouts to the client and add the IO
   // layout as an extra field
   // ---------------------------------------------------------------------------
 
   std::set<unsigned long> ufs;
   {
     // get the unique number of filesystems
-    for (size_t i=0; i < selectedfs.size();i++)
+    for (size_t i = 0; i < selectedfs.size(); i++)
       ufs.insert(selectedfs[i]);
-    for (size_t i=0; i < PioReconstructFsList.size(); i++)
+    for (size_t i = 0; i < PioReconstructFsList.size(); i++)
       ufs.insert(PioReconstructFsList[i]);
   }
-		 
+
 
   newlayoutId =
-    eos::common::LayoutId::GetId(
-                                 isPio ? eos::common::LayoutId::kPlain :
-                                 eos::common::LayoutId::GetLayoutType(layoutId),
-                                 isPio ? eos::common::LayoutId::kNone : eos::common::LayoutId::GetChecksum(layoutId),
-                                 isPioReconstruct?static_cast<int> (ufs.size()) : static_cast<int> (selectedfs.size()),
-                                 eos::common::LayoutId::GetBlocksizeType(layoutId),
-                                 eos::common::LayoutId::GetBlockChecksum(layoutId));
+          eos::common::LayoutId::GetId(
+                                       isPio ? eos::common::LayoutId::kPlain :
+                                       eos::common::LayoutId::GetLayoutType(layoutId),
+                                       isPio ? eos::common::LayoutId::kNone : eos::common::LayoutId::GetChecksum(layoutId),
+                                       isPioReconstruct ? static_cast<int> (ufs.size()) : static_cast<int> (selectedfs.size()),
+                                       eos::common::LayoutId::GetBlocksizeType(layoutId),
+                                       eos::common::LayoutId::GetBlockChecksum(layoutId));
 
   capability += "&mgm.lid=";
   capability += static_cast<int> (newlayoutId);
@@ -1508,16 +1511,16 @@ XrdMgmOfsFile::open (const char *inpath,
       {
         eos::common::FileSystem::fs_snapshot orig_snapshot;
         // get an original filesystem which is not in the reconstruction list
-        unsigned int orig_fs=0;
+        unsigned int orig_fs = 0;
         for (unsigned int i = 0; i < fmd->getNumLocation(); i++)
         {
           orig_fs = fmd->getLocation(i);
-          bool isInReco=false;
+          bool isInReco = false;
           for (unsigned int j = 0; j < PioReconstructFsList.size(); j++)
           {
-            if ( orig_fs == PioReconstructFsList[j] )
+            if (orig_fs == PioReconstructFsList[j])
             {
-              isInReco=true;
+              isInReco = true;
               break;
             }
           }
@@ -1550,13 +1553,13 @@ XrdMgmOfsFile::open (const char *inpath,
       eos_info("nstripes=%d => nstripes=%d [ sub-group=%d ]",
                eos::common::LayoutId::GetStripeNumber(newlayoutId),
                eos::common::LayoutId::GetStripeNumber(plainLayoutId),
-	       forcedGroup);
+               forcedGroup);
       // -----------------------------------------------------------------------
       // compute the size of the stripes to be placed
       // -----------------------------------------------------------------------
       unsigned long long plainBookingSize =
-        fmd->getSize() /
-        (eos::common::LayoutId::GetStripeNumber(layoutId) + 1);
+              fmd->getSize() /
+              (eos::common::LayoutId::GetStripeNumber(layoutId) + 1);
       plainBookingSize += 4096;
       plainBookingSize *= PioReconstructFsList.size();
 
@@ -1581,15 +1584,15 @@ XrdMgmOfsFile::open (const char *inpath,
       }
 
       // add fsid=0 filesystems to the selection vector if it has less than the nominal replica
-      int selection_diff = (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1) - selectedfs.size();
-      eos_info("selection-diff=%d %d/%d", selection_diff, (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())+1), selectedfs.size());
+      int selection_diff = (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1) - selectedfs.size();
+      eos_info("selection-diff=%d %d/%d", selection_diff, (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1), selectedfs.size());
       if (selection_diff > 0)
       {
         unavailfs.push_back(0);
-        for (int i = 0; i< selection_diff; i++)
+        for (int i = 0; i < selection_diff; i++)
         {
-         selectedfs.push_back(0);
-         eos_info("msg=\"adding fsid=0 as missing filesystem\"");
+          selectedfs.push_back(0);
+          eos_info("msg=\"adding fsid=0 as missing filesystem\"");
         }
       }
     }
@@ -1652,19 +1655,19 @@ XrdMgmOfsFile::open (const char *inpath,
         // don't fail IO on a shadow file system but throw a ciritical error message
         eos_crit("msg=\"Unable to get replica filesystem information\" path=\"%s\" fsid=%d", path, selectedfs[i]);
         continue;
-      } 
+      }
       else
       {
         if (replace)
         {
-        // we have now a new target host which will do the reconstruction
-        targethost = repfilesystem->GetString("host").c_str();
-        targetport = atoi(repfilesystem->GetString("port").c_str());
+          // we have now a new target host which will do the reconstruction
+          targethost = repfilesystem->GetString("host").c_str();
+          targetport = atoi(repfilesystem->GetString("port").c_str());
 
-        redirectionhost = targethost;
-        redirectionhost += "?";
-        // point into the right vector entry
-        fsIndex=i;
+          redirectionhost = targethost;
+          redirectionhost += "?";
+          // point into the right vector entry
+          fsIndex = i;
         }
       }
 
@@ -1808,9 +1811,9 @@ XrdMgmOfsFile::open (const char *inpath,
     std::string etag;
     eos::common::Mapping::VirtualIdentity rootvid;
     eos::common::Mapping::Root(rootvid);
-    
+
     // get the current ETAG
-    gOFS->_stat(path,&buf,error, rootvid, "", &etag);
+    gOFS->_stat(path, &buf, error, rootvid, "", &etag);
     redirectionhost += "&mgm.etag=";
     redirectionhost += etag.c_str();
   }
@@ -1856,9 +1859,9 @@ XrdMgmOfsFile::open (const char *inpath,
   if (attrmap.count("sys.force.atime"))
   {
     // -------------------------------------------------------------------------
-    // we are supposed to track the access time of a file. 
+    // we are supposed to track the access time of a file.
     // since we don't have an atime field we use the change time of the file
-    // we only update the atime if the current atime is older than the age 
+    // we only update the atime if the current atime is older than the age
     // value given by the attribute
     // -------------------------------------------------------------------------
 
@@ -1909,12 +1912,12 @@ XrdMgmOfsFile::close ()
 /*----------------------------------------------------------------------------*/
 /*
  * @brief close a file object
- * 
+ *
  * @return SFS_OK
- * 
+ *
  * The close on the MGM is called only for files opened using the 'proc' e.g.
  * EOS shell comamnds. By construction failures can happen only during the open
- * of a 'proc' file e.g. the close always succeeds! 
+ * of a 'proc' file e.g. the close always succeeds!
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -1936,23 +1939,22 @@ XrdMgmOfsFile::close ()
 
 XrdSfsXferSize
 XrdMgmOfsFile::read (XrdSfsFileOffset offset,
-                     char *buff,
-                     XrdSfsXferSize blen)
+        char *buff,
+        XrdSfsXferSize blen)
 /*----------------------------------------------------------------------------*/
 /*
  * read a partial result of a 'proc' interface command
- * 
+ *
  * @param offset where to read from the result
  * @param buff buffer where to place the result
  * @param blen maximum size to read
- * 
+ *
  * @return number of bytes read upon success or SFS_ERROR
- * 
- * This read is only used to stream back 'proc' command results to the EOS 
+ *
+ * This read is only used to stream back 'proc' command results to the EOS
  * shell since all normal files get a redirection or error during the file open.
  */
 /*----------------------------------------------------------------------------*/
-
 {
   static const char *epname = "read";
 
@@ -1998,12 +2000,12 @@ XrdMgmOfsFile::read (XrdSfsAio * aiop)
 /*----------------------------------------------------------------------------*/
 XrdSfsXferSize
 XrdMgmOfsFile::write (XrdSfsFileOffset offset,
-                      const char *buff,
-                      XrdSfsXferSize blen)
+        const char *buff,
+        XrdSfsXferSize blen)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief write a block to an open file - not implemented (no use case)
- * 
+ *
  * @return SFS_ERROR and EOPNOTSUPP
  */
 /*----------------------------------------------------------------------------*/
@@ -2028,7 +2030,7 @@ XrdMgmOfsFile::write (XrdSfsAio * aiop)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief write a block to an open file - not implemented (no use case)
- * 
+ *
  * @return SFS_ERROR and EOPNOTSUPP
  */
 /*----------------------------------------------------------------------------*/
@@ -2045,16 +2047,15 @@ XrdMgmOfsFile::stat (struct stat * buf)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief stat the size of an open 'proc' command/file
- * 
+ *
  * @param buf stat struct where to store information
  * @return SFS_OK if open proc file otherwise SFS_ERROR
- * 
+ *
  * For 'proc' files the result is created during the file open call.
  * The stat function will fill the size of the created result into the stat
  * buffer.
  */
 /*----------------------------------------------------------------------------*/
-
 {
   static const char *epname = "stat";
 
@@ -2076,7 +2077,7 @@ XrdMgmOfsFile::sync ()
 /*----------------------------------------------------------------------------*/
 /*
  * sync an open file - no implemented (no use case)
- * 
+ *
  * @return SFS_ERROR and EOPNOTSUPP
  */
 /*----------------------------------------------------------------------------*/
@@ -2092,7 +2093,7 @@ XrdMgmOfsFile::sync (XrdSfsAio * aiop)
 /*----------------------------------------------------------------------------*/
 /*
  * aio sync an open file - no implemented (no use case)
- * 
+ *
  * @return SFS_ERROR and EOPNOTSUPP
  */
 /*----------------------------------------------------------------------------*/
@@ -2110,7 +2111,7 @@ XrdMgmOfsFile::truncate (XrdSfsFileOffset flen)
 /*----------------------------------------------------------------------------*/
 /*
  * truncate an open file - no implemented (no use case)
- * 
+ *
  * @return SFS_ERROR and EOPNOTSUPP
  */
 /*----------------------------------------------------------------------------*/
@@ -2131,8 +2132,8 @@ XrdMgmOfsFile::~XrdMgmOfsFile ()
 /*----------------------------------------------------------------------------*/
 /*
  * @brief destructor
- * 
- * Cleans-up the file object on destruction 
+ *
+ * Cleans-up the file object on destruction
  */
 /*----------------------------------------------------------------------------*/
 {
