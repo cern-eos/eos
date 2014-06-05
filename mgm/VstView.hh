@@ -45,9 +45,9 @@
 /*----------------------------------------------------------------------------*/
 /**
  * @file VstView.hh
- * 
+ *
  * @brief Class representing the global VST view
- * 
+ *
  */
 
 /*----------------------------------------------------------------------------*/
@@ -62,20 +62,25 @@ EOSMGMNAMESPACE_BEGIN
 class VstView : public eos::common::LogId
 {
   friend class VstMessaging;
-  
+
 protected:
 
   std::map<std::string, std::map<std::string,std::string> > mView;
-  
+
 public:
   /// Mutex protecting all ...View variables
   XrdSysMutex ViewMutex;
   // ---------------------------------------------------------------------------
-  // Print view
-  void Print (std::string &out, 
-              std::string option, 
+  //! Print view
+  // ---------------------------------------------------------------------------
+  void Print (std::string &out,
+              std::string option,
               const char* selection = 0);
- 
+
+  // ---------------------------------------------------------------------------
+  //! Print HTML Mapview
+  // ---------------------------------------------------------------------------
+  void PrintHtml (XrdOucString &out, bool js=true);
 
   void Reset ()
   {

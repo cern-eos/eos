@@ -43,6 +43,15 @@ ProcCommand::Vst ()
       stdOut += out.c_str();
       retc = 0;
     }
+    if (mSubCmd == "map")
+    {
+      std::string option = pOpaque->Get("mgm.option") ? pOpaque->Get("mgm.option") : "";
+      if (option == "nojs")
+        VstView::gVstView.PrintHtml(stdOut,false);
+      else
+        VstView::gVstView.PrintHtml(stdOut,true);
+    }
+
     if (mSubCmd == "udp")
     {
       std::string target = pOpaque->Get("mgm.vst.target") ? pOpaque->Get("mgm.vst.target") : "";
@@ -54,8 +63,8 @@ ProcCommand::Vst ()
         {
           stdOut += "info: target is now '";
           stdOut += gOFS->MgmOfsVstMessaging->GetInfluxUdpEndpoint().c_str();
-	  if (myself=="true")
-	    stdOut += " [ publishing only own values ]";
+	       if (myself=="true")
+	         stdOut += " [ publishing only own values ]";
         }
       }
       else
@@ -63,10 +72,9 @@ ProcCommand::Vst ()
         // list the target
         stdOut += "info: target=";
         stdOut += gOFS->MgmOfsVstMessaging->GetInfluxUdpEndpoint().c_str();
-	if (gOFS->MgmOfsVstMessaging->GetPublishOnlySelf())
-	  stdOut += " [ publishing only own values ]";
+	     if (gOFS->MgmOfsVstMessaging->GetPublishOnlySelf())
+	       stdOut += " [ publishing only own values ]";
       }
-
     }
   }
   else

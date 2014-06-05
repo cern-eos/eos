@@ -56,13 +56,13 @@ EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 /**
- * Constructor 
+ * Constructor
  */
 ProcInterface::ProcInterface () { }
 
 /*----------------------------------------------------------------------------*/
 /**
- * Destructor 
+ * Destructor
  */
 
 /*----------------------------------------------------------------------------*/
@@ -208,7 +208,7 @@ ProcInterface::Authorize (const char* path,
     }
 
     // --------------------------------------------------------------------------
-    // one has to be part of the virtual users 2(daemon) || 3(adm)/4(adm) 
+    // one has to be part of the virtual users 2(daemon) || 3(adm)/4(adm)
     // --------------------------------------------------------------------------
     return ( (eos::common::Mapping::HasUid(2, vid.uid_list)) ||
             (eos::common::Mapping::HasUid(3, vid.uid_list)) ||
@@ -374,7 +374,7 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
 
   if (!pOpaque)
   {
-    // alloc failed 
+    // alloc failed
     return SFS_ERROR;
   }
 
@@ -392,7 +392,7 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
   mHttpFormat = false;
 
   // ----------------------------------------------------------------------------
-  // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line 
+  // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line
   // feed in the end
   // ----------------------------------------------------------------------------
 
@@ -917,7 +917,7 @@ ProcCommand::MakeResult ()
 
 /*----------------------------------------------------------------------------*/
 /**
- * Try to detect and convert a monitor output format and convert it into a  
+ * Try to detect and convert a monitor output format and convert it into a
  * nice http table
  */
 
@@ -962,11 +962,11 @@ ProcCommand::KeyValToHttpTable (XrdOucString & stdOut)
   if (ok)
   {
     table +=
-      R"literal(<style> 
+      R"literal(<style>
 table
 {
   table-layout:auto;
-} 
+}
 </style>
 )literal";
 

@@ -21,10 +21,10 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ 
-         ${XROOTD_INCLUDE_DIR} 
-         ${XROOTD_PRIVATE_INCLUDE_DIR} 
-         ${SPARSEHASH_INCLUDE_DIR} 
+include_directories( ../
+         ${XROOTD_INCLUDE_DIR}
+         ${XROOTD_PRIVATE_INCLUDE_DIR}
+         ${SPARSEHASH_INCLUDE_DIR}
          ${NCURSES_INCLUDE_DIR}
          ${LDAP_INCLUDE_DIR}
          ${Z_INCLUDE_DIR}
@@ -33,11 +33,11 @@ include_directories( ../
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR})
 
 add_library (XrdEosMgm MODULE
-            Access.cc         
+            Access.cc
             ConfigEngine.cc
             Messaging.cc
             VstMessaging.cc
-            Policy.cc  
+            Policy.cc
             ProcInterface.cc
             proc/proc_fs.cc
             proc/admin/Access.cc
@@ -59,7 +59,7 @@ add_library (XrdEosMgm MODULE
             proc/user/Cd.cc
             proc/user/Chmod.cc
             proc/user/Chown.cc
-            proc/user/File.cc 
+            proc/user/File.cc
             proc/user/Fileinfo.cc
             proc/user/Find.cc
             proc/user/Fuse.cc
@@ -109,26 +109,26 @@ add_library (XrdEosMgm MODULE
             GeoBalancer.cc
             )
 
-target_link_libraries( XrdEosMgm 
-                       XrdCl                XrdPosix 
-                       XrdUtils             XrdOfs 
+target_link_libraries( XrdEosMgm
+                       XrdCl                XrdPosix
+                       XrdUtils             XrdOfs
                        eosCommon            eosCommonServer
                        eosNamespace-Static  eosCapability-Static
-                       XrdMqClient-Static 
-                       crypto               ${NCURSES_LIBRARIES} 
+                       XrdMqClient-Static
+                       crypto               ${NCURSES_LIBRARIES}
                        ${LDAP_LIBRARIES}
                        dl                   ${Z_LIBRARIES}
                        ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
                      )
 
 add_executable ( testmgmview
-           FsView.cc  
+           FsView.cc
           test/MgmViewTest.cc
 )
 
 
-target_link_libraries ( testmgmview 
-                        XrdCl             XrdUtils 
+target_link_libraries ( testmgmview
+                        XrdCl             XrdUtils
                         eosCommon         eosCommonServer
                         XrdMqClient-Static eosCapability-Static
                         crypto            ${NCURSES_LIBRARIES}
@@ -145,7 +145,7 @@ if (Linux)
   )
 endif(Linux)
 
-install ( TARGETS XrdEosMgm 
+install ( TARGETS XrdEosMgm
           LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
           RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
           ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
