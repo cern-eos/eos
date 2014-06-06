@@ -28,23 +28,24 @@
 /*----------------------------------------------------------------------------*/
 #include <regex.h>
 #include <string>
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 Acl::Acl (std::string sysacl,
-          std::string useracl,
-          eos::common::Mapping::VirtualIdentity &vid,  
-	  bool allowUserAcl)
+        std::string useracl,
+        eos::common::Mapping::VirtualIdentity &vid,
+        bool allowUserAcl)
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Constructor
- * 
- * @param sysacl system acl definition string 
- * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}'
- * @param useracl user acl definition string 
- * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}'
+ *
+ * @param sysacl system acl definition string
+ * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
+ * @param useracl user acl definition string
+ * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
  * @param vid virtual id to match ACL
  * @param allowUserAcl if true evaluate also the user acl for the permissions
  */
@@ -56,18 +57,18 @@ Acl::Acl (std::string sysacl,
 /*----------------------------------------------------------------------------*/
 void
 Acl::Set (std::string sysacl,
-          std::string useracl,
-          eos::common::Mapping::VirtualIdentity &vid, 
-	  bool allowUserAcl)
+        std::string useracl,
+        eos::common::Mapping::VirtualIdentity &vid,
+        bool allowUserAcl)
 /*----------------------------------------------------------------------------*/
-/** 
- * @brief Sset the contents of an ACL and compute the canXX and hasXX booleans.
- * 
- * @param sysacl system acl definition string 
- * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}'
- * @param useracl user acl definition string 
- * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}'
- * @param vid virtual id to match ACL 
+/**
+ * @brief Set the contents of an ACL and compute the canXX and hasXX booleans.
+ *
+ * @param sysacl system acl definition string
+ * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
+ * @param useracl user acl definition string
+ * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
+ * @param vid virtual id to match ACL
  * @param allowUserAcl if true evaluate the user acl for permissions
  */
 /*----------------------------------------------------------------------------*/
@@ -77,12 +78,12 @@ Acl::Set (std::string sysacl,
   {
     acl += sysacl;
   }
-  if (allowUserAcl) 
+  if (allowUserAcl)
   {
     if (useracl.length())
     {
       if (sysacl.length())
-	acl += ",";
+        acl += ",";
       acl += useracl;
     }
   }
@@ -148,6 +149,8 @@ Acl::Set (std::string sysacl,
   grouptagfn += groupname;
   grouptagfn += ":";
 
+  std::string ztag = "z:";
+
   // ---------------------------------------------------------------------------
   // Rule interpretation logic
   // ---------------------------------------------------------------------------
@@ -175,6 +178,7 @@ Acl::Set (std::string sysacl,
     // ---------------------------------------------------------------------------
     if ((!it->compare(0, usertag.length(), usertag)) ||
         (!it->compare(0, grouptag.length(), grouptag)) ||
+        (!it->compare(0, ztag.length(), ztag)) ||
         (egroupmatch) ||
         (!it->compare(0, usertagfn.length(), usertagfn))
         || (!it->compare(0, grouptagfn.length(), grouptagfn)))
@@ -186,7 +190,12 @@ Acl::Set (std::string sysacl,
 
       if (entry.size() < 3)
       {
-        continue;
+        // z tag entries have only two fields
+        if (it->compare(0, ztag.length(), ztag) || (entry.size() < 2))
+          continue;
+	// add an empty entry field
+	entry.resize(3);
+	entry[2]="";
       }
 
       // -----------------------------------------------------------------------
@@ -212,14 +221,14 @@ Acl::Set (std::string sysacl,
       // -----------------------------------------------------------------------
       if ((entry[2].find("m")) != std::string::npos)
       {
-	if ((entry[2].find("!m")) != std::string::npos) 
-	{
-	  canNotChmod = true;
-	} 
-        else 
-	{
-	  canChmod = true;
-	}
+        if ((entry[2].find("!m")) != std::string::npos)
+        {
+          canNotChmod = true;
+        }
+        else
+        {
+          canChmod = true;
+        }
         hasAcl = true;
       }
 
@@ -238,8 +247,8 @@ Acl::Set (std::string sysacl,
       // -----------------------------------------------------------------------
       if ((entry[2].find("!d")) != std::string::npos)
       {
-        // canDelete is true, if deletion has been explicitly allowed by a rule 
-        // and in this case we don't forbid deletion even if another rule 
+        // canDelete is true, if deletion has been explicitly allowed by a rule
+        // and in this case we don't forbid deletion even if another rule
         // says that
         if (!canDelete)
         {
@@ -261,7 +270,7 @@ Acl::Set (std::string sysacl,
       }
 
       // -----------------------------------------------------------------------
-      // '!d' removes update
+      // '!u' removes update
       // -----------------------------------------------------------------------
       if ((entry[2].find("!u")) != std::string::npos)
       {
@@ -270,7 +279,7 @@ Acl::Set (std::string sysacl,
       }
 
       // -----------------------------------------------------------------------
-      // '+d' adds update
+      // '+u' adds update
       // -----------------------------------------------------------------------
       if ((entry[2].find("+u")) != std::string::npos)
       {
@@ -305,6 +314,15 @@ Acl::Set (std::string sysacl,
         canSetQuota = true;
         hasAcl = true;
       }
+
+      // -----------------------------------------------------------------------
+      // 'i' makes directories immutable
+      // -----------------------------------------------------------------------
+      if ((entry[1].find("i")) != std::string::npos)
+      {
+        isMutable = false;
+        hasAcl = true;
+      }
     }
   }
 }
@@ -312,13 +330,15 @@ Acl::Set (std::string sysacl,
 /*----------------------------------------------------------------------------*/
 bool
 Acl::IsValid (const std::string value,
-              XrdOucErrInfo &error)
+        XrdOucErrInfo &error,
+        bool sysacl)
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * @brief Check whether ACL has a valid format / syntax.
- * 
+ *
  * @param value value to check
  * @param error error datastructure
+ * #param sysacl boolean indicating a sys acl entry which might have a z: rule
  * @return boolean indicating validity
  */
 /*----------------------------------------------------------------------------*/
@@ -327,19 +347,22 @@ Acl::IsValid (const std::string value,
   // empty is valid
   // ---------------------------------------------------------------------------
   if (!value.length())
-    return true; 
-  
+    return true;
+
   int regexErrorCode;
   int result;
   regex_t regex;
-  std::string regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-]+)))|(egroup:([\\.[:alnum:]-]+))):(r|w|wo|x|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+  std::string regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-]+)))|(egroup:([\\.[:alnum:]-]+))):(r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+
+  if (sysacl)
+    regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):(r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
 
   // -----------------------------------------------------------------------
   // Compile regex
   // -----------------------------------------------------------------------
   regexErrorCode = regcomp(&regex, regexString.c_str(), REG_EXTENDED);
 
-  if(regexErrorCode)
+  if (regexErrorCode)
   {
     error.setErrInfo(2, "failed to compile regex");
     regfree(&regex);
@@ -356,11 +379,11 @@ Acl::IsValid (const std::string value,
   // -----------------------------------------------------------------------
   // Check the result
   // -----------------------------------------------------------------------
-  if(result == 0)
+  if (result == 0)
   {
     return true;
   }
-  else if(result == REG_NOMATCH)
+  else if (result == REG_NOMATCH)
   {
     error.setErrInfo(1, "invalid acl syntax");
     return false;

@@ -88,9 +88,9 @@ void
 xrdmgmofs_stacktrace (int sig)
 /*----------------------------------------------------------------------------*/
 /* @brief static function to print a stack-trace on STDERR
- * 
+ *
  * @param sig signal catched
- * 
+ *
  * After catching 'sig' and producing a stack trace the signal handler is put
  * back to the default and the signal is send again ... this is mainly used
  * to create a stack trace and a core dump after a SEGV signal.
@@ -104,10 +104,10 @@ xrdmgmofs_stacktrace (int sig)
   void *array[10];
   size_t size;
 
-  // get void*'s for all entries on the stack                                                                                                                                                                 
+  // get void*'s for all entries on the stack
   size = backtrace(array, 10);
 
-  // print out all the frames to stderr                                                                                                                                                                       
+  // print out all the frames to stderr
   fprintf(stderr, "error: received signal %d:\n", sig);
 
   backtrace_symbols_fd(array, size, 2);
@@ -132,9 +132,9 @@ xrdmgmofs_shutdown (int sig)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief shutdown function cleaning up running threads/objects for a clean exit
- * 
+ *
  * @param sig signal catched
- * 
+ *
  * This shutdown function tries to get a write lock before doing the namespace
  * shutdown. Since it is not guaranteed that one can always get a write lock
  * there is a timeout in requiring the write lock and then the shutdown is forced.
@@ -155,7 +155,7 @@ xrdmgmofs_shutdown (int sig)
   gOFS->Shutdown = true;
 
   // ---------------------------------------------------------------------------
-  // handler to shutdown the daemon for valgrinding and clean server stop 
+  // handler to shutdown the daemon for valgrinding and clean server stop
   // (e.g. let's time to finish write operations)
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: grab write mutex");
@@ -253,7 +253,7 @@ xrdmgmofs_shutdown (int sig)
   {
     gOFS->MgmOfsVstMessaging->StopListener();
   }
-  
+
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop deletion thread ... ");
   if (gOFS->deletion_tid)
@@ -309,12 +309,12 @@ xrdmgmofs_shutdown (int sig)
 extern "C"
 XrdSfsFileSystem *
 XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
-                     XrdSysLogger *lp,
-                     const char *configfn)
+        XrdSysLogger *lp,
+        const char *configfn)
 /*----------------------------------------------------------------------------*/
 /*
  * The Filesystem Plugin factory function
- * 
+ *
  * @param native_fs (not used)
  * @param lp the logger object
  * @param configfn the configuration file name
@@ -371,7 +371,7 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
 /*----------------------------------------------------------------------------*/
 XrdMgmOfs::XrdMgmOfs (XrdSysError *ep)
 /*----------------------------------------------------------------------------*/
-/* 
+/*
  * @brief the MGM Ofs object constructor
  */
 /*----------------------------------------------------------------------------*/
@@ -390,7 +390,7 @@ bool
 XrdMgmOfs::Init (XrdSysError &ep)
 /*----------------------------------------------------------------------------*/
 /* @brief Init function
- * 
+ *
  * This is just kept to be compatible with standard OFS plugins, but it is not
  * used for the moment.
  */
@@ -404,7 +404,7 @@ XrdMgmOfs::Init (XrdSysError &ep)
 XrdSfsDirectory *
 XrdMgmOfs::newDir (char *user, int MonID)
 /*----------------------------------------------------------------------------*/
-/* 
+/*
  * @brief return a MGM directory object
  * @param user user-name
  * @param MonID monitor ID
@@ -418,7 +418,7 @@ XrdMgmOfs::newDir (char *user, int MonID)
 XrdSfsFile *
 XrdMgmOfs::newFile (char *user, int MonID)
 /*----------------------------------------------------------------------------*/
-/* 
+/*
  * @brief return a MGM file object
  * @param user user-name
  * @param MonID monitor ID
@@ -431,20 +431,20 @@ XrdMgmOfs::newFile (char *user, int MonID)
 /*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::ShouldStall (const char* function,
-                        int __AccessMode__,
-                        eos::common::Mapping::VirtualIdentity &vid,
-                        int &stalltime, XrdOucString &stallmsg)
+        int __AccessMode__,
+        eos::common::Mapping::VirtualIdentity &vid,
+        int &stalltime, XrdOucString &stallmsg)
 /*----------------------------------------------------------------------------*/
 /*
- * @brief Function to test if a client based on the called function and his 
+ * @brief Function to test if a client based on the called function and his
  * @brief identity should be stalled
- * 
+ *
  * @param function name of the function to check
  * @param __AccessMode__ macro generated parameter defining if this is a reading or writing (namespace modifying) function
  * @param stalltime returns the time for a stall
  * @param stallmsg returns the message to be displayed to a user during a stall
  * @return true if client should get a stall otherwise false
- * 
+ *
  * The stall rules are defined by globals in the Access object (see Access.cc)
  */
 /*----------------------------------------------------------------------------*/
@@ -509,8 +509,8 @@ XrdMgmOfs::ShouldStall (const char* function,
 
       std::map<std::string, std::string>::const_iterator it;
       for (it = Access::gStallRules.begin();
-        it != Access::gStallRules.end();
-        it++)
+              it != Access::gStallRules.end();
+              it++)
       {
         std::string cmd = it->first.substr(it->first.rfind(":") + 1);
         double cutoff = strtod(it->second.c_str(), 0) * 1.33;
@@ -542,7 +542,7 @@ XrdMgmOfs::ShouldStall (const char* function,
         else
           if ((it->first.find(usermatch) == 0))
         {
-          // check user rule 
+          // check user rule
           if (gOFS->MgmStats.StatAvgUid.count(cmd) &&
               gOFS->MgmStats.StatAvgUid[cmd].count(vid.uid) &&
               (gOFS->MgmStats.StatAvgUid[cmd][vid.uid].GetAvg5() > cutoff))
@@ -582,7 +582,7 @@ XrdMgmOfs::ShouldStall (const char* function,
   }
   else
   {
-    // admin/root is only stalled for global stalls not, 
+    // admin/root is only stalled for global stalls not,
     // for write-only or read-only stalls
     if (Access::gStallRules.size())
     {
@@ -610,20 +610,20 @@ XrdMgmOfs::ShouldStall (const char* function,
 /*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::ShouldRedirect (const char* function,
-                           int __AccessMode__,
-                           eos::common::Mapping::VirtualIdentity &vid,
-                           XrdOucString &host,
-                           int &port)
+        int __AccessMode__,
+        eos::common::Mapping::VirtualIdentity &vid,
+        XrdOucString &host,
+        int &port)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief Function to test if a client based on the called function and his identity should be redirected
- * 
+ *
  * @param function name of the function to check
  * @param __AccessMode__ macro generated parameter defining if this is a reading or writing (namespace modifying) function
  * @param host returns the target host of a redirection
  * @param port returns the target port of a redirection
  * @return true if client should get a redirected otherwise false
- * 
+ *
  * The redirection rules are defined by globals in the Access object (see Access.cc)
  */
 /*----------------------------------------------------------------------------*/
@@ -700,12 +700,12 @@ XrdMgmOfs::ShouldRedirect (const char* function,
 /*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::HasStall (const char* path,
-                     const char* rule,
-                     int &stalltime,
-                     XrdOucString &stallmsg)
+        const char* rule,
+        int &stalltime,
+        XrdOucString &stallmsg)
 /*----------------------------------------------------------------------------*/
 /* @brief Test if there is stall configured for the given rule
- * 
+ *
  * @param path the path where the rule should be checked (currently unused)
  * @param rule the rule to check e.g. rule = "ENOENT:*" meaning we send a stall if an entry is missing
  * @param stalltime returns the configured time to stall
@@ -739,12 +739,12 @@ XrdMgmOfs::HasStall (const char* path,
 /*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::HasRedirect (const char* path,
-                        const char* rule,
-                        XrdOucString &host,
-                        int &port)
+        const char* rule,
+        XrdOucString &host,
+        int &port)
 /*----------------------------------------------------------------------------*/
 /* @brief Test if there is redirect configured for a given rule
- * 
+ *
  * @param path the path where the rule should be checked (currently unused)
  * @param rule the rule to check e.g. rule = "ENOENT:*" meaning we send a redirect if an entry is missing
  * @param host returns the redirection target host
@@ -804,11 +804,11 @@ void
 XrdMgmOfs::UpdateNowInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id)
 /*----------------------------------------------------------------------------*/
 /* @brief Update the modification time for a directory to the current time
- * 
+ *
  * @param id container id in the namespace
- * 
+ *
  * We don't store directory modification times persistent in the namespace for
- * performance reasonse. But to give (FUSE) clients the possiblity to do 
+ * performance reasonse. But to give (FUSE) clients the possiblity to do
  * caching and see when there was a modification we keep an inmemory table
  * with this modification times.
  */
@@ -822,15 +822,15 @@ XrdMgmOfs::UpdateNowInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id
 /*----------------------------------------------------------------------------*/
 void
 XrdMgmOfs::UpdateInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id,
-                                                    eos::ContainerMD::ctime_t &mtime)
+        eos::ContainerMD::ctime_t &mtime)
 /*----------------------------------------------------------------------------*/
 /* @brief Update the modification time for a directory to the given time
- * 
+ *
  * @param id container id in the namespace
  * @param mtime modification time to store
- * 
+ *
  * We don't store directory modification times persistent in the namespace for
- * performance reasonse. But to give (FUSE+Sync) clients the possiblity to do 
+ * performance reasonse. But to give (FUSE+Sync) clients the possiblity to do
  * caching and see when there was a modification we keep an inmemory table
  * with this modification times. We support upstream propagation of mtims for
  * sync clients to discover changes in a subtree if sys.mtime.propagation was
@@ -878,14 +878,14 @@ XrdMgmOfs::ResetPathMap ()
 /*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::AddPathMap (const char* source,
-                       const char* target)
+        const char* target)
 /*----------------------------------------------------------------------------*/
 /*
  * Add a source/target pair to the path remapping table
- * 
+ *
  * @param source prefix path to map
  * @param target target path for substitution of prefix
- * 
+ *
  * This function allows e.g. to map paths like /store/ to /eos/instance/store/
  * to provide an unprefixed global namespace in a storage federation.
  * It is used by the Configuration Engin to apply a mapping from a configuration
@@ -909,18 +909,18 @@ XrdMgmOfs::AddPathMap (const char* source,
 /*----------------------------------------------------------------------------*/
 void
 XrdMgmOfs::PathRemap (const char* inpath,
-                      XrdOucString &outpath)
+        XrdOucString &outpath)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief translate a path name according to the configured mapping table
- * 
+ *
  * @param inpath path to map
  * @param outpath remapped path
- * 
+ *
  * This function does the path translation according to the configured mapping
- * table. It applies the 'longest' matching rule e.g. a rule 
+ * table. It applies the 'longest' matching rule e.g. a rule
  * /eos/instance/store/ => /store/
- * would win over 
+ * would win over
  * /eos/instance/ = /global/
  * if the given path matches both prefixed like '/eos/instance/store/a'
  */
@@ -983,22 +983,22 @@ XrdMgmOfs::PathRemap (const char* inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
-                   const char *csName,
-                   const char *inpath,
-                   XrdOucErrInfo &error,
-                   const XrdSecEntity *client,
-                   const char *ininfo)
+        const char *csName,
+        const char *inpath,
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief retrieve a checksum
- * 
+ *
  * @param func function to be performed 'csCalc','csGet' or 'csSize'
  * @param csName name of the checksum
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @return SFS_OK on success otherwise SFS_ERROR
- * 
+ *
  * We support only checksum type 'eos' which has the maximum length of 20 bytes
  * and returns a checksum based on the defined directory policy (can be adler,
  * md5,sha1 ...). The EOS directory based checksum configuration does not map
@@ -1030,7 +1030,7 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
 
   if (Func == XrdSfsFileSystem::csSize)
   {
-    if ( 1 ) 
+    if (1)
     {
       // just return the length
       error.setErrCode(20);
@@ -1146,20 +1146,20 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::chmod (const char *inpath,
-                  XrdSfsMode Mode,
-                  XrdOucErrInfo &error,
-                  const XrdSecEntity *client,
-                  const char *ininfo)
+        XrdSfsMode Mode,
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief change the mode of a directory
- * 
+ *
  * @param inpath path to chmod
  * @param Mode mode to set
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
- * 
+ *
  * Function calls the internal _chmod function. See info there for details.
  */
 /*----------------------------------------------------------------------------*/
@@ -1194,21 +1194,21 @@ XrdMgmOfs::chmod (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_chmod (const char *path,
-                   XrdSfsMode Mode,
-                   XrdOucErrInfo &error,
-                   eos::common::Mapping::VirtualIdentity &vid,
-                   const char *ininfo)
+        XrdSfsMode Mode,
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief change mode of a directory or file
- * 
+ *
  * @param path where to chmod
  * @param Mode mode to set
  * @param error error object
  * @param vid virtual identity of the client
  * @param ininfo CGI
  * @return SFS_OK on success otherwise SFS_ERR
- * 
+ *
  * EOS supports mode bits only on directories, file inherit them from the parent.
  * Only the owner, the admin user, the admin group, root and an ACL chmod granted
  * user are allowed to run this operation on a directory.
@@ -1274,49 +1274,58 @@ XrdMgmOfs::_chmod (const char *path,
       Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
               attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid, attrmap.count("sys.eval.useracl"));
 
-      if (((fmd && (fmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
-          ((cmd && (cmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
-          (!vid.uid) || // the root user
-          (vid.uid == 3) || // the admin user
-          (vid.gid == 4) || // the admin group
-          (acl.CanChmod()))
-      { // the chmod ACL entry
-        // change the permission mask, but make sure it is set to a directory
-        if (Mode & S_IFREG)
-          Mode ^= S_IFREG;
-        if ((Mode & S_ISUID))
-        {
-          Mode ^= S_ISUID;
-        }
-        else
-        {
-          if (!(Mode & S_ISGID))
-          {
-            Mode |= S_ISGID;
-          }
-        }
 
-        // store the in-memory modification time for parent 
-        UpdateNowInmemoryDirectoryModificationTime(pcmd->getId());
-        if (cmd)
-        {
-          cmd->setMode(Mode | S_IFDIR);
-          // store the in-memory modification time for this directory
-          UpdateNowInmemoryDirectoryModificationTime(cmd->getId());
-          eosView->updateContainerStore(cmd);
-        }
-        if (fmd)
-        {
-          // we just store 9 bits in flags
-          Mode &= (S_IRWXU | S_IRWXG | S_IRWXO);
-          fmd->setFlags(Mode);
-          eosView->updateFileStore(fmd);
-        }
-        errno = 0;
+      if (vid.uid && !acl.IsMutable())
+      {
+        // immutable directory
+        errno = EPERM;
       }
       else
       {
-        errno = EPERM;
+        if (((fmd && (fmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
+            ((cmd && (cmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
+            (!vid.uid) || // the root user
+            (vid.uid == 3) || // the admin user
+            (vid.gid == 4) || // the admin group
+            (acl.CanChmod()))
+        { // the chmod ACL entry
+          // change the permission mask, but make sure it is set to a directory
+          if (Mode & S_IFREG)
+            Mode ^= S_IFREG;
+          if ((Mode & S_ISUID))
+          {
+            Mode ^= S_ISUID;
+          }
+          else
+          {
+            if (!(Mode & S_ISGID))
+            {
+              Mode |= S_ISGID;
+            }
+          }
+
+          // store the in-memory modification time for parent
+          UpdateNowInmemoryDirectoryModificationTime(pcmd->getId());
+          if (cmd)
+          {
+            cmd->setMode(Mode | S_IFDIR);
+            // store the in-memory modification time for this directory
+            UpdateNowInmemoryDirectoryModificationTime(cmd->getId());
+            eosView->updateContainerStore(cmd);
+          }
+          if (fmd)
+          {
+            // we just store 9 bits in flags
+            Mode &= (S_IRWXU | S_IRWXG | S_IRWXO);
+            fmd->setFlags(Mode);
+            eosView->updateFileStore(fmd);
+          }
+          errno = 0;
+        }
+        else
+        {
+          errno = EPERM;
+        }
       }
     }
     catch (eos::MDException &e)
@@ -1344,15 +1353,15 @@ XrdMgmOfs::_chmod (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_chown (const char *path,
-                   uid_t uid,
-                   gid_t gid,
-                   XrdOucErrInfo &error,
-                   eos::common::Mapping::VirtualIdentity &vid,
-                   const char *ininfo)
+        uid_t uid,
+        gid_t gid,
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief change the owner of a file or directory
- * 
+ *
  * @param path directory path to change
  * @param uid user id to set
  * @param gid group id to set
@@ -1360,10 +1369,10 @@ XrdMgmOfs::_chown (const char *path,
  * @param vid virtual identity of the client
  * @param ininfo CGI
  * @return SFS_OK on success otherwise SFS_ERROR
- * 
+ *
  * Chown has only an internal implementation because XRootD does not support
  * this operation in the Ofs interface. root can alwasy run the operation.
- * Users with the admin role can run the operation. Normal users can run the operation 
+ * Users with the admin role can run the operation. Normal users can run the operation
  * if they have the 'c' permissions in 'sys.acl'. File ownership can only be changed
  * with the root or admin role. If gid=0xffffffff, we don't set the group
  */
@@ -1404,9 +1413,10 @@ XrdMgmOfs::_chown (const char *path,
     Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""), attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid, attrmap.count("sys.eval.useracl"));
 
     cmd = gOFS->eosView->getContainer(path);
-    if ((vid.uid) && (!eos::common::Mapping::HasUid(3, vid) &&
-                      !eos::common::Mapping::HasGid(4, vid)) &&
-        !acl.CanChown())
+    if (((vid.uid) && (!eos::common::Mapping::HasUid(3, vid) &&
+                       !eos::common::Mapping::HasGid(4, vid)) &&
+         !acl.CanChown()) ||
+        ((vid.uid) && !acl.IsMutable()))
 
     {
       errno = EPERM;
@@ -1505,21 +1515,21 @@ XrdMgmOfs::_chown (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::exists (const char *inpath,
-                   XrdSfsFileExistence &file_exists,
-                   XrdOucErrInfo &error,
-                   const XrdSecEntity *client,
-                   const char *ininfo)
+        XrdSfsFileExistence &file_exists,
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief Check for the existance of a file or directory
- * 
+ *
  * @param inpath path to check existance
  * @param file_exists return parameter specifying the type (see _exists for details)
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @result SFS_OK on success otherwise SFS_ERROR
- * 
+ *
  * The function calls the internal implementation _exists. See there for details.
  */
 /*----------------------------------------------------------------------------*/
@@ -1553,26 +1563,26 @@ XrdMgmOfs::exists (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_exists (const char *path,
-                    XrdSfsFileExistence &file_exists,
-                    XrdOucErrInfo &error,
-                    const XrdSecEntity *client,
-                    const char *ininfo)
+        XrdSfsFileExistence &file_exists,
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check for the existance of a file or directory
- * 
+ *
  * @param path path to check
  * @param file_exists return the type of the checked path
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @return SFS_OK if found otherwise SFS_ERROR
- * 
+ *
  * The values of file_exists are:
  * XrdSfsFileExistIsDirectory - this is a directory
  * XrdSfsFileExistIsFile - this is a file
  * XrdSfsFileExistNo - this is neither a file nor a directory
- * 
- * This function may send a redirect response and should not be used as an 
+ *
+ * This function may send a redirect response and should not be used as an
  * internal function. The internal function has as a parameter the virtual
  * identity and not the XRootD authentication object.
  */
@@ -1697,25 +1707,25 @@ XrdMgmOfs::_exists (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_exists (const char *path,
-                    XrdSfsFileExistence &file_exists,
-                    XrdOucErrInfo &error,
-                    eos::common::Mapping::VirtualIdentity &vid,
-                    const char *ininfo)
+        XrdSfsFileExistence &file_exists,
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check for the existance of a file or directory
- * 
+ *
  * @param path path to check
  * @param file_exists return the type of the checked path
  * @param vid virtual identity of the client
  * @param ininfo CGI
  * @return SFS_OK if found otherwise SFS_ERROR
- * 
+ *
  * The values of file_exists are:
  * XrdSfsFileExistIsDirectory - this is a directory
  * XrdSfsFileExistIsFile - this is a file
  * XrdSfsFileExistNo - this is neither a file nor a directory
- * 
+ *
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -1739,7 +1749,7 @@ XrdMgmOfs::_exists (const char *path,
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
     };
-    // -------------------------------------------------------------------------  
+    // -------------------------------------------------------------------------
   }
 
   if (!cmd)
@@ -1784,7 +1794,7 @@ XrdMgmOfs::getVersion ()
 /*----------------------------------------------------------------------------*/
 /*
  * Return the version of the MGM software
- * 
+ *
  * @return return a version string
  */
 /*----------------------------------------------------------------------------*/
@@ -1799,21 +1809,21 @@ XrdMgmOfs::getVersion ()
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::mkdir (const char *inpath,
-                  XrdSfsMode Mode,
-                  XrdOucErrInfo &error,
-                  const XrdSecEntity *client,
-                  const char *ininfo)
+        XrdSfsMode Mode,
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create a directory with the given mode
- * 
+ *
  * @param inpath directory path to create
  * @param Mode mode to set
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
+ *
  * If mode contains SFS_O_MKPTH the full path is (possibly) created.
  */
 /*----------------------------------------------------------------------------*/
@@ -1846,23 +1856,23 @@ XrdMgmOfs::mkdir (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_mkdir (const char *path,
-                   XrdSfsMode Mode,
-                   XrdOucErrInfo &error,
-                   eos::common::Mapping::VirtualIdentity &vid,
-                   const char *ininfo)
+        XrdSfsMode Mode,
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create a directory with the given mode
- * 
+ *
  * @param inpath directory path to create
  * @param Mode mode to set
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @return SFS_OK on success otherwise SFS_ERROR
- * 
+ *
  * If mode contains SFS_O_MKPTH the full path is (possibly) created.
- * 
+ *
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -1935,6 +1945,12 @@ XrdMgmOfs::_mkdir (const char *path,
               attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
               attrmap.count("sys.eval.useracl"));
 
+      if (vid.uid && !acl.IsMutable())
+      {
+        // immutable directory
+        errno = EPERM;
+        return Emsg(epname, error, EPERM, "create directory - immutable", cPath.GetParentPath());
+      }
       // Check for sys.owner.auth entries, which let people operate as the owner of the directory
       if (attrmap.count("sys.owner.auth"))
       {
@@ -1947,7 +1963,7 @@ XrdMgmOfs::_mkdir (const char *path,
         }
         else
         {
-          ownerkey += vid.name.c_str();
+          ownerkey += vid.uid_string.c_str();
         }
         if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos)
         {
@@ -2063,9 +2079,18 @@ XrdMgmOfs::_mkdir (const char *path,
               attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
               attrmap.count("sys.eval.useracl"));
 
-      eos_info("acl=%d r=%d w=%d wo=%d egroup=%d",
+      eos_info("acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-               acl.HasEgroup());
+               acl.HasEgroup(),
+               acl.IsMutable());
+
+      if (vid.uid && !acl.IsMutable())
+      {
+        errno = EPERM;
+        return Emsg(epname, error, EPERM, "create parent directory - immutable",
+                    cPath.GetParentPath());
+      }
+
       bool stdpermcheck = false;
       if (acl.HasAcl())
       {
@@ -2198,13 +2223,13 @@ XrdMgmOfs::_mkdir (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::prepare (XrdSfsPrep &pargs,
-                    XrdOucErrInfo &error,
-                    const XrdSecEntity * client)
+        XrdOucErrInfo &error,
+        const XrdSecEntity * client)
 /*----------------------------------------------------------------------------*/
 /*
  * Prepare a file (EOS does nothing, only stall/redirect if configured)
- * 
- * @return always SFS_OK 
+ *
+ * @return always SFS_OK
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -2227,19 +2252,19 @@ XrdMgmOfs::prepare (XrdSfsPrep &pargs,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::rem (const char *inpath,
-                XrdOucErrInfo &error,
-                const XrdSecEntity *client,
-                const char *ininfo)
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
- * 
+ *
  * @param inpath file to delete
  * @param error error object
  * @param client XRootD authenticiation object
  * @param ininfo CGI
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
+ *
  * Deletion supports a recycle bin. See internal implementation of _rem for details.
  */
 /*----------------------------------------------------------------------------*/
@@ -2273,25 +2298,25 @@ XrdMgmOfs::rem (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_rem (const char *path,
-                 XrdOucErrInfo &error,
-                 eos::common::Mapping::VirtualIdentity &vid,
-                 const char *ininfo,
-                 bool simulate)
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        const char *ininfo,
+        bool simulate)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
- * 
+ *
  * @param inpath file to delete
  * @param error error object
  * @param vid virtual identity of the client
  * @param ininfo CGI
  * @param simulate indicates 'simulate deletion' e.g. it can be used as a test if a deletion would succeed
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
- * Deletion supports the recycle bin if configured on the parent directory of 
- * the file to be deleted. The simulation mode is used to test if there is 
+ *
+ * Deletion supports the recycle bin if configured on the parent directory of
+ * the file to be deleted. The simulation mode is used to test if there is
  * enough space in the recycle bin to move the object. If the simulation succeeds
- * the real deletion is executed. 
+ * the real deletion is executed.
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -2379,12 +2404,21 @@ XrdMgmOfs::_rem (const char *path,
     acl.Set(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
             attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
             attrmap.count("sys.eval.useracl"));
+
+    eos_info("acl=%s immutable=%d", attrmap["sys.acl"].c_str(), acl.IsMutable());
+    if (vid.uid && !acl.IsMutable())
+    {
+      errno = EPERM;
+      gOFS->eosViewRWMutex.UnLockWrite();
+      return Emsg(epname, error, errno, "remove file - immutable", path);
+    }
+
     bool stdpermcheck = false;
     if (acl.HasAcl())
     {
-      eos_info("acl=%d r=%d w=%d wo=%d egroup=%d delete=%d not-delete=%d",
+      eos_info("acl=%d r=%d w=%d wo=%d egroup=%d delete=%d not-delete=%d mutable=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-               acl.HasEgroup(), acl.CanDelete(), acl.CanNotDelete());
+               acl.HasEgroup(), acl.CanDelete(), acl.CanNotDelete(), acl.IsMutable());
 
       if ((!acl.CanWrite()) && (!acl.CanWriteOnce()))
       {
@@ -2435,7 +2469,7 @@ XrdMgmOfs::_rem (const char *path,
       }
 
       // -----------------------------------------------------------------------
-      // check if there is a recycling bin specified and avoid recycling of the 
+      // check if there is a recycling bin specified and avoid recycling of the
       // already recycled files/dirs
       // -----------------------------------------------------------------------
       XrdOucString sPath = path;
@@ -2605,19 +2639,19 @@ XrdMgmOfs::_rem (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::remdir (const char *inpath,
-                   XrdOucErrInfo &error,
-                   const XrdSecEntity *client,
-                   const char *ininfo)
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a directory from the namespace
- * 
+ *
  * @param inpath directory to delete
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @return SFS_OK on success otherwise SFS_ERROR
- * 
+ *
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -2651,20 +2685,20 @@ XrdMgmOfs::remdir (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_remdir (const char *path,
-                    XrdOucErrInfo &error,
-                    eos::common::Mapping::VirtualIdentity &vid,
-                    const char *ininfo,
-                    bool simulate)
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        const char *ininfo,
+        bool simulate)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a directory from the namespace
- * 
+ *
  * @param inpath directory to delete
  * @param error error object
  * @param vid virtual identity of the client
  * @param ininfo CGI
  * @return SFS_OK on success otherwise SFS_ERROR
- * 
+ *
  * We support a special ACL to forbid deletion if it would be allowed by the
  * normal POSIX settings (ACL !d flag).
  */
@@ -2734,6 +2768,12 @@ XrdMgmOfs::_remdir (const char *path,
 
   Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""), attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
           attrmap.count("sys.eval.useracl"));
+
+  if (vid.uid && !acl.IsMutable())
+  {
+    errno = EPERM;
+    return Emsg(epname, error, EPERM, "rmdir - immutable", path);
+  }
 
   bool stdpermcheck = false;
   bool aclok = false;
@@ -2819,15 +2859,15 @@ XrdMgmOfs::_remdir (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::rename (const char *old_name,
-                   const char *new_name,
-                   XrdOucErrInfo &error,
-                   const XrdSecEntity *client,
-                   const char *infoO,
-                   const char *infoN)
+        const char *new_name,
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *infoO,
+        const char *infoN)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief rename a file or directory
- * 
+ *
  * @param old_name old name
  * @param new_name new name
  * @param error error object
@@ -2835,7 +2875,7 @@ XrdMgmOfs::rename (const char *old_name,
  * @param infoO CGI of the old name
  * @param infoN CGI of the new name
  * @return SFS_OK on success otherwise SFS_ERROR
- * 
+ *
  * There are three flavours of rename function, two external and one internal
  * implementation. See the internal implementation _rename for details.
  */
@@ -2897,16 +2937,16 @@ XrdMgmOfs::rename (const char *old_name,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::rename (const char *old_name,
-                   const char *new_name,
-                   XrdOucErrInfo &error,
-                   eos::common::Mapping::VirtualIdentity& vid,
-                   const char *infoO,
-                   const char *infoN,
-                   bool overwrite)
+        const char *new_name,
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity& vid,
+        const char *infoO,
+        const char *infoN,
+        bool overwrite)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief rename a file or directory
- * 
+ *
  * @param old_name old name
  * @param new_name new name
  * @param error error object
@@ -2914,7 +2954,7 @@ XrdMgmOfs::rename (const char *old_name,
  * @param infoO CGI of the old name
  * @param infoN CGI of the new name
  * @return SFS_OK on success otherwise SFS_ERROR
- * 
+ *
  * There are three flavours of rename function, two external and one internal
  * implementation. See the internal implementation _rename for details.
  */
@@ -2974,19 +3014,19 @@ XrdMgmOfs::rename (const char *old_name,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_rename (const char *old_name,
-                    const char *new_name,
-                    XrdOucErrInfo &error,
-                    eos::common::Mapping::VirtualIdentity& vid,
-                    const char *infoO,
-                    const char *infoN,
-                    bool updateCTime,
-                    bool checkQuota,
-                    bool overwrite
-                    )
+        const char *new_name,
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity& vid,
+        const char *infoO,
+        const char *infoN,
+        bool updateCTime,
+        bool checkQuota,
+        bool overwrite
+        )
 /*----------------------------------------------------------------------------*/
 /*
  * @brief rename a file or directory
- * 
+ *
  * @param old_name old name
  * @param new_name new name
  * @param error error object
@@ -2997,10 +3037,10 @@ XrdMgmOfs::_rename (const char *old_name,
  * @param checkQuota indicates to check the quota during a rename operation
  * @param overwrite indicates if the target name can be overwritten
  * @return SFS_OK on success otherwise SFS_ERROR
- * 
+ *
  * There are three flavours of rename function, two external and one internal
- * implementation. 
- * Rename within a directory is simple since the quota accounting has not to 
+ * implementation.
+ * Rename within a directory is simple since the quota accounting has not to
  * be modified. Rename of directories between quota nodes need to recompute
  * all the quota of the subtree which is moving and in case reject the operation
  * if there is not enough quota left. Overall it is a quite complex function.
@@ -3088,7 +3128,7 @@ XrdMgmOfs::_rename (const char *old_name,
   std::map<std::string, std::set<std::string> > found; //< list of source files if a directory is renamed
   if (renameDir)
   {
-    // for directory renaming which move into a different directory 
+    // for directory renaming which move into a different directory
     // we build the list of files which we are moving
     if (oP != nP)
     {
@@ -3349,10 +3389,10 @@ XrdMgmOfs::_rename (const char *old_name,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::stat (const char *inpath,
-                 struct stat *buf,
-                 XrdOucErrInfo &error,
-                 const XrdSecEntity *client,
-                 const char *ininfo)
+        struct stat *buf,
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *ininfo)
 {
   return stat(inpath, buf, error, 0, client, ininfo);
 }
@@ -3360,15 +3400,15 @@ XrdMgmOfs::stat (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::stat (const char *inpath,
-                 struct stat *buf,
-                 XrdOucErrInfo &error,
-                 std::string *etag,
-                 const XrdSecEntity *client,
-                 const char *ininfo)
+        struct stat *buf,
+        XrdOucErrInfo &error,
+        std::string *etag,
+        const XrdSecEntity *client,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
- * 
+ *
  * @param inpath path to stat
  * @param buf stat buffer where to store the stat information
  * @param error error object
@@ -3376,7 +3416,7 @@ XrdMgmOfs::stat (const char *inpath,
  * @param ininfo CGI
  * @param etag string to return the ETag for that object
  * @return SFS_OK on success otherwise SFS_ERROR
- * 
+ *
  * See the internal implemtation _stat for details.
  */
 /*----------------------------------------------------------------------------*/
@@ -3420,24 +3460,24 @@ XrdMgmOfs::stat (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_stat (const char *path,
-                  struct stat *buf,
-                  XrdOucErrInfo &error,
-                  eos::common::Mapping::VirtualIdentity &vid,
-                  const char *ininfo,
-                  std::string* etag)
+        struct stat *buf,
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        const char *ininfo,
+        std::string* etag)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
- * 
+ *
  * @param inpath path to stat
  * @param buf stat buffer where to store the stat information
  * @param error error object
  * @param vid virtual identity of the client
  * @param ininfo CGI
  * @return SFS_OK on success otherwise SFS_ERROR
- * 
+ *
  * We don't apply any access control on stat calls for performance reasons.
- * Modification times of directories are only emulated and returned from an 
+ * Modification times of directories are only emulated and returned from an
  * in-memory map.
  */
 /*----------------------------------------------------------------------------*/
@@ -3614,7 +3654,7 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_atim.tv_nsec = atime.tv_nsec;
     buf->st_mtim.tv_nsec = atime.tv_nsec;
     buf->st_ctim.tv_nsec = atime.tv_nsec;
-#endif    
+#endif
 
     // if we have a cached modification time, return that one
     // -->
@@ -3654,10 +3694,10 @@ XrdMgmOfs::_stat (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::lstat (const char *path,
-                  struct stat *buf,
-                  XrdOucErrInfo &error,
-                  const XrdSecEntity *client,
-                  const char *info)
+        struct stat *buf,
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *info)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief stat following links (not existing in EOS - behaves like stat)
@@ -3670,10 +3710,10 @@ XrdMgmOfs::lstat (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::truncate (const char*,
-                     XrdSfsFileOffset,
-                     XrdOucErrInfo& error,
-                     const XrdSecEntity* client,
-                     const char* path)
+        XrdSfsFileOffset,
+        XrdOucErrInfo& error,
+        const XrdSecEntity* client,
+        const char* path)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief truncate a file ( not supported in EOS, only via the file interface )
@@ -3701,20 +3741,20 @@ XrdMgmOfs::truncate (const char*,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::access (const char *inpath,
-                   int mode,
-                   XrdOucErrInfo &error,
-                   const XrdSecEntity *client,
-                   const char *ininfo)
+        int mode,
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check access permissions for file/directories
- * 
+ *
  * @param inpath path to access
  * @param mode access mode can be R_OK |& W_OK |& X_OK or F_OK
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @return SFS_OK if possible otherwise SFS_ERROR
- * 
+ *
  * See the internal implementation _access for details
  */
 /*----------------------------------------------------------------------------*/
@@ -3748,20 +3788,20 @@ XrdMgmOfs::access (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_access (const char *path,
-                    int mode,
-                    XrdOucErrInfo &error,
-                    eos::common::Mapping::VirtualIdentity &vid,
-                    const char *info)
+        int mode,
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        const char *info)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check access permissions for file/directories
- * 
+ *
  * @param inpath path to access
  * @param mode access mode can be R_OK |& W_OK |& X_OK or F_OK
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @return SFS_OK if possible otherwise SFS_ERROR
- * 
+ *
  * If F_OK is specified we just check for the existance of the path, which can
  * be a file or directory. We don't support X_OK since it cannot be mapped
  * in case of files (we don't have explicit execution permissions).
@@ -3820,28 +3860,36 @@ XrdMgmOfs::_access (const char *path,
 
     permok = dh->access(vid.uid, vid.gid, mode);
 
+
+    // always check for an immutable attribute
+    // get attributes
+    eos::ContainerMD::XAttrMap::const_iterator it;
+    for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
+    {
+      attrmap[it->first] = it->second;
+    }
+    // ACL and permission check
+    Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
+            attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
+            attrmap.count("sys.eval.useracl"));
+    eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
+             acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+             acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
+
+    if (vid.uid && !acl.IsMutable())
+    {
+      eos_debug("msg=\"access\" errno=EPERM reason=\"immutable\"");
+      errno = EPERM;
+      return Emsg(epname, error, EPERM, "access", path);
+    }
+
     if (!permok)
     {
-      // get attributes
-      eos::ContainerMD::XAttrMap::const_iterator it;
-      for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
-      {
-        attrmap[it->first] = it->second;
-      }
-      // ACL and permission check
-      Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-              attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
-              attrmap.count("sys.eval.useracl"));
-
-      eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d",
-               acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-               acl.CanBrowse(), acl.HasEgroup());
-
       // browse permission by ACL
       if (acl.HasAcl())
       {
         permok = true;
-        if ((mode & W_OK) && !acl.CanWrite())
+        if ((mode & W_OK) && (!acl.CanWrite()))
         {
           permok = false;
         }
@@ -3942,20 +3990,20 @@ XrdMgmOfs::_access (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::utimes (const char *inpath,
-                   struct timespec *tvp,
-                   XrdOucErrInfo &error,
-                   const XrdSecEntity *client,
-                   const char *ininfo)
+        struct timespec *tvp,
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief set change time for a given file/directory
- * 
+ *
  * @param inpath path to set
  * @param tvp timespec structure
  * @param error error object
  * @client XRootD authentication object
  * @ininfo CGI
- * 
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
  */
 /*----------------------------------------------------------------------------*/
@@ -3988,24 +4036,24 @@ XrdMgmOfs::utimes (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_utimes (const char *path,
-                    struct timespec *tvp,
-                    XrdOucErrInfo &error,
-                    eos::common::Mapping::VirtualIdentity &vid,
-                    const char *info)
+        struct timespec *tvp,
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        const char *info)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief set change time for a given file/directory
- * 
+ *
  * @param path path to set
  * @param tvp timespec structure
  * @param error error object
  * @param vid virtual identity of the client
  * @param info CGI
- * 
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
+ *
  * For directories this routine set's the creation time and the in-memory
- * modification time to the specified modificationt time. For files it 
+ * modification time to the specified modificationt time. For files it
  * set's the modification time.
  */
 /*----------------------------------------------------------------------------*/
@@ -4066,20 +4114,20 @@ XrdMgmOfs::_utimes (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_find (const char *path,
-                  XrdOucErrInfo &out_error,
-                  XrdOucString &stdErr,
-                  eos::common::Mapping::VirtualIdentity &vid,
-                  std::map<std::string, std::set<std::string> > &found,
-                  const char* key,
-                  const char* val,
-                  bool nofiles,
-                  time_t millisleep,
-                  bool nscounter
-                  )
+        XrdOucErrInfo &out_error,
+        XrdOucString &stdErr,
+        eos::common::Mapping::VirtualIdentity &vid,
+        std::map<std::string, std::set<std::string> > &found,
+        const char* key,
+        const char* val,
+        bool nofiles,
+        time_t millisleep,
+        bool nscounter
+        )
 /*----------------------------------------------------------------------------*/
 /*
  * @brief low-level namespace find command
- * 
+ *
  * @param path path to start the sub-tree find
  * @param stdErr stderr output string
  * @param vid virtual identity of the client
@@ -4088,19 +4136,19 @@ XrdMgmOfs::_find (const char *path,
  * @param val search for a certain value in the extended attributes (requires key)
  * @param nofiles if true returns only directories, otherwise files and directories
  * @param millisleep milli seconds to sleep between each directory scan
- * 
+ *
  * The find command distinuishes 'power' and 'normal' users. If the virtual
  * identity indicates the root or admin user queries are unlimited.
- * For others queries are limited to 50k directories and 100k files and an 
+ * For others queries are limited to 50k directories and 100k files and an
  * appropriate error/warning message is written to stdErr. Note that currently
  * find does not do a 'full' permission check including ACLs in every
  * subdirectory but checks only the POSIX permission R_OK/X_OK bits.
- * If 'key' contains a wildcard character in the end find produces a list of 
+ * If 'key' contains a wildcard character in the end find produces a list of
  * directories containing an attribute starting with that key match like
  * var=sys.policy.*
  * The millisleep variable allows to slow down full scans to decrease impact
  * when doing large scans.
- * 
+ *
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -4290,7 +4338,7 @@ XrdMgmOfs::_find (const char *path,
     }
   }
   while (found_dirs[deepness].size());
-  // ---------------------------------------------------------------------------  
+  // ---------------------------------------------------------------------------
   if (!nofiles)
   {
     // if the result is empty, maybe this was a find by file
@@ -4305,8 +4353,8 @@ XrdMgmOfs::_find (const char *path,
       }
     }
   }
-  // ---------------------------------------------------------------------------  
-  // include also the directory which was specified in the query if it is 
+  // ---------------------------------------------------------------------------
+  // include also the directory which was specified in the query if it is
   // accessible and a directory since it can evt. be missing if it is empty
   // ---------------------------------------------------------------------------
   XrdSfsFileExistence dir_exists;
@@ -4328,18 +4376,18 @@ XrdMgmOfs::_find (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_touch (const char *path,
-                   XrdOucErrInfo &error,
-                   eos::common::Mapping::VirtualIdentity &vid,
-                   const char *ininfo)
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create(touch) a no-replica file in the namespace
- * 
+ *
  * @param path file to touch
  * @param error error object
  * @param vid virtual identity of the client
  * @param ininfo CGI
- * 
+ *
  * Access control is not fully done here, just the POSIX write flag is checked,
  * no ACLs ...
  */
@@ -4406,22 +4454,22 @@ XrdMgmOfs::_touch (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::Emsg (const char *pfx,
-                 XrdOucErrInfo &einfo,
-                 int ecode,
-                 const char *op,
-                 const char *target)
+        XrdOucErrInfo &einfo,
+        int ecode,
+        const char *op,
+        const char *target)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create an error message
- * 
+ *
  * @param pfx message prefix value
  * @param einfo error text/code object
  * @param ecode error code
  * @param op name of the operation performed
  * @param target target of the operation e.g. file name etc.
- * 
+ *
  * @return SFS_ERROR in all cases
- * 
+ *
  * This routines prints also an error message into the EOS log if it was not
  * due to a stat call or the error codes EIDRM or ENODATA
  */
@@ -4478,22 +4526,22 @@ XrdMgmOfs::Emsg (const char *pfx,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfsDirectory::Emsg (const char *pfx,
-                          XrdOucErrInfo &einfo,
-                          int ecode,
-                          const char *op,
-                          const char *target)
+        XrdOucErrInfo &einfo,
+        int ecode,
+        const char *op,
+        const char *target)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create an error message for a directory object
- * 
+ *
  * @param pfx message prefix value
  * @param einfo error text/code object
  * @param ecode error code
  * @param op name of the operation performed
  * @param target target of the operation e.g. file name etc.
- * 
+ *
  * @return SFS_ERROR in all cases
- * 
+ *
  * This routines prints also an error message into the EOS log.
  */
 /*----------------------------------------------------------------------------*/
@@ -4516,7 +4564,7 @@ XrdMgmOfsDirectory::Emsg (const char *pfx,
   // ---------------------------------------------------------------------------
   snprintf(buffer, sizeof (buffer), "Unable to %s %s; %s", op, target, etext);
 
-  if (ecode == ENOENT) 
+  if (ecode == ENOENT)
     eos_debug("Unable to %s %s; %s", op, target, etext);
   else
     eos_err("Unable to %s %s; %s", op, target, etext);
@@ -4538,22 +4586,22 @@ XrdMgmOfsDirectory::Emsg (const char *pfx,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfsFile::Emsg (const char *pfx,
-                     XrdOucErrInfo &einfo,
-                     int ecode,
-                     const char *op,
-                     const char *target)
+        XrdOucErrInfo &einfo,
+        int ecode,
+        const char *op,
+        const char *target)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create an error message for a file object
- * 
+ *
  * @param pfx message prefix value
  * @param einfo error text/code object
  * @param ecode error code
  * @param op name of the operation performed
  * @param target target of the operation e.g. file name etc.
- * 
+ *
  * @return SFS_ERROR in all cases
- * 
+ *
  * This routines prints also an error message into the EOS log.
  */
 /*----------------------------------------------------------------------------*/
@@ -4596,12 +4644,12 @@ XrdMgmOfsFile::Emsg (const char *pfx,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::Stall (XrdOucErrInfo &error,
-                  int stime,
-                  const char *msg)
+        int stime,
+        const char *msg)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a stall response to the client
- * 
+ *
  * @param error error object with text/code
  * @param stime seconds to stall
  * @param msg message for the client
@@ -4632,12 +4680,12 @@ XrdMgmOfs::Stall (XrdOucErrInfo &error,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::Redirect (XrdOucErrInfo &error,
-                     const char* host,
-                     int &port)
+        const char* host,
+        int &port)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a redirect response to the client
- * 
+ *
  * @param error error object with text/code
  * @param host redirection target host
  * @param port redirection target port
@@ -4664,18 +4712,18 @@ XrdMgmOfs::Redirect (XrdOucErrInfo &error,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::fsctl (const int cmd,
-                  const char *args,
-                  XrdOucErrInfo &error,
-                  const XrdSecEntity * client)
+        const char *args,
+        XrdOucErrInfo &error,
+        const XrdSecEntity * client)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief implements locate and space-ls function
- * 
+ *
  * @param cmd operation to run
  * @param args arguments for cmd
  * @param error error object
  * @param client XRootD authentication object
- * 
+ *
  * This function locate's files on the redirector and return's the available
  * space in XRootD fashion.
  */
@@ -4745,7 +4793,7 @@ XrdMgmOfs::fsctl (const int cmd,
     }
 
     static const char *Resp = "oss.cgroup=%s&oss.space=%lld&oss.free=%lld"
-      "&oss.maxf=%lld&oss.used=%lld&oss.quota=%lld";
+            "&oss.maxf=%lld&oss.used=%lld&oss.quota=%lld";
 
     blen = snprintf(buff, blen, Resp, space.c_str(), maxbytes,
                     freebytes, 64 * 1024 * 1024 * 1024LL /* fake 64GB */,
@@ -4762,20 +4810,20 @@ XrdMgmOfs::fsctl (const int cmd,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::FSctl (const int cmd,
-                  XrdSfsFSctl &args,
-                  XrdOucErrInfo &error,
-                  const XrdSecEntity * client)
+        XrdSfsFSctl &args,
+        XrdOucErrInfo &error,
+        const XrdSecEntity * client)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief FS control funcition implementing the locate and plugin call
- * 
+ *
  * @cmd operation to run (locate or plugin)
  * @args args for the operation
  * @error error object
  * @client XRootD authentication obeject
- * 
+ *
  * This function locates files on the redirector. Additionally it is used in EOS
- * to implement many stateless operations like commit/drop a replica, stat 
+ * to implement many stateless operations like commit/drop a replica, stat
  * a file/directory, create a directory listing for FUSE, chmod, chown, access,
  * utimes, get checksum, schedule to drain/balance/delete ...
  */
@@ -4905,11 +4953,11 @@ XrdMgmOfs::FSctl (const int cmd,
 
       EXEC_TIMING_BEGIN("AdjustReplica");
 
-      // execute adjust replica                                                                                                                                                                            
+      // execute adjust replica
       eos::common::Mapping::VirtualIdentity vid;
       eos::common::Mapping::Root(vid);
 
-      // execute a proc command                                                                                                                                                                            
+      // execute a proc command
       ProcCommand Cmd;
       XrdOucString info = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
       char* spath = env.Get("mgm.path");
@@ -4996,7 +5044,7 @@ XrdMgmOfs::FSctl (const int cmd,
           return Emsg(epname, error, EIO, "[EIO] rewrite", spath);
         }
       }
-      // execute a proc command                                                                                                                                                                            
+      // execute a proc command
       ProcCommand Cmd;
       XrdOucString info = "mgm.cmd=file&mgm.subcmd=convert&";
       info += "mgm.path=";
@@ -5187,7 +5235,7 @@ XrdMgmOfs::FSctl (const int cmd,
           {
             unsigned long lid = fmd->getLayoutId();
 
-            // check if fsid and fid are ok 
+            // check if fsid and fid are ok
             if (fmd->getId() != fid)
             {
               eos_thread_notice("commit for fid=%lu but fid=%lu", fmd->getId(), fid);
@@ -5439,12 +5487,12 @@ XrdMgmOfs::FSctl (const int cmd,
                   {
                     errno = e.getErrno();
                     eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                             e.getErrno(), e.getMessage().str().c_str());
+                                   e.getErrno(), e.getMessage().str().c_str());
                   }
                   // move to a new directory
                 }
                 // remove the temporary upload path to the finale path
-                eos_info("renamed %s to %s", fmd->getName().c_str(),atomic_path.GetName());
+                eos_info("renamed %s to %s", fmd->getName().c_str(), atomic_path.GetName());
                 eosView->renameFile(fmd, atomic_path.GetName());
                 UpdateNowInmemoryDirectoryModificationTime(dir->getId());
                 eos_thread_info("msg=\"de-atomize file\" fid=%llu atomic-name=%s final-name=%s", fmd->getId(), fmd->getName().c_str(), atomic_path.GetName());
@@ -5454,7 +5502,7 @@ XrdMgmOfs::FSctl (const int cmd,
                 errno = e.getErrno();
                 std::string errmsg = e.getMessage().str();
                 eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                                 e.getErrno(), e.getMessage().str().c_str());
+                               e.getErrno(), e.getMessage().str().c_str());
               }
             }
           }
@@ -5719,21 +5767,21 @@ XrdMgmOfs::FSctl (const int cmd,
                 (unsigned long long) buf.st_blksize,
                 (unsigned long long) buf.st_blocks,
 #ifdef __APPLE__
-          (unsigned long long) buf.st_atimespec.tv_sec,
+                (unsigned long long) buf.st_atimespec.tv_sec,
                 (unsigned long long) buf.st_mtimespec.tv_sec,
                 (unsigned long long) buf.st_ctimespec.tv_sec,
                 (unsigned long long) buf.st_atimespec.tv_nsec,
                 (unsigned long long) buf.st_mtimespec.tv_nsec,
                 (unsigned long long) buf.st_ctimespec.tv_nsec
 #else
-          (unsigned long long) buf.st_atime,
+                (unsigned long long) buf.st_atime,
                 (unsigned long long) buf.st_mtime,
                 (unsigned long long) buf.st_ctime,
                 (unsigned long long) buf.st_atim.tv_nsec,
                 (unsigned long long) buf.st_mtim.tv_nsec,
                 (unsigned long long) buf.st_ctim.tv_nsec
 #endif
-          );
+                );
 
         error.setErrInfo(strlen(statinfo) + 1, statinfo);
         return SFS_DATA;
@@ -5797,21 +5845,21 @@ XrdMgmOfs::FSctl (const int cmd,
                 (unsigned long long) buf.st_blksize,
                 (unsigned long long) buf.st_blocks,
 #ifdef __APPLE__
-          (unsigned long long) buf.st_atimespec.tv_sec,
+                (unsigned long long) buf.st_atimespec.tv_sec,
                 (unsigned long long) buf.st_mtimespec.tv_sec,
                 (unsigned long long) buf.st_ctimespec.tv_sec,
                 (unsigned long long) buf.st_atimespec.tv_nsec,
                 (unsigned long long) buf.st_mtimespec.tv_nsec,
                 (unsigned long long) buf.st_ctimespec.tv_nsec
 #else
-          (unsigned long long) buf.st_atime,
+                (unsigned long long) buf.st_atime,
                 (unsigned long long) buf.st_mtime,
                 (unsigned long long) buf.st_ctime,
                 (unsigned long long) buf.st_atim.tv_nsec,
                 (unsigned long long) buf.st_mtim.tv_nsec,
                 (unsigned long long) buf.st_ctim.tv_nsec
 #endif
-          );
+                );
 
         error.setErrInfo(strlen(statinfo) + 1, statinfo);
         return SFS_DATA;
@@ -6036,7 +6084,7 @@ XrdMgmOfs::FSctl (const int cmd,
 
       gOFS->MgmStats.Add("Fuse-Checksum", vid.uid, vid.gid, 1);
 
-      // get the checksum 
+      // get the checksum
       XrdOucString checksum = "";
       eos::FileMD* fmd = 0;
       int retc = 0;
@@ -6180,8 +6228,8 @@ XrdMgmOfs::FSctl (const int cmd,
             if (rc == SFS_OK)
             {
               for (std::map<std::string,
-                std::string>::iterator iter = map.begin();
-                iter != map.end(); iter++)
+                      std::string>::iterator iter = map.begin();
+                      iter != map.end(); iter++)
               {
                 response += iter->first.c_str();
                 response += "&";
@@ -6808,7 +6856,7 @@ XrdMgmOfs::FSctl (const int cmd,
       static time_t sScheduledFidCleanupTime = 0;
 
       // -----------------------------------------------------------------------
-      // deal with 0-size files 'scheduled' before, which just need 
+      // deal with 0-size files 'scheduled' before, which just need
       // a move in the namespace
       // -----------------------------------------------------------------------
       bool has_zero_mv_files = false;
@@ -7098,9 +7146,9 @@ XrdMgmOfs::FSctl (const int cmd,
                     source_snapshot.mConfigStatus == eos::common::FileSystem::kDrainDead)
                 {
                   // -----------------------------------------------------------
-                  // RAIN layouts (not replica) drain by running a 
+                  // RAIN layouts (not replica) drain by running a
                   // reconstruction 'eoscp -c' ... if they are in draindead
-                  // they are easy to configure, they just call an open with 
+                  // they are easy to configure, they just call an open with
                   // reconstruction/replacement option and the real scheduling
                   // is done when 'eoscp' is executed.
                   // -----------------------------------------------------------
@@ -7698,22 +7746,22 @@ XrdMgmOfs::FSctl (const int cmd,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::attr_ls (const char *inpath,
-                    XrdOucErrInfo &error,
-                    const XrdSecEntity *client,
-                    const char *ininfo,
-                    eos::ContainerMD::XAttrMap & map)
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *ininfo,
+        eos::ContainerMD::XAttrMap & map)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief list extended attributes for a given directory
- *  
+ *
  * @param inpath directory name to list attributes
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @param map return object with the extended attribute key-value map
- * 
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
+ *
  * See _attr_ls for details on the internals.
  */
 /*----------------------------------------------------------------------------*/
@@ -7743,24 +7791,24 @@ XrdMgmOfs::attr_ls (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::attr_set (const char *inpath,
-                     XrdOucErrInfo &error,
-                     const XrdSecEntity *client,
-                     const char *ininfo,
-                     const char *key,
-                     const char *value)
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *ininfo,
+        const char *key,
+        const char *value)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief set an extended attribute for a given directory to key=value
- *  
+ *
  * @param inpath directory name to set attribute
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @param key key to set
  * @param value value to set for key
- * 
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
+ *
  * See _attr_set for details on the internals.
  */
 /*----------------------------------------------------------------------------*/
@@ -7789,24 +7837,24 @@ XrdMgmOfs::attr_set (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::attr_get (const char *inpath,
-                     XrdOucErrInfo &error,
-                     const XrdSecEntity *client,
-                     const char *ininfo,
-                     const char *key,
-                     XrdOucString & value)
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *ininfo,
+        const char *key,
+        XrdOucString & value)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief get an extended attribute for a given directory by key
- *  
+ *
  * @param inpath directory name to get attribute
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @param key key to retrieve
  * @param value variable to store the value
- * 
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
+ *
  * See _attr_get for details on the internals.
  */
 /*----------------------------------------------------------------------------*/
@@ -7836,20 +7884,20 @@ XrdMgmOfs::attr_get (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::attr_rem (const char *inpath,
-                     XrdOucErrInfo &error,
-                     const XrdSecEntity *client,
-                     const char *ininfo,
-                     const char *key)
+        XrdOucErrInfo &error,
+        const XrdSecEntity *client,
+        const char *ininfo,
+        const char *key)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete an extended attribute for a given directory by key
- *  
+ *
  * @param inpath directory name to delete attribute
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @param key key to delete
- * 
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
  *
  * See _attr_rem for details on the internals.
@@ -7881,22 +7929,22 @@ XrdMgmOfs::attr_rem (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_attr_ls (const char *path,
-                     XrdOucErrInfo &error,
-                     eos::common::Mapping::VirtualIdentity &vid,
-                     const char *info,
-                     eos::ContainerMD::XAttrMap & map)
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        const char *info,
+        eos::ContainerMD::XAttrMap & map)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief list extended attributes for a given directory
- *  
+ *
  * @param path directory name to list attributes
  * @param error error object
  * @param vid virtual identity of the client
  * @param info CGI
  * @param map return object with the extended attribute key-value map
- * 
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
+ *
  * Normal unix permissions R_OK & X_OK are needed to list attributes.
  */
 /*----------------------------------------------------------------------------*/
@@ -7943,24 +7991,24 @@ XrdMgmOfs::_attr_ls (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_attr_set (const char *path,
-                      XrdOucErrInfo &error,
-                      eos::common::Mapping::VirtualIdentity &vid,
-                      const char *info,
-                      const char *key,
-                      const char *value)
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        const char *info,
+        const char *key,
+        const char *value)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief set an extended attribute for a given directory with key=value
- *  
+ *
  * @param path directory name to set attribute
  * @param error error object
  * @param vid virtual identity of the client
  * @param info CGI
  * @param key key to set
  * @param value value for key
- * 
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
+ *
  * Only the owner of a directory can set extended attributes with user prefix.
  * sys prefix attributes can be set only by sudo'ers or root.
  */
@@ -8003,10 +8051,10 @@ XrdMgmOfs::_attr_set (const char *path,
       }
       else
       {
-        // check format of acl 
+        // check format of acl
         if (Key.beginswith("user.acl") || Key.beginswith("sys.acl"))
         {
-          if (!Acl::IsValid(value, error))
+          if (!Acl::IsValid(value, error, Key.beginswith("sys.acl")))
           {
             errno = EINVAL;
             return SFS_ERROR;
@@ -8014,7 +8062,7 @@ XrdMgmOfs::_attr_set (const char *path,
         }
         dh->setAttribute(key, value);
         eosView->updateContainerStore(dh);
-	UpdateNowInmemoryDirectoryModificationTime(dh->getId());
+        UpdateNowInmemoryDirectoryModificationTime(dh->getId());
         errno = 0;
       }
     }
@@ -8038,25 +8086,25 @@ XrdMgmOfs::_attr_set (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_attr_get (const char *path,
-                      XrdOucErrInfo &error,
-                      eos::common::Mapping::VirtualIdentity &vid,
-                      const char *info,
-                      const char *key,
-                      XrdOucString &value,
-                      bool islocked)
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        const char *info,
+        const char *key,
+        XrdOucString &value,
+        bool islocked)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief get an extended attribute for a given directory by key
- *  
+ *
  * @param path directory name to get attribute
  * @param error error object
  * @param vid virtual identity of the client
  * @param info CGI
  * @param key key to get
  * @param value value returned
- * 
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
+ *
  * Normal POSIX R_OK & X_OK permissions are required to retrieve a key.
  */
 /*----------------------------------------------------------------------------*/
@@ -8107,22 +8155,22 @@ XrdMgmOfs::_attr_get (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_attr_rem (const char *path,
-                      XrdOucErrInfo &error,
-                      eos::common::Mapping::VirtualIdentity &vid,
-                      const char *info,
-                      const char *key)
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        const char *info,
+        const char *key)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete an extended attribute for a given directory by key
- *  
+ *
  * @param path directory name to set attribute
  * @param error error object
  * @param vid virtual identity of the client
  * @param info CGI
  * @param key key to delete
- * 
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
+ *
  * Only the owner of a directory can delete an extended attributes with user prefix.
  * sys prefix attributes can be deleted only by sudo'ers or root.
  */
@@ -8181,9 +8229,9 @@ XrdMgmOfs::_attr_rem (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_attr_clear (const char *path,
-                        XrdOucErrInfo &error,
-                        eos::common::Mapping::VirtualIdentity &vid,
-                        const char *info)
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        const char *info)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief clear all  extended attribute for a given directory
@@ -8218,23 +8266,23 @@ XrdMgmOfs::_attr_clear (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_verifystripe (const char *path,
-                          XrdOucErrInfo &error,
-                          eos::common::Mapping::VirtualIdentity &vid,
-                          unsigned long fsid,
-                          XrdOucString option)
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        unsigned long fsid,
+        XrdOucString option)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a verification message to a file system for a given file
- * 
+ *
  * @param path file name to verify
  * @param error error object
  * @param vid virtual identity of the client
- * @param fsid filesystem id where to run the verification 
+ * @param fsid filesystem id where to run the verification
  * @param option pass-through string for the verification
- * 
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
- * The function requires POSIX W_OK & X_OK on the parent directory to succeed. 
+ *
+ * The function requires POSIX W_OK & X_OK on the parent directory to succeed.
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -8377,23 +8425,23 @@ XrdMgmOfs::_verifystripe (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_dropstripe (const char *path,
-                        XrdOucErrInfo &error,
-                        eos::common::Mapping::VirtualIdentity &vid,
-                        unsigned long fsid,
-                        bool forceRemove)
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        unsigned long fsid,
+        bool forceRemove)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a drop message to a file system for a given file
- * 
+ *
  * @param path file name to drop stripe
  * @param error error object
  * @param vid virtual identity of the client
- * @param fsid filesystem id where to run the drop 
- * @param forceRemove if true the stripe is immediatly dropped 
- * 
+ * @param fsid filesystem id where to run the drop
+ * @param forceRemove if true the stripe is immediatly dropped
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
- * The function requires POSIX W_OK & X_OK on the parent directory to succeed. 
+ *
+ * The function requires POSIX W_OK & X_OK on the parent directory to succeed.
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -8479,26 +8527,26 @@ XrdMgmOfs::_dropstripe (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_movestripe (const char *path,
-                        XrdOucErrInfo &error,
-                        eos::common::Mapping::VirtualIdentity &vid,
-                        unsigned long sourcefsid,
-                        unsigned long targetfsid,
-                        bool expressflag)
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        unsigned long sourcefsid,
+        unsigned long targetfsid,
+        bool expressflag)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a move message for a given file from source to target file system
- * 
+ *
  * @param path file name to move stripe
  * @param error error object
  * @param vid virtual identity of the client
  * @param sourcefsid filesystem id of the source
  * @param targetfsid filesystem id of the target
  * @param expressflag if true the move is put in front of the queue on the FST
- * 
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
+ *
  * The function requires POSIX W_OK & X_OK on the parent directory to succeed.
- * It calls _replicatestripe internally. 
+ * It calls _replicatestripe internally.
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -8512,25 +8560,25 @@ XrdMgmOfs::_movestripe (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_copystripe (const char *path,
-                        XrdOucErrInfo &error,
-                        eos::common::Mapping::VirtualIdentity &vid,
-                        unsigned long sourcefsid,
-                        unsigned long targetfsid,
-                        bool expressflag)
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        unsigned long sourcefsid,
+        unsigned long targetfsid,
+        bool expressflag)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a copy message for a given file from source to target file system
- * 
+ *
  * @param path file name to copy stripe
  * @param error error object
  * @param vid virtual identity of the client
  * @param sourcefsid filesystem id of the source
  * @param targetfsid filesystem id of the target
  * @param expressflag if true the copy is put in front of the queue on the FST
- * 
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
- * The function requires POSIX W_OK & X_OK on the parent directory to succeed. 
+ *
+ * The function requires POSIX W_OK & X_OK on the parent directory to succeed.
  * It calls _replicatestripe internally.
  */
 /*----------------------------------------------------------------------------*/
@@ -8545,16 +8593,16 @@ XrdMgmOfs::_copystripe (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_replicatestripe (const char *path,
-                             XrdOucErrInfo &error,
-                             eos::common::Mapping::VirtualIdentity &vid,
-                             unsigned long sourcefsid,
-                             unsigned long targetfsid,
-                             bool dropsource,
-                             bool expressflag)
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        unsigned long sourcefsid,
+        unsigned long targetfsid,
+        bool dropsource,
+        bool expressflag)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a replication message for a given file from source to target file system
- * 
+ *
  * @param path file name to copy stripe
  * @param error error object
  * @param vid virtual identity of the client
@@ -8562,10 +8610,10 @@ XrdMgmOfs::_replicatestripe (const char *path,
  * @param targetfsid filesystem id of the target
  * @param dropsource indicates if the source is deleted(dropped) after successfull replication
  * @param expressflag if true the copy is put in front of the queue on the FST
- * 
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
- * The function requires POSIX W_OK & X_OK on the parent directory to succeed. 
+ *
+ * The function requires POSIX W_OK & X_OK on the parent directory to succeed.
  * It calls _replicatestripe with a file meta data object.
  */
 /*----------------------------------------------------------------------------*/
@@ -8646,29 +8694,29 @@ XrdMgmOfs::_replicatestripe (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_replicatestripe (eos::FileMD *fmd,
-                             const char* path,
-                             XrdOucErrInfo &error,
-                             eos::common::Mapping::VirtualIdentity &vid,
-                             unsigned long sourcefsid,
-                             unsigned long targetfsid,
-                             bool dropsource,
-                             bool expressflag)
+        const char* path,
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        unsigned long sourcefsid,
+        unsigned long targetfsid,
+        bool dropsource,
+        bool expressflag)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a replication message for a given file from source to target file system
- * 
+ *
  * @param fmd namespace file meta data object
- * @param path file name 
+ * @param path file name
  * @param error error object
  * @param vid virtual identity of the client
  * @param sourcefsid filesystem id of the source
  * @param targetfsid filesystem id of the target
  * @param dropsource indicates if the source is deleted(dropped) after successfull replication
  * @param expressflag if true the copy is put in front of the queue on the FST
- * 
+ *
  * @return SFS_OK if success otherwise SFS_ERROR
- * 
- * The function sends an appropriate message to the target FST. 
+ *
+ * The function sends an appropriate message to the target FST.
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -8892,18 +8940,18 @@ XrdMgmOfs::_replicatestripe (eos::FileMD *fmd,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::merge (
-                  const char* src,
-                  const char* dst,
-                  XrdOucErrInfo &error,
-                  eos::common::Mapping::VirtualIdentity & vid
-                  )
+        const char* src,
+        const char* dst,
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity & vid
+        )
 /*----------------------------------------------------------------------------*/
 /**
- * @brief merge one file into another one 
+ * @brief merge one file into another one
  * @param src to merge
  * @param dst to merge into
- * @return SFS_OK if success 
- * 
+ * @return SFS_OK if success
+ *
  * This command act's like a rename and keeps the ownership and creation time
  * of the target file.
  */
@@ -8983,11 +9031,11 @@ XrdMgmOfs::merge (
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
-                    XrdOucErrInfo &error,
-                    eos::common::Mapping::VirtualIdentity &vid,
-                    int max_versions,
-                    XrdOucString* versionedpath,
-                    bool simulate)
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid,
+        int max_versions,
+        XrdOucString* versionedpath,
+        bool simulate)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief handles file versioning for fid
@@ -9120,8 +9168,8 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
 int
 /*----------------------------------------------------------------------------*/
 XrdMgmOfs::PurgeVersion (const char* versiondir,
-                         XrdOucErrInfo &error,
-                         int max_versions)
+        XrdOucErrInfo &error,
+        int max_versions)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief purge oldest versions exceeding max_versions
@@ -9223,7 +9271,7 @@ XrdMgmOfs::PurgeVersion (const char* versiondir,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::SendResync (eos::common::FileId::fileid_t fid,
-                       eos::common::FileSystem::fsid_t fsid)
+        eos::common::FileSystem::fsid_t fsid)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a resync command for a file identified by id and filesystem
@@ -9307,18 +9355,18 @@ XrdMgmOfs::StartMgmFsConfigListener (void *pp)
 /*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::DeleteExternal (eos::common::FileSystem::fsid_t fsid,
-                           unsigned long long fid)
+        unsigned long long fid)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send an explicit deletion message to a fsid/fid pair
- * 
+ *
  * @param fsid file system id where to run a deletion
  * @param fid file id to be deleted
- * 
+ *
  * @result true if successfully sent otherwise false
- * 
- * This routine signs a deletion message for the given file id and sends it 
- * to the referenced file system. 
+ *
+ * This routine signs a deletion message for the given file id and sends it
+ * to the referenced file system.
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -9394,14 +9442,14 @@ XrdMgmOfs::DeleteExternal (eos::common::FileSystem::fsid_t fsid,
 /*----------------------------------------------------------------------------*/
 std::string
 XrdMgmOfs::CreateSharePath (const char* inpath,
-                            const char* ininfo,
-                            time_t expires,
-                            XrdOucErrInfo &error,
-                            eos::common::Mapping::VirtualIdentity &vid)
+        const char* ininfo,
+        time_t expires,
+        XrdOucErrInfo &error,
+        eos::common::Mapping::VirtualIdentity &vid)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create a file sharing path with given liftime
- * 
+ *
  * @param path file path to share
  * @param info opaque information
  * @param expires unixtimestamp when signature has to expire
@@ -9492,11 +9540,11 @@ XrdMgmOfs::CreateSharePath (const char* inpath,
 /*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::VerifySharePath (const char* path,
-                            XrdOucEnv* opaque)
+        XrdOucEnv* opaque)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief verify a file sharing path
- * 
+ *
  * @param path file path to share
  * @param opaque information containing a file share signature
  *
@@ -9595,7 +9643,7 @@ XrdMgmOfs::FsConfigListener ()
  * @brief file system listener agent starting drain jobs when receving opserror
  * and applying remote master configuration changes to the local configuration
  * object.
- * 
+ *
  * This thread agent catches 'opserror' states on filesystems and executes the
  * drain job start routine on the referenced filesystem. If a filesystem
  * is removing the error code it also run's a stop drain job routine.
@@ -9729,7 +9777,7 @@ XrdMgmOfs::FsConfigListener ()
         {
           // -------------------------------------------------------------------
           // this is a filesystem status error
-          // ------------------------------------------------------------------- 
+          // -------------------------------------------------------------------
           if (gOFS->MgmMaster.IsMaster())
           {
             // only an MGM master needs to initiate draining

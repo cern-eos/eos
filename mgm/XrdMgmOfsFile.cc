@@ -540,7 +540,7 @@ XrdMgmOfsFile::open (const char *inpath,
       }
       else
       {
-        ownerkey += vid.name.c_str();
+        ownerkey += vid.uid_string.c_str();
       }
       if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos)
       {
@@ -559,10 +559,11 @@ XrdMgmOfsFile::open (const char *inpath,
             attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""),
             vid,
             attrmap.count("sys.eval.useracl"));
-    eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d",
+    eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.HasEgroup(),
-             isSharedFile);
+             isSharedFile,
+             acl.IsMutable());
     if (acl.HasAcl())
     {
       if (isRW)
@@ -587,6 +588,14 @@ XrdMgmOfsFile::open (const char *inpath,
     else
     {
       stdpermcheck = true;
+    }
+
+    if (isRW && vid.uid && !acl.IsMutable())
+    {
+      // immutable directory
+      errno = EPERM;
+      gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+      return Emsg(epname, error, errno, "open file - directory immutable", path);
     }
 
     if (((!isSharedFile) || (isSharedFile && isRW)) && stdpermcheck

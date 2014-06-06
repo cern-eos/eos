@@ -38,9 +38,9 @@
 /*----------------------------------------------------------------------------*/
 /**
  * @file   Acl.hh
- * 
+ *
  * @brief  Class providing ACL interpretation and access control functions
- * 
+ *
  */
 
 /*----------------------------------------------------------------------------*/
@@ -49,13 +49,13 @@ EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 //! Class implementing access control list interpretation.
-//! ACL rules used in the constructor or set function are strings with 
+//! ACL rules used in the constructor or set function are strings with
 //! the following format:\n\n
 //! rule=
-//! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
+//! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rw[o]ximc(!u)(+u)(!d)(+d)q}|z:xmc(!u)(+u)(!d)(+d)q}'
+//!
 /*----------------------------------------------------------------------------*/
-class Acl
-{
+class Acl {
   bool canRead; ///< acl allows read access
   bool canWrite; ///< acl allows write access
   bool canWriteOnce; ///< acl allows write-once access (creation, no delete)
@@ -69,6 +69,7 @@ class Acl
   bool canSetQuota; ///< acl allows to set quota
   bool hasAcl; ///< acl is valid
   bool hasEgroup; ///< acl contains egroup rule
+  bool isMutable; ///< acl does not contain the immutable flag
 public:
   /*---------------------------------------------------------------------------*/
   //! Default Constructor
@@ -89,6 +90,7 @@ public:
     canSetQuota = false;
     hasAcl = false;
     hasEgroup = false;
+    isMutable = true;
   }
 
   /*---------------------------------------------------------------------------*/
@@ -97,27 +99,30 @@ public:
   Acl (std::string sysacl,
        std::string useracl,
        eos::common::Mapping::VirtualIdentity &vid,
-       bool allowUserAcl=false);
+       bool allowUserAcl = false);
 
   /*--------------------------------------------------------------------------*/
   //! Destructor
 
   /*--------------------------------------------------------------------------*/
-  ~Acl () { };
+  ~Acl ()
+  {
+  };
 
   /*--------------------------------------------------------------------------*/
   //! Enter system and user definition + identity used for ACL interpretation
   /*--------------------------------------------------------------------------*/
   void Set (std::string sysacl,
             std::string useracl,
-            eos::common::Mapping::VirtualIdentity &vid, 
-	    bool allowUserAcl=false);
+            eos::common::Mapping::VirtualIdentity &vid,
+            bool allowUserAcl = false);
 
   /*--------------------------------------------------------------------------*/
   //! Use regex to check ACL format / syntax
   /*--------------------------------------------------------------------------*/
   static bool IsValid (const std::string value,
-                       XrdOucErrInfo &error);
+                       XrdOucErrInfo &error,
+                       bool sysacl = false);
 
   /*--------------------------------------------------------------------------*/
   // Getter Functions for ACL booleans
@@ -213,6 +218,13 @@ public:
   /// has any egroup defined
   {
     return hasEgroup;
+  }
+
+  bool
+  IsMutable ()
+  /// has not the 'i' flag
+  {
+    return isMutable;
   }
 };
 
