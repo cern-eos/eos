@@ -36,12 +36,12 @@ com_archive(char* arg1)
   subtokenizer.GetLine();
   XrdOucString subcmd = subtokenizer.GetToken();
   std::ostringstream in_cmd;
-  XrdOucString path;
-  in_cmd << "mgm.cmd=archive&";
+  XrdOucString token;
+  in_cmd << "mgm.cmd=archive&mgm.subcmd=" << subcmd;
 
   if (subcmd == "create")
   {
-    path = subtokenizer.GetToken();
+    XrdOucString path = subtokenizer.GetToken();
     XrdOucString dst = subtokenizer.GetToken();
 
     if (!path.length() || !dst.length())
@@ -50,7 +50,7 @@ com_archive(char* arg1)
       goto com_archive_usage;
     }
                        
-    XrdCl::URL dst_url = XrdCl::URL(path.c_str());
+    XrdCl::URL dst_url = XrdCl::URL(dst.c_str());
 
     if (!dst_url.IsValid())
     {
@@ -58,40 +58,57 @@ com_archive(char* arg1)
       goto com_archive_usage;
     }
 
-    in_cmd << "mgm.subcmd=create&" << "mgm.archive.path=" << path << "&"
-           << "mgm.archive.dst=" << dst;
+    in_cmd << "&mgm.archive.path=" << path
+           << "&mgm.archive.dst=" << dst;
   }
-  else if (subcmd == "migrate")
+  else if ((subcmd == "migrate") || (subcmd == "stage"))
   {
-    path = subtokenizer.GetToken();
+    token = subtokenizer.GetToken();
 
-    if (!path.length())
+    if (!token.length())
+    {
       goto com_archive_usage;
+    }
+    else if (token.beginswith("--"))
+    {
+      token.erase(0, 2);
 
-    in_cmd << "mgm.subcmd=migrate&" << "mgm.archive.path=" << path;
-  }
-  else if (subcmd == "stage")
-  {
-    path = subtokenizer.GetToken();
+      if (token != "recover")
+      {
+        fprintf(stdout, "Unknown option: %s", token.c_str());
+        goto com_archive_usage;
+      }
+      else
+      {
+        in_cmd << "&mgm.archive.option=r";
+      }
 
-    if (!path.length())
+      token = subtokenizer.GetToken();
+    }
+
+    if (!token.length())
       goto com_archive_usage;
-
-    in_cmd << "mgm.subcmd=stage&" << "mgm.archive.path=" << path;
+    else
+      in_cmd << "&mgm.archive.path=" << token;
   }
   else if (subcmd == "list")
   {
-    in_cmd << "mgm.subcmd=list&";
-    XrdOucString type = subtokenizer.GetToken();
+    // type: all, stage, migrate, job_uuid
+    token = subtokenizer.GetToken(); 
 
-    if (!type.length())
-      in_cmd << "mgm.archive.type=all";
-    else if (type == "migrate")
-      in_cmd << "mgm.archive.type=migrate";
-    else if (type == "stage")
-      in_cmd << "mgm.archive.type=stage";
-    else
+    if (!token.length())
+      in_cmd << "&mgm.archive.option=all";
+    else      
+      in_cmd << "&mgm.archive.option=" << token;
+  }
+  else if (subcmd == "purge")
+  {
+    token = subtokenizer.GetToken();
+
+    if (!token.length())
       goto com_archive_usage;
+    else
+      in_cmd << "&mgm.archive.option=" << token;
   }
   else
     goto com_archive_usage;
@@ -103,11 +120,12 @@ com_archive(char* arg1)
 com_archive_usage:
   std::ostringstream oss;
   oss << "usage: archive <subcmd> " << std::endl
-      << "               create <source> <destination>  : create archive file" << std::endl
-      << "               migrate <archive.json>         : submit migration task" << std::endl
-      << "               stage <archive.json>           : submit stage task" << std::endl
-      << "               list [migration|stage|all]     : list status of tasks" << std::endl
-      << "               help [--help|-h]               : display help message" << std::endl;
+      << "               create <path> <destination_url>     : create archive file" << std::endl
+      << "               migrate [--recover] <path>         : submit migration task" << std::endl
+      << "               stage [--recover] <path>           : submit stage task" << std::endl
+      << "               purge <path>                        : purge files after migration" << std::endl
+      << "               list [all|migration|stage|job_uuid] : list status of jobs" << std::endl
+      << "               help [--help|-h]                    : display help message" << std::endl;
 
   fprintf(stdout, "%s", oss.str().c_str());
   return 0;
