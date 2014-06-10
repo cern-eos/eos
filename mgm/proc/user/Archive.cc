@@ -32,11 +32,14 @@
 EOSMGMNAMESPACE_BEGIN
 
 static const std::string ARCH_INIT = "archive.init";
-static const std::string ARCH_MIGRATE_DONE = "archive.migrate.done";
-static const std::string ARCH_MIGRATE_ERR = "archive.migrate.err";
+static const std::string ARCH_MIG_DONE = "archive.migrate.done";
+static const std::string ARCH_MIG_ERR = "archive.migrate.err";
 static const std::string ARCH_STAGE_DONE = "archive.stage.done";
 static const std::string ARCH_STAGE_ERR = "archive.stage.err";
+static const std::string ARCH_PURGE_DONE = "archive.purge.done";
+static const std::string ARCH_PURGE_ERR = "archive.purge.err";
 static const std::string ARCH_LOG = "archive.log";
+
 
 //------------------------------------------------------------------------------
 // Archive command
@@ -44,6 +47,8 @@ static const std::string ARCH_LOG = "archive.log";
 int
 ProcCommand::Archive()
 {
+  
+  struct stat statinfo;
   std::ostringstream cmd_json;
   std::string option = (pOpaque->Get("mgm.archive.option") ?
                         pOpaque->Get("mgm.archive.option") : "");
@@ -76,7 +81,6 @@ ProcCommand::Archive()
     std::ostringstream dir_stream;
     dir_stream << "root://" << gOFS->ManagerId.c_str() << "/" << spath.c_str();
     std::string dir_url = dir_stream.str();
-    struct stat statinfo;
 
     // Check that the requested path exists and is a directory
     if (gOFS->_stat(spath.c_str(), &statinfo, *mError, *pVid))
@@ -102,38 +106,81 @@ ProcCommand::Archive()
       }
       else
       {
-        XrdOucString dst = pOpaque->Get("mgm.archive.dst");
-        ArchiveCreate(spath, dst);
-        return SFS_OK;
+        // Check that the directory is not already archived
+        std::ostringstream oss;
+        std::vector<std::string> vect_files; 
+        std::vector<std::string> vect_paths;
+        vect_files.push_back(ARCH_INIT); 
+        vect_files.push_back(ARCH_MIG_DONE);
+        vect_files.push_back(ARCH_MIG_ERR); 
+        vect_files.push_back(ARCH_STAGE_DONE);
+        vect_files.push_back(ARCH_STAGE_ERR); 
+        vect_files.push_back(ARCH_PURGE_DONE);
+        vect_files.push_back(ARCH_PURGE_ERR);
+        vect_files.push_back(ARCH_LOG);
+        
+        // Create all possible file paths
+        for (auto it = vect_files.begin(); it != vect_files.end(); ++it)
+        {
+          oss.str("");
+          oss.clear();
+          oss << spath.c_str() << "/" << *it;
+          vect_paths.push_back(oss.str());
+        }
+
+        // Check that none of the "special" files exists
+        for (auto it = vect_paths.begin(); it != vect_paths.end(); ++it)
+        {
+          if (!gOFS->stat(it->c_str(), &statinfo, *mError))
+          {
+            stdErr = "error: directory is already archived ";
+            stdErr += spath.c_str();
+            retc = EINVAL;
+            break;
+          }
+        }
+
+        if (!retc)
+        {
+          XrdOucString dst = pOpaque->Get("mgm.archive.dst");
+          ArchiveCreate(spath, dst);
+          return SFS_OK;
+        }
       }
     }
-    else if ((mSubCmd == "migrate") || (mSubCmd == "stage"))
+    else if ((mSubCmd == "migrate") || 
+             (mSubCmd == "stage") || 
+             (mSubCmd == "purge"))
     {
-      struct stat buf;
       std::string arch_url = dir_url;
       arch_url += "/";
       
       if (option == "r")
       {
-        // Recover failed migration/stage
-        option = "recover";
+        // Retry failed migration/stage
+        option = "retry";
         std::string arch_err = spath.c_str();
         arch_err += "/";
         
         if (mSubCmd == "migrate") 
         {
-          arch_err += ARCH_MIGRATE_ERR;
-          arch_url += ARCH_MIGRATE_ERR;
+          arch_err += ARCH_MIG_ERR;
+          arch_url += ARCH_MIG_ERR;
         }
-        else // stage recover
+        else if (mSubCmd == "stage") // stage retry
         {
           arch_err += ARCH_STAGE_ERR;
           arch_url += ARCH_STAGE_ERR;
         }
-        
-        if (gOFS->stat(arch_err.c_str(), &buf, *mError))
+        else if (mSubCmd == "purge")
         {
-          stdErr = "error: no failed migration/stage file in directory: ";
+          arch_err += ARCH_PURGE_ERR;
+          arch_url += ARCH_PURGE_ERR;
+        }
+        
+        if (gOFS->stat(arch_err.c_str(), &statinfo, *mError))
+        {
+          stdErr = "error: no failed migration/stage/purge file in directory: ";
           stdErr += spath.c_str();
           retc = EINVAL;
         }
@@ -145,20 +192,46 @@ ProcCommand::Archive()
         std::string arch_path = spath.c_str();
         arch_path += "/"; 
         
-        if (mSubCmd == "migrate")
+        if (mSubCmd == "migrate") // migrate
         {
           arch_path += ARCH_INIT;
           arch_url += ARCH_INIT;
         }
-        else // stage
+        else if (mSubCmd == "stage") // stage
         {
-          arch_path += ARCH_MIGRATE_DONE;
-          arch_url += ARCH_MIGRATE_DONE;
+          arch_path += ARCH_PURGE_DONE;
+          arch_url += ARCH_PURGE_DONE;
         }
-
-        if (gOFS->stat(arch_path.c_str(), &buf, *mError))
+        else if (mSubCmd == "purge")
         {
-          stdErr = "error: no archive/migrate file in directory: ";
+          arch_path += ARCH_MIG_DONE;
+          
+          if (gOFS->stat(arch_path.c_str(), &statinfo, *mError))
+          {
+            arch_path = spath.c_str(); 
+            arch_path += "/";
+            arch_path += ARCH_STAGE_DONE;
+        
+            if (gOFS->stat(arch_path.c_str(), &statinfo, *mError))
+            {
+              stdErr = "error: purge can be done only after a successful " \
+                "migration or stage operation";
+              retc = EINVAL;
+            }
+            else 
+            {
+              arch_url += ARCH_STAGE_DONE;
+            }
+          }
+          else
+          {
+            arch_url += ARCH_MIG_DONE;
+          }
+        }
+        
+        if ((mSubCmd != "purge") && gOFS->stat(arch_path.c_str(), &statinfo, *mError))
+        {
+          stdErr = "error: no archive purge file in directory: ";
           stdErr += spath.c_str();
           retc = EINVAL;
         }
@@ -169,22 +242,13 @@ ProcCommand::Archive()
                << "\"opt\": " << "\"" << option  << "\""
                << "}";
     }
-    /*
-    else if (mSubCmd == "purge")
+    else if (mSubCmd == "delete")
     {
-      if (!spath.length())
-      {
-        stdErr = "error: need to provide a path for archive stage or migrate";
-        retc = EINVAL;
-      }
-      else
-      {
-        cmd_json << "{ \"cmd\": " << "\"" << mSubCmd.c_str() << "\", "
-                 << "\"src\": " << "\"" << dir_url << "\""
-                 << " }";
-      }
+      cmd_json << "{ \"cmd\": " << "\"" << mSubCmd.c_str() << "\", "
+               << "\"src\": " << "\"" << dir_url << "\", "
+               << "\"opt\": " << " \"\"" 
+               << " }";
     }
-    */
     else
     {
       stdErr = "error: operation not supported, needs to be one of the following: "
@@ -192,8 +256,8 @@ ProcCommand::Archive()
       retc = EINVAL;
     }
   }
-
-  // Send request to archiver process
+  
+  // Send request to archiver process if no error occured
   if (!retc)
   {
     int sock_linger = 0;
@@ -233,12 +297,35 @@ ProcCommand::Archive()
         }
         else 
         {
-          stdOut = XrdOucString((const char*)msg.data(), (int)msg.size());
+          // Parse response from the archiver
+          XrdOucString msg_str((const char*) msg.data(), msg.size());
+          eos_info("Msg_str:%s", msg_str.c_str());
+          std::istringstream iss(msg_str.c_str());
+          std::string status, line, response;
+          iss >> status;
+          
+          while (getline(iss, line))
+          {
+            response += line;
 
-          //TODO: deal with errors returned by the archiver
-          std::istringstream iss(stdOut.c_str());
-          
-          
+            if (iss.good())
+              response += '\n';
+          }
+
+          if (status == "OK")
+          {
+            stdOut = response.c_str();
+          }
+          else if (status == "ERROR")
+          {
+            stdErr = response.c_str();
+            retc = EINVAL;            
+          }
+          else
+          {
+            stdErr = "error: unknown response format from archiver";
+            retc = EINVAL;            
+          } 
         }
       }
       catch (zmq::error_t& zmq_err)
@@ -250,7 +337,7 @@ ProcCommand::Archive()
     }
   }
 
-  eos_static_info("[2] retc=%i, stdOut=%s, stdErr=%s", retc, stdOut.c_str(), stdErr.c_str());
+  eos_static_info("retc=%i, stdOut=%s, stdErr=%s", retc, stdOut.c_str(), stdErr.c_str());
   return SFS_OK;
 }
 
@@ -318,7 +405,8 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
   copy_job.target.SetProtocol("root");
   copy_job.target.SetHostName("localhost");
   std::string dst_path = arch_dir.c_str();
-  dst_path += "/"; dst_path += ARCH_INIT;
+  dst_path += "/"; 
+  dst_path += ARCH_INIT;
   copy_job.target.SetPath(dst_path);
   copy_job.target.SetParams("eos.ruid=0&eos.rgid=0");
   
@@ -575,7 +663,7 @@ ProcCommand::ArchiveAddEntries(const XrdOucString& arch_dir,
     rel_path.erase(0, arch_dir.length() + 1); // +1 for the "/"
 
     if (rel_path.empty())
-      rel_path = ".";
+      rel_path = "./";
 
     if (is_file)
     {

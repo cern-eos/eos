@@ -73,7 +73,7 @@ com_archive(char* arg1)
     {
       token.erase(0, 2);
 
-      if (token != "recover")
+      if (token != "retry")
       {
         fprintf(stdout, "Unknown option: %s", token.c_str());
         goto com_archive_usage;
@@ -108,7 +108,7 @@ com_archive(char* arg1)
     if (!token.length())
       goto com_archive_usage;
     else
-      in_cmd << "&mgm.archive.option=" << token;
+      in_cmd << "&mgm.archive.path=" << token;
   }
   else
     goto com_archive_usage;
@@ -120,12 +120,18 @@ com_archive(char* arg1)
 com_archive_usage:
   std::ostringstream oss;
   oss << "usage: archive <subcmd> " << std::endl
-      << "               create <path> <destination_url>     : create archive file" << std::endl
-      << "               migrate [--recover] <path>         : submit migration task" << std::endl
-      << "               stage [--recover] <path>           : submit stage task" << std::endl
-      << "               purge <path>                        : purge files after migration" << std::endl
-      << "               list [all|migration|stage|job_uuid] : list status of jobs" << std::endl
-      << "               help [--help|-h]                    : display help message" << std::endl;
+      << "               create <path> <destination_url>         "
+      << ": create archive file" << std::endl
+      << "               migrate [--retry] <path>                "
+      << ": submit migration job" << std::endl
+      << "               stage [--retry] <path>                  "
+      << ": submit stage job" << std::endl
+      << "               purge[--retry] <path>                   "
+      << ": purge files on disk" << std::endl
+      << "               list [all|migrate|stage|purge|job_uuid] "
+      << ": list status of jobs" << std::endl
+      << "               help [--help|-h]                        "
+      << ": display help message" << std::endl;
 
   fprintf(stdout, "%s", oss.str().c_str());
   return 0;
