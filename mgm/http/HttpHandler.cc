@@ -668,7 +668,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
     }
   }
 
-  if (request->GetHeaders().count("If-Match") && (etag != request->GetHeaders()["If-Match"]))
+  if ((etag != "undef") && (request->GetHeaders().count("If-Match") && (etag != request->GetHeaders()["If-Match"])))
   {
     // ETag mismatch
     eos_static_info("method=PUT error=precondition-failed path=%s etag=%s cond=match r-etag=%s",
@@ -678,7 +678,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
     return response;
   }
 
-  if (request->GetHeaders().count("If-Non-Match") && (etag == request->GetHeaders()["If-Non-Match"]))
+  if ((etag != "undef" && (request->GetHeaders().count("If-Non-Match") && (etag == request->GetHeaders()["If-Non-Match"]))))
   {
     // ETag match
     eos_static_info("method=PUT error=precondition-failed path=%s etag=%s cond=not-match r-etag=%s",
