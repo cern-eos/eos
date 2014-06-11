@@ -34,9 +34,6 @@ from hashlib import sha256
 from XRootD import client
 from XRootD.client.flags import MkDirFlags, OpenFlags
 
-FORMAT = '%(asctime)-15s %(name)-10s %(levelname)s %(message)s'
-formatter = logging.Formatter(FORMAT)
-
 
 class NoErrorException(Exception):
   """ Exception raised in case we were requested to retry an operation but 
@@ -72,9 +69,10 @@ class ArchiveFile(object):
     self.tx_file = local_file + ".tx"
     self.log_file = local_file + ".log"
     self.ps_file = local_file + ".ps"
-    self.log_handler = logging.FileHandler(self.log_file)
-    self.log_handler.setFormatter(formatter)
-    self.logger.addHandler(self.log_handler)
+    formatter = logging.Formatter(const.LOG_FORMAT)
+    log_handler = logging.FileHandler(self.log_file)
+    log_handler.setFormatter(formatter)
+    self.logger.addHandler(log_handler)
     self.logger.propagate = False
     self.err_entry = None
     self.force = False
@@ -200,9 +198,14 @@ class ArchiveFile(object):
           raise IOError(err_msg)
         
         if not status_rm.ok:
-          err_msg = "Error removing file: {0}".format(entry_str)
-          self.logger.error(err_msg)
-          raise IOError(err_msg)
+          status_stat = fs.stat(entry_url.path)
+
+          if status_stat.ok:
+            err_msg = "Error removing file: {0}".format(entry_str)
+            self.logger.error(err_msg)
+            raise IOError(err_msg)
+          else: 
+            self.logger.warning("entry already deleted entry:{0}".format(entry_str))
 
       # Remove the directories
       while (len(list_dirs)):
@@ -266,7 +269,7 @@ class ArchiveFile(object):
           
           if entry[0] == 'd':
             indx_dir += 1
-            self.write_progress(fprogress, "create dir {0}/{1}".format(
+            self.write_progress(fprogress, "creating dir {0}/{1}".format(
                 indx_dir, self.header['num_dirs']))
             dict_dinfo = dict(zip(self.header['dir_meta'], entry[2:]))
             _, dst = self.get_endpoints(entry[1], self.src, self.dst)
@@ -307,7 +310,7 @@ class ArchiveFile(object):
                       raise IOError(err_msg)
 
             indx_file += 1
-            self.write_progress(fprogress, "copy file {0}/{1}".format(
+            self.write_progress(fprogress, "copying file {0}/{1}".format(
                 indx_file, self.header['num_files']))
             path = entry[1]
             dict_finfo = dict(zip(self.header['file_meta'], entry[2:]))
@@ -355,9 +358,9 @@ class ArchiveFile(object):
                   self.logger.error(err_msg)
                   raise IOError(err_msg)
         
-        self.write_progress(fprogress, "check")
+        self.write_progress(fprogress, "checking")
         check_ok, _ = self.check_transfer()
-        self.write_progress(fprogress, "clean")
+        self.write_progress(fprogress, "cleaning")
         self.logger.debug("Transfer wall time: {0}".format(time.time() - t0))
         self.clean_transfer(check_ok)
 

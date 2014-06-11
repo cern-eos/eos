@@ -30,9 +30,11 @@ import logging
 import glob
 import stat
 import exceptions
+import subprocess
+from logging import handlers
 from multiprocessing import Process
-from sys import exit
-from os import mkdir, chmod
+from sys import exit, getsizeof
+from os import mkdir, makedirs, chmod
 from os.path import join
 from hashlib import sha256
 from archivefile import ArchiveFile, NoErrorException
@@ -51,11 +53,13 @@ const.PURGE_OP = 'purge'
 const.DELETE_OP = 'delete'
 const.OPT_RETRY = 'retry'
 const.ARCH_FN = "archive"
+const.LOG_DIR = "/var/log/eos/archive/"
 const.DIR = { const.STAGE_OP :   "/tmp/stage/",  
               const.MIGRATE_OP : "/tmp/mig/",
               const.PURGE_OP :   "/tmp/purge/"}
 const.MAX_PENDING = 10 # max number of requests allowed in pending
 const.IPC_FILE = "/tmp/archivebackend.ipc"
+const.LOG_FORMAT = '%(asctime)-15s %(name)-10s %(levelname)s %(message)s'
 
 # TODO: maybe parse the xrd.cf.mgm to get the configuration info
 
@@ -100,6 +104,13 @@ class Dispatcher(object):
   """
   def __init__(self):
     self.logger = logging.getLogger(type(self).__name__)
+    log_file = const.LOG_DIR + "eostracker.log"
+    formatter = logging.Formatter(const.LOG_FORMAT)
+    rotate_handler = logging.handlers.TimedRotatingFileHandler(log_file, 'midnight')
+    rotate_handler.setFormatter(formatter)
+    self.logger.addHandler(rotate_handler)
+    self.logger.propagate = False
+        
     self.proc = { const.STAGE_OP :  {}, 
                   const.MIGRATE_OP: {},
                   const.PURGE_OP:   {} } 
@@ -133,6 +144,27 @@ class Dispatcher(object):
     while True:
       events = dict(poller.poll(const.POLLTIMEOUT))
       
+      # Update worker processes status
+      for op, dict_jobs in self.proc.items():
+        remove_elem = []
+        for uuid, proc in dict_jobs.items():
+          if not proc.is_alive():
+            proc.join(1)
+            self.logger.debug("Job:{0}, pid:{1}, exitcode:{2}".
+                              format(uuid, proc.pid, proc.exitcode))
+            remove_elem.append(uuid)
+          
+        for uuid in remove_elem:
+          try:
+            del self.proc[op][uuid]
+          except ValueError as e:
+            self.logger.error("Unable to remove job:{0} from list".format(uuid))
+            
+        del remove_elem[:]
+      
+      # Submit any pending jobs
+      self.submit_pending()
+      
       if events and events.get(socket) == zmq.POLLIN:
         try:
           req_json = socket.recv_json()
@@ -153,7 +185,7 @@ class Dispatcher(object):
             op == const.STAGE_OP or 
             op == const.PURGE_OP):
           src, opt = req_json['src'], req_json['opt']
-          root_src = src[:-(len(src) - src.rfind('/'))]
+          root_src = src[:-(len(src) - src.rfind('/') - 1)]
           job_uuid = sha256(root_src).hexdigest()
            
           if job_uuid in self.proc[op]:
@@ -179,27 +211,7 @@ class Dispatcher(object):
           # Operation not supported reply to client with error
           self.logger.debug("ERROR operation not supported: {0}".format(msg))
           socket.send("ERROR error:operation not supported")
-      else:
-        # Poller timeout - join processes and log their return values
-        for op, dict_jobs in self.proc.items():
-          remove_elem = []
-          for uuid, proc in dict_jobs.items():
-            if not proc.is_alive():
-              proc.join(1)
-              self.logger.debug("Job:{0}, pid:{1}, exitcode:{2}".
-                                format(uuid, proc.pid, proc.exitcode))
-              remove_elem.append(uuid)
-          
-          for uuid in remove_elem:
-            try:
-              del self.proc[op][uuid]
-            except ValueError as e:
-              self.logger.error("Unable to remove job:{0} from list".format(uuid))
-          
-          del remove_elem[:]
-          
-        self.submit_pending()
-    
+
 
   def submit_pending(self):
     """ Submit as many pending requests as possible if there are enough available 
@@ -242,23 +254,46 @@ class Dispatcher(object):
     ls_type = req_json['opt']
     self.logger.debug("Listing type: {0}".format(ls_type))
     table = VeryPrettyTable()
-    table.field_names = ["Id", "Type", "State", "Message"]
+    table.field_names = ["Id", "Path", "Type", "State", "Message"]
 
     if (ls_type == const.MIGRATE_OP or 
         ls_type == const.STAGE_OP or 
         ls_type == const.PURGE_OP):
+
       for uuid in self.proc[ls_type]:
-        table.add_row([uuid, ls_type, "running", "none"])
+        path = self.proc[ls_type][uuid]._args[0]
+        path = path[path.rfind("//") + 1 : path.rfind("/")]
+        ps_file ="".join([const.DIR[ls_type], uuid, ".ps"])
+        ps_proc = subprocess.Popen(['tail', '-1', ps_file], 
+                                   stdout = subprocess.PIPE, 
+                                   stderr = subprocess.PIPE)
+        ps_out, ps_err = ps_proc.communicate()
+        ps_out = ps_out.strip('\0')
+        table.add_row([uuid, path, ls_type, "running", ps_out])
+
       for uuid in self.pending[ls_type]:
-        table.add_row([uuid, ls_type, "pending", "none"])
+        path = self.pending[ls_type][uuid][0]
+        path = path[path.rfind("//") + 1 : path.rfind("/")]
+        table.add_row([uuid, path, ls_type, "pending", "none"])
+
     elif ls_type == "all":
       for ls_type in self.proc:
         for uuid in self.proc[ls_type]:
-          table.add_row([uuid,  ls_type, "running","none"])
+          path = self.proc[ls_type][uuid]._args[0]
+          path = path[path.rfind("//") + 1 : path.rfind("/")]
+          ps_file ="".join([const.DIR[ls_type], uuid, ".ps"])
+          ps_proc = subprocess.Popen(['tail', '-1', ps_file], 
+                                     stdout = subprocess.PIPE, 
+                                     stderr = subprocess.PIPE)
+          ps_out, ps_err = ps_proc.communicate()
+          ps_out = ps_out.strip('\0')
+          table.add_row([uuid, path, ls_type, "running", ps_out])
             
       for ls_type in self.pending:
         for uuid in self.pending[ls_type]:
-          table.add_row([uuid, ls_type, "pending", "none"])
+          path = self.pending[ls_type][uuid][0]
+          path = path[path.rfind("//") + 1 : path.rfind("/")]
+          table.add_row([uuid, path, ls_type, "pending", "none"])
     else:
       # TODO ls_typ can be a job_uuid then only return the status 
       # of the requested job
@@ -269,8 +304,13 @@ class Dispatcher(object):
 
 
 def main():
-  FORMAT = '%(asctime)-15s %(name)-10s %(levelname)s %(message)s'
-  logging.basicConfig(level=logging.DEBUG, format=FORMAT)
+  # Create log directory
+  try:
+    makedirs(const.LOG_DIR)
+  except OSError as e:
+    pass 
+
+  logging.basicConfig(level=logging.DEBUG, format=const.LOG_FORMAT)
   logger = logging.getLogger(__name__)
 
   # Create the local directory structure
@@ -278,7 +318,7 @@ def main():
     try:
       mkdir(const.DIR[op])
     except OSError as e:
-      logger.debug("Dir:{0} already exists".format(const.DIR[op]))
+      pass
 
   dispatcher = Dispatcher()
   dispatcher.run()
