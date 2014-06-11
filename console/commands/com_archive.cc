@@ -61,7 +61,9 @@ com_archive(char* arg1)
     in_cmd << "&mgm.archive.path=" << path
            << "&mgm.archive.dst=" << dst;
   }
-  else if ((subcmd == "migrate") || (subcmd == "stage"))
+  else if ((subcmd == "migrate") ||
+           (subcmd == "stage") ||
+           (subcmd == "purge"))
   {
     token = subtokenizer.GetToken();
 
@@ -100,15 +102,6 @@ com_archive(char* arg1)
       in_cmd << "&mgm.archive.option=all";
     else      
       in_cmd << "&mgm.archive.option=" << token;
-  }
-  else if (subcmd == "purge")
-  {
-    token = subtokenizer.GetToken();
-
-    if (!token.length())
-      goto com_archive_usage;
-    else
-      in_cmd << "&mgm.archive.path=" << token;
   }
   else
     goto com_archive_usage;
