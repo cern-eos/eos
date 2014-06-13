@@ -49,7 +49,7 @@ class ArchiveFile(object):
   Attributes:
     eos_file (string): Location of archive file in EOS. It's a valid URL.
     log_file (string): Transfer log file. Path on the local disk.
-    op (string): Operation type: migrate, stage, purge, delete or list
+    op (string): Operation type: put, get, purge, delete or list
     entries (list): List of entries (file + dirs) in the archive file. It also
       contains a metainfo dictionary as the first element.
     list_jobs (list): List of file copy jobs to be executed.
@@ -62,7 +62,7 @@ class ArchiveFile(object):
     self.eos_file = eosf
     self.op = operation
     self.do_retry = (option == const.OPT_RETRY)
-    self.is_mig = (operation == const.MIGRATE_OP)
+    self.is_mig = (operation == const.PUT_OP)
     self.eosf_root = self.eos_file[:-(len(self.eos_file) - self.eos_file.rfind('/') - 1)]
     local_file = join(const.DIR[self.op], 
                       sha256(self.eosf_root).hexdigest())
@@ -84,7 +84,7 @@ class ArchiveFile(object):
     """
     self.prepare()
     
-    if self.op == const.MIGRATE_OP or self.op == const.STAGE_OP:
+    if self.op == const.PUT_OP or self.op == const.GET_OP:
       self.do_transfer()
     elif self.op == const.PURGE_OP:
       self.do_purge() 
@@ -95,8 +95,8 @@ class ArchiveFile(object):
   def prepare(self):
     """ Prepare requested operation.
     """
-    if (self.op == const.MIGRATE_OP or 
-        self.op == const.STAGE_OP or 
+    if (self.op == const.PUT_OP or 
+        self.op == const.GET_OP or 
         self.op == const.PURGE_OP):
       # Rename archive file in EOS to reflect the fact that we are processing it
       eosf_rename = ''.join([self.eosf_root, const.ARCH_FN, ".", self.op, ".err"])
@@ -221,11 +221,11 @@ class ArchiveFile(object):
       
 
   def do_transfer(self):
-    """ Execute the migration or the staging operation. What this method
-    actually does is copy the JSON archive file from EOS to the local disk
-    and read-in each entry, be it a file or a directory and creates it in the
-    destination location. The archive file first contains the list of all the
-    directories and then the files.
+    """ Execute the put or get operation. What this method actually does is copy 
+    the JSON archive file from EOS to the local disk and read-in each entry, be 
+    it a file or a directory and creates it in the destination location. 
+    The archive file first contains the list of all the directories and then the 
+    files.
       
     Raises:
       IOError when an IO opperations fails.
@@ -294,12 +294,12 @@ class ArchiveFile(object):
               st_async = meta_handler.wait_mkdir()
 
               if not st_async:
-                err_msg = "Dir={0}, failed to create migration hierarchy".format(
+                err_msg = "Dir={0}, failed to create put hierarchy".format(
                   self.header['dst'])
                 self.logger.error(err_msg)
                 raise IOError(err_msg)
               else:
-                # For staging set directory metadata information: ownership, xattrs
+                # For get set directory metadata information: ownership, xattrs
                 if not self.is_mig:
                   for dentry in ldirs:
                     st = self.dir_set_metadata(dentry, meta_handler)
@@ -330,7 +330,7 @@ class ArchiveFile(object):
             self.logger.error("Unkown type of entry in archive file: {0}".format(entry))
             break
 
-        # Flush all pending copies and set metadata info for staging op.
+        # Flush all pending copies and set metadata info for get op.
         st = self.flush_files(meta_handler)
 
         if st is not None and not st.ok:
@@ -344,11 +344,11 @@ class ArchiveFile(object):
           st_async = meta_handler.wait_mkdir()
 
           if not st_async:
-            err_msg = "Dir={0}, failed to create migration hierarchy".format(root_dst)
+            err_msg = "Dir={0}, failed to create put hierarchy".format(root_dst)
             self.logger.error(err_msg)
             raise IOError(err_msg)
           else:
-            # For staging set directory metadata information: ownership, xattrs
+            # For get set directory metadata information: ownership, xattrs
             if not self.is_mig:
               for dentry in ldirs:
                 st = self.dir_set_metadata(dentry, meta_hanlder)
@@ -380,14 +380,14 @@ class ArchiveFile(object):
     st, _ = fs.stat(url.path + "?eos.ruid=0&eos.rgid=0")
     
     if self.is_mig and st.ok:
-      # For migration destination must NOT exist
-      err_msg = "Root migrate destination: {0} exists".format(str_url)
+      # For put destination must NOT exist
+      err_msg = "Root put destination: {0} exists".format(str_url)
       self.logger.error(err_msg)
       raise IOError(err_msg)
     elif not self.is_mig:
-      # For staging destination must exist and contain just the archive file
+      # For get destination must exist and contain just the archive file
       if not st.ok:
-        err_msg = "Root stage destination: {0} does NOT exist:".format(str_url)
+        err_msg = "Root get destination: {0} does NOT exist:".format(str_url)
         self.logger.error(err_msg)
         raise IOError(err_msg)
       else:
@@ -403,12 +403,12 @@ class ArchiveFile(object):
 
             if ((tag == 'nfiles' and int(num) != 1 and int(num) != 2) or 
                 (tag == 'ndirectories' and int(num) != 1)):
-              err_msg = "Root stage destination: {0} should contain at least "\
+              err_msg = "Root get destination: {0} should contain at least "\
                   "one file and at most two - clean up and try again".format(str_url)
               self.logger.error(err_msg)
               raise IOError(err_msg)
         else:
-          err_msg = "Error doing find count on root stage destination: {0} "\
+          err_msg = "Error doing find count on root get destination: {0} "\
               "err_msg: {1}".foramt(str_url, stderr)
           self.logger.error(err_msg)
           raise IOError(err_msg)
@@ -489,7 +489,7 @@ class ArchiveFile(object):
           status = False
         
     else:
-      # For staging check all metadata
+      # For get check all metadata
       try:
         if is_dir:
           meta_info = self.dir_info(url)
@@ -681,14 +681,14 @@ class ArchiveFile(object):
   def copy_file(self, src, dst, dfile = None, force = False, handler = None):
     """ Copy file from source to destination.
 
-    Note that when doing migration, the layout is not conserved. Therefore, a
-    file with 3 replicas will end up as just a simple file in the new location.
+    Note that when doing put, the layout is not conserved. Therefore, a file 
+    with 3 replicas will end up as just a simple file in the new location.
 
     Args:
       src (string): Source of the copy (full URL).
       dst (string): Destiantion (full URL).
       dfile (dict): Dictionary containing metadata about the file. This is
-        set only for staging operations.
+        set only for get operations.
       force (boolena): Force copy only in recovery mode.
       handler (MetaHanlder): Metahandler obj used for async req.
 
@@ -697,7 +697,7 @@ class ArchiveFile(object):
     """
     st = None
 
-    # For staging we also have the dictionary with the metadata
+    # For get we also have the dictionary with the metadata
     if dfile:
       dst = ''.join([dst, "?eos.ctime=", dfile['ctime'],
                      "&eos.mtime=", dfile['mtime'],
@@ -710,8 +710,7 @@ class ArchiveFile(object):
     self.logger.debug("Copying from: {0} to: {1}".format(src, dst))
     self.list_jobs.append((src, dst, force))
     
-    # TODO: remove the magic number - which is the batch size of transfers
-    if len(self.list_jobs) == 5:
+    if len(self.list_jobs) == const.BATCH_SIZE:
       st = self.flush_files(handler)
       
     return st
@@ -749,19 +748,18 @@ class ArchiveFile(object):
 
   def get_endpoints(self, path, src_url, dst_url):
     """ Get final location of the dir/file depending on the source and the
-    destination of the archiving operation but also on its type: migration or
-    staging.
+    destination of the archiving operation but also on its type: put or get
 
     Args:
       path (string): Path relative to the root_src.
-      src_url (XRootD.URL): URL path of the root directory used for staging.
+      src_url (XRootD.URL): URL path of the root directory used for get.
       dst_url (XRootD.URL): URL path of the root directory of the archive.
 
     Returns:
       A pair of strings which represent the source and the destination URL of
       the transfer.
     """
-    # TODO: maybe support staging in a different location than the initial one ?!
+    # TODO: maybe support get in a different location than the initial one ?!
     if path == "./":
       src = str(src_url)
       dst = str(dst_url)

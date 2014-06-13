@@ -61,8 +61,8 @@ com_archive(char* arg1)
     in_cmd << "&mgm.archive.path=" << path
            << "&mgm.archive.dst=" << dst;
   }
-  else if ((subcmd == "migrate") ||
-           (subcmd == "stage") ||
+  else if ((subcmd == "put") ||
+           (subcmd == "get") ||
            (subcmd == "purge"))
   {
     token = subtokenizer.GetToken();
@@ -113,17 +113,17 @@ com_archive(char* arg1)
 com_archive_usage:
   std::ostringstream oss;
   oss << "usage: archive <subcmd> " << std::endl
-      << "               create <path> <destination_url>         "
+      << "               create <path> <destination_url>   "
       << ": create archive file" << std::endl
-      << "               migrate [--retry] <path>                "
-      << ": submit migration job" << std::endl
-      << "               stage [--retry] <path>                  "
-      << ": submit stage job" << std::endl
-      << "               purge[--retry] <path>                   "
+      << "               put [--retry] <path>              "
+      << ": copy files from EOS to archive location" << std::endl
+      << "               get [--retry] <path>              "
+      << ": recall archive back to EOS" << std::endl
+      << "               purge[--retry] <path>             "
       << ": purge files on disk" << std::endl
-      << "               list [all|migrate|stage|purge|job_uuid] "
+      << "               list [all|put|get|purge|job_uuid] "
       << ": list status of jobs" << std::endl
-      << "               help [--help|-h]                        "
+      << "               help [--help|-h]                  "
       << ": display help message" << std::endl;
 
   fprintf(stdout, "%s", oss.str().c_str());
