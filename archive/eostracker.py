@@ -45,17 +45,17 @@ from veryprettytable import VeryPrettyTable
 # Constants
 const.BATCH_SIZE = 5       # max number of transfers to be performed in parallel
 const.POLLTIMEOUT = 1000   # miliseconds
-const.CREATE_OP = "create"
-const.STAGE_OP = 'stage'   
-const.MIGRATE_OP = 'migrate'
+const.CREATE_OP = 'create'
+const.GET_OP = 'get'   
+const.PUT_OP = 'put'
 const.LIST_OP = 'list'
 const.PURGE_OP = 'purge'
 const.DELETE_OP = 'delete'
 const.OPT_RETRY = 'retry'
 const.ARCH_FN = "archive"
 const.LOG_DIR = "/var/log/eos/archive/"
-const.DIR = { const.STAGE_OP :   "/tmp/stage/",  
-              const.MIGRATE_OP : "/tmp/mig/",
+const.DIR = { const.GET_OP :   "/tmp/put/",  
+              const.PUT_OP : "/tmp/get/",
               const.PURGE_OP :   "/tmp/purge/"}
 const.MAX_PENDING = 10 # max number of requests allowed in pending
 const.IPC_FILE = "/tmp/archivebackend.ipc"
@@ -68,7 +68,7 @@ def do_transfer(eos_file, op, opt):
   
   Args:
     eos_file (string): EOS location of the archive file 
-    op (string): operation type: stage/migrate
+    op (string): operation type: get/put
     opt (string): option for the transfer: recover/purge
   """
   arch = ArchiveFile(eosf = eos_file, 
@@ -93,13 +93,13 @@ def do_transfer(eos_file, op, opt):
 
 class Dispatcher(object):
   """ Dispatcher daemon responsible for receiving requests from the clients
-  and then spawning the proper executing process to stage, migrate or purge.
+  and then spawning the proper executing process to get, put or purge.
       
   Attributes:
     proc (dict): Dictionary containing the currently running processes for 
-      both staging and migration.
+      both put and get.
     pending (dict): Dictionary containing the currently pending requests for
-      both staging and migration.
+      both put and get.
     max_proc (int): Max number of concurrent proceeses of one type allowed.
   """
   def __init__(self):
@@ -111,17 +111,17 @@ class Dispatcher(object):
     self.logger.addHandler(rotate_handler)
     self.logger.propagate = False
         
-    self.proc = { const.STAGE_OP :  {}, 
-                  const.MIGRATE_OP: {},
+    self.proc = { const.GET_OP :  {}, 
+                  const.PUT_OP: {},
                   const.PURGE_OP:   {} } 
-    self.pending = { const.STAGE_OP:   {}, 
-                     const.MIGRATE_OP: {},
+    self.pending = { const.GET_OP:   {}, 
+                     const.PUT_OP: {},
                      const.PURGE_OP:   {} }
 
 
   def run(self):
     """ Server entry point which is responsible for spawning worker proceesses
-    that do the actual transfers (staging/migration).
+    that do the actual transfers (put/get).
     """
     ctx = zmq.Context()
     self.logger.debug("Started dispatcher process")
@@ -149,7 +149,7 @@ class Dispatcher(object):
         remove_elem = []
         for uuid, proc in dict_jobs.items():
           if not proc.is_alive():
-            proc.join(1)
+            proc.join()
             self.logger.debug("Job:{0}, pid:{1}, exitcode:{2}".
                               format(uuid, proc.pid, proc.exitcode))
             remove_elem.append(uuid)
@@ -181,8 +181,8 @@ class Dispatcher(object):
         self.logger.debug("Received command: {0}".format(req_json))
         op = req_json['cmd']
         
-        if (op == const.MIGRATE_OP or 
-            op == const.STAGE_OP or 
+        if (op == const.PUT_OP or 
+            op == const.GET_OP or 
             op == const.PURGE_OP):
           src, opt = req_json['src'], req_json['opt']
           root_src = src[:-(len(src) - src.rfind('/') - 1)]
@@ -256,8 +256,8 @@ class Dispatcher(object):
     table = VeryPrettyTable()
     table.field_names = ["Id", "Path", "Type", "State", "Message"]
 
-    if (ls_type == const.MIGRATE_OP or 
-        ls_type == const.STAGE_OP or 
+    if (ls_type == const.PUT_OP or 
+        ls_type == const.GET_OP or 
         ls_type == const.PURGE_OP):
 
       for uuid in self.proc[ls_type]:
@@ -314,7 +314,7 @@ def main():
   logger = logging.getLogger(__name__)
 
   # Create the local directory structure
-  for op in [const.MIGRATE_OP, const.STAGE_OP, const.PURGE_OP]:
+  for op in [const.PUT_OP, const.GET_OP, const.PURGE_OP]:
     try:
       mkdir(const.DIR[op])
     except OSError as e:

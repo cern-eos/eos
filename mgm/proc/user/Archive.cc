@@ -32,10 +32,10 @@
 EOSMGMNAMESPACE_BEGIN
 
 static const std::string ARCH_INIT = "archive.init";
-static const std::string ARCH_MIG_DONE = "archive.migrate.done";
-static const std::string ARCH_MIG_ERR = "archive.migrate.err";
-static const std::string ARCH_STAGE_DONE = "archive.stage.done";
-static const std::string ARCH_STAGE_ERR = "archive.stage.err";
+static const std::string ARCH_PUT_DONE = "archive.put.done";
+static const std::string ARCH_PUT_ERR = "archive.put.err";
+static const std::string ARCH_GET_DONE = "archive.get.done";
+static const std::string ARCH_GET_ERR = "archive.get.err";
 static const std::string ARCH_PURGE_DONE = "archive.purge.done";
 static const std::string ARCH_PURGE_ERR = "archive.purge.err";
 static const std::string ARCH_LOG = "archive.log";
@@ -111,10 +111,10 @@ ProcCommand::Archive()
         std::vector<std::string> vect_files; 
         std::vector<std::string> vect_paths;
         vect_files.push_back(ARCH_INIT); 
-        vect_files.push_back(ARCH_MIG_DONE);
-        vect_files.push_back(ARCH_MIG_ERR); 
-        vect_files.push_back(ARCH_STAGE_DONE);
-        vect_files.push_back(ARCH_STAGE_ERR); 
+        vect_files.push_back(ARCH_PUT_DONE);
+        vect_files.push_back(ARCH_PUT_ERR); 
+        vect_files.push_back(ARCH_GET_DONE);
+        vect_files.push_back(ARCH_GET_ERR); 
         vect_files.push_back(ARCH_PURGE_DONE);
         vect_files.push_back(ARCH_PURGE_ERR);
         vect_files.push_back(ARCH_LOG);
@@ -148,8 +148,8 @@ ProcCommand::Archive()
         }
       }
     }
-    else if ((mSubCmd == "migrate") || 
-             (mSubCmd == "stage") || 
+    else if ((mSubCmd == "put") || 
+             (mSubCmd == "get") || 
              (mSubCmd == "purge"))
     {
       std::string arch_url = dir_url;
@@ -157,20 +157,20 @@ ProcCommand::Archive()
       
       if (option == "r")
       {
-        // Retry failed migration/stage
+        // Retry failed put/get
         option = "retry";
         std::string arch_err = spath.c_str();
         arch_err += "/";
         
-        if (mSubCmd == "migrate") 
+        if (mSubCmd == "put") 
         {
-          arch_err += ARCH_MIG_ERR;
-          arch_url += ARCH_MIG_ERR;
+          arch_err += ARCH_PUT_ERR;
+          arch_url += ARCH_PUT_ERR;
         }
-        else if (mSubCmd == "stage") // stage retry
+        else if (mSubCmd == "get") // get retry
         {
-          arch_err += ARCH_STAGE_ERR;
-          arch_url += ARCH_STAGE_ERR;
+          arch_err += ARCH_GET_ERR;
+          arch_url += ARCH_GET_ERR;
         }
         else if (mSubCmd == "purge")
         {
@@ -180,52 +180,52 @@ ProcCommand::Archive()
         
         if (gOFS->stat(arch_err.c_str(), &statinfo, *mError))
         {
-          stdErr = "error: no failed migration/stage/purge file in directory: ";
+          stdErr = "error: no failed put/get/purge file in directory: ";
           stdErr += spath.c_str();
           retc = EINVAL;
         }
       }
       else 
       {
-        // Check that the init/migrate archive file exists
+        // Check that the init/put archive file exists
         option = ""; 
         std::string arch_path = spath.c_str();
         arch_path += "/"; 
         
-        if (mSubCmd == "migrate") // migrate
+        if (mSubCmd == "put") // put
         {
           arch_path += ARCH_INIT;
           arch_url += ARCH_INIT;
         }
-        else if (mSubCmd == "stage") // stage
+        else if (mSubCmd == "get") // get
         {
           arch_path += ARCH_PURGE_DONE;
           arch_url += ARCH_PURGE_DONE;
         }
         else if (mSubCmd == "purge")
         {
-          arch_path += ARCH_MIG_DONE;
+          arch_path += ARCH_PUT_DONE;
           
           if (gOFS->stat(arch_path.c_str(), &statinfo, *mError))
           {
             arch_path = spath.c_str(); 
             arch_path += "/";
-            arch_path += ARCH_STAGE_DONE;
+            arch_path += ARCH_GET_DONE;
         
             if (gOFS->stat(arch_path.c_str(), &statinfo, *mError))
             {
               stdErr = "error: purge can be done only after a successful " \
-                "migration or stage operation";
+                "get or put operation";
               retc = EINVAL;
             }
             else 
             {
-              arch_url += ARCH_STAGE_DONE;
+              arch_url += ARCH_GET_DONE;
             }
           }
           else
           {
-            arch_url += ARCH_MIG_DONE;
+            arch_url += ARCH_PUT_DONE;
           }
         }
         
@@ -242,6 +242,7 @@ ProcCommand::Archive()
                << "\"opt\": " << "\"" << option  << "\""
                << "}";
     }
+    /*
     else if (mSubCmd == "delete")
     {
       cmd_json << "{ \"cmd\": " << "\"" << mSubCmd.c_str() << "\", "
@@ -249,10 +250,11 @@ ProcCommand::Archive()
                << "\"opt\": " << " \"\"" 
                << " }";
     }
+    */
     else
     {
       stdErr = "error: operation not supported, needs to be one of the following: "
-        "create, migrate, stage or list";
+        "create, put, get or list";
       retc = EINVAL;
     }
   }
@@ -299,7 +301,7 @@ ProcCommand::Archive()
         {
           // Parse response from the archiver
           XrdOucString msg_str((const char*) msg.data(), msg.size());
-          eos_info("Msg_str:%s", msg_str.c_str());
+          //eos_info("Msg_str:%s", msg_str.c_str());
           std::istringstream iss(msg_str.c_str());
           std::string status, line, response;
           iss >> status;
@@ -337,7 +339,7 @@ ProcCommand::Archive()
     }
   }
 
-  eos_static_info("retc=%i, stdOut=%s, stdErr=%s", retc, stdOut.c_str(), stdErr.c_str());
+  eos_debug("retc=%i, stdOut=%s, stdErr=%s", retc, stdOut.c_str(), stdErr.c_str());
   return SFS_OK;
 }
 
