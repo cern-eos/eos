@@ -37,7 +37,7 @@ extern XrdOssSys* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
-  const uint16_t XrdFstOfsFile::msDefaultTimeout = 60; // default timeout value
+        const uint16_t XrdFstOfsFile::msDefaultTimeout = 60; // default timeout value
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -88,6 +88,7 @@ eos::common::LogId ()
   ETag = "";
   mForcedMtime = 0;
   mForcedMtime_ms = 0;
+  isOCchunk = 0;
 }
 
 
@@ -177,7 +178,7 @@ XrdFstOfsFile::open (const char* path,
   XrdOucString stringOpaque = opaque;
   XrdOucString opaqueCheckSum = "";
   std::string sec_protocol = client->prot;
-  
+
   while (stringOpaque.replace("?", "&"))
   {
   }
@@ -193,7 +194,7 @@ XrdFstOfsFile::open (const char* path,
   eos::common::StringConversion::MaskTag(maskOpaque, "cap.msg");
   eos::common::StringConversion::MaskTag(maskOpaque, "authz");
 
-  // For RAIN layouts if the opaque information contains the tag fst.store=1 the 
+  // For RAIN layouts if the opaque information contains the tag fst.store=1 the
   // corrupted files are recovered back on disk. There is no other way to make
   // the distinction between an open for write an open for recovery since XrdCl
   // open in RDWR mode for both cases
@@ -209,20 +210,20 @@ XrdFstOfsFile::open (const char* path,
       eos_info("msg=\"enabling RAIN store recovery\"");
     }
   }
-  
+
   if ((open_mode & (SFS_O_WRONLY | SFS_O_RDWR | SFS_O_CREAT | SFS_O_TRUNC)) != 0)
   {
     isRW = true;
   }
 
-  
+
   // ----------------------------------------------------------------------------
   // extract tpc keys
   // ----------------------------------------------------------------------------
   XrdOucEnv tmpOpaque(stringOpaque.c_str());
 
   SetLogId(0, client, tident);
-  
+
   if ((val = tmpOpaque.Get("mgm.logid")))
   {
     SetLogId(val, client, tident);
@@ -234,21 +235,27 @@ XrdFstOfsFile::open (const char* path,
     ETag = val;
   }
 
+  if ((val = tmpOpaque.Get("mgm.occhunk")))
+  {
+    // tag as an OC chunk upload
+    isOCchunk = true;
+  }
+
   eos_info("path=%s info=%s isRW=%d open_mode=%x",
            Path.c_str(), maskOpaque.c_str(), isRW, open_mode);
-  
+
   std::string tpc_stage = tmpOpaque.Get("tpc.stage") ?
-    tmpOpaque.Get("tpc.stage") : "";
+          tmpOpaque.Get("tpc.stage") : "";
   std::string tpc_key = tmpOpaque.Get("tpc.key") ?
-    tmpOpaque.Get("tpc.key") : "";
+          tmpOpaque.Get("tpc.key") : "";
   std::string tpc_src = tmpOpaque.Get("tpc.src") ?
-    tmpOpaque.Get("tpc.src") : "";
+          tmpOpaque.Get("tpc.src") : "";
   std::string tpc_dst = tmpOpaque.Get("tpc.dst") ?
-    tmpOpaque.Get("tpc.dst") : "";
+          tmpOpaque.Get("tpc.dst") : "";
   std::string tpc_org = tmpOpaque.Get("tpc.org") ?
-    tmpOpaque.Get("tpc.org") : "";
+          tmpOpaque.Get("tpc.org") : "";
   std::string tpc_lfn = tmpOpaque.Get("tpc.lfn") ?
-    tmpOpaque.Get("tpc.lfn") : "";
+          tmpOpaque.Get("tpc.lfn") : "";
 
   if (tpc_stage == "placement")
   {
@@ -261,7 +268,7 @@ XrdFstOfsFile::open (const char* path,
     if ((tpc_stage == "placement") || (!gOFS.TpcMap[isRW].count(tpc_key.c_str())))
     {
       //.........................................................................
-      // Create a TPC entry in the TpcMap 
+      // Create a TPC entry in the TpcMap
       //.........................................................................
       XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
       if (gOFS.TpcMap[isRW].count(tpc_key.c_str()))
@@ -284,7 +291,7 @@ XrdFstOfsFile::open (const char* path,
       //.........................................................................
 
       // TODO: Xrootd 4.0      std::string origin_host = client->addrInfo->Name();
-      std::string origin_host = client->host?client->host:"<sss-auth>";
+      std::string origin_host = client->host ? client->host : "<sss-auth>";
       std::string origin_tident = client->tident;
       origin_tident.erase(origin_tident.find(":"));
       tpc_org = origin_tident;
@@ -341,31 +348,31 @@ XrdFstOfsFile::open (const char* path,
     else
     {
       //.........................................................................
-      // Verify a TPC entry in the TpcMap 
+      // Verify a TPC entry in the TpcMap
       //.........................................................................
 
       // since the destination's open can now come before the transfer has been setup
       // we now have to give some time for the TPC client to deposit the key
       // the not so nice side effect is that this thread stays busy during that time
 
-      bool exists=false;
+      bool exists = false;
 
-      for (size_t i=0; i< 150; i++) 
+      for (size_t i = 0; i < 150; i++)
       {
-	XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
-	if (gOFS.TpcMap[isRW].count(tpc_key))
-	  exists=true;
-	if (!exists)
-	{
-	  XrdSysTimer timer;
-	  timer.Wait(100);
-	}
-	else
-	{
-	  break;
-	}
+        XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+        if (gOFS.TpcMap[isRW].count(tpc_key))
+          exists = true;
+        if (!exists)
+        {
+          XrdSysTimer timer;
+          timer.Wait(100);
+        }
+        else
+        {
+          break;
+        }
       }
-      
+
       XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
       if (!gOFS.TpcMap[isRW].count(tpc_key))
       {
@@ -375,7 +382,7 @@ XrdFstOfsFile::open (const char* path,
       {
         return gOFS.Emsg(epname, error, EPERM, "open - tpc key expired", path);
       }
-      
+
       // we trust 'sss' anyway and we miss the host name in the 'sss' entity
       if ((sec_protocol != "sss") && (gOFS.TpcMap[isRW][tpc_key].org != tpc_org))
       {
@@ -459,7 +466,7 @@ XrdFstOfsFile::open (const char* path,
   {
     if (tpcFlag == kTpcSrcRead)
     {
-      //.........................................................................  
+      //.........................................................................
       // Grab the capability contents from the tpc key map
       //.........................................................................
       XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
@@ -474,7 +481,7 @@ XrdFstOfsFile::open (const char* path,
     }
     if (tpcFlag == kTpcSrcSetup)
     {
-      //.........................................................................  
+      //.........................................................................
       // For a TPC setup we need to store the decoded capability contents
       //.........................................................................
       XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
@@ -554,7 +561,8 @@ XrdFstOfsFile::open (const char* path,
   {
     // figure out if this is a RAIN reconstruction
     XrdOucString action = val;
-    if (action == "reconstruct") {
+    if (action == "reconstruct")
+    {
       haswrite = true;
       isReconstruction = true;
     }
@@ -681,46 +689,46 @@ XrdFstOfsFile::open (const char* path,
   {
     if (isCreation)
     {
-      if (!capOpaque->Get("mgm.access") 
-	  || ( (strcmp(capOpaque->Get("mgm.access"), "create")) &&
-               (strcmp(capOpaque->Get("mgm.access"), "write")) &&
-	       (strcmp(capOpaque->Get("mgm.access"), "update")) ) )
+      if (!capOpaque->Get("mgm.access")
+          || ((strcmp(capOpaque->Get("mgm.access"), "create")) &&
+              (strcmp(capOpaque->Get("mgm.access"), "write")) &&
+              (strcmp(capOpaque->Get("mgm.access"), "update"))))
       {
-        return gOFS.Emsg(epname, 
-                         error, 
-                         EPERM, 
-                         "open - capability does not allow to create/write/update this file", 
+        return gOFS.Emsg(epname,
+                         error,
+                         EPERM,
+                         "open - capability does not allow to create/write/update this file",
                          path);
       }
     }
     else
     {
-      if (!capOpaque->Get("mgm.access") 
-	  || ( (strcmp(capOpaque->Get("mgm.access"), "create")) &&
-               (strcmp(capOpaque->Get("mgm.access"), "write")) &&
-	       (strcmp(capOpaque->Get("mgm.access"), "update")) ) )
+      if (!capOpaque->Get("mgm.access")
+          || ((strcmp(capOpaque->Get("mgm.access"), "create")) &&
+              (strcmp(capOpaque->Get("mgm.access"), "write")) &&
+              (strcmp(capOpaque->Get("mgm.access"), "update"))))
       {
-        return gOFS.Emsg(epname, 
-                         error, 
-                         EPERM, 
-                         "open - capability does not allow to update/write/create this file", 
+        return gOFS.Emsg(epname,
+                         error,
+                         EPERM,
+                         "open - capability does not allow to update/write/create this file",
                          path);
       }
     }
   }
   else
   {
-    if (!capOpaque->Get("mgm.access") 
-	|| ( (strcmp(capOpaque->Get("mgm.access"), "read")) &&
-	     (strcmp(capOpaque->Get("mgm.access"), "create")) &&
-	     (strcmp(capOpaque->Get("mgm.access"), "write")) &&
-	     (strcmp(capOpaque->Get("mgm.access"), "update"))) )
+    if (!capOpaque->Get("mgm.access")
+        || ((strcmp(capOpaque->Get("mgm.access"), "read")) &&
+            (strcmp(capOpaque->Get("mgm.access"), "create")) &&
+            (strcmp(capOpaque->Get("mgm.access"), "write")) &&
+            (strcmp(capOpaque->Get("mgm.access"), "update"))))
 
     {
-      return gOFS.Emsg(epname, 
-                       error, 
-                       EPERM, 
-                       "open - capability does not allow to read this file", 
+      return gOFS.Emsg(epname,
+                       error,
+                       EPERM,
+                       "open - capability does not allow to read this file",
                        path);
     }
   }
@@ -872,7 +880,7 @@ XrdFstOfsFile::open (const char* path,
   oss_opaque += slid;
   oss_opaque += "&mgm.bookingsize=";
   oss_opaque += static_cast<int> (bookingsize);
-  
+
   //............................................................................
   // Open layout implementation
   //............................................................................
@@ -897,7 +905,7 @@ XrdFstOfsFile::open (const char* path,
                     RedirectManager.c_str(), ecode);
         return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
       }
-      
+
       writeErrorFlag = kOfsDiskFullError;
       return gOFS.Emsg("writeofs", error, ENOSPC, "create file - disk space (headroom) exceeded fn=",
                        capOpaque ? (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") : FName()) : FName());
@@ -1081,7 +1089,7 @@ XrdFstOfsFile::open (const char* path,
   else
   {
     //..........................................................................
-    // If we have local errors in open we don't disable a filesystem - 
+    // If we have local errors in open we don't disable a filesystem -
     // this is done by the Scrub thread if necessary!
     //..........................................................................
 
@@ -1130,7 +1138,7 @@ void
 XrdFstOfsFile::AddReadTime ()
 {
   unsigned long mus = ((lrTime.tv_sec - cTime.tv_sec) * 1000000) +
-    lrTime.tv_usec - cTime.tv_usec;
+          lrTime.tv_usec - cTime.tv_usec;
   rTime.tv_sec += (mus / 1000000);
   rTime.tv_usec += (mus % 1000000);
 }
@@ -1144,7 +1152,7 @@ void
 XrdFstOfsFile::AddWriteTime ()
 {
   unsigned long mus = ((lwTime.tv_sec - cTime.tv_sec) * 1000000) +
-    lwTime.tv_usec - cTime.tv_usec;
+          lwTime.tv_usec - cTime.tv_usec;
   wTime.tv_sec += (mus / 1000000);
   wTime.tv_usec += (mus % 1000000);
 }
@@ -1506,23 +1514,23 @@ XrdFstOfsFile::verifychecksum ()
       //............................................................................
       // This is a read with checksum check, compare with fMD
       //............................................................................
-      bool isopenforwrite=false;
-      
+      bool isopenforwrite = false;
+
       // if the file is currently open to be written we don't check checksums!
-      gOFS.OpenFidMutex.Lock();      
+      gOFS.OpenFidMutex.Lock();
       if (gOFS.WOpenFid[fsid].count(fileid))
       {
-	if (gOFS.WOpenFid[fsid][fileid] > 0)
-	{
-	  isopenforwrite=true;
-	}
+        if (gOFS.WOpenFid[fsid][fileid] > 0)
+        {
+          isopenforwrite = true;
+        }
       }
       gOFS.OpenFidMutex.UnLock();
 
       if (isopenforwrite)
       {
-	eos_info("(read)  disabling checksum check: file is currently written");
-	return false;
+        eos_info("(read)  disabling checksum check: file is currently written");
+        return false;
       }
 
       eos_info("(read)  checksum type: %s checksum hex: %s fmd-checksum: %s",
@@ -1854,9 +1862,9 @@ XrdFstOfsFile::close ()
             }
 
             capOpaqueFile += "&mgm.mtime=";
-            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime?mForcedMtime:(unsigned long long) fMd->fMd.mtime);
+            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime : (unsigned long long) fMd->fMd.mtime);
             capOpaqueFile += "&mgm.mtime_ns=";
-            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime?mForcedMtime_ms:(unsigned long long) fMd->fMd.mtime_ns);
+            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime_ms : (unsigned long long) fMd->fMd.mtime_ns);
             capOpaqueFile += "&mgm.add.fsid=";
             capOpaqueFile += (int) fMd->fMd.fsid;
 
@@ -1879,7 +1887,7 @@ XrdFstOfsFile::close ()
               {
                 capOpaqueFile += "&mgm.drop.fsid=";
                 capOpaqueFile += openOpaque->Get("eos.pio.recfs");
-                commitReconstruction=true;
+                commitReconstruction = true;
               }
             }
             else
@@ -1902,6 +1910,14 @@ XrdFstOfsFile::close ()
             //..................................................................
             capOpaqueFile += "&mgm.logid=";
             capOpaqueFile += logId;
+
+            //..................................................................
+            // Evt. tag as an OC-Chunk commit
+            //..................................................................
+            if (isOCchunk)
+              capOpaqueFile += "&mgm.occhunk=1";
+
+            eos_crit("occhunk=%d", isOCchunk);
             rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),
                                   capOpaque->Get("mgm.manager"), capOpaqueFile);
 
@@ -1944,8 +1960,8 @@ XrdFstOfsFile::close ()
               else
               {
                 eos_crit("commit returned an uncatched error msg=%s [probably timeout] - closing transaction to keep the file save", error.getErrText());
-		if (isRW)
-		  gOFS.Storage->CloseTransaction(fsid, fileid); 
+                if (isRW)
+                  gOFS.Storage->CloseTransaction(fsid, fileid);
               }
             }
             else
@@ -1961,7 +1977,7 @@ XrdFstOfsFile::close ()
     {
       if (rc == SFS_OK)
       {
-        gOFS.Storage->CloseTransaction(fsid, fileid); 
+        gOFS.Storage->CloseTransaction(fsid, fileid);
       }
     }
 
@@ -1974,26 +1990,26 @@ XrdFstOfsFile::close ()
       if (checkSum)
       {
 
-	if (strcmp(checkSum->GetName(),"md5")) 
-	{
-	  // use inode + checksum
-	  char setag[256];
-	  snprintf(setag,sizeof(setag)-1,"\"%llu:%s\"", (unsigned long long)fMd->fMd.fid<<28,fMd->fMd.checksum.c_str() );
-	  ETag = setag;
-	}
-	else
-	{
-	  // use checksum, S3 wants the pure MD5
-	  char setag[256];
-	  snprintf(setag,sizeof(setag)-1,"\"%s\"", fMd->fMd.checksum.c_str() );
-	  ETag = setag;
-	}	
+        if (strcmp(checkSum->GetName(), "md5"))
+        {
+          // use inode + checksum
+          char setag[256];
+          snprintf(setag, sizeof (setag) - 1, "\"%llu:%s\"", (unsigned long long) fMd->fMd.fid << 28, fMd->fMd.checksum.c_str());
+          ETag = setag;
+        }
+        else
+        {
+          // use checksum, S3 wants the pure MD5
+          char setag[256];
+          snprintf(setag, sizeof (setag) - 1, "\"%s\"", fMd->fMd.checksum.c_str());
+          ETag = setag;
+        }
       }
       else
       {
         // use inode + mtime
-	char setag[256];
-        snprintf(setag,sizeof(setag)-1,"\"%llu:%llu\"", (unsigned long long)fMd->fMd.fid<<28, (unsigned long long) fMd->fMd.mtime);
+        char setag[256];
+        snprintf(setag, sizeof (setag) - 1, "\"%llu:%llu\"", (unsigned long long) fMd->fMd.fid << 28, (unsigned long long) fMd->fMd.mtime);
         ETag = setag;
       }
     }
@@ -2015,7 +2031,7 @@ XrdFstOfsFile::close ()
 
     if (closerc || (isReconstruction && hasReadError))
     {
-      // For RAIN layouts if there is an error on close when writing then we 
+      // For RAIN layouts if there is an error on close when writing then we
       // delete the whole file
       // If we do RAIN reconstruction we cleanup this local replica which was not commited
       if ((eos::common::LayoutId::GetLayoutType(layOut->GetLayoutId()) == eos::common::LayoutId::kRaidDP) ||
@@ -2087,7 +2103,7 @@ XrdFstOfsFile::close ()
     }
 
     // ---------------------------------------------------------------------------
-    // check if the target filesystem has been put into some non-operational mode 
+    // check if the target filesystem has been put into some non-operational mode
     // in the meanwhile, it makes no sense to try to commit in this case
     // ---------------------------------------------------------------------------
     {
@@ -2369,7 +2385,7 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
   if ((rc > 0) && (checkSum))
   {
     XrdSysMutexHelper cLock(ChecksumMutex);
-    checkSum->Add(buffer, 
+    checkSum->Add(buffer,
                   static_cast<size_t> (rc),
                   static_cast<off_t> (fileOffset));
   }
@@ -2421,7 +2437,7 @@ XrdFstOfsFile::read (XrdSfsFileOffset fileOffset,
              static_cast<unsigned long long> (buffer_size),
              FName(),
              capOpaque ? capOpaque->Env(envlen) : FName());
-    hasReadError=true; // this is used to understand if a reconstruction of a RAIN file worked
+    hasReadError = true; // this is used to understand if a reconstruction of a RAIN file worked
   }
 
   eos_debug("rc=%d offset=%lu size=%llu", rc, fileOffset,
@@ -2722,7 +2738,7 @@ XrdFstOfsFile::syncofs ()
 bool
 XrdFstOfsFile::TpcValid ()
 {
-  // This call requires to have a lock like 
+  // This call requires to have a lock like
   // 'XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex)'
   if (TpcKey.length())
   {
@@ -2773,7 +2789,7 @@ XrdFstOfsFile::sync ()
     {
       XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
       //...........................................................................
-      // The sync initiates the third party copy 
+      // The sync initiates the third party copy
       //...........................................................................
       if (!TpcValid())
       {
@@ -2993,7 +3009,7 @@ XrdFstOfsFile::stat (struct stat * buf)
   if (!rc)
     buf->st_ino = fileid << 28;
 
-  
+
   eos_notice("path=%s inode=%lu", Path.c_str(), fileid);
   return rc;
 }

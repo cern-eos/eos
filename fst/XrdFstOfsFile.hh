@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //! @file: XrdFstOfsFile.hh
 //! @author: Andreas-Joachim Peters - CERN
-//! @brief 
+//! @brief
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -46,15 +46,14 @@ EOSFSTNAMESPACE_BEGIN;
 // This defines for reports what is a large seek e.g. > 128 kB = default RA size
 #define EOS_FSTOFS_LARGE_SEEKS 128*1024ll
 
-// Forward declaration 
+// Forward declaration
 class Layout;
 
 //------------------------------------------------------------------------------
 //! Class
 //------------------------------------------------------------------------------
 
-class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId
-{
+class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId {
   friend class ReplicaParLayout;
   friend class RaidMetaLayout;
   friend class RaidDpLayout;
@@ -63,7 +62,7 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId
 public:
 
   static const uint16_t msDefaultTimeout; ///< default timeout value
-  
+
   //--------------------------------------------------------------------------
   // Constructor
   //--------------------------------------------------------------------------
@@ -79,6 +78,7 @@ public:
   //--------------------------------------------------------------------------
   //! Return the Etag
   //--------------------------------------------------------------------------
+
   const char* GetETag ()
   {
     return ETag.c_str();
@@ -87,6 +87,7 @@ public:
   //--------------------------------------------------------------------------
   //! Enforce an mtime on close
   //--------------------------------------------------------------------------
+
   void SetForcedMtime (unsigned long long mtime, unsigned long long mtime_ms)
   {
     mForcedMtime = mtime;
@@ -96,6 +97,7 @@ public:
   //--------------------------------------------------------------------------
   //! Return current mtime while open
   //--------------------------------------------------------------------------
+
   time_t GetMtime ()
   {
     if (fMd)
@@ -238,19 +240,25 @@ public:
   //--------------------------------------------------------------------------
   //! Check if the TpcKey is still valid e.g. member of gOFS.TpcMap
   //--------------------------------------------------------------------------
-  bool TpcValid (); 
+  bool TpcValid ();
 
   //--------------------------------------------------------------------------
   //! return the file size seen at open time
   //--------------------------------------------------------------------------
-  off_t getOpenSize() {
+
+  off_t getOpenSize ()
+  {
     return openSize;
   }
 
   //--------------------------------------------------------------------------
   //! return the file id
   //--------------------------------------------------------------------------
-  unsigned long long getFileId() {return fileid;}
+
+  unsigned long long getFileId ()
+  {
+    return fileid;
+  }
 
 protected:
   XrdOucEnv* openOpaque;
@@ -278,7 +286,7 @@ protected:
   unsigned long fsid; //! file system id
   unsigned long lid; //! layout id
   unsigned long long cid; //! container id
-  
+
   unsigned long long mForcedMtime;
   unsigned long long mForcedMtime_ms;
 
@@ -298,18 +306,19 @@ protected:
   // <- if the reconstructed piece is not existing on disk we commit anyway since it is a creation.
   // <- if it does exist maybe from a previous movement where the replica was not yet deleted, we would register another stripe without deleting one
   // <- there fore we indicate with  openOpaque->Get("eos.pio.commitfs") which filesystem should actually commit during reconstruction
-  enum
-  {
+
+  enum {
     kOfsIoError = 1, //! generic IO error
     kOfsMaxSizeError = 2, //! maximum file size error
     kOfsDiskFullError = 3, //! disk full error
     kOfsSimulatedIoError = 4 //! simulated IO error
   };
 
-  int writeErrorFlag; //! uses kOFSxx enums to specify an error condition 
+  bool isOCchunk; //! indicator this is an OC chunk upload
 
-  enum
-  {
+  int writeErrorFlag; //! uses kOFSxx enums to specify an error condition
+
+  enum {
     kTpcNone = 0, //! no TPC access
     kTpcSrcSetup = 1, //! access setting up a source TPC session
     kTpcDstSetup = 2, //! access setting up a destination TPC session
@@ -318,18 +327,17 @@ protected:
   };
 
   int tpcFlag; //! uses kTpcXYZ enums above to identify TPC access
-  
-  enum
-  {
+
+  enum {
     kTpcIdle = 0, //! TPC is not enabled and not running (no sync received)
     kTpcEnabled = 1, //! TPC is enabled, but not running (1st sync received)
     kTpcRun = 2, //! TPC is running (2nd sync received)
     kTpcDone = 3, //! TPC has finished
   };
-  
+
   int tpcState; //! uses kTPCXYZ enumgs above to tag the TPC state
-  
-  FmdSqlite* fMd; //! pointer to the in-memory file meta data object             
+
+  FmdSqlite* fMd; //! pointer to the in-memory file meta data object
   eos::fst::CheckSum* checkSum; //! pointer to a checksum object
   Layout* layOut; //! pointer to a layout object
 
@@ -368,7 +376,7 @@ protected:
   struct timeval wTime; //! sum time to serve write requests in ms
   XrdOucString tIdent; //! tident
 
-  
+
   struct stat updateStat; //! stat struct to check if a file is updated between open-close
   //--------------------------------------------------------------------------
   //!
@@ -385,7 +393,7 @@ protected:
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  void MakeReportEnv (XrdOucString& reportString);  
+  void MakeReportEnv (XrdOucString& reportString);
 };
 
 EOSFSTNAMESPACE_END;
