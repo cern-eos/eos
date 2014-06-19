@@ -78,7 +78,7 @@ com_fileinfo (char* arg1)
     {
       goto com_fileinfo_usage;
     }
-    if ((!path.beginswith("fid:")) && (!path.beginswith("fxid:")))
+    if ((!path.beginswith("fid:")) && (!path.beginswith("fxid:")) && (!path.beginswith("pid:")) && (!path.beginswith("pxid:")))
       path = abspath(path.c_str());
     in += "mgm.path=";
     in += path;
