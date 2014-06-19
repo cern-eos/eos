@@ -24,6 +24,8 @@ my $email;
 my $mgm2;
 my $thishost=`hostname -f`;
 my $thishostshort=`hostname -s`;
+my $cleanfstdisk=0;
+
 chomp $thishost;
 chomp $thishostshort;
 
@@ -160,7 +162,7 @@ while(1)
     printf "# EOS assumes that you execute this script on the machine hosting the namespace (MGM server) ...\n";
     printf "# If you want to make only a test deployment you can just press enter for the next question and deploy a storage node on this machine ...\n";
     printf "# \n";
-    printf "# Provide a space separated list of fully qualified host names of storage servers ( needs ssh accces from this machine ) \n\t : ";
+    printf "# Provide a space separated list of fully qualified host names of storage servers ( needs ssh accces from this machine ) - to run the FST on this host leave it blank\n\t : ";
     $hosts=<>;
     chomp $hosts;
     @remotefsts = split (" " , $hosts);
@@ -169,6 +171,25 @@ while(1)
 
 for (@remotefsts) {
     print "# => FST: $_\n";
+}
+
+while(1)
+{
+    printf "# -----------------------------------------------------------------------------------------\n";
+    printf "# Do you want a clean-up of the FST disks? ... ('yes','no',<enter>=default='no')\n\t : ";
+    
+    $cleanfstdisk=<>;
+    chomp $cleanfstdisk;
+    if ( $cleanfstdisk eq "yes" ) {
+	last;
+    }
+    if ( $cleanfstdisk eq "no" ) {
+	last;
+    }
+    if ( $cleanfstdisk eq "" ) {
+	last;
+    }
+    printf "# error: invalid input ...\n";
 }
 
 my $selfsigned=false;
@@ -297,7 +318,7 @@ system ("service nginx stop >& /dev/null");
 printf "# -----------------------------------------------------------------------------------------\n";
 system ("# Clean-up left-over of previous installation ...\n");
 system ("test -e /usr/sbin/eos-mgm-clean && /usr/sbin/eos-mgm-clean --do-cleanup");
-system ("test -e /usr/sbin/eos-fst-clean && /usr/sbin/eos-fst-clean --do-cleanup");
+system ("test $cleanfstdisk='yes' || unlink /var/eos/md/so.fst.dump >&/dev/null;  test -e /usr/sbin/eos-fst-clean && /usr/sbin/eos-fst-clean --do-cleanup");
 system ("test -e /usr/sbin/eos-log-clean && /usr/sbin/eos-log-clean --do-cleanup");
 
 system ("yum install -y eos-server eos-client eos-nginx eos-fuse eos-test eos-apmon eos-cleanup jemalloc nscd $addpackage");
@@ -383,7 +404,7 @@ close IN;
 if ($isalice) {
     printf "# -----------------------------------------------------------------------------------------\n";
     printf "# Rewriting /etc/xrd.cf.mgm to use ALICE token authentication ...\n";
-    system("perl -pi -e 's/^#mgmofs.authlib libXrdAliceTokenAcc.so/mgmofs.authlib /usr/lib64/libXrdAliceTokenAcc.so/' /etc/xrd.cf.mgm");
+    system("perl -pi -e 's/^#mgmofs.authlib libXrdAliceTokenAcc.so/mgmofs.authlib \\/usr\\/lib64\\/libXrdAliceTokenAcc.so/' /etc/xrd.cf.mgm");
     system("perl -pi -e 's/^#mgmofs.authorize/mgmofs.authorize/' /etc/xrd.cf.mgm");
     system("perl -pi -e 's/^sec.protocol gsi/#sec.protocol gsi/' /etc/xrd.cf.mgm");
     system("perl -pi -e 's/krb5 gsi/krb5/' /etc/xrd.cf.mgm");
@@ -467,7 +488,7 @@ if ($hosts eq "") {
 	printf "# ... enable $_ as FST ...\n";
 	system(" eos -b node set $_ on\n");
         system ("ssh $_ \"yum install -y eos-cleanup; yum erase -y eos-server;\"");
-        system ("ssh $_ \"/usr/sbin/eos-fst-clean --do-cleanup ; /usr/bin/eos-log-clean --do-cleanup ;\"");
+        system ("ssh $_ \"test $cleanfstdisk='yes' || unlink /var/eos/md/so.fst.dump >&/dev/null; /usr/sbin/eos-fst-clean --do-cleanup ; /usr/bin/eos-log-clean --do-cleanup ;\"");
 	printf "# ... uploading sysconfig to $_ ...\n";
         system("scp /etc/sysconfig/eos.fst $_:/etc/sysconfig/eos");
         printf "# ... uploading sss key to $_ ...\n";
@@ -499,7 +520,7 @@ if ($mgm2 ne "") {
     system("ssh $mgm2 service nginx stop >& /dev/null");
     system ("# Clean-up left-over of previous installation on $mgm2 ...\n");
     system ("ssh $mgm2 \"test -e /usr/sbin/eos-mgm-clean && /usr/sbin/eos-mgm-clean --do-cleanup\"");
-    system ("ssh $mgm2 \"test -e /usr/sbin/eos-fst-clean && /usr/sbin/eos-fst-clean --do-cleanup\"");
+    system ("ssh $mgm2 \"test $cleanfstdisk='yes' || unlink /var/eos/md/so.fst.dump >&/dev/null; test -e /usr/sbin/eos-fst-clean && /usr/sbin/eos-fst-clean --do-cleanup\"");
     system ("ssh $mgm2 \"test -e /usr/sbin/eos-log-clean && /usr/sbin/eos-log-clean --do-cleanup\"");
     system("scp /etc/eos.keytab $mgm2:/etc/eos.keytab");
     system("scp /etc/xrd.cf.mgm $mgm2:/etc/xrd.cf.mgm");
