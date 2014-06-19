@@ -35,9 +35,36 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+        /*----------------------------------------------------------------------------*/
+        char dav_rfc3986[256] = {0};
+char dav_html5[256] = {0};
+
+/*----------------------------------------------------------------------------*/
+void
+dav_uri_encode (unsigned char *s, char *enc, char *tb)
+{
+  for (; *s; s++)
+  {
+    if (tb[*s]) sprintf(enc, "%c", tb[*s]);
+    else sprintf(enc, "%%%02X", *s);
+    while (*++enc);
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+std::string
+PropFindResponse::EncodeURI (const char* uri)
+{
+
+  XrdOucString nUri;
+  char enc[ (strlen(uri) + 1) * 3];
+  dav_uri_encode((unsigned char*) uri, enc, dav_rfc3986);
+  return std::string(enc);
+}
+
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
-PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
+PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
 {
   using namespace rapidxml;
 
@@ -70,16 +97,16 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
 
   // Is the requested resource a file or directory?
   XrdOucErrInfo error;
-  struct stat   statInfo;
+  struct stat statInfo;
   std::string etag;
-  memset(&statInfo, 0, sizeof(struct stat));
+  memset(&statInfo, 0, sizeof (struct stat));
 
   gOFS->_stat(request->GetUrl().c_str(), &statInfo, error, *mVirtualIdentity,
-	      (const char*) 0, &etag);
+              (const char*) 0, &etag);
 
   // Figure out what we actually need to do
   std::string depth = request->GetHeaders()["Depth"];
-  
+
   // -----------------------------------------------------------------------------
   // Owncloud patch
   // -----------------------------------------------------------------------------
@@ -112,7 +139,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
     int listrc = directory.open(request->GetUrl().c_str(), *mVirtualIdentity,
                                 (const char*) 0);
 
-    responseNode = BuildResponseNode(request->GetUrl(), request->GetUrl(true));
+    responseNode = BuildResponseNode(EncodeURI(request->GetUrl().c_str()), EncodeURI(request->GetUrl(true).c_str()));
 
     if (responseNode)
     {
@@ -134,7 +161,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
         // one response node for each file...
         eos::common::Path path((request->GetUrl() + std::string("/") + std::string(val)).c_str());
         eos::common::Path refpath((request->GetUrl(true) + std::string("/") + std::string(val)).c_str());
-        responseNode = BuildResponseNode(path.GetPath(), refpath.GetPath());
+        responseNode = BuildResponseNode(EncodeURI(path.GetPath()), EncodeURI(refpath.GetPath()));
         if (responseNode)
         {
           multistatusNode->append_node(responseNode);
@@ -181,7 +208,7 @@ PropFindResponse::BuildResponse(eos::common::HttpRequest *request)
 
 /*----------------------------------------------------------------------------*/
 void
-PropFindResponse::ParseRequestPropertyTypes(rapidxml::xml_node<> *node)
+PropFindResponse::ParseRequestPropertyTypes (rapidxml::xml_node<> *node)
 {
   using namespace rapidxml;
 
@@ -198,12 +225,14 @@ PropFindResponse::ParseRequestPropertyTypes(rapidxml::xml_node<> *node)
     mRequestPropertyTypes |= PropertyTypes::RESOURCE_TYPE;
     mRequestPropertyTypes |= PropertyTypes::CHECKED_IN;
     mRequestPropertyTypes |= PropertyTypes::CHECKED_OUT;
+    mRequestPropertyTypes |= PropertyTypes::GET_OCID;
     return;
   }
 
   // It wasn't <allprop/>
   xml_node<> *propNode = GetNode(node, "prop");
-  if (!propNode) {
+  if (!propNode)
+  {
     eos_static_err("msg=\"no <prop/> node found in tree\"");
     return;
   }
@@ -248,23 +277,28 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   using namespace rapidxml;
 
   XrdMgmOfsDirectory directory;
-  XrdOucErrInfo      error;
-  struct stat        statInfo;
+  XrdOucErrInfo error;
+  struct stat statInfo;
   std::string etag;
+  std::string id;
 
-  XrdOucString urlp=url.c_str();
-  XrdOucString hrefp=hrefurl.c_str();
+  XrdOucString urlp = url.c_str();
+  XrdOucString hrefp = hrefurl.c_str();
 
-  while (urlp.replace("//","/")) {}
-  while (hrefp.replace("//","/")) {}
+  while (urlp.replace("//", "/"))
+  {
+  }
+  while (hrefp.replace("//", "/"))
+  {
+  }
 
   // Is the requested resource a file or directory?
   eos_static_debug("url=%s", urlp.c_str());
   if (gOFS->_stat(urlp.c_str(), &statInfo, error, *mVirtualIdentity,
-		  (const char*) 0, &etag))
+                  (const char*) 0, &etag))
   {
     eos_static_err("msg=\"error stating %s: %s\"", urlp.c_str(),
-                                                   error.getErrText());
+                   error.getErrText());
     SetResponseCode(ResponseCodes::NOT_FOUND);
     return NULL;
   }
@@ -278,8 +312,8 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
 
   if (S_ISDIR(statInfo.st_mode))
   {
-    if (hrefp[hrefp.length()-1] != '/')
-      hrefp+="/";
+    if (hrefp[hrefp.length() - 1] != '/')
+      hrefp += "/";
   }
 
   SetValue(href, hrefp.c_str());
@@ -312,74 +346,78 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   propstatNotFound->append_node(propNotFound);
 
   xml_node<> *contentLength = 0;
-  xml_node<> *lastModified  = 0;
-  xml_node<> *resourceType  = 0;
-  xml_node<> *checkedIn     = 0;
-  xml_node<> *checkedOut    = 0;
-  xml_node<> *creationDate  = 0;
-  xml_node<> *eTag          = 0;
-  xml_node<> *displayName   = 0;
-  xml_node<> *contentType   = 0;
-  xml_node<> *quotaAvail    = 0;
-  xml_node<> *quotaUsed     = 0;
+  xml_node<> *lastModified = 0;
+  xml_node<> *resourceType = 0;
+  xml_node<> *checkedIn = 0;
+  xml_node<> *checkedOut = 0;
+  xml_node<> *creationDate = 0;
+  xml_node<> *eTag = 0;
+  xml_node<> *displayName = 0;
+  xml_node<> *contentType = 0;
+  xml_node<> *quotaAvail = 0;
+  xml_node<> *quotaUsed = 0;
+  xml_node<> *ocid = 0;
 
   if (mRequestPropertyTypes & PropertyTypes::GET_CONTENT_LENGTH)
     contentLength = AllocateNode("d:getcontentlength");
   if (mRequestPropertyTypes & PropertyTypes::GET_CONTENT_TYPE)
-    contentType   = AllocateNode("d:getcontenttype");
+    contentType = AllocateNode("d:getcontenttype");
   if (mRequestPropertyTypes & PropertyTypes::GET_LAST_MODIFIED)
-    lastModified  = AllocateNode("d:getlastmodified");
+    lastModified = AllocateNode("d:getlastmodified");
   if (mRequestPropertyTypes & PropertyTypes::CREATION_DATE)
-    creationDate  = AllocateNode("d:creationdate");
+    creationDate = AllocateNode("d:creationdate");
   if (mRequestPropertyTypes & PropertyTypes::RESOURCE_TYPE)
-    resourceType  = AllocateNode("d:resourcetype");
+    resourceType = AllocateNode("d:resourcetype");
   if (mRequestPropertyTypes & PropertyTypes::DISPLAY_NAME)
-    displayName   = AllocateNode("d:displayname");
+    displayName = AllocateNode("d:displayname");
   if (mRequestPropertyTypes & PropertyTypes::GET_ETAG)
-    eTag          = AllocateNode("d:getetag");
+    eTag = AllocateNode("d:getetag");
   if (mRequestPropertyTypes & PropertyTypes::CHECKED_IN)
-    checkedIn     = AllocateNode("d:checked-in");
+    checkedIn = AllocateNode("d:checked-in");
   if (mRequestPropertyTypes & PropertyTypes::CHECKED_OUT)
-    checkedOut    = AllocateNode("d:checked-out");
+    checkedOut = AllocateNode("d:checked-out");
+  if (mRequestPropertyTypes & PropertyTypes::GET_OCID)
+    eTag = AllocateNode("d:getocid");
 
-  if ( (S_ISDIR(statInfo.st_mode)) &&
-       ( (mRequestPropertyTypes & PropertyTypes::QUOTA_AVAIL) ||
-         (mRequestPropertyTypes & PropertyTypes::QUOTA_USED) ) )
+  if ((S_ISDIR(statInfo.st_mode)) &&
+      ((mRequestPropertyTypes & PropertyTypes::QUOTA_AVAIL) ||
+       (mRequestPropertyTypes & PropertyTypes::QUOTA_USED)))
   {
     // -----------------------------------------------------------
     // retrieve the current quota
     // -----------------------------------------------------------
-    std::string path =urlp.c_str();
-    if (path.substr(path.length()-1,1) != "/") {
+    std::string path = urlp.c_str();
+    if (path.substr(path.length() - 1, 1) != "/")
+    {
       path += "/";
     }
 
-    long long maxbytes  = 0;
+    long long maxbytes = 0;
     long long freebytes = 0;
     Quota::GetIndividualQuota(*mVirtualIdentity, path.c_str(), maxbytes, freebytes);
 
-    if (mRequestPropertyTypes & PropertyTypes::QUOTA_AVAIL) 
+    if (mRequestPropertyTypes & PropertyTypes::QUOTA_AVAIL)
     {
       std::string sQuotaAvail;
-      quotaAvail  = AllocateNode("d:quota-available-bytes");
+      quotaAvail = AllocateNode("d:quota-available-bytes");
       if (quotaAvail)
-	SetValue(quotaAvail, eos::common::StringConversion::GetSizeString(sQuotaAvail, (unsigned long long) freebytes));
+        SetValue(quotaAvail, eos::common::StringConversion::GetSizeString(sQuotaAvail, (unsigned long long) freebytes));
     }
     if (mRequestPropertyTypes & PropertyTypes::QUOTA_USED)
     {
       std::string sQuotaUsed;
-      quotaUsed   = AllocateNode("d:quota-used-bytes");
+      quotaUsed = AllocateNode("d:quota-used-bytes");
       if (quotaUsed)
-	SetValue(quotaUsed, eos::common::StringConversion::GetSizeString(sQuotaUsed, (unsigned long long) maxbytes-freebytes));
+        SetValue(quotaUsed, eos::common::StringConversion::GetSizeString(sQuotaUsed, (unsigned long long) maxbytes - freebytes));
     }
   }
-    
+
   // getlastmodified, creationdate, displayname and getetag properties are
   // common to all resources
   if (lastModified)
   {
     std::string lm = eos::common::Timing::utctime(
-                                          statInfo.st_mtim.tv_sec);
+                                                  statInfo.st_mtim.tv_sec);
     SetValue(lastModified, lm.c_str());
     propFound->append_node(lastModified);
   }
@@ -387,7 +425,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   if (creationDate)
   {
     std::string cd = eos::common::Timing::UnixTimstamp_to_ISO8601(
-                                          statInfo.st_ctim.tv_sec);
+                                                                  statInfo.st_ctim.tv_sec);
     SetValue(creationDate, cd.c_str());
     propFound->append_node(creationDate);
   }
@@ -396,6 +434,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   {
     SetValue(eTag, etag.c_str());
     propFound->append_node(eTag);
+    SetValue(ocid, eos::common::StringConversion::GetSizeString(id, (unsigned long long) statInfo.st_ino));
   }
 
   if (displayName)
@@ -431,7 +470,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
     }
   }
 
-  // File
+    // File
   else
   {
     if (resourceType) propNotFound->append_node(resourceType);
@@ -448,7 +487,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   }
 
   // We don't use these (yet)
-  if (checkedIn)  propNotFound->append_node(checkedIn);
+  if (checkedIn) propNotFound->append_node(checkedIn);
   if (checkedOut) propNotFound->append_node(checkedOut);
 
   return responseNode;
