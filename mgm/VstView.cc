@@ -57,7 +57,7 @@ VstView::Print (std::string &out,
   if (!monitoring)
   {
     if (ioformating)
-      snprintf(line, sizeof (line) - 1, ioformat, "#", "instance", "age", "space", "used", "n-fs", "files","directories", "clients", "ropen", "wopen", "diskr-MB/s", "diskw-MB/s", "ethi-MiB/s", "etho-MiB/s", "NsR/s","NsW/s");
+      snprintf(line, sizeof (line) - 1, ioformat, "#", "instance", "age", "space", "used", "n-fs", "files", "directories", "clients", "ropen", "wopen", "diskr-MB/s", "diskw-MB/s", "ethi-MiB/s", "etho-MiB/s", "NsR/s", "NsW/s");
     else
       snprintf(line, sizeof (line) - 1, format, "#", "instance", "age", "host", "ip", "mode", "version", "uptime", "space", "used", "n(fs)", "iops", "bw-MB/s", "files", "directories", "clients");
     out += "# _______________________________________________________________________________________________________________________________________________________________________________________\n";
@@ -105,10 +105,10 @@ VstView::Print (std::string &out,
         snprintf(sused, sizeof (sused) - 1, "unavail");
 
       std::string is = it->second["instance"];
-      if (it->second["mode"]== "master")
-        is+= "[W]";
+      if (it->second["mode"] == "master")
+        is += "[W]";
       else
-        is+= "[R]";
+        is += "[R]";
 
       if (ioformating)
         snprintf(line, sizeof (line) - 1, ioformat,
@@ -123,8 +123,8 @@ VstView::Print (std::string &out,
                  it->second["clients"].c_str(),
                  eos::common::StringConversion::GetSizeString(val5, ropen),
                  eos::common::StringConversion::GetSizeString(val6, wopen),
-                 eos::common::StringConversion::GetSizeString(val1, diskout),
-                 eos::common::StringConversion::GetSizeString(val2, diskin),
+                 eos::common::StringConversion::GetSizeString(val1, diskin),
+                 eos::common::StringConversion::GetSizeString(val2, diskout),
                  eos::common::StringConversion::GetSizeString(val3, ethout),
                  eos::common::StringConversion::GetSizeString(val4, ethin),
                  eos::common::StringConversion::GetSizeString(val7, rlock),
@@ -174,7 +174,6 @@ VstView::Print (std::string &out,
     out += "# ........................................................................................................................................................................................\n";
   }
 }
-
 
 /*----------------------------------------------------------------------------*/
 void
@@ -316,24 +315,25 @@ $(function(){
   )literal";
 
   XrdSysMutexHelper vLock(ViewMutex);
-  for (auto it = mView.begin(); it != mView.end(); ++it) {
-     if (it->second["mode"] != "master")
-       continue;
-     double mb = strtoull(it->second["maxbytes"].c_str(),0,10);
-     mb/= 50000000000000;
-     if (mb<50)
-       mb=50;
+  for (auto it = mView.begin(); it != mView.end(); ++it)
+  {
+    if (it->second["mode"] != "master")
+      continue;
+    double mb = strtoull(it->second["maxbytes"].c_str(), 0, 10);
+    mb /= 50000000000000;
+    if (mb < 50)
+      mb = 50;
 
-     out += "          IPMapper.addIPMarker(\"";
-     out += it->second["ip"].c_str();
-     out += "\",\"";
-     out += it->second["instance"].c_str();
-     out += "\",";
-     out += (int) mb;
-     out += ");\n";
+    out += "          IPMapper.addIPMarker(\"";
+    out += it->second["ip"].c_str();
+    out += "\",\"";
+    out += it->second["instance"].c_str();
+    out += "\",";
+    out += (int) mb;
+    out += ");\n";
   }
 
-out += R"literal(
+  out += R"literal(
         } catch(e){
             //handle error
         }
@@ -349,7 +349,7 @@ out += R"literal(
 </html>
   )literal";
 
-  return ;
+  return;
 }
 
 EOSMGMNAMESPACE_END
