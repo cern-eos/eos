@@ -220,8 +220,15 @@ StringConversion::GetReadableSizeString (XrdOucString& sizestring, unsigned long
 // ---------------------------------------------------------------------------
 
 unsigned long long
-StringConversion::GetSizeFromString (XrdOucString sizestring)
+StringConversion::GetSizeFromString (const char* instring)
 {
+  if (!instring)
+  {
+    errno = EINVAL;
+    return 0;
+  }
+
+  XrdOucString sizestring = instring;
   errno = 0;
   unsigned long long convfactor;
   convfactor = 1ll;

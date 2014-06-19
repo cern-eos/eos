@@ -156,7 +156,15 @@ public:
    */
   // ----------------------------------------------------------------------------
   static unsigned long long
-  GetSizeFromString (XrdOucString sizestring);
+  GetSizeFromString (XrdOucString sizestring) { return GetSizeFromString(sizestring.c_str()); }
+
+  static unsigned long long
+  GetSizeFromString (std::string  sizestring) { return GetSizeFromString(sizestring.c_str()); }
+
+  static unsigned long long
+  GetSizeFromString (const char* sizestring);
+
+
 
   // ---------------------------------------------------------------------------
   /** 
