@@ -30,6 +30,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -37,14 +38,14 @@ EOSFSTNAMESPACE_BEGIN
 #ifdef EOS_MICRO_HTTPD
 /*----------------------------------------------------------------------------*/
 int
-HttpServer::Handler (void                  *cls,
-                     struct MHD_Connection *connection,
-                     const char            *url,
-                     const char            *method,
-                     const char            *version,
-                     const char            *uploadData,
-                     size_t                *uploadDataSize,
-                     void                 **ptr)
+HttpServer::Handler (void *cls,
+        struct MHD_Connection *connection,
+        const char *url,
+        const char *method,
+        const char *version,
+        const char *uploadData,
+        size_t *uploadDataSize,
+        void **ptr)
 {
   // The handler function is called in a 'stateless' fashion, so to keep state
   // the implementation stores a HttpHandler object using **ptr.
@@ -85,7 +86,7 @@ HttpServer::Handler (void                  *cls,
   }
 
   // Retrieve the protocol handler stored in *ptr
-  eos::common::ProtocolHandler *protocolHandler = (eos::common::ProtocolHandler*) *ptr;
+  eos::common::ProtocolHandler *protocolHandler = (eos::common::ProtocolHandler*) * ptr;
 
   // For requests which have a body (i.e. uploadDataSize != 0) we must handle
   // the body data on the second reentrant call to this function. We must
@@ -111,10 +112,10 @@ HttpServer::Handler (void                  *cls,
     // Make a request object
     std::string body(uploadData, *uploadDataSize);
     eos::common::HttpRequest *request = new eos::common::HttpRequest(
-                                            headers, method, url,
-                                            query.c_str() ? query : "",
-                                            body, uploadDataSize, cookies);
-    eos_static_info("\n\n%s", request->ToString().c_str());
+                                                                     headers, method, url,
+                                                                     query.c_str() ? query : "",
+                                                                     body, uploadDataSize, cookies);
+    eos_static_debug("\n\n%s", request->ToString().c_str());
 
     // Handle the request and build a response based on the specific protocol
     protocolHandler->HandleRequest(request);
@@ -140,14 +141,14 @@ HttpServer::Handler (void                  *cls,
     return MHD_YES;
   }
 
-  eos_static_info("\n\n%s", response->ToString().c_str());
+  eos_static_debug("\n\n%s", response->ToString().c_str());
 
   // Create the MHD response
   struct MHD_Response *mhdResponse;
 
   if (response->mUseFileReaderCallback)
   {
-    eos_static_info("response length=%d", response->mResponseLength);
+    eos_static_debug("response length=%d", response->mResponseLength);
     mhdResponse = MHD_create_response_from_callback(response->mResponseLength,
                                                     4 * 1024 * 1024, /* 4M page size */
                                                     &HttpServer::FileReaderCallback,
@@ -173,7 +174,7 @@ HttpServer::Handler (void                  *cls,
     // Queue the response
     int ret = MHD_queue_response(connection, response->GetResponseCode(),
                                  mhdResponse);
-    eos_static_info("MHD_queue_response ret=%d", ret);
+    eos_static_debug("MHD_queue_response ret=%d", ret);
     MHD_destroy_response(mhdResponse);
     return ret;
   }
@@ -192,19 +193,18 @@ HttpServer::FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max)
   eos::common::ProtocolHandler *handler = static_cast<eos::common::ProtocolHandler*> (cls);
   eos::fst::HttpHandler *httpHandle = dynamic_cast<eos::fst::HttpHandler*> (handler);
 
-  eos_static_info("pos=%llu max=%llu current-index=%d current-offset=%llu",
-                  (unsigned long long) pos,
-                  (unsigned long long) max,
-                  httpHandle->mCurrentCallbackOffsetIndex,
-                  httpHandle->mCurrentCallbackOffset);
+  eos_static_debug("pos=%llu max=%llu current-index=%d current-offset=%llu",
+                   (unsigned long long) pos,
+                   (unsigned long long) max,
+                   httpHandle->mCurrentCallbackOffsetIndex,
+                   httpHandle->mCurrentCallbackOffset);
 
   size_t readsofar = 0;
   if (httpHandle && httpHandle->mFile)
   {
     if (httpHandle->mRangeRequest)
     {
-      // range request 
-
+      // range request
       if (httpHandle->mCurrentCallbackOffsetIndex < httpHandle->mOffsetMap.size())
       {
         size_t toread = 0;
@@ -212,14 +212,14 @@ HttpServer::FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max)
         if ((httpHandle->mOffsetMap.size() > 1) &&
             (httpHandle->mCurrentCallbackOffset == 0))
         {
-          eos_static_info("place=%s", httpHandle->mMultipartHeaderMap
-                          [httpHandle->mCurrentCallbackOffsetIndex].c_str());
+          eos_static_debug("place=%s", httpHandle->mMultipartHeaderMap
+                           [httpHandle->mCurrentCallbackOffsetIndex].c_str());
           toread = httpHandle->mMultipartHeaderMap
-                               [httpHandle->mCurrentCallbackOffsetIndex].length();
+                  [httpHandle->mCurrentCallbackOffsetIndex].length();
           // this is the start of a range request, copy the multipart header
           memcpy(buf,
                  httpHandle->mMultipartHeaderMap
-                             [httpHandle->mCurrentCallbackOffsetIndex].c_str(),
+                 [httpHandle->mCurrentCallbackOffsetIndex].c_str(),
                  toread
                  );
           readsofar += toread;
@@ -242,17 +242,22 @@ HttpServer::FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max)
           {
             toread = (it->second - indexoffset);
           }
-          eos_static_info("toread=%llu", (unsigned long long) toread);
+          eos_static_debug("toread=%llu", (unsigned long long) toread);
           // read the block
           nread = httpHandle->mFile->read(offset + indexoffset,
                                           buf + readsofar, toread);
+
+          // there is a read error here!
+          if (toread && (nread != (int) toread))
+            return -1;
+
           if (nread > 0)
           {
             readsofar += nread;
           }
           if ((it->second - indexoffset) == nread)
           {
-            eos_static_info("leaving");
+            eos_static_debug("leaving");
             // we have to move to the next index;
             it++;
             httpHandle->mCurrentCallbackOffsetIndex++;
@@ -264,14 +269,14 @@ HttpServer::FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max)
           {
             if (nread > 0)
               httpHandle->mCurrentCallbackOffset += nread;
-            eos_static_info("callback-offset(now)=%llu", (unsigned long long)
-                            httpHandle->mCurrentCallbackOffset);
+            eos_static_debug("callback-offset(now)=%llu", (unsigned long long)
+                             httpHandle->mCurrentCallbackOffset);
           }
         }
         while ((nread > 0) &&
-               (readsofar < max) &&
-               (it != httpHandle->mOffsetMap.end()));
-        eos_static_info("read=%llu", (unsigned long long) readsofar);
+                (readsofar < max) &&
+                (it != httpHandle->mOffsetMap.end()));
+        eos_static_debug("read=%llu", (unsigned long long) readsofar);
         return readsofar;
       }
       else
@@ -280,7 +285,7 @@ HttpServer::FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max)
         {
           if (httpHandle->mBoundaryEndSent)
           {
-            // we are done here  
+            // we are done here
             return 0;
           }
           else
@@ -288,8 +293,8 @@ HttpServer::FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max)
             httpHandle->mBoundaryEndSent = true;
             memcpy(buf, httpHandle->mBoundaryEnd.c_str(),
                    httpHandle->mBoundaryEnd.length());
-            eos_static_info("read=%llu [boundary-end]", (unsigned long long)
-                            httpHandle->mBoundaryEnd.length());
+            eos_static_debug("read=%llu [boundary-end]", (unsigned long long)
+                             httpHandle->mBoundaryEnd.length());
             return httpHandle->mBoundaryEnd.length();
           }
         }
@@ -306,10 +311,10 @@ HttpServer::FileReaderCallback (void *cls, uint64_t pos, char *buf, size_t max)
       if (max)
       {
         size_t nread = httpHandle->mFile->read(pos, buf, max);
-	if (nread == 0)
-	  return -1;
-	else
-	  return nread;
+        if (nread == 0)
+          return -1;
+        else
+          return nread;
       }
       else
       {
@@ -328,7 +333,7 @@ HttpServer::FileCloseCallback (void *cls)
   eos::common::ProtocolHandler *handler = static_cast<eos::common::ProtocolHandler*> (cls);
   eos::fst::HttpHandler *httpHandle = dynamic_cast<eos::fst::HttpHandler*> (handler);
 
-  eos_static_debug("handle=%llu file=%llu", httpHandle, httpHandle?httpHandle->mFile:0);
+  eos_static_debug("handle=%llu file=%llu", httpHandle, httpHandle ? httpHandle->mFile : 0);
   if (httpHandle && httpHandle->mFile)
   {
     httpHandle->mCloseCode = httpHandle->mFile->close();
