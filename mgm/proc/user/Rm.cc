@@ -29,6 +29,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -61,9 +62,9 @@ ProcCommand::Rm ()
   }
   else
   {
-    if (spath.find("*")!=STR_NPOS)
+    if (spath.find("*") != STR_NPOS)
     {
-      // this is wildcard deletion 
+      // this is wildcard deletion
       eos::common::Path cPath(spath.c_str());
       spath = cPath.GetParentPath();
       filter = cPath.GetName();
@@ -76,6 +77,15 @@ ProcCommand::Rm ()
       stdErr += spath.c_str();
       stdErr += "'";
       retc = errno;
+      return SFS_OK;
+    }
+
+    if (file_exists == XrdSfsFileExistNo)
+    {
+      stdErr += "error: no such file or directory with path '";
+      stdErr += spath.c_str();
+      stdErr += "'";
+      retc = ENOENT;
       return SFS_OK;
     }
 
@@ -96,10 +106,10 @@ ProcCommand::Rm ()
         while ((val = dir.nextEntry()))
         {
           XrdOucString mpath = spath;
-          XrdOucString entry=val;
+          XrdOucString entry = val;
           mpath += val;
-          if ( (entry == ".") ||
-               (entry == ".."))
+          if ((entry == ".") ||
+              (entry == ".."))
           {
             continue;
           }
@@ -158,7 +168,7 @@ ProcCommand::Rm ()
         }
 
         //.......................................................................
-        // see if we have a recycle policy set and if avoid to recycle inside 
+        // see if we have a recycle policy set and if avoid to recycle inside
         // the recycle bin
         //.......................................................................
         if (attrmap.count(Recycle::gRecyclingAttribute) &&
@@ -168,7 +178,7 @@ ProcCommand::Rm ()
           //.....................................................................
           // two step deletion via recycle bin
           //.....................................................................
-          // delete files in simulation mode  
+          // delete files in simulation mode
           std::map<uid_t, unsigned long long> user_deletion_size;
           std::map<gid_t, unsigned long long> group_deletion_size;
 
@@ -194,7 +204,7 @@ ProcCommand::Rm ()
             std::string fspath = rfoundit->first.c_str();
             if (fspath == "/")
               continue;
-            if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, (const char*) 0, true))
+            if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, (const char*) 0, true) && (errno != ENOENT))
             {
               stdErr += "error: unable to remove directory - bulk deletion aborted\n";
               retc = errno;
@@ -273,7 +283,7 @@ ProcCommand::Rm ()
     {
       for (auto it = rmList.begin(); it != rmList.end(); ++it)
       {
-        if (gOFS->_rem(it->c_str(), *mError, *pVid, (const char*) 0))
+        if (gOFS->_rem(it->c_str(), *mError, *pVid, (const char*) 0) && (errno != ENOENT))
         {
           stdErr += "error: unable to remove file/directory '";
           stdErr += it->c_str();

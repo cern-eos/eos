@@ -50,13 +50,28 @@ ProcCommand::Fileinfo ()
   // stat the path
 
   struct stat buf;
-  if (gOFS->_stat(path,&buf,*mError, *pVid, (char*) 0))
+
+  if (
+      (!spath.beginswith("fid:")) &&
+      (!spath.beginswith("fxid:")) &&
+      (!spath.beginswith("pid:")) &&
+      (!spath.beginswith("pxid:")) )
   {
-    stdErr = "error: cannot stat ";
-    stdErr += path;
-    stdErr += "\n";
-    retc = ENOENT;
-    return SFS_OK;
+    if (gOFS->_stat(path,&buf,*mError, *pVid, (char*) 0))
+    {
+      stdErr = "error: cannot stat ";
+      stdErr += path;
+      stdErr += "\n";
+      retc = ENOENT;
+      return SFS_OK;
+    }
+  }
+  else
+  {
+    if (spath.beginswith("p"))
+      buf.st_mode = S_IFDIR;
+    else
+      buf.st_mode = S_IFREG;
   }
 
   if (S_ISDIR(buf.st_mode))
@@ -318,6 +333,10 @@ ProcCommand::FileInfo (const char* path)
             stdOut = "  File: '";
             stdOut += spath;
             stdOut += "'";
+            stdOut += "  Flags: ";
+	    eos::common::FileId::Fid2Hex( (unsigned long long) fmd->getFlags(), sizestring );
+	    stdOut += sizestring;
+            stdOut += "\n";
             stdOut += "  Size: ";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getSize());
             stdOut += "\n";
@@ -573,17 +592,17 @@ ProcCommand::DirInfo (const char* path)
   {
     eos::ContainerMD* fmd = 0;
 
-    if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
+    if ((spath.beginswith("pid:") || (spath.beginswith("pxid:"))))
     {
       unsigned long long fid = 0;
-      if (spath.beginswith("fid:"))
+      if (spath.beginswith("pid:"))
       {
-        spath.replace("fid:", "");
+        spath.replace("pid:", "");
         fid = strtoull(spath.c_str(), 0, 10);
       }
-      if (spath.beginswith("fxid:"))
+      if (spath.beginswith("pxid:"))
       {
-        spath.replace("fxid:", "");
+        spath.replace("pxid:", "");
         fid = strtoull(spath.c_str(), 0, 16);
       }
 
