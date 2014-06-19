@@ -660,6 +660,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
     }
   }
 
+  /*
   if (eos::common::OwnCloud::isChunkUpload(request))
   {
     isOcChunked = true;
@@ -670,6 +671,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
     if (response)
       return response;
   }
+  */
 
   std::string etag;
 
@@ -723,18 +725,19 @@ HttpHandler::Put (eos::common::HttpRequest * request)
       {
         query += "eos.bookingsize=";
         // for OC chun    ked uploads we book the full size
-        char* oclength = eos::common::OwnCloud::getContentSize(request);
-        if (oclength)
-          query += oclength;
-        else
-          query += request->GetHeaders()["Content-Length"];
+	//        char* oclength = eos::common::OwnCloud::getContentSize(request);
+	//        if (oclength)
+	//          query += oclength;
+        // else
+	query += request->GetHeaders()["Content-Length"];
       }
       else
       {
         query = "eos.bookingsize=0";
       }
 
-      if (isOcChunked)
+      /*
+	if (isOcChunked)
       {
 
         if (query.length())
@@ -744,6 +747,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
         query += OcNchunk.c_str();
         query += OcUploadId.c_str();
       }
+      */
 
       // -----------------------------------------------------------
       // OC clients are switched automatically to atomic upload mode
