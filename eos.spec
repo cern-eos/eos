@@ -2,7 +2,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.3.36
-Release: 1
+Release: rc1
 Prefix: /usr
 License: none
 Group: Applications/File
