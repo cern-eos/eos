@@ -34,7 +34,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-  char s3_rfc3986[256] = {0};
+        char s3_rfc3986[256] = {0};
 char s3_html5[256] = {0};
 
 void
@@ -68,10 +68,10 @@ eos::common::ProtocolHandler (vid)
     for (int i = 0; i < 256; i++)
     {
       s3_rfc3986[i] = isalnum(i) || i == '-' || i == '.' || i == '_'
-        || i =='@'
-        ? i : 0;
+              || i == '@'
+              ? i : 0;
       s3_html5[i] = isalnum(i) || i == '*' || i == '-' || i == '.' || i == '_'
-        ? i : (i == ' ') ? '+' : 0;
+              ? i : (i == ' ') ? '+' : 0;
     }
   }
 }
@@ -81,8 +81,8 @@ S3Handler::EncodeURI (const char* uri)
 {
 
   XrdOucString nUri;
-  char enc[ (strlen(uri)+1) * 3];
-  s3_uri_encode((unsigned char*)uri, enc, s3_rfc3986);
+  char enc[ (strlen(uri) + 1) * 3];
+  s3_uri_encode((unsigned char*) uri, enc, s3_rfc3986);
   XrdOucString lUri = enc;
   return lUri;
 }
@@ -121,21 +121,21 @@ S3Handler::HandleRequest (eos::common::HttpRequest *request)
     int meth = ParseMethodString(request->GetMethod());
     switch (meth)
     {
-    case GET:
-      response = Get(request);
-      break;
-    case HEAD:
-      response = Head(request);
-      break;
-    case PUT:
-      response = Put(request);
-      break;
-    case DELETE:
-      response = Delete(request);
-      break;
-    default:
-      response = new eos::common::PlainHttpResponse();
-      response->SetResponseCode(eos::common::HttpResponse::NOT_IMPLEMENTED);
+      case GET:
+        response = Get(request);
+        break;
+      case HEAD:
+        response = Head(request);
+        break;
+      case PUT:
+        response = Put(request);
+        break;
+      case DELETE:
+        response = Delete(request);
+        break;
+      default:
+        response = new eos::common::PlainHttpResponse();
+        response->SetResponseCode(eos::common::HttpResponse::NOT_IMPLEMENTED);
     }
   }
   else
@@ -201,11 +201,11 @@ S3Handler::VerifySignature ()
   {
     // --------------------------------------------------------------------------
     // try if the non-bucket path needs '/' encoded as '%2F' as done by Cyberduck
-    // e.g. /<bucket>/<path-without-slash-inthe-beginnging> 
+    // e.g. /<bucket>/<path-without-slash-inthe-beginnging>
     // --------------------------------------------------------------------------
     XrdOucString encodedPath = GetPath().c_str();
     encodedPath = EncodeURI(encodedPath.c_str() + 1);
-    encodedPath.insert('/',0);
+    encodedPath.insert('/', 0);
     XrdOucString newstring2sign = string2sign.c_str();
     newstring2sign.replace(GetPath().c_str(), encodedPath.c_str());
     string2sign = newstring2sign.c_str();
@@ -218,7 +218,7 @@ S3Handler::VerifySignature ()
     verify_signature = b64mac1.c_str();
     eos_static_debug("s2sign=%s key=%s", string2sign.c_str(), secure_key.c_str());
     eos_static_debug("in_signature=%s out_signature=%s\n",
-                   GetSignature().c_str(), verify_signature.c_str());
+                     GetSignature().c_str(), verify_signature.c_str());
     return (verify_signature == GetSignature());
   }
   return true;

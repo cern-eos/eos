@@ -31,6 +31,7 @@
 #include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -91,7 +92,7 @@ S3Store::Refresh ()
           for (auto it = map.begin(); it != map.end(); it++)
           {
             eos_static_info("parsing %s=>%s", it->first.c_str(),
-                                              it->second.c_str());
+                            it->second.c_str());
             if (it->first.substr(0, 6) == "sys.s3")
             {
               // the s3 attributes are built as
@@ -102,7 +103,7 @@ S3Store::Refresh ()
               {
                 std::string id = it->first.substr(10);
                 mS3Keys[id] = it->second;
-                eos_static_info("id=%s key=%s", id.c_str(), it->second.c_str());
+                eos_static_info("id=%s key=<hidden>", id.c_str());
               }
               if (it->first.substr(0, 14) == "sys.s3.bucket.")
               {
@@ -122,7 +123,7 @@ S3Store::Refresh ()
                   }
                   mS3ContainerSet[id].insert(svec[i]);
                   eos_static_debug("id=%s bucket=%s", id.c_str(),
-                                                      svec[i].c_str());
+                                   svec[i].c_str());
                 }
               }
               if (it->first.substr(0, 12) == "sys.s3.path.")
@@ -130,7 +131,7 @@ S3Store::Refresh ()
                 std::string bucket = it->first.substr(12);
                 mS3ContainerPath[bucket] = it->second;
                 eos_static_info("bucket=%s path=%s", bucket.c_str(),
-                                                     it->second.c_str());
+                                it->second.c_str());
               }
             }
           }
@@ -210,8 +211,8 @@ S3Store::ListBuckets (const std::string &id)
   result += "</ListAllMyBucketsResult>";
 
   response = new eos::common::PlainHttpResponse();
-  response->AddHeader("Content-Type",     "application/xml");
-  response->AddHeader("x-amz-id-2",       "unknown");
+  response->AddHeader("Content-Type", "application/xml");
+  response->AddHeader("x-amz-id-2", "unknown");
   response->AddHeader("x-amz-request-id", "unknown");
   response->SetBody(result);
 
@@ -258,13 +259,13 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
   result += bucket;
   result += "</Name>";
 
-  XrdOucEnv          parameter(query.c_str());
-  XrdOucString       stdErr;
+  XrdOucEnv parameter(query.c_str());
+  XrdOucString stdErr;
   XrdMgmOfsDirectory bucketdir;
-  uint64_t           cnt = 0;
-  uint64_t           max_keys = 1000;
-  std::string        marker = "";
-  std::string        prefix = "";
+  uint64_t cnt = 0;
+  uint64_t max_keys = 1000;
+  std::string marker = "";
+  std::string prefix = "";
 
   // indicates that the given marker has been found in the list and output starts
   bool marker_found = true;
@@ -298,7 +299,7 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
   }
 
   eos_static_info("msg=\"listing\" bucket=%s prefix=%s", bucket.c_str(),
-                                                         lPrefix.c_str());
+                  lPrefix.c_str());
 
   if (!prefix.length())
   {
@@ -326,7 +327,7 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
   result += "<MaxKeys>";
   char smaxkeys[16];
   snprintf(smaxkeys, sizeof (smaxkeys) - 1, "%llu",
-          (unsigned long long) max_keys);
+           (unsigned long long) max_keys);
   result += smaxkeys;
   result += "</MaxKeys>";
 
@@ -350,7 +351,7 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
 
     while ((dname1 = bucketdir.nextEntry()))
     {
-      // loop over the directory contents   
+      // loop over the directory contents
 
       std::string sdname = dname1;
       if ((sdname == ".") || (sdname == ".."))
@@ -414,7 +415,7 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
         result += "<Size>";
         std::string sconv;
         result += StringConversion::GetSizeString(sconv, (unsigned long long)
-                                                         fmd->getSize());
+                                                  fmd->getSize());
         result += "</Size>";
         result += "<StorageClass>STANDARD</StorageClass>";
         result += "<Owner>";
@@ -438,7 +439,7 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
 
       if (!fmd)
       {
-        // TODO: add the real container info here ... 
+        // TODO: add the real container info here ...
         // this must be a container
         result += "<Contents>";
         result += "<Key>";
@@ -481,7 +482,7 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
   }
 
   result += "</ListBucketResult>";
-  
+
   response = new PlainHttpResponse();
   response->AddHeader("Content-Type", "application/xml");
   response->AddHeader("Connection", "close");
@@ -493,13 +494,13 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
 S3Store::HeadBucket (const std::string &id,
-                     const std::string &bucket,
-                     const std::string &date)
+        const std::string &bucket,
+        const std::string &date)
 {
   using namespace eos::common;
 
-  HttpResponse            *response = 0;
-  XrdOucErrInfo            error;
+  HttpResponse *response = 0;
+  XrdOucErrInfo error;
   Mapping::VirtualIdentity vid;
   Mapping::Nobody(vid);
 
@@ -515,7 +516,7 @@ S3Store::HeadBucket (const std::string &id,
                                         id.c_str(), "");
   }
 
-  // set the bucket id as vid 
+  // set the bucket id as vid
   vid.uid = uid;
   vid.uid_list.push_back(uid);
 
@@ -524,7 +525,7 @@ S3Store::HeadBucket (const std::string &id,
   // build the bucket path
   std::string bucketpath = mS3ContainerPath[bucket];
 
-  // stat this object 
+  // stat this object
   if (gOFS->_stat(bucketpath.c_str(), &buf, error, vid, (const char*) 0) != SFS_OK)
   {
     if (error.getErrInfo() == ENOENT)
@@ -566,9 +567,9 @@ S3Store::HeadBucket (const std::string &id,
                         StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_ino));
     response->AddHeader("Last-Modified",
                         Timing::UnixTimstamp_to_ISO8601(buf.st_mtime));
-    response->AddHeader("Date",       date);
+    response->AddHeader("Date", date);
     response->AddHeader("Connection", "Keep-Alive");
-    response->AddHeader("Server",     gOFS->HostName);
+    response->AddHeader("Server", gOFS->HostName);
 
     response->SetResponseCode(response->OK);
     return response;
@@ -578,9 +579,9 @@ S3Store::HeadBucket (const std::string &id,
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
 S3Store::HeadObject (const std::string &id,
-                     const std::string &bucket,
-                     const std::string &path,
-                     const std::string &date)
+        const std::string &bucket,
+        const std::string &path,
+        const std::string &date)
 {
   using namespace eos::common;
 
@@ -601,7 +602,7 @@ S3Store::HeadObject (const std::string &id,
                                         id.c_str(), "");
   }
 
-  // set the bucket id as vid 
+  // set the bucket id as vid
   vid.uid = uid;
   vid.uid_list.push_back(uid);
 
@@ -615,7 +616,7 @@ S3Store::HeadObject (const std::string &id,
   }
   objectpath += path;
 
-  // stat this object 
+  // stat this object
   if (gOFS->_stat(objectpath.c_str(), &buf, error, vid, (const char*) 0) != SFS_OK)
   {
     if (error.getErrInfo() == ENOENT)
@@ -661,10 +662,10 @@ S3Store::HeadObject (const std::string &id,
                         StringConversion::GetSizeString(sinode, (unsigned long long) buf.st_size));
     response->AddHeader("Last-Modified",
                         Timing::UnixTimstamp_to_ISO8601(buf.st_mtime));
-    response->AddHeader("Date",         date);
+    response->AddHeader("Date", date);
     response->AddHeader("Content-Type", HttpResponse::ContentType(path));
-    response->AddHeader("Connection",   "close");
-    response->AddHeader("Server",       gOFS->HostName);
+    response->AddHeader("Connection", "close");
+    response->AddHeader("Server", gOFS->HostName);
 
     response->SetResponseCode(response->OK);
     return response;
@@ -674,10 +675,10 @@ S3Store::HeadObject (const std::string &id,
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
 S3Store::GetObject (eos::common::HttpRequest *request,
-                    const std::string        &id,
-                    const std::string        &bucket,
-                    const std::string        &path,
-                    const std::string        &query)
+        const std::string &id,
+        const std::string &bucket,
+        const std::string &path,
+        const std::string &query)
 {
   using namespace eos::common;
 
@@ -699,7 +700,7 @@ S3Store::GetObject (eos::common::HttpRequest *request,
                                         id.c_str(), "");
   }
 
-  // set the bucket id as vid 
+  // set the bucket id as vid
   vid.uid = uid;
   vid.uid_list.push_back(uid);
 
@@ -745,7 +746,7 @@ S3Store::GetObject (eos::common::HttpRequest *request,
                                 0, 10);
   }
 
-  // stat this object 
+  // stat this object
   if (gOFS->_stat(objectpath.c_str(), &buf, error, vid, (const char*) 0) != SFS_OK)
   {
     if (error.getErrInfo() == ENOENT)
@@ -819,8 +820,8 @@ S3Store::GetObject (eos::common::HttpRequest *request,
       client.name = strdup(id.c_str());
       client.host = strdup(request->GetHeaders()["Host"].c_str());
       client.tident = strdup("http");
-      snprintf(client.prot,sizeof(client.prot)-1,"https"); 
-      
+      snprintf(client.prot, sizeof (client.prot) - 1, "https");
+
       int rc = file->open(objectpath.c_str(), 0, 0, &client, query.c_str());
       if (rc == SFS_REDIRECT)
       {
@@ -830,7 +831,7 @@ S3Store::GetObject (eos::common::HttpRequest *request,
                                             8001, false);
 
         response->AddHeader("x-amz-website-redirect-location",
-			    response->GetHeaders()["Location"]);
+                            response->GetHeaders()["Location"]);
 
         std::string body = XML_V1_UTF8;
         body += "<Error>"
@@ -851,31 +852,31 @@ S3Store::GetObject (eos::common::HttpRequest *request,
         if (file->error.getErrInfo() == ENOENT)
         {
           response = S3Handler::RestErrorResponse(response->NOT_FOUND,
-                                                "NoSuchKey",
-                                                "The specified key does not exist",
-                                                path, "");
+                                                  "NoSuchKey",
+                                                  "The specified key does not exist",
+                                                  path, "");
         }
         else if (file->error.getErrInfo() == EPERM)
         {
           response = S3Handler::RestErrorResponse(response->FORBIDDEN,
-                                                 "AccessDenied",
-                                                 "Access Denied",
-                                                 path, "");
+                                                  "AccessDenied",
+                                                  "Access Denied",
+                                                  path, "");
         }
         else
         {
           response = S3Handler::RestErrorResponse(response->INTERNAL_SERVER_ERROR,
-                                                 "Internal Error",
-                                                 "File currently unavailable",
-                                                 path, "");
+                                                  "Internal Error",
+                                                  "File currently unavailable",
+                                                  path, "");
         }
       }
       else
       {
         response = S3Handler::RestErrorResponse(response->INTERNAL_SERVER_ERROR,
-                                               "Internal Error",
-                                               "File not accessible in this way",
-                                               path, "");
+                                                "Internal Error",
+                                                "File not accessible in this way",
+                                                path, "");
       }
 
       // clean up the object
@@ -888,10 +889,10 @@ S3Store::GetObject (eos::common::HttpRequest *request,
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
 S3Store::PutObject (eos::common::HttpRequest *request,
-                    const std::string        &id,
-                    const std::string        &bucket,
-                    const std::string        &path,
-                    const std::string        &query)
+        const std::string &id,
+        const std::string &bucket,
+        const std::string &path,
+        const std::string &query)
 {
   using namespace eos::common;
 
@@ -913,7 +914,7 @@ S3Store::PutObject (eos::common::HttpRequest *request,
                                         id.c_str(), "");
   }
 
-  // set the bucket id as vid 
+  // set the bucket id as vid
   vid.uid = uid;
   vid.uid_list.push_back(uid);
 
@@ -935,11 +936,11 @@ S3Store::PutObject (eos::common::HttpRequest *request,
     client.name = strdup(id.c_str());
     client.host = strdup(request->GetHeaders()["Host"].c_str());
     client.tident = strdup("http");
-    snprintf(client.prot,sizeof(client.prot)-1,"https"); 
+    snprintf(client.prot, sizeof (client.prot) - 1, "https");
 
     // force MD5 checksums for S3 file creation
-    std::string newquery=query;
-    newquery.insert(0,"&eos.checksum.noforce=1&eos.layout.checksum=md5");
+    std::string newquery = query;
+    newquery.insert(0, "&eos.checksum.noforce=1&eos.layout.checksum=md5");
     int rc = file->open(objectpath.c_str(), SFS_O_TRUNC, SFS_O_MKPTH, &client,
                         newquery.c_str());
     if (rc == SFS_REDIRECT)
@@ -951,7 +952,7 @@ S3Store::PutObject (eos::common::HttpRequest *request,
                                           8001, false);
 
       response->AddHeader("x-amz-website-redirect-location",
-			  response->GetHeaders()["Location"]);
+                          response->GetHeaders()["Location"]);
 
       std::string body = XML_V1_UTF8;
       body += "<Error>"
@@ -1001,9 +1002,9 @@ S3Store::PutObject (eos::common::HttpRequest *request,
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
 S3Store::DeleteObject (eos::common::HttpRequest *request,
-                       const std::string        &id,
-                       const std::string        &bucket,
-                       const std::string        &path)
+        const std::string &id,
+        const std::string &bucket,
+        const std::string &path)
 {
   using namespace eos::common;
 
@@ -1088,7 +1089,7 @@ S3Store::DeleteObject (eos::common::HttpRequest *request,
     {
       response = new eos::common::PlainHttpResponse();
       response->AddHeader("Connection", "close");
-      response->AddHeader("Server",     gOFS->HostName);
+      response->AddHeader("Server", gOFS->HostName);
       response->SetResponseCode(response->NO_CONTENT);
     }
   }
