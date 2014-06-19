@@ -79,6 +79,7 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
       // use the proper creation/open flags for PUT's
       open_mode |= SFS_O_CREAT;
 
+      /*
       // avoid truncation of chunked uploads
       if (!request->GetHeaders().count("OC-Chunked"))
       {
@@ -89,6 +90,7 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
         // tag as an OC chunk upload
         openUrl += "&mgm.occhunk=1";
       }
+      */
 
       open_mode |= SFS_O_RDWR;
       open_mode |= SFS_O_MKPTH;
@@ -379,6 +381,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
 
   else
   {
+    /*
     // check for chunked uploads
     if (!mCurrentCallbackOffset && request->GetHeaders().count("OC-Chunked"))
     {
@@ -414,6 +417,8 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mCurrentCallbackOffset -= contentlength;
       }
     }
+    */
+
     // file streaming in
     size_t *bodySize = request->GetBodySize();
     if (request->GetBody().c_str() && bodySize && (*bodySize))
