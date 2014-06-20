@@ -35,8 +35,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-        /*----------------------------------------------------------------------------*/
-        char dav_rfc3986[256] = {0};
+/*----------------------------------------------------------------------------*/
+char dav_rfc3986[256] = {0};
 char dav_html5[256] = {0};
 
 /*----------------------------------------------------------------------------*/
@@ -139,7 +139,7 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
     int listrc = directory.open(request->GetUrl().c_str(), *mVirtualIdentity,
                                 (const char*) 0);
 
-    responseNode = BuildResponseNode(EncodeURI(request->GetUrl().c_str()), EncodeURI(request->GetUrl(true).c_str()));
+    responseNode = BuildResponseNode(request->GetUrl().c_str(), request->GetUrl(true).c_str());
 
     if (responseNode)
     {
@@ -161,7 +161,7 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
         // one response node for each file...
         eos::common::Path path((request->GetUrl() + std::string("/") + std::string(val)).c_str());
         eos::common::Path refpath((request->GetUrl(true) + std::string("/") + std::string(val)).c_str());
-        responseNode = BuildResponseNode(EncodeURI(path.GetPath()), EncodeURI(refpath.GetPath()));
+        responseNode = BuildResponseNode(path.GetPath(), refpath.GetPath());
         if (responseNode)
         {
           multistatusNode->append_node(responseNode);
@@ -303,6 +303,10 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
     return NULL;
   }
   eos_static_debug("url=%s etag=%s", urlp.c_str(), etag.c_str());
+
+  // encode the url's
+  urlp = EncodeURI(urlp.c_str()).c_str();
+  hrefp = EncodeURI(hrefp.c_str()).c_str();
 
   // <response/> node
   xml_node<> *responseNode = AllocateNode("d:response");
