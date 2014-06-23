@@ -381,7 +381,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   if (mRequestPropertyTypes & PropertyTypes::CHECKED_OUT)
     checkedOut = AllocateNode("d:checked-out");
   if (mRequestPropertyTypes & PropertyTypes::GET_OCID)
-    eTag = AllocateNode("d:getocid");
+    ocid = AllocateNode("d:getocid");
 
   if ((S_ISDIR(statInfo.st_mode)) &&
       ((mRequestPropertyTypes & PropertyTypes::QUOTA_AVAIL) ||
@@ -438,7 +438,12 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   {
     SetValue(eTag, etag.c_str());
     propFound->append_node(eTag);
+  }
+
+  if (ocid)
+  {
     SetValue(ocid, eos::common::StringConversion::GetSizeString(id, (unsigned long long) statInfo.st_ino));
+    propFound->append_node(ocid);
   }
 
   if (displayName)
