@@ -57,7 +57,7 @@ VstView::Print (std::string &out,
   if (!monitoring)
   {
     if (ioformating)
-      snprintf(line, sizeof (line) - 1, ioformat, "#", "instance", "age", "space", "used", "n-fs", "files", "directories", "clients", "ropen", "wopen", "diskr-MB/s", "diskw-MB/s", "ethi-MiB/s", "etho-MiB/s", "NsR/s", "NsW/s");
+      snprintf(line, sizeof (line) - 1, ioformat, "#", "instance", "age", "space", "used", "n-fs", "files", "directories", "clients", "ropen", "wopen", "diskr-MB/s", "diskw-MB/s", "etho-MiB/s", "ethi-MiB/s", "NsR/s", "NsW/s");
     else
       snprintf(line, sizeof (line) - 1, format, "#", "instance", "age", "host", "ip", "mode", "version", "uptime", "space", "used", "n(fs)", "iops", "bw-MB/s", "files", "directories", "clients");
     out += "# _______________________________________________________________________________________________________________________________________________________________________________________\n";
