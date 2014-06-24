@@ -103,7 +103,7 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
                       &mClient,
                       request->GetQuery().c_str());
 
-    mRc = mFile->truncate(eos::common::StringConversion::GetSizeFromString(request->GetHeaders()["OC-Total-Length"]));
+    //    mRc = mFile->truncate(eos::common::StringConversion::GetSizeFromString(request->GetHeaders()["OC-Total-Length"]));
 
     mFileSize = mFile->getOpenSize();
 
