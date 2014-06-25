@@ -104,6 +104,7 @@ Acl::Set (std::string sysacl,
   canDelete = false;
   canSetQuota = false;
   hasEgroup = false;
+  isMutable = true;
 
   if (!acl.length())
   {
@@ -195,7 +196,7 @@ Acl::Set (std::string sysacl,
           continue;
 	// add an empty entry field
 	entry.resize(3);
-	entry[2]="";
+	entry[2]=entry[1];
       }
 
       // -----------------------------------------------------------------------
@@ -318,7 +319,7 @@ Acl::Set (std::string sysacl,
       // -----------------------------------------------------------------------
       // 'i' makes directories immutable
       // -----------------------------------------------------------------------
-      if ( (entry.size()==2) && ((entry[1].find("i")) != std::string::npos) )
+      if ( (entry[2].find("i")) != std::string::npos)
       {
         isMutable = false;
         hasAcl = true;
