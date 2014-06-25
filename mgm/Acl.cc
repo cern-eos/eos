@@ -318,7 +318,7 @@ Acl::Set (std::string sysacl,
       // -----------------------------------------------------------------------
       // 'i' makes directories immutable
       // -----------------------------------------------------------------------
-      if ((entry[1].find("i")) != std::string::npos)
+      if ( (entry.size()==2) && ((entry[1].find("i")) != std::string::npos) )
       {
         isMutable = false;
         hasAcl = true;
