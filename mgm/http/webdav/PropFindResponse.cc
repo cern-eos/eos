@@ -92,7 +92,11 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
 
   // <multistatus/> node
   xml_node<> *multistatusNode = AllocateNode("d:multistatus");
+  
   multistatusNode->append_attribute(AllocateAttribute("xmlns:d", "DAV:"));
+  // TODO: FIX ME!
+  multistatusNode->append_attribute(AllocateAttribute("xmlns:oc", "http://owncloud.org/ns"));
+
   mXMLResponseDocument.append_node(multistatusNode);
 
   // Is the requested resource a file or directory?
@@ -381,7 +385,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   if (mRequestPropertyTypes & PropertyTypes::CHECKED_OUT)
     checkedOut = AllocateNode("d:checked-out");
   if (mRequestPropertyTypes & PropertyTypes::GET_OCID)
-    ocid = AllocateNode("d:getocid");
+    ocid = AllocateNode("oc:id");
 
   if ((S_ISDIR(statInfo.st_mode)) &&
       ((mRequestPropertyTypes & PropertyTypes::QUOTA_AVAIL) ||

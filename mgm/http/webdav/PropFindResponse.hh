@@ -175,7 +175,7 @@ public:
     else if (property == "checked-out") return CHECKED_OUT;
     else if (property == "quota-available-bytes") return QUOTA_AVAIL;
     else if (property == "quota-used-bytes") return QUOTA_USED;
-    else if (property == "getocid") return GET_OCID;
+    else if (property == "id") return GET_OCID;
     else return NONE;
   }
 
