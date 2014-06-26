@@ -1113,7 +1113,7 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
         }
         for (size_t i = 0; i < w_open_vector.size(); i++)
         {
-          eos::common::StringConversion::SplitKeyValue(r_open_vector[i], key, val);
+          eos::common::StringConversion::SplitKeyValue(w_open_vector[i], key, val);
           int rank = 0;
           if (key.c_str())
             rank = atoi(key.c_str());
