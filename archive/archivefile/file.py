@@ -127,7 +127,7 @@ class ArchiveFile(object):
           self.eos_file, self.tx_file)
         self.logger.error(err_msg)
         raise IOError(err_msg)
-        
+       
       # For recovery get the first corrupted entry
       if self.do_retry:
         self.force = True 
@@ -163,6 +163,7 @@ class ArchiveFile(object):
         
     elif self.op == const.DELETE_OP:
       # TODO: finish implementation
+      # - also remove the immutable flag
       pass
 
 

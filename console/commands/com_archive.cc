@@ -43,10 +43,15 @@ com_archive(char* arg1)
   {
     XrdOucString path = subtokenizer.GetToken();
     XrdOucString dst = subtokenizer.GetToken();
+   
+    if (!path.length())
+      path = pwd;
 
-    if (!path.length() || !dst.length())
+    path = abspath(path.c_str());
+
+    if (!dst.length())
     {
-      fprintf(stdout, "Empty path or destination\n");
+      fprintf(stdout, "No archive destination specified \n");
       goto com_archive_usage;
     }
                        
@@ -88,10 +93,14 @@ com_archive(char* arg1)
       token = subtokenizer.GetToken();
     }
 
+    // The last token is the path 
     if (!token.length())
-      goto com_archive_usage;
+      in_cmd << "&mgm.archive.path=" << pwd;
     else
+    {
+      token = abspath(token.c_str());
       in_cmd << "&mgm.archive.path=" << token;
+    }
   }
   else if (subcmd == "list")
   {
