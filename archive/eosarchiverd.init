@@ -1,0 +1,110 @@
+#! /bin/sh
+#
+#-------------------------------------------------------------------------------
+# File: eosarchiverd.init
+# Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
+#-------------------------------------------------------------------------------
+#
+#*******************************************************************************
+# EOS - the CERN Disk Storage System
+# Copyright (C) 2014 CERN/Switzerland
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#*******************************************************************************
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Variables
+USER="xrootd"
+LOGDIR="/var/log/eos/archive"
+prog="eosarchiverd"
+export DAEMON_COREFILE_LIMIT="unlimited"
+RETVAL=0
+
+# Source sysconfig files
+if [ -f /etc/sysconfig/$prog ]; then
+        . /etc/sysconfig/$prog
+fi
+
+# Create and set ownership on log directory
+mkdir -p $LOGDIR
+chown -R $USER:$USER $LOGDIR
+
+start() {
+        # Run daemon
+        echo -n $"Starting $prog: "
+
+        cd /var/log/eos/
+        daemon --user=$USER /usr/bin/$prog $EOSARCHIVERD_OPTIONS
+
+        # Write the pid to a file.
+        RETVAL=$?
+        if [ $RETVAL -eq 0 ]; then
+                pid=`ps -eo pid,ppid,comm | egrep " 1 $prog\$" | awk '{print $1}'`
+                rm -f /var/run/$prog.pid
+                if [ -n "$pid" ]; then
+                        echo $pid > /var/run/$prog.pid
+                        RETVAL=0
+                else
+                        RETVAL=1
+                fi
+        fi
+
+        [ $RETVAL -eq 0 ] && success $"$base startup" || failure $"$base startup"
+        echo
+        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
+        return $RETVAL
+}
+
+stop() {
+        echo -n $"Stopping $prog: "
+        killproc $prog
+
+        RETVAL=$?
+        echo
+        [ -f /var/lock/subsys/$prog ] && rm -f /var/lock/subsys/$prog
+        return $RETVAL
+}
+
+restart() {
+        stop
+        start
+}
+
+# See how we were called
+case "$1" in
+
+        start)
+                start
+                ;;
+        stop)
+                stop
+                ;;
+        status)
+                status $prog
+                RETVAL=$?
+                ;;
+        restart)
+                restart
+                ;;
+        condrestart)
+                [ -f /var/lock/subsys/$prog ] && restart || :
+                ;;
+        *)
+                echo $"Usage: $0 {start|stop|status|restart|condrestart}"
+                exit 1
+esac
+
+exit $RETVAL
