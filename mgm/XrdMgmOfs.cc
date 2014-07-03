@@ -717,6 +717,7 @@ XrdMgmOfs::Stall (XrdOucErrInfo &error,
   return stime;
 }
 
+
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::Redirect (XrdOucErrInfo &error,
