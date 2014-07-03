@@ -403,7 +403,6 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
   struct XrdCl::JobDescriptor copy_job;
   copy_job.source.SetProtocol("file");
   copy_job.source.SetPath(arch_fn.c_str());
-
   copy_job.target.SetProtocol("root");
   copy_job.target.SetHostName("localhost");
   std::string dst_path = arch_dir.c_str();
@@ -436,6 +435,15 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
 
   // Remove local archive file
   unlink(arch_fn.c_str());
+
+  // Makte the EOS subtree immutable e.g.: sys.acl=z:i
+  if ( gOFS->_attr_set(arch_dir.c_str(), *mError, *pVid,
+                       (const char*) 0, "sys.acl", "z:i"))
+  {
+    stdErr = "error: making EOS subtree immutable, path=";
+    stdErr += arch_dir.c_str();
+    retc = mError->getErrInfo();
+  }
 }
 
 
