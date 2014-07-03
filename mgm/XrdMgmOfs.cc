@@ -3916,7 +3916,7 @@ XrdMgmOfs::_access (const char *path,
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
 
-    if (vid.uid && !acl.IsMutable())
+    if (vid.uid && !acl.IsMutable() && (mode & R_OK & X_OK))
     {
       eos_debug("msg=\"access\" errno=EPERM reason=\"immutable\"");
       errno = EPERM;
