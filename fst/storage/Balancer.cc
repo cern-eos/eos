@@ -168,11 +168,12 @@ Storage::GetFileSystemInBalanceMode (std::vector<unsigned int> &balancefsvector,
     nfs = fileSystemsVector.size();
   }
 
+  cycler++;
+
   for (unsigned int i = 0; i < nfs; i++)
   {
     unsigned int index = (i + cycler) % nfs;
     eos::common::RWMutexReadLock lock(fsMutex);
-    cycler++;
     if (index < fileSystemsVector.size())
     {
       std::string path = fileSystemsVector[index]->GetPath();
