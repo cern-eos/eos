@@ -56,7 +56,6 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucTrace.hh"
-#include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -144,6 +143,9 @@ XrdMgmOfsFile::open (const char *inpath,
   // flag indiciating an atomic upload where a file get's a hidden unique name and is renamed when it is closed
   bool isAtomicUpload = false;
 
+  // chunk upload ID
+  XrdOucString ocUploadUuid = "";
+
   // list of filesystem IDs to reconstruct
   std::vector<unsigned int> PioReconstructFsList;
 
@@ -228,6 +230,16 @@ XrdMgmOfsFile::open (const char *inpath,
       }
     }
   }
+
+  {
+    // figure out if this is an OC upload
+    const char* val = 0;
+    if ((val = openOpaque->Get("OC-CHUNK-UUID")))
+    {
+      ocUploadUuid = val;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // PIO MODE CONFIGURATION
   // ---------------------------------------------------------------------------
@@ -723,8 +735,8 @@ XrdMgmOfsFile::open (const char *inpath,
       }
       else
       {
-        // drop the old file and create a new truncated one
-        if (gOFS->_rem(path, error, vid, info))
+        // drop the old file (for non atomic uploads) and create a new truncated one
+        if ((!isAtomicUpload) && gOFS->_rem(path, error, vid, info))
         {
           return Emsg(epname, error, errno, "remove file for truncation", path);
         }
@@ -776,7 +788,7 @@ XrdMgmOfsFile::open (const char *inpath,
       }
       else
       {
-        // creation of a new file
+        // creation of a new file or isOcUpload
         {
           // -------------------------------------------------------------------
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
@@ -786,10 +798,26 @@ XrdMgmOfsFile::open (const char *inpath,
             if (isAtomicUpload)
             {
               eos::common::Path cPath(path);
-              creation_path = cPath.GetAtomicPath(versioning);
+              creation_path = cPath.GetAtomicPath(versioning, ocUploadUuid);
+              eos_info("atomic-path=%s", creation_path.c_str());
             }
 
-            fmd = gOFS->eosView->createFile(creation_path.c_str(), vid.uid, vid.gid);
+            if (ocUploadUuid.length())
+            {
+              // try to attach to a file which has already uploaded chunks
+              try
+              {
+                fmd = gOFS->eosView->getFile(creation_path.c_str());
+              }
+              catch (eos::MDException &e)
+              {
+              }
+            }
+
+            // create it if we didn't already attach above for an OC upload
+            if (!fmd)
+              fmd = gOFS->eosView->createFile(creation_path.c_str(), vid.uid, vid.gid);
+
             fileId = fmd->getId();
             fmdlid = fmd->getLayoutId();
             fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
@@ -1042,12 +1070,17 @@ XrdMgmOfsFile::open (const char *inpath,
   capability += "&mgm.gid=";
   capability += (int) vid.gid_list[0];
   capability += "&mgm.path=";
+<<<<<<< HEAD
   {
     // an '&' will create a failure on the FST
     XrdOucString safepath=path;
     while(safepath.replace("&","#AND#")) {}
     capability += safepath;
   }
+=======
+  XrdOucString sealedpath = path;
+  capability += XrdMqMessage::Seal(sealedpath);
+>>>>>>> b7c92c6... OC-Chunk Features
   capability += "&mgm.manager=";
   capability += gOFS->ManagerId.c_str();
   capability += "&mgm.fid=";

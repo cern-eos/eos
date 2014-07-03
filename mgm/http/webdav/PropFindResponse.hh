@@ -57,10 +57,11 @@
 
 /*----------------------------------------------------------------------------*/
 
-EOSMGMNAMESPACE_BEGIN
+EOSMGMNAMESPACE_BEGIN;
 
-  //
-  extern char dav_rfc3986[256];
+
+//
+extern char dav_rfc3986[256];
 extern char dav_html5[256];
 
 class PropFindResponse : public WebDAVResponse {
@@ -108,7 +109,7 @@ public:
       for (int i = 0; i < 256; i++)
       {
         dav_rfc3986[i] = isalnum(i) || i == '-' || i == '.' || i == '_'
-          || i == '~' || i =='/'
+          || i == '~' || i == '/'
           ? i : 0;
         dav_html5[i] = isalnum(i) || i == '*' || i == '-' || i == '.' || i == '_'
           ? i : (i == ' ') ? '+' : 0;

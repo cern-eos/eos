@@ -23,10 +23,10 @@
 
 /**
  * @file   FileId.hh
- * 
+ *
  * @brief  Convenience Class for File IDs.
- * 
- * 
+ *
+ *
  */
 
 #ifndef __EOSCOMMON_FILEID__HH__
@@ -36,6 +36,7 @@
 #include "common/Namespace.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -49,46 +50,70 @@ public:
   typedef unsigned long long fileid_t;
 
   //! Constructor
-  FileId();
+  FileId ();
 
   //! Destructor
-  ~FileId();
+  ~FileId ();
 
   //! Convert a fid into a hex decimal string
-  static void Fid2Hex(unsigned long long fid, XrdOucString &hexstring) {
+
+  static void Fid2Hex (unsigned long long fid, XrdOucString &hexstring)
+  {
     char hexbuffer[128];
-    sprintf(hexbuffer,"%08llx", fid);
+    sprintf(hexbuffer, "%08llx", fid);
     hexstring = hexbuffer;
   }
 
   //! Convert a hex decimal string into a fid
-  static unsigned long long Hex2Fid(const char* hexstring) {
+
+  static unsigned long long Hex2Fid (const char* hexstring)
+  {
     if (hexstring)
       return strtoll(hexstring, 0, 16);
     else
       return 0;
   }
 
+  //! Convert an EOS file id into an inode number
+
+  // ---------------------------------------------------------------------------
+  // we shift the range by 28 bytes to not overlap with directory inodes
+  // ---------------------------------------------------------------------------
+
+  static unsigned long long FidToInode (unsigned long long fid)
+  {
+    return (fid << 28);
+  }
+
   //! Compute a path from a fid and localprefix
-  static void FidPrefix2FullPath(const char* hexstring, const char* localprefix,  XrdOucString &fullpath, unsigned int subindex = 0) {
+
+  static void FidPrefix2FullPath (const char* hexstring, const char* localprefix, XrdOucString &fullpath, unsigned int subindex = 0)
+  {
     unsigned long long fid = Hex2Fid(hexstring);
     char sfullpath[16384];
-    if (subindex) {
-      sprintf(sfullpath,"%s/%08llx/%s.%u",localprefix,fid/10000, hexstring,subindex);
-    } else {
-      sprintf(sfullpath,"%s/%08llx/%s",localprefix,fid/10000, hexstring);
+    if (subindex)
+    {
+      sprintf(sfullpath, "%s/%08llx/%s.%u", localprefix, fid / 10000, hexstring, subindex);
+    }
+    else
+    {
+      sprintf(sfullpath, "%s/%08llx/%s", localprefix, fid / 10000, hexstring);
     }
     fullpath = sfullpath;
-    while (fullpath.replace("//","/")) {}
+    while (fullpath.replace("//", "/"))
+    {
+    }
   }
 
   //! Compute a fid from a prefix path
-  static unsigned long long PathToFid(const char* path) {
-    XrdOucString hexfid="";
+
+  static unsigned long long PathToFid (const char* path)
+  {
+    XrdOucString hexfid = "";
     hexfid = path;
     int rpos = hexfid.rfind("/");
-    if(rpos>0) 
-      hexfid.erase(0,rpos+1);
+    if (rpos > 0)
+      hexfid.erase(0, rpos + 1);
     return Hex2Fid(hexfid.c_str());
   }
 };
@@ -99,5 +124,5 @@ EOSCOMMONNAMESPACE_END
 
 #endif
 
-  
+
 

@@ -34,6 +34,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
+#include "common/http/HttpResponse.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
@@ -56,13 +57,14 @@ EOSCOMMONNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 
 class Path {
-private:
+protected:
   XrdOucString fullPath; //< the full path stored
   XrdOucString parentPath; //< path of the parent directory
   XrdOucString lastPath; //< the base name/file name
   XrdOucString atomicPath; //< temporary version of a path e.g. basename => .basename.<uuid>
   XrdOucString versionDir; //< directory name storing versions for a file path
   std::vector<std::string> subPath; //< a vector with all partial sub-path
+
 public:
 
 
@@ -130,19 +132,19 @@ public:
   // ---------------------------------------------------------------------------
 
   const char*
-  GetAtomicPath (bool versioning)
+  GetAtomicPath (bool versioning, XrdOucString externuuid = "")
   {
     if (atomicPath.length())
       return atomicPath.c_str();
     else
-      return MakeAtomicPath(versioning);
+      return MakeAtomicPath(versioning, externuuid);
   }
 
   // ---------------------------------------------------------------------------
   //! Return a unique atomic version of that path
   // ---------------------------------------------------------------------------
 
-  const char* MakeAtomicPath (bool versioning)
+  const char* MakeAtomicPath (bool versioning, XrdOucString externuuid = "")
   {
     // create from <dirname>/<basename> => <dirname>/.[.]<basename>.<uuid>
     char suuid[40];
@@ -155,7 +157,13 @@ public:
       atomicPath += ".";
     atomicPath += GetName();
     atomicPath += ".";
-    atomicPath += suuid;
+
+    // for chunk paths we have to use the same UUID for all chunks
+    if (!externuuid.length())
+      atomicPath += suuid;
+    else
+      atomicPath += externuuid;
+
     return atomicPath.c_str();
   }
 
@@ -214,9 +222,25 @@ public:
 
   Path (const char* path)
   {
+    Init(path);
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Initialization
+  // ---------------------------------------------------------------------------
+
+  void
+  Init (const char* path)
+  {
     fullPath = path;
+
+    while (fullPath.replace("//", "/"))
+    {
+    }
+
     parentPath = "";
     lastPath = "";
+
     if ((fullPath == "/") ||
         (fullPath == "/.") ||
         (fullPath == "/.."))

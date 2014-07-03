@@ -371,9 +371,9 @@ com_attr_usage:
   fprintf(stdout, "              'c'  : this tag can be used to grant chown permissions\n");
   fprintf(stdout, "              'q'  : this tag can be used to grant quota administrator permissions\n");
   fprintf(stdout, "               e.g.: sys.acl='z:!d' => 'z' is a rule for every user besides root e.g. nobody can delete here'b\n");
-  fprintf(stdout, "                     sys.acl='z:i' => directory becomes immutable");
+  fprintf(stdout, "                     sys.acl='z:i' => directory becomes immutable\n");
   fprintf(stdout, "         sys.eval.useracl                      : enables the evaluation of user acls if key is defined\n");
-  fprintf(stdout, "         sys.owner.auth=<owner-auth-list>                 : set's additional owner on a directory - open/create + mkdir commands will use the owner id for operations if the client is part of the owner authentication list");
+  fprintf(stdout, "         sys.owner.auth=<owner-auth-list>      : set's additional owner on a directory - open/create + mkdir commands will use the owner id for operations if the client is part of the owner authentication list");
   fprintf(stdout, "               => <owner-auth-list> = <auth1>:<name1>,<auth2>:<name2  e.g. krb5:nobody,gsi:DN=...\n");
   // ---------------------------------------------------------------------------
   fprintf(stdout, "User Variables:\n");

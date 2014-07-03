@@ -136,7 +136,7 @@ VstMessaging::Listen ()
         // send this message async ...
         mMessageClient.SendMessage(message, 0, false, false, true);
         lPublishTime = time(NULL);
-        eos_static_info("sending vst message %s", PublishVst().c_str());
+        eos_static_debug("sending vst message %s", PublishVst().c_str());
         PublishInfluxDbUdp();
       }
     }
@@ -277,7 +277,6 @@ VstMessaging::PublishVst ()
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
     if (FsView::gFsView.mSpaceView.count("default"))
     {
-      eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
       freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes?configstatus@rw");
       freefiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree?configstatus@rw");
 

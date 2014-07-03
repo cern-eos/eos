@@ -26,6 +26,7 @@
 #include "fst/http/HttpServer.hh"
 #include "common/Path.hh"
 #include "common/http/HttpResponse.hh"
+#include "common/http/OwnCloud.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "fst/XrdFstOfs.hh"
 //#include "common/S3.hh"
@@ -57,6 +58,7 @@ void
 HttpHandler::HandleRequest (eos::common::HttpRequest *request)
 {
   eos_static_debug("Handling HTTP request");
+  bool isOcChunkUpload = false;
 
   if (!mFile)
   {
@@ -73,13 +75,12 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
     mode_t create_mode = 0;
 
     XrdOucString openUrl = request->GetUrl().c_str();
-
+    XrdOucString query = request->GetQuery().c_str();
     if (request->GetMethod() == "PUT")
     {
       // use the proper creation/open flags for PUT's
       open_mode |= SFS_O_CREAT;
 
-      /*
       // avoid truncation of chunked uploads
       if (!request->GetHeaders().count("OC-Chunked"))
       {
@@ -87,10 +88,10 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
       }
       else
       {
-        // tag as an OC chunk upload
-        openUrl += "&mgm.occhunk=1";
+        // add OC chunk upload information
+        query += eos::common::OwnCloud::HeaderToQuery(request->GetHeaders());
+        isOcChunkUpload = true;
       }
-      */
 
       open_mode |= SFS_O_RDWR;
       open_mode |= SFS_O_MKPTH;
@@ -101,9 +102,10 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
                       open_mode,
                       create_mode,
                       &mClient,
-                      request->GetQuery().c_str());
+                      query.c_str());
 
-    //    mRc = mFile->truncate(eos::common::StringConversion::GetSizeFromString(request->GetHeaders()["OC-Total-Length"]));
+    if (isOcChunkUpload)
+      mRc = mFile->truncate(eos::common::StringConversion::GetSizeFromString(request->GetHeaders()["OC-Total-Length"]));
 
     mFileSize = mFile->getOpenSize();
 
@@ -417,7 +419,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mCurrentCallbackOffset -= contentlength;
       }
     }
-    */
+     */
 
     // file streaming in
     size_t *bodySize = request->GetBodySize();
@@ -498,9 +500,9 @@ HttpHandler::Put (eos::common::HttpRequest *request)
 /*----------------------------------------------------------------------------*/
 bool
 HttpHandler::DecodeByteRange (std::string rangeheader,
-        std::map<off_t, ssize_t> &offsetmap,
-        ssize_t &requestsize,
-        off_t filesize)
+                              std::map<off_t, ssize_t> &offsetmap,
+                              ssize_t &requestsize,
+                              off_t filesize)
 {
   std::vector<std::string> tokens;
   if (rangeheader.substr(0, 6) != "bytes=")

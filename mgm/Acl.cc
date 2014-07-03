@@ -35,9 +35,9 @@ EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 Acl::Acl (std::string sysacl,
-        std::string useracl,
-        eos::common::Mapping::VirtualIdentity &vid,
-        bool allowUserAcl)
+          std::string useracl,
+          eos::common::Mapping::VirtualIdentity &vid,
+          bool allowUserAcl)
 /*----------------------------------------------------------------------------*/
 /**
  * Constructor
@@ -57,9 +57,9 @@ Acl::Acl (std::string sysacl,
 /*----------------------------------------------------------------------------*/
 void
 Acl::Set (std::string sysacl,
-        std::string useracl,
-        eos::common::Mapping::VirtualIdentity &vid,
-        bool allowUserAcl)
+          std::string useracl,
+          eos::common::Mapping::VirtualIdentity &vid,
+          bool allowUserAcl)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Set the contents of an ACL and compute the canXX and hasXX booleans.
@@ -194,9 +194,9 @@ Acl::Set (std::string sysacl,
         // z tag entries have only two fields
         if (it->compare(0, ztag.length(), ztag) || (entry.size() < 2))
           continue;
-	// add an empty entry field
-	entry.resize(3);
-	entry[2]=entry[1];
+        // add an empty entry field
+        entry.resize(3);
+        entry[2] = entry[1];
       }
 
       // -----------------------------------------------------------------------
@@ -319,7 +319,7 @@ Acl::Set (std::string sysacl,
       // -----------------------------------------------------------------------
       // 'i' makes directories immutable
       // -----------------------------------------------------------------------
-      if ( (entry[2].find("i")) != std::string::npos)
+      if ((entry[2].find("i")) != std::string::npos)
       {
         isMutable = false;
         hasAcl = true;
@@ -331,8 +331,8 @@ Acl::Set (std::string sysacl,
 /*----------------------------------------------------------------------------*/
 bool
 Acl::IsValid (const std::string value,
-        XrdOucErrInfo &error,
-        bool sysacl)
+              XrdOucErrInfo &error,
+              bool sysacl)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Check whether ACL has a valid format / syntax.

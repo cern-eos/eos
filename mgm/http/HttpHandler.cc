@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/http/PlainHttpResponse.hh"
+#include "common/http/OwnCloud.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
@@ -648,7 +649,6 @@ HttpHandler::Put (eos::common::HttpRequest * request)
   bool isOcChunked = false;
   std::map<std::string, std::string> ocHeader;
 
-
   eos::common::HttpResponse *response = 0;
 
   XrdOucString spath = request->GetUrl().c_str();
@@ -660,18 +660,16 @@ HttpHandler::Put (eos::common::HttpRequest * request)
     }
   }
 
-  /*
   if (eos::common::OwnCloud::isChunkUpload(request))
   {
     isOcChunked = true;
 
     // we have to rewrite the path and add some additional header describing
     // the chunking which was stored in the name
-    url = eos::common::OwnCloud::prepareChunkUpload(request, &response, &ocHeader);
+    url = eos::common::OwnCloud::prepareChunkUpload(request, &response, ocHeader);
     if (response)
       return response;
   }
-  */
 
   std::string etag;
 
@@ -724,30 +722,17 @@ HttpHandler::Put (eos::common::HttpRequest * request)
       if (request->GetHeaders().count("Content-Length"))
       {
         query += "eos.bookingsize=";
-        // for OC chun    ked uploads we book the full size
-	//        char* oclength = eos::common::OwnCloud::getContentSize(request);
-	//        if (oclength)
-	//          query += oclength;
-        // else
-	query += request->GetHeaders()["Content-Length"];
+        //or OC chunked uploads we book the full size
+        const char* oclength = eos::common::OwnCloud::getContentSize(request);
+        if (oclength)
+          query += oclength;
+        else
+          query += request->GetHeaders()["Content-Length"];
       }
       else
       {
         query = "eos.bookingsize=0";
       }
-
-      /*
-	if (isOcChunked)
-      {
-
-        if (query.length())
-          query += "&";
-        query += "oc.chunk=1";
-        query += OcMaxChunks.c_str();
-        query += OcNchunk.c_str();
-        query += OcUploadId.c_str();
-      }
-      */
 
       // -----------------------------------------------------------
       // OC clients are switched automatically to atomic upload mode
@@ -826,6 +811,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
       {
         response = new eos::common::PlainHttpResponse();
         response->SetResponseCode(response->CREATED);
+        eos::common::OwnCloud::addOcHeader(response, ocHeader);
       }
 
       std::string rurl = file->error.getErrText();
@@ -922,7 +908,7 @@ HttpHandler::Options (eos::common::HttpRequest * request)
   eos::common::HttpResponse *response = new eos::common::PlainHttpResponse();
   response->AddHeader("DAV", "1,2");
   response->AddHeader("Allow", "OPTIONS,GET,HEAD,POST,DELETE,TRACE,"\
-                               "PROPFIND,PROPPATCH,COPY,MOVE,LOCK,UNLOCK");
+                               "PROPFIND,COPY,MOVE");
   response->AddHeader("Content-Length", "0");
 
   return response;

@@ -29,14 +29,16 @@
 #include "common/Logging.hh"
 #include "common/Timing.hh"
 #include "common/Path.hh"
+#include "common/http/OwnCloud.hh"
+
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-char dav_rfc3986[256] = {0};
+        /*----------------------------------------------------------------------------*/
+        char dav_rfc3986[256] = {0};
 char dav_html5[256] = {0};
 
 /*----------------------------------------------------------------------------*/
@@ -92,10 +94,12 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
 
   // <multistatus/> node
   xml_node<> *multistatusNode = AllocateNode("d:multistatus");
-  
+
   multistatusNode->append_attribute(AllocateAttribute("xmlns:d", "DAV:"));
-  // TODO: FIX ME!
-  multistatusNode->append_attribute(AllocateAttribute("xmlns:oc", "http://owncloud.org/ns"));
+
+  multistatusNode->append_attribute(
+                                    AllocateAttribute(eos::common::OwnCloud::OwnCloudNs(),
+                                                      eos::common::OwnCloud::OwnCloudNsUrl()));
 
   mXMLResponseDocument.append_node(multistatusNode);
 

@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/Path.hh"
+#include "common/http/OwnCloud.hh"
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/layout/LayoutPlugin.hh"
@@ -235,7 +236,7 @@ XrdFstOfsFile::open (const char* path,
     ETag = val;
   }
 
-  if ((val = tmpOpaque.Get("mgm.occhunk")))
+  if (eos::common::OwnCloud::isChunkUpload(tmpOpaque))
   {
     // tag as an OC chunk upload
     isOCchunk = true;
@@ -1016,7 +1017,9 @@ XrdFstOfsFile::open (const char* path,
       {
         if (capOpaque->Get("mgm.path"))
         {
-          if (!attr->Set(std::string("user.eos.lfn"), std::string(capOpaque->Get("mgm.path"))))
+	  XrdOucString unsealedpath = capOpaque->Get("mgm.path");
+	  XrdOucString sealedpath = path;
+          if (!attr->Set(std::string("user.eos.lfn"), std::string(unsealedpath.c_str())))
           {
             eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
           }
@@ -1915,8 +1918,11 @@ XrdFstOfsFile::close ()
             // Evt. tag as an OC-Chunk commit
             //..................................................................
             if (isOCchunk)
-              capOpaqueFile += "&mgm.occhunk=1";
-
+            {
+              // add the chunk information
+              int envlen;
+              capOpaqueFile += eos::common::OwnCloud::FilterOcQuery(openOpaque->Env(envlen));
+            }
             eos_crit("occhunk=%d", isOCchunk);
             rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),
                                   capOpaque->Get("mgm.manager"), capOpaqueFile);
@@ -1994,7 +2000,7 @@ XrdFstOfsFile::close ()
         {
           // use inode + checksum
           char setag[256];
-          snprintf(setag, sizeof (setag) - 1, "\"%llu:%s\"", (unsigned long long) fMd->fMd.fid << 28, fMd->fMd.checksum.c_str());
+          snprintf(setag, sizeof (setag) - 1, "\"%llu:%s\"", eos::common::FileId::FidToInode((unsigned long long) fMd->fMd.fid), fMd->fMd.checksum.c_str());
           ETag = setag;
         }
         else
@@ -2009,7 +2015,7 @@ XrdFstOfsFile::close ()
       {
         // use inode + mtime
         char setag[256];
-        snprintf(setag, sizeof (setag) - 1, "\"%llu:%llu\"", (unsigned long long) fMd->fMd.fid << 28, (unsigned long long) fMd->fMd.mtime);
+        snprintf(setag, sizeof (setag) - 1, "\"%llu:%llu\"", eos::common::FileId::FidToInode((unsigned long long) fMd->fMd.fid), (unsigned long long) fMd->fMd.mtime);
         ETag = setag;
       }
     }

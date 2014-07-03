@@ -30,6 +30,7 @@
 #include "common/StringConversion.hh"
 #include "common/SecEntity.hh"
 #include "common/StackTrace.hh"
+#include "common/http/OwnCloud.hh"
 #include "namespace/Constants.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
@@ -50,7 +51,6 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucTrace.hh"
-#include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -1948,6 +1948,11 @@ XrdMgmOfs::_mkdir (const char *path,
               attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
               attrmap.count("sys.eval.useracl"));
 
+      eos_info("acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
+               acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+               acl.HasEgroup(),
+               acl.IsMutable());
+
       if (vid.uid && !acl.IsMutable())
       {
         // immutable directory
@@ -2612,6 +2617,7 @@ XrdMgmOfs::_rem (const char *path,
       vdir += cPath.GetVersionDirectory();
       vdir += cPath.GetName();
       gOFS->PurgeVersion(vdir.c_str(), error, 0);
+      error.clear();
       errno = 0; // purge might return ENOENT if there was no version
     }
   }
@@ -2625,6 +2631,7 @@ XrdMgmOfs::_rem (const char *path,
       XrdOucString vdir;
       vdir += cPath.GetVersionDirectory();
       gOFS->PurgeVersion(vdir.c_str(), error, 0);
+      error.clear();
       errno = 0; // purge might return ENOENT if there was no version
     }
   }
@@ -3565,7 +3572,7 @@ XrdMgmOfs::_stat (const char *path,
     memset(buf, 0, sizeof (struct stat));
 
     buf->st_dev = 0xcaff;
-    buf->st_ino = fmd->getId() << 28;
+    buf->st_ino = eos::common::FileId::FidToInode(fmd->getId());
     buf->st_mode = S_IFREG;
     uint16_t flags = fmd->getFlags();
     if (!flags)
@@ -5141,6 +5148,7 @@ XrdMgmOfs::FSctl (const int cmd,
       XrdOucString adropfsid = env.Get("mgm.drop.fsid");
       XrdOucString areplication = env.Get("mgm.replication");
       XrdOucString areconstruction = env.Get("mgm.reconstruction");
+      XrdOucString aocchunk = env.Get("mgm.occhunk");
 
       bool verifychecksum = (averifychecksum == "1");
       bool commitchecksum = (acommitchecksum == "1");
@@ -5148,6 +5156,23 @@ XrdMgmOfs::FSctl (const int cmd,
       bool commitsize = (acommitsize == "1");
       bool replication = (areplication == "1");
       bool reconstruction = (areconstruction == "1");
+
+      int envlen;
+      int oc_n = 0;
+      int oc_max = 0;
+      XrdOucString oc_uuid = "";
+
+      bool occhunk =
+              eos::common::OwnCloud::GetChunkInfo(env.Env(envlen),
+                                                  oc_n,
+                                                  oc_max,
+                                                  oc_uuid);
+
+      // -----------------------------------------------------------------------
+      // indicate when the last chunk of a chunked OC upload
+      // has been committed
+      // -----------------------------------------------------------------------
+      bool ocdone = false;
 
       char* checksum = env.Get("mgm.checksum");
       char binchecksum[SHA_DIGEST_LENGTH];
@@ -5191,7 +5216,7 @@ XrdMgmOfs::FSctl (const int cmd,
 
         {
           // ---------------------------------------------------------------
-          // check that the filesystem is still allowed to accept replica's
+          // check that the file system is still allowed to accept replica's
           // ---------------------------------------------------------------
           eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
           eos::mgm::FileSystem* fs = 0;
@@ -5201,7 +5226,7 @@ XrdMgmOfs::FSctl (const int cmd,
           }
           if ((!fs) || (fs->GetConfigStatus() < eos::common::FileSystem::kDrain))
           {
-            eos_thread_err("msg=\"commit suppressed\" configstatus=%s subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu checksum=%s mtime=%s mtime.nsec=%s",
+            eos_thread_err("msg=\"commit suppressed\" configstatus=%s subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu checksum=%s mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d oc-max=%d oc-uuid=%s",
                            fs ? eos::common::FileSystem::GetConfigStatusAsString(fs->GetConfigStatus()) : "deleted",
                            spath,
                            asize,
@@ -5210,7 +5235,11 @@ XrdMgmOfs::FSctl (const int cmd,
                            dropfsid,
                            checksum,
                            amtime,
-                           amtimensec);
+                           amtimensec,
+                           occhunk,
+                           oc_n,
+                           oc_max,
+                           oc_uuid.c_str());
 
             return Emsg(epname, error, EIO, "commit file metadata - filesystem is in non-operational state [EIO]", "");
           }
@@ -5221,12 +5250,13 @@ XrdMgmOfs::FSctl (const int cmd,
 
         if (checksum)
         {
-          eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu checksum=%s mtime=%s mtime.nsec=%s", spath, asize, afid, afsid, dropfsid, checksum, amtime, amtimensec);
+          eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu checksum=%s mtime=%s mtime.nsec=%s oc-chunk=%d  oc-n=%d oc-max=%d oc-uuid=%s",
+                          spath, asize, afid, afsid, dropfsid, checksum, amtime, amtimensec, occhunk, oc_n, oc_max, oc_uuid.c_str());
         }
         else
         {
-          eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu mtime=%s mtime.nsec=%s",
-                          spath, asize, afid, afsid, dropfsid, amtime, amtimensec);
+          eos_thread_info("subcmd=commit path=%s size=%s fid=%s fsid=%s dropfsid=%llu mtime=%s mtime.nsec=%s oc-chunk=%d  oc-n=%d oc-max=%d oc-uuid=%s",
+                          spath, asize, afid, afsid, dropfsid, amtime, amtimensec, occhunk, oc_n, oc_max, oc_uuid.c_str());
         }
 
         // get the file meta data if exists
@@ -5451,6 +5481,19 @@ XrdMgmOfs::FSctl (const int cmd,
               }
             }
 
+            if (occhunk)
+            {
+              // increment the flags;
+              fmd->setFlags(fmd->getFlags() + 1);
+              eos_thread_info("subcmd=commit max-chunks=%d is-chunk=%d", oc_max, fmd->getFlags());
+              if (oc_max == fmd->getFlags())
+              {
+                // we are done with chunked upload, remove the flags counter
+                fmd->setFlags(0);
+                ocdone = true;
+              }
+            }
+
             if (commitchecksum)
             {
               if (!isUpdate)
@@ -5501,7 +5544,7 @@ XrdMgmOfs::FSctl (const int cmd,
           atomic_path.DecodeAtomicPath(isVersioning);
           std::string dname;
 
-          if ((commitsize) && (fmdname != atomic_path.GetName()))
+          if ((commitsize) && (fmdname != atomic_path.GetName()) && ((!occhunk) || (occhunk && ocdone)))
           {
             eos_thread_debug("commit: de-atomize file %s => %s", fmdname.c_str(), atomic_path.GetName());
             eos::ContainerMD* dir = 0;
