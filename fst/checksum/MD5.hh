@@ -75,12 +75,16 @@ public:
   int GetCheckSumLen() { return MD5_DIGEST_LENGTH;}
 
   void Finalize() {
-    MD5_Final(md5, &ctx);
-    md5[MD5_DIGEST_LENGTH] = 0;
+    if (!finalized) 
+    {
+      MD5_Final(md5, &ctx);
+      md5[MD5_DIGEST_LENGTH] = 0;
+      finalized=true;
+    }
   }
 
   void Reset () {
-    md5offset = 0; MD5_Init(&ctx); memset(md5,0,MD5_DIGEST_LENGTH+1);needsRecalculation=0;md5hex[0]=0;
+    md5offset = 0; MD5_Init(&ctx); memset(md5,0,MD5_DIGEST_LENGTH+1);needsRecalculation=0;md5hex[0]=0; finalized=false;
   }
 
   virtual ~MD5(){};

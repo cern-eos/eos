@@ -97,6 +97,7 @@ public:
     crc32offset = 0;
     crcsum = crc32(0L, Z_NULL, 0);
     needsRecalculation = 0;
+    finalized = false;
   }
 
   virtual

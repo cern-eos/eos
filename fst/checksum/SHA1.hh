@@ -100,8 +100,12 @@ public:
   void
   Finalize ()
   {
-    SHA1_Final(sha1, &ctx);
-    sha1[SHA_DIGEST_LENGTH] = 0;
+    if (!finalized) 
+    {
+      SHA1_Final(sha1, &ctx);
+      sha1[SHA_DIGEST_LENGTH] = 0;
+      finalized = true;
+    }
   }
 
   void
@@ -113,6 +117,7 @@ public:
     memset(sha1, 0, (SHA_DIGEST_LENGTH * 2) + 1);
     needsRecalculation = 0;
     sha1[0] = 0;
+    finalized = false;
   }
 
   virtual

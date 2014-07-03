@@ -107,6 +107,7 @@ public:
     adler = adler32(0L, Z_NULL, 0);
     needsRecalculation = false;
     maxoffset = 0;
+    finalized = false;
   }
 
   void

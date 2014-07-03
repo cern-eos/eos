@@ -189,7 +189,10 @@ Adler::ValidateAdlerMap ()
 void
 Adler::Finalize ()
 {
-  ValidateAdlerMap();
+  if (!finalized) {
+    ValidateAdlerMap();
+    finalized = true;
+  }
 }
 
 /*----------------------------------------------------------------------------*/

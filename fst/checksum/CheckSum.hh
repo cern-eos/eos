@@ -48,6 +48,7 @@ protected:
   XrdOucString Checksum;
 
   bool needsRecalculation;
+  bool finalized;
   char* ChecksumMap;
   size_t ChecksumMapSize;
   size_t ChecksumMapOpenSize;
@@ -67,6 +68,7 @@ public:
     ChecksumMap = 0;
     mNumRd = 0;
     mNumWr = 0;
+    finalized = false;
   }
 
   CheckSum (const char* name)
@@ -84,12 +86,13 @@ public:
     ChecksumMapFd = -1;
     mNumRd = 0;
     mNumWr = 0;
+    finalized = false;
   }
 
   virtual bool Add (const char* buffer, size_t length, off_t offset) = 0;
 
   virtual void
-  Finalize () { };
+  Finalize () { finalized = true;};
   virtual void Reset () = 0;
 
   virtual void
