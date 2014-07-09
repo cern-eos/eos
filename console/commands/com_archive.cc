@@ -68,7 +68,8 @@ com_archive(char* arg1)
   }
   else if ((subcmd == "put") ||
            (subcmd == "get") ||
-           (subcmd == "purge"))
+           (subcmd == "purge") ||
+           (subcmd == "delete"))
   {
     token = subtokenizer.GetToken();
 
@@ -116,7 +117,7 @@ com_archive(char* arg1)
     goto com_archive_usage;
 
   in = in_cmd.str().c_str();
-  global_retc = output_result(client_admin_command(in));
+  global_retc = output_result(client_user_command(in));
   return (0);
 
 com_archive_usage:

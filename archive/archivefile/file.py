@@ -59,13 +59,15 @@ class ArchiveFile(object):
     self.logger = logging.getLogger(type(self).__name__)
     self.entries, self.list_jobs = [], []
     self.header = {}
-    self.eos_file = eosf
     self.op = operation
+    self.is_mig = (self.op == const.PUT_OP)
     self.do_retry = (option == const.OPT_RETRY)
-    self.is_mig = (operation == const.PUT_OP)
-    self.eosf_root = self.eos_file[:-(len(self.eos_file) - self.eos_file.rfind('/') - 1)]
+    self.force = self.do_retry
+    self.efile_full = eosf
+    self.efile_url = client.URL(self.efile_full)  
+    self.efile_root = self.efile_full[:-(len(self.efile_full) - self.efile_full.rfind('/') - 1)]
     local_file = join(const.DIR[self.op], 
-                      sha256(self.eosf_root).hexdigest())
+                      sha256(self.efile_root).hexdigest())
     self.tx_file = local_file + ".tx"
     self.log_file = local_file + ".log"
     self.ps_file = local_file + ".ps"
@@ -75,21 +77,19 @@ class ArchiveFile(object):
     self.logger.addHandler(log_handler)
     self.logger.propagate = False
     self.err_entry = None
-    self.force = False
 
     
   def run(self):
     """ Run requested operation - fist call prepare.
-
     """
     self.prepare()
-    
+
     if self.op == const.PUT_OP or self.op == const.GET_OP:
       self.do_transfer()
     elif self.op == const.PURGE_OP:
-      self.do_purge() 
+      self.do_delete(False) 
     elif self.op == const.DELETE_OP:
-      pass
+      self.do_delete(True)
 
 
   def prepare(self):
@@ -97,40 +97,39 @@ class ArchiveFile(object):
     """
     if (self.op == const.PUT_OP or 
         self.op == const.GET_OP or 
-        self.op == const.PURGE_OP):
+        self.op == const.PURGE_OP or 
+        self.op == const.DELETE_OP):
       # Rename archive file in EOS to reflect the fact that we are processing it
-      eosf_rename = ''.join([self.eosf_root, const.ARCH_FN, ".", self.op, ".err"])
+      eosf_rename = ''.join([self.efile_root, const.ARCH_FN, ".", self.op, ".err"])
       rename_url = client.URL(eosf_rename)
-      eosf_url = client.URL(self.eos_file)
       frename = [rename_url.protocol, "://", rename_url.hostid, "//proc/user/?",
-                 "&mgm.cmd=file&mgm.subcmd=rename&"
-                 "mgm.path=", eosf_url.path,
-                 "&mgm.file.source=", eosf_url.path, 
+                 "&mgm.cmd=file&mgm.subcmd=rename"
+                 "&mgm.path=", self.efile_url.path,
+                 "&mgm.file.source=", self.efile_url.path, 
                  "&mgm.file.target=", rename_url.path]
       
       (status, stdout, stderr) = self.execute_command(''.join(frename))
 
       if not status:
         err_msg = "Failed to rename archive file:{0} to {1}".format(
-          self.eos_file, rename_url)
+          self.efile_full, rename_url)
         self.logger.error(err_msg)
         raise IOError(err_msg)
       else:
-        self.eos_file = eosf_rename
+        self.efile_full = eosf_rename
 
       # Copy archive file from EOS to the local disk
-      eos_fs = client.FileSystem(self.eos_file)
-      st, _ = eos_fs.copy(self.eos_file, self.tx_file, True)
+      eos_fs = client.FileSystem(self.efile_full)
+      st, _ = eos_fs.copy(self.efile_full, self.tx_file, True)
       
       if not st.ok:
         err_msg = "Failed to copy archive file: {0} to local disk at: {1}".format(
-          self.eos_file, self.tx_file)
+          self.efile_full, self.tx_file)
         self.logger.error(err_msg)
         raise IOError(err_msg)
        
       # For recovery get the first corrupted entry
-      if self.do_retry:
-        self.force = True 
+      if self.do_retry and (self.op == const.PUT_OP or self.op == const.GET_OP):
         check_ok, self.err_entry = self.check_transfer()
 
         if not check_ok:
@@ -150,63 +149,76 @@ class ArchiveFile(object):
               err_msg = "Unknown entry type: {0}".format(self.err_entry)
               self.logger.error(err_msg)
               raise IOError(err_msg)
+
+            if not status_rm.ok:
+              err_msg = "Error removing corrupted entry: {0}".format(entry_str)
+              self.logger.error(err_msg)
+              raise IOError(err_msg)
           else: 
             self.logger.debug("Stat for:{0} failed - nothing else to do".format(entry_str))
-
-          if status_stat.ok and not status_rm.ok:
-            err_msg = "Error removing corrupted entry: {0}".format(entry_str)
-            self.logger.error(err_msg)
-            raise IOError(err_msg)
         else:
           self.do_retry = False;
           raise NoErrorException()
-        
-    elif self.op == const.DELETE_OP:
-      # TODO: finish implementation
-      # - also remove the immutable flag
-      pass
 
 
-  def do_purge(self):
-    """ Purge operation.
+  def do_delete(self, from_tape):
+    """ Delete archive either from disk (purge) or from tape (delete
+    
+    Args:
+      from_tape (boolean): If true delete data from tape, otherwise from disk.
+    
+    Raises:
+      IOError
     """
+    self.logger.info("Calling do_delete with from_tape={0}".format(from_tape))
+
     with open(self.tx_file, 'r') as f:
       self.header = json.loads(f.readline())
       self.src = client.URL(self.header['src'])
       self.dst = client.URL(self.header['dst'])
-      fs = client.FileSystem(str(self.src))
+      
+      if (from_tape):
+        url = self.dst
+      else:
+        url = self.src
+
+      self.logger.info("Deleting from:{0}".format(str(url)))
+      fs = client.FileSystem(str(url))
       list_dirs = []
       
       # First remove all the files
       for line in f:
         entry = json.loads(line)
-        # Take the destination (which is a file in EOS) since is_mig = False 
-        # for purge operations
-        _, entry_str = self.get_endpoints(entry[1], self.src, self.dst)
+        # is_mig is false for both purge and deletion
+        src_entry, dst_entry = self.get_endpoints(entry[1], self.src, self.dst)
+
+        if from_tape:
+          entry_str = src_entry
+        else:
+          entry_str = dst_entry
+
         entry_url = client.URL(entry_str)
         
         if entry[0] == 'd':
-          # Don't remove the root directory
-          if entry_str != self.header['src']:
-            list_dirs.append(entry_url)
-
+          # Don't remove the root directory when purging
+          if not from_tape and entry_str == self.header['src']:
+            continue
+          list_dirs.append(entry_url)
           continue
         elif entry[0] == 'f':
           status_rm, _ = fs.rm(entry_url.path + "?eos.ruid=0&eos.rgid=0")
+          if not status_rm.ok:
+            status_stat, _ = fs.stat(entry_url.path)
+            if status_stat.ok:
+              err_msg = "Error removing file: {0}".format(entry_str)
+              self.logger.error(err_msg)
+              raise IOError(err_msg)
+            else: 
+              self.logger.warning("already deleted entry:{0}".format(entry_str))
         else:
           err_msg = "Unknown entry type: {0}".format(entry)
           self.logger.error(err_msg)
           raise IOError(err_msg)
-        
-        if not status_rm.ok:
-          status_stat = fs.stat(entry_url.path)
-
-          if status_stat.ok:
-            err_msg = "Error removing file: {0}".format(entry_str)
-            self.logger.error(err_msg)
-            raise IOError(err_msg)
-          else: 
-            self.logger.warning("entry already deleted entry:{0}".format(entry_str))
 
       # Remove the directories
       while (len(list_dirs)):
@@ -215,9 +227,22 @@ class ArchiveFile(object):
         
         if not status_rm.ok:
           err_msg = "Error removing dir: {0}".format(str(entry_url))
-          self.logger.error(err_msg)
-          raise IOError(err_msg)
-       
+          self.logger.notice(err_msg)
+          #raise IOError(err_msg)
+
+    # Remove immutable flag from the EOS subtree 
+    url = client.URL(self.efile_root)
+    fimmutable = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
+                          "eos.ruid=0&eos.rgid=0&mgm.cmd=attr&mgm.subcmd=rm&",
+                          "mgm.attr.key=sys.acl&mgm.path=", url.path])
+    
+    (status, stdout, stderr) = self.execute_command(''.join(fimmutable))
+    
+    if not status:
+      err_msg = "Error making dir:{0} mutable".format(url.path)
+      self.logger.error(err_msg)
+      raise IOError(err_msg)
+
     self.clean_transfer(True)
       
 
@@ -285,9 +310,10 @@ class ArchiveFile(object):
                           callback = meta_handler.register_mkdir(dst_url.path))
 
             if not st.ok:
-              self.logger.error("Failed to create dir: {0}".format(dst))
-              break
-
+              err_msg = "Dir={0}, failed to create put hierarchy".format(dst)
+              self.logger.error(err_msg)
+              raise IOError(err_msg)
+   
           elif entry[0] == 'f':
             # We are dealing with a file, first check that all dirs were created
             if not done_dirs:
@@ -526,12 +552,12 @@ class ArchiveFile(object):
       check_ok (bool): True if no error occured during transfer, otherwise false.
     """
     if not check_ok:
-      eosf_rename = ''.join([self.eosf_root, const.ARCH_FN, ".", self.op, ".err"])
+      eosf_rename = ''.join([self.efile_root, const.ARCH_FN, ".", self.op, ".err"])
     else:
-      eosf_rename = ''.join([self.eosf_root, const.ARCH_FN, ".", self.op, ".done"])
+      eosf_rename = ''.join([self.efile_root, const.ARCH_FN, ".", self.op, ".done"])
 
     # Rename arch file in EOS to reflect the status
-    old_url = client.URL(self.eos_file)
+    old_url = client.URL(self.efile_full)
     new_url = client.URL(eosf_rename)
     
     frename = [old_url.protocol, "://", old_url.hostid, "//proc/user/?",
@@ -543,29 +569,56 @@ class ArchiveFile(object):
     (status, stdout, stderr) = self.execute_command(''.join(frename))
     
     if not status:
-      err_msg = "Failed to rename: {0} to {1}".format(self.eos_file, eosf_rename)
+      err_msg = "Failed to rename: {0} to {1}".format(self.efile_full, eosf_rename)
       self.logger.error(err_msg)
       # TODO: raise IOError
+    else:
+      # If this is a delete operation then we need to remove also the archive file
+      if self.op == const.DELETE_OP:
+        fs = client.FileSystem(self.efile_full)
+        status_rm, _ = fs.rm(new_url.path)
+          
+        if not status_rm.ok:
+          warn_msg = "Failed to delete archive:{0}".format(new_url.path)
+          self.logger.warning(warn_msg)
 
-    eos_log = "".join([self.eosf_root, const.ARCH_FN, ".log"]) # EOS location for archive log file
-    cp_client = client.FileSystem(self.eos_file)
-    # TODO: save the log file with user ownership
+    # Copy local log file back to EOS directory and set the ownership to the 
+    # identity of the client who triggered the archive 
+    try:
+      client_uid = self.header["uid"]
+      client_gid = self.header["gid"]
+    except KeyError as e:
+      client_uid = "0"
+      client_gid = "0"
+
+    dir_root = self.efile_root[self.efile_root.rfind('//') + 1 :]
+    eos_log = "".join(["root://localhost/", dir_root, const.ARCH_FN, 
+                       ".log?eos.ruid=0&eos.rgid=0"]) 
+
+    self.logger.debug("Copy log:{0} to {1}".format(self.log_file, eos_log))
+    cp_client = client.FileSystem(self.efile_full)
     st, _ = cp_client.copy(self.log_file, eos_log, force = True)
     
     if not st.ok:
       self.logger.error("Failed to copy log file: {0} to EOS at:{1}".format(
           self.log_file, eos_log))
 
+    fsetowner = ["root://localhost//proc/user/?eos.ruid=0&eos.rgid=0&",
+                 "mgm.cmd=chown&mgm.path=", dir_root, const.ARCH_FN, ".log", 
+                 "&mgm.chown.owner=", client_uid, ":", client_gid]
+
+    (status, stdout, stderr) = self.execute_command(''.join(fsetowner))
+
     try:
       os.remove(self.tx_file)
     except OSError as e:
       pass 
-
+    '''
     try:
       os.remove(self.log_file)
     except OSError as e:
       pass
-
+    '''
     try:
       os.remove(self.ps_file)
     except OSError as e:

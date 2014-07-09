@@ -31,14 +31,14 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-static const std::string ARCH_INIT = "archive.init";
-static const std::string ARCH_PUT_DONE = "archive.put.done";
-static const std::string ARCH_PUT_ERR = "archive.put.err";
-static const std::string ARCH_GET_DONE = "archive.get.done";
-static const std::string ARCH_GET_ERR = "archive.get.err";
-static const std::string ARCH_PURGE_DONE = "archive.purge.done";
-static const std::string ARCH_PURGE_ERR = "archive.purge.err";
-static const std::string ARCH_LOG = "archive.log";
+static const std::string ARCH_INIT = ".archive.init";
+static const std::string ARCH_PUT_DONE = ".archive.put.done";
+static const std::string ARCH_PUT_ERR = ".archive.put.err";
+static const std::string ARCH_GET_DONE = ".archive.get.done";
+static const std::string ARCH_GET_ERR = ".archive.get.err";
+static const std::string ARCH_PURGE_DONE = ".archive.purge.done";
+static const std::string ARCH_PURGE_ERR = ".archive.purge.err";
+static const std::string ARCH_LOG = ".archive.log";
 
 
 //------------------------------------------------------------------------------
@@ -97,6 +97,27 @@ ProcCommand::Archive()
       return SFS_OK;
     }
 
+    // Create vector containing the paths to all the possible special files
+    std::ostringstream oss;
+    std::vector<std::string> vect_files; 
+    std::vector<std::string> vect_paths;
+    vect_files.push_back(ARCH_INIT); 
+    vect_files.push_back(ARCH_PUT_DONE);
+    vect_files.push_back(ARCH_PUT_ERR); 
+    vect_files.push_back(ARCH_GET_DONE);
+    vect_files.push_back(ARCH_GET_ERR); 
+    vect_files.push_back(ARCH_PURGE_DONE);
+    vect_files.push_back(ARCH_PURGE_ERR);
+    vect_files.push_back(ARCH_LOG);
+    
+    for (auto it = vect_files.begin(); it != vect_files.end(); ++it)
+    {
+      oss.str("");
+      oss.clear();
+      oss << spath.c_str() << "/" << *it;
+      vect_paths.push_back(oss.str());
+    }
+    
     if (mSubCmd == "create")
     {
       if (!pOpaque->Get("mgm.archive.dst"))
@@ -106,35 +127,15 @@ ProcCommand::Archive()
       }
       else
       {
-        // Check that the directory is not already archived
-        std::ostringstream oss;
-        std::vector<std::string> vect_files; 
-        std::vector<std::string> vect_paths;
-        vect_files.push_back(ARCH_INIT); 
-        vect_files.push_back(ARCH_PUT_DONE);
-        vect_files.push_back(ARCH_PUT_ERR); 
-        vect_files.push_back(ARCH_GET_DONE);
-        vect_files.push_back(ARCH_GET_ERR); 
-        vect_files.push_back(ARCH_PURGE_DONE);
-        vect_files.push_back(ARCH_PURGE_ERR);
-        vect_files.push_back(ARCH_LOG);
-        
-        // Create all possible file paths
-        for (auto it = vect_files.begin(); it != vect_files.end(); ++it)
-        {
-          oss.str("");
-          oss.clear();
-          oss << spath.c_str() << "/" << *it;
-          vect_paths.push_back(oss.str());
-        }
-
         // Check that none of the "special" files exists
         for (auto it = vect_paths.begin(); it != vect_paths.end(); ++it)
         {
           if (!gOFS->stat(it->c_str(), &statinfo, *mError))
           {
-            stdErr = "error: directory is already archived ";
+            stdErr = "error: directory ";
             stdErr += spath.c_str();
+            stdErr += " contains an archive related file e.g: .archive.* ";
+            stdErr +=  "- remove and try again";
             retc = EINVAL;
             break;
           }
@@ -242,15 +243,44 @@ ProcCommand::Archive()
                << "\"opt\": " << "\"" << option  << "\""
                << "}";
     }
-    /*
     else if (mSubCmd == "delete")
     {
-      cmd_json << "{ \"cmd\": " << "\"" << mSubCmd.c_str() << "\", "
-               << "\"src\": " << "\"" << dir_url << "\", "
-               << "\"opt\": " << " \"\"" 
-               << " }";
+      if (pVid->uid == 0 && pVid->prot == "unix")
+      {
+        bool found = false;
+        std::string arch_fn = "";
+
+        // Check that archive exists in the current directory
+        for (auto it = vect_paths.begin(); it != vect_paths.end(); ++it)
+        {
+          if (!gOFS->stat(it->c_str(), &statinfo, *mError))
+          {
+            arch_fn = *it;
+            found = true;
+            break;
+          }
+        }
+
+        if (found)
+        {
+          cmd_json << "{ \"cmd\": " << "\"" << mSubCmd.c_str() << "\", "
+                   << "\"src\": " << "\""  << "root://"
+                   << gOFS->ManagerId.c_str() << "/" << arch_fn << "\", "
+                   << "\"opt\": " << " \"\"" 
+                   << " }";
+        }
+        else
+        {
+          stdErr = "error: current directory is not archived";
+          retc = EINVAL;
+        }
+      }
+      else
+      {
+        stdErr = "error: permission denied, only admin can delete an archive";
+        retc = EPERM;
+      }
     }
-    */
     else
     {
       stdErr = "error: operation not supported, needs to be one of the following: "
@@ -305,8 +335,9 @@ ProcCommand::Archive()
           std::istringstream iss(msg_str.c_str());
           std::string status, line, response;
           iss >> status;
-          
-          while (getline(iss, line))
+
+          // Discard whitespaces from the beginning
+          while (getline(iss >> std::ws, line))
           {
             response += line;
 
@@ -378,7 +409,9 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
            << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
            << "\"xstype\", \"xs\"], "
            << "\"num_dirs\": " << num_dirs << ", "
-           << "\"num_files\": " << num_files << "}" << std::endl; 
+           << "\"num_files\": " << num_files << ", "
+           << "\"uid\": \"" << pVid->uid << "\", "
+           << "\"gid\": \"" << pVid->gid << "\" }" << std::endl; 
 
   // Add directories info
   if (ArchiveAddEntries(arch_dir, arch_ofs, false))
@@ -405,6 +438,7 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
   copy_job.source.SetPath(arch_fn.c_str());
   copy_job.target.SetProtocol("root");
   copy_job.target.SetHostName("localhost");
+  copy_job.target.SetUserName("root");
   std::string dst_path = arch_dir.c_str();
   dst_path += "/"; 
   dst_path += ARCH_INIT;
@@ -437,7 +471,9 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
   unlink(arch_fn.c_str());
 
   // Makte the EOS subtree immutable e.g.: sys.acl=z:i
-  if ( gOFS->_attr_set(arch_dir.c_str(), *mError, *pVid,
+  eos::common::Mapping::VirtualIdentity_t root_ident;
+  eos::common::Mapping::Root(root_ident);
+  if ( gOFS->_attr_set(arch_dir.c_str(), *mError, root_ident,
                        (const char*) 0, "sys.acl", "z:i"))
   {
     stdErr = "error: making EOS subtree immutable, path=";
