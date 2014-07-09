@@ -53,14 +53,16 @@ const.LIST_OP = 'list'
 const.PURGE_OP = 'purge'
 const.DELETE_OP = 'delete'
 const.OPT_RETRY = 'retry'
-const.ARCH_FN = "archive"
+const.ARCH_FN = ".archive"
 const.LOG_DIR = "/var/log/eos/archive/"
-const.DIR = { const.GET_OP :   "/tmp/put/",
-              const.PUT_OP : "/tmp/get/",
-              const.PURGE_OP :   "/tmp/purge/"}
+const.DIR = { const.GET_OP :   "/tmp/eos_archive_get/",
+              const.PUT_OP :   "/tmp/eos_archive_put/",
+              const.PURGE_OP : "/tmp/eos_archive_purge/",
+              const.DELETE_OP: "/tmp/eos_archive_delete/" }
 const.MAX_PENDING = 10 # max number of requests allowed in pending
 const.IPC_FILE = "/tmp/archivebackend.ipc"
-const.LOG_FORMAT = '%(asctime)-15s %(name)-10s %(levelname)s %(message)s'
+const.LOG_FORMAT = '%(asctime)-15s %(name)s[%(process)d] %(filename)s:%(lineno)d: \
+LVL=%(levelname)s %(message)s'
 
 # TODO: maybe parse the xrd.cf.mgm to get the configuration info
 
@@ -80,18 +82,18 @@ def do_transfer(eos_file, op, opt):
     arch.run()
   except IOError as e:
     logger = logging.getLogger(__name__)
-    logger.error(e)
+    arch.logger.error(e)
     arch.clean_transfer(False)
     exit(EIO)
   except NoErrorException as e:
     arch.clean_transfer(True)
   except Exception as e:
-    logger = logging.getLogger(__name__)
-    logger.error(e)
+    logger = logging.getLogger("Dispatcher")
+    arch.logger.error(e)
     arch.clean_transfer(False)
     exit(EINVAL)
-
-
+  
+  
 class Dispatcher(object):
   """ Dispatcher daemon responsible for receiving requests from the clients
   and then spawning the proper executing process to get, put or purge.
@@ -111,14 +113,15 @@ class Dispatcher(object):
     rotate_handler.setFormatter(formatter)
     self.logger.addHandler(rotate_handler)
     self.logger.propagate = False
-
-    self.proc = { const.GET_OP :  {},
-                  const.PUT_OP: {},
-                  const.PURGE_OP:   {} }
-    self.pending = { const.GET_OP:   {},
-                     const.PUT_OP: {},
-                     const.PURGE_OP:   {} }
-
+    self.proc = { const.GET_OP :   {},
+                  const.PUT_OP:    {},
+                  const.PURGE_OP:  {},
+                  const.DELETE_OP: {} }
+    self.pending = { const.GET_OP:    {},
+                     const.PUT_OP:    {},
+                     const.PURGE_OP:  {},
+                     const.DELETE_OP: {} }
+    
 
   def run(self):
     """ Server entry point which is responsible for spawning worker proceesses
@@ -184,10 +187,12 @@ class Dispatcher(object):
 
         if (op == const.PUT_OP or
             op == const.GET_OP or
-            op == const.PURGE_OP):
+            op == const.PURGE_OP or
+            op == const.DELETE_OP):
           src, opt = req_json['src'], req_json['opt']
           root_src = src[:-(len(src) - src.rfind('/') - 1)]
           job_uuid = sha256(root_src).hexdigest()
+          self.logger.info("Add job: {0}".format(job_uuid))
 
           if job_uuid in self.proc[op]:
             self.logger.error("Transfer with same signature already exists");
@@ -207,7 +212,6 @@ class Dispatcher(object):
         elif op == const.LIST_OP:
           reply = self.do_list(req_json)
           socket.send_string(reply)
-
         else:
           # Operation not supported reply to client with error
           self.logger.debug("ERROR operation not supported: {0}".format(msg))
@@ -306,10 +310,9 @@ class Dispatcher(object):
 
 def main():
   logging.basicConfig(level=logging.DEBUG, format=const.LOG_FORMAT)
-  logger = logging.getLogger(__name__)
 
   # Create the local directory structure
-  for op in [const.PUT_OP, const.GET_OP, const.PURGE_OP]:
+  for op in [const.PUT_OP, const.GET_OP, const.PURGE_OP, const.DELETE_OP]:
     try:
       mkdir(const.DIR[op])
     except OSError as e:
