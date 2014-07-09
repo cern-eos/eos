@@ -951,17 +951,43 @@ XrdMgmOfsFile::open (const char *inpath,
     return Emsg(epname, error, EINVAL, "get quota space ", space.c_str());
   }
 
-  unsigned long long external_mtime = 0;
-  unsigned long long external_ctime = 0;
+  unsigned long long ext_mtime_sec = 0;
+  unsigned long long ext_mtime_nsec = 0;
+  unsigned long long ext_ctime_sec = 0;
+  unsigned long long ext_ctime_nsec = 0;
 
   if (openOpaque->Get("eos.ctime"))
   {
-    external_ctime = strtoull(openOpaque->Get("eos.ctime"), 0, 10);
+    std::string str_ctime = openOpaque->Get("eos.ctime");
+    size_t pos = str_ctime.find('.');
+
+    if (pos == std::string::npos)
+    {
+      ext_ctime_sec = strtoull(str_ctime.c_str(), 0, 10);
+      ext_ctime_nsec = 0;
+    }
+    else
+    {
+      ext_ctime_sec = strtoull(str_ctime.substr(0, pos).c_str(), 0, 10);
+      ext_ctime_nsec = strtoull(str_ctime.substr(pos + 1).c_str(), 0, 10);
+    }
   }
 
   if (openOpaque->Get("eos.mtime"))
   {
-    external_mtime = strtoull(openOpaque->Get("eos.mtime"), 0, 10);
+    std::string str_mtime = openOpaque->Get("eos.mtime");
+    size_t pos = str_mtime.find('.');
+
+    if (pos == std::string::npos)
+    {
+      ext_mtime_sec = strtoull(str_mtime.c_str(), 0, 10);
+      ext_mtime_nsec = 0;
+    }
+    else
+    {
+      ext_mtime_sec = strtoull(str_mtime.substr(0, pos).c_str(), 0, 10);
+      ext_mtime_nsec = strtoull(str_mtime.substr(pos + 1).c_str(), 0, 10);
+    }
   }
 
   if (isCreation || ((open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation())))
@@ -991,18 +1017,18 @@ XrdMgmOfsFile::open (const char *inpath,
       // -------------------------------------------------------------------------
       // if specified set an external modification/creation time
       // -------------------------------------------------------------------------
-      if (external_mtime)
+      if (ext_mtime_sec)
       {
         eos::FileMD::ctime_t mtime;
-        mtime.tv_sec = external_mtime;
-        mtime.tv_nsec = 0;
+        mtime.tv_sec = ext_mtime_sec;
+        mtime.tv_nsec = ext_mtime_nsec;
         fmd->setMTime(mtime);
       }
-      if (external_ctime)
+      if (ext_ctime_sec)
       {
         eos::FileMD::ctime_t ctime;
-        ctime.tv_sec = external_ctime;
-        ctime.tv_nsec = 0;
+        ctime.tv_sec = ext_ctime_sec;
+        ctime.tv_nsec = ext_ctime_nsec;
         fmd->setCTime(ctime);
       }
       try
