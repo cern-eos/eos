@@ -996,6 +996,7 @@ main (int argc, char* argv[])
                     (eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kRaid6))
               {
                 nsrc = eos::common::LayoutId::GetStripeNumber(layout) + 1;
+                nparitystripes = eos::common::LayoutId::GetRedundancyStripeNumber(layout);
                 isRaidTransfer = true;
                 isSrcRaid = true;
                 src_location.clear();
