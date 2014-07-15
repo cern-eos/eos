@@ -126,6 +126,7 @@ private:
   //! @param arch_dir directory for which the archive file is created
   //! @param dst_url archive destination URL (i.e. CASTOR location) 
   //!
+  //! @return void, it sets the global retc in case of error
   //----------------------------------------------------------------------------
   void ArchiveCreate(const XrdOucString& arch_dir,
                      const XrdOucString& dst_url);
@@ -139,7 +140,6 @@ private:
   //! @param num_files (out) number of files 
   //!
   //! @return 0 if successful, otherwise errno
-  //!
   //----------------------------------------------------------------------------
   int ArchiveGetNumEntries(const XrdOucString& arch_dir,
                            int& num_dirs,
@@ -158,17 +158,28 @@ private:
   //!                directories
   //!
   //! @return 0 if successful, otherwise errno
-  //!
   //----------------------------------------------------------------------------
   int ArchiveAddEntries(const XrdOucString& arch_dir, 
                         std::ofstream& arch_ofs, 
                         bool is_file);
 
+
+  //----------------------------------------------------------------------------
+  //! Make EOS sub-tree immutable/mutable by adding/removing the sys.acl=z:i 
+  //! from all of the directories in the subtree.
+  //!
+  //! @param arch_dir EOS directory
+  //! 
+  //! @return Void, it sets the global retc in case of error
+  //----------------------------------------------------------------------------
+  void MakeSubTreeImmutable(const XrdOucString& arch_dir);
+  
+
 public:
 
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! The open function calls the requested cmd/subcmd and builds the result
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   int open (const char* path,
             const char* info,
             eos::common::Mapping::VirtualIdentity &vid,
