@@ -657,8 +657,8 @@ FsView::UnRegisterNode (const char* nodename)
     if (!hasfs)
     {
       // we have to explicitly remove the node from the view here because no fs was removed
-      retc = (mNodeView.erase(nodename) ? true : false);
       delete mNodeView[nodename];
+      retc = (mNodeView.erase(nodename) ? true : false);
     }
   }
 
