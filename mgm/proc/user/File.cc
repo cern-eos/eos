@@ -1774,29 +1774,36 @@ ProcCommand::File ()
         return SFS_OK;
       }
 
-      XrdOucString versionedpath;
-      // make a version and third-party copy it
-      if (gOFS->Version((eos::common::FileId::fileid_t)buf.st_ino >> 28, *mError, *pVid, maxversion, &versionedpath))
-      {
-        stdErr += "error: unable to create a version of path=";
-        stdErr += spath.c_str();
-        stdErr += "\n";
-        stdErr += "error: ";
-        stdErr += mError->getErrText();
-        retc = mError->getErrInfo();
-        return SFS_OK;
-      }
-
       ProcCommand Cmd;
-      // third party copy the file
+      // third party copy the file to a temporary name
+      
+      eos::common::Path atomicPath(spath.c_str());
+
       XrdOucString info;
       info += "&mgm.cmd=file&mgm.subcmd=copy&mgm.file.target=";
-      info += spath.c_str();
+      info += atomicPath.GetAtomicPath(false);
       info += "&mgm.path=";
-      info += versionedpath;
+      info += spath.c_str();
       retc = Cmd.open("/proc/user", info.c_str(), *pVid, mError);
       Cmd.AddOutput(stdOut, stdErr);
       Cmd.close();
+ 
+      if ( (!Cmd.GetRetc()) && (!gOFS->_stat(atomicPath.GetAtomicPath(false), &buf, *mError, *pVid, "")) )
+      {
+	// everything worked well
+	XrdOucString versionedpath;
+	// make a version
+	if (gOFS->Version((eos::common::FileId::fileid_t)buf.st_ino >> 28, *mError, *pVid, maxversion, &versionedpath))
+	{
+	  stdErr += "error: unable to create a version of path=";
+	  stdErr += spath.c_str();
+	  stdErr += "\n";
+	  stdErr += "error: ";
+	  stdErr += mError->getErrText();
+	  retc = mError->getErrInfo();
+	  return SFS_OK;
+	}
+      }
     }
   }
   return SFS_OK;

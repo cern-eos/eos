@@ -9073,6 +9073,8 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
       fmd = gOFS->eosFileService->getFileMD(fid);
       path = gOFS->eosView->getUri(fmd).c_str();
       eos::common::Path cPath(path.c_str());
+      bool noversion;
+      cPath.DecodeAtomicPath(noversion);
       vpath = cPath.GetParentPath();
       bname = cPath.GetName();
       fidvid.uid = fmd->getCUid();
