@@ -794,6 +794,7 @@ XrdMgmOfsFile::open (const char *inpath,
             fmd = gOFS->eosView->createFile(creation_path.c_str(), vid.uid, vid.gid);
             fileId = fmd->getId();
             fmdlid = fmd->getLayoutId();
+            fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
             cid = fmd->getContainerId();
           }
           catch (eos::MDException &e)

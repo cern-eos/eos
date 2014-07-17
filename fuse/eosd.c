@@ -1402,7 +1402,7 @@ eosfs_ll_create(fuse_req_t req,
     }
 
     res = xrd_open (fullpath, O_CREAT | O_EXCL | O_RDWR,
-                    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
+                    mode,
                     req->ctx.uid,
                     req->ctx.gid,
                     req->ctx.pid,
