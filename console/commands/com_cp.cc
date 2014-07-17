@@ -122,7 +122,6 @@ com_cp (char* argin)
   unsigned long long copiedsize = 0;
   struct timeval tv1, tv2;
   struct timezone tz;
-
   // check if this is an 'async' command
   if ((sarg.find("--async")) != STR_NPOS)
   {
@@ -268,9 +267,13 @@ com_cp (char* argin)
     }
   }
 
+  if (target == ".")
+  {
+    target = "./";
+  }
+
   if ((!target.length()))
     return com_cp_usage();
-
   if ((source_list.size() > 1) && (!target.endswith("/")))
     return com_cp_usage();
 
@@ -483,6 +486,21 @@ com_cp (char* argin)
   {
     if ((target.find(":/") == STR_NPOS) && (!target.beginswith("as3:")))
     {
+      if (!target.beginswith("/")) 
+      {
+	// assume this is a relative local path
+	target.insert("/",0);
+	target.insert(getenv("PWD"),0);
+
+	struct stat buf;
+	if (!stat(target.c_str(), &buf)) 
+	{
+	  if (S_ISDIR(buf.st_mode))
+	    if (!target.endswith("/"))
+	      target+= "/";
+	}
+      }
+      fprintf(stderr,"target %s\n", target.c_str());
       if (target.endswith("/"))
       {
         XrdOucString mktarget = "mkdir --mode 755 -p ";
