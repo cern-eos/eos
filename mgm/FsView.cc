@@ -789,8 +789,8 @@ FsView::UnRegisterGroup (const char* groupname)
         mSpaceGroupView[spacename].erase(mGroupView[groupname]);
       }
       // we have to explicitly remove the group from the view here because no fs was removed
-      retc = (mGroupView.erase(groupname) ? true : false);
       delete mGroupView[groupname];
+      retc = (mGroupView.erase(groupname) ? true : false);
       eos::common::StringConversion::SplitByPoint(groupname, spacename, index);
     }
   }
