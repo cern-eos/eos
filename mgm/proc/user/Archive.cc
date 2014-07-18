@@ -99,6 +99,10 @@ ProcCommand::Archive()
       return SFS_OK;
     }
 
+    // Used for creating/deleting a file in /eos/.../proc/archive with the same
+    // name as the inode value. Used to provide archive fast find functionality.
+    int fid = statinfo.st_ino;
+
     // Create vector containing the paths to all the possible special files
     std::ostringstream oss;
     std::vector<std::string> vect_files;
@@ -133,10 +137,10 @@ ProcCommand::Archive()
       {
         XrdOucString dst = pOpaque->Get("mgm.archive.dst");
         MakeSubTreeImmutable(spath, vect_files);
-        
+
         if (!retc)
-          ArchiveCreate(spath, dst);
-        
+          ArchiveCreate(spath, dst, fid);
+
         return SFS_OK;
       }
     }
@@ -269,6 +273,18 @@ ProcCommand::Archive()
               stdErr = "error: current directory is not archived";
               retc = EINVAL;
             }
+            else
+            {
+              // Delete the entry in /eos/.../proc/archive/
+              std::ostringstream proc_fn;
+              proc_fn << gOFS->MgmProcArchivePath << '/' << fid;
+
+              if (gOFS->_rem(proc_fn.str().c_str(), *mError, *pVid))
+              {
+                stdErr = "error: unable to remove archive id from /proc fast find";
+                retc = errno;
+              }
+            }
           }
           else
           {
@@ -382,7 +398,7 @@ ProcCommand::Archive()
 //------------------------------------------------------------------------------
 void
 ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
-                           const XrdOucString& dst_url)
+                           const XrdOucString& dst_url, int fid)
 {
   int num_dirs = 0;
   int num_files = 0;
@@ -472,6 +488,21 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
 
   // Remove local archive file
   unlink(arch_fn.c_str());
+
+  // Add the dir inode to /proc/archive/ for fast find
+  if (!retc)
+  {
+    eos::common::Mapping::VirtualIdentity_t root_ident;
+    eos::common::Mapping::Root(root_ident);
+    std::ostringstream oss;
+    oss << gOFS->MgmProcArchivePath << "/" << fid;
+
+    if (gOFS->_touch(oss.str().c_str(), *mError, root_ident))
+    {
+      stdOut = "warning: failed to create file in /eos/.../proc/archive/";
+      return;
+    }
+  }
 }
 
 
@@ -487,7 +518,7 @@ ProcCommand::MakeSubTreeImmutable(const XrdOucString& arch_dir,
   std::map< std::string, std::set<std::string> > found;
 
   // Check for already archived directories in the current sub-tree
-  if (gOFS->_find(arch_dir.c_str(), *mError, stdErr, *pVid, found, 
+  if (gOFS->_find(arch_dir.c_str(), *mError, stdErr, *pVid, found,
                  (const char*) 0, (const char*) 0))
   {
     eos_err("dir=%s list all err=%s", arch_dir.c_str(), stdErr.c_str());

@@ -124,12 +124,14 @@ private:
   //! arch_dir location. If not it sets the retc and stdErr string accordingly.
   //!
   //! @param arch_dir directory for which the archive file is created
-  //! @param dst_url archive destination URL (i.e. CASTOR location) 
+  //! @param dst_url archive destination URL (i.e. CASTOR location)
+  //! @param fid inode number of the archive root directory used for fast find
+  //!        functionality of archived directories through .../proc/archive/
   //!
   //! @return void, it sets the global retc in case of error
   //----------------------------------------------------------------------------
   void ArchiveCreate(const XrdOucString& arch_dir,
-                     const XrdOucString& dst_url);
+                     const XrdOucString& dst_url, int fid);
 
 
   //----------------------------------------------------------------------------

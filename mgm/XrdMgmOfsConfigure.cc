@@ -330,7 +330,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
 
   UTF8 = getenv("EOS_UTF8")?true:false;
-  
+
   Shutdown = false;
 
   setenv("XrdSecPROTOCOL", "sss", 1);
@@ -360,7 +360,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   {
     MgmOfsVstBrokerUrl = "";
   }
-  
+
   // cleanup the query output cache directory
   XrdOucString systemline = "rm -rf /tmp/eos.mgm/* >& /dev/null &";
   int rrc = system(systemline.c_str());
@@ -379,7 +379,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   if (getenv("XRDDEBUG")) gMgmOfsTrace.What = TRACE_MOST | TRACE_debug;
 
   {
-    // borrowed from XrdOfs 
+    // borrowed from XrdOfs
     unsigned int myIPaddr = 0;
 
     char buff[256], *bp;
@@ -666,7 +666,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
             Eroute.Say("=====> mgmofs.errorlog   : true");
           else
             Eroute.Say("=====> mgmofs.errorlog   : false");
-	}
+        }
 
         if (!strcmp("configdir", var))
         {
@@ -1375,7 +1375,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   eos::common::GlobalConfig::gConfig.PrintBroadCastMap(out);
   fprintf(stderr, "%s", out.c_str());
 
-  // eventuall autoload a configuration 
+  // eventuall autoload a configuration
   if (getenv("EOS_AUTOLOAD_CONFIG"))
   {
     MgmConfigAutoLoad = getenv("EOS_AUTOLOAD_CONFIG");
@@ -1390,10 +1390,13 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   }
   MgmProcPath += subpath;
   MgmProcPath += "/proc";
+  // This path is used for temporary output files for layout conversions
   MgmProcConversionPath = MgmProcPath;
-  MgmProcConversionPath += "/conversion"; // this path is used for temporary output files for layout conversions
+  MgmProcConversionPath += "/conversion";
   MgmProcMasterPath = MgmProcPath;
   MgmProcMasterPath += "/master";
+  MgmProcArchivePath = MgmProcPath;
+  MgmProcArchivePath += "/archive";
 
   Recycle::gRecyclingPrefix.insert(0, MgmProcPath.c_str());
 
@@ -1566,6 +1569,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       }
     }
 
+    // Create output directory layout conversions
     try
     {
       eosmd = gOFS->eosView->getContainer(MgmProcConversionPath.c_str());
@@ -1595,6 +1599,35 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       }
     }
 
+    // Create directory for fast find functionality of archived dirs
+    try
+    {
+      eosmd = gOFS->eosView->getContainer(MgmProcArchivePath.c_str());
+      eosmd->setMode(S_IFDIR | S_IRWXU);
+      eosmd->setCUid(2); // conversion directory is owned by daemon
+      gOFS->eosView->updateContainerStore(eosmd);
+    }
+    catch (eos::MDException &e)
+    {
+      eosmd = 0;
+    }
+
+    if (!eosmd)
+    {
+      try
+      {
+        eosmd = gOFS->eosView->createContainer(MgmProcArchivePath.c_str(), true);
+        // Set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        gOFS->eosView->updateContainerStore(eosmd);
+      }
+      catch (eos::MDException &e)
+      {
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/archive directory mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/archive directory mode to 700");
+        return 1;
+      }
+    }
   }
   //-------------------------------------------
 
@@ -1664,7 +1697,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   /*
   if (MgmConfigAutoLoad.length()) {
     eos_info("autoload config=%s", MgmConfigAutoLoad.c_str());
-    XrdOucString configloader = "mgm.config.file="; 
+    XrdOucString configloader = "mgm.config.file=";
     configloader += MgmConfigAutoLoad;
     XrdOucEnv configenv(configloader.c_str());
     XrdOucString stdErr="";
@@ -1767,7 +1800,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     eos_warning("msg=\"cannot start httpd darmon\"");
   }
 
-  // start the Egroup fetching 
+  // start the Egroup fetching
   if (!gOFS->EgroupRefresh.Start())
   {
     eos_warning("msg=\"cannot start egroup thread\"");
@@ -1932,7 +1965,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     (void) signal(SIGTERM, xrdmgmofs_shutdown);
     (void) signal(SIGQUIT, xrdmgmofs_shutdown);
 
-    // add SEGV handler   
+    // add SEGV handler
     if (!getenv("EOS_NO_STACKTRACE"))
     {
       (void) signal(SIGSEGV, xrdmgmofs_stacktrace);
