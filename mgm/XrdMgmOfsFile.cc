@@ -705,9 +705,7 @@ XrdMgmOfsFile::open (const char *inpath,
         {
           eos::common::Path cPath(path);
           XrdOucString vdir;
-          vdir += cPath.GetParentPath();
-          vdir += "/.sys.v#.";
-          vdir += cPath.GetName();
+          vdir += cPath.GetVersionDirectory();
           // atomic uploads need just to purge version to max-1, the version is created on commit
           // purge might return an error if the file was not yet existing/versioned
           gOFS->PurgeVersion(vdir.c_str(), error, versioning - 1);

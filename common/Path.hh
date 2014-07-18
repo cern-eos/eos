@@ -23,10 +23,10 @@
 
 /**
  * @file   Path.hh
- * 
+ *
  * @brief  Convenience Class to deal with path names.
- * 
- * 
+ *
+ *
  */
 
 #ifndef __EOSCOMMON_PATH__
@@ -45,6 +45,8 @@
 #include <errno.h>
 #include <uuid/uuid.h>
 
+#define EOS_COMMON_PATH_VERSION_PREFIX "/.sys.v#."
+
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -59,15 +61,19 @@ private:
   XrdOucString parentPath; //< path of the parent directory
   XrdOucString lastPath; //< the base name/file name
   XrdOucString atomicPath; //< temporary version of a path e.g. basename => .basename.<uuid>
-  std::vector<std::string> subPath; //< a vector with all partial sub-paths
-
+  XrdOucString versionDir; //< directory name storing versions for a file path
+  std::vector<std::string> subPath; //< a vector with all partial sub-path
 public:
+
+
+
   // ---------------------------------------------------------------------------
   //! Return basename/filename
   // ---------------------------------------------------------------------------
 
   const char*
-  GetName () {
+  GetName ()
+  {
     return lastPath.c_str();
   }
 
@@ -76,7 +82,8 @@ public:
   // ---------------------------------------------------------------------------
 
   const char*
-  GetPath () {
+  GetPath ()
+  {
     return fullPath.c_str();
   }
 
@@ -85,24 +92,45 @@ public:
   // ---------------------------------------------------------------------------
 
   const char*
-  GetParentPath () {
+  GetParentPath ()
+  {
     return parentPath.c_str();
   }
+
+  // ---------------------------------------------------------------------------
+  //! Return version directory path
+  // ---------------------------------------------------------------------------
+
+  const char*
+  GetVersionDirectory ()
+  {
+    versionDir = GetParentPath();
+    versionDir += EOS_COMMON_PATH_VERSION_PREFIX;
+    versionDir += GetName();
+    while (versionDir.replace("//", "/"))
+    {
+    }
+    return versionDir.c_str();
+  }
+
 
   // ---------------------------------------------------------------------------
   //! Return full path
   // ---------------------------------------------------------------------------
 
   XrdOucString&
-  GetFullPath () {
+  GetFullPath ()
+  {
     return fullPath;
   }
 
   // ---------------------------------------------------------------------------
   //! Return atomic path
   // ---------------------------------------------------------------------------
+
   const char*
-  GetAtomicPath (bool versioning) {
+  GetAtomicPath (bool versioning)
+  {
     if (atomicPath.length())
       return atomicPath.c_str();
     else
@@ -112,7 +140,9 @@ public:
   // ---------------------------------------------------------------------------
   //! Return a unique atomic version of that path
   // ---------------------------------------------------------------------------
-  const char* MakeAtomicPath (bool versioning) {
+
+  const char* MakeAtomicPath (bool versioning)
+  {
     // create from <dirname>/<basename> => <dirname>/.[.]<basename>.<uuid>
     char suuid[40];
     uuid_t uuid;
@@ -131,23 +161,25 @@ public:
   // ---------------------------------------------------------------------------
   //! Decode an atomic path
   // ---------------------------------------------------------------------------
-  const char* DecodeAtomicPath (bool &isVersioning) {
+
+  const char* DecodeAtomicPath (bool &isVersioning)
+  {
     // create from <dirname>/.[.]<basename>.<uuid> => <dirname>/<basename>
-    if (lastPath.beginswith(".") && 
-	(lastPath.length() > 37) &&
-	(lastPath[lastPath.length()-37] == '.') )
+    if (lastPath.beginswith(".") &&
+        (lastPath.length() > 37) &&
+        (lastPath[lastPath.length() - 37] == '.'))
     {
       atomicPath = fullPath;
-      lastPath.erase(lastPath.length()-37);
+      lastPath.erase(lastPath.length() - 37);
       if (lastPath.beginswith(".."))
       {
-	lastPath.erase(0,2);
-	isVersioning = true;
+        lastPath.erase(0, 2);
+        isVersioning = true;
       }
       else
       {
-	lastPath.erase(0,1);
-	isVersioning = false;
+        lastPath.erase(0, 1);
+        isVersioning = false;
       }
       fullPath = parentPath + lastPath;
     }
@@ -159,7 +191,8 @@ public:
   // ---------------------------------------------------------------------------
 
   const char*
-  GetSubPath (unsigned int i) {
+  GetSubPath (unsigned int i)
+  {
     if (i < subPath.size()) return subPath[i].c_str();
     else return 0;
   }
@@ -169,7 +202,8 @@ public:
   // ---------------------------------------------------------------------------
 
   unsigned int
-  GetSubPathSize () {
+  GetSubPathSize ()
+  {
     return subPath.size();
   }
 
@@ -177,13 +211,15 @@ public:
   //! Constructor
   // ---------------------------------------------------------------------------
 
-  Path (const char* path) {
+  Path (const char* path)
+  {
     fullPath = path;
     parentPath = "";
     lastPath = "";
     if ((fullPath == "/") ||
         (fullPath == "/.") ||
-        (fullPath == "/..")) {
+        (fullPath == "/.."))
+    {
       fullPath = "/";
       return;
     }
@@ -192,19 +228,23 @@ public:
       fullPath.erase(fullPath.length() - 1);
 
     // remove  /.$
-    if (fullPath.endswith("/.")) {
+    if (fullPath.endswith("/."))
+    {
       fullPath.erase(fullPath.length() - 2);
     }
 
     // recompute /..$
-    if (fullPath.endswith("/..")) {
-      int spos = fullPath.rfind("/", fullPath.length()-4);
-      if (spos != STR_NPOS) {
-        fullPath.erase(spos+1);
+    if (fullPath.endswith("/.."))
+    {
+      int spos = fullPath.rfind("/", fullPath.length() - 4);
+      if (spos != STR_NPOS)
+      {
+        fullPath.erase(spos + 1);
       }
     }
 
-    if (!fullPath.beginswith("/")) {
+    if (!fullPath.beginswith("/"))
+    {
       lastPath = fullPath;
       return;
     }
@@ -212,29 +252,35 @@ public:
     int bppos;
 
     // convert /./
-    while ((bppos = fullPath.find("/./")) != STR_NPOS) {
+    while ((bppos = fullPath.find("/./")) != STR_NPOS)
+    {
       fullPath.erase(bppos, 2);
     }
 
     // convert /..
-    while ((bppos = fullPath.find("/../")) != STR_NPOS) {
+    while ((bppos = fullPath.find("/../")) != STR_NPOS)
+    {
       int spos = fullPath.rfind("/", bppos - 1);
-      if (spos != STR_NPOS) {
+      if (spos != STR_NPOS)
+      {
         fullPath.erase(bppos, 4);
         fullPath.erase(spos + 1, bppos - spos - 1);
       }
     }
 
-    if (!fullPath.length()) {
+    if (!fullPath.length())
+    {
       fullPath = "/";
     }
 
     int lastpos = 0;
     int pos = 0;
-    do {
+    do
+    {
       pos = fullPath.find("/", pos);
       std::string subpath;
-      if (pos != STR_NPOS) {
+      if (pos != STR_NPOS)
+      {
         subpath.assign(fullPath.c_str(), pos + 1);
         subPath.push_back(subpath);
         lastpos = pos;
@@ -251,16 +297,21 @@ public:
   // ---------------------------------------------------------------------------
 
   bool
-  MakeParentPath (mode_t mode) {
+  MakeParentPath (mode_t mode)
+  {
     int retc = 0;
     struct stat buf;
 
-    if (stat(GetParentPath(), &buf)) {
-      for (int i = GetSubPathSize(); i >= 0; i--) {
+    if (stat(GetParentPath(), &buf))
+    {
+      for (int i = GetSubPathSize(); i >= 0; i--)
+      {
         // go backwards until the directory exists
-        if (!stat(GetSubPath(i), &buf)) {
+        if (!stat(GetSubPath(i), &buf))
+        {
           // this exists
-          for (int j = i + 1; j < (int) GetSubPathSize(); j++) {
+          for (int j = i + 1; j < (int) GetSubPathSize(); j++)
+          {
             retc |= (mkdir(GetSubPath(j), mode) ? ((errno == EEXIST) ? 0 : -1) : 0);
           }
           break;
@@ -277,7 +328,9 @@ public:
   //! Destructor
   // ---------------------------------------------------------------------------
 
-  ~Path () { };
+  ~Path ()
+  {
+  };
 };
 /*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
