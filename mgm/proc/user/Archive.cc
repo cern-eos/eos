@@ -131,30 +131,13 @@ ProcCommand::Archive()
       }
       else
       {
-        // Check that none of the "special" files exists
-        for (auto it = vect_paths.begin(); it != vect_paths.end(); ++it)
-        {
-          if (!gOFS->stat(it->c_str(), &statinfo, *mError))
-          {
-            stdErr = "error: directory ";
-            stdErr += spath.c_str();
-            stdErr += " contains an archive related file e.g: .archive.* ";
-            stdErr +=  "- remove and try again";
-            retc = EINVAL;
-            break;
-          }
-        }
-
+        XrdOucString dst = pOpaque->Get("mgm.archive.dst");
+        MakeSubTreeImmutable(spath, vect_files);
+        
         if (!retc)
-        {
-          XrdOucString dst = pOpaque->Get("mgm.archive.dst");
-          MakeSubTreeImmutable(spath);
-
-          if (!retc)
-            ArchiveCreate(spath, dst);
-
-          return SFS_OK;
-        }
+          ArchiveCreate(spath, dst);
+        
+        return SFS_OK;
       }
     }
     else if ((mSubCmd == "put") ||
@@ -430,7 +413,8 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
            << "\"num_dirs\": " << num_dirs << ", "
            << "\"num_files\": " << num_files << ", "
            << "\"uid\": \"" << pVid->uid << "\", "
-           << "\"gid\": \"" << pVid->gid << "\" }" << std::endl;
+           << "\"gid\": \"" << pVid->gid << "\" "
+           << "}" << std::endl;
 
   // Add directories info
   if (ArchiveAddEntries(arch_dir, arch_ofs, false))
@@ -496,21 +480,47 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
 // all of the directories in the subtree.
 //------------------------------------------------------------------------------
 void
-ProcCommand::MakeSubTreeImmutable(const XrdOucString& arch_dir)
+ProcCommand::MakeSubTreeImmutable(const XrdOucString& arch_dir,
+                                  const std::vector<std::string>& vect_files)
 {
-  bool only_dirs = true;
+  bool found_archive = false;
   std::map< std::string, std::set<std::string> > found;
 
-  if (gOFS->_find(arch_dir.c_str(), *mError, stdErr, *pVid, found,
-                  (const char*) 0, (const char*) 0, only_dirs))
+  // Check for already archived directories in the current sub-tree
+  if (gOFS->_find(arch_dir.c_str(), *mError, stdErr, *pVid, found, 
+                 (const char*) 0, (const char*) 0))
   {
-    fprintf(fstderr, "%s", stdErr.c_str());
-    fprintf(fstderr, "error: unable to run find in directory");
+    eos_err("dir=%s list all err=%s", arch_dir.c_str(), stdErr.c_str());
     retc = errno;
     return;
   }
 
-  // Make the EOS subtree immutable e.g.: sys.acl=z:i
+  for (auto it = found.begin(); it != found.end(); ++it)
+  {
+    for (auto itf = vect_files.begin(); itf != vect_files.end(); ++itf)
+    {
+      if (it->second.find(*itf) != it->second.end())
+      {
+        found_archive = true;
+        stdErr = "error: another archive found in current sub-tree in ";
+        stdErr += it->first.c_str();
+        stdErr += itf->c_str();
+        break;
+      }
+    }
+
+    if (found_archive)
+      break;
+  }
+
+  if (found_archive)
+  {
+    // Forbit archiving of archives
+    retc = EPERM;
+    return;
+  }
+
+  // Make the EOS sub-tree immutable e.g.: sys.acl=z:i
   eos::common::Mapping::VirtualIdentity_t root_ident;
   eos::common::Mapping::Root(root_ident);
 
@@ -523,7 +533,9 @@ ProcCommand::MakeSubTreeImmutable(const XrdOucString& arch_dir)
     if (!gOFS->_attr_get(it->first.c_str(), *mError, *pVid,
                          (const char*) 0, acl_key, acl_val))
     {
-      acl_val += ",z:i";
+      // Add immutable only if not already present
+      if (acl_val.find("z:i") == STR_NPOS)
+        acl_val += ",z:i";
     }
     else
     {

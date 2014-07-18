@@ -169,10 +169,12 @@ private:
   //! from all of the directories in the subtree.
   //!
   //! @param arch_dir EOS directory
+  //! @param vect_files vector of special archive filenames
   //! 
   //! @return Void, it sets the global retc in case of error
   //----------------------------------------------------------------------------
-  void MakeSubTreeImmutable(const XrdOucString& arch_dir);
+  void MakeSubTreeImmutable(const XrdOucString& arch_dir,
+                            const std::vector<std::string>& vect_files);
   
 
 public:
