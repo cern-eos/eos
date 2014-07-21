@@ -280,10 +280,7 @@ ProcCommand::Archive()
               proc_fn << gOFS->MgmProcArchivePath << '/' << fid;
 
               if (gOFS->_rem(proc_fn.str().c_str(), *mError, *pVid))
-              {
-                stdErr = "error: unable to remove archive id from /proc fast find";
-                retc = errno;
-              }
+                stdErr = "warning: unable to remove archive id from /proc fast find";
             }
           }
           else
