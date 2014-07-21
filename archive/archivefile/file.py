@@ -159,125 +159,133 @@ class ArchiveFile(object):
           raise NoErrorException()
 
 
-  def do_delete(self, from_tape):
+  def do_delete(self, tape_delete):
     """ Delete archive either from disk (purge) or from tape (delete
 
     Args:
-      from_tape (boolean): If true delete data from tape, otherwise from disk.
+      tape_delete (boolean): If true delete data from tape, otherwise from disk.
 
     Raises:
       IOError
     """
-    self.logger.info("Calling do_delete with from_tape={0}".format(from_tape))
-
     with open(self.tx_file, 'r') as f:
       self.header = json.loads(f.readline())
       self.src = client.URL(self.header['src'])
       self.dst = client.URL(self.header['dst'])
-
-      if from_tape:
-        url = self.dst
-      else:
-        url = self.src
+      url = self.dst if tape_delete else self.src
 
       self.logger.info("Deleting from:{0}".format(str(url)))
       fs = client.FileSystem(str(url))
-      list_dirs = []
+      del_dirs = []
+      mutable_dirs = []
 
-      # First remove all the files
+      # First remove all the files and then the directories
       for line in f:
         entry = json.loads(line)
         # is_mig is false for both purge and deletion
         src_entry, dst_entry = self.get_endpoints(entry[1], self.src, self.dst)
 
-        if from_tape:
-          entry_str = src_entry
+        if tape_delete:
+          entry_url = client.URL(src_entry)
         else:
-          entry_str = dst_entry
-
-        entry_url = client.URL(entry_str)
+          entry_url = client.URL(dst_entry)    
 
         if entry[0] == 'd':
           # Don't remove the root directory when purging
-          if not from_tape and entry_str == self.header['src']:
+          if not tape_delete and str(entry_url) == self.header['src']:
             continue
-          list_dirs.append(entry_url)
-          continue
+          del_dirs.append(entry_url.path)
+          # Save EOS dirs to be made mutable
+          if tape_delete:
+            mutable_dirs.append(dst_entry[dst_entry.rfind("//") + 1 :])
         elif entry[0] == 'f':
           status_rm, _ = fs.rm(entry_url.path + "?eos.ruid=0&eos.rgid=0")
           if not status_rm.ok:
             status_stat, _ = fs.stat(entry_url.path)
             if status_stat.ok:
-              err_msg = "Error removing file: {0}".format(entry_str)
+              err_msg = "Error removing file: {0}".format(str(entry_url))
               self.logger.error(err_msg)
               raise IOError(err_msg)
             else:
-              self.logger.warning("already deleted entry:{0}".format(entry_str))
+              self.logger.warning("already deleted entry:{0}".format(str(entry_url)))
         else:
           err_msg = "Unknown entry type: {0}".format(entry)
           self.logger.error(err_msg)
           raise IOError(err_msg)
 
-      # Remove the directories
-      while (len(list_dirs)):
-        entry_url = list_dirs.pop()
-        status_rm, _ = fs.rmdir(entry_url.path + "?eos.ruid=0&eos.rgid=0")
+      # Remove the directories from bottom up
+      while len(del_dirs):
+        entry_path = del_dirs.pop()
+        status_rm, _ = fs.rmdir(entry_path + "?eos.ruid=0&eos.rgid=0")
 
         if not status_rm.ok:
-          err_msg = "Error removing dir: {0}".format(str(entry_url))
+          err_msg = "Error removing dir: {0}".format(entry_path)
           self.logger.warning(err_msg)
           #raise IOError(err_msg)
 
-    # Remove immutable flag from the EOS subtree
-    if from_tape:
-      url = client.URL(self.efile_root)
+      # Remove immutable flag from the EOS sub-tree
+      if tape_delete:
+        self.make_mutable(mutable_dirs)
+    
+    self.clean_transfer(True)
+
+
+  def make_mutable(self, list_dirs):
+    """ Make the EOS sub-tree mutable
+    
+    Args: 
+      list_dirs (list): List of directories in the EOS sub-tree.
+
+    Raises:
+      IOError when operation fails.
+    """
+    url = self.src # Always src as this is in EOS
+
+    for dir_path in list_dirs:
       fgetattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
                           "mgm.cmd=attr&mgm.subcmd=get&mgm.attr.key=sys.acl",
-                          "&mgm.path=", url.path])
+                          "&mgm.path=", dir_path])
       (status, stdout, stderr) = self.execute_command(''.join(fgetattr))
 
       if not status:
-        err_msg = "Error getting xattr sys.acl for dir={0}".format(url.path)
-        self.logger.error(err_msg)
-        raise IOError(err_msg)
-
-      # Remove the z:i rule from the acl list
-      acl_val = stdout[stdout.find('=') + 1:]
-      pos = acl_val.find('z:i')
-
-      if pos != -1:
-        if acl_val[pos -1] == ',':
-          acl_val = acl_val[:pos -1] + acl_val[pos + 3:]
-        elif acl_val[pos + 3] == ',':
-          acl_val = acl_val[pos + 3:]
-        else:
-          acl_val = ''
-
-      if acl_val:
-        # Set the new sys.acl xattr
-        fmutable = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
-                            "mgm.cmd=attr&mgm.subcmd=set&mgm.attr.key=sys.acl",
-                            "&mgm.attr.value=", acl_val, "&mgm.path=", url.path])
-        (status, stdout, stderr) = self.execute_command(''.join(fmutable))
-
-        if not status:
-          err_msg = "Error making dir={0} mutable".format(url.path)
-          self.logger.error(err_msg)
-          raise IOError(err_msg)
+        warn_msg = "Expecting xattr sys.acl for dir={0}, but not found".format(dir_path)
+        self.logger.warning(warn_msg)
       else:
-        # sys.acl empty, remove it from the xattrs
-        frmattr = [url.protocol, "://", url.hostid, "//proc/user/?",
-                   "mgm.cmd=attr&mgm.subcmd=rm&mgm.attr.key=sys.acl",
-                   "&mgm.path=", url.path]
-        (status, stdout, stderr) = self.execute_command(''.join(frmattr))
+        # Remove the 'z:i' rule from the acl list
+        acl_val = stdout[stdout.find('=') + 1:]
+        pos = acl_val.find('z:i')
 
-        if not status:
-          err_msg = "Error removing attr={0} for dir={1}".format(attr, url.path)
-          self.logger.error(err_msg)
-          raise IOError(err_msg)
+        if pos != -1:
+          if acl_val[pos -1] == ',':
+            acl_val = acl_val[:pos -1] + acl_val[pos + 3:]
+          elif acl_val[pos + 3] == ',':
+            acl_val = acl_val[pos + 3:]
+          else:
+            acl_val = ''
 
-    self.clean_transfer(True)
+        if acl_val:
+          # Set the new sys.acl xattr
+          fmutable = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
+                              "mgm.cmd=attr&mgm.subcmd=set&mgm.attr.key=sys.acl",
+                              "&mgm.attr.value=", acl_val, "&mgm.path=", dir_path])
+          (status, stdout, stderr) = self.execute_command(''.join(fmutable))
 
+          if not status:
+            err_msg = "Error making dir={0} mutable".format(dir_path)
+            self.logger.error(err_msg)
+            raise IOError(err_msg)
+        else:
+          # sys.acl empty, remove it from the xattrs
+          frmattr = [url.protocol, "://", url.hostid, "//proc/user/?",
+                     "mgm.cmd=attr&mgm.subcmd=rm&mgm.attr.key=sys.acl",
+                     "&mgm.path=", dir_path]
+          (status, stdout, stderr) = self.execute_command(''.join(frmattr))
+          
+          if not status:
+            err_msg = "Error removing attr={0} for dir={1}".format(attr, dir_path)
+            self.logger.error(err_msg)
+            raise IOError(err_msg)      
+    
 
   def do_transfer(self):
     """ Execute the put or get operation. What this method actually does is copy
@@ -550,18 +558,21 @@ class ArchiveFile(object):
           status = False
 
     else:
-      # For get check all metadata
+      # For GET check all metadata
       try:
         if is_dir:
-          meta_info = self.dir_info(url)
+          tags = ['uid', 'gid', 'attr']
         else:
-          meta_info = self.file_info(url)
+          tags = ['size', 'mtime', 'ctime', 'uid', 'gid', 'xstype','xs']
 
+        meta_info = self.entry_info(url, tags, is_dir)
+        if not is_dir:
           # TODO: review this - fix EOS to honour the mtime argument and don't
           # remove it below and check also the file checksum if posssible
           indx = self.header["file_meta"].index("mtime") + 2  # TODO: don't trust me :P
           del meta_info[indx]
           del entry[indx]
+
       except (AttributeError, IOError) as e:
         self.logger.error(e)
         status = False
@@ -609,7 +620,7 @@ class ArchiveFile(object):
       # For successful delete operations remove also the archive file
       if self.op == const.DELETE_OP and check_ok:
         fs = client.FileSystem(self.efile_full)
-        status_rm, _ = fs.rm(new_url.path)
+        status_rm, _ = fs.rm(new_url.path + "?eos.ruid=0&eos.rgid=0")
 
         if not status_rm.ok:
           warn_msg = "Failed to delete archive:{0}".format(new_url.path)
@@ -871,109 +882,65 @@ class ArchiveFile(object):
       return (dst, src)
 
 
-  def file_info(self, url):
-    """ Get file metadata information from source. The following info is stored
-    as a list of values in this order:
+  def entry_info(self, url, tags, is_dir):
+    """ Get file/directory metadata information from source.
 
     Args:
-      url (XRootD.URL): Full URL to file in EOS.
+      url  (XRootD.URL): Full URL to EOS location.
+      tags       (list): List of tags to look for in the fileinfo result.
+      is_dir  (boolean): If True entry is a directory, otherwise a file.
 
     Returns:
-      A list containing the following info about the file:
-      [ file_path, size, mtime, ctime, uid, gid, xstype, xs ]
+      A list containing the info corresponding to the tags supplied in the args.
 
     Raises:
       IOError: Fileinfo request can not be submitted.
       AttributeError: Not all expected tags are provided.
-    """
-    file_tags = ['size', 'mtime', 'ctime', 'uid', 'gid', 'xstype','xs']
-    ffileinfo = [url.protocol, "://", url.hostid, "//proc/user/?"
-                 "mgm.cmd=fileinfo&mgm.path=", url.path, 
-                 "&mgm.file.info.option=-m"]
-    (status, stdout, stderr) = self.execute_command(''.join(ffileinfo))
-
-    if status:
-      # Keep only the interesting info for a file
-      dict_info = {}
-      lpairs = stdout.split(' ')
-
-      for elem in lpairs:
-        tag, value = elem.split('=', 1)
-
-        if tag in file_tags:
-          # TODO: review if we use the full precision or not
-          #if tag in ['mtime', 'ctime']:
-          #  value = value[:value.find('.')]
-
-          dict_info[tag] = value
-
-      if len(dict_info) == len(file_tags):
-        finfo = ['f', relpath(url.path, self.src.path),
-                 dict_info['size'],
-                 dict_info['mtime'],
-                 dict_info['ctime'],
-                 dict_info['uid'],
-                 dict_info['gid'],
-                 dict_info['xstype'],
-                 dict_info['xs']]
-        return finfo
-      else:
-        raise AttributeError("File={0} not all expected tags found".format(url.path))
-    else:
-      raise IOError("File={0} failed fileinfo".format(url.path))
-
-
-  def dir_info(self, url):
-    """ Get directory metadata information from source.
-
-    Args:
-      url (XRootD.URL): Full URL to directory in EOS.
-
-    Returns:
-      A list containing the following info about the directory:
-      [ dir_path, uid, gid, { attr_name1 : attr_val1, ... } ]
-
-    Note: We do NOT save the mtime and ctime for directories.
-
-    Raises:
-      IOError: Fileinfo for dir request can not be submitted.
-      AttributeError: Not all expected tags are provided.
       KeyError: Extended attribute value is not present.
     """
-    dir_tags = ['uid', 'gid', 'attr']
-    fdirinfo = [url.protocol, "://", url.hostid, "//proc/user/?",
+    finfo = [url.protocol, "://", url.hostid, "//proc/user/?",
                 "mgm.cmd=fileinfo&mgm.path=", url.path, 
                 "&mgm.file.info.option=-m"]
-    (status, stdout, stderr) = self.execute_command(''.join(fdirinfo))
+    (status, stdout, stderr) = self.execute_command(''.join(finfo))
 
     if status:
-      # Keep only the interesting info for a directory
+      # Keep only the interesting info for an entry
       lpairs = stdout.split(' ')
       dict_info = {}
       dict_attr = {}
-      itlist = iter(lpairs)
+      it_list = iter(lpairs)
 
-      for elem in itlist:
-        tag, value = elem.split('=', 1)
+      for elem in it_list:
+        key, value = elem.split('=', 1)
 
-        if tag in dir_tags:
-          dict_info[tag] = value
-        elif tag == 'xattrn':
-          ntag, nvalue = next(itlist).split('=', 1)
+        if key in tags:
+          dict_info[key] = value
+        elif key == 'xattrn' and is_dir:
+          xkey, xval = next(it_list).split('=', 1)
 
-          if ntag != 'xattrv':
+          if xkey != 'xattrv':
             raise KeyError('dir={0}, no value for attribute: {1}'.format(url.path, tag))
           else:
-            dict_attr[value] = nvalue
+            dict_attr[value] = xval
 
-      if len(dict_info) == (len(dir_tags) - 1):
+      # For directories add also the xattr dictionary
+      if is_dir and 'attr' in tags:
+        dict_info['attr'] = dict_attr
+
+      if len(dict_info) == len(tags):
         # Dir path must end with slash just as the output of EOS fileinfo -d
-        dinfo = ['d', relpath(url.path, self.src.path) + "/",
-                 dict_info['uid'],
-                 dict_info['gid'],
-                 dict_attr]
+        tentry = 'd' if is_dir else 'f'
+        path = relpath(url.path, self.src.path)
+        path += '/' if is_dir else ''
+        dinfo = [tentry, path]
+
+        for tag in tags:
+          dinfo.append(dict_info[tag])
+
         return dinfo
       else:
-        raise AttributeError("Dir={0}, not all expected tags found".format(url.path))
+        raise AttributeError("Path={0}, not all expected tags found".format(url.path))
     else:
-      raise IOError("Dir={0}, failed dirinfo request".format(url.path))
+      raise IOError("Path={0}, failed fileinfo request".format(url.path))
+
+
