@@ -1,9 +1,9 @@
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # File: const.py
 # Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 #
-#*******************************************************************************
+# ******************************************************************************
 # EOS - the CERN Disk Storage System
 # Copyright (C) 2014 CERN/Switzerland
 #
@@ -19,17 +19,18 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#*******************************************************************************
+# ******************************************************************************
 
 
 class _const:
   """ Class holding the constant values used throughout the project"""
-  class ConstError(TypeError): pass
+  class ConstError(TypeError):
+    pass
 
-  def __setattr__(self,name,value):
-    if self.__dict__.has_key(name):
+  def __setattr__(self, name, value):
+    if name in self.__dict__:
       raise self.ConstError("Can't rebind const({0})".format(name))
-    self.__dict__[name]=value
+    self.__dict__[name] = value
 
 from sys import modules
-modules[__name__]=_const()
+modules[__name__] = _const()
