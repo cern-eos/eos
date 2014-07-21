@@ -1,9 +1,9 @@
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 # File: asynchandler.py
 # Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 #
-#*******************************************************************************
+# ******************************************************************************
 # EOS - the CERN Disk Storage System
 # Copyright (C) 2014 CERN/Switzerland
 #
@@ -19,8 +19,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#*******************************************************************************
-
+# ******************************************************************************
 import logging
 import json
 from threading import Condition
@@ -37,7 +36,6 @@ class MetaHandler(object):
       mkdir commands.
     mkdir_num: Number of mkdir commands waiting for reply.
   """
-
   def __init__(self):
     self.mkdir_num = 0
     self.mkdir_status = True
@@ -45,13 +43,11 @@ class MetaHandler(object):
     self.cond = Condition()
     self.logger = logging.getLogger("ArchiveFile." + type(self).__name__)
 
-
   def register_mkdir(self, path):
     self.cond.acquire()
     self.mkdir_num += 1
     self.cond.release()
     return self._MkDirHandler(path, self)
-
 
   def handle_mkdir(self, status, path):
     self.cond.acquire()
@@ -65,7 +61,6 @@ class MetaHandler(object):
       self.cond.notifyAll()
 
     self.cond.release()
-
 
   def wait_mkdir(self):
     self.cond.acquire()
@@ -81,7 +76,6 @@ class MetaHandler(object):
     self.cond.release()
     return self.mkdir_status
 
-
   class _MkDirHandler(object):
     """ Async mkdir handler which reports to MetaHandler.
 
@@ -93,7 +87,5 @@ class MetaHandler(object):
       self.path = path
       self.meta_handler = meta_handler
 
-
     def __call__(self, status, response, hostlist):
       self.meta_handler.handle_mkdir(status, self.path)
-
