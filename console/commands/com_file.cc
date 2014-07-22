@@ -264,14 +264,15 @@ com_file (char* arg1)
     in += path;
     if (option.length())
     {
-      if ((option != "f") &&
-          (option != "sf") &&
-          (option != "fs") &&
-          (option != "s"))
+      XrdOucString checkoption=option;
+      checkoption.replace("f","");
+      checkoption.replace("s","");
+      checkoption.replace("c","");
+      if (checkoption.length())
         goto com_file_usage;
 
       in += "&mgm.file.option=";
-
+      in += option;
     }
     dest_path = abspath(dest_path.c_str());
     in += "&mgm.file.target=";
@@ -338,6 +339,21 @@ com_file (char* arg1)
     in += "&mgm.path=";
     in += path;
     in += "&mgm.purge.version=";
+    if (fsid1.length())
+      in += fsid1;
+    else
+      in += "-1";
+  }
+
+  if (cmd == "versions")
+  {
+    if (!path.length())
+      goto com_file_usage;
+    in += "&mgm.subcmd=";
+    in += cmd;
+    in += "&mgm.path=";
+    in += path;
+    in += "&mgm.grab.version=";
     if (fsid1.length())
       in += fsid1;
     else
@@ -809,9 +825,11 @@ com_file_usage:
   fprintf(stdout, "        <target-space>       : optional name of the target space or group e.g. default or default.3\n");
   fprintf(stdout, "        --sync               : run convertion in synchronous mode (by default conversions are asynchronous) - not supported yet\n");
   fprintf(stdout, "        --rewrite            : run convertion rewriting the file as is creating new copies and dropping old\n");
-  fprintf(stdout, "file copy [-f] [-s] <src> <dst>                                       :  synchronous third party copy from <src> to <dst>\n");
+  fprintf(stdout, "file copy [-f] [-s] [-c] <src> <dst>                                   :  synchronous third party copy from <src> to <dst>\n");
   fprintf(stdout, "         <src>                                                         :  source can be a file or a directory\n");
   fprintf(stdout, "         <dst>                                                         :  destination can be a file (if source is a file) or a directory\n");
+  fprintf(stdout,"                                                                     -f :  force overwrite\n");
+  fprintf(stdout,"                                                                     -c :  clone the file (keep ctime,mtime)\n");
   fprintf(stdout, "file drop <path> <fsid> [-f] :\n");
   fprintf(stdout, "                                                  drop the file <path> from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem) \n");
   fprintf(stdout, "file info <path> :\n");
@@ -839,6 +857,10 @@ com_file_usage:
   fprintf(stdout, "       -rate <rate>    : restrict the verification speed to <rate> per node\n");
   fprintf(stdout, "file version <path> [purge-version] :\n");
   fprintf( stdout, "                                                 create a new version of a file by cloning\n");
+
+  fprintf(stdout, "file versions [grab-version] :\n");
+  fprintf(stdout, "                                                  list versions of a file\n");
+  fprintf(stdout, "                                                  grab a version of a file\n");
   fprintf(stdout, "        <purge-version>: defines the max. number of versions to keep\n");
   fprintf(stdout, "                         if not specified it will add a new version without purging any previous version\n");
   fprintf(stdout, "file share <path> [lifetime] :\n");

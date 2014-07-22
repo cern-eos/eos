@@ -319,7 +319,8 @@ public:
             XrdOucErrInfo &out_error,
             eos::common::Mapping::VirtualIdentity &vid,
             const char *opaque = 0,
-            bool simulate = false);
+            bool simulate = false,
+            bool keepversion = false);
 
   // ---------------------------------------------------------------------------
   // find files internal function

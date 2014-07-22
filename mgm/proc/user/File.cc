@@ -596,7 +596,14 @@ ProcCommand::File ()
           }
           else
           {
-            stdOut += "info: copying '";
+            if ((option.find("c")) != STR_NPOS)
+            {
+              stdOut += "info: cloning '";
+            }
+            else
+            {
+              stdOut += "info: copying '";
+            }
             stdOut += spath;
             stdOut += "' => '";
             stdOut += dst;
@@ -717,6 +724,13 @@ ProcCommand::File ()
                 cgi += eos::common::StringConversion::GetSizeString(sizestring,
                                                                     (unsigned long long) pVid->gid);
                 cgi += "&eos.app=filecopy";
+
+                if ((option.find("c")) != STR_NPOS)
+                {
+                  char clonetime[256];
+                  snprintf(clonetime, sizeof (clonetime) - 1, "&eos.ctime=%lu&eos.mtime=%lu", srcbuf.st_ctime, srcbuf.st_mtime);
+                  cgi += clonetime;
+                }
 
                 lTPCJob.source.SetProtocol("root");
                 lTPCJob.source.SetHostName("localhost");
@@ -1787,26 +1801,134 @@ ProcCommand::File ()
       retc = Cmd.open("/proc/user", info.c_str(), *pVid, mError);
       Cmd.AddOutput(stdOut, stdErr);
       Cmd.close();
- 
-      if ( (!Cmd.GetRetc()) && (!gOFS->_stat(atomicPath.GetAtomicPath(false), &buf, *mError, *pVid, "")) )
+
+      if ((!Cmd.GetRetc()) && (!gOFS->_stat(atomicPath.GetAtomicPath(false), &buf, *mError, *pVid, "")))
       {
-	// everything worked well
-	XrdOucString versionedpath;
-	// make a version
-	if (gOFS->Version((eos::common::FileId::fileid_t)buf.st_ino >> 28, *mError, *pVid, maxversion, &versionedpath))
-	{
-	  stdErr += "error: unable to create a version of path=";
-	  stdErr += spath.c_str();
-	  stdErr += "\n";
-	  stdErr += "error: ";
-	  stdErr += mError->getErrText();
-	  retc = mError->getErrInfo();
-	  return SFS_OK;
-	}
+        // everything worked well
+        XrdOucString versionedpath;
+        // make a version
+        if (gOFS->Version((eos::common::FileId::fileid_t)buf.st_ino >> 28, *mError, *pVid, maxversion, &versionedpath))
+        {
+          stdErr += "error: unable to create a version of path=";
+          stdErr += spath.c_str();
+          stdErr += "\n";
+          stdErr += "error: ";
+          stdErr += mError->getErrText();
+          retc = mError->getErrInfo();
+          return SFS_OK;
+        }
+        else
+        {
+          stdOut = "info: created new version of '";
+          stdOut += spath.c_str();
+          stdOut += "' as '";
+          stdOut += versionedpath.c_str();
+        }
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // list or grab version(s) of a file
+    // -------------------------------------------------------------------------
+    if (mSubCmd == "versions")
+    {
+      XrdOucString grab = pOpaque->Get("mgm.grab.version");
+
+      if (grab == "-1")
+      {
+        ProcCommand Cmd;
+        // list versions
+        eos::common::Path vpath(spath.c_str());
+        XrdOucString info;
+        info += "&mgm.cmd=ls&mgm.option=-l";
+        info += "&mgm.path=";
+        info += vpath.GetVersionDirectory();
+        Cmd.open("/proc/user", info.c_str(), *pVid, mError);
+        Cmd.AddOutput(stdOut, stdErr);
+        Cmd.close();
+        retc = Cmd.GetRetc();
+        if (retc && (retc == ENOENT))
+        {
+          stdOut = "";
+          stdErr = "error: no version exists for '";
+          stdErr += spath.c_str();
+          stdErr += "'";
+          return SFS_OK;
+        }
+      }
+      else
+      {
+        eos::common::Path vpath(spath.c_str());
+        struct stat buf;
+        struct stat vbuf;
+
+        // stat this file
+
+        if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, ""))
+        {
+          stdErr = "error; unable to stat path=";
+          stdErr += spath.c_str();
+          retc = errno;
+          return SFS_OK;
+        }
+        // grab version
+        XrdOucString versionname = pOpaque->Get("mgm.grab.version");
+        if (!versionname.length())
+        {
+          stdErr = "error: you have to provide the version you want to stage!";
+          retc = EINVAL;
+          return SFS_OK;
+        }
+        XrdOucString versionpath = vpath.GetVersionDirectory();
+        versionpath += versionname;
+        if (gOFS->_stat(versionpath.c_str(), &vbuf, *mError, *pVid, ""))
+        {
+          stdErr = "error: failed to stat your provided version path='";
+          stdErr += versionpath;
+          stdErr += "'";
+          retc = errno;
+          return SFS_OK;
+        }
+
+        // now stage a new version of the existing file
+        XrdOucString versionedpath;
+        if (gOFS->Version((eos::common::FileId::fileid_t)buf.st_ino >> 28, *mError, *pVid, -1, &versionedpath))
+        {
+          stdErr += "error: unable to create a version of path=";
+          stdErr += spath.c_str();
+          stdErr += "\n";
+          stdErr += "error: ";
+          stdErr += mError->getErrText();
+          retc = mError->getErrInfo();
+          return SFS_OK;
+        }
+
+        // and stage back the desired version
+        if (gOFS->rename(versionpath.c_str(), spath.c_str(), *mError, *pVid))
+        {
+          stdErr += "error: unable to stage";
+          stdErr += " '";
+          stdErr += versionpath.c_str();
+          stdErr += "' back to '";
+          stdErr += spath.c_str();
+          stdErr += "'";
+          retc = errno;
+          return SFS_OK;
+        }
+        else
+        {
+          stdOut += "success: staged '";
+          stdOut += versionpath;
+          stdOut += "' back to '";
+          stdOut += spath.c_str();
+          stdOut += "'";
+          stdOut += " - the previous file is now '";
+          stdOut += versionedpath;
+          stdOut += ";";
+        }
       }
     }
   }
   return SFS_OK;
 }
-
 EOSMGMNAMESPACE_END

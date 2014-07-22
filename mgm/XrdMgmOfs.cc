@@ -2298,10 +2298,11 @@ XrdMgmOfs::rem (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_rem (const char *path,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        const char *ininfo,
-        bool simulate)
+                 XrdOucErrInfo &error,
+                 eos::common::Mapping::VirtualIdentity &vid,
+                 const char *ininfo,
+                 bool simulate,
+                 bool keepversion)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -2311,12 +2312,14 @@ XrdMgmOfs::_rem (const char *path,
  * @param vid virtual identity of the client
  * @param ininfo CGI
  * @param simulate indicates 'simulate deletion' e.g. it can be used as a test if a deletion would succeed
+ * @param keepversion indicates if the deletion should wipe the version directory
  * @return SFS_OK if success otherwise SFS_ERROR
  *
  * Deletion supports the recycle bin if configured on the parent directory of
  * the file to be deleted. The simulation mode is used to test if there is
  * enough space in the recycle bin to move the object. If the simulation succeeds
- * the real deletion is executed.
+ * the real deletion is executed. 'keepversion' is needed when we want to recover
+ * an old version into the current version
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -2598,6 +2601,7 @@ XrdMgmOfs::_rem (const char *path,
                   );
     }
 
+    if (!keepversion)
     {
       // call the version purge function in case there is a version
       eos::common::Path cPath(path);
@@ -2611,7 +2615,7 @@ XrdMgmOfs::_rem (const char *path,
   else
   {
     gOFS->eosViewRWMutex.UnLockWrite();
-    if (!errno)
+    if ((!errno) && (!keepversion))
     {
       // call the version purge function in case there is a version
       eos::common::Path cPath(path);
@@ -3093,8 +3097,11 @@ XrdMgmOfs::_rename (const char *old_name,
     {
       XrdSfsFileExistence version_exists;
       renameFile = true;
+      XrdOucString vpath = nPath.GetPath();
+
       if ((!_exists(oPath.GetVersionDirectory(), version_exists, error, vid, infoN)) &&
-          (version_exists == XrdSfsFileExistIsDirectory))
+          (version_exists == XrdSfsFileExistIsDirectory) &&
+          (!vpath.beginswith(oPath.GetVersionDirectory())))
       {
         renameVersion = true;
       }
@@ -3111,8 +3118,18 @@ XrdMgmOfs::_rename (const char *old_name,
     {
       if (overwrite && renameFile)
       {
+        // check if we are renaming a version to the primary copy
+        bool keepversion = false;
+        {
+          XrdOucString op = oPath.GetParentPath();
+          XrdOucString vp = nPath.GetVersionDirectory();
+          fprintf(stderr, "#### compare %s %s\n", op.c_str(), vp.c_str());
+          if (op == vp)
+            keepversion = true;
+        }
+        fprintf(stderr, "#### keepversion %d\n", keepversion);
         // delete the existing target
-        if (gOFS->_rem(new_name, error, vid, infoN))
+        if (gOFS->_rem(new_name, error, vid, infoN, false, keepversion))
           return SFS_ERROR;
       }
       else
@@ -3391,6 +3408,7 @@ XrdMgmOfs::_rename (const char *old_name,
   if (renameVersion)
   {
     // rename also the version directory
+
     if (_rename(oPath.GetVersionDirectory(), nPath.GetVersionDirectory(),
                 error, vid, infoO, infoN, false, false, false))
       return SFS_ERROR;
