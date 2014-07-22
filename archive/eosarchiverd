@@ -83,19 +83,15 @@ def do_transfer(eos_file, op, opt):
   try:
     arch.run()
   except IOError as e:
-    logger = logging.getLogger(__name__)
-    arch.logger.error(e)
+    arch.logger.exception(e)
     arch.clean_transfer(False)
     sys.exit(EIO)
   except NoErrorException as e:
     arch.clean_transfer(True)
-  '''
   except Exception as e:
-    logger = logging.getLogger("Dispatcher")
-    arch.logger.error(e)
+    arch.logger.exception(e)
     arch.clean_transfer(False)
     sys.exit(EINVAL)
-  '''
 
 
 class Dispatcher(object):
@@ -289,7 +285,7 @@ class Dispatcher(object):
             try:
               os.kill(int(pid), 0)
             except Exception as e:
-              self.logger.info("Process {0} is no longer alive, error:{1}".format(pid, e))
+              self.logger.info("Pid={0} is no longer alive, error={1}".format(pid, e))
               tx_file = ps_file[:ps_file.find('.')] + '.tx'
               log_file = ps_file[:ps_file.find('.')] + '.log'
               # Delete all files associated to this transfer
@@ -391,9 +387,42 @@ class Dispatcher(object):
           path = path[path.rfind("//") + 1: path.rfind("/")]
           table.add_row([uuid, path, ls_type, "pending", "none"])
     else:
-      # TODO ls_typ can be a job_uuid then only return the status
-      # of the requested job
-      msg = "ERROR error:unsupported operation: {0}".format(ls_type)
+      # In this case we assume ls_type is a job uuid
+      uuid = ls_type
+      found = False
+      
+      for ls_type in self.proc:
+        if uuid in self.proc[ls_type]:
+          path = self.proc[ls_type][uuid]._args[0]
+          path = path[path.rfind("//") + 1: path.rfind("/")]
+          ps_file = "".join([const.DIR[ls_type], uuid, ".ps"])
+          ps_proc = subprocess.Popen(['tail', '-1', ps_file],
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE)
+          ps_out, ps_err = ps_proc.communicate()
+          ps_out = ps_out.strip('\0')
+          ps_msg = ps_out[ps_out.find("msg=") + 4:]
+          table.add_row([uuid, path, ls_type, "running", ps_msg])
+          found = True
+          break
+        elif uuid in self.orphan[ls_type]:
+          pid, path = self.orphan[ls_type][uuid]
+          ps_file = "".join([const.DIR[ls_type], uuid, ".ps"])
+          ps_proc = subprocess.Popen(['tail', '-1', ps_file],
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE)
+          ps_out, ps_err = ps_proc.communicate()
+          ps_out = ps_out.strip('\0')
+          ps_msg = ps_out[ps_out.find("msg=") + 4:]
+          table.add_row([uuid, path, ls_type, "running (o)", ps_msg])
+          found = True
+          break
+        elif uuid in self.pending[ls_type]:
+          path = self.pending[ls_type][uuid][0]
+          path = path[path.rfind("//") + 1: path.rfind("/")]
+          table.add_row([uuid, path, ls_type, "pending", "none"])
+          found = True
+          break
 
     msg += table.get_string()
     return msg
@@ -456,12 +485,7 @@ def main():
   try:
     dispatcher.run()
   except Exception as e:
-    # If we crash print traceback to the log file
-    exc_type, exc_value, exc_traceback = sys.exc_info()
-    log_file = const.LOG_DIR + "eosarchiver.log"
-
-    with open(log_file, 'a') as f:
-      traceback.print_exc(file=f)
+    dispatcher.logger.exception(e)
 
 with daemon.DaemonContext():
   main()

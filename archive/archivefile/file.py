@@ -38,7 +38,6 @@ from XRootD.client.flags import MkDirFlags, OpenFlags
 class NoErrorException(Exception):
   """ Exception raised in case we were requested to retry an operation but
   after the initial check there were no errors found.
-
   """
   pass
 
