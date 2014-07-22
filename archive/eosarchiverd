@@ -132,7 +132,7 @@ class Dispatcher(object):
     try:
       os.chmod(const.IPC_FILE, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
     except OSError as e:
-      self.logger.error("Could not set permissions on IPC socket file:{0}".
+      self.logger.error("Could not set permissions on IPC socket file={0}".
                         format(const.IPC_FILE))
       raise
 
@@ -206,14 +206,13 @@ class Dispatcher(object):
           src, opt = req_json['src'], req_json['opt']
           root_src = src[:-(len(src) - src.rfind('/') - 1)]
           job_uuid = sha256(root_src).hexdigest()
-          self.logger.info("Add job: {0}".format(job_uuid))
+          self.logger.info("Try adding job={0}".format(job_uuid))
 
-          # TODO: check also in orphans list
-          if job_uuid in self.proc[op]:
+          if job_uuid in self.proc[op] or job_uuid in self.orphan[op]:
             self.logger.error("Transfer with same signature already exists")
             socket.send("ERROR error: transfer with same signature exists")
             continue
-
+          
           if job_uuid not in self.pending[op]:
             if len(self.pending[op]) <= const.MAX_PENDING:
               self.pending[op][job_uuid] = (src, op, opt)
@@ -242,7 +241,7 @@ class Dispatcher(object):
       if dict_jobs:
         remove_elem = []
         num_proc = len([_ for _, proc in self.proc[op] if proc.is_alive()])
-        self.logger.debug("Num. running processes: {0}".format(num_proc))
+        self.logger.debug("Num. running processes={0}".format(num_proc))
 
         for job_uuid, req_tuple in dict_jobs.iteritems():
           if num_proc < const.BATCH_SIZE:
@@ -269,7 +268,7 @@ class Dispatcher(object):
 
     if list_ps:
       for ps_file in list_ps:
-        self.logger.debug("ps file: {0}".format(ps_file))
+        self.logger.debug("ps file={0}".format(ps_file))
         for key, val in const.DIR.iteritems():
           if val in ps_file:
             # Get the uuid of the job
@@ -323,27 +322,26 @@ class Dispatcher(object):
     """
     msg = "OK "
     ls_type = req_json['opt']
-    self.logger.debug("Listing type: {0}".format(ls_type))
+    self.logger.debug("Listing type={0}".format(ls_type))
     table = VeryPrettyTable()
     table.field_names = ["Id", "Path", "Type", "State", "Message"]
-
-    if ls_type in [const.PUT_OP, const.GET_OP, const.PURGE_OP, const.DELETE_OP]:
-
-      for uuid in self.orphan[ls_type]:
-        pid, path = self.orphan[ls_type][uuid]
-        ps_file = "".join([const.DIR[ls_type], uuid, ".ps"])
-        ps_proc = subprocess.Popen(['tail', '-1', ps_file],
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
-        ps_out, ps_err = ps_proc.communicate()
-        ps_out = ps_out.strip('\0')
-        ps_msg = ps_out[ps_out.find("msg=") + 4:]
-        table.add_row([uuid, path, ls_type, "running (o)", ps_msg])
-
+    search_uuid = ''
+    
+    if ls_type == "all":
+        op_list = self.proc.keys()
+    elif ls_type in self.proc:
+        op_list = [ls_type]
+    else:
+      search_uuid = ls_type
+      op_list = self.proc.keys()
+      
+    for ls_type in op_list:
       for uuid in self.proc[ls_type]:
+        if search_uuid and search_uuid != uuid:
+          continue
         path = self.proc[ls_type][uuid]._args[0]
         path = path[path.rfind("//") + 1: path.rfind("/")]
-        ps_file = "".join([const.DIR[ls_type], uuid, ".ps"])
+        ps_file = ''.join([const.DIR[ls_type], uuid, ".ps"])
         ps_proc = subprocess.Popen(['tail', '-1', ps_file],
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
@@ -351,77 +349,31 @@ class Dispatcher(object):
         ps_out = ps_out.strip('\0')
         ps_msg = ps_out[ps_out.find("msg=") + 4:]
         table.add_row([uuid, path, ls_type, "running", ps_msg])
+        if search_uuid:
+          break
+      
+      for uuid in self.orphan[ls_type]:
+        if search_uuid and search_uuid != uuid:
+          continue
+        pid, path = self.orphan[ls_type][uuid]
+        ps_file = ''.join([const.DIR[ls_type], uuid, ".ps"])
+        ps_proc = subprocess.Popen(['tail', '-1', ps_file],
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE)
+        ps_out, ps_err = ps_proc.communicate()
+        ps_out = ps_out.strip('\0')
+        ps_msg = ps_out[ps_out.find("msg=") + 4:]
+        table.add_row([uuid, path, ls_type, "running (o)", ps_msg])
+        if search_uuid:
+          break
 
       for uuid in self.pending[ls_type]:
+        if search_uuid and search_uuid != uuid:
+          continue
         path = self.pending[ls_type][uuid][0]
         path = path[path.rfind("//") + 1: path.rfind("/")]
         table.add_row([uuid, path, ls_type, "pending", "none"])
-
-    elif ls_type == "all":
-      for ls_type in self.proc:
-        for uuid in self.proc[ls_type]:
-          path = self.proc[ls_type][uuid]._args[0]
-          path = path[path.rfind("//") + 1: path.rfind("/")]
-          ps_file = "".join([const.DIR[ls_type], uuid, ".ps"])
-          ps_proc = subprocess.Popen(['tail', '-1', ps_file],
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
-          ps_out, ps_err = ps_proc.communicate()
-          ps_out = ps_out.strip('\0')
-          ps_msg = ps_out[ps_out.find("msg=") + 4:]
-          table.add_row([uuid, path, ls_type, "running", ps_msg])
-
-        for uuid in self.orphan[ls_type]:
-          pid, path = self.orphan[ls_type][uuid]
-          ps_file = "".join([const.DIR[ls_type], uuid, ".ps"])
-          ps_proc = subprocess.Popen(['tail', '-1', ps_file],
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
-          ps_out, ps_err = ps_proc.communicate()
-          ps_out = ps_out.strip('\0')
-          ps_msg = ps_out[ps_out.find("msg=") + 4:]
-          table.add_row([uuid, path, ls_type, "running (o)", ps_msg])
-
-        for uuid in self.pending[ls_type]:
-          path = self.pending[ls_type][uuid][0]
-          path = path[path.rfind("//") + 1: path.rfind("/")]
-          table.add_row([uuid, path, ls_type, "pending", "none"])
-    else:
-      # In this case we assume ls_type is a job uuid
-      uuid = ls_type
-      found = False
-      
-      for ls_type in self.proc:
-        if uuid in self.proc[ls_type]:
-          path = self.proc[ls_type][uuid]._args[0]
-          path = path[path.rfind("//") + 1: path.rfind("/")]
-          ps_file = "".join([const.DIR[ls_type], uuid, ".ps"])
-          ps_proc = subprocess.Popen(['tail', '-1', ps_file],
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
-          ps_out, ps_err = ps_proc.communicate()
-          ps_out = ps_out.strip('\0')
-          ps_msg = ps_out[ps_out.find("msg=") + 4:]
-          table.add_row([uuid, path, ls_type, "running", ps_msg])
-          found = True
-          break
-        elif uuid in self.orphan[ls_type]:
-          pid, path = self.orphan[ls_type][uuid]
-          ps_file = "".join([const.DIR[ls_type], uuid, ".ps"])
-          ps_proc = subprocess.Popen(['tail', '-1', ps_file],
-                                     stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE)
-          ps_out, ps_err = ps_proc.communicate()
-          ps_out = ps_out.strip('\0')
-          ps_msg = ps_out[ps_out.find("msg=") + 4:]
-          table.add_row([uuid, path, ls_type, "running (o)", ps_msg])
-          found = True
-          break
-        elif uuid in self.pending[ls_type]:
-          path = self.pending[ls_type][uuid][0]
-          path = path[path.rfind("//") + 1: path.rfind("/")]
-          table.add_row([uuid, path, ls_type, "pending", "none"])
-          found = True
+        if search_uuid:
           break
 
     msg += table.get_string()
