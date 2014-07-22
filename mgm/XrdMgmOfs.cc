@@ -176,48 +176,51 @@ xrdmgmofs_shutdown (int sig)
     }
   }
   // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: finalizing views ... ");
-  try
+  if (gOFS->Initialized == gOFS->kBooted)
   {
-
-    if (!gOFS->MgmMaster.IsMaster())
+    eos_static_warning("Shutdown:: finalizing views ... ");
+    try
     {
-      // stop the follower thread ...
-      if (gOFS->eosFileService)
+
+      if (!gOFS->MgmMaster.IsMaster())
       {
-        gOFS->eosFileService->stopSlave();
+        // stop the follower thread ...
+        if (gOFS->eosFileService)
+        {
+          gOFS->eosFileService->stopSlave();
+        }
+        if (gOFS->eosDirectoryService)
+        {
+          gOFS->eosDirectoryService->stopSlave();
+        }
+      }
+
+      if (gOFS->eosFsView)
+      {
+        gOFS->eosFsView->finalize();
+        delete gOFS->eosFsView;
+      }
+      if (gOFS->eosView)
+      {
+        gOFS->eosView->finalize();
+        delete gOFS->eosView;
       }
       if (gOFS->eosDirectoryService)
       {
-        gOFS->eosDirectoryService->stopSlave();
+        gOFS->eosDirectoryService->finalize();
+        delete gOFS->eosDirectoryService;
       }
-    }
+      if (gOFS->eosFileService)
+      {
+        gOFS->eosFileService->finalize();
+        delete gOFS->eosFileService;
+      }
 
-    if (gOFS->eosFsView)
-    {
-      gOFS->eosFsView->finalize();
-      delete gOFS->eosFsView;
     }
-    if (gOFS->eosView)
+    catch (eos::MDException &e)
     {
-      gOFS->eosView->finalize();
-      delete gOFS->eosView;
+      // we don't really care about any exception here!
     }
-    if (gOFS->eosDirectoryService)
-    {
-      gOFS->eosDirectoryService->finalize();
-      delete gOFS->eosDirectoryService;
-    }
-    if (gOFS->eosFileService)
-    {
-      gOFS->eosFileService->finalize();
-      delete gOFS->eosFileService;
-    }
-
-  }
-  catch (eos::MDException &e)
-  {
-    // we don't really care about any exception here!
   }
 
 #ifdef HAVE_ZMQ
