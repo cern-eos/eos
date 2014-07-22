@@ -640,6 +640,7 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
 
               if (monitoring)
               {
+                XrdOucString sizestring;
                 stdOut += "recycle=ls ";
                 stdOut += " recycle-bin=";
                 stdOut += Recycle::gRecyclingPrefix.c_str();
@@ -647,6 +648,8 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
                 stdOut += uids.c_str();
                 stdOut += " gid=";
                 stdOut += gids.c_str();
+                stdOut += " size=";
+                stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) buf.st_size);
                 stdOut += " deletion-time=";
                 char deltime[256];
                 snprintf(deltime, sizeof (deltime) - 1, "%llu", (unsigned long long) buf.st_ctime);
@@ -660,11 +663,11 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
               else
               {
                 char sline[4096];
-
+                XrdOucString sizestring;
                 if (count == 0)
                 {
                   // print a header
-                  snprintf(sline, sizeof (sline) - 1, "# %-24s %-8s %-8s %-13s %-16s %-64s\n", "Deletion Time", "UID", "GID", "TYPE", "RESTORE-KEY", "RESTORE-PATH");
+                  snprintf(sline, sizeof (sline) - 1, "# %-24s %-8s %-8s %-12s %-13s %-16s %-64s\n", "Deletion Time", "UID", "GID", "SIZE", "TYPE", "RESTORE-KEY", "RESTORE-PATH");
                   stdOut += sline;
                   stdOut += "# ==============================================================================================================================\n";
                 }
@@ -672,7 +675,7 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
                 char tdeltime[4096];
                 std::string deltime = ctime_r(&buf.st_ctime, tdeltime);
                 deltime.erase(deltime.length() - 1);
-                snprintf(sline, sizeof (sline) - 1, "%-26s %-8s %-8s %-13s %-16s %-64s", deltime.c_str(), uids.c_str(), gids.c_str(), type.c_str(), originode.c_str(), origpath.c_str());
+                snprintf(sline, sizeof (sline) - 1, "%-26s %-8s %-8s %-12s %-13s %-16s %-64s", deltime.c_str(), uids.c_str(), gids.c_str(), eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) buf.st_size), type.c_str(), originode.c_str(), origpath.c_str());
                 stdOut += sline;
                 stdOut += "\n";
               }
