@@ -6407,7 +6407,7 @@ XrdMgmOfs::FSctl (const int cmd,
             {
               response += "0 ";
               response += "value=";
-              char hb[3];
+              char hb[4];
               size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
               for (unsigned int i = 0; i < cxlen; i++)
               {
