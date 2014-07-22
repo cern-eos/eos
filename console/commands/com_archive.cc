@@ -113,6 +113,16 @@ com_archive(char* arg1)
     else      
       in_cmd << "&mgm.archive.option=" << token;
   }
+  else if (subcmd == "kill")
+  {
+    // Token is the job_uuid
+    token = subtokenizer.GetToken();
+
+    if (token.length())
+      in_cmd  <<"&mgm.archive.option=" << token;
+    else
+      goto com_archive_usage;
+  }
   else
     goto com_archive_usage;
 
@@ -133,6 +143,8 @@ com_archive_usage:
       << ": purge files on disk" << std::endl
       << "               list [all|put|get|purge|job_uuid] "
       << ": list status of jobs" << std::endl
+      << "               kill <job_uuid>                   "
+      << ": kill transfer" << std::endl
       << "               help [--help|-h]                  "
       << ": display help message" << std::endl;
 
