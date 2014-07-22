@@ -107,6 +107,7 @@ public:
     versionDir = GetParentPath();
     versionDir += EOS_COMMON_PATH_VERSION_PREFIX;
     versionDir += GetName();
+    versionDir += "/";
     while (versionDir.replace("//", "/"))
     {
     }
