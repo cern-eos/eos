@@ -134,7 +134,7 @@ Master::Init ()
   // ---------------------------------------------------------------
   XrdSysThread::Run(&fCompactingThread, Master::StaticOnlineCompacting, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Master OnlineCompacting Thread");
 
-  
+
   if (fThisHost == fRemoteHost)
   {
     // no master slave configuration ... also fine
@@ -333,7 +333,7 @@ Master::Supervisor ()
       // check the remote machine for it's status
       // ----------------------------------------
 
-      // - new XrdCl - 
+      // - new XrdCl -
       bool remoteMgmUp = false;
       bool remoteMqUp = false;
 
@@ -431,8 +431,8 @@ Master::Supervisor ()
 
       if (!lDiskFull)
       {
-	MasterLog(eos_static_debug("ismaster=%d remote-ok=%d remote-wr=%d thishost=%s remotehost=%s masterhost=%s ", IsMaster(), fRemoteMasterOk, fRemoteMasterRW, fThisHost.c_str(), fRemoteHost.c_str(), fMasterHost.c_str()));
-	    
+        MasterLog(eos_static_debug("ismaster=%d remote-ok=%d remote-wr=%d thishost=%s remotehost=%s masterhost=%s ", IsMaster(), fRemoteMasterOk, fRemoteMasterRW, fThisHost.c_str(), fRemoteHost.c_str(), fMasterHost.c_str()));
+
         eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
         if (!IsMaster())
         {
@@ -442,7 +442,7 @@ Master::Supervisor ()
             Access::gRedirectionRules[std::string("w:*")] = fRemoteHost.c_str();
             // set the redirect for ENOENT to the remote master
             Access::gRedirectionRules[std::string("ENOENT:*")] = fRemoteHost.c_str();
-            // remove the stall 
+            // remove the stall
             Access::gStallRules.erase(std::string("w:*"));
             Access::gStallWrite = false;
           }
@@ -970,18 +970,18 @@ Master::PrintOut (XrdOucString &out)
 
   switch (fRunningState)
   {
-  case kIsNothing:
-    out += " state=invalid";
-    break;
-  case kIsRunningMaster:
-    out += " state=master-rw";
-    break;
-  case kIsRunningSlave:
-    out += " state=slave-ro";
-    break;
-  case kIsReadOnlyMaster:
-    out += " state=master-ro";
-    break;
+    case kIsNothing:
+      out += " state=invalid";
+      break;
+    case kIsRunningMaster:
+      out += " state=master-rw";
+      break;
+    case kIsRunningSlave:
+      out += " state=slave-ro";
+      break;
+    case kIsReadOnlyMaster:
+      out += " state=master-ro";
+      break;
   }
 
   out += " master=";
@@ -1152,7 +1152,7 @@ Master::Activate (XrdOucString &stdOut, XrdOucString &stdErr, int transitiontype
     }
     // -----------------------------------------------------------------------
     // invoke a slave to master transition
-    // ----------------------------------------------------------------------- 
+    // -----------------------------------------------------------------------
     MasterLog(eos_static_notice("Doing Slave=>Master transition"));
     if (!Slave2Master())
     {
@@ -1255,13 +1255,13 @@ Master::Set (XrdOucString &mastername, XrdOucString &stdOut, XrdOucString &stdEr
     {
       gOFS->ObjectManager.EnableBroadCast(true); // we are the master and we broadcast every configuration change
       if (!CreateStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE))
-	return false;
+        return false;
     }
     else
     {
       gOFS->ObjectManager.EnableBroadCast(false); // we are the slave and we just listen and don't broad cast anythiing
       if (!RemoveStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE))
-	return false;
+        return false;
     }
   }
   return arc;
@@ -1274,7 +1274,7 @@ Master::Slave2Master ()
   fRunningState = kIsTransition;
   // this will block draining/balancing for the next hour!!!
   f2MasterTransitionTime = time(NULL);
-  
+
   // -----------------------------------------------------------
   // This call transforms the namespace following slave into
   // a master in RW mode
@@ -1330,7 +1330,7 @@ Master::Slave2Master ()
   }
 
   // -----------------------------------------------------------
-  // if possible evaluate if local and remote master files are 
+  // if possible evaluate if local and remote master files are
   // in sync ...
   // -----------------------------------------------------------
 
@@ -1576,7 +1576,7 @@ Master::MasterRO2Slave ()
   // -----------------------------------------------------------
   fRunningState = kIsTransition;
   {
-    // be aware of interference with the heart beat daemon (which does not touch a generic stall yet 
+    // be aware of interference with the heart beat daemon (which does not touch a generic stall yet
     eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
 
     // remove redirects
@@ -1969,7 +1969,7 @@ Master::WaitNamespaceFilesInSync (unsigned int timeout)
   time_t starttime = time(NULL);
 
   // -----------------------------------------------------------
-  // if possible evaluate if local and remote master files are 
+  // if possible evaluate if local and remote master files are
   // in sync ...
   // -----------------------------------------------------------
 
@@ -2075,8 +2075,8 @@ Master::WaitNamespaceFilesInSync (unsigned int timeout)
     {
       // ---------------------------------------
       // wait the the inode changed and then
-      // check the local size and wait, 
-      // that the local files is atleast as 
+      // check the local size and wait,
+      // that the local files is atleast as
       // big as the remote file
       // ---------------------------------------
 
@@ -2241,7 +2241,7 @@ Master::RebootSlaveNamespace ()
   }
 
   {
-    // be aware of interference with the heart beat daemon 
+    // be aware of interference with the heart beat daemon
     eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
 
     // remove global redirection

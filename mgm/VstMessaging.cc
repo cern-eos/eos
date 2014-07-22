@@ -159,7 +159,7 @@ VstMessaging::Process (XrdMqMessage* newmessage)
     }
 
     XrdAdvisoryMqMessage* advisorymessage =
-      XrdAdvisoryMqMessage::Create(newmessage->GetMessageBuffer());
+            XrdAdvisoryMqMessage::Create(newmessage->GetMessageBuffer());
 
     if (advisorymessage)
     {
@@ -211,7 +211,7 @@ VstMessaging::Process (XrdMqMessage* newmessage)
         {
           XrdOucString rt;
           VstView::gVstView.mView[newmessage->kMessageHeader.kSenderId.c_str()]["timestamp"] =
-            XrdMqMessageHeader::ToString(rt, (long) newmessage->kMessageHeader.kReceiverTime_sec);
+                  XrdMqMessageHeader::ToString(rt, (long) newmessage->kMessageHeader.kReceiverTime_sec);
           eos_static_info("msg=\"received new VST report\" sender=\"%s\"",
                           newmessage->kMessageHeader.kSenderId.c_str());
         }
@@ -269,9 +269,9 @@ VstMessaging::PublishVst ()
   mVstMessage += uptime.c_str();
 
   unsigned long long freebytes, freefiles, maxbytes, maxfiles, ethin,
-    ethout, diskin, diskout, ropen, wopen, clients, lock_r, lock_w, nfsrw, iops, bw;
+          ethout, diskin, diskout, ropen, wopen, clients, lock_r, lock_w, nfsrw, iops, bw;
   freebytes = freefiles = maxbytes = maxfiles = clients =
-    ethin = ethout = diskin = diskout = ropen = wopen = nfsrw = iops = bw = 0;
+          ethin = ethout = diskin = diskout = ropen = wopen = nfsrw = iops = bw = 0;
   {
     // take the sum's from all file systems in 'default'
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
@@ -350,7 +350,7 @@ VstMessaging::PublishVst ()
     XrdOucString rt;
     std::map<std::string, std::string>& mymap = VstView::gVstView.mView[mMessageClient.GetDefaultReceiverQueue().c_str()];
     mymap["timestamp"] =
-      XrdMqMessageHeader::ToString(rt, (long) time(NULL));
+            XrdMqMessageHeader::ToString(rt, (long) time(NULL));
     mymap["instance"] = gOFS->MgmOfsInstanceName.c_str();
     mymap["host"] = gOFS->HostName;
     mymap["version"] = VERSION;
@@ -446,8 +446,8 @@ VstMessaging::PublishInfluxDbUdp ()
     for (auto it = VstView::gVstView.mView.begin(); it != VstView::gVstView.mView.end(); ++it)
     {
       if (PublishOnlySelf)
-	     if (it->first != mMessageClient.GetDefaultReceiverQueue().c_str())
-	       continue;
+        if (it->first != mMessageClient.GetDefaultReceiverQueue().c_str())
+          continue;
       std::string json_doc;
       XrdSysMutexHelper vLock(VstView::gVstView.ViewMutex);
       json_doc += "[\n";
@@ -467,7 +467,7 @@ VstMessaging::PublishInfluxDbUdp ()
       }
       json_doc += "],\n";
       json_doc += "    \"points\" : [\n"
-                  "                   [";
+              "                   [";
 
       for (auto sit = it->second.begin(); sit != it->second.end(); ++sit)
       {
