@@ -176,5 +176,28 @@ StringTokenizer::GetToken ()
   }
 }
 
+/** 
+ * Return next parsed space seperated token taking into account escaped blanks and quoted strings and escaping & as #and#
+ * 
+ * 
+ * @return char reference to the next argument token
+ */
+const char*
+StringTokenizer::GetTokenAndEscaped ()
+{
+  fCurrentArg++;
+  if (fCurrentArg < (int) fLineArgs.size())
+  {
+    XrdOucString esc = fLineArgs[fCurrentArg].c_str();
+    while (esc.replace("&","#AND#")) {};
+    fLineArgs[fCurrentArg] = esc.c_str();
+    return fLineArgs[fCurrentArg].c_str();
+  }
+  else
+  {
+    return 0;
+  }
+}
+
 /*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END

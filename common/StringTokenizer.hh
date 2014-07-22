@@ -50,7 +50,7 @@ EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 //! Utility class with convenience functions for string command line parsing 
-//! Works like XrdOucTokenizer but carse about escaped blanks and double quotes
+//! Works like XrdOucTokenizer but cares about escaped blanks and double quotes
 /*----------------------------------------------------------------------------*/
 class StringTokenizer
 {
@@ -76,6 +76,7 @@ public:
 
  const char* GetLine (); // return the next parsed line seperated by \n
  const char* GetToken (); // return the next token 
+ const char* GetTokenAndEscaped (); // return the next token escaping the '&'
 };
 
 EOSCOMMONNAMESPACE_END
