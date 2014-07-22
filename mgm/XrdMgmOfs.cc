@@ -9144,7 +9144,7 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
   versionpath += "/";
   {
     char vci[128];
-    snprintf(vci, sizeof (vci) - 1, "%llu.%llu", (unsigned long long) filectime, (unsigned long long) fid);
+    snprintf(vci, sizeof (vci) - 1, "%llu.%08llx", (unsigned long long) filectime, (unsigned long long) fid);
     versionpath += vci;
     // return the latest version name
     if (versionedpath)
