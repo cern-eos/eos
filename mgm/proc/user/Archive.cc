@@ -70,6 +70,20 @@ ProcCommand::Archive()
                << "}";
     }
   }
+  else if (mSubCmd == "kill")
+  {
+    if (option.empty())
+    {
+      stdErr = "error: need to provide a job_uuid for kill";
+      retc = EINVAL;
+    }
+    else
+    {
+      cmd_json << "{\"cmd\": " << "\"" << mSubCmd.c_str() << "\", "
+               << "\"opt\": " <<  "\"" << option << "\""
+               << "}";
+    }
+  }
   else
   {
     XrdOucString spath = pOpaque->Get("mgm.archive.path");
