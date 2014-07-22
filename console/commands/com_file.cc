@@ -155,7 +155,7 @@ com_file (char* arg1)
   if (wants_help(savearg.c_str()))
     goto com_file_usage;
 
-  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert") && (cmd != "share") && (cmd != "purge") && (cmd != "version") )
+  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert") && (cmd != "share") && (cmd != "purge") && (cmd != "version") && (cmd != "versions") )
   {
     goto com_file_usage;
   }

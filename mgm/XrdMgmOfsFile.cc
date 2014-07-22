@@ -90,10 +90,10 @@
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfsFile::open (const char *inpath,
-        XrdSfsFileOpenMode open_mode,
-        mode_t Mode,
-        const XrdSecEntity *client,
-        const char *ininfo)
+                     XrdSfsFileOpenMode open_mode,
+                     mode_t Mode,
+                     const XrdSecEntity *client,
+                     const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief open a given file with the indicated mode
@@ -1947,8 +1947,8 @@ XrdMgmOfsFile::close ()
 
 XrdSfsXferSize
 XrdMgmOfsFile::read (XrdSfsFileOffset offset,
-        char *buff,
-        XrdSfsXferSize blen)
+                     char *buff,
+                     XrdSfsXferSize blen)
 /*----------------------------------------------------------------------------*/
 /*
  * read a partial result of a 'proc' interface command
@@ -2008,8 +2008,8 @@ XrdMgmOfsFile::read (XrdSfsAio * aiop)
 /*----------------------------------------------------------------------------*/
 XrdSfsXferSize
 XrdMgmOfsFile::write (XrdSfsFileOffset offset,
-        const char *buff,
-        XrdSfsXferSize blen)
+                      const char *buff,
+                      XrdSfsXferSize blen)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief write a block to an open file - not implemented (no use case)

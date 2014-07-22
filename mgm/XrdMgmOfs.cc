@@ -309,8 +309,8 @@ xrdmgmofs_shutdown (int sig)
 extern "C"
 XrdSfsFileSystem *
 XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
-        XrdSysLogger *lp,
-        const char *configfn)
+                     XrdSysLogger *lp,
+                     const char *configfn)
 /*----------------------------------------------------------------------------*/
 /*
  * The Filesystem Plugin factory function
@@ -431,9 +431,9 @@ XrdMgmOfs::newFile (char *user, int MonID)
 /*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::ShouldStall (const char* function,
-        int __AccessMode__,
-        eos::common::Mapping::VirtualIdentity &vid,
-        int &stalltime, XrdOucString &stallmsg)
+                        int __AccessMode__,
+                        eos::common::Mapping::VirtualIdentity &vid,
+                        int &stalltime, XrdOucString &stallmsg)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief Function to test if a client based on the called function and his
@@ -610,10 +610,10 @@ XrdMgmOfs::ShouldStall (const char* function,
 /*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::ShouldRedirect (const char* function,
-        int __AccessMode__,
-        eos::common::Mapping::VirtualIdentity &vid,
-        XrdOucString &host,
-        int &port)
+                           int __AccessMode__,
+                           eos::common::Mapping::VirtualIdentity &vid,
+                           XrdOucString &host,
+                           int &port)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief Function to test if a client based on the called function and his identity should be redirected
@@ -700,9 +700,9 @@ XrdMgmOfs::ShouldRedirect (const char* function,
 /*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::HasStall (const char* path,
-        const char* rule,
-        int &stalltime,
-        XrdOucString &stallmsg)
+                     const char* rule,
+                     int &stalltime,
+                     XrdOucString &stallmsg)
 /*----------------------------------------------------------------------------*/
 /* @brief Test if there is stall configured for the given rule
  *
@@ -739,9 +739,9 @@ XrdMgmOfs::HasStall (const char* path,
 /*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::HasRedirect (const char* path,
-        const char* rule,
-        XrdOucString &host,
-        int &port)
+                        const char* rule,
+                        XrdOucString &host,
+                        int &port)
 /*----------------------------------------------------------------------------*/
 /* @brief Test if there is redirect configured for a given rule
  *
@@ -822,7 +822,7 @@ XrdMgmOfs::UpdateNowInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id
 /*----------------------------------------------------------------------------*/
 void
 XrdMgmOfs::UpdateInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id,
-        eos::ContainerMD::ctime_t &mtime)
+                                                    eos::ContainerMD::ctime_t &mtime)
 /*----------------------------------------------------------------------------*/
 /* @brief Update the modification time for a directory to the given time
  *
@@ -878,7 +878,7 @@ XrdMgmOfs::ResetPathMap ()
 /*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::AddPathMap (const char* source,
-        const char* target)
+                       const char* target)
 /*----------------------------------------------------------------------------*/
 /*
  * Add a source/target pair to the path remapping table
@@ -909,7 +909,7 @@ XrdMgmOfs::AddPathMap (const char* source,
 /*----------------------------------------------------------------------------*/
 void
 XrdMgmOfs::PathRemap (const char* inpath,
-        XrdOucString &outpath)
+                      XrdOucString &outpath)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief translate a path name according to the configured mapping table
@@ -983,11 +983,11 @@ XrdMgmOfs::PathRemap (const char* inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
-        const char *csName,
-        const char *inpath,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *ininfo)
+                   const char *csName,
+                   const char *inpath,
+                   XrdOucErrInfo &error,
+                   const XrdSecEntity *client,
+                   const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief retrieve a checksum
@@ -1146,10 +1146,10 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::chmod (const char *inpath,
-        XrdSfsMode Mode,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *ininfo)
+                  XrdSfsMode Mode,
+                  XrdOucErrInfo &error,
+                  const XrdSecEntity *client,
+                  const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief change the mode of a directory
@@ -1194,10 +1194,10 @@ XrdMgmOfs::chmod (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_chmod (const char *path,
-        XrdSfsMode Mode,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        const char *ininfo)
+                   XrdSfsMode Mode,
+                   XrdOucErrInfo &error,
+                   eos::common::Mapping::VirtualIdentity &vid,
+                   const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief change mode of a directory or file
@@ -1353,11 +1353,11 @@ XrdMgmOfs::_chmod (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_chown (const char *path,
-        uid_t uid,
-        gid_t gid,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        const char *ininfo)
+                   uid_t uid,
+                   gid_t gid,
+                   XrdOucErrInfo &error,
+                   eos::common::Mapping::VirtualIdentity &vid,
+                   const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief change the owner of a file or directory
@@ -1515,10 +1515,10 @@ XrdMgmOfs::_chown (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::exists (const char *inpath,
-        XrdSfsFileExistence &file_exists,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *ininfo)
+                   XrdSfsFileExistence &file_exists,
+                   XrdOucErrInfo &error,
+                   const XrdSecEntity *client,
+                   const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief Check for the existance of a file or directory
@@ -1563,10 +1563,10 @@ XrdMgmOfs::exists (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_exists (const char *path,
-        XrdSfsFileExistence &file_exists,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *ininfo)
+                    XrdSfsFileExistence &file_exists,
+                    XrdOucErrInfo &error,
+                    const XrdSecEntity *client,
+                    const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check for the existance of a file or directory
@@ -1707,10 +1707,10 @@ XrdMgmOfs::_exists (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_exists (const char *path,
-        XrdSfsFileExistence &file_exists,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        const char *ininfo)
+                    XrdSfsFileExistence &file_exists,
+                    XrdOucErrInfo &error,
+                    eos::common::Mapping::VirtualIdentity &vid,
+                    const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check for the existance of a file or directory
@@ -1809,10 +1809,10 @@ XrdMgmOfs::getVersion ()
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::mkdir (const char *inpath,
-        XrdSfsMode Mode,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *ininfo)
+                  XrdSfsMode Mode,
+                  XrdOucErrInfo &error,
+                  const XrdSecEntity *client,
+                  const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create a directory with the given mode
@@ -1856,10 +1856,10 @@ XrdMgmOfs::mkdir (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_mkdir (const char *path,
-        XrdSfsMode Mode,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        const char *ininfo)
+                   XrdSfsMode Mode,
+                   XrdOucErrInfo &error,
+                   eos::common::Mapping::VirtualIdentity &vid,
+                   const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create a directory with the given mode
@@ -2223,8 +2223,8 @@ XrdMgmOfs::_mkdir (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::prepare (XrdSfsPrep &pargs,
-        XrdOucErrInfo &error,
-        const XrdSecEntity * client)
+                    XrdOucErrInfo &error,
+                    const XrdSecEntity * client)
 /*----------------------------------------------------------------------------*/
 /*
  * Prepare a file (EOS does nothing, only stall/redirect if configured)
@@ -2252,9 +2252,9 @@ XrdMgmOfs::prepare (XrdSfsPrep &pargs,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::rem (const char *inpath,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *ininfo)
+                XrdOucErrInfo &error,
+                const XrdSecEntity *client,
+                const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -2636,9 +2636,9 @@ XrdMgmOfs::_rem (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::remdir (const char *inpath,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *ininfo)
+                   XrdOucErrInfo &error,
+                   const XrdSecEntity *client,
+                   const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a directory from the namespace
@@ -2682,10 +2682,10 @@ XrdMgmOfs::remdir (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_remdir (const char *path,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        const char *ininfo,
-        bool simulate)
+                    XrdOucErrInfo &error,
+                    eos::common::Mapping::VirtualIdentity &vid,
+                    const char *ininfo,
+                    bool simulate)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a directory from the namespace
@@ -2856,11 +2856,11 @@ XrdMgmOfs::_remdir (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::rename (const char *old_name,
-        const char *new_name,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *infoO,
-        const char *infoN)
+                   const char *new_name,
+                   XrdOucErrInfo &error,
+                   const XrdSecEntity *client,
+                   const char *infoO,
+                   const char *infoN)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief rename a file or directory
@@ -2934,12 +2934,12 @@ XrdMgmOfs::rename (const char *old_name,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::rename (const char *old_name,
-        const char *new_name,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity& vid,
-        const char *infoO,
-        const char *infoN,
-        bool overwrite)
+                   const char *new_name,
+                   XrdOucErrInfo &error,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   const char *infoO,
+                   const char *infoN,
+                   bool overwrite)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief rename a file or directory
@@ -3011,15 +3011,15 @@ XrdMgmOfs::rename (const char *old_name,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_rename (const char *old_name,
-        const char *new_name,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity& vid,
-        const char *infoO,
-        const char *infoN,
-        bool updateCTime,
-        bool checkQuota,
-        bool overwrite
-        )
+                    const char *new_name,
+                    XrdOucErrInfo &error,
+                    eos::common::Mapping::VirtualIdentity& vid,
+                    const char *infoO,
+                    const char *infoN,
+                    bool updateCTime,
+                    bool checkQuota,
+                    bool overwrite
+                    )
 /*----------------------------------------------------------------------------*/
 /*
  * @brief rename a file or directory
@@ -3404,22 +3404,23 @@ XrdMgmOfs::_rename (const char *old_name,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::stat (const char *inpath,
-        struct stat *buf,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *ininfo)
+                 struct stat *buf,
+                 XrdOucErrInfo &error,
+                 const XrdSecEntity *client,
+                 const char *ininfo)
 {
+
   return stat(inpath, buf, error, 0, client, ininfo);
 }
 
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::stat (const char *inpath,
-        struct stat *buf,
-        XrdOucErrInfo &error,
-        std::string *etag,
-        const XrdSecEntity *client,
-        const char *ininfo)
+                 struct stat *buf,
+                 XrdOucErrInfo &error,
+                 std::string *etag,
+                 const XrdSecEntity *client,
+                 const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -3475,11 +3476,11 @@ XrdMgmOfs::stat (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_stat (const char *path,
-        struct stat *buf,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        const char *ininfo,
-        std::string* etag)
+                  struct stat *buf,
+                  XrdOucErrInfo &error,
+                  eos::common::Mapping::VirtualIdentity &vid,
+                  const char *ininfo,
+                  std::string* etag)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -3709,26 +3710,27 @@ XrdMgmOfs::_stat (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::lstat (const char *path,
-        struct stat *buf,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *info)
+                  struct stat *buf,
+                  XrdOucErrInfo &error,
+                  const XrdSecEntity *client,
+                  const char *info)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief stat following links (not existing in EOS - behaves like stat)
  */
 /*----------------------------------------------------------------------------*/
 {
+
   return stat(path, buf, error, client, info);
 }
 
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::truncate (const char*,
-        XrdSfsFileOffset,
-        XrdOucErrInfo& error,
-        const XrdSecEntity* client,
-        const char* path)
+                     XrdSfsFileOffset,
+                     XrdOucErrInfo& error,
+                     const XrdSecEntity* client,
+                     const char* path)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief truncate a file ( not supported in EOS, only via the file interface )
@@ -3756,10 +3758,10 @@ XrdMgmOfs::truncate (const char*,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::access (const char *inpath,
-        int mode,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *ininfo)
+                   int mode,
+                   XrdOucErrInfo &error,
+                   const XrdSecEntity *client,
+                   const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check access permissions for file/directories
@@ -3803,10 +3805,10 @@ XrdMgmOfs::access (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_access (const char *path,
-        int mode,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        const char *info)
+                    int mode,
+                    XrdOucErrInfo &error,
+                    eos::common::Mapping::VirtualIdentity &vid,
+                    const char *info)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief check access permissions for file/directories
@@ -4005,10 +4007,10 @@ XrdMgmOfs::_access (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::utimes (const char *inpath,
-        struct timespec *tvp,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *ininfo)
+                   struct timespec *tvp,
+                   XrdOucErrInfo &error,
+                   const XrdSecEntity *client,
+                   const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief set change time for a given file/directory
@@ -4051,10 +4053,10 @@ XrdMgmOfs::utimes (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_utimes (const char *path,
-        struct timespec *tvp,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        const char *info)
+                    struct timespec *tvp,
+                    XrdOucErrInfo &error,
+                    eos::common::Mapping::VirtualIdentity &vid,
+                    const char *info)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief set change time for a given file/directory
@@ -4129,16 +4131,16 @@ XrdMgmOfs::_utimes (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_find (const char *path,
-        XrdOucErrInfo &out_error,
-        XrdOucString &stdErr,
-        eos::common::Mapping::VirtualIdentity &vid,
-        std::map<std::string, std::set<std::string> > &found,
-        const char* key,
-        const char* val,
-        bool nofiles,
-        time_t millisleep,
-        bool nscounter
-        )
+                  XrdOucErrInfo &out_error,
+                  XrdOucString &stdErr,
+                  eos::common::Mapping::VirtualIdentity &vid,
+                  std::map<std::string, std::set<std::string> > &found,
+                  const char* key,
+                  const char* val,
+                  bool nofiles,
+                  time_t millisleep,
+                  bool nscounter
+                  )
 /*----------------------------------------------------------------------------*/
 /*
  * @brief low-level namespace find command
@@ -4391,9 +4393,9 @@ XrdMgmOfs::_find (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_touch (const char *path,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        const char *ininfo)
+                   XrdOucErrInfo &error,
+                   eos::common::Mapping::VirtualIdentity &vid,
+                   const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create(touch) a no-replica file in the namespace
@@ -4469,10 +4471,10 @@ XrdMgmOfs::_touch (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::Emsg (const char *pfx,
-        XrdOucErrInfo &einfo,
-        int ecode,
-        const char *op,
-        const char *target)
+                 XrdOucErrInfo &einfo,
+                 int ecode,
+                 const char *op,
+                 const char *target)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create an error message
@@ -4541,10 +4543,10 @@ XrdMgmOfs::Emsg (const char *pfx,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfsDirectory::Emsg (const char *pfx,
-        XrdOucErrInfo &einfo,
-        int ecode,
-        const char *op,
-        const char *target)
+                          XrdOucErrInfo &einfo,
+                          int ecode,
+                          const char *op,
+                          const char *target)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create an error message for a directory object
@@ -4601,10 +4603,10 @@ XrdMgmOfsDirectory::Emsg (const char *pfx,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfsFile::Emsg (const char *pfx,
-        XrdOucErrInfo &einfo,
-        int ecode,
-        const char *op,
-        const char *target)
+                     XrdOucErrInfo &einfo,
+                     int ecode,
+                     const char *op,
+                     const char *target)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create an error message for a file object
@@ -4659,8 +4661,8 @@ XrdMgmOfsFile::Emsg (const char *pfx,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::Stall (XrdOucErrInfo &error,
-        int stime,
-        const char *msg)
+                  int stime,
+                  const char *msg)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a stall response to the client
@@ -4695,8 +4697,8 @@ XrdMgmOfs::Stall (XrdOucErrInfo &error,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::Redirect (XrdOucErrInfo &error,
-        const char* host,
-        int &port)
+                     const char* host,
+                     int &port)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a redirect response to the client
@@ -4727,9 +4729,9 @@ XrdMgmOfs::Redirect (XrdOucErrInfo &error,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::fsctl (const int cmd,
-        const char *args,
-        XrdOucErrInfo &error,
-        const XrdSecEntity * client)
+                  const char *args,
+                  XrdOucErrInfo &error,
+                  const XrdSecEntity * client)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief implements locate and space-ls function
@@ -4825,9 +4827,9 @@ XrdMgmOfs::fsctl (const int cmd,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::FSctl (const int cmd,
-        XrdSfsFSctl &args,
-        XrdOucErrInfo &error,
-        const XrdSecEntity * client)
+                  XrdSfsFSctl &args,
+                  XrdOucErrInfo &error,
+                  const XrdSecEntity * client)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief FS control funcition implementing the locate and plugin call
@@ -7761,10 +7763,10 @@ XrdMgmOfs::FSctl (const int cmd,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::attr_ls (const char *inpath,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *ininfo,
-        eos::ContainerMD::XAttrMap & map)
+                    XrdOucErrInfo &error,
+                    const XrdSecEntity *client,
+                    const char *ininfo,
+                    eos::ContainerMD::XAttrMap & map)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief list extended attributes for a given directory
@@ -7806,11 +7808,11 @@ XrdMgmOfs::attr_ls (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::attr_set (const char *inpath,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *ininfo,
-        const char *key,
-        const char *value)
+                     XrdOucErrInfo &error,
+                     const XrdSecEntity *client,
+                     const char *ininfo,
+                     const char *key,
+                     const char *value)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief set an extended attribute for a given directory to key=value
@@ -7852,11 +7854,11 @@ XrdMgmOfs::attr_set (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::attr_get (const char *inpath,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *ininfo,
-        const char *key,
-        XrdOucString & value)
+                     XrdOucErrInfo &error,
+                     const XrdSecEntity *client,
+                     const char *ininfo,
+                     const char *key,
+                     XrdOucString & value)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief get an extended attribute for a given directory by key
@@ -7899,10 +7901,10 @@ XrdMgmOfs::attr_get (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::attr_rem (const char *inpath,
-        XrdOucErrInfo &error,
-        const XrdSecEntity *client,
-        const char *ininfo,
-        const char *key)
+                     XrdOucErrInfo &error,
+                     const XrdSecEntity *client,
+                     const char *ininfo,
+                     const char *key)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete an extended attribute for a given directory by key
@@ -7944,10 +7946,10 @@ XrdMgmOfs::attr_rem (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_attr_ls (const char *path,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        const char *info,
-        eos::ContainerMD::XAttrMap & map)
+                     XrdOucErrInfo &error,
+                     eos::common::Mapping::VirtualIdentity &vid,
+                     const char *info,
+                     eos::ContainerMD::XAttrMap & map)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief list extended attributes for a given directory
@@ -8006,11 +8008,11 @@ XrdMgmOfs::_attr_ls (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_attr_set (const char *path,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        const char *info,
-        const char *key,
-        const char *value)
+                      XrdOucErrInfo &error,
+                      eos::common::Mapping::VirtualIdentity &vid,
+                      const char *info,
+                      const char *key,
+                      const char *value)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief set an extended attribute for a given directory with key=value
@@ -8101,12 +8103,12 @@ XrdMgmOfs::_attr_set (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_attr_get (const char *path,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        const char *info,
-        const char *key,
-        XrdOucString &value,
-        bool islocked)
+                      XrdOucErrInfo &error,
+                      eos::common::Mapping::VirtualIdentity &vid,
+                      const char *info,
+                      const char *key,
+                      XrdOucString &value,
+                      bool islocked)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief get an extended attribute for a given directory by key
@@ -8170,10 +8172,10 @@ XrdMgmOfs::_attr_get (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_attr_rem (const char *path,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        const char *info,
-        const char *key)
+                      XrdOucErrInfo &error,
+                      eos::common::Mapping::VirtualIdentity &vid,
+                      const char *info,
+                      const char *key)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete an extended attribute for a given directory by key
@@ -8244,9 +8246,9 @@ XrdMgmOfs::_attr_rem (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_attr_clear (const char *path,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        const char *info)
+                        XrdOucErrInfo &error,
+                        eos::common::Mapping::VirtualIdentity &vid,
+                        const char *info)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief clear all  extended attribute for a given directory
@@ -8281,10 +8283,10 @@ XrdMgmOfs::_attr_clear (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_verifystripe (const char *path,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        unsigned long fsid,
-        XrdOucString option)
+                          XrdOucErrInfo &error,
+                          eos::common::Mapping::VirtualIdentity &vid,
+                          unsigned long fsid,
+                          XrdOucString option)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a verification message to a file system for a given file
@@ -8440,10 +8442,10 @@ XrdMgmOfs::_verifystripe (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_dropstripe (const char *path,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        unsigned long fsid,
-        bool forceRemove)
+                        XrdOucErrInfo &error,
+                        eos::common::Mapping::VirtualIdentity &vid,
+                        unsigned long fsid,
+                        bool forceRemove)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a drop message to a file system for a given file
@@ -8542,11 +8544,11 @@ XrdMgmOfs::_dropstripe (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_movestripe (const char *path,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        unsigned long sourcefsid,
-        unsigned long targetfsid,
-        bool expressflag)
+                        XrdOucErrInfo &error,
+                        eos::common::Mapping::VirtualIdentity &vid,
+                        unsigned long sourcefsid,
+                        unsigned long targetfsid,
+                        bool expressflag)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a move message for a given file from source to target file system
@@ -8575,11 +8577,11 @@ XrdMgmOfs::_movestripe (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_copystripe (const char *path,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        unsigned long sourcefsid,
-        unsigned long targetfsid,
-        bool expressflag)
+                        XrdOucErrInfo &error,
+                        eos::common::Mapping::VirtualIdentity &vid,
+                        unsigned long sourcefsid,
+                        unsigned long targetfsid,
+                        bool expressflag)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a copy message for a given file from source to target file system
@@ -8608,12 +8610,12 @@ XrdMgmOfs::_copystripe (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_replicatestripe (const char *path,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        unsigned long sourcefsid,
-        unsigned long targetfsid,
-        bool dropsource,
-        bool expressflag)
+                             XrdOucErrInfo &error,
+                             eos::common::Mapping::VirtualIdentity &vid,
+                             unsigned long sourcefsid,
+                             unsigned long targetfsid,
+                             bool dropsource,
+                             bool expressflag)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a replication message for a given file from source to target file system
@@ -8709,13 +8711,13 @@ XrdMgmOfs::_replicatestripe (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_replicatestripe (eos::FileMD *fmd,
-        const char* path,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        unsigned long sourcefsid,
-        unsigned long targetfsid,
-        bool dropsource,
-        bool expressflag)
+                             const char* path,
+                             XrdOucErrInfo &error,
+                             eos::common::Mapping::VirtualIdentity &vid,
+                             unsigned long sourcefsid,
+                             unsigned long targetfsid,
+                             bool dropsource,
+                             bool expressflag)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a replication message for a given file from source to target file system
@@ -8955,11 +8957,11 @@ XrdMgmOfs::_replicatestripe (eos::FileMD *fmd,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::merge (
-        const char* src,
-        const char* dst,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity & vid
-        )
+                  const char* src,
+                  const char* dst,
+                  XrdOucErrInfo &error,
+                  eos::common::Mapping::VirtualIdentity & vid
+                  )
 /*----------------------------------------------------------------------------*/
 /**
  * @brief merge one file into another one
@@ -9046,11 +9048,11 @@ XrdMgmOfs::merge (
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid,
-        int max_versions,
-        XrdOucString* versionedpath,
-        bool simulate)
+                    XrdOucErrInfo &error,
+                    eos::common::Mapping::VirtualIdentity &vid,
+                    int max_versions,
+                    XrdOucString* versionedpath,
+                    bool simulate)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief handles file versioning for fid
@@ -9185,8 +9187,8 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
 int
 /*----------------------------------------------------------------------------*/
 XrdMgmOfs::PurgeVersion (const char* versiondir,
-        XrdOucErrInfo &error,
-        int max_versions)
+                         XrdOucErrInfo &error,
+                         int max_versions)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief purge oldest versions exceeding max_versions
@@ -9288,7 +9290,7 @@ XrdMgmOfs::PurgeVersion (const char* versiondir,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::SendResync (eos::common::FileId::fileid_t fid,
-        eos::common::FileSystem::fsid_t fsid)
+                       eos::common::FileSystem::fsid_t fsid)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send a resync command for a file identified by id and filesystem
@@ -9372,7 +9374,7 @@ XrdMgmOfs::StartMgmFsConfigListener (void *pp)
 /*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::DeleteExternal (eos::common::FileSystem::fsid_t fsid,
-        unsigned long long fid)
+                           unsigned long long fid)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief send an explicit deletion message to a fsid/fid pair
@@ -9459,10 +9461,10 @@ XrdMgmOfs::DeleteExternal (eos::common::FileSystem::fsid_t fsid,
 /*----------------------------------------------------------------------------*/
 std::string
 XrdMgmOfs::CreateSharePath (const char* inpath,
-        const char* ininfo,
-        time_t expires,
-        XrdOucErrInfo &error,
-        eos::common::Mapping::VirtualIdentity &vid)
+                            const char* ininfo,
+                            time_t expires,
+                            XrdOucErrInfo &error,
+                            eos::common::Mapping::VirtualIdentity &vid)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create a file sharing path with given liftime
@@ -9557,7 +9559,7 @@ XrdMgmOfs::CreateSharePath (const char* inpath,
 /*----------------------------------------------------------------------------*/
 bool
 XrdMgmOfs::VerifySharePath (const char* path,
-        XrdOucEnv* opaque)
+                            XrdOucEnv* opaque)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief verify a file sharing path

@@ -104,7 +104,7 @@ ProcCommand::File ()
            (newstripenumber > (eos::common::LayoutId::kSixteenStripe + 1))))
       {
         stdErr = "error: you have to give a valid number of stripes"
-          " as an argument to call 'file layout'";
+                " as an argument to call 'file layout'";
         retc = EINVAL;
       }
       else
@@ -172,11 +172,11 @@ ProcCommand::File ()
                  eos::common::LayoutId::kPlain))
             {
               unsigned long newlayout =
-                eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica,
-                                             eos::common::LayoutId::GetChecksum(fmd->getLayoutId()),
-                                             newstripenumber,
-                                             eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())
-                                             );
+                      eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica,
+                                                   eos::common::LayoutId::GetChecksum(fmd->getLayoutId()),
+                                                   newstripenumber,
+                                                   eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())
+                                                   );
 
               fmd->setLayoutId(newlayout);
               stdOut += "success: setting new stripe number to ";
@@ -190,7 +190,7 @@ ProcCommand::File ()
             {
               retc = EPERM;
               stdErr = "error: you can only change the number of "
-                "stripes for files with replica layout";
+                      "stripes for files with replica layout";
             }
           }
           else
@@ -358,7 +358,7 @@ ProcCommand::File ()
           }
 
           // -------------------------------------------------------------------
-          // we want to be able to force the registration and verification of a 
+          // we want to be able to force the registration and verification of a
           // not registered replica
           // -------------------------------------------------------------------
           if (acceptfsid && (!acceptfound))
@@ -406,10 +406,10 @@ ProcCommand::File ()
     {
       XrdOucString sfsidsource = pOpaque->Get("mgm.file.sourcefsid");
       unsigned long sourcefsid = (sfsidsource.length()) ?
-        strtoul(sfsidsource.c_str(), 0, 10) : 0;
+              strtoul(sfsidsource.c_str(), 0, 10) : 0;
       XrdOucString sfsidtarget = pOpaque->Get("mgm.file.targetfsid");
       unsigned long targetfsid = (sfsidsource.length()) ?
-        strtoul(sfsidtarget.c_str(), 0, 10) : 0;
+              strtoul(sfsidtarget.c_str(), 0, 10) : 0;
 
       if (gOFS->_movestripe(spath.c_str(),
                             *mError,
@@ -437,10 +437,10 @@ ProcCommand::File ()
     {
       XrdOucString sfsidsource = pOpaque->Get("mgm.file.sourcefsid");
       unsigned long sourcefsid = (sfsidsource.length()) ?
-        strtoul(sfsidsource.c_str(), 0, 10) : 0;
+              strtoul(sfsidsource.c_str(), 0, 10) : 0;
       XrdOucString sfsidtarget = pOpaque->Get("mgm.file.targetfsid");
       unsigned long targetfsid = (sfsidtarget.length()) ?
-        strtoul(sfsidtarget.c_str(), 0, 10) : 0;
+              strtoul(sfsidtarget.c_str(), 0, 10) : 0;
 
       if (gOFS->_copystripe(spath.c_str(), *mError, *pVid, sourcefsid, targetfsid))
       {
@@ -463,7 +463,7 @@ ProcCommand::File ()
     {
       XrdOucString sexpires = pOpaque->Get("mgm.file.expires");
       time_t expires = (sexpires.length()) ?
-        (time_t) strtoul(sexpires.c_str(), 0, 10) : 0;
+              (time_t) strtoul(sexpires.c_str(), 0, 10) : 0;
 
       if (!expires)
       {
@@ -497,7 +497,7 @@ ProcCommand::File ()
         httppath += ":8000/";
         httppath += sharepath.c_str();
         int pos = httppath.find("?");
-        // + from base64 is a problem 
+        // + from base64 is a problem
         while (httppath.replace("+", "%2B", pos))
         {
         }
@@ -510,9 +510,9 @@ ProcCommand::File ()
         {
           stdOut += "<h4 id=\"sharevalidity\" >File Sharing Links: [ valid until  ";
           struct tm *newtime;
-          newtime = localtime( &expires );
+          newtime = localtime(&expires);
           stdOut += asctime(newtime);
-          stdOut.erase(stdOut.length()-1);
+          stdOut.erase(stdOut.length() - 1);
           stdOut += " ]</h4>\n";
           stdOut += path;
           stdOut += "<table border=\"0\"><tr><td>";
@@ -547,7 +547,7 @@ ProcCommand::File ()
       XrdOucString source = pOpaque->Get("mgm.file.source");
       XrdOucString target = pOpaque->Get("mgm.file.target");
 
-      if (gOFS->rename(source.c_str(), target.c_str(), *mError, *pVid, 0, 0,true))
+      if (gOFS->rename(source.c_str(), target.c_str(), *mError, *pVid, 0, 0, true))
       {
         stdErr += "error: unable to rename";
         retc = errno;
@@ -874,10 +874,10 @@ ProcCommand::File ()
                   snprintf(hexlayout, sizeof (hexlayout) - 1, "%08llx",
                            (long long) layoutid);
                   layout = hexlayout;
-                  // get the space this file is currently hosted   
+                  // get the space this file is currently hosted
                   if (!fsid)
                   {
-                    // bummer, this file has not even a single replica 
+                    // bummer, this file has not even a single replica
                     stdErr += "error: file has no replica attached\n";
                     retc = ENODEV;
                     break;
@@ -939,19 +939,19 @@ ProcCommand::File ()
 
                     XrdOucEnv lLayoutEnv(lLayoutString.c_str());
                     layout_type =
-                      eos::common::LayoutId::GetLayoutFromEnv(lLayoutEnv);
+                            eos::common::LayoutId::GetLayoutFromEnv(lLayoutEnv);
                     layout_stripes =
-                      eos::common::LayoutId::GetStripeNumberFromEnv(lLayoutEnv);
+                            eos::common::LayoutId::GetStripeNumberFromEnv(lLayoutEnv);
                     // ---------------------------------------------------------------
                     // re-create layout id by merging in the layout stripes & type
                     // ---------------------------------------------------------------
                     layoutid =
-                      eos::common::LayoutId::GetId(layout_type,
-                                                   eos::common::LayoutId::kAdler,
-                                                   layout_stripes,
-                                                   eos::common::LayoutId::k4M,
-                                                   eos::common::LayoutId::kCRC32C,
-                                                   eos::common::LayoutId::GetRedundancyStripeNumber(layoutid));
+                            eos::common::LayoutId::GetId(layout_type,
+                                                         eos::common::LayoutId::kAdler,
+                                                         layout_stripes,
+                                                         eos::common::LayoutId::k4M,
+                                                         eos::common::LayoutId::kCRC32C,
+                                                         eos::common::LayoutId::GetRedundancyStripeNumber(layoutid));
 
 
                     snprintf(conversiontagfile,
@@ -1000,7 +1000,7 @@ ProcCommand::File ()
     }
 
     // -------------------------------------------------------------------------
-    // touch a file 
+    // touch a file
     // -------------------------------------------------------------------------
     if (mSubCmd == "touch")
     {
@@ -1037,7 +1037,7 @@ ProcCommand::File ()
           nodrop = true;
         }
         // ---------------------------------------------------------------------
-        // this flag indicates that the replicate command should queue 
+        // this flag indicates that the replicate command should queue
         // this transfers on the head of the FST transfer lists
         // ---------------------------------------------------------------------
         XrdOucString sexpressflag = (pOpaque->Get("mgm.file.express"));
@@ -1129,14 +1129,14 @@ ProcCommand::File ()
 
             eos::FileMD::LocationVector::const_iterator lociter;
             int nreplayout =
-              eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1;
+                    eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1;
             int nrep = (int) fmd->getNumLocation();
             int nreponline = 0;
             int ngroupmix = 0;
             for (lociter = fmd->locationsBegin();
-              lociter != fmd->locationsEnd();
-              ++lociter
-              )
+                    lociter != fmd->locationsEnd();
+                    ++lociter
+                    )
             {
               // ignore filesystem id 0
               if (!(*lociter))
@@ -1193,7 +1193,7 @@ ProcCommand::File ()
             {
               eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex); // lock order 1
               eos::common::RWMutexReadLock lock(Quota::gQuotaMutex); // lock order 2
-              
+
               // set the desired space & subgroup if provided
               if (creationspace.length())
               {
@@ -1205,14 +1205,14 @@ ProcCommand::File ()
                 forcedsubgroup = icreationsubgroup;
               }
 
-              // if the space is explicitly set, 
+              // if the space is explicitly set,
               // we don't force into a particular subgroup
               if (creationspace.length())
               {
                 forcedsubgroup = -1;
               }
 
-              // we don't have enough replica's online, 
+              // we don't have enough replica's online,
               // we trigger asynchronous replication
               int nnewreplicas = nreplayout - nreponline; // we have to create that much new replica
 
@@ -1241,8 +1241,8 @@ ProcCommand::File ()
                 std::vector<unsigned int> unavailfs;
                 // fill the existing locations
                 for (lociter = fmd->locationsBegin();
-                  lociter != fmd->locationsEnd();
-                  ++lociter)
+                        lociter != fmd->locationsEnd();
+                        ++lociter)
                 {
                   selectedfs.push_back(*lociter);
                 }
@@ -1326,7 +1326,7 @@ ProcCommand::File ()
             }
             else
             {
-              // we do this only if we didn't create replicas in the if section before, 
+              // we do this only if we didn't create replicas in the if section before,
               // otherwise we remove replicas which have used before for new replications
 
               // this is magic code to adjust the number of replicas to the desired policy ;-)
@@ -1351,8 +1351,8 @@ ProcCommand::File ()
 
                 // fill the views
                 for (lociter = fmd->locationsBegin();
-                  lociter != fmd->locationsEnd();
-                  ++lociter)
+                        lociter != fmd->locationsEnd();
+                        ++lociter)
                 {
                   // ignore filesystem id 0
                   if (!(*lociter))
@@ -1417,8 +1417,8 @@ ProcCommand::File ()
 
                       // get the state for each fsid matching
                       for (stateit = statemap.begin();
-                        stateit != statemap.end();
-                        stateit++)
+                              stateit != statemap.end();
+                              stateit++)
                       {
                         if (stateit->second == sit->second)
                         {
@@ -1434,10 +1434,10 @@ ProcCommand::File ()
                     std::multimap <int, int>::const_iterator lit;
 
                     for (
-                      lit = limitedstatemap.begin();
-                      lit != limitedstatemap.end();
-                      ++lit
-                      )
+                            lit = limitedstatemap.begin();
+                            lit != limitedstatemap.end();
+                            ++lit
+                            )
                     {
                       fsid2delete.push_back(lit->second);
                       if (fsid2delete.size() == n2delete)
@@ -1471,8 +1471,8 @@ ProcCommand::File ()
 
                       // get the state for each fsid matching
                       for (stateit = statemap.begin();
-                        stateit != statemap.end();
-                        stateit++)
+                              stateit != statemap.end();
+                              stateit++)
                       {
                         if (stateit->second == sit->second)
                         {
@@ -1500,7 +1500,7 @@ ProcCommand::File ()
                 {
                   // add a warning that something does not work as requested ....
                   stdErr = "warning: cannot adjust replicas according to your "
-                    "requirement: space=";
+                          "requirement: space=";
                   stdErr += creationspace;
                   stdErr += " subgroup=";
                   stdErr += icreationsubgroup;
@@ -1528,7 +1528,7 @@ ProcCommand::File ()
                     {
                       errno = e.getErrno();
                       stdErr = "error: drop excess replicas => cannot unlink "
-                        "location - ";
+                              "location - ";
                       stdErr += e.getMessage().str().c_str();
                       stdErr += "\n";
                       eos_debug("caught exception %d %s\n",
@@ -1619,8 +1619,8 @@ ProcCommand::File ()
           stdOut += "&";
           stdOut += "mgm.size=";
           stdOut +=
-            eos::common::StringConversion::GetSizeString(sizestring,
-                                                         (unsigned long long) fmd->getSize());
+                  eos::common::StringConversion::GetSizeString(sizestring,
+                                                               (unsigned long long) fmd->getSize());
           stdOut += "&";
           stdOut += "mgm.checksum=";
           size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
@@ -1637,8 +1637,8 @@ ProcCommand::File ()
           stdOut += "&";
 
           for (lociter = fmd->locationsBegin();
-            lociter != fmd->locationsEnd();
-            ++lociter)
+                  lociter != fmd->locationsEnd();
+                  ++lociter)
           {
             // ignore filesystem id 0
             if (!(*lociter))
@@ -1746,7 +1746,7 @@ ProcCommand::File ()
     if (mSubCmd == "version")
     {
       XrdOucString max_count = pOpaque->Get("mgm.purge.version");
-      int maxversion=0;
+      int maxversion = 0;
       if (!max_count.length())
       {
         maxversion = -1;
@@ -1776,7 +1776,7 @@ ProcCommand::File ()
 
       ProcCommand Cmd;
       // third party copy the file to a temporary name
-      
+
       eos::common::Path atomicPath(spath.c_str());
 
       XrdOucString info;
