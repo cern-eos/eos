@@ -27,6 +27,7 @@
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -63,14 +64,14 @@ ProcCommand::Ls ()
     int listrc = 0;
     XrdOucString filter = "";
 
-    
-    if (spath.find("*")!= STR_NPOS) 
+
+    if (spath.find("*") != STR_NPOS)
     {
       eos::common::Path cPath(spath.c_str());
       spath = cPath.GetParentPath();
       filter = cPath.GetName();
     }
-    
+
     XrdOucString ls_file;
 
     if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, (const char*) 0))
@@ -81,7 +82,7 @@ ProcCommand::Ls ()
     else
     {
       // if this is a directory open it and list
-      if (S_ISDIR(buf.st_mode) && ((option.find("d")) == STR_NPOS) )
+      if (S_ISDIR(buf.st_mode) && ((option.find("d")) == STR_NPOS))
       {
         listrc = dir.open(spath.c_str(), *pVid, (const char*) 0);
       }
@@ -128,6 +129,9 @@ ProcCommand::Ls ()
           XrdOucString entryname = val;
           if (((option.find("a")) == STR_NPOS) && entryname.beginswith("."))
           {
+            // quit if we list a hidden file without 'a' flag
+            if (ls_file.length())
+              break;
             // skip over . .. and hidden files
             continue;
           }
