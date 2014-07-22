@@ -104,6 +104,7 @@ VstMessaging::Listen ()
   }
   while (1)
   {
+    bool booted = false;
     XrdSysThread::SetCancelOff();
     //eos_static_debug("RecvMessage");
     XrdMqMessage* newmessage = mMessageClient.RecvMessage();
@@ -119,8 +120,13 @@ VstMessaging::Listen ()
       sleeper.Wait(1000);
     }
 
-    XrdSysMutexHelper(gOFS->InitializationMutex);
-    if (gOFS->Initialized == gOFS->kBooted)
+    {
+      XrdSysMutexHelper(gOFS->InitializationMutex);
+      if (gOFS->Initialized == gOFS->kBooted)
+        booted = true;
+    }
+
+    if (booted)
     {
       if ((!lPublishTime) || ((time(NULL) - lPublishTime) > 15))
       {

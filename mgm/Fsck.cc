@@ -232,10 +232,10 @@ Fsck::Check (void)
       {
         go = true;
       }
-      else
-      {
-        sleeper.Snooze(10);
-      }
+    }
+    if (!go)
+    {
+      sleeper.Snooze(10);
     }
   }
   while (!go);

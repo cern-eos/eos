@@ -103,19 +103,19 @@ Recycle::Recycler ()
   // ---------------------------------------------------------------------------
   bool go = false;
   do
+  {
+    XrdSysThread::SetCancelOff();
     {
-      XrdSysThread::SetCancelOff();
+      XrdSysMutexHelper(gOFS->InitializationMutex);
+      if (gOFS->Initialized == gOFS->kBooted)
       {
-	XrdSysMutexHelper(gOFS->InitializationMutex);
-	if (gOFS->Initialized == gOFS->kBooted)
-	  {
-	    go = true;
-	  }
+        go = true;
       }
-      XrdSysThread::SetCancelOn();
-      XrdSysTimer sleeper;
-      sleeper.Wait(1000);
     }
+    XrdSysThread::SetCancelOn();
+    XrdSysTimer sleeper;
+    sleeper.Wait(1000);
+  }
   while (!go);
 
   XrdSysTimer sleeper;

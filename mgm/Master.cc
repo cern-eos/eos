@@ -707,10 +707,17 @@ Master::Compacting ()
       // wait that the namespace is booted
       // --------------------------------------------------------
       {
-        XrdSysMutexHelper(gOFS->InitializationMutex);
-        if (gOFS->Initialized == gOFS->kBooted)
         {
-          go = true;
+          XrdSysMutexHelper(gOFS->InitializationMutex);
+          if (gOFS->Initialized == gOFS->kBooted)
+          {
+            go = true;
+          }
+        }
+        if (!go)
+        {
+          XrdSysTimer sleeper;
+          sleeper.Wait(1000);
         }
       }
     }
