@@ -1660,6 +1660,19 @@ xrd_inodirlist (unsigned long long dirinode,
   char* value = 0;
   int doinodirlist = -1;
   std::string request = path;
+
+  // we have to replace '&' in path names with '#AND#'
+
+  size_t a_pos = request.find("mgm.path=/");
+  size_t b_pos = a_pos;
+
+  while ( (a_pos = request.find("&", a_pos+1)) != std::string::npos) 
+  {
+    request.erase(a_pos,1);
+    request.insert(a_pos,"#AND#");
+    a_pos+=4;
+  }
+
   COMMONTIMING("GETSTSTREAM", &inodirtiming);
   request.insert(0, xrd_user_url(uid, gid, pid));
   XrdCl::File* file = new XrdCl::File();

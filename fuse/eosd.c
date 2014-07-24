@@ -477,6 +477,7 @@ eosfs_ll_readdir (fuse_req_t req,
     if (!dir_status)
     {
       // Dir not in cache or invalid, fall-back to normal reading
+      
       xrd_inodirlist ((unsigned long long) ino, fullpath,
                       req->ctx.uid, req->ctx.gid, req->ctx.pid);
 

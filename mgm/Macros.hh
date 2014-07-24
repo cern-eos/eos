@@ -162,6 +162,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
   if ( inpath && ( !(ininfo) || (ininfo && (!strstr(ininfo,"eos.prefix"))))) { \
     gOFS->PathRemap(inpath,store_path);					\
   }									\
+  while(store_path.replace("#AND#","&")){}                              \
   size_t __i=0;								\
   size_t __n = store_path.length();					\
   if (gOFS->UTF8) {							\
