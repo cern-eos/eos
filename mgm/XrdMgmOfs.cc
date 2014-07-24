@@ -2411,7 +2411,7 @@ XrdMgmOfs::_rem (const char *path,
             attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
             attrmap.count("sys.eval.useracl"));
 
-    eos_info("acl=%s immutable=%d", attrmap["sys.acl"].c_str(), acl.IsMutable());
+    eos_info("acl=%s mutable=%d", attrmap["sys.acl"].c_str(), acl.IsMutable());
     if (vid.uid && !acl.IsMutable())
     {
       errno = EPERM;
