@@ -5311,6 +5311,26 @@ XrdMgmOfs::FSctl (const int cmd,
                                  "size on fsid=%llu - rejecting replica", fmd->getId(), fsid);
 
                   gOFS->MgmStats.Add("ReplicaFailedSize", 0, 0, 1);
+
+                  // -----------------------------------------------------------
+                  // if we come via FUSE, we have to remove this replica
+                  // -----------------------------------------------------------
+                  if (fmd->hasLocation((unsigned short) fsid))
+                  {
+                    fmd->unlinkLocation((unsigned short) fsid);
+                    fmd->removeLocation((unsigned short) fsid);
+                    try
+                    {
+                      gOFS->eosView->updateFileStore(fmd);
+                    }
+                    catch (eos::MDException &e)
+                    {
+                      errno = e.getErrno();
+                      std::string errmsg = e.getMessage().str();
+                      eos_thread_crit("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                                      e.getErrno(), e.getMessage().str().c_str());
+                    }
+                  }
                   return Emsg(epname, error, EBADE, "commit replica - file size is wrong [EBADE]", "");
                 }
 
@@ -5329,6 +5349,26 @@ XrdMgmOfs::FSctl (const int cmd,
                                  "on fsid=%llu - rejecting replica", fmd->getId(), fsid);
 
                   gOFS->MgmStats.Add("ReplicaFailedChecksum", 0, 0, 1);
+
+                  // -----------------------------------------------------------
+                  // if we come via FUSE, we have to remove this replica
+                  // -----------------------------------------------------------
+                  if (fmd->hasLocation((unsigned short) fsid))
+                  {
+                    fmd->unlinkLocation((unsigned short) fsid);
+                    fmd->removeLocation((unsigned short) fsid);
+                    try
+                    {
+                      gOFS->eosView->updateFileStore(fmd);
+                    }
+                    catch (eos::MDException &e)
+                    {
+                      errno = e.getErrno();
+                      std::string errmsg = e.getMessage().str();
+                      eos_thread_crit("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                                      e.getErrno(), e.getMessage().str().c_str());
+                    }
+                  }
                   return Emsg(epname, error, EBADR, "commit replica - file checksum is wrong [EBADR]", "");
                 }
               }
@@ -9204,7 +9244,6 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
   return SFS_OK;
 }
 
-\
 int
 /*----------------------------------------------------------------------------*/
 XrdMgmOfs::PurgeVersion (const char* versiondir,
