@@ -28,7 +28,8 @@
 
 # Variables
 USER="xrootd"
-LOGDIR="/var/log/eos/archive"
+LOGDIR="/var/log/eos/archive/"
+EOS_ARCHIVE_DIR="/var/eos/archive/"
 prog="eosarchiverd"
 export DAEMON_COREFILE_LIMIT="unlimited"
 RETVAL=0
@@ -41,6 +42,15 @@ fi
 # Create and set ownership on log directory
 mkdir -p $LOGDIR
 chown -R $USER:$USER $LOGDIR
+
+# Create and set ownership on the directory where files for each archive 
+# are saved by the worker processes. Each process saved 3 files with the
+# following extensions:
+#  .tx - the actual archive file copied from EOS 
+#  .log - log file for the running transfer
+#  .ps - status file for the running transfer
+mkdir -p $EOS_ARCHIVE_DIR
+chown -R $USER:$USER $EOS_ARCHIVE_DIR
 
 start() {
         # Run daemon

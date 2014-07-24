@@ -26,10 +26,8 @@ import json
 import time
 import logging
 import const
-from os import rename, fsync
 from os.path import normpath, relpath, join
-from exceptions import IOError, AttributeError, KeyError
-from asynchandler import MetaHandler
+from archivefile.asynchandler import MetaHandler
 from hashlib import sha256
 from XRootD import client
 from XRootD.client.flags import MkDirFlags, OpenFlags
@@ -58,14 +56,14 @@ class ArchiveFile(object):
     self.logger = logging.getLogger(type(self).__name__)
     self.entries, self.list_jobs = [], []
     self.header = {}
-    self.op = operation
-    self.is_mig = (self.op == const.PUT_OP)
+    self.oper = operation
+    self.is_mig = (self.oper == const.PUT_OP)
     self.do_retry = (option == const.OPT_RETRY)
     self.force = self.do_retry
     self.efile_full = eosf
     self.efile_url = client.URL(self.efile_full)
     self.efile_root = self.efile_full[:-(len(self.efile_full) - self.efile_full.rfind('/') - 1)]
-    local_file = join(const.DIR[self.op], sha256(self.efile_root).hexdigest())
+    local_file = join(const.DIR[self.oper], sha256(self.efile_root).hexdigest())
     self.tx_file = local_file + ".tx"
     self.log_file = local_file + ".log"
     self.ps_file = local_file + ".ps"
@@ -82,77 +80,76 @@ class ArchiveFile(object):
     """
     self.prepare()
 
-    if self.op == const.PUT_OP or self.op == const.GET_OP:
+    if self.oper == const.PUT_OP or self.oper == const.GET_OP:
       self.do_transfer()
-    elif self.op == const.PURGE_OP:
+    elif self.oper == const.PURGE_OP:
       self.do_delete(False)
-    elif self.op == const.DELETE_OP:
+    elif self.oper == const.DELETE_OP:
       self.do_delete(True)
 
   def prepare(self):
     """ Prepare requested operation.
     """
-    if self.op in [const.PUT_OP, const.GET_OP, const.PURGE_OP, const.DELETE_OP]:
-      # Rename archive file in EOS to reflect the fact that we are processing it
-      eosf_rename = ''.join([self.efile_root, const.ARCH_FN, ".", self.op, ".err"])
-      rename_url = client.URL(eosf_rename)
-      frename = [rename_url.protocol, "://", rename_url.hostid, "//proc/user/?",
-                 "&mgm.cmd=file&mgm.subcmd=rename"
-                 "&mgm.path=", self.efile_url.path,
-                 "&mgm.file.source=", self.efile_url.path,
-                 "&mgm.file.target=", rename_url.path]
+    # Rename archive file in EOS to reflect the fact that we are processing it
+    eosf_rename = ''.join([self.efile_root, const.ARCH_FN, ".", self.oper, ".err"])
+    rename_url = client.URL(eosf_rename)
+    frename = [rename_url.protocol, "://", rename_url.hostid, "//proc/user/?",
+               "mgm.cmd=file&mgm.subcmd=rename"
+               "&mgm.path=", self.efile_url.path,
+               "&mgm.file.source=", self.efile_url.path,
+               "&mgm.file.target=", rename_url.path]
+    
+    (status, __, stderr) = self.execute_command(''.join(frename))
 
-      (status, stdout, stderr) = self.execute_command(''.join(frename))
+    if not status:
+      err_msg = ("Failed to rename archive file {0} to {1}, msg={2}"
+                 "").format(self.efile_full, rename_url, stderr)
+      self.logger.error(err_msg)
+      raise IOError(err_msg)
+    else:
+      self.efile_full = eosf_rename
 
-      if not status:
-        err_msg = ("Failed to rename archive file {0} to {1}"
-                   "").format(self.efile_full, rename_url)
-        self.logger.error(err_msg)
-        raise IOError(err_msg)
-      else:
-        self.efile_full = eosf_rename
+    # Copy archive file from EOS to the local disk
+    eos_fs = client.FileSystem(self.efile_full)
+    st, _ = eos_fs.copy(self.efile_full + "?eos.ruid=0&eos.rgid=0", self.tx_file, True)
 
-      # Copy archive file from EOS to the local disk
-      eos_fs = client.FileSystem(self.efile_full)
-      st, _ = eos_fs.copy(self.efile_full + "?eos.ruid=0&eos.rgid=0", self.tx_file, True)
+    if not st.ok:
+      err_msg = ("Failed to copy archive file={0} to local disk at={1}"
+                 "").format(self.efile_full, self.tx_file)
+      self.logger.error(err_msg)
+      raise IOError(err_msg)
 
-      if not st.ok:
-        err_msg = ("Failed to copy archive file={0} to local disk at={1}"
-                   "").format(self.efile_full, self.tx_file)
-        self.logger.error(err_msg)
-        raise IOError(err_msg)
+    # For recovery get the first corrupted entry
+    if self.do_retry and (self.oper in [const.PUT_OP, const.GET_OP]):
+      check_ok, self.err_entry = self.check_transfer()
 
-      # For recovery get the first corrupted entry
-      if self.do_retry and (self.op == const.PUT_OP or self.op == const.GET_OP):
-        check_ok, self.err_entry = self.check_transfer()
+      if not check_ok:
+        # Delete the corrupted entry first
+        __, entry_str = self.get_endpoints(self.err_entry[1], self.src, self.dst)
+        entry_url = client.URL(entry_str)
+        self.logger.debug("Remove entry={0}".format(entry_url.path))
+        fs = client.FileSystem(entry_str)
+        status_stat, __ = fs.stat(entry_url.path)
 
-        if not check_ok:
-          # Delete the corrupted entry first
-          _, entry_str = self.get_endpoints(self.err_entry[1], self.src, self.dst)
-          entry_url = client.URL(entry_str)
-          self.logger.debug("Remove entry={0}".format(entry_url.path))
-          fs = client.FileSystem(entry_str)
-          status_stat, _ = fs.stat(entry_url.path)
-
-          if status_stat.ok:
-            if self.err_entry[0] == 'd':
-              status_rm, _ = fs.rmdir(entry_url.path)
-            elif self.err_entry[0] == 'f':
-              status_rm, _ = fs.rm(entry_url.path)
-            else:
-              err_msg = "Unknown entry type={0}".format(self.err_entry)
-              self.logger.error(err_msg)
-              raise IOError(err_msg)
-
-            if not status_rm.ok:
-              err_msg = "Error removing corrupted entry={0}".format(entry_str)
-              self.logger.error(err_msg)
-              raise IOError(err_msg)
+        if status_stat.ok:
+          if self.err_entry[0] == 'd':
+            status_rm, __ = fs.rmdir(entry_url.path)
+          elif self.err_entry[0] == 'f':
+            status_rm, __ = fs.rm(entry_url.path)
           else:
-            self.logger.debug("Stat for {0} failed - nothing else to do".format(entry_str))
+            err_msg = "Unknown entry type={0}".format(self.err_entry)
+            self.logger.error(err_msg)
+            raise IOError(err_msg)
+
+          if not status_rm.ok:
+            err_msg = "Error removing corrupted entry={0}".format(entry_str)
+            self.logger.error(err_msg)
+            raise IOError(err_msg)
         else:
-          self.do_retry = False
-          raise NoErrorException()
+          self.logger.debug("Stat for {0} failed - nothing else to do".format(entry_str))
+      else:
+        self.do_retry = False
+        raise NoErrorException()
 
   def do_delete(self, tape_delete):
     """ Delete archive either from disk (purge) or from tape (delete
@@ -163,8 +160,8 @@ class ArchiveFile(object):
     Raises:
       IOError
     """
-    with open(self.tx_file, 'r') as f:
-      self.header = json.loads(f.readline())
+    with open(self.tx_file, 'r') as ftrans:
+      self.header = json.loads(ftrans.readline())
       self.src = client.URL(self.header['src'])
       self.dst = client.URL(self.header['dst'])
       url = self.dst if tape_delete else self.src
@@ -175,7 +172,7 @@ class ArchiveFile(object):
       mutable_dirs = []
 
       # First remove all the files and then the directories
-      for line in f:
+      for line in ftrans:
         entry = json.loads(line)
         # is_mig is false for both purge and deletion
         src_entry, dst_entry = self.get_endpoints(entry[1], self.src, self.dst)
@@ -194,9 +191,9 @@ class ArchiveFile(object):
           if tape_delete:
             mutable_dirs.append(dst_entry[dst_entry.rfind("//") + 1:])
         elif entry[0] == 'f':
-          status_rm, _ = fs.rm(entry_url.path + "?eos.ruid=0&eos.rgid=0")
+          status_rm, __ = fs.rm(entry_url.path + "?eos.ruid=0&eos.rgid=0")
           if not status_rm.ok:
-            status_stat, _ = fs.stat(entry_url.path)
+            status_stat, __ = fs.stat(entry_url.path)
             if status_stat.ok:
               err_msg = "Error removing file={0}".format(str(entry_url))
               self.logger.error(err_msg)
@@ -211,7 +208,7 @@ class ArchiveFile(object):
       # Remove the directories from bottom up
       while len(del_dirs):
         entry_path = del_dirs.pop()
-        status_rm, _ = fs.rmdir(entry_path + "?eos.ruid=0&eos.rgid=0")
+        status_rm, __ = fs.rmdir(entry_path + "?eos.ruid=0&eos.rgid=0")
 
         if not status_rm.ok:
           err_msg = "Error removing dir={0}".format(entry_path)
@@ -239,7 +236,7 @@ class ArchiveFile(object):
       fgetattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
                           "mgm.cmd=attr&mgm.subcmd=get&mgm.attr.key=sys.acl",
                           "&mgm.path=", dir_path])
-      (status, stdout, stderr) = self.execute_command(''.join(fgetattr))
+      (status, stdout, __) = self.execute_command(''.join(fgetattr))
 
       if not status:
         warn_msg = "Expecting xattr sys.acl for dir={0}, but not found".format(dir_path)
@@ -262,10 +259,11 @@ class ArchiveFile(object):
           fmutable = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
                               "mgm.cmd=attr&mgm.subcmd=set&mgm.attr.key=sys.acl",
                               "&mgm.attr.value=", acl_val, "&mgm.path=", dir_path])
-          (status, stdout, stderr) = self.execute_command(''.join(fmutable))
+          (status, __, stderr) = self.execute_command(''.join(fmutable))
 
           if not status:
-            err_msg = "Error making dir={0} mutable".format(dir_path)
+            err_msg = "Error making dir={0} mutable, msg={1}".format(
+              dir_path, stderr)
             self.logger.error(err_msg)
             raise IOError(err_msg)
         else:
@@ -273,10 +271,11 @@ class ArchiveFile(object):
           frmattr = [url.protocol, "://", url.hostid, "//proc/user/?",
                      "mgm.cmd=attr&mgm.subcmd=rm&mgm.attr.key=sys.acl",
                      "&mgm.path=", dir_path]
-          (status, stdout, stderr) = self.execute_command(''.join(frmattr))
+          (status, __, stderr) = self.execute_command(''.join(frmattr))
 
           if not status:
-            err_msg = "Error removing attr={0} for dir={1}".format(attr, dir_path)
+            err_msg = "Error removing xattr=sys.acl for dir={0}, msg={1}".format(
+              dir_path, stderr)
             self.logger.error(err_msg)
             raise IOError(err_msg)
 
@@ -290,20 +289,20 @@ class ArchiveFile(object):
     Raises:
       IOError when an IO opperations fails.
     """
-    t0 = time.time()
+    tstart = time.time()
     done_dirs = False        # set flag after creating dir hierarchy
     found_checkpoint = False  # flag set when reaching recovery entry
     meta_handler = MetaHandler()
     indx_dir = 0
     indx_file = 0
 
-    with open(self.tx_file, 'r') as f:
+    with open(self.tx_file, 'r') as ftrans:
       with open(self.ps_file, 'w') as fprogress:
         # TODO: maybe review this if there are too many directories since it would take up
         # some memory. The alternative is to rewind the file and parse again the meta data
         # of the directories and apply it.
         ldirs = []   # list of directory full URL and meta data dictionary
-        self.header = json.loads(f.readline())
+        self.header = json.loads(ftrans.readline())
         self.src = client.URL(self.header['src'])
         self.dst = client.URL(self.header['dst'])
 
@@ -312,7 +311,7 @@ class ArchiveFile(object):
         else:
           fs = client.FileSystem(str(self.src))
 
-        for line in f:
+        for line in ftrans:
           entry = json.loads(line)
 
           # Search for the recovery checkpoint
@@ -322,7 +321,6 @@ class ArchiveFile(object):
                 indx_dir += 1
               else:
                 indx_file += 1
-
               continue
             else:
               found_checkpoint = True
@@ -332,7 +330,7 @@ class ArchiveFile(object):
             self.write_progress(fprogress, "creating dir {0}/{1}".format(
                 indx_dir, self.header['num_dirs']))
             dict_dinfo = dict(zip(self.header['dir_meta'], entry[2:]))
-            _, dst = self.get_endpoints(entry[1], self.src, self.dst)
+            __, dst = self.get_endpoints(entry[1], self.src, self.dst)
             ldirs.append((dst, dict_dinfo))
             dst_url = client.URL(dst)
 
@@ -355,20 +353,21 @@ class ArchiveFile(object):
               st_async = meta_handler.wait_mkdir()
 
               if not st_async:
-                err_msg = ("Dir={0}, failed to create hierarchy"
-                           "").format(self.header['dst'])
+                err_msg = "Dir={0}, failed to create hierarchy".format(
+                  self.header['dst'])
                 self.logger.error(err_msg)
                 raise IOError(err_msg)
               else:
-                # For get set directory metadata information: ownership, xattrs
+                # For GET set directory metadata information: ownership, xattrs
                 if not self.is_mig:
                   for dentry in ldirs:
                     # Skip the root directory from EOS as it's already set
                     if dentry[0] is not self.src.path:
-                      st = self.dir_set_metadata(dentry, meta_handler)
+                      st = self.dir_set_metadata(dentry)
 
                       if not st:
-                        err_msg = "Dir={0}, failed to set metadata on directory".format(dentry[0])
+                        err_msg = ("Dir={0}, failed to set metadata on directory"
+                                   "").format(dentry[0])
                         self.logger.error(err_msg)
                         raise IOError(err_msg)
 
@@ -385,46 +384,26 @@ class ArchiveFile(object):
             else:
               st = self.copy_file(src, dst, dict_finfo, self.force)
 
-            if st is not None and not st.ok:
+            if st is not None and not st:
               self.logger.error("Failed to copy src={0}, dst={1}".format(src, dst))
               break
 
           else:
-            self.logger.error("Unkown type of entry in archive file={0}".format(entry))
+            self.logger.error("Unkown type of entry={0} in archive file".format(entry))
             break
 
-        # Flush all pending copies and set metadata info for get op.
+        # Flush all pending copies and set metadata info for GET operation
         st = self.flush_files(meta_handler)
 
         if st is not None and not st.ok:
-          err_msg = "Dir={0}, failed to flush files".format(root_dst)
+          err_msg = "Failed to flush files"
           self.logger.error(err_msg)
           raise IOError(err_msg)
 
-        # In case there were only directories
-        if not done_dirs:
-          done_dirs = True
-          st_async = meta_handler.wait_mkdir()
-
-          if not st_async:
-            err_msg = "Dir={0}, failed to create put hierarchy".format(root_dst)
-            self.logger.error(err_msg)
-            raise IOError(err_msg)
-          else:
-            # For get set directory metadata information: ownership, xattrs
-            if not self.is_mig:
-              for dentry in ldirs:
-                st = self.dir_set_metadata(dentry, meta_hanlder)
-
-                if not st:
-                  err_msg = "Dir={0}, failed to set metadata on directory".format(dentry[0])
-                  self.logger.error(err_msg)
-                  raise IOError(err_msg)
-
         self.write_progress(fprogress, "checking")
-        check_ok, _ = self.check_transfer()
+        check_ok, __ = self.check_transfer()
         self.write_progress(fprogress, "cleaning")
-        self.logger.debug("Transfer wall time={0}".format(time.time() - t0))
+        self.logger.debug("Transfer wall time={0}".format(time.time() - tstart))
         self.clean_transfer(check_ok)
 
   def check_root_dir(self, url):
@@ -439,7 +418,7 @@ class ArchiveFile(object):
     """
     str_url = str(url)
     fs = client.FileSystem(str_url)
-    st, _ = fs.stat(url.path + "?eos.ruid=0&eos.rgid=0")
+    st, __ = fs.stat(url.path + "?eos.ruid=0&eos.rgid=0")
 
     if self.is_mig and st.ok:
       # For put destination must NOT exist
@@ -464,14 +443,14 @@ class ArchiveFile(object):
 
             if ((tag == 'nfiles' and int(num) != 1 and int(num) != 2) or
                 (tag == 'ndirectories' and int(num) != 1)):
-              err_msg = ("Root get destination={0} should contain at least "
+              err_msg = ("Root GET destination={0} should contain at least "
                          "one file and at most two - clean up and try again"
                          "").format(str_url)
               self.logger.error(err_msg)
               raise IOError(err_msg)
         else:
-          err_msg = ("Error doing find count on root get destination: {0} "
-                     "err_msg: {1}").foramt(str_url, stderr)
+          err_msg = ("Error doing find count on root GET destination={0} "
+                     "msg={1}").format(str_url, stderr)
           self.logger.error(err_msg)
           raise IOError(err_msg)
 
@@ -498,12 +477,12 @@ class ArchiveFile(object):
     ret_entry = []
     status = True
 
-    with open(self.tx_file, 'r') as f:
-      self.header = json.loads(f.readline())
+    with open(self.tx_file, 'r') as ftrans:
+      self.header = json.loads(ftrans.readline())
       self.src = client.URL(self.header['src'])
       self.dst = client.URL(self.header['dst'])
 
-      for line in f:
+      for line in ftrans:
         entry = json.loads(line)
         st = self.check_entry(entry)
 
@@ -526,10 +505,9 @@ class ArchiveFile(object):
       True if the entry is correct, otherwise false.
     """
     status = True
-    is_dir = False
-    path = entry[1]
     is_dir = (entry[0] == 'd')
-    _, dst = self.get_endpoints(path, self.src, self.dst)
+    path = entry[1]
+    __, dst = self.get_endpoints(path, self.src, self.dst)
     url = client.URL(dst)
 
     if self.is_mig:
@@ -586,9 +564,9 @@ class ArchiveFile(object):
       check_ok (bool): True if no error occured during transfer, otherwise false.
     """
     if not check_ok:
-      eosf_rename = ''.join([self.efile_root, const.ARCH_FN, ".", self.op, ".err"])
+      eosf_rename = ''.join([self.efile_root, const.ARCH_FN, ".", self.oper, ".err"])
     else:
-      eosf_rename = ''.join([self.efile_root, const.ARCH_FN, ".", self.op, ".done"])
+      eosf_rename = ''.join([self.efile_root, const.ARCH_FN, ".", self.oper, ".done"])
 
     # Rename arch file in EOS to reflect the status
     old_url = client.URL(self.efile_full)
@@ -599,15 +577,16 @@ class ArchiveFile(object):
                "&mgm.file.source=", old_url.path,
                "&mgm.file.target=", new_url.path]
 
-    (status, stdout, stderr) = self.execute_command(''.join(frename))
+    (status, __, stderr) = self.execute_command(''.join(frename))
 
     if not status:
-      err_msg = "Failed to rename {0} to {1}".format(self.efile_full, eosf_rename)
+      err_msg = "Failed to rename {0} to {1}, msg={2}".format(
+        self.efile_full, eosf_rename, stderr)
       self.logger.error(err_msg)
       # TODO: raise IOError
     else:
       # For successful delete operations remove also the archive file
-      if self.op == const.DELETE_OP and check_ok:
+      if self.oper == const.DELETE_OP and check_ok:
         fs = client.FileSystem(self.efile_full)
         status_rm, _ = fs.rm(new_url.path + "?eos.ruid=0&eos.rgid=0")
 
@@ -620,7 +599,8 @@ class ArchiveFile(object):
     try:
       client_uid = self.header["uid"]
       client_gid = self.header["gid"]
-    except KeyError as e:
+    except KeyError as _:
+      self.logger.warning("uid/gid not found in header, default to 0/0")
       client_uid = '0'
       client_gid = '0'
 
@@ -630,7 +610,7 @@ class ArchiveFile(object):
 
     self.logger.debug("Copy log:{0} to {1}".format(self.log_file, eos_log))
     cp_client = client.FileSystem(self.efile_full)
-    st, _ = cp_client.copy(self.log_file, eos_log + "?eos.ruid=0&eos.rgid=0", force=True)
+    st, __ = cp_client.copy(self.log_file, eos_log + "?eos.ruid=0&eos.rgid=0", force=True)
 
     if not st.ok:
       self.logger.error("Failed to copy log file {0} to EOS at {1}".format(
@@ -639,31 +619,34 @@ class ArchiveFile(object):
     fsetowner = [old_url.protocol, "://", old_url.hostid, "//proc/user/?",
                  "mgm.cmd=chown&mgm.path=", dir_root, const.ARCH_FN, ".log",
                  "&mgm.chown.owner=", client_uid, ":", client_gid]
-    (status, stdout, stderr) = self.execute_command(''.join(fsetowner))
+    (status, __, stderr) = self.execute_command(''.join(fsetowner))
+    
+    if not status:
+      self.logger.error(("Failed chown EOS log file in dir={0}, msg=%{2}"
+                         "").format(dir_root, stderr))
 
     # Delete all files associated with this transfer
     try:
       os.remove(self.tx_file)
-    except OSError as e:
+    except OSError as __:
       pass
 
     try:
       os.remove(self.log_file)
-    except OSError as e:
+    except OSError as __:
       pass
 
     try:
       os.remove(self.ps_file)
-    except OSError as e:
+    except OSError as __:
       pass
 
-  def dir_set_metadata(self, entry, meta_handler=None):
+  def dir_set_metadata(self, entry):
     """ Set directory meta data information such as ownership and xattrs.
 
     Args:
-      entry (tuple): Tuple of two elements: full URL of directory and dictionary
-        containing meta data information.
-      meta_handler (MetaHandler): Meta handler for async requests.
+      entry (tuple): Tuple of two elements: full URL of directory and 
+        dictionary containing meta data information.
 
     Returns:
       True if directory metadata set successfully, otherwise false.
@@ -675,7 +658,7 @@ class ArchiveFile(object):
     fsetowner = [url.protocol, "://", url.hostid, "//proc/user/?",
                  "mgm.cmd=chown&mgm.path=", url.path,
                  "&mgm.chown.owner=", dict_dinfo['uid'], ":", dict_dinfo['gid']]
-    (status, stdout, stderr) = self.execute_command(''.join(fsetowner))
+    (status, stdout, __) = self.execute_command(''.join(fsetowner))
 
     if status:
       # Remove any existing attributes
@@ -694,8 +677,8 @@ class ArchiveFile(object):
           (status, stdout, stderr) = self.execute_command(''.join(frmattr))
 
           if not status:
-            self.logger.error("Dir={0} error while removing attr={1}".format(
-                url.path, attr))
+            self.logger.error(("Dir={0} error while removing attr={1}, msg={2}"
+                               "").format(url.path, attr, stderr))
             break
 
       if status:
@@ -709,8 +692,8 @@ class ArchiveFile(object):
           (status, stdout, stderr) = self.execute_command(''.join(fsetattr))
 
           if not status:
-            self.logger.error("Dir={0}, error while setting attr={1}".format(
-                url.path, key))
+            self.logger.error(("Dir={0}, error while setting attr={1}, msg={2}"
+                               "").format(url.path, key, stderr))
             break
 
     return status
@@ -739,7 +722,7 @@ class ArchiveFile(object):
     self.logger.debug("Execute: {0}".format(command))
 
     with client.File() as f:
-      st, response = f.open(command, OpenFlags.READ)
+      st, __ = f.open(command, OpenFlags.READ)
 
       if st.ok:
         st, data = f.read(0, 4096)
@@ -778,7 +761,7 @@ class ArchiveFile(object):
       dst (string): Destiantion (full URL).
       dfile (dict): Dictionary containing metadata about the file. This is
         set only for get operations.
-      force (boolena): Force copy only in recovery mode.
+      force (boolean): Force copy only in recovery mode.
       handler (MetaHanlder): Metahandler obj used for async req.
 
     Returns:
@@ -901,7 +884,7 @@ class ArchiveFile(object):
           xkey, xval = next(it_list).split('=', 1)
 
           if xkey != "xattrv":
-            raise KeyError("Dir={0} no value for xattribute={1}".format(url.path, tag))
+            raise KeyError("Dir={0} no value for xattribute={1}".format(url.path, value))
           else:
             dict_attr[value] = xval
 
@@ -923,4 +906,4 @@ class ArchiveFile(object):
       else:
         raise AttributeError("Path={0}, not all expected tags found".format(url.path))
     else:
-      raise IOError("Path={0}, failed fileinfo request".format(url.path))
+      raise IOError("Path={0}, failed fileinfo request, msg={1}".format(url.path, stderr))

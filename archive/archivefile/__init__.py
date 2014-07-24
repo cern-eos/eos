@@ -20,4 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ******************************************************************************
-from file import ArchiveFile, NoErrorException
+"""This module provides access to EOS archives. It also facilitates the operations
+   that are done using such objects.
+"""
+from archivefile.file import ArchiveFile, NoErrorException
