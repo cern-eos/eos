@@ -1,5 +1,4 @@
-#!/usr/bin/python
-
+#! /usr/bin/python
 # ------------------------------------------------------------------------------
 # File: eosarchiverd
 # Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
@@ -23,23 +22,23 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ******************************************************************************
 
+"""Module running the eosarchiverd daemon which transfers files between EOS
+   and CASTOR.
+"""
+
 import os
 import sys
-import traceback
 import json
 import zmq
 import const
-import logging
 import glob
 import stat
-import exceptions
 import subprocess
 import daemon
-import subprocess
-from logging import handlers
-from multiprocessing import Process
-from os.path import join
+import logging
+import logging.handlers
 from hashlib import sha256
+from multiprocessing import Process
 from archivefile import ArchiveFile, NoErrorException
 from errno import EIO, EINVAL
 from veryprettytable import VeryPrettyTable
@@ -48,6 +47,7 @@ from veryprettytable import VeryPrettyTable
 # Constants
 const.BATCH_SIZE = 5      # max number of transfers to be performed in parallel
 const.POLLTIMEOUT = 1000  # miliseconds
+const.MAX_PENDING = 10  # max number of requests allowed in pending
 const.CREATE_OP = 'create'
 const.GET_OP = 'get'
 const.PUT_OP = 'put'
@@ -57,12 +57,11 @@ const.DELETE_OP = 'delete'
 const.KILL_OP = 'kill'
 const.OPT_RETRY = 'retry'
 const.ARCH_FN = ".archive"
-const.LOG_DIR = "/var/log/eos/archive/"
-const.DIR = {const.GET_OP: "/tmp/eos_archive_get/",
-             const.PUT_OP: "/tmp/eos_archive_put/",
-             const.PURGE_OP: "/tmp/eos_archive_purge/",
-             const.DELETE_OP: "/tmp/eos_archive_delete/"}
-const.MAX_PENDING = 10  # max number of requests allowed in pending
+const.LOG_FILE = "/var/log/eos/archive/eosarchiver.log"
+const.DIR = {const.GET_OP: "/var/eos/archive/get/",
+             const.PUT_OP: "/var/eos/archive/put/",
+             const.PURGE_OP: "/var/eos/archive/purge/",
+             const.DELETE_OP: "/var/eos/archive/delete/"}
 const.IPC_FILE = "/tmp/archivebackend.ipc"
 const.LOG_FORMAT = ('%(asctime)-15s %(name)s[%(process)d] %(filename)s:'
                     '%(lineno)d:LVL=%(levelname)s %(message)s')
@@ -70,26 +69,26 @@ const.LOG_FORMAT = ('%(asctime)-15s %(name)s[%(process)d] %(filename)s:'
 # TODO: maybe parse the xrd.cf.mgm to get the configuration info
 
 
-def do_transfer(eos_file, op, opt):
+def do_transfer(eos_file, oper, opt):
   """ Execute a transfer job.
 
   Args:
     eos_file (string): EOS location of the archive file
-    op       (string): operation type: get/put
-    opt      (string): option for the transfer: recover/purge
+    oper     (string): Operation type: get/put
+    opt      (string): Option for the transfer: recover/purge
   """
-  arch = ArchiveFile(eosf=eos_file, operation=op, option=opt)
+  arch = ArchiveFile(eosf=eos_file, operation=oper, option=opt)
 
   try:
     arch.run()
-  except IOError as e:
-    arch.logger.exception(e)
+  except IOError as err:
+    arch.logger.exception(err)
     arch.clean_transfer(False)
     sys.exit(EIO)
-  except NoErrorException as e:
+  except NoErrorException as err:
     arch.clean_transfer(True)
-  except Exception as e:
-    arch.logger.exception(e)
+  except Exception as err:
+    arch.logger.exception(err)
     arch.clean_transfer(False)
     sys.exit(EINVAL)
 
@@ -107,7 +106,7 @@ class Dispatcher(object):
   """
   def __init__(self):
     self.logger = logging.getLogger(type(self).__name__)
-    log_file = const.LOG_DIR + "eosarchiver.log"
+    log_file = const.LOG_FILE
     formatter = logging.Formatter(const.LOG_FORMAT)
     rotate_handler = logging.handlers.TimedRotatingFileHandler(log_file, 'midnight')
     rotate_handler.setFormatter(formatter)
@@ -131,7 +130,7 @@ class Dispatcher(object):
 
     try:
       os.chmod(const.IPC_FILE, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
-    except OSError as e:
+    except OSError as err:
       self.logger.error("Could not set permissions on IPC socket file={0}".
                         format(const.IPC_FILE))
       raise
@@ -147,7 +146,7 @@ class Dispatcher(object):
       events = dict(poller.poll(const.POLLTIMEOUT))
 
       # Update worker processes status
-      for op, dict_jobs in self.proc.iteritems():
+      for oper, dict_jobs in self.proc.iteritems():
         remove_elem = []
         for uuid, proc in dict_jobs.iteritems():
           if not proc.is_alive():
@@ -158,27 +157,27 @@ class Dispatcher(object):
 
         for uuid in remove_elem:
           try:
-            del self.proc[op][uuid]
-          except ValueError as e:
+            del self.proc[oper][uuid]
+          except ValueError as err:
             self.logger.error("Unable to remove job={0} from list".format(uuid))
 
         del remove_elem[:]
 
       # Update orphan worker processes status
-      for op, dict_jobs in self.orphan.iteritems():
+      for oper, dict_jobs in self.orphan.iteritems():
         remove_elem = []
         for uuid, info_pair in dict_jobs.iteritems():
           try:
             os.kill(int(info_pair[0]), 0)
-          except Exception as e:
+          except OSError as err:
             self.logger.debug("Job={0}, pid={1}, path={2} finshed, error={3}".
-                              format(uuid, info_pair[0], info_pair[1], e))
+                              format(uuid, info_pair[0], info_pair[1], err))
             remove_elem.append(uuid)
 
         for uuid in remove_elem:
           try:
-            del self.orphan[op][uuid]
-          except ValueError as e:
+            del self.orphan[oper][uuid]
+          except ValueError as err:
             self.logger.error("Unable to remove job={0} from orphan list".format(uuid))
 
         del remove_elem[:]
@@ -189,74 +188,73 @@ class Dispatcher(object):
       if events and events.get(socket) == zmq.POLLIN:
         try:
           req_json = socket.recv_json()
-        except zmq.ZMQError as e:
-          if e.errno == zmq.ETERM:
+        except zmq.ZMQError as err:
+          if err.errno == zmq.ETERM:
             break  # shutting down, exit
           else:
             raise
-        except ValueError as e:
+        except ValueError as err:
           self.logger.error("Command in not in JSON format")
           socket.send("ERROR error:command not in JSON format")
           continue
 
         self.logger.debug("Received command: {0}".format(req_json))
-        op = req_json['cmd']
+        oper = req_json['cmd']
 
-        if op in [const.PUT_OP, const.GET_OP, const.PURGE_OP, const.DELETE_OP]:
+        if oper in self.proc:  # Get, put, purge or delete operation
           src, opt = req_json['src'], req_json['opt']
           root_src = src[:-(len(src) - src.rfind('/') - 1)]
           job_uuid = sha256(root_src).hexdigest()
           self.logger.info("Try adding job={0}".format(job_uuid))
 
-          if job_uuid in self.proc[op] or job_uuid in self.orphan[op]:
+          if (job_uuid in self.proc[oper] or 
+              job_uuid in self.orphan[oper] or 
+              job_uuid in self.pending[oper]):
             self.logger.error("Transfer with same signature already exists")
             socket.send("ERROR error: transfer with same signature exists")
             continue
           
-          if job_uuid not in self.pending[op]:
-            if len(self.pending[op]) <= const.MAX_PENDING:
-              self.pending[op][job_uuid] = (src, op, opt)
-              self.submit_pending()
-              socket.send("OK id=" + job_uuid)
-            else:
-              socket.send("ERROR too many pending requests, resubmit later")
+          if len(self.pending[oper]) <= const.MAX_PENDING:
+            self.pending[oper][job_uuid] = (src, oper, opt)
+            self.submit_pending()
+            socket.send("OK Id=" + job_uuid)
           else:
-            socket.send("ERROR error:transfer already queued")
-        elif op == const.LIST_OP:
+            socket.send("ERROR too many pending requests, resubmit later")
+        elif oper == const.LIST_OP:  # List
           reply = self.do_list(req_json)
           socket.send_string(reply)
-        elif op == const.KILL_OP:
+        elif oper == const.KILL_OP:  # Kill transfer
           reply = self.do_kill(req_json)
           socket.send_string(reply)
         else:
           # Operation not supported reply to client with error
-          self.logger.debug("ERROR operation not supported: {0}".format(msg))
+          self.logger.debug("ERROR operation not supported: {0}".format(oper))
           socket.send("ERROR error:operation not supported")
 
   def submit_pending(self):
     """ Submit as many pending requests as possible if there are enough available
     workers to process them.
     """
-    for op, dict_jobs in self.pending.iteritems():
+    for oper, dict_jobs in self.pending.iteritems():
       if dict_jobs:
         remove_elem = []
-        num_proc = len([_ for _, proc in self.proc[op] if proc.is_alive()])
+        num_proc = len([_ for _, proc in self.proc[oper] if proc.is_alive()])
         self.logger.debug("Num. running processes={0}".format(num_proc))
 
         for job_uuid, req_tuple in dict_jobs.iteritems():
           if num_proc < const.BATCH_SIZE:
             self.logger.info("Pending request is submitted ...")
             proc = Process(target=do_transfer, args=(req_tuple))
-            self.proc[op][job_uuid] = proc
+            self.proc[oper][job_uuid] = proc
             proc.start()
             remove_elem.append(job_uuid)
             num_proc += 1
           else:
-            self.logger.debug("No more workers available")
+            self.logger.info("No more workers available")
             break
 
         for key in remove_elem:
-          del self.pending[op][key]
+          del self.pending[oper][key]
 
         del remove_elem[:]
 
@@ -277,36 +275,35 @@ class Dispatcher(object):
             ps_proc = subprocess.Popen(['tail', '-1', ps_file],
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE)
-            ps_out, ps_err = ps_proc.communicate()
+            ps_out, _ = ps_proc.communicate()
             ps_out = ps_out.strip('\0')
             pid = ps_out[ps_out.find("pid=") + 4: ps_out.find(' ')]
-            # Check if process is still alive
+            tx_file = ps_file[:ps_file.find('.')] + '.tx'
+            log_file = ps_file[:ps_file.find('.')] + '.log'
+            # Check if process is still alive            
             try:
               os.kill(int(pid), 0)
-            except Exception as e:
-              self.logger.info("Pid={0} is no longer alive, error={1}".format(pid, e))
-              tx_file = ps_file[:ps_file.find('.')] + '.tx'
-              log_file = ps_file[:ps_file.find('.')] + '.log'
+            except OSError as err:
+              self.logger.info("Pid={0} is no longer alive, error={1}".format(pid, err))
               # Delete all files associated to this transfer
               try:
                 os.remove(ps_file)
-              except OSError as e1:
+              except OSError as err:
                 pass
 
               try:
                 os.remove(tx_file)
-              except OSError as e1:
+              except OSError as err:
                 pass
 
               try:
                 os.remove(log_file)
-              except OSError as e1:
+              except OSError as err:
                 pass
             else:
               # Read the path from the transfer file
-              tx_file = ps_file[: ps_file.rfind('.')] + '.tx'
-              with open(tx_file, 'r') as f:
-                header = json.loads(f.readline())
+              with open(tx_file, 'r') as filed:
+                header = json.loads(filed.readline())
                 path = header['src']
                 self.orphan[key][uuid] = (pid, path)
                 self.logger.debug("op={0}, uuid={1}, pid={2}".format(key, uuid, pid))
@@ -328,9 +325,9 @@ class Dispatcher(object):
     search_uuid = ''
     
     if ls_type == "all":
-        op_list = self.proc.keys()
+      op_list = self.proc.keys()
     elif ls_type in self.proc:
-        op_list = [ls_type]
+      op_list = [ls_type]
     else:
       search_uuid = ls_type
       op_list = self.proc.keys()
@@ -345,7 +342,7 @@ class Dispatcher(object):
         ps_proc = subprocess.Popen(['tail', '-1', ps_file],
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
-        ps_out, ps_err = ps_proc.communicate()
+        ps_out, _ = ps_proc.communicate()
         ps_out = ps_out.strip('\0')
         ps_msg = ps_out[ps_out.find("msg=") + 4:]
         table.add_row([uuid, path, ls_type, "running", ps_msg])
@@ -355,12 +352,12 @@ class Dispatcher(object):
       for uuid in self.orphan[ls_type]:
         if search_uuid and search_uuid != uuid:
           continue
-        pid, path = self.orphan[ls_type][uuid]
+        _, path = self.orphan[ls_type][uuid]
         ps_file = ''.join([const.DIR[ls_type], uuid, ".ps"])
         ps_proc = subprocess.Popen(['tail', '-1', ps_file],
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
-        ps_out, ps_err = ps_proc.communicate()
+        ps_out, _ = ps_proc.communicate()
         ps_out = ps_out.strip('\0')
         ps_msg = ps_out[ps_out.find("msg=") + 4:]
         table.add_row([uuid, path, ls_type, "running (o)", ps_msg])
@@ -411,7 +408,7 @@ class Dispatcher(object):
         kill_proc = subprocess.Popen(['kill', '-9', str(pid)],
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
-        out, err = kill_proc.communicate()
+        _, err = kill_proc.communicate()
         retc = kill_proc.returncode
 
         if retc:
@@ -424,20 +421,21 @@ class Dispatcher(object):
 
 
 def main():
+  """ Main function """
   logging.basicConfig(level=logging.DEBUG, format=const.LOG_FORMAT)
 
-  # Create the local directory structure
-  for op in [const.PUT_OP, const.GET_OP, const.PURGE_OP, const.DELETE_OP]:
+  # Create the local directory structure in /var/eos/archive/
+  for oper in const.DIR:
     try:
-      os.mkdir(const.DIR[op])
-    except OSError as e:
+      os.mkdir(const.DIR[oper])
+    except OSError as err:
       pass
 
   dispatcher = Dispatcher()
   try:
     dispatcher.run()
-  except Exception as e:
-    dispatcher.logger.exception(e)
+  except Exception as err:
+    dispatcher.logger.exception(err)
 
 with daemon.DaemonContext():
   main()
