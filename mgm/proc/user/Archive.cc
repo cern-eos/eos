@@ -150,11 +150,7 @@ ProcCommand::Archive()
       else
       {
         XrdOucString dst = pOpaque->Get("mgm.archive.dst");
-        MakeSubTreeImmutable(spath, vect_files);
-
-        if (!retc)
-          ArchiveCreate(spath, dst, fid);
-
+        ArchiveCreate(spath, dst, vect_files, fid);
         return SFS_OK;
       }
     }
@@ -409,12 +405,25 @@ ProcCommand::Archive()
 //------------------------------------------------------------------------------
 void
 ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
-                           const XrdOucString& dst_url, int fid)
+                           const XrdOucString& dst_url,
+                           const std::vector<std::string>& vect_files,
+                           int fid)
 {
   int num_dirs = 0;
   int num_files = 0;
 
   if (ArchiveGetNumEntries(arch_dir, num_dirs, num_files))
+    return;
+
+  if (!num_files)
+ {
+   eos_err("archive sub-tree=%s does not contain any files", arch_dir.c_str());
+   stdErr = "error: archive sub-tree does not contain any files";
+   retc = EINVAL;
+   return;
+ }
+
+  if (MakeSubTreeImmutable(arch_dir, vect_files))
     return;
 
   std::ostringstream sstr;
@@ -521,7 +530,7 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
 // Make EOS sub-tree immutable/mutable by adding/removing the sys.acl=z:i from
 // all of the directories in the subtree.
 //------------------------------------------------------------------------------
-void
+int
 ProcCommand::MakeSubTreeImmutable(const XrdOucString& arch_dir,
                                   const std::vector<std::string>& vect_files)
 {
@@ -534,7 +543,7 @@ ProcCommand::MakeSubTreeImmutable(const XrdOucString& arch_dir,
   {
     eos_err("dir=%s list all err=%s", arch_dir.c_str(), stdErr.c_str());
     retc = errno;
-    return;
+    return retc;
   }
 
   for (auto it = found.begin(); it != found.end(); ++it)
@@ -559,7 +568,7 @@ ProcCommand::MakeSubTreeImmutable(const XrdOucString& arch_dir,
   {
     // Forbit archiving of archives
     retc = EPERM;
-    return;
+    return retc;
   }
 
   // Make the EOS sub-tree immutable e.g.: sys.acl=z:i
@@ -593,6 +602,8 @@ ProcCommand::MakeSubTreeImmutable(const XrdOucString& arch_dir,
       break;
     }
   }
+
+  return retc;
 }
 
 
@@ -664,7 +675,6 @@ ProcCommand::ArchiveGetNumEntries(const XrdOucString& arch_dir,
   {
     stdErr = "error: ndirectories not found";
     retc = ENOENT;
-    return retc;
   }
 
   return retc;
