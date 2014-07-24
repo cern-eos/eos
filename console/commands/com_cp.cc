@@ -215,6 +215,10 @@ com_cp (char* argin)
 			    }
 			    else
                             {
+			      if (!option.beginswith("/eos"))
+			      {
+				while(option.replace("#AND#","&")){}
+			      }
 			      source_list.push_back(option.c_str());
 			      break;
 			    }
@@ -484,6 +488,7 @@ com_cp (char* argin)
   // create the target directory if it is a local one
   if ((!target.beginswith("/eos")))
   {
+    while(target.replace("#AND#","&")){}
     if ((target.find(":/") == STR_NPOS) && (!target.beginswith("as3:")))
     {
       if (!target.beginswith("/")) 
@@ -875,11 +880,13 @@ com_cp (char* argin)
     }
 
     targetfile = arg2;
-
+    
     if (arg2.beginswith("/eos") || arg2.beginswith("root://"))
     {
       if (arg2.beginswith("/eos"))
       {
+	int qpos = arg2.find("?");
+	while( ((arg2.find("&")!=STR_NPOS) && (arg2.find("&") < qpos)) && (arg2.replace("&","#AND#"))){fprintf(stderr,"replace\n");}
         arg2.insert("/", 0);
         arg2.insert(serveruri.c_str(), 0);
       }
@@ -902,8 +909,11 @@ com_cp (char* argin)
         arg2 += "&eos.rgid=";
         arg2 += group_role;
       }
+    } else 
+    {
+      while(arg2.replace("#AND#","&")){}
+      while(targetfile.replace("#AND#","&")){}
     }
-
     // ------------------------------
     // check for external copy tools
     // ------------------------------
@@ -1088,7 +1098,9 @@ com_cp (char* argin)
     cmdline += transfersize;
     cmdline += " ";
     cmdline += "-N ";
-    cmdline += cPath.GetName();
+    XrdOucString safepath=cPath.GetName();
+    while(safepath.replace("&","#AND#")) {}
+    cmdline += safepath.c_str();
     cmdline += " ";
     if (rstdin)
     {

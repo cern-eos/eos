@@ -1042,7 +1042,12 @@ XrdMgmOfsFile::open (const char *inpath,
   capability += "&mgm.gid=";
   capability += (int) vid.gid_list[0];
   capability += "&mgm.path=";
-  capability += path;
+  {
+    // an '&' will create a failure on the FST
+    XrdOucString safepath=path;
+    while(safepath.replace("&","#AND#")) {}
+    capability += safepath;
+  }
   capability += "&mgm.manager=";
   capability += gOFS->ManagerId.c_str();
   capability += "&mgm.fid=";

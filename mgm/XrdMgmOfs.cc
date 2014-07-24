@@ -5802,7 +5802,9 @@ XrdMgmOfs::FSctl (const int cmd,
       std::string fmdenv = "";
       fmd->getEnv(fmdenv);
       fmdenv += "&container=";
-      fmdenv += cPath.GetParentPath();
+      XrdOucString safepath = cPath.GetParentPath();;
+      while(safepath.replace("&","#AND#")) {}
+      fmdenv += safepath.c_str();
       XrdOucString response = "getfmd: retc=0 ";
       response += fmdenv.c_str();
       response.replace("checksum=&", "checksum=none&"); // XrdOucEnv does not deal with empty values ... sigh ...
