@@ -30,7 +30,7 @@
 int
 com_rtlog (char* arg1)
 {
-  XrdOucTokenizer subtokenizer(arg1);
+  eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString queue = subtokenizer.GetToken();
   XrdOucString lines = subtokenizer.GetToken();

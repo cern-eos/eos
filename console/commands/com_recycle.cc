@@ -31,7 +31,7 @@ int
 com_recycle (char* arg1)
 {
   // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
+  eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString in = "mgm.cmd=recycle&";
   std::vector<std::string> args;

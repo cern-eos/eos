@@ -30,7 +30,7 @@
 int
 com_ns (char* arg1)
 {
-  XrdOucTokenizer subtokenizer(arg1);
+  eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString cmd = subtokenizer.GetToken();
   XrdOucString option = "";

@@ -27,6 +27,7 @@
 #include "common/Logging.hh"
 //#include "common/FileSystem.hh"
 #include "common/StringConversion.hh"
+#include "common/StringTokenizer.hh"
 #include "mq/XrdMqSharedObject.hh"
 
 #ifndef CLIENT_ONLY
@@ -107,8 +108,7 @@ extern XrdOucEnv* CommandEnv;
 typedef int
 CFunction (char *);
 
-typedef struct
-{
+typedef struct {
   char *name; /* User printable name of the function. */
   CFunction* func;
   ; /* Function to call to do the job. */

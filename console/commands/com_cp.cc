@@ -87,7 +87,7 @@ com_cp (char* argin)
   XrdOucString sarg = argin;
 
   // split subcommands
-  XrdOucTokenizer subtokenizer(argin);
+  eos::common::StringTokenizer subtokenizer(argin);
   subtokenizer.GetLine();
   XrdOucString rate = "0";
   XrdOucString streams = "0";

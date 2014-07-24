@@ -30,7 +30,7 @@ int
 com_mkdir (char* arg1)
 {
   // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
+  eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString path = subtokenizer.GetToken();
   XrdOucString in = "mgm.cmd=mkdir";

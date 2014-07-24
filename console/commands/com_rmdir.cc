@@ -30,7 +30,7 @@ int
 com_rmdir (char* arg1)
 {
   // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
+  eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString path = subtokenizer.GetToken();
   XrdOucString in = "mgm.cmd=rmdir&";
@@ -41,27 +41,6 @@ com_rmdir (char* arg1)
   if ((path == "--help") || (path == "-h"))
   {
     goto com_rmdir_usage;
-  }
-
-  do
-  {
-    XrdOucString param;
-    param = subtokenizer.GetToken();
-    if (param.length())
-    {
-      path += " ";
-      path += param;
-    }
-    else
-    {
-      break;
-    }
-  }
-  while (1);
-
-  // remove escaped blanks
-  while (path.replace("\\ ", " "))
-  {
   }
 
   if (!path.length())

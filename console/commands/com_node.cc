@@ -40,7 +40,7 @@ com_node (char* arg1)
   bool ok = false;
   bool sel = false;
   // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
+  eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
 

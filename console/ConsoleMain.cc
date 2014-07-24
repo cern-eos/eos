@@ -1207,7 +1207,11 @@ main (int argc, char* argv[])
         // this are commands
         for (int i = argindex; i < argc; i++)
         {
+	  if (i!=argindex)
+	    cmdline += "\"";
           cmdline += argv[i];
+	  if (i!=argindex)
+	    cmdline += "\"";
           cmdline += " ";
         }
         if ((!selectedrole) && (!getuid()) && (serveruri.beginswith("root://localhost")))

@@ -41,7 +41,7 @@ int
 com_transfer (char* argin)
 {
   // split subcommands
-  XrdOucTokenizer subtokenizer(argin);
+  eos::common::StringTokenizer subtokenizer(argin);
   subtokenizer.GetLine();
   XrdOucString subcmd = subtokenizer.GetToken();
   XrdOucString rate = "0";

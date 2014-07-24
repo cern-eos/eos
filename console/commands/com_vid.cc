@@ -30,7 +30,7 @@ int
 com_vid (char* arg1)
 {
   // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
+  eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
 

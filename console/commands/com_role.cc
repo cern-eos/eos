@@ -29,7 +29,7 @@
 int
 com_role (char *arg)
 {
-  XrdOucTokenizer subtokenizer(arg);
+  eos::common::StringTokenizer subtokenizer(arg);
   subtokenizer.GetLine();
   user_role = subtokenizer.GetToken();
   group_role = subtokenizer.GetToken();

@@ -30,7 +30,7 @@ int
 com_ls (char* arg1)
 {
   // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
+  eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString param = "";
   XrdOucString option = "";

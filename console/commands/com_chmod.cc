@@ -29,7 +29,7 @@
 int
 com_chmod (char* arg1)
 {
-  XrdOucTokenizer subtokenizer(arg1);
+  eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString mode = subtokenizer.GetToken();
   XrdOucString option = "";

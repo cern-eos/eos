@@ -37,7 +37,7 @@ com_fileinfo (char* arg1)
 {
   XrdOucString savearg = arg1;
   // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
+  eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString path = subtokenizer.GetToken();
   XrdOucString option = "";
@@ -117,7 +117,7 @@ com_file (char* arg1)
 {
   XrdOucString savearg = arg1;
   XrdOucString arg = arg1;
-  XrdOucTokenizer subtokenizer(arg1);
+  eos::common::StringTokenizer subtokenizer(arg1);
   XrdOucString option = "";
   XrdOucString path = "";
   subtokenizer.GetLine();

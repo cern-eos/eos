@@ -31,7 +31,7 @@ int
 com_rm (char* arg1)
 {
   // split subcommands
-  XrdOucTokenizer subtokenizer(arg1);
+  eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString s1 = subtokenizer.GetToken();
   XrdOucString s2 = subtokenizer.GetToken();

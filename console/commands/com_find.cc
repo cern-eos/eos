@@ -34,7 +34,7 @@ com_find (char* arg1)
   // split subcommands
   XrdOucString oarg = arg1;
 
-  XrdOucTokenizer subtokenizer(arg1);
+  eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString s1;
   XrdOucString path;

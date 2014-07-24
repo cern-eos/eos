@@ -44,7 +44,7 @@ com_fuse (char* arg1)
 
   // split subcommands
   XrdOucString mountpoint = "";
-  XrdOucTokenizer subtokenizer(arg1);
+  eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString cmd = subtokenizer.GetToken();
   XrdOucString option = "";
