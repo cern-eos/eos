@@ -185,7 +185,7 @@ StringTokenizer::GetToken ()
     }
 
     int pos = 0;
-    while ((pos = item.find("&")) != STR_NPOS)
+    while ((pos = item.find("&",pos)) != STR_NPOS)
     {
       if ((pos == 0) ||
           (item[pos - 1] != '\\'))
