@@ -60,11 +60,11 @@ XrdSysMutex Mapping::gPhysicalNameCacheMutex;
 std::map<uid_t, std::string> Mapping::gPhysicalUserNameCache;
 std::map<gid_t, std::string> Mapping::gPhysicalGroupNameCache;
 
-
+Mapping::ip_cache Mapping::gIpCache (300);
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Initialize Google maps
- * 
+ *
  */
 
 /*----------------------------------------------------------------------------*/
@@ -77,9 +77,9 @@ Mapping::Init ()
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Expire Active client entries which have not been used since interval
- * 
+ *
  * @param interval seconds of idle time for expiration
  */
 
@@ -114,9 +114,9 @@ Mapping::ActiveExpire (int interval, bool force)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Map a client to its virtual identity
- * 
+ *
  * @param client xrootd client authenticatino object
  * @param env opaque information containing role selection like 'eos.ruid' and 'eos.rgid'
  * @param tident trace identifier of the client
@@ -495,18 +495,18 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     }
     else
     {
-      if ( gAllowedTidentMatches.size() )
+      if (gAllowedTidentMatches.size())
       {
-        std::string sprot=vid.prot.c_str();
+        std::string sprot = vid.prot.c_str();
         for (auto it = gAllowedTidentMatches.begin(); it != gAllowedTidentMatches.end(); ++it)
         {
-          if ( sprot != it->first.c_str() )
+          if (sprot != it->first.c_str())
             continue;
 
-          if ( host.matches(it->second.c_str()) )
+          if (host.matches(it->second.c_str()))
           {
             sprotuidtident.replace(host.c_str(), it->second.c_str());
-            if ( gVirtualUidMap.count(sprotuidtident.c_str()) )
+            if (gVirtualUidMap.count(sprotuidtident.c_str()))
             {
               tuid = sprotuidtident.c_str();
               break;
@@ -531,18 +531,18 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     }
     else
     {
-      if ( gAllowedTidentMatches.size() )
+      if (gAllowedTidentMatches.size())
       {
-        std::string sprot=vid.prot.c_str();
+        std::string sprot = vid.prot.c_str();
         for (auto it = gAllowedTidentMatches.begin(); it != gAllowedTidentMatches.end(); ++it)
         {
-          if ( sprot != it->first.c_str() )
+          if (sprot != it->first.c_str())
             continue;
 
-          if ( host.matches(it->second.c_str()) )
+          if (host.matches(it->second.c_str()))
           {
             sprotuidtident.replace(host.c_str(), it->second.c_str());
-            if ( gVirtualUidMap.count(sprotuidtident.c_str()) )
+            if (gVirtualUidMap.count(sprotuidtident.c_str()))
             {
               tuid = sprotuidtident.c_str();
               break;
@@ -573,7 +573,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
       {
         eos_static_debug("tident uid mapping");
         vid.uid_list.clear();
-        // use physical mapping 
+        // use physical mapping
 
         // unix protocol maps to the role if the client is the root account
         // otherwise it maps to the unix ID on the client host
@@ -642,7 +642,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
       gVirtualGidMap.count(tgid.c_str()))
   {
     // indicate in the name that this is a mapped tident
-    vid.name="tident";
+    vid.name = "tident";
   }
 
   eos_static_debug("suidtident:%s sgidtident:%s", suidtident.c_str(), sgidtident.c_str());
@@ -672,7 +672,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   if (!HasGid(vid.gid, vid.gid_list)) vid.gid_list.insert(vid.gid_list.begin(), vid.gid);
 
   // ---------------------------------------------------------------------------
-  // add virtual user and group roles - if any 
+  // add virtual user and group roles - if any
   // ---------------------------------------------------------------------------
   if (gUserRoleVector.count(vid.uid))
   {
@@ -700,14 +700,14 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   {
     if (!IsUid(ruid, sel_uid))
     {
-      int errc=0;
+      int errc = 0;
       // try alias conversion
-      std::string luid=ruid.c_str();
+      std::string luid = ruid.c_str();
       sel_uid = (gVirtualUidMap.count(ruid.c_str())) ? gVirtualUidMap[ruid.c_str() ] : 99;
       if (sel_uid == 99)
         sel_uid = UserNameToUid(luid, errc);
       if (errc)
-	sel_uid=99;
+        sel_uid = 99;
     }
   }
 
@@ -715,18 +715,18 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   {
     if (!IsGid(rgid, sel_gid))
     {
-      int errc=0;
+      int errc = 0;
       // try alias conversion
-      std::string lgid=rgid.c_str();
+      std::string lgid = rgid.c_str();
       sel_gid = (gVirtualGidMap.count(rgid.c_str())) ? gVirtualGidMap[rgid.c_str()] : 99;
       if (sel_gid == 99)
-	sel_gid = GroupNameToGid(lgid, errc);
+        sel_gid = GroupNameToGid(lgid, errc);
       if (errc)
-	sel_gid=99;
+        sel_gid = 99;
     }
   }
 
-  // ---------------------------------------------------------------------------    
+  // ---------------------------------------------------------------------------
   // Sudoer flag setting
   // ---------------------------------------------------------------------------
   if (gSudoerMap.count(vid.uid))
@@ -841,9 +841,9 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Print the current mappings
- * 
+ *
  * @param stdOut the output is stored here
  * @param option can be 'u' for user role mappings 'g' for group role mappings 's' for sudoer list 'U' for user alias mapping 'G' for group alias mapping 'y' for gateway mappings (tidents) 'a' for authentication mapping rules 'l' for geo location rules
  */
@@ -1053,7 +1053,7 @@ Mapping::Print (XrdOucString &stdOut, XrdOucString option)
 
   if ((!option.length()))
   {
-    for ( auto it = gAllowedTidentMatches.begin(); it != gAllowedTidentMatches.end();  ++it)
+    for (auto it = gAllowedTidentMatches.begin(); it != gAllowedTidentMatches.end(); ++it)
     {
       char sline[1024];
       snprintf(sline, sizeof (sline) - 1, "hostmatch:\"protocol=%s pattern=%s\n", it->first.c_str(), it->second.c_str());
@@ -1063,16 +1063,16 @@ Mapping::Print (XrdOucString &stdOut, XrdOucString option)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Store the physical Ids for name in the virtual identity
- * 
+ *
  * @param name user name
  * @param vid virtual identity to store
  */
 
 /*----------------------------------------------------------------------------*/
 void
-Mapping::getPhysicalIds (const char* name, VirtualIdentity &vid)
+Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
 {
   struct passwd passwdinfo;
   char buffer[131072];
@@ -1095,7 +1095,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity &vid)
     eos_static_debug("not found in uid cache");
 
     XrdOucString sname = name;
-    bool use_pw=true;
+    bool use_pw = true;
     if (sname.length() == 8)
     {
       // -------------------------------------------------------------------------
@@ -1131,7 +1131,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity &vid)
         gPhysicalUidCache.Add(name, id, 3600);
         eos_static_debug("adding to cache uid=%u gid=%u", id->uid, id->gid);
         gPhysicalGidCache.Add(name, vec, 3600);
-	use_pw = false;
+        use_pw = false;
       }
     }
     if (use_pw)
@@ -1168,7 +1168,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity &vid)
   // ----------------------------------------------------------------------------------------
   /* remove secondary searches in the database -> LDAP assertion
   struct group* gr;
-  
+
   eos_static_debug("group lookup");
   gid_t gid = id->gid;
 
@@ -1206,12 +1206,12 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity &vid)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Convert uid to user name
- * 
+ *
  * @param uid unix user id
  * @param errc 0 if success, EINVAL if does not exist
- * 
+ *
  * @return user name as string
  */
 
@@ -1251,12 +1251,12 @@ Mapping::UidToUserName (uid_t uid, int &errc)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Convert gid to group name
- * 
+ *
  * @param gid unix group id
  * @param errc 0 if success, EINVAL if does not exist
- * 
+ *
  * @return user name as string
  */
 
@@ -1298,12 +1298,12 @@ Mapping::GidToGroupName (gid_t gid, int &errc)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Convert string name to uid
- * 
+ *
  * @param username name as string
  * @param errc 0 if success, EINVAL if does not exist
- * 
+ *
  * @return user id
  */
 
@@ -1321,17 +1321,17 @@ Mapping::UserNameToUid (std::string &username, int &errc)
   if (!pwbufp)
   {
     bool is_number = true;
-    for (size_t i=0; i< username.length(); i++) 
+    for (size_t i = 0; i < username.length(); i++)
     {
       if (!isdigit(username[i]))
       {
-	is_number = false;
-	break;
+        is_number = false;
+        break;
       }
     }
 
     uid = atoi(username.c_str());
-    if ( (uid != 0) && (is_number) )
+    if ((uid != 0) && (is_number))
       errc = 0;
     else
     {
@@ -1349,12 +1349,12 @@ Mapping::UserNameToUid (std::string &username, int &errc)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Convert string name to gid
- * 
+ *
  * @param groupname name as string
  * @param errc 0 if success, EINVAL if does not exist
- * 
+ *
  * @return group id
  */
 

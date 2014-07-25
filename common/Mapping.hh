@@ -23,10 +23,10 @@
 
 /**
  * @file   Mapping.hh
- * 
+ *
  * @brief  Class implementing virtual ID mapping.
- * 
- * 
+ *
+ *
  */
 
 #ifndef __EOSCOMMON_MAPPING__
@@ -56,8 +56,7 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-class Mapping
-{
+class Mapping {
 private:
 public:
 
@@ -69,14 +68,12 @@ public:
   typedef std::map<std::string, gid_t> VirtualGroupMap_t; //< typedef of map storing translation rules from auth methods to gids
   typedef std::map<uid_t, bool > SudoerMap_t; //< typde of map storing members of the suid group
   typedef std::map<std::string, std::string> GeoLocationMap_t; //< typdef of map storing translation of string(IP) => geo location string
-  typedef std::set<std::pair<std::string,std::string>> AllowedTidentMatches_t; //< typdef of set storing all host patterns which are allowed to use tident mapping
-
+  typedef std::set<std::pair<std::string, std::string>> AllowedTidentMatches_t; //< typdef of set storing all host patterns which are allowed to use tident mapping
   // ---------------------------------------------------------------------------
   //! Class wrapping an uid/gid pari
   // ---------------------------------------------------------------------------
 
-  class id_pair
-  {
+  class id_pair {
   public:
     uid_t uid;
     gid_t gid;
@@ -130,7 +127,7 @@ public:
     vid.gid_list.clear();
     vid.uid_list.push_back(99);
     vid.gid_list.push_back(99);
-    vid.name="nobody";
+    vid.name = "nobody";
     vid.sudoer = false;
   }
 
@@ -146,9 +143,9 @@ public:
     vid.gid_list.clear();
     vid.uid_list.push_back(0);
     vid.gid_list.push_back(0);
-    vid.name="root";
-    vid.prot="local";
-    vid.tident="service@localhost";
+    vid.name = "root";
+    vid.prot = "local";
+    vid.tident = "service@localhost";
     vid.sudoer = false;
   }
 
@@ -307,7 +304,8 @@ public:
   // ---------------------------------------------------------------------------
   //! Reset clears all cached information
   // ---------------------------------------------------------------------------
-  static void Reset()
+
+  static void Reset ()
   {
     {
       XrdSysMutexHelper mLock(gPhysicalIdMutex);
