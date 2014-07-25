@@ -163,14 +163,7 @@ com_file (char* arg1)
   // convenience function
   if (cmd == "info")
   {
-    if (arg == "info")
-    {
-      arg.replace("info", "");
-    }
-    else
-    {
-      arg.replace("info ", "");
-    }
+    arg.erase(0, arg.find(" ")+1);
     return com_fileinfo((char*) arg.c_str());
   }
 
