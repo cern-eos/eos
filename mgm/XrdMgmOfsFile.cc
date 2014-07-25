@@ -1070,17 +1070,12 @@ XrdMgmOfsFile::open (const char *inpath,
   capability += "&mgm.gid=";
   capability += (int) vid.gid_list[0];
   capability += "&mgm.path=";
-<<<<<<< HEAD
   {
     // an '&' will create a failure on the FST
     XrdOucString safepath=path;
     while(safepath.replace("&","#AND#")) {}
     capability += safepath;
   }
-=======
-  XrdOucString sealedpath = path;
-  capability += XrdMqMessage::Seal(sealedpath);
->>>>>>> b7c92c6... OC-Chunk Features
   capability += "&mgm.manager=";
   capability += gOFS->ManagerId.c_str();
   capability += "&mgm.fid=";
