@@ -370,7 +370,28 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
     mUserCmd = true;
   }
 
-  pOpaque = new XrdOucEnv(ininfo);
+
+  // ---------------------------------------------
+  // deal with '&' ... sigh 
+  // ---------------------------------------------
+  XrdOucString sinfo=ininfo;
+  for (size_t i=0; i< sinfo.length(); i++)
+  {
+
+    if (sinfo[i] == '&') 
+    {
+      // figure out if this is a real separator or 
+      XrdOucString follow=sinfo.c_str()+i+1;
+      if (!follow.beginswith("mgm."))
+      {
+	sinfo.erase(i,1);
+	sinfo.insert("#AND#",i);
+      }
+    }
+  }
+  // ---------------------------------------------
+
+  pOpaque = new XrdOucEnv(sinfo.c_str());
 
   if (!pOpaque)
   {
