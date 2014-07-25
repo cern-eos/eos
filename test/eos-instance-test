@@ -453,8 +453,8 @@ runtest "### Access    " unix 2 "" eos "access rm stall r"
 runtest "### Access    " unix 2 "" eos "access rm redirect"
 runtest "### Access    " unix 2 "" eos "access unban user nobody"
 runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/"
-runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
-runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress/"
+runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
+runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress/"
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.blockchecksum /eos/$EOS_TEST_INSTANCE/test/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.blocksize /eos/$EOS_TEST_INSTANCE/test/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.checksum /eos/$EOS_TEST_INSTANCE/test/
@@ -1026,8 +1026,8 @@ if [ $NUM_FST -ge 6 ]; then
    #----------------------------------------------------------------------------
    # Clean up the files used for the RAIN test
    #----------------------------------------------------------------------------
-   runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"
-   runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"
+   runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"
+   runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"
    rm -rf $EOS_TEST_RAIN_TMP
 else 
   echo "Can not run RAIN test - not enough FSTs"
