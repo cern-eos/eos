@@ -770,43 +770,39 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
 
   time_t now = time(NULL);
 
-  // ---------------------------------------------------------------------------    
+  // ---------------------------------------------------------------------------
   // Check the Geo Location
   // ---------------------------------------------------------------------------
   if ((!vid.geolocation.length()) && (gGeoMap.size()))
   {
-    // if the geo location was not set externally and we have some recipe we try 
+    // if the geo location was not set externally and we have some recipe we try
     // to translate the host name and match a rule
-    unsigned int ipaddr;
 
     // if we have a default geo location we assume that a client in that one
     if (gGeoMap.count("default"))
     {
       vid.geolocation = gGeoMap["default"];
     }
-    if (XrdSysDNS::Host2IP(host.c_str(), &ipaddr) == 1)
+
+    std::string ipstring = gIpCache.GetIp(host.c_str());
+    if (ipstring.length())
     {
-      char ipstring[64];
-      int hostlen = XrdSysDNS::IP2String(ipaddr, 0, ipstring, 64);
-      if (hostlen > 0)
+      std::string sipstring = ipstring;
+      GeoLocationMap_t::const_iterator it;
+      // we use the geo location with the longest name match
+      for (it = gGeoMap.begin(); it != gGeoMap.end(); it++)
       {
-        std::string sipstring = ipstring;
-        GeoLocationMap_t::const_iterator it;
-        // we use the geo location with the longest name match
-        for (it = gGeoMap.begin(); it != gGeoMap.end(); it++)
+        size_t l = 0;
+        for (l = 0; l < it->first.length(); l++)
         {
-          size_t l = 0;
-          for (l = 0; l < it->first.length(); l++)
+          if (it->first.at(l) != sipstring.at(l))
           {
-            if (it->first.at(l) != sipstring.at(l))
-            {
-              break;
-            }
+            break;
           }
-          if (l > vid.geolocation.length())
-          {
-            vid.geolocation = it->second;
-          }
+        }
+        if (l > vid.geolocation.length())
+        {
+          vid.geolocation = it->second;
         }
       }
     }
@@ -1390,7 +1386,52 @@ Mapping::GroupNameToGid (std::string &groupname, int &errc)
   return gid;
 }
 
+/*----------------------------------------------------------------------------*/
+/**
+ * Convert string name to gid
+ *
+ * @param groupname name as string
+ * @param errc 0 if success, EINVAL if does not exist
+ *
+ * @return group id
+ */
 
+/*----------------------------------------------------------------------------*/
+
+std::string
+Mapping::ip_cache::GetIp (const char* hostname)
+{
+  time_t now = time(NULL);
+  {
+    // check for an existing translation
+    RWMutexReadLock guard(mLocker);
+    if (mIp2HostMap.count(hostname) &&
+        mIp2HostMap[hostname].first > now)
+    {
+      eos_static_debug("status=cached host=%s ip=%s", hostname, mIp2HostMap[hostname].second.c_str());
+      // give cached entry
+      return mIp2HostMap[hostname].second;
+    }
+  }
+  {
+    // refresh an entry
+    unsigned int ipaddr;
+    if (XrdSysDNS::Host2IP(hostname, &ipaddr) == 1)
+    {
+      char ipstring[64];
+      int hostlen = XrdSysDNS::IP2String(ipaddr, 0, ipstring, 64);
+      if (hostlen > 0)
+      {
+        RWMutexWriteLock guard(mLocker);
+        std::string sip = ipstring;
+        mIp2HostMap[hostname] = std::make_pair(now + mLifeTime, sip);
+        eos_static_debug("status=refresh host=%s ip=%s", hostname, mIp2HostMap[hostname].second.c_str());
+        return sip;
+      }
+    }
+    return "";
+  }
+}
 /*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
 

@@ -84,15 +84,40 @@ public:
       gid = igid;
     }
 
-    ~id_pair () { };
+    ~id_pair ()
+    {
+    };
   };
 
+  class ip_cache {
+  public:
+    // IP host entry and last resolution time pair
+    typedef std::pair<time_t, std::string> entry_t;
+    // Constructor
+
+    ip_cache (int lifetime = 300)
+    {
+      mLifeTime = lifetime;
+    }
+    // Destructor
+
+    virtual ~ip_cache ()
+    {
+    }
+
+    // Getter translates host name to IP string
+    std::string GetIp (const char* hostname);
+
+  private:
+    std::map<std::string, entry_t> mIp2HostMap;
+    RWMutex mLocker;
+    int mLifeTime;
+  };
   // ---------------------------------------------------------------------------
   //! Struct defining the virtual identity of a client e.g. his memberships and authentication information
   // ---------------------------------------------------------------------------
 
-  struct VirtualIdentity_t
-  {
+  struct VirtualIdentity_t {
     uid_t uid;
     gid_t gid;
     std::string uid_string;
@@ -280,6 +305,13 @@ public:
   //! Mutex protecting the active tident map
   // ---------------------------------------------------------------------------
   static XrdSysMutex ActiveLock;
+
+  // ---------------------------------------------------------------------------
+  //! Cache for host to ip translatiosn used by geo mapping
+  // ---------------------------------------------------------------------------
+  static ip_cache gIpCache;
+
+
   // ---------------------------------------------------------------------------
   //! Function to expire unused ActiveTident entries by default after 1 day
   // ---------------------------------------------------------------------------
