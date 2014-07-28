@@ -590,7 +590,7 @@ XrdMgmOfsFile::open (const char *inpath,
       stdpermcheck = true;
     }
 
-    if (isRW && vid.uid && !acl.IsMutable())
+    if (isRW && !acl.IsMutable() && vid.uid && !vid.sudoer)
     {
       // immutable directory
       errno = EPERM;
