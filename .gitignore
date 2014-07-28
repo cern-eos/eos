@@ -1,6 +1,7 @@
 *.lo
 *.o
 *.la
+*.pyc
 .libs
 .deps
 Makefile
