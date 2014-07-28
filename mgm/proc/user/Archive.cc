@@ -94,6 +94,11 @@ ProcCommand::Archive()
     PROC_BOUNCE_NOT_ALLOWED;
     eos::common::Path cPath(path);
     spath = cPath.GetPath();
+
+    // Make sure the EOS directory path ends with '/'
+    if (spath[spath.length() - 1] != '/')
+      spath += '/';
+
     std::ostringstream dir_stream;
     dir_stream << "root://" << gOFS->ManagerId.c_str() << "/" << spath.c_str();
     std::string dir_url = dir_stream.str();
@@ -136,7 +141,7 @@ ProcCommand::Archive()
     {
       oss.str("");
       oss.clear();
-      oss << spath.c_str() << "/" << *it;
+      oss << spath.c_str() << *it;
       vect_paths.push_back(oss.str());
     }
 
@@ -149,7 +154,12 @@ ProcCommand::Archive()
       }
       else
       {
+        // Make sure the tape destination path ends with a '/'
         XrdOucString dst = pOpaque->Get("mgm.archive.dst");
+
+        if (dst[dst.length() - 1] != '/')
+          dst += '/';
+        
         ArchiveCreate(spath, dst, vect_files, fid);
         return SFS_OK;
       }
@@ -160,14 +170,12 @@ ProcCommand::Archive()
              (mSubCmd == "delete"))
     {
       std::string arch_url = dir_url;
-      arch_url += "/";
 
       if (option == "r")
       {
         // Retry failed operation
         option = "retry";
         std::string arch_err = spath.c_str();
-        arch_err += "/";
 
         if (mSubCmd == "put")
         {
@@ -204,7 +212,6 @@ ProcCommand::Archive()
         // Check that the init/put archive file exists
         option = "";
         std::string arch_path = spath.c_str();
-        arch_path += "/";
 
         if (mSubCmd == "put") // put
         {
@@ -237,7 +244,6 @@ ProcCommand::Archive()
           if (gOFS->stat(arch_path.c_str(), &statinfo, *mError))
           {
             arch_path = spath.c_str();
-            arch_path += "/";
             arch_path += ARCH_GET_DONE;
 
             if (gOFS->stat(arch_path.c_str(), &statinfo, *mError))
@@ -267,7 +273,6 @@ ProcCommand::Archive()
             for (auto it = vect_files.begin(); it != vect_files.end(); ++it)
             {
               arch_fn = spath.c_str();
-              arch_fn += "/";
               arch_fn += *it;
 
               if ((*it != ARCH_LOG) && (!gOFS->stat(arch_fn.c_str(), &statinfo, *mError)))
@@ -426,6 +431,7 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
   if (MakeSubTreeImmutable(arch_dir, vect_files))
     return;
 
+  // Open temporary file in which we construct the archive file
   std::ostringstream sstr;
   sstr << "/tmp/eos.mgm/archive." << XrdSysThread::ID();
   std::string arch_fn = sstr.str();
@@ -479,7 +485,6 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
   copy_job.target.SetHostName("localhost");
   copy_job.target.SetUserName("root");
   std::string dst_path = arch_dir.c_str();
-  dst_path += "/";
   dst_path += ARCH_INIT;
   copy_job.target.SetPath(dst_path);
   copy_job.target.SetParams("eos.ruid=0&eos.rgid=0");
@@ -827,7 +832,7 @@ ProcCommand::ArchiveAddEntries(const XrdOucString& arch_dir,
     // Add entry info to the archive file with the path names relative to the
     // current archive directory
     rel_path = info_map["file"];
-    rel_path.erase(0, arch_dir.length() + 1); // +1 for the "/"
+    rel_path.erase(0, arch_dir.length());
 
     if (rel_path.empty())
       rel_path = "./";
