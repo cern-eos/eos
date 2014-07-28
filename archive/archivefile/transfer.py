@@ -54,8 +54,9 @@ class Transfer(object):
         self.log_file = local_file + ".log"
         self.ps_file = local_file + ".ps"
         self.list_jobs = []
-        self.pid = os.getpid()
         self.archive = None
+        # Special case for inital PUT as we need to copy also the archive file
+        self.init_put = self.efile_full.endswith(const.ARCH_INIT)
 
         # Set up the logging
         formatter = logging.Formatter(const.LOG_FORMAT)
@@ -78,7 +79,7 @@ class Transfer(object):
             pass
 
     def run(self):
-        """ Run requested operation - fist call prepare.
+        """ Run requested operation - fist call prepare
         """
         self.prepare()
 
@@ -136,7 +137,11 @@ class Transfer(object):
             IOError: Failed to delete an entry.
         """
         del_dirs = []
-        self.logger.info("Calling do_delete(tape_delete={0})".format(tape_delete))
+        self.logger.info("Do delete with tape_delete={0}".format(tape_delete))
+        # Delete also the archive file saved on tape
+        if tape_delete:
+            self.archive.del_entry(const.ARCH_INIT, False, tape_delete)
+
         # First remove all the files and then the directories
         for fentry in self.archive.files():
             # d2t is false for both purge and deletion
@@ -170,7 +175,6 @@ class Transfer(object):
         Raises:
             IOError when an IO opperations fails.
         """
-        self.logger.info("Calling do_transfer()")
         tstart = time.time()
         meta_handler = MetaHandler()
         indx_dir, indx_file = 0, 0
@@ -207,6 +211,11 @@ class Transfer(object):
             self.archive.mkdir(dentry)
             self.write_progress("create dir {0}/{1}".format(indx_dir,
                                 self.archive.header['num_dirs']))
+            
+        # For inital PUT copy also the archive file to tape
+        if self.init_put:
+            dst = self.archive.header['dst'] + const.ARCH_INIT
+            st = self.copy_file(self.efile_full, dst, force=False)
 
         # Copy files
         for fentry in self.archive.files():
@@ -255,7 +264,7 @@ class Transfer(object):
             msg (string): Progress status message.
         """
         self.fprogress.truncate(0)
-        self.fprogress.write("pid={0} msg={1}".format(self.pid, msg))
+        self.fprogress.write("pid={0} msg={1}".format(os.getpid(), msg))
         self.fprogress.flush()
         os.fsync(self.fprogress.fileno())
 
