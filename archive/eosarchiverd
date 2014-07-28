@@ -39,7 +39,7 @@ import logging
 import logging.handlers
 from hashlib import sha256
 from multiprocessing import Process
-from archivefile import ArchiveFile, NoErrorException
+from archivefile import NoErrorException, Transfer
 from errno import EIO, EINVAL
 from veryprettytable import VeryPrettyTable
 
@@ -77,19 +77,19 @@ def do_transfer(eos_file, oper, opt):
     oper     (string): Operation type: get/put
     opt      (string): Option for the transfer: recover/purge
   """
-  arch = ArchiveFile(eosf=eos_file, operation=oper, option=opt)
+  tx = Transfer(eosf=eos_file, operation=oper, option=opt)
 
   try:
-    arch.run()
+    tx.run()
   except IOError as err:
-    arch.logger.exception(err)
-    arch.clean_transfer(False)
+    tx.logger.exception(err)
+    tx.clean_transfer(False)
     sys.exit(EIO)
   except NoErrorException as err:
-    arch.clean_transfer(True)
+    tx.clean_transfer(True)
   except Exception as err:
-    arch.logger.exception(err)
-    arch.clean_transfer(False)
+    tx.logger.exception(err)
+    tx.clean_transfer(False)
     sys.exit(EINVAL)
 
 
@@ -114,6 +114,7 @@ class Dispatcher(object):
     self.logger.propagate = False
     self.proc, self.pending, self.orphan = {}, {}, {}
 
+    # Initialize the process dictionaries
     for op_type in [const.GET_OP, const.PUT_OP, const.PURGE_OP, const.DELETE_OP]:
       self.proc[op_type] = {}
       self.pending[op_type] = {}
@@ -207,13 +208,13 @@ class Dispatcher(object):
           job_uuid = sha256(root_src).hexdigest()
           self.logger.info("Try adding job={0}".format(job_uuid))
 
-          if (job_uuid in self.proc[oper] or 
-              job_uuid in self.orphan[oper] or 
+          if (job_uuid in self.proc[oper] or
+              job_uuid in self.orphan[oper] or
               job_uuid in self.pending[oper]):
             self.logger.error("Transfer with same signature already exists")
             socket.send("ERROR error: transfer with same signature exists")
             continue
-          
+
           if len(self.pending[oper]) <= const.MAX_PENDING:
             self.pending[oper][job_uuid] = (src, oper, opt)
             self.submit_pending()
@@ -280,7 +281,7 @@ class Dispatcher(object):
             pid = ps_out[ps_out.find("pid=") + 4: ps_out.find(' ')]
             tx_file = ps_file[:ps_file.find('.')] + '.tx'
             log_file = ps_file[:ps_file.find('.')] + '.log'
-            # Check if process is still alive            
+            # Check if process is still alive
             try:
               os.kill(int(pid), 0)
             except OSError as err:
@@ -323,7 +324,7 @@ class Dispatcher(object):
     table = VeryPrettyTable()
     table.field_names = ["Id", "Path", "Type", "State", "Message"]
     search_uuid = ''
-    
+
     if ls_type == "all":
       op_list = self.proc.keys()
     elif ls_type in self.proc:
@@ -331,7 +332,7 @@ class Dispatcher(object):
     else:
       search_uuid = ls_type
       op_list = self.proc.keys()
-      
+
     for ls_type in op_list:
       for uuid in self.proc[ls_type]:
         if search_uuid and search_uuid != uuid:
@@ -348,7 +349,7 @@ class Dispatcher(object):
         table.add_row([uuid, path, ls_type, "running", ps_msg])
         if search_uuid:
           break
-      
+
       for uuid in self.orphan[ls_type]:
         if search_uuid and search_uuid != uuid:
           continue
@@ -382,9 +383,9 @@ class Dispatcher(object):
     Args:
       req_json (JSON command): Arguments for kill command
     """
+    pid = 0
     msg = "OK"
     job_uuid = req_json['opt']
-    pid = 0
     found = False
 
     # Get pid of the process
