@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# File: __init__.py
+# File: exceptions.py
 # Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
 # ------------------------------------------------------------------------------
 #
@@ -20,8 +20,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ******************************************************************************
-"""This module provides access to EOS archives. It also facilitates the operations
-   that are done using such objects.
-"""
-from transfer import Transfer
-from exceptions import NoErrorException
+""" Module containing user defined exceptions."""
+
+class NoErrorException(Exception):
+    """ Exception raised in case we were requested to retry an operation but
+    after the initial check there were no errors found.
+    """
+    pass
+
+
+class CheckEntryException(Exception):
+    """ Exception raised in cache a verify entry operation failes.
+    """
+    pass
