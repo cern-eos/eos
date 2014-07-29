@@ -272,8 +272,10 @@ ProcCommand::Rm ()
               continue;
             if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, (const char*) 0))
             {
-              stdErr += "error: unable to remove directory";
-              retc = errno;
+	      if (errno != ENOENT) {
+		stdErr += "error: unable to remove directory";
+		retc = errno;
+	      }
             }
           }
         }
