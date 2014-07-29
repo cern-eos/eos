@@ -104,6 +104,9 @@ add_library (XrdEosMgm MODULE
             Converter.cc
             GroupBalancer.cc
             GeoBalancer.cc
+           geotree/SchedulingTreeTest.cc
+           geotree/SchedulingSlowTree.cc
+           geotree/SchedulingTreeCommon.cc
             )
 
 target_link_libraries( XrdEosMgm 
@@ -127,7 +130,6 @@ add_executable ( testmgmview
 add_executable ( testschedulingtree
            geotree/SchedulingTreeTest.cc
 	   geotree/SchedulingSlowTree.cc
-#           geotree/SchedulingFastTree.cc 
            geotree/SchedulingTreeCommon.cc
 )
 
@@ -136,6 +138,13 @@ target_link_libraries ( testmgmview
                         XrdCl             XrdUtils 
                         eosCommon         eosCommonServer
                         XrdMqClient-Static eosCapability-Static
+                        crypto            ${NCURSES_LIBRARIES}
+                        dl                ${Z_LIBRARIES}
+                        ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+target_link_libraries ( testschedulingtree 
+                        XrdCl             XrdUtils 
+                        eosCommon         eosCommonServer
                         crypto            ${NCURSES_LIBRARIES}
                         dl                ${Z_LIBRARIES}
                         ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
