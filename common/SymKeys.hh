@@ -85,7 +85,21 @@ public:
  static std::string HmacSha256 (std::string& key,
                                 std::string& data,
                                 unsigned int blockSize = 64,
-                                unsigned int resultSize = 20);
+                                unsigned int resultSize = 32);
+
+
+ //----------------------------------------------------------------------------
+ //! Compute the SHA-256 value of the data passed as input
+ //!
+ //! @param data the message to be used as input
+ //! @param blockSize the size in which the input is divided before the
+ //!                  hash function is applied ( 512 bits recommended )
+ //!
+ //! @return hash message
+ //!
+ //----------------------------------------------------------------------------
+ static std::string Sha256 (const std::string& data,
+                            unsigned int blockSize = 32);
 
 
  //----------------------------------------------------------------------------
