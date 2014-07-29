@@ -30,27 +30,30 @@ using namespace std;
 EOSMGMNAMESPACE_BEGIN
 
 // static variables implementation
-SchedTreeBase::Settings SchedTreeBase::gSettings = { 80 , 0 , 0 , 0 };
+SchedTreeBase::Settings SchedTreeBase::gSettings =
+{	0 , 0};
 
-ostream& SchedTreeBase::TreeNodeInfo::display(ostream &os) const{
-  if(mNodeType==intermediate)
-  os << "nodetype=intermediate" << " , ";
-  else if(mNodeType==fs)
-  os << "nodetype=fs          " << " , ";
-  else
-  os << "nodetype=unknown!    " << " , ";
-  os << "geotag=" << setw(8) << setfill(' ') << mGeotag<< " , ";
-  os << "fullgeotag=" << setw(8) << setfill(' ') << mFullGeotag<< " , ";
-  os << "fsid=" << setw(20) << mFsId << " , ";
-  os << "host=" << setw(32) << mHost;
-  return os;
+ostream& SchedTreeBase::TreeNodeInfo::display(ostream &os) const
+{
+	if(nodeType==intermediate)
+	os << "nodetype=intermediate" << " , ";
+	else if(nodeType==fs)
+	os << "nodetype=fs          " << " , ";
+	else
+	os << "nodetype=unknown!    " << " , ";
+	os << "geotag=" << setw(8) << setfill(' ') << geotag<< " , ";
+	os << "fullgeotag=" << setw(8) << setfill(' ') << fullGeotag<< " , ";
+	os << "fsid=" << setw(20) << fsId << " , ";
+	os << "host=" << setw(32) << host;
+	return os;
 }
 
-ostream& operator << (ostream &os, const SchedTreeBase::FastTreeInfo &info){
-  int count = 0;
-  for(SchedTreeBase::FastTreeInfo::const_iterator it=info.begin();it!=info.end();it++)
-    os << setfill(' ') << "idx=" << setw(4) << count++ << " -> " << (*it) << endl;
-  return os;
+ostream& operator << (ostream &os, const SchedTreeBase::FastTreeInfo &info)
+{
+	int count = 0;
+	for(SchedTreeBase::FastTreeInfo::const_iterator it=info.begin();it!=info.end();it++)
+	os << setfill(' ') << "idx=" << setw(4) << count++ << " -> " << (*it) << endl;
+	return os;
 }
 
 // IMPLEMENTED IN HEADER FILE BECAUSE OF A std::map BUG
