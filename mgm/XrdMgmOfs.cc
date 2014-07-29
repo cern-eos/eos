@@ -2615,7 +2615,6 @@ XrdMgmOfs::_rem (const char *path,
       eos::common::Path cPath(path);
       XrdOucString vdir;
       vdir += cPath.GetVersionDirectory();
-      vdir += cPath.GetName();
       gOFS->PurgeVersion(vdir.c_str(), error, 0);
       error.clear();
       errno = 0; // purge might return ENOENT if there was no version
@@ -2916,6 +2915,13 @@ XrdMgmOfs::rename (const char *old_name,
   oldn = old_name;
   newn = new_name;
 
+
+  if ( (oldn.find(EOS_COMMON_PATH_VERSION_PREFIX) != STR_NPOS) ||
+       (newn.find(EOS_COMMON_PATH_VERSION_PREFIX) != STR_NPOS) ) {
+    errno = EINVAL;
+    return Emsg(epname, error, EINVAL, "rename version files - use 'file versions' !");
+  }
+
   {
     const char* inpath = old_name;
     const char* ininfo = infoO;
@@ -3111,7 +3117,8 @@ XrdMgmOfs::_rename (const char *old_name,
 
       if ((!_exists(oPath.GetVersionDirectory(), version_exists, error, vid, infoN)) &&
           (version_exists == XrdSfsFileExistIsDirectory) &&
-          (!vpath.beginswith(oPath.GetVersionDirectory())))
+          (!vpath.beginswith(oPath.GetVersionDirectory())) &&
+	  (!vpath.beginswith(Recycle::gRecyclingPrefix.c_str())) )
       {
         renameVersion = true;
       }
@@ -9312,7 +9319,7 @@ XrdMgmOfs::PurgeVersion (const char* versiondir,
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
 
-  fprintf(stderr, "purging %s %d\n", versiondir, max_versions);
+  eos_info("version-dir=%s max-versions=%d", versiondir, max_versions);
   if (!versiondir)
   {
     errno = EINVAL;
