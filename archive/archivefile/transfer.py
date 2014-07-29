@@ -178,7 +178,7 @@ class Transfer(object):
         Raises:
             IOError when an IO opperations fails.
         """
-        tstart = time.time()
+        t0 = time.time()
         indx_dir, indx_file = 0, 0
         err_entry = None
 
@@ -225,7 +225,7 @@ class Transfer(object):
         self.write_progress("checking")
         check_ok, __ = self.archive.verify()
         self.write_progress("cleaning")
-        self.logger.debug("Transfer wall time={0}".format(time.time() - tstart))
+        self.logger.debug("TIMING_transfer={0} sec".format(time.time() - t0))
         self.clean_transfer(check_ok)
 
     def write_progress(self, msg):
@@ -472,4 +472,4 @@ class Transfer(object):
             t0 = time.time()
             status  = metahandler.wait(oper)
             t1 = time.time()
-            self.logger.debug("Timing_prepare2get={0} sec".format(t1 - t0))
+            self.logger.debug("TIMING_prepare2get={0} sec".format(t1 - t0))

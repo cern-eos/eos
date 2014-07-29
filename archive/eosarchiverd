@@ -244,7 +244,7 @@ class Dispatcher(object):
         for oper, dict_jobs in self.pending.iteritems():
             if dict_jobs:
                 remove_elem = []
-                num_proc = len([_ for _, proc in self.proc[oper] if proc.is_alive()])
+                num_proc = len(self.proc[oper])
                 self.logger.debug("Num. running processes={0}".format(num_proc))
 
                 for job_uuid, req_tuple in dict_jobs.iteritems():
