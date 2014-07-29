@@ -375,7 +375,7 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
   // deal with '&' ... sigh 
   // ---------------------------------------------
   XrdOucString sinfo=ininfo;
-  for (size_t i=0; i< sinfo.length(); i++)
+  for (size_t i=0; i< (size_t)sinfo.length(); i++)
   {
 
     if (sinfo[i] == '&') 
