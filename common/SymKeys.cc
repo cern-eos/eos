@@ -22,6 +22,9 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+#include <sstream>
+#include <iomanip>
+/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/SymKeys.hh"
 /*----------------------------------------------------------------------------*/
@@ -75,6 +78,55 @@ SymKey::HmacSha256 (std::string& key,
 
   return result;
 }
+
+
+//------------------------------------------------------------------------------
+// Compute the SHA256 value
+//------------------------------------------------------------------------------
+
+std::string
+SymKey::Sha256 (const std::string& data,
+                unsigned int blockSize)
+{
+  unsigned int data_len = data.length();
+  unsigned char* pData = (unsigned char*) data.c_str();
+  std::string result;
+  result.resize(EVP_MAX_MD_SIZE);
+  unsigned char* pResult = (unsigned char*) result.c_str();
+
+  EVP_MD_CTX* md_ctx = EVP_MD_CTX_create();
+  EVP_DigestInit_ex(md_ctx, EVP_sha256(), NULL);
+
+  while (data_len > blockSize)
+  {
+    EVP_DigestUpdate(md_ctx, pData, blockSize);
+    data_len -= blockSize;
+    pData += blockSize;
+  }
+
+  if (data_len)
+    EVP_DigestUpdate(md_ctx, pData, data_len);
+
+  unsigned int sz_result;
+  EVP_DigestFinal_ex(md_ctx, pResult, &sz_result);
+  EVP_MD_CTX_cleanup(md_ctx);
+
+  // Return the hexdigest of the SHA256 value
+  std::ostringstream oss;
+  oss.fill('0');
+  oss << std::hex;
+  pResult = (unsigned char*) result.c_str();
+
+  for (unsigned int i = 0; i < sz_result; ++i)
+  {
+    oss << std::setw(2) << (unsigned int)*pResult;
+    pResult++;
+  }
+
+  result = oss.str();
+  return result;
+}
+
 
 //------------------------------------------------------------------------------
 // Compute the HMAC SHA-1 value according to AWS standard
