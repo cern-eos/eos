@@ -28,6 +28,8 @@
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
 /*----------------------------------------------------------------------------*/
+#include "common/SymKeys.hh"
+/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -157,12 +159,34 @@ ProcCommand::Archive()
 
       // Build the destination dir by using the uid/gid of the user triggering
       // the archive operation e.g root:// ... //some/dir/gid1/uid1/
+      std::string dir_sha256 = eos::common::SymKey::Sha256(spath.c_str());
       std::ostringstream dst_oss;
       dst_oss << gOFS->MgmArchiveDstUrl.c_str()
-              << pVid->gid << '/' << pVid->uid << '/';
+              << pVid->gid << '/' << pVid->uid << '/' << dir_sha256 << '/';
+      std::string surl = dst_oss.str();
 
-      XrdOucString dst = dst_oss.str().c_str();
-      ArchiveCreate(spath, dst, vect_files, fid);
+      // -----------------------------------------------------------------------
+      // TODO: Do this check in XRootD 4.0 using other type of auth or even sss
+      // if the XRootD Castor server accepts it - for the moment it will fail
+      // with no auth protocol found - so no check is done!
+      // -----------------------------------------------------------------------
+      // Make sure the destination dictory does not exist
+      XrdCl::URL url(surl);
+      XrdCl::FileSystem fs(url);
+      XrdCl::StatInfo *st_info = 0;
+      XrdCl::XRootDStatus status = fs.Stat(url.GetPath(), st_info);
+
+      if (status.IsOK())
+      {
+        eos_err("archive dest=%s already exists", surl.c_str());
+        stdErr = "error: archive dst=";
+        stdErr += surl.c_str();
+        stdErr += " already exists";
+        retc = EINVAL;
+        return SFS_OK;
+      }
+
+      ArchiveCreate(spath.c_str(), surl, vect_files, fid);
       return SFS_OK;
     }
     else if ((mSubCmd == "put") ||
@@ -410,8 +434,8 @@ ProcCommand::Archive()
 // Create archive file.
 //------------------------------------------------------------------------------
 void
-ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
-                           const XrdOucString& dst_url,
+ProcCommand::ArchiveCreate(const std::string& arch_dir,
+                           const std::string& dst_url,
                            const std::vector<std::string>& vect_files,
                            int fid)
 {
@@ -449,7 +473,7 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
   // Write archive JSON header
   arch_ofs << "{"
            << "\"src\": \"" << "root://" << gOFS->ManagerId << "/" << arch_dir << "\", "
-           << "\"dst\": \"" << dst_url.c_str() << "\", "
+           << "\"dst\": \"" << dst_url << "\", "
            << "\"dir_meta\": [\"uid\", \"gid\", \"attr\"], "
            << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
            << "\"xstype\", \"xs\"], "
@@ -485,7 +509,7 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
   copy_job.target.SetProtocol("root");
   copy_job.target.SetHostName("localhost");
   copy_job.target.SetUserName("root");
-  std::string dst_path = arch_dir.c_str();
+  std::string dst_path = arch_dir;
   dst_path += ARCH_INIT;
   copy_job.target.SetPath(dst_path);
   copy_job.target.SetParams("eos.ruid=0&eos.rgid=0");
@@ -537,7 +561,7 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
 // all of the directories in the subtree.
 //------------------------------------------------------------------------------
 int
-ProcCommand::MakeSubTreeImmutable(const XrdOucString& arch_dir,
+ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
                                   const std::vector<std::string>& vect_files)
 {
   bool found_archive = false;
@@ -618,7 +642,7 @@ ProcCommand::MakeSubTreeImmutable(const XrdOucString& arch_dir,
 // i.e. run "find --count /dir/"
 //------------------------------------------------------------------------------
 int
-ProcCommand::ArchiveGetNumEntries(const XrdOucString& arch_dir,
+ProcCommand::ArchiveGetNumEntries(const std::string& arch_dir,
                                   int& num_dirs,
                                   int& num_files)
 {
@@ -691,7 +715,7 @@ ProcCommand::ArchiveGetNumEntries(const XrdOucString& arch_dir,
 // Get fileinfo for all files/dirs in the subtree and add it to the archive
 //------------------------------------------------------------------------------
 int
-ProcCommand::ArchiveAddEntries(const XrdOucString& arch_dir,
+ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
                                std::ofstream& arch_ofs,
                                bool is_file)
 {
