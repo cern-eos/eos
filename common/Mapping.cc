@@ -723,20 +723,16 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
       {
         std::string sipstring = ipstring;
         GeoLocationMap_t::const_iterator it;
+          GeoLocationMap_t::const_iterator longuestmatch=gGeoMap.end();
         // we use the geo location with the longest name match
         for (it = gGeoMap.begin(); it != gGeoMap.end(); it++)
         {
-          size_t l = 0;
-          for (l = 0; l < it->first.length(); l++)
-          {
-            if (it->first.at(l) != sipstring.at(l))
-            {
-              break;
-            }
-          }
-          if (l > vid.geolocation.length())
-          {
+          	// if we have a previously matched geoloc and if it's longer that the current one, try the next one
+          	if(longuestmatch != gGeoMap.end() && it->first.length() <= longuestmatch->first.length())
+          		continue;
+          	if(sipstring.compare(0,it->first.length(),it->first)==0) {
             vid.geolocation = it->second;
+          		longuestmatch = it;
           }
         }
       }
