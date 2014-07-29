@@ -51,7 +51,8 @@ class Transfer(object):
         self.do_retry = (option == const.OPT_RETRY)
         self.efile_full = eosf
         self.efile_root = self.efile_full[:-(len(self.efile_full) - self.efile_full.rfind('/') - 1)]
-        local_file = join(const.DIR[self.oper], sha256(self.efile_root).hexdigest())
+        dir_root = self.efile_root[self.efile_root.rfind('//') + 1:]
+        local_file = join(const.DIR[self.oper], sha256(dir_root).hexdigest())
         self.tx_file = local_file + ".tx"
         self.log_file = local_file + ".log"
         self.ps_file = local_file + ".ps"
@@ -234,6 +235,7 @@ class Transfer(object):
             msg (string): Progress status message.
         """
         self.fprogress.truncate(0)
+        self.fprogress.seek(0)
         self.fprogress.write("pid={0} msg={1}".format(os.getpid(), msg))
         self.fprogress.flush()
         os.fsync(self.fprogress.fileno())

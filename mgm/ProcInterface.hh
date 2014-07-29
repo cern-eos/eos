@@ -131,8 +131,8 @@ private:
   //!
   //! @return void, it sets the global retc in case of error
   //----------------------------------------------------------------------------
-  void ArchiveCreate(const XrdOucString& arch_dir,
-                     const XrdOucString& dst_url,
+  void ArchiveCreate(const std::string& arch_dir,
+                     const std::string& dst_url,
                      const std::vector<std::string>& vect_files,
                      int fid);
 
@@ -146,7 +146,7 @@ private:
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  int ArchiveGetNumEntries(const XrdOucString& arch_dir,
+  int ArchiveGetNumEntries(const std::string& arch_dir,
                            int& num_dirs,
                            int& num_files);
 
@@ -164,7 +164,7 @@ private:
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  int ArchiveAddEntries(const XrdOucString& arch_dir, 
+  int ArchiveAddEntries(const std::string& arch_dir,
                         std::ofstream& arch_ofs, 
                         bool is_file);
 
@@ -179,7 +179,7 @@ private:
   //! @return 0 is successful, otherwise errno. It sets the global retc in case
   //!         of error.
   //----------------------------------------------------------------------------
-  int MakeSubTreeImmutable(const XrdOucString& arch_dir,
+  int MakeSubTreeImmutable(const std::string& arch_dir,
                            const std::vector<std::string>& vect_files);
   
 

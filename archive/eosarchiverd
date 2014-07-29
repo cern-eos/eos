@@ -206,9 +206,12 @@ class Dispatcher(object):
 
                 if oper in self.proc:  # Get, put, purge or delete operation
                     src, opt = req_json['src'], req_json['opt']
-                    root_src = src[:-(len(src) - src.rfind('/') - 1)]
+                    # Extract the archive root directory path
+                    pos = src.find("//", src.find("//") + 1) + 1;
+                    root_src = src[pos : src.rfind('/') + 1]
                     job_uuid = sha256(root_src).hexdigest()
-                    self.logger.info("Try adding job={0}".format(job_uuid))
+                    self.logger.info("Try adding root_src={0}, job={1}".format(
+                            root_src, job_uuid))
 
                     if (job_uuid in self.proc[oper] or
                         job_uuid in self.orphan[oper] or
