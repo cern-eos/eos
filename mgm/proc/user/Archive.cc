@@ -147,22 +147,23 @@ ProcCommand::Archive()
 
     if (mSubCmd == "create")
     {
-      if (!pOpaque->Get("mgm.archive.dst"))
+      if (!gOFS->MgmArchiveDstUrl.length())
       {
-        stdErr = "error: need to provide destination for archive creation";
+        eos_err("archive destination not configured for this EOS instance");
+        stdErr = "error: archive destination not configured for this EOS instance";
         retc = EINVAL;
-      }
-      else
-      {
-        // Make sure the tape destination path ends with a '/'
-        XrdOucString dst = pOpaque->Get("mgm.archive.dst");
-
-        if (dst[dst.length() - 1] != '/')
-          dst += '/';
-        
-        ArchiveCreate(spath, dst, vect_files, fid);
         return SFS_OK;
       }
+
+      // Build the destination dir by using the uid/gid of the user triggering
+      // the archive operation e.g root:// ... //some/dir/gid1/uid1/
+      std::ostringstream dst_oss;
+      dst_oss << gOFS->MgmArchiveDstUrl.c_str()
+              << pVid->gid << '/' << pVid->uid << '/';
+
+      XrdOucString dst = dst_oss.str().c_str();
+      ArchiveCreate(spath, dst, vect_files, fid);
+      return SFS_OK;
     }
     else if ((mSubCmd == "put") ||
              (mSubCmd == "get") ||
@@ -421,12 +422,12 @@ ProcCommand::ArchiveCreate(const XrdOucString& arch_dir,
     return;
 
   if (!num_files)
- {
-   eos_err("archive sub-tree=%s does not contain any files", arch_dir.c_str());
-   stdErr = "error: archive sub-tree does not contain any files";
-   retc = EINVAL;
-   return;
- }
+  {
+    eos_err("archive sub-tree=%s does not contain any files", arch_dir.c_str());
+    stdErr = "error: archive sub-tree does not contain any files";
+    retc = EINVAL;
+    return;
+  }
 
   if (MakeSubTreeImmutable(arch_dir, vect_files))
     return;

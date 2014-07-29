@@ -346,14 +346,19 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   MgmDirectoryModificationTime.set_deleted_key(0);
 
   IoReportStorePath = "/var/tmp/eos/report";
+  MgmOfsVstBrokerUrl = "";
+  MgmArchiveDstUrl = "";
 
   if (getenv("EOS_VST_BROKER_URL"))
-  {
     MgmOfsVstBrokerUrl = getenv("EOS_VST_BROKER_URL");
-  }
-  else
+
+  if (getenv("EOS_ARCHIVE_URL"))
   {
-    MgmOfsVstBrokerUrl = "";
+    MgmArchiveDstUrl = getenv("EOS_ARCHIVE_URL");
+
+    // Make sure it ends with a '/'
+    if (MgmArchiveDstUrl[MgmArchiveDstUrl.length() - 1] != '/')
+      MgmArchiveDstUrl += '/';
   }
 
   // cleanup the query output cache directory
@@ -960,7 +965,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     }
   }
 
-    if (MgmRedirector)
+  if (MgmRedirector)
     Eroute.Say("=====> mgmofs.redirector : true");
   else
     Eroute.Say("=====> mgmofs.redirector : false");

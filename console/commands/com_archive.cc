@@ -42,29 +42,12 @@ com_archive(char* arg1)
   if (subcmd == "create")
   {
     XrdOucString path = subtokenizer.GetToken();
-    XrdOucString dst = subtokenizer.GetToken();
    
     if (!path.length())
       path = pwd;
 
     path = abspath(path.c_str());
-
-    if (!dst.length())
-    {
-      fprintf(stdout, "No archive destination specified \n");
-      goto com_archive_usage;
-    }
-                       
-    XrdCl::URL dst_url = XrdCl::URL(dst.c_str());
-
-    if (!dst_url.IsValid())
-    {
-      fprintf(stdout, "Invalid destination URL\n");
-      goto com_archive_usage;
-    }
-
-    in_cmd << "&mgm.archive.path=" << path
-           << "&mgm.archive.dst=" << dst;
+    in_cmd << "&mgm.archive.path=" << path;
   }
   else if ((subcmd == "put") ||
            (subcmd == "get") ||
@@ -133,7 +116,7 @@ com_archive(char* arg1)
 com_archive_usage:
   std::ostringstream oss;
   oss << "usage: archive <subcmd> " << std::endl
-      << "               create <path> <destination_url>   "
+      << "               create <path>                     "
       << ": create archive file" << std::endl
       << "               put [--retry] <path>              "
       << ": copy files from EOS to archive location" << std::endl

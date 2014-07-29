@@ -845,6 +845,7 @@ public:
   XrdOucString MgmOfsBroker; //< Url of the message broker without MGM subject
   XrdOucString MgmOfsBrokerUrl; //< Url of the message broker with MGM subject
   XrdOucString MgmOfsVstBrokerUrl; //< Url of the message broker
+  XrdOucString MgmArchiveDstUrl; ///< URL where all archives are saved
   Messaging* MgmOfsMessaging; //< messaging interface class
   VstMessaging* MgmOfsVstMessaging; //< admin messaging interface class
   XrdOucString MgmDefaultReceiverQueue; //< Queue where we are sending to by default

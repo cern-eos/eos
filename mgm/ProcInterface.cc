@@ -382,8 +382,8 @@ ProcCommand::open (const char* inpath,
   // ---------------------------------------------
   // deal with '&' ... sigh 
   // ---------------------------------------------
-  XrdOucString sinfo=ininfo;
-  for (size_t i=0; i< (size_t)sinfo.length(); i++)
+  XrdOucString sinfo = ininfo;
+  for (int i = 0; i < sinfo.length(); i++)
   {
 
     if (sinfo[i] == '&') 
