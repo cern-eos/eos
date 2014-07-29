@@ -315,11 +315,6 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   MgmRedirector = false;
   StartTime = time(NULL);
 
-  // add SEGV handler
-  signal(SIGSEGV, xrdmgmofs_stacktrace);
-  signal(SIGABRT, xrdmgmofs_stacktrace);
-  signal(SIGBUS, xrdmgmofs_stacktrace);
-
   // set short timeouts in the new XrdCl class
   XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
   // set connection window short
