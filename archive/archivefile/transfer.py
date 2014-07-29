@@ -30,9 +30,11 @@ from os.path import join
 from asynchandler import MetaHandler
 from hashlib import sha256
 from XRootD import client
+from XRootD.client.flags import PrepareFlags
 from archivefile import ArchiveFile
 from exceptions import NoErrorException
 from utils import exec_cmd
+from asynchandler import MetaHandler
 
 
 class Transfer(object):
@@ -176,8 +178,8 @@ class Transfer(object):
             IOError when an IO opperations fails.
         """
         tstart = time.time()
-        meta_handler = MetaHandler()
         indx_dir, indx_file = 0, 0
+        err_entry = None
 
         # For retry get the first corrupted entry
         if self.do_retry:
@@ -211,45 +213,13 @@ class Transfer(object):
             self.archive.mkdir(dentry)
             self.write_progress("create dir {0}/{1}".format(indx_dir,
                                 self.archive.header['num_dirs']))
-            
-        # For inital PUT copy also the archive file to tape
-        if self.init_put:
-            dst = self.archive.header['dst'] + const.ARCH_INIT
-            st = self.copy_file(self.efile_full, dst, force=False)
+
+        # For GET issue the Prepare2Get for all the files on tape
+        self.write_progress("prepare2get")
+        self.prepare2get(err_entry, found_checkpoint)
 
         # Copy files
-        for fentry in self.archive.files():
-            # Search for the recovery checkpoint
-            if self.do_retry and not found_checkpoint:
-                if fentry != err_entry:
-                    indx_file += 1
-                    continue
-                else:
-                    found_checkpoint = True
-
-            indx_file += 1
-            self.write_progress("copy file {0}/{1}".format(indx_file,
-                                self.archive.header['num_files']))
-            dict_finfo = dict(zip(self.archive.header['file_meta'], fentry[2:]))
-            src, dst = self.archive.get_endpoints(fentry[1])
-
-            # Copy file
-            if self.archive.d2t:
-                st = self.copy_file(src, dst, force=self.do_retry)
-            else:
-                st = self.copy_file(src, dst, dict_finfo, self.do_retry)
-
-            if not st:
-                self.logger.error("Failed to copy src={0}, dst={1}".format(src, dst))
-                break
-
-        # Flush all pending copies and set metadata info for GET operation
-        st = self.flush_files(meta_handler)
-
-        if not st:
-            err_msg = "Failed to flush files"
-            self.logger.error(err_msg)
-            raise IOError(err_msg)
+        self.copy_files(err_entry, found_checkpoint)
 
         self.write_progress("checking")
         check_ok, __ = self.archive.verify()
@@ -347,44 +317,75 @@ class Transfer(object):
         except OSError as __:
             pass
 
-    def copy_file(self, src, dst, dfile=None, force=False, handler=None):
+    def copy_files(self, err_entry, found_checkpoint):
         """ Copy file from source to destination.
 
         Note that when doing put, the layout is not conserved. Therefore, a file
         with 3 replicas will end up as just a simple file in the new location.
 
         Args:
-            src (string): Source of the copy (full URL).
-            dst (string): Destiantion (full URL).
-            dfile (dict): Dictionary containing metadata about the file. This
-               is set only for get operations.
-            force (boolean): Force copy only in recovery mode.
-            handler (MetaHanlder): Metahandler obj used for async req.
+            err_entry (list): Entry record from the archive file corresponding
+                 to the first file/dir that was corrupted.
+            found_checkpoint (bool): If it's true, it means the checkpoint was
+                 already found and we don't need to search for it.
 
-        Returns:
-            True if batch was executed successfully, otherwise false.
+        Raises:
+            IOError: Copy request failed.
         """
-        st = True
+        indx_file = 0
+        meta_handler = MetaHandler()
+        # For inital PUT copy also the archive file to tape
+        if self.init_put:
+            dst = self.archive.header['dst'] + const.ARCH_INIT
+            self.list_jobs.append((self.efile_full, dst, self.do_retry))
 
-        # For GET we also have the dictionary with the metadata
-        if dfile:
-            dst = ''.join([dst, "?eos.ctime=", dfile['ctime'],
-                           "&eos.mtime=", dfile['mtime'],
-                           "&eos.ruid=", dfile['uid'],
-                           "&eos.rgid=", dfile['gid'],
-                           "&eos.bookingsize=", dfile['size'],
-                           "&eos.targetsize=", dfile['size'],
-                           "&eos.checksum=", dfile['xs']])
+        # Copy files
+        for fentry in self.archive.files():
+            # Search for the recovery checkpoint
+            if self.do_retry and not found_checkpoint:
+                if fentry != err_entry:
+                    indx_file += 1
+                    continue
+                else:
+                    found_checkpoint = True
 
-        self.logger.debug("Copying from {0} to {1}".format(src, dst))
-        self.list_jobs.append((src, dst, force))
+            indx_file += 1
+            self.write_progress("copy file {0}/{1}".format(indx_file,
+                                self.archive.header['num_files']))
+            src, dst = self.archive.get_endpoints(fentry[1])
 
-        if len(self.list_jobs) == const.BATCH_SIZE:
-            st = self.flush_files(handler)
+            # Copy file
+            if not self.archive.d2t:
+                # For GET we also have the dictionary with the metadata
+                dfile = dict(zip(self.archive.header['file_meta'], fentry[2:]))
+                dst = ''.join([dst, "?eos.ctime=", dfile['ctime'],
+                               "&eos.mtime=", dfile['mtime'],
+                               "&eos.ruid=", dfile['uid'],
+                               "&eos.rgid=", dfile['gid'],
+                               "&eos.bookingsize=", dfile['size'],
+                               "&eos.targetsize=", dfile['size'],
+                               "&eos.checksum=", dfile['xs']])
 
-        return st
+            self.logger.debug("Copying from {0} to {1}".format(src, dst))
+            self.list_jobs.append((src, dst, self.do_retry))
 
-    def flush_files(self, __):
+            if len(self.list_jobs) == const.BATCH_SIZE:
+                st = self.flush_files(meta_handler)
+
+                if not st:
+                    err_msg = "Failed to flush files"
+                    self.logger.error(err_msg)
+                    raise IOError(err_msg)
+
+        # Flush all pending copies and set metadata info for GET operation
+        st = self.flush_files(meta_handler)
+
+        if not st:
+            err_msg = "Failed to flush files"
+            self.logger.error(err_msg)
+            raise IOError(err_msg)
+
+    def flush_files(self, handler):
         """ Flush all pending transfers from the list of jobs.
 
         Args:
@@ -411,3 +412,62 @@ class Transfer(object):
 
         del self.list_jobs[:]
         return xrd_st.ok
+
+    def prepare2get(self, err_entry, found_checkpoint):
+        """This method is only executed for GET operations and it's purpose is
+        to issue the Prepapre2Get commands for the files in the archive which
+        will later on be copied back to EOS.
+
+        Args:
+            err_entry (list): Entry record from the archive file corresponding
+                 to the first file/dir that was corrupted.
+            found_checkpoint (bool): If it's true, it means the checkpoint was
+                 already found and we don't need to search for it.
+
+        Raises:
+            IOError: The Prepare2Get request failed.
+        """
+        limit = 20  # max files per prepare request
+        oper = 'prepare'
+
+        if not self.archive.d2t:
+            lst = []
+            metahandler = MetaHandler()
+
+            for fentry in self.archive.files():
+                if err_entry and not found_checkpoint:
+                    if fentry != err_entry:
+                        continue
+                    else:
+                        found_checkpoint = True
+
+                surl, __ = self.archive.get_endpoints(fentry[1])
+                lst.append(surl[surl.rfind('//') + 1:])
+
+                if len(lst) == limit:
+                    xrd_st = self.archive.fs_dst.prepare(lst, PrepareFlags.STAGE,
+                                callback=metahandler.register(oper, surl))
+
+                    if not xrd_st.ok:
+                        __ = metahandler.wait(oper)
+                        self.logger.error(err_msg)
+                        raise IOError(err_msg)
+
+                    del lst[:]
+
+            # Send the remaining requests
+            if lst:
+                xrd_st = self.archive.fs_dst.prepare(lst, PrepareFlags.STAGE,
+                            callback=metahandler.register(oper, surl))
+
+                if not xrd_st.ok:
+                    __ = metahandler.wait(oper)
+                    self.logger.error(err_msg)
+                    raise IOError(err_msg)
+
+                del lst[:]
+
+            t0 = time.time()
+            status  = metahandler.wait(oper)
+            t1 = time.time()
+            self.logger.debug("Timing_prepare2get={0} sec".format(t1 - t0))
