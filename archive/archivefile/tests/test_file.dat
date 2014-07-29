@@ -1,0 +1,7 @@
+{"src": "root://pcitdss1400.cern.ch:1094//eos/stage", "dst": "root://lxc2dev6.cern.ch//castor/cern.ch/dev/e/esindril/archive/stage/", "dir_meta": ["uid", "gid", "attr"], "file_meta": ["size", "mtime", "ctime", "uid", "gid", "xstype", "xs"], "num_dirs": 2, "num_files": 3, "uid": "0", "gid": "0" }
+["d", "./", "58602", "1028", {"sys.acl": "z:i", "sys.forced.checksum": "adler"}]
+["d", "dir1/", "0", "0", {"sys.acl": "z:i", "sys.forced.checksum": "adler"}]
+["d", "dir2/", "0", "0", {"sys.acl": "z:i", "sys.forced.checksum": "adler"}]
+["f", "file1.dat", "631111192", "1406020567.924568000", "1404982277.330487929", "0", "0", "adler", "d735fd9b"]
+["f", "dir1/file1.dat", "631111192", "1406020574.11647000", "1404982296.784838014", "0", "0", "adler", "d735fd9b"]
+["f", "dir2/file1.dat", "631111192", "1406020581.74803000", "1404982317.340592194", "0", "0", "adler", "d735fd9b"]
