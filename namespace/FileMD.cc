@@ -213,8 +213,8 @@ namespace eos
     for ( uint8_t i=0; i < size; i++ )
     {
       char hx[3];
-      sprintf(hx,"%02x",*((unsigned char*)(pChecksum.getDataPtr()+i)));
-      env += hx;
+      if ( (snprintf(hx,sizeof(hx)-1, "%02x",*((unsigned char*)(pChecksum.getDataPtr()+i))))>0)
+	env += hx;
     }
   }
 
