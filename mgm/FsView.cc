@@ -204,7 +204,8 @@ bool GeoTree::erase(const fsid_t &fs)
   leaf = pLeaves[fs];
   pLeaves.erase(fs);
 
-  tNode *father = leaf->mFather;
+  leaf->mFsIds.erase(fs);
+  tElement *father = leaf;
   if(leaf->mFsIds.empty())
   {
     // compute the depth for the current father
@@ -215,18 +216,33 @@ bool GeoTree::erase(const fsid_t &fs)
       depth = i;
       break;
     }
-    assert(i>=0); // consistency check
+    assert(depth>=0); // consistency check
     // go uproot until there is more than one branch
     while(father->mFather && father->mFather->mSons.size()==1)
     {
+      if(father->mFather==pRoot) break;
       pLevels[depth--].erase(father);
+      // we don't update the father's sons list on purpose in order to keep the reference for the destruction
       father = father->mFather;
     }
     // erase the full branch
     if(father->mFather)
     father->mFather->mSons.erase(father->mTagToken);
+    pLevels[depth].erase(father);
     delete father;
+
+    // update the pLevels size if needed
+    int count = 0;
+    for(auto it = pLevels.rbegin(); it != pLevels.rend(); it++)
+    {
+      if(!it->empty()) {
+        if(count) pLevels.resize(pLevels.size()-count);
+        break;
+      }
+      count++;
+    }
   }
+
 
   return true;
 }
