@@ -1294,20 +1294,14 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   FsView::gFsView.SetConfigQueues(MgmConfigQueue.c_str(), NodeConfigQueuePrefix.c_str(), GroupConfigQueuePrefix.c_str(), SpaceConfigQueuePrefix.c_str());
   FsView::gFsView.SetConfigEngine(ConfEngine);
 
+  // we need to set the shared object manager to notify from
+  ObjectNotifier.SetShareObjectManager(&ObjectManager);
+
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
 
   // set the object manager to listener only
   ObjectManager.EnableBroadCast(false);
-
-  // setup the modifications which the fs listener thread is waiting for
-  ObjectManager.SubjectsMutex.Lock();
-  std::string watch_errc = "stat.errc";
-
-  ObjectManager.ModificationWatchKeys.insert(watch_errc); // we need to take action an filesystem errors
-  ObjectManager.ModificationWatchSubjects.insert(MgmConfigQueue.c_str()); // we need to apply remote configuration changes
-
-  ObjectManager.SubjectsMutex.UnLock();
 
   ObjectManager.SetDebug(false);
 
@@ -1683,6 +1677,9 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     }
 
   }
+
+  if(!ObjectNotifier.Start())
+    eos_crit("error starting the shared object change notifier");
 
   // initialize the transfer database
   if (!gTransferEngine.Init("/var/eos/tx"))

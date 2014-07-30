@@ -493,36 +493,6 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   ObjectManager.SetDebug(false);
 
   // setup notification subjects
-  ObjectManager.SubjectsMutex.Lock();
-  std::string watch_id = "id";
-  std::string watch_bootsenttime = "bootsenttime";
-  std::string watch_scaninterval = "scaninterval";
-  std::string watch_symkey = "symkey";
-  std::string watch_manager = "manager";
-  std::string watch_publishinterval = "publish.interval";
-  std::string watch_debuglevel = "debug.level";
-  std::string watch_gateway = "txgw";
-  std::string watch_gateway_rate = "gw.rate";
-  std::string watch_gateway_ntx = "gw.ntx";
-  std::string watch_error_simulation = "error.simulation";
-
-  ObjectManager.ModificationWatchKeys.insert(watch_id);
-  ObjectManager.ModificationWatchKeys.insert(watch_bootsenttime);
-  ObjectManager.ModificationWatchKeys.insert(watch_scaninterval);
-  ObjectManager.ModificationWatchKeys.insert(watch_symkey);
-  ObjectManager.ModificationWatchKeys.insert(watch_manager);
-  ObjectManager.ModificationWatchKeys.insert(watch_publishinterval);
-  ObjectManager.ModificationWatchKeys.insert(watch_debuglevel);
-  ObjectManager.ModificationWatchKeys.insert(watch_gateway);
-  ObjectManager.ModificationWatchKeys.insert(watch_gateway_rate);
-  ObjectManager.ModificationWatchKeys.insert(watch_gateway_ntx);
-  ObjectManager.ModificationWatchKeys.insert(watch_error_simulation);
-  ObjectManager.SubjectsMutex.UnLock();
-
-
-
-
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // create the specific listener class
   Messaging = new eos::fst::Messaging(eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(), eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str(), false, false, &ObjectManager);
   Messaging->SetLogId("FstOfsMessaging");
@@ -551,6 +521,11 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
 
   XrdSysTimer sleeper;
   sleeper.Snooze(5);
+
+  ObjectNotifier.SetShareObjectManager(&ObjectManager);
+  if(!ObjectNotifier.Start())
+    eos_crit("error starting the shared object change notifier");
+
 
   eos_notice("sending broadcast's ...");
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////

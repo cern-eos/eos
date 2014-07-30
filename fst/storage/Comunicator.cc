@@ -35,24 +35,61 @@ Storage::Communicator ()
 {
   eos_static_info("Communicator activated ...");
 
+  std::string watch_id = "id";
+  std::string watch_bootsenttime = "bootsenttime";
+  std::string watch_scaninterval = "scaninterval";
+  std::string watch_symkey = "symkey";
+  std::string watch_manager = "manager";
+  std::string watch_publishinterval = "publish.interval";
+  std::string watch_debuglevel = "debug.level";
+  std::string watch_gateway = "txgw";
+  std::string watch_gateway_rate = "gw.rate";
+  std::string watch_gateway_ntx = "gw.ntx";
+  std::string watch_error_simulation = "error.simulation";
+  std::string watch_regex = ".*";
+
+  bool ok = true;
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",watch_id,XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",watch_bootsenttime,XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",watch_scaninterval,XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",watch_symkey,XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",watch_manager,XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",watch_publishinterval,XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",watch_debuglevel,XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",watch_gateway,XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",watch_gateway_rate,XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",watch_gateway_ntx,XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",watch_error_simulation,XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+
+  ok &= gOFS.ObjectNotifier.SubscribesToSubjectRegex("communicator",watch_regex,XrdMqSharedObjectChangeNotifier::kMqSubjectCreation);
+  if(!ok)
+    eos_crit("error subscribing to shared objects change notifications");
+
+  gOFS.ObjectNotifier.BindCurrentThread("communicator");
+
+  if(!gOFS.ObjectNotifier.StartNotifyCurrentThread())
+    eos_crit("error starting shared objects change notifications");
+
   while (1)
   {
     // wait for new filesystem definitions
-    gOFS.ObjectManager.SubjectsSem.Wait();
+    gOFS.ObjectNotifier.tlSubscriber->SubjectsSem.Wait();
 
     XrdSysThread::SetCancelOff();
 
     eos_static_debug("received shared object notification ...");
 
     // we always take a lock to take something from the queue and then release it
-    gOFS.ObjectManager.SubjectsMutex.Lock();
+    gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
 
-    while (gOFS.ObjectManager.NotificationSubjects.size())
+    while (gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.size())
     {
       XrdMqSharedObjectManager::Notification event;
-      event = gOFS.ObjectManager.NotificationSubjects.front();
-      gOFS.ObjectManager.NotificationSubjects.pop_front();
-      gOFS.ObjectManager.SubjectsMutex.UnLock();
+      event = gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.front();
+      gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.pop_front();
+      gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
+
+      eos_static_info("FST shared object notification subject is %s",event.mSubject.c_str());
 
       XrdOucString queue = event.mSubject.c_str();
 
@@ -64,14 +101,14 @@ Storage::Communicator ()
 
         if (queue == Config::gConfig.FstQueueWildcard)
         {
-          gOFS.ObjectManager.SubjectsMutex.Lock();
+          gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
           continue;
         }
 
         if ((queue.find("/txqueue/") != STR_NPOS))
         {
           // this is a transfer queue we, don't need to take action
-          gOFS.ObjectManager.SubjectsMutex.Lock();
+          gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
           continue;
         }
 
@@ -88,7 +125,7 @@ Storage::Communicator ()
           {
             eos_static_info("no action on creation of subject <%s> - we are <%s>", event.mSubject.c_str(), Config::gConfig.FstQueue.c_str());
           }
-          gOFS.ObjectManager.SubjectsMutex.Lock();
+          gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
           continue;
         }
         else
@@ -108,7 +145,7 @@ Storage::Communicator ()
           eos_static_info("setting up filesystem %s", queue.c_str());
           fs->SetStatus(eos::common::FileSystem::kDown);
         }
-        gOFS.ObjectManager.SubjectsMutex.Lock();
+        gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
         continue;
       }
 
@@ -122,14 +159,14 @@ Storage::Communicator ()
         if ((queue.find("/txqueue/") != STR_NPOS))
         {
           // this is a transfer queue we, don't need to take action
-          gOFS.ObjectManager.SubjectsMutex.Lock();
+          gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
           continue;
         }
 
         if (!queue.beginswith(Config::gConfig.FstQueue))
         {
           eos_static_err("illegal subject found in deletion list <%s> - we are <%s>", event.mSubject.c_str(), Config::gConfig.FstQueue.c_str());
-          gOFS.ObjectManager.SubjectsMutex.Lock();
+          gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
           continue;
         }
         else
@@ -138,7 +175,7 @@ Storage::Communicator ()
         }
 
         // we don't delete filesystem objects anymore ...
-        gOFS.ObjectManager.SubjectsMutex.Lock();
+        gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
         continue;
       }
 
@@ -407,11 +444,11 @@ Storage::Communicator ()
           }
           fsMutex.UnLockRead();
         }
-        gOFS.ObjectManager.SubjectsMutex.Lock();
+        gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
         continue;
       }
     }
-    gOFS.ObjectManager.SubjectsMutex.UnLock();
+    gOFS.ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
     XrdSysThread::SetCancelOn();
   }
 }

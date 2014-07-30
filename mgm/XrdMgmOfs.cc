@@ -8718,25 +8718,44 @@ XrdMgmOfs::FsConfigListener ()
  */
 /*----------------------------------------------------------------------------*/
 {
+  // setup the modifications which the fs listener thread is waiting for
+  std::string watch_errc = "stat.errc";
+  std::string watch_geotag = "stat.geotag";
+  bool ok = true;
+  ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_geotag,XrdMqSharedObjectChangeNotifier::kMqSubjectModification); // we need to notify the FsView when a geotag changes to keep the tree structure up-to-date
+  ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_errc,XrdMqSharedObjectChangeNotifier::kMqSubjectModification); // we need to take action an filesystem errors
+  ok &= ObjectNotifier.SubscribesToSubject("fsconfiglistener",MgmConfigQueue.c_str(),XrdMqSharedObjectChangeNotifier::kMqSubjectModification);  // we need to apply remote configuration changes
+  ok &= ObjectNotifier.SubscribesToSubjectRegex("fsconfiglistener",".*",XrdMqSharedObjectChangeNotifier::kMqSubjectKeyDeletion);  // we need to apply remote configuration changes
+  if(!ok)
+    eos_crit("error subscribing to shared objects change notifications");
+
+  ObjectNotifier.BindCurrentThread("fsconfiglistener");
+
+  if(!ObjectNotifier.StartNotifyCurrentThread())
+    eos_crit("error starting shared objects change notifications");
+
   XrdSysTimer sleeper;
   sleeper.Snooze(5);
+
   // thread listening on filesystem errors and configuration changes
   do
   {
-    gOFS->ObjectManager.SubjectsSem.Wait();
+    gOFS->ObjectNotifier.tlSubscriber->SubjectsSem.Wait();
 
     XrdSysThread::SetCancelOff();
 
     // we always take a lock to take something from the queue and then release it
-    gOFS->ObjectManager.SubjectsMutex.Lock();
+    gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
 
     // listens on modifications on filesystem objects
-    while (gOFS->ObjectManager.NotificationSubjects.size())
+    while (gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.size())
     {
       XrdMqSharedObjectManager::Notification event;
-      event = gOFS->ObjectManager.NotificationSubjects.front();
-      gOFS->ObjectManager.NotificationSubjects.pop_front();
-      gOFS->ObjectManager.SubjectsMutex.UnLock();
+      event = gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.front();
+      gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.pop_front();
+      gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
+
+      eos_static_info("MGM shared object notification subject is %s",event.mSubject.c_str());
 
       std::string newsubject = event.mSubject.c_str();
 
@@ -8747,7 +8766,7 @@ XrdMgmOfs::FsConfigListener ()
         // handle subject creation
         // ---------------------------------------------------------------------
         eos_static_debug("received creation on subject %s\n", newsubject.c_str());
-        gOFS->ObjectManager.SubjectsMutex.Lock();
+        gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
         continue;
       }
 
@@ -8758,7 +8777,7 @@ XrdMgmOfs::FsConfigListener ()
         // ---------------------------------------------------------------------
         eos_static_debug("received deletion on subject %s\n", newsubject.c_str());
 
-        gOFS->ObjectManager.SubjectsMutex.Lock();
+        gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
         continue;
       }
 
@@ -8805,6 +8824,77 @@ XrdMgmOfs::FsConfigListener ()
             }
           }
         }
+        else if(key == watch_geotag)
+        {
+          // -------------------------------------------------------------------
+          // this is a geotag update
+          // -------------------------------------------------------------------
+          eos::common::FileSystem::fsid_t fsid = 0;
+          std::string newgeotag;
+          FileSystem* fs = 0;
+          // read the id from the hash and the new geotag
+          gOFS->ObjectManager.HashMutex.LockRead();
+          XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(queue.c_str(), "hash");
+          if (hash)
+          {
+            fsid = (eos::common::FileSystem::fsid_t) hash->GetLongLong("id");
+            newgeotag = hash->Get("stat.geotag");
+          }
+          gOFS->ObjectManager.HashMutex.UnLockRead();
+
+          eos_info("Received a geotag change for fsid %lu new geotag is %s",(unsigned long)fsid,newgeotag.c_str());
+
+          {
+            eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+            eos::common::FileSystem::fs_snapshot snapshot;
+            if (FsView::gFsView.mIdView.count(fsid))
+              fs = FsView::gFsView.mIdView[fsid];
+            if(fs)
+            {
+              fs->SnapShotFileSystem(snapshot);
+
+              //----------------------------------------------------------------
+              //! update node view tree structure
+              //----------------------------------------------------------------
+              if (FsView::gFsView.mNodeView.count(snapshot.mQueue))
+              {
+                FsNode* node = FsView::gFsView.mNodeView[snapshot.mQueue];
+                eos_static_info("updating geotag of fsid %lu in node %s",(unsigned long)fsid,node->mName.c_str());
+                if(!static_cast<GeoTree*>(node)->erase(fsid))
+                  eos_static_err("error removing fsid %lu from node %s",(unsigned long)fsid,node->mName.c_str());
+                if(!static_cast<GeoTree*>(node)->insert(fsid))
+                  eos_static_err("error inserting fsid %lu into node %s",(unsigned long)fsid,node->mName.c_str());
+              }
+
+              //----------------------------------------------------------------
+              //! update group view tree structure
+              //----------------------------------------------------------------
+              if (FsView::gFsView.mGroupView.count(snapshot.mGroup))
+              {
+                FsGroup* group = FsView::gFsView.mGroupView[snapshot.mGroup];
+                eos_static_info("updating geotag of fsid %lu in group %s",(unsigned long)fsid,group->mName.c_str());
+                if(!static_cast<GeoTree*>(group)->erase(fsid))
+                eos_static_err("error removing fsid %lu from group %s",(unsigned long)fsid,group->mName.c_str());
+                if(!static_cast<GeoTree*>(group)->insert(fsid))
+                eos_static_err("error inserting fsid %lu into group %s",(unsigned long)fsid,group->mName.c_str());
+              }
+
+              //----------------------------------------------------------------
+              //! update space view tree structure
+              //----------------------------------------------------------------
+              if (FsView::gFsView.mSpaceView.count(snapshot.mSpace))
+              {
+                FsSpace* space = FsView::gFsView.mSpaceView[snapshot.mSpace];
+                eos_static_info("updating geotag of fsid %lu in space %s",(unsigned long)fsid,space->mName.c_str());
+                if(!static_cast<GeoTree*>(space)->erase(fsid))
+                eos_static_err("error removing fsid %lu from space %s",(unsigned long)fsid,space->mName.c_str());
+                if(!static_cast<GeoTree*>(space)->insert(fsid))
+                eos_static_err("error inserting fsid %lu into space %s",(unsigned long)fsid,space->mName.c_str());
+              }
+            }
+          }
+        }
+        //else if(key == watch_errc)
         else
         {
           // -------------------------------------------------------------------
@@ -8863,7 +8953,8 @@ XrdMgmOfs::FsConfigListener ()
             }
           }
         }
-        gOFS->ObjectManager.SubjectsMutex.Lock();
+
+        gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
         continue;
       }
 
@@ -8885,14 +8976,14 @@ XrdMgmOfs::FsConfigListener ()
 
         gOFS->ConfEngine->ApplyKeyDeletion(key.c_str());
 
-        gOFS->ObjectManager.SubjectsMutex.Lock();
+        gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
         continue;
       }
       eos_static_warning("msg=\"don't know what to do with subject\" subject=%s", newsubject.c_str());
-      gOFS->ObjectManager.SubjectsMutex.Lock();
+      gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
       continue;
     }
-    gOFS->ObjectManager.SubjectsMutex.UnLock();
+    gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
     XrdSysThread::SetCancelOff();
   }
   while (1);

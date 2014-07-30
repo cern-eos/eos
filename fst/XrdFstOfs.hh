@@ -287,6 +287,7 @@ public:
 
 
   XrdMqSharedObjectManager ObjectManager; //! managing shared objects
+  XrdMqSharedObjectChangeNotifier ObjectNotifier; //! notifying any shared object changes;
 
   void OpenFidString (unsigned long fsid, XrdOucString& outstring);
 
