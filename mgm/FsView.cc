@@ -23,6 +23,9 @@
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/FsView.hh"
+#ifndef EOSMGMFSVIEWTEST
+#include "mgm/GeoTreeEngine.hh"
+#endif
 #include "common/StringConversion.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
@@ -1034,7 +1037,9 @@ FsView::Register (FileSystem* fs)
       eos_debug("creating/inserting into group view %s<=>%u", snapshot.mGroup.c_str(), snapshot.mId, fs);
     }
 
-
+#ifndef EOSMGMFSVIEWTEST
+      gGeoTreeEngine.insertFsIntoGroup(fs,mGroupView[snapshot.mGroup],false);
+#endif
     mSpaceGroupView[snapshot.mSpace].insert(mGroupView[snapshot.mGroup]);
 
     //--------------------------------------------------------------------------
@@ -1129,6 +1134,9 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
       if (mGroupView.count(snapshot1.mGroup))
       {
         FsGroup* group = mGroupView[snapshot1.mGroup];
+#ifndef EOSMGMFSVIEWTEST
+        gGeoTreeEngine.removeFsFromGroup(fs,group,false);
+#endif
         group->erase(snapshot1.mId);
         eos_debug("unregister group %s from group view",
                   group->GetMember("name").c_str());
@@ -1159,6 +1167,9 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
         eos_debug("creating/inserting into group view %s<=>%u",
                   snapshot.mGroup.c_str(), snapshot.mId, fs);
       }
+#ifndef EOSMGMFSVIEWTEST
+      gGeoTreeEngine.insertFsIntoGroup(fs,mGroupView[group],false);
+#endif
 
       mSpaceGroupView[snapshot.mSpace].insert(mGroupView[snapshot.mGroup]);
 
@@ -1248,6 +1259,9 @@ FsView::UnRegister (FileSystem* fs)
     if (mGroupView.count(snapshot.mGroup))
     {
       FsGroup* group = mGroupView[snapshot.mGroup];
+#ifndef EOSMGMFSVIEWTEST
+      gGeoTreeEngine.removeFsFromGroup(fs,group,false);
+#endif
       group->erase(snapshot.mId);
       eos_debug("unregister group %s from group view", group->GetMember("name").c_str());
       if (!group->size())

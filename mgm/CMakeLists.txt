@@ -35,6 +35,7 @@ link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR})
 add_library (XrdEosMgm MODULE
             Access.cc         
             ConfigEngine.cc
+            GeoTreeEngine.cc
             Messaging.cc
             Policy.cc  
             ProcInterface.cc

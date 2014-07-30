@@ -107,6 +107,7 @@
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "mgm/ConfigEngine.hh"
+#include "mgm/GeoTreeEngine.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Iostat.hh"
 #include "mgm/Fsck.hh"
@@ -899,6 +900,8 @@ public:
 
   XrdMqSharedObjectManager ObjectManager; //< Shared Hash/Queue ObjectManager
   XrdMqSharedObjectChangeNotifier ObjectNotifier; //< Shared Hash/Queue Object Change Notifier
+
+  GeoTreeEngine GeotreeEngine; //< Placement / Access Engine
 
   // map keeping the modification times of directories, they are either directly inserted from directory/file creation or they are set from a directory listing
   XrdSysMutex MgmDirectoryModificationTimeMutex; //<  mutex protecting Directory Modificatino Time map MgmDirectoryModificationTime

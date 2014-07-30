@@ -999,6 +999,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   lFanOutTags.push_back("LRU");
   lFanOutTags.push_back("GroupBalancer");
   lFanOutTags.push_back("GeoBalancer");
+  lFanOutTags.push_back("GeoTreeEngine");
   lFanOutTags.push_back("#");
 
   // get the XRootD log directory
@@ -1678,6 +1679,9 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   }
 
+  gGeoTreeEngine.StartUpdater();
+  XrdSysTimer sleeper;
+    sleeper.Snooze(3);
   if(!ObjectNotifier.Start())
     eos_crit("error starting the shared object change notifier");
 
@@ -1873,7 +1877,6 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     }
   }
 
-  XrdSysTimer sleeper;
   sleeper.Wait(200);
 
   return NoGo;
