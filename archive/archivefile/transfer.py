@@ -44,9 +44,8 @@ class Transfer(object):
         eos_file (string): Location of archive file in EOS. It's a valid URL.
         log_file (string): Transfer log file. Path on the local disk.
         op (string): Operation type: put, get, purge, delete or list
-        list_jobs (list): List of file copy jobs to be executed.
     """
-    def __init__(self, eosf="", operation="", option=""):
+    def __init__(self, eosf, operation, option):
         self.oper = operation
         self.do_retry = (option == const.OPT_RETRY)
         self.efile_full = eosf
@@ -68,6 +67,13 @@ class Transfer(object):
         self.logger = logging.getLogger(__name__)
         self.logger.addHandler(log_handler)
         self.logger.propagate = False
+        # Get the loglevel
+        try:
+            loglvl = os.environ["LOG_LEVEL"]
+        except KeyError as __:
+            loglvl = logging.LOG_INFO
+
+        self.logger.setLevel(int(loglvl))
 
         try:
             self.fprogress = open(self.ps_file, 'w')
@@ -192,6 +198,7 @@ class Transfer(object):
 
             # Delete the corrupted entry
             is_dir = True if err_entry[0] == 'd' else False
+            self.logger.info("Delete corrupted entry={0}".format(err_entry))
             self.archive.del_entry(err_entry[1], is_dir, None)
 
         found_checkpoint = False  # flag set when reaching recovery entry
@@ -221,11 +228,10 @@ class Transfer(object):
 
         # Copy files
         self.copy_files(err_entry, found_checkpoint)
-
         self.write_progress("checking")
         check_ok, __ = self.archive.verify()
         self.write_progress("cleaning")
-        self.logger.debug("TIMING_transfer={0} sec".format(time.time() - t0))
+        self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
         self.clean_transfer(check_ok)
 
     def write_progress(self, msg):
@@ -249,7 +255,7 @@ class Transfer(object):
 
         Args:
             check_ok (bool): True if no error occured during transfer,
-            otherwise false.
+                otherwise false.
         """
         # Rename arch file in EOS to reflect the status
         if not check_ok:
@@ -303,7 +309,7 @@ class Transfer(object):
             self.logger.error("Failed to copy log file {0} to EOS at {1}".format(
                     self.log_file, eos_log))
 
-        # Delete all files associated with this transfer
+        # Delete all local files associated with this transfer
         try:
             os.remove(self.tx_file)
         except OSError as __:
@@ -433,10 +439,12 @@ class Transfer(object):
         oper = 'prepare'
 
         if not self.archive.d2t:
-            lst = []
+            t0 = time.time()
+            lpaths = []
             metahandler = MetaHandler()
 
             for fentry in self.archive.files():
+                # Find error checkpoint if not already found
                 if err_entry and not found_checkpoint:
                     if fentry != err_entry:
                         continue
@@ -444,10 +452,10 @@ class Transfer(object):
                         found_checkpoint = True
 
                 surl, __ = self.archive.get_endpoints(fentry[1])
-                lst.append(surl[surl.rfind('//') + 1:])
+                lpaths.append(surl[surl.rfind('//') + 1:])
 
-                if len(lst) == limit:
-                    xrd_st = self.archive.fs_dst.prepare(lst, PrepareFlags.STAGE,
+                if len(lpaths) == limit:
+                    xrd_st = self.archive.fs_dst.prepare(lpaths, PrepareFlags.STAGE,
                                 callback=metahandler.register(oper, surl))
 
                     if not xrd_st.ok:
@@ -455,11 +463,11 @@ class Transfer(object):
                         self.logger.error(err_msg)
                         raise IOError(err_msg)
 
-                    del lst[:]
+                    del lpaths[:]
 
             # Send the remaining requests
-            if lst:
-                xrd_st = self.archive.fs_dst.prepare(lst, PrepareFlags.STAGE,
+            if lpaths:
+                xrd_st = self.archive.fs_dst.prepare(lpaths, PrepareFlags.STAGE,
                             callback=metahandler.register(oper, surl))
 
                 if not xrd_st.ok:
@@ -467,9 +475,8 @@ class Transfer(object):
                     self.logger.error(err_msg)
                     raise IOError(err_msg)
 
-                del lst[:]
+                del lpaths[:]
 
-            t0 = time.time()
             status  = metahandler.wait(oper)
             t1 = time.time()
-            self.logger.debug("TIMING_prepare2get={0} sec".format(t1 - t0))
+            self.logger.info("TIMING_prepare2get={0} sec".format(t1 - t0))
