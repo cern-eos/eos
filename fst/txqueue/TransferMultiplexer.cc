@@ -122,7 +122,6 @@ TransferMultiplexer::ThreadProc (void)
          // take an entry from the queue
 
          int freeslots = mQueues[i]->GetSlots() - mQueues[i]->GetRunning();
-	 fprintf(stderr,"free slots %d\n", freeslots);
          if (freeslots <= 0)
            break;
 
