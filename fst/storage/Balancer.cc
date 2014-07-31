@@ -128,7 +128,7 @@ Storage::WaitFreeBalanceSlot (unsigned long long &nparalleltx,
   while (1)
   {
     nscheduled = GetScheduledBalanceJobs(totalscheduled, totalexecuted);
-    if (nscheduled <= nparalleltx)
+    if (nscheduled < nparalleltx)
       break;
     sleep_count++;
     sleeper.Snooze(1);

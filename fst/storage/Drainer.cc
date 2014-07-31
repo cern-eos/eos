@@ -149,7 +149,7 @@ Storage::WaitFreeDrainSlot (unsigned long long &nparalleltx,
   while (1)
   {
     nscheduled = GetScheduledDrainJobs(totalscheduled, totalexecuted);
-    if (nscheduled <= nparalleltx)
+    if (nscheduled < nparalleltx)
       break;
     sleep_count++;
     sleeper.Snooze(1);
