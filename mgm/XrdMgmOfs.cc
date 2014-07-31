@@ -7504,6 +7504,11 @@ XrdMgmOfs::FSctl (const int cmd,
                     eos_thread_info("cmd=schedule2drain msg=zero-move fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
                     XrdSysMutexHelper zLock(sZeroMoveMutex);
                     sZeroMove[fid] = std::make_pair(source_fsid, target_fsid);
+		    if (txjob)
+		      delete txjob;
+		    // try to find another one to hand out
+		    fit++;
+		    continue;
                   }
                   else
                   {
