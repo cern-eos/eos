@@ -28,10 +28,13 @@
 
 # Variables
 USER="xrootd"
-LOGDIR="/var/log/eos/archive/"
-EOS_ARCHIVE_DIR="/var/eos/archive/"
 prog="eosarchiverd"
 export DAEMON_COREFILE_LIMIT="unlimited"
+# Log level can be one of the following: 
+# info, notice, warn/warning, err/error, emerg/panic, debug, crit/critical, alert
+export LOG_LEVEL="debug"
+export LOG_DIR="/var/log/eos/archive/"
+export EOS_ARCHIVE_DIR="/var/eos/archive/"
 RETVAL=0
 
 # Source sysconfig files
@@ -39,13 +42,13 @@ if [ -f /etc/sysconfig/$prog ]; then
         . /etc/sysconfig/$prog
 fi
 
-# Create and set ownership on log directory
-mkdir -p $LOGDIR
-chown -R $USER:$USER $LOGDIR
+# Create and set ownership on the log directory
+mkdir -p $LOG_DIR
+chown -R $USER:$USER $LOG_DIR
 
-# Create and set ownership on the directory where files for each archive 
-# are saved by the worker processes. Each process saved 3 files with the
-# following extensions:
+# Create and set ownership on the directory where files for each archive transfer
+# are saved by the worker processes. Each process saves 3 files with the following 
+# extensions:
 #  .tx - the actual archive file copied from EOS 
 #  .log - log file for the running transfer
 #  .ps - status file for the running transfer

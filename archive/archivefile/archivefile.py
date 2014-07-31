@@ -47,7 +47,7 @@ class ArchiveFile(object):
             d2t (bool): True if transfer is to be disk to tape.
 
         Raises:
-            IOError
+            IOError: Failed to open local transfer file.
         """
         self.logger = logging.getLogger("archivefile.transfer")
         self.d2t = d2t
@@ -74,6 +74,7 @@ class ArchiveFile(object):
             pos = self.file.tell()
 
         # Create two XRootD.FileSystem object for source and destination
+        # which are to be reused throughout the transfer.
         self.fs_src = client.FileSystem(self.header['src'])
         self.fs_dst = client.FileSystem(self.header['dst'])
         self.logger.debug("fseek_dir={0}, fseek_file={1}".format(
@@ -189,7 +190,6 @@ class ArchiveFile(object):
         Raises:
             IOError: Deletion could not be performed.
         """
-        self.logger.info("Del entry={0}, is_dir={1}".format(rel_path, is_dir))
         src, dst = self.get_endpoints(rel_path)
 
         if tape_delete is None:
@@ -199,12 +199,11 @@ class ArchiveFile(object):
 
         url = client.URL(surl)
         fs = self.get_fs(surl)
+        self.logger.debug("Delete entry={0}".format(surl))
 
         if is_dir:
-            self.logger.info("Delete dir={0}".format(surl))
             st_rm, __ = fs.rmdir(url.path + "?eos.ruid=0&eos.rgid=0")
         else:
-            self.logger.info("Delete file={0}".format(surl))
             st_rm, __ = fs.rm(url.path + "?eos.ruid=0&eos.rgid=0")
 
         if not st_rm.ok:
@@ -234,7 +233,7 @@ class ArchiveFile(object):
             (status, stdout, __) = exec_cmd(''.join(fgetattr))
 
             if not status:
-                warn_msg = "Not found xattr sys.acl for dir={0}".format(dir_path)
+                warn_msg = "No xattr sys.acl found for dir={0}".format(dir_path)
                 self.logger.warning(warn_msg)
             else:
                 # Remove the 'z:i' rule from the acl list
