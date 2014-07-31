@@ -346,6 +346,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   MgmMetaLogDir = "";
   MgmTxDir = "";
   MgmAuthDir = "";
+  MgmArchiveDir = "";
 
   MgmHealMap.set_deleted_key(0);
   MgmDirectoryModificationTime.set_deleted_key(0);
@@ -683,10 +684,28 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
           else
           {
             MgmConfigDir = val;
+
             if (!MgmConfigDir.endswith("/"))
               MgmConfigDir += "/";
           }
         }
+
+        if (!strcmp("archivedir", var))
+        {
+          if (!(val = Config.GetWord()))
+          {
+            Eroute.Emsg("Config", "argument for archivedir invalid.");
+            NoGo = 1;
+          }
+          else
+          {
+            MgmArchiveDir = val;
+
+            if (!MgmArchiveDir.endswith("/"))
+              MgmArchiveDir += "/";
+          }
+        }
+
 
         if (!strcmp("autosaveconfig", var))
         {
@@ -1016,8 +1035,13 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     return 1;
   }
 
-  MgmOfsBroker = MgmOfsBrokerUrl;
+  if (!MgmArchiveDir.length())
+  {
+    Eroute.Say("Config error: archive directory is not defined : mgm.archivedir=</var/eos/archive/>");
+    return 1;
+  }
 
+  MgmOfsBroker = MgmOfsBrokerUrl;
   MgmDefaultReceiverQueue = MgmOfsBrokerUrl;
   MgmDefaultReceiverQueue += "*/fst";
 
@@ -1633,6 +1657,11 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
         return 1;
       }
     }
+
+    // Set also the archiverd ZMQ endpoint were client requests are sent
+    std::ostringstream oss;
+    oss << "ipc://" << MgmArchiveDir.c_str() << "archivebackend.ipc";
+    mArchiveEndpoint = oss.str();
   }
   //-------------------------------------------
 
