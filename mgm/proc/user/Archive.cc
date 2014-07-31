@@ -356,7 +356,7 @@ ProcCommand::Archive()
 
     try
     {
-      socket.connect(XrdMgmOfs::msArchiveEndpoint.c_str());
+      socket.connect(gOFS->mArchiveEndpoint.c_str());
     }
     catch (zmq::error_t& zmq_err)
     {

@@ -856,11 +856,13 @@ public:
   XrdOucString MgmOfsInstanceName; //< name of the EOS instance
   XrdOucString MgmConfigDir; //< Directory where config files are stored
   XrdOucString MgmConfigAutoLoad; //< Name of the automatically loaded configuration file
+  //! Directory where tmp. archive transfer files are saved
+  XrdOucString MgmArchiveDir; 
   XrdOucString MgmProcPath; //< Directory with proc files
   XrdOucString MgmProcConversionPath; //< Directory with conversion files (used as temporary files when a layout is changed using third party copy)
   XrdOucString MgmProcMasterPath; //< Full path to the master indication proc file
-  XrdOucString MgmProcArchivePath; ///< Directory where archive dir inodes are
-                                   ///< saved for fast find functionality
+  XrdOucString MgmProcArchivePath; ///< EOS directory where archive dir inodes
+                                   ///< are saved for fast find functionality
   XrdOucString AuthLib; //< path to a possible authorizationn library
   XrdOucString MgmNsFileChangeLogFile; //< path to namespace changelog file for files
   XrdOucString MgmNsDirChangeLogFile; //< path to namespace changelog file for directories
@@ -982,8 +984,7 @@ public:
 
   bool UTF8; //< true if running in less restrictive character set mode
 
-  static const std::string msArchiveFname; ///< archive filename
-  static const std::string msArchiveEndpoint; ///< archive connection endpoint
+  std::string mArchiveEndpoint; ///< archive ZMQ connection endpoint
   
 private:
 
