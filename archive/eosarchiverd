@@ -45,9 +45,11 @@ from veryprettytable import VeryPrettyTable
 
 
 # Constants
-const.BATCH_SIZE = 5      # max number of transfers to be performed in parallel
-const.POLLTIMEOUT = 1000  # miliseconds
-const.MAX_PENDING = 10    # max number of requests allowed in pending
+const.BATCH_SIZE = 10  # max number of transfers to be performed by one thread
+const.MAX_THREADS = 5  # max number of threads used per transfer process
+const.POLL_TIMEOUT = 1000  # miliseconds
+const.JOIN_TIMEOUT = 5000  # join timeout for running threads (ms)
+const.MAX_PENDING = 10  # max number of requests allowed in pending
 const.CREATE_OP = 'create'
 const.GET_OP = 'get'
 const.PUT_OP = 'put'
@@ -158,7 +160,7 @@ class Dispatcher(object):
         self.get_orphans()
 
         while True:
-            events = dict(poller.poll(const.POLLTIMEOUT))
+            events = dict(poller.poll(const.POLL_TIMEOUT))
 
             # Update worker processes status
             for oper, dict_jobs in self.proc.iteritems():
