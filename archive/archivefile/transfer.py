@@ -26,6 +26,7 @@ import os
 import time
 import logging
 import const
+import threading
 from os.path import join
 from asynchandler import MetaHandler
 from hashlib import sha256
@@ -37,13 +38,40 @@ from utils import exec_cmd
 from asynchandler import MetaHandler
 
 
+class ThreadJob(threading.Thread):
+    """Job executing a client.CopyProcess in a separate thread. This makes sense
+    since a third-party copy job is mostly waiting for the completion of the
+    job not doing any other operations and therefore not using the GIL too much.
+
+    Attributes:
+        status (bool): Final status of the job.
+        proc (client.CopyProcess): Copy process which is being executed.
+    """
+    def __init__(self, cpy_proc):
+        """Constructor.
+
+        Args:
+            cpy_proc (client.CopyProcess): Copy process object.
+        """
+        threading.Thread.__init__(self)
+        self.status = None
+        self.proc = cpy_proc
+
+    def run(self):
+        """Run method.
+        """
+        self.proc.prepare()
+        self.xrd_status = self.proc.run()
+
+
 class Transfer(object):
     """ Trasfer archive object.
 
     Attributes:
         eos_file (string): Location of archive file in EOS. It's a valid URL.
         log_file (string): Transfer log file. Path on the local disk.
-        op (string): Operation type: put, get, purge, delete or list
+        op (string): Operation type: put, get, purge, delete or list.
+        threads (list): List of threads doing parital transfers(CopyProcess jobs).
     """
     def __init__(self, eosf, operation, option):
         self.oper = operation
@@ -55,7 +83,7 @@ class Transfer(object):
         self.tx_file = local_file + ".tx"
         self.log_file = local_file + ".log"
         self.ps_file = local_file + ".ps"
-        self.list_jobs = []
+        self.list_jobs, self.threads = [], []
         self.archive = None
         # Special case for inital PUT as we need to copy also the archive file
         self.init_put = self.efile_full.endswith(const.ARCH_INIT)
@@ -378,7 +406,7 @@ class Transfer(object):
             self.list_jobs.append((src, dst, self.do_retry))
 
             if len(self.list_jobs) == const.BATCH_SIZE:
-                st = self.flush_files(meta_handler)
+                st = self.flush_files(False)
 
                 if not st:
                     err_msg = "Failed to flush files"
@@ -386,40 +414,78 @@ class Transfer(object):
                     raise IOError(err_msg)
 
         # Flush all pending copies and set metadata info for GET operation
-        st = self.flush_files(meta_handler)
+        st = self.flush_files(True)
 
         if not st:
             err_msg = "Failed to flush files"
             self.logger.error(err_msg)
             raise IOError(err_msg)
 
-    def flush_files(self, handler):
+    def flush_files(self, wait_all):
         """ Flush all pending transfers from the list of jobs.
 
         Args:
-            handler (MetaHandler): Meta handler obj. used for async req.
+            wait_all (bool): If true wait and collect the status from all
+                executing threads.
 
         Returns:
             True if files flushed successfully, otherwise false.
         """
-        proc = client.CopyProcess()
+        status = True
 
-        for job in self.list_jobs:
-            # TODO: do TPC when XRootD 3.3.6 does not crash anymore and use the
-            # parallel mode starting with XRootD 4.1
-            # TODO: use checksum verification if possible
-            proc.add_job(job[0], job[1], force=job[2], thirdparty=False)
+        # Wait until a thread from the pool gets freed if we reached the maximum
+        # allowed number of running threads
+        while len(self.threads) >= const.MAX_THREADS:
+            del_lst = []
 
-        proc.prepare()
-        xrd_st = proc.run()
+            for indx, thread in enumerate(self.threads):
+                thread.join(const.JOIN_TIMEOUT)
 
-        if xrd_st.ok:
-            self.logger.debug("Batch successful")
-        else:
-            self.logger.error("Batch error={0}".format(xrd_st))
+                # If thread finished get the status and mark it for removal
+                if not thread.isAlive():
+                    status = status and thread.xrd_status.ok
+                    self.logger.debug("Thread={0} status={1}".format(
+                           thread.ident, thread.xrd_status.ok))
+                    del_lst.append(indx)
 
-        del self.list_jobs[:]
-        return xrd_st.ok
+                    if not status:
+                        self.logger.error("Thread={0} err_msg={2}".format(
+                                thread.ident, stathread.xrd_status.message))
+                        break
+
+            for indx in del_lst:
+                del self.threads[indx]
+
+        # If previous transfers were successful and we still have jobs
+        if status and self.list_jobs:
+            proc = client.CopyProcess()
+
+            for job in self.list_jobs:
+                # TODO: do TPC when XRootD 3.3.6 does not crash anymore and use the
+                # parallel mode starting with XRootD 4.1
+                # TODO: use checksum verification if possible
+                self.logger.info("Add job src={0}, dst={1}".format(job[0], job[1]))
+                proc.add_job(job[0], job[1], force=job[2], thirdparty=False)
+
+            del self.list_jobs[:]
+            thread = ThreadJob(proc)
+            thread.start()
+            self.threads.append(thread)
+
+        # If we already have failed transfers or we submitted all the jobs then
+        # join the rest of the threads and collect also their status
+        if not status or wait_all:
+            for thread in self.threads:
+                if thread.isAlive():
+                    thread.join()
+                    self.logger.debug("Thread={0} status={1}".format(
+                            thread.ident, thread.xrd_status.ok))
+
+                status = status and thread.xrd_status.ok
+
+            del self.threads[:]
+
+        return status
 
     def prepare2get(self, err_entry, found_checkpoint):
         """This method is only executed for GET operations and it's purpose is
