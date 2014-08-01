@@ -436,8 +436,6 @@ class Transfer(object):
         # Wait until a thread from the pool gets freed if we reached the maximum
         # allowed number of running threads
         while len(self.threads) >= const.MAX_THREADS:
-            del_lst = []
-
             for indx, thread in enumerate(self.threads):
                 thread.join(const.JOIN_TIMEOUT)
 
@@ -446,15 +444,13 @@ class Transfer(object):
                     status = status and thread.xrd_status.ok
                     self.logger.debug("Thread={0} status={1}".format(
                            thread.ident, thread.xrd_status.ok))
-                    del_lst.append(indx)
 
                     if not status:
                         self.logger.error("Thread={0} err_msg={2}".format(
                                 thread.ident, stathread.xrd_status.message))
-                        break
 
-            for indx in del_lst:
-                del self.threads[indx]
+                    del self.threads[indx]
+                    break
 
         # If previous transfers were successful and we still have jobs
         if status and self.list_jobs:
