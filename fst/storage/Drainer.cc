@@ -164,6 +164,7 @@ Storage::WaitFreeDrainSlot (unsigned long long &nparalleltx,
                          );
       // reset the accounting
       totalscheduled = totalexecuted;
+      sleep_count = 0;
     }
   }
   eos_static_debug("nscheduled=%llu totalscheduled=%llu totalexecuted=%llu", nscheduled, totalscheduled, totalexecuted);

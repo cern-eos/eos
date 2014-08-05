@@ -142,6 +142,7 @@ Storage::WaitFreeBalanceSlot (unsigned long long &nparalleltx,
                          );
       // reset the accounting
       totalscheduled = totalexecuted;
+      sleep_count = 0;
     }
   }
   return nscheduled;
