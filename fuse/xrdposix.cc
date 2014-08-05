@@ -1664,7 +1664,6 @@ xrd_inodirlist (unsigned long long dirinode,
   // we have to replace '&' in path names with '#AND#'
 
   size_t a_pos = request.find("mgm.path=/");
-  size_t b_pos = a_pos;
 
   while ( (a_pos = request.find("&", a_pos+1)) != std::string::npos) 
   {
