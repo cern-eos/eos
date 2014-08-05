@@ -1000,7 +1000,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     return 1;
   }
 
-  if (!MgmOfsVstBrokerUrl.endswith("//eos/"))
+  if (MgmOfsVstBrokerUrl.length() && (!MgmOfsVstBrokerUrl.endswith("//eos/")))
   {
     Eroute.Say("Config error: the vst broker url has to be of the form <root://<hostname>[:<port>]//");
     return 1;
