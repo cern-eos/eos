@@ -1017,8 +1017,8 @@ XrdFstOfsFile::open (const char* path,
       {
         if (capOpaque->Get("mgm.path"))
         {
-	  XrdOucString unsealedpath = capOpaque->Get("mgm.path");
-	  XrdOucString sealedpath = path;
+          XrdOucString unsealedpath = capOpaque->Get("mgm.path");
+          XrdOucString sealedpath = path;
           if (!attr->Set(std::string("user.eos.lfn"), std::string(unsealedpath.c_str())))
           {
             eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
@@ -1383,6 +1383,11 @@ XrdFstOfsFile::verifychecksum ()
         delete checkSum;
         checkSum = 0;
         return false;
+      }
+      if ((isRW) && checkSum->GetMaxOffset() && (checkSum->GetMaxOffset() < openSize))
+      {
+        // if there was a write which was not extending the file the checksum is dirty!
+        checkSum->SetDirty();
       }
     }
 
