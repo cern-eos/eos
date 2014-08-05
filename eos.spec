@@ -2,7 +2,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.3.38
-Release: 1
+Release: aquamarine
 Prefix: /usr
 License: none
 Group: Applications/File
