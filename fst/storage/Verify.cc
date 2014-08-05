@@ -175,11 +175,11 @@ Storage::Verify ()
             cxError = true;
 
           // commit the disk checksum in case of differences between the in-memory value
-          if (fMd->fMd.diskchecksum != computedchecksum) 
-	  {
-	    cxError = true;
+          if (fMd->fMd.diskchecksum != computedchecksum)
+          {
+            cxError = true;
             localUpdate = true;
-	  }
+          }
 
           if (cxError)
           {
@@ -222,7 +222,7 @@ Storage::Verify ()
         }
         else
         {
-          if (localUpdate) eos_static_info("commited verified meta data locally id=%llu on fs=%u path=%s", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+          if (localUpdate) eos_static_info("committed verified meta data locally id=%llu on fs=%u path=%s", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
 
           // commit to central mgm cache, only if commitSize or commitChecksum is set
           XrdOucString capOpaqueFile = "";
