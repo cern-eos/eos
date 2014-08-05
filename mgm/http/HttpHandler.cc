@@ -667,6 +667,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
     // we have to rewrite the path and add some additional header describing
     // the chunking which was stored in the name
     url = eos::common::OwnCloud::prepareChunkUpload(request, &response, ocHeader);
+    fprintf(stderr, "OC Url %s\n", url.c_str());
     if (response)
       return response;
   }
@@ -734,6 +735,12 @@ HttpHandler::Put (eos::common::HttpRequest * request)
         query = "eos.bookingsize=0";
       }
 
+      if (isOcChunked)
+      {
+        // add the OC opaque information
+        query += eos::common::OwnCloud::HeaderToQuery(ocHeader).c_str();
+      }
+
       // -----------------------------------------------------------
       // OC clients are switched automatically to atomic upload mode
       // -----------------------------------------------------------
@@ -749,7 +756,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
         if (etag != "undef") // file exists already
         {
           eos_static_info("removing truncation flag ");
-          open_mode ^= SFS_O_TRUNC;
+          //open_mode ^= SFS_O_TRUNC;
         }
       }
 
@@ -771,18 +778,24 @@ HttpHandler::Put (eos::common::HttpRequest * request)
       {
         if (rc == SFS_REDIRECT)
         {
+          std::string redirection_cgi = file->error.getErrText();
+
           if (file->error.getErrInfo() == 1094)
           {
             // MGM redirect
             response = HttpServer::HttpRedirect(request->GetUrl(),
-                                                file->error.getErrText(),
+                                                redirection_cgi.c_str(),
                                                 8000, false);
           }
           else
           {
+            if (isOcChunked)
+            {
+              redirection_cgi += eos::common::OwnCloud::HeaderToQuery(ocHeader).c_str();
+            }
             // FST redirect
             response = HttpServer::HttpRedirect(request->GetUrl(),
-                                                file->error.getErrText(),
+                                                redirection_cgi.c_str(),
                                                 8001, false);
           }
         }
@@ -811,7 +824,6 @@ HttpHandler::Put (eos::common::HttpRequest * request)
       {
         response = new eos::common::PlainHttpResponse();
         response->SetResponseCode(response->CREATED);
-        eos::common::OwnCloud::addOcHeader(response, ocHeader);
       }
 
       std::string rurl = file->error.getErrText();

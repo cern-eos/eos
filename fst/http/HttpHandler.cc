@@ -88,8 +88,6 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
       }
       else
       {
-        // add OC chunk upload information
-        query += eos::common::OwnCloud::HeaderToQuery(request->GetHeaders());
         isOcChunkUpload = true;
       }
 
@@ -103,9 +101,6 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
                       create_mode,
                       &mClient,
                       query.c_str());
-
-    if (isOcChunkUpload)
-      mRc = mFile->truncate(eos::common::StringConversion::GetSizeFromString(request->GetHeaders()["OC-Total-Length"]));
 
     mFileSize = mFile->getOpenSize();
 
@@ -164,6 +159,7 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
       // clean-up left-over objects on error or end-of-put
       if (mFile)
       {
+
         delete mFile;
         mFile = 0;
       }
@@ -184,6 +180,7 @@ HttpHandler::Initialize (eos::common::HttpRequest *request)
 
   if (request->GetHeaders().count("Content-Length"))
   {
+
     mContentLength = strtoull(request->GetHeaders()["Content-Length"].c_str(),
                               0, 10);
     mUploadLeftSize = mContentLength;
@@ -304,6 +301,7 @@ HttpHandler::Get (eos::common::HttpRequest *request)
 
   if (mFile)
   {
+
     time_t mtime = mFile->GetMtime();
     response->AddHeader("Last-Modified", eos::common::Timing::utctime(mtime));
     // We want to use the file callbacks
@@ -321,6 +319,7 @@ HttpHandler::Head (eos::common::HttpRequest *request)
   response->mUseFileReaderCallback = false;
   if (mFile)
   {
+
     mFile->close();
     delete mFile;
     mFile = 0;
@@ -383,13 +382,27 @@ HttpHandler::Put (eos::common::HttpRequest *request)
 
   else
   {
-    /*
+
     // check for chunked uploads
     if (!mCurrentCallbackOffset && request->GetHeaders().count("OC-Chunked"))
     {
-      eos::common::Path ocPath(request->GetUrl().c_str());
-      ocPath.ParseChunkedPath();
-      if (ocPath.GetOCnChunk() >= ocPath.GetOCmaxChunks())
+      int chunk_n = 0;
+      int chunk_max = 0;
+      XrdOucString chunk_uuid;
+
+      if (!eos::common::OwnCloud::getContentSize(request))
+      {
+        response = HttpServer::HttpError("Missing total length in OC request",
+                                         response->BAD_REQUEST);
+        return response;
+      }
+
+      eos::common::OwnCloud::GetChunkInfo(request->GetQuery().c_str(),
+                                          chunk_n,
+                                          chunk_max,
+                                          chunk_uuid);
+
+      if (chunk_n >= chunk_max)
       {
         // there is something inconsistent here
         // HTTP write error
@@ -400,26 +413,20 @@ HttpHandler::Put (eos::common::HttpRequest *request)
 
       unsigned long long contentlength = eos::common::StringConversion::GetSizeFromString(request->GetHeaders()["Content-Length"]);
       // recompute offset where to write
-      if ((ocPath.GetOCnChunk() + 1) < ocPath.GetOCmaxChunks())
+      if ((chunk_n + 1) < chunk_max)
       {
         // the first n-1 chunks have a straight forward offset
-        mCurrentCallbackOffset = contentlength * ocPath.GetOCnChunk();
+        mCurrentCallbackOffset = contentlength * chunk_n;
       }
       else
       {
-        if (!request->GetHeaders().count("OC-Total-Length"))
-        {
-          response = HttpServer::HttpError("Missing total length in OC request",
-                                           response->BAD_REQUEST);
-          return response;
-        }
         // the last chunks has to be written at offset=total-length - chunk-length
         mCurrentCallbackOffset =
-                eos::common::StringConversion::GetSizeFromString(request->GetHeaders()["OC-Total-Length"]);
+                eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request));
         mCurrentCallbackOffset -= contentlength;
       }
     }
-     */
+
 
     // file streaming in
     size_t *bodySize = request->GetBodySize();
@@ -480,6 +487,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         response->AddHeader("ETag", mFile->GetETag());
         if (header.count("X-OC-Mtime"))
         {
+
           response->AddHeader("X-OC-Mtime", "accepted");
           // return the OC-FileId header
           std::string ocid;

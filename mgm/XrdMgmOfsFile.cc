@@ -779,7 +779,7 @@ XrdMgmOfsFile::open (const char *inpath,
     // -------------------------------------------------------------------------
     // write case
     // -------------------------------------------------------------------------
-    if ((!fmd))
+    if ((!fmd) || ocUploadUuid.length())
     {
       if (!(open_flag & O_CREAT))
       {
@@ -816,11 +816,18 @@ XrdMgmOfsFile::open (const char *inpath,
 
             // create it if we didn't already attach above for an OC upload
             if (!fmd)
+            {
               fmd = gOFS->eosView->createFile(creation_path.c_str(), vid.uid, vid.gid);
+              if (ocUploadUuid.length())
+                fmd->setFlags(0);
+              else
+                fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+            }
 
             fileId = fmd->getId();
             fmdlid = fmd->getLayoutId();
-            fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+            // oc chunks start with flags=0
+
             cid = fmd->getContainerId();
           }
           catch (eos::MDException &e)
@@ -1072,8 +1079,10 @@ XrdMgmOfsFile::open (const char *inpath,
   capability += "&mgm.path=";
   {
     // an '&' will create a failure on the FST
-    XrdOucString safepath=path;
-    while(safepath.replace("&","#AND#")) {}
+    XrdOucString safepath = path;
+    while (safepath.replace("&", "#AND#"))
+    {
+    }
     capability += safepath;
   }
   capability += "&mgm.manager=";
