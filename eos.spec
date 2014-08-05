@@ -29,6 +29,7 @@ BuildRequires: xrootd-client-devel
 BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: git
+BuildRequires: zeromq zeromq-devel
 
 %if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
 %if %{?fedora}%{!?fedora:0} >= 18
@@ -50,6 +51,7 @@ Summary: The EOS server installation
 Group: Applications/File
 Requires: xrootd >= 3.3.4
 Requires: xrootd-client
+Requires: zeromq
 Requires: eos-client
 Requires: libmicrohttpd
 Requires: acl
