@@ -117,7 +117,7 @@ ProcCommand::Find ()
   bool selectonehour = false;
   bool printunlink = false;
   bool printcounter = false;
-  bool printchildcount = true;
+  bool printchildcount = false;
   bool printhosts = false;
   bool printpartition = false;
   bool selectonline = false;
@@ -242,23 +242,29 @@ ProcCommand::Find ()
   if (option.find("I") != STR_NPOS)
   {
     printfileinfo = true;
-    option += "f";
+
+    // When just fileinfo is specified we print it for both files and directories
+    if ((option.find("d") == STR_NPOS) && (option.find("f") == STR_NPOS))
+      option += "df";      
   }
 
   if (option.find("A") != STR_NPOS)
   {
     selectfaultyacl = true;
-    option += "d";
+
+    if (option.find("d") == STR_NPOS)
+      option += "d";
   }
 
   if (purgeversion.length())
   {
-    if ( ( atoi(purgeversion.c_str()) == 0 ) && (purgeversion != "0") )
+    if ((atoi(purgeversion.c_str()) == 0) && (purgeversion != "0"))
     {
       fprintf(fstderr,"error: the max. version given to --purge has to be a valid number >=0");
       retc = EINVAL;
       return SFS_OK;
     }
+    
     max_version = atoi(purgeversion.c_str());
     purge = true;
     option += "d";
@@ -320,6 +326,7 @@ ProcCommand::Find ()
         option += "f";
       }
     }
+    
     if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, (*found), key.c_str(), val.c_str(), nofiles))
     {
       fprintf(fstderr, "%s", stdErr.c_str());
@@ -357,7 +364,11 @@ ProcCommand::Find ()
           fspath += *fileit;
           if (!calcbalance)
           {
-            if (findgroupmix || findzero || printsize || printfid || printuid || printgid || printfileinfo || printchecksum || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff || selectonehour || selectoldertime || selectyoungertime)
+            if (findgroupmix || findzero || printsize || printfid || printuid ||
+                printgid || printfileinfo || printchecksum || printctime ||
+                printmtime || printrep || printunlink || printhosts ||
+                printpartition || selectrepdiff || selectonehour ||
+                selectoldertime || selectyoungertime)
             {
               //-------------------------------------------
 
@@ -466,7 +477,12 @@ ProcCommand::Find ()
                 }
                 else
                 {
-                  if (selected && (selectonehour || selectoldertime || selectyoungertime || printsize || printfid || printuid || printgid || printchecksum || printfileinfo || printfs || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff))
+                  if (selected && (selectonehour || selectoldertime ||
+                                   selectyoungertime || printsize || printfid ||
+                                   printuid || printgid || printchecksum ||
+                                   printfileinfo || printfs || printctime ||
+                                   printmtime || printrep || printunlink ||
+                                   printhosts || printpartition || selectrepdiff))
                   {
                     XrdOucString sizestring;
                     bool printed = true;
@@ -628,7 +644,7 @@ ProcCommand::Find ()
                       }
                       else
                       {
-                        // print fileinfo -m 
+                        // Print file fileinfo -m 
                         ProcCommand Cmd;
                         XrdOucString lStdOut = "";
                         XrdOucString lStdErr = "";
@@ -641,7 +657,7 @@ ProcCommand::Find ()
                         if (lStdErr.length()) fprintf(fstderr, "%s", lStdErr.c_str());
                         Cmd.close();
                       }
-                      if (!printcounter)fprintf(fstdout, "\n");
+                      if (!printcounter) fprintf(fstdout, "\n");
                     }
                   }
                 }
@@ -659,14 +675,15 @@ ProcCommand::Find ()
             }
             else
             {
-              if (!printcounter)fprintf(fstdout, "%s\n", fspath.c_str());
+              if (!printcounter) fprintf(fstdout, "%s\n", fspath.c_str());
               filecounter++;
             }
           }
           else
           {
-            // get location
-            //-------------------------------------------
+            //------------------------------------------------------------------
+            // Get location
+            //------------------------------------------------------------------
             gOFS->eosViewRWMutex.LockRead();
             eos::FileMD* fmd = 0;
             try
@@ -733,7 +750,7 @@ ProcCommand::Find ()
     }
 
 
-    if ((option.find("d")) != STR_NPOS)
+    if (option.find("d") != STR_NPOS)
     {
       for (foundit = (*found).begin(); foundit != (*found).end(); foundit++)
       {
@@ -785,7 +802,7 @@ ProcCommand::Find ()
           }
         }
         
-        // print directories
+        // Print directories
         XrdOucString attr = "";
         if (printkey.length())
         {
@@ -799,21 +816,47 @@ ProcCommand::Find ()
             if (!printcounter)fprintf(fstdout, "%s=%-32s path=", printkey.c_str(), attr.c_str());
           }
         }
+        
         if (!purge && !printcounter)
         {
           if (printchildcount)
           {
-            //-------------------------------------------
 	    eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
             eos::ContainerMD* mCmd = 0;
             unsigned long long childfiles = 0;
             unsigned long long childdirs = 0;
+
             try
             {
               mCmd = gOFS->eosView->getContainer(foundit->first.c_str());
               childfiles = mCmd->getNumFiles();
               childdirs = mCmd->getNumContainers();
               fprintf(fstdout, "%s ndir=%llu nfiles=%llu\n", foundit->first.c_str(), childdirs, childfiles);
+            }
+            catch (eos::MDException &e)
+            {
+              eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
+            }
+          }
+          else if (printfileinfo)
+          {
+            eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
+
+            try
+            {
+              // Print directory & file fileinfo -m 
+              ProcCommand Cmd;
+              XrdOucString lStdOut = "";
+              XrdOucString lStdErr = "";
+              XrdOucString info = "&mgm.cmd=fileinfo&mgm.path=";
+              info += foundit->first.c_str();
+              info += "&mgm.file.info.option=-m";
+              Cmd.open("/proc/user", info.c_str(), *pVid, mError);
+              Cmd.AddOutput(lStdOut, lStdErr);
+              if (lStdOut.length()) fprintf(fstdout, "%s", lStdOut.c_str());
+              if (lStdErr.length()) fprintf(fstderr, "%s", lStdErr.c_str());
+              Cmd.close();
+              fprintf(fstdout, "\n");
             }
             catch (eos::MDException &e)
             {

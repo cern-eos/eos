@@ -122,6 +122,11 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
       ((cmd == "attr") &&
        ((subcmd == "set") ||
         (subcmd == "rm"))) ||
+      ((cmd == "archive") &&
+       ((subcmd == "create") ||
+        (subcmd == "stage")  ||
+        (subcmd == "migrate")||
+        (subcmd == "list"))) ||
       ((cmd == "mkdir")) ||
       ((cmd == "rmdir")) ||
       ((cmd == "rm")) ||
@@ -352,7 +357,10 @@ ProcCommand::OpenTemporaryOutputFiles ()
 
 /*----------------------------------------------------------------------------*/
 int
-ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::VirtualIdentity &vid_in, XrdOucErrInfo *error)
+ProcCommand::open (const char* inpath,
+                   const char* info,
+                   eos::common::Mapping::VirtualIdentity &vid_in,
+                   XrdOucErrInfo *error)
 {
   pVid = &vid_in;
   mClosed = false;
@@ -374,8 +382,8 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
   // ---------------------------------------------
   // deal with '&' ... sigh 
   // ---------------------------------------------
-  XrdOucString sinfo=ininfo;
-  for (size_t i=0; i< (size_t)sinfo.length(); i++)
+  XrdOucString sinfo = ininfo;
+  for (int i = 0; i < sinfo.length(); i++)
   {
 
     if (sinfo[i] == '&') 
@@ -444,90 +452,80 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
   // ----------------------------------------------------------------------------
   if (mAdminCmd)
   {
-    if (mCmd == "access")
+    if (mCmd == "archive")
+    {
+      Archive();
+      mDoSort = false;
+    }
+    else if (mCmd == "access")
     {
       Access();
       mDoSort = false;
     }
-    else
-      if (mCmd == "config")
+    else if (mCmd == "config")
     {
       Config();
       mDoSort = false;
     }
-    else
-      if (mCmd == "node")
+    else if (mCmd == "node")
     {
       Node();
       mDoSort = false;
     }
-    else
-      if (mCmd == "space")
+    else if (mCmd == "space")
     {
       Space();
       mDoSort = false;
     }
-    else
-
-      if (mCmd == "group")
+    else if (mCmd == "group")
     {
       Group();
       mDoSort = false;
     }
-    else
-      if (mCmd == "fs")
+    else if (mCmd == "fs")
     {
       Fs();
       mDoSort = false;
     }
-    else
-      if (mCmd == "ns")
+    else if (mCmd == "ns")
     {
       Ns();
       mDoSort = false;
     }
-    else
-      if (mCmd == "io")
+    else if (mCmd == "io")
     {
       Io();
       mDoSort = false;
     }
-    else
-      if (mCmd == "fsck")
+    else if (mCmd == "fsck")
     {
       Fsck();
       mDoSort = false;
     }
-    else
-      if (mCmd == "quota")
+    else if (mCmd == "quota")
     {
       AdminQuota();
       mDoSort = false;
     }
-    else
-      if (mCmd == "transfer")
+    else if (mCmd == "transfer")
     {
       Transfer();
       mDoSort = false;
     }
-    else
-      if (mCmd == "debug")
+    else if (mCmd == "debug")
     {
       Debug();
     }
-    else
-      if (mCmd == "vid")
+    else if (mCmd == "vid")
     {
       Vid();
     }
-    else
-      if (mCmd == "vst")
+    else if (mCmd == "vst")
     {
        Vst();
        mDoSort = false;
     }
-    else
-      if (mCmd == "rtlog")
+    else if (mCmd == "rtlog")
     {
       Rtlog();
       mDoSort = false;
@@ -550,106 +548,93 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
   // ----------------------------------------------------------------------------
   if (mUserCmd)
   {
-    if (mCmd == "motd")
+    if (mCmd == "archive")
+    {
+      Archive();
+      mDoSort = false;
+    }
+    else if (mCmd == "motd")
     {
       Motd();
       mDoSort = false;
     }
-    else
-      if (mCmd == "version")
+    else if (mCmd == "version")
     {
       Version();
       mDoSort = false;
     }
-    else
-      if (mCmd == "quota")
+    else if (mCmd == "quota")
     {
       Quota();
       mDoSort = false;
     }
-    else
-      if (mCmd == "who")
+    else if (mCmd == "who")
     {
       Who();
       mDoSort = false;
     }
-    else
-      if (mCmd == "fuse")
+    else if (mCmd == "fuse")
     {
       return Fuse();
     }
-    else
-      if (mCmd == "file")
+    else if (mCmd == "file")
     {
       File();
       mDoSort = false;
     }
-    else
-      if (mCmd == "fileinfo")
+    else if (mCmd == "fileinfo")
     {
       Fileinfo();
       mDoSort = false;
     }
-    else
-      if (mCmd == "mkdir")
+    else if (mCmd == "mkdir")
     {
       Mkdir();
     }
-    else
-      if (mCmd == "rmdir")
+    else if (mCmd == "rmdir")
     {
       Rmdir();
     }
-    else
-      if (mCmd == "cd")
+    else if (mCmd == "cd")
     {
       Cd();
       mDoSort = false;
     }
-    else
-      if (mCmd == "chown")
+    else if (mCmd == "chown")
     {
       Chown();
     }
-    else
-      if (mCmd == "ls")
+    else if (mCmd == "ls")
     {
       Ls();
       mDoSort = false;
     }
-    else
-      if (mCmd == "rm")
+    else if (mCmd == "rm")
     {
       Rm();
     }
-    else
-      if (mCmd == "whoami")
+    else if (mCmd == "whoami")
     {
       Whoami();
       mDoSort = false;
     }
-    else
-      if (mCmd == "find")
+    else if (mCmd == "find")
     {
       Find();
     }
-    else
-      if (mCmd == "map")
+    else if (mCmd == "map")
     {
       Map();
     }
-    else
-      if (mCmd == "attr")
+    else if (mCmd == "attr")
     {
       Attr();
     }
-    else
-      if (mCmd == "chmod")
+    else if (mCmd == "chmod")
     {
       Chmod();
     }
-    else
-      if (mCmd == "recycle")
+    else if (mCmd == "recycle")
     {
       Recycle();
       mDoSort = false;
@@ -664,6 +649,7 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
       stdErr += "'";
       retc = EINVAL;
     }
+    
     MakeResult();
     return SFS_OK;
   }
@@ -753,7 +739,8 @@ ProcCommand::close ()
     {
       if (mComment.length() && gOFS->commentLog)
       {
-        if (!gOFS->commentLog->Add(mExecTime, mCmd.c_str(), mSubCmd.c_str(), mArgs.c_str(), mComment.c_str(), stdErr.c_str(), retc))
+        if (!gOFS->commentLog->Add(mExecTime, mCmd.c_str(), mSubCmd.c_str(),
+                                   mArgs.c_str(), mComment.c_str(), stdErr.c_str(), retc))
         {
           eos_err("failed to log to comment log file");
         }

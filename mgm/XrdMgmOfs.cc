@@ -710,38 +710,6 @@ XrdMgmOfs::Stall (XrdOucErrInfo &error,
 }
 
 /*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::Redirect (XrdOucErrInfo &error,
-                     const char* host,
-                     int &port)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief send a redirect response to the client
- *
- * @param error error object with text/code
- * @param host redirection target host
- * @param port redirection target port
- */
-/*----------------------------------------------------------------------------*/
-{
-
-  EPNAME("Redirect");
-  const char *tident = error.getErrUser();
-
-  ZTRACE(delay, "Redirect " << host << ":" << port);
-
-  // ---------------------------------------------------------------------------
-  // Place the error message in the error object and return
-  // ---------------------------------------------------------------------------
-  error.setErrInfo(port, host);
-
-  // ---------------------------------------------------------------------------
-  // All done
-  // ---------------------------------------------------------------------------
-  return SFS_REDIRECT;
-}
-
-/*----------------------------------------------------------------------------*/
 void*
 XrdMgmOfs::StartMgmStats (void *pp)
 {

@@ -48,6 +48,7 @@ mgmofs.configdir /var/eos/config
 mgmofs.metalog /var/eos/md
 mgmofs.txdir /var/eos/tx
 mgmofs.authdir /var/eos/auth
+mgmofs.archivedir /var/eos/archive
 	
 # report store path
 mgmofs.reportstorepath /var/eos/report

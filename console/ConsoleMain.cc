@@ -43,6 +43,7 @@ XrdPosixXrootd posixsingleton;
 // - Implemented Commands                                                     -
 // ----------------------------------------------------------------------------
 extern int com_access (char*);
+extern int com_archive (char*);
 extern int com_attr (char*);
 extern int com_cd (char*);
 extern int com_chmod (char*);
@@ -192,6 +193,7 @@ wants_help (const char* arg1)
 // ----------------------------------------------------------------------------
 COMMAND commands[] = {
   { (char*) "access", com_access, (char*) "Access Interface"},
+  { (char*) "archive", com_archive, (char*) "Archive Interface"},
   { (char*) "attr", com_attr, (char*) "Attribute Interface"},
   { (char*) "clear", com_clear, (char*) "Clear the terminal"},
   { (char*) "cd", com_cd, (char*) "Change directory"},

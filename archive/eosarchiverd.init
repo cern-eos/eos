@@ -1,0 +1,123 @@
+#! /bin/sh
+#
+#-------------------------------------------------------------------------------
+# File: eosarchiverd.init
+# Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
+#-------------------------------------------------------------------------------
+#
+#*******************************************************************************
+# EOS - the CERN Disk Storage System
+# Copyright (C) 2014 CERN/Switzerland
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#*******************************************************************************
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Variables
+USER="xrootd"
+prog="eosarchiverd"
+export DAEMON_COREFILE_LIMIT="unlimited"
+# Log level can be one of the following: 
+# info, notice, warn/warning, err/error, emerg/panic, debug, crit/critical, alert
+export LOG_LEVEL="debug"
+export LOG_DIR="/var/log/eos/archive/"
+export EOS_ARCHIVE_DIR="/var/eos/archive/"
+RETVAL=0
+
+# Source sysconfig files
+if [ -f /etc/sysconfig/$prog ]; then
+        . /etc/sysconfig/$prog
+fi
+
+# Create and set ownership on the log directory
+mkdir -p $LOG_DIR
+chown -R $USER:$USER $LOG_DIR
+
+# Create and set ownership on the directory where files for each archive transfer
+# are saved by the worker processes. Each process saves 3 files with the following 
+# extensions:
+#  .tx - the actual archive file copied from EOS 
+#  .log - log file for the running transfer
+#  .ps - status file for the running transfer
+mkdir -p $EOS_ARCHIVE_DIR
+chown -R $USER:$USER $EOS_ARCHIVE_DIR
+
+start() {
+        # Run daemon
+        echo -n $"Starting $prog: "
+
+        cd /var/log/eos/
+        daemon --user=$USER /usr/bin/$prog $EOSARCHIVERD_OPTIONS
+
+        # Write the pid to a file.
+        RETVAL=$?
+        if [ $RETVAL -eq 0 ]; then
+                pid=`ps -eo pid,ppid,comm | egrep " 1 $prog\$" | awk '{print $1}'`
+                rm -f /var/run/$prog.pid
+                if [ -n "$pid" ]; then
+                        echo $pid > /var/run/$prog.pid
+                        RETVAL=0
+                else
+                        RETVAL=1
+                fi
+        fi
+
+        [ $RETVAL -eq 0 ] && success $"$base startup" || failure $"$base startup"
+        echo
+        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
+        return $RETVAL
+}
+
+stop() {
+        echo -n $"Stopping $prog: "
+        killproc $prog
+
+        RETVAL=$?
+        echo
+        [ -f /var/lock/subsys/$prog ] && rm -f /var/lock/subsys/$prog
+        return $RETVAL
+}
+
+restart() {
+        stop
+        start
+}
+
+# See how we were called
+case "$1" in
+
+        start)
+                start
+                ;;
+        stop)
+                stop
+                ;;
+        status)
+                status $prog
+                RETVAL=$?
+                ;;
+        restart)
+                restart
+                ;;
+        condrestart)
+                [ -f /var/lock/subsys/$prog ] && restart || :
+                ;;
+        *)
+                echo $"Usage: $0 {start|stop|status|restart|condrestart}"
+                exit 1
+esac
+
+exit $RETVAL

@@ -139,9 +139,8 @@
 #include "XrdSys/XrdSysTimer.hh"
 /*----------------------------------------------------------------------------*/
 #include <dirent.h>
-
+#include "zmq.hpp"
 /*----------------------------------------------------------------------------*/
-
 
 USE_EOSMGMNAMESPACE
 
@@ -841,6 +840,7 @@ public:
   XrdOucString MgmOfsBroker; //< Url of the message broker without MGM subject
   XrdOucString MgmOfsBrokerUrl; //< Url of the message broker with MGM subject
   XrdOucString MgmOfsVstBrokerUrl; //< Url of the message broker
+  XrdOucString MgmArchiveDstUrl; ///< URL where all archives are saved
   Messaging* MgmOfsMessaging; //< messaging interface class
   VstMessaging* MgmOfsVstMessaging; //< admin messaging interface class
   XrdOucString MgmDefaultReceiverQueue; //< Queue where we are sending to by default
@@ -851,9 +851,13 @@ public:
   XrdOucString MgmOfsInstanceName; //< name of the EOS instance
   XrdOucString MgmConfigDir; //< Directory where config files are stored
   XrdOucString MgmConfigAutoLoad; //< Name of the automatically loaded configuration file
+  //! Directory where tmp. archive transfer files are saved
+  XrdOucString MgmArchiveDir; 
   XrdOucString MgmProcPath; //< Directory with proc files
   XrdOucString MgmProcConversionPath; //< Directory with conversion files (used as temporary files when a layout is changed using third party copy)
   XrdOucString MgmProcMasterPath; //< Full path to the master indication proc file
+  XrdOucString MgmProcArchivePath; ///< EOS directory where archive dir inodes
+                                   ///< are saved for fast find functionality
   XrdOucString AuthLib; //< path to a possible authorizationn library
   XrdOucString MgmNsFileChangeLogFile; //< path to namespace changelog file for files
   XrdOucString MgmNsDirChangeLogFile; //< path to namespace changelog file for directories
@@ -974,6 +978,9 @@ public:
   Recycle Recycler; //<  Recycle object running the recycle bin deletion thread
 
   bool UTF8; //< true if running in less restrictive character set mode
+
+  std::string mArchiveEndpoint; ///< archive ZMQ connection endpoint
+  
 private:
 
   eos::common::Mapping::VirtualIdentity vid; //< virtual identity

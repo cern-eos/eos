@@ -1,6 +1,7 @@
 *.lo
 *.o
 *.la
+*.pyc
 .libs
 .deps
 Makefile
@@ -31,3 +32,4 @@ Namespace/tests/text_runner
 valgrind.supp
 eos-log-repair
 /build/
+__pycache__
