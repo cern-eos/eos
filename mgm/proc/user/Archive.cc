@@ -349,7 +349,7 @@ ProcCommand::Archive()
   {
     int sock_linger = 0;
     int sock_timeout = 1000; // 1s
-    zmq::context_t zmq_ctx;
+    zmq::context_t zmq_ctx(1);
     zmq::socket_t socket(zmq_ctx, ZMQ_REQ);
     socket.setsockopt(ZMQ_RCVTIMEO, &sock_timeout, sizeof(sock_timeout));
     socket.setsockopt(ZMQ_LINGER, &sock_linger, sizeof(sock_linger));
