@@ -2,7 +2,7 @@
 Summary: The EOS project
 Name: eos
 Version: 0.3.37
-Release: rc5
+Release: beryl
 Prefix: /usr
 License: none
 Group: Applications/File
