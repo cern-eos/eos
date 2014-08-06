@@ -1,7 +1,7 @@
 %define _unpackaged_files_terminate_build 0
 Summary: The EOS project
 Name: eos
-Version: 0.3.38
+Version: 0.3.40
 Release: aquamarine
 Prefix: /usr
 License: none
@@ -85,7 +85,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files -n eos-server
 %defattr(-,root,root)
-/usr/lib64/libXrdMqOfs.so.0.3.38
+/usr/lib64/libXrdMqOfs.so.0.3.40
 /usr/lib64/libXrdMqOfs.so.0
 /usr/lib64/libXrdMqOfs.so
 /usr/bin/xrdmqdumper
@@ -93,16 +93,16 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eoshapl
 /usr/sbin/eosfilesync
 /usr/sbin/eosdirsync
-/usr/lib64/libeosCommonServer.so.0.3.38
+/usr/lib64/libeosCommonServer.so.0.3.40
 /usr/lib64/libeosCommonServer.so.0
 /usr/lib64/libeosCommonServer.so
-/usr/lib64/libXrdEosAuth.so.0.3.38
+/usr/lib64/libXrdEosAuth.so.0.3.40
 /usr/lib64/libXrdEosAuth.so.0
 /usr/lib64/libXrdEosAuth.so
-/usr/lib64/libXrdEosFst.so.0.3.38
+/usr/lib64/libXrdEosFst.so.0.3.40
 /usr/lib64/libXrdEosFst.so.0
 /usr/lib64/libXrdEosFst.so
-/usr/lib64/libEosFstOss.so.0.3.38
+/usr/lib64/libEosFstOss.so.0.3.40
 /usr/lib64/libEosFstOss.so.0
 /usr/lib64/libEosFstOss.so
 /usr/sbin/eosfstregister
@@ -118,7 +118,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eos-ioping
 /usr/sbin/eos-iobw
 /usr/sbin/eos-iops
-/usr/lib64/libXrdEosMgm.so.0.3.38
+/usr/lib64/libXrdEosMgm.so.0.3.40
 /usr/lib64/libXrdEosMgm.so.0
 /usr/lib64/libXrdEosMgm.so
 /usr/sbin/eos-log-compact
@@ -176,10 +176,10 @@ The EOS shell client.
 /usr/bin/eos
 /usr/bin/eosdropboxd
 /usr/bin/eoscp
-/usr/lib64/libXrdMqClient.so.0.3.38
+/usr/lib64/libXrdMqClient.so.0.3.40
 /usr/lib64/libXrdMqClient.so.0
 /usr/lib64/libXrdMqClient.so
-/usr/lib64/libeosCommon.so.0.3.38
+/usr/lib64/libeosCommon.so.0.3.40
 /usr/lib64/libeosCommon.so.0
 /usr/lib64/libeosCommon.so
 
