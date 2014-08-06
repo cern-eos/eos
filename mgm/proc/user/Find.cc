@@ -336,9 +336,11 @@ ProcCommand::Find ()
     }
     else
     {
-      if (stdErr.length())
+      if (stdErr.length()) 
+      {
 	fprintf(fstderr,"%s", stdErr.c_str());
-      retc = E2BIG;
+	retc = E2BIG;
+      }
     }
     int cnt = 0;
     unsigned long long filecounter = 0;
