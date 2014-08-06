@@ -14,8 +14,7 @@ The EOS permission system is based on a combination of **ACLs**  and **POSIX** p
 There are two major differences to traditional storage systems:
 
 1   Files don't carry their permissions (only the ownership for quota accounting). 
-They inherit the permissions from the parent directory automatically! An exception is the 'x' bit to make software executable on a FUSE mount. Although files
-can define 'r' or 'w' permissions these are not applied, only the parent directory permissions are evaluated for file access!
+They inherit the permissions from the parent directory automatically!
 2   Permissions are only checked in the direct parent, EOS is not walking through the complete directory hierarchy.
 
 UNIX Permissions
@@ -44,9 +43,8 @@ ACLs are defined only on the directory level via the extended attribute
    user.acl=<acllist>
 
 The system attribute can only be defined by SUDO members. 
-If  sys.acl is defined user.acl is ignored unless an administrator has defined the attribute key 'sys.eval.useracl' (the value of this attribute does not matter). If both are defined, 'sys.acl' is evaluated after 'user.acl' and migh remove permissions given by 'user.acl'.
- 
-The user attribute can be defined by the **owner** of a directory or SUDO members.
+If  sys.acl is defined user.acl is ignored. 
+The user attribute can be defined by the **owner** or SUDO members.
 
 <acllist> is defined as a comma separated list of rules:
 
