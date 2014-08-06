@@ -348,10 +348,12 @@ ProcCommand::Archive()
   if (!retc)
   {
     int sock_linger = 0;
-    int sock_timeout = 1000; // 1s
     zmq::context_t zmq_ctx(1);
     zmq::socket_t socket(zmq_ctx, ZMQ_REQ);
+#if ZMQ_MAKE_VERSION >= 20200
+    int sock_timeout = 1000; // 1s
     socket.setsockopt(ZMQ_RCVTIMEO, &sock_timeout, sizeof(sock_timeout));
+#endif
     socket.setsockopt(ZMQ_LINGER, &sock_linger, sizeof(sock_linger));
 
     try
