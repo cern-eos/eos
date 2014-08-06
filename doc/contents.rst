@@ -11,9 +11,11 @@ Documentation
    install
    quickstart
    develop
+   clicommands
    using
    releases
-   clicommands
+
+>>>>>>> master
 
 
 

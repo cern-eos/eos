@@ -33,4 +33,6 @@ Here is a list of new features coming with this version
    :doc:`../using/rain`                   Erasure-encoded files
    :doc:`../using/tpc`                    Third-party copy support
    ====================================== ===============================================================
+
+The latest release notes are :doc:`./beryl-release`
    
