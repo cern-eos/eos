@@ -56,6 +56,7 @@ Requires: eos-client
 Requires: libmicrohttpd
 Requires: acl
 Requires: gdb
+Requires: zeromq
 
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.
