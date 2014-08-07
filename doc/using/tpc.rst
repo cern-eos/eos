@@ -14,7 +14,8 @@ You can run a third party copy using the **xrdcp** command:
 asdf
 
 .. warning::
-   EOS can read a file via third party copy from any instance using **unix** or
+   EOS (BERYL) can read a file via third party copy from any instance using **unix** or
    no authentication on the storage server. EOS can not write a file via third
    party copy from other instances if they enable any kind of authentication on 
    server node without **sss** and a shared keytab entry between both instances.
+   This limitation does not exist in the CITRINE release based on XRootD 4.0
