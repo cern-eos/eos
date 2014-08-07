@@ -10,6 +10,7 @@ Configuration
 .. toctree::
    :maxdepth: 1
 
+   configuration/archive
    configuration/autorepair    
    configuration/balancing
    configuration/converter	
