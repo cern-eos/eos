@@ -96,6 +96,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/lib64/libXrdMqOfs.so.0
 /usr/lib64/libXrdMqOfs.so
 /usr/bin/xrdmqdumper
+/usr/bin/eosarchiverd
 /usr/sbin/eosha
 /usr/sbin/eoshapl
 /usr/sbin/eosfilesync
@@ -131,6 +132,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eos-log-compact
 /usr/sbin/eos-log-repair
 /usr/sbin/eossh-timeout
+/usr/lib/python*
 %attr(700,daemon,daemon) /var/eos
 %attr(755,daemon,daemon) /var/log/eos/
 %config(noreplace) /etc/xrd.cf.fst
@@ -141,10 +143,12 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) /etc/xrd.cf.fed
 %config(noreplace) /etc/xrd.cf.prefix
 %config(noreplace) /etc/sysconfig/eos.example
+%config(noreplace) /etc/sysconfig/eosarchiverd.example
 %_sysconfdir/rc.d/init.d/eos
 %_sysconfdir/rc.d/init.d/eosha
 %_sysconfdir/rc.d/init.d/eossync
 %_sysconfdir/rc.d/init.d/eosslave
+%_sysconfdir/rc.d/init.d/eosarchiverd
 %_sysconfdir/cron.d/eos-logs
 %_sysconfdir/cron.d/eos-reports
 %_sysconfdir/logrotate.d/eos-logs
