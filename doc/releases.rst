@@ -16,14 +16,15 @@ Releases
 
 .. epigraph::
 
-   ========================== =================== =================== =================================
-   Release                    Stable Version      Description         Release Notes 
-   ========================== =================== =================== =================================
-   :doc:`releases/amber`      0.2.47              1st EOS Generation
-   :doc:`releases/beryl`      0.3.35-1            2nd EOS Generation  :doc:`releases/beryl-release`
-   :doc:`releases/citrine`    Ongoing Development 3nd EOS Generation
-   :doc:`releases/diamond`    Future Development  4th EOS Generation
-   ========================== =================== =================== =================================
+   ================================= =================== =================== =================================
+   Release                           Stable Version      Description         Release Notes 
+   ================================= =================== =================== =================================
+   :doc:`releases/amber`             0.2.47              1st EOS Generation
+   :doc:`releases/beryl`             0.3.37-beryl        2nd EOS Generation  :doc:`releases/beryl-release`
+   :doc:`releases/beryl-aquamarine`  0.3.42-aquamarine   2nd EOS Generation  :doc:`releases/beryl-release`
+   :doc:`releases/citrine`           Ongoing Development 3nd EOS Generation
+   :doc:`releases/diamond`           Future Development  4th EOS Generation
+   ================================= =================== =================== =================================
 
 
 

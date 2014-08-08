@@ -1,10 +1,23 @@
 .. highlight:: rst
 
 .. index::
-   single: Beryl-Release
+   single: Beryl(-Aquamarine)-Release
 
 Beryl Release Notes
 ===================
+``Version V0.3.42 Beryl-Aquamarine``
+- add support for archive interface to stage-out and migrate a frozen subtree in the namespace to any XRootD enabled archive storage
+
+``Version V0.3.37 Beryl``
+
+- add support for Owncloud chunked upload
+- add support for immutable namespace directories
+- fix drain/balancing stalls
+- fix memory leak introcuded by asynchronous XrdCl messaging
+- fix node/fs/group unregistering bug
+- make atomic uploads and versioning real 'atomic' operations (no visible state gap between target file exchange)
+- add 'file versions' command to show and recall a previous version
+- fix tight thread locking delaying start-up
 
 ``Version V0.3.35``
 
