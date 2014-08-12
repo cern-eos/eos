@@ -57,7 +57,7 @@ Requires: libmicrohttpd
 Requires: acl
 Requires: gdb
 Requires: zeromq
-Requires: python-zmq python-daemon xrootd-python python-prettytable pip
+Requires: python-zmq python-daemon xrootd-python python-prettytable
 
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.
@@ -150,7 +150,7 @@ echo Starting conditional EOS services
 sleep 2
 /sbin/service eos condrestart > /dev/null 2>&1 || :
 /sbin/service eosd condrestart > /dev/null 2>&1 || :
-pip install https://pypi.python.org/packages/source/v/veryprettytable/veryprettytable-0.8.1.tar.gz
+
 %preun -n eos-server
 if [ $1 = 0 ]; then
         echo Stopping EOS services
