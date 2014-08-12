@@ -41,7 +41,7 @@ from hashlib import sha256
 from multiprocessing import Process
 from archivefile import NoErrorException, Transfer
 from errno import EIO, EINVAL
-from veryprettytable import VeryPrettyTable
+from prettytable import PrettyTable
 
 
 # Constants
@@ -191,6 +191,8 @@ class Dispatcher(object):
                         self.logger.info("Job={0}, pid={1}, path={2} finshed, error={3}".
                                           format(uuid, info_pair[0], info_pair[1], err))
                         remove_elem.append(uuid)
+                    except ValueError as err:
+                        pass  # string is not an int value
 
                 for uuid in remove_elem:
                     try:
@@ -323,6 +325,8 @@ class Dispatcher(object):
                                 os.remove(log_file)
                             except OSError as err:
                                 pass
+                        except ValueError as err:
+                            pass  # pid is not an int value
                         else:
                             # Read the path from the transfer file
                             with open(tx_file, 'r') as filed:
@@ -344,7 +348,7 @@ class Dispatcher(object):
         msg = "OK "
         ls_type = req_json['opt']
         self.logger.debug("Listing type={0}".format(ls_type))
-        table = VeryPrettyTable()
+        table = PrettyTable()
         table.field_names = ["Id", "Path", "Type", "State", "Message"]
         search_uuid = ''
 
