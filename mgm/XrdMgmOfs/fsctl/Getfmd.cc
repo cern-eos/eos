@@ -77,8 +77,8 @@
   fmdenv += safepath.c_str();
   XrdOucString response = "getfmd: retc=0 ";
   response += fmdenv.c_str();
-  if (response.endswith("checksum="))
-    response.replace("checksum=", "checksum=none"); // XrdOucEnv does not deal with empty values ... sigh ...
+  if ( (response.find("checksum=&")) != STR_NPOS )
+    response.replace("checksum=&", "checksum=none&"); // XrdOucEnv does not deal with empty values ... sigh ...
   error.setErrInfo(response.length() + 1, response.c_str());
   return SFS_DATA;
 }
