@@ -209,6 +209,11 @@ public:
   bool erase(const fsid_t &fs);
 
   // ---------------------------------------------------------------------------
+  // Get the geotag at which the fs is stored if found
+  // ---------------------------------------------------------------------------
+  bool getGeoTagInTree( const fsid_t &fs , std::string &geoTag );
+
+  // ---------------------------------------------------------------------------
   // Number of FileSystems in the tree
   // ---------------------------------------------------------------------------
   size_t size() const;

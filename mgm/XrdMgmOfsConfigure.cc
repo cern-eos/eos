@@ -1681,7 +1681,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   gGeoTreeEngine.StartUpdater();
   XrdSysTimer sleeper;
-    sleeper.Snooze(3);
+    sleeper.Snooze(1);
   if(!ObjectNotifier.Start())
     eos_crit("error starting the shared object change notifier");
 

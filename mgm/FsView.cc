@@ -252,6 +252,25 @@ bool GeoTree::erase(const fsid_t &fs)
 
 // ---------------------------------------------------------------------------
 /**
+ * @brief Get the geotag at which a file system is stored in the tree
+ * @param fs the fsid of the FileSystem
+ * @param geoTag returns the geotag if fs was found in the tree
+ * @return true if success, false if failure
+ */
+// ---------------------------------------------------------------------------
+bool GeoTree::getGeoTagInTree( const fsid_t &fs , std::string &geoTag )
+{
+
+  if(!pLeaves.count(fs))
+  return false;
+  else
+  geoTag = pLeaves[fs]->mFullTag;
+
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+/**
  * @brief Get the geotag of FileSystem
  * @param fs the fsid of the FileSystem
  * @return return the geotag if found

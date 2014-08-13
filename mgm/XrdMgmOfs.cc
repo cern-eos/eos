@@ -234,6 +234,11 @@ xrdmgmofs_shutdown (int sig)
   gOFS->ConfEngine->SetAutoSave(false);
 
   // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop GeoTree engine ... ");
+  if(!gGeoTreeEngine.StopUpdater())
+  	eos_static_crit("error Stopping the GeoTree engine");
+
+  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop egroup fetching ... ");
   gOFS->EgroupRefresh.Stop();
 
@@ -285,6 +290,11 @@ xrdmgmofs_shutdown (int sig)
   {
     delete (it->second);
   }
+
+  // ----------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop shared object modification notifier ... ");
+  if(!gOFS->ObjectNotifier.Stop())
+    eos_static_crit("error Stopping the shared object change notifier");
 
   // ----------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop config engine ... ");
@@ -8734,8 +8744,9 @@ XrdMgmOfs::FsConfigListener ()
   if(!ObjectNotifier.StartNotifyCurrentThread())
     eos_crit("error starting shared objects change notifications");
 
-  XrdSysTimer sleeper;
-  sleeper.Snooze(5);
+  //  leave some time to the notifier to start up
+  //  XrdSysTimer sleeper;
+  //  sleeper.Snooze(5);
 
   // thread listening on filesystem errors and configuration changes
   do
@@ -8830,7 +8841,7 @@ XrdMgmOfs::FsConfigListener ()
           // this is a geotag update
           // -------------------------------------------------------------------
           eos::common::FileSystem::fsid_t fsid = 0;
-          std::string newgeotag;
+        	std::string newgeotag,oldgeotag;
           FileSystem* fs = 0;
           // read the id from the hash and the new geotag
           gOFS->ObjectManager.HashMutex.LockRead();
@@ -8838,13 +8849,27 @@ XrdMgmOfs::FsConfigListener ()
           if (hash)
           {
             fsid = (eos::common::FileSystem::fsid_t) hash->GetLongLong("id");
-            newgeotag = hash->Get("stat.geotag");
+        		oldgeotag = newgeotag = hash->Get("stat.geotag");
           }
           gOFS->ObjectManager.HashMutex.UnLockRead();
 
-          eos_info("Received a geotag change for fsid %lu new geotag is %s",(unsigned long)fsid,newgeotag.c_str());
+        	FsView::gFsView.ViewMutex.LockRead();
+        	fs = FsView::gFsView.mIdView[fsid];
+        	if(fs && FsView::gFsView.mNodeView.count(fs->GetQueue()))
+        	{
 
+        		FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
+        		static_cast<GeoTree*>(node)->getGeoTagInTree(fsid , oldgeotag);
+        		oldgeotag.erase(0,8); // to get rid of the "<ROOT>::" prefix
+        	}
+
+        	if( oldgeotag != newgeotag)
           {
+        		eos_warning("Received a geotag change for fsid %lu new geotag is %s, old geotag was %s ",(unsigned long)fsid,newgeotag.c_str(),oldgeotag.c_str());
+
+        		{
+        			FsView::gFsView.ViewMutex.UnLockRead();
+
             eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
             eos::common::FileSystem::fs_snapshot snapshot;
             if (FsView::gFsView.mIdView.count(fsid))
@@ -8893,6 +8918,9 @@ XrdMgmOfs::FsConfigListener ()
               }
             }
           }
+        	}
+        	else
+        		FsView::gFsView.ViewMutex.UnLockRead();
         }
         //else if(key == watch_errc)
         else
