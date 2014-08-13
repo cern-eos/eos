@@ -214,7 +214,7 @@ namespace eos
     {
       char hx[3];
       hx[0]=0;
-      snprintf(hx,sizeof(hx)-1, "%02x",*((unsigned char*)(pChecksum.getDataPtr()+i)));
+      snprintf(hx,sizeof(hx), "%02x",*((unsigned char*)(pChecksum.getDataPtr()+i)));
       env += hx;
     }
   }
