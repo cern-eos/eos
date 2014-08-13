@@ -744,7 +744,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
       // -----------------------------------------------------------
       // OC clients are switched automatically to atomic upload mode
       // -----------------------------------------------------------
-      if (request->GetHeaders().count("OC-Content-Length") || isOcChunked)
+      if (request->GetHeaders().count("OC-Total-Length") || isOcChunked)
       {
         if (query.length())
           query += "&";
