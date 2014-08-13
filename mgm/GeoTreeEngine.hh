@@ -300,10 +300,10 @@ class GeoTreeEngine : public eos::common::LogId
 			{
 				stringstream ss;
 				ss << (*entry->backgroundFastStruct->placementTree);
-				eos_debug("fast structures updated successfully from slowtree : new tree is \n %s",ss.str().c_str());
+				eos_debug("fast structures updated successfully from slowtree : new FASTtree is \n %s",ss.str().c_str());
 				ss.str()="";
 				ss << (*entry->slowTree);
-				eos_debug("fast structures updated successfully from slowtree : SLOW tree was \n %s",ss.str().c_str());
+				eos_debug("fast structures updated successfully from slowtree : old SLOW tree was \n %s",ss.str().c_str());
 			}
 
 		}
@@ -315,7 +315,7 @@ class GeoTreeEngine : public eos::common::LogId
 			{
 				stringstream ss;
 				ss << (*entry->backgroundFastStruct->placementTree);
-				eos_debug("fast structures updated successfully from fastree : new tree is \n %s",ss.str().c_str());
+				eos_debug("fast structures updated successfully from fastree : new FASTtree is \n %s",ss.str().c_str());
 			}
 		}
 
@@ -328,13 +328,6 @@ class GeoTreeEngine : public eos::common::LogId
 
 		// swap the buffers (this is the only bit where the fast structures is not accessible for a placement/access operation)
 		entry->swapFastStructBuffers();
-
-		// copy the updated tree to the background buffer to make it up-to-date (don't need mutexing because the current thread is the only one likely to write)
-//		if(!entry->foregroundFastStruct->DeepCopyTo(entry->backgroundFastStruct))
-//		{
-//			eos_crit("error deep copying in double buffering");
-//			return false;
-//		}
 
 		return true;
 	}
@@ -361,10 +354,10 @@ public:
 	skipSaturatedDrnAccess,skipSaturatedBlcAccess,
 	skipSaturatedDrnPlct,skipSaturatedBlcPlct;
 	eos::common::RWMutex configMutex; // protects all the following settings
-	char ulSaturThresh,dlSaturThresh;
 	char plctDlScorePenalty,plctUlScorePenalty;
 	char accessDlScorePenalty,accessUlScorePenalty;
 	char fillRatioLimit,fillRatioCompTol,saturationThres; // setting fillRatioCompTol at 100 disables online balancing
+	int timeFrameDurationMs;
 private:
 	/// Trees update management
 	pthread_t pUpdaterTid;// thread ID of the dumper thread
@@ -410,7 +403,7 @@ private:
 		eos_info("%d pending deletions executed",count);
 	}
 
-	inline void applyDlScorePenalty(TreeMapEntry *entry, const SchedTreeBase::tFastTreeIdx &idx, const SchedTreeBase::tFastTreeIdx &penalty)
+	inline void applyDlScorePenalty(TreeMapEntry *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty)
 	{
 		AtomicSub(entry->foregroundFastStruct->placementTree->pNodes[idx].fsData.dlScore,penalty);
 		AtomicSub(entry->foregroundFastStruct->drnPlacementTree->pNodes[idx].fsData.dlScore,penalty);
@@ -428,7 +421,7 @@ private:
 		AtomicSub(entry->foregroundFastStruct->blcAccessTree->pNodes[idx].fsData.dlScore,penalty);
 	}
 
-	inline void applyUlScorePenalty(TreeMapEntry *entry, const SchedTreeBase::tFastTreeIdx &idx, const SchedTreeBase::tFastTreeIdx &penalty)
+	inline void applyUlScorePenalty(TreeMapEntry *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty)
 	{
 		AtomicSub(entry->foregroundFastStruct->placementTree->pNodes[idx].fsData.ulScore,penalty);
 		AtomicSub(entry->foregroundFastStruct->drnPlacementTree->pNodes[idx].fsData.ulScore,penalty);
@@ -451,11 +444,15 @@ private:
 			std::vector<SchedTreeBase::tFastTreeIdx> *newReplicas,
 			T *placementTree,
 			std::vector<SchedTreeBase::tFastTreeIdx> *existingReplicas=NULL,
+			unsigned long long bookingSize=0,
+			const SchedTreeBase::tFastTreeIdx &startFromNode=0,
 			std::vector<SchedTreeBase::tFastTreeIdx> *excludedNodes=NULL,
 			std::vector<SchedTreeBase::tFastTreeIdx> *forceNodes=NULL,
 			bool skipSaturated=false)
 	{
 		// a read lock is supposed to be acquired on the fast structures
+
+		bool updateNeeded = false;
 
 		if(eos::common::Logging::gLogMask & LOG_DEBUG)
 		{
@@ -493,7 +490,8 @@ private:
 			}
 			// update the tree
 			// (could be made faster for a small number of existing replicas by using update branches)
-			tree->updateTree();
+			if(!existingReplicas->empty())
+				updateNeeded = true;
 		}
 
 		if(excludedNodes)
@@ -502,8 +500,25 @@ private:
 			for(auto it = excludedNodes->begin(); it != excludedNodes->end(); ++it)
 			{
 				tree->pNodes[*it].fsData.mStatus = tree->pNodes[*it].fsData.mStatus & ~SchedTreeBase::Available;
-				tree->updateBranch(*it);
 			}
+			if(!excludedNodes->empty())
+				updateNeeded = true;
+		}
+
+		if(bookingSize)
+		{
+			for(auto it = tree->pFs2Idx->begin(); it != tree->pFs2Idx->end(); it++ )
+			{
+				// we prebook the space on all the possible nodes before the selection
+				// reminder : this is just a working copy of the tree and will affect only the current placement
+				const SchedTreeBase::tFastTreeIdx &idx = (*it).second;
+				float &freeSpace = tree->pNodes[idx].fsData.totalSpace;
+				if(freeSpace>bookingSize) // if there is enough space , prebook it
+					freeSpace -= bookingSize;
+				else // if there is not enough space, make the node unavailable
+					tree->pNodes[idx].fsData.mStatus = tree->pNodes[idx].fsData.mStatus & ~SchedTreeBase::Available;
+			}
+			updateNeeded = true;
 		}
 
 		// do the placement
@@ -514,14 +529,18 @@ private:
 			eos_debug("fast tree used for placement is: \n %s",ss.str().c_str());
 		}
 
+		if(updateNeeded)
+		{
+			tree->updateTree();
+		}
+
 		for(size_t k = 0; k < nNewReplicas; k++)
 		{
 			SchedTreeBase::tFastTreeIdx idx;
-			//if(!tree->findFreeSlot(idx))
-			if(!tree->findFreeSlot(idx, 0, false, true, skipSaturated))
+			if(!tree->findFreeSlot(idx, startFromNode, false, true, skipSaturated))
 			{
 				if(skipSaturated) eos_notice("Could not find any replica for placement while skipping saturated fs. Trying with saturated nodes included");
-				if( (!skipSaturated) || !tree->findFreeSlot(idx, 0, false, true, false) )
+				if( (!skipSaturated) || !tree->findFreeSlot(idx, startFromNode, false, true, false) )
 				{
 					eos_err("could not find a new slot for a replica in the fast tree");
 					stringstream ss;
@@ -536,7 +555,7 @@ private:
 		return true;
 	}
 
-	template<class T> bool accessReplicas(TreeMapEntry* entry, const size_t &nNewReplicas,
+	template<class T> unsigned char accessReplicas(TreeMapEntry* entry, const size_t &nNewReplicas,
 			std::vector<SchedTreeBase::tFastTreeIdx> *accessedReplicas,
 			SchedTreeBase::tFastTreeIdx accesserNode,
 			std::vector<SchedTreeBase::tFastTreeIdx> *existingReplicas,
@@ -546,15 +565,23 @@ private:
 			bool skipSaturated=false)
 	{
 
+		if(eos::common::Logging::gLogMask & LOG_DEBUG)
+		{
+			stringstream ss;
+			ss << (*accessTree);
+			eos_debug("fast tree used to copy from is: \n %s",ss.str().c_str());
+		}
+
 		// make a working copy of the required fast tree
 		if(!tlGeoBuffer) tlGeoBuffer = new char[gGeoBufferSize];// should store this and delete it in the destructor
 
 		if(accessTree->copyToBuffer((char*)tlGeoBuffer,gGeoBufferSize))
 		{
 			eos_crit("could not make a working copy of the fast tree");
-			return false;
+			return 0;
 		}
 		T *tree = (T*)tlGeoBuffer;
+		eos_static_debug("saturationTresh original=%d / copy=%d",(int)accessTree->pBranchComp.saturationThresh,(int)tree->pBranchComp.saturationThresh);
 
 		if(forceNodes)
 		{
@@ -589,6 +616,15 @@ private:
 		}
 
 		// do the access
+		if(eos::common::Logging::gLogMask & LOG_DEBUG)
+		{
+			stringstream ss;
+			ss << (*tree);
+			eos_debug("fast tree used for access is: \n %s",ss.str().c_str());
+		}
+
+		// do the access
+		unsigned char retCode = 0;
 		for(size_t k = 0; k < nNewReplicas; k++)
 		{
 			SchedTreeBase::tFastTreeIdx idx;
@@ -598,18 +634,31 @@ private:
 				if( (!skipSaturated) || !tree->findFreeSlot(idx, 0, false, true, false) )
 				{
 					eos_err("could not find a new slot for a replica in the fast tree");
-					return false;
+					return 0;
 				}
+				else retCode = 1;
 			}
+			else
+				retCode = 2;
 			accessedReplicas->push_back(idx);
 		}
 
-		return true;
+		return retCode;
 	}
 
 	bool updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem::fs_snapshot_t *fs, int keys, SchedTreeBase::tFastTreeIdx ftidx=0 , SlowTreeNode *stn=NULL);
 	bool updateTreeInfo(const std::map<std::string,int> &updates);
 	//propagateToAllFastTrees
+public:
+	GeoTreeEngine () :
+		skipSaturatedPlct(false),skipSaturatedAccess(true),
+		skipSaturatedDrnAccess(true),skipSaturatedBlcAccess(true),
+		skipSaturatedDrnPlct(false),skipSaturatedBlcPlct(false),
+		plctDlScorePenalty(4),plctUlScorePenalty(0),
+		accessDlScorePenalty(2),accessUlScorePenalty(4),
+		fillRatioLimit(80),fillRatioCompTol(100),saturationThres(10),
+		timeFrameDurationMs(1000),pUpdaterTid(0)
+{}
 	// review the necessary keys to monitor
 	// check upload/download to skip confusion
 	// protect notification buffer with a mutex
@@ -617,27 +666,106 @@ private:
 	// put a parameter for the max delay (for the moment had coded at 1000ms)
 	// use friend classes in fast tree and slow tree to skip using public attributes
 	// check mutexes order
-public:
-	GeoTreeEngine () :
-	skipSaturatedPlct(false),skipSaturatedAccess(true),
-	skipSaturatedDrnAccess(true),skipSaturatedBlcAccess(true),
-	skipSaturatedDrnPlct(false),skipSaturatedBlcPlct(false),
-	ulSaturThresh(95),dlSaturThresh(95),
-	plctDlScorePenalty(5),plctUlScorePenalty(0),
-	accessDlScorePenalty(2),accessUlScorePenalty(5),
-	fillRatioLimit(80),fillRatioCompTol(100),saturationThres(10)
-	{}
-	bool insertFsIntoGroup(FileSystem *fs , FsGroup *group, bool updateFastStructures = true);
+  // @param updateFastStructures
+  //   should the fast structures be updated immediately without waiting for the next time frame
+  // @return
+  //   true if success false else
+  // ---------------------------------------------------------------------------
+	bool insertFsIntoGroup(FileSystem *fs , FsGroup *group, bool updateFastStructures = false);
+
+  // ---------------------------------------------------------------------------
+  //! Remove a file system into the GeoTreeEngine
+  // @param fs
+  //   the file system to be removed
+  // @param group
+  //   the group the file system belongs to
+  // @param updateFastStructures
+  //   should the fast structures be updated immediately without waiting for the next time frame
+  // @return
+  //   true if success false else
+  // ---------------------------------------------------------------------------
 	bool removeFsFromGroup(FileSystem *fs , FsGroup *group, bool updateFastStructures = true);
+
+  // ---------------------------------------------------------------------------
+  //! Remove a file system into the GeoTreeEngine
+  // @param group
+  //   the group the file system belongs to
+  // @return
+  //   true if success false else
+  // ---------------------------------------------------------------------------
 	bool removeGroup(FsGroup *group);
+
+  // ---------------------------------------------------------------------------
+  //! Place several replicas in one scheduling group.
+  // @param group
+  //   the group to place the replicas in
+  // @param nNewReplicas
+  //   the number of replicas to be placed
+  // @param newReplicas
+  //   vector to which fsids of new replicas are appended if the placement
+	//   succeeds. They are appended in decreasing priority order
+  // @param type
+  //   type of placement to be performed. It can be:
+	//     regularRO, regularRW, balancing or draining
+  // @param existingReplicas
+  //   fsids of preexisting replicas for the current file
+	//   this is important to make a a good placement (e.g. skip the same fs)
+  // @param bookingSize
+  //   the space to be booked on the fs
+	//   currently, it's not booking. It's only checking that there is enough space.
+  // @param startFromGeoTag
+  //   try to place the files under this geotag
+	//   useful to group up replicas or to replace a replica by a new one nearby
+  // @param excludeFs
+  //   fsids of files to exclude from the placement operation
+  // @param excludeGeoTags
+  //   geotags of branches to exclude from the placement operation
+	//     (e.g. exclude a site)
+  // @param forceGeoTags
+  //   geotags of branches new replicas should be taken from
+	//     (e.g. force a site)
+  // @return
+  //   true if the success false else
+  // ---------------------------------------------------------------------------
 	bool placeNewReplicasOneGroup( FsGroup* group, const size_t &nNewReplicas,
 			std::vector<eos::common::FileSystem::fsid_t> *newReplicas,
-			SchedType type=regularRW,
-			std::vector<eos::common::FileSystem::fsid_t> *existingReplicas=NULL,
+			SchedType type,
+			std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
+			unsigned long long bookingSize=0,
+			const std::string &startFromGeoTag="",
 			std::vector<eos::common::FileSystem::fsid_t> *excludeFs=NULL,
 			std::vector<std::string> *excludeGeoTags=NULL,
 			std::vector<std::string> *forceGeoTags=NULL);
-	bool accessReplicasOneGroup(FsGroup* group, const size_t &nNewReplicas,
+
+
+  // ---------------------------------------------------------------------------
+  //! Access several replicas in one scheduling group.
+  // @param group
+  //   the group to place the replicas in
+  // @param nReplicas
+  //   the number of replicas to access
+  // @param accessedReplicas
+  //   vector to which fsids of replicas to access are appended if the scheduling
+	//   succeeds. They are appended in decreasing priority order
+  // @param existingReplicas
+  //   fsids of preexisting replicas for the current file
+  // @param type
+  //   type of access to be performed. It can be:
+	//     regularRO, regularRW, balancing or draining
+  // @param accesserGeoTag
+  //   try to get the replicas as close to this geotag as possible
+  // @param exludeFs
+  //   fsids of files to exclude from the access operation
+  // @param excludeGeoTags
+  //   geotags of branches to exclude from the access operation
+	//     (e.g. exclude a site)
+  // @param forceGeoTags
+  //   geotags of branches accessed replicas should be taken from
+	//     (e.g. force a site)
+  // @return
+  //   true if the success false else
+  // ---------------------------------------------------------------------------
+	bool accessReplicasOneGroup(FsGroup* group, const size_t &nReplicas,
 			std::vector<eos::common::FileSystem::fsid_t> *accessedReplicas,
 			std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
 			SchedType type=regularRO,
@@ -648,21 +776,80 @@ public:
 
 	// this function to access replica spread across multiple scheduling group is a BACKCOMPATIBILITY artifact
 	// the new scheduler doesn't try to place files across multiple scheduling groups.
-	bool accessReplicasMultipleGroup(const size_t &nNewReplicas,
-			std::vector<eos::common::FileSystem::fsid_t> *accessedReplicas,
+	// the new scheduler doesn't try to place files across multiple scheduling groups.
+	//	bool accessReplicasMultipleGroup(const size_t &nAccessReplicas,
+	//			std::vector<eos::common::FileSystem::fsid_t> *accessedReplicas,
+	//			std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
+	//			SchedType type=regularRO,
+	//			const std::string &accesserGeotag="",
+	//			std::vector<eos::common::FileSystem::fsid_t> *excludeFs=NULL,
+	//			std::vector<std::string> *excludeGeoTags=NULL,
+	//			std::vector<std::string> *forceGeoTags=NULL);
+
+  // ---------------------------------------------------------------------------
+  //! Access replicas across one or several scheduling group.
+	//! Check that the right number of replicas is online.
+	//! return the best possible head replica
+  // @param nReplicas
+  //   the number of replicas to access
+  // @param fsindex
+  //   return the index of the head replica in the existingReplicas vector
+  // @param existingReplicas
+  //   fsids of preexisting replicas for the current file
+  // @param type
+  //   type of access to be performed. It can be:
+	//     regularRO, regularRW, balancing or draining
+  // @param accesserGeoTag
+  //   try to get the replicas as close to this geotag as possible
+  // @param forcedFsId
+  //   if non zeros, force the head replica fsid
+  // @param unavailableFs
+  //   return the unavailable file systems for the current access operation
+  // @return
+	//   EROFS   if not enough replicas are provided to the function to
+	//           make sure that enough replicas are available for this access
+	//   ENODATA if the forced head replica is not in the provided replicas
+  //   EIO     if some internal inconsistency arises
+	//   ENONET  if there is not enough available fs among the provided ones
+	//           for this access operation
+	//   0       if success
+  // ---------------------------------------------------------------------------
+	int accessHeadReplicaMultipleGroup(const size_t &nReplicas,
+			unsigned long &fsIndex,
 			std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
 			SchedType type=regularRO,
 			const std::string &accesserGeotag="",
-			std::vector<eos::common::FileSystem::fsid_t> *excludeFs=NULL,
-			std::vector<std::string> *excludeGeoTags=NULL,
-			std::vector<std::string> *forceGeoTags=NULL);
+			const eos::common::FileSystem::fsid_t &forcedFsId=0,
+			std::vector<eos::common::FileSystem::fsid_t> *unavailableFs=NULL
+		);
+
+	// ---------------------------------------------------------------------------
+	//! Start the background updater thread
+	// @return
+	//   true if success false else
 
 	bool StartUpdater();
+
+	// ---------------------------------------------------------------------------
+	//! Pause the updating of the GeoTreeEngine but keep accumulating
+	//! modification notifications
+	// ---------------------------------------------------------------------------
 	inline void PauseUpdater()
 	{	gUpdaterPaused = true;}
-	bool StopUpdater();
+
+	// ---------------------------------------------------------------------------
+	//! Resume the updating of the GeoTreeEngine
+	//! Process all the notifications accumulated since it was paused
+	// ---------------------------------------------------------------------------
 	inline void ResumeUpdater()
 	{	gUpdaterPaused = false;}
+
+	// ---------------------------------------------------------------------------
+	//! Stop the background updater thread
+	// @return
+	//   true if success false else
+	// ---------------------------------------------------------------------------
+	bool StopUpdater();
 };
 
 extern GeoTreeEngine gGeoTreeEngine;

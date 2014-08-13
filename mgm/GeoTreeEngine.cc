@@ -99,7 +99,7 @@ const map<string,int> GeoTreeEngine::gNotifKey2Enum =
 };
 
 map<string,int> GeoTreeEngine::gNotificationsBuffer;
-bool GeoTreeEngine::gUpdaterPaused;
+bool GeoTreeEngine::gUpdaterPaused = false;
 
 bool GeoTreeEngine::TreeMapEntry::updateFastStructures()
 {
@@ -277,7 +277,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
 		stringstream ss;
 		ss << (*mapEntry->slowTree);
 
-		eos_info("inserted fs %lu into group %s geotag is %s and fullgeotag is %s\n%s",
+		eos_debug("inserted fs %lu into group %s geotag is %s and fullgeotag is %s\n%s",
 				(unsigned long)fsid,
 				group->mName.c_str(),
 				node->pNodeInfo.geotag.c_str(),
@@ -399,6 +399,8 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 		vector<FileSystem::fsid_t> *newReplicas,
 		SchedType type,
 		vector<FileSystem::fsid_t> *existingReplicas,
+		unsigned long long bookingSize,
+		const std::string &startFromGeoTag,
 		vector<FileSystem::fsid_t> *excludeFs,
 		vector<string> *excludeGeoTags,
 		vector<string> *forceGeoTags)
@@ -450,7 +452,9 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 			const SchedTreeBase::tFastTreeIdx *idx;
 			if(!entry->foregroundFastStruct->fs2TreeIdx->get(*it,idx))
 			{
-				eos_warning("could not place excluded fs on the fast tree");
+				// the excluded fs might belong to another group
+				// so it's not an error condition
+				// eos_warning("could not place excluded fs on the fast tree");
 				continue;
 			}
 			excludeFsIdx->push_back(*idx);
@@ -482,6 +486,12 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 		}
 	}
 
+	SchedTreeBase::tFastTreeIdx startFromNode=0;
+	if(!startFromGeoTag.empty())
+	{
+		startFromNode=entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(startFromGeoTag.c_str());
+	}
+
 	// actually do the job
 	bool success = false;
 	switch(type)
@@ -489,18 +499,18 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 		case regularRO:
 		case regularRW:
 		success = placeNewReplicas(entry,nNewReplicas,&newReplicasIdx,entry->foregroundFastStruct->placementTree,
-				existingReplicasIdx,excludeFsIdx,forceBrIdx,skipSaturatedPlct);
+				existingReplicasIdx,bookingSize,startFromNode,excludeFsIdx,forceBrIdx,skipSaturatedPlct);
 		break;
 		case draining:
 		success = placeNewReplicas(entry,nNewReplicas,&newReplicasIdx,entry->foregroundFastStruct->drnPlacementTree,
-				existingReplicasIdx,excludeFsIdx,forceBrIdx,skipSaturatedDrnPlct);
+				existingReplicasIdx,bookingSize,startFromNode,excludeFsIdx,forceBrIdx,skipSaturatedDrnPlct);
 		break;
 		case balancing:
 		success = placeNewReplicas(entry,nNewReplicas,&newReplicasIdx,entry->foregroundFastStruct->blcPlacementTree,
-				existingReplicasIdx,excludeFsIdx,forceBrIdx,skipSaturatedBlcPlct);
+				existingReplicasIdx,bookingSize,startFromNode,excludeFsIdx,forceBrIdx,skipSaturatedBlcPlct);
 		break;
 		default:
-		break;
+			;
 	}
 	if(!success) goto cleanup;
 
@@ -514,9 +524,9 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 		newReplicas->push_back(fsid);
 		// apply the penalties
 		entry->foregroundFastStruct->fs2TreeIdx->get(fsid,idx);
-		if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=0)
+		if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=plctDlScorePenalty)
 		applyDlScorePenalty(entry,*idx,plctDlScorePenalty);
-		if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=0)
+		if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=plctUlScorePenalty)
 		applyUlScorePenalty(entry,*idx,plctUlScorePenalty);
 	}
 
@@ -636,7 +646,7 @@ bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group, const size_t &nAccess
 	SchedTreeBase::tFastTreeIdx accesserNode = entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(accesserGeotag.c_str());;
 
 	// actually do the job
-	bool success = false;
+	unsigned char success = 0;
 	switch(type)
 	{
 		case regularRO:
@@ -656,7 +666,7 @@ bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group, const size_t &nAccess
 				entry->foregroundFastStruct->blcAccessTree,excludeFsIdx,forceBrIdx,skipSaturatedBlcAccess);
 		break;
 		default:
-		break;
+		;
 	}
 	if(!success) goto cleanup;
 
@@ -665,14 +675,19 @@ bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group, const size_t &nAccess
 	accessedReplicas->resize(0);
 	for(auto it = accessedReplicasIdx.begin(); it != accessedReplicasIdx.end(); ++it)
 	{
-		const SchedTreeBase::tFastTreeIdx *idx;
+		const SchedTreeBase::tFastTreeIdx *idx=NULL;
 		const unsigned int fsid = (*entry->foregroundFastStruct->treeInfo)[*it].fsId;
 		accessedReplicas->push_back(fsid);
 		// apply the penalties
-		entry->foregroundFastStruct->fs2TreeIdx->get(fsid,idx);
-		if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore<100)
+		if(!entry->foregroundFastStruct->fs2TreeIdx->get(fsid,idx))
+		{
+			eos_static_crit("inconsistency : cannot retrieve index of selected fs though it should be in the tree");
+			success = false;
+			goto cleanup;
+		}
+		if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=accessDlScorePenalty)
 		applyDlScorePenalty(entry,*idx,accessDlScorePenalty);
-		if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore<100)
+		if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=accessUlScorePenalty)
 		applyUlScorePenalty(entry,*idx,accessUlScorePenalty);
 	}
 
@@ -688,88 +703,266 @@ bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group, const size_t &nAccess
 }
 
 /// helper class to order filesystems for a given geoscore
-struct FsComparator
-{
-	eos::mgm::SchedTreeBase::TreeNodeSlots freeSlot;
-	GeoTreeEngine::SchedType type;
-	FsComparator(GeoTreeEngine::SchedType _type) : type(_type)
-	{	freeSlot.freeSlotsCount=1;};
-	int operator() (const tuple< FileSystem::fsid_t , GeoTreeEngine::TreeMapEntry* , SchedTreeBase::tFastTreeIdx > & left, const tuple< FileSystem::fsid_t , GeoTreeEngine::TreeMapEntry* , SchedTreeBase::tFastTreeIdx > & right) const
-	{
-		switch(type)
-		{
-			case GeoTreeEngine::regularRO:
-			return eos::mgm::FastROAccessTree::compareAccess(
-					& get<1>(left)->foregroundFastStruct->rOAccessTree->pNodes[std::get<2>(left)].fsData,
-					&freeSlot,
-					& get<1>(right)->foregroundFastStruct->rOAccessTree->pNodes[std::get<2>(right)].fsData,
-					&freeSlot
-			);
-			break;
-			case GeoTreeEngine::regularRW:
-			return eos::mgm::FastROAccessTree::compareAccess(
-					& get<1>(left)->foregroundFastStruct->rWAccessTree->pNodes[std::get<2>(left)].fsData,
-					&freeSlot,
-					& get<1>(right)->foregroundFastStruct->rWAccessTree->pNodes[std::get<2>(right)].fsData,
-					&freeSlot
-			);
-			break;
-			case GeoTreeEngine::draining:
-			return eos::mgm::FastROAccessTree::compareAccess(
-					& get<1>(left)->foregroundFastStruct->drnAccessTree->pNodes[std::get<2>(left)].fsData,
-					&freeSlot,
-					& get<1>(right)->foregroundFastStruct->drnAccessTree->pNodes[std::get<2>(right)].fsData,
-					&freeSlot
-			);
-			break;
-			case GeoTreeEngine::balancing:
-			return eos::mgm::FastROAccessTree::compareAccess(
-					& get<1>(left)->foregroundFastStruct->blcAccessTree->pNodes[std::get<2>(left)].fsData,
-					&freeSlot,
-					& get<1>(right)->foregroundFastStruct->blcAccessTree->pNodes[std::get<2>(right)].fsData,
-					&freeSlot
-			);
-			break;
-			default:
-			break;
-		}
-		return 0;
-	}
-};
 
-bool GeoTreeEngine::accessReplicasMultipleGroup(const size_t &nAccessReplicas,
-		vector<FileSystem::fsid_t> *accessedReplicas,
-		vector<FileSystem::fsid_t> *existingReplicas,
+//{
+//	eos::mgm::SchedTreeBase::TreeNodeSlots freeSlot;
+//	GeoTreeEngine::SchedType type;
+//	FsComparator(GeoTreeEngine::SchedType _type) : type(_type)
+//	{	freeSlot.freeSlotsCount=1;};
+//	int operator() (const tuple< FileSystem::fsid_t , GeoTreeEngine::TreeMapEntry* , SchedTreeBase::tFastTreeIdx > & left, const tuple< FileSystem::fsid_t , GeoTreeEngine::TreeMapEntry* , SchedTreeBase::tFastTreeIdx > & right) const
+//	{
+//		switch(type)
+//		{
+//			case GeoTreeEngine::regularRO:
+//			return eos::mgm::FastROAccessTree::compareAccess(
+//					& get<1>(left)->foregroundFastStruct->rOAccessTree->pNodes[std::get<2>(left)].fsData,
+//					&freeSlot,
+//					& get<1>(right)->foregroundFastStruct->rOAccessTree->pNodes[std::get<2>(right)].fsData,
+//					&freeSlot
+//			);
+//			break;
+//			case GeoTreeEngine::regularRW:
+//			return eos::mgm::FastROAccessTree::compareAccess(
+//					& get<1>(left)->foregroundFastStruct->rWAccessTree->pNodes[std::get<2>(left)].fsData,
+//					&freeSlot,
+//					& get<1>(right)->foregroundFastStruct->rWAccessTree->pNodes[std::get<2>(right)].fsData,
+//					&freeSlot
+//			);
+//			break;
+//			case GeoTreeEngine::draining:
+//			return eos::mgm::FastROAccessTree::compareAccess(
+//					& get<1>(left)->foregroundFastStruct->drnAccessTree->pNodes[std::get<2>(left)].fsData,
+//					&freeSlot,
+//					& get<1>(right)->foregroundFastStruct->drnAccessTree->pNodes[std::get<2>(right)].fsData,
+//					&freeSlot
+//			);
+//			break;
+//			case GeoTreeEngine::balancing:
+//			return eos::mgm::FastROAccessTree::compareAccess(
+//					& get<1>(left)->foregroundFastStruct->blcAccessTree->pNodes[std::get<2>(left)].fsData,
+//					&freeSlot,
+//					& get<1>(right)->foregroundFastStruct->blcAccessTree->pNodes[std::get<2>(right)].fsData,
+//					&freeSlot
+//			);
+//			break;
+//			default:
+//			break;
+//		}
+//		return 0;
+//	}
+//};
+//
+// This function try to get multiple fs to access a file from
+// Fs are spread across multiple fs
+// The resulting fs are returned by decreasing order of priority
+//bool GeoTreeEngine::accessReplicasMultipleGroup(const size_t &nAccessReplicas,
+//		vector<FileSystem::fsid_t> *accessedReplicas,
+//		vector<FileSystem::fsid_t> *existingReplicas,
+//		SchedType type,
+//		const string &accesserGeotag,
+//		vector<FileSystem::fsid_t> *excludeFs,
+//		vector<string> *excludeGeoTags,
+//		vector<string> *forceGeoTags)
+//{
+//
+//	// some basic checks
+//	assert(nAccessReplicas);
+//	assert(accessedReplicas);
+//	assert(existingReplicas);
+//	// check that enough replicas exist already
+//	if(nAccessReplicas > existingReplicas->size())
+//	{
+//		eos_static_debug("not enough replica");
+//		return false;
+//	}
+//
+//	// if there is no choice, return all replicas
+//	if(nAccessReplicas == existingReplicas->size())
+//	{
+//		accessedReplicas->resize(0);
+//		accessedReplicas->insert(accessedReplicas->begin(),existingReplicas->begin(),existingReplicas->end());
+//		return true;
+//	}
+//
+//	// find the group holdings the fs of the existing replicas
+//	map<TreeMapEntry*,vector<FileSystem::fsid_t>> entry2FsId;
+//	TreeMapEntry *entry=NULL;
+//	{
+//		RWMutexReadLock lock(this->pTreeMapMutex);
+//		for(auto exrepIt = existingReplicas->begin(); exrepIt != existingReplicas->end(); exrepIt++)
+//		{
+//			auto mentry = pFs2TreeMapEntry.find(*exrepIt);
+//			// if we cannot find the fs in any group, there is an inconsistency somewhere
+//			if(mentry == pFs2TreeMapEntry.end())
+//			{
+//				eos_static_err("cannot find the existing replica in any scheduling group");
+//				return false;
+//			}
+//			entry = mentry->second;
+//			entry2FsId[entry].push_back(*exrepIt);
+//		}
+//		// to prevent any change of the trees
+//		entry->doubleBufferMutex.LockRead();
+//		// to prevent the destruction of the entry
+//		AtomicInc(entry->fastStructLockWaitersCount);
+//	}
+//
+//	// if we have only one group , we use the one group procedure
+//	if(entry2FsId.size()==1)
+//	{
+//		entry = entry2FsId.begin()->first;
+//		eos_static_debug("existing replicas are only in one group, using accessReplicasOneGroup");
+//		// to prevent the destruction of the entry
+//		entry->doubleBufferMutex.UnLockRead();
+//		AtomicDec(entry->fastStructLockWaitersCount);
+//		return accessReplicasOneGroup( entry->group, nAccessReplicas,
+//				accessedReplicas,existingReplicas,
+//				type,accesserGeotag,excludeFs,
+//				excludeGeoTags,forceGeoTags);
+//	}
+//
+//	// we have multiple groups
+//	eos::mgm::ROAccessPriorityComparator comp;
+//	eos::mgm::SchedTreeBase::TreeNodeSlots freeSlot;
+//	freeSlot.freeSlotsCount=1;
+//
+//	// compute their geolocation score
+//	size_t availFsCount = 0;
+//	map< unsigned , std::vector< tuple< FileSystem::fsid_t , TreeMapEntry* , SchedTreeBase::tFastTreeIdx > > > geoScore2Fs;
+//	for(auto entryIt = entry2FsId.begin(); entryIt != entry2FsId.end(); entryIt ++)
+//	for(auto fsIt = entryIt->second.begin(); fsIt != entryIt->second.end(); fsIt++)
+//	{
+//		const SchedTreeBase::tFastTreeIdx *idx;
+//		if(!entryIt->first->foregroundFastStruct->fs2TreeIdx->get(*fsIt,idx) )
+//		{
+//			eos_static_warning("cannot find fs in the group in the 2nd pass");
+//			continue;
+//		}
+//		// check if the fs is available
+//		bool isValid = false;
+//		switch(type)
+//		{
+//			case regularRO:
+//			comp.isValidSlot(&entryIt->first->foregroundFastStruct->rOAccessTree->pNodes[*idx].fsData,&freeSlot);
+//			break;
+//			case regularRW:
+//			comp.isValidSlot(&entryIt->first->foregroundFastStruct->rWAccessTree->pNodes[*idx].fsData,&freeSlot);
+//			break;
+//			case draining:
+//			comp.isValidSlot(&entryIt->first->foregroundFastStruct->drnAccessTree->pNodes[*idx].fsData,&freeSlot);
+//			break;
+//			case balancing:
+//			comp.isValidSlot(&entryIt->first->foregroundFastStruct->blcAccessTree->pNodes[*idx].fsData,&freeSlot);
+//			break;
+//			default:
+//			break;
+//		}
+//		if(!isValid)
+//		{
+//			eos_static_debug("fs skipped because unavailable");
+//			continue;
+//		}
+//
+//		const string &fsGeotag = (*entryIt->first->foregroundFastStruct->treeInfo)[*idx].fullGeotag;
+//		unsigned geoScore = 0;
+//		size_t kmax = min(accesserGeotag.length(),fsGeotag.length());
+//		for(size_t k=0; k<kmax; k++)
+//		{
+//			if(accesserGeotag[k]!=fsGeotag[k])
+//			break;
+//			if(accesserGeotag[k]==':' && k+1 < kmax && accesserGeotag[k+1]==':')
+//			geoScore++;
+//		}
+//		geoScore2Fs[geoScore].push_back(make_tuple(*fsIt,entryIt->first,*idx));
+//		availFsCount++;
+//	}
+//
+//	// check we have enough available fs
+//	if(availFsCount<nAccessReplicas)
+//	{
+//		for(auto it = entry2FsId.begin(); it != entry2FsId.end(); it++ )
+//		{
+//			it->first->doubleBufferMutex.UnLockRead();
+//			AtomicDec(it->first->fastStructLockWaitersCount);
+//		}
+//		eos_static_debug("not enough replica available");
+//		return false;
+//	}
+//
+//	FsComparator fscomp(type);
+//	size_t fsToGet = nAccessReplicas;
+//	for(auto geoscoreIt = geoScore2Fs.begin(); geoscoreIt != geoScore2Fs.end(); geoscoreIt++)
+//	{
+//		// sort in descending order.
+//		std::sort(geoscoreIt->second.begin() , geoscoreIt->second.end() , fscomp);
+//		size_t n = min(fsToGet,geoscoreIt->second.size());
+//		for(auto it=geoscoreIt->second.begin(); it!=geoscoreIt->second.begin()+n; it++)
+//		accessedReplicas->push_back(get<0>(*it));
+//		fsToGet -= n;
+//		if(fsToGet==0) break;
+//	}
+//	if(fsToGet)
+//	{
+//		eos_err("inconsistency : could not retrieve enough fs");
+//		for(auto it = entry2FsId.begin(); it != entry2FsId.end(); it++ )
+//		{
+//			it->first->doubleBufferMutex.UnLockRead();
+//			AtomicDec(it->first->fastStructLockWaitersCount);
+//		}
+//		accessedReplicas->clear();
+//		return false;
+//	}
+//
+//	// cleanup and exit
+//	for(auto it = entry2FsId.begin(); it != entry2FsId.end(); it++ )
+//	{
+//		it->first->doubleBufferMutex.UnLockRead();
+//		AtomicDec(it->first->fastStructLockWaitersCount);
+//	}
+//	return true;
+//}
+
+int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
+		unsigned long &fsIndex,
+		std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
 		SchedType type,
-		const string &accesserGeotag,
-		vector<FileSystem::fsid_t> *excludeFs,
-		vector<string> *excludeGeoTags,
-		vector<string> *forceGeoTags)
+		const std::string &accesserGeotag,
+		const eos::common::FileSystem::fsid_t &forcedFsId,
+		std::vector<eos::common::FileSystem::fsid_t> *unavailableFs
+)
 {
+	int returnCode = ENODATA;
 
 	// some basic checks
 	assert(nAccessReplicas);
-	assert(accessedReplicas);
 	assert(existingReplicas);
+	// check that enough replicas exist already
 	// check that enough replicas exist already
 	if(nAccessReplicas > existingReplicas->size())
 	{
 		eos_static_debug("not enough replica");
-		return false;
+		return EROFS;
 	}
 
 	// if there is no choice, return all replicas
-	if(nAccessReplicas == existingReplicas->size())
+	if(forcedFsId>0 && (std::find(existingReplicas->begin(), existingReplicas->end(), forcedFsId) == existingReplicas->end()) )
 	{
-		accessedReplicas->resize(0);
-		accessedReplicas->insert(accessedReplicas->begin(),existingReplicas->begin(),existingReplicas->end());
-		return true;
+		return ENODATA;
 	}
 
 	// find the group holdings the fs of the existing replicas
-	map<TreeMapEntry*,vector<FileSystem::fsid_t>> entry2FsId;
+	// check that the replicas are available
+	size_t availFsCount = 0;
+	eos::mgm::ROAccessPriorityComparator comp;
+	eos::mgm::SchedTreeBase::TreeNodeSlots freeSlot;
+	freeSlot.freeSlotsCount=1;
+	std::vector<eos::common::FileSystem::fsid_t>::iterator it;
+
+	// maps tree maps entries (i.e. scheduling groups) to fsids containing a replica being available and the corresponding fastTreeIndex
+	map<TreeMapEntry*,vector< pair<FileSystem::fsid_t,SchedTreeBase::tFastTreeIdx> > > entry2FsId;
 	TreeMapEntry *entry=NULL;
 	{
+		// lock the scheduling group -> trees map so that the a map entry cannot be delete while processing it
 		RWMutexReadLock lock(this->pTreeMapMutex);
 		for(auto exrepIt = existingReplicas->begin(); exrepIt != existingReplicas->end(); exrepIt++)
 		{
@@ -777,75 +970,145 @@ bool GeoTreeEngine::accessReplicasMultipleGroup(const size_t &nAccessReplicas,
 			// if we cannot find the fs in any group, there is an inconsistency somewhere
 			if(mentry == pFs2TreeMapEntry.end())
 			{
-				eos_static_err("cannot find the existing replica in any scheduling group");
-				return false;
+				eos_static_warning("cannot find the existing replica in any scheduling group");
+				continue;
 			}
 			entry = mentry->second;
-			entry2FsId[entry].push_back(*exrepIt);
-		}
+
+			// lock the double buffering to make sure all the fast trees are not modified
+			if(!entry2FsId.count(entry))
+			{
 		// to prevent any change of the trees
 		entry->doubleBufferMutex.LockRead();
 		// to prevent the destruction of the entry
 		AtomicInc(entry->fastStructLockWaitersCount);
 	}
 
-	// if we have only one group , we use the one group procedure
-	if(entry2FsId.size()==1)
+			const SchedTreeBase::tFastTreeIdx *idx;
+			if(!entry->foregroundFastStruct->fs2TreeIdx->get(*exrepIt,idx) )
 	{
-		entry = entry2FsId.begin()->first;
-		eos_static_debug("existing replicas are only in one group, using accessReplicasOneGroup");
-		// to prevent the destruction of the entry
+				eos_static_warning("cannot find fs in the scheduling group in the 2nd pass");
+				if(!entry2FsId.count(entry))
+				{
 		entry->doubleBufferMutex.UnLockRead();
 		AtomicDec(entry->fastStructLockWaitersCount);
-		return accessReplicasOneGroup( entry->group, nAccessReplicas,
-				accessedReplicas,existingReplicas,
-				type,accesserGeotag,excludeFs,
-				excludeGeoTags,forceGeoTags);
+				}
+				continue;
+	}
+
+			bool isValid = false;
+			switch(type)
+			{
+			case regularRO:
+				isValid = entry->foregroundFastStruct->rOAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->rOAccessTree->pNodes[*idx].fsData,&freeSlot);
+				break;
+			case regularRW:
+				isValid = entry->foregroundFastStruct->rWAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->rWAccessTree->pNodes[*idx].fsData,&freeSlot);
+				break;
+			case draining:
+				isValid = entry->foregroundFastStruct->drnAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->drnAccessTree->pNodes[*idx].fsData,&freeSlot);
+				break;
+			case balancing:
+				isValid = entry->foregroundFastStruct->blcAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->blcAccessTree->pNodes[*idx].fsData,&freeSlot);
+				break;
+			default:
+				break;
+			}
+			if(isValid)
+			{
+				entry2FsId[entry].push_back(make_pair(*exrepIt,*idx));
+				availFsCount++;
+			}
+			else
+			{
+	// we have multiple groups
+				if(!entry2FsId.count(entry))
+					entry2FsId[entry]=vector< pair<FileSystem::fsid_t,SchedTreeBase::tFastTreeIdx> >();
+
+				unavailableFs->push_back(*exrepIt);
+			}
+		}
+	}
+	// compute their geolocation score
+	// check there is enough available replicas
+	if(availFsCount<nAccessReplicas)
+	{
+		returnCode = ENONET;
+		goto cleanup;
+	}
+
+	// check if the forced replicas (if any) is available
+	if(forcedFsId>0 && (std::find(unavailableFs->begin(), unavailableFs->end(), forcedFsId) != unavailableFs->end()) )
+	{
+		returnCode = ENONET;
+		goto cleanup;
 	}
 
 	// we have multiple groups
-	eos::mgm::ROAccessPriorityComparator comp;
-	eos::mgm::SchedTreeBase::TreeNodeSlots freeSlot;
-	freeSlot.freeSlotsCount=1;
-
-	// compute their geolocation score
-	size_t availFsCount = 0;
-	map< unsigned , std::vector< tuple< FileSystem::fsid_t , TreeMapEntry* , SchedTreeBase::tFastTreeIdx > > > geoScore2Fs;
-	for(auto entryIt = entry2FsId.begin(); entryIt != entry2FsId.end(); entryIt ++)
-	for(auto fsIt = entryIt->second.begin(); fsIt != entryIt->second.end(); fsIt++)
+	// compute their geolocation scores to the the available fsids (+things) having a replica
 	{
-		const SchedTreeBase::tFastTreeIdx *idx;
-		if(!entryIt->first->foregroundFastStruct->fs2TreeIdx->get(*fsIt,idx) )
+		SchedTreeBase::tFastTreeIdx accesserNode = 0;
+		FileSystem::fsid_t selectedFsId = 0;
 		{
-			eos_static_warning("cannot find fs in the group in the 2nd pass");
-			continue;
+			// maps a geolocation scores (integer) to all the file system having this geolocation scores
+			map< unsigned , std::vector< FileSystem::fsid_t > > geoScore2Fs;
+			vector<SchedTreeBase::tFastTreeIdx> accessedReplicasIdx(1);
+			// find the closest tree node to the accesser
+			accesserNode = entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(accesserGeotag.c_str());;
+	for(auto entryIt = entry2FsId.begin(); entryIt != entry2FsId.end(); entryIt ++)
+	{
+				if(eos::common::Logging::gLogMask & LOG_DEBUG)
+		{
+					char buffer[1024];
+					buffer[0]=0;
+					char *buf = buffer;
+					for(auto it = entryIt->second.begin(); it!= entryIt->second.end(); ++it)
+						buf += sprintf(buf,"%lu  ",(unsigned long)(it->second));
+					eos_static_debug("existing replicas indices in geotree -> %s", buffer);
+
+					buffer[0]=0;
+					buf = buffer;
+					for(auto it = entryIt->second.begin(); it!= entryIt->second.end(); ++it)
+						buf += sprintf(buf,"%s  ",(*entryIt->first->foregroundFastStruct->treeInfo)[it->second].fullGeotag.c_str());
+					eos_static_debug("existing replicas geotags in geotree -> %s", buffer);
 		}
 		// check if the fs is available
-		bool isValid = false;
+				// if there is no replica here (might happen if it's spotted as unavailable after the first pass)
+				if(entryIt->second.empty())
+					continue;
+
+				// fill a vector with the indices of the replicas
+				vector<SchedTreeBase::tFastTreeIdx> existingReplicasIdx(entryIt->second.size());
+				for(size_t i = 0 ; i < entryIt->second.size(); i++)
+					existingReplicasIdx[i] = entryIt->second[i].second;
+
+				// pickup an access slot is this scheduling group
+				accessedReplicasIdx.clear();
+				unsigned char retCode = 0;
 		switch(type)
 		{
 			case regularRO:
-			comp.isValidSlot(&entryIt->first->foregroundFastStruct->rOAccessTree->pNodes[*idx].fsData,&freeSlot);
+					retCode = accessReplicas(entryIt->first,1,&accessedReplicasIdx,accesserNode,&existingReplicasIdx,
+							entry->foregroundFastStruct->rOAccessTree,NULL,NULL,skipSaturatedAccess);
 			break;
 			case regularRW:
-			comp.isValidSlot(&entryIt->first->foregroundFastStruct->rWAccessTree->pNodes[*idx].fsData,&freeSlot);
+					retCode = accessReplicas(entryIt->first,1,&accessedReplicasIdx,accesserNode,&existingReplicasIdx,
+							entry->foregroundFastStruct->rWAccessTree,NULL,NULL,skipSaturatedAccess);
 			break;
 			case draining:
-			comp.isValidSlot(&entryIt->first->foregroundFastStruct->drnAccessTree->pNodes[*idx].fsData,&freeSlot);
+					retCode = accessReplicas(entryIt->first,1,&accessedReplicasIdx,accesserNode,&existingReplicasIdx,
+							entry->foregroundFastStruct->drnAccessTree,NULL,NULL,skipSaturatedDrnAccess);
 			break;
 			case balancing:
-			comp.isValidSlot(&entryIt->first->foregroundFastStruct->blcAccessTree->pNodes[*idx].fsData,&freeSlot);
+					retCode = accessReplicas(entryIt->first,1,&accessedReplicasIdx,accesserNode,&existingReplicasIdx,
+							entry->foregroundFastStruct->blcAccessTree,NULL,NULL,skipSaturatedBlcAccess);
 			break;
 			default:
 			break;
 		}
-		if(!isValid)
-		{
-			eos_static_debug("fs skipped because unavailable");
-			continue;
-		}
+				if(!retCode) goto cleanup;
 
-		const string &fsGeotag = (*entryIt->first->foregroundFastStruct->treeInfo)[*idx].fullGeotag;
+				const string &fsGeotag = (*entryIt->first->foregroundFastStruct->treeInfo)[*accessedReplicasIdx.begin()].fullGeotag;
 		unsigned geoScore = 0;
 		size_t kmax = min(accesserGeotag.length(),fsGeotag.length());
 		for(size_t k=0; k<kmax; k++)
@@ -855,53 +1118,75 @@ bool GeoTreeEngine::accessReplicasMultipleGroup(const size_t &nAccessReplicas,
 			if(accesserGeotag[k]==':' && k+1 < kmax && accesserGeotag[k+1]==':')
 			geoScore++;
 		}
-		geoScore2Fs[geoScore].push_back(make_tuple(*fsIt,entryIt->first,*idx));
-		availFsCount++;
+				// if the box is unsaturated, give an advantage to this FS
+				if(retCode == 2) {
+					geoScore+=100;
+					eos_static_debug("found unsaturated fs");
 	}
 
+				geoScore2Fs[geoScore].push_back(
+						(*entryIt->first->foregroundFastStruct->treeInfo)[*accessedReplicasIdx.begin()].fsId);
+			}
 	// check we have enough available fs
-	if(availFsCount<nAccessReplicas)
+			// randomly chose a fs among the highest scored ones
+			selectedFsId = geoScore2Fs.rbegin()->second[rand()%geoScore2Fs.rbegin()->second.size()];
+
+			// return the corresponding index
+			for (it = existingReplicas->begin(); it != existingReplicas->end(); it++)
 	{
-		for(auto it = entry2FsId.begin(); it != entry2FsId.end(); it++ )
-		{
-			it->first->doubleBufferMutex.UnLockRead();
-			AtomicDec(it->first->fastStructLockWaitersCount);
+				if(*it == selectedFsId){
+					fsIndex = (eos::common::FileSystem::fsid_t) (it-existingReplicas->begin());
+					break;
 		}
-		eos_static_debug("not enough replica available");
-		return false;
+			}
 	}
 
-	FsComparator fscomp(type);
-	size_t fsToGet = nAccessReplicas;
-	for(auto geoscoreIt = geoScore2Fs.begin(); geoscoreIt != geoScore2Fs.end(); geoscoreIt++)
+		if(eos::common::Logging::gLogMask & LOG_DEBUG)
 	{
+			char buffer[1024];
+			buffer[0]=0;
+			char *buf = buffer;
+			for(auto it = existingReplicas->begin(); it!= existingReplicas->end(); ++it)
+				buf += sprintf(buf,"%lu  ",(unsigned long)(*it));
 		// sort in descending order.
-		std::sort(geoscoreIt->second.begin() , geoscoreIt->second.end() , fscomp);
-		size_t n = min(fsToGet,geoscoreIt->second.size());
-		for(auto it=geoscoreIt->second.begin(); it!=geoscoreIt->second.begin()+n; it++)
-		accessedReplicas->push_back(get<0>(*it));
-		fsToGet -= n;
-		if(fsToGet==0) break;
+			eos_static_debug("existing replicas fs id's -> %s", buffer);
+			eos_static_debug("accesser closest node to %s index -> %d  /  %s",accesserGeotag.c_str(), (int)accesserNode,(*entry->foregroundFastStruct->treeInfo)[accesserNode].fullGeotag.c_str());
+			eos_static_debug("selected FsId -> %d / idx %d", (int)selectedFsId,(int)fsIndex);
 	}
-	if(fsToGet)
+	}
+
+	// check we found it
+	if(it == existingReplicas->end())
 	{
-		eos_err("inconsistency : could not retrieve enough fs");
-		for(auto it = entry2FsId.begin(); it != entry2FsId.end(); it++ )
+		eos_err("inconsistency : unable to find the selected fs but it should be there");
+		returnCode = EIO;
+		goto cleanup;
+	}
+
 		{
-			it->first->doubleBufferMutex.UnLockRead();
-			AtomicDec(it->first->fastStructLockWaitersCount);
-		}
-		accessedReplicas->clear();
-		return false;
+		// fill the resulting vector
+		// update the fastTree UlScore and DlScore by applying the penalties
+		// ONLY FOR THE HEAD NODE (SHOULD TAKE FINAL NODES TOO?)
+		const SchedTreeBase::tFastTreeIdx *idx;
+		// apply the penalties
+		entry->foregroundFastStruct->fs2TreeIdx->get((*existingReplicas)[fsIndex],idx);
+		if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=accessDlScorePenalty)
+			applyDlScorePenalty(entry,*idx,accessDlScorePenalty);
+		if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=accessUlScorePenalty)
+			applyUlScorePenalty(entry,*idx,accessUlScorePenalty);
 	}
 
 	// cleanup and exit
-	for(auto it = entry2FsId.begin(); it != entry2FsId.end(); it++ )
+	returnCode = 0;
+
+	// cleanup and exit
+	cleanup:
+	for(auto cit = entry2FsId.begin(); cit != entry2FsId.end(); cit++ )
 	{
-		it->first->doubleBufferMutex.UnLockRead();
-		AtomicDec(it->first->fastStructLockWaitersCount);
+		cit->first->doubleBufferMutex.UnLockRead();
+		AtomicDec(cit->first->fastStructLockWaitersCount);
 	}
-	return true;
+	return returnCode;
 }
 
 bool GeoTreeEngine::StartUpdater()
@@ -955,7 +1240,6 @@ void GeoTreeEngine::listenFsChange()
 			XrdMqSharedObjectManager::Notification event;
 			event = gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.front();
 			gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.pop_front();
-			gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
 
 			string newsubject = event.mSubject.c_str();
 
@@ -966,7 +1250,6 @@ void GeoTreeEngine::listenFsChange()
 				// ---------------------------------------------------------------------
 				eos_warning("received creation on subject %s : don't know what to do with this!", newsubject.c_str());
 
-				gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
 				continue;
 			}
 
@@ -977,7 +1260,6 @@ void GeoTreeEngine::listenFsChange()
 				// ---------------------------------------------------------------------
 				eos_warning("received deletion on subject %s : don't know what to do with this!", newsubject.c_str());
 
-				gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
 				continue;
 			}
 
@@ -1008,7 +1290,6 @@ void GeoTreeEngine::listenFsChange()
 					gNotificationsBuffer[queue] = gNotifKey2Enum.at(key);
 				}
 
-				gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
 				continue;
 			}
 
@@ -1019,17 +1300,15 @@ void GeoTreeEngine::listenFsChange()
 				// ---------------------------------------------------------------------
 				eos_warning("received subject deletion on subject %s : don't know what to do with this!", newsubject.c_str());
 
-				gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
 				continue;
 			}
 			eos_warning("msg=\"don't know what to do with subject\" subject=%s", newsubject.c_str());
-			gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
 			continue;
 		}
 		gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
 		// do the processing
 		clock_gettime(CLOCK_MONOTONIC_COARSE,&curtime);
-		if(!gUpdaterPaused && (curtime.tv_sec*1000+curtime.tv_nsec/1000-prevtime.tv_sec*1000-prevtime.tv_nsec/1000 > 1000))
+		eos_static_debug("Updating Fast Structures at %ds. %dns. Previous update was at prev: %ds. %dns. Time elapsed since the last update is: %dms.",(int)curtime.tv_sec,(int)curtime.tv_nsec,(int)prevtime.tv_sec,(int)prevtime.tv_nsec,(int)curtime.tv_sec*1000+((int)curtime.tv_nsec)/1000000-(int)prevtime.tv_sec*1000-((int)prevtime.tv_nsec)/1000000);
 		{
 			checkPendingDeletions(); // do it before tree info to leave some time to the other threads
 			updateTreeInfo(gNotificationsBuffer);
@@ -1037,6 +1316,7 @@ void GeoTreeEngine::listenFsChange()
 			gNotificationsBuffer.clear();
 		}
 		XrdSysThread::SetCancelOff();
+		XrdSysTimer::Wait(std::max(timeFrameDurationMs,100));
 	}
 	while (1);
 }
@@ -1102,6 +1382,7 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
 
 		const string &oldGeoTag = oldNode->pNodeInfo.fullGeotag;
 		eos_debug("geotag change detected : old geotag is %s   new geotag is %s",oldGeoTag.substr(0,oldGeoTag.rfind("::")).c_str(),newGeoTag.c_str());
+		//CHECK IF CHANGE ACTUALLY HAPPENED BEFORE ACTUALLY CHANGING SOMETHING
 		if(oldGeoTag.substr(0,oldGeoTag.rfind("::"))!=newGeoTag)
 		{ // do the change only if there is one
 			SlowTreeNode *newNode = NULL;
@@ -1121,7 +1402,6 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
 	}
 	if(keys&sfgId)
 	{
-		//CHECK IF CHANGE ACTUALLY HAPPENED BEFORE ACTUALLY CHANGING SOMETHING
 		// should not happen
 		eos_crit("the FsId should not change once it's created:  new value is %lu",(unsigned long)fs->mId);
 	}
@@ -1219,13 +1499,13 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
 			if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Balancing;
 		}
 	}
-	if(keys&sfgFsfilled)
-	{
-		//half fr = half(fs->mNominalFilled);
-		float fr = float(fs->mNominalFilled);
-		if(ftIdx) setOneStateVarInAllFastTrees(fillRatio,fr);
-		if(stn) stn->pNodeState.fillRatio = fr;
-	}
+//	if(keys&sfgFsfilled)
+//	{
+//		//half fr = half(fs->mNominalFilled);
+//		float fr = float(fs->mNominalFilled);
+//		if(ftIdx) setOneStateVarInAllFastTrees(fillRatio,fr);
+//		if(stn) stn->pNodeState.fillRatio = fr;
+//	}
 
 	if(keys&sfgBlkavailb)
 	{
@@ -1241,7 +1521,7 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
 		double netoutweight = (1.0 - ((fs->mNetEthRateMiB) ? (fs->mNetOutRateMiB / fs->mNetEthRateMiB) : 0.0));
 		ulScore *= ((netoutweight > 0) ? sqrt(netoutweight) : 0);
 
-		if(ftIdx) setOneStateVarInAllFastTrees(ulScore,(SchedTreeBase::tFastTreeIdx)(ulScore*100));
+		if(ftIdx) setOneStateVarInAllFastTrees(ulScore,(char)(ulScore*100));
 		if(stn) stn->pNodeState.ulScore = ulScore*100;
 	}
 	if(keys&(sfgOutratemib|sfgDiskload|sfgReadratemb))
@@ -1250,14 +1530,14 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
 		double netinweight = (1.0 - ((fs->mNetEthRateMiB) ? (fs->mNetInRateMiB / fs->mNetEthRateMiB) : 0.0));
 		dlScore *= ((netinweight > 0) ? sqrt(netinweight) : 0);
 
-		if(ftIdx) setOneStateVarInAllFastTrees(dlScore,(SchedTreeBase::tFastTreeIdx)(dlScore*100));
+		if(ftIdx) setOneStateVarInAllFastTrees(dlScore,(char)(dlScore*100));
 		if(stn) stn->pNodeState.dlScore = dlScore*100;
 
 	}
 	if(keys&sfgFsfilled)
 	{
-		if(ftIdx) setOneStateVarInAllFastTrees(fillRatio,(SchedTreeBase::tFastTreeIdx)(fs->mDiskFilled*100));
-		if(stn) stn->pNodeState.fillRatio = fs->mDiskFilled*100;
+		if(ftIdx) setOneStateVarInAllFastTrees(fillRatio,(char)fs->mDiskFilled);
+		if(stn) stn->pNodeState.fillRatio = (char)fs->mDiskFilled;
 	}
 
 	// SHOULD WE TAKE THE NOMINAL FILLING AS SET BY THE BALANCING?

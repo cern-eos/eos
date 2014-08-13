@@ -172,26 +172,28 @@ public:
 			double _mUlScore = 0;
 			double _mFillRatio = 0;
 			double _mTotalSpace = 0;
+			int count=0;
 
 			for (const tSelf *it = beg; it < end; it=(const tSelf*)((char*)it+stride))
 			{
 				bool availableBranch = ( (it->mStatus & Available) != 0);
 				if(availableBranch)
 				{
-					_mDlScore += it->dlScore;
-					_mUlScore += it->ulScore;
+					if(it->dlScore>0) _mDlScore += it->dlScore;
+					if(it->ulScore>0) _mUlScore += it->ulScore;
 					_mTotalSpace += it->totalSpace;
 					_mFillRatio += it->fillRatio * it->totalSpace;
+					count++;
 					/// not a good idea to propagate the availability as we want to be able to make a branch as unavailable regardless of the status of the leaves
 					mStatus = (SchedTreeBase::tStatus) (mStatus | (it->mStatus & ~Available) );// an intermediate node tell if a leave having is given status in under it or not
 				}
 			}
 			if (_mTotalSpace)
 			_mFillRatio /= _mTotalSpace;
-			dlScore = (T)_mDlScore;
-			ulScore = (T)_mUlScore;
+			dlScore = (T)(_mDlScore/count);
+			ulScore = (T)(_mUlScore/count);
 			fillRatio = (T)_mFillRatio;
-			totalSpace = (T)_mTotalSpace;
+			totalSpace = (float)_mTotalSpace;
 			return true;
 		}
 	};
@@ -246,9 +248,10 @@ public:
 		void
 		writeCompactVersion(TreeNodeStateChar* target) const
 		{
-			target->dlScore = (char) dlScore;
-			target->ulScore = (char) ulScore;
 			target->mStatus = mStatus;
+			target->ulScore = (char) ulScore;
+			target->dlScore = (char) dlScore;
+			target->totalSpace = totalSpace;
 			target->fillRatio = (char) fillRatio;
 		}
 	};

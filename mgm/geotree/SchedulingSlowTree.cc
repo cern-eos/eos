@@ -428,6 +428,7 @@ bool SlowTree::buildFastStrctures(
 			nodecount++;
 		}
 	}
+	geo2node->pSize = nodecount;
 
 	// some sanity checks
 	__EOSMGM_TREECOMMON_CHK1__ if(

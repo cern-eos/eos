@@ -162,6 +162,11 @@ class GeoTag2NodeIdxMap : public SchedTreeBase
 	}
 
 public:
+	void print(char *buf){
+		for(int i=0;i<pSize;i++)
+			buf+=sprintf(buf,"%s %d %d %d\n",(const char*)&pNodes[i].tag[0],(int)pNodes[i].fastTreeIndex,(int)pNodes[i].firstBranch,(int)pNodes[i].branchCount);
+	}
+
 	GeoTag2NodeIdxMap()
 	{
 		pMaxSize = 0;
@@ -348,7 +353,8 @@ public:
 		{
 		}
 	public:
-		const_iterator()
+		const_iterator() :
+			pFsIdPtr(NULL),pNodeIdxPtr(NULL)
 		{
 		}
 		const_iterator&
@@ -881,9 +887,10 @@ protected:
 		for (tFastTreeIdx i = pNodes[node].treeData.firstBranchIdx; i < pNodes[node].treeData.firstBranchIdx + nBranches; i++)
 		{
 			const FastTreeNode &node = pNodes[pBranches[i].sonIdx];
-			weightSum += pRandVar(node.fsData, node.fileData);
+			weightSum += max(pRandVar(node.fsData, node.fileData),(unsigned char)0);
 		}
-
+		if(weightSum)
+		{
 		int r = rand();
 		r = r % (weightSum);
 		tFastTreeIdx i = 0;
@@ -900,6 +907,12 @@ protected:
 		assert(i <= pNodes[node].treeData.firstBranchIdx + pNodes[node].fileData.lastHighestPriorityOffset);
 
 		return pBranches[i].sonIdx;
+		}
+		else
+		{
+			// in this case all weights are 0 -> uniform probability
+			return pBranches[pNodes[node].treeData.firstBranchIdx+rand()%nBranches].sonIdx;
+		}
 	}
 
 	inline bool
@@ -1239,7 +1252,6 @@ public:
 	{
 
 		const tFastTreeIdx &firstBranchIdx = pNodes[node].treeData.firstBranchIdx;
-		//const tFastTreeIdx &firstBranchNodeIdx = pBranches[firstBranchIdx].mSonIdx;
 		const tFastTreeIdx &nbChildren = pNodes[node].treeData.childrenCount;
 
 		for(SchedTreeBase::tFastTreeIdx b=firstBranchIdx;b<firstBranchIdx+nbChildren;b++)
@@ -1527,7 +1539,7 @@ public:
 		this->pMaxNodeCount = model.pMaxNodeCount;
 		this->pSelfAllocated = model.pSelfAllocated;
 		this->pTreeInfo = model.pTreeInfo;
-
+		this->pBranchComp = model.pBranchComp;
 		return *this;
 	}
 
@@ -1569,7 +1581,9 @@ public:
 				<< "|pidx:"<< (int) pNodes[node].fileData.lastHighestPriorityOffset<< "|status:"
 				<< std::hex << pNodes[node].fsData.mStatus << std::dec
 				<< "|ulSc:"<< (int) pNodes[node].fsData.ulScore
-				<< "|dlSc:"<< (int) pNodes[node].fsData.dlScore<< ")";
+				<< "|dlSc:"<< (int) pNodes[node].fsData.dlScore
+				<< "|filR:"<< (int) pNodes[node].fsData.fillRatio
+				<< "|totS:"<<  pNodes[node].fsData.totalSpace<< ")";
 		ss << std::right << std::setw(7) << std::setfill(' ') << "";
 
 		if (!nbChildren)
@@ -1721,33 +1735,51 @@ public:
 		{
 			// initialize children as non visited
 			// visited children (over allocated but it allows a static allocation)
-			bool visited[2^sizeof(tFastTreeIdx)]=
-			{};
-			return findFreeSlotSkipSaturated(newReplica, startFrom, allowUpRoot, decrFreeSlot, visited);
+			bool localvisited[(256)^sizeof(tFastTreeIdx)];
+			for(size_t t=0; t<(256^sizeof(tFastTreeIdx)); t++ ) localvisited[t] = false;
+
+			SchedTreeBase::tFastTreeIdx fatherIdx = startFrom;
+			if(!allowUpRoot){
+				//make the current branch the root
+				swap(fatherIdx,pNodes[startFrom].treeData.fatherIdx);
 		}
 
-		if (pNodes[startFrom].fileData.freeSlotsCount && !visited[startFrom])
-		{
-			visited[startFrom] = true;
+			bool ret = findFreeSlotSkipSaturated(newReplica, startFrom, true, decrFreeSlot, localvisited);
+
+			if(!allowUpRoot){
+				// put back the original father
+				swap(fatherIdx,pNodes[startFrom].treeData.fatherIdx);
+			}
+
+			return ret;
+		}
+
+		if(!visited[startFrom] && (pNodes[startFrom].fileData.freeSlotsCount) ){
 			// first, mark the node as visited
 			if (!pNodes[startFrom].treeData.childrenCount)
 			{
 				if(isValidSlotNode(startFrom) && !isSaturatedSlotNode(startFrom))
 				{
+					eos_static_debug("node %d is valid and unsaturated", (int)startFrom );
 					// we are arrived
 					newReplica = startFrom;
 					// update the file replica info in the tree
 					if (decrFreeSlot) {
 					decrementFreeSlot(newReplica, true);
 					}
+					// we found something, we stop here
 					return true;
 				}
 				else
 				{
+					eos_static_debug("node %d is NOT (valid and unsaturated) status=%x, dlScore=%d, freeslot=%d, isvalid=%d, issaturated=%d", (int)startFrom,
+							(int)pNodes[startFrom].fsData.mStatus,(int)pNodes[startFrom].fsData.dlScore,(int)pNodes[startFrom].fileData.freeSlotsCount
+							,(int)isValidSlotNode(startFrom),(int)isSaturatedSlotNode(startFrom));
 					// there is nothing we can use here either not valid either saturated
-					return false;
+					goto go_back;
 				}
 			}
+			// it's a branch
 			else
 			{
 				tFastTreeIdx priorityLevel, begBrIdx, endBrIdx;
@@ -1761,13 +1793,14 @@ public:
 					// and we reached that point. It means that the whole subranch doesn't have any available slot
 					// we return false
 					if(!pNodes[pBranches[begBrIdx].sonIdx].fileData.freeSlotsCount)
-					return false;
+					{
+						goto go_back;
+					}
 
 					// updatebegBrIdx and endBrIdx
 					if(priorityLevel)
 					{
-						endBrIdx = begBrIdx+1;
-						while(endBrIdx<endBrIdx &&
+						while(endBrIdx<endIdx &&
 								!FTLowerBranch(endBrIdx,begBrIdx))
 						endBrIdx++;
 					}
@@ -1794,24 +1827,25 @@ public:
 							return true;
 						}
 					}
-
 					// move to the next priority level
 					priorityLevel++;
 					begBrIdx = endBrIdx;
 				}
 				// no slot available in any priority level -> nothing is available
-				return false;
+				goto go_back;
 			}
 		}
-		else
-		{
+		go_back:
 			// no free slot then, try higher if allowed and not already at the root
-			if (allowUpRoot && startFrom)
+		// go upstream
+		if(allowUpRoot && startFrom!=pNodes[startFrom].treeData.fatherIdx)
 			{
-				// we won't go through the current branch again because it has no free slot. Else, we wouldn't go uproot
+			visited[startFrom] = true;
 				return findFreeSlotSkipSaturated(newReplica, pNodes[startFrom].treeData.fatherIdx, allowUpRoot, decrFreeSlot,visited);
 			}
 			else
+		{
+			visited[startFrom] = true;
 			return false;// we went through the whole tree and no available and unsaturated slot was found
 		}
 	}
