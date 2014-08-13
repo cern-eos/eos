@@ -122,8 +122,8 @@ public:
 
   static const char* getContentSize (HttpRequest* request)
   {
-    if (request->GetHeaders().count("OC-Content-Length"))
-      return request->GetHeaders()["OC-Content-Length"].c_str();
+    if (request->GetHeaders().count("OC-Total-Length"))
+      return request->GetHeaders()["OC-Total-Length"].c_str();
     else
       return 0;
   }
@@ -181,7 +181,7 @@ public:
   static bool HasOcContentLength (HttpRequest* request)
   {
 
-    return request->GetHeaders().count("OC-Content-Length");
+    return request->GetHeaders().count("OC-Total-Length");
   }
 
   // ---------------------------------------------------------------------------
