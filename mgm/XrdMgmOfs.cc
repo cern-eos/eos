@@ -8857,7 +8857,7 @@ XrdMgmOfs::FsConfigListener ()
         	fs = FsView::gFsView.mIdView[fsid];
         	if(fs && FsView::gFsView.mNodeView.count(fs->GetQueue()))
         	{
-
+        		// check if the change notification is an actual change in the geotag
         		FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
         		static_cast<GeoTree*>(node)->getGeoTagInTree(fsid , oldgeotag);
         		oldgeotag.erase(0,8); // to get rid of the "<ROOT>::" prefix

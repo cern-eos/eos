@@ -227,7 +227,8 @@ class GeoTreeEngine : public eos::common::LogId
 		void updateBGFastStructuresConfigParam(
 				const char &fillRatioLimit,
 				const char &fillRatioCompTol,
-				const char &saturationThres){
+				const char &saturationThres)
+		{
 
 			backgroundFastStruct->rOAccessTree->setSaturationThreshold(saturationThres);
 			backgroundFastStruct->rWAccessTree->setSaturationThreshold(saturationThres);
@@ -353,10 +354,10 @@ public:
 	bool skipSaturatedPlct,skipSaturatedAccess,
 	skipSaturatedDrnAccess,skipSaturatedBlcAccess,
 	skipSaturatedDrnPlct,skipSaturatedBlcPlct;
-	eos::common::RWMutex configMutex; // protects all the following settings
+	eos::common::RWMutex configMutex;// protects all the following settings
 	char plctDlScorePenalty,plctUlScorePenalty;
 	char accessDlScorePenalty,accessUlScorePenalty;
-	char fillRatioLimit,fillRatioCompTol,saturationThres; // setting fillRatioCompTol at 100 disables online balancing
+	char fillRatioLimit,fillRatioCompTol,saturationThres;// setting fillRatioCompTol at 100 disables online balancing
 	int timeFrameDurationMs;
 private:
 	/// Trees update management
@@ -491,7 +492,7 @@ private:
 			// update the tree
 			// (could be made faster for a small number of existing replicas by using update branches)
 			if(!existingReplicas->empty())
-				updateNeeded = true;
+			updateNeeded = true;
 		}
 
 		if(excludedNodes)
@@ -502,7 +503,7 @@ private:
 				tree->pNodes[*it].fsData.mStatus = tree->pNodes[*it].fsData.mStatus & ~SchedTreeBase::Available;
 			}
 			if(!excludedNodes->empty())
-				updateNeeded = true;
+			updateNeeded = true;
 		}
 
 		if(bookingSize)
@@ -513,10 +514,10 @@ private:
 				// reminder : this is just a working copy of the tree and will affect only the current placement
 				const SchedTreeBase::tFastTreeIdx &idx = (*it).second;
 				float &freeSpace = tree->pNodes[idx].fsData.totalSpace;
-				if(freeSpace>bookingSize) // if there is enough space , prebook it
-					freeSpace -= bookingSize;
-				else // if there is not enough space, make the node unavailable
-					tree->pNodes[idx].fsData.mStatus = tree->pNodes[idx].fsData.mStatus & ~SchedTreeBase::Available;
+				if(freeSpace>bookingSize)// if there is enough space , prebook it
+				freeSpace -= bookingSize;
+				else// if there is not enough space, make the node unavailable
+				tree->pNodes[idx].fsData.mStatus = tree->pNodes[idx].fsData.mStatus & ~SchedTreeBase::Available;
 			}
 			updateNeeded = true;
 		}
@@ -639,7 +640,7 @@ private:
 				else retCode = 1;
 			}
 			else
-				retCode = 2;
+			retCode = 2;
 			accessedReplicas->push_back(idx);
 		}
 
@@ -651,14 +652,14 @@ private:
 	//propagateToAllFastTrees
 public:
 	GeoTreeEngine () :
-		skipSaturatedPlct(false),skipSaturatedAccess(true),
-		skipSaturatedDrnAccess(true),skipSaturatedBlcAccess(true),
-		skipSaturatedDrnPlct(false),skipSaturatedBlcPlct(false),
-		plctDlScorePenalty(4),plctUlScorePenalty(0),
-		accessDlScorePenalty(2),accessUlScorePenalty(4),
-		fillRatioLimit(80),fillRatioCompTol(100),saturationThres(10),
-		timeFrameDurationMs(1000),pUpdaterTid(0)
-{}
+	skipSaturatedPlct(false),skipSaturatedAccess(true),
+	skipSaturatedDrnAccess(true),skipSaturatedBlcAccess(true),
+	skipSaturatedDrnPlct(false),skipSaturatedBlcPlct(false),
+	plctDlScorePenalty(4),plctUlScorePenalty(0),
+	accessDlScorePenalty(2),accessUlScorePenalty(4),
+	fillRatioLimit(80),fillRatioCompTol(100),saturationThres(10),
+	timeFrameDurationMs(1000),pUpdaterTid(0)
+	{}
 	// review the necessary keys to monitor
 	// check upload/download to skip confusion
 	// protect notification buffer with a mutex
@@ -666,67 +667,67 @@ public:
 	// put a parameter for the max delay (for the moment had coded at 1000ms)
 	// use friend classes in fast tree and slow tree to skip using public attributes
 	// check mutexes order
-  // @param updateFastStructures
-  //   should the fast structures be updated immediately without waiting for the next time frame
-  // @return
-  //   true if success false else
-  // ---------------------------------------------------------------------------
+	// @param updateFastStructures
+	//   should the fast structures be updated immediately without waiting for the next time frame
+	// @return
+	//   true if success false else
+	// ---------------------------------------------------------------------------
 	bool insertFsIntoGroup(FileSystem *fs , FsGroup *group, bool updateFastStructures = false);
 
-  // ---------------------------------------------------------------------------
-  //! Remove a file system into the GeoTreeEngine
-  // @param fs
-  //   the file system to be removed
-  // @param group
-  //   the group the file system belongs to
-  // @param updateFastStructures
-  //   should the fast structures be updated immediately without waiting for the next time frame
-  // @return
-  //   true if success false else
-  // ---------------------------------------------------------------------------
+	// ---------------------------------------------------------------------------
+	//! Remove a file system into the GeoTreeEngine
+	// @param fs
+	//   the file system to be removed
+	// @param group
+	//   the group the file system belongs to
+	// @param updateFastStructures
+	//   should the fast structures be updated immediately without waiting for the next time frame
+	// @return
+	//   true if success false else
+	// ---------------------------------------------------------------------------
 	bool removeFsFromGroup(FileSystem *fs , FsGroup *group, bool updateFastStructures = true);
 
-  // ---------------------------------------------------------------------------
-  //! Remove a file system into the GeoTreeEngine
-  // @param group
-  //   the group the file system belongs to
-  // @return
-  //   true if success false else
-  // ---------------------------------------------------------------------------
+	// ---------------------------------------------------------------------------
+	//! Remove a file system into the GeoTreeEngine
+	// @param group
+	//   the group the file system belongs to
+	// @return
+	//   true if success false else
+	// ---------------------------------------------------------------------------
 	bool removeGroup(FsGroup *group);
 
-  // ---------------------------------------------------------------------------
-  //! Place several replicas in one scheduling group.
-  // @param group
-  //   the group to place the replicas in
-  // @param nNewReplicas
-  //   the number of replicas to be placed
-  // @param newReplicas
-  //   vector to which fsids of new replicas are appended if the placement
+	// ---------------------------------------------------------------------------
+	//! Place several replicas in one scheduling group.
+	// @param group
+	//   the group to place the replicas in
+	// @param nNewReplicas
+	//   the number of replicas to be placed
+	// @param newReplicas
+	//   vector to which fsids of new replicas are appended if the placement
 	//   succeeds. They are appended in decreasing priority order
-  // @param type
-  //   type of placement to be performed. It can be:
+	// @param type
+	//   type of placement to be performed. It can be:
 	//     regularRO, regularRW, balancing or draining
-  // @param existingReplicas
-  //   fsids of preexisting replicas for the current file
+	// @param existingReplicas
+	//   fsids of preexisting replicas for the current file
 	//   this is important to make a a good placement (e.g. skip the same fs)
-  // @param bookingSize
-  //   the space to be booked on the fs
+	// @param bookingSize
+	//   the space to be booked on the fs
 	//   currently, it's not booking. It's only checking that there is enough space.
-  // @param startFromGeoTag
-  //   try to place the files under this geotag
+	// @param startFromGeoTag
+	//   try to place the files under this geotag
 	//   useful to group up replicas or to replace a replica by a new one nearby
-  // @param excludeFs
-  //   fsids of files to exclude from the placement operation
-  // @param excludeGeoTags
-  //   geotags of branches to exclude from the placement operation
+	// @param excludeFs
+	//   fsids of files to exclude from the placement operation
+	// @param excludeGeoTags
+	//   geotags of branches to exclude from the placement operation
 	//     (e.g. exclude a site)
-  // @param forceGeoTags
-  //   geotags of branches new replicas should be taken from
+	// @param forceGeoTags
+	//   geotags of branches new replicas should be taken from
 	//     (e.g. force a site)
-  // @return
-  //   true if the success false else
-  // ---------------------------------------------------------------------------
+	// @return
+	//   true if the success false else
+	// ---------------------------------------------------------------------------
 	bool placeNewReplicasOneGroup( FsGroup* group, const size_t &nNewReplicas,
 			std::vector<eos::common::FileSystem::fsid_t> *newReplicas,
 			SchedType type,
@@ -737,34 +738,33 @@ public:
 			std::vector<std::string> *excludeGeoTags=NULL,
 			std::vector<std::string> *forceGeoTags=NULL);
 
-
-  // ---------------------------------------------------------------------------
-  //! Access several replicas in one scheduling group.
-  // @param group
-  //   the group to place the replicas in
-  // @param nReplicas
-  //   the number of replicas to access
-  // @param accessedReplicas
-  //   vector to which fsids of replicas to access are appended if the scheduling
+	// ---------------------------------------------------------------------------
+	//! Access several replicas in one scheduling group.
+	// @param group
+	//   the group to place the replicas in
+	// @param nReplicas
+	//   the number of replicas to access
+	// @param accessedReplicas
+	//   vector to which fsids of replicas to access are appended if the scheduling
 	//   succeeds. They are appended in decreasing priority order
-  // @param existingReplicas
-  //   fsids of preexisting replicas for the current file
-  // @param type
-  //   type of access to be performed. It can be:
+	// @param existingReplicas
+	//   fsids of preexisting replicas for the current file
+	// @param type
+	//   type of access to be performed. It can be:
 	//     regularRO, regularRW, balancing or draining
-  // @param accesserGeoTag
-  //   try to get the replicas as close to this geotag as possible
-  // @param exludeFs
-  //   fsids of files to exclude from the access operation
-  // @param excludeGeoTags
-  //   geotags of branches to exclude from the access operation
+	// @param accesserGeoTag
+	//   try to get the replicas as close to this geotag as possible
+	// @param exludeFs
+	//   fsids of files to exclude from the access operation
+	// @param excludeGeoTags
+	//   geotags of branches to exclude from the access operation
 	//     (e.g. exclude a site)
-  // @param forceGeoTags
-  //   geotags of branches accessed replicas should be taken from
+	// @param forceGeoTags
+	//   geotags of branches accessed replicas should be taken from
 	//     (e.g. force a site)
-  // @return
-  //   true if the success false else
-  // ---------------------------------------------------------------------------
+	// @return
+	//   true if the success false else
+	// ---------------------------------------------------------------------------
 	bool accessReplicasOneGroup(FsGroup* group, const size_t &nReplicas,
 			std::vector<eos::common::FileSystem::fsid_t> *accessedReplicas,
 			std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
@@ -786,34 +786,34 @@ public:
 	//			std::vector<std::string> *excludeGeoTags=NULL,
 	//			std::vector<std::string> *forceGeoTags=NULL);
 
-  // ---------------------------------------------------------------------------
-  //! Access replicas across one or several scheduling group.
+	// ---------------------------------------------------------------------------
+	//! Access replicas across one or several scheduling group.
 	//! Check that the right number of replicas is online.
 	//! return the best possible head replica
-  // @param nReplicas
-  //   the number of replicas to access
-  // @param fsindex
-  //   return the index of the head replica in the existingReplicas vector
-  // @param existingReplicas
-  //   fsids of preexisting replicas for the current file
-  // @param type
-  //   type of access to be performed. It can be:
+	// @param nReplicas
+	//   the number of replicas to access
+	// @param fsindex
+	//   return the index of the head replica in the existingReplicas vector
+	// @param existingReplicas
+	//   fsids of preexisting replicas for the current file
+	// @param type
+	//   type of access to be performed. It can be:
 	//     regularRO, regularRW, balancing or draining
-  // @param accesserGeoTag
-  //   try to get the replicas as close to this geotag as possible
-  // @param forcedFsId
-  //   if non zeros, force the head replica fsid
-  // @param unavailableFs
-  //   return the unavailable file systems for the current access operation
-  // @return
+	// @param accesserGeoTag
+	//   try to get the replicas as close to this geotag as possible
+	// @param forcedFsId
+	//   if non zeros, force the head replica fsid
+	// @param unavailableFs
+	//   return the unavailable file systems for the current access operation
+	// @return
 	//   EROFS   if not enough replicas are provided to the function to
 	//           make sure that enough replicas are available for this access
 	//   ENODATA if the forced head replica is not in the provided replicas
-  //   EIO     if some internal inconsistency arises
+	//   EIO     if some internal inconsistency arises
 	//   ENONET  if there is not enough available fs among the provided ones
 	//           for this access operation
 	//   0       if success
-  // ---------------------------------------------------------------------------
+	// ---------------------------------------------------------------------------
 	int accessHeadReplicaMultipleGroup(const size_t &nReplicas,
 			unsigned long &fsIndex,
 			std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
@@ -821,7 +821,7 @@ public:
 			const std::string &accesserGeotag="",
 			const eos::common::FileSystem::fsid_t &forcedFsId=0,
 			std::vector<eos::common::FileSystem::fsid_t> *unavailableFs=NULL
-		);
+	);
 
 	// ---------------------------------------------------------------------------
 	//! Start the background updater thread

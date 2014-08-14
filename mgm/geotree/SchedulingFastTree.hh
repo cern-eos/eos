@@ -1177,9 +1177,9 @@ public:
 		return;
 
 		std::sort(pBranches+firstBranchIdx,pBranches+firstBranchIdx+nbChildren,comparator);
+		// other possible types of sorting algorithm
 		//insertionSort(pBranches+firstBranchIdx,pBranches+firstBranchIdx+nbChildren,comparator2);
 		//bubbleSort(pBranches+firstBranchIdx,pBranches+firstBranchIdx+nbChildren,comparator2);
-
 		switch(nbChildren)
 		{
 			case 2:
@@ -1755,7 +1755,7 @@ public:
 		}
 
 		if(!visited[startFrom] && (pNodes[startFrom].fileData.freeSlotsCount) ){
-			// first, mark the node as visited
+			// it's a leaf
 			if (!pNodes[startFrom].treeData.childrenCount)
 			{
 				if(isValidSlotNode(startFrom) && !isSaturatedSlotNode(startFrom))
@@ -1797,7 +1797,7 @@ public:
 						goto go_back;
 					}
 
-					// updatebegBrIdx and endBrIdx
+					// endBrIdx
 					if(priorityLevel)
 					{
 						while(endBrIdx<endIdx &&
@@ -1836,17 +1836,17 @@ public:
 			}
 		}
 		go_back:
-			// no free slot then, try higher if allowed and not already at the root
+		// if the node is already visited all the subbranches are visited too
 		// go upstream
 		if(allowUpRoot && startFrom!=pNodes[startFrom].treeData.fatherIdx)
 			{
 			visited[startFrom] = true;
 				return findFreeSlotSkipSaturated(newReplica, pNodes[startFrom].treeData.fatherIdx, allowUpRoot, decrFreeSlot,visited);
 			}
-			else
+		else // we are back to the root (the node father of himself), no luck
 		{
 			visited[startFrom] = true;
-			return false;// we went through the whole tree and no available and unsaturated slot was found
+			return false;
 		}
 	}
 
