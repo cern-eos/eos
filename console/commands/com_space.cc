@@ -103,6 +103,10 @@ com_space (char* arg1)
 
   lsSubCmd = new ConsoleCliCommand("ls", "list spaces");
   lsSubCmd->addOption({"silent", "silent mode", "-s"});
+  CliOptionWithArgs geodepth({"geodepth", "aggregate space information along the instance topology tree up to geodepth", "-g,--geodepth=","<geodepth>",false});
+  geodepth.addEvalFunction(optionIsIntegerEvalFunc, 0);
+  geodepth.addEvalFunction(optionIsPositiveNumberEvalFunc, 0);
+  lsSubCmd->addOption(geodepth);
   lsSubCmd->addGroupedOptions(std::vector<CliOption>
        {{"monitor", "print in monitoring format <key>=<value>", "-m"},
         {"long", "long output - list also file systems after each space", "-l"},
@@ -204,6 +208,13 @@ com_space (char* arg1)
       in += "&mgm.selection=";
       in += lsSubCmd->getValue("space");
     }
+
+    if (lsSubCmd->hasValue("geodepth"))
+    {
+      in += "&mgm.outdepth=";
+      in += lsSubCmd->getValue("geodepth").c_str();
+    }
+
   }
   else if (parsedCmd == defineSubCmd)
   {
