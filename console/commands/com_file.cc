@@ -444,18 +444,18 @@ com_file (char* arg1)
   {
     in += "&mgm.subcmd=adjustreplica";
     in += "&mgm.path=";
-    in += handlePath(replicateSubCmd->getValue("path"));
+    in += handlePath(parsedCmd->getValue("path"));
 
-    if (replicateSubCmd->hasValue("space"))
+    if (parsedCmd->hasValue("space"))
     {
       in += "&mgm.file.desiredspace=";
-      in += handlePath(replicateSubCmd->getValue("space"));
+      in += handlePath(parsedCmd->getValue("space"));
     }
 
-    if (replicateSubCmd->hasValue("subgroup"))
+    if (parsedCmd->hasValue("subgroup"))
     {
       in += "&mgm.file.desiredsubgroup=";
-      in += handlePath(replicateSubCmd->getValue("subgroup"));
+      in += handlePath(parsedCmd->getValue("subgroup"));
     }
   }
   else if (parsedCmd == layoutSubCmd)

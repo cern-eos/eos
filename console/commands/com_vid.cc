@@ -200,13 +200,13 @@ com_vid (char* arg1)
     in += "&mgm.vid.cmd=geotag";
     XrdOucString vidkey("");
     vidkey = "geotag:";
-    vidkey += geotagSubCmd->getValue("ip").c_str();
+    vidkey += parsedCmd->getValue("ip").c_str();
     in += "&mgm.vid.key=" + vidkey;
 
     if (parsedCmd == geotagSetSubCmd)
     {
       in += "&mgm.vid.geotag=";
-      in += geotagSubCmd->getValue("tag").c_str();
+      in += parsedCmd->getValue("tag").c_str();
     }
 
     global_retc = output_result(client_admin_command(in));
@@ -286,7 +286,7 @@ com_vid (char* arg1)
 
     for (int i = 0; mapOptions[i]; i++)
     {
-      if (mapSubCmd->hasValue(mapOptions[i]))
+      if (parsedCmd->hasValue(mapOptions[i]))
       {
         type = mapOptions[i];
         break;
@@ -299,27 +299,27 @@ com_vid (char* arg1)
     {
       in += "voms";
       in += "&mgm.vid.pattern=";
-      in += mapSubCmd->getValue("voms").c_str();
+      in += parsedCmd->getValue("voms").c_str();
     }
 
     bool hasUidOrGid = false;
-    if (mapSubCmd->hasValue("vuid"))
+    if (parsedCmd->hasValue("vuid"))
     {
       in += "&mgm.vid.uid=";
-      in += mapSubCmd->getValue("vuid").c_str();
+      in += parsedCmd->getValue("vuid").c_str();
       hasUidOrGid = true;
     }
-    if (mapSubCmd->hasValue("vgid"))
+    if (parsedCmd->hasValue("vgid"))
     {
       in += "&mgm.vid.gid=";
-      in += mapSubCmd->getValue("vgid").c_str();
+      in += parsedCmd->getValue("vgid").c_str();
       hasUidOrGid = true;
     }
 
     if (!hasUidOrGid)
     {
       fprintf(stdout, "Error: Please specify --vuid or --vgid\n");
-      mapSubCmd->printUsage();
+      parsedCmd->printUsage();
     }
 
     in += "&mgm.vid.key=";
