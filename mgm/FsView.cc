@@ -546,7 +546,7 @@ const std::vector<double> * DoubleAggregator::getMaxAbsDevs() const
 // ---------------------------------------------------------------------------
 const std::vector<double> * DoubleAggregator::getStdDevs() const
 {
-  return &pMaxAbsDevs;
+  return &pStdDevs;
 }
 
 // ---------------------------------------------------------------------------
@@ -634,8 +634,9 @@ bool DoubleAggregator::aggregateLeaves(const std::set<eos::common::FileSystem::f
   pSums[idx] = pView->SumDouble(pParam.c_str(),false,&leaves);
   pMeans[idx] = pView->AverageDouble(pParam.c_str(),false,&leaves);
   pMaxDevs[idx] = pView->MaxDeviation(pParam.c_str(),false,&leaves);
-  pMinDevs[idx] = pView->MaxDeviation(pParam.c_str(),false,&leaves);
-  pMaxAbsDevs[idx] = std::max(abs(pMaxDevs[idx]),abs(pMaxDevs[idx]));
+  pMinDevs[idx] = pView->MinDeviation(pParam.c_str(),false,&leaves);
+  pStdDevs[idx] = pView->SigmaDouble(pParam.c_str(),false,&leaves);
+  pMaxAbsDevs[idx] = std::max(abs(pMaxDevs[idx]),abs(pMinDevs[idx]));
   return true;
 };
 
@@ -658,11 +659,11 @@ bool DoubleAggregator::aggregateNodes(const std::map<std::string ,GeoTreeElement
     size_t i = it->second->mId;
     pMinDevs[idx] =std::min(
         pMinDevs[idx],
-        std::min( pMeans[idx]-(pMinDevs[i]-pMeans[i]) , pMeans[idx]-(pMaxDevs[i]-pMeans[i]) )
+    		std::min( (pMinDevs[i]+pMeans[i])-pMeans[idx] , (pMaxDevs[i]+pMeans[i])-pMeans[idx] )
     );
     pMaxDevs[idx] =std::max(
         pMaxDevs[idx],
-        std::max( pMeans[idx]-(pMinDevs[i]-pMeans[i]) , pMeans[idx]-(pMaxDevs[i]-pMeans[i]) )
+        std::max( (pMinDevs[i]+pMeans[i])-pMeans[idx] , (pMaxDevs[i]+pMeans[i])-pMeans[idx] )
     );
     pStdDevs[idx] += pNb[i]*(pStdDevs[i]*pStdDevs[i] + pMeans[i]*pMeans[i]);
   }
@@ -2567,7 +2568,7 @@ BaseView::MaxAbsDeviation (const char* param, bool lock, const std::set<eos::com
 
   double avg = AverageDouble(param, false);
 
-  double maxdev = 0;
+  double maxabsdev = 0;
   double dev = 0;
 
   if(subset){
@@ -2585,8 +2586,8 @@ BaseView::MaxAbsDeviation (const char* param, bool lock, const std::set<eos::com
       dev = fabs(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
       if (consider)
       {
-        if (dev > maxdev)
-          maxdev = dev;
+        if (dev > maxabsdev)
+          maxabsdev = dev;
       }
     }
   }
@@ -2607,8 +2608,8 @@ BaseView::MaxAbsDeviation (const char* param, bool lock, const std::set<eos::com
     dev = fabs(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
     if (consider)
     {
-      if (dev > maxdev)
-        maxdev = dev;
+      if (dev > maxabsdev)
+        maxabsdev = dev;
     }
   }
   }
@@ -2616,7 +2617,7 @@ BaseView::MaxAbsDeviation (const char* param, bool lock, const std::set<eos::com
   {
     FsView::gFsView.ViewMutex.UnLockRead();
   }
-  return (double) (maxdev);
+  return maxabsdev;
 }
 
 double
@@ -2633,7 +2634,7 @@ BaseView::MaxDeviation (const char* param, bool lock, const std::set<eos::common
 
   double avg = AverageDouble(param, false);
 
-  double maxdev = 0;
+  double maxdev = -DBL_MAX;
   double dev = 0;
 
   if(subset){
@@ -2682,7 +2683,7 @@ BaseView::MaxDeviation (const char* param, bool lock, const std::set<eos::common
   {
     FsView::gFsView.ViewMutex.UnLockRead();
   }
-  return (double) (maxdev);
+  return maxdev;
 }
 
 double
@@ -2699,7 +2700,7 @@ BaseView::MinDeviation (const char* param, bool lock, const std::set<eos::common
 
   double avg = AverageDouble(param, false);
 
-  double maxdev = 0;
+  double mindev = DBL_MAX;
   double dev = 0;
 
   if(subset){
@@ -2717,8 +2718,8 @@ BaseView::MinDeviation (const char* param, bool lock, const std::set<eos::common
       dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
       if (consider)
       {
-        if (dev < maxdev)
-          maxdev = dev;
+        if (dev < mindev)
+          mindev = dev;
       }
     }
   }
@@ -2739,8 +2740,8 @@ BaseView::MinDeviation (const char* param, bool lock, const std::set<eos::common
       dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
       if (consider)
       {
-        if (dev < maxdev)
-          maxdev = dev;
+        if (dev < mindev)
+          mindev = dev;
       }
     }
   }
@@ -2748,7 +2749,7 @@ BaseView::MinDeviation (const char* param, bool lock, const std::set<eos::common
   {
     FsView::gFsView.ViewMutex.UnLockRead();
   }
-  return (double) (maxdev);
+  return mindev;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2863,6 +2864,35 @@ BaseView::ConsiderCount (bool lock, const std::set<eos::common::FileSystem::fsid
     }
     if(consider) cnt++;
   }
+  }
+
+  if (lock)
+  {
+    FsView::gFsView.ViewMutex.UnLockRead();
+  }
+
+  return cnt;
+}
+
+/*----------------------------------------------------------------------------*/
+long long
+BaseView::TotalCount (bool lock, const std::set<eos::common::FileSystem::fsid_t> *subset)
+{
+  //----------------------------------------------------------------
+  //! computes the considered count
+  //----------------------------------------------------------------
+
+  if (lock)
+  {
+    FsView::gFsView.ViewMutex.LockRead();
+  }
+
+  long long cnt = 0;
+  if(subset){
+  	cnt = subset->size();
+  }
+  else{
+  	cnt = size();
   }
 
   if (lock)

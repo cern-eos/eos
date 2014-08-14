@@ -464,6 +464,9 @@ public:
 
   // calculates the number of fsid considered for average
   long long ConsiderCount (bool lock, const std::set<eos::common::FileSystem::fsid_t> *subset);
+
+  // calculates the number of fsid regardless of being considered for averages or not
+  long long TotalCount (bool lock, const std::set<eos::common::FileSystem::fsid_t> *subset);
 };
 
 /*----------------------------------------------------------------------------*/
