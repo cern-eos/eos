@@ -289,7 +289,7 @@ ProcCommand::Archive()
         }
         else if (mSubCmd == "delete") // delete
         {
-          if (pVid->uid == 0 && pVid->prot == "unix")
+          if (pVid->uid == 0 && ((pVid->prot == "unix") || (pVid->prot == "sss")))
           {
             bool found = false;
             std::string arch_fn;
