@@ -128,8 +128,8 @@ StartRoutine(void* arg)
   }
 
   // Create file objects
-  uint32_t start_indx;
-  uint32_t end_indx;
+  uint32_t start_indx = 0;
+  uint32_t end_indx = 0;
 
   if (pb_config.access() == ConfigProto_AccessMode_PARALLEL)
   {
