@@ -1032,8 +1032,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   if (!MgmArchiveDir.length())
   {
-    Eroute.Say("Config error: archive directory is not defined : mgm.archivedir=</var/eos/archive/>");
-    return 1;
+    Eroute.Say("Config notice: archive directory is not defined - archiving is disabled");
   }
 
   MgmOfsBroker = MgmOfsBrokerUrl;

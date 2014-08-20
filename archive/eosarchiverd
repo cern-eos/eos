@@ -227,7 +227,7 @@ class Dispatcher(object):
                     pos = src.find("//", src.find("//") + 1) + 1;
                     root_src = src[pos : src.rfind('/') + 1]
                     job_uuid = sha256(root_src).hexdigest()
-                    self.logger.debug("Adding job={0}, path={0}".format(
+                    self.logger.debug("Adding job={0}, path={1}".format(
                             job_uuid, root_src))
 
                     if (job_uuid in self.proc[oper] or
