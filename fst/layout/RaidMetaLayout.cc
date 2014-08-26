@@ -1805,27 +1805,15 @@ RaidMetaLayout::GetMatchingPart (XrdSfsFileOffset offset,
            blockOffset, (long long int) mStripeWidth);
  off_t ret_offset = blockOffset;
  size_t ret_length = mStripeWidth;
+ size_t end_raw_offset = offset + length;
 
  if (blockOffset < static_cast<off_t> (offset))
- {
    ret_offset = offset;
- }
 
- if (blockOffset + ret_length >= static_cast<size_t> (ret_offset + length))
- {
-   if (blockOffset >= offset)
-   {
-     ret_length = offset + length - blockOffset;
-   }
-   else
-   {
-     ret_length = length;
-   }
- }
+ if (blockOffset + mStripeWidth > end_raw_offset)
+   ret_length = end_raw_offset - ret_offset;
  else
- {
    ret_length = blockOffset + ret_length - ret_offset;
- }
 
  eos_debug("Matching offset=%lli, length=%lli.",
            ret_offset, (long long int) ret_length);
