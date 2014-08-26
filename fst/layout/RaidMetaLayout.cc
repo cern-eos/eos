@@ -1805,7 +1805,7 @@ RaidMetaLayout::GetMatchingPart (XrdSfsFileOffset offset,
            blockOffset, (long long int) mStripeWidth);
  off_t ret_offset = blockOffset;
  size_t ret_length = mStripeWidth;
- size_t end_raw_offset = offset + length;
+ XrdSfsFileOffset end_raw_offset = offset + length;
 
  if (blockOffset < static_cast<off_t> (offset))
    ret_offset = offset;
