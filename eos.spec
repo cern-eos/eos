@@ -57,7 +57,7 @@ Requires: libmicrohttpd
 Requires: acl
 Requires: gdb
 Requires: zeromq
-Requires: python-zmq python-daemon xrootd-python python-prettytable
+Requires: python-zmq python-daemon xrootd-python
 
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.

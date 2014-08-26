@@ -348,8 +348,7 @@ class Dispatcher(object):
         msg = "OK "
         ls_type = req_json['opt']
         self.logger.debug("Listing type={0}".format(ls_type))
-        table = PrettyTable()
-        table.field_names = ["Id", "Path", "Type", "State", "Message"]
+        row_data = []
         search_uuid = ''
 
         if ls_type == "all":
@@ -373,7 +372,8 @@ class Dispatcher(object):
                 ps_out, _ = ps_proc.communicate()
                 ps_out = ps_out.strip('\0')
                 ps_msg = ps_out[ps_out.find("msg=") + 4:]
-                table.add_row([uuid, path, ls_type, "running", ps_msg])
+                row_data.append((uuid, path, ls_type, "running", ps_msg))
+
                 if search_uuid:
                     break
 
@@ -389,7 +389,8 @@ class Dispatcher(object):
                ps_out, _ = ps_proc.communicate()
                ps_out = ps_out.strip('\0')
                ps_msg = ps_out[ps_out.find("msg=") + 4:]
-               table.add_row([uuid, path, ls_type, "running (o)", ps_msg])
+               row_data.append((uuid, path, ls_type, "running (o)", ps_msg))
+
                if search_uuid:
                    break
 
@@ -398,11 +399,22 @@ class Dispatcher(object):
                     continue
                 path = self.pending[ls_type][uuid][0]
                 path = path[path.rfind("//") + 1: path.rfind("/")]
-                table.add_row([uuid, path, ls_type, "pending", "none"])
+                row_data.append((uuid, path, ls_type, "pending", "none"))
+
                 if search_uuid:
                     break
 
-        msg += table.get_string()
+        # Prepare the table listing
+        header = ("Id", "Path", "Type", "State", "Message")
+        long_column = dict(zip((0, 1, 2, 3, 4), (len(str(x)) for x in header)))
+
+        for info in row_data:
+            long_column.update((i, max(long_column[i], len(str(elem)))) for i, elem in enumerate(info))
+
+        line = "".join(("|", "-|-".join(long_column[i] * "-" for i in xrange(5)), "|"))
+        row_format = "".join(("|", " | ".join("%%-%ss" % long_column[i] for i in xrange(0, 5)), "|"))
+        msg += "\n".join((line, row_format % header, line,
+                          "\n".join(row_format % elem for elem in row_data), line))
         return msg
 
     def do_kill(self, req_json):
