@@ -41,7 +41,6 @@ from hashlib import sha256
 from multiprocessing import Process
 from archivefile import NoErrorException, Transfer
 from errno import EIO, EINVAL
-from prettytable import PrettyTable
 
 
 # Constants
