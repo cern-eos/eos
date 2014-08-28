@@ -66,6 +66,7 @@ public:
   std::string                mSinglepartHeader;   //< singlepart range used if there is only one entry in mOffsetMap;
   size_t                     mCurrentCallbackOffsetIndex; //< current index to use in the callback
   off_t                      mCurrentCallbackOffset; //< next offset from where to read in the offset map at position index
+  bool                       mLastChunk; //< indicates the last chunk in a chunked upload
   bool                       mBoundaryEndSent;    //< true when the boundary end was sent
   std::string                mPrint;              //< print buffer to print the handle contents
   int                        mCloseCode;          //< close code to return if file upload was successfull
@@ -96,6 +97,7 @@ public:
     mContentLength          = 0;
     mLastUploadSize         = 0;
     mUploadLeftSize         = 0;
+    mLastChunk              = false;
   }
 
   /**
