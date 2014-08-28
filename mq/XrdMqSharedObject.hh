@@ -496,6 +496,18 @@ private:
   std::map<std::string,Subscriber*> pSubscribersCatalog;
   XrdSysMutex pCatalogMutex;
 
+  bool StartNotifyKey(Subscriber *subscriber, const std::string &key, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StopNotifyKey(Subscriber *subscriber, const std::string &key, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StartNotifySubject(Subscriber *subscriber, const std::string &subject , XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StopNotifySubject(Subscriber *subscriber, const std::string &subject , XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StartNotifyKeyRegex(Subscriber *subscriber, const std::string &key , XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StopNotifyKeyRegex(Subscriber *subscriber, const std::string &key , XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StartNotifySubjectRegex(Subscriber *subscriber, const std::string &subject , XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StopNotifySubjectRegex(Subscriber *subscriber, const std::string &subject , XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StartNotifySubjectsAndKeys(Subscriber *subscriber, const std::set<std::string> &subjects, const std::set<std::string> &keys , XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StopNotifySubjectsAndKeys(Subscriber *subscriber, const std::set<std::string> &subjects, const std::set<std::string> &keys , XrdMqSharedObjectChangeNotifier::notification_t type);
+
+public:
   inline Subscriber* GetSubscriberFromCatalog(const std::string &name, bool createIfNeeded=true){
     Subscriber *ret = NULL;
     if(createIfNeeded) {
@@ -513,18 +525,6 @@ private:
     return ret;
   }
 
-  bool StartNotifyKey(Subscriber *subscriber, const std::string &key, XrdMqSharedObjectChangeNotifier::notification_t type);
-  bool StopNotifyKey(Subscriber *subscriber, const std::string &key, XrdMqSharedObjectChangeNotifier::notification_t type);
-  bool StartNotifySubject(Subscriber *subscriber, const std::string &subject , XrdMqSharedObjectChangeNotifier::notification_t type);
-  bool StopNotifySubject(Subscriber *subscriber, const std::string &subject , XrdMqSharedObjectChangeNotifier::notification_t type);
-  bool StartNotifyKeyRegex(Subscriber *subscriber, const std::string &key , XrdMqSharedObjectChangeNotifier::notification_t type);
-  bool StopNotifyKeyRegex(Subscriber *subscriber, const std::string &key , XrdMqSharedObjectChangeNotifier::notification_t type);
-  bool StartNotifySubjectRegex(Subscriber *subscriber, const std::string &subject , XrdMqSharedObjectChangeNotifier::notification_t type);
-  bool StopNotifySubjectRegex(Subscriber *subscriber, const std::string &subject , XrdMqSharedObjectChangeNotifier::notification_t type);
-  bool StartNotifySubjectsAndKeys(Subscriber *subscriber, const std::set<std::string> &subjects, const std::set<std::string> &keys , XrdMqSharedObjectChangeNotifier::notification_t type);
-  bool StopNotifySubjectsAndKeys(Subscriber *subscriber, const std::set<std::string> &subjects, const std::set<std::string> &keys , XrdMqSharedObjectChangeNotifier::notification_t type);
-
-public:
   inline Subscriber* BindCurrentThread(const std::string &name, bool createIfNeeded=true){
     return tlSubscriber = GetSubscriberFromCatalog(name, createIfNeeded);
   }

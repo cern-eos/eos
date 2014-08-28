@@ -123,8 +123,8 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
 		FsGroup *group,
 		bool updateFastStruct)
 {
-	// a race condition might happen if two different threads try to insert the same fs in the group at the same time
-	// luckily this is NOT supposed to happen in the way things are currently implemented
+	eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
+
 	FileSystem::fsid_t fsid = fs->GetId();
 	TreeMapEntry *mapEntry;
 
@@ -249,6 +249,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
 		mapEntry->group = group;
 		pGroup2TreeMapEntry[group] = mapEntry;
 		pFs2TreeMapEntry[fsid] = mapEntry;
+		pFsId2FsPtr[fsid] = fs;
 		pTreeMapMutex.UnLockWrite();
 		mapEntry->slowTreeMutex.UnLockWrite();
 	}
@@ -293,6 +294,8 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem *fs ,
 		FsGroup *group,
 		bool updateFastStruct)
 {
+	eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
+
 	TreeMapEntry *mapEntry;
 	FileSystem::fsid_t fsid = fs->GetId();
 
@@ -325,6 +328,39 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem *fs ,
 		mapEntry->slowTreeMutex.LockWrite();
 	}
 
+	// ==== update the shared object notifications
+	{
+		if(!gOFS->ObjectNotifier.UnsubscribesToSubjectAndKey("geotreeengine",fs->GetQueuePath(),gWatchedKeys,XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification))
+		{
+			pTreeMapMutex.UnLockWrite();
+			eos_crit("error removing fs %lu into group %s : error unsubscribing to shared object notifications",
+					(unsigned long)fsid,
+					group->mName.c_str()
+			);
+			return false;
+		}
+	}
+
+	// ==== discard updates about this fs
+	// ==== clean the notifications buffer
+	gNotificationsBuffer.erase(fs->GetQueuePath());
+	// ==== clean the thread-local notification queue
+	{
+		XrdMqSharedObjectChangeNotifier::Subscriber *subscriber = gOFS->ObjectNotifier.GetSubscriberFromCatalog("geotreeengine",false);
+		subscriber->SubjectsMutex.Lock();
+		for ( auto it = subscriber->NotificationSubjects.begin();
+				it != subscriber->NotificationSubjects.end(); it++ )
+		{
+			// to mark the filesystem as removed, we change the notification type flag
+			if(it->mSubject.compare(0,fs->GetQueuePath().length(),fs->GetQueuePath())==0)
+			{
+				eos_static_warning("found a notification to remove %s ",it->mSubject.c_str());
+				it->mType = XrdMqSharedObjectManager::kMqSubjectDeletion;
+			}
+		}
+		subscriber->SubjectsMutex.UnLock();
+	}
+
 	// ==== update the entry
 	SchedTreeBase::TreeNodeInfo info;
 	const SlowTreeNode *intree = mapEntry->fs2SlowTreeNode[fsid];
@@ -336,6 +372,7 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem *fs ,
 			intree->pNodeInfo.geotag.c_str(),
 			intree->pNodeInfo.fullGeotag.c_str());
 	// try to update the SlowTree
+	info.fsId = 0;
 	if(!mapEntry->slowTree->remove(&info))
 	{
 		mapEntry->slowTreeMutex.UnLockWrite();
@@ -371,6 +408,7 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem *fs ,
 	{
 		pTreeMapMutex.LockWrite();
 		pFs2TreeMapEntry.erase(fsid);
+		pFsId2FsPtr.erase(fsid);
 		if(mapEntry->fs2SlowTreeNode.empty())
 		{
 			pGroup2TreeMapEntry.erase(group); // prevent from access by other threads
@@ -378,18 +416,6 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem *fs ,
 		}
 		mapEntry->slowTreeMutex.UnLockWrite();
 		pTreeMapMutex.UnLockWrite();
-	}
-
-	// ==== update the shared object notifications
-	{
-		if(!gOFS->ObjectNotifier.UnsubscribesToSubjectAndKey("geotreeengine",fs->GetQueuePath(),gWatchedKeys,XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification))
-		{
-			eos_crit("error removing fs %lu into group %s : error unsubscribing to shared object notifications",
-					(unsigned long)fsid,
-					group->mName.c_str()
-			);
-			return false;
-		}
 	}
 
 	return true;
@@ -1233,6 +1259,9 @@ void GeoTreeEngine::listenFsChange()
 
 		XrdSysThread::SetCancelOff();
 
+		// to be sure that we won't try to access a removed fs
+		pAddRmFsMutex.LockWrite();
+
 		// we always take a lock to take something from the queue and then release it
 		gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.Lock();
 
@@ -1260,7 +1289,7 @@ void GeoTreeEngine::listenFsChange()
 				// ---------------------------------------------------------------------
 				// handle subject deletion
 				// ---------------------------------------------------------------------
-				eos_warning("received deletion on subject %s : don't know what to do with this!", newsubject.c_str());
+				eos_debug("received deletion on subject %s : the fs was removed from the GeoTreeEngine, skipping this update", newsubject.c_str());
 
 				continue;
 			}
@@ -1308,12 +1337,16 @@ void GeoTreeEngine::listenFsChange()
 			continue;
 		}
 		gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
+		pAddRmFsMutex.UnLockWrite();
 		// do the processing
 		clock_gettime(CLOCK_MONOTONIC_COARSE,&curtime);
 		eos_static_debug("Updating Fast Structures at %ds. %dns. Previous update was at prev: %ds. %dns. Time elapsed since the last update is: %dms.",(int)curtime.tv_sec,(int)curtime.tv_nsec,(int)prevtime.tv_sec,(int)prevtime.tv_nsec,(int)curtime.tv_sec*1000+((int)curtime.tv_nsec)/1000000-(int)prevtime.tv_sec*1000-((int)prevtime.tv_nsec)/1000000);
 		{
 			checkPendingDeletions(); // do it before tree info to leave some time to the other threads
-			updateTreeInfo(gNotificationsBuffer);
+			{
+				eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
+			    updateTreeInfo(gNotificationsBuffer);
+			}
 			prevtime = curtime;
 			gNotificationsBuffer.clear();
 		}
@@ -1574,14 +1607,22 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
 
 		gOFS->ObjectManager.HashMutex.LockRead();
 		XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(it->first.c_str(), "hash");
+		if(!hash){
+			eos_static_warning("Inconsistency : Trying to access a deleted fs. Should not happen because any reference to a fs is cleaned from the updates buffer ehen the fs is being removed.");
+			gOFS->ObjectManager.HashMutex.UnLockRead();
+			continue;
+		}
 		FileSystem::fsid_t fsid = (FileSystem::fsid_t) hash->GetLongLong("id");
 		gOFS->ObjectManager.HashMutex.UnLockRead();
 
-		FsView::gFsView.ViewMutex.LockRead();
-		if(!FsView::gFsView.mIdView.count(fsid))
-		return false;
-		eos::common::FileSystem *filesystem = FsView::gFsView.mIdView[fsid];
-		FsView::gFsView.ViewMutex.UnLockRead();
+		if(!pFsId2FsPtr.count(fsid))
+		{
+			eos_static_warning("Inconsistency: Trying to access an existing fs which is not referenced in the GeoTreeEngine anymore");
+			continue;
+		}
+		eos::common::FileSystem *filesystem = pFsId2FsPtr[fsid];
+
+
 		eos::common::FileSystem::fs_snapshot_t fs;
 		filesystem->SnapShotFileSystem(fs, true);
 

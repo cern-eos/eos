@@ -345,6 +345,12 @@ protected:
 	sfgEthmib,sfgInratemib,sfgOutratemib,sfgWriteratemb,
 	sfgReadratemb,sfgFsfilled,sfgNomfilled,sfgConfigstatus,sfgHost,sfgErrc;
 
+	// This mutex protects the consistency between the GeoTreeEngine state and the filesystems it contains
+	// To make any change that temporarily set an unconsistent state (mainly adding a fs, removing a fs,
+	// listening to the changes in the set if contained fs), one needs to writelock this mutex.
+	// When the mutex is realesed, the GeoTreeEngine internal ressources should be in a consitent state.
+	eos::common::RWMutex pAddRmFsMutex;
+
 	static set<std::string> gWatchedKeys;
 	static const std::map<string,int> gNotifKey2Enum;
 	std::set<std::string> pWatchedQueues;
@@ -373,6 +379,7 @@ private:
 	/// Map a scheduling group to a collection of fast structures
 	std::map<const FsGroup*,TreeMapEntry*> pGroup2TreeMapEntry;
 	std::map<FileSystem::fsid_t,TreeMapEntry*> pFs2TreeMapEntry;
+	std::map<FileSystem::fsid_t,FileSystem*> pFsId2FsPtr;
 	eos::common::RWMutex pTreeMapMutex;
 
 	/// Thread local buffer to hold a working copy of a fast structure
@@ -649,7 +656,7 @@ private:
 
 	bool updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem::fs_snapshot_t *fs, int keys, SchedTreeBase::tFastTreeIdx ftidx=0 , SlowTreeNode *stn=NULL);
 	bool updateTreeInfo(const std::map<std::string,int> &updates);
-	//propagateToAllFastTrees
+
 public:
 	GeoTreeEngine () :
 	skipSaturatedPlct(false),skipSaturatedAccess(true),
@@ -660,18 +667,18 @@ public:
 	fillRatioLimit(80),fillRatioCompTol(100),saturationThres(10),
 	timeFrameDurationMs(1000),pUpdaterTid(0)
 	{}
-	// review the necessary keys to monitor
-	// check upload/download to skip confusion
-	// protect notification buffer with a mutex
-	// ? add a set of keys to be updated instantly
-	// put a parameter for the max delay (for the moment had coded at 1000ms)
-	// use friend classes in fast tree and slow tree to skip using public attributes
-	// check mutexes order
-	// @param updateFastStructures
-	//   should the fast structures be updated immediately without waiting for the next time frame
-	// @return
-	//   true if success false else
-	// ---------------------------------------------------------------------------
+
+  // ---------------------------------------------------------------------------
+  //! Insert a file system into the GeoTreeEngine
+  // @param fs
+  //   the file system to be inserted
+  // @param group
+  //   the group the file system belongs to
+  // @param updateFastStructures
+  //   should the fast structures be updated immediately without waiting for the next time frame
+  // @return
+  //   true if success false else
+  // ---------------------------------------------------------------------------
 	bool insertFsIntoGroup(FileSystem *fs , FsGroup *group, bool updateFastStructures = false);
 
 	// ---------------------------------------------------------------------------
@@ -776,7 +783,6 @@ public:
 
 	// this function to access replica spread across multiple scheduling group is a BACKCOMPATIBILITY artifact
 	// the new scheduler doesn't try to place files across multiple scheduling groups.
-	// the new scheduler doesn't try to place files across multiple scheduling groups.
 	//	bool accessReplicasMultipleGroup(const size_t &nAccessReplicas,
 	//			std::vector<eos::common::FileSystem::fsid_t> *accessedReplicas,
 	//			std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
@@ -827,7 +833,7 @@ public:
 	//! Start the background updater thread
 	// @return
 	//   true if success false else
-
+	// ---------------------------------------------------------------------------
 	bool StartUpdater();
 
 	// ---------------------------------------------------------------------------
