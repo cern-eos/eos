@@ -382,7 +382,7 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
     {
       // figure out if this is a real separator or 
       XrdOucString follow=sinfo.c_str()+i+1;
-      if (!follow.beginswith("mgm."))
+      if (!follow.beginswith("mgm.") && (!follow.beginswith("eos.")))
       {
 	sinfo.erase(i,1);
 	sinfo.insert("#AND#",i);
