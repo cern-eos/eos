@@ -634,7 +634,8 @@ XrdFstOfsFile::open (const char* path,
   //............................................................................
   // Check if this is an open for replication
   //............................................................................
-  eos_info("Path=%s beginswith=%d\n", Path.c_str(), Path.beginswith("/replicate:"));
+  eos_info("Path=%s beginswith=%d", Path.c_str(), Path.beginswith("/replicate:"));
+
   if (Path.beginswith("/replicate:"))
   {
     bool isopenforwrite = false;
