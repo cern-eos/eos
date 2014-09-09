@@ -416,6 +416,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       {
         // the first n-1 chunks have a straight forward offset
         mCurrentCallbackOffset = contentlength * chunk_n;
+	eos_static_debug("setting to false %lld", mCurrentCallbackOffset);
 	mLastChunk = false;
       }
       else
@@ -424,12 +425,9 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mCurrentCallbackOffset =
                 eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request));
         mCurrentCallbackOffset -= contentlength;
+	eos_static_debug("setting to true %lld", mCurrentCallbackOffset);
 	mLastChunk = true;
       }
-    }
-    else
-    {
-      mLastChunk = true;
     }
 
 
@@ -490,7 +488,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       {
         response = new eos::common::PlainHttpResponse();
         response->AddHeader("ETag", mFile->GetETag());
-        if (header.count("X-OC-Mtime") && mLastChunk)
+        if (header.count("X-OC-Mtime") && ( mLastChunk || (!request->GetHeaders().count("OC-Chunked"))))
         {
 	  // only normal uploads or the last chunk receive these extra response headers
           response->AddHeader("X-OC-Mtime", "accepted");
