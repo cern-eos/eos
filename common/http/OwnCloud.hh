@@ -87,6 +87,14 @@ public:
         {
           lOCuploadId = unchunkedPath.c_str() + pos + 1;
 	  unchunkedPath.erase(pos);
+	  if ((pos = unchunkedPath.rfind("-", pos -1)) != STR_NPOS)
+	  {
+	    if (unchunkedPath.endswith("-chunking")) 
+	    {
+	      // remove -chunking at the end
+	      unchunkedPath.erase(pos);
+	    }
+	  }
         }
       }
 
