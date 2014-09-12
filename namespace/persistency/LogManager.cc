@@ -174,16 +174,10 @@ namespace eos
     }
 
     //--------------------------------------------------------------------------
-    // Write a compacting stamp
+    // Add a compacting stamp
     //--------------------------------------------------------------------------
-    buffer.clear();
-    buffer.putData( "DUMMY", 5 );
-    outputFile.storeRecord( eos::COMPACT_STAMP_RECORD_MAGIC, buffer );
+    outputFile.addCompactionMark();
 
-    //--------------------------------------------------------------------------
-    // Cleanup
-    //--------------------------------------------------------------------------
-    outputFile.setUserFlags( outputFile.getUserFlags() | eos::LOG_FLAG_COMPACTED );
     inputFile.close();
     outputFile.close();
   }

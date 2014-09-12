@@ -781,6 +781,14 @@ namespace eos
           cont->addFile( file );
       }
     }
+    
+    if( !pSlaveMode && !logIsCompacted ) 
+    {
+      //--------------------------------------------------------------------------
+      // If we have a new changelog file in master mode we add the compaction mark
+      //--------------------------------------------------------------------------
+      pChangeLog->addCompactionMark();
+    }
   }
 
   //----------------------------------------------------------------------------

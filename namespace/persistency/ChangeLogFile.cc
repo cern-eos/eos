@@ -22,6 +22,7 @@
 //------------------------------------------------------------------------------
 
 #include "namespace/persistency/ChangeLogFile.hh"
+#include "namespace/persistency/ChangeLogConstants.hh"
 #include "namespace/utils/SmartPtrs.hh"
 #include "namespace/utils/DataHelper.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -1052,5 +1053,33 @@ namespace eos
     }
 
     pUserFlags = flags;
+  }
+
+  //------------------------------------------------------------------------
+  //! Add compaction mark
+  //------------------------------------------------------------------------
+  void ChangeLogFile::addCompactionMark( ) throw( MDException )
+  {
+    //--------------------------------------------------------------------------
+    // Check if the file is open
+    //--------------------------------------------------------------------------
+    if( !pIsOpen )
+    {
+      MDException ex( EFAULT );
+      ex.getMessage() << "setUserFlags: Changelog file is not open";
+      throw ex;
+    }
+    
+    //--------------------------------------------------------------------------
+    // Write a compacting stamp
+    //--------------------------------------------------------------------------
+    Buffer buffer;
+    buffer.putData( "DUMMY", 5 );
+    storeRecord( eos::COMPACT_STAMP_RECORD_MAGIC, buffer );
+
+    //--------------------------------------------------------------------------
+    // Cleanup
+    //--------------------------------------------------------------------------
+    setUserFlags( getUserFlags() | eos::LOG_FLAG_COMPACTED );
   }
 }
