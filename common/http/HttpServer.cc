@@ -87,7 +87,7 @@ HttpServer::Run ()
     // Delay to make sure xrootd is configured before serving
     XrdSysTimer::Snooze(1);
 
-    if (getenv("EOS_HTTP_THREADPOOL"))
+    if (!getenv("EOS_HTTP_DISABLE_THREADPOOL"))
     {
       mDaemon = MHD_start_daemon(MHD_USE_DEBUG |  MHD_USE_THREAD_PER_CONNECTION | MHD_USE_POLL,
                                  mPort,
