@@ -38,7 +38,8 @@ XrdMgmOfs::_find (const char *path,
                   const char* val,
                   bool nofiles,
                   time_t millisleep,
-                  bool nscounter
+                  bool nscounter, 
+		  int maxdepth
                   )
 /*----------------------------------------------------------------------------*/
 /*
@@ -253,7 +254,7 @@ XrdMgmOfs::_find (const char *path,
       break;
     }
   }
-  while (found_dirs[deepness].size());
+  while (found_dirs[deepness].size() && ( (!maxdepth) || (deepness < maxdepth)));
   // ---------------------------------------------------------------------------
   if (!nofiles)
   {

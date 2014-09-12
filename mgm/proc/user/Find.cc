@@ -45,6 +45,7 @@ ProcCommand::Find ()
   XrdOucString spath = pOpaque->Get("mgm.path");
   XrdOucString option = pOpaque->Get("mgm.option");
   XrdOucString attribute = pOpaque->Get("mgm.find.attribute");
+  XrdOucString maxdepth = pOpaque->Get("mgm.find.maxdepth");
   XrdOucString olderthan = pOpaque->Get("mgm.find.olderthan");
   XrdOucString youngerthan = pOpaque->Get("mgm.find.youngerthan");
   XrdOucString purgeversion = pOpaque->Get("mgm.find.purge.versions");
@@ -125,6 +126,7 @@ ProcCommand::Find ()
   bool selectfaultyacl = false;
   bool purge = false;
   int  max_version = 999999;
+  int  finddepth = 0;
 
   time_t selectoldertime = 0;
   time_t selectyoungertime = 0;
@@ -270,6 +272,11 @@ ProcCommand::Find ()
     val.erase(0, attribute.find("=") + 1);
   }
 
+  if (maxdepth.length())
+  {
+    finddepth=atoi(maxdepth.c_str());
+  }
+
   if (!spath.length())
   {
     fprintf(fstderr, "error: you have to give a path name to call 'find'");
@@ -320,7 +327,7 @@ ProcCommand::Find ()
         option += "f";
       }
     }
-    if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, (*found), key.c_str(), val.c_str(), nofiles))
+    if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, (*found), key.c_str(), val.c_str(), nofiles, 0, true, finddepth))
     {
       fprintf(fstderr, "%s", stdErr.c_str());
       fprintf(fstderr, "error: unable to run find in directory");

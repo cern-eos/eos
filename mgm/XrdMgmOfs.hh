@@ -334,7 +334,8 @@ public:
              const char* val = 0,
              bool nofiles = false,
              time_t millisleep = 0,
-             bool nscounter = true
+             bool nscounter = true,
+	     int maxdepth = 0
              );
 
   // ---------------------------------------------------------------------------

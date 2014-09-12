@@ -40,6 +40,7 @@ com_find (char* arg1)
   XrdOucString path;
   XrdOucString option = "";
   XrdOucString attribute = "";
+  XrdOucString maxdepth = "";
   XrdOucString olderthan = "";
   XrdOucString youngerthan = "";
   XrdOucString printkey = "";
@@ -219,6 +220,18 @@ com_find (char* arg1)
 
       if ((attribute.find("&")) != STR_NPOS)
         goto com_find_usage;
+    }
+
+    if (s1 == "--maxdepth")
+    {
+      option += "x";
+      valid = true;
+
+      maxdepth = subtokenizer.GetToken();
+
+      if (!maxdepth.length())
+        goto com_find_usage;
+
     }
 
     if ((s1 == "-ctime") || (s1 == "-mtime"))
@@ -698,6 +711,11 @@ com_find (char* arg1)
     in += "&mgm.find.attribute=";
     in += attribute;
   }
+  if (maxdepth.length())
+  {
+    in += "&mgm.find.maxdepth=";
+    in += maxdepth;
+  }
   if (olderthan.length())
   {
     in += "&mgm.find.olderthan=";
@@ -754,6 +772,7 @@ com_find_usage:
   fprintf(stdout, "                                                                  -ctime +<n> :  find files older than <n> days\n");
   fprintf(stdout, "                                                                  -ctime -<n> :  find files younger than <n> days\n");
   fprintf(stdout, "                                                           -layoutstripes <n> :  apply new layout with <n> stripes to all files found\n");
+  fprintf(stdout, "                                                               --maxdepth <n> :  descend only <n> levels\n");
   fprintf(stdout, "                                                                           -1 :  find files which are atleast 1 hour old\n");
   fprintf(stdout, "                                                                 --stripediff :  find files which have not the nominal number of stripes(replicas)\n");
   fprintf(stdout, "                                                                  --faultyacl :  find directories with illegal ACLs");
