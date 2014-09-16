@@ -268,7 +268,13 @@ Contains an example keytab file.
 #######################################################################################
 Summary: The EOS archive daemon
 Group: Applications/File
-Requires: python-daemon xrootd-python python-zmq
+Requires: python-daemon xrootd-python
+
+%if %{?rhel}%{!?rhel:0} == 5
+Requires: python26-zmq
+%else
+Requires: python-zmq
+%endif
 
 %description -n eos-archive
 The EOS archive daemon.
