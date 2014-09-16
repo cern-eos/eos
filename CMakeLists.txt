@@ -70,6 +70,11 @@ endif (RELEASE)
 
 EOS_defineOperatingSystem()
 
+if (DEFINED PACKAGEONLY AND PACKAGEONLY)
+   message(STATUS "Runing CMake in package only mode")
+endif (DEFINED PACKAGEONLY AND PACKAGEONLY)
+
+if (NOT DEFINED PACKAGEONLY)
 if (CLIENT)
 find_package(XRootD REQUIRED)
 find_package(fuse REQUIRED)
@@ -101,6 +106,7 @@ endif(MacOSX)
 find_package(httpd)
 find_package(apr)
 endif (CLIENT)
+endif (NOT DEFINED PACKAGEONLY)
 
 
 ######################################################################################################################
