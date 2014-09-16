@@ -228,12 +228,17 @@ set(CPACK_PACKAGE_RELEASE "${RELEASE}")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}")
 set(CPACK_SOURCE_IGNORE_FILES "xrootd-dsi/;/nginx/;/dsi/;/build/;/.deps/;/.bzr/;~$;'.'o$;/CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;ApMon;build;install_manifest.txt;/lib/;/.git/;${CPACK_SOURCE_IGNORE_FILES};")
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in"
-	       "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec" @ONLY IMMEDIATE)
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in"
-	       "${CMAKE_CURRENT_BINARY_DIR}/eos.spec" @ONLY IMMEDIATE)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/config_spec.cmake.in"
+	       "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake" @ONLY IMMEDIATE)
 
-add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source)
+add_custom_command(OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
+                   COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
+		   DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
+		           "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in")
+
+add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source
+		  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec")
+
 add_custom_command(TARGET dist POST_BUILD
 		   COMMAND rm ARGS -rf "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
 		   COMMENT "clean generated spec file")
