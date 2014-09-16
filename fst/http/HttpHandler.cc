@@ -82,7 +82,7 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
       open_mode |= SFS_O_CREAT;
 
       // avoid truncation of chunked uploads
-      if (!request->GetHeaders().count("OC-Chunked"))
+      if (!request->GetHeaders().count("oc-chunked"))
       {
         open_mode |= SFS_O_TRUNC;
       }
@@ -108,9 +108,9 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
     mLogId = mFile->logId;
 
     // check for range requests
-    if (request->GetHeaders().count("Range"))
+    if (request->GetHeaders().count("range"))
     {
-      if (!DecodeByteRange(request->GetHeaders()["Range"],
+      if (!DecodeByteRange(request->GetHeaders()["range"],
                            mOffsetMap,
                            mRangeRequestSize,
                            mFileSize))
@@ -178,10 +178,10 @@ HttpHandler::Initialize (eos::common::HttpRequest *request)
 
   }
 
-  if (request->GetHeaders().count("Content-Length"))
+  if (request->GetHeaders().count("content-length"))
   {
 
-    mContentLength = strtoull(request->GetHeaders()["Content-Length"].c_str(),
+    mContentLength = strtoull(request->GetHeaders()["content-length"].c_str(),
                               0, 10);
     mUploadLeftSize = mContentLength;
   }
@@ -383,7 +383,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
   else
   {
     // check for chunked uploads
-    if (!mCurrentCallbackOffset && request->GetHeaders().count("OC-Chunked"))
+    if (!mCurrentCallbackOffset && request->GetHeaders().count("oc-chunked"))
     {
       int chunk_n = 0;
       int chunk_max = 0;
@@ -410,7 +410,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         return response;
       }
 
-      unsigned long long contentlength = eos::common::StringConversion::GetSizeFromString(request->GetHeaders()["Content-Length"]);
+      unsigned long long contentlength = eos::common::StringConversion::GetSizeFromString(request->GetHeaders()["content-length"]);
       // recompute offset where to write
       if ((chunk_n + 1) < chunk_max)
       {
@@ -470,10 +470,10 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       eos_static_info("entering close handler");
       eos::common::HttpRequest::HeaderMap header = request->GetHeaders();
 
-      if (header.count("X-OC-Mtime"))
+      if (header.count("x-oc-mtime"))
       {
         // there is an X-OC-Mtime header to force the mtime for that file
-        mFile->SetForcedMtime(strtoull(header["X-OC-Mtime"].c_str(), 0, 10), 0);
+        mFile->SetForcedMtime(strtoull(header["x-oc-mtime"].c_str(), 0, 10), 0);
       }
 
       mCloseCode = mFile->close();
@@ -488,7 +488,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       {
         response = new eos::common::PlainHttpResponse();
 
-        if (header.count("X-OC-Mtime") && ( mLastChunk || (!request->GetHeaders().count("OC-Chunked"))))
+        if (header.count("x-oc-mtime") && ( mLastChunk || (!request->GetHeaders().count("oc-chunked"))))
         {
 	  response->AddHeader("ETag", mFile->GetETag());
 	  // only normal uploads or the last chunk receive these extra response headers

@@ -89,9 +89,9 @@ S3Handler::HandleRequest (eos::common::HttpRequest *request)
     mLogId = mFile->logId;
 
     // check for range requests
-    if (request->GetHeaders().count("Range"))
+    if (request->GetHeaders().count("range"))
     {
-      if (!DecodeByteRange(request->GetHeaders()["Range"],
+      if (!DecodeByteRange(request->GetHeaders()["range"],
                            mOffsetMap,
                            mRangeRequestSize,
                            mFileSize))
@@ -162,7 +162,7 @@ S3Handler::Get (eos::common::HttpRequest *request)
   if (mRangeDecodingError)
   {
     response = RestErrorResponse(416, "InvalidRange", "Illegal Range request",
-                                 request->GetHeaders()["Range"].c_str(), "");
+                                 request->GetHeaders()["range"].c_str(), "");
   }
   else
   {

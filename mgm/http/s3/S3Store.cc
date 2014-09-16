@@ -723,26 +723,26 @@ S3Store::GetObject (eos::common::HttpRequest *request,
   unsigned long long inode_match = 0;
   unsigned long long inode_none_match = 0;
 
-  if (request->GetHeaders().count("If-Modified-Since"))
+  if (request->GetHeaders().count("if-modified-since"))
   {
     modified_since = Timing::ISO8601_to_UnixTimestamp(request->GetHeaders()
-                                                      ["If-Modified-Since"]);
+                                                      ["if-modified-since"]);
   }
 
-  if (request->GetHeaders().count("If-Unmodified-Since"))
+  if (request->GetHeaders().count("if-unmodified-since"))
   {
     modified_since = Timing::ISO8601_to_UnixTimestamp(request->GetHeaders()
-                                                      ["If-Unmodified-Since"]);
+                                                      ["if-unmodified-since"]);
   }
 
-  if (request->GetHeaders().count("If-Match"))
+  if (request->GetHeaders().count("if-match"))
   {
-    inode_match = strtoull(request->GetHeaders()["If-Match"].c_str(), 0, 10);
+    inode_match = strtoull(request->GetHeaders()["if-match"].c_str(), 0, 10);
   }
 
-  if (request->GetHeaders().count("If-None-Match"))
+  if (request->GetHeaders().count("if-none-match"))
   {
-    inode_none_match = strtoull(request->GetHeaders()["If-None-Match"].c_str(),
+    inode_none_match = strtoull(request->GetHeaders()["if-none-match"].c_str(),
                                 0, 10);
   }
 
@@ -818,7 +818,7 @@ S3Store::GetObject (eos::common::HttpRequest *request,
     {
       XrdSecEntity client("unix");
       client.name = strdup(id.c_str());
-      client.host = strdup(request->GetHeaders()["Host"].c_str());
+      client.host = strdup(request->GetHeaders()["host"].c_str());
       client.tident = strdup("http");
       snprintf(client.prot, sizeof (client.prot) - 1, "https");
 
@@ -934,7 +934,7 @@ S3Store::PutObject (eos::common::HttpRequest *request,
   {
     XrdSecEntity client("unix");
     client.name = strdup(id.c_str());
-    client.host = strdup(request->GetHeaders()["Host"].c_str());
+    client.host = strdup(request->GetHeaders()["host"].c_str());
     client.tident = strdup("http");
     snprintf(client.prot, sizeof (client.prot) - 1, "https");
 

@@ -113,13 +113,13 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
               (const char*) 0, &etag);
 
   // Figure out what we actually need to do
-  std::string depth = request->GetHeaders()["Depth"];
+  std::string depth = request->GetHeaders()["depth"];
 
   // -----------------------------------------------------------------------------
   // Owncloud patch
   // -----------------------------------------------------------------------------
 
-  //  if ( (depth == "1") && (request->GetHeaders()["User-Agent"].find("csyncoC") != std::string::npos) )
+  //  if ( (depth == "1") && (request->GetHeaders()["user-agent"].find("csyncoC") != std::string::npos) )
   //  {
   //    depth = "1,noroot";
   //  }

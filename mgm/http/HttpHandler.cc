@@ -171,7 +171,7 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
       return response;
     }
 
-    if (request->GetHeaders().count("If-Match") && (etag != request->GetHeaders()["If-Match"]))
+    if (request->GetHeaders().count("if-match") && (etag != request->GetHeaders()["if-match"]))
     {
       // ETag mismatch
       eos_static_info("method=GET error=precondition-failed path=%s etag=%s cond=match r-etag=%s",
@@ -181,11 +181,11 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
       return response;
     }
 
-    if (request->GetHeaders().count("If-Non-Match") && (etag == request->GetHeaders()["If-Non-Match"]))
+    if (request->GetHeaders().count("if-non-match") && (etag == request->GetHeaders()["if-non-match"]))
     {
       // ETag match
       eos_static_info("method=GET error=precondition-failed path=%s etag=%s cond=not-match r-etag=%s",
-                      url.c_str(), etag.c_str(), request->GetHeaders()["If-Not-Match"].c_str());
+                      url.c_str(), etag.c_str(), request->GetHeaders()["if-not-match"].c_str());
 
       response = HttpServer::HttpError("ETag is not modified",
                                        response->NOT_MODIFIED);
@@ -700,21 +700,21 @@ HttpHandler::Put (eos::common::HttpRequest * request)
     }
   }
 
-  if ((etag != "undef") && (request->GetHeaders().count("If-Match") && (etag != request->GetHeaders()["If-Match"])))
+  if ((etag != "undef") && (request->GetHeaders().count("if-match") && (etag != request->GetHeaders()["if-match"])))
   {
     // ETag mismatch
     eos_static_info("method=PUT error=precondition-failed path=%s etag=%s cond=match r-etag=%s",
-                    url.c_str(), etag.c_str(), request->GetHeaders()["If-Match"].c_str());
+                    url.c_str(), etag.c_str(), request->GetHeaders()["if-match"].c_str());
     response = HttpServer::HttpError("ETag precondition failed",
                                      response->PRECONDITION_FAILED);
     return response;
   }
 
-  if ((etag != "undef" && (request->GetHeaders().count("If-Non-Match") && (etag == request->GetHeaders()["If-Non-Match"]))))
+  if ((etag != "undef" && (request->GetHeaders().count("if-non-match") && (etag == request->GetHeaders()["if-non-match"]))))
   {
     // ETag match
     eos_static_info("method=PUT error=precondition-failed path=%s etag=%s cond=not-match r-etag=%s",
-                    url.c_str(), etag.c_str(), request->GetHeaders()["If-Not-Match"].c_str());
+                    url.c_str(), etag.c_str(), request->GetHeaders()["if-not-match"].c_str());
 
     response = HttpServer::HttpError("ETag is not modified",
                                      response->NOT_MODIFIED);
@@ -735,7 +735,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
       create_mode |= (SFS_O_MKPTH | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
       std::string query;
-      if (request->GetHeaders().count("Content-Length"))
+      if (request->GetHeaders().count("content-length"))
       {
         query += "eos.bookingsize=";
         //or OC chunked uploads we book the full size
@@ -743,7 +743,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
         if (oclength)
           query += oclength;
         else
-          query += request->GetHeaders()["Content-Length"];
+          query += request->GetHeaders()["content-length"];
       }
       else
       {
@@ -759,7 +759,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
       // -----------------------------------------------------------
       // OC clients are switched automatically to atomic upload mode
       // -----------------------------------------------------------
-      if (request->GetHeaders().count("OC-Total-Length") || isOcChunked)
+      if (request->GetHeaders().count("oc-total-length") || isOcChunked)
       {
         if (query.length())
           query += "&";

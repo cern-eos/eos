@@ -199,8 +199,8 @@ eos::common::Mapping::VirtualIdentity*
 HttpServer::Authenticate (std::map<std::string, std::string> &headers)
 {
   eos::common::Mapping::VirtualIdentity *vid = 0;
-  std::string clientDN = headers["SSL_CLIENT_S_DN"];
-  std::string remoteUser = headers["Remote-User"];
+  std::string clientDN = headers["ssl_client_s_dn"];
+  std::string remoteUser = headers["remote-user"];
   std::string dn;
   std::string username;
   unsigned pos;
@@ -300,18 +300,18 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
     username = "nobody";
   }
 
-  XrdSecEntity client(headers.count("X-Real-IP")?"https":"http");
+  XrdSecEntity client(headers.count("x-real-ip")?"https":"http");
   XrdOucString tident = username.c_str();
-  tident += ".1:1@"; tident += headers["Host"].c_str();
+  tident += ".1:1@"; tident += headers["host"].c_str();
   client.name = const_cast<char*> (username.c_str());
-  client.host = const_cast<char*> (headers["Host"].c_str());
+  client.host = const_cast<char*> (headers["host"].c_str());
   client.tident = const_cast<char*> (tident.c_str());
   std::string remotehost="";
 
-  if (headers.count("X-Real-IP"))
+  if (headers.count("x-real-ip"))
   {
     // translate a proxied host name
-    remotehost = const_cast<char*> (headers["X-Real-IP"].c_str());
+    remotehost = const_cast<char*> (headers["x-real-ip"].c_str());
 
     char* haddr[1];
     char* hname[1];
@@ -325,10 +325,10 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
       free(haddr[0]);
     }
   
-    if (headers.count("Auth-Type"))
+    if (headers.count("auth-type"))
     {
       remotehost += "=>";
-      remotehost += headers["Auth-Type"];
+      remotehost += headers["auth-type"];
     }
     client.host = const_cast<char*> (remotehost.c_str());
   }

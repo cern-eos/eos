@@ -203,7 +203,7 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
   eos::common::HttpResponse *response = 0;
   XrdOucString prot, port;
   std::string destination = eos::common::StringConversion::ParseUrl
-      (request->GetHeaders()["Destination"].c_str(), prot, port);
+      (request->GetHeaders()["destination"].c_str(), prot, port);
 
   // owncloud protocol patch
   XrdOucString spath = destination.c_str();
@@ -252,7 +252,7 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
         if (error.getErrInfo() == EEXIST)
         {
           // resource exists
-          if (request->GetHeaders()["Overwrite"] == "T")
+          if (request->GetHeaders()["overwrite"] == "T")
           {
             // force the rename
             struct stat buf;
@@ -361,7 +361,7 @@ WebDAVHandler::Copy (eos::common::HttpRequest *request)
 
   XrdOucString prot, port;
   std::string destination = eos::common::StringConversion::ParseUrl
-      (request->GetHeaders()["Destination"].c_str(), prot, port);
+      (request->GetHeaders()["destination"].c_str(), prot, port);
 
   eos_static_info("method=COPY src=\"%s\", dest=\"%s\"",
                   request->GetUrl().c_str(), destination.c_str());
@@ -414,7 +414,7 @@ WebDAVHandler::Copy (eos::common::HttpRequest *request)
       if (rc == EEXIST)
       {
         // resource exists
-        if (request->GetHeaders()["Overwrite"] == "T")
+        if (request->GetHeaders()["overwrite"] == "T")
         {
           // force overwrite
           info += "&mgm.file.option=f";

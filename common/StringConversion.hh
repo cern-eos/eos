@@ -62,6 +62,9 @@ const uint64_t TB = 1024 * GB;
 const uint64_t PB = 1024 * TB;
 const uint64_t EB = 1024 * PB;
 
+
+#define LC_STRING(x) eos::common::StringConversion::ToLower((x))
+
 /*----------------------------------------------------------------------------*/
 //! Static helper class with convenience functions for string tokenizing, value2string and split functions
 
@@ -447,6 +450,35 @@ public:
   // ---------------------------------------------------------------------------
   static bool
   IsHexNumber (const char* hexstring, const char* format = "%08x");
+
+  // ---------------------------------------------------------------------------
+  /**
+   * Return a lower case string
+   * @param input - input string
+   * @return lower case string
+   */
+  // ---------------------------------------------------------------------------
+  static std::string
+  ToLower(std::string is) 
+  {
+    std::transform(is.begin(), is.end(), is.begin(), ::tolower);
+    return is;
+  }
+
+  // ---------------------------------------------------------------------------
+  /**
+   * Return a lower case string
+   * @param input - input string
+   * @return lower case string
+   */
+  // ---------------------------------------------------------------------------
+  static std::string
+  ToLower(const char* s_is) 
+  {
+    std::string is = s_is;
+    std::transform(is.begin(), is.end(), is.begin(), ::tolower);
+    return is;
+  }
 
   // ---------------------------------------------------------------------------
   //! 

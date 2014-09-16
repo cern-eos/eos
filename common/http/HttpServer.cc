@@ -216,9 +216,12 @@ HttpServer::BuildHeaderMap (void *cls,
   // Call back function to return the header key-val map of an HTTP request
   std::map<std::string, std::string>* hMap
     = static_cast<std::map<std::string, std::string>*> (cls);
+
+  std::string low_key = LC_STRING(key);
+
   if (key && value && hMap)
   {
-    (*hMap)[key] = value?value:"";
+    (*hMap)[low_key] = value?value:"";
   }
   return MHD_YES;
 }

@@ -118,20 +118,20 @@ public:
 
   static bool isChunkUpload (HttpRequest* request)
   {
-    return request->GetHeaders().count("OC-Chunked");
+    return request->GetHeaders().count("oc-chunked");
   }
 
   static bool isChunkUpload (XrdOucEnv& env)
   {
-    return ( env.Get("OC-CHUNK-N") ? true : false);
+    return ( env.Get("oc-chunk-n") ? true : false);
   }
 
   // ---------------------------------------------------------------------------
 
   static const char* getContentSize (HttpRequest* request)
   {
-    if (request->GetHeaders().count("OC-Total-Length"))
-      return request->GetHeaders()["OC-Total-Length"].c_str();
+    if (request->GetHeaders().count("oc-total-length"))
+      return request->GetHeaders()["oc-total-length"].c_str();
     else
       return 0;
   }
@@ -146,15 +146,15 @@ public:
     bool ok = true;
     XrdOucEnv env(request);
     const char* val = 0;
-    if ((val = env.Get("OC-CHUNK-N")))
+    if ((val = env.Get("oc-chunk-n")))
       chunk_n = (int) strtol(val, 0, 10);
     else
       ok = false;
-    if ((val = env.Get("OC-CHUNK-MAX")))
+    if ((val = env.Get("oc-chunk-max")))
       chunk_max = (int) strtol(val, 0, 10);
     else
       ok = false;
-    if ((val = env.Get("OC-CHUNK-UUID")))
+    if ((val = env.Get("oc-chunk-uuid")))
       chunk_uuid = val;
     else
       ok = false;
@@ -165,11 +165,11 @@ public:
 
   static int GetNChunk (HttpRequest* request)
   {
-    if (!request->GetHeaders().count("OC-CHUNK-N"))
+    if (!request->GetHeaders().count("oc-chunk-n"))
       return 0;
 
     else
-      return (int) strtol(request->GetHeaders()["OC-CHUNK-N"].c_str(), 0, 10);
+      return (int) strtol(request->GetHeaders()["oc-chunk-n"].c_str(), 0, 10);
   }
 
 
@@ -177,11 +177,11 @@ public:
 
   static int GetMaxChunks (HttpRequest* request)
   {
-    if (!request->GetHeaders().count("OC-CHUNK-MAX"))
+    if (!request->GetHeaders().count("oc-chunk-max"))
       return 0;
 
     else
-      return (int) strtol(request->GetHeaders()["OC-CHUNK-MAX"].c_str(), 0, 10);
+      return (int) strtol(request->GetHeaders()["oc-chunk-max"].c_str(), 0, 10);
   }
 
   // ---------------------------------------------------------------------------
@@ -189,7 +189,7 @@ public:
   static bool HasOcContentLength (HttpRequest* request)
   {
 
-    return request->GetHeaders().count("OC-Total-Length");
+    return request->GetHeaders().count("oc-total-length");
   }
 
   // ---------------------------------------------------------------------------
@@ -269,9 +269,9 @@ public:
     // -------------------------------------------------------------------------
     // return some
     // -------------------------------------------------------------------------
-    ocHeader["OC-CHUNK-N"] = OcNChunk.c_str();
-    ocHeader["OC-CHUNK-MAX"] = OcMaxChunks.c_str();
-    ocHeader["OC-CHUNK-UUID"] = OcUuid.c_str();
+    ocHeader["oc-chunk-n"] = OcNChunk.c_str();
+    ocHeader["oc-chunk-max"] = OcMaxChunks.c_str();
+    ocHeader["oc-chunk-uuid"] = OcUuid.c_str();
 
     // -------------------------------------------------------------------------
     // we return the final path
@@ -298,7 +298,7 @@ public:
     XrdOucString query;
     for (auto it = ocHeader.begin(); it != ocHeader.end(); ++it)
     {
-      if (it->first.substr(0, 3) == "OC-")
+      if (it->first.substr(0, 3) == "oc-")
       {
 
         query += "&";
@@ -323,7 +323,7 @@ public:
 
     for (auto it = map.begin(); it != map.end(); ++it)
     {
-      if (it->first.substr(0, 3) == "OC-")
+      if (it->first.substr(0, 3) == "oc-")
       {
 
         filterQuery += "&";
