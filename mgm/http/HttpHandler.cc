@@ -198,14 +198,29 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
     else
     {
       // find out if it is a file or directory
-      if (S_ISDIR(buf.st_mode))
+      if (S_ISDIR(buf.st_mode)) 
+      {
         isfile = false;
+	if (isHEAD) 
+	{
+	  // HEAD requests for dirs just act like 'exists'
+          eos_static_info("cmd=GET(HEAD) size=%llu path=%s type=dir",
+                          buf.st_size,
+                          url.c_str());
+	  
+	  response = new eos::common::PlainHttpResponse();
+	  response->SetBody("");
+	  response->AddHeader("ETag", etag);
+	  response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
+	  return response;
+	}
+      }
       else
       {
         if (isHEAD)
         {
           std::string basename = url.substr(url.rfind("/") + 1);
-          eos_static_info("cmd=GET(HEAD) size=%llu path=%s",
+          eos_static_info("cmd=GET(HEAD) size=%llu path=%s type=file",
                           buf.st_size,
                           url.c_str());
           // HEAD requests on files can return from the MGM without redirection
