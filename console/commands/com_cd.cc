@@ -27,7 +27,7 @@
 
 /* Change working directory &*/
 int
-com_cd (char *arg)
+com_cd (char *arg1)
 {
   static XrdOucString opwd = "/";
   static XrdOucString oopwd = "/";
@@ -35,12 +35,16 @@ com_cd (char *arg)
   XrdOucString newpath;
   XrdOucString oldpwd;
 
-  if (!strcmp(arg, "--help") || !strcmp(arg, "-h"))
+  eos::common::StringTokenizer subtokenizer(arg1);
+  subtokenizer.GetLine();
+  XrdOucString arg = subtokenizer.GetToken();
+
+  if ( (arg.find("--help")!=STR_NPOS) || (arg.find("-h")!=STR_NPOS) )
     goto com_cd_usage;
 
 
   // cd -
-  if (!strcmp(arg, "-"))
+  if (arg == "-")
   {
     oopwd = opwd;
     arg = (char*) opwd.c_str();
@@ -48,11 +52,11 @@ com_cd (char *arg)
 
   opwd = pwd;
 
-  newpath = abspath(arg);
+  newpath = abspath(arg.c_str());
   oldpwd = pwd;
 
   // cd ~ (home)
-  if (!arg || (!strlen(arg)) || (!strcmp(arg, "~")))
+  if ( (arg=="") || (arg== "~") )
   {
     if (getenv("EOS_HOME"))
     {
@@ -67,7 +71,7 @@ com_cd (char *arg)
 
   pwd = newpath;
 
-  if (!pwd.endswith("/"))
+  if ((!pwd.endswith("/")) && (!pwd.endswith("/\"")))
     pwd += "/";
 
   // filter "/./";
@@ -98,7 +102,7 @@ com_cd (char *arg)
     }
   }
 
-  if (!pwd.endswith("/"))
+  if ((!pwd.endswith("/")) && (!pwd.endswith("/\"")))
     pwd += "/";
 
   // check if this exists, otherwise go back to oldpwd
@@ -113,19 +117,22 @@ com_cd (char *arg)
   }
   else
   {
-    // store the last used directory
-    int cfd = open(pwdfile.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRWXU);
-    if (cfd >= 0)
+    if (pwdfile.length()) 
     {
-      if ((::write(cfd, pwd.c_str(), pwd.length())) != pwd.length())
+      // store the last used directory
+      int cfd = open(pwdfile.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRWXU);
+      if (cfd >= 0)
       {
-        fprintf(stderr, "warning: unable to store CWD to %s [errno=%d]\n", pwdfile.c_str(), errno);
+	if ((::write(cfd, pwd.c_str(), pwd.length())) != pwd.length())
+	{
+	  fprintf(stderr, "warning: unable to store CWD to %s [errno=%d]\n", pwdfile.c_str(), errno);
+	}
+	close(cfd);
       }
-      close(cfd);
-    }
-    else
-    {
-      fprintf(stderr, "warning: unable to store CWD to %s\n", pwdfile.c_str());
+      else
+      {
+	fprintf(stderr, "warning: unable to store CWD to %s\n", pwdfile.c_str());
+      }
     }
   }
   return (0);
