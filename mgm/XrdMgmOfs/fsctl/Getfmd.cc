@@ -75,10 +75,31 @@
   {
   }
   fmdenv += safepath.c_str();
+
+
   XrdOucString response = "getfmd: retc=0 ";
   response += fmdenv.c_str();
   if ( (response.find("checksum=&")) != STR_NPOS )
     response.replace("checksum=&", "checksum=none&"); // XrdOucEnv does not deal with empty values ... sigh ...
+
+  {
+    // patch the name of the file
+    safepath = cPath.GetName();
+    if ( safepath.find("&") != STR_NPOS )
+    {
+      XrdOucString orig_name="name=";
+      orig_name += safepath;
+      
+      while (safepath.replace("&", "#AND#"))
+      {
+      } 
+      
+      XrdOucString safe_name="name=";
+      safe_name += safepath;
+      response.replace(orig_name,safe_name);
+    }
+  }
+
   error.setErrInfo(response.length() + 1, response.c_str());
   return SFS_DATA;
 }
