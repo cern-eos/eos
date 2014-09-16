@@ -2,7 +2,7 @@
 Summary: The EOS project
 Name: @CPACK_PACKAGE_NAME@
 Version: @CPACK_PACKAGE_VERSION@
-Release: @CPACK_PACKAGE_RELEASE@
+Release: @CPACK_PACKAGE_RELEASE@%{dist}
 Prefix: /usr
 License: none
 Group: Applications/File
@@ -63,7 +63,7 @@ The EOS server installation containing MGM, FST & MQ service.
 
 %prep
 
-%setup -n %{name}-%{version}-%{release}
+%setup -n %{name}-%{version}-@CPACK_PACKAGE_RELEASE@
 
 %build
 test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
@@ -73,7 +73,7 @@ export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 
 mkdir -p build
 cd build
-%{cmake_cmd} ../ -DRELEASE=%{release} -DCMAKE_BUILD_TYPE=RelWithDebInfo
+%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo
 %{__make} %{_smp_mflags}
 
 %install
