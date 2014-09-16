@@ -30,7 +30,6 @@ import os
 import sys
 import json
 import zmq
-import const
 import glob
 import stat
 import subprocess
@@ -39,7 +38,7 @@ import logging
 import logging.handlers
 from hashlib import sha256
 from multiprocessing import Process
-from archivefile import NoErrorException, Transfer
+from eosarch import NoErrorException, Transfer, const
 from errno import EIO, EINVAL
 
 

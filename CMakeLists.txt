@@ -27,6 +27,7 @@
 set(VERSION_MAJOR "0" )
 set(VERSION_MINOR "3" )
 set(VERSION_PATCH "52" )
+set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
 ######################################################################################################################
 # main section
@@ -42,7 +43,7 @@ set(CMAKE_INSTALL_PREFIX /usr)
 set(CMAKE_INSTALL_SYSCONFDIR /etc)
 set(CMAKE_INSTALL_SBINDIR /sbin)
 
-if (PREFIX) 
+if (PREFIX)
    set (CMAKE_INSTALL_PREFIX ${PREFIX})
 endif (PREFIX)
 
@@ -52,8 +53,11 @@ include(EosUtils)
 # include GNU path settings
 include (GNUInstallDirs)
 
+# include Python interpreter
+include(FindPythonInterp)
+
 # overwrite the /sbin directory
-set(CMAKE_INSTALL_FULL_SBINDIR /usr/sbin) 
+set(CMAKE_INSTALL_FULL_SBINDIR /usr/sbin)
 
 #-------------------------------------------------------------------------------
 # Search for dependencies
@@ -88,8 +92,6 @@ find_package(ProtocolBuffers)
 find_package(leveldb)
 find_package(CPPUnit)
 find_package(microhttpd)
-find_package(python)
-
 if(MacOSX)
 find_package(fuse REQUIRED)
 else(MacOSX)
@@ -109,7 +111,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
       ARGS                    --version
       OUTPUT_VARIABLE _compiler_output)
   string(REGEX REPLACE ".* ([0-9]\\.[0-9]\\.[0-9]) .*" "\\1"
-         gcc_compiler_version ${_compiler_output})
+	 gcc_compiler_version ${_compiler_output})
   message(STATUS "C++ compiler version: ${gcc_compiler_version} [${CMAKE_CXX_COMPILER}]")
 
   if(gcc_compiler_version MATCHES "4\\.[0-3]\\.[0-9]")
@@ -131,7 +133,7 @@ set(FUSE_LIBRARY /usr/local/lib/libosxfuse_i64.dylib)
 else(MacOSX)
 
 # ------------------------------------------
-# on Linux WE use static objects 
+# on Linux WE use static objects
 # ------------------------------------------
 set(LIB_INSTALL_DIR lib64)
 set(RT_LIBS rt)
@@ -142,9 +144,9 @@ endif(MacOSX)
 EOS_CheckOutOfSourceBuild()
 
 if (CLIENT)
-set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
+set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
 else (CLIENT)
-set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )
+set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )
 endif (CLIENT)
 if (NOT LEVELDB_FOUND)
 message("  Warning: LevelDB not found, using slower Sqlite3 DbMap implentation")
@@ -190,7 +192,7 @@ add_subdirectory (man)
 add_subdirectory (test)
 add_subdirectory (utils)
 add_subdirectory (archive)
-if (HTTPD_FOUND) 
+if (HTTPD_FOUND)
 if (APR_FOUND)
 #add_subdirectory (httpd)
 #add_subdirectory (httpd-mini)
@@ -211,38 +213,46 @@ CONFIGURE_FILE(
   IMMEDIATE @ONLY)
 
 ADD_CUSTOM_TARGET(uninstall
-  "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake") 
+  "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake")
 
 ######################################################################################################################
-# source packaging 
-######################################################################################################################
-add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source)
-
-set(CPACK_PACKAGE_VERSION_MAJOR ${VERSION_MAJOR})
-set(CPACK_PACKAGE_VERSION_MINOR ${VERSION_MINOR})
-set(CPACK_PACKAGE_VERSION_PATCH ${VERSION_PATCH})
+# source packaging
+#####################################################################################################################
 set(CPACK_SOURCE_GENERATOR "TGZ")
-set(CPACK_SOURCE_PACKAGE_FILE_NAME
-  "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}-${RELEASE}")
+set(CPACK_PACKAGE_NAME "${CMAKE_PROJECT_NAME}")
+set(CPACK_PACKAGE_VERSION "${VERSION}")
+set(CPACK_PACKAGE_VERSION_MAJOR "${VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${VERSION_MINOR}")
+set(CPACK_PACKAGE_VERSION_PATCH "${VERSION_PATCH}")
+set(CPACK_PACKAGE_RELEASE "${RELEASE}")
+set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}")
 set(CPACK_SOURCE_IGNORE_FILES "xrootd-dsi/;/nginx/;/dsi/;/build/;/.deps/;/.bzr/;~$;'.'o$;/CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;ApMon;build;install_manifest.txt;/lib/;/.git/;${CPACK_SOURCE_IGNORE_FILES};")
 
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in"
+	       "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec" @ONLY IMMEDIATE)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in"
+	       "${CMAKE_CURRENT_BINARY_DIR}/eos.spec" @ONLY IMMEDIATE)
 
+add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source)
+add_custom_command(TARGET dist POST_BUILD
+		   COMMAND rm ARGS -rf "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
+		   COMMENT "clean generated spec file")
 
 include(CPack)
 
 add_custom_target(gitdist
-    COMMAND git archive --prefix=${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}/ HEAD
-        | gzip > ${CMAKE_BINARY_DIR}/${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}-${RELEASE}.tar.gz
+    COMMAND git archive --prefix=${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}/ HEAD
+    | gzip > ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 ######################################################################################################################
 # source + binary rpms
 ######################################################################################################################
 
-ADD_CUSTOM_TARGET(srpm COMMAND rpmbuild -ts ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}-${RELEASE}.tar.gz)
+ADD_CUSTOM_TARGET(srpm COMMAND rpmbuild -ts ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz)
 ADD_DEPENDENCIES(srpm dist)
 
-ADD_CUSTOM_TARGET(rpm COMMAND rpmbuild -tb ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}-${RELEASE}.tar.gz)
+ADD_CUSTOM_TARGET(rpm COMMAND rpmbuild -tb ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz)
 
 ADD_DEPENDENCIES(rpm dist)
 

@@ -21,26 +21,34 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-INSTALL(DIRECTORY archivefile
-	DESTINATION ${EOS_PYTHON_LIBDIR}
-        PATTERN "tests" EXCLUDE
-	PATTERN "*~" EXCLUDE
-	PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+if(PYTHONINTERP_FOUND)
+    set(PY_CMD "from distutils.sysconfig import get_python_lib; print get_python_lib()")
+    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "${PY_CMD}"
+		    OUTPUT_VARIABLE PYTHON_SITE_PACKAGES
+		    OUTPUT_STRIP_TRAILING_WHITESPACE)
+    message(STATUS "The python site-packages dir: ${PYTHON_SITE_PACKAGES}")
 
-INSTALL(FILES const.py
-	DESTINATION ${EOS_PYTHON_LIBDIR}
-	PERMISSIONS OWNER_READ OWNER_WRITE
-		    GROUP_READ WORLD_READ)
 
-INSTALL(PROGRAMS eosarchiverd
-	DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
+    install(PROGRAMS eosarchived.py
+	    DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+	    PERMISSIONS OWNER_READ OWNER_EXECUTE
+			GROUP_READ GROUP_EXECUTE
+			WORLD_READ WORLD_EXECUTE)
 
-INSTALL(FILES eosarchiverd.init
-	DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/rc.d/init.d/
-	PERMISSIONS OWNER_READ OWNER_EXECUTE
-		    GROUP_READ GROUP_EXECUTE
-		    WORLD_READ WORLD_EXECUTE
-	RENAME eosarchiverd)
+    install(DIRECTORY eosarch
+	    DESTINATION ${PYTHON_SITE_PACKAGES}
+	    PATTERN "tests" EXCLUDE
+	    PATTERN "*~" EXCLUDE
+	    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 
-INSTALL(FILES eosarchiverd.example
-	DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/)
+    install(FILES eosarchived.init
+	    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/rc.d//init.d/
+	    PERMISSIONS OWNER_READ OWNER_EXECUTE
+			GROUP_READ GROUP_EXECUTE
+			WORLD_READ WORLD_EXECUTE
+	    RENAME eosarchived)
+
+    install(FILES eosarchived.sysconfig
+	    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/
+	    RENAME eosarchived)
+endif(PYTHONINTERP_FOUND)

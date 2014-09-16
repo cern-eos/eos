@@ -28,7 +28,8 @@
 
 # Variables
 USER="xrootd"
-prog="eosarchiverd"
+GROUP="xrootd"
+NAME="eosarchived"
 export DAEMON_COREFILE_LIMIT="unlimited"
 # Log level can be one of the following: 
 # info, notice, warn/warning, err/error, emerg/panic, debug, crit/critical, alert
@@ -38,13 +39,13 @@ export EOS_ARCHIVE_DIR="/var/eos/archive/"
 RETVAL=0
 
 # Source sysconfig files
-if [ -f /etc/sysconfig/$prog ]; then
-        . /etc/sysconfig/$prog
+if [ -f /etc/sysconfig/$NAME ]; then
+        . /etc/sysconfig/$NAME
 fi
 
 # Create and set ownership on the log directory
 mkdir -p $LOG_DIR
-chown -R $USER:$USER $LOG_DIR
+chown -R $USER:$GROUP $LOG_DIR
 
 # Create and set ownership on the directory where files for each archive transfer
 # are saved by the worker processes. Each process saves 3 files with the following 
@@ -53,22 +54,22 @@ chown -R $USER:$USER $LOG_DIR
 #  .log - log file for the running transfer
 #  .ps - status file for the running transfer
 mkdir -p $EOS_ARCHIVE_DIR
-chown -R $USER:$USER $EOS_ARCHIVE_DIR
+chown -R $USER:$GROUP $EOS_ARCHIVE_DIR
 
 start() {
         # Run daemon
-        echo -n $"Starting $prog: "
+        echo -n $"Starting $NAME: "
 
         cd /var/log/eos/
-        daemon --user=$USER /usr/bin/$prog $EOSARCHIVERD_OPTIONS
+        daemon --user=$USER /usr/bin/$NAME.py $EOSARCHIVERD_OPTIONS
 
         # Write the pid to a file.
         RETVAL=$?
         if [ $RETVAL -eq 0 ]; then
-                pid=`ps -eo pid,ppid,comm | egrep " 1 $prog\$" | awk '{print $1}'`
-                rm -f /var/run/$prog.pid
+                pid=`ps -eo pid,ppid,comm | egrep " 1 $NAME.py\$" | awk '{print $1}'`
+                rm -f /var/run/$NAME.pid
                 if [ -n "$pid" ]; then
-                        echo $pid > /var/run/$prog.pid
+                        echo $pid > /var/run/$NAME.pid
                         RETVAL=0
                 else
                         RETVAL=1
@@ -77,17 +78,17 @@ start() {
 
         [ $RETVAL -eq 0 ] && success $"$base startup" || failure $"$base startup"
         echo
-        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
+        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$NAME
         return $RETVAL
 }
 
 stop() {
-        echo -n $"Stopping $prog: "
-        killproc $prog
+        echo -n $"Stopping $NAME: "
+        killproc $NAME
 
         RETVAL=$?
         echo
-        [ -f /var/lock/subsys/$prog ] && rm -f /var/lock/subsys/$prog
+        [ -f /var/lock/subsys/$NAME ] && rm -f /var/lock/subsys/$NAME
         return $RETVAL
 }
 
@@ -106,14 +107,14 @@ case "$1" in
                 stop
                 ;;
         status)
-                status $prog
+                status $NAME
                 RETVAL=$?
                 ;;
         restart)
                 restart
                 ;;
         condrestart)
-                [ -f /var/lock/subsys/$prog ] && restart || :
+                [ -f /var/lock/subsys/$NAME ] && restart || :
                 ;;
         *)
                 echo $"Usage: $0 {start|stop|status|restart|condrestart}"
