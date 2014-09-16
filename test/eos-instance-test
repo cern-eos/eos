@@ -674,13 +674,13 @@ runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE
 runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
 runtest "### Find      " unix 0 "" eos find -f /eos/$EOS_TEST_INSTANCE/proc/recycle/ | grep passwd.recycle | wc -l |grep -w 1
 runtest "### Recycle-Ls" unix 0 "" eos recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | wc -l | grep -w 1
-runtest "### Restore   " unix 1 "" eos recycle restore `$XROOTSYS/bin/eos -b root://$EOS_TEST_REDIRECTOR recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $9}' | tail -1`
-runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore `$XROOTSYS/bin/eos -b root://$EOS_TEST_REDIRECTOR recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $9}' | tail -1`
+runtest "### Restore   " unix 1 "" eos recycle restore `$XROOTSYS/bin/eos -b root://$EOS_TEST_REDIRECTOR recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
+runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore `$XROOTSYS/bin/eos -b root://$EOS_TEST_REDIRECTOR recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
 runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
 runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
 runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
-runtest "### Restore   " unix 1 "EOSROLE='-r 3 4'" eos recycle restore `$XROOTSYS/bin/eos -b  root://$EOS_TEST_REDIRECTOR recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $9}' | tail -1`
-runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore -f `$XROOTSYS/bin/eos -b root://$EOS_TEST_REDIRECTOR recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $9}' | tail -1`
+runtest "### Restore   " unix 1 "EOSROLE='-r 3 4'" eos recycle restore `$XROOTSYS/bin/eos -b  root://$EOS_TEST_REDIRECTOR recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
+runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore -f `$XROOTSYS/bin/eos -b root://$EOS_TEST_REDIRECTOR recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
 runtest "### Recycle   " unix 0 "" eos recycle config --remove-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle
 runtest "### Rem       " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle
 
@@ -698,7 +698,7 @@ runtest "### Stress Wp  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_I
 runtest "### Find       " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=100"
 runtest "### Stress Rp  " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c"
 runtest "### Stress Rpp " unix 0 "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c -p"
-runtest "### Cleanup    " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress/*"
+runtest "### Cleanup    " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress/*"
 runtest "### Ls        " unix 0 "" eos ls "/eos/$EOS_TEST_INSTANCE/test | grep [a-z] | wc -l | grep -w 2"
 runtest "### Ls        " unix 0 "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 2"
 runtest "### Ls        " unix 0 "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 4"
@@ -879,7 +879,7 @@ runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 2 /eos/$EO
 runtest "### Ls        " unix 0 "EOSROLE='-r 99 99'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd | wc -l | grep -w 2"
 runtest "### Find Purge" unix 0 "EOSROLE='-r 99 99'" eos find --purge 0 /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/
 runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/.sys.v#.passwd"
-runtest "### Cleanup"    unix 0 "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning"
+runtest "### Cleanup"    unix 2 "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning"
 
 ################################################################################
 # HTTP tests
@@ -1046,7 +1046,7 @@ runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=plain "/eos/$E
 runtest "### Upload    " unix 0 "" upload "$EOS_TEST_RAIN_DIR/file3.rain" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp_rain_dir/file.dat" 
 runtest "### EoscpRaiddp " unix 0 "" eoscp_rain "raiddp" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp_rain_dir/file.dat"
 runtest "### EoscpRaid6  " unix 0 "" eoscp_rain "reeds" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp_rain_dir/file.dat"
-runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/eoscp_rain_dir"
+runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/eoscp_rain_dir"
 
 ################################################################################################################
 # FINAL CLEANUP 
@@ -1054,9 +1054,9 @@ runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/eos
 # --------------------------------------------------------------------------------------------------------------
 categorie="clean"
 # --------------------------------------------------------------------------------------------------------------
-runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress"
-runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
-runtest "### Cleanup   " unix 0 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/rain"
+runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress"
+runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
+runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/rain"
 ################################################################################################################
 # show test summary
 testout
