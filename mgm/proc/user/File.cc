@@ -1795,35 +1795,45 @@ ProcCommand::File ()
 
       XrdOucString info;
       info += "&mgm.cmd=file&mgm.subcmd=copy&mgm.file.target=";
-      info += atomicPath.GetAtomicPath(false);
+      info += atomicPath.GetAtomicPath(true);
       info += "&mgm.path=";
       info += spath.c_str();
       retc = Cmd.open("/proc/user", info.c_str(), *pVid, mError);
       Cmd.AddOutput(stdOut, stdErr);
       Cmd.close();
 
-      if ((!Cmd.GetRetc()) && (!gOFS->_stat(atomicPath.GetAtomicPath(false), &buf, *mError, *pVid, "")))
+      if ((!Cmd.GetRetc()))
       {
-        // everything worked well
-        XrdOucString versionedpath;
-        // make a version
-        if (gOFS->Version((eos::common::FileId::fileid_t)buf.st_ino >> 28, *mError, *pVid, maxversion, &versionedpath))
-        {
-          stdErr += "error: unable to create a version of path=";
-          stdErr += spath.c_str();
-          stdErr += "\n";
-          stdErr += "error: ";
-          stdErr += mError->getErrText();
-          retc = mError->getErrInfo();
-          return SFS_OK;
-        }
-        else
-        {
-          stdOut = "info: created new version of '";
-          stdOut += spath.c_str();
-          stdOut += "' as '";
-          stdOut += versionedpath.c_str();
-        }
+	if (maxversion > 0) 
+	{
+	  XrdOucString versiondir;
+	  eos::common::Path cPath(spath.c_str());
+	  versiondir += cPath.GetParentPath();
+	  versiondir += "/.sys.v#.";
+	  versiondir += cPath.GetName();
+	  versiondir += "/";
+
+	  if (gOFS->PurgeVersion(versiondir.c_str(), *mError, maxversion))
+	  {
+	    stdErr += "error: unable to purge versions of path=";
+	    stdErr += spath.c_str();
+	    stdErr += "\n";
+	    stdErr += "error: ";
+	    stdErr += mError->getErrText();
+	    retc = mError->getErrInfo();
+	    return SFS_OK;
+	  }
+	}
+	// everything worked well
+	stdOut = "info: created new version of '";
+	stdOut += spath.c_str();
+	stdOut += "'";
+	if (maxversion > 0)
+	{
+	  stdOut += " keeping ";
+	  stdOut += (int)maxversion;
+	  stdOut += " versions!";
+	}
       }
     }
 
