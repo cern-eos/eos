@@ -64,7 +64,10 @@ XrdMgmOfs::attr_ls (const char *inpath,
 
   AUTHORIZE(client, &access_Env, AOP_Stat, "access", inpath, error);
 
+  EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, info, tident, vid);
+  EXEC_TIMING_END("IdMap");
+
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
 
   BOUNCE_NOT_ALLOWED;
@@ -110,7 +113,10 @@ XrdMgmOfs::attr_set (const char *inpath,
 
   AUTHORIZE(client, &access_Env, AOP_Update, "update", inpath, error);
 
+  EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, info, tident, vid);
+  EXEC_TIMING_END("IdMap");
+
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
 
   BOUNCE_NOT_ALLOWED;
@@ -157,7 +163,10 @@ XrdMgmOfs::attr_get (const char *inpath,
 
   AUTHORIZE(client, &access_Env, AOP_Stat, "access", inpath, error);
 
+  EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, info, tident, vid);
+  EXEC_TIMING_END("IdMap");
+
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
 
   BOUNCE_NOT_ALLOWED;
@@ -202,7 +211,10 @@ XrdMgmOfs::attr_rem (const char *inpath,
 
   AUTHORIZE(client, &access_Env, AOP_Delete, "delete", inpath, error);
 
+  EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, info, tident, vid);
+  EXEC_TIMING_END("IdMap");
+
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
 
   BOUNCE_NOT_ALLOWED;

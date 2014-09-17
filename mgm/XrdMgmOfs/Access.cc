@@ -63,7 +63,10 @@ XrdMgmOfs::access (const char *inpath,
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
+  EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, info, tident, vid);
+  EXEC_TIMING_END("IdMap");
+
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
 
   BOUNCE_NOT_ALLOWED;

@@ -64,7 +64,10 @@ XrdMgmOfs::exists (const char *inpath,
 
   AUTHORIZE(client, &exists_Env, AOP_Stat, "execute exists", inpath, error);
 
+  EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, info, tident, vid);
+  EXEC_TIMING_END("IdMap");
+
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
 
   BOUNCE_NOT_ALLOWED;

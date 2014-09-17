@@ -156,7 +156,10 @@ XrdMgmOfs::FSctl (const int cmd,
 
   eos::common::Mapping::VirtualIdentity vid;
 
+  EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, "", tident, vid, false);
+  EXEC_TIMING_END("IdMap");
+
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
 
   eos::common::LogId ThreadLogId;

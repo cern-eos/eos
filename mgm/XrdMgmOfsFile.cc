@@ -116,8 +116,13 @@ XrdMgmOfsFile::open (const char *inpath,
 
   EXEC_TIMING_BEGIN("Open");
   SetLogId(logId, tident);
+  
+  {
+    EXEC_TIMING_BEGIN("IdMap");
+    eos::common::Mapping::IdMap(client, ininfo, tident, vid);
+    EXEC_TIMING_END("IdMap");
+  }
 
-  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
 
   SetLogId(logId, vid, tident);

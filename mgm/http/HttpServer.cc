@@ -336,7 +336,10 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
   {
     // Make a virtual identity object
     vid = new eos::common::Mapping::VirtualIdentity();
+
+    EXEC_TIMING_BEGIN("IdMap");
     eos::common::Mapping::IdMap (&client, "eos.app=http", client.tident, *vid, true);
+    EXEC_TIMING_END("IdMap");
     
     // if we have been mapped to nobody, change also the name accordingly
     if (vid->uid == 99)

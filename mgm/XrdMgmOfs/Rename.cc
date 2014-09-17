@@ -60,7 +60,9 @@ XrdMgmOfs::rename (const char *old_name,
 
   XrdSecEntity mappedclient;
 
+  EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, infoO, tident, vid);
+  EXEC_TIMING_END("IdMap");
 
   eos_info("old-name=%s new-name=%s", old_name, new_name);
 
