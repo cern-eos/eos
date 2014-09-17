@@ -134,7 +134,7 @@ HttpServer::Run ()
   unsigned MHD_LONG_LONG mhd_timeout;
   struct timeval tv;
 
-  if (getenv("EOS_HTTP_THREADPOOL"))
+  if (!getenv("EOS_HTTP_DISABLE_THREADPOOL"))
   {
     while (1)
     {
