@@ -239,7 +239,7 @@ XrdMgmOfsFile::open (const char *inpath,
   {
     // figure out if this is an OC upload
     const char* val = 0;
-    if ((val = openOpaque->Get("OC-CHUNK-UUID")))
+    if ((val = openOpaque->Get("oc-chunk-uuid")))
     {
       ocUploadUuid = val;
     }
