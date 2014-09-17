@@ -1399,10 +1399,11 @@ XrdMgmOfsFile::open (const char *inpath,
   {
     if (isRW)
     {
-      if (isCreation && hasClientBookingSize && (bookingsize == 0))
+      if (isCreation && hasClientBookingSize && ((bookingsize == 0) || ocUploadUuid.length()))
       {
         // ---------------------------------------------------------------------
         // if this is a creation we commit the scheduled replicas NOW
+	// we do the same for chunked/parallel uploads
         // ---------------------------------------------------------------------
         {
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
