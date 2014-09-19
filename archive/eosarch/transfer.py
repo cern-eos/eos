@@ -130,6 +130,8 @@ class Transfer(object):
     def prepare(self):
         """ Prepare requested operation.
         """
+        self.write_progress("initializing")
+
         # Rename archive file in EOS
         efile_url = client.URL(self.efile_full)
         eosf_rename = ''.join([self.efile_root, const.ARCH_FN, ".", self.oper, ".err"])
@@ -225,7 +227,7 @@ class Transfer(object):
                 raise NoErrorException()
 
             # Delete the corrupted entry
-            is_dir = True if err_entry[0] == 'd' else False
+            is_dir = (err_entry[0] == 'd')
             self.logger.info("Delete corrupted entry={0}".format(err_entry))
             self.archive.del_entry(err_entry[1], is_dir, None)
 
@@ -251,7 +253,6 @@ class Transfer(object):
                                 self.archive.header['num_dirs']))
 
         # For GET issue the Prepare2Get for all the files on tape
-        self.write_progress("prepare2get")
         self.prepare2get(err_entry, found_checkpoint)
 
         # Copy files
@@ -443,11 +444,11 @@ class Transfer(object):
                 if not thread.isAlive():
                     status = status and thread.xrd_status.ok
                     self.logger.debug("Thread={0} status={1}".format(
-                           thread.ident, thread.xrd_status.ok))
+                            thread.ident, thread.xrd_status.ok))
 
                     if not status:
                         self.logger.error("Thread={0} err_msg={2}".format(
-                                thread.ident, stathread.xrd_status.message))
+                                thread.ident, thread.xrd_status.message))
 
                     del self.threads[indx]
                     break
@@ -461,7 +462,7 @@ class Transfer(object):
                 # parallel mode starting with XRootD 4.1
                 # TODO: use checksum verification if possible
                 self.logger.info("Add job src={0}, dst={1}".format(job[0], job[1]))
-                proc.add_job(job[0], job[1], force=job[2], thirdparty=False)
+                proc.add_job(job[0], job[1], force=job[2], thirdparty=True)
 
             del self.list_jobs[:]
             thread = ThreadJob(proc)
@@ -501,6 +502,7 @@ class Transfer(object):
         oper = 'prepare'
 
         if not self.archive.d2t:
+            self.write_progress("prepare2get")
             t0 = time.time()
             lpaths = []
             metahandler = MetaHandler()

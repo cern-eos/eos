@@ -409,8 +409,8 @@ class Dispatcher(object):
         for info in row_data:
             long_column.update((i, max(long_column[i], len(str(elem)))) for i, elem in enumerate(info))
 
-        line = "".join(("|", "-|-".join(long_column[i] * "-" for i in xrange(5)), "|"))
-        row_format = "".join(("|", " | ".join("%%-%ss" % long_column[i] for i in xrange(0, 5)), "|"))
+        line = "".join(("|-", "-|-".join(long_column[i] * "-" for i in xrange(5)), "-|"))
+        row_format = "".join(("| ", " | ".join("%%-%ss" % long_column[i] for i in xrange(0, 5)), " |"))
         msg += "\n".join((line, row_format % header, line,
                           "\n".join(row_format % elem for elem in row_data), line))
         return msg
