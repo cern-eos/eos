@@ -262,19 +262,14 @@ Contains an example keytab file.
 %config(noreplace) %attr(-,daemon,daemon) %_sysconfdir/eos.keytab
 
 #######################################################################################
-# the EOS archive daemon package
+# the EOS archive daemon package - created only for SLC6
 #######################################################################################
+%if %{?rhel}%{!?rhel:0} >= 6
 %package -n eos-archive
 #######################################################################################
 Summary: The EOS archive daemon
 Group: Applications/File
-Requires: python-daemon xrootd-python
-
-%if %{?rhel}%{!?rhel:0} == 5
-Requires: python26-zmq
-%else
-Requires: python-zmq
-%endif
+Requires: python-daemon xrootd-python python-zmq
 
 %description -n eos-archive
 The EOS archive daemon.
@@ -297,7 +292,7 @@ if [ $1 = 0 ]; then
 	/sbin/service eosarchvied stop > /dev/null 2>&1
 	/sbin/chkconfig --del eosarchived
 fi
-
+%endif
 
 #######################################################################################
 # the test package
