@@ -1,2 +1,3 @@
 # Options for the eosarchived daemon
 # EOSARCHIVED_OPTIONS=
+export XrdSecSSSKT=/etc/eosarchive.keytab
