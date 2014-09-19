@@ -1,4 +1,4 @@
-// ----------------------------------------------------------------------
+
 // File: Quota.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
@@ -196,7 +196,8 @@ SpaceQuota::UpdateLogicalSizeFactor ()
                             error,
                             vid,
                             0,
-                            map);
+                            map,
+			    false);
 
   if (!retc)
   {
@@ -284,7 +285,6 @@ SpaceQuota::UpdateTargetSums ()
 {
   Mutex.Lock();
   eos_static_debug("updating targets");
-
   ResetQuota(kAllUserBytesTarget, 0, false);
   ResetQuota(kAllUserFilesTarget, 0, false);
   ResetQuota(kAllGroupBytesTarget, 0, false);
@@ -324,7 +324,6 @@ SpaceQuota::UpdateIsSums ()
 {
   Mutex.Lock();
   eos_static_debug("updating IS values");
-
   ResetQuota(kAllUserBytesIs, 0, false);
   ResetQuota(kAllUserLogicalBytesIs, 0, false);
   ResetQuota(kAllUserFilesIs, 0, false);
@@ -1211,9 +1210,10 @@ Quota::PrintOut (const char* space, XrdOucString &output, long uid_sel, long gid
     // we add this to have all quota nodes visible even if they are not in the configuration file
     LoadNodes();
   }
-  
+
+  eos::common::RWMutexReadLock lock(gQuotaMutex);  
   eos::common::RWMutexReadLock nlock(gOFS->eosViewRWMutex);
-  eos::common::RWMutexReadLock lock(gQuotaMutex);
+
   output = "";
   XrdOucString spacenames = "";
   if (space == 0)
