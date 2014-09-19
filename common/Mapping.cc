@@ -559,7 +559,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   {
     if (!gVirtualUidMap[tuid.c_str()])
     {
-      if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (vid.name == "root") && (myrole == "root"))
+      if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") && (host != "localhost6.localdomain6") && (vid.name == "root") && (myrole == "root"))
       {
         eos_static_debug("tident root uid squash");
         vid.uid_list.clear();

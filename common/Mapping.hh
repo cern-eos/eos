@@ -175,6 +175,21 @@ public:
   }
 
   // ---------------------------------------------------------------------------
+  //! Function checking if we come from a localhost connection
+  // ---------------------------------------------------------------------------
+
+  static bool
+  IsLocalhost (VirtualIdentity &vid)
+  {
+    if ( (vid.host == "localhost") || 
+	 (vid.host == "localhost.localdomain") ||
+	 (vid.host == "localhost6") || 
+	 (vid.host == "localhost6.localdomain6") )
+      return true;
+    return false;
+  }
+
+  // ---------------------------------------------------------------------------
   //! Check for a role in the user id list
   // ---------------------------------------------------------------------------
 
