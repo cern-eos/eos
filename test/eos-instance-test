@@ -976,6 +976,41 @@ runtest "### Attr         " unix 0 "" eos attr set sys.s3.bucket.test="test" /eo
 runtest "### Attr         " unix 0 "" eos attr set sys.s3.id.test="0123456789" /eos/$EOS_TEST_INSTANCE/proc 
 runtest "### Attr         " unix 0 "" eos attr set sys.s3.path.test="/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir" /eos/$EOS_TEST_INSTANCE/proc 
 
+################################################################################
+# Owncloud tests
+################################################################################
+# --------------------------------------------------------------------------------------------------------------
+categorie="owncloud"
+# --------------------------------------------------------------------------------------------------------------
+runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
+runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
+runtest "### Attr Set  " unix 0 "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc |grep success | wc -l | grep -w 6"
+
+# upload with chunking
+runtest "### OcChunk   " unix 0 "" shell eos-oc-test chunkedupload chunked /eos/$EOS_TEST_INSTANCE/test/instancetest/oc/
+
+# check it exists
+runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc/chunked"
+runtest "### OcChunk   " unix 1 "" shell eos-oc-test chunkedupload chunked 
+# upload again
+runtest "### OcChunk   " unix 0 "" shell eos-oc-test chunkedupload chunked /eos/$EOS_TEST_INSTANCE/test/instancetest/oc/
+# check that there is no version
+runtest "### Stat      " unix 1 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc/.sys.v#.chunked/"
+runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc/chunked"
+# enable versioning
+runtest "### Attr Set  " unix 0 "" eos attr set sys.versioning=2 /eos/$EOS_TEST_INSTANCE/test/instancetest/oc/
+runtest "### OcChunk   " unix 0 "" shell eos-oc-test chunkedupload chunked /eos/$EOS_TEST_INSTANCE/test/instancetest/oc/
+runtest "### OcChunk   " unix 0 "" shell eos-oc-test chunkedupload chunked /eos/$EOS_TEST_INSTANCE/test/instancetest/oc/
+# check that versions are kept as expected
+runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc/.sys.v#.chunked/"
+runtest "### Find      " unix 0 "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/instancetest/oc | grep nfiles=3"
+
+#----------------------------------------------------------------------------
+# Clean up the files created in owncloud tests
+#----------------------------------------------------------------------------
+runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
+
 #######################################################################################
 # RAIN-LIKE LAYOUT TESTS FOR WR/RD AND RECOVERY - RUN ONLY IF AT LEAST 6 FSTs PRESENT
 ######################################################################################

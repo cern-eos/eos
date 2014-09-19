@@ -1,0 +1,67 @@
+# ----------------------------------------------------------------------
+# File: eos-oc-test
+# Author: Andreas-Joachim Peters - CERN
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2011 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+#! /bin/bash
+
+chunkedupload () {
+  echo "# Testing Chunked upload"
+  NAME=$1
+  DIR=/tmp/OC_CHUNK
+  mkdir -p $DIR
+  rm -f $DIR/$NAME*
+  CHUNK_NUMBER=4
+  dd if=/dev/zero of=$DIR/$NAME bs=1M count=32
+  split -b 10485760 -a 1 -d $DIR/$NAME $DIR/$NAME-chunking-`uuidgen | sed s/-//g`-$CHUNK_NUMBER-
+  echo "# about to upload $DIR/$NAME"
+  DEST_URL=https://localhost$2
+  echo "# to $DEST_URL"
+  let LAST_CHUNK_NUMBER=$CHUNK_NUMBER-1
+  let i=0
+
+  ok=0
+  for f in `ls $DIR/$NAME-chunking*`; do
+    echo $f
+    curl --verbose -k --header "OC-Chunked:1" --header "X-OC-Mtime:1402061782" --header "OC-Total-Length:33554432" -T $f $DEST_URL 2> $f.log
+  
+    if (( i < $LAST_CHUNK_NUMBER )); then
+      grep -q 'X-OC-Mtime: accepted' $f.log && echo "redundant reply header: 'X-OC-Mtime: accepted" 
+      grep -q 'X-OC-Mtime: accepted' $f.log && ok=1
+    else
+      grep -q 'X-OC-Mtime: accepted' $f.log || echo "missing required header: 'X-OC-Mtime: accepted" 
+      grep -q 'X-OC-Mtime: accepted' $f.log || ok=1
+    fi
+
+    let i=$i+1
+
+  done
+
+  return $ok;
+}
+
+if [ "$1" = "chunkedupload" ]; then
+  chunkedupload $2 $3;
+  exit $?
+fi
+
+exit -1
+
