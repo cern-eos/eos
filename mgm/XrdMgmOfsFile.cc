@@ -444,8 +444,16 @@ XrdMgmOfsFile::open (const char *inpath,
       }
       if (dmd)
       {
-        fmd = dmd->findFile(cPath.GetName());
-	eos_info("find file %x", fmd);
+	if (ocUploadUuid.length()) 
+	{
+	  eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"),ocUploadUuid));
+	  fmd = dmd->findFile(aPath.GetName());
+	}
+	else 
+	{
+	  fmd = dmd->findFile(cPath.GetName());
+	}
+
         if (!fmd)
         {
           if (dmd->findContainer(cPath.GetName()))
@@ -454,26 +462,7 @@ XrdMgmOfsFile::open (const char *inpath,
           }
           else
           {
-	    if (ocUploadUuid.length()) 
-	    {
-	      eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"),ocUploadUuid));
-
-              fmd = dmd->findFile(aPath.GetName());
-	      if (fmd) 
-	      {
-		fileId = fmd->getId();
-		fmdlid = fmd->getLayoutId();
-		cid = fmd->getContainerId();
-	      } 
-	      else 
-	      {
-		errno = ENOENT;
-	      }
-	    } 
-	    else 
-	    {
-	      errno = ENOENT;
-	    }
+	    errno = ENOENT;
           }
         }
         else

@@ -3,7 +3,7 @@
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
-/************************************************************************
+/********************A***************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
@@ -388,7 +388,7 @@
           }
         }
 
-        if (occhunk)
+        if (occhunk && commitsize)
         {
           // increment the flags;
           fmd->setFlags(fmd->getFlags() + 1);
