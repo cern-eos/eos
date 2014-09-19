@@ -493,7 +493,7 @@ Recycle::ToGarbage (const char* epname, XrdOucErrInfo & error)
   }
 
   // finally do the rename
-  if (gOFS->_rename(mPath.c_str(), srecyclepath, error, rootvid, "", "", true, true))
+  if (gOFS->_rename(mPath.c_str(), srecyclepath, error, rootvid, "", "", true, true, false, false))
   {
     return gOFS->Emsg(epname,
                       error,

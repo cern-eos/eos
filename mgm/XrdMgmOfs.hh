@@ -389,7 +389,8 @@ public:
                const char *opaqueN = 0,
                bool updateCTime = false,
                bool checkQuota = false,
-               bool overwrite = false);
+               bool overwrite = false,
+	       bool lock_quota = true);
 
   // ---------------------------------------------------------------------------
   // stat file

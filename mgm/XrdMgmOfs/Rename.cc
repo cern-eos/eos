@@ -202,7 +202,8 @@ XrdMgmOfs::_rename (const char *old_name,
                     const char *infoN,
                     bool updateCTime,
                     bool checkQuota,
-                    bool overwrite
+                    bool overwrite,
+		    bool lock_quota
                     )
 /*----------------------------------------------------------------------------*/
 /*
@@ -217,6 +218,7 @@ XrdMgmOfs::_rename (const char *old_name,
  * @param updateCTime indicates to update the change time of a directory
  * @param checkQuota indicates to check the quota during a rename operation
  * @param overwrite indicates if the target name can be overwritten
+ * @param lock_quota tells if we have to lock the quota mutex internally
  * @return SFS_OK on success otherwise SFS_ERROR
  *
  * There are three flavours of rename function, two external and one internal
@@ -348,7 +350,9 @@ XrdMgmOfs::_rename (const char *old_name,
   }
   // ---------------------------------------------------------------------------
   {
-    eos::common::RWMutexReadLock qlock(Quota::gQuotaMutex);
+    if (lock_quota)
+      Quota::gQuotaMutex.LockRead();
+
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     try
     {
@@ -449,6 +453,8 @@ XrdMgmOfs::_rename (const char *old_name,
 
                   if (!fmd)
                   {
+		    if (lock_quota)
+		      Quota::gQuotaMutex.UnLockRead();
                     return Emsg(epname, error, errno, "rename - cannot stat file in subtree", fspath.c_str());
                   }
                   user_deletion_size[fmd->getCUid()] += (fmd->getSize() * fmd->getNumLocation());
@@ -500,6 +506,8 @@ XrdMgmOfs::_rename (const char *old_name,
               if ((!userok) && (!groupok))
               {
                 // deletion has to fail there is not enough quota on the target
+		if (lock_quota)
+		  Quota::gQuotaMutex.UnLockRead();
                 return Emsg(epname, error, ENOSPC, "rename - cannot get all the needed quota for the target directory");
 
               }
@@ -576,6 +584,9 @@ XrdMgmOfs::_rename (const char *old_name,
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
     }
+
+    if (lock_quota)
+      Quota::gQuotaMutex.UnLockRead();
 
     if ((!dir) || ((!file) && (!rdir)))
     {
