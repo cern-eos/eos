@@ -294,43 +294,56 @@ class Dispatcher(object):
                         # Get the uuid of the job
                         uuid = ps_file[ps_file.rfind('/') + 1: ps_file.rfind('.')]
                         # Get the pid which is running the job
-                        ps_proc = subprocess.Popen(['tail', '-1', ps_file],
+                        ps_proc = subprocess.Popen(['head', '-1', ps_file],
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE)
                         ps_out, _ = ps_proc.communicate()
-                        ps_out = ps_out.strip('\0')
-                        pid = ps_out[ps_out.find("pid=") + 4: ps_out.find(' ')]
-                        tx_file = ps_file[:ps_file.find('.')] + '.tx'
-                        log_file = ps_file[:ps_file.find('.')] + '.log'
+                        ps_out = ps_out.strip('\0\n')
+                        tx_file = ps_file[:-3] + '.tx'
+                        log_file = ps_file[:-3] + '.log'
+                        pid = ps_out[ps_out.find("pid=") + 4:]
                         # Check if process is still alive
                         try:
                             os.kill(int(pid), 0)
                         except OSError as err:
-                            self.logger.error(("Pid={0} is no longer alive"
-                                             " msg={1}").format(pid, err))
+                            err_msg = ("Uuid={0}, pid={1} is no longer alive "
+                                       "msg={2}").format(uuid, pid, err)
+                            self.logger.error(err_msg)
                             # Delete all files associated to this transfer
                             try:
                                 os.remove(ps_file)
-                            except OSError as err:
+                            except OSError as __:
                                 pass
 
                             try:
                                 os.remove(tx_file)
-                            except OSError as err:
+                            except OSError as __:
                                 pass
 
                             try:
                                 os.remove(log_file)
-                            except OSError as err:
+                            except OSError as __:
                                 pass
                         except ValueError as err:
-                            pass  # pid is not an int value
+                            # pid is not an int value
+                            crit_msg = ("Could not read pid from file={0}, please "
+                                        "check ongoing transfers before restarting "
+                                        "- refuse to start because of risk of data "
+                                        "corruption").format(ps_file)
+                            self.logger.critical(crit_msg)
+                            self.logger.critical("ps_out={0}".format(ps_out))
+                            raise
                         else:
                             # Read the path from the transfer file
-                            with open(tx_file, 'r') as filed:
-                                header = json.loads(filed.readline())
-                                path = header['src']
-                                self.orphan[key][uuid] = (pid, path)
+                            try:
+                                with open(tx_file, 'r') as filed:
+                                    header = json.loads(filed.readline())
+                                    path = header['src']
+                                    self.orphan[key][uuid] = (pid, path)
+                                    self.logger.debug(("op={0}, uuid={1}, pid={2}"
+                                                       "").format(key, uuid, pid))
+                            except IOError as __:
+                                self.orphan[key][uuid] = (pid, "...")
                                 self.logger.debug(("op={0}, uuid={1}, pid={2}"
                                                    "").format(key, uuid, pid))
 
@@ -368,7 +381,7 @@ class Dispatcher(object):
                                            stdout=subprocess.PIPE,
                                            stderr=subprocess.PIPE)
                 ps_out, _ = ps_proc.communicate()
-                ps_out = ps_out.strip('\0')
+                ps_out = ps_out.strip('\0\n')
                 ps_msg = ps_out[ps_out.find("msg=") + 4:]
                 row_data.append((uuid, path, ls_type, "running", ps_msg))
 
@@ -385,7 +398,7 @@ class Dispatcher(object):
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE)
                ps_out, _ = ps_proc.communicate()
-               ps_out = ps_out.strip('\0')
+               ps_out = ps_out.strip('\0\n')
                ps_msg = ps_out[ps_out.find("msg=") + 4:]
                row_data.append((uuid, path, ls_type, "running (o)", ps_msg))
 

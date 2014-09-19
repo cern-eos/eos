@@ -34,7 +34,7 @@ USER="xrootd"
 GROUP="xrootd"
 NAME="eosarchived"
 export DAEMON_COREFILE_LIMIT="unlimited"
-# Log level can be one of the following: 
+# Log level can be one of the following:
 # info, notice, warn/warning, err/error, emerg/panic, debug, crit/critical, alert
 export LOG_LEVEL="debug"
 export LOG_DIR="/var/log/eos/archive/"
@@ -51,9 +51,9 @@ mkdir -p $LOG_DIR
 chown -R $USER:$GROUP $LOG_DIR
 
 # Create and set ownership on the directory where files for each archive transfer
-# are saved by the worker processes. Each process saves 3 files with the following 
+# are saved by the worker processes. Each process saves 3 files with the following
 # extensions:
-#  .tx - the actual archive file copied from EOS 
+#  .tx - the actual archive file copied from EOS
 #  .log - log file for the running transfer
 #  .ps - status file for the running transfer
 mkdir -p $EOS_ARCHIVE_DIR
@@ -87,9 +87,9 @@ start() {
 
 stop() {
         echo -n $"Stopping $NAME: "
-        killproc $NAME
-
+        killproc -p "/var/run/$NAME.pid"
         RETVAL=$?
+
         echo
         [ -f /var/lock/subsys/$NAME ] && rm -f /var/lock/subsys/$NAME
         return $RETVAL

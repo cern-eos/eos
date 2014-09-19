@@ -37,41 +37,84 @@ from exceptions import NoErrorException
 from utils import exec_cmd
 from asynchandler import MetaHandler
 
+class ProgressFile(object):
+    """ File storing the information about the current process, namely the
+    process id and the current status of the transfer. It has the following
+    structure:
+    pid=process_id\n
+    msg=message
+    """
+    def __init__(self, name):
+        """ Constructor
+        Args:
+            name (string): Path the progress file on local disk
+
+        Raises:
+            IOError: In case the file could not be opened
+        """
+        self.fname = name
+        self.file = open(self.fname, 'w', 0) # unbuffered
+        self.file.write("pid={0}\n".format(os.getpid()))
+        # save position where we need to update the message status
+        self.pos = self.file.tell()
+
+    def __del__(self):
+        """ Make sure we close and remove progress file
+        """
+        try:
+            self.file.close()
+        except ValueError as __:
+            pass
+
+        try:
+            os.remove(self.fname)
+        except OSError as __:
+            pass
+
+
+    def update(self, msg):
+        """ Update the current status of the transfer
+        Args:
+            msg (string): New message status
+        """
+        self.file.truncate(self.pos)
+        self.file.write("msg={0}".format(msg))
+
 
 class ThreadJob(threading.Thread):
-    """Job executing a client.CopyProcess in a separate thread. This makes sense
+    """ Job executing a client.CopyProcess in a separate thread. This makes sense
     since a third-party copy job is mostly waiting for the completion of the
     job not doing any other operations and therefore not using the GIL too much.
 
     Attributes:
-        status (bool): Final status of the job.
-        proc (client.CopyProcess): Copy process which is being executed.
+        status (bool): Final status of the job
+        proc (client.CopyProcess): Copy process which is being executed
     """
     def __init__(self, cpy_proc):
         """Constructor.
 
         Args:
-            cpy_proc (client.CopyProcess): Copy process object.
+            cpy_proc (client.CopyProcess): Copy process object
         """
         threading.Thread.__init__(self)
         self.status = None
         self.proc = cpy_proc
 
     def run(self):
-        """Run method.
+        """ Run method
         """
         self.proc.prepare()
         self.xrd_status = self.proc.run()
 
 
 class Transfer(object):
-    """ Trasfer archive object.
+    """ Trasfer archive object
 
     Attributes:
-        eos_file (string): Location of archive file in EOS. It's a valid URL.
-        log_file (string): Transfer log file. Path on the local disk.
-        op (string): Operation type: put, get, purge, delete or list.
-        threads (list): List of threads doing parital transfers(CopyProcess jobs).
+        eos_file (string): Location of archive file in EOS. It's a valid URL
+        log_file (string): Transfer log file. Path on the local disk
+        op (string): Operation type: put, get, purge, delete or list
+        threads (list): List of threads doing parital transfers(CopyProcess jobs)
     """
     def __init__(self, eosf, operation, option):
         self.oper = operation
@@ -90,10 +133,10 @@ class Transfer(object):
 
         # Set up the logging
         formatter = logging.Formatter(const.LOG_FORMAT)
-        log_handler = logging.FileHandler(self.log_file)
-        log_handler.setFormatter(formatter)
+        self.log_handler = logging.FileHandler(self.log_file)
+        self.log_handler.setFormatter(formatter)
         self.logger = logging.getLogger(__name__)
-        self.logger.addHandler(log_handler)
+        self.logger.addHandler(self.log_handler)
         self.logger.propagate = False
         # Get the loglevel
         try:
@@ -104,33 +147,31 @@ class Transfer(object):
         self.logger.setLevel(int(loglvl))
 
         try:
-            self.fprogress = open(self.ps_file, 'w')
+            self.progress = ProgressFile(self.ps_file)
         except IOError as __:
             self.logger.error("Failed to open file={0}".format(self.ps_file))
             raise
 
-    def __del__(self):
-        try:
-            self.fprogress.close()
-        except ValueError as __:
-            pass
-
     def run(self):
         """ Run requested operation - fist call prepare
+
+        Raises:
+            IOError
         """
         self.prepare()
 
         if self.oper in [const.PUT_OP, const.GET_OP]:
             self.do_transfer()
-        elif self.oper == const.PURGE_OP:
-            self.do_delete(False)
-        elif self.oper == const.DELETE_OP:
-            self.do_delete(True)
+        elif self.oper in [const.PURGE_OP, const.DELETE_OP]:
+            self.do_delete((self.oper == const.DELETE_OP))
 
     def prepare(self):
         """ Prepare requested operation.
+
+        Raises:
+            IOError: Failed to rename or transfer archive file.
         """
-        self.write_progress("initializing")
+        self.progress.update("initializing")
 
         # Rename archive file in EOS
         efile_url = client.URL(self.efile_full)
@@ -249,38 +290,26 @@ class Transfer(object):
 
             indx_dir += 1
             self.archive.mkdir(dentry)
-            self.write_progress("create dir {0}/{1}".format(indx_dir,
-                                self.archive.header['num_dirs']))
+            self.progress.update("create dir {0}/{1}".format(indx_dir,
+                                 self.archive.header['num_dirs']))
 
         # For GET issue the Prepare2Get for all the files on tape
         self.prepare2get(err_entry, found_checkpoint)
 
         # Copy files
         self.copy_files(err_entry, found_checkpoint)
-        self.write_progress("checking")
+        self.progress.update("verifying")
         check_ok, __ = self.archive.verify()
-        self.write_progress("cleaning")
+        self.progress.update("cleaning")
         self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
         self.clean_transfer(check_ok)
-
-    def write_progress(self, msg):
-        """ Write progress message to the local progress file.
-
-        Args:
-            msg (string): Progress status message.
-        """
-        self.fprogress.truncate(0)
-        self.fprogress.seek(0)
-        self.fprogress.write("pid={0} msg={1}".format(os.getpid(), msg))
-        self.fprogress.flush()
-        os.fsync(self.fprogress.fileno())
 
     def clean_transfer(self, check_ok):
         """ Clean the transfer by renaming the archive file in EOS adding the
         following extensions:
         .done - the transfer was successful
         .err  - there were errors during the transfer. These are logged in the
-             file archive.log in the same directory.
+             file .archive.log in the same directory.
 
         Args:
             check_ok (bool): True if no error occured during transfer,
@@ -331,26 +360,23 @@ class Transfer(object):
                            "?eos.ruid=", client_uid, "&eos.rgid=", client_gid])
 
         self.logger.debug("Copy log:{0} to {1}".format(self.log_file, eos_log))
+        self.log_handler.flush()
         cp_client = client.FileSystem(self.efile_full)
         st, __ = cp_client.copy(self.log_file, eos_log, force=True)
 
         if not st.ok:
             self.logger.error("Failed to copy log file {0} to EOS at {1}".format(
                     self.log_file, eos_log))
+        else:
+            # delete log file if it was successfully copied to EOS
+            try:
+                os.remove(self.log_file)
+            except OSError as __:
+                pass
 
         # Delete all local files associated with this transfer
         try:
             os.remove(self.tx_file)
-        except OSError as __:
-            pass
-
-        try:
-            os.remove(self.log_file)
-        except OSError as __:
-            pass
-
-        try:
-            os.remove(self.ps_file)
         except OSError as __:
             pass
 
@@ -387,8 +413,8 @@ class Transfer(object):
                     found_checkpoint = True
 
             indx_file += 1
-            self.write_progress("copy file {0}/{1}".format(indx_file,
-                                self.archive.header['num_files']))
+            self.progress.update("copy file {0}/{1}".format(indx_file,
+                                 self.archive.header['num_files']))
             src, dst = self.archive.get_endpoints(fentry[1])
 
             # Copy file
@@ -473,11 +499,9 @@ class Transfer(object):
         # join the rest of the threads and collect also their status
         if not status or wait_all:
             for thread in self.threads:
-                if thread.isAlive():
-                    thread.join()
-                    self.logger.debug("Thread={0} status={1}".format(
-                            thread.ident, thread.xrd_status.ok))
-
+                thread.join()
+                self.logger.debug("Thread={0} status={1}".format(
+                        thread.ident, thread.xrd_status.ok))
                 status = status and thread.xrd_status.ok
 
             del self.threads[:]
@@ -502,7 +526,7 @@ class Transfer(object):
         oper = 'prepare'
 
         if not self.archive.d2t:
-            self.write_progress("prepare2get")
+            self.progress.update("prepare2get")
             t0 = time.time()
             lpaths = []
             metahandler = MetaHandler()
