@@ -36,7 +36,7 @@ ProcCommand::AdminQuota ()
  if (mSubCmd == "rmnode")
  {
    eos_notice("quota rm");
-   if (pVid->prot != "sss")
+   if ( (pVid->prot != "sss") && (eos::common::Mapping::IsLocalhost(*pVid) ) )
    {
      XrdOucString space = pOpaque->Get("mgm.quota.space");
      XrdOucString msg = "";

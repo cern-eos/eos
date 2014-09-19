@@ -170,7 +170,7 @@ ProcCommand::Quota ()
 
     if (mSubCmd == "set")
     {
-      if (pVid->prot != "sss")
+      if ( (pVid->prot != "sss") || (eos::common::Mapping::IsLocalhost(*pVid)) )
       {
         eos_notice("quota set");
         XrdOucString uid_sel = pOpaque->Get("mgm.quota.uid");
@@ -237,7 +237,7 @@ ProcCommand::Quota ()
     if (mSubCmd == "rm")
     {
       eos_notice("quota rm");
-      if (pVid->prot != "sss")
+      if ( (pVid->prot != "sss") || (eos::common::Mapping::IsLocalhost(*pVid)) )
       {
         XrdOucString uid_sel = pOpaque->Get("mgm.quota.uid");
         XrdOucString gid_sel = pOpaque->Get("mgm.quota.gid");
