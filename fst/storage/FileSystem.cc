@@ -239,9 +239,11 @@ FileSystem::CleanTransactions ()
 }
 
 /*----------------------------------------------------------------------------*/
-void
+bool
 FileSystem::SyncTransactions (const char* manager)
 {
+  bool ok=true;
+
   DIR* tdir = opendir(GetTransactionDirectory());
   if (tdir)
   {
@@ -273,6 +275,7 @@ FileSystem::SyncTransactions (const char* manager)
 	else
 	{
 	  eos_static_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) GetId(), fid);
+	  ok=false;
 	  continue;
 	}
       }
@@ -281,9 +284,11 @@ FileSystem::SyncTransactions (const char* manager)
   }
   else
   {
+    ok=false;
     eos_static_err("Unable to open transactiondirectory %s",
                    GetTransactionDirectory());
   }
+  return ok;
 }
 
 /*----------------------------------------------------------------------------*/

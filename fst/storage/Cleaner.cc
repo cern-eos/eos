@@ -69,8 +69,8 @@ Storage::Cleaner ()
 	{	
 	  if (fileSystemsVector[i]->GetStatus() == eos::common::FileSystem::kBooted) 
 	    {
-	      fileSystemsVector[i]->SyncTransactions(manager.c_str());
-	      fileSystemsVector[i]->CleanTransactions();
+	      if (fileSystemsVector[i]->SyncTransactions(manager.c_str()))
+		fileSystemsVector[i]->CleanTransactions();
 	    }
 	}
       }

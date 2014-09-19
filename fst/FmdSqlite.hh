@@ -164,6 +164,32 @@ public:
   }
 
   // ---------------------------------------------------------------------------
+  //! Retrieve a set with all fsid locations
+  // ---------------------------------------------------------------------------
+  static std::set<eos::common::FileSystem::fsid_t> GetLocations(struct Fmd &fmd)
+  {
+    std::vector<std::string> location_vector;
+    std::set<eos::common::FileSystem::fsid_t> location_set;
+    eos::common::StringConversion::Tokenize(fmd.locations, location_vector, ",");
+    for (size_t i=0; i< location_vector.size(); i++)
+    {
+      if (location_vector[i].length())
+      {
+	// unlinked locates have a '!' infront of the fsid
+	if (location_vector[i][0] == '!')
+	{
+	  location_set.insert(strtoul(location_vector[i].c_str() + 1, 0, 10));
+	}
+	else
+	{
+	  location_set.insert(strtoul(location_vector[i].c_str(), 0, 10));
+	}
+      }
+    }
+    return location_set;
+  }
+
+  // ---------------------------------------------------------------------------
   //! Dump Fmd
   // ---------------------------------------------------------------------------
   static void Dump (struct Fmd* fmd);

@@ -80,7 +80,7 @@ public:
     transactionDirectory = tx;
   }
   void CleanTransactions ();
-  void SyncTransactions (const char* manager);
+  bool SyncTransactions (const char* manager);
 
   void RunScanner (Load* fstLoad, time_t interval);
 

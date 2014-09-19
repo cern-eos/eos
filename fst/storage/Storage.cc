@@ -493,8 +493,8 @@ Storage::Boot (FileSystem *fs)
   }
 
   fs->SetTransactionDirectory(transactionDirectory.c_str());
-  fs->SyncTransactions(manager.c_str());
-  fs->CleanTransactions();
+  if (fs->SyncTransactions(manager.c_str()))
+    fs->CleanTransactions();
   fs->SetLongLong("stat.bootdonetime", (unsigned long long) time(NULL));
   fs->IoPing();
   fs->SetStatus(eos::common::FileSystem::kBooted);
