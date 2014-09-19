@@ -285,11 +285,35 @@ class ArchiveFile(object):
         url = client.URL(root_str)
         st, __ = fs.stat(url.path + "?eos.ruid=0&eos.rgid=0")
 
-        if self.d2t and st.ok:
-            # For PUT destination dir must NOT exist
-            err_msg = "Root PUT dir={0} exists".format(root_str)
+        if self.d2t:
+            if st.ok:
+                # For PUT destination dir must NOT exist
+                err_msg = "Root PUT dir={0} exists".format(root_str)
+                self.logger.error(err_msg)
+                raise IOError(err_msg)
+            else:
+                # Make sure the rest of the path exists as for the moment CASTOR
+                # mkdir -p /path/to/file does not work properly
+                pos = url.path.find('/', 1)
+
+                while pos != -1:
+                    dpath = url.path[: pos]
+                    pos = url.path.find('/', pos + 1)
+                    st, __ = fs.stat(dpath)
+
+                    if not st.ok:
+                        st, __  = fs.mkdir(dpath)
+
+                        if not st.ok:
+                            err_msg = "Dir={0}, failed mkdir".format(dpath)
+                            self.logger.error(err_msg)
+                            raise IOError(err_msg)
+
+        if not st.ok:
+            err_msg = "Dir={0}, failed mkdir".format(surl)
             self.logger.error(err_msg)
             raise IOError(err_msg)
+
         elif not self.d2t:
             # For GET destination must exist and contain just the archive file
             if not st.ok:
