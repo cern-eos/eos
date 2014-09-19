@@ -228,7 +228,8 @@ XrdMgmOfs::_attr_ls (const char *path,
                      XrdOucErrInfo &error,
                      eos::common::Mapping::VirtualIdentity &vid,
                      const char *info,
-                     eos::ContainerMD::XAttrMap & map)
+                     eos::ContainerMD::XAttrMap & map,
+		     bool lock)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief list extended attributes for a given directory
@@ -254,7 +255,9 @@ XrdMgmOfs::_attr_ls (const char *path,
   gOFS->MgmStats.Add("AttrLs", vid.uid, vid.gid, 1);
 
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  if (lock)
+    gOFS->eosViewRWMutex.LockRead();
+
   try
   {
     dh = gOFS->eosView->getContainer(path);
@@ -275,6 +278,9 @@ XrdMgmOfs::_attr_ls (const char *path,
   if (dh && (!dh->access(vid.uid, vid.gid, X_OK | R_OK)))
     if (!errno)errno = EPERM;
 
+
+  if (lock)
+    gOFS->eosViewRWMutex.UnLockRead();
 
   EXEC_TIMING_END("AttrLs");
 

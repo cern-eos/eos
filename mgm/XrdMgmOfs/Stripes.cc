@@ -379,6 +379,7 @@ XrdMgmOfs::_replicatestripe (const char *path,
  *
  * The function requires POSIX W_OK & X_OK on the parent directory to succeed.
  * It calls _replicatestripe with a file meta data object.
+ * The call needs to have   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex); 
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -391,8 +392,9 @@ XrdMgmOfs::_replicatestripe (const char *path,
   eos::common::Path cPath(path);
 
   eos_debug("replicating %s from %u=>%u [drop=%d]", path, sourcefsid, targetfsid, dropsource);
+
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  gOFS->eosViewRWMutex.LockRead();
   try
   {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
@@ -437,7 +439,7 @@ XrdMgmOfs::_replicatestripe (const char *path,
   if (errno)
   {
     // -------------------------------------------------------------------------
-
+    gOFS->eosViewRWMutex.UnLockRead();
     return Emsg(epname, error, errno, "replicate stripe", path);
   }
 
@@ -447,6 +449,7 @@ XrdMgmOfs::_replicatestripe (const char *path,
 
   // ------------------------------------------
 
+  gOFS->eosViewRWMutex.UnLockRead();
   int retc = _replicatestripe(fmd, path, error, vid, sourcefsid, targetfsid, dropsource, expressflag);
 
   EXEC_TIMING_END("ReplicateStripe");
@@ -481,6 +484,7 @@ XrdMgmOfs::_replicatestripe (eos::FileMD *fmd,
  * @return SFS_OK if success otherwise SFS_ERROR
  *
  * The function sends an appropriate message to the target FST.
+ * The call needs to have   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex); 
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -509,7 +513,6 @@ XrdMgmOfs::_replicatestripe (eos::FileMD *fmd,
   eos::mgm::FileSystem* targetfilesystem = 0;
 
 
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   if (FsView::gFsView.mIdView.count(sourcefsid))
   {
     sourcefilesystem = FsView::gFsView.mIdView[sourcefsid];

@@ -83,7 +83,8 @@ XrdMgmOfs::_rem (const char *path,
                  eos::common::Mapping::VirtualIdentity &vid,
                  const char *ininfo,
                  bool simulate,
-                 bool keepversion)
+                 bool keepversion, 
+		 bool lock_quota)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -135,7 +136,8 @@ XrdMgmOfs::_rem (const char *path,
   }
 
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+  if (lock_quota) 
+    Quota::gQuotaMutex.LockRead();
 
   gOFS->eosViewRWMutex.LockWrite();
 
@@ -194,6 +196,8 @@ XrdMgmOfs::_rem (const char *path,
     {
       errno = EPERM;
       gOFS->eosViewRWMutex.UnLockWrite();
+      if (lock_quota) 
+	Quota::gQuotaMutex.UnLockRead();
       return Emsg(epname, error, errno, "remove file - immutable", path);
     }
 
@@ -221,6 +225,8 @@ XrdMgmOfs::_rem (const char *path,
       {
         errno = EPERM;
         gOFS->eosViewRWMutex.UnLockWrite();
+	if (lock_quota) 
+	  Quota::gQuotaMutex.UnLockRead();
         return Emsg(epname, error, errno, "remove file", path);
       }
 
@@ -228,6 +234,8 @@ XrdMgmOfs::_rem (const char *path,
       if (acl.CanWriteOnce() && (fmd->getSize()))
       {
         gOFS->eosViewRWMutex.UnLockWrite();
+	if (lock_quota) 
+	  Quota::gQuotaMutex.UnLockRead();
         errno = EPERM;
         // this is a write once user
         return Emsg(epname, error, EPERM, "remove existing file - you are write-once user");
@@ -239,6 +247,8 @@ XrdMgmOfs::_rem (const char *path,
 
       {
         gOFS->eosViewRWMutex.UnLockWrite();
+	if (lock_quota) 
+	  Quota::gQuotaMutex.UnLockRead();
         errno = EPERM;
         // deletion is forbidden for not-owner
         return Emsg(epname, error, EPERM, "remove existing file - ACL forbids file deletion");
@@ -247,6 +257,8 @@ XrdMgmOfs::_rem (const char *path,
       if ((!stdpermcheck) && (!acl.CanWrite()))
       {
         gOFS->eosViewRWMutex.UnLockWrite();
+	if (lock_quota) 
+	  Quota::gQuotaMutex.UnLockRead();
         errno = EPERM;
         // this user is not allowed to write
         return Emsg(epname, error, EPERM, "remove existing file - you don't have write permissions");
@@ -346,6 +358,8 @@ XrdMgmOfs::_rem (const char *path,
         // since the recycle space is full
         // ---------------------------------------------------------------------
         errno = ENOSPC;
+	if (lock_quota) 
+	  Quota::gQuotaMutex.UnLockRead();
         return Emsg(epname,
                     error,
                     ENOSPC,
@@ -363,6 +377,7 @@ XrdMgmOfs::_rem (const char *path,
         Recycle lRecycle(path, attrmap[Recycle::gRecyclingAttribute].c_str(),
                          &vid, fmd->getCUid(), fmd->getCGid(), fmd->getId());
 
+
         if ((rc = lRecycle.ToGarbage(epname, error)))
         {
           return rc;
@@ -375,6 +390,8 @@ XrdMgmOfs::_rem (const char *path,
       // there is no quota defined on that recycle path
       // -----------------------------------------------------------------------
       errno = ENODEV;
+      if (lock_quota) 
+	Quota::gQuotaMutex.UnLockRead();
       return Emsg(epname,
                   error,
                   ENODEV,
@@ -384,11 +401,13 @@ XrdMgmOfs::_rem (const char *path,
 
     if (!keepversion)
     {
-      // call the version purge function in case there is a version
+      // call the version purge function in case there is a version (without gQuota locked)
       eos::common::Path cPath(path);
       XrdOucString vdir;
       vdir += cPath.GetVersionDirectory();
+
       gOFS->PurgeVersion(vdir.c_str(), error, 0);
+
       error.clear();
       errno = 0; // purge might return ENOENT if there was no version
     }
@@ -396,17 +415,25 @@ XrdMgmOfs::_rem (const char *path,
   else
   {
     gOFS->eosViewRWMutex.UnLockWrite();
+
     if ((!errno) && (!keepversion))
     {
-      // call the version purge function in case there is a version
+      // call the version purge function in case there is a version (without gQuota locked)
       eos::common::Path cPath(path);
       XrdOucString vdir;
       vdir += cPath.GetVersionDirectory();
+
       gOFS->PurgeVersion(vdir.c_str(), error, 0);
+
       error.clear();
       errno = 0; // purge might return ENOENT if there was no version
     }
   }
+
+  if (lock_quota) 
+    Quota::gQuotaMutex.UnLockRead();
+    
+
 
   EXEC_TIMING_END("Rm");
 

@@ -445,6 +445,7 @@ XrdMgmOfsFile::open (const char *inpath,
       if (dmd)
       {
         fmd = dmd->findFile(cPath.GetName());
+	eos_info("find file %x", fmd);
         if (!fmd)
         {
           if (dmd->findContainer(cPath.GetName()))
@@ -453,7 +454,26 @@ XrdMgmOfsFile::open (const char *inpath,
           }
           else
           {
-            errno = ENOENT;
+	    if (ocUploadUuid.length()) 
+	    {
+	      eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"),ocUploadUuid));
+
+              fmd = dmd->findFile(aPath.GetName());
+	      if (fmd) 
+	      {
+		fileId = fmd->getId();
+		fmdlid = fmd->getLayoutId();
+		cid = fmd->getContainerId();
+	      } 
+	      else 
+	      {
+		errno = ENOENT;
+	      }
+	    } 
+	    else 
+	    {
+	      errno = ENOENT;
+	    }
           }
         }
         else
@@ -741,14 +761,20 @@ XrdMgmOfsFile::open (const char *inpath,
       else
       {
         // drop the old file (for non atomic uploads) and create a new truncated one
-        if ((!isAtomicUpload) && gOFS->_rem(path, error, vid, info))
+        if ((!isAtomicUpload) && gOFS->_rem(path, error, vid, info, false, false, false))
         {
           return Emsg(epname, error, errno, "remove file for truncation", path);
         }
       }
-
-      // invalidate the record
-      fmd = 0;
+      
+      if (!ocUploadUuid.length()) 
+      {
+	fmd = 0;
+      }
+      else
+      {
+	eos_info("keep attached to existing fmd in chunked upload");
+      }
       gOFS->MgmStats.Add("OpenWriteTruncate", vid.uid, vid.gid, 1);
     }
     else
@@ -784,7 +810,7 @@ XrdMgmOfsFile::open (const char *inpath,
     // -------------------------------------------------------------------------
     // write case
     // -------------------------------------------------------------------------
-    if ((!fmd) || ocUploadUuid.length())
+    if ((!fmd))
     {
       if (!(open_flag & O_CREAT))
       {
@@ -799,29 +825,16 @@ XrdMgmOfsFile::open (const char *inpath,
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
           try
           {
-            // we create files with the uid/gid of the parent directory
-            if (isAtomicUpload)
-            {
-              eos::common::Path cPath(path);
-              creation_path = cPath.GetAtomicPath(versioning, ocUploadUuid);
-              eos_info("atomic-path=%s", creation_path.c_str());
-            }
-
-            if (ocUploadUuid.length())
-            {
-              // try to attach to a file which has already uploaded chunks
-              try
-              {
-                fmd = gOFS->eosView->getFile(creation_path.c_str());
-              }
-              catch (eos::MDException &e)
-              {
-              }
-            }
-
-            // create it if we didn't already attach above for an OC upload
-            if (!fmd)
-            {
+	    if (!fmd) 
+	    {
+	      // we create files with the uid/gid of the parent directory
+	      if (isAtomicUpload)
+	      {
+		eos::common::Path cPath(path);
+		creation_path = cPath.GetAtomicPath(versioning, ocUploadUuid);
+		eos_info("atomic-path=%s", creation_path.c_str());
+	      }
+	      
               fmd = gOFS->eosView->createFile(creation_path.c_str(), vid.uid, vid.gid);
               if (ocUploadUuid.length())
                 fmd->setFlags(0);
@@ -1371,7 +1384,7 @@ XrdMgmOfsFile::open (const char *inpath,
         // ---------------------------------------------------------------------
         eos::common::Mapping::VirtualIdentity vidroot;
         eos::common::Mapping::Root(vidroot);
-        gOFS->_rem(cPath.GetPath(), error, vidroot, 0);
+        gOFS->_rem(cPath.GetPath(), error, vidroot, 0, false, false, false);
       }
 
       gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);

@@ -320,7 +320,8 @@ public:
             eos::common::Mapping::VirtualIdentity &vid,
             const char *opaque = 0,
             bool simulate = false,
-            bool keepversion = false);
+            bool keepversion = false, 
+	    bool lock_quota = true);
 
   // ---------------------------------------------------------------------------
   // find files internal function
@@ -353,7 +354,8 @@ public:
                XrdOucErrInfo &out_error,
                eos::common::Mapping::VirtualIdentity &vid,
                const char *opaque = 0,
-               bool simulate = false);
+               bool simulate = false, 
+	       bool lock_quota = true);
 
   // ---------------------------------------------------------------------------
   // rename file
@@ -520,7 +522,8 @@ public:
                 XrdOucErrInfo &out_error,
                 eos::common::Mapping::VirtualIdentity &vid,
                 const char *opaque,
-                eos::ContainerMD::XAttrMap &map);
+                eos::ContainerMD::XAttrMap &map,
+		bool lock=true);
 
   // ---------------------------------------------------------------------------
   // set extended attribute by vid

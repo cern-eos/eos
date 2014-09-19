@@ -82,7 +82,8 @@ XrdMgmOfs::_remdir (const char *path,
                     XrdOucErrInfo &error,
                     eos::common::Mapping::VirtualIdentity &vid,
                     const char *ininfo,
-                    bool simulate)
+                    bool simulate, 
+		    bool lock_quota)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a directory from the namespace
@@ -121,8 +122,13 @@ XrdMgmOfs::_remdir (const char *path,
   // make sure this is not a quota node
   // ---------------------------------------------------------------------------
   {
-    eos::common::RWMutexReadLock qlock(Quota::gQuotaMutex);
-    if (Quota::GetSpaceQuota(path, true))
+    if (lock_quota)
+	Quota::gQuotaMutex.LockRead();
+    SpaceQuota* quota = Quota::GetSpaceQuota(path, true);
+
+    if (lock_quota)
+	Quota::gQuotaMutex.UnLockRead();
+    if (quota)
     {
       errno = EBUSY;
       return Emsg(epname, error, errno, "rmdir - this is a quota node", path);
