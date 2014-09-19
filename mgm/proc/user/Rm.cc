@@ -162,10 +162,6 @@ ProcCommand::Rm ()
             retc = errno;
           }
         }
-        else
-        {
-          fprintf(stderr, "############ skipping attrls\n");
-        }
 
         //.......................................................................
         // see if we have a recycle policy set and if avoid to recycle inside

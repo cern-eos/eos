@@ -54,7 +54,6 @@ ProcCommand::Map ()
     {
       XrdOucString srcpath = pOpaque->Get("mgm.map.src");
       XrdOucString dstpath = pOpaque->Get("mgm.map.dest");
-      fprintf(stderr, "|%s|%s|\n", srcpath.c_str(), dstpath.c_str());
       if ((!srcpath.length()) || ((srcpath.find("..") != STR_NPOS))
           || ((srcpath.find("/../") != STR_NPOS))
           || ((srcpath.find(" ") != STR_NPOS))

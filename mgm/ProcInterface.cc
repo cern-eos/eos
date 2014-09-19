@@ -960,7 +960,6 @@ ProcCommand::KeyValToHttpTable (XrdOucString & stdOut)
 
   while ((line = tokenizer.GetLine()))
   {
-    fprintf(stderr, "line=%s\n", line);
     if (strlen(line) <= 1)
       continue;
 
@@ -975,7 +974,6 @@ ProcCommand::KeyValToHttpTable (XrdOucString & stdOut)
     }
     else
     {
-      fprintf(stderr, "GetKeyValue failed for |%s|\n", line);
       ok = false;
       break;
     }

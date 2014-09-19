@@ -306,11 +306,9 @@ XrdMgmOfs::_rename (const char *old_name,
         {
           XrdOucString op = oPath.GetParentPath();
           XrdOucString vp = nPath.GetVersionDirectory();
-          fprintf(stderr, "#### compare %s %s\n", op.c_str(), vp.c_str());
           if (op == vp)
             keepversion = true;
         }
-        fprintf(stderr, "#### keepversion %d\n", keepversion);
         // delete the existing target
         if (gOFS->_rem(new_name, error, vid, infoN, false, keepversion))
           return SFS_ERROR;

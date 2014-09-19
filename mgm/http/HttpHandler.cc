@@ -682,7 +682,6 @@ HttpHandler::Put (eos::common::HttpRequest * request)
     // we have to rewrite the path and add some additional header describing
     // the chunking which was stored in the name
     url = eos::common::OwnCloud::prepareChunkUpload(request, &response, ocHeader);
-    fprintf(stderr, "OC Url %s\n", url.c_str());
     if (response)
       return response;
   }

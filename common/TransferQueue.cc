@@ -143,7 +143,7 @@ TransferQueue::Add (eos::common::TransferJob* job)
     }
     else
     {
-      fprintf(stderr, "Couldn't get queue %s!\n", mFullQueue.c_str());
+      fprintf(stderr, "error: couldn't get queue %s!\n", mFullQueue.c_str());
     }
     mSom->HashMutex.UnLockRead();
   }
@@ -195,7 +195,7 @@ TransferQueue::Get ()
     }
     else
     {
-      fprintf(stderr, "Couldn't get queue %s!\n", mFullQueue.c_str());
+      fprintf(stderr, "error: couldn't get queue %s!\n", mFullQueue.c_str());
     }
     mSom->HashMutex.UnLockRead();
   }
