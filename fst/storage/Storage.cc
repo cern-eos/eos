@@ -493,7 +493,7 @@ Storage::Boot (FileSystem *fs)
   }
 
   fs->SetTransactionDirectory(transactionDirectory.c_str());
-  fs->SyncTransactions();
+  fs->SyncTransactions(manager.c_str());
   fs->CleanTransactions();
   fs->SetLongLong("stat.bootdonetime", (unsigned long long) time(NULL));
   fs->IoPing();

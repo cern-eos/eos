@@ -47,22 +47,37 @@ Storage::Cleaner ()
 
   while (1)
   {
-    eos_static_debug("Doing cleaning round ...");
+    eos_static_notice("msg=\"cleaning transactions\"");
+    XrdOucString manager;
+    {
+      XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
+      manager = eos::fst::Config::gConfig.Manager.c_str();
+    }
 
     unsigned int nfs = 0;
     {
       eos::common::RWMutexReadLock lock(fsMutex);
       nfs = fileSystemsVector.size();
     }
-    for (unsigned int i = 0; i < nfs; i++)
-    {
-      eos::common::RWMutexReadLock lock(fsMutex);
-      if (i < fileSystemsVector.size())
-      {
 
-        if (fileSystemsVector[i]->GetStatus() == eos::common::FileSystem::kBooted)
-          fileSystemsVector[i]->CleanTransactions();
+    if (manager.length()) 
+    {
+      for (unsigned int i = 0; i < nfs; i++)
+      {
+	eos::common::RWMutexReadLock lock(fsMutex);
+	if (i < fileSystemsVector.size())
+	{	
+	  if (fileSystemsVector[i]->GetStatus() == eos::common::FileSystem::kBooted) 
+	    {
+	      fileSystemsVector[i]->SyncTransactions(manager.c_str());
+	      fileSystemsVector[i]->CleanTransactions();
+	    }
+	}
       }
+    }
+    else
+    {
+      eos_static_err("msg=\"don't know the manager name\"");
     }
 
     // go to sleep for a day since we allow a transaction to stay for 1 week

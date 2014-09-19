@@ -186,8 +186,25 @@ FileSystem::CleanTransactions ()
           }
         }
 
-        if ((buf.st_mtime < (time(NULL) - (7 * 86400))) && (!isOpen))
+	if ((buf.st_mtime < (time(NULL) - (7 * 86400))) && (!isOpen))
         {
+
+	  FmdSqlite* fMd = 0;
+	  fMd = gFmdSqliteHandler.GetFmd(fileid, GetId(), 0, 0, 0, 0, true);
+
+	  if (fMd) 
+	  {
+	    std::set<eos::common::FileSystem::fsid_t> location_set = FmdSqlite::GetLocations(fMd->fMd);
+	    if (location_set.count(GetId()))
+	    {
+	      // close that transaction and keep the file
+	      gOFS.Storage->CloseTransaction(GetId(), fileid);
+	      delete fMd;
+	      continue;
+	    }
+	    delete fMd;
+	  }
+
           eos_static_info("action=delete transaction=%llx fstpath=%s",
                           sname.c_str(),
                           fulltransactionpath.c_str());
@@ -223,7 +240,7 @@ FileSystem::CleanTransactions ()
 
 /*----------------------------------------------------------------------------*/
 void
-FileSystem::SyncTransactions ()
+FileSystem::SyncTransactions (const char* manager)
 {
   DIR* tdir = opendir(GetTransactionDirectory());
   if (tdir)
@@ -247,18 +264,17 @@ FileSystem::SyncTransactions ()
         eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(),
                                                 localprefix, fstPath);
         unsigned long long fid = eos::common::FileId::Hex2Fid(hexfid.c_str());
-        FmdSqlite* fMd = 0;
-        fMd = gFmdSqliteHandler.GetFmd(fid, GetId(), 0, 0, 0, 0, true);
-        if (fMd)
-        {
 
-          gOFS.WrittenFilesQueueMutex.Lock();
-          gOFS.WrittenFilesQueue.push(fMd->fMd);
-          gOFS.WrittenFilesQueueMutex.UnLock();
-          delete fMd;
-          eos_static_info("action=sync transaction=%llx fstpath=%s",
-                          sname.c_str(), fulltransactionpath.c_str());
-        }
+	// try to sync this file from the MGM
+	if (gFmdSqliteHandler.ResyncMgm(GetId(), fid, manager))
+	{
+	  eos_static_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) GetId(), fid);
+	}
+	else
+	{
+	  eos_static_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) GetId(), fid);
+	  continue;
+	}
       }
     }
     closedir(tdir);
