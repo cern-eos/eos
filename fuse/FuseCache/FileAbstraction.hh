@@ -55,6 +55,7 @@ class FileAbstraction
 
     //! Errors collected during writes
     eos::common::ConcurrentQueue<error_type>* errorsQueue;
+    XrdSysRWLock mMutexRW; ///< RW mutex for file access
 
     //--------------------------------------------------------------------------
     //! Constructor
@@ -187,13 +188,13 @@ class FileAbstraction
     //--------------------------------------------------------------------------
     long long int GenerateBlockKey(off_t offset);
 
-  
+
     //--------------------------------------------------------------------------
     //! Get the queue of errros
     //--------------------------------------------------------------------------
     eos::common::ConcurrentQueue<error_type>& GetErrorQueue() const;
 
-  
+
   private:
 
     int mFd; ///< file descriptor used for the block key range

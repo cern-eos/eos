@@ -33,11 +33,12 @@
 // Constructor
 //------------------------------------------------------------------------------
 FileAbstraction::FileAbstraction(int fd, eos::fst::Layout* file) :
+  mMutexRW(),
   mFd(fd),
   mFile(file),
   mNoReferences(0),
   mNumOpen(1),
-  mSizeWrites(0)  
+  mSizeWrites(0)
 {
   // Max file size we can deal with is ~ 90TB
   mFirstPossibleKey = static_cast<long long>(1e14 * mFd);
@@ -171,7 +172,7 @@ bool
 FileAbstraction::IsInUse()
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
-  eos_static_debug("write_sz=%zu, num_ref=%i, num_open=%i", 
+  eos_static_debug("write_sz=%zu, num_ref=%i, num_open=%i",
                    mSizeWrites, mNoReferences, mNumOpen);
   return ((mNumOpen > 1) || (mSizeWrites) || (mNoReferences > 1));
 }
@@ -185,4 +186,3 @@ FileAbstraction::GetErrorQueue() const
 {
   return *errorsQueue;
 }
-
