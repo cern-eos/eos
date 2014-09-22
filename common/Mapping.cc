@@ -59,6 +59,8 @@ XrdOucHash<Mapping::gid_vector> Mapping::gPhysicalGidCache;
 XrdSysMutex Mapping::gPhysicalNameCacheMutex;
 std::map<uid_t, std::string> Mapping::gPhysicalUserNameCache;
 std::map<gid_t, std::string> Mapping::gPhysicalGroupNameCache;
+std::map<std::string, uid_t> Mapping::gPhysicalUserIdCache;
+std::map<std::string, gid_t> Mapping::gPhysicalGroupIdCache;
 
 Mapping::ip_cache Mapping::gIpCache (300);
 /*----------------------------------------------------------------------------*/
@@ -1216,12 +1218,14 @@ std::string
 Mapping::UidToUserName (uid_t uid, int &errc)
 {
   errc = 0;
-  XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
-  if (gPhysicalUserNameCache.count(uid))
   {
-    return gPhysicalUserNameCache[uid];
+    XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+    if (gPhysicalUserNameCache.count(uid))
+    {
+      return gPhysicalUserNameCache[uid];
+    }
   }
-  else
+
   {
     char buffer[131072];
     int buflen = sizeof (buffer);
@@ -1241,7 +1245,9 @@ Mapping::UidToUserName (uid_t uid, int &errc)
       uid_string = pwbuf.pw_name;
       errc = 0;
     }
+    XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
     gPhysicalUserNameCache[uid] = uid_string;
+
     return uid_string;
   }
 }
@@ -1261,12 +1267,14 @@ std::string
 Mapping::GidToGroupName (gid_t gid, int &errc)
 {
   errc = 0;
-  XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
-  if (gPhysicalGroupNameCache.count(gid))
   {
-    return gPhysicalGroupNameCache[gid];
+    XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+    if (gPhysicalGroupNameCache.count(gid))
+    {
+      return gPhysicalGroupNameCache[gid];
+    }
   }
-  else
+
   {
     char buffer[131072];
     int buflen = sizeof (buffer);
@@ -1288,6 +1296,7 @@ Mapping::GidToGroupName (gid_t gid, int &errc)
       gid_string = grbuf.gr_name;
       errc = 0;
     }
+    XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
     gPhysicalGroupNameCache[gid] = gid_string;
     return gid_string;
   }
@@ -1307,6 +1316,14 @@ Mapping::GidToGroupName (gid_t gid, int &errc)
 uid_t
 Mapping::UserNameToUid (std::string &username, int &errc)
 {
+  {
+    XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+    if (gPhysicalUserIdCache.count(username))
+    {
+      return gPhysicalUserIdCache[username];
+    }
+  }
+
   char buffer[131072];
   int buflen = sizeof (buffer);
   uid_t uid = 99;
@@ -1341,6 +1358,10 @@ Mapping::UserNameToUid (std::string &username, int &errc)
     uid = pwbuf.pw_uid;
     errc = 0;
   }
+
+  XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+  gPhysicalUserIdCache[username] = uid;
+
   return uid;
 }
 
@@ -1358,6 +1379,14 @@ Mapping::UserNameToUid (std::string &username, int &errc)
 gid_t
 Mapping::GroupNameToGid (std::string &groupname, int &errc)
 {
+  {
+    XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+    if (gPhysicalGroupIdCache.count(groupname))
+    {
+      return gPhysicalGroupIdCache[groupname];
+    }
+  }
+
   char buffer[131072];
   int buflen = sizeof (buffer);
   struct group grbuf;
@@ -1383,6 +1412,9 @@ Mapping::GroupNameToGid (std::string &groupname, int &errc)
     gid = grbuf.gr_gid;
     errc = 0;
   }
+
+  XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+  gPhysicalGroupIdCache[groupname] = gid;
   return gid;
 }
 
