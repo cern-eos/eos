@@ -8,6 +8,15 @@ Beryl Release Notes
 ``Version V0.3.42 Beryl-Aquamarine``
 - add support for archive interface to stage-out and migrate a frozen subtree in the namespace to any XRootD enabled archive storage
 
+``Version V0.3.43 Beryl``
+- FST don't clean-up transactions if their replica is registered in the MGM
+- bugfixes in HTTP daemon configuration/startup
+- make all HTTP header tags case-insensitive
+- HEAD becomes a light-weight operation on large directories
+- many bugfixes for owncloud/atomic/version support
+- many bugfixes for mutex order violations
+- new unit tests for owncloud/atomic/version support
+
 ``Version V0.3.37 Beryl``
 
 - add support for Owncloud chunked upload
