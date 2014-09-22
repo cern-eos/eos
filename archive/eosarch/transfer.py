@@ -57,6 +57,7 @@ class ProgressFile(object):
         self.file.write("pid={0}\n".format(os.getpid()))
         # save position where we need to update the message status
         self.pos = self.file.tell()
+        self.file.write("msg=initializing")
 
     def __del__(self):
         """ Make sure we close and remove progress file
@@ -78,7 +79,9 @@ class ProgressFile(object):
             msg (string): New message status
         """
         self.file.truncate(self.pos)
-        self.file.write("msg={0}".format(msg))
+        self.file.seek(self.pos)
+        self.file.write("msg={0}\n".format(msg))
+        self.file.flush()
 
 
 class ThreadJob(threading.Thread):
@@ -171,8 +174,6 @@ class Transfer(object):
         Raises:
             IOError: Failed to rename or transfer archive file.
         """
-        self.progress.update("initializing")
-
         # Rename archive file in EOS
         efile_url = client.URL(self.efile_full)
         eosf_rename = ''.join([self.efile_root, const.ARCH_FN, ".", self.oper, ".err"])
@@ -473,7 +474,7 @@ class Transfer(object):
                             thread.ident, thread.xrd_status.ok))
 
                     if not status:
-                        self.logger.error("Thread={0} err_msg={2}".format(
+                        self.logger.error("Thread={0} err_msg={1}".format(
                                 thread.ident, thread.xrd_status.message))
 
                     del self.threads[indx]

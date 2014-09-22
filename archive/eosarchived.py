@@ -46,7 +46,7 @@ from errno import EIO, EINVAL
 const.BATCH_SIZE = 10  # max number of transfers to be performed by one thread
 const.MAX_THREADS = 5  # max number of threads used per transfer process
 const.POLL_TIMEOUT = 1000  # miliseconds
-const.JOIN_TIMEOUT = 5000  # join timeout for running threads (ms)
+const.JOIN_TIMEOUT = 1  # join timeout for running threads (sec)
 const.MAX_PENDING = 10  # max number of requests allowed in pending
 const.CREATE_OP = 'create'
 const.GET_OP = 'get'

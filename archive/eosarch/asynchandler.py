@@ -103,7 +103,7 @@ class MetaHandler(object):
         if self.num[op] == 0:
             self.cond.notifyAll()
 
-            self.cond.release()
+        self.cond.release()
 
     def wait(self, op):
         """Wait for all responses to arrive.
