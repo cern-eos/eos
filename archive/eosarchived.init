@@ -30,15 +30,8 @@
 . /etc/rc.d/init.d/functions
 
 # Variables
-USER="xrootd"
-GROUP="xrootd"
 NAME="eosarchived"
 export DAEMON_COREFILE_LIMIT="unlimited"
-# Log level can be one of the following:
-# info, notice, warn/warning, err/error, emerg/panic, debug, crit/critical, alert
-export LOG_LEVEL="debug"
-export LOG_DIR="/var/log/eos/archive/"
-export EOS_ARCHIVE_DIR="/var/eos/archive/"
 RETVAL=0
 
 # Source sysconfig files

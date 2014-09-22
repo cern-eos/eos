@@ -1,3 +1,21 @@
 # Options for the eosarchived daemon
 # EOSARCHIVED_OPTIONS=
-export XrdSecSSSKT=/etc/eosarchive.keytab
+USER="xrootd"
+GROUP="xrootd"
+
+# Log level can be one of the following (follows the syslog convention):
+# info, notice, warn/warning, err/error, emerg/panic, debug, crit/critical, alert
+export LOG_LEVEL="debug"
+
+# Directory where log files are saved
+export LOG_DIR="/var/log/eos/archive/"
+
+# This directory must match the one set in xrd.cf.mgm as it is used for the
+# communication between the MGM and the eosarchived daemon
+export EOS_ARCHIVE_DIR="/var/eos/archive/"
+
+# This is the location of the archive keytab file containing just **one** entry
+# for the user account under which the eosarchived daemon is running. The same
+# entry need to be present in the eos.keytab file so that the eosarchived can
+# have full access to the EOS.
+export XrdSecSSSKT=/etc/archive.keytab
