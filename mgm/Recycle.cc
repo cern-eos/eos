@@ -680,11 +680,12 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
                 stdOut += "\n";
               }
               count++;
-              if (count > 100000)
+              if ( (vid.uid) && (!vid.sudoer) && ( count > 100000) )
               {
                 stdOut += "... (truncated)\n";
                 retc = E2BIG;
                 stdErr += "warning: list too long - truncated after 100000 entries!\n";
+		return;
               }
             }
           }
