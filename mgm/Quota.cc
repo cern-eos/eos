@@ -1,4 +1,4 @@
-
+// ----------------------------------------------------------------------
 // File: Quota.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
@@ -118,7 +118,7 @@ SpaceQuota::SpaceQuota (const char* name)
   {
     QuotaNode = 0;
   }
-
+  DirtyTarget = true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -260,6 +260,14 @@ SpaceQuota::SetQuota (unsigned long tag, unsigned long id, unsigned long long va
   eos_static_debug("set quota tag=%lu id=%lu value=%llu", tag, id, value);
   Quota[Index(tag, id)] = value;
   if (lock) Mutex.UnLock();
+
+  if ( ( tag == kUserBytesTarget ) || 
+       ( tag == kGroupBytesTarget ) || 
+       ( tag == kUserFilesTarget ) || 
+       ( tag == kGroupFilesTarget ) || 
+       ( tag == kUserLogicalBytesTarget ) || 
+       ( tag == kGroupLogicalBytesTarget ) ) 
+    DirtyTarget = true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -283,7 +291,11 @@ SpaceQuota::AddQuota (unsigned long tag, unsigned long id, long long value, bool
 void
 SpaceQuota::UpdateTargetSums ()
 {
+  if (!DirtyTarget)
+    return;
+
   Mutex.Lock();
+  DirtyTarget = false;
   eos_static_debug("updating targets");
   ResetQuota(kAllUserBytesTarget, 0, false);
   ResetQuota(kAllUserFilesTarget, 0, false);
@@ -646,21 +658,14 @@ SpaceQuota::PrintOut (XrdOucString &output, long uid_sel, long gid_sel, bool mon
         }
         else
         {
-          // try to translate with password database
-          char buffer[16384];
-          int buflen = sizeof (buffer);
-          struct passwd pwbuf;
-          struct passwd *pwbufp = 0;
-          memset(&pwbuf, 0, sizeof (pwbuf));
-          if (!getpwuid_r(sortuidarray[lid], &pwbuf, buffer, buflen, &pwbufp))
+	  int errc=0;
+	  std::string username = eos::common::Mapping::UidToUserName (sortuidarray[lid], errc);
+	  char uidlimit[16];
+          if (username.length())
           {
-            char uidlimit[16];
-            if (pwbuf.pw_name)
-            {
-              snprintf(uidlimit, 11, "%s", pwbuf.pw_name);
-              id = uidlimit;
-            }
-          }
+	    snprintf(uidlimit, 11, "%s", username.c_str());
+	    id = uidlimit;
+	  }
         }
       }
 
@@ -742,27 +747,15 @@ SpaceQuota::PrintOut (XrdOucString &output, long uid_sel, long gid_sel, bool mon
           id = "project";
         }
         else
-        {
-          // try to translate with password database
-          char buffer[65536];
-          int buflen = sizeof (buffer);
-          struct group grbuf;
-          struct group *grbufp = 0;
-
-          if (!getgrgid_r(sortgidarray[lid], &grbuf, buffer, buflen, &grbufp))
+	{
+	  int errc=0;
+	  std::string groupname = eos::common::Mapping::GidToGroupName (sortgidarray[lid], errc);
+	  char gidlimit[16];
+          if (groupname.length())
           {
-            char gidlimit[16];
-            if (grbufp && grbuf.gr_name)
-            {
-              snprintf(gidlimit, 11, "%s", grbuf.gr_name);
-              id = gidlimit;
-            }
-            else
-            {
-              snprintf(gidlimit, 11, "#notrans#");
-              id = gidlimit;
-            }
-          }
+	    snprintf(gidlimit, 11, "%s", groupname.c_str());
+	    id = gidlimit;
+	  }
         }
       }
 

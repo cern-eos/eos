@@ -67,7 +67,7 @@ private:
   bool On;
   eos::QuotaNode* QuotaNode;
   double LayoutSizeFactor; // this is layout dependent!
-
+  bool DirtyTarget; // indicating to recompute the target values
   bool
   Enabled ()
   {
