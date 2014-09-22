@@ -16,6 +16,9 @@ Beryl Release Notes
 - many bugfixes for owncloud/atomic/version support
 - many bugfixes for mutex order violations
 - new unit tests for owncloud/atomic/version support
+- fix BUG in FUSE making the mount hang easily
+- improve 'quota ls' performance and bypass uid/gid translations as much as possible
+- avoid lock contention in uid/gid translations
 
 ``Version V0.3.37 Beryl``
 
