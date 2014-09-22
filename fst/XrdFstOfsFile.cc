@@ -1928,7 +1928,7 @@ XrdFstOfsFile::close ()
               int envlen;
               capOpaqueFile += eos::common::OwnCloud::FilterOcQuery(openOpaque->Env(envlen));
             }
-            eos_crit("occhunk=%d", isOCchunk);
+
             rc = gOFS.CallManager(&error, capOpaque->Get("mgm.path"),
                                   capOpaque->Get("mgm.manager"), capOpaqueFile);
 

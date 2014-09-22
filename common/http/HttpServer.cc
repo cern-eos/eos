@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
 // File: HttpServer.cc
-// Author: Andreas-Joachim Peters & Justin Lewis Salmon - CERN
+// Author: ABndreas-Joachim Peters & Justin Lewis Salmon - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -190,7 +190,6 @@ HttpServer::StaticHandler (void *cls,
   // The static handler function calls back the original http object
   if (gHttp)
   {
-    fprintf(stderr,"url=%s\n", url);
     return gHttp->Handler(cls,
                           connection,
                           url,
@@ -235,7 +234,7 @@ HttpServer::BuildQueryString (void *cls,
 {
   // Call back function to return the query string of an HTTP request
   std::string* qString = static_cast<std::string*> (cls);
-  fprintf(stderr,"url: key=%s value=%s\n", key,value);
+
   if (key && qString)
   {
     if (value) 
@@ -333,7 +332,7 @@ HttpServer::HttpError (const char *errorText, int errorCode)
   else
     response->SetResponseCode(response->INTERNAL_SERVER_ERROR);
 
-  if (errorCode > 400)
+  if (errorCode >= 400)
     response->SetResponseCode(errorCode);
 
   XrdOucString html_dir, error;
