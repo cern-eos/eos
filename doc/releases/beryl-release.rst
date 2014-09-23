@@ -5,7 +5,7 @@
 
 Beryl Release Notes
 ===================
-``Version V0.3.42 Beryl-Aquamarine``
+``Version V0.3.52 Beryl-Aquamarine``
 - add support for archive interface to stage-out and migrate a frozen subtree in the namespace to any XRootD enabled archive storage
 
 ``Version V0.3.43 Beryl``
