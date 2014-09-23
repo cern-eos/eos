@@ -52,8 +52,8 @@ public:
     fprintf(stderr,"#########################################################################\n");
     XrdOucString systemline;
     // if shared libraries loaded by the exectuable have been changed GDB can run wild, therefore
-    // we limit the virtual memory to 10GB
-    systemline = "ulimit -v 10000000000; gdb --quiet "; 
+    // we limit the virtual memory to 10GB and put a timeout of 2 minutes to produce a stack strace
+    systemline = "ulimit -v 10000000000; eossh-timeout -t 120 -i 10 gdb --quiet "; 
     systemline += executable;
     systemline += " -p ";
     systemline += (int) pid;

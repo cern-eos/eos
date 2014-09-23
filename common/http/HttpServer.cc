@@ -351,7 +351,7 @@ HttpServer::HttpError (const char *errorText, int errorCode)
   buffer << in.rdbuf();
   error = buffer.str().c_str();
 
-  eos_static_info("errc=%d, retcode=%d", errorCode, response->GetResponseCode());
+  eos_static_info("errc=%d, retcode=%d errmsg=\"%s\"", errorCode, response->GetResponseCode(), errorText?errorText:"<none>");
   while (error.replace("__RESPONSE_CODE__", std::to_string((long long)
                                                            response->GetResponseCode()).c_str()))
   {
