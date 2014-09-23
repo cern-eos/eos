@@ -124,9 +124,9 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
         (subcmd == "rm"))) ||
       ((cmd == "archive") &&
        ((subcmd == "create") ||
-        (subcmd == "stage")  ||
-        (subcmd == "migrate")||
-        (subcmd == "list"))) ||
+        (subcmd == "get")  ||
+        (subcmd == "purge")  ||
+        (subcmd == "delete"))) ||
       ((cmd == "mkdir")) ||
       ((cmd == "rmdir")) ||
       ((cmd == "rm")) ||

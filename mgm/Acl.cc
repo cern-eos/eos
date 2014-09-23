@@ -28,50 +28,49 @@
 /*----------------------------------------------------------------------------*/
 #include <regex.h>
 #include <string>
-
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//!
+//! Constructor
+//!
+//! @param sysacl system acl definition string
+//! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
+//! @param useracl user acl definition string
+//! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
+//! @param vid virtual id to match ACL
+//! @param allowUserAcl if true evaluate also the user acl for the permissions
+//!
+//------------------------------------------------------------------------------
 Acl::Acl (std::string sysacl,
           std::string useracl,
           eos::common::Mapping::VirtualIdentity &vid,
           bool allowUserAcl)
-/*----------------------------------------------------------------------------*/
-/**
- * Constructor
- *
- * @param sysacl system acl definition string
- * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
- * @param useracl user acl definition string
- * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
- * @param vid virtual id to match ACL
- * @param allowUserAcl if true evaluate also the user acl for the permissions
- */
-/*----------------------------------------------------------------------------*/
 {
   Set(sysacl, useracl, vid, allowUserAcl);
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+//!
+//! @brief Set the contents of an ACL and compute the canXX and hasXX booleans.
+//!
+//! @param sysacl system acl definition string
+//! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{arwxom(!d)(+d)(!u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
+//! @param useracl user acl definition string
+//! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
+//! @param vid virtual id to match ACL
+//! @param allowUserAcl if true evaluate the user acl for permissions
+//!
+//------------------------------------------------------------------------------
 void
 Acl::Set (std::string sysacl,
           std::string useracl,
           eos::common::Mapping::VirtualIdentity &vid,
           bool allowUserAcl)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Set the contents of an ACL and compute the canXX and hasXX booleans.
- *
- * @param sysacl system acl definition string
- * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
- * @param useracl user acl definition string
- * 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)}|z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
- * @param vid virtual id to match ACL
- * @param allowUserAcl if true evaluate the user acl for permissions
- */
-/*----------------------------------------------------------------------------*/
+
 {
   std::string acl = "";
   if (sysacl.length())
@@ -105,12 +104,12 @@ Acl::Set (std::string sysacl,
   canSetQuota = false;
   hasEgroup = false;
   isMutable = true;
+  canArchive = false;
 
+  // no acl definition
   if (!acl.length())
-  {
-    // no acl definition
     return;
-  }
+
   int errc = 0;
   std::vector<std::string> rules;
   std::string delimiter = ",";
@@ -120,10 +119,8 @@ Acl::Set (std::string sysacl,
   XrdOucString sizestring1;
   XrdOucString sizestring2;
 
-  std::string userid = eos::common::StringConversion::GetSizeString(
-                                                                    sizestring1, (unsigned long long) vid.uid);
-  std::string groupid = eos::common::StringConversion::GetSizeString(
-                                                                     sizestring2, (unsigned long long) vid.gid);
+  std::string userid = eos::common::StringConversion::GetSizeString(sizestring1, (unsigned long long) vid.uid);
+  std::string groupid = eos::common::StringConversion::GetSizeString(sizestring2, (unsigned long long) vid.gid);
 
   std::string usertag = "u:";
   usertag += userid;
@@ -133,15 +130,14 @@ Acl::Set (std::string sysacl,
   grouptag += ":";
 
   std::string username = eos::common::Mapping::UidToUserName(vid.uid, errc);
+
   if (errc)
-  {
     username = "_INVAL_";
-  }
+
   std::string groupname = eos::common::Mapping::GidToGroupName(vid.gid, errc);
+
   if (errc)
-  {
     groupname = "_INVAL_";
-  }
 
   std::string usertagfn = "u:";
   usertagfn += username;
@@ -149,7 +145,6 @@ Acl::Set (std::string sysacl,
   std::string grouptagfn = "g:";
   grouptagfn += groupname;
   grouptagfn += ":";
-
   std::string ztag = "z:";
 
   // ---------------------------------------------------------------------------
@@ -166,10 +161,9 @@ Acl::Set (std::string sysacl,
       std::vector<std::string> entry;
       std::string delimiter = ":";
       eos::common::StringConversion::Tokenize(*it, entry, delimiter);
+
       if (entry.size() < 3)
-      {
         continue;
-      }
 
       egroupmatch = Egroup::Member(username, entry[1]);
       hasEgroup = egroupmatch;
@@ -197,6 +191,13 @@ Acl::Set (std::string sysacl,
         // add an empty entry field
         entry.resize(3);
         entry[2] = entry[1];
+      }
+
+      // 'a' defines archiving permission
+      if ((entry[2].find("a")) != std::string::npos)
+      {
+        canArchive = true;
+        hasAcl = true;
       }
 
       // -----------------------------------------------------------------------
@@ -328,39 +329,41 @@ Acl::Set (std::string sysacl,
   }
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+//!
+//! @brief Check whether ACL has a valid format / syntax.
+//!
+//! @param value value to check
+//! @param error error datastructure
+//! @param sysacl boolean indicating a sys acl entry which might have a z: rule
+//!
+//! return boolean indicating validity
+//------------------------------------------------------------------------------
 bool
 Acl::IsValid (const std::string value,
               XrdOucErrInfo &error,
               bool sysacl)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Check whether ACL has a valid format / syntax.
- *
- * @param value value to check
- * @param error error datastructure
- * #param sysacl boolean indicating a sys acl entry which might have a z: rule
- * @return boolean indicating validity
- */
-/*----------------------------------------------------------------------------*/
 {
-  // ---------------------------------------------------------------------------
   // empty is valid
-  // ---------------------------------------------------------------------------
   if (!value.length())
     return true;
 
   int regexErrorCode;
   int result;
   regex_t regex;
-  std::string regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-]+)))|(egroup:([\\.[:alnum:]-]+))):(r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+  std::string regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-]+)))|"
+                            "(egroup:([\\.[:alnum:]-]+))):"
+                            "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
 
   if (sysacl)
-    regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-]+)))|(egroup:([\\.[:alnum:]-]+))|(z)):(r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+  {
+    regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-]+)))|"
+                  "(egroup:([\\.[:alnum:]-]+))|"
+                  "(z)):(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+  }
 
-  // -----------------------------------------------------------------------
   // Compile regex
-  // -----------------------------------------------------------------------
   regexErrorCode = regcomp(&regex, regexString.c_str(), REG_EXTENDED);
 
   if (regexErrorCode)
@@ -370,16 +373,11 @@ Acl::IsValid (const std::string value,
     return false;
   }
 
-  // -----------------------------------------------------------------------
   // Execute regex
-  // -----------------------------------------------------------------------
   result = regexec(&regex, value.c_str(), 0, NULL, 0);
-
   regfree(&regex);
 
-  // -----------------------------------------------------------------------
   // Check the result
-  // -----------------------------------------------------------------------
   if (result == 0)
   {
     return true;

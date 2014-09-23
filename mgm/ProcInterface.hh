@@ -181,7 +181,17 @@ private:
   //----------------------------------------------------------------------------
   int MakeSubTreeImmutable(const std::string& arch_dir,
                            const std::vector<std::string>& vect_files);
-  
+
+
+  //----------------------------------------------------------------------------
+  //! Check that the user has the necessary permissions to do an archiving
+  //! peration
+  //!
+  //! @param arch_dir archive directory
+  //!
+  //! @return true if user is allowed, otherwise False
+  //----------------------------------------------------------------------------
+  bool CheckArchiveAcl(const std::string& arch_dir) const;
 
 public:
 

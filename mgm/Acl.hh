@@ -52,7 +52,7 @@ EOSMGMNAMESPACE_BEGIN
 //! ACL rules used in the constructor or set function are strings with
 //! the following format:\n\n
 //! rule=
-//! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rw[o]ximc(!u)(+u)(!d)(+d)q}|z:xmc(!u)(+u)(!d)(+d)q}'
+//! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{arw[o]ximc(!u)(+u)(!d)(+d)q}|z:xmc(!u)(+u)(!d)(+d)q}'
 //!
 /*----------------------------------------------------------------------------*/
 class Acl {
@@ -70,6 +70,7 @@ class Acl {
   bool hasAcl; ///< acl is valid
   bool hasEgroup; ///< acl contains egroup rule
   bool isMutable; ///< acl does not contain the immutable flag
+  bool canArchive; ///< acl which allows archiving
 public:
   /*---------------------------------------------------------------------------*/
   //! Default Constructor
@@ -91,6 +92,7 @@ public:
     hasAcl = false;
     hasEgroup = false;
     isMutable = true;
+    canArchive = false;
   }
 
   /*---------------------------------------------------------------------------*/
@@ -103,7 +105,6 @@ public:
 
   /*--------------------------------------------------------------------------*/
   //! Destructor
-
   /*--------------------------------------------------------------------------*/
   ~Acl ()
   {
@@ -225,6 +226,15 @@ public:
   /// has not the 'i' flag
   {
     return isMutable;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Has the 'a' flag - archiving permission
+  //----------------------------------------------------------------------------
+  inline bool
+  CanArchive() const
+  {
+    return canArchive;
   }
 };
 

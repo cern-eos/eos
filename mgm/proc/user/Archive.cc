@@ -29,6 +29,7 @@
 #include "mgm/Macros.hh"
 /*----------------------------------------------------------------------------*/
 #include "common/SymKeys.hh"
+#include "mgm/Acl.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -101,7 +102,15 @@ ProcCommand::Archive()
     if (spath[spath.length() - 1] != '/')
       spath += '/';
 
-    std::ostringstream dir_stream;
+    // Check archive permissions
+    if (!CheckArchiveAcl(spath.c_str()))
+    {
+      stdErr = "error: failed archive ACL check";
+      retc = EPERM;
+      return SFS_OK;
+    }
+
+      std::ostringstream dir_stream;
     dir_stream << "root://" << gOFS->ManagerId.c_str() << "/" << spath.c_str();
     std::string dir_url = dir_stream.str();
 
@@ -433,6 +442,63 @@ ProcCommand::Archive()
 
 
 //------------------------------------------------------------------------------
+// Check if the current user has the necessary permissions to do an archiving
+// operation
+//------------------------------------------------------------------------------
+bool
+ProcCommand::CheckArchiveAcl(const std::string& arch_dir) const
+{
+  bool is_allowed = false;
+  eos::ContainerMD* dir = 0;
+  eos::ContainerMD* copy_dir = 0;
+  eos::ContainerMD::XAttrMap attrmap;
+
+  {
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+
+    // Check for the parent directory
+    try
+    {
+      dir = gOFS->eosView->getContainer(arch_dir.c_str());
+      copy_dir = new eos::ContainerMD(*dir);
+      dir = copy_dir;
+      eos::ContainerMD::XAttrMap::const_iterator it;
+
+      for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
+        attrmap[it->first] = it->second;
+
+    }
+    catch (eos::MDException &e)
+    {
+      dir = 0;
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                e.getErrno(), e.getMessage().str().c_str());
+    }
+  }
+
+  if (dir)
+  {
+    // ACL and permission check
+    eos::mgm::Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
+                      attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""),
+                      *pVid, attrmap.count("sys.eval.useracl"));
+    eos_info("acl=%d a=%d egroup=%d mutable=%d", acl.HasAcl(), acl.CanArchive(),
+             acl.HasEgroup(), acl.IsMutable());
+
+    if (pVid->uid)
+      is_allowed = acl.CanArchive();
+    else
+      is_allowed = true;
+  }
+
+  if (copy_dir)
+    delete copy_dir;
+
+  return is_allowed;
+}
+
+
+//------------------------------------------------------------------------------
 // Create archive file.
 //------------------------------------------------------------------------------
 void
@@ -617,8 +683,17 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
                          (const char*) 0, acl_key, acl_val))
     {
       // Add immutable only if not already present
-      if (acl_val.find("z:i") == STR_NPOS)
-        acl_val += ",z:i";
+      int pos_z = acl_val.find("z:");
+
+      if (pos_z != STR_NPOS)
+      {
+        if (acl_val.find('i', pos_z + 2) == STR_NPOS)
+          acl_val.insert(pos_z + 2, 'i');
+      }
+      else
+     {
+       acl_val += ",z:i";
+     }
     }
     else
     {
