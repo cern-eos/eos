@@ -2,7 +2,7 @@
 xrootd.fslib libXrdEosMgm.so
 xrootd.seclib libXrdSec.so
 xrootd.async off nosf
-xrootd.chksum eos
+xrootd.chksum adler32
 ###########################################################
 
 xrd.sched mint 8 maxt 256 idle 64
