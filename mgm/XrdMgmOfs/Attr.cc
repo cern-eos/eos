@@ -446,9 +446,9 @@ XrdMgmOfs::_attr_get (const char *path,
   if (!islocked) gOFS->eosViewRWMutex.UnLockRead();
 
   EXEC_TIMING_END("AttrGet");
-
+  
   if (errno)
-    return Emsg(epname, error, errno, "list attributes", path);
+    return Emsg(epname, error, errno, "get attributes", path);
   ;
 
   return SFS_OK;
