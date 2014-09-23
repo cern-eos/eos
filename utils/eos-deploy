@@ -14,6 +14,20 @@ if ( $< ne "0" ) {
     exit(-1);
 }
 
+my $release="beryl";
+
+if ( $#ARGV >= 0 ) {
+    if ( ($#ARGV>0) || ($ARGV[0] =~ /-h/ ) ||
+	 ( ($ARGV[0] ne "beryl") && 
+	   ($ARGV[0] ne "beryl-testing") &&
+	   ($ARGV[0] ne "aquamarine") &&
+	   ($ARGV[0] ne "citrine") ) ) {
+	print "Usage: eos-deploy [ beryl | beryl-testing | aquamarine | citrine ] (default=beryl)\n";
+        exit(-1);
+    }
+    $release=$ARGV[0];
+}
+
 my $flavour;
 my $nfs;
 my $hosts;
@@ -245,6 +259,8 @@ printf "# ----------------------------------------------------------------------
 printf "# Preparing an NGINX certificate bundle ...\n";
 system ("rm -rf /etc/grid-security/certificates/nginx-bundle.pem >& /dev/null; cat /etc/grid-security/certificates/*.pem > /etc/grid-security/certificates/nginx-bundle.pem");
 
+unlink "/etc/yum.repos.d/eos.repo";
+
 if ( ! -e "/etc/yum.repos.d/eos.repo" ) {
     printf "# -----------------------------------------------------------------------------------------\n";
     printf "# Setting up the YUM repository /etc/yum.repos.d/eos.repo ...\n";
@@ -254,9 +270,9 @@ if ( ! -e "/etc/yum.repos.d/eos.repo" ) {
 
     if ( $flavour eq "5" ) {
 	print FD <<EOF;
-[eos-beryl]
+[eos-$release]
 name=EOS 0.3 Version
-baseurl=http://eos.cern.ch/rpms/eos-beryll/slc-5-x86_64/
+baseurl=http://eos.cern.ch/rpms/eos-$release/slc-5-x86_64/
 gpgcheck=0
 enabled=1
 EOF
@@ -266,9 +282,9 @@ EOF
 
     if ( $flavour eq "6" ) {
 	print FD <<EOF;
-[eos-beryl]
+[eos-$release]
 name=EOS 0.3 Version
-baseurl=http://eos.cern.ch/rpms/eos-beryll/slc-6-x86_64/
+baseurl=http://eos.cern.ch/rpms/eos-$release/slc-6-x86_64/
 gpgcheck=0
 enabled=1
 EOF
@@ -367,6 +383,7 @@ while (<IN>) {
     } else {
     if ($_ =~ /EOS_MGM_ALIAS/) {
 	print OUTMGM "export EOS_MGM_ALIAS=$thishost\n";
+	print OUTFST "export EOS_MGM_ALIAS=$thishost\n";
     } else {
     if ($_ =~ /EOS_FUSE_MGM_ALIAS/) {
 	print OUTMGM "export EOS_FUSE_MGM_ALIAS=$thishost\n";
@@ -487,7 +504,7 @@ if ($hosts eq "") {
     foreach (@remotefsts) {
 	printf "# ... enable $_ as FST ...\n";
 	system(" eos -b node set $_ on\n");
-        system ("ssh $_ \"yum install -y eos-cleanup; yum erase -y eos-server;\"");
+        system ("ssh $_ \"yum install -y eos-cleanup; yum erase -y eos-server eos-client;\"");
         system ("ssh $_ \"test $cleanfstdisk='yes' || unlink /var/eos/md/so.fst.dump >&/dev/null; /usr/sbin/eos-fst-clean --do-cleanup ; /usr/bin/eos-log-clean --do-cleanup ;\"");
 	printf "# ... uploading sysconfig to $_ ...\n";
         system("scp /etc/sysconfig/eos.fst $_:/etc/sysconfig/eos");
@@ -497,7 +514,7 @@ if ($hosts eq "") {
         system("scp /etc/yum.repos.d/eos.repo $_:/etc/yum.repos.d/eos.repo");
         system("test -e /etc/yum.repos.d/epel.repo &&scp /etc/yum.repos.d/epel.repo $_:/etc/yum.repos.d/epel.repo");
 
-        system("ssh $_ yum install -y eos-server nscd jemalloc eos-apmon");
+        system("ssh $_ yum install -y eos-server eos-client nscd jemalloc eos-apmon");
 	printf "# ... creating filesystem paths on $_ ...\n";
         system("ssh $_ \"mkdir -p $fspath; chown daemon:daemon $fspath\" ");
         printf "# ... registering filesystems on $_ ...\n";
