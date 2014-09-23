@@ -505,6 +505,7 @@ runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test
 runtest "### Rename    " unix 0 "" eos file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.rename
 
 runtest "### Mkdir     " unix 0 "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/rename.dir"
+runtest "### Rename    " unix 1 "" eos "file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/rename.dir /eos/$EOS_TEST_INSTANCE/test/instancetest/rename.dir/myself"
 runtest "### Rename    " unix 1 "" eos "file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/rename.dir /eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.rename"
 runtest "### Rename    " unix 1 "" eos "file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/rename.dir.missing /eos/$EOS_TEST_INSTANCE/test/instancetest/rename"
 runtest "### Rename    " unix 0 "" eos "file rename /eos/$EOS_TEST_INSTANCE/test/instancetest/rename.dir /eos/$EOS_TEST_INSTANCE/test/instancetest/rename"

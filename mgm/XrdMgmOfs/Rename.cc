@@ -292,6 +292,12 @@ XrdMgmOfs::_rename (const char *old_name,
     if (file_exists == XrdSfsFileExistIsDirectory)
     {
       renameDir = true;
+      // check if old path is a subpath of new path
+      if ( (nP.length() > oP.length()) && (!nP.compare(0,oP.length(),oP)))
+      {
+	errno = EINVAL;
+	return Emsg(epname, error, EINVAL, "rename - old path is subpath of new path");
+      }
     }
   }
 
