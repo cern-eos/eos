@@ -20,6 +20,7 @@ Beryl Release Notes
 - improve 'quota ls' performance and bypass uid/gid translations as much as possible
 - avoid lock contention in uid/gid translations
 - limit the 'gdb' stack trace to maximum 120s to avoid service lock-up in case of a stuck GDB process
+- update 'eos-deploy' to be able to install from beryl, beryl-testing, aquamarine and citrine YUM repositories
 
 ``Version V0.3.37 Beryl``
 
