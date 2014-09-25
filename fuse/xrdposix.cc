@@ -305,14 +305,8 @@ xrd_store_child_p2i (unsigned long long inode,
     }
     else
     {
-      fullpath += "/";
-      size_t spos = fullpath.find("//");
-
-      while (spos != std::string::npos)
-      {
-        fullpath.replace(spos, 2, "/");
-        spos = fullpath.find("//");
-      }
+      if (*fullpath.rbegin() != '/')
+        fullpath += "/";
 
       fullpath += name;
     }

@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-//! @file eosd.c                                                       
-//! @author Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN      
+//! @file eosd.c
+//! @author Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -117,7 +117,12 @@ eosfs_ll_getattr (fuse_req_t req,
   int retc = xrd_stat (fullpath, &stbuf, req->ctx.uid, req->ctx.gid, ino);
 
   if (!retc)
+  {
+    //fprintf(stderr, "[%s] ino=%llu, stbuf.st_ino=%llu\n", __FUNCTION__,
+    //        (unsigned long long) ino, (unsigned long long) stbuf.st_ino);
+    //stbuf.st_ino = ino;
     fuse_reply_attr (req, &stbuf, attrcachetime);
+  }
   else
     fuse_reply_err (req, -retc);
 }
@@ -137,7 +142,7 @@ eosfs_ll_setattr (fuse_req_t req,
   char fullpath[16384];
   char url[1024];
   unsigned long rinode = 0;
-  
+
   xrd_lock_r_p2i (); // =>
   const char* name = xrd_path ((unsigned long long) ino);
 
@@ -282,6 +287,12 @@ eosfs_ll_lookup (fuse_req_t req,
   const char* parentpath = NULL;
   char fullpath[16384];
   char ifullpath[16384];
+
+  if (isdebug)
+  {
+    fprintf(stderr, "[%s] name=%s, ino_parent=%llu\n", __FUNCTION__,
+            name, (unsigned long long)parent);
+  }
 
   xrd_lock_r_p2i (); // =>
   parentpath = xrd_path ((unsigned long long) parent);
@@ -477,7 +488,7 @@ eosfs_ll_readdir (fuse_req_t req,
     if (!dir_status)
     {
       // Dir not in cache or invalid, fall-back to normal reading
-      
+
       xrd_inodirlist ((unsigned long long) ino, fullpath,
                       req->ctx.uid, req->ctx.gid, req->ctx.pid);
 
@@ -642,19 +653,20 @@ eosfs_ll_mkdir (fuse_req_t req,
                 const char* name,
                 mode_t mode)
 {
-  const char* parentpath = NULL;
+  char parentpath[16384];
   char fullpath[16384];
 
   xrd_lock_r_p2i (); // =>
-  parentpath = xrd_path ((unsigned long long) parent);
+  const char* tmp = xrd_path ((unsigned long long) parent);
 
-  if (!parentpath)
+  if (!tmp)
   {
     fuse_reply_err (req, ENXIO);
     xrd_unlock_r_p2i (); // <=
     return;
   }
 
+  strcpy(parentpath, tmp);
   char ifullpath[16384];
   sprintf (ifullpath, "%s/%s", parentpath, name);
   sprintf (fullpath, "/%s%s/%s", mountprefix, parentpath, name);
@@ -683,6 +695,42 @@ eosfs_ll_mkdir (fuse_req_t req,
     else
     {
       xrd_store_p2i ((unsigned long long) e.attr.st_ino, ifullpath);
+      // Find grandparent path as we need to remove from the directory
+      // cache the grandparent entry as the current parent entry mtime
+      // has been modified
+      //fprintf(stderr, "[%s] parentpath=%s, fullpath=%s\n", __FUNCTION__, parentpath, fullpath);
+      char* ptr = strrchr(parentpath, (int)('/'));
+
+      if (ptr)
+      {
+        char gparent[16384];
+        int num = (int)(ptr - parentpath);
+
+        if (num)
+        {
+          strncpy(gparent, parentpath, num);
+          gparent[num] = '\0';
+          //fprintf(stderr, "[%s] partial gparent=%s\n", __FUNCTION__, gparent);
+          ptr = strrchr(gparent, (int)('/'));
+
+          if (ptr && ptr != gparent)
+          {
+            num = (int)(ptr -gparent);
+            strncpy(gparent, parentpath, num);
+            parentpath[num] = '\0';
+            strcpy(gparent, parentpath);
+          }
+        }
+        else
+        {
+          strcpy(gparent, "/\0");
+        }
+
+        //fprintf(stderr, "[%s] final gparent=%s\n", __FUNCTION__, gparent);
+        unsigned long long ino_gparent = xrd_inode(gparent);
+        xrd_dir_cache_forget(ino_gparent);
+      }
+
       fuse_reply_entry (req, &e);
     }
   }
@@ -923,11 +971,11 @@ eosfs_ll_open (fuse_req_t req,
 
   if (fi->flags & (O_RDWR | O_WRONLY | O_CREAT))
     mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-    
+
   // Do open
   res = xrd_open (fullpath, fi->flags, mode, req->ctx.uid,
                   req->ctx.gid, req->ctx.pid, &ino);
-  
+
   if (isdebug)
   {
     fprintf (stderr, "[%s]: inode=%lld path=%s res=%d\n",
@@ -977,14 +1025,14 @@ eosfs_ll_read (fuse_req_t req,
                off_t off,
                struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s]: inode=%ji size=%ji off=%ji \n", 
+  fprintf (stderr, "[%s]: inode=%ji size=%ji off=%ji \n",
            __FUNCTION__, ino, size, off);
 
   if (fi && fi->fh)
   {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     char* buf = xrd_attach_rd_buff (pthread_self(), size);
-    
+
     if (isdebug)
     {
       fprintf (stderr, "[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n",
@@ -1025,7 +1073,7 @@ eosfs_ll_write (fuse_req_t req,
   if (fi && fi->fh)
   {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
-    
+
     if (isdebug)
     {
       fprintf (stderr, "[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n",
@@ -1138,7 +1186,7 @@ eosfs_ll_flush (fuse_req_t req,
                 struct fuse_file_info* fi)
 {
   errno = 0;
-  
+
   if (fi && fi->fh)
   {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
@@ -1357,13 +1405,13 @@ eosfs_ll_setxattr (fuse_req_t req,
 
 
 //------------------------------------------------------------------------------
-// Create a new file 
+// Create a new file
 //------------------------------------------------------------------------------
 static void
-eosfs_ll_create(fuse_req_t req, 
-                fuse_ino_t parent, 
-                const char *name, 
-                mode_t mode, 
+eosfs_ll_create(fuse_req_t req,
+                fuse_ino_t parent,
+                const char *name,
+                mode_t mode,
                 struct fuse_file_info *fi)
 {
   int res;
@@ -1579,7 +1627,7 @@ main (int argc, char* argv[])
   pmounthostport = strstr (rdr, "root://");
 
 #ifndef __APPLE__
-  if (access("/bin/fusermount",X_OK)) 
+  if (access("/bin/fusermount",X_OK))
   {
     fprintf (stderr,"error: /bin/fusermount is not executable for you!\n");
     exit (-1);
@@ -1674,7 +1722,7 @@ main (int argc, char* argv[])
         {
           err = fuse_session_loop_mt (se);
         }
-        
+
         fuse_remove_signal_handlers (se);
         fuse_session_remove_chan (ch);
       }
