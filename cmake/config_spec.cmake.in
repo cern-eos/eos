@@ -1,0 +1,28 @@
+# ----------------------------------------------------------------------
+# File: CMakeLists.txt
+# Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2011 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+set(SRC_DIR @CMAKE_CURRENT_SOURCE_DIR@)
+set(CPACK_PACKAGE_NAME @CPACK_PACKAGE_NAME@)
+set(CPACK_PACKAGE_VERSION @CPACK_PACKAGE_VERSION@)
+set(CPACK_PACKAGE_RELEASE @CPACK_PACKAGE_RELEASE@)
+configure_file(${SRC_DIR}/eos.spec.in ${SRC_DIR}/eos.spec)
