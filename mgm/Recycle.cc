@@ -654,6 +654,8 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
                 char deltime[256];
                 snprintf(deltime, sizeof (deltime) - 1, "%llu", (unsigned long long) buf.st_ctime);
                 stdOut += deltime;
+		stdOut += " type=";
+		stdOut += type.c_str();
                 stdOut += " restore-path=";
                 stdOut += origpath.c_str();
                 stdOut += " restore-key=";
