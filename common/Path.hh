@@ -45,8 +45,12 @@
 #include <unistd.h>
 #include <errno.h>
 #include <uuid/uuid.h>
+#include <string.h>
 
 #define EOS_COMMON_PATH_VERSION_PREFIX "/.sys.v#."
+#define EOS_COMMON_PATH_VERSION_FILE_PREFIX ".sys.v#."
+#define EOS_COMMON_PATH_ATOMIC_FILE_PREFIX ".sys.a#."
+#define EOS_COMMON_PATH_ATOMIC_FILE_VERSION_PREFIX ".sys.a#.v#"
 
 /*----------------------------------------------------------------------------*/
 
@@ -146,15 +150,16 @@ public:
 
   const char* MakeAtomicPath (bool versioning, XrdOucString externuuid = "")
   {
-    // create from <dirname>/<basename> => <dirname>/.[.]<basename>.<uuid>
+    // create from <dirname>/<basename> => <dirname>/<ATOMIC|VERSION_PREFIX><basename>.<uuid>
     char suuid[40];
     uuid_t uuid;
     uuid_generate_time(uuid);
     uuid_unparse(uuid, suuid);
     atomicPath = GetParentPath();
-    atomicPath += ".";
-    if (versioning)
-      atomicPath += ".";
+    if (!versioning)
+      atomicPath += EOS_COMMON_PATH_ATOMIC_FILE_PREFIX;
+    else
+      atomicPath += EOS_COMMON_PATH_ATOMIC_FILE_VERSION_PREFIX;
     atomicPath += GetName();
     atomicPath += ".";
 
@@ -173,21 +178,22 @@ public:
 
   const char* DecodeAtomicPath (bool &isVersioning)
   {
-    // create from <dirname>/.[.]<basename>.<uuid> => <dirname>/<basename>
-    if (lastPath.beginswith(".") &&
-        (lastPath.length() > 37) &&
-        (lastPath[lastPath.length() - 37] == '.'))
+    // create from <dirname>/<ATOMIC|VERSION_PREFIX> <basename>.<uuid> => <dirname>/<basename>
+
+    if ( (lastPath.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX))  &&
+	 (lastPath.length() > 37) &&
+	 (lastPath[lastPath.length() -37] == '.') )
     {
       atomicPath = fullPath;
       lastPath.erase(lastPath.length() - 37);
-      if (lastPath.beginswith(".."))
+      if (lastPath.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_VERSION_PREFIX))
       {
-        lastPath.erase(0, 2);
+        lastPath.erase(0,strlen(EOS_COMMON_PATH_ATOMIC_FILE_VERSION_PREFIX));
         isVersioning = true;
       }
       else
       {
-        lastPath.erase(0, 1);
+	lastPath.erase(0,strlen(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX));
         isVersioning = false;
       }
       fullPath = parentPath + lastPath;

@@ -765,7 +765,7 @@ ProcCommand::Find ()
       {
         // eventually call the version purge function if we own this version dir or we are root
 
-        if (purge && (foundit->first.find("/.sys.v#.") != std::string::npos))
+        if (purge && (foundit->first.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos))
         {
           struct stat buf;
           if ( (!gOFS->_stat(foundit->first.c_str(), &buf, *mError, *pVid, (const char*) 0, 0)) &&

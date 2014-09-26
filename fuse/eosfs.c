@@ -254,7 +254,7 @@ eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
     fprintf (stderr, "[%s] rootpath=%s\n", __FUNCTION__, rootpath);
     int res = xrd_open(path,
                        O_CREAT | O_EXCL | O_RDWR,
-                       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
+                       mode,
                        uid, gid, 0, &return_inode);
     
     if (res < 0)

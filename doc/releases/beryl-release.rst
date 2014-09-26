@@ -5,10 +5,11 @@
 
 Beryl Release Notes
 ===================
-``Version V0.3.42 Beryl-Aquamarine``
+``Version V0.3.54 Beryl-Aquamarine``
 - add support for archive interface to stage-out and migrate a frozen subtree in the namespace to any XRootD enabled archive storage
 
 ``Version V0.3.43 Beryl``
+
 - FST don't clean-up transactions if their replica is registered in the MGM
 - bugfixes in HTTP daemon configuration/startup
 - make all HTTP header tags case-insensitive
@@ -17,6 +18,7 @@ Beryl Release Notes
 - many bugfixes for mutex order violations
 - new unit tests for owncloud/atomic/version support
 - fix BUG in FUSE making the mount hang easily
+- fix BUG in FUSE showing alternating mtimes and showing stale directory listings
 - improve 'quota ls' performance and bypass uid/gid translations as much as possible
 - avoid lock contention in uid/gid translations
 - limit the 'gdb' stack trace to maximum 120s to avoid service lock-up in case of a stuck GDB process

@@ -160,8 +160,12 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
       while ((val = directory.nextEntry()))
       {
         XrdOucString entryname = val;
-        if (entryname.beginswith("."))
-        {
+	// don't display . .., atomic(+version) uploads and version directories
+        if ( entryname.beginswith(EOS_COMMON_PATH_VERSION_FILE_PREFIX) ||
+	     entryname.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) ||
+	     (entryname == ".") || 
+	     (entryname == "..") )
+	  {
           // skip over . .. and hidden files
           continue;
         }

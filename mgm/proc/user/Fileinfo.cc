@@ -402,7 +402,10 @@ ProcCommand::FileInfo (const char* path)
           }
           else
           {
-            stdOut = "file=";
+	    stdOut = "keylength.file=";
+	    stdOut += spath.length();
+            stdOut += " ";
+            stdOut += "file=";
             stdOut += spath;
             stdOut += " ";
             stdOut += "size=";
