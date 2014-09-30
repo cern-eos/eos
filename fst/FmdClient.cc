@@ -205,6 +205,8 @@ FmdClient::GetMgmFmd (const char* manager,
     return EINVAL;
   }
 
+ again:
+
   //............................................................................
   // Get XrdCl::FileSystem object
   //............................................................................
@@ -227,6 +229,16 @@ FmdClient::GetMgmFmd (const char* manager,
   }
   else
   {
+    eos_static_err("msg=\"query error\" status=%d code=%d", status.status, status.code);
+    if ( (status.code >= 100) &&
+	 (status.code <= 300) )
+    {
+      XrdSysTimer sleeper;
+      sleeper.Snooze(1);
+      eos_static_info("msg=\"retry query\" query=\"%s\"", fmdquery.c_str());
+      goto again;
+    }
+
     rc = ECOMM;
     eos_static_err("Unable to retrieve meta data from mgm %s for fid=%08llx",
                    manager, fid);

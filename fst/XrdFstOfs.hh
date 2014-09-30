@@ -241,7 +241,8 @@ public:
                    const char* path,
                    const char* manager,
                    XrdOucString& capOpaqueFile,
-                   XrdOucString* return_result = 0);
+                   XrdOucString* return_result = 0, 
+		   unsigned short timeout=0);
 
 
   // this function deals with plugin calls

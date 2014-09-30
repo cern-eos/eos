@@ -709,7 +709,8 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
                         const char* path,
                         const char* manager,
                         XrdOucString& capOpaqueFile,
-                        XrdOucString* return_result)
+                        XrdOucString* return_result, 
+			unsigned short timeout)
 {
   EPNAME("CallManager");
   int rc = SFS_OK;
@@ -731,6 +732,8 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
   //.............................................................................
   // Get XrdCl::FileSystem object
   //.............................................................................
+
+ again:
   XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
 
   if (!fs)
@@ -746,7 +749,7 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
   }
 
   arg.FromString(capOpaqueFile.c_str());
-  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response, timeout);
 
   if (status.IsOK())
   {
@@ -776,7 +779,21 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
     if (rc != SFS_ERROR)
       gOFS.Emsg(epname, *error, -rc, msg.c_str(), path);
     else
+    {
+      eos_static_err("msg=\"query error\" status=%d code=%d", status.status, status.code);
+      if ( (status.code >= 100) &&
+	   (status.code <= 300) &&
+	   (!timeout) )
+	{
+	  // implement automatic retry - network errors will be cured at some point
+	  delete fs;
+	  XrdSysTimer sleeper;
+	  sleeper.Snooze(1);
+	  eos_static_info("msg=\"retry query\" query=\"%s\"", capOpaqueFile.c_str());
+	  goto again;
+	}
       gOFS.Emsg(epname, *error, ECOMM, msg.c_str(), path);
+    }
   }
 
   if ( response && return_result )
