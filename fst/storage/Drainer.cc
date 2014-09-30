@@ -363,7 +363,17 @@ Storage::Drainer ()
       sleeper.Snooze(60);
     }
 
-    GetDrainSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
+    // -------------------------------------------------------------------------
+    // -- W --
+    // wait that we have a drain slot configured
+    // -------------------------------------------------------------------------
+
+    while (!nparalleltx) 
+    {      
+      GetDrainSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
+      XrdSysTimer sleeper;
+      sleeper.Snooze(10);
+    }
 
     // -------------------------------------------------------------------------
     // -- 2 --
