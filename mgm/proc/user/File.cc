@@ -319,10 +319,25 @@ ProcCommand::File ()
           // -------------------------------------------------------------------
           eos::FileMD::LocationVector locations;
           eos::FileMD::LocationVector::const_iterator it;
+	  bool isRAIN=false;
+
           for (it = fmd->locationsBegin(); it != fmd->locationsEnd(); ++it)
           {
             locations.push_back(*it);
           }
+	  eos::common::LayoutId::layoutid_t fmdlid = fmd->getLayoutId();
+	  eos::common::FileId::fileid_t fileid = fmd->getId();
+
+	  if ( (eos::common::LayoutId::GetLayoutType(fmdlid) ==
+		eos::common::LayoutId::kRaidDP) ||
+	       (eos::common::LayoutId::GetLayoutType(fmdlid) ==
+		eos::common::LayoutId::kArchive) ||
+	       (eos::common::LayoutId::GetLayoutType(fmdlid) ==
+		eos::common::LayoutId::kRaid6)
+	       ) 
+	  {
+	    isRAIN = true;
+	  }
 
           gOFS->eosViewRWMutex.UnLockRead();
 
@@ -338,24 +353,44 @@ ProcCommand::File ()
             if (acceptfsid)
               acceptfound = true;
 
-            int lretc = gOFS->_verifystripe(spath.c_str(),
-                                            *mError,
-                                            vid,
-                                            (unsigned long) *it,
-                                            option);
-            if (!lretc)
-            {
-              stdOut += "success: sending verify to fsid= ";
-              stdOut += (int) *it;
-              stdOut += " for path=";
-              stdOut += spath;
-              stdOut += "\n";
-            }
-            else
-            {
-              retc = errno;
-            }
-          }
+	    if (isRAIN) 
+	    {
+	      int lretc = gOFS->SendResync(fileid, (int) *it);
+	      if (!lretc)
+	      {
+		stdOut += "success: sending resync for RAIN layout to fsid= ";
+		stdOut += (int) *it;
+		stdOut += " for path=";
+		stdOut += spath;
+		stdOut += "\n";
+	      }
+	      else
+	      {
+		retc = errno;
+	      }
+	    }
+	    else
+	    {
+	      // rain layouts only resync meta data records
+	      int lretc = gOFS->_verifystripe(spath.c_str(),
+					      *mError,
+					      vid,
+					      (unsigned long) *it,
+					      option);
+	      if (!lretc)
+	      {
+		stdOut += "success: sending verify to fsid= ";
+		stdOut += (int) *it;
+		stdOut += " for path=";
+		stdOut += spath;
+		stdOut += "\n";
+	      }
+	      else
+	      {
+		retc = errno;
+	      }
+	    }
+	  }
 
           // -------------------------------------------------------------------
           // we want to be able to force the registration and verification of a
@@ -1553,7 +1588,38 @@ ProcCommand::File ()
                 }
               }
             }
-          }
+          } 
+	  else
+	  {
+	    // if this is a rain layout, we try to rewrite the file using the converter
+	    if ( (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
+		  eos::common::LayoutId::kRaidDP) ||
+		 (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
+		  eos::common::LayoutId::kArchive) ||
+		 (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
+		  eos::common::LayoutId::kRaid6)
+		 ) 
+	    {
+	      ProcCommand Cmd;
+	      // rewrite the file asynchronous using the converter
+	      XrdOucString option = pOpaque->Get("mgm.option");
+
+	      
+	      XrdOucString info;
+	      info += "&mgm.cmd=file&mgm.subcmd=convert&mgm.option=rewrite&mgm.path=";
+	      info += spath.c_str();
+	      retc = Cmd.open("/proc/user", info.c_str(), *pVid, mError);
+	      Cmd.AddOutput(stdOut, stdErr);
+	      Cmd.close();
+	      
+	      retc = Cmd.GetRetc();
+	    }
+	    else 
+	    {
+	      stdOut += "warning: no action for this layout type (neither replica nor rain)\n";
+	    }
+
+	  }
         }
         else
         {
