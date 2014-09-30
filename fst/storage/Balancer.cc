@@ -347,7 +347,18 @@ Storage::Balancer ()
       sleeper.Snooze(60);
     }
 
-    GetBalanceSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
+    // -------------------------------------------------------------------------
+    // -- W --
+    // wait that we have a balance slot configured
+    // -------------------------------------------------------------------------
+
+    while (!nparalleltx)
+    {
+      GetBalanceSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
+      GetDrainSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
+	XrdSysTimer sleeper;
+	sleeper.Snooze(10);
+    }
 
     // -------------------------------------------------------------------------
     // -- 2 --

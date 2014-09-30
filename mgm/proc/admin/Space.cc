@@ -150,23 +150,49 @@ ProcCommand::Space ()
   if (mSubCmd == "reset")
   {
     std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
+    XrdOucString option = pOpaque->Get("mgm.option");
+
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    if (FsView::gFsView.mSpaceView.count(spacename))
+    if ((!option.length()) || (option == "drain")) 
     {
-      FsView::gFsView.mSpaceView[spacename]->ResetDraining();
-      stdOut = "info: reset draining in space '";
+      if (FsView::gFsView.mSpaceView.count(spacename))
+      {
+	FsView::gFsView.mSpaceView[spacename]->ResetDraining();
+	stdOut = "info: reset draining in space '";
+	stdOut += spacename.c_str();
+	stdOut += "'";
+      }
+      else
+      {
+	stdErr = "error: illegal space name";
+	retc = EINVAL;
+      }
+    }
+
+    if ((!option.length()) || (option == "egroup")) 
+    {
+      Egroup::Reset();
+      stdOut += "\ninfo: clear cached EGroup information ...";
+      eos::common::Mapping::Reset();
+      stdOut += "\ninfo: clear all user/group uid/gid caches ...\n";
+    }
+
+    if ( option == "scheduledrain" )
+    {
+      XrdSysMutexHelper Lock(gOFS->ScheduledToDrainFidMutex);
+      gOFS->ScheduledToDrainFid.clear();
+      stdOut ="info: reset drain scheduling map in space '";
       stdOut += spacename.c_str();
       stdOut += "'";
     }
-    else
+    if ( option == "schedulebalance" )
     {
-      stdErr = "error: illegal space name";
-      retc = EINVAL;
+      XrdSysMutexHelper Lock(gOFS->ScheduledToBalanceFidMutex);
+      gOFS->ScheduledToBalanceFid.clear();
+      stdOut ="info: reset balance scheduling map in space '";
+      stdOut += spacename.c_str();
+      stdOut += "'";
     }
-    Egroup::Reset();
-    stdOut += "\ninfo: clear cached EGroup information ...";
-    eos::common::Mapping::Reset();
-    stdOut += "\ninfo: clear all user/group uid/gid caches ...\n";
   }
 
   if (mSubCmd == "define")

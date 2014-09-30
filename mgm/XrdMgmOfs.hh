@@ -883,6 +883,11 @@ public:
 
   eos::common::LinuxStat::linux_stat_t LinuxStatsStartup; // => process state after namespace load time
 
+  std::map<eos::common::FileSystem::fsid_t, time_t> ScheduledToDrainFid; // map with scheduled fids for draining
+  XrdSysMutex ScheduledToDrainFidMutex; //< mutex protecting ScheduledToDrainFid
+  std::map<eos::common::FileSystem::fsid_t, time_t> ScheduledToBalanceFid; // map with scheduled fids for balancing
+  XrdSysMutex ScheduledToBalanceFidMutex; //< mutex protecting ScheduledToBalanceFid
+
   time_t StartTime; //< out starttime
   char* HostName; //< our hostname as derived in XrdOfs
   char* HostPref; //< our hostname as derived in XrdOfs without domain

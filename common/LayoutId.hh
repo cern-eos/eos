@@ -163,7 +163,7 @@ public:
   {
     unsigned long id = (checksum |
                         ((layout & 0xf) << 4) |
-                        (((stripesize - 1) & 0xf) << 8) |
+                        (((stripesize - 1) & 0xff) << 8) |
                         ((stripewidth & 0xf) << 16) |
                         ((blockchecksum & 0xf) << 20) |
                         ((excessreplicas & 0xf) << 24));

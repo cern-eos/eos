@@ -2444,14 +2444,13 @@ FsSpace::ResetDraining ()
   //! re-evaluates the drainnig states in all groups and resets the state
   // ------------------- -------------------------------------------------------
   eos_static_info("msg=\"reset drain state\" space=\"%s\"", mName.c_str());
-  bool setactive = false;
-
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   // iterate over all groups in this space
   for (auto sgit = FsView::gFsView.mSpaceGroupView[mName].begin();
     sgit != FsView::gFsView.mSpaceGroupView[mName].end();
     sgit++)
   {
+    bool setactive = false;
     std::string lGroup = (*sgit)->mName;
 
     FsGroup::const_iterator git;
