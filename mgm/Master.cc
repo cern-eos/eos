@@ -1724,11 +1724,13 @@ Master::CreateStatusFile (const char* path)
   struct stat buf;
   if (::stat(path, &buf))
   {
-    if (::creat(path, S_IRWXU | S_IRGRP | S_IROTH) == -1)
+    int fd = 0;
+    if ( (fd = ::creat(path, S_IRWXU | S_IRGRP | S_IROTH)) == -1)
     {
       MasterLog(eos_static_err("failed to create %s errno=%d", path, errno));
       return false;
     }
+    close(fd);
   }
   return true;
 }
