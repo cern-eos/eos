@@ -237,8 +237,19 @@
         // check if this commit comes from a transfer and if the size/checksum is ok
         if (replication)
         {
+	  // we remote this file NOW from the scheduling maps
+	  {
+	    XrdSysMutexHelper sLock(ScheduledToDrainFidMutex);
+	    if (ScheduledToDrainFid.count(fid))
+	      ScheduledToDrainFid.erase(fid);
+	  }
+	  {
+	    XrdSysMutexHelper sLock(ScheduledToBalanceFidMutex);
+	    if (ScheduledToBalanceFid.count(fid))
+	      ScheduledToBalanceFid.erase(fid);
+	  }
           if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica)
-          {
+	  {
             // we check filesize and the checksum only for replica layouts
 
             eos_thread_debug("fmd size=%lli, size=%lli", fmd->getSize(), size);

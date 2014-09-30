@@ -43,9 +43,7 @@
 
   // static map with iterator position for the next group scheduling and it's mutex
   static std::map<std::string, size_t> sGroupCycle;
-  static XrdSysMutex sGroupCycleMutex;
-  static XrdSysMutex sScheduledFidMutex;
-  static std::map<eos::common::FileSystem::fsid_t, time_t> sScheduledFid;
+  static XrdSysMutex sGroupCycleMutex; 
   static time_t sScheduledFidCleanupTime = 0;
 
   if (alogid)
@@ -208,7 +206,7 @@
       else
       {
         // check that this file has not been scheduled during the 1h period
-        XrdSysMutexHelper sLock(sScheduledFidMutex);
+        XrdSysMutexHelper sLock(ScheduledToBalanceFidMutex);
         time_t now = time(NULL);
         if (sScheduledFidCleanupTime < now)
         {
@@ -217,18 +215,18 @@
           // do some cleanup
           std::map<eos::common::FileSystem::fsid_t, time_t>::iterator it1;
           std::map<eos::common::FileSystem::fsid_t, time_t>::iterator it2;
-          it1 = it2 = sScheduledFid.begin();
-          while (it2 != sScheduledFid.end())
+          it1 = it2 = ScheduledToBalanceFid.begin();
+          while (it2 != ScheduledToBalanceFid.end())
           {
             it1 = it2;
             it2++;
             if (it1->second < now)
             {
-              sScheduledFid.erase(it1);
+              ScheduledToBalanceFid.erase(it1);
             }
           }
         }
-        if ((sScheduledFid.count(fid) && ((sScheduledFid[fid] > (now)))))
+        if ((ScheduledToBalanceFid.count(fid) && ((ScheduledToBalanceFid[fid] > (now)))))
         {
           // iterate to the next file, we have scheduled this file during the last hour or anyway it is empty
           fit++;
