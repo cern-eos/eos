@@ -6,28 +6,40 @@
 Beryl Release Notes
 ===================
 ``Version V0.3.58 Beryl-Aquamarine``
+
 - add support for archive interface to stage-out and migrate a frozen subtree in the namespace to any XRootD enabled archive storage
 
 ``Version V0.3.47 Beryl``
 
-- FST don't clean-up transactions if their replica is registered in the MGM
+Bug Fixes
+---------
 - bugfixes in HTTP daemon configuration/startup
-- make all HTTP header tags case-insensitive
-- HEAD becomes a light-weight operation on large directories
 - many bugfixes for owncloud/atomic/version support
 - many bugfixes for mutex order violations
-- new unit tests for owncloud/atomic/version support
 - fix BUG in FUSE making the mount hang easily
 - fix BUG in FUSE showing alternating mtimes and showing stale directory listings
-- improve 'quota ls' performance and bypass uid/gid translations as much as possible
-- avoid lock contention in uid/gid translations
-- limit the 'gdb' stack trace to maximum 120s to avoid service lock-up in case of a stuck GDB process
-- update 'eos-deploy' to be able to install from beryl, beryl-testing, aquamarine and citrine YUM repositories
 - fix BUG in stalling drain/balance
 - fix BUG in drain reset
 - fix FD leak in Master
-- adjust 'file adjustreplica' and 'file verify' for RAIN files (file verify made RAIN file inaccessible)
+- add monitor lock to getpwXXX calls to deal with SSSD dead-lock on SLC6
+- disable FMD size/checksum checks for RAIN files
+
+Consolidation
+-------------
+- FST don't clean-up transactions if their replica is registered in the MGM
+- make all HTTP header tags case-insensitive
+- HEAD becomes a light-weight operation on large directories
+- new unit tests for owncloud/atomic/version support
+- improve 'quota ls' performance and bypass uid/gid translations as much as possible
+- avoid lock contention in uid/gid translations
+- limit the 'gdb' stack trace to maximum 120s to avoid service lock-up in case of a stuck GDB process
 - FST never give up in calling a manager for errors allowing a retry 
+
+New Features
+------------
+- update 'eos-deploy' to be able to install from beryl, beryl-testing, aquamarine and citrine YUM repositories
+- adjust 'file adjustreplica' and 'file verify' for RAIN files (file verify made RAIN file inaccessible)
+- extend 'space reset' command
 
 ``Version V0.3.37 Beryl``
 
