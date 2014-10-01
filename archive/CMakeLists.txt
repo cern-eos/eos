@@ -29,7 +29,7 @@ if(PYTHONINTERP_FOUND)
     message(STATUS "The python site-packages dir: ${PYTHON_SITE_PACKAGES}")
 
 
-    install(PROGRAMS eosarchived.py
+    install(PROGRAMS eosarchived.py eosarch_run.py
 	    DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
 	    PERMISSIONS OWNER_READ OWNER_EXECUTE
 			GROUP_READ GROUP_EXECUTE
@@ -51,4 +51,11 @@ if(PYTHONINTERP_FOUND)
     install(FILES eosarchived.sysconfig
 	    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/
 	    RENAME eosarchived)
+
+    install(FILES eosarchived.conf
+	    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}
+	    PERMISSIONS OWNER_READ OWNER_WRITE
+			GROUP_READ
+			WORLD_READ)
+
 endif(PYTHONINTERP_FOUND)

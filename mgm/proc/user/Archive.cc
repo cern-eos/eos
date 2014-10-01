@@ -27,9 +27,9 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
+#include "mgm/Acl.hh"
 /*----------------------------------------------------------------------------*/
 #include "common/SymKeys.hh"
-#include "mgm/Acl.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -69,7 +69,9 @@ ProcCommand::Archive()
     else
     {
       cmd_json << "{\"cmd\": " << "\"" << mSubCmd.c_str() << "\", "
-               << "\"opt\": " <<  "\"" << option << "\""
+               << "\"opt\": " <<  "\"" << option << "\", "
+               << "\"uid\": " << "\"" << pVid->uid << "\", "
+               << "\"gid\": " << "\"" << pVid->gid << "\" "
                << "}";
     }
   }
@@ -83,7 +85,9 @@ ProcCommand::Archive()
     else
     {
       cmd_json << "{\"cmd\": " << "\"" << mSubCmd.c_str() << "\", "
-               << "\"opt\": " <<  "\"" << option << "\""
+               << "\"opt\": " << "\"" << option << "\", "
+               << "\"uid\": " << "\"" << pVid->uid << "\", "
+               << "\"gid\": " << "\"" << pVid->gid << "\" "
                << "}";
     }
   }
@@ -110,7 +114,7 @@ ProcCommand::Archive()
       return SFS_OK;
     }
 
-      std::ostringstream dir_stream;
+    std::ostringstream dir_stream;
     dir_stream << "root://" << gOFS->ManagerId.c_str() << "/" << spath.c_str();
     std::string dir_url = dir_stream.str();
 
@@ -342,7 +346,9 @@ ProcCommand::Archive()
 
       cmd_json << "{\"cmd\": " << "\"" << mSubCmd.c_str() << "\", "
                << "\"src\": " << "\"" << arch_url << "\", "
-               << "\"opt\": " << "\"" << option  << "\""
+               << "\"opt\": " << "\"" << option  << "\", "
+               << "\"uid\": " << "\"" << pVid->uid << "\", "
+               << "\"gid\": " << "\"" << pVid->gid << "\" "
                << "}";
     }
     else
@@ -548,7 +554,8 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
            << "\"num_dirs\": " << num_dirs << ", "
            << "\"num_files\": " << num_files << ", "
            << "\"uid\": \"" << pVid->uid << "\", "
-           << "\"gid\": \"" << pVid->gid << "\" "
+           << "\"gid\": \"" << pVid->gid << "\", "
+           << "\"timestamp\": \"" << time(static_cast<time_t*>(0)) << "\" "
            << "}" << std::endl;
 
   // Add directories info

@@ -26,8 +26,8 @@ import logging
 import json
 from XRootD import client
 from XRootD.client.flags import MkDirFlags, QueryCode
-from exceptions import CheckEntryException
 from utils import exec_cmd, get_entry_info, set_dir_info
+from exceptions import CheckEntryException
 
 
 class ArchiveFile(object):
@@ -351,7 +351,7 @@ class ArchiveFile(object):
             false. In case the archive has error return also the first corrupted
             entry from the archive file, otherwise return an empty list.
         """
-        self.logger.info("Do archvie verify")
+        self.logger.info("Do archive verify")
 
         for entry in self.entries():
             try:

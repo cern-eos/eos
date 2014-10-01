@@ -3,10 +3,6 @@
 USER="xrootd"
 GROUP="xrootd"
 
-# Log level can be one of the following (follows the syslog convention):
-# info, notice, warn/warning, err/error, emerg/panic, debug, crit/critical, alert
-export LOG_LEVEL="debug"
-
 # Directory where log files are saved
 export LOG_DIR="/var/log/eos/archive/"
 

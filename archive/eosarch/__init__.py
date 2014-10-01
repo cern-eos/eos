@@ -24,4 +24,6 @@
    that are done using such objects.
 """
 from transfer import Transfer
-from exceptions import NoErrorException
+from processinfo import ProcessInfo
+from configuration import Configuration
+from exceptions import NoErrorException, CheckEntryException
