@@ -456,23 +456,23 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
             Mutex.UnLockRead();
             return 0;
           }
-        }
 
-        // if we have a mismatch between the mgm/disk and 'ref' value in checksum, we don't return the Fmd record
-        // this check we can do only if the file is !zero otherwise we don't have a checksum on disk (e.g. a touch <a> file)
-        if ((!isRW) && fmd->fMd.mgmsize &&
-            ((fmd->fMd.diskchecksum.length() && (fmd->fMd.diskchecksum != fmd->fMd.checksum)) ||
-             (fmd->fMd.mgmchecksum.length() && (fmd->fMd.mgmchecksum != fmd->fMd.checksum))))
-        {
-          eos_crit("msg=\"checksum mismatch disk/mgm vs memory\" fid=%08llx "
-                   "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s",
-                   fid, (unsigned long) fsid, fmd->fMd.checksum.c_str(),
-                   fmd->fMd.diskchecksum.c_str(), fmd->fMd.mgmchecksum.c_str());
-
-          delete fmd;
-          Mutex.UnLockRead();
-          return 0;
-        }
+	  // if we have a mismatch between the mgm/disk and 'ref' value in checksum, we don't return the Fmd record
+	  // this check we can do only if the file is !zero otherwise we don't have a checksum on disk (e.g. a touch <a> file)
+	  if ((!isRW) && fmd->fMd.mgmsize &&
+	      ((fmd->fMd.diskchecksum.length() && (fmd->fMd.diskchecksum != fmd->fMd.checksum)) ||
+	       (fmd->fMd.mgmchecksum.length() && (fmd->fMd.mgmchecksum != fmd->fMd.checksum))))
+	  {
+	    eos_crit("msg=\"checksum mismatch disk/mgm vs memory\" fid=%08llx "
+		     "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s",
+		     fid, (unsigned long) fsid, fmd->fMd.checksum.c_str(),
+		     fmd->fMd.diskchecksum.c_str(), fmd->fMd.mgmchecksum.c_str());
+	    
+	    delete fmd;
+	    Mutex.UnLockRead();
+	    return 0;
+	  }
+	}
       }
 
       // return the new entry
