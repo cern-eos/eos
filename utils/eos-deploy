@@ -26,6 +26,7 @@ if ( $#ARGV >= 0 ) {
         exit(-1);
     }
     $release=$ARGV[0];
+    shift;
 }
 
 my $flavour;
@@ -47,7 +48,8 @@ my $isalice=0;
 
 printf "# -----------------------------------------------------------------------------------------\n";
 printf "# Your MGM has hostname <$thishost> ... check that this is correct ... (uses hostname -f)\n";
-
+printf "# -----------------------------------------------------------------------------------------\n";
+printf "# Installing from Release Branch '$release'\n";
 while(1) 
 {
     printf "# -----------------------------------------------------------------------------------------\n";
@@ -329,12 +331,12 @@ if ($isalice)  {
     $addpackage ="xrootd-alicetokenacc";
 }
 
-system ("yum erase -y eos-server eos-fuse; yum install -y eos-cleanup");
+system ("yum erase -y eos-server eos-fuse eos-client eos-cleanup; yum install -y eos-cleanup");
 system ("service nginx stop >& /dev/null");
 printf "# -----------------------------------------------------------------------------------------\n";
 system ("# Clean-up left-over of previous installation ...\n");
 system ("test -e /usr/sbin/eos-mgm-clean && /usr/sbin/eos-mgm-clean --do-cleanup");
-system ("test $cleanfstdisk='yes' || unlink /var/eos/md/so.fst.dump >&/dev/null;  test -e /usr/sbin/eos-fst-clean && /usr/sbin/eos-fst-clean --do-cleanup");
+system ("test '$cleanfstdisk' = 'yes' &&  unlink /var/eos/md/so.fst.dump >&/dev/null;  test -e /usr/sbin/eos-fst-clean && /usr/sbin/eos-fst-clean --do-cleanup");
 system ("test -e /usr/sbin/eos-log-clean && /usr/sbin/eos-log-clean --do-cleanup");
 
 system ("yum install -y eos-server eos-client eos-nginx eos-fuse eos-test eos-apmon eos-cleanup jemalloc nscd $addpackage");
@@ -504,8 +506,8 @@ if ($hosts eq "") {
     foreach (@remotefsts) {
 	printf "# ... enable $_ as FST ...\n";
 	system(" eos -b node set $_ on\n");
-        system ("ssh $_ \"yum install -y eos-cleanup; yum erase -y eos-server eos-client;\"");
-        system ("ssh $_ \"test $cleanfstdisk='yes' || unlink /var/eos/md/so.fst.dump >&/dev/null; /usr/sbin/eos-fst-clean --do-cleanup ; /usr/bin/eos-log-clean --do-cleanup ;\"");
+        system ("ssh $_ \"yum erase -y eos-server eos-client eos-cleanup; yum install -y eos-cleanup\"");
+        system ("ssh $_ \"test '$cleanfstdisk' = 'yes' && unlink /var/eos/md/so.fst.dump >&/dev/null; /usr/sbin/eos-fst-clean --do-cleanup ; /usr/sbin/eos-log-clean --do-cleanup ; \"");
 	printf "# ... uploading sysconfig to $_ ...\n";
         system("scp /etc/sysconfig/eos.fst $_:/etc/sysconfig/eos");
         printf "# ... uploading sss key to $_ ...\n";
@@ -533,11 +535,11 @@ if ($mgm2 ne "") {
     printf "# -----------------------------------------------------------------------------------------\n";
     printf "# Configuring the MGM slave $mgm2 ...\n";
     system("ssh $mgm2 service eosha stop >& /dev/null");
-    system("ssh $mgm2 yum erase -y eos-server eos-fuse; yum install -y eos-cleanup");
+    system("ssh $mgm2 yum erase -y eos-server eos-fuse eos-cleanup eos-client; yum install -y eos-cleanup");
     system("ssh $mgm2 service nginx stop >& /dev/null");
     system ("# Clean-up left-over of previous installation on $mgm2 ...\n");
     system ("ssh $mgm2 \"test -e /usr/sbin/eos-mgm-clean && /usr/sbin/eos-mgm-clean --do-cleanup\"");
-    system ("ssh $mgm2 \"test $cleanfstdisk='yes' || unlink /var/eos/md/so.fst.dump >&/dev/null; test -e /usr/sbin/eos-fst-clean && /usr/sbin/eos-fst-clean --do-cleanup\"");
+    system ("ssh $mgm2 \"test '$cleanfstdisk' = 'yes' && unlink /var/eos/md/so.fst.dump >&/dev/null; test -e /usr/sbin/eos-fst-clean && /usr/sbin/eos-fst-clean --do-cleanup\"");
     system ("ssh $mgm2 \"test -e /usr/sbin/eos-log-clean && /usr/sbin/eos-log-clean --do-cleanup\"");
     system("scp /etc/eos.keytab $mgm2:/etc/eos.keytab");
     system("scp /etc/xrd.cf.mgm $mgm2:/etc/xrd.cf.mgm");

@@ -51,6 +51,8 @@ Mapping::GeoLocationMap_t Mapping::gGeoMap;
 Mapping::AllowedTidentMatches_t Mapping::gAllowedTidentMatches;
 
 XrdSysMutex Mapping::ActiveLock;
+XrdSysMutex Mapping::gSssdLock;
+
 google::dense_hash_map<std::string, time_t> Mapping::ActiveTidents;
 
 XrdOucHash<Mapping::id_pair> Mapping::gPhysicalUidCache;
@@ -1085,7 +1087,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
 
   eos_static_debug("find in uid cache %s", name);
 
-  XrdSysMutexHelper cLock(gPhysicalIdMutex);
+  gPhysicalIdMutex.Lock();
 
   // cache short cut's
   if (!(id = gPhysicalUidCache.Find(name)))
@@ -1113,8 +1115,10 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
 
         id = new id_pair(strtol(suid.c_str(), 0, 16), strtol(sgid.c_str(), 0, 16));
         eos_static_debug("using hexmapping %s %d %d", sname.c_str(), id->uid, id->gid);
-        if (!id->uid || !id->gid)
+        if (!id->uid || !id->gid) {
+	  gPhysicalIdMutex.UnLock();
           return;
+	}
 
         vid.uid = id->uid;
         vid.gid = id->gid;
@@ -1134,12 +1138,17 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
     }
     if (use_pw)
     {
+      gPhysicalIdMutex.UnLock();
       struct passwd *pwbufp = 0;
 
-      if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp))
       {
-        return;
+	XrdSysMutexHelper sLock(gSssdLock);
+	if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp))
+	{
+	  return;
+	}
       }
+      gPhysicalIdMutex.Lock();
       id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
       gPhysicalUidCache.Add(name, id, 3600);
       eos_static_debug("adding to cache uid=%u gid=%u", id->uid, id->gid);
@@ -1157,6 +1166,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
     vid.uid = id->uid;
     vid.gid = id->gid;
     eos_static_debug("returning uid=%u gid=%u", id->uid, id->gid);
+    gPhysicalIdMutex.UnLock();
     return;
   }
 
@@ -1200,6 +1210,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
 
   gPhysicalGidCache.Add(name, vec, 3600);
 
+  gPhysicalIdMutex.UnLock();
   return;
 }
 
@@ -1232,18 +1243,20 @@ Mapping::UidToUserName (uid_t uid, int &errc)
     std::string uid_string = "";
     struct passwd pwbuf;
     struct passwd *pwbufp = 0;
-    if (getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp) || (!pwbufp))
     {
-      char suid[1024];
-      snprintf(suid, sizeof (suid) - 1, "%u", uid);
-      uid_string = suid;
-      errc = EINVAL;
-    }
-    else
-    {
-
-      uid_string = pwbuf.pw_name;
-      errc = 0;
+      XrdSysMutexHelper sLock(gSssdLock);
+      if (getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp) || (!pwbufp))
+      {
+	char suid[1024];
+	snprintf(suid, sizeof (suid) - 1, "%u", uid);
+	uid_string = suid;
+	errc = EINVAL;
+      }
+      else
+      {
+	uid_string = pwbuf.pw_name;
+	errc = 0;
+      }
     }
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
     gPhysicalUserNameCache[uid] = uid_string;
@@ -1330,7 +1343,11 @@ Mapping::UserNameToUid (std::string &username, int &errc)
   struct passwd pwbuf;
   struct passwd *pwbufp = 0;
   errc = 0;
-  getpwnam_r(username.c_str(), &pwbuf, buffer, buflen, &pwbufp);
+  {
+    XrdSysMutexHelper sLock(gSssdLock);
+    getpwnam_r(username.c_str(), &pwbuf, buffer, buflen, &pwbufp);
+  }
+
   if (!pwbufp)
   {
     bool is_number = true;
