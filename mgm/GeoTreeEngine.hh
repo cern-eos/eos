@@ -408,7 +408,7 @@ private:
 		}
 		if(eraseLastEntry) pPendingDeletions.erase(lastEntry);
 
-		eos_info("%d pending deletions executed",count);
+		eos_debug("%d pending deletions executed",count);
 	}
 
 	inline void applyDlScorePenalty(TreeMapEntry *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty)
@@ -550,7 +550,7 @@ private:
 				if(skipSaturated) eos_notice("Could not find any replica for placement while skipping saturated fs. Trying with saturated nodes included");
 				if( (!skipSaturated) || !tree->findFreeSlot(idx, startFromNode, false, true, false) )
 				{
-					eos_err("could not find a new slot for a replica in the fast tree");
+					eos_debug("could not find a new slot for a replica in the fast tree");
 					stringstream ss;
 					ss << (*tree);
 					eos_debug("iteration number %lu fast tree used for placement is: \n %s",k,ss.str().c_str());

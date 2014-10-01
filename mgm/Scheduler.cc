@@ -137,7 +137,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
 					NULL,
 					NULL);
 
-			if(eos::common::Logging::gLogMask & LOG_INFO)
+  	if(eos::common::Logging::gLogMask & LOG_DEBUG)
     {
 				char buffer[1024];
 				buffer[0]=0;
@@ -146,6 +146,15 @@ Scheduler::FilePlacement (const char* path, //< path to place
 				buf += sprintf(buf,"%lu  ",(unsigned long)(*it));
 
 				eos_static_debug("GeoTree Placement returned %d with fs id's -> %s", (int)placeRes, buffer);
+  	}
+
+  	if (placeRes)
+  	{
+  		eos_static_debug("placing replicas for %s in subgroup %s",path,(*git)->mName.c_str());
+  	}
+  	else
+  	{
+  		eos_static_debug("could not place all replica(s) for %s in subgroup %s, checking next group",path,(*git)->mName.c_str());
     }
 
     git++;
@@ -164,7 +173,9 @@ Scheduler::FilePlacement (const char* path, //< path to place
     return 0;
   }
   else
+  	{
 				continue;
+  	}
   }
     selected_filesystems.clear();
     return ENOSPC;

@@ -66,7 +66,7 @@ bool XrdMqSharedObjectChangeNotifier::SubscribesToSubject(const std::string &sub
   Subscriber *s = GetSubscriberFromCatalog(subscriber);
   XrdSysMutexHelper lock(s->WatchMutex);
 
-  eos_static_info("subscribing to subject %s", subject.c_str());
+  eos_static_debug("subscribing to subject %s", subject.c_str());
   if(s->WatchSubjects[type].count(subject))
     return false;
   s->WatchSubjects[type].insert(subject);
@@ -84,7 +84,7 @@ bool XrdMqSharedObjectChangeNotifier::SubscribesToSubjectRegex(const std::string
   Subscriber *s = GetSubscriberFromCatalog(subscriber);
   XrdSysMutexHelper lock(s->WatchMutex);
 
-  eos_static_info("subscribing to subject regex %s", subject.c_str());
+  eos_static_debug("subscribing to subject regex %s", subject.c_str());
   if(s->WatchSubjectsRegex[type].count(subject))
     return false;
   s->WatchSubjectsRegex[type].insert(subject);
@@ -103,7 +103,7 @@ bool XrdMqSharedObjectChangeNotifier::SubscribesToKey(const std::string &subscri
   Subscriber *s = GetSubscriberFromCatalog(subscriber);
   XrdSysMutexHelper lock(s->WatchMutex);
 
-  eos_static_info("subscribing to key %s", key.c_str());
+  eos_static_debug("subscribing to key %s", key.c_str());
   if(s->WatchKeys[type].count(key))
     return false;
   s->WatchKeys[type].insert(key);
@@ -121,7 +121,7 @@ bool XrdMqSharedObjectChangeNotifier::SubscribesToKeyRegex(const std::string &su
   Subscriber *s = GetSubscriberFromCatalog(subscriber);
   XrdSysMutexHelper lock(s->WatchMutex);
 
-  eos_static_info("subscribing to key regex %s", key.c_str());
+  eos_static_debug("subscribing to key regex %s", key.c_str());
   if(s->WatchKeysRegex[type].count(key))
     return false;
   s->WatchKeysRegex[type].insert(key);
@@ -139,6 +139,8 @@ bool XrdMqSharedObjectChangeNotifier::SubscribesToSubjectAndKey(const std::strin
   Subscriber *s = GetSubscriberFromCatalog(subscriber);
   XrdSysMutexHelper lock(s->WatchMutex);
 
+  if(eos::common::Logging::gLogMask & LOG_DEBUG)
+  {
   size_t bufsize=0;
   for(auto it = subjects.begin(); it != subjects.end(); ++it)
     bufsize+=(it->size()+1);
@@ -170,8 +172,10 @@ bool XrdMqSharedObjectChangeNotifier::SubscribesToSubjectAndKey(const std::strin
   }
   sz = snprintf(buf,bufsize,"]");
 
-  eos_static_info("%s", buffer);
+  	eos_static_debug("%s", buffer);
   delete[] buffer;
+  }
+
   // firstly update the thread-local vector
   bool insertIntoExisiting = false;
   {
@@ -277,7 +281,7 @@ bool XrdMqSharedObjectChangeNotifier::UnsubscribesToSubject(const std::string &s
   }
   if(s->empty() )
   {
-    eos_static_info("delete s;"); delete s;
+    delete s;
     s = NULL;
   }
   return true;
@@ -297,7 +301,7 @@ bool XrdMqSharedObjectChangeNotifier::UnsubscribesToSubjectRegex(const std::stri
   }
   if(s->empty() )
   {
-    eos_static_info("delete s;"); delete s;
+    delete s;
     s = NULL;
   }
   return true;
@@ -317,7 +321,7 @@ bool XrdMqSharedObjectChangeNotifier::UnsubscribesToKey(const std::string &subsc
   }
   if(s->empty() )
   {
-    eos_static_info("delete s;"); delete s;
+    delete s;
     s = NULL;
   }
   return true;
@@ -337,7 +341,7 @@ bool XrdMqSharedObjectChangeNotifier::UnsubscribesToKeyRegex(const std::string &
   }
   if(s->empty() )
   {
-    eos_static_info("delete s;"); delete s;
+    delete s;
     s = NULL;
   }
   return true;
@@ -352,13 +356,15 @@ bool XrdMqSharedObjectChangeNotifier::UnsubscribesToEverything(const std::string
 
   if(s->Notify)
     StopNotifyCurrentThread();
-  eos_static_info("delete s;"); delete s;
+  delete s;
   s = NULL;
   return true;
 }
 
 ///*----------------------------------------------------------------------------*/
 bool XrdMqSharedObjectChangeNotifier::UnsubscribesToSubjectAndKey(const std::string &subscriber,std::set<std::string> subjects,std::set<std::string> keys, XrdMqSharedObjectChangeNotifier::notification_t type)
+{
+	if(eos::common::Logging::gLogMask & LOG_DEBUG)
 {
   size_t bufsize=0;
   for(auto it = subjects.begin(); it != subjects.end(); ++it)
@@ -391,8 +397,9 @@ bool XrdMqSharedObjectChangeNotifier::UnsubscribesToSubjectAndKey(const std::str
   }
   sz = snprintf(buf,bufsize,"]");
 
-  eos_static_info("%s", buffer);
+		eos_static_debug("%s", buffer);
   delete[] buffer;
+	}
 
   Subscriber *s = GetSubscriberFromCatalog(subscriber,false);
   if(!s) return false;
@@ -526,6 +533,8 @@ bool XrdMqSharedObjectChangeNotifier::StopNotifySubjectRegex(Subscriber *subscri
 /*----------------------------------------------------------------------------*/
 bool XrdMqSharedObjectChangeNotifier::StartNotifySubjectsAndKeys(Subscriber *subscriber, const std::set<std::string> &subjects, const std::set<std::string> &keys , XrdMqSharedObjectChangeNotifier::notification_t type){
 
+	if(eos::common::Logging::gLogMask & LOG_DEBUG)
+	{
   size_t bufsize=0;
   for(auto it = subjects.begin(); it != subjects.end(); ++it)
     bufsize+=(it->size()+1);
@@ -557,8 +566,9 @@ bool XrdMqSharedObjectChangeNotifier::StartNotifySubjectsAndKeys(Subscriber *sub
   }
   sz = snprintf(buf,bufsize,"]");
 
-  eos_static_info("%s", buffer);
+		eos_static_debug("%s", buffer);
   delete[] buffer;
+	}
 
   bool insertIntoExisiting = false;
   XrdSysMutexHelper lock(WatchMutex);
@@ -648,7 +658,8 @@ bool XrdMqSharedObjectChangeNotifier::StartNotifySubjectsAndKeys(Subscriber *sub
 /*----------------------------------------------------------------------------*/
 bool XrdMqSharedObjectChangeNotifier::StopNotifySubjectsAndKeys(Subscriber *subscriber, const std::set<std::string> &subjects, const std::set<std::string> &keys , XrdMqSharedObjectChangeNotifier::notification_t type){
 
-
+	if(eos::common::Logging::gLogMask & LOG_DEBUG)
+	{
   size_t bufsize=0;
   for(auto it = subjects.begin(); it != subjects.end(); ++it)
     bufsize+=(it->size()+1);
@@ -680,8 +691,9 @@ bool XrdMqSharedObjectChangeNotifier::StopNotifySubjectsAndKeys(Subscriber *subs
   }
   sz = snprintf(buf,bufsize,"]");
 
-  eos_static_info("%s", buffer);
+		eos_static_debug("%s", buffer);
   delete[] buffer;
+	}
 
   bool removedAll = false;
   // secondly update the global vector
@@ -744,17 +756,17 @@ bool XrdMqSharedObjectChangeNotifier::StopNotifySubjectsAndKeys(Subscriber *subs
     }
     else if(it->first.second == keys && std::includes(it->first.first.begin(),it->first.first.end(),subjects.begin(),subjects.end())){
       if(it->second.count(subscriber)) {    // if the subscriber is there
-        eos_static_info("1 element size is %d vector size is %d",it->second.size(),WatchSubjectsXKeys2Subscribers[type].size());
+        //eos_static_debug("1 element size is %d vector size is %d",it->second.size(),WatchSubjectsXKeys2Subscribers[type].size());
         if(it->second.size()>1) {             // there's some other subscriber, split before update
           it->second.erase(subscriber);
           WatchSubjectsXKeys2Subscribers[type].push_back(std::make_pair(it->first,std::set<Subscriber*>(&subscriber,&subscriber+1)));
           it = WatchSubjectsXKeys2Subscribers[type].end()-1;
         }
-        eos_static_info("2 element size is %d vector size is %d",it->second.size(),WatchSubjectsXKeys2Subscribers[type].size());
+        //eos_static_debug("2 element size is %d vector size is %d",it->second.size(),WatchSubjectsXKeys2Subscribers[type].size());
         if(it->second.size()==1) {            // if the subscriber is the only guy there
           for(auto its=subjects.begin();its!=subjects.end();its++)
             it->first.first.erase(*its);
-          eos_static_info("3 element size is %d vector size is %d",it->second.size(),WatchSubjectsXKeys2Subscribers[type].size());
+          //eos_static_debug("3 element size is %d vector size is %d",it->second.size(),WatchSubjectsXKeys2Subscribers[type].size());
           if(it->first.first.empty()) // if this entry is now empty, remove it
             WatchSubjectsXKeys2Subscribers[type].erase(it);
         }
@@ -880,8 +892,6 @@ bool XrdMqSharedObjectChangeNotifier::StopNotifyCurrentThread()
 /*----------------------------------------------------------------------------*/
 void XrdMqSharedObjectChangeNotifier::SomListener()
 {
-  //  XrdSysTimer sleeper;
-  //  sleeper.Snooze(5);
   // thread listening on filesystem errors and configuration changes
   eos_static_info("Starting Listener");
   do
@@ -898,14 +908,14 @@ void XrdMqSharedObjectChangeNotifier::SomListener()
     std::set<Subscriber*> notifiedSubscribers;
     while (SOM->NotificationSubjects.size())
     {
-      //eos_static_info("LOOP");
+      //eos_static_debug("LOOP");
       XrdMqSharedObjectManager::Notification event;
       event = SOM->NotificationSubjects.front();
       SOM->NotificationSubjects.pop_front();
       SOM->SubjectsMutex.UnLock();
 
       std::string newsubject = event.mSubject.c_str();
-      //eos_static_info("SOM Listener new notification %d on %s",event.mType,event.mSubject.c_str());
+      //eos_static_debug("SOM Listener new notification %d on %s",event.mType,event.mSubject.c_str());
 
       //const XrdMqSharedObjectManager::notification_t &type = event.mType;
       int type = static_cast<int>(event.mType);
@@ -944,17 +954,17 @@ void XrdMqSharedObjectChangeNotifier::SomListener()
               newValAsserted = true;
             }
             if(isNewVal){
-              //eos_static_info("notification on %s : new value %s IS a strict change",newsubject.c_str(),newVal.c_str());
+              //eos_static_debug("notification on %s : new value %s IS a strict change",newsubject.c_str(),newVal.c_str());
               LastValues[newsubject] = newVal;
             }
             else {
-              //eos_static_info("notification on %s : new value %s IS NOT a strict change",newsubject.c_str(),newVal.c_str());
+              //eos_static_debug("notification on %s : new value %s IS NOT a strict change",newsubject.c_str(),newVal.c_str());
               continue;
             }
           }
 
           for(auto it2=it->second.mSubscribers.begin(); it2!=it->second.mSubscribers.end();it2++) {
-            //eos_static_info("match!");
+            //eos_static_debug("match!");
             (*it2)->SubjectsMutex.Lock();
             (*it2)->NotificationSubjects.push_back(event);
             (*it2)->SubjectsMutex.UnLock();
@@ -984,20 +994,17 @@ void XrdMqSharedObjectChangeNotifier::SomListener()
               newValAsserted = true;
             }
             if(isNewVal){
-              //eos_static_info("notification on %s : new value %s IS a strict change",newsubject.c_str(),newVal.c_str());
+              //eos_static_debug("notification on %s : new value %s IS a strict change",newsubject.c_str(),newVal.c_str());
               LastValues[newsubject] = newVal;
             }
             else {
-              //eos_static_info("notification on %s : new value %s IS NOT a strict change",newsubject.c_str(),newVal.c_str());
+              //eos_static_debug("notification on %s : new value %s IS NOT a strict change",newsubject.c_str(),newVal.c_str());
               continue;
             }
           }
 
           for(auto it2=it->second.mSubscribers.begin(); it2!=it->second.mSubscribers.end();it2++) {
-            //eos_static_info("check subject %p",*it2);
-            //eos_static_info("prematch!");
             if(notifiedSubscribersForCurrentEvent.count(*it2) == 0) { // don't notofy twice for the same event
-              //eos_static_info("match!");
               (*it2)->SubjectsMutex.Lock();
               (*it2)->NotificationSubjects.push_back(event);
               (*it2)->SubjectsMutex.UnLock();
@@ -1028,10 +1035,9 @@ void XrdMqSharedObjectChangeNotifier::SomListener()
               newValAsserted = true;
             }
             if(isNewVal){
-              if(key=="id") {
-                eos_static_err("WARNING ID CHANGE in queue %s FROM %s to %s",queue.c_str(),LastValues[newsubject].c_str(),newVal.c_str());
-              }
-              //eos_static_info("notification on %s : new value %s IS a strict change",newsubject.c_str(),newVal.c_str());
+//              if(key=="id") {
+//                eos_static_warning("WARNING ID CHANGE in queue %s FROM %s to %s",queue.c_str(),LastValues[newsubject].c_str(),newVal.c_str());
+//              }
               LastValues[newsubject] = newVal;
             }
             else {
@@ -1041,9 +1047,7 @@ void XrdMqSharedObjectChangeNotifier::SomListener()
           }
 
           for(auto it2=it->second.begin(); it2!=it->second.end();it2++) {
-            //eos_static_info("prematch!");
             if(notifiedSubscribersForCurrentEvent.count(*it2) == 0) { // don't notofy twice for the same event
-              //eos_static_info("match!");
               (*it2)->SubjectsMutex.Lock();
               (*it2)->NotificationSubjects.push_back(event);
               (*it2)->SubjectsMutex.UnLock();

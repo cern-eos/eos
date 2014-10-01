@@ -1438,7 +1438,8 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
 	if(keys&sfgId)
 	{
 		// should not happen
-		eos_crit("the FsId should not change once it's created:  new value is %lu",(unsigned long)fs->mId);
+		//eos_crit("the FsId should not change once it's created:  new value is %lu",(unsigned long)fs->mId);
+		// .... unless it is the first change to give to the id it's initial value. It happens after it's been created so it's seen as a change.
 	}
 	if(keys&(sfgBoot|sfgActive|sfgErrc))
 	{
@@ -1458,7 +1459,7 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
 		}
 		else
 		{ // the fs is unavailable
-			eos_info("fs %lu is getting unavailable ftidx=%d  stn=%p",(unsigned long) fs->mId,(int)ftIdx,stn);
+			eos_debug("fs %lu is getting unavailable ftidx=%d  stn=%p",(unsigned long) fs->mId,(int)ftIdx,stn);
 			if(ftIdx) unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Available);
 			if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Available;
 		}

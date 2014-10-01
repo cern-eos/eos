@@ -8766,7 +8766,7 @@ XrdMgmOfs::FsConfigListener ()
       gOFS->ObjectNotifier.tlSubscriber->NotificationSubjects.pop_front();
       gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
 
-      eos_static_info("MGM shared object notification subject is %s",event.mSubject.c_str());
+      eos_static_debug("MGM shared object notification subject is %s",event.mSubject.c_str());
 
       std::string newsubject = event.mSubject.c_str();
 
@@ -8798,7 +8798,7 @@ XrdMgmOfs::FsConfigListener ()
         // handle subject modification
         // ---------------------------------------------------------------------
 
-        eos_static_info("received modification on subject %s", newsubject.c_str());
+        eos_static_debug("received modification on subject %s", newsubject.c_str());
         // if this is an error status on a file system, check if the filesystem is > drained state and in this case launch a drain job with
         // the opserror flag by calling StartDrainJob
         // We use directly the ObjectManager Interface because it is more handy with the available information we have at this point
