@@ -823,6 +823,15 @@ XrdMgmOfsFile::open (const char *inpath,
                             forcedFsId,
                             forcedGroup);
 
+  eos::mgm::Scheduler::tPlctPolicy plctplcy;
+  std::string targetgeotag;
+  // get placement policy
+  Policy::GetPlctPolicy(path,
+                        attrmap,
+                        vid,
+                        *openOpaque,
+                        plctplcy,
+                        targetgeotag);
 
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex); // lock order 1
   eos::common::RWMutexReadLock lock(Quota::gQuotaMutex); // lock order 2
@@ -1032,6 +1041,7 @@ XrdMgmOfsFile::open (const char *inpath,
     }
     retc = quotaspace->FilePlacement(path, vid, containertag, layoutId,
                                      selectedfs, selectedfs,
+                                     plctplcy,targetgeotag,
                                      open_mode & SFS_O_TRUNC,
                                      forcedGroup,
                                      bookingsize);
@@ -1399,6 +1409,7 @@ XrdMgmOfsFile::open (const char *inpath,
 
       retc = quotaspace->FilePlacement(path, vid, containertag, plainLayoutId,
                                        selectedfs, PioReplacementFsList,
+                                       plctplcy,targetgeotag,
                                        false, forcedGroup,
                                        plainBookingSize);
 

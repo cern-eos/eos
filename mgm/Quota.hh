@@ -611,6 +611,8 @@ public:
                      unsigned long lid, //< layout to be placed
                      std::vector<unsigned int> &avoid_filesystems, //< filesystems to avoid
                      std::vector<unsigned int> &selected_filesystems, //< return filesystems selected by scheduler
+                     tPlctPolicy plctpolicy, //< indicates if the placement should be local or spread or hybrid
+                     const std::string &plctTrgGeotag, //< indicates close to which Geotag collocated stripes should be placed
                      bool truncate = false, //< indicates placement with truncation
                      int forced_scheduling_group_index = -1, //< forced index for the scheduling subgroup to be used 
                      unsigned long long bookingsize = 1024 * 1024 * 1024ll //< size to book for the placement

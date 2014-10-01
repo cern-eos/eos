@@ -454,6 +454,7 @@ private:
 			std::vector<SchedTreeBase::tFastTreeIdx> *existingReplicas=NULL,
 			unsigned long long bookingSize=0,
 			const SchedTreeBase::tFastTreeIdx &startFromNode=0,
+			const size_t &nCollocatedReplicas=0,
 			std::vector<SchedTreeBase::tFastTreeIdx> *excludedNodes=NULL,
 			std::vector<SchedTreeBase::tFastTreeIdx> *forceNodes=NULL,
 			bool skipSaturated=false)
@@ -545,10 +546,11 @@ private:
 		for(size_t k = 0; k < nNewReplicas; k++)
 		{
 			SchedTreeBase::tFastTreeIdx idx;
-			if(!tree->findFreeSlot(idx, startFromNode, false, true, skipSaturated))
+			SchedTreeBase::tFastTreeIdx startidx = (k<nNewReplicas-nCollocatedReplicas)?0:startFromNode;
+			if(!tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true, skipSaturated))
 			{
 				if(skipSaturated) eos_notice("Could not find any replica for placement while skipping saturated fs. Trying with saturated nodes included");
-				if( (!skipSaturated) || !tree->findFreeSlot(idx, startFromNode, false, true, false) )
+				if( (!skipSaturated) || !tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true, false) )
 				{
 					eos_debug("could not find a new slot for a replica in the fast tree");
 					stringstream ss;
@@ -724,6 +726,9 @@ public:
 	// @param startFromGeoTag
 	//   try to place the files under this geotag
 	//   useful to group up replicas or to replace a replica by a new one nearby
+	// @param nCollocatedReplicas
+	//   among the nNewReplicas, nCollocatedReplicas are placed as close as possible to startFromGeoTag
+	//   the other ones are scattered out as much as possible in the tree
 	// @param excludeFs
 	//   fsids of files to exclude from the placement operation
 	// @param excludeGeoTags
@@ -741,6 +746,7 @@ public:
 			std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
 			unsigned long long bookingSize=0,
 			const std::string &startFromGeoTag="",
+			const size_t &nCollocatedReplicas=0,
 			std::vector<eos::common::FileSystem::fsid_t> *excludeFs=NULL,
 			std::vector<std::string> *excludeGeoTags=NULL,
 			std::vector<std::string> *forceGeoTags=NULL);

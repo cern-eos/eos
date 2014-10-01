@@ -427,12 +427,14 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 		vector<FileSystem::fsid_t> *existingReplicas,
 		unsigned long long bookingSize,
 		const std::string &startFromGeoTag,
+		const size_t &nCollocatedReplicas,
 		vector<FileSystem::fsid_t> *excludeFs,
 		vector<string> *excludeGeoTags,
 		vector<string> *forceGeoTags)
 {
 	assert(nNewReplicas);
 	assert(newReplicas);
+	assert(nCollocatedReplicas<=nNewReplicas);
 
 	// find the entry in the map
 	tlCurrentGroup = group;
@@ -454,10 +456,12 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 	// locate the existing replicas and the excluded fs in the tree
 	vector<SchedTreeBase::tFastTreeIdx> newReplicasIdx(nNewReplicas),*existingReplicasIdx=NULL,*excludeFsIdx=NULL,*forceBrIdx=NULL;
 	newReplicasIdx.resize(0);
+	if(existingReplicas||nCollocatedReplicas)
+	{
+		existingReplicasIdx = new vector<SchedTreeBase::tFastTreeIdx>(existingReplicas?existingReplicas->size():0+nCollocatedReplicas);
+		existingReplicasIdx->resize(0);
 	if(existingReplicas)
 	{
-		existingReplicasIdx = new vector<SchedTreeBase::tFastTreeIdx>(existingReplicas->size());
-		existingReplicasIdx->resize(0);
 		for(auto it = existingReplicas->begin(); it != existingReplicas->end(); ++it)
 		{
 			const SchedTreeBase::tFastTreeIdx *idx;
@@ -468,6 +472,7 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 			}
 			existingReplicasIdx->push_back(*idx);
 		}
+	}
 	}
 	if(excludeFs)
 	{
@@ -525,15 +530,15 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 		case regularRO:
 		case regularRW:
 		success = placeNewReplicas(entry,nNewReplicas,&newReplicasIdx,entry->foregroundFastStruct->placementTree,
-				existingReplicasIdx,bookingSize,startFromNode,excludeFsIdx,forceBrIdx,skipSaturatedPlct);
+					existingReplicasIdx,bookingSize,startFromNode,nCollocatedReplicas,excludeFsIdx,forceBrIdx,skipSaturatedPlct);
 		break;
 		case draining:
 		success = placeNewReplicas(entry,nNewReplicas,&newReplicasIdx,entry->foregroundFastStruct->drnPlacementTree,
-				existingReplicasIdx,bookingSize,startFromNode,excludeFsIdx,forceBrIdx,skipSaturatedDrnPlct);
+					existingReplicasIdx,bookingSize,startFromNode,nCollocatedReplicas,excludeFsIdx,forceBrIdx,skipSaturatedDrnPlct);
 		break;
 		case balancing:
 		success = placeNewReplicas(entry,nNewReplicas,&newReplicasIdx,entry->foregroundFastStruct->blcPlacementTree,
-				existingReplicasIdx,bookingSize,startFromNode,excludeFsIdx,forceBrIdx,skipSaturatedBlcPlct);
+					existingReplicasIdx,bookingSize,startFromNode,nCollocatedReplicas,excludeFsIdx,forceBrIdx,skipSaturatedBlcPlct);
 		break;
 		default:
 		;

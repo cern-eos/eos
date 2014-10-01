@@ -46,6 +46,8 @@ Scheduler::FilePlacement (const char* path, //< path to place
                           unsigned long lid, //< layout to be placed
                           std::vector<unsigned int> &avoid_filesystems, //< filesystems to avoid
                           std::vector<unsigned int> &selected_filesystems, //< return filesystems selected by scheduler
+                          tPlctPolicy plctpolicy, //< indicates if the placement should be local or spread or hybrid
+                          const std::string &plctTrgGeotag, //< indicates close to which Geotag collocated stripes should be placed
                           bool truncate, //< indicates placement with truncation
                           int forced_scheduling_group_index, //< forced index for the scheduling subgroup to be used 
                           unsigned long long bookingsize //< size to book for the placement
@@ -69,7 +71,32 @@ Scheduler::FilePlacement (const char* path, //< path to place
     fsidavoidlist.insert(avoid_filesystems[i]);
   }
 
+  // compute the number of locations of stripes according to the placement policy
   unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(lid) + 1; // 0 = 1 replica !
+  unsigned int ncollocatedfs = 0;
+  switch(plctpolicy)
+  {
+  case kScattered:
+  	ncollocatedfs = 0;
+  	break;
+  case kHybrid:
+  	switch(eos::common::LayoutId::GetLayoutType(lid))
+  	{
+  	case eos::common::LayoutId::kPlain:
+  		ncollocatedfs = 1;
+  		break;
+  	case eos::common::LayoutId::kReplica:
+  		ncollocatedfs = nfilesystems-1;
+  		break;
+  	default:
+  		ncollocatedfs = nfilesystems - eos::common::LayoutId::GetRedundancyStripeNumber(lid);
+  		break;
+  	}
+  	break;
+  case kGathered:
+  	ncollocatedfs = nfilesystems;
+  }
+  eos_static_debug("checking placement policy : policy is %d, nfilesystems is %d and ncollocated is %d",(int)plctpolicy,(int)nfilesystems,(int)ncollocatedfs);
 
   uid_t uid = vid.uid;
   gid_t gid = vid.gid;
@@ -132,7 +159,8 @@ Scheduler::FilePlacement (const char* path, //< path to place
 					GeoTreeEngine::regularRW,
 					NULL,
 					bookingsize,
-					"",
+  			plctTrgGeotag,
+  			ncollocatedfs,
 					&avoid_filesystems,
 					NULL,
 					NULL);

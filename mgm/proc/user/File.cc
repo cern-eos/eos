@@ -27,6 +27,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Macros.hh"
+#include "mgm/Policy.hh"
 #include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClCopyProcess.hh"
@@ -1177,6 +1178,18 @@ ProcCommand::File ()
                   // now the just need to ask for <n> targets
                   int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::kNone,
                                                               nnewreplicas);
+                  eos::common::Path cPath(spath.c_str());
+                  eos::ContainerMD::XAttrMap attrmap;
+                  gOFS->_attr_ls(cPath.GetParentPath(), *mError, *pVid, (const char *) 0,attrmap);
+                  eos::mgm::Scheduler::tPlctPolicy plctplcy;
+                  std::string targetgeotag;
+                  // get placement policy
+                  Policy::GetPlctPolicy(spath.c_str(),
+                                        attrmap,
+                                        *pVid,
+                                        *pOpaque,
+                                        plctplcy,
+                                        targetgeotag);
 
                   // we don't know the container tag here, but we don't really care since we are scheduled as root
                   if (!(errno = quotaspace->FilePlacement(spath.c_str(),
@@ -1185,6 +1198,7 @@ ProcCommand::File ()
                                                           layoutId,
                                                           selectedfs,
                                                           selectedfs,
+                                                          plctplcy,targetgeotag,
                                                           SFS_O_TRUNC,
                                                           forcedsubgroup,
                                                           fmd->getSize()))

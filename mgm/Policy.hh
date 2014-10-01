@@ -26,6 +26,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
+#include "mgm/Scheduler.hh"
 #include "common/Mapping.hh"
 #include "namespace/ContainerMD.hh"
 /*----------------------------------------------------------------------------*/
@@ -54,6 +55,13 @@ public:
                                  XrdOucEnv &env, 
                                  unsigned long &forcedfsid,
                                  long &forcedgroup);
+
+  static void GetPlctPolicy (const char* path,
+                                 eos::ContainerMD::XAttrMap &map,
+                                 const eos::common::Mapping::VirtualIdentity &vid,
+                                 XrdOucEnv &env,
+                                 eos::mgm::Scheduler::tPlctPolicy &plctpo,
+                                 std::string &targetgeotag);
 
   static bool Set (const char* value);
   static bool Set (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);

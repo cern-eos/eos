@@ -229,6 +229,85 @@ Policy::GetLayoutAndSpace (const char* path,
 }
 
 /*----------------------------------------------------------------------------*/
+void
+Policy::GetPlctPolicy (const char* path,
+                           eos::ContainerMD::XAttrMap &attrmap, 
+                           const eos::common::Mapping::VirtualIdentity &vid, 
+                           XrdOucEnv &env,
+                           eos::mgm::Scheduler::tPlctPolicy &plctpol,
+                           std::string &targetgeotag)
+{
+  // default to save
+	plctpol = eos::mgm::Scheduler::kScattered;
+  std::string policyString;
+
+  const char* val = 0;
+  if ((val = env.Get("eos.plctpolicy")))
+  {
+    // we force an explicit placement policy
+    policyString = val;
+  }
+  
+  if ((vid.uid == 0) && (val = env.Get("eos.plctplcy.noforce")))
+  {
+    // root can request not to apply any forced settings
+  }
+  else
+  {
+    if (attrmap.count("sys.forced.plctplcy"))
+    {
+      // we force to use a certain placament policy even if the user wants something else
+      policyString = attrmap["sys.forced.plctplcy"].c_str();
+      eos_static_debug("sys.forced.plctplcy in %s", path);
+    }
+
+    if (((!attrmap.count("sys.forced.nouserplctplicy")) || (attrmap["sys.forced.nouserplctplcy"] != "1")) &&
+        ((!attrmap.count("user.forced.nouserplctplcy")) || (attrmap["user.forced.nouserplctplcy"] != "1")))
+    {
+
+      if (attrmap.count("user.forced.plctplcy"))
+      {
+        // we force to use a certain placament policy even if the user wants something else
+        policyString = attrmap["user.forced.plctplcy"].c_str();
+        eos_static_debug("user.forced.plctplcy in %s", path);
+      }
+    }
+
+  }
+
+  if(policyString == "scattered")
+  {
+  	plctpol = eos::mgm::Scheduler::kScattered;
+  	return;
+  }
+
+  std::string::size_type seppos = policyString.find(':');
+  // if no target geotag is provided, it's not a valid placement policy
+  if(seppos == std::string::npos || seppos == policyString.length()-1)
+  {
+  	eos_static_warning("no geotag given in placement policy for path %s : \"%s\"",path,policyString.c_str());
+  	return;
+  }
+
+  targetgeotag = policyString.substr(seppos+1);
+
+  if(!policyString.compare(0,seppos,"hybrid"))
+  {
+  	plctpol = eos::mgm::Scheduler::kHybrid;
+  }
+  else if(!policyString.compare(0,seppos,"gathered"))
+  {
+  	plctpol = eos::mgm::Scheduler::kGathered;
+  }
+  else
+  {
+  	eos_static_warning("unknown placement policy for path %s : \"%s\"",path,policyString.c_str());
+  }
+
+  return;
+}
+
+/*----------------------------------------------------------------------------*/
 bool
 Policy::Set (const char* value)
 {
