@@ -50,7 +50,6 @@ class Dispatcher(object):
         self.config = config
         self.logger = logging.getLogger("dispatcher")
         self.procs = {}
-        self.logger.info("Logger name: {0}".format(type(self).__name__))
         self.backend_req, self.backend_pub, self.backend_poller = None, None, None
 
     def run(self):
@@ -162,8 +161,7 @@ class Dispatcher(object):
              ValueError in case the output of ps is not a valid pid number
         """
         pid = os.getpid()
-        #exec_fname = os.path.basename(__file__)
-        # TODO: fix the resolution of the eosarch_run.py
+        # TODO: make the resolution of the eosarch_run.py more elegant
         exec_fname = "eosarch_run.py"
         ps_proc = subprocess.Popen([("ps -eo pid,ppid,comm | egrep \"{0}\$\" | "
                                      "awk '{{print $1}}'").format(exec_fname)],
@@ -360,42 +358,51 @@ def main():
         print >> sys.stderr, "Configuration failed, error:{0}".format(err)
         raise
 
-    config.start_logging("dispatcher", config.LOG_FILE, True)
-    config.display()
-    config.DIR = {}
+    with daemon.DaemonContext():
+        config.start_logging("dispatcher", config.LOG_FILE, True)
+        logger = logging.getLogger("dispatcher")
+        config.display()
+        config.DIR = {}
 
-    # Create the local directory structure in /var/eos/archive/
-    # i.e /var/eos/archive/get/, /var/eos/archive/put/ etc.
-    for oper in [config.GET_OP, config.PUT_OP, config.PURGE_OP, config.DELETE_OP]:
-        path = config.EOS_ARCHIVE_DIR + oper + '/'
-        config.DIR[oper] = path
+        # Create the local directory structure in /var/eos/archive/
+        # i.e /var/eos/archive/get/, /var/eos/archive/put/ etc.
+        for oper in [config.GET_OP,
+                     config.PUT_OP,
+                     config.PURGE_OP,
+                     config.DELETE_OP]:
+            path = config.EOS_ARCHIVE_DIR + oper + '/'
+            config.DIR[oper] = path
+
+            try:
+                os.mkdir(path)
+            except OSError as __:
+                pass  # directory exists
+
+        # Prepare ZMQ IPC files
+            for ipc_file in [config.FRONTEND_IPC,
+                             config.BACKEND_REQ_IPC,
+                             config.BACKEND_PUB_IPC]:
+                if not os.path.exists(ipc_file):
+                    try:
+                        open(ipc_file, 'w').close()
+                        os.chmod(ipc_file, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+                    except OSError as err:
+                        err_msg = ("Failed setting permissioins on the IPC socket"
+                                   " file={0}").format(ipc_file)
+                        logger.error(err_msg)
+                        raise
+                    except IOError as err:
+                        err_msg = ("Failed creating IPC socket file={0}").format(ipc_file)
+                        logger.error(err_msg)
+                        raise
+
+        # Create dispatcher object
+        dispatcher = Dispatcher(config)
 
         try:
-            os.mkdir(path)
-        except OSError as __:
-            pass  # directory exists
+            dispatcher.run()
+        except Exception as err:
+            logger.exception(err)
 
-    # Prepare ZMQ IPC files
-    for ipc_file in [config.FRONTEND_IPC, config.BACKEND_REQ_IPC, config.BACKEND_PUB_IPC]:
-        if not os.path.exists(ipc_file):
-            open(ipc_file, 'w').close()
-        try:
-            os.chmod(ipc_file, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
-        except OSError as err:
-            err_msg = "Failed creating IPC socket file={0}".format(ipc_file)
-            print >> sys.stderr, err_msg
-            raise
-
-    # Create dispatcher object
-    dispatcher = Dispatcher(config)
-
-    try:
-        dispatcher.run()
-    except Exception as err:
-        dispatcher.logger.exception(err)
-
-with daemon.DaemonContext():
+if __name__ == '__main__':
     main()
-
-#if __name__ == '__main__':
-#    main()

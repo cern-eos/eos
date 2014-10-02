@@ -82,20 +82,24 @@ class Configuration(object):
         self.__dict__['ARCH_FN'] = ".archive"
         self.__dict__['ARCH_INIT'] = ".archive.init"
 
-        with open(archive_conf, 'r') as f:
-            for line in f:
-                line = line.strip('\0\n ')
+        try:
+            with open(archive_conf, 'r') as f:
+                for line in f:
+                    line = line.strip('\0\n ')
 
-                if len(line) and line[0] != '#':
-                    tokens = line.split('=', 1)
-                    # Try to convert to int by default
-                    try:
-                        self.__dict__[tokens[0]] = int(tokens[1])
-                    except ValueError as __:
-                        if tokens[0] == 'LOG_LEVEL':
-                            self.__dict__[tokens[0]] = log_dict[tokens[1]]
-                        else:
-                            self.__dict__[tokens[0]] = tokens[1]
+                    if len(line) and line[0] != '#':
+                        tokens = line.split('=', 1)
+                        # Try to convert to int by default
+                        try:
+                            self.__dict__[tokens[0]] = int(tokens[1])
+                        except ValueError as __:
+                            if tokens[0] == 'LOG_LEVEL':
+                                self.__dict__[tokens[0]] = log_dict[tokens[1]]
+                            else:
+                                self.__dict__[tokens[0]] = tokens[1]
+        except IOError as __:
+            print >> sys.stderr, "Unable to open config file: {0}".format(archive_conf)
+            raise
 
         # If no loglevel is set use INFO
         try:
