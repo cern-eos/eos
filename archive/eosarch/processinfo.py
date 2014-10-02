@@ -41,81 +41,82 @@ class ProcessInfo(object):
        op       (string): Operation type
     """
     def __init__(self, req_json = None):
-	""" Initializing the process info object
+        """ Initializing the process info object
 
-	Args:
-	    req_json (JSON): Json object containing the following information:
-		cmd: type of operation
-		src: EOS url to the archive file
-		uid: UID of the user triggering the archiving
-		gid: GID of the user triggering the archiving
-	"""
-	self.logger = logging.getLogger("dispatcher")
-	self.proc = None
-	self.timestamp = time.time()
+        Args:
+            req_json (JSON): Json object containing the following information:
+                cmd: type of operation
+                src: EOS url to the archive file
+                uid: UID of the user triggering the archiving
+                gid: GID of the user triggering the archiving
+        """
+        self.logger = logging.getLogger("dispatcher")
+        self.proc = None
 
-	if req_json:
-	    # Normal, 'owned' process
-	    self.uid = int(req_json['uid'])
-	    self.gid = int(req_json['gid'])
-	    self.status = "pending"
-	    self.pid, self.op = 0, req_json['cmd']
-	    # Extract the archive root directory path
-	    src = req_json['src']
-	    pos = src.find("//", src.find("//") + 1) + 1
-	    self.root_dir = src[pos : src.rfind('/') + 1]
-	    self.uuid = sha256(self.root_dir).hexdigest()
+        if req_json:
+            # Normal, 'owned' process
+            self.uid = int(req_json['uid'])
+            self.gid = int(req_json['gid'])
+            self.status = "pending"
+            self.pid, self.op = 0, req_json['cmd']
+            # Extract the archive root directory path
+            src = req_json['src']
+            pos = src.find("//", src.find("//") + 1) + 1
+            self.root_dir = src[pos : src.rfind('/') + 1]
+            self.uuid = sha256(self.root_dir).hexdigest()
+            self.timestamp = time.time()
 
     def update(self, dict_info):
-	""" Update process information
+        """ Update process information
 
-	Args:
-	   dict_info (dict): Dictionary containing the following information
-	   about a process: uuid, pid, root_dir, op, status, uid, gid.
-	"""
-	if self.proc:
-	    if (self.uuid != dict_info['uuid'] or
-		self.root_dir != dict_info['root_dir'] or
-		self.op != dict_info['op']):
-		self.logger.error("Process information missmatch")
-	    else:
-		self.status = dict_info['status']
-	else:
-	    # Update for orphan processes
-	    self.uuid = dict_info['uuid']
-	    self.root_dir = dict_info['root_dir']
-	    self.op = dict_info['op']
-	    self.status = dict_info['status']
-	    self.pid = int(dict_info['pid'])
-	    self.uid = int(dict_info['uid'])
-	    self.gid = int(dict_info['gid'])
+        Args:
+           dict_info (dict): Dictionary containing the following information
+           about an orphan process: uuid, pid, root_dir, op, status, uid, gid.
+           If this is not the orphan discovery step then we only have the
+           status field.
+        """
+        self.status = dict_info['status']
+
+        try:
+            # Update for orphan processes if information present
+            self.uuid = dict_info['uuid']
+            self.root_dir = dict_info['root_dir']
+            self.op = dict_info['op']
+            self.status = dict_info['status']
+            self.pid = int(dict_info['pid'])
+            self.uid = int(dict_info['uid'])
+            self.gid = int(dict_info['gid'])
+            self.timestamp = float(dict_info['timestamp'])
+        except KeyError as __:
+            # This response is only a status update
+            pass
 
     def is_alive(self):
-	""" Check if the underlying process is alive. For processes started
-	by the current dispatcher i.e. for which we hold a reference to the
-	Process object we can use is_alive() method, for orphan processes
-	we use the OS functionality and send it a signal to check if it is
-	still running.
+        """ Check if the underlying process is alive. For processes started
+        by the current dispatcher i.e. for which we hold a reference to the
+        Process object we can use is_alive() method, for orphan processes
+        we use the OS functionality and send it a signal to check if it is
+        still running.
 
-	Returns:
-	    True if process alive, false otherwise
-	"""
-	if self.proc:
-	    ret = self.proc.poll()
+        Returns:
+            True if process alive, false otherwise
+        """
+        if self.proc:
+            ret = self.proc.poll()
 
-	    if ret != None:
-		info_msg = ("Uuid={0}, pid={1}, op={2}, path={3} has terminated "
-			    "returncode={4}").format(self.uuid, self.pid, self.op,
-						     self.root_dir, ret)
-		self.logger.info(info_msg)
-		return False
-	else:
-	    try:
-		kill(self.pid, 0)
-	    except OSError as err:
-		dbg_msg = ("Uuid={0}, pid={1}, op={2}, path={3} has terminated - "
-			   "no returncode available").format(self.uuid, self.pid,
-							   self.op, self.root_dir)
-		self.logger.debug(dbg_msg)
-		return False
-	return True
+            if ret != None:
+                info_msg = ("Uuid={0}, pid={1}, op={2}, path={3} has terminated "
+                            "returncode={4}").format(self.uuid, self.pid, self.op,
+                                                     self.root_dir, ret)
+                self.logger.info(info_msg)
+                return False
+        else:
+            try:
+                kill(self.pid, 0)
+            except OSError as err:
+                dbg_msg = ("Uuid={0}, pid={1}, op={2}, path={3} has terminated - "
+                           "no returncode available").format(self.uuid, self.pid,
+                                                           self.op, self.root_dir)
+                self.logger.debug(dbg_msg)
+                return False
+        return True

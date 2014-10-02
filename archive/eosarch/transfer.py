@@ -44,24 +44,24 @@ class ThreadJob(threading.Thread):
     job not doing any other operations and therefore not using the GIL too much.
 
     Attributes:
-	status (bool): Final status of the job
-	proc (client.CopyProcess): Copy process which is being executed
+        status (bool): Final status of the job
+        proc (client.CopyProcess): Copy process which is being executed
     """
     def __init__(self, cpy_proc):
-	"""Constructor
+        """Constructor
 
-	Args:
-	    cpy_proc (client.CopyProcess): Copy process object
-	"""
-	threading.Thread.__init__(self)
-	self.status = None
-	self.proc = cpy_proc
+        Args:
+            cpy_proc (client.CopyProcess): Copy process object
+        """
+        threading.Thread.__init__(self)
+        self.status = None
+        self.proc = cpy_proc
 
     def run(self):
-	""" Run method
-	"""
-	self.proc.prepare()
-	self.xrd_status = self.proc.run()
+        """ Run method
+        """
+        self.proc.prepare()
+        self.xrd_status = self.proc.run()
 
 
 class ThreadStatus(threading.Thread):
@@ -69,547 +69,558 @@ class ThreadStatus(threading.Thread):
     dispatcher process.
     """
     def __init__(self, transfer):
-	""" Constructor
+        """ Constructor
 
-	Args:
-	    transfer (Transfer): Current transfer object
-	"""
-	threading.Thread.__init__(self)
-	# TODO: drop the logger
-	self.logger = logging.getLogger("transfer")
-	self.transfer = transfer
-	self.run_status = True
-	self.lock = threading.Lock()
+        Args:
+            transfer (Transfer): Current transfer object
+        """
+        threading.Thread.__init__(self)
+        # TODO: drop the logger as it may interfere with the main thread
+        self.logger = logging.getLogger("transfer")
+        self.transfer = transfer
+        self.run_status = True
+        self.lock = threading.Lock()
 
     def run(self):
-	""" Run method
-	"""
-	self.logger.info("Starting the status thread")
-	ctx = zmq.Context()
-	socket_rr = ctx.socket(zmq.DEALER)
-	socket_rr.connect("ipc://" + self.transfer.config.BACKEND_REQ_IPC)
-	socket_ps = ctx.socket(zmq.SUB)
-	mgr_filter = "[MASTER]"
+        """ Run method
+        """
+        self.logger.info("Starting the status thread")
+        ctx = zmq.Context()
+        socket_rr = ctx.socket(zmq.DEALER)
+        socket_rr.connect("ipc://" + self.transfer.config.BACKEND_REQ_IPC)
+        socket_ps = ctx.socket(zmq.SUB)
+        mgr_filter = "[MASTER]"
 
-	if isinstance(mgr_filter, bytes):
-	    mgr_filter = mgr_filter.encode('ascii')
+        if isinstance(mgr_filter, bytes):
+            mgr_filter = mgr_filter.encode('ascii')
 
-	socket_ps.connect("ipc://" + self.transfer.config.BACKEND_PUB_IPC)
-	socket_ps.setsockopt(zmq.SUBSCRIBE, mgr_filter)
+        socket_ps.connect("ipc://" + self.transfer.config.BACKEND_PUB_IPC)
+        socket_ps.setsockopt(zmq.SUBSCRIBE, mgr_filter)
 
-	while self.keep_running():
-	    if socket_ps.poll(5000):
-		try:
-		    [tag, msg] = socket_ps.recv_multipart()
-		except zmq.ZMQError as err:
-		    if err.errno == zmq.ETERM:
-			self.logger.error("ETERM error")
-			break # shutting down, exit
-		    else:
-			self.logger.error("Error while receiving cmd")
-		except Exception as err:
-		    self.logger.exception(err)
+        while self.keep_running():
+            if socket_ps.poll(5000):
+                try:
+                    [tag, msg] = socket_ps.recv_multipart()
+                except zmq.ZMQError as err:
+                    if err.errno == zmq.ETERM:
+                        self.logger.error("ETERM error")
+                        break # shutting down, exit
+                    else:
+                        self.logger.exception(err)
+                        continue
+                except Exception as err:
+                    self.logger.exception(err)
 
-		self.logger.info("RECV_MSG: {0}".format(msg))
-		dict_cmd = ast.literal_eval(msg)
+                self.logger.debug("RECV_MSG: {0}".format(msg))
+                dict_cmd = ast.literal_eval(msg)
 
-		# Need to reconnect to the new master
-		if dict_cmd['cmd'] == 'orphan_status':
-		    self.logger.info("Reconnect to master ... ")
+                if dict_cmd['cmd'] == 'orphan_status':
+                    self.logger.info("Reconnect to master ... ")
+                    resp = ("{{'uuid': '{0}', "
+                            "'pid': '{1}', "
+                            "'uid': '{2}',"
+                            "'gid': '{3}',"
+                            "'root_dir': '{4}', "
+                            "'op': '{5}',"
+                            "'status': '{6}', "
+                            "'timestamp': '{7}'"
+                            "}}").format(self.transfer.uuid,
+                                         self.transfer.pid,
+                                         self.transfer.uid,
+                                         self.transfer.gid,
+                                         self.transfer.root_dir,
+                                         self.transfer.oper,
+                                         self.transfer.get_status(),
+                                         self.transfer.timestamp)
+                elif dict_cmd['cmd'] == 'status':
+                    resp = ("{{'uuid': '{0}', "
+                            "'status': '{1}'"
+                            "}}").format(self.transfer.uuid,
+                                         self.transfer.get_status())
+                else:
+                    self.logger.error("Unknown command: {0}".format(dict_cmd))
+                    continue
 
-		resp = ("{{'uuid': '{0}', "
-			"'pid': '{1}', "
-			"'uid': '{2}',"
-			"'gid': '{3}',"
-			"'root_dir': '{4}', "
-			"'op': '{5}',"
-			"'status': '{6}'"
-			"}}").format(self.transfer.uuid,
-				     self.transfer.pid,
-				     self.transfer.uid,
-				     self.transfer.gid,
-				     self.transfer.root_dir,
-				     self.transfer.oper,
-				     self.transfer.get_status(),)
-		self.logger.info("Sending response: {0}".format(resp))
-		socket_rr.send_multipart([resp], zmq.NOBLOCK)
+                self.logger.info("Sending response: {0}".format(resp))
+                socket_rr.send_multipart([resp], zmq.NOBLOCK)
 
     def do_finish(self):
-	""" Set the flag for the status thread to finish execution
-	"""
-	self.lock.acquire()
-	self.run_status = False
-	self.lock.release()
+        """ Set the flag for the status thread to finish execution
+        """
+        self.lock.acquire()
+        self.run_status = False
+        self.lock.release()
 
     def keep_running(self):
-	""" Check if we continue running - the transfer is ongoing
+        """ Check if we continue running - the transfer is ongoing
 
-	Returns:
-	    True if status thread should keep running, otherwise False
-	"""
-	self.lock.acquire()
-	ret = self.run_status
-	self.lock.release()
-	return ret
+        Returns:
+            True if status thread should keep running, otherwise False
+        """
+        self.lock.acquire()
+        ret = self.run_status
+        self.lock.release()
+        return ret
 
 
 class Transfer(object):
     """ Trasfer archive object
 
     Attributes:
-	req_json (JSON): Command received from the EOS MGM. Needs to contains the
-	    following entries: cmd, src, opt, uid, gid
-	threads (list): List of threads doing parital transfers(CopyProcess jobs)
+        req_json (JSON): Command received from the EOS MGM. Needs to contains the
+            following entries: cmd, src, opt, uid, gid
+        threads (list): List of threads doing parital transfers(CopyProcess jobs)
     """
     def __init__(self, req_json, config):
-	self.config = config
-	self.oper = req_json['cmd']
-	self.uid, self.gid = req_json['uid'], req_json['gid']
-	self.do_retry = (req_json['opt'] == self.config.OPT_RETRY)
-	self.efile_full = req_json['src']
-	self.efile_root = self.efile_full[:-(len(self.efile_full) - self.efile_full.rfind('/') - 1)]
-	self.root_dir = self.efile_root[self.efile_root.rfind('//') + 1:]
-	self.uuid = sha256(self.root_dir).hexdigest()
-	local_file = join(self.config.DIR[self.oper], self.uuid)
-	self.tx_file = local_file + ".tx"
-	self.list_jobs, self.threads = [], []
-	self.pid = os.getpid()
-	self.archive = None
-	# Special case for inital PUT as we need to copy also the archive file
-	self.init_put = self.efile_full.endswith(self.config.ARCH_INIT)
-	self.status = "initializing"
-	self.lock_status = threading.Lock()
-	self.logger = logging.getLogger("transfer")
-	self.thread_status = ThreadStatus(self)
+        self.config = config
+        self.oper = req_json['cmd']
+        self.uid, self.gid = req_json['uid'], req_json['gid']
+        self.do_retry = (req_json['opt'] == self.config.OPT_RETRY)
+        self.efile_full = req_json['src']
+        self.efile_root = self.efile_full[:-(len(self.efile_full) - self.efile_full.rfind('/') - 1)]
+        self.root_dir = self.efile_root[self.efile_root.rfind('//') + 1:]
+        self.uuid = sha256(self.root_dir).hexdigest()
+        local_file = join(self.config.DIR[self.oper], self.uuid)
+        self.tx_file = local_file + ".tx"
+        self.list_jobs, self.threads = [], []
+        self.pid = os.getpid()
+        self.archive = None
+        # Special case for inital PUT as we need to copy also the archive file
+        self.init_put = self.efile_full.endswith(self.config.ARCH_INIT)
+        self.status = "initializing"
+        self.lock_status = threading.Lock()
+        self.timestamp = time.time()
+        self.logger = logging.getLogger("transfer")
+        self.thread_status = ThreadStatus(self)
 
     def get_status(self):
-	""" Get current status
+        """ Get current status
 
-	Returns:
-	    String representing the status
-	"""
-	self.lock_status.acquire()
-	ret = self.status
-	self.lock_status.release()
-	return ret
+        Returns:
+            String representing the status
+        """
+        self.lock_status.acquire()
+        ret = self.status
+        self.lock_status.release()
+        return ret
 
     def set_status(self, msg):
-	""" Set current status
+        """ Set current status
 
-	Args:
-	    msg (string): New status
-	"""
-	self.lock_status.acquire()
-	self.status = msg
-	self.lock_status.release()
+        Args:
+            msg (string): New status
+        """
+        self.lock_status.acquire()
+        self.status = msg
+        self.lock_status.release()
 
     def run(self):
-	""" Run requested operation - fist call prepare
+        """ Run requested operation - fist call prepare
 
-	Raises:
-	    IOError
-	"""
-	self.thread_status.start()
-	self.prepare()
+        Raises:
+            IOError
+        """
+        self.thread_status.start()
+        self.prepare()
 
-	if self.oper in [self.config.PUT_OP, self.config.GET_OP]:
-	    self.do_transfer()
-	elif self.oper in [self.config.PURGE_OP, self.config.DELETE_OP]:
-	    self.do_delete((self.oper == self.config.DELETE_OP))
+        if self.oper in [self.config.PUT_OP, self.config.GET_OP]:
+            self.do_transfer()
+        elif self.oper in [self.config.PURGE_OP, self.config.DELETE_OP]:
+            self.do_delete((self.oper == self.config.DELETE_OP))
 
     def prepare(self):
-	""" Prepare requested operation.
+        """ Prepare requested operation.
 
-	Raises:
-	    IOError: Failed to rename or transfer archive file.
-	"""
-	# Rename archive file in EOS
-	efile_url = client.URL(self.efile_full)
-	eosf_rename = ''.join([self.efile_root, self.config.ARCH_FN, ".", self.oper, ".err"])
-	rename_url = client.URL(eosf_rename)
-	frename = [rename_url.protocol, "://", rename_url.hostid,
-		   "//proc/user/?mgm.cmd=file&mgm.subcmd=rename"
-		   "&mgm.path=", efile_url.path,
-		   "&mgm.file.source=", efile_url.path,
-		   "&mgm.file.target=", rename_url.path]
-	(status, __, stderr) = exec_cmd(''.join(frename))
+        Raises:
+            IOError: Failed to rename or transfer archive file.
+        """
+        # Rename archive file in EOS
+        efile_url = client.URL(self.efile_full)
+        eosf_rename = ''.join([self.efile_root, self.config.ARCH_FN, ".", self.oper, ".err"])
+        rename_url = client.URL(eosf_rename)
+        frename = [rename_url.protocol, "://", rename_url.hostid,
+                   "//proc/user/?mgm.cmd=file&mgm.subcmd=rename"
+                   "&mgm.path=", efile_url.path,
+                   "&mgm.file.source=", efile_url.path,
+                   "&mgm.file.target=", rename_url.path]
+        (status, __, stderr) = exec_cmd(''.join(frename))
 
-	if not status:
-	    err_msg = ("Failed to rename archive file {0} to {1}, msg={2}"
-		       "").format(self.efile_full, rename_url, stderr)
-	    self.logger.error(err_msg)
-	    raise IOError(err_msg)
+        if not status:
+            err_msg = ("Failed to rename archive file {0} to {1}, msg={2}"
+                       "").format(self.efile_full, rename_url, stderr)
+            self.logger.error(err_msg)
+            raise IOError(err_msg)
 
-	# Copy archive file from EOS to the local disk
-	self.efile_full = eosf_rename
-	eos_fs = client.FileSystem(self.efile_full)
-	st, _ = eos_fs.copy(self.efile_full + "?eos.ruid=0&eos.rgid=0",
-			    self.tx_file, True)
+        # Copy archive file from EOS to the local disk
+        self.efile_full = eosf_rename
+        eos_fs = client.FileSystem(self.efile_full)
+        st, _ = eos_fs.copy(self.efile_full + "?eos.ruid=0&eos.rgid=0",
+                            self.tx_file, True)
 
-	if not st.ok:
-	    err_msg = ("Failed to copy archive file={0} to local disk at={1}"
-		       "").format(self.efile_full, self.tx_file)
-	    self.logger.error(err_msg)
-	    raise IOError(err_msg)
+        if not st.ok:
+            err_msg = ("Failed to copy archive file={0} to local disk at={1}"
+                       "").format(self.efile_full, self.tx_file)
+            self.logger.error(err_msg)
+            raise IOError(err_msg)
 
-	# Create the ArchiveFile object
-	d2t = (self.oper == self.config.PUT_OP)
-	self.archive = ArchiveFile(self.tx_file, d2t)
+        # Create the ArchiveFile object
+        d2t = (self.oper == self.config.PUT_OP)
+        self.archive = ArchiveFile(self.tx_file, d2t)
 
     def do_delete(self, tape_delete):
-	""" Delete archive either from disk (purge) or from tape (delete)
+        """ Delete archive either from disk (purge) or from tape (delete)
 
-	Args:
-	    tape_delete (boolean): If true delete data from tape, otherwise
-	    from disk.
+        Args:
+            tape_delete (boolean): If true delete data from tape, otherwise
+            from disk.
 
-	Raises:
-	    IOError: Failed to delete an entry.
-	"""
-	del_dirs = []
-	self.logger.info("Do delete with tape_delete={0}".format(tape_delete))
-	# Delete also the archive file saved on tape
-	if tape_delete:
-	    self.archive.del_entry(self.config.ARCH_INIT, False, tape_delete)
+        Raises:
+            IOError: Failed to delete an entry.
+        """
+        del_dirs = []
+        self.logger.info("Do delete with tape_delete={0}".format(tape_delete))
+        # Delete also the archive file saved on tape
+        if tape_delete:
+            self.archive.del_entry(self.config.ARCH_INIT, False, tape_delete)
 
-	# First remove all the files and then the directories
-	for fentry in self.archive.files():
-	    # d2t is false for both purge and deletion
-	    self.archive.del_entry(fentry[1], False, tape_delete)
+        # First remove all the files and then the directories
+        for fentry in self.archive.files():
+            # d2t is false for both purge and deletion
+            self.archive.del_entry(fentry[1], False, tape_delete)
 
-	for dentry in self.archive.dirs():
-	    # Don't remove the root directory when purging
-	    if not tape_delete and dentry[1] == './':
-		continue
+        for dentry in self.archive.dirs():
+            # Don't remove the root directory when purging
+            if not tape_delete and dentry[1] == './':
+                continue
 
-	    del_dirs.append(dentry[1])
+            del_dirs.append(dentry[1])
 
-	# Remove the directories from bottom up
-	while len(del_dirs):
-	    dpath = del_dirs.pop()
-	    self.archive.del_entry(dpath, True, tape_delete)
+        # Remove the directories from bottom up
+        while len(del_dirs):
+            dpath = del_dirs.pop()
+            self.archive.del_entry(dpath, True, tape_delete)
 
-	# Remove immutable flag from the EOS sub-tree
-	if tape_delete:
-	    self.archive.make_mutable()
+        # Remove immutable flag from the EOS sub-tree
+        if tape_delete:
+            self.archive.make_mutable()
 
-	self.clean_transfer(True)
+        self.clean_transfer(True)
 
     def do_transfer(self):
-	""" Execute the put or get operation. What this method actually does is
-	copy the JSON archive file from EOS to the local disk and read-in each
-	entry, be it a file or a directory and creates it in the destination
-	location. The archive file first contains the list of all the directories
-	and then the files.
+        """ Execute the put or get operation. What this method actually does is
+        copy the JSON archive file from EOS to the local disk and read-in each
+        entry, be it a file or a directory and creates it in the destination
+        location. The archive file first contains the list of all the directories
+        and then the files.
 
-	Raises:
-	    IOError when an IO opperations fails.
-	"""
-	t0 = time.time()
-	indx_dir, indx_file = 0, 0
-	err_entry = None
+        Raises:
+            IOError when an IO opperations fails.
+        """
+        t0 = time.time()
+        indx_dir, indx_file = 0, 0
+        err_entry = None
 
-	# For retry get the first corrupted entry
-	if self.do_retry:
-	    check_ok, err_entry = self.archive.verify()
+        # For retry get the first corrupted entry
+        if self.do_retry:
+            check_ok, err_entry = self.archive.verify()
 
-	    if check_ok:
-		self.do_retry = False
-		raise NoErrorException()
+            if check_ok:
+                self.do_retry = False
+                raise NoErrorException()
 
-	    # Delete the corrupted entry
-	    is_dir = (err_entry[0] == 'd')
-	    self.logger.info("Delete corrupted entry={0}".format(err_entry))
-	    self.archive.del_entry(err_entry[1], is_dir, None)
+            # Delete the corrupted entry
+            is_dir = (err_entry[0] == 'd')
+            self.logger.info("Delete corrupted entry={0}".format(err_entry))
+            self.archive.del_entry(err_entry[1], is_dir, None)
 
-	found_checkpoint = False  # flag set when reaching recovery entry
+        found_checkpoint = False  # flag set when reaching recovery entry
 
-	# Create directories
-	for dentry in self.archive.dirs():
-	    # Search for the recovery checkpoint
-	    if self.do_retry and not found_checkpoint:
-		if dentry != err_entry:
-		    indx_dir += 1
-		    continue
-		else:
-		    found_checkpoint = True
+        # Create directories
+        for dentry in self.archive.dirs():
+            # Search for the recovery checkpoint
+            if self.do_retry and not found_checkpoint:
+                if dentry != err_entry:
+                    indx_dir += 1
+                    continue
+                else:
+                    found_checkpoint = True
 
-	    # Do special checks for root directory
-	    if not self.do_retry and dentry[1] == "./":
-		self.archive.check_root_dir()
+            # Do special checks for root directory
+            if not self.do_retry and dentry[1] == "./":
+                self.archive.check_root_dir()
 
-	    indx_dir += 1
-	    self.archive.mkdir(dentry)
-	    msg = "create dir {0}/{1}".format(indx_dir, self.archive.header['num_dirs'])
-	    self.set_status(msg)
+            indx_dir += 1
+            self.archive.mkdir(dentry)
+            msg = "create dir {0}/{1}".format(indx_dir, self.archive.header['num_dirs'])
+            self.set_status(msg)
 
-	# For GET issue the Prepare2Get for all the files on tape
-	self.prepare2get(err_entry, found_checkpoint)
+        # For GET issue the Prepare2Get for all the files on tape
+        self.prepare2get(err_entry, found_checkpoint)
 
-	# Copy files
-	self.copy_files(err_entry, found_checkpoint)
-	self.set_status("verifying")
-	check_ok, __ = self.archive.verify()
-	self.set_status("cleaning")
-	self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
-	self.clean_transfer(check_ok)
+        # Copy files
+        self.copy_files(err_entry, found_checkpoint)
+        self.set_status("verifying")
+        check_ok, __ = self.archive.verify()
+        self.set_status("cleaning")
+        self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
+        self.clean_transfer(check_ok)
 
     def clean_transfer(self, check_ok):
-	""" Clean the transfer by renaming the archive file in EOS adding the
-	following extensions:
-	.done - the transfer was successful
-	.err  - there were errors during the transfer. These are logged in the
-	     file .archive.log in the same directory.
+        """ Clean the transfer by renaming the archive file in EOS adding the
+        following extensions:
+        .done - the transfer was successful
+        .err  - there were errors during the transfer. These are logged in the
+             file .archive.log in the same directory.
 
-	Args:
-	    check_ok (bool): True if no error occured during transfer,
-		otherwise false.
-	"""
-	# Rename arch file in EOS to reflect the status
-	if not check_ok:
-	    eosf_rename = ''.join([self.efile_root, self.config.ARCH_FN, ".", self.oper, ".err"])
-	else:
-	    eosf_rename = ''.join([self.efile_root, self.config.ARCH_FN, ".", self.oper, ".done"])
+        Args:
+            check_ok (bool): True if no error occured during transfer,
+                otherwise false.
+        """
+        # Rename arch file in EOS to reflect the status
+        if not check_ok:
+            eosf_rename = ''.join([self.efile_root, self.config.ARCH_FN, ".", self.oper, ".err"])
+        else:
+            eosf_rename = ''.join([self.efile_root, self.config.ARCH_FN, ".", self.oper, ".done"])
 
-	old_url = client.URL(self.efile_full)
-	new_url = client.URL(eosf_rename)
-	frename = [old_url.protocol, "://", old_url.hostid, "//proc/user/?",
-		   "mgm.cmd=file&mgm.subcmd=rename&mgm.path=", old_url.path,
-		   "&mgm.file.source=", old_url.path,
-		   "&mgm.file.target=", new_url.path]
-	(status, __, stderr) = exec_cmd(''.join(frename))
+        old_url = client.URL(self.efile_full)
+        new_url = client.URL(eosf_rename)
+        frename = [old_url.protocol, "://", old_url.hostid, "//proc/user/?",
+                   "mgm.cmd=file&mgm.subcmd=rename&mgm.path=", old_url.path,
+                   "&mgm.file.source=", old_url.path,
+                   "&mgm.file.target=", new_url.path]
+        (status, __, stderr) = exec_cmd(''.join(frename))
 
-	if not status:
-	    err_msg = "Failed to rename {0} to {1}, msg={2}".format(
-		self.efile_full, eosf_rename, stderr)
-	    self.logger.error(err_msg)
-	    # TODO: raise IOError
-	else:
-	    # For successful delete operations remove also the archive file
-	    if self.oper == self.config.DELETE_OP and check_ok:
-		fs = client.FileSystem(self.efile_full)
-		st_rm, _ = fs.rm(new_url.path + "?eos.ruid=0&eos.rgid=0")
+        if not status:
+            err_msg = "Failed to rename {0} to {1}, msg={2}".format(
+                self.efile_full, eosf_rename, stderr)
+            self.logger.error(err_msg)
+            # TODO: raise IOError
+        else:
+            # For successful delete operations remove also the archive file
+            if self.oper == self.config.DELETE_OP and check_ok:
+                fs = client.FileSystem(self.efile_full)
+                st_rm, _ = fs.rm(new_url.path + "?eos.ruid=0&eos.rgid=0")
 
-		if not st_rm.ok:
-		    warn_msg = "Failed to delete archive {0}".format(new_url.path)
-		    self.logger.warning(warn_msg)
+                if not st_rm.ok:
+                    warn_msg = "Failed to delete archive {0}".format(new_url.path)
+                    self.logger.warning(warn_msg)
 
-	# Copy local log file back to EOS directory and set the ownership to the
-	# identity of the client who triggered the archive
-	dir_root = self.efile_root[self.efile_root.rfind('//') + 1:]
-	eos_log = ''.join([old_url.protocol, "://", old_url.hostid, "/",
-			   dir_root, self.config.ARCH_FN, ".log",
-			   "?eos.ruid=", self.uid, "&eos.rgid=", self.gid])
+        # Copy local log file back to EOS directory and set the ownership to the
+        # identity of the client who triggered the archive
+        dir_root = self.efile_root[self.efile_root.rfind('//') + 1:]
+        eos_log = ''.join([old_url.protocol, "://", old_url.hostid, "/",
+                           dir_root, self.config.ARCH_FN, ".log",
+                           "?eos.ruid=", self.uid, "&eos.rgid=", self.gid])
 
-	self.logger.debug("Copy log:{0} to {1}".format(self.config.LOG_FILE, eos_log))
-	self.config.handler.flush()
-	cp_client = client.FileSystem(self.efile_full)
-	st, __ = cp_client.copy(self.config.LOG_FILE, eos_log, force=True)
+        self.logger.debug("Copy log:{0} to {1}".format(self.config.LOG_FILE, eos_log))
+        self.config.handler.flush()
+        cp_client = client.FileSystem(self.efile_full)
+        st, __ = cp_client.copy(self.config.LOG_FILE, eos_log, force=True)
 
-	if not st.ok:
-	    self.logger.error("Failed to copy log file {0} to EOS at {1}".format(
-		    self.config.LOG_FILE, eos_log))
-	else:
-	    # delete log file if it was successfully copied to EOS
-	    try:
-		os.remove(self.config.LOG_FILE)
-	    except OSError as __:
-		pass
+        if not st.ok:
+            self.logger.error("Failed to copy log file {0} to EOS at {1}".format(
+                    self.config.LOG_FILE, eos_log))
+        else:
+            # delete log file if it was successfully copied to EOS
+            try:
+                os.remove(self.config.LOG_FILE)
+            except OSError as __:
+                pass
 
-	# Delete all local files associated with this transfer
-	try:
-	    os.remove(self.tx_file)
-	except OSError as __:
-	    pass
+        # Delete all local files associated with this transfer
+        try:
+            os.remove(self.tx_file)
+        except OSError as __:
+            pass
 
-	# Join async status thread
-	self.thread_status.do_finish()
-	self.thread_status.join()
+        # Join async status thread
+        self.thread_status.do_finish()
+        self.thread_status.join()
 
     def copy_files(self, err_entry, found_checkpoint):
-	""" Copy file from source to destination.
+        """ Copy file from source to destination.
 
-	Note that when doing put, the layout is not conserved. Therefore, a file
-	with 3 replicas will end up as just a simple file in the new location.
+        Note that when doing put, the layout is not conserved. Therefore, a file
+        with 3 replicas will end up as just a simple file in the new location.
 
-	Args:
-	    err_entry (list): Entry record from the archive file corresponding
-		 to the first file/dir that was corrupted.
-	    found_checkpoint (bool): If it's true, it means the checkpoint was
-		 already found and we don't need to search for it.
+        Args:
+            err_entry (list): Entry record from the archive file corresponding
+                 to the first file/dir that was corrupted.
+            found_checkpoint (bool): If it's true, it means the checkpoint was
+                 already found and we don't need to search for it.
 
-	Raises:
-	    IOError: Copy request failed.
-	"""
-	indx_file = 0
-	meta_handler = MetaHandler()
-	# For inital PUT copy also the archive file to tape
-	if self.init_put:
-	    dst = self.archive.header['dst'] + self.config.ARCH_INIT
-	    self.list_jobs.append((self.efile_full, dst, self.do_retry))
+        Raises:
+            IOError: Copy request failed.
+        """
+        indx_file = 0
+        meta_handler = MetaHandler()
+        # For inital PUT copy also the archive file to tape
+        if self.init_put:
+            dst = self.archive.header['dst'] + self.config.ARCH_INIT
+            self.list_jobs.append((self.efile_full, dst, self.do_retry))
 
-	# Copy files
-	for fentry in self.archive.files():
-	    # Search for the recovery checkpoint
-	    if self.do_retry and not found_checkpoint:
-		if fentry != err_entry:
-		    indx_file += 1
-		    continue
-		else:
-		    found_checkpoint = True
+        # Copy files
+        for fentry in self.archive.files():
+            # Search for the recovery checkpoint
+            if self.do_retry and not found_checkpoint:
+                if fentry != err_entry:
+                    indx_file += 1
+                    continue
+                else:
+                    found_checkpoint = True
 
-	    indx_file += 1
-	    msg = "copy file {0}/{1}".format(indx_file, self.archive.header['num_files'])
-	    self.set_status(msg)
-	    src, dst = self.archive.get_endpoints(fentry[1])
+            indx_file += 1
+            msg = "copy file {0}/{1}".format(indx_file, self.archive.header['num_files'])
+            self.set_status(msg)
+            src, dst = self.archive.get_endpoints(fentry[1])
 
-	    # Copy file
-	    if not self.archive.d2t:
-		# For GET we also have the dictionary with the metadata
-		dfile = dict(zip(self.archive.header['file_meta'], fentry[2:]))
-		dst = ''.join([dst, "?eos.ctime=", dfile['ctime'],
-			       "&eos.mtime=", dfile['mtime'],
-			       "&eos.ruid=", dfile['uid'],
-			       "&eos.rgid=", dfile['gid'],
-			       "&eos.bookingsize=", dfile['size'],
-			       "&eos.targetsize=", dfile['size'],
-			       "&eos.checksum=", dfile['xs']])
+            # Copy file
+            if not self.archive.d2t:
+                # For GET we also have the dictionary with the metadata
+                dfile = dict(zip(self.archive.header['file_meta'], fentry[2:]))
+                dst = ''.join([dst, "?eos.ctime=", dfile['ctime'],
+                               "&eos.mtime=", dfile['mtime'],
+                               "&eos.ruid=", dfile['uid'],
+                               "&eos.rgid=", dfile['gid'],
+                               "&eos.bookingsize=", dfile['size'],
+                               "&eos.targetsize=", dfile['size'],
+                               "&eos.checksum=", dfile['xs']])
 
-	    self.logger.debug("Copying from {0} to {1}".format(src, dst))
-	    self.list_jobs.append((src, dst, self.do_retry))
+            self.logger.debug("Copying from {0} to {1}".format(src, dst))
+            self.list_jobs.append((src, dst, self.do_retry))
 
-	    if len(self.list_jobs) == self.config.BATCH_SIZE:
-		st = self.flush_files(False)
+            if len(self.list_jobs) == self.config.BATCH_SIZE:
+                st = self.flush_files(False)
 
-		if not st:
-		    err_msg = "Failed to flush files"
-		    self.logger.error(err_msg)
-		    raise IOError(err_msg)
+                if not st:
+                    err_msg = "Failed to flush files"
+                    self.logger.error(err_msg)
+                    raise IOError(err_msg)
 
-	# Flush all pending copies and set metadata info for GET operation
-	st = self.flush_files(True)
+        # Flush all pending copies and set metadata info for GET operation
+        st = self.flush_files(True)
 
-	if not st:
-	    err_msg = "Failed to flush files"
-	    self.logger.error(err_msg)
-	    raise IOError(err_msg)
+        if not st:
+            err_msg = "Failed to flush files"
+            self.logger.error(err_msg)
+            raise IOError(err_msg)
 
     def flush_files(self, wait_all):
-	""" Flush all pending transfers from the list of jobs.
+        """ Flush all pending transfers from the list of jobs.
 
-	Args:
-	    wait_all (bool): If true wait and collect the status from all
-		executing threads.
+        Args:
+            wait_all (bool): If true wait and collect the status from all
+                executing threads.
 
-	Returns:
-	    True if files flushed successfully, otherwise false.
-	"""
-	status = True
+        Returns:
+            True if files flushed successfully, otherwise false.
+        """
+        status = True
 
-	# Wait until a thread from the pool gets freed if we reached the maximum
-	# allowed number of running threads
-	while len(self.threads) >= self.config.MAX_THREADS:
-	    for indx, thread in enumerate(self.threads):
-		thread.join(self.config.JOIN_TIMEOUT)
+        # Wait until a thread from the pool gets freed if we reached the maximum
+        # allowed number of running threads
+        while len(self.threads) >= self.config.MAX_THREADS:
+            for indx, thread in enumerate(self.threads):
+                thread.join(self.config.JOIN_TIMEOUT)
 
-		# If thread finished get the status and mark it for removal
-		if not thread.isAlive():
-		    status = status and thread.xrd_status.ok
-		    self.logger.debug("Thread={0} status={1}".format(
-			    thread.ident, thread.xrd_status.ok))
+                # If thread finished get the status and mark it for removal
+                if not thread.isAlive():
+                    status = status and thread.xrd_status.ok
+                    self.logger.debug("Thread={0} status={1}".format(
+                            thread.ident, thread.xrd_status.ok))
 
-		    if not status:
-			self.logger.error("Thread={0} err_msg={1}".format(
-				thread.ident, thread.xrd_status.message))
+                    if not status:
+                        self.logger.error("Thread={0} err_msg={1}".format(
+                                thread.ident, thread.xrd_status.message))
 
-		    del self.threads[indx]
-		    break
+                    del self.threads[indx]
+                    break
 
-	# If previous transfers were successful and we still have jobs
-	if status and self.list_jobs:
-	    proc = client.CopyProcess()
+        # If previous transfers were successful and we still have jobs
+        if status and self.list_jobs:
+            proc = client.CopyProcess()
 
-	    for job in self.list_jobs:
-		# TODO: do TPC when XRootD 3.3.6 does not crash anymore and use the
-		# parallel mode starting with XRootD 4.1
-		self.logger.info("Add job src={0}, dst={1}".format(job[0], job[1]))
-		proc.add_job(job[0], job[1], force=job[2], thirdparty=False)
+            for job in self.list_jobs:
+                # TODO: do TPC when XRootD 3.3.6 does not crash anymore and use the
+                # parallel mode starting with XRootD 4.1
+                self.logger.info("Add job src={0}, dst={1}".format(job[0], job[1]))
+                proc.add_job(job[0], job[1], force=job[2], thirdparty=True)
 
-	    del self.list_jobs[:]
-	    thread = ThreadJob(proc)
-	    thread.start()
-	    self.threads.append(thread)
+            del self.list_jobs[:]
+            thread = ThreadJob(proc)
+            thread.start()
+            self.threads.append(thread)
 
-	# If we already have failed transfers or we submitted all the jobs then
-	# join the rest of the threads and collect also their status
-	if not status or wait_all:
-	    for thread in self.threads:
-		thread.join()
-		self.logger.debug("Thread={0} status={1}".format(
-			thread.ident, thread.xrd_status.ok))
-		status = status and thread.xrd_status.ok
+        # If we already have failed transfers or we submitted all the jobs then
+        # join the rest of the threads and collect also their status
+        if not status or wait_all:
+            for thread in self.threads:
+                thread.join()
+                self.logger.debug("Thread={0} status={1}".format(
+                        thread.ident, thread.xrd_status.ok))
+                status = status and thread.xrd_status.ok
 
-	    del self.threads[:]
+            del self.threads[:]
 
-	return status
+        return status
 
     def prepare2get(self, err_entry, found_checkpoint):
-	"""This method is only executed for GET operations and it's purpose is
-	to issue the Prepapre2Get commands for the files in the archive which
-	will later on be copied back to EOS.
+        """This method is only executed for GET operations and it's purpose is
+        to issue the Prepapre2Get commands for the files in the archive which
+        will later on be copied back to EOS.
 
-	Args:
-	    err_entry (list): Entry record from the archive file corresponding
-		 to the first file/dir that was corrupted.
-	    found_checkpoint (bool): If it's true, it means the checkpoint was
-		 already found and we don't need to search for it.
+        Args:
+            err_entry (list): Entry record from the archive file corresponding
+                 to the first file/dir that was corrupted.
+            found_checkpoint (bool): If it's true, it means the checkpoint was
+                 already found and we don't need to search for it.
 
-	Raises:
-	    IOError: The Prepare2Get request failed.
-	"""
-	limit = 20  # max files per prepare request
-	oper = 'prepare'
+        Raises:
+            IOError: The Prepare2Get request failed.
+        """
+        limit = 20  # max files per prepare request
+        oper = 'prepare'
 
-	if not self.archive.d2t:
-	    self.set_status("prepare2get")
-	    t0 = time.time()
-	    lpaths = []
-	    metahandler = MetaHandler()
+        if not self.archive.d2t:
+            self.set_status("prepare2get")
+            t0 = time.time()
+            lpaths = []
+            metahandler = MetaHandler()
 
-	    for fentry in self.archive.files():
-		# Find error checkpoint if not already found
-		if err_entry and not found_checkpoint:
-		    if fentry != err_entry:
-			continue
-		    else:
-			found_checkpoint = True
+            for fentry in self.archive.files():
+                # Find error checkpoint if not already found
+                if err_entry and not found_checkpoint:
+                    if fentry != err_entry:
+                        continue
+                    else:
+                        found_checkpoint = True
 
-		surl, __ = self.archive.get_endpoints(fentry[1])
-		lpaths.append(surl[surl.rfind('//') + 1:])
+                surl, __ = self.archive.get_endpoints(fentry[1])
+                lpaths.append(surl[surl.rfind('//') + 1:])
 
-		if len(lpaths) == limit:
-		    xrd_st = self.archive.fs_dst.prepare(lpaths, PrepareFlags.STAGE,
-				callback=metahandler.register(oper, surl))
+                if len(lpaths) == limit:
+                    xrd_st = self.archive.fs_dst.prepare(lpaths, PrepareFlags.STAGE,
+                                callback=metahandler.register(oper, surl))
 
-		    if not xrd_st.ok:
-			__ = metahandler.wait(oper)
-			self.logger.error(err_msg)
-			raise IOError(err_msg)
+                    if not xrd_st.ok:
+                        __ = metahandler.wait(oper)
+                        self.logger.error(err_msg)
+                        raise IOError(err_msg)
 
-		    del lpaths[:]
+                    del lpaths[:]
 
-	    # Send the remaining requests
-	    if lpaths:
-		xrd_st = self.archive.fs_dst.prepare(lpaths, PrepareFlags.STAGE,
-			    callback=metahandler.register(oper, surl))
+            # Send the remaining requests
+            if lpaths:
+                xrd_st = self.archive.fs_dst.prepare(lpaths, PrepareFlags.STAGE,
+                            callback=metahandler.register(oper, surl))
 
-		if not xrd_st.ok:
-		    __ = metahandler.wait(oper)
-		    self.logger.error(err_msg)
-		    raise IOError(err_msg)
+                if not xrd_st.ok:
+                    __ = metahandler.wait(oper)
+                    self.logger.error(err_msg)
+                    raise IOError(err_msg)
 
-		del lpaths[:]
+                del lpaths[:]
 
-	    status  = metahandler.wait(oper)
-	    t1 = time.time()
-	    self.logger.info("TIMING_prepare2get={0} sec".format(t1 - t0))
+            status  = metahandler.wait(oper)
+            t1 = time.time()
+            self.logger.info("TIMING_prepare2get={0} sec".format(t1 - t0))
