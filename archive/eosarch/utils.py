@@ -184,7 +184,7 @@ def set_dir_info(entry):
     (status, stdout, stderr) = exec_cmd(''.join(flsattr))
 
     if not status:
-        err_msg = "Dir={0}, error listing xattrs, msg ={1}",format(url.path, stderr)
+        err_msg = "Dir={0}, error listing xattrs, msg ={1}".format(url.path, stderr)
         logger.error(err_msg)
         raise IOError(err_msg)
 

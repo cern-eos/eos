@@ -20,9 +20,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ******************************************************************************
+""" Class emulating the process information for an archive transfer which is
+    used by the eosarchived daemon to display the status of the ongoing
+    transfers.
+"""
 import time
 import logging
-import subprocess
 from os import kill
 from hashlib import sha256
 
@@ -113,7 +116,7 @@ class ProcessInfo(object):
         else:
             try:
                 kill(self.pid, 0)
-            except OSError as err:
+            except OSError as __:
                 dbg_msg = ("Uuid={0}, pid={1}, op={2}, path={3} has terminated - "
                            "no returncode available").format(self.uuid, self.pid,
                                                            self.op, self.root_dir)

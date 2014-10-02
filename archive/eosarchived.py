@@ -28,7 +28,6 @@
 
 import os
 import sys
-import json
 import zmq
 import stat
 import subprocess
@@ -37,8 +36,7 @@ import ast
 import logging
 import time
 import logging.handlers
-from eosarch import NoErrorException, Transfer, ProcessInfo, Configuration
-from errno import EIO, EINVAL
+from eosarch import ProcessInfo, Configuration
 
 
 class Dispatcher(object):
@@ -46,321 +44,321 @@ class Dispatcher(object):
     and then spawning the proper executing process for archiving operations
 
     Attributes:
-	procs (dict): Dictionary containing the currently running processes
+        procs (dict): Dictionary containing the currently running processes
     """
     def __init__(self, config):
-	self.config = config
-	self.logger = logging.getLogger("dispatcher")
-	self.procs = {}
-	self.logger.info("Logger name: {0}".format(type(self).__name__))
+        self.config = config
+        self.logger = logging.getLogger("dispatcher")
+        self.procs = {}
+        self.logger.info("Logger name: {0}".format(type(self).__name__))
+        self.backend_req, self.backend_pub, self.backend_poller = None, None, None
 
     def run(self):
-	""" Server entry point which is responsible for spawning worker proceesses
-	that do the actual transfers (put/get).
-	"""
-	# Set the triggers for different types of commands
-	trigger = {self.config.PUT_OP:    self.start_transfer,
-		   self.config.GET_OP:    self.start_transfer,
-		   self.config.DELETE_OP: self.start_transfer,
-		   self.config.PURGE_OP:  self.start_transfer,
-		   self.config.LIST_OP:   self.do_list,
-		   self.config.KILL_OP:    self.do_kill}
-	ctx = zmq.Context.instance()
-	self.logger.info("Started dispatcher process ...")
-	# Socket used for communication with EOS MGM
-	frontend = ctx.socket(zmq.REP)
-	frontend.bind("ipc://" + self.config.FRONTEND_IPC)
-	# Socket used for communication with worker processes
-	self.backend_req = ctx.socket(zmq.ROUTER)
-	self.backend_req.bind("ipc://" + self.config.BACKEND_REQ_IPC)
-	self.backend_pub = ctx.socket(zmq.PUB)
-	self.backend_pub.bind("ipc://" + self.config.BACKEND_PUB_IPC)
-	self.backend_poller = zmq.Poller()
-	self.backend_poller.register(self.backend_req, zmq.POLLIN)
-	mgm_poller = zmq.Poller()
-	mgm_poller.register(frontend, zmq.POLLIN)
-	time.sleep(1)
+        """ Server entry point which is responsible for spawning worker proceesses
+        that do the actual transfers (put/get).
+        """
+        # Set the triggers for different types of commands
+        trigger = {self.config.PUT_OP:    self.start_transfer,
+                   self.config.GET_OP:    self.start_transfer,
+                   self.config.DELETE_OP: self.start_transfer,
+                   self.config.PURGE_OP:  self.start_transfer,
+                   self.config.LIST_OP:   self.do_list,
+                   self.config.KILL_OP:    self.do_kill}
+        ctx = zmq.Context.instance()
+        self.logger.info("Started dispatcher process ...")
+        # Socket used for communication with EOS MGM
+        frontend = ctx.socket(zmq.REP)
+        frontend.bind("ipc://" + self.config.FRONTEND_IPC)
+        # Socket used for communication with worker processes
+        self.backend_req = ctx.socket(zmq.ROUTER)
+        self.backend_req.bind("ipc://" + self.config.BACKEND_REQ_IPC)
+        self.backend_pub = ctx.socket(zmq.PUB)
+        self.backend_pub.bind("ipc://" + self.config.BACKEND_PUB_IPC)
+        self.backend_poller = zmq.Poller()
+        self.backend_poller.register(self.backend_req, zmq.POLLIN)
+        mgm_poller = zmq.Poller()
+        mgm_poller.register(frontend, zmq.POLLIN)
+        time.sleep(1)
 
-	# Attach orphan processes which may be running before starting the daemon
-	self.get_orphans()
+        # Attach orphan processes which may be running before starting the daemon
+        self.get_orphans()
 
-	while True:
-	    events = dict(mgm_poller.poll(self.config.POLL_TIMEOUT))
+        while True:
+            events = dict(mgm_poller.poll(self.config.POLL_TIMEOUT))
             self.update_status()
 
-	    if events and events.get(frontend) == zmq.POLLIN:
-		try:
-		    req_json = frontend.recv_json()
-		except zmq.ZMQError as err:
-		    if err.errno == zmq.ETERM:
-			break  # shutting down, exit
-		    else:
-			raise
-		except ValueError as err:
-		    self.logger.error("Command in not in JSON format")
-		    frontend.send("ERROR error:command not in JSON format")
-		    continue
+            if events and events.get(frontend) == zmq.POLLIN:
+                try:
+                    req_json = frontend.recv_json()
+                except zmq.ZMQError as err:
+                    if err.errno == zmq.ETERM:
+                        break  # shutting down, exit
+                    else:
+                        raise
+                except ValueError as err:
+                    self.logger.error("Command in not in JSON format")
+                    frontend.send("ERROR error:command not in JSON format")
+                    continue
 
-		self.logger.debug("Received command: {0}".format(req_json))
+                self.logger.debug("Received command: {0}".format(req_json))
 
-		try:
-		    reply = trigger[req_json['cmd']](req_json)
-		except KeyError as err:
-		    self.logger.error("Unknown command type: {0}".format(req_json['cmd']))
-		    reply = "ERROR error: operation not supported"
-		    raise
+                try:
+                    reply = trigger[req_json['cmd']](req_json)
+                except KeyError as err:
+                    self.logger.error("Unknown command type: {0}".format(req_json['cmd']))
+                    reply = "ERROR error: operation not supported"
+                    raise
 
-		frontend.send(reply)
+                frontend.send(reply)
 
     def get_orphans(self):
-	""" Get orphan transfer processes from previous runs of the daemon
-	"""
-	self.logger.info("Get orphans")
-	tries = 0
-	num = self.num_processes()
+        """ Get orphan transfer processes from previous runs of the daemon
+        """
+        self.logger.info("Get orphans")
+        tries = 0
+        num = self.num_processes()
 
-	# Get status for orphan processes
-	while len(self.procs) != num and tries < 10:
-	    tries += 1
-	    self.procs.clear()
-	    num = self.num_processes()
-	    self.backend_pub.send_multipart(["[MASTER]", "{'cmd': 'orphan_status'}"])
+        # Get status for orphan processes
+        while len(self.procs) != num and tries < 10:
+            tries += 1
+            self.procs.clear()
+            num = self.num_processes()
+            self.backend_pub.send_multipart(["[MASTER]", "{'cmd': 'orphan_status'}"])
 
-	    while True:
-		events = dict(self.backend_poller.poll(1000))
+            while True:
+                events = dict(self.backend_poller.poll(1000))
 
-		if events and events.get(self.backend_req) == zmq.POLLIN:
-		    [ident, resp] = self.backend_req.recv_multipart()
-		    self.logger.info("Received response: {0}".format(resp))
-		    # Convert response to python dictionary
-		    dict_resp = ast.literal_eval(resp)
+                if events and events.get(self.backend_req) == zmq.POLLIN:
+                    [__, resp] = self.backend_req.recv_multipart()
+                    self.logger.info("Received response: {0}".format(resp))
+                    # Convert response to python dictionary
+                    dict_resp = ast.literal_eval(resp)
 
-		    if not isinstance(dict_resp, dict):
-			err_msg = "Response={0} is not a dictionary".format(resp)
-			self.logger.error(err_msg)
-			continue
+                    if not isinstance(dict_resp, dict):
+                        err_msg = "Response={0} is not a dictionary".format(resp)
+                        self.logger.error(err_msg)
+                        continue
 
-		    pinfo = ProcessInfo(None)
-		    pinfo.update(dict_resp)
+                    pinfo = ProcessInfo(None)
+                    pinfo.update(dict_resp)
 
-		    if pinfo.uuid not in self.procs:
-			self.procs[pinfo.uuid] = pinfo
-		else: # TIMEOUT
-		    self.logger.info("Get orphans status timeout")
-		    break
+                    if pinfo.uuid not in self.procs:
+                        self.procs[pinfo.uuid] = pinfo
+                else: # TIMEOUT
+                    self.logger.info("Get orphans status timeout")
+                    break
 
-	    self.logger.debug(("Try={0}, got {1}/{2} orphan processe responses"
-			      "").format(tries, len(self.procs), num))
+            self.logger.debug(("Try={0}, got {1}/{2} orphan processe responses"
+                              "").format(tries, len(self.procs), num))
 
     def num_processes(self):
-	""" Get the number of running archive processes on the current system by
-	executing the ps command
+        """ Get the number of running archive processes on the current system by
+        executing the ps command
 
-	Returns:
-	    Number of running processes
+        Returns:
+            Number of running processes
 
-	Raises:
-	     ValueError in case the output of ps is not a valid pid number
-	"""
-	pid = os.getpid()
-	#exec_fname = os.path.basename(__file__)
-	# TODO: fix the resolution of the eosarch_run.py
-	exec_fname = "eosarch_run.py"
-	ps_proc = subprocess.Popen([("ps -eo pid,ppid,comm | egrep \"{0}\$\" | "
-				     "awk '{{print $1}}'").format(exec_fname)],
-				   stdout=subprocess.PIPE,
-				   stderr=subprocess.PIPE,
-				   shell=True)
-	ps_out, ps_err = ps_proc.communicate()
+        Raises:
+             ValueError in case the output of ps is not a valid pid number
+        """
+        pid = os.getpid()
+        #exec_fname = os.path.basename(__file__)
+        # TODO: fix the resolution of the eosarch_run.py
+        exec_fname = "eosarch_run.py"
+        ps_proc = subprocess.Popen([("ps -eo pid,ppid,comm | egrep \"{0}\$\" | "
+                                     "awk '{{print $1}}'").format(exec_fname)],
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE,
+                                   shell=True)
+        ps_out, __ = ps_proc.communicate()
 
-	if len(ps_out) == 0:
-	    return 0
+        if len(ps_out) == 0:
+            return 0
 
-	ps_out = ps_out.strip('\0\n')
-	proc_lst = ps_out.split('\n')
+        ps_out = ps_out.strip('\0\n')
+        proc_lst = ps_out.split('\n')
 
-	try:
-	    num = len([x for x in proc_lst if pid != int(x)])
-	except ValueError as err:
-	    self.logger.error("ps output x={0} is not a valid pid value".format(x))
-	    raise
+        try:
+            num = len([x for x in proc_lst if pid != int(x)])
+        except ValueError as __:
+            self.logger.error("ps output x={0} is not a valid pid value".format(x))
+            raise
 
-	return num
+        return num
 
     def update_status(self):
-	""" Update the status of the processes
-	"""
-	self.backend_pub.send_multipart(["[MASTER]", "{'cmd': 'status'}"])
-	recv_uuid = []
+        """ Update the status of the processes
+        """
+        self.backend_pub.send_multipart(["[MASTER]", "{'cmd': 'status'}"])
+        recv_uuid = []
 
-	while len(recv_uuid) < len(self.procs):
-	    events = dict(self.backend_poller.poll(100))
+        while len(recv_uuid) < len(self.procs):
+            events = dict(self.backend_poller.poll(100))
 
-	    if events and events.get(self.backend_req) == zmq.POLLIN:
-		[ident, resp] = self.backend_req.recv_multipart()
-		self.logger.debug("Received response: {0}".format(resp))
-		# Convert response to python dictionary
-		dict_resp = ast.literal_eval(resp)
+            if events and events.get(self.backend_req) == zmq.POLLIN:
+                [__, resp] = self.backend_req.recv_multipart()
+                self.logger.debug("Received response: {0}".format(resp))
+                # Convert response to python dictionary
+                dict_resp = ast.literal_eval(resp)
 
-		if not isinstance(dict_resp, dict):
-		    self.logger.error("Response is not a dictionary");
-		    continue
+                if not isinstance(dict_resp, dict):
+                    self.logger.error("Response is not a dictionary")
+                    continue
 
-		# Update the local info about the process
-		try:
-		    self.procs[dict_resp['uuid']].update(dict_resp)
-		except KeyError as err:
-		    err_msg = ("Unkown process response:{0}").format(dict_info)
-		    self.logger.error(err_msg)
+                # Update the local info about the process
+                try:
+                    self.procs[dict_resp['uuid']].update(dict_resp)
+                except KeyError as __:
+                    err_msg = ("Unkown process response:{0}").format(dict_resp)
+                    self.logger.error(err_msg)
 
-		recv_uuid.append(dict_resp['uuid'])
-	    else: # TIMEOUT
-		self.logger.debug("Update status timeout")
-		break
+                recv_uuid.append(dict_resp['uuid'])
+            else: # TIMEOUT
+                self.logger.debug("Update status timeout")
+                break
 
-	# Check if processes that didn't respond are still alive
-	unresp = [proc for (uuid, proc) in self.procs.iteritems()
-		  if uuid not in recv_uuid]
+        # Check if processes that didn't respond are still alive
+        unresp = [proc for (uuid, proc) in self.procs.iteritems()
+                  if uuid not in recv_uuid]
 
-	for pinfo in unresp:
-	    if not pinfo.is_alive():
-		del self.procs[pinfo.uuid]
+        for pinfo in unresp:
+            if not pinfo.is_alive():
+                del self.procs[pinfo.uuid]
 
     def start_transfer(self, req_json):
-	""" Start new transfer
+        """ Start new transfer
 
-	Args:
-	    req_json (json): New transfer information which must include:
-	    {
-	      cmd: get/put/delete/purge,
-	      src: full URL to archive file in EOS.
-	      opt: retry | ''
-	      uid: client uid
-	      gid: client gid
-	    }
+        Args:
+            req_json (json): New transfer information which must include:
+            {
+              cmd: get/put/delete/purge,
+              src: full URL to archive file in EOS.
+              opt: retry | ''
+              uid: client uid
+              gid: client gid
+            }
 
-	Returns:
-	    A message which is sent to the EOS MGM informing about the status
-	    of the request.
-	"""
-	self.logger.debug("Start transfer {0}".format(req_json))
+        Returns:
+            A message which is sent to the EOS MGM informing about the status
+            of the request.
+        """
+        self.logger.debug("Start transfer {0}".format(req_json))
 
-	if len(self.procs) >= self.config.MAX_TRANSFERS:
-	    self.logger.warning("Maximum number of concurrent transfers reached")
-	    return "ERROR error: max number of transfers reached"
+        if len(self.procs) >= self.config.MAX_TRANSFERS:
+            self.logger.warning("Maximum number of concurrent transfers reached")
+            return "ERROR error: max number of transfers reached"
 
-	pinfo = ProcessInfo(req_json)
-	self.logger.debug("Adding job={0}, path={1}".format(pinfo.uuid, pinfo.root_dir))
+        pinfo = ProcessInfo(req_json)
+        self.logger.debug("Adding job={0}, path={1}".format(pinfo.uuid, pinfo.root_dir))
 
-	if pinfo.uuid in self.procs:
-	    err_msg = "Job with same uuid={0} already exists".format(pinfo.uuid)
-	    self.logger.error(err_msg)
-	    return "ERROR error: job with same signature exists"
+        if pinfo.uuid in self.procs:
+            err_msg = "Job with same uuid={0} already exists".format(pinfo.uuid)
+            self.logger.error(err_msg)
+            return "ERROR error: job with same signature exists"
 
-	pinfo.proc = subprocess.Popen(['/usr/bin/eosarch_run.py', "{0}".format(req_json)],
-				      stdout=subprocess.PIPE,
-				      stderr=subprocess.PIPE,
-				      close_fds=True)
-	pinfo.pid = pinfo.proc.pid
-	self.procs[pinfo.uuid] = pinfo
-	return "OK Id={0}".format(pinfo.uuid)
+        pinfo.proc = subprocess.Popen(['/usr/bin/eosarch_run.py', "{0}".format(req_json)],
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE,
+                                      close_fds=True)
+        pinfo.pid = pinfo.proc.pid
+        self.procs[pinfo.uuid] = pinfo
+        return "OK Id={0}".format(pinfo.uuid)
 
     def do_list(self, req_json):
-	""" List the transfers
+        """ List the transfers
 
-	Args:
-	    req_json (JSON): Listing command in JSON format including:
-	    {
-	      cmd: list,
-	      opt: all/get/put/purge/delete/uuid,
-	      uid: uid,
-	      gid: gid
-	    }
+        Args:
+            req_json (JSON): Listing command in JSON format including:
+            {
+              cmd: list,
+              opt: all/get/put/purge/delete/uuid,
+              uid: uid,
+              gid: gid
+            }
 
-	Returns:
-	    String with the result of the listing
-	"""
-	row_data, proc_list = [], []
-	ls_type = req_json['opt']
-	self.logger.debug("Listing type={0}".format(ls_type))
+        Returns:
+            String with the result of the listing
+        """
+        row_data, proc_list = [], []
+        ls_type = req_json['opt']
+        self.logger.debug("Listing type={0}".format(ls_type))
 
-	if ls_type == "all":
-	    proc_list = self.procs.itervalues()
-	elif ls_type in self.procs:
-	    # ls_type is a transfer uuid
-	    if ls_type in self.proc:
-		proc_list.append(self.procs[ls_type])
-	else:
-	    proc_list = [elem for elem in self.procs.itervalues() if elem.op == ls_type]
+        if ls_type == "all":
+            proc_list = self.procs.itervalues()
+        elif ls_type in self.procs:
+            # ls_type is a transfer uuid
+            proc_list.append(self.procs[ls_type])
+        else:
+            proc_list = [elem for elem in self.procs.itervalues() if elem.op == ls_type]
 
-	for proc in proc_list:
-	    row_data.append((time.asctime(time.localtime(proc.timestamp)), proc.uuid,
-			     proc.root_dir, proc.op, proc.status))
+        for proc in proc_list:
+            row_data.append((time.asctime(time.localtime(proc.timestamp)), proc.uuid,
+                             proc.root_dir, proc.op, proc.status))
 
-	# Prepare the table listing
-	header = ("Start date", "Id", "Path", "Type", "Status")
-	long_column = dict(zip((0, 1, 2, 3, 4), (len(str(x)) for x in header)))
+        # Prepare the table listing
+        header = ("Start date", "Id", "Path", "Type", "Status")
+        long_column = dict(zip((0, 1, 2, 3, 4), (len(str(x)) for x in header)))
 
-	for info in row_data:
-	    long_column.update((i, max(long_column[i], len(str(elem)))) for i, elem in enumerate(info))
+        for info in row_data:
+            long_column.update((i, max(long_column[i], len(str(elem)))) for i, elem in enumerate(info))
 
-	line = "".join(("|-", "-|-".join(long_column[i] * "-" for i in xrange(5)), "-|"))
-	row_format = "".join(("| ", " | ".join("%%-%ss" % long_column[i] for i in xrange(0, 5)), " |"))
-	msg = "OK "
-	msg += "\n".join((line, row_format % header, line,
-			  "\n".join("\n".join((row_format % elem, line)) for elem in row_data),
-			  line if not row_data else ""))
-	return msg
+        line = "".join(("|-", "-|-".join(long_column[i] * "-" for i in xrange(5)), "-|"))
+        row_format = "".join(("| ", " | ".join("%%-%ss" % long_column[i] for i in xrange(0, 5)), " |"))
+        msg = "OK "
+        msg += "\n".join((line, row_format % header, line,
+                          "\n".join("\n".join((row_format % elem, line)) for elem in row_data),
+                          line if not row_data else ""))
+        return msg
 
     def do_kill(self, req_json):
-	""" Kill transfer.
+        """ Kill transfer.
 
-	Args:
-	    req_json (JSON command): Arguments for kill command including:
-	    {
-	      cmd: kill,
-	      opt: uuid,
-	      uid: uid,
-	      gid: gid
-	    }
-	"""
-	msg = "OK"
-	job_uuid = req_json['opt']
-	uid, gid = int(req_json['uid']), int(req_json['gid'])
+        Args:
+            req_json (JSON command): Arguments for kill command including:
+            {
+              cmd: kill,
+              opt: uuid,
+              uid: uid,
+              gid: gid
+            }
+        """
+        msg = "OK"
+        job_uuid = req_json['opt']
+        uid, gid = int(req_json['uid']), int(req_json['gid'])
 
-	try:
-	    proc = self.procs[job_uuid]
-	except KeyError as __:
-	    msg = "ERROR error: job not found"
-	    return
+        try:
+            proc = self.procs[job_uuid]
+        except KeyError as __:
+            msg = "ERROR error: job not found"
+            return
 
-	if (uid == 0 or uid == proc.uid or
-	    (uid != proc.uid and gid == proc.gid)):
+        if (uid == 0 or uid == proc.uid or
+            (uid != proc.uid and gid == proc.gid)):
 
-	    self.logger.debug("Kill uuid={0} pid={1}".format(job_uuid, proc.pid))
-	    kill_proc = subprocess.Popen(['kill', '-SIGTERM', str(proc.pid)],
-					 stdout=subprocess.PIPE,
-					 stderr=subprocess.PIPE)
-	    _, err = kill_proc.communicate()
+            self.logger.debug("Kill uuid={0} pid={1}".format(job_uuid, proc.pid))
+            kill_proc = subprocess.Popen(['kill', '-SIGTERM', str(proc.pid)],
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE)
+            _, err = kill_proc.communicate()
 
-	    if kill_proc.returncode:
-		msg = "ERROR error:" + err
-	else:
-	    self.logger.error(("User uid/gid={0}/{1} permission denied to kill job "
-			       "with uid/gid={2}/{3}").format(uid, gid,
-							      proc.uid, proc.gid))
-	    msg = "ERROR error: Permission denied - you are not owner of the job"
+            if kill_proc.returncode:
+                msg = "ERROR error:" + err
+        else:
+            self.logger.error(("User uid/gid={0}/{1} permission denied to kill job "
+                               "with uid/gid={2}/{3}").format(uid, gid,
+                                                              proc.uid, proc.gid))
+            msg = "ERROR error: Permission denied - you are not owner of the job"
 
-	self.logger.debug("Kill pid={0}, msg={0}".format(proc.pid, msg))
-	return msg
+        self.logger.debug("Kill pid={0}, msg={0}".format(proc.pid, msg))
+        return msg
 
 def main():
     """ Main function """
     try:
-	config = Configuration()
+        config = Configuration()
     except Exception as err:
-	print >> sys.stderr, "Configuration failed, error:{0}".format(err)
-	raise
+        print >> sys.stderr, "Configuration failed, error:{0}".format(err)
+        raise
 
     config.start_logging("dispatcher", config.LOG_FILE, True)
     config.display()
@@ -369,32 +367,32 @@ def main():
     # Create the local directory structure in /var/eos/archive/
     # i.e /var/eos/archive/get/, /var/eos/archive/put/ etc.
     for oper in [config.GET_OP, config.PUT_OP, config.PURGE_OP, config.DELETE_OP]:
-	path = config.EOS_ARCHIVE_DIR + oper + '/'
-	config.DIR[oper] = path
+        path = config.EOS_ARCHIVE_DIR + oper + '/'
+        config.DIR[oper] = path
 
-	try:
-	    os.mkdir(path)
-	except OSError as __:
-	    pass  # directory exists
+        try:
+            os.mkdir(path)
+        except OSError as __:
+            pass  # directory exists
 
     # Prepare ZMQ IPC files
     for ipc_file in [config.FRONTEND_IPC, config.BACKEND_REQ_IPC, config.BACKEND_PUB_IPC]:
-	if not os.path.exists(ipc_file):
-	    open(ipc_file, 'w').close()
-	try:
-	    os.chmod(ipc_file, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
-	except OSError as err:
-	    err_msg = "Failed creating IPC socket file={0}".format(ipc_file)
-	    print >> sys.stderr, err_msg
-	    raise
+        if not os.path.exists(ipc_file):
+            open(ipc_file, 'w').close()
+        try:
+            os.chmod(ipc_file, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+        except OSError as err:
+            err_msg = "Failed creating IPC socket file={0}".format(ipc_file)
+            print >> sys.stderr, err_msg
+            raise
 
     # Create dispatcher object
     dispatcher = Dispatcher(config)
 
     try:
-	dispatcher.run()
+        dispatcher.run()
     except Exception as err:
-	dispatcher.logger.exception(err)
+        dispatcher.logger.exception(err)
 
 with daemon.DaemonContext():
     main()

@@ -22,15 +22,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ******************************************************************************
 
-import os
-import zmq
+""" Script used for starting an archiving transfer in a subprocess which also
+    closes the open file descriptors such that there is no interference between
+    the processes using ZMQ.
+"""
 import ast
 import sys
-import json
-import logging
-import logging.handlers
 from hashlib import sha256
 from eosarch import Transfer, NoErrorException, Configuration
+from errno import EIO, EINVAL
 
 try:
     config = Configuration()

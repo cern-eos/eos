@@ -25,7 +25,6 @@
 import os
 import time
 import logging
-import const
 import threading
 import zmq
 import ast
@@ -36,6 +35,7 @@ from XRootD.client.flags import PrepareFlags
 from archivefile import ArchiveFile
 from utils import exec_cmd
 from asynchandler import MetaHandler
+from exceptions import NoErrorException
 
 
 class ThreadJob(threading.Thread):
@@ -56,6 +56,7 @@ class ThreadJob(threading.Thread):
         threading.Thread.__init__(self)
         self.status = None
         self.proc = cpy_proc
+        self.xrd_status = None
 
     def run(self):
         """ Run method
@@ -100,7 +101,7 @@ class ThreadStatus(threading.Thread):
         while self.keep_running():
             if socket_ps.poll(5000):
                 try:
-                    [tag, msg] = socket_ps.recv_multipart()
+                    [__, msg] = socket_ps.recv_multipart()
                 except zmq.ZMQError as err:
                     if err.errno == zmq.ETERM:
                         self.logger.error("ETERM error")
@@ -317,7 +318,7 @@ class Transfer(object):
             IOError when an IO opperations fails.
         """
         t0 = time.time()
-        indx_dir, indx_file = 0, 0
+        indx_dir = 0
         err_entry = None
 
         # For retry get the first corrupted entry
@@ -453,7 +454,6 @@ class Transfer(object):
             IOError: Copy request failed.
         """
         indx_file = 0
-        meta_handler = MetaHandler()
         # For inital PUT copy also the archive file to tape
         if self.init_put:
             dst = self.archive.header['dst'] + self.config.ARCH_INIT
@@ -541,8 +541,7 @@ class Transfer(object):
             proc = client.CopyProcess()
 
             for job in self.list_jobs:
-                # TODO: do TPC when XRootD 3.3.6 does not crash anymore and use the
-                # parallel mode starting with XRootD 4.1
+                # TODO: use the parallel mode starting with XRootD 4.1
                 self.logger.info("Add job src={0}, dst={1}".format(job[0], job[1]))
                 proc.add_job(job[0], job[1], force=job[2], thirdparty=True)
 
@@ -604,6 +603,7 @@ class Transfer(object):
 
                     if not xrd_st.ok:
                         __ = metahandler.wait(oper)
+                        err_msg = "Failed prepare2get"
                         self.logger.error(err_msg)
                         raise IOError(err_msg)
 
@@ -616,11 +616,18 @@ class Transfer(object):
 
                 if not xrd_st.ok:
                     __ = metahandler.wait(oper)
+                    err_msg = "Failed prepare2get"
                     self.logger.error(err_msg)
                     raise IOError(err_msg)
 
                 del lpaths[:]
 
             status  = metahandler.wait(oper)
-            t1 = time.time()
-            self.logger.info("TIMING_prepare2get={0} sec".format(t1 - t0))
+
+            if status:
+                t1 = time.time()
+                self.logger.info("TIMING_prepare2get={0} sec".format(t1 - t0))
+            else:
+                err_msg = "Failed prepare2get"
+                self.logger.error(err_msg)
+                raise IOError(err_msg)
