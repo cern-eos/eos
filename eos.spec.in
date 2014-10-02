@@ -275,8 +275,10 @@ The EOS archive daemon.
 
 %files -n eos-archive
 /usr/bin/eosarchived.py
+/usr/bin/eosarch_run.py
 /usr/lib/python*
-%config(noreplace) /etc/sysconfig/eosarchived
+%config(noreplace) %_sysconfdir/sysconfig/eosarchived
+%config(noreplace) %_sysconfdir/eosarchived.conf
 %_sysconfdir/rc.d/init.d/eosarchived
 
 %post -n eos-archive

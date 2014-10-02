@@ -8,7 +8,11 @@ export LOG_DIR="/var/log/eos/archive/"
 
 # This directory must match the one set in xrd.cf.mgm as it is used for the
 # communication between the MGM and the eosarchived daemon
-export EOS_ARCHIVE_DIR="/var/eos/archive/"
+export EOS_ARCHIVE_DIR=/var/eos/archive/
+
+# Configuration file which can be modified while the daemon is running and
+# whose changes are automatically picked up by new transfers
+export EOS_ARCHIVE_CONF=/etc/eosarchived.conf
 
 # This is the location of the archive keytab file containing just **one** entry
 # for the user account under which the eosarchived daemon is running. The same
