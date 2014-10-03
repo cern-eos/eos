@@ -154,3 +154,13 @@ export EOS_TEST_TESTTIMESLICE=300;
 
 # define which client we trust for querying this MGM
 # export EOS_VST_TRUSTED_HOST=eos.cern.ch
+
+# ------------------------------------------------------------------------------
+# Archive configuration
+# ------------------------------------------------------------------------------
+
+# Set the root destination for all archives beloging to this instance
+# export EOS_ARCHIVE_URL=root://castorpps.cern.ch//user/cern.ch/c3/archive/
+
+# Set the CASTOR service class (svcClass) for all file transfers to CASTOR
+# export EOS_ARCHIVE_SVCCLASS=default

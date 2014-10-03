@@ -27,7 +27,7 @@ from os.path import relpath
 from XRootD import client
 from XRootD.client.flags import OpenFlags
 
-logger = logging.getLogger("eosarch.transfer")
+logger = logging.getLogger("transfer")
 
 def exec_cmd(cmd):
     """ Execute an EOS /proc/user/ command.

@@ -548,6 +548,7 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   arch_ofs << "{"
            << "\"src\": \"" << "root://" << gOFS->ManagerId << "/" << arch_dir << "\", "
            << "\"dst\": \"" << dst_url << "\", "
+           << "\"svc_class\": \"" << gOFS->MgmArchiveSvcClass << "\", "
            << "\"dir_meta\": [\"uid\", \"gid\", \"attr\"], "
            << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
            << "\"xstype\", \"xs\"], "

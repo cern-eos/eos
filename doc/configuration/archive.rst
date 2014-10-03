@@ -40,7 +40,7 @@ configuration without the need of a full daemon restart.
 
 The **LOG_LEVEL** variable is set in ``/etc/eosarchived.conf`` and  must be a
 string corresponding to the syslog loglevel. The **eosarchived** daemon logs
-are saved by default in ``/var/log/eos/archive/eosarchive.log``.
+are saved by default in ``/var/log/eos/archive/eosarchived.log``.
 
 MGM Configuration
 +++++++++++++++++

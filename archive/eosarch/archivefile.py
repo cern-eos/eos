@@ -49,7 +49,7 @@ class ArchiveFile(object):
         Raises:
             IOError: Failed to open local transfer file.
         """
-        self.logger = logging.getLogger("eosarch.transfer")
+        self.logger = logging.getLogger("transfer")
         self.d2t = d2t
 
         try:
@@ -174,6 +174,7 @@ class ArchiveFile(object):
 
         src = self.header['src'] + rel_path
         dst = self.header['dst'] + rel_path
+        dst = ''.join([dst, "?svcClass=", self.header['svc_class']])
         return (src, dst) if self.d2t else (dst, src)
 
     def del_entry(self, rel_path, is_dir, tape_delete):

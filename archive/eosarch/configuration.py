@@ -67,7 +67,7 @@ class Configuration(object):
                     "crit":    logging.CRITICAL,
                     "alert":   logging.CRITICAL}
 
-        self.__dict__['LOG_FILE'] = LOG_DIR + "eosarchive.log"
+        self.__dict__['LOG_FILE'] = LOG_DIR + "eosarchived.log"
         self.__dict__['FRONTEND_IPC'] = self.EOS_ARCHIVE_DIR + "archive_frontend.ipc"
         self.__dict__['BACKEND_REQ_IPC'] = self.EOS_ARCHIVE_DIR + "archive_backend_req.ipc"
         self.__dict__['BACKEND_PUB_IPC'] = self.EOS_ARCHIVE_DIR + "archive_backend_pub.ipc"

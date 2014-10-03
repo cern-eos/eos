@@ -349,6 +349,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   IoReportStorePath = "/var/tmp/eos/report";
   MgmOfsVstBrokerUrl = "";
   MgmArchiveDstUrl = "";
+  MgmArchiveSvcClass = "default";
 
   if (getenv("EOS_VST_BROKER_URL"))
     MgmOfsVstBrokerUrl = getenv("EOS_VST_BROKER_URL");
@@ -360,6 +361,11 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     // Make sure it ends with a '/'
     if (MgmArchiveDstUrl[MgmArchiveDstUrl.length() - 1] != '/')
       MgmArchiveDstUrl += '/';
+  }
+
+  if (getenv("EOS_ARCHIVE_SVCCLASS"))
+  {
+    MgmArchiveSvcClass = getenv("EOS_ARCHIVE_SVCCLASS");
   }
 
   // cleanup the query output cache directory
