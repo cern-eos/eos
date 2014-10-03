@@ -18,4 +18,4 @@ export EOS_ARCHIVE_CONF=/etc/eosarchived.conf
 # for the user account under which the eosarchived daemon is running. The same
 # entry need to be present in the eos.keytab file so that the eosarchived can
 # have full access to the EOS.
-export XrdSecSSSKT=/etc/archive.keytab
+export XrdSecSSSKT=/etc/eos-archive.keytab
