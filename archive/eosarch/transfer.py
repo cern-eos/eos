@@ -61,8 +61,10 @@ class ThreadJob(threading.Thread):
     def run(self):
         """ Run method
         """
-        self.proc.prepare()
-        self.xrd_status = self.proc.run()
+        self.xrd_status = self.proc.prepare()
+
+        if self.xrd_status.ok:
+            self.xrd_status = self.proc.run()
 
 
 class ThreadStatus(threading.Thread):
@@ -529,7 +531,7 @@ class Transfer(object):
                     self.logger.debug("Thread={0} status={1}".format(
                             thread.ident, thread.xrd_status.ok))
 
-                    if not status:
+                    if not thread.xrd_status.ok:
                         self.logger.error("Thread={0} err_msg={1}".format(
                                 thread.ident, thread.xrd_status.message))
 
@@ -555,9 +557,14 @@ class Transfer(object):
         if not status or wait_all:
             for thread in self.threads:
                 thread.join()
+                status = status and thread.xrd_status.ok
                 self.logger.debug("Thread={0} status={1}".format(
                         thread.ident, thread.xrd_status.ok))
-                status = status and thread.xrd_status.ok
+
+                if not thread.xrd_status.ok:
+                    self.logger.debug("Thread={0} status={1}".format(
+                            thread.ident, thread.xrd_status.message))
+
 
             del self.threads[:]
 
