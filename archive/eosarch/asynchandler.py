@@ -82,7 +82,7 @@ class MetaHandler(object):
             self.failed[op] = []
 
         self.cond = Condition()
-        self.logger = logging.getLogger("eosarch.transfer")
+        self.logger = logging.getLogger("transfer")
 
     def register(self, op, path):
         """ Register handler for operation.
