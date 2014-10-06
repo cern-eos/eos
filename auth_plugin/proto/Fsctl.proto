@@ -1,0 +1,16 @@
+package eos.auth;
+
+import "proto/XrdOucErrInfo.proto";
+import "proto/XrdSecEntity.proto";
+
+//------------------------------------------------------------------------------
+// Fsctl request protocol buffer message used for Fsctl(..) function calls
+//------------------------------------------------------------------------------
+
+message FsctlProto {
+  required int64 cmd = 1;
+  required string args = 2;
+  required XrdOucErrInfoProto error = 3;
+  required XrdSecEntityProto client = 4;
+}
+  

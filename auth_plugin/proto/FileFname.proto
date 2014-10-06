@@ -1,0 +1,9 @@
+package eos.auth;
+
+//------------------------------------------------------------------------------
+// FileFname request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message FileFnameProto {
+   required string uuid = 1;  ///< this is the pointer to the local directory object
+}

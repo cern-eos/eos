@@ -1,0 +1,14 @@
+package eos.auth;
+
+
+//------------------------------------------------------------------------------
+// XrdSfsPrep request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message XrdSfsPrepProto {
+  required string reqid  = 1;
+  required string notify = 2;
+  required int64 opts    = 3;
+  repeated string paths  = 4;
+  repeated string oinfo  = 5;
+}

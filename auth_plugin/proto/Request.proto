@@ -1,0 +1,91 @@
+package eos.auth;
+
+import "proto/Stat.proto";
+import "proto/Fsctl.proto";
+import "proto/FSctl.proto";
+import "proto/Chmod.proto";
+import "proto/Chksum.proto";
+import "proto/Exists.proto";
+import "proto/Mkdir.proto";
+import "proto/Remdir.proto";
+import "proto/Rem.proto";
+import "proto/Rename.proto";
+import "proto/Prepare.proto";
+import "proto/Truncate.proto";
+import "proto/DirOpen.proto";
+import "proto/DirRead.proto";
+import "proto/DirFname.proto";
+import "proto/DirClose.proto";
+import "proto/FileOpen.proto";
+import "proto/FileFname.proto";
+import "proto/FileStat.proto";
+import "proto/FileRead.proto";
+import "proto/FileWrite.proto";
+import "proto/FileClose.proto";
+
+//------------------------------------------------------------------------------
+// Request message sent to the server
+//------------------------------------------------------------------------------
+
+message RequestProto {
+  enum OperationType {
+     STAT      = 0;  // stat to get struct stat
+     FSCTL1    = 1;  // fsctl
+     FSCTL2    = 2;  // FSctl
+     CHMOD     = 3;
+     CHKSUM    = 4;
+     EXISTS    = 5;
+     STATM     = 6;  // stat mode
+     MKDIR     = 7;
+     REMDIR    = 8;
+     REM       = 9;
+     RENAME    = 10;
+     PREPARE   = 11;
+     TRUNCATE  = 12;
+     DIROPEN   = 13;
+     DIRFNAME  = 14;
+     DIRREAD   = 15;
+     DIRCLOSE  = 16;
+     FILEOPEN  = 17;
+     FILEFNAME = 18;
+     FILESTAT  = 19;
+     FILEREAD  = 20;
+     FILEWRITE = 21;
+     FILECLOSE = 22;
+  }    	  
+
+  // Identifies which filed is filled in 
+  required OperationType type = 1;
+  // Encrypted sha1 of the string represenation of the object excluding
+  // the field 'hmac' which is to be considered as empty string ("") during
+  // the computation and then updated at the end to the new value
+  required string hmac = 2;
+
+  // One of the following is filled in 
+  optional StatProto stat         = 3;
+  optional FsctlProto fsctl1      = 4;
+  optional FSctlProto fsctl2      = 5;
+  optional ChmodProto chmod       = 6;
+  optional ChksumProto chksum     = 7;
+  optional ExistsProto exists     = 8;
+  optional StatProto statm        = 9;
+  optional MkdirProto mkdir       = 10;
+  optional RemdirProto remdir     = 11;
+  optional RemProto rem           = 12;
+  optional RenameProto rename     = 13;
+  optional PrepareProto prepare   = 14;
+  optional TruncateProto truncate = 15;
+  optional DirOpenProto diropen   = 16;
+  optional DirReadProto dirread   = 17;
+  optional DirFnameProto dirfname = 18;
+  optional DirCloseProto dirclose = 19;
+  optional FileOpenProto fileopen = 20;
+  optional FileFnameProto filefname = 21;
+  optional FileStatProto filestat   = 22;
+  optional FileReadProto fileread   = 23;
+  optional FileWriteProto filewrite = 24;
+  optional FileCloseProto fileclose = 25;
+
+
+}
+

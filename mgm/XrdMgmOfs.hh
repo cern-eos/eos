@@ -139,10 +139,17 @@
 #include "XrdSys/XrdSysTimer.hh"
 /*----------------------------------------------------------------------------*/
 #include <dirent.h>
+/*----------------------------------------------------------------------------*/
 #include "zmq.hpp"
+/*----------------------------------------------------------------------------*/
+#include "auth_plugin/ProtoUtils.hh"
 /*----------------------------------------------------------------------------*/
 
 USE_EOSMGMNAMESPACE
+
+//! Forward declaration
+class XrdMgmOfsFile;
+class XrdMgmOfsDirectory;
 
 /*----------------------------------------------------------------------------*/
 //! Class implementing atomic meta data commands
@@ -157,28 +164,35 @@ public:
   // Object Allocation Functions
   // ---------------------------------------------------------------------------
 
-  // ---------------------------------------------------------------------------
-  // return a MGM directory object
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Return a MGM directory object
+  //!
+  //! @param user user-name
+  //! @param MonID monitor ID
+  //!
+  //! @return MGM directory object
+  //----------------------------------------------------------------------------
+  XrdSfsDirectory* newDir (char *user = 0, int MonID = 0);
 
-  XrdSfsDirectory *
-  newDir (char *user = 0, int MonID = 0);
+  //----------------------------------------------------------------------------
+  //! Return a MGM file object
+  //!
+  //! @param user user-name
+  //! @param MonID monitor ID
+  //!
+  //! @return MGM file object 
+  //----------------------------------------------------------------------------
+  XrdSfsFile* newFile (char *user = 0, int MonID = 0);
 
-  // ---------------------------------------------------------------------------
-  // return a MGM file object
-  // ---------------------------------------------------------------------------
-  XrdSfsFile *
-  newFile (char *user = 0, int MonID = 0);
+  //----------------------------------------------------------------------------
+  //! Meta data functions
+  //! - the _XYZ functions are the internal version of XYZ when XrdSecEntity
+  //! - objects have been mapped to VirtuIdentity's.
+  //----------------------------------------------------------------------------
 
-  // ---------------------------------------------------------------------------
-  // meta data functions
-  // - the _XYZ functions are the internal version of XYZ when XrdSecEntity
-  // - objects have been mapped to VirtuIdentity's.
-  // ---------------------------------------------------------------------------
-
-  // ---------------------------------------------------------------------------
-  // chmod by client
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  // Chmod by client
+  //----------------------------------------------------------------------------
   int chmod (const char *Name,
              XrdSfsMode Mode,
              XrdOucErrInfo &out_error,
@@ -272,9 +286,11 @@ public:
     return 0;
   }
 
-  // ---------------------------------------------------------------------------
-  // get version
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Return the version of the MGM software
+  //!
+  //! @return return a version string
+  //----------------------------------------------------------------------------
   const char *getVersion ();
 
 
@@ -284,7 +300,7 @@ public:
   int mkdir (const char *dirName,
              XrdSfsMode Mode,
              XrdOucErrInfo &out_error,
-             const XrdSecClientName *client = 0,
+             const XrdSecEntity *client = 0,
              const char *opaque = 0);
 
   // ---------------------------------------------------------------------------
@@ -296,9 +312,11 @@ public:
               eos::common::Mapping::VirtualIdentity &vid,
               const char *opaque = 0);
 
-  // ---------------------------------------------------------------------------
-  // prepare/stage function
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Prepare a file (EOS does nothing, only stall/redirect if configured)
+  //!
+  //! @return always SFS_OK
+  //----------------------------------------------------------------------------
   int prepare (XrdSfsPrep &pargs,
                XrdOucErrInfo &out_error,
                const XrdSecEntity *client = 0);
@@ -445,9 +463,11 @@ public:
              const XrdSecEntity *client = 0,
              const char *opaque = 0);
 
-  // ---------------------------------------------------------------------------
-  // truncate a file (not supported)
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Truncate a file (not supported in EOS, only via the file interface)
+  //!
+  //! @return SFS_ERROR and EOPNOTSUPP
+  //----------------------------------------------------------------------------
   int truncate (const char*, XrdSfsFileOffset, XrdOucErrInfo&, const XrdSecEntity*, const char*);
 
   // ---------------------------------------------------------------------------
@@ -706,11 +726,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
-
-  virtual
-  ~XrdMgmOfs ()
-  {
-  }
+  virtual ~XrdMgmOfs() { };
 
   // ---------------------------------------------------------------------------
   // Configuration routine
@@ -737,20 +753,34 @@ public:
   // ---------------------------------------------------------------------------
   void* SignalHandlerThread ();
 
-
-  // ---------------------------------------------------------------------------
-  // Initialization function
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Init function
+  //!
+  //! This is just kept to be compatible with standard OFS plugins, but it is
+  //! not used for the moment.
+  //!
+  //----------------------------------------------------------------------------
   virtual bool Init (XrdSysError &);
 
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Create Stall response
-  // ---------------------------------------------------------------------------
+  //!
+  //! @param error error object with text/code
+  //! @param stime seconds to stall
+  //! @param msg message for the client
+  //!
+  //! @return number of seconds of stalling
+  //----------------------------------------------------------------------------
   int Stall (XrdOucErrInfo &error, int stime, const char *msg);
 
-  // ---------------------------------------------------------------------------
-  // Create Redirection response
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Create Redirection response
+  //!
+  //! @param error error object with text/code
+  //! @param host redirection target host
+  //! @param port redirection target port
+  //!
+  //!---------------------------------------------------------------------------
   int Redirect (XrdOucErrInfo &error, const char* host, int &port);
 
   // ---------------------------------------------------------------------------
@@ -770,30 +800,67 @@ public:
                        XrdOucString &host,
                        int &port);
 
-  // ---------------------------------------------------------------------------
-  // Test for a stall rule
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Test if there is stall configured for the given rule
+  //!
+  //! @param path the path where the rule should be checked (currently unused)
+  //! @param rule the rule to check e.g. rule = "ENOENT:*" meaning we send a
+  //!         stall if an entry is missing
+  //! @param stalltime returns the configured time to stall
+  //! @param stallmsg returns the message displayed to the client during a stall
+  //! @return true if there is a stall configured otherwise false
+  //!
+  //! The interface is generic to check for individual paths, but currently we
+  //! just implemented global rules for any paths. See Access.cc for details.
+  //----------------------------------------------------------------------------
   bool HasStall (const char* path,
                  const char* rule,
                  int &stalltime,
                  XrdOucString &stallmsg);
 
-  // ---------------------------------------------------------------------------
-  // Test for a redirection rule
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //!Test if there is redirect configured for a given rule
+  //!
+  //! @param path the path where the rule should be checked (currently unused)
+  //! @param rule the rule to check e.g. rule = "ENOENT:*" meaning we send a
+  //!        redirect if an entry is missing
+  //! @param host returns the redirection target host
+  //! @param port returns the redirection target port
+  //! @return true if there is a redirection configured otherwise false
+  //!
+  //! The interface is generic to check for individual paths, but currently we
+  //! just implemented global rules for any paths. See Access.cc for details.
+  //----------------------------------------------------------------------------
   bool HasRedirect (const char* path,
                     const char* rule,
                     XrdOucString &host,
                     int &port);
 
-  // ---------------------------------------------------------------------------
-  // Update emulated in-memory directory modification time with the current time
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Update the modification time for a directory to the current time
+  //!
+  //! @param id container id in the namespace
+  //!
+  //! We don't store directory modification times persistent in the namespace for
+  //! performance reasonse. But to give (FUSE) clients the possiblity to do
+  //! caching and see when there was a modification we keep an inmemory table
+  //! with this modification times.
+  //----------------------------------------------------------------------------
   void UpdateNowInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id);
 
-  // ---------------------------------------------------------------------------
-  // Update emulated in-memory directory modification time with a given time
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Update the modification time for a directory to the given time
+  //!
+  //! @param id container id in the namespace
+  //! @param mtime modification time to store
+  //!
+  //! We don't store directory modification times persistent in the namespace for
+  //! performance reasonse. But to give (FUSE+Sync) clients the possiblity to do
+  //! caching and see when there was a modification we keep an inmemory table
+  //! with this modification times. We support upstream propagation of mtims for
+  //! sync clients to discover changes in a subtree if sys.mtime.propagation was
+  //! set as a directory attribute.
+  //----------------------------------------------------------------------------
   void UpdateInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id,
                                                 eos::ContainerMD::ctime_t &ctime);
 
@@ -818,21 +885,57 @@ public:
   bool DeleteExternal (eos::common::FileSystem::fsid_t fsid,
                        unsigned long long fid);
 
+  
   // ---------------------------------------------------------------------------
   // Statistics circular buffer thread startup function
   // ---------------------------------------------------------------------------
   static void* StartMgmStats (void *pp);
 
+  
   // ---------------------------------------------------------------------------
   // Filesystem error/config listener thread startup function
   // ---------------------------------------------------------------------------
   static void* StartMgmFsConfigListener (void *pp);
 
+  
+  //----------------------------------------------------------------------------
+  //! Authentication master thread startup static function
+  //!
+  //! @param pp pointer to the XrdMgmOfs class
+  //!
+  //----------------------------------------------------------------------------
+  static void* StartAuthMasterThread (void *pp);
+
+  
+  //----------------------------------------------------------------------------
+  //! Authentication master thread function - accepts requests from EOS AUTH
+  //! plugins which he then forwards to worker threads.
+  //----------------------------------------------------------------------------
+  void AuthMasterThread ();
+  
+
+  //----------------------------------------------------------------------------
+  //! Authentication worker thread startup static function
+  //!
+  //! @param pp pointer to the XrdMgmOfs class
+  //!
+  //----------------------------------------------------------------------------
+  static void* StartAuthWorkerThread (void *pp);
+
+
+  //----------------------------------------------------------------------------
+  //! Authentication worker thread function - accepts requests from the master,
+  //! executed the proper action and replies with the result.
+  //----------------------------------------------------------------------------
+  void AuthWorkerThread ();
+  
+  
   // ---------------------------------------------------------------------------
   // Filesystem error and configuration change listener thread function
   // ---------------------------------------------------------------------------
   void FsConfigListener ();
 
+  
   // ---------------------------------------------------------------------------
   // configuration variables
   // ---------------------------------------------------------------------------
@@ -944,7 +1047,17 @@ public:
   pthread_t deletion_tid; //< Thead Id of the deletion thread
   pthread_t stats_tid; //< Thread Id of the stats thread
   pthread_t fsconfiglistener_tid; //< Thread ID of the fs listener/config change thread
+  pthread_t auth_tid; ///< Thread Id of the authentication thread
+  std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
 
+  //----------------------------------------------------------------------------
+  // Authentication plugin variables like the ZMQ front end port number and the
+  // number of worker threads available at the MGM
+  //----------------------------------------------------------------------------
+  unsigned int mFrontendPort; ///< frontend port number for incoming requests
+  unsigned int mNumAuthThreads; ///< max number of auth worker threads
+  zmq::context_t* mZmqContext; ///< ZMQ context for all the sockets
+  
   // ---------------------------------------------------------------------------
   // class objects
   // ---------------------------------------------------------------------------
@@ -995,6 +1108,22 @@ public:
 private:
 
   eos::common::Mapping::VirtualIdentity vid; //< virtual identity
+  std::map<std::string, XrdMgmOfsDirectory*> mMapDirs; ///< uuid to directory obj. mapping
+  std::map<std::string, XrdMgmOfsFile*> mMapFiles; ///< uuid to file obj. mapping
+  XrdSysMutex mMutexDirs; ///< mutex for protecting the access at the dirs map
+  XrdSysMutex mMutexFiles; ///< mutex for protecting the access at the files map
+
+
+  //------------------------------------------------------------------------------
+  //! Check that the auth ProtocolBuffer request has not been tampered with
+  //!
+  //! @param reqProto request ProtocolBuffer from an authentication plugin
+  //!
+  //! @return true if request is valid, otherwise false
+  //! 
+  //------------------------------------------------------------------------------
+  bool ValidAuthRequest(eos::auth::RequestProto* reqProto);
+  
 };
 /*----------------------------------------------------------------------------*/
 extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object

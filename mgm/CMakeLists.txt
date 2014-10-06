@@ -30,11 +30,12 @@ include_directories( ../
                      ${LDAP_INCLUDE_DIR}
                      ${Z_INCLUDE_DIR}
 		     ${ZMQ_INCLUDE_DIR}
-)
+		     ${CMAKE_BINARY_DIR}/auth_plugin/)
 
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} 
 		  ${XROOTD_LIB_DIR}
-		  ${ZMQ_LIBRARIES})
+		  ${ZMQ_LIBRARIES}
+		  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
 
 add_library (XrdEosMgm MODULE
             Access.cc
@@ -112,19 +113,19 @@ add_library (XrdEosMgm MODULE
             Converter.cc
             GroupBalancer.cc
             GeoBalancer.cc
-            )
+	    ${STAT_SRCS}     ${STAT_HDRS})
 
 target_link_libraries( XrdEosMgm
                        XrdCl                XrdPosix
                        XrdUtils             XrdOfs
                        eosCommon            eosCommonServer
                        eosNamespace-Static  eosCapability-Static
-                       XrdMqClient-Static 
+                       XrdMqClient-Static   EosAuthProto
                        crypto               dl
-		       ${LDAP_LIBRARIES}    ${NCURSES_LIBRARIES} 
+		       ${NCURSES_LIBRARIES} ${LDAP_LIBRARIES}
 		       ${ZMQ_LIBRARIES}     ${Z_LIBRARIES}
-                       ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
-                     )
+		       ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT})
+
 
 add_executable ( testmgmview
            FsView.cc
@@ -157,4 +158,5 @@ install ( TARGETS XrdEosMgm
           ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
 )
 
-INSTALL ( FILES eos-repair-tool DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR} PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )
+INSTALL ( FILES eos-repair-tool DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR} 
+	  PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )

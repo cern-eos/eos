@@ -1,0 +1,10 @@
+package eos.auth;
+
+//------------------------------------------------------------------------------
+// FileClose request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message FileCloseProto {
+   required string uuid = 1;  ///< this is the pointer to the local directory object
+}
+  

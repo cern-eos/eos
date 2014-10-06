@@ -510,6 +510,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
             MgmOfsName = val;
           }
         }
+        
         if (!strcmp("targetport", var))
         {
           if (!(val = Config.GetWord()))
@@ -985,6 +986,36 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
           }
 
           gMgmOfsTrace.What = trval;
+        }
+
+        // Configure the number of authentication worker threads
+        if (!strcmp("auththreads", var))
+        {
+          if (!(val = Config.GetWord()))
+          {
+            Eroute.Emsg("Config", "argument for number of auth threads is invalid.");
+            NoGo = 1;
+          }
+          else
+          {
+            Eroute.Say("=====> mgmofs.auththreads: ", val, "");
+            mNumAuthThreads = atoi(val);
+          }
+        }
+
+        // Configure frontend port number on which clients submit requests
+        if (!strcmp("authport", var))
+        {
+          if (!(val = Config.GetWord()))
+          {
+            Eroute.Emsg("Config", "argument for frontend port invalid.");
+            NoGo = 1;
+          }
+          else
+          {
+            Eroute.Say("=====> mgmofs.authport: ", val, "");
+            mFrontendPort = atoi(val);
+          }
         }
       }
     }
@@ -1792,7 +1823,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 #endif
 
   eos_info("starting statistics thread");
-  if ((XrdSysThread::Run(&stats_tid, XrdMgmOfs::StartMgmStats, static_cast<void *> (this),
+  if ((XrdSysThread::Run(&stats_tid, XrdMgmOfs::StartMgmStats,
+                         static_cast<void *> (this),
                          0, "Statistics Thread")))
   {
     eos_crit("cannot start statistics thread");
@@ -1803,13 +1835,14 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   if (!MgmRedirector)
   {
     eos_info("starting fs listener thread");
-    if ((XrdSysThread::Run(&fsconfiglistener_tid, XrdMgmOfs::StartMgmFsConfigListener, static_cast<void *> (this),
+    if ((XrdSysThread::Run(&fsconfiglistener_tid,
+                           XrdMgmOfs::StartMgmFsConfigListener,
+                           static_cast<void *> (this),
                            0, "FsListener Thread")))
     {
       eos_crit("cannot start fs listener thread");
       NoGo = 1;
     }
-
   }
 
   // initialize the transfer database
@@ -2008,9 +2041,34 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     }
   }
 
-  XrdSysTimer sleeper;
-  sleeper.Wait(200);
-
+  if (mNumAuthThreads && mFrontendPort)
+  {
+    eos_info("starting the authentication master thread");
+    
+    if ((XrdSysThread::Run(&auth_tid, XrdMgmOfs::StartAuthMasterThread,
+                           static_cast<void *>(this), 0, "Auth Master Thread")))
+    {
+      eos_crit("cannot start the authentication thread");
+      NoGo = 1;
+    }
+    
+    eos_info("starting the authentication worker threads");
+    
+    for (unsigned int i = 0; i < mNumAuthThreads; i++)
+    {
+      pthread_t worker_tid;
+      
+      if ((XrdSysThread::Run(&worker_tid, XrdMgmOfs::StartAuthWorkerThread,
+                             static_cast<void *>(this), 0, "Auth Worker Thread")))
+      {
+        eos_crit("cannot start the authentication thread %i", i);
+        NoGo = 1;
+      }
+      
+      mVectTid.push_back(worker_tid);
+    }
+  }
+  
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/

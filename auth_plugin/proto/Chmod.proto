@@ -1,0 +1,17 @@
+package eos.auth;
+
+import "proto/XrdOucErrInfo.proto";
+import "proto/XrdSecEntity.proto";
+
+//------------------------------------------------------------------------------
+// Chmod request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message ChmodProto {
+  required string path = 1;
+  required int64 mode = 2;
+  required XrdOucErrInfoProto error = 3;
+  required XrdSecEntityProto client = 4;
+  optional string opaque = 5 [default = ""];
+}
+  

@@ -1,0 +1,16 @@
+package eos.auth;
+
+import "proto/XrdOucErrInfo.proto";
+import "proto/XrdSecEntity.proto";
+
+//------------------------------------------------------------------------------
+// Truncate request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message TruncateProto {
+  required string path = 1;
+  required int64 fileoffset = 2;
+  required XrdOucErrInfoProto error = 3;
+  optional XrdSecEntityProto client = 4;
+  optional string opaque = 5 [default = ""];
+}

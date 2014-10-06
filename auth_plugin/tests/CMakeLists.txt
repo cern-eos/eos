@@ -1,11 +1,11 @@
 # ----------------------------------------------------------------------
 # File: CMakeLists.txt
-# Author: Andreas-Joachim Peters - CERN
+# Author: Elvin-Alin Sindrilaru <esindril@cern.ch> CERN
 # ----------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2011 CERN/Switzerland                                  *
+# * Copyright (C) 2013 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -21,9 +21,31 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-INSTALL ( FILES eos.keytab DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/ PERMISSIONS OWNER_READ OWNER_WRITE )
-INSTALL ( FILES xrd.cf.fst xrd.cf.mgm xrd.cf.mq xrd.cf.sync xrd.cf.fed xrd.cf.prefix xrd.cf.global-mq fuse.conf fuse.conf.eos xrd.cf.auth DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/ )
-INSTALL ( FILES rc.d/init.d/eos rc.d/init.d/eosha rc.d/init.d/eosslave rc.d/init.d/eossync rc.d/init.d/eosd DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/rc.d/init.d PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-INSTALL ( FILES sysconfig/eos.example sysconfig/xrootd.example DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/ )
-INSTALL ( FILES cron.d/eos-logs cron.d/eos-reports cron.d/eos-config DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/cron.d/ )
-INSTALL ( FILES logrotate.d/eos-logs logrotate.d/eos-fuse-logs DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/logrotate.d/ )
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}
+                    ${CMAKE_SOURCE_DIR}
+		    ${XROOTD_INCLUDE_DIR}
+		    ${CPPUNIT_INCLUDE_DIRS})
+
+link_directories(${CPPUNIT_LIBRARY}
+		 ${XROOTD_LIB_DIR})
+
+add_library(EosAuthTests MODULE
+			 AuthFsTest.cc  
+			 Namespace.hh
+			 TestEnv.cc        TestEnv.hh)
+
+target_link_libraries(EosAuthTests 
+		      XrdCl
+      	              ${CPPUNIT_LIBRARIES})
+if (Linux)
+  set_target_properties(EosAuthTests PROPERTIES
+                        VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+ 			SOVERSION ${VERSION_MAJOR}
+                        CLEAN_DIRECT_OUTPUT 1)
+endif(Linux)
+
+install(TARGETS EosAuthTests
+        LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        ARCHIVE DESTINATION ${LIB_INSTALL_DIR})
+

@@ -1,0 +1,9 @@
+package eos.auth;
+
+//------------------------------------------------------------------------------
+// DirRead request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message DirReadProto {
+   required string uuid = 1;  ///< this is the pointer to the local directory object
+}

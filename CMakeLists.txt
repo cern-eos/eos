@@ -21,17 +21,18 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-######################################################################################################################
+################################################################################
 # Version Definition
-######################################################################################################################
+################################################################################
 set(VERSION_MAJOR "0" )
 set(VERSION_MINOR "3" )
 set(VERSION_PATCH "60" )
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
-######################################################################################################################
+
+################################################################################
 # main section
-######################################################################################################################
+################################################################################
 cmake_minimum_required (VERSION 2.6)
 project (eos)
 
@@ -59,10 +60,10 @@ include(FindPythonInterp)
 # overwrite the /sbin directory
 set(CMAKE_INSTALL_FULL_SBINDIR /usr/sbin)
 
-#-------------------------------------------------------------------------------
-# Search for dependencies
-#-------------------------------------------------------------------------------
 
+################################################################################
+# Search for dependencies
+################################################################################
 if (RELEASE)
 else (RELEASE)
 set(RELEASE "head")
@@ -76,41 +77,42 @@ endif (DEFINED PACKAGEONLY AND PACKAGEONLY)
 
 if (NOT DEFINED PACKAGEONLY)
 if (CLIENT)
-find_package(XRootD REQUIRED)
-find_package(fuse REQUIRED)
-find_package(Threads REQUIRED)
-find_package(rt REQUIRED)
-find_package(uuid REQUIRED)
+  find_package(XRootD REQUIRED)
+  find_package(fuse REQUIRED)
+  find_package(Threads REQUIRED)
+  find_package(rt REQUIRED)
+  find_package(uuid REQUIRED)
 else (CLIENT)
-find_package(XRootD REQUIRED)
-find_package(Threads REQUIRED)
-find_package(SparseHash REQUIRED)
-find_package(OpenSSL REQUIRED)
-find_package(ncurses REQUIRED)
-find_package(readline REQUIRED)
-find_package(uuid REQUIRED)
-find_package(z REQUIRED)
-find_package(rt REQUIRED)
-find_package(ldap REQUIRED)
-find_package(ZMQ REQUIRED)
-find_package(ProtocolBuffers)
-find_package(leveldb)
-find_package(CPPUnit)
-find_package(microhttpd)
-if(MacOSX)
-find_package(fuse REQUIRED)
-else(MacOSX)
-find_package(fuse REQUIRED)
-find_package(attr REQUIRED)
-endif(MacOSX)
-find_package(httpd)
-find_package(apr)
+  find_package(XRootD REQUIRED)
+  find_package(Threads REQUIRED)
+  find_package(SparseHash REQUIRED)
+  find_package(OpenSSL REQUIRED)
+  find_package(ncurses REQUIRED)
+  find_package(readline REQUIRED)
+  find_package(uuid REQUIRED)
+  find_package(z REQUIRED)
+  find_package(rt REQUIRED)
+  find_package(ldap REQUIRED)
+  find_package(ZMQ REQUIRED)
+  find_package(ProtocolBuffers)
+  find_package(leveldb)
+  find_package(CPPUnit)
+  find_package(microhttpd)
+  if(MacOSX)
+    find_package(fuse REQUIRED)
+  else(MacOSX)
+    find_package(fuse REQUIRED)
+    find_package(attr REQUIRED)
+  endif(MacOSX)
+  find_package(httpd)
+  find_package(apr)
 endif (CLIENT)
 endif (NOT DEFINED PACKAGEONLY)
 
 
-######################################################################################################################
+################################################################################
 # Check for Gcc >=4.4
+################################################################################
 if(CMAKE_COMPILER_IS_GNUCXX)
   exec_program(
       ${CMAKE_CXX_COMPILER}
@@ -126,10 +128,9 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif (CMAKE_COMPILER_IS_GNUCXX)
 
 
-######################################################################################################################
+################################################################################
 # Platform Specific
-
-#####################################################
+################################################################################
 if(MacOSX)
 # ------------------------------------------
 # on MAC we don't link static objects at all
@@ -145,7 +146,7 @@ set(LIB_INSTALL_DIR lib64)
 set(RT_LIBS rt)
 
 endif(MacOSX)
-#####################################################
+################################################################################
 
 EOS_CheckOutOfSourceBuild()
 
@@ -154,65 +155,68 @@ set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu
 else (CLIENT)
 set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )
 endif (CLIENT)
+
 if (NOT LEVELDB_FOUND)
-message("  Warning: LevelDB not found, using slower Sqlite3 DbMap implentation")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_SQLITE_DBMAP=1")
+  message("  Warning: LevelDB not found, using slower Sqlite3 DbMap implentation")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_SQLITE_DBMAP=1")
 endif (NOT LEVELDB_FOUND)
+
 if (NOT MICROHTTPD_FOUND)
-message("  Warning: MicroHttpd not found, no httpd access available")
+  message("  Warning: MicroHttpd not found, no httpd access available")
 else (NOT MICROHTTPD_FOUND)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
 endif (NOT MICROHTTPD_FOUND)
 
-#####################################################
-# generate client commands doc
-#####################################################
+
+################################################################################
+# Generate client commands doc
+################################################################################
 ADD_CUSTOM_TARGET(doc COMMAND python ${PROJECT_SOURCE_DIR}/doc/generate_cli_command_docs.py)
 
-######################################################################################################################
-# install targets
-######################################################################################################################
 
-
+################################################################################
+# Install targets
+################################################################################
 if (CLIENT)
-add_subdirectory (fuse)
-add_subdirectory (console)
-add_subdirectory (man)
-add_subdirectory (test)
-add_subdirectory (mq)
-add_subdirectory (common)
+  add_subdirectory (fuse)
+  add_subdirectory (console)
+  add_subdirectory (man)
+  add_subdirectory (test)
+  add_subdirectory (mq)
+  add_subdirectory (common)
 else (CLIENT)
-add_subdirectory (mq)
-add_subdirectory (common)
-add_subdirectory (authz)
-add_subdirectory (fst)
-add_subdirectory (mgm)
-add_subdirectory (console)
-add_subdirectory (namespace)
-add_subdirectory (etc)
-add_subdirectory (sync)
-add_subdirectory (fuse)
-add_subdirectory (srm)
-add_subdirectory (var)
-add_subdirectory (man)
-add_subdirectory (test)
-add_subdirectory (utils)
-add_subdirectory (archive)
-if (HTTPD_FOUND)
-if (APR_FOUND)
-#add_subdirectory (httpd)
-#add_subdirectory (httpd-mini)
-endif (APR_FOUND)
-endif (HTTPD_FOUND)
+  add_subdirectory (mq)
+  add_subdirectory (common)
+  add_subdirectory (authz)
+  add_subdirectory (fst)
+  add_subdirectory (mgm)
+  add_subdirectory (console)
+  add_subdirectory (namespace)
+  add_subdirectory (etc)
+  add_subdirectory (sync)
+  add_subdirectory (fuse)
+  add_subdirectory (srm)
+  add_subdirectory (var)
+  add_subdirectory (man)
+  add_subdirectory (test)
+  add_subdirectory (utils)
+  add_subdirectory (archive)
+  add_subdirectory (auth_plugin)	
+  if (HTTPD_FOUND)
+  if (APR_FOUND)
+    #add_subdirectory (httpd)
+    #add_subdirectory (httpd-mini)
+  endif (APR_FOUND)
+  endif (HTTPD_FOUND)
 endif (CLIENT)
 
 include_directories( ../ /usr/include/xrootd/ /usr/include/ ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd ${CMAKE_BINARY_DIR}/xrootd/src/include/ )
 link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/)
 
 
-######################################################################################################################
+################################################################################
 # uninstall target
-######################################################################################################################
+################################################################################
 CONFIGURE_FILE(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in"
   "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake"
@@ -221,9 +225,9 @@ CONFIGURE_FILE(
 ADD_CUSTOM_TARGET(uninstall
   "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake")
 
-######################################################################################################################
-# source packaging
-#####################################################################################################################
+################################################################################
+# Packaging
+################################################################################
 set(CPACK_SOURCE_GENERATOR "TGZ")
 set(CPACK_PACKAGE_NAME "${CMAKE_PROJECT_NAME}")
 set(CPACK_PACKAGE_VERSION "${VERSION}")
@@ -256,9 +260,10 @@ add_custom_target(gitdist
     | gzip > ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-######################################################################################################################
+
+################################################################################
 # source + binary rpms
-######################################################################################################################
+################################################################################
 set (RPM_DEFINE --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5")
 ADD_CUSTOM_TARGET(srpm COMMAND rpmbuild ${RPM_DEFINE} -ts ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz)
 ADD_DEPENDENCIES(srpm dist)
@@ -267,10 +272,10 @@ ADD_CUSTOM_TARGET(rpm COMMAND rpmbuild -tb ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE
 
 ADD_DEPENDENCIES(rpm dist)
 
-######################################################################################################################
-# Print Configuration
-######################################################################################################################
 
+################################################################################
+# Print Configuration
+################################################################################
 message( STATUS "_________________________________________________" )
 message( STATUS "Version           : eos-" ${VERSION_MAJOR} "." ${VERSION_MINOR} "." ${VERSION_PATCH} "-" ${RELEASE} )
 if (CLIENT)

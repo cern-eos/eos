@@ -1,0 +1,12 @@
+package eos.auth;
+
+//------------------------------------------------------------------------------
+// FileRead request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message FileReadProto {
+   required string uuid  = 1;  ///< this is the pointer to the local directory object
+   required int64 offset = 2;
+   required int64 length = 4;
+}
+  

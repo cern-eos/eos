@@ -80,11 +80,25 @@ public:
   // ---------------------------------------------------------------------------
   const char *nextEntry ();
 
-  // ---------------------------------------------------------------------------
-  // return error message
-  // ---------------------------------------------------------------------------
-  int Emsg (const char *, XrdOucErrInfo&, int, const char *x,
-            const char *y = "");
+  //----------------------------------------------------------------------------
+  //! Create an error message
+  //!
+  //! @param pfx message prefix value
+  //! @param einfo error text/code object
+  //! @param ecode error code
+  //! @param op name of the operation performed
+  //! @param target target of the operation e.g. file name etc.
+  //!
+  //! @return SFS_ERROR in all cases
+  //!
+  //!This routines prints also an error message into the EOS log if it was not
+  //! due to a stat call or the error codes EIDRM or ENODATA
+  //----------------------------------------------------------------------------
+  int Emsg (const char* pfx,
+            XrdOucErrInfo& einfo,
+            int ecode,
+            const char* op,
+            const char* target = "");
 
   // ---------------------------------------------------------------------------
   // close an open directory

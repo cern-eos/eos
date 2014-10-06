@@ -1,0 +1,17 @@
+package eos.auth;
+
+import "proto/XrdOucErrInfo.proto";
+import "proto/XrdSecEntity.proto";
+
+//------------------------------------------------------------------------------
+// Rename request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message RenameProto {
+  required string oldname = 1;
+  required string newname = 2;
+  required XrdOucErrInfoProto error = 3;
+  required XrdSecEntityProto client = 4;
+  optional string opaqueo = 5 [default = ""];
+  optional string opaquen = 6 [default = ""];
+}

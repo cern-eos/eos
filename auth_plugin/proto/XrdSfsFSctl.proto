@@ -1,0 +1,13 @@
+package eos.auth;
+
+//------------------------------------------------------------------------------
+// XrdSfsFSctl structure protocol buffer representation
+// For info look into XrdSfs/XrdSfsInterface.hh
+//------------------------------------------------------------------------------
+
+message XrdSfsFSctlProto {
+  required string Arg1    = 1;
+  required int64  Arg1Len = 2; 
+  optional int64  Arg2Len = 3 [default = 0];
+  optional string Arg2    = 4;
+}

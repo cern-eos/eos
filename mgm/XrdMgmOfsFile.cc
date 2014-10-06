@@ -2234,3 +2234,63 @@ XrdMgmOfsFile::~XrdMgmOfsFile ()
     procCmd = 0;
   }
 }
+
+
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfsFile::Emsg (const char *pfx,
+                     XrdOucErrInfo &einfo,
+                     int ecode,
+                     const char *op,
+                     const char *target)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief create an error message for a file object
+ *
+ * @param pfx message prefix value
+ * @param einfo error text/code object
+ * @param ecode error code
+ * @param op name of the operation performed
+ * @param target target of the operation e.g. file name etc.
+ *
+ * @return SFS_ERROR in all cases
+ *
+ * This routines prints also an error message into the EOS log.
+ */
+/*----------------------------------------------------------------------------*/
+{
+  char *etext, buffer[4096], unkbuff[64];
+
+  // ---------------------------------------------------------------------------
+  // Get the reason for the error
+  // ---------------------------------------------------------------------------
+  if (ecode < 0) ecode = -ecode;
+  if (!(etext = strerror(ecode)))
+  {
+
+    sprintf(unkbuff, "reason unknown (%d)", ecode);
+    etext = unkbuff;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Format the error message
+  // ---------------------------------------------------------------------------
+  snprintf(buffer, sizeof (buffer), "Unable to %s %s; %s", op, target, etext);
+
+  eos_err("Unable to %s %s; %s", op, target, etext);
+
+  // ---------------------------------------------------------------------------
+  // Print it out if debugging is enabled
+  // ---------------------------------------------------------------------------
+#ifndef NODEBUG
+  //   XrdMgmOfs::eDest->Emsg(pfx, buffer);
+#endif
+
+  // ---------------------------------------------------------------------------
+  // Place the error message in the error object and return
+  // ---------------------------------------------------------------------------
+  einfo.setErrInfo(ecode, buffer);
+
+  return SFS_ERROR;
+}
+

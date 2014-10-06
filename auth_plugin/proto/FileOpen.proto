@@ -1,0 +1,19 @@
+package eos.auth;
+
+import "proto/XrdSecEntity.proto";
+
+//------------------------------------------------------------------------------
+// FileOpen request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message FileOpenProto {
+   required string uuid = 1;  ///< this is the pointer to the local directory object
+   required string name = 2;
+   required int64 openmode = 3;
+   required int64 createmode = 4;
+   optional XrdSecEntityProto client = 5 ;
+   optional string opaque = 6 [default = ""];
+   optional string user = 7 [default = ""]; ///< this and the following are the values passed
+   optional int64 monid = 8 [default = 0];  ///< to the constructor of the directory object
+}
+  

@@ -1,0 +1,18 @@
+package eos.auth;
+
+import "proto/XrdOucErrInfo.proto";
+import "proto/XrdSecEntity.proto";
+
+//------------------------------------------------------------------------------
+// Stat request protocol buffer message
+//------------------------------------------------------------------------------
+
+message StatProto {	
+  required string path              = 1;
+  required XrdOucErrInfoProto error = 2;
+  required XrdSecEntityProto client = 3;
+  optional string            opaque = 4 [default = ""];
+}  
+
+
+ 

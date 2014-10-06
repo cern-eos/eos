@@ -1,0 +1,10 @@
+package eos.auth;
+
+//------------------------------------------------------------------------------
+// FileStat request protocol buffer message 
+//------------------------------------------------------------------------------
+
+message FileStatProto {
+   required string uuid = 1;  ///< this is the pointer to the local directory object
+}
+  

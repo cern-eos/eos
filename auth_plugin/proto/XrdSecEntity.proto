@@ -1,0 +1,19 @@
+package eos.auth;
+
+//------------------------------------------------------------------------------
+// XrdSecEntity protocol buffer representation
+//------------------------------------------------------------------------------
+
+message XrdSecEntityProto {
+  required string prot = 1;         // Protocol used
+  required string name = 2 ;        // Entity's name
+  required string host = 3;         // Entity's host name
+  required string vorg = 4;         // Entity's virtual organization
+  required string role = 5;         // Entity's role
+  required string grps = 6;         // Entity's group names
+  required string endorsements = 7; // Protocol specific endorsements
+  required string creds = 8;        // Raw client credentials or certificate
+  required int64  credslen = 9;     // Length of the 'cert' field
+  required string moninfo = 10;     // Additional information for monitoring 
+  required string tident = 11;      // Trace identifier (do not touch)
+}
