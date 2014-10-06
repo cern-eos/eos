@@ -359,13 +359,13 @@ com_file (char* arg1)
   }
   else if (parsedCmd == dropSubCmd)
   {
-    path = handlePath(touchSubCmd->getValue("path"));
+    path = handlePath(parsedCmd->getValue("path"));
     in += "&mgm.subcmd=drop";
     in += "&mgm.path=" + path;
     in += "&mgm.file.fsid=";
-    in += handlePath(touchSubCmd->getValue("fsid1"));
+    in += parsedCmd->getValue("fsid").c_str();
 
-    if (touchSubCmd->hasValue("force"))
+    if (parsedCmd->hasValue("force"))
     {
       in += "&mgm.file.force=1";
     }
