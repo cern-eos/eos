@@ -476,6 +476,12 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mFile->SetForcedMtime(strtoull(header["x-oc-mtime"].c_str(), 0, 10), 0);
       }
 
+      if (!mLastChunk)
+      {
+	// WARNING: this assumes that chunks are uploaded in order
+	mFile->disableChecksum();
+      }
+
       mCloseCode = mFile->close();
       if (mCloseCode)
       {
