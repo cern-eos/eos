@@ -567,7 +567,10 @@ HttpHandler::DecodeByteRange (std::string rangeheader,
     }
     else
     {
-      stop = filesize;
+      if (filesize>0)
+	stop = filesize-1;
+      else
+	stop = 0;
     }
 
     if ((start > filesize) || (stop > filesize))
