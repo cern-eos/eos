@@ -25,11 +25,14 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
 #include "mgm/Acl.hh"
 /*----------------------------------------------------------------------------*/
 #include "common/SymKeys.hh"
+/*----------------------------------------------------------------------------*/
+#include <iomanip>
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -41,7 +44,6 @@ static const std::string ARCH_GET_DONE = ".archive.get.done";
 static const std::string ARCH_GET_ERR = ".archive.get.err";
 static const std::string ARCH_PURGE_DONE = ".archive.purge.done";
 static const std::string ARCH_PURGE_ERR = ".archive.purge.err";
-static const std::string ARCH_DELETE_DONE = ".archive.delete.done";
 static const std::string ARCH_DELETE_ERR = ".archive.delete.err";
 static const std::string ARCH_LOG = ".archive.log";
 
@@ -59,7 +61,7 @@ ProcCommand::Archive()
                         pOpaque->Get("mgm.archive.option") : "");
 
   // For listing we don't need an EOS path
-  if (mSubCmd == "list")
+  if (mSubCmd == "transfers")
   {
     if (option.empty())
     {
@@ -71,7 +73,8 @@ ProcCommand::Archive()
       cmd_json << "{\"cmd\": " << "\"" << mSubCmd.c_str() << "\", "
                << "\"opt\": " <<  "\"" << option << "\", "
                << "\"uid\": " << "\"" << pVid->uid << "\", "
-               << "\"gid\": " << "\"" << pVid->gid << "\" "
+               << "\"gid\": " << "\"" << pVid->gid << "\", "
+               << "\"format\": " << "\"pretty\" "
                << "}";
     }
   }
@@ -91,6 +94,99 @@ ProcCommand::Archive()
                << "}";
     }
   }
+  else if (mSubCmd == "list")
+  {
+    XrdOucString spath = pOpaque->Get("mgm.archive.path");
+    const char* inpath = spath.c_str();
+    NAMESPACEMAP;
+    if (info) info = 0;
+    PROC_BOUNCE_ILLEGAL_NAMES;
+    PROC_BOUNCE_NOT_ALLOWED;
+    eos::common::Path cPath(path);
+    spath = cPath.GetPath();
+    std::vector<ArchDirStatus> arch_dirs = ArchiveGetDirs(spath.c_str());
+    std::set<std::string> transfer_dirs;
+
+    // First get the list of the ongoing transfers
+    cmd_json << "{\"cmd\": " << "\"transfers\", "
+             << "\"opt\": " <<  "\"all\", "
+             << "\"uid\": " << "\"" << pVid->uid << "\", "
+             << "\"gid\": " << "\"" << pVid->gid << "\", "
+             << "\"format\": " << "\"monitor\" "
+             << "}";
+
+    retc = ArchiveExecuteCmd(cmd_json.str());
+
+    if (!retc)
+    {
+      // Parse response from the archiver regarding ongoing transfers
+      size_t pos;
+      std::istringstream iss(stdOut.c_str());
+      std::string entry, key, value;
+      stdOut = "";
+
+      while (std::getline(iss, entry, '|'))
+      {
+        pos = entry.find('=');
+
+        if (pos == std::string::npos)
+        {
+          stdErr = "error: archive response not in expected format";
+          retc = EINVAL;
+          break;
+        }
+
+        key = entry.substr(0, pos);
+        value = entry.substr(pos + 1);
+
+        if (key == "path")
+          transfer_dirs.insert(value);
+      }
+    }
+
+    // Create the table for displaying archive status informations
+    std::string sdate;
+    size_t max_path_len = 0;
+    ArchiveUpdateStatus(arch_dirs, transfer_dirs, max_path_len);
+    std::vector<size_t> col_size = {30, max_path_len + 5, 16};
+    std::ostringstream oss;
+    oss << '|' << std::setfill('-') << std::setw(col_size[0] + 1)
+        << '|' << std::setw(col_size[1] + 1)
+        << '|' << std::setw(col_size[2] + 1)
+        << '|' << std::setfill(' ');
+    std::string line = oss.str();
+    oss.str("");
+    oss.clear();
+
+    // Add tabel header
+    oss << line << std::endl
+        << '|' << std::setw(col_size[0]) << std::setiosflags(std::ios_base::left)
+        << "Creation date"
+        << '|' << std::setw(col_size[1]) << std::setiosflags(std::ios_base::left)
+        << "Path"
+        << '|' << std::setw(col_size[2]) << std::setiosflags(std::ios_base::left)
+        << "Status"
+        << '|'
+        << std::endl << line << std::endl;
+
+    for (auto dir = arch_dirs.begin(); dir != arch_dirs.end(); ++dir)
+      {
+      sdate = asctime(localtime(&dir->ctime));
+      sdate.erase(sdate.find('\n'));
+      oss << '|' << std::setw(col_size[0]) << std::setiosflags(std::ios_base::left)
+          << sdate
+          << '|' << std::setw(col_size[1]) << std::setiosflags(std::ios_base::left)
+          << dir->path
+          << '|' << std::setw(col_size[2]) << std::setiosflags(std::ios_base::left)
+          << dir->status
+          << '|'
+          << std::endl;
+    }
+
+    oss << line << std::endl;
+    stdOut = oss.str().c_str();
+    return SFS_OK;
+  }
   else
   {
     XrdOucString spath = pOpaque->Get("mgm.archive.path");
@@ -107,7 +203,7 @@ ProcCommand::Archive()
       spath += '/';
 
     // Check archive permissions
-    if (!CheckArchiveAcl(spath.c_str()))
+    if (!ArchiveCheckAcl(spath.c_str()))
     {
       stdErr = "error: failed archive ACL check";
       retc = EPERM;
@@ -139,18 +235,10 @@ ProcCommand::Archive()
 
     // Create vector containing the paths to all the possible special files
     std::ostringstream oss;
-    std::vector<std::string> vect_files;
     std::vector<std::string> vect_paths;
-    vect_files.push_back(ARCH_INIT);
-    vect_files.push_back(ARCH_PUT_DONE);
-    vect_files.push_back(ARCH_PUT_ERR);
-    vect_files.push_back(ARCH_GET_DONE);
-    vect_files.push_back(ARCH_GET_ERR);
-    vect_files.push_back(ARCH_PURGE_DONE);
-    vect_files.push_back(ARCH_PURGE_ERR);
-    vect_files.push_back(ARCH_DELETE_DONE);
-    vect_files.push_back(ARCH_DELETE_ERR);
-    vect_files.push_back(ARCH_LOG);
+    std::vector<std::string> vect_files =
+      {ARCH_INIT, ARCH_PUT_DONE, ARCH_PUT_ERR, ARCH_GET_DONE, ARCH_GET_ERR,
+       ARCH_PURGE_DONE, ARCH_PURGE_ERR, ARCH_DELETE_ERR, ARCH_LOG};
 
     for (auto it = vect_files.begin(); it != vect_files.end(); ++it)
     {
@@ -178,12 +266,7 @@ ProcCommand::Archive()
               << pVid->gid << '/' << pVid->uid << '/' << dir_sha256 << '/';
       std::string surl = dst_oss.str();
 
-      // -----------------------------------------------------------------------
-      // TODO: Do this check in XRootD 4.0 using other type of auth or even sss
-      // if the XRootD Castor server accepts it - for the moment it will fail
-      // with no auth protocol found - so no check is done!
-      // -----------------------------------------------------------------------
-      // Make sure the destination dictory does not exist
+      // Make sure the destination directory does not exist
       XrdCl::URL url(surl);
       XrdCl::FileSystem fs(url);
       XrdCl::StatInfo *st_info = 0;
@@ -195,7 +278,7 @@ ProcCommand::Archive()
         stdErr = "error: archive dst=";
         stdErr += surl.c_str();
         stdErr += " already exists";
-        retc = EINVAL;
+        retc = EIO;
         return SFS_OK;
       }
 
@@ -361,89 +444,234 @@ ProcCommand::Archive()
 
   // Send request to archiver process if no error occured
   if (!retc)
+    retc = ArchiveExecuteCmd(cmd_json.str());
+
+  eos_debug("retc=%i, stdOut=%s, stdErr=%s", retc, stdOut.c_str(), stdErr.c_str());
+  return SFS_OK;
+}
+
+
+//------------------------------------------------------------------------------
+// Get archive status for both already archived directories as well as for dirs
+// that have ongoing transfers
+//------------------------------------------------------------------------------
+void
+ProcCommand::ArchiveUpdateStatus(std::vector<ProcCommand::ArchDirStatus>& dirs,
+                                 const std::set<std::string>& tx_dirs,
+                                 size_t& max_len_path)
+{
+  std::string path;
+  std::vector<std::string> vect_files = {ARCH_INIT, ARCH_PUT_DONE, ARCH_PUT_ERR,
+                                         ARCH_GET_DONE, ARCH_GET_ERR, ARCH_PURGE_ERR,
+                                         ARCH_PURGE_DONE, ARCH_DELETE_ERR};
+  XrdSfsFileExistence exists_flag;
+  XrdOucErrInfo out_error;
+
+  for (auto dir = dirs.begin(); dir != dirs.end(); ++dir)
   {
-    int sock_linger = 0;
-    zmq::context_t zmq_ctx(1);
-    zmq::socket_t socket(zmq_ctx, ZMQ_REQ);
-#if ZMQ_VERSION >= 20200
-    int sock_timeout = 1000; // 1s
-    socket.setsockopt(ZMQ_RCVTIMEO, &sock_timeout, sizeof(sock_timeout));
-#endif
-    socket.setsockopt(ZMQ_LINGER, &sock_linger, sizeof(sock_linger));
+    // Update the max path length
+    if (dir->path.length() > max_len_path)
+      max_len_path = dir->path.length();
 
-    try
+    if (tx_dirs.find(dir->path) != tx_dirs.end())
     {
-      socket.connect(gOFS->mArchiveEndpoint.c_str());
+      dir->status = "transferring";
     }
-    catch (zmq::error_t& zmq_err)
+    else
     {
-      eos_static_err("connect to archiver failed");
-      stdErr = "error: connect to archiver failed";
-      retc = EINVAL;
-    }
+      for (auto st_file = vect_files.begin(); st_file != vect_files.end(); ++st_file)
+      {
+        path = dir->path + *st_file;
 
-    if (!retc)
+        if (gOFS->_exists(path.c_str(), exists_flag, out_error) == SFS_OK &&
+            ((exists_flag & XrdSfsFileExistIsFile) == true ))
+        {
+          if (*st_file == ARCH_INIT)
+            dir->status = "created";
+          else if (*st_file == ARCH_PUT_DONE)
+            dir->status = "put done";
+          else if (*st_file == ARCH_PUT_ERR)
+            dir->status = "put failed";
+          else if (*st_file == ARCH_GET_DONE)
+            dir->status = "get done";
+          else if (*st_file == ARCH_GET_ERR)
+            dir->status = "get failed";
+          else if (*st_file == ARCH_PURGE_DONE)
+            dir->status = "purge done";
+          else if (*st_file == ARCH_PURGE_ERR)
+            dir->status = "purge failed";
+          else if (*st_file == ARCH_DELETE_ERR)
+            dir->status = "delete failed";
+          break;
+        }
+      }
+    }
+  }
+}
+
+
+//------------------------------------------------------------------------------
+// Get the list of files in proc/arhive whose name represents the fid of the
+// archived directory
+//------------------------------------------------------------------------------
+std::vector<ProcCommand::ArchDirStatus>
+ProcCommand::ArchiveGetDirs(const std::string& root) const
+{
+  const char* dname;
+  struct stat buf;
+  std::string full_path;
+  std::map<std::string, time_t> fids;
+  eos::common::Mapping::VirtualIdentity_t root_ident;
+  eos::common::Mapping::Root(root_ident);
+  XrdOucErrInfo out_error;
+  XrdMgmOfsDirectory proc_dir = XrdMgmOfsDirectory();
+  int retc = proc_dir._open(gOFS->MgmProcArchivePath.c_str(),
+                            root_ident, static_cast<const char*>(0));
+
+  if (retc)
+    return std::vector<ArchDirStatus>();
+
+  while ((dname = proc_dir.nextEntry()))
+  {
+    if (dname[0] != '.')
     {
-      std::string cmd = cmd_json.str();
-      zmq::message_t msg((void*)cmd.c_str(), cmd.length(), NULL);
+      full_path = gOFS->MgmProcArchivePath.c_str();
+      full_path += '/';
+      full_path += dname;
+
+      if (gOFS->_stat(full_path.c_str(), &buf, out_error, root_ident) == SFS_OK)
+        fids[dname] = buf.st_ctime;
+    }
+  }
+
+  proc_dir.close();
+  std::istringstream iss;
+  eos::ContainerMD* cmd = 0;
+  eos::ContainerMD::id_t id;
+  std::vector<ArchDirStatus> dirs;
+
+  {
+    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
+
+    for (auto fid = fids.begin(); fid != fids.end(); ++fid)
+    {
+      // Convert string id to ContainerMD:id_t
+      iss.str("");
+      iss.clear();
+      iss.str(fid->first);
+      iss >> id;
 
       try
       {
-        if (!socket.send(msg))
-        {
-          stdErr = "error: send request to archiver";
-          retc = EINVAL;
-        }
-        else if (!socket.recv(&msg))
-        {
-          stdErr = "error: no response from archiver";
-          retc = EINVAL;
-        }
-        else
-        {
-          // Parse response from the archiver
-          XrdOucString msg_str((const char*) msg.data(), msg.size());
-          //eos_info("Msg_str:%s", msg_str.c_str());
-          std::istringstream iss(msg_str.c_str());
-          std::string status, line, response;
-          iss >> status;
+        cmd = gOFS->eosDirectoryService->getContainerMD(id);
+        full_path = gOFS->eosView->getUri(cmd);
 
-          // Discard whitespaces from the beginning
-          while (getline(iss >> std::ws, line))
-          {
-            response += line;
-
-            if (iss.good())
-              response += '\n';
-          }
-
-          if (status == "OK")
-          {
-            stdOut = response.c_str();
-          }
-          else if (status == "ERROR")
-          {
-            stdErr = response.c_str();
-            retc = EINVAL;
-          }
-          else
-          {
-            stdErr = "error: unknown response format from archiver";
-            retc = EINVAL;
-          }
+        // If archive directory is in the currently searched subtree
+        if (full_path.find(root) == 0)
+        {
+          ArchDirStatus dstatus(fid->second, full_path, "unknown");
+          dirs.push_back(dstatus);
         }
       }
-      catch (zmq::error_t& zmq_err)
+      catch (eos::MDException &e)
       {
-        stdErr = "error: timeout getting response from archiver, msg: ";
-        stdErr += zmq_err.what();
-        retc = EINVAL;
+        errno = e.getErrno();
+        eos_static_err("fid=%016x errno=%d msg=\"%s\"\n",
+                       id, e.getErrno(), e.getMessage().str().c_str());
       }
     }
   }
 
-  eos_debug("retc=%i, stdOut=%s, stdErr=%s", retc, stdOut.c_str(), stdErr.c_str());
-  return SFS_OK;
+  return dirs;
+}
+
+
+//------------------------------------------------------------------------------
+// Send command to archive daemon and collect the response
+//------------------------------------------------------------------------------
+int
+ProcCommand::ArchiveExecuteCmd(const::string& cmd)
+{
+  int retc = 0;
+  int sock_linger = 0;
+  zmq::context_t zmq_ctx(1);
+  zmq::socket_t socket(zmq_ctx, ZMQ_REQ);
+#if ZMQ_VERSION >= 20200
+  int sock_timeout = 1000; // 1s
+  socket.setsockopt(ZMQ_RCVTIMEO, &sock_timeout, sizeof(sock_timeout));
+#endif
+  socket.setsockopt(ZMQ_LINGER, &sock_linger, sizeof(sock_linger));
+
+  try
+  {
+    socket.connect(gOFS->mArchiveEndpoint.c_str());
+  }
+  catch (zmq::error_t& zmq_err)
+  {
+    eos_static_err("connect to archiver failed");
+    stdErr = "error: connect to archiver failed";
+    retc = EINVAL;
+  }
+
+  if (!retc)
+  {
+    zmq::message_t msg((void*)cmd.c_str(), cmd.length(), NULL);
+
+    try
+    {
+      if (!socket.send(msg))
+      {
+        stdErr = "error: send request to archiver";
+        retc = EINVAL;
+      }
+      else if (!socket.recv(&msg))
+      {
+        stdErr = "error: no response from archiver";
+        retc = EINVAL;
+      }
+      else
+      {
+        // Parse response from the archiver
+        XrdOucString msg_str((const char*) msg.data(), msg.size());
+        //eos_info("Msg_str:%s", msg_str.c_str());
+        std::istringstream iss(msg_str.c_str());
+        std::string status, line, response;
+        iss >> status;
+
+        // Discard whitespaces from the beginning
+        while (getline(iss >> std::ws, line))
+        {
+          response += line;
+
+          if (iss.good())
+            response += '\n';
+        }
+
+        if (status == "OK")
+        {
+          stdOut = response.c_str();
+        }
+        else if (status == "ERROR")
+        {
+          stdErr = response.c_str();
+          retc = EINVAL;
+        }
+        else
+        {
+          stdErr = "error: unknown response format from archiver";
+          retc = EINVAL;
+        }
+      }
+    }
+    catch (zmq::error_t& zmq_err)
+    {
+      stdErr = "error: timeout getting response from archiver, msg: ";
+      stdErr += zmq_err.what();
+      retc = EINVAL;
+    }
+  }
+
+  return retc;
 }
 
 
@@ -452,7 +680,7 @@ ProcCommand::Archive()
 // operation
 //------------------------------------------------------------------------------
 bool
-ProcCommand::CheckArchiveAcl(const std::string& arch_dir) const
+ProcCommand::ArchiveCheckAcl(const std::string& arch_dir) const
 {
   bool is_allowed = false;
   eos::ContainerMD* dir = 0;

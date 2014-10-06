@@ -70,9 +70,7 @@ com_archive(char* arg1)
         goto com_archive_usage;
       }
       else
-      {
         in_cmd << "&mgm.archive.option=r";
-      }
 
       token = subtokenizer.GetToken();
     }
@@ -86,7 +84,7 @@ com_archive(char* arg1)
       in_cmd << "&mgm.archive.path=" << token;
     }
   }
-  else if (subcmd == "list")
+  else if (subcmd == "transfers")
   {
     // type: all, stage, migrate, job_uuid
     token = subtokenizer.GetToken(); 
@@ -95,6 +93,15 @@ com_archive(char* arg1)
       in_cmd << "&mgm.archive.option=all";
     else      
       in_cmd << "&mgm.archive.option=" << token;
+  }
+  else if (subcmd == "list")
+  {
+    token = subtokenizer.GetToken();
+
+    if (!token.length())
+      in_cmd << "&mgm.archive.path=/";
+    else
+      in_cmd << "&mgm.archive.path=" << token;
   }
   else if (subcmd == "kill")
   {
@@ -116,19 +123,21 @@ com_archive(char* arg1)
 com_archive_usage:
   std::ostringstream oss;
   oss << "usage: archive <subcmd> " << std::endl
-      << "               create <path>                     "
+      << "               create <path>                          "
       << ": create archive file" << std::endl
-      << "               put [--retry] <path>              "
+      << "               put [--retry] <path>                   "
       << ": copy files from EOS to archive location" << std::endl
-      << "               get [--retry] <path>              "
+      << "               get [--retry] <path>                   "
       << ": recall archive back to EOS" << std::endl
-      << "               purge[--retry] <path>             "
+      << "               purge[--retry] <path>                  "
       << ": purge files on disk" << std::endl
-      << "               list [all|put|get|purge|job_uuid] "
-      << ": list status of jobs" << std::endl
-      << "               kill <job_uuid>                   "
+      << "               transfers [all|put|get|purge|job_uuid] "
+      << ": show status of running jobs" << std::endl
+      << "               list [<path>]                          "
+      << ": show status of archived directories in subtree" << std::endl
+      << "               kill <job_uuid>                        "
       << ": kill transfer" << std::endl
-      << "               help [--help|-h]                  "
+      << "               help [--help|-h]                       "
       << ": display help message" << std::endl;
 
   fprintf(stdout, "%s", oss.str().c_str());

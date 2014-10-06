@@ -1633,7 +1633,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     {
       eosmd = gOFS->eosView->getContainer(MgmProcArchivePath.c_str());
       eosmd->setMode(S_IFDIR | S_IRWXU);
-      eosmd->setCUid(2); // conversion directory is owned by daemon
+      eosmd->setCUid(2); // archive directory is owned by daemon
       gOFS->eosView->updateContainerStore(eosmd);
     }
     catch (eos::MDException &e)

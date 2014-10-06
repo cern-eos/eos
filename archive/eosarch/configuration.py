@@ -74,7 +74,7 @@ class Configuration(object):
         self.__dict__['CREATE_OP'] = 'create'
         self.__dict__['GET_OP'] = 'get'
         self.__dict__['PUT_OP'] = 'put'
-        self.__dict__['LIST_OP'] = 'list'
+        self.__dict__['TX_OP'] = 'transfers'
         self.__dict__['PURGE_OP'] = 'purge'
         self.__dict__['DELETE_OP'] = 'delete'
         self.__dict__['KILL_OP'] = 'kill'

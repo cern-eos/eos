@@ -60,14 +60,32 @@ EOSMGMNAMESPACE_BEGIN
  * A new command has to be added to the if-else construct in the open function.
  */
 
-
+//------------------------------------------------------------------------------
+//! Class handling proc command execution
+//------------------------------------------------------------------------------
 class ProcCommand : public eos::common::LogId
 {
-  // -------------------------------------------------------------------------
-  //! class handling proc command execution
-  // -------------------------------------------------------------------------
-
 private:
+
+  //----------------------------------------------------------------------------
+  //! Response structre holding information about the status of an archived dir
+  //----------------------------------------------------------------------------
+  struct ArchDirStatus
+  {
+    time_t ctime;
+    std::string path;
+    std::string status;
+
+    ArchDirStatus(time_t ct, std::string dpath, std::string st):
+      ctime(ct),
+      path(dpath),
+      status(st)
+    {};
+
+    ~ArchDirStatus() {};
+  };
+
+
   XrdOucString path; //< path argument for the proc command
   eos::common::Mapping::VirtualIdentity* pVid; //< pointer to virtual identity
   XrdOucString mCmd; //< proc command name
@@ -138,6 +156,43 @@ private:
 
 
   //----------------------------------------------------------------------------
+  //! Send command to archive daemon and collect the response
+  //!
+  //! @param cmd archive command in JSON format
+  //!
+  //! @return 0 is successful, otherwise errno. The output of the command or
+  //!         any possible error messages are saved in stdOut and stdErr.
+  //----------------------------------------------------------------------------
+  int ArchiveExecuteCmd(const::string& cmd);
+
+
+  //----------------------------------------------------------------------------
+  //! Get list of archived files from the proc/archive directory
+  //!
+  //! @param root root of subtree for which we collect archvied entries
+  //!
+  //! @return vector containing the full path of the directories currently
+  //!         archived
+  //----------------------------------------------------------------------------
+  std::vector<ArchDirStatus> ArchiveGetDirs(const std::string& root) const;
+
+
+  //----------------------------------------------------------------------------
+  //! Update the status of the archived directories dependin on the infomation
+  //! that we got from the archiver daemon. All ongoin transfers will be in
+  //! status "transferring" while the rest will display the status of the
+  //! archive.
+  //!
+  //! @param dirs vector of archvied directories
+  //! @param tx_dirs set containing the paths of ongoing transfers
+  //! @param max_len_path maximum path length used later for listing
+  //----------------------------------------------------------------------------
+  void ArchiveUpdateStatus(std::vector<ArchDirStatus>& dirs,
+                           const std::set<std::string>& tx_dirs,
+                           size_t& max_len_path);
+
+
+  //----------------------------------------------------------------------------
   //! Get archive  number of entries (files/directories)
   //!
   //! @param arch_dir archive directory
@@ -191,7 +246,7 @@ private:
   //!
   //! @return true if user is allowed, otherwise False
   //----------------------------------------------------------------------------
-  bool CheckArchiveAcl(const std::string& arch_dir) const;
+  bool ArchiveCheckAcl(const std::string& arch_dir) const;
 
 public:
 

@@ -298,7 +298,6 @@ XrdMgmOfs::_exists (const char *path,
   }
   else
   {
-
     file_exists = XrdSfsFileExistIsDirectory;
   }
 

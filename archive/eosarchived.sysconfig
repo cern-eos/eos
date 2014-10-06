@@ -1,7 +1,7 @@
 # Options for the eosarchived daemon
 # EOSARCHIVED_OPTIONS=
-USER="xrootd"
-GROUP="xrootd"
+USER="eosarchi"
+GROUP="c3"
 
 # Directory where log files are saved
 export LOG_DIR="/var/log/eos/archive/"

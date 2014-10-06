@@ -61,8 +61,8 @@ class Dispatcher(object):
                    self.config.GET_OP:    self.start_transfer,
                    self.config.DELETE_OP: self.start_transfer,
                    self.config.PURGE_OP:  self.start_transfer,
-                   self.config.LIST_OP:   self.do_list,
-                   self.config.KILL_OP:    self.do_kill}
+                   self.config.TX_OP:     self.do_show_transfers,
+                   self.config.KILL_OP:   self.do_kill}
         ctx = zmq.Context.instance()
         self.logger.info("Started dispatcher process ...")
         # Socket used for communication with EOS MGM
@@ -262,24 +262,26 @@ class Dispatcher(object):
         self.procs[pinfo.uuid] = pinfo
         return "OK Id={0}".format(pinfo.uuid)
 
-    def do_list(self, req_json):
-        """ List the transfers
+    def do_show_transfers(self, req_json):
+        """ Show onging transfers
 
         Args:
-            req_json (JSON): Listing command in JSON format including:
+            req_json (JSON): Command in JSON format including:
             {
-              cmd: list,
-              opt: all/get/put/purge/delete/uuid,
-              uid: uid,
-              gid: gid
+              cmd:    transfers,
+              opt:    all/get/put/purge/delete/uuid,
+              uid:    uid,
+              gid:    gid,
+              format: monitor|pretty
             }
 
         Returns:
             String with the result of the listing
-        """
+         """
+        msg = "OK "
         row_data, proc_list = [], []
         ls_type = req_json['opt']
-        self.logger.debug("Listing type={0}".format(ls_type))
+        self.logger.debug("Show transfers type={0}".format(ls_type))
 
         if ls_type == "all":
             proc_list = self.procs.itervalues()
@@ -294,18 +296,28 @@ class Dispatcher(object):
                              proc.root_dir, proc.op, proc.status))
 
         # Prepare the table listing
-        header = ("Start date", "Id", "Path", "Type", "Status")
-        long_column = dict(zip((0, 1, 2, 3, 4), (len(str(x)) for x in header)))
+        if req_json['format'] == "monitor":
+            for elem in row_data:
+                kv_data = "path={0}".format(elem[2])
+                msg += ''.join([kv_data, '|'])
+        else:
+            header = ("Start date", "Id", "Path", "Type", "Status")
+            long_column = dict(zip((0, 1, 2, 3, 4), (len(str(x)) for x in header)))
 
-        for info in row_data:
-            long_column.update((i, max(long_column[i], len(str(elem)))) for i, elem in enumerate(info))
+            for info in row_data:
+                long_column.update((i, max(long_column[i], len(str(elem))))
+                                   for i, elem in enumerate(info))
 
-        line = "".join(("|-", "-|-".join(long_column[i] * "-" for i in xrange(5)), "-|"))
-        row_format = "".join(("| ", " | ".join("%%-%ss" % long_column[i] for i in xrange(0, 5)), " |"))
-        msg = "OK "
-        msg += "\n".join((line, row_format % header, line,
-                          "\n".join("\n".join((row_format % elem, line)) for elem in row_data),
-                          line if not row_data else ""))
+            line = "".join(("|-", "-|-".join(long_column[i] * "-"
+                                             for i in xrange(5)), "-|"))
+            row_format = "".join(("| ", " | ".join("%%-%ss" % long_column[i]
+                                                   for i in xrange(0, 5)), " |"))
+
+            msg += "\n".join((line, row_format % header, line,
+                              "\n".join((row_format % elem) for elem in row_data),
+                              line))
+
+        self.logger.debug("Result: {0}".format(msg))
         return msg
 
     def do_kill(self, req_json):
