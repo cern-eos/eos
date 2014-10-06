@@ -425,6 +425,7 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 		vector<FileSystem::fsid_t> *newReplicas,
 		SchedType type,
 		vector<FileSystem::fsid_t> *existingReplicas,
+					      std::vector<std::string> *fsidsgeotags,
 		unsigned long long bookingSize,
 		const std::string &startFromGeoTag,
 		const size_t &nCollocatedReplicas,
@@ -432,9 +433,8 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 		vector<string> *excludeGeoTags,
 		vector<string> *forceGeoTags)
 {
-	assert(nNewReplicas);
+  assert(nNewReplicas);
 	assert(newReplicas);
-	assert(nCollocatedReplicas<=nNewReplicas);
 
 	// find the entry in the map
 	tlCurrentGroup = group;
@@ -454,24 +454,39 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 	entry->doubleBufferMutex.LockRead();
 
 	// locate the existing replicas and the excluded fs in the tree
-	vector<SchedTreeBase::tFastTreeIdx> newReplicasIdx(nNewReplicas),*existingReplicasIdx=NULL,*excludeFsIdx=NULL,*forceBrIdx=NULL;
+  vector<SchedTreeBase::tFastTreeIdx> newReplicasIdx(nNewReplicas),*existingReplicasIdx=NULL,*excludeFsIdx=NULL,*forceBrIdx=NULL;
 	newReplicasIdx.resize(0);
-	if(existingReplicas||nCollocatedReplicas)
+  if(existingReplicas)
 	{
-		existingReplicasIdx = new vector<SchedTreeBase::tFastTreeIdx>(existingReplicas?existingReplicas->size():0+nCollocatedReplicas);
+    existingReplicasIdx = new vector<SchedTreeBase::tFastTreeIdx>(existingReplicas->size());
 		existingReplicasIdx->resize(0);
-	if(existingReplicas)
-	{
-		for(auto it = existingReplicas->begin(); it != existingReplicas->end(); ++it)
+    int count = 0;
+    for(auto it = existingReplicas->begin(); it != existingReplicas->end(); ++it , ++count)
 		{
 			const SchedTreeBase::tFastTreeIdx *idx;
-			if(!entry->foregroundFastStruct->fs2TreeIdx->get(*it,idx))
+      if(!entry->foregroundFastStruct->fs2TreeIdx->get(*it,idx) && !(*fsidsgeotags)[count].empty())
 			{
-				eos_warning("could not place preexisting replica on the fast tree");
+	// the fs is not in that group.
+	// this could happen because the former file scheduler
+	// could place replicas across multiple groups
+	// with the new geoscheduler, it should not happen
+
+	// in that case, we try to match a filesystem having the same geotag
+	SchedTreeBase::tFastTreeIdx idx = entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode((*fsidsgeotags)[count].c_str());
+	if(idx && (*entry->foregroundFastStruct->treeInfo)[idx].nodeType == SchedTreeBase::TreeNodeInfo::fs)
+	{
+	  if((std::find(existingReplicasIdx->begin(),existingReplicasIdx->end(),idx) == existingReplicasIdx->end()))
+	    existingReplicasIdx->push_back(idx);
+	}
+	// if we can't find any such filesystem, the information is not taken into account
+	// (and then can lead to unoptimal placement
+	else
+	{
+	  eos_debug("could not place preexisting replica on the fast tree");
+	}
 				continue;
 			}
 			existingReplicasIdx->push_back(*idx);
-		}
 	}
 	}
 	if(excludeFs)
@@ -971,7 +986,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
 	// check that enough replicas exist already
 	if(nAccessReplicas > existingReplicas->size())
 	{
-		eos_static_debug("not enough replica");
+		eos_static_debug("not enough replica : has %d and requires %d :",(int)existingReplicas->size(),(int)nAccessReplicas);
 		return EROFS;
 	}
 
@@ -1694,5 +1709,71 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
 
 	return true;
 }
+
+bool GeoTreeEngine::getGroupsFromFsIds(const std::vector<FileSystem::fsid_t> fsids, std::vector<std::string> *fsgeotags, std::vector<FsGroup*> *sortedgroups)
+{
+  bool result = true;
+  if(fsgeotags) fsgeotags->reserve(fsids.size());
+  if(sortedgroups) sortedgroups->reserve(fsids.size());
+  std::map<FsGroup*,size_t> group2idx;
+  std::vector<std::pair<size_t,size_t> > groupcount;
+  groupcount.reserve(fsids.size());
+  {
+    RWMutexReadLock lock(this->pTreeMapMutex);
+    for(auto it = fsids.begin() ; it != fsids.end(); ++ it)
+    {
+      if(pFs2TreeMapEntry.count(*it))
+      {
+	FsGroup *group = pFs2TreeMapEntry[*it]->group;
+	if(fsgeotags)
+	{
+	  const SchedTreeBase::tFastTreeIdx *idx=NULL;
+	  if(pFs2TreeMapEntry[*it]->foregroundFastStruct->fs2TreeIdx->get(*it,idx))
+	    fsgeotags->push_back(
+		(*pFs2TreeMapEntry[*it]->foregroundFastStruct->treeInfo)[*idx].fullGeotag
+	    );
+	  else
+	    fsgeotags->push_back("");
+	}
+	if(sortedgroups)
+	{
+	  if(!group2idx.count(group))
+	  {
+	    group2idx[group] = group2idx.size();
+	    sortedgroups->push_back(group);
+	    groupcount.push_back(make_pair(1,groupcount.size()));
+	  }
+	  else
+	  {
+	    size_t idx = group2idx[group];
+	    groupcount[idx].first++;
+	  }
+	}
+      }
+      else
+      {
+	// put an empty entry in the result vector to preserve the indexing
+	fsgeotags->push_back("");
+	// to signal that one of the fsids was not mapped to a group
+	result = false;
+      }
+    }
+  }
+
+  if(sortedgroups)
+  {
+    // sort the count vector in ascending order to get the permutation
+    std::sort(groupcount.begin(),groupcount.end(),std::greater<std::pair<size_t,size_t>>());
+    // apply the permutation
+    std::vector<FsGroup*> final(groupcount.size());
+    size_t count = 0;
+    for(auto it = groupcount.begin(); it != groupcount.end(); it++)
+      final[count++] = (*sortedgroups)[it->second];
+
+    *sortedgroups = final;
+  }
+  return result;
+}
+
 
 EOSMGMNAMESPACE_END

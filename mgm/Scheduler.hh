@@ -60,7 +60,7 @@ public:
                              eos::common::Mapping::VirtualIdentity_t &vid, //< virtual id of client
                              const char* grouptag, //< group tag for placement
                              unsigned long lid, //< layout to be placed
-                             std::vector<unsigned int> &avoid_filesystems, //< filesystems to avoid
+                             std::vector<unsigned int> &alreadyused_filesystems, //< filesystems to avoid
                              std::vector<unsigned int> &selected_filesystems, //< return filesystems selected by scheduler
                              tPlctPolicy plctpolicy, //< indicates if the placement should be local or spread or hybrid
                              const std::string &plctTrgGeotag="", //< indicates close to which Geotag collocated stripes should be placed
@@ -82,7 +82,8 @@ public:
                           bool isRW, //< indicating if pure read or read/write access
                           unsigned long long bookingsize, //< size to book additionally for read/write access
                           std::vector<unsigned int> &unavailfs, //< return filesystems currently unavailable
-                          eos::common::FileSystem::fsstatus_t min_fsstatus = eos::common::FileSystem::kDrain //< defines minimum filesystem state to allow filesystem selection
+                          eos::common::FileSystem::fsstatus_t min_fsstatus = eos::common::FileSystem::kDrain, //< defines minimum filesystem state to allow filesystem selection
+                          std::string overridegeoloc="" //< override geolocation defined in virtual id
                           );
 
 protected:

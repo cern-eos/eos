@@ -44,7 +44,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
                           eos::common::Mapping::VirtualIdentity_t &vid, //< virtual id of client
                           const char* grouptag, //< group tag for placement
                           unsigned long lid, //< layout to be placed
-                          std::vector<unsigned int> &avoid_filesystems, //< filesystems to avoid
+                          std::vector<unsigned int> &alreadyused_filesystems, //< filesystems to avoid
                           std::vector<unsigned int> &selected_filesystems, //< return filesystems selected by scheduler
                           tPlctPolicy plctpolicy, //< indicates if the placement should be local or spread or hybrid
                           const std::string &plctTrgGeotag, //< indicates close to which Geotag collocated stripes should be placed
@@ -60,16 +60,9 @@ Scheduler::FilePlacement (const char* path, //< path to place
 	eos_static_debug("requesting file placement from geolocation %s",vid.geolocation.c_str());
 
   // the caller routine has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) 
-  std::set<eos::common::FileSystem::fsid_t> fsidavoidlist;
   std::map<eos::common::FileSystem::fsid_t, float> availablefs;
   std::map<eos::common::FileSystem::fsid_t, std::string> availablefsgeolocation;
   std::list<eos::common::FileSystem::fsid_t> availablevector;
-
-  // fill the avoid list from the selected_filesystems input vector
-  for (unsigned int i = 0; i < avoid_filesystems.size(); i++)
-  {
-    fsidavoidlist.insert(avoid_filesystems[i]);
-  }
 
   // compute the number of locations of stripes according to the placement policy
   unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(lid) + 1; // 0 = 1 replica !
@@ -119,6 +112,19 @@ Scheduler::FilePlacement (const char* path, //< path to place
 
   std::set<FsGroup*>::const_iterator git;
 
+  std::vector<std::string> fsidsgeotags;
+  std::vector<FsGroup*> groupsToTry;
+  // if there are preexisting replicas
+  // check in which group they are located
+  // and chose the group where they are located the most
+  if(!alreadyused_filesystems.empty())
+  {
+      if(!gGeoTreeEngine.getGroupsFromFsIds(alreadyused_filesystems,&fsidsgeotags,&groupsToTry) )
+      {
+	eos_static_debug("could not retrieve scheduling group for all avoid fsids");
+      }
+  }
+
   // place the group iterator
   if (forced_scheduling_group_index >= 0)
   {
@@ -149,19 +155,24 @@ Scheduler::FilePlacement (const char* path, //< path to place
   }
 
   // we can loop over all existing scheduling views
-  for (unsigned int groupindex = 0; groupindex < FsView::gFsView.mSpaceGroupView[spacename].size(); groupindex++)
+  for (unsigned int groupindex = 0; groupindex < FsView::gFsView.mSpaceGroupView[spacename].size()+groupsToTry.size(); groupindex++)
   {
+    // in case there are pre existing replicas
+    // search for space in the groups they lay in first
+    // if it's unsuccessful, go to the other groups
+    FsGroup *group = groupindex<groupsToTry.size()?groupsToTry[groupindex]:(*git);
     // we search for available slots for replicas but all in the same group. If we fail on a group, we look in the next one
   	// placement is spread out in all the tree to strengthen reliability ( -> "" )
 			bool placeRes = gGeoTreeEngine.placeNewReplicasOneGroup(
-					(*git), nfilesystems,
+	group, nfilesystems,
 					&selected_filesystems,
 					GeoTreeEngine::regularRW,
-					NULL,
+	&alreadyused_filesystems, // file systems to avoid are assumed to already host a replica
+	&fsidsgeotags,
 					bookingsize,
   			plctTrgGeotag,
   			ncollocatedfs,
-					&avoid_filesystems,
+	NULL,
 					NULL,
 					NULL);
 
@@ -178,13 +189,15 @@ Scheduler::FilePlacement (const char* path, //< path to place
 
   	if (placeRes)
   	{
-  		eos_static_debug("placing replicas for %s in subgroup %s",path,(*git)->mName.c_str());
+      eos_static_debug("placing replicas for %s in subgroup %s",path,group->mName.c_str());
   	}
   	else
   	{
-  		eos_static_debug("could not place all replica(s) for %s in subgroup %s, checking next group",path,(*git)->mName.c_str());
+      eos_static_debug("could not place all replica(s) for %s in subgroup %s, checking next group",path,group->mName.c_str());
     }
 
+    if(groupindex>=groupsToTry.size())
+    {
     git++;
     if (git == FsView::gFsView.mSpaceGroupView[spacename].end())
     {
@@ -195,6 +208,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
     schedulingMutex.Lock();
     schedulingGroup[indextag] = *git;
     schedulingMutex.UnLock();
+    }
 
 			if (placeRes)
     {
@@ -221,15 +235,19 @@ Scheduler::FileAccess (
                        bool isRW, //< indicating if pure read or read/write access
                        unsigned long long bookingsize, //< size to book additionally for read/write access
                        std::vector<unsigned int> &unavailfs, //< return filesystems currently unavailable
-                       eos::common::FileSystem::fsstatus_t min_fsstatus //< defines minimum filesystem state to allow filesystem selection
+                       eos::common::FileSystem::fsstatus_t min_fsstatus, //< defines minimum filesystem state to allow filesystem selection
+                       std::string overridegeoloc //< override geolocation defined in virtual id
                        )
 {
   //! -------------------------------------------------------------
   //! the read(/write) access routine
   //! -------------------------------------------------------------
-	size_t nReqStripes = isRW?eos::common::LayoutId::GetMinOnlineReplica(lid):eos::common::LayoutId::GetOnlineStripeNumber(lid);
+  size_t nReqStripes = isRW?eos::common::LayoutId::GetOnlineStripeNumber(lid):eos::common::LayoutId::GetMinOnlineReplica(lid);
 	eos_static_debug("requesting file access from geolocation %s",vid.geolocation.c_str());
-  return gGeoTreeEngine.accessHeadReplicaMultipleGroup(nReqStripes,fsindex,&locationsfs,isRW?GeoTreeEngine::regularRW:GeoTreeEngine::regularRO,vid.geolocation,forcedfsid,&unavailfs);
+
+  return gGeoTreeEngine.accessHeadReplicaMultipleGroup(nReqStripes,fsindex,&locationsfs,
+						       isRW?GeoTreeEngine::regularRW:GeoTreeEngine::regularRO,
+							   overridegeoloc.empty()?vid.geolocation:overridegeoloc,forcedfsid,&unavailfs);
       }
 
 

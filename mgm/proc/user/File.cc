@@ -1153,28 +1153,16 @@ ProcCommand::File ()
               {
                 unsigned long fsIndex; // this defines the fs to use in the selectefs vector
                 std::vector<unsigned int> selectedfs;
+        	std::vector<unsigned int> sourcefs;
                 std::vector<unsigned int> unavailfs;
                 // fill the existing locations
                 for (lociter = fmd->locationsBegin();
                   lociter != fmd->locationsEnd();
                   ++lociter)
                 {
-                  selectedfs.push_back(*lociter);
+        	  sourcefs.push_back(*lociter);
                 }
 
-                if (!(errno = quotaspace->FileAccess(*pVid,
-                                                     (unsigned long) 0,
-                                                     space.c_str(),
-                                                     (unsigned long) fmd->getLayoutId(),
-                                                     selectedfs,
-                                                     fsIndex,
-                                                     false,
-                                                     (long long unsigned) 0,
-                                                     unavailfs))
-                    )
-                {
-                  // this is now our source filesystem
-                  unsigned int sourcefsid = selectedfs[fsIndex];
                   // now the just need to ask for <n> targets
                   int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::kNone,
                                                               nnewreplicas);
@@ -1196,7 +1184,7 @@ ProcCommand::File ()
                                                           *pVid,
                                                           0,
                                                           layoutId,
-                                                          selectedfs,
+							sourcefs,
                                                           selectedfs,
                                                           plctplcy,targetgeotag,
                                                           SFS_O_TRUNC,
@@ -1206,8 +1194,20 @@ ProcCommand::File ()
                   {
                     // yes we got a new replication vector
                     for (unsigned int i = 0; i < selectedfs.size(); i++)
+        	  {
+        	    if (!(errno = quotaspace->FileAccess(*pVid,
+							 (unsigned long) 0,
+							 space.c_str(),
+							 (unsigned long) fmd->getLayoutId(),
+							 sourcefs,
+							 fsIndex,
+							 false,
+							 (long long unsigned) 0,
+							 unavailfs))
+        	    )
                     {
                       //                      stdOut += "info: replication := "; stdOut += (int) sourcefsid; stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
+        	      unsigned int sourcefsid = sourcefs[fsIndex];
                       // add replication here
                       if (gOFS->_replicatestripe(fmd,
                                                  spath.c_str(),
@@ -1234,18 +1234,19 @@ ProcCommand::File ()
                         stdOut += "\n";
                       }
                     }
-                  }
                   else
                   {
-                    stdErr = "error: create new replicas => cannot place replicas: ";
+        	      stdErr = "error: create new replicas => no source available: ";
                     stdErr += spath;
                     stdErr += "\n";
                     retc = ENOSPC;
+        	    }
+
                   }
                 }
                 else
                 {
-                  stdErr = "error: create new replicas => no source available: ";
+        	  stdErr = "error: create new replicas => cannot place replicas: ";
                   stdErr += spath;
                   stdErr += "\n";
                   retc = ENONET;

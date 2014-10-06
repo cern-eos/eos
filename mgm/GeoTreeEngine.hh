@@ -454,7 +454,7 @@ private:
 			std::vector<SchedTreeBase::tFastTreeIdx> *existingReplicas=NULL,
 			unsigned long long bookingSize=0,
 			const SchedTreeBase::tFastTreeIdx &startFromNode=0,
-			const size_t &nCollocatedReplicas=0,
+			const size_t &nFinalCollocatedReplicas=0,
 			std::vector<SchedTreeBase::tFastTreeIdx> *excludedNodes=NULL,
 			std::vector<SchedTreeBase::tFastTreeIdx> *forceNodes=NULL,
 			bool skipSaturated=false)
@@ -490,13 +490,30 @@ private:
 		}
 
 		// place the existing replicas
+		size_t nAdjustCollocatedReplicas = nFinalCollocatedReplicas;
 		if(existingReplicas)
 		{
+			size_t ncomp = (*tree->pTreeInfo)[startFromNode].fullGeotag.find("::");
+			if(ncomp == std::string::npos) ncomp = (*tree->pTreeInfo)[startFromNode].fullGeotag.size();
 			for(auto it = existingReplicas->begin(); it != existingReplicas->end(); ++it)
 			{
 				tree->pNodes[*it].fileData.freeSlotsCount = 0;
 				tree->pNodes[*it].fileData.takenSlotsCount = 1;
+				// check if this replica is to be considered as a collocated one
+				if(startFromNode)
+				{ // we have an accesser geotag
+					if((*tree->pTreeInfo)[startFromNode].fullGeotag.compare(0,ncomp,(*tree->pTreeInfo)[*it].fullGeotag)==0
+							&& ((*tree->pTreeInfo)[*it].fullGeotag.size()==ncomp || (*tree->pTreeInfo)[*it].fullGeotag[ncomp]==':') )
+					{
+						// this existing replica is under the same first level of the tree
+						// we consider it as a collocated replica
+						if(nAdjustCollocatedReplicas) nAdjustCollocatedReplicas--;
 			}
+				}
+			}
+			if(nAdjustCollocatedReplicas>nNewReplicas) nAdjustCollocatedReplicas = nNewReplicas;
+			// if(!startFromNode), the value of nCollocatedReplicas does not make any difference and furthermore, it should be zero
+
 			// update the tree
 			// (could be made faster for a small number of existing replicas by using update branches)
 			if(!existingReplicas->empty())
@@ -546,7 +563,7 @@ private:
 		for(size_t k = 0; k < nNewReplicas; k++)
 		{
 			SchedTreeBase::tFastTreeIdx idx;
-			SchedTreeBase::tFastTreeIdx startidx = (k<nNewReplicas-nCollocatedReplicas)?0:startFromNode;
+			SchedTreeBase::tFastTreeIdx startidx = (k<nNewReplicas-nAdjustCollocatedReplicas)?0:startFromNode;
 			if(!tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true, skipSaturated))
 			{
 				if(skipSaturated) eos_notice("Could not find any replica for placement while skipping saturated fs. Trying with saturated nodes included");
@@ -729,6 +746,7 @@ public:
 	// @param nCollocatedReplicas
 	//   among the nNewReplicas, nCollocatedReplicas are placed as close as possible to startFromGeoTag
 	//   the other ones are scattered out as much as possible in the tree
+	//   this count includes the existingReplicas
 	// @param excludeFs
 	//   fsids of files to exclude from the placement operation
 	// @param excludeGeoTags
@@ -744,6 +762,7 @@ public:
 			std::vector<eos::common::FileSystem::fsid_t> *newReplicas,
 			SchedType type,
 			std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
+			std::vector<std::string>*fsidsgeotags=0,
 			unsigned long long bookingSize=0,
 			const std::string &startFromGeoTag="",
 			const size_t &nCollocatedReplicas=0,
@@ -862,6 +881,9 @@ public:
 	//   true if success false else
 	// ---------------------------------------------------------------------------
 	bool StopUpdater();
+
+	bool getGroupsFromFsIds(const std::vector<FileSystem::fsid_t> fsids, std::vector<std::string> *fsgeotags, std::vector<FsGroup*> *sortedgroups);
+
 };
 
 extern GeoTreeEngine gGeoTreeEngine;

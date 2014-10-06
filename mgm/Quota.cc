@@ -1039,7 +1039,7 @@ SpaceQuota::FilePlacement (const char* path, //< path to place
                            eos::common::Mapping::VirtualIdentity_t &vid, //< virtual id of client
                            const char* grouptag, //< group tag for placement
                            unsigned long lid, //< layout to be placed
-                           std::vector<unsigned int> &avoid_filesystems, //< filesystems to avoid
+                           std::vector<unsigned int> &alreadyused_filesystems, //< filesystems to avoid
                            std::vector<unsigned int> &selected_filesystems, //< return filesystems selected by scheduler
                            tPlctPolicy plctpolicy, //< indicates if the placement should be local or spread or hybrid
                            const std::string &plctTrgGeotag, //< indicates close to which Geotag collocated stripes should be placed
@@ -1093,7 +1093,7 @@ SpaceQuota::FilePlacement (const char* path, //< path to place
   }
 
   // call the scheduler implementation now
-  return Scheduler::FilePlacement(path, vid, grouptag, lid, avoid_filesystems, selected_filesystems, plctpolicy, plctTrgGeotag, truncate, forced_scheduling_group_index, bookingsize);
+  return Scheduler::FilePlacement(path, vid, grouptag, lid, alreadyused_filesystems, selected_filesystems, plctpolicy, plctTrgGeotag, truncate, forced_scheduling_group_index, bookingsize);
 }
 
 /*----------------------------------------------------------------------------*/
