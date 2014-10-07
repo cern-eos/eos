@@ -249,7 +249,6 @@ xrd_inode (const char* path)
 
   if (path2inode.count(path))
     ret = path2inode[path];
-
   return ret;
 }
 
@@ -331,6 +330,7 @@ xrd_forget_p2i (unsigned long long inode)
   if (inode2path.count(inode))
   {
     std::string path = inode2path[inode];
+  
     path2inode.erase(path);
     inode2path.erase(inode);
   }
@@ -678,7 +678,8 @@ xrd_generate_fd ()
 int
 xrd_add_fd2file (eos::fst::Layout* raw_file,
                  unsigned long inode,
-                 uid_t uid)
+                 uid_t uid, 
+		 const char* path="")
 {
   eos_static_debug("file raw ptr=%p, inode=%lu, uid=%lu",
                    raw_file, inode, (unsigned long) uid);
@@ -712,7 +713,7 @@ xrd_add_fd2file (eos::fst::Layout* raw_file,
 
     if (fd > 0)
     {
-      FileAbstraction* fabst = new FileAbstraction(fd, raw_file);
+      FileAbstraction* fabst = new FileAbstraction(fd, raw_file, path);
       fd2fabst[fd] = fabst;
       inodeuser2fd[sstr.str()] = fd;
     }
@@ -768,6 +769,14 @@ xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid)
       eos_static_debug("fd=%i is not in use, remove it", fd);
       eos::fst::Layout* raw_file = fabst->GetRawFile();
       retc = raw_file->Close();
+
+      struct timespec utimes[2];
+      const char* path=0;
+      if ( (path=fabst->GetUtimes(utimes)) )
+      {
+	// run the utimes command now after the close
+	xrd_utimes(path, utimes, uid,0,0);
+      }
       delete fabst;
       fabst = 0;
       fd2fabst.erase(iter);
@@ -1447,7 +1456,6 @@ xrd_statfs (const char* path, struct statvfs* stbuf)
   return errno;
 }
 
-
 //------------------------------------------------------------------------------
 // Change permissions for the file
 //------------------------------------------------------------------------------
@@ -1510,6 +1518,36 @@ xrd_chmod (const char* path,
 }
 
 //------------------------------------------------------------------------------
+// Postpone utimes to a file close if still open
+//------------------------------------------------------------------------------
+int 
+xrd_set_utimes_close(unsigned long long inode, 
+		    struct timespec* tvp,
+		    uid_t uid)
+{
+  // try to attach the utimes call until a referenced filedescriptor on that path is closed
+  std::ostringstream sstr;
+  sstr << inode << ":" << (unsigned long)uid;
+  {
+    eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
+    auto iter_fd = inodeuser2fd.find(sstr.str());
+    if (iter_fd != inodeuser2fd.end())
+    {
+      google::dense_hash_map<int, FileAbstraction*>::iterator
+	iter_file = fd2fabst.find(iter_fd->second);
+      
+      if (iter_file != fd2fabst.end())      
+      {
+	iter_file->second->SetUtimes(tvp);
+	return 0;
+      } 
+    }
+  }
+  return 1;
+}
+
+
+//------------------------------------------------------------------------------
 // Update the last access time and last modification time
 //------------------------------------------------------------------------------
 int
@@ -1521,7 +1559,7 @@ xrd_utimes (const char* path,
 {
   eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
   eos::common::Timing utimestiming("xrd_utimes");
-
+  
   COMMONTIMING("START", &utimestiming);
   std::string request;
   XrdCl::Buffer arg;
@@ -2063,7 +2101,7 @@ xrd_open (const char* path,
   spath += path;
   errno = 0;
   int t0;
-  int retc = xrd_add_fd2file(0, *return_inode, uid);
+  int retc = xrd_add_fd2file(0, *return_inode, uid, path);
 
   if (retc != -1)
   {
@@ -2307,7 +2345,7 @@ xrd_open (const char* path,
       eos_static_debug("path=%s created ino=%lu", path, (unsigned long)*return_inode);
     }
 
-    retc = xrd_add_fd2file(file, *return_inode, uid);
+    retc = xrd_add_fd2file(file, *return_inode, uid, path);
     return retc;
   }
 }
@@ -2328,7 +2366,7 @@ xrd_close (int fildes, unsigned long inode, uid_t uid)
   {
     errno = ENOENT;
     return ret;
-  }
+  } 
 
   if (XFC)
     XFC->ForceAllWrites(fabst);
