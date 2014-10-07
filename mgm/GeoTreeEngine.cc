@@ -1742,6 +1742,7 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
 		if(!entry->foregroundFastStruct->DeepCopyTo(entry->backgroundFastStruct))
 		{
 			eos_crit("error deep copying in double buffering");
+			pTreeMapMutex.UnLockRead();
 			return false;
 		}
 	}
