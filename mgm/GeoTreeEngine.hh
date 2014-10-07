@@ -24,6 +24,7 @@
 #ifndef __EOSMGM_GEOTREEENGINE__HH__
 #define __EOSMGM_GEOTREEENGINE__HH__
 
+//#define EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
 /*----------------------------------------------------------------------------*/
 #include "mgm/FsView.hh"
 #include "mgm/geotree/SchedulingSlowTree.hh"
@@ -685,7 +686,16 @@ public:
 	accessDlScorePenalty(2),accessUlScorePenalty(4),
 	fillRatioLimit(80),fillRatioCompTol(100),saturationThres(10),
 	timeFrameDurationMs(1000),pUpdaterTid(0)
-	{}
+	{
+#ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
+#ifdef EOS_INSTRUMENTED_RWMUTEX
+	  eos::common::RWMutex::SetOrderCheckingGlobal(true);
+	  pAddRmFsMutex.SetDebugName("pAddRmFsMutex");
+	  pTreeMapMutex.SetDebugName("pTreeMapMutex");
+	  eos::common::RWMutex::AddOrderRule("GTE base rule",std::vector<eos::common::RWMutex*>({&pAddRmFsMutex,&pTreeMapMutex}));
+#endif
+#endif
+	}
 
   // ---------------------------------------------------------------------------
   //! Insert a file system into the GeoTreeEngine

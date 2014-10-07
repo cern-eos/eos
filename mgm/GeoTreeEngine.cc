@@ -147,6 +147,22 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
 		else
 		{
 			mapEntry = new TreeMapEntry;
+#ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
+#ifdef EOS_INSTRUMENTED_RWMUTEX
+			char buffer[64],buffer2[64];
+			sprintf(buffer,"GTE %s doublebuffer",group->mName.c_str());
+			sprintf(buffer2,"%s doublebuffer",group->mName.c_str());
+			mapEntry->doubleBufferMutex.SetDebugName(buffer2);
+			int retcode = eos::common::RWMutex::AddOrderRule(buffer,std::vector<eos::common::RWMutex*>({&pAddRmFsMutex,&pTreeMapMutex,&mapEntry->doubleBufferMutex}));
+			eos_static_info("creating RWMutex rule order %p, retcode is %d",&mapEntry->doubleBufferMutex, retcode);
+
+			sprintf(buffer,"GTE %s slowtree",group->mName.c_str());
+			sprintf(buffer2,"%s slowtree",group->mName.c_str());
+			mapEntry->slowTreeMutex.SetDebugName(buffer2);
+			retcode = eos::common::RWMutex::AddOrderRule(buffer,std::vector<eos::common::RWMutex*>({&pAddRmFsMutex,&pTreeMapMutex,&mapEntry->slowTreeMutex}));
+			eos_static_info("creating RWMutex rule order %p, retcode is %d",&mapEntry->slowTreeMutex, retcode);
+#endif
+#endif
 			mapEntry->slowTree = new SlowTree(group->mName.c_str());
 		}
 		mapEntry->slowTreeMutex.LockWrite();
