@@ -79,22 +79,21 @@
 /*----------------------------------------------------------------------------*/
 XrdSysError gMgmOfsEroute (0);
 XrdSysError *XrdMgmOfs::eDest;
-XrdOucTrace
-gMgmOfsTrace (&gMgmOfsEroute);
-
+XrdOucTrace gMgmOfsTrace (&gMgmOfsEroute);
 const char* XrdMgmOfs::gNameSpaceState[] = {"down", "booting", "booted", "failed", "compacting"};
-
 XrdMgmOfs* gOFS = 0;
 
+// Set the version information
+XrdVERSIONINFO(XrdSfsGetFileSystem, MgmOfs);
+
 //------------------------------------------------------------------------------
-//!
-//! The Filesystem Plugin factory function
+//! Filesystem Plugin factory function
 //!
 //! @param native_fs (not used)
-//!  @param lp the logger object
+//! @param lp the logger object
 //! @param configfn the configuration file name
-//! It configures and returns our MgmOfs object
 //!
+//! @returns configures and returns our MgmOfs object
 //------------------------------------------------------------------------------
 extern "C"
 XrdSfsFileSystem *
@@ -213,6 +212,7 @@ XrdMgmOfs::newFile (char *user, int MonID)
 #include "XrdMgmOfs/Touch.cc"
 #include "XrdMgmOfs/Utimes.cc"
 #include "XrdMgmOfs/Version.cc"
+#include "XrdMgmOfs/Auth.cc"
 
 //------------------------------------------------------------------------------
 // Test for stall rule

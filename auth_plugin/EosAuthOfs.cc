@@ -40,6 +40,7 @@
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdNet/XrdNetIF.hh"
+#include "XrdVersion.hh"
 /*----------------------------------------------------------------------------*/
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 
@@ -50,9 +51,10 @@ eos::auth::EosAuthOfs* eos::auth::gOFS;
 
 extern XrdSysError OfsEroute;
 extern XrdOfs* XrdOfsFS;
+XrdVERSIONINFO(XrdSfsGetFileSystem, AuthOfs);
 
 //------------------------------------------------------------------------------
-//
+// Filesystem Plugin factory function
 //------------------------------------------------------------------------------
 extern "C"
 {
