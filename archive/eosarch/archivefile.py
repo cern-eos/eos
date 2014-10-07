@@ -411,9 +411,13 @@ class ArchiveFile(object):
                         self.logger.error(err_msg)
                         raise CheckEntryException("failed xs query")
 
-                    # result has an annoying \x00 character at the end and it
+                    # Result has an annoying \x00 character at the end and it
                     # contains the xs type (adler32) and the xs value
                     resp = xs_resp.split('\x00')[0].split()
+
+                    # If checksum value is not 8 char long then we need padding
+                    if len(resp[1]) != 8 :
+                        resp[1] = "{0:0>8}".format(resp[1])
 
                     if resp[0] == "adler32" and resp[1] != xs:
                         err_msg = ("Entry={0} xs value missmatch, xs_expected={1} "
