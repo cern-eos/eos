@@ -30,6 +30,8 @@ BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: git
 BuildRequires: zeromq zeromq-devel
+BuildRequires: protobuf >= 2.3.0
+BuildRequires: protobuf-devel >= 2.3.0
 
 %if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
 %if %{?fedora}%{!?fedora:0} >= 18
