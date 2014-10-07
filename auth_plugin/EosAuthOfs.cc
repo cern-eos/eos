@@ -39,7 +39,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdSec/XrdSecEntity.hh"
-#include "XrdSys/XrdSysDNS.hh"
+#include "XrdNet/XrdNetIF.hh"
 /*----------------------------------------------------------------------------*/
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 
@@ -142,28 +142,19 @@ EosAuthOfs::Configure(XrdSysError& error)
   char* var;
   const char* val;
   std::string space_tkn;
+  const char* buff_ip;
 
   // Configure the basic XrdOfs and exit if not successful
   NoGo = XrdOfs::Configure(error);
 
   if (NoGo)
-  {
     return NoGo;
-  }
 
-  unsigned int ip = 0;
+  if (!myIF.GetDest(XrdNetIF::ifType::Public, buff_ip))
+     return OfsEroute.Emsg("Config", errno, "unable to get IP address");
 
-  if (XrdSysDNS::Host2IP(HostName, &ip))
-  {
-    char buff[1024];
-    XrdSysDNS::IP2String(ip, 0, buff, 1024);
-    mManagerIp = buff;
-    mManagerPort = myPort;
-  }
-  else
-  {
-    return OfsEroute.Emsg("Config", errno, "convert hostname to IP address", HostName);
-  }
+  mManagerIp = buff_ip;
+  mManagerPort = myIF.Port();
 
   // extract the manager from the config file
   XrdOucStream Config(&error, getenv("XRDINSTANCE"));
@@ -350,7 +341,7 @@ EosAuthOfs::Configure(XrdSysError& error)
   }
 
   eos_notice("AUTH_HOST=%s AUTH_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s SYMKEY=%s",
-             HostName, myPort, VERSION, RELEASE, keytabcks.c_str(), symkey.c_str());
+             mManagerIp.c_str(), myPort, VERSION, RELEASE, keytabcks.c_str(), symkey.c_str());
 
   if (!eos::common::gSymKeyStore.SetKey64(symkey.c_str(), 0))
   {

@@ -71,9 +71,23 @@ public:
   unsigned long long fid;  //< file id
   unsigned long fsid;      //< filesystem id
   unsigned long long rb;   //< bytes read
-  unsigned long long rb_min;   //< bytes read min
-  unsigned long long rb_max;   //< bytes read max
-  double             rb_sigma; //< bytes read sigma
+  unsigned long long rb_min;    //< bytes read min
+  unsigned long long rb_max;    //< bytes read max
+  double             rb_sigma;  //< bytes read sigma
+  unsigned long long rv_op;     ///< number of readv operations
+  unsigned long long rvb_min;   ///< readv min bytes
+  unsigned long long rvb_max;   ///< readv max bytes
+  unsigned long long rvb_sum;   ///< total readv bytes requested
+  double             rvb_sigma; ///< sigma readv bytes 
+  unsigned long long rs_op;     ///< number of single read op from readv req.
+  unsigned long long rsb_min;   ///< single read min bytes
+  unsigned long long rsb_max;   ///< single read max bytes
+  unsigned long long rsb_sum;   ///< total single read bytes
+  double             rsb_sigma; ///< sigma single reads requested
+  unsigned long      rc_min;    ///< min number of reads in a readv request
+  unsigned long      rc_max;    ///< max number of reads in a readv request
+  unsigned long      rc_sum;    ///< total number of reads from readv req.
+  double             rc_sigma;  ///< sigma number of reads from read req.
   unsigned long long wb;       //< bytes written
   unsigned long long wb_min;   //< bytes written min 
   unsigned long long wb_max;   //< bytes written max
@@ -88,8 +102,9 @@ public:
   unsigned long long nbwds;  //< number of backwards seeks
   unsigned long long nxlfwds;  //< number of large forward seeks
   unsigned long long nxlbwds;  //< number of large backwards eeks
-  float  rt;               //< disk time spent for read
-  float  wt;               //< disk time spent for write
+  float rt;                ///< disk time spent for read
+  float rvt;               ///< disk time spent for readv
+  float wt;                ///< disk time spent for write
   unsigned long long osize;//< size when file was opened
   unsigned long long csize;//< size when file was closed
   std::string sec_prot;    //< auth protocol

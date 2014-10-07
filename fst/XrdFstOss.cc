@@ -30,17 +30,22 @@
 #include <sys/types.h>
 #include <sys/resource.h>
 /*----------------------------------------------------------------------------*/
+#include "XrdVersion.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdOuc/XrdOuca2x.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+/*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOss.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 /*----------------------------------------------------------------------------*/
 
 extern XrdSysError OssEroute;
 
+// Set the version information
+XrdVERSIONINFO(XrdOssGetStorageSystem, FstOss);
+
 extern "C"
 {
-
   XrdOss*
   XrdOssGetStorageSystem (XrdOss* native_oss,
                           XrdSysLogger* Logger,
@@ -50,7 +55,7 @@ extern "C"
     OssEroute.SetPrefix("FstOss_");
     OssEroute.logger(Logger);
     eos::fst::XrdFstOss* fstOss = new eos::fst::XrdFstOss();
-    return ( fstOss->Init(Logger, config_fn) ? 0 : (XrdOss*) fstOss);
+    return (fstOss->Init(Logger, config_fn) ? 0 : (XrdOss*) fstOss);
   }
 }
 
@@ -65,53 +70,61 @@ XrdFstOss* XrdFstSS = 0;
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-
 XrdFstOss::XrdFstOss () :
 eos::common::LogId (),
 mFdFence (-1),
-mFdLimit (-1)
+mFdLimit (-1),
+mPrBytes(0),
+mPrActive(0),
+mPrDepth(0),
+mPrQSize(0)
 {
   eos_debug("Calling the constructor of XrdFstOss.");
+  mPrPBits = (long long)sysconf(_SC_PAGESIZE);
+  mPrPSize = static_cast<int>(mPrPBits);
+  mPrPBits--;
+  mPrPMask = ~mPrPBits;
 }
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-
-XrdFstOss::~XrdFstOss () {
-  // empty
+XrdFstOss::~XrdFstOss()
+{
+  // empty 
 }
 
 
 //------------------------------------------------------------------------------
 // Init function
 //------------------------------------------------------------------------------
-
 int
 XrdFstOss::Init (XrdSysLogger* lp, const char* configfn)
 {
+  int NoGo = 0;
   XrdFstSS = this;
-  //............................................................................
+
   // Set logging parameters
-  //............................................................................
   XrdOucString unit = "fstoss@";
   unit += "localhost";
-  //............................................................................
+  
   // Setup the circular in-memory log buffer
-  //............................................................................
   eos::common::Logging::Init();
   eos::common::Logging::SetLogPriority(LOG_DEBUG);
   eos::common::Logging::SetUnit(unit.c_str());
   eos_debug("info=\"oss logging configured\"");
-  //............................................................................
+
+  // Process the configuration file
+  OssEroute.logger(lp);
+  NoGo = Configure(configfn, OssEroute);
+  
   // Establish the FD limit
-  //............................................................................
   struct rlimit rlim;
 
   if (getrlimit(RLIMIT_NOFILE, &rlim) < 0)
   {
-    eos_warning("warning= can not get resource limits, errno=", errno);
+    eos_warning("can not get resource limits, errno=", errno);
     mFdLimit = XrdFstOssFDMINLIM;
   }
   else
@@ -124,14 +137,145 @@ XrdFstOss::Init (XrdSysLogger* lp, const char* configfn)
     mFdFence = mFdLimit >> 1;
   }
 
-  return XrdOssOK;
+  return NoGo;
+}
+
+
+//------------------------------------------------------------------------------
+// Configuration function for the oss plugin
+//------------------------------------------------------------------------------
+int
+XrdFstOss::Configure(const char* configfn, XrdSysError& Eroute)
+{
+  char *var;
+  int cfgFD;
+  int NoGo = 0;
+  XrdOucEnv myEnv;
+  XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"), &myEnv, "=====> ");
+
+  // If there is no config file, return with the defaults sets
+  if( !configfn || !*configfn)
+  {
+    Eroute.Say("Config warning: config file not specified; defaults assumed.");
+    return NoGo;
+  }
+  
+  // Try to open the configuration file
+  if ( (cfgFD = open(configfn, O_RDONLY, 0)) < 0)
+  {
+    Eroute.Emsg("Config", errno, "open config file", configfn);
+    return 1;
+  }
+
+  Config.Attach(cfgFD);
+
+  // Now start reading records until eof
+  while((var = Config.GetMyFirstWord()))
+  {
+    if (!strncmp(var, "oss.", 4))
+    {
+      if (!strncmp(var+4, "preread", 7))
+      {
+        NoGo = xprerd(Config, Eroute);
+      }
+    }
+  }
+
+
+  eos_info("preread depth=%i, queue_size=%i and bytes=%i",
+           mPrDepth, mPrQSize, mPrBytes);
+  
+  Config.Close();
+  return NoGo;
+}
+
+
+//------------------------------------------------------------------------------
+// Function xprerd to parse the preread directive
+//------------------------------------------------------------------------------
+int
+XrdFstOss::xprerd(XrdOucStream &Config, XrdSysError &Eroute)
+{
+  static const long long m16 = 16777216LL;
+  char *val;
+  long long lim = 1048576;
+  int depth, qeq = 0, qsz = 128;
+  
+  if (!(val = Config.GetWord()))
+  {
+    Eroute.Emsg("Config", "preread depth not specified");
+    return 1;
+  }
+  
+  if (!strcmp(val, "on")) 
+  {
+    depth = 3;
+  }
+  else if (XrdOuca2x::a2i(Eroute, "preread depth", val, &depth, 0, 1024))
+  {
+    return 1;
+  }
+  
+  while((val = Config.GetWord()))
+  {
+    if (!strcmp(val, "limit"))
+    {
+      if (!(val = Config.GetWord()))
+      {
+        Eroute.Emsg("Config", "preread limit not specified");
+        return 1;
+      }
+
+      if (XrdOuca2x::a2sz(Eroute, "preread limit", val, &lim, 0, m16))
+        return 1;
+    }
+    else if (!strcmp(val, "qsize"))
+    {
+      if (!(val = Config.GetWord()))
+      {
+        Eroute.Emsg("Config", "preread qsize not specified");
+        return 1;
+      }
+
+      if (XrdOuca2x::a2i(Eroute, "preread qsize", val, &qsz, 0, 1024))
+        return 1;
+      
+      if (qsz < depth)
+      {
+        Eroute.Emsg("Config","preread qsize must be >= depth");
+        return 1;
+      }
+    }
+    else
+    {
+      Eroute.Emsg("Config","invalid preread option -",val);
+      return 1;
+    }
+  }
+  
+  if (lim < mPrPSize || !qsz)
+  {
+    depth = 0;
+  }
+  
+  if (!qeq && depth)
+  {
+    qsz = qsz / (depth / 2 + 1);
+    
+    if (qsz < depth)
+      qsz = depth;
+  }
+  
+  mPrDepth = depth;
+  mPrQSize = qsz;
+  mPrBytes = lim;
+  return 0;
 }
 
 
 //------------------------------------------------------------------------------
 // New file
 //------------------------------------------------------------------------------
-
 XrdOssDF*
 XrdFstOss::newFile (const char* tident)
 {
@@ -143,7 +287,6 @@ XrdFstOss::newFile (const char* tident)
 //------------------------------------------------------------------------------
 // New directory
 //------------------------------------------------------------------------------
-
 XrdOssDF*
 XrdFstOss::newDir (const char* tident)
 {
@@ -155,7 +298,6 @@ XrdFstOss::newDir (const char* tident)
 //------------------------------------------------------------------------------
 // Unlink file and its block checksum if needed
 //------------------------------------------------------------------------------
-
 int
 XrdFstOss::Unlink (const char* path, int opts, XrdOucEnv* ep)
 {
@@ -220,7 +362,6 @@ XrdFstOss::Unlink (const char* path, int opts, XrdOucEnv* ep)
 //------------------------------------------------------------------------------
 // Delete a link file
 //------------------------------------------------------------------------------
-
 int
 XrdFstOss::BreakLink (const char* local_path, struct stat& statbuff)
 {
@@ -252,7 +393,6 @@ XrdFstOss::BreakLink (const char* local_path, struct stat& statbuff)
 //--------------------------------------------------------------------------
 // Chmod on a file
 //--------------------------------------------------------------------------
-
 int
 XrdFstOss::Chmod (const char* path, mode_t mode, XrdOucEnv* eP)
 {
@@ -263,7 +403,6 @@ XrdFstOss::Chmod (const char* path, mode_t mode, XrdOucEnv* eP)
 //--------------------------------------------------------------------------
 // Create a file named 'path' with 'mode' access mode bits set
 //--------------------------------------------------------------------------
-
 int
 XrdFstOss::Create (const char* tident,
                    const char* path,
@@ -373,7 +512,6 @@ XrdFstOss::Create (const char* tident,
 //------------------------------------------------------------------------------
 // Create directory
 //------------------------------------------------------------------------------
-
 int
 XrdFstOss::Mkdir (const char* path,
                   mode_t mode,
@@ -390,7 +528,6 @@ XrdFstOss::Mkdir (const char* path,
 //------------------------------------------------------------------------------
 // Delete a directory from the namespace
 //------------------------------------------------------------------------------
-
 int
 XrdFstOss::Remdir (const char* path,
                    int opts,
@@ -406,7 +543,6 @@ XrdFstOss::Remdir (const char* path,
 //------------------------------------------------------------------------------
 // Renames a file with name 'old_name' to 'new_name'
 //------------------------------------------------------------------------------
-
 int
 XrdFstOss::Rename (const char* oldname,
                    const char* newname,
@@ -461,7 +597,6 @@ XrdFstOss::Rename (const char* oldname,
 //------------------------------------------------------------------------------
 // Determine if file 'path' actually exists
 //------------------------------------------------------------------------------
-
 int
 XrdFstOss::Stat (const char* path,
                  struct stat* buff,
@@ -499,7 +634,6 @@ XrdFstOss::Stat (const char* path,
 //------------------------------------------------------------------------------
 // Truncate a file
 //------------------------------------------------------------------------------
-
 int
 XrdFstOss::Truncate (const char* path,
                      unsigned long long size,
@@ -526,7 +660,6 @@ XrdFstOss::Truncate (const char* path,
 //------------------------------------------------------------------------------
 // Add new entry to file name <-> blockchecksum map
 //------------------------------------------------------------------------------
-
 XrdSysRWLock*
 XrdFstOss::AddMapping (const std::string& fileName,
                        CheckSum*& blockXs,
@@ -581,7 +714,6 @@ XrdFstOss::AddMapping (const std::string& fileName,
 //------------------------------------------------------------------------------
 // Get blockchecksum object for a filname
 //------------------------------------------------------------------------------
-
 std::pair<XrdSysRWLock*, CheckSum*>
 XrdFstOss::GetXsObj (const std::string& fileName, bool isRW)
 {
@@ -620,7 +752,6 @@ XrdFstOss::GetXsObj (const std::string& fileName, bool isRW)
 //------------------------------------------------------------------------------
 // Drop blockchecksum object for a file name
 //------------------------------------------------------------------------------
-
 void
 XrdFstOss::DropXs (const std::string& fileName, bool force)
 {
@@ -653,7 +784,6 @@ XrdFstOss::DropXs (const std::string& fileName, bool force)
 
   eos_debug("Oss map size after drop: %i.", mMapFileXs.size());
 }
-
 
 EOSFSTNAMESPACE_END
 

@@ -21,11 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//          $Id: XrdMqOfs.cc,v 1.00 2007/10/04 01:34:19 ajp Exp $
-
-const char *XrdMqOfsCVSID = "$Id: XrdMqOfs.cc,v 1.0.0 2007/10/04 01:34:19 ajp Exp $";
-
-
 #include "XrdVersion.hh"
 #include "XrdClient/XrdClientAdmin.hh"
 #include "XrdOss/XrdOss.hh"
@@ -50,6 +45,7 @@ const char *XrdMqOfsCVSID = "$Id: XrdMqOfs.cc,v 1.0.0 2007/10/04 01:34:19 ajp Ex
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 
 /******************************************************************************/
@@ -144,7 +140,10 @@ XrdMqOfs::Init (XrdSysError &ep)
 /******************************************************************************/
 /*                         G e t F i l e S y s t e m                          */
 /******************************************************************************/
-  
+
+// Set the version information
+XrdVERSIONINFO(XrdSfsGetFileSystem, MqOfs);
+
 extern "C" 
 XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs, 
                                       XrdSysLogger     *lp,
@@ -152,7 +151,7 @@ XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
 {
   // Do the herald thing
   //
-  gMqOfsEroute.SetPrefix("mqofs_");
+  gMqOfsEroute.SetPrefix("MqOfs_");
   gMqOfsEroute.logger(lp);
   gMqOfsEroute.Say("++++++ (c) 2012 CERN/IT-DSS ",
                 VERSION);

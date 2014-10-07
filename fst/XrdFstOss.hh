@@ -37,16 +37,21 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOss/XrdOss.hh"
 #include "XrdSys/XrdSysPthread.hh"
-
+#include "XrdOuc/XrdOucStream.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
+
+//! Forward declaration
+class XrdFstOssFile;
 
 //------------------------------------------------------------------------------
 //! Class XrdFstOss
 //------------------------------------------------------------------------------
 class XrdFstOss : public XrdOss, public eos::common::LogId
 {
+  friend class XrdFstOssFile;
+  
 public:
 
   int mFdFence; ///< smalest file FD number allowed
@@ -98,6 +103,18 @@ public:
   int Init (XrdSysLogger* lp, const char* configfn);
 
 
+  //--------------------------------------------------------------------------
+  //! Configuration function for the oss plugin
+  //!
+  //! @param configfn configuration file name
+  //! @param eroute error object
+  //!
+  //! @return 0 upon success, !0 otherwise
+  //!
+  //--------------------------------------------------------------------------
+  int Configure(const char* configfn, XrdSysError& eroute);
+
+  
   //--------------------------------------------------------------------------
   //! Unlink a file
   //!
@@ -266,10 +283,17 @@ public:
 private:
 
   XrdSysRWLock mRWMap; ///< rw lock for the file <-> xs map
-
   //! map between file names and block xs objects
   std::map< std::string, std::pair<XrdSysRWLock*, CheckSum*> > mMapFileXs;
 
+  // Parameters for pre-reading (i.e. for fadvise)
+  long long mPrPBits; ///< page lo order bit mask
+  long long mPrPMask; ///< page hi order bit mask
+  int mPrPSize; ///< preread page size
+  int mPrBytes; ///< preread byte limit
+  int mPrActive; ///< preread activity count
+  short mPrDepth; ///< preread depth
+  short mPrQSize; ///< preread maximum allowed
 
   //--------------------------------------------------------------------------
   //! Delete link 
@@ -281,6 +305,33 @@ private:
   //!
   //--------------------------------------------------------------------------
   int BreakLink (const char* local_path, struct stat& statbuff);
+
+
+  //--------------------------------------------------------------------------
+  //! Function xprerd to parse the directive
+  //!
+  //! preread {<depth> | on} [limit <bytes>]
+  //!         [ qsize [=]<qsz> ]
+  //!
+  //!         <depth>  the number of request to preread ahead of the read.
+  //!                  A value of 0, the inital default, turns off prereads.
+  //!                  Specifying "on" sets the value (currently) to 3.
+  //!         <bytes>  Maximum number of bytes to preread. Prereading stops,
+  //!                  regardless of depth, once <bytes> have been preread.
+  //!                  The default is 1M (i.e.1 megabyte). The max is 16M.
+  //!         <qsz>    the queue size after which preread blocking would occur.
+  //!                  The value must be greater than or equal to <depth>.
+  //!                  The value is adjusted to max(<qsz>/(<depth>/2+1),<depth>)
+  //!                  unless the number is preceeded by an equal sign. The
+  //!                  default <qsz> is 128.
+  //!
+  //! @param Config configuration file stream object
+  //! @param Eroute error object
+  //!
+  //! @return 0 upon success or !0 upon failure.
+  //!
+  //--------------------------------------------------------------------------
+  int xprerd(XrdOucStream &Config, XrdSysError &Eroute);
 
 };
 

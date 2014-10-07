@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: HeaderCRC.cc
-// Author: Elvin-Alin Sindrilaru - CERN
+// Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -29,19 +29,19 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-  char HeaderCRC::msTagName[] = "_HEADER__RAIDIO_";
+char HeaderCRC::msTagName[] = "_HEADER__RAIDIO_";
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-
 HeaderCRC::HeaderCRC (int sizeHeader, int sizeBlock) :
 mValid (false),
 mNumBlocks (-1),
 mIdStripe (-1),
 mSizeLastBlock (-1),
 mSizeBlock (sizeBlock),
-mSizeHeader (sizeHeader) {
+mSizeHeader (sizeHeader)
+{
   //empty
 }
 
@@ -49,7 +49,6 @@ mSizeHeader (sizeHeader) {
 //------------------------------------------------------------------------------
 // Constructor with parameter
 //------------------------------------------------------------------------------
-
 HeaderCRC::HeaderCRC (int sizeHeader, long long numBlocks, int sizeBlock) :
 mValid (false),
 mNumBlocks (numBlocks),
@@ -65,15 +64,14 @@ mSizeHeader (sizeHeader)
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-
-HeaderCRC::~HeaderCRC () {
+HeaderCRC::~HeaderCRC ()
+{
   //empty
 }
 
 //------------------------------------------------------------------------------
 // Read header from generic file
 //------------------------------------------------------------------------------
-
 bool
 HeaderCRC::ReadFromFile (FileIo*& pFile, uint16_t timeout)
 {
@@ -111,6 +109,7 @@ HeaderCRC::ReadFromFile (FileIo*& pFile, uint16_t timeout)
   if (mSizeBlock != read_sizeblock)
   {
     eos_err("error=block size read from file does not match block size expected");
+    mValid = false;
   }
 
   delete[] buff;
@@ -122,7 +121,6 @@ HeaderCRC::ReadFromFile (FileIo*& pFile, uint16_t timeout)
 //------------------------------------------------------------------------------
 // Write header to generic file
 //------------------------------------------------------------------------------
-
 bool
 HeaderCRC::WriteToFile (FileIo*& pFile, uint16_t timeout)
 {
@@ -142,13 +140,9 @@ HeaderCRC::WriteToFile (FileIo*& pFile, uint16_t timeout)
   memset(buff + offset, 0, mSizeHeader - offset);
 
   if (pFile->Write(0, buff, mSizeHeader, timeout) < 0)
-  {
     mValid = false;
-  }
   else
-  {
     mValid = true;
-  }
 
   delete[] buff;
   return mValid;

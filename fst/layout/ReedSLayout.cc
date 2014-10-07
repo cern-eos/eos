@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: ReedSLayout.cc
-// Author: Elvin-Alin Sindrilaru - CERN
+// Author Elvin-Alin Sindrilaru <esindril@cern.ch> 
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,14 +22,15 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "common/Timing.hh"
-#include "fst/layout/ReedSLayout.hh"
-#include "fst/io/AsyncMetaHandler.hh"
-/*----------------------------------------------------------------------------*/
 #include <cmath>
 #include <map>
 #include <set>
 #include <algorithm>
+/*----------------------------------------------------------------------------*/
+#include "common/Timing.hh"
+#include "fst/layout/ReedSLayout.hh"
+#include "fst/io/AsyncMetaHandler.hh"
+/*----------------------------------------------------------------------------*/
 #include "fst/layout/jerasure/jerasure.hh"
 #include "fst/layout/jerasure/reed_sol.hh"
 #include "fst/layout/jerasure/galois.hh"
@@ -43,7 +44,7 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 ReedSLayout::ReedSLayout(XrdFstOfsFile* file,
-                         int lid,
+                         unsigned long lid,
                          const XrdSecEntity* client,
                          XrdOucErrInfo* outError,
                          eos::common::LayoutId::eIoType io,
@@ -68,7 +69,6 @@ ReedSLayout::ReedSLayout(XrdFstOfsFile* file,
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-
 ReedSLayout::~ReedSLayout()
 {
   // empty
@@ -88,7 +88,7 @@ ReedSLayout::InitialiseJerasure()
 
   if (mSizeLine % mPacketSize != 0)
   {
-    eos_err("error=packet size could not be computed correctly");
+    eos_err("packet size could not be computed correctly");
     return false;
   }
 
@@ -96,7 +96,6 @@ ReedSLayout::InitialiseJerasure()
   matrix = cauchy_good_general_coding_matrix(mNbDataBlocks, mNbParityFiles, w);
   bitmatrix = jerasure_matrix_to_bitmatrix(mNbDataBlocks, mNbParityFiles, w, matrix);
   schedule = jerasure_smart_bitmatrix_to_schedule(mNbDataBlocks, mNbParityFiles, w, bitmatrix);
-  
   return true;
 }
 
@@ -112,7 +111,7 @@ ReedSLayout::ComputeParity()
   {
     if (!InitialiseJerasure())
     {
-      eos_err("error=failed to initialise Jerasure");
+      eos_err("failed to initialise Jerasure");
       return false;
     }
     
@@ -146,18 +145,15 @@ ReedSLayout::ComputeParity()
 // Recover corrupted pieces in the current group, all errors in the map
 // belonging to the same group
 //------------------------------------------------------------------------------
-
 bool
-ReedSLayout::RecoverPiecesInGroup(off_t offsetInit,
-                                  char* pBuffer,
-                                  std::map<off_t, size_t>& rMapErrors)
+ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 {
   // Initialise Jerasure structures if not done already
   if (!mDoneInitialisation)
   {
     if (!InitialiseJerasure())
     {
-      eos_err("error=failed to initialise Jerasure library");
+      eos_err("failed to initialise Jerasure library");
       return false;
     }
     
@@ -172,74 +168,66 @@ ReedSLayout::RecoverPiecesInGroup(off_t offsetInit,
   // Use "set" as we might add the same stripe index twice as a result of an early
   // error detected when sending the request and by the async handler
   set<unsigned int> invalid_ids;
-  off_t offset = rMapErrors.begin()->first;
-  off_t offset_local = (offset / mSizeGroup) * mStripeWidth;
-  off_t offset_group = (offset / mSizeGroup) * mSizeGroup;
-  size_t length = 0;
-  AsyncMetaHandler* ptr_handler = 0;
+  uint64_t offset = grp_errs.begin()->offset;
+  uint64_t offset_local = (offset / mSizeGroup) * mStripeWidth;
+  uint64_t offset_group = (offset / mSizeGroup) * mSizeGroup;
+  AsyncMetaHandler* phandler = 0;
   offset_local += mSizeHeader;
 
   for (unsigned int i = 0; i < mNbTotalFiles; i++)
   {
     physical_id = mapLP[i];
 
-    //..........................................................................
     // Read data from stripe
-    //..........................................................................
-    if (mStripeFiles[physical_id])
+    if (mStripe[physical_id])
     {
-      ptr_handler = static_cast<AsyncMetaHandler*>
-                    (mStripeFiles[physical_id]->GetAsyncHandler());
+      phandler = static_cast<AsyncMetaHandler*>(mStripe[physical_id]->GetAsyncHandler());
 
-      if (ptr_handler)
-        ptr_handler->Reset();
+      if (phandler)
+        phandler->Reset();
 
       // Enable readahead
-      nread = mStripeFiles[physical_id]->ReadAsync(offset_local, mDataBlocks[i],
-              mStripeWidth, true, mTimeout);
+      nread = mStripe[physical_id]->ReadAsync(offset_local, mDataBlocks[i],
+                                              mStripeWidth, true, mTimeout);
 
-      if (nread != mStripeWidth)
+      if (nread != (int64_t)mStripeWidth)
       {
-        eos_err("error=read block corrupted stripe=%u.", i);
+        eos_err("read block corrupted stripe=%u.", i);
         invalid_ids.insert(i);
       }
     }
     else
     {
-      //........................................................................
       // File not opened, register it as an error
-      //........................................................................
       invalid_ids.insert(i);
     }
   }
 
-  //............................................................................
   // Wait for read responses and mark corrupted blocks
-  //............................................................................
-  for (unsigned int i = 0; i < mStripeFiles.size(); i++)
+  for (unsigned int i = 0; i < mStripe.size(); i++)
   {
     physical_id = mapLP[i];
 
-    if (mStripeFiles[physical_id])
+    if (mStripe[physical_id])
     {
-      ptr_handler = static_cast<AsyncMetaHandler*>
-                    (mStripeFiles[physical_id]->GetAsyncHandler());
+      phandler = static_cast<AsyncMetaHandler*>
+                    (mStripe[physical_id]->GetAsyncHandler());
 
-      if (ptr_handler)
+      if (phandler)
       {
-        uint16_t error_type = ptr_handler->WaitOK();
+        uint16_t error_type = phandler->WaitOK();
 
         if (error_type != XrdCl::errNone)
         {
           std::pair< uint16_t, std::map<uint64_t, uint32_t> > pair_err;
-          eos_err("error=remote block corrupted id=%u", i);
+          eos_err("remote block corrupted id=%u", i);
           invalid_ids.insert(i);
 
           if (error_type == XrdCl::errOperationExpired)
           {
-            mStripeFiles[physical_id]->Close(mTimeout);
-            delete mStripeFiles[physical_id];
-            mStripeFiles[physical_id] = NULL;
+            mStripe[physical_id]->Close(mTimeout);
+            delete mStripe[physical_id];
+            mStripe[physical_id] = NULL;
           }
         }
       }
@@ -252,7 +240,7 @@ ReedSLayout::RecoverPiecesInGroup(off_t offsetInit,
   }
   else if (invalid_ids.size() > mNbParityFiles)
   {
-    eos_err("error=more blocks corrupted than the maximum number supported");
+    eos_err("more blocks corrupted than the maximum number supported");
     return false;
   }
 
@@ -261,16 +249,12 @@ ReedSLayout::RecoverPiecesInGroup(off_t offsetInit,
   char* data[mNbDataFiles];
 
   for (unsigned int i = 0; i < mNbDataFiles; i++)
-  {
     data[i] = (char*) mDataBlocks[i];
-  }
 
   for (unsigned int i = 0; i < mNbParityFiles; i++)
-  {
     coding[i] = (char*) mDataBlocks[mNbDataFiles + i];
-  }
-
-  // Array of ids of erased pieces
+ 
+  // Array of ids of erased pieces (corrupted)
   int *erasures = new int[invalid_ids.size() + 1];
   int index = 0;
   
@@ -282,25 +266,19 @@ ReedSLayout::RecoverPiecesInGroup(off_t offsetInit,
 
   erasures[invalid_ids.size()] = -1;
 
-  //............................................................................
   // ******* DECODE ******
-  //............................................................................
   int decode = jerasure_schedule_decode_lazy(mNbDataBlocks, mNbParityFiles, w,
                                              bitmatrix, erasures, data, coding,
                                              mStripeWidth, mPacketSize, 1);
-  
   // Free memory
   delete[] erasures;
   
   if (decode == -1) {
-    eos_err("error=decoding was unsuccessful");
+    eos_err("decoding was unsuccessful");
     return false;
   }  
   
-  //............................................................................
   // Update the files in which we found invalid blocks
-  //............................................................................
-  char* pBuff;
   unsigned int stripe_id;
 
   for (auto iter = invalid_ids.begin(); iter != invalid_ids.end(); ++iter)
@@ -308,80 +286,69 @@ ReedSLayout::RecoverPiecesInGroup(off_t offsetInit,
     stripe_id = *iter;
     physical_id = mapLP[stripe_id];
 
-    if (mStoreRecovery && mStripeFiles[physical_id])
+    if (mStoreRecovery && mStripe[physical_id])
     {
-      ptr_handler =
-        static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->GetAsyncHandler());
+      phandler = static_cast<AsyncMetaHandler*>(mStripe[physical_id]->GetAsyncHandler());
 
-      if (ptr_handler)
-        ptr_handler->Reset();
+      if (phandler)
+        phandler->Reset();
 
-      nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local,
+      nwrite = mStripe[physical_id]->WriteAsync(offset_local,
                                                      mDataBlocks[stripe_id],
                                                      mStripeWidth,
                                                      mTimeout);
-
-      eos_debug("action=recovery nwrite=%d offset=%lld", nwrite, (long long) offset_local);
-      if (nwrite != mStripeWidth)
+      if (nwrite != (int64_t)mStripeWidth)
       {
-        eos_err("error=while doing write operation stripe=%u, offset=%lli",
+        eos_err("while doing write operation stripe=%u, offset=%lli",
                 stripe_id, offset_local);
         ret = false;
         break;
       }
     }
 
-    //..........................................................................
     // Write the correct block to the reading buffer, if it is not parity info
-    //..........................................................................
     if (stripe_id < mNbDataFiles)
     {
-      //if one of the data blocks
-      for (std::map<off_t, size_t>::iterator itPiece = rMapErrors.begin();
-           itPiece != rMapErrors.end();
-           itPiece++)
+      // If one of the data blocks
+      for (auto chunk = grp_errs.begin(); chunk != grp_errs.end(); chunk++)
       {
-        offset = itPiece->first;
-        length = itPiece->second;
+        offset = chunk->offset;
 
-        if ((offset >= (off_t)(offset_group + stripe_id * mStripeWidth)) &&
-            (offset < (off_t)(offset_group + (stripe_id + 1) * mStripeWidth)))
+        if ((offset >= (offset_group + stripe_id * mStripeWidth)) &&
+            (offset < (offset_group + (stripe_id + 1) * mStripeWidth)))
         {
-          pBuff = pBuffer + (offset - offsetInit);
-          pBuff = static_cast<char*>(memcpy(pBuff,
-                                            mDataBlocks[stripe_id] + (offset % mStripeWidth),
-                                            length));
+          chunk->buffer = static_cast<char*>(memcpy(chunk->buffer,
+                                                    mDataBlocks[stripe_id] + (offset % mStripeWidth),
+                                                    chunk->length));
         }
       }
     }
   }
 
-  //............................................................................
   // Wait for write responses
-  //............................................................................
   for (auto iter = invalid_ids.begin(); iter != invalid_ids.end(); ++iter)
   {
     physical_id = mapLP[*iter];
 
-    if (mStoreRecovery && mStripeFiles[physical_id])
+    if (mStoreRecovery && mStripe[physical_id])
     {
-      ptr_handler = static_cast<AsyncMetaHandler*>
-                    (mStripeFiles[physical_id]->GetAsyncHandler());
+      phandler = static_cast<AsyncMetaHandler*>
+                    (mStripe[physical_id]->GetAsyncHandler());
 
-      if (ptr_handler)
+      if (phandler)
       {
-        uint16_t error_type = ptr_handler->WaitOK();
+        uint16_t error_type = phandler->WaitOK();
 
         if (error_type != XrdCl::errNone)
         {
-          eos_err("error=failed write on stripe=%u", *iter);
+          eos_err("failed write on stripe=%u", *iter);
           ret = false;
 
           if (error_type == XrdCl::errOperationExpired)
           {
-            mStripeFiles[physical_id]->Close(mTimeout);
-            delete mStripeFiles[physical_id];
-            mStripeFiles[physical_id] = NULL;
+            mStripe[physical_id]->Close(mTimeout);
+            delete mStripe[physical_id];
+            mStripe[physical_id] = NULL;
           }
         }
       }
@@ -397,19 +364,16 @@ ReedSLayout::RecoverPiecesInGroup(off_t offsetInit,
 // Writing a file in streaming mode
 // Add a new data used to compute parity block
 //------------------------------------------------------------------------------
-
 void
-ReedSLayout::AddDataBlock(off_t offset, const char* pBuffer, size_t length)
+ReedSLayout::AddDataBlock(uint64_t offset, const char* pBuffer, uint32_t length)
 {
   int indx_block;
-  size_t nwrite;
-  off_t offset_in_block;
-  off_t offset_in_group = offset % mSizeGroup;
+  uint32_t nwrite;
+  uint64_t offset_in_block;
+  uint64_t offset_in_group = offset % mSizeGroup;
 
-  //............................................................................
   // In case the file is smaller than mSizeGroup, we need to force it to compute
   // the parity blocks
-  //............................................................................
   if ((mOffGroupParity == -1) && (offset < mSizeGroup))
   {
     mOffGroupParity = 0;
@@ -444,9 +408,7 @@ ReedSLayout::AddDataBlock(off_t offset, const char* pBuffer, size_t length)
 
     if (offset_in_group == 0)
     {
-      //........................................................................
       // We completed a group, we can compute parity
-      //........................................................................
       mOffGroupParity = ((offset - 1) / mSizeGroup) * mSizeGroup;
       mFullDataBlocks = true;
       DoBlockParity(mOffGroupParity);
@@ -464,31 +426,28 @@ ReedSLayout::AddDataBlock(off_t offset, const char* pBuffer, size_t length)
 //------------------------------------------------------------------------------
 // Write the parity blocks from mDataBlocks to the corresponding file stripes
 //------------------------------------------------------------------------------
-
 int
-ReedSLayout::WriteParityToFiles(off_t offsetGroup)
+ReedSLayout::WriteParityToFiles(uint64_t offsetGroup)
 {
   int ret = SFS_OK;
   int64_t nwrite = 0;
   unsigned int physical_id;
-  off_t offset_local = (offsetGroup / mNbDataFiles);
+  uint64_t offset_local = (offsetGroup / mNbDataFiles);
   offset_local += mSizeHeader;
 
   for (unsigned int i = mNbDataFiles; i < mNbTotalFiles; i++)
   {
     physical_id = mapLP[i];
 
-    //..........................................................................
     // Write parity block
-    //..........................................................................
-    if (mStripeFiles[physical_id])
+    if (mStripe[physical_id])
     {
-      nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local, mDataBlocks[i],
-               mStripeWidth, mTimeout);
+      nwrite = mStripe[physical_id]->WriteAsync(offset_local, mDataBlocks[i],
+                                                mStripeWidth, mTimeout);
 
-      if (nwrite != mStripeWidth)
+      if (nwrite != (int64_t)mStripeWidth)
       {
-        eos_err("error=while doing write operation stripe=%u, offset=%lli",
+        eos_err("while doing write operation stripe=%u, offset=%lli",
                 i, offset_local);
         ret = SFS_ERROR;
         break;
@@ -496,10 +455,8 @@ ReedSLayout::WriteParityToFiles(off_t offsetGroup)
     }
   }
 
-  //.............................................................................
   // We collect the write responses either the next time we do a read like in
   // ReadGroups or in the Close method for the whole file.
-  //.............................................................................
   return ret;
 }
 
@@ -507,49 +464,44 @@ ReedSLayout::WriteParityToFiles(off_t offsetGroup)
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
-
 int
 ReedSLayout::Truncate(XrdSfsFileOffset offset)
 {
   int rc = SFS_OK;
-  off_t truncate_offset = 0;
+  uint64_t truncate_offset = 0;
   truncate_offset = ceil((offset * 1.0) / mSizeGroup) * mStripeWidth;
   truncate_offset += mSizeHeader;
   eos_debug("Truncate local stripe to file_offset = %lli, stripe_offset = %zu",
             offset, truncate_offset);
 
-  if (mStripeFiles[0])
-    mStripeFiles[0]->Truncate(truncate_offset, mTimeout);
+  if (mStripe[0])
+    mStripe[0]->Truncate(truncate_offset, mTimeout);
 
   if (mIsEntryServer)
   {
     if (!mIsPio)
     {
-      //........................................................................
       // In non PIO access each stripe will compute its own truncate value
-      //........................................................................
       truncate_offset = offset;
     }
 
-    for (unsigned int i = 1; i < mStripeFiles.size(); i++)
+    for (unsigned int i = 1; i < mStripe.size(); i++)
     {
-      eos_debug("Truncate stripe %i, to file_offset = %lli, stripe_offset = %zu",
+      eos_debug("Truncate stripe %i, to file_offset=%lli, stripe_offset=%zu",
                 i, offset, truncate_offset);
 
-      if (mStripeFiles[i])
+      if (mStripe[i])
       {
-        if (mStripeFiles[i]->Truncate(truncate_offset, mTimeout))
+        if (mStripe[i]->Truncate(truncate_offset, mTimeout))
         {
-          eos_err("error=error while truncating");
+          eos_err("error while truncating");
           return SFS_ERROR;
         }
       }
     }
   }
 
-  //............................................................................
   // *!!!* Reset the maxOffsetWritten from XrdFstOfsFile to logical offset
-  //............................................................................
   mFileSize = offset;
 
   if (!mIsPio)
@@ -564,13 +516,12 @@ ReedSLayout::Truncate(XrdSfsFileOffset offset)
 //------------------------------------------------------------------------------
 // Return the same index in the Reed-Solomon case
 //------------------------------------------------------------------------------
-
 unsigned int
 ReedSLayout::MapSmallToBig(unsigned int idSmall)
 {
   if (idSmall >= mNbDataBlocks)
   {
-    eos_err("error=idSmall bigger than expected");
+    eos_err("idSmall bigger than expected");
     return -1;
   }
 
@@ -578,20 +529,20 @@ ReedSLayout::MapSmallToBig(unsigned int idSmall)
 }
 
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Allocate file space ( reserve )
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int
 ReedSLayout::Fallocate(XrdSfsFileOffset length)
 {
   int64_t size = ceil((1.0 * length) / mSizeGroup) * mStripeWidth + mSizeHeader;
-  return mStripeFiles[0]->Fallocate(size);
+  return mStripe[0]->Fallocate(size);
 }
 
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Deallocate file space
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int
 ReedSLayout::Fdeallocate(XrdSfsFileOffset fromOffset,
                          XrdSfsFileOffset toOffset)
@@ -600,7 +551,7 @@ ReedSLayout::Fdeallocate(XrdSfsFileOffset fromOffset,
                       mSizeHeader;
   int64_t to_size = ceil((1.0 * toOffset) / mSizeGroup) * mStripeWidth +
                     mSizeHeader;
-  return mStripeFiles[0]->Fdeallocate(from_size, to_size);
+  return mStripe[0]->Fdeallocate(from_size, to_size);
 }
 
 
@@ -624,6 +575,35 @@ ReedSLayout::IsPrime(int w)
   return false;;
 }
 
+
+//------------------------------------------------------------------------------
+// Convert a global offset (from the inital file) to a local offset within
+// a stripe file. The initial block does *NOT* span multiple chunks (stripes)
+// therefore if the original length is bigger than one chunk the splitting
+// must be done before calling this method.
+//------------------------------------------------------------------------------
+std::pair<int, uint64_t>
+ReedSLayout::GetLocalPos(uint64_t global_off)
+{
+  uint64_t local_off = (global_off / mSizeLine) * mStripeWidth +
+                       (global_off % mStripeWidth);
+  int stripe_id = (global_off / mStripeWidth) % mNbDataFiles;  
+  return std::make_pair(stripe_id, local_off);
+}
+
+
+//------------------------------------------------------------------------------
+// Convert a local position (from a stripe file) to a global position
+// within the initial file file
+//------------------------------------------------------------------------------
+uint64_t
+ReedSLayout::GetGlobalOff(int stripe_id, uint64_t local_off)
+{
+  uint64_t global_off = (local_off / mStripeWidth) * mSizeLine +
+                        (stripe_id * mStripeWidth) +
+                        (local_off % mStripeWidth);  
+  return global_off;
+}
 
 EOSFSTNAMESPACE_END
 

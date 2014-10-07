@@ -1,12 +1,12 @@
 //------------------------------------------------------------------------------
-//! @file FileIoPlugin.hh
-//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
-//! @brief Class generating an IO plugin object
+//! @file TestEnv.hh
+//! @author Elvin Sindrilaru <esindril@cern.ch>
+//! @bried Class containing all the variables need for the test done on the FST
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2013 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,65 +22,58 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_FILEIOPLUGIN_HH__
-#define __EOSFST_FILEIOPLUGIN_HH__
-
 /*----------------------------------------------------------------------------*/
-#include "fst/io/FileIo.hh"
-#include "fst/io/LocalIo.hh"
-#include "fst/io/XrdIo.hh"
-#include "common/LayoutId.hh"
+#include <map>
+#include <string>
+/*----------------------------------------------------------------------------*/
+#include "Namespace.hh"
 /*----------------------------------------------------------------------------*/
 
-EOSFSTNAMESPACE_BEGIN
-
-using eos::common::LayoutId;
-
-//! Forward declaration
-class XrdFstOfsFile;
+EOSFSTTEST_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Class used to obtain a IO plugin object
+//! TestEnv class - not thread safe
 //------------------------------------------------------------------------------
-class FileIoPlugin
+class TestEnv
 {
-public:
-
+ public:
+  
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FileIoPlugin ()
-  {
-    //empty
-  }
-
-
+  TestEnv();
+  
+  
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~FileIoPlugin ()
-  {
-    //empty
-  }
-
-
+  virtual ~TestEnv();
+  
+  
   //----------------------------------------------------------------------------
-  //! Get IO object
+  //! Add new entry to the map of parameters
   //!
-  //! @param file file handler
-  //! @param layoutId layout id type
-  //! @param error error information
-  //!
-  //! @return requested layout type object
+  //! @param key key to be inserted
+  //! @param value value to the inserted
   //!
   //----------------------------------------------------------------------------
-  static FileIo*
-  GetIoObject (int ioType,
-               XrdFstOfsFile* file = 0,
-               const XrdSecEntity* client = 0);
+  void SetMapping(const std::string& key, const std::string& value);
+  
+  
+  //----------------------------------------------------------------------------
+  //! Get value corresponding to the key from the map
+  //!
+  //! @param key key to be searched in the map
+  //!
+  //! @return value stored in the map
+  //!
+  //----------------------------------------------------------------------------
+  std::string GetMapping(const std::string& key) const;
+  
+  
+ private:
+  
+  std::map<std::string, std::string> mMapParam; ///< map testing parameters
 };
 
-EOSFSTNAMESPACE_END
-
-#endif // __ EOSFST_FILEIOPLUGIN_HH__
-
+EOSFSTTEST_NAMESPACE_END

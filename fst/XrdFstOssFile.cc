@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File XrdFstOssFile.cc
-// Author Elvin-Alin Sindrilaru - CERN
+// Author Elvin-Alin Sindrilaru <esindril@cern.ch> 
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include <fcntl.h>
+#include <algorithm>
 /*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOss.hh"
 #include "fst/XrdFstOssFile.hh"
@@ -35,13 +36,12 @@ EOSFSTNAMESPACE_BEGIN
 #define O_LARGEFILE 0
 #endif
 
-  //! pointer to the current OSS implementation to be used by the oss files
-  extern XrdFstOss* XrdFstSS;
+//! pointer to the current OSS implementation to be used by the oss files
+extern XrdFstOss* XrdFstSS;
 
 //------------------------------------------------------------------------------
 // Constuctor
 //------------------------------------------------------------------------------
-
 XrdFstOssFile::XrdFstOssFile (const char* tid) :
 XrdOssDF(),
 eos::common::LogId (),
@@ -49,24 +49,30 @@ mIsRW (false),
 mRWLockXs (0),
 mBlockXs (0)
 {
-  // empty
+  mPieceStart = new char[eos::common::LayoutId::OssXsBlockSize];
+  mPieceEnd = new char[eos::common::LayoutId::OssXsBlockSize];
 }
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-
-XrdFstOssFile::~XrdFstOssFile () {
+XrdFstOssFile::~XrdFstOssFile ()
+{
   if (fd >= 0) close(fd);
   fd = -1;
+
+  if (mPieceStart)
+    delete[] mPieceStart;
+
+  if (mPieceEnd)
+    delete[] mPieceEnd;
 }
 
 
 //------------------------------------------------------------------------------
 // Open function
 //------------------------------------------------------------------------------
-
 int
 XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
 {
@@ -76,20 +82,11 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
   off_t booking_size = 0;
   mPath = path;
 
-  //............................................................................
   // Return an error if this object is already open
-  //............................................................................
-  if (fd >= 0)
-  {
-    eos_err("msg=\"file is already open\" path=%s", path);
-    return -EBADF;
-  } 
-
-  if ((val = env.Get("mgm.lid")))
-  {
-    lid = atol(val);
-  }
-
+  if (fd >= 0) return -EBADF;
+  
+  if ((val = env.Get("mgm.lid"))) lid = atol(val);
+  
   if ((val = env.Get("mgm.bookingsize")))
   {
     booking_size = strtoull(val, 0, 10);
@@ -101,19 +98,13 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
     }
   }
 
-  //............................................................................
   // Decide if file opened for rw operations
-  //............................................................................
   if ((flags & (O_WRONLY | O_RDWR | O_CREAT | O_TRUNC)) != 0)
-  {
     mIsRW = true;
-  }
   
   if (eos::common::LayoutId::GetBlockChecksum(lid) != eos::common::LayoutId::kNone)
   {
-    //..........................................................................
     // Look for a blockchecksum obj corresponding to this file
-    //..........................................................................
     std::pair<XrdSysRWLock*, CheckSum*> pair_value;
     pair_value = XrdFstSS->GetXsObj(path, mIsRW);
     mRWLockXs = pair_value.first;
@@ -137,9 +128,7 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
           return -EIO;
         }
 
-        //......................................................................
         // Add the new file blockchecksum mapping
-        //......................................................................
         mRWLockXs = XrdFstSS->AddMapping(path, mBlockXs, mIsRW);
       }
       else
@@ -150,18 +139,14 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
     }
   }
 
-  //............................................................................
   // Do the actual open of the file
-  //............................................................................
   do
   {
     fd = open(path, flags | O_LARGEFILE, mode);
   }
   while ((fd < 0) && (errno == EINTR));
 
-  //............................................................................
   // Relocate the file descriptor if need be and make sure file is closed on exec
-  //............................................................................
   if (fd >= 0)
   {
     if (fd < XrdFstSS->mFdFence)
@@ -188,34 +173,86 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
 //------------------------------------------------------------------------------
 // Read
 //------------------------------------------------------------------------------
-
 ssize_t
 XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
 {
-  ssize_t retval;
+  ssize_t retval = 0;
+  ssize_t nread;
+  off_t off_copy;
+  size_t len_copy;
+  char* ptr_piece;
+  char* ptr_buff;
+  std::vector<XrdOucIOVec> pieces;
+  eos_debug("off=%ji len=%ji", offset, length);
 
   if (fd < 0)
-  {
     return static_cast<ssize_t> (-EBADF);
-  }
-
-  do
+  
+  if (!mBlockXs)
   {
-    retval = pread(fd, buffer, length, offset);
+    // If we don't have blockxs enabled then there is no point in aligning
+    XrdOucIOVec piece = {(long long)offset, (int)length, 0, (char*)buffer};
+    pieces.push_back(piece);
   }
-  while ((retval < 0) && (errno == EINTR));
-
-  if (mBlockXs)
+  else
   {
-    XrdSysRWLockHelper wr_lock(mRWLockXs, 0);
-
-    if ((retval > 0) &&
-        (!mBlockXs->CheckBlockSum(offset, static_cast<const char*> (buffer), retval)))
+    // Align to the block checksum offset by possibly reading two extra
+    // pieces in the beginning and/or at the end of the requested piece
+    pieces = AlignBuffer(buffer, offset, length);
+  }
+  
+  // Loop through all the pieces and read them in
+  for (auto piece = pieces.begin(); piece != pieces.end(); ++piece)
+  {
+    do
     {
-      eos_err("error=read block-xs error offset=%zu, length=%zu",
-              offset, length);
-      return -EIO;
+      nread = pread(fd, piece->data, piece->size, piece->offset);
     }
+    while ((nread < 0) && (errno == EINTR));
+    
+    if (mBlockXs)
+    {
+      XrdSysRWLockHelper wr_lock(mRWLockXs, 0);
+      
+      if ((nread > 0) &&
+          (!mBlockXs->CheckBlockSum(piece->offset, piece->data, nread)))
+      {
+        eos_err("error=read block-xs error offset=%zu, length=%zu",
+                piece->offset, piece->size);
+        return -EIO;
+      }
+    }
+
+    if (nread)
+    {
+      if (piece->offset < offset)
+      {
+        // Copy back begin edge 
+        ptr_buff = (char*)buffer;
+        off_copy = offset - piece->offset;
+        len_copy = std::min(nread - off_copy, (ssize_t)length);
+        ptr_piece = piece->data + off_copy;
+        ptr_buff = (char*)memcpy((void*)ptr_buff, ptr_piece, len_copy);
+        retval += len_copy;
+      }
+      else if ((piece->offset >= offset) &&
+               (off_t)(offset + length) < piece->offset + nread)
+      {
+        // Copy back end edge
+        len_copy = std::min((off_t)(offset + length - piece->offset), nread);     
+        ptr_buff = (char*)buffer + (piece->offset - offset);
+        ptr_buff = (char*)memcpy((void*)ptr_buff, piece->data, len_copy);
+        retval += len_copy;
+      }
+      else
+        retval += nread;
+    }
+  }
+
+  if (retval > (ssize_t)length)
+  {
+    eos_err("read ret=%ji more than requested length=%ju", retval, length);
+    return -EIO;
   }
 
   return ( retval >= 0 ? retval : static_cast<ssize_t> (-errno));
@@ -223,9 +260,61 @@ XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
 
 
 //------------------------------------------------------------------------------
+// Align request to the blockchecksum offset so that the whole request is
+// checksummed
+//------------------------------------------------------------------------------
+std::vector<XrdOucIOVec>
+XrdFstOssFile::AlignBuffer(void* buffer, off_t offset, size_t length)
+{
+  XrdOucIOVec piece;
+  std::vector<XrdOucIOVec> resp;
+  resp.reserve(3); // worst case
+  uint64_t blk_size = eos::common::LayoutId::OssXsBlockSize;
+  off_t chunk_end = offset + length;
+  off_t align_start = (offset / blk_size) * blk_size;
+  off_t align_end = (chunk_end / blk_size) * blk_size;
+
+  if (align_start < offset)
+  {
+    // Extra piece at the beginning
+    piece = {(long long) align_start,
+             (int) blk_size, 0,
+             mPieceStart};
+    resp.push_back(piece);
+    align_start += blk_size;
+  }
+
+  // Add rest of pieces if this was not all
+  if (align_start < chunk_end)
+  {
+    if (align_start != align_end)
+    {
+      // Add the main piece
+      char* ptr_buff = (char*)buffer + (align_start - offset);
+      piece = {(long long) align_start,
+               (int) (align_end - align_start), 0,
+               ptr_buff};
+      resp.push_back(piece);
+    }
+    
+    if (((off_t)align_end < chunk_end) &&
+        ((off_t)(align_end + blk_size) > chunk_end))
+    {
+      // Extra piece at the end
+      piece = {(long long) align_end,
+               (int) blk_size, 0,
+               mPieceEnd};
+      resp.push_back(piece);
+    }
+  }
+
+  return resp;
+}
+
+
+//------------------------------------------------------------------------------
 // Read raw
 //------------------------------------------------------------------------------
-
 ssize_t
 XrdFstOssFile::ReadRaw (void* buffer, off_t offset, size_t length)
 {
@@ -234,9 +323,116 @@ XrdFstOssFile::ReadRaw (void* buffer, off_t offset, size_t length)
 
 
 //------------------------------------------------------------------------------
+// Vector read
+//------------------------------------------------------------------------------
+ssize_t
+XrdFstOssFile::ReadV(XrdOucIOVec *readV, int n)
+{
+  ssize_t rdsz;
+  ssize_t totBytes = 0;
+
+// For platforms that support fadvise, pre-advise what we will be reading
+#if defined(__linux__) && defined(HAVE_ATOMICS)
+  long long begOff, endOff, begLst = -1, endLst = -1;
+  int nPR = n;
+  
+  // Indicate we are in preread state and see if we have exceeded the limit
+  if (XrdFstSS->mPrDepth
+      && (AtomicInc((XrdFstSS->mPrActive)) < XrdFstSS->mPrQSize)
+      && (n > 2))
+  {
+    int faBytes = 0;
+    for (nPR=0; (nPR < XrdFstSS->mPrDepth) && (faBytes < XrdFstSS->mPrBytes); nPR++)
+      if (readV[nPR].size > 0)
+      {
+        begOff = XrdFstSS->mPrPMask & readV[nPR].offset;
+        endOff = XrdFstSS->mPrPBits | (readV[nPR].offset+readV[nPR].size);
+        rdsz = endOff - begOff + 1;
+        
+        if ((begOff > endLst || endOff < begLst) && (rdsz < XrdFstSS->mPrBytes))
+        {
+          posix_fadvise(fd, begOff, rdsz, POSIX_FADV_WILLNEED);
+          eos_debug("fadvise fd=%i off=%lli len=%ji", fd, begOff, rdsz);
+          faBytes += rdsz;
+         }
+        
+        begLst = begOff;
+        endLst = endOff;
+      }
+  }
+#endif
+  
+  // Read in the vector and do a pre-advise if we support that
+  for (int i = 0; i < n; i++)
+  {
+    // Use normal block read since it also does the blockxs and we have the
+    // guarantee that the previous advice was issued for the full block to
+    // be read even with the 4K alignment since fadvice does this on its own
+    rdsz = Read(readV[i].data, readV[i].offset, readV[i].size);
+
+    if (rdsz < 0 || rdsz != readV[i].size)
+    {
+      totBytes =  (rdsz < 0 ? -errno : -ESPIPE);
+      break;
+    }              
+   
+    totBytes += rdsz;
+#if defined(__linux__) && defined(HAVE_ATOMICS)
+    if (nPR < n && readV[nPR].size > 0)
+    {
+      begOff = XrdFstSS->mPrPMask &  readV[nPR].offset;
+      endOff = XrdFstSS->mPrPBits | (readV[nPR].offset+readV[nPR].size);
+      rdsz = endOff - begOff + 1;
+      
+      if ((begOff > endLst || endOff < begLst)
+           &&  rdsz <= XrdFstSS->mPrBytes)
+       {
+         posix_fadvise(fd, begOff, rdsz, POSIX_FADV_WILLNEED);
+         eos_debug("fadvise fd=%i off=%lli len=%ji", fd, begOff, rdsz);
+       }
+       begLst = begOff; endLst = endOff;
+     }
+     nPR++;
+#endif
+   }
+   
+// All done, return bytes read.
+#if defined(__linux__) && defined(HAVE_ATOMICS)
+ if (XrdFstSS->mPrDepth) AtomicDec((XrdFstSS->mPrActive));
+#endif
+ return totBytes;
+}
+
+
+//------------------------------------------------------------------------------
+// Vector write
+//------------------------------------------------------------------------------
+ssize_t
+XrdFstOssFile::WriteV(XrdOucIOVec *writeV, int n)
+{
+  ssize_t nbytes = 0;
+  ssize_t curCount = 0;
+
+  for (int i = 0; i < n; i++) {
+    curCount = Write((void *)writeV[i].data,
+                     (off_t)writeV[i].offset,
+                     (size_t)writeV[i].size);
+
+    if (curCount != writeV[i].size) {
+      if (curCount < 0)
+        return curCount;
+      return -ESPIPE;
+    }
+    
+    nbytes += curCount;
+  }
+  return nbytes;
+}
+
+
+//------------------------------------------------------------------------------
 // Write
 //------------------------------------------------------------------------------
-
 ssize_t
 XrdFstOssFile::Write (const void* buffer, off_t offset, size_t length)
 {
@@ -266,7 +462,6 @@ XrdFstOssFile::Write (const void* buffer, off_t offset, size_t length)
 //------------------------------------------------------------------------------
 // Chmod function
 //------------------------------------------------------------------------------
-
 int
 XrdFstOssFile::Fchmod (mode_t mode)
 {
@@ -277,7 +472,6 @@ XrdFstOssFile::Fchmod (mode_t mode)
 //------------------------------------------------------------------------------
 // Get file status
 //------------------------------------------------------------------------------
-
 int
 XrdFstOssFile::Fstat (struct stat* statinfo)
 {
@@ -288,7 +482,6 @@ XrdFstOssFile::Fstat (struct stat* statinfo)
 //------------------------------------------------------------------------------
 // Sync file to local disk
 //------------------------------------------------------------------------------
-
 int
 XrdFstOssFile::Fsync ()
 {
@@ -299,7 +492,6 @@ XrdFstOssFile::Fsync ()
 //------------------------------------------------------------------------------
 // Truncate the file
 //------------------------------------------------------------------------------
-
 int
 XrdFstOssFile::Ftruncate (unsigned long long flen)
 {
@@ -307,9 +499,7 @@ XrdFstOssFile::Ftruncate (unsigned long long flen)
 
   if ((sizeof ( newlen) < sizeof ( flen)) && (flen >> 31)) return -EOVERFLOW;
 
-  //............................................................................
   // Note that space adjustment will occur when the file is closed, not here
-  //............................................................................
   return ( ftruncate(fd, newlen) ? -errno : XrdOssOK);
 }
 
@@ -317,7 +507,6 @@ XrdFstOssFile::Ftruncate (unsigned long long flen)
 //------------------------------------------------------------------------------
 // Get file descriptor
 //------------------------------------------------------------------------------
-
 int
 XrdFstOssFile::getFD ()
 {
@@ -328,7 +517,6 @@ XrdFstOssFile::getFD ()
 //------------------------------------------------------------------------------
 // Close function
 //------------------------------------------------------------------------------
-
 int
 XrdFstOssFile::Close (long long* retsz)
 {
@@ -346,9 +534,7 @@ XrdFstOssFile::Close (long long* retsz)
     if ((XrdFstSS->Stat(mPath.c_str(), &statinfo)))
     {
       eos_err("error=close - cannot stat unlinked file: %s", mPath.c_str());
-      //........................................................................
       // Take care not to leak file descriptors
-      //........................................................................
       if (fd >= 0) close(fd);
       fd = -1;
       return -EIO;
@@ -359,14 +545,10 @@ XrdFstOssFile::Close (long long* retsz)
 
     if (mBlockXs->GetTotalRef() >= 1)
     {
-      //........................................................................
       // If multiple references
-      //........................................................................
       if ((mBlockXs->GetNumRef(true) == 0) && mIsRW)
       {
-        //......................................................................
         // If one last writer and this is the current one
-        //......................................................................
         if (!mBlockXs->ChangeMap(statinfo.st_size, true))
         {
           eos_err("error=unable to change block checksum map");
@@ -384,9 +566,7 @@ XrdFstOssFile::Close (long long* retsz)
     }
     else
     {
-      //........................................................................
       // Just one reference left (the current one)
-      //........................................................................
       if (mIsRW)
       {
         if (!mBlockXs->ChangeMap(statinfo.st_size, true))
@@ -413,9 +593,7 @@ XrdFstOssFile::Close (long long* retsz)
     }
   }
 
-  //............................................................................
   // Delete the filename - xs obj mapping from Oss if required
-  //............................................................................
   if (delete_mapping)
   {
     eos_debug("Delete entry from oss map");
@@ -426,13 +604,9 @@ XrdFstOssFile::Close (long long* retsz)
     eos_debug("No delete from oss map");
   }
 
-  //............................................................................
   // Close the current file
-  //............................................................................
   if (close(fd))
-  {
     return -errno;
-  }
 
   fd = -1;
   return XrdOssOK;

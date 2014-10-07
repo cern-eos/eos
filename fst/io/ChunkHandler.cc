@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: ChunkHandler.cc
-// Author: Elvin-Alin Sindrilaru - CERN
+// Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -23,7 +23,6 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/io/ChunkHandler.hh"
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -34,10 +33,10 @@ EOSFSTNAMESPACE_BEGIN
 ChunkHandler::ChunkHandler (AsyncMetaHandler* metaHandler,
                             uint64_t offset,
                             uint32_t length,
-                            const char* buff,
+                            char* buff,
                             bool isWrite) :
 XrdCl::ResponseHandler(),
-mBuffer(0),
+mBuffer(buff),
 mMetaHandler (metaHandler),
 mOffset (offset),
 mLength (length),
@@ -51,9 +50,7 @@ mIsWrite (isWrite)
     mBuffer = static_cast<char*>(calloc(mCapacity, sizeof(char)));
     
     if (mBuffer)
-    {
       mBuffer = static_cast<char*>(memcpy(mBuffer, buff, length));
-    }
   }
 }
 
@@ -61,35 +58,43 @@ mIsWrite (isWrite)
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-
 ChunkHandler::~ChunkHandler ()
 {
-  if (mBuffer)
-  {
+  if (mIsWrite && mBuffer)
     free(mBuffer);
-  }
 }
 
 
 //------------------------------------------------------------------------------
 // Update function
 //------------------------------------------------------------------------------
-
 void
 ChunkHandler::Update (AsyncMetaHandler* metaHandler,
                       uint64_t offset,
                       uint32_t length,
-                      const char* buff,
+                      char* buff,
                       bool isWrite)
 {
   mMetaHandler = metaHandler;
   mOffset = offset;
   mLength = length;
   mRespLength = 0;
-  mIsWrite = isWrite;
 
-  if (mIsWrite)
+  if (mIsWrite && !isWrite)
   {
+    // write -> read
+    free(mBuffer);
+    mBuffer = buff;
+    mCapacity = 0;
+  }
+  else if (!mIsWrite && !isWrite)
+  {
+    // read -> read
+    mBuffer = buff;
+  }
+  else if (mIsWrite && isWrite)
+  {
+    // write -> write
     if (length > mCapacity)
     {
       mCapacity = length;
@@ -98,31 +103,35 @@ ChunkHandler::Update (AsyncMetaHandler* metaHandler,
     
     mBuffer = static_cast<char*>(memcpy(mBuffer, buff, length));
   }
+  else
+  {
+    // read -> write
+    mCapacity = length;
+    mBuffer = static_cast<char*>(calloc(mCapacity, sizeof(char)));
+    mBuffer = static_cast<char*>(memcpy(mBuffer, buff, length));    
+  }
+  
+  mIsWrite = isWrite;
 }
 
 
 //------------------------------------------------------------------------------
 // Handle response
 //------------------------------------------------------------------------------
-
 void
 ChunkHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
                               XrdCl::AnyObject* pResponse)
 {
-  //............................................................................
   // Do some extra check for the read case
-  //............................................................................
   if ((mIsWrite == false) && (pResponse))
   {
     XrdCl::ChunkInfo* chunk = 0;
     pResponse->Get(chunk);
     mRespLength = chunk->length;
 
-    //..........................................................................
     // Notice if we received less then we initially requested - usually this means
     // we reached the end of the file, but we will treat it as an error
-    //..........................................................................
-    if (mLength != chunk->length)
+    if (mLength != mRespLength)
     {
       pStatus->status = XrdCl::stError;
       pStatus->code = XrdCl::errErrorResponse;
@@ -130,9 +139,7 @@ ChunkHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
   }
 
   if (pResponse)
-  {
     delete pResponse;
-  }
    
   mMetaHandler->HandleResponse(pStatus, this);
   delete pStatus;

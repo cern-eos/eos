@@ -102,7 +102,7 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
                      XrdSysLogger *lp,
                      const char *configfn)
 {
-  gMgmOfsEroute.SetPrefix("mgmofs_");
+  gMgmOfsEroute.SetPrefix("MgmOfs_");
   gMgmOfsEroute.logger(lp);
 
   static XrdMgmOfs myFS(&gMgmOfsEroute);

@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: LocalIo.cc
-// Author: Elvin-Alin Sindrilaru - CERN
+// Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -28,7 +28,6 @@
 #ifndef __APPLE__
 #include <xfs/xfs.h>
 #endif
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -37,23 +36,20 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 LocalIo::LocalIo (XrdFstOfsFile* file,
-                          const XrdSecEntity* client) :
+                  const XrdSecEntity* client) :
     FileIo(),
     mLogicalFile(file),
     mSecEntity(client)
 {  
-  //............................................................................
   // In this case the logical file is the same as the local physical file
-  //............................................................................
-  // empty
 }
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-
-LocalIo::~LocalIo () {
+LocalIo::~LocalIo ()
+{
   //empty
 }
 
@@ -61,7 +57,6 @@ LocalIo::~LocalIo () {
 //------------------------------------------------------------------------------
 // Open file
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Open (const std::string& path,
                    XrdSfsFileOpenMode flags,
@@ -92,7 +87,6 @@ LocalIo::Open (const std::string& path,
 //------------------------------------------------------------------------------
 // Read from file - sync
 //------------------------------------------------------------------------------
-
 int64_t
 LocalIo::Read (XrdSfsFileOffset offset,
                    char* buffer,
@@ -107,9 +101,43 @@ LocalIo::Read (XrdSfsFileOffset offset,
 
 
 //------------------------------------------------------------------------------
+// Vector read - sync
+//------------------------------------------------------------------------------
+int64_t
+LocalIo::ReadV (XrdCl::ChunkList& chunkList,
+                uint16_t timeout )
+{
+  // Copy ChunkList structure to XrdOucVectIO
+  eos_debug("read count=%i", chunkList.size());
+  XrdOucIOVec* readV = new XrdOucIOVec[chunkList.size()];
+
+  for (uint32_t i = 0; i < chunkList.size(); ++i)
+  {
+    readV[i].offset = (long long)chunkList[i].offset;
+    readV[i].size = (int)chunkList[i].length;
+    readV[i].data = (char*)chunkList[i].buffer;
+  }
+
+  int64_t nread = mLogicalFile->readvofs(readV, chunkList.size());
+  delete[] readV;
+  return nread;
+}
+
+
+//--------------------------------------------------------------------------
+// Vector read - async - in this case it is the same as the sync one
+//--------------------------------------------------------------------------
+int64_t
+LocalIo::ReadVAsync (XrdCl::ChunkList& chunkList,
+                     uint16_t timeout)
+{
+  return ReadV(chunkList, timeout);
+}
+
+
+//------------------------------------------------------------------------------
 // Write to file - sync
 //------------------------------------------------------------------------------
-
 int64_t
 LocalIo::Write (XrdSfsFileOffset offset,
                 const char* buffer,
@@ -126,7 +154,6 @@ LocalIo::Write (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 // Read from file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
-
 int64_t
 LocalIo::ReadAsync (XrdSfsFileOffset offset,
                     char* buffer,
@@ -141,7 +168,6 @@ LocalIo::ReadAsync (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 // Write to file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
-
 int64_t
 LocalIo::WriteAsync (XrdSfsFileOffset offset,
                      const char* buffer,
@@ -155,7 +181,6 @@ LocalIo::WriteAsync (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
@@ -166,17 +191,14 @@ LocalIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 //------------------------------------------------------------------------------
 // Allocate space for file
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Fallocate (XrdSfsFileOffset length)
 {
   eos_debug("fallocate with length = %lli", length);
   XrdOucErrInfo error;
 
-  if (mLogicalFile->fctl(SFS_FCTL_GETFD, 0, error))
-  {
+  if (mLogicalFile->XrdOfsFile::fctl(SFS_FCTL_GETFD, 0, error))
     return SFS_ERROR;
-  }
 
 #ifdef __APPLE__
   // no pre-allocation
@@ -186,9 +208,7 @@ LocalIo::Fallocate (XrdSfsFileOffset length)
 
   if (platform_test_xfs_fd(fd))
   {
-    //..........................................................................
     // Select the fast XFS allocation function if available
-    //..........................................................................
     xfs_flock64_t fl;
     fl.l_whence = 0;
     fl.l_start = 0;
@@ -207,7 +227,6 @@ LocalIo::Fallocate (XrdSfsFileOffset length)
 //------------------------------------------------------------------------------
 // Deallocate space reserved for file
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Fdeallocate (XrdSfsFileOffset fromOffset,
                       XrdSfsFileOffset toOffset)
@@ -215,7 +234,7 @@ LocalIo::Fdeallocate (XrdSfsFileOffset fromOffset,
   eos_debug("fdeallocate from = %lli to = %lli", fromOffset, toOffset);
   XrdOucErrInfo error;
 
-  if (mLogicalFile->fctl(SFS_FCTL_GETFD, 0, error))
+  if (mLogicalFile->XrdOfsFile::fctl(SFS_FCTL_GETFD, 0, error))
     return SFS_ERROR;
 
 #ifdef __APPLE__
@@ -227,9 +246,7 @@ LocalIo::Fdeallocate (XrdSfsFileOffset fromOffset,
   {
     if (platform_test_xfs_fd(fd))
     {
-      //........................................................................
       // Select the fast XFS deallocation function if available
-      //........................................................................
       xfs_flock64_t fl;
       fl.l_whence = 0;
       fl.l_start = fromOffset;
@@ -250,7 +267,6 @@ LocalIo::Fdeallocate (XrdSfsFileOffset fromOffset,
 //------------------------------------------------------------------------------
 // Sync file to disk
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Sync (uint16_t timeout)
 {
@@ -261,11 +277,10 @@ LocalIo::Sync (uint16_t timeout)
 //------------------------------------------------------------------------------
 // Get stats about the file
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Stat (struct stat* buf, uint16_t timeout)
 {
-  XrdOfsFile* pOfsFile = mLogicalFile;
+  XrdOfsFile* pOfsFile = static_cast<XrdOfsFile*>(mLogicalFile);
   return pOfsFile->XrdOfsFile::stat(buf);
 }
 
@@ -273,7 +288,6 @@ LocalIo::Stat (struct stat* buf, uint16_t timeout)
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Close (uint16_t timeout)
 {
@@ -284,7 +298,6 @@ LocalIo::Close (uint16_t timeout)
 //------------------------------------------------------------------------------
 // Remove file
 //------------------------------------------------------------------------------
-
 int
 LocalIo::Remove (uint16_t timeout)
 {
@@ -292,9 +305,7 @@ LocalIo::Remove (uint16_t timeout)
 
   if (Stat(&buf))
   {
-    //..........................................................................
     // Only try to delete if there is something to delete!
-    //..........................................................................
     return unlink(mLogicalFile->GetFstPath().c_str());
   }
 

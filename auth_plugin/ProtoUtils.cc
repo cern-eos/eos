@@ -191,7 +191,7 @@ utils::DeleteXrdSecEntity(XrdSecEntity*& obj)
   free(obj->endorsements);
   free(obj->creds);
   free(obj->moninfo);
-  free(obj->tident);
+  free(const_cast<char*>(obj->tident));
   delete obj;
   obj = 0;
 }

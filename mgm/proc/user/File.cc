@@ -731,26 +731,21 @@ ProcCommand::File ()
                 // ---------------------------------------------------------------
                 // setup a TPC job
                 // ---------------------------------------------------------------
-                struct XrdCl::JobDescriptor lTPCJob;
+                XrdCl::PropertyList properties;
+                XrdCl::PropertyList result;
+
                 if (srcbuf.st_size)
                 {
                   // TPC for non-empty files
-                  lTPCJob.thirdParty = true;
-                  lTPCJob.thirdPartyFallBack = false;
+                  properties.Set("thirdParty", "only");
                 }
-                else
-                {
-                  // non-TPC for 0-size files
-                  lTPCJob.thirdParty = false;
-                  lTPCJob.thirdPartyFallBack = false;
-                }
-                lTPCJob.force = true;
-                lTPCJob.posc = false;
-                lTPCJob.coerce = false;
+
+                properties.Set("force", true);
+                properties.Set("posc", false);
+                properties.Set("coerce", false);
 
                 std::string source = lCopySourceList[i];
                 std::string target = lCopyTargetList[i];
-
                 std::string sizestring;
                 std::string cgi = "eos.ruid=";
                 cgi += eos::common::StringConversion::GetSizeString(sizestring,
@@ -767,31 +762,34 @@ ProcCommand::File ()
                   cgi += clonetime;
                 }
 
-                lTPCJob.source.SetProtocol("root");
-                lTPCJob.source.SetHostName("localhost");
-                lTPCJob.source.SetUserName("root");
-                lTPCJob.source.SetParams(cgi);
-                lTPCJob.target.SetProtocol("root");
-                lTPCJob.target.SetHostName("localhost");
-                lTPCJob.target.SetUserName("root");
-                lTPCJob.target.SetParams(cgi);
-                lTPCJob.source.SetPath(source);
-                lTPCJob.target.SetPath(target);
-                lTPCJob.sourceLimit = 1;
-                lTPCJob.checkSumPrint = false;
-                lTPCJob.chunkSize = 4 * 1024 * 1024;
-                lTPCJob.parallelChunks = 1;
+                XrdCl::URL url_src;
+                url_src.SetProtocol("root");
+                url_src.SetHostName("localhost");
+                url_src.SetUserName("root");
+                url_src.SetParams(cgi);
+                url_src.SetPath(source);
+
+                XrdCl::URL url_trg;
+                url_trg.SetProtocol("root");
+                url_trg.SetHostName("localhost");
+                url_trg.SetUserName("root");
+                url_trg.SetParams(cgi);
+                url_trg.SetPath(target);
+
+                properties.Set("source", url_src);
+                properties.Set("target", url_trg);
+                properties.Set("sourceLimit", (uint16_t) 1);
+                properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
+                properties.Set("parallelChunks", (uint8_t) 1);
 
                 XrdCl::CopyProcess lCopyProcess;
-                lCopyProcess.AddJob(&lTPCJob);
-
+                lCopyProcess.AddJob(properties, &result);
                 XrdCl::XRootDStatus lTpcPrepareStatus = lCopyProcess.Prepare();
-
                 eos_static_info("[tpc]: %s=>%s %s",
-                                lTPCJob.source.GetURL().c_str(),
-                                lTPCJob.target.GetURL().c_str(),
+                                url_src.GetURL().c_str(),
+                                url_trg.GetURL().c_str(),
                                 lTpcPrepareStatus.ToStr().c_str());
-
+                
                 if (lTpcPrepareStatus.IsOK())
                 {
                   XrdCl::XRootDStatus lTpcStatus = lCopyProcess.Run(0);

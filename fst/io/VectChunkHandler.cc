@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: SimpleHandler.cc
+// File: VectChunkHandler.cc
 // Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
 //------------------------------------------------------------------------------
 
@@ -22,7 +22,7 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "fst/io/SimpleHandler.hh"
+#include "fst/io/VectChunkHandler.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -30,29 +30,48 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SimpleHandler::SimpleHandler (uint64_t offset,
-                              uint32_t length,
-                              bool isWrite) :
-eos::common::LogId(),
-XrdCl::ResponseHandler (),
-mOffset (offset),
-mLength (length),
+VectChunkHandler::VectChunkHandler (AsyncMetaHandler* metaHandler,
+                                    XrdCl::ChunkList& chunkList,
+                                    const char* wrBuf,
+                                    bool isWrite) :
+XrdCl::ResponseHandler(),
+mBuffer(0),
+mMetaHandler (metaHandler),
+mCapacity (0),
+mLength (0),
 mRespLength (0),
-mIsWrite (isWrite),
-mRespOK (false),
-mReqDone (false),
-mHasReq (false)
+mIsWrite (isWrite)
 {
-  mCond = XrdSysCondVar(0);
+  // Copy the list of chunks and compute buffer size
+  for (auto chunk = chunkList.begin(); chunk != chunkList.end(); ++chunk)
+  {
+    mLength += chunk->length;
+    mChunkList.push_back(*chunk);
+  }
+
+  mCapacity = mLength;
+
+  /*
+  NOTE: Vector writes are not supported yet
+  if (mIsWrite)
+  {
+    // Copy the write buffer to the local one
+    mBuffer = static_cast<char*>(calloc(mCapacity, sizeof(char)));
+    
+    if (mBuffer)
+      mBuffer = static_cast<char*>(memcpy(mBuffer, wrBuf, mLength));
+  }
+  */
 }
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-SimpleHandler::~SimpleHandler ()
+VectChunkHandler::~VectChunkHandler ()
 {
-  // emtpy
+  if (mBuffer)
+    free(mBuffer);
 }
 
 
@@ -60,17 +79,36 @@ SimpleHandler::~SimpleHandler ()
 // Update function
 //------------------------------------------------------------------------------
 void
-SimpleHandler::Update (uint64_t offset,
-                       uint32_t length,
-                       bool isWrite)
+VectChunkHandler::Update (AsyncMetaHandler* metaHandler,
+                          XrdCl::ChunkList& chunkList,
+                          const char* wrBuf,
+                          bool isWrite)
 {
-  mOffset = offset;
-  mLength = length;
+  mMetaHandler = metaHandler;
   mRespLength = 0;
+  mLength = 0;
   mIsWrite = isWrite;
-  mRespOK = false;
-  mReqDone = false;
-  mHasReq = true;
+  
+  // Copy the list of chunks and compute buffer size
+  for (auto chunk = chunkList.begin(); chunk != chunkList.end(); ++chunk)
+  {
+    mLength += chunk->length;
+    mChunkList.push_back(*chunk);
+  }
+
+  /*
+  NOTE: vector writes are not supported yet
+  if (mIsWrite)
+  {
+    if (mLength > mCapacity)
+    {
+      mCapacity = mLength;
+      mBuffer = static_cast<char*>(realloc(mBuffer, mCapacity));
+    }
+
+    mBuffer = static_cast<char*>(memcpy(mBuffer, wrBuf, mLength));
+  }
+  */
 }
 
 
@@ -78,61 +116,31 @@ SimpleHandler::Update (uint64_t offset,
 // Handle response
 //------------------------------------------------------------------------------
 void
-SimpleHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
-                               XrdCl::AnyObject* pResponse)
+VectChunkHandler::HandleResponse (XrdCl::XRootDStatus* pStatus,
+                                  XrdCl::AnyObject* pResponse)
 {
   // Do some extra check for the read case
   if ((mIsWrite == false) && (pResponse))
   {
-    XrdCl::ChunkInfo* chunk = 0;
-    pResponse->Get(chunk);
-    mRespLength = chunk->length;
-  }
+    XrdCl::VectorReadInfo* vrd_info = 0;
+    pResponse->Get(vrd_info);
+    mRespLength = vrd_info->GetSize();
 
-  mCond.Lock();
-  mRespOK = pStatus->IsOK();
-  mReqDone = true;
-  mCond.Signal(); //signal
-  mCond.UnLock();
-  delete pStatus;
+    // Notice if we receive less then we initially requested - for readv it
+    // means there was an error
+    if (mLength != mRespLength)
+    {
+      pStatus->status = XrdCl::stError;
+      pStatus->code = XrdCl::errErrorResponse;
+    }
+  }
 
   if (pResponse)
     delete pResponse;
-}
-
-
-//------------------------------------------------------------------------------
-// Wait for responses
-//------------------------------------------------------------------------------
-bool
-SimpleHandler::WaitOK ()
-{
-  bool req_status;
-  mCond.Lock();
-
-  while (!mReqDone)
-  {
-    mCond.Wait();
-  }
-
-  req_status = mRespOK;
-  mHasReq = false;
-  mCond.UnLock();
-  return req_status;
-}
-
-
-//------------------------------------------------------------------------------
-//! Get if there is any request to process
-//------------------------------------------------------------------------------
-bool
-SimpleHandler::HasRequest ()
-{
-  bool ret = false;
-  mCond.Lock();
-  ret = mHasReq;
-  mCond.UnLock();
-  return ret;
+   
+  mMetaHandler->HandleResponse(pStatus, this);
+  delete pStatus;
 }
 
 EOSFSTNAMESPACE_END
+

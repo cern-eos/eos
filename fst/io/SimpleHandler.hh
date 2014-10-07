@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// File: SimpleHandler.hh
-// Author: Elvin-Alin Sindrilaru - CERN
+//! @file SimpleHandler.hh
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
+//! @breif Asynchronous chunk handler used only for reading with prefetching
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -21,12 +22,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-//! @file SimpleHandler.hh
-//! @author Elvin-Alin Sindrilaru - CERN
-//! @brief Class holding information about an asynchronous request
-//------------------------------------------------------------------------------
-
 #ifndef __EOS_SIMPLEHANDLER_HH__
 #define __EOS_SIMPLEHANDLER_HH__
 
@@ -40,9 +35,9 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Class holding information about an asynchronous request
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 class SimpleHandler : public eos::common::LogId, public XrdCl::ResponseHandler
 {
 public:
@@ -100,7 +95,6 @@ public:
   //----------------------------------------------------------------------------
   //! Get request chunk offset
   //----------------------------------------------------------------------------
-
   inline uint64_t
   GetOffset () const
   {
@@ -111,7 +105,6 @@ public:
   //----------------------------------------------------------------------------
   //! Get request chunk length
   //----------------------------------------------------------------------------
-
   inline uint32_t
   GetLength () const
   {
@@ -122,7 +115,6 @@ public:
   //----------------------------------------------------------------------------
   //! Get response chunk length
   //----------------------------------------------------------------------------
-
   inline uint32_t
   GetRespLength () const
   {
@@ -133,7 +125,6 @@ public:
   //----------------------------------------------------------------------------
   //! Get response chunk status
   //----------------------------------------------------------------------------
-
   inline bool
   GetRespStatus () const
   {
@@ -144,7 +135,6 @@ public:
   //----------------------------------------------------------------------------
   //! Test if chunk is from a write operation 
   //----------------------------------------------------------------------------
-
   inline bool
   IsWrite () const
   {
@@ -173,7 +163,6 @@ private:
   bool mReqDone; ///< mark if the request was done
   bool mHasReq; ///< mark if there is any request to proceess
   XrdSysCondVar mCond; ///< cond. variable used for synchronisation
-
 };
 
 EOSFSTNAMESPACE_END

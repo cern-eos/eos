@@ -1,10 +1,10 @@
 //------------------------------------------------------------------------------
-//! @file ChunkHandler.hh
+//! @file VectChunkHandler.hh
 //! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
-//! @brief Class holding information about an asynchronous request and a pointer
-//!        to the file the request belongs to. This class notifies the
-//!        AsyncMetaHandler corresponding to the file object of any errors during
-//!        transfers
+//! @brief Class holding information about an asynchronous vector request and
+//!        a pointer to the file the request belongs to. This class notifies
+//!        the AsyncMetaHandler corresponding to the file object of of any
+//!        errors during transfer.
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -25,19 +25,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOS_CHUNKHANDLER_HH__
-#define __EOS_CHUNKHANDLER_HH__
+#ifndef __EOS_VECTCHUNKHANDLER_HH__
+#define __EOS_VECTCHUNKHANDLER_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "fst/io/AsyncMetaHandler.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-//------------------------------------------------------------------------------
-//! Class holding information about an asynchronous request
-//------------------------------------------------------------------------------
-class ChunkHandler : public XrdCl::ResponseHandler
+// -----------------------------------------------------------------------------
+//! Class holding information about an asynchronous vector request
+// -----------------------------------------------------------------------------
+class VectChunkHandler : public XrdCl::ResponseHandler
 {
 public:
 
@@ -45,23 +46,20 @@ public:
   //! Constructor
   //!
   //! @param reqHandler handler to the file meta handler
-  //! @param offset request offset
-  //! @param length request length
-  //! @param buff pointer to the read or write buffer
+  //! @param chunkList chunks concerning the vector operation
   //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
-  ChunkHandler (AsyncMetaHandler* reqHandler,
-                uint64_t offset,
-                uint32_t length,
-                char* buff,
-                bool isWrite);
+  VectChunkHandler (AsyncMetaHandler* reqHandler,
+                    XrdCl::ChunkList& chunkList,
+                    const char* wrBuf,
+                    bool isWrite);
 
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ChunkHandler ();
+  virtual ~VectChunkHandler ();
 
 
   //----------------------------------------------------------------------------
@@ -70,14 +68,13 @@ public:
   //! @param reqHandler handler to the file meta handler
   //! @param offset request offset
   //! @param length request length
-  //! @param buffer pointer to the read or write buffer
+  //! @param buffer holder for data 
   //! @param isWrite chunk belongs to a write request
   //!
   //----------------------------------------------------------------------------
   void Update (AsyncMetaHandler* reqHandler,
-               uint64_t offset,
-               uint32_t length,
-               char* buff,
+               XrdCl::ChunkList& chunks,
+               const char* wrBuf,
                bool isWrite);
 
 
@@ -90,36 +87,15 @@ public:
   //----------------------------------------------------------------------------
   virtual void HandleResponse (XrdCl::XRootDStatus* pStatus,
                                XrdCl::AnyObject* pResponse);
-
-
+                          
 
   //----------------------------------------------------------------------------
-  //! Get buffer pointer
+  //! Get buffer
   //----------------------------------------------------------------------------
   inline char*
   GetBuffer() const
   {
     return mBuffer;
-  };
-  
-
-  //----------------------------------------------------------------------------
-  //! Get request chunk offset
-  //----------------------------------------------------------------------------
-  inline uint64_t
-  GetOffset () const
-  {
-    return mOffset;
-  };
-
-
-  //----------------------------------------------------------------------------
-  //! Get request chunk length
-  //----------------------------------------------------------------------------
-  inline uint32_t
-  GetLength () const
-  {
-    return mLength;
   };
 
 
@@ -132,6 +108,26 @@ public:
     return mRespLength;
   };
 
+
+  //----------------------------------------------------------------------------
+  //! Get total length of vector request
+  //----------------------------------------------------------------------------
+  inline uint32_t
+  GetLength () const
+  {
+    return mLength;
+  };
+
+
+  //----------------------------------------------------------------------------
+  //! Get the list of chunks
+  //----------------------------------------------------------------------------
+  inline XrdCl::ChunkList&
+  GetChunkList ()
+  {
+    return mChunkList;
+  };
+
   
   //----------------------------------------------------------------------------
   //! Test if chunk is from a write operation 
@@ -142,17 +138,18 @@ public:
     return mIsWrite;
   };
 
+  
 private:
 
   char* mBuffer;  ///< holder for data for write requests
   AsyncMetaHandler* mMetaHandler; ///< handler to the whole file meta handler
-  uint64_t mOffset; ///< offset of the request
-  uint32_t mLength; ///< length of the request
+  XrdCl::ChunkList mChunkList; ///< vector operation chunks
   uint32_t mCapacity; ///< capacity of the buffer
+  uint32_t mLength; ///< length of the vector request
   uint32_t mRespLength; ///< length of response received, only for reads
   bool mIsWrite; ///< operation type is write
 };
 
 EOSFSTNAMESPACE_END
 
-#endif   // __EOS_CHUNKHANDLER_HH__
+#endif   // __EOS_VECTCHUNKHANDLER_HH__

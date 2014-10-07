@@ -28,35 +28,34 @@
 #include "fst/layout/ReplicaParLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Constructor
-//--------------------------------------------------------------------------
-LayoutPlugin::LayoutPlugin () {
+//------------------------------------------------------------------------------
+LayoutPlugin::LayoutPlugin ()
+{
   // empty
 }
 
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Destructor
-//--------------------------------------------------------------------------
-
-LayoutPlugin::~LayoutPlugin () {
+//------------------------------------------------------------------------------
+LayoutPlugin::~LayoutPlugin ()
+{
   //empty
 }
 
 
-//--------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Get layout object
-//--------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
 Layout*
 LayoutPlugin::GetLayoutObject (XrdFstOfsFile* file,
-                               unsigned int layoutId,
+                               unsigned long layoutId,
                                const XrdSecEntity* client,
                                XrdOucErrInfo* error,
                                eos::common::LayoutId::eIoType io,
@@ -64,25 +63,17 @@ LayoutPlugin::GetLayoutObject (XrdFstOfsFile* file,
                                bool storeRecovery)
 {
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kPlain)
-  {
     return static_cast<Layout*> (new PlainLayout(file, layoutId, client, error, io, timeout ));
-  }
-
+  
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kReplica)
-  {
     return static_cast<Layout*> (new ReplicaParLayout(file, layoutId, client, error, io, timeout));
-  }
-
+  
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaidDP)
-  {
     return static_cast<Layout*> (new RaidDpLayout(file, layoutId, client, error, io, timeout, storeRecovery));
-  }
-
+  
   if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid6) ||
       (LayoutId::GetLayoutType(layoutId) == LayoutId::kArchive))
-  {
     return static_cast<Layout*> (new ReedSLayout(file, layoutId, client, error, io, timeout, storeRecovery));
-  }
 
   return 0;
 }

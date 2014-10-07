@@ -312,6 +312,7 @@ public:
   static bool Shutdown; //! indicating if a shutdown procedure is running
 
   HttpServer* httpd; //! embedded http server
+  const char* mHostName; ///< FST hostname 
 };
 
 //------------------------------------------------------------------------------

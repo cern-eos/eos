@@ -27,6 +27,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
+#include <numeric>
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/Fmd.hh"
@@ -74,7 +75,27 @@ public:
   //--------------------------------------------------------------------------
   virtual ~XrdFstOfsFile ();
 
+  
+  //----------------------------------------------------------------------------
+  //! Execute special operation on the file (version 2)
+  //!
+  //! @param  cmd    - The operation to be performed:
+  //!                  SFS_FCTL_SPEC1    Perform implementation defined action
+  //! @param  alen   - Length of data pointed to by args.
+  //! @param  args   - Data sent with request, zero if alen is zero.
+  //! @param  client - Client's identify (see common description).
+  //!
+  //! @return SFS_OK   a null response is sent.
+  //! @return SFS_DATA error.code    length of the data to be sent.
+  //!                  error.message contains the data to be sent.
+  //!         o/w      one of SFS_ERROR, SFS_REDIRECT, or SFS_STALL.
+  //----------------------------------------------------------------------------
+  virtual int fctl(const int cmd,
+                   int alen,
+                   const char* args,
+                   const XrdSecEntity* client = 0);
 
+  
   //--------------------------------------------------------------------------
   //! Return the Etag
   //--------------------------------------------------------------------------
@@ -163,9 +184,36 @@ public:
 
 
   //--------------------------------------------------------------------------
-  //!
+  //! 
   //--------------------------------------------------------------------------
   int read (XrdSfsAio* aioparm);
+
+
+  //--------------------------------------------------------------------------
+  //! Vector read - low level ofs method which is called from one of the
+  //! layout plugins
+  //!
+  //! @param readV vector read structure
+  //! @param readCount number of entries in the vector read structure
+  //!
+  //! @return number of bytes read upon success, otherwise SFS_ERROR
+  //! 
+  //--------------------------------------------------------------------------
+  XrdSfsXferSize readvofs(XrdOucIOVec* readV,
+                          uint32_t readCount);
+
+  
+  //--------------------------------------------------------------------------
+  //! Vector read - OFS interface method
+  //!
+  //! @param readV vector read structure
+  //! @param readCount number of entries in the vector read structure
+  //!
+  //! @return number of bytes read upon success, otherwise SFS_ERROR
+  //! 
+  //--------------------------------------------------------------------------
+  XrdSfsXferSize readv(XrdOucIOVec* readV,
+                       int readCount);
 
 
   //--------------------------------------------------------------------------
@@ -286,10 +334,8 @@ protected:
   unsigned long fsid; //! file system id
   unsigned long lid; //! layout id
   unsigned long long cid; //! container id
-
   unsigned long long mForcedMtime;
   unsigned long long mForcedMtime_ms;
-
   XrdOucString hostName; //! our hostname
 
   bool closed; //! indicator the file is closed
@@ -346,8 +392,10 @@ protected:
   off_t openSize; //! file size when the file was opened
   off_t closeSize; //! file size when the file was closed
 
-  ///////////////////////////////////////////////////////////
-  // file statistics
+ private:
+  //----------------------------------------------------------------------------
+  // File statistics for monitoring purposes
+  //----------------------------------------------------------------------------
   struct timeval openTime; //! time when a file was opened
   struct timeval closeTime; //! time when a file was closed
   struct timezone tz; //! timezone
@@ -368,32 +416,88 @@ protected:
   unsigned long nXlBwdSeeks; //! number of seeks backward
   unsigned long long rOffset; //! offset since last read operation on this file
   unsigned long long wOffset; //! offset since last write operation on this file
+  //! vector with all readv sizes -> to compute min,max,etc.
+  std::vector<unsigned long long> monReadvBytes; 
+  //! size of each read call coming from readv requests -> to compute min,max, etc.
+  std::vector<unsigned long long> monReadSingleBytes;
+  //! number of individual read op. in each readv call -> to compute min,max, etc.
+  std::vector<unsigned long> monReadvCount; 
 
-  struct timeval cTime; //! current time
-  struct timeval lrTime; //!last read time
-  struct timeval lwTime; //! last write time
-  struct timeval rTime; //! sum time to serve read requests in ms
-  struct timeval wTime; //! sum time to serve write requests in ms
-  XrdOucString tIdent; //! tident
+  struct timeval cTime; ///< current time
+  struct timeval lrTime; ///<last read time
+  struct timeval lrvTime; ///< last readv time 
+  struct timeval lwTime; ///< last write time
+  struct timeval rTime; ///< sum time to serve read requests in ms
+  struct timeval rvTime; ///< sum time to server readv requests in ms
+  struct timeval wTime; ///< sum time to serve write requests in ms
+  XrdOucString tIdent; ///< tident
+  struct stat updateStat; ///< stat struct to check if a file is updated between open-close
 
-
-  struct stat updateStat; //! stat struct to check if a file is updated between open-close
+  
   //--------------------------------------------------------------------------
-  //!
+  //! Compute total time to serve read requests
   //--------------------------------------------------------------------------
   void AddReadTime ();
 
 
   //--------------------------------------------------------------------------
-  //!
+  //! Compute total time to serve vector read requests
+  //--------------------------------------------------------------------------
+  void AddReadVTime ();
+
+  
+  //--------------------------------------------------------------------------
+  //! Compute total time to serve write requests
   //--------------------------------------------------------------------------
   void AddWriteTime ();
 
 
   //--------------------------------------------------------------------------
+  //! Compute general statistics on a set of input values
+  //!
+  //! @param vect input collection
+  //! @param min miniumum element 
+  //! @param max maximum element
+  //! @param sum sum of the elements
+  //! @param avg average value
+  //! @param sigma sigma of the elements
   //!
   //--------------------------------------------------------------------------
-  void MakeReportEnv (XrdOucString& reportString);
+  template <typename T>
+  void ComputeStatistics(std::vector<T> vect, T& min, T& max,
+                         T& sum, double& sigma)
+  {
+    double avg, sum2;
+    max = sum = sum2 = avg = sigma = 0;
+    min = 0xffffffff;
+    sum = std::accumulate(vect.begin(), vect.end(), 0);
+    avg = vect.size() ? (1.0 *sum / vect.size()) : 0;
+
+    // For when the compiler will be smart enough 
+    //sigma = std::accumulate(begin(vect), end(vect), 0,
+    //                      [&avg] (const T& init, const T& elem)
+    //                      {
+    //                        return elem + std::pwd((elem - avg), 2);
+    //                      });
+
+    for (auto it = vect.begin(); it != vect.end(); ++it)
+    {
+      if (*it > max) max = *it;
+      if (*it < min) min = *it;
+      sum2 += std::pow((*it - avg), 2);
+    }
+
+    sigma = vect.size() ? (sqrt(sum2 / vect.size())) : 0;
+
+    if (min == 0xffffffff)
+      min = 0;    
+  }
+  
+
+  //--------------------------------------------------------------------------
+  //! Create report as a string
+  //--------------------------------------------------------------------------
+  void MakeReportEnv (XrdOucString& reportString);  
 };
 
 EOSFSTNAMESPACE_END;

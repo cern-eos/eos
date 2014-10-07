@@ -79,9 +79,6 @@ private:
 
   /// target space name of the conversion
   std::string mConverterName;
-
-  /// the third-party copy job description
-  struct XrdCl::JobDescriptor mTPCJob;
   
 public:
 

@@ -33,7 +33,7 @@
   MAYREDIRECT;
 
   gOFS->MgmStats.Add("OpenLayout", vid.uid, vid.gid, 1);
-  XrdMgmOfsFile* file = new XrdMgmOfsFile(client->tident);
+  XrdMgmOfsFile* file = new XrdMgmOfsFile(const_cast<char*>(client->tident));
 
   if (file)
   {

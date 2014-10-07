@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 //! @file XrdIo.hh
-//! @author Elvin-Alin Sindrilaru - CERN
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
 //! @brief Class used for doing remote IO operations unsing the xrd client
 //------------------------------------------------------------------------------
 
@@ -43,7 +43,6 @@ typedef std::map<uint64_t, ReadaheadBlock*> PrefetchMap;
 //------------------------------------------------------------------------------
 //! Struct that holds a readahead buffer and corresponding handler
 //------------------------------------------------------------------------------
-
 struct ReadaheadBlock
 {
   static const uint64_t sDefaultBlocksize; ///< default value for readahead
@@ -54,7 +53,6 @@ struct ReadaheadBlock
   //! @param blocksize the size of the readahead
   //!
   //----------------------------------------------------------------------------
-
   ReadaheadBlock(uint64_t blocksize = sDefaultBlocksize)
   {
     buffer = new char[blocksize];
@@ -70,7 +68,6 @@ struct ReadaheadBlock
   //! @param isWrite true if write request, otherwise false
   //!
   //----------------------------------------------------------------------------
-
   void Update(uint64_t offset, uint32_t length, bool isWrite)
   {
     handler->Update(offset, length, isWrite);
@@ -80,12 +77,11 @@ struct ReadaheadBlock
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-
   virtual ~ReadaheadBlock()
   {
     delete[] buffer;
     delete handler;
-  }
+  };
 
   char* buffer; ///< pointer to where the data is read
   SimpleHandler* handler; ///< async handler for the requests
@@ -95,7 +91,6 @@ struct ReadaheadBlock
 //------------------------------------------------------------------------------
 //! Class used for doing remote IO operations using the Xrd client
 //------------------------------------------------------------------------------
-
 class XrdIo : public FileIo
 {
 public:
@@ -156,6 +151,19 @@ public:
 
 
   //--------------------------------------------------------------------------
+  //! Vector read - sync
+  //!
+  //! @param chunkList list of chunks for the vector read
+  //! @param timeout timeout value
+  //!
+  //! @return number of bytes read of -1 if error
+  //!
+  //--------------------------------------------------------------------------
+  virtual int64_t ReadV (XrdCl::ChunkList& chunkList,
+                         uint16_t timeout = 0);
+
+ 
+  //----------------------------------------------------------------------------
   //! Write to file - sync
   //!
   //! @param offset offset
@@ -165,14 +173,14 @@ public:
   //!
   //! @return number of bytes written or -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int64_t Write (XrdSfsFileOffset offset,
                          const char* buffer,
                          XrdSfsXferSize length,
                          uint16_t timeout = 0);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Read from file - async
   //!
   //! @param offset offset in file
@@ -181,9 +189,9 @@ public:
   //! @param readahead true if readahead is to be enabled, otherwise false
   //! @param timeout timeout value
   //!
-  //! @return number of bytes read or -1 if error
+  //! @return number of bytes written or -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int64_t ReadAsync (XrdSfsFileOffset offset,
                              char* buffer,
                              XrdSfsXferSize length,
@@ -191,7 +199,20 @@ public:
                              uint16_t timeout = 0);
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Vector read - async 
+  //!
+  //! @param chunkList list of chunks for the vector read
+  //! @param timeout timeout value
+  //!
+  //! @return 0(SFS_OK) if request successfully sent, otherwise -1(SFS_ERROR)
+  //!
+  //----------------------------------------------------------------------------
+  virtual int64_t ReadVAsync (XrdCl::ChunkList& chunkList,
+                              uint16_t timeout = 0);
+
+  
+  //----------------------------------------------------------------------------
   //! Write to file - async
   //!
   //! @param offset offset
@@ -201,7 +222,7 @@ public:
   //!
   //! @return number of bytes written or -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int64_t WriteAsync (XrdSfsFileOffset offset,
                               const char* buffer,
                               XrdSfsXferSize length,

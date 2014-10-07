@@ -21,8 +21,8 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ 
-                     ./
+include_directories( ${PROJECT_SOURCE_DIR}
+		     ${CMAKE_CURRENT_SOURCE_DIR}
                      ${XROOTD_INCLUDE_DIR} 
                      ${XROOTD_PRIVATE_INCLUDE_DIR}
                      ${SPARSEHASH_INCLUDE_DIR}
@@ -30,8 +30,13 @@ include_directories( ../
 		     ${Z_INCLUDE_DIR}
 )
 
-link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
-                  ${XROOTD_LIB_DIR} )
+link_directories( ${XROOTD_LIB_DIR}
+		  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} )
+
+# Add the tests if CppUnit is present
+if (CPPUNIT_FOUND)
+  add_subdirectory(tests)	
+endif(CPPUNIT_FOUND)
 
 add_library( EosFstOss MODULE
 	     XrdFstOss.cc           XrdFstOss.hh
@@ -57,6 +62,7 @@ add_library( EosFstIo-Static STATIC
 	     io/HeaderCRC.cc                io/HeaderCRC.hh
 	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
 	     io/ChunkHandler.cc             io/ChunkHandler.hh
+	     io/VectChunkHandler.cc         io/VectChunkHandler.hh
 	     io/SimpleHandler.cc            io/SimpleHandler.hh
 	     checksum/CheckSum.cc           checksum/CheckSum.hh	     
 	     checksum/Adler.cc   	    checksum/Adler.hh
@@ -77,8 +83,7 @@ add_library( EosFstIo-Static STATIC
 
 target_link_libraries( EosFstIo-Static
 		       eosCommon-Static
-		       XrdCl	
-		       XrdUtils 
+		       XrdCl	              XrdUtils 
 		       crypto                  ${NCURSES_LIBRARIES}
 		       dl                      ${Z_LIBRARIES}  
                        ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
@@ -115,6 +120,7 @@ add_library( XrdEosFst MODULE
 	     io/HeaderCRC.cc                io/HeaderCRC.hh
 	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
 	     io/ChunkHandler.cc             io/ChunkHandler.hh
+	     io/VectChunkHandler.cc             io/VectChunkHandler.hh
 	     io/SimpleHandler.cc            io/SimpleHandler.hh
 	     Config.cc
 	     Load.cc
@@ -125,9 +131,9 @@ add_library( XrdEosFst MODULE
 	     txqueue/TransferQueue.cc
 	     FmdSqlite.cc
 	     FmdClient.cc 
-         http/HttpServer.cc
-         http/HttpHandler.cc
-         http/s3/S3Handler.cc
+             http/HttpServer.cc
+             http/HttpHandler.cc
+             http/s3/S3Handler.cc
 	     layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
 	     layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
 	     layout/jerasure/liberation.cc      layout/jerasure/liberation.hh

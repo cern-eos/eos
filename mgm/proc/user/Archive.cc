@@ -805,21 +805,26 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
 
   arch_ofs.close();
 
-  // TODO: adapt the CopyProcess to XRootD 4.0
   // Copy local archive file to archive directory in EOS
-  struct XrdCl::JobDescriptor copy_job;
-  copy_job.source.SetProtocol("file");
-  copy_job.source.SetPath(arch_fn.c_str());
-  copy_job.target.SetProtocol("root");
-  copy_job.target.SetHostName("localhost");
-  copy_job.target.SetUserName("root");
   std::string dst_path = arch_dir;
   dst_path += ARCH_INIT;
-  copy_job.target.SetPath(dst_path);
-  copy_job.target.SetParams("eos.ruid=0&eos.rgid=0");
+  XrdCl::PropertyList properties;
+  XrdCl::PropertyList result;
+  XrdCl::URL url_src;
+  url_src.SetProtocol("file");
+  url_src.SetPath(arch_fn.c_str());
+
+  XrdCl::URL url_dst;
+  url_dst.SetProtocol("root");
+  url_dst.SetHostName("localhost");
+  url_dst.SetUserName("root");
+  url_dst.SetPath(dst_path);
+  url_dst.SetParams("eos.ruid=0&eos.rgid=0");
+  properties.Set("source", url_src);
+  properties.Set("target", url_dst);
 
   XrdCl::CopyProcess copy_proc;
-  copy_proc.AddJob(&copy_job);
+  copy_proc.AddJob(properties, &result);
   XrdCl::XRootDStatus status_prep = copy_proc.Prepare();
 
   if (status_prep.IsOK())

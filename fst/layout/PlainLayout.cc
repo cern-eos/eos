@@ -33,16 +33,14 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 PlainLayout::PlainLayout (XrdFstOfsFile* file,
-                          int lid,
+                          unsigned long lid,
                           const XrdSecEntity* client,
                           XrdOucErrInfo* outError,
                           eos::common::LayoutId::eIoType io,
                           uint16_t timeout) :
     Layout (file, lid, client, outError, io, timeout)
 {
-  //............................................................................
   // For the plain layout we use only the LocalFileIo type
-  //............................................................................
   mPlainFile = FileIoPlugin::GetIoObject(mIoType, mOfsFile, mSecEntity);
   mIsEntryServer = true;
 }
@@ -51,7 +49,6 @@ PlainLayout::PlainLayout (XrdFstOfsFile* file,
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-
 PlainLayout::~PlainLayout ()
 {
   delete mPlainFile;
@@ -61,7 +58,6 @@ PlainLayout::~PlainLayout ()
 //------------------------------------------------------------------------------
 // Open File
 //------------------------------------------------------------------------------
-
 int
 PlainLayout::Open (const std::string& path,
                    XrdSfsFileOpenMode flags,
@@ -78,7 +74,6 @@ PlainLayout::Open (const std::string& path,
 //------------------------------------------------------------------------------
 // Read from file - sync
 //------------------------------------------------------------------------------
-
 int64_t
 PlainLayout::Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length)
 {
@@ -87,9 +82,18 @@ PlainLayout::Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length)
 
 
 //------------------------------------------------------------------------------
+// Vector read 
+//------------------------------------------------------------------------------
+int64_t
+PlainLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
+{
+  return mPlainFile->ReadV(chunkList);
+}
+
+
+//------------------------------------------------------------------------------
 // Write to file
 //------------------------------------------------------------------------------
-
 int64_t
 PlainLayout::Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length)
 {
@@ -100,7 +104,6 @@ PlainLayout::Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize 
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
-
 int
 PlainLayout::Truncate (XrdSfsFileOffset offset)
 {
@@ -111,7 +114,6 @@ PlainLayout::Truncate (XrdSfsFileOffset offset)
 //------------------------------------------------------------------------------
 // Reserve space for file
 //------------------------------------------------------------------------------
-
 int
 PlainLayout::Fallocate (XrdSfsFileOffset length)
 {
@@ -122,7 +124,6 @@ PlainLayout::Fallocate (XrdSfsFileOffset length)
 //------------------------------------------------------------------------------
 // Deallocate reserved space
 //------------------------------------------------------------------------------
-
 int
 PlainLayout::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset)
 {
@@ -133,7 +134,6 @@ PlainLayout::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset
 //------------------------------------------------------------------------------
 // Sync file to disk
 //------------------------------------------------------------------------------
-
 int
 PlainLayout::Sync ()
 {
@@ -144,7 +144,6 @@ PlainLayout::Sync ()
 //------------------------------------------------------------------------------
 // Get stats for file
 //------------------------------------------------------------------------------
-
 int
 PlainLayout::Stat (struct stat* buf)
 {
@@ -155,7 +154,6 @@ PlainLayout::Stat (struct stat* buf)
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
-
 int
 PlainLayout::Close ()
 {
@@ -166,7 +164,6 @@ PlainLayout::Close ()
 //------------------------------------------------------------------------------
 // Remove file
 //------------------------------------------------------------------------------
-
 int
 PlainLayout::Remove ()
 {

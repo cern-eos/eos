@@ -41,6 +41,7 @@
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdVersion.hh"
@@ -69,6 +70,9 @@ extern XrdSysError OfsEroute;
 extern XrdOss* XrdOfsOss;
 extern XrdOfs* XrdOfsFS;
 extern XrdOucTrace OfsTrace;
+
+// Set the version information
+XrdVERSIONINFO(XrdSfsGetFileSystem, FstOfs);
 
 //------------------------------------------------------------------------------
 //
@@ -111,7 +115,8 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOfs::XrdFstOfs () :
-eos::common::LogId ()
+    eos::common::LogId (),
+    mHostName(NULL)
 {
   Eroute = 0;
   Messaging = 0;
@@ -283,15 +288,23 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   if (rc)
     return rc;
 
+  // Get the hostname
+  mHostName = XrdSysDNS::getHostName();
+
+  if (!mHostName)
+  {
+    Eroute.Emsg("Config", "Hostname coud not be determined");
+    NoGo = 1;
+    return NoGo;
+  }
+
   TransferScheduler = new XrdScheduler(&Eroute, &OfsTrace, 8, 128, 60);
   TransferScheduler->Start();
   eos::fst::Config::gConfig.autoBoot = false;
   eos::fst::Config::gConfig.FstOfsBrokerUrl = "root://localhost:1097//eos/";
 
   if (getenv("EOS_BROKER_URL"))
-  {
     eos::fst::Config::gConfig.FstOfsBrokerUrl = getenv("EOS_BROKER_URL");
-  }
 
   {
     // set the start date as string
@@ -313,7 +326,7 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 1);
   XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
 
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
   // extract the manager from the config file
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
 
@@ -421,11 +434,11 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   }
 
   eos::fst::Config::gConfig.FstDefaultReceiverQueue = eos::fst::Config::gConfig.FstOfsBrokerUrl;
-  eos::fst::Config::gConfig.FstOfsBrokerUrl += HostName;
+  eos::fst::Config::gConfig.FstOfsBrokerUrl += mHostName;
   eos::fst::Config::gConfig.FstOfsBrokerUrl += ":";
   eos::fst::Config::gConfig.FstOfsBrokerUrl += myPort;
   eos::fst::Config::gConfig.FstOfsBrokerUrl += "/fst";
-  eos::fst::Config::gConfig.FstHostPort = HostName;
+  eos::fst::Config::gConfig.FstHostPort = mHostName;
   eos::fst::Config::gConfig.FstHostPort += ":";
   eos::fst::Config::gConfig.FstHostPort += myPort;
   eos::fst::Config::gConfig.KernelVersion = eos::common::StringConversion::StringFromShellCmd("uname -r | tr -d \"\n\"").c_str();
@@ -454,20 +467,20 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
 
   // create our wildcard config broadcast name
   eos::fst::Config::gConfig.FstConfigQueueWildcard = "*/";
-  eos::fst::Config::gConfig.FstConfigQueueWildcard += HostName;
+  eos::fst::Config::gConfig.FstConfigQueueWildcard += mHostName;
   eos::fst::Config::gConfig.FstConfigQueueWildcard += ":";
   eos::fst::Config::gConfig.FstConfigQueueWildcard += myPort;
 
   // create our wildcard gw broadcast name
   eos::fst::Config::gConfig.FstGwQueueWildcard = "*/";
-  eos::fst::Config::gConfig.FstGwQueueWildcard += HostName;
+  eos::fst::Config::gConfig.FstGwQueueWildcard += mHostName;
   eos::fst::Config::gConfig.FstGwQueueWildcard += ":";
   eos::fst::Config::gConfig.FstGwQueueWildcard += myPort;
   eos::fst::Config::gConfig.FstGwQueueWildcard += "/fst/gw/txqueue/txq";
 
   // Set Logging parameters
   XrdOucString unit = "fst@";
-  unit += HostName;
+  unit += mHostName;
   unit += ":";
   unit += myPort;
 
@@ -640,7 +653,8 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
     close(fd);
   }
 
-  eos_notice("FST_HOST=%s FST_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s", HostName, myPort, VERSION, RELEASE, keytabcks.c_str());
+  eos_notice("FST_HOST=%s FST_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s",
+             mHostName, myPort, VERSION, RELEASE, keytabcks.c_str());
 
   eos::fst::Config::gConfig.KeyTabAdler = keytabcks.c_str();
 
@@ -1171,7 +1185,7 @@ XrdFstOfs::fsctl (const int cmd,
     rType[0] = 'S';
     rType[1] = 'r'; //(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
     rType[2] = '\0';
-    sprintf(locResp, "[::%s:%d] ", (char*) HostName, myPort);
+    sprintf(locResp, "[::%s:%d] ", mHostName, myPort);
     error.setErrInfo(strlen(locResp) + 3, (const char**) Resp, 2);
     ZTRACE(fsctl, "located at headnode: " << locResp);
     return SFS_DATA;
@@ -1199,7 +1213,7 @@ XrdFstOfs::FSctl (const int cmd,
     rType[0] = 'S';
     rType[1] = 'r'; //(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
     rType[2] = '\0';
-    sprintf(locResp, "[::%s:%d] ", (char*) HostName, myPort);
+    sprintf(locResp, "[::%s:%d] ", mHostName, myPort);
     error.setErrInfo(strlen(locResp) + 3, (const char**) Resp, 2);
     ZTRACE(fsctl, "located at headnode: " << locResp);
     return SFS_DATA;

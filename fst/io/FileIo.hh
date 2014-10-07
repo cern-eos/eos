@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 //! @file FileIo.hh
-//! @author Elvin-Alin Sindrilaru - CERN
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
 //! @brief Abstract class modelling an IO plugin
 //------------------------------------------------------------------------------
 
@@ -31,17 +31,10 @@
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
-
+#include "XrdCl/XrdClXRootDResponses.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
-
-//------------------------------------------------------------------------------
-//! The truncate offset (1TB) is used to indicate that a file should be deleted
-//! during the close as there is no better interface usable via XrdCl to
-//! communicate a deletion on a open file
-//------------------------------------------------------------------------------
-#define EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN 1024 * 1024 * 1024 * 1024ll
 
 //! Forward declaration
 class XrdFstOfsFile;
@@ -53,13 +46,9 @@ class FileIo : public eos::common::LogId
 {
 public:
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Constructor
-  //!
-  //! @param file original OFS file
-  //! @param client security entity
-  //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   FileIo () :
   eos::common::LogId (),
   mFilePath (""),
@@ -69,17 +58,17 @@ public:
   }
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Destructor
-  //--------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
   virtual
-  ~FileIo () {
+  ~FileIo ()
+  {
     //empty
   }
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Open file
   //!
   //! @param path file path
@@ -90,7 +79,7 @@ public:
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Open (const std::string& path,
                     XrdSfsFileOpenMode flags,
                     mode_t mode = 0,
@@ -98,7 +87,7 @@ public:
                     uint16_t timeout = 0) = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Read from file - sync
   //!
   //! @param offset offset in file
@@ -108,14 +97,40 @@ public:
   //!
   //! @return number of bytes read or -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int64_t Read (XrdSfsFileOffset offset,
                         char* buffer,
                         XrdSfsXferSize length,
                         uint16_t timeout = 0) = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Vector read - sync
+  //!
+  //! @param chunkList list of chunks for the vector read
+  //! @param timeout timeout value
+  //!
+  //! @return number of bytes read of -1 if error
+  //!
+  //----------------------------------------------------------------------------
+  virtual int64_t ReadV (XrdCl::ChunkList& chunkList,
+                         uint16_t timeout = 0) = 0;
+
+
+  //------------------------------------------------------------------------------
+  //! Vector read - async 
+  //!
+  //! @param chunkList list of chunks for the vector read
+  //! @param timeout timeout value
+  //!
+  //! @return 0(SFS_OK) if request successfully sent, otherwise -1(SFS_ERROR)
+  //!
+  //------------------------------------------------------------------------------
+  virtual int64_t ReadVAsync (XrdCl::ChunkList& chunkList,
+                              uint16_t timeout = 0) = 0;
+
+ 
+  //----------------------------------------------------------------------------
   //! Write to file - sync
   //!
   //! @param offset offset
@@ -125,14 +140,14 @@ public:
   //!
   //! @return number of bytes written or -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int64_t Write (XrdSfsFileOffset offset,
                          const char* buffer,
                          XrdSfsXferSize length,
                          uint16_t timeout = 0) = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Read from file - async
   //!
   //! @param offset offset in file
@@ -143,7 +158,7 @@ public:
   //!
   //! @return number of bytes read or -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int64_t ReadAsync (XrdSfsFileOffset offset,
                              char* buffer,
                              XrdSfsXferSize length,
@@ -151,7 +166,7 @@ public:
                              uint16_t timeout = 0) = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Write to file - async
   //!
   //! @param offset offset
@@ -161,14 +176,14 @@ public:
   //!
   //! @return number of bytes written or -1 if error
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int64_t WriteAsync (XrdSfsFileOffset offset,
                               const char* buffer,
                               XrdSfsXferSize length,
-                                uint16_t timeout = 0) = 0;
+                              uint16_t timeout = 0) = 0;
   
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Truncate
   //!
   //! @param offset truncate file to this value
@@ -176,19 +191,18 @@ public:
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Truncate (XrdSfsFileOffset offset, uint16_t timeout = 0) = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Allocate file space
   //!
   //! @param length space to be allocated
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
   virtual int
   Fallocate (XrdSfsFileOffset length)
   {
@@ -196,7 +210,7 @@ public:
   }
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Deallocate file space
   //!
   //! @param fromOffset offset start
@@ -204,8 +218,7 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
   virtual int
   Fdeallocate (XrdSfsFileOffset fromOffset,
                XrdSfsFileOffset toOffset)
@@ -214,15 +227,14 @@ public:
   }
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Remove file
   //!
   //! @param timeout timeout value
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
   virtual int
   Remove (uint16_t timeout = 0)
   {
@@ -230,29 +242,29 @@ public:
   }
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Sync file to disk
   //!
   //! @param timeout timeout value
   //!  
   //! @return 0 on success, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Sync (uint16_t timeout = 0) = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Close file
   //!
   //! @param timeout timeout value
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Close (uint16_t timeout = 0) = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get stats about the file
   //!
   //! @param buf stat buffer
@@ -261,28 +273,27 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual int Stat (struct stat* buf, uint16_t timeout = 0) = 0;
 
   
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get pointer to async meta handler object 
   //!
   //! @return pointer to async handler, NULL otherwise 
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual void* GetAsyncHandler () = 0;
 
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Get path to current file
-  //--------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
   const std::string&
   GetPath ()
   {
     return mFilePath;
-  }
+  };
 
   //--------------------------------------------------------------------------
   //! Get last used URL to current file
@@ -297,7 +308,6 @@ protected:
 
   std::string mFilePath; ///< path to current physical file
   std::string mLastUrl;  ///< last used url if remote file
-
 };
 
 EOSFSTNAMESPACE_END
