@@ -31,8 +31,7 @@ int
 com_archive(char* arg1)
 {
   XrdOucString in = "";
-  XrdOucString savearg = arg1;
-  XrdOucTokenizer subtokenizer(arg1);
+  eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString subcmd = subtokenizer.GetToken();
   std::ostringstream in_cmd;
