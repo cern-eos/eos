@@ -63,6 +63,7 @@ add_executable( eos
 		commands/com_fs.cc 
 		commands/com_fsck.cc
                 commands/com_fuse.cc
+		commands/com_geosched.cc
 		commands/com_group.cc
                 commands/com_io.cc
                 commands/com_json.cc

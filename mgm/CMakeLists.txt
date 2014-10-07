@@ -46,6 +46,7 @@ add_library (XrdEosMgm MODULE
             proc/admin/Fs.cc
             proc/admin/Fsck.cc
             proc/admin/Group.cc
+            proc/admin/GeoSched.cc
             proc/admin/Io.cc
             proc/admin/Node.cc
             proc/admin/Ns.cc

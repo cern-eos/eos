@@ -677,6 +677,30 @@ private:
 	bool updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem::fs_snapshot_t *fs, int keys, SchedTreeBase::tFastTreeIdx ftidx=0 , SlowTreeNode *stn=NULL);
 	bool updateTreeInfo(const std::map<std::string,int> &updates);
 
+	template<typename T> bool setInternalParam(T& param, const T& value, bool updateStructs)
+	{
+	  eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
+	  eos::common::RWMutexWriteLock lock2(pTreeMapMutex);
+	  eos::common::RWMutexWriteLock lock3(configMutex);
+
+	  bool result = true;
+
+	  param = value;
+
+	  for(auto it = pFs2TreeMapEntry.begin(); it != pFs2TreeMapEntry.end(); it++)
+	  {
+	    if(updateStructs)
+	    {
+	      it->second->fastStructModified = true;
+	      it->second->slowTreeModified = true;
+	      result = result && updateFastStructures(it->second);
+	    }
+	  }
+
+	  return result;
+	}
+
+
 public:
 	GeoTreeEngine () :
 	skipSaturatedPlct(false),skipSaturatedAccess(true),
@@ -731,6 +755,25 @@ public:
 	//   true if success false else
 	// ---------------------------------------------------------------------------
 	bool removeGroup(FsGroup *group);
+
+	// ---------------------------------------------------------------------------
+	//! Print formated information about the GeoTreeEngine
+	// @param info
+	//   the string to which info is to be written
+	// @param dispTree
+	//   do trees should be printed
+	// @param dispSnaps
+	//   do snapshots should be printed
+	// @param dispLs
+	//   do internal state should be printed
+	// @param schedgroup
+	//   narrow down information to this schedgroup
+	// @param schedgroup
+	//   narrow down information to this type of operation
+	// ---------------------------------------------------------------------------
+	void printInfo(std::string &info,
+		       bool dispTree, bool dispSnaps, bool dispLs,
+		       const std::string &schedgroup, const std::string &optype);
 
 	// ---------------------------------------------------------------------------
 	//! Place several replicas in one scheduling group.
@@ -894,6 +937,62 @@ public:
 
 	bool getGroupsFromFsIds(const std::vector<FileSystem::fsid_t> fsids, std::vector<std::string> *fsgeotags, std::vector<FsGroup*> *sortedgroups);
 
+	inline bool setSkipSaturatedPlct(bool value)
+	{
+	return setInternalParam(skipSaturatedPlct,value,false);
+	}
+	inline bool setSkipSaturatedAccess(bool value)
+	{
+	  return setInternalParam(skipSaturatedAccess,value,false);
+	}
+	inline bool setSkipSaturatedDrnAccess(bool value)
+	{
+	  return setInternalParam(skipSaturatedDrnAccess,value,false);
+	}
+	inline bool setSkipSaturatedBlcAccess(bool value)
+	{
+	  return setInternalParam(skipSaturatedBlcAccess,value,false);
+	}
+	inline bool setSkipSaturatedDrnPlct(bool value)
+	{
+	  return setInternalParam(skipSaturatedDrnPlct,value,false);
+	}
+	inline bool setSkipSaturatedBlcPlct(bool value)
+	{
+	  return setInternalParam(skipSaturatedBlcPlct,value,false);
+	}
+	inline bool setPlctDlScorePenalty(char value)
+	{
+	  return setInternalParam(plctDlScorePenalty,value,false);
+	}
+	inline bool setPlctUlScorePenalty(char value)
+	{
+	  return setInternalParam(plctUlScorePenalty,value,false);
+	}
+	inline bool setAccessDlScorePenalty(char value)
+	{
+	  return setInternalParam(accessDlScorePenalty,value,false);
+	}
+	inline bool setAccessUlScorePenalty(char value)
+	{
+	  return setInternalParam(accessUlScorePenalty,value,false);
+	}
+	inline bool setFillRatioLimit(char value)
+	{
+	  return setInternalParam(fillRatioLimit,value,true);
+	}
+	inline bool setFillRatioCompTol(char value)
+	{
+	  return setInternalParam(fillRatioCompTol,value,true);
+	}
+	inline bool setSaturationThres(char value)
+	{
+	  return setInternalParam(saturationThres,value,true);
+	}
+	inline bool setTimeFrameDurationMs(int value)
+	{
+	  return setInternalParam(timeFrameDurationMs,value,false);
+	}
 };
 
 extern GeoTreeEngine gGeoTreeEngine;

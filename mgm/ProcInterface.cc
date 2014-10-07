@@ -453,6 +453,12 @@ ProcCommand::open (const char* inpath, const char* info, eos::common::Mapping::V
       mDoSort = false;
     }
     else
+      if (mCmd == "geosched")
+    {
+      GeoSched();
+      mDoSort = false;
+    }
+    else
       if (mCmd == "fs")
     {
       Fs();

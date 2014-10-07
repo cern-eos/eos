@@ -200,6 +200,7 @@ public:
   int Debug ();
   int Fs ();
   int Fsck ();
+  int GeoSched ();
   int Group ();
   int Io ();
   int Node ();

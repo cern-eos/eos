@@ -437,6 +437,114 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem *fs ,
 	return true;
 }
 
+void GeoTreeEngine::printInfo(std::string &info,
+	       bool dispTree, bool dispSnaps, bool dispLs,
+	       const std::string &schedgroup, const std::string &optype)
+{
+  RWMutexReadLock lock(pTreeMapMutex);
+
+  stringstream ostr;
+
+  map<string,string> orderByGroupName;
+
+  if(dispLs)
+  {
+    ostr << "*** GeoTreeEngine parameters :"  << std::endl;
+    ostr << "skipSaturatedPlct = " << skipSaturatedPlct << std::endl;
+    ostr << "skipSaturatedAccess = "<< skipSaturatedAccess << std::endl;
+    ostr << "skipSaturatedDrnAccess = "<< skipSaturatedDrnAccess << std::endl;
+    ostr << "skipSaturatedBlcAccess = "<< skipSaturatedBlcAccess << std::endl;
+    ostr << "skipSaturatedDrnPlct = "<< skipSaturatedDrnPlct << std::endl;
+    ostr << "skipSaturatedBlcPlct = "<< skipSaturatedBlcPlct << std::endl;
+    ostr << "plctDlScorePenalty = "<< (int)plctDlScorePenalty << std::endl;
+    ostr << "plctUlScorePenalty = "<< (int)plctUlScorePenalty << std::endl;
+    ostr << "accessDlScorePenalty = "<< (int)accessDlScorePenalty << std::endl;
+    ostr << "accessUlScorePenalty = "<< (int)accessUlScorePenalty << std::endl;
+    ostr << "fillRatioLimit = "<< (int)fillRatioLimit << std::endl;
+    ostr << "fillRatioCompTol = "<< (int)fillRatioCompTol << std::endl;
+    ostr << "saturationThres = "<< (int)saturationThres << std::endl;
+    ostr << "timeFrameDurationMs = "<< (int)timeFrameDurationMs << std::endl;
+  }
+
+  // ==== run through the map of file systems
+  for(auto it = pGroup2TreeMapEntry.begin(); it != pGroup2TreeMapEntry.end(); it++)
+  {
+    stringstream ostr;
+
+    if(dispTree && (schedgroup.empty() || (schedgroup == it->second->group->mName) ) )
+    {
+      ostr << "*** scheduling tree for scheduling group "<< it->second->group->mName <<" :"  << std::endl;
+      ostr << *it->second->slowTree << std::endl;
+    }
+
+    if(dispSnaps && (schedgroup.empty() || (schedgroup == it->second->group->mName) ) )
+    {
+      if(optype.empty() || (optype == "plct") )
+      {
+	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Placement\' :"  << std::endl;
+	ostr << *it->second->foregroundFastStruct->placementTree << std::endl;
+      }
+      if(optype.empty() || (optype == "accsro") )
+      {
+	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Access RO\' :"  << std::endl;
+	ostr << *it->second->foregroundFastStruct->rOAccessTree << std::endl;
+      }
+      if(optype.empty() || (optype == "accsrw") )
+      {
+	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Access RW\' :"  << std::endl;
+	ostr << *it->second->foregroundFastStruct->rWAccessTree << std::endl;
+      }
+      if(optype.empty() || (optype == "accsdrain") )
+      {
+	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Access\' :"  << std::endl;
+	ostr << *it->second->foregroundFastStruct->drnAccessTree << std::endl;
+      }
+      if(optype.empty() || (optype == "plctdrain") )
+      {
+	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Placement\' :"  << std::endl;
+	ostr << *it->second->foregroundFastStruct->drnPlacementTree << std::endl;
+      }
+      if(optype.empty() || (optype == "accsblc") )
+      {
+	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Balancing Access\' :"  << std::endl;
+	ostr << *it->second->foregroundFastStruct->blcAccessTree << std::endl;
+      }
+      if(optype.empty() || (optype == "plctblc") )
+      {
+	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Placement\' :"  << std::endl;
+	ostr << *it->second->foregroundFastStruct->blcPlacementTree << std::endl;
+      }
+    }
+
+    orderByGroupName[it->second->group->mName] = ostr.str();
+  }
+
+  if(dispLs)
+  {
+    ostr << "*** GeoTreeEngine list of groups :"  << std::endl;
+    if(orderByGroupName.size())
+    {
+      const int lineWidth = 80;
+      const int countNamePerLine = lineWidth / (orderByGroupName.begin()->first.size()+3);
+      int count = 1;
+      for(auto it = orderByGroupName.begin(); it != orderByGroupName.end(); it++, count++)
+      {
+	ostr << it->first;
+	if(count%countNamePerLine)
+	  ostr << " , ";
+	else
+	  ostr << "\n";
+      }
+    }
+  }
+
+  for(auto it = orderByGroupName.begin(); it != orderByGroupName.end(); it++)
+    ostr << it->second;
+
+  info = ostr.str();
+}
+
+
 bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNewReplicas,
 		vector<FileSystem::fsid_t> *newReplicas,
 		SchedType type,
