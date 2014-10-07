@@ -278,8 +278,10 @@ EosAuthOfs::Configure(XrdSysError& error)
       {
         // Set socket receive timeout to 5 seconds
         zmq::socket_t* socket = new zmq::socket_t(*mZmqContext, ZMQ_REQ);
+#if ZMQ_VERSION >= 20200
         int timeout_mili = 5000;
         socket->setsockopt(ZMQ_RCVTIMEO, &timeout_mili, sizeof timeout_mili);
+#endif
         std::string endpoint = "inproc://proxyfrontend";
         
         // Try in a loop to connect to the proxyfrontend as it can take a while for
