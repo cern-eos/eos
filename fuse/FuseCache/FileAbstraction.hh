@@ -64,7 +64,7 @@ class FileAbstraction
     //! @param file raw file object
     //!
     //--------------------------------------------------------------------------
-    FileAbstraction(int fd, eos::fst::Layout* file);
+    FileAbstraction(int fd, eos::fst::Layout* file, const char* path="");
 
 
     //--------------------------------------------------------------------------
@@ -194,6 +194,15 @@ class FileAbstraction
     //--------------------------------------------------------------------------
     eos::common::ConcurrentQueue<error_type>& GetErrorQueue() const;
 
+    //--------------------------------------------------------------------------
+    //! Set a new utime on a file
+    //--------------------------------------------------------------------------
+    void SetUtimes(struct timespec* utime);
+
+    //--------------------------------------------------------------------------
+    //! Get last utime setting of a file and the path to it
+    //--------------------------------------------------------------------------
+    const char* GetUtimes(struct timespec* utime);
 
   private:
 
@@ -205,6 +214,8 @@ class FileAbstraction
     long long mLastPossibleKey; ///< last possible offset in file
     long long mFirstPossibleKey; ///< first possible offset in file
     XrdSysCondVar mCondUpdate; ///< cond variable for updating file attributes
+    struct timespec mUtime[2]; ///< cond variable tracking last set utime while file is still open
+    std::string mPath; ///< valid path to this file
 };
 
 #endif // __EOS_FUSE_FILEABSTRACTION_HH__

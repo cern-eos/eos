@@ -476,6 +476,12 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mFile->SetForcedMtime(strtoull(header["x-oc-mtime"].c_str(), 0, 10), 0);
       }
 
+      if ( (!mLastChunk) && (request->GetHeaders().count("oc-chunked")) )
+      {
+	// WARNING: this assumes that chunks are uploaded in order
+	mFile->disableChecksum();
+      }
+
       mCloseCode = mFile->close();
       if (mCloseCode)
       {
@@ -561,7 +567,10 @@ HttpHandler::DecodeByteRange (std::string rangeheader,
     }
     else
     {
-      stop = filesize;
+      if (filesize>0)
+	stop = filesize-1;
+      else
+	stop = 0;
     }
 
     if ((start > filesize) || (stop > filesize))

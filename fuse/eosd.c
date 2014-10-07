@@ -248,10 +248,13 @@ eosfs_ll_setattr (fuse_req_t req,
       fprintf (stderr, "[%s]: set attr time ino=%lld atime=%ld mtime=%ld\n",
                __FUNCTION__, (long long) ino, (long) attr->st_atime, (long) attr->st_mtime);
     }
-    retc = xrd_utimes (fullpath, tvp,
-                       req->ctx.uid,
-                       req->ctx.gid,
-                       req->ctx.pid);
+
+    if ( (retc=xrd_set_utimes_close(ino, tvp, req->ctx.uid)) ) {
+      retc = xrd_utimes (fullpath, tvp,
+			 req->ctx.uid,
+			 req->ctx.gid,
+			 req->ctx.pid);
+    }
   }
 
   if (isdebug) fprintf (stderr, "[%s]: return code =%d\n", __FUNCTION__, retc);

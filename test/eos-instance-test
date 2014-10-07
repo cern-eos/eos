@@ -918,7 +918,8 @@ runtest "### Chmod        " unix 0 "" eos chmod 777 $HTTPDIR
 # --------------------------
 runtest "### Http GET     " unix 0 "" curl --location --fail --silent --range 0-499 http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
 runtest "### Http GET     " unix 0 "" curl --location --fail --silent --range 0-499,500-999 http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
-runtest "### Http GET     " unix 0 "" curl --location --fail --silent --range 0-499,1000-1499 http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
+runtest "### Http GET     " unix 0 "" curl --location --fail --silent --range 0-499,1000-1499 http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpi
+runtest "### Http GET     " unix 0 "" curl --location --fail --silent --range 50000000- http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
 runtest "### Http GET     " unix 1 "" curl --location --fail --silent --range 51200000-512000000 http://$EOS_TEST_REDIRECTOR:8000/$HTTPDIR/file.50m --output $EOS_TEST_TESTSYS/dumpit
 
 ################################################################################
