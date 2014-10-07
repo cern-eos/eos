@@ -33,7 +33,6 @@
 #include "fst/layout/Layout.hh"
 #include "fst/io/HeaderCRC.hh"
 #include "fst/XrdFstOfsFile.hh"
-#include "fst/tests/FileTest.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
