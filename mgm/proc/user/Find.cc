@@ -244,7 +244,9 @@ ProcCommand::Find ()
   if (option.find("I") != STR_NPOS)
   {
     printfileinfo = true;
-    option += "f";
+    if (option.find("d") == STR_NPOS)
+      option += "f";
+    printchildcount=false;
   }
 
   if (option.find("A") != STR_NPOS)
@@ -831,31 +833,49 @@ ProcCommand::Find ()
           }
           else
 	  {
-	    fprintf(fstdout, "%s", foundit->first.c_str());
-
-	    if (printuid || printgid) 
+	    if (!printfileinfo) 
 	    {
-	      eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
-	      eos::ContainerMD* mCmd = 0;
-	      try
+	      fprintf(fstdout, "%s", foundit->first.c_str());
+	      
+	      if (printuid || printgid) 
 	      {
-		mCmd = gOFS->eosView->getContainer(foundit->first.c_str());
-		if (printuid)
+		eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
+		eos::ContainerMD* mCmd = 0;
+		try
 		{
-		  fprintf(fstdout, " uid=%u", (unsigned int) mCmd->getCUid());
+		  mCmd = gOFS->eosView->getContainer(foundit->first.c_str());
+		  if (printuid)
+		  {
+		    fprintf(fstdout, " uid=%u", (unsigned int) mCmd->getCUid());
+		  }
+		  if (printgid)
+		  {
+		    fprintf(fstdout, " gid=%u", (unsigned int) mCmd->getCGid());
+		  }
 		}
-		if (printgid)
+		catch (eos::MDException&e)
 		{
-		  fprintf(fstdout, " gid=%u", (unsigned int) mCmd->getCGid());
+		  eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
 		}
-	      }
-	      catch (eos::MDException&e)
-	      {
-		eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
 	      }
 	    }
+	    else
+	    {
+	      // print fileinfo -m 
+	      ProcCommand Cmd;
+	      XrdOucString lStdOut = "";
+	      XrdOucString lStdErr = "";
+	      XrdOucString info = "&mgm.cmd=fileinfo&mgm.path=";
+	      info += foundit->first.c_str();
+	      info += "&mgm.file.info.option=-m";
+	      Cmd.open("/proc/user", info.c_str(), *pVid, mError);
+	      Cmd.AddOutput(lStdOut, lStdErr);
+	      if (lStdOut.length()) fprintf(fstdout, "%s", lStdOut.c_str());
+	      if (lStdErr.length()) fprintf(fstderr, "%s", lStdErr.c_str());
+	      Cmd.close();
+	    }
 	    fprintf(fstdout, "\n");
-          }
+          } 
         }
       }
       dircounter++;
