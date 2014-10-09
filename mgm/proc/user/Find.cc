@@ -244,8 +244,8 @@ ProcCommand::Find ()
   if (option.find("I") != STR_NPOS)
   {
     printfileinfo = true;
-    if (option.find("d") == STR_NPOS)
-      option += "f";
+    if ((option.find("d") == STR_NPOS) && (option.find("f") == STR_NPOS))
+      option += "df";
     printchildcount=false;
   }
 
