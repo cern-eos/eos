@@ -455,6 +455,7 @@ SpaceQuota::UpdateFromQuotaNode (uid_t uid, gid_t gid, bool calc_project_quota)
 void
 SpaceQuota::Refresh()
 {
+  eos::common::RWMutexReadLock nlock(gOFS->eosViewRWMutex);
   Quota::NodeToSpaceQuota(SpaceName.c_str());
   UpdateLogicalSizeFactor();
   UpdateIsSums();
@@ -470,8 +471,6 @@ SpaceQuota::PrintOut (XrdOucString &output, long uid_sel, long gid_sel, bool mon
   eos_static_debug("called");
 
   std::map<long long, unsigned long long>::const_iterator it;
-
-  Refresh();
 
   int* sortuidarray = (int*) malloc(sizeof (int) * (Quota.size() + 1));
   int* sortgidarray = (int*) malloc(sizeof (int) * (Quota.size() + 1));
@@ -1204,8 +1203,8 @@ Quota::PrintOut (const char* space, XrdOucString &output, long uid_sel, long gid
     LoadNodes();
   }
 
+  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock lock(gQuotaMutex);  
-  eos::common::RWMutexReadLock nlock(gOFS->eosViewRWMutex);
 
   output = "";
   XrdOucString spacenames = "";
@@ -1223,6 +1222,7 @@ Quota::PrintOut (const char* space, XrdOucString &output, long uid_sel, long gid
 
     for (it = gQuota.begin(); it != gQuota.end(); it++)
     {
+      it->second->Refresh();
       it->second->PrintOut(output, uid_sel, gid_sel, monitoring, translateids);
     }
   }
@@ -1232,6 +1232,7 @@ Quota::PrintOut (const char* space, XrdOucString &output, long uid_sel, long gid
     SpaceQuota* spacequota = GetResponsibleSpaceQuota(space);
     if (spacequota)
     {
+      spacequota->Refresh();
       spacequota->PrintOut(output, uid_sel, gid_sel, monitoring, translateids);
     }
   }
@@ -1557,7 +1558,6 @@ Quota::NodesToSpaceQuota ()
 }
 
 /*----------------------------------------------------------------------------*/
-
 
 void
 Quota::NodeToSpaceQuota (const char* name)

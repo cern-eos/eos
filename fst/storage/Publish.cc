@@ -344,6 +344,7 @@ Storage::Publish ()
             hash->Set("stat.sys.uptime", publish_uptime.c_str());
             hash->Set("stat.sys.sockets", publish_sockets.c_str());
             hash->Set("stat.sys.eos.start", eos::fst::Config::gConfig.StartDate.c_str());
+	    hash->Set("stat.geotag", lNodeGeoTag.c_str());
           }
           gOFS.ObjectManager.HashMutex.UnLockRead();
         }

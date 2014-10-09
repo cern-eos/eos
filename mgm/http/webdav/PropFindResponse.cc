@@ -163,6 +163,7 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
 	// don't display . .., atomic(+version) uploads and version directories
         if ( entryname.beginswith(EOS_COMMON_PATH_VERSION_FILE_PREFIX) ||
 	     entryname.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) ||
+	     entryname.beginswith(EOS_WEBDAV_HIDE_IN_PROPFIND_PREFIX) || 
 	     (entryname == ".") || 
 	     (entryname == "..") )
 	  {
