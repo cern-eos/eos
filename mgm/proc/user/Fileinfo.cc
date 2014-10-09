@@ -461,6 +461,9 @@ ProcCommand::FileInfo (const char* path)
             stdOut += "fid=";
             stdOut += fid;
             stdOut += " ";
+	    stdOut += "ino=";
+	    stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) eos::common::FileId::FidToInode(fmd->getId()));
+	    stdOut += " ";
             stdOut += "pid=";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getContainerId());
             stdOut += " ";
@@ -894,6 +897,9 @@ ProcCommand::DirInfo (const char* path)
             stdOut += "fid=";
             stdOut += fid;
             stdOut += " ";
+	    stdOut += "ino=";
+	    stdOut += fid;
+	    stdOut += " ";
             stdOut += "pid=";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getParentId());
             stdOut += " ";
