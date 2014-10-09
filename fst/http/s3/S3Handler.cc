@@ -193,7 +193,7 @@ S3Handler::Get (eos::common::HttpRequest *request)
       if (mRangeRequest)
       {
         CreateMultipartHeader(eos::common::HttpResponse::ContentType(GetPath()));
-        eos_static_info(HttpHandler::Print());
+        eos_static_info(Print());
         char clength[16];
         snprintf(clength, sizeof (clength) - 1, "%llu",
                 (unsigned long long) mRequestSize);
