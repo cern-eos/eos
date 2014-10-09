@@ -33,10 +33,12 @@
  */
 //------------------------------------------------------------------------------
 
-#define FUSE_USE_VERSION 26
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
+
+#ifdef __APPLE__
+#define FUSE_USE_VERSION 27
 #endif
 
 #ifdef linux
@@ -211,7 +213,7 @@ eosdfs_readdir (const char* path,
   }
 
   de = xrd_readdir (rootpath, &size, uid, gid, pid);
-  fprintf (stderr, "[%s] The size is: %ji\n", __FUNCTION__, size);
+  fprintf (stderr, "[%s] The size is: %li\n", __FUNCTION__, size);
 
   if (size)
   {
@@ -403,7 +405,7 @@ eosdfs_chown (const char* path, uid_t uid, gid_t gid)
 static int
 eosdfs_truncate (const char* path, off_t size)
 {
-  fprintf(stderr, "[%s] path=%s, size=%ji\n", __FUNCTION__, path, size);
+  fprintf(stderr, "[%s] path=%s, size=%lli\n", __FUNCTION__, path, size);
   char rootpath[4096];
   unsigned long rinode = 0;
   eosatime = time (0);
@@ -496,7 +498,7 @@ eosdfs_read (const char* path,
              off_t offset,
              struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path=%s, offset=%ji, length=%ji\n", 
+  fprintf (stderr, "[%s] path=%s, offset=%llii, length=%li\n", 
            __FUNCTION__, path, offset, size);
   eosatime = time (0);
   struct fd_user_info* info = (fd_user_info*) fi->fh;
@@ -524,7 +526,7 @@ eosdfs_write (const char* path,
               off_t offset,
               struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path=%s, offset=%ji, lenght=%ji\n", 
+  fprintf (stderr, "[%s] path=%s, offset=%lli, lenght=%li\n", 
            __FUNCTION__, path, offset, size);
 
   // File already existed. FUSE uses eosdfs_open() and eosdfs_truncate()
@@ -611,7 +613,7 @@ eosdfs_ftruncate(const char* path,
                  off_t size, 
                  struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path=%s, size=%ji\n", __FUNCTION__, path, size);
+  fprintf (stderr, "[%s] path=%s, size=%lli\n", __FUNCTION__, path, size);
   struct fd_user_info* info = (fd_user_info*) fi->fh;
   int res = xrd_truncate (info->fd, size);
 

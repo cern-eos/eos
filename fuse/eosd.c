@@ -45,6 +45,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <assert.h>
+#include <pthread.h>
 /*----------------------------------------------------------------------------*/
 #include "xrdposix.hh"
 #include <fuse/fuse_lowlevel.h>
@@ -1028,7 +1029,7 @@ eosfs_ll_read (fuse_req_t req,
                off_t off,
                struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s]: inode=%ji size=%ji off=%ji \n",
+  fprintf (stderr, "[%s]: inode=%li size=%li off=%lli \n",
            __FUNCTION__, ino, size, off);
 
   if (fi && fi->fh)
