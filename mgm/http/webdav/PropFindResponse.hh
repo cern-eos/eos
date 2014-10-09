@@ -31,6 +31,8 @@
 #ifndef __EOSMGM_PROPFIND_RESPONSE__HH__
 #define __EOSMGM_PROPFIND_RESPONSE__HH__
 
+#define EOS_WEBDAV_HIDE_IN_PROPFIND_PREFIX ".sys.dav.hide#."
+
 /*----------------------------------------------------------------------------*/
 #include "mgm/http/webdav/WebDAVResponse.hh"
 #include "mgm/Namespace.hh"
