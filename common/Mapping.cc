@@ -28,7 +28,6 @@
 #include "common/SecEntity.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysDNS.hh"
-#include <regex>
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN

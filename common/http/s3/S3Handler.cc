@@ -490,7 +490,7 @@ S3Handler::IsS3 ()
 
 /*----------------------------------------------------------------------------*/
 void
-S3Handler::Print (std::string & out)
+S3Handler::Dump (std::string & out)
 {
   // Print the S3 object contents to out
   out = "id=";

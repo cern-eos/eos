@@ -213,7 +213,7 @@ public:
    *
    * TODO: change this to ToString()
    */
-  void Print (std::string &out);
+  void Dump (std::string &out);
 
   /**
    * @deprecated
