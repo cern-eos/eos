@@ -39,6 +39,8 @@
 
 #ifdef __APPLE__
 #define FUSE_USE_VERSION 27
+#else
+#define FUSE_USE_VERSION 26
 #endif
 
 #ifdef linux
