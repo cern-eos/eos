@@ -1471,7 +1471,7 @@ main (int argc, char* argv[])
 int
 execute_line (char *line)
 {
-  register int i;
+  int i;
   COMMAND *command;
   char *word;
 
@@ -1531,7 +1531,7 @@ execute_line (char *line)
 COMMAND *
 find_command (char *name)
 {
-  register int i;
+  int i;
 
   for (i = 0; commands[i].name; i++)
     if (strcmp(name, commands[i].name) == 0)
@@ -1545,7 +1545,7 @@ find_command (char *name)
 char*
 stripwhite (char *string)
 {
-  register char *s, *t;
+  char *s, *t;
 
   for (s = string; (*s) == ' '; s++)
     ;
