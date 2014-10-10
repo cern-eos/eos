@@ -62,6 +62,13 @@ protected:
                                 //!< allowing the Handler function to call
                                 //!< class member functions
 
+  static std::string to_string(unsigned long long num)
+  {
+    char sout[128];
+    sprintf(sout,"%llu",num);
+    return sout;
+  }
+
 public:
   /**
    * Constructor

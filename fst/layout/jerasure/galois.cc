@@ -60,7 +60,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define LOGS (13)
 #define SPLITW8 (14)
 
-static int prim_poly[33] = 
+static unsigned int prim_poly[33] = 
 { 0, 
 /*  1 */     1, 
 /*  2 */    07,

@@ -519,7 +519,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
 bool
 HttpHandler::DecodeByteRange (std::string rangeheader,
                               std::map<off_t, ssize_t> &offsetmap,
-                              ssize_t &requestsize,
+                              off_t &requestsize,
                               off_t filesize)
 {
   std::vector<std::string> tokens;

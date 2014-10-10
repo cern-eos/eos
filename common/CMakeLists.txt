@@ -58,6 +58,8 @@ add_library (eosCommon SHARED
 	    RWMutex.cc
 	    )
 
+if( MacOSX )
+else( MacOSX )
 add_library (eosCommon-Static STATIC
 	    Fmd.cc
 	    Logging.cc
@@ -74,6 +76,19 @@ add_library (eosCommon-Static STATIC
 	    RWMutex.cc
 )
 
+add_executable ( dbmaptestfunc
+       dbmaptest/DbMapTestFunc.cc
+)
+add_executable ( dbmaptestburn
+       dbmaptest/DbMapTestBurn.cc
+)
+
+add_executable ( mutextest
+       mutextest/RWMutexTest.cc
+)
+
+endif( MacOSX)
+
 add_library (eosCommonServer SHARED 
  	    FileSystem.cc
             TransferQueue.cc
@@ -87,17 +102,28 @@ add_library (eosCommonServer SHARED
             stringencoders/modp_numtoa.c
             )
 
-add_executable ( dbmaptestfunc
-       dbmaptest/DbMapTestFunc.cc
-)
-add_executable ( dbmaptestburn
-       dbmaptest/DbMapTestBurn.cc
-)
+if( MacOSX )
+target_link_libraries ( eosCommon 
+                        XrdMqClient 
+                        XrdUtils 
+                        XrdCl 
+                        crypto 
+                        ${UUID_LIBRARIES} 
+                        ${NCURSES_LIBRARIES}
+                        ${Z_LIBRARIES} 
+                        ${ATTR_LIBRARIES} )
 
-add_executable ( mutextest
-       mutextest/RWMutexTest.cc
-)
-
+target_link_libraries ( eosCommonServer 
+		        eosCommon
+                        XrdMqClient 
+                        XrdUtils 
+                        XrdCl 
+                        crypto 
+                        ${UUID_LIBRARIES} 
+                        ${NCURSES_LIBRARIES}
+                        ${Z_LIBRARIES} 
+                        ${ATTR_LIBRARIES} )
+else( MacOSX )
 target_link_libraries ( eosCommon 
                         XrdMqClient 
                         XrdUtils 
@@ -109,16 +135,8 @@ target_link_libraries ( eosCommon
                         ${Z_LIBRARIES} 
                         ${ATTR_LIBRARIES} )
 
-target_link_libraries ( eosCommon-Static 
-                        XrdMqClient-Static 
-                        XrdUtils 
-                        XrdCl 
-                        crypto 
-                        ${UUID_LIBRARIES} 
-                        ${NCURSES_LIBRARIES}
-                        ${Z_LIBRARIES} 
-                        ${ATTR_LIBRARIES}  )
-
+if( CLIENT )
+else( CLIENT )
 target_link_libraries ( eosCommonServer 
                         XrdMqClient 
                         XrdUtils 
@@ -130,6 +148,22 @@ target_link_libraries ( eosCommonServer
                         ${Z_LIBRARIES} 
                         ${ATTR_LIBRARIES} )
 
+endif( CLIENT )
+target_link_libraries ( eosCommon-Static 
+                        XrdMqClient-Static 
+                        XrdUtils 
+                        XrdCl 
+                        crypto 
+                        ${UUID_LIBRARIES} 
+                        ${NCURSES_LIBRARIES}
+                        ${Z_LIBRARIES} 
+                        ${ATTR_LIBRARIES}  )
+
+
+endif( MacOSX )
+
+if( CLIENT )
+else( CLIENT )
 if(LEVELDB_FOUND)
 target_link_libraries ( eosCommonServer ${LEVELDB_LIBRARIES} ) 
 endif(LEVELDB_FOUND)
@@ -141,6 +175,8 @@ endif(MICROHTTPD_FOUND)
 target_link_libraries ( dbmaptestfunc eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries ( dbmaptestburn eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries ( mutextest eosCommon ${CMAKE_THREAD_LIBS_INIT} )
+
+endif( CLIENT )
 
 if (Linux) 
   set_target_properties ( 
@@ -160,9 +196,20 @@ if (Linux)
   )
 
 endif(Linux)
+
+if (CLIENT)
   
 install ( TARGETS eosCommon eosCommonServer
           LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
           RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
           ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
 )
+
+else( CLIENT)
+
+install ( TARGETS eosCommon eosCommonServer
+          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+)
+endif( CLIENT )
