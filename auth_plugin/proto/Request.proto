@@ -2,7 +2,7 @@ package eos.auth;
 
 import "proto/Stat.proto";
 import "proto/Fsctl.proto";
-import "proto/FSctl.proto";
+import "proto/FS_ctl.proto";
 import "proto/Chmod.proto";
 import "proto/Chksum.proto";
 import "proto/Exists.proto";
