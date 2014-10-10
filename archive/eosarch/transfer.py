@@ -146,8 +146,6 @@ class ThreadStatus(threading.Thread):
 
                 self.logger.info("Sending response: {0}".format(resp))
                 socket_rr.send_multipart([resp], zmq.NOBLOCK)
-            else:
-                self.logger.info("Status thread timeout")
 
     def do_finish(self):
         """ Set the flag for the status thread to finish execution

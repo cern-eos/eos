@@ -235,15 +235,6 @@ class ArchiveFile(object):
         """
         self.logger.debug("Del subtree for path={0}".format(rel_path))
         lst_dirs = []
-        src, dst = self.get_endpoints(rel_path)
-
-        if tape_delete is None:
-            surl = dst  # self.d2t is already used inside get_endpoints
-        else:
-            surl = src if tape_delete else dst
-
-        url = client.URL(surl)
-        fs = self.get_fs(surl)
 
         for fentry in self.files():
             path = fentry[1]
@@ -356,7 +347,7 @@ class ArchiveFile(object):
                             raise IOError(err_msg)
 
         if not st.ok:
-            err_msg = "Dir={0}, failed mkdir".format(surl)
+            err_msg = "Dir={0}, failed mkdir".format(root_str)
             self.logger.error(err_msg)
             raise IOError(err_msg)
 

@@ -23,7 +23,6 @@
 """Module containing helper function for the EOS archiver daemon."""
 
 import logging
-from os.path import relpath
 from XRootD import client
 from XRootD.client.flags import OpenFlags
 
