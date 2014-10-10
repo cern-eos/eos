@@ -41,10 +41,9 @@ class SHA1 : public CheckSum
 {
 private:
   SHA_CTX ctx;
-
   off_t sha1offset;
   unsigned char sha1[SHA_DIGEST_LENGTH + 1];
-  unsigned char sha1hex[(SHA_DIGEST_LENGTH * 2) + 1];
+
 public:
 
   SHA1 () : CheckSum ("sha1")
