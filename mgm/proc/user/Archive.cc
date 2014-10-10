@@ -104,6 +104,11 @@ ProcCommand::Archive()
     PROC_BOUNCE_NOT_ALLOWED;
     eos::common::Path cPath(path);
     spath = cPath.GetPath();
+
+    // Make sure the EOS directory path ends with '/'
+    if (spath[spath.length() - 1] != '/')
+      spath += '/';
+
     std::vector<ArchDirStatus> arch_dirs = ArchiveGetDirs(spath.c_str());
     std::set<std::string> transfer_dirs;
 
@@ -170,7 +175,7 @@ ProcCommand::Archive()
         << std::endl << line << std::endl;
 
     for (auto dir = arch_dirs.begin(); dir != arch_dirs.end(); ++dir)
-      {
+    {
       sdate = asctime(localtime(&dir->ctime));
       sdate.erase(sdate.find('\n'));
       oss << '|' << std::setw(col_size[0]) << std::setiosflags(std::ios_base::left)

@@ -99,6 +99,8 @@ com_archive(char* arg1)
 
     if (!token.length())
       in_cmd << "&mgm.archive.path=/";
+    else if (token == "./" || token == ".")
+      in_cmd << "&mgm.archive.path=" << abspath(pwd.c_str());
     else
       in_cmd << "&mgm.archive.path=" << token;
   }
