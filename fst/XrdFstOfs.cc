@@ -138,8 +138,7 @@ XrdFstOfs::XrdFstOfs () :
     (void) signal(SIGBUS, xrdfstofs_stacktrace);
   }
 
-  TpcMap.emplace(TpcMap.end());
-  TpcMap.emplace(TpcMap.end());
+  TpcMap.resize(2);
   TpcMap[0].set_deleted_key(""); // readers
   TpcMap[1].set_deleted_key(""); // writers
 }
@@ -256,7 +255,13 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
   eos_static_warning("%s", "op=shutdown msg=\"shutdown fmdsqlite handler\"");
   gFmdSqliteHandler.Shutdown();
   kill(watchdog,9);
+
+#ifdef __APPLE__
+  int wstatus = 0;
+  wait(&wstatus);
+#else
   wait();
+#endif
 
   eos_static_warning("%s", "op=shutdown status=sqliteclosed");
 

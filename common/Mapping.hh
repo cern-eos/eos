@@ -324,11 +324,6 @@ public:
   static XrdSysMutex ActiveLock;
 
   // ---------------------------------------------------------------------------
-  //! Mutex protecting all getpwxxx calls to avoid problems with sssd
-  // ---------------------------------------------------------------------------
-  static XrdSysMutex gSssdLock;
-
-  // ---------------------------------------------------------------------------
   //! Cache for host to ip translatiosn used by geo mapping
   // ---------------------------------------------------------------------------
   static ip_cache gIpCache;

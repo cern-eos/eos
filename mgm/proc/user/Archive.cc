@@ -104,6 +104,11 @@ ProcCommand::Archive()
     PROC_BOUNCE_NOT_ALLOWED;
     eos::common::Path cPath(path);
     spath = cPath.GetPath();
+
+    // Make sure the EOS directory path ends with '/'
+    if (spath[spath.length() - 1] != '/')
+      spath += '/';
+
     std::vector<ArchDirStatus> arch_dirs = ArchiveGetDirs(spath.c_str());
     std::set<std::string> transfer_dirs;
 
@@ -170,7 +175,7 @@ ProcCommand::Archive()
         << std::endl << line << std::endl;
 
     for (auto dir = arch_dirs.begin(); dir != arch_dirs.end(); ++dir)
-      {
+    {
       sdate = asctime(localtime(&dir->ctime));
       sdate.erase(sdate.find('\n'));
       oss << '|' << std::setw(col_size[0]) << std::setiosflags(std::ios_base::left)
@@ -597,7 +602,7 @@ ProcCommand::ArchiveExecuteCmd(const::string& cmd)
   zmq::context_t zmq_ctx(1);
   zmq::socket_t socket(zmq_ctx, ZMQ_REQ);
 #if ZMQ_VERSION >= 20200
-  int sock_timeout = 1000; // 1s
+  int sock_timeout = 1500; // 1,5s
   socket.setsockopt(ZMQ_RCVTIMEO, &sock_timeout, sizeof(sock_timeout));
 #endif
   socket.setsockopt(ZMQ_LINGER, &sock_linger, sizeof(sock_linger));
@@ -777,9 +782,9 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
            << "\"src\": \"" << "root://" << gOFS->ManagerId << "/" << arch_dir << "\", "
            << "\"dst\": \"" << dst_url << "\", "
            << "\"svc_class\": \"" << gOFS->MgmArchiveSvcClass << "\", "
-           << "\"dir_meta\": [\"uid\", \"gid\", \"attr\"], "
+           << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
            << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
-           << "\"xstype\", \"xs\"], "
+           << "\"mode\", \"xstype\", \"xs\"], "
            << "\"num_dirs\": " << num_dirs << ", "
            << "\"num_files\": " << num_files << ", "
            << "\"uid\": \"" << pVid->uid << "\", "
@@ -1049,6 +1054,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     info_map.insert(std::make_pair("ctime", ""));
     info_map.insert(std::make_pair("uid", ""));
     info_map.insert(std::make_pair("gid", ""));
+    info_map.insert(std::make_pair("mode", ""));
     info_map.insert(std::make_pair("xstype", ""));
     info_map.insert(std::make_pair("xs", ""));
   }
@@ -1057,6 +1063,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     info_map.insert(std::make_pair("file", "")); // dir name
     info_map.insert(std::make_pair("uid", ""));
     info_map.insert(std::make_pair("gid", ""));
+    info_map.insert(std::make_pair("mode", ""));
     info_map.insert(std::make_pair("xattrn", ""));
     info_map.insert(std::make_pair("xattrv", ""));
   }
@@ -1098,6 +1105,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
   }
 
   size_t spos = 0;
+  size_t key_length = 0; // lenght of file/dir name - it could have spaces
   std::string rel_path;
   std::string key, value, pair;
   std::istringstream line_iss;
@@ -1123,6 +1131,8 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     line_iss.clear();
     line_iss.str(line);
 
+    // We assume that the keylength.file parameter is always first in the
+    // output of fileinfo -m command
     while(line_iss.good())
     {
       line_iss >> pair;
@@ -1133,10 +1143,16 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
 
       key = pair.substr(0, spos);
       value = pair.substr(spos + 1);
-      eos_info("key=%s, value=%s", key.c_str(), value.c_str());
+      eos_debug("key=%s, value=%s", key.c_str(), value.c_str());
+
+      if (key == "keylength.file")
+      {
+        key_length = static_cast<size_t>(atoi(value.c_str()));
+        continue;
+      }
 
       if (info_map.find(key) == info_map.end())
-        continue; // not what we look for
+        continue; // not what we are looking for
 
       if (key == "xattrn")
       {
@@ -1168,6 +1184,21 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
 
         attr_map[xattrn] = value;
       }
+      else if (key == "file")
+      {
+        // Read in the file/dir path using the previously read keylength
+        std::string token_path;
+        eos_debug("value length=%i, key_length=%i", value.length(), key_length);
+
+        while ((value.length() != key_length) && line_iss.good())
+        {
+          line_iss >> token_path;
+          value += ' ';
+          value += token_path;
+        }
+
+        info_map[key] = value;
+      }
       else
         info_map[key] = value;
     }
@@ -1188,6 +1219,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
                << "\"" << info_map["ctime"] << "\", "
                << "\"" << info_map["uid"] << "\", "
                << "\"" << info_map["gid"] << "\", "
+               << "\"" << info_map["mode"] << "\", "
                << "\"" << info_map["xstype"] << "\", "
                << "\"" << info_map["xs"] << "\"]"
                << std::endl;
@@ -1197,6 +1229,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
       arch_ofs << "[\"d\", \"" << rel_path << "\", "
                << "\"" << info_map["uid"] << "\", "
                << "\"" << info_map["gid"] << "\", "
+               << "\"" << info_map["mode"] << "\", "
                << "{";
 
       for (auto it = attr_map.begin(); it != attr_map.end(); /*empty*/)

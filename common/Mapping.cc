@@ -28,7 +28,6 @@
 #include "common/SecEntity.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysDNS.hh"
-#include <regex>
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -51,7 +50,6 @@ Mapping::GeoLocationMap_t Mapping::gGeoMap;
 Mapping::AllowedTidentMatches_t Mapping::gAllowedTidentMatches;
 
 XrdSysMutex Mapping::ActiveLock;
-XrdSysMutex Mapping::gSssdLock;
 
 google::dense_hash_map<std::string, time_t> Mapping::ActiveTidents;
 
@@ -1142,7 +1140,6 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
       struct passwd *pwbufp = 0;
 
       {
-	XrdSysMutexHelper sLock(gSssdLock);
 	if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp))
 	{
 	  return;
@@ -1244,7 +1241,6 @@ Mapping::UidToUserName (uid_t uid, int &errc)
     struct passwd pwbuf;
     struct passwd *pwbufp = 0;
     {
-      XrdSysMutexHelper sLock(gSssdLock);
       if (getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp) || (!pwbufp))
       {
 	char suid[1024];
@@ -1344,7 +1340,6 @@ Mapping::UserNameToUid (std::string &username, int &errc)
   struct passwd *pwbufp = 0;
   errc = 0;
   {
-    XrdSysMutexHelper sLock(gSssdLock);
     getpwnam_r(username.c_str(), &pwbuf, buffer, buflen, &pwbufp);
   }
 

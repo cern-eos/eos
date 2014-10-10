@@ -48,6 +48,28 @@ add_executable (
   xrdposix.cc        xrdposix.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh )
 
+if( MacOSX )
+target_link_libraries ( 
+  eosfsd 
+  XrdCl
+  XrdUtils 
+  EosFstIo
+  FuseCache
+  eosCommon
+  ${FUSE_LIBRARY} 
+  ${CMAKE_THREAD_LIBS_INIT} )
+
+target_link_libraries ( 
+  eosd 
+  XrdCl
+  XrdUtils 
+  EosFstIo
+  FuseCache
+  eosCommon
+  ${FUSE_LIBRARY}
+  ${UUID_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT} )
+else( MacOSX )
 target_link_libraries ( 
   eosfsd 
   XrdCl
@@ -68,6 +90,7 @@ target_link_libraries (
   ${FUSE_LIBRARY}
   ${UUID_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} )
+endif( MacOSX )
 
 if( MacOSX )
   set_target_properties ( 

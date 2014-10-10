@@ -37,20 +37,12 @@
   char* smode;
   if ((smode = env.Get("mode")))
   {
-    struct stat buf;
-
-    // check if it is a file or directory ....
-    int retc = lstat(spath.c_str(),
-                     &buf,
-                     error,
-                     client,
-                     0);
-
     XrdSfsMode newmode = atoi(smode);
-    retc = _chmod(spath.c_str(),
-                  newmode,
-                  error,
-                  vid);
+    int retc = _chmod(spath.c_str(),
+                      newmode,
+                      error,
+                      vid);
+    (void)retc; // unused - make compiler happy
 
     XrdOucString response = "chmod: retc=";
     response += errno;

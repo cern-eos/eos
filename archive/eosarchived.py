@@ -191,7 +191,7 @@ class Dispatcher(object):
         recv_uuid = []
 
         while len(recv_uuid) < len(self.procs):
-            events = dict(self.backend_poller.poll(100))
+            events = dict(self.backend_poller.poll(400))
 
             if events and events.get(self.backend_req) == zmq.POLLIN:
                 [__, resp] = self.backend_req.recv_multipart()
@@ -317,7 +317,6 @@ class Dispatcher(object):
                               "\n".join((row_format % elem) for elem in row_data),
                               line))
 
-        self.logger.debug("Result: {0}".format(msg))
         return msg
 
     def do_kill(self, req_json):

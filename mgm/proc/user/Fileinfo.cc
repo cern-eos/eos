@@ -52,6 +52,7 @@ ProcCommand::Fileinfo ()
   struct stat buf;
 
   if (
+      (!spath.beginswith("inode:")) &&
       (!spath.beginswith("fid:")) &&
       (!spath.beginswith("fxid:")) &&
       (!spath.beginswith("pid:")) &&
@@ -68,10 +69,33 @@ ProcCommand::Fileinfo ()
   }
   else
   {
-    if (spath.beginswith("p"))
-      buf.st_mode = S_IFDIR;
+    unsigned long long id=0;
+
+    XrdOucString sid=spath;
+    if ( (sid.replace("inode:","")) )
+    {
+      id = strtoull(sid.c_str(), 0, 10);
+
+      if (id >=  eos::common::FileId::FidToInode(1))
+      {
+	buf.st_mode = S_IFREG;
+	spath.replace("inode:","fid:");
+	path = spath.c_str();
+      }
+      else
+      {
+	buf.st_mode = S_IFDIR;
+	spath.replace("inode:","pid:");
+	path = spath.c_str();
+      }
+    }
     else
-      buf.st_mode = S_IFREG;
+    {
+      if (spath.beginswith("f"))
+	buf.st_mode = S_IFREG;
+      else
+	buf.st_mode = S_IFDIR;
+    }
   }
 
   if (S_ISDIR(buf.st_mode))
@@ -105,7 +129,10 @@ ProcCommand::FileInfo (const char* path)
         spath.replace("fxid:", "");
         fid = strtoull(spath.c_str(), 0, 16);
       }
-
+      
+      if (fid >=  eos::common::FileId::FidToInode(1))
+	fid = eos::common::FileId::InodeToFid(fid);
+      
       // reference by fid+fsid
       //-------------------------------------------
       gOFS->eosViewRWMutex.LockRead();
@@ -334,8 +361,7 @@ ProcCommand::FileInfo (const char* path)
             stdOut += spath;
             stdOut += "'";
             stdOut += "  Flags: ";
-	    eos::common::FileId::Fid2Hex( (unsigned long long) fmd->getFlags(), sizestring );
-	    stdOut += sizestring;
+	    stdOut +=  eos::common::StringConversion::IntToOctal( (int) fmd->getFlags(), 4).c_str();
             stdOut += "\n";
             stdOut += "  Size: ";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getSize());
@@ -421,6 +447,9 @@ ProcCommand::FileInfo (const char* path)
             stdOut += ".";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) ctime.tv_nsec);
             stdOut += " ";
+	    stdOut += "mode=";
+            stdOut +=  eos::common::StringConversion::IntToOctal( (int) fmd->getFlags(), 4).c_str();
+	    stdOut += " ";
             stdOut += "uid=";
             stdOut += (int) fmd->getCUid();
             stdOut += " gid=";
@@ -432,6 +461,9 @@ ProcCommand::FileInfo (const char* path)
             stdOut += "fid=";
             stdOut += fid;
             stdOut += " ";
+	    stdOut += "ino=";
+	    stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) eos::common::FileId::FidToInode(fmd->getId()));
+	    stdOut += " ";
             stdOut += "pid=";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getContainerId());
             stdOut += " ";
@@ -788,6 +820,8 @@ ProcCommand::DirInfo (const char* path)
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getNumContainers());
             stdOut += "  Files: ";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getNumFiles());
+            stdOut += "  Flags: ";
+	    stdOut +=  eos::common::StringConversion::IntToOctal( (int) fmd->getMode(), 4).c_str();
             stdOut += "\n";
             stdOut += "Modify: ";
             stdOut += ctime_r(&filemtime, mtimestring);
@@ -827,7 +861,10 @@ ProcCommand::DirInfo (const char* path)
           }
           else
           {
-            stdOut = "file=";
+	    stdOut = "keylength.file=";
+            stdOut += spath.length();
+            stdOut += " ";
+            stdOut += "file=";
             stdOut += spath;
             stdOut += " ";
             stdOut += "container=";
@@ -841,11 +878,14 @@ ProcCommand::DirInfo (const char* path)
             stdOut += ".";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) mtime.tv_nsec);
             stdOut += " ";
-            stdOut += "ctime=";
+            stdOut += "ctime=";\
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) ctime.tv_sec);
             stdOut += ".";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) ctime.tv_nsec);
             stdOut += " ";
+	    stdOut += "mode=";
+            stdOut +=  eos::common::StringConversion::IntToOctal( (int) fmd->getMode(), 4).c_str();
+	    stdOut += " ";
             stdOut += "uid=";
             stdOut += (int) fmd->getCUid();
             stdOut += " gid=";
@@ -857,6 +897,9 @@ ProcCommand::DirInfo (const char* path)
             stdOut += "fid=";
             stdOut += fid;
             stdOut += " ";
+	    stdOut += "ino=";
+	    stdOut += fid;
+	    stdOut += " ";
             stdOut += "pid=";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getParentId());
             stdOut += " ";
