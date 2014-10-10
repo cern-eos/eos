@@ -26,8 +26,8 @@ import logging
 import json
 from XRootD import client
 from XRootD.client.flags import MkDirFlags, QueryCode
-from utils import exec_cmd, get_entry_info, set_dir_info
-from exceptions import CheckEntryException
+from eosarch.utils import exec_cmd, get_entry_info, set_dir_info
+from eosarch.exceptions import CheckEntryException
 
 
 class ArchiveFile(object):
@@ -178,7 +178,9 @@ class ArchiveFile(object):
         return (src, dst) if self.d2t else (dst, src)
 
     def del_entry(self, rel_path, is_dir, tape_delete):
-        """ Delete file/dir.
+        """ Delete file/dir. For directories it is successful only if the dir
+        is empty. For deleting the subtree rooted in a directory one needs to
+        use the del_subtree method.
 
         Args:
             rel_path (str): Entry relative path as stored in the archive file.
@@ -217,6 +219,49 @@ class ArchiveFile(object):
                 raise IOError()
 
             self.logger.warning("Entry={0} already removed".format(surl))
+
+    def del_subtree(self, rel_path, tape_delete):
+        """ Delete the subtree rooted at the provided path. Walk through all
+        the files and delete them one by one then proceding with the directories
+        from the deepest one to the root.
+
+        Args:
+            rel_path (string): Relative path to the subtree
+            tape_delete (boolean or None): If present and true this is a
+                deletion otherwise is a purge operation
+
+        Raises:
+            IOError: Deletion could not be performed
+        """
+        self.logger.debug("Del subtree for path={0}".format(rel_path))
+        lst_dirs = []
+        src, dst = self.get_endpoints(rel_path)
+
+        if tape_delete is None:
+            surl = dst  # self.d2t is already used inside get_endpoints
+        else:
+            surl = src if tape_delete else dst
+
+        url = client.URL(surl)
+        fs = self.get_fs(surl)
+
+        for fentry in self.files():
+            path = fentry[1]
+            # Delete only files rooted in current subtree
+            if path.startswith(rel_path):
+                self.del_entry(path, False, tape_delete)
+
+        for dentry in self.dirs():
+            path = dentry[1]
+
+            if path.startswith(rel_path):
+                lst_dirs.append(path)
+
+        # Reverse the list so that we start deleting deepest (empty) dirs first
+        lst_dirs.reverse()
+
+        for path in lst_dirs:
+            self.del_entry(path, True, tape_delete)
 
     def make_mutable(self):
         """ Make the EOS sub-tree pointed by header['src'] mutable.
@@ -303,7 +348,7 @@ class ArchiveFile(object):
                     st, __ = fs.stat(dpath)
 
                     if not st.ok:
-                        st, __  = fs.mkdir(dpath)
+                        st, __ = fs.mkdir(dpath)
 
                         if not st.ok:
                             err_msg = "Dir={0}, failed mkdir".format(dpath)
@@ -427,9 +472,9 @@ class ArchiveFile(object):
 
         else:  # for GET check all metadata
             if is_dir:
-                tags = ['uid', 'gid', 'attr']
+                tags = self.header['dir_meta']
             else:
-                tags = ['size', 'mtime', 'ctime', 'uid', 'gid', 'xstype', 'xs']
+                tags = self.header['file_meta']
 
             try:
                 meta_info = get_entry_info(url, path, tags, is_dir)

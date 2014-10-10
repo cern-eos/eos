@@ -113,12 +113,32 @@ def get_entry_info(url, rel_path, tags, is_dir):
         logger.error(err_msg)
         raise IOError(err_msg)
 
-    # Keep only the interesting info for an entry
-    lpairs = stdout.split(' ')
-    dict_info, dict_attr = {}, {}
-    it_list = iter(lpairs)
+    # Extract the path by using the keylength.file value which represents the
+    # size of the path. This is because the path can contain spaces.
+    size_pair, file_pair, tail = stdout.split(' ', 2)
+    sz_key, sz_val = size_pair.split('=', 1)
+    file_key, file_val = file_pair.split('=', 1)
 
-    # Parse output of fileinfo -m
+    if sz_key == "keylength.file" and file_key == "file" :
+        path = file_val
+        path_size = int(sz_val)
+
+        while path_size != len(path):
+            path_token, tail = tail.split(' ', 1)
+            path += ' '
+            path += path_token
+    else:
+        err_msg = ("Fileinfo response does not start with keylength.file "
+                   "for path").format(url.path)
+        logger.error(err_msg)
+        raise IOError(err_msg)
+
+    # For the rest we don't expect any surprizes, they shoud be key=val pairs
+    lpairs = tail.split(' ')
+    it_list = iter(lpairs)
+    dict_info, dict_attr = {}, {}
+
+    # Parse output of fileinfo -m keeping only the required keys
     for elem in it_list:
         key, value = elem.split('=', 1)
 
@@ -174,6 +194,17 @@ def set_dir_info(entry):
 
     if not status:
         err_msg = "Dir={0}, error doing chown, msg={1}".format(url.path, stderr)
+        logger.error(err_msg)
+        raise IOError(err_msg)
+
+    # Set permission on the directory
+    fchmod = [url.protocol, "://", url.hostid, "//proc/user/?",
+              "mgm.cmd=chmod&mgm.path=", url.path,
+              "&mgm.chmod.mode=", dict_dinfo['mode']]
+    (status, stdout, stderr) = exec_cmd(''.join(fchmod))
+
+    if not status:
+        err_msg = "Dir={0}, error doing chmod, msg={1}".format(url.path, stderr)
         logger.error(err_msg)
         raise IOError(err_msg)
 
