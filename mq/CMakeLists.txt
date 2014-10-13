@@ -41,7 +41,8 @@ add_library (XrdMqClient SHARED
 	     XrdMqClient.cc
 	     XrdMqMessage.cc
 	     XrdMqMessaging.cc
-	     XrdMqSharedObject.cc )
+	     XrdMqSharedObject.cc 
+             ../common/Logging.cc)
 
 add_library (XrdMqClient-Static STATIC
 	     XrdMqClient.hh
