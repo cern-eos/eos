@@ -270,7 +270,6 @@
               ScheduledToDrainFid.erase(it1);
             }
           }
-          while (it2 != ScheduledToDrainFid.end());
         }
 
         if ((ScheduledToDrainFid.count(fid) && ((ScheduledToDrainFid[fid] > (now)))))
