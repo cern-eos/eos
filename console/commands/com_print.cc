@@ -30,7 +30,7 @@
 int
 com_help (char *arg)
 {
-  register int i;
+  int i;
   int printed = 0;
 
   for (i = 0; commands[i].name; i++)

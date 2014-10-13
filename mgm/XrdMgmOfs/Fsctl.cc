@@ -154,17 +154,6 @@ XrdMgmOfs::FSctl (const int cmd,
   static const char *epname = "FSctl";
   const char *tident = error.getErrUser();
 
-  eos::common::Mapping::VirtualIdentity vid;
-
-  EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, "", tident, vid, false);
-  EXEC_TIMING_END("IdMap");
-
-  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
-  eos::common::LogId ThreadLogId;
-  ThreadLogId.SetSingleShotLogId(tident);
-
   if (args.Arg1Len)
   {
     if (args.Arg1Len < 16384)
@@ -203,6 +192,18 @@ XrdMgmOfs::FSctl (const int cmd,
 
   const char* inpath = ipath;
   const char* ininfo = iopaque;
+
+  // Do the id mapping with the opaque information
+  eos::common::Mapping::VirtualIdentity vid;
+
+  EXEC_TIMING_BEGIN("IdMap");
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid, false);
+  EXEC_TIMING_END("IdMap");
+
+  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+
+  eos::common::LogId ThreadLogId;
+  ThreadLogId.SetSingleShotLogId(tident);
 
   NAMESPACEMAP;
   if (info) info = 0; // for compiler happyness;

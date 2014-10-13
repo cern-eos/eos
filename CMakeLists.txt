@@ -26,7 +26,7 @@
 ################################################################################
 set(VERSION_MAJOR "0" )
 set(VERSION_MINOR "3" )
-set(VERSION_PATCH "60" )
+set(VERSION_PATCH "64" )
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
 
@@ -44,7 +44,7 @@ set(CMAKE_INSTALL_PREFIX /usr)
 set(CMAKE_INSTALL_SYSCONFDIR /etc)
 set(CMAKE_INSTALL_SBINDIR /sbin)
 
-if (PREFIX) 
+if (PREFIX)
    set (CMAKE_INSTALL_PREFIX ${PREFIX})
 endif (PREFIX)
 
@@ -58,7 +58,7 @@ include (GNUInstallDirs)
 include(FindPythonInterp)
 
 # overwrite the /sbin directory
-set(CMAKE_INSTALL_FULL_SBINDIR /usr/sbin) 
+set(CMAKE_INSTALL_FULL_SBINDIR /usr/sbin)
 
 
 ################################################################################
@@ -77,37 +77,40 @@ endif (DEFINED PACKAGEONLY AND PACKAGEONLY)
 
 if (NOT DEFINED PACKAGEONLY)
 if (CLIENT)
-find_package(XRootD REQUIRED)
-find_package(fuse REQUIRED)
-find_package(Threads REQUIRED)
-find_package(rt REQUIRED)
-find_package(uuid REQUIRED)
-else (CLIENT)
-find_package(XRootD REQUIRED)
-find_package(Threads REQUIRED)
-find_package(SparseHash REQUIRED)
-find_package(OpenSSL REQUIRED)
-find_package(ncurses REQUIRED)
-find_package(readline REQUIRED)
-find_package(uuid REQUIRED)
+  find_package(XRootD REQUIRED)
+  find_package(fuse REQUIRED)
+  find_package(Threads REQUIRED)
 find_package(z REQUIRED)
-find_package(rt REQUIRED)
-find_package(ldap REQUIRED)
-find_package(ZMQ REQUIRED)
-find_package(ProtocolBuffers)
-find_package(leveldb)
-find_package(CPPUnit)
-find_package(XRootD REQUIRED)
-find_package(microhttpd)
-
-if(MacOSX)
-find_package(fuse REQUIRED)
+find_package(readline REQUIRED)
+if (MacOSX)
 else(MacOSX)
-find_package(fuse REQUIRED)
-find_package(attr REQUIRED)
+  find_package(rt REQUIRED)
 endif(MacOSX)
-find_package(httpd)
-find_package(apr)
+  find_package(uuid REQUIRED)
+else (CLIENT)
+  find_package(XRootD REQUIRED)
+  find_package(Threads REQUIRED)
+  find_package(SparseHash REQUIRED)
+  find_package(OpenSSL REQUIRED)
+  find_package(ncurses REQUIRED)
+  find_package(readline REQUIRED)
+  find_package(uuid REQUIRED)
+  find_package(z REQUIRED)
+  find_package(rt REQUIRED)
+  find_package(ldap REQUIRED)
+  find_package(ZMQ REQUIRED)
+  find_package(ProtocolBuffers)
+  find_package(leveldb)
+  find_package(CPPUnit)
+  find_package(microhttpd)
+  if(MacOSX)
+    find_package(fuse REQUIRED)
+  else(MacOSX)
+    find_package(fuse REQUIRED)
+    find_package(attr REQUIRED)
+  endif(MacOSX)
+  find_package(httpd)
+  find_package(apr)
 endif (CLIENT)
 endif (NOT DEFINED PACKAGEONLY)
 
@@ -121,7 +124,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
       ARGS                    --version
       OUTPUT_VARIABLE _compiler_output)
   string(REGEX REPLACE ".* ([0-9]\\.[0-9]\\.[0-9]) .*" "\\1"
-         gcc_compiler_version ${_compiler_output})
+	 gcc_compiler_version ${_compiler_output})
   message(STATUS "C++ compiler version: ${gcc_compiler_version} [${CMAKE_CXX_COMPILER}]")
 
   if(gcc_compiler_version MATCHES "4\\.[0-3]\\.[0-9]")
@@ -142,7 +145,7 @@ set(FUSE_LIBRARY /usr/local/lib/libosxfuse_i64.dylib)
 else(MacOSX)
 
 # ------------------------------------------
-# on Linux WE use static objects 
+# on Linux WE use static objects
 # ------------------------------------------
 set(LIB_INSTALL_DIR lib64)
 set(RT_LIBS rt)
@@ -159,19 +162,16 @@ set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu
 endif (CLIENT)
 
 if (NOT LEVELDB_FOUND)
-message("  Warning: LevelDB not found, using slower Sqlite3 DbMap implentation")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_SQLITE_DBMAP=1")
+  message("  Warning: LevelDB not found, using slower Sqlite3 DbMap implentation")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_SQLITE_DBMAP=1")
 endif (NOT LEVELDB_FOUND)
 
 if (NOT MICROHTTPD_FOUND)
-message("  Warning: MicroHttpd not found, no httpd access available")
+  message("  Warning: MicroHttpd not found, no httpd access available")
 else (NOT MICROHTTPD_FOUND)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
 endif (NOT MICROHTTPD_FOUND)
 
-######################################################################################################################
-# install targets
-######################################################################################################################
 
 ################################################################################
 # Generate client commands doc
@@ -183,36 +183,37 @@ ADD_CUSTOM_TARGET(doc COMMAND python ${PROJECT_SOURCE_DIR}/doc/generate_cli_comm
 # Install targets
 ################################################################################
 if (CLIENT)
-add_subdirectory (fuse)
-add_subdirectory (console)
-add_subdirectory (man)
-add_subdirectory (test)
-add_subdirectory (mq)
-add_subdirectory (common)
-else (CLIENT)
-add_subdirectory (mq)
-add_subdirectory (common)
 add_subdirectory (authz)
 add_subdirectory (fst)
-add_subdirectory (mgm)
-add_subdirectory (console)
-add_subdirectory (namespace)
-add_subdirectory (etc)
-add_subdirectory (sync)
-add_subdirectory (fuse)
-add_subdirectory (srm)
-add_subdirectory (var)
-add_subdirectory (man)
-add_subdirectory (test)
-add_subdirectory (utils)
+  add_subdirectory (fuse)
+  add_subdirectory (console)
+  add_subdirectory (man)
+  add_subdirectory (mq)
+  add_subdirectory (common)
+else (CLIENT)
+  add_subdirectory (mq)
+  add_subdirectory (common)
+  add_subdirectory (authz)
+  add_subdirectory (fst)
+  add_subdirectory (mgm)
+  add_subdirectory (console)
+  add_subdirectory (namespace)
+  add_subdirectory (etc)
+  add_subdirectory (sync)
+  add_subdirectory (fuse)
+  add_subdirectory (srm)
+  add_subdirectory (var)
+  add_subdirectory (man)
+  add_subdirectory (test)
+  add_subdirectory (utils)
   add_subdirectory (archive)
   add_subdirectory (auth_plugin)	
-if (HTTPD_FOUND) 
-if (APR_FOUND)
-#add_subdirectory (httpd)
-#add_subdirectory (httpd-mini)
-endif (APR_FOUND)
-endif (HTTPD_FOUND)
+  if (HTTPD_FOUND)
+  if (APR_FOUND)
+    #add_subdirectory (httpd)
+    #add_subdirectory (httpd-mini)
+  endif (APR_FOUND)
+  endif (HTTPD_FOUND)
 endif (CLIENT)
 
 include_directories( ../ /usr/include/xrootd/ /usr/include/ ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd ${CMAKE_BINARY_DIR}/xrootd/src/include/ )
@@ -228,7 +229,7 @@ CONFIGURE_FILE(
   IMMEDIATE @ONLY)
 
 ADD_CUSTOM_TARGET(uninstall
-  "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake") 
+  "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake")
 
 ################################################################################
 # Packaging

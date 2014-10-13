@@ -45,6 +45,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <assert.h>
+#include <pthread.h>
 /*----------------------------------------------------------------------------*/
 #include "xrdposix.hh"
 #include <fuse/fuse_lowlevel.h>
@@ -248,10 +249,13 @@ eosfs_ll_setattr (fuse_req_t req,
       fprintf (stderr, "[%s]: set attr time ino=%lld atime=%ld mtime=%ld\n",
                __FUNCTION__, (long long) ino, (long) attr->st_atime, (long) attr->st_mtime);
     }
-    retc = xrd_utimes (fullpath, tvp,
-                       req->ctx.uid,
-                       req->ctx.gid,
-                       req->ctx.pid);
+
+    if ( (retc=xrd_set_utimes_close(ino, tvp, req->ctx.uid)) ) {
+      retc = xrd_utimes (fullpath, tvp,
+			 req->ctx.uid,
+			 req->ctx.gid,
+			 req->ctx.pid);
+    }
   }
 
   if (isdebug) fprintf (stderr, "[%s]: return code =%d\n", __FUNCTION__, retc);
@@ -1025,7 +1029,7 @@ eosfs_ll_read (fuse_req_t req,
                off_t off,
                struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s]: inode=%ji size=%ji off=%ji \n",
+  fprintf (stderr, "[%s]: inode=%li size=%li off=%lli \n",
            __FUNCTION__, ino, size, off);
 
   if (fi && fi->fh)

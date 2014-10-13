@@ -59,6 +59,22 @@ class _PrepareHandler(object):
         self.meta_handler.handle(self.type, status, self.path)
 
 
+class _QueryHandler(object):
+    """ Async query handler which reports to MetaHandler.
+
+    Attributes:
+        path (string): File path for which the handler is created.
+        meta_handler (MetaHandler): Meta handler object.
+    """
+    def __init__(self, path, meta_handler):
+        self.type = 'query'
+        self.path = path
+        self.meta_handler = meta_handler
+
+    def __call__(self, status, response, hostlist):
+        self.meta_handler.handle(self.type, status, self.path)
+
+
 class MetaHandler(object):
     """ Meta handler for different types of async requests.
 
@@ -71,10 +87,11 @@ class MetaHandler(object):
         mkdir_num: Number of mkdir commands waiting for reply.
     """
     def __init__(self):
-        list_op = ['mkdir', 'prepare']
+        list_op = ['mkdir', 'prepare', 'query']
         self.num, self.status, self.failed = {}, {}, {}
         self.handlers = {'mkdir': _MkDirHandler,
-                         'prepare': _PrepareHandler}
+                         'prepare': _PrepareHandler,
+                         'query': _QueryHandler}
 
         for op in list_op:
             self.num[op] = 0

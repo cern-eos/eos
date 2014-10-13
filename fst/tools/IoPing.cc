@@ -202,7 +202,7 @@ int nanosleep(const struct timespec *req, struct timespec *rem)
 int posix_memalign(void **memptr, size_t alignment, size_t size)
 {
 	char *ptr;
-	ptr = malloc(size + alignment);
+	ptr = (char*)malloc(size + alignment);
 	if (!ptr)
 		return -ENOMEM;
 	*memptr = ptr + alignment - (size_t)ptr % alignment;

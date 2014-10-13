@@ -15,6 +15,7 @@ function(EOS_defineOperatingSystem)
 				# check if we are on MacOSX
 				if(APPLE)
 					set(MacOSX TRUE PARENT_SCOPE)
+					set(CLIENT TRUE PARENT_SCOPE)
                                         set(OSDEFINE "-D__APPLE__=1" PARENT_SCOPE)
 					endif(APPLE)
 

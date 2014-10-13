@@ -447,7 +447,6 @@ public:
   }
 
 private:
-  bool isOpen;
   qr_result_t Qr;
   std::map<eos::common::FileSystem::fsid_t, sqlite3*> DB;
   std::map<eos::common::FileSystem::fsid_t, std::string> DBfilename;

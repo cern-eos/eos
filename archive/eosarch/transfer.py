@@ -31,11 +31,11 @@ import ast
 from os.path import join
 from hashlib import sha256
 from XRootD import client
-from XRootD.client.flags import PrepareFlags
-from archivefile import ArchiveFile
-from utils import exec_cmd
-from asynchandler import MetaHandler
-from exceptions import NoErrorException
+from XRootD.client.flags import PrepareFlags, QueryCode
+from eosarch.archivefile import ArchiveFile
+from eosarch.utils import exec_cmd
+from eosarch.asynchandler import MetaHandler
+from eosarch.exceptions import NoErrorException
 
 
 class ThreadJob(threading.Thread):
@@ -334,7 +334,11 @@ class Transfer(object):
             # Delete the corrupted entry
             is_dir = (err_entry[0] == 'd')
             self.logger.info("Delete corrupted entry={0}".format(err_entry))
-            self.archive.del_entry(err_entry[1], is_dir, None)
+
+            if is_dir:
+                self.archive.del_subtree(err_entry[1], None)
+            else:
+                self.archive.del_entry(err_entry[1], False, None)
 
         found_checkpoint = False  # flag set when reaching recovery entry
 
@@ -362,6 +366,9 @@ class Transfer(object):
 
         # Copy files
         self.copy_files(err_entry, found_checkpoint)
+
+        # For GET set file ownership and permissions
+        self.update_file_access()
         self.set_status("verifying")
         check_ok, __ = self.archive.verify()
         self.set_status("cleaning")
@@ -459,7 +466,7 @@ class Transfer(object):
         # For inital PUT copy also the archive file to tape
         if self.init_put:
             dst = self.archive.header['dst'] + self.config.ARCH_INIT
-            self.list_jobs.append((self.efile_full, dst, self.do_retry))
+            self.list_jobs.append((self.efile_full, dst))
 
         # Copy files
         for fentry in self.archive.files():
@@ -482,14 +489,16 @@ class Transfer(object):
                 dfile = dict(zip(self.archive.header['file_meta'], fentry[2:]))
                 dst = ''.join([dst, "?eos.ctime=", dfile['ctime'],
                                "&eos.mtime=", dfile['mtime'],
-                               "&eos.ruid=", dfile['uid'],
-                               "&eos.rgid=", dfile['gid'],
                                "&eos.bookingsize=", dfile['size'],
                                "&eos.targetsize=", dfile['size'],
-                               "&eos.checksum=", dfile['xs']])
+                               "&eos.checksum=", dfile['xs'],
+                               "&eos.ruid=0&eos.rgid=0"])
+            else:
+                # For PUT read the files from EOS as root
+                src = ''.join([src, "?eos.ruid=0&eos.rgid=0"])
 
             self.logger.debug("Copying from {0} to {1}".format(src, dst))
-            self.list_jobs.append((src, dst, self.do_retry))
+            self.list_jobs.append((src, dst))
 
             if len(self.list_jobs) == self.config.BATCH_SIZE:
                 st = self.flush_files(False)
@@ -544,8 +553,7 @@ class Transfer(object):
 
             for job in self.list_jobs:
                 # TODO: use the parallel mode starting with XRootD 4.1
-                self.logger.info("Add job src={0}, dst={1}".format(job[0], job[1]))
-                proc.add_job(job[0], job[1], force=job[2], thirdparty=True)
+                proc.add_job(job[0], job[1], force=self.do_retry, thirdparty=True)
 
             del self.list_jobs[:]
             thread = ThreadJob(proc)
@@ -565,10 +573,65 @@ class Transfer(object):
                     self.logger.debug("Thread={0} status={1}".format(
                             thread.ident, thread.xrd_status.message))
 
-
             del self.threads[:]
 
         return status
+
+    def update_file_access(self):
+        """ Set the ownership and the permissions for the files copied to EOS.
+        This is done only for GET operation i.e. self.archive.d2t == False.
+
+        Raises:
+            IOError: chown or chmod operations failed
+        """
+        if self.archive.d2t:
+            return
+
+        self.set_status("updating file access")
+        t0 = time.time()
+        oper = 'query'
+        metahandler = MetaHandler()
+        fs = self.archive.fs_src
+
+        for fentry in self.archive.files():
+            __, surl = self.archive.get_endpoints(fentry[1])
+            url = client.URL(surl)
+            dict_meta = dict(zip(self.archive.header['file_meta'], fentry[2:]))
+
+            # Send the chown async request
+            arg = ''.join([url.path, "?eos.ruid=0&eos.rgid=0&mgm.pcmd=chown&uid=",
+                           dict_meta['uid'], "&gid=", dict_meta['gid']])
+            xrd_st = fs.query(QueryCode.OPAQUEFILE, arg,
+                              callback=metahandler.register(oper, surl))
+
+            if not xrd_st.ok:
+                __ = metahandler.wait(oper)
+                err_msg = "Failed query chown for path={0}".format(surl)
+                self.logger.error(err_msg)
+                raise IOError(err_msg)
+
+            # Send the chmod async request
+            mode = int(dict_meta['mode'], 8) # mode is saved in octal format
+            arg = ''.join([url.path, "?eos.ruid=0&eos.rgid=0&mgm.pcmd=chmod&mode=",
+                           str(mode)])
+            xrd_st = fs.query(QueryCode.OPAQUEFILE, arg,
+                              callback=metahandler.register(oper, surl))
+
+            if not xrd_st.ok:
+                __ = metahandler.wait(oper)
+                err_msg = "Failed query chmod for path={0}".format(surl)
+                self.logger.error(err_msg)
+                raise IOError(err_msg)
+
+        status  = metahandler.wait(oper)
+
+        if status:
+            t1 = time.time()
+            self.logger.info("TIMING_update_file_access={0} sec".format(t1 - t0))
+        else:
+            err_msg = "Failed update file access"
+            self.logger.error(err_msg)
+            raise IOError(err_msg)
 
     def prepare2get(self, err_entry, found_checkpoint):
         """This method is only executed for GET operations and it's purpose is
@@ -584,57 +647,58 @@ class Transfer(object):
         Raises:
             IOError: The Prepare2Get request failed.
         """
+        if self.archive.d2t:
+            return
+
         limit = 20  # max files per prepare request
         oper = 'prepare'
+        self.set_status("prepare2get")
+        t0 = time.time()
+        lpaths = []
+        metahandler = MetaHandler()
 
-        if not self.archive.d2t:
-            self.set_status("prepare2get")
-            t0 = time.time()
-            lpaths = []
-            metahandler = MetaHandler()
+        for fentry in self.archive.files():
+            # Find error checkpoint if not already found
+            if err_entry and not found_checkpoint:
+                if fentry != err_entry:
+                    continue
+                else:
+                    found_checkpoint = True
 
-            for fentry in self.archive.files():
-                # Find error checkpoint if not already found
-                if err_entry and not found_checkpoint:
-                    if fentry != err_entry:
-                        continue
-                    else:
-                        found_checkpoint = True
+            surl, __ = self.archive.get_endpoints(fentry[1])
+            lpaths.append(surl[surl.rfind('//') + 1:])
 
-                surl, __ = self.archive.get_endpoints(fentry[1])
-                lpaths.append(surl[surl.rfind('//') + 1:])
-
-                if len(lpaths) == limit:
-                    xrd_st = self.archive.fs_dst.prepare(lpaths, PrepareFlags.STAGE,
-                                callback=metahandler.register(oper, surl))
-
-                    if not xrd_st.ok:
-                        __ = metahandler.wait(oper)
-                        err_msg = "Failed prepare2get"
-                        self.logger.error(err_msg)
-                        raise IOError(err_msg)
-
-                    del lpaths[:]
-
-            # Send the remaining requests
-            if lpaths:
+            if len(lpaths) == limit:
                 xrd_st = self.archive.fs_dst.prepare(lpaths, PrepareFlags.STAGE,
                             callback=metahandler.register(oper, surl))
 
                 if not xrd_st.ok:
                     __ = metahandler.wait(oper)
-                    err_msg = "Failed prepare2get"
+                    err_msg = "Failed prepare2get for path={0}".format(surl)
                     self.logger.error(err_msg)
                     raise IOError(err_msg)
 
                 del lpaths[:]
 
-            status  = metahandler.wait(oper)
+        # Send the remaining requests
+        if lpaths:
+            xrd_st = self.archive.fs_dst.prepare(lpaths, PrepareFlags.STAGE,
+                        callback=metahandler.register(oper, surl))
 
-            if status:
-                t1 = time.time()
-                self.logger.info("TIMING_prepare2get={0} sec".format(t1 - t0))
-            else:
+            if not xrd_st.ok:
+                __ = metahandler.wait(oper)
                 err_msg = "Failed prepare2get"
                 self.logger.error(err_msg)
                 raise IOError(err_msg)
+
+            del lpaths[:]
+
+        status  = metahandler.wait(oper)
+
+        if status:
+            t1 = time.time()
+            self.logger.info("TIMING_prepare2get={0} sec".format(t1 - t0))
+        else:
+            err_msg = "Failed prepare2get"
+            self.logger.error(err_msg)
+            raise IOError(err_msg)

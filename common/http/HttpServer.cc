@@ -329,6 +329,8 @@ HttpServer::HttpError (const char *errorText, int errorCode)
     response->SetResponseCode(response->NOT_FOUND);
   else if (errorCode == EOPNOTSUPP)
     response->SetResponseCode(response->NOT_IMPLEMENTED);
+  else if ( (errorCode == EDQUOT) || (errorCode == ENOSPC) )
+    response->SetResponseCode(response->INSUFFICIENT_STORAGE);
   else
     response->SetResponseCode(response->INTERNAL_SERVER_ERROR);
 
@@ -352,7 +354,7 @@ HttpServer::HttpError (const char *errorText, int errorCode)
   error = buffer.str().c_str();
 
   eos_static_info("errc=%d, retcode=%d errmsg=\"%s\"", errorCode, response->GetResponseCode(), errorText?errorText:"<none>");
-  while (error.replace("__RESPONSE_CODE__", std::to_string((long long)
+  while (error.replace("__RESPONSE_CODE__", to_string((long long)
                                                            response->GetResponseCode()).c_str()))
   {
   }
@@ -361,7 +363,7 @@ HttpServer::HttpError (const char *errorText, int errorCode)
   }
 
   response->SetBody(error.c_str());
-  response->AddHeader("Content-Length", std::to_string((long long)
+  response->AddHeader("Content-Length", to_string((long long)
                                                        response->GetBodySize()));
   response->AddHeader("Content-Type", "text/html");
   return response;
@@ -384,7 +386,7 @@ HttpServer::HttpHead (off_t length, std::string name)
   HttpResponse *response = new PlainHttpResponse();
   response->SetResponseCode(HttpResponse::ResponseCodes::OK);
   response->SetBody(std::string(""));
-  response->AddHeader("Content-Length", std::to_string((long long) length));
+  response->AddHeader("Content-Length", to_string((long long) length));
   response->AddHeader("Content-Type", "application/octet-stream");
   response->AddHeader("Accept-Ranges", "bytes");
   response->AddHeader("Content-Disposition", std::string("filename=\"") + name

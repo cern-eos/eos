@@ -28,6 +28,7 @@
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <numeric>
+#include <cmath>
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/Fmd.hh"
@@ -151,7 +152,6 @@ public:
   //!
   //--------------------------------------------------------------------------
   int closeofs ();
-
 
   //--------------------------------------------------------------------------
   //!
@@ -308,6 +308,19 @@ public:
     return fileid;
   }
 
+  //--------------------------------------------------------------------------
+  //! disable the checksumming before close
+  //--------------------------------------------------------------------------
+  void disableChecksum()
+  {
+    if (checkSum)
+    {
+      eos::fst::CheckSum* tmpSum = checkSum;
+      checkSum = 0;
+      delete tmpSum;
+    }
+  }
+  
 protected:
   XrdOucEnv* openOpaque;
   XrdOucEnv* capOpaque;

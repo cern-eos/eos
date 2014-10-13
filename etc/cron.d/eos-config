@@ -21,6 +21,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-30 0 * * * root  test -d /var/eos/config/`hostname -f` && find /var/eos/config/`hostname -f`  -name "*.eoscf" -mtime +2 -exec gzip -9 \{\} \; 
+30 0 * * * root  test -d /var/eos/config/`hostname -f` && find /var/eos/config/`hostname -f`  -name "*.*.eoscf" -mtime +2 -exec gzip -9 \{\} \; 
 31 0 * * * root  test -d /var/eos/config/`hostname -f` && mkdir -p /var/eos/config/`hostname -f`/archive/ && mv /var/eos/config/`hostname -f`/*.gz /var/eos/config/`hostname -f`/archive/; 
 

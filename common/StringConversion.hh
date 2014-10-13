@@ -481,6 +481,24 @@ public:
   }
 
   // ---------------------------------------------------------------------------
+  /**
+   * Return an octal string
+   * @param number - integer
+   * @param mininum format length
+   * @return ocal number as string
+   */
+  // ---------------------------------------------------------------------------
+  static std::string
+  IntToOctal(int number, int digits=4) 
+  {
+    char format[16];
+    snprintf(format, sizeof(format), "%%0%do",digits);
+    char octal[32];
+    snprintf(octal, sizeof(octal), format, number);
+    return std::string(octal);
+  }
+
+  // ---------------------------------------------------------------------------
   //! 
   // ---------------------------------------------------------------------------
   //! Constructor

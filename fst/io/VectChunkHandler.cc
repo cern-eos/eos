@@ -36,11 +36,11 @@ VectChunkHandler::VectChunkHandler (AsyncMetaHandler* metaHandler,
                                     bool isWrite) :
 XrdCl::ResponseHandler(),
 mBuffer(0),
-mMetaHandler (metaHandler),
-mCapacity (0),
-mLength (0),
-mRespLength (0),
-mIsWrite (isWrite)
+mMetaHandler(metaHandler),
+mCapacity(0),
+mLength(0),
+mRespLength(0),
+mIsWrite(isWrite)
 {
   // Copy the list of chunks and compute buffer size
   for (auto chunk = chunkList.begin(); chunk != chunkList.end(); ++chunk)

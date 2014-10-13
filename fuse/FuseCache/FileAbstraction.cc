@@ -32,13 +32,14 @@
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileAbstraction::FileAbstraction(int fd, eos::fst::Layout* file) :
+FileAbstraction::FileAbstraction(int fd, eos::fst::Layout* file, const char* path) :
   mMutexRW(),
   mFd(fd),
   mFile(file),
   mNoReferences(0),
   mNumOpen(1),
-  mSizeWrites(0)
+  mSizeWrites(0),
+  mPath(path)
 {
   // Max file size we can deal with is ~ 90TB
   mFirstPossibleKey = static_cast<long long>(1e14 * mFd);
@@ -47,6 +48,9 @@ FileAbstraction::FileAbstraction(int fd, eos::fst::Layout* file) :
                    this, mFirstPossibleKey, mLastPossibleKey);
   errorsQueue = new eos::common::ConcurrentQueue<error_type > ();
   mCondUpdate = XrdSysCondVar(0);
+
+  mUtime[0].tv_sec = mUtime[1].tv_sec = 0;
+  mUtime[0].tv_nsec = mUtime[1].tv_nsec = 0;
 }
 
 //------------------------------------------------------------------------------
@@ -185,4 +189,38 @@ eos::common::ConcurrentQueue<error_type>&
 FileAbstraction::GetErrorQueue() const
 {
   return *errorsQueue;
+}
+
+//--------------------------------------------------------------------------
+// Set a new utime on a file
+//--------------------------------------------------------------------------
+void 
+FileAbstraction::SetUtimes(struct timespec* utime)
+{
+  for(size_t i=0; i< 2; i++) 
+  {   
+    mUtime[i].tv_sec = utime[i].tv_sec;
+    mUtime[i].tv_nsec = utime[i].tv_nsec;
+  }
+}
+
+//--------------------------------------------------------------------------
+// Get last utime setting of a file
+//--------------------------------------------------------------------------
+const char*
+FileAbstraction::GetUtimes(struct timespec *utime)
+{
+  if (mUtime[0].tv_sec ||
+      mUtime[0].tv_nsec ||
+      mUtime[1].tv_sec ||
+      mUtime[1].tv_nsec )
+  {
+    for(size_t i=0; i< 2;i++)
+    {
+      utime[i].tv_sec = mUtime[i].tv_sec;
+      utime[i].tv_nsec = mUtime[i].tv_nsec;
+    }
+    return mPath.c_str();
+  }
+  return 0;
 }
