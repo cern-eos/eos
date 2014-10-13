@@ -458,6 +458,7 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
     fs.mConfigStatus = GetConfigStatusFromString(mHash->Get("configstatus").c_str());
     fs.mDrainStatus = GetDrainStatusFromString(mHash->Get("stat.drain").c_str());
     fs.mActiveStatus = GetActiveStatusFromString(mHash->Get("stat.active").c_str());
+    fs.mBalRunning = (mHash->Get("stat.balancing.running")=="1"?true:false);
     fs.mHeadRoom = mHash->GetLongLong("headroom");
     fs.mErrCode = (unsigned int) mHash->GetLongLong("stat.errc");
     fs.mBootSentTime = (time_t) mHash->GetLongLong("stat.bootsenttime");
@@ -519,6 +520,7 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
     fs.mStatus = 0;
     fs.mConfigStatus = 0;
     fs.mDrainStatus = 0;
+    fs.mBalRunning = false;
     fs.mHeadRoom = 0;
     fs.mErrCode = 0;
     fs.mBootSentTime = 0;

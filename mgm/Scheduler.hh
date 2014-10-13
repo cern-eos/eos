@@ -52,6 +52,7 @@ public:
   Scheduler ();
   virtual ~Scheduler ();
 
+  enum tPlctPolicy {kScattered,kHybrid,kGathered};
   //! -------------------------------------------------------------
   //! the write placement routine
   //! -------------------------------------------------------------
@@ -59,8 +60,10 @@ public:
                              eos::common::Mapping::VirtualIdentity_t &vid, //< virtual id of client
                              const char* grouptag, //< group tag for placement
                              unsigned long lid, //< layout to be placed
-                             std::vector<unsigned int> &avoid_filesystems, //< filesystems to avoid
+                             std::vector<unsigned int> &alreadyused_filesystems, //< filesystems to avoid
                              std::vector<unsigned int> &selected_filesystems, //< return filesystems selected by scheduler
+                             tPlctPolicy plctpolicy, //< indicates if the placement should be local or spread or hybrid
+                             const std::string &plctTrgGeotag="", //< indicates close to which Geotag collocated stripes should be placed
                              bool truncate = false, //< indicates placement with truncation
                              int forced_scheduling_group_index = -1, //< forced index for the scheduling subgroup to be used 
                              unsigned long long bookingsize = 1024 * 1024 * 1024ll //< size to book for the placement
@@ -79,7 +82,8 @@ public:
                           bool isRW, //< indicating if pure read or read/write access
                           unsigned long long bookingsize, //< size to book additionally for read/write access
                           std::vector<unsigned int> &unavailfs, //< return filesystems currently unavailable
-                          eos::common::FileSystem::fsstatus_t min_fsstatus = eos::common::FileSystem::kDrain //< defines minimum filesystem state to allow filesystem selection
+                          eos::common::FileSystem::fsstatus_t min_fsstatus = eos::common::FileSystem::kDrain, //< defines minimum filesystem state to allow filesystem selection
+                          std::string overridegeoloc="" //< override geolocation defined in virtual id
                           );
 
 protected:

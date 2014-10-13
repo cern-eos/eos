@@ -70,6 +70,23 @@ com_group (char* arg1)
           in += "&mgm.outformat=l";
           ok = true;
         }
+        if (option == "-g")
+        {
+          XrdOucString geodepth = subtokenizer.GetToken();
+          if(!geodepth.length())
+          {
+            fprintf(stderr, "Error: geodepth is not provided\n");
+            goto com_group_usage;
+          }
+          if(!geodepth.isdigit() || geodepth.atoi()<0 )
+          {
+            fprintf(stderr, "Error: geodepth should be a positive integer\n");
+            return 0;
+          }
+          in += "&mgm.outdepth=";
+          in += geodepth;
+          ok = true;
+        }
         if (option == "--io")
         {
           in += "&mgm.outformat=io";
@@ -164,10 +181,11 @@ com_group (char* arg1)
 com_group_usage:
 
   fprintf(stdout, "usage: group ls                                                      : list groups\n");
-  fprintf(stdout, "usage: group ls [-s] [-m|-l|--io] [<group>]                          : list groups or only <group>. <group> is a substring match and can be a comma seperated list\n");
+  fprintf(stdout, "usage: group ls [-s|-g <depth>] [-m|-l|--io] [<group>]                          : list groups or only <group>. <group> is a substring match and can be a comma seperated list\n");
   fprintf(stdout, "                                                                  -s : silent mode\n");
   fprintf(stdout, "                                                                  -m : monitoring key=value output format\n");
   fprintf(stdout, "                                                                  -l : long output - list also file systems after each group\n");
+  fprintf(stdout, "                                                                  -g : geo output - aggregate group information along the instance geotree down to <depth>\n");
   fprintf(stdout, "                                                                --io : print IO statistics for the group\n");
   fprintf(stdout, "                                                                --IO : print IO statistics for each filesystem\n");
   fprintf(stdout, "       group rm <group-name>                                         : remove group\n");

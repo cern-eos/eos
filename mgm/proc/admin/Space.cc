@@ -43,7 +43,7 @@ ProcCommand::Space ()
         mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
 
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-      FsView::gFsView.PrintSpaces(output, format, mListFormat, mSelection);
+      FsView::gFsView.PrintSpaces(output, format, mListFormat, mOutDepth,mSelection);
       stdOut += output.c_str();
     }
   }
@@ -100,7 +100,7 @@ ProcCommand::Space ()
       }
       else
       {
-        eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         if (!FsView::gFsView.mSpaceView.count(spacename))
         {
           stdErr = "error: no such space - define one using 'space define' or add a filesystem under that space!";
@@ -317,7 +317,7 @@ ProcCommand::Space ()
             {
               if ((key == "balancer") || (key == "converter") ||
                   (key == "autorepair") || (key == "lru") ||
-                  (key == "groupbalancer") || (key == "geobalancer"))
+                  (key== "groupbalancer") || (key== "geobalancer"))
               {
                 if ((value != "on") && (value != "off"))
                 {
@@ -379,7 +379,7 @@ ProcCommand::Space ()
                 {
                   if ((key != "balancer.threshold") &&
                       (key != "groupbalancer.threshold") &&
-                      (key != "geobalancer.threshold"))
+		      (key != "geobalancer.threshold"))
                   {
                     // the threshold is allowed to be decimal!
                     char ssize[1024];
@@ -417,7 +417,7 @@ ProcCommand::Space ()
             bool autosave = gOFS->ConfEngine->GetAutoSave();
             gOFS->ConfEngine->SetAutoSave(false);
 
-            std::set<eos::common::FileSystem::fsid_t>::iterator it;
+            eos::mgm::BaseView::const_iterator it;
 
             // store these as a global parameter of the space
             if (((key == "headroom") || (key == "scaninterval") || (key == "graceperiod") || (key == "drainperiod")))

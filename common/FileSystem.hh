@@ -132,6 +132,7 @@ public:
     fsstatus_t mConfigStatus;
     fsstatus_t mDrainStatus;
     fsactive_t mActiveStatus;
+    bool mBalRunning;
     long long mHeadRoom;
     unsigned int mErrCode;
     time_t mBootSentTime;

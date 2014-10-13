@@ -391,7 +391,7 @@ com_cp (char* argin)
 	  source_find_list[l]+="?";
 	  source_find_list[l]+=source_opaque;
 	}
-	source_list.push_back(source_find_list[l].c_str());
+        source_list.push_back(source_find_list[l].c_str());
       }
     }
   }
@@ -880,7 +880,7 @@ com_cp (char* argin)
     }
 
     targetfile = arg2;
-    
+
     if (arg2.beginswith("/eos") || arg2.beginswith("root://"))
     {
       if (arg2.beginswith("/eos"))

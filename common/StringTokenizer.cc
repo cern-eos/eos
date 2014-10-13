@@ -30,9 +30,9 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-/**
+/** 
  * Constructor
- *
+ * 
  */
 /*----------------------------------------------------------------------------*/
 StringTokenizer::StringTokenizer (const char* s)
@@ -79,9 +79,9 @@ StringTokenizer::StringTokenizer (const char* s)
 }
 
 /*----------------------------------------------------------------------------*/
-/**
+/** 
  * Destructor
- *
+ * 
  */
 
 /*----------------------------------------------------------------------------*/
@@ -94,10 +94,10 @@ StringTokenizer::~StringTokenizer ()
   }
 }
 
-/**
+/** 
  * Return the next parsed line
- *
- *
+ * 
+ * 
  * @return char reference to the next line
  */
 const char*
@@ -132,21 +132,21 @@ StringTokenizer::GetLine ()
           continue;
 
       if ((line[i] == ' ') || (line[i] == 0) || (line[i] == '\n'))
-      {
-        if (!inquote)
         {
+          if (!inquote)
+          {
           if ((i > 1) && (line[i - 1] == '\\'))
           {
             // don't start a new word here
+            }
+            else
+            {
+              line[i] = 0;
+              fLineArgs.push_back(wordptr);
+              // start a new word here
+              wordptr = line + i + 1;
+            }
           }
-          else
-          {
-            line[i] = 0;
-            fLineArgs.push_back(wordptr);
-            // start a new word here
-            wordptr = line + i + 1;
-          }
-        }
       }
 
       if (line[i] == '\n')
@@ -162,10 +162,10 @@ StringTokenizer::GetLine ()
   }
 }
 
-/**
+/** 
  * Return next parsed space seperated token taking into account escaped blanks and quoted strings
- *
- *
+ * 
+ * 
  * @return char reference to the next argument token
  */
 const char*

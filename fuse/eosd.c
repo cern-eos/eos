@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-//! @file eosd.c
-//! @author Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
+//! @file eosd.c                                                       
+//! @author Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN      
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -125,7 +125,7 @@ eosfs_ll_getattr (fuse_req_t req,
   }
   else
     fuse_reply_err (req, -retc);
-}
+  }
 
 
 //------------------------------------------------------------------------------
@@ -267,10 +267,10 @@ eosfs_ll_setattr (fuse_req_t req,
       fuse_reply_attr (req, &newattr, attrcachetime);
     else
       fuse_reply_err (req, errno);
-  }
+    }
   else
     fuse_reply_err (req, errno);
-}
+  }
 
 
 //------------------------------------------------------------------------------
@@ -312,7 +312,7 @@ eosfs_ll_lookup (fuse_req_t req,
       sprintf (ifullpath, "/%s", name);
     else
       sprintf (ifullpath, "%s/%s", parentpath, name);
-  }
+    }
 
   FULLPATH (fullpath, mountprefix, ifullpath);
 
@@ -333,12 +333,12 @@ eosfs_ll_lookup (fuse_req_t req,
 
     if (isdebug)
       fprintf (stderr, "[%s] subentry_found = %i \n", __FUNCTION__, entry_found);
-  }
+    }
 
   if (!entry_found)
   {
     struct fuse_entry_param e;
-    memset (&e, 0, sizeof (e));
+    memset (&e, 0, sizeof ( e));
 
     e.attr_timeout = attrcachetime;
     e.entry_timeout = entrycachetime;
@@ -369,9 +369,9 @@ eosfs_ll_lookup (fuse_req_t req,
       }
       else
         fuse_reply_err (req, errno);
+      }
     }
   }
-}
 
 
 //------------------------------------------------------------------------------
@@ -408,7 +408,7 @@ reply_buf_limited (fuse_req_t req,
     return fuse_reply_buf (req, buf + off, min (bufsize - off, maxsize));
   else
     return fuse_reply_buf (req, NULL, 0);
-}
+  }
 
 
 //------------------------------------------------------------------------------
@@ -719,12 +719,12 @@ eosfs_ll_mkdir (fuse_req_t req,
             strncpy(gparent, parentpath, num);
             parentpath[num] = '\0';
             strcpy(gparent, parentpath);
-          }
-        }
-        else
-        {
+    }
+  }
+  else
+  {
           strcpy(gparent, "/\0");
-        }
+  }
 
         //fprintf(stderr, "[%s] final gparent=%s\n", __FUNCTION__, gparent);
         unsigned long long ino_gparent = xrd_inode(gparent);
@@ -812,8 +812,8 @@ eosfs_ll_rmdir (fuse_req_t req, fuse_ino_t parent, const char* name)
       fuse_reply_err (req, ENOTEMPTY);
     else
       fuse_reply_err (req, errno);
+    }
   }
-}
 
 //------------------------------------------------------------------------------
 // Rename the file, directory, or other object
@@ -886,13 +886,13 @@ eosfs_ll_rename (fuse_req_t req,
 
       if (parent != newparent)
         xrd_dir_cache_forget ((unsigned long long) newparent);
-    }
+      }
 
     fuse_reply_err (req, 0);
   }
   else
     fuse_reply_err (req, errno);
-}
+  }
 
 
 //------------------------------------------------------------------------------
@@ -939,7 +939,7 @@ eosfs_ll_access (fuse_req_t req, fuse_ino_t ino, int mask)
     fuse_reply_err (req, 0);
   else
     fuse_reply_err (req, errno);
-}
+  }
 
 
 //------------------------------------------------------------------------------
@@ -1000,8 +1000,8 @@ eosfs_ll_open (fuse_req_t req,
     if (strstr (fullpath, "/proc/"))
       fi->keep_cache = 0;
     else
-        fi->keep_cache = 1;
-  }
+      fi->keep_cache = 1;
+    }
   else
     fi->keep_cache = 0;
 
@@ -1032,7 +1032,7 @@ eosfs_ll_read (fuse_req_t req,
   {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     char* buf = xrd_attach_rd_buff (pthread_self(), size);
-
+    
     if (isdebug)
     {
       fprintf (stderr, "[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n",
@@ -1056,7 +1056,7 @@ eosfs_ll_read (fuse_req_t req,
   }
   else
     fuse_reply_err (req, ENXIO);
-}
+  }
 
 
 //------------------------------------------------------------------------------
@@ -1097,7 +1097,7 @@ eosfs_ll_write (fuse_req_t req,
   }
   else
     fuse_reply_err (req, ENXIO);
-}
+  }
 
 
 //------------------------------------------------------------------------------
@@ -1126,9 +1126,9 @@ eosfs_ll_release (fuse_req_t req,
     int res = xrd_close (info->fd, ino, info->uid);
     xrd_release_rd_buff (pthread_self());
 
-    // Free memory
-    free (info);
-    fi->fh = 0;
+      // Free memory
+      free (info);
+      fi->fh = 0;
   }
 
   fuse_reply_err (req, errno);
@@ -1194,7 +1194,7 @@ eosfs_ll_flush (fuse_req_t req,
 
     if (err_flush)
       errno = EIO;
-  }
+    }
 
   fuse_reply_err (req, errno);
 }
@@ -1400,18 +1400,18 @@ eosfs_ll_setxattr (fuse_req_t req,
   retc = xrd_setxattr (fullpath, xattr_name, xattr_value, size,
                        req->ctx.uid, req->ctx.gid, req->ctx.pid);
   fprintf (stderr, "[%s]: setxattr_retc=%i\n", __FUNCTION__, retc);
-  fuse_reply_err(req, retc);
+  fuse_reply_err (req, retc);
 }
 
 
 //------------------------------------------------------------------------------
-// Create a new file
+// Create a new file 
 //------------------------------------------------------------------------------
 static void
-eosfs_ll_create(fuse_req_t req,
-                fuse_ino_t parent,
-                const char *name,
-                mode_t mode,
+eosfs_ll_create(fuse_req_t req, 
+                fuse_ino_t parent, 
+                const char *name, 
+                mode_t mode, 
                 struct fuse_file_info *fi)
 {
   int res;
@@ -1508,7 +1508,7 @@ eosfs_ll_create(fuse_req_t req,
           fi->keep_cache = 0;
         else
           fi->keep_cache = 1;
-      }
+        }
       else
         fi->keep_cache = 0;
 
@@ -1517,7 +1517,7 @@ eosfs_ll_create(fuse_req_t req,
         fi->direct_io = 1;
       else
         fi->direct_io = 0;
-
+      
       fuse_reply_create (req, &e, fi);
       return;
     }
@@ -1577,7 +1577,7 @@ main (int argc, char* argv[])
   {
     if (!strcmp (argv[i], "-d"))
       isdebug = 1;
-  }
+    }
 
   if (getenv ("EOS_SOCKS4_HOST") && getenv ("EOS_SOCKS4_PORT"))
   {
@@ -1657,7 +1657,7 @@ main (int argc, char* argv[])
 
     while (mountprefix[strlen (mountprefix) - 1] == '/')
       mountprefix[strlen (mountprefix) - 1] = '\0';
-  }
+    }
 
   if (!isdebug)
   {

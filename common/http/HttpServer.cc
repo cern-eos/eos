@@ -238,15 +238,15 @@ HttpServer::BuildQueryString (void *cls,
   if (key && qString)
   {
     if (value) 
+  {
+    if (qString->length())
     {
-      if (qString->length())
-      {
-	*qString += "&";
-      }
-      *qString += key;
-      *qString += "=";
-      *qString += value;
+      *qString += "&";
     }
+    *qString += key;
+    *qString += "=";
+    *qString += value;
+  }
     else
     {
       if (qString->length())

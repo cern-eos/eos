@@ -23,10 +23,10 @@
 
 /**
  * @file   StringTokenizer.hh
- *
+ * 
  * @brief  Convenience class to deal with command line strings
- *
- *
+ * 
+ * 
  */
 
 #ifndef __EOSCOMMON_STRINGTOKENIZER__
@@ -49,33 +49,33 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-//! Utility class with convenience functions for string command line parsing
+//! Utility class with convenience functions for string command line parsing 
 //! Works like XrdOucTokenizer but wants each argument in " ".
 //! Escaped quotes are ignored and & is replaced with #AND# !!!
 /*----------------------------------------------------------------------------*/
 class StringTokenizer {
-  char* fBuffer;
-  int fCurrentLine;
-  int fCurrentArg;
-  std::vector<size_t> fLineStart;
-  std::vector<std::string> fLineArgs;
+ char* fBuffer;
+ int fCurrentLine;
+ int fCurrentArg;
+ std::vector<size_t> fLineStart;
+ std::vector<std::string> fLineArgs;
 
 public:
-  StringTokenizer (const char* s);
+ StringTokenizer (const char* s);
 
-  StringTokenizer (XrdOucString s)
-  {
-    StringTokenizer(s.c_str());
-  }
+ StringTokenizer (XrdOucString s)
+ {
+  StringTokenizer (s.c_str ());
+ }
 
-  StringTokenizer (std::string s)
-  {
-    StringTokenizer(s.c_str());
-  }
-  ~StringTokenizer ();
+ StringTokenizer (std::string s)
+ {
+  StringTokenizer (s.c_str ());
+ }
+ ~StringTokenizer ();
 
-  const char* GetLine (); // return the next parsed line seperated by \n
-  const char* GetToken (); // return the next token
+ const char* GetLine (); // return the next parsed line seperated by \n
+ const char* GetToken (); // return the next token 
 };
 
 EOSCOMMONNAMESPACE_END

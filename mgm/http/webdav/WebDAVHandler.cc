@@ -199,7 +199,7 @@ WebDAVHandler::MkCol (eos::common::HttpRequest *request)
 /*----------------------------------------------------------------------------*/
 eos::common::HttpResponse*
 WebDAVHandler::Move (eos::common::HttpRequest *request)
-{ 
+{
   eos::common::HttpResponse *response = 0;
   XrdOucString prot, port;
   std::string destination = eos::common::StringConversion::ParseUrl

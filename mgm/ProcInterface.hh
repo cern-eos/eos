@@ -102,6 +102,7 @@ private:
   bool mDoSort; //< sort flag (true = sorting)
   const char* mSelection; //< selection argument from the opaque request
   XrdOucString mOutFormat; //< output format type e.g. fuse or json
+  unsigned mOutDepth; //< depth of aggregation along the topology tree
 
 
   // -------------------------------------------------------------------------
@@ -341,6 +342,7 @@ public:
   int Debug ();
   int Fs ();
   int Fsck ();
+  int GeoSched ();
   int Group ();
   int Io ();
   int Node ();

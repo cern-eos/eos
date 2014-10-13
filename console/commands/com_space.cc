@@ -70,6 +70,23 @@ com_space (char* arg1)
           in += "&mgm.outformat=l";
           ok = true;
         }
+        if (option == "-g")
+        {
+          XrdOucString geodepth = subtokenizer.GetToken();
+          if(!geodepth.length())
+          {
+            fprintf(stderr, "Error: geodepth is not provided\n");
+            goto com_space_usage;
+          }
+          if(!geodepth.isdigit() || geodepth.atoi()<0 )
+          {
+            fprintf(stderr, "Error: geodepth should be a positive integer\n");
+            return 0;
+          }
+          in += "&mgm.outdepth=";
+          in += geodepth;
+          ok = true;
+        }
         if (option == "--io")
         {
           in += "&mgm.outformat=io";
@@ -286,10 +303,11 @@ com_space (char* arg1)
 com_space_usage:
 
   fprintf(stdout, "usage: space ls                                                  : list spaces\n");
-  fprintf(stdout, "usage: space ls [-s] [-m|-l|--io|--fsck] [<space>]                   : list in all spaces or select only <space>. <space> is a substring match and can be a comma seperated list\n");
+  fprintf(stdout, "usage: space ls [-s|-g <depth>] [-m|-l|--io|--fsck] [<space>]                   : list in all spaces or select only <space>. <space> is a substring match and can be a comma seperated list\n");
   fprintf(stdout, "                                                                  -s : silent mode\n");
   fprintf(stdout, "                                                                  -m : monitoring key=value output format\n");
   fprintf(stdout, "                                                                  -l : long output - list also file systems after each space\n");
+  fprintf(stdout, "                                                                  -g : geo output - aggregate space information along the instance geotree down to <depth>\n");
   fprintf(stdout, "                                                                --io : print IO satistics\n");
   fprintf(stdout, "                                                              --fsck : print filesystem check statistics\n");
   fprintf(stdout, "       space config <space-name> space.nominalsize=<value>           : configure the nominal size for this space\n");

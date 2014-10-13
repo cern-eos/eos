@@ -33,12 +33,15 @@
 #include <set>
 #include <queue>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <regex.h>
 
 /*----------------------------------------------------------------------------*/
 #include "mq/XrdMqClient.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysSemWait.hh"
+#include "common/RWMutex.hh"
 /*----------------------------------------------------------------------------*/
 
 #define XRDMQSHAREDHASH_CMD       "mqsh.cmd"
@@ -269,9 +272,11 @@ public:
 };
 
 
+
 class XrdMqSharedObjectManager {
   friend class XrdMqSharedHash;
   friend class XrdMqSharedQueue;
+  friend class XrdMqSharedObjectChangeNotifier;
 
 private:
   pthread_t dumper_tid;       // thread ID of the dumper thread
@@ -312,22 +317,24 @@ public:
     }
     Notification() {
       mType = kMqSubjectNothing;
+      mSubject = "";
     }
   };
   
+protected:
   std::deque<Notification> NotificationSubjects;
-  
   std::deque<std::string> ModificationTempSubjects;// these are posted as <queue>:<key>
-  std::set<std::string> ModificationWatchKeys;     // set of keys which get posted on the modifications list
-  std::set<std::string> ModificationWatchSubjects;  // set of subjects which get posted on the modification list
- 
-  // clean the bulk modification subject list
-  void PostModificationTempSubjects();             
   // semaphore to wait for new creations/deletions/modifications
   XrdSysSemWait SubjectsSem;
 
   // mutex to safeguard the creations/deletions/modifications & watch subjects
   XrdSysMutex SubjectsMutex;
+ 
+public:
+  
+ 
+  // clean the bulk modification subject list
+  void PostModificationTempSubjects();             
  
 
   XrdMqRWMutex HashMutex;
@@ -420,6 +427,137 @@ public:
 
   void MakeMuxUpdateEnvHeader(XrdOucString &out);
   void AddMuxTransactionEnvString(XrdOucString &out);
+};
+
+class XrdMqSharedObjectChangeNotifier {
+public:
+  struct Subscriber{
+    // some of the members are array of size 5, one for each type of notification
+    // kMqSubjectNothing=-1,kMqSubjectCreation=0, kMqSubjectDeletion=1, kMqSubjectModification=2, kMqSubjectKeyDeletion=3
+    // the value 4 is a variant of kMqSubjectModification that could be called kMqSubjectModificationStrict in which the value is actually checked for a change
+    // the last value being recorded in LastValues
+    std::set<std::string>   WatchKeys[5];
+    std::set<std::string>   WatchKeysRegex[5];
+    std::set<std::string>   WatchSubjects[5];
+    std::set<std::string>   WatchSubjectsRegex[5];
+    std::vector< std::pair<std::set<std::string>,std::set<std::string> > > WatchSubjectsXKeys[5];
+    XrdSysMutex             WatchMutex; //< protects access to all Watch* c
+
+    std::deque<XrdMqSharedObjectManager::Notification> NotificationSubjects;
+    XrdSysSemWait           SubjectsSem;
+    XrdSysMutex             SubjectsMutex;
+    bool                    Notify;
+    Subscriber() : Notify(false) {}
+    bool empty() {
+      for(int k=0; k<4; k++) {
+        if(
+            WatchSubjects[k].size()
+            || WatchKeys[k].size()
+            || WatchSubjectsRegex[k].size()
+            || WatchKeysRegex[k].size()
+            || WatchSubjectsXKeys[k].size()
+        )
+          return false;
+      }
+      return true;
+    }
+  };
+  typedef enum {
+    kMqSubjectNothing=XrdMqSharedObjectManager::kMqSubjectNothing,
+    kMqSubjectCreation=XrdMqSharedObjectManager::kMqSubjectCreation,
+    kMqSubjectDeletion=XrdMqSharedObjectManager::kMqSubjectDeletion,
+    kMqSubjectModification=XrdMqSharedObjectManager::kMqSubjectModification,
+    kMqSubjectKeyDeletion=XrdMqSharedObjectManager::kMqSubjectKeyDeletion,
+    kMqSubjectStrictModification=4
+  } notification_t;
+private:
+  XrdMqSharedObjectManager *SOM;
+
+  struct WatchItemInfo{
+    std::set<Subscriber*> mSubscribers;
+    regex_t *mRegex;
+    WatchItemInfo(){ mRegex = NULL; }
+  };
+  // some of the members are array of size 5, one for each type of notification
+  // kMqSubjectNothing=-1,kMqSubjectCreation=0, kMqSubjectDeletion=1, kMqSubjectModification=2, kMqSubjectKeyDeletion=3
+  // the value 4 is a variant of kMqSubjectModification that could be called kMqSubjectModificationStrict in which the value is actually checked for a change
+  // the last value being recorded in LastValues
+  XrdSysMutex WatchMutex;
+  std::map<std::string,WatchItemInfo > WatchKeys2Subscribers[5];
+  std::map<std::string,WatchItemInfo > WatchSubjects2Subscribers[5];
+  std::vector< std::pair< std::pair<std::set<std::string>,std::set<std::string> > ,std::set<Subscriber*> > > WatchSubjectsXKeys2Subscribers[5];
+  std::map<std::string,std::string> LastValues;
+  //<  listof((Subjects,Keys),Subscribers)
+
+  pthread_t tid; //< Thread ID of the dispatching change thread
+  void SomListener();
+  static void* StartSomListener( void *pp);
+
+  std::map<std::string,Subscriber*> pSubscribersCatalog;
+  XrdSysMutex pCatalogMutex;
+
+  bool StartNotifyKey(Subscriber *subscriber, const std::string &key, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StopNotifyKey(Subscriber *subscriber, const std::string &key, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StartNotifySubject(Subscriber *subscriber, const std::string &subject , XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StopNotifySubject(Subscriber *subscriber, const std::string &subject , XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StartNotifyKeyRegex(Subscriber *subscriber, const std::string &key , XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StopNotifyKeyRegex(Subscriber *subscriber, const std::string &key , XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StartNotifySubjectRegex(Subscriber *subscriber, const std::string &subject , XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StopNotifySubjectRegex(Subscriber *subscriber, const std::string &subject , XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StartNotifySubjectsAndKeys(Subscriber *subscriber, const std::set<std::string> &subjects, const std::set<std::string> &keys , XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool StopNotifySubjectsAndKeys(Subscriber *subscriber, const std::set<std::string> &subjects, const std::set<std::string> &keys , XrdMqSharedObjectChangeNotifier::notification_t type);
+
+public:
+  inline Subscriber* GetSubscriberFromCatalog(const std::string &name, bool createIfNeeded=true){
+    Subscriber *ret = NULL;
+    if(createIfNeeded) {
+      XrdSysMutexHelper lock(pCatalogMutex);
+      if(pSubscribersCatalog.count(name))
+        ret = pSubscribersCatalog[name];
+      else
+        ret = (pSubscribersCatalog[name] = new Subscriber);
+    }
+    else {
+      XrdSysMutexHelper lock(pCatalogMutex);
+      if(pSubscribersCatalog.count(name))
+        ret = pSubscribersCatalog[name];
+    }
+    return ret;
+  }
+
+  inline Subscriber* BindCurrentThread(const std::string &name, bool createIfNeeded=true){
+    return tlSubscriber = GetSubscriberFromCatalog(name, createIfNeeded);
+  }
+
+  static __thread Subscriber *tlSubscriber;
+  void SetShareObjectManager( XrdMqSharedObjectManager* som) {
+    SOM = som;
+  }
+
+  XrdMqSharedObjectChangeNotifier(){}
+  ~XrdMqSharedObjectChangeNotifier() {}
+
+  bool SubscribesToSubject(const std::string &susbcriber, const std::string &subject, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool SubscribesToKey(const std::string &susbcriber, const std::string &key, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool SubscribesToSubjectRegex(const std::string &susbcriber, const std::string &subject, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool SubscribesToKeyRegex(const std::string &susbcriber, const std::string &key, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool SubscribesToSubjectAndKey(const std::string &susbcriber, const std::set<std::string> &subjects,const std::set<std::string> &keys, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool SubscribesToSubjectAndKey(const std::string &susbcriber, const std::string &subject,const std::string &key, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool SubscribesToSubjectAndKey(const std::string &susbcriber, const std::string &subject,const std::set<std::string> &keys, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool SubscribesToSubjectAndKey(const std::string &susbcriber, const std::set<std::string> &subjects,const std::string &key, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool UnsubscribesToSubject(const std::string &susbcriber, const std::string &subject, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool UnsubscribesToKey(const std::string &susbcriber, const std::string &key, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool UnsubscribesToSubjectRegex(const std::string &susbcriber, const std::string &subject, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool UnsubscribesToKeyRegex(const std::string &susbcriber, const std::string &key, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool UnsubscribesToSubjectAndKey(const std::string &susbcriber, std::set<std::string> subjects,std::set<std::string> keys, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool UnsubscribesToSubjectAndKey(const std::string &susbcriber, const std::string &subject,const std::string &key, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool UnsubscribesToSubjectAndKey(const std::string &susbcriber, const std::string &subject,const std::set<std::string> &keys, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool UnsubscribesToSubjectAndKey(const std::string &susbcriber, const std::set<std::string> &subjects,const std::string &key, XrdMqSharedObjectChangeNotifier::notification_t type);
+  bool UnsubscribesToEverything(const std::string &susbcriber);
+  bool StartNotifyCurrentThread();
+  bool StopNotifyCurrentThread();
+  bool Start();
+  bool Stop();
 };
 
 #endif

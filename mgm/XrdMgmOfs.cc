@@ -288,7 +288,7 @@ XrdMgmOfs::HasRedirect (const char* path,
   }
   else
     return false;
-}
+  }
 
 
 //------------------------------------------------------------------------------
@@ -311,28 +311,28 @@ XrdMgmOfs::UpdateInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id,
                                                     eos::ContainerMD::ctime_t &mtime)
 {
   XrdSysMutexHelper vLock(gOFS->MgmDirectoryModificationTimeMutex);
-  {
+{
     eos::ContainerMD::id_t cid = id;
     // mtime upstream hierarchy-up-propagation
     do
-    {
-      try
-      {
+{
+  try
+  {
         eos::ContainerMD* dmd = gOFS->eosDirectoryService->getContainerMD(cid);
         gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_sec = mtime.tv_sec;
         gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_nsec = mtime.tv_nsec;
         if (!dmd->hasAttribute("sys.mtime.propagation"))
           break;
         cid = dmd->getParentId();
-      }
-      catch (eos::MDException &e)
-      {
+  }
+  catch (eos::MDException &e)
+  {
         break;
-      }
-    }
+  }
+  }
     while (cid > 1);
   }
-}
+  }
 
 
 //------------------------------------------------------------------------------

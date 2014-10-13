@@ -66,9 +66,9 @@ std::map<std::string, gid_t> Mapping::gPhysicalGroupIdCache;
 
 Mapping::ip_cache Mapping::gIpCache (300);
 /*----------------------------------------------------------------------------*/
-/**
+/** 
  * Initialize Google maps
- *
+ * 
  */
 
 /*----------------------------------------------------------------------------*/
@@ -81,9 +81,9 @@ Mapping::Init ()
 }
 
 /*----------------------------------------------------------------------------*/
-/**
+/** 
  * Expire Active client entries which have not been used since interval
- *
+ * 
  * @param interval seconds of idle time for expiration
  */
 
@@ -118,9 +118,9 @@ Mapping::ActiveExpire (int interval, bool force)
 }
 
 /*----------------------------------------------------------------------------*/
-/**
+/** 
  * Map a client to its virtual identity
- *
+ * 
  * @param client xrootd client authenticatino object
  * @param env opaque information containing role selection like 'eos.ruid' and 'eos.rgid'
  * @param tident trace identifier of the client
@@ -577,7 +577,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
       {
         eos_static_debug("tident uid mapping");
         vid.uid_list.clear();
-        // use physical mapping
+        // use physical mapping 
 
         // unix protocol maps to the role if the client is the root account
         // otherwise it maps to the unix ID on the client host
@@ -676,7 +676,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   if (!HasGid(vid.gid, vid.gid_list)) vid.gid_list.insert(vid.gid_list.begin(), vid.gid);
 
   // ---------------------------------------------------------------------------
-  // add virtual user and group roles - if any
+  // add virtual user and group roles - if any 
   // ---------------------------------------------------------------------------
   if (gUserRoleVector.count(vid.uid))
   {
@@ -730,7 +730,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------    
   // Sudoer flag setting
   // ---------------------------------------------------------------------------
   if (gSudoerMap.count(vid.uid))
@@ -763,7 +763,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   if (client->host)
     vid.host = client->host;
   else
-    vid.host = host.c_str();
+  vid.host = host.c_str();
 
   {
     int errc = 0;
@@ -774,12 +774,12 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
 
   time_t now = time(NULL);
 
-  // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------    
   // Check the Geo Location
   // ---------------------------------------------------------------------------
   if ((!vid.geolocation.length()) && (gGeoMap.size()))
   {
-    // if the geo location was not set externally and we have some recipe we try
+    // if the geo location was not set externally and we have some recipe we try 
     // to translate the host name and match a rule
 
     // if we have a default geo location we assume that a client in that one
@@ -790,27 +790,24 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
 
     std::string ipstring = gIpCache.GetIp(host.c_str());
     if (ipstring.length())
-    {
-      std::string sipstring = ipstring;
-      GeoLocationMap_t::const_iterator it;
-      // we use the geo location with the longest name match
-      for (it = gGeoMap.begin(); it != gGeoMap.end(); it++)
       {
-        size_t l = 0;
-        for (l = 0; l < it->first.length(); l++)
+        std::string sipstring = ipstring;
+        GeoLocationMap_t::const_iterator it;
+        GeoLocationMap_t::const_iterator longuestmatch=gGeoMap.end();
+        // we use the geo location with the longest name match
+        for (it = gGeoMap.begin(); it != gGeoMap.end(); it++)
         {
-          if (it->first.at(l) != sipstring.at(l))
-          {
-            break;
+          	// if we have a previously matched geoloc and if it's longer that the current one, try the next one
+          	if(longuestmatch != gGeoMap.end() && it->first.length() <= longuestmatch->first.length())
+          		continue;
+          	if(sipstring.compare(0,it->first.length(),it->first)==0) 
+            {
+              vid.geolocation = it->second;
+          	  longuestmatch = it;
+            }
           }
-        }
-        if (l > vid.geolocation.length())
-        {
-          vid.geolocation = it->second;
-        }
       }
     }
-  }
 
   // ---------------------------------------------------------------------------
   // Maintain the active client map and expire old entries
@@ -841,9 +838,9 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
 }
 
 /*----------------------------------------------------------------------------*/
-/**
+/** 
  * Print the current mappings
- *
+ * 
  * @param stdOut the output is stored here
  * @param option can be 'u' for user role mappings 'g' for group role mappings 's' for sudoer list 'U' for user alias mapping 'G' for group alias mapping 'y' for gateway mappings (tidents) 'a' for authentication mapping rules 'l' for geo location rules
  */
@@ -1063,16 +1060,16 @@ Mapping::Print (XrdOucString &stdOut, XrdOucString option)
 }
 
 /*----------------------------------------------------------------------------*/
-/**
+/** 
  * Store the physical Ids for name in the virtual identity
- *
+ * 
  * @param name user name
  * @param vid virtual identity to store
  */
 
 /*----------------------------------------------------------------------------*/
 void
-Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
+Mapping::getPhysicalIds (const char* name, VirtualIdentity &vid)
 {
   struct passwd passwdinfo;
   char buffer[131072];
@@ -1095,7 +1092,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
     eos_static_debug("not found in uid cache");
 
     XrdOucString sname = name;
-    bool use_pw = true;
+    bool use_pw=true;
     if (sname.length() == 8)
     {
       // -------------------------------------------------------------------------
@@ -1133,7 +1130,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
         gPhysicalUidCache.Add(name, id, 3600);
         eos_static_debug("adding to cache uid=%u gid=%u", id->uid, id->gid);
         gPhysicalGidCache.Add(name, vec, 3600);
-        use_pw = false;
+	use_pw = false;
       }
     }
     if (use_pw)
@@ -1143,10 +1140,10 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
 
       {
 	XrdSysMutexHelper sLock(gSssdLock);
-	if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp))
-	{
-	  return;
-	}
+      if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp))
+      {
+        return;
+      }
       }
       gPhysicalIdMutex.Lock();
       id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
@@ -1176,7 +1173,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
   // ----------------------------------------------------------------------------------------
   /* remove secondary searches in the database -> LDAP assertion
   struct group* gr;
-
+  
   eos_static_debug("group lookup");
   gid_t gid = id->gid;
 
@@ -1215,12 +1212,12 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
 }
 
 /*----------------------------------------------------------------------------*/
-/**
+/** 
  * Convert uid to user name
- *
+ * 
  * @param uid unix user id
  * @param errc 0 if success, EINVAL if does not exist
- *
+ * 
  * @return user name as string
  */
 
@@ -1230,11 +1227,11 @@ Mapping::UidToUserName (uid_t uid, int &errc)
 {
   errc = 0;
   {
-    XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
-    if (gPhysicalUserNameCache.count(uid))
-    {
-      return gPhysicalUserNameCache[uid];
-    }
+  XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+  if (gPhysicalUserNameCache.count(uid))
+  {
+    return gPhysicalUserNameCache[uid];
+  }
   }
 
   {
@@ -1245,18 +1242,18 @@ Mapping::UidToUserName (uid_t uid, int &errc)
     struct passwd *pwbufp = 0;
     {
       XrdSysMutexHelper sLock(gSssdLock);
-      if (getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp) || (!pwbufp))
-      {
-	char suid[1024];
-	snprintf(suid, sizeof (suid) - 1, "%u", uid);
-	uid_string = suid;
-	errc = EINVAL;
-      }
-      else
-      {
-	uid_string = pwbuf.pw_name;
-	errc = 0;
-      }
+    if (getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp) || (!pwbufp))
+    {
+      char suid[1024];
+      snprintf(suid, sizeof (suid) - 1, "%u", uid);
+      uid_string = suid;
+      errc = EINVAL;
+    }
+    else
+    {
+      uid_string = pwbuf.pw_name;
+      errc = 0;
+    }
     }
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
     gPhysicalUserNameCache[uid] = uid_string;
@@ -1266,12 +1263,12 @@ Mapping::UidToUserName (uid_t uid, int &errc)
 }
 
 /*----------------------------------------------------------------------------*/
-/**
+/** 
  * Convert gid to group name
- *
+ * 
  * @param gid unix group id
  * @param errc 0 if success, EINVAL if does not exist
- *
+ * 
  * @return user name as string
  */
 
@@ -1281,11 +1278,11 @@ Mapping::GidToGroupName (gid_t gid, int &errc)
 {
   errc = 0;
   {
-    XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
-    if (gPhysicalGroupNameCache.count(gid))
-    {
-      return gPhysicalGroupNameCache[gid];
-    }
+  XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+  if (gPhysicalGroupNameCache.count(gid))
+  {
+    return gPhysicalGroupNameCache[gid];
+  }
   }
 
   {
@@ -1316,12 +1313,12 @@ Mapping::GidToGroupName (gid_t gid, int &errc)
 }
 
 /*----------------------------------------------------------------------------*/
-/**
+/** 
  * Convert string name to uid
- *
+ * 
  * @param username name as string
  * @param errc 0 if success, EINVAL if does not exist
- *
+ * 
  * @return user id
  */
 
@@ -1345,7 +1342,7 @@ Mapping::UserNameToUid (std::string &username, int &errc)
   errc = 0;
   {
     XrdSysMutexHelper sLock(gSssdLock);
-    getpwnam_r(username.c_str(), &pwbuf, buffer, buflen, &pwbufp);
+  getpwnam_r(username.c_str(), &pwbuf, buffer, buflen, &pwbufp);
   }
 
   if (!pwbufp)
@@ -1383,12 +1380,12 @@ Mapping::UserNameToUid (std::string &username, int &errc)
 }
 
 /*----------------------------------------------------------------------------*/
-/**
+/** 
  * Convert string name to gid
- *
+ * 
  * @param groupname name as string
  * @param errc 0 if success, EINVAL if does not exist
- *
+ * 
  * @return group id
  */
 

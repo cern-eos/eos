@@ -36,6 +36,7 @@
 #include "common/Logging.hh"
 #include "common/GlobalConfig.hh"
 #include "common/TransferQueue.hh"
+#include <cfloat>
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
@@ -64,13 +65,230 @@
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
+struct GeoTreeNode;
+struct GeoTreeLeaf;
+struct GeoTreeElement;
+class GeoTree;
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Base class representing any element in a GeoTree
+ *
+ */
+/*----------------------------------------------------------------------------*/
+struct GeoTreeElement
+{
+  /// pointer to father node in the tree
+  GeoTreeNode *mFather;
+
+  /// is this element a leaf
+  bool mIsLeaf;
+
+  /// tag token for example BBB in AA::BBB:CC
+  std::string mTagToken;
+
+  /// full geo tag for example AA::BBB:CC in AA::BBB:CC
+  std::string mFullTag;
+
+  /// an auxiliary numbering to run the aggregator
+  mutable size_t mId;
+};
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Class representing a leaf in a GeoTree
+ *
+ */
+/*----------------------------------------------------------------------------*/
+struct GeoTreeLeaf : public GeoTreeElement
+{
+  typedef eos::common::FileSystem::fsid_t fsid_t;
+
+  /// all the FileSystems contained by the leaf
+  std::set<fsid_t> mFsIds;
+};
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Class representing an intermediate node in a GeoTree
+ *
+ */
+/*----------------------------------------------------------------------------*/
+struct GeoTreeNode : public GeoTreeElement
+{
+  /// map geoTreeTag -> son branches
+  std::map<std::string ,GeoTreeElement*> mSons;
+
+  /// destructor
+  ~GeoTreeNode();
+};
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief A helper class to order branches in a GeoTree in the proper display order
+ *
+ */
+/*----------------------------------------------------------------------------*/
+class GeoTreeNodeOrderHelper
+{
+public:
+  bool operator()(const GeoTreeElement* const &left, const GeoTreeElement* const &right) const
+  {
+    return (left->mFullTag > right->mFullTag);
+  }
+};
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Base class representing a functor to compute statistics along a GeoTree
+ *
+ */
+/*----------------------------------------------------------------------------*/
+class GeoTreeAggregator
+{
+public:
+  virtual ~GeoTreeAggregator()
+  {};
+  // initialize the aggregator
+  virtual bool init(const std::vector<std::string> & geotags, const std::vector<size_t> &depthLevelsIndexes)=0;
+  // aggregate the leaves at the last level of the tree
+  virtual bool aggregateLeaves(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx)=0;
+  // aggregate the nodes at intermediate levels
+  virtual bool aggregateNodes(const std::map<std::string ,GeoTreeElement*> &nodes, const size_t &idx)=0;
+  // aggregate the leaves any level of the tree
+  virtual bool deepAggregate(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx)=0;
+};
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Class representing a tree-structured set of fsids
+ *
+ */
+/*----------------------------------------------------------------------------*/
+class GeoTree
+{
+  typedef eos::common::FileSystem::fsid_t fsid_t;
+  typedef GeoTreeElement tElement;
+  typedef GeoTreeLeaf tLeaf;
+  typedef GeoTreeNode tNode;
+
+  /// the root branch of the tree
+  tNode *pRoot;
+
+  /// all the elements of the tree collected by depth
+  std::vector<std::set<tElement*,GeoTreeNodeOrderHelper > > pLevels;
+
+  /// all the leaves of the tree
+  std::map<fsid_t,tLeaf*> pLeaves;
+
+  // ---------------------------------------------------------------------------
+  // Get the geotag of FileSystem
+  // ---------------------------------------------------------------------------
+  std::string getGeoTag(const fsid_t &fs) const;
+
+public:
+
+  // ---------------------------------------------------------------------------
+  // Constructor
+  // ---------------------------------------------------------------------------
+  GeoTree();
+
+  // ---------------------------------------------------------------------------
+  // Destructor
+  // ---------------------------------------------------------------------------
+  ~GeoTree();
+
+  // ---------------------------------------------------------------------------
+  // Insert a FileSystem into the tree
+  // ---------------------------------------------------------------------------
+  bool insert(const fsid_t &fs);
+
+  // ---------------------------------------------------------------------------
+  // Remove a FileSystem from the tree
+  // ---------------------------------------------------------------------------
+  bool erase(const fsid_t &fs);
+
+  // ---------------------------------------------------------------------------
+  // Get the geotag at which the fs is stored if found
+  // ---------------------------------------------------------------------------
+  bool getGeoTagInTree( const fsid_t &fs , std::string &geoTag );
+
+  // ---------------------------------------------------------------------------
+  // Number of FileSystems in the tree
+  // ---------------------------------------------------------------------------
+  size_t size() const;
+
+  // ---------------------------------------------------------------------------
+  /**
+   * @brief STL const_iteratot class
+   *
+   * Only the leaves are iterated ny alphabetical order of their geotag
+   */
+  // ---------------------------------------------------------------------------
+  class const_iterator : public std::iterator<std::bidirectional_iterator_tag,fsid_t>
+  {
+    friend class GeoTree;
+    std::map<fsid_t,tLeaf*>::const_iterator mIt;
+  public:
+    const_iterator operator++(int);
+    const_iterator operator--(int);
+    const_iterator operator++();
+    const_iterator operator--();
+    const eos::common::FileSystem::fsid_t & operator*() const;
+    operator const eos::common::FileSystem::fsid_t*() const;
+    const const_iterator & operator= (const const_iterator &it);
+  };
+
+  const_iterator begin() const;
+  const_iterator cbegin() const;
+  const_iterator end() const;
+  const_iterator cend() const;
+  const_iterator find(const fsid_t &fsid) const;
+
+  // ---------------------------------------------------------------------------
+  // Run an aggregator through the tree
+  // ---------------------------------------------------------------------------
+  bool runAggregator( GeoTreeAggregator *aggregator ) const;
+
+  // ---------------------------------------------------------------------------
+  // Run an aggregator through the tree
+  // ---------------------------------------------------------------------------
+  bool runDeepAggregator( GeoTreeAggregator *aggregator )
+  {
+    // loop over the last level of Aggregate and call AggregateDeepLeaves
+    // loop from end-1 to beginning in mLevels and call AggregateDeppNodes
+    // NOT IMPLEMENTED
+    return false;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Recursive debug helper function to display the tree
+  // ---------------------------------------------------------------------------
+  void dumpTree(GeoTreeElement*el, std::string fullgeotag="") const;
+
+  // ---------------------------------------------------------------------------
+  // Debug helper function to display the leaves in the tree
+  // ---------------------------------------------------------------------------
+  void dumpLeaves() const;
+
+  // ---------------------------------------------------------------------------
+  // Debug helper function to display the elements of the tree sorted by levels
+  // ---------------------------------------------------------------------------
+  void dumpLevels() const;
+
+  // ---------------------------------------------------------------------------
+  // Debug helper function to display all the content of the tree
+  // ---------------------------------------------------------------------------
+  void dump() const;
+};
+
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Class representing a grouped set of filesystems 
  * 
  */
 /*----------------------------------------------------------------------------*/
-class BaseView : public std::set<eos::common::FileSystem::fsid_t>
+class BaseView : public GeoTree
 {
 private:
   /// last heartbeat time
@@ -138,7 +356,7 @@ public:
   // ---------------------------------------------------------------------------
   // Print the view contents
   // ---------------------------------------------------------------------------
-  void Print (std::string &out, std::string headerformat, std::string listformat, std::vector<std::string> &selections);
+  void Print (std::string &out, std::string headerformat, std::string listformat, unsigned outdepth, std::vector<std::string> &selections);
 
   // ---------------------------------------------------------------------------
   // Return a member variable in the view
@@ -228,19 +446,27 @@ public:
   }
 
   // calculates the sum of <param> as long long
-  long long SumLongLong (const char* param, bool lock = true);
+  long long SumLongLong (const char* param, bool lock=true, const std::set<eos::common::FileSystem::fsid_t> *subset=NULL);
 
   // calculates the sum of <param> as double
-  double SumDouble (const char* param, bool lock = true);
+  double SumDouble (const char* param, bool lock = true, const std::set<eos::common::FileSystem::fsid_t> *subset=NULL);
 
   // calculates the average of <param> as double
-  double AverageDouble (const char* param, bool lock = true);
+  double AverageDouble (const char* param, bool lock = true, const std::set<eos::common::FileSystem::fsid_t> *subset=NULL);
 
   // calculates the maximum deviation from the average in a group
-  double MaxDeviation (const char* param, bool lock = true);
+  double MaxAbsDeviation (const char* param, bool lock = true, const std::set<eos::common::FileSystem::fsid_t> *subset=NULL);
+  double MaxDeviation (const char* param, bool lock = true, const std::set<eos::common::FileSystem::fsid_t> *subset=NULL);
+  double MinDeviation (const char* param, bool lock = true, const std::set<eos::common::FileSystem::fsid_t> *subset=NULL);
 
   // calculates the standard deviation of <param> as double
-  double SigmaDouble (const char* param, bool lock = true);
+  double SigmaDouble (const char* param, bool lock = true, const std::set<eos::common::FileSystem::fsid_t> *subset=NULL);
+
+  // calculates the number of fsid considered for average
+  long long ConsiderCount (bool lock, const std::set<eos::common::FileSystem::fsid_t> *subset);
+
+  // calculates the number of fsid regardless of being considered for averages or not
+  long long TotalCount (bool lock, const std::set<eos::common::FileSystem::fsid_t> *subset);
 };
 
 /*----------------------------------------------------------------------------*/
@@ -798,9 +1024,11 @@ public:
 
   // ---------------------------------------------------------------------------
   // Print views (space,group,nodes)
-  void PrintSpaces (std::string &out, std::string headerformat, std::string listformat, const char* selection = 0);
-  void PrintGroups (std::string &out, std::string headerformat, std::string listformat, const char* selection = 0);
-  void PrintNodes (std::string &out, std::string headerformat, std::string listformat, const char* selection = 0);
+  void PrintGroups (std::string &out, std::string headerformat, std::string listformat, unsigned int geodepth=0, const char* selection = 0);
+  void PrintNodes (std::string &out, std::string headerformat, std::string listformat, unsigned int geodepth=0, const char* selection = 0);
+  void PrintSpaces (std::string &out, std::string headerformat, std::string listformat, unsigned int geodepth=0, const char* selection = 0);
+  //void PrintNodes (std::string &out, std::string headerformat, std::string listformat, const char* selection = 0);
+  //void PrintSpaces (std::string &out, std::string headerformat, std::string listformat, const char* selection = 0);
 
   // ---------------------------------------------------------------------------
   // Return printout formats
@@ -919,6 +1147,173 @@ public:
 
   /// static singleton object hosting the filesystem view object
   static FsView gFsView;
+};
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Aggregator implementation to compute double precision statistics
+ *
+ * Statistics are sum, average, std dev, min dev, max dev, max abs dev
+ * It calls the underlying unstructured versions of the statistics computation
+ * DoubleSum, DoubleAverage, DoubleStdDev, ...
+ *
+ */
+/*----------------------------------------------------------------------------*/
+class DoubleAggregator : public GeoTreeAggregator
+{
+  typedef eos::common::FileSystem::fsid_t fsid_t;
+
+  /// name of the parameter for which the statistics is to be computed
+  std::string pParam;
+
+  /// sums at the elements of the tree
+  std::vector<double> pSums;
+
+  /// averages at the elements of the tree
+  std::vector<double> pMeans;
+
+  /// maximum deviations at the elements of the tree
+  std::vector<double> pMaxDevs;
+
+  /// minimum deviations at the elements of the tree
+  std::vector<double> pMinDevs;
+
+  /// minimum absolute deviations at the elements of the tree
+  std::vector<double> pMaxAbsDevs;
+
+  /// standard deviations at the elements of the tree
+  std::vector<double> pStdDevs;
+
+  /// number of entries considered in the statistics at the elements of the tree
+  std::vector<long long> pNb;
+
+  /// the base view ordering the statistics
+  BaseView *pView;
+
+  /// end index (excluded) of each depth level in the statistics vectors
+  std::vector<size_t> pDepthLevelsIndexes;
+
+  /// full geotags at the elements of the tree
+  std::vector<std::string> pGeoTags;
+public:
+
+  // ---------------------------------------------------------------------------
+  // Get the sums at each tree element
+  // ---------------------------------------------------------------------------
+  const std::vector<double> * getSums() const;
+
+  // ---------------------------------------------------------------------------
+  // Get the averages at each tree element
+  // ---------------------------------------------------------------------------
+  const std::vector<double> * getMeans() const;
+
+  // ---------------------------------------------------------------------------
+  // Get the max absolute deviations at each tree element
+  // ---------------------------------------------------------------------------
+  const std::vector<double> * getMaxAbsDevs() const;
+
+  // ---------------------------------------------------------------------------
+  // Get the standard deviations at each tree element
+  // ---------------------------------------------------------------------------
+  const std::vector<double> * getStdDevs() const;
+
+  // ---------------------------------------------------------------------------
+  // Get the full geotags at each tree element
+  // ---------------------------------------------------------------------------
+  const std::vector<std::string> * getGeoTags() const;
+
+  // ---------------------------------------------------------------------------
+  // Get the end index (excluded) for a given depth level
+  // ---------------------------------------------------------------------------
+  size_t getEndIndex(int depth=-1) const;
+
+  // ---------------------------------------------------------------------------
+  // constructor given the name of the parameter to compute the statistics for
+  // ---------------------------------------------------------------------------
+  DoubleAggregator(const char *param);
+
+  // ---------------------------------------------------------------------------
+  // Destructor
+  // ---------------------------------------------------------------------------
+  virtual ~DoubleAggregator();
+
+  // ---------------------------------------------------------------------------
+  // Set the view ordering the statistics. Needs to be set before running the aggregator
+  // ---------------------------------------------------------------------------
+  void setView(BaseView *view);
+
+  virtual bool init(const std::vector<std::string> & geotags, const std::vector<size_t> &depthLevelsIndexes);
+  virtual bool aggregateLeaves(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx);
+  virtual bool aggregateNodes(const std::map<std::string ,GeoTreeElement*> &nodes, const size_t &idx);
+  virtual bool deepAggregate(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx);
+};
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Aggregator implementation to compute long long integer statistics
+ *
+ * Statistics is only sum
+ * It calls the underlying unstructured versions of the statistics computation
+ * LongLongSum, so it benefits from the same filtering and special cases
+ * implemented there
+ *
+ */
+/*----------------------------------------------------------------------------*/
+class LongLongAggregator : public GeoTreeAggregator
+{
+  typedef eos::common::FileSystem::fsid_t fsid_t;
+
+  /// name of the parameter for which the statistics is to be computed
+  std::string pParam;
+
+  /// sums at the elements of the tree
+  std::vector<long long> pSums;
+
+  /// end index (excluded) of each depth level in the statistics vectors
+  std::vector<size_t> pDepthLevelsIndexes;
+
+  /// full geotags at the elements of the tree
+  std::vector<std::string> pGeoTags;
+
+  /// the base view ordering the statistics
+  BaseView *pView;
+
+public:
+
+  // ---------------------------------------------------------------------------
+  // constructor given the name of the parameter to compute the statistics for
+  // ---------------------------------------------------------------------------
+  LongLongAggregator(const char *param);
+
+  // ---------------------------------------------------------------------------
+  // Destructor
+  // ---------------------------------------------------------------------------
+  virtual ~LongLongAggregator();
+
+  // ---------------------------------------------------------------------------
+  // Set the view ordering the statistics. Needs to be set before running the aggregator
+  // ---------------------------------------------------------------------------
+  void setView(BaseView *view);
+
+  // ---------------------------------------------------------------------------
+  // Get the sums at each tree element
+  // ---------------------------------------------------------------------------
+  const std::vector<long long> * getSums() const;
+
+  // ---------------------------------------------------------------------------
+  // Get the full geotags at each tree element
+  // ---------------------------------------------------------------------------
+  const std::vector<std::string> * getGeoTags() const;
+
+  // ---------------------------------------------------------------------------
+  // Get the end index (excluded) for a given depth level
+  // ---------------------------------------------------------------------------
+  size_t getEndIndex(int depth=-1) const;
+
+  virtual bool init(const std::vector<std::string> & geotags, const std::vector<size_t> &depthLevelsIndexes);
+  virtual bool aggregateLeaves(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx);
+  virtual bool aggregateNodes(const std::map<std::string ,GeoTreeElement*> &nodes, const size_t &idx);
+  virtual bool deepAggregate(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx);
 };
 
 EOSMGMNAMESPACE_END

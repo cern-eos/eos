@@ -1921,51 +1921,15 @@ extern "C"
     }
     globus_gfs_log_message(GLOBUS_GFS_LOG_INFO, "%s: XRootD Virtual Mount Point is set to: %s\n", "globus_l_gfs_xrootd_activate", config.XrootdVmp.c_str());
     {
-      const char *PathName;
-      char myServerPart[MAXPATHLEN], myPathPart[MAXPATHLEN];
-      GlobusGFSName(__FUNCTION__);
-      PathName = "/";//(config.XrootdVmp+"/").c_str();
+      const size_t errBuffLen = 2048;
+      char errBuff[errBuffLen];
 
-      std::string request(MAXPATHLEN * 2, '\0');
-      XrdCl::Buffer arg;
-      XrdCl::StatInfo* xrdstatinfo = 0;
-      XrdCl::XRootDStatus status;
-      XrdCl::URL server;
-      /*
-       If we do stat_info->pathname++, it will cause third-party transfer
-       hanging if there is a leading // in path. Don't know why. To work
-       around, we replaced it with PathName.
-       */
-      while ((strlen(PathName) > 1) && (PathName[0] == '/' && PathName[1] == '/'))
+      if(!XP.CheckVMP(errBuff,errBuffLen))
       {
-        PathName++;
-      }
-
-      const char *myPath;
-      char buff[2048];
-      if (!(myPath = XP.BuildURL(PathName, buff, sizeof(buff))))
-        myPath = PathName;
-
-      if (XrootPath::SplitURL(myPath, myServerPart, myPathPart, MAXPATHLEN))
-      {
-        globus_gfs_log_message(GLOBUS_GFS_LOG_ERR, "%s: Error : cannot parse Xrootd Virtual Mount Point %s. DSI plugin cannot start. \n", "globus_l_gfs_xrootd_activate",
-            myPath);
+        globus_gfs_log_message(GLOBUS_GFS_LOG_ERR, "%s: Error : %s. DSI plugin cannot start. \n", "globus_l_gfs_xrootd_activate",
+            errBuff);
         return 1;
       }
-
-      arg.FromString(myPathPart);
-      server.FromString(myServerPart);
-      XrdCl::FileSystem fs(server);
-      status = fs.Stat(myPathPart, xrdstatinfo);
-      if (status.IsError())
-      {
-        if (xrdstatinfo)
-          delete xrdstatinfo;
-        globus_gfs_log_message(GLOBUS_GFS_LOG_ERR, "%s: Error : cannot stat Xrootd Virtual Mount Point %s. DSI plugin cannot start. \n", "globus_l_gfs_xrootd_activate",
-            config.XrootdVmp.c_str());
-        return 1;
-      }
-
     }
     globus_gfs_log_message(GLOBUS_GFS_LOG_INFO, "%s: XRootD Read Ahead Block Size is set to: %d\n", "globus_l_gfs_xrootd_activate",
         config.XrdReadAheadBlockSize);

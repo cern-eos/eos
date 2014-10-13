@@ -45,8 +45,6 @@
   std::map<eos::common::FileSystem::fsid_t, eos::mgm::FileSystem*>::const_iterator it;
 
   {
-    std::set<eos::common::FileSystem::fsid_t>::const_iterator set_it;
-
     // get all the filesystem's of that node
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     std::string snodename = nodename.c_str() ? nodename.c_str() : "-none-";
@@ -56,7 +54,7 @@
       return Emsg(epname, error, EINVAL, "unable to schedule - node is not existing");
     }
 
-    for (set_it = FsView::gFsView.mNodeView[snodename]->begin(); set_it != FsView::gFsView.mNodeView[snodename]->end(); ++set_it)
+    for (auto set_it = FsView::gFsView.mNodeView[snodename]->begin(); set_it != FsView::gFsView.mNodeView[snodename]->end(); ++set_it)
     {
       fslist.push_back(*set_it);
     }

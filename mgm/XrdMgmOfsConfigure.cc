@@ -206,11 +206,11 @@ XrdMgmOfs::InitializeFileView ()
           gOFS->eosView->updateFileStore(fmd);
         }
 
-        {
-          XrdSysMutexHelper lock(InitializationMutex);
-          Initialized = kBooted;
-        }
+      {
+        XrdSysMutexHelper lock(InitializationMutex);
+        Initialized = kBooted;
       }
+    }
     }
 
     gOFS->eosViewRWMutex.UnLockWrite();
@@ -233,9 +233,9 @@ XrdMgmOfs::InitializeFileView ()
         XrdSysTimer sleeper;
         sleeper.Wait(200);
         eos_static_debug("msg=\"waiting for the namespace to reach the follow point\" is-offset=%llu follow-offset=%llu", gOFS->eosFileService->getFollowOffset(), (uint64_t) buf.st_size);
-      }
+    }
 
-      {
+    {
         XrdSysMutexHelper lock(InitializationMutex);
         Initialized = kBooted;
       }
@@ -386,7 +386,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   if (getenv("XRDDEBUG")) gMgmOfsTrace.What = TRACE_MOST | TRACE_debug;
 
   {
-    // borrowed from XrdOfs
+    // borrowed from XrdOfs 
     unsigned int myIPaddr = 0;
 
     char buff[256], *bp;
@@ -1107,6 +1107,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   lFanOutTags.push_back("LRU");
   lFanOutTags.push_back("GroupBalancer");
   lFanOutTags.push_back("GeoBalancer");
+  lFanOutTags.push_back("GeoTreeEngine");
   lFanOutTags.push_back("#");
 
   // get the XRootD log directory
@@ -1401,20 +1402,14 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   FsView::gFsView.SetConfigQueues(MgmConfigQueue.c_str(), NodeConfigQueuePrefix.c_str(), GroupConfigQueuePrefix.c_str(), SpaceConfigQueuePrefix.c_str());
   FsView::gFsView.SetConfigEngine(ConfEngine);
 
+  // we need to set the shared object manager to notify from
+  ObjectNotifier.SetShareObjectManager(&ObjectManager);
+
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
 
   // set the object manager to listener only
   ObjectManager.EnableBroadCast(false);
-
-  // setup the modifications which the fs listener thread is waiting for
-  ObjectManager.SubjectsMutex.Lock();
-  std::string watch_errc = "stat.errc";
-
-  ObjectManager.ModificationWatchKeys.insert(watch_errc); // we need to take action an filesystem errors
-  ObjectManager.ModificationWatchSubjects.insert(MgmConfigQueue.c_str()); // we need to apply remote configuration changes
-
-  ObjectManager.SubjectsMutex.UnLock();
 
   ObjectManager.SetDebug(false);
 
@@ -1435,7 +1430,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   eos::common::GlobalConfig::gConfig.PrintBroadCastMap(out);
   fprintf(stderr, "%s", out.c_str());
 
-  // eventuall autoload a configuration
+  // eventuall autoload a configuration 
   if (getenv("EOS_AUTOLOAD_CONFIG"))
   {
     MgmConfigAutoLoad = getenv("EOS_AUTOLOAD_CONFIG");
@@ -1762,7 +1757,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   /*
   if (MgmConfigAutoLoad.length()) {
     eos_info("autoload config=%s", MgmConfigAutoLoad.c_str());
-    XrdOucString configloader = "mgm.config.file=";
+    XrdOucString configloader = "mgm.config.file="; 
     configloader += MgmConfigAutoLoad;
     XrdOucEnv configenv(configloader.c_str());
     XrdOucString stdErr="";
@@ -1845,6 +1840,12 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     }
   }
 
+  gGeoTreeEngine.StartUpdater();
+  XrdSysTimer sleeper;
+    sleeper.Snooze(1);
+  if(!ObjectNotifier.Start())
+    eos_crit("error starting the shared object change notifier");
+
   // initialize the transfer database
   if (!gTransferEngine.Init("/var/eos/tx"))
   {
@@ -1867,7 +1868,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     eos_warning("msg=\"cannot start httpd darmon\"");
   }
 
-  // start the Egroup fetching
+  // start the Egroup fetching 
   if (!gOFS->EgroupRefresh.Start())
   {
     eos_warning("msg=\"cannot start egroup thread\"");
@@ -2032,7 +2033,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     (void) signal(SIGTERM, xrdmgmofs_shutdown);
     (void) signal(SIGQUIT, xrdmgmofs_shutdown);
 
-    // add SEGV handler
+    // add SEGV handler   
     if (!getenv("EOS_NO_STACKTRACE"))
     {
       (void) signal(SIGSEGV, xrdmgmofs_stacktrace);
@@ -2068,7 +2069,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       mVectTid.push_back(worker_tid);
     }
   }
-  
+
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/

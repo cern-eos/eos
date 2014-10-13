@@ -137,6 +137,11 @@ xrdmgmofs_shutdown (int sig)
   gOFS->ConfEngine->SetAutoSave(false);
 
   // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop GeoTree engine ... ");
+  if(!gGeoTreeEngine.StopUpdater())
+  	eos_static_crit("error Stopping the GeoTree engine");
+
+  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop egroup fetching ... ");
   gOFS->EgroupRefresh.Stop();
 
@@ -195,6 +200,11 @@ xrdmgmofs_shutdown (int sig)
   {
     delete (it->second);
   }
+
+  // ----------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop shared object modification notifier ... ");
+  if(!gOFS->ObjectNotifier.Stop())
+    eos_static_crit("error Stopping the shared object change notifier");
 
   // ----------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop config engine ... ");

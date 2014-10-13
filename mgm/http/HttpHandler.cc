@@ -62,37 +62,37 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
   int meth = ParseMethodString(request->GetMethod());
   switch (meth)
   {
-    case GET:
-      response = Get(request);
-      break;
-    case HEAD:
-      response = Head(request);
-      break;
-    case POST:
-      response = Post(request);
-      break;
-    case PUT:
-      response = Put(request);
-      break;
-    case DELETE:
-      response = Delete(request);
-      break;
-    case TRACE:
-      response = Trace(request);
-      break;
-    case OPTIONS:
-      response = Options(request);
-      break;
-    case CONNECT:
-      response = Connect(request);
-      break;
-    case PATCH:
-      response = Patch(request);
-      break;
-    default:
-      response = new eos::common::PlainHttpResponse();
-      response->SetResponseCode(eos::common::HttpResponse::BAD_REQUEST);
-      response->SetBody("No such method");
+  case GET:
+    response = Get(request);
+    break;
+  case HEAD:
+    response = Head(request);
+    break;
+  case POST:
+    response = Post(request);
+    break;
+  case PUT:
+    response = Put(request);
+    break;
+  case DELETE:
+    response = Delete(request);
+    break;
+  case TRACE:
+    response = Trace(request);
+    break;
+  case OPTIONS:
+    response = Options(request);
+    break;
+  case CONNECT:
+    response = Connect(request);
+    break;
+  case PATCH:
+    response = Patch(request);
+    break;
+  default:
+    response = new eos::common::PlainHttpResponse();
+    response->SetResponseCode(eos::common::HttpResponse::BAD_REQUEST);
+    response->SetBody("No such method");
   }
 
   mHttpResponse = response;
@@ -396,8 +396,8 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
              (entryname == "..")))
           continue;
 
-        result += "       <tr>\n";
-        result += "       <td style=\"padding-right: 5px\">";
+        result += "<tr>\n";
+        result += "  <td style=\"padding-right: 5px\">";
         result += "       <a title=\"\" class=\"hasmenu\" href=\"";
         if (entryname == ".")
         {
@@ -473,12 +473,12 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
             </a>
             )literal";
         }
-        result += "       </td>\n";
+        result += "  </td>\n";
 
         // ---------------------------------------------------------------------
         // file size
         // ---------------------------------------------------------------------
-        result += "       <td style=\"padding-right: 5px\">";
+        result += "  <td style=\"padding-right: 5px\">";
         result += "<font size=\"2\">";
         if (S_ISDIR(buf.st_mode))
           result += "";
@@ -560,14 +560,14 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
         // ---------------------------------------------------------------------
         // show creation date
         // ---------------------------------------------------------------------
-        result += "       <td style=\"padding-right: 5px\"><font size=\"2\" face=\"Courier New\" color=\"darkgrey\">";
+        result += "<td style=\"padding-right: 5px\"><font size=\"2\" face=\"Courier New\" color=\"darkgrey\">";
         result += t_creat;
         result += "</font></td>\n";
 
         // ---------------------------------------------------------------------
         // show permissions
         // ---------------------------------------------------------------------
-        result += "       <td style=\"padding-right: 5px\"><font size=\"2\" face=\"Courier New\" color=\"darkgrey\">";
+        result += "<td style=\"padding-right: 5px\"><font size=\"2\" face=\"Courier New\" color=\"darkgrey\">";
         result += modestr;
         result += "</font></td>\n";
         // ---------------------------------------------------------------------
@@ -580,7 +580,7 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
         // ---------------------------------------------------------------------
         // show group name
         // ---------------------------------------------------------------------
-        result += "       <td style=\"padding-right: 5px\"><font color=\"grey\">\n";
+        result += "<td style=\"padding-right: 5px\"><font color=\"grey\">\n";
         result += gidlimit;
         result += "</font></td>\n";
 
@@ -588,28 +588,28 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
         // show acl's if there
         // ---------------------------------------------------------------------
         XrdOucString acl;
-        result += "       <td style=\"padding-right: 5px\"><font color=\"#81DAF5\">";
+        result += "<td style=\"padding-right: 5px\"><font color=\"#81DAF5\">";
         if (S_ISDIR(buf.st_mode))
         {
-          if (!gOFS->attr_get(linkname.c_str(),
-                              error,
-                              &client,
-                              "",
-                              "sys.acl",
-                              acl))
-          {
-            result += acl.c_str();
-          }
+        if (!gOFS->attr_get(linkname.c_str(),
+                            error,
+                            &client,
+                            "",
+                            "sys.acl",
+                            acl))
+        {
+          result += acl.c_str();
+        }
         }
         result += "</font></td>\n";
-        result += "       </tr>\n";
+        result += "</tr>\n";
       }
       // -----------------------------------------------------------------------
       // terminate table, body and html
       // ---------------------------------------------------------------------
-      result += "       </table></div>\n";
-      result += "       </body>\n";
-      result += "       </html>\n";
+      result += "</table></div>\n";
+      result += "</body>\n";
+      result += "</html>\n";
       response = new eos::common::PlainHttpResponse();
       response->SetBody(result);
       response->AddHeader("ETag", etag);
@@ -797,7 +797,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
           if (file->error.getErrInfo() == 1094)
           {
             // MGM redirect
-            response = HttpServer::HttpRedirect(request->GetUrl(),
+          response = HttpServer::HttpRedirect(request->GetUrl(),
                                                 redirection_cgi.c_str(),
                                                 8000, false);
           }
@@ -810,8 +810,8 @@ HttpHandler::Put (eos::common::HttpRequest * request)
             // FST redirect
             response = HttpServer::HttpRedirect(request->GetUrl(),
                                                 redirection_cgi.c_str(),
-                                                8001, false);
-          }
+                                              8001, false);
+        }
         }
         else if (rc == SFS_ERROR)
         {

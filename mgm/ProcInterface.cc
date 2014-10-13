@@ -56,13 +56,13 @@ EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 /**
- * Constructor
+ * Constructor 
  */
 ProcInterface::ProcInterface () { }
 
 /*----------------------------------------------------------------------------*/
 /**
- * Destructor
+ * Destructor 
  */
 
 /*----------------------------------------------------------------------------*/
@@ -213,7 +213,7 @@ ProcInterface::Authorize (const char* path,
     }
 
     // --------------------------------------------------------------------------
-    // one has to be part of the virtual users 2(daemon) || 3(adm)/4(adm)
+    // one has to be part of the virtual users 2(daemon) || 3(adm)/4(adm) 
     // --------------------------------------------------------------------------
     return ( (eos::common::Mapping::HasUid(2, vid.uid_list)) ||
             (eos::common::Mapping::HasUid(3, vid.uid_list)) ||
@@ -403,14 +403,17 @@ ProcCommand::open (const char* inpath,
 
   if (!pOpaque)
   {
-    // alloc failed
+    // alloc failed 
     return SFS_ERROR;
   }
 
   mOutFormat = "";
+  mOutDepth = 0;
   mCmd = pOpaque->Get("mgm.cmd");
   mSubCmd = pOpaque->Get("mgm.subcmd");
   mOutFormat = pOpaque->Get("mgm.outformat");
+  long depth = pOpaque->GetInt("mgm.outdepth");
+  if(depth>0) mOutDepth = (unsigned)depth;
   mSelection = pOpaque->Get("mgm.selection");
   mComment = pOpaque->Get("mgm.comment") ? pOpaque->Get("mgm.comment") : "";
   int envlen = 0;
@@ -421,7 +424,7 @@ ProcCommand::open (const char* inpath,
   mHttpFormat = false;
 
   // ----------------------------------------------------------------------------
-  // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line
+  // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line 
   // feed in the end
   // ----------------------------------------------------------------------------
 
@@ -475,6 +478,11 @@ ProcCommand::open (const char* inpath,
     else if (mCmd == "space")
     {
       Space();
+      mDoSort = false;
+    }
+    else if (mCmd == "geosched")
+    {
+      GeoSched();
       mDoSort = false;
     }
     else if (mCmd == "group")
@@ -780,8 +788,8 @@ ProcCommand::MakeResult ()
     }
     if (mFuseFormat || mHttpFormat)
     {
-      if (mFuseFormat)
-      {
+    if (mFuseFormat)
+    {
         mResultStream += stdOut;
       }
       else
@@ -796,13 +804,13 @@ ProcCommand::MakeResult ()
         mResultStream += mSubCmd;
         mResultStream += "\">\n";
 
-        // ------------------------------------------------------------------------
-        // FUSE format contains only STDOUT
-        // ------------------------------------------------------------------------
+      // ------------------------------------------------------------------------
+      // FUSE format contains only STDOUT
+      // ------------------------------------------------------------------------
         if (stdOut.length() && KeyValToHttpTable(stdOut))
         {
-          mResultStream += stdOut;
-        }
+      mResultStream += stdOut;
+    }
         else
         {
           if (stdErr.length() || retc)

@@ -29,6 +29,7 @@
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
 #include "mq/XrdMqSharedObject.hh"
+#include "console/ConsoleCliCommand.hh"
 
 #ifndef CLIENT_ONLY
 #include "mq/XrdMqMessage.hh"
@@ -122,3 +123,7 @@ extern COMMAND commands[];
 
 extern int done;
 
+XrdOucString cleanPath(const std::string &pathToHandle);
+
+void addHelpOptionRecursively(ConsoleCliCommand *command);
+bool checkHelpAndErrors(ConsoleCliCommand *command);

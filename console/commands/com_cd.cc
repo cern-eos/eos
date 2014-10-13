@@ -119,19 +119,19 @@ com_cd (char *arg1)
   {
     if (pwdfile.length()) 
     {
-      // store the last used directory
-      int cfd = open(pwdfile.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRWXU);
-      if (cfd >= 0)
+    // store the last used directory
+    int cfd = open(pwdfile.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRWXU);
+    if (cfd >= 0)
+    {
+      if ((::write(cfd, pwd.c_str(), pwd.length())) != pwd.length())
       {
-	if ((::write(cfd, pwd.c_str(), pwd.length())) != pwd.length())
-	{
-	  fprintf(stderr, "warning: unable to store CWD to %s [errno=%d]\n", pwdfile.c_str(), errno);
-	}
-	close(cfd);
+        fprintf(stderr, "warning: unable to store CWD to %s [errno=%d]\n", pwdfile.c_str(), errno);
       }
-      else
-      {
-	fprintf(stderr, "warning: unable to store CWD to %s\n", pwdfile.c_str());
+      close(cfd);
+    }
+    else
+    {
+      fprintf(stderr, "warning: unable to store CWD to %s\n", pwdfile.c_str());
       }
     }
   }

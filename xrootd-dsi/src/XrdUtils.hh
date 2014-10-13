@@ -42,6 +42,7 @@ public:
   static int   SplitURL(const char *url, char *server, char *path, int blen);
 
   XrootPath();
+  bool CheckVMP(char *errbuff, int errbufflen);
   ~XrootPath();
 
 private:

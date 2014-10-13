@@ -140,7 +140,7 @@ XrdMqOfs::Init (XrdSysError &ep)
 /******************************************************************************/
 /*                         G e t F i l e S y s t e m                          */
 /******************************************************************************/
-
+  
 // Set the version information
 XrdVERSIONINFO(XrdSfsGetFileSystem, MqOfs);
 

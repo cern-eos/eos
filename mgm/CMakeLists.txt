@@ -21,16 +21,16 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../
-		     ${CMAKE_CURRENT_SOURCE_DIR}
-		     ${XROOTD_INCLUDE_DIR} 
-                     ${XROOTD_PRIVATE_INCLUDE_DIR} 
-                     ${SPARSEHASH_INCLUDE_DIR} 
-                     ${NCURSES_INCLUDE_DIR}
-                     ${LDAP_INCLUDE_DIR}
-                     ${Z_INCLUDE_DIR}
-		     ${ZMQ_INCLUDE_DIR}
-		     ${CMAKE_BINARY_DIR}/auth_plugin/)
+include_directories( ../ 
+		 ${CMAKE_CURRENT_SOURCE_DIR}
+         ${XROOTD_INCLUDE_DIR} 
+         ${XROOTD_PRIVATE_INCLUDE_DIR} 
+         ${SPARSEHASH_INCLUDE_DIR} 
+         ${NCURSES_INCLUDE_DIR}
+         ${LDAP_INCLUDE_DIR}
+         ${Z_INCLUDE_DIR}
+		 ${ZMQ_INCLUDE_DIR}
+		 ${CMAKE_BINARY_DIR}/auth_plugin/)
 
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} 
 		  ${XROOTD_LIB_DIR}
@@ -38,11 +38,12 @@ link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}
 		  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
 
 add_library (XrdEosMgm MODULE
-            Access.cc
+            Access.cc         
             ConfigEngine.cc
+            GeoTreeEngine.cc
             Messaging.cc
             VstMessaging.cc
-            Policy.cc
+            Policy.cc  
             ProcInterface.cc
             proc/proc_fs.cc
             proc/admin/Access.cc
@@ -51,6 +52,7 @@ add_library (XrdEosMgm MODULE
             proc/admin/Fs.cc
             proc/admin/Fsck.cc
             proc/admin/Group.cc
+            proc/admin/GeoSched.cc
             proc/admin/Io.cc
             proc/admin/Node.cc
             proc/admin/Ns.cc
@@ -61,11 +63,11 @@ add_library (XrdEosMgm MODULE
             proc/admin/Vid.cc
             proc/admin/Vst.cc
             proc/user/Attr.cc
-	    proc/user/Archive.cc
+	        proc/user/Archive.cc
             proc/user/Cd.cc
             proc/user/Chmod.cc
             proc/user/Chown.cc
-            proc/user/File.cc
+            proc/user/File.cc 
             proc/user/Fileinfo.cc
             proc/user/Find.cc
             proc/user/Fuse.cc
@@ -113,11 +115,14 @@ add_library (XrdEosMgm MODULE
             Converter.cc
             GroupBalancer.cc
             GeoBalancer.cc
-	    ${STAT_SRCS}     ${STAT_HDRS})
+            geotree/SchedulingTreeTest.cc
+            geotree/SchedulingSlowTree.cc
+            geotree/SchedulingTreeCommon.cc
+            ${STAT_SRCS}     ${STAT_HDRS})
 
-target_link_libraries( XrdEosMgm
-                       XrdCl                XrdPosix
-                       XrdUtils             XrdOfs
+target_link_libraries( XrdEosMgm 
+                       XrdCl                XrdPosix 
+                       XrdUtils             XrdOfs 
                        eosCommon            eosCommonServer
                        eosNamespace-Static  eosCapability-Static
                        XrdMqClient-Static   EosAuthProto
@@ -128,19 +133,34 @@ target_link_libraries( XrdEosMgm
 
 
 add_executable ( testmgmview
-           FsView.cc
+           FsView.cc  
           test/MgmViewTest.cc
 )
 
 
-target_link_libraries ( testmgmview
-                        XrdCl             XrdUtils
+add_executable ( testschedulingtree
+           geotree/SchedulingTreeTest.cc
+	   geotree/SchedulingSlowTree.cc
+           geotree/SchedulingTreeCommon.cc
+)
+
+
+target_link_libraries ( testmgmview 
+                        XrdCl             XrdUtils 
                         eosCommon         eosCommonServer
                         XrdMqClient-Static eosCapability-Static
                         crypto            ${NCURSES_LIBRARIES}
-                        dl                
-			${ZMQ_LIBRARIES}  ${Z_LIBRARIES}
-                        ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+                        dl
+                        ${ZMQ_LIBRARIES}  ${Z_LIBRARIES}
+                        ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+target_link_libraries ( testschedulingtree 
+                        XrdCl             XrdUtils 
+                        eosCommon         eosCommonServer
+                        crypto            ${NCURSES_LIBRARIES}
+                        dl
+                        ${ZMQ_LIBRARIES}  ${Z_LIBRARIES}
+                        ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties ( testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST" )
 
@@ -152,11 +172,10 @@ if (Linux)
   )
 endif(Linux)
 
-install ( TARGETS XrdEosMgm
+install ( TARGETS XrdEosMgm 
           LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
           RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
           ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
 )
 
-INSTALL ( FILES eos-repair-tool DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR} 
-	  PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )
+INSTALL ( FILES eos-repair-tool DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR} PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )
