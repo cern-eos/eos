@@ -1488,7 +1488,12 @@ void GeoTreeEngine::listenFsChange()
 		gOFS->ObjectNotifier.tlSubscriber->SubjectsMutex.UnLock();
 		pAddRmFsMutex.UnLockWrite();
 		// do the processing
-		clock_gettime(CLOCK_MONOTONIC_COARSE,&curtime);
+#ifdef CLOCK_MONOTONIC_COARSE
+        // this version is faster, we use it if it's available
+                clock_gettime(CLOCK_MONOTONIC_COARSE,&curtime);
+#else
+                clock_gettime(CLOCK_MONOTONIC,&curtime);
+#endif
 		eos_static_debug("Updating Fast Structures at %ds. %dns. Previous update was at prev: %ds. %dns. Time elapsed since the last update is: %dms.",(int)curtime.tv_sec,(int)curtime.tv_nsec,(int)prevtime.tv_sec,(int)prevtime.tv_nsec,(int)curtime.tv_sec*1000+((int)curtime.tv_nsec)/1000000-(int)prevtime.tv_sec*1000-((int)prevtime.tv_nsec)/1000000);
 		{
 			checkPendingDeletions(); // do it before tree info to leave some time to the other threads
