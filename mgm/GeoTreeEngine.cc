@@ -1394,7 +1394,12 @@ void GeoTreeEngine::listenFsChange()
 	eos_info("GeoTreeEngine updater is starting...");
 
 	struct timespec curtime,prevtime;
+#ifdef CLOCK_MONOTONIC_COARSE
+        // this version is faster, we use it if it's available
 	clock_gettime(CLOCK_MONOTONIC_COARSE,&prevtime);
+#else
+	clock_gettime(CLOCK_MONOTONIC,&prevtime);
+#endif
 	curtime = prevtime;
 
 	do
