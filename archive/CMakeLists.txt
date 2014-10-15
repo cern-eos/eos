@@ -29,7 +29,7 @@ if(PYTHONINTERP_FOUND)
     message(STATUS "The python site-packages dir: ${PYTHON_SITE_PACKAGES}")
 
 
-    install(PROGRAMS eosarchived.py eosarch_run.py
+    install(PROGRAMS eosarchived.py eosarch_run.py eosarch_reconstruct.py
 	    DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
 	    PERMISSIONS OWNER_READ OWNER_EXECUTE
 			GROUP_READ GROUP_EXECUTE
