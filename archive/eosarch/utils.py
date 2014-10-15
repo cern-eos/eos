@@ -101,10 +101,10 @@ def get_entry_info(url, rel_path, tags, is_dir):
         KeyError: Extended attribute value is not present.
     """
     dinfo = []
-    finfo = [url.protocol, "://", url.hostid, "//proc/user/?",
-             "mgm.cmd=fileinfo&mgm.path=", url.path,
-             "&mgm.file.info.option=-m"]
-    (status, stdout, stderr) = exec_cmd(''.join(finfo))
+    finfo = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
+                     "mgm.cmd=fileinfo&mgm.path=", url.path,
+                     "&mgm.file.info.option=-m"])
+    (status, stdout, stderr) = exec_cmd(finfo)
 
     if not status:
         err_msg = ("Path={0}, failed fileinfo request, msg={1}").format(
@@ -186,10 +186,11 @@ def set_dir_info(entry):
     url = client.URL(path)
 
     # Change ownership of the directory
-    fsetowner = [url.protocol, "://", url.hostid, "//proc/user/?",
-                 "mgm.cmd=chown&mgm.path=", url.path,
-                 "&mgm.chown.owner=", dict_dinfo['uid'], ":", dict_dinfo['gid']]
-    (status, stdout, stderr) = exec_cmd(''.join(fsetowner))
+    fsetowner = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
+                         "mgm.cmd=chown&mgm.path=", url.path,
+                         "&mgm.chown.owner=", dict_dinfo['uid'], ":",
+                         dict_dinfo['gid']])
+    (status, stdout, stderr) = exec_cmd(fsetowner)
 
     if not status:
         err_msg = "Dir={0}, error doing chown, msg={1}".format(url.path, stderr)
@@ -197,10 +198,10 @@ def set_dir_info(entry):
         raise IOError(err_msg)
 
     # Set permission on the directory
-    fchmod = [url.protocol, "://", url.hostid, "//proc/user/?",
-              "mgm.cmd=chmod&mgm.path=", url.path,
-              "&mgm.chmod.mode=", dict_dinfo['mode']]
-    (status, stdout, stderr) = exec_cmd(''.join(fchmod))
+    fchmod = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
+                      "mgm.cmd=chmod&mgm.path=", url.path,
+                      "&mgm.chmod.mode=", dict_dinfo['mode']])
+    (status, stdout, stderr) = exec_cmd(fchmod)
 
     if not status:
         err_msg = "Dir={0}, error doing chmod, msg={1}".format(url.path, stderr)
@@ -208,10 +209,10 @@ def set_dir_info(entry):
         raise IOError(err_msg)
 
     # Remove any existing attributes
-    flsattr = [url.protocol, "://", url.hostid, "//proc/user/?",
-               "mgm.cmd=attr&mgm.subcmd=ls&mgm.path=", url.path]
+    flsattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
+                       "mgm.cmd=attr&mgm.subcmd=ls&mgm.path=", url.path])
 
-    (status, stdout, stderr) = exec_cmd(''.join(flsattr))
+    (status, stdout, stderr) = exec_cmd(flsattr)
 
     if not status:
         err_msg = "Dir={0}, error listing xattrs, msg ={1}".format(url.path, stderr)
@@ -221,10 +222,10 @@ def set_dir_info(entry):
     lattrs = [s.split('=', 1)[0] for s in stdout.splitlines()]
 
     for attr in lattrs:
-        frmattr = [url.protocol, "://", url.hostid, "//proc/user/?",
-                   "mgm.cmd=attr&mgm.subcmd=rm&mgm.attr.key=", attr,
-                   "&mgm.path=", url.path]
-        (status, __, stderr) = exec_cmd(''.join(frmattr))
+        frmattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
+                           "mgm.cmd=attr&mgm.subcmd=rm&mgm.attr.key=", attr,
+                           "&mgm.path=", url.path])
+        (status, __, stderr) = exec_cmd(frmattr)
 
         if not status:
             err_msg = ("Dir={0} error while removing attr={1}, msg={2}"
@@ -236,10 +237,10 @@ def set_dir_info(entry):
     dict_dattr = dict_dinfo['attr']
 
     for key, val in dict_dattr.iteritems():
-        fsetattr = [url.protocol, "://", url.hostid, "//proc/user/?",
-                    "mgm.cmd=attr&mgm.subcmd=set&mgm.attr.key=", key,
-                    "&mgm.attr.value=", val, "&mgm.path=", url.path]
-        (status, __, stderr) = exec_cmd(''.join(fsetattr))
+        fsetattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
+                            "mgm.cmd=attr&mgm.subcmd=set&mgm.attr.key=", key,
+                            "&mgm.attr.value=", val, "&mgm.path=", url.path])
+        (status, __, stderr) = exec_cmd(fsetattr)
 
         if not status:
             err_msg = "Dir={0}, error setting attr={1}, msg={2}".format(

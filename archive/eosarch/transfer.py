@@ -241,12 +241,12 @@ class Transfer(object):
         efile_url = client.URL(self.efile_full)
         eosf_rename = ''.join([self.efile_root, self.config.ARCH_FN, ".", self.oper, ".err"])
         rename_url = client.URL(eosf_rename)
-        frename = [rename_url.protocol, "://", rename_url.hostid,
-                   "//proc/user/?mgm.cmd=file&mgm.subcmd=rename"
-                   "&mgm.path=", efile_url.path,
-                   "&mgm.file.source=", efile_url.path,
-                   "&mgm.file.target=", rename_url.path]
-        (status, __, stderr) = exec_cmd(''.join(frename))
+        frename = ''.join([rename_url.protocol, "://", rename_url.hostid,
+                           "//proc/user/?mgm.cmd=file&mgm.subcmd=rename"
+                           "&mgm.path=", efile_url.path,
+                           "&mgm.file.source=", efile_url.path,
+                           "&mgm.file.target=", rename_url.path])
+        (status, __, stderr) = exec_cmd(frename)
 
         if not status:
             err_msg = ("Failed to rename archive file {0} to {1}, msg={2}"
@@ -394,11 +394,11 @@ class Transfer(object):
 
         old_url = client.URL(self.efile_full)
         new_url = client.URL(eosf_rename)
-        frename = [old_url.protocol, "://", old_url.hostid, "//proc/user/?",
-                   "mgm.cmd=file&mgm.subcmd=rename&mgm.path=", old_url.path,
-                   "&mgm.file.source=", old_url.path,
-                   "&mgm.file.target=", new_url.path]
-        (status, __, stderr) = exec_cmd(''.join(frename))
+        frename = ''.join([old_url.protocol, "://", old_url.hostid, "//proc/user/?",
+                           "mgm.cmd=file&mgm.subcmd=rename&mgm.path=", old_url.path,
+                           "&mgm.file.source=", old_url.path,
+                           "&mgm.file.target=", new_url.path])
+        (status, __, stderr) = exec_cmd(frename)
 
         if not status:
             err_msg = "Failed to rename {0} to {1}, msg={2}".format(

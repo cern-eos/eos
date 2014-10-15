@@ -267,7 +267,7 @@ class ArchiveFile(object):
             fgetattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/",
                                 "?mgm.cmd=attr&mgm.subcmd=get&mgm.attr.key=sys.acl",
                                 "&mgm.path=", dir_path])
-            (status, stdout, __) = exec_cmd(''.join(fgetattr))
+            (status, stdout, __) = exec_cmd(fgetattr)
 
             if not status:
                 warn_msg = "No xattr sys.acl found for dir={0}".format(dir_path)
@@ -290,7 +290,7 @@ class ArchiveFile(object):
                     fmutable = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
                                         "mgm.cmd=attr&mgm.subcmd=set&mgm.attr.key=sys.acl",
                                         "&mgm.attr.value=", acl_val, "&mgm.path=", dir_path])
-                    (status, __, stderr) = exec_cmd(''.join(fmutable))
+                    (status, __, stderr) = exec_cmd(fmutable)
 
                     if not status:
                         err_msg = "Error making dir={0} mutable, msg={1}".format(
@@ -299,10 +299,10 @@ class ArchiveFile(object):
                         raise IOError(err_msg)
                 else:
                     # sys.acl empty, remove it from the xattrs
-                    frmattr = [url.protocol, "://", url.hostid, "//proc/user/?",
-                               "mgm.cmd=attr&mgm.subcmd=rm&mgm.attr.key=sys.acl",
-                               "&mgm.path=", dir_path]
-                    (status, __, stderr) = exec_cmd(''.join(frmattr))
+                    frmattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
+                                       "mgm.cmd=attr&mgm.subcmd=rm&mgm.attr.key=sys.acl",
+                                       "&mgm.path=", dir_path])
+                    (status, __, stderr) = exec_cmd(frmattr)
 
                     if not status:
                         err_msg = ("Error removing xattr=sys.acl for dir={0}, msg={1}"
@@ -358,9 +358,10 @@ class ArchiveFile(object):
                 self.logger.error(err_msg)
                 raise IOError(err_msg)
             else:
-                ffindcount = [url.protocol, "://", url.hostid, "//proc/user/?"
-                              "mgm.cmd=find&mgm.path=", url.path, "&mgm.option=Z"]
-                (status, stdout, stderr) = exec_cmd(''.join(ffindcount))
+                ffindcount = ''.join([url.protocol, "://", url.hostid,
+                                      "//proc/user/?mgm.cmd=find&mgm.path=",
+                                      url.path, "&mgm.option=Z"])
+                (status, stdout, stderr) = exec_cmd(ffindcount)
 
                 if status:
                     for entry in stdout.split():

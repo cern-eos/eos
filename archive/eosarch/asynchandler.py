@@ -88,7 +88,7 @@ class MetaHandler(object):
     """
     def __init__(self):
         list_op = ['mkdir', 'prepare', 'query']
-        self.num, self.status, self.failed = {}, {}, {}
+        self.num, self.status, self.err_msg, self.failed = {}, {}, {}, {}
         self.handlers = {'mkdir': _MkDirHandler,
                          'prepare': _PrepareHandler,
                          'query': _QueryHandler}
@@ -96,6 +96,7 @@ class MetaHandler(object):
         for op in list_op:
             self.num[op] = 0
             self.status[op] = True
+            self.err_msg[op] = ""
             self.failed[op] = []
 
         self.cond = Condition()
@@ -118,6 +119,7 @@ class MetaHandler(object):
 
         if not status.ok:
             self.failed[op].append(path)
+            self.err_msg[op] = status.message
 
         if self.num[op] == 0:
             self.cond.notifyAll()
@@ -133,7 +135,8 @@ class MetaHandler(object):
             self.cond.wait()
 
         if self.failed[op]:
-            self.logger.error("List of failed {0} paths is: {0}".format(op, self.failed[op]))
+            self.logger.error(("List of failed {0} paths is: {1}, err_msg= {2}"
+                               "").format(op, self.failed[op], self.err_msg[op]))
         else:
             self.logger.debug("All {0} requests were successful".format(op))
 
