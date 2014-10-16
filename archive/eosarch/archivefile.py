@@ -275,15 +275,24 @@ class ArchiveFile(object):
             else:
                 # Remove the 'z:i' rule from the acl list
                 acl_val = stdout[stdout.find('=') + 1:]
-                pos = acl_val.find('z:i')
+                rules  = acl_val.split(',')
+                new_rules = []
 
-                if pos != -1:
-                    if acl_val[pos - 1] == ',':
-                        acl_val = acl_val[:pos - 1] + acl_val[pos + 3:]
-                    elif acl_val[pos + 3] == ',':
-                        acl_val = acl_val[pos + 3:]
-                    else:
-                        acl_val = ''
+                for rule in rules:
+                    if rule.startswith("z:"):
+                        tag, definition = rule.split(':')
+                        pos = definition.find('i')
+
+                        if pos != -1:
+                            definition = definition[:pos] + definition[pos + 1:]
+
+                            if len(definition):
+                                new_rules.append(':'.join([tag, definition]))
+                                continue
+
+                    new_rules.append(rule)
+
+                acl_val = ','.join(new_rules)
 
                 if acl_val:
                     # Set the new sys.acl xattr
