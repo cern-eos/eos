@@ -749,24 +749,13 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   int num_dirs = 0;
   int num_files = 0;
 
-  if (ArchiveGetNumEntries(arch_dir, num_dirs, num_files))
-    return;
-
-  if (!num_files)
-  {
-    eos_err("archive sub-tree=%s does not contain any files", arch_dir.c_str());
-    stdErr = "error: archive sub-tree does not contain any files";
-    retc = EINVAL;
-    return;
-  }
-
   if (MakeSubTreeImmutable(arch_dir, vect_files))
     return;
 
   // Open temporary file in which we construct the archive file
-  std::ostringstream sstr;
-  sstr << "/tmp/eos.mgm/archive." << XrdSysThread::ID();
-  std::string arch_fn = sstr.str();
+  std::ostringstream oss;
+  oss << "/tmp/eos.mgm/archive." << XrdSysThread::ID();
+  std::string arch_fn = oss.str();
   std::ofstream arch_ofs(arch_fn.c_str());
 
   if (!arch_ofs.is_open())
@@ -777,7 +766,8 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
     return;
   }
 
-  // Write archive JSON header
+  // Write archive JSON header leaving blank the fields for the number of
+  // files/dirs and timestamp which will be filled in later on
   arch_ofs << "{"
            << "\"src\": \"" << "root://" << gOFS->ManagerId << "/" << arch_dir << "\", "
            << "\"dst\": \"" << dst_url << "\", "
@@ -785,32 +775,49 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
            << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
            << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
            << "\"mode\", \"xstype\", \"xs\"], "
-           << "\"num_dirs\": " << num_dirs << ", "
-           << "\"num_files\": " << num_files << ", "
+           << "\"num_dirs\": " << std::setw(10) << "" << ", "
+           << "\"num_files\": " << std::setw(10) << "" << ", "
            << "\"uid\": \"" << pVid->uid << "\", "
            << "\"gid\": \"" << pVid->gid << "\", "
-           << "\"timestamp\": \"" << time(static_cast<time_t*>(0)) << "\" "
+           << "\"timestamp\": " << std::setw(10) << ""
            << "}" << std::endl;
 
   // Add directories info
-  if (ArchiveAddEntries(arch_dir, arch_ofs, false))
+  if (ArchiveAddEntries(arch_dir, arch_ofs, num_dirs, false) || true)
   {
+    MakeSubTreeMutable(arch_dir);
     arch_ofs.close();
     unlink(arch_fn.c_str());
     return;
   }
 
   // Add files info
-  if (ArchiveAddEntries(arch_dir, arch_ofs, true))
+  if (ArchiveAddEntries(arch_dir, arch_ofs, num_files, true) || (num_files == 0))
   {
+    MakeSubTreeMutable(arch_dir);
     arch_ofs.close();
     unlink(arch_fn.c_str());
     return;
   }
 
+  // Rewind the stream and update the header with the number of files and dirs
+  num_dirs--; // don't count current dir
+  arch_ofs.seekp(0);
+  arch_ofs << "{"
+           << "\"src\": \"" << "root://" << gOFS->ManagerId << "/" << arch_dir << "\", "
+           << "\"dst\": \"" << dst_url << "\", "
+           << "\"svc_class\": \"" << gOFS->MgmArchiveSvcClass << "\", "
+           << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
+           << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
+           << "\"mode\", \"xstype\", \"xs\"], "
+           << "\"num_dirs\": " << std::setw(10) << num_dirs << ", "
+           << "\"num_files\": " << std::setw(10) << num_files << ", "
+           << "\"uid\": \"" << pVid->uid << "\", "
+           << "\"gid\": \"" << pVid->gid << "\", "
+           << "\"timestamp\": " << std::setw(10) << time(static_cast<time_t*>(0))
+           << "}" << std::endl;
   arch_ofs.close();
 
-  // TODO: adapt the CopyProcess to XRootD 4.0
   // Copy local archive file to archive directory in EOS
   struct XrdCl::JobDescriptor copy_job;
   copy_job.source.SetProtocol("file");
@@ -853,7 +860,8 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   {
     eos::common::Mapping::VirtualIdentity_t root_ident;
     eos::common::Mapping::Root(root_ident);
-    std::ostringstream oss;
+    oss.clear();
+    oss.str("");
     oss << gOFS->MgmProcArchivePath << "/" << fid;
 
     if (gOFS->_touch(oss.str().c_str(), *mError, root_ident))
@@ -874,6 +882,7 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
                                   const std::vector<std::string>& vect_files)
 {
   bool found_archive = false;
+  // Map of directories to set of files
   std::map< std::string, std::set<std::string> > found;
 
   // Check for already archived directories in the current sub-tree
@@ -910,15 +919,15 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
     return retc;
   }
 
-  // Make the EOS sub-tree immutable e.g.: sys.acl=z:i
+  // Make the EOS sub-tree immutable e.g.: add sys.acl=z:i
   eos::common::Mapping::VirtualIdentity_t root_ident;
   eos::common::Mapping::Root(root_ident);
+  const char* acl_key = "sys.acl";
+  XrdOucString acl_val;
 
   for (auto it = found.begin(); it != found.end(); ++it)
   {
-    // Append the immutable flag to the current acls
-    const char* acl_key = "sys.acl";
-    XrdOucString acl_val = "";
+    acl_val = "";
 
     if (!gOFS->_attr_get(it->first.c_str(), *mError, *pVid,
                          (const char*) 0, acl_key, acl_val))
@@ -929,22 +938,20 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
       if (pos_z != STR_NPOS)
       {
         if (acl_val.find('i', pos_z + 2) == STR_NPOS)
-          acl_val.insert(pos_z + 2, 'i');
+          acl_val.insert('i', pos_z + 2);
       }
       else
-     {
-       acl_val += ",z:i";
-     }
+        acl_val += ",z:i";
     }
     else
-    {
       acl_val = "z:i";
-    }
+
+    eos_debug("acl_key=%s, acl_val=%s", acl_key, acl_val.c_str());
 
     if (gOFS->_attr_set(it->first.c_str(), *mError, root_ident,
                          (const char*) 0, acl_key, acl_val.c_str()))
     {
-      stdErr = "error: making EOS subtree immutable, path=";
+      stdErr = "error: making EOS subtree immutable, dir=";
       stdErr += arch_dir.c_str();
       retc = mError->getErrInfo();
       break;
@@ -955,74 +962,100 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
 }
 
 
-//------------------------------------------------------------------------------
-// Get number of entries(files/directories) in the archive subtree
-// i.e. run "find --count /dir/"
-//------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+// Make EOS sub-tree mutable by removing the sys.acl=z:i rule from all of the
+// directories in the sub-tree.
+//----------------------------------------------------------------------------
 int
-ProcCommand::ArchiveGetNumEntries(const std::string& arch_dir,
-                                  int& num_dirs,
-                                  int& num_files)
+ProcCommand::MakeSubTreeMutable(const std::string& arch_dir)
 {
-  int nread = 0;
-  XrdSfsFileOffset offset = 0;
-  XrdSfsXferSize sz_buf = 4096;
-  char buffer[sz_buf + 1];
-  std::string rstr = "";
-  ProcCommand* cmd_count = new ProcCommand();
-  XrdOucString info = "&mgm.cmd=find&mgm.path=";
-  info += arch_dir.c_str();
-  info += "&mgm.option=Z";
-  cmd_count->open("/proc/user", info.c_str(), *pVid, mError);
+  std::map< std::string, std::set<std::string> > found;
 
-  // Response should be short
-  while ((nread = cmd_count->read(offset, buffer, sz_buf)))
+  // Get all dirs in current subtree
+  if (gOFS->_find(arch_dir.c_str(), *mError, stdErr, *pVid, found,
+                 (const char*) 0, (const char*) 0))
   {
-    buffer[nread] = '\0';
-    rstr += buffer;
-    offset += nread;
-  }
-
-  int ret = cmd_count->close();
-  delete cmd_count;
-
-  if (ret)
-  {
-    eos_err("find --count on directory=%s failed", arch_dir.c_str());
-    stdErr = "error: find --count on directory failed";
-    retc = ret;
+    eos_err("dir=%s list all err=%s", arch_dir.c_str(), stdErr.c_str());
+    retc = errno;
     return retc;
   }
 
-  size_t spos = 0;
-  XrdOucEnv renv(rstr.c_str());
-  std::istringstream sstream(renv.Get("mgm.proc.stdout"));
-  std::string sfiles, sdirs;
-  sstream >> sfiles >> sdirs;
-  std::string tag = "nfiles=";
+  // Make the EOS sub-tree mutable e.g.: remove sys.acl=z:i
+  eos::common::Mapping::VirtualIdentity_t root_ident;
+  eos::common::Mapping::Root(root_ident);
+  const char* acl_key = "sys.acl";
+  XrdOucString acl_val;
+  std::string new_acl;
 
-  if ((spos = sfiles.find(tag)) == 0)
+  for (auto it = found.begin(); it != found.end(); ++it)
   {
-    num_files = atoi(sfiles.substr(tag.length()).c_str());
-  }
-  else
-  {
-    stdErr = "error: nfiles not found";
-    retc = ENOENT;
-    return retc;
-  }
+    acl_val = "";
 
-  tag = "ndirectories=";
+    if (!gOFS->_attr_get(it->first.c_str(), *mError, *pVid,
+                         (const char*) 0, acl_key, acl_val))
+    {
+      std::istringstream iss(acl_val.c_str());
+      std::string rule;
+      new_acl = "";
 
-  if ((spos = sdirs.find(tag)) == 0)
-  {
-    num_dirs = atoi(sdirs.substr(tag.length()).c_str());
-    num_dirs -= 1;  // don't count current dir
-  }
-  else
-  {
-    stdErr = "error: ndirectories not found";
-    retc = ENOENT;
+      while (std::getline(iss, rule, ','))
+      {
+        if (rule.find("z:") == 0)
+        {
+          rule.erase(rule.find('i'), 1);
+
+          if (rule.length() > 2)
+          {
+            new_acl += rule;
+            new_acl += ',';
+          }
+        }
+        else
+        {
+          // Don' modify the rest of the rules
+          new_acl += rule;
+          new_acl += ',';
+        }
+      }
+
+      // Remove last comma
+      if (new_acl.length())
+        new_acl.erase(new_acl.length() - 1);
+
+      acl_val = new_acl.c_str();
+    }
+    else
+    {
+      eos_warning("Dir=%s no xattrs", it->first.c_str());
+      continue;
+    }
+
+    eos_debug("acl_key=%s, acl_val=%s", acl_key, acl_val.c_str());
+
+    // Update the new sys.acl xattr
+    if (acl_val.length())
+    {
+      if (gOFS->_attr_set(it->first.c_str(), *mError, root_ident,
+                          (const char*) 0, acl_key, acl_val.c_str()))
+      {
+        stdErr = "error: making EOS subtree mutable (update sys.acl), dir=";
+        stdErr += arch_dir.c_str();
+        retc = mError->getErrInfo();
+        break;
+      }
+    }
+    else
+    {
+      // Completely remove the sys.acl xattr
+      if (gOFS->_attr_rem(it->first.c_str(), *mError, root_ident,
+                          (const char*) 0, acl_key))
+      {
+        stdErr = "error: making EOS subtree mutable (rm sys.acl), dir=";
+        stdErr += arch_dir.c_str();
+        retc = mError->getErrInfo();
+        break;
+      }
+    }
   }
 
   return retc;
@@ -1035,8 +1068,9 @@ ProcCommand::ArchiveGetNumEntries(const std::string& arch_dir,
 int
 ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
                                std::ofstream& arch_ofs,
-                               bool is_file)
+                               int& num, bool is_file)
 {
+  num = 0;
   std::map<std::string, std::string> info_map;
   std::map<std::string, std::string> attr_map; // only for dirs
 
@@ -1123,6 +1157,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     if (line.find("&mgm.proc.stdout=") == 0)
       line.erase(0, 17);
 
+    num++;
     line_iss.clear();
     line_iss.str(line);
 
