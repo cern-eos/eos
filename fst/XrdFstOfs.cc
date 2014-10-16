@@ -25,7 +25,7 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-#include "fst/FmdSqlite.hh"
+#include "fst/FmdDbMap.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
@@ -252,8 +252,8 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
   }
   eos_static_warning("op=shutdown msg=\"stop messaging\"");
 
-  eos_static_warning("%s", "op=shutdown msg=\"shutdown fmdsqlite handler\"");
-  gFmdSqliteHandler.Shutdown();
+  eos_static_warning("%s", "op=shutdown msg=\"shutdown fmddbmap handler\"");
+  gFmdDbMapHandler.Shutdown();
   kill(watchdog,9);
 
 #ifdef __APPLE__
@@ -263,7 +263,7 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
   wait();
 #endif
 
-  eos_static_warning("%s", "op=shutdown status=sqliteclosed");
+  eos_static_warning("%s", "op=shutdown status=dbmapclosed");
 
   // sync & close all file descriptors
   eos::common::SyncAll::AllandClose();
@@ -787,7 +787,7 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
 	  goto again;
 	}
       gOFS.Emsg(epname, *error, ECOMM, msg.c_str(), path);
-    }
+  }
   }
 
   if ( response && return_result )
@@ -1026,7 +1026,7 @@ XrdFstOfs::rem (const char* path,
 
     return gOFS.Emsg(epname, error, caprc, "remove - capability illegal", path);
   }
-  
+
   int envlen;
 
   if (capOpaque)
@@ -1119,7 +1119,7 @@ XrdFstOfs::_rem (const char* path,
 
     if (rc)
       eos_info("rc=%d errno=%d", rc, errno);
-  }
+    }
 
   if (ignoreifnotexist)
   {
@@ -1139,7 +1139,7 @@ XrdFstOfs::_rem (const char* path,
     return rc;
   }
 
-  if (!gFmdSqliteHandler.DeleteFmd(fid, fsid))
+  if (!gFmdDbMapHandler.DeleteFmd(fid, fsid))
   {
     eos_notice("unable to delete fmd for fid %llu on filesystem %lu", fid, fsid);
     return gOFS.Emsg(epname, error, EIO, "delete file meta data ", fstPath.c_str());
@@ -1270,7 +1270,7 @@ XrdFstOfs::FSctl (const int cmd,
 
       unsigned long long fileid = eos::common::FileId::Hex2Fid(afid);
       unsigned long fsid = atoi(afsid);
-      FmdSqlite* fmd = gFmdSqliteHandler.GetFmd(fileid, fsid, 0, 0, 0, false, true);
+      FmdHelper* fmd = gFmdDbMapHandler.GetFmd(fileid, fsid, 0, 0, 0, false, true);
 
       if (!fmd)
       {
@@ -1280,7 +1280,7 @@ XrdFstOfs::FSctl (const int cmd,
         return SFS_DATA;
       }
 
-      XrdOucEnv* fmdenv = fmd->FmdSqliteToEnv();
+      XrdOucEnv* fmdenv = fmd->FmdToEnv();
       int envlen;
       XrdOucString fmdenvstring = fmdenv->Env(envlen);
       delete fmdenv;

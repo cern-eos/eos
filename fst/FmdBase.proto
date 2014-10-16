@@ -1,0 +1,27 @@
+package eos.fst;
+
+message FmdBase {
+  optional fixed64 fid = 1; //< fileid
+  optional fixed64 cid = 2; //< container id (e.g. directory id)
+  optional fixed32 fsid = 3; //< filesystem id
+  optional fixed32 ctime = 4; //< creation time
+  optional fixed32 ctime_ns = 5; //< ns of creation time
+  optional fixed32 mtime = 6; //< modification time | deletion time
+  optional fixed32 mtime_ns = 7; //< ns of modification time
+  optional fixed32 atime = 8; //< access time
+  optional fixed32 atime_ns = 9; //< ns of access time
+  optional fixed32 checktime = 10; //< time of last checksum scan
+  optional fixed64 size = 11; //< size              - 0xfffffff1ULL means it is still undefined
+  optional fixed64 disksize = 12; //< size on disk      - 0xfffffff1ULL means it is still undefined
+  optional fixed64 mgmsize = 13; //< size on the MGM   - 0xfffffff1ULL means it is still undefined
+  optional string checksum = 14; //< checksum in hex representation
+  optional string diskchecksum = 15; //< checksum in hex representation
+  optional string mgmchecksum = 16; //< checksum in hex representation
+  optional fixed32 lid = 17; //< layout id
+  optional fixed32 uid = 18; //< user  id
+  optional fixed32 gid = 19; //< roup id
+  optional sint64 filecxerror = 20; //< indicator for file checksum error
+  optional sint64 blockcxerror = 21 ; //< indicator for block checksum error
+  optional sint64 layouterror = 22; //< indicator for resync errors e.g. the mgm layout information is inconsistent e.g. only 1 of 2 replicas exist
+  optional string locations = 23; //< fsid list with locations e.g. 1,2,3,4,10
+}

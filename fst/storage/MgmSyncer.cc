@@ -81,15 +81,15 @@ Storage::MgmSyncer ()
       struct Fmd fmd = gOFS.WrittenFilesQueue.front();
       gOFS.WrittenFilesQueueMutex.UnLock();
 
-      eos_static_info("fid=%llx mtime=%llu", fmd.fid, fmd.ctime);
+      eos_static_info("fid=%llx mtime=%llu", fmd.fid(), fmd.ctime());
 
       // guarantee that we delay the check by atleast 60 seconds to wait for the commit of all recplias
 
-      if ((time_t) (fmd.mtime + 60) > now)
+      if ((time_t) (fmd.mtime() + 60) > now)
       {
-        eos_static_debug("msg=\"postpone mgm sync\" delay=%d", (fmd.mtime + 60) - now);
+        eos_static_debug("msg=\"postpone mgm sync\" delay=%d", (fmd.mtime() + 60) - now);
         XrdSysTimer sleeper;
-        sleeper.Snooze(((fmd.mtime + 60) - now));
+        sleeper.Snooze(((fmd.mtime() + 60) - now));
         gOFS.WrittenFilesQueueMutex.Lock();
         continue;
       }
@@ -98,9 +98,9 @@ Storage::MgmSyncer ()
 
       // check if someone is still writing on that file
       gOFS.OpenFidMutex.Lock();
-      if (gOFS.WOpenFid[fmd.fsid].count(fmd.fid))
+      if (gOFS.WOpenFid[fmd.fsid()].count(fmd.fid()))
       {
-        if (gOFS.WOpenFid[fmd.fsid][fmd.fid] > 0)
+        if (gOFS.WOpenFid[fmd.fsid()][fmd.fid()] > 0)
         {
           isopenforwrite = true;
         }
@@ -110,15 +110,15 @@ Storage::MgmSyncer ()
       if (!isopenforwrite)
       {
         // now do the consistency check
-        if (gFmdSqliteHandler.ResyncMgm(fmd.fsid, fmd.fid, manager.c_str()))
+        if (gFmdDbMapHandler.ResyncMgm(fmd.fsid(), fmd.fid(), manager.c_str()))
         {
-          eos_static_debug("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) fmd.fsid, fmd.fid);
+          eos_static_debug("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) fmd.fsid(), fmd.fid());
           gOFS.WrittenFilesQueueMutex.Lock();
           gOFS.WrittenFilesQueue.pop();
         }
         else
         {
-          eos_static_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) fmd.fsid, fmd.fid);
+          eos_static_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) fmd.fsid(), fmd.fid());
           failure = true;
           gOFS.WrittenFilesQueueMutex.Lock(); // put back the lock
           break;

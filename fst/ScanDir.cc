@@ -331,7 +331,7 @@ ScanDir::CheckFile (const char* filepath)
           {
             XrdOucString manager = "";
             // ask the meta data handling class to update the error flags for this file
-            gFmdSqliteHandler.ResyncDisk(filePath.c_str(), fsId, false);
+            gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
             {
               XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
               manager = eos::fst::Config::gConfig.Manager.c_str();
@@ -345,7 +345,7 @@ ScanDir::CheckFile (const char* filepath)
               {
                 // call the autorepair method on the MGM
                 // if the MGM has autorepair disabled it won't do anything
-                gFmdSqliteHandler.CallAutoRepair(manager.c_str(), fid);
+                gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
               }
             }
           }
@@ -629,14 +629,14 @@ ScanDir::ScanFileLoadAware (const char* path, unsigned long long &scansize, floa
   }
 
   blockXS = GetBlockXS(fileXSPath.c_str());
-
+ 
   if ((!normalXS) && (!blockXS))
   {
     // there is nothing to do here
     close(fd);
     return false;
   }
-
+ 
   if (normalXS) normalXS->Reset();
 
   int nread = 0;

@@ -21,49 +21,42 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(./ 
-		    ../../   
-                    ${PROTOBUF_INCLUDE_DIRS}
-		    ${CMAKE_CURRENT_BINARY_DIR}
+include_directories( 
+            ${PROTOBUF_INCLUDE_DIRS}
 		    ${XROOTD_INCLUDE_DIR} 
 		    ${XROOTD_PRIVATE_INCLUDE_DIR}
-                    ${UUID_INCLUDE_DIRS})
+            ${UUID_INCLUDE_DIRS})
 
 link_directories(${PROTOBUF_LIBRARIES}
 		 ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
 		 ${XROOTD_LIB_DIR}
 		 ${UUID_LIBRARIES}) 
 
-IF(PROTOBUF_FOUND)
-	PROTOBUF_GENERATE_CPP(CONFIG_SRCS CONFIG_HDRS PROTOFILES ConfigProto.proto)
-	PROTOBUF_GENERATE_CPP(RESULT_SRCS RESULT_HDRS PROTOFILES ResultProto.proto)
+set_source_generating_rules()
 
-	ADD_EXECUTABLE(eos-benchmark 
-    		       eosbenchmark.cc     eosbenchmark.hh
-     	       	       Configuration.cc    Configuration.hh
+ADD_EXECUTABLE(eos-benchmark 
+   		       eosbenchmark.cc     eosbenchmark.hh
+       	       Configuration.cc    Configuration.hh
 		       DirEos.cc           DirEos.hh
-      	       	       FileEos.cc          FileEos.hh
-       	       	       Result.cc           Result.hh
-      	       	       ProtoIo.cc          ProtoIo.hh
-      	       	       ../../common/StringConversion.cc
-       	       	       ../../common/StringConversion.hh
+       	       FileEos.cc          FileEos.hh
+       	       Result.cc           Result.hh
+       	       ProtoIo.cc          ProtoIo.hh
+       	       ../../common/StringConversion.cc
+       	       ../../common/StringConversion.hh
 		       ../../fst/io/FileIoPlugin.cc		       
-       	       	       ${CONFIG_SRCS}      ${CONFIG_HDRS}
-      	       	       ${RESULT_SRCS}      ${RESULT_HDR}) 
+       	       ConfigProto.pb.cc      ConfigProto.pb.h
+       	       ResultProto.pb.cc      ResultProto.pb.h) 
 
-        TARGET_LINK_LIBRARIES(eos-benchmark
-			      XrdCl 
-	      	      	      EosFstIo-Static
- 		      	      ${PROTOBUF_LIBRARIES} 
-	      	      	      ${UUID_LIBRARIES} 
-	      	      	      ${CMAKE_THREAD_LIBS_INIT})
+TARGET_LINK_LIBRARIES(eos-benchmark
+             	      XrdCl 
+	      	   	      EosFstIo-Static
+ 		     	      ${PROTOBUF_LIBRARIES} 
+	      	   	      ${UUID_LIBRARIES} 
+	      	   	      ${CMAKE_THREAD_LIBS_INIT})
 
-        INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR}
+INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR}
                   FILES 
-                  eos-benchmark
-)
-
-ENDIF(PROTOBUF_FOUND)
+                  eos-benchmark)
 
 
 

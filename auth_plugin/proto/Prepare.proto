@@ -1,8 +1,8 @@
 package eos.auth;
 
-import "proto/XrdOucErrInfo.proto";
-import "proto/XrdSecEntity.proto";
-import "proto/XrdSfsPrep.proto";
+import "XrdOucErrInfo.proto";
+import "XrdSecEntity.proto";
+import "XrdSfsPrep.proto";
 
 //------------------------------------------------------------------------------
 // Prepare request protocol buffer message 

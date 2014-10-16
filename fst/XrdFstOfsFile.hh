@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //! @file: XrdFstOfsFile.hh
 //! @author: Andreas-Joachim Peters - CERN
-//! @brief
+//! @brief 
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -35,7 +35,7 @@
 #include "common/SecEntity.hh"
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
-#include "fst/FmdSqlite.hh"
+#include "fst/FmdDbMap.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
@@ -48,7 +48,7 @@ EOSFSTNAMESPACE_BEGIN;
 // This defines for reports what is a large seek e.g. > 128 kB = default RA size
 #define EOS_FSTOFS_LARGE_SEEKS 128*1024ll
 
-// Forward declaration
+// Forward declaration 
 class Layout;
 
 //------------------------------------------------------------------------------
@@ -64,7 +64,7 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId {
 public:
 
   static const uint16_t msDefaultTimeout; ///< default timeout value
-
+  
   //--------------------------------------------------------------------------
   // Constructor
   //--------------------------------------------------------------------------
@@ -76,7 +76,7 @@ public:
   //--------------------------------------------------------------------------
   virtual ~XrdFstOfsFile ();
 
-  
+
   //----------------------------------------------------------------------------
   //! Execute special operation on the file (version 2)
   //!
@@ -123,7 +123,7 @@ public:
   time_t GetMtime ()
   {
     if (fMd)
-      return fMd->fMd.mtime;
+      return fMd->fMd.mtime();
     else
       return 0;
   }
@@ -184,7 +184,7 @@ public:
 
 
   //--------------------------------------------------------------------------
-  //! 
+  //!
   //--------------------------------------------------------------------------
   int read (XrdSfsAio* aioparm);
 
@@ -288,7 +288,7 @@ public:
   //--------------------------------------------------------------------------
   //! Check if the TpcKey is still valid e.g. member of gOFS.TpcMap
   //--------------------------------------------------------------------------
-  bool TpcValid ();
+  bool TpcValid (); 
 
   //--------------------------------------------------------------------------
   //! return the file size seen at open time
@@ -320,7 +320,7 @@ public:
       delete tmpSum;
     }
   }
-  
+
 protected:
   XrdOucEnv* openOpaque;
   XrdOucEnv* capOpaque;
@@ -375,7 +375,7 @@ protected:
 
   bool isOCchunk; //! indicator this is an OC chunk upload
 
-  int writeErrorFlag; //! uses kOFSxx enums to specify an error condition
+  int writeErrorFlag; //! uses kOFSxx enums to specify an error condition 
 
   enum {
     kTpcNone = 0, //! no TPC access
@@ -386,17 +386,17 @@ protected:
   };
 
   int tpcFlag; //! uses kTpcXYZ enums above to identify TPC access
-
+  
   enum {
     kTpcIdle = 0, //! TPC is not enabled and not running (no sync received)
     kTpcEnabled = 1, //! TPC is enabled, but not running (1st sync received)
     kTpcRun = 2, //! TPC is running (2nd sync received)
     kTpcDone = 3, //! TPC has finished
   };
-
+  
   int tpcState; //! uses kTPCXYZ enumgs above to tag the TPC state
-
-  FmdSqlite* fMd; //! pointer to the in-memory file meta data object
+  
+  FmdHelper* fMd; //! pointer to the in-memory file meta data object             
   eos::fst::CheckSum* checkSum; //! pointer to a checksum object
   Layout* layOut; //! pointer to a layout object
 

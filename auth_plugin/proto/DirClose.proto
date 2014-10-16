@@ -1,6 +1,6 @@
 package eos.auth;
 
-import "proto/XrdSecEntity.proto";
+import "XrdSecEntity.proto";
 
 //------------------------------------------------------------------------------
 // DirClose request protocol buffer message 

@@ -30,6 +30,8 @@ include_directories(
 		     ${Z_INCLUDE_DIR}
 )
 
+set_source_generating_rules()
+
 if(LEVELDB_FOUND)
 include_directories(
                      ${LEVELDB_INCLUDE_DIR}
@@ -37,6 +39,7 @@ include_directories(
 endif(LEVELDB_FOUND)
 
 link_directories( 
+          ${PROTOBUF_LIBRARIES}  
 		  ${CMAKE_INSTALL_FULL_LIBDIR}
 		  ${XROOTD_LIB_DIR} 
 		  ${LEVELDB_LIB_DIR}
@@ -78,6 +81,7 @@ add_library (eosCommon-Static STATIC
 
 add_executable ( dbmaptestfunc
        dbmaptest/DbMapTestFunc.cc
+       dbmaptest/test.pb.cc
 )
 add_executable ( dbmaptestburn
        dbmaptest/DbMapTestBurn.cc
@@ -95,19 +99,22 @@ add_library (eosCommonServer SHARED
             TransferJob.cc
             sqlite/sqlite3.c
             DbMap.cc
+            DbMapSqlite.cc
+            DbMapLevelDb.cc
+            DbMapCommon.cc
             http/HttpServer.cc
             http/HttpRequest.cc
             http/HttpResponse.cc
             http/s3/S3Handler.cc
             stringencoders/modp_numtoa.c
             )
-
 if( MacOSX )
 target_link_libraries ( eosCommon 
                         XrdMqClient 
                         XrdUtils 
                         XrdCl 
                         crypto 
+                        rt
                         ${UUID_LIBRARIES} 
                         ${NCURSES_LIBRARIES}
                         ${Z_LIBRARIES} 
@@ -122,7 +129,7 @@ target_link_libraries ( eosCommonServer
                         ${UUID_LIBRARIES} 
                         ${NCURSES_LIBRARIES}
                         ${Z_LIBRARIES} 
-                        ${ATTR_LIBRARIES} )
+                        ${ATTR_LIBRARIES}  )
 else( MacOSX )
 target_link_libraries ( eosCommon 
                         XrdMqClient 
@@ -172,7 +179,7 @@ if (MICROHTTPD_FOUND)
 target_link_libraries ( eosCommonServer ${MICROHTTPD_LIBRARIES} ) 
 endif(MICROHTTPD_FOUND)
 
-target_link_libraries ( dbmaptestfunc eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries ( dbmaptestfunc eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT} ${PROTOBUF_LIBRARIES} )
 target_link_libraries ( dbmaptestburn eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries ( mutextest eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 
@@ -196,7 +203,7 @@ if (Linux)
   )
 
 endif(Linux)
-
+  
 if (CLIENT)
   
 install ( TARGETS eosCommon eosCommonServer

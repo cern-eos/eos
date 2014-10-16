@@ -23,6 +23,7 @@
 
 include_directories( ${PROJECT_SOURCE_DIR}
 		     ${CMAKE_CURRENT_SOURCE_DIR}
+             ${PROTOBUF_INCLUDE_DIRS}
                      ${XROOTD_INCLUDE_DIR} 
                      ${XROOTD_PRIVATE_INCLUDE_DIR}
                      ${SPARSEHASH_INCLUDE_DIR}
@@ -30,8 +31,10 @@ include_directories( ${PROJECT_SOURCE_DIR}
 		     ${Z_INCLUDE_DIR}
 )
 
-link_directories( ${XROOTD_LIB_DIR}
-		  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR} )
+link_directories( ${PROTOBUF_LIBRARIES} ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
+                  ${XROOTD_LIB_DIR} )
+
+set_source_generating_rules()
 
 # Add the tests if CppUnit is present
 if (CPPUNIT_FOUND)
@@ -55,6 +58,7 @@ target_link_libraries( EosFstOss
 
 
 add_library( EosFstIo-Static STATIC
+         ../fst/FmdBase.pb.h
   	     io/FileIoPlugin.hh             io/FileIoPlugin.cc
 	     io/FileIo.hh 
   	     io/LocalIo.cc                  io/LocalIo.hh
@@ -80,6 +84,7 @@ add_library( EosFstIo-Static STATIC
 	     layout/jerasure/galois.cc	        layout/jerasure/galois.hh
 	     layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
 )
+add_dependencies( EosFstIo-Static protbuf_gen_files)
 
 target_link_libraries( EosFstIo-Static
 		       eosCommon-Static
@@ -178,7 +183,7 @@ add_library( XrdEosFst SHARED
 	     layout/jerasure/galois.cc	        layout/jerasure/galois.hh
 	     layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
 )
-
+										       
 
 target_link_libraries( XrdEosFst 
 		       eosCommon
@@ -229,7 +234,12 @@ add_library( XrdEosFst MODULE
 	     txqueue/TransferMultiplexer.cc
 	     txqueue/TransferJob.cc
 	     txqueue/TransferQueue.cc
+         ../fst/FmdBase.pb.h
+         ../fst/FmdBase.pb.cc
+             Fmd.cc
+	     FmdHandler.cc
 	     FmdSqlite.cc
+	     FmdDbMap.cc
 	     FmdClient.cc 
          http/HttpServer.cc
          http/HttpHandler.cc
@@ -251,6 +261,7 @@ target_link_libraries( XrdEosFst
 		       dl                      ${Z_LIBRARIES}  
 		       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
 		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
+               ${PROTOBUF_LIBRARIES}
 )
 endif (CLIENT)
 
@@ -279,7 +290,12 @@ add_executable( eos-compute-blockxs
 add_executable( eos-scan-fs 
                 ScanDir.cc
                 tools/ScanXS.cc
+                Fmd.cc
+                FmdHandler.cc
 		FmdSqlite.cc
+                ../fst/FmdBase.pb.h
+                ../fst/FmdBase.pb.cc
+	            FmdDbMap.cc
 		FmdClient.cc
 		checksum/Adler.cc
                 checksum/CheckSum.cc
@@ -311,7 +327,7 @@ set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
 target_link_libraries( FstLoad XrdUtils dl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-compute-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries( eos-scan-fs eosCommon eosCommonServer XrdCl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
+target_link_libraries( eos-scan-fs eosCommon eosCommonServer XrdCl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${PROTOBUF_LIBRARIES} ) 
 target_link_libraries( eos-adler32 eosCommon ${CMAKE_THREAD_LIBS_INIT} ) 
 
 if (MacOSX)

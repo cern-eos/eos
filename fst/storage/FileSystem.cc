@@ -78,7 +78,7 @@ FileSystem::~FileSystem ()
   // we call the FmdSqliteHandler shutdown function for this filesystem
   // ----------------------------------------------------------------------------
 
-  gFmdSqliteHandler.ShutdownDB(GetId());
+  gFmdDbMapHandler.ShutdownDB(GetId());
 
   // ----------------------------------------------------------------------------
   // @todo we accept this tiny memory leak to be able to let running 
@@ -109,8 +109,8 @@ FileSystem::BroadcastError (const char* msg)
 
   if(!shutdown) 
   {
-    SetStatus(eos::common::FileSystem::kOpsError);
-    SetError(errno ? errno : EIO, msg);
+  SetStatus(eos::common::FileSystem::kOpsError);
+  SetError(errno ? errno : EIO, msg);
   }
 }
 
@@ -127,9 +127,9 @@ FileSystem::BroadcastError (int errc, const char* errmsg)
 
   if (!shutdown) 
   {
-    SetStatus(eos::common::FileSystem::kOpsError);
-    SetError(errno ? errno : EIO, errmsg);
-  }
+  SetStatus(eos::common::FileSystem::kOpsError);
+  SetError(errno ? errno : EIO, errmsg);
+}
 }
 
 /*----------------------------------------------------------------------------*/
@@ -186,15 +186,16 @@ FileSystem::CleanTransactions ()
           }
         }
 
-	if ((buf.st_mtime < (time(NULL) - (7 * 86400))) && (!isOpen))
+        if ((buf.st_mtime < (time(NULL) - (7 * 86400))) && (!isOpen))
         {
 
-	  FmdSqlite* fMd = 0;
-	  fMd = gFmdSqliteHandler.GetFmd(fileid, GetId(), 0, 0, 0, 0, true);
+	  FmdHelper* fMd = 0;
+
+	  fMd = gFmdDbMapHandler.GetFmd(fileid, GetId(), 0, 0, 0, 0, true);
 
 	  if (fMd) 
 	  {
-	    std::set<eos::common::FileSystem::fsid_t> location_set = FmdSqlite::GetLocations(fMd->fMd);
+	    std::set<eos::common::FileSystem::fsid_t> location_set = FmdHelper::GetLocations(fMd->fMd);
 	    if (location_set.count(GetId()))
 	    {
 	      // close that transaction and keep the file
@@ -268,8 +269,8 @@ FileSystem::SyncTransactions (const char* manager)
         unsigned long long fid = eos::common::FileId::Hex2Fid(hexfid.c_str());
 
 	// try to sync this file from the MGM
-	if (gFmdSqliteHandler.ResyncMgm(GetId(), fid, manager))
-	{
+	if (gFmdDbMapHandler.ResyncMgm(GetId(), fid, manager))
+        {
 	  eos_static_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) GetId(), fid);
 	}
 	else
@@ -277,7 +278,7 @@ FileSystem::SyncTransactions (const char* manager)
 	  eos_static_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) GetId(), fid);
 	  ok=false;
 	  continue;
-	}
+        }
       }
     }
     closedir(tdir);
@@ -299,7 +300,7 @@ FileSystem::RunScanner (Load* fstLoad, time_t interval)
   {
     delete scanDir;
   }
-  
+
   // create the object running the scanner thread
   scanDir = new ScanDir(GetPath().c_str(), GetId(), fstLoad, true, interval);
   eos_info("Started 'ScanDir' thread with interval time of %u seconds",

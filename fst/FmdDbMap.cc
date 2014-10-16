@@ -1,6 +1,6 @@
-// ----------------------------------------------------------------------
-// File: FmdSqlite.cc
-// Author: Andreas-Joachim Peters - CERN
+// ------------- ---------------------------------------------------------
+// File: FmdDbMap.cc
+// Author: Geoffray Adde - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -20,17 +20,16 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
+
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "common/FileId.hh"
 #include "common/Path.hh"
 #include "common/Attr.hh"
-#include "fst/FmdSqlite.hh"
+#include "common/DbMap.hh"
+#include "fst/FmdDbMap.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-#include "fst/Fmd.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFileSystem.hh"
 /*----------------------------------------------------------------------------*/
@@ -44,85 +43,8 @@
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-FmdSqliteHandler gFmdSqliteHandler; //< static 
+FmdDbMapHandler gFmdDbMapHandler; //< static
 /*----------------------------------------------------------------------------*/
-
-
-/*----------------------------------------------------------------------------*/
-/** 
- * Callback function for SQLITE3 calls
- * 
- * @param see sqlite manual
- * 
- * @return fills qr_result vector
- */
-
-/*----------------------------------------------------------------------------*/
-int
-FmdSqliteHandler::CallBack (void *object, int argc, char **argv, char **ColName)
-{
-  FmdSqliteHandler* tx = (FmdSqliteHandler*) object;
-  int i = tx->Qr.size();
-  tx->Qr.resize(i + 1);
-  for (int k = 0; k < argc; k++)
-  {
-    tx->Qr[i][ColName[k]] = argv[k] ? argv[k] : "";
-    //    tx->Qr[i].swap(tx->Qr[i]);
-    //    tx->Qr[i][ColName[k]].swap(tx->Qr[i][ColName[k]]);
-  }
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-/** 
- * Specialized Callback function to fill the memory objects from the FST SQLITE3 select * 
- * 
- * @param see sqlite manual
- * 
- * @return fills FmdMap for the referenced filesystem
- */
-
-/*----------------------------------------------------------------------------*/
-int
-FmdSqliteHandler::ReadDBCallBack (void *object, int argc, char **argv, char **ColName)
-{
-  fs_callback_info_t* cbinfo = (fs_callback_info_t*) object;
-  // the object contains the particular map for the used <fsid> 
-
-  eos::fst::FmdSqliteHandler::qr_result_t Qr; // local variable!
-  Qr.resize(1);
-  // fill them into the Qr map
-  for (int k = 0; k < argc; k++)
-  {
-    Qr[0][ColName[k]] = argv[k] ? argv[k] : "";
-  }
-  eos::common::FileId::fileid_t fid = strtoull(Qr[0]["fid"].c_str(), 0, 10);
-
-  (*(cbinfo->fmdmap))[fid].set_fid(fid);
-  (*(cbinfo->fmdmap))[fid].set_fsid(cbinfo->fsid);
-  (*(cbinfo->fmdmap))[fid].set_cid(strtoull(Qr[0]["cid"].c_str(), 0, 10));
-  (*(cbinfo->fmdmap))[fid].set_ctime(strtoul(Qr[0]["ctime"].c_str(), 0, 10));
-  (*(cbinfo->fmdmap))[fid].set_ctime_ns(strtoul(Qr[0]["ctime_ns"].c_str(), 0, 10));
-  (*(cbinfo->fmdmap))[fid].set_mtime(strtoul(Qr[0]["mtime"].c_str(), 0, 10));
-  (*(cbinfo->fmdmap))[fid].set_mtime_ns(strtoul(Qr[0]["mtime_ns"].c_str(), 0, 10));
-  (*(cbinfo->fmdmap))[fid].set_atime(strtoul(Qr[0]["atime"].c_str(), 0, 10));
-  (*(cbinfo->fmdmap))[fid].set_atime_ns(strtoul(Qr[0]["atime_ns"].c_str(), 0, 10));
-  (*(cbinfo->fmdmap))[fid].set_checktime(strtoul(Qr[0]["checktime"].c_str(), 0, 10));
-  (*(cbinfo->fmdmap))[fid].set_size(strtoull(Qr[0]["size"].c_str(), 0, 10));
-  (*(cbinfo->fmdmap))[fid].set_disksize(strtoull(Qr[0]["disksize"].c_str(), 0, 10));
-  (*(cbinfo->fmdmap))[fid].set_mgmsize(strtoull(Qr[0]["mgmsize"].c_str(), 0, 10));
-  (*(cbinfo->fmdmap))[fid].set_checksum(Qr[0]["checksum"].c_str());
-  (*(cbinfo->fmdmap))[fid].set_diskchecksum(Qr[0]["diskchecksum"].c_str());
-  (*(cbinfo->fmdmap))[fid].set_mgmchecksum(Qr[0]["mgmchecksum"].c_str());
-  (*(cbinfo->fmdmap))[fid].set_lid(strtoul(Qr[0]["lid"].c_str(), 0, 10));
-  (*(cbinfo->fmdmap))[fid].set_uid(strtoul(Qr[0]["uid"].c_str(), 0, 10));
-  (*(cbinfo->fmdmap))[fid].set_gid(strtoul(Qr[0]["gid"].c_str(), 0, 10));
-  (*(cbinfo->fmdmap))[fid].set_filecxerror(atoi(Qr[0]["filecxerror"].c_str()));
-  (*(cbinfo->fmdmap))[fid].set_blockcxerror(atoi(Qr[0]["blockcxerror"].c_str()));
-  (*(cbinfo->fmdmap))[fid].set_layouterror(atoi(Qr[0]["layouterror"].c_str()));
-  (*(cbinfo->fmdmap))[fid].set_locations(Qr[0]["locations"].c_str());
-  return 0;
-}
 
 /*----------------------------------------------------------------------------*/
 /** 
@@ -137,40 +59,35 @@ FmdSqliteHandler::ReadDBCallBack (void *object, int argc, char **argv, char **Co
 
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString option)
+FmdDbMapHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString option)
 {
-  eos_debug("");
-
   bool isattached = false;
   {
     // we first check if we have already this DB open - in this case we first do a shutdown
     eos::common::RWMutexReadLock lock(Mutex);
-    if (DB.count(fsid))
+    if (dbmap.count(fsid))
     {
       isattached = true;
     }
   }
 
+  eos::common::RWMutexWriteLock lock(Mutex);
+
   if (isattached)
   {
     ShutdownDB(fsid);
   }
+  else
+    dbmap[fsid]=new eos::common::DbMap();
 
-  eos::common::RWMutexWriteLock lock(Mutex);
 
-  //! -when we successfully attach to an SQLITE3 DB we set the mode to S_IRUSR
-  //! -when we shutdown the daemon clean we set the mode back to S_IRWXU
-  //! -when we attach and the mode is S_IRUSR we know that the DB has not been shutdown properly and we set a 'dirty' flag to force a full resynchronization
-
-  if (!FmdMap.count(fsid))
-  {
-    FmdMap[fsid].set_empty_key(0xffffffffeULL);
-    FmdMap[fsid].set_deleted_key(0xffffffffULL);
-  }
+  //! -when we successfully attach to a DB we set the mode to S_IRWXU & ~S_IRGRP
+  //! -when we shutdown the daemon clean we set the mode back to S_IRWXU | S_IRGRP
+  //! -when we attach and the mode is S_IRWXU & ~S_IRGRP we know that the DB has not been shutdown properly and we set a 'dirty' flag to force a full resynchronization
 
   char fsDBFileName[1024];
-  sprintf(fsDBFileName, "%s.%04d.sql", dbfileprefix, fsid);
-  eos_info("SQLITE DB is now %s\n", fsDBFileName);
+  sprintf(fsDBFileName, "%s.%04d.%s", dbfileprefix, fsid, eos::common::DbMap::getDbType().c_str());
+  eos_info("%s DB is now %s\n", eos::common::DbMap::getDbType().c_str(), fsDBFileName);
 
   // store the DB file name
   DBfilename[fsid] = fsDBFileName;
@@ -178,16 +95,16 @@ FmdSqliteHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString op
   // check the mode of the DB
   struct stat buf;
   int src = 0;
-  if ((src = stat(fsDBFileName, &buf)) || ((buf.st_mode & S_IRWXU) != S_IRWXU))
+  if ((src = stat(fsDBFileName, &buf)) || ((buf.st_mode & S_IRGRP) != S_IRGRP))
   {
     isDirty[fsid] = true;
     stayDirty[fsid] = true;
-    eos_warning("setting sqlite3 file dirty - unclean shutdown detected");
+    eos_warning("setting %s file dirty - unclean shutdown detected", eos::common::DbMap::getDbType().c_str());
     if (!src)
     {
-      if (chmod(DBfilename[fsid].c_str(), S_IRWXU))
+      if (chmod(DBfilename[fsid].c_str(), S_IRWXU | S_IRGRP))
       {
-        eos_crit("failed to switch the sqlite3 database file mode to S_IRWXU errno=%d", errno);
+        eos_crit("failed to switch the %s database file mode to S_IRWXU | S_IRGRP errno=%d", eos::common::DbMap::getDbType().c_str(), errno);
       }
     }
   }
@@ -197,46 +114,27 @@ FmdSqliteHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString op
     stayDirty[fsid] = false;
   }
 
-  // run 'sqlite3' to commit a pending journal
-  std::string sqlite3cmd = "test -r ";
-  sqlite3cmd += fsDBFileName;
-  sqlite3cmd += " && sqlite3 ";
-  sqlite3cmd += fsDBFileName;
-  sqlite3cmd += " \"select count(*) from fst where 1;\"";
-  int rc = system(sqlite3cmd.c_str());
+  // create / or attach the db (try to repair if needed)
+#ifndef EOS_SQLITE_DBMAP
+    eos::common::LvDbDbMapInterface::Option *dbopt=&lvdboption;
+#endif
 
-  if (WEXITSTATUS(rc))
-  {
-    eos_warning("sqlite3 command execution failed");
+  if(!dbmap[fsid]->attachDb(fsDBFileName,true,0,dbopt)) {
+    eos_err("failed to attach %s database file %s", eos::common::DbMap::getDbType().c_str(), fsDBFileName);
+    return false;
   }
-  else
-  {
-    eos_info("msg=\"sqlite3 clean-procedure succeeded\"");
+  else {
+    dbmap[fsid]->outOfCore(true);
   }
 
-  // create the SQLITE DB
-  if ((sqlite3_open(fsDBFileName, &DB[fsid]) == SQLITE_OK))
+  // set the mode to S_IRWXU & ~S_IRGRP
+  if (chmod(fsDBFileName, S_IRWXU & ~S_IRGRP))
   {
-    XrdOucString createtable = "CREATE TABLE if not exists fst ( fid integer PRIMARY KEY, cid integer, fsid integer, ctime integer, ctime_ns integer, mtime integer, mtime_ns integer, atime integer, atime_ns integer, checktime integer, size integer default 281474976710641, disksize integer default 281474976710641, mgmsize integer default 281474976710641, checksum varchar(32), diskchecksum varchar(32), mgmchecksum varchar(32), lid integer, uid integer, gid integer, filecxerror integer, blockcxerror integer, layouterror integer, locations varchar(128))";
-    if ((sqlite3_exec(DB[fsid], createtable.c_str(), CallBack, this, &ErrMsg)))
-    {
-      eos_err("unable to create <fst> table - msg=%s\n", ErrMsg);
-      return false;
-    }
-  }
-  else
-  {
-    eos_err("failed to open sqlite3 database file %s - msg=%s\n", fsDBFileName, sqlite3_errmsg(DB[fsid]));
+    eos_crit("failed to switch the %s database file mode to S_IRWXU & ~S_IRGRP errno=%d", eos::common::DbMap::getDbType().c_str(), errno);
     return false;
   }
 
-  // set the mode to S_IRUSR
-  if (chmod(fsDBFileName, S_IRUSR))
-  {
-    eos_crit("failed to switch the sqlite3 database file mode to S_IRUSR errno=%d", errno);
-  }
-
-  return ReadDBFile(fsid, option);
+  return true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -250,74 +148,53 @@ FmdSqliteHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString op
 
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::ShutdownDB (eos::common::FileSystem::fsid_t fsid)
+FmdDbMapHandler::ShutdownDB (eos::common::FileSystem::fsid_t fsid)
 {
   eos::common::RWMutexWriteLock lock(Mutex);
-  eos_info("SQLITE DB shutdown for fsid=%lu\n", (unsigned long) fsid);
-  if (DB.count(fsid))
+  eos_info("%s DB shutdown for fsid=%lu\n", eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
+  if (dbmap.count(fsid))
   {
-    if (DBfilename.count(fsid))
+    if (!stayDirty[fsid])
     {
-      if (!stayDirty[fsid])
+      // if there was a complete boot procedure done, we remove the dirty flag
+      // set the mode back to S_IRWXU | S_IRGRP
+      if (chmod(DBfilename[fsid].c_str(), S_IRWXU | S_IRGRP))
       {
-        // if there was a complete boot procedure done, we remove the dirty flag
-        // set the mode back to S_IRWXU
-        if (chmod(DBfilename[fsid].c_str(), S_IRWXU))
-        {
-          eos_crit("failed to switch the sqlite3 database file to S_IRWXU errno=%d", errno);
-        }
+        eos_crit("failed to switch the %s database file to S_IRWXU | S_IRGRP errno=%d", eos::common::DbMap::getDbType().c_str(), errno);
       }
     }
-    if ((sqlite3_close(DB[fsid]) == SQLITE_OK))
+    if (dbmap[fsid]->detachDb())
     {
+      delete dbmap[fsid];
       return true;
     }
   }
   return false;
 }
 
+
+
 /*----------------------------------------------------------------------------*/
 /** 
- * Read the contents of the DB file into the memory hash
+ * Comparison function for modification times
  * 
- * @param fsid filesystem id to read
- * @param option - not used
+ * @param a pointer to a filestat struct
+ * @param b pointer to a filestat struct
  * 
- * @return true if all records read and valid otherwise false
+ * @return difference between the two modification times within the filestat struct
  */
 
 /*----------------------------------------------------------------------------*/
-bool
-FmdSqliteHandler::ReadDBFile (eos::common::FileSystem::fsid_t fsid, XrdOucString option)
+int
+FmdDbMapHandler::CompareMtime (const void* a, const void *b)
 {
-  // needs the write-lock on gFmdHandler::Mutex
-  eos_debug("");
 
-  struct timeval tv1, tv2;
-  struct timezone tz;
-
-  gettimeofday(&tv1, &tz);
-
-  Reset(fsid);
-  FmdMap.resize(0);
-
-  gettimeofday(&tv2, &tz);
-
-  Qr.clear();
-
-  XrdOucString query = "";
-  query = "select * from fst";
-
-  fs_callback_info_t cbinfo;
-  cbinfo.fsid = fsid;
-  cbinfo.fmdmap = &(FmdMap[fsid]);
-  // we use a specialized callback to avoid to have everything again in memory at once
-  if ((sqlite3_exec(DB[fsid], query.c_str(), ReadDBCallBack, &cbinfo, &ErrMsg)))
+  struct filestat
   {
-    eos_err("unable to query - msg=%s\n", ErrMsg);
-    return false;
-  }
-  return true;
+    struct stat buf;
+    char filename[1024];
+  };
+  return ( (((struct filestat*) b)->buf.st_mtime) - ((struct filestat*) a)->buf.st_mtime);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -336,7 +213,7 @@ FmdSqliteHandler::ReadDBFile (eos::common::FileSystem::fsid_t fsid, XrdOucString
 
 /*----------------------------------------------------------------------------*/
 FmdHelper*
-FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid, uid_t uid, gid_t gid, eos::common::LayoutId::layoutid_t layoutid, bool isRW, bool force)
+FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid, uid_t uid, gid_t gid, eos::common::LayoutId::layoutid_t layoutid, bool isRW, bool force)
 {
   // eos_info("fid=%08llx fsid=%lu", fid, (unsigned long) fsid);
 
@@ -348,9 +225,12 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
 
   Mutex.LockRead();
 
-  if (DB.count(fsid))
+  if (dbmap.count(fsid))
   {
-    if (FmdMap.count(fsid) && FmdMap[fsid].count(fid))
+    bool entryexist=ExistFmd(fid,fsid);
+    Fmd valfmd=RetrieveFmd(fid,fsid);
+
+    if (dbmap.count(fsid) && entryexist)
     {
       // this is to read an existing entry
       FmdHelper* fmd = new FmdHelper();
@@ -361,7 +241,7 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
       }
 
       // make a copy of the current record
-      fmd->Replicate(FmdMap[fsid][fid]);
+      fmd->Replicate(valfmd);
 
       if (fmd->fMd.fid() != fid)
       {
@@ -392,25 +272,25 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
 
           // if we have a mismatch between the mgm/disk and 'ref' value in size,  we don't return the Fmd record
           if ((!isRW) && ((fmd->fMd.disksize() && (fmd->fMd.disksize() != fmd->fMd.size())) ||
-                          (fmd->fMd.mgmsize() && (fmd->fMd.mgmsize() != 0xfffffffffff1ULL) && (fmd->fMd.mgmsize() != fmd->fMd.size()))))
+              (fmd->fMd.mgmsize() && (fmd->fMd.mgmsize() != 0xfffffffffff1ULL) && (fmd->fMd.mgmsize() != fmd->fMd.size()))))
           {
             eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu", fid, (unsigned long) fsid, fmd->fMd.size(), fmd->fMd.disksize(), fmd->fMd.mgmsize());
             delete fmd;
             Mutex.UnLockRead();
             return 0;
           }
-          }
+        }
 
         // if we have a mismatch between the mgm/disk and 'ref' value in checksum, we don't return the Fmd record
         // this check we can do only if the file is !zero otherwise we don't have a checksum on disk (e.g. a touch <a> file)
         if ((!isRW) && fmd->fMd.mgmsize() &&
             ((fmd->fMd.diskchecksum().length() && (fmd->fMd.diskchecksum() != fmd->fMd.checksum())) ||
-             (fmd->fMd.mgmchecksum().length() && (fmd->fMd.mgmchecksum() != fmd->fMd.checksum()))))
+                (fmd->fMd.mgmchecksum().length() && (fmd->fMd.mgmchecksum() != fmd->fMd.checksum()))))
         {
           eos_crit("msg=\"checksum mismatch disk/mgm vs memory\" fid=%08llx "
-                   "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s",
-                   fid, (unsigned long) fsid, fmd->fMd.checksum().c_str(),
-                   fmd->fMd.diskchecksum().c_str(), fmd->fMd.mgmchecksum().c_str());
+              "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s",
+              fid, (unsigned long) fsid, fmd->fMd.checksum().c_str(),
+              fmd->fMd.diskchecksum().c_str(), fmd->fMd.mgmchecksum().c_str());
 
           delete fmd;
           Mutex.UnLockRead();
@@ -436,19 +316,19 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
 
       eos::common::RWMutexWriteLock lock(Mutex); // --> (return)
 
-      FmdMap[fsid][fid].set_uid(uid);
-      FmdMap[fsid][fid].set_gid(gid);
-      FmdMap[fsid][fid].set_lid(layoutid);
-      FmdMap[fsid][fid].set_fsid(fsid);
-      FmdMap[fsid][fid].set_fid(fid);
+      valfmd.set_uid(uid);
+      valfmd.set_gid(gid);
+      valfmd.set_lid(layoutid);
+      valfmd.set_fsid(fsid);
+      valfmd.set_fid(fid);
 
+      valfmd.set_ctime(tv.tv_sec);
+      valfmd.set_mtime(tv.tv_sec);
+      valfmd.set_atime(tv.tv_sec);
+      valfmd.set_ctime_ns(tv.tv_usec * 1000);
+      valfmd.set_mtime_ns(tv.tv_usec * 1000);
+      valfmd.set_atime_ns(tv.tv_usec * 1000);
 
-      FmdMap[fsid][fid].set_ctime(tv.tv_sec);
-      FmdMap[fsid][fid].set_mtime(tv.tv_sec);
-      FmdMap[fsid][fid].set_atime(tv.tv_sec);
-      FmdMap[fsid][fid].set_ctime_ns(tv.tv_usec * 1000);
-      FmdMap[fsid][fid].set_mtime_ns(tv.tv_usec * 1000);
-      FmdMap[fsid][fid].set_atime_ns(tv.tv_usec * 1000);
 
       FmdHelper* fmd = new FmdHelper(fid, fsid);
       if (!fmd)
@@ -457,7 +337,7 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
       }
 
       // make a copy of the current record
-      fmd->Replicate(FmdMap[fsid][fid]);
+      fmd->Replicate(valfmd);
 
       if (Commit(fmd, false))
       {
@@ -501,32 +381,22 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
 
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::DeleteFmd (eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid)
+FmdDbMapHandler::DeleteFmd (eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid)
 {
   bool rc = true;
   eos_static_info("");
   eos::common::RWMutexWriteLock lock(Mutex);
+
+  bool entryexist=ExistFmd(fid,fsid);
+
   // erase the hash entry
-  if (FmdMap.count(fsid) && FmdMap[fsid].count(fid))
+  if (dbmap.count(fsid) && entryexist)
   {
     // delete in the in-memory hash
-    FmdMap[fsid].erase(fid);
-
-    char deleteentry[16384];
-    snprintf(deleteentry, sizeof (deleteentry), "delete from fst where fid=%llu", fid);
-
-
-    Qr.clear();
-
-    // delete in the local DB
-    if ((sqlite3_exec(DB[fsid], deleteentry, CallBack, this, &ErrMsg)))
+    if( ! dbmap[fsid]->remove(eos::common::Slice((const char*)&fid,sizeof(fid))) )
     {
-      eos_err("unable to delete fid=%08llx from fst table - msg=%s\n", fid, ErrMsg);
+      eos_err("unable to delete fid=%08llx from fst table\n", fid);
       rc = false;
-    }
-    else
-    {
-      rc = true;
     }
   }
   else
@@ -548,7 +418,7 @@ FmdSqliteHandler::DeleteFmd (eos::common::FileId::fileid_t fid, eos::common::Fil
 
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::Commit (FmdHelper* fmd, bool lockit)
+FmdDbMapHandler::Commit (FmdHelper* fmd, bool lockit)
 {
   if (!fmd)
     return false;
@@ -572,19 +442,18 @@ FmdSqliteHandler::Commit (FmdHelper* fmd, bool lockit)
     Mutex.LockWrite();
   }
 
-  if (FmdMap.count(fsid))
+  if (dbmap.count(fsid))
   {
     // update in-memory
-    FmdMap[fsid][fid] = fmd->fMd;
     if (lockit)
     {
       Mutex.UnLockWrite(); // <----
     }
-    return CommitFromMemory(fid, fsid);
+    return PutFmd(fid,fsid,fmd->fMd);
   }
   else
   {
-    eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
+    eos_crit("no %s DB open for fsid=%llu", eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
     if (lockit)
     {
       Mutex.UnLockWrite(); // <----
@@ -592,59 +461,6 @@ FmdSqliteHandler::Commit (FmdHelper* fmd, bool lockit)
   }
 
   return false;
-}
-
-
-/*----------------------------------------------------------------------------*/
-/** 
- * Commit Fmd to the DB file without locking and modification time changes
- * 
- * @param fmd pointer to Fmd
- * 
- * @return true if record has been commited
- */
-
-/*----------------------------------------------------------------------------*/
-bool
-FmdSqliteHandler::CommitFromMemory (eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid)
-{
-  if ((!FmdMap.count(fsid)) || (!FmdMap[fsid].count(fid)))
-  {
-    return false;
-  }
-  char insertentry[16384];
-  snprintf(insertentry, sizeof (insertentry), "insert or replace into fst(fid,fsid,cid,ctime,ctime_ns,mtime,mtime_ns,atime,atime_ns,checktime,size,disksize,mgmsize,checksum,diskchecksum,mgmchecksum, lid,uid,gid,filecxerror,blockcxerror,layouterror,locations) values ('%" PRIu64 "','%" PRIu32 "','%" PRIu64 "','%" PRIu32 "','%" PRIu32 "','%" PRIu32 "','%" PRIu32 "','%" PRIu32 "','%" PRIu32 "','%" PRIu32 "','%" PRIu64 "','%" PRIu64 "','%" PRIu64 "','%s','%s','%s','%" PRIu32 "','%" PRIu32 "','%" PRIu32 "','%" PRId64 "','%" PRId64 "','%" PRId64 "','%s')",
-           FmdMap[fsid][fid].fid(),
-           FmdMap[fsid][fid].fsid(),
-           FmdMap[fsid][fid].cid(),
-           FmdMap[fsid][fid].ctime(),
-           FmdMap[fsid][fid].ctime_ns(),
-           FmdMap[fsid][fid].mtime(),
-           FmdMap[fsid][fid].mtime_ns(),
-           FmdMap[fsid][fid].atime(),
-           FmdMap[fsid][fid].atime_ns(),
-           FmdMap[fsid][fid].checktime(),
-           FmdMap[fsid][fid].size(),
-           FmdMap[fsid][fid].disksize(),
-           FmdMap[fsid][fid].mgmsize(),
-           FmdMap[fsid][fid].checksum().c_str(),
-           FmdMap[fsid][fid].diskchecksum().c_str(),
-           FmdMap[fsid][fid].mgmchecksum().c_str(),
-           FmdMap[fsid][fid].lid(),
-           FmdMap[fsid][fid].uid(),
-           FmdMap[fsid][fid].gid(),
-           FmdMap[fsid][fid].filecxerror(),
-           FmdMap[fsid][fid].blockcxerror(),
-           FmdMap[fsid][fid].layouterror(),
-           FmdMap[fsid][fid].locations().c_str());
-
-  if ((sqlite3_exec(DB[fsid], insertentry, CallBack, this, &ErrMsg)))
-  {
-    eos_err("unable to update fsid=%lu fid=%08llx in fst table - msg=%s\n", fsid, fid, ErrMsg);
-    return false;
-  }
-
-  return true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -664,7 +480,7 @@ FmdSqliteHandler::CommitFromMemory (eos::common::FileId::fileid_t fid, eos::comm
 
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::UpdateFromDisk (eos::common::FileSystem::fsid_t fsid, eos::common::FileId::fileid_t fid, unsigned long long disksize, std::string diskchecksum, unsigned long checktime, bool filecxerror, bool blockcxerror, bool flaglayouterror)
+FmdDbMapHandler::UpdateFromDisk (eos::common::FileSystem::fsid_t fsid, eos::common::FileId::fileid_t fid, unsigned long long disksize, std::string diskchecksum, unsigned long checktime, bool filecxerror, bool blockcxerror, bool flaglayouterror)
 {
   eos::common::RWMutexWriteLock lock(Mutex);
 
@@ -676,30 +492,32 @@ FmdSqliteHandler::UpdateFromDisk (eos::common::FileSystem::fsid_t fsid, eos::com
     return false;
   }
 
-  if (FmdMap.count(fsid))
+  Fmd valfmd=RetrieveFmd(fid,fsid);
+
+  if (dbmap.count(fsid))
   {
     // update in-memory
-    FmdMap[fsid][fid].set_disksize(disksize);
+    valfmd.set_disksize(disksize);
     // fix the reference value from disk
-    FmdMap[fsid][fid].set_size(disksize);
-    FmdMap[fsid][fid].set_checksum(diskchecksum);
-    FmdMap[fsid][fid].set_fid(fid);
-    FmdMap[fsid][fid].set_fsid(fsid);
-    FmdMap[fsid][fid].set_diskchecksum(diskchecksum);
-    FmdMap[fsid][fid].set_checktime(checktime);
-    FmdMap[fsid][fid].set_filecxerror(filecxerror);
-    FmdMap[fsid][fid].set_blockcxerror(blockcxerror);
+    valfmd.set_size(disksize);
+    valfmd.set_checksum(diskchecksum);
+    valfmd.set_fid(fid);
+    valfmd.set_fsid(fsid);
+    valfmd.set_diskchecksum(diskchecksum);
+    valfmd.set_checktime(checktime);
+    valfmd.set_filecxerror(filecxerror);
+    valfmd.set_blockcxerror(blockcxerror);
     if (flaglayouterror)
     {
       // if the mgm sync is run afterwards, every disk file is by construction an
       // orphan, until it is synced from the mgm
-      FmdMap[fsid][fid].set_layouterror(eos::common::LayoutId::kOrphan);
+      valfmd.set_layouterror(eos::common::LayoutId::kOrphan);
     }
-    return CommitFromMemory(fid, fsid);
+    return PutFmd(fid,fsid,valfmd);
   }
   else
   {
-    eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
+    eos_crit("no %s DB open for fsid=%llu", eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
     return false;
   }
 
@@ -721,12 +539,12 @@ FmdSqliteHandler::UpdateFromDisk (eos::common::FileSystem::fsid_t fsid, eos::com
 
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::UpdateFromMgm (eos::common::FileSystem::fsid_t fsid, eos::common::FileId::fileid_t fid, eos::common::FileId::fileid_t cid, eos::common::LayoutId::layoutid_t lid, unsigned long long mgmsize, std::string mgmchecksum, uid_t uid, gid_t gid, unsigned long long ctime, unsigned long long ctime_ns, unsigned long long mtime, unsigned long long mtime_ns, int layouterror, std::string locations)
+FmdDbMapHandler::UpdateFromMgm (eos::common::FileSystem::fsid_t fsid, eos::common::FileId::fileid_t fid, eos::common::FileId::fileid_t cid, eos::common::LayoutId::layoutid_t lid, unsigned long long mgmsize, std::string mgmchecksum, uid_t uid, gid_t gid, unsigned long long ctime, unsigned long long ctime_ns, unsigned long long mtime, unsigned long long mtime_ns, int layouterror, std::string locations)
 {
   eos::common::RWMutexWriteLock lock(Mutex);
 
   eos_debug("fsid=%lu fid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s",
-            (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str());
+      (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str());
 
   if (!fid)
   {
@@ -734,38 +552,42 @@ FmdSqliteHandler::UpdateFromMgm (eos::common::FileSystem::fsid_t fsid, eos::comm
     return false;
   }
 
-  if (FmdMap.count(fsid))
+  bool entryexist=ExistFmd(fid,fsid);
+  Fmd valfmd=RetrieveFmd(fid,fsid);
+
+  if (dbmap.count(fsid))
   {
-    if (!FmdMap[fsid].count(fid))
+    if (!entryexist)
     {
-      FmdMap[fsid][fid].set_disksize(0xfffffffffff1ULL);
+      valfmd.set_disksize(0xfffffffffff1ULL);
     }
     // update in-memory
-    FmdMap[fsid][fid].set_mgmsize(mgmsize);
-    FmdMap[fsid][fid].set_size(mgmsize);
-    FmdMap[fsid][fid].set_checksum(mgmchecksum);
-    FmdMap[fsid][fid].set_mgmchecksum(mgmchecksum);
-    FmdMap[fsid][fid].set_cid(cid);
-    FmdMap[fsid][fid].set_lid(lid);
-    FmdMap[fsid][fid].set_uid(uid);
-    FmdMap[fsid][fid].set_gid(gid);
-    FmdMap[fsid][fid].set_ctime(ctime);
-    FmdMap[fsid][fid].set_ctime_ns(ctime_ns);
-    FmdMap[fsid][fid].set_mtime(mtime);
-    FmdMap[fsid][fid].set_mtime_ns(mtime_ns);
-    FmdMap[fsid][fid].set_layouterror(layouterror);
-    FmdMap[fsid][fid].set_locations(locations);
+    valfmd.set_mgmsize(mgmsize);
+    valfmd.set_size(mgmsize);
+    valfmd.set_checksum(mgmchecksum);
+    valfmd.set_mgmchecksum(mgmchecksum);
+    valfmd.set_cid(cid);
+    valfmd.set_lid(lid);
+    valfmd.set_uid(uid);
+    valfmd.set_gid(gid);
+    valfmd.set_ctime(ctime);
+    valfmd.set_ctime_ns(ctime_ns);
+    valfmd.set_mtime(mtime);
+    valfmd.set_mtime_ns(mtime_ns);
+    valfmd.set_layouterror(layouterror);
+    valfmd.set_locations(locations);
 
     // truncate the checksum to the right string length
-    FmdMap[fsid][fid].set_mgmchecksum(
-        std::string(FmdMap[fsid][fid].mgmchecksum()).erase(eos::common::LayoutId::GetChecksumLen(lid)*2) );
-    FmdMap[fsid][fid].set_checksum(
-        std::string(FmdMap[fsid][fid].checksum()).erase(eos::common::LayoutId::GetChecksumLen(lid)*2) );
-    return CommitFromMemory(fid, fsid);
+    unsigned long cslen = eos::common::LayoutId::GetChecksumLen(lid)*2;
+    valfmd.set_mgmchecksum(
+        std::string(valfmd.mgmchecksum()).erase( std::min( valfmd.mgmchecksum().length(), cslen )) );
+    valfmd.set_checksum(
+        std::string(valfmd.checksum()).erase( std::min( valfmd.checksum().length(), cslen )) );
+    return PutFmd(fid,fsid,valfmd);
   }
   else
   {
-    eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
+    eos_crit("no %s DB open for fsid=%llu", eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
     return false;
   }
 }
@@ -781,38 +603,40 @@ FmdSqliteHandler::UpdateFromMgm (eos::common::FileSystem::fsid_t fsid, eos::comm
 
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::ResetDiskInformation (eos::common::FileSystem::fsid_t fsid)
+FmdDbMapHandler::ResetDiskInformation (eos::common::FileSystem::fsid_t fsid)
 {
   eos::common::RWMutexWriteLock lock(Mutex);
 
-  if (FmdMap.count(fsid))
+  if (dbmap.count(fsid))
   {
-    google::dense_hash_map<unsigned long long, struct Fmd >::iterator it;
-    for (it = FmdMap[fsid].begin(); it != FmdMap[fsid].end(); it++)
-    {
-      // update in-memory
-      it->second.set_disksize(0xfffffffffff1ULL);
-      it->second.set_diskchecksum("");
-      it->second.set_checktime(0);
-      it->second.set_filecxerror(-1);
-      it->second.set_blockcxerror(-1);
+    const eos::common::DbMapTypes::Tkey *k;
+    const eos::common::DbMapTypes::Tval *v;
+    eos::common::DbMapTypes::Tval val;
+    dbmap[fsid]->beginSetSequence();
+    unsigned long cpt=0;
+    for ( dbmap[fsid]->beginIter(); dbmap[fsid]->iterate(&k, &v);) {
+      Fmd f;
+      f.ParseFromString(v->value);
+      f.set_disksize(0xfffffffffff1ULL);
+      f.set_diskchecksum("");
+      f.set_checktime(0);
+      f.set_filecxerror(-1);
+      f.set_blockcxerror(-1);
+      val=*v;
+      f.SerializeToString(&val.value);
+      dbmap[fsid]->set(*k,val);
+      cpt++;
     }
-
-    // update SQLITE DB
-    char updateentry[16384];
-    snprintf(updateentry, sizeof ( updateentry),
-             "update fst set disksize=281474976710641,diskchecksum='',"
-             "checktime=0,filecxerror=-1,blockcxerror=-1 where 1");
-
-    if ((sqlite3_exec(DB[fsid], updateentry, CallBack, this, &ErrMsg)))
+    if( dbmap[fsid]->endSetSequence() != cpt )
+      // the setsequence makes that it's impossible to know which key is faulty
     {
-      eos_err("unable to update fsid=%lu - msg=%s\n", fsid, ErrMsg);
+      eos_err("unable to update fsid=%lu\n", fsid);
       return false;
     }
   }
   else
   {
-    eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
+    eos_crit("no %s DB open for fsid=%llu", eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
     return false;
   }
   return true;
@@ -829,38 +653,43 @@ FmdSqliteHandler::ResetDiskInformation (eos::common::FileSystem::fsid_t fsid)
 
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::ResetMgmInformation (eos::common::FileSystem::fsid_t fsid)
+FmdDbMapHandler::ResetMgmInformation (eos::common::FileSystem::fsid_t fsid)
 {
   eos::common::RWMutexWriteLock lock(Mutex);
 
-  if (FmdMap.count(fsid))
+  if (dbmap.count(fsid))
   {
-    google::dense_hash_map<unsigned long long, struct Fmd >::iterator it;
-    for (it = FmdMap[fsid].begin(); it != FmdMap[fsid].end(); it++)
-    {
-      // update in-memory
-      it->second.set_mgmsize(0xfffffffffff1ULL);
-      it->second.set_mgmchecksum("");
-      it->second.set_locations("");
+    const eos::common::DbMapTypes::Tkey *k;
+    const eos::common::DbMapTypes::Tval *v;
+    eos::common::DbMapTypes::Tval val;
+    dbmap[fsid]->beginSetSequence();
+    unsigned long cpt=0;
+
+    for ( dbmap[fsid]->beginIter(); dbmap[fsid]->iterate(&k, &v);) {
+      Fmd f;
+      f.ParseFromString(v->value);
+      f.set_mgmsize(0xfffffffffff1ULL);
+      f.set_mgmchecksum("");
+      f.set_locations("");
+      val=*v;
+      f.SerializeToString(&val.value);
+      dbmap[fsid]->set(*k,val);
+      cpt++;
     }
-
-    // update SQLITE DB
-    char updateentry[16384];
-    snprintf(updateentry, sizeof ( updateentry),
-             "update fst set mgmsize=281474976710641,mgmchecksum='',locations='' where 1");
-
-    if ((sqlite3_exec(DB[fsid], updateentry, CallBack, this, &ErrMsg)))
+    if( dbmap[fsid]->endSetSequence() != cpt )
+      // the setsequence makes that it's impossible to know which key is faulty
     {
-      eos_err("unable to update fsid=%lu - msg=%s\n", fsid, ErrMsg);
+      eos_err("unable to update fsid=%lu\n", fsid);
       return false;
     }
   }
   else
   {
-    eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
+    eos_crit("no leveldb DB open for fsid=%llu", (unsigned long) fsid);
     return false;
   }
   return true;
+
 }
 
 
@@ -876,10 +705,9 @@ FmdSqliteHandler::ResetMgmInformation (eos::common::FileSystem::fsid_t fsid)
 
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::ResyncDisk (const char* path,
-                              eos::common::FileSystem::fsid_t fsid,
-                              bool flaglayouterror,
-                              bool callautorepair)
+FmdDbMapHandler::ResyncDisk (const char* path,
+    eos::common::FileSystem::fsid_t fsid,
+    bool flaglayouterror, bool callautorepair)
 {
   bool retc = true;
   eos::common::Path cPath(path);
@@ -933,10 +761,10 @@ FmdSqliteHandler::ResyncDisk (const char* path,
           }
         }
 
-        // now updaAte the SQLITE DB
+        // now updaAte the DB
         if (!UpdateFromDisk(fsid, fid, disksize, diskchecksum, checktime, (filecxError == "1") ? 1 : 0, (blockcxError == "1") ? 1 : 0, flaglayouterror))
         {
-          eos_err("failed to update SQLITE DB for fsid=%lu fid=%08llx", (unsigned long) fsid, fid);
+          eos_err("failed to update %s DB for fsid=%lu fid=%08llx", eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid, fid);
           retc = false;
         }
       }
@@ -954,7 +782,7 @@ FmdSqliteHandler::ResyncDisk (const char* path,
 
 /*----------------------------------------------------------------------------*/
 /** 
- * Resync files under path into SQLITE DB
+ * Resync files under path into DB
  * 
  * @param path path to scan
  * @param fsid file system id
@@ -964,9 +792,9 @@ FmdSqliteHandler::ResyncDisk (const char* path,
 
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::ResyncAllDisk (const char* path,
-                                 eos::common::FileSystem::fsid_t fsid,
-                                 bool flaglayouterror)
+FmdDbMapHandler::ResyncAllDisk (const char* path,
+    eos::common::FileSystem::fsid_t fsid,
+    bool flaglayouterror)
 {
   char **paths = (char**) calloc(2, sizeof (char*));
   paths[0] = (char*) path;
@@ -1035,7 +863,7 @@ FmdSqliteHandler::ResyncAllDisk (const char* path,
 
 /*----------------------------------------------------------------------------*/
 /** 
- * Resync meta data from MGM into SQLITE DB
+ * Resync meta data from MGM into LEVELDB DB
  * 
  * @param fsid filesystem id
  * @param fid  file id
@@ -1045,9 +873,9 @@ FmdSqliteHandler::ResyncAllDisk (const char* path,
 
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::ResyncMgm (eos::common::FileSystem::fsid_t fsid,
-                             eos::common::FileId::fileid_t fid,
-                             const char* manager)
+FmdDbMapHandler::ResyncMgm (eos::common::FileSystem::fsid_t fsid,
+    eos::common::FileId::fileid_t fid,
+    const char* manager)
 {
   struct Fmd fMd;
   FmdHelper::Reset(fMd);
@@ -1124,7 +952,7 @@ FmdSqliteHandler::ResyncMgm (eos::common::FileSystem::fsid_t fsid,
       // check if it exists on disk
       if (fmd->fMd.disksize() == 0xfffffffffff1ULL)
       {
-        fMd.set_layouterror(fMd.layouterror() | eos::common::LayoutId::kMissing);
+        fMd.set_layouterror( fMd.layouterror() | eos::common::LayoutId::kMissing);
         eos_warning("found missing replica for fid=%llu on fsid=%lu", fid, (unsigned long) fsid);
       }
 
@@ -1155,7 +983,7 @@ FmdSqliteHandler::ResyncMgm (eos::common::FileSystem::fsid_t fsid,
 
 /*----------------------------------------------------------------------------*/
 /** 
- * Resync all meta data from MGM into SQLITE DB
+ * Resync all meta data from MGM into DB
  * 
  * @param fsid filesystem id
  * 
@@ -1164,7 +992,7 @@ FmdSqliteHandler::ResyncMgm (eos::common::FileSystem::fsid_t fsid,
 
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::ResyncAllMgm (eos::common::FileSystem::fsid_t fsid, const char* manager)
+FmdDbMapHandler::ResyncAllMgm (eos::common::FileSystem::fsid_t fsid, const char* manager)
 {
 
   if (!ResetMgmInformation(fsid))
@@ -1182,7 +1010,7 @@ FmdSqliteHandler::ResyncAllMgm (eos::common::FileSystem::fsid_t fsid, const char
 
   // we run an external command and parse the output
   char* tmpfile = tempnam("/tmp/", "efstd");
-  XrdOucString cmd = "env XrdSecPROTOCOL=sss xrdcopy -s \"";
+  XrdOucString cmd = "env XrdSecPROTOCOL=sss xrdcp -s \"";
   cmd += url;
   cmd += "\" ";
   cmd += tmpfile;
@@ -1270,40 +1098,12 @@ FmdSqliteHandler::ResyncAllMgm (eos::common::FileSystem::fsid_t fsid, const char
 
 /*----------------------------------------------------------------------------*/
 size_t
-FmdSqliteHandler::Query (eos::common::FileSystem::fsid_t fsid,
-                         std::string query,
-                         std::vector<eos::common::FileId::fileid_t>& fidvector)
+FmdDbMapHandler::Query (eos::common::FileSystem::fsid_t fsid,
+    std::string query,
+    std::vector<eos::common::FileId::fileid_t>& fidvector)
 {
-  eos::common::RWMutexReadLock lock(Mutex);
-  if (DB.count(fsid))
-  {
-    Qr.clear();
-
-    std::string selectstring = "";
-    selectstring = "select fid from fst where ";
-    selectstring += query.c_str();
-
-    if ((sqlite3_exec(DB[fsid], selectstring.c_str(), CallBack, this, &ErrMsg)))
-    {
-      eos_err("unable to query - msg=%s\n", ErrMsg);
-      return 0;
-    }
-
-    qr_result_t::const_iterator it;
-    eos_info("Query returned %lu fids", Qr.size());
-    for (size_t i = 0; i < Qr.size(); i++)
-    {
-      eos::common::FileId::fileid_t fid = strtoull(Qr[i]["fid"].c_str(), 0, 10);
-      fidvector.push_back(fid);
-    }
-    Qr.clear();
-    return fidvector.size();
-  }
-  else
-  {
-    eos_err("no SQL DB open for fsid=%lu", (unsigned long) fsid);
-    return 0;
-  }
+  // NOT IMPLEMENTED
+  return 0;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1318,18 +1118,17 @@ FmdSqliteHandler::Query (eos::common::FileSystem::fsid_t fsid,
 
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::GetInconsistencyStatistics (eos::common::FileSystem::fsid_t fsid,
-                                              std::map<std::string, size_t>& statistics,
-                                              std::map<std::string, std::set < eos::common::FileId::fileid_t> > &fidset)
+FmdDbMapHandler::GetInconsistencyStatistics (eos::common::FileSystem::fsid_t fsid,
+    std::map<std::string, size_t>& statistics,
+    std::map<std::string, std::set < eos::common::FileId::fileid_t> > &fidset)
 {
   eos::common::RWMutexReadLock lock(Mutex);
 
-  if (!FmdMap.count(fsid))
+  if (!dbmap.count(fsid))
     return false;
 
   // query in-memory
-  google::dense_hash_map<unsigned long long, struct Fmd>::const_iterator it;
-  statistics["mem_n"] = 0; // number of files in SQLITE DB 
+  statistics["mem_n"] = 0; // number of files in DB
 
   statistics["d_sync_n"] = 0; // number of synced files from disk
   statistics["m_sync_n"] = 0; // number of synced files from MGM server
@@ -1361,87 +1160,82 @@ FmdSqliteHandler::GetInconsistencyStatistics (eos::common::FileSystem::fsid_t fs
 
   if (!IsSyncing(fsid))
   {
+    const eos::common::DbMapTypes::Tkey *k;
+    const eos::common::DbMapTypes::Tval *v;
+    eos::common::DbMapTypes::Tval val;
+
     // we report values only when we are not in the sync phase from disk/mgm
-    for (it = FmdMap[fsid].begin(); it != FmdMap[fsid].end(); it++)
-    {
-      if (it->second.layouterror())
+    for ( dbmap[fsid]->beginIter(); dbmap[fsid]->iterate(&k, &v);) {
+      Fmd f;
+      f.ParseFromString(v->value);
+
+      if (f.layouterror())
       {
-        if (it->second.layouterror() & eos::common::LayoutId::kOrphan)
+        if (f.layouterror() & eos::common::LayoutId::kOrphan)
         {
           statistics["orphans_n"]++;
-          fidset["orphans_n"].insert(it->second.fid());
+          fidset["orphans_n"].insert(f.fid());
         }
-        if (it->second.layouterror() & eos::common::LayoutId::kUnregistered)
+        if (f.layouterror() & eos::common::LayoutId::kUnregistered)
         {
           statistics["unreg_n"]++;
-          fidset["unreg_n"].insert(it->second.fid());
+          fidset["unreg_n"].insert(f.fid());
         }
-        if (it->second.layouterror() & eos::common::LayoutId::kReplicaWrong)
+        if (f.layouterror() & eos::common::LayoutId::kReplicaWrong)
         {
           statistics["rep_diff_n"]++;
-          fidset["rep_diff_n"].insert(it->second.fid());
+          fidset["rep_diff_n"].insert(f.fid());
         }
-        if (it->second.layouterror() & eos::common::LayoutId::kMissing)
+        if (f.layouterror() & eos::common::LayoutId::kMissing)
         {
           statistics["rep_missing_n"]++;
-          fidset["rep_missing_n"].insert(it->second.fid());
+          fidset["rep_missing_n"].insert(f.fid());
         }
       }
 
-      eos::common::LayoutId::layoutid_t lid = it->second.lid();
-      
-      if (((eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaidDP) &&
-           (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaid6) &&
-           (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kArchive)))
+      if (f.mgmsize() != 0xfffffffffff1ULL)
       {
-        // ---------------------------------------------------------------------
-        // this checks make onLy sense for replica layouts
-        // ---------------------------------------------------------------------
-        if (it->second.mgmsize() != 0xfffffffffff1ULL)
+        statistics["m_sync_n"]++;
+        if (f.size() != 0xfffffffffff1ULL)
         {
-          statistics["m_sync_n"]++;
-        if (it->second.size() != 0xfffffffffff1ULL)
+          if (f.size() != f.mgmsize())
           {
-          if (it->second.size() != it->second.mgmsize())
-            {
-              statistics["m_mem_sz_diff"]++;
-            fidset["m_mem_sz_diff"].insert(it->second.fid());
-            }
-          }
-        }
-
-      if (!it->second.layouterror())
-        {
-        if (it->second.size() && it->second.diskchecksum().length() && (it->second.diskchecksum() != it->second.checksum()))
-          {
-            statistics["d_cx_diff"]++;
-          fidset["d_cx_diff"].insert(it->second.fid());
-          }
-
-        if (it->second.size() && it->second.mgmchecksum().length() && (it->second.mgmchecksum() != it->second.checksum()))
-          {
-            statistics["m_cx_diff"]++;
-          fidset["m_cx_diff"].insert(it->second.fid());
-          }
-        }
-
-      statistics["mem_n"]++;
-
-      if (it->second.disksize() != 0xfffffffffff1ULL)
-        {
-          statistics["d_sync_n"]++;
-        if (it->second.size() != 0xfffffffffff1ULL)
-          {
-          if (it->second.size() != it->second.disksize())
-            {
-
-              statistics["d_mem_sz_diff"]++;
-            fidset["d_mem_sz_diff"].insert(it->second.fid());
-            }
+            statistics["m_mem_sz_diff"]++;
+            fidset["m_mem_sz_diff"].insert(f.fid());
           }
         }
       }
+
+      if (!f.layouterror())
+      {
+        if (f.size() && f.diskchecksum().length() && (f.diskchecksum() != f.checksum()))
+        {
+          statistics["d_cx_diff"]++;
+          fidset["d_cx_diff"].insert(f.fid());
+        }
+
+        if (f.size() && f.mgmchecksum().length() && (f.mgmchecksum() != f.checksum()))
+        {
+          statistics["m_cx_diff"]++;
+          fidset["m_cx_diff"].insert(f.fid());
+        }
+      }
+
       statistics["mem_n"]++;
+
+      if (f.disksize() != 0xfffffffffff1ULL)
+      {
+        statistics["d_sync_n"]++;
+        if (f.size() != 0xfffffffffff1ULL)
+        {
+          if (f.size() != f.disksize())
+          {
+            statistics["d_mem_sz_diff"]++;
+            fidset["d_mem_sz_diff"].insert(f.fid());
+          }
+        }
+      }
+
     }
   }
   return true;
@@ -1459,25 +1253,18 @@ FmdSqliteHandler::GetInconsistencyStatistics (eos::common::FileSystem::fsid_t fs
 
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::ResetDB (eos::common::FileSystem::fsid_t fsid)
+FmdDbMapHandler::ResetDB (eos::common::FileSystem::fsid_t fsid)
 {
   bool rc = true;
   eos_static_info("");
   eos::common::RWMutexWriteLock lock(Mutex);
   // erase the hash entry
-  if (FmdMap.count(fsid))
+  if (dbmap.count(fsid))
   {
     // delete in the in-memory hash
-    FmdMap[fsid].clear();
-
-    char deleteentry[16384];
-    snprintf(deleteentry, sizeof (deleteentry), "delete from fst where 1");
-    Qr.clear();
-
-    // delete in the local DB
-    if ((sqlite3_exec(DB[fsid], deleteentry, CallBack, this, &ErrMsg)))
+    if(!dbmap[fsid]->clear())
     {
-      eos_err("unable to delete all from fst table - msg=%s\n", ErrMsg);
+      eos_err("unable to delete all from fst table\n");
       rc = false;
     }
     else
@@ -1487,16 +1274,37 @@ FmdSqliteHandler::ResetDB (eos::common::FileSystem::fsid_t fsid)
   }
   else
   {
-
     rc = false;
   }
   return rc;
 }
 
 
+bool
+FmdDbMapHandler::TrimDB()
+{
+  std::map<eos::common::FileSystem::fsid_t, eos::common::DbMap*>::iterator it;
+
+  for (it = dbmap.begin(); it != dbmap.end(); ++it)
+  {
+    eos_static_info("Trimming fsid=%llu ", it->first);
+
+    if (!it->second->trimDb())
+    {
+      eos_static_err("Cannot trim the DB file for fsid=%llu ", it->first);
+      return false;
+    }
+    else
+    {
+      eos_static_info("Trimmed %s DB file for fsid=%llu ", it->second->getDbType().c_str(), it->first);
+    }
+  }
+  return true;
+}
+
 /*----------------------------------------------------------------------------*/
 /** 
- * Trim the SQLITE DB for a given filesystem id
+ * Trim the DB for a given filesystem id
  * 
  * @param fsid file system id
  * @param option - not used
@@ -1506,51 +1314,10 @@ FmdSqliteHandler::ResetDB (eos::common::FileSystem::fsid_t fsid)
 
 /*----------------------------------------------------------------------------*/
 bool
-FmdSqliteHandler::TrimDBFile (eos::common::FileSystem::fsid_t fsid, XrdOucString option)
+FmdDbMapHandler::TrimDBFile (eos::common::FileSystem::fsid_t fsid, XrdOucString option)
 {
-
-  if (!DB.count(fsid))
-  {
-    eos_err("unable to trim DB for fsid=%lu - DB not open", (unsigned long) fsid);
-    return false;
-  }
-
-  // cleanup/compact the DB file
-  if (sqlite3_exec(DB[fsid], "VACUUM;", 0, 0, &ErrMsg) != SQLITE_OK)
-  {
-
-    eos_err("unable to run VACCUM - msg=%s", ErrMsg);
-    return false;
-  }
-
   return true;
 }
-
-/*----------------------------------------------------------------------------*/
-
-bool
-FmdSqliteHandler::TrimDB()
-{
-  std::map<eos::common::FileSystem::fsid_t, sqlite3*>::iterator it;
-
-  for (it = DB.begin(); it != DB.end(); ++it)
-  {
-    eos_static_info("Trimming fsid=%llu ", it->first);
-    int fsid = it->first;
-
-    if (!TrimDBFile(fsid))
-    {
-      eos_static_err("Cannot trim the SQLITE DB file for fsid=%llu ", it->first);
-      return false;
-    }
-    else
-    {
-      eos_static_info("Called vaccuum on SQLITE DB file for fsid=%llu ", it->first);
-    }
-  }
-  return true;
-}
-
 
 EOSFSTNAMESPACE_END
 

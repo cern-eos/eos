@@ -229,7 +229,7 @@ Storage::Publish ()
               eos_static_debug("msg=\"publish consistency stats\"");
               last_consistency_stats = now;
               XrdSysMutexHelper ISLock(fileSystemsVector[i]->InconsistencyStatsMutex);
-              gFmdSqliteHandler.GetInconsistencyStatistics(fsid, *fileSystemsVector[i]->GetInconsistencyStats(), *fileSystemsVector[i]->GetInconsistencySets());
+              gFmdDbMapHandler.GetInconsistencyStatistics(fsid, *fileSystemsVector[i]->GetInconsistencyStats(), *fileSystemsVector[i]->GetInconsistencySets());
               for (isit = fileSystemsVector[i]->GetInconsistencyStats()->begin(); isit != fileSystemsVector[i]->GetInconsistencyStats()->end(); isit++)
               {
                 //eos_static_debug("%-24s => %lu", isit->first.c_str(), isit->second);
@@ -269,11 +269,11 @@ Storage::Publish ()
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.capacity", fileSystemsVector[i]->GetLongLong("stat.statfs.blocks") * fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.fused", (fileSystemsVector[i]->GetLongLong("stat.statfs.files") - fileSystemsVector[i]->GetLongLong("stat.statfs.ffree")) * fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
           {
-            eos::common::RWMutexReadLock lock(gFmdSqliteHandler.Mutex);
-            success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", (long long) (gFmdSqliteHandler.FmdSqliteMap.count(fsid) ? gFmdSqliteHandler.FmdSqliteMap[fsid].size() : 0));
+            eos::common::RWMutexReadLock lock(gFmdDbMapHandler.Mutex);
+            success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", (long long) (gFmdDbMapHandler.FmdMap.count(fsid) ? gFmdDbMapHandler.FmdMap[fsid]->size() : 0));
           }
 
-          success &= fileSystemsVector[i]->SetString("stat.boot", fileSystemsVector[i]->GetStatusAsString(fileSystemsVector[i]->GetStatus()));
+          success &= fileSystemsVector[i]->SetString("stat.boot", fileSystemsVector[i]->GetString("stat.boot").c_str());
           success &= fileSystemsVector[i]->SetString("stat.geotag", lNodeGeoTag.c_str());
           success &= fileSystemsVector[i]->SetLongLong("stat.drainer.running", fileSystemsVector[i]->GetDrainQueue()->GetRunningAndQueued());
           success &= fileSystemsVector[i]->SetLongLong("stat.balancer.running", fileSystemsVector[i]->GetBalanceQueue()->GetRunningAndQueued());

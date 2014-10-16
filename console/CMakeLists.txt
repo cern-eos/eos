@@ -22,24 +22,30 @@
 # ************************************************************************
 
 include_directories( ${CMAKE_SOURCE_DIR}
+             ${PROTOBUF_INCLUDE_DIRS}
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${XROOTD_PRIVATE_INCLUDE_DIR} 
 		     ${SPARSEHASH_INCLUDE_DIR} )
 
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}
-		  ${XROOTD_LIB_DIR} )
+		  ${XROOTD_LIB_DIR} 
+          ${PROTOBUF_LIB_DIR})
 
+set_source_generating_rules()
 
 add_executable( eos
-		ConsoleMain.cc
+	      	ConsoleMain.cc
 		ConsoleMain.hh	
 		ConsolePipe.cc
 		ConsolePipe.hh
-		../fst/FmdClient.cc
+        ../fst/FmdClient.cc
+        ../fst/Fmd.cc
+        ../fst/FmdBase.pb.cc
+        ../fst/FmdBase.pb.h
 		../fst/checksum/CheckSum.cc
 		../fst/checksum/Adler.cc
 		../fst/checksum/crc32c.cc
-		../fst/checksum/crc32ctables.cc
+                ../fst/checksum/crc32ctables.cc
 		commands/com_access.cc
 		commands/com_archive.cc
 	        commands/com_attr.cc
@@ -56,11 +62,11 @@ add_executable( eos
 		commands/com_find.cc 
 		commands/com_fs.cc 
 		commands/com_fsck.cc
-		commands/com_fuse.cc
+                commands/com_fuse.cc
         commands/com_geosched.cc
 		commands/com_group.cc
-		commands/com_io.cc
-		commands/com_json.cc
+                commands/com_io.cc
+                commands/com_json.cc
 		commands/com_license.cc 
 		commands/com_ls.cc 
 		commands/com_map.cc 
@@ -73,7 +79,7 @@ add_executable( eos
 		commands/com_quit.cc 
 		commands/com_quota.cc 
 		commands/com_reconnect.cc 
-		commands/com_recycle.cc
+                commands/com_recycle.cc
 		commands/com_rm.cc 
 		commands/com_rmdir.cc 
 		commands/com_role.cc 
@@ -88,7 +94,7 @@ add_executable( eos
 		commands/com_vid.cc 
 		commands/com_vst.cc 
 		commands/com_whoami.cc   
-		commands/com_who.cc 
+                commands/com_who.cc 
 )
 
 
@@ -100,22 +106,22 @@ add_executable( eosdropboxd
 
 if (CLIENT)
 target_link_libraries( eos 
-		XrdPosix	        XrdCl
+		       XrdPosix	        XrdCl
 		XrdUtils  	eosCommon
-		crypto           curses
-		dl               z
-		readline         ${CMAKE_THREAD_LIBS_INIT}
-		${UUID_LIBRARIES} 			       
-)
+		       crypto           curses
+		       dl               z
+                       readline         ${CMAKE_THREAD_LIBS_INIT}
+                       ${UUID_LIBRARIES} ${PROTOBUF_LIBRARIES}
+                     )
 else (CLIENT)
 target_link_libraries( eos 
-		XrdPosix	         XrdCl 
-		XrdUtils 	 eosCommon-Static
-		readline          XrdMqClient-Static
-		crypto            curses
-		dl                z
-		${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT}
-)
+		       XrdPosix	         XrdCl 
+		       XrdUtils 	 eosCommon-Static
+                       readline          XrdMqClient-Static
+		       crypto            curses
+		       dl                z
+                       ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${PROTOBUF_LIBRARIES}
+                     )
 endif(CLIENT)
 
 if (MacOSX)
@@ -126,16 +132,16 @@ target_link_libraries( eosdropboxd
 
 else (MacOSX)
 target_link_libraries( eosdropboxd 
-		eosCommon-Static XrdPosix 
-		XrdCl            XrdUtils 
-		${CMAKE_THREAD_LIBS_INIT} )
+		       eosCommon-Static XrdPosix 
+		       XrdCl            XrdUtils 
+		       ${CMAKE_THREAD_LIBS_INIT} )
 
 endif (MacOSX)
 
 INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR} FILES eosadmin )
 
 install( TARGETS eos eosdropboxd
-         LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+       	 LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
 )

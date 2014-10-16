@@ -21,6 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 /*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
@@ -88,8 +91,8 @@ Storage::Verify ()
     eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), verifyfile->localPrefix.c_str(), fstPath);
 
     {
-      FmdSqlite* fMd = 0;
-      fMd = gFmdSqliteHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, 0, true);
+      FmdHelper* fMd = 0;
+      fMd = gFmdDbMapHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, 0, true);
       if (fMd)
       {
         // force a resync of meta data from the MGM
@@ -114,8 +117,8 @@ Storage::Verify ()
 
     // even if the stat failed, we run this code to tag the file as is ...
     // attach meta data
-    FmdSqlite* fMd = 0;
-    fMd = gFmdSqliteHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, verifyfile->commitFmd, true);
+    FmdHelper* fMd = 0;
+    fMd = gFmdDbMapHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, verifyfile->commitFmd, true);
     bool localUpdate = false;
     if (!fMd)
     {
@@ -123,31 +126,31 @@ Storage::Verify ()
     }
     else
     {
-      if (fMd->fMd.size != (unsigned long long) statinfo.st_size)
+      if (fMd->fMd.size() != (unsigned long long) statinfo.st_size)
       {
-        eos_static_err("updating file size: path=%s fid=%s fs value %llu - changelog value %llu", verifyfile->path.c_str(), hexfid.c_str(), statinfo.st_size, fMd->fMd.size);
+        eos_static_err("updating file size: path=%s fid=%s fs value %llu - changelog value %llu", verifyfile->path.c_str(), hexfid.c_str(), statinfo.st_size, fMd->fMd.size());
         localUpdate = true;
       }
 
-      if (fMd->fMd.lid != verifyfile->lId)
+      if (fMd->fMd.lid() != verifyfile->lId)
       {
-        eos_static_err("updating layout id: path=%s fid=%s central value %u - changelog value %u", verifyfile->path.c_str(), hexfid.c_str(), verifyfile->lId, fMd->fMd.lid);
+        eos_static_err("updating layout id: path=%s fid=%s central value %u - changelog value %u", verifyfile->path.c_str(), hexfid.c_str(), verifyfile->lId, fMd->fMd.lid());
         localUpdate = true;
       }
 
-      if (fMd->fMd.cid != verifyfile->cId)
+      if (fMd->fMd.cid() != verifyfile->cId)
       {
-        eos_static_err("updating container: path=%s fid=%s central value %llu - changelog value %llu", verifyfile->path.c_str(), hexfid.c_str(), verifyfile->cId, fMd->fMd.cid);
+        eos_static_err("updating container: path=%s fid=%s central value %llu - changelog value %llu", verifyfile->path.c_str(), hexfid.c_str(), verifyfile->cId, fMd->fMd.cid());
         localUpdate = true;
       }
 
       // update size
-      fMd->fMd.size = statinfo.st_size;
-      fMd->fMd.lid = verifyfile->lId;
-      fMd->fMd.cid = verifyfile->cId;
+      fMd->fMd.set_size(statinfo.st_size);
+      fMd->fMd.set_lid(verifyfile->lId);
+      fMd->fMd.set_cid(verifyfile->cId);
 
       // if set recalculate the checksum
-      CheckSum* checksummer = ChecksumPlugins::GetChecksumObject(fMd->fMd.lid);
+      CheckSum* checksummer = ChecksumPlugins::GetChecksumObject(fMd->fMd.lid());
 
       unsigned long long scansize = 0;
       float scantime = 0; // is ms
@@ -171,11 +174,11 @@ Storage::Verify ()
           bool cxError = false;
           std::string computedchecksum = checksummer->GetHexChecksum();
 
-          if (fMd->fMd.checksum != computedchecksum)
+          if (fMd->fMd.checksum() != computedchecksum)
             cxError = true;
 
           // commit the disk checksum in case of differences between the in-memory value
-          if (fMd->fMd.diskchecksum != computedchecksum)
+          if (fMd->fMd.diskchecksum() != computedchecksum)
           {
             cxError = true;
             localUpdate = true;
@@ -183,18 +186,18 @@ Storage::Verify ()
 
           if (cxError)
           {
-            eos_static_err("checksum invalid   : path=%s fid=%s checksum=%s stored-checksum=%s", verifyfile->path.c_str(), hexfid.c_str(), checksummer->GetHexChecksum(), fMd->fMd.checksum.c_str());
-            fMd->fMd.checksum = computedchecksum;
-            fMd->fMd.diskchecksum = computedchecksum;
-            fMd->fMd.disksize = fMd->fMd.size;
+            eos_static_err("checksum invalid   : path=%s fid=%s checksum=%s stored-checksum=%s", verifyfile->path.c_str(), hexfid.c_str(), checksummer->GetHexChecksum(), fMd->fMd.checksum().c_str());
+            fMd->fMd.set_checksum(computedchecksum);
+            fMd->fMd.set_diskchecksum(computedchecksum);
+            fMd->fMd.set_disksize(fMd->fMd.size());
             if (verifyfile->commitSize)
             {
-              fMd->fMd.mgmsize = fMd->fMd.size;
+              fMd->fMd.set_mgmsize(fMd->fMd.size());
             }
 
             if (verifyfile->commitChecksum)
             {
-              fMd->fMd.mgmchecksum = computedchecksum;
+              fMd->fMd.set_mgmchecksum(computedchecksum);
             }
             localUpdate = true;
           }
@@ -216,13 +219,13 @@ Storage::Verify ()
         eos::common::Path cPath(verifyfile->path.c_str());
 
         // commit local
-        if (localUpdate && (!gFmdSqliteHandler.Commit(fMd)))
+        if (localUpdate && (!gFmdDbMapHandler.Commit(fMd)))
         {
           eos_static_err("unable to verify file id=%llu on fs=%u path=%s - commit to local MD storage failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
         }
         else
         {
-          if (localUpdate) eos_static_info("committed verified meta data locally id=%llu on fs=%u path=%s", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
+          if (localUpdate) eos_static_info("commited verified meta data locally id=%llu on fs=%u path=%s", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
 
           // commit to central mgm cache, only if commitSize or commitChecksum is set
           XrdOucString capOpaqueFile = "";
@@ -232,7 +235,7 @@ Storage::Verify ()
           capOpaqueFile += "&mgm.verify.checksum=1";
           capOpaqueFile += "&mgm.size=";
           char filesize[1024];
-          sprintf(filesize, "%llu", fMd->fMd.size);
+          sprintf(filesize, "%" PRIu64 "", fMd->fMd.size());
           capOpaqueFile += filesize;
           capOpaqueFile += "&mgm.fid=";
           capOpaqueFile += hexfid;
@@ -255,12 +258,12 @@ Storage::Verify ()
           }
 
           capOpaqueFile += "&mgm.mtime=";
-          capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long) fMd->fMd.mtime);
+          capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long) fMd->fMd.mtime());
           capOpaqueFile += "&mgm.mtime_ns=";
-          capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long) fMd->fMd.mtime_ns);
+          capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long) fMd->fMd.mtime_ns());
 
           capOpaqueFile += "&mgm.add.fsid=";
-          capOpaqueFile += (int) fMd->fMd.fsid;
+          capOpaqueFile += (int) fMd->fMd.fsid();
 
           if (verifyfile->commitSize || verifyfile->commitChecksum)
           {

@@ -119,6 +119,8 @@ add_library (XrdEosMgm MODULE
             geotree/SchedulingSlowTree.cc
             geotree/SchedulingTreeCommon.cc
             ${STAT_SRCS}     ${STAT_HDRS})
+            
+add_dependencies(XrdEosMgm auth_plugin_protobuf_headers)
 
 target_link_libraries( XrdEosMgm 
                        XrdCl                XrdPosix 

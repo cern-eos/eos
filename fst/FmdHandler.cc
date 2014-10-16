@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Trim.cc
+// File: FmdHandler.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -22,29 +22,53 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "fst/storage/Storage.hh"
+#include "fst/Namespace.hh"
+#include "common/FileId.hh"
+#include "common/Path.hh"
+#include "common/Attr.hh"
+#include "fst/FmdDbMap.hh"
 #include "fst/XrdFstOfs.hh"
-
+#include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/Fmd.hh"
+/*----------------------------------------------------------------------------*/
+#include "XrdCl/XrdClFileSystem.hh"
+/*----------------------------------------------------------------------------*/
+#include <stdio.h>
+#include <sys/mman.h>
+#include <fts.h>
+#include <iostream>
+#include <fstream>
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-void
-Storage::Trim ()
-{
-  // this thread trim's the SQLITE DB every 30 days
-  while (1)
-  {
-    // sleep for a month
-    XrdSysTimer sleeper;
-    sleeper.Snooze(30 * 86400);
-    std::map<eos::common::FileSystem::fsid_t, sqlite3*>::iterator it;
+/**
+ * Comparison function for modification times
+ *
+ * @param a pointer to a filestat struct
+ * @param b pointer to a filestat struct
+ *
+ * @return difference between the two modification times within the filestat struct
+ */
 
-    gFmdDbMapHandler.TrimDB();
-  }
+/*----------------------------------------------------------------------------*/
+int
+FmdHandler::CompareMtime (const void* a, const void *b)
+{
+
+  struct filestat
+  {
+    struct stat buf;
+    char filename[1024];
+  };
+  return ( (((struct filestat*) b)->buf.st_mtime) - ((struct filestat*) a)->buf.st_mtime);
 }
+
+
 
 EOSFSTNAMESPACE_END
 
 
+
+//  LocalWords:  ResyncAllMgm

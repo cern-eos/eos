@@ -25,7 +25,7 @@
 #include "fst/Config.hh"
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
-#include "fst/FmdSqlite.hh"
+#include "fst/FmdDbMap.hh"
 #include "common/Fmd.hh"
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
@@ -383,38 +383,38 @@ Storage::Boot (FileSystem *fs)
   gOFS.OpenFidMutex.UnLock();
 
   XrdOucString dbfilename;
-  gFmdSqliteHandler.CreateDBFileName(metaDirectory.c_str(), dbfilename);
+  gFmdDbMapHandler.CreateDBFileName(metaDirectory.c_str(), dbfilename);
 
   // attach to the SQLITE DB
-  if (!gFmdSqliteHandler.SetDBFile(dbfilename.c_str(), fsid))
+  if (!gFmdDbMapHandler.SetDBFile(dbfilename.c_str(), fsid))
   {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(EFAULT, "cannot set DB filename - see the fst logfile for details");
     return;
   }
 
-  bool resyncmgm = (gFmdSqliteHandler.IsDirty(fsid) ||
-                    (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
-  bool resyncdisk = (gFmdSqliteHandler.IsDirty(fsid) ||
+  bool resyncmgm = (gFmdDbMapHandler.IsDirty(fsid) ||
+                      (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
+  bool resyncdisk = (gFmdDbMapHandler.IsDirty(fsid) ||
                      (fs->GetLongLong("bootcheck") >= eos::common::FileSystem::kBootForced));
 
   eos_info("msg=\"start disk synchronisation\"");
-  // resync the SQLITE DB 
-  gFmdSqliteHandler.StayDirty(fsid, true); // indicate the flag to keep the DP dirty
+  // resync the DB 
+  gFmdDbMapHandler.StayDirty(fsid, true); // indicate the flag to keep the DP dirty
 
   if (resyncdisk)
   {
     if (resyncmgm)
     {
       // clean-up the DB
-      if (!gFmdSqliteHandler.ResetDB(fsid))
+      if (!gFmdDbMapHandler.ResetDB(fsid))
       {
         fs->SetStatus(eos::common::FileSystem::kBootFailure);
         fs->SetError(EFAULT, "cannot clean SQLITE DB on local disk");
         return;
       }
     }
-    if (!gFmdSqliteHandler.ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm))
+    if (!gFmdDbMapHandler.ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm))
     {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
       fs->SetError(EFAULT, "cannot resync the SQLITE DB from local disk");
@@ -439,7 +439,7 @@ Storage::Boot (FileSystem *fs)
   {
     eos_info("msg=\"start mgm synchronisation\" fsid=%lu", (unsigned long) fsid);
     // resync the MGM meta data
-    if (!gFmdSqliteHandler.ResyncAllMgm(fsid, manager.c_str()))
+    if (!gFmdDbMapHandler.ResyncAllMgm(fsid, manager.c_str()))
     {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
       fs->SetError(EFAULT, "cannot resync the mgm meta data");
@@ -453,7 +453,7 @@ Storage::Boot (FileSystem *fs)
              (unsigned long) fsid);
   }
 
-  gFmdSqliteHandler.StayDirty(fsid, false); // indicate the flag to unset the DB dirty flag at shutdown
+  gFmdDbMapHandler.StayDirty(fsid, false); // indicate the flag to unset the DB dirty flag at shutdown
 
   // check if there is a lable on the disk and if the configuration shows the same fsid + uuid
   if (!CheckLabel(fs->GetPath(), fsid, uuid))
