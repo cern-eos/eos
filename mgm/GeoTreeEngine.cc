@@ -1769,6 +1769,11 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
 			continue;
 		}
 		FileSystem::fsid_t fsid = (FileSystem::fsid_t) hash->GetLongLong("id");
+		if(!fsid){
+			eos_static_warning("Inconsistency : Trying to update an unregistered fs. Should not happen.");
+			gOFS->ObjectManager.HashMutex.UnLockRead();
+			continue;
+		}
 		gOFS->ObjectManager.HashMutex.UnLockRead();
 
 		if(!pFsId2FsPtr.count(fsid))
