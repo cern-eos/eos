@@ -37,8 +37,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-        /*----------------------------------------------------------------------------*/
-        char dav_rfc3986[256] = {0};
+/*----------------------------------------------------------------------------*/
+char dav_rfc3986[256] = {0};
 char dav_html5[256] = {0};
 
 /*----------------------------------------------------------------------------*/
@@ -52,6 +52,26 @@ dav_uri_encode (unsigned char *s, char *enc, char *tb)
     while (*++enc);
   }
 }
+
+int
+dav_uri_decode (char* source, char* dest )
+{
+  int nLength;
+  for (nLength = 0; *source; nLength++) {
+    dest[nLength+1] = 0;
+    if (*source == '%' && source[1] && source[2] && isxdigit(source[1]) && isxdigit(source[2])) {
+      source[1] -= source[1] <= '9' ? '0' : (source[1] <= 'F' ? 'A' : 'a')-10;
+      source[2] -= source[2] <= '9' ? '0' : (source[2] <= 'F' ? 'A' : 'a')-10;
+      dest[nLength] = 16 * source[1] + source[2];
+      source += 3;
+      continue;
+    }
+    dest[nLength] = *source++;
+  }
+  dest[nLength] = '\0';
+  return nLength;
+}
+
 
 /*----------------------------------------------------------------------------*/
 std::string
