@@ -41,9 +41,16 @@ main (int argc, char* argv[])
     XrdOucString path = (argv[1]) ? argv[1] : "";
     unsigned long long scansize;
     float scantime;
-    normalXS->ScanFile(path.c_str(), scansize, scantime);
-    fprintf(stdout, "path=%s size=%llu time=%.02f adler32=%s\n", argv[1], scansize, scantime, normalXS->GetHexChecksum());
-    exit(0);
+    if (!normalXS->ScanFile(path.c_str(), scansize, scantime))
+    {
+      fprintf(stderr,"error: unable to scan file path=%s\n", argv[1]);
+      exit(-1);
+    } 
+    else 
+    {
+      fprintf(stdout, "path=%s size=%llu time=%.02f adler32=%s\n", argv[1], scansize, scantime, normalXS->GetHexChecksum());
+      exit(0);
+    }
   }
   fprintf(stderr, "error: failed to get checksum object\n");
   exit(-1);
