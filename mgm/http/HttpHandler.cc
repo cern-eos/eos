@@ -730,8 +730,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
       // use the proper creation/open flags for PUT's
       open_mode |= SFS_O_TRUNC;
       open_mode |= SFS_O_RDWR;
-      open_mode |= SFS_O_MKPTH;
-      create_mode |= (SFS_O_MKPTH | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+      create_mode |= (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
       std::string query;
       if (request->GetHeaders().count("content-length"))
@@ -815,13 +814,16 @@ HttpHandler::Put (eos::common::HttpRequest * request)
         }
         else if (rc == SFS_ERROR)
         {
-          response = HttpServer::HttpError(file->error.getErrText(),
+	  if (file->error.getErrInfo() == ENOENT)
+	    response = HttpServer::HttpError(file->error.getErrText(), 409);
+	  else
+	    response = HttpServer::HttpError(file->error.getErrText(),
                                            file->error.getErrInfo());
         }
         else if (rc == SFS_DATA)
         {
-          response = HttpServer::HttpData(file->error.getErrText(),
-                                          file->error.getErrInfo());
+	  response = HttpServer::HttpData(file->error.getErrText(),
+					  file->error.getErrInfo());
         }
         else if (rc == SFS_STALL)
         {
