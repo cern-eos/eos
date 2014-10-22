@@ -990,7 +990,7 @@ usage ()
   fprintf(stderr, "            EOS_SOCKS4_HOST                     : set's the SOCKS4 proxy host name\n");
   fprintf(stderr, "            EOS_SOCKS4_PORT                     : set's the SOCKS4 proxy port\n");
   fprintf(stderr, "            EOS_PWD_FILE                        : set's the file where the last working directory is stored- by default '$HOME/.eos_pwd\n\n");
-  fprintf(stderr, "            EOS_DISABLE_PIPEMODE                : forbids the EOS shell to split into a session and pipe executable to avoid useless re-authentication\n");
+  fprintf(stderr, "            EOS_ENABLE_PIPEMODE                 : allows the EOS shell to split into a session and pipe executable to avoid useless re-authentication\n");
   fprintf(stderr, "Return Value: \n");
   fprintf(stderr, "            The return code of the last executed command is returned. 0 is returned in case of success otherwise <errno> (!=0).\n\n");
   fprintf(stderr, "Examples:\n");
@@ -1029,9 +1029,13 @@ main (int argc, char* argv[])
 
   int retc = system("test -t 0 && test -t 1");
 
-  if (!getenv("EOS_DISABLE_PIPEMODE"))
+  if (getenv("EOS_ENABLE_PIPEMODE"))
   {
     runpipe = true;
+  } 
+  else
+  {
+    runpipe = false;
   }
 
   if (!retc)
