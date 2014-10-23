@@ -135,8 +135,8 @@ proto/Response.pb.h)
               
               
   add_dependencies(EosAuthProto auth_plugin_protobuf_headers)
-  target_link_libraries(EosAuthProto 
-  		        eosCommon XrdSec ${PROTOBUF_LIBRARIES})
+  target_link_libraries(EosAuthProto
+                        eosCommon ${PROTOBUF_LIBRARIES})
 
   add_library(EosAuthOfs MODULE
   	      EosAuthOfs.cc  EosAuthOfs.hh
