@@ -77,7 +77,7 @@ add_library (XrdMqOfs-Static STATIC
 target_link_libraries (XrdMqClient XrdUtils  XrdCl crypto ${UUID_LIBRARIES} ${NCURSES_LIBRARIES})
 target_link_libraries (XrdMqOfs    XrdUtils  XrdCl XrdOfs crypto ${UUID_LIBRARIES} ${NCURSES_LIBRARIES})
 
-target_link_libraries (XrdMqClient-Static )
+#target_link_libraries (XrdMqClient-Static )
 #depends on XrdCl XrdSys XrdOuc  XrdOuc libcrypto.a libuuid.a libcurses.a dl ${CMAKE_THREAD_LIBS_INIT} )
 
 
