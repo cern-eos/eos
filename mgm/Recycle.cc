@@ -656,6 +656,8 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
                 stdOut += deltime;
 		stdOut += " type=";
 		stdOut += type.c_str();
+		stdOut += " keylength.restore-path=";
+		stdOut += (int)origpath.length();
                 stdOut += " restore-path=";
                 stdOut += origpath.c_str();
                 stdOut += " restore-key=";

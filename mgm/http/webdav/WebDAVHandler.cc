@@ -205,6 +205,17 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
   std::string destination = eos::common::StringConversion::ParseUrl
       (request->GetHeaders()["destination"].c_str(), prot, port);
 
+  char encode_destination[1024];
+  snprintf(encode_destination,sizeof(encode_destination),"%s",destination.c_str());
+  char decode_destination[1024];
+  decode_destination[0] = 0;
+
+  if (destination.length() < sizeof(decode_destination)) {
+
+    ::dav_uri_decode(encode_destination, decode_destination);
+    destination = decode_destination;
+  }
+
   // owncloud protocol patch
   XrdOucString spath = destination.c_str();
   if (spath.find("/remote.php/webdav/") != STR_NPOS)
