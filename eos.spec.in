@@ -19,9 +19,9 @@ BuildRequires: cmake28 >= 2.8
 %endif
 
 BuildRequires: xrootd4
-BuildRequires: xrootd4-server-devel
+BuildRequires: xrootd4-server-libs xrootd4-server-devel 
+BuildRequires: xrootd4-client-libs xrootd4-client-devel 
 BuildRequires: xrootd4-private-devel
-BuildRequires: xrootd4-client-devel 
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: libattr-devel, openldap-devel
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
