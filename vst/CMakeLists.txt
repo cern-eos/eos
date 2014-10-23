@@ -41,10 +41,9 @@ add_library( XrdEosVst MODULE
 
 
 target_link_libraries( XrdEosVst 
-		       eosCommon
-		       eosCommonServer      
+		       eosCommon               eosCommonServer
 		       XrdMqClient-Static      XrdCl	
-		       XrdUtils                XrdOfs 
+		       XrdUtils
 		       crypto                  ${NCURSES_LIBRARIES}
 		       dl                      ${Z_LIBRARIES}  
 		       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       

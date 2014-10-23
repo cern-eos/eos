@@ -124,7 +124,7 @@ add_dependencies(XrdEosMgm auth_plugin_protobuf_headers)
 
 target_link_libraries( XrdEosMgm 
                        XrdCl                XrdPosix 
-                       XrdUtils             XrdOfs 
+                       XrdUtils
                        eosCommon            eosCommonServer
                        eosNamespace-Static  eosCapability-Static
                        XrdMqClient-Static   EosAuthProto
@@ -148,7 +148,7 @@ add_executable ( testschedulingtree
 
 
 target_link_libraries ( testmgmview 
-                        XrdCl             XrdUtils 
+                        XrdCl             XrdUtils
                         eosCommon         eosCommonServer
                         XrdMqClient-Static eosCapability-Static
                         crypto            ${NCURSES_LIBRARIES}
@@ -157,7 +157,7 @@ target_link_libraries ( testmgmview
                         ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries ( testschedulingtree 
-                        XrdCl             XrdUtils 
+                        XrdCl             XrdUtils
                         eosCommon         eosCommonServer
                         crypto            ${NCURSES_LIBRARIES}
                         dl

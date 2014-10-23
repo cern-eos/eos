@@ -88,7 +88,7 @@ add_dependencies( EosFstIo-Static protbuf_gen_files)
 
 target_link_libraries( EosFstIo-Static
 		       eosCommon-Static
-		       XrdCl	              XrdUtils 
+		       XrdCl	               XrdUtils
 		       crypto                  ${NCURSES_LIBRARIES}
 		       dl                      ${Z_LIBRARIES}  
                        ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
@@ -126,7 +126,7 @@ target_link_libraries( EosFstIo
 		       XrdEosFst
 		       eosCommon
 		       XrdCl	
-		       XrdUtils 
+		       XrdUtils
 		       crypto                  ${NCURSES_LIBRARIES}
 		       dl                      ${Z_LIBRARIES}  
                        ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
@@ -189,7 +189,7 @@ target_link_libraries( XrdEosFst
 		       eosCommon
 		       eosCommonServer         eosCapability-Static
 		       XrdMqClient-Static      XrdCl	
-		       XrdUtils                XrdOfs 
+		       XrdUtils
 		       crypto                  ${NCURSES_LIBRARIES}
 		       dl                      ${Z_LIBRARIES}  
 		       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
@@ -256,7 +256,7 @@ target_link_libraries( XrdEosFst
 		       eosCommon
 		       eosCommonServer         eosCapability-Static
 		       XrdMqClient-Static      XrdCl	
-		       XrdUtils                XrdOfs 
+		       XrdUtils
 		       crypto                  ${NCURSES_LIBRARIES}
 		       dl                      ${Z_LIBRARIES}  
 		       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
