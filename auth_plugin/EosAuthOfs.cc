@@ -144,7 +144,7 @@ EosAuthOfs::Configure(XrdSysError& error)
   char* var;
   const char* val;
   std::string space_tkn;
-  const char* buff_ip;
+  char buff_ip[4096];
 
   // Configure the basic XrdOfs and exit if not successful
   NoGo = XrdOfs::Configure(error);
@@ -152,11 +152,11 @@ EosAuthOfs::Configure(XrdSysError& error)
   if (NoGo)
     return NoGo;
 
-  if (!myIF.GetDest(XrdNetIF::ifType::Public, buff_ip))
+  if (!myIF->GetDest(&buff_ip[0], 4096))
      return OfsEroute.Emsg("Config", errno, "unable to get IP address");
 
   mManagerIp = buff_ip;
-  mManagerPort = myIF.Port();
+  mManagerPort = myIF->Port();
 
   // extract the manager from the config file
   XrdOucStream Config(&error, getenv("XRDINSTANCE"));

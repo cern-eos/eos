@@ -144,7 +144,7 @@ proto/Response.pb.h)
  	      EosAuthOfsDirectory.cc EosAuthOfsDirectory.hh)
 
   target_link_libraries(EosAuthOfs 
-			XrdServer XrdCl
+			XrdUtils XrdCl
 			eosCommon
 			EosAuthProto
 		      	${ZMQ_LIBRARIES})
