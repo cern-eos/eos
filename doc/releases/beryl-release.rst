@@ -9,6 +9,22 @@ Beryl Release Notes
 
 - add support for archive interface to stage-out and migrate a frozen subtree in the namespace to any XRootD enabled archive storage
 
+``Version V0.3.49 Beryl``
+
+Bug Fixes
+---------
+- rename: allow whitespace names, fix subpath check, fix encofing in HTTP move
+- various HTTP/DAV related return code fixes
+
+Consolidation
+-------------
+- the 'eos' shell by default does not run in 'pipe mode' e.g. no background agent
+
+New Features
+------------
+- allow FUSE_OPT in /etc/sysconfig/eos e.g. to set a FUSE mount read-only use export FUSE_OPT="ro"
+- enable MacOSX build and add packing script for DMG
+
 ``Version V0.3.47 Beryl``
 
 Bug Fixes
