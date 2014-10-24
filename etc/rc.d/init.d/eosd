@@ -82,10 +82,12 @@ start() {
         export EOS_FUSE_LOCK_ENVIRONMENT=${EOS_FUSE_LOCK_ENVIRONMENT-0}
         export EOS_FUSE_NO_MT=${EOS_FUSE_NO_MT-0}
 
-	export FUSE_OPT=""
 	if [ "x$EOS_FUSE_BIGWRITES" = "x1" ]; then
-	  FUSE_OPT="big_writes,"
-        fi	
+	  FUSE_OPT="big_writes,"${FUSE_OPT-""}
+	else
+	  test -n "${FUSE_OPT}" && FUSE_OPT=${FUSE_OPT}","
+        fi
+
         if [ "x$eosdpid" = "x" ]; then
             echo -n "Starting $prog: "
 	    mkdir -p /var/run/eosd/
