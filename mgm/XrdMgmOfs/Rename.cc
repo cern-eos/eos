@@ -295,6 +295,11 @@ XrdMgmOfs::_rename (const char *old_name,
     {
       std::string n_path = nPath.GetPath();
       std::string o_path = oPath.GetPath();
+      if ( (n_path.at( n_path.length()-1 ) != '/') )
+	n_path += "/";
+      if ( (o_path.at( o_path.length()-1 ) != '/') )
+	o_path += "/";
+
       renameDir = true;
       // check if old path is a subpath of new path
       if ( (n_path.length() > o_path.length()) && (!n_path.compare(0,o_path.length(),o_path)))
