@@ -23,7 +23,7 @@
  ************************************************************************/
 
 #ifndef __EOSFSTTEST_NAMESPACE_HH__
-#define __EOFSTTEST_NAMESPACE_HH__
+#define __EOSFSTTEST_NAMESPACE_HH__
 
 #define EOSFSTTEST_NAMESPACE_BEGIN namespace eos{  namespace fst { namespace test {
 #define EOSFSTTEST_NAMESPACE_END }}}

@@ -29,7 +29,7 @@
 /*----------------------------------------------------------------------------*/
 
 extern XrdOucString serveruri;
-extern char* com_fileinfo (char* arg1);
+//extern char* com_fileinfo (char* arg1);
 extern int com_transfer (char* argin);
 
 int

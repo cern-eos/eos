@@ -290,7 +290,8 @@ XrdMgmOfs::AuthWorkerThread()
         if (ret == SFS_OK)
         {
           XrdSysMutexHelper scope_lock(mMutexDirs);
-          auto result = mMapDirs.insert(std::make_pair(req_proto.diropen().uuid(), dir));
+          //auto result = mMapDirs.insert(std::make_pair(req_proto.diropen().uuid(), dir));
+          mMapDirs.insert(std::make_pair(req_proto.diropen().uuid(), dir));
         }
         else
         {
@@ -407,7 +408,8 @@ XrdMgmOfs::AuthWorkerThread()
         else
         {
           XrdSysMutexHelper scope_lock(mMutexFiles);
-          auto result = mMapFiles.insert(std::make_pair(req_proto.fileopen().uuid(), file));
+          //auto result = mMapFiles.insert(std::make_pair(req_proto.fileopen().uuid(), file));
+          mMapFiles.insert(std::make_pair(req_proto.fileopen().uuid(), file));
         }
       }
     }

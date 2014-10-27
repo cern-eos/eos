@@ -51,7 +51,7 @@
 // =============================================================================
 #else
 // =============================================================================
-#pragma GCC diagnostic warning "-fpermissive"
+//#pragma GCC diagnostic warning "-fpermissive"
 #include "mgm/http/rapidxml/rapidxml.hpp"
 #include "mgm/http/rapidxml/rapidxml_print.hpp"
 // =============================================================================

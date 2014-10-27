@@ -27,6 +27,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/Logging.hh"
+#pragma clang diagnostic ignored "-Wformat-security"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/

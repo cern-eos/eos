@@ -313,8 +313,8 @@ main()
 
   retvec.clear();
   dbl_no_slice.getAll(&retvec, 0, NULL,
-      RegexAtom("writer", "NewName_no_slice") && RegexAtom("key", "KeySeq-thread[ ]#[0-"STRING(NUM_THREADS)"]")
-          && RegexAtom("value", "ValSeq-thread[ ]#[0-"STRING(NUM_THREADS)"]"));
+      RegexAtom("writer", "NewName_no_slice") && RegexAtom("key", "KeySeq-thread[ ]#[0-" STRING(NUM_THREADS) "]")
+          && RegexAtom("value", "ValSeq-thread[ ]#[0-" STRING(NUM_THREADS) "]"));
   totalcount+=retvec.size();
   //cout<<retvec.size()<<endl;
   assert(retvec.size()==100*NUM_THREADS*2);
@@ -364,7 +364,7 @@ main()
 
   //                key=KeyN value=ValueN comment=thread #P  with N={1,2,3} and P=[1,NUM_THREADS] // only in the archives (or current db)
   arch_testloop(
-      RegexAtom("writer","TestMap") && RegexAtom("key","KeySeq-thread[ ]#[0-"STRING(NUM_THREADS)"]") && RegexAtom("value","ValSeq-thread[ ]#[0-"STRING(NUM_THREADS)"]"),
+      RegexAtom("writer","TestMap") && RegexAtom("key","KeySeq-thread[ ]#[0-" STRING(NUM_THREADS) "]") && RegexAtom("value","ValSeq-thread[ ]#[0-" STRING(NUM_THREADS) "]"),
       100*NUM_THREADS*2, true);
 
   //                check there is nothing else

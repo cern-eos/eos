@@ -49,7 +49,7 @@ EOSFSTNAMESPACE_BEGIN
 //! In-memory entry struct
 // ---------------------------------------------------------------------------
 
-class Fmd : public FmdBase
+struct Fmd : public FmdBase
 {
 //  eos::common::FileId::fileid_t fid; //< fileid
 //  eos::common::FileId::fileid_t cid; //< container id (e.g. directory id)

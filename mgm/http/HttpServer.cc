@@ -203,7 +203,7 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
   std::string remoteUser = headers["remote-user"];
   std::string dn;
   std::string username;
-  unsigned    pos;
+  size_t    pos;
 
   if (clientDN.empty() && remoteUser.empty())
   {

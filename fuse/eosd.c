@@ -1030,7 +1030,7 @@ eosfs_ll_read (fuse_req_t req,
                struct fuse_file_info* fi)
 {
   fprintf (stderr, "[%s]: inode=%li size=%li off=%lli \n",
-           __FUNCTION__, ino, size, off);
+           __FUNCTION__, ino, size, (long long int)off);
 
   if (fi && fi->fh)
   {

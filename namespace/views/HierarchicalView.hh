@@ -30,6 +30,7 @@
 #include "namespace/IContainerMDSvc.hh"
 #include "namespace/IFileMDSvc.hh"
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
+#pragma clang diagnostic ignored "-Wunused-private-field"
 
 namespace eos
 {

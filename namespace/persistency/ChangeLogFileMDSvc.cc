@@ -32,6 +32,8 @@
 #include <utility>
 #include <set>
 
+#pragma clang diagnostic ignored "-Wunused-private-field"
+
 //------------------------------------------------------------------------------
 // Follower
 //------------------------------------------------------------------------------
@@ -40,6 +42,8 @@ namespace eos
   class FileMDFollower: public eos::ILogRecordScanner
   {
     public:
+      virtual ~FileMDFollower(){}
+
       FileMDFollower( eos::ChangeLogFileMDSvc *fileSvc ):
         pFileSvc( fileSvc )
       {
@@ -643,13 +647,14 @@ namespace
   class UpdateHandler: public eos::ILogRecordScanner
   {
     public:
+      virtual ~UpdateHandler() {}
 
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
       UpdateHandler( std::map<eos::FileMD::id_t, RecordData> &updates,
                      eos::ChangeLogFile                      *newLog ):
-        pUpdates( updates ), pNewLog( newLog ) {}
+        pUpdates( updates ), pNewLog( newLog ), pCounter(0) {}
 
       //------------------------------------------------------------------------
       // Process the records

@@ -62,7 +62,7 @@ DbMap *globmap;
 const int nn=100000;
 const int nsizes=4;
 const int transacsize[nsizes]={10000,100,10,1};
-const int maxsize=10000;
+//const int maxsize=10000;
 
 int n = nn;
 char data_key[NNUM_THREADS][nn][32];

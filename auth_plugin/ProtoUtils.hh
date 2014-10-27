@@ -37,7 +37,7 @@
 //! Forward declarations
 class XrdSecEntity;
 class XrdOucErrInfo;
-class XrdSfsFSctl;
+struct XrdSfsFSctl;
 
 EOSAUTHNAMESPACE_BEGIN
 

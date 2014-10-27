@@ -212,8 +212,8 @@ bool GeoTree::erase(const fsid_t &fs)
   if(leaf->mFsIds.empty())
   {
     // compute the depth for the current father
-    size_t depth,i;
-    for(i=pLevels.size()-1;i>=0;i--)
+    int i,depth=-1;
+    for(i=(int)pLevels.size()-1;i>=0;i--)
     if(pLevels[i].count(father))
     {
       depth = i;

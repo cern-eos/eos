@@ -1012,7 +1012,7 @@ SpaceQuota::CheckWriteQuota (uid_t uid, gid_t gid, long long desiredspace, unsig
     hasquota = true;
   }
 
-  if ((uid == 0))
+  if (uid == 0)
   {
     // root does not need any quota
     hasquota = true;
