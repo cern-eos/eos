@@ -783,7 +783,7 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
            << "}" << std::endl;
 
   // Add directories info
-  if (ArchiveAddEntries(arch_dir, arch_ofs, num_dirs, false) || true)
+  if (ArchiveAddEntries(arch_dir, arch_ofs, num_dirs, false))
   {
     MakeSubTreeMutable(arch_dir);
     arch_ofs.close();
