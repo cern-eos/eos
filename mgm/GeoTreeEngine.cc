@@ -92,7 +92,7 @@ const map<string,int> GeoTreeEngine::gNotifKey2Enum =
 	make_pair("stat.disk.writeratemb",sfgWriteratemb),
 	make_pair("stat.disk.readratemb",sfgReadratemb),
 	make_pair("stat.disk.load",sfgDiskload),
-	make_pair("stat.net.ethmib",sfgEthmib),
+	make_pair("stat.net.ethratemib",sfgEthmib),
 	make_pair("stat.net.inratemib",sfgInratemib),
 	make_pair("stat.net.outratemib",sfgOutratemib),
 	make_pair("stat.errc",sfgErrc)
