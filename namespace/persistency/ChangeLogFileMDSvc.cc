@@ -32,7 +32,9 @@
 #include <utility>
 #include <set>
 
+#ifdef __clang__
 #pragma clang diagnostic ignored "-Wunused-private-field"
+#endif
 
 //------------------------------------------------------------------------------
 // Follower
