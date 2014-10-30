@@ -61,8 +61,9 @@ public:
     systemline += "\"";
     systemline += what;
     systemline += "\" 2> /dev/null";
-    systemline += "| awk '{if ($2 == \"quit\") {on=0} else { if (on ==1) {print}; if ($1 == \"(gdb)\") {on=1;};} }' 2>&1 ";
-    std::string gdbdump = eos::common::StringConversion::StringFromShellCmd(systemline.c_str());
+    systemline += "| awk '{if ($2 == \"quit\") {on=0} else { if (on ==1) {print}; if ($1 == \"(gdb)\") {on=1;};} }' 2>&1 > /var/eos/md/stacktrace";
+    system(systemline.c_str());
+    std::string gdbdump = eos::common::StringConversion::StringFromShellCmd("cat /var/eos/md/stacktrace");
     fprintf(stderr,"%s\n",gdbdump.c_str());
     if (!strcmp("thread apply all bt", what))
     {
