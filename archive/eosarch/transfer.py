@@ -465,7 +465,7 @@ class Transfer(object):
         indx_file = 0
         # For inital PUT copy also the archive file to tape
         if self.init_put:
-            dst = self.archive.header['dst'] + self.config.ARCH_INIT
+            __, dst = self.archive.get_endpoints(self.config.ARCH_INIT)
             self.list_jobs.append((self.efile_full, dst))
 
         # Copy files
