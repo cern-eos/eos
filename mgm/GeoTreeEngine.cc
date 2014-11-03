@@ -586,10 +586,10 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 		existingReplicasIdx->resize(0);
     int count = 0;
     for(auto it = existingReplicas->begin(); it != existingReplicas->end(); ++it , ++count)
-		{
-			const SchedTreeBase::tFastTreeIdx *idx;
+    {
+      const SchedTreeBase::tFastTreeIdx *idx = static_cast<const SchedTreeBase::tFastTreeIdx*>(0);
       if(!entry->foregroundFastStruct->fs2TreeIdx->get(*it,idx) && !(*fsidsgeotags)[count].empty())
-			{
+      {
 	// the fs is not in that group.
 	// this could happen because the former file scheduler
 	// could place replicas across multiple groups
