@@ -286,9 +286,10 @@ class ArchiveFile(object):
                         if pos != -1:
                             definition = definition[:pos] + definition[pos + 1:]
 
-                            if len(definition):
+                            if not definition:
                                 new_rules.append(':'.join([tag, definition]))
-                                continue
+
+                            continue
 
                     new_rules.append(rule)
 
