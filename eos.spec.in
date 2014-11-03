@@ -18,10 +18,10 @@ BuildRequires: cmake28 >= 2.8
 %define cmake_cmd cmake28
 %endif
 
-BuildRequires: xrootd4 xrootd4-libs
-BuildRequires: xrootd4-server-libs xrootd4-server-devel 
-BuildRequires: xrootd4-client-libs xrootd4-client-devel 
-BuildRequires: xrootd4-private-devel
+BuildRequires: xrootd xrootd-libs
+BuildRequires: xrootd-server-libs xrootd-server-devel
+BuildRequires: xrootd-client-libs xrootd-client-devel
+BuildRequires: xrootd-private-devel
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: libattr-devel, openldap-devel
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
@@ -51,8 +51,8 @@ The EOS software package.
 #######################################################################################
 Summary: The EOS server installation
 Group: Applications/File
-Requires: xrootd4
-Requires: xrootd4-client
+Requires: xrootd
+Requires: xrootd-client
 Requires: zeromq
 Requires: eos-client
 Requires: libmicrohttpd
@@ -173,7 +173,7 @@ fi
 #######################################################################################
 Summary: The EOS shell client
 Group: Applications/File
-Requires: xrootd4-client
+Requires: xrootd-client
 %description -n eos-client
 The EOS shell client.
 %files -n eos-client
@@ -199,7 +199,7 @@ The EOS shell client.
 Summary: The EOS fuse client
 Group: Applications/File
 
-Requires: xrootd4-client
+Requires: xrootd-client
 Requires: eos-client
 Requires: fuse
 
@@ -271,7 +271,7 @@ Contains an example keytab file.
 #######################################################################################
 Summary: The EOS archive daemon
 Group: Applications/File
-Requires: python-daemon xrootd4-python python-zmq
+Requires: python-daemon xrootd-python python-zmq
 
 %description -n eos-archive
 The EOS archive daemon.
