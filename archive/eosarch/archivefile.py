@@ -403,7 +403,7 @@ class ArchiveFile(object):
 
         for entry in self.entries():
             try:
-                self._verify_entry(entry)
+                self._verify_entry(list(entry))
             except CheckEntryException as __:
                 self.logger.error("Archive verfication failed")
                 return (False, entry)
