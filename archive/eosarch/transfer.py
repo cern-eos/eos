@@ -650,11 +650,13 @@ class Transfer(object):
         if self.archive.d2t:
             return
 
+        count = 0
         limit = 20  # max files per prepare request
         oper = 'prepare'
         self.set_status("prepare2get")
         t0 = time.time()
         lpaths = []
+        status = True
         metahandler = MetaHandler()
 
         for fentry in self.archive.files():
@@ -665,6 +667,7 @@ class Transfer(object):
                 else:
                     found_checkpoint = True
 
+            count += 1
             surl, __ = self.archive.get_endpoints(fentry[1])
             lpaths.append(surl[surl.rfind('//') + 1:])
 
@@ -678,10 +681,17 @@ class Transfer(object):
                     self.logger.error(err_msg)
                     raise IOError(err_msg)
 
+                # Wait for batch to be executed
                 del lpaths[:]
+                status = status and metahandler.wait(oper)
+                self.logger.debug("Prepare2get done count={0}/{1}".format(
+                        count, self.archive.header['num_files']))
+
+                if not status:
+                    break
 
         # Send the remaining requests
-        if lpaths:
+        if lpaths and status:
             xrd_st = self.archive.fs_dst.prepare(lpaths, PrepareFlags.STAGE,
                         callback=metahandler.register(oper, surl))
 
@@ -691,9 +701,9 @@ class Transfer(object):
                 self.logger.error(err_msg)
                 raise IOError(err_msg)
 
+            # Wait for batch to be executed
             del lpaths[:]
-
-        status  = metahandler.wait(oper)
+            status = status and metahandler.wait(oper)
 
         if status:
             t1 = time.time()
