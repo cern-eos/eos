@@ -987,6 +987,7 @@ XrdFstOfs::SendFsck (XrdMqMessage* message)
               stdOut += "\n";
               XrdMqMessage repmessage("fsck reply message");
               repmessage.SetBody(stdOut.c_str());
+	      repmessage.MarkAsMonitor();
 
               if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message))
               {
@@ -1007,6 +1008,7 @@ XrdFstOfs::SendFsck (XrdMqMessage* message)
   {
     XrdMqMessage repmessage("fsck reply message");
     repmessage.SetBody(stdOut.c_str());
+    repmessage.MarkAsMonitor();
 
     if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message))
     {
