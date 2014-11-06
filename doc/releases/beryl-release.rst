@@ -9,6 +9,13 @@ Beryl Release Notes
 
 - add support for archive interface to stage-out and migrate a frozen subtree in the namespace to any XRootD enabled archive storage
 
+``Version V0.3.53 Beryl``
+
+New Features
+------------
+- [webdav] add possibility to exclude directory syncs via 'sys.allow.oc.sync'
+- [webdav] add support to do path replacments provdided by two special header flosg CBOX_CLIENT_MAPPING & CBOX_SERVER_MAPPING
+
 ``Version V0.3.51 Beryl``
 
 Bug Fixes
