@@ -45,6 +45,7 @@ XrdPosixXrootd posixsingleton;
 extern int com_access (char*);
 extern int com_archive (char*);
 extern int com_attr (char*);
+extern int com_backup (char*);
 extern int com_cd (char*);
 extern int com_chmod (char*);
 extern int com_chown (char*);
@@ -195,6 +196,7 @@ COMMAND commands[] = {
   { (char*) "access", com_access, (char*) "Access Interface"},
   { (char*) "archive", com_archive, (char*) "Archive Interface"},
   { (char*) "attr", com_attr, (char*) "Attribute Interface"},
+  { (char*) "backup", com_backup, (char*) "Backup Interface"},
   { (char*) "clear", com_clear, (char*) "Clear the terminal"},
   { (char*) "cd", com_cd, (char*) "Change directory"},
   { (char*) "chmod", com_chmod, (char*) "Mode Interface"},

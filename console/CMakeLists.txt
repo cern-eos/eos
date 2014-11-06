@@ -43,6 +43,7 @@ add_executable( eos
 		commands/com_access.cc
 		commands/com_archive.cc
 	        commands/com_attr.cc
+		commands/com_backup.cc
 		commands/com_cd.cc
 		commands/com_chmod.cc 
 		commands/com_chown.cc 

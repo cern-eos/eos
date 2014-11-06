@@ -248,6 +248,21 @@ private:
   //----------------------------------------------------------------------------
   bool ArchiveCheckAcl(const std::string& arch_dir) const;
 
+
+  //----------------------------------------------------------------------------
+  //! Create backup file. If successful then the backup file is copied to the
+  //! backup_dir location. If not it sets the retc and stdErr string accordingly.
+  //!
+  //! @param backup_dir directory for which the backup file is created
+  //! @param dst_url backup destination URL ending with '/'
+  //!
+  //! @return 0 if successful, otherwise errno. It sets the global retc in case
+  //!         of error
+  //----------------------------------------------------------------------------
+  int BackupCreate(const std::string& backup_dir,
+                   const std::string& dst_url);
+
+
 public:
 
   //----------------------------------------------------------------------------
@@ -312,6 +327,7 @@ public:
   // -------------------------------------------------------------------------
   int Attr ();
   int Archive();
+  int Backup();
   int Cd ();
   int Chmod ();
   int DirInfo (const char* path);
