@@ -41,7 +41,7 @@ except Exception as err:
 config.DIR = {}
 
 # Set location for local transfer files
-for oper in [config.GET_OP, config.PUT_OP, config.PURGE_OP, config.DELETE_OP]:
+for oper in [config.GET_OP, config.PUT_OP, config.PURGE_OP, config.DELETE_OP, config.BACKUP_OP]:
     path = config.EOS_ARCHIVE_DIR + oper + '/'
     config.DIR[oper] = path
 
@@ -64,12 +64,12 @@ try:
 except IOError as err:
     print "{0}".format(err)
     tx.logger.exception(err)
-    tx.clean_transfer(False)
+    tx.tx_clean(False)
     sys.exit(EIO)
 except NoErrorException as err:
-    tx.clean_transfer(True)
+    tx.tx_clean(True)
 except Exception as err:
     print "{0}".format(err)
     tx.logger.exception(err)
-    tx.clean_transfer(False)
+    tx.tx_clean(False)
     sys.exit(EINVAL)

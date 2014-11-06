@@ -78,6 +78,7 @@ class Configuration(object):
         self.__dict__['PURGE_OP'] = 'purge'
         self.__dict__['DELETE_OP'] = 'delete'
         self.__dict__['KILL_OP'] = 'kill'
+        self.__dict__['BACKUP_OP'] = 'backup'
         self.__dict__['OPT_RETRY'] = 'retry'
         self.__dict__['ARCH_FN'] = ".archive"
         self.__dict__['ARCH_INIT'] = ".archive.init"

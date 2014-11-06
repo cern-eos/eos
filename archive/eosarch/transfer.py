@@ -44,7 +44,7 @@ class ThreadJob(threading.Thread):
     job not doing any other operations and therefore not using the GIL too much.
 
     Attributes:
-        status (bool): Final status of the job
+        status             (bool): Final status of the job
         proc (client.CopyProcess): Copy process which is being executed
     """
     def __init__(self, cpy_proc):
@@ -224,15 +224,19 @@ class Transfer(object):
             IOError
         """
         self.thread_status.start()
-        self.prepare()
 
         if self.oper in [self.config.PUT_OP, self.config.GET_OP]:
+            self.archive_prepare()
             self.do_transfer()
         elif self.oper in [self.config.PURGE_OP, self.config.DELETE_OP]:
+            self.archive_prepare()
             self.do_delete((self.oper == self.config.DELETE_OP))
+        elif self.oper == self.config.BACKUP_OP:
+            self.backup_prepare()
+            self.do_backup()
 
-    def prepare(self):
-        """ Prepare requested operation.
+    def archive_prepare(self):
+        """ Prepare requested archive operation.
 
         Raises:
             IOError: Failed to rename or transfer archive file.
@@ -307,7 +311,7 @@ class Transfer(object):
         if tape_delete:
             self.archive.make_mutable()
 
-        self.clean_transfer(True)
+        self.archive_tx_clean(True)
 
     def do_transfer(self):
         """ Execute the put or get operation. What this method actually does is
@@ -373,9 +377,51 @@ class Transfer(object):
         check_ok, __ = self.archive.verify()
         self.set_status("cleaning")
         self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
-        self.clean_transfer(check_ok)
+        self.archive_tx_clean(check_ok)
 
-    def clean_transfer(self, check_ok):
+    def tx_clean(self, check_ok):
+        """ Clean a backup/archive transfer depending on its type.
+        """
+        if self.oper == self.config.BACKUP_OP:
+            self.backup_tx_clean()
+        else:
+            self.archive_tx_clean(check_ok)
+
+    def backup_tx_clean(self):
+        """ Clean after a backup tranfer by copying the log file in the same
+        directory as the destiantion of the backup.
+        """
+        # Copy local log file to EOS directory and set the ownership to the
+        # identity of the client who triggered the archive
+        eos_log = ''.join([self.efile_root, ".sys.b#.backup.log?eos.ruid=", self.uid,
+                           "&eos.rgid=", self.gid])
+
+        self.logger.debug("Copy log:{0} to {1}".format(self.config.LOG_FILE, eos_log))
+        self.config.handler.flush()
+        cp_client = client.FileSystem(self.efile_full)
+        st, __ = cp_client.copy(self.config.LOG_FILE, eos_log, force=True)
+
+        if not st.ok:
+            self.logger.error("Failed to copy log file {0} to EOS at {1}".format(
+                    self.config.LOG_FILE, eos_log))
+        else:
+            # Delete log file if it was successfully copied to EOS
+            try:
+                os.remove(self.config.LOG_FILE)
+            except OSError as __:
+                pass
+
+        # Delete all local files associated with this transfer
+        try:
+            os.remove(self.tx_file)
+        except OSError as __:
+            pass
+
+        # Join async status thread
+        self.thread_status.do_finish()
+        self.thread_status.join()
+
+    def archive_tx_clean(self, check_ok):
         """ Clean the transfer by renaming the archive file in EOS adding the
         following extensions:
         .done - the transfer was successful
@@ -497,13 +543,14 @@ class Transfer(object):
                 # For PUT read the files from EOS as root
                 src = ''.join([src, "?eos.ruid=0&eos.rgid=0"])
 
-            self.logger.debug("Copying from {0} to {1}".format(src, dst))
+            self.logger.info("Copying from {0} to {1}".format(src, dst))
             self.list_jobs.append((src, dst))
 
             if len(self.list_jobs) == self.config.BATCH_SIZE:
                 st = self.flush_files(False)
 
-                if not st:
+                # For archives we fail immediately, for backups it's best-effort
+                if not st and self.oper != self.config.BACKUP_OP:
                     err_msg = "Failed to flush files"
                     self.logger.error(err_msg)
                     raise IOError(err_msg)
@@ -511,7 +558,7 @@ class Transfer(object):
         # Flush all pending copies and set metadata info for GET operation
         st = self.flush_files(True)
 
-        if not st:
+        if not st and self.oper != self.config.BACKUP_OP:
             err_msg = "Failed to flush files"
             self.logger.error(err_msg)
             raise IOError(err_msg)
@@ -537,18 +584,17 @@ class Transfer(object):
                 # If thread finished get the status and mark it for removal
                 if not thread.isAlive():
                     status = status and thread.xrd_status.ok
-                    self.logger.debug("Thread={0} status={1}".format(
-                            thread.ident, thread.xrd_status.ok))
-
-                    if not thread.xrd_status.ok:
-                        self.logger.error("Thread={0} err_msg={1}".format(
-                                thread.ident, thread.xrd_status.message))
+                    self.logger.error("Thread={0} status={1} msg={2}".format(
+                            thread.ident, thread.xrd_status.ok,
+                            thread.xrd_status.message))
 
                     del self.threads[indx]
                     break
 
-        # If previous transfers were successful and we still have jobs
-        if status and self.list_jobs:
+        # If we still have jobs and previous archive jobs were successful or this
+        # is a backup operartion (best-effort even if we have failed transfers)
+        if self.list_jobs and ((self.oper != self.config.BACKUP_OP and status) or
+                               (self.oper == self.config.BACKUP_OP)):
             proc = client.CopyProcess()
 
             for job in self.list_jobs:
@@ -560,18 +606,15 @@ class Transfer(object):
             thread.start()
             self.threads.append(thread)
 
-        # If we already have failed transfers or we submitted all the jobs then
-        # join the rest of the threads and collect also their status
-        if not status or wait_all:
+        # If a previous archive job failed or we need to wait for all jobs to
+        # finish then join the threads and collect their status
+        if ((self.oper != self.config.BACKUP_OP and not status) or wait_all):
             for thread in self.threads:
                 thread.join()
                 status = status and thread.xrd_status.ok
-                self.logger.debug("Thread={0} status={1}".format(
-                        thread.ident, thread.xrd_status.ok))
-
-                if not thread.xrd_status.ok:
-                    self.logger.debug("Thread={0} status={1}".format(
-                            thread.ident, thread.xrd_status.message))
+                self.logger.debug("Thread={0} status={1} msg={2}".format(
+                        thread.ident, thread.xrd_status.ok,
+                        thread.xrd_status.message))
 
             del self.threads[:]
 
@@ -623,6 +666,21 @@ class Transfer(object):
                 self.logger.error(err_msg)
                 raise IOError(err_msg)
 
+            # Send the utime async request to set the mtime
+            mtime = dict_meta['mtime']
+            mtime_sec, mtime_nsec = mtime.split('.', 1)
+            arg = ''.join([url.path, "?eos.ruid=0&eos.rgid=0&mgm.pcmd=utimes",
+                           "&tv1_sec=0&tv1_nsec=0&tv2_sec=", mtime_sec,
+                           "&tv2_nsec=", mtime_nsec])
+            xrd_st = fs.query(QueryCode.OPAQUEFILE, arg,
+                              callback=metahandler.register(oper, surl))
+
+            if not xrd_st.ok:
+                __ = metahandler.wait(oper)
+                err_msg = "Failed query chmod for path={0}".format(surl)
+                self.logger.error(err_msg)
+                raise IOError(err_msg)
+
         status  = metahandler.wait(oper)
 
         if status:
@@ -651,7 +709,7 @@ class Transfer(object):
             return
 
         count = 0
-        limit = 20  # max files per prepare request
+        limit = 50  # max files per prepare request
         oper = 'prepare'
         self.set_status("prepare2get")
         t0 = time.time()
@@ -712,3 +770,62 @@ class Transfer(object):
             err_msg = "Failed prepare2get"
             self.logger.error(err_msg)
             raise IOError(err_msg)
+
+    def backup_prepare(self):
+        """ Prepare requested backup operation.
+
+        Raises:
+            IOError: Failed to transfer backup file.
+        """
+        # Copy archive file from EOS to the local disk
+        self.logger.info("Prepare backup copy from {0} to {1}".format(
+                self.efile_full, self.tx_file))
+        eos_fs = client.FileSystem(self.efile_full)
+        st, _ = eos_fs.copy(self.efile_full + "?eos.ruid=0&eos.rgid=0",
+                            self.tx_file, True)
+
+        if not st.ok:
+            err_msg = ("Failed to copy backup file={0} to local disk at={1}"
+                       "").format(self.efile_full, self.tx_file)
+            self.logger.error(err_msg)
+            raise IOError(err_msg)
+
+        # Create the ArchiveFile object for the backup which is similar to a
+        # tape to disk transfer
+        self.archive = ArchiveFile(self.tx_file, False)
+
+    def do_backup(self):
+        """ Performa a backup operation using the provided backup file
+
+        Args:
+            req_json (JSON command): Arguments for backup command include:
+            {
+              cmd: backup,
+              src: root://instance//path/to/backup/file,
+              opt: '',
+              uid: uid,
+              gid: gid
+            }
+        """
+        t0 = time.time()
+        indx_dir = 0
+
+        # Create directories
+        for dentry in self.archive.dirs():
+            # Do special checks for root directory
+            if dentry[1] == "./":
+                self.archive.check_root_dir()
+
+            indx_dir += 1
+            self.archive.mkdir(dentry)
+            msg = "create dir {0}/{1}".format(indx_dir, self.archive.header['num_dirs'])
+            self.set_status(msg)
+
+        # Copy files and set metadata information
+        self.copy_files(None, True)
+        self.update_file_access()
+        self.set_status("verifying")
+        check_ok, __ = self.archive.verify()
+        self.set_status("cleaning")
+        self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
+        self.backup_tx_clean()

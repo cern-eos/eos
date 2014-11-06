@@ -35,7 +35,9 @@ class ArchiveFile(object):
 
     Attributes:
         file: File object pointing to local archive file.
-        d2t: True if operation from disk to tape, otherwise False.
+        d2t: True if operation from disk to tape, otherwise False. For backup
+             operations we consider it as a transfer from tape to disk thus it
+             is False.
         header: Archive header dictionary.
     """
 
@@ -376,7 +378,6 @@ class ArchiveFile(object):
                 if status:
                     for entry in stdout.split():
                         tag, num = entry.split('=')
-                        self.logger.debug("Tag={0}, val={1}".format(tag, num))
 
                         if ((tag == 'nfiles' and num not in ['1', '2']) or
                             (tag == 'ndirectories' and num != '1')):
@@ -405,9 +406,10 @@ class ArchiveFile(object):
             try:
                 self._verify_entry(list(entry))
             except CheckEntryException as __:
-                self.logger.error("Archive verfication failed")
+                self.logger.error("Verfication failed")
                 return (False, entry)
 
+        self.logger.info("Verification successful")
         return (True, [])
 
     def _verify_entry(self, entry):
@@ -420,7 +422,7 @@ class ArchiveFile(object):
         Raises:
             CheckEntryException if entry verification fails.
         """
-        self.logger.info("Verify entry: {0}".format(entry))
+        self.logger.debug("Verify entry: {0}".format(entry))
         is_dir, path = (entry[0] == 'd'), entry[1]
         __, dst = self.get_endpoints(path)
         url = client.URL(dst)
@@ -480,25 +482,29 @@ class ArchiveFile(object):
 
             try:
                 meta_info = get_entry_info(url, path, tags, is_dir)
-
-                if not is_dir:
-                    # TODO: review this - fix EOS to honour the mtime argument
-                    # and don't remove it below
-                    indx = self.header["file_meta"].index("mtime") + 2
-                    del meta_info[indx]
-                    del entry[indx]
-
             except (AttributeError, IOError, KeyError) as __:
                 self.logger.error("Failed getting metainfo entry={0}".format(dst))
-                raise CheckEntryException("failed getting metainfo")
+
+                # For archive raise exception, for backup do best-effort
+                if self.oper != self.config.BACKUP_OP:
+                    raise CheckEntryException("failed getting metainfo")
+                else:
+                    self.logger.info("Check={0}, status={1}".format(dst, False))
+                    return
 
             if not (meta_info == entry):
                 err_msg = ("Verify failed for entry={0}, expect={1}, got={2}"
                            "").format(dst, entry, meta_info)
                 self.logger.error(err_msg)
-                raise CheckEntryException("failed metainfo match")
 
-        self.logger.debug("Check={0}, status={1}".format(dst, True))
+                # For archive raise exception, for backup do best-effort
+                if self.oper != self.config.BACKUP_OP:
+                    raise CheckEntryException("failed metainfo match")
+                else:
+                    self.logger.info("Check={0}, status={1}".format(dst, False))
+                    return
+
+        self.logger.info("Check={0}, status={1}".format(dst, True))
 
     def mkdir(self, dentry):
         """ Create directory and optionally for GET operations set the

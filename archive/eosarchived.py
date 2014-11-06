@@ -61,6 +61,7 @@ class Dispatcher(object):
                    self.config.GET_OP:    self.start_transfer,
                    self.config.DELETE_OP: self.start_transfer,
                    self.config.PURGE_OP:  self.start_transfer,
+                   self.config.BACKUP_OP: self.start_transfer,
                    self.config.TX_OP:     self.do_show_transfers,
                    self.config.KILL_OP:   self.do_kill}
         ctx = zmq.Context.instance()
@@ -266,7 +267,7 @@ class Dispatcher(object):
         """ Show onging transfers
 
         Args:
-            req_json (JSON): Command in JSON format including:
+            req_json (JSON): Command in JSON format include:
             {
               cmd:    transfers,
               opt:    all/get/put/purge/delete/uuid,
@@ -323,7 +324,7 @@ class Dispatcher(object):
         """ Kill transfer.
 
         Args:
-            req_json (JSON command): Arguments for kill command including:
+            req_json (JSON command): Arguments for kill command include:
             {
               cmd: kill,
               opt: uuid,
@@ -361,6 +362,7 @@ class Dispatcher(object):
         self.logger.debug("Kill pid={0}, msg={0}".format(proc.pid, msg))
         return msg
 
+
 def main():
     """ Main function """
     try:
@@ -380,7 +382,8 @@ def main():
         for oper in [config.GET_OP,
                      config.PUT_OP,
                      config.PURGE_OP,
-                     config.DELETE_OP]:
+                     config.DELETE_OP,
+                     config.BACKUP_OP]:
             path = config.EOS_ARCHIVE_DIR + oper + '/'
             config.DIR[oper] = path
 

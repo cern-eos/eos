@@ -113,11 +113,11 @@ ProcCommand::Archive()
     std::set<std::string> transfer_dirs;
 
     // First get the list of the ongoing transfers
-    cmd_json << "{\"cmd\": " << "\"transfers\", "
-             << "\"opt\": " <<  "\"all\", "
-             << "\"uid\": " << "\"" << pVid->uid << "\", "
-             << "\"gid\": " << "\"" << pVid->gid << "\", "
-             << "\"format\": " << "\"monitor\" "
+    cmd_json << "{\"cmd\": \"transfers\", "
+             << "\"opt\": \"all\", "
+             << "\"uid\": \"" << pVid->uid << "\", "
+             << "\"gid\": \"" << pVid->gid << "\", "
+             << "\"format\": \"monitor\" "
              << "}";
 
     retc = ArchiveExecuteCmd(cmd_json.str());
