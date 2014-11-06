@@ -25,7 +25,9 @@
 #include "common/http/HttpRequest.hh"
 #include "common/Namespace.hh"
 #include "common/Logging.hh"
+#include "common/http/OwnCloud.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
 #include <sstream>
 /*----------------------------------------------------------------------------*/
@@ -59,4 +61,21 @@ HttpRequest::ToString()
 }
 
 /*----------------------------------------------------------------------------*/
+
+/**
+ * @return the client request URL
+ */
+const std::string
+HttpRequest::GetUrl (bool orig) 
+{
+  std::string ocurl;
+  if (orig)
+    return mRequestUrl;
+
+  XrdOucString sUrl = mRequestUrl.c_str();
+  eos::common::OwnCloud::OwnCloudRemapping(sUrl, this);
+  eos::common::OwnCloud::ReplaceRemotePhp(sUrl);
+  ocurl = sUrl.c_str();
+  return ocurl;
+}
 EOSCOMMONNAMESPACE_END

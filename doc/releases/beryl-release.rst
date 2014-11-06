@@ -9,6 +9,13 @@ Beryl Release Notes
 
 - add support for archive interface to stage-out and migrate a frozen subtree in the namespace to any XRootD enabled archive storage
 
+``Version V0.3.51 Beryl``
+
+Bug Fixes
+---------
+- fix gdb stacktrace getting stuck if too much output is produced - stacktrace is stored in /var/eos/md/stacktrace and then reported back into the log
+- fix wrong network traffic variable used in the scheduling implementation (used always 0 instead of real traffic)
+
 ``Version V0.3.49 Beryl``
 
 Bug Fixes

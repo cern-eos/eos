@@ -1126,7 +1126,7 @@ eosfs_ll_release (fuse_req_t req,
                __FUNCTION__, (long long) ino, (long long) fd);
     }
 
-    fprintf (stderr, "[%s]: Try to close file fd=%llu\n", __FUNCTION__, info->fd);
+    if (isdebug) fprintf (stderr, "[%s]: Try to close file fd=%llu\n", __FUNCTION__, info->fd);
     int res = xrd_close (info->fd, ino, info->uid);
     xrd_release_rd_buff (pthread_self());
 
@@ -1486,7 +1486,7 @@ eosfs_ll_create(fuse_req_t req,
     e.attr.st_uid = req->ctx.uid;
     e.attr.st_gid = req->ctx.gid;
     e.attr.st_dev = 0;
-    fprintf (stderr, "[%s]: update inode=%llu\n", __FUNCTION__, (unsigned long long) e.ino);
+    if (isdebug) fprintf (stderr, "[%s]: update inode=%llu\n", __FUNCTION__, (unsigned long long) e.ino);
 
     if (!rinode)
     {

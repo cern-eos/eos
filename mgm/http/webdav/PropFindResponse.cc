@@ -32,6 +32,7 @@
 #include "common/http/OwnCloud.hh"
 
 /*----------------------------------------------------------------------------*/
+#include "XrdOuc/XrdOucErrInfo.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
@@ -104,7 +105,21 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
 
   // Get the requested property types
   ParseRequestPropertyTypes(rootNode);
-
+  
+  if (mRequestPropertyTypes & PropertyTypes::GET_OCID) 
+  {
+    XrdOucErrInfo error;
+    XrdOucString val;
+    eos::common::Mapping::VirtualIdentity rootvid;
+    eos::common::Mapping::Root(rootvid);
+    if (gOFS->_attr_get(request->GetUrl().c_str(), error, rootvid, "", eos::common::OwnCloud::GetAllowSyncName(), val))
+    {
+      // Sync not allowed in this tree.
+      SetResponseCode(ResponseCodes::METHOD_NOT_ALLOWED);
+      return this;
+    }
+  }
+  
   // Build the response
   // xml declaration
   xml_node<> *decl = mXMLResponseDocument.allocate_node(node_declaration);
@@ -258,7 +273,6 @@ PropFindResponse::ParseRequestPropertyTypes (rapidxml::xml_node<> *node)
     mRequestPropertyTypes |= PropertyTypes::RESOURCE_TYPE;
     mRequestPropertyTypes |= PropertyTypes::CHECKED_IN;
     mRequestPropertyTypes |= PropertyTypes::CHECKED_OUT;
-    mRequestPropertyTypes |= PropertyTypes::GET_OCID;
     return;
   }
 

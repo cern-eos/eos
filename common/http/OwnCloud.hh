@@ -99,12 +99,10 @@ public:
       }
 
     }
-    fprintf(stderr,"INIT: %s\n", unchunkedPath.c_str());
     Init(unchunkedPath.c_str());
     mNChunk = lOCnChunk;
     mMaxChunks = lOCmaxChunks;
     mUploadId = lOCuploadId;
-    fprintf(stderr,"GETPATH: %s\n", GetPath());
     return GetPath();
   }
 };
@@ -198,7 +196,6 @@ public:
   {
     if (path.find("/remote.php/webdav/") != STR_NPOS)
     {
-
       path.replace("remote.php/webdav/", "");
     }
   }
@@ -350,6 +347,46 @@ public:
   {
     return "http://owncloud.org/ns";
   }
+
+  // ---------------------------------------------------------------------------
+
+  static const char* OwnCloudRemapping(XrdOucString& path, HttpRequest* request) 
+  {
+    XrdOucString client_path="";
+    XrdOucString server_path="";
+    if (request->GetHeaders().count("cbox-client-mapping")) {
+      client_path = request->GetHeaders()["cbox-client-mapping"].c_str();
+    }
+    
+    if (request->GetHeaders().count("cbox-server-mapping")) {
+      server_path = request->GetHeaders()["cbox-server-mapping"].c_str();
+    }
+
+    while(path.replace("//","/")){}
+    
+    if (!path.beginswith("/")) 
+      path.insert("/",0);
+    
+    // shortcut if there is nothing to replace
+    if (!client_path.length()) 
+      return path.c_str();
+    
+    while(client_path.replace("//","/")){}
+    while(server_path.replace("//","/")){}
+    if (!client_path.beginswith("/"))
+      client_path.insert("/",0);
+    if (!server_path.beginswith("/"))
+      server_path.insert("/",0);
+    
+    path.replace(client_path,server_path);
+    return path.c_str();
+  }
+
+  // ---------------------------------------------------------------------------
+  static const char* GetAllowSyncName() {
+    return "sys.allow.oc.sync";
+  }
+
 };
 
 /*----------------------------------------------------------------------------*/

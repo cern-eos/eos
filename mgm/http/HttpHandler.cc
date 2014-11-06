@@ -134,12 +134,12 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
   // ------------------------------------------------------------------------------
   // owncloud protocol emulator
   // ------------------------------------------------------------------------------
-  if (spath.find("/status.php") != STR_NPOS)
+
+  if (eos::common::OwnCloud::WantsStatus(spath))
   {
     XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
-    spath.replace("/status.php", "");
     XrdOucString val;
-    if (gOFS->attr_get(spath.c_str(), error, &client, "", "sys.allow.oc.sync", val))
+    if (gOFS->attr_get(spath.c_str(), error, &client, "", eos::common::OwnCloud::GetAllowSyncName() , val))
     {
       response = HttpServer::HttpError("No sync allowed in this tree",
                                        response->METHOD_NOT_ALLOWED);
@@ -153,10 +153,8 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
     }
   }
 
-  if (spath.find("/remote.php/webdav/") != STR_NPOS)
-  {
-    spath.replace("remote.php/webdav/", "");
-  }
+  eos::common::OwnCloud::OwnCloudRemapping(spath, request);
+  eos::common::OwnCloud::ReplaceRemotePhp(spath);
 
   if (!spath.beginswith("/proc/"))
   {

@@ -977,7 +977,7 @@ void
 usage ()
 {
   fprintf(stderr, "`eos' is the command line interface (CLI) of the EOS storage system.\n");
-  fprintf(stderr, "Usage: eos [-r|--role <uid> <gid>] [-b|--batch] [-v|--version] [-p|--pipe] [-j||--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
+  fprintf(stderr, "Usage: eos [-r|--role <uid> <gid>] [-b|--batch] [-v|--verAsion] [-p|--pipe] [-j||--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
   fprintf(stderr, "            -r, --role <uid> <gid>              : select user role <uid> and group role <gid>\n");
   fprintf(stderr, "            -b, --batch                         : run in batch mode without colour and syntax highlighting and without pipe\n");
   fprintf(stderr, "            -j, --json                          : switch to json output format\n");
@@ -1226,9 +1226,9 @@ main (int argc, char* argv[])
         {
           // we are root, we always select also the root role by default
           XrdOucString cmdline = "role 0 0 ";
-          if (!interactive || (runpipe))silent = true;
+          silent = true;
           execute_line((char*) cmdline.c_str());
-          if (!interactive || (runpipe))silent = false;
+          silent = false;
         }
 
         // strip leading and trailing white spaces
@@ -1302,9 +1302,9 @@ main (int argc, char* argv[])
   {
     // we are root, we always select also the root role by default
     XrdOucString cmdline = "role 0 0 ";
-    if (!interactive)silent = true;
+    silent = true;
     execute_line((char*) cmdline.c_str());
-    if (!interactive)silent = false;
+    silent = false;
   }
 
   /* configure looging */

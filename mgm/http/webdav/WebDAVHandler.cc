@@ -26,6 +26,7 @@
 #include "mgm/http/webdav/PropFindResponse.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/http/PlainHttpResponse.hh"
+#include "common/http/OwnCloud.hh"
 #include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
@@ -218,12 +219,11 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
 
   // owncloud protocol patch
   XrdOucString spath = destination.c_str();
-  if (spath.find("/remote.php/webdav/") != STR_NPOS)
-  {
-    spath.replace("remote.php/webdav/","");
-    destination=spath.c_str();
-  }
-  
+
+  eos::common::OwnCloud::OwnCloudRemapping(spath, request);
+  eos::common::OwnCloud::ReplaceRemotePhp(spath);
+  destination = spath.c_str();
+
   eos_static_info("method=MOVE src=\"%s\", dest=\"%s\"",
                   request->GetUrl().c_str(), destination.c_str());
 
