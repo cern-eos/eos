@@ -23,10 +23,12 @@
 """ Class holding information about the configuration parameters used by both
     the eosarchived daemon and also each individual transfer process.
 """
+from __future__ import print_function
 import os
 import sys
 import logging
 import logging.handlers
+
 
 
 class Configuration(object):
@@ -34,29 +36,29 @@ class Configuration(object):
     """
     def __init__(self):
         """ Initialize the configuration by reading in all the parameters from
-        the configuration file supplied.
+        the configuration file supplied. First of all, get any environment
+        variables and setup constants based on them.
 
         Args:
             fn_conf (string): Path to the configuration file, which in normal
             conditions should be/etc/eosarchived.conf
         """
-        # Get environment variables and setup constants based on them
         try:
             LOG_DIR = os.environ["LOG_DIR"]
         except KeyError as __:
-            print >> sys.stderr, "LOG_DIR env. not found"
+            print("LOG_DIR env. not found", file=sys.stderr)
             raise
 
         try:
             self.__dict__['EOS_ARCHIVE_DIR'] = os.environ["EOS_ARCHIVE_DIR"]
         except KeyError as __:
-            print >> sys.stderr, "EOS_ARCHIVE_DIR env. not found"
+            print("EOS_ARCHIVE_DIR env. not found", file=sys.stderr)
             raise
 
         try:
             archive_conf = os.environ["EOS_ARCHIVE_CONF"]
         except KeyError as __:
-            print >> sys.stderr, "EOS_ARCHIVE_CONF env. not found using /etc/eosarchived.conf"
+            print("EOS_ARCHIVE_CONF env. not found using /etc/eosarchived.conf", file=sys.stderr)
             archive_conf = "/etc/eosarchived.conf"
 
         log_dict = {"debug":   logging.DEBUG,
@@ -67,10 +69,13 @@ class Configuration(object):
                     "crit":    logging.CRITICAL,
                     "alert":   logging.CRITICAL}
 
+        self.__dict__['FRONTEND_IPC'] = ''.join([self.__dict__['EOS_ARCHIVE_DIR'],
+                                                 "archive_frontend.ipc"])
+        self.__dict__['BACKEND_REQ_IPC'] = ''.join([self.__dict__['EOS_ARCHIVE_DIR'],
+                                                    "archive_backend_req.ipc"])
+        self.__dict__['BACKEND_PUB_IPC'] = ''.join([self.__dict__['EOS_ARCHIVE_DIR'],
+                                                    "archive_backend_pub.ipc"])
         self.__dict__['LOG_FILE'] = LOG_DIR + "eosarchived.log"
-        self.__dict__['FRONTEND_IPC'] = self.EOS_ARCHIVE_DIR + "archive_frontend.ipc"
-        self.__dict__['BACKEND_REQ_IPC'] = self.EOS_ARCHIVE_DIR + "archive_backend_req.ipc"
-        self.__dict__['BACKEND_PUB_IPC'] = self.EOS_ARCHIVE_DIR + "archive_backend_pub.ipc"
         self.__dict__['CREATE_OP'] = 'create'
         self.__dict__['GET_OP'] = 'get'
         self.__dict__['PUT_OP'] = 'put'
@@ -99,7 +104,7 @@ class Configuration(object):
                             else:
                                 self.__dict__[tokens[0]] = tokens[1]
         except IOError as __:
-            print >> sys.stderr, "Unable to open config file: {0}".format(archive_conf)
+            print("Unable to open config file: {0}".format(archive_conf), file=sys.stderr)
             raise
 
         # If no loglevel is set use INFO
@@ -119,16 +124,17 @@ class Configuration(object):
         """
         log_format = ('%(asctime)-15s %(name)s[%(process)d] %(filename)s:'
                       '%(lineno)d LVL=%(levelname)s %(message)s')
-        logging.basicConfig(level=self.LOG_LEVEL, format=log_format)
+        logging.basicConfig(level=self.__dict__['LOG_LEVEL'], format=log_format)
         self.__dict__['LOGGER_NAME'] = logger_name
         self.__dict__['LOG_FILE'] = log_file
-        self.logger = logging.getLogger(self.LOGGER_NAME)
+        self.logger = logging.getLogger(self.__dict__['LOGGER_NAME'])
         formatter = logging.Formatter(log_format)
 
         if timed_rotating:
-            self.handler = logging.handlers.TimedRotatingFileHandler(self.LOG_FILE, 'midnight')
+            self.handler = logging.handlers.TimedRotatingFileHandler(
+                self.__dict__['LOG_FILE'], 'midnight')
         else:
-            self.handler = logging.FileHandler(self.LOG_FILE)
+            self.handler = logging.FileHandler(self.__dict__['LOG_FILE'])
 
         self.handler.setFormatter(formatter)
         self.logger.addHandler(self.handler)
@@ -144,11 +150,11 @@ class Configuration(object):
                 if key.isupper():
                     self.logger.info("conf.{0} = {1}".format(key, val))
         except AttributeError as __:
-            print >> sys.stderr, "Configuration parameters:"
+            print("Configuration parameters:", file=sys.stderr)
 
             for key, val in self.__dict__.iteritems():
                 if key.isupper():
-                    print >> sys.stderr, "conf.{0} = {1}".format(key, val)
+                    print("conf.{0} = {1}".format(key, val), file=sys.stderr)
 
     def __setattr__(self, name, value):
         """ Set object attribute

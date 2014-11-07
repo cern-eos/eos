@@ -329,7 +329,7 @@ class Transfer(object):
 
         # For retry get the first corrupted entry
         if self.do_retry:
-            check_ok, err_entry = self.archive.verify()
+            check_ok, err_entry = self.archive.verify(False)
 
             if check_ok:
                 self.do_retry = False
@@ -374,7 +374,7 @@ class Transfer(object):
         # For GET set file ownership and permissions
         self.update_file_access()
         self.set_status("verifying")
-        check_ok, __ = self.archive.verify()
+        check_ok, __ = self.archive.verify(False)
         self.set_status("cleaning")
         self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
         self.archive_tx_clean(check_ok)
@@ -587,14 +587,13 @@ class Transfer(object):
                     self.logger.error("Thread={0} status={1} msg={2}".format(
                             thread.ident, thread.xrd_status.ok,
                             thread.xrd_status.message))
-
                     del self.threads[indx]
                     break
 
         # If we still have jobs and previous archive jobs were successful or this
         # is a backup operartion (best-effort even if we have failed transfers)
-        if self.list_jobs and ((self.oper != self.config.BACKUP_OP and status) or
-                               (self.oper == self.config.BACKUP_OP)):
+        if (self.list_jobs and ((self.oper != self.config.BACKUP_OP and status) or
+                                (self.oper == self.config.BACKUP_OP))):
             proc = client.CopyProcess()
 
             for job in self.list_jobs:
@@ -608,7 +607,7 @@ class Transfer(object):
 
         # If a previous archive job failed or we need to wait for all jobs to
         # finish then join the threads and collect their status
-        if ((self.oper != self.config.BACKUP_OP and not status) or wait_all):
+        if (self.oper != self.config.BACKUP_OP and not status) or wait_all:
             for thread in self.threads:
                 thread.join()
                 status = status and thread.xrd_status.ok
@@ -795,7 +794,7 @@ class Transfer(object):
         self.archive = ArchiveFile(self.tx_file, False)
 
     def do_backup(self):
-        """ Performa a backup operation using the provided backup file
+        """ Performa a backup operation using the provided backup file.
 
         Args:
             req_json (JSON command): Arguments for backup command include:
@@ -825,7 +824,15 @@ class Transfer(object):
         self.copy_files(None, True)
         self.update_file_access()
         self.set_status("verifying")
-        check_ok, __ = self.archive.verify()
+        check_ok, lst_failed = self.archive.verify(True)
+
+        # In case of errors print a summary
+        if not check_ok:
+            self.logger.error("Failed verify for {0} entries".format(len(lst_failed)))
+
+            for entry in lst_failed:
+                self.logger.error("Failed entry={0}".format(entry))
+
         self.set_status("cleaning")
         self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
         self.backup_tx_clean()

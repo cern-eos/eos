@@ -392,25 +392,39 @@ class ArchiveFile(object):
                     self.logger.error(err_msg)
                     raise IOError(err_msg)
 
-    def verify(self):
+    def verify(self, best_effort):
         """ Check the integrity of the archive either on disk or on tape.
+
+        Args:
+            best_effort (boolean): If True then try to verify all entries even if
+                we get an error during the check. This is used for the backup while
+                for the archive, we return as soon as we find the first error.
 
         Returns:
             (status, entry) - Status is True if archive is valid, otherwise
             false. In case the archive has error return also the first corrupted
             entry from the archive file, otherwise return an empty list.
+            For BACKUP operations return the status and the list of entries for
+            which the verfication failed in order to provide a summary to the user.
         """
         self.logger.info("Do archive verify")
+        status = True
+        lst_failed = []
 
         for entry in self.entries():
             try:
                 self._verify_entry(list(entry))
             except CheckEntryException as __:
-                self.logger.error("Verfication failed")
-                return (False, entry)
+                if best_effort:
+                    # Backup
+                    status = False
+                    lst_failed.append(entry[1])
+                    continue
+                else:
+                    # Archive
+                    return (False, entry)
 
-        self.logger.info("Verification successful")
-        return (True, [])
+        return (status, lst_failed)
 
     def _verify_entry(self, entry):
         """ Check that the entry (file/dir) has the proper meta data.
@@ -422,7 +436,7 @@ class ArchiveFile(object):
         Raises:
             CheckEntryException if entry verification fails.
         """
-        self.logger.debug("Verify entry: {0}".format(entry))
+        self.logger.debug("Verify entry={0}".format(entry))
         is_dir, path = (entry[0] == 'd'), entry[1]
         __, dst = self.get_endpoints(path)
         url = client.URL(dst)
@@ -436,18 +450,17 @@ class ArchiveFile(object):
                 self.logger.error(err_msg)
                 raise CheckEntryException("failed stat")
 
-            if not is_dir:  # for files check size match
+            if not is_dir:  # check file size match
                 indx = self.header["file_meta"].index("size") + 2
                 orig_size = int(entry[indx])
 
                 if stat_info.size != orig_size:
-                    err_msg = ("Verify file={0}, size={1}, expect_size={2}"
+                    err_msg = ("Verify entry={0}, size={1}, expect_size={2}"
                                "").format(dst, orig_size, stat_info.size)
                     self.logger.error(err_msg)
                     raise CheckEntryException("failed file size match")
 
-                # check checksum only if it is adler32 since CASTOR supports
-                #only this
+                # Check checksum only if it is adler32 - only one supported by CASTOR
                 indx = self.header["file_meta"].index("xstype") + 2
 
                 if entry[indx] == "adler":
@@ -484,27 +497,15 @@ class ArchiveFile(object):
                 meta_info = get_entry_info(url, path, tags, is_dir)
             except (AttributeError, IOError, KeyError) as __:
                 self.logger.error("Failed getting metainfo entry={0}".format(dst))
-
-                # For archive raise exception, for backup do best-effort
-                if self.oper != self.config.BACKUP_OP:
-                    raise CheckEntryException("failed getting metainfo")
-                else:
-                    self.logger.info("Check={0}, status={1}".format(dst, False))
-                    return
+                raise CheckEntryException("failed getting metainfo")
 
             if not (meta_info == entry):
                 err_msg = ("Verify failed for entry={0}, expect={1}, got={2}"
                            "").format(dst, entry, meta_info)
                 self.logger.error(err_msg)
+                raise CheckEntryException("failed metainfo match")
 
-                # For archive raise exception, for backup do best-effort
-                if self.oper != self.config.BACKUP_OP:
-                    raise CheckEntryException("failed metainfo match")
-                else:
-                    self.logger.info("Check={0}, status={1}".format(dst, False))
-                    return
-
-        self.logger.info("Check={0}, status={1}".format(dst, True))
+        self.logger.info("Entry={0}, status={1}".format(dst, True))
 
     def mkdir(self, dentry):
         """ Create directory and optionally for GET operations set the
