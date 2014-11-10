@@ -61,6 +61,8 @@ Patch2:     nginx-auto-options.patch
 
 Patch3:     nginx-auth-ldap.patch
 
+Patch4:     nginx-no-put-body.patch
+
 %description
 Nginx [engine x] is an HTTP(S) server, HTTP(S) reverse proxy and IMAP/POP3
 proxy server written by Igor Sysoev.
@@ -72,6 +74,8 @@ A second third party modul, nginx-auth-ldap has been added.
 %setup -q -n nginx-%{version}
 
 %patch0 -p0
+%patch4 -p1
+
 #%patch1 -p0
 #%patch2 -p0
 
