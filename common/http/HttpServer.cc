@@ -96,7 +96,9 @@ HttpServer::Run ()
                                  &HttpServer::StaticHandler,
                                  (void*) 0,
                                  MHD_OPTION_CONNECTION_MEMORY_LIMIT,
-                                 128 * 1024 * 1024 /* 128MB */,
+				 getenv("EOS_HTTP_CONNECTION_MEMORY_LIMIT")?atoi(getenv("EOS_HTTP_CONNECTION_MEMORY_LIMIT")): (8*1024*1024),
+				 MHD_OPTION_CONNECTION_TIMEOUT, 
+				 getenv("EOS_HTTP_CONNECTION_TIMEOUT")?atoi(getenv("EOS_HTTP_CONNECTION_TIMEOUT")):128,
                                  MHD_OPTION_END
                                  );
     }
