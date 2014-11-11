@@ -105,7 +105,7 @@ git clone https://github.com/kvspb/nginx-auth-ldap.git \
 # --with-http_ssi_module\
 
 
-export CFLAGS="-I/usr/include/et/"
+export CFLAGS="-I/usr/include/et/ -I/usr/include/openldap24/"
 export DESTDIR=%{buildroot}
 ./configure \
     --user=%{nginx_user} \
