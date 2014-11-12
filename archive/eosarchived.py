@@ -109,7 +109,7 @@ class Dispatcher(object):
                     reply = "ERROR error: operation not supported"
                     raise
 
-                frontend.send(reply)
+                frontend.send_string(reply)
 
     def get_orphans(self):
         """ Get orphan transfer processes from previous runs of the daemon

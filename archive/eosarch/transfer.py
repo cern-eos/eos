@@ -539,6 +539,13 @@ class Transfer(object):
                                "&eos.targetsize=", dfile['size'],
                                "&eos.checksum=", dfile['xs'],
                                "&eos.ruid=0&eos.rgid=0"])
+
+                # For backup we try to read as root from the source
+                if self.oper == self.config.BACKUP_OP:
+                    if '?' in src:
+                        src = ''.join([src, "&eos.ruid=0&eos.rgid=0"])
+                    else:
+                        src = ''.join([src, "?eos.ruid=0&eos.rgid=0"])
             else:
                 # For PUT read the files from EOS as root
                 src = ''.join([src, "?eos.ruid=0&eos.rgid=0"])
