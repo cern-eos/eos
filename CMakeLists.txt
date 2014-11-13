@@ -21,24 +21,23 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-######################################################################################################################
+################################################################################
 # Version Definition
-######################################################################################################################
+################################################################################
 set(VERSION_MAJOR "0" )
 set(VERSION_MINOR "3" )
-set(VERSION_PATCH "70" )
+set(VERSION_PATCH "72" )
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
-######################################################################################################################
-# main section
-######################################################################################################################
+################################################################################
+# Main section
+################################################################################
 cmake_minimum_required (VERSION 2.6)
 project (eos)
 
-
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-# force /usr/ installation prefix
+# Force /usr/ installation prefix
 set(CMAKE_INSTALL_PREFIX /usr)
 set(CMAKE_INSTALL_SYSCONFDIR /etc)
 set(CMAKE_INSTALL_SBINDIR /sbin)
@@ -114,7 +113,7 @@ endif (CLIENT)
 endif (NOT DEFINED PACKAGEONLY)
 
 
-######################################################################################################################
+################################################################################
 # Check for Gcc >=4.4
 if(CMAKE_COMPILER_IS_GNUCXX)
   exec_program(
@@ -131,10 +130,10 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif (CMAKE_COMPILER_IS_GNUCXX)
 
 
-######################################################################################################################
+################################################################################
 # Platform Specific
 
-#####################################################
+################################################################################
 if(MacOSX)
 # ------------------------------------------
 # on MAC we don't link static objects at all
@@ -150,7 +149,7 @@ set(LIB_INSTALL_DIR lib64)
 set(RT_LIBS rt)
 
 endif(MacOSX)
-#####################################################
+################################################################################
 
 EOS_CheckOutOfSourceBuild()
 
@@ -169,16 +168,14 @@ else (NOT MICROHTTPD_FOUND)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
 endif (NOT MICROHTTPD_FOUND)
 
-#####################################################
-# generate client commands doc
-#####################################################
+################################################################################
+# Generate client commands doc
+################################################################################
 ADD_CUSTOM_TARGET(doc COMMAND python ${PROJECT_SOURCE_DIR}/doc/generate_cli_command_docs.py)
 
-######################################################################################################################
-# install targets
-######################################################################################################################
-
-
+################################################################################
+# Install targets
+################################################################################
 if (CLIENT)
 add_subdirectory (authz)
 add_subdirectory (fst)
@@ -212,13 +209,16 @@ endif (APR_FOUND)
 endif (HTTPD_FOUND)
 endif (CLIENT)
 
-include_directories( ../ /usr/include/xrootd/ /usr/include/ ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd ${CMAKE_BINARY_DIR}/xrootd/src/include/ )
+include_directories( ../
+		     /usr/include/xrootd/
+		     /usr/include/
+		     ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd
+		     ${CMAKE_BINARY_DIR}/xrootd/src/include/ )
 link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/)
 
-
-######################################################################################################################
-# uninstall target
-######################################################################################################################
+################################################################################
+# Uninstall target
+################################################################################
 CONFIGURE_FILE(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in"
   "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake"
@@ -227,9 +227,9 @@ CONFIGURE_FILE(
 ADD_CUSTOM_TARGET(uninstall
   "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake")
 
-######################################################################################################################
-# source packaging
-#####################################################################################################################
+################################################################################
+# Source packaging
+################################################################################
 set(CPACK_SOURCE_GENERATOR "TGZ")
 set(CPACK_PACKAGE_NAME "${CMAKE_PROJECT_NAME}")
 set(CPACK_PACKAGE_VERSION "${VERSION}")
@@ -262,9 +262,9 @@ add_custom_target(gitdist
     | gzip > ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-######################################################################################################################
-# source + binary rpms
-######################################################################################################################
+################################################################################
+# Source + binary rpms
+################################################################################
 set (RPM_DEFINE --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5")
 ADD_CUSTOM_TARGET(srpm COMMAND rpmbuild ${RPM_DEFINE} -ts ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz)
 ADD_DEPENDENCIES(srpm dist)
@@ -273,10 +273,9 @@ ADD_CUSTOM_TARGET(rpm COMMAND rpmbuild -tb ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE
 
 ADD_DEPENDENCIES(rpm dist)
 
-######################################################################################################################
-# Print Configuration
-######################################################################################################################
-
+################################################################################
+# Print configuration
+################################################################################
 message( STATUS "_________________________________________________" )
 message( STATUS "Version           : eos-" ${VERSION_MAJOR} "." ${VERSION_MINOR} "." ${VERSION_PATCH} "-" ${RELEASE} )
 if (CLIENT)
