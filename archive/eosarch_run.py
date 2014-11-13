@@ -26,19 +26,28 @@
     closes the open file descriptors such that there is no interference between
     the processes using ZMQ.
 """
+
+from __future__ import print_function
 import ast
 import sys
-from hashlib import sha256
-from eosarch import Transfer, NoErrorException, Configuration
+import os
+import logging
 from errno import EIO, EINVAL
+from hashlib import sha256
+
+# Note: this is to be enabled only when we want to get the logging from the
+# XrdCl - notice that this can grow very big, very fast. We also have to do
+# this here before the XrdCl module gets initialised.
+#os.environ['XRD_LOGLEVEL'] = "Debug"
+#os.environ['XRD_LOGFILE'] = "/tmp/eosarch_xrdcl.log"
+
+from eosarch import Transfer, NoErrorException, Configuration
 
 try:
     config = Configuration()
 except Exception as err:
-    print >> sys.stderr, "Configuration failed, error:{0}".format(err)
+    print("Configuration failed, error:{0}".format(err), file=sys.stderr)
     raise
-
-config.DIR = {}
 
 # Set location for local transfer files
 for oper in [config.GET_OP, config.PUT_OP, config.PURGE_OP, config.DELETE_OP, config.BACKUP_OP]:
@@ -62,14 +71,14 @@ except Exception as err:
 try:
     tx.run()
 except IOError as err:
-    print "{0}".format(err)
+    print("{0}".format(err), file=sys.stderr)
     tx.logger.exception(err)
     tx.tx_clean(False)
     sys.exit(EIO)
 except NoErrorException as err:
     tx.tx_clean(True)
 except Exception as err:
-    print "{0}".format(err)
+    print("{0}".format(err), file=sys.stderr)
     tx.logger.exception(err)
     tx.tx_clean(False)
     sys.exit(EINVAL)

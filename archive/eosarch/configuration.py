@@ -30,7 +30,6 @@ import logging
 import logging.handlers
 
 
-
 class Configuration(object):
     """ Configuration class for the archiving daemon and the transfer processes.
     """
@@ -113,6 +112,8 @@ class Configuration(object):
         except KeyError as __:
             self.__dict__['LOG_LEVEL'] = logging.INFO
 
+        # Mapping between operation type and store path for transfer and log files
+        self.__dict__['DIR'] = {}
         self.logger, self.handler = None, None
 
     def start_logging(self, logger_name, log_file, timed_rotating = False):

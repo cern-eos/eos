@@ -26,6 +26,7 @@
    and CASTOR.
 """
 
+from __future__ import print_function
 import os
 import sys
 import zmq
@@ -255,9 +256,8 @@ class Dispatcher(object):
             self.logger.error(err_msg)
             return "ERROR error: job with same signature exists"
 
+        # Don't pipe stdout and stderr as we log all the output
         pinfo.proc = subprocess.Popen(['/usr/bin/eosarch_run.py', "{0}".format(req_json)],
-                                      stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE,
                                       close_fds=True)
         pinfo.pid = pinfo.proc.pid
         self.procs[pinfo.uuid] = pinfo
@@ -368,7 +368,7 @@ def main():
     try:
         config = Configuration()
     except Exception as err:
-        print >> sys.stderr, "Configuration failed, error:{0}".format(err)
+        print("Configuration failed, error:{0}".format(err), file=sys.stderr)
         raise
 
     with daemon.DaemonContext():

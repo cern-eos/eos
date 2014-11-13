@@ -591,9 +591,9 @@ class Transfer(object):
                 # If thread finished get the status and mark it for removal
                 if not thread.isAlive():
                     status = status and thread.xrd_status.ok
-                    self.logger.error("Thread={0} status={1} msg={2}".format(
-                            thread.ident, thread.xrd_status.ok,
-                            thread.xrd_status.message))
+                    log_level = logging.INFO if thread.xrd_status.ok else logging.ERROR
+                    self.logger.log(log_level, "Thread={0} status={1} msg={2}".format(
+                            thread.ident, thread.xrd_status.ok, thread.xrd_status.message))
                     del self.threads[indx]
                     break
 
@@ -618,9 +618,9 @@ class Transfer(object):
             for thread in self.threads:
                 thread.join()
                 status = status and thread.xrd_status.ok
-                self.logger.debug("Thread={0} status={1} msg={2}".format(
-                        thread.ident, thread.xrd_status.ok,
-                        thread.xrd_status.message))
+                log_level = logging.INFO if thread.xrd_status.ok else logging.ERROR
+                self.logger.log(log_level, "Thread={0} status={1} msg={2}".format(
+                        thread.ident, thread.xrd_status.ok, thread.xrd_status.message))
 
             del self.threads[:]
 
