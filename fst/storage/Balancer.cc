@@ -355,9 +355,8 @@ Storage::Balancer ()
     while (!nparalleltx)
     {
       GetBalanceSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
-      GetDrainSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
-	XrdSysTimer sleeper;
-	sleeper.Snooze(10);
+      XrdSysTimer sleeper;
+      sleeper.Snooze(10);
     }
 
     // -------------------------------------------------------------------------
