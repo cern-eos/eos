@@ -185,7 +185,16 @@ Scheduler::FilePlacement (const char* path, //< path to place
       if (FsView::gFsView.mIdView.count(fsid))
         fs = FsView::gFsView.mIdView[fsid];
       else
+      {
+	fsit++;
+	
+	// create cycling
+	if (fsit == (*git)->end())
+	{
+	  fsit = (*git)->begin();
+	}
         continue;
+      }
 
       fs->SnapShotFileSystem(snapshot, false);
 
@@ -202,6 +211,13 @@ Scheduler::FilePlacement (const char* path, //< path to place
       if (netoutweight < 0.05)
       {
         eos_static_info("msg=\"skipping node with overloaded eth-out\"");
+	fsit++;
+	
+	// create cycling
+	if (fsit == (*git)->end())
+	{
+	  fsit = (*git)->begin();
+	}
         continue;
       }
 
