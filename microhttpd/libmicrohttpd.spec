@@ -24,6 +24,7 @@ Requires(post): info
 Requires(preun): info
 
 Patch0:         vmem.patch
+Patch1:         epoll.patch
 
 %description
 GNU libmicrohttpd is a small C library that is supposed to make it
@@ -61,6 +62,7 @@ Doxygen documentation for libmicrohttpd and some example source code
 %prep
 %setup -q
 %patch0 -p1 
+%patch1 -p1 
 
 %build
 # Required because patches modify .am files

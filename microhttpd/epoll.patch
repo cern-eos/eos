@@ -1,0 +1,15 @@
+--- a/src/microhttpd/daemon.c	2014-11-18 13:04:38.000000000 +0100
++++ b/src/microhttpd/daemon.c	2014-11-18 13:04:17.000000000 +0100
+@@ -3231,7 +3231,12 @@ setup_epoll_to_listen (struct MHD_Daemon
+ {
+   struct epoll_event event;
+ 
++#if defined RHEL_MAJOR && RHEL_MAJOR < 6
++  daemon->epoll_fd = epoll_create(1);
++#else
+   daemon->epoll_fd = epoll_create1 (EPOLL_CLOEXEC);
++#endif
++
+   if (-1 == daemon->epoll_fd)
+     {
+ #if HAVE_MESSAGES
