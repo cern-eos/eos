@@ -71,14 +71,17 @@ FmdDbMapHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString opt
     }
   }
 
-  eos::common::RWMutexWriteLock lock(Mutex);
-
   if (isattached)
   {
     ShutdownDB(fsid);
   }
-  else
+
+  eos::common::RWMutexWriteLock lock(Mutex);
+
+  if(!isattached)
+  { 
     dbmap[fsid]=new eos::common::DbMap();
+  }
 
 
   //! -when we successfully attach to a DB we set the mode to S_IRWXU & ~S_IRGRP
