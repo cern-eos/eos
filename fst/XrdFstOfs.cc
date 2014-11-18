@@ -285,13 +285,10 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   const char* val;
   int cfgFD;
   int NoGo = 0;
-  int rc = XrdOfs::Configure(Eroute);
+  //int rc = XrdOfs::Configure(Eroute);
   // enforcing 'sss' authentication for all communications
   setenv("XrdSecPROTOCOL", "sss", 1);
   Eroute.Say("=====> fstofs enforces SSS authentication for XROOT clients");
-
-  if (rc)
-    return rc;
 
   // Get the hostname
   mHostName = XrdSysDNS::getHostName();
