@@ -662,5 +662,9 @@ XrdMqClient::XrdMqClient (const char* clientid,
 
 XrdMqClient::~XrdMqClient ()
 {
+  if(kRecvBuffer)
+  {
+   free(kRecvBuffer);
+  }
 }
 
