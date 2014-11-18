@@ -41,6 +41,10 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+#if MHD_VERSION < 0x00093300
+#define MHD_USE_EPOLL_LINUX_ONLY 512
+#endif
+
 HttpServer* HttpServer::gHttp; //!< Global HTTP server
 
 /*----------------------------------------------------------------------------*/
@@ -155,7 +159,6 @@ HttpServer::Run ()
 				 getenv("EOS_HTTP_CONNECTION_TIMEOUT")?atoi(getenv("EOS_HTTP_CONNECTION_TIMEOUT")):128,
                                  MHD_OPTION_END
                                  );
-
     } else {
       eos_static_notice("msg=\"starting http server\" mode=\"single-threaded\"");
       mDaemon = MHD_start_daemon(MHD_USE_DEBUG,
