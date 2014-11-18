@@ -2,7 +2,7 @@
 Summary: Lightweight library for embedding a webserver in applications
 Name: libmicrohttpd
 Version: 0.9.38
-Release: %{?dist}
+Release: eos%{?dist}
 Group: Development/Libraries
 License: LGPLv2+
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
