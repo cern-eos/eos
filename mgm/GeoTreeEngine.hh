@@ -203,7 +203,7 @@ class GeoTreeEngine : public eos::common::LogId
 		size_t fastStructLockWaitersCount;
 		bool fastStructModified;
 
-		TreeMapEntry() :
+		TreeMapEntry(const std::string &groupName="") :
 		group(NULL),
 		slowTreeModified(false),
 		foregroundFastStruct(fastStructures),
@@ -211,7 +211,7 @@ class GeoTreeEngine : public eos::common::LogId
 		fastStructLockWaitersCount(0),
 		fastStructModified(false)
 		{
-			slowTree = new SlowTree;
+			slowTree = new SlowTree(groupName);
 		}
 
 		~TreeMapEntry()

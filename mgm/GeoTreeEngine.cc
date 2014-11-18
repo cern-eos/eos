@@ -146,7 +146,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
 		mapEntry = pGroup2TreeMapEntry[group];
 		else
 		{
-			mapEntry = new TreeMapEntry;
+			mapEntry = new TreeMapEntry(group->mName.c_str());
 #ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 			char buffer[64],buffer2[64];
@@ -163,7 +163,6 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
 			eos_static_info("creating RWMutex rule order %p, retcode is %d",&mapEntry->slowTreeMutex, retcode);
 #endif
 #endif
-			mapEntry->slowTree = new SlowTree(group->mName.c_str());
 		}
 		mapEntry->slowTreeMutex.LockWrite();
 		pTreeMapMutex.UnLockWrite();
