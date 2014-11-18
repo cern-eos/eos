@@ -73,6 +73,17 @@ public:
            void                 **ptr);
 
   /**
+   * HTTP complete handler function
+   *
+   * @return nothing
+   */
+  virtual void
+  CompleteHandler (void                  *cls,
+                   struct MHD_Connection *connection,
+                   void                 **con_cls,
+                   enum MHD_RequestTerminationCode toe);
+
+  /**
    * File Read Callback function
    *
    * @param cls XrdOfsFile* object

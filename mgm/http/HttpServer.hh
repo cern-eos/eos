@@ -78,6 +78,21 @@ public:
            const char            *upload_data,
            size_t                *upload_data_size,
            void                 **ptr);
+
+  /**
+   * HTTP complete handler function on MGM
+   *
+   * @return see implementation
+   */
+
+  virtual void
+  CompleteHandler (void                              *cls,
+		   struct MHD_Connection             *connection, 
+		   void                             **con_cls,
+		   enum MHD_RequestTerminationCode    toe);
+
+  
+
 #endif
 
   /**

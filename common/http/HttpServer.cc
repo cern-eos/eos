@@ -28,6 +28,11 @@
 #include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdNet/XrdNet.hh"
+#include "XrdNet/XrdNetBuffer.hh"
+#include "XrdNet/XrdNetPeer.hh"
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <map>
@@ -78,38 +83,88 @@ HttpServer::StaticHttp (void* arg)
 }
 
 /*----------------------------------------------------------------------------*/
+void
+HttpServer::CleanupConnections ()
+{
+  // currently we cannot call the clean-up in libmicrohttpd directly, 
+  // we just connect to our self and trigger the cleanup
+  XrdSysLogger logger;
+  XrdSysError error(&logger);
+  XrdNet cNet(&error);
+  XrdNetPeer cPeer;
+  cNet.Connect(cPeer, "localhost",mPort);
+}
+
+
+/*----------------------------------------------------------------------------*/
 void*
 HttpServer::Run ()
 {
 #ifdef EOS_MICRO_HTTPD
+  std::string thread_model="threads";
 
   {
     // Delay to make sure xrootd is configured before serving
     XrdSysTimer::Snooze(1);
+    
+    int nthreads = 16;
+    if (getenv("EOS_HTTP_THREADPOOL"))
+      thread_model = getenv("EOS_HTTP_THREADPOOL");
 
-    if (!getenv("EOS_HTTP_DISABLE_THREADPOOL"))
+    if (getenv("EOS_HTTP_THREADPOOL_SIZE")) 
     {
+      nthreads = atoi(getenv("EOS_HTTP_THREADPOOL_SIZE"));
+      if (nthreads < 1) 
+	nthreads = 16;
+      if (nthreads > 4096)
+	nthreads = 4096;
+    }
+    
+    if (thread_model == "threads")
+    {
+      eos_static_notice("msg=\"starting http server\" mode=\"thread-per-connection\"");
       mDaemon = MHD_start_daemon(MHD_USE_DEBUG |  MHD_USE_THREAD_PER_CONNECTION | MHD_USE_POLL,
                                  mPort,
                                  NULL,
                                  NULL,
                                  &HttpServer::StaticHandler,
                                  (void*) 0,
+				 MHD_OPTION_NOTIFY_COMPLETED, &HttpServer::StaticCompleteHandler, NULL, 
                                  MHD_OPTION_CONNECTION_MEMORY_LIMIT,
-				 getenv("EOS_HTTP_CONNECTION_MEMORY_LIMIT")?atoi(getenv("EOS_HTTP_CONNECTION_MEMORY_LIMIT")): (8*1024*1024),
+				 getenv("EOS_HTTP_CONNECTION_MEMORY_LIMIT")?atoi(getenv("EOS_HTTP_CONNECTION_MEMORY_LIMIT")): (128*1024*1024),
 				 MHD_OPTION_CONNECTION_TIMEOUT, 
 				 getenv("EOS_HTTP_CONNECTION_TIMEOUT")?atoi(getenv("EOS_HTTP_CONNECTION_TIMEOUT")):128,
                                  MHD_OPTION_END
                                  );
-    }
-    else
+    } else 
+    if (thread_model == "epoll") 
     {
+      eos_static_notice("msg=\"starting http server\" mode=\"epool\" threads=%d", nthreads);
+      mDaemon = MHD_start_daemon(MHD_USE_DEBUG |  MHD_USE_SELECT_INTERNALLY | MHD_USE_EPOLL_LINUX_ONLY,
+                                 mPort,
+                                 NULL,
+                                 NULL,
+                                 &HttpServer::StaticHandler,
+                                 (void*) 0,
+				 MHD_OPTION_THREAD_POOL_SIZE,
+				 nthreads,
+				 MHD_OPTION_NOTIFY_COMPLETED, &HttpServer::StaticCompleteHandler, NULL, 
+                                 MHD_OPTION_CONNECTION_MEMORY_LIMIT,
+				 getenv("EOS_HTTP_CONNECTION_MEMORY_LIMIT")?atoi(getenv("EOS_HTTP_CONNECTION_MEMORY_LIMIT")): (128*1024*1024),
+				 MHD_OPTION_CONNECTION_TIMEOUT, 
+				 getenv("EOS_HTTP_CONNECTION_TIMEOUT")?atoi(getenv("EOS_HTTP_CONNECTION_TIMEOUT")):128,
+                                 MHD_OPTION_END
+                                 );
+
+    } else {
+      eos_static_notice("msg=\"starting http server\" mode=\"single-threaded\"");
       mDaemon = MHD_start_daemon(MHD_USE_DEBUG,
                                  mPort,
                                  NULL,
                                  NULL,
                                  &HttpServer::StaticHandler,
                                  (void*) 0,
+				 MHD_OPTION_NOTIFY_COMPLETED, &HttpServer::StaticCompleteHandler, NULL,
                                  MHD_OPTION_CONNECTION_MEMORY_LIMIT,
                                  128 * 1024 * 1024 /* 128MB */,
                                  MHD_OPTION_END
@@ -136,7 +191,7 @@ HttpServer::Run ()
   unsigned MHD_LONG_LONG mhd_timeout;
   struct timeval tv;
 
-  if (!getenv("EOS_HTTP_DISABLE_THREADPOOL"))
+  if ( (thread_model == "epoll") || (thread_model == "threads") )
   {
     while (1)
     {
@@ -205,6 +260,21 @@ HttpServer::StaticHandler (void *cls,
   {
     return 0;
   }
+}
+
+/*----------------------------------------------------------------------------*/
+void
+HttpServer::StaticCompleteHandler ( void *cls, 
+				    struct MHD_Connection *connection, 
+				    void **con_cls,
+				    enum MHD_RequestTerminationCode toe)
+{
+  // The static handler function calls back the original http object
+  if (gHttp)
+  {
+      gHttp->CompleteHandler(cls, connection, con_cls, toe);
+  }
+  return;
 }
 
 /*----------------------------------------------------------------------------*/
