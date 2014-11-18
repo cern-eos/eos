@@ -4,7 +4,7 @@
  {
    struct epoll_event event;
  
-+#if defined RHEL_MAJOR && RHEL_MAJOR < 6
++#if defined ONLY_EPOLL_CREATE
 +  daemon->epoll_fd = epoll_create(1);
 +#else
    daemon->epoll_fd = epoll_create1 (EPOLL_CLOEXEC);

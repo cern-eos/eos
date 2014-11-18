@@ -1,12 +1,13 @@
+%define _unpackaged_files_terminate_build 0 
 Summary: Lightweight library for embedding a webserver in applications
 Name: libmicrohttpd
 Version: 0.9.38
-Release: vmem%{?dist}
+Release: %{?dist}
 Group: Development/Libraries
 License: LGPLv2+
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 URL: http://www.gnu.org/software/libmicrohttpd/
-Source0: ftp://ftp.gnu.org/gnu/libmicrohttpd/%{name}-%{version}.tar.gz
+Source0: ftp://ftp.gnu.org/gnu/libmicrohttpd/libmicrohttpd-%{version}.tar.gz
 
 BuildRequires:  autoconf, automake, libtool
 %if 0%{?rhel} == 5
@@ -67,7 +68,12 @@ Doxygen documentation for libmicrohttpd and some example source code
 %build
 # Required because patches modify .am files
 # autoreconf --force
-%configure --disable-static --with-gnutls
+%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} >= 18
+export CFLAGS="-D MAGIC_MIME_TYPE=1 "
+%else
+export CFLAGS="-D MAGIC_MIME_TYPE=1 -DONLY_EPOLL_CREATE=1 "
+%endif
+%configure --disable-static --with-gnutls --disable-examples --disable-spdy
 make %{?_smp_mflags}
 #doxygen doc/doxygen/libmicrohttpd.doxy
 
@@ -117,13 +123,6 @@ fi
 %{_includedir}/microhttpd.h
 %{_libdir}/libmicrohttpd.so
 %{_libdir}/pkgconfig/libmicrohttpd.pc
-%{_bindir}/microspdy2http
-%{_includedir}/microspdy.h
-%{_libdir}/libmicrospdy.la
-%{_libdir}/libmicrospdy.so
-%{_libdir}/libmicrospdy.so.0
-%{_libdir}/libmicrospdy.so.0.0.0
-%{_libdir}/pkgconfig/libmicrospdy.pc
 
 %files doc
 %defattr(-,root,root,-)
