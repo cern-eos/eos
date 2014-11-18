@@ -28,6 +28,11 @@
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 /*----------------------------------------------------------------------------*/
+/******************************************************************************
+ * NOTE: Added from the XRootD headers and should be removed in the future 
+ * when this header file is available in the private headers.
+ ******************************************************************************/
+#include "XrdOfsTPCInfo.hh"
 #include "common/Logging.hh"
 #include "common/Fmd.hh"
 #include "common/SecEntity.hh"
@@ -39,6 +44,7 @@
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN;
@@ -236,31 +242,31 @@ public:
   //--------------------------------------------------------------------------
   std::string GetFstPath ();
 
+
   //--------------------------------------------------------------------------
   //! Check if the TpcKey is still valid e.g. member of gOFS.TpcMap
   //--------------------------------------------------------------------------
   bool TpcValid ();
 
-  //--------------------------------------------------------------------------
-  //! return the file size seen at open time
-  //--------------------------------------------------------------------------
 
+  //--------------------------------------------------------------------------
+  //! Return the file size seen at open time
+  //--------------------------------------------------------------------------
   off_t getOpenSize ()
   {
     return openSize;
   }
 
   //--------------------------------------------------------------------------
-  //! return the file id
+  //! Return the file id
   //--------------------------------------------------------------------------
-
   unsigned long long getFileId ()
   {
     return fileid;
   }
 
   //--------------------------------------------------------------------------
-  //! disable the checksumming before close
+  //! Disable the checksumming before close
   //--------------------------------------------------------------------------
   void disableChecksum()
   {
@@ -340,14 +346,12 @@ protected:
 
   int tpcFlag; //! uses kTpcXYZ enums above to identify TPC access
 
-  enum {
+  enum TpcState_t {
     kTpcIdle = 0, //! TPC is not enabled and not running (no sync received)
     kTpcEnabled = 1, //! TPC is enabled, but not running (1st sync received)
     kTpcRun = 2, //! TPC is running (2nd sync received)
     kTpcDone = 3, //! TPC has finished
   };
-
-  int tpcState; //! uses kTPCXYZ enumgs above to tag the TPC state
 
   FmdSqlite* fMd; //! pointer to the in-memory file meta data object
   eos::fst::CheckSum* checkSum; //! pointer to a checksum object
@@ -406,6 +410,46 @@ protected:
   //!
   //--------------------------------------------------------------------------
   void MakeReportEnv (XrdOucString& reportString);
+
+ private:
+
+  //----------------------------------------------------------------------------
+  //! Static method used to start an asynchronous thread which is doing the
+  //! TPC transfer
+  //!
+  //! @param arg XrdFstOfsFile instance object
+  //!
+  //----------------------------------------------------------------------------
+  static void* StartDoTpcTransfer (void* arg);
+
+
+  //----------------------------------------------------------------------------
+  //! Do TPC transfer
+  //----------------------------------------------------------------------------
+  void* DoTpcTransfer();
+
+
+  //----------------------------------------------------------------------------
+  //! Set the TPC state
+  //!
+  //! @param state TPC state
+  //!
+  //----------------------------------------------------------------------------
+  void SetTpcState(TpcState_t state);
+
+
+  //----------------------------------------------------------------------------
+  //! Get the TPC state of the transfer
+  //!
+  //! @return TPC state
+  //----------------------------------------------------------------------------
+  TpcState_t GetTpcState();
+
+  int mTpcThreadStatus; ///< status of the TPC thread - 0 valid otherwise error
+  pthread_t mTpcThread; ///< thread doing the TPC transfer
+  TpcState_t mTpcState; ///< uses kTPCXYZ enums to tag the TPC state
+  XrdSysMutex mTpcStateMutex; ///< mutex protecting the access to TPC state
+  XrdOfsTPCInfo mTpcInfo; ///< TPC info object used for callback
 };
 
 EOSFSTNAMESPACE_END;
