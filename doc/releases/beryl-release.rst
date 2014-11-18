@@ -9,6 +9,21 @@ Beryl Release Notes
 
 - add support for archive interface to stage-out and migrate a frozen subtree in the namespace to any XRootD enabled archive storage
 
+``Version V0.3.57 Beryl``
+
+New Features
+------------
+- adding libmicrohttpd build directory
+- support threadpool with EPOLL for embedded http server
+
+Bug Fixes
+---------
+- balancing: was never starting
+- scheduler: was skipping scheduling group when one node >95% network-out loaded
+- nginx: don't forward PUT payload to MGM 
+- microhttpd: fix virtual memory leaking due to fragmentation
+- http: let HTTP clients see errors on PUT
+
 ``Version V0.3.53 Beryl``
 
 New Features
