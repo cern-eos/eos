@@ -196,6 +196,16 @@ public:
                  size_t                *upload_data_size,
                  void                 **ptr);
 
+  /**
+   * Calls the instance handler function of the Http object
+   *
+   * @return nothing
+   */
+  static void
+  StaticCompleteHandler (void                  *cls,
+			 struct MHD_Connection *connection,
+			 void **con_cls, 
+			 enum MHD_RequestTerminationCode toe);
 
   /**
    * HTTP object handler function
@@ -211,6 +221,17 @@ public:
            const char            *upload_data,
            size_t                *upload_data_size,
            void                 **ptr) = 0;
+
+  /**
+   * HTTP complete handler function
+   *
+   * @return nothing
+   */
+  virtual void
+  CompleteHandler (void                  *cls,
+		   struct MHD_Connection *connection,
+		   void                 **con_cls,
+		   enum MHD_RequestTerminationCode toe) = 0;
 
   /**
    * Returns the query string for an HTTP request
@@ -245,6 +266,13 @@ public:
                   const char        *key,
                   const char        *value);
 
+  /**
+   * Cleans closed connections earlier than MHD_run
+   */
+
+  void
+  CleanupConnections();
+   
 #endif
 };
 

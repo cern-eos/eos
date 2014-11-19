@@ -11,7 +11,7 @@
 
 Name:           eos-nginx
 Version:        1.4.2
-Release:        6
+Release:        7
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
 Packager:       Justin Salmon <jsalmon@cern.ch>
@@ -61,6 +61,8 @@ Patch2:     nginx-auto-options.patch
 
 Patch3:     nginx-auth-ldap.patch
 
+Patch4:     nginx-no-put-body.patch
+
 %description
 Nginx [engine x] is an HTTP(S) server, HTTP(S) reverse proxy and IMAP/POP3
 proxy server written by Igor Sysoev.
@@ -72,6 +74,8 @@ A second third party modul, nginx-auth-ldap has been added.
 %setup -q -n nginx-%{version}
 
 %patch0 -p0
+%patch4 -p1
+
 #%patch1 -p0
 #%patch2 -p0
 
@@ -101,7 +105,8 @@ git clone https://github.com/kvspb/nginx-auth-ldap.git \
 # --with-http_ssi_module\
 
 
-export CFLAGS="-I/usr/include/et/"
+export CFLAGS="-I/usr/include/et/ -I/usr/include/openldap24/"
+export CC="cc -L/usr/lib64/openldap24/"
 export DESTDIR=%{buildroot}
 ./configure \
     --user=%{nginx_user} \

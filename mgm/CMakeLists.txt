@@ -117,7 +117,7 @@ add_library (XrdEosMgm MODULE
 
 target_link_libraries( XrdEosMgm
                        XrdCl                XrdPosix
-                       XrdUtils             XrdOfs
+                       XrdUtils             
                        eosCommon            eosCommonServer
                        eosNamespace-Static  eosCapability-Static
                        XrdMqClient-Static 

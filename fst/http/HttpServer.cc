@@ -37,6 +37,7 @@ EOSFSTNAMESPACE_BEGIN
 
 #ifdef EOS_MICRO_HTTPD
 /*----------------------------------------------------------------------------*/
+
 int
 HttpServer::Handler (void *cls,
         struct MHD_Connection *connection,
@@ -336,7 +337,9 @@ HttpServer::FileCloseCallback (void *cls)
   eos_static_debug("handle=%llu file=%llu", httpHandle, httpHandle ? httpHandle->mFile : 0);
   if (httpHandle && httpHandle->mFile)
   {
-    httpHandle->mCloseCode = httpHandle->mFile->close();
+    if (httpHandle->mUploadLeftSize == 0) {
+      httpHandle->mCloseCode = httpHandle->mFile->close();
+    }
   }
   if (httpHandle)
   {
@@ -344,6 +347,40 @@ HttpServer::FileCloseCallback (void *cls)
     delete httpHandle;
   }
   return;
+}
+
+void
+HttpServer::CompleteHandler (void                              *cls,
+                             struct MHD_Connection             *connection,
+                             void                             **con_cls,
+                             enum MHD_RequestTerminationCode    toe)
+{
+  std::string scode="";
+  if ( toe == MHD_REQUEST_TERMINATED_COMPLETED_OK)
+    scode="OK";
+  if ( toe == MHD_REQUEST_TERMINATED_WITH_ERROR)
+    scode="Error";
+  if ( toe == MHD_REQUEST_TERMINATED_TIMEOUT_REACHED)
+    scode="Timeout";
+  if ( toe == MHD_REQUEST_TERMINATED_DAEMON_SHUTDOWN)
+    scode="Shutdown";
+  if ( toe == MHD_REQUEST_TERMINATED_READ_ERROR)
+    scode="ReadError";
+
+  eos_static_info("msg=\"http connection disconnect\" reason=\"Request %s\" ", scode.c_str());
+
+  if ( (toe != MHD_REQUEST_TERMINATED_COMPLETED_OK) && (con_cls && (*con_cls))) {
+    eos_static_info("msg=\"http connection disconnect\" action=\"Cleanup\" ");
+    eos::common::ProtocolHandler *handler = static_cast<eos::common::ProtocolHandler*> (*con_cls);
+    eos::fst::HttpHandler *httpHandle = dynamic_cast<eos::fst::HttpHandler*> (handler);
+    if (httpHandle && httpHandle->mFile) {
+      eos_static_err("msg=\"clean-up interrupted PUT request\" path=\"%s\"", httpHandle->mFile->GetPath().c_str());
+      delete (httpHandle->mFile);
+      httpHandle->mFile = 0;
+      delete httpHandle;
+      *con_cls = 0;
+    }
+  }
 }
 
 #endif
