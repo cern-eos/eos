@@ -127,7 +127,7 @@ WebDAVHandler::MkCol (eos::common::HttpRequest *request)
   {
     XrdSfsMode    mode = 0;
     int           rc   = 0;
-    XrdOucErrInfo error;
+    XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
 
     rc = gOFS->mkdir(request->GetUrl().c_str(), mode, error,
                      &client, (const char*) 0);
@@ -251,7 +251,7 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
   else
   {
     int           rc = 0;
-    XrdOucErrInfo error;
+    XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
 
     rc = gOFS->rename(request->GetUrl().c_str(),
                       destination.c_str(),

@@ -108,7 +108,9 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
               std::string fullpath = gOFS->eosView->getUri(fmd);
               eos::common::Path cPath(fullpath.c_str());
               stdOut += "&container=";
-              stdOut += cPath.GetParentPath();
+	      XrdOucString safepath = cPath.GetParentPath();
+	      while (safepath.replace("&", "#AND#")){}
+	      stdOut += safepath;
             }
             stdOut += "\n";
           }
@@ -117,8 +119,10 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
             if (dumppath)
             {
               std::string fullpath = gOFS->eosView->getUri(fmd);
+	      XrdOucString safepath = fullpath.c_str();
+	      while (safepath.replace("&","#AND#")){}
               stdOut += "path=";
-              stdOut += fullpath.c_str();
+              stdOut += safepath.c_str();
             }
             if (dumpfid)
             {
