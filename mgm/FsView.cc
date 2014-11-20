@@ -55,14 +55,11 @@ ConfigEngine* FsView::ConfEngine = 0;
  * This destructor destructs all the branches starting at this node
  */
 /*----------------------------------------------------------------------------*/
-GeoTreeNode::~GeoTreeNode()
+GeoTreeElement::~GeoTreeElement()
 {
   for(auto it=mSons.begin();it!=mSons.end();it++)
   {
-    if(it->second->mIsLeaf)
-    delete static_cast<GeoTreeLeaf*>(it->second);
-    else
-    delete static_cast<GeoTreeNode*>(it->second);
+    delete it->second;
   }
 }
 
@@ -75,11 +72,10 @@ GeoTreeNode::~GeoTreeNode()
 GeoTree::GeoTree() : pLevels(8)
 {
   pLevels.resize(1);
-  pRoot = new tNode;
+  pRoot = new tElement;
   pLevels[0].insert(pRoot);
   pRoot->mTagToken = "<ROOT>";
   pRoot->mFullTag = "<ROOT>";
-  pRoot->mIsLeaf = false;
   pRoot->mFather = NULL;
 }
 
@@ -119,30 +115,28 @@ bool GeoTree::insert(const fsid_t &fs)
   geotokens.erase(geotokens.begin(),geotokens.begin()+s);
   if(geotokens.empty()) geotokens.push_back("");// geotag is not provided
 
-  tNode *father = pRoot;
+  tElement *father = pRoot;
   std::string fulltag=pRoot->mFullTag;
 
   // insert all the geotokens in the tree
-  tNode *currentnode=pRoot;
-  tLeaf *currentleaf=NULL;
+  tElement *currentnode=pRoot;
+  tElement *currentleaf=NULL;
   for(int i = 0; i<(int)geotokens.size()-1; i++)
   {
     const std::string & geotoken = geotokens[i];
     if(currentnode->mSons.count(geotoken))
     {
-      assert(!father->mSons[geotoken]->mIsLeaf); // consistency check
-      currentnode = static_cast<tNode*>(father->mSons[geotoken]);
+      currentnode = father->mSons[geotoken];
       if(!fulltag.empty()) fulltag += "::";
       fulltag += geotoken;
     }
     else
     {
-      currentnode = new tNode;
+      currentnode = new tElement;
       currentnode->mTagToken = geotoken;
       if(!fulltag.empty()) fulltag += "::";
       fulltag += geotoken;
       currentnode->mFullTag = fulltag;
-      currentnode->mIsLeaf = false;
       currentnode->mFather = father;
       father->mSons[geotoken] = currentnode;
       if((int)pLevels.size()<i+2) pLevels.resize(i+2);
@@ -154,8 +148,7 @@ bool GeoTree::insert(const fsid_t &fs)
   // finally, insert the fs
   if(!father->mSons.count(geotokens.back()))
   {
-    currentleaf = new tLeaf;
-    currentleaf->mIsLeaf = true;
+    currentleaf = new tElement;
     currentleaf->mFather = father;
     currentleaf->mTagToken = geotokens.back();
     if(!fulltag.empty()) fulltag += "::";
@@ -167,8 +160,8 @@ bool GeoTree::insert(const fsid_t &fs)
   }
   else
   {
-    assert(father->mSons[geotokens.back()]->mIsLeaf);
-    currentleaf = static_cast<tLeaf*>(father->mSons[geotokens.back()]);
+    //assert(father->mSons[geotokens.back()]->mIsLeaf);
+    currentleaf = father->mSons[geotokens.back()];
   }
   if(!currentleaf->mFsIds.count(fs))
   {
@@ -200,7 +193,7 @@ size_t GeoTree::size() const
 // ---------------------------------------------------------------------------
 bool GeoTree::erase(const fsid_t &fs)
 {
-  tLeaf *leaf;
+  tElement *leaf;
   if(!pLeaves.count(fs))
   return false;
   else
@@ -209,7 +202,7 @@ bool GeoTree::erase(const fsid_t &fs)
 
   leaf->mFsIds.erase(fs);
   tElement *father = leaf;
-  if(leaf->mFsIds.empty())
+  if(leaf->mFsIds.empty() && leaf->mSons.empty())
   {
     // compute the depth for the current father
     int i,depth=-1;
@@ -221,7 +214,7 @@ bool GeoTree::erase(const fsid_t &fs)
     }
     assert(depth>=0); // consistency check
     // go uproot until there is more than one branch
-    while(father->mFather && father->mFather->mSons.size()==1)
+    while(father->mFather && father->mFather->mSons.size()==1 && father->mFather->mFsIds.empty())
     {
       if(father->mFather==pRoot) break;
       pLevels[depth--].erase(father);
@@ -399,8 +392,8 @@ bool GeoTree::runAggregator( GeoTreeAggregator *aggregator ) const
       GeoTreeElement *element = *ite;
       while(element->mFather)
       {
-	element = element->mFather;
-	geotags[elemCount] = element->mTagToken+"::"+geotags[elemCount];
+        element = element->mFather;
+        geotags[elemCount] = element->mTagToken+"::"+geotags[elemCount];
       }
       elemCount++;
     }
@@ -410,24 +403,17 @@ bool GeoTree::runAggregator( GeoTreeAggregator *aggregator ) const
   aggregator->init(geotags,depthlevelsendindexes);
 
   elemCount--;
-  // loop over the last level of Aggregate and call AggregateLeaves
-  for(auto ite = pLevels.rbegin()->rbegin(); ite!=pLevels.rbegin()->rend(); ite++)
+
+  for(auto itl = pLevels.rbegin(); itl!=pLevels.rend();itl++)
   {
-    (*ite)->mId = elemCount;
-    if(!aggregator->aggregateLeaves(static_cast<tLeaf*>(*ite)->mFsIds,elemCount--))
-    return false;
-  }
-  if(pLevels.size()==1) return true;
-  // loop from end-1 to beginning in mLevels and call AggregateNodes
-  for(auto itl = pLevels.rbegin()+1; itl!=pLevels.rend();itl++)
-  {
-    for(auto ite = itl->rbegin(); ite!=itl->rend(); ite++)
+    for(auto ite = itl->begin(); ite!=itl->end(); ite++)
     {
       (*ite)->mId = elemCount;
-      if(!aggregator->aggregateNodes(static_cast<tNode*>(*ite)->mSons,elemCount--))
+      if(!aggregator->aggregateLeavesAndNodes((*ite)->mFsIds,(*ite)->mSons,elemCount--))
       return false;
     }
   }
+
   return true;
 }
 
@@ -438,27 +424,28 @@ bool GeoTree::runAggregator( GeoTreeAggregator *aggregator ) const
  * @param fullgeotag the full geotag of the element
  */
 // ---------------------------------------------------------------------------
-void GeoTree::dumpTree(GeoTreeElement*el, std::string fullgeotag) const
+char* GeoTree::dumpTree(char *buffer, GeoTreeElement*el, std::string fullgeotag) const
 {
-  if(el->mIsLeaf)
+  if(!el->mFsIds.empty())
   {
-    auto &fsids = static_cast<GeoTreeLeaf*>(el)->mFsIds;
-    printf("%s%s\n",fullgeotag.c_str(),el->mTagToken.c_str());
-    printf("mFsIds\n");
+    auto &fsids = el->mFsIds;
+    buffer+=sprintf(buffer,"%s%s\n",fullgeotag.c_str(),el->mTagToken.c_str());
+    buffer+=sprintf(buffer,"mFsIds\n");
     for(auto fsit=fsids.begin(); fsit!=fsids.end(); fsit++)
     {
-      printf("%d  ",*fsit);
+      buffer+=sprintf(buffer,"%d  ",*fsit);
     }
-    if(fsids.begin()!=fsids.end()) printf("\n");
+    if(fsids.begin()!=fsids.end()) buffer+=sprintf(buffer,"\n");
   }
   else
   {
     fullgeotag += el->mTagToken;
     fullgeotag += "   ";
-    auto &sons = static_cast<GeoTreeNode*>(el)->mSons;
+    auto &sons = el->mSons;
     for(auto it=sons.cbegin();it!=sons.cend();it++)
-    dumpTree(it->second, fullgeotag);
+    buffer=dumpTree(buffer,it->second, fullgeotag);
   }
+  return buffer;
 }
 
 // ---------------------------------------------------------------------------
@@ -466,13 +453,14 @@ void GeoTree::dumpTree(GeoTreeElement*el, std::string fullgeotag) const
  * @brief Debug helper function to display the leaves in the tree
  */
 // ---------------------------------------------------------------------------
-void GeoTree::dumpLeaves() const
+char* GeoTree::dumpLeaves(char*buffer) const
 {
   for(auto it=pLeaves.begin(); it!=pLeaves.end(); it++ )
   {
-    printf("%d %s\n",it->first,it->second->mFullTag.c_str());
-    printf("@mLeaves@mFsIds\n");
+    buffer+=sprintf(buffer,"%d %s\n",it->first,it->second->mFullTag.c_str());
+    buffer+=sprintf(buffer,"@mLeaves@mFsIds\n");
   }
+  return buffer;
 }
 
 // ---------------------------------------------------------------------------
@@ -480,18 +468,19 @@ void GeoTree::dumpLeaves() const
  * @brief Debug helper function to display the elements of the tree sorted by levels
  */
 // ---------------------------------------------------------------------------
-void GeoTree::dumpLevels() const
+char* GeoTree::dumpLevels(char *buffer) const
 {
   int level = 0;
   for(auto it=pLevels.begin(); it!=pLevels.end(); it++)
   {
-    printf("level %d (%lu)\n",level++,it->size());
+    buffer+=sprintf(buffer,"level %d (%lu)\n",level++,it->size());
     for(auto it2=it->begin();it2!=it->end();it2++)
     {
-      printf("%s\t",(*it2)->mFullTag.c_str());
+      buffer+=sprintf(buffer,"%s\t",(*it2)->mFullTag.c_str());
     }
-    printf("\n");
+    buffer+=sprintf(buffer,"\n");
   }
+  return buffer;
 }
 
 // ---------------------------------------------------------------------------
@@ -499,14 +488,15 @@ void GeoTree::dumpLevels() const
  * @brief Debug helper function to display all the content of the tree
  */
 // ---------------------------------------------------------------------------
-void GeoTree::dump() const
+char* GeoTree::dump(char *buffer) const
 {
-  printf("@mRoot\n");
-  dumpTree(pRoot);
-  printf("@mLeaves\n");
-  dumpLeaves();
-  printf("@mLevels\n");
-  dumpLevels();
+  buffer+=sprintf(buffer,"@mRoot\n");
+  buffer=dumpTree(buffer,pRoot);
+  buffer+=sprintf(buffer,"@mLeaves\n");
+  buffer=dumpLeaves(buffer);
+  buffer+=sprintf(buffer,"@mLevels\n");
+  buffer=dumpLevels(buffer);
+  return buffer;
 }
 
 // ---------------------------------------------------------------------------
@@ -631,47 +621,93 @@ bool DoubleAggregator::aggregateLeaves(const std::set<eos::common::FileSystem::f
   }
 
   pNb[idx] = pView->ConsiderCount(false,&leaves);
+  if(pNb[idx])
+  {
   pSums[idx] = pView->SumDouble(pParam.c_str(),false,&leaves);
   pMeans[idx] = pView->AverageDouble(pParam.c_str(),false,&leaves);
-  pMaxDevs[idx] = pView->MaxDeviation(pParam.c_str(),false,&leaves);
-  pMinDevs[idx] = pView->MinDeviation(pParam.c_str(),false,&leaves);
-  pStdDevs[idx] = pView->SigmaDouble(pParam.c_str(),false,&leaves);
-  pMaxAbsDevs[idx] = std::max(abs(pMaxDevs[idx]),abs(pMinDevs[idx]));
+    pMaxDevs[idx] = (pNb[idx]==1)?0:pView->MaxDeviation(pParam.c_str(),false,&leaves);
+    pMinDevs[idx] = (pNb[idx]==1)?0:pView->MinDeviation(pParam.c_str(),false,&leaves);
+    pStdDevs[idx] = (pNb[idx]==1)?0:pView->SigmaDouble(pParam.c_str(),false,&leaves);
+    pMaxAbsDevs[idx] = (pNb[idx]==1)?0:std::max(abs(pMaxDevs[idx]),abs(pMinDevs[idx]));
+  }
+  else
+  {
+    pSums[idx] = 0;
+    pMeans[idx] = 0;
+    pMaxDevs[idx] = 0;
+    pMinDevs[idx] = 0;
+    pStdDevs[idx] = 0;
+    pMaxAbsDevs[idx] = 0;
+  }
   return true;
 };
 
 // --------------------------------------------------------
-bool DoubleAggregator::aggregateNodes(const std::map<std::string ,GeoTreeElement*> &nodes, const size_t &idx)
+bool DoubleAggregator::aggregateNodes(const std::map<std::string ,GeoTreeElement*> &nodes, const size_t &idx, bool includeSelf)
 {
-  pSums[idx] = pMeans[idx] = pMaxAbsDevs[idx] = pStdDevs[idx] = 0;
-  pMinDevs[idx] = DBL_MAX;
-  pMaxDevs[idx] = -DBL_MAX;
-  pNb[idx] = 0;
+  double pS,pM,pMAD,pSD,pMiD,pMaD;
+  pS = pM = pMAD = pSD = 0;
+  pMiD = DBL_MAX;
+  pMaD = -DBL_MAX;
+  long long pN = 0;
   for(auto it = nodes.begin(); it!=nodes.end(); it++)
   {
     size_t i = it->second->mId;
-    pSums[idx] += pSums[i];
-    pNb[idx] += pNb[i];
+    pS += pSums[i];
+    pN += pNb[i];
   }
-  if(pNb[idx]) pMeans[idx] = pSums[idx] / pNb[idx];
+  if(pN) pM = pS / pN;
   for(auto it = nodes.begin(); it!=nodes.end(); it++)
   {
     size_t i = it->second->mId;
-    pMinDevs[idx] =std::min(
-	pMinDevs[idx],
-	std::min( (pMinDevs[i]+pMeans[i])-pMeans[idx] , (pMaxDevs[i]+pMeans[i])-pMeans[idx] )
+    if(pNb[i]) // consider this only if there is something there
+    {
+      pMiD =std::min(
+	  pMiD,
+	  std::min( (pMinDevs[i]+pMeans[i])-pM , (pMaxDevs[i]+pMeans[i])-pM )
     );
-    pMaxDevs[idx] =std::max(
-	pMaxDevs[idx],
-	std::max( (pMinDevs[i]+pMeans[i])-pMeans[idx] , (pMaxDevs[i]+pMeans[i])-pMeans[idx] )
+      pMaD =std::max(
+	  pMaD,
+	  std::max( (pMinDevs[i]+pMeans[i])-pM , (pMaxDevs[i]+pMeans[i])-pM )
     );
-    pStdDevs[idx] += pNb[i]*(pStdDevs[i]*pStdDevs[i] + pMeans[i]*pMeans[i]);
+      pSD += pNb[i]*(pStdDevs[i]*pStdDevs[i] + pMeans[i]*pMeans[i]);
   }
-  if(pNb[idx])
+  }
+  if(pN)
   {
-    pStdDevs[idx] = sqrt(pStdDevs[idx] / pNb[idx] - pMeans[idx]*pMeans[idx]);
-    pMaxAbsDevs[idx] = std::max( fabs(pMaxDevs[idx]) , fabs(pMinDevs[idx]));
+    pSD = sqrt(pSD / pN - pM*pM);
+    pMAD = std::max( fabs(pMaD) , fabs(pMiD));
   }
+
+  if(includeSelf)
+  {
+    pS += pSums[idx];
+    pN += pNb[idx];
+    if(pN) pM = pS / pN;
+
+    pMiD =std::min(
+	pMiD,
+	std::min( (pMinDevs[idx]+pMeans[idx])-pM , (pMaxDevs[idx]+pMeans[idx])-pM )
+    );
+    pMaD =std::max(
+	pMaD,
+	std::max( (pMinDevs[idx]+pMeans[idx])-pM , (pMaxDevs[idx]+pMeans[idx])-pM )
+    );
+    pSD += pNb[idx]*(pStdDevs[idx]*pStdDevs[idx] + pMeans[idx]*pMeans[idx]);
+    if(pN)
+    {
+      pSD = sqrt(pSD / pN - pM*pM);
+      pMAD = std::max( fabs(pMaD) , fabs(pMiD));
+    }
+  }
+
+  pSums[idx] = pS;
+  pMeans[idx] = pM;
+  pMaxAbsDevs[idx] = pMAD;
+  pStdDevs[idx] = pSD;
+  pMinDevs[idx] = pMiD;
+  pMaxDevs[idx] = pMaD;
+  pNb[idx] = pN;
 
   return true;
 };
@@ -767,19 +803,29 @@ bool LongLongAggregator::aggregateLeaves(const std::set<eos::common::FileSystem:
   {
     pSums.resize(idx+1);
   }
+  pSums[idx] = 0;
   pSums[idx] = pView->SumLongLong(pParam.c_str(),false,&leaves);
   return true;
 };
 
 // ---------------------------------------------------------------------------
-bool LongLongAggregator::aggregateNodes(const std::map<std::string ,GeoTreeElement*> &nodes, const size_t &idx)
+bool LongLongAggregator::aggregateNodes(const std::map<std::string ,GeoTreeElement*> &nodes, const size_t &idx, bool includeSelf)
 {
-  pSums[idx] = 0;
+  long long pS = 0;
+
   for(auto it = nodes.begin(); it!=nodes.end(); it++)
   {
     size_t i = it->second->mId;
-    pSums[idx] += pSums[i];
+    pS += pSums[i];
   }
+
+  if(includeSelf)
+  {
+    pS += pSums[idx];
+  }
+
+  pSums[idx] = pS;
+
   return true;
 };
 
@@ -918,10 +964,10 @@ FsView::GetSpaceFormat (std::string option)
   if (option == "l")
   {
     // long output formag
-    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |member=cfg.groupsize:width=12:format=s|sep= |member=cfg.groupmod:width=12:format=s|sep= |member=nofs:width=6:format=s:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.usedbytes:width=15:format=+l|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s";
+    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |member=cfg.groupsize:width=12:format=s|sep= |member=cfg.groupmod:width=12:format=s|sep= |sum=<n>?*@*:width=6:format=l:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.usedbytes:width=15:format=+l|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s";
   }
 
-  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |member=cfg.groupsize:width=12:format=s|sep= |member=cfg.groupmod:width=12:format=s|sep= |member=nofs:width=6:format=s:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.usedbytes:width=15:format=+l|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s|sep= |member=cfg.balancer:width=10:format=s:tag=balancing|sep= |member=cfg.balancer.threshold:width=11:format=+l:tag=threshold|sep= |member=cfg.converter:width=11:format=s:tag=converter|sep= |member=cfg.converter.ntx:width=6:format=+l:tag=ntx|sep= |member=cfg.stat.converter.active:width=8:format=+l:tag=active|sep= |member=cfg.groupbalancer:width=11:format=s:tag=intergroup|";
+  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |member=cfg.groupsize:width=12:format=s|sep= |member=cfg.groupmod:width=12:format=s|sep= |sum=<n>?*@*:width=6:format=l:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.usedbytes:width=15:format=+l|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s|sep= |member=cfg.balancer:width=10:format=s:tag=balancing|sep= |member=cfg.balancer.threshold:width=11:format=+l:tag=threshold|sep= |member=cfg.converter:width=11:format=s:tag=converter|sep= |member=cfg.converter.ntx:width=6:format=+l:tag=ntx|sep= |member=cfg.stat.converter.active:width=8:format=+l:tag=active|sep= |member=cfg.groupbalancer:width=11:format=s:tag=intergroup|";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -950,10 +996,10 @@ FsView::GetGroupFormat (std::string option)
   if (option == "l")
   {
     // long format
-    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.status:width=12:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |key=stat.geotag:width=16:format=s|sep= |member=nofs:width=5:format=s";
+    return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.status:width=12:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |key=stat.geotag:width=16:format=s|sep= |sum=<n>?*@*:width=6:format=l:tag=N(fs)";
   }
   // default format
-  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=-s|sep= |member=cfg.status:width=12:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |member=nofs:width=5:format=s|sep= |maxdev=stat.statfs.filled:width=12:format=f:unit=p|sep= |avg=stat.statfs.filled:width=12:format=f:unit=p|sep= |sig=stat.statfs.filled:width=12:format=f:unit=p|sep= |member=cfg.stat.balancing:width=10:format=-s|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
+  return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=-s|sep= |member=cfg.status:width=12:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |sum=<n>?*@*:width=6:format=l:tag=N(fs)|sep= |maxdev=stat.statfs.filled:width=12:format=f:unit=p|sep= |avg=stat.statfs.filled:width=12:format=f:unit=p|sep= |sig=stat.statfs.filled:width=12:format=f:unit=p|sep= |member=cfg.stat.balancing:width=10:format=-s|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2428,6 +2474,15 @@ BaseView::SumLongLong (const char* param, bool lock, const std::set<eos::common:
     key = token[0];
     value = token[1];
     isquery = true;
+  }
+
+  if(isquery && key=="*" && value=="*")
+  {
+    // we just count the number of entries
+    if(subset)
+      return subset->size();
+    else
+      return size();
   }
 
   if(subset)

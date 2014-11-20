@@ -79,10 +79,7 @@ class GeoTree;
 struct GeoTreeElement
 {
   /// pointer to father node in the tree
-  GeoTreeNode *mFather;
-
-  /// is this element a leaf
-  bool mIsLeaf;
+  GeoTreeElement *mFather;
 
   /// tag token for example BBB in AA::BBB:CC
   std::string mTagToken;
@@ -92,35 +89,15 @@ struct GeoTreeElement
 
   /// an auxiliary numbering to run the aggregator
   mutable size_t mId;
-};
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Class representing a leaf in a GeoTree
- *
- */
-/*----------------------------------------------------------------------------*/
-struct GeoTreeLeaf : public GeoTreeElement
-{
   typedef eos::common::FileSystem::fsid_t fsid_t;
-
-  /// all the FileSystems contained by the leaf
+  /// all the FileSystems attached to this node of the tree
   std::set<fsid_t> mFsIds;
-};
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Class representing an intermediate node in a GeoTree
- *
- */
-/*----------------------------------------------------------------------------*/
-struct GeoTreeNode : public GeoTreeElement
-{
   /// map geoTreeTag -> son branches
   std::map<std::string ,GeoTreeElement*> mSons;
 
-  /// destructor
-  ~GeoTreeNode();
+  ~GeoTreeElement();
 };
 
 /*----------------------------------------------------------------------------*/
@@ -154,9 +131,18 @@ public:
   // aggregate the leaves at the last level of the tree
   virtual bool aggregateLeaves(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx)=0;
   // aggregate the nodes at intermediate levels
-  virtual bool aggregateNodes(const std::map<std::string ,GeoTreeElement*> &nodes, const size_t &idx)=0;
+  // WARNING target node might be part of the nodes to aggregate. Carefull before overwriting the target node.
+  virtual bool aggregateNodes(const std::map<std::string ,GeoTreeElement*> &nodes, const size_t &idx, bool includeSelf=false)=0;
   // aggregate the leaves any level of the tree
   virtual bool deepAggregate(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx)=0;
+  // aggregate the leaves and the nodes at any level of the tree
+  virtual bool aggregateLeavesAndNodes(const std::set<eos::common::FileSystem::fsid_t> &leaves,
+				       const std::map<std::string ,GeoTreeElement*> &nodes,
+				       const size_t &idx)
+  {
+    return ( leaves.empty()?true:aggregateLeaves(leaves,idx) )
+	&& ( nodes.empty()?true:aggregateNodes(nodes,idx,!leaves.empty()) );
+  }
 };
 
 /*----------------------------------------------------------------------------*/
@@ -173,13 +159,13 @@ class GeoTree
   typedef GeoTreeNode tNode;
 
   /// the root branch of the tree
-  tNode *pRoot;
+  tElement *pRoot;
 
   /// all the elements of the tree collected by depth
   std::vector<std::set<tElement*,GeoTreeNodeOrderHelper > > pLevels;
 
   /// all the leaves of the tree
-  std::map<fsid_t,tLeaf*> pLeaves;
+  std::map<fsid_t,tElement*> pLeaves;
 
   // ---------------------------------------------------------------------------
   // Get the geotag of FileSystem
@@ -228,7 +214,7 @@ public:
   class const_iterator : public std::iterator<std::bidirectional_iterator_tag,fsid_t>
   {
     friend class GeoTree;
-    std::map<fsid_t,tLeaf*>::const_iterator mIt;
+    std::map<fsid_t,tElement*>::const_iterator mIt;
   public:
     const_iterator operator++(int);
     const_iterator operator--(int);
@@ -264,22 +250,22 @@ public:
   // ---------------------------------------------------------------------------
   // Recursive debug helper function to display the tree
   // ---------------------------------------------------------------------------
-  void dumpTree(GeoTreeElement*el, std::string fullgeotag="") const;
+  char* dumpTree(char *buffer,GeoTreeElement*el, std::string fullgeotag="") const;
 
   // ---------------------------------------------------------------------------
   // Debug helper function to display the leaves in the tree
   // ---------------------------------------------------------------------------
-  void dumpLeaves() const;
+  char* dumpLeaves(char *buffer) const;
 
   // ---------------------------------------------------------------------------
   // Debug helper function to display the elements of the tree sorted by levels
   // ---------------------------------------------------------------------------
-  void dumpLevels() const;
+  char* dumpLevels(char *buffer) const;
 
   // ---------------------------------------------------------------------------
   // Debug helper function to display all the content of the tree
   // ---------------------------------------------------------------------------
-  void dump() const;
+  char* dump(char *buffer) const;
 };
 
 /*----------------------------------------------------------------------------*/
@@ -1244,7 +1230,7 @@ public:
 
   virtual bool init(const std::vector<std::string> & geotags, const std::vector<size_t> &depthLevelsIndexes);
   virtual bool aggregateLeaves(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx);
-  virtual bool aggregateNodes(const std::map<std::string ,GeoTreeElement*> &nodes, const size_t &idx);
+  virtual bool aggregateNodes(const std::map<std::string ,GeoTreeElement*> &nodes, const size_t &idx, bool includeSelf=false);
   virtual bool deepAggregate(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx);
 };
 
@@ -1312,7 +1298,7 @@ public:
 
   virtual bool init(const std::vector<std::string> & geotags, const std::vector<size_t> &depthLevelsIndexes);
   virtual bool aggregateLeaves(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx);
-  virtual bool aggregateNodes(const std::map<std::string ,GeoTreeElement*> &nodes, const size_t &idx);
+  virtual bool aggregateNodes(const std::map<std::string ,GeoTreeElement*> &nodes, const size_t &idx, bool includeSelf=false);
   virtual bool deepAggregate(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx);
 };
 
