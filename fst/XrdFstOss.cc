@@ -133,9 +133,7 @@ XrdFstOss::Init (XrdSysLogger* lp, const char* configfn)
   }
 
   if (mFdFence < 0 || mFdFence >= mFdLimit)
-  {
     mFdFence = mFdLimit >> 1;
-  }
 
   return NoGo;
 }
@@ -154,7 +152,7 @@ XrdFstOss::Configure(const char* configfn, XrdSysError& Eroute)
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"), &myEnv, "=====> ");
 
   // If there is no config file, return with the defaults sets
-  if( !configfn || !*configfn)
+  if(!configfn || !*configfn)
   {
     Eroute.Say("Config warning: config file not specified; defaults assumed.");
     return NoGo;
@@ -175,12 +173,9 @@ XrdFstOss::Configure(const char* configfn, XrdSysError& Eroute)
     if (!strncmp(var, "oss.", 4))
     {
       if (!strncmp(var+4, "preread", 7))
-      {
         NoGo = xprerd(Config, Eroute);
-      }
     }
   }
-
 
   eos_info("preread depth=%i, queue_size=%i and bytes=%i",
            mPrDepth, mPrQSize, mPrBytes);
@@ -208,13 +203,9 @@ XrdFstOss::xprerd(XrdOucStream &Config, XrdSysError &Eroute)
   }
   
   if (!strcmp(val, "on")) 
-  {
     depth = 3;
-  }
   else if (XrdOuca2x::a2i(Eroute, "preread depth", val, &depth, 0, 1024))
-  {
     return 1;
-  }
   
   while((val = Config.GetWord()))
   {
@@ -254,9 +245,7 @@ XrdFstOss::xprerd(XrdOucStream &Config, XrdSysError &Eroute)
   }
   
   if (lim < mPrPSize || !qsz)
-  {
     depth = 0;
-  }
   
   if (!qeq && depth)
   {
@@ -279,7 +268,7 @@ XrdFstOss::xprerd(XrdOucStream &Config, XrdSysError &Eroute)
 XrdOssDF*
 XrdFstOss::newFile (const char* tident)
 {
-  eos_debug("Calling XrdFstOss::newFile. ");
+  eos_debug("Calling XrdFstOss::newFile");
   return ( XrdOssDF*) new XrdFstOssFile(tident);
 }
 
@@ -290,7 +279,7 @@ XrdFstOss::newFile (const char* tident)
 XrdOssDF*
 XrdFstOss::newDir (const char* tident)
 {
-  eos_debug("Calling XrdFstOss::newDir - not used in EOS.");
+  eos_debug("Calling XrdFstOss::newDir - not used in EOS");
   return NULL;
 }
 
@@ -303,10 +292,9 @@ XrdFstOss::Unlink (const char* path, int opts, XrdOucEnv* ep)
 {
   int retc = 0;
   struct stat statinfo;
-  //............................................................................
+
   // Unlink the block checksum files - this is not the 'best' solution,
   // but we don't have any info about block checksums
-  //............................................................................
   Adler xs; // the type does not matter here
   const char* xs_path = xs.MakeBlockXSPath(path);
 
@@ -318,26 +306,18 @@ XrdFstOss::Unlink (const char* path, int opts, XrdOucEnv* ep)
   else
   {
     if (!xs.UnlinkXSPath())
-    {
       eos_debug("info=\"removed block-xs\" path=%s.", path);
-    }
   }
 
-  //............................................................................
   // Unlink the file
-  //............................................................................
   int i;
   char local_path[MAXPATHLEN + 1 + 8];
   strcpy(local_path, path);
 
   if (lstat(local_path, &statinfo))
-  {
     retc = (errno == ENOENT ? 0 : -errno);
-  }
   else if ((statinfo.st_mode & S_IFMT) == S_IFLNK)
-  {
     retc = BreakLink(local_path, statinfo);
-  }
   else if ((statinfo.st_mode & S_IFMT) == S_IFDIR)
   {
     i = strlen(local_path);
@@ -351,8 +331,10 @@ XrdFstOss::Unlink (const char* path, int opts, XrdOucEnv* ep)
 
   if (!retc)
   {
-    if (unlink(local_path)) retc = -errno;
-    else retc = XrdOssOK;
+    if (unlink(local_path))
+      retc = -errno;
+    else
+      retc = XrdOssOK;
   }
 
   return retc;
@@ -368,18 +350,15 @@ XrdFstOss::BreakLink (const char* local_path, struct stat& statbuff)
   char lnkbuff[MAXPATHLEN + 64];
   int lnklen, retc = XrdOssOK;
 
-  //............................................................................
   // Read the contents of the link
-  //............................................................................
   if ((lnklen = readlink(local_path, lnkbuff, sizeof ( lnkbuff) - 1)) < 0)
     return -errno;
 
-  //............................................................................
   // Return the actual stat information on the target (which might not exist
-  //............................................................................
   lnkbuff[lnklen] = '\0';
 
-  if (stat(lnkbuff, &statbuff)) statbuff.st_size = 0;
+  if (stat(lnkbuff, &statbuff))
+    statbuff.st_size = 0;
   else if (unlink(lnkbuff) && errno != ENOENT)
   {
     retc = -errno;
@@ -396,7 +375,7 @@ XrdFstOss::BreakLink (const char* local_path, struct stat& statbuff)
 int
 XrdFstOss::Chmod (const char* path, mode_t mode, XrdOucEnv* eP)
 {
-  return ( chmod(path, mode) ? -errno : XrdOssOK);
+  return (chmod(path, mode) ? -errno : XrdOssOK);
 }
 
 
@@ -418,17 +397,14 @@ XrdFstOss::Create (const char* tident,
   struct stat buf;
   const int AMode = S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH; // 775
 
-  if (strlen(path) >= MAXPATHLEN) return -ENAMETOOLONG;
+  if (strlen(path) >= MAXPATHLEN)
+    return -ENAMETOOLONG;
 
   strcpy(local_path, path);
 
-  //............................................................................
   // Determine the state of the file. We will need this information as we go on
-  //............................................................................
   if ((missing = lstat(path, &buf)))
-  {
     retc = errno;
-  }
   else
   {
     if ((is_link = ((buf.st_mode & S_IFMT) == S_IFLNK)))
@@ -436,16 +412,12 @@ XrdFstOss::Create (const char* tident,
       if (stat(path, &buf))
       {
         if (errno != ENOENT)
-        {
           return -errno;
-        }
 
         OssEroute.Emsg("Create", "removing dangling link", path);
 
         if (unlink(path))
-        {
           retc = errno;
-        }
 
         missing = 1;
         is_link = 0;
@@ -453,11 +425,10 @@ XrdFstOss::Create (const char* tident,
     }
   }
 
-  if (retc && (retc != ENOENT)) return -retc;
+  if (retc && (retc != ENOENT))
+    return -retc;
 
-  //............................................................................
   // The file must not exist if it's declared "new". Otherwise, reuse the space
-  //............................................................................
   if (!missing)
   {
     if (opts & XRDOSS_new) return -EEXIST;
@@ -474,16 +445,12 @@ XrdFstOss::Create (const char* tident,
     else close(datfd);
 
     if (opts >> 8 & O_TRUNC && buf.st_size && is_link)
-    {
       buf.st_mode = (buf.st_mode & ~S_IFMT) | S_IFLNK;
-    }
 
     return XrdOssOK;
   }
 
-  //............................................................................
   // If the path is to be created, make sure the path exists at this point
-  //............................................................................
   if ((opts & XRDOSS_mkpath) && (p = rindex(local_path, '/')))
   {
     p++;
@@ -493,17 +460,17 @@ XrdFstOss::Create (const char* tident,
     *p = pc;
   }
 
-  //............................................................................
   // Simply open the file in the local filesystem, creating it if need be
-  //............................................................................
   do
   {
     datfd = open(local_path, opts >> 8, mode);
   }
   while (datfd < 0 && errno == EINTR);
 
-  if (datfd < 0) return -errno;
-  else close(datfd);
+  if (datfd < 0)
+    return -errno;
+  else
+    close(datfd);
 
   return XrdOssOK;
 }
@@ -518,9 +485,7 @@ XrdFstOss::Mkdir (const char* path,
                   int mkpath,
                   XrdOucEnv* eP)
 {
-  //............................................................................
   // Operation not supported in EOS
-  //............................................................................
   return -ENOTSUP;
 }
 
@@ -533,9 +498,7 @@ XrdFstOss::Remdir (const char* path,
                    int opts,
                    XrdOucEnv* eP)
 {
-  //............................................................................
   // Operation not supported in EOS
-  //............................................................................
   return -ENOTSUP;
 }
 
@@ -558,17 +521,16 @@ XrdFstOss::Rename (const char* oldname,
   static const mode_t pMode = S_IRWXU | S_IRWXG;
   strcpy(local_path_old, oldname);
   strcpy(local_path_new, newname);
-  //............................................................................
+
   // Make sure that the target file does not exist
-  //............................................................................
   retc2 = lstat(local_path_new, &statbuff);
 
-  if (!retc2) return -EEXIST;
+  if (!retc2)
+    return -EEXIST;
 
-  //............................................................................
   // We need to create the directory path if it does not exist.
-  //............................................................................
-  if (!(slash_plus = rindex(local_path_new, '/'))) return -EINVAL;
+  if (!(slash_plus = rindex(local_path_new, '/')))
+    return -EINVAL;
 
   slash_plus++;
   sPChar = *slash_plus;
@@ -576,19 +538,14 @@ XrdFstOss::Rename (const char* oldname,
   retc2 = XrdOucUtils::makePath(local_path_new, pMode);
   *slash_plus = sPChar;
 
-  if (retc2) return retc2;
+  if (retc2)
+    return retc2;
 
-  //............................................................................
   // Check if this path is really a symbolic link elsewhere
-  //............................................................................
   if (lstat(local_path_old, &statbuff))
-  {
     retc = -errno;
-  }
   else if (rename(local_path_old, local_path_new))
-  {
     retc = -errno;
-  }
 
   return retc;
 }
@@ -607,9 +564,7 @@ XrdFstOss::Stat (const char* path,
   char local_path[MAXPATHLEN + 1];
   strcpy(local_path, path);
 
-  //............................................................................
   // Stat the file in the local filesystem and update access time if so requested
-  //............................................................................
   if (!stat(local_path, buff))
   {
     if (opts & XRDOSS_updtatm && (buff->st_mode & S_IFMT) == S_IFREG)
@@ -623,9 +578,7 @@ XrdFstOss::Stat (const char* path,
     retc = XrdOssOK;
   }
   else
-  {
     retc = (errno ? -errno : -ENOMSG);
-  }
 
   return retc;
 }
@@ -675,10 +628,8 @@ XrdFstOss::AddMapping (const std::string& fileName,
     pair_value = mMapFileXs[fileName];
     XrdSysRWLockHelper wr_xslock(pair_value.first, 0); // --> wrlock xs obj
 
-    //..........................................................................
     // If no. ref 0 then the obj is closed and waiting to be deleted so we can
     // add the new one, else return the old one
-    //..........................................................................
     if (pair_value.second->GetTotalRef() == 0)
     {
       delete pair_value.second;
@@ -699,9 +650,8 @@ XrdFstOss::AddMapping (const std::string& fileName,
   {
     XrdSysRWLock* mutex_xs = new XrdSysRWLock();
     pair_value = std::make_pair(mutex_xs, blockXs);
-    //..........................................................................
-    // Can increment without the lock as no one knows about this obj yet
-    //..........................................................................
+
+    // Can increment without the lock as no one knows about this obj. yet
     blockXs->IncrementRef(isRW);
     mMapFileXs[fileName] = pair_value;
     eos_debug("Add completely new obj, map size: %i and filename: %s.",
@@ -725,9 +675,8 @@ XrdFstOss::GetXsObj (const std::string& fileName, bool isRW)
     pair_value = mMapFileXs[fileName];
     XrdSysRWLock* mutex_xs = pair_value.first;
     CheckSum* xs_obj = pair_value.second;
-    //..........................................................................
+
     // Lock xs obj as multiple threads can update the value here
-    //..........................................................................
     XrdSysRWLockHelper xs_wrlock(mutex_xs, 0); // --> wrlock xs obj
     eos_debug("\nXs obj no ref: %i.\n", xs_obj->GetTotalRef());
 
@@ -738,9 +687,7 @@ XrdFstOss::GetXsObj (const std::string& fileName, bool isRW)
     }
     else
     {
-      //........................................................................
       // If no refs., it means the obj was closed and waiting to be deleted
-      //........................................................................
       return std::make_pair<XrdSysRWLock*, CheckSum*>(NULL, NULL);
     }
   }
@@ -762,9 +709,8 @@ XrdFstOss::DropXs (const std::string& fileName, bool force)
   if (mMapFileXs.count(fileName))
   {
     pair_value = mMapFileXs[fileName];
-    //..........................................................................
+
     // If no refs to the checksum, we can safely delete it
-    //..........................................................................
     pair_value.first->WriteLock(); // --> wrlock xs obj
     eos_debug("Xs obj no ref: %i.", pair_value.second->GetTotalRef());
 

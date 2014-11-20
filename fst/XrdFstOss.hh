@@ -98,7 +98,6 @@ public:
   //! @param configfn configuration file
   //!
   //! @return 0 upon success, -errno otherwise
-  //!
   //--------------------------------------------------------------------------
   int Init (XrdSysLogger* lp, const char* configfn);
 
