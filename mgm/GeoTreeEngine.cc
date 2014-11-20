@@ -42,7 +42,7 @@ using namespace eos::mgm;
 
 EOSMGMNAMESPACE_BEGIN
 
-GeoTreeEnginegGeoTreeEngine;
+GeoTreeEngine gGeoTreeEngine;
 
 const size_t GeoTreeEngine::gGeoBufferSize = 64 * 1024;
 __thread void* GeoTreeEngine::tlGeoBuffer = NULL;
