@@ -161,7 +161,7 @@ XrdMgmOfs::_stat (const char *path,
   catch (eos::MDException &e)
   {
     errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
               e.getErrno(), e.getMessage().str().c_str());
   }
 
@@ -331,7 +331,7 @@ XrdMgmOfs::_stat (const char *path,
   {
 
     errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(), e.getMessage().str().c_str());
     return Emsg(epname, error, errno, "stat", cPath.GetPath());
   }
 }
