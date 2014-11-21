@@ -1652,6 +1652,19 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
 	stn->pNodeState.mStatus |= SchedTreeBase::Writable;
       }
     }
+    else
+    {
+      if(ftIdx)
+      {
+	unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Readable);
+	unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Writable);
+      }
+      if(stn)
+      {
+	stn->pNodeState.mStatus &= ~SchedTreeBase::Readable;
+	stn->pNodeState.mStatus &= ~SchedTreeBase::Writable;
+      }
+    }
   }
   if(keys&sfgDrain)
   {
