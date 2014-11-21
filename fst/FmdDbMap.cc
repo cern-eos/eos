@@ -73,7 +73,8 @@ FmdDbMapHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString opt
 
   if (isattached)
   {
-    ShutdownDB(fsid);
+    if(ShutdownDB(fsid))
+      isattached = false;
   }
 
   eos::common::RWMutexWriteLock lock(Mutex);
