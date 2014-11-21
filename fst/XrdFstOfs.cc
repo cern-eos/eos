@@ -62,9 +62,9 @@
 
 // The global OFS handle
 eos::fst::XrdFstOfs eos::fst::gOFS;
-XrdSysMutex eos::fst::XrdFstOfs::ShutdownMutex; 
+XrdSysMutex eos::fst::XrdFstOfs::ShutdownMutex;
 
-bool eos::fst::XrdFstOfs::Shutdown = false; 
+bool eos::fst::XrdFstOfs::Shutdown = false;
 
 extern XrdSysError OfsEroute;
 extern XrdOss* XrdOfsOss;
@@ -122,7 +122,7 @@ XrdFstOfs::XrdFstOfs () :
   Messaging = 0;
   Storage = 0;
   TransferScheduler = 0;
-  if (!getenv("EOS_NO_SHUTDOWN")) 
+  if (!getenv("EOS_NO_SHUTDOWN"))
   {
     //-------------------------------------------
     // add Shutdown handler
@@ -147,34 +147,35 @@ XrdFstOfs::XrdFstOfs () :
 //------------------------------------------------------------------------------
 // Destructor
 //-----------------------------------------------------------------------------
-
-XrdFstOfs::~XrdFstOfs () {
+XrdFstOfs::~XrdFstOfs ()
+{
   // empty
 }
 
 
 //------------------------------------------------------------------------------
-// Function newDir
+// Get a new OFS directory object
 //-----------------------------------------------------------------------------
-
 XrdSfsDirectory*
 XrdFstOfs::newDir (char* user, int MonID)
 {
-  return static_cast<XrdSfsDirectory*> (new XrdFstOfsDirectory(user, MonID));
+  return (XrdSfsDirectory*) (0);
 }
 
 
 //------------------------------------------------------------------------------
-// Function newFile
+// Get a new OFS file object
 //-----------------------------------------------------------------------------
-
 XrdSfsFile*
 XrdFstOfs::newFile (char* user, int MonID)
 {
   return static_cast<XrdSfsFile*> (new XrdFstOfsFile(user, MonID));
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Get stacktrace from crashing process
+//------------------------------------------------------------------------------
 void
 XrdFstOfs::xrdfstofs_stacktrace (int sig)
 {
@@ -183,20 +184,17 @@ XrdFstOfs::xrdfstofs_stacktrace (int sig)
   (void) signal(SIGQUIT, SIG_IGN);
   void* array[10];
   size_t size;
-  // get void*'s for all entries on the stack
+  // Get void*'s for all entries on the stack
   size = backtrace(array, 10);
-  // print out all the frames to stderr
+  // Print out all the frames to stderr
   fprintf(stderr, "error: received signal %d:\n", sig);
   backtrace_symbols_fd(array, size, 2);
-
   eos::common::StackTrace::GdbTrace("xrootd", getpid(), "thread apply all bt");
 
   if (getenv("EOS_CORE_DUMP"))
-  {
     eos::common::StackTrace::GdbTrace("xrootd", getpid(), "generate-core-file");
-  }
 
-  // now we put back the initial handler and send the signal again
+  // Now we put back the initial handler and send the signal again
   signal(sig, SIG_DFL);
   kill(getpid(), sig);
 #ifdef __APPLE__
@@ -207,7 +205,10 @@ XrdFstOfs::xrdfstofs_stacktrace (int sig)
 #endif
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// OFS shutdown procedure
+//------------------------------------------------------------------------------
 void
 XrdFstOfs::xrdfstofs_shutdown (int sig)
 {
@@ -230,12 +231,10 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
     kill(getpid(), 9);
   }
 
-  // handler to shutdown the daemon for valgrinding and clean server stop (e.g. let's time to finish write operations
-
+  // Handler to shutdown the daemon for valgrinding and clean server stop
+  // (e.g. let's time to finish write operations
   if (gOFS.Messaging)
-  {
     gOFS.Messaging->StopListener(); // stop any communication
-  }
 
   XrdSysTimer sleeper;
   sleeper.Wait(1000);
@@ -247,14 +246,14 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
     {
       eos_static_warning("op=shutdown threadid=%llx", (unsigned long long) *it);
       XrdSysThread::Cancel(*it);
-      //      XrdSysThread::Join( *it, 0 );
+      // XrdSysThread::Join( *it, 0 );
     }
   }
   eos_static_warning("op=shutdown msg=\"stop messaging\"");
 
   eos_static_warning("%s", "op=shutdown msg=\"shutdown fmddbmap handler\"");
   gFmdDbMapHandler.Shutdown();
-  kill(watchdog,9);
+  kill(watchdog, 9);
 
 #ifdef __APPLE__
   int wstatus = 0;
@@ -277,7 +276,10 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
   kill(getpid(),9);
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// OFS layer configuration
+//------------------------------------------------------------------------------
 int
 XrdFstOfs::Configure (XrdSysError& Eroute)
 {
@@ -314,15 +316,16 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
     time_t t= time(NULL);
     struct tm * timeinfo;
     timeinfo = localtime (&t);
-    
-    out = asctime(timeinfo); out.erase(out.length()-1); 
+
+    out = asctime(timeinfo); out.erase(out.length()-1);
     eos::fst::Config::gConfig.StartDate = out.c_str();
   }
 
   eos::fst::Config::gConfig.FstMetaLogDir = "/var/tmp/eos/md/";
   setenv("XrdClientEUSER", "daemon", 1);
 
-  // set short timeout resolution, connection window, connection retry and stream error window
+  // Set short timeout resolution, connection window, connection retry and
+  // stream error window
   XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
   XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 5);
   XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 1);
@@ -358,7 +361,8 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
         {
           if (!(val = Config.GetWord()))
           {
-            Eroute.Emsg("Config", "argument 2 for broker missing. Should be URL like root://<host>/<queue>/");
+            Eroute.Emsg("Config", "argument 2 for broker missing. Should be "
+                        "URL like root://<host>/<queue>/");
             NoGo = 1;
           }
           else
@@ -389,9 +393,12 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
 
         if (!strcmp("autoboot", var))
         {
-          if ((!(val = Config.GetWord())) || (strcmp("true", val) && strcmp("false", val) && strcmp("1", val) && strcmp("0", val)))
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val)))
           {
-            Eroute.Emsg("Config", "argument 2 for autobootillegal or missing. Must be <true>,<false>,<1> or <0>!");
+            Eroute.Emsg("Config", "argument 2 for autobootillegal or missing. "
+                        "Must be <true>,<false>,<1> or <0>!");
             NoGo = 1;
           }
           else
@@ -421,19 +428,23 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
     Config.Close();
   }
 
-  if (eos::fst::Config::gConfig.autoBoot)
+  // Create the OSS object and pass it to the OFS layer
+  XrdOfsOss= new eos::fst::XrdFstOss();
+  XrdSysLogger logger;
+
+  if (XrdOfsOss->Init(&logger, const_cast<const char*>(ConfigFN)))
   {
-    Eroute.Say("=====> fstofs.autoboot : true");
-  }
-  else
-  {
-    Eroute.Say("=====> fstofs.autoboot : false");
+    NoGo = 1;
+    return NoGo;
   }
 
+  if (eos::fst::Config::gConfig.autoBoot)
+    Eroute.Say("=====> fstofs.autoboot : true");
+  else
+    Eroute.Say("=====> fstofs.autoboot : false");
+
   if (!eos::fst::Config::gConfig.FstOfsBrokerUrl.endswith("/"))
-  {
     eos::fst::Config::gConfig.FstOfsBrokerUrl += "/";
-  }
 
   eos::fst::Config::gConfig.FstDefaultReceiverQueue = eos::fst::Config::gConfig.FstOfsBrokerUrl;
   eos::fst::Config::gConfig.FstOfsBrokerUrl += mHostName;
@@ -443,10 +454,11 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   eos::fst::Config::gConfig.FstHostPort = mHostName;
   eos::fst::Config::gConfig.FstHostPort += ":";
   eos::fst::Config::gConfig.FstHostPort += myPort;
-  eos::fst::Config::gConfig.KernelVersion = eos::common::StringConversion::StringFromShellCmd("uname -r | tr -d \"\n\"").c_str();
-  
+  eos::fst::Config::gConfig.KernelVersion =
+      eos::common::StringConversion::StringFromShellCmd("uname -r | tr -d \"\n\"").c_str();
+
   Eroute.Say("=====> fstofs.broker : ", eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(), "");
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
   // extract our queue name
   eos::fst::Config::gConfig.FstQueue = eos::fst::Config::gConfig.FstOfsBrokerUrl;
   {
@@ -463,7 +475,7 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
     }
   }
 
-  // create our wildcard broadcast name
+  // Create our wildcard broadcast name
   eos::fst::Config::gConfig.FstQueueWildcard = eos::fst::Config::gConfig.FstQueue;
   eos::fst::Config::gConfig.FstQueueWildcard += "/*";
 
@@ -473,7 +485,7 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   eos::fst::Config::gConfig.FstConfigQueueWildcard += ":";
   eos::fst::Config::gConfig.FstConfigQueueWildcard += myPort;
 
-  // create our wildcard gw broadcast name
+  // Create our wildcard gw broadcast name
   eos::fst::Config::gConfig.FstGwQueueWildcard = "*/";
   eos::fst::Config::gConfig.FstGwQueueWildcard += mHostName;
   eos::fst::Config::gConfig.FstGwQueueWildcard += ":";
@@ -486,26 +498,24 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   unit += ":";
   unit += myPort;
 
-  // setup the circular in-memory log buffer
+  // Setup the circular in-memory log buffer
   eos::common::Logging::Init();
   eos::common::Logging::SetLogPriority(LOG_NOTICE);
   eos::common::Logging::SetUnit(unit.c_str());
 
   eos_info("info=\"logging configured\"");
 
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  // create the messaging object(recv thread)
-
+  //////////////////////////////////////////////////////////////////////////////
+  // Create the messaging object(recv thread)
   eos::fst::Config::gConfig.FstDefaultReceiverQueue += "*/mgm";
   int pos1 = eos::fst::Config::gConfig.FstDefaultReceiverQueue.find("//");
   int pos2 = eos::fst::Config::gConfig.FstDefaultReceiverQueue.find("//", pos1 + 2);
+
   if (pos2 != STR_NPOS)
-  {
     eos::fst::Config::gConfig.FstDefaultReceiverQueue.erase(0, pos2 + 1);
-  }
 
   Eroute.Say("=====> fstofs.defaultreceiverqueue : ", eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str(), "");
-  // set our Eroute for XrdMqMessage
+  // Set our Eroute for XrdMqMessage
   XrdMqMessage::Eroute = OfsEroute;
 
   // Enable the shared object notification queue
@@ -513,104 +523,105 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   ObjectManager.SetAutoReplyQueue("/eos/*/mgm");
   ObjectManager.SetDebug(false);
 
-  // setup notification subjects
+  // Setup notification subjects
   // create the specific listener class
-  Messaging = new eos::fst::Messaging(eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(), eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str(), false, false, &ObjectManager);
+  Messaging = new eos::fst::Messaging(eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(),
+                                      eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str(),
+                                      false, false, &ObjectManager);
   Messaging->SetLogId("FstOfsMessaging");
 
-  if ((!Messaging) || (!Messaging->StartListenerThread())) NoGo = 1;
+  if ((!Messaging) || (!Messaging->StartListenerThread()))
+    NoGo = 1;
 
   if ((!Messaging) || (Messaging->IsZombie()))
   {
     Eroute.Emsg("Config", "cannot create messaging object(thread)");
     NoGo = 1;
   }
+
   if (NoGo)
     return NoGo;
 
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
   // Attach Storage to the meta log dir
-
   Storage = eos::fst::Storage::Create(eos::fst::Config::gConfig.FstMetaLogDir.c_str());
   Eroute.Say("=====> fstofs.metalogdir : ", eos::fst::Config::gConfig.FstMetaLogDir.c_str());
+
   if (!Storage)
   {
-    Eroute.Emsg("Config", "cannot setup meta data storage using directory: ", eos::fst::Config::gConfig.FstMetaLogDir.c_str());
+    Eroute.Emsg("Config", "cannot setup meta data storage using directory: ",
+                eos::fst::Config::gConfig.FstMetaLogDir.c_str());
     return 1;
   }
 
-
   XrdSysTimer sleeper;
   sleeper.Snooze(5);
-
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
+
   if(!ObjectNotifier.Start())
     eos_crit("error starting the shared object change notifier");
 
-
   eos_notice("sending broadcast's ...");
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  // Create a wildcard broadcast 
+  //////////////////////////////////////////////////////////////////////////////
+  // Create a wildcard broadcast
   XrdMqSharedHash* hash = 0;
   XrdMqSharedQueue* queue = 0;
 
   // Create a node broadcast
-  ObjectManager.CreateSharedHash(eos::fst::Config::gConfig.FstConfigQueueWildcard.c_str(), eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
+  ObjectManager.CreateSharedHash(eos::fst::Config::gConfig.FstConfigQueueWildcard.c_str(),
+                                 eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
   ObjectManager.HashMutex.LockRead();
-
   hash = ObjectManager.GetHash(eos::fst::Config::gConfig.FstConfigQueueWildcard.c_str());
 
   if (hash)
   {
-    // ask for a broadcast
+    // Ask for a broadcast
     hash->BroadCastRequest(eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
   }
 
   ObjectManager.HashMutex.UnLockRead();
 
   // Create a node gateway broadcast
-  ObjectManager.CreateSharedQueue(eos::fst::Config::gConfig.FstGwQueueWildcard.c_str(), eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
+  ObjectManager.CreateSharedQueue(eos::fst::Config::gConfig.FstGwQueueWildcard.c_str(),
+                                  eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
   ObjectManager.HashMutex.LockRead();
-
   queue = ObjectManager.GetQueue(eos::fst::Config::gConfig.FstGwQueueWildcard.c_str());
 
   if (queue)
   {
-    // ask for a broadcast
+    // Ask for a broadcast
     queue->BroadCastRequest(eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
   }
 
   ObjectManager.HashMutex.UnLockRead();
 
   // Create a filesystem broadcast
-  ObjectManager.CreateSharedHash(eos::fst::Config::gConfig.FstQueueWildcard.c_str(), eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
+  ObjectManager.CreateSharedHash(eos::fst::Config::gConfig.FstQueueWildcard.c_str(),
+                                 eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
   ObjectManager.HashMutex.LockRead();
   hash = ObjectManager.GetHash(eos::fst::Config::gConfig.FstQueueWildcard.c_str());
 
   if (hash)
   {
-    // ask for a broadcast
+    // Ask for a broadcast
     hash->BroadCastRequest(eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str());
   }
 
   ObjectManager.HashMutex.UnLockRead();
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  // start dumper thread
+  //////////////////////////////////////////////////////////////////////////////
+  // Start dumper thread
   XrdOucString dumperfile = eos::fst::Config::gConfig.FstMetaLogDir;
   dumperfile += "so.fst.dump";
   ObjectManager.StartDumper(dumperfile.c_str());
-
   XrdOucString keytabcks = "unaccessible";
 
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  // start the embedded HTTP server
+  //////////////////////////////////////////////////////////////////////////////
+  // Start the embedded HTTP server
   httpd = new HttpServer(8001);
   if (httpd)
-  {
     httpd->Start();
-  }
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  //////////////////////////////////////////////////////////////////////////////
   // build the adler checksum of the default keytab file
   int fd = ::open("/etc/eos.keytab", O_RDONLY);
   if (fd > 0)
@@ -634,42 +645,37 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
              mHostName, myPort, VERSION, RELEASE, keytabcks.c_str());
 
   eos::fst::Config::gConfig.KeyTabAdler = keytabcks.c_str();
-
-  //sleeper.Snooze(5);
-
   return 0;
 }
 
-/*----------------------------------------------------------------------------*/
 
+//------------------------------------------------------------------------------
+// Define error bool variables to en-/disable error simulation in the OFS layer
+//------------------------------------------------------------------------------
 void
 XrdFstOfs::SetSimulationError (const char* tag)
 {
-  // -----------------------------------------------
-  // define error bool variables to en-/disable error simulation in the OFS layer
-
   XrdOucString stag = tag;
-  gOFS.Simulate_IO_read_error = gOFS.Simulate_IO_write_error = gOFS.Simulate_XS_read_error = gOFS.Simulate_XS_write_error = false;
+  gOFS.Simulate_IO_read_error = gOFS.Simulate_IO_write_error =
+      gOFS.Simulate_XS_read_error = gOFS.Simulate_XS_write_error = false;
 
   if (stag == "io_read")
-  {
     gOFS.Simulate_IO_read_error = true;
-  }
+
   if (stag == "io_write")
-  {
     gOFS.Simulate_IO_write_error = true;
-  }
+
   if (stag == "xs_read")
-  {
     gOFS.Simulate_XS_read_error = true;
-  }
+
   if (stag == "xs_write")
-  {
     gOFS.Simulate_XS_write_error = true;
-  }
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Stat path
+//------------------------------------------------------------------------------
 int
 XrdFstOfs::stat (const char* path,
                  struct stat* buf,
@@ -681,27 +687,22 @@ XrdFstOfs::stat (const char* path,
   memset(buf, 0, sizeof ( struct stat));
 
   if (!XrdOfsOss->Stat(path, buf))
-  {
     return SFS_OK;
-  }
   else
-  {
     return gOFS.Emsg(epname, out_error, errno, "stat file", path);
-  }
 }
 
 
 //------------------------------------------------------------------------------
 // CallManager function
 //------------------------------------------------------------------------------
-
 int
 XrdFstOfs::CallManager (XrdOucErrInfo* error,
                         const char* path,
                         const char* manager,
                         XrdOucString& capOpaqueFile,
-                        XrdOucString* return_result, 
-			unsigned short timeout)
+                        XrdOucString* return_result,
+                        unsigned short timeout)
 {
   EPNAME("CallManager");
   int rc = SFS_OK;
@@ -720,11 +721,9 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
     return EINVAL;
   }
 
-  //.............................................................................
   // Get XrdCl::FileSystem object
-  //.............................................................................
-
- again:
+  // !!! WATCH OUT: GOTO ANCHOR !!!
+again:
   XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
 
   if (!fs)
@@ -732,9 +731,7 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
     eos_err("error=failed to get new FS object");
 
     if (error)
-    {
       gOFS.Emsg(epname, *error, ENOMEM, "allocate FS object calling the manager node for fn=", path);
-    }
 
     return EINVAL;
   }
@@ -752,10 +749,10 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
     msg = (status.GetErrorMessage().c_str());
     rc = SFS_ERROR;
 
-    if (msg.find("[EIDRM]") != STR_NPOS) 
+    if (msg.find("[EIDRM]") != STR_NPOS)
       rc = -EIDRM;
 
-    if (msg.find("[EBADE]") != STR_NPOS) 
+    if (msg.find("[EBADE]") != STR_NPOS)
       rc = -EBADE;
 
     if (msg.find("[EBADR]") != STR_NPOS)
@@ -773,31 +770,35 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
     {
       eos_static_err("msg=\"query error\" status=%d code=%d", status.status, status.code);
       if ( (status.code >= 100) &&
-	   (status.code <= 300) &&
-	   (!timeout) )
-	{
-	  // implement automatic retry - network errors will be cured at some point
-	  delete fs;
-	  XrdSysTimer sleeper;
-	  sleeper.Snooze(1);
-	  eos_static_info("msg=\"retry query\" query=\"%s\"", capOpaqueFile.c_str());
-	  goto again;
-	}
+           (status.code <= 300) &&
+           (!timeout) )
+        {
+          // implement automatic retry - network errors will be cured at some point
+          delete fs;
+          XrdSysTimer sleeper;
+          sleeper.Snooze(1);
+          eos_static_info("msg=\"retry query\" query=\"%s\"", capOpaqueFile.c_str());
+          goto again;
+        }
       gOFS.Emsg(epname, *error, ECOMM, msg.c_str(), path);
   }
   }
 
   if ( response && return_result )
-  {
     *return_result = response->GetBuffer();
-  }
 
   delete fs;
-  if (response) delete response;
+
+  if (response)
+    delete response;
+
   return rc;
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Set debug level based on the env info
+//------------------------------------------------------------------------------
 void
 XrdFstOfs::SetDebug (XrdOucEnv& env)
 {
@@ -812,15 +813,11 @@ XrdFstOfs::SetDebug (XrdOucEnv& env)
   }
   else
   {
-    // we set the shared hash debug for the lowest 'debug' level
+    // We set the shared hash debug for the lowest 'debug' level
     if (debuglevel == "debug")
-    {
       ObjectManager.SetDebug(true);
-    }
     else
-    {
       ObjectManager.SetDebug(false);
-    }
 
     eos::common::Logging::SetLogPriority(debugval);
     eos_notice("setting debug level to <%s>", debuglevel.c_str());
@@ -835,7 +832,10 @@ XrdFstOfs::SetDebug (XrdOucEnv& env)
   fprintf(stderr, "Setting debug to %s\n", debuglevel.c_str());
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Set real time log level
+//------------------------------------------------------------------------------
 void
 XrdFstOfs::SendRtLog (XrdMqMessage* message)
 {
@@ -850,7 +850,8 @@ XrdFstOfs::SendRtLog (XrdMqMessage* message)
 
   if ((!queue.length()) || (!lines.length()) || (!tag.length()))
   {
-    eos_err("illegal parameter queue=%s lines=%s tag=%s", queue.c_str(), lines.c_str(), tag.c_str());
+    eos_err("illegal parameter queue=%s lines=%s tag=%s", queue.c_str(),
+            lines.c_str(), tag.c_str());
   }
   else
   {
@@ -867,7 +868,9 @@ XrdFstOfs::SendRtLog (XrdMqMessage* message)
         for (int i = 1; i <= atoi(lines.c_str()); i++)
         {
           eos::common::Logging::gMutex.Lock();
-          XrdOucString logline = eos::common::Logging::gLogMemory[j][(eos::common::Logging::gLogCircularIndex[j] - i + eos::common::Logging::gCircularIndexSize) % eos::common::Logging::gCircularIndexSize].c_str();
+          XrdOucString logline = eos::common::Logging::gLogMemory[j][
+              (eos::common::Logging::gLogCircularIndex[j] - i + eos::common::Logging::gCircularIndexSize) %
+              eos::common::Logging::gCircularIndexSize].c_str();
           eos::common::Logging::gMutex.UnLock();
 
           if (logline.length() && ((logline.find(filter.c_str())) != STR_NPOS))
@@ -882,9 +885,7 @@ XrdFstOfs::SendRtLog (XrdMqMessage* message)
             repmessage.SetBody(stdOut.c_str());
 
             if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message))
-            {
               eos_err("unable to send rtlog reply message to %s", message->kMessageHeader.kSenderId.c_str());
-            }
 
             stdOut = "";
           }
@@ -902,19 +903,21 @@ XrdFstOfs::SendRtLog (XrdMqMessage* message)
     repmessage.SetBody(stdOut.c_str());
 
     if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message))
-    {
       eos_err("unable to send rtlog reply message to %s", message->kMessageHeader.kSenderId.c_str());
-    }
   }
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 void
 XrdFstOfs::SendFsck (XrdMqMessage* message)
 {
   XrdOucEnv opaque(message->GetBody());
   XrdOucString stdOut = "";
-  XrdOucString tag = opaque.Get("mgm.fsck.tags"); // the tag is either '*' for all, or a , seperated list of tag names
+  // The tag is either '*' for all or a, seperated list of tag names
+  XrdOucString tag = opaque.Get("mgm.fsck.tags");
 
   if ((!tag.length()))
   {
@@ -929,7 +932,8 @@ XrdFstOfs::SendFsck (XrdMqMessage* message)
 
     for (unsigned int i = 0; i < gOFS.Storage->fileSystemsVector.size(); i++)
     {
-      std::map<std::string, std::set<eos::common::FileId::fileid_t> >* icset = gOFS.Storage->fileSystemsVector[i]->GetInconsistencySets();
+      std::map<std::string, std::set<eos::common::FileId::fileid_t> >* icset =
+          gOFS.Storage->fileSystemsVector[i]->GetInconsistencySets();
       std::map<std::string, std::set<eos::common::FileId::fileid_t> >::const_iterator icit;
 
       for (icit = icset->begin(); icit != icset->end(); icit++)
@@ -958,9 +962,7 @@ XrdFstOfs::SendFsck (XrdMqMessage* message)
             if (gOFS.WOpenFid[fsid].count(*fit))
             {
               if (gOFS.WOpenFid[fsid][*fit] > 0)
-              {
                 continue;
-              }
             }
 
             // loop over all fids
@@ -975,9 +977,7 @@ XrdFstOfs::SendFsck (XrdMqMessage* message)
               repmessage.SetBody(stdOut.c_str());
 
               if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message))
-              {
                 eos_err("unable to send fsck reply message to %s", message->kMessageHeader.kSenderId.c_str());
-              }
 
               stdOut = stag;
             }
@@ -995,13 +995,14 @@ XrdFstOfs::SendFsck (XrdMqMessage* message)
     repmessage.SetBody(stdOut.c_str());
 
     if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message))
-    {
       eos_err("unable to send fsck reply message to %s", message->kMessageHeader.kSenderId.c_str());
-    }
   }
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Remove entry - interface function
+//------------------------------------------------------------------------------
 int
 XrdFstOfs::rem (const char* path,
                 XrdOucErrInfo& error,
@@ -1018,8 +1019,9 @@ XrdFstOfs::rem (const char* path,
 
   if ((caprc = gCapabilityEngine.Extract(&openOpaque, capOpaque)))
   {
-    // no capability - go away!
-    if (capOpaque) delete capOpaque;
+    // No capability - go away!
+    if (capOpaque)
+      delete capOpaque;
 
     return gOFS.Emsg(epname, error, caprc, "remove - capability illegal", path);
   }
@@ -1027,13 +1029,9 @@ XrdFstOfs::rem (const char* path,
   int envlen;
 
   if (capOpaque)
-  {
     eos_info("path=%s info=%s capability=%s", path, opaque, capOpaque->Env(envlen));
-  }
   else
-  {
     eos_info("path=%s info=%s", path, opaque);
-  }
 
   int rc = _rem(path, error, client, capOpaque);
 
@@ -1046,7 +1044,10 @@ XrdFstOfs::rem (const char* path,
   return rc;
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Remove entry - low level function
+//------------------------------------------------------------------------------
 int
 XrdFstOfs::_rem (const char* path,
                  XrdOucErrInfo& error,
@@ -1067,21 +1068,15 @@ XrdFstOfs::_rem (const char* path,
 
   if ((!fstpath) && (!fsid) && (!fid))
   {
-    // standard deletion brings all information via the opaque info
+    // Standard deletion brings all information via the opaque info
     if (!(localprefix = capOpaque->Get("mgm.localprefix")))
-    {
       return gOFS.Emsg(epname, error, EINVAL, "open - no local prefix in capability", path);
-    }
 
     if (!(hexfid = capOpaque->Get("mgm.fid")))
-    {
       return gOFS.Emsg(epname, error, EINVAL, "open - no file id in capability", path);
-    }
 
     if (!(sfsid = capOpaque->Get("mgm.fsid")))
-    {
       return gOFS.Emsg(epname, error, EINVAL, "open - no file system id in capability", path);
-    }
 
     eos::common::FileId::FidPrefix2FullPath(hexfid, localprefix, fstPath);
     fid = eos::common::FileId::Hex2Fid(hexfid);
@@ -1089,7 +1084,7 @@ XrdFstOfs::_rem (const char* path,
   }
   else
   {
-    // deletion during close provides the local storage path, fid & fsid
+    // Deletion during close provides the local storage path, fid & fsid
     fstPath = fstpath;
   }
 
@@ -1116,7 +1111,7 @@ XrdFstOfs::_rem (const char* path,
 
     if (rc)
       eos_info("rc=%d errno=%d", rc, errno);
-    }
+  }
 
   if (ignoreifnotexist)
   {
@@ -1132,9 +1127,7 @@ XrdFstOfs::_rem (const char* path,
   }
 
   if (rc)
-  {
     return rc;
-  }
 
   if (!gFmdDbMapHandler.DeleteFmd(fid, fsid))
   {
@@ -1145,12 +1138,15 @@ XrdFstOfs::_rem (const char* path,
   return SFS_OK;
 }
 
+
+//------------------------------------------------------------------------------
+// Query file system information
+//------------------------------------------------------------------------------
 int
 XrdFstOfs::fsctl (const int cmd,
                   const char* args,
                   XrdOucErrInfo& error,
                   const XrdSecEntity* client)
-
 {
   static const char* epname = "fsctl";
   const char* tident = error.getErrUser();
@@ -1171,7 +1167,10 @@ XrdFstOfs::fsctl (const int cmd,
   return gOFS.Emsg(epname, error, EPERM, "execute fsctl function", "");
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Function dealing with plugin calls
+//------------------------------------------------------------------------------
 int
 XrdFstOfs::FSctl (const int cmd,
                   XrdSfsFSctl& args,
@@ -1188,7 +1187,7 @@ XrdFstOfs::FSctl (const int cmd,
     char locResp[4096];
     char rType[3], *Resp[] = {rType, locResp};
     rType[0] = 'S';
-    rType[1] = 'r'; //(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
+    rType[1] = 'r'; //(fstat.st_mode & S_IWUSR ? 'w' : 'r');
     rType[2] = '\0';
     sprintf(locResp, "[::%s:%d] ", mHostName, myPort);
     error.setErrInfo(strlen(locResp) + 3, (const char**) Resp, 2);
@@ -1196,12 +1195,9 @@ XrdFstOfs::FSctl (const int cmd,
     return SFS_DATA;
   }
 
-  // accept only plugin calls!
-
+  // Accept only plugin calls!
   if (cmd != SFS_FSCTL_PLUGIN)
-  {
     return gOFS.Emsg(epname, error, EPERM, "execute non-plugin function", "");
-  }
 
   if (args.Arg1Len)
   {
@@ -1245,9 +1241,7 @@ XrdFstOfs::FSctl (const int cmd,
   eos_debug("tident=%s path=%s opaque=%s", tident, path.c_str(), opaque.c_str());
 
   if (cmd != SFS_FSCTL_PLUGIN)
-  {
     return SFS_ERROR;
-  }
 
   const char* scmd;
 
@@ -1261,9 +1255,7 @@ XrdFstOfs::FSctl (const int cmd,
       char* afsid = env.Get("fst.getfmd.fsid");
 
       if ((!afid) || (!afsid))
-      {
         return Emsg(epname, error, EINVAL, "execute FSctl command", path.c_str());
-      }
 
       unsigned long long fileid = eos::common::FileId::Hex2Fid(afid);
       unsigned long fsid = atoi(afsid);
@@ -1321,7 +1313,8 @@ XrdFstOfs::FSctl (const int cmd,
 
         if (skey == "user.eos.checksum")
         {
-          // checksum's are binary and need special reformatting ( we swap the byte order if they are 4 bytes long )
+          // Checksum's are binary and need special reformatting (we swap the
+          // byte order if they are 4 bytes long )
           if (attr_length == 4)
           {
             for (ssize_t k = 0; k < 4; k++)
@@ -1362,7 +1355,10 @@ XrdFstOfs::FSctl (const int cmd,
   return Emsg(epname, error, EINVAL, "execute FSctl command", path.c_str());
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 void
 XrdFstOfs::OpenFidString (unsigned long fsid, XrdOucString& outstring)
 {
@@ -1392,6 +1388,10 @@ XrdFstOfs::OpenFidString (unsigned long fsid, XrdOucString& outstring)
   OpenFidMutex.UnLock();
 }
 
+
+//------------------------------------------------------------------------------
+// Stall message for the client
+//------------------------------------------------------------------------------
 int
 XrdFstOfs::Stall (XrdOucErrInfo& error, // Error text & code
                   int stime, // Seconds to stall
@@ -1404,15 +1404,18 @@ XrdFstOfs::Stall (XrdOucErrInfo& error, // Error text & code
   EPNAME("Stall");
   const char* tident = error.getErrUser();
   ZTRACE(delay, "Stall " << stime << ": " << smessage.c_str());
+
   // Place the error message in the error object and return
-  //
   error.setErrInfo(0, smessage.c_str());
+
   // All done
-  //
   return stime;
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// Redirect message for the client
+//------------------------------------------------------------------------------
 int
 XrdFstOfs::Redirect (XrdOucErrInfo& error, // Error text & code
                      const char* host,
@@ -1421,15 +1424,19 @@ XrdFstOfs::Redirect (XrdOucErrInfo& error, // Error text & code
   EPNAME("Redirect");
   const char* tident = error.getErrUser();
   ZTRACE(delay, "Redirect " << host << ":" << port);
+
   // Place the error message in the error object and return
-  //
+
   error.setErrInfo(port, host);
+
   // All done
-  //
   return SFS_REDIRECT;
 }
 
-/*----------------------------------------------------------------------------*/
+
+//------------------------------------------------------------------------------
+// When getting queried for checksum at the diskserver redirect to the MGM
+//------------------------------------------------------------------------------
 int
 XrdFstOfs::chksum (XrdSfsFileSystem::csFunc Func,
                    const char *csName,
@@ -1437,20 +1444,6 @@ XrdFstOfs::chksum (XrdSfsFileSystem::csFunc Func,
                    XrdOucErrInfo &error,
                    const XrdSecEntity *client,
                    const char *ininfo)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief retrieve a checksum
- * 
- * @param func function to be performed 'csCalc','csGet' or 'csSize'
- * @param csName name of the checksum
- * @param error error object
- * @param client XRootD authentication object
- * @param ininfo CGI
- * @return SFS_OK on success otherwise SFS_ERROR
- * 
- * We publish checksums on the MGM
- */
-/*----------------------------------------------------------------------------*/
 {
   int ecode = 1094;
   XrdOucString RedirectManager = eos::fst::Config::gConfig.Manager;
@@ -1460,32 +1453,4 @@ XrdFstOfs::chksum (XrdSfsFileSystem::csFunc Func,
   return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
 }
 
-/*----------------------------------------------------------------------------*/
-int
-XrdFstOfsDirectory::open (const char* dirName,
-                          const XrdSecClientName* client,
-                          const char* opaque)
-{
-  // ----------------------------------------------------------------------------
-  // dummy implementation doing nothing
-  // ----------------------------------------------------------------------------
-  return SFS_OK;
-}
-
-/*----------------------------------------------------------------------------*/
-
-const char*
-XrdFstOfsDirectory::nextEntry ()
-{
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-
-int
-XrdFstOfsDirectory::close ()
-{
-  return SFS_OK;
-}
 EOSFSTNAMESPACE_END
-
