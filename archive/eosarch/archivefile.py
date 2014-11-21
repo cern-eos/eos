@@ -354,12 +354,14 @@ class ArchiveFile(object):
                         st, __ = fs.mkdir(dpath)
 
                         if not st.ok:
-                            err_msg = "Dir={0}, failed mkdir".format(dpath)
+                            err_msg = "Dir={0} failed mkdir errmsg={1}".format(
+                                dpath, st.message)
                             self.logger.error(err_msg)
                             raise IOError(err_msg)
 
         if not st.ok:
-            err_msg = "Dir={0}, failed mkdir".format(root_str)
+            err_msg = "Dir={0} failed mkdir errmsg={1}".format(
+                root_str, st.message)
             self.logger.error(err_msg)
             raise IOError(err_msg)
 
@@ -522,11 +524,10 @@ class ArchiveFile(object):
         url = client.URL(surl)
 
         # Create directory
-        st, __ = fs.mkdir(url.path + "?eos.ruid=0&eos.rgid=0",
-                          MkDirFlags.MAKEPATH)
+        st, __ = fs.mkdir(url.path + "?eos.ruid=0&eos.rgid=0")
 
         if not st.ok:
-            err_msg = "Dir={0}, failed mkdir".format(surl)
+            err_msg = "Dir={0} failed mkdir errmsg={1}".format(surl, st.message)
             self.logger.error(err_msg)
             raise IOError(err_msg)
 
@@ -537,6 +538,6 @@ class ArchiveFile(object):
             try:
                 set_dir_info((surl, dict_dinfo))
             except IOError as __:
-                err_msg = "Dir={0}, failed setting metadata".format(surl)
+                err_msg = "Dir={0} failed setting metadata".format(surl)
                 self.logger.error(err_msg)
                 raise IOError(err_msg)
