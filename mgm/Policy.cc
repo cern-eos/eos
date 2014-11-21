@@ -284,7 +284,7 @@ Policy::GetPlctPolicy (const char* path,
 
   }
 
-  if(policyString == "scattered")
+  if(policyString.empty() || policyString == "scattered")
   {
   	plctpol = eos::mgm::Scheduler::kScattered;
   	return;
