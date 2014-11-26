@@ -273,7 +273,7 @@ public:
   //--------------------------------------------------------------------------
   //! Disable the checksumming before close
   //--------------------------------------------------------------------------
-  void disableChecksum();
+  void disableChecksum(bool broadcast=true);
   
 protected:
   XrdOucEnv* openOpaque;

@@ -2893,7 +2893,7 @@ XrdFstOfsFile::truncate (XrdSfsFileOffset fileOffset)
   {
     eos_warning("No checksum flag for file %s indicated", fstPath.c_str());
     // this truncate offset indicates to disable the checksum computation for this file
-    disableChecksum();
+    disableChecksum(false);
     return SFS_OK;
   }
 
@@ -2983,16 +2983,15 @@ XrdFstOfsFile::GetTpcState()
 //! Disable the checksumming before close
 //--------------------------------------------------------------------------
 void 
-XrdFstOfsFile::disableChecksum()
+XrdFstOfsFile::disableChecksum(bool broadcast)
 {
   if (checkSum)
   {
     eos::fst::CheckSum* tmpSum = checkSum;
     checkSum = 0;
-    if (layOut) {
-      layOut->Truncate(EOS_FST_NOCHECKSUM_FLAG_VIA_TRUNCATE_LEN);
-    }
     delete tmpSum;
+    if (broadcast)
+      layOut->Truncate(EOS_FST_NOCHECKSUM_FLAG_VIA_TRUNCATE_LEN);
   }
 }
 
