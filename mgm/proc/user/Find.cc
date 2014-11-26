@@ -125,6 +125,7 @@ ProcCommand::Find ()
   bool printfileinfo = false;
   bool selectfaultyacl = false;
   bool purge = false;
+  bool purge_atomic = false;
   int  max_version = 999999;
   int  finddepth = 0;
 
@@ -257,15 +258,22 @@ ProcCommand::Find ()
 
   if (purgeversion.length())
   {
-    if ( ( atoi(purgeversion.c_str()) == 0 ) && (purgeversion != "0") )
+    if (purgeversion == "atomic") {
+      purge_atomic=true;
+      option += "f";
+    } 
+    else 
     {
-      fprintf(fstderr,"error: the max. version given to --purge has to be a valid number >=0");
-      retc = EINVAL;
-      return SFS_OK;
+      if ( ( atoi(purgeversion.c_str()) == 0 ) && (purgeversion != "0") )
+      {
+	fprintf(fstderr,"error: the max. version given to --purge has to be a valid number >=0");
+	retc = EINVAL;
+	return SFS_OK;
+      }
+      max_version = atoi(purgeversion.c_str());
+      purge = true;
+      option += "d";
     }
-    max_version = atoi(purgeversion.c_str());
-    purge = true;
-    option += "d";
   }
 
   if (attribute.length())
@@ -368,7 +376,7 @@ ProcCommand::Find ()
           fspath += *fileit;
           if (!calcbalance)
           {
-            if (findgroupmix || findzero || printsize || printfid || printuid || printgid || printfileinfo || printchecksum || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff || selectonehour || selectoldertime || selectyoungertime)
+            if (findgroupmix || findzero || printsize || printfid || printuid || printgid || printfileinfo || printchecksum || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff || selectonehour || selectoldertime || selectyoungertime || purge_atomic)
             {
               //-------------------------------------------
 
@@ -477,7 +485,7 @@ ProcCommand::Find ()
                 }
                 else
                 {
-                  if (selected && (selectonehour || selectoldertime || selectyoungertime || printsize || printfid || printuid || printgid || printchecksum || printfileinfo || printfs || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff))
+                  if (selected && (selectonehour || selectoldertime || selectyoungertime || printsize || printfid || printuid || printgid || printchecksum || printfileinfo || printfs || printctime || printmtime || printrep || printunlink || printhosts || printpartition || selectrepdiff || purge_atomic))
                   {
                     XrdOucString sizestring;
                     bool printed = true;
@@ -492,6 +500,9 @@ ProcCommand::Find ()
                         printed = false;
                       }
                     }
+
+		    if (purge_atomic)
+		      printed = false;
 
                     if (printed)
                     {
@@ -654,8 +665,30 @@ ProcCommand::Find ()
                       }
                       if (!printcounter)fprintf(fstdout, "\n");
                     }
-                  }
-                }
+
+		    if (purge_atomic && (fspath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos))
+		    {
+		      fprintf(fstdout,"# found atomic %s\n", fspath.c_str());
+		      struct stat buf;
+		      if ( (!gOFS->_stat(fspath.c_str(), &buf, *mError, *pVid, (const char*) 0, 0)) && 
+			   ( (pVid->uid == 0) || (pVid->uid == buf.st_uid) ) )
+		      {
+			time_t now = time(NULL);
+			if ( (now - buf.st_ctime) > 86400) 
+			{
+			  if (!gOFS->_rem(fspath.c_str(), *mError, *pVid, (const char*) 0))
+			  {
+			    fprintf(fstdout, "# purging atomic %s", fspath.c_str());
+			  }
+			}
+			else 
+			{
+			  fprintf(fstdout, "# skipping atomic %s [< 1d old ]\n", fspath.c_str());
+			}
+		      }
+		    }
+		  }
+		}
                 if (selected)
                 {
                   filecounter++;
@@ -670,7 +703,7 @@ ProcCommand::Find ()
             }
             else
             {
-              if (!printcounter)fprintf(fstdout, "%s\n", fspath.c_str());
+              if ((!printcounter) && (!purge_atomic))fprintf(fstdout, "%s\n", fspath.c_str());
               filecounter++;
             }
           }
@@ -762,7 +795,7 @@ ProcCommand::Find ()
                                *mError,max_version);
           }
         }
-
+	
         if (selectfaultyacl)
         {
           // get the attributes and call the verify function

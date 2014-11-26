@@ -778,7 +778,8 @@ com_find_usage:
   fprintf(stdout, "                                                                  --faultyacl :  find directories with illegal ACLs\n");
   fprintf(stdout, "                                                                      --count :  just print global counters for files/dirs found\n");
   fprintf(stdout, "                                                                 --childcount :  print the number of children in each directory\n");
-  fprintf(stdout, "                                                                  --purge <n> :  remove versioned files keeping <n> versions - to remove all old versions use --purge 0 ! To apply the settings of the extended attribute definition use <n>=-1 !\n"); 
+  fprintf(stdout, "                                                                  --purge <n> | atomic\n");
+  fprintf(stdout, "                                                                              :  remove versioned files keeping <n> versions - to remove all old versions use --purge 0 ! To apply the settings of the extended attribute definition use <n>=-1! To remove all atomic upload left-overs older than a day user --purge atomic\n"); 
   fprintf(stdout, "                                                                      default :  find files and directories\n");
   fprintf(stdout, "       find [--nrep] [--nunlink] [--size] [--fileinfo] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] [--uid] [--gid] <path>   :  find files and print out the requested meta data as key value pairs\n");
   fprintf(stdout, "                                                               path=file:...  :  do a find in the local file system (options ignored) - 'file:' is the current working directory \n");
