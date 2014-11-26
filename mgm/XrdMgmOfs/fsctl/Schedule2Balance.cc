@@ -246,7 +246,9 @@
           {
             fmd = gOFS->eosFileService->getFileMD(fid);
             fullpath = gOFS->eosView->getUri(fmd);
-	    while (fullpath.replace("&", "#AND#"))
+	    XrdOucString savepath=fullpath.c_str();
+	    while (savepath.replace("&", "#AND#")){}
+	    fullpath = savepath.c_str();
             fmd = gOFS->eosFileService->getFileMD(fid);
             lid = fmd->getLayoutId();
             cid = fmd->getContainerId();
