@@ -49,7 +49,7 @@ com_console (char *arg)
   XrdOucString sarg = arg;
   if (arg)
   {
-    if (sarg.beginswith("log"))
+    if (sarg.beginswith("\"log\""))
     {
       logger = new XrdSysLogger();
       XrdSysError eDest(logger);
