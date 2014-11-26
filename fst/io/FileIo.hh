@@ -42,6 +42,7 @@ EOSFSTNAMESPACE_BEGIN
 //! communicate a deletion on a open file
 //------------------------------------------------------------------------------
 #define EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN 1024 * 1024 * 1024 * 1024ll
+#define EOS_FST_NOCHECKSUM_FLAG_VIA_TRUNCATE_LEN ((1024 * 1024 * 1024 * 1024ll)+1)
 
 //! Forward declaration
 class XrdFstOfsFile;

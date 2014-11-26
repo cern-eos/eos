@@ -273,15 +273,7 @@ public:
   //--------------------------------------------------------------------------
   //! Disable the checksumming before close
   //--------------------------------------------------------------------------
-  void disableChecksum()
-  {
-    if (checkSum)
-    {
-      eos::fst::CheckSum* tmpSum = checkSum;
-      checkSum = 0;
-      delete tmpSum;
-    }
-  }
+  void disableChecksum();
   
 protected:
   XrdOucEnv* openOpaque;
