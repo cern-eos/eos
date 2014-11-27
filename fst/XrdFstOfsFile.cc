@@ -2859,6 +2859,14 @@ XrdFstOfsFile::DoTpcTransfer()
 int
 XrdFstOfsFile::truncateofs (XrdSfsFileOffset fileOffset)
 {
+  if (fileOffset == EOS_FST_NOCHECKSUM_FLAG_VIA_TRUNCATE_LEN)
+  {
+    eos_warning("No checksum flag for file %s indicated", fstPath.c_str());
+    // this truncate offset indicates to disable the checksum computation for this file
+    disableChecksum(false);
+    return SFS_OK;
+  }
+
   // truncation moves the max offset written
   eos_debug("value=%llu", (unsigned long long) fileOffset);
   maxOffsetWritten = fileOffset;
