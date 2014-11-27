@@ -118,8 +118,9 @@ public:
   //! Configure OFS layer by parsing the info in the configuration file
   //!
   //! @param error Error object
+  //! @param envP environment containing implementation specific information
   //----------------------------------------------------------------------------
-  int Configure (XrdSysError& error);
+  int Configure (XrdSysError& error, XrdOucEnv* envP);
 
 
   //----------------------------------------------------------------------------

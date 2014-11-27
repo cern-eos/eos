@@ -57,6 +57,7 @@
 #include <execinfo.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <sstream>
 /*----------------------------------------------------------------------------*/
 
 
@@ -72,36 +73,32 @@ extern XrdOfs* XrdOfsFS;
 extern XrdOucTrace OfsTrace;
 
 // Set the version information
-XrdVERSIONINFO(XrdSfsGetFileSystem, FstOfs);
+XrdVERSIONINFO(XrdSfsGetFileSystem2, FstOfs);
 
 //------------------------------------------------------------------------------
 //
 //------------------------------------------------------------------------------
 extern "C"
 {
-
-  XrdSfsFileSystem*
-  XrdSfsGetFileSystem (XrdSfsFileSystem* native_fs,
-                       XrdSysLogger* lp,
-                       const char* configfn)
+  XrdSfsFileSystem *XrdSfsGetFileSystem2(XrdSfsFileSystem *nativeFS,
+                                         XrdSysLogger     *Logger,
+                                         const char       *configFn,
+                                         XrdOucEnv        *envP)
   {
     OfsEroute.SetPrefix("FstOfs_");
-    OfsEroute.logger(lp);
-    // -------------------------------------------------------------------------
-    // disable XRootD log rotation
-    // -------------------------------------------------------------------------
-    lp->setRotate(0);
+    OfsEroute.logger(Logger);
+
+    // Disable XRootD log rotation
+    Logger->setRotate(0);
+    std::ostringstream oss;
+    oss << "FstOfs (Object Storage File System) " << VERSION;
     XrdOucString version = "FstOfs (Object Storage File System) ";
-    version += VERSION;
-    OfsEroute.Say("++++++ (c) 2010 CERN/IT-DSS ",
-                  version.c_str());
+    OfsEroute.Say("++++++ (c) 2010 CERN/IT-DSS ", oss.str().c_str());
 
-    // -------------------------------------------------------------------------
     // Initialize the subsystems
-    // -------------------------------------------------------------------------
-    eos::fst::gOFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
+    eos::fst::gOFS.ConfigFN = (configFn && *configFn ? strdup(configFn) : 0);
 
-    if (eos::fst::gOFS.Configure(OfsEroute)) return 0;
+    if (eos::fst::gOFS.Configure(OfsEroute, envP)) return 0;
 
     XrdOfsFS = &eos::fst::gOFS;
     return &eos::fst::gOFS;
@@ -281,13 +278,13 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
 // OFS layer configuration
 //------------------------------------------------------------------------------
 int
-XrdFstOfs::Configure (XrdSysError& Eroute)
+XrdFstOfs::Configure (XrdSysError& Eroute, XrdOucEnv* envP)
 {
   char* var;
   const char* val;
   int cfgFD;
   int NoGo = 0;
-  //int rc = XrdOfs::Configure(Eroute);
+  //int rc = XrdOfs::Configure(Eroute, envP);
   // enforcing 'sss' authentication for all communications
   setenv("XrdSecPROTOCOL", "sss", 1);
   Eroute.Say("=====> fstofs enforces SSS authentication for XROOT clients");
