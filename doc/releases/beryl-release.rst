@@ -5,6 +5,20 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.76 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- balancing: seal '&' in capabilities
+- draining: seal '&' in capabilities
+- propagate 'disableChecksum' to all replicas during chunked uploads
+- make 'console log' e.g. /var/log/eos/mgm/error.log working again
+- fix substantial memory leak in PUT requests on FSTs
+
+New Features
+------------
+- 'find --purge atomic' to clean-up atomic left-over garbage
+
 ``Version V0.3.75 Beryl-Aquamarine``
 
 - add support for archive interface to stage-out and migrate a frozen subtree in the namespace to any XRootD enabled archive storage
