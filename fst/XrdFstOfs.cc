@@ -284,8 +284,14 @@ XrdFstOfs::Configure (XrdSysError& Eroute, XrdOucEnv* envP)
   const char* val;
   int cfgFD;
   int NoGo = 0;
-  //int rc = XrdOfs::Configure(Eroute, envP);
-  // enforcing 'sss' authentication for all communications
+
+  if (XrdOfs::Configure(Eroute, envP))
+  {
+    Eroute.Emsg("Config", "default OFS configuration failed");
+    return SFS_ERROR;
+  }
+
+  // Enforcing 'sss' authentication for all communications
   setenv("XrdSecPROTOCOL", "sss", 1);
   Eroute.Say("=====> fstofs enforces SSS authentication for XROOT clients");
 
