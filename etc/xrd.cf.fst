@@ -2,7 +2,7 @@
 set MGM=$EOS_MGM_ALIAS
 ###########################################################
 
-xrootd.fslib libXrdEosFst.so
+xrootd.fslib -2 libXrdEosFst.so
 xrootd.async off nosf
 xrd.network keepalive
 xrootd.redirect $(MGM):1094 chksum
@@ -19,8 +19,6 @@ all.manager localhost 2131
 #ofs.trace open
 ###########################################################
 xrd.port 1095
-ofs.authlib libXrdEosAuth.so
-ofs.authorize
 ofs.persist off
 ofs.osslib libEosFstOss.so
 ofs.tpc pgm /usr/bin/xrdcp
