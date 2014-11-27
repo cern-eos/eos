@@ -428,16 +428,6 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
     Config.Close();
   }
 
-  // Create the OSS object and pass it to the OFS layer
-  XrdOfsOss= new eos::fst::XrdFstOss();
-  XrdSysLogger logger;
-
-  if (XrdOfsOss->Init(&logger, const_cast<const char*>(ConfigFN)))
-  {
-    NoGo = 1;
-    return NoGo;
-  }
-
   if (eos::fst::Config::gConfig.autoBoot)
     Eroute.Say("=====> fstofs.autoboot : true");
   else
