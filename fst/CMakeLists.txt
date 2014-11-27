@@ -43,6 +43,37 @@ if (CPPUNIT_FOUND)
   add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
 
+
+#-------------------------------------------------------------------------------
+# EosFstOss library
+#-------------------------------------------------------------------------------
+add_library(
+  EosFstOss
+  MODULE
+  XrdFstOss.cc XrdFstOss.hh
+  ../common/LayoutId.hh
+  XrdFstOssFile.cc XrdFstOssFile.hh
+  checksum/CheckSum.cc checksum/CheckSum.hh
+  checksum/Adler.cc checksum/Adler.hh
+  checksum/crc32c.cc checksum/crc32ctables.cc
+)
+
+target_link_libraries(
+  EosFstOss
+  eosCommon
+  XrdServer
+  ${UUID_LIBRARIES}
+)
+
+set_target_properties(
+  EosFstOss
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  CLEAN_DIRECT_OUTPUT 1
+)
+
+
 #-------------------------------------------------------------------------------
 # EosFstIo library
 #-------------------------------------------------------------------------------
@@ -94,7 +125,8 @@ add_library(
 
 add_dependencies(
   EosFstIo-Static
-  protbuf_gen_files)
+  protbuf_gen_files
+)
 
 target_link_libraries(
   EosFstIo-Static
@@ -123,6 +155,7 @@ target_link_libraries(
   ${RT_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
 )
 
+
 #-------------------------------------------------------------------------------
 # XrdEosFst library
 #-------------------------------------------------------------------------------
@@ -139,12 +172,6 @@ set (XRDEOSFST_SRCS
   #-----------------------------------------------------------------------------
   XrdFstOfs.cc                   XrdFstOfs.hh
   XrdFstOfsFile.cc               XrdFstOfsFile.hh
-
-  #-----------------------------------------------------------------------------
-  # OSS layer implementation
-  #-----------------------------------------------------------------------------
-  XrdFstOss.cc                   XrdFstOss.hh
-  XrdFstOssFile.cc               XrdFstOssFile.hh
 
   #-----------------------------------------------------------------------------
   # Storage interface
@@ -252,12 +279,12 @@ add_executable(
 
 add_executable(
   eos-scan-fs
-  ScanDir.cc                  Load.cc
-  Fmd.cc                      FmdHandler.cc
-  FmdSqlite.cc                FmdDbMap.cc
-  FmdClient.cc                tools/ScanXS.cc
-  checksum/Adler.cc           checksum/CheckSum.cc
-  checksum/crc32c.cc          checksum/crc32ctables.cc
+  ScanDir.cc             Load.cc
+  Fmd.cc                 FmdHandler.cc
+  FmdSqlite.cc           FmdDbMap.cc
+  FmdClient.cc           tools/ScanXS.cc
+  checksum/Adler.cc      checksum/CheckSum.cc
+  checksum/crc32c.cc     checksum/crc32ctables.cc
   ../fst/FmdBase.pb.h
   ../fst/FmdBase.pb.cc
 )
@@ -332,14 +359,14 @@ install_programs(
 
 if (MacOSX)
   install(
-    TARGETS EosFstIo XrdEosFst eoscp
+    TARGETS EosFstOss EosFstIo XrdEosFst eoscp
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
 )
 else (MacOSX)
   install(
-    TARGETS XrdEosFst eoscp
+    TARGETS EosFstOss XrdEosFst eoscp
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
