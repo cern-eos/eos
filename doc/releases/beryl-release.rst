@@ -14,10 +14,12 @@ Bug Fixes
 - propagate 'disableChecksum' to all replicas during chunked uploads
 - make 'console log' e.g. /var/log/eos/mgm/error.log working again
 - fix substantial memory leak in PUT requests on FSTs
+- fix 's3' lower-case headers
 
 New Features
 ------------
 - 'find --purge atomic' to clean-up atomic left-over garbage
+- allow 'file check fxid:.... | fid:...'
 
 ``Version V0.3.75 Beryl-Aquamarine``
 
