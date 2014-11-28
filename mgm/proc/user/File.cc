@@ -1663,9 +1663,31 @@ ProcCommand::File ()
 
         //-------------------------------------------
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-        try
-        {
-          fmd = gOFS->eosView->getFile(spath.c_str());
+
+	try
+	{	
+	  if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
+	  {
+	    unsigned long long fid = 0;
+	    if (spath.beginswith("fid:"))
+	    {
+              spath.replace("fid:", "");
+              fid = strtoull(spath.c_str(), 0, 10);
+            }
+	    if (spath.beginswith("fxid:"))
+	    {
+	      spath.replace("fxid:", "");
+	      fid = strtoull(spath.c_str(), 0, 16);
+	    }
+	    // reference by fid+fsid
+	    //-------------------------------------------
+	    
+	    fmd = gOFS->eosFileService->getFileMD(fid);
+	  }
+	  else 
+	  {
+	    fmd = gOFS->eosView->getFile(spath.c_str());
+	  }
         }
         catch (eos::MDException &e)
         {
