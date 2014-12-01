@@ -5,12 +5,13 @@
 
 Beryl Release Notes
 ===================
-``Version V0.3.76 Beryl-Aquamarine``
+``Version V0.3.77 Beryl-Aquamarine``
 
 Bug Fixes
 ---------
 - balancing: seal '&' in capabilities
 - draining: seal '&' in capabilities
+- encode all '&' in meta data synchronization
 - propagate 'disableChecksum' to all replicas during chunked uploads
 - make 'console log' e.g. /var/log/eos/mgm/error.log working again
 - fix substantial memory leak in PUT requests on FSTs

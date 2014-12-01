@@ -26,7 +26,7 @@
 ################################################################################
 set(VERSION_MAJOR "0" )
 set(VERSION_MINOR "3" )
-set(VERSION_PATCH "76" )
+set(VERSION_PATCH "77" )
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
 ################################################################################
