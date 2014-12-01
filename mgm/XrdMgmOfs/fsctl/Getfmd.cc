@@ -67,7 +67,7 @@
 
   eos::common::Path cPath(fullpath.c_str());
   std::string fmdenv = "";
-  fmd->getEnv(fmdenv);
+  fmd->getEnv(fmdenv, true);
   fmdenv += "&container=";
   XrdOucString safepath = cPath.GetParentPath();
   ;

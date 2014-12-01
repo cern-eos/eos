@@ -101,7 +101,7 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
           entries++;
           if ((!dumppath) && (!dumpfid) && (!dumpsize))
           {
-            fmd->getEnv(env);
+            fmd->getEnv(env, true);
             stdOut += env.c_str();
             if (monitor)
             {
@@ -155,7 +155,7 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
           if (fmd)
           {
             entries++;
-            fmd->getEnv(env);
+            fmd->getEnv(env, true);
 	    XrdOucString senv = env.c_str();
 	    senv.replace("checksum=&","checksum=none&");
             stdOut += senv.c_str();

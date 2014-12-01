@@ -180,12 +180,28 @@ namespace eos
   //------------------------------------------------------------------------
   //  Env Representation
   //------------------------------------------------------------------------
-  void FileMD::getEnv( std::string &env ) 
+  void FileMD::getEnv( std::string &env, bool escapeAnd ) 
   {
     env="";
     std::ostringstream o;
+    std::string saveName=pName;
+    if (escapeAnd) 
+    {
+      if(!saveName.empty())
+      {
+	std::string from = "&";
+	std::string to = "#AND#";
+	size_t start_pos = 0;
+	while((start_pos = saveName.find(from, start_pos)) != std::string::npos) 
+	{
+	  saveName.replace(start_pos, from.length(), to);
+	  start_pos += to.length(); 
+	}
+      }
+    }
 
-    o << "name=" << pName << "&id=" << pId << "&ctime=" << pCTime.tv_sec;
+    o << "name=" << saveName << "&id=" << pId << "&ctime=" << pCTime.tv_sec;
+
     o << "&ctime_ns=" << pCTime.tv_nsec << "&mtime=" << pMTime.tv_sec;
     o << "&mtime_ns=" << pMTime.tv_nsec << "&size=" << pSize;
     o << "&cid=" << pContainerId << "&uid=" << pCUid << "&gid=" << pCGid;
