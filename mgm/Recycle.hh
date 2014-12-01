@@ -3,7 +3,7 @@
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
-/************************************************************************
+/****************************A********************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
@@ -187,6 +187,7 @@ public:
   static std::string gRecyclingPrefix; //< prefix for all recycle bins
   static std::string gRecyclingAttribute; //< attribute key defining a recycling location
   static std::string gRecyclingTimeAttribute; //< attribute key defining the max. time a file stays in the garbage directory
+  static std::string gRecyclingKeepRatio; //<  ratio from 0 ..1.0 defining a threshold when the recycle bin is not yet cleaned even if files have expired their lifetime attribute 
   static std::string gRecyclingPostFix; //<  postfix which identifies a name in the garbage bin as a bulk deletion of a directory
   static int gRecyclingPollTime; //< poll interval inside the garbage bin
 };

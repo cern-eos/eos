@@ -355,6 +355,7 @@ com_attr_usage:
   // ---------------------------------------------------------------------------
   fprintf(stdout, "         sys.recycle=....                      : define the recycle bin for that directory - WARNING: never modify this variables via 'attr' ... use the 'recycle' interface\n");
   fprintf(stdout, "         sys.recycle.keeptime=<seconds>        : define the time how long files stay in a recycle bin before final deletions taks place. This attribute has to defined on the recycle - WARNING: never modify this variables via 'attr' ... use the 'recycle' interface\n\n");
+  fprintf(stdout, "         sys.recycle.keepratio=< 0 .. 1.0 >    : ratio of used/max quota for space and inodes in the recycle bin under which files are still kept in the recycle bin even if their lifetime has exceeded. If not defined pure lifetime policy will be applied \n\n");
   fprintf(stdout, "         sys.versioning=<n>                    : keep <n> versions of a file e.g. if you upload a file <n+10> times it will keep the last <n+1> versions\n");
   // ---------------------------------------------------------------------------
   fprintf(stdout, "         sys.acl=<acllist>                     : set's an ACL which is honored for open,rm & rmdir operations\n");
