@@ -374,7 +374,7 @@ HttpServer::CompleteHandler (void                              *cls,
     eos::common::ProtocolHandler *handler = static_cast<eos::common::ProtocolHandler*> (*con_cls);
     eos::fst::HttpHandler *httpHandle = dynamic_cast<eos::fst::HttpHandler*> (handler);
     if (httpHandle && httpHandle->mFile) {
-      eos_static_err("msg=\"clean-up interrupted PUT request\" path=\"%s\"", httpHandle->mFile->GetPath().c_str());
+      eos_static_err("msg=\"clean-up interrupted PUT/GET request\" path=\"%s\"", httpHandle->mFile->GetPath().c_str());
       delete (httpHandle->mFile);
       httpHandle->mFile = 0;
       delete httpHandle;
