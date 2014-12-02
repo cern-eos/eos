@@ -465,7 +465,9 @@ class ArchiveFile(object):
                 # Check checksum only if it is adler32 - only one supported by CASTOR
                 indx = self.header["file_meta"].index("xstype") + 2
 
-                if entry[indx] == "adler":
+                # !!!HACK!!! Check the checksum only if file size is not 0 since
+                # CASTOR does not store any checksum for 0 size files
+                if stat_info.size != 0 and entry[indx] == "adler":
                     indx = self.header["file_meta"].index("xs") + 2
                     xs = entry[indx]
                     st, xs_resp = fs.query(QueryCode.CHECKSUM, url.path)
