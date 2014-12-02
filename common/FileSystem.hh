@@ -138,6 +138,7 @@ public:
     time_t mBootSentTime;
     time_t mBootDoneTime;
     time_t mHeartBeatTime;
+    long mHeartBeatTimeNs;
     double mDiskUtilization;
     double mDiskWriteRateMb;
     double mDiskReadRateMb;

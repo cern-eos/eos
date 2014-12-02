@@ -371,6 +371,22 @@ public:
   float penaltyUpdateRate;
   char fillRatioLimit,fillRatioCompTol,saturationThres;// setting fillRatioCompTol at 100 disables online balancing
   int timeFrameDurationMs;
+
+  struct tLatencyStats
+  {
+    double min,max,average,last;
+    tLatencyStats() :
+      min(std::numeric_limits<double>::max()), max(-std::numeric_limits<double>::max()),
+      average(0.0),last(0.0) {};
+    void update()
+    {
+      average = (average!=0.0)?(average*0.99+last*0.01):last;
+      min = std::min( min , last);
+      max = std::max( max , last);
+    }
+  };
+  tLatencyStats latencyStats;
+
 private:
   /// self estimated penalties
   struct nodeAgreg{

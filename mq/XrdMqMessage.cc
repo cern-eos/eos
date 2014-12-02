@@ -158,19 +158,19 @@ XrdMqMessageHeader::Decode(const char* header) {
                   kSenderTime_sec = (time_t)strtol(tmpstring.c_str(),0,10);
                   if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
                     tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-                    kSenderTime_nsec = (time_t)strtol(tmpstring.c_str(),0,10);
+                    kSenderTime_nsec = (long)strtol(tmpstring.c_str(),0,10);
                     if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
                       tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
                       kBrokerTime_sec = (time_t)strtol(tmpstring.c_str(),0,10);
                       if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
                         tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-                        kBrokerTime_nsec = (time_t)strtol(tmpstring.c_str(),0,10);
+                        kBrokerTime_nsec = (long)strtol(tmpstring.c_str(),0,10);
                         if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
                           tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
                           kReceiverTime_sec = (time_t)strtol(tmpstring.c_str(),0,10);
                           if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
                             tmpstring.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
-                            kReceiverTime_nsec = (time_t)strtol(tmpstring.c_str(),0,10);
+                            kReceiverTime_nsec = (long)strtol(tmpstring.c_str(),0,10);
                             if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
                               kCertificateHash.assign(kMessageHeaderBuffer,pos,ppos-1); pos = ppos+1;
                               if ((ppos = kMessageHeaderBuffer.find("^",pos))!= STR_NPOS) {
