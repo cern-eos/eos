@@ -74,6 +74,17 @@ If you want to configure the size of the recycle bin you run
 
 The size has to be atleast 100G !
 
+Define an optional threshold ratio
+++++++++++++++++++++++++++++++++++
+
+If you want to keep files as long as possible you can set a keep ratio on the recycle bin:
+
+.. code-block:: bash
+   EOS Console [root://localhost] |/eos/> recycle config --ratio 0.8
+
+In this example the recycle bin can be filled up-to 80%. Once it reaches the watermark it will clean all files matching the
+given lifetime policy. The cleaning will free 10% under the given watermark.  This option is not mandatory and probably not always the desired behaviour.
+
 Bulk deletions
 ++++++++++++++
 A bulk deletion using the recycle bin prints how the deleted files can 

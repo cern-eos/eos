@@ -21,6 +21,7 @@ New Features
 ------------
 - 'find --purge atomic' to clean-up atomic left-over garbage
 - allow 'file check fxid:.... | fid:...'
+- add 'recycle config --ratio < 0 .. 1.0 >' to set a threadshold based keep ratio in the recycle bin
 
 ``Version V0.3.75 Beryl-Aquamarine``
 
