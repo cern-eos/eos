@@ -363,11 +363,31 @@ public:
   skipSaturatedDrnAccess,skipSaturatedBlcAccess,
   skipSaturatedDrnPlct,skipSaturatedBlcPlct;
   eos::common::RWMutex configMutex;// protects all the following settings
-  char plctDlScorePenalty,plctUlScorePenalty;
-  char accessDlScorePenalty,accessUlScorePenalty;
+  std::vector<float> plctDlScorePenaltyF,plctUlScorePenaltyF;
+  std::vector<float> accessDlScorePenaltyF,accessUlScorePenaltyF;
+  // casted version to avoid conversion on every plct / access operation
+  std::vector<SchedTreeBase::tFastTreeIdx> plctDlScorePenalty,plctUlScorePenalty;
+  std::vector<SchedTreeBase::tFastTreeIdx>  accessDlScorePenalty,accessUlScorePenalty;
+  float penaltyUpdateRate;
   char fillRatioLimit,fillRatioCompTol,saturationThres;// setting fillRatioCompTol at 100 disables online balancing
   int timeFrameDurationMs;
 private:
+  /// self estimated penalties
+  struct nodeAgreg{
+    bool saturated;
+    size_t fsCount;
+    size_t rOpen;
+    size_t wOpen;
+    double netOutWeight;
+    double netInWeight;
+    double diskUtilSum;
+    size_t netSpeedClass;
+    nodeAgreg() : saturated(false),fsCount(0),rOpen(0),wOpen(0),netOutWeight(0.0),netInWeight(0.0),diskUtilSum(0.0),netSpeedClass(0) {};
+  };
+  std::map<std::string, nodeAgreg> updatingNodes;
+  size_t maxNetSpeedClass;
+  void updatePenalties();
+
   /// Trees update management
   pthread_t pUpdaterTid;// thread ID of the dumper thread
   void listenFsChange();
@@ -706,8 +726,11 @@ public:
   skipSaturatedPlct(false),skipSaturatedAccess(true),
   skipSaturatedDrnAccess(true),skipSaturatedBlcAccess(true),
   skipSaturatedDrnPlct(false),skipSaturatedBlcPlct(false),
-  plctDlScorePenalty(4),plctUlScorePenalty(0),
-  accessDlScorePenalty(2),accessUlScorePenalty(4),
+  plctDlScorePenaltyF(256,10),plctUlScorePenaltyF(256,10),     // 256 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
+  accessDlScorePenaltyF(256,10),accessUlScorePenaltyF(256,10),
+  plctDlScorePenalty(256,10),plctUlScorePenalty(256,10),     // 256 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
+  accessDlScorePenalty(256,10),accessUlScorePenalty(256,10),
+  penaltyUpdateRate(1),
   fillRatioLimit(80),fillRatioCompTol(100),saturationThres(10),
   timeFrameDurationMs(1000),pUpdaterTid(0)
   {
@@ -964,19 +987,31 @@ public:
   }
   inline bool setPlctDlScorePenalty(char value)
   {
-    return setInternalParam(plctDlScorePenalty,value,false);
+    std::vector<float> vvaluef(256,value);
+    std::vector<SchedTreeBase::tFastTreeIdx> vvalue(256,value);
+    return setInternalParam(plctDlScorePenaltyF,vvaluef,false)
+        && setInternalParam(plctDlScorePenalty,vvalue,false);
   }
   inline bool setPlctUlScorePenalty(char value)
   {
-    return setInternalParam(plctUlScorePenalty,value,false);
+    std::vector<float> vvaluef(256,value);
+    std::vector<SchedTreeBase::tFastTreeIdx> vvalue(256,value);
+    return setInternalParam(plctUlScorePenaltyF,vvaluef,false)
+        && setInternalParam(plctUlScorePenalty,vvalue,false);
   }
   inline bool setAccessDlScorePenalty(char value)
   {
-    return setInternalParam(accessDlScorePenalty,value,false);
+    std::vector<float> vvaluef(256,value);
+    std::vector<SchedTreeBase::tFastTreeIdx> vvalue(256,value);
+    return setInternalParam(accessDlScorePenaltyF,vvaluef,false)
+        && setInternalParam(accessDlScorePenalty,vvalue,false);
   }
   inline bool setAccessUlScorePenalty(char value)
   {
-    return setInternalParam(accessUlScorePenalty,value,false);
+    std::vector<float> vvaluef(256,value);
+    std::vector<SchedTreeBase::tFastTreeIdx> vvalue(256,value);
+    return setInternalParam(accessUlScorePenaltyF,vvaluef,false)
+        && setInternalParam(accessUlScorePenalty,vvalue,false);
   }
   inline bool setFillRatioLimit(char value)
   {

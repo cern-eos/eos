@@ -193,6 +193,8 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
     uuid_unparse(uuid, buffer+7);
     info.geotag = buffer;
   }
+  info.netSpeedClass = (unsigned char)round(log10(fsn.mNetEthRateMiB*8 * 1024 * 1024 + 1));
+  info.netSpeedClass = info.netSpeedClass>8 ? info.netSpeedClass-8 : (unsigned char)0; // netSpeedClass 1 means 1Gbps
   info.fsId = 0;
   info.fsId= fsn.mId;
   if(!info.fsId)
@@ -457,10 +459,27 @@ void GeoTreeEngine::printInfo(std::string &info,
     ostr << "skipSaturatedBlcAccess = "<< skipSaturatedBlcAccess << std::endl;
     ostr << "skipSaturatedDrnPlct = "<< skipSaturatedDrnPlct << std::endl;
     ostr << "skipSaturatedBlcPlct = "<< skipSaturatedBlcPlct << std::endl;
-    ostr << "plctDlScorePenalty = "<< (int)plctDlScorePenalty << std::endl;
-    ostr << "plctUlScorePenalty = "<< (int)plctUlScorePenalty << std::endl;
-    ostr << "accessDlScorePenalty = "<< (int)accessDlScorePenalty << std::endl;
-    ostr << "accessUlScorePenalty = "<< (int)accessUlScorePenalty << std::endl;
+    ostr << "penaltyUpdateRate = "<< penaltyUpdateRate << std::endl;
+    ostr << "plctDlScorePenalty = "<< plctDlScorePenaltyF[0] << "(default)" << " | "
+        << plctDlScorePenaltyF[1] << "(1Gbps)" << " | "
+        << plctDlScorePenaltyF[2] << "(10Gbps)" << " | "
+        << plctDlScorePenaltyF[3] << "(100Gbps)" << " | "
+        << plctDlScorePenaltyF[4] << "(1000Gbps)" << std::endl;
+    ostr << "plctUlScorePenalty = "<< plctUlScorePenaltyF[0] << "(defaUlt)" << " | "
+        << plctUlScorePenaltyF[1] << "(1Gbps)" << " | "
+        << plctUlScorePenaltyF[2] << "(10Gbps)" << " | "
+        << plctUlScorePenaltyF[3] << "(100Gbps)" << " | "
+        << plctUlScorePenaltyF[4] << "(1000Gbps)" << std::endl;
+    ostr << "accessDlScorePenalty = "<< accessDlScorePenaltyF[0] << "(default)" << " | "
+        << accessDlScorePenaltyF[1] << "(1Gbps)" << " | "
+        << accessDlScorePenaltyF[2] << "(10Gbps)" << " | "
+        << accessDlScorePenaltyF[3] << "(100Gbps)" << " | "
+        << accessDlScorePenaltyF[4] << "(1000Gbps)" << std::endl;
+    ostr << "accessUlScorePenalty = "<< accessUlScorePenaltyF[0] << "(defaUlt)" << " | "
+        << accessUlScorePenaltyF[1] << "(1Gbps)" << " | "
+        << accessUlScorePenaltyF[2] << "(10Gbps)" << " | "
+        << accessUlScorePenaltyF[3] << "(100Gbps)" << " | "
+        << accessUlScorePenaltyF[4] << "(1000Gbps)" << std::endl;
     ostr << "fillRatioLimit = "<< (int)fillRatioLimit << std::endl;
     ostr << "fillRatioCompTol = "<< (int)fillRatioCompTol << std::endl;
     ostr << "saturationThres = "<< (int)saturationThres << std::endl;
@@ -691,13 +710,14 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
   {
     const SchedTreeBase::tFastTreeIdx *idx=NULL;
     const unsigned int fsid = (*entry->foregroundFastStruct->treeInfo)[*it].fsId;
+    const char netSpeedClass = (*entry->foregroundFastStruct->treeInfo)[*it].netSpeedClass;
     newReplicas->push_back(fsid);
     // apply the penalties
     entry->foregroundFastStruct->fs2TreeIdx->get(fsid,idx);
-    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=plctDlScorePenalty)
-    applyDlScorePenalty(entry,*idx,plctDlScorePenalty);
-    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=plctUlScorePenalty)
-    applyUlScorePenalty(entry,*idx,plctUlScorePenalty);
+    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=plctDlScorePenalty[netSpeedClass])
+    applyDlScorePenalty(entry,*idx,plctDlScorePenalty[netSpeedClass]);
+    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=plctUlScorePenalty[netSpeedClass])
+    applyUlScorePenalty(entry,*idx,plctUlScorePenalty[netSpeedClass]);
   }
 
   // unlock, cleanup
@@ -847,6 +867,7 @@ bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group, const size_t &nAccess
   {
     const SchedTreeBase::tFastTreeIdx *idx=NULL;
     const unsigned int fsid = (*entry->foregroundFastStruct->treeInfo)[*it].fsId;
+    const char netSpeedClass = (*entry->foregroundFastStruct->treeInfo)[*it].netSpeedClass;
     accessedReplicas->push_back(fsid);
     // apply the penalties
     if(!entry->foregroundFastStruct->fs2TreeIdx->get(fsid,idx))
@@ -855,10 +876,10 @@ bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group, const size_t &nAccess
       success = false;
       goto cleanup;
     }
-    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=accessDlScorePenalty)
-    applyDlScorePenalty(entry,*idx,accessDlScorePenalty);
-    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=accessUlScorePenalty)
-    applyUlScorePenalty(entry,*idx,accessUlScorePenalty);
+    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=accessDlScorePenalty[netSpeedClass])
+    applyDlScorePenalty(entry,*idx,accessDlScorePenalty[netSpeedClass]);
+    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=accessUlScorePenalty[netSpeedClass])
+    applyUlScorePenalty(entry,*idx,accessUlScorePenalty[netSpeedClass]);
   }
 
   // unlock, cleanup
@@ -1220,7 +1241,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
     SchedTreeBase::tFastTreeIdx accesserNode = 0;
     FileSystem::fsid_t selectedFsId = 0;
     {
-      // maps a geolocation scores (integer) to all the file system having this geolocation scores
+      // maps a geolocation scores (int) to all the file system having this geolocation scores
       map< unsigned , std::vector< FileSystem::fsid_t > > geoScore2Fs;
       vector<SchedTreeBase::tFastTreeIdx> accessedReplicasIdx(1);
       // find the closest tree node to the accesser
@@ -1342,10 +1363,11 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
     const SchedTreeBase::tFastTreeIdx *idx;
     // apply the penalties
     entry->foregroundFastStruct->fs2TreeIdx->get((*existingReplicas)[fsIndex],idx);
-    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=accessDlScorePenalty)
-    applyDlScorePenalty(entry,*idx,accessDlScorePenalty);
-    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=accessUlScorePenalty)
-    applyUlScorePenalty(entry,*idx,accessUlScorePenalty);
+    const char netSpeedClass = (*entry->foregroundFastStruct->treeInfo)[fsIndex].netSpeedClass;
+    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=accessDlScorePenalty[netSpeedClass])
+    applyDlScorePenalty(entry,*idx,accessDlScorePenalty[netSpeedClass]);
+    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=accessUlScorePenalty[netSpeedClass])
+    applyUlScorePenalty(entry,*idx,accessUlScorePenalty[netSpeedClass]);
   }
 
   // if we arrive here, it all ran fine
@@ -1717,7 +1739,40 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
     if(ftIdx) setOneStateVarInAllFastTrees(totalSpace,ts);
     if(stn) stn->pNodeState.totalSpace = ts;
   }
-  if(keys&(sfgDiskload|sfgInratemib|sfgWriteratemb))
+  size_t netSpeedClass = 0; // <1Gb/s -> 0 ; 1Gb/s -> 1; 10Gb/s->2 ; 100Gb/s->...etc
+  if(keys&(sfgDiskload|sfgInratemib|sfgOutratemib|sfgEthmib))
+  {
+    netSpeedClass = round(log10(fs->mNetEthRateMiB*8 * 1024 * 1024 + 1));
+    netSpeedClass = netSpeedClass>8 ? netSpeedClass-8 : 0; // netSpeedClass 1 means 1Gbps
+    // check if netspeed calss need an update
+    if(entry->backgroundFastStruct->treeInfo->size()>=netSpeedClass+1 &&
+        (*entry->backgroundFastStruct->treeInfo)[ftIdx].netSpeedClass!=(unsigned char)netSpeedClass)
+    {
+      if(ftIdx) (*entry->backgroundFastStruct->treeInfo)[ftIdx].netSpeedClass = netSpeedClass;
+      if(stn) stn->pNodeInfo.netSpeedClass = netSpeedClass;
+    }
+
+    nodeAgreg& na = updatingNodes[fs->mQueue];// this one will create the entry if it doesnt exists already
+    na.fsCount++;
+    if(!na.saturated)
+    {
+      if(na.fsCount ==1 )
+      {
+        na.netSpeedClass = netSpeedClass;
+        maxNetSpeedClass = std::max( maxNetSpeedClass , netSpeedClass);
+        na.netOutWeight += (1.0 - ((fs->mNetEthRateMiB) ? (fs->mNetOutRateMiB / fs->mNetEthRateMiB) : 0.0));
+        na.netInWeight += (1.0 - ((fs->mNetEthRateMiB) ? (fs->mNetInRateMiB / fs->mNetEthRateMiB) : 0.0));
+        if(na.netOutWeight<0.1 || na.netInWeight<0.1)
+        na.saturated = true; // network of the box is saturated
+      }
+      na.rOpen += fs->mDiskRopen;
+      na.wOpen += fs->mDiskWopen;
+      na.diskUtilSum += fs->mDiskUtilization;
+      if(fs->mDiskUtilization > 0.9 )
+      na.saturated = true; // one of the disks of the box is saturated
+    }
+  }
+  if(keys&(sfgDiskload|sfgInratemib))
   {
     // update the upload score
     double ulScore = (1-fs->mDiskUtilization);
@@ -1735,7 +1790,6 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
 
     if(ftIdx) setOneStateVarInAllFastTrees(dlScore,(char)(dlScore*100));
     if(stn) stn->pNodeState.dlScore = dlScore*100;
-
   }
   if(keys&sfgFsfilled)
   {
@@ -1771,6 +1825,8 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
   }
   pTreeMapMutex.UnLockRead();
 
+  updatingNodes.clear();
+  maxNetSpeedClass = 0;
   for(auto it = updates.begin(); it != updates.end(); ++it)
   {
 
@@ -1824,7 +1880,7 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
       auto nodeit = entry->fs2SlowTreeNode.find(fsid);
       if(nodeit == entry->fs2SlowTreeNode.end())
       {
-	eos_crit("inconsistency : cannot locate an fs %lu supposed to be in the fast structures",(unsigned long)fsid);
+	eos_crit("Inconsistency : cannot locate an fs %lu supposed to be in the fast structures",(unsigned long)fsid);
 	entry->doubleBufferMutex.UnLockRead();
 	AtomicDec(entry->fastStructLockWaitersCount);
 	return false;
@@ -1843,6 +1899,7 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
     entry->doubleBufferMutex.UnLockRead();
     AtomicDec(entry->fastStructLockWaitersCount);
   }
+  updatePenalties();
 
   // update the trees that need to be updated ( could maybe optimized by updating only the branch needing, might be worth it if only 1 or 2 branches are updated )
   // self update for the fast structure if update from slow tree is not needed
@@ -1929,4 +1986,1167 @@ bool GeoTreeEngine::getGroupsFromFsIds(const std::vector<FileSystem::fsid_t> fsi
   return result;
 }
 
+void GeoTreeEngine::updatePenalties()
+{
+  // In this function, we compute a rought a simplified version
+  // of the penalties applied to selected fs for placement and access.
+  // there is only one penalty and it's copied to ulplct, dlplct, ulaccess and dlaccess
+  // variants.
+
+  // if the update is enabled
+  if(penaltyUpdateRate)
+  {
+    if(updatingNodes.empty())
+    {
+      //eos_static_debug("updatingNodes is empty!");
+    }
+    else
+    {
+      // each networking speed class has its own variables
+      std::vector<double>
+      ropen(maxNetSpeedClass+1,0.0),
+      wopen(maxNetSpeedClass+1,0.0),
+      ulload(maxNetSpeedClass+1,0.0),
+      dlload(maxNetSpeedClass+1,0.0),
+      fscount(maxNetSpeedClass+1,0.0),
+      hostcount(maxNetSpeedClass+1,0.0),
+      diskutil(maxNetSpeedClass+1,0.0);
+
+      // we use the view to check that we have all the fs in a node
+      // could be removed if we were sure to run a single on fst daemon / box
+      FsView::gFsView.ViewMutex.LockRead();
+      for( auto it = updatingNodes.begin(); it!= updatingNodes.end(); it++)
+      {
+        const std::string &nodestr = it->first;
+        FsNode *node = NULL;
+        if(FsView::gFsView.mNodeView.count(nodestr))
+        node = FsView::gFsView.mNodeView[nodestr];
+        else
+        {
+          std::stringstream ss;
+          ss.str("");
+          for (auto it2 = FsView::gFsView.mNodeView.begin(); it2 != FsView::gFsView.mNodeView.end(); it2++)
+          ss << it2->first << "  ";
+          eos_static_err("Inconsistency : cannot find updating node %s in %s",nodestr.c_str(),ss.str().c_str());
+          continue;
+        }
+        if((!it->second.saturated) && it->second.fsCount == node->size())
+        {
+//          eos_static_debug("aggregated opened files for %s : wopen %d   ropen %d   outweight %lf   inweight %lf",
+//              it->first.c_str(),it->second.wOpen,it->second.rOpen,it->second.netOutWeight,it->second.netInWeight);
+        }
+        else
+        {
+          // the fs/host is saturated, we don't use the whole host in the estimate
+          if(it->second.saturated)
+          eos_static_debug("fs update in node %s : box is saturated");
+          // there is a mismatch between
+          // this should not happen if only one single fst daemon is running on each fst node
+          if(it->second.fsCount != node->size())
+          eos_static_notice("fs update in node %s : %d fs in FsView vs %d fs in update. This probably means that several fst daemons are running on the same host",it->first.c_str(),(int)node->size(),(int)it->second.fsCount);
+// could force to get everything
+//          long long wopen = node->SumLongLong("stat.wopen",false);
+//          long long ropen = node->SumLongLong("stat.ropen",false);
+        }
+        // update aggregated informations for the right networking class
+        ropen[it->second.netSpeedClass]+=(it->second.rOpen);
+        wopen[it->second.netSpeedClass]+=(it->second.wOpen);
+        ulload[it->second.netSpeedClass]+=(1.0-it->second.netOutWeight);
+        dlload[it->second.netSpeedClass]+=(1.0-it->second.netInWeight);
+        diskutil[it->second.netSpeedClass]+=it->second.diskUtilSum;
+        fscount[it->second.netSpeedClass]+=it->second.fsCount;
+        hostcount[it->second.netSpeedClass]++;
+      }
+      FsView::gFsView.ViewMutex.UnLockRead();
+
+      for(size_t netSpeedClass=0; netSpeedClass<=maxNetSpeedClass; netSpeedClass++)
+      {
+        if(ropen[netSpeedClass]+ropen[netSpeedClass]>4)
+        {
+          eos_static_debug("UPDATE netSpeedClass=%d  ulload=%lf  dlload=%lf  diskutil=%lf  ropen=%lf  wopen=%lf  fscount=%lf  hostcount=%lf",
+              (int)netSpeedClass, ulload[netSpeedClass], dlload[netSpeedClass],diskutil[netSpeedClass], ropen[netSpeedClass],
+              wopen[netSpeedClass], fscount[netSpeedClass], hostcount[netSpeedClass]);
+
+          // the penalty aims at knowing roughly how many file concurrent file operations
+          // can be led on a single fs before sturating a ressource (disk or network)
+
+          // network penalty per file
+          // the multiplication by the number of fs is to take into account
+          // that the bw is shared between multiple fs
+          double networkpen =
+          0.5*(ulload[netSpeedClass]+dlload[netSpeedClass])/(ropen[netSpeedClass]+wopen[netSpeedClass])
+          *(fscount[netSpeedClass]/hostcount[netSpeedClass]);
+
+          // there is factor to take into account the read cache
+          // TODO use a realistic value for this factor
+          double diskpen =
+          diskutil[netSpeedClass]/(0.4*ropen[netSpeedClass]+wopen[netSpeedClass]);
+
+          eos_static_debug("penalties updates are network %lf   disk %lf",networkpen,diskpen);
+
+          double update = 100*std::max(diskpen,networkpen);
+
+          if(update<1 || update>99) // could be more restrictive
+          {
+            eos_static_debug("weird value for accessDlScorePenalty update : %lf. Not using this one.",update);
+          }
+          else
+          {
+            eos_static_debug("netSpeedClass %d : using update values %lf for penalties with weight %f%%",
+                netSpeedClass, penaltyUpdateRate);
+            eos_static_debug("netSpeedClass %d : values before update are accessDlScorePenalty=%f  plctDlScorePenalty=%f  accessUlScorePenalty=%f  plctUlScorePenalty=%f",
+                netSpeedClass, accessDlScorePenaltyF[netSpeedClass],plctDlScorePenaltyF[netSpeedClass],accessUlScorePenaltyF[netSpeedClass],plctUlScorePenaltyF[netSpeedClass]);
+            union
+            {
+              float f;
+              uint32_t u;
+            }uf;
+
+            // atomic change, no need to lock anything
+            uf.f = 0.01*( ( 100 - penaltyUpdateRate)*accessDlScorePenaltyF[netSpeedClass] + penaltyUpdateRate*update);
+            AtomicCAS( reinterpret_cast<uint32_t&>(accessDlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(accessDlScorePenaltyF[netSpeedClass]) , uf.u );
+            uf.f = 0.01*( ( 100 - penaltyUpdateRate)*plctDlScorePenaltyF[netSpeedClass] + penaltyUpdateRate*update);
+            AtomicCAS( reinterpret_cast<uint32_t&>(plctDlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(plctDlScorePenaltyF[netSpeedClass]) , uf.u);
+            uf.f = 0.01*( ( 100 - penaltyUpdateRate)*accessUlScorePenaltyF[netSpeedClass] + penaltyUpdateRate*update);
+            AtomicCAS( reinterpret_cast<uint32_t&>(accessUlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(accessUlScorePenaltyF[netSpeedClass]) , uf.u);
+            uf.f = 0.01*( ( 100 - penaltyUpdateRate)*plctUlScorePenaltyF[netSpeedClass] + penaltyUpdateRate*update);
+            AtomicCAS( reinterpret_cast<uint32_t&>(plctUlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(plctUlScorePenaltyF[netSpeedClass]) , uf.u);
+            eos_static_debug("netSpeedClass %d : values after update are accessDlScorePenalty=%f  plctDlScorePenalty=%f  accessUlScorePenalty=%f  plctUlScorePenalty=%f",
+                netSpeedClass, accessDlScorePenaltyF[netSpeedClass],plctDlScorePenaltyF[netSpeedClass],accessUlScorePenaltyF[netSpeedClass],plctUlScorePenaltyF[netSpeedClass]);
+            // update the casted versions too
+            AtomicCAS( plctUlScorePenalty[netSpeedClass], plctUlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) plctUlScorePenaltyF[netSpeedClass]);
+            AtomicCAS( plctDlScorePenalty[netSpeedClass], plctDlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) plctDlScorePenaltyF[netSpeedClass]);
+            AtomicCAS( accessDlScorePenalty[netSpeedClass], accessDlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) accessDlScorePenaltyF[netSpeedClass]);
+            AtomicCAS( accessUlScorePenalty[netSpeedClass], accessUlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) accessUlScorePenaltyF[netSpeedClass]);
+          }
+        }
+        else
+        {
+          eos_static_debug("not enough file opened to get reliable statistics %d",(int)(ropen[netSpeedClass]+ropen[netSpeedClass]));
+        }
+      }
+    }
+
+  }
+
+
+// *************************************************************************************
+// The following code was intended to test some estimation techniques for the penatlies.
+// They are aiming at something more precise than the implementation above
+// More precision does not seem necessary for the moment
+// The code is left there in case of need for later use
+// *************************************************************************************
+//void GeoTreeEngine::updatePenalties()
+//{
+//  class LS2dSolver
+//  {
+//    typedef std::vector<double> dvec;
+//
+//    int c__1;
+//    int c__0;
+//    int c__2;
+//
+//    static double innerProd( const dvec &v1, const dvec &v2 )
+//    {
+//      assert(v1.size() == v2.size() );
+//      double ret = 0;
+//      for(size_t i=0; i<v1.size(); i++)
+//      ret+=v1[i]*v2[i];
+//      return ret;
+//    }
+//  public:
+//    LS2dSolver() : c__1(1),c__0(0),c__2(2) {}
+//    static bool solve( const dvec &a, const dvec &b, const dvec&c, dvec&result)
+//    {
+//      double ab = innerProd(a,b);
+//      double a2 = innerProd(a,a);
+//      double b2 = innerProd(b,b);
+//      double sa2b2 = sqrt(a2*b2);
+//      double ac = innerProd(a,c);
+//      double bc = innerProd(b,c);
+//
+//      char buffa[4096],buffb[4096],buffc[4096];
+//      char *pta = (char*)buffa; pta[0]=0;
+//      char *ptb = (char*)buffb; ptb[0]=0;
+//      char *ptc = (char*)buffc; ptb[0]=0;
+//
+//      for(auto it = a.begin();it != a.end(); it++)
+//      pta += sprintf(pta,"%lf , ",*it);
+//
+//      for(auto it = b.begin();it != b.end(); it++)
+//      ptb += sprintf(ptb,"%lf , ",*it);
+//
+//      for(auto it = c.begin();it != c.end(); it++)
+//      ptc += sprintf(ptc,"%lf , ",*it);
+//
+//      eos_static_info(" a = %s",buffa);
+//      eos_static_info(" b = %s",buffb);
+//      eos_static_info(" c = %s",buffc);
+//      eos_static_info(" ab = %lf , a2 = %lf , b2 = %lf , sa2b2 = %lf , ac = %lf , bc = %lf",ab,a2,b2,sa2b2,ac,bc);
+//
+//      double K = ( ab - sa2b2 ) * ( ab + sa2b2);
+//
+//      eos_static_info(" K = %lf",K);
+//
+//      if( abs(K) < sqrt(std::numeric_limits<double>::epsilon()) )
+//      return false;
+//
+//      K = 1.0/K;
+//
+//      result=
+//      {
+//        (-b2*ac + ab*bc) * K,
+//        ( ab*ac - a2*bc) * K
+//      };
+//
+//      return true;
+//    }
+//
+//    /*     SUBROUTINE NNLS  (A,MDA,M,N,B,X,RNORM,W,ZZ,INDEX,MODE) */
+//
+//#define nnls_max(a,b) ((a) >= (b) ? (a) : (b))
+//#define nnls_abs(x) ((x) >= 0 ? (x) : -(x))
+//
+//    /* The following subroutine was added after the f2c translation */
+//    double d_sign(double *a, double *b)
+//    {
+//      double x;
+//      x = (*a >= 0 ? *a : - *a);
+//      return( *b >= 0 ? x : -x);
+//    }
+//
+//    /* Subroutine */ int g1_(
+//    double *a, double *b, double *cterm, double *sterm, double *sig)
+//    {
+//        /* System generated locals */
+//        double d__1;
+//
+//        /* Builtin functions */
+//        /* The following line was commented out after the f2c translation */
+//        /* double sqrt(), d_sign(); */
+//
+//        /* Local variables */
+//        static double xr, yr;
+//
+//
+//    /*     COMPUTE ORTHOGONAL ROTATION MATRIX.. */
+//
+//    /*  The original version of this code was developed by */
+//    /*  Charles L. Lawson and Richard J. Hanson at Jet Propulsion Laboratory
+//    */
+//    /*  1973 JUN 12, and published in the book */
+//    /*  "SOLVING LEAST SQUARES PROBLEMS", Prentice-HalL, 1974. */
+//    /*  Revised FEB 1995 to accompany reprinting of the book by SIAM. */
+//
+//    /*     COMPUTE.. MATRIX   (C, S) SO THAT (C, S)(A) = (SQRT(A**2+B**2)) */
+//    /*                        (-S,C)         (-S,C)(B)   (   0          ) */
+//    /*     COMPUTE SIG = SQRT(A**2+B**2) */
+//    /*        SIG IS COMPUTED LAST TO ALLOW FOR THE POSSIBILITY THAT */
+//    /*        SIG MAY BE IN THE SAME LOCATION AS A OR B . */
+//    /*     ------------------------------------------------------------------
+//    */
+//    /*     ------------------------------------------------------------------
+//    */
+//        if (nnls_abs(*a) > nnls_abs(*b)) {
+//            xr = *b / *a;
+//    /* Computing 2nd power */
+//            d__1 = xr;
+//            yr = sqrt(d__1 * d__1 + 1.);
+//            d__1 = 1. / yr;
+//            *cterm = d_sign(&d__1, a);
+//            *sterm = *cterm * xr;
+//            *sig = nnls_abs(*a) * yr;
+//            return 0;
+//        }
+//        if (*b != 0.) {
+//            xr = *a / *b;
+//    /* Computing 2nd power */
+//            d__1 = xr;
+//            yr = sqrt(d__1 * d__1 + 1.);
+//            d__1 = 1. / yr;
+//            *sterm = d_sign(&d__1, b);
+//            *cterm = *sterm * xr;
+//            *sig = nnls_abs(*b) * yr;
+//            return 0;
+//        }
+//        *sig = 0.;
+//        *cterm = 0.;
+//        *sterm = 1.;
+//        return 0;
+//    } /* g1_ */
+//
+//
+//    double diff_(double *x, double *y)
+//    {
+//        /* System generated locals */
+//        double ret_val;
+//
+//
+//    /*  Function used in tests that depend on machine precision. */
+//
+//    /*  The original version of this code was developed by */
+//    /*  Charles L. Lawson and Richard J. Hanson at Jet Propulsion Laboratory
+//    */
+//    /*  1973 JUN 7, and published in the book */
+//    /*  "SOLVING LEAST SQUARES PROBLEMS", Prentice-HalL, 1974. */
+//    /*  Revised FEB 1995 to accompany reprinting of the book by SIAM. */
+//
+//        ret_val = *x - *y;
+//        return ret_val;
+//    } /* diff_ */
+//
+//
+//    /*     SUBROUTINE H12 (MODE,LPIVOT,L1,M,U,IUE,UP,C,ICE,ICV,NCV) */
+//
+//     /*  CONSTRUCTION AND/OR APPLICATION OF A SINGLE */
+//     /*  HOUSEHOLDER TRANSFORMATION..     Q = I + U*(U**T)/B */
+//
+//     /*  The original version of this code was developed by */
+//     /*  Charles L. Lawson and Richard J. Hanson at Jet Propulsion Laboratory */
+//     /*  1973 JUN 12, and published in the book */
+//     /*  "SOLVING LEAST SQUARES PROBLEMS", Prentice-HalL, 1974. */
+//     /*  Revised FEB 1995 to accompany reprinting of the book by SIAM. */
+//     /*     ------------------------------------------------------------------ */
+//     /*                     Subroutine Arguments */
+//
+//     /*     MODE   = 1 OR 2   Selects Algorithm H1 to construct and apply a */
+//     /*            Householder transformation, or Algorithm H2 to apply a */
+//     /*            previously constructed transformation. */
+//     /*     LPIVOT IS THE INDEX OF THE PIVOT ELEMENT. */
+//     /*     L1,M   IF L1 .LE. M   THE TRANSFORMATION WILL BE CONSTRUCTED TO */
+//     /*            ZERO ELEMENTS INDEXED FROM L1 THROUGH M.   IF L1 GT. M */
+//     /*            THE SUBROUTINE DOES AN IDENTITY TRANSFORMATION. */
+//     /*     U(),IUE,UP    On entry with MODE = 1, U() contains the pivot */
+//     /*            vector.  IUE is the storage increment between elements. */
+//     /*            On exit when MODE = 1, U() and UP contain quantities */
+//     /*            defining the vector U of the Householder transformation. */
+//     /*            on entry with MODE = 2, U() and UP should contain */
+//     /*            quantities previously computed with MODE = 1.  These will */
+//     /*            not be modified during the entry with MODE = 2. */
+//     /*     C()    ON ENTRY with MODE = 1 or 2, C() CONTAINS A MATRIX WHICH */
+//     /*            WILL BE REGARDED AS A SET OF VECTORS TO WHICH THE */
+//     /*            HOUSEHOLDER TRANSFORMATION IS TO BE APPLIED. */
+//     /*            ON EXIT C() CONTAINS THE SET OF TRANSFORMED VECTORS. */
+//     /*     ICE    STORAGE INCREMENT BETWEEN ELEMENTS OF VECTORS IN C(). */
+//     /*     ICV    STORAGE INCREMENT BETWEEN VECTORS IN C(). */
+//     /*     NCV    NUMBER OF VECTORS IN C() TO BE TRANSFORMED. IF NCV .LE. 0 */
+//     /*            NO OPERATIONS WILL BE DONE ON C(). */
+//     /*     ------------------------------------------------------------------ */
+//     /* Subroutine */ int h12_(
+//     int *mode, int*lpivot, int*l1, int*m,
+//     double *u,
+//     int *iue,
+//     double *up, double *c__,
+//     int *ice, int *icv, int *ncv)
+//     {
+//         /* System generated locals */
+//         int u_dim1, u_offset, i__1, i__2;
+//         double d__1, d__2;
+//
+//         /* Builtin functions */
+//         /* The following line was commented out after the f2c translation */
+//         /* double sqrt(); */
+//
+//         /* Local variables */
+//         static int incr;
+//         static double b;
+//         static int i__, j;
+//         static double clinv;
+//         static int i2, i3, i4;
+//         static double cl, sm;
+//
+//     /*     ------------------------------------------------------------------
+//     */
+//     /*     double precision U(IUE,M) */
+//     /*     ------------------------------------------------------------------
+//     */
+//         /* Parameter adjustments */
+//         u_dim1 = *iue;
+//         u_offset = u_dim1 + 1;
+//         u -= u_offset;
+//         --c__;
+//
+//         /* Function Body */
+//         if (0 >= *lpivot || *lpivot >= *l1 || *l1 > *m) {
+//             return 0;
+//         }
+//         cl = (d__1 = u[*lpivot * u_dim1 + 1], nnls_abs(d__1));
+//         if (*mode == 2) {
+//             goto L60;
+//         }
+//     /*                            ****** CONSTRUCT THE TRANSFORMATION. ******
+//     */
+//         i__1 = *m;
+//         for (j = *l1; j <= i__1; ++j) {
+//     /* L10: */
+//     /* Computing MAX */
+//             d__2 = (d__1 = u[j * u_dim1 + 1], nnls_abs(d__1));
+//             cl = nnls_max(d__2,cl);
+//         }
+//         if (cl <= 0.) {
+//             goto L130;
+//         } else {
+//             goto L20;
+//         }
+//     L20:
+//         clinv = 1. / cl;
+//     /* Computing 2nd power */
+//         d__1 = u[*lpivot * u_dim1 + 1] * clinv;
+//         sm = d__1 * d__1;
+//         i__1 = *m;
+//         for (j = *l1; j <= i__1; ++j) {
+//     /* L30: */
+//     /* Computing 2nd power */
+//             d__1 = u[j * u_dim1 + 1] * clinv;
+//             sm += d__1 * d__1;
+//         }
+//         cl *= sqrt(sm);
+//         if (u[*lpivot * u_dim1 + 1] <= 0.) {
+//             goto L50;
+//         } else {
+//             goto L40;
+//         }
+//     L40:
+//         cl = -cl;
+//     L50:
+//         *up = u[*lpivot * u_dim1 + 1] - cl;
+//         u[*lpivot * u_dim1 + 1] = cl;
+//         goto L70;
+//     /*            ****** APPLY THE TRANSFORMATION  I+U*(U**T)/B  TO C. ******
+//     */
+//
+//     L60:
+//         if (cl <= 0.) {
+//             goto L130;
+//         } else {
+//             goto L70;
+//         }
+//     L70:
+//         if (*ncv <= 0) {
+//             return 0;
+//         }
+//         b = *up * u[*lpivot * u_dim1 + 1];
+//     /*                       B  MUST BE NONPOSITIVE HERE.  IF B = 0., RETURN.
+//     */
+//
+//         if (b >= 0.) {
+//             goto L130;
+//         } else {
+//             goto L80;
+//         }
+//     L80:
+//         b = 1. / b;
+//         i2 = 1 - *icv + *ice * (*lpivot - 1);
+//         incr = *ice * (*l1 - *lpivot);
+//         i__1 = *ncv;
+//         for (j = 1; j <= i__1; ++j) {
+//             i2 += *icv;
+//             i3 = i2 + incr;
+//             i4 = i3;
+//             sm = c__[i2] * *up;
+//             i__2 = *m;
+//             for (i__ = *l1; i__ <= i__2; ++i__) {
+//                 sm += c__[i3] * u[i__ * u_dim1 + 1];
+//     /* L90: */
+//                 i3 += *ice;
+//             }
+//             if (sm != 0.) {
+//                 goto L100;
+//             } else {
+//                 goto L120;
+//             }
+//     L100:
+//             sm *= b;
+//             c__[i2] += sm * *up;
+//             i__2 = *m;
+//             for (i__ = *l1; i__ <= i__2; ++i__) {
+//                 c__[i4] += sm * u[i__ * u_dim1 + 1];
+//     /* L110: */
+//                 i4 += *ice;
+//             }
+//     L120:
+//             ;
+//         }
+//     L130:
+//         return 0;
+//     } /* h12_ */
+//
+//
+//    /*  Algorithm NNLS: NONNEGATIVE LEAST SQUARES */
+//
+//    /*  The original version of this code was developed by */
+//    /*  Charles L. Lawson and Richard J. Hanson at Jet Propulsion Laboratory */
+//    /*  1973 JUN 15, and published in the book */
+//    /*  "SOLVING LEAST SQUARES PROBLEMS", Prentice-HalL, 1974. */
+//    /*  Revised FEB 1995 to accompany reprinting of the book by SIAM. */
+//
+//    /*     GIVEN AN M BY N MATRIX, A, AND AN M-VECTOR, B,  COMPUTE AN */
+//    /*     N-VECTOR, X, THAT SOLVES THE LEAST SQUARES PROBLEM */
+//
+//    /*                      A * X = B  SUBJECT TO X .GE. 0 */
+//    /*     ------------------------------------------------------------------ */
+//    /*                     Subroutine Arguments */
+//
+//    /*     A(),MDA,M,N     MDA IS THE FIRST DIMENSIONING PARAMETER FOR THE */
+//    /*                     ARRAY, A().   ON ENTRY A() CONTAINS THE M BY N */
+//    /*                     MATRIX, A.           ON EXIT A() CONTAINS */
+//    /*                     THE PRODUCT MATRIX, Q*A , WHERE Q IS AN */
+//    /*                     M BY M ORTHOGONAL MATRIX GENERATED IMPLICITLY BY */
+//    /*                     THIS SUBROUTINE. */
+//    /*     B()     ON ENTRY B() CONTAINS THE M-VECTOR, B.   ON EXIT B() CON- */
+//    /*             TAINS Q*B. */
+//    /*     X()     ON ENTRY X() NEED NOT BE INITIALIZED.  ON EXIT X() WILL */
+//    /*             CONTAIN THE SOLUTION VECTOR. */
+//    /*     RNORM   ON EXIT RNORM CONTAINS THE EUCLIDEAN NORM OF THE */
+//    /*             RESIDUAL VECTOR. */
+//    /*     W()     AN N-ARRAY OF WORKING SPACE.  ON EXIT W() WILL CONTAIN */
+//    /*             THE DUAL SOLUTION VECTOR.   W WILL SATISFY W(I) = 0. */
+//    /*             FOR ALL I IN SET P  AND W(I) .LE. 0. FOR ALL I IN SET Z */
+//    /*     ZZ()     AN M-ARRAY OF WORKING SPACE. */
+//    /*     INDEX()     AN int WORKING ARRAY OF LENGTH AT LEAST N. */
+//    /*                 ON EXIT THE CONTENTS OF THIS ARRAY DEFINE THE SETS */
+//    /*                 P AND Z AS FOLLOWS.. */
+//
+//    /*                 INDEX(1)   THRU INDEX(NSETP) = SET P. */
+//    /*                 INDEX(IZ1) THRU INDEX(IZ2)   = SET Z. */
+//    /*                 IZ1 = NSETP + 1 = NPP1 */
+//    /*                 IZ2 = N */
+//    /*     MODE    THIS IS A SUCCESS-FAILURE FLAG WITH THE FOLLOWING */
+//    /*             MEANINGS. */
+//    /*             1     THE SOLUTION HAS BEEN COMPUTED SUCCESSFULLY. */
+//    /*             2     THE DIMENSIONS OF THE PROBLEM ARE BAD. */
+//    /*                   EITHER M .LE. 0 OR N .LE. 0. */
+//    /*             3    ITERATION COUNT EXCEEDED.  MORE THAN 3*N ITERATIONS. */
+//
+//    /*     ------------------------------------------------------------------ */
+//    /* Subroutine */ int nnls_(
+//    double *a,
+//    int *mda, int *m, int*n,
+//    double *b, double*x, double*rnorm, double*w, double *zz,
+//    int *index, int *mode)
+//    {
+//        /* System generated locals */
+//        int a_dim1, a_offset, i__1, i__2;
+//        double d__1, d__2;
+//
+//        /* Builtin functions */
+//        /* The following lines were commented out after the f2c translation */
+//        /* double sqrt(); */
+//        /* int s_wsfe(), do_fio(), e_wsfe(); */
+//
+//        /* Local variables */
+//        //extern double diff_();
+//        static int iter;
+//        static double temp, wmax;
+//        static int i__, j, l;
+//        static double t, alpha, asave;
+//        static int itmax, izmax, nsetp;
+//        //extern /* Subroutine */ int g1_();
+//        static double dummy, unorm, ztest, cc;
+//        //extern /* Subroutine */ int h12_();
+//        static int ii, jj, ip;
+//        static double sm;
+//        static int iz, jz;
+//        static double up, ss;
+//        static int rtnkey, iz1, iz2, npp1;
+//
+//        /* Fortran I/O blocks */
+//        /* The following line was commented out after the f2c translation */
+//        /* static cilist io___22 = { 0, 6, 0, "(/a)", 0 }; */
+//
+//
+//    /*     ------------------------------------------------------------------
+//    */
+//    /*     int INDEX(N) */
+//    /*     double precision A(MDA,N), B(M), W(N), X(N), ZZ(M) */
+//    /*     ------------------------------------------------------------------
+//    */
+//        /* Parameter adjustments */
+//        a_dim1 = *mda;
+//        a_offset = a_dim1 + 1;
+//        a -= a_offset;
+//        --b;
+//        --x;
+//        --w;
+//        --zz;
+//        --index;
+//
+//        /* Function Body */
+//        *mode = 1;
+//        if (*m <= 0 || *n <= 0) {
+//            *mode = 2;
+//            return 0;
+//        }
+//        iter = 0;
+//        itmax = *n * 3;
+//
+//    /*                    INITIALIZE THE ARRAYS INDEX() AND X(). */
+//
+//        i__1 = *n;
+//        for (i__ = 1; i__ <= i__1; ++i__) {
+//            x[i__] = 0.;
+//    /* L20: */
+//            index[i__] = i__;
+//        }
+//
+//        iz2 = *n;
+//        iz1 = 1;
+//        nsetp = 0;
+//        npp1 = 1;
+//    /*                             ******  MAIN LOOP BEGINS HERE  ****** */
+//    L30:
+//    /*                  QUIT IF ALL COEFFICIENTS ARE ALREADY IN THE SOLUTION.
+//    */
+//    /*                        OR IF M COLS OF A HAVE BEEN TRIANGULARIZED. */
+//
+//        if (iz1 > iz2 || nsetp >= *m) {
+//            goto L350;
+//        }
+//
+//    /*         COMPUTE COMPONENTS OF THE DUAL (NEGATIVE GRADIENT) VECTOR W().
+//    */
+//
+//        i__1 = iz2;
+//        for (iz = iz1; iz <= i__1; ++iz) {
+//            j = index[iz];
+//            sm = 0.;
+//            i__2 = *m;
+//            for (l = npp1; l <= i__2; ++l) {
+//    /* L40: */
+//                sm += a[l + j * a_dim1] * b[l];
+//            }
+//            w[j] = sm;
+//    /* L50: */
+//        }
+//    /*                                   FIND LARGEST POSITIVE W(J). */
+//    L60:
+//        wmax = 0.;
+//        i__1 = iz2;
+//        for (iz = iz1; iz <= i__1; ++iz) {
+//            j = index[iz];
+//            if (w[j] > wmax) {
+//                wmax = w[j];
+//                izmax = iz;
+//            }
+//    /* L70: */
+//        }
+//
+//    /*             IF WMAX .LE. 0. GO TO TERMINATION. */
+//    /*             THIS INDICATES SATISFACTION OF THE KUHN-TUCKER CONDITIONS.
+//    */
+//
+//        if (wmax <= 0.) {
+//            goto L350;
+//        }
+//        iz = izmax;
+//        j = index[iz];
+//
+//    /*     THE SIGN OF W(J) IS OK FOR J TO BE MOVED TO SET P. */
+//    /*     BEGIN THE TRANSFORMATION AND CHECK NEW DIAGONAL ELEMENT TO AVOID */
+//    /*     NEAR LINEAR DEPENDENCE. */
+//
+//        asave = a[npp1 + j * a_dim1];
+//        i__1 = npp1 + 1;
+//        h12_(&c__1, &npp1, &i__1, m, &a[j * a_dim1 + 1], &c__1, &up, &dummy, &
+//                c__1, &c__1, &c__0);
+//        unorm = 0.;
+//        if (nsetp != 0) {
+//            i__1 = nsetp;
+//            for (l = 1; l <= i__1; ++l) {
+//    /* L90: */
+//    /* Computing 2nd power */
+//                d__1 = a[l + j * a_dim1];
+//                unorm += d__1 * d__1;
+//            }
+//        }
+//        unorm = sqrt(unorm);
+//        d__2 = unorm + (d__1 = a[npp1 + j * a_dim1], nnls_abs(d__1)) * .01;
+//        if (diff_(&d__2, &unorm) > 0.) {
+//
+//    /*        COL J IS SUFFICIENTLY INDEPENDENT.  COPY B INTO ZZ, UPDATE Z
+//    Z */
+//    /*        AND SOLVE FOR ZTEST ( = PROPOSED NEW VALUE FOR X(J) ). */
+//
+//            i__1 = *m;
+//            for (l = 1; l <= i__1; ++l) {
+//    /* L120: */
+//                zz[l] = b[l];
+//            }
+//            i__1 = npp1 + 1;
+//            h12_(&c__2, &npp1, &i__1, m, &a[j * a_dim1 + 1], &c__1, &up, &zz[1], &
+//                    c__1, &c__1, &c__1);
+//            ztest = zz[npp1] / a[npp1 + j * a_dim1];
+//
+//    /*                                     SEE IF ZTEST IS POSITIVE */
+//
+//            if (ztest > 0.) {
+//                goto L140;
+//            }
+//        }
+//
+//    /*     REJECT J AS A CANDIDATE TO BE MOVED FROM SET Z TO SET P. */
+//    /*     RESTORE A(NPP1,J), SET W(J)=0., AND LOOP BACK TO TEST DUAL */
+//    /*     COEFFS AGAIN. */
+//
+//        a[npp1 + j * a_dim1] = asave;
+//        w[j] = 0.;
+//        goto L60;
+//
+//    /*     THE INDEX  J=INDEX(IZ)  HAS BEEN SELECTED TO BE MOVED FROM */
+//    /*     SET Z TO SET P.    UPDATE B,  UPDATE INDICES,  APPLY HOUSEHOLDER */
+//    /*     TRANSFORMATIONS TO COLS IN NEW SET Z,  ZERO SUBDIAGONAL ELTS IN */
+//    /*     COL J,  SET W(J)=0. */
+//
+//    L140:
+//        i__1 = *m;
+//        for (l = 1; l <= i__1; ++l) {
+//    /* L150: */
+//            b[l] = zz[l];
+//        }
+//
+//        index[iz] = index[iz1];
+//        index[iz1] = j;
+//        ++iz1;
+//        nsetp = npp1;
+//        ++npp1;
+//
+//        if (iz1 <= iz2) {
+//            i__1 = iz2;
+//            for (jz = iz1; jz <= i__1; ++jz) {
+//                jj = index[jz];
+//                h12_(&c__2, &nsetp, &npp1, m, &a[j * a_dim1 + 1], &c__1, &up, &a[
+//                        jj * a_dim1 + 1], &c__1, mda, &c__1);
+//    /* L160: */
+//            }
+//        }
+//
+//        if (nsetp != *m) {
+//            i__1 = *m;
+//            for (l = npp1; l <= i__1; ++l) {
+//    /* L180: */
+//                a[l + j * a_dim1] = 0.;
+//            }
+//        }
+//
+//        w[j] = 0.;
+//    /*                                SOLVE THE TRIANGULAR SYSTEM. */
+//    /*                                STORE THE SOLUTION TEMPORARILY IN ZZ().
+//    */
+//        rtnkey = 1;
+//        goto L400;
+//    L200:
+//
+//    /*                       ******  SECONDARY LOOP BEGINS HERE ****** */
+//
+//    /*                          ITERATION COUNTER. */
+//
+//    L210:
+//        ++iter;
+//        if (iter > itmax) {
+//            *mode = 3;
+//            /* The following lines were replaced after the f2c translation */
+//            /* s_wsfe(&io___22); */
+//            /* do_fio(&c__1, " NNLS quitting on iteration count.", 34L); */
+//            /* e_wsfe(); */
+//            fprintf(stdout, "\n NNLS quitting on iteration count.\n");
+//            fflush(stdout);
+//            goto L350;
+//        }
+//
+//    /*                    SEE IF ALL NEW CONSTRAINED COEFFS ARE FEASIBLE. */
+//    /*                                  IF NOT COMPUTE ALPHA. */
+//
+//        alpha = 2.;
+//        i__1 = nsetp;
+//        for (ip = 1; ip <= i__1; ++ip) {
+//            l = index[ip];
+//            if (zz[ip] <= 0.) {
+//                t = -x[l] / (zz[ip] - x[l]);
+//                if (alpha > t) {
+//                    alpha = t;
+//                    jj = ip;
+//                }
+//            }
+//    /* L240: */
+//        }
+//
+//    /*          IF ALL NEW CONSTRAINED COEFFS ARE FEASIBLE THEN ALPHA WILL */
+//    /*          STILL = 2.    IF SO EXIT FROM SECONDARY LOOP TO MAIN LOOP. */
+//
+//        if (alpha == 2.) {
+//            goto L330;
+//        }
+//
+//    /*          OTHERWISE USE ALPHA WHICH WILL BE BETWEEN 0. AND 1. TO */
+//    /*          INTERPOLATE BETWEEN THE OLD X AND THE NEW ZZ. */
+//
+//        i__1 = nsetp;
+//        for (ip = 1; ip <= i__1; ++ip) {
+//            l = index[ip];
+//            x[l] += alpha * (zz[ip] - x[l]);
+//    /* L250: */
+//        }
+//
+//    /*        MODIFY A AND B AND THE INDEX ARRAYS TO MOVE COEFFICIENT I */
+//    /*        FROM SET P TO SET Z. */
+//
+//        i__ = index[jj];
+//    L260:
+//        x[i__] = 0.;
+//
+//        if (jj != nsetp) {
+//            ++jj;
+//            i__1 = nsetp;
+//            for (j = jj; j <= i__1; ++j) {
+//                ii = index[j];
+//                index[j - 1] = ii;
+//                g1_(&a[j - 1 + ii * a_dim1], &a[j + ii * a_dim1], &cc, &ss, &a[j
+//                        - 1 + ii * a_dim1]);
+//                a[j + ii * a_dim1] = 0.;
+//                i__2 = *n;
+//                for (l = 1; l <= i__2; ++l) {
+//                    if (l != ii) {
+//
+//    /*                 Apply procedure G2 (CC,SS,A(J-1,L),A(J,
+//    L)) */
+//
+//                        temp = a[j - 1 + l * a_dim1];
+//                        a[j - 1 + l * a_dim1] = cc * temp + ss * a[j + l * a_dim1]
+//                                ;
+//                        a[j + l * a_dim1] = -ss * temp + cc * a[j + l * a_dim1];
+//                    }
+//    /* L270: */
+//                }
+//
+//    /*                 Apply procedure G2 (CC,SS,B(J-1),B(J)) */
+//
+//                temp = b[j - 1];
+//                b[j - 1] = cc * temp + ss * b[j];
+//                b[j] = -ss * temp + cc * b[j];
+//    /* L280: */
+//            }
+//        }
+//
+//        npp1 = nsetp;
+//        --nsetp;
+//        --iz1;
+//        index[iz1] = i__;
+//
+//    /*        SEE IF THE REMAINING COEFFS IN SET P ARE FEASIBLE.  THEY SHOULD
+//    */
+//    /*        BE BECAUSE OF THE WAY ALPHA WAS DETERMINED. */
+//    /*        IF ANY ARE INFEASIBLE IT IS DUE TO ROUND-OFF ERROR.  ANY */
+//    /*        THAT ARE NONPOSITIVE WILL BE SET TO ZERO */
+//    /*        AND MOVED FROM SET P TO SET Z. */
+//
+//        i__1 = nsetp;
+//        for (jj = 1; jj <= i__1; ++jj) {
+//            i__ = index[jj];
+//            if (x[i__] <= 0.) {
+//                goto L260;
+//            }
+//    /* L300: */
+//        }
+//
+//    /*         COPY B( ) INTO ZZ( ).  THEN SOLVE AGAIN AND LOOP BACK. */
+//
+//        i__1 = *m;
+//        for (i__ = 1; i__ <= i__1; ++i__) {
+//    /* L310: */
+//            zz[i__] = b[i__];
+//        }
+//        rtnkey = 2;
+//        goto L400;
+//    L320:
+//        goto L210;
+//    /*                      ******  END OF SECONDARY LOOP  ****** */
+//
+//    L330:
+//        i__1 = nsetp;
+//        for (ip = 1; ip <= i__1; ++ip) {
+//            i__ = index[ip];
+//    /* L340: */
+//            x[i__] = zz[ip];
+//        }
+//    /*        ALL NEW COEFFS ARE POSITIVE.  LOOP BACK TO BEGINNING. */
+//        goto L30;
+//
+//    /*                        ******  END OF MAIN LOOP  ****** */
+//
+//    /*                        COME TO HERE FOR TERMINATION. */
+//    /*                     COMPUTE THE NORM OF THE FINAL RESIDUAL VECTOR. */
+//
+//    L350:
+//        sm = 0.;
+//        if (npp1 <= *m) {
+//            i__1 = *m;
+//            for (i__ = npp1; i__ <= i__1; ++i__) {
+//    /* L360: */
+//    /* Computing 2nd power */
+//                d__1 = b[i__];
+//                sm += d__1 * d__1;
+//            }
+//        } else {
+//            i__1 = *n;
+//            for (j = 1; j <= i__1; ++j) {
+//    /* L380: */
+//                w[j] = 0.;
+//            }
+//        }
+//        *rnorm = sqrt(sm);
+//        return 0;
+//
+//    /*     THE FOLLOWING BLOCK OF CODE IS USED AS AN INTERNAL SUBROUTINE */
+//    /*     TO SOLVE THE TRIANGULAR SYSTEM, PUTTING THE SOLUTION IN ZZ(). */
+//
+//    L400:
+//        i__1 = nsetp;
+//        for (l = 1; l <= i__1; ++l) {
+//            ip = nsetp + 1 - l;
+//            if (l != 1) {
+//                i__2 = ip;
+//                for (ii = 1; ii <= i__2; ++ii) {
+//                    zz[ii] -= a[ii + jj * a_dim1] * zz[ip + 1];
+//    /* L410: */
+//                }
+//            }
+//            jj = index[ip];
+//            zz[ip] /= a[ip + jj * a_dim1];
+//    /* L430: */
+//        }
+//        switch ((int)rtnkey) {
+//            case 1:  goto L200;
+//            case 2:  goto L320;
+//        }
+//
+//        /* The next line was added after the f2c translation to keep
+//           compilers from complaining about a void return from a non-void
+//           function. */
+//        return 0;
+//
+//    } /* nnls_ */
+//
+//
+//
+//
+//
+//    /* The following subroutine was added after the f2c translation */
+//    int nnls_c(double* a, const int* mda, const int* m, const int* n, double* b,
+//             double* x, double* rnorm, double* w, double* zz, int* index,
+//             int* mode)
+//    {
+//      return (nnls_(a, (int*)mda, (int*)m, (int*)n, b, x, rnorm, w, zz, index, mode));
+//    }
+//
+//    bool solveNN( const dvec &a, const dvec &b, const dvec&c, dvec&result)
+//    {
+//
+//      char buffa[4096],buffb[4096],buffc[4096];
+//      char *pta = (char*)buffa; pta[0]=0;
+//      char *ptb = (char*)buffb; ptb[0]=0;
+//      char *ptc = (char*)buffc; ptb[0]=0;
+//
+//      for(auto it = a.begin();it != a.end(); it++)
+//      pta += sprintf(pta,"%lf , ",*it);
+//
+//      for(auto it = b.begin();it != b.end(); it++)
+//      ptb += sprintf(ptb,"%lf , ",*it);
+//
+//      for(auto it = c.begin();it != c.end(); it++)
+//      ptc += sprintf(ptc,"%lf , ",*it);
+//
+//      eos_static_info(" a = %s",buffa);
+//      eos_static_info(" b = %s",buffb);
+//      eos_static_info(" c = %s",buffc);
+//
+//      int m = a.size();
+//      int n = 2;
+//
+//      double *matrix = new double[m*n];
+//      double *vect = new double[m];
+//
+//      double *x = new double[n];
+//
+//      double *w = new double[n];
+//      double *zz = new double[m];
+//
+//      int *index = new int[n];
+//
+//      double rnorm;
+//      int mode;
+//
+//      int k=0;
+//      for(int p = 0; p<m; p++)
+//        matrix[k++] = a[p];
+//      for(int p = 0; p<m; p++)
+//        matrix[k++] = b[p];
+//
+//      k = 0;
+//      for(int p = 0; p<m; p++)
+//        vect[k++] = c[p];
+//
+//
+//      nnls_c(matrix,&m,&m,&n,vect,
+//             x,&rnorm,w,zz,index,&mode);
+//
+//      eos_static_info("mode is %d",mode);
+//
+//      result = { x[0] , x[1]};
+//
+//
+//        delete[] matrix;
+//        delete[] vect;
+//        delete[] x;
+//        delete[] w;
+//        delete[] zz;
+//        delete[] index;
+//
+//        return true;
+//    }
+//  };
+//
+//  LS2dSolver solver;
+//
+//  if(penaltyUpdateRate)
+//  {
+//
+//    std::vector<double> update;
+//
+//    if(updatingNodes.empty())
+//    {
+//      eos_static_info("updatingNodes is empty!");
+//    }
+//    else
+//    {
+//      std::vector<std::vector<double> >
+//      ropen(pRoOpenFilesCount.size()),
+//      wopen(pRoOpenFilesCount.size()),
+//      ulload(pRoOpenFilesCount.size()),
+//      dlload(pRoOpenFilesCount.size());
+//
+//      std::stringstream ss;
+//      for( auto it = updatingNodes.begin(); it!= updatingNodes.end(); it++)
+//        ss << it->first << "  ";
+//
+//      eos_static_info("updatingNodes are : %s",ss.str().c_str());
+//
+//      FsView::gFsView.ViewMutex.LockRead();
+//      for( auto it = updatingNodes.begin(); it!= updatingNodes.end(); it++)
+//      {
+//        //std::string nodestr = "/eos/"+(*it)+"/fst";
+//        std::string nodestr = it->first;
+//        FsNode *node = NULL;
+//        if(FsView::gFsView.mNodeView.count(nodestr))
+//          node = FsView::gFsView.mNodeView[nodestr];
+//        else
+//        {
+//          ss.str("");
+//          for (auto it2 = FsView::gFsView.mNodeView.begin(); it2 != FsView::gFsView.mNodeView.end(); it2++)
+//            ss << it2->first << "  ";
+//          eos_static_info("cannot find updating node %s in %s",nodestr.c_str(),ss.str().c_str());
+//          continue;
+//        }
+//        if(it->second.count == node->size())
+//        {
+//          //eos_static_info("fs update in node %s : found the expected number of fs %d",it->first.c_str(),(int)it->second);
+//          eos_static_info("aggregated opened files for %s : wopen %d   ropen %d   outweight %lf   inweight %lf",
+//                          it->first.c_str(),it->second.wopen,it->second.ropen,it->second.netOutWeight,it->second.netInWeight);
+//        }
+//        else {
+//          // this should not happen if only one single fst daemon is running each fst node
+//          eos_static_info("fs update in node %s : %d fs in FsView vs %d fs in update",it->first.c_str(),(int)node->size(),(int)it->second.count);
+////          long long wopen = node->SumLongLong("stat.wopen",false);
+////          long long ropen = node->SumLongLong("stat.ropen",false);
+////          eos_static_info("aggreagted opened files for %s : wopen %d   ropen %d",it->first.c_str(),(int)wopen,(int)ropen);
+//        }
+//        if(ropen.size()<it->second.netSpeedClass+1)
+//        {
+//          ropen.resize(it->second.netSpeedClass+1);
+//          wopen.resize(it->second.netSpeedClass+1);
+//          ulload.resize(it->second.netSpeedClass+1);
+//          dlload.resize(it->second.netSpeedClass+1);
+//        }
+//        ropen[it->second.netSpeedClass].push_back(it->second.ropen);
+//        wopen[it->second.netSpeedClass].push_back(it->second.wopen);
+//        ulload[it->second.netSpeedClass].push_back(1.0-it->second.netOutWeight);
+//        dlload[it->second.netSpeedClass].push_back(1.0-it->second.netInWeight);
+//      }
+//      FsView::gFsView.ViewMutex.UnLockRead();
+//
+//      for(size_t netSpeedClass=0; netSpeedClass<pRoOpenFilesCount.size(); netSpeedClass++)
+//      {
+//        if(ropen[netSpeedClass].size()>1)
+//        {
+//          if(solver.solveNN(ropen[netSpeedClass],wopen[netSpeedClass],ulload[netSpeedClass],update))
+//          {
+//            eos_static_info("netSpeedClass %d : using update values %lf and %lf for ul network penalty",
+//                netSpeedClass, update[0], update[1]);
+//          }
+//          else
+//          {
+//            eos_static_info("could not compute the ul network update");
+//          }
+//
+//          if(solver.solveNN(ropen[netSpeedClass],wopen[netSpeedClass],dlload[netSpeedClass],update))
+//          {
+//            eos_static_info("netSpeedClass %d : using update values %lf and %lf for dl network penalty",
+//                netSpeedClass, update[0], update[1]);
+//          }
+//          else
+//          {
+//            eos_static_info("could not compute the dl network update");
+//          }
+//
+//        }
+//      }
+//    }
+//
+//    eos_static_info("trying to update penalties");
+//    for(size_t netSpeedClass=0; netSpeedClass<pRoOpenFilesCount.size(); netSpeedClass++)
+//    {
+//      eos_static_info("netSpeedClass = %d",(int)netSpeedClass);
+//      if(pRoOpenFilesCount[netSpeedClass].size()<2) // not enough data for this speed class
+//      continue;
+//      if(solver.solve(pRoOpenFilesCount[netSpeedClass],pRwOpenFilesCount[netSpeedClass],pTotalUlPenalty[netSpeedClass],update))
+//      {
+//        if(update[0]<1 || update[0]>20)
+//        {
+//          eos_static_info("weird value for accessUlScorePenalty update : %lf. Not using this one.",update[0]);
+//        }
+//        else if(update[1]<1 || update[1]>20)
+//        {
+//          eos_static_info("weird value for plctUlScorePenalty update : %lf. Not using this one.",update[1]);
+//        }
+//        else
+//        {
+//          eos_static_info("netSpeedClass %d : using update values %lf and %lf accessUlScorePenalty and plctUlScorePenalty update with weight %d%%",
+//              netSpeedClass, update[0], update[1], (int)penaltyUpdateRate);
+//
+//          AtomicCAS( accessUlScorePenalty , accessUlScorePenalty, static_cast<char>(0.01*( 100 - penaltyUpdateRate)*accessUlScorePenalty + 0.01*penaltyUpdateRate*update[0]) );
+//          AtomicCAS( plctUlScorePenalty , plctUlScorePenalty , static_cast<char>(0.01*( 100 - penaltyUpdateRate)*plctUlScorePenalty + 0.01*penaltyUpdateRate*update[1]) );
+//        }
+//      }
+//      if(solver.solve(pRoOpenFilesCount[netSpeedClass],pRwOpenFilesCount[netSpeedClass],pTotalDlPenalty[netSpeedClass],update))
+//      {
+//        if(update[0]<1 || update[0]>20)
+//        {
+//          eos_static_info("weird value for accessDlScorePenalty update : %lf. Not using this one.",update[0]);
+//        }
+//        else if(update[1]<1 || update[1]>20)
+//        {
+//          eos_static_info("weird value for plctDlScorePenalty update : %lf. Not using this one.",update[1]);
+//        }
+//        else
+//        {
+//          eos_static_info("netSpeedClass %d : using update values %lf and %lf accessUlScorePenalty and plctUlScorePenalty update with weight %d%%",
+//              netSpeedClass, update[0], update[1], (int)penaltyUpdateRate);
+//          AtomicCAS( accessDlScorePenalty , accessDlScorePenalty , static_cast<char>(0.01*( 100 - penaltyUpdateRate)*accessDlScorePenalty + 0.01*penaltyUpdateRate*update[0]) );
+//          AtomicCAS( plctDlScorePenalty , plctDlScorePenalty , static_cast<char>(0.01*( 100 - penaltyUpdateRate)*plctDlScorePenalty + 0.01*penaltyUpdateRate*update[1]) );
+//        }
+//      }
+//    }
+//  }
+}
+
 EOSMGMNAMESPACE_END
+

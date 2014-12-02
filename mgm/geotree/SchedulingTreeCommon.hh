@@ -135,6 +135,7 @@ public:
 		std::string fullGeotag;
 		std::string host;
 		eos::common::FileSystem::fsid_t fsId;
+		float netSpeedClass;
 
 		std::ostream&
 		display(std::ostream &os) const;
