@@ -1,6 +1,6 @@
 package eos.auth;
 
-import "XrdSecEntity.proto";
+import "proto/XrdSecEntity.proto";
 
 //------------------------------------------------------------------------------
 // FileOpen request protocol buffer message 

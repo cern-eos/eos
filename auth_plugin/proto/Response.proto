@@ -1,6 +1,6 @@
 package eos.auth;
 
-import "XrdOucErrInfo.proto";
+import "proto/XrdOucErrInfo.proto";
 
 //------------------------------------------------------------------------------
 // Response object received from the server for most of the requests
