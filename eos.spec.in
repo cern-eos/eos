@@ -19,8 +19,8 @@ BuildRequires: cmake28 >= 2.8
 %endif
 
 BuildRequires: xrootd xrootd-libs
-BuildRequires: xrootd-server-libs xrootd-server-devel
-BuildRequires: xrootd-client-libs xrootd-client-devel
+BuildRequires: xrootd-server-libs, xrootd-server-devel
+BuildRequires: xrootd-client-libs, xrootd-client-devel
 BuildRequires: xrootd-private-devel
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: libattr-devel, openldap-devel
@@ -29,18 +29,20 @@ BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: git
-BuildRequires: zeromq zeromq-devel
 BuildRequires: protobuf >= 2.3.0
 BuildRequires: protobuf-devel >= 2.3.0
 
 %if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
-%if %{?fedora}%{!?fedora:0} >= 18
-BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash-devel
+%if %{?fedora}%{!?fedora:0} >= 18 || %{?rhel} == 7
+BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static, sparsehash-devel
+BuildRequires: zeromq3 zeromq3-devel
 %else
-BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash
+BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static, sparsehash
+BuildRequires: zeromq zeromq-devel
 %endif
 %else
 BuildRequires: gcc44, gcc44-c++, sparsehash
+BuildRequires: zeromq zeromq-devel
 %endif
 
 %description
