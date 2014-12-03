@@ -4,8 +4,6 @@
 *.pyc
 .libs
 .deps
-*.pb.cc
-*.pb.h
 Makefile
 Makefile.in
 Console/eos
