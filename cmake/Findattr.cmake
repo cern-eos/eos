@@ -1,23 +1,32 @@
 # Try to find attr
 # Once done, this will define
 #
-# ATTR_FOUND - system has attr
-# ATTR_INCLUDE_DIRS - the attr include directories
-# ATTR_LIBRARIES - attr libraries directories
+# ATTR_FOUND        - system has attr
+# ATTR_INCLUDE_DIRS - attr include directories
+# ATTR_LIBRARIES    - libraries needed to use attr
+
+include(FindPackageHandleStandardArgs)
 
 if(ATTR_INCLUDE_DIRS AND ATTR_LIBRARIES)
-set(ATTR_FIND_QUIETLY TRUE)
-endif(ATTR_INCLUDE_DIRS AND ATTR_LIBRARIES)
+  set(ATTR_FIND_QUIETLY TRUE)
+else()
+  find_path(
+    ATTR_INCLUDE_DIR
+    NAMES attr/xattr.h
+    HINTS ${ATTR_ROOT_DIR}
+    PATH_SUFFIXES include)
 
-find_path(ATTR_INCLUDE_DIR attr/xattr.h)
-find_library(ATTR_LIBRARY attr)
+  find_library(
+    ATTR_LIBRARY
+    NAMES attr
+    HINTS ${ATTR_ROOT_DIR}
+    PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
 
-set(ATTR_INCLUDE_DIRS ${ATTR_INCLUDE_DIR})
-set(ATTR_LIBRARIES ${ATTR_LIBRARY})
+  set(ATTR_INCLUDE_DIRS ${ATTR_INCLUDE_DIR})
+  set(ATTR_LIBRARIES ${ATTR_LIBRARY})
 
-# handle the QUIETLY and REQUIRED arguments and set ATTR_FOUND to TRUE if
-# all listed variables are TRUE
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(attr DEFAULT_MSG ATTR_INCLUDE_DIR ATTR_LIBRARY)
+  find_package_handle_standard_args(
+    attr DEFAULT_MSG ATTR_LIBRARY ATTR_INCLUDE_DIR)
 
-mark_as_advanced(ATTR_INCLUDE_DIR ATTR_LIBRARY)
+  mark_as_advanced(ATTR_LIBRARY ATTR_INCLUDE_DIR)
+endif()

@@ -12,17 +12,13 @@ end()
   find_path(
     XFS_INCLUDE_DIR
     NAMES xfs/xfs.h
-    HINTS
-    /usr /usr/local /opt/local
-    PATH_SUFFIXES
-    include)
+    HINTS ${XFS_ROOT_DIR}
+    PATH_SUFFIXES include)
 
   set(XFS_INCLUDE_DIRS ${XFS_INCLUDE_DIR})
 
   find_package_handle_standard_args(
-    xfs
-    DEFAULT_MSG
-    XFS_INCLUDE_DIR)
+    xfs DEFAULT_MSG XFS_INCLUDE_DIR)
 
   mark_as_advanced(XFS_INCLUDE_DIR)
 endif()

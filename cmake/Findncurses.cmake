@@ -1,23 +1,40 @@
 # Try to find libncurses
 # Once done, this will define
 #
-# NCURSES_FOUND - system has libncurses
-# NCURSES_INCLUDE_DIRS - the libncurses include directories
-# NCURSES_LIBRARIES - libncurses libraries directories
+# NCURSES_FOUND           - system has libncurses
+# NCURSES_INCLUDE_DIRS    - libncurses include directories
+# NCURSES_LIBRARY         - ncurses library
+# NCURSES_LIBRARY_STATIC  - ncurses static library
 
-if(NCURSES_INCLUDE_DIRS AND NCURSES_LIBRARIES)
-set(NCURSES_FIND_QUIETLY TRUE)
-endif(NCURSES_INCLUDE_DIRS AND NCURSES_LIBRARIES)
-
-find_path(NCURSES_INCLUDE_DIR curses.h)
-find_library(NCURSES_LIBRARY ncurses)
-
-set(NCURSES_INCLUDE_DIRS ${NCURSES_INCLUDE_DIR})
-set(NCURSES_LIBRARIES ${NCURSES_LIBRARY})
-
-# handle the QUIETLY and REQUIRED arguments and set NCURSES_FOUND to TRUE if
-# all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(ncurses DEFAULT_MSG NCURSES_INCLUDE_DIR NCURSES_LIBRARY)
 
-mark_as_advanced(NCURSES_INCLUDE_DIR NCURSES_LIBRARY)
+if(NCURSES_INCLUDE_DIRS AND NCURSES_LIBRARY AND NCURSES_LIBRARY_STATIC)
+  set(NCURSES_FIND_QUIETLY TRUE)
+else()
+  find_path(
+    NCURSES_INCLUDE_DIR
+    NAMES curses.h
+    HINTS ${NCURSES_ROOT_DIR}
+    PATH_SUFFIXES include)
+
+  find_library(
+    NCURSES_LIBRARY
+    NAMES ncurses
+    HINTS ${NCURSES_ROOT_DIR}
+    PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
+
+  find_library(
+    NCURSES_LIBRARY_STATIC
+    NAMES libcurses.a
+    HINTS ${NCURSES_ROOT_DIR}
+    PATH_SUFFIXES ${LIBRARY_PATH_PRFIX})
+
+  set(NCURSES_INCLUDE_DIRS ${NCURSES_INCLUDE_DIR})
+
+  find_package_handle_standard_args(
+    ncurses
+    DEFAULT_MSG
+    NCURSES_LIBRARY NCURSES_LIBRARY_STATIC NCURSES_INCLUDE_DIR)
+
+  mark_as_advanced(NCURSES_LIBRARY NCURSES_LIBRARY_STATIC NCURSES_INCLUDE_DIR)
+endif()
