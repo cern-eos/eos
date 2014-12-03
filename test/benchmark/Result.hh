@@ -26,7 +26,7 @@
 
 /*-----------------------------------------------------------------------------*/
 #include "Namespace.hh"
-#include "ResultProto.pb.h"
+#include "test/benchmark/ResultProto.pb.h"
 /*-----------------------------------------------------------------------------*/
 
 EOSBMKNAMESPACE_BEGIN

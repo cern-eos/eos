@@ -27,7 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "Namespace.hh"
 #include "common/Logging.hh"
-#include "ConfigProto.pb.h"
+#include "test/benchmark/ConfigProto.pb.h"
 /*----------------------------------------------------------------------------*/
 
 EOSBMKNAMESPACE_BEGIN

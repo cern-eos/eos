@@ -21,45 +21,46 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( 
-            ${PROTOBUF_INCLUDE_DIRS}
-		    ${XROOTD_INCLUDE_DIR} 
-		    ${XROOTD_PRIVATE_INCLUDE_DIR}
-            ${UUID_INCLUDE_DIRS})
+include_directories(
+ ${CMAKE_SOURCE_DIR}
+ ${PROTOBUF_INCLUDE_DIRS}
+ ${XROOTD_INCLUDE_DIRS}
+ ${UUID_INCLUDE_DIRS})
 
-link_directories(${PROTOBUF_LIBRARIES}
-		 ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
-		 ${XROOTD_LIB_DIR}
-		 ${UUID_LIBRARIES}) 
+#-------------------------------------------------------------------------------
+# Generate protocol buffer files
+#-------------------------------------------------------------------------------
+PROTOBUF_GENERATE_CPP(CONFIG_SRCS CONFIG_HDRS PROTOFILES ConfigProto.proto)
+PROTOBUF_GENERATE_CPP(RESULT_SRCS RESULT_HDRS PROTOFILES ResultProto.proto)
+set_source_files_properties(
+  ${CONFIG_SRCS} ${CONFIG_HDRS} ${RESULT_SRCS} ${RESULT_HDRS}
+  PROPERTIES GENERATED 1)
 
-set_source_generating_rules()
+#-------------------------------------------------------------------------------
+# eos-benchmark executable
+#-------------------------------------------------------------------------------
+add_executable(
+  eos-benchmark
+  eosbenchmark.cc     eosbenchmark.hh
+  Configuration.cc    Configuration.hh
+  DirEos.cc           DirEos.hh
+  FileEos.cc          FileEos.hh
+  Result.cc           Result.hh
+  ProtoIo.cc          ProtoIo.hh
+  ${CONFIG_SRCS}      ${CONFIG_HDRS}
+  ${RESULT_SRCS}      ${RESULT_HDRS}
+  ${CMAKE_SOURCE_DIR}/common/StringConversion.cc
+  ${CMAKE_SOURCE_DIR}/common/StringConversion.hh
+  ${CMAKE_SOURCE_DIR}/fst/io/FileIoPlugin.cc)
 
-ADD_EXECUTABLE(eos-benchmark 
-   		       eosbenchmark.cc     eosbenchmark.hh
-       	       Configuration.cc    Configuration.hh
-		       DirEos.cc           DirEos.hh
-       	       FileEos.cc          FileEos.hh
-       	       Result.cc           Result.hh
-       	       ProtoIo.cc          ProtoIo.hh
-       	       ../../common/StringConversion.cc
-       	       ../../common/StringConversion.hh
-		       ../../fst/io/FileIoPlugin.cc		       
-       	       ConfigProto.pb.cc      ConfigProto.pb.h
-       	       ResultProto.pb.cc      ResultProto.pb.h) 
+target_link_libraries(
+  eos-benchmark
+  EosFstIo-Static
+  ${XROOTD_CL_LIBRARY}
+  ${PROTOBUF_LIBRARIES}
+  ${UUID_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT})
 
-TARGET_LINK_LIBRARIES(eos-benchmark
-             	      XrdCl 
-	      	   	      EosFstIo-Static
- 		     	      ${PROTOBUF_LIBRARIES} 
-	      	   	      ${UUID_LIBRARIES} 
-	      	   	      ${CMAKE_THREAD_LIBS_INIT})
-
-INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR}
-                  FILES 
-                  eos-benchmark)
-
-
-
-	       
-
-
+install(
+  PROGRAMS eos-benchmark
+  DESTINATION ${CMAKE_INSTALL_SBINDIR})
