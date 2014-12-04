@@ -21,127 +21,149 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ${CMAKE_SOURCE_DIR}
-             ${PROTOBUF_INCLUDE_DIRS}
-		     ${XROOTD_INCLUDE_DIR} 
-		     ${XROOTD_PRIVATE_INCLUDE_DIR} 
-		     ${SPARSEHASH_INCLUDE_DIR} )
+include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${CMAKE_BINARY_DIR}
+  ${PROTOBUF_INCLUDE_DIRS}
+  ${XROOTD_INCLUDE_DIRS})
 
-link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}
-		  ${XROOTD_LIB_DIR} 
-          ${PROTOBUF_LIB_DIR})
+#-------------------------------------------------------------------------------
+# These files are generated in the ../fst/ directory
+#-------------------------------------------------------------------------------
+set_source_files_properties(
+  ${FMDBASE_SRCS}
+  ${FMDBASE_HDRS}
+  PROPERTIES GENERATED 1)
 
-set_source_generating_rules()
+#-------------------------------------------------------------------------------
+# eos executable
+#-------------------------------------------------------------------------------
+add_executable(
+  eos
+  ConsoleMain.cc  ConsoleMain.hh
+  ConsolePipe.cc  ConsolePipe.hh
+  ${CMAKE_SOURCE_DIR}/fst/FmdClient.cc
+  ${CMAKE_SOURCE_DIR}/fst/Fmd.cc
+  ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.cc
+  ${CMAKE_SOURCE_DIR}/fst/checksum/Adler.cc
+  ${CMAKE_SOURCE_DIR}/fst/checksum/crc32c.cc
+  ${CMAKE_SOURCE_DIR}/fst/checksum/crc32ctables.cc
+  ${FMDBASE_SRCS}
+  ${FMDBASE_HDRS}
+  commands/com_access.cc
+  commands/com_archive.cc
+  commands/com_attr.cc
+  commands/com_cd.cc
+  commands/com_chmod.cc
+  commands/com_chown.cc
+  commands/com_clear.cc
+  commands/com_config.cc
+  commands/com_console.cc
+  commands/com_cp.cc
+  commands/com_debug.cc
+  commands/com_dropbox.cc
+  commands/com_file.cc
+  commands/com_find.cc
+  commands/com_fs.cc
+  commands/com_fsck.cc
+  commands/com_fuse.cc
+  commands/com_geosched.cc
+  commands/com_group.cc
+  commands/com_io.cc
+  commands/com_json.cc
+  commands/com_license.cc
+  commands/com_ls.cc
+  commands/com_map.cc
+  commands/com_mkdir.cc
+  commands/com_motd.cc
+  commands/com_node.cc
+  commands/com_ns.cc
+  commands/com_print.cc
+  commands/com_pwd.cc
+  commands/com_quit.cc
+  commands/com_quota.cc
+  commands/com_reconnect.cc
+  commands/com_recycle.cc
+  commands/com_rm.cc
+  commands/com_rmdir.cc
+  commands/com_role.cc
+  commands/com_rtlog.cc
+  commands/com_silent.cc
+  commands/com_space.cc
+  commands/com_stat.cc
+  commands/com_test.cc
+  commands/com_timing.cc
+  commands/com_transfer.cc
+  commands/com_version.cc
+  commands/com_vid.cc
+  commands/com_vst.cc
+  commands/com_whoami.cc
+  commands/com_who.cc)
 
-add_executable( eos
-	      	ConsoleMain.cc
-		ConsoleMain.hh	
-		ConsolePipe.cc
-		ConsolePipe.hh
-        ../fst/FmdClient.cc
-        ../fst/Fmd.cc
-        ../fst/FmdBase.pb.cc
-        ../fst/FmdBase.pb.h
-		../fst/checksum/CheckSum.cc
-		../fst/checksum/Adler.cc
-		../fst/checksum/crc32c.cc
-                ../fst/checksum/crc32ctables.cc
-		commands/com_access.cc
-		commands/com_archive.cc
-	        commands/com_attr.cc
-		commands/com_cd.cc
-		commands/com_chmod.cc 
-		commands/com_chown.cc 
-		commands/com_clear.cc         
-		commands/com_config.cc 
-		commands/com_console.cc 
-		commands/com_cp.cc 
-		commands/com_debug.cc 
-		commands/com_dropbox.cc 
-		commands/com_file.cc 
-		commands/com_find.cc 
-		commands/com_fs.cc 
-		commands/com_fsck.cc
-                commands/com_fuse.cc
-        commands/com_geosched.cc
-		commands/com_group.cc
-                commands/com_io.cc
-                commands/com_json.cc
-		commands/com_license.cc 
-		commands/com_ls.cc 
-		commands/com_map.cc 
-		commands/com_mkdir.cc 
-		commands/com_motd.cc 
-		commands/com_node.cc
-		commands/com_ns.cc    
-		commands/com_print.cc 
-		commands/com_pwd.cc 
-		commands/com_quit.cc 
-		commands/com_quota.cc 
-		commands/com_reconnect.cc 
-                commands/com_recycle.cc
-		commands/com_rm.cc 
-		commands/com_rmdir.cc 
-		commands/com_role.cc 
-		commands/com_rtlog.cc 
-		commands/com_silent.cc 
-		commands/com_space.cc
-		commands/com_stat.cc
-		commands/com_test.cc 
-		commands/com_timing.cc
-		commands/com_transfer.cc 
-		commands/com_version.cc 
-		commands/com_vid.cc 
-		commands/com_vst.cc 
-		commands/com_whoami.cc   
-                commands/com_who.cc 
-)
+add_executable(eosdropboxd dropbox/eosdropboxd.cc)
 
+#-------------------------------------------------------------------------------
+# Add dependency which guarantees that the protocol buffer files are generated
+# when we build the "eos" executable.
+#-------------------------------------------------------------------------------
+add_dependencies(eos XrdEosFst)
 
-add_executable( eosdropboxd
-	        dropbox/eosdropboxd.cc 
-)
-
-
-
-if (CLIENT)
-target_link_libraries( eos 
-		       XrdPosix	        XrdCl
-		XrdUtils  	eosCommon
-		       crypto           curses
-		       dl               z
-                       readline         ${CMAKE_THREAD_LIBS_INIT}
-                       ${UUID_LIBRARIES} ${PROTOBUF_LIBRARIES}
-                     )
-else (CLIENT)
-target_link_libraries( eos 
-		       XrdPosix	         XrdCl 
-		       XrdUtils 	 eosCommon-Static
-                       readline          XrdMqClient-Static
-		       crypto            curses
-		       dl                z
-                       ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${PROTOBUF_LIBRARIES}
-                     )
-endif(CLIENT)
+if(CLIENT)
+  target_link_libraries(
+    eos
+    eosCommon
+    ${Z_LIBRARY}
+    ${UUID_LIBRARIES}
+    ${READLINE_LIBRARY}
+    ${NCURSES_LIBRARY}
+    ${GLIBC_DL_LIBRARY}
+    ${PROTOBUF_LIBRARY}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_POSIX_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${OPENSSL_CRYPTO_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
+else()
+  target_link_libraries(
+    eos
+    eosCommon-Static
+    XrdMqClient-Static
+    ${Z_LIBRARY}
+    ${UUID_LIBRARIES}
+    ${NCURSES_LIBRARY}
+    ${READLINE_LIBRARY}
+    ${PROTOBUF_LIBRARY}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_POSIX_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${OPENSSL_CRYPTO_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
+endif()
 
 if (MacOSX)
-target_link_libraries( eosdropboxd
-		eosCommon XrdPosix 
-		XrdCl            XrdUtils 
-		${CMAKE_THREAD_LIBS_INIT} )
+  target_link_libraries(
+    eosdropboxd
+    eosCommon
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${XROOTD_POSIX_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
+else()
+  target_link_libraries(
+    eosdropboxd
+    eosCommon-Static
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${XROOTD_POSIX_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
+endif()
 
-else (MacOSX)
-target_link_libraries( eosdropboxd 
-		       eosCommon-Static XrdPosix 
-		       XrdCl            XrdUtils 
-		       ${CMAKE_THREAD_LIBS_INIT} )
+install(
+  PROGRAMS eosadmin
+  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
-endif (MacOSX)
-
-INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR} FILES eosadmin )
-
-install( TARGETS eos eosdropboxd
-       	 LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-         RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-         ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-)
+install(
+  TARGETS eos eosdropboxd
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

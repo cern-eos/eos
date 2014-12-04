@@ -21,28 +21,35 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ ${XROOTD_INCLUDE_DIR} )
-link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} ${XROOTD_LIB_DIR})
+include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${XROOTD_INCLUDE_DIRS})
 
-add_executable ( eosfilesync
-                 eosfilesync.cc
-)
+#-------------------------------------------------------------------------------
+# Create sync executables
+#-------------------------------------------------------------------------------
+add_executable(eosfilesync eosfilesync.cc)
+add_executable(eosdirsync eosdirsync.cc)
+add_executable(eosha eosha.cc)
 
-add_executable ( eosdirsync
-                 eosdirsync.cc
-)
+target_link_libraries(
+  eosdirsync
+  eosCommon-Static
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY})
 
-add_executable ( eosha
-                 eosha.cc
-)
+target_link_libraries(
+  eosfilesync
+  eosCommon-Static
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY})
 
-INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR} FILES eoshapl eossh-timeout)
+install(
+  TARGETS eosha eosfilesync eosdirsync
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
-target_link_libraries ( eosdirsync eosCommon-Static XrdCl XrdUtils )
-target_link_libraries ( eosfilesync eosCommon-Static XrdCl XrdUtils )
-
-install ( TARGETS eosha eosfilesync eosdirsync
-          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-)
+install(
+  PROGRAMS eoshapl eossh-timeout
+  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

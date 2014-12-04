@@ -21,39 +21,39 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}
-                    ${OPENSSL_INCLUDE_DIR}
-                    ${CPPUNIT_INCLUDE_DIRS})
+include_directories(
+  ${OPENSSL_INCLUDE_DIRS}
+  ${CPPUNIT_INCLUDE_DIRS})
 
-LINK_DIRECTORIES(${OPENSSL_LIBRARIES}
-                 ${CPPUNIT_LIBRARIES})
+#-------------------------------------------------------------------------------
+# EosFstTests library
+#-------------------------------------------------------------------------------
+add_library(
+  EosFstTests MODULE
+  FileTest.cc  FileTest.hh
+  TestEnv.cc   TestEnv.hh
+  ${CMAKE_SOURCE_DIR}/fst/checksum/CRC32C.hh
+  ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.cc
+  ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.hh
+  ${CMAKE_SOURCE_DIR}/fst/checksum/crc32c.cc
+  ${CMAKE_SOURCE_DIR}/fst/checksum/crc32ctables.cc)
 
-ADD_LIBRARY(EosFstTests MODULE
-            FileTest.cc  FileTest.hh
-            TestEnv.cc   TestEnv.hh
-            ${PROJECT_SOURCE_DIR}/fst/checksum/CRC32C.hh
-            ${PROJECT_SOURCE_DIR}/fst/checksum/CheckSum.cc
-            ${PROJECT_SOURCE_DIR}/fst/checksum/CheckSum.hh
-            ${PROJECT_SOURCE_DIR}/fst/checksum/crc32c.cc
-            ${PROJECT_SOURCE_DIR}/fst/checksum/crc32ctables.cc)
+target_link_libraries(
+  EosFstTests
+  eosCommon
+  EosFstIo-Static
+  ${CPPUNIT_LIBRARIES})
 
-TARGET_LINK_LIBRARIES(EosFstTests
-                      XrdCl
-                      XrdUtils
-                      eosCommon
-                      EosFstIo-Static
-                      ${OPENSSL_LIBRARIES}
-                      ${CPPUNIT_LIBRARIES})
+if(Linux)
+  set_target_properties(
+    EosFstTests PROPERTIES
+    VERSION ${VERSION}
+    SOVERSION ${VERSION_MAJOR}
+    INTERFACE_LINK_LIBRARIES "")
+endif()
 
-IF(Linux)
-SET_TARGET_PROPERTIES(EosFstTests PROPERTIES
-                      VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-                      SOVERSION ${VERSION_MAJOR}
-                      CLEAN_DIRECT_OUTPUT 1)
-ENDIF(Linux)
-
-INSTALL(TARGETS EosFstTests
-        LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        ARCHIVE DESTINATION ${LIB_INSTALL_DIR})
-
+install(
+  TARGETS EosFstTests
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

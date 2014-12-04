@@ -21,145 +21,113 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} 
-		    ${CMAKE_SOURCE_DIR}
-                    ${ZMQ_INCLUDE_DIRS}
-                    ${PROTOBUF_INCLUDE_DIRS}
-		    ${XROOTD_INCLUDE_DIR} 
-		    ${XROOTD_PRIVATE_INCLUDE_DIR}
-		    ${CMAKE_CURRENT_BINARY_DIR})
+include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${ZMQ_INCLUDE_DIRS}
+  ${PROTOBUF_INCLUDE_DIRS}
+  ${XROOTD_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_BINARY_DIR})
 
-set_source_generating_rules()
-
-# Add the tests if CppUnit is present
 if (CPPUNIT_FOUND)
-  add_subdirectory(tests)	
+  add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
 
-add_custom_target(auth_plugin_protobuf_headers
-                  SOURCES
-                  proto/XrdSecEntity.pb.h
-proto/XrdOucErrInfo.pb.h
-proto/XrdSfsFSctl.pb.h
-proto/Stat.pb.h
-proto/Fsctl.pb.h
-proto/FS_ctl.pb.h
-proto/Chmod.pb.h
-proto/Chksum.pb.h
-proto/Exists.pb.h
-proto/Mkdir.pb.h	
-proto/Remdir.pb.h	
-proto/Rem.pb.h	
-proto/Rename.pb.h	
-proto/XrdSfsPrep.pb.h	
-proto/Prepare.pb.h	
-proto/Truncate.pb.h	
-proto/DirOpen.pb.h	
-proto/DirRead.pb.h
-proto/DirFname.pb.h
-proto/DirClose.pb.h
-proto/FileOpen.pb.h
-proto/FileFname.pb.h
-proto/FileStat.pb.h
-proto/FileRead.pb.h
-proto/FileWrite.pb.h
-proto/FileClose.pb.h			
-proto/Request.pb.h
-proto/Response.pb.h)
-                  
+#-------------------------------------------------------------------------------
+# Generate all protocol buffer files
+#-------------------------------------------------------------------------------
+PROTOBUF_GENERATE_CPP(XSE_SRCS XSE_HDRS PROTOFILES proto/XrdSecEntity.proto)
+PROTOBUF_GENERATE_CPP(XOEI_SRCS XOEI_HDRS PROTOFILES proto/XrdOucErrInfo.proto)
+PROTOBUF_GENERATE_CPP(XSFS_SRCS XSFS_HDRS PROTOFILES proto/XrdSfsFSctl.proto)
+PROTOBUF_GENERATE_CPP(STAT_SRCS STAT_HDRS PROTOFILES proto/Stat.proto)
+PROTOBUF_GENERATE_CPP(FSCTL1_SRCS FSCTL1_HDRS PROTOFILES proto/Fsctl.proto)
+PROTOBUF_GENERATE_CPP(FSCTL2_SRCS FSCTL2_HDRS PROTOFILES proto/FS_ctl.proto)
+PROTOBUF_GENERATE_CPP(CHMOD_SRCS CHMOD_HDRS PROTOFILES proto/Chmod.proto)
+PROTOBUF_GENERATE_CPP(CHKSUM_SRCS CHKSUM_HDRS PROTOFILES proto/Chksum.proto)
+PROTOBUF_GENERATE_CPP(EXISTS_SRCS EXISTS_HDRS PROTOFILES proto/Exists.proto)
+PROTOBUF_GENERATE_CPP(MKDIR_SRCS MKDIR_HDRS PROTOFILES proto/Mkdir.proto)
+PROTOBUF_GENERATE_CPP(REMDIR_SRCS REMDIR_HDRS PROTOFILES proto/Remdir.proto)
+PROTOBUF_GENERATE_CPP(REM_SRCS REM_HDRS PROTOFILES proto/Rem.proto)
+PROTOBUF_GENERATE_CPP(RENAME_SRCS RENAME_HDRS PROTOFILES proto/Rename.proto)
+PROTOBUF_GENERATE_CPP(XSP_SRCS XSP_HDRS PROTOFILES proto/XrdSfsPrep.proto)
+PROTOBUF_GENERATE_CPP(PREPARE_SRCS PREPARE_HDRS PROTOFILES proto/Prepare.proto)
+PROTOBUF_GENERATE_CPP(TRUNCATE_SRCS TRUNCATE_HDRS PROTOFILES proto/Truncate.proto)
+PROTOBUF_GENERATE_CPP(DOPEN_SRCS DOPEN_HDRS PROTOFILES proto/DirOpen.proto)
+PROTOBUF_GENERATE_CPP(DREAD_SRCS DREAD_HDRS PROTOFILES proto/DirRead.proto)
+PROTOBUF_GENERATE_CPP(DFNAME_SRCS DFNAME_HDRS PROTOFILES proto/DirFname.proto)
+PROTOBUF_GENERATE_CPP(DCLOSE_SRCS DCLOSE_HDRS PROTOFILES proto/DirClose.proto)
+PROTOBUF_GENERATE_CPP(FOPEN_SRCS FOPEN_HDRS PROTOFILES proto/FileOpen.proto)
+PROTOBUF_GENERATE_CPP(FFNAME_SRCS FFNAME_HDRS PROTOFILES proto/FileFname.proto)
+PROTOBUF_GENERATE_CPP(FSTAT_SRCS FSTAT_HDRS PROTOFILES proto/FileStat.proto)
+PROTOBUF_GENERATE_CPP(FREAD_SRCS FREAD_HDRS PROTOFILES proto/FileRead.proto)
+PROTOBUF_GENERATE_CPP(FWRITE_SRCS FWRITE_HDRS PROTOFILES proto/FileWrite.proto)
+PROTOBUF_GENERATE_CPP(FCLOSE_SRCS FCLOSE_HDRS PROTOFILES proto/FileClose.proto)
+PROTOBUF_GENERATE_CPP(REQ_SRCS REQ_HDRS PROTOFILES proto/Request.proto)
+PROTOBUF_GENERATE_CPP(RESP_SRCS RESP_HDRS PROTOFILES proto/Response.proto)
 
-if (PROTOBUF_FOUND)
-  set(PROTO_SRCS
-proto/XrdSecEntity.pb.cc
-proto/XrdOucErrInfo.pb.cc
-proto/XrdSfsFSctl.pb.cc
-proto/Stat.pb.cc
-proto/Fsctl.pb.cc
-proto/FS_ctl.pb.cc
-proto/Chmod.pb.cc
-proto/Chksum.pb.cc
-proto/Exists.pb.cc
-proto/Mkdir.pb.cc	
-proto/Remdir.pb.cc	
-proto/Rem.pb.cc	
-proto/Rename.pb.cc	
-proto/XrdSfsPrep.pb.cc	
-proto/Prepare.pb.cc	
-proto/Truncate.pb.cc	
-proto/DirOpen.pb.cc	
-proto/DirRead.pb.cc
-proto/DirFname.pb.cc
-proto/DirClose.pb.cc
-proto/FileOpen.pb.cc
-proto/FileFname.pb.cc
-proto/FileStat.pb.cc
-proto/FileRead.pb.cc
-proto/FileWrite.pb.cc
-proto/FileClose.pb.cc			
-proto/Request.pb.cc
-proto/Response.pb.cc)
+set(
+  PROTO_SRCS
+  ${XSE_SRCS}     ${XOEI_SRCS}     ${XSFS_SRCS}   ${STAT_SRCS}
+  ${FSCTL1_SRCS}  ${FSCTL2_SRCS}   ${REQ_SRCS}    ${RESP_SRCS}
+  ${CHMOD_SRCS}   ${CHKSUM_SRCS}   ${EXISTS_SRCS} ${MKDIR_SRCS}
+  ${REMDIR_SRCS}  ${REM_SRCS}      ${RENAME_SRCS} ${XSP_SRCS}
+  ${PREPARE_SRCS} ${TRUNCATE_SRCS} ${DOPEN_SRCS}  ${DREAD_SRCS}
+  ${DFNAME_SRCS}  ${DCLOSE_SRCS}   ${FOPEN_SRCS}  ${FCLOSE_SRCS}
+  ${FFNAME_SRCS}  ${FSTAT_SRCS}    ${FREAD_SRCS}  ${FWRITE_SRCS})
 
-  set(PROTO_HDRS    
-proto/XrdSecEntity.pb.h
-proto/XrdOucErrInfo.pb.h
-proto/XrdSfsFSctl.pb.h
-proto/Stat.pb.h
-proto/Fsctl.pb.h
-proto/FS_ctl.pb.h
-proto/Chmod.pb.h
-proto/Chksum.pb.h
-proto/Exists.pb.h
-proto/Mkdir.pb.h	
-proto/Remdir.pb.h	
-proto/Rem.pb.h	
-proto/Rename.pb.h	
-proto/XrdSfsPrep.pb.h	
-proto/Prepare.pb.h	
-proto/Truncate.pb.h	
-proto/DirOpen.pb.h	
-proto/DirRead.pb.h
-proto/DirFname.pb.h
-proto/DirClose.pb.h
-proto/FileOpen.pb.h
-proto/FileFname.pb.h
-proto/FileStat.pb.h
-proto/FileRead.pb.h
-proto/FileWrite.pb.h
-proto/FileClose.pb.h			
-proto/Request.pb.h
-proto/Response.pb.h)
+set(
+  PROTO_HDRS
+  ${XSE_HDRS}     ${XOEI_HDRS}     ${XSFS_HDRS}   ${STAT_HDRS}
+  ${FSCTL1_HDRS}  ${FSCTL2_HDRS}   ${REQ_HDRS}    ${RESP_HDRS}
+  ${CHMOD_HDRS}   ${CHKSUM_HDRS}   ${EXITS_HDRS}  ${MKDIR_HDRS}
+  ${REMDIR_HDRS}  ${REM_HDRS}      ${RENAME_HDRS} ${XSP_HDRS}
+  ${PREPARE_HDRS} ${TRUNCATE_HDRS} ${DOPEN_HDRS}  ${DREAD_HDRS}
+  ${DFNAME_HDRS}  ${DCLOSE_HDRS}   ${FOPEN_HDRS}  ${FCLOSE_HDRS}
+  ${FFNAME_HDRS}  ${FSTAT_HDRS}    ${FREAD_HDRS}  ${FWRITE_HDRS})
 
-  add_library(EosAuthProto SHARED
-  	      ProtoUtils.cc ProtoUtils.hh
-              ${PROTO_SRCS} ${PROTO_HDRS})
-              
-              
-  add_dependencies(EosAuthProto auth_plugin_protobuf_headers)
-  target_link_libraries(EosAuthProto
-                        eosCommon ${PROTOBUF_LIBRARIES})
+set_source_files_properties(
+  ${PROTO_SRCS}
+  ${PROTO_HDRS}
+  PROPERTIES GENERATED 1)
 
-  add_library(EosAuthOfs MODULE
-  	      EosAuthOfs.cc  EosAuthOfs.hh
-	      EosAuthOfsFile.cc EosAuthOfsFile.hh	
- 	      EosAuthOfsDirectory.cc EosAuthOfsDirectory.hh)
+#-------------------------------------------------------------------------------
+# EosAuthProto library
+#-------------------------------------------------------------------------------
+add_library(
+  EosAuthProto SHARED
+  ProtoUtils.cc ProtoUtils.hh
+  ${PROTO_SRCS} ${PROTO_HDRS})
 
-  target_link_libraries(EosAuthOfs 
-			XrdUtils XrdCl
-			eosCommon
-			EosAuthProto
-		      	${ZMQ_LIBRARIES})
+target_link_libraries(
+   EosAuthProto
+   eosCommon
+   ${PROTOBUF_LIBRARIES})
 
-  if (Linux)
-    set_target_properties (EosAuthOfs EosAuthProto PROPERTIES
-                           VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-                           SOVERSION ${VERSION_MAJOR}
-                           CLEAN_DIRECT_OUTPUT 1)
-  endif(Linux)
+#-------------------------------------------------------------------------------
+# EosAuthOfs library
+#-------------------------------------------------------------------------------
+add_library(
+  EosAuthOfs MODULE
+  EosAuthOfs.cc  EosAuthOfs.hh
+  EosAuthOfsFile.cc EosAuthOfsFile.hh
+  EosAuthOfsDirectory.cc EosAuthOfsDirectory.hh)
 
-  install(TARGETS EosAuthOfs EosAuthProto
-          LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-	  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-          ARCHIVE DESTINATION ${LIB_INSTALL_DIR})
+target_link_libraries(
+  EosAuthOfs
+  eosCommon
+  EosAuthProto
+  ${ZMQ_LIBRARIES}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY})
 
-endif(PROTOBUF_FOUND)
+set_target_properties(
+  EosAuthOfs EosAuthProto
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  INTERFACE_LINK_LIBRARIES "")
 
+install(
+  TARGETS EosAuthOfs EosAuthProto
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

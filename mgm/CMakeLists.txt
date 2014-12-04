@@ -21,163 +21,190 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ 
-		 ${CMAKE_CURRENT_SOURCE_DIR}
-         ${XROOTD_INCLUDE_DIR} 
-         ${XROOTD_PRIVATE_INCLUDE_DIR} 
-         ${SPARSEHASH_INCLUDE_DIR} 
-         ${NCURSES_INCLUDE_DIR}
-         ${LDAP_INCLUDE_DIR}
-         ${Z_INCLUDE_DIR}
-		 ${ZMQ_INCLUDE_DIR}
-		 ${CMAKE_BINARY_DIR}/auth_plugin/)
+include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${Z_INCLUDE_DIRS}
+  ${ZMQ_INCLUDE_DIRS}
+  ${LDAP_INCLUDE_DIRS}
+  ${XROOTD_INCLUDE_DIRS}
+  ${NCURSES_INCLUDE_DIRS}
+  ${SPARSEHASH_INCLUDE_DIRS}
+  ${CMAKE_BINARY_DIR}/auth_plugin/)
 
-link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} 
-		  ${XROOTD_LIB_DIR}
-		  ${ZMQ_LIBRARIES}
-		  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
+#-------------------------------------------------------------------------------
+# XrdEosMgm library
+#-------------------------------------------------------------------------------
+add_library(
+  XrdEosMgm MODULE
+  Access.cc
+  ConfigEngine.cc
+  GeoTreeEngine.cc
+  Messaging.cc
+  VstMessaging.cc
+  Policy.cc
+  ProcInterface.cc
+  proc/proc_fs.cc
+  proc/admin/Access.cc
+  proc/admin/Config.cc
+  proc/admin/Debug.cc
+  proc/admin/Fs.cc
+  proc/admin/Fsck.cc
+  proc/admin/Group.cc
+  proc/admin/GeoSched.cc
+  proc/admin/Io.cc
+  proc/admin/Node.cc
+  proc/admin/Ns.cc
+  proc/admin/Quota.cc
+  proc/admin/Rtlog.cc
+  proc/admin/Space.cc
+  proc/admin/Transfer.cc
+  proc/admin/Vid.cc
+  proc/admin/Vst.cc
+  proc/user/Attr.cc
+  proc/user/Archive.cc
+  proc/user/Cd.cc
+  proc/user/Chmod.cc
+  proc/user/Chown.cc
+  proc/user/File.cc
+  proc/user/Fileinfo.cc
+  proc/user/Find.cc
+  proc/user/Fuse.cc
+  proc/user/Ls.cc
+  proc/user/Map.cc
+  proc/user/Mkdir.cc
+  proc/user/Motd.cc
+  proc/user/Quota.cc
+  proc/user/Recycle.cc
+  proc/user/Rm.cc
+  proc/user/Rmdir.cc
+  proc/user/Version.cc
+  proc/user/Who.cc
+  proc/user/Whoami.cc
+  Quota.cc
+  Scheduler.cc
+  Vid.cc
+  FsView.cc
+  VstView.cc
+  XrdMgmOfsConfigure.cc
+  XrdMgmOfsFile.cc
+  XrdMgmOfsDirectory.cc
+  XrdMgmOfs.cc
+  DrainJob.cc
+  Balancer.cc
+  FileSystem.cc
+  Egroup.cc
+  Acl.cc
+  Stat.cc
+  Iostat.cc
+  Fsck.cc
+  txengine/TransferEngine.cc
+  txengine/TransferFsDB.cc
+  ZMQ.cc
+  Master.cc
+  Recycle.cc
+  LRU.cc
+  http/HttpServer.cc
+  http/HttpHandler.cc
+  http/s3/S3Handler.cc
+  http/s3/S3Store.cc
+  http/webdav/WebDAVHandler.cc
+  http/webdav/WebDAVResponse.cc
+  http/webdav/PropFindResponse.cc
+  Converter.cc
+  GroupBalancer.cc
+  GeoBalancer.cc
+  geotree/SchedulingTreeTest.cc
+  geotree/SchedulingSlowTree.cc
+  geotree/SchedulingTreeCommon.cc
+  ${STAT_SRCS}     ${STAT_HDRS})
 
-add_library (XrdEosMgm MODULE
-            Access.cc         
-            ConfigEngine.cc
-            GeoTreeEngine.cc
-            Messaging.cc
-            VstMessaging.cc
-            Policy.cc  
-            ProcInterface.cc
-            proc/proc_fs.cc
-            proc/admin/Access.cc
-            proc/admin/Config.cc
-            proc/admin/Debug.cc
-            proc/admin/Fs.cc
-            proc/admin/Fsck.cc
-            proc/admin/Group.cc
-            proc/admin/GeoSched.cc
-            proc/admin/Io.cc
-            proc/admin/Node.cc
-            proc/admin/Ns.cc
-            proc/admin/Quota.cc
-            proc/admin/Rtlog.cc
-            proc/admin/Space.cc
-            proc/admin/Transfer.cc
-            proc/admin/Vid.cc
-            proc/admin/Vst.cc
-            proc/user/Attr.cc
-	        proc/user/Archive.cc
-            proc/user/Cd.cc
-            proc/user/Chmod.cc
-            proc/user/Chown.cc
-            proc/user/File.cc 
-            proc/user/Fileinfo.cc
-            proc/user/Find.cc
-            proc/user/Fuse.cc
-            proc/user/Ls.cc
-            proc/user/Map.cc
-            proc/user/Mkdir.cc
-            proc/user/Motd.cc
-            proc/user/Quota.cc
-            proc/user/Recycle.cc
-            proc/user/Rm.cc
-            proc/user/Rmdir.cc
-            proc/user/Version.cc
-            proc/user/Who.cc
-            proc/user/Whoami.cc
-            Quota.cc
-            Scheduler.cc
-            Vid.cc
-            FsView.cc
-            VstView.cc
-            XrdMgmOfsConfigure.cc
-            XrdMgmOfsFile.cc
-            XrdMgmOfsDirectory.cc
-            XrdMgmOfs.cc
-            DrainJob.cc
-            Balancer.cc
-            FileSystem.cc
-            Egroup.cc
-            Acl.cc
-            Stat.cc
-            Iostat.cc
-            Fsck.cc
-            txengine/TransferEngine.cc
-            txengine/TransferFsDB.cc
-            ZMQ.cc
-            Master.cc
-            Recycle.cc
-            LRU.cc
-            http/HttpServer.cc
-            http/HttpHandler.cc
-            http/s3/S3Handler.cc
-            http/s3/S3Store.cc
-            http/webdav/WebDAVHandler.cc
-            http/webdav/WebDAVResponse.cc
-            http/webdav/PropFindResponse.cc
-            Converter.cc
-            GroupBalancer.cc
-            GeoBalancer.cc
-            geotree/SchedulingTreeTest.cc
-            geotree/SchedulingSlowTree.cc
-            geotree/SchedulingTreeCommon.cc
-            ${STAT_SRCS}     ${STAT_HDRS})
-            
-add_dependencies(XrdEosMgm auth_plugin_protobuf_headers)
+#-------------------------------------------------------------------------------
+# Add dependecy to EosAuthProto so we guarantee that the protocol buffer files
+# are generated when we try to build XrdEosMgm
+#-------------------------------------------------------------------------------
+add_dependencies(XrdEosMgm EosAuthProto)
 
-target_link_libraries( XrdEosMgm 
-                       XrdCl                XrdPosix 
-                       XrdUtils
-                       eosCommon            eosCommonServer
-                       eosNamespace-Static  eosCapability-Static
-                       XrdMqClient-Static   EosAuthProto
-                       crypto               dl
-		       ${NCURSES_LIBRARIES} ${LDAP_LIBRARIES}
-		       ${ZMQ_LIBRARIES}     ${Z_LIBRARIES}
-		       ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(
+  XrdEosMgm
+  eosCommon
+  eosCommonServer
+  eosNamespace-Static
+  eosCapability-Static
+  XrdMqClient-Static
+  EosAuthProto
+  ${Z_LIBRARY}
+  ${ZMQ_LIBRARIES}
+  ${LDAP_LIBRARIES}
+  ${UUID_LIBRARIES}
+  ${NCURSES_LIBRARY}
+  ${GLIBC_DL_LIBRARY}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_POSIX_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
 
+#-------------------------------------------------------------------------------
+# Create executables for testing the scheduling part
+#-------------------------------------------------------------------------------
+add_executable(testmgmview FsView.cc test/MgmViewTest.cc)
 
-add_executable ( testmgmview
-           FsView.cc  
-          test/MgmViewTest.cc
-)
+add_executable(
+  testschedulingtree
+  geotree/SchedulingTreeTest.cc
+  geotree/SchedulingSlowTree.cc
+  geotree/SchedulingTreeCommon.cc)
 
+target_link_libraries(
+  testmgmview
+  eosCommon
+  eosCommonServer
+  XrdMqClient-Static
+  eosCapability-Static
+  ${Z_LIBRARY}
+  ${ZMQ_LIBRARIES}
+  ${UUID_LIBRARIES}
+  ${NCURSES_LIBRARY}
+  ${GLIBC_DL_LIBRARY}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable ( testschedulingtree
-           geotree/SchedulingTreeTest.cc
-	   geotree/SchedulingSlowTree.cc
-           geotree/SchedulingTreeCommon.cc
-)
+target_link_libraries(
+  testschedulingtree
+  eosCommon
+  eosCommonServer
+  ${Z_LIBRARY}
+  ${ZMQ_LIBRARIES}
+  ${UUID_LIBRARIES}
+  ${NCURSES_LIBRARY}
+  ${GLIBC_DL_LIBRARY}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
 
-
-target_link_libraries ( testmgmview 
-                        XrdCl             XrdUtils
-                        eosCommon         eosCommonServer
-                        XrdMqClient-Static eosCapability-Static
-                        crypto            ${NCURSES_LIBRARIES}
-                        dl
-                        ${ZMQ_LIBRARIES}  ${Z_LIBRARIES}
-                        ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-
-target_link_libraries ( testschedulingtree 
-                        XrdCl             XrdUtils
-                        eosCommon         eosCommonServer
-                        crypto            ${NCURSES_LIBRARIES}
-                        dl
-                        ${ZMQ_LIBRARIES}  ${Z_LIBRARIES}
-                        ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-
-set_target_properties ( testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST" )
+set_target_properties(testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST")
 
 if (Linux)
-  set_target_properties (XrdEosMgm PROPERTIES
-    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+  set_target_properties(
+    XrdEosMgm
+    PROPERTIES
+    VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
-    CLEAN_DIRECT_OUTPUT 1
-  )
+    INTERFACE_LINK_LIBRARIES "")
 endif(Linux)
 
-install ( TARGETS XrdEosMgm 
-          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-)
+install(
+  TARGETS XrdEosMgm
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
-INSTALL ( FILES eos-repair-tool DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR} PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )
+install(
+  PROGRAMS eos-repair-tool
+  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
+  PERMISSIONS OWNER_READ OWNER_EXECUTE
+	      GROUP_READ GROUP_EXECUTE
+	      WORLD_READ WORLD_EXECUTE)

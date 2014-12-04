@@ -21,202 +21,175 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( 
-		     ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd
-                     ${CMAKE_BINARY_DIR}/xrootd/src/include/
-		     ../ ${XROOTD_INCLUDE_DIR} 
-		     ${SPARSEHASH_INCLUDE_DIR} 
-		     ${NCURSES_INCLUDE_DIR}
-		     ${Z_INCLUDE_DIR}
-)
-
-set_source_generating_rules()
-
-if(LEVELDB_FOUND)
 include_directories(
-                     ${LEVELDB_INCLUDE_DIR}
-)
-endif(LEVELDB_FOUND)
+  ${CMAKE_SOURCE_DIR}
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${Z_INCLUDE_DIRS}
+  ${XROOTD_INCLUDE_DIRS}
+  ${NCURSES_INCLUDE_DIRS}
+  ${LEVELDB_INCLUDE_DIRS}
+  ${SPARSEHASH_INCLUDE_DIRS})
 
-link_directories( 
-          ${PROTOBUF_LIBRARIES}  
-		  ${CMAKE_INSTALL_FULL_LIBDIR}
-		  ${XROOTD_LIB_DIR} 
-		  ${LEVELDB_LIB_DIR}
-)
+#-------------------------------------------------------------------------------
+# Generate protocol buffer files
+#-------------------------------------------------------------------------------
+PROTOBUF_GENERATE_CPP(DBMAPTEST_SRCS DBMAPTEST_HDRS PROTOFILES dbmaptest/test.proto)
+set_source_files_properties(
+  ${DBMAPTEST_SRCS}
+  ${DBMAPTEST_HDRS}
+  PROPERTIES GENERATED 1)
 
-add_library (eosCommon SHARED 
-	    Fmd.cc
-	    Logging.cc
-	    Mapping.cc
-	    Statfs.cc
-	    SymKeys.cc
-	    GlobalConfig.cc
-            Attr.cc
-            Report.cc
-	    ZMQ.cc
-	    StringTokenizer.cc
-            StringConversion.cc
-	    CommentLog.cc
-	    RWMutex.cc
-	    )
+#-------------------------------------------------------------------------------
+# eosCommon library
+#-------------------------------------------------------------------------------
+set(
+  EOSCOMMON_SRCS
+  Fmd.cc
+  Logging.cc
+  Mapping.cc
+  Statfs.cc
+  SymKeys.cc
+  GlobalConfig.cc
+  Attr.cc
+  Report.cc
+  ZMQ.cc
+  StringTokenizer.cc
+  StringConversion.cc
+  CommentLog.cc
+  RWMutex.cc)
 
-if( MacOSX )
-else( MacOSX )
-add_library (eosCommon-Static STATIC
-	    Fmd.cc
-	    Logging.cc
-	    Mapping.cc
-	    Statfs.cc
-	    SymKeys.cc
-	    GlobalConfig.cc
-            Attr.cc
-            Report.cc
-	    StringTokenizer.cc
-            StringConversion.cc
-	    ZMQ.cc
-	    CommentLog.cc
-	    RWMutex.cc
-)
+add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
 
-add_executable ( dbmaptestfunc
-       dbmaptest/DbMapTestFunc.cc
-       dbmaptest/test.pb.cc
-)
-add_executable ( dbmaptestburn
-       dbmaptest/DbMapTestBurn.cc
-)
+if(Linux)
+  add_library(eosCommon-Static STATIC ${EOSCOMMON_SRCS})
+endif()
 
-add_executable ( mutextest
-       mutextest/RWMutexTest.cc
-)
+add_library(
+  eosCommonServer SHARED
+  FileSystem.cc
+  TransferQueue.cc
+  TransferJob.cc
+  sqlite/sqlite3.c
+  DbMap.cc
+  DbMapSqlite.cc
+  DbMapLevelDb.cc
+  DbMapCommon.cc
+  http/HttpServer.cc
+  http/HttpRequest.cc
+  http/HttpResponse.cc
+  http/s3/S3Handler.cc
+  stringencoders/modp_numtoa.c)
 
-endif( MacOSX)
+if(MacOSX)
+  target_link_libraries(
+    eosCommon
+    XrdMqClient
+    ${Z_LIBRARY}
+    ${UUID_LIBRARIES}
+    ${ATTR_LIBRARIES}
+    ${NCURSES_LIBRARY}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${OPENSSL_CRYPTO_LIBRARY})
 
-add_library (eosCommonServer SHARED 
- 	    FileSystem.cc
-            TransferQueue.cc
-            TransferJob.cc
-            sqlite/sqlite3.c
-            DbMap.cc
-            DbMapSqlite.cc
-            DbMapLevelDb.cc
-            DbMapCommon.cc
-            http/HttpServer.cc
-            http/HttpRequest.cc
-            http/HttpResponse.cc
-            http/s3/S3Handler.cc
-            stringencoders/modp_numtoa.c
-            )
-if( MacOSX )
-target_link_libraries ( eosCommon 
-                        XrdMqClient 
-                        XrdUtils 
-                        XrdCl 
-                        crypto 
-                        rt
-                        ${UUID_LIBRARIES} 
-                        ${NCURSES_LIBRARIES}
-                        ${Z_LIBRARIES} 
-                        ${ATTR_LIBRARIES} )
+  target_link_libraries(
+    eosCommonServer
+    eosCommon
+    ${Z_LIBRARY}
+    ${UUID_LIBRARIES}
+    ${ATTR_LIBRARIES}
+    ${NCURSES_LIBRARY}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${OPENSSL_CRYPTO_LIBRARY})
 
-target_link_libraries ( eosCommonServer 
-		        eosCommon
-                        XrdMqClient 
-                        XrdUtils 
-                        XrdCl 
-                        crypto 
-                        ${UUID_LIBRARIES} 
-                        ${NCURSES_LIBRARIES}
-                        ${Z_LIBRARIES} 
-                        ${ATTR_LIBRARIES}  )
-else( MacOSX )
-target_link_libraries ( eosCommon 
-                        XrdMqClient 
-                        XrdUtils 
-                        XrdCl 
-                        crypto 
-                        rt
-                        ${UUID_LIBRARIES} 
-                        ${NCURSES_LIBRARIES}
-                        ${Z_LIBRARIES} 
-                        ${ATTR_LIBRARIES} )
+else()
+  target_link_libraries(
+    eosCommon
+    XrdMqClient
+    ${Z_LIBRARY}
+    ${UUID_LIBRARIES}
+    ${ATTR_LIBRARIES}
+    ${NCURSES_LIBRARY}
+    ${GLIBC_RT_LIBRARY}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${OPENSSL_CRYPTO_LIBRARY})
 
-if( CLIENT )
-else( CLIENT )
-target_link_libraries ( eosCommonServer 
-                        XrdMqClient 
-                        XrdUtils 
-                        XrdCl 
-                        crypto 
-                        rt
-                        ${UUID_LIBRARIES} 
-                        ${NCURSES_LIBRARIES}
-                        ${Z_LIBRARIES} 
-                        ${ATTR_LIBRARIES} )
+   if(NOT CLIENT)
+     target_link_libraries(
+       eosCommonServer
+       XrdMqClient
+       ${Z_LIBRARY}
+       ${UUID_LIBRARIES}
+       ${ATTR_LIBRARIES}
+       ${NCURSES_LIBRARY}
+       ${GLIBC_RT_LIBRARY}
+       ${XROOTD_CL_LIBRARY}
+       ${XROOTD_UTILS_LIBRARY}
+       ${OPENSSL_CRYPTO_LIBRARY})
+   endif()
 
-endif( CLIENT )
-target_link_libraries ( eosCommon-Static 
-                        XrdMqClient-Static 
-                        XrdUtils 
-                        XrdCl 
-                        crypto 
-                        ${UUID_LIBRARIES} 
-                        ${NCURSES_LIBRARIES}
-                        ${Z_LIBRARIES} 
-                        ${ATTR_LIBRARIES}  )
+   target_link_libraries(
+     eosCommon-Static
+     XrdMqClient-Static
+     ${Z_LIBRARY}
+     ${UUID_LIBRARIES}
+     ${ATTR_LIBRARIES}
+     ${NCURSES_LIBRARY}
+     ${XROOTD_CL_LIBRARY}
+     ${XROOTD_UTILS_LIBRARY}
+     ${OPENSSL_CRYPTO_LIBRARY})
+endif()
 
+target_link_libraries(eosCommonServer ${LEVELDB_LIBRARIES})
 
-endif( MacOSX )
-
-if( CLIENT )
-else( CLIENT )
-if(LEVELDB_FOUND)
-target_link_libraries ( eosCommonServer ${LEVELDB_LIBRARIES} ) 
-endif(LEVELDB_FOUND)
-
-if (MICROHTTPD_FOUND)
-target_link_libraries ( eosCommonServer ${MICROHTTPD_LIBRARIES} ) 
+if(MICROHTTPD_FOUND)
+  target_link_libraries(eosCommonServer ${MICROHTTPD_LIBRARIES})
 endif(MICROHTTPD_FOUND)
 
-target_link_libraries ( dbmaptestfunc eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT} ${PROTOBUF_LIBRARIES} )
-target_link_libraries ( dbmaptestburn eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries ( mutextest eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 
-endif( CLIENT )
 
-if (Linux) 
-  set_target_properties ( 
-    eosCommon PROPERTIES
-    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+#-------------------------------------------------------------------------------
+# Create helper executables
+#-------------------------------------------------------------------------------
+add_executable(dbmaptestburn dbmaptest/DbMapTestBurn.cc)
+add_executable(mutextest mutextest/RWMutexTest.cc)
+add_executable(
+  dbmaptestfunc
+  dbmaptest/DbMapTestFunc.cc
+  ${DBMAPTEST_SRCS}
+  ${DBMAPTEST_HDRS})
+
+target_link_libraries(dbmaptestburn eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(mutextest eosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(
+  dbmaptestfunc
+  eosCommonServer
+  eosCommon
+  ${PROTOBUF_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
+
+if (Linux)
+  set_target_properties(eosCommon-Static PROPERTIES COMPILE_FLAGS "-fPIC")
+
+  set_target_properties(
+    eosCommon
+    PROPERTIES
+    VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
-    CLEAN_DIRECT_OUTPUT 1
-  )
-  set_target_properties ( eosCommon-Static PROPERTIES COMPILE_FLAGS "-fPIC" )
+    CLEAN_DIRECT_OUTPUT 1)
 
-  set_target_properties ( 
+  set_target_properties(
     eosCommonServer PROPERTIES
-    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+    VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
     CLEAN_DIRECT_OUTPUT 1
-    COMPILE_FLAGS -DSQLITE_NO_SYNC=1
-  )
-
+    COMPILE_FLAGS -DSQLITE_NO_SYNC=1)
 endif(Linux)
-  
-if (CLIENT)
-  
-install ( TARGETS eosCommon eosCommonServer
-          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-)
 
-else( CLIENT)
-
-install ( TARGETS eosCommon eosCommonServer
-          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-)
-endif( CLIENT )
+install(
+  TARGETS eosCommon eosCommonServer
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

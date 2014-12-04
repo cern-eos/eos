@@ -21,29 +21,41 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ${CPPUNIT_INCLUDE_DIRS} )
+include_directories(${CPPUNIT_INCLUDE_DIRS})
 
-add_library (eosNamespaceTests SHARED
-      ChangeLogContainerMDSvcTest.cc
-      ChangeLogFileMDSvcTest.cc
-      ChangeLogTest.cc
-      FileSystemViewTest.cc
-      HierarchicalViewTest.cc
-      HierarchicalSlaveTest.cc
-      LogCompactingTest.cc
-      OtherTests.cc
-      TestHelpers.hh
-      TestHelpers.cc
-)
+#-------------------------------------------------------------------------------
+# eosNamespaceTests library
+#-------------------------------------------------------------------------------
+add_library(
+  eosNamespaceTests SHARED
+  ChangeLogContainerMDSvcTest.cc
+  ChangeLogFileMDSvcTest.cc
+  ChangeLogTest.cc
+  FileSystemViewTest.cc
+  HierarchicalViewTest.cc
+  HierarchicalSlaveTest.cc
+  LogCompactingTest.cc
+  OtherTests.cc
+  TestHelpers.hh
+  TestHelpers.cc)
 
-target_link_libraries( eosNamespaceTests ${CPPUNIT_LIBRARIES} eosNamespace)
+target_link_libraries(eosNamespaceTests eosNamespace ${CPPUNIT_LIBRARIES})
 
+#-------------------------------------------------------------------------------
+# text-runner and ns-benchmark executables
+#-------------------------------------------------------------------------------
 add_executable(text-runner TextRunner.cc)
-target_link_libraries( text-runner eosNamespaceTests dl)
+target_link_libraries(text-runner eosNamespaceTests ${GLIBC_DL_LIBRARY})
 
-add_executable( ns-benchmark NSBenchmark.cc)
-target_link_libraries( ns-benchmark eosNamespace )
+add_executable(ns-benchmark NSBenchmark.cc)
+target_link_libraries(ns-benchmark eosNamespace)
 
 if (Linux)
-  set_target_properties( eosNamespaceTests PROPERTIES COMPILE_FLAGS -fPIC )
+  set_target_properties(
+    eosNamespaceTests
+    PROPERTIES
+    VERSION ${VERSION}
+    SOVERSION ${VERSION_MAJOR}
+    INTERFACE_LINK_LIBRARIES ""
+    COMPILE_FLAGS -fPIC)
 endif (Linux)

@@ -21,34 +21,21 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ ${XROOTD_INCLUDE_DIR} )
-link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}/ ${XROOTD_LIB_DIR})
+include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${XROOTD_INCLUDE_DIRS})
 
-add_library (XrdEosAuth MODULE
-	    XrdCapability.cc
-	    XrdCapability.hh
-	    )
+#-------------------------------------------------------------------------------
+# eosCapability-Static library
+#-------------------------------------------------------------------------------
+add_library(
+  eosCapability-Static STATIC
+  XrdCapability.cc  XrdCapability.hh)
 
-add_library (eosCapability-Static STATIC
-	    XrdCapability.cc
-	    XrdCapability.hh
-	    )
-
-target_link_libraries (XrdEosAuth XrdUtils eosCommon)
-
-target_link_libraries (eosCapability-Static)
-
-if (Linux)
-  set_target_properties (eosCapability-Static XrdEosAuth PROPERTIES
-    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-    SOVERSION ${VERSION_MAJOR}
-    CLEAN_DIRECT_OUTPUT 1
-    COMPILE_FLAGS -fPIC
-  )
-endif(Linux)
-
-install ( TARGETS XrdEosAuth
-          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-)
+set_target_properties(
+  eosCapability-Static
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  INTERFACE_LINK_LIBRARIES ""
+  COMPILE_FLAGS -fPIC)

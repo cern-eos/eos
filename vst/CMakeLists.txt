@@ -21,47 +21,49 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ 
-                     ./
-                     ${XROOTD_INCLUDE_DIR} 
-                     ${XROOTD_PRIVATE_INCLUDE_DIR}
-                     ${SPARSEHASH_INCLUDE_DIR}
-                     ${NCURSES_INCLUDE_DIR}
-		     ${Z_INCLUDE_DIR}
-)
+include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${Z_INCLUDE_DIRS}
+  ${XROOTD_INCLUDE_DIRS}
+  ${NCURSES_INCLUDE_DIRS}
+  ${SPARSEHASH_INCLUDE_DIRS})
 
-link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
-                  ${XROOTD_LIB_DIR} )
+#-------------------------------------------------------------------------------
+# XrdEosVst library
+#-------------------------------------------------------------------------------
+add_library(
+  XrdEosVst MODULE
+  XrdVstOfs.cc
+  XrdVstOfs.hh
+  XrdVstOfsFile.cc
+  XrdVstOfsDirectory.cc)
 
-add_library( XrdEosVst MODULE
-	     XrdVstOfs.cc                   XrdVstOfs.hh
-        XrdVstOfsFile.cc
-        XrdVstOfsDirectory.cc
-)
+target_link_libraries(
+  XrdEosVst
+  eosCommon
+  eosCommonServer
+  XrdMqClient-Static
+  ${Z_LIBRARY}
+  ${RT_LIBRARIES}
+  ${UUID_LIBRARIES}
+  ${ATTR_LIBRARIES}
+  ${NCURSES_LIBRARY}
+  ${GLIBC_DL_LIBRARY}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
 
+set_target_properties(
+  XrdEosVst
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  INTERFACE_LINK_LIBRARIES "")
 
-target_link_libraries( XrdEosVst 
-		       eosCommon               eosCommonServer
-		       XrdMqClient-Static      XrdCl	
-		       XrdUtils
-		       crypto                  ${NCURSES_LIBRARIES}
-		       dl                      ${Z_LIBRARIES}  
-		       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
-		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
-)
-
-
-if (Linux)
-  set_target_properties (XrdEosVst PROPERTIES
-    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-    SOVERSION ${VERSION_MAJOR}
-    CLEAN_DIRECT_OUTPUT 1
-  )
-endif(Linux)
-
-
-install( TARGETS XrdEosVst
-       	 LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-         RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-         ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+install(
+  TARGETS XrdEosVst
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
 )

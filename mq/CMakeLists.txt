@@ -21,100 +21,110 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ 
-		     ${XROOTD_INCLUDE_DIR} 
-		     ${XROOTD_PRIVATE_INCLUDE_DIR}
-		     ${NCURSES_INCLUDE_DIR}
-)
+include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${XROOTD_INCLUDE_DIRS}
+  ${NCURSES_INCLUDE_DIRS})
 
-link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}/ ${XROOTD_LIB_DIR})
+#-------------------------------------------------------------------------------
+# XrdMqClient library
+#-------------------------------------------------------------------------------
+set(
+  XRDMQCLIENT_SRCS
+  XrdMqOfs.hh
+  XrdMqRWMutex.hh
+  XrdMqTiming.hh
+  XrdMqStringConversion.hh
+  XrdMqClient.cc        XrdMqClient.hh
+  XrdMqMessage.cc       XrdMqMessage.hh
+  XrdMqMessaging.cc     XrdMqMessaging.hh
+  XrdMqSharedObject.cc  XrdMqSharedObject.hh
+  ${CMAKE_SOURCE_DIR}/common/Logging.cc)
 
-add_library (XrdMqClient SHARED 
-	     XrdMqClient.hh
-	     XrdMqMessage.hh
-	     XrdMqMessaging.hh
-	     XrdMqOfs.hh
-	     XrdMqRWMutex.hh
-	     XrdMqSharedObject.hh
-	     XrdMqStringConversion.hh
-	     XrdMqTiming.hh
-	     XrdMqClient.cc
-	     XrdMqMessage.cc
-	     XrdMqMessaging.cc
-	     XrdMqSharedObject.cc 
-             ../common/Logging.cc)
+add_library(XrdMqClient SHARED ${XRDMQCLIENT_SRCS})
+add_library(XrdMqClient-Static STATIC ${XRDMQCLIENT_SRCS})
 
-add_library (XrdMqClient-Static STATIC
-	     XrdMqClient.hh
-	     XrdMqMessage.hh
-	     XrdMqMessaging.hh
-	     XrdMqOfs.hh
-	     XrdMqRWMutex.hh
-	     XrdMqSharedObject.hh
-	     XrdMqStringConversion.hh
-	     XrdMqTiming.hh
-	     XrdMqClient.cc
-	     XrdMqMessage.cc
-	     XrdMqMessaging.cc
-	     XrdMqSharedObject.cc 
-             ../common/Logging.cc)
+target_link_libraries(
+  XrdMqClient
+  ${UUID_LIBRARIES}
+  ${NCURSES_LIBRARY}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY})
 
-add_library (XrdMqOfs MODULE
-	    XrdMqOfs.cc 
-	    XrdMqOfsFSctl.cc 
-	    XrdMqOfs.hh 
-	    XrdMqMessage.cc 
-	    XrdMqMessage.hh )
+#-------------------------------------------------------------------------------
+# XrdMqOfs library
+#-------------------------------------------------------------------------------
+set(
+ XRDMQOFS_SRCS
+ XrdMqOfsFSctl.cc
+ XrdMqOfs.cc	   XrdMqOfs.hh
+ XrdMqMessage.cc   XrdMqMessage.hh)
 
-add_library (XrdMqOfs-Static STATIC
-	    XrdMqOfs.cc 
-	    XrdMqOfsFSctl.cc 
-	    XrdMqOfs.hh 
-	    XrdMqMessage.cc 
-	    XrdMqMessage.hh )
+add_library(XrdMqOfs MODULE ${XRDMQOFS_SRCS})
+add_library(XrdMqOfs-Static STATIC ${XRDMQOFS_SRCS})
 
+target_link_libraries(
+  XrdMqOfs
+  ${UUID_LIBRARIES}
+  ${NCURSES_LIBRARY}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY})
 
-target_link_libraries (XrdMqClient XrdUtils  XrdCl crypto ${UUID_LIBRARIES} ${NCURSES_LIBRARIES})
-target_link_libraries (XrdMqOfs    XrdUtils  XrdCl crypto ${UUID_LIBRARIES} ${NCURSES_LIBRARIES})
+#-------------------------------------------------------------------------------
+# Other executables
+#-------------------------------------------------------------------------------
+add_executable(xrdmqclienttest   XrdMqClientTest.cc)
+add_executable(xrdmqdumper       XrdMqQueueDumper.cc)
+add_executable(xrdmqfeeder       XrdMqQueueFeeder.cc)
+add_executable(xrdmqinjection    XrdMqQueueInjection.cc)
+add_executable(xrdmqclientmaster XrdMqClientMaster.cc)
+add_executable(xrdmqclientworker XrdMqClientWorker.cc)
+add_executable(xrdmqcryptotest   XrdMqCryptoTest.cc)
+add_executable(xrdmqsharedobjectclient          XrdMqSharedObjectClient.cc)
+add_executable(xrdmqsharedobjectqueueclient     XrdMqSharedObjectQueueClient.cc)
+add_executable(xrdmqsharedobjectbroadcastclient XrdMqSharedObjectBroadCastClient.cc)
 
-#target_link_libraries (XrdMqClient-Static )
-#depends on XrdCl XrdSys XrdOuc  XrdOuc libcrypto.a libuuid.a libcurses.a dl ${CMAKE_THREAD_LIBS_INIT} )
+#-------------------------------------------------------------------------------
+# Libraries that all the above executables are linked against
+#-------------------------------------------------------------------------------
+set(
+  XRDMQ_OTHER_LINK_LIBRARIES
+  XrdMqClient
+  ${UUID_LIBRARIES}
+  ${Z_LIBRARY_STATIC}
+  ${GLIBC_DL_LIBRARY}
+  ${XROOTD_CL_LIBRARY}
+  ${XROTOD_UTILS_LIBRARY}
+  ${OPENSSL_LIBRARY_STATIC}
+  ${NCURSES_LIBRARY_STATIC}
+  ${CMAKE_THREAD_LIBS_INIT})
 
-
-add_executable ( xrdmqclienttest XrdMqClientTest.cc  )
-add_executable ( xrdmqdumper     XrdMqQueueDumper.cc )
-add_executable ( xrdmqfeeder     XrdMqQueueFeeder.cc )
-add_executable ( xrdmqinjection  XrdMqQueueInjection.cc )
-add_executable ( xrdmqclientmaster XrdMqClientMaster.cc )
-add_executable ( xrdmqclientworker XrdMqClientWorker.cc )
-add_executable ( xrdmqcryptotest   XrdMqCryptoTest.cc   )
-add_executable ( xrdmqsharedobjectclient XrdMqSharedObjectClient.cc )
-add_executable ( xrdmqsharedobjectqueueclient     XrdMqSharedObjectQueueClient.cc     )
-add_executable ( xrdmqsharedobjectbroadcastclient XrdMqSharedObjectBroadCastClient.cc )
-
-target_link_libraries ( xrdmqclienttest XrdMqClient XrdCl XrdUtils  libcrypto.a ${UUID_LIBRARIES} libcurses.a libz.a dl ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries ( xrdmqdumper     XrdMqClient XrdCl XrdUtils  libcrypto.a ${UUID_LIBRARIES} libcurses.a libz.a dl ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries ( xrdmqfeeder     XrdMqClient XrdCl XrdUtils  libcrypto.a ${UUID_LIBRARIES} libcurses.a libz.a dl ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries ( xrdmqinjection  XrdMqClient XrdCl XrdUtils  libcrypto.a ${UUID_LIBRARIES} libcurses.a libz.a dl ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries ( xrdmqclientmaster XrdMqClient XrdCl XrdUtils  libcrypto.a ${UUID_LIBRARIES} libcurses.a libz.a dl ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries ( xrdmqclientworker XrdMqClient XrdCl XrdUtils  libcrypto.a ${UUID_LIBRARIES} libcurses.a libz.a dl ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries ( xrdmqcryptotest   XrdMqClient XrdCl XrdUtils  libcrypto.a ${UUID_LIBRARIES} libcurses.a libz.a dl ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries ( xrdmqsharedobjectclient XrdMqClient XrdCl XrdUtils  libcrypto.a ${UUID_LIBRARIES} libcurses.a libz.a dl ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries ( xrdmqsharedobjectqueueclient XrdMqClient XrdCl XrdUtils  libcrypto.a ${UUID_LIBRARIES} libcurses.a libz.a dl ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries ( xrdmqsharedobjectbroadcastclient XrdMqClient XrdCl XrdUtils  libcrypto.a ${UUID_LIBRARIES} libcurses.a libz.a dl ${CMAKE_THREAD_LIBS_INIT} )
-
+target_link_libraries(xrdmqclienttest   ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqdumper       ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqfeeder       ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqinjection    ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqclientmaster ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqclientworker ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqcryptotest   ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqsharedobjectclient          ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqsharedobjectqueueclient     ${XRDMQ_OTHER_LINK_LIBRARIES})
+target_link_libraries(xrdmqsharedobjectbroadcastclient ${XRDMQ_OTHER_LINK_LIBRARIES})
 
 if (Linux)
-   set_target_properties (XrdMqClient XrdMqOfs PROPERTIES
-     VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-     SOVERSION ${VERSION_MAJOR}
-     CLEAN_DIRECT_OUTPUT 1
-    )
-   set_target_properties (XrdMqClient-Static PROPERTIES COMPILE_FLAGS -fPIC) 
+  set_target_properties(
+    XrdMqClient XrdMqOfs
+    PROPERTIES
+    VERSION ${VERSION}
+    SOVERSION ${VERSION_MAJOR}
+    INTERFACE_LINK_LIBRARIES "")
+
+  set_target_properties(XrdMqClient-Static PROPERTIES COMPILE_FLAGS -fPIC)
 endif(Linux)
 
-install ( TARGETS XrdMqClient XrdMqOfs xrdmqdumper
-          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-)
+install(
+  TARGETS XrdMqClient XrdMqOfs xrdmqdumper
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

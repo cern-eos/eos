@@ -62,5 +62,5 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT})
 
 install(
-  PROGRAMS eos-benchmark
-  DESTINATION ${CMAKE_INSTALL_SBINDIR})
+  TARGETS eos-benchmark
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

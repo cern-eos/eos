@@ -21,4 +21,9 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-INSTALL ( FILES eos-srm-used-bytes eos-srm-max-bytes eos-srm-checksum DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_SBINDIR} PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+install(
+  PROGRAMS eos-srm-used-bytes eos-srm-max-bytes eos-srm-checksum
+  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
+  PERMISSIONS OWNER_READ OWNER_EXECUTE
+	      GROUP_READ GROUP_EXECUTE
+	      WORLD_READ WORLD_EXECUTE)

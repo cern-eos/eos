@@ -21,9 +21,14 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-INSTALL ( DIRECTORY DESTINATION /var/eos )
-INSTALL ( DIRECTORY DESTINATION /var/log/eos )
-INSTALL ( DIRECTORY DESTINATION /var/www/eos/cgi-bin )
-INSTALL ( DIRECTORY DESTINATION /var/log/eos/httpd/ )
-INSTALL ( DIRECTORY DESTINATION /var/share/eos/ )
-INSTALL ( FILES eos/html/error.html DESTINATION /${CMAKE_INSTALL_LOCALSTATEDIR}/eos/html/ PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )
+install(DIRECTORY DESTINATION /var/eos)
+install(DIRECTORY DESTINATION /var/log/eos)
+install(DIRECTORY DESTINATION /var/www/eos/cgi-bin)
+install(DIRECTORY DESTINATION /var/log/eos/httpd/)
+install(DIRECTORY DESTINATION /var/share/eos/)
+
+install(
+  FILES
+  eos/html/error.html
+  DESTINATION /${CMAKE_INSTALL_LOCALSTATEDIR}/eos/html/
+  PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)

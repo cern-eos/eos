@@ -21,31 +21,34 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}
-                    ${CMAKE_SOURCE_DIR}
-		    ${XROOTD_INCLUDE_DIR}
-		    ${CPPUNIT_INCLUDE_DIRS})
+include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${XROOTD_INCLUDE_DIRS}
+  ${CPPUNIT_INCLUDE_DIRS})
 
-link_directories(${CPPUNIT_LIBRARY}
-		 ${XROOTD_LIB_DIR})
+#-------------------------------------------------------------------------------
+# EosAuthTests library
+#-------------------------------------------------------------------------------
+add_library(
+  EosAuthTests MODULE
+  AuthFsTest.cc
+  Namespace.hh
+  TestEnv.cc  TestEnv.hh)
 
-add_library(EosAuthTests MODULE
-			 AuthFsTest.cc  
-			 Namespace.hh
-			 TestEnv.cc        TestEnv.hh)
+target_link_libraries(
+  EosAuthTests
+  ${XROOTD_CL_LIBRARY}
+  ${CPPUNIT_LIBRARIES})
 
-target_link_libraries(EosAuthTests 
-		      XrdCl
-      	              ${CPPUNIT_LIBRARIES})
-if (Linux)
-  set_target_properties(EosAuthTests PROPERTIES
-                        VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
- 			SOVERSION ${VERSION_MAJOR}
-                        CLEAN_DIRECT_OUTPUT 1)
-endif(Linux)
+set_target_properties(
+  EosAuthTests
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  INTERFACE_LINK_LIBRARIES "")
 
-install(TARGETS EosAuthTests
-        LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        ARCHIVE DESTINATION ${LIB_INSTALL_DIR})
-
+install(
+  TARGETS EosAuthTests
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

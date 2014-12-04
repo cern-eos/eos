@@ -21,98 +21,85 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ${CMAKE_SOURCE_DIR}
-             ${PROTOBUF_INCLUDE_DIRS}
-		     ${XROOTD_INCLUDE_DIR} 
-		     ${XROOTD_PRIVATE_INCLUDE_DIR}	
-		     ${FUSE_INCLUDE_DIR} 
-		     ${SPARSEHASH_INCLUDE_DIR} )
+include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${CMAKE_BINARY_DIR}
+  ${PROTOBUF_INCLUDE_DIRS}
+  ${XROOTD_INCLUDE_DIRS}
+  ${FUSE_INCLUDE_DIRS}
+  ${SPARSEHASH_INCLUDE_DIRS})
 
-link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}
-		  ${XROOTD_LIB_DIR} )
-
-set_source_generating_rules()
 if(CPPUNIT_FOUND)
   add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
 
 add_subdirectory(FuseCache)
 
-add_executable ( 
- eosfsd
-                 eosfs.c
-                 xrdposix.cc            xrdposix.hh
-                 FuseCacheEntry.cc	FuseCacheEntry.hh
-                 ../fst/FmdBase.pb.h
-)
+#-------------------------------------------------------------------------------
+# eosfsd and eosd executables
+#-------------------------------------------------------------------------------
+add_executable(
+  eosfsd
+  eosfs.c
+  xrdposix.cc        xrdposix.hh
+  FuseCacheEntry.cc  FuseCacheEntry.hh)
 
-add_executable ( 
+add_executable(
   eosd
-                 eosd.c
-                 xrdposix.cc            xrdposix.hh
-                 FuseCacheEntry.cc	FuseCacheEntry.hh
-                 ../fst/FmdBase.pb.h
-)
-
-if( MacOSX )
-target_link_libraries ( 
-  eosfsd 
-  XrdCl
-  XrdUtils 
-  EosFstIo
-  FuseCache
-  eosCommon
-  ${FUSE_LIBRARY} 
-  ${CMAKE_THREAD_LIBS_INIT} )
-
-target_link_libraries ( 
-  eosd 
-  XrdCl
-  XrdUtils 
-  EosFstIo
-  FuseCache
-  eosCommon
-  ${FUSE_LIBRARY}
-  ${UUID_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT} )
-else( MacOSX )
-target_link_libraries ( 
-  eosfsd 
-		        XrdCl
-			XrdUtils 
-			EosFstIo-Static
-  FuseCache-Static
-			eosCommon-Static
-			${FUSE_LIBRARY} 
-			${CMAKE_THREAD_LIBS_INIT} )
-
-target_link_libraries ( 
-  eosd 
-     		      	XrdCl
-			XrdUtils 
-			EosFstIo-Static
-  FuseCache-Static
-			eosCommon-Static
-			${FUSE_LIBRARY}
-			${UUID_LIBRARIES}
-			${CMAKE_THREAD_LIBS_INIT} )
-endif( MacOSX )
+  eosd.c
+  xrdposix.cc        xrdposix.hh
+  FuseCacheEntry.cc  FuseCacheEntry.hh)
 
 if(MacOSX)
-  set_target_properties ( 
-    eosd eosfsd 
-    PROPERTIES 
-    COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE" )
+  target_link_libraries(
+    eosfsd
+    FuseCache
+    ${FUSE_LIBRARIES}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
+
+  target_link_libraries(
+    eosd
+    FuseCache
+    ${UUID_LIBRARIES}
+    ${FUSE_LIBRARIES}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UNTILS_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
+
+  set_target_properties(
+    eosd eosfsd
+    PROPERTIES
+    COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE")
 else(MacOSX)
-  set_target_properties ( 
-    eosd eosfsd 
-    PROPERTIES 
-    COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
+  target_link_libraries(
+    eosfsd
+    FuseCache-Static
+    ${FUSE_LIBRARIES}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
+
+  target_link_libraries(
+    eosd
+    FuseCache-Static
+    ${FUSE_LIBRARY}
+    ${UUID_LIBRARIES}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
+
+  set_target_properties(
+    eosd eosfsd
+    PROPERTIES
+    COMPILE_FLAGS -D_FILE_OFFSET_BITS=64)
 endif(MacOSX)
 
-install_programs( ${CMAKE_INSTALL_SBINDIR} FILES eosd )
+install(
+  TARGETS eosd
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
-install ( TARGETS eosfsd
-          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR} )
+install(
+  TARGETS eosfsd
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})

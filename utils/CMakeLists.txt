@@ -21,4 +21,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-INSTALL_PROGRAMS( /sbin FILES eos-log-clean eos-mgm-clean eos-fst-clean eos-uninstall )
+install(
+  PROGRAMS eos-log-clean eos-mgm-clean eos-fst-clean eos-uninstall
+  DESTINATION ${CMAKE_INSTALL_SBINDIR})

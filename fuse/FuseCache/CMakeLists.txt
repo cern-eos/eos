@@ -21,64 +21,51 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ${CMAKE_SOURCE_DIR}
-		     ${CMAKE_CURRENT_SOURCE_DIR}
-		     ${XROOTD_INCLUDE_DIR} )
+include_directories(${XROOTD_INCLUDE_DIRS})
 
-link_directories( ${XROOTD_LIB_DIR} )
-
-add_library( 
+#-------------------------------------------------------------------------------
+# FuseCache library
+#-------------------------------------------------------------------------------
+add_library(
   FuseCache SHARED
   FuseWriteCache.cc  FuseWriteCache.hh
   CacheEntry.cc      CacheEntry.hh
-  FileAbstraction.cc FileAbstraction.hh )
+  FileAbstraction.cc FileAbstraction.hh)
 
+set_target_properties(FuseCache PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
 
-set_target_properties( FuseCache PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
+if(MacOSX)
+  target_link_libraries(
+    FuseCache
+    eosCommon
+    EosFstIo
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
+else()
+  target_link_libraries(
+    FuseCache
+    eosCommon
+    EosFstIo-Static
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
 
-if( MacOSX )
-target_link_libraries( 
-  FuseCache 
-  XrdCl    
-  XrdUtils 
-  EosFstIo
-  eosCommon 
-  ${CMAKE_THREAD_LIBS_INIT} )
+  add_library(
+    FuseCache-Static STATIC
+    FuseWriteCache.cc  FuseWriteCache.hh
+    CacheEntry.cc      CacheEntry.hh
+    FileAbstraction.cc FileAbstraction.hh)
 
+  target_link_libraries(
+    FuseCache-Static
+    eosCommon-Static
+    EosFstIo-Static
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
 
-install ( TARGETS FuseCache
-          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR} )
-
-else( MacOSX )
-target_link_libraries( 
-  FuseCache 
-  XrdCl    
-  XrdUtils 
-  EosFstIo-Static 
-  eosCommon 
-  ${CMAKE_THREAD_LIBS_INIT} )
-
-add_library( 
-  FuseCache-Static STATIC
-  FuseWriteCache.cc  FuseWriteCache.hh
-  CacheEntry.cc      CacheEntry.hh
-  FileAbstraction.cc FileAbstraction.hh )
-
-target_link_libraries( 
-  FuseCache-Static 
-  XrdCl 
-  XrdUtils   
-  EosFstIo-Static 
-  eosCommon-Static 
-  ${CMAKE_THREAD_LIBS_INIT} )
-
-set_target_properties( FuseCache-Static PROPERTIES 
-                                       COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -fPIC")
-
-endif ( MacOSX )
-
-
-
-
+  set_target_properties(
+    FuseCache-Static
+    PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -fPIC")
+endif()
