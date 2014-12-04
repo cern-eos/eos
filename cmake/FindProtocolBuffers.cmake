@@ -14,9 +14,9 @@
 #   PROTOBUF_LIBRARIES - The protobuf library
 #
 # The following cache variables are also defined:
-#   PROTOBUF_LIBRARY - The protobuf library
-#   PROTOBUF_PROTOC_LIBRARY   - The protoc library
-#   PROTOBUF_INCLUDE_DIR - The include directory for protocol buffers
+#   PROTOBUF_LIBRARY           - The protobuf library
+#   PROTOBUF_PROTOC_LIBRARY    - The protoc library
+#   PROTOBUF_INCLUDE_DIR       - The include directory for protocol buffers
 #   PROTOBUF_PROTOC_EXECUTABLE - The protoc compiler
 #
 # These variables are read for additional hints:
