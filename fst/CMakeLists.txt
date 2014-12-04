@@ -124,11 +124,11 @@ add_library(
 target_link_libraries(
   EosFstIo-Static
   eosCommon-Static
-  ${RT_LIBRARIES}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${Z_LIBRARY_STATIC}
   ${GLIBC_DL_LIBRARY}
+  ${GLIBC_RT_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${NCURSES_LIBRARY_STATIC}
@@ -145,9 +145,9 @@ target_link_libraries(
   eosCommon
   XrdEosFst
   ${Z_LIBRARY}
-  ${RT_LIBRARIES}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
+  ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${NCURSES_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
@@ -228,9 +228,9 @@ target_link_libraries(
  eosCapability-Static
  XrdMqClient-Static
  ${Z_LIBRARY}
- ${RT_LIBRARIES}
  ${UUID_LIBRARIES}
  ${ATTR_LIBRARIES}
+ ${GLIBC_RT_LIBRARY}
  ${GLIBC_DL_LIBRARY}
  ${PROTOBUF_LIBRARY}
  ${NCURSES_LIBRARIES}
@@ -283,7 +283,7 @@ set_target_properties(eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64)
 
 target_link_libraries(
   FstLoad
-  ${RT_LIBRARIES}
+  ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
@@ -296,7 +296,7 @@ target_link_libraries(
   eos-scan-fs
   eosCommon
   eosCommonServer
-  ${RT_LIBRARIES}
+  ${GLIBC_RT_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${PROTOBUF_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})

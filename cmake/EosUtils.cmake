@@ -21,11 +21,10 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-
 #-------------------------------------------------------------------------------
 # Detect the operating system and define variables
 #-------------------------------------------------------------------------------
-function(EOS_defineOperatingSystem)
+function(EOS_DefineOperatingSystem)
   # Nothing detected yet
   set(Linux FALSE PARENT_SCOPE)
   set(MacOSX FALSE PARENT_SCOPE)
@@ -50,7 +49,7 @@ function(EOS_defineOperatingSystem)
     set(Windows TRUE PARENT_SCOPE)
     set(OSDEFINE "-D__WINDOWS__=1" PARENT_SCOPE)
   endif(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
-endfunction(EOS_defineOperatingSystem)
+endfunction(EOS_DefineOperatingSystem)
 
 
 #-------------------------------------------------------------------------------
@@ -71,7 +70,7 @@ macro(EOS_CheckOutOfSourceBuild)
   if(${srcdir} STREQUAL ${bindir})
     message(FATAL_ERROR "EOS cannot be built in-source! Please run cmake <src-dir> outside the source directory")
   endif(${srcdir} STREQUAL ${bindir})
-
 endmacro(EOS_CheckOutOfSourceBuild)
+
 
 set(LIBRARY_PATH_PREFIX "lib")

@@ -44,10 +44,10 @@ target_link_libraries(
   eosCommonServer
   XrdMqClient-Static
   ${Z_LIBRARY}
-  ${RT_LIBRARIES}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
   ${NCURSES_LIBRARY}
+  ${GLIBC_RT_LIBRARY}
   ${GLIBC_DL_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
