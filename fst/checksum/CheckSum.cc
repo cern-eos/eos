@@ -40,7 +40,7 @@
 #include <sys/mman.h>
 #ifndef __APPLE__
 #include <xfs/xfs.h>
-#endif
+#endif //__APPLE__
 /*----------------------------------------------------------------------------*/
 #include <XrdSys/XrdSysTimer.hh>
 

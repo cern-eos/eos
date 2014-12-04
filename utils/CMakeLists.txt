@@ -23,4 +23,4 @@
 
 install(
   PROGRAMS eos-log-clean eos-mgm-clean eos-fst-clean eos-uninstall
-  DESTINATION ${CMAKE_INSTALL_SBINDIR})
+  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

@@ -39,11 +39,12 @@
 #include "common/FileSystem.hh"
 #include "common/LayoutId.hh"
 #include "common/StringConversion.hh"
-
-#include "FmdBase.pb.h"
+#include "fst/FmdBase.pb.h"
 
 /*----------------------------------------------------------------------------*/
 EOSFSTNAMESPACE_BEGIN
+
+
 
 // ---------------------------------------------------------------------------
 //! In-memory entry struct

@@ -32,9 +32,9 @@
 #include<string>
 #include<common/DbMap.hh>
 #include<pthread.h>
-#include<common/dbmaptest/test.pb.h>
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include "dbmaptest/test.pb.h"
 
 #define NUM_THREADS     5
 #define STRING(x) STRING2(x)

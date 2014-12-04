@@ -67,8 +67,6 @@
 #include <list>
 #include <deque>
 #include <map>
-#include <google/sparsehash/sparsehashtable.h>
-#include <google/sparse_hash_set>
 #include <math.h>
 /*----------------------------------------------------------------------------*/
 
