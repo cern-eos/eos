@@ -101,9 +101,6 @@ rm -rf $RPM_BUILD_ROOT
 /usr/lib64/libeosCommonServer.so.%{version}
 /usr/lib64/libeosCommonServer.so.0
 /usr/lib64/libeosCommonServer.so
-/usr/lib64/libXrdEosAuth.so.%{version}
-/usr/lib64/libXrdEosAuth.so.0
-/usr/lib64/libXrdEosAuth.so
 /usr/lib64/libXrdEosFst.so.%{version}
 /usr/lib64/libXrdEosFst.so.0
 /usr/lib64/libXrdEosFst.so
