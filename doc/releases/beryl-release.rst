@@ -5,7 +5,7 @@
 
 Beryl Release Notes
 ===================
-``Version V0.3.77 Beryl-Aquamarine``
+``Version V0.3.78 Beryl-Aquamarine``
 
 Bug Fixes
 ---------
