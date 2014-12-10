@@ -31,7 +31,7 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
-#ifdef HAVE_ZMQ
+#ifdef HAVE_DEFAULT_ZMQ
 #include <zmq.hpp>
 #else
 #include "utils/zmq.hpp"

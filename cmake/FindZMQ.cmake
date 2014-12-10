@@ -26,9 +26,7 @@ else()
 
   # Set variable in case we are using our own ZMQ C++ bindings
   if("${ZMQ_CPP_INCLUDE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/utils")
-    set(ZMQ_CPP_DEFAULT 0)
-  else()
-    set(ZMQ_CPP_DEFAULT 1)
+    add_definitions(-DHAVE_DEFAULT_ZMQ)
   endif()
 
   find_library(

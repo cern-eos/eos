@@ -33,14 +33,6 @@ include_directories(
 
 
 #-------------------------------------------------------------------------------
-# If the ZMQ C++ bindings are from the default package then use them
-#-------------------------------------------------------------------------------
-if (ZMQ_CPP_DEFAULT)
-  add_definitions(-DHAVE_ZMQ)
-endif()
-
-
-#-------------------------------------------------------------------------------
 # Generate protocol buffer files
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(DBMAPTEST_SRCS DBMAPTEST_HDRS PROTOFILES dbmaptest/test.proto)
