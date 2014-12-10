@@ -41,6 +41,10 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "")
   set(CMAKE_BUILD_TYPE Debug)
 endif()
 
+include(EosUtils)
+include(GNUInstallDirs)
+include(FindPythonInterp)
+
 # Force /usr/ installation prefix
 set(CMAKE_INSTALL_PREFIX /usr)
 set(CMAKE_INSTALL_SYSCONFDIR /etc)
@@ -50,10 +54,6 @@ set(CMAKE_INSTALL_FULL_SBINDIR /usr/sbin)
 if(PREFIX)
   set(CMAKE_INSTALL_PREFIX ${PREFIX})
 endif(PREFIX)
-
-include(EosUtils)
-include(GNUInstallDirs)
-include(FindPythonInterp)
 
 #-------------------------------------------------------------------------------
 # Search for dependencies
