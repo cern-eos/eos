@@ -25,7 +25,7 @@ else()
     PATH_SUFFIXES include)
 
   # Set variable in case we are using our own ZMQ C++ bindings
-  if("${ZMQ_CPP_INCLUDE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/utils")
+  if(NOT "${ZMQ_CPP_INCLUDE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/utils")
     add_definitions(-DHAVE_DEFAULT_ZMQ)
   endif()
 
