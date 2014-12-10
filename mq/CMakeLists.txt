@@ -73,6 +73,8 @@ target_link_libraries(
 set_target_properties(
   XrdMqOfs
   PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES ""
   MACOSX_RPATH TRUE)
