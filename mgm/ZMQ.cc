@@ -22,6 +22,8 @@
  ************************************************************************/
 #include "mgm/ZMQ.hh"
 
+EOSMGMNAMESPACE_BEGIN
+
 /*----------------------------------------------------------------------------*/
 ZMQ::ZMQ (const char* URL) : eos::common::ZMQ (URL) { }
 
@@ -36,5 +38,4 @@ ZMQ::Process (zmq::socket_t &socket, zmq::message_t &request)
 }
 
 EOSMGMNAMESPACE_END
-#endif
 

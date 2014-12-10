@@ -43,4 +43,3 @@ public:
 EOSMGMNAMESPACE_END
 
 #endif
-#endif
