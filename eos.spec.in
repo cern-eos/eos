@@ -35,6 +35,8 @@ BuildRequires: protobuf-devel >= 2.3.0
 %if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
 BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static, sparsehash-devel
 BuildRequires: zeromq3 zeromq3-devel
+# This is for the zmq.hpp header file
+BuildRequires: zeromq-devel
 %else
 BuildRequires: gcc44, gcc44-c++, sparsehash
 BuildRequires: zeromq zeromq-devel
