@@ -28,6 +28,7 @@ include_directories(
   ${XROOTD_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
   ${LEVELDB_INCLUDE_DIRS}
+  ${ZMQ_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS})
 
 
@@ -74,6 +75,7 @@ if(MacOSX)
     eosCommon
     XrdMqClient
     ${Z_LIBRARY}
+    ${ZMQ_LIBRARIES}
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}
@@ -87,6 +89,7 @@ else()
     eosCommon
     XrdMqClient
     ${Z_LIBRARY}
+    ${ZMQ_LIBRARIES}
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}
@@ -147,6 +150,7 @@ else()
     eosCommon-Static
     XrdMqClient-Static
     ${Z_LIBRARY}
+    ${ZMQ_LIBRARIES}
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}

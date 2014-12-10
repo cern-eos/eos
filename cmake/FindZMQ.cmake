@@ -21,11 +21,11 @@ else()
     ZMQ_CPP_INCLUDE_DIR
     NAMES zmq.hpp
     HINTS ${ZMQ_ROOT_DIR}
-    PATHS ${CMAKE_SOURCE_DIR}/common
+    PATHS ${CMAKE_SOURCE_DIR}/utils
     PATH_SUFFIXES include)
 
   # Set variable in case we are using our own ZMQ C++ bindings
-  if("${ZMQ_CPP_INCLUDE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/common")
+  if("${ZMQ_CPP_INCLUDE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/utils")
     set(ZMQ_CPP_DEFAULT 0)
   else()
     set(ZMQ_CPP_DEFAULT 1)

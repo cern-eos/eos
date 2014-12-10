@@ -34,7 +34,7 @@
 #ifdef HAVE_ZMQ
 #include <zmq.hpp>
 #else
-#include "common/zmq.hpp"
+#include "utils/zmq.hpp"
 #endif
 /*----------------------------------------------------------------------------*/
 
