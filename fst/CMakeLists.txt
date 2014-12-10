@@ -51,6 +51,7 @@ set(FMDBASE_HDRS ${FMDBASE_HDRS} PARENT_SCOPE)
 #-------------------------------------------------------------------------------
 # EosFstOss library
 #-------------------------------------------------------------------------------
+
 add_library(
   EosFstOss MODULE
   XrdFstOss.cc XrdFstOss.hh
@@ -72,6 +73,7 @@ set_target_properties(
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   INTERFACE_LINK_LIBRARIES "")
+
 
 #-------------------------------------------------------------------------------
 # EosFstIo library
@@ -117,25 +119,6 @@ set(
   layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh)
 
 add_library(
-  EosFstIo-Static STATIC
-  ${EOSFSTIO_SRCS}
-  io/FileIoPlugin.hh  io/FileIoPlugin.cc)
-
-target_link_libraries(
-  EosFstIo-Static
-  eosCommon-Static
-  ${UUID_LIBRARIES}
-  ${ATTR_LIBRARIES}
-  ${Z_LIBRARY_STATIC}
-  ${GLIBC_DL_LIBRARY}
-  ${GLIBC_RT_LIBRARY}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${NCURSES_LIBRARY_STATIC}
-  ${OPENSSL_CRYPTO_LIBRARY_STATIC}
-  ${CMAKE_THREAD_LIBS_INIT})
-
-add_library(
   EosFstIo SHARED
   ${EOSFSTIO_SRCS}
   io/FileIoPlugin.hh  io/FileIoPlugin.cc)
@@ -154,6 +137,27 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
+
+if(Linux)
+  add_library(
+    EosFstIo-Static STATIC
+    ${EOSFSTIO_SRCS}
+    io/FileIoPlugin.hh  io/FileIoPlugin.cc)
+
+  target_link_libraries(
+    EosFstIo-Static
+    eosCommon-Static
+    ${UUID_LIBRARIES}
+    ${ATTR_LIBRARIES}
+    ${Z_LIBRARY_STATIC}
+    ${GLIBC_DL_LIBRARY}
+    ${GLIBC_RT_LIBRARY}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${NCURSES_LIBRARY_STATIC}
+    ${OPENSSL_CRYPTO_LIBRARY_STATIC}
+    ${CMAKE_THREAD_LIBS_INIT})
+endif()
 
 #-------------------------------------------------------------------------------
 # XrdEosFst library
@@ -215,31 +219,31 @@ set(
   #-----------------------------------------------------------------------------
   ${EOSFSTIO_SRCS})
 
-if (CLIENT)
-  add_library(XrdEosFst SHARED ${XRDEOSFST_SRCS})
-else()
-  add_library(XrdEosFst MODULE ${XRDEOSFST_SRCS})
-endif()
+add_library(XrdEosFst MODULE ${XRDEOSFST_SRCS})
 
 target_link_libraries(
- XrdEosFst
- eosCommon
- eosCommonServer
- eosCapability-Static
- XrdMqClient-Static
- ${Z_LIBRARY}
- ${UUID_LIBRARIES}
- ${ATTR_LIBRARIES}
- ${GLIBC_RT_LIBRARY}
- ${GLIBC_DL_LIBRARY}
- ${PROTOBUF_LIBRARY}
- ${NCURSES_LIBRARIES}
- ${XROOTD_CL_LIBRARY}
- ${XOORTD_UTILS_LIBRARY}
- ${OPENSSL_CRYPTO_LIBRARY}
- ${CMAKE_THREAD_LIBS_INIT})
+   XrdEosFst
+   eosCommon
+   eosCommonServer
+   eosCapability-Static
+   XrdMqClient-Static
+   ${Z_LIBRARY}
+   ${UUID_LIBRARIES}
+   ${ATTR_LIBRARIES}
+   ${GLIBC_RT_LIBRARY}
+   ${GLIBC_DL_LIBRARY}
+   ${PROTOBUF_LIBRARY}
+   ${NCURSES_LIBRARIES}
+   ${XROOTD_CL_LIBRARY}
+   ${XOORTD_UTILS_LIBRARY}
+   ${OPENSSL_CRYPTO_LIBRARY}
+   ${CMAKE_THREAD_LIBS_INIT})
 
-add_executable(FstLoad Load.cc tools/FstLoad.cc)
+#-------------------------------------------------------------------------------
+# eoscp executable 
+#-------------------------------------------------------------------------------
+add_executable(eoscp txqueue/eoscp.cc)
+set_target_properties(eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64)
 
 add_executable(
   eos-check-blockxs
@@ -268,7 +272,6 @@ add_executable(
   ${FMDBASE_SRCS}
   ${FMDBASE_HDRS})
 
-
 add_executable(
   eos-adler32
   tools/Adler32.cc
@@ -277,10 +280,8 @@ add_executable(
   checksum/crc32c.cc
   checksum/crc32ctables.cc)
 
-add_executable(eoscp txqueue/eoscp.cc)
 add_executable(eos-ioping tools/IoPing.cc)
-set_target_properties(eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64)
-
+add_executable(FstLoad Load.cc tools/FstLoad.cc)
 target_link_libraries(
   FstLoad
   ${GLIBC_RT_LIBRARY}
@@ -303,22 +304,24 @@ target_link_libraries(
 
 if(MacOSX)
   target_link_libraries(eoscp EosFstIo ${XROOTD_CL_LIBRARY})
+
+  set_target_properties(
+    EosFstIo XrdEosFst
+    PROPERTIES 
+    MACOSX_RPATH TRUE)
 else()
   target_link_libraries(eoscp EosFstIo-Static ${XROOT_CL_LIBRARY})
-endif()
+  set_target_properties(EosFstIo-Static PROPERTIES COMPILE_FLAGS "-fPIC")
 
-target_link_libraries(eos-ioping ${GLIBC_M_LIBRARY})
-
-if (Linux)
   set_target_properties(
     XrdEosFst
     PROPERTIES
     VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
     INTERFACE_LINK_LIBRARIES "")
-
-  set_target_properties(EosFstIo-Static PROPERTIES COMPILE_FLAGS "-fPIC")
 endif()
+
+target_link_libraries(eos-ioping ${GLIBC_M_LIBRARY})
 
 install(
   PROGRAMS
@@ -329,10 +332,6 @@ install(
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(
-  TARGETS eoscp
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
-
-install(
   TARGETS
   eos-ioping eos-adler32
   eos-check-blockxs eos-compute-blockxs eos-scan-fs
@@ -341,13 +340,15 @@ install(
 if (MacOSX)
   install(
     TARGETS
-    EosFstOss EosFstIo XrdEosFst
+    EosFstIo XrdEosFst eoscp
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 else()
   install(
     TARGETS
-    EosFstOss XrdEosFst
+    EosFstOss XrdEosFst eoscp
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 endif()

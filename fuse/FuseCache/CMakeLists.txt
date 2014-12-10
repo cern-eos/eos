@@ -42,6 +42,11 @@ if(MacOSX)
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
+
+  set_target_properties(
+    FuseCache
+    PROPERTIES
+    MACOSX_RPATH TRUE)
 else()
   target_link_libraries(
     FuseCache

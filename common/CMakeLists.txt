@@ -60,26 +60,6 @@ set(
 
 add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
 
-if(Linux)
-  add_library(eosCommon-Static STATIC ${EOSCOMMON_SRCS})
-endif()
-
-add_library(
-  eosCommonServer SHARED
-  FileSystem.cc
-  TransferQueue.cc
-  TransferJob.cc
-  sqlite/sqlite3.c
-  DbMap.cc
-  DbMapSqlite.cc
-  DbMapLevelDb.cc
-  DbMapCommon.cc
-  http/HttpServer.cc
-  http/HttpRequest.cc
-  http/HttpResponse.cc
-  http/s3/S3Handler.cc
-  stringencoders/modp_numtoa.c)
-
 if(MacOSX)
   target_link_libraries(
     eosCommon
@@ -91,19 +71,9 @@ if(MacOSX)
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY})
-
-  target_link_libraries(
-    eosCommonServer
-    eosCommon
-    ${Z_LIBRARY}
-    ${UUID_LIBRARIES}
-    ${ATTR_LIBRARIES}
-    ${NCURSES_LIBRARY}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${OPENSSL_CRYPTO_LIBRARY})
-
 else()
+  add_library(eosCommon-Static STATIC ${EOSCOMMON_SRCS})
+
   target_link_libraries(
     eosCommon
     XrdMqClient
@@ -117,6 +87,22 @@ else()
     ${OPENSSL_CRYPTO_LIBRARY})
 
    if(NOT CLIENT)
+     add_library(
+       eosCommonServer SHARED
+       FileSystem.cc
+       TransferQueue.cc
+       TransferJob.cc
+       sqlite/sqlite3.c
+       DbMap.cc
+       DbMapSqlite.cc
+       DbMapLevelDb.cc
+       DbMapCommon.cc
+       http/HttpServer.cc
+       http/HttpRequest.cc
+       http/HttpResponse.cc
+       http/s3/S3Handler.cc
+       stringencoders/modp_numtoa.c)
+
      target_link_libraries(
        eosCommonServer
        XrdMqClient
@@ -128,6 +114,26 @@ else()
        ${XROOTD_CL_LIBRARY}
        ${XROOTD_UTILS_LIBRARY}
        ${OPENSSL_CRYPTO_LIBRARY})
+
+     target_link_libraries(eosCommonServer ${LEVELDB_LIBRARIES})
+
+     if(MICROHTTPD_FOUND)
+       target_link_libraries(eosCommonServer ${MICROHTTPD_LIBRARIES})
+     endif()
+
+     set_target_properties(
+       eosCommonServer
+       PROPERTIES
+       VERSION ${VERSION}
+       SOVERSION ${VERSION_MAJOR}
+       CLEAN_DIRECT_OUTPUT 1
+       COMPILE_FLAGS -DSQLITE_NO_SYNC=1)
+
+     install(
+       TARGETS eosCommonServer
+       LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+       RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+       ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
    endif()
 
    target_link_libraries(
@@ -140,56 +146,42 @@ else()
      ${XROOTD_CL_LIBRARY}
      ${XROOTD_UTILS_LIBRARY}
      ${OPENSSL_CRYPTO_LIBRARY})
+
+   set_target_properties(eosCommon-Static PROPERTIES COMPILE_FLAGS "-fPIC")
 endif()
 
-target_link_libraries(eosCommonServer ${LEVELDB_LIBRARIES})
+set_target_properties(
+  eosCommon
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  CLEAN_DIRECT_OUTPUT 1
+  MACOSX_RPATH TRUE)
 
-if(MICROHTTPD_FOUND)
-  target_link_libraries(eosCommonServer ${MICROHTTPD_LIBRARIES})
-endif(MICROHTTPD_FOUND)
-
-
+install(
+  TARGETS eosCommon
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
 #-------------------------------------------------------------------------------
 # Create helper executables
 #-------------------------------------------------------------------------------
-add_executable(dbmaptestburn dbmaptest/DbMapTestBurn.cc)
-add_executable(mutextest mutextest/RWMutexTest.cc)
-add_executable(
-  dbmaptestfunc
-  dbmaptest/DbMapTestFunc.cc
-  ${DBMAPTEST_SRCS}
-  ${DBMAPTEST_HDRS})
-
-target_link_libraries(dbmaptestburn eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(mutextest eosCommon ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(
-  dbmaptestfunc
-  eosCommonServer
-  eosCommon
-  ${PROTOBUF_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
-
 if (Linux)
-  set_target_properties(eosCommon-Static PROPERTIES COMPILE_FLAGS "-fPIC")
+  add_executable(dbmaptestburn dbmaptest/DbMapTestBurn.cc)
+  add_executable(mutextest mutextest/RWMutexTest.cc)
+  add_executable(
+    dbmaptestfunc
+    dbmaptest/DbMapTestFunc.cc
+    ${DBMAPTEST_SRCS}
+    ${DBMAPTEST_HDRS})
 
-  set_target_properties(
+  target_link_libraries(dbmaptestburn eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(mutextest eosCommon ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(
+    dbmaptestfunc
+    eosCommonServer
     eosCommon
-    PROPERTIES
-    VERSION ${VERSION}
-    SOVERSION ${VERSION_MAJOR}
-    CLEAN_DIRECT_OUTPUT 1)
-
-  set_target_properties(
-    eosCommonServer PROPERTIES
-    VERSION ${VERSION}
-    SOVERSION ${VERSION_MAJOR}
-    CLEAN_DIRECT_OUTPUT 1
-    COMPILE_FLAGS -DSQLITE_NO_SYNC=1)
-endif(Linux)
-
-install(
-  TARGETS eosCommon eosCommonServer
-  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+    ${PROTOBUF_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
+endif()

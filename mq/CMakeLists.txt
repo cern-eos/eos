@@ -42,7 +42,6 @@ set(
   ${CMAKE_SOURCE_DIR}/common/Logging.cc)
 
 add_library(XrdMqClient SHARED ${XRDMQCLIENT_SRCS})
-add_library(XrdMqClient-Static STATIC ${XRDMQCLIENT_SRCS})
 
 target_link_libraries(
   XrdMqClient
@@ -56,13 +55,12 @@ target_link_libraries(
 # XrdMqOfs library
 #-------------------------------------------------------------------------------
 set(
- XRDMQOFS_SRCS
- XrdMqOfsFSctl.cc
- XrdMqOfs.cc	   XrdMqOfs.hh
- XrdMqMessage.cc   XrdMqMessage.hh)
+  XRDMQOFS_SRCS
+  XrdMqOfsFSctl.cc
+  XrdMqOfs.cc       XrdMqOfs.hh
+  XrdMqMessage.cc   XrdMqMessage.hh)
 
 add_library(XrdMqOfs MODULE ${XRDMQOFS_SRCS})
-add_library(XrdMqOfs-Static STATIC ${XRDMQOFS_SRCS})
 
 target_link_libraries(
   XrdMqOfs
@@ -71,6 +69,32 @@ target_link_libraries(
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY})
+
+set_target_properties(
+  XrdMqOfs
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES ""
+  MACOSX_RPATH TRUE)
+
+set_target_properties(
+  XrdMqClient
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES ""
+  MACOSX_RPATH TRUE)
+
+if(Linux)
+  add_library(XrdMqClient-Static STATIC ${XRDMQCLIENT_SRCS})
+  add_library(XrdMqOfs-Static STATIC ${XRDMQOFS_SRCS})
+
+  set_target_properties(
+    XrdMqClient-Static
+    XrdMqOfs-Static
+    PROPERTIES COMPILE_FLAGS -fPIC)
+endif()
 
 #-------------------------------------------------------------------------------
 # Other executables
@@ -92,13 +116,8 @@ add_executable(xrdmqsharedobjectbroadcastclient XrdMqSharedObjectBroadCastClient
 set(
   XRDMQ_OTHER_LINK_LIBRARIES
   XrdMqClient
-  ${UUID_LIBRARIES}
-  ${Z_LIBRARY_STATIC}
   ${GLIBC_DL_LIBRARY}
-  ${XROOTD_CL_LIBRARY}
-  ${XROTOD_UTILS_LIBRARY}
-  ${OPENSSL_LIBRARY_STATIC}
-  ${NCURSES_LIBRARY_STATIC}
+  ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(xrdmqclienttest   ${XRDMQ_OTHER_LINK_LIBRARIES})
@@ -111,17 +130,6 @@ target_link_libraries(xrdmqcryptotest   ${XRDMQ_OTHER_LINK_LIBRARIES})
 target_link_libraries(xrdmqsharedobjectclient          ${XRDMQ_OTHER_LINK_LIBRARIES})
 target_link_libraries(xrdmqsharedobjectqueueclient     ${XRDMQ_OTHER_LINK_LIBRARIES})
 target_link_libraries(xrdmqsharedobjectbroadcastclient ${XRDMQ_OTHER_LINK_LIBRARIES})
-
-if (Linux)
-  set_target_properties(
-    XrdMqClient XrdMqOfs
-    PROPERTIES
-    VERSION ${VERSION}
-    SOVERSION ${VERSION_MAJOR}
-    INTERFACE_LINK_LIBRARIES "")
-
-  set_target_properties(XrdMqClient-Static PROPERTIES COMPILE_FLAGS -fPIC)
-endif(Linux)
 
 install(
   TARGETS XrdMqClient XrdMqOfs xrdmqdumper
