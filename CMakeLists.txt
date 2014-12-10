@@ -94,6 +94,11 @@ if (NOT DEFINED PACKAGEONLY)
   endif()
 else()
   message(STATUS "Runing CMake in package only mode")
+
+  # Create empty fake function for building the SRPMS in TeamCity
+  function(PROTOBUF_GENERATE_CPP SRCS HDRS)
+    return()
+  endfunction()
 endif()
 
 #-------------------------------------------------------------------------------
