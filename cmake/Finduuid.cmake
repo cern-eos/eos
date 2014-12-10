@@ -14,7 +14,7 @@ else()
     UUID_INCLUDE_DIR
     NAMES uuid.h
     HINTS ${UUID_ROOT_DIR}
-    PATH_SUFFIXES include)
+    PATH_SUFFIXES include uuid)
 
   find_library(
     UUID_LIBRARY
