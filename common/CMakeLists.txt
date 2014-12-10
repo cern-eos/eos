@@ -86,68 +86,66 @@ else()
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY})
 
-   if(NOT CLIENT)
-     add_library(
-       eosCommonServer SHARED
-       FileSystem.cc
-       TransferQueue.cc
-       TransferJob.cc
-       sqlite/sqlite3.c
-       DbMap.cc
-       DbMapSqlite.cc
-       DbMapLevelDb.cc
-       DbMapCommon.cc
-       http/HttpServer.cc
-       http/HttpRequest.cc
-       http/HttpResponse.cc
-       http/s3/S3Handler.cc
-       stringencoders/modp_numtoa.c)
+  add_library(
+    eosCommonServer SHARED
+    FileSystem.cc
+    TransferQueue.cc
+    TransferJob.cc
+    sqlite/sqlite3.c
+    DbMap.cc
+    DbMapSqlite.cc
+    DbMapLevelDb.cc
+    DbMapCommon.cc
+    http/HttpServer.cc
+    http/HttpRequest.cc
+    http/HttpResponse.cc
+    http/s3/S3Handler.cc
+    stringencoders/modp_numtoa.c)
 
-     target_link_libraries(
-       eosCommonServer
-       XrdMqClient
-       ${Z_LIBRARY}
-       ${UUID_LIBRARIES}
-       ${ATTR_LIBRARIES}
-       ${NCURSES_LIBRARY}
-       ${GLIBC_RT_LIBRARY}
-       ${XROOTD_CL_LIBRARY}
-       ${XROOTD_UTILS_LIBRARY}
-       ${OPENSSL_CRYPTO_LIBRARY})
+  target_link_libraries(
+    eosCommonServer
+    XrdMqClient
+    ${Z_LIBRARY}
+    ${UUID_LIBRARIES}
+    ${ATTR_LIBRARIES}
+    ${NCURSES_LIBRARY}
+    ${GLIBC_RT_LIBRARY}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${OPENSSL_CRYPTO_LIBRARY})
 
-     target_link_libraries(eosCommonServer ${LEVELDB_LIBRARIES})
+  target_link_libraries(eosCommonServer ${LEVELDB_LIBRARIES})
 
-     if(MICROHTTPD_FOUND)
-       target_link_libraries(eosCommonServer ${MICROHTTPD_LIBRARIES})
-     endif()
+  if(MICROHTTPD_FOUND)
+    target_link_libraries(eosCommonServer ${MICROHTTPD_LIBRARIES})
+  endif()
 
-     set_target_properties(
-       eosCommonServer
-       PROPERTIES
-       VERSION ${VERSION}
-       SOVERSION ${VERSION_MAJOR}
-       CLEAN_DIRECT_OUTPUT 1
-       COMPILE_FLAGS -DSQLITE_NO_SYNC=1)
+  set_target_properties(
+    eosCommonServer
+    PROPERTIES
+    VERSION ${VERSION}
+    SOVERSION ${VERSION_MAJOR}
+    CLEAN_DIRECT_OUTPUT 1
+    COMPILE_FLAGS -DSQLITE_NO_SYNC=1)
 
-     install(
-       TARGETS eosCommonServer
-       LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-       RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-       ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
-   endif()
+  install(
+    TARGETS eosCommonServer
+    LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
-   target_link_libraries(
-     eosCommon-Static
-     XrdMqClient-Static
-     ${Z_LIBRARY}
-     ${UUID_LIBRARIES}
-     ${ATTR_LIBRARIES}
-     ${NCURSES_LIBRARY}
-     ${XROOTD_CL_LIBRARY}
-     ${XROOTD_UTILS_LIBRARY}
-     ${OPENSSL_CRYPTO_LIBRARY})
+  target_link_libraries(
+    eosCommon-Static
+    XrdMqClient-Static
+    ${Z_LIBRARY}
+    ${UUID_LIBRARIES}
+    ${ATTR_LIBRARIES}
+    ${NCURSES_LIBRARY}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${OPENSSL_CRYPTO_LIBRARY})
 
-   set_target_properties(eosCommon-Static PROPERTIES COMPILE_FLAGS "-fPIC")
+  set_target_properties(eosCommon-Static PROPERTIES COMPILE_FLAGS "-fPIC")
 endif()
 
 set_target_properties(
