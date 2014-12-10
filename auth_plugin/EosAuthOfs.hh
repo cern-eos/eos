@@ -28,7 +28,7 @@
 #include "XrdOfs/XrdOfs.hh"
 #include <string>
 /*----------------------------------------------------------------------------*/
-#include "zmq.hpp"
+#include "common/zmq.hpp"
 /*----------------------------------------------------------------------------*/
 #include "common/ConcurrentQueue.hh"
 #include "Namespace.hh"

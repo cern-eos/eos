@@ -20,7 +20,7 @@ else()
   find_path(
     ZMQ_CPP_INCLUDE_DIR
     NAMES zmq.hpp
-    HINTS ${ZMQ_ROOT_DIR}
+    HINTS ${ZMQ_ROOT_DIR} ${CMAKE_SOURCE_DIR}/common
     PATH_SUFFIXES include)
 
   find_library(
