@@ -102,6 +102,12 @@ rm -rf $RPM_BUILD_ROOT
 /usr/lib64/libEosFstOss.so.%{version}
 /usr/lib64/libEosFstOss.so.0
 /usr/lib64/libEosFstOss.so
+/usr/lib64/libEosAuthOfs.so
+/usr/lib64/libEosAuthOfs.so.0
+/usr/lib64/libEosAuthOfs.so.%{version}
+/usr/lib64/libEosAuthProto.so
+/usr/lib64/libEosAuthProto.so.0
+/usr/lib64/libEosAuthProto.so.%{version}
 /usr/sbin/eosfstregister
 /usr/sbin/eosfstinfo
 /usr/sbin/eosadmin
@@ -131,6 +137,7 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) /etc/xrd.cf.fed
 %config(noreplace) /etc/xrd.cf.prefix
 %config(noreplace) /etc/sysconfig/eos.example
+%config(noreplace) /etc/xrd.cf.auth
 %_sysconfdir/rc.d/init.d/eos
 %_sysconfdir/rc.d/init.d/eosha
 %_sysconfdir/rc.d/init.d/eossync
