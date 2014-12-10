@@ -30,6 +30,15 @@ include_directories(
   ${LEVELDB_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS})
 
+
+#-------------------------------------------------------------------------------
+# If the ZMQ C++ bindings are from the default package then use them
+#-------------------------------------------------------------------------------
+if (ZMQ_CPP_DEFAULT)
+  add_definitions(-DHAVE_ZMQ)
+endif()
+
+
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
 #-------------------------------------------------------------------------------

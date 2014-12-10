@@ -31,7 +31,11 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
+#ifdef HAVE_ZMQ
 #include <zmq.hpp>
+#else
+#include "common/zmq.hpp"
+#endif
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN

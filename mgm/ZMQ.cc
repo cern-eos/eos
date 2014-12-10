@@ -20,13 +20,7 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#ifdef HAVE_ZMQ
-/*----------------------------------------------------------------------------*/
-
 #include "mgm/ZMQ.hh"
-
-EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 ZMQ::ZMQ (const char* URL) : eos::common::ZMQ (URL) { }

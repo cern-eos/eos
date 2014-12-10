@@ -116,9 +116,6 @@
 #include "mgm/Master.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/Recycle.hh"
-#ifdef HAVE_ZMQ
-#include "mgm/ZMQ.hh"
-#endif
 #include "mgm/Messaging.hh"
 #include "mgm/VstMessaging.hh"
 #include "mgm/ProcInterface.hh"
@@ -141,9 +138,9 @@
 /*----------------------------------------------------------------------------*/
 #include <dirent.h>
 /*----------------------------------------------------------------------------*/
-#include "common/zmq.hpp"
-/*----------------------------------------------------------------------------*/
 #include "auth_plugin/ProtoUtils.hh"
+/*----------------------------------------------------------------------------*/
+#include "common/ZMQ.hh"
 /*----------------------------------------------------------------------------*/
 
 USE_EOSMGMNAMESPACE
@@ -998,10 +995,6 @@ public:
   char* HostPref; //< our hostname as derived in XrdOfs without domain
 
   static XrdSysError *eDest; //< error routing object
-
-#ifdef HAVE_ZMQ
-  ZMQ* zMQ; //<  ZMQ processor
-#endif
 
   // ---------------------------------------------------------------------------
   // namespace specific variables

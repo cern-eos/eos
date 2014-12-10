@@ -32,6 +32,7 @@ if (CPPUNIT_FOUND)
   add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
 
+
 #-------------------------------------------------------------------------------
 # Generate all protocol buffer files
 #-------------------------------------------------------------------------------

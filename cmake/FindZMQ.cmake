@@ -20,8 +20,16 @@ else()
   find_path(
     ZMQ_CPP_INCLUDE_DIR
     NAMES zmq.hpp
-    HINTS ${ZMQ_ROOT_DIR} ${CMAKE_SOURCE_DIR}/common
+    HINTS ${ZMQ_ROOT_DIR}
+    PATHS ${CMAKE_SOURCE_DIR}/common
     PATH_SUFFIXES include)
+
+  # Set variable in case we are using our own ZMQ C++ bindings
+  if("${ZMQ_CPP_INCLUDE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/common")
+    set(ZMQ_CPP_DEFAULT 0)
+  else()
+    set(ZMQ_CPP_DEFAULT 1)
+  endif()
 
   find_library(
     ZMQ_LIBRARY

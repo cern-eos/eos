@@ -124,16 +124,6 @@ xrdmgmofs_shutdown (int sig)
     }
   }
 
-#ifdef HAVE_ZMQ
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop ZMQ...");
-  if (gOFS->zMQ)
-  {
-    delete gOFS->zMQ;
-    gOFS->zMQ = 0;
-  }
-#endif
-
   gOFS->ConfEngine->SetAutoSave(false);
 
   // ---------------------------------------------------------------------------
