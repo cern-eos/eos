@@ -36,7 +36,8 @@ class ZMQ : public eos::common::ZMQ
 public:
   ZMQ (const char* URL);
 
-  ~ZMQ () { };
+  virtual ~ZMQ () {};
+
   virtual void Process (zmq::socket_t &socket, zmq::message_t &request); // we implement the MGM processing here
 };
 
