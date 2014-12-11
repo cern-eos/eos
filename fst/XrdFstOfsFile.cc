@@ -1591,19 +1591,19 @@ XrdFstOfsFile::close ()
       if (viaDelete)
       {
         eos_info("msg=\"(unpersist): deleting file\" reason=\"client disconnect\""
-                 "  fsid=%u fxid=%08x on fsid=%u", fMd->fMd.fsid, fMd->fMd.fid);
+                 "  fsid=%u fxid=%08x on fsid=%u", fMd->fMd.fsid(), fMd->fMd.fid());
       }
 
       if (writeDelete)
       {
         eos_info("msg=\"(unpersist): deleting file\" reason=\"write/policy error\""
-                 " fsid=%u fxid=%08x on fsid=%u", fMd->fMd.fsid, fMd->fMd.fid);
+                 " fsid=%u fxid=%08x on fsid=%u", fMd->fMd.fsid(), fMd->fMd.fid());
       }
 
       if (remoteDelete)
       {
         eos_info("msg=\"(unpersist): deleting file\" reason=\"remote deletion\""
-                 " fsid=%u fxid=%08x on fsid=%u", fMd->fMd.fsid, fMd->fMd.fid);
+                 " fsid=%u fxid=%08x on fsid=%u", fMd->fMd.fsid(), fMd->fMd.fid());
       }
 
       // Delete the file - set the file to be deleted
@@ -1766,16 +1766,16 @@ XrdFstOfsFile::close ()
 
             // For replicat's set the original uid/gid/lid values
             if (capOpaque->Get("mgm.source.lid"))
-              fMd->fMd.lid = strtoul(capOpaque->Get("mgm.source.lid"), 0, 10);
+              fMd->fMd.set_lid(strtoul(capOpaque->Get("mgm.source.lid"), 0, 10));
 
             if (capOpaque->Get("mgm.source.ruid"))
-              fMd->fMd.uid = atoi(capOpaque->Get("mgm.source.ruid"));
+              fMd->fMd.set_uid(atoi(capOpaque->Get("mgm.source.ruid")));
 
             if (capOpaque->Get("mgm.source.rgid"))
-              fMd->fMd.uid = atoi(capOpaque->Get("mgm.source.rgid"));
+              fMd->fMd.set_gid(atoi(capOpaque->Get("mgm.source.rgid")));
 
             // Commit local
-            if (!gFmdSqliteHandler.Commit(fMd))
+            if (!gFmdDbMapHandler.Commit(fMd))
               rc = gOFS.Emsg(epname, error, EIO, "close - unable to commit meta data",
                              Path.c_str());
 
