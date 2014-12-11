@@ -5,7 +5,7 @@
 
 Beryl Release Notes
 ===================
-``Version V0.3.78 Beryl-Aquamarine``
+``Version V0.3.79 Beryl-Aquamarine``
 
 Bug Fixes
 ---------
@@ -16,6 +16,7 @@ Bug Fixes
 - make 'console log' e.g. /var/log/eos/mgm/error.log working again
 - fix substantial memory leak in PUT requests on FSTs
 - fix 's3' lower-case headers
+- disable 'delete-on-close' for chunked uploads to allow for single chunk retry
 
 New Features
 ------------
