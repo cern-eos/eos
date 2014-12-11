@@ -96,11 +96,11 @@ int ProcCommand::Backup()
     bfile_url += "backup.file";
     std::ostringstream cmd_json;
     cmd_json << "{\"cmd\": \"backup\", "
-             << "\"src\": \"" << bfile_url.c_str() << "\", "
-             << "\"opt\": \"\", "
-             << "\"uid\": \"" << pVid->uid << "\", "
-             << "\"gid\": \"" << pVid->gid << "\" "
-             << "}";
+	     << "\"src\": \"" << bfile_url.c_str() << "\", "
+	     << "\"opt\": \"\", "
+	     << "\"uid\": \"" << pVid->uid << "\", "
+	     << "\"gid\": \"" << pVid->gid << "\" "
+	     << "}";
 
     ret = ArchiveExecuteCmd(cmd_json.str());
     eos_debug("sending command: %s", cmd_json.str().c_str());
@@ -116,7 +116,7 @@ int ProcCommand::Backup()
 //------------------------------------------------------------------------------
 int
 ProcCommand::BackupCreate(const std::string& src_surl,
-                          const std::string& dst_surl)
+			  const std::string& dst_surl)
 {
   int num_dirs = 0;
   int num_files = 0;
@@ -141,18 +141,18 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   // Note: we treat backups as archive get operations from tape to disk
   // therefore we need to swapt the src with destination in the header
   backup_ofs << "{"
-             << "\"src\": \"" << dst_surl << "\", "
-             << "\"dst\": \"" << src_surl << "\", "
-             << "\"svc_class\": \"\", "
-             << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
-             << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
-             << "\"mode\", \"xstype\", \"xs\"], "
-             << "\"num_dirs\": " << std::setw(10) << "" << ", "
-             << "\"num_files\": " << std::setw(10) << "" << ", "
-             << "\"uid\": \"" << pVid->uid << "\", "
-             << "\"gid\": \"" << pVid->gid << "\", "
-             << "\"timestamp\": " << std::setw(10) << ""
-             << "}" << std::endl;
+	     << "\"src\": \"" << dst_surl << "\", "
+	     << "\"dst\": \"" << src_surl << "\", "
+	     << "\"svc_class\": \"\", "
+	     << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
+	     << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
+	     << "\"mode\", \"xstype\", \"xs\"], "
+	     << "\"num_dirs\": " << std::setw(10) << "" << ", "
+	     << "\"num_files\": " << std::setw(10) << "" << ", "
+	     << "\"uid\": \"" << pVid->uid << "\", "
+	     << "\"gid\": \"" << pVid->gid << "\", "
+	     << "\"timestamp\": " << std::setw(10) << ""
+	     << "}" << std::endl;
 
   // Add directories info
   if (ArchiveAddEntries(src_url.GetPath(), backup_ofs, num_dirs, false))
@@ -175,36 +175,40 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   num_dirs--; // don't count current dir
   backup_ofs.seekp(0);
   backup_ofs << "{"
-             << "\"src\": \"" << dst_surl << "\", "
-             << "\"dst\": \"" << src_surl << "\", "
-             << "\"svc_class\": \"\", "
-             << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
-             << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
-             << "\"mode\", \"xstype\", \"xs\"], "
-             << "\"num_dirs\": " << std::setw(10) << num_dirs << ", "
-             << "\"num_files\": " << std::setw(10) << num_files << ", "
-             << "\"uid\": \"" << pVid->uid << "\", "
-             << "\"gid\": \"" << pVid->gid << "\", "
-             << "\"timestamp\": " << std::setw(10) << time(static_cast<time_t*>(0))
-             << "}" << std::endl;
+	     << "\"src\": \"" << dst_surl << "\", "
+	     << "\"dst\": \"" << src_surl << "\", "
+	     << "\"svc_class\": \"\", "
+	     << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
+	     << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
+	     << "\"mode\", \"xstype\", \"xs\"], "
+	     << "\"num_dirs\": " << std::setw(10) << num_dirs << ", "
+	     << "\"num_files\": " << std::setw(10) << num_files << ", "
+	     << "\"uid\": \"" << pVid->uid << "\", "
+	     << "\"gid\": \"" << pVid->gid << "\", "
+	     << "\"timestamp\": " << std::setw(10) << time(static_cast<time_t*>(0))
+	     << "}" << std::endl;
   backup_ofs.close();
 
   // Copy local backup file to backup destination
-  XrdCl::URL dst_url(dst_surl);
-  struct XrdCl::JobDescriptor copy_job;
-  copy_job.source.SetProtocol("file");
-  copy_job.source.SetPath(backup_fn.c_str());
-  copy_job.target.SetProtocol(dst_url.GetProtocol());
-  copy_job.target.SetHostName(dst_url.GetHostName());
-  copy_job.target.SetUserName("root");
-  std::string dst_path = dst_url.GetPath();
+  XrdCl::PropertyList properties;
+  XrdCl::PropertyList result;
+  XrdCl::URL url_src, url_dst;
+  XrdCl::URL tmp_url(dst_surl);
+  std::string dst_path = tmp_url.GetPath();
   dst_path += EOS_COMMON_PATH_BACKUP_FILE_PREFIX;
   dst_path += "backup.file";
-  copy_job.target.SetPath(dst_path);
-  copy_job.target.SetParams("eos.ruid=0&eos.rgid=0");
+  url_src.SetProtocol("file");
+  url_src.SetPath(backup_fn.c_str());
+  url_dst.SetProtocol(tmp_url.GetProtocol());
+  url_dst.SetHostName(tmp_url.GetHostName());
+  url_dst.SetUserName("root");
+  url_dst.SetPath(dst_path);
+  url_dst.SetParams("eos.ruid=0&eos.rgid=0");
+  properties.Set("source", url_src);
+  properties.Set("target", url_dst);
 
   XrdCl::CopyProcess copy_proc;
-  copy_proc.AddJob(&copy_job);
+  copy_proc.AddJob(properties, &result);
   XrdCl::XRootDStatus status_prep = copy_proc.Prepare();
 
   if (status_prep.IsOK())
