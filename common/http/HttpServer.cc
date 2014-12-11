@@ -66,10 +66,10 @@ HttpServer::Start ()
   if (!mRunning)
   {
     XrdSysThread::Run(&mThreadId,
-                      HttpServer::StaticHttp,
-                      static_cast<void *> (this),
-                      XRDSYSTHREAD_HOLD,
-                      "Httpd Thread");
+		      HttpServer::StaticHttp,
+		      static_cast<void *> (this),
+		      XRDSYSTHREAD_HOLD,
+		      "Httpd Thread");
     mRunning = true;
     return true;
   }
@@ -86,19 +86,6 @@ HttpServer::StaticHttp (void* arg)
   return reinterpret_cast<HttpServer*> (arg)->Run();
 }
 
-/*----------------------------------------------------------------------------*/
-void
-HttpServer::CleanupConnections ()
-{
-  // currently we cannot call the clean-up in libmicrohttpd directly, 
-  // we just connect to our self and trigger the cleanup
-  XrdSysLogger logger;
-  XrdSysError error(&logger);
-  XrdNet cNet(&error);
-  XrdNetPeer cPeer;
-  cNet.Connect(cPeer, "localhost",mPort);
-}
-
 
 /*----------------------------------------------------------------------------*/
 void*
@@ -110,68 +97,68 @@ HttpServer::Run ()
   {
     // Delay to make sure xrootd is configured before serving
     XrdSysTimer::Snooze(1);
-    
+
     int nthreads = 16;
     if (getenv("EOS_HTTP_THREADPOOL"))
       thread_model = getenv("EOS_HTTP_THREADPOOL");
 
-    if (getenv("EOS_HTTP_THREADPOOL_SIZE")) 
+    if (getenv("EOS_HTTP_THREADPOOL_SIZE"))
     {
       nthreads = atoi(getenv("EOS_HTTP_THREADPOOL_SIZE"));
-      if (nthreads < 1) 
+      if (nthreads < 1)
 	nthreads = 16;
       if (nthreads > 4096)
 	nthreads = 4096;
     }
-    
+
     if (thread_model == "threads")
     {
       eos_static_notice("msg=\"starting http server\" mode=\"thread-per-connection\"");
       mDaemon = MHD_start_daemon(MHD_USE_DEBUG |  MHD_USE_THREAD_PER_CONNECTION | MHD_USE_POLL,
-                                 mPort,
-                                 NULL,
-                                 NULL,
-                                 &HttpServer::StaticHandler,
-                                 (void*) 0,
-				 MHD_OPTION_NOTIFY_COMPLETED, &HttpServer::StaticCompleteHandler, NULL, 
-                                 MHD_OPTION_CONNECTION_MEMORY_LIMIT,
+				 mPort,
+				 NULL,
+				 NULL,
+				 &HttpServer::StaticHandler,
+				 (void*) 0,
+				 MHD_OPTION_NOTIFY_COMPLETED, &HttpServer::StaticCompleteHandler, NULL,
+				 MHD_OPTION_CONNECTION_MEMORY_LIMIT,
 				 getenv("EOS_HTTP_CONNECTION_MEMORY_LIMIT")?atoi(getenv("EOS_HTTP_CONNECTION_MEMORY_LIMIT")): (128*1024*1024),
-				 MHD_OPTION_CONNECTION_TIMEOUT, 
+				 MHD_OPTION_CONNECTION_TIMEOUT,
 				 getenv("EOS_HTTP_CONNECTION_TIMEOUT")?atoi(getenv("EOS_HTTP_CONNECTION_TIMEOUT")):128,
-                                 MHD_OPTION_END
-                                 );
-    } else 
-    if (thread_model == "epoll") 
+				 MHD_OPTION_END
+				 );
+    } else
+    if (thread_model == "epoll")
     {
       eos_static_notice("msg=\"starting http server\" mode=\"epool\" threads=%d", nthreads);
       mDaemon = MHD_start_daemon(MHD_USE_DEBUG |  MHD_USE_SELECT_INTERNALLY | MHD_USE_EPOLL_LINUX_ONLY,
-                                 mPort,
-                                 NULL,
-                                 NULL,
-                                 &HttpServer::StaticHandler,
-                                 (void*) 0,
+				 mPort,
+				 NULL,
+				 NULL,
+				 &HttpServer::StaticHandler,
+				 (void*) 0,
 				 MHD_OPTION_THREAD_POOL_SIZE,
 				 nthreads,
-				 MHD_OPTION_NOTIFY_COMPLETED, &HttpServer::StaticCompleteHandler, NULL, 
-                                 MHD_OPTION_CONNECTION_MEMORY_LIMIT,
+				 MHD_OPTION_NOTIFY_COMPLETED, &HttpServer::StaticCompleteHandler, NULL,
+				 MHD_OPTION_CONNECTION_MEMORY_LIMIT,
 				 getenv("EOS_HTTP_CONNECTION_MEMORY_LIMIT")?atoi(getenv("EOS_HTTP_CONNECTION_MEMORY_LIMIT")): (128*1024*1024),
-				 MHD_OPTION_CONNECTION_TIMEOUT, 
+				 MHD_OPTION_CONNECTION_TIMEOUT,
 				 getenv("EOS_HTTP_CONNECTION_TIMEOUT")?atoi(getenv("EOS_HTTP_CONNECTION_TIMEOUT")):128,
-                                 MHD_OPTION_END
-                                 );
+				 MHD_OPTION_END
+				 );
     } else {
       eos_static_notice("msg=\"starting http server\" mode=\"single-threaded\"");
       mDaemon = MHD_start_daemon(MHD_USE_DEBUG,
-                                 mPort,
-                                 NULL,
-                                 NULL,
-                                 &HttpServer::StaticHandler,
-                                 (void*) 0,
+				 mPort,
+				 NULL,
+				 NULL,
+				 &HttpServer::StaticHandler,
+				 (void*) 0,
 				 MHD_OPTION_NOTIFY_COMPLETED, &HttpServer::StaticCompleteHandler, NULL,
-                                 MHD_OPTION_CONNECTION_MEMORY_LIMIT,
-                                 128 * 1024 * 1024 /* 128MB */,
-                                 MHD_OPTION_END
-                                 );
+				 MHD_OPTION_CONNECTION_MEMORY_LIMIT,
+				 128 * 1024 * 1024 /* 128MB */,
+				 MHD_OPTION_END
+				 );
     }
   }
   if (!mDaemon)
@@ -214,15 +201,15 @@ HttpServer::Run ()
       FD_ZERO(&es);
 
       if (MHD_YES != MHD_get_fdset(mDaemon, &rs, &ws, &es, &max))
-        break; /* fatal internal error */
+	break; /* fatal internal error */
 
       if (MHD_get_timeout(mDaemon, &mhd_timeout) == MHD_YES)
       {
-        if ((tv.tv_sec * 1000) < (long long) mhd_timeout)
-        {
-          tv.tv_sec = mhd_timeout / 1000;
-          tv.tv_usec = (mhd_timeout - (tv.tv_sec * 1000)) * 1000;
-        }
+	if ((tv.tv_sec * 1000) < (long long) mhd_timeout)
+	{
+	  tv.tv_sec = mhd_timeout / 1000;
+	  tv.tv_usec = (mhd_timeout - (tv.tv_sec * 1000)) * 1000;
+	}
       }
       select(max + 1, &rs, &ws, &es, &tv);
       MHD_run(mDaemon);
@@ -236,28 +223,43 @@ HttpServer::Run ()
 
 #ifdef EOS_MICRO_HTTPD
 
+
+/*----------------------------------------------------------------------------*/
+void
+HttpServer::CleanupConnections ()
+{
+  // currently we cannot call the clean-up in libmicrohttpd directly,
+  // we just connect to our self and trigger the cleanup
+  XrdSysLogger logger;
+  XrdSysError error(&logger);
+  XrdNet cNet(&error);
+  XrdNetPeer cPeer;
+  cNet.Connect(cPeer, "localhost",mPort);
+}
+
+
 /*----------------------------------------------------------------------------*/
 int
 HttpServer::StaticHandler (void *cls,
-                           struct MHD_Connection *connection,
-                           const char *url,
-                           const char *method,
-                           const char *version,
-                           const char *upload_data,
-                           size_t *upload_data_size,
-                           void **ptr)
+			   struct MHD_Connection *connection,
+			   const char *url,
+			   const char *method,
+			   const char *version,
+			   const char *upload_data,
+			   size_t *upload_data_size,
+			   void **ptr)
 {
   // The static handler function calls back the original http object
   if (gHttp)
   {
     return gHttp->Handler(cls,
-                          connection,
-                          url,
-                          method,
-                          version,
-                          upload_data,
-                          upload_data_size,
-                          ptr);
+			  connection,
+			  url,
+			  method,
+			  version,
+			  upload_data,
+			  upload_data_size,
+			  ptr);
   }
   else
   {
@@ -267,8 +269,8 @@ HttpServer::StaticHandler (void *cls,
 
 /*----------------------------------------------------------------------------*/
 void
-HttpServer::StaticCompleteHandler ( void *cls, 
-				    struct MHD_Connection *connection, 
+HttpServer::StaticCompleteHandler ( void *cls,
+				    struct MHD_Connection *connection,
 				    void **con_cls,
 				    enum MHD_RequestTerminationCode toe)
 {
@@ -283,9 +285,9 @@ HttpServer::StaticCompleteHandler ( void *cls,
 /*----------------------------------------------------------------------------*/
 int
 HttpServer::BuildHeaderMap (void *cls,
-                            enum MHD_ValueKind kind,
-                            const char *key,
-                            const char *value)
+			    enum MHD_ValueKind kind,
+			    const char *key,
+			    const char *value)
 {
   // Call back function to return the header key-val map of an HTTP request
   std::map<std::string, std::string>* hMap
@@ -303,16 +305,16 @@ HttpServer::BuildHeaderMap (void *cls,
 /*----------------------------------------------------------------------------*/
 int
 HttpServer::BuildQueryString (void *cls,
-                              enum MHD_ValueKind kind,
-                              const char *key,
-                              const char *value)
+			      enum MHD_ValueKind kind,
+			      const char *key,
+			      const char *value)
 {
   // Call back function to return the query string of an HTTP request
   std::string* qString = static_cast<std::string*> (cls);
 
   if (key && qString)
   {
-    if (value) 
+    if (value)
   {
     if (qString->length())
     {
@@ -337,9 +339,9 @@ HttpServer::BuildQueryString (void *cls,
 
 HttpResponse*
 HttpServer::HttpRedirect (const std::string &url,
-                          const std::string &hostCGI,
-                          int port,
-                          bool cookie)
+			  const std::string &hostCGI,
+			  int port,
+			  bool cookie)
 {
   eos_static_info("info=redirecting");
   HttpResponse *response = new PlainHttpResponse();
@@ -373,13 +375,13 @@ HttpServer::HttpRedirect (const std::string &url,
   if (cookie)
   {
     response->AddHeader("Set-Cookie", "EOSCAPABILITY="
-                        + cgi
-                        + ";Max-Age=60;"
-                        + "Path="
-                        + url
-                        + ";Version=1"
-                        + ";Domain="
-                        + "cern.ch");
+			+ cgi
+			+ ";Max-Age=60;"
+			+ "Path="
+			+ url
+			+ ";Version=1"
+			+ ";Domain="
+			+ "cern.ch");
   }
   else
   {
@@ -430,7 +432,7 @@ HttpServer::HttpError (const char *errorText, int errorCode)
 
   eos_static_info("errc=%d, retcode=%d errmsg=\"%s\"", errorCode, response->GetResponseCode(), errorText?errorText:"<none>");
   while (error.replace("__RESPONSE_CODE__", to_string((long long)
-                                                           response->GetResponseCode()).c_str()))
+							   response->GetResponseCode()).c_str()))
   {
   }
   while (error.replace("__ERROR_TEXT__", errorText))
@@ -439,7 +441,7 @@ HttpServer::HttpError (const char *errorText, int errorCode)
 
   response->SetBody(error.c_str());
   response->AddHeader("Content-Length", to_string((long long)
-                                                       response->GetBodySize()));
+						       response->GetBodySize()));
   response->AddHeader("Content-Type", "text/html");
   return response;
 }
@@ -465,7 +467,7 @@ HttpServer::HttpHead (off_t length, std::string name)
   response->AddHeader("Content-Type", "application/octet-stream");
   response->AddHeader("Accept-Ranges", "bytes");
   response->AddHeader("Content-Disposition", std::string("filename=\"") + name
-                      + std::string("\""));
+		      + std::string("\""));
   return response;
 }
 
@@ -474,7 +476,7 @@ HttpResponse*
 HttpServer::HttpStall (const char *stallText, int seconds)
 {
   return HttpError("Unable to stall",
-                   HttpResponse::ResponseCodes::SERVICE_UNAVAILABLE);
+		   HttpResponse::ResponseCodes::SERVICE_UNAVAILABLE);
 }
 
 /*----------------------------------------------------------------------------*/
