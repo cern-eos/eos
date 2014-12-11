@@ -454,6 +454,7 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
     fs.mPath = mPath;
     fs.mErrMsg = mHash->Get("stat.errmsg");
     fs.mGeoTag = mHash->Get("stat.geotag");
+    fs.mPublishTimestamp = (size_t)mHash->GetLongLong("stat.publishtimestamp");
     fs.mStatus = GetStatusFromString(mHash->Get("stat.boot").c_str());
     fs.mConfigStatus = GetConfigStatusFromString(mHash->Get("configstatus").c_str());
     fs.mDrainStatus = GetDrainStatusFromString(mHash->Get("stat.drain").c_str());
@@ -464,7 +465,6 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
     fs.mBootSentTime = (time_t) mHash->GetLongLong("stat.bootsenttime");
     fs.mBootDoneTime = (time_t) mHash->GetLongLong("stat.bootdonetime");
     fs.mHeartBeatTime = (time_t) mHash->GetLongLong("stat.heartbeattime");
-    fs.mHeartBeatTimeNs = (long)mHash->GetLongLong("stat.heartbeattimens");
     fs.mDiskUtilization = mHash->GetDouble("stat.disk.load");
     fs.mNetEthRateMiB = mHash->GetDouble("stat.net.ethratemib");
     fs.mNetInRateMiB = mHash->GetDouble("stat.net.inratemib");
@@ -518,6 +518,8 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
     fs.mHostPort = "";
     fs.mPort = "";
     fs.mErrMsg = "";
+    fs.mGeoTag ="";
+    fs.mPublishTimestamp = 0;
     fs.mStatus = 0;
     fs.mConfigStatus = 0;
     fs.mDrainStatus = 0;

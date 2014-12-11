@@ -357,23 +357,23 @@ bool SlowTree::buildFastStrctures(
 	fpt->updateTree();
 
 	//finish the RO access tree
-	assert( fpt->copyToFastTree(froat) == 0 );
+	if( fpt->copyToFastTree(froat)) {assert(false); return false;}
 	for(tFastTreeIdx i=0;i<froat->pMaxNodeCount;i++)
 	froat->pNodes[i].fileData.freeSlotsCount = 0;
 	froat->updateTree();
 	//finish the RW access tree
-	assert( fpt->copyToFastTree(frwat) == 0 );
+	if( fpt->copyToFastTree(frwat)) {assert(false); return false;}
 	for(tFastTreeIdx i=0;i<frwat->pMaxNodeCount;i++)
 	frwat->pNodes[i].fileData.freeSlotsCount = 0;
 	frwat->updateTree();
 	// copy them to the other trees (balancing and draining)
-	assert( fpt->copyToFastTree(fbpt) == 0 );
+	if( fpt->copyToFastTree(fbpt) ) {assert(false); return false;}
 	fbpt->updateTree();
-	assert( fpt->copyToFastTree(fdpt) == 0 );
+	if( fpt->copyToFastTree(fdpt) ) {assert(false); return false;}
 	fdpt->updateTree();
-	assert( froat->copyToFastTree(fbat) == 0 );
+	if( froat->copyToFastTree(fbat) ) {assert(false); return false;}
 	fbat->updateTree();
-	assert( froat->copyToFastTree(fdat) == 0 );
+	if( froat->copyToFastTree(fdat) ) {assert(false); return false;}
 	fdat->updateTree();
 
 	// some sanity checks

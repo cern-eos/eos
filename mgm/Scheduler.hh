@@ -83,7 +83,8 @@ public:
                           unsigned long long bookingsize, //< size to book additionally for read/write access
                           std::vector<unsigned int> &unavailfs, //< return filesystems currently unavailable
                           eos::common::FileSystem::fsstatus_t min_fsstatus = eos::common::FileSystem::kDrain, //< defines minimum filesystem state to allow filesystem selection
-                          std::string overridegeoloc="" //< override geolocation defined in virtual id
+                          std::string overridegeoloc="", //< override geolocation defined in virtual id
+                          bool noIO=false //< don't apply the penalty as this FileAccess won't result in any IO to the file
                           );
 
 protected:

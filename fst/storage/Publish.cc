@@ -275,6 +275,10 @@ Storage::Publish ()
 
           success &= fileSystemsVector[i]->SetString("stat.boot", fileSystemsVector[i]->GetString("stat.boot").c_str());
           success &= fileSystemsVector[i]->SetString("stat.geotag", lNodeGeoTag.c_str());
+          struct timeval tvfs;
+          gettimeofday(&tvfs, &tz);
+          size_t nowms = tvfs.tv_sec*1000 + tvfs.tv_usec/1000;
+          success &= fileSystemsVector[i]->SetLongLong("stat.publishtimestamp", nowms);
           success &= fileSystemsVector[i]->SetLongLong("stat.drainer.running", fileSystemsVector[i]->GetDrainQueue()->GetRunningAndQueued());
           success &= fileSystemsVector[i]->SetLongLong("stat.balancer.running", fileSystemsVector[i]->GetBalanceQueue()->GetRunningAndQueued());
 

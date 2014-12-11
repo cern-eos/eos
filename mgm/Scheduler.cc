@@ -236,8 +236,8 @@ Scheduler::FileAccess (
                        unsigned long long bookingsize, //< size to book additionally for read/write access
                        std::vector<unsigned int> &unavailfs, //< return filesystems currently unavailable
                        eos::common::FileSystem::fsstatus_t min_fsstatus, //< defines minimum filesystem state to allow filesystem selection
-                       std::string overridegeoloc //< override geolocation defined in virtual id
-                       )
+                       std::string overridegeoloc, //< override geolocation defined in virtual id
+                       bool noIO)
 {
   //! -------------------------------------------------------------
   //! the read(/write) access routine
@@ -247,7 +247,7 @@ Scheduler::FileAccess (
 
   return gGeoTreeEngine.accessHeadReplicaMultipleGroup(nReqStripes,fsindex,&locationsfs,
 						       isRW?GeoTreeEngine::regularRW:GeoTreeEngine::regularRO,
-							   overridegeoloc.empty()?vid.geolocation:overridegeoloc,forcedfsid,&unavailfs);
+							   overridegeoloc.empty()?vid.geolocation:overridegeoloc,forcedfsid,&unavailfs,noIO);
       }
 
 

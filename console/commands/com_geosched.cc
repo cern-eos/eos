@@ -42,7 +42,7 @@ com_geosched (char* arg1)
       "plctDlScorePenalty","plctUlScorePenalty",
       "accessDlScorePenalty","accessUlScorePenalty",
       "fillRatioLimit","fillRatioCompTol","saturationThres",
-      "timeFrameDurationMs"};
+      "timeFrameDurationMs","penaltyUpdateRate"};
 
   XrdOucString in = "";
 
@@ -59,7 +59,7 @@ com_geosched (char* arg1)
   if (cmd == "show")
   {
     XrdOucString subcmd = subtokenizer.GetToken();
-    if ((subcmd != "tree") && (subcmd != "snapshot") && (subcmd != "state"))
+    if ((subcmd != "tree") && (subcmd != "snapshot") && (subcmd != "state") && (subcmd != "param"))
     {
       goto com_geosched_usage;
     }
@@ -67,6 +67,11 @@ com_geosched (char* arg1)
     if (subcmd == "state")
     {
       in += "&mgm.subcmd=showstate";
+    }
+
+    if (subcmd == "param")
+    {
+      in += "&mgm.subcmd=showparam";
     }
 
     if (subcmd == "tree")
@@ -106,22 +111,37 @@ com_geosched (char* arg1)
       return 0;
     }
 
+    XrdOucString index = subtokenizer.GetToken();
     XrdOucString value = subtokenizer.GetToken();
-    if(!value.length())
+    if(!index.length())
     {
       fprintf(stderr, "Error: value is not provided\n");
       goto com_geosched_usage;
     }
-    if(!XrdOucString(value.c_str()).isdigit())
+    if(!value.length())
+    {
+      value=index;
+      index="-1";
+    }
+    double didx = 0.0;
+    if(!sscanf(value.c_str(),"%lf",&didx))
     {
       fprintf(stderr, "Error: parameter %s should have a numeric value, %s was provided\n",
 	      parameter.c_str(),value.c_str());
+      return 0;
+    }
+    if(!XrdOucString(index.c_str()).isdigit())
+    {
+      fprintf(stderr, "Error: index for parameter %s should have a numeric value, %s was provided\n",
+              parameter.c_str(),index.c_str());
       return 0;
     }
 
     in += "&mgm.subcmd=set";
     in += "&mgm.param=";
     in += parameter.c_str();
+    in += "&mgm.paramidx=";
+    in += index.c_str();
     in += "&mgm.value=";
     in += value.c_str();
   }
@@ -151,8 +171,9 @@ com_geosched_usage:
   fprintf(stdout, "                                                                     -  if <scheduling group> is specified only the snapshot(s) for this group is/are shown. If it's not all, the snapshots for all the groups are shown.\n");
   fprintf(stdout, "                                                                     -  if <optype> is specified only the snapshot for this operation is shown. If it's not, the snapshots for all the optypes are shown.\n");
   fprintf(stdout, "                                                                     -  <optype> can be one of the folowing plct,accsro,accsrw,accsdrain,plctdrain,accsblc,plctblc\n");
-  fprintf(stdout, "       geosched show state                                        :  show internal state parameters\n");
-  fprintf(stdout, "       geosched set <param name> <param value>                    :  set the value of an internal state parameter (all names can be listed with geosched show state) \n");
+  fprintf(stdout, "       geosched show param                                        :  show internal parameters\n");
+  fprintf(stdout, "       geosched show state                                        :  show internal state\n");
+  fprintf(stdout, "       geosched set <param name> [param index] <param value>      :  set the value of an internal state parameter (all names can be listed with geosched show state) \n");
   fprintf(stdout, "       geosched updater {pause|resume}                            :  pause / resume the tree updater\n");
   return (0);
 }

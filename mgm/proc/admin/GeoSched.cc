@@ -34,7 +34,7 @@ ProcCommand::GeoSched ()
   if (pVid->uid == 0)
   {
     retc = SFS_ERROR;
-    if(mSubCmd == "showtree" || mSubCmd=="showsnapshot" || mSubCmd=="showstate")
+    if(mSubCmd == "showtree" || mSubCmd=="showsnapshot" || mSubCmd=="showstate" || mSubCmd=="showparam")
     {
       XrdOucString schedgroup = "";
       XrdOucString optype = "";
@@ -42,17 +42,22 @@ ProcCommand::GeoSched ()
       optype = pOpaque->Get("mgm.optype");
       bool btree = (mSubCmd == "showtree");
       bool bsnapsh = (mSubCmd == "showsnapshot");
-      bool bls =  (mSubCmd == "showstate");
+      bool bprm =  (mSubCmd == "showparam");
+      bool bst =  (mSubCmd == "showstate");
       std::string info;
-      gGeoTreeEngine.printInfo(info,btree,bsnapsh,bls,schedgroup.c_str(),optype.c_str());
+      gGeoTreeEngine.printInfo(info,btree,bsnapsh,bprm,bst,schedgroup.c_str(),optype.c_str());
       stdOut += info.c_str();
       retc = SFS_OK;
     }
     if(mSubCmd == "set")
     {
       XrdOucString param = pOpaque->Get("mgm.param");
+      XrdOucString paramidx = pOpaque->Get("mgm.paramidx");
       XrdOucString value = pOpaque->Get("mgm.value");
-      int ival = value.atoi();
+      double dval = 0.0;
+      sscanf(value.c_str(),"%lf",&dval);
+      int ival = (int)dval;
+      int iparamidx = paramidx.atoi();
       bool ok = false;
       if(param == "timeFrameDurationMs")
       {
@@ -72,19 +77,19 @@ ProcCommand::GeoSched ()
       }
       else if(param == "accessUlScorePenalty")
       {
-	ok = gGeoTreeEngine.setAccessUlScorePenalty((char)ival);
+	ok = gGeoTreeEngine.setAccessUlScorePenalty((char)ival,iparamidx);
       }
       else if(param == "accessDlScorePenalty")
       {
-	ok = gGeoTreeEngine.setAccessDlScorePenalty((char)ival);
+	ok = gGeoTreeEngine.setAccessDlScorePenalty((char)ival,iparamidx);
       }
       else if(param == "plctUlScorePenalty")
       {
-	ok = gGeoTreeEngine.setPlctUlScorePenalty((char)ival);
+	ok = gGeoTreeEngine.setPlctUlScorePenalty((char)ival,iparamidx);
       }
       else if(param == "plctDlScorePenalty")
       {
-	ok = gGeoTreeEngine.setPlctDlScorePenalty((char)ival);
+	ok = gGeoTreeEngine.setPlctDlScorePenalty((char)ival,iparamidx);
       }
       else if(param == "skipSaturatedBlcPlct")
       {
@@ -109,6 +114,10 @@ ProcCommand::GeoSched ()
       else if(param == "skipSaturatedPlct")
       {
 	ok = gGeoTreeEngine.setSkipSaturatedPlct((bool)ival);
+      }
+      else if(param == "penaltyUpdateRate")
+      {
+        ok = gGeoTreeEngine.setPenaltyUpdateRate((float)dval);
       }
 
       retc = ok?SFS_OK:SFS_ERROR;

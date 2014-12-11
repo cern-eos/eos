@@ -258,10 +258,8 @@ class FsId2NodeIdxMap : public SchedTreeBase
 
 public:
 	// creation, allocation, destruction
-	FsId2NodeIdxMap()
+	FsId2NodeIdxMap(): pMaxSize(0), pSize(0),pSelfAllocated(false)
 	{
-		pMaxSize = 0;
-		pSelfAllocated = false;
 	}
 
 	~ FsId2NodeIdxMap()

@@ -24,7 +24,10 @@
 #ifndef __EOSMGM_GEOTREEENGINE__HH__
 #define __EOSMGM_GEOTREEENGINE__HH__
 
+// THIS IS EXPERIMENTAL AND DOES NOT REALLY WORK
+// FOR FUTURE WORK
 //#define EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
+
 /*----------------------------------------------------------------------------*/
 #include "mgm/FsView.hh"
 #include "mgm/geotree/SchedulingSlowTree.hh"
@@ -62,8 +65,70 @@ EOSMGMNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 class GeoTreeEngine : public eos::common::LogId
 {
-  /// Structure holding some pointers to the associated scheduling group
-  friend struct FsComparator;
+//**********************************************************
+// BEGIN INTERNAL DATA STRUCTURES
+//**********************************************************
+  struct Penalties
+  {
+    char
+    dlScorePenalty,ulScorePenalty;
+
+    Penalties() :
+      dlScorePenalty(0),ulScorePenalty(0)
+    {}
+  };
+  typedef std::vector<Penalties> tPenaltiesVec;
+
+  struct tLatencyStats
+  {
+    double minlatency,maxlatency,averagelatency,lastupdate,age;
+    tLatencyStats() :
+      minlatency(std::numeric_limits<double>::max()), maxlatency(-std::numeric_limits<double>::max()),
+      averagelatency(0.0),lastupdate(0.0), age(0.0) {};
+    double getage(double nowms=0.0)
+    {
+      if(nowms == 0.0)
+      {
+        struct timeval curtime;
+        gettimeofday(&curtime, 0);
+        nowms = curtime.tv_sec*1000 + curtime.tv_usec/1000;
+      }
+      return  nowms - lastupdate;
+    }
+    void update(const double &nowms=0.0)
+    {
+      double latency = getage(nowms);
+      averagelatency = (averagelatency!=0.0)?(averagelatency*0.99+latency*0.01):latency;
+      minlatency = std::min( minlatency , latency);
+      maxlatency = std::max( maxlatency , latency);
+    }
+  };
+
+  struct nodeAgreg{
+    bool saturated;
+    size_t fsCount;
+    size_t rOpen;
+    size_t wOpen;
+    double netOutWeight;
+    double netInWeight;
+    double diskUtilSum;
+    size_t netSpeedClass;
+    nodeAgreg() : saturated(false),fsCount(0),rOpen(0),wOpen(0),netOutWeight(0.0),netInWeight(0.0),diskUtilSum(0.0),netSpeedClass(0) {};
+  };
+//**********************************************************
+// END INTERNAL DATA STRUCTURES
+//**********************************************************
+
+//**********************************************************
+// BEGIN INTERNAL CLASSES
+//**********************************************************
+  /*----------------------------------------------------------------------------*/
+  /**
+   * @brief this structure holds all the fast structures needed to carry out
+   *        file scheduling operations
+   *
+   */
+  /*----------------------------------------------------------------------------*/
   struct FastStructures
   {
     FastROAccessTree* rOAccessTree;
@@ -76,6 +141,7 @@ class GeoTreeEngine : public eos::common::LogId
     SchedTreeBase::FastTreeInfo* treeInfo;
     Fs2TreeIdxMap* fs2TreeIdx;
     GeoTag2NodeIdxMap* tag2NodeIdx;
+    tPenaltiesVec *penalties;
 
     FastStructures()
     {
@@ -95,6 +161,8 @@ class GeoTreeEngine : public eos::common::LogId
       drnPlacementTree->selfAllocate(255);
 
       treeInfo = new SchedTreeBase::FastTreeInfo;
+      penalties = new tPenaltiesVec;
+      penalties->reserve(255);
 
       rOAccessTree->pFs2Idx
       = rWAccessTree->pFs2Idx
@@ -131,6 +199,7 @@ class GeoTreeEngine : public eos::common::LogId
       if(blcPlacementTree) delete blcPlacementTree;
       if(drnPlacementTree) delete drnPlacementTree;
       if(treeInfo) delete treeInfo;
+      if(penalties) delete penalties;
       if(fs2TreeIdx) delete fs2TreeIdx;
       if(tag2NodeIdx) delete tag2NodeIdx;
     }
@@ -158,6 +227,10 @@ class GeoTreeEngine : public eos::common::LogId
 	return false;
       }
 
+      // copy the penalties
+      std::copy(penalties->begin(), penalties->end(),
+                    target->penalties->begin());
+
       // update the information in the FastTrees to point to the copy
       target->rOAccessTree->pFs2Idx
       = target->rWAccessTree->pFs2Idx
@@ -180,6 +253,14 @@ class GeoTreeEngine : public eos::common::LogId
     }
   };
 
+
+  /*----------------------------------------------------------------------------*/
+  /**
+   * @brief this structure holds all the structures needed by the GeoTreeEngine
+   *        to manage a given scheduling group
+   *
+   */
+  /*----------------------------------------------------------------------------*/
   struct TreeMapEntry
   {
     FsGroup *group;
@@ -327,104 +408,167 @@ class GeoTreeEngine : public eos::common::LogId
     entry->fastStructModified = false;
 
     // update the BackGroundFastStructures configuration parameters accordingly to the one present in the GeoTree (and update the fast trees)
-    entry->updateBGFastStructuresConfigParam(fillRatioLimit,fillRatioCompTol,saturationThres);
+    entry->updateBGFastStructuresConfigParam(pFillRatioLimit,pFillRatioCompTol,pSaturationThres);
+
+    // clear the penalties
+    std::fill(entry->backgroundFastStruct->penalties->begin(), entry->backgroundFastStruct->penalties->end(), Penalties());
 
     // swap the buffers (this is the only bit where the fast structures is not accessible for a placement/access operation)
     entry->swapFastStructBuffers();
 
     return true;
   }
+//**********************************************************
+// END INTERNAL CLASSES
+//**********************************************************
+
 
   /// enum holding the possible operations
 public:
   enum SchedType
   { regularRO,regularRW,balancing,draining};
+
 protected:
+//**********************************************************
+// BEGIN DATA MEMBERS
+//**********************************************************
+
+  //! this is the size of the thread local buffer to hold the fast structure being used
   static const size_t gGeoBufferSize;
+
+  //--------------------------------------------------------------------------------------------------------
+  // Background Notifications and Updates
+  //--------------------------------------------------------------------------------------------------------
+
+  //! these are implicitly convertible enums
+  //! they map to specific changes that happen on the fs
   static const int
   sfgGeotag,sfgId,sfgBoot,sfgDrain,sfgDrainer,sfgBlcingrun,sfgBlcerrun,
   sfgBalthres,sfgActive,sfgBlkavailb,sfgDiskload,
   sfgEthmib,sfgInratemib,sfgOutratemib,sfgWriteratemb,
   sfgReadratemb,sfgFsfilled,sfgNomfilled,sfgConfigstatus,sfgHost,sfgErrc;
 
-  // This mutex protects the consistency between the GeoTreeEngine state and the filesystems it contains
-  // To make any change that temporarily set an unconsistent state (mainly adding a fs, removing a fs,
-  // listening to the changes in the set if contained fs), one needs to writelock this mutex.
-  // When the mutex is realesed, the GeoTreeEngine internal ressources should be in a consitent state.
+  //! This mutex protects the consistency between the GeoTreeEngine state and the filesystems it contains
+  //! To make any change that temporarily set an unconsistent state (mainly adding a fs, removing a fs,
+  //! listening to the changes in the set if contained fs), one needs to writelock this mutex.
+  //! When the mutex is realesed, the GeoTreeEngine internal ressources should be in a consitent state.
   eos::common::RWMutex pAddRmFsMutex;
 
+  //! this is the set of all the watched keys to be notified about
   static set<std::string> gWatchedKeys;
+
+  //! this map allow to convert a notification key to an enum for efficient processing
   static const std::map<string,int> gNotifKey2Enum;
+
+  //! this is the list of the watched queues to be notified about
   std::set<std::string> pWatchedQueues;
+  //--------------------------------------------------------------------------------------------------------
+  //--------------------------------------------------------------------------------------------------------
 
-public:
-  /// configurable settings
-  bool skipSaturatedPlct,skipSaturatedAccess,
-  skipSaturatedDrnAccess,skipSaturatedBlcAccess,
-  skipSaturatedDrnPlct,skipSaturatedBlcPlct;
+
+  //--------------------------------------------------------------------------------------------------------
+  // Configuration
+  //--------------------------------------------------------------------------------------------------------
+  /// this mutex protects all the configuration settings
   eos::common::RWMutex configMutex;// protects all the following settings
-  std::vector<float> plctDlScorePenaltyF,plctUlScorePenaltyF;
-  std::vector<float> accessDlScorePenaltyF,accessUlScorePenaltyF;
-  // casted version to avoid conversion on every plct / access operation
-  std::vector<SchedTreeBase::tFastTreeIdx> plctDlScorePenalty,plctUlScorePenalty;
-  std::vector<SchedTreeBase::tFastTreeIdx>  accessDlScorePenalty,accessUlScorePenalty;
-  float penaltyUpdateRate;
-  char fillRatioLimit,fillRatioCompTol,saturationThres;// setting fillRatioCompTol at 100 disables online balancing
-  int timeFrameDurationMs;
 
-  struct tLatencyStats
-  {
-    double min,max,average,last;
-    tLatencyStats() :
-      min(std::numeric_limits<double>::max()), max(-std::numeric_limits<double>::max()),
-      average(0.0),last(0.0) {};
-    void update()
-    {
-      average = (average!=0.0)?(average*0.99+last*0.01):last;
-      min = std::min( min , last);
-      max = std::max( max , last);
-    }
-  };
-  tLatencyStats latencyStats;
+  /// these settings indicate if saturated FS should try to be avoided
+  /// this might lead to unoptimal access/placement location-wise
+  bool pSkipSaturatedPlct,pSkipSaturatedAccess,
+  pSkipSaturatedDrnAccess,pSkipSaturatedBlcAccess,
+  pSkipSaturatedDrnPlct,pSkipSaturatedBlcPlct;
 
-private:
-  /// self estimated penalties
-  struct nodeAgreg{
-    bool saturated;
-    size_t fsCount;
-    size_t rOpen;
-    size_t wOpen;
-    double netOutWeight;
-    double netInWeight;
-    double diskUtilSum;
-    size_t netSpeedClass;
-    nodeAgreg() : saturated(false),fsCount(0),rOpen(0),wOpen(0),netOutWeight(0.0),netInWeight(0.0),diskUtilSum(0.0),netSpeedClass(0) {};
-  };
-  std::map<std::string, nodeAgreg> updatingNodes;
-  size_t maxNetSpeedClass;
-  void updatePenalties();
+  /// this set the speed on how fast the penalties are allowed to
+  /// change as they are estimated
+  /// 0 means no self-estimate 1 mean gets a completely new value every time
+  float pPenaltyUpdateRate;
 
-  /// Trees update management
-  pthread_t pUpdaterTid;// thread ID of the dumper thread
-  void listenFsChange();
-  static void* startFsChangeListener( void *pp);
-  static std::map<std::string,int> gNotificationsBuffer;
-  std::list<TreeMapEntry*> pPendingDeletions;
+  /// the following settings control the SchedulingFastTrees
+  /// it has an impact on how the priority of branches in the trees
+  char
+  /// between 0 and 100 : maximum fillRatio allowed on a fs to select it
+  pFillRatioLimit,
+  /// between 0 and 100 : quantity by which fillRatio must differ to be considered as different
+  /// 100 disable any consideration about available space on the fs
+  /// 0 enables a strict online balancing : if two fs are being considered with equal geolocation proximity
+  ///                                       the emptier will be selected
+  pFillRatioCompTol,
+  /// score below which a FS is to be considered as (IO)saturated
+  pSaturationThres;
 
-  static XrdSysCondVar gUpdateCondVar;
-  static bool gUpdaterPaused;
+  /// the following settings control the frequency and the latency of the background updating process
+  int
+  /// this is the minimum duration of a time frame
+  pTimeFrameDurationMs,
+  /// this is how older than a refresh a penalty must be do be dropped
+  pPublishToPenaltyDelayMs;
+  //--------------------------------------------------------------------------------------------------------
+  //--------------------------------------------------------------------------------------------------------
 
-  /// Map a scheduling group to a collection of fast structures
+  //--------------------------------------------------------------------------------------------------------
+  // State
+  //--------------------------------------------------------------------------------------------------------
+  //
+  // => scheduling groups management / operations
+  //
   std::map<const FsGroup*,TreeMapEntry*> pGroup2TreeMapEntry;
   std::map<FileSystem::fsid_t,TreeMapEntry*> pFs2TreeMapEntry;
   std::map<FileSystem::fsid_t,FileSystem*> pFsId2FsPtr;
+  /// protects all the above maps
   eos::common::RWMutex pTreeMapMutex;
-
+  //
+  // => thread local data
+  //
   /// Thread local buffer to hold a working copy of a fast structure
   static __thread void* tlGeoBuffer;
-
   /// Current scheduling group for the current thread
   static __thread const FsGroup* tlCurrentGroup;
+  //
+  // => penalties system
+  //
+  const size_t pCircSize;
+  size_t pFrameCount;
+  std::vector<tPenaltiesVec> pCircFrCnt2FsPenalties;
+  /// self estimated penalties
+  std::map<std::string, nodeAgreg> pUpdatingNodes;
+  size_t pMaxNetSpeedClass;
+  /// Atomic penalties to be applied to the scheduled FSs
+  /// those are in the state section because they can be self estimated
+  /// the following vectors map an netzorkSpeedClass to a penalty
+  std::vector<float> pPlctDlScorePenaltyF,pPlctUlScorePenaltyF;
+  std::vector<float> pAccessDlScorePenaltyF,pAccessUlScorePenaltyF;
+  // casted version to avoid conversion on every plct / access operation
+  std::vector<char> pPlctDlScorePenalty,pPlctUlScorePenalty;
+  std::vector<char>  pAccessDlScorePenalty,pAccessUlScorePenalty;
+  //
+  // => latency estimation
+  //
+  tLatencyStats pGlobalLatencyStats,globalAgeStats;
+  std::vector<tLatencyStats> pFsId2LatencyStats;
+  std::vector<size_t> pCircFrCnt2Timestamp;
+  //
+  // => background updating
+  //
+  /// thread ID of the dumper thread
+  pthread_t pUpdaterTid;
+  /// maps a notification subject to changes that happened in the current time frame
+  static std::map<std::string,int> gNotificationsBuffer;
+  /// deletions to be carried out ASAP
+  /// they are delayed so that any function that is using the treemapentry can safely finish
+  std::list<TreeMapEntry*> pPendingDeletions;
+  /// indicate if the updater is paused
+  static bool gUpdaterPaused;
+//**********************************************************
+// END DATA MEMBERS
+//**********************************************************
+
+
+  void updateAtomicPenalties();
+
+  /// Trees update management
+  void listenFsChange();
+  static void* startFsChangeListener( void *pp);
+
 
   /// Clean
   void checkPendingDeletions()
@@ -449,40 +593,77 @@ private:
     eos_debug("%d pending deletions executed",count);
   }
 
-  inline void applyDlScorePenalty(TreeMapEntry *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty)
+  inline void applyDlScorePenalty(TreeMapEntry *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty, bool background=false)
   {
-    AtomicSub(entry->foregroundFastStruct->placementTree->pNodes[idx].fsData.dlScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->drnPlacementTree->pNodes[idx].fsData.dlScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->blcPlacementTree->pNodes[idx].fsData.dlScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->rOAccessTree->pNodes[idx].fsData.dlScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->rWAccessTree->pNodes[idx].fsData.dlScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->drnAccessTree->pNodes[idx].fsData.dlScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->blcAccessTree->pNodes[idx].fsData.dlScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->placementTree->pNodes[idx].fsData.dlScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->drnPlacementTree->pNodes[idx].fsData.dlScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->blcPlacementTree->pNodes[idx].fsData.dlScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->rOAccessTree->pNodes[idx].fsData.dlScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->rWAccessTree->pNodes[idx].fsData.dlScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->drnAccessTree->pNodes[idx].fsData.dlScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->blcAccessTree->pNodes[idx].fsData.dlScore,penalty);
+    FastStructures *ft = background?entry->backgroundFastStruct:entry->foregroundFastStruct;
+    AtomicSub(ft->placementTree->pNodes[idx].fsData.dlScore,penalty);
+    AtomicSub(ft->drnPlacementTree->pNodes[idx].fsData.dlScore,penalty);
+    AtomicSub(ft->blcPlacementTree->pNodes[idx].fsData.dlScore,penalty);
+    AtomicSub(ft->rOAccessTree->pNodes[idx].fsData.dlScore,penalty);
+    AtomicSub(ft->rWAccessTree->pNodes[idx].fsData.dlScore,penalty);
+    AtomicSub(ft->drnAccessTree->pNodes[idx].fsData.dlScore,penalty);
+    AtomicSub(ft->blcAccessTree->pNodes[idx].fsData.dlScore,penalty);
+    if(!background)
+    {
+    AtomicAdd((*ft->penalties)[idx].dlScorePenalty,penalty);
+    }
   }
 
-  inline void applyUlScorePenalty(TreeMapEntry *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty)
+
+  inline void applyUlScorePenalty(TreeMapEntry *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty, bool background=false)
   {
-    AtomicSub(entry->foregroundFastStruct->placementTree->pNodes[idx].fsData.ulScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->drnPlacementTree->pNodes[idx].fsData.ulScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->blcPlacementTree->pNodes[idx].fsData.ulScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->rOAccessTree->pNodes[idx].fsData.ulScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->rWAccessTree->pNodes[idx].fsData.ulScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->drnAccessTree->pNodes[idx].fsData.ulScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->blcAccessTree->pNodes[idx].fsData.ulScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->placementTree->pNodes[idx].fsData.ulScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->drnPlacementTree->pNodes[idx].fsData.ulScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->blcPlacementTree->pNodes[idx].fsData.ulScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->rOAccessTree->pNodes[idx].fsData.ulScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->rWAccessTree->pNodes[idx].fsData.ulScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->drnAccessTree->pNodes[idx].fsData.ulScore,penalty);
-    AtomicSub(entry->foregroundFastStruct->blcAccessTree->pNodes[idx].fsData.ulScore,penalty);
+    FastStructures *ft = background?entry->backgroundFastStruct:entry->foregroundFastStruct;
+    AtomicSub(ft->placementTree->pNodes[idx].fsData.ulScore,penalty);
+    AtomicSub(ft->drnPlacementTree->pNodes[idx].fsData.ulScore,penalty);
+    AtomicSub(ft->blcPlacementTree->pNodes[idx].fsData.ulScore,penalty);
+    AtomicSub(ft->rOAccessTree->pNodes[idx].fsData.ulScore,penalty);
+    AtomicSub(ft->rWAccessTree->pNodes[idx].fsData.ulScore,penalty);
+    AtomicSub(ft->drnAccessTree->pNodes[idx].fsData.ulScore,penalty);
+    AtomicSub(ft->blcAccessTree->pNodes[idx].fsData.ulScore,penalty);
+    if(!background)
+    {
+    AtomicAdd((*ft->penalties)[idx].ulScorePenalty,penalty);
+    }
+  }
+
+  inline void recallScorePenalty(TreeMapEntry *entry, const SchedTreeBase::tFastTreeIdx &idx)
+  {
+    auto fsid = (*entry->backgroundFastStruct->treeInfo)[idx].fsId;
+    tLatencyStats &lstat = pFsId2LatencyStats[fsid];
+    size_t count = 0;
+    //eos_static_info("size=%d",(int)pFsId2LatencyStats.size());
+    auto mydata = entry->backgroundFastStruct->placementTree->pNodes[idx].fsData;
+    for( size_t circIdx = pFrameCount%pCircSize;
+        (lstat.lastupdate!=0) && (pCircFrCnt2Timestamp[circIdx] > lstat.lastupdate - pPublishToPenaltyDelayMs);
+        circIdx=((pCircSize+circIdx-1)%pCircSize) )
+    {
+      //eos_static_info("circIdx=%d  count=%d  pCircFrCnt2Timestamp[circIdx]=%lu  &&  lstat.lastupdate=%lf",(int)circIdx, (int)count,pCircFrCnt2Timestamp[circIdx],lstat.lastupdate);
+      count++;
+      {
+        eos_static_warning("breaking because I will stay in an infinite loop");
+        break;
+      }
+      if(entry->foregroundFastStruct->placementTree->pNodes[idx].fsData.dlScore>0)
+      applyDlScorePenalty(entry,idx,
+                          pCircFrCnt2FsPenalties[circIdx][fsid].dlScorePenalty,
+                          true
+                          );
+      if(entry->foregroundFastStruct->placementTree->pNodes[idx].fsData.ulScore>0)
+      applyUlScorePenalty(entry,idx,
+                          pCircFrCnt2FsPenalties[circIdx][fsid].ulScorePenalty,
+                          true
+                          );
+    }
+    if(mydata.dlScore!=entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.dlScore || mydata.ulScore!=entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.ulScore)
+    {
+      eos_static_info("score before recalling penalties dl=%d  ul=%d",
+                      (int)mydata.dlScore,
+                      (int)mydata.ulScore);
+
+      eos_static_info("score after recalling penalties dl=%d  ul=%d",
+                    (int)entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.dlScore,
+                    (int)entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.ulScore);
+    }
   }
 
   template<class T> bool placeNewReplicas(TreeMapEntry* entry, const size_t &nNewReplicas,
@@ -739,17 +920,23 @@ private:
 
 public:
   GeoTreeEngine () :
-  skipSaturatedPlct(false),skipSaturatedAccess(true),
-  skipSaturatedDrnAccess(true),skipSaturatedBlcAccess(true),
-  skipSaturatedDrnPlct(false),skipSaturatedBlcPlct(false),
-  plctDlScorePenaltyF(256,10),plctUlScorePenaltyF(256,10),     // 256 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
-  accessDlScorePenaltyF(256,10),accessUlScorePenaltyF(256,10),
-  plctDlScorePenalty(256,10),plctUlScorePenalty(256,10),     // 256 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
-  accessDlScorePenalty(256,10),accessUlScorePenalty(256,10),
-  penaltyUpdateRate(1),
-  fillRatioLimit(80),fillRatioCompTol(100),saturationThres(10),
-  timeFrameDurationMs(1000),pUpdaterTid(0)
+  pSkipSaturatedPlct(false),pSkipSaturatedAccess(true),
+  pSkipSaturatedDrnAccess(true),pSkipSaturatedBlcAccess(true),
+  pSkipSaturatedDrnPlct(false),pSkipSaturatedBlcPlct(false),
+  pPenaltyUpdateRate(1),
+  pFillRatioLimit(80),pFillRatioCompTol(100),pSaturationThres(10),
+  pTimeFrameDurationMs(1000),pPublishToPenaltyDelayMs(1000),
+  pCircSize(30),pFrameCount(0), pCircFrCnt2FsPenalties(pCircSize),
+  pMaxNetSpeedClass(0),
+  pPlctDlScorePenaltyF(256,10),pPlctUlScorePenaltyF(256,10),     // 256 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
+  pAccessDlScorePenaltyF(256,10),pAccessUlScorePenaltyF(256,10),
+  pPlctDlScorePenalty(256,10),pPlctUlScorePenalty(256,10),     // 256 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
+  pAccessDlScorePenalty(256,10),pAccessUlScorePenalty(256,10),
+  pCircFrCnt2Timestamp(pCircSize),
+  pUpdaterTid(0)
   {
+    for(auto it=pCircFrCnt2FsPenalties.begin(); it!=pCircFrCnt2FsPenalties.end(); it++)
+      it->reserve(100);
 #ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
 #ifdef EOS_INSTRUMENTED_RWMUTEX
     eos::common::RWMutex::SetOrderCheckingGlobal(true);
@@ -812,7 +999,7 @@ public:
   //   narrow down information to this type of operation
   // ---------------------------------------------------------------------------
   void printInfo(std::string &info,
-      bool dispTree, bool dispSnaps, bool dispLs,
+      bool dispTree, bool dispSnaps, bool dispParam, bool dispState,
       const std::string &schedgroup, const std::string &optype);
 
   // ---------------------------------------------------------------------------
@@ -944,7 +1131,8 @@ public:
       SchedType type=regularRO,
       const std::string &accesserGeotag="",
       const eos::common::FileSystem::fsid_t &forcedFsId=0,
-      std::vector<eos::common::FileSystem::fsid_t> *unavailableFs=NULL
+      std::vector<eos::common::FileSystem::fsid_t> *unavailableFs=NULL,
+      bool noIO=false
   );
 
   // ---------------------------------------------------------------------------
@@ -979,71 +1167,81 @@ public:
 
   inline bool setSkipSaturatedPlct(bool value)
   {
-    return setInternalParam(skipSaturatedPlct,value,false);
+    return setInternalParam(pSkipSaturatedPlct,value,false);
   }
   inline bool setSkipSaturatedAccess(bool value)
   {
-    return setInternalParam(skipSaturatedAccess,value,false);
+    return setInternalParam(pSkipSaturatedAccess,value,false);
   }
   inline bool setSkipSaturatedDrnAccess(bool value)
   {
-    return setInternalParam(skipSaturatedDrnAccess,value,false);
+    return setInternalParam(pSkipSaturatedDrnAccess,value,false);
   }
   inline bool setSkipSaturatedBlcAccess(bool value)
   {
-    return setInternalParam(skipSaturatedBlcAccess,value,false);
+    return setInternalParam(pSkipSaturatedBlcAccess,value,false);
   }
   inline bool setSkipSaturatedDrnPlct(bool value)
   {
-    return setInternalParam(skipSaturatedDrnPlct,value,false);
+    return setInternalParam(pSkipSaturatedDrnPlct,value,false);
   }
   inline bool setSkipSaturatedBlcPlct(bool value)
   {
-    return setInternalParam(skipSaturatedBlcPlct,value,false);
+    return setInternalParam(pSkipSaturatedBlcPlct,value,false);
   }
-  inline bool setPlctDlScorePenalty(char value)
+  inline bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, char value, int netSpeedClass)
   {
-    std::vector<float> vvaluef(256,value);
-    std::vector<SchedTreeBase::tFastTreeIdx> vvalue(256,value);
-    return setInternalParam(plctDlScorePenaltyF,vvaluef,false)
-        && setInternalParam(plctDlScorePenalty,vvalue,false);
+    if(netSpeedClass>=0)
+    {
+      if(netSpeedClass>=(int)fvector.size())
+      return false;
+      return setInternalParam(fvector[netSpeedClass],(float)value,false)
+      && setInternalParam(cvector[netSpeedClass],value,false);
+    }
+    else
+    {
+      std::vector<float> vvaluef(256,value);
+      std::vector<char> vvalue(256,value);
+      return setInternalParam(fvector,vvaluef,false)
+      && setInternalParam(cvector,vvalue,false);
+    }
   }
-  inline bool setPlctUlScorePenalty(char value)
+
+  inline bool setPlctDlScorePenalty(char value, int netSpeedClass)
   {
-    std::vector<float> vvaluef(256,value);
-    std::vector<SchedTreeBase::tFastTreeIdx> vvalue(256,value);
-    return setInternalParam(plctUlScorePenaltyF,vvaluef,false)
-        && setInternalParam(plctUlScorePenalty,vvalue,false);
+    return setScorePenalty(pPlctDlScorePenaltyF,pPlctDlScorePenalty,value,netSpeedClass);
   }
-  inline bool setAccessDlScorePenalty(char value)
+  inline bool setPlctUlScorePenalty(char value, int netSpeedClass)
   {
-    std::vector<float> vvaluef(256,value);
-    std::vector<SchedTreeBase::tFastTreeIdx> vvalue(256,value);
-    return setInternalParam(accessDlScorePenaltyF,vvaluef,false)
-        && setInternalParam(accessDlScorePenalty,vvalue,false);
+    return setScorePenalty(pPlctUlScorePenaltyF,pPlctUlScorePenalty,value,netSpeedClass);
   }
-  inline bool setAccessUlScorePenalty(char value)
+  inline bool setAccessDlScorePenalty(char value, int netSpeedClass)
   {
-    std::vector<float> vvaluef(256,value);
-    std::vector<SchedTreeBase::tFastTreeIdx> vvalue(256,value);
-    return setInternalParam(accessUlScorePenaltyF,vvaluef,false)
-        && setInternalParam(accessUlScorePenalty,vvalue,false);
+    return setScorePenalty(pAccessDlScorePenaltyF,pAccessDlScorePenalty,value,netSpeedClass);
+  }
+  inline bool setAccessUlScorePenalty(char value, int netSpeedClass)
+  {
+    return setScorePenalty(pAccessUlScorePenaltyF,pAccessUlScorePenalty,value,netSpeedClass);
   }
   inline bool setFillRatioLimit(char value)
   {
-    return setInternalParam(fillRatioLimit,value,true);
+    return setInternalParam(pFillRatioLimit,value,true);
   }
   inline bool setFillRatioCompTol(char value)
   {
-    return setInternalParam(fillRatioCompTol,value,true);
+    return setInternalParam(pFillRatioCompTol,value,true);
   }
   inline bool setSaturationThres(char value)
   {
-    return setInternalParam(saturationThres,value,true);
+    return setInternalParam(pSaturationThres,value,true);
   }
   inline bool setTimeFrameDurationMs(int value)
   {
-    return setInternalParam(timeFrameDurationMs,value,false);
+    return setInternalParam(pTimeFrameDurationMs,value,false);
+  }
+  inline bool setPenaltyUpdateRate(float value)
+  {
+    return setInternalParam(pPenaltyUpdateRate,value,false);
   }
 };
 

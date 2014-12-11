@@ -133,7 +133,6 @@ Messaging::Update (XrdAdvisoryMqMessage* advmsg)
         for (it = FsView::gFsView.mNodeView[nodequeue]->begin(); it != FsView::gFsView.mNodeView[nodequeue]->end(); it++)
         {
           FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattime", (long long) advmsg->kMessageHeader.kSenderTime_sec, false);
-          FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattimens", (long long) advmsg->kMessageHeader.kSenderTime_nsec, false);
         }
       }
       // =========| UnLockWrite
@@ -168,7 +167,6 @@ Messaging::Update (XrdAdvisoryMqMessage* advmsg)
       for (it = FsView::gFsView.mNodeView[nodequeue]->begin(); it != FsView::gFsView.mNodeView[nodequeue]->end(); it++)
       {
         FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattime", (long long) advmsg->kMessageHeader.kSenderTime_sec, false);
-        FsView::gFsView.mIdView[*it]->SetLongLong("stat.heartbeattimens", (long long) advmsg->kMessageHeader.kSenderTime_nsec, false);
       }
     }
     FsView::gFsView.ViewMutex.UnLockRead(); // |========= UnLockRead

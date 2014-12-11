@@ -126,6 +126,7 @@ public:
     std::string mHostPort;
     std::string mPort;
     std::string mGeoTag;
+    size_t mPublishTimestamp;
     int mGroupIndex;
     std::string mSpace;
     fsstatus_t mStatus;
@@ -138,7 +139,6 @@ public:
     time_t mBootSentTime;
     time_t mBootDoneTime;
     time_t mHeartBeatTime;
-    long mHeartBeatTimeNs;
     double mDiskUtilization;
     double mDiskWriteRateMb;
     double mDiskReadRateMb;

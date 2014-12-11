@@ -432,6 +432,7 @@ public:
 class XrdMqSharedObjectChangeNotifier {
 public:
   struct Subscriber{
+    std::string Name;
     // some of the members are array of size 5, one for each type of notification
     // kMqSubjectNothing=-1,kMqSubjectCreation=0, kMqSubjectDeletion=1, kMqSubjectModification=2, kMqSubjectKeyDeletion=3
     // the value 4 is a variant of kMqSubjectModification that could be called kMqSubjectModificationStrict in which the value is actually checked for a change
@@ -447,7 +448,7 @@ public:
     XrdSysSemWait           SubjectsSem;
     XrdSysMutex             SubjectsMutex;
     bool                    Notify;
-    Subscriber() : Notify(false) {}
+    Subscriber(const std::string &name="") : Name(name),Notify(false) {}
     bool empty() {
       for(int k=0; k<4; k++) {
         if(
@@ -515,7 +516,7 @@ public:
       if(pSubscribersCatalog.count(name))
         ret = pSubscribersCatalog[name];
       else
-        ret = (pSubscribersCatalog[name] = new Subscriber);
+        ret = (pSubscribersCatalog[name] = new Subscriber(name));
     }
     else {
       XrdSysMutexHelper lock(pCatalogMutex);
