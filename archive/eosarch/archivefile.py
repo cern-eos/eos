@@ -35,7 +35,9 @@ class ArchiveFile(object):
 
     Attributes:
         file: File object pointing to local archive file.
-        d2t: True if operation from disk to tape, otherwise False.
+        d2t: True if operation from disk to tape, otherwise False. For backup
+             operations we consider it as a transfer from tape to disk thus it
+             is False.
         header: Archive header dictionary.
     """
 
@@ -267,7 +269,7 @@ class ArchiveFile(object):
             fgetattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/",
                                 "?mgm.cmd=attr&mgm.subcmd=get&mgm.attr.key=sys.acl",
                                 "&mgm.path=", dir_path])
-            (status, stdout, __) = exec_cmd(''.join(fgetattr))
+            (status, stdout, __) = exec_cmd(fgetattr)
 
             if not status:
                 warn_msg = "No xattr sys.acl found for dir={0}".format(dir_path)
@@ -275,22 +277,32 @@ class ArchiveFile(object):
             else:
                 # Remove the 'z:i' rule from the acl list
                 acl_val = stdout[stdout.find('=') + 1:]
-                pos = acl_val.find('z:i')
+                rules  = acl_val.split(',')
+                new_rules = []
 
-                if pos != -1:
-                    if acl_val[pos - 1] == ',':
-                        acl_val = acl_val[:pos - 1] + acl_val[pos + 3:]
-                    elif acl_val[pos + 3] == ',':
-                        acl_val = acl_val[pos + 3:]
-                    else:
-                        acl_val = ''
+                for rule in rules:
+                    if rule.startswith("z:"):
+                        tag, definition = rule.split(':')
+                        pos = definition.find('i')
+
+                        if pos != -1:
+                            definition = definition[:pos] + definition[pos + 1:]
+
+                            if not definition:
+                                new_rules.append(':'.join([tag, definition]))
+
+                            continue
+
+                    new_rules.append(rule)
+
+                acl_val = ','.join(new_rules)
 
                 if acl_val:
                     # Set the new sys.acl xattr
                     fmutable = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
                                         "mgm.cmd=attr&mgm.subcmd=set&mgm.attr.key=sys.acl",
                                         "&mgm.attr.value=", acl_val, "&mgm.path=", dir_path])
-                    (status, __, stderr) = exec_cmd(''.join(fmutable))
+                    (status, __, stderr) = exec_cmd(fmutable)
 
                     if not status:
                         err_msg = "Error making dir={0} mutable, msg={1}".format(
@@ -299,10 +311,10 @@ class ArchiveFile(object):
                         raise IOError(err_msg)
                 else:
                     # sys.acl empty, remove it from the xattrs
-                    frmattr = [url.protocol, "://", url.hostid, "//proc/user/?",
-                               "mgm.cmd=attr&mgm.subcmd=rm&mgm.attr.key=sys.acl",
-                               "&mgm.path=", dir_path]
-                    (status, __, stderr) = exec_cmd(''.join(frmattr))
+                    frmattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
+                                       "mgm.cmd=attr&mgm.subcmd=rm&mgm.attr.key=sys.acl",
+                                       "&mgm.path=", dir_path])
+                    (status, __, stderr) = exec_cmd(frmattr)
 
                     if not status:
                         err_msg = ("Error removing xattr=sys.acl for dir={0}, msg={1}"
@@ -342,12 +354,14 @@ class ArchiveFile(object):
                         st, __ = fs.mkdir(dpath)
 
                         if not st.ok:
-                            err_msg = "Dir={0}, failed mkdir".format(dpath)
+                            err_msg = "Dir={0} failed mkdir errmsg={1}".format(
+                                dpath, st.message)
                             self.logger.error(err_msg)
                             raise IOError(err_msg)
 
         if not st.ok:
-            err_msg = "Dir={0}, failed mkdir".format(root_str)
+            err_msg = "Dir={0} failed mkdir errmsg={1}".format(
+                root_str, st.message)
             self.logger.error(err_msg)
             raise IOError(err_msg)
 
@@ -358,14 +372,14 @@ class ArchiveFile(object):
                 self.logger.error(err_msg)
                 raise IOError(err_msg)
             else:
-                ffindcount = [url.protocol, "://", url.hostid, "//proc/user/?"
-                              "mgm.cmd=find&mgm.path=", url.path, "&mgm.option=Z"]
-                (status, stdout, stderr) = exec_cmd(''.join(ffindcount))
+                ffindcount = ''.join([url.protocol, "://", url.hostid,
+                                      "//proc/user/?mgm.cmd=find&mgm.path=",
+                                      url.path, "&mgm.option=Z"])
+                (status, stdout, stderr) = exec_cmd(ffindcount)
 
                 if status:
                     for entry in stdout.split():
                         tag, num = entry.split('=')
-                        self.logger.debug("Tag={0}, val={1}".format(tag, num))
 
                         if ((tag == 'nfiles' and num not in ['1', '2']) or
                             (tag == 'ndirectories' and num != '1')):
@@ -380,24 +394,39 @@ class ArchiveFile(object):
                     self.logger.error(err_msg)
                     raise IOError(err_msg)
 
-    def verify(self):
+    def verify(self, best_effort):
         """ Check the integrity of the archive either on disk or on tape.
+
+        Args:
+            best_effort (boolean): If True then try to verify all entries even if
+                we get an error during the check. This is used for the backup while
+                for the archive, we return as soon as we find the first error.
 
         Returns:
             (status, entry) - Status is True if archive is valid, otherwise
             false. In case the archive has error return also the first corrupted
             entry from the archive file, otherwise return an empty list.
+            For BACKUP operations return the status and the list of entries for
+            which the verfication failed in order to provide a summary to the user.
         """
         self.logger.info("Do archive verify")
+        status = True
+        lst_failed = []
 
         for entry in self.entries():
             try:
-                self._verify_entry(entry)
+                self._verify_entry(list(entry))
             except CheckEntryException as __:
-                self.logger.error("Archive verfication failed")
-                return (False, entry)
+                if best_effort:
+                    # Backup
+                    status = False
+                    lst_failed.append(entry[1])
+                    continue
+                else:
+                    # Archive
+                    return (False, entry)
 
-        return (True, [])
+        return (status, lst_failed)
 
     def _verify_entry(self, entry):
         """ Check that the entry (file/dir) has the proper meta data.
@@ -409,7 +438,7 @@ class ArchiveFile(object):
         Raises:
             CheckEntryException if entry verification fails.
         """
-        self.logger.info("Verify entry: {0}".format(entry))
+        self.logger.debug("Verify entry={0}".format(entry))
         is_dir, path = (entry[0] == 'd'), entry[1]
         __, dst = self.get_endpoints(path)
         url = client.URL(dst)
@@ -423,21 +452,22 @@ class ArchiveFile(object):
                 self.logger.error(err_msg)
                 raise CheckEntryException("failed stat")
 
-            if not is_dir:  # for files check size match
+            if not is_dir:  # check file size match
                 indx = self.header["file_meta"].index("size") + 2
                 orig_size = int(entry[indx])
 
                 if stat_info.size != orig_size:
-                    err_msg = ("Verify file={0}, size={1}, expect_size={2}"
+                    err_msg = ("Verify entry={0}, size={1}, expect_size={2}"
                                "").format(dst, orig_size, stat_info.size)
                     self.logger.error(err_msg)
                     raise CheckEntryException("failed file size match")
 
-                # check checksum only if it is adler32 since CASTOR supports
-                #only this
+                # Check checksum only if it is adler32 - only one supported by CASTOR
                 indx = self.header["file_meta"].index("xstype") + 2
 
-                if entry[indx] == "adler":
+                # !!!HACK!!! Check the checksum only if file size is not 0 since
+                # CASTOR does not store any checksum for 0 size files
+                if stat_info.size != 0 and entry[indx] == "adler":
                     indx = self.header["file_meta"].index("xs") + 2
                     xs = entry[indx]
                     st, xs_resp = fs.query(QueryCode.CHECKSUM, url.path)
@@ -469,14 +499,6 @@ class ArchiveFile(object):
 
             try:
                 meta_info = get_entry_info(url, path, tags, is_dir)
-
-                if not is_dir:
-                    # TODO: review this - fix EOS to honour the mtime argument
-                    # and don't remove it below
-                    indx = self.header["file_meta"].index("mtime") + 2
-                    del meta_info[indx]
-                    del entry[indx]
-
             except (AttributeError, IOError, KeyError) as __:
                 self.logger.error("Failed getting metainfo entry={0}".format(dst))
                 raise CheckEntryException("failed getting metainfo")
@@ -487,7 +509,7 @@ class ArchiveFile(object):
                 self.logger.error(err_msg)
                 raise CheckEntryException("failed metainfo match")
 
-        self.logger.debug("Check={0}, status={1}".format(dst, True))
+        self.logger.info("Entry={0}, status={1}".format(dst, True))
 
     def mkdir(self, dentry):
         """ Create directory and optionally for GET operations set the
@@ -504,11 +526,10 @@ class ArchiveFile(object):
         url = client.URL(surl)
 
         # Create directory
-        st, __ = fs.mkdir(url.path + "?eos.ruid=0&eos.rgid=0",
-                          MkDirFlags.MAKEPATH)
+        st, __ = fs.mkdir(url.path + "?eos.ruid=0&eos.rgid=0")
 
         if not st.ok:
-            err_msg = "Dir={0}, failed mkdir".format(surl)
+            err_msg = "Dir={0} failed mkdir errmsg={1}".format(surl, st.message)
             self.logger.error(err_msg)
             raise IOError(err_msg)
 
@@ -519,6 +540,6 @@ class ArchiveFile(object):
             try:
                 set_dir_info((surl, dict_dinfo))
             except IOError as __:
-                err_msg = "Dir={0}, failed setting metadata".format(surl)
+                err_msg = "Dir={0} failed setting metadata".format(surl)
                 self.logger.error(err_msg)
                 raise IOError(err_msg)

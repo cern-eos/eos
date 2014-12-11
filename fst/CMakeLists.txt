@@ -240,7 +240,7 @@ target_link_libraries(
    ${CMAKE_THREAD_LIBS_INIT})
 
 #-------------------------------------------------------------------------------
-# eoscp executable 
+# eoscp executable
 #-------------------------------------------------------------------------------
 add_executable(eoscp txqueue/eoscp.cc)
 set_target_properties(eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64)
@@ -307,7 +307,7 @@ if(MacOSX)
 
   set_target_properties(
     EosFstIo XrdEosFst
-    PROPERTIES 
+    PROPERTIES
     MACOSX_RPATH TRUE)
 else()
   target_link_libraries(eoscp EosFstIo-Static ${XROOT_CL_LIBRARY})

@@ -134,12 +134,12 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
   // ------------------------------------------------------------------------------
   // owncloud protocol emulator
   // ------------------------------------------------------------------------------
-  if (spath.find("/status.php") != STR_NPOS)
+
+  if (eos::common::OwnCloud::WantsStatus(spath))
   {
     XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
-    spath.replace("/status.php", "");
     XrdOucString val;
-    if (gOFS->attr_get(spath.c_str(), error, &client, "", "sys.allow.oc.sync", val))
+    if (gOFS->attr_get(spath.c_str(), error, &client, "", eos::common::OwnCloud::GetAllowSyncName() , val))
     {
       response = HttpServer::HttpError("No sync allowed in this tree",
                                        response->METHOD_NOT_ALLOWED);
@@ -153,10 +153,8 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
     }
   }
 
-  if (spath.find("/remote.php/webdav/") != STR_NPOS)
-  {
-    spath.replace("remote.php/webdav/", "");
-  }
+  eos::common::OwnCloud::OwnCloudRemapping(spath, request);
+  eos::common::OwnCloud::ReplaceRemotePhp(spath);
 
   if (!spath.beginswith("/proc/"))
   {
@@ -730,8 +728,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
       // use the proper creation/open flags for PUT's
       open_mode |= SFS_O_TRUNC;
       open_mode |= SFS_O_RDWR;
-      open_mode |= SFS_O_MKPTH;
-      create_mode |= (SFS_O_MKPTH | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+      create_mode |= (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
       std::string query;
       if (request->GetHeaders().count("content-length"))
@@ -815,13 +812,16 @@ HttpHandler::Put (eos::common::HttpRequest * request)
         }
         else if (rc == SFS_ERROR)
         {
-          response = HttpServer::HttpError(file->error.getErrText(),
+	  if (file->error.getErrInfo() == ENOENT)
+	    response = HttpServer::HttpError(file->error.getErrText(), 409);
+	  else
+	    response = HttpServer::HttpError(file->error.getErrText(),
                                            file->error.getErrInfo());
         }
         else if (rc == SFS_DATA)
         {
-          response = HttpServer::HttpData(file->error.getErrText(),
-                                          file->error.getErrInfo());
+	  response = HttpServer::HttpData(file->error.getErrText(),
+					  file->error.getErrInfo());
         }
         else if (rc == SFS_STALL)
         {

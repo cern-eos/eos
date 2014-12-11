@@ -23,7 +23,7 @@
 """This module provides access to EOS archives. It also facilitates the operations
    that are done using such objects.
 """
+from configuration import Configuration
 from transfer import Transfer
 from processinfo import ProcessInfo
-from configuration import Configuration
 from exceptions import NoErrorException, CheckEntryException

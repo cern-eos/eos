@@ -66,6 +66,11 @@ EOSMGMNAMESPACE_BEGIN;
 extern char dav_rfc3986[256];
 extern char dav_html5[256];
 
+/**
+ * URI decoding routine
+ */
+extern int dav_uri_decode (char* source, char* dest );
+
 class PropFindResponse : public WebDAVResponse {
 public:
 
@@ -125,6 +130,7 @@ public:
   virtual ~PropFindResponse ()
   {
   };
+
 
   /**
    * Build an appropriate response to the given PROPFIND request.

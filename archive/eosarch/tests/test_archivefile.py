@@ -37,7 +37,7 @@ def test_exec_cmd():
     url = client.URL(''.join([SERVER_URL, EOS_DIR]))
     flsattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/",
                         "?mgm.cmd=attr&mgm.subcmd=ls&mgm.path=", EOS_DIR])
-    (status, stdout, __) = exec_cmd(''.join(flsattr))
+    (status, stdout, __) = exec_cmd(flsattr)
     assert(status)
 
 

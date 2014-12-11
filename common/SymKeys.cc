@@ -34,6 +34,7 @@ EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 SymKeyStore gSymKeyStore; //< global SymKey store singleton
+XrdSysMutex SymKey::msMutex;
 /*----------------------------------------------------------------------------*/
 
 //------------------------------------------------------------------------------
@@ -93,23 +94,27 @@ SymKey::Sha256 (const std::string& data,
   std::string result;
   result.resize(EVP_MAX_MD_SIZE);
   unsigned char* pResult = (unsigned char*) result.c_str();
-
-  EVP_MD_CTX* md_ctx = EVP_MD_CTX_create();
-  EVP_DigestInit_ex(md_ctx, EVP_sha256(), NULL);
-
-  while (data_len > blockSize)
-  {
-    EVP_DigestUpdate(md_ctx, pData, blockSize);
-    data_len -= blockSize;
-    pData += blockSize;
-  }
-
-  if (data_len)
-    EVP_DigestUpdate(md_ctx, pData, data_len);
-
   unsigned int sz_result;
-  EVP_DigestFinal_ex(md_ctx, pResult, &sz_result);
-  EVP_MD_CTX_cleanup(md_ctx);
+
+  {
+    XrdSysMutexHelper scope_lock(msMutex);
+    EVP_MD_CTX* md_ctx = EVP_MD_CTX_create();
+    EVP_DigestInit_ex(md_ctx, EVP_sha256(), NULL);
+
+    while (data_len > blockSize)
+    {
+      EVP_DigestUpdate(md_ctx, pData, blockSize);
+      data_len -= blockSize;
+      pData += blockSize;
+    }
+
+    if (data_len)
+      EVP_DigestUpdate(md_ctx, pData, data_len);
+
+
+    EVP_DigestFinal_ex(md_ctx, pResult, &sz_result);
+    EVP_MD_CTX_cleanup(md_ctx);
+  }
 
   // Return the hexdigest of the SHA256 value
   std::ostringstream oss;

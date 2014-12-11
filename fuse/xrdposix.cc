@@ -2616,9 +2616,15 @@ xrd_rename (const char* oldpath,
             pid_t pid)
 {
   eos_static_info("oldpath=%s newpath=%s", oldpath, newpath, uid, pid);
+  XrdOucString sOldPath = oldpath;
+  XrdOucString sNewPath = newpath;
+
+  // XRootd move cannot deal with space in the path names
+  sOldPath.replace(" ","#space#");
+  sNewPath.replace(" ","#space#");
   XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
-  XrdCl::XRootDStatus status = fs.Mv(oldpath, newpath);
+  XrdCl::XRootDStatus status = fs.Mv(sOldPath.c_str(), sNewPath.c_str());
 
   if (xrd_error_retc_map(status.errNo))
     return errno;

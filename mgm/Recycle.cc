@@ -36,6 +36,7 @@
 std::string Recycle::gRecyclingPrefix = "/recycle/"; // MgmOfsConfigure prepends the proc directory path e.g. the bin is /eos/<instance/proc/recycle/
 std::string Recycle::gRecyclingAttribute = "sys.recycle";
 std::string Recycle::gRecyclingTimeAttribute = "sys.recycle.keeptime";
+std::string Recycle::gRecyclingKeepRatio = "sys.recycle.keepratio";
 std::string Recycle::gRecyclingPostFix = ".d";
 int Recycle::gRecyclingPollTime = 30;
 
@@ -90,9 +91,12 @@ Recycle::Recycler ()
   eos::common::Mapping::Root(rootvid);
   XrdOucErrInfo lError;
   time_t lKeepTime = 0;
-
+  double lSpaceKeepRatio = 0;
   std::multimap<time_t, std::string> lDeletionMap;
   time_t snoozetime = 10;
+
+  unsigned long long lLowInodesWatermark = 0;
+  unsigned long long lLowSpaceWatermark = 0;
 
   bool show_attribute_missing = true;
 
@@ -148,6 +152,39 @@ Recycle::Recycler ()
     }
     else
     {
+      if (attrmap.count(Recycle::gRecyclingKeepRatio))
+      {
+	// one can define a space threshold which actually leaves even older files in the garbage bin until the threshold is reached
+	// for simplicity we apply this threshold to volume & inodes
+
+	lSpaceKeepRatio = strtod(attrmap[Recycle::gRecyclingKeepRatio].c_str(), 0);
+	
+	eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+	SpaceQuota* spacequota = Quota::GetResponsibleSpaceQuota((Recycle::gRecyclingPrefix + "/").c_str());
+	if (spacequota)
+	{
+	  spacequota->Refresh();
+	  unsigned long long usedbytes = spacequota->GetQuota(SpaceQuota::kGroupBytesIs, Quota::gProjectId);
+	  unsigned long long maxbytes = spacequota->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId);
+	  unsigned long long usedfiles = spacequota->GetQuota(SpaceQuota::kGroupFilesIs, Quota::gProjectId);
+	  unsigned long long maxfiles = spacequota->GetQuota(SpaceQuota::kGroupFilesTarget, Quota::gProjectId);
+	  
+	  if ( (lSpaceKeepRatio > (1.0 * usedbytes/(maxbytes?maxbytes:999999999)) ) &&
+	       (lSpaceKeepRatio > (1.0 * usedfiles/(maxfiles?maxfiles:999999999) ) ) )
+	  {	       
+	    eos_static_debug("msg=\"skipping recycle clean-up - ratio still low\" ratio=%.02f space-ratio=%.02f inode-ratio=%.02f",
+			     lSpaceKeepRatio, 
+			     1.0 * usedbytes/(maxbytes?maxbytes:999999999),
+			     1.0 * usedfiles/(maxfiles?maxfiles:999999999));
+	    continue;
+	  }
+	  if ((lSpaceKeepRatio - 0.1)  > 0)
+	    lSpaceKeepRatio -= 0.1;
+	  lLowInodesWatermark =  (maxfiles*lSpaceKeepRatio);
+	  lLowSpaceWatermark = (maxbytes*lSpaceKeepRatio);
+	  eos_static_info("msg=\"cleaning by ratio policy\" low-inodes-mark=%lld low-space-mark=%lld mark=%.02f", lLowInodesWatermark, lLowSpaceWatermark, lSpaceKeepRatio);
+	}
+      }
       if (attrmap.count(Recycle::gRecyclingTimeAttribute))
       {
         lKeepTime = strtoull(attrmap[Recycle::gRecyclingTimeAttribute].c_str(), 0, 10);
@@ -158,7 +195,7 @@ Recycle::Recycler ()
           {
             //...................................................................
             //  the deletion map is filled if there is nothing inside with files/
-            //  directories found previouslyin the garbage bin
+            //  directories found previously in the garbage bin
             //...................................................................
             std::string subdirs;
             XrdMgmOfsDirectory dirl1;
@@ -265,6 +302,32 @@ Recycle::Recycler ()
                 //...............................................................
                 // this entry can be removed
                 //...............................................................
+
+		// if there is a keep-ratio policy defined we abort deletion once we are enough under the thresholds
+		if (attrmap.count(Recycle::gRecyclingKeepRatio))
+		{
+		  // extract the current usage
+		  eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+		  SpaceQuota* spacequota = Quota::GetResponsibleSpaceQuota((Recycle::gRecyclingPrefix + "/").c_str());
+		  if (spacequota)
+		  {
+		    spacequota->Refresh();
+		    unsigned long long usedbytes = spacequota->GetQuota(SpaceQuota::kGroupBytesIs, Quota::gProjectId);
+		    unsigned long long usedfiles = spacequota->GetQuota(SpaceQuota::kGroupFilesIs, Quota::gProjectId);
+		    eos_static_debug("low-volume=%lld is-volume=%lld low-inodes=%lld is-inodes=%lld",
+				     usedfiles,
+				     lLowInodesWatermark,
+				     usedbytes,
+				     lLowSpaceWatermark);
+		    if ( (lLowInodesWatermark >= usedfiles) &&
+			 (lLowSpaceWatermark >= usedbytes) )
+		    {
+		      eos_static_debug("msg=\"skipping recycle clean-up - ratio went under low watermarks\"");
+		      break; // leave the deletion loop
+		    }
+		  }
+		}
+
                 XrdOucString delpath = it->second.c_str();
                 if ((it->second.length()) && (delpath.endswith(Recycle::gRecyclingPostFix.c_str())))
                 {
@@ -656,6 +719,8 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
                 stdOut += deltime;
 		stdOut += " type=";
 		stdOut += type.c_str();
+		stdOut += " keylength.restore-path=";
+		stdOut += (int)origpath.length();
                 stdOut += " restore-path=";
                 stdOut += origpath.c_str();
                 stdOut += " restore-key=";
@@ -705,7 +770,7 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
       unsigned long long usedbytes = spacequota->GetQuota(SpaceQuota::kGroupBytesIs, Quota::gProjectId);
       unsigned long long maxbytes = spacequota->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId);
       unsigned long long usedfiles = spacequota->GetQuota(SpaceQuota::kGroupFilesIs, Quota::gProjectId);
-      unsigned long long maxfiles = spacequota->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId);
+      unsigned long long maxfiles = spacequota->GetQuota(SpaceQuota::kGroupFilesTarget, Quota::gProjectId);
       char sline[1024];
       XrdOucString sizestring1;
       XrdOucString sizestring2;
@@ -720,27 +785,29 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
       }
       if (!monitoring)
       {
-        stdOut += "# _______________________________________________________________________________________________\n";
-        snprintf(sline, sizeof (sline) - 1, "# used %s out of %s (%.02f%% volume / %.02f%% inodes used) Object-Lifetime %s [s]",
+        stdOut += "# ___________________________________________________________________________________________________________________________\n";
+        snprintf(sline, sizeof (sline) - 1, "# used %s out of %s (%.02f%% volume / %.02f%% inodes used) Object-Lifetime %s [s] Keep-Ratio %s",
                  eos::common::StringConversion::GetReadableSizeString(sizestring1, usedbytes, "B"),
                  eos::common::StringConversion::GetReadableSizeString(sizestring2, maxbytes, "B"),
                  usedbytes * 100.0 / maxbytes,
                  usedfiles * 100.0 / maxfiles,
-                 attrmap.count(Recycle::gRecyclingTimeAttribute) ? attrmap[Recycle::gRecyclingTimeAttribute].c_str() : "not configured");
+                 attrmap.count(Recycle::gRecyclingTimeAttribute) ? attrmap[Recycle::gRecyclingTimeAttribute].c_str() : "not configured",
+                 attrmap.count(Recycle::gRecyclingKeepRatio) ? attrmap[Recycle::gRecyclingKeepRatio].c_str() : "not configured");
         stdOut += sline;
         stdOut += "\n";
-        stdOut += "# _______________________________________________________________________________________________\n";
+        stdOut += "# ___________________________________________________________________________________________________________________________\n";
 
       }
       else
       {
-        snprintf(sline, sizeof (sline) - 1, "recycle-bin=%s usedbytes=%s maxbytes=%s volumeusage=%.02f%% inodeusage=%.02f%% lifetime=%s",
+        snprintf(sline, sizeof (sline) - 1, "recycle-bin=%s usedbytes=%s maxbytes=%s volumeusage=%.02f%% inodeusage=%.02f%% lifetime=%s ratio=%s",
                  Recycle::gRecyclingPrefix.c_str(),
                  eos::common::StringConversion::GetSizeString(sizestring1, usedbytes),
                  eos::common::StringConversion::GetSizeString(sizestring2, maxbytes),
                  usedbytes * 100.0 / maxbytes,
                  usedfiles * 100.0 / maxfiles,
-                 attrmap.count(Recycle::gRecyclingTimeAttribute) ? attrmap[Recycle::gRecyclingTimeAttribute].c_str() : "-1");
+                 attrmap.count(Recycle::gRecyclingTimeAttribute) ? attrmap[Recycle::gRecyclingTimeAttribute].c_str() : "-1",
+		 attrmap.count(Recycle::gRecyclingKeepRatio) ? attrmap[Recycle::gRecyclingKeepRatio].c_str() : "-1");
         stdOut += sline;
         stdOut += "\n";
       }
@@ -1083,9 +1150,9 @@ Recycle::Config (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappin
       stdErr = "error: size has been converted to 0 bytes - probably you made a type!\n";
       return EINVAL;
     }
-    if (size < 1000ll * 1000ll * 100000ll)
+    if (size < 1000ll * 1000ll * 10000ll)
     {
-      stdErr = "error: a garbage bin smaller than 100 GB is not accepted!\n";
+      stdErr = "error: a garbage bin smaller than 10 GB is not accepted!\n";
       return EINVAL;
     }
 
@@ -1100,7 +1167,7 @@ Recycle::Config (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappin
     info += "&mgm.quota.maxbytes=";
     XrdOucString sizestring;
     info += eos::common::StringConversion::GetSizeString(sizestring, size);
-    info += "&mgm.quota.maxinodes=10M&";
+    info += "&mgm.quota.maxinodes=10M";
 
     int result = Cmd.open("/proc/user", info.c_str(), rootvid, &lError);
     Cmd.AddOutput(stdOut, stdErr);
@@ -1165,6 +1232,51 @@ Recycle::Config (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappin
       stdOut += "success: recycle bin lifetime configured!\n";
     }
   }
+
+  if (option == "--ratio")
+  {
+    if (!arg)
+    {
+      stdErr = "error: missing ratio argument\n";
+      return EINVAL;
+    }
+
+    double ratio = strtod(arg,0);
+    if (!ratio)
+    {
+      stdErr = "error: ratio must be != 0\n";
+      return EINVAL;
+    }
+    if ( (ratio <= 0) || (ratio > 0.99) )
+    {
+      stdErr = "error: a recycle bin ratio has to be 0 < ratio < 1.0!\n";
+      return EINVAL;
+    }
+
+    char dratio[256];
+    snprintf(dratio, sizeof (dratio) - 1, "%0.2f", ratio);
+
+    if (gOFS->_attr_set(Recycle::gRecyclingPrefix.c_str(),
+                        lError,
+                        rootvid,
+                        "",
+                        Recycle::gRecyclingKeepRatio.c_str(),
+                        dratio))
+    {
+      stdErr = "error: failed to set extended attribute '";
+      stdErr += Recycle::gRecyclingKeepRatio.c_str();
+      stdErr += "'";
+      stdErr += " at '";
+      stdErr += Recycle::gRecyclingPrefix.c_str();
+      stdErr += "'";
+      return EIO;
+    }
+    else
+    {
+      stdOut += "success: recycle bin ratio configured!\n";
+    }
+  }
+
   return 0;
 }
 EOSMGMNAMESPACE_END

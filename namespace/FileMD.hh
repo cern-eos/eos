@@ -463,7 +463,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Env Representation
       //------------------------------------------------------------------------
-      void getEnv( std::string &env );
+      void getEnv( std::string &env, bool escapeAnd=false );
 
       //------------------------------------------------------------------------
       //! Serialize the object to a buffer

@@ -110,6 +110,7 @@ com_recycle (char* arg1)
       (options[0] != "--add-bin") &&
       (options[0] != "--remove-bin") &&
       (options[0] != "--lifetime") &&
+      (options[0] != "--ratio") &&
       (options[0] != "--size"))
     goto com_recycle_usage;
 
@@ -185,6 +186,8 @@ com_recycle_usage:
   fprintf(stdout, "                                                  disables usage of recycle bin for <sub-tree>\n");
   fprintf(stdout, "recycle config --lifetime <seconds> :\n");
   fprintf(stdout, "                                                  configure the FIFO lifetime of the recycle bin\n");
+  fprintf(stdout, "recycle config --ratio < 0 .. 1.0 > :\n");
+  fprintf(stdout, "                                                  configure the volume/inode keep ratio of the recycle bin e.g. 0.8 means files will only be recycled if more than 80%% of the space/inodes quota is used. The low watermark is 10%% under the given ratio by default e.g. it would cleanup volume/inodes to be around 70%%.\n");
   fprintf(stdout, "recycle config --size <size> :\n");
   fprintf(stdout, "                                                  set the size of the recycle bin\n");
   fprintf(stdout, "'ls' and 'config' support the '-m' flag to give monitoring format output!\n");

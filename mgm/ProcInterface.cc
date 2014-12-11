@@ -127,6 +127,7 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
         (subcmd == "get")  ||
         (subcmd == "purge")  ||
         (subcmd == "delete"))) ||
+      ((cmd == "backup")) ||
       ((cmd == "mkdir")) ||
       ((cmd == "rmdir")) ||
       ((cmd == "rm")) ||
@@ -559,6 +560,11 @@ ProcCommand::open (const char* inpath,
     if (mCmd == "archive")
     {
       Archive();
+      mDoSort = false;
+    }
+    else if (mCmd == "backup")
+    {
+      Backup();
       mDoSort = false;
     }
     else if (mCmd == "motd")

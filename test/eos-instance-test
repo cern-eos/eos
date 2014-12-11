@@ -828,6 +828,11 @@ runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/i
 runtest "### rmdir     " unix 1 "" shell rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed/"
 runtest "### rm        " unix 0 "" shell rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed/file.1k.forbidden"
 runtest "### rmdir     " unix 0 "" shell rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir.allowed/"
+runtest "### touch sp  " unix 0 "" shell touch "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file\ 1"
+runtest "### mv sp     " unix 0 "" shell mv "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file\ 1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file\ 2" 
+runtest "### stat sp   " unix 1 "" shell stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file\ 1" 
+runtest "### stat sp   " unix 0 "" shell stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file\ 2" 
+runtest "### rm sp     " unix 0 "" shell rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file\ 2" 
 fi
 
 ################################################################################

@@ -26,6 +26,7 @@
    and CASTOR.
 """
 
+from __future__ import print_function
 import os
 import sys
 import zmq
@@ -61,6 +62,7 @@ class Dispatcher(object):
                    self.config.GET_OP:    self.start_transfer,
                    self.config.DELETE_OP: self.start_transfer,
                    self.config.PURGE_OP:  self.start_transfer,
+                   self.config.BACKUP_OP: self.start_transfer,
                    self.config.TX_OP:     self.do_show_transfers,
                    self.config.KILL_OP:   self.do_kill}
         ctx = zmq.Context.instance()
@@ -108,7 +110,7 @@ class Dispatcher(object):
                     reply = "ERROR error: operation not supported"
                     raise
 
-                frontend.send(reply)
+                frontend.send_string(reply)
 
     def get_orphans(self):
         """ Get orphan transfer processes from previous runs of the daemon
@@ -254,9 +256,8 @@ class Dispatcher(object):
             self.logger.error(err_msg)
             return "ERROR error: job with same signature exists"
 
+        # Don't pipe stdout and stderr as we log all the output
         pinfo.proc = subprocess.Popen(['/usr/bin/eosarch_run.py', "{0}".format(req_json)],
-                                      stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE,
                                       close_fds=True)
         pinfo.pid = pinfo.proc.pid
         self.procs[pinfo.uuid] = pinfo
@@ -266,7 +267,7 @@ class Dispatcher(object):
         """ Show onging transfers
 
         Args:
-            req_json (JSON): Command in JSON format including:
+            req_json (JSON): Command in JSON format include:
             {
               cmd:    transfers,
               opt:    all/get/put/purge/delete/uuid,
@@ -323,7 +324,7 @@ class Dispatcher(object):
         """ Kill transfer.
 
         Args:
-            req_json (JSON command): Arguments for kill command including:
+            req_json (JSON command): Arguments for kill command include:
             {
               cmd: kill,
               opt: uuid,
@@ -361,12 +362,13 @@ class Dispatcher(object):
         self.logger.debug("Kill pid={0}, msg={0}".format(proc.pid, msg))
         return msg
 
+
 def main():
     """ Main function """
     try:
         config = Configuration()
     except Exception as err:
-        print >> sys.stderr, "Configuration failed, error:{0}".format(err)
+        print("Configuration failed, error:{0}".format(err), file=sys.stderr)
         raise
 
     with daemon.DaemonContext():
@@ -380,7 +382,8 @@ def main():
         for oper in [config.GET_OP,
                      config.PUT_OP,
                      config.PURGE_OP,
-                     config.DELETE_OP]:
+                     config.DELETE_OP,
+                     config.BACKUP_OP]:
             path = config.EOS_ARCHIVE_DIR + oper + '/'
             config.DIR[oper] = path
 

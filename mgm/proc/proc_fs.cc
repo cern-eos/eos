@@ -101,14 +101,16 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
           entries++;
           if ((!dumppath) && (!dumpfid) && (!dumpsize))
           {
-            fmd->getEnv(env);
+            fmd->getEnv(env, true);
             stdOut += env.c_str();
             if (monitor)
             {
               std::string fullpath = gOFS->eosView->getUri(fmd);
               eos::common::Path cPath(fullpath.c_str());
               stdOut += "&container=";
-              stdOut += cPath.GetParentPath();
+	      XrdOucString safepath = cPath.GetParentPath();
+	      while (safepath.replace("&", "#AND#")){}
+	      stdOut += safepath;
             }
             stdOut += "\n";
           }
@@ -117,8 +119,10 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
             if (dumppath)
             {
               std::string fullpath = gOFS->eosView->getUri(fmd);
+	      XrdOucString safepath = fullpath.c_str();
+	      while (safepath.replace("&","#AND#")){}
               stdOut += "path=";
-              stdOut += fullpath.c_str();
+              stdOut += safepath.c_str();
             }
             if (dumpfid)
             {
@@ -151,7 +155,7 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
           if (fmd)
           {
             entries++;
-            fmd->getEnv(env);
+            fmd->getEnv(env, true);
 	    XrdOucString senv = env.c_str();
 	    senv.replace("checksum=&","checksum=none&");
             stdOut += senv.c_str();

@@ -21,13 +21,15 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+
 #-------------------------------------------------------------------------------
 # Version Definition
 #-------------------------------------------------------------------------------
 set(VERSION_MAJOR "0" )
 set(VERSION_MINOR "3" )
-set(VERSION_PATCH "64" )
+set(VERSION_PATCH "78" )
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+
 
 #-------------------------------------------------------------------------------
 # Main section
@@ -103,6 +105,7 @@ else()
   endfunction()
 endif()
 
+
 #-------------------------------------------------------------------------------
 # Check for Gcc >=4.4
 #-------------------------------------------------------------------------------
@@ -134,8 +137,10 @@ endif(MacOSX)
 include_directories(/usr/include/xrootd/ /usr/include/)
 link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/)
 
-################################################################################
 
+#-------------------------------------------------------------------------------
+# Check for out of source build
+#-------------------------------------------------------------------------------
 EOS_CheckOutOfSourceBuild()
 
 if (CLIENT)
@@ -143,7 +148,6 @@ if (CLIENT)
     set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -Wno-c++11-narrowing -msse4.2 -std=c++11 -stdlib=libc++ -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
   else ()
    set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
-
   endif()
 else (CLIENT)
   set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )
@@ -155,10 +159,12 @@ else (NOT MICROHTTPD_FOUND)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
 endif (NOT MICROHTTPD_FOUND)
 
+
 #-------------------------------------------------------------------------------
 # Generate client commands doc
 #-------------------------------------------------------------------------------
 add_custom_target(doc COMMAND python ${PROJECT_SOURCE_DIR}/doc/generate_cli_command_docs.py)
+
 
 #-------------------------------------------------------------------------------
 # Install targets
@@ -191,6 +197,7 @@ else (CLIENT)
   add_subdirectory(auth_plugin)
 endif (CLIENT)
 
+
 #-------------------------------------------------------------------------------
 # Uninstall target
 #-------------------------------------------------------------------------------
@@ -215,7 +222,7 @@ set(CPACK_PACKAGE_VERSION_MINOR "${VERSION_MINOR}")
 set(CPACK_PACKAGE_VERSION_PATCH "${VERSION_PATCH}")
 set(CPACK_PACKAGE_RELEASE "${RELEASE}")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}")
-set(CPACK_SOURCE_IGNORE_FILES "xrootd-dsi/;/nginx/;/dsi/;/build/;/.deps/;/.bzr/;~$;'.'o$;/CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;ApMon;build;install_manifest.txt;/lib/;/.git/;${CPACK_SOURCE_IGNORE_FILES};")
+set(CPACK_SOURCE_IGNORE_FILES "xrootd-dsi/;/nginx/;/dsi/;/microhttpd/;/build/;/.deps/;/.bzr/;~$;'.'o$;/CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;ApMon;build;install_manifest.txt;/lib/;/.git/;${CPACK_SOURCE_IGNORE_FILES};")
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/config_spec.cmake.in"
 	       "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake" @ONLY IMMEDIATE)
@@ -244,6 +251,7 @@ add_custom_target(gitdist
 # Source and binary rpms
 #-------------------------------------------------------------------------------
 set(RPM_DEFINE --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5")
+
 add_custom_target(
   srpm
   COMMAND rpmbuild ${RPM_DEFINE} -ts ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz)

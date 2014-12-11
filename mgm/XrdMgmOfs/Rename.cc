@@ -78,6 +78,8 @@ XrdMgmOfs::rename (const char *old_name,
   oldn = old_name;
   newn = new_name;
 
+  oldn.replace("#space#"," ");
+  newn.replace("#space#"," ");
 
   if ((oldn.find(EOS_COMMON_PATH_VERSION_PREFIX) != STR_NPOS) ||
       (newn.find(EOS_COMMON_PATH_VERSION_PREFIX) != STR_NPOS))
@@ -87,7 +89,7 @@ XrdMgmOfs::rename (const char *old_name,
   }
 
   {
-    const char* inpath = old_name;
+    const char* inpath = oldn.c_str();
     const char* ininfo = infoO;
     AUTHORIZE(client, &renameo_Env, AOP_Delete, "rename", inpath, error);
     NAMESPACEMAP;
@@ -97,7 +99,7 @@ XrdMgmOfs::rename (const char *old_name,
   }
 
   {
-    const char* inpath = new_name;
+    const char* inpath = newn.c_str();
     const char* ininfo = infoN;
     AUTHORIZE(client, &renamen_Env, AOP_Update, "rename", inpath, error);
     NAMESPACEMAP;
@@ -291,9 +293,16 @@ XrdMgmOfs::_rename (const char *old_name,
     }
     if (file_exists == XrdSfsFileExistIsDirectory)
     {
+      std::string n_path = nPath.GetPath();
+      std::string o_path = oPath.GetPath();
+      if ( (n_path.at( n_path.length()-1 ) != '/') )
+	n_path += "/";
+      if ( (o_path.at( o_path.length()-1 ) != '/') )
+	o_path += "/";
+
       renameDir = true;
       // check if old path is a subpath of new path
-      if ( (nP.length() > oP.length()) && (!nP.compare(0,oP.length(),oP)))
+      if ( (n_path.length() > o_path.length()) && (!n_path.compare(0,o_path.length(),o_path)))
       {
 	errno = EINVAL;
 	return Emsg(epname, error, EINVAL, "rename - old path is subpath of new path");

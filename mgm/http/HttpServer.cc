@@ -195,6 +195,28 @@ HttpServer::Handler (void                  *cls,
 #endif
 
 /*----------------------------------------------------------------------------*/
+void
+HttpServer::CompleteHandler (void                              *cls,
+			     struct MHD_Connection             *connection,
+			     void                             **con_cls,
+			     enum MHD_RequestTerminationCode    toe)
+{
+  std::string scode="";
+  if ( toe == MHD_REQUEST_TERMINATED_COMPLETED_OK)
+    scode="OK";
+  if ( toe == MHD_REQUEST_TERMINATED_WITH_ERROR)
+    scode="Error";
+  if ( toe == MHD_REQUEST_TERMINATED_TIMEOUT_REACHED)
+    scode="Timeout";
+  if ( toe == MHD_REQUEST_TERMINATED_DAEMON_SHUTDOWN)
+    scode="Shutdown";
+  if ( toe == MHD_REQUEST_TERMINATED_READ_ERROR)
+    scode="ReadError";
+
+  eos_static_info("msg=\"http connection disconnect\" reason=\"Request %s\" ", scode.c_str());
+}
+
+/*----------------------------------------------------------------------------*/
 eos::common::Mapping::VirtualIdentity*
 HttpServer::Authenticate(std::map<std::string, std::string> &headers)
 {

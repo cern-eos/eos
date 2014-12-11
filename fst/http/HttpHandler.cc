@@ -154,7 +154,7 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
 
     mHttpResponse = Put(request);
 
-    if (!mHttpResponse || request->GetBodySize() == 0)
+    if (!mHttpResponse || (*request->GetBodySize()) == 0)
     {
       // clean-up left-over objects on error or end-of-put
       if (mFile)

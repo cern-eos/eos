@@ -20,9 +20,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ******************************************************************************
-""" Class emulating the process information for an archive transfer which is
-    used by the eosarchived daemon to display the status of the ongoing
-    transfers.
+""" Class emulating the process information for an archive/backup transfer
+    which is used by the eosarchived daemon to display the status of the
+    ongoing transfers.
 """
 import time
 import logging
@@ -40,7 +40,7 @@ class ProcessInfo(object):
        gid         (int): GID of transfer owner
        uuid     (string): uuid of transfer
        pid         (int): PID of process executing the transfer
-       root_dir (string): Root directory in EOS of the archive
+       root_dir (string): Root directory in EOS of the archive/backup
        op       (string): Operation type
     """
     def __init__(self, req_json = None):
@@ -49,7 +49,7 @@ class ProcessInfo(object):
         Args:
             req_json (JSON): Json object containing the following information:
                 cmd: type of operation
-                src: EOS url to the archive file
+                src: EOS url to the archive/backup file
                 uid: UID of the user triggering the archiving
                 gid: GID of the user triggering the archiving
         """
@@ -62,7 +62,7 @@ class ProcessInfo(object):
             self.gid = int(req_json['gid'])
             self.status = "pending"
             self.pid, self.op = 0, req_json['cmd']
-            # Extract the archive root directory path
+            # Extract the archive/backup root directory path
             src = req_json['src']
             pos = src.find("//", src.find("//") + 1) + 1
             self.root_dir = src[pos : src.rfind('/') + 1]

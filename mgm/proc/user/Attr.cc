@@ -135,10 +135,15 @@ ProcCommand::Attr ()
             {
 	      if (key=="user.acl") {
 		XrdOucString evalacl;
-		// if someone wants to set a user.acl and the tag sys.eval.useracl is not there, we return an error ...
-		if (gOFS->_attr_get(foundit->first.c_str(), *mError, *pVid, (const char*) 0, "sys.eval.useracl",evalacl))
+		// If someone wants to set a user.acl and the tag sys.eval.useracl
+                // is not there, we return an error ...
+		if ((pVid->uid != 0) && gOFS->_attr_get(foundit->first.c_str(),
+                                                   *mError, *pVid,
+                                                   (const char*) 0,
+                                                   "sys.eval.useracl",evalacl))
 		{
-		  stdErr += "error: unable to set user.acl - the directory does not evaluate user acls (sys.eval.useracl is undefined)!\n";
+                  stdErr += "error: unable to set user.acl - the directory does not "
+                      "evaluate user acls (sys.eval.useracl is undefined)!\n";
 		  retc = EINVAL;
 		  return SFS_OK;
 		}

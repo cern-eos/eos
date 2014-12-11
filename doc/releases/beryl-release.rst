@@ -5,9 +5,72 @@
 
 Beryl Release Notes
 ===================
-``Version V0.3.58 Beryl-Aquamarine``
+``Version V0.3.78 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- balancing: seal '&' in capabilities
+- draining: seal '&' in capabilities
+- encode all '&' in meta data synchronization
+- propagate 'disableChecksum' to all replicas during chunked uploads
+- make 'console log' e.g. /var/log/eos/mgm/error.log working again
+- fix substantial memory leak in PUT requests on FSTs
+- fix 's3' lower-case headers
+
+New Features
+------------
+- 'find --purge atomic' to clean-up atomic left-over garbage
+- allow 'file check fxid:.... | fid:...'
+- add 'recycle config --ratio < 0 .. 1.0 >' to set a threadshold based keep ratio in the recycle bin
+
+``Version V0.3.75 Beryl-Aquamarine``
 
 - add support for archive interface to stage-out and migrate a frozen subtree in the namespace to any XRootD enabled archive storage
+
+``Version V0.3.57 Beryl``
+
+New Features
+------------
+- adding libmicrohttpd build directory
+- support threadpool with EPOLL for embedded http server
+
+Bug Fixes
+---------
+- balancing: was never starting
+- scheduler: was skipping scheduling group when one node >95% network-out loaded
+- nginx: don't forward PUT payload to MGM 
+- microhttpd: fix virtual memory leaking due to fragmentation
+- http: let HTTP clients see errors on PUT
+
+``Version V0.3.53 Beryl``
+
+New Features
+------------
+- [webdav] add possibility to exclude directory syncs via 'sys.allow.oc.sync'
+- [webdav] add support to do path replacments provdided by two special header flosg CBOX_CLIENT_MAPPING & CBOX_SERVER_MAPPING
+
+``Version V0.3.51 Beryl``
+
+Bug Fixes
+---------
+- fix gdb stacktrace getting stuck if too much output is produced - stacktrace is stored in /var/eos/md/stacktrace and then reported back into the log
+- fix wrong network traffic variable used in the scheduling implementation (used always 0 instead of real traffic)
+
+``Version V0.3.49 Beryl``
+
+Bug Fixes
+---------
+- rename: allow whitespace names, fix subpath check, fix encofing in HTTP move
+- various HTTP/DAV related return code fixes
+
+Consolidation
+-------------
+- the 'eos' shell by default does not run in 'pipe mode' e.g. no background agent
+
+New Features
+------------
+- allow FUSE_OPT in /etc/sysconfig/eos e.g. to set a FUSE mount read-only use export FUSE_OPT="ro"
+- enable MacOSX build and add packing script for DMG
 
 ``Version V0.3.47 Beryl``
 

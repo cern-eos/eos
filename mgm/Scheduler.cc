@@ -198,29 +198,29 @@ Scheduler::FilePlacement (const char* path, //< path to place
 
     if(groupindex>=groupsToTry.size())
     {
-    git++;
-    if (git == FsView::gFsView.mSpaceGroupView[spacename].end())
-    {
-      git = FsView::gFsView.mSpaceGroupView[spacename].begin();
+      git++;
+      if (git == FsView::gFsView.mSpaceGroupView[spacename].end())
+      {
+        git = FsView::gFsView.mSpaceGroupView[spacename].begin();
+      }
+      
+      // remember the last group for that indextag
+      schedulingMutex.Lock();
+      schedulingGroup[indextag] = *git;
+      schedulingMutex.UnLock();
     }
-
-    // remember the last group for that indextag
-    schedulingMutex.Lock();
-    schedulingGroup[indextag] = *git;
-    schedulingMutex.UnLock();
-    }
-
-			if (placeRes)
+    
+    if (placeRes)
     {
-    return 0;
+      return 0;
+    }
+    else
+    {
+      continue;
+    }
   }
-  else
-  	{
-				continue;
-  	}
-  }
-    selected_filesystems.clear();
-    return ENOSPC;
+  selected_filesystems.clear();
+  return ENOSPC;
 }
 
 /* ------------------------------------------------------------------------- */

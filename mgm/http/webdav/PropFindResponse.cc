@@ -32,13 +32,14 @@
 #include "common/http/OwnCloud.hh"
 
 /*----------------------------------------------------------------------------*/
+#include "XrdOuc/XrdOucErrInfo.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-        /*----------------------------------------------------------------------------*/
-        char dav_rfc3986[256] = {0};
+/*----------------------------------------------------------------------------*/
+char dav_rfc3986[256] = {0};
 char dav_html5[256] = {0};
 
 /*----------------------------------------------------------------------------*/
@@ -52,6 +53,26 @@ dav_uri_encode (unsigned char *s, char *enc, char *tb)
     while (*++enc);
   }
 }
+
+int
+dav_uri_decode (char* source, char* dest )
+{
+  int nLength;
+  for (nLength = 0; *source; nLength++) {
+    dest[nLength+1] = 0;
+    if (*source == '%' && source[1] && source[2] && isxdigit(source[1]) && isxdigit(source[2])) {
+      source[1] -= source[1] <= '9' ? '0' : (source[1] <= 'F' ? 'A' : 'a')-10;
+      source[2] -= source[2] <= '9' ? '0' : (source[2] <= 'F' ? 'A' : 'a')-10;
+      dest[nLength] = 16 * source[1] + source[2];
+      source += 3;
+      continue;
+    }
+    dest[nLength] = *source++;
+  }
+  dest[nLength] = '\0';
+  return nLength;
+}
+
 
 /*----------------------------------------------------------------------------*/
 std::string
@@ -84,7 +105,21 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
 
   // Get the requested property types
   ParseRequestPropertyTypes(rootNode);
-
+  
+  if (mRequestPropertyTypes & PropertyTypes::GET_OCID) 
+  {
+    XrdOucErrInfo error;
+    XrdOucString val;
+    eos::common::Mapping::VirtualIdentity rootvid;
+    eos::common::Mapping::Root(rootvid);
+    if (gOFS->_attr_get(request->GetUrl().c_str(), error, rootvid, "", eos::common::OwnCloud::GetAllowSyncName(), val))
+    {
+      // Sync not allowed in this tree.
+      SetResponseCode(ResponseCodes::METHOD_NOT_ALLOWED);
+      return this;
+    }
+  }
+  
   // Build the response
   // xml declaration
   xml_node<> *decl = mXMLResponseDocument.allocate_node(node_declaration);
@@ -238,7 +273,6 @@ PropFindResponse::ParseRequestPropertyTypes (rapidxml::xml_node<> *node)
     mRequestPropertyTypes |= PropertyTypes::RESOURCE_TYPE;
     mRequestPropertyTypes |= PropertyTypes::CHECKED_IN;
     mRequestPropertyTypes |= PropertyTypes::CHECKED_OUT;
-    mRequestPropertyTypes |= PropertyTypes::GET_OCID;
     return;
   }
 

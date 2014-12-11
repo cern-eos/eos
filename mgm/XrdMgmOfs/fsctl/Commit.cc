@@ -357,7 +357,7 @@
         // for changing the modification time we have to figure out if we
         // just attach a new replica or if we have a change of the contents
         // -----------------------------------------------------------------
-        bool isUpdate;
+        bool isUpdate = false;
 
         {
           SpaceQuota* space = Quota::GetResponsibleSpaceQuota(spath);
@@ -388,6 +388,7 @@
 
             if (fmd->getSize() != size)
             {
+	      eos_thread_debug("size difference forces mtime %lld %lld", fmd->getSize(), size);
               isUpdate = true;
             }
             fmd->setSize(size);
@@ -420,6 +421,7 @@
             {
               if (fmd->getChecksum().getDataPadded(i) != checksumbuffer.getDataPadded(i))
               {
+		eos_thread_debug("checksum difference forces mtime");
                 isUpdate = true;
               }
             }

@@ -26,6 +26,7 @@
 #include "mgm/http/webdav/PropFindResponse.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/http/PlainHttpResponse.hh"
+#include "common/http/OwnCloud.hh"
 #include "common/Logging.hh"
 #ifdef __clang__
 #pragma clang diagnostic ignored "-Wformat-security"
@@ -129,7 +130,7 @@ WebDAVHandler::MkCol (eos::common::HttpRequest *request)
   {
     XrdSfsMode    mode = 0;
     int           rc   = 0;
-    XrdOucErrInfo error;
+    XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
 
     rc = gOFS->mkdir(request->GetUrl().c_str(), mode, error,
                      &client, (const char*) 0);
@@ -208,14 +209,24 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
   std::string destination = eos::common::StringConversion::ParseUrl
       (request->GetHeaders()["destination"].c_str(), prot, port);
 
+  char encode_destination[1024];
+  snprintf(encode_destination,sizeof(encode_destination),"%s",destination.c_str());
+  char decode_destination[1024];
+  decode_destination[0] = 0;
+
+  if (destination.length() < sizeof(decode_destination)) {
+
+    ::dav_uri_decode(encode_destination, decode_destination);
+    destination = decode_destination;
+  }
+
   // owncloud protocol patch
   XrdOucString spath = destination.c_str();
-  if (spath.find("/remote.php/webdav/") != STR_NPOS)
-  {
-    spath.replace("remote.php/webdav/","");
-    destination=spath.c_str();
-  }
-  
+
+  eos::common::OwnCloud::OwnCloudRemapping(spath, request);
+  eos::common::OwnCloud::ReplaceRemotePhp(spath);
+  destination = spath.c_str();
+
   eos_static_info("method=MOVE src=\"%s\", dest=\"%s\"",
                   request->GetUrl().c_str(), destination.c_str());
 
@@ -243,7 +254,7 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
   else
   {
     int           rc = 0;
-    XrdOucErrInfo error;
+    XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
 
     rc = gOFS->rename(request->GetUrl().c_str(),
                       destination.c_str(),

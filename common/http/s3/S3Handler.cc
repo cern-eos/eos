@@ -346,12 +346,12 @@ S3Handler::ParseHeader (eos::common::HttpRequest *request)
   }
   eos_static_info("%s", header_line.c_str());
 
-  if (header.count("Authorization"))
+  if (header.count("authorization"))
   {
-    if (header["Authorization"].substr(0, 3) == "AWS")
+    if (header["authorization"].substr(0, 3) == "AWS")
     {
       // this is amanzon webservice authorization
-      mId = header["Authorization"].substr(4);
+      mId = header["authorization"].substr(4);
       mSignature = mId;
       size_t dpos = mId.find(":");
       if (dpos != std::string::npos)
@@ -362,7 +362,7 @@ S3Handler::ParseHeader (eos::common::HttpRequest *request)
         mHttpMethod = request->GetMethod();
 
         mPath = request->GetUrl();
-        std::string subdomain = SubDomain(header["Host"]);
+        std::string subdomain = SubDomain(header["host"]);
 
         if (subdomain.length())
         {
@@ -398,35 +398,27 @@ S3Handler::ParseHeader (eos::common::HttpRequest *request)
 
         mQuery = request->GetQuery();
 
-        if (header.count("Content-MD5"))
+        if (header.count("content-md5"))
         {
-          mContentMD5 = header["Content-MD5"];
+          mContentMD5 = header["content-md5"];
         }
-        if (header.count("Date"))
+        if (header.count("date"))
         {
-          mDate = header["Date"];
+          mDate = header["date"];
         }
 
         if (header.count("content-type"))
         {
           mContentType = header["content-type"];
         }
-        if (header.count("Content-type"))
-        {
-          mContentType = header["Content-type"];
-        }
-	if (header.count("Content-Type"))
-	{
-	  mContentType = header["Content-Type"];
-	}
 
-        if (header.count("Host"))
+        if (header.count("host"))
         {
-          mHost = header["Host"];
+          mHost = header["host"];
         }
-        if (header.count("User-Agent"))
+        if (header.count("user-agent"))
         {
-          mUserAgent = header["User-Agent"];
+          mUserAgent = header["user-agent"];
         }
         // canonical amz header
         for (auto it = header.begin(); it != header.end(); it++)

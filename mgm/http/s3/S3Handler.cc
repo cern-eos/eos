@@ -91,9 +91,9 @@ S3Handler::EncodeURI (const char* uri)
 bool
 S3Handler::Matches (const std::string &method, HeaderMap &headers)
 {
-  if (headers.count("Authorization"))
+  if (headers.count("authorization"))
   {
-    if (headers["Authorization"].substr(0, 3) == "AWS")
+    if (headers["authorization"].substr(0, 3) == "AWS")
     {
       eos_static_debug("msg=\"matched S3 protocol for request\"");
       return true;

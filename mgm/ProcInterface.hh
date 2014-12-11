@@ -194,40 +194,28 @@ private:
 
 
   //----------------------------------------------------------------------------
-  //! Get archive  number of entries (files/directories)
-  //!
-  //! @param arch_dir archive directory
-  //! @param num_dirs (out) number of directories 
-  //! @param num_files (out) number of files 
-  //!
-  //! @return 0 if successful, otherwise errno
-  //----------------------------------------------------------------------------
-  int ArchiveGetNumEntries(const std::string& arch_dir,
-                           int& num_dirs,
-                           int& num_files);
-
-
-  //----------------------------------------------------------------------------
   //! Get fileinfo for all files/dirs in the subtree and add it to the
   //! archive i.e.  do
   //! "find -d --fileinfo /dir/" for directories or 
   //! "find -f --fileinfo /dir/ for files.
   //!
   //! @param arch_dir EOS directory beeing archived
-  //! @param arch_ofs local archive file stream object 
+  //! @param arch_ofs local archive file stream object
+  //! @param num number of entries added
   //! @param is_file if true add file entries to the archive, otherwise 
   //!                directories
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
   int ArchiveAddEntries(const std::string& arch_dir,
-                        std::ofstream& arch_ofs, 
+                        std::ofstream& arch_ofs,
+                        int& num,
                         bool is_file);
 
 
   //----------------------------------------------------------------------------
-  //! Make EOS sub-tree immutable/mutable by adding/removing the sys.acl=z:i 
-  //! from all of the directories in the subtree.
+  //! Make EOS sub-tree immutable by adding the sys.acl=z:i rule to all of the
+  //! directories in the sub-tree.
   //!
   //! @param arch_dir EOS directory
   //! @param vect_files vector of special archive filenames
@@ -240,6 +228,18 @@ private:
 
 
   //----------------------------------------------------------------------------
+  //! Make EOS sub-tree mutable by removing the sys.acl=z:i rule from all of the
+  //! directories in the sub-tree.
+  //!
+  //! @param arch_dir EOS directory
+  //!
+  //! @return 0 is successful, otherwise errno. It sets the global retc in case
+  //!         of error.
+  //----------------------------------------------------------------------------
+  int MakeSubTreeMutable(const std::string& arch_dir);
+
+
+  //----------------------------------------------------------------------------
   //! Check that the user has the necessary permissions to do an archiving
   //! peration
   //!
@@ -248,6 +248,21 @@ private:
   //! @return true if user is allowed, otherwise False
   //----------------------------------------------------------------------------
   bool ArchiveCheckAcl(const std::string& arch_dir) const;
+
+
+  //----------------------------------------------------------------------------
+  //! Create backup file. If successful then the backup file is copied to the
+  //! backup_dir location. If not it sets the retc and stdErr string accordingly.
+  //!
+  //! @param backup_dir directory for which the backup file is created
+  //! @param dst_url backup destination URL ending with '/'
+  //!
+  //! @return 0 if successful, otherwise errno. It sets the global retc in case
+  //!         of error
+  //----------------------------------------------------------------------------
+  int BackupCreate(const std::string& backup_dir,
+                   const std::string& dst_url);
+
 
 public:
 
@@ -313,6 +328,7 @@ public:
   // -------------------------------------------------------------------------
   int Attr ();
   int Archive();
+  int Backup();
   int Cd ();
   int Chmod ();
   int DirInfo (const char* path);

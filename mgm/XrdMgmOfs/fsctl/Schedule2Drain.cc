@@ -79,6 +79,7 @@
       try
       {
         fmd = gOFS->eosFileService->getFileMD(it->first);
+	std::string fullpath = gOFS->eosView->getUri(fmd);
         if (!fmd->getSize())
         {
           fmd->unlinkLocation(it->second.first);
@@ -88,6 +89,22 @@
           eos_info("msg=\"drained 0-size file\" fxid=%llx source-fsid=%u "
                    "target-fsid=%u", it->first, it->second.first, it->second.second);
         }
+	else
+	{
+	  // check if this is atomic file
+	  if ( fullpath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos) 
+	  {
+	    fmd->unlinkLocation(it->second.first);
+	    fmd->removeLocation(it->second.first);
+	    gOFS->eosView->updateFileStore(fmd);
+	    eos_info("msg=\"drained(unlinked) atomic upload file\" fxid=%llx source-fsid=%u "
+		     "target-fsid=%u", it->first, it->second.first, it->second.second);
+	  }
+	  else
+	  {
+	    eos_warning("msg=\"unexpected file in zero-move list with size!=0 and not atomic path - skipping\"");
+	  }
+	}
       }
       catch (eos::MDException &e)
       {
@@ -270,7 +287,6 @@
               ScheduledToDrainFid.erase(it1);
             }
           }
-          while (it2 != ScheduledToDrainFid.end());
         }
 
         if ((ScheduledToDrainFid.count(fid) && ((ScheduledToDrainFid[fid] > (now)))))
@@ -294,14 +310,16 @@
           {
             fmd = gOFS->eosFileService->getFileMD(fid);
             fullpath = gOFS->eosView->getUri(fmd);
+	    XrdOucString savepath = fullpath.c_str();
+	    while (savepath.replace("&", "#AND#")){}
+	    fullpath = savepath.c_str();
             fmd = gOFS->eosFileService->getFileMD(fid);
             lid = fmd->getLayoutId();
             cid = fmd->getContainerId();
             size = fmd->getSize();
             uid = fmd->getCUid();
             gid = fmd->getCGid();
-
-
+	    
             eos::FileMD::LocationVector::const_iterator lociter;
             for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
             {
@@ -574,6 +592,19 @@
               }
               else
               {
+		if ( fullpath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos) 
+		{
+		  // if we need to drain a left-over atomic file we just drop it
+		  eos_thread_info("cmd=schedule2drain msg=zero-move fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
+		  XrdSysMutexHelper zLock(sZeroMoveMutex);
+		  sZeroMove[fid] = std::make_pair(source_fsid, target_fsid);
+		  if (txjob)
+		    delete txjob;
+		  // try to find another one to hand out
+		  fit++;
+		  continue;
+		}
+
                 if (target_fs->GetDrainQueue()->Add(txjob))
                 {
                   eos_thread_info("cmd=schedule2drain msg=queued fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);

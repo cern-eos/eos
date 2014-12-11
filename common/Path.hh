@@ -51,6 +51,7 @@
 #define EOS_COMMON_PATH_VERSION_FILE_PREFIX ".sys.v#."
 #define EOS_COMMON_PATH_ATOMIC_FILE_PREFIX ".sys.a#."
 #define EOS_COMMON_PATH_ATOMIC_FILE_VERSION_PREFIX ".sys.a#.v#"
+#define EOS_COMMON_PATH_BACKUP_FILE_PREFIX ".sys.b#."
 
 /*----------------------------------------------------------------------------*/
 

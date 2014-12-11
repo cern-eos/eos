@@ -1,0 +1,11 @@
+--- a/src/microhttpd/memorypool.c	2014-11-17 16:09:29.000000000 +0100
++++ b/src/microhttpd/memorypool.c	2014-11-17 16:09:33.000000000 +0100
+@@ -122,6 +122,8 @@ MHD_pool_create (size_t max)
+   pool->pos = 0;
+   pool->end = max;
+   pool->size = max;
++
++  memset(pool->memory, 0, pool->size);
+   return pool;
+ }
+ 

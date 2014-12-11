@@ -60,11 +60,11 @@ EOSCOMMONNAMESPACE_BEGIN
 class SymKey
 {
 private:
+ static XrdSysMutex msMutex; ///< mutex for protecting the access to OpenSSL
  char key[SHA_DIGEST_LENGTH + 1]; //< the symmetric key in binary format
  char keydigest[SHA_DIGEST_LENGTH + 1]; //< the digest of the key  in binary format
  char keydigest64[SHA_DIGEST_LENGTH * 2]; //< the digest of the key in base64 format
  XrdOucString key64; //< the key in base64 format
-
  time_t validity; //< unix time when the validity of the key stops
 
 public:

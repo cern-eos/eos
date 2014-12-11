@@ -45,6 +45,7 @@ XrdPosixXrootd posixsingleton;
 extern int com_access (char*);
 extern int com_archive (char*);
 extern int com_attr (char*);
+extern int com_backup (char*);
 extern int com_cd (char*);
 extern int com_chmod (char*);
 extern int com_chown (char*);
@@ -196,6 +197,7 @@ COMMAND commands[] = {
   { (char*) "access", com_access, (char*) "Access Interface"},
   { (char*) "archive", com_archive, (char*) "Archive Interface"},
   { (char*) "attr", com_attr, (char*) "Attribute Interface"},
+  { (char*) "backup", com_backup, (char*) "Backup Interface"},
   { (char*) "clear", com_clear, (char*) "Clear the terminal"},
   { (char*) "cd", com_cd, (char*) "Change directory"},
   { (char*) "chmod", com_chmod, (char*) "Mode Interface"},
@@ -977,7 +979,7 @@ void
 usage ()
 {
   fprintf(stderr, "`eos' is the command line interface (CLI) of the EOS storage system.\n");
-  fprintf(stderr, "Usage: eos [-r|--role <uid> <gid>] [-b|--batch] [-v|--version] [-p|--pipe] [-j||--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
+  fprintf(stderr, "Usage: eos [-r|--role <uid> <gid>] [-b|--batch] [-v|--verAsion] [-p|--pipe] [-j||--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
   fprintf(stderr, "            -r, --role <uid> <gid>              : select user role <uid> and group role <gid>\n");
   fprintf(stderr, "            -b, --batch                         : run in batch mode without colour and syntax highlighting and without pipe\n");
   fprintf(stderr, "            -j, --json                          : switch to json output format\n");
@@ -994,7 +996,7 @@ usage ()
   fprintf(stderr, "            EOS_SOCKS4_HOST                     : set's the SOCKS4 proxy host name\n");
   fprintf(stderr, "            EOS_SOCKS4_PORT                     : set's the SOCKS4 proxy port\n");
   fprintf(stderr, "            EOS_PWD_FILE                        : set's the file where the last working directory is stored- by default '$HOME/.eos_pwd\n\n");
-  fprintf(stderr, "            EOS_DISABLE_PIPEMODE                : forbids the EOS shell to split into a session and pipe executable to avoid useless re-authentication\n");
+  fprintf(stderr, "            EOS_ENABLE_PIPEMODE                 : allows the EOS shell to split into a session and pipe executable to avoid useless re-authentication\n");
   fprintf(stderr, "Return Value: \n");
   fprintf(stderr, "            The return code of the last executed command is returned. 0 is returned in case of success otherwise <errno> (!=0).\n\n");
   fprintf(stderr, "Examples:\n");
@@ -1033,9 +1035,13 @@ main (int argc, char* argv[])
 
   int retc = system("test -t 0 && test -t 1");
 
-  if (!getenv("EOS_DISABLE_PIPEMODE"))
+  if (getenv("EOS_ENABLE_PIPEMODE"))
   {
     runpipe = true;
+  } 
+  else
+  {
+    runpipe = false;
   }
 
   if (!retc)
@@ -1222,9 +1228,9 @@ main (int argc, char* argv[])
         {
           // we are root, we always select also the root role by default
           XrdOucString cmdline = "role 0 0 ";
-          if (!interactive || (runpipe))silent = true;
+          silent = true;
           execute_line((char*) cmdline.c_str());
-          if (!interactive || (runpipe))silent = false;
+          silent = false;
         }
 
         // strip leading and trailing white spaces
@@ -1298,9 +1304,9 @@ main (int argc, char* argv[])
   {
     // we are root, we always select also the root role by default
     XrdOucString cmdline = "role 0 0 ";
-    if (!interactive)silent = true;
+    silent = true;
     execute_line((char*) cmdline.c_str());
-    if (!interactive)silent = false;
+    silent = false;
   }
 
   /* configure looging */
