@@ -5,7 +5,8 @@
 
 Beryl Release Notes
 ===================
-``Version V0.3.79 Beryl-Aquamarine``
+
+``Version V0.3.80 Beryl-Aquamarine``
 
 Bug Fixes
 ---------
@@ -17,6 +18,7 @@ Bug Fixes
 - fix substantial memory leak in PUT requests on FSTs
 - fix 's3' lower-case headers
 - disable 'delete-on-close' for chunked uploads to allow for single chunk retry
+- fix '\n' encoding for FUSE listing 
 
 New Features
 ------------
