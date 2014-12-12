@@ -345,10 +345,9 @@ HttpHandler::Put (eos::common::HttpRequest *request)
     {
       if (mRc == SFS_REDIRECT)
       {
-        response = HttpServer::HttpRedirect(request->GetUrl(),
-                                            mFile->error.getErrText(),
-                                            mFile->error.getErrInfo(),
-                                            true);
+	// we cannot redirect the PUT at this point, just send an error back
+        response = HttpServer::HttpError(mFile->error.getErrText(),
+                                         mFile->error.getErrInfo());
       }
       else
         if (mRc == SFS_ERROR)
