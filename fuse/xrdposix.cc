@@ -1791,7 +1791,7 @@ xrd_inodirlist (unsigned long long dirinode,
 
       XrdOucString whitespacedirpath = dirpath;
       whitespacedirpath.replace("%20", " ");
-
+      whitespacedirpath.replace("%0A", "\n");
       xrd_store_child_p2i(dirinode, inode, whitespacedirpath.c_str());
       dir2inodelist[dirinode].push_back(inode);
 

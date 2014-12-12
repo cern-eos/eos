@@ -97,7 +97,13 @@ ProcCommand::Fuse ()
       {
         isdotdot = true;
       }
+
+      // encode spaces
       whitespaceentry.replace(" ", "%20");
+
+      // encode \n
+      whitespaceentry.replace("\n", "%0A");
+
       if ((!isdot) && (!isdotdot))
       {
         mResultStream += whitespaceentry;
