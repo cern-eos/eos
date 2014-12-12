@@ -19,6 +19,7 @@ Bug Fixes
 - fix 's3' lower-case headers
 - disable 'delete-on-close' for chunked uploads to allow for single chunk retry
 - fix '\n' encoding for FUSE listing 
+- require 'targetsize' in standard HTTP PUT
 
 New Features
 ------------

@@ -738,8 +738,11 @@ HttpHandler::Put (eos::common::HttpRequest * request)
         const char* oclength = eos::common::OwnCloud::getContentSize(request);
         if (oclength)
           query += oclength;
-        else
+        else {
           query += request->GetHeaders()["content-length"];
+	  query += "&eos.targetsize=";
+	  query += request->GetHeaders()["content-length"]; 
+	}
       }
       else
       {
