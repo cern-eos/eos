@@ -81,7 +81,7 @@ FileTest::WriteTest()
   std::ifstream urandom("/dev/urandom", std::ios::in | std::ios::binary);
   urandom.read(buff_write, size_chunk);
   urandom.close();
- 
+
   // Create the readv list and the list for normal reads
   for (int i = 0; i < num_chunks; i++)
   {
@@ -94,12 +94,12 @@ FileTest::WriteTest()
       break;
     }
   }
-  
+
   status = mFile->Close();
   CPPUNIT_ASSERT(status.IsOK());
   delete mFile;
   mFile = 0;
-  delete[] buff_write;  
+  delete[] buff_write;
 }
 
 
@@ -122,7 +122,7 @@ FileTest::ReadVTest()
   mFile = new File();
   status = mFile->Open(file_url, OpenFlags::Read, Access::Mode::None);
   CPPUNIT_ASSERT(status.IsOK());
-  
+
   // Check that the file has the proper size
   StatInfo* stat = 0;
   status = mFile->Stat(false, stat);
@@ -174,7 +174,7 @@ FileTest::ReadVTest()
     if (!status.IsOK() || (nread != chunk->length))
     {
       std::cerr << "Error while reading at off:" << chunk->offset
-                << " len:" << chunk->length << std::endl;
+		<< " len:" << chunk->length << std::endl;
       break;
     }
   }
@@ -222,11 +222,11 @@ FileTest::SplitReadVTest()
   using namespace eos::common;
   using namespace eos::fst;
   unsigned long layout_id = LayoutId::GetId(LayoutId::kRaid6, 1,
-                                            LayoutId::kSevenStripe,
-                                            LayoutId::k1M,
-                                            LayoutId::kCRC32);
+					    LayoutId::kSevenStripe,
+					    LayoutId::k1M,
+					    LayoutId::kCRC32);
   RaidMetaLayout* file =  new RaidDpLayout(NULL, layout_id, NULL, NULL,
-                                           eos::common::LayoutId::kXrdCl);
+					   eos::common::LayoutId::kXrdCl);
   // Create readV request
   int num_datasets = 4;
   char* buff = new char[1024 * 1024];
@@ -258,13 +258,13 @@ FileTest::SplitReadVTest()
     {
       //std::cout << "off = " << ptr_off << " len = " << ptr_len << std::endl;
       readV.push_back(XrdCl::ChunkInfo((uint64_t)atoi(ptr_off),
-                                       (uint32_t)atoi(ptr_len),
-                                       (void*)0));
+				       (uint32_t)atoi(ptr_len),
+				       (void*)0));
     }
 
     int indx = 0;
     std::vector<XrdCl::ChunkList> result = ((RaidMetaLayout*)file)->SplitReadV(
-        readV);
+	readV);
 
     // Loop through the answers for each stripe and compare with the correct values
     for (auto it_stripe = result.begin(); it_stripe != result.end(); ++it_stripe)
@@ -284,9 +284,9 @@ FileTest::SplitReadVTest()
 
       while ((ptr_off = tok_off.GetToken()) && (ptr_len = tok_len.GetToken()))
       {
-        correct_rdv.push_back(XrdCl::ChunkInfo((uint64_t)atoi(ptr_off),
-                                               (uint32_t)atoi(ptr_len),
-                                               buff));
+	correct_rdv.push_back(XrdCl::ChunkInfo((uint64_t)atoi(ptr_off),
+					       (uint32_t)atoi(ptr_len),
+					       buff));
       }
 
       // Test same length
@@ -294,10 +294,10 @@ FileTest::SplitReadVTest()
 
       // Test each individual chunk
       for (auto it_chunk = it_stripe->begin(), it_resp = correct_rdv.begin();
-           it_chunk != it_stripe->end(); ++it_chunk, ++it_resp)
+	   it_chunk != it_stripe->end(); ++it_chunk, ++it_resp)
       {
-        CPPUNIT_ASSERT(it_chunk->offset == it_resp->offset);
-        CPPUNIT_ASSERT(it_chunk->length == it_resp->length);
+	CPPUNIT_ASSERT(it_chunk->offset == it_resp->offset);
+	CPPUNIT_ASSERT(it_chunk->length == it_resp->length);
       }
 
       indx++;
@@ -399,7 +399,7 @@ FileTest::DeleteFlagTest()
   std::ifstream urandom("/dev/urandom", std::ios::in | std::ios::binary);
   urandom.read(buffer, block_size);
   urandom.close();
-  
+
   // Initialise
   XRootDStatus status;
   std::string address = "root://root@" + mEnv->GetMapping("server");
@@ -409,7 +409,7 @@ FileTest::DeleteFlagTest()
   std::string file_url = address + "/" + file_path;
   mFile = new File();
   status = mFile->Open(file_url, OpenFlags::Delete | OpenFlags::Update,
-                       Access::Mode::UR | Access::Mode::UW);
+		       Access::Mode::UR | Access::Mode::UW);
   CPPUNIT_ASSERT(status.IsOK());
 
   // Write some data to the file
@@ -434,4 +434,3 @@ FileTest::DeleteFlagTest()
   CPPUNIT_ASSERT(!status.IsOK());
   delete[] buffer;
 }
-

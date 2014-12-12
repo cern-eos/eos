@@ -51,7 +51,6 @@ set(FMDBASE_HDRS ${FMDBASE_HDRS} PARENT_SCOPE)
 #-------------------------------------------------------------------------------
 # EosFstOss library
 #-------------------------------------------------------------------------------
-
 add_library(
   EosFstOss MODULE
   XrdFstOss.cc XrdFstOss.hh

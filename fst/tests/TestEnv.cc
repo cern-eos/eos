@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: TestEnv.hh
-// Author: Elvin Sindrilaru <esindril@cern.ch> 
+// Author: Elvin Sindrilaru <esindril@cern.ch>
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -36,6 +36,12 @@ EOSFSTTEST_NAMESPACE_BEGIN
 // File file32MB.dat is created as follows:
 // dd if=/dev/zero count=32 bs=1M | tr '\000' '\001' > /eos/dev/test/fst/plain/file32MB.dat
 //
+// And the "plain" directory need to have the following xattrs:
+//   sys.forced.checksum="adler"
+//   sys.forced.layout="plain"
+//   sys.forced.nstripes="1"
+//   sys.forced.space="default"
+//
 //------------------------------------------------------------------------------
 TestEnv::TestEnv()
 {
@@ -62,21 +68,21 @@ TestEnv::TestEnv()
 
   // Test set 2 - 16KB read around each MB
   mMapParam.insert(std::make_pair("off2",
-                                  "1040384 2088960 3137536 4186112 5234688 "
-                                  "6283264 7331840 8380416 9428992 10477568"));
+				  "1040384 2088960 3137536 4186112 5234688 "
+				  "6283264 7331840 8380416 9428992 10477568"));
   mMapParam.insert(std::make_pair("len2",
-                                  "16384 16384 16384 16384 16384 16384 16384 "
-                                  "16384 16384 16384"));
+				  "16384 16384 16384 16384 16384 16384 16384 "
+				  "16384 16384 16384"));
   // Correct responses for set 2
   mMapParam.insert(std::make_pair("off2_stripe0",
-                                  "1040384 1048576 2088960 2097152 3137536"));
+				  "1040384 1048576 2088960 2097152 3137536"));
   mMapParam.insert(std::make_pair("len2_stripe0", "8192 8192 8192 8192 8192"));
   mMapParam.insert(std::make_pair("off2_stripe1",
-                                  "0 1040384 1048576 2088960 2097152 3137536"));
+				  "0 1040384 1048576 2088960 2097152 3137536"));
   mMapParam.insert(std::make_pair("len2_stripe1",
-                                  "8192 8192 8192 8192 8192 8192"));
+				  "8192 8192 8192 8192 8192 8192"));
   mMapParam.insert(std::make_pair("off2_stripe2",
-                                  "0 1040384 1048576 2088960 2097152"));
+				  "0 1040384 1048576 2088960 2097152"));
   mMapParam.insert(std::make_pair("len2_stripe2", "8192 8192 8192 8192 8192"));
   mMapParam.insert(std::make_pair("off2_stripe3", "0 1040384 1048576 2088960"));
   mMapParam.insert(std::make_pair("len2_stripe3", "8192 8192 8192 8192"));
@@ -135,7 +141,7 @@ TestEnv::TestEnv()
   mMapParam.insert(std::make_pair("align7_resp_off", "20971520 20975616 20979712"));
   mMapParam.insert(std::make_pair("align7_resp_len", "4096 4096 4096"));
 
-  
+
 }
 
 
@@ -159,7 +165,7 @@ TestEnv::SetMapping(const std::string& key, const std::string& value)
   if (!pair_res.second)
   {
     std::cerr << "Mapping already exists, key=" << key
-              << " value=" << value << std::endl;
+	      << " value=" << value << std::endl;
   }
 }
 

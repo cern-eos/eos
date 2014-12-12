@@ -32,6 +32,8 @@ add_library(
   EosFstTests MODULE
   FileTest.cc  FileTest.hh
   TestEnv.cc   TestEnv.hh
+  ${CMAKE_SOURCE_DIR}/fst/XrdFstOss.cc
+  ${CMAKE_SOURCE_DIR}/fst/XrdFstOssFile.cc
   ${CMAKE_SOURCE_DIR}/fst/checksum/CRC32C.hh
   ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.cc
   ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.hh
@@ -42,6 +44,7 @@ target_link_libraries(
   EosFstTests
   eosCommon
   EosFstIo-Static
+  ${XROOTD_SERVER_LIBRARY}
   ${CPPUNIT_LIBRARIES})
 
 if(Linux)
