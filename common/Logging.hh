@@ -26,18 +26,18 @@
  *
  * @brief  Class for message logging.
  *
- * You can use this class without creating an instance object (it provides a 
+ * You can use this class without creating an instance object (it provides a
  * global singleton). All the 'eos_<state>' functions require that the logging
  * class inherits from the 'LogId' class. As an alternative as set of static
  * 'eos_static_<state>' logging functinos are provided. To define the log level
  * one uses the static 'SetLogPriority' function. 'SetFilter' allows to filter
  * out log messages which are identified by their function/method name
- * (__FUNCTION__). If you prefix this comma seperated list with 'PASS:' it is 
+ * (__FUNCTION__). If you prefix this comma seperated list with 'PASS:' it is
  * used as an acceptance filter. By default all logging is printed to 'stderr'.
  * You can arrange a log stream filter fan-out using 'AddFanOut'. The fan-out of
  * messages is defined by the source filename the message comes from and mappes
  * to a FILE* where the message is written. If you add a '*' fan-out you can
- * write all messages into this file. If you add a '#' fan-out you can write 
+ * write all messages into this file. If you add a '#' fan-out you can write
  * all messages which are not in any other fan-out (besides '*') into that file.
  * The fan-out functionality assumes that
  * source filenames follow the pattern <fan-out-name>.xx !!!!
@@ -166,13 +166,13 @@ public:
   // ---------------------------------------------------------------------------
 
   void
-  SetLogId (const char* newlogid, 
-            const XrdSecEntity* client, 
-            const char* td = "<service>")
+  SetLogId (const char* newlogid,
+	    const XrdSecEntity* client,
+	    const char* td = "<service>")
   {
     if (newlogid)
       SetLogId(newlogid, td);
-    if (client) 
+    if (client)
     {
       vid.name = client->name;
       vid.host = (client->host)?client->host:"?";
@@ -226,10 +226,14 @@ public:
 
 class Logging
 {
-private:
-public:
-  typedef std::vector< unsigned long > LogCircularIndex; //< typedef for circular index pointing to the next message position int he log array
-  typedef std::vector< std::vector <XrdOucString> > LogArray; //< typdef for log message array 
+ private:
+ public:
+
+  //! Typedef for circular index pointing to the next message position int he log array
+  typedef std::vector< unsigned long > LogCircularIndex;
+
+  //! Typdef for log message array
+  typedef std::vector< std::vector <XrdOucString> > LogArray;
 
   static LogCircularIndex gLogCircularIndex; //< global circular index
   static LogArray gLogMemory; //< global logging memory
@@ -242,7 +246,9 @@ public:
   static XrdOucHash<const char*> gAllowFilter; ///< global list of function names allowed to log
   static XrdOucHash<const char*> gDenyFilter; ///< global list of function names denied to log
   static int gShortFormat; //< indiciating if the log-output is in short format
-  static std::map<std::string, FILE*> gLogFanOut; //< here one can define log fan-out to different file descriptors than stderr
+
+  //< Here one can define log fan-out to different file descriptors than stderr
+  static std::map<std::string, FILE*> gLogFanOut;
 
   // ---------------------------------------------------------------------------
   //! Set the log priority (like syslog)
@@ -278,18 +284,18 @@ public:
     XrdOucString pass_tag = "PASS:";
     XrdOucString sfilter = filter;
 
-    // Clear both maps 
+    // Clear both maps
     gDenyFilter.Purge();
     gAllowFilter.Purge();
 
     if ((pos = sfilter.find(pass_tag)) != STR_NPOS)
     {
-      // Extract the function names which are allowed to log       
+      // Extract the function names which are allowed to log
       pos += pass_tag.length();
 
       while ((pos = sfilter.tokenize(token, pos, del)) != -1)
       {
-        gAllowFilter.Add(token.c_str(), NULL, 0, Hash_data_is_key);
+	gAllowFilter.Add(token.c_str(), NULL, 0, Hash_data_is_key);
       }
     }
     else
@@ -299,7 +305,7 @@ public:
 
       while ((pos = sfilter.tokenize(token, pos, del)) != -1)
       {
-        gDenyFilter.Add(token.c_str(), NULL, 0, Hash_data_is_key);
+	gDenyFilter.Add(token.c_str(), NULL, 0, Hash_data_is_key);
       }
     }
   }
