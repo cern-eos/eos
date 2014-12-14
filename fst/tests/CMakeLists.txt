@@ -22,6 +22,7 @@
 # ************************************************************************
 
 include_directories(
+  ${CMAKE_SOURCE_DIR}
   ${OPENSSL_INCLUDE_DIRS}
   ${CPPUNIT_INCLUDE_DIRS})
 

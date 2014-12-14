@@ -308,6 +308,7 @@ FileTest::SplitReadVTest()
 
   // Free memory
   delete[] buff;
+  delete file;
 }
 
 
@@ -433,4 +434,6 @@ FileTest::DeleteFlagTest()
   status = mFile->Open(file_url, OpenFlags::Read, Access::Mode::None);
   CPPUNIT_ASSERT(!status.IsOK());
   delete[] buffer;
+  delete mFile;
+  mFile = 0;
 }
