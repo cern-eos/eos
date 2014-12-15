@@ -45,7 +45,7 @@ target_link_libraries(eosNamespaceTests eosNamespace ${CPPUNIT_LIBRARIES})
 # text-runner and ns-benchmark executables
 #-------------------------------------------------------------------------------
 add_executable(text-runner TextRunner.cc)
-target_link_libraries(text-runner eosNamespaceTests ${GLIBC_DL_LIBRARY})
+target_link_libraries(text-runner ${CPPUNIT_LIBRARIES} ${GLIBC_DL_LIBRARY})
 
 add_executable(ns-benchmark NSBenchmark.cc)
 target_link_libraries(ns-benchmark eosNamespace)
