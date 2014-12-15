@@ -43,7 +43,6 @@ add_library(
 
 target_link_libraries(
   EosFstTests
-  eosCommon
   EosFstIo-Static
   ${XROOTD_SERVER_LIBRARY}
   ${CPPUNIT_LIBRARIES})
