@@ -22,6 +22,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <iomanip>
+#include <stdexcept>
+#include <cppunit/TestPath.h>
+#include <cppunit/TestResult.h>
+#include <cppunit/TestResultCollector.h>
+#include <cppunit/BriefTestProgressListener.h>
 #include <cppunit/CompilerOutputter.h>
 #include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/extensions/HelperMacros.h>
@@ -36,8 +42,9 @@ void printTests( const CppUnit::Test *t, std::string prefix = "" )
   if( t == 0 )
     return;
 
-  const CppUnit::TestSuite *suite = dynamic_cast<const CppUnit::TestSuite*>( t );
+  const CppUnit::TestSuite* suite = dynamic_cast<const CppUnit::TestSuite*>( t );
   std::cerr << prefix << t->getName();
+
   if( suite )
   {
     std::cerr << "/" << std::endl;
@@ -45,6 +52,7 @@ void printTests( const CppUnit::Test *t, std::string prefix = "" )
     prefix1 += t->getName(); prefix1 += "/";
     const std::vector<CppUnit::Test*> &tests = suite->getTests();
     std::vector<CppUnit::Test*>::const_iterator it;
+
     for( it = tests.begin(); it != tests.end(); ++it )
       printTests( *it, prefix1 );
   }
@@ -52,55 +60,13 @@ void printTests( const CppUnit::Test *t, std::string prefix = "" )
     std::cerr << std::endl;
 }
 
-//------------------------------------------------------------------------------
-// Find a test
-//------------------------------------------------------------------------------
-CppUnit::Test *findTest( CppUnit::Test *t, const std::string &test )
-{
-  //----------------------------------------------------------------------------
-  // Check the suit and the path
-  //----------------------------------------------------------------------------
-  std::vector<std::string> elements;
-  eos::PathProcessor::splitPath( elements, test );
-
-  if( t == 0 )
-    return 0;
-
-  if( elements.empty() )
-    return 0;
-
-  if( t->getName() != elements[0] )
-    return 0;
-
-  //----------------------------------------------------------------------------
-  // Look for the requested test
-  //----------------------------------------------------------------------------
-  CppUnit::Test *ret = t;
-  for( size_t i = 1; i < elements.size(); ++i )
-  {
-    CppUnit::TestSuite *suite = dynamic_cast<CppUnit::TestSuite*>( ret );
-    CppUnit::Test      *next  = 0;
-    const std::vector<CppUnit::Test*> &tests = suite->getTests();
-    std::vector<CppUnit::Test*>::const_iterator it;
-    for( it = tests.begin(); it != tests.end(); ++it )
-      if( (*it)->getName() == elements[i] )
-       next = *it;
-    if( !next )
-      return 0;
-    ret = next;
-  }
-
-  return ret;
-}
 
 //------------------------------------------------------------------------------
 // Start the show
 //------------------------------------------------------------------------------
 int main( int argc, char **argv)
 {
-  //----------------------------------------------------------------------------
   // Load the test library
-  //----------------------------------------------------------------------------
   if( argc < 2 )
   {
     std::cerr << "Usage: " << argv[0] << " libname.so testname" << std::endl;
@@ -113,48 +79,64 @@ int main( int argc, char **argv)
     return 1;
   }
 
-  //----------------------------------------------------------------------------
   // Print help
-  //----------------------------------------------------------------------------
   CppUnit::Test *all = CppUnit::TestFactoryRegistry::getRegistry().makeTest();
+
   if( argc == 2 )
   {
     std::cerr << "Select your tests:" << std::endl << std::endl;
     printTests( all );
     std::cerr << std::endl;
+
+    if (dlclose( libHandle ))
+      std::cerr << "Error during dynamic library unloading" << std::endl;
+
+    delete all;
     return 1;
   }
 
-  //----------------------------------------------------------------------------
-  // Build the test suite
-  //----------------------------------------------------------------------------
-  CppUnit::TestSuite *selected = new CppUnit::TestSuite( "Selected tests" );
-  for( int i = 2; i < argc; ++i )
+  // Build the test suite for the requested path
+  std::string test_path = argv[2];
+
+  // Create event manager and test controller
+  CppUnit::TestResult controller;
+
+  // Add listener that collects test results
+  CppUnit::TestResultCollector result;
+  controller.addListener(&result);
+
+  // Add listener that prints the name of the test and status
+  CppUnit::BriefTestProgressListener brief_progress;
+  controller.addListener(&brief_progress);
+
+  // Add the top suite to the test runner
+  CppUnit::TestRunner runner;
+  runner.addTest(all);
+
+  try
   {
-    CppUnit::Test *t = findTest( all, std::string( argv[i]) );
-    if( !t )
-    {
-      std::cerr << "Unable to find: " << argv[i] << std::endl;
-      return 2;
-    }
-    selected->addTest( t );
+    std::cout << std::endl << "Running:" <<  std::endl;
+    runner.run(controller, test_path);
+    std::cerr << std::endl;
+
+    // Print test in a compiler compatible format
+    CppUnit::CompilerOutputter outputter(&result, std::cerr);
+    outputter.write();
+  }
+  catch (std::invalid_argument &e)
+  {
+    std::cerr << std::endl
+	      << "ERROR: " << e.what()
+	      << std::endl;
+
+    if (dlclose( libHandle ))
+      std::cerr << "Error during dynamic library unloading" << std::endl;
+
+    return 0;
   }
 
-  std::cerr << "You have selected: " << std::endl << std::endl;
-  printTests( selected );
-  std::cerr << std::endl;
+  if (dlclose( libHandle ))
+    std::cerr << "Error during dynamic library unloading" << std::endl;
 
-  //----------------------------------------------------------------------------
-  // Run the tests
-  //----------------------------------------------------------------------------
-  std::cerr << "Running:" << std::endl << std::endl;
-  CppUnit::TextUi::TestRunner runner;
-  runner.addTest( selected );
-
-  runner.setOutputter(
-    new CppUnit::CompilerOutputter( &runner.result(), std::cerr ) );
-
-  bool wasSuccessful = runner.run();
-  dlclose( libHandle );
-  return wasSuccessful ? 0 : 1;
+  return result.wasSuccessful() ? 0 : 1;
 }
