@@ -325,8 +325,8 @@ com_attr_usage:
   fprintf(stdout, "         sys.forced.nouserlayout=1             : disables the user settings with user.forced.<xxx>\n");
   fprintf(stdout, "         sys.forced.nofsselection=1            : disables user defined filesystem selection with environment variables for reads\n");
   fprintf(stdout, "         sys.forced.bookingsize=<bytes>        : set's the number of bytes which get for each new created replica\n");
-  fprintf(stdout, "         sys.forced.minimumsize=<bytes>        : set's the minimum number of bytes a file to be stored must have\n");
-  fprintf(stdout, "         sys.forced.maximumsize=<bytes>        : set's the maximum number of bytes a file to be stored can have\n");
+  fprintf(stdout, "         sys.forced.minsize=<bytes>            : set's the minimum number of bytes a file to be stored must have\n");
+  fprintf(stdout, "         sys.forced.maxsize=<bytes>            : set's the maximum number of bytes a file to be stored can have\n");
   fprintf(stdout, "         sys.forced.atomic=1                   : if present enforce atomic uploads e.g. files appear only when their upload is complete - during the upload they have the name <dirname>/.<basename>.<uuid>\n");
   fprintf(stdout, "         sys.mtime.propagation=1               : if present a change under this directory propagates an mtime change up to all parents until the attribute is not present anymore\n");
   fprintf(stdout, "         sys.allow.oc.sync=1                   : if present, OwnCloud clients can sync pointing to this subtree\n");
