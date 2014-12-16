@@ -6,7 +6,7 @@
 Beryl Release Notes
 ===================
 
-``Version V0.3.80 Beryl-Aquamarine``
+``Version V0.3.81 Beryl-Aquamarine``
 
 Bug Fixes
 ---------
@@ -20,6 +20,9 @@ Bug Fixes
 - disable 'delete-on-close' for chunked uploads to allow for single chunk retry
 - fix '\n' encoding for FUSE listing 
 - require 'targetsize' in standard HTTP PUT
+- fix documentation of attributes for max/minsize in 'attr help'
+- fix sealing of empty checksum FMD info
+- fix double mapping of propfind requests
 
 New Features
 ------------
