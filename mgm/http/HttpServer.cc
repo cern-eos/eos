@@ -192,7 +192,7 @@ HttpServer::Handler (void                  *cls,
   }
 }
 
-#endif
+//#endif
 
 /*----------------------------------------------------------------------------*/
 void
@@ -215,7 +215,7 @@ HttpServer::CompleteHandler (void                              *cls,
 
   eos_static_info("msg=\"http connection disconnect\" reason=\"Request %s\" ", scode.c_str());
 }
-
+#endif
 /*----------------------------------------------------------------------------*/
 eos::common::Mapping::VirtualIdentity*
 HttpServer::Authenticate(std::map<std::string, std::string> &headers)
