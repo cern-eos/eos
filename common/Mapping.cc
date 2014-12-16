@@ -640,13 +640,6 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     }
   }
 
-  if (gVirtualUidMap.count(tuid.c_str()) ||
-      gVirtualGidMap.count(tgid.c_str()))
-  {
-    // indicate in the name that this is a mapped tident
-    vid.name = "tident";
-  }
-
   eos_static_debug("suidtident:%s sgidtident:%s", suidtident.c_str(), sgidtident.c_str());
 
   // ---------------------------------------------------------------------------
