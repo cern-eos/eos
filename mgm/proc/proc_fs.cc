@@ -102,7 +102,9 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
           if ((!dumppath) && (!dumpfid) && (!dumpsize))
           {
             fmd->getEnv(env, true);
-            stdOut += env.c_str();
+	    XrdOucString senv = env.c_str();
+	    senv.replace("checksum=&","checksum=none&");
+            stdOut += senv.c_str();
             if (monitor)
             {
               std::string fullpath = gOFS->eosView->getUri(fmd);
