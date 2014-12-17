@@ -6,7 +6,7 @@
 Beryl Release Notes
 ===================
 
-``Version V0.3.81 Beryl-Aquamarine``
+``Version V0.3.82 Beryl-Aquamarine``
 
 Bug Fixes
 ---------
@@ -23,6 +23,7 @@ Bug Fixes
 - fix documentation of attributes for max/minsize in 'attr help'
 - fix sealing of empty checksum FMD info
 - fix double mapping of propfind requests
+- enable re-entrant https mapping as required by HTTPS Webdav gateways 
 
 New Features
 ------------
