@@ -554,12 +554,12 @@ ProcCommand::File ()
           stdOut += "<img alt=\"\" src=\"data:image/gif;base64,R0lGODlhEAANAJEAAAJ6xv///wAAAAAAACH5BAkAAAEALAAAAAAQAA0AAAg0AAMIHEiwoMGDCBMqFAigIYCFDBsadPgwAMWJBB1axBix4kGPEhN6HDgyI8eTJBFSvEgwIAA7\">";
           stdOut += "<a id=\"httpshare\" href=\"";
           stdOut += httppath.c_str();
-          stdOut += "\">ROOT</a></td>";
+          stdOut += "\">HTTP</a></td>";
           stdOut += "</tr><tr><td>";
           stdOut += "<img alt=\"\" src=\"data:image/gif;base64,R0lGODlhEAANAJEAAAJ6xv///wAAAAAAACH5BAkAAAEALAAAAAAQAA0AAAg0AAMIHEiwoMGDCBMqFAigIYCFDBsadPgwAMWJBB1axBix4kGPEhN6HDgyI8eTJBFSvEgwIAA7\">";
           stdOut += "<a id=\"rootshare\" href=\"";
           stdOut += rootUrl.c_str();
-          stdOut += "\">HTTP</a></td>";
+          stdOut += "\">ROOT</a></td>";
           stdOut += "</tr></table>\n";
         }
         else
