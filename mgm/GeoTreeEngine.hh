@@ -630,19 +630,11 @@ protected:
   {
     auto fsid = (*entry->backgroundFastStruct->treeInfo)[idx].fsId;
     tLatencyStats &lstat = pFsId2LatencyStats[fsid];
-    size_t count = 0;
-    //eos_static_info("size=%d",(int)pFsId2LatencyStats.size());
     auto mydata = entry->backgroundFastStruct->placementTree->pNodes[idx].fsData;
     for( size_t circIdx = pFrameCount%pCircSize;
         (lstat.lastupdate!=0) && (pCircFrCnt2Timestamp[circIdx] > lstat.lastupdate - pPublishToPenaltyDelayMs);
         circIdx=((pCircSize+circIdx-1)%pCircSize) )
     {
-      //eos_static_info("circIdx=%d  count=%d  pCircFrCnt2Timestamp[circIdx]=%lu  &&  lstat.lastupdate=%lf",(int)circIdx, (int)count,pCircFrCnt2Timestamp[circIdx],lstat.lastupdate);
-      count++;
-      {
-        eos_static_warning("breaking because I will stay in an infinite loop");
-        break;
-      }
       if(entry->foregroundFastStruct->placementTree->pNodes[idx].fsData.dlScore>0)
       applyDlScorePenalty(entry,idx,
                           pCircFrCnt2FsPenalties[circIdx][fsid].dlScorePenalty,
@@ -654,16 +646,16 @@ protected:
                           true
                           );
     }
-    if(mydata.dlScore!=entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.dlScore || mydata.ulScore!=entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.ulScore)
-    {
-      eos_static_info("score before recalling penalties dl=%d  ul=%d",
-                      (int)mydata.dlScore,
-                      (int)mydata.ulScore);
-
-      eos_static_info("score after recalling penalties dl=%d  ul=%d",
-                    (int)entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.dlScore,
-                    (int)entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.ulScore);
-    }
+//    if(mydata.dlScore!=entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.dlScore || mydata.ulScore!=entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.ulScore)
+//    {
+//      eos_static_info("score before recalling penalties dl=%d  ul=%d",
+//                      (int)mydata.dlScore,
+//                      (int)mydata.ulScore);
+//
+//      eos_static_info("score after recalling penalties dl=%d  ul=%d",
+//                    (int)entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.dlScore,
+//                    (int)entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.ulScore);
+//    }
   }
 
   template<class T> bool placeNewReplicas(TreeMapEntry* entry, const size_t &nNewReplicas,
