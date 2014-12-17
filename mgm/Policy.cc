@@ -251,7 +251,7 @@ Policy::GetPlctPolicy (const char* path,
   std::string policyString;
 
   const char* val = 0;
-  if ((val = env.Get("eos.plctpolicy")))
+  if ((val = env.Get("eos.plctplcy")))
   {
     // we force an explicit placement policy
     policyString = val;

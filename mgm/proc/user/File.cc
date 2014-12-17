@@ -848,7 +848,33 @@ ProcCommand::File ()
         {
           XrdOucString layout = pOpaque->Get("mgm.convert.layout");
           XrdOucString space = pOpaque->Get("mgm.convert.space");
+          XrdOucString plctplcy = pOpaque->Get("mgm.convert.plctplcy");
           XrdOucString option = pOpaque->Get("mgm.option");
+
+          //stdOut += ("Placement Policy is: " + plctplcy);
+          if(plctplcy.length())
+          {
+            // -------------------------------------------------------------------
+            // check that the placement policy is valid
+            // "scattered" or "hybrid
+            // i.e. scattered, hybrid:<geotag> or gathered:<geotag>
+            // -------------------------------------------------------------------
+            if(plctplcy=="scattered")
+            {}
+            else if(plctplcy.beginswith("hybrid:"))
+            {}
+            else if (plctplcy.beginswith("gathered:"))
+            {}
+            else
+            {
+              stdErr += "error: placement policy is invalid";
+              retc = EINVAL;
+              return SFS_OK;
+            }
+            plctplcy="~"+plctplcy;
+          }
+          else
+            plctplcy="";
           if (!space.length())
           {
             // -------------------------------------------------------------------
@@ -1004,11 +1030,12 @@ ProcCommand::File ()
 
                     snprintf(conversiontagfile,
                              sizeof (conversiontagfile) - 1,
-                             "%s/%016llx:%s#%08lx",
+                             "%s/%016llx:%s#%08lx%s",
                              gOFS->MgmProcConversionPath.c_str(),
                              fileid,
                              space.c_str(),
-                             (unsigned long) layoutid);
+                             (unsigned long) layoutid,
+                             plctplcy.c_str());
                     stdOut += "info: conversion based layout+stripe arguments\n";
                   }
                   else
@@ -1016,11 +1043,12 @@ ProcCommand::File ()
                     // assume this is the name of an attribute
                     snprintf(conversiontagfile,
                              sizeof (conversiontagfile) - 1,
-                             "%s/%016llx:%s#%s",
+                             "%s/%016llx:%s#%s%s",
                              gOFS->MgmProcConversionPath.c_str(),
                              fileid,
                              space.c_str(),
-                             layout.c_str());
+                             layout.c_str(),
+                             plctplcy.c_str());
                     stdOut += "info: conversion based conversion attribute name\n";
                   }
                 }

@@ -684,6 +684,7 @@ public:
       return NULL;
 
     std::string keyval = conversionlayoutidstring;
+    std::string plctplcy;
     
     // check if this is already a complete env representation
     if ( (keyval.find("eos.layout.type") != std::string::npos) &&
@@ -702,6 +703,9 @@ public:
     
     if (!eos::common::StringConversion::SplitKeyValue(keyval, space,layout, "#"))
       return NULL;
+
+    if(((int)layout.find("~"))!= STR_NPOS)
+      eos::common::StringConversion::SplitKeyValue(layout, layout,plctplcy, "~");
 
     errno = 0;
     unsigned long long lid = strtoll(layout.c_str(), 0, 16);
@@ -728,7 +732,11 @@ public:
     out += GetBlockSizeString(lid);
     out += "&eos.space=";
     out += space.c_str();
-
+    if(plctplcy.length())
+    {
+      out += "&eos.plctplcy=";
+      out += plctplcy.c_str();
+    }
     if (group != "")
     {
       out += "&eos.group=";

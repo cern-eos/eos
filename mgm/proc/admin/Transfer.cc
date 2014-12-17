@@ -46,6 +46,7 @@ ProcCommand::Transfer ()
  XrdOucString group = pOpaque->Get("mgm.txgroup") ? pOpaque->Get("mgm.txgroup") : "";
  XrdOucString id = pOpaque->Get("mgm.txid") ? pOpaque->Get("mgm.txid") : "";
  XrdOucString option = pOpaque->Get("mgm.txoption") ? pOpaque->Get("mgm.txoption") : "";
+
  if ((mSubCmd != "submit") && (mSubCmd != "ls") && (mSubCmd != "cancel") && (mSubCmd != "enable") && (mSubCmd != "disable") && (mSubCmd != "reset") && (mSubCmd != "clear") && (mSubCmd != "resubmit") && (mSubCmd != "kill") && (mSubCmd != "log") && (mSubCmd != "purge"))
  {
    retc = EINVAL;

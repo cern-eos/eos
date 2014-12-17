@@ -150,6 +150,7 @@ com_file (char* arg1)
 
   XrdOucString fsid1 = subtokenizer.GetToken();
   XrdOucString fsid2 = subtokenizer.GetToken();
+  XrdOucString fsid3 = subtokenizer.GetToken();
 
   if ((!path.beginswith("fid:")) && (!path.beginswith("fxid:")))
     path = abspath(path.c_str());
@@ -280,6 +281,7 @@ com_file (char* arg1)
   {
     XrdOucString layout = fsid1;
     XrdOucString space = fsid2;
+    XrdOucString plctplcty = fsid3;
     if (!path.length())
       goto com_file_usage;
     in += "&mgm.subcmd=convert";
@@ -294,6 +296,11 @@ com_file (char* arg1)
     {
       in += "&mgm.convert.space=";
       in += space;
+    }
+    if (plctplcty.length())
+    {
+      in += "&mgm.convert.plctplcy=";
+      in += plctplcty;
     }
     if (option == "sync")
     {
@@ -808,12 +815,13 @@ com_file_usage:
   fprintf(stdout, "       - %%silent                                                     :  suppresses all information for each replic to be printed\n");
   fprintf(stdout, "       - %%force                                                      :  forces to get the MD even if the node is down\n");
   fprintf(stdout, "       - %%output                                                     :  prints lines with inconsitency information\n");
-  fprintf(stdout, "file convert [--sync|--rewrite] <path> [<layout>:<stripes> | <layout-id> | <sys.attribute.name>] [target-space]:\n");
+  fprintf(stdout, "file convert [--sync|--rewrite] <path> [<layout>:<stripes> | <layout-id> | <sys.attribute.name>] [target-space] [placement-policy]:\n");
   fprintf(stdout, "                                                                         convert the layout of a file\n");
   fprintf(stdout, "        <layout>:<stripes>   : specify the target layout and number of stripes\n");
   fprintf(stdout, "        <layout-id>          : specify the hexadecimal layout id \n");
   fprintf(stdout, "        <conversion-name>    : specify the name of the attribute sys.conversion.<name> in the parent directory of <path> defining the target layout\n");
   fprintf(stdout, "        <target-space>       : optional name of the target space or group e.g. default or default.3\n");
+  fprintf(stdout, "        <placement-policy>   : optional placement policy valid values are 'scattered','hybrid:<some_geotag>' and 'gathered:<some_geotag>'\n");
   fprintf(stdout, "        --sync               : run convertion in synchronous mode (by default conversions are asynchronous) - not supported yet\n");
   fprintf(stdout, "        --rewrite            : run convertion rewriting the file as is creating new copies and dropping old\n");
   fprintf(stdout, "file copy [-f] [-s] [-c] <src> <dst>                                   :  synchronous third party copy from <src> to <dst>\n");
