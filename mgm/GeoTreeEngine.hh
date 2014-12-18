@@ -630,7 +630,7 @@ protected:
   {
     auto fsid = (*entry->backgroundFastStruct->treeInfo)[idx].fsId;
     tLatencyStats &lstat = pFsId2LatencyStats[fsid];
-    auto mydata = entry->backgroundFastStruct->placementTree->pNodes[idx].fsData;
+    //auto mydata = entry->backgroundFastStruct->placementTree->pNodes[idx].fsData;
     for( size_t circIdx = pFrameCount%pCircSize;
         (lstat.lastupdate!=0) && (pCircFrCnt2Timestamp[circIdx] > lstat.lastupdate - pPublishToPenaltyDelayMs);
         circIdx=((pCircSize+circIdx-1)%pCircSize) )
