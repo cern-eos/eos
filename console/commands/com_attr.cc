@@ -439,12 +439,14 @@ com_attr_usage:
   fprintf(stdout,"--------------------------------------------------------------------------------\n");
   fprintf(stdout,"- configure automatic layout conversion if a file has reached a defined age ...\n");
   fprintf(stdout,"     |eos> attr set sys.lru.convert.match=\"*:1mo\" /eos/dev/instance/convert/    # convert all files older than a month to the layout defined next\n");
-  fprintf(stdout, "     |eos> attr set sys.conversion.*=20640542 /eos/dev/instance/convert/          # define the conversion layout (hex) for the match rule '*' - this is RAID6 4+2 \n");
+  fprintf(stdout,"     |eos> attr set sys.conversion.*=20640542 /eos/dev/instance/convert/          # define the conversion layout (hex) for the match rule '*' - this is RAID6 4+2 \n");
+  fprintf(stdout,"     |eos> attr set sys.conversion.*=20640542|gathered:site1::rack2 /eos/dev/instance/convert/ # same thing specifying a placement policy for the replicas/stripes \n");
   fprintf(stdout,"--------------------------------------------------------------------------------\n");
   fprintf(stdout,"- configure automatic layout conversion if a file has not been used during the last 6 month ...\n");
   fprintf(stdout,"     |eos> attr set sys.force.atime=1w /eos/dev/instance/cache/                   # track atime with a time resolution of one week\n");
   fprintf(stdout,"     |eos> attr set sys.lru.convert.match=\"*:6mo\" /eos/dev/instance/convert/    # convert all files older than a month to the layout defined next\n");
-  fprintf(stdout, "     |eos> attr set sys.conversion.*=20640542  /eos/dev/instance/convert/         # define the conversion layout (hex) for the match rule '*' - this is RAID6 4+2 \n");
+  fprintf(stdout,"     |eos> attr set sys.conversion.*=20640542  /eos/dev/instance/convert/         # define the conversion layout (hex) for the match rule '*' - this is RAID6 4+2 \n");
+  fprintf(stdout,"     |eos> attr set sys.conversion.*=20640542|gathered:site1::rack2 /eos/dev/instance/convert/ # same thing specifying a placement policy for the replicas/stripes \n");
   fprintf(stdout,"--------------------------------------------------------------------------------\n");
   fprintf(stdout,".......................\n");
   fprintf(stdout,"....... Recycle Bin ...\n");

@@ -782,11 +782,15 @@ LRU::ConvertMatch (const char* dir,
               // ---------------------------------------------------------------
               // check if this file has already the proper layout
               // ---------------------------------------------------------------
-              unsigned long long lid = strtoll(map[conv_attr].c_str(), 0, 16);
+              std::string conversion = map[conv_attr];
+              std::string plctplcy;
+              if(((int)conversion.find("|"))!=STR_NPOS)
+                eos::common::StringConversion::SplitKeyValue(conversion, conversion,plctplcy, "|");
+              unsigned long long lid = strtoll(conversion.c_str(), 0, 16);
               if (fit->second->getLayoutId() == lid)
               {
                 eos_static_debug("msg=\"skipping conversion - file has already"
-                                 "the desired target layout\" fid=%llu", fit->second->getId());
+                                 "the desired target layout and no placement policy\" fid=%llu", fit->second->getId());
                 continue;
               }
 
@@ -823,6 +827,14 @@ LRU::ConvertMatch (const char* dir,
 
   for (auto it = lConversionList.begin(); it != lConversionList.end(); it++)
   {
+    std::string conversion = it->second;
+    std::string plctplcy;
+    if(((int)conversion.find("|"))!=STR_NPOS)
+    {
+      eos::common::StringConversion::SplitKeyValue(conversion, conversion,plctplcy, "|");
+      plctplcy = "~"+plctplcy;
+    }
+
     char conversiontagfile[1024];
     std::string space;
 
@@ -838,7 +850,7 @@ LRU::ConvertMatch (const char* dir,
     // the conversion value can be directory an layout env representation like
     // "eos.space=...&eos.layout ..."
 
-    XrdOucEnv cenv(it->second.c_str());
+    XrdOucEnv cenv(conversion.c_str());
 
     if (cenv.Get("eos.space"))
     {
@@ -847,11 +859,12 @@ LRU::ConvertMatch (const char* dir,
 
     snprintf(conversiontagfile,
              sizeof (conversiontagfile) - 1,
-             "%s/%016llx:%s#%s",
+             "%s/%016llx:%s#%s%s",
              gOFS->MgmProcConversionPath.c_str(),
              it->first,
              space.c_str(),
-             it->second.c_str());
+             conversion.c_str(),
+             plctplcy.c_str());
 
     eos_static_notice("msg=\"creating conversion tag file\" tag-file=%s",
                       conversiontagfile);
