@@ -711,7 +711,7 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
         out += "  \"";
         out += emapit->first.c_str();
         out += "\": {\n";
-        out += "    \"n\": ";
+        out += "    \"n\":\"";
         out += sn;
         out += "\",\n";
         if (printfid)
@@ -790,7 +790,7 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
         out += "  \"";
         out += emapit->first.c_str();
         out += "\": {\n";
-        out += "    \"n\": ";
+        out += "    \"n\":\"";
         out += sn;
         out += "\",\n";
         out += "    \"fsid\":";
