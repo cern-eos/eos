@@ -6,7 +6,7 @@
 Beryl Release Notes
 ===================
 
-``Version V0.3.82 Beryl-Aquamarine``
+``Version V0.3.83 Beryl-Aquamarine``
 
 Bug Fixes
 ---------
@@ -17,13 +17,16 @@ Bug Fixes
 - make 'console log' e.g. /var/log/eos/mgm/error.log working again
 - fix substantial memory leak in PUT requests on FSTs
 - fix 's3' lower-case headers
-- disable 'delete-on-close' for chunked uploads to allow for single chunk retry
+- disable 'delete-on-close & repair-on-close' for chunked uploads to allow for single chunk retry
 - fix '\n' encoding for FUSE listing 
 - require 'targetsize' in standard HTTP PUT
 - fix documentation of attributes for max/minsize in 'attr help'
 - fix sealing of empty checksum FMD info
 - fix double mapping of propfind requests
 - enable re-entrant https mapping as required by HTTPS Webdav gateways 
+- fix JSON format for fsck reports
+- swap HTTP/ROOT share url
+- fix return codes for chunked uploads for cases like no quota etc.
 
 New Features
 ------------
