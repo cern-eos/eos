@@ -3066,6 +3066,22 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
   // the command only appends to <out> and DOES NOT initialize it
   // "tag=<tag>"                                                -> use tag as header not the variable name
 
+  // because we don't display the members with geodepth option
+  // we proceed with the non geodepth display first
+  if(outdepth>0)
+  {
+    Print(out, headerformat, listformat, 0, selections);
+    // we force-print the header
+    if(headerformat.find("header=1")==std::string::npos)
+    {
+      if(headerformat.find("header=0")!=std::string::npos)
+      {
+        headerformat.replace(headerformat.find("header=0"), 8, "header=1");
+      }
+      headerformat = "header=1:" + headerformat;
+    }
+  }
+
   std::vector<std::string> formattoken;
   bool buildheader = false;
 
@@ -3138,7 +3154,7 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
   for(unsigned int l=0; l<nLines; l++ )
   {
     buildheader = false;
-
+    bool printsep = true;
     for (unsigned int i = 0; i < formattoken.size(); i++)
     {
       std::vector<std::string> tagtoken;
@@ -3168,6 +3184,13 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
 	{
 	  buildheader = true;
 	}
+      }
+
+      // to save some display space, we don't print out members with geodepth option
+      if(outdepth>0 && formattags.count("member"))
+      {
+        printsep = false;
+        continue;
       }
 
       if (formattags.count("width") && formattags.count("format"))
@@ -3544,7 +3567,7 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
 	}
       }
 
-      if (formattags.count("sep"))
+      if (printsep && formattags.count("sep"))
       {
 	// add the desired seperator
 	body += formattags["sep"];
