@@ -778,7 +778,7 @@ HttpHandler::Put (eos::common::HttpRequest * request)
                           query.c_str());
       if (rc != SFS_OK)
       {
-        if ((rc != SFS_REDIRECT) && open_mode)
+        if ((rc != SFS_REDIRECT) && open_mode && (file->error.getErrInfo() == ENOENT))
         {
           // retry as a file creation
           open_mode |= SFS_O_CREAT;
