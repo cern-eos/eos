@@ -6,7 +6,7 @@
 Beryl Release Notes
 ===================
 
-``Version V0.3.83 Beryl-Aquamarine``
+``Version V0.3.84 Beryl-Aquamarine``
 
 Bug Fixes
 ---------
@@ -27,6 +27,7 @@ Bug Fixes
 - fix JSON format for fsck reports
 - swap HTTP/ROOT share url
 - fix return codes for chunked uploads for cases like no quota etc.
+- add 'open' serialization for identical file paths to avoid open errors using HTTP protocol 
 
 New Features
 ------------
