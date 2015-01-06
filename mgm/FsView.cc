@@ -3193,7 +3193,9 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
         continue;
       }
       else
+      {
         printsep = true;
+      }
 
       if (formattags.count("width") && formattags.count("format"))
       {
