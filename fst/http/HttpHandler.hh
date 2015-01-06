@@ -36,6 +36,7 @@
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfs.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <map>
@@ -72,6 +73,9 @@ public:
   int                        mCloseCode;          //< close code to return if file upload was successfull
   unsigned long long         mFileId;             //< file id used in EOS - determined after Ofs::Open
   std::string                mLogId;              //< log id used in EOS - determined after Ofs::Open
+
+  static XrdSysMutex mOpenMutexMapMutex;
+  static std::map<unsigned int, XrdSysMutex*> mOpenMutexMap;
 
   /**
    * Constructor

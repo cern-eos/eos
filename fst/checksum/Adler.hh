@@ -72,6 +72,8 @@ public:
     Reset();
   }
 
+  unsigned int GetAdler() {return adler;}
+
   bool Add (const char* buffer, size_t length, off_t offset);
   MapChunks& AddElementToMap (MapChunks& map, Chunk& chunk);
 
