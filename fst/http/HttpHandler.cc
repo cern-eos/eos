@@ -600,6 +600,13 @@ HttpHandler::DecodeByteRange (std::string rangeheader,
 	stop = 0;
     }
 
+    if (!sstart.length()) 
+    {
+      // case '-X' = the last X bytes
+      start = filesize-stop;
+      stop = filesize-1;
+    }
+
     if ((start > filesize) || (stop > filesize))
     {
       return false;
