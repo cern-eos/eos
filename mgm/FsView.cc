@@ -3154,7 +3154,6 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
   for(unsigned int l=0; l<nLines; l++ )
   {
     buildheader = false;
-    bool printsep = true;
     for (unsigned int i = 0; i < formattoken.size(); i++)
     {
       std::vector<std::string> tagtoken;
@@ -3188,14 +3187,7 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
 
       // to save some display space, we don't print out members with geodepth option
       if(outdepth>0 && formattags.count("member"))
-      {
-        printsep = false;
         continue;
-      }
-      else
-      {
-        printsep = true;
-      }
 
       if (formattags.count("width") && formattags.count("format"))
       {
@@ -3571,8 +3563,9 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
 	}
       }
 
-      if (printsep && formattags.count("sep"))
+      if (formattags.count("sep") && body.size() && ((*body.rbegin())!='\n'))
       {
+        // don't add the separator if there is nothing in the line before
 	// add the desired seperator
 	body += formattags["sep"];
 	if (buildheader)
@@ -3581,7 +3574,6 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
 	}
       }
     }
-
     body += "\n";
   } // l from 0 to nLines
 
