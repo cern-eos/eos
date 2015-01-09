@@ -25,7 +25,7 @@
 """Module running the eosarchiverd daemon which transfers files between EOS
    and CASTOR.
 """
-
+from __future__ import unicode_literals
 from __future__ import print_function
 import os
 import sys
@@ -69,12 +69,15 @@ class Dispatcher(object):
         self.logger.info("Started dispatcher process ...")
         # Socket used for communication with EOS MGM
         frontend = ctx.socket(zmq.REP)
-        frontend.bind("ipc://" + self.config.FRONTEND_IPC)
+        addr = "ipc://" + self.config.FRONTEND_IPC
+        frontend.bind(addr.encode("utf-8"))
         # Socket used for communication with worker processes
         self.backend_req = ctx.socket(zmq.ROUTER)
-        self.backend_req.bind("ipc://" + self.config.BACKEND_REQ_IPC)
+        addr = "ipc://" + self.config.BACKEND_REQ_IPC
+        self.backend_req.bind(addr.encode("utf-8"))
         self.backend_pub = ctx.socket(zmq.PUB)
-        self.backend_pub.bind("ipc://" + self.config.BACKEND_PUB_IPC)
+        addr = "ipc://" + self.config.BACKEND_PUB_IPC
+        self.backend_pub.bind(addr.encode("utf-8"))
         self.backend_poller = zmq.Poller()
         self.backend_poller.register(self.backend_req, zmq.POLLIN)
         mgm_poller = zmq.Poller()
@@ -124,7 +127,7 @@ class Dispatcher(object):
             tries += 1
             self.procs.clear()
             num = self.num_processes()
-            self.backend_pub.send_multipart(["[MASTER]", "{'cmd': 'orphan_status'}"])
+            self.backend_pub.send_multipart([b"[MASTER]", b"{'cmd': 'orphan_status'}"])
 
             while True:
                 events = dict(self.backend_poller.poll(1000))
@@ -189,7 +192,7 @@ class Dispatcher(object):
     def update_status(self):
         """ Update the status of the processes
         """
-        self.backend_pub.send_multipart(["[MASTER]", "{'cmd': 'status'}"])
+        self.backend_pub.send_multipart([b"[MASTER]", b"{'cmd': 'status'}"])
         recv_uuid = []
 
         while len(recv_uuid) < len(self.procs):
