@@ -1097,11 +1097,11 @@ com_cp (char* argin)
     if (transfersize.length()) cmdline += "-T ";
     cmdline += transfersize;
     cmdline += " ";
-    cmdline += "-N ";
+    cmdline += "-N \"";
     XrdOucString safepath=cPath.GetName();
     while(safepath.replace("&","#AND#")) {}
     cmdline += safepath.c_str();
-    cmdline += " ";
+    cmdline += "\" ";
     if (rstdin)
     {
       cmdline += "- ";

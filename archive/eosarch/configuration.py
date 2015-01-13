@@ -23,6 +23,7 @@
 """ Class holding information about the configuration parameters used by both
     the eosarchived daemon and also each individual transfer process.
 """
+from __future__ import unicode_literals
 from __future__ import print_function
 import os
 import sys
@@ -133,9 +134,10 @@ class Configuration(object):
 
         if timed_rotating:
             self.handler = logging.handlers.TimedRotatingFileHandler(
-                self.__dict__['LOG_FILE'], 'midnight')
+                self.__dict__['LOG_FILE'], 'midnight', encoding="utf-8")
         else:
-            self.handler = logging.FileHandler(self.__dict__['LOG_FILE'])
+            self.handler = logging.FileHandler(self.__dict__['LOG_FILE'],
+                                               encoding="utf-8")
 
         self.handler.setFormatter(formatter)
         self.logger.addHandler(self.handler)

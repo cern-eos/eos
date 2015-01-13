@@ -375,6 +375,11 @@ HttpServer::CompleteHandler (void                              *cls,
     eos::fst::HttpHandler *httpHandle = dynamic_cast<eos::fst::HttpHandler*> (handler);
     if (httpHandle && httpHandle->mFile) {
       eos_static_err("msg=\"clean-up interrupted PUT/GET request\" path=\"%s\"", httpHandle->mFile->GetPath().c_str());
+      
+      // we have to disable delete-on-close for chunked uploads since files are stateful
+      if (httpHandle->mFile->IsChunkedUpload())
+	httpHandle->mFile->close();
+
       delete (httpHandle->mFile);
       httpHandle->mFile = 0;
       delete httpHandle;

@@ -22,6 +22,7 @@
 # ******************************************************************************
 """Module containing helper function for the EOS archiver daemon."""
 
+from __future__ import unicode_literals
 import logging
 from XRootD import client
 from XRootD.client.flags import OpenFlags
@@ -50,7 +51,7 @@ def exec_cmd(cmd):
             cmd += "&eos.ruid=0&eos.rgid=0"
 
     with client.File() as f:
-        st, __ = f.open(cmd, OpenFlags.READ)
+        st, __ = f.open(cmd.encode("utf-8"), OpenFlags.READ)
 
         if st.ok:
             # Read the whole response
@@ -61,7 +62,7 @@ def exec_cmd(cmd):
             if st.ok:
                 while st.ok and len(chunk):
                     off += len(chunk)
-                    data += chunk
+                    data += chunk.decode("utf-8")
                     st, chunk = f.read(off, sz)
 
                 lpairs = data.split('&')
@@ -107,7 +108,7 @@ def get_entry_info(url, rel_path, tags, is_dir):
     (status, stdout, stderr) = exec_cmd(finfo)
 
     if not status:
-        err_msg = ("Path={0}, failed fileinfo request, msg={1}").format(
+        err_msg = ("Path={0} failed fileinfo request, msg={1}").format(
             url.path, stderr)
         logger.error(err_msg)
         raise IOError(err_msg)
@@ -122,7 +123,7 @@ def get_entry_info(url, rel_path, tags, is_dir):
         path = file_val
         path_size = int(sz_val)
 
-        while path_size != len(path):
+        while path_size != len(path.encode("utf-8")):
             path_token, tail = tail.split(' ', 1)
             path += ' '
             path += path_token
@@ -183,7 +184,7 @@ def set_dir_info(entry):
         IOError: Metadata operation failed.
     """
     path, dict_dinfo = entry
-    url = client.URL(path)
+    url = client.URL(path.encode("utf-8"))
 
     # Change ownership of the directory
     fsetowner = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
@@ -215,7 +216,8 @@ def set_dir_info(entry):
     (status, stdout, stderr) = exec_cmd(flsattr)
 
     if not status:
-        err_msg = "Dir={0}, error listing xattrs, msg ={1}".format(url.path, stderr)
+        err_msg = "Dir={0}, error listing xattrs, msg ={1}".format(
+            url.path, stderr)
         logger.error(err_msg)
         raise IOError(err_msg)
 

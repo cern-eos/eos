@@ -323,7 +323,15 @@ public:
   //! Disable the checksumming before close
   //--------------------------------------------------------------------------
   void disableChecksum(bool broadcast=true);
-  
+
+  //--------------------------------------------------------------------------
+  //! Check for chunked upload flag
+  //--------------------------------------------------------------------------
+  bool IsChunkedUpload() 
+  {
+    return isOCchunk;
+  }
+
 protected:
   XrdOucEnv* openOpaque;
   XrdOucEnv* capOpaque;

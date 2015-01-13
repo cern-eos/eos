@@ -2025,7 +2025,7 @@ XrdFstOfsFile::close ()
       }
     }
 
-    if (deleteOnClose && isCreation)
+    if ( (!isOCchunk) && deleteOnClose && isCreation)
     {
       eos_info("info=\"deleting on close\" fn=%s fstpath=%s",
                capOpaque->Get("mgm.path"), fstPath.c_str());
@@ -2179,7 +2179,7 @@ XrdFstOfsFile::close ()
       }
     }
 
-    if (repairOnClose)
+    if ( (!isOCchunk) && repairOnClose)
     {
       // Do an upcall to the MGM and ask to adjust the replica of the uploaded file
        XrdOucString OpaqueString = "/?mgm.pcmd=adjustreplica&mgm.path=";

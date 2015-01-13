@@ -20,8 +20,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ******************************************************************************
-""" Class modelling an EOS archive file."""
-
+""" Class modelling an EOS archive file.
+"""
+from __future__ import unicode_literals
 import logging
 import json
 from XRootD import client
@@ -60,13 +61,13 @@ class ArchiveFile(object):
             self.logger.error("Failed to open file={0}".format(path))
             raise
 
-        line = self.file.readline()
+        line = self.file.readline().decode("utf-8")
         self.header = json.loads(line)
         self.fseek_dir = self.file.tell()  # save start position for dirs
         pos = self.fseek_dir
 
         while line:
-            line = self.file.readline()
+            line = self.file.readline().decode("utf-8")
             entry = json.loads(line)
 
             if entry[0] == 'f':
@@ -77,8 +78,8 @@ class ArchiveFile(object):
 
         # Create two XRootD.FileSystem object for source and destination
         # which are to be reused throughout the transfer.
-        self.fs_src = client.FileSystem(self.header['src'])
-        self.fs_dst = client.FileSystem(self.header['dst'])
+        self.fs_src = client.FileSystem(self.header['src'].encode("utf-8"))
+        self.fs_dst = client.FileSystem(self.header['dst'].encode("utf-8"))
         self.logger.debug("fseek_dir={0}, fseek_file={1}".format(
                 self.fseek_dir, self.fseek_file))
 
@@ -98,14 +99,14 @@ class ArchiveFile(object):
             this: ['d', "./rel/path/dir", "val1", ,"val2" ... ]
         """
         self.file.seek(self.fseek_dir)
-        line = self.file.readline()
+        line = self.file.readline().decode("utf-8")
 
         while line:
             dentry = json.loads(line)
 
             if dentry[0] == 'd':
                 yield dentry
-                line = self.file.readline()
+                line = self.file.readline().decode("utf-8")
             else:
                 break
 
@@ -117,14 +118,14 @@ class ArchiveFile(object):
             ['f', "./rel/path/file", "val1", ,"val2" ... ]
         """
         self.file.seek(self.fseek_file)
-        line = self.file.readline()
+        line = self.file.readline().decode("utf-8")
 
         while line:
             fentry = json.loads(line)
 
             if fentry[0] == 'f':
                 yield fentry
-                line = self.file.readline()
+                line = self.file.readline().decode("utf-8")
             else:
                 break
 
@@ -202,7 +203,7 @@ class ArchiveFile(object):
         else:
             surl = src if tape_delete else dst
 
-        url = client.URL(surl)
+        url = client.URL(surl.encode("utf-8"))
         fs = self.get_fs(surl)
         self.logger.debug("Delete entry={0}".format(surl))
 
@@ -262,7 +263,7 @@ class ArchiveFile(object):
         Raises:
             IOError when operation fails.
         """
-        url = client.URL(self.header['src'])
+        url = client.URL(self.header['src'].encode("utf-8"))
 
         for dentry in self.dirs():
             dir_path = url.path + dentry[1]
@@ -331,8 +332,9 @@ class ArchiveFile(object):
         """
         root_str = self.header['dst' if self.d2t else 'src']
         fs = self.get_fs(root_str)
-        url = client.URL(root_str)
-        st, __ = fs.stat(url.path + "?eos.ruid=0&eos.rgid=0")
+        url = client.URL(root_str.encode("utf-8"))
+        arg = url.path + "?eos.ruid=0&eos.rgid=0"
+        st, __ = fs.stat(arg.encode("utf-8"))
 
         if self.d2t:
             if st.ok:
@@ -348,10 +350,10 @@ class ArchiveFile(object):
                 while pos != -1:
                     dpath = url.path[: pos]
                     pos = url.path.find('/', pos + 1)
-                    st, __ = fs.stat(dpath)
+                    st, __ = fs.stat(dpath.encode("utf-8"))
 
                     if not st.ok:
-                        st, __ = fs.mkdir(dpath)
+                        st, __ = fs.mkdir(dpath.encode("utf-8"))
 
                         if not st.ok:
                             err_msg = "Dir={0} failed mkdir errmsg={1}".format(
@@ -441,7 +443,7 @@ class ArchiveFile(object):
         self.logger.debug("Verify entry={0}".format(entry))
         is_dir, path = (entry[0] == 'd'), entry[1]
         __, dst = self.get_endpoints(path)
-        url = client.URL(dst)
+        url = client.URL(dst.encode("utf-8"))
 
         if self.d2t:  # for PUT check entry size and checksum if possible
             fs = self.get_fs(dst)
@@ -523,7 +525,7 @@ class ArchiveFile(object):
         """
         __, surl = self.get_endpoints(dentry[1])
         fs = self.get_fs(surl)
-        url = client.URL(surl)
+        url = client.URL(surl.encode("utf-8"))
 
         # Create directory
         st, __ = fs.mkdir(url.path + "?eos.ruid=0&eos.rgid=0")
