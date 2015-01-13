@@ -549,6 +549,15 @@ class Transfer(object):
                 # For PUT read the files from EOS as root
                 src = ''.join([src, "?eos.ruid=0&eos.rgid=0"])
 
+            # If backup operation and time window specified then select ony the matching entries
+            if self.oper == self.config.BACKUP_OP:
+                if self.archive.header["twindow_type"] and self.archive.header["twindow_val"]:
+                    twindow_sec = int(self.archive.header["twindow_val"])
+                    tentry_sec = int(float(dfile[self.archive.header["twindow_type"]]))
+
+                    if tentry_sec < twindow_sec:
+                        continue
+
             self.logger.info("Copying from {0} to {1}".format(src, dst))
             self.list_jobs.append((src, dst))
 
