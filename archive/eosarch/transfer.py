@@ -93,7 +93,7 @@ class ThreadStatus(threading.Thread):
         socket_rr = ctx.socket(zmq.DEALER)
         socket_rr.connect("ipc://" + self.transfer.config.BACKEND_REQ_IPC)
         socket_ps = ctx.socket(zmq.SUB)
-        mgr_filter = b"[MASTER]"
+        mgr_filter = "[MASTER]".encode("utf-8")
         addr = "ipc://" + self.transfer.config.BACKEND_PUB_IPC
         socket_ps.connect(addr.encode("utf-8"))
         socket_ps.setsockopt(zmq.SUBSCRIBE, mgr_filter)
@@ -357,6 +357,7 @@ class Transfer(object):
             # Do special checks for root directory
             if not self.do_retry and dentry[1] == "./":
                 self.archive.check_root_dir()
+                continue
 
             indx_dir += 1
             self.archive.mkdir(dentry)
@@ -591,7 +592,8 @@ class Transfer(object):
                     status = status and thread.xrd_status.ok
                     log_level = logging.INFO if thread.xrd_status.ok else logging.ERROR
                     self.logger.log(log_level, "Thread={0} status={1} msg={2}".format(
-                            thread.ident, thread.xrd_status.ok, thread.xrd_status.message))
+                            thread.ident, thread.xrd_status.ok,
+                            thread.xrd_status.message.decode("utf-8")))
                     del self.threads[indx]
                     break
 
@@ -619,7 +621,8 @@ class Transfer(object):
                 status = status and thread.xrd_status.ok
                 log_level = logging.INFO if thread.xrd_status.ok else logging.ERROR
                 self.logger.log(log_level, "Thread={0} status={1} msg={2}".format(
-                        thread.ident, thread.xrd_status.ok, thread.xrd_status.message))
+                        thread.ident, thread.xrd_status.ok,
+                        thread.xrd_status.message.decode("utf-8")))
 
             del self.threads[:]
 
@@ -800,7 +803,7 @@ class Transfer(object):
         self.archive = ArchiveFile(self.tx_file, False)
 
     def do_backup(self):
-        """ Performa a backup operation using the provided backup file.
+        """ Perform a backup operation using the provided backup file.
 
         Args:
             req_json (JSON command): Arguments for backup command include:
@@ -820,6 +823,7 @@ class Transfer(object):
             # Do special checks for root directory
             if dentry[1] == "./":
                 self.archive.check_root_dir()
+                continue
 
             indx_dir += 1
             self.archive.mkdir(dentry)

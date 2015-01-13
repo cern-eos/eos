@@ -357,15 +357,9 @@ class ArchiveFile(object):
 
                         if not st.ok:
                             err_msg = "Dir={0} failed mkdir errmsg={1}".format(
-                                dpath, st.message)
+                                dpath, st.message.decode("utf-8"))
                             self.logger.error(err_msg)
                             raise IOError(err_msg)
-
-        if not st.ok:
-            err_msg = "Dir={0} failed mkdir errmsg={1}".format(
-                root_str, st.message)
-            self.logger.error(err_msg)
-            raise IOError(err_msg)
 
         elif not self.d2t:
             # For GET destination must exist and contain just the archive file
@@ -531,7 +525,8 @@ class ArchiveFile(object):
         st, __ = fs.mkdir(url.path + "?eos.ruid=0&eos.rgid=0")
 
         if not st.ok:
-            err_msg = "Dir={0} failed mkdir errmsg={1}".format(surl, st.message)
+            err_msg = "Dir={0} failed mkdir errmsg={1}".format(
+                surl, st.message.decode("utf-8"))
             self.logger.error(err_msg)
             raise IOError(err_msg)
 
