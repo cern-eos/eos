@@ -53,6 +53,7 @@ int ProcCommand::Backup()
   if (!src_url.IsValid() || !dst_url.IsValid())
   {
     stdErr = "error: both backup source and destination must be valid XRootD URLs";
+    retc = EINVAL;
     return SFS_OK;
   }
 
@@ -79,7 +80,7 @@ int ProcCommand::Backup()
     dst_surl = dst_url.GetURL();
   }
 
-  // Check that the destination directory does not exist already
+  // Check that the destination directory does not exist already and create it
   eos_debug("backup src=%s, dst=%s", src_surl.c_str(), dst_surl.c_str());
   XrdCl::FileSystem fs(dst_url);
   XrdCl::StatInfo* stat_info = 0;
@@ -93,12 +94,33 @@ int ProcCommand::Backup()
   }
 
   delete stat_info;
+  st = fs.MkDir(dst_url.GetPath(), XrdCl::MkDirFlags::MakePath,
+                XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::UX |
+                XrdCl::Access::GR | XrdCl::Access::OR, 5);
+
+  if (!st.IsOK())
+  {
+    stdErr = "error: failed to create backup destination directory";
+    retc = EIO;
+    return SFS_OK;
+  }
 
   // Create backup file and copy it to the destination location
-  int ret = BackupCreate(src_surl, dst_surl);
+  std::string twindow_type = pOpaque->Get("mgm.backup.ttime");
+  std::string twindow_val = pOpaque->Get("mgm.backup.vtime");
+
+  if (twindow_type != "ctime" && twindow_type != "mtime")
+  {
+    stdErr = "error: unkown time window type, should be ctime/mtime";
+    retc = EINVAL;
+    return SFS_OK;
+  }
+
+  int ret = BackupCreate(src_surl, dst_surl, twindow_type, twindow_val);
 
   if (!ret)
   {
+    // Check if this is an incremental backup with a time windown
     std::string bfile_url = dst_url.GetURL();
     bfile_url += EOS_COMMON_PATH_BACKUP_FILE_PREFIX;
     bfile_url += "backup.file";
@@ -124,7 +146,9 @@ int ProcCommand::Backup()
 //------------------------------------------------------------------------------
 int
 ProcCommand::BackupCreate(const std::string& src_surl,
-			  const std::string& dst_surl)
+                          const std::string& dst_surl,
+                          const std::string& twindow_type,
+                          const std::string& twindow_val)
 {
   int num_dirs = 0;
   int num_files = 0;
@@ -167,20 +191,22 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   // Write backup JSON header leaving blank the fields for the number of
   // files/dirs and timestamp which will be filled in later on.
   // Note: we treat backups as archive get operations from tape to disk
-  // therefore we need to swapt the src with destination in the header
+  // therefore we need to swap the src and destination in the header
   backup_ofs << "{"
-	     << "\"src\": \"" << dst_surl << "\", "
-	     << "\"dst\": \"" << src_surl << "\", "
-	     << "\"svc_class\": \"\", "
-	     << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
-	     << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
-	     << "\"mode\", \"xstype\", \"xs\"], "
-	     << "\"num_dirs\": " << std::setw(10) << "" << ", "
-	     << "\"num_files\": " << std::setw(10) << "" << ", "
-	     << "\"uid\": \"" << pVid->uid << "\", "
-	     << "\"gid\": \"" << pVid->gid << "\", "
-	     << "\"timestamp\": " << std::setw(10) << ""
-	     << "}" << std::endl;
+             << "\"src\": \"" << dst_surl << "\", "
+             << "\"dst\": \"" << src_surl << "\", "
+             << "\"svc_class\": \"\", "
+             << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
+             << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
+             << "\"mode\", \"xstype\", \"xs\"], "
+             << "\"num_dirs\": " << std::setw(10) << "" << ", "
+             << "\"num_files\": " << std::setw(10) << "" << ", "
+             << "\"uid\": \"" << pVid->uid << "\", "
+             << "\"gid\": \"" << pVid->gid << "\", "
+             << "\"timestamp\": " << std::setw(10) << "" << ", "
+             << "\"twindow_type\": \"" << twindow_type << "\", "
+             << "\"twindow_val\": " << twindow_val << ""
+             << "}" << std::endl;
 
   // Add directories info
   if (ArchiveAddEntries(src_url.GetPath(), backup_ofs, num_dirs, false))
@@ -203,18 +229,20 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   num_dirs--; // don't count current dir
   backup_ofs.seekp(0);
   backup_ofs << "{"
-	     << "\"src\": \"" << dst_surl << "\", "
-	     << "\"dst\": \"" << src_surl << "\", "
-	     << "\"svc_class\": \"\", "
-	     << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
-	     << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
-	     << "\"mode\", \"xstype\", \"xs\"], "
-	     << "\"num_dirs\": " << std::setw(10) << num_dirs << ", "
-	     << "\"num_files\": " << std::setw(10) << num_files << ", "
-	     << "\"uid\": \"" << pVid->uid << "\", "
-	     << "\"gid\": \"" << pVid->gid << "\", "
-	     << "\"timestamp\": " << std::setw(10) << time(static_cast<time_t*>(0))
-	     << "}" << std::endl;
+             << "\"src\": \"" << dst_surl << "\", "
+             << "\"dst\": \"" << src_surl << "\", "
+             << "\"svc_class\": \"\", "
+             << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
+             << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
+             << "\"mode\", \"xstype\", \"xs\"], "
+             << "\"num_dirs\": " << std::setw(10) << num_dirs << ", "
+             << "\"num_files\": " << std::setw(10) << num_files << ", "
+             << "\"uid\": \"" << pVid->uid << "\", "
+             << "\"gid\": \"" << pVid->gid << "\", "
+             << "\"timestamp\": " << std::setw(10) << time(static_cast<time_t*>(0)) << ", "
+             << "\"twindow_type\": \"" << twindow_type << "\", "
+             << "\"twindow_val\": " << twindow_val << ""
+             << "}" << std::endl;
   backup_ofs.close();
 
   // Copy local backup file to backup destination

@@ -368,16 +368,42 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     MgmArchiveSvcClass = getenv("EOS_ARCHIVE_SVCCLASS");
   }
 
-  // cleanup the query output cache directory
-  XrdOucString systemline = "rm -rf /tmp/eos.mgm/* >& /dev/null &";
-  int rrc = system(systemline.c_str());
-  if (WEXITSTATUS(rrc))
+  // Create and own the output cache directory or clean it up if it exists -
+  // this is used to store temporary results for commands like find, backup
+  // or achive
+  struct stat dir_stat;
+  if (!::stat("/tmp/eos.mgm/", &dir_stat) && S_ISDIR(dir_stat.st_mode))
   {
-    eos_err("%s returned %d", systemline.c_str(), rrc);
+    XrdOucString systemline = "rm -rf /tmp/eos.mgm/* >& /dev/null &";
+    int rrc = system(systemline.c_str());
+
+    if (WEXITSTATUS(rrc))
+      eos_err("%s returned %d", systemline.c_str(), rrc);
+  }
+  else
+  {
+    eos::common::Path out_dir("/tmp/eos.mgm/empty");
+
+    if (!out_dir.MakeParentPath(S_IRWXU))
+    {
+      eos_err("Unable to create temporary output file directory /tmp/eos.mgm/");
+      Eroute.Emsg("Config", errno, "create temporary outputfile"
+                  " directory /tmp/eos.mgm/");
+      NoGo = 1;
+      return NoGo;;
+    }
+
+    // Own the directory by daemon
+    if (::chown(out_dir.GetParentPath(), 2, 2))
+    {
+      eos_err("Unable to own temporary outputfile directory %s", out_dir.GetParentPath());
+      Eroute.Emsg("Config", errno, "own outputfile directory /tmp/eos.mgm/");
+      NoGo = 1;
+      return NoGo;;
+    }
   }
 
   ErrorLog = true;
-
   bool ConfigAutoSave = false;
   MgmConfigAutoLoad = "";
 
