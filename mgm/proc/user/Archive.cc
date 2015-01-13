@@ -752,7 +752,8 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   if (MakeSubTreeImmutable(arch_dir, vect_files))
     return;
 
-  // Open temporary file in which we construct the archive file
+  // Create the output directory if necessary and open the temporary file in
+  // which we construct the archive file
   std::ostringstream oss;
   oss << "/tmp/eos.mgm/archive." << XrdSysThread::ID();
   std::string arch_fn = oss.str();
@@ -1149,6 +1150,8 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     return retc;
   }
 
+  char* tmp_buff = new char[4096*4];
+
   while (std::getline(result_ifs, line))
   {
     if (line.find("&mgm.proc.stderr=") == 0)
@@ -1173,12 +1176,20 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
 
       key = pair.substr(0, spos);
       value = pair.substr(spos + 1);
-      eos_debug("key=%s, value=%s", key.c_str(), value.c_str());
 
       if (key == "keylength.file")
       {
         key_length = static_cast<size_t>(atoi(value.c_str()));
-        continue;
+
+        // Read in the file/dir path using the previously read key_length
+        int full_length = key_length + 5; // 5 stands for "file="
+        line_iss.read(tmp_buff, 1); // read the empty space before "file=..."
+        line_iss.read(tmp_buff, full_length);
+        tmp_buff[full_length] = '\0';
+        pair = tmp_buff;
+        spos = pair.find('=');
+        key = pair.substr(0, spos);
+        value = pair.substr(spos + 1);
       }
 
       if (info_map.find(key) == info_map.end())
@@ -1193,9 +1204,10 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
 
         if ((spos == std::string::npos) || (!line_iss.good()))
         {
+          delete[] tmp_buff;
           delete cmd_find;
-          eos_err("not expected xattr pair format");
-          stdErr = "not expected xattr pair format";
+          eos_err("malformed xattr pair format");
+          stdErr = "malformed xattr pair format";
           retc = EINVAL;
           return retc;
         }
@@ -1205,6 +1217,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
 
         if (key != "xattrv")
         {
+          delete[] tmp_buff;
           delete cmd_find;
           eos_err("not found expected xattrv");
           stdErr = "not found expected xattrv";
@@ -1214,23 +1227,11 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
 
         attr_map[xattrn] = value;
       }
-      else if (key == "file")
-      {
-        // Read in the file/dir path using the previously read keylength
-        std::string token_path;
-        eos_debug("value length=%i, key_length=%i", value.length(), key_length);
-
-        while ((value.length() != key_length) && line_iss.good())
-        {
-          line_iss >> token_path;
-          value += ' ';
-          value += token_path;
-        }
-
-        info_map[key] = value;
-      }
       else
+      {
         info_map[key] = value;
+        eos_debug("key=%s, value=%s", key.c_str(), value.c_str());
+      }
     }
 
     // Add entry info to the archive file with the path names relative to the
@@ -1275,6 +1276,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     }
   }
 
+  delete[] tmp_buff;
   delete cmd_find;
   return retc;
 }
