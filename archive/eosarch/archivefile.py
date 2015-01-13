@@ -482,7 +482,7 @@ class ArchiveFile(object):
                         resp[1] = "{0:0>8}".format(resp[1])
 
                     if resp[0] == "adler32" and resp[1] != xs:
-                        err_msg = ("Entry={0} xs value missmatch, xs_expected={1} "
+                        err_msg = ("Entry={0} xs value missmatch xs_expected={1} "
                                    "xs_got={2}").format(dst, xs, resp[1])
                         self.logger.error(err_msg)
                         raise CheckEntryException("xs value missmatch")
@@ -492,6 +492,18 @@ class ArchiveFile(object):
                 tags = self.header['dir_meta']
             else:
                 tags = self.header['file_meta']
+                try:
+                    if self.header["twindow_type"] and self.header["twindow_val"]:
+                        dfile = dict(zip(tags, entry[2:]))
+                        twindow_sec = int(self.header["twindow_val"])
+                        tentry_sec = int(float(dfile[self.header["twindow_type"]]))
+
+                        if tentry_sec < twindow_sec:
+                            # No check for this entry
+                            return
+                except KeyError as __:
+                    # This is not a backup transfer but an archive one, carry on
+                    pass
 
             try:
                 meta_info = get_entry_info(url, path, tags, is_dir)
@@ -500,7 +512,7 @@ class ArchiveFile(object):
                 raise CheckEntryException("failed getting metainfo")
 
             if not (meta_info == entry):
-                err_msg = ("Verify failed for entry={0}, expect={1}, got={2}"
+                err_msg = ("Verify failed for entry={0} expect={1} got={2}"
                            "").format(dst, entry, meta_info)
                 self.logger.error(err_msg)
                 raise CheckEntryException("failed metainfo match")
@@ -521,14 +533,17 @@ class ArchiveFile(object):
         fs = self.get_fs(surl)
         url = client.URL(surl.encode("utf-8"))
 
-        # Create directory
-        st, __ = fs.mkdir(url.path + "?eos.ruid=0&eos.rgid=0")
+        # Create directory if not already existing
+        st, __ = fs.stat(url.path + "?eos.ruid=0&eos.rgid=0")
 
         if not st.ok:
-            err_msg = "Dir={0} failed mkdir errmsg={1}".format(
-                surl, st.message.decode("utf-8"))
-            self.logger.error(err_msg)
-            raise IOError(err_msg)
+            st, __ = fs.mkdir(url.path + "?eos.ruid=0&eos.rgid=0")
+
+            if not st.ok:
+                err_msg = "Dir={0} failed mkdir errmsg={1}, errno={2}, code={3}".format(
+                    surl, st.message.decode("utf-8"), st.errno, st.code)
+                self.logger.error(err_msg)
+                raise IOError(err_msg)
 
         # For GET operations set also the metadata
         if not self.d2t:

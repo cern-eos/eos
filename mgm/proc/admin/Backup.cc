@@ -36,8 +36,10 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 int ProcCommand::Backup()
 {
-  std::string src_surl = pOpaque->Get("mgm.backup.src");
-  std::string dst_surl = pOpaque->Get("mgm.backup.dst");
+  std::string src_surl = (pOpaque->Get("mgm.backup.src") ?
+                          pOpaque->Get("mgm.backup.src") : "");
+  std::string dst_surl = (pOpaque->Get("mgm.backup.dst") ?
+                          pOpaque->Get("mgm.backup.dst") : "");
 
   // Make sure the source and destiantion directories end with "/"
   if (*src_surl.rbegin() != '/')
@@ -106,10 +108,14 @@ int ProcCommand::Backup()
   }
 
   // Create backup file and copy it to the destination location
-  std::string twindow_type = pOpaque->Get("mgm.backup.ttime");
-  std::string twindow_val = pOpaque->Get("mgm.backup.vtime");
+  std::string twindow_type = (pOpaque->Get("mgm.backup.ttime") ?
+                              pOpaque->Get("mgm.backup.ttime") : "");
+  std::string twindow_val = (pOpaque->Get("mgm.backup.vtime") ?
+                             pOpaque->Get("mgm.backup.vtime") : "");
 
-  if (twindow_type != "ctime" && twindow_type != "mtime")
+  if (!twindow_type.empty()
+      && twindow_type != "ctime"
+      && twindow_type != "mtime")
   {
     stdErr = "error: unkown time window type, should be ctime/mtime";
     retc = EINVAL;
@@ -205,7 +211,7 @@ ProcCommand::BackupCreate(const std::string& src_surl,
              << "\"gid\": \"" << pVid->gid << "\", "
              << "\"timestamp\": " << std::setw(10) << "" << ", "
              << "\"twindow_type\": \"" << twindow_type << "\", "
-             << "\"twindow_val\": " << twindow_val << ""
+             << "\"twindow_val\": \"" << twindow_val << "\""
              << "}" << std::endl;
 
   // Add directories info
@@ -241,7 +247,7 @@ ProcCommand::BackupCreate(const std::string& src_surl,
              << "\"gid\": \"" << pVid->gid << "\", "
              << "\"timestamp\": " << std::setw(10) << time(static_cast<time_t*>(0)) << ", "
              << "\"twindow_type\": \"" << twindow_type << "\", "
-             << "\"twindow_val\": " << twindow_val << ""
+             << "\"twindow_val\": \"" << twindow_val << "\""
              << "}" << std::endl;
   backup_ofs.close();
 
