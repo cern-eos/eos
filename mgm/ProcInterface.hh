@@ -255,12 +255,17 @@ private:
   //!
   //! @param backup_dir directory for which the backup file is created
   //! @param dst_url backup destination URL ending with '/'
+  //! @param twindow_type time window type which can refer either to the
+  //!        mtime or the ctime
+  //! @param twindow_val time window timestamp
   //!
   //! @return 0 if successful, otherwise errno. It sets the global retc in case
   //!         of error
   //----------------------------------------------------------------------------
   int BackupCreate(const std::string& backup_dir,
-                   const std::string& dst_url);
+                   const std::string& dst_url,
+                   const std::string& twindow_type,
+                   const std::string& twindow_val);
 
 
 public:
