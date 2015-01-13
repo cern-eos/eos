@@ -84,7 +84,7 @@ LocalIo::Open (const std::string& path,
 				   mSecEntity,
 				   opaque.c_str());
   if (retc != SFS_OK) 
-    eos_err("error= openofs failed errno=%d", errno);
+    eos_err("error= openofs failed errno=%d retc=%d", errno, retc);
   return retc;
 }
 
