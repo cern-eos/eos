@@ -38,6 +38,14 @@ int ProcCommand::Backup()
 {
   std::string src_surl = pOpaque->Get("mgm.backup.src");
   std::string dst_surl = pOpaque->Get("mgm.backup.dst");
+
+  // Make sure the source and destiantion directories end with "/"
+  if (*src_surl.rbegin() != '/')
+    src_surl += '/';
+
+  if (*dst_surl.rbegin() != '/')
+    dst_surl += '/';
+
   XrdCl::URL src_url(src_surl);
   XrdCl::URL dst_url(dst_surl);
   std::ostringstream oss;
@@ -122,15 +130,35 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   int num_files = 0;
   XrdCl::URL src_url(src_surl);
 
-  // Open temporary file in which we construct the backup file
+  // Create the output directory if necessary and open the temporary file in
+  // which we construct the backup file
   std::ostringstream oss;
   oss << "/tmp/eos.mgm/backup." << XrdSysThread::ID();
   std::string backup_fn = oss.str();
+  eos::common::Path cPath(backup_fn.c_str());
+
+  if (!cPath.MakeParentPath(S_IRWXU))
+  {
+    eos_err("Unable to create temporary outputfile directory /tmp/eos.mgm/");
+    stdErr = "unable to create temporary output directory /tmp/eos.mgm/";
+    retc = EIO;
+    return retc;
+  }
+
+  // own the directory by daemon
+  if (::chown(cPath.GetParentPath(), 2, 2))
+  {
+    eos_err("Unable to own temporary outputfile directory %s", cPath.GetParentPath());
+    stdErr = "unable to own temporary output directory /tmp/eos.mgm/";
+    retc = EIO;
+    return retc;
+  }
+
   std::ofstream backup_ofs(backup_fn.c_str());
 
   if (!backup_ofs.is_open())
   {
-    eos_err("failed to open local archive file:%s", backup_fn.c_str());
+    eos_err("Failed to open local archive file:%s", backup_fn.c_str());
     stdErr = "failed to open archive file at MGM ";
     retc = EIO;
     return retc;
@@ -217,6 +245,7 @@ ProcCommand::BackupCreate(const std::string& src_surl,
 
     if (!status_run.IsOK())
     {
+      eos_err("Failed run for copy process, msg=", status_run.ToStr().c_str());
       stdErr = "error: failed run for copy process, msg=";
       stdErr += status_run.ToStr().c_str();
       retc = EIO;
@@ -224,6 +253,7 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   }
   else
   {
+    eos_err("Failed prepare for copy process, msg=", status_prep.ToStr().c_str());
     stdErr = "error: failed prepare for copy process, msg=";
     stdErr += status_prep.ToStr().c_str();
     retc = EIO;
@@ -231,7 +261,7 @@ ProcCommand::BackupCreate(const std::string& src_surl,
 
   // Remove local backup file
   unlink(backup_fn.c_str());
-  return 0;
+  return retc;
 }
 
 
