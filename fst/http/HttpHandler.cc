@@ -246,10 +246,13 @@ HttpHandler::Get (eos::common::HttpRequest *request)
     {
       if (mRc == SFS_REDIRECT)
       {
-        response = HttpServer::HttpRedirect(request->GetUrl(),
-                                            mFile->error.getErrText(),
-                                            mFile->error.getErrInfo(),
-                                            true);
+ 	response = HttpServer::HttpError(mFile->error.getErrText(),
+					 response->INTERNAL_SERVER_ERROR);
+
+	//        response = HttpServer::HttpRedirect(request->GetUrl(),
+	//                                            mFile->error.getErrText(),
+	//                                            mFile->error.getErrInfo(),
+	//                                            true);
       }
       else if (mRc == SFS_ERROR)
       {
@@ -454,6 +457,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mCurrentCallbackOffset -= contentlength;
 	eos_static_debug("setting to true %lld", mCurrentCallbackOffset);
 	mLastChunk = true;
+	mChecksum = eos::common::OwnCloud::GetChecksum(request);
       }
     }
 
