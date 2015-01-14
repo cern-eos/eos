@@ -155,7 +155,11 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
   //............................................................................
   do
   {
-    fd = open(path, flags | O_LARGEFILE, mode);
+#if defined(O_CLOEXEC)
+    fd = open(path, flags | O_LARGEFILE | O_CLOEXEC , mode);
+#else
+    fd = open(path, flags | O_LARGEFILE , mode);
+#endif
   }
   while ((fd < 0) && (errno == EINTR));
 
@@ -166,9 +170,12 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
   {
     if (fd < XrdFstSS->mFdFence)
     {
-      if ((newfd = fcntl(fd, F_DUPFD, XrdFstSS->mFdFence)) < 0)
-      {
-        eos_err("error= unable to reloc FD for ", path);
+#if defined(__linux__) && defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
+      if ((newfd = fcntl(fd, F_DUPFD_CLOEXEC, XrdFstSS->mFdFence)) < 0) {
+#else
+      if ((newfd = fcntl(fd, F_DUPFD, XrdFstSS->mFdFence)) < 0) {
+#endif
+	eos_err("error= unable to reloc FD for ", path);
       }
       else
       {
@@ -176,7 +183,6 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
         fd = newfd;
       }
     }
-
     fcntl(fd, F_SETFD, FD_CLOEXEC);
   }
 
