@@ -457,7 +457,6 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mCurrentCallbackOffset -= contentlength;
 	eos_static_debug("setting to true %lld", mCurrentCallbackOffset);
 	mLastChunk = true;
-	mChecksum = eos::common::OwnCloud::GetChecksum(request);
       }
     }
 
