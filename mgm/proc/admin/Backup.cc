@@ -36,8 +36,18 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 int ProcCommand::Backup()
 {
-  std::string src_surl = pOpaque->Get("mgm.backup.src");
-  std::string dst_surl = pOpaque->Get("mgm.backup.dst");
+  std::string src_surl = (pOpaque->Get("mgm.backup.src") ?
+                          pOpaque->Get("mgm.backup.src") : "");
+  std::string dst_surl = (pOpaque->Get("mgm.backup.dst") ?
+                          pOpaque->Get("mgm.backup.dst") : "");
+
+  // Make sure the source and destiantion directories end with "/"
+  if (*src_surl.rbegin() != '/')
+    src_surl += '/';
+
+  if (*dst_surl.rbegin() != '/')
+    dst_surl += '/';
+
   XrdCl::URL src_url(src_surl);
   XrdCl::URL dst_url(dst_surl);
   std::ostringstream oss;
@@ -45,6 +55,7 @@ int ProcCommand::Backup()
   if (!src_url.IsValid() || !dst_url.IsValid())
   {
     stdErr = "error: both backup source and destination must be valid XRootD URLs";
+    retc = EINVAL;
     return SFS_OK;
   }
 
@@ -71,7 +82,7 @@ int ProcCommand::Backup()
     dst_surl = dst_url.GetURL();
   }
 
-  // Check that the destination directory does not exist already
+  // Check that the destination directory does not exist already and create it
   eos_debug("backup src=%s, dst=%s", src_surl.c_str(), dst_surl.c_str());
   XrdCl::FileSystem fs(dst_url);
   XrdCl::StatInfo* stat_info = 0;
@@ -85,12 +96,37 @@ int ProcCommand::Backup()
   }
 
   delete stat_info;
+  st = fs.MkDir(dst_url.GetPath(), XrdCl::MkDirFlags::MakePath,
+                XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::UX |
+                XrdCl::Access::GR | XrdCl::Access::OR, 5);
+
+  if (!st.IsOK())
+  {
+    stdErr = "error: failed to create backup destination directory";
+    retc = EIO;
+    return SFS_OK;
+  }
 
   // Create backup file and copy it to the destination location
-  int ret = BackupCreate(src_surl, dst_surl);
+  std::string twindow_type = (pOpaque->Get("mgm.backup.ttime") ?
+                              pOpaque->Get("mgm.backup.ttime") : "");
+  std::string twindow_val = (pOpaque->Get("mgm.backup.vtime") ?
+                             pOpaque->Get("mgm.backup.vtime") : "");
+
+  if (!twindow_type.empty()
+      && twindow_type != "ctime"
+      && twindow_type != "mtime")
+  {
+    stdErr = "error: unkown time window type, should be ctime/mtime";
+    retc = EINVAL;
+    return SFS_OK;
+  }
+
+  int ret = BackupCreate(src_surl, dst_surl, twindow_type, twindow_val);
 
   if (!ret)
   {
+    // Check if this is an incremental backup with a time windown
     std::string bfile_url = dst_url.GetURL();
     bfile_url += EOS_COMMON_PATH_BACKUP_FILE_PREFIX;
     bfile_url += "backup.file";
@@ -116,21 +152,43 @@ int ProcCommand::Backup()
 //------------------------------------------------------------------------------
 int
 ProcCommand::BackupCreate(const std::string& src_surl,
-			  const std::string& dst_surl)
+                          const std::string& dst_surl,
+                          const std::string& twindow_type,
+                          const std::string& twindow_val)
 {
   int num_dirs = 0;
   int num_files = 0;
   XrdCl::URL src_url(src_surl);
 
-  // Open temporary file in which we construct the backup file
+  // Create the output directory if necessary and open the temporary file in
+  // which we construct the backup file
   std::ostringstream oss;
   oss << "/tmp/eos.mgm/backup." << XrdSysThread::ID();
   std::string backup_fn = oss.str();
+  eos::common::Path cPath(backup_fn.c_str());
+
+  if (!cPath.MakeParentPath(S_IRWXU))
+  {
+    eos_err("Unable to create temporary outputfile directory /tmp/eos.mgm/");
+    stdErr = "unable to create temporary output directory /tmp/eos.mgm/";
+    retc = EIO;
+    return retc;
+  }
+
+  // own the directory by daemon
+  if (::chown(cPath.GetParentPath(), 2, 2))
+  {
+    eos_err("Unable to own temporary outputfile directory %s", cPath.GetParentPath());
+    stdErr = "unable to own temporary output directory /tmp/eos.mgm/";
+    retc = EIO;
+    return retc;
+  }
+
   std::ofstream backup_ofs(backup_fn.c_str());
 
   if (!backup_ofs.is_open())
   {
-    eos_err("failed to open local archive file:%s", backup_fn.c_str());
+    eos_err("Failed to open local archive file:%s", backup_fn.c_str());
     stdErr = "failed to open archive file at MGM ";
     retc = EIO;
     return retc;
@@ -139,20 +197,22 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   // Write backup JSON header leaving blank the fields for the number of
   // files/dirs and timestamp which will be filled in later on.
   // Note: we treat backups as archive get operations from tape to disk
-  // therefore we need to swapt the src with destination in the header
+  // therefore we need to swap the src and destination in the header
   backup_ofs << "{"
-	     << "\"src\": \"" << dst_surl << "\", "
-	     << "\"dst\": \"" << src_surl << "\", "
-	     << "\"svc_class\": \"\", "
-	     << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
-	     << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
-	     << "\"mode\", \"xstype\", \"xs\"], "
-	     << "\"num_dirs\": " << std::setw(10) << "" << ", "
-	     << "\"num_files\": " << std::setw(10) << "" << ", "
-	     << "\"uid\": \"" << pVid->uid << "\", "
-	     << "\"gid\": \"" << pVid->gid << "\", "
-	     << "\"timestamp\": " << std::setw(10) << ""
-	     << "}" << std::endl;
+             << "\"src\": \"" << dst_surl << "\", "
+             << "\"dst\": \"" << src_surl << "\", "
+             << "\"svc_class\": \"\", "
+             << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
+             << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
+             << "\"mode\", \"xstype\", \"xs\"], "
+             << "\"num_dirs\": " << std::setw(10) << "" << ", "
+             << "\"num_files\": " << std::setw(10) << "" << ", "
+             << "\"uid\": \"" << pVid->uid << "\", "
+             << "\"gid\": \"" << pVid->gid << "\", "
+             << "\"timestamp\": " << std::setw(10) << "" << ", "
+             << "\"twindow_type\": \"" << twindow_type << "\", "
+             << "\"twindow_val\": \"" << twindow_val << "\""
+             << "}" << std::endl;
 
   // Add directories info
   if (ArchiveAddEntries(src_url.GetPath(), backup_ofs, num_dirs, false))
@@ -175,18 +235,20 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   num_dirs--; // don't count current dir
   backup_ofs.seekp(0);
   backup_ofs << "{"
-	     << "\"src\": \"" << dst_surl << "\", "
-	     << "\"dst\": \"" << src_surl << "\", "
-	     << "\"svc_class\": \"\", "
-	     << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
-	     << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
-	     << "\"mode\", \"xstype\", \"xs\"], "
-	     << "\"num_dirs\": " << std::setw(10) << num_dirs << ", "
-	     << "\"num_files\": " << std::setw(10) << num_files << ", "
-	     << "\"uid\": \"" << pVid->uid << "\", "
-	     << "\"gid\": \"" << pVid->gid << "\", "
-	     << "\"timestamp\": " << std::setw(10) << time(static_cast<time_t*>(0))
-	     << "}" << std::endl;
+             << "\"src\": \"" << dst_surl << "\", "
+             << "\"dst\": \"" << src_surl << "\", "
+             << "\"svc_class\": \"\", "
+             << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
+             << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
+             << "\"mode\", \"xstype\", \"xs\"], "
+             << "\"num_dirs\": " << std::setw(10) << num_dirs << ", "
+             << "\"num_files\": " << std::setw(10) << num_files << ", "
+             << "\"uid\": \"" << pVid->uid << "\", "
+             << "\"gid\": \"" << pVid->gid << "\", "
+             << "\"timestamp\": " << std::setw(10) << time(static_cast<time_t*>(0)) << ", "
+             << "\"twindow_type\": \"" << twindow_type << "\", "
+             << "\"twindow_val\": \"" << twindow_val << "\""
+             << "}" << std::endl;
   backup_ofs.close();
 
   // Copy local backup file to backup destination
@@ -217,6 +279,7 @@ ProcCommand::BackupCreate(const std::string& src_surl,
 
     if (!status_run.IsOK())
     {
+      eos_err("Failed run for copy process, msg=", status_run.ToStr().c_str());
       stdErr = "error: failed run for copy process, msg=";
       stdErr += status_run.ToStr().c_str();
       retc = EIO;
@@ -224,6 +287,7 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   }
   else
   {
+    eos_err("Failed prepare for copy process, msg=", status_prep.ToStr().c_str());
     stdErr = "error: failed prepare for copy process, msg=";
     stdErr += status_prep.ToStr().c_str();
     retc = EIO;
@@ -231,7 +295,7 @@ ProcCommand::BackupCreate(const std::string& src_surl,
 
   // Remove local backup file
   unlink(backup_fn.c_str());
-  return 0;
+  return retc;
 }
 
 

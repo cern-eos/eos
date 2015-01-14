@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/http/HttpHandler.hh"
 #include "fst/http/HttpServer.hh"
+#include "fst/checksum/Adler.hh"
 #include "common/Path.hh"
 #include "common/http/HttpResponse.hh"
 #include "common/http/OwnCloud.hh"
@@ -35,9 +36,12 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
+/*----------------------------------------------------------------------------*/
+XrdSysMutex HttpHandler::mOpenMutexMapMutex;
+std::map<unsigned int, XrdSysMutex*> HttpHandler::mOpenMutexMap;
+/*----------------------------------------------------------------------------*/
 
 bool
 HttpHandler::Matches (const std::string &meth, HeaderMap &headers)
@@ -96,11 +100,35 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
       create_mode |= (SFS_O_MKPTH | S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     }
 
-    mRc = mFile->open(openUrl.c_str(),
-                      open_mode,
-                      create_mode,
-                      &mClient,
-                      query.c_str());
+    XrdSysMutex* hMutex = 0;
+
+    {
+      // use path dependent locks for opens
+      // we will accumulate up to 64k mutexes for this
+      Adler lHash;
+      lHash.Add(openUrl.c_str(),openUrl.length(),0);
+      lHash.Finalize();
+      {
+	XrdSysMutexHelper oLock(mOpenMutexMapMutex);
+
+	if (!mOpenMutexMap.count(lHash.GetAdler())) {
+	  hMutex = new XrdSysMutex();
+	  mOpenMutexMap[lHash.GetAdler()] = hMutex;
+	} 
+	else 
+	{
+	  hMutex = mOpenMutexMap[lHash.GetAdler()];
+	}
+      }
+    }
+    {
+      XrdSysMutexHelper oLock(*hMutex);
+      mRc = mFile->open(openUrl.c_str(),
+			open_mode,
+			create_mode,
+			&mClient,
+			query.c_str());
+    }
 
     mFileSize = mFile->getOpenSize();
 
@@ -345,10 +373,9 @@ HttpHandler::Put (eos::common::HttpRequest *request)
     {
       if (mRc == SFS_REDIRECT)
       {
-        response = HttpServer::HttpRedirect(request->GetUrl(),
-                                            mFile->error.getErrText(),
-                                            mFile->error.getErrInfo(),
-                                            true);
+	// we cannot redirect the PUT at this point, just send an error back
+        response = HttpServer::HttpError(mFile->error.getErrText(),
+                                         mFile->error.getErrInfo());
       }
       else
         if (mRc == SFS_ERROR)
@@ -571,6 +598,13 @@ HttpHandler::DecodeByteRange (std::string rangeheader,
 	stop = filesize-1;
       else
 	stop = 0;
+    }
+
+    if (!sstart.length()) 
+    {
+      // case '-X' = the last X bytes
+      start = filesize-stop;
+      stop = filesize-1;
     }
 
     if ((start > filesize) || (stop > filesize))

@@ -46,6 +46,7 @@ add_library(
   ProcInterface.cc
   proc/proc_fs.cc
   proc/admin/Access.cc
+  proc/admin/Backup.cc
   proc/admin/Config.cc
   proc/admin/Debug.cc
   proc/admin/Fs.cc
@@ -63,7 +64,6 @@ add_library(
   proc/admin/Vst.cc
   proc/user/Attr.cc
   proc/user/Archive.cc
-  proc/user/Backup.cc
   proc/user/Cd.cc
   proc/user/Chmod.cc
   proc/user/Chown.cc

@@ -461,6 +461,11 @@ ProcCommand::open (const char* inpath,
       Archive();
       mDoSort = false;
     }
+    else if (mCmd == "backup")
+    {
+      Backup();
+      mDoSort = false;
+    }
     else if (mCmd == "access")
     {
       Access();
@@ -560,11 +565,6 @@ ProcCommand::open (const char* inpath,
     if (mCmd == "archive")
     {
       Archive();
-      mDoSort = false;
-    }
-    else if (mCmd == "backup")
-    {
-      Backup();
       mDoSort = false;
     }
     else if (mCmd == "motd")

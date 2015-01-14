@@ -179,7 +179,7 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
   {
     // Stat the resource and all child resources
     XrdMgmOfsDirectory directory;
-    int listrc = directory.open(request->GetUrl().c_str(), *mVirtualIdentity,
+    int listrc = directory._open(request->GetUrl().c_str(), *mVirtualIdentity,
                                 (const char*) 0);
 
     responseNode = BuildResponseNode(request->GetUrl().c_str(), request->GetUrl(true).c_str());

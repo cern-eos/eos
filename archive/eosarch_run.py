@@ -26,7 +26,7 @@
     closes the open file descriptors such that there is no interference between
     the processes using ZMQ.
 """
-
+from __future__ import unicode_literals
 from __future__ import print_function
 import ast
 import sys
