@@ -887,27 +887,96 @@ protected:
   bool updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem::fs_snapshot_t *fs, int keys, SchedTreeBase::tFastTreeIdx ftidx=0 , SlowTreeNode *stn=NULL);
   bool updateTreeInfo(const std::map<std::string,int> &updates);
 
-  template<typename T> bool setInternalParam(T& param, const T& value, bool updateStructs)
-  {
-    eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
-    eos::common::RWMutexWriteLock lock2(pTreeMapMutex);
-    eos::common::RWMutexWriteLock lock3(configMutex);
-
-    bool result = true;
-
-    param = value;
-
-    for(auto it = pFs2TreeMapEntry.begin(); it != pFs2TreeMapEntry.end(); it++)
+  template<typename T> bool _setInternalParam(T& param, const T& value, bool updateStructs)
     {
-      if(updateStructs)
+      eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
+      eos::common::RWMutexWriteLock lock2(pTreeMapMutex);
+      eos::common::RWMutexWriteLock lock3(configMutex);
+
+      bool result = true;
+
+      param = value;
+
+      for(auto it = pFs2TreeMapEntry.begin(); it != pFs2TreeMapEntry.end(); it++)
       {
-	it->second->fastStructModified = true;
-	it->second->slowTreeModified = true;
-	result = result && updateFastStructures(it->second);
+        if(updateStructs)
+        {
+          it->second->fastStructModified = true;
+          it->second->slowTreeModified = true;
+          result = result && updateFastStructures(it->second);
+        }
       }
+
+      return result;
     }
 
-    return result;
+  static void setConfigValue (const char* prefix,
+                                            const char* key,
+                                            const char* val,
+                                            bool tochangelog=true);
+
+  template<typename T> bool setInternalParam(T& param, const int& value, bool updateStructs, const std::string &configentry)
+  {
+    bool ret = _setInternalParam(param,static_cast<T>(value),updateStructs);
+    if(ret && configentry.length())
+    {
+    XrdOucString s;
+    s.append((int)value);
+    setConfigValue("geosched",configentry.c_str() , s.c_str());
+    }
+    return ret;
+  }
+
+  template<typename T> bool setInternalParam(T& param, const float& value, bool updateStructs, const std::string &configentry)
+  {
+    bool ret = _setInternalParam(param,static_cast<T>(value),updateStructs);
+    if(ret && configentry.length())
+    {
+    XrdOucString s;
+    char buf[32];
+    sprintf(buf,"%f",value);
+    s+=buf;
+    setConfigValue("geosched",configentry.c_str() , s.c_str());
+    }
+    return ret;
+  }
+
+  bool setInternalParam(std::vector<char>& param, const std::vector<char >& value, bool updateStructs, const std::string &configentry)
+  {
+    bool ret = _setInternalParam(param,value,updateStructs);
+    if(ret && configentry.length())
+    {
+      XrdOucString s;
+      s+="[";
+      for(size_t i=0;i<param.size();i++)
+      {
+        s+=(int)value[i];
+        s+=",";
+      }
+      s[s.length()-1]=']';
+      setConfigValue("geosched",configentry.c_str() , s.c_str());
+    }
+    return ret;
+  }
+
+  bool setInternalParam(std::vector<float>& param, const std::vector<float>& value, bool updateStructs, const std::string &configentry)
+  {
+    bool ret = _setInternalParam(param,value,updateStructs);
+    if(ret && configentry.length())
+    {
+      XrdOucString s;
+      s+="[";
+      for(size_t i=0;i<param.size();i++)
+      {
+        char buf[32];
+        sprintf(buf,"%f",value[i]);
+        s+=buf;
+        s+=",";
+      }
+      s[s.length()-1]=']';
+      setConfigValue("geosched",configentry.c_str() , s.c_str());
+    }
+    return ret;
   }
 
 public:
@@ -920,13 +989,30 @@ public:
   pTimeFrameDurationMs(1000),pPublishToPenaltyDelayMs(1000),
   pCircSize(30),pFrameCount(0), pCircFrCnt2FsPenalties(pCircSize),
   pMaxNetSpeedClass(0),
-  pPlctDlScorePenaltyF(256,10),pPlctUlScorePenaltyF(256,10),     // 256 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
-  pAccessDlScorePenaltyF(256,10),pAccessUlScorePenaltyF(256,10),
-  pPlctDlScorePenalty(256,10),pPlctUlScorePenalty(256,10),     // 256 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
-  pAccessDlScorePenalty(256,10),pAccessUlScorePenalty(256,10),
+  pPlctDlScorePenaltyF(8,10),pPlctUlScorePenaltyF(8,10),     // 8 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
+  pAccessDlScorePenaltyF(8,10),pAccessUlScorePenaltyF(8,10),
+  pPlctDlScorePenalty(8,10),pPlctUlScorePenalty(8,10),     // 8 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
+  pAccessDlScorePenalty(8,10),pAccessUlScorePenalty(8,10),
   pCircFrCnt2Timestamp(pCircSize),
   pUpdaterTid(0)
   {
+//    setConfigValue("geosched","skipsaturatedplct","0",false);
+//    setConfigValue("geosched","skipsaturatedaccess","1",false);
+//    setConfigValue("geosched","skipsaturateddrnaccess","1",false);
+//    setConfigValue("geosched","skipsaturatedblcaccess","1",false);
+//    setConfigValue("geosched","skipsaturateddrnplct","0",false);
+//    setConfigValue("geosched","skipsaturatedblcplct","0",false);
+//    setConfigValue("geosched","penaltyupdaterate","1");
+//    setConfigValue("geosched","fillratiolimit","80");
+//    setConfigValue("geosched","fillratiocomptol","100");
+//    setConfigValue("geosched","saturationthres","10");
+//    setConfigValue("geosched","timeframedurationms","1000");
+//    setConfigValue("geosched","saturationthres","10");
+//    setConfigValue("geosched","plctdlscorepenalty","10");
+//    setConfigValue("geosched","plctulscorepenalty","10");
+//    setConfigValue("geosched","accessdlscorepenalty","10");
+//    setConfigValue("geosched","accessulscorepenalty","10");
+
     for(auto it=pCircFrCnt2FsPenalties.begin(); it!=pCircFrCnt2FsPenalties.end(); it++)
       it->reserve(100);
 #ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
@@ -1157,84 +1243,31 @@ public:
 
   bool getGroupsFromFsIds(const std::vector<FileSystem::fsid_t> fsids, std::vector<std::string> *fsgeotags, std::vector<FsGroup*> *sortedgroups);
 
-  inline bool setSkipSaturatedPlct(bool value)
-  {
-    return setInternalParam(pSkipSaturatedPlct,value,false);
-  }
-  inline bool setSkipSaturatedAccess(bool value)
-  {
-    return setInternalParam(pSkipSaturatedAccess,value,false);
-  }
-  inline bool setSkipSaturatedDrnAccess(bool value)
-  {
-    return setInternalParam(pSkipSaturatedDrnAccess,value,false);
-  }
-  inline bool setSkipSaturatedBlcAccess(bool value)
-  {
-    return setInternalParam(pSkipSaturatedBlcAccess,value,false);
-  }
-  inline bool setSkipSaturatedDrnPlct(bool value)
-  {
-    return setInternalParam(pSkipSaturatedDrnPlct,value,false);
-  }
-  inline bool setSkipSaturatedBlcPlct(bool value)
-  {
-    return setInternalParam(pSkipSaturatedBlcPlct,value,false);
-  }
-  inline bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, char value, int netSpeedClass)
-  {
-    if(netSpeedClass>=0)
-    {
-      if(netSpeedClass>=(int)fvector.size())
-      return false;
-      return setInternalParam(fvector[netSpeedClass],(float)value,false)
-      && setInternalParam(cvector[netSpeedClass],value,false);
-    }
-    else
-    {
-      std::vector<float> vvaluef(256,value);
-      std::vector<char> vvalue(256,value);
-      return setInternalParam(fvector,vvaluef,false)
-      && setInternalParam(cvector,vvalue,false);
-    }
-  }
+  bool setSkipSaturatedPlct(bool value);
+  bool setSkipSaturatedAccess(bool value);
+  bool setSkipSaturatedDrnAccess(bool value);
+  bool setSkipSaturatedBlcAccess(bool value);
+  bool setSkipSaturatedDrnPlct(bool value);
+  bool setSkipSaturatedBlcPlct(bool value);
+  bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const std::vector<char> &value, const std::string &configentry);
+  bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const char* vvalue, const std::string &configentry);
+  bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, char value, int netSpeedClass, const std::string &configentry);
+  bool setPlctDlScorePenalty(char value, int netSpeedClass);
+  bool setPlctUlScorePenalty(char value, int netSpeedClass);
+  bool setAccessDlScorePenalty(char value, int netSpeedClass);
+  bool setAccessUlScorePenalty(char value, int netSpeedClass);
+  bool setPlctDlScorePenalty(const char *value);
+  bool setPlctUlScorePenalty(const char *value);
+  bool setAccessDlScorePenalty(const char *value);
+  bool setAccessUlScorePenalty(const char *value);
+  bool setFillRatioLimit(char value);
+  bool setFillRatioCompTol(char value);
+  bool setSaturationThres(char value);
+  bool setTimeFrameDurationMs(int value);
+  bool setPenaltyUpdateRate(float value);
+  bool dumpParameters( std::map<std::string,std::string> &params);
+  bool setParameter( std::string param, const std::string &value,int iparamidx);
 
-  inline bool setPlctDlScorePenalty(char value, int netSpeedClass)
-  {
-    return setScorePenalty(pPlctDlScorePenaltyF,pPlctDlScorePenalty,value,netSpeedClass);
-  }
-  inline bool setPlctUlScorePenalty(char value, int netSpeedClass)
-  {
-    return setScorePenalty(pPlctUlScorePenaltyF,pPlctUlScorePenalty,value,netSpeedClass);
-  }
-  inline bool setAccessDlScorePenalty(char value, int netSpeedClass)
-  {
-    return setScorePenalty(pAccessDlScorePenaltyF,pAccessDlScorePenalty,value,netSpeedClass);
-  }
-  inline bool setAccessUlScorePenalty(char value, int netSpeedClass)
-  {
-    return setScorePenalty(pAccessUlScorePenaltyF,pAccessUlScorePenalty,value,netSpeedClass);
-  }
-  inline bool setFillRatioLimit(char value)
-  {
-    return setInternalParam(pFillRatioLimit,value,true);
-  }
-  inline bool setFillRatioCompTol(char value)
-  {
-    return setInternalParam(pFillRatioCompTol,value,true);
-  }
-  inline bool setSaturationThres(char value)
-  {
-    return setInternalParam(pSaturationThres,value,true);
-  }
-  inline bool setTimeFrameDurationMs(int value)
-  {
-    return setInternalParam(pTimeFrameDurationMs,value,false);
-  }
-  inline bool setPenaltyUpdateRate(float value)
-  {
-    return setInternalParam(pPenaltyUpdateRate,value,false);
-  }
 };
 
 extern GeoTreeEngine gGeoTreeEngine;

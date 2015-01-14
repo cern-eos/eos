@@ -89,7 +89,13 @@ com_config (char* arg1)
         else
           if ((arg == "--access") || (arg == "-a"))
         {
-          in += "mgm.config.access=1";
+          in += "&mgm.config.access=1";
+          arg = subtokenizer.GetToken();
+        }
+        else
+          if ((arg == "--geosched") || (arg == "-s"))
+        {
+          in += "&mgm.config.geosched=1";
           arg = subtokenizer.GetToken();
         }
         else
@@ -265,6 +271,7 @@ com_config_usage:
   fprintf(stdout, "            -g : dump only global config\n");
   fprintf(stdout, "            -a : dump only access config\n");
   fprintf(stdout, "            -m : dump only mapping config\n");
+  fprintf(stdout, "            - : dump only geosched config\n");
 
   fprintf(stdout, "config save [-f] [<name>] [--comment|-c \"<comment>\"] ] :\n");
   fprintf(stdout, "                                                  save config (optionally under name)\n");

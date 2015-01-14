@@ -59,67 +59,7 @@ ProcCommand::GeoSched ()
       int ival = (int)dval;
       int iparamidx = paramidx.atoi();
       bool ok = false;
-      if(param == "timeFrameDurationMs")
-      {
-	ok = gGeoTreeEngine.setTimeFrameDurationMs(ival);
-      }
-      else if(param == "saturationThres")
-      {
-	ok = gGeoTreeEngine.setSaturationThres((char)ival);
-      }
-      else if(param == "fillRatioCompTol")
-      {
-	ok = gGeoTreeEngine.setFillRatioCompTol((char)ival);
-      }
-      else if(param == "fillRatioLimit")
-      {
-	ok = gGeoTreeEngine.setFillRatioLimit((char)ival);
-      }
-      else if(param == "accessUlScorePenalty")
-      {
-	ok = gGeoTreeEngine.setAccessUlScorePenalty((char)ival,iparamidx);
-      }
-      else if(param == "accessDlScorePenalty")
-      {
-	ok = gGeoTreeEngine.setAccessDlScorePenalty((char)ival,iparamidx);
-      }
-      else if(param == "plctUlScorePenalty")
-      {
-	ok = gGeoTreeEngine.setPlctUlScorePenalty((char)ival,iparamidx);
-      }
-      else if(param == "plctDlScorePenalty")
-      {
-	ok = gGeoTreeEngine.setPlctDlScorePenalty((char)ival,iparamidx);
-      }
-      else if(param == "skipSaturatedBlcPlct")
-      {
-	ok = gGeoTreeEngine.setSkipSaturatedBlcPlct((bool)ival);
-      }
-      else if(param == "skipSaturatedDrnPlct")
-      {
-	ok = gGeoTreeEngine.setSkipSaturatedDrnPlct((bool)ival);
-      }
-      else if(param == "skipSaturatedBlcAccess")
-      {
-	ok = gGeoTreeEngine.setSkipSaturatedBlcAccess((bool)ival);
-      }
-      else if(param == "skipSaturatedDrnAccess")
-      {
-	ok = gGeoTreeEngine.setSkipSaturatedDrnAccess((bool)ival);
-      }
-      else if(param == "skipSaturatedAccess")
-      {
-	ok = gGeoTreeEngine.setSkipSaturatedAccess((bool)ival);
-      }
-      else if(param == "skipSaturatedPlct")
-      {
-	ok = gGeoTreeEngine.setSkipSaturatedPlct((bool)ival);
-      }
-      else if(param == "penaltyUpdateRate")
-      {
-        ok = gGeoTreeEngine.setPenaltyUpdateRate((float)dval);
-      }
-
+      ok = gGeoTreeEngine.setParameter(param.c_str(),value.c_str(),iparamidx);
       retc = ok?SFS_OK:SFS_ERROR;
     }
     if(mSubCmd == "updtpause")

@@ -1077,6 +1077,20 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
     return 0;
   }
 
+  if (skey.beginswith("geosched:"))
+  {
+    skey.erase(0, 9);
+    if(!gGeoTreeEngine.setParameter(skey.c_str(),sdef.c_str(),-2))
+    {
+      eos_static_err("cannot apply config line key: |geosched:%s| => |%s|", skey.c_str(), def->c_str());
+      *err += "error: cannot apply config line key: ";
+      *err += "geosched:";
+      *err += skey.c_str();
+      *err += "\n";
+    }
+    return 0;
+  }
+
   *err += "error: don't know what to do with this configuration line: ";
   *err += sdef.c_str();
   *err += "\n";
@@ -1137,6 +1151,11 @@ ConfigEngine::PrintEachConfig (const char* key, XrdOucString* def, void* Arg)
       if (skey.beginswith("map:"))
         filter = true;
     }
+    if (option.find("s") != STR_NPOS)
+    {
+      if (skey.beginswith("geosched:"))
+        filter = true;
+    }
 
     if (filter)
     {
@@ -1164,17 +1183,18 @@ ConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
   const char* name = filter.Get("mgm.config.file");
 
   pinfo.out = &out;
-  pinfo.option = "vfqcgm";
+  pinfo.option = "vfqcgms";
 
-  if (filter.Get("mgm.config.vid") ||
-      (filter.Get("mgm.config.fs")) ||
-      (filter.Get("mgm.config.quota")) ||
-      (filter.Get("mgm.config.comment") ||
-       (filter.Get("mgm.config.policy")) ||
-       (filter.Get("mgm.config.global") || (filter.Get("mgm.config.map"))
-        )
-       )
-      )
+  if (
+      filter.Get("mgm.config.vid") ||
+      filter.Get("mgm.config.fs") ||
+      filter.Get("mgm.config.quota") ||
+      filter.Get("mgm.config.comment") ||
+      filter.Get("mgm.config.policy") ||
+      filter.Get("mgm.config.global") ||
+      filter.Get("mgm.config.map") ||
+      filter.Get("mgm.config.geosched")
+  )
   {
     pinfo.option = "";
   }
@@ -1206,6 +1226,10 @@ ConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
   if (filter.Get("mgm.config.map"))
   {
     pinfo.option += "m";
+  }
+  if (filter.Get("mgm.config.geosched"))
+  {
+    pinfo.option += "s";
   }
 
   if (name == 0)
@@ -1242,6 +1266,8 @@ ConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
       if ((pinfo.option.find("g") != STR_NPOS) && (sinputline.beginswith("global:")))
         filtered = true;
       if ((pinfo.option.find("m") != STR_NPOS) && (sinputline.beginswith("map:")))
+        filtered = true;
+      if ((pinfo.option.find("s") != STR_NPOS) && (sinputline.beginswith("geosched:")))
         filtered = true;
 
       if (filtered)

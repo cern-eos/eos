@@ -2030,5 +2030,239 @@ void GeoTreeEngine::updateAtomicPenalties()
   }
 }
 
+bool GeoTreeEngine::setSkipSaturatedPlct(bool value)
+{
+  return setInternalParam(pSkipSaturatedPlct,(int)value,false,"skipsaturatedplct");
+}
+bool GeoTreeEngine::setSkipSaturatedAccess(bool value)
+{
+  return setInternalParam(pSkipSaturatedAccess,(int)value,false,"skipsaturatedaccess");
+}
+bool GeoTreeEngine::setSkipSaturatedDrnAccess(bool value)
+{
+  return setInternalParam(pSkipSaturatedDrnAccess,(int)value,false,"skipsaturateddrnaccess");
+}
+bool GeoTreeEngine::setSkipSaturatedBlcAccess(bool value)
+{
+  return setInternalParam(pSkipSaturatedBlcAccess,(int)value,false,"skipsaturatedblcaccess");
+}
+bool GeoTreeEngine::setSkipSaturatedDrnPlct(bool value)
+{
+  return setInternalParam(pSkipSaturatedDrnPlct,(int)value,false,"skipsaturateddrnplct");
+}
+bool GeoTreeEngine::setSkipSaturatedBlcPlct(bool value)
+{
+  return setInternalParam(pSkipSaturatedBlcPlct,(int)value,false,"skipsaturatedblcplct");
+}
+
+bool GeoTreeEngine::setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const std::vector<char> &vvalue, const std::string &configentry)
+{
+  if(vvalue.size()!=8)
+    return false;
+  std::vector<float> valuef(8);
+  for(int i=0;i<8;i++) valuef[i]=vvalue[i];
+  return setInternalParam(fvector,valuef,false,"")
+  && setInternalParam(cvector,vvalue,false,configentry);
+}
+
+bool GeoTreeEngine::setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const char* svalue, const std::string &configentry)
+{
+  std::vector<double> dvvalue(8);
+  std::vector<char> vvalue(8);
+ if(sscanf(svalue,"[%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf]",&dvvalue[0],&dvvalue[1],&dvvalue[2],&dvvalue[3],&dvvalue[4],&dvvalue[5],&dvvalue[6],&dvvalue[7])!=8)
+   return false;
+ for(int i=0;i<8;i++) vvalue[i]=(char)dvvalue[i];
+ return setScorePenalty(fvector,cvector,vvalue,configentry);
+}
+
+bool GeoTreeEngine::setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, char value, int netSpeedClass, const std::string &configentry)
+{
+  if(netSpeedClass>=0)
+  {
+    if(netSpeedClass>=(int)fvector.size())
+      return false;
+//    return setInternalParam(fvector[netSpeedClass],(float)value,false,"")
+//    && setInternalParam(cvector[netSpeedClass],value,false,configentry);
+    std::vector<char> vvalue(cvector);
+    vvalue[netSpeedClass] = value;
+    return setScorePenalty(fvector,cvector,vvalue,configentry);
+  }
+  else if(netSpeedClass==-1)
+  {
+    std::vector<char> vvalue(8,value);
+    return setScorePenalty(fvector,cvector,vvalue,configentry);
+  }
+  return false;
+}
+
+bool GeoTreeEngine::setPlctDlScorePenalty(char value, int netSpeedClass)
+{
+  return setScorePenalty(pPlctDlScorePenaltyF,pPlctDlScorePenalty,value,netSpeedClass,"plctdlscorepenalty");
+}
+bool GeoTreeEngine::setPlctUlScorePenalty(char value, int netSpeedClass)
+{
+  return setScorePenalty(pPlctUlScorePenaltyF,pPlctUlScorePenalty,value,netSpeedClass,"plctulscorepenalty");
+}
+bool GeoTreeEngine::setAccessDlScorePenalty(char value, int netSpeedClass)
+{
+  return setScorePenalty(pAccessDlScorePenaltyF,pAccessDlScorePenalty,value,netSpeedClass,"accessdlscorepenalty");
+}
+bool GeoTreeEngine::setAccessUlScorePenalty(char value, int netSpeedClass)
+{
+   return setScorePenalty(pAccessUlScorePenaltyF,pAccessUlScorePenalty,value,netSpeedClass,"accessulscorepenalty");
+}
+
+bool GeoTreeEngine::setPlctDlScorePenalty(const char *value)
+{
+  return setScorePenalty(pPlctDlScorePenaltyF,pPlctDlScorePenalty,value,"plctulscorepenalty");
+}
+bool GeoTreeEngine::setPlctUlScorePenalty(const char *value)
+{
+  return setScorePenalty(pPlctUlScorePenaltyF,pPlctUlScorePenalty,value,"plctulscorepenalty");
+}
+bool GeoTreeEngine::setAccessDlScorePenalty(const char *value)
+{
+  return setScorePenalty(pAccessDlScorePenaltyF,pAccessDlScorePenalty,value,"accessdlscorepenalty");
+}
+bool GeoTreeEngine::setAccessUlScorePenalty(const char *value)
+{
+  return setScorePenalty(pAccessUlScorePenaltyF,pAccessUlScorePenalty,value,"accessulscorepenalty");
+}
+
+bool GeoTreeEngine::setFillRatioLimit(char value)
+{
+  return setInternalParam(pFillRatioLimit,value,true,"fillratiolimit");
+}
+bool GeoTreeEngine::setFillRatioCompTol(char value)
+{
+  return setInternalParam(pFillRatioCompTol,value,true,"fillratiocomtol");
+}
+bool GeoTreeEngine::setSaturationThres(char value)
+{
+  return setInternalParam(pSaturationThres,value,true,"saturationthres");
+}
+bool GeoTreeEngine::setTimeFrameDurationMs(int value)
+{
+  return setInternalParam(pTimeFrameDurationMs,value,false,"timeframedurationms");
+}
+bool GeoTreeEngine::setPenaltyUpdateRate(float value)
+{
+  return setInternalParam(pPenaltyUpdateRate,value,false,"penaltyupdaterate");
+}
+
+bool GeoTreeEngine::dumpParameters( std::map<std::string,std::string> &params)
+{
+  std::stringstream ss;
+#define writeParamToMap(PARAM,CAST) { ss.str(""); ss << (CAST)PARAM; std::string p=#PARAM; std::transform(p.begin(), p.end(),p.begin(), ::toupper); params[p.substr(1)]=ss.str(); }
+#define writeParamVToMap(PARAM,CAST) { ss.str(""); std::string p=#PARAM; std::transform(p.begin(), p.end(),p.begin(), ::toupper); std::string q; for(auto it=PARAM.begin();it!=PARAM.end();it++) {ss << "," << (CAST)*it; } params[p.substr(1)]="["+q.substr(1)+"]"; }
+  writeParamToMap(pTimeFrameDurationMs,int);
+  writeParamToMap(pSaturationThres,int);
+  writeParamToMap(pFillRatioCompTol,int);
+  writeParamToMap(pFillRatioLimit,int);
+  writeParamVToMap(pAccessUlScorePenalty,int);
+  writeParamVToMap(pAccessDlScorePenalty,int);
+  writeParamVToMap(pPlctUlScorePenalty,int);
+  writeParamVToMap(pPlctDlScorePenalty,int);
+  writeParamToMap(pSkipSaturatedBlcPlct,int);
+  writeParamToMap(pSkipSaturatedBlcPlct,int);
+  writeParamToMap(pSkipSaturatedDrnPlct,int);
+  writeParamToMap(pSkipSaturatedBlcAccess,int);
+  writeParamToMap(pSkipSaturatedDrnAccess,int);
+  writeParamToMap(pSkipSaturatedAccess,int);
+  writeParamToMap(pSkipSaturatedPlct,int);
+  writeParamToMap(pPenaltyUpdateRate,float);
+  return true;
+}
+
+bool GeoTreeEngine::setParameter( std::string param, const std::string &value,int iparamidx)
+{
+  std::transform(param.begin(), param.end(),param.begin(), ::tolower);
+  double dval = 0.0;
+  sscanf(value.c_str(),"%lf",&dval);
+  int ival = (int)dval;
+  bool ok = false;
+#define readParamVFromString(PARAM,VALUE) { std::string q; if(sscanf(VALUE.c_str(),"[%f,%f,%f,%f,%f,%f,%f,%f]",&PARAM##F[0],&PARAM##F[1],&PARAM##F[2],&PARAM##F[3],&PARAM##F[4],&PARAM##F[5],&PARAM##F[6],&PARAM##F[7])!=8) return false; for(int i=0;i<8;i++) PARAM[i]=(char)PARAM##F[i]; ok = true;}
+  if(param == "timeframedurationms")
+  {
+    ok = gGeoTreeEngine.setTimeFrameDurationMs(ival);
+  }
+  else if(param == "saturationthres")
+  {
+    ok = gGeoTreeEngine.setSaturationThres((char)ival);
+  }
+  else if(param == "fillratiocomptol")
+  {
+    ok = gGeoTreeEngine.setFillRatioCompTol((char)ival);
+  }
+  else if(param == "fillratiolimit")
+  {
+    ok = gGeoTreeEngine.setFillRatioLimit((char)ival);
+  }
+  else if(param == "accessulscorepenalty")
+  {
+    if(iparamidx>-2)
+      ok = gGeoTreeEngine.setAccessUlScorePenalty((char)ival,iparamidx);
+    else
+      readParamVFromString(pAccessUlScorePenalty,value);
+  }
+  else if(param == "accessdlscorepenalty")
+  {
+    if(iparamidx>-2)
+      ok = gGeoTreeEngine.setAccessDlScorePenalty((char)ival,iparamidx);
+    else
+      readParamVFromString(pAccessDlScorePenalty,value);
+  }
+  else if(param == "plctulscorepenalty")
+  {
+    if(iparamidx>-2)
+      ok = gGeoTreeEngine.setPlctUlScorePenalty((char)ival,iparamidx);
+    else
+      readParamVFromString(pPlctUlScorePenalty,value);
+  }
+  else if(param == "plctdlscorepenalty")
+  {
+    if(iparamidx>-2)
+      ok = gGeoTreeEngine.setPlctDlScorePenalty((char)ival,iparamidx);
+    else
+      readParamVFromString(pPlctDlScorePenalty,value);
+  }
+  else if(param == "skipsaturatedblcplct")
+  {
+    ok = gGeoTreeEngine.setSkipSaturatedBlcPlct((bool)ival);
+  }
+  else if(param == "skipsaturateddrnplct")
+  {
+    ok = gGeoTreeEngine.setSkipSaturatedDrnPlct((bool)ival);
+  }
+  else if(param == "skipsaturatedblcaccess")
+  {
+    ok = gGeoTreeEngine.setSkipSaturatedBlcAccess((bool)ival);
+  }
+  else if(param == "skipsaturateddrnaccess")
+  {
+    ok = gGeoTreeEngine.setSkipSaturatedDrnAccess((bool)ival);
+  }
+  else if(param == "skipsaturatedaccess")
+  {
+    ok = gGeoTreeEngine.setSkipSaturatedAccess((bool)ival);
+  }
+  else if(param == "skipsaturatedplct")
+  {
+    ok = gGeoTreeEngine.setSkipSaturatedPlct((bool)ival);
+  }
+  else if(param == "penaltyupdaterate")
+  {
+    ok = gGeoTreeEngine.setPenaltyUpdateRate((float)dval);
+  }
+  return ok;
+}
+
+void GeoTreeEngine::setConfigValue (const char* prefix,
+                                          const char* key,
+                                          const char* val,
+                                          bool tochangelog)
+{
+  gOFS->ConfEngine->SetConfigValue(prefix,key,val,tochangelog);
+}
 EOSMGMNAMESPACE_END
 
