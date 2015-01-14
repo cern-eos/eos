@@ -662,6 +662,33 @@ XrdFstOfsFile::open (const char* path,
     isReplication = true;
   }
 
+  //............................................................................
+  // Check if this is an open for HTTP
+  //............................................................................
+  if ( (!isRW) && ( (std::string(client->tident) == "http" )))
+  {
+    bool isopenforwrite = false;
+    gOFS.OpenFidMutex.Lock();
+
+    if (gOFS.WOpenFid[fsid].count(fileid))
+    {
+      if (gOFS.WOpenFid[fsid][fileid] > 0)
+      {
+        isopenforwrite = true;
+      }
+    }
+
+    gOFS.OpenFidMutex.UnLock();
+
+    if (isopenforwrite)
+    {
+      eos_err("forbid to open replica for synchronization - file %s is opened in RW mode", Path.c_str());
+      return gOFS.Emsg(epname, error, ETXTBSY,
+                       "open - cannot synchronize this file: file is opened in RW mode", Path.c_str());
+    }
+
+  }
+
   if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &updateStat)))
   {
     //..........................................................................
