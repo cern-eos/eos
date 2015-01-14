@@ -6,7 +6,7 @@
 Beryl Release Notes
 ===================
 
-``Version V0.3.84 Beryl-Aquamarine``
+``Version V0.3.85 Beryl-Aquamarine``
 
 Bug Fixes
 ---------
@@ -28,6 +28,9 @@ Bug Fixes
 - swap HTTP/ROOT share url
 - fix return codes for chunked uploads for cases like no quota etc.
 - add 'open' serialization for identical file paths to avoid open errors using HTTP protocol 
+- don't send redirect on FST put's to avoid incomplete files
+- fix missing targetsize for standard oc PUTs to avoid acceptance of incomplete files
+- fix and use atomic CLOEXEC flag in various places
 
 New Features
 ------------
