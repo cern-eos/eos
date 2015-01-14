@@ -736,10 +736,13 @@ HttpHandler::Put (eos::common::HttpRequest * request)
         query += "eos.bookingsize=";
         //or OC chunked uploads we book the full size
         const char* oclength = eos::common::OwnCloud::getContentSize(request);
-        if (oclength)
+        if (oclength) {
           query += oclength;
-        else {
+	}else {
           query += request->GetHeaders()["content-length"];
+	}
+	
+	if (!isOcChunked) {
 	  query += "&eos.targetsize=";
 	  query += request->GetHeaders()["content-length"]; 
 	}
