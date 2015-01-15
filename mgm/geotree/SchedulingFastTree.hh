@@ -1255,10 +1255,10 @@ public:
 		for(SchedTreeBase::tFastTreeIdx b=firstBranchIdx;b<firstBranchIdx+nbChildren;b++)
 		updateTree(pBranches[b].sonIdx,noFreeSlotIfInvalid,oneFreeSlotIfValid);
 
-		if(pNodes[node].treeData.childrenCount<2)
+		if(nbChildren<2)
 		pNodes[node].fileData.lastHighestPriorityOffset = 0;
 
-		if(pNodes[node].treeData.childrenCount)
+		if(nbChildren)
 		{
 			sortBranchesAtNode(node,false);
 
@@ -1279,7 +1279,7 @@ public:
 		else
 		{
 			// there is a free slot but if it's not valid make it null
-			tFastTreeIdx freeSlots = 1;
+			unsigned char freeSlots = 1;
 			std::swap(pNodes[node].fileData.freeSlotsCount,freeSlots);
 			if(isValidSlotNode(node))
 			{

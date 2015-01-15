@@ -423,8 +423,10 @@ bool SlowTree::buildFastStrctures(
 	{
 		for(vector<const SlowTreeNode*>::const_iterator it=dit->begin();it!=dit->end();it++)
 		{
-			geo2node->pNodes[nodecount].firstBranch = nodes2idxGeoTag[(*it)->pChildren.begin()->second];
 			geo2node->pNodes[nodecount].branchCount = (tFastTreeIdx)(*it)->pChildren.size();
+			geo2node->pNodes[nodecount].firstBranch = geo2node->pNodes[nodecount].branchCount?
+			    nodes2idxGeoTag[(*it)->pChildren.begin()->second]:
+			    0;
 			nodecount++;
 		}
 	}
