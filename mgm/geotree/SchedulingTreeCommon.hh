@@ -112,11 +112,12 @@ public:
 	// To have a fine control over the structures memory foot print
 	// (which should be kept as small as possible for cache efficiency reasons),
 	// this type is used to refer to the number of nodes in the FastTree
-	// for unsigned char (8 bit) a placement group can have up to 256 nodes
-	// for unsigned short (16 bit) a placement group can have up to 65536 nodes
+	// for unsigned char (8 bit) a placement group can have up to 255 nodes
+	// for unsigned short (16 bit) a placement group can have up to 65535 nodes
 	//typedef unsigned char tFastTreeIdx;
 	//typedef unsigned short tFastTreeIdx;
-	typedef uint8_t tFastTreeIdx;
+	// typedef uint8_t tFastTreeIdx; // 10% faster than uint16_t
+	typedef uint16_t tFastTreeIdx;
 
 	// the data in that structure is not included in the FastTree
 	// it should NOT be necessary to the decision making process
@@ -226,6 +227,8 @@ public:
 			freeSlotsCount = 0;
 			unsigned long long sumUlScore= 0;
 			unsigned long long sumDlScore= 0;
+                        maxDlScore = 0;
+                        maxUlScore = 0;
 			const TreeNodeState<T> *tnsIt = begSt;
 			for (const tSelf *it = beg; it < end; it= (tSelf*)((char*)it+stride))
 			{
@@ -233,7 +236,7 @@ public:
 				freeSlotsCount += it->freeSlotsCount;
 				sumUlScore += it->avgUlScore * it->freeSlotsCount;
 				sumDlScore += it->avgDlScore * it->freeSlotsCount;
-				if(maxUlScore<it->avgUlScore) maxDlScore = it->avgUlScore;
+				if(maxUlScore<it->avgUlScore) maxUlScore = it->avgUlScore;
 				if(maxDlScore<it->avgDlScore) maxDlScore = it->avgDlScore;
 				tnsIt = (const TreeNodeState<T>*)((char*)tnsIt+strideSt);
 			}
