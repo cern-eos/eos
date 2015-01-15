@@ -116,8 +116,8 @@ public:
 	// for unsigned short (16 bit) a placement group can have up to 65535 nodes
 	//typedef unsigned char tFastTreeIdx;
 	//typedef unsigned short tFastTreeIdx;
-	// typedef uint8_t tFastTreeIdx; // 10% faster than uint16_t
-	typedef uint16_t tFastTreeIdx;
+	 typedef uint8_t tFastTreeIdx; // 10% faster than uint16_t
+	//typedef uint16_t tFastTreeIdx;
 
 	// the data in that structure is not included in the FastTree
 	// it should NOT be necessary to the decision making process
