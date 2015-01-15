@@ -26,7 +26,7 @@ from __future__ import unicode_literals
 import logging
 import json
 from XRootD import client
-from XRootD.client.flags import MkDirFlags, QueryCode
+from XRootD.client.flags import QueryCode
 from eosarch.utils import exec_cmd, get_entry_info, set_dir_info
 from eosarch.exceptions import CheckEntryException
 

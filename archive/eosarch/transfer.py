@@ -614,7 +614,7 @@ class Transfer(object):
 
             for job in self.list_jobs:
                 # TODO: use the parallel mode starting with XRootD 4.1
-                proc.add_job(job[0].encode("utf-8"), job[1].encode("utf-8"), 
+                proc.add_job(job[0].encode("utf-8"), job[1].encode("utf-8"),
                              force=self.do_retry, thirdparty=True)
 
             del self.list_jobs[:]
