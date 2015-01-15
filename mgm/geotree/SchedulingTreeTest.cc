@@ -43,7 +43,7 @@ using namespace eos::mgm;
 #define RUN_BURNIN_TEST 1
 size_t CheckLevel = 1;
 size_t DebugLevel = 1;
-const int bufferSize = 4096;
+const int bufferSize = 16384;
 const size_t groupSize = 100;
 const size_t nFsPerBox = 26;
 
@@ -434,7 +434,10 @@ int main()
 	}
 
 #if RUN_BURNIN_TEST==1
+	debugDisplay(fptrees[0]);
 	const size_t nbIter = 10000;
+	//const size_t nbIter = 100;
+	//const size_t nbIter = 1;
 	vector<SchedTreeBase::tFastTreeIdx> replicaIdxs(3 * schedGroups.size());
 
 	clock_t begin = clock();
@@ -553,10 +556,14 @@ int main()
 	}
 
 	// first get the idx range of the fs's
-	size_t fsIdxBeg = 0;
-	while (ftinfos[0][fsIdxBeg].nodeType == SchedTreeBase::TreeNodeInfo::intermediate)
-		fsIdxBeg++;
-	size_t fsIdxEnd = ftinfos[0].size();
+	std::vector<SchedTreeBase::tFastTreeIdx> fsIdxBegV(schedGroups.size()),fsIdxEndV(schedGroups.size());
+        for (size_t i = 0; i < schedGroups.size (); i++)
+        {
+          fsIdxBegV[i] = 0;
+          while (ftinfos[i][fsIdxBegV[i]].nodeType == SchedTreeBase::TreeNodeInfo::intermediate)
+            fsIdxBegV[i]++;
+          fsIdxEndV[i] = ftinfos[i].size ();
+        }
 	begin = clock();
 	for (size_t i = 0; i < schedGroups.size() * nbIter; i++)
 	{
@@ -564,7 +571,7 @@ int main()
 		assert(fptrees[i % schedGroups.size()].copyToBuffer(buffer, bufferSize) == 0);
 		FastPlacementTree *ftree = (FastPlacementTree*) buffer;
 		// select a random file system
-		SchedTreeBase::tFastTreeIdx rfs = fsIdxBeg + rand() % (fsIdxEnd - fsIdxBeg);
+		SchedTreeBase::tFastTreeIdx rfs = fsIdxBegV[i % schedGroups.size()] + rand() % (fsIdxEndV[i % schedGroups.size()] - fsIdxBegV[i % schedGroups.size()]);
 		ftree->updateBranch(rfs);
 	}
 	elapsed = clock() - begin;
