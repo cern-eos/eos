@@ -184,7 +184,7 @@ public:
       char srange[256];
       snprintf(srange,
                sizeof (srange) - 1,
-               "%llu-%llu/%llu",
+               "bytes %llu-%llu/%llu",
                (unsigned long long) it->first,
                (unsigned long long) ((it->second) ? (it->first + it->second-1)
                                                   : mRangeRequestSize),
