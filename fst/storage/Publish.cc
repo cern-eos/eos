@@ -91,7 +91,7 @@ Storage::Publish ()
       // ---------------------------------------------------------------------
       XrdOucString uptime = "uptime | tr -d \"\n\" > ";
       uptime += tmpname;
-      eos::common::CloExec::All();
+      //      eos::common::CloExec::All();
       int rc = system(uptime.c_str());
       if (WEXITSTATUS(rc))
       {
@@ -100,7 +100,6 @@ Storage::Publish ()
       eos::common::StringConversion::LoadFileIntoString(tmpname, publish_uptime);
       XrdOucString sockets = "cat /proc/net/tcp | wc -l | tr -d \"\n\" >";
       sockets += tmpname;
-      eos::common::CloExec::All();
       rc = system(sockets.c_str());
       if (WEXITSTATUS(rc))
       {
