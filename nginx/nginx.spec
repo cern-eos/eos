@@ -11,7 +11,7 @@
 
 Name:           eos-nginx
 Version:        1.4.2
-Release:        7
+Release:        8
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
 Packager:       Justin Salmon <jsalmon@cern.ch>
@@ -89,6 +89,11 @@ rm -rf %{_builddir}/nginx-auth-ldap-module
 git clone https://github.com/kvspb/nginx-auth-ldap.git \
           %{_builddir}/nginx-auth-ldap-module
 
+rm -rf %{_builddir}/nginx-auth-pam-module
+mkdir -p %{_builddir}/nginx-auth-pam-module
+curl http://web.iti.upv.es/~sto/nginx/ngx_http_auth_pam_module-1.3.tar.gz -o - | tar xvzf - -C %{_builddir}/nginx-auth-pam-module
+mv %{_builddir}/ngx_http_auth_pam_module-1.3 %{_builddir}/nginx-auth-pam-module
+
 # patches for openldap24
 %if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
 ( cd %{_builddir}/nginx-auth-ldap-module; echo '### Nothing to patch ###' )
@@ -138,7 +143,8 @@ export DESTDIR=%{buildroot}
     --without-mail_imap_module          \
     --without-mail_smtp_module          \
     --add-module=%{_builddir}/spnego-http-auth-nginx-module \
-    --add-module=%{_builddir}/nginx-auth-ldap-module
+    --add-module=%{_builddir}/nginx-auth-ldap-module \
+    --add-module=%{_builddir}/nginx-auth-pam-module 	
     #--with-cc-opt="%{optflags} $(pcre-config --cflags)" \
 
 make %{?_smp_mflags} 
@@ -175,6 +181,7 @@ done
 rm -rf %{buildroot}
 rm -rf %{_builddir}/spnego-http-auth-nginx-module
 rm -rf %{_builddir}/nginx-auth-ldap-module
+rm -rf %{_builddir}/nginx-auth-pam-module
 
 %pre
 %{_sbindir}/useradd -c "Nginx user" -s /bin/false -r -d %{nginx_home} %{nginx_user} 2>/dev/null || :
