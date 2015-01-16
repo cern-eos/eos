@@ -90,7 +90,6 @@ git clone https://github.com/kvspb/nginx-auth-ldap.git \
           %{_builddir}/nginx-auth-ldap-module
 
 rm -rf %{_builddir}/nginx-auth-pam-module
-mkdir -p %{_builddir}/nginx-auth-pam-module
 curl http://web.iti.upv.es/~sto/nginx/ngx_http_auth_pam_module-1.3.tar.gz -o - | tar xvzf - -C %{_builddir}/
 mv %{_builddir}/ngx_http_auth_pam_module-1.3 %{_builddir}/nginx-auth-pam-module
 
