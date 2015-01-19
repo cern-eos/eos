@@ -378,7 +378,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       {
 	// we cannot redirect the PUT at this point, just send an error back
         response = HttpServer::HttpError(mFile->error.getErrText(),
-                                         mFile->error.getErrInfo());
+					 response->INTERNAL_SERVER_ERROR);
       }
       else
         if (mRc == SFS_ERROR)
