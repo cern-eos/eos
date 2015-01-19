@@ -114,10 +114,8 @@ public:
 	// this type is used to refer to the number of nodes in the FastTree
 	// for unsigned char (8 bit) a placement group can have up to 255 nodes
 	// for unsigned short (16 bit) a placement group can have up to 65535 nodes
-	//typedef unsigned char tFastTreeIdx;
-	//typedef unsigned short tFastTreeIdx;
-	 typedef uint8_t tFastTreeIdx; // 10% faster than uint16_t
-	//typedef uint16_t tFastTreeIdx;
+	//typedef uint8_t tFastTreeIdx; // 10% faster than uint16_t
+	typedef uint16_t tFastTreeIdx;
 
 	inline static size_t sGetMaxNodeCount()
 	{
