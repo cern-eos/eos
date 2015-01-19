@@ -82,30 +82,48 @@ int ProcCommand::Backup()
     dst_surl = dst_url.GetURL();
   }
 
-  // Check that the destination directory does not exist already and create it
+  // Check that the destinatin directory exists and has permission 2777
   eos_debug("backup src=%s, dst=%s", src_surl.c_str(), dst_surl.c_str());
   XrdCl::FileSystem fs(dst_url);
   XrdCl::StatInfo* stat_info = 0;
   XrdCl::XRootDStatus st = fs.Stat(dst_url.GetPath(), stat_info, 5);
 
-  if (st.IsOK())
+  if (!st.IsOK())
   {
-    stdErr = "error: backup destination already exists";
-    retc = EEXIST;
+    stdErr = "error: backup destination must exist and have permission 2777";
+    retc = EIO;
+    return SFS_OK;
+  }
+
+  if (!stat_info->TestFlags(XrdCl::StatInfo::IsReadable) ||
+      !stat_info->TestFlags(XrdCl::StatInfo::IsWritable))
+  {
+    stdErr = "error: backup destination is not readable or writable";
+    retc = EPERM;
     return SFS_OK;
   }
 
   delete stat_info;
-  st = fs.MkDir(dst_url.GetPath(), XrdCl::MkDirFlags::MakePath,
-                XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::UX |
-                XrdCl::Access::GR | XrdCl::Access::OR, 5);
+
+  // Check that the destination directory is empty
+  XrdCl::DirectoryList *response = 0;
+  st = fs.DirList(dst_url.GetPath(), XrdCl::DirListFlags::None, response);
 
   if (!st.IsOK())
   {
-    stdErr = "error: failed to create backup destination directory";
+    stdErr = "error: failed listing backup destination directory";
     retc = EIO;
     return SFS_OK;
   }
+
+  if (response->GetSize() != 0)
+  {
+    stdErr = "error: backup destination directory is not empty";
+    retc = EIO;
+    return SFS_OK;
+  }
+
+  delete response;
 
   // Create backup file and copy it to the destination location
   std::string twindow_type = (pOpaque->Get("mgm.backup.ttime") ?
