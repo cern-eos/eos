@@ -69,7 +69,8 @@ GeoTreeEngine::sfgDiskload = 1 << 13,
 GeoTreeEngine::sfgEthmib = 1 << 14,
 GeoTreeEngine::sfgInratemib = 1 << 15,
 GeoTreeEngine::sfgOutratemib = 1 << 16,
-GeoTreeEngine::sfgErrc = 1 << 17;
+GeoTreeEngine::sfgErrc = 1 << 17,
+GeoTreeEngine::sfgPubTmStmp = 1 << 18;
 
 set<string> GeoTreeEngine::gWatchedKeys;
 
@@ -95,7 +96,8 @@ const map<string,int> GeoTreeEngine::gNotifKey2Enum =
   make_pair("stat.net.ethratemib",sfgEthmib),
   make_pair("stat.net.inratemib",sfgInratemib),
   make_pair("stat.net.outratemib",sfgOutratemib),
-  make_pair("stat.errc",sfgErrc)
+  make_pair("stat.errc",sfgErrc),
+  make_pair("stat.publishtimestamp",sfgPubTmStmp)
 };
 
 map<string,int> GeoTreeEngine::gNotificationsBuffer;
@@ -176,6 +178,25 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
   eos::common::FileSystem::fs_snapshot_t fsn;
   fs->SnapShotFileSystem(fsn, true);
 
+  // check if there is still some space for a new fs
+  {
+    size_t depth=1;
+    std::string sub("::");
+    for (size_t offset = fsn.mGeoTag.find(sub); offset != std::string::npos;
+             offset = fsn.mGeoTag.find(sub, offset + sub.length())) depth++;
+    if(depth + mapEntry->slowTree->getNodeCount() > SchedTreeBase::sGetMaxNodeCount()-2 )
+    {
+      mapEntry->slowTreeMutex.UnLockWrite();
+
+      eos_err("error inserting fs %lu into group %s : the group-tree is full",
+          (unsigned long)fsid,
+          group->mName.c_str()
+      );
+
+      return false;
+    }
+  }
+
   SchedTreeBase::TreeNodeInfo info;
   info.geotag = fsn.mGeoTag;
   if(info.geotag.empty())
@@ -226,6 +247,16 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
     return false;
   }
 
+  // ==== update the penalties vectors if necessary
+  if(!pFsId2FsPtr.empty() && fsn.mId>(--pFsId2FsPtr.end())->first)
+  {
+    for(auto it=pCircFrCnt2FsPenalties.begin(); it!=pCircFrCnt2FsPenalties.end(); it++)
+    {
+      it->resize(fsn.mId+1);
+    }
+    pFsId2LatencyStats.resize(fsn.mId+1);
+  }
+
   // update all the information about this new node
   if(!updateTreeInfo(mapEntry,&fsn,~sfgGeotag & ~sfgId & ~sfgHost ,0,node))
   {
@@ -261,16 +292,6 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
     {
       mapEntry->slowTreeModified = false;
     }
-  }
-
-  // ==== update the penalties vectors if necessary
-  if(!pFsId2FsPtr.empty() && fsn.mId>(--pFsId2FsPtr.end())->first)
-  {
-    for(auto it=pCircFrCnt2FsPenalties.begin(); it!=pCircFrCnt2FsPenalties.end(); it++)
-    {
-      it->resize(fsn.mId);
-    }
-    pFsId2LatencyStats.resize(fsn.mId);
   }
 
   // ==== update the entry in the map
@@ -532,7 +553,7 @@ void GeoTreeEngine::printInfo(std::string &info,
     size_t count = 0;
     for(size_t n=1; n<pFsId2LatencyStats.size(); n++)
     {
-      if(nowms-pFsId2LatencyStats[n].lastupdate<60000) // consider only if less than a minute
+      if(pFsId2LatencyStats[n].getage(nowms)<600000) // consider only if less than a minute
       {
       avAge += pFsId2LatencyStats[n].getage(nowms);
       count++;
@@ -541,18 +562,18 @@ void GeoTreeEngine::printInfo(std::string &info,
     avAge /= count;
     ostr << "globalLatency  = "<< setw(5)<<(int)pGlobalLatencyStats.minlatency <<"ms.(min)"<< " | "
         << setw(5)<<(int)pGlobalLatencyStats.averagelatency <<"ms.(avg)"<< " | "
-        << setw(5)<<(int)pGlobalLatencyStats.maxlatency <<"ms.(max)"<<"  |  age="<< setw(5)<<(int)avAge<<"ms.(avg)"<<std::endl;
+        << setw(5)<<(int)pGlobalLatencyStats.maxlatency <<"ms.(max)"<<"  |  age="<< setw(6)<<(int)avAge<<"ms.(avg)"<<std::endl;
     for(size_t n=1; n<pFsId2LatencyStats.size(); n++)
     {
     ostr << "fsLatency (fsid="<<std::setw(6)<<n<<")  = ";
-    if(nowms-pFsId2LatencyStats[n].lastupdate>60000) // more than 1 minute, something is wrong
+    if(pFsId2LatencyStats[n].getage(nowms)>600000) // more than 1 minute, something is wrong
       ostr<< setw(5)<<"NA" <<"ms.(min)"<< " | "
             << setw(5)<<"NA" <<"ms.(avg)"<< " | "
-            << setw(5)<<"NA" <<"ms.(max)"<<"  |  age="<< setw(5)<<"NA"<<"ms.(last)" <<std::endl;
+            << setw(5)<<"NA" <<"ms.(max)"<<"  |  age="<< setw(6)<<"NA"<<"ms.(last)" <<std::endl;
     else
       ostr<< setw(5)<<(int)pFsId2LatencyStats[n].minlatency <<"ms.(min)"<< " | "
             << setw(5)<<(int)pFsId2LatencyStats[n].averagelatency <<"ms.(avg)"<< " | "
-            << setw(5)<<(int)pFsId2LatencyStats[n].maxlatency <<"ms.(max)"<<"  |  age="<< setw(5)<<(int)pFsId2LatencyStats[n].getage(nowms)<<"ms.(last)" <<std::endl;
+            << setw(5)<<(int)pFsId2LatencyStats[n].maxlatency <<"ms.(max)"<<"  |  age="<< setw(6)<<(int)pFsId2LatencyStats[n].getage(nowms)<<"ms.(last)" <<std::endl;
     }
     ostr << "============================================================="<<std::endl;
   }
@@ -1224,17 +1245,21 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       // apply the penalties
       //////////
       const SchedTreeBase::tFastTreeIdx *idx;
-      entry->foregroundFastStruct->fs2TreeIdx->get(fs,idx);
-      const char netSpeedClass = (*entry->foregroundFastStruct->treeInfo)[*idx].netSpeedClass;
-      // every available box will push data
-      if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=pAccessUlScorePenalty[netSpeedClass])
-      applyUlScorePenalty(entry,*idx,pAccessUlScorePenalty[netSpeedClass]);
-      // every available box will have to pull data if it's a RW access (or if it's a gateway)
-      if( (type==regularRW) || (j==fsIndex && nAccessReplicas>1) )
+      if(entry->foregroundFastStruct->fs2TreeIdx->get(fs,idx))
       {
-        if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=pAccessDlScorePenalty[netSpeedClass])
-        applyDlScorePenalty(entry,*idx,pAccessDlScorePenalty[netSpeedClass]);
+        const char netSpeedClass = (*entry->foregroundFastStruct->treeInfo)[*idx].netSpeedClass;
+        // every available box will push data
+        if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=pAccessUlScorePenalty[netSpeedClass])
+        applyUlScorePenalty(entry,*idx,pAccessUlScorePenalty[netSpeedClass]);
+        // every available box will have to pull data if it's a RW access (or if it's a gateway)
+        if( (type==regularRW) || (j==fsIndex && nAccessReplicas>1) )
+        {
+          if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=pAccessDlScorePenalty[netSpeedClass])
+          applyDlScorePenalty(entry,*idx,pAccessDlScorePenalty[netSpeedClass]);
+        }
       }
+      else
+      eos_err("could not find fs on the fast tree to apply penalties");
       // the gateway will also have to pull data from the
       if(j==fsIndex && nAccessReplicas==1)// mainly replica layout RO case
       break;
@@ -1607,14 +1632,35 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
   }
   size_t netSpeedClass = 0; // <1Gb/s -> 0 ; 1Gb/s -> 1; 10Gb/s->2 ; 100Gb/s->...etc
 
-  if(fs->mPublishTimestamp)
+  if( (keys&sfgPubTmStmp) && fs->mPublishTimestamp)
   {
     pGlobalLatencyStats.lastupdate = fs->mPublishTimestamp;
     pGlobalLatencyStats.update();
     // update the latency of this fs
-    tLatencyStats &lstat = pFsId2LatencyStats[(*entry->backgroundFastStruct->treeInfo)[ftIdx].fsId];
-    lstat.lastupdate = fs->mPublishTimestamp;
-    lstat.update();
+    tLatencyStats *lstat = NULL;
+    if(ftIdx)
+    {
+      if( ( (int)((*entry->backgroundFastStruct->treeInfo)[ftIdx].fsId) ) < ((int)pFsId2LatencyStats.size()) )
+      {
+        lstat = &pFsId2LatencyStats[(*entry->backgroundFastStruct->treeInfo)[ftIdx].fsId];
+      }
+      else
+      eos_crit("trying to update latency for fs %d but latency stats vector size is %d : something is wrong",(int)(*entry->backgroundFastStruct->treeInfo)[ftIdx].fsId,(int)pFsId2LatencyStats.size());
+    }
+    else if(stn)
+    {
+      if( (int)( stn->pNodeInfo.fsId ) < ((int)pFsId2LatencyStats.size()) )
+      {
+        lstat = &pFsId2LatencyStats[stn->pNodeInfo.fsId];
+      }
+      else
+      eos_err("trying to update latency for fs %d but latency stats vector size is %d : something is wrong",(int)( stn->pNodeInfo.fsId ),(int)pFsId2LatencyStats.size());
+    }
+    if(lstat)
+    {
+      lstat->lastupdate = fs->mPublishTimestamp;
+      lstat->update();
+    }
   }
 
   if(keys&(sfgDiskload|sfgInratemib))

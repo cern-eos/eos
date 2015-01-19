@@ -119,6 +119,11 @@ public:
 	 typedef uint8_t tFastTreeIdx; // 10% faster than uint16_t
 	//typedef uint16_t tFastTreeIdx;
 
+	inline static size_t sGetMaxNodeCount()
+	{
+	  return std::numeric_limits<tFastTreeIdx>::max();
+	}
+
 	// the data in that structure is not included in the FastTree
 	// it should NOT be necessary to the decision making process
 	// though, it is accessible once the decision is taken

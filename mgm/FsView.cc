@@ -1004,7 +1004,7 @@ FsView::GetGroupFormat (std::string option)
 
 /*----------------------------------------------------------------------------*/
 bool
-FsView::Register (FileSystem* fs)
+FsView::Register (FileSystem* fs, bool registerInGeoTreeEngine)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief register a filesystem object in the filesystem view
@@ -1103,7 +1103,15 @@ FsView::Register (FileSystem* fs)
     }
 
 #ifndef EOSMGMFSVIEWTEST
-    gGeoTreeEngine.insertFsIntoGroup(fs,mGroupView[snapshot.mGroup],false);
+    if(registerInGeoTreeEngine && !gGeoTreeEngine.insertFsIntoGroup(fs,mGroupView[snapshot.mGroup],false) )
+    {
+      // roll back the changes
+      if(UnRegister(fs,false))
+        eos_err("could not insert insert fs %u into GeoTreeEngine : fs was unregistered and consistency is KEPT between FsView and GeoTreeEngine",snapshot.mId);
+      else
+        eos_crit("could not insert insert fs %u into GeoTreeEngine : fs could not be unregistered and consistency is BROKEN between FsView and GeoTreeEngine",snapshot.mId);
+      return false;
+    }
 #endif
     mSpaceGroupView[snapshot.mSpace].insert(mGroupView[snapshot.mGroup]);
 
@@ -1178,6 +1186,7 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
   {
 #ifndef EOSMGMFSVIEWTEST
     fs->SetString("schedgroup", group.c_str());
+    FsGroup *oldgroup = mGroupView.count(snapshot1.mGroup)?mGroupView[snapshot1.mGroup]:NULL;
 #endif
     if (fs->SnapShotFileSystem(snapshot))
     {
@@ -1200,7 +1209,24 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
       {
 	FsGroup* group = mGroupView[snapshot1.mGroup];
 #ifndef EOSMGMFSVIEWTEST
-	gGeoTreeEngine.removeFsFromGroup(fs,group,false);
+	if(!gGeoTreeEngine.removeFsFromGroup(fs,group,false))
+	{
+          // roll-back
+          if (mSpaceView.count(snapshot1.mSpace))
+          {
+            mSpaceView[snapshot1.mSpace]->insert(snapshot1.mId);
+            eos_debug("inserting into space view %s<=>%u %x", snapshot1.mSpace.c_str(), snapshot1.mId, fs);
+          }
+          else
+          {
+            FsSpace* space = new FsSpace(snapshot1.mSpace.c_str());
+            mSpaceView[snapshot1.mSpace] = space;
+            space->insert(snapshot1.mId);
+            eos_debug("creating/inserting into space view %s<=>%u %x", snapshot1.mSpace.c_str(), snapshot1.mId, fs);
+          }
+	  eos_err("could not remove fs %u from GeoTreeEngine : fs was registered back and consistency is KEPT between FsView and GeoTreeEngine",snapshot.mId);
+	  return false;
+	}
 #endif
 	group->erase(snapshot1.mId);
 	eos_debug("unregister group %s from group view",
@@ -1233,7 +1259,21 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
 	    snapshot.mGroup.c_str(), snapshot.mId, fs);
       }
 #ifndef EOSMGMFSVIEWTEST
-      gGeoTreeEngine.insertFsIntoGroup(fs,mGroupView[group],false);
+      if(!gGeoTreeEngine.insertFsIntoGroup(fs,mGroupView[group],false))
+      {
+        if(fs->SetString("schedgroup", group.c_str()) && UnRegister(fs,false))
+        {
+          if(oldgroup && fs->SetString("schedgroup", oldgroup->mName.c_str()) && Register(fs))
+            eos_err("while moving fs, could not insert fs %u in group %s. fs was registered back to group %s and consistency is KEPT between FsView and GeoTreeEngine",snapshot.mId,mGroupView[group]->mName.c_str(),oldgroup->mName.c_str());
+          else
+            eos_err("while moving fs, could not insert fs %u in group %s. fs was unregistered and consistency is KEPT between FsView and GeoTreeEngine",snapshot.mId,mGroupView[group]->mName.c_str());
+        }
+        else
+        {
+          eos_crit("while moving fs, could not insert fs %u in group %s. fs could not be unregistered and consistency is BROKEN between FsView and GeoTreeEngine",snapshot.mId,mGroupView[group]->mName.c_str());
+        }
+        return false;
+      }
 #endif
 
       mSpaceGroupView[snapshot.mSpace].insert(mGroupView[snapshot.mGroup]);
@@ -1271,7 +1311,7 @@ FsView::MoveGroup (FileSystem* fs, std::string group)
 
 /*----------------------------------------------------------------------------*/
 bool
-FsView::UnRegister (FileSystem* fs)
+FsView::UnRegister (FileSystem* fs, bool unregisterInGeoTreeEngine)
 {
   if (!fs)
   return false;
@@ -1323,7 +1363,14 @@ FsView::UnRegister (FileSystem* fs)
     {
       FsGroup* group = mGroupView[snapshot.mGroup];
 #ifndef EOSMGMFSVIEWTEST
-      gGeoTreeEngine.removeFsFromGroup(fs,group,false);
+      if(unregisterInGeoTreeEngine && !gGeoTreeEngine.removeFsFromGroup(fs,group,false))
+      {
+        if(Register(fs,false))
+          eos_err("could not remove fs %u from GeoTreeEngine : fs was registered back and consistency is KEPT between FsView and GeoTreeEngine",snapshot.mId);
+        else
+          eos_crit("could not remove fs %u from GeoTreeEngine : fs could not be registered back and consistency is BROKEN between FsView and GeoTreeEngine",snapshot.mId);
+        return false;
+      }
 #endif
       group->erase(snapshot.mId);
       eos_debug("unregister group %s from group view", group->GetMember("name").c_str());

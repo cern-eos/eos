@@ -903,7 +903,7 @@ public:
 #endif
 
   // this adds or modifies a filesystem
-  bool Register (FileSystem* fs);
+  bool Register (FileSystem* fs, bool registerInGeoTreeEngine=true);
 
   // move a filesystem to another group
   bool MoveGroup (FileSystem* fs, std::string group);
@@ -913,7 +913,7 @@ public:
   void StoreFsConfig (FileSystem* fs);
 
   // remove a filesystem
-  bool UnRegister (FileSystem* fs);
+  bool UnRegister (FileSystem* fs, bool unregisterInGeoTreeEngine=true);
 
   // check's if a queue+path exists already
   bool ExistsQueue (std::string queue, std::string queuepath);

@@ -446,7 +446,7 @@ protected:
   sfgGeotag,sfgId,sfgBoot,sfgDrain,sfgDrainer,sfgBlcingrun,sfgBlcerrun,
   sfgBalthres,sfgActive,sfgBlkavailb,sfgDiskload,
   sfgEthmib,sfgInratemib,sfgOutratemib,sfgWriteratemb,
-  sfgReadratemb,sfgFsfilled,sfgNomfilled,sfgConfigstatus,sfgHost,sfgErrc;
+  sfgReadratemb,sfgFsfilled,sfgNomfilled,sfgConfigstatus,sfgHost,sfgErrc,sfgPubTmStmp;
 
   //! This mutex protects the consistency between the GeoTreeEngine state and the filesystems it contains
   //! To make any change that temporarily set an unconsistent state (mainly adding a fs, removing a fs,
@@ -631,6 +631,7 @@ protected:
     auto fsid = (*entry->backgroundFastStruct->treeInfo)[idx].fsId;
     tLatencyStats &lstat = pFsId2LatencyStats[fsid];
     //auto mydata = entry->backgroundFastStruct->placementTree->pNodes[idx].fsData;
+    int count = 0;
     for( size_t circIdx = pFrameCount%pCircSize;
         (lstat.lastupdate!=0) && (pCircFrCnt2Timestamp[circIdx] > lstat.lastupdate - pPublishToPenaltyDelayMs);
         circIdx=((pCircSize+circIdx-1)%pCircSize) )
@@ -645,6 +646,11 @@ protected:
                           pCircFrCnt2FsPenalties[circIdx][fsid].ulScorePenalty,
                           true
                           );
+      if(++count == (int)pCircSize)
+      {
+        eos_warning("Last fs update for fs %d is older than older penalty : it could happen as a transition but should not happen permanently.",(int)fsid);
+        break;
+      }
     }
 //    if(mydata.dlScore!=entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.dlScore || mydata.ulScore!=entry->backgroundFastStruct->placementTree->pNodes[idx].fsData.ulScore)
 //    {
