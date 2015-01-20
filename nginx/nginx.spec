@@ -10,8 +10,8 @@
 %define nginx_webroot   %{nginx_datadir}/html
 
 Name:           eos-nginx
-Version:        1.4.2
-Release:        8
+Version:        1.6.2
+Release:        1
 Summary:        Robust, small and high performance http and reverse proxy server
 Group:          System Environment/Daemons
 Packager:       Justin Salmon <jsalmon@cern.ch>
@@ -73,8 +73,8 @@ A second third party modul, nginx-auth-ldap has been added.
 %prep
 %setup -q -n nginx-%{version}
 
-%patch0 -p0
-%patch4 -p1
+#%patch0 -p0
+#%patch4 -p1
 
 #%patch1 -p0
 #%patch2 -p0
