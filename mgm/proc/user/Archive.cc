@@ -267,8 +267,7 @@ ProcCommand::Archive()
       // the archive operation e.g root:// ... //some/dir/gid1/uid1/
       std::string dir_sha256 = eos::common::SymKey::Sha256(spath.c_str());
       std::ostringstream dst_oss;
-      dst_oss << gOFS->MgmArchiveDstUrl.c_str()
-              << pVid->gid << '/' << pVid->uid << '/' << dir_sha256 << '/';
+      dst_oss << gOFS->MgmArchiveDstUrl.c_str() << dir_sha256 << '/';
       std::string surl = dst_oss.str();
 
       // Make sure the destination directory does not exist
@@ -279,10 +278,10 @@ ProcCommand::Archive()
 
       if (status.IsOK())
       {
-        eos_err("archive dest=%s already exists", surl.c_str());
         stdErr = "error: archive dst=";
         stdErr += surl.c_str();
         stdErr += " already exists";
+        eos_err("%s", stdErr.c_str());
         retc = EIO;
         return SFS_OK;
       }
