@@ -856,11 +856,20 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   // Remove local archive file
   unlink(arch_fn.c_str());
 
+  // Change the permissions on the archive file to 644
+  eos::common::Mapping::VirtualIdentity_t root_ident;
+  eos::common::Mapping::Root(root_ident);
+  XrdSfsMode mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+
+  if (gOFS->_chmod(dst_path.c_str(), mode, *mError, root_ident))
+  {
+    stdErr = "error: setting permisions on the archive file";
+    retc = EIO;
+  }
+
   // Add the dir inode to /proc/archive/ for fast find
   if (!retc)
   {
-    eos::common::Mapping::VirtualIdentity_t root_ident;
-    eos::common::Mapping::Root(root_ident);
     oss.clear();
     oss.str("");
     oss << gOFS->MgmProcArchivePath << "/" << fid;
