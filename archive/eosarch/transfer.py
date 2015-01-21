@@ -463,8 +463,7 @@ class Transfer(object):
         # identity of the client who triggered the archive
         dir_root = self.efile_root[self.efile_root.rfind('//') + 1:]
         eos_log = ''.join([old_url.protocol, "://", old_url.hostid, "/",
-                           dir_root, self.config.ARCH_FN, ".log",
-                           "?eos.ruid=", self.uid, "&eos.rgid=", self.gid])
+                           dir_root, self.config.ARCH_FN, ".log?eos.ruid=0&eos.rgid=0"])
 
         self.logger.debug("Copy log:{0} to {1}".format(self.config.LOG_FILE, eos_log))
         self.config.handler.flush()
@@ -475,11 +474,24 @@ class Transfer(object):
             self.logger.error("Failed to copy log file {0} to EOS at {1}".format(
                     self.config.LOG_FILE, eos_log))
         else:
-            # delete log file if it was successfully copied to EOS
-            try:
-                os.remove(self.config.LOG_FILE)
-            except OSError as __:
-                pass
+            # User triggering archive operation owns the log file
+            eos_log_url = client.URL(eos_log)
+            fs = client.FileSystem(eos_log.encode("utf-8"))
+            arg = ''.join([eos_log_url.path, "?eos.ruid=0&eos.rgid=0&mgm.pcmd=chown&uid=",
+                           self.uid, "&gid=", self.gid])
+            xrd_st, __ = fs.query(QueryCode.OPAQUEFILE, arg.encode("utf-8"))
+
+            if not xrd_st.ok:
+                err_msg = "Failed setting ownership of the log file in EOS: {0}".format(
+                    eos_log)
+                self.logger.error(err_msg)
+                raise IOError(err_msg)
+            else:
+                # Delete log if successfully copied to EOS and changed ownership
+                try:
+                    os.remove(self.config.LOG_FILE)
+                except OSError as __:
+                    pass
 
         # Delete all local files associated with this transfer
         try:
