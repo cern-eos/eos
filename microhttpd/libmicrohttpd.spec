@@ -26,7 +26,7 @@ Requires(preun): info
 
 Patch0:         vmem.patch
 Patch1:         epoll.patch
-Patch2:         fdship.patch
+Patch2:         fdshift.patch
 
 %description
 GNU libmicrohttpd is a small C library that is supposed to make it
