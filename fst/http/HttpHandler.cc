@@ -169,8 +169,8 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
   if (request->GetMethod() == "PUT")
   {
 
-    if (((mUploadLeftSize > (4 * 1024 * 1024)) &&
-         ((*request->GetBodySize()) < (4 * 1024 * 1024))))
+    if (((mUploadLeftSize > (1 * 1024 * 1024)) &&
+         ((*request->GetBodySize()) < (1 * 1024 * 1024))))
     {
       // we want more bytes, we don't process this
       eos_static_debug("msg=\"wait for more bytes\" leftsize=%llu uploadsize=%llu",
