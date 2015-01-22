@@ -135,11 +135,12 @@ HttpServer::Handler (void *cls,
     eos_static_debug("returning MHD_NO response-code=%d to stop upload", response->GetResponseCode());
     if (response->GetResponseCode())
     {
-      eos_static_debug("setting uploadDataSize to 0");
+      eos_static_debug("setting uploadDataSize to 0 and fail request");
       *uploadDataSize = 0;
+      return MHD_NO;
     }
     protocolHandler->DeleteResponse();
-    return MHD_NO;
+    return MHD_YES;
   }
 
   eos_static_debug("\n\n%s", response->ToString().c_str());
