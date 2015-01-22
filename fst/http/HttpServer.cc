@@ -137,7 +137,7 @@ HttpServer::Handler (void *cls,
     {
       eos_static_debug("setting uploadDataSize to 0");
       *uploadDataSize = 0;
-      if (response->GetResponseCode >=300) {
+      if (response->GetResponseCode() >= 300) {
 	eos_static_debug("failing request with response code %d", response->GetResponseCode());
 	protocolHandler->DeleteResponse();
 	return MHD_NO;
