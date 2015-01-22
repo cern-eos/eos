@@ -1,16 +1,17 @@
 --- a/src/microhttpd/daemon.c	2014-06-30 10:39:38.000000000 +0200
 +++ b/src/microhttpd/daemon.c	2014-06-30 10:39:38.000000000 +0200
-@@ -1778,6 +1778,9 @@ MHD_accept_connection (struct MHD_Daemon
+@@ -1776,8 +1776,10 @@ MHD_accept_connection (struct MHD_Daemon
+   struct sockaddr *addr = (struct sockaddr *) &addrstorage;
+   socklen_t addrlen;
    MHD_socket s;
++  MHD_socket new_s;
    MHD_socket fd;
    int nonblock;
-+  int s;
-+  int new_s;
 +  int s_flags;
  
    addrlen = sizeof (addrstorage);
    memset (addr, 0, sizeof (addrstorage));
-@@ -1797,6 +1800,24 @@ MHD_accept_connection (struct MHD_Daemon
+@@ -1797,6 +1799,24 @@ MHD_accept_connection (struct MHD_Daemon
  #else
    s = accept (fd, addr, &addrlen);
  #endif
