@@ -1,0 +1,38 @@
+--- a/src/microhttpd/daemon.c	2014-06-30 10:39:38.000000000 +0200
++++ b/src/microhttpd/daemon.c	2014-06-30 10:39:38.000000000 +0200
+@@ -1776,8 +1776,10 @@ MHD_accept_connection (struct MHD_Daemon
+   struct sockaddr *addr = (struct sockaddr *) &addrstorage;
+   socklen_t addrlen;
+   MHD_socket s;
++  MHD_socket new_s;
+   MHD_socket fd;
+   int nonblock;
++  int s_flags;
+ 
+   addrlen = sizeof (addrstorage);
+   memset (addr, 0, sizeof (addrstorage));
+@@ -1797,6 +1799,24 @@ MHD_accept_connection (struct MHD_Daemon
+ #else
+   s = accept (fd, addr, &addrlen);
+ #endif
++
++#if defined(__linux__) && defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
++  new_s = fcntl(s, F_DUPFD_CLOEXEC, 48*1024);
++  
++  if (new_s>0)
++    close(s);
++  s = new_s;
++#else
++  new_s = fcntl(s, F_DUPFD, 48*1024);
++
++  if (new_s>0) {
++    close(s);
++    s_flags = fcntl(new_s, F_GETFD);
++    fcntl(new_s, s_flags|FD_CLOEXEC);
++  } 
++  s = new_s;
++#endif
++
+   if ((MHD_INVALID_SOCKET == s) || (addrlen <= 0))
+     {
+ #if HAVE_MESSAGES
