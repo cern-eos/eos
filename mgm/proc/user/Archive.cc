@@ -775,11 +775,11 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
            << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
            << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
            << "\"mode\", \"xstype\", \"xs\"], "
-           << "\"num_dirs\": " << std::setw(10) << "" << ", "
-           << "\"num_files\": " << std::setw(10) << "" << ", "
            << "\"uid\": \"" << pVid->uid << "\", "
            << "\"gid\": \"" << pVid->gid << "\", "
-           << "\"timestamp\": " << std::setw(10) << ""
+           << "\"timestamp\": " << std::setw(10) << ", "
+           << "\"num_dirs\": " << std::setw(10) << "" << ", "
+           << "\"num_files\": " << std::setw(10) << ""
            << "}" << std::endl;
 
   // Add directories info
@@ -810,11 +810,11 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
            << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
            << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
            << "\"mode\", \"xstype\", \"xs\"], "
-           << "\"num_dirs\": " << std::setw(10) << num_dirs << ", "
-           << "\"num_files\": " << std::setw(10) << num_files << ", "
            << "\"uid\": \"" << pVid->uid << "\", "
            << "\"gid\": \"" << pVid->gid << "\", "
-           << "\"timestamp\": " << std::setw(10) << time(static_cast<time_t*>(0))
+           << "\"timestamp\": " << std::setw(10) << time(static_cast<time_t*>(0)) << ", "
+           << "\"num_dirs\": " << std::setw(10) << num_dirs << ", "
+           << "\"num_files\": " << std::setw(10) << num_files
            << "}" << std::endl;
   arch_ofs.close();
 

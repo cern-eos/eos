@@ -511,11 +511,40 @@ class ArchiveFile(object):
                 self.logger.error("Failed getting metainfo entry={0}".format(dst))
                 raise CheckEntryException("failed getting metainfo")
 
-            if not (meta_info == entry):
-                err_msg = ("Verify failed for entry={0} expect={1} got={2}"
-                           "").format(dst, entry, meta_info)
-                self.logger.error(err_msg)
-                raise CheckEntryException("failed metainfo match")
+            # Check if we have any excluded xattrs
+            try:
+                excl_xattr = self.header['excl_xattr']
+            except KeyError as __:
+                excl_xattr = list()
+
+            if is_dir and excl_xattr :
+                # For directories and configuration containing excluded xattrs
+                # we refine the checks
+                ref_dict = dict(zip(tags, entry[2:]))
+                new_dict = dict(zip(tags, meta_info[2:]))
+
+                for key, val in ref_dict.iteriterms():
+                    if not isinstance(val, dict):
+                        if new_dict[key] != val:
+                            err_msg = ("Verify failed for entry={0} expect={1} got={2}"
+                                       " at key={3}").format(dst, entry, meta_info, key)
+                            self.logger.error(err_msg)
+                            raise CheckEntryException("failed metainfo match")
+                    else:
+                        for kxattr, vxattr in val:
+                            if kxattr not in excl_xattr:
+                                if vxattr != new_dict[key][kxattr]:
+                                    err_msg = ("Verify failed for entry={0} expect={1} got={2}"
+                                               " at xattr key={3}").format(dst, entry, meta_info,
+                                                                            kxattr)
+                                    self.logger.error(err_msg)
+                                    raise CheckEntryException("failed metainfo match")
+            else:
+                if not (meta_info == entry):
+                    err_msg = ("Verify failed for entry={0} expect={1} got={2}"
+                               "").format(dst, entry, meta_info)
+                    self.logger.error(err_msg)
+                    raise CheckEntryException("failed metainfo match")
 
         self.logger.info("Entry={0}, status={1}".format(dst, True))
 
@@ -549,8 +578,14 @@ class ArchiveFile(object):
         if not self.d2t:
             dict_dinfo = dict(zip(self.header['dir_meta'], dentry[2:]))
 
+            # Get the list of excluded extended attributes if it exists
             try:
-                set_dir_info((surl, dict_dinfo))
+                excl_xattr = self.header['excl_xattr']
+            except KeyError as __:
+                excl_xattr = list()
+
+            try:
+                set_dir_info(surl, dict_dinfo, excl_xattr)
             except IOError as __:
                 err_msg = "Dir={0} failed setting metadata".format(surl)
                 self.logger.error(err_msg)
