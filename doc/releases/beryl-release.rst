@@ -6,7 +6,7 @@
 Beryl Release Notes
 ===================
 
-``Version V0.3.87 Beryl-Aquamarine``
+``Version V0.3.90 Beryl-Aquamarine``
 
 Bug Fixes
 ---------
@@ -32,6 +32,7 @@ Bug Fixes
 - fix missing targetsize for standard oc PUTs to avoid acceptance of incomplete files
 - fix and use atomic CLOEXEC flag in various places
 - add PAM module to NGINX
+- fix PUT error handling (will break connection for all errors happening after 100-continue on FST)
 
 New Features
 ------------
