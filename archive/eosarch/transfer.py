@@ -821,16 +821,6 @@ class Transfer(object):
 
     def do_backup(self):
         """ Perform a backup operation using the provided backup file.
-
-        Args:
-            req_json (JSON command): Arguments for backup command include:
-            {
-              cmd: backup,
-              src: root://instance//path/to/backup/file,
-              opt: '',
-              uid: uid,
-              gid: gid
-            }
         """
         t0 = time.time()
         indx_dir = 0
