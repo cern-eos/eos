@@ -523,7 +523,7 @@ class ArchiveFile(object):
                 ref_dict = dict(zip(tags, entry[2:]))
                 new_dict = dict(zip(tags, meta_info[2:]))
 
-                for key, val in ref_dict.iteriterms():
+                for key, val in ref_dict.iteritems():
                     if not isinstance(val, dict):
                         if new_dict[key] != val:
                             err_msg = ("Verify failed for entry={0} expect={1} got={2}"
