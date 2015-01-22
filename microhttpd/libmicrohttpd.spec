@@ -2,7 +2,7 @@
 Summary: Lightweight library for embedding a webserver in applications
 Name: libmicrohttpd
 Version: 0.9.38
-Release: epoll%{?dist}
+Release: eos%{?dist}
 Group: Development/Libraries
 License: LGPLv2+
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
@@ -62,7 +62,7 @@ Doxygen documentation for libmicrohttpd and some example source code
 
 %prep
 %setup -q
-#%patch0 -p1 
+%patch0 -p1 
 %patch1 -p1 
 
 %build
