@@ -299,6 +299,7 @@ add_executable( eos-ioping
  
 
 set_target_properties( eoscp PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
+set_target_properties( eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1 )
 
 target_link_libraries( FstLoad XrdUtils dl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
