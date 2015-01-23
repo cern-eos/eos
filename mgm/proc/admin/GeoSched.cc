@@ -44,8 +44,11 @@ ProcCommand::GeoSched ()
       bool bsnapsh = (mSubCmd == "showsnapshot");
       bool bprm =  (mSubCmd == "showparam");
       bool bst =  (mSubCmd == "showstate");
+      bool useColors = false;
+      if(pOpaque->Get("mgm.usecolors"))
+      useColors=(bool)XrdOucString(pOpaque->Get("mgm.usecolors")).atoi();
       std::string info;
-      gGeoTreeEngine.printInfo(info,btree,bsnapsh,bprm,bst,schedgroup.c_str(),optype.c_str());
+      gGeoTreeEngine.printInfo(info,btree,bsnapsh,bprm,bst,schedgroup.c_str(),optype.c_str(),useColors);
       stdOut += info.c_str();
       retc = SFS_OK;
     }
@@ -56,7 +59,6 @@ ProcCommand::GeoSched ()
       XrdOucString value = pOpaque->Get("mgm.value");
       double dval = 0.0;
       sscanf(value.c_str(),"%lf",&dval);
-      int ival = (int)dval;
       int iparamidx = paramidx.atoi();
       bool ok = false;
       ok = gGeoTreeEngine.setParameter(param.c_str(),value.c_str(),iparamidx);
@@ -72,6 +74,12 @@ ProcCommand::GeoSched ()
     {
       gGeoTreeEngine.ResumeUpdater();
       stdOut += "GeoTreeEngine has been resumed\n";
+      retc = SFS_OK;
+    }
+    if(mSubCmd == "forcerefresh")
+    {
+      gGeoTreeEngine.forceRefresh();
+      stdOut += "GeoTreeEngine has been refreshed\n";
       retc = SFS_OK;
     }
   }

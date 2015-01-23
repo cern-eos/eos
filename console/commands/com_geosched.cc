@@ -49,7 +49,7 @@ com_geosched (char* arg1)
   if (wants_help(arg1))
     goto com_geosched_usage;
 
-  if ((cmd != "show") && (cmd != "set") && (cmd != "updater"))
+  if ((cmd != "show") && (cmd != "set") && (cmd != "updater") && (cmd != "forcerefresh"))
   {
     goto com_geosched_usage;
   }
@@ -59,6 +59,12 @@ com_geosched (char* arg1)
   if (cmd == "show")
   {
     XrdOucString subcmd = subtokenizer.GetToken();
+    if(subcmd == "-c")
+    {
+      in += "&mgm.usecolors=1";
+      subcmd = subtokenizer.GetToken();
+    }
+
     if ((subcmd != "tree") && (subcmd != "snapshot") && (subcmd != "state") && (subcmd != "param"))
     {
       goto com_geosched_usage;
@@ -160,20 +166,28 @@ com_geosched (char* arg1)
     }
   }
 
+  if(cmd == "forcerefresh")
+  {
+      in += "&mgm.subcmd=forcerefresh";
+  }
+
   global_retc = output_result(client_admin_command(in));
   return (0);
 
 com_geosched_usage:
-  fprintf(stdout, "Usage: geosched                                                   :  Interact with the file geoscheduling engine\n");
-  fprintf(stdout, "       geosched show tree [<scheduling subgroup>]                 :  show scheduling trees\n");
-  fprintf(stdout, "                                                                     -  if <scheduling group> is specified only the tree for this group is shown. If it's not all, the trees are shown.\n");
-  fprintf(stdout, "       geosched show snapshot [<scheduling subgroup>] [<optype>]  :  show snapshots of scheduling trees\n");
-  fprintf(stdout, "                                                                     -  if <scheduling group> is specified only the snapshot(s) for this group is/are shown. If it's not all, the snapshots for all the groups are shown.\n");
-  fprintf(stdout, "                                                                     -  if <optype> is specified only the snapshot for this operation is shown. If it's not, the snapshots for all the optypes are shown.\n");
-  fprintf(stdout, "                                                                     -  <optype> can be one of the folowing plct,accsro,accsrw,accsdrain,plctdrain,accsblc,plctblc\n");
-  fprintf(stdout, "       geosched show param                                        :  show internal parameters\n");
-  fprintf(stdout, "       geosched show state                                        :  show internal state\n");
-  fprintf(stdout, "       geosched set <param name> [param index] <param value>      :  set the value of an internal state parameter (all names can be listed with geosched show state) \n");
-  fprintf(stdout, "       geosched updater {pause|resume}                            :  pause / resume the tree updater\n");
+  fprintf(stdout, "Usage: geosched                                                           :  Interact with the file geoscheduling engine\n");
+  fprintf(stdout, "       geosched show [-c] tree [<scheduling subgroup>]                    :  show scheduling trees\n");
+  fprintf(stdout, "                                                                             -  if <scheduling group> is specified only the tree for this group is shown. If it's not all, the trees are shown.\n");
+  fprintf(stdout, "                                                                             -  \"-c\" enables color display\n");
+  fprintf(stdout, "       geosched show [-c] snapshot [{<scheduling subgroup>,*}] [<optype>] :  show snapshots of scheduling trees\n");
+  fprintf(stdout, "                                                                             -  if <scheduling group> is specified only the snapshot(s) for this group is/are shown. If it's not all, the snapshots for all the groups are shown.\n");
+  fprintf(stdout, "                                                                             -  if <optype> is specified only the snapshot for this operation is shown. If it's not, the snapshots for all the optypes are shown.\n");
+  fprintf(stdout, "                                                                             -  <optype> can be one of the folowing plct,accsro,accsrw,accsdrain,plctdrain,accsblc,plctblc\n");
+  fprintf(stdout, "                                                                             -  \"-c\" enables color display\n");
+  fprintf(stdout, "       geosched show param                                                :  show internal parameters\n");
+  fprintf(stdout, "       geosched show state                                                :  show internal state\n");
+  fprintf(stdout, "       geosched set <param name> [param index] <param value>              :  set the value of an internal state parameter (all names can be listed with geosched show state) \n");
+  fprintf(stdout, "       geosched updater {pause|resume}                                    :  pause / resume the tree updater\n");
+  fprintf(stdout, "       geosched forcerefresh                                              :  force a refresh of the trees/snapshots\n");
   return (0);
 }

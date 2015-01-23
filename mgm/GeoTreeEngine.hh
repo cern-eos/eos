@@ -1033,6 +1033,14 @@ public:
   }
 
   // ---------------------------------------------------------------------------
+  //! Force a refresh of the information in the tree
+  //! It's needed only a startup time as some change notification might be missed
+  // @return
+  //   true if success false else
+  // ---------------------------------------------------------------------------
+  bool forceRefresh();
+
+  // ---------------------------------------------------------------------------
   //! Insert a file system into the GeoTreeEngine
   // @param fs
   //   the file system to be inserted
@@ -1084,7 +1092,7 @@ public:
   // ---------------------------------------------------------------------------
   void printInfo(std::string &info,
       bool dispTree, bool dispSnaps, bool dispParam, bool dispState,
-      const std::string &schedgroup, const std::string &optype);
+      const std::string &schedgroup, const std::string &optype, bool useColors=false);
 
   // ---------------------------------------------------------------------------
   //! Place several replicas in one scheduling group.

@@ -122,6 +122,35 @@ bool GeoTreeEngine::TreeMapEntry::updateFastStructures()
   return true;
 }
 
+bool GeoTreeEngine::forceRefresh()
+{
+  // signal a pause to the background updating
+  PauseUpdater();
+
+  // prevent any other use of the fast structures
+  pAddRmFsMutex.LockWrite();
+  pTreeMapMutex.LockWrite();
+
+  // mark all fs needing a refresh for all the watched attributes
+  for(auto it=gNotificationsBuffer.begin(); it!=gNotificationsBuffer.end(); it++)
+    it->second= (~0);
+
+  for(auto it = pGroup2TreeMapEntry.begin(); it != pGroup2TreeMapEntry.end(); it++)
+  {
+  it->second->fastStructModified = true;
+  it->second->slowTreeModified = true;
+  }
+
+  // do the update
+  pTreeMapMutex.UnLockWrite();
+  updateTreeInfo(gNotificationsBuffer);
+  pAddRmFsMutex.UnLockWrite();
+  // signal a resume to the background updating
+  ResumeUpdater();
+
+  return true;
+}
+
 bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
     FsGroup *group,
     bool updateFastStruct)
@@ -257,6 +286,28 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
     pFsId2LatencyStats.resize(fsn.mId+1);
   }
 
+
+  // ==== update the shared object notifications
+  {
+    if(gWatchedKeys.empty())
+    {
+      for(auto it = gNotifKey2Enum.begin(); it != gNotifKey2Enum.end(); it++ )
+      {
+        gWatchedKeys.insert(it->first);
+      }
+    }
+    if(!gOFS->ObjectNotifier.SubscribesToSubjectAndKey("geotreeengine",fs->GetQueuePath(),gWatchedKeys,XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification))
+    {
+      eos_crit("error inserting fs %lu into group %s : error subscribing to shared object notifications",
+          (unsigned long)fsid,
+          group->mName.c_str()
+      );
+      return false;
+    }
+    //gNotificationsBuffer[fs->GetQueuePath()]=(~0); // request a full fast tree information update
+    //eos_debug("prepreCHANGE BITFIELD %x",gNotificationsBuffer[fs->GetQueuePath()]);
+  }
+
   // update all the information about this new node
   if(!updateTreeInfo(mapEntry,&fsn,~sfgGeotag & ~sfgId & ~sfgHost ,0,node))
   {
@@ -303,25 +354,6 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
     pFsId2FsPtr[fsid] = fs;
     pTreeMapMutex.UnLockWrite();
     mapEntry->slowTreeMutex.UnLockWrite();
-  }
-
-  // ==== update the shared object notifications
-  {
-    if(gWatchedKeys.empty())
-    {
-      for(auto it = gNotifKey2Enum.begin(); it != gNotifKey2Enum.end(); it++ )
-      {
-	gWatchedKeys.insert(it->first);
-      }
-    }
-    if(!gOFS->ObjectNotifier.SubscribesToSubjectAndKey("geotreeengine",fs->GetQueuePath(),gWatchedKeys,XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification))
-    {
-      eos_crit("error inserting fs %lu into group %s : error subscribing to shared object notifications",
-	  (unsigned long)fsid,
-	  group->mName.c_str()
-      );
-      return false;
-    }
   }
 
   if(eos::common::Logging::gLogMask & LOG_INFO)
@@ -474,7 +506,7 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem *fs ,
 
 void GeoTreeEngine::printInfo(std::string &info,
     bool dispTree, bool dispSnaps, bool dispParam, bool dispState,
-    const std::string &schedgroup, const std::string &optype)
+    const std::string &schedgroup, const std::string &optype, bool useColors)
 {
   RWMutexReadLock lock(pTreeMapMutex);
 
@@ -582,48 +614,56 @@ void GeoTreeEngine::printInfo(std::string &info,
   {
     stringstream ostr;
 
-    if(dispTree && (schedgroup.empty() || (schedgroup == it->second->group->mName) ) )
+    if(dispTree && (schedgroup.empty() || schedgroup=="*" || (schedgroup == it->second->group->mName) ) )
     {
       ostr << "*** scheduling tree for scheduling group "<< it->second->group->mName <<" :" << std::endl;
-      ostr << *it->second->slowTree << std::endl;
+      it->second->slowTree->display(ostr,useColors);
+      ostr <<std::endl;
     }
 
-    if(dispSnaps && (schedgroup.empty() || (schedgroup == it->second->group->mName) ) )
+    if(dispSnaps && (schedgroup.empty() || schedgroup=="*" || (schedgroup == it->second->group->mName) ) )
     {
       if(optype.empty() || (optype == "plct") )
       {
 	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Placement\' :" << std::endl;
-	ostr << *it->second->foregroundFastStruct->placementTree << std::endl;
+	//ostr << *it->second->foregroundFastStruct->placementTree << std::endl;
+	it->second->foregroundFastStruct->placementTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "accsro") )
       {
 	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Access RO\' :" << std::endl;
-	ostr << *it->second->foregroundFastStruct->rOAccessTree << std::endl;
+	//ostr << *it->second->foregroundFastStruct->rOAccessTree << std::endl;
+	it->second->foregroundFastStruct->rOAccessTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "accsrw") )
       {
 	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Access RW\' :" << std::endl;
-	ostr << *it->second->foregroundFastStruct->rWAccessTree << std::endl;
+	//ostr << *it->second->foregroundFastStruct->rWAccessTree << std::endl;
+	it->second->foregroundFastStruct->rWAccessTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "accsdrain") )
       {
 	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Access\' :" << std::endl;
-	ostr << *it->second->foregroundFastStruct->drnAccessTree << std::endl;
+	//ostr << *it->second->foregroundFastStruct->drnAccessTree << std::endl;
+	it->second->foregroundFastStruct->drnAccessTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "plctdrain") )
       {
 	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Placement\' :" << std::endl;
-	ostr << *it->second->foregroundFastStruct->drnPlacementTree << std::endl;
+	//ostr << *it->second->foregroundFastStruct->drnPlacementTree << std::endl;
+	it->second->foregroundFastStruct->drnPlacementTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "accsblc") )
       {
 	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Balancing Access\' :" << std::endl;
-	ostr << *it->second->foregroundFastStruct->blcAccessTree << std::endl;
+	//ostr << *it->second->foregroundFastStruct->blcAccessTree << std::endl;
+	it->second->foregroundFastStruct->blcAccessTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "plctblc") )
       {
 	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Placement\' :" << std::endl;
-	ostr << *it->second->foregroundFastStruct->blcPlacementTree << std::endl;
+	//ostr << *it->second->foregroundFastStruct->blcPlacementTree << std::endl;
+	it->second->foregroundFastStruct->blcPlacementTree->recursiveDisplay(ostr,useColors)<<endl;
       }
     }
 
@@ -1317,6 +1357,7 @@ void GeoTreeEngine::listenFsChange()
 
   do
   {
+    while(gUpdaterPaused) sleep(1);
     gOFS->ObjectNotifier.tlSubscriber->SubjectsSem.Wait(1);
     //gOFS->ObjectNotifier.tlSubscriber->SubjectsSem.Wait();
 
@@ -1482,16 +1523,26 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
     }
     SlowTreeNode *oldNode = entry->fs2SlowTreeNode[fsid];
 
-    const string &oldGeoTag = oldNode->pNodeInfo.fullGeotag;
-    eos_debug("geotag change detected : old geotag is %s   new geotag is %s",oldGeoTag.substr(0,oldGeoTag.rfind("::")).c_str(),newGeoTag.c_str());
+    //const string &oldGeoTag = oldNode->pNodeInfo.fullGeotag;
+    string oldGeoTag = oldNode->pNodeInfo.fullGeotag;
+    oldGeoTag = (oldGeoTag.rfind("::")!=std::string::npos)?oldGeoTag.substr(0,oldGeoTag.rfind("::")):std::string("");
+
+    eos_debug("geotag change detected : old geotag is %s   new geotag is %s",oldGeoTag.c_str(),newGeoTag.c_str());
     //CHECK IF CHANGE ACTUALLY HAPPENED BEFORE ACTUALLY CHANGING SOMETHING
-    if(oldGeoTag.substr(0,oldGeoTag.rfind("::"))!=newGeoTag)
+    if( oldGeoTag !=newGeoTag)
     { // do the change only if there is one
       SlowTreeNode *newNode = NULL;
       newNode = entry->slowTree->moveToNewGeoTag(oldNode,newGeoTag);
       if(!newNode)
       {
-	eos_err("error changing geotag in slowtree");
+        stringstream ss;
+        ss << (*entry->slowTree);
+	    eos_err("error changing geotag in slowtree : move is %s => %s and slowtree is \n%s\n",
+	        oldGeoTag.c_str(),
+	        newGeoTag.c_str(),
+	        ss.str().c_str()
+	    );
+
 	entry->slowTreeMutex.UnLockWrite();
 	return false;
       }
