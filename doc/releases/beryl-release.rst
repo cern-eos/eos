@@ -6,7 +6,7 @@
 Beryl Release Notes
 ===================
 
-``Version V0.3.91 Beryl-Aquamarine``
+``Version V0.3.92 Beryl-Aquamarine``
 
 Bug Fixes
 ---------
@@ -34,6 +34,8 @@ Bug Fixes
 - add PAM module to NGINX
 - fix PUT error handling (will break connection for all errors happening after 100-continue on FST)
 - various improvements to backup functionality
+- enforce order in chunked uploads
+- disable scanning of w-open files
 
 New Features
 ------------
