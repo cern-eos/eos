@@ -83,7 +83,7 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
   {
     eos_err("msg=\"file is already open\" path=%s", path);
     return -EBADF;
-  } 
+  }
 
   if ((val = env.Get("mgm.lid")))
   {
@@ -108,7 +108,7 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
   {
     mIsRW = true;
   }
-  
+
   if (eos::common::LayoutId::GetBlockChecksum(lid) != eos::common::LayoutId::kNone)
   {
     //..........................................................................
@@ -175,7 +175,7 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
 #else
       if ((newfd = fcntl(fd, F_DUPFD, XrdFstSS->mFdFence)) < 0) {
 #endif
-	eos_err("error= unable to reloc FD for ", path);
+        eos_err("error= unable to reloc FD for ", path);
       }
       else
       {
@@ -201,9 +201,7 @@ XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
   ssize_t retval;
 
   if (fd < 0)
-  {
     return static_cast<ssize_t> (-EBADF);
-  }
 
   do
   {
@@ -211,12 +209,11 @@ XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
   }
   while ((retval < 0) && (errno == EINTR));
 
-  if (mBlockXs)
+  if ((retval > 0) && mBlockXs)
   {
     XrdSysRWLockHelper wr_lock(mRWLockXs, 0);
 
-    if ((retval > 0) &&
-        (!mBlockXs->CheckBlockSum(offset, static_cast<const char*> (buffer), retval)))
+    if (!mBlockXs->CheckBlockSum(offset, static_cast<const char*> (buffer), retval))
     {
       eos_err("error=read block-xs error offset=%zu, length=%zu",
               offset, length);
@@ -224,7 +221,7 @@ XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
     }
   }
 
-  return ( retval >= 0 ? retval : static_cast<ssize_t> (-errno));
+  return ((retval >= 0) ? retval : static_cast<ssize_t> (-errno));
 }
 
 
