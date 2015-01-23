@@ -337,11 +337,11 @@ class GeoTreeEngine : public eos::common::LogId
     {
       backgroundFastStruct->rOAccessTree->updateTree();
       backgroundFastStruct->rWAccessTree->updateTree();
-      backgroundFastStruct->placementTree->updateTree(0,true,true);
+      backgroundFastStruct->placementTree->updateTree();
       backgroundFastStruct->blcAccessTree->updateTree();
-      backgroundFastStruct->blcPlacementTree->updateTree(0,true,true);
+      backgroundFastStruct->blcPlacementTree->updateTree();
       backgroundFastStruct->drnAccessTree->updateTree();
-      backgroundFastStruct->drnPlacementTree->updateTree(0,true,true);
+      backgroundFastStruct->drnPlacementTree->updateTree();
     }
 
     void updateSlowTreeInfoFromBgFastStruct()

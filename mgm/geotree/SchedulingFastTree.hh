@@ -452,7 +452,7 @@ public:
 	inline bool isValidSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
 	{
 		const int16_t mask = SchedTreeBase::Available|SchedTreeBase::Writable;
-		return (mask==(s->mStatus&mask)) && (p->freeSlotsCount>0);
+		return !(SchedTreeBase::Disabled&s->mStatus) && (mask==(s->mStatus&mask)) && (p->freeSlotsCount>0);
 	}
 
 	inline bool isSaturatedSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
@@ -507,8 +507,8 @@ public:
 
 	inline bool isValidSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
 	{
-		const int16_t mask = SchedTreeBase::Available|SchedTreeBase::Writable|SchedTreeBase::Drainer;
-		return (mask==(s->mStatus&mask)) && (p->freeSlotsCount>0);
+	        const int16_t mask = SchedTreeBase::Available|SchedTreeBase::Writable|SchedTreeBase::Drainer;
+		return !(SchedTreeBase::Disabled&s->mStatus) && (mask==(s->mStatus&mask)) && (p->freeSlotsCount>0);
 	}
 
 	inline bool isSaturatedSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
@@ -553,7 +553,7 @@ public:
 	inline bool isValidSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
 	{
 		const int16_t mask = SchedTreeBase::Available|SchedTreeBase::Writable|SchedTreeBase::Balancer;
-		return (mask==(s->mStatus&mask)) && (p->freeSlotsCount>0);
+		return !(SchedTreeBase::Disabled&s->mStatus) && (mask==(s->mStatus&mask)) && (p->freeSlotsCount>0);
 	}
 
 	inline bool isSaturatedSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
@@ -597,7 +597,7 @@ public:
 	inline bool isValidSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
 	{
 		const int16_t mask = SchedTreeBase::Available|SchedTreeBase::Readable;
-		return (mask==(s->mStatus&mask)) && (p->freeSlotsCount>0);
+		return !(SchedTreeBase::Disabled&s->mStatus) && (mask==(s->mStatus&mask)) && (p->freeSlotsCount>0);
 	}
 
 	inline bool isSaturatedSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
@@ -630,7 +630,7 @@ public:
 	inline bool isValidSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
 	{
 		const int16_t mask = SchedTreeBase::Available|SchedTreeBase::Readable|SchedTreeBase::Writable;
-		return (mask==(s->mStatus&mask)) && (p->freeSlotsCount>0);
+		return !(SchedTreeBase::Disabled&s->mStatus) && (mask==(s->mStatus&mask)) && (p->freeSlotsCount>0);
 	}
 
 	inline bool isSaturatedSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
@@ -1205,39 +1205,78 @@ public:
 		sortBranchesAtNode(0,true);
 	}
 
+        bool aggregateFileData(const tFastTreeIdx &node)
+        {
+                pNodes[node].fileData.takenSlotsCount = 0;
+                pNodes[node].fileData.freeSlotsCount = 0;
+                unsigned long long sumUlScore= 0;
+                unsigned long long sumDlScore= 0;
+                pNodes[node].fileData.maxDlScore = 0;
+                pNodes[node].fileData.maxUlScore = 0;
+                  for (tFastTreeIdx bidx = pNodes[node].treeData.firstBranchIdx;
+                                    bidx < pNodes[node].treeData.firstBranchIdx + pNodes[node].treeData.childrenCount; bidx++)
+                    {
+                        tFastTreeIdx childNode = pBranches[bidx].sonIdx;
+                        if(pNodes[childNode].treeData.childrenCount || isValidSlotNode(childNode)) // EXPERIMENT
+                        {
+                          pNodes[node].fileData.takenSlotsCount += pNodes[childNode].fileData.takenSlotsCount;
+                          pNodes[node].fileData.freeSlotsCount += pNodes[childNode].fileData.freeSlotsCount;
+                          sumUlScore += pNodes[childNode].fileData.avgUlScore * pNodes[childNode].fileData.freeSlotsCount;
+                          sumDlScore += pNodes[childNode].fileData.avgDlScore * pNodes[childNode].fileData.freeSlotsCount;
+                        if(pNodes[node].fileData.maxUlScore<pNodes[childNode].fileData.avgUlScore) pNodes[node].fileData.maxUlScore = pNodes[childNode].fileData.avgUlScore;
+                        if(pNodes[node].fileData.maxDlScore<pNodes[childNode].fileData.avgDlScore) pNodes[node].fileData.maxDlScore = pNodes[childNode].fileData.avgDlScore;
+                                }
+
+                }
+                  pNodes[node].fileData.avgDlScore = pNodes[node].fileData.freeSlotsCount?sumDlScore/pNodes[node].fileData.freeSlotsCount:0;
+                pNodes[node].fileData.avgUlScore = pNodes[node].fileData.freeSlotsCount?sumUlScore/pNodes[node].fileData.freeSlotsCount:0;
+                return true;
+        }
+
+        bool aggregateFsData(const tFastTreeIdx &node)
+        {
+                    double _mDlScore = 0;
+                    double _mUlScore = 0;
+                    double _mFillRatio = 0;
+                    double _mTotalSpace = 0;
+                    int count=0;
+
+                    for (tFastTreeIdx bidx = pNodes[node].treeData.firstBranchIdx;
+                                      bidx < pNodes[node].treeData.firstBranchIdx + pNodes[node].treeData.childrenCount; bidx++)
+                      {
+                      tFastTreeIdx childNode = pBranches[bidx].sonIdx;
+                      bool availableBranch = ( (pNodes[childNode].fsData.mStatus & (Available|Disabled)) == Available);
+                      if(availableBranch)
+                      {
+                        if(pNodes[childNode].fsData.dlScore>0) _mDlScore += pNodes[childNode].fsData.dlScore;
+                        if(pNodes[childNode].fsData.ulScore>0) _mUlScore += pNodes[childNode].fsData.ulScore;
+                        _mTotalSpace += pNodes[childNode].fsData.totalSpace;
+                        _mFillRatio += pNodes[childNode].fsData.fillRatio * pNodes[childNode].fsData.totalSpace;
+                        count++;
+                        /// not a good idea to propagate the availability as we want to be able to make a branch as unavailable regardless of the status of the leaves
+                        pNodes[node].fsData.mStatus = (SchedTreeBase::tStatus) (pNodes[node].fsData.mStatus | (pNodes[childNode].fsData.mStatus & ~Available & ~Disabled) );// an intermediate node tell if a leave having is given status in under it or not
+                      }
+
+                      }
+                    if (_mTotalSpace)
+                    _mFillRatio /= _mTotalSpace;
+                    pNodes[node].fsData.dlScore = (char)(_mDlScore/count);
+                    pNodes[node].fsData.ulScore = (char)(_mUlScore/count);
+                    pNodes[node].fsData.fillRatio = (char)_mFillRatio;
+                    pNodes[node].fsData.totalSpace = (float)_mTotalSpace;
+                    return true;
+        }
+
 	inline void
 	updateBranch(const tFastTreeIdx &node)
 	{
-		const tFastTreeIdx &firstBranchIdx = pNodes[node].treeData.firstBranchIdx;
-		const tFastTreeIdx &nbChildren = pNodes[node].treeData.childrenCount;
-
 		if(pNodes[node].treeData.childrenCount)
 		{
 			sortBranchesAtNode(node,false);
-			pNodes[node].fsData.aggregate(
-					&pNodes[ firstBranchIdx+1 ].fsData , // this index firstBranchIdx+1 is a HACK to get the index of the first node (in memory) of a branch of the current node
-					&pNodes[ firstBranchIdx+1 + nbChildren ].fsData,
-					sizeof(FastTreeNode)
-			);
-			pNodes[node].fileData.aggregate(
-					&pNodes[ firstBranchIdx+1 ].fileData ,
-					&pNodes[ firstBranchIdx+1 + nbChildren].fileData,
-					&pNodes[ firstBranchIdx+1 ].fsData ,// this index firstBranchIdx+1 is a HACK to get the index of the first node (in memory) of a branch of the current node
-					&pNodes[ firstBranchIdx+1 + nbChildren].fsData,
-					sizeof(FastTreeNode),
-					sizeof(FastTreeNode)
-			);
+			aggregateFsData(node);
+			aggregateFileData(node);
+		}
 
-		}
-		else
-		{
-			// there is a free slot but if it's not valid make it null
-			if(!isValidSlotNode(node)) pNodes[node].fileData.freeSlotsCount = 0;
-			pNodes[node].fileData.maxUlScore = pNodes[node].fsData.ulScore;
-			pNodes[node].fileData.maxDlScore = pNodes[node].fsData.dlScore;
-			pNodes[node].fileData.avgUlScore = pNodes[node].fsData.ulScore;
-			pNodes[node].fileData.avgDlScore = pNodes[node].fsData.dlScore;
-		}
 		__EOSMGM_TREECOMMON_CHK3__
 		checkConsistency(0, true);
 
@@ -1246,14 +1285,14 @@ public:
 	}
 
 	inline void
-	updateTree(const tFastTreeIdx &node=0, bool noFreeSlotIfInvalid=true, bool oneFreeSlotIfValid=false)
+	updateTree(const tFastTreeIdx &node=0)
 	{
 
 		const tFastTreeIdx &firstBranchIdx = pNodes[node].treeData.firstBranchIdx;
 		const tFastTreeIdx &nbChildren = pNodes[node].treeData.childrenCount;
 
 		for(SchedTreeBase::tFastTreeIdx b=firstBranchIdx;b<firstBranchIdx+nbChildren;b++)
-		updateTree(pBranches[b].sonIdx,noFreeSlotIfInvalid,oneFreeSlotIfValid);
+		updateTree(pBranches[b].sonIdx);
 
 		if(nbChildren<2)
 		pNodes[node].fileData.lastHighestPriorityOffset = 0;
@@ -1261,40 +1300,8 @@ public:
 		if(nbChildren)
 		{
 			sortBranchesAtNode(node,false);
-
-			pNodes[node].fsData.aggregate(
-					&pNodes[ firstBranchIdx+1 ].fsData , // this index firstBranchIdx+1 is a HACK to get the index of the first node (in memory) of a branch of the current node
-					&pNodes[ firstBranchIdx+1 + nbChildren].fsData,
-					sizeof(FastTreeNode)
-			);
-			pNodes[node].fileData.aggregate(
-					&pNodes[ firstBranchIdx+1 ].fileData ,
-					&pNodes[ firstBranchIdx+1 + nbChildren].fileData,
-					&pNodes[ firstBranchIdx+1 ].fsData ,// this index firstBranchIdx+1 is a HACK to get the index of the first node (in memory) of a branch of the current node
-					&pNodes[ firstBranchIdx+1 + nbChildren].fsData,
-					sizeof(FastTreeNode),
-					sizeof(FastTreeNode)
-			);
-		}
-		else
-		{
-			// there is a free slot but if it's not valid make it null
-			unsigned char freeSlots = 1;
-			std::swap(pNodes[node].fileData.freeSlotsCount,freeSlots);
-			if(isValidSlotNode(node))
-			{
-				if(oneFreeSlotIfValid)
-				pNodes[node].fileData.freeSlotsCount = 1;
-				else
-				std::swap(pNodes[node].fileData.freeSlotsCount,freeSlots);
-			}
-			else
-			{
-				if(noFreeSlotIfInvalid)
-				pNodes[node].fileData.freeSlotsCount = 0;
-				else
-				std::swap(pNodes[node].fileData.freeSlotsCount,freeSlots);
-			}
+                        aggregateFsData(node);
+                        aggregateFileData(node);
 		}
 
 		pNodes[node].fileData.maxUlScore = pNodes[node].fsData.ulScore;
@@ -1465,11 +1472,15 @@ public:
 	}
 
 	std::ostream&
-	recursiveDisplay(std::ostream &os, const std::string &prefix = "") const
+	recursiveDisplay(std::ostream &os, bool useColors=false, const std::string &prefix = "") const
 	{
-		if(!pNodes[0].treeData.childrenCount)
-		return os; // NOTHING TO DISPLAY
-		return recursiveDisplay(os, prefix, 0);
+		if(pNodes[0].treeData.childrenCount)
+		{
+		  recursiveDisplay(os, prefix, 0, useColors);
+		  // reset the console colors in case it's used
+		  if(useColors) os<<"\033[0m";
+		}
+		return os;
 	}
 
 protected:
@@ -1565,19 +1576,70 @@ public:
 	}
 
 	std::ostream&
-	recursiveDisplay(std::ostream &os, const std::string &prefix, tFastTreeIdx node) const
+	recursiveDisplay(std::ostream &os, const std::string &prefix, tFastTreeIdx node, bool useColors) const
 	{
-		std::stringstream ss;
-		ss << prefix;
-		os << std::right << std::setw(8) << std::setfill('-');
-		tFastTreeIdx &nbChildren = pNodes[node].treeData.childrenCount;
+         std::string consoleEscapeCode,consoleReset;
+    if(useColors)
+    {
+      bool isReadable = (pNodes[node].fsData.mStatus & Readable);
+      bool isDisabled = (pNodes[node].fsData.mStatus & Disabled);
+
+      bool isWritable = (pNodes[node].fsData.mStatus & Writable);
+      bool isAvailable = (pNodes[node].fsData.mStatus & Available);
+      bool isDraining = (pNodes[node].fsData.mStatus & Draining);
+      bool isFs = ((*pTreeInfo)[node].nodeType) == TreeNodeInfo::fs;
+      consoleEscapeCode = "\033[";
+      consoleReset = "\033[0m";
+
+      if(isDisabled) // DISABLED
+      consoleEscapeCode = consoleEscapeCode + ("2;39;49m");
+      else
+      {
+        if(isFs && isDraining)
+        consoleEscapeCode = consoleEscapeCode + ("1;33;");
+        else
+        consoleEscapeCode = consoleEscapeCode + ("1;39;");
+
+        if( !isAvailable
+            || (isFs && (!(isReadable || isWritable))) ) // UNAVAILABLE OR NOIO
+        consoleEscapeCode = consoleEscapeCode + ("41");
+        else if(isFs)
+        {
+          if( isReadable && ! isWritable ) // RO case
+          consoleEscapeCode = consoleEscapeCode + "44";
+          else if( !isReadable && isWritable )// WO case
+          consoleEscapeCode = consoleEscapeCode + "43";
+          else
+          consoleEscapeCode = consoleEscapeCode + "49";
+        }
+        else
+        {
+          consoleEscapeCode = consoleEscapeCode + "49";
+        }
+        consoleEscapeCode = consoleEscapeCode + "m";
+      }
+    }
+          std::stringstream ss;
+           ss << prefix;
+           os << std::right << std::setw(8) << std::setfill('-');
+           tFastTreeIdx &nbChildren = pNodes[node].treeData.childrenCount;
+
+                os<<consoleEscapeCode;
+
 		if ((*pTreeInfo)[node].nodeType == TreeNodeInfo::intermediate)
 		os << (*pTreeInfo)[node].geotag;
 		else if ((*pTreeInfo)[node].nodeType == TreeNodeInfo::fs)
 		os << std::dec << (unsigned int)(*pTreeInfo)[node].fsId;
 		os << "/( free:" << (int) pNodes[node].fileData.freeSlotsCount << "|repl:" << (int) pNodes[node].fileData.takenSlotsCount
-				<< "|pidx:"<< (int) pNodes[node].fileData.lastHighestPriorityOffset<< "|status:"
-				<< std::hex << pNodes[node].fsData.mStatus << std::dec
+				<< "|pidx:"<< (int) pNodes[node].fileData.lastHighestPriorityOffset<< "|status:";
+//				<< std::hex << pNodes[node].fsData.mStatus << std::dec
+
+		if((*pTreeInfo)[node].nodeType == TreeNodeInfo::intermediate)
+		  os << intermediateStatusToStr(pNodes[node].fsData.mStatus);
+		else if((*pTreeInfo)[node].nodeType == TreeNodeInfo::fs)
+		  os << fsStatusToStr(pNodes[node].fsData.mStatus);
+
+		os		<< std::dec
 				<< "|ulSc:"<< (int) pNodes[node].fsData.ulScore
 				<< "|dlSc:"<< (int) pNodes[node].fsData.dlScore
 				<< "|filR:"<< (int) pNodes[node].fsData.fillRatio
@@ -1585,24 +1647,39 @@ public:
 		ss << std::right << std::setw(7) << std::setfill(' ') << "";
 
 		if (!nbChildren)
-		os << "@" << (*pTreeInfo)[node].host << std::endl;
+		{
+		os << "@" << (*pTreeInfo)[node].host;
+                os << consoleReset;
+		os << std::endl;
+		}
 		else
 		{
+		        os << consoleReset;
 			os << std::endl;
 			tFastTreeIdx &firstBranchIdx = pNodes[node].treeData.firstBranchIdx;
 			for (tFastTreeIdx branchIdx = firstBranchIdx; branchIdx < firstBranchIdx + nbChildren; branchIdx++)
 			{
 				tFastTreeIdx childIdx = pBranches[branchIdx].sonIdx;
+				std::string color;
+			           if(useColors)
+			           {
+			             if((pNodes[childIdx].fsData.mStatus & Disabled))
+			               color= "\033[2;39;49m";
+			             else
+			               color= "\033[1;39;49m";
+			           }
+
 				bool lastChild = (branchIdx == firstBranchIdx + nbChildren - 1);
 				if (lastChild)
 				{ // final branch
-					os << ss.str() << "`--";
-					recursiveDisplay(os, ss.str() += "   ", childIdx);
+					os << ss.str() << color<< "`--";
+					recursiveDisplay(os, ss.str() += (color+"   "), childIdx, useColors);
+					os << ss.str() << std::endl;
 				}
 				else
 				{ // intermediate branch
-					os << ss.str() << "|--";
-					recursiveDisplay(os, ss.str() += "|  ", childIdx);
+					os << ss.str() << color<< "|--";
+					recursiveDisplay(os, ss.str() += (color+"|  "), childIdx, useColors);
 				}
 			}
 		}
@@ -1861,6 +1938,42 @@ public:
 		}
 	}
 
+        inline void disableSubTree(const tFastTreeIdx &node)
+        {
+          const tFastTreeIdx &firstBranchIdx = pNodes[node].treeData.firstBranchIdx;
+          const tFastTreeIdx &nbChildren = pNodes[node].treeData.childrenCount;
+          disableNode(node);
+          if(nbChildren)
+          {
+          for (tFastTreeIdx branchIdx = firstBranchIdx; branchIdx < firstBranchIdx + nbChildren; branchIdx++)
+          {
+            disableSubTree(pBranches[branchIdx].sonIdx);
+          }
+          }
+        }
+
+        inline void enableSubTree(const tFastTreeIdx &node)
+        {
+          const tFastTreeIdx &firstBranchIdx = pNodes[node].treeData.firstBranchIdx;
+          const tFastTreeIdx &nbChildren = pNodes[node].treeData.childrenCount;
+          enableNode(node);
+          if(nbChildren)
+          {
+          for (tFastTreeIdx branchIdx = firstBranchIdx; branchIdx < firstBranchIdx + nbChildren; branchIdx++)
+          {
+            enableSubTree(pBranches[branchIdx].sonIdx);
+          }
+          }
+        }
+
+        inline void disableNode(const tFastTreeIdx &node)
+        {
+          pNodes[node].fsData.mStatus |= Disabled;
+        }
+        inline void enableNode(const tFastTreeIdx &node)
+        {
+          pNodes[node].fsData.mStatus &= ~Disabled;
+        }
 };
 
 template<typename T1,typename T2,typename T3, typename T4> inline size_t

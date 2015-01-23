@@ -44,39 +44,91 @@ ostream& SlowTreeNode::display(ostream &os) const
 	return os;
 }
 
-ostream& SlowTreeNode::recursiveDisplay(ostream &os, const string &prefix) const
+ostream& SlowTreeNode::recursiveDisplay(ostream &os, bool useColors, const string &prefix) const
 {
-	stringstream ss;
-	ss<<prefix;
-	os << right << setw(8) << setfill('-') << *this;
-	ss << right << setw(7) << setfill(' ') << "";
-	if(pChildren.empty())
-	{
-		os << "@" << pNodeInfo.host << " ["<< pLeavesCount<<","<<pNodeCount<<","<<std::hex<<pNodeState.mStatus<< "]"<< endl;
-	}
-	else
-	{
-		os << " ["<< pLeavesCount<<","<<pNodeCount<< "]"<< endl;
-		for(tNodeMap::const_iterator it=pChildren.begin();it!=pChildren.end();it++)
-		{
-			if( it!=pChildren.end() && ++tNodeMap::const_iterator(it)==pChildren.end())
-			{ // final branch
-				os << ss.str() << "`--";
-				it->second->recursiveDisplay(os,ss.str()+="   ");
-			}
-			else
-			{ // intermediate branch
-				os << ss.str() << "|--";
-				it->second->recursiveDisplay(os,ss.str()+="|  ");
-			}
-		}
-	}
-	return os;
+  std::string consoleEscapeCode,consoleReset;
+  if(useColors)
+  {
+    bool isReadable = (pNodeState.mStatus & Readable);
+    bool isDisabled = (pNodeState.mStatus & Disabled);
+
+    bool isWritable = (pNodeState.mStatus & Writable);
+    bool isAvailable = (pNodeState.mStatus & Available);
+    bool isDraining = (pNodeState.mStatus & Draining);
+    bool isFs = pChildren.empty();
+    consoleEscapeCode = "\033[";
+    consoleReset = "\033[0m";
+
+    if(isDisabled) // DISABLED
+    consoleEscapeCode = consoleEscapeCode + ("2;39;49m");
+    else
+    {
+      if(isFs && isDraining)
+      consoleEscapeCode = consoleEscapeCode + ("1;33;");
+      else
+      consoleEscapeCode = consoleEscapeCode + ("1;39;");
+
+      if( !isAvailable
+          || (isFs && (!(isReadable || isWritable))) ) // UNAVAILABLE OR NOIO
+      consoleEscapeCode = consoleEscapeCode + ("41");
+      else if(isFs)
+      {
+        if( isReadable && ! isWritable ) // RO case
+        consoleEscapeCode = consoleEscapeCode + "44";
+        else if( !isReadable && isWritable )// WO case
+        consoleEscapeCode = consoleEscapeCode + "43";
+        else
+        consoleEscapeCode = consoleEscapeCode + "49";
+      }
+      else
+      {
+        consoleEscapeCode = consoleEscapeCode + "49";
+      }
+      consoleEscapeCode = consoleEscapeCode + "m";
+    }
+  }
+
+  stringstream ss;
+  ss<<prefix;
+  os << right << setw(8) << setfill('-') <<consoleEscapeCode<< *this;
+  ss << right << setw(7) << setfill(' ') << "";
+  if(pChildren.empty())
+  {
+    os << "@" << pNodeInfo.host << " ["<< pLeavesCount<<","<<pNodeCount<<","<<fsStatusToStr(pNodeState.mStatus)<< "]"<< consoleReset <<endl;
+  }
+  else
+  {
+    os << " ["<< pLeavesCount<<","<<pNodeCount<< "]"<< consoleReset << endl;
+    for(tNodeMap::const_iterator it=pChildren.begin();it!=pChildren.end();it++)
+    {
+      std::string color;
+      if(useColors)
+      {
+        if((it->second->pNodeState.mStatus & Disabled))
+        color= "\033[2;39;49m";
+        else
+        color= "\033[1;39;49m";
+      }
+
+      if( it!=pChildren.end() && ++tNodeMap::const_iterator(it)==pChildren.end())
+      { // final branch
+        os << ss.str() << color << "`--";
+        it->second->recursiveDisplay(os,useColors,ss.str()+="   ");
+        os << ss.str() << endl;
+      }
+      else
+      { // intermediate branch
+        os << ss.str() << color << "|--";
+        it->second->recursiveDisplay(os,useColors,ss.str()+="|  ");
+      }
+    }
+  }
+  return os;
 }
 
-ostream& SlowTree::display(ostream &os) const
+ostream& SlowTree::display(ostream &os, bool useColors) const
 {
-	return pRootNode.recursiveDisplay(os);
+	return pRootNode.recursiveDisplay(os, useColors);
 }
 
 SlowTreeNode* SlowTree::insert( const TreeNodeInfo *info, const TreeNodeStateFloat *state)

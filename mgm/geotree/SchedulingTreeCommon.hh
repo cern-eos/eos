@@ -150,7 +150,44 @@ public:
 	// it MUST be necessary to the decision making process
 	//enum tStatus { Drainer = 1<<1, Draining = 1<<2, Balancer = 1<<3, Balancing = 1<<4, Available = 1<<5, Readable = 1<<6, Writable = 1<<7, All = ~0, None = 0 };
 	enum tStatus
-	{	Drainer = 1, Draining = 1<<1, Balancer = 1<<2, Balancing = 1<<3, Available = 1<<4, Readable = 1<<5, Writable = 1<<6, All = ~0, None = 0};
+	{	Drainer = 1, Draining = 1<<1, Balancer = 1<<2, Balancing = 1<<3, Available = 1<<4, Readable = 1<<5, Writable = 1<<6, Disabled = 1<<7, All = ~0, None = 0};
+	static std::string fsStatusToStr(int16_t s)
+	{
+	  std::string out="";
+	  if(s&Disabled) out = +"DIS";
+	  if(!(s&Available)) out = +"Unv";
+	  if(s&Balancer) out = out + "Bin";
+	  if(s&Balancing) out = out + "Bout";
+	  if(s&Drainer) out = out + "Din";
+	  if(s&Draining) out = out + "Dout";
+	  if(s&Writable)
+	  {
+	    if(s&Readable)
+	      out = out +"RW";
+	    else
+	      out = out +"WO";
+	  }
+	  else
+          {
+            if(s&Readable)
+              out = out +"RO";
+            else
+              out = out +"noIO";
+          }
+
+	  return out;
+	}
+
+        static std::string intermediateStatusToStr(int16_t s)
+        {
+          std::string out="";
+          if(s&Disabled) out = +"Dis";
+          if(!(s&Available)) out = +"Unv";
+          if(out.empty())
+            out="OK";
+          return out;
+        }
+
 	template<typename T>
 	struct TreeNodeState
 	{
@@ -166,41 +203,6 @@ public:
 		//half mTotalSpace; // this brings 10% speed improvement and also a lower memory footprint but add yet another dependency
 		float totalSpace;
 		T fillRatio;
-
-		bool
-		// the following function implements the way the state of nodes are summarize into the father branch
-		// this function is not incremental because it allows to compute more advanced metrics than just incremental
-		// the drawback is that it's called online when building the FastTree but as an extra step of this process.
-		aggregate(const tSelf *beg, const tSelf *end, size_t stride = sizeof(tSelf))
-		{
-			double _mDlScore = 0;
-			double _mUlScore = 0;
-			double _mFillRatio = 0;
-			double _mTotalSpace = 0;
-			int count=0;
-
-			for (const tSelf *it = beg; it < end; it=(const tSelf*)((char*)it+stride))
-			{
-				bool availableBranch = ( (it->mStatus & Available) != 0);
-				if(availableBranch)
-				{
-					if(it->dlScore>0) _mDlScore += it->dlScore;
-					if(it->ulScore>0) _mUlScore += it->ulScore;
-					_mTotalSpace += it->totalSpace;
-					_mFillRatio += it->fillRatio * it->totalSpace;
-					count++;
-					/// not a good idea to propagate the availability as we want to be able to make a branch as unavailable regardless of the status of the leaves
-					mStatus = (SchedTreeBase::tStatus) (mStatus | (it->mStatus & ~Available) );// an intermediate node tell if a leave having is given status in under it or not
-				}
-			}
-			if (_mTotalSpace)
-			_mFillRatio /= _mTotalSpace;
-			dlScore = (T)(_mDlScore/count);
-			ulScore = (T)(_mUlScore/count);
-			fillRatio = (T)_mFillRatio;
-			totalSpace = (float)_mTotalSpace;
-			return true;
-		}
 	};
 
 	struct TreeNodeSlots
@@ -218,35 +220,6 @@ public:
 		avgDlScore(0),avgUlScore(0),
 		maxDlScore(0),maxUlScore(0)
 		{}
-
-		// the following function implements the way the state of nodes are summarize into the father branch
-		// this function is not incremental because it allows to compute more advanced metrics than just incremental
-		// the drawback is that it's called online when building the FastTree but as an extra step of this process.
-		// this function is used in the SlowTree. !! the FastTree uses an online implementation
-		template<typename T> bool
-		aggregate(const tSelf *beg, const tSelf *end,const TreeNodeState<T> *begSt, const TreeNodeState<T> *endSt, size_t stride = sizeof(TreeNodeState<T>), size_t strideSt = sizeof(tSelf))
-		{
-			takenSlotsCount = 0;
-			freeSlotsCount = 0;
-			unsigned long long sumUlScore= 0;
-			unsigned long long sumDlScore= 0;
-                        maxDlScore = 0;
-                        maxUlScore = 0;
-			const TreeNodeState<T> *tnsIt = begSt;
-			for (const tSelf *it = beg; it < end; it= (tSelf*)((char*)it+stride))
-			{
-				takenSlotsCount += it->takenSlotsCount;
-				freeSlotsCount += it->freeSlotsCount;
-				sumUlScore += it->avgUlScore * it->freeSlotsCount;
-				sumDlScore += it->avgDlScore * it->freeSlotsCount;
-				if(maxUlScore<it->avgUlScore) maxUlScore = it->avgUlScore;
-				if(maxDlScore<it->avgDlScore) maxDlScore = it->avgDlScore;
-				tnsIt = (const TreeNodeState<T>*)((char*)tnsIt+strideSt);
-			}
-			avgDlScore = freeSlotsCount?sumDlScore/freeSlotsCount:0;
-			avgUlScore = freeSlotsCount?sumUlScore/freeSlotsCount:0;
-			return true;
-		}
 	};
 
 	typedef TreeNodeState<char> TreeNodeStateChar;
@@ -280,8 +253,15 @@ public:
 
 		// lexicographic order
 
+	        // -2 - Should not be disabled
+                int16_t mask = Disabled;
+                if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+                  return 1;
+                if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+                  return -1;
+
 		// -1 - Should be a drainer
-		const int16_t mask = Available|Writable;
+		mask = Available|Writable;
 		if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
 		return 1;
 		if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
@@ -342,7 +322,14 @@ public:
 
 		// lexicographic order
 
-		const int16_t mask = Available|Readable;
+                // -2 - Should not be disabled
+                int16_t mask = Disabled;
+                if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+                  return 1;
+                if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+                  return -1;
+
+		mask = Available|Readable;
 		if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
 		return 1;
 		if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
@@ -363,9 +350,15 @@ public:
 	compareDrnPlct(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
 			const TreeNodeSlots* const &rightp, const char &spreadingFillRatioCap, const char &fillRatioCompTol)
 	{
-		// lexicographic order
+	        // -2 - Should not be disabled
+                int16_t mask = Disabled;
+                if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+                  return 1;
+                if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+                  return -1;
+
 		// -1 - Should be a drainer
-		const int16_t mask = Available|Writable|Drainer;
+		mask = Available|Writable|Drainer;
 		if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
 		return 1;
 		if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
@@ -414,9 +407,16 @@ public:
 	compareDrnAccess(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
 			const TreeNodeSlots* const &rightp)
 	{
+                // -2 - Should not be disabled
+                int16_t mask = Disabled;
+                if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+                  return 1;
+                if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+                  return -1;
+
 		// lexicographic order
 		// -1 - Should be a draining
-		const int16_t mask = Available|Readable;
+		mask = Available|Readable;
 		if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
 		return 1;
 		if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
@@ -438,8 +438,15 @@ public:
 			const TreeNodeSlots* const &rightp, const char &spreadingFillRatioCap, const char &fillRatioCompTol)
 	{
 		// lexicographic order
+                // -2 - Should not be disabled
+                int16_t mask = Disabled;
+                if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+                  return 1;
+                if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+                  return -1;
+
 		// -1 - Should be a balancer
-		const int16_t mask = Available|Writable|Balancer;
+		mask = Available|Writable|Balancer;
 		if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
 		return 1;
 		if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
@@ -488,9 +495,16 @@ public:
 	compareBlcAccess(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
 			const TreeNodeSlots* const &rightp, const char &spreadingFillRatioCap, const char &fillRatioCompTol)
 	{
+                // -2 - Should not be disabled
+                int16_t mask = Disabled;
+                if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+                  return 1;
+                if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+                  return -1;
+
 		// lexicographic order
 		// -1 - Should be a balancing
-		const int16_t mask = Available|Readable;
+		mask = Available|Readable;
 		if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
 		return 1;
 		if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )

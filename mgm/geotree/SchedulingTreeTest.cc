@@ -52,6 +52,8 @@ size_t nAvailableFsDrnPlct;
 size_t nAvailableFsBlcPlct;
 size_t nAvailableFsROAccess;
 size_t nAvailableFsRWAccess;
+size_t nUnavailFs;
+size_t nDisabledFs;
 
 // trim from start
 static inline std::string &ltrim(std::string &s)
@@ -274,6 +276,8 @@ int main()
 		nAvailableFsBlcPlct = 0;
 		nAvailableFsROAccess = 0;
 		nAvailableFsRWAccess = 0;
+		nUnavailFs = 0;
+		nDisabledFs = 0;
 		for (set<pair<string, string> >::const_iterator it = sgit->begin(); it != sgit->end(); it++)
 		{
 			SchedTreeBase::TreeNodeInfo info;
@@ -289,8 +293,16 @@ int main()
 			state.totalSpace = 2e12;
 
 			int r = rand();
-			if (r < RAND_MAX / 64)
+			if (r < RAND_MAX / 64) // make 1/64 th unavailable
+			{
 				state.mStatus = (SchedTreeBase::tStatus) (state.mStatus & ~SchedTreeBase::Available);
+				nUnavailFs++;
+			}
+			else if (! (r%16) ) // make 1/16 th disabled
+			{
+                                state.mStatus = (SchedTreeBase::tStatus) (state.mStatus | SchedTreeBase::Disabled);
+                                nDisabledFs++;
+			}
 			else
 			{
 				nAvailableFsPlct++;
@@ -345,7 +357,7 @@ int main()
 		cout << "group " << std::setw(3) << idx << "\tnAvailableFsROAccess = " << std::setw(3) << nAvailableFsROAccess
 				<< "\tnAvailableFsRWAccess = " << std::setw(3) << nAvailableFsRWAccess << "\tnAvailableFsPlct = " << std::setw(3) << nAvailableFsPlct
 				<< "\tnAvailableFsBlcPlct = " << std::setw(3) << nAvailableFsBlcPlct << "\tnAvailableFsDrnPlct = " << std::setw(3)
-				<< nAvailableFsDrnPlct << std::endl;
+				<< nAvailableFsDrnPlct << "\tnUnavailFs = " << std::setw(3) << nUnavailFs<< "\tnDisabledFs = " << std::setw(3) << nDisabledFs <<std::endl;
 
 		// allocate the memory for the content of the FastTree
 		fptrees[idx].selfAllocate(trees[idx].getNodeCount());
@@ -409,21 +421,33 @@ int main()
 		if (idx == schedGroups.size() - 1)
 		{
 			// display the SlowTree
-			cout << "====== Illustrating the display of a SlowTree ======" << std::endl;
-			cout << trees[idx] << endl;
+		        cout << "====== Illustrating the display of a SlowTree ======" << std::endl;
+                        cout << trees[idx] << endl;
+                        cout << "====================================================" << std::endl << std::endl;
+                        cout << "====== Illustrating the color display of a SlowTree ======" << std::endl;
+                        trees[idx].display(cout,true);
+                        cout << endl;
 			cout << "====================================================" << std::endl << std::endl;
 			// display the FastTree
-			cout << "====== Illustrating the display of a Placement FastTree ======" << std::endl;
-			cout << fptrees[idx] << endl;
-			cout << "==============================================================" << std::endl << std::endl;
+                        cout << "====== Illustrating the display of a Placement FastTree ======" << std::endl;
+                        cout << fptrees[idx] << endl;
+                        cout << "==============================================================" << std::endl << std::endl;
+                        cout << "====== Illustrating the color display of a Placement FastTree ======" << std::endl;
+                        fptrees[idx].recursiveDisplay(cout,true);
+                        cout<< endl;
+                        cout << "==============================================================" << std::endl << std::endl;
 			// display the FastTree
-			cout << "====== Illustrating the display of an Access FastTree ======" << std::endl;
-			cout << froatrees[idx] << endl;
-			cout << "============================================================" << std::endl << std::endl;
+                        cout << "====== Illustrating the display of an Access FastTree ======" << std::endl;
+                        cout << froatrees[idx] << endl;
+                        cout << "============================================================" << std::endl << std::endl;
+                        cout << "====== Illustrating the color display of an Access FastTree ======" << std::endl;
+                        froatrees[idx].recursiveDisplay(cout,true);
+                        cout<< endl;
+                        cout << "============================================================" << std::endl << std::endl;
 			// display the info array related to the fast tree
-			cout << "====== Illustrating the display of a Tree Nodes Information Table ======" << std::endl;
-			cout << ftinfos[idx];
-			cout << "=========================================================================" << std::endl << std::endl;
+                        cout << "====== Illustrating the display of a Tree Nodes Information Table ======" << std::endl;
+                        cout << ftinfos[idx];
+                        cout << "=========================================================================" << std::endl << std::endl;
 			// display the mapping from fs to FastTree nodes
 			cout << "====== Illustrating the display of a Fs2TreeIdxMap ======" << std::endl;
 			cout << ftmaps[idx];

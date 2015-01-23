@@ -123,7 +123,7 @@ public:
 	}
 
 	std::ostream& display(std::ostream &os) const;
-	std::ostream& recursiveDisplay(std::ostream &os, const std::string &prefix="") const;
+	std::ostream& recursiveDisplay(std::ostream &os, bool useColors=false, const std::string &prefix="") const;
 };
 
 inline std::ostream& operator << (std::ostream &os, const SlowTreeNode &treenode)
@@ -178,7 +178,7 @@ public:
 	SlowTreeNode* moveToNewGeoTag(SlowTreeNode* node, const std::string newGeoTag);
 	size_t getNodeCount() const
 	{	return pNodeCount;}
-	std::ostream& display(std::ostream &os) const;
+	std::ostream& display(std::ostream &os, bool useColors=false) const;
 
 	bool buildFastStrctures(
 			FastPlacementTree *fpt, FastROAccessTree *froat, FastRWAccessTree *frwat,
