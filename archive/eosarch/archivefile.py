@@ -531,7 +531,7 @@ class ArchiveFile(object):
                             self.logger.error(err_msg)
                             raise CheckEntryException("failed metainfo match")
                     else:
-                        for kxattr, vxattr in val:
+                        for kxattr, vxattr in val.iteritems():
                             if kxattr not in excl_xattr:
                                 if vxattr != new_dict[key][kxattr]:
                                     err_msg = ("Verify failed for entry={0} expect={1} got={2}"
