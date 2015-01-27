@@ -423,12 +423,22 @@ TransferEngine::Scheduler()
 	  eos::common::RWMutexReadLock gwlock(FsView::gFsView.GwMutex);
 
 	  gwpos++;
-	  size_t gwnpos = gwpos%FsView::gFsView.mGwNodes.size();
+	  size_t gwnpos = gwpos%(FsView::gFsView.mGwNodes.size()?FsView::gFsView.mGwNodes.size():1);
 	  it = FsView::gFsView.mGwNodes.begin();
 	  std::advance(it, gwnpos);
 	
-	  eos_static_info("selected gw: %s", it->c_str());
-
+	  if (it != FsView::gFsView.mGwNodes.end()) {
+	    eos_static_info("selected gw: %s", it->c_str());
+	  } else {
+	    XrdSysThread::SetCancelOn();
+	    eos_static_info("msg=\"now gw available to run transfer\"");
+	    for (size_t i=0; i< 60; i++) {
+	      XrdSysTimer sleeper;
+	      sleeper.Wait(1000);
+	      XrdSysThread::CancelPoint();
+	    }
+	  }
+	  
 	  // ------------------------------------------------------------------------
 	  // assemble a transfer job
 	  // ------------------------------------------------------------------------
