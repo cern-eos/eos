@@ -74,7 +74,7 @@ A second third party modul, nginx-auth-ldap has been added.
 %setup -q -n nginx-%{version}
 
 #%patch0 -p0
-#%patch4 -p1
+%patch4 -p1
 
 #%patch1 -p0
 #%patch2 -p0
