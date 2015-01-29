@@ -49,7 +49,7 @@ com_geosched (char* arg1)
   if (wants_help(arg1))
     goto com_geosched_usage;
 
-  if ((cmd != "show") && (cmd != "set") && (cmd != "updater") && (cmd != "forcerefresh"))
+  if ((cmd != "show") && (cmd != "set") && (cmd != "updater") && (cmd != "forcerefresh") && (cmd != "disabled"))
   {
     goto com_geosched_usage;
   }
@@ -171,6 +171,53 @@ com_geosched (char* arg1)
       in += "&mgm.subcmd=forcerefresh";
   }
 
+  if (cmd == "disabled")
+  {
+    XrdOucString subcmd = subtokenizer.GetToken();
+    XrdOucString geotag,group,optype;
+
+    if ((subcmd != "add") && (subcmd != "rm") && (subcmd != "show"))
+    {
+      goto com_geosched_usage;
+    }
+
+    geotag = subtokenizer.GetToken();
+    optype = subtokenizer.GetToken();
+    group = subtokenizer.GetToken();
+
+    if(!group.length() || !optype.length() || !geotag.length())
+      goto com_geosched_usage;
+
+    std::string sgroup(group.c_str()),soptype(optype.c_str()),sgeotag(geotag.c_str());
+    const char fbdChars[] = "&/,;%$#@!*";
+    auto fbdMatch =  sgroup.find_first_of(fbdChars);
+    if(fbdMatch!=std::string::npos && !(sgroup=="*"))
+    {
+      fprintf(stdout, "illegal character %c detected in group name %s\n",sgroup[fbdMatch],sgroup.c_str());
+      return 0;
+    }
+    fbdMatch =  soptype.find_first_of(fbdChars);
+    if(fbdMatch!=std::string::npos && !(soptype=="*"))
+    {
+      fprintf(stdout, "illegal character %c detected in optype %s\n",soptype[fbdMatch],soptype.c_str());
+      return 0;
+    }
+    fbdMatch =  sgeotag.find_first_of(fbdChars);
+    if(fbdMatch!=std::string::npos && !(sgeotag=="*" && subcmd!="add") )
+    {
+      fprintf(stdout, "illegal character %c detected in geotag %s\n",sgeotag[fbdMatch],sgeotag.c_str());
+      return 0;
+    }
+
+    in += ("&mgm.subcmd=disabled"+subcmd); // mgm.subcmd is  disabledadd or disabledrm or disabledshow
+
+    if(geotag.length())
+      in += ("&mgm.geotag="+geotag);
+
+    in += ("&mgm.schedgroup="+group);
+    in += ("&mgm.optype="+optype);
+
+  }
   global_retc = output_result(client_admin_command(in));
   return (0);
 
@@ -189,5 +236,10 @@ com_geosched_usage:
   fprintf(stdout, "       geosched set <param name> [param index] <param value>              :  set the value of an internal state parameter (all names can be listed with geosched show state) \n");
   fprintf(stdout, "       geosched updater {pause|resume}                                    :  pause / resume the tree updater\n");
   fprintf(stdout, "       geosched forcerefresh                                              :  force a refresh of the trees/snapshots\n");
+  fprintf(stdout, "       geosched disabled add <geotag> {<optype>,*} {<scheduling subgroup>,*}     :  disable a branch of a subtree for the specified group and operation\n");
+  fprintf(stdout, "                                                                                 :  multiple branches can be disabled (by successive calls) as long as they have no intersection\n");
+  fprintf(stdout, "       geosched disabled rm {<geotag>,*} {<optype>,*} {<scheduling subgroup>,*}  :  re-enable a disabled branch for the specified group and operation\n");
+  fprintf(stdout, "                                                                                 :  when called with <geotag> *, the whole tree(s) are re-enabled, canceling all previous disabling\n");
+  fprintf(stdout, "       geosched disable show {<geotag>,*} {<optype>,*} {<scheduling subgroup>,*} :  show list of disabled branches for for the specified groups and operation\n");
   return (0);
 }

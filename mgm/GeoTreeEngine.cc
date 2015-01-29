@@ -132,8 +132,8 @@ bool GeoTreeEngine::forceRefresh()
   pTreeMapMutex.LockWrite();
 
   // mark all fs needing a refresh for all the watched attributes
-  for(auto it=gNotificationsBuffer.begin(); it!=gNotificationsBuffer.end(); it++)
-    it->second= (~0);
+  for(auto it=pFsId2FsPtr.begin(); it!=pFsId2FsPtr.end(); it++)
+    gNotificationsBuffer[it->second->GetQueuePath()]=(~0);
 
   for(auto it = pGroup2TreeMapEntry.begin(); it != pGroup2TreeMapEntry.end(); it++)
   {
@@ -179,6 +179,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
     else
     {
       mapEntry = new TreeMapEntry(group->mName.c_str());
+      updateFastStruct = true; // force update to be sure that the fast structures are properly created
 #ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
 #ifdef EOS_INSTRUMENTED_RWMUTEX
       char buffer[64],buffer2[64];
@@ -261,7 +262,6 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
   }
 
   SchedTreeBase::TreeNodeStateFloat state;
-
   // try to insert the new node in the Slowtree
   SlowTreeNode *node = mapEntry->slowTree->insert(&info,&state);
   if(node==NULL)
@@ -304,8 +304,6 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
       );
       return false;
     }
-    //gNotificationsBuffer[fs->GetQueuePath()]=(~0); // request a full fast tree information update
-    //eos_debug("prepreCHANGE BITFIELD %x",gNotificationsBuffer[fs->GetQueuePath()]);
   }
 
   // update all the information about this new node
@@ -626,43 +624,36 @@ void GeoTreeEngine::printInfo(std::string &info,
       if(optype.empty() || (optype == "plct") )
       {
 	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Placement\' :" << std::endl;
-	//ostr << *it->second->foregroundFastStruct->placementTree << std::endl;
 	it->second->foregroundFastStruct->placementTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "accsro") )
       {
 	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Access RO\' :" << std::endl;
-	//ostr << *it->second->foregroundFastStruct->rOAccessTree << std::endl;
 	it->second->foregroundFastStruct->rOAccessTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "accsrw") )
       {
 	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Access RW\' :" << std::endl;
-	//ostr << *it->second->foregroundFastStruct->rWAccessTree << std::endl;
 	it->second->foregroundFastStruct->rWAccessTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "accsdrain") )
       {
 	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Access\' :" << std::endl;
-	//ostr << *it->second->foregroundFastStruct->drnAccessTree << std::endl;
 	it->second->foregroundFastStruct->drnAccessTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "plctdrain") )
       {
 	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Placement\' :" << std::endl;
-	//ostr << *it->second->foregroundFastStruct->drnPlacementTree << std::endl;
 	it->second->foregroundFastStruct->drnPlacementTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "accsblc") )
       {
 	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Balancing Access\' :" << std::endl;
-	//ostr << *it->second->foregroundFastStruct->blcAccessTree << std::endl;
 	it->second->foregroundFastStruct->blcAccessTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "plctblc") )
       {
 	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Placement\' :" << std::endl;
-	//ostr << *it->second->foregroundFastStruct->blcPlacementTree << std::endl;
 	it->second->foregroundFastStruct->blcPlacementTree->recursiveDisplay(ostr,useColors)<<endl;
       }
     }
@@ -2211,7 +2202,7 @@ bool GeoTreeEngine::setAccessUlScorePenalty(char value, int netSpeedClass)
 
 bool GeoTreeEngine::setPlctDlScorePenalty(const char *value)
 {
-  return setScorePenalty(pPlctDlScorePenaltyF,pPlctDlScorePenalty,value,"plctulscorepenalty");
+  return setScorePenalty(pPlctDlScorePenaltyF,pPlctDlScorePenalty,value,"plctdlscorepenalty");
 }
 bool GeoTreeEngine::setPlctUlScorePenalty(const char *value)
 {
@@ -2232,7 +2223,7 @@ bool GeoTreeEngine::setFillRatioLimit(char value)
 }
 bool GeoTreeEngine::setFillRatioCompTol(char value)
 {
-  return setInternalParam(pFillRatioCompTol,value,true,"fillratiocomtol");
+  return setInternalParam(pFillRatioCompTol,value,true,"fillratiocomptol");
 }
 bool GeoTreeEngine::setSaturationThres(char value)
 {
@@ -2245,30 +2236,6 @@ bool GeoTreeEngine::setTimeFrameDurationMs(int value)
 bool GeoTreeEngine::setPenaltyUpdateRate(float value)
 {
   return setInternalParam(pPenaltyUpdateRate,value,false,"penaltyupdaterate");
-}
-
-bool GeoTreeEngine::dumpParameters( std::map<std::string,std::string> &params)
-{
-  std::stringstream ss;
-#define writeParamToMap(PARAM,CAST) { ss.str(""); ss << (CAST)PARAM; std::string p=#PARAM; std::transform(p.begin(), p.end(),p.begin(), ::toupper); params[p.substr(1)]=ss.str(); }
-#define writeParamVToMap(PARAM,CAST) { ss.str(""); std::string p=#PARAM; std::transform(p.begin(), p.end(),p.begin(), ::toupper); std::string q; for(auto it=PARAM.begin();it!=PARAM.end();it++) {ss << "," << (CAST)*it; } params[p.substr(1)]="["+q.substr(1)+"]"; }
-  writeParamToMap(pTimeFrameDurationMs,int);
-  writeParamToMap(pSaturationThres,int);
-  writeParamToMap(pFillRatioCompTol,int);
-  writeParamToMap(pFillRatioLimit,int);
-  writeParamVToMap(pAccessUlScorePenalty,int);
-  writeParamVToMap(pAccessDlScorePenalty,int);
-  writeParamVToMap(pPlctUlScorePenalty,int);
-  writeParamVToMap(pPlctDlScorePenalty,int);
-  writeParamToMap(pSkipSaturatedBlcPlct,int);
-  writeParamToMap(pSkipSaturatedBlcPlct,int);
-  writeParamToMap(pSkipSaturatedDrnPlct,int);
-  writeParamToMap(pSkipSaturatedBlcAccess,int);
-  writeParamToMap(pSkipSaturatedDrnAccess,int);
-  writeParamToMap(pSkipSaturatedAccess,int);
-  writeParamToMap(pSkipSaturatedPlct,int);
-  writeParamToMap(pPenaltyUpdateRate,float);
-  return true;
 }
 
 bool GeoTreeEngine::setParameter( std::string param, const std::string &value,int iparamidx)
@@ -2351,6 +2318,35 @@ bool GeoTreeEngine::setParameter( std::string param, const std::string &value,in
   {
     ok = gGeoTreeEngine.setPenaltyUpdateRate((float)dval);
   }
+  else if(param == "disabledbranches")
+  {
+    ok = true;
+    if(value.size()>4)
+    {
+      // first, clear the list of disabled branches
+      gGeoTreeEngine.rmDisabledBranch("*","*","*",NULL);
+      eos_warning("disablebranches full line %s",value.c_str());
+      // remove leading and trailing square brackets
+      string list(value.substr(2,value.size()-4));
+      // from the end to avoid reallocation of the string
+      size_t idxl,idxr;
+      while((idxr=list.rfind(')'))!=std::string::npos && ok)
+      {
+        idxl=list.rfind('(');
+        eos_warning("disablebranches full token %s",value.c_str()+idxl);
+        auto comidx = list.find(',',idxl);
+        string geotag(list.substr(idxl+1,comidx-idxl-1));
+        eos_warning("geotag token %s",geotag.c_str());
+        auto comidx2 = list.find(',',comidx+1);
+        string optype(list.substr(comidx+1,comidx2-comidx-1));
+        eos_warning("optype token %s",optype.c_str());
+        string group(list.substr(comidx2+1,idxr-comidx2-1));
+        eos_warning("group token %s",group.c_str());
+        ok = ok && gGeoTreeEngine.addDisabledBranch(group,optype,geotag,NULL);
+        list.erase(idxl,std::string::npos);
+      }
+    }
+  }
   return ok;
 }
 
@@ -2361,5 +2357,189 @@ void GeoTreeEngine::setConfigValue (const char* prefix,
 {
   gOFS->ConfEngine->SetConfigValue(prefix,key,val,tochangelog);
 }
+
+bool GeoTreeEngine::markPendingBranchDisablings(const std::string &group, const std::string&optype, const std::string&geotag)
+{
+  for(auto git = pGroup2TreeMapEntry.begin(); git != pGroup2TreeMapEntry.end(); git++)
+  {
+    RWMutexReadLock lock(git->second->doubleBufferMutex);
+    if(group=="*" || git->first->mName==group)
+    {
+      git->second->slowTreeModified = true;
+    }
+  }
+  return true;
+}
+
+bool GeoTreeEngine::applyBranchDisablings(const TreeMapEntry& entry)
+{
+  for(auto mit = pDisabledBranches.begin(); mit != pDisabledBranches.end(); mit++)
+  {
+    // should I lock configMutex or is it already locked?
+    const std::string &group(mit->first);
+    if(group!="*" && entry.group->mName!=group)
+    continue;
+
+    for(auto oit = mit->second.begin(); oit != mit->second.end(); oit++)
+    {
+      const std::string &optype(oit->first);
+      for(auto geoit = oit->second.begin(); geoit != oit->second.end(); geoit++)
+      {
+        const std::string &geotag(*geoit);
+        auto idx = entry.backgroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(geotag.c_str());
+
+        // check there is an exact geotag match
+        if((*entry.backgroundFastStruct->treeInfo)[idx].fullGeotag!=geotag)
+          continue;
+
+        if(optype=="*" || optype=="plct")
+          entry.backgroundFastStruct->placementTree->disableSubTree(idx);
+        if(optype=="*" || optype=="accsro")
+          entry.backgroundFastStruct->rOAccessTree->disableSubTree(idx);
+        if(optype=="*" || optype=="accsrw")
+          entry.backgroundFastStruct->rWAccessTree->disableSubTree(idx);
+        if(optype=="*" || optype=="plctdrain")
+          entry.backgroundFastStruct->drnPlacementTree->disableSubTree(idx);
+        if(optype=="*" || optype=="accsdrain")
+          entry.backgroundFastStruct->drnAccessTree->disableSubTree(idx);
+        if(optype=="*" || optype=="plctblc")
+          entry.backgroundFastStruct->blcPlacementTree->disableSubTree(idx);
+        if(optype=="*" || optype=="accsblc")
+          entry.backgroundFastStruct->blcAccessTree->disableSubTree(idx);
+      }
+    }
+  }
+  return true;
+}
+
+bool GeoTreeEngine::addDisabledBranch (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output, bool toConfig)
+{
+  eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
+  eos::common::RWMutexWriteLock lock2(pTreeMapMutex);
+  eos::common::RWMutexWriteLock lock3(configMutex);
+
+  std::vector<std::string> intersection;
+  // do checks
+  // go through the potentially intersecting groups
+  auto git_begin = group=="*"?pDisabledBranches.begin():pDisabledBranches.find(group);
+  auto git_end = group=="*"?pDisabledBranches.end():pDisabledBranches.find(group);
+  if(git_end!=pDisabledBranches.end()) git_end++;
+  for(auto git=git_begin;git!=git_end;git++)
+  {
+    // go through the potentially intersecting optypes
+    auto oit_begin = optype=="*"?git->second.begin():git->second.find(group);
+    auto oit_end = optype=="*"?git->second.end():git->second.find(group);
+    if(oit_end!=git->second.end()) oit_end++;
+    for(auto oit=oit_begin;oit!=oit_end;oit++)
+    {
+      XrdOucString toinsert(geotag.c_str());
+      // check that none of the disabled geotag is a prefix of the current one and the other way around
+      for(auto geoit=oit->second.begin();geoit!=oit->second.end();geoit++)
+      {
+        XrdOucString alreadyThere(geoit->c_str());
+        if(alreadyThere.beginswith(toinsert) || toinsert.beginswith(alreadyThere))
+        {
+          intersection.push_back( std::string("(") + geotag.c_str() + std::string(",") + oit->first + std::string(",") + git->first + std::string(")") + std::string(alreadyThere.c_str()) );
+        }
+      }
+    }
+  }
+
+  if(intersection.size())
+  {
+    if(output)
+    {
+    output->append( (std::string("unable to add disabled branch : ")
+        + std::string("(") + geotag + std::string(",") + optype + std::string(",") + geotag +
+        std::string(") clashes with : ")).c_str() );
+    for(auto iit = intersection.begin();iit!=intersection.end();iit++)
+      output->append((*iit+" , ").c_str());
+    }
+    return false;
+  }
+
+  // update the internal value
+  pDisabledBranches[group][optype].insert(geotag);
+
+  // to apply the new set of rules, mark the involved slow trees as modified to force a refresh
+  markPendingBranchDisablings(group,optype,geotag);
+
+  // update the config
+  if(toConfig)
+  {
+    XrdOucString outStr("[ ");
+    showDisabledBranches("*","*","*",&outStr,false);
+    outStr.replace(")\n(",") , ("); outStr.replace(")\n",")");
+    outStr += " ]";
+    setConfigValue("geosched","disabledbranches" , outStr.c_str());
+  }
+  return true;
+}
+
+bool GeoTreeEngine::rmDisabledBranch (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output)
+{
+  eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
+  eos::common::RWMutexWriteLock lock2(pTreeMapMutex);
+  eos::common::RWMutexWriteLock lock3(configMutex);
+
+  bool found = false;
+  if(group=="*" && optype=="*" && geotag=="*")
+  {
+    found = true;
+    eos_notice("clearing disabled branch list in GeoTreeEngine");
+    pDisabledBranches.clear();
+  }
+  else if(pDisabledBranches.count(group))
+  {
+    if(pDisabledBranches[group].count(optype))
+    {
+      found = (bool)pDisabledBranches[group][optype].erase(geotag);
+    }
+  }
+
+  if(!found)
+  {
+    if(output) output->append( (std::string("could not find disabled branch : ")
+                  + std::string("(") + group + std::string(" , ") + optype + std::string(") -> ") + geotag).c_str()
+                  );
+  }
+  else
+  {
+    // to apply the new set of rules, mark the involved slow trees as modified to force a refresh
+    markPendingBranchDisablings(group,optype,geotag);
+
+    // update the config
+    XrdOucString outStr("[ ");
+    showDisabledBranches("*","*","*",&outStr,false);
+    outStr.replace(")\n(",") , ("); outStr.replace(")\n",")");
+    outStr += " ]";
+    setConfigValue("geosched","disabledbranches" , outStr.c_str());
+  }
+
+  return found;
+}
+
+bool GeoTreeEngine::showDisabledBranches (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output, bool lock)
+{
+  if(lock) configMutex.LockRead();
+
+  for(auto git = pDisabledBranches.begin(); git != pDisabledBranches.end(); git++)
+  {
+    if(group=="*" || group==git->first)
+    for(auto oit = git->second.begin(); oit!=git->second.end(); oit++)
+    {
+      if(optype=="*" || optype==oit->first)
+      for(auto geoit = oit->second.begin(); geoit !=oit->second.end(); geoit++)
+      {
+        if(geotag=="*" || geotag==*geoit)
+        if(output) output->append( (std::string("(") + *geoit + std::string(",") + oit->first + std::string(",") + git->first + std::string(")\n")).c_str() );
+      }
+    }
+  }
+
+  if(lock) configMutex.UnLockRead();
+  return true;
+}
+
 EOSMGMNAMESPACE_END
 

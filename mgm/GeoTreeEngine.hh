@@ -358,7 +358,7 @@ class GeoTreeEngine : public eos::common::LogId
 	SlowTreeNode::TreeNodeStateFloat &slowState = it->second->pNodeState;
 	slowState.dlScore = float(fastState.dlScore)/255;
 	slowState.ulScore = float(fastState.ulScore)/255;
-	slowState.mStatus = fastState.mStatus;
+	slowState.mStatus = fastState.mStatus & ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
 	slowState.fillRatio = float(fastState.fillRatio)/255;
 	slowState.totalSpace = float(fastState.totalSpace);
       }
@@ -380,6 +380,7 @@ class GeoTreeEngine : public eos::common::LogId
 	eos_crit("error updating the fast structures from the slowtree");
 	return false;
       }
+      applyBranchDisablings(*entry);
       if(eos::common::Logging::gLogMask & LOG_DEBUG)
       {
 	stringstream ss;
@@ -502,6 +503,11 @@ protected:
   pTimeFrameDurationMs,
   /// this is how older than a refresh a penalty must be do be dropped
   pPublishToPenaltyDelayMs;
+
+  /// the following settings control the Disabled branches in the trees
+  // group -> (optype -> geotag)
+  std::map<std::string, std::map<std::string,std::set<std::string> > > pDisabledBranches;
+
   //--------------------------------------------------------------------------------------------------------
   //--------------------------------------------------------------------------------------------------------
 
@@ -984,7 +990,30 @@ protected:
     }
     return ret;
   }
-
+  bool markPendingBranchDisablings(const std::string &group, const std::string&optype, const std::string&geotag);
+  bool applyBranchDisablings(const TreeMapEntry& entry);
+  bool setSkipSaturatedPlct(bool value);
+  bool setSkipSaturatedAccess(bool value);
+  bool setSkipSaturatedDrnAccess(bool value);
+  bool setSkipSaturatedBlcAccess(bool value);
+  bool setSkipSaturatedDrnPlct(bool value);
+  bool setSkipSaturatedBlcPlct(bool value);
+  bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const std::vector<char> &value, const std::string &configentry);
+  bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const char* vvalue, const std::string &configentry);
+  bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, char value, int netSpeedClass, const std::string &configentry);
+  bool setPlctDlScorePenalty(char value, int netSpeedClass);
+  bool setPlctUlScorePenalty(char value, int netSpeedClass);
+  bool setAccessDlScorePenalty(char value, int netSpeedClass);
+  bool setAccessUlScorePenalty(char value, int netSpeedClass);
+  bool setPlctDlScorePenalty(const char *value);
+  bool setPlctUlScorePenalty(const char *value);
+  bool setAccessDlScorePenalty(const char *value);
+  bool setAccessUlScorePenalty(const char *value);
+  bool setFillRatioLimit(char value);
+  bool setFillRatioCompTol(char value);
+  bool setSaturationThres(char value);
+  bool setTimeFrameDurationMs(int value);
+  bool setPenaltyUpdateRate(float value);
 public:
   GeoTreeEngine () :
   pSkipSaturatedPlct(false),pSkipSaturatedAccess(true),
@@ -1002,22 +1031,10 @@ public:
   pCircFrCnt2Timestamp(pCircSize),
   pUpdaterTid(0)
   {
-//    setConfigValue("geosched","skipsaturatedplct","0",false);
-//    setConfigValue("geosched","skipsaturatedaccess","1",false);
-//    setConfigValue("geosched","skipsaturateddrnaccess","1",false);
-//    setConfigValue("geosched","skipsaturatedblcaccess","1",false);
-//    setConfigValue("geosched","skipsaturateddrnplct","0",false);
-//    setConfigValue("geosched","skipsaturatedblcplct","0",false);
-//    setConfigValue("geosched","penaltyupdaterate","1");
-//    setConfigValue("geosched","fillratiolimit","80");
-//    setConfigValue("geosched","fillratiocomptol","100");
-//    setConfigValue("geosched","saturationthres","10");
-//    setConfigValue("geosched","timeframedurationms","1000");
-//    setConfigValue("geosched","saturationthres","10");
-//    setConfigValue("geosched","plctdlscorepenalty","10");
-//    setConfigValue("geosched","plctulscorepenalty","10");
-//    setConfigValue("geosched","accessdlscorepenalty","10");
-//    setConfigValue("geosched","accessulscorepenalty","10");
+    // by default, disable all the placement operations for non geotagged fs
+    addDisabledBranch("*","plct","nogeotag",NULL,false);
+    addDisabledBranch("*","accsblc","nogeotag",NULL,false);
+    addDisabledBranch("*","accsdrain","nogeotag",NULL,false);
 
     for(auto it=pCircFrCnt2FsPenalties.begin(); it!=pCircFrCnt2FsPenalties.end(); it++)
       it->reserve(100);
@@ -1255,33 +1272,81 @@ public:
   // ---------------------------------------------------------------------------
   bool StopUpdater();
 
+  // ---------------------------------------------------------------------------
+  //! Get the groups to which belong some fs
+  //! It's faster than accessing the MqHash
+  // @param fsids
+  //   a vector containing the FsIds
+  // @param fsgeotags
+  //   return if non NULL, geotags of the fsids are reported in this vector
+  // @param sortedgroups
+  //   return if non NULL, get the list of groups in decreasing order of number of fs in the list they contain
+  // @return
+  //   true if success false else
+  // ---------------------------------------------------------------------------
   bool getGroupsFromFsIds(const std::vector<FileSystem::fsid_t> fsids, std::vector<std::string> *fsgeotags, std::vector<FsGroup*> *sortedgroups);
 
-  bool setSkipSaturatedPlct(bool value);
-  bool setSkipSaturatedAccess(bool value);
-  bool setSkipSaturatedDrnAccess(bool value);
-  bool setSkipSaturatedBlcAccess(bool value);
-  bool setSkipSaturatedDrnPlct(bool value);
-  bool setSkipSaturatedBlcPlct(bool value);
-  bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const std::vector<char> &value, const std::string &configentry);
-  bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const char* vvalue, const std::string &configentry);
-  bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, char value, int netSpeedClass, const std::string &configentry);
-  bool setPlctDlScorePenalty(char value, int netSpeedClass);
-  bool setPlctUlScorePenalty(char value, int netSpeedClass);
-  bool setAccessDlScorePenalty(char value, int netSpeedClass);
-  bool setAccessUlScorePenalty(char value, int netSpeedClass);
-  bool setPlctDlScorePenalty(const char *value);
-  bool setPlctUlScorePenalty(const char *value);
-  bool setAccessDlScorePenalty(const char *value);
-  bool setAccessUlScorePenalty(const char *value);
-  bool setFillRatioLimit(char value);
-  bool setFillRatioCompTol(char value);
-  bool setSaturationThres(char value);
-  bool setTimeFrameDurationMs(int value);
-  bool setPenaltyUpdateRate(float value);
-  bool dumpParameters( std::map<std::string,std::string> &params);
+  // ---------------------------------------------------------------------------
+  //! Set an internal parameter to a value
+  // @param param
+  //   the name of the parameter to set
+  // @param value
+  //   the value of the parameter to set
+  // @param iparamidx
+  //   in case this parameter is a vector, it's the index of the value to set
+  //   if iparamidx == -1, sets all the values of the elevemets of the vector to the same passed value
+  //   if iparamidx == -2, the value string contains all the values in the vector e.g.: "[2,3,4]"
+  // @return
+  //   true if success false else
+  // ---------------------------------------------------------------------------
   bool setParameter( std::string param, const std::string &value,int iparamidx);
 
+  // ---------------------------------------------------------------------------
+  //! Add a branch disabling rule
+  // @param group
+  //   group name or "*"
+  // @param optype
+  //   "*" or one of the following plct,accsro,accsrw,accsdrain,plctdrain,accsblc,plctblc
+  // @param geotag
+  //   geotag of the branch to disable
+  // @param output
+  //   if non NULL, issue error messages there
+  // @return
+  //   true if success false else
+  // ---------------------------------------------------------------------------
+  bool addDisabledBranch (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output=NULL, bool toConfig=true);
+
+  // ---------------------------------------------------------------------------
+  //! Rm a branch disabling rule
+  // @param group
+  //   group name or "*"
+  // @param optype
+  //   "*" or one of the following plct,accsro,accsrw,accsdrain,plctdrain,accsblc,plctblc
+  // @param geotag
+  //   geotag of the branch to disable
+  // @param output
+  //   if non NULL, issue error messages there
+  // @return
+  //   true if success false else
+  // ---------------------------------------------------------------------------
+  bool rmDisabledBranch (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output=NULL);
+
+  // ---------------------------------------------------------------------------
+  //! Rm a branch disabling rule
+  // @param group
+  //   group name or "*"
+  // @param optype
+  //   "*" or one of the following plct,accsro,accsrw,accsdrain,plctdrain,accsblc,plctblc
+  // @param geotag
+  //   geotag of the branch to disable
+  // @param output
+  //   if non NULL, issue error messages there
+  // @param lock
+  //   lock the config param mutex
+  // @return
+  //   true if success false else
+  // ---------------------------------------------------------------------------
+  bool showDisabledBranches (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output, bool lock=true);
 };
 
 extern GeoTreeEngine gGeoTreeEngine;

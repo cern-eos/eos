@@ -82,6 +82,27 @@ ProcCommand::GeoSched ()
       stdOut += "GeoTreeEngine has been refreshed\n";
       retc = SFS_OK;
     }
+    if(mSubCmd.beginswith("disabled"))
+    {
+      XrdOucString geotag = pOpaque->Get("mgm.geotag");
+      XrdOucString group = pOpaque->Get("mgm.schedgroup");
+      XrdOucString optype = pOpaque->Get("mgm.optype");
+      if(mSubCmd == "disabledadd")
+      {
+        gGeoTreeEngine.addDisabledBranch(group.c_str(),optype.c_str(),geotag.c_str(),&stdOut);
+        retc = SFS_OK;
+      }
+      if(mSubCmd == "disabledrm")
+      {
+        gGeoTreeEngine.rmDisabledBranch(group.c_str(),optype.c_str(),geotag.c_str(),&stdOut);
+        retc = SFS_OK;
+      }
+      if(mSubCmd == "disabledshow")
+      {
+        gGeoTreeEngine.showDisabledBranches(group.c_str(),optype.c_str(),geotag.c_str(),&stdOut);
+        retc = SFS_OK;
+      }
+    }
   }
   else
   {
