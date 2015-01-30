@@ -279,6 +279,8 @@ add_executable(
   checksum/crc32c.cc
   checksum/crc32ctables.cc)
 
+set_target_properties( eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1 )
+
 add_executable(eos-ioping tools/IoPing.cc)
 add_executable(FstLoad Load.cc tools/FstLoad.cc)
 target_link_libraries(
