@@ -6,7 +6,7 @@
 Beryl Release Notes
 ===================
 
-``Version V0.3.92 Beryl-Aquamarine``
+``Version V0.3.93 Beryl-Aquamarine``
 
 Bug Fixes
 ---------
@@ -36,6 +36,7 @@ Bug Fixes
 - various improvements to backup functionality
 - enforce order in chunked uploads
 - disable scanning of w-open files
+- fix 'geotag' client mapping
 
 New Features
 ------------
