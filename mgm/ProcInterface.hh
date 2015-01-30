@@ -259,6 +259,8 @@ private:
   //! @param twindow_type time window type which can refer either to the
   //!        mtime or the ctime
   //! @param twindow_val time window timestamp
+  //! @param excl_xattr set of extended attributes which are not enforced and
+  //         also not checked during the verification step
   //!
   //! @return 0 if successful, otherwise errno. It sets the global retc in case
   //!         of error
@@ -266,7 +268,8 @@ private:
   int BackupCreate(const std::string& backup_dir,
                    const std::string& dst_url,
                    const std::string& twindow_type,
-                   const std::string& twindow_val);
+                   const std::string& twindow_val,
+                   const std::set<std::string>& excl_xattr);
 
 
 public:

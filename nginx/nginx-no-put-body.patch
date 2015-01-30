@@ -1,15 +1,15 @@
---- a/src/http/ngx_http_upstream.c	2013-07-17 14:51:22.000000000 +0200
-+++ b/src/http/ngx_http_upstream.c	2014-11-11 00:33:57.000000000 +0100
-@@ -518,8 +518,10 @@
+--- a/src/http/ngx_http_upstream.c	2015-01-27 16:24:56.000000001 +0100
++++ b/src/http/ngx_http_upstream.c 	2014-09-16 14:23:20.000000001 +0200
+@@ -525,8 +525,10 @@ ngx_http_upstream_init_request(ngx_http_
          r->write_event_handler = ngx_http_upstream_wr_check_broken_connection;
      }
  
 -    if (r->request_body) {
 -        u->request_bufs = r->request_body->bufs;
-+    if (r->method != NGX_HTTP_PUT) {
-+	if (r->request_body) {
-+            u->request_bufs = r->request_body->bufs;
-+        }
++    if (r->method != NGX_HTTP_PUT) {                                                                                                                               
++      if (r->request_body) {                                                                                                                                      
++      u->request_bufs = r->request_body->bufs;                                                                                                               
++      } 
      }
  
      if (u->create_request(r) != NGX_OK) {

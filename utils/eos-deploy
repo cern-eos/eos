@@ -14,7 +14,7 @@ if ( $< ne "0" ) {
     exit(-1);
 }
 
-my $release="beryl";
+my $release="aquamarine";
 
 if ( $#ARGV >= 0 ) {
     if ( ($#ARGV>0) || ($ARGV[0] =~ /-h/ ) ||
@@ -22,7 +22,7 @@ if ( $#ARGV >= 0 ) {
 	   ($ARGV[0] ne "beryl-testing") &&
 	   ($ARGV[0] ne "aquamarine") &&
 	   ($ARGV[0] ne "citrine") ) ) {
-	print "Usage: eos-deploy [ beryl | beryl-testing | aquamarine | citrine ] (default=beryl)\n";
+	print "Usage: eos-deploy [ beryl | beryl-testing | aquamarine | citrine ] (default=aquamarine)\n";
         exit(-1);
     }
     $release=$ARGV[0];
@@ -331,7 +331,7 @@ if ($isalice)  {
     $addpackage ="xrootd-alicetokenacc";
 }
 
-system ("yum erase -y eos-server eos-fuse eos-client eos-cleanup; yum install -y eos-cleanup");
+system ("yum erase -y eos-server eos-fuse eos-client eos-cleanup libmicrohttpd; yum install -y eos-cleanup");
 system ("service nginx stop >& /dev/null");
 printf "# -----------------------------------------------------------------------------------------\n";
 system ("# Clean-up left-over of previous installation ...\n");
@@ -339,7 +339,7 @@ system ("test -e /usr/sbin/eos-mgm-clean && /usr/sbin/eos-mgm-clean --do-cleanup
 system ("test '$cleanfstdisk' = 'yes' &&  unlink /var/eos/md/so.fst.dump >&/dev/null;  test -e /usr/sbin/eos-fst-clean && /usr/sbin/eos-fst-clean --do-cleanup");
 system ("test -e /usr/sbin/eos-log-clean && /usr/sbin/eos-log-clean --do-cleanup");
 
-system ("yum install -y eos-server eos-client eos-nginx eos-fuse eos-test eos-apmon eos-cleanup jemalloc nscd $addpackage");
+system ("yum install --disablerepo=slc6-os,slc6-updates -y eos-server eos-client eos-nginx eos-fuse eos-test eos-apmon eos-cleanup libmicrohttpd-0.9.38 jemalloc nscd $addpackage");
 
 printf "# -----------------------------------------------------------------------------------------\n";
 printf "# Creating your private sss keytab file for you under /etc/eos.keytab ...\n";
@@ -394,6 +394,18 @@ while (<IN>) {
 	print OUTMGM "export EOS_MAIL_CC=\"$email\"\n";
     } else {
 	print OUTMGM "$_\n";
+    }
+    if ($_ =~ /EOS_HTTP_THREADPOOL_SIZE=/) {
+	print OUTMGM "export EOS_HTTP_THREADPOOL_SIZE=32\n";
+	print OUTFST "export EOS_HTTP_THREADPOOL_SIZE=32\n";
+    }
+    if ($_ =~ /EOS_HTTP_THREADPOOL=/) {
+	print OUTMGM "export EOS_HTTP_THREADPOOL=epoll\n";
+	print OUTFST "export EOS_HTTP_THREADPOOL=epoll\n";
+    }
+    if ($_ =~ /EOS_HTTP_CONNECTION_MEMORY_LIMIT=/) {
+	print OUTMGM "export EOS_HTTP_CONNECTION_MEMORY_LIMIT=65536\n";
+	print OUTFST "export EOS_HTTP_CONNECTION_MEMORY_LIMIT=65536\n";
     }
     }
     }
@@ -452,6 +464,7 @@ system("iptables -I INPUT -p tcp --dport 1096 -j ACCEPT");
 system("iptables -I INPUT -p tcp --dport 1097 -j ACCEPT");
 system("iptables -I INPUT -p tcp --dport 8000 -j ACCEPT");
 system("iptables -I INPUT -p tcp --dport 443 -j ACCEPT");
+system("iptables -I INPUT -p tcp --dport 4443 -j ACCEPT");
 system("iptables -I INPUT -p tcp --dport 8443 -j ACCEPT");
 printf "# (Re-)Starting nscd on this host (MGM) ...\n";
 system("service nscd restart");
@@ -506,7 +519,7 @@ if ($hosts eq "") {
     foreach (@remotefsts) {
 	printf "# ... enable $_ as FST ...\n";
 	system(" eos -b node set $_ on\n");
-        system ("ssh $_ \"yum erase -y eos-server eos-client eos-cleanup; yum install -y eos-cleanup\"");
+        system ("ssh $_ \"yum erase -y eos-server eos-client eos-cleanup libmicrohttpd; yum install -y eos-cleanup\"");
         system ("ssh $_ \"test '$cleanfstdisk' = 'yes' && unlink /var/eos/md/so.fst.dump >&/dev/null; /usr/sbin/eos-fst-clean --do-cleanup ; /usr/sbin/eos-log-clean --do-cleanup ; \"");
 	printf "# ... uploading sysconfig to $_ ...\n";
         system("scp /etc/sysconfig/eos.fst $_:/etc/sysconfig/eos");
@@ -516,7 +529,7 @@ if ($hosts eq "") {
         system("scp /etc/yum.repos.d/eos.repo $_:/etc/yum.repos.d/eos.repo");
         system("test -e /etc/yum.repos.d/epel.repo &&scp /etc/yum.repos.d/epel.repo $_:/etc/yum.repos.d/epel.repo");
 
-        system("ssh $_ yum install -y eos-server eos-client nscd jemalloc eos-apmon");
+        system("ssh $_ yum install --disablerepo=slc6-os,slc6-updates -y eos-server eos-client nscd jemalloc eos-apmon libmicrohttpd-0.9.38");
 	printf "# ... creating filesystem paths on $_ ...\n";
         system("ssh $_ \"mkdir -p $fspath; chown daemon:daemon $fspath\" ");
         printf "# ... registering filesystems on $_ ...\n";
@@ -535,7 +548,7 @@ if ($mgm2 ne "") {
     printf "# -----------------------------------------------------------------------------------------\n";
     printf "# Configuring the MGM slave $mgm2 ...\n";
     system("ssh $mgm2 service eosha stop >& /dev/null");
-    system("ssh $mgm2 yum erase -y eos-server eos-fuse eos-cleanup eos-client; yum install -y eos-cleanup");
+    system("ssh $mgm2 yum erase -y eos-server eos-fuse eos-cleanup eos-client libmicrohttpd; yum install -y eos-cleanup");
     system("ssh $mgm2 service nginx stop >& /dev/null");
     system ("# Clean-up left-over of previous installation on $mgm2 ...\n");
     system ("ssh $mgm2 \"test -e /usr/sbin/eos-mgm-clean && /usr/sbin/eos-mgm-clean --do-cleanup\"");
@@ -556,9 +569,9 @@ if ($mgm2 ne "") {
     system("scp /etc/grid-security/certificates/nginx-bundle.pem $mgm2:/etc/grid-security/certificates/nginx-bundle.pem");
     system("ssh $mgm2 yum install -y lcg-CA");
     printf "# -----------------------------------------------------------------------------------------\n";
-    system ("ssh $mgm2 \"yum install -y eos-server eos-client eos-nginx eos-fuse eos-test eos-apmon eos-cleanup jemalloc nscd $addpackage\"");
-    printf "# Disabling temporarily the firewall on port 1094,1096,1097 and 8000,443,8443 on $mgm2\n";
-    system("ssh $mgm2 \"iptables -I INPUT -p tcp --dport 1094 -j ACCEPT ; iptables -I INPUT -p tcp --dport 1096 -j ACCEPT;iptables -I INPUT -p tcp --dport 1097 -j ACCEPT;iptables -I INPUT -p tcp --dport 8000 -j ACCEPT;iptables -I INPUT -p tcp --dport 443 -j ACCEPT; iptables -I INPUT -p tcp --dport 8443 -j ACCEPT\"");
+    system ("ssh $mgm2 \"yum install --disablerepo=slc6-os,slc6-updates -y eos-server eos-client eos-nginx eos-fuse eos-test eos-apmon eos-cleanup libmicrohttpd-0.9.38 jemalloc nscd $addpackage\"");
+    printf "# Disabling temporarily the firewall on port 1094,1096,1097 and 8000,443,4443,8443 on $mgm2\n";
+    system("ssh $mgm2 \"iptables -I INPUT -p tcp --dport 1094 -j ACCEPT ; iptables -I INPUT -p tcp --dport 1096 -j ACCEPT;iptables -I INPUT -p tcp --dport 1097 -j ACCEPT;iptables -I INPUT -p tcp --dport 8000 -j ACCEPT;iptables -I INPUT -p tcp --dport 443 -j ACCEPT; iptables -I INPUT -p tcp --dport 4443 -j ACCEPT; iptables -I INPUT -p tcp --dport 8443 -j ACCEPT\"");
     printf "# Allowing daemon to use /etc/krb5.keytab (MGM) ...\n";
     system("ssh $mgm2 \"test -f /etc/krb5.keytab && chmod 660 /etc/krb5.keytab && chown root:daemon /etc/krb5.keytab\"");
     printf "# (Re-)Starting nscd on $mgm2 (MGM) ...\n";

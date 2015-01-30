@@ -169,8 +169,8 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
   if (request->GetMethod() == "PUT")
   {
 
-    if (((mUploadLeftSize > (4 * 1024 * 1024)) &&
-         ((*request->GetBodySize()) < (4 * 1024 * 1024))))
+    if (((mUploadLeftSize > (1 * 1024 * 1024)) &&
+         ((*request->GetBodySize()) < (1 * 1024 * 1024))))
     {
       // we want more bytes, we don't process this
       eos_static_debug("msg=\"wait for more bytes\" leftsize=%llu uploadsize=%llu",
@@ -237,24 +237,31 @@ HttpHandler::Get (eos::common::HttpRequest *request)
 
   if (mRangeDecodingError)
   {
-    response = HttpServer::HttpError("Illegal Range request",
-                                     response->REQUESTED_RANGE_NOT_SATISFIABLE);
+    mErrCode = response->REQUESTED_RANGE_NOT_SATISFIABLE;
+    mErrText = "Illegal Range request";
+    response = HttpServer::HttpError(mErrText.c_str(),mErrCode);
   }
   else
   {
+    if (mErrCode) {
+      eos_static_err("msg=\"return stored error\" errc=%d errmsg=\"%s\"", mErrCode, mErrText.c_str());
+      response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+      return response;
+    }
+
     if (mRc != SFS_OK)
     {
       if (mRc == SFS_REDIRECT)
       {
-        response = HttpServer::HttpRedirect(request->GetUrl(),
-                                            mFile->error.getErrText(),
-                                            mFile->error.getErrInfo(),
-                                            true);
+	mErrCode = response->INTERNAL_SERVER_ERROR;
+	mErrText = mFile->error.getErrText();
+ 	response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
       }
       else if (mRc == SFS_ERROR)
       {
-        response = HttpServer::HttpError(mFile->error.getErrText(),
-                                         mFile->error.getErrInfo());
+	mErrCode = mFile->error.getErrInfo();
+	mErrText = mFile->error.getErrText();
+        response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
       }
       else if (mRc == SFS_DATA)
       {
@@ -366,6 +373,12 @@ HttpHandler::Put (eos::common::HttpRequest *request)
                   request->GetBodySize());
 
   eos::common::HttpResponse *response = 0;
+  
+  if (mErrCode) {
+    eos_static_err("msg=\"return stored error\" errc=%d errmsg=\"%s\"", mErrCode, mErrText.c_str());
+    response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+    return response;
+  }
 
   if (mRc)
   {
@@ -374,14 +387,16 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       if (mRc == SFS_REDIRECT)
       {
 	// we cannot redirect the PUT at this point, just send an error back
-        response = HttpServer::HttpError(mFile->error.getErrText(),
-                                         mFile->error.getErrInfo());
+	mErrCode = response->INTERNAL_SERVER_ERROR;
+	mErrText = mFile->error.getErrText();
+ 	response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
       }
       else
         if (mRc == SFS_ERROR)
       {
-        response = HttpServer::HttpError(mFile->error.getErrText(),
-                                         mFile->error.getErrInfo());
+	mErrCode = mFile->error.getErrInfo();
+	mErrText = mFile->error.getErrText();
+        response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
       }
       else
         if (mRc == SFS_DATA)
@@ -418,8 +433,9 @@ HttpHandler::Put (eos::common::HttpRequest *request)
 
       if (!eos::common::OwnCloud::getContentSize(request))
       {
-        response = HttpServer::HttpError("Missing total length in OC request",
-                                         response->BAD_REQUEST);
+	mErrCode = response->BAD_REQUEST;
+	mErrText = "Missing total length in OC request";
+        response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
         return response;
       }
 
@@ -432,8 +448,9 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       {
         // there is something inconsistent here
         // HTTP write error
-        response = HttpServer::HttpError("Illegal chunks specified in OC request",
-                                         response->BAD_REQUEST);
+	mErrCode = response->BAD_REQUEST;
+	mErrText = "Illegal chunks specified in OC request";
+        response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
         return response;
       }
 
@@ -468,8 +485,9 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       if (stored != *request->GetBodySize())
       {
         // HTTP write error
-        response = HttpServer::HttpError("Write error occured",
-                                         response->SERVICE_UNAVAILABLE);
+	mErrCode = response->SERVICE_UNAVAILABLE;
+	mErrText = "Write error occured";
+        response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
         return response;
       }
       else
@@ -512,8 +530,10 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       mCloseCode = mFile->close();
       if (mCloseCode)
       {
-        response = HttpServer::HttpError("File close failed",
-                                         response->SERVICE_UNAVAILABLE);
+	mErrCode = response->SERVICE_UNAVAILABLE;
+	mErrText = "File close failed";
+        response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+
         mCloseCode = 0; // we don't want to create a second response down
         return response;
       }
@@ -537,8 +557,9 @@ HttpHandler::Put (eos::common::HttpRequest *request)
   }
 
   // Should never get here
-  response = HttpServer::HttpError("Internal Server Error",
-                                   response->INTERNAL_SERVER_ERROR);
+  mErrCode = response->INTERNAL_SERVER_ERROR;
+  mErrText = "Internal Server Error";
+  response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
   return response;
 }
 

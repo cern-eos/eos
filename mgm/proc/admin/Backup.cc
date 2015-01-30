@@ -82,30 +82,48 @@ int ProcCommand::Backup()
     dst_surl = dst_url.GetURL();
   }
 
-  // Check that the destination directory does not exist already and create it
+  // Check that the destinatin directory exists and has permission 2777
   eos_debug("backup src=%s, dst=%s", src_surl.c_str(), dst_surl.c_str());
   XrdCl::FileSystem fs(dst_url);
   XrdCl::StatInfo* stat_info = 0;
   XrdCl::XRootDStatus st = fs.Stat(dst_url.GetPath(), stat_info, 5);
 
-  if (st.IsOK())
+  if (!st.IsOK())
   {
-    stdErr = "error: backup destination already exists";
-    retc = EEXIST;
+    stdErr = "error: backup destination must exist and have permission 2777";
+    retc = EIO;
+    return SFS_OK;
+  }
+
+  if (!stat_info->TestFlags(XrdCl::StatInfo::IsReadable) ||
+      !stat_info->TestFlags(XrdCl::StatInfo::IsWritable))
+  {
+    stdErr = "error: backup destination is not readable or writable";
+    retc = EPERM;
     return SFS_OK;
   }
 
   delete stat_info;
-  st = fs.MkDir(dst_url.GetPath(), XrdCl::MkDirFlags::MakePath,
-                XrdCl::Access::UR | XrdCl::Access::UW | XrdCl::Access::UX |
-                XrdCl::Access::GR | XrdCl::Access::OR, 5);
+
+  // Check that the destination directory is empty
+  XrdCl::DirectoryList *response = 0;
+  st = fs.DirList(dst_url.GetPath(), XrdCl::DirListFlags::None, response);
 
   if (!st.IsOK())
   {
-    stdErr = "error: failed to create backup destination directory";
+    stdErr = "error: failed listing backup destination directory";
     retc = EIO;
     return SFS_OK;
   }
+
+  if (response->GetSize() != 0)
+  {
+    stdErr = "error: backup destination directory is not empty";
+    retc = EIO;
+    return SFS_OK;
+  }
+
+  delete response;
 
   // Create backup file and copy it to the destination location
   std::string twindow_type = (pOpaque->Get("mgm.backup.ttime") ?
@@ -122,7 +140,18 @@ int ProcCommand::Backup()
     return SFS_OK;
   }
 
-  int ret = BackupCreate(src_surl, dst_surl, twindow_type, twindow_val);
+  // Get the list of excluded extended attribute values which are not enforced
+  // and not checked druing the verification step
+  std::string token;
+  std::string str_xattr = (pOpaque->Get("mgm.backup.excl_xattr") ?
+                           pOpaque->Get("mgm.backup.excl_xattr") : "");
+  std::set<std::string> set_xattrs;
+  std::istringstream iss(str_xattr);
+
+  while (std::getline(iss, token, ','))
+    set_xattrs.insert(token);
+
+  int ret = BackupCreate(src_surl, dst_surl, twindow_type, twindow_val, set_xattrs);
 
   if (!ret)
   {
@@ -154,7 +183,8 @@ int
 ProcCommand::BackupCreate(const std::string& src_surl,
                           const std::string& dst_surl,
                           const std::string& twindow_type,
-                          const std::string& twindow_val)
+                          const std::string& twindow_val,
+                          const std::set<std::string>& excl_xattr)
 {
   int num_dirs = 0;
   int num_files = 0;
@@ -205,13 +235,26 @@ ProcCommand::BackupCreate(const std::string& src_surl,
              << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
              << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
              << "\"mode\", \"xstype\", \"xs\"], "
-             << "\"num_dirs\": " << std::setw(10) << "" << ", "
-             << "\"num_files\": " << std::setw(10) << "" << ", "
+             << "\"excl_xattr\": [";
+
+  // Add the list of excluded xattrs
+  for (auto it = excl_xattr.begin(); it != excl_xattr.end(); /*empty*/)
+  {
+    backup_ofs << "\"" << *it << "\"";
+    ++it;
+
+    if (it != excl_xattr.end())
+      backup_ofs << ", ";
+  }
+
+  backup_ofs << "], "
              << "\"uid\": \"" << pVid->uid << "\", "
              << "\"gid\": \"" << pVid->gid << "\", "
-             << "\"timestamp\": " << std::setw(10) << "" << ", "
              << "\"twindow_type\": \"" << twindow_type << "\", "
-             << "\"twindow_val\": \"" << twindow_val << "\""
+             << "\"twindow_val\": \"" << twindow_val << "\", "
+             << "\"timestamp\": " << std::setw(10) << "" << ", "
+             << "\"num_dirs\": " << std::setw(10) << "" << ", "
+             << "\"num_files\": " << std::setw(10) << ""
              << "}" << std::endl;
 
   // Add directories info
@@ -241,13 +284,26 @@ ProcCommand::BackupCreate(const std::string& src_surl,
              << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
              << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
              << "\"mode\", \"xstype\", \"xs\"], "
-             << "\"num_dirs\": " << std::setw(10) << num_dirs << ", "
-             << "\"num_files\": " << std::setw(10) << num_files << ", "
+             << "\"excl_xattr\": [";
+
+  // Add the list of excluded xattrs
+  for (auto it = excl_xattr.begin(); it != excl_xattr.end(); /*empty*/)
+  {
+    backup_ofs << "\"" << *it << "\"";
+    ++it;
+
+    if (it != excl_xattr.end())
+      backup_ofs << ", ";
+  }
+
+  backup_ofs << "], "
              << "\"uid\": \"" << pVid->uid << "\", "
              << "\"gid\": \"" << pVid->gid << "\", "
-             << "\"timestamp\": " << std::setw(10) << time(static_cast<time_t*>(0)) << ", "
              << "\"twindow_type\": \"" << twindow_type << "\", "
-             << "\"twindow_val\": \"" << twindow_val << "\""
+             << "\"twindow_val\": \"" << twindow_val << "\", "
+             << "\"timestamp\": " << std::setw(10) << time(static_cast<time_t*>(0)) << ", "
+             << "\"num_dirs\": " << std::setw(10) << num_dirs << ", "
+             << "\"num_files\": " << std::setw(10) << num_files
              << "}" << std::endl;
   backup_ofs.close();
 

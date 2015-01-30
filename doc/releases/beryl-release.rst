@@ -6,7 +6,7 @@
 Beryl Release Notes
 ===================
 
-``Version V0.3.84 Beryl-Aquamarine``
+``Version V0.3.93 Beryl-Aquamarine``
 
 Bug Fixes
 ---------
@@ -28,6 +28,15 @@ Bug Fixes
 - swap HTTP/ROOT share url
 - fix return codes for chunked uploads for cases like no quota etc.
 - add 'open' serialization for identical file paths to avoid open errors using HTTP protocol 
+- don't send redirect on FST put's to avoid incomplete files
+- fix missing targetsize for standard oc PUTs to avoid acceptance of incomplete files
+- fix and use atomic CLOEXEC flag in various places
+- add PAM module to NGINX
+- fix PUT error handling (will break connection for all errors happening after 100-continue on FST)
+- various improvements to backup functionality
+- enforce order in chunked uploads
+- disable scanning of w-open files
+- fix 'geotag' client mapping
 
 New Features
 ------------

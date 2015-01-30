@@ -267,8 +267,7 @@ ProcCommand::Archive()
       // the archive operation e.g root:// ... //some/dir/gid1/uid1/
       std::string dir_sha256 = eos::common::SymKey::Sha256(spath.c_str());
       std::ostringstream dst_oss;
-      dst_oss << gOFS->MgmArchiveDstUrl.c_str()
-              << pVid->gid << '/' << pVid->uid << '/' << dir_sha256 << '/';
+      dst_oss << gOFS->MgmArchiveDstUrl.c_str() << dir_sha256 << '/';
       std::string surl = dst_oss.str();
 
       // Make sure the destination directory does not exist
@@ -279,10 +278,10 @@ ProcCommand::Archive()
 
       if (status.IsOK())
       {
-        eos_err("archive dest=%s already exists", surl.c_str());
         stdErr = "error: archive dst=";
         stdErr += surl.c_str();
         stdErr += " already exists";
+        eos_err("%s", stdErr.c_str());
         retc = EIO;
         return SFS_OK;
       }
@@ -776,11 +775,11 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
            << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
            << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
            << "\"mode\", \"xstype\", \"xs\"], "
-           << "\"num_dirs\": " << std::setw(10) << "" << ", "
-           << "\"num_files\": " << std::setw(10) << "" << ", "
            << "\"uid\": \"" << pVid->uid << "\", "
            << "\"gid\": \"" << pVid->gid << "\", "
-           << "\"timestamp\": " << std::setw(10) << ""
+           << "\"timestamp\": " << std::setw(10) << ", "
+           << "\"num_dirs\": " << std::setw(10) << "" << ", "
+           << "\"num_files\": " << std::setw(10) << ""
            << "}" << std::endl;
 
   // Add directories info
@@ -811,11 +810,11 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
            << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
            << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
            << "\"mode\", \"xstype\", \"xs\"], "
-           << "\"num_dirs\": " << std::setw(10) << num_dirs << ", "
-           << "\"num_files\": " << std::setw(10) << num_files << ", "
            << "\"uid\": \"" << pVid->uid << "\", "
            << "\"gid\": \"" << pVid->gid << "\", "
-           << "\"timestamp\": " << std::setw(10) << time(static_cast<time_t*>(0))
+           << "\"timestamp\": " << std::setw(10) << time(static_cast<time_t*>(0)) << ", "
+           << "\"num_dirs\": " << std::setw(10) << num_dirs << ", "
+           << "\"num_files\": " << std::setw(10) << num_files
            << "}" << std::endl;
   arch_ofs.close();
 
@@ -862,11 +861,20 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   // Remove local archive file
   unlink(arch_fn.c_str());
 
+  // Change the permissions on the archive file to 644
+  eos::common::Mapping::VirtualIdentity_t root_ident;
+  eos::common::Mapping::Root(root_ident);
+  XrdSfsMode mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+
+  if (gOFS->_chmod(dst_path.c_str(), mode, *mError, root_ident))
+  {
+    stdErr = "error: setting permisions on the archive file";
+    retc = EIO;
+  }
+
   // Add the dir inode to /proc/archive/ for fast find
   if (!retc)
   {
-    eos::common::Mapping::VirtualIdentity_t root_ident;
-    eos::common::Mapping::Root(root_ident);
     oss.clear();
     oss.str("");
     oss << gOFS->MgmProcArchivePath << "/" << fid;

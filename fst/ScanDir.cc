@@ -28,7 +28,7 @@
 #include "common/Path.hh"
 #include "fst/ScanDir.hh"
 #include "fst/Config.hh"
-
+#include "fst/XrdFstOfs.hh"
 /*----------------------------------------------------------------------------*/
 #include <cstdlib>
 #include <cstring>
@@ -253,6 +253,21 @@ ScanDir::CheckFile (const char* filepath)
       delete attr;
     return;
   }
+
+#ifndef _NOOFS
+  if (bgThread) {
+    eos::common::Path cPath(filePath.c_str());
+    eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
+    
+    // check if somebody is still writing on that file and skip in that case
+    XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
+    if (gOFS.WOpenFid[fsId].count(fid)) {
+      syslog(LOG_ERR, "skipping scan w-open file: localpath=%s fsid=%d fid=%x\n", filePath.c_str(), (int)fid, fsId);
+      eos_warning("skipping scan of w-open file: localpath=%s fsid=%d fid=%x", filePath.c_str(), (int)fid, fsId);
+      return;
+    }
+  }
+#endif
 
   if (attr)
   {

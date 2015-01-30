@@ -408,6 +408,8 @@ HttpServer::HttpError (const char *errorText, int errorCode)
     response->SetResponseCode(response->NOT_IMPLEMENTED);
   else if ( (errorCode == EDQUOT) || (errorCode == ENOSPC) )
     response->SetResponseCode(response->INSUFFICIENT_STORAGE);
+  else if ( (errorCode == ETXTBSY) ) 
+    response->SetResponseCode(response->SERVICE_UNAVAILABLE);
   else
     response->SetResponseCode(response->INTERNAL_SERVER_ERROR);
 

@@ -73,6 +73,8 @@ public:
   int                        mCloseCode;          //< close code to return if file upload was successfull
   unsigned long long         mFileId;             //< file id used in EOS - determined after Ofs::Open
   std::string                mLogId;              //< log id used in EOS - determined after Ofs::Open
+  int                        mErrCode;            //< first seen error code
+  std::string                mErrText;            //< error text
 
   static XrdSysMutex mOpenMutexMapMutex;
   static std::map<unsigned int, XrdSysMutex*> mOpenMutexMap;
@@ -102,6 +104,7 @@ public:
     mLastUploadSize         = 0;
     mUploadLeftSize         = 0;
     mLastChunk              = false;
+    mErrCode                = 0;
   }
 
   /**
@@ -184,7 +187,7 @@ public:
       char srange[256];
       snprintf(srange,
                sizeof (srange) - 1,
-               "%llu-%llu/%llu",
+               "bytes %llu-%llu/%llu",
                (unsigned long long) it->first,
                (unsigned long long) ((it->second) ? (it->first + it->second-1)
                                                   : mRangeRequestSize),

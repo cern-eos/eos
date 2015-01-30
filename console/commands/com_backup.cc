@@ -53,59 +53,73 @@ int com_backup(char* arg1)
 
   in_cmd << "mgm.cmd=backup&mgm.backup.src=" << src_surl
          << "&mgm.backup.dst=" << dst_surl;
-
   token = subtokenizer.GetToken();
 
-  if (token.length())
+  while (token.length())
   {
     if (!token.beginswith("--"))
       goto com_backup_usage;
 
     // Get the type of incremental backup either by mtime or by ctime
-    if (token == "--ctime")
-      in_cmd << "&mgm.backup.ttime=ctime";
-    else if (token == "--mtime")
-      in_cmd << "&mgm.backup.ttime=mtime";
-    else
-      goto com_backup_usage;
-
-    // Get the interval time
-    token = subtokenizer.GetToken();
-
-    if (!token.length())
-      goto com_backup_usage;
-
-    char last = token[token.length() - 1];
-    long int seconds = 0;
-    if (last == 's')
-      seconds = 1; // seconds
-    else if (last == 'm')
-      seconds = 60; //minutes
-    else if (last == 'h')
-      seconds = 3600; // hours
-    else if (last == 'd')
-      seconds = 24 * 3600; // days
-    else
-      goto com_backup_usage;
-
-    // Try to convert the time window to integer value
-    char* p_end = (char*)(token.c_str() + token.length());
-    long int value = strtol(token.c_str(), &p_end, 10);
-
-    if (value == 0L)
-      goto com_backup_usage;
-
-    value *= seconds;
-    struct timeval tv;
-
-    if (gettimeofday(&tv, NULL))
+    if (token == "--ctime" || token == "--mtime")
     {
-      fprintf(stderr, "Error getting current timestamp\n");
-      goto com_backup_usage;
+      if (token == "--ctime")
+        in_cmd << "&mgm.backup.ttime=ctime";
+      else if (token == "--mtime")
+        in_cmd << "&mgm.backup.ttime=mtime";
+
+      // Get the interval time
+      token = subtokenizer.GetToken();
+
+      if (!token.length())
+        goto com_backup_usage;
+
+      char last = token[token.length() - 1];
+      long int seconds = 0;
+      if (last == 's')
+        seconds = 1; // seconds
+      else if (last == 'm')
+        seconds = 60; //minutes
+      else if (last == 'h')
+        seconds = 3600; // hours
+      else if (last == 'd')
+        seconds = 24 * 3600; // days
+      else
+        goto com_backup_usage;
+
+      // Try to convert the time window to integer value
+      char* p_end = (char*)(token.c_str() + token.length());
+      long int value = strtol(token.c_str(), &p_end, 10);
+
+      if (value == 0L)
+        goto com_backup_usage;
+
+      value *= seconds;
+      struct timeval tv;
+
+      if (gettimeofday(&tv, NULL))
+      {
+        fprintf(stderr, "Error getting current timestamp\n");
+        goto com_backup_usage;
+      }
+
+      in_cmd << "&mgm.backup.vtime=" << (tv.tv_sec - value);
     }
+    else if (token == "--excl_xattr")
+    {
+      // Exclude certain directory extended attributes from being enforced
+      // and checked
+      token = subtokenizer.GetToken();
 
+      if (!token.length())
+        goto com_backup_usage;
 
-    in_cmd << "&mgm.backup.vtime=" << (tv.tv_sec - value);
+      in_cmd << "&mgm.backup.excl_xattr=" << token.c_str();
+    }
+    else
+      goto com_backup_usage;
+
+    token = subtokenizer.GetToken();
   }
 
   in = in_cmd.str().c_str();
@@ -114,9 +128,12 @@ int com_backup(char* arg1)
 
 com_backup_usage:
   std::ostringstream oss;
-  oss << "usage: backup <src_url> <dst_url> [--ctime|mtime <val>s|m|h|d]" << std::endl
-      << "              create a backup of the subtree rooted in " << std::endl
-      << "              <src_url> and save it at location <dst_url>" << std::endl;
+  oss << "usage: backup <src_url> <dst_url> [options] " << std::endl
+      << " " << std:: endl
+      << " optional arguments: " << std::endl
+      << " --ctime|mtime <val>s|m|h|d use the specified timewindow to select entries for backup" << std::endl
+      << " --excl_xattr val_1[,val_2]...[,val_n] extended attributes which are not enforced and" << std::endl
+      << "              also not checked during the verification step" << std::endl;
 
   fprintf(stdout, "%s", oss.str().c_str());
   return 0;

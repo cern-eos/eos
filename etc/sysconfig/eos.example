@@ -102,13 +102,13 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # HTTP uses by default one thread per connection
 #export EOS_HTTP_THREADPOOL="threads"
 
-# to use EPOLL and 16 threads define
-#export EOS_HTTP_THREADPOOL="epoll"
-#export EOS_HTTP_THREADPOOL_SIZE=16
+# we use EPOLL and 16 threads 
+export EOS_HTTP_THREADPOOL="epoll"
+export EOS_HTTP_THREADPOOL_SIZE=16
 
 # memory buffer size per connection 
 #export EOS_HTTP_CONNECTION_MEMORY_LIMIT=134217728 (default 128M)
-
+export EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
 # timeout after which an idel connection is considered to be closed (default 2 min)
 #export EOS_HTTP_CONNETION_TIMEOUT=120
 

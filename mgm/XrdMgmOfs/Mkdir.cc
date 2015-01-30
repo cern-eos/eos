@@ -112,7 +112,7 @@ XrdMgmOfs::_mkdir (const char *path,
 
   XrdOucString spath = path;
 
-  eos_info("path=%s\n", spath.c_str());
+  eos_info("path=%s", spath.c_str());
 
   if (!spath.beginswith("/"))
   {

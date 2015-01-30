@@ -32,7 +32,7 @@ import ast
 from os.path import join
 from hashlib import sha256
 from XRootD import client
-from XRootD.client.flags import PrepareFlags, QueryCode
+from XRootD.client.flags import PrepareFlags, QueryCode, OpenFlags
 from eosarch.archivefile import ArchiveFile
 from eosarch.utils import exec_cmd
 from eosarch.asynchandler import MetaHandler
@@ -390,11 +390,8 @@ class Transfer(object):
         """ Clean after a backup tranfer by copying the log file in the same
         directory as the destiantion of the backup.
         """
-        # Copy local log file to EOS directory and set the ownership to the
-        # identity of the client who triggered the archive
-        eos_log = ''.join([self.efile_root, ".sys.b#.backup.log?eos.ruid=", self.uid,
-                           "&eos.rgid=", self.gid])
-
+        # Copy local log file to EOS directory
+        eos_log = ''.join([self.efile_root, ".sys.b#.backup.log?eos.ruid=0&eos.rgid=0"])
         self.logger.debug("Copy log:{0} to {1}".format(self.config.LOG_FILE, eos_log))
         self.config.handler.flush()
         cp_client = client.FileSystem(self.efile_full.encode("utf-8"))
@@ -464,8 +461,7 @@ class Transfer(object):
         # identity of the client who triggered the archive
         dir_root = self.efile_root[self.efile_root.rfind('//') + 1:]
         eos_log = ''.join([old_url.protocol, "://", old_url.hostid, "/",
-                           dir_root, self.config.ARCH_FN, ".log",
-                           "?eos.ruid=", self.uid, "&eos.rgid=", self.gid])
+                           dir_root, self.config.ARCH_FN, ".log?eos.ruid=0&eos.rgid=0"])
 
         self.logger.debug("Copy log:{0} to {1}".format(self.config.LOG_FILE, eos_log))
         self.config.handler.flush()
@@ -476,11 +472,24 @@ class Transfer(object):
             self.logger.error("Failed to copy log file {0} to EOS at {1}".format(
                     self.config.LOG_FILE, eos_log))
         else:
-            # delete log file if it was successfully copied to EOS
-            try:
-                os.remove(self.config.LOG_FILE)
-            except OSError as __:
-                pass
+            # User triggering archive operation owns the log file
+            eos_log_url = client.URL(eos_log)
+            fs = client.FileSystem(eos_log.encode("utf-8"))
+            arg = ''.join([eos_log_url.path, "?eos.ruid=0&eos.rgid=0&mgm.pcmd=chown&uid=",
+                           self.uid, "&gid=", self.gid])
+            xrd_st, __ = fs.query(QueryCode.OPAQUEFILE, arg.encode("utf-8"))
+
+            if not xrd_st.ok:
+                err_msg = "Failed setting ownership of the log file in EOS: {0}".format(
+                    eos_log)
+                self.logger.error(err_msg)
+                raise IOError(err_msg)
+            else:
+                # Delete log if successfully copied to EOS and changed ownership
+                try:
+                    os.remove(self.config.LOG_FILE)
+                except OSError as __:
+                    pass
 
         # Delete all local files associated with this transfer
         try:
@@ -813,19 +822,20 @@ class Transfer(object):
 
     def do_backup(self):
         """ Perform a backup operation using the provided backup file.
-
-        Args:
-            req_json (JSON command): Arguments for backup command include:
-            {
-              cmd: backup,
-              src: root://instance//path/to/backup/file,
-              opt: '',
-              uid: uid,
-              gid: gid
-            }
         """
         t0 = time.time()
         indx_dir = 0
+
+        # Root owns the .sys.b#.backup.file
+        fs = client.FileSystem(self.efile_full)
+        efile_url = client.URL(self.efile_full)
+        arg = ''.join([efile_url.path, "?eos.ruid=0&eos.rgid=0&mgm.pcmd=chown&uid=0&gid=0"])
+        xrd_st, __ = fs.query(QueryCode.OPAQUEFILE, arg.encode("utf-8"))
+
+        if not xrd_st.ok:
+            err_msg = "Failed setting ownership of the backup file: {0}".format(self.efile_full)
+            self.logger.error(err_msg)
+            raise IOError(err_msg)
 
         # Create directories
         for dentry in self.archive.dirs():
@@ -844,16 +854,33 @@ class Transfer(object):
         self.update_file_access()
         self.set_status("verifying")
         check_ok, lst_failed = self.archive.verify(True)
-
-        # In case of errors print a summary
-        if not check_ok:
-            self.logger.error("Failed verify for {0} entries".format(len(lst_failed)))
-
-            for entry in lst_failed:
-                self.logger.error("Failed entry={0}".format(entry))
-        else:
-            self.logger.info("Backup successful - no errors detected")
-
+        self.backup_write_status(lst_failed, check_ok)
         self.set_status("cleaning")
         self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
         self.backup_tx_clean()
+
+    def backup_write_status(self, lst_failed, check_ok):
+        """ Create backup status file which constains the list of failed files
+            to transfer.
+
+            Args:
+               lst_filed (list): List of failed file transfers
+               check_ok (boolean): True if verification successful, otherwise
+                   false
+        """
+        if not check_ok:
+            self.logger.error("Failed verification for {0} entries".format(len(lst_failed)))
+            fn_status = ''.join([self.efile_root, ".sys.b#.backup.err.", str(len(lst_failed)),
+                                 "?eos.ruid=0&eos.rgid=0"])
+        else:
+            self.logger.info("Backup successful - no errors detected")
+            fn_status = ''.join([self.efile_root, ".sys.b#.backup.done?eos.ruid=0&eos.rgid=0"])
+
+        with client.File() as f:
+            f.open(fn_status.encode("utf-8"), OpenFlags.UPDATE | OpenFlags.DELETE)
+            offset = 0
+
+            for entry in lst_failed:
+                buff = "Failed entry={0}\n".format(entry).encode("utf-8")
+                f.write(buff, offset, len(buff))
+                offset += len(buff)

@@ -2,7 +2,7 @@
 Summary: Lightweight library for embedding a webserver in applications
 Name: libmicrohttpd
 Version: 0.9.38
-Release: eos%{?dist}
+Release: eos.ves%{?dist}
 Group: Development/Libraries
 License: LGPLv2+
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
@@ -26,6 +26,7 @@ Requires(preun): info
 
 Patch0:         vmem.patch
 Patch1:         epoll.patch
+Patch2:         fdshift.patch
 
 %description
 GNU libmicrohttpd is a small C library that is supposed to make it
@@ -64,7 +65,7 @@ Doxygen documentation for libmicrohttpd and some example source code
 %setup -q
 %patch0 -p1 
 %patch1 -p1 
-
+%patch2 -p1
 %build
 # Required because patches modify .am files
 # autoreconf --force

@@ -148,7 +148,7 @@ def get_entry_info(url, rel_path, tags, is_dir):
             xkey, xval = next(it_list).split('=', 1)
 
             if xkey != "xattrv":
-                err_msg = ("Dir={0} no value for xattribute={1}").format(
+                err_msg = ("Dir={0} no value for xattrn={1}").format(
                     url.path, value)
                 logger.error(err_msg)
                 raise KeyError(err_msg)
@@ -173,18 +173,18 @@ def get_entry_info(url, rel_path, tags, is_dir):
 
     return dinfo
 
-def set_dir_info(entry):
+def set_dir_info(surl, dict_dinfo, excl_xattr):
     """ Set directory metadata information in EOS.
 
     Args:
-        entry (tuple): Tuple of two elements: full URL of directory and
-        dictionary containing meta data information.
+        surl (string): Full URL of directory
+        dict_dinfo (dict): Dictionary containsing meta-data information
+        excl_xattr (list): List of excluded extended attributes
 
     Raises:
         IOError: Metadata operation failed.
     """
-    path, dict_dinfo = entry
-    url = client.URL(path.encode("utf-8"))
+    url = client.URL(surl.encode("utf-8"))
 
     # Change ownership of the directory
     fsetowner = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
@@ -224,6 +224,10 @@ def set_dir_info(entry):
     lattrs = [s.split('=', 1)[0] for s in stdout.splitlines()]
 
     for attr in lattrs:
+        # Don't remove the excluded xattrs
+        if attr in excl_xattr:
+            continue
+
         frmattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
                            "mgm.cmd=attr&mgm.subcmd=rm&mgm.attr.key=", attr,
                            "&mgm.path=", url.path])
@@ -239,6 +243,10 @@ def set_dir_info(entry):
     dict_dattr = dict_dinfo['attr']
 
     for key, val in dict_dattr.iteritems():
+        # Don't set the excluded xattrs
+        if key in excl_xattr:
+            continue
+
         fsetattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
                             "mgm.cmd=attr&mgm.subcmd=set&mgm.attr.key=", key,
                             "&mgm.attr.value=", val, "&mgm.path=", url.path])
