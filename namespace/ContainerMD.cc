@@ -72,6 +72,8 @@ namespace eos
     pACLId    = other.pACLId;
     pXAttrs   = other.pXAttrs;
     pFlags    = other.pFlags;
+    pFiles    = other.pFiles;
+    pSubContainers = other.pSubContainers;
     return *this;
   }
 
