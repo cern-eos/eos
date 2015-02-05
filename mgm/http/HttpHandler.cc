@@ -941,8 +941,8 @@ HttpHandler::Options (eos::common::HttpRequest * request)
 
   eos::common::HttpResponse *response = new eos::common::PlainHttpResponse();
   response->AddHeader("DAV", "1,2");
-  response->AddHeader("Allow", "OPTIONS,GET,HEAD,POST,DELETE,TRACE,"\
-                               "PROPFIND,COPY,MOVE");
+  response->AddHeader("Allow", "OPTIONS,GET,HEAD,PUT,DELETE,TRACE,"\
+                               "PROPFIND,MKCOL,COPY,MOVE");
   response->AddHeader("Content-Length", "0");
 
   return response;
