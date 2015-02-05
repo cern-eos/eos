@@ -664,10 +664,10 @@ class Transfer(object):
         for fentry in self.archive.files():
             # If backup operation and time window specified then update only matching ones
             if self.oper == self.config.BACKUP_OP:
-                if self.archive.header["twindow_type"] and self.archive.header["twindow_val"]:
+                if self.archive.header['twindow_type'] and self.archive.header['twindow_val']:
                     dfile = dict(zip(self.archive.header['file_meta'], fentry[2:]))
-                    twindow_sec = int(self.archive.header["twindow_val"])
-                    tentry_sec = int(float(dfile[self.archive.header["twindow_type"]]))
+                    twindow_sec = int(self.archive.header['twindow_val'])
+                    tentry_sec = int(float(dfile[self.archive.header['twindow_type']]))
 
                     if tentry_sec < twindow_sec:
                         continue
