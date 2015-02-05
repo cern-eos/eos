@@ -99,13 +99,9 @@ ProcCommand::Fileinfo ()
   }
 
   if (S_ISDIR(buf.st_mode))
-  {
     return DirInfo(path);
-  }
   else
-  {
     return FileInfo(path);
-  }
 }
 
 int
@@ -687,7 +683,10 @@ ProcCommand::DirInfo (const char* path)
     }
     else
     {
-      // make a copy of the meta data
+      size_t num_containers = fmd->getNumContainers();
+      size_t num_files = fmd->getNumFiles();
+
+      // Make a copy of the meta data
       eos::ContainerMD fmdCopy(*fmd);
       fmd = &fmdCopy;
       gOFS->eosViewRWMutex.UnLockRead();
@@ -769,13 +768,13 @@ ProcCommand::DirInfo (const char* path)
           if (!Monitoring)
           {
             stdOut += "size:   ";
-            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getNumContainers()+fmd->getNumFiles());
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)(num_containers + num_files));
             stdOut += "\n";
           }
           else
           {
             stdOut += "size=";
-            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getNumContainers()+fmd->getNumFiles());
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)(num_containers + num_files));
             stdOut += " ";
           }
         }
@@ -817,9 +816,9 @@ ProcCommand::DirInfo (const char* path)
             stdOut += spath;
             stdOut += "'";
             stdOut += "  Container: ";
-            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getNumContainers());
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)num_containers);
             stdOut += "  Files: ";
-            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getNumFiles());
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)num_files);
             stdOut += "  Flags: ";
 	    stdOut +=  eos::common::StringConversion::IntToOctal( (int) fmd->getMode(), 4).c_str();
             stdOut += "\n";
@@ -868,10 +867,10 @@ ProcCommand::DirInfo (const char* path)
             stdOut += spath;
             stdOut += " ";
             stdOut += "container=";
-            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getNumContainers());
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)num_containers);
             stdOut += " ";
             stdOut += "files=";
-            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getNumFiles());
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)num_files);
             stdOut += " ";
             stdOut += "mtime=";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) mtime.tv_sec);
