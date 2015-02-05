@@ -208,7 +208,12 @@ public:
   {
     struct tm *utctime;
     char str[21];
-    utctime = gmtime(&now);
+    struct tm utc;
+    utctime = gmtime_r(&now, &utc);
+    if (!utctime) {
+      now = 0;
+      utctime = gmtime_r(&now, &utc);
+    }
     strftime(str, 21, "%Y-%m-%dT%H:%M:%SZ", utctime);
     return str;
   }
@@ -237,7 +242,11 @@ public:
   std::string utctime(time_t ttime)
   {
     struct tm utc;
-    gmtime_r(&ttime, &utc);
+    if (!gmtime_r(&ttime, &utc)) {
+      time_t zt = 0;
+      gmtime_r(&zt, &utc);
+    }
+
     static const char wday_name[][4] = {
       "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
     };
