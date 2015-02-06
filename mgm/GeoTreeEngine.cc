@@ -188,14 +188,14 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
       mapEntry->doubleBufferMutex.SetDebugName(buffer2);
       int retcode = eos::common::RWMutex::AddOrderRule(buffer,std::vector<eos::common::RWMutex*>(
 	      { &pAddRmFsMutex,&pTreeMapMutex,&mapEntry->doubleBufferMutex}));
-      eos_static_info("creating RWMutex rule order %p, retcode is %d",&mapEntry->doubleBufferMutex, retcode);
+      eos_info("creating RWMutex rule order %p, retcode is %d",&mapEntry->doubleBufferMutex, retcode);
 
       sprintf(buffer,"GTE %s slowtree",group->mName.c_str());
       sprintf(buffer2,"%s slowtree",group->mName.c_str());
       mapEntry->slowTreeMutex.SetDebugName(buffer2);
       retcode = eos::common::RWMutex::AddOrderRule(buffer,std::vector<eos::common::RWMutex*>(
 	      { &pAddRmFsMutex,&pTreeMapMutex,&mapEntry->slowTreeMutex}));
-      eos_static_info("creating RWMutex rule order %p, retcode is %d",&mapEntry->slowTreeMutex, retcode);
+      eos_info("creating RWMutex rule order %p, retcode is %d",&mapEntry->slowTreeMutex, retcode);
 #endif
 #endif
     }
@@ -435,7 +435,7 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem *fs ,
       // to mark the filesystem as removed, we change the notification type flag
       if(it->mSubject.compare(0,fs->GetQueuePath().length(),fs->GetQueuePath())==0)
       {
-	eos_static_warning("found a notification to remove %s ",it->mSubject.c_str());
+	eos_warning("found a notification to remove %s ",it->mSubject.c_str());
 	it->mType = XrdMqSharedObjectManager::kMqSubjectDeletion;
       }
     }
@@ -991,7 +991,7 @@ bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group, const size_t &nAccess
     const unsigned int fsid = (*entry->foregroundFastStruct->treeInfo)[*it].fsId;
     if(!entry->foregroundFastStruct->fs2TreeIdx->get(fsid,idx))
     {
-      eos_static_crit("inconsistency : cannot retrieve index of selected fs though it should be in the tree");
+      eos_crit("inconsistency : cannot retrieve index of selected fs though it should be in the tree");
       success = false;
       goto cleanup;
     }
@@ -1034,7 +1034,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
   // check that enough replicas exist already
   if(nAccessReplicas > existingReplicas->size())
   {
-    eos_static_debug("not enough replica : has %d and requires %d :",(int)existingReplicas->size(),(int)nAccessReplicas);
+    eos_debug("not enough replica : has %d and requires %d :",(int)existingReplicas->size(),(int)nAccessReplicas);
     return EROFS;
   }
 
@@ -1064,7 +1064,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       // if we cannot find the fs in any group, there is an inconsistency somewhere
       if(mentry == pFs2TreeMapEntry.end())
       {
-	eos_static_warning("cannot find the existing replica in any scheduling group");
+	eos_warning("cannot find the existing replica in any scheduling group");
 	continue;
       }
       entry = mentry->second;
@@ -1081,7 +1081,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       const SchedTreeBase::tFastTreeIdx *idx;
       if(!entry->foregroundFastStruct->fs2TreeIdx->get(*exrepIt,idx) )
       {
-	eos_static_warning("cannot find fs in the scheduling group in the 2nd pass");
+	eos_warning("cannot find fs in the scheduling group in the 2nd pass");
 	if(!entry2FsId.count(entry))
 	{
 	  entry->doubleBufferMutex.UnLockRead();
@@ -1158,13 +1158,13 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
 	  char *buf = buffer;
 	  for(auto it = entryIt->second.begin(); it!= entryIt->second.end(); ++it)
 	  buf += sprintf(buf,"%lu  ",(unsigned long)(it->second));
-	  eos_static_debug("existing replicas indices in geotree -> %s", buffer);
+	  eos_debug("existing replicas indices in geotree -> %s", buffer);
 
 	  buffer[0]=0;
 	  buf = buffer;
 	  for(auto it = entryIt->second.begin(); it!= entryIt->second.end(); ++it)
 	  buf += sprintf(buf,"%s  ",(*entryIt->first->foregroundFastStruct->treeInfo)[it->second].fullGeotag.c_str());
-	  eos_static_debug("existing replicas geotags in geotree -> %s", buffer);
+	  eos_debug("existing replicas geotags in geotree -> %s", buffer);
 	}
 
 	// if there is no replica here (might happen if it's spotted as unavailable after the first pass)
@@ -1216,7 +1216,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
 	if(retCode == 2)
 	{
 	  geoScore+=100;
-	  eos_static_debug("found unsaturated fs");
+	  eos_debug("found unsaturated fs");
 	}
 
 	geoScore2Fs[geoScore].push_back(
@@ -1245,9 +1245,9 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       for(auto it = existingReplicas->begin(); it!= existingReplicas->end(); ++it)
       buf += sprintf(buf,"%lu  ",(unsigned long)(*it));
 
-      eos_static_debug("existing replicas fs id's -> %s", buffer);
-      eos_static_debug("accesser closest node to %s index -> %d  /  %s",accesserGeotag.c_str(), (int)accesserNode,(*entry->foregroundFastStruct->treeInfo)[accesserNode].fullGeotag.c_str());
-      eos_static_debug("selected FsId -> %d / idx %d", (int)selectedFsId,(int)fsIndex);
+      eos_debug("existing replicas fs id's -> %s", buffer);
+      eos_debug("accesser closest node to %s index -> %d  /  %s",accesserGeotag.c_str(), (int)accesserNode,(*entry->foregroundFastStruct->treeInfo)[accesserNode].fullGeotag.c_str());
+      eos_debug("selected FsId -> %d / idx %d", (int)selectedFsId,(int)fsIndex);
     }
   }
 
@@ -1437,7 +1437,7 @@ void GeoTreeEngine::listenFsChange()
     prevtime = curtime;
     gettimeofday(&curtime,NULL);
 
-    eos_static_debug("Updating Fast Structures at %ds. %dns. Previous update was at prev: %ds. %dns. Time elapsed since the last update is: %dms.",(int)curtime.tv_sec,(int)curtime.tv_usec,(int)prevtime.tv_sec,(int)prevtime.tv_usec,(int)curtime.tv_sec*1000+((int)curtime.tv_usec)/1000-(int)prevtime.tv_sec*1000-((int)prevtime.tv_usec)/1000);
+    eos_debug("Updating Fast Structures at %ds. %dns. Previous update was at prev: %ds. %dns. Time elapsed since the last update is: %dms.",(int)curtime.tv_sec,(int)curtime.tv_usec,(int)prevtime.tv_sec,(int)prevtime.tv_usec,(int)curtime.tv_sec*1000+((int)curtime.tv_usec)/1000-(int)prevtime.tv_sec*1000-((int)prevtime.tv_usec)/1000);
     {
       checkPendingDeletions(); // do it before tree info to leave some time to the other threads
       {
@@ -1822,14 +1822,14 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
     XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(it->first.c_str(), "hash");
     if(!hash)
     {
-      eos_static_warning("Inconsistency : Trying to access a deleted fs. Should not happen because any reference to a fs is cleaned from the updates buffer ehen the fs is being removed.");
+      eos_warning("Inconsistency : Trying to access a deleted fs. Should not happen because any reference to a fs is cleaned from the updates buffer ehen the fs is being removed.");
       gOFS->ObjectManager.HashMutex.UnLockRead();
       continue;
     }
     FileSystem::fsid_t fsid = (FileSystem::fsid_t) hash->GetLongLong("id");
     if(!fsid)
     {
-      eos_static_warning("Inconsistency : Trying to update an unregistered fs. Should not happen.");
+      eos_warning("Inconsistency : Trying to update an unregistered fs. Should not happen.");
       gOFS->ObjectManager.HashMutex.UnLockRead();
       continue;
     }
@@ -1837,7 +1837,7 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
 
     if(!pFsId2FsPtr.count(fsid))
     {
-      eos_static_warning("Inconsistency: Trying to access an existing fs which is not referenced in the GeoTreeEngine anymore");
+      eos_warning("Inconsistency: Trying to access an existing fs which is not referenced in the GeoTreeEngine anymore");
       continue;
     }
     eos::common::FileSystem *filesystem = pFsId2FsPtr[fsid];
@@ -1900,7 +1900,7 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
     if(!updateFastStructures(entry))
     {
       pTreeMapMutex.UnLockRead();
-      eos_err("updating the tree");
+      eos_err("error updating the tree");
       return false;
     }
   }
@@ -1986,7 +1986,7 @@ void GeoTreeEngine::updateAtomicPenalties()
   {
     if(pUpdatingNodes.empty())
     {
-      //eos_static_debug("updatingNodes is empty!");
+      //eos_debug("updatingNodes is empty!");
     }
     else
     {
@@ -2015,23 +2015,19 @@ void GeoTreeEngine::updateAtomicPenalties()
           ss.str("");
           for (auto it2 = FsView::gFsView.mNodeView.begin(); it2 != FsView::gFsView.mNodeView.end(); it2++)
           ss << it2->first << "  ";
-          eos_static_err("Inconsistency : cannot find updating node %s in %s",nodestr.c_str(),ss.str().c_str());
+          eos_err("Inconsistency : cannot find updating node %s in %s",nodestr.c_str(),ss.str().c_str());
           continue;
         }
         if((!it->second.saturated) && it->second.fsCount == node->size())
         {
-//          eos_static_debug("aggregated opened files for %s : wopen %d   ropen %d   outweight %lf   inweight %lf",
+//          eos_debug("aggregated opened files for %s : wopen %d   ropen %d   outweight %lf   inweight %lf",
 //              it->first.c_str(),it->second.wOpen,it->second.rOpen,it->second.netOutWeight,it->second.netInWeight);
         }
         else
         {
           // the fs/host is saturated, we don't use the whole host in the estimate
           if(it->second.saturated)
-          eos_static_debug("fs update in node %s : box is saturated");
-          // there is a mismatch between
-          // this should not happen if only one single fst daemon is running on each fst node
-          if(it->second.fsCount != node->size())
-          eos_static_notice("fs update in node %s : %d fs in FsView vs %d fs in update. This probably means that several fst daemons are running on the same host",it->first.c_str(),(int)node->size(),(int)it->second.fsCount);
+          eos_debug("fs update in node %s : box is saturated");
 // could force to get everything
 //          long long wopen = node->SumLongLong("stat.wopen",false);
 //          long long ropen = node->SumLongLong("stat.ropen",false);
@@ -2051,7 +2047,7 @@ void GeoTreeEngine::updateAtomicPenalties()
       {
         if(ropen[netSpeedClass]+ropen[netSpeedClass]>4)
         {
-          eos_static_debug("UPDATE netSpeedClass=%d  ulload=%lf  dlload=%lf  diskutil=%lf  ropen=%lf  wopen=%lf  fscount=%lf  hostcount=%lf",
+          eos_debug("UPDATE netSpeedClass=%d  ulload=%lf  dlload=%lf  diskutil=%lf  ropen=%lf  wopen=%lf  fscount=%lf  hostcount=%lf",
               (int)netSpeedClass, ulload[netSpeedClass], dlload[netSpeedClass],diskutil[netSpeedClass], ropen[netSpeedClass],
               wopen[netSpeedClass], fscount[netSpeedClass], hostcount[netSpeedClass]);
 
@@ -2070,19 +2066,19 @@ void GeoTreeEngine::updateAtomicPenalties()
           double diskpen =
           diskutil[netSpeedClass]/(0.4*ropen[netSpeedClass]+wopen[netSpeedClass]);
 
-          eos_static_debug("penalties updates are network %lf   disk %lf",networkpen,diskpen);
+          eos_debug("penalties updates are network %lf   disk %lf",networkpen,diskpen);
 
           double update = 100*std::max(diskpen,networkpen);
 
           if(update<1 || update>99)// could be more restrictive
           {
-            eos_static_debug("weird value for accessDlScorePenalty update : %lf. Not using this one.",update);
+            eos_debug("weird value for accessDlScorePenalty update : %lf. Not using this one.",update);
           }
           else
           {
-            eos_static_debug("netSpeedClass %d : using update values %lf for penalties with weight %f%%",
+            eos_debug("netSpeedClass %d : using update values %lf for penalties with weight %f%%",
                 netSpeedClass, pPenaltyUpdateRate);
-            eos_static_debug("netSpeedClass %d : values before update are accessDlScorePenalty=%f  plctDlScorePenalty=%f  accessUlScorePenalty=%f  plctUlScorePenalty=%f",
+            eos_debug("netSpeedClass %d : values before update are accessDlScorePenalty=%f  plctDlScorePenalty=%f  accessUlScorePenalty=%f  plctUlScorePenalty=%f",
                 netSpeedClass, pAccessDlScorePenaltyF[netSpeedClass],pPlctDlScorePenaltyF[netSpeedClass],pAccessUlScorePenaltyF[netSpeedClass],pPlctUlScorePenaltyF[netSpeedClass]);
             union
             {
@@ -2099,7 +2095,7 @@ void GeoTreeEngine::updateAtomicPenalties()
             AtomicCAS( reinterpret_cast<uint32_t&>(pAccessUlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(pAccessUlScorePenaltyF[netSpeedClass]) , uf.u);
             uf.f = 0.01*( ( 100 - pPenaltyUpdateRate)*pPlctUlScorePenaltyF[netSpeedClass] + pPenaltyUpdateRate*update);
             AtomicCAS( reinterpret_cast<uint32_t&>(pPlctUlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(pPlctUlScorePenaltyF[netSpeedClass]) , uf.u);
-            eos_static_debug("netSpeedClass %d : values after update are accessDlScorePenalty=%f  plctDlScorePenalty=%f  accessUlScorePenalty=%f  plctUlScorePenalty=%f",
+            eos_debug("netSpeedClass %d : values after update are accessDlScorePenalty=%f  plctDlScorePenalty=%f  accessUlScorePenalty=%f  plctUlScorePenalty=%f",
                 netSpeedClass, pAccessDlScorePenaltyF[netSpeedClass],pPlctDlScorePenaltyF[netSpeedClass],pAccessUlScorePenaltyF[netSpeedClass],pPlctUlScorePenaltyF[netSpeedClass]);
             // update the casted versions too
             AtomicCAS( pPlctUlScorePenalty[netSpeedClass], pPlctUlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pPlctUlScorePenaltyF[netSpeedClass]);
@@ -2110,7 +2106,7 @@ void GeoTreeEngine::updateAtomicPenalties()
         }
         else
         {
-          eos_static_debug("not enough file opened to get reliable statistics %d",(int)(ropen[netSpeedClass]+ropen[netSpeedClass]));
+          eos_debug("not enough file opened to get reliable statistics %d",(int)(ropen[netSpeedClass]+ropen[netSpeedClass]));
         }
       }
     }
