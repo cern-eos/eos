@@ -836,6 +836,7 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
   eos::FileMD* fmd = 0;
   eos::ContainerMD* cmd = 0;
   std::string recyclepath;
+  XrdOucString repath;
 
   //-------------------------------------------
   {
@@ -844,17 +845,25 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
     {
       fmd = gOFS->eosFileService->getFileMD(fid);
       recyclepath = gOFS->eosView->getUri(fmd);
+      repath = recyclepath.c_str();
     }
     catch (eos::MDException &e)
     {
     }
-    try
-    {
-      cmd = gOFS->eosDirectoryService->getContainerMD(fid);
-      recyclepath = gOFS->eosView->getUri(cmd);
-    }
-    catch (eos::MDException &e)
-    {
+
+    if ( (!fmd) ||
+	 (!repath.beginswith(Recycle::gRecyclingPrefix.c_str())) ) {
+      // if the recycling ID does not point to a file in the recycle bin
+      // try if it points to a directory in the recycling bin
+      try
+      {
+	cmd = gOFS->eosDirectoryService->getContainerMD(fid);
+	recyclepath = gOFS->eosView->getUri(cmd);
+	repath = recyclepath.c_str();
+      }
+      catch (eos::MDException &e)
+      {
+      }
     }
     if (!recyclepath.length())
     {
@@ -883,7 +892,6 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
     originalpath.erase(originalpath.length() - 16 - 1);
   }
 
-  XrdOucString repath = recyclepath.c_str();
 
   // check that this is a path to recycle
   if (!repath.beginswith(Recycle::gRecyclingPrefix.c_str()))

@@ -135,23 +135,25 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
   // owncloud protocol emulator
   // ------------------------------------------------------------------------------
 
-  if (eos::common::OwnCloud::WantsStatus(spath))
-  {
-    XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
-    XrdOucString val;
-    if (gOFS->attr_get(spath.c_str(), error, &client, "", eos::common::OwnCloud::GetAllowSyncName() , val))
-    {
-      response = HttpServer::HttpError("No sync allowed in this tree",
-                                       response->METHOD_NOT_ALLOWED);
-      return response;
-    }
-    else
-    {
-      std::string data = "{\"installed\":\"true\",\"version\":\"5.0.28\",\"versionstring\":\"5.0.14a\",\"edition\":\"Enterprise\"}";
-      response = HttpServer::HttpData(data.c_str(), data.length());
-      return response;
-    }
-  }
+  // ------------------------------------------------------------------------------
+  // commment status.php functionality
+  //if (eos::common::OwnCloud::WantsStatus(spath))
+  //{
+  //XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
+  //XrdOucString val;
+  //if (gOFS->attr_get(spath.c_str(), error, &client, "", eos::common::OwnCloud::GetAllowSyncName() , val))
+  //{
+  //response = HttpServer::HttpError("No sync allowed in this tree",
+  //response->METHOD_NOT_ALLOWED);
+  //return response;
+  //}
+  //else
+  //{
+  //std::string data = "{\"installed\":\"true\",\"version\":\"5.0.28\",\"versionstring\":\"5.0.14a\",\"edition\":\"Enterprise\"}";
+  //response = HttpServer::HttpData(data.c_str(), data.length());
+  //return response;
+  //}
+  //}
 
   eos::common::OwnCloud::OwnCloudRemapping(spath, request);
   eos::common::OwnCloud::ReplaceRemotePhp(spath);
@@ -939,8 +941,8 @@ HttpHandler::Options (eos::common::HttpRequest * request)
 
   eos::common::HttpResponse *response = new eos::common::PlainHttpResponse();
   response->AddHeader("DAV", "1,2");
-  response->AddHeader("Allow", "OPTIONS,GET,HEAD,POST,DELETE,TRACE,"\
-                               "PROPFIND,COPY,MOVE");
+  response->AddHeader("Allow", "OPTIONS,GET,HEAD,PUT,DELETE,TRACE,"\
+                               "PROPFIND,MKCOL,COPY,MOVE");
   response->AddHeader("Content-Length", "0");
 
   return response;

@@ -560,9 +560,9 @@ class Transfer(object):
 
             # If backup operation and time window specified then select ony the matching entries
             if self.oper == self.config.BACKUP_OP:
-                if self.archive.header["twindow_type"] and self.archive.header["twindow_val"]:
-                    twindow_sec = int(self.archive.header["twindow_val"])
-                    tentry_sec = int(float(dfile[self.archive.header["twindow_type"]]))
+                if self.archive.header['twindow_type'] and self.archive.header['twindow_val']:
+                    twindow_sec = int(self.archive.header['twindow_val'])
+                    tentry_sec = int(float(dfile[self.archive.header['twindow_type']]))
 
                     if tentry_sec < twindow_sec:
                         continue
@@ -663,6 +663,16 @@ class Transfer(object):
         fs = self.archive.fs_src
 
         for fentry in self.archive.files():
+            # If backup operation and time window specified then update only matching ones
+            if self.oper == self.config.BACKUP_OP:
+                if self.archive.header['twindow_type'] and self.archive.header['twindow_val']:
+                    dfile = dict(zip(self.archive.header['file_meta'], fentry[2:]))
+                    twindow_sec = int(self.archive.header['twindow_val'])
+                    tentry_sec = int(float(dfile[self.archive.header['twindow_type']]))
+
+                    if tentry_sec < twindow_sec:
+                        continue
+
             __, surl = self.archive.get_endpoints(fentry[1])
             url = client.URL(surl.encode("utf-8"))
             dict_meta = dict(zip(self.archive.header['file_meta'], fentry[2:]))
@@ -852,6 +862,11 @@ class Transfer(object):
         # Copy files and set metadata information
         self.copy_files(None, True)
         self.update_file_access()
+
+        # Delete empty dirs if this was a backup with a time window
+        if self.archive.header['twindow_type'] and self.archive.header['twindow_val']:
+            self.archive.del_empty_dirs()
+
         self.set_status("verifying")
         check_ok, lst_failed = self.archive.verify(True)
         self.backup_write_status(lst_failed, check_ok)

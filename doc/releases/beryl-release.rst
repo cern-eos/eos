@@ -6,7 +6,7 @@
 Beryl Release Notes
 ===================
 
-``Version V0.3.93 Beryl-Aquamarine``
+``Version V0.3.95 Beryl-Aquamarine``
 
 Bug Fixes
 ---------
@@ -37,6 +37,10 @@ Bug Fixes
 - enforce order in chunked uploads
 - disable scanning of w-open files
 - fix 'geotag' client mapping
+- fix 'recycle restore' for overlapping file/directory keys
+- advertise MKCOL,PUT in OPTIONS for WebDAV write access
+- fix SEGV due to illegal mtime settings for HTTP GETs
+- fix copy constructor of Container objects
 
 New Features
 ------------
