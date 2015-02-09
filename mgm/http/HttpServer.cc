@@ -85,10 +85,32 @@ HttpServer::Handler (void *cls,
     // Get the headers
     MHD_get_connection_values(connection, MHD_HEADER_KIND,
                               &HttpServer::BuildHeaderMap, (void*) &headers);
+ 
+    char buf[INET6_ADDRSTRLEN];
 
+    // Retrieve Client IP
+    const MHD_ConnectionInfo* info = MHD_get_connection_info(connection, MHD_CONNECTION_INFO_CLIENT_ADDRESS);
+    if (info && info->client_addr) {
+      headers["client-real-ip"] = inet_ntop(info->client_addr->sa_family, info->client_addr->sa_data + 2, buf, INET6_ADDRSTRLEN);
+      
+      char* haddr[1];
+      char* hname[1];
+      if ( (XrdSysDNS::getAddrName(const_cast<char*> (headers["client-real-ip"].c_str()),
+				   1,
+				   haddr,
+				   hname)) > 0 ) 
+      {
+	headers["client-real-host"] =const_cast<char*> (hname[0]);
+	free(hname[0]);
+	free(haddr[0]);
+      }
+    }
+    
     // Authenticate the client
     eos::common::Mapping::VirtualIdentity *vid = Authenticate(headers);
 
+    eos_static_info("request=%s client-real-ip=%s client-real-host=%s vid.uid=%s vid.gid=%s vid.host=%s vid.tident=%s\n", method, headers["client-real-ip"].c_str(), headers["client-real-host"].c_str(), vid->uid_string.c_str(), vid->gid_string.c_str(), vid->host.c_str(), vid->tident.c_str());
+	  
     eos::common::ProtocolHandler *handler;
     ProtocolHandlerFactory factory = ProtocolHandlerFactory();
     handler = factory.CreateProtocolHandler(method, headers, vid);
@@ -362,6 +384,29 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
     EXEC_TIMING_BEGIN("IdMap");
     eos::common::Mapping::IdMap (&client, "eos.app=http", client.tident, *vid, true);
     EXEC_TIMING_END("IdMap");
+
+    // Verify that a connection originates from the host stated in the header
+
+    std::string header_host = headers["host"];
+    size_t pos= header_host.find(":");
+    // remove the port if present
+    if ( pos != std::string::npos)
+      header_host.erase(pos);
+    
+    if ( (headers.count("client-real-host")) &&
+	 (headers["client-real-host"] != "localhost") && 
+	 (headers["client-real-host"] != "localhost.localdomain") &&
+	 (headers["client-real-host"] != "localhost6") &&
+	 (headers["client-real-host"] != "localhost6.localdomain6") &&
+	 ( headers["client-real-host"] != header_host ) ) {
+      // map the betrayer to nobody
+      eos::common::Mapping::Nobody(*vid);
+      eos_static_notice("msg=\"connection/header mismatch\" header-host=\"%s\" connection-host=\"%s\" real-ip=%s", header_host.c_str(), headers["client-real-host"].c_str(), headers["client-real-ip"].c_str());
+    } else {
+      eos_static_debug("msg=\"connection/header match\" header-host=\"%s\" connection-host=\"%s\" real-ip=%s", header_host.c_str(), headers["client-real-host"].c_str(), headers["client-real-ip"].c_str());
+    }
+
+
     
     // if we have been mapped to nobody, change also the name accordingly
     if (vid->uid == 99)
@@ -369,7 +414,6 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
     vid->dn = dn;
     vid->tident = tident.c_str();
   }
-
 
   return vid;
 }
