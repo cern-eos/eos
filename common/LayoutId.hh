@@ -734,7 +734,7 @@ public:
     out += space.c_str();
     if(plctplcy.length())
     {
-      out += "&eos.plctplcy=";
+      out += "&eos.placementpolicy=";
       out += plctplcy.c_str();
     }
     if (group != "")

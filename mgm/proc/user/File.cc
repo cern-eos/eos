@@ -848,7 +848,7 @@ ProcCommand::File ()
         {
           XrdOucString layout = pOpaque->Get("mgm.convert.layout");
           XrdOucString space = pOpaque->Get("mgm.convert.space");
-          XrdOucString plctplcy = pOpaque->Get("mgm.convert.plctplcy");
+          XrdOucString plctplcy = pOpaque->Get("mgm.convert.placementpolicy");
           XrdOucString option = pOpaque->Get("mgm.option");
 
           //stdOut += ("Placement Policy is: " + plctplcy);

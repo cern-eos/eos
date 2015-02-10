@@ -299,7 +299,7 @@ com_file (char* arg1)
     }
     if (plctplcty.length())
     {
-      in += "&mgm.convert.plctplcy=";
+      in += "&mgm.convert.placementpolicy=";
       in += plctplcty;
     }
     if (option == "sync")

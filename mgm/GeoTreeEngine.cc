@@ -514,7 +514,7 @@ void GeoTreeEngine::printInfo(std::string &info,
 
   if(dispParam)
   {
-    ostr << "*** GeoTreeEngine parameters :" << std::endl;
+    ostr << "### GeoTreeEngine parameters :" << std::endl;
     ostr << "skipSaturatedPlct = " << pSkipSaturatedPlct << std::endl;
     ostr << "skipSaturatedAccess = "<< pSkipSaturatedAccess << std::endl;
     ostr << "skipSaturatedDrnAccess = "<< pSkipSaturatedDrnAccess << std::endl;
@@ -614,7 +614,7 @@ void GeoTreeEngine::printInfo(std::string &info,
 
     if(dispTree && (schedgroup.empty() || schedgroup=="*" || (schedgroup == it->second->group->mName) ) )
     {
-      ostr << "*** scheduling tree for scheduling group "<< it->second->group->mName <<" :" << std::endl;
+      ostr << "### scheduling tree for scheduling group "<< it->second->group->mName <<" :" << std::endl;
       it->second->slowTree->display(ostr,useColors);
       ostr <<std::endl;
     }
@@ -623,37 +623,37 @@ void GeoTreeEngine::printInfo(std::string &info,
     {
       if(optype.empty() || (optype == "plct") )
       {
-	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Placement\' :" << std::endl;
+	ostr << "### scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Placement\' :" << std::endl;
 	it->second->foregroundFastStruct->placementTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "accsro") )
       {
-	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Access RO\' :" << std::endl;
+	ostr << "### scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Access RO\' :" << std::endl;
 	it->second->foregroundFastStruct->rOAccessTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "accsrw") )
       {
-	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Access RW\' :" << std::endl;
+	ostr << "### scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Access RW\' :" << std::endl;
 	it->second->foregroundFastStruct->rWAccessTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "accsdrain") )
       {
-	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Access\' :" << std::endl;
+	ostr << "### scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Access\' :" << std::endl;
 	it->second->foregroundFastStruct->drnAccessTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "plctdrain") )
       {
-	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Placement\' :" << std::endl;
+	ostr << "### scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Placement\' :" << std::endl;
 	it->second->foregroundFastStruct->drnPlacementTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "accsblc") )
       {
-	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Balancing Access\' :" << std::endl;
+	ostr << "### scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Balancing Access\' :" << std::endl;
 	it->second->foregroundFastStruct->blcAccessTree->recursiveDisplay(ostr,useColors)<<endl;
       }
       if(optype.empty() || (optype == "plctblc") )
       {
-	ostr << "*** scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Placement\' :" << std::endl;
+	ostr << "### scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Placement\' :" << std::endl;
 	it->second->foregroundFastStruct->blcPlacementTree->recursiveDisplay(ostr,useColors)<<endl;
       }
     }
@@ -663,7 +663,7 @@ void GeoTreeEngine::printInfo(std::string &info,
 
   if(dispParam)
   {
-    ostr << "*** GeoTreeEngine list of groups :" << std::endl;
+    ostr << "### GeoTreeEngine list of groups :" << std::endl;
     if(orderByGroupName.size())
     {
       const int lineWidth = 80;

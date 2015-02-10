@@ -251,34 +251,34 @@ Policy::GetPlctPolicy (const char* path,
   std::string policyString;
 
   const char* val = 0;
-  if ((val = env.Get("eos.plctplcy")))
+  if ((val = env.Get("eos.placementpolicy")))
   {
     // we force an explicit placement policy
     policyString = val;
   }
   
-  if ((vid.uid == 0) && (val = env.Get("eos.plctplcy.noforce")))
+  if ((vid.uid == 0) && (val = env.Get("eos.placementpolicy.noforce")))
   {
     // root can request not to apply any forced settings
   }
   else
   {
-    if (attrmap.count("sys.forced.plctplcy"))
+    if (attrmap.count("sys.forced.placementpolicy"))
     {
       // we force to use a certain placament policy even if the user wants something else
-      policyString = attrmap["sys.forced.plctplcy"].c_str();
-      eos_static_debug("sys.forced.plctplcy in %s", path);
+      policyString = attrmap["sys.forced.placementpolicy"].c_str();
+      eos_static_debug("sys.forced.placementpolicy in %s", path);
     }
 
-    if (((!attrmap.count("sys.forced.nouserplctplicy")) || (attrmap["sys.forced.nouserplctplcy"] != "1")) &&
-        ((!attrmap.count("user.forced.nouserplctplcy")) || (attrmap["user.forced.nouserplctplcy"] != "1")))
+    if (((!attrmap.count("sys.forced.nouserplacementpolicy")) || (attrmap["sys.forced.nouserplacementpolicy"] != "1")) &&
+        ((!attrmap.count("user.forced.nouserplacementpolicy")) || (attrmap["user.forced.nouserplacementpolicy"] != "1")))
     {
 
-      if (attrmap.count("user.forced.plctplcy"))
+      if (attrmap.count("user.forced.placementpolicy"))
       {
         // we force to use a certain placament policy even if the user wants something else
-        policyString = attrmap["user.forced.plctplcy"].c_str();
-        eos_static_debug("user.forced.plctplcy in %s", path);
+        policyString = attrmap["user.forced.placementpolicy"].c_str();
+        eos_static_debug("user.forced.placementpolicy in %s", path);
       }
     }
 
