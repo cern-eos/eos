@@ -80,8 +80,8 @@ When the cache reaches the high watermark it cleans the oldest files untile low-
    eos attr set sys.force.atime=300 /eos/dev/instance/cache/  
 
 
-Automatic time based cleanup of empty directories 
-``````````````````````````````````````````````````
+Automatic time based cleanup of empty directories
+`````````````````````````````````````````````````
 Configure automatic clean-up of empty directories which have a minimal age.
 The LRU scan deletes directories with the largest deepness first to be able 
 to remove complete empty subtrees in the namespace.
@@ -92,7 +92,7 @@ to remove complete empty subtrees in the namespace.
    eos attr set sys.lru.expire.empty="1h" /eos/dev/instance/empty/ 
 
 
-Time based LRU cache with expiration time settings 
+Time based LRU cache with expiration time settings
 ``````````````````````````````````````````````````
 This policy allows to match files by name with a defined age to be deleted.
 
@@ -107,6 +107,8 @@ This policy allows to match files by name with a defined age to be deleted.
 Automatic time based layout conversion if a file reaches a defined age
 ``````````````````````````````````````````````````````````````````````
 This policy allows to convert a file from the current layout into a defined layout.
+A *placement policy* (cf. :doc:`geoscheduling`)  can be specified. 
+It is an unformation in case, the file is matched for conversion but it is not considered in the matching process.
 
 .. code-block:: bash
 
@@ -114,7 +116,9 @@ This policy allows to convert a file from the current layout into a defined layo
    eos attr set sys.lru.convert.match="*:1mo" /eos/dev/instance/convert/    
 
    # define the conversion layout (hex) for the match rule '*' - this is RAID6 4+2 
-   eos attr set sys.conversion.*=20640542 /eos/dev/instance/convert/                                    
+   eos attr set sys.conversion.*=20640542 /eos/dev/instance/convert/
+   # same thing specifying a placement policy for the replicas/stripeseos> 
+   attr set sys.conversion.*=20640542|gathered:site1::rack2 /eos/dev/instance/convert/                                
 
 
 The hex layout ID contains also the checksum and blocksize settings. The best is
@@ -127,6 +131,8 @@ This policy allows to convert a file from the current layout into a different la
 if a file was not accessed for a defined interval. To use this feature one has 
 also to enable the **atime** feature where the access time is stored as the new 
 file creation time.
+A *placement policy* (cf. :doc:`geoscheduling`) can be specified. 
+It is an unformation in case, the file is matched for conversion but it is not considered in the matching process.
 
 .. code-block:: bash
     
@@ -137,7 +143,9 @@ file creation time.
      eos attr set sys.lru.convert.match="*:6mo" /eos/dev/instance/convert/ 
 
      # define the conversion layout (hex) for the match rule '*' - this is RAID6 4+2    
-     eos attr set sys.conversion.*=20640542 /eos/dev/instance/convert/                                  
+     eos attr set sys.conversion.*=20640542 /eos/dev/instance/convert/
+     # same thing specifying a placement policy for the replicas/stripes
+     eos> attr set sys.conversion.*=20640542|gathered:site1::rack2 /eos/dev/instance/convert/                                  
 
 Manual File Conversion
 ----------------------
@@ -149,6 +157,10 @@ It is possible to run an asynchronous file conversion using the **EOS CLI**.
    EOS Console [root://localhost] |/eos/dev/proc/conversion/> file convert /eos/dev/2rep/passwd replica:3
    info: conversion based layout+stripe arguments
    success: created conversion job '/eos/dev/proc/conversion/0000000000059b10:default#00650212'
+   # same thing mentioning target space and placement policy
+   EOS Console [root://localhost] |/eos/dev/proc/conversion/> file convert /eos/dev/2rep/passwd replica:3 default gathered:site1::rack1
+   info: conversion based layout+stripe arguments
+   success: created conversion job '/eos/dev/proc/conversion/0000000000059b10:default#00650212'~gathered:site1::rack1
 
 .. code-block:: bash
 
@@ -176,7 +188,7 @@ It is possible to run an asynchronous file conversion using the **EOS CLI**.
    *******
 
 
-Log Files 
+Log Files
 ---------
 The LRU engine has a dedicated log file under ``/var/log/eos/mgm/LRU.log``
 which shows triggered actions based on scanned policies. To get more

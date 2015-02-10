@@ -18,6 +18,7 @@ Configuration
    configuration/fuse
    configuration/groupbalancer   
    configuration/geobalancer
+   configuration/geoscheduling
    configuration/http
    configuration/lru
    configuration/master
