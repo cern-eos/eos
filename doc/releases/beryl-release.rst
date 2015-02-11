@@ -6,6 +6,16 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.96 Beryl-Aquamarine``
+Bug Fixes
+---------
+- fix -1 bug in 'chown' 
+
+New Features
+------------
+- add dummy responses for LOCK,UNLOCK,PROPPATCH enabling OSX & Windows WebDAV clients 
+- allow to modifiy only group ownership in chown
+
 ``Version V0.3.95 Beryl-Aquamarine``
 
 Bug Fixes
