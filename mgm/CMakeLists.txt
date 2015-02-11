@@ -110,6 +110,8 @@ add_library (XrdEosMgm MODULE
             http/webdav/WebDAVHandler.cc
             http/webdav/WebDAVResponse.cc
             http/webdav/PropFindResponse.cc
+            http/webdav/PropPatchResponse.cc
+            http/webdav/LockResponse.cc
             Converter.cc
             GroupBalancer.cc
             GeoBalancer.cc
