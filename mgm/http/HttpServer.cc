@@ -373,9 +373,8 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
   }
 
   XrdOucString tident = username.c_str();
-  tident += ".1:1@"; tident += client.host;
+  tident += ".1:1@"; tident += const_cast<char*> (headers["client-real-host"].c_str());
   client.name = const_cast<char*> (username.c_str());
-  client.host = const_cast<char*> (headers["client-real-host"].c_str());
   client.tident = const_cast<char*> (tident.c_str());
   {
     // Make a virtual identity object
@@ -385,28 +384,13 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
     eos::common::Mapping::IdMap (&client, "eos.app=http", client.tident, *vid, true);
     EXEC_TIMING_END("IdMap");
 
-    // Verify that a connection originates from the host stated in the header
-
     std::string header_host = headers["host"];
     size_t pos= header_host.find(":");
     // remove the port if present
     if ( pos != std::string::npos)
       header_host.erase(pos);
     
-    if ( (headers.count("client-real-host")) &&
-	 (headers["client-real-host"] != "localhost") && 
-	 (headers["client-real-host"] != "localhost.localdomain") &&
-	 (headers["client-real-host"] != "localhost6") &&
-	 (headers["client-real-host"] != "localhost6.localdomain6") &&
-	 ( headers["client-real-host"] != header_host ) ) {
-      // map the betrayer to nobody
-      eos::common::Mapping::Nobody(*vid);
-      eos_static_notice("msg=\"connection/header mismatch\" header-host=\"%s\" connection-host=\"%s\" real-ip=%s", header_host.c_str(), headers["client-real-host"].c_str(), headers["client-real-ip"].c_str());
-    } else {
-      eos_static_debug("msg=\"connection/header match\" header-host=\"%s\" connection-host=\"%s\" real-ip=%s", header_host.c_str(), headers["client-real-host"].c_str(), headers["client-real-ip"].c_str());
-    }
-
-
+    eos_static_debug("msg=\"connection/header\" header-host=\"%s\" connection-host=\"%s\" real-ip=%s", header_host.c_str(), headers["client-real-host"].c_str(), headers["client-real-ip"].c_str());
     
     // if we have been mapped to nobody, change also the name accordingly
     if (vid->uid == 99)
