@@ -345,11 +345,6 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
   }
 
   XrdSecEntity client(headers.count("x-real-ip")?"https":"http");
-  XrdOucString tident = username.c_str();
-  tident += ".1:1@"; tident += headers["host"].c_str();
-  client.name = const_cast<char*> (username.c_str());
-  client.host = const_cast<char*> (headers["host"].c_str());
-  client.tident = const_cast<char*> (tident.c_str());
   std::string remotehost="";
 
   if (headers.count("x-real-ip"))
@@ -377,6 +372,11 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
     client.host = const_cast<char*> (remotehost.c_str());
   }
 
+  XrdOucString tident = username.c_str();
+  tident += ".1:1@"; tident += client.host;
+  client.name = const_cast<char*> (username.c_str());
+  client.host = const_cast<char*> (headers["client-real-host"].c_str());
+  client.tident = const_cast<char*> (tident.c_str());
   {
     // Make a virtual identity object
     vid = new eos::common::Mapping::VirtualIdentity();
