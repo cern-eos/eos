@@ -63,30 +63,39 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
   switch (meth)
   {
     case GET:
+      gOFS->MgmStats.Add("Http-GET", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
       response = Get(request);
       break;
     case HEAD:
+      gOFS->MgmStats.Add("Http-HEAD", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
       response = Head(request);
       break;
     case POST:
+      gOFS->MgmStats.Add("Http-POST", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
       response = Post(request);
       break;
     case PUT:
+      gOFS->MgmStats.Add("Http-PUT", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
       response = Put(request);
       break;
     case DELETE:
+      gOFS->MgmStats.Add("Http-DELETE", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
       response = Delete(request);
       break;
     case TRACE:
+      gOFS->MgmStats.Add("Http-TRACE", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
       response = Trace(request);
       break;
     case OPTIONS:
+      gOFS->MgmStats.Add("Http-OPTIONS", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
       response = Options(request);
       break;
     case CONNECT:
+      gOFS->MgmStats.Add("Http-CONNECT", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
       response = Connect(request);
       break;
     case PATCH:
+      gOFS->MgmStats.Add("Http-PATCH", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
       response = Patch(request);
       break;
     default:
@@ -942,7 +951,7 @@ HttpHandler::Options (eos::common::HttpRequest * request)
   eos::common::HttpResponse *response = new eos::common::PlainHttpResponse();
   response->AddHeader("DAV", "1,2");
   response->AddHeader("Allow", "OPTIONS,GET,HEAD,PUT,DELETE,TRACE,"\
-                               "PROPFIND,MKCOL,COPY,MOVE");
+                               "PROPFIND,PROPPATCH,MKCOL,COPY,MOVE,LOCK,UNLOCK");
   response->AddHeader("Content-Length", "0");
 
   return response;
