@@ -87,7 +87,9 @@ ProcCommand::Chown ()
    {
      uid.erase(dpos);
      gid.erase(0, dpos + 1);
-
+     if (uid == "") {
+       uidt = 0xffffffff;
+     }
      if ((gid != "0") )
      {
        // try to translate with password database
@@ -112,16 +114,19 @@ ProcCommand::Chown ()
      gidt = 0xffffffff;
    }
 
-   if ((uid != "0"))
+   if (uid != "0")
    {
-     int terrc = 0;
-     uidt = eos::common::Mapping::UserNameToUid(uid, terrc);
-
-     if (terrc)
+     if (uid.length())
      {
-       stdErr = "error: I cannot translate your uid string using the pwd database";
-       retc = terrc;
-       failure = true;
+       int terrc = 0;
+       uidt = eos::common::Mapping::UserNameToUid(uid, terrc);
+       
+       if (terrc)
+       {
+	 stdErr = "error: I cannot translate your uid string using the pwd database";
+	 retc = terrc;
+	 failure = true;
+       }
      }
    }
    else
