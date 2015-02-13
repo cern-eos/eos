@@ -73,6 +73,7 @@ struct dirbuf
 
 
 #ifdef __cplusplus
+
 extern "C"
 {
 #endif
@@ -210,7 +211,7 @@ extern "C"
   //----------------------------------------------------------------------------
   //! Release a read buffer for the specified thread id
   //!
-  //! @param tid thread id 
+  //! @param tid thread id
   //!
   //----------------------------------------------------------------------------
   void xrd_release_rd_buff (pthread_t tid);
@@ -286,7 +287,7 @@ extern "C"
   //----------------------------------------------------------------------------
   //              ******* POSIX opened file descriptors *******
   //----------------------------------------------------------------------------
-  
+
   //----------------------------------------------------------------------------
   //! Create an artificial file descriptor
   //----------------------------------------------------------------------------
@@ -295,7 +296,7 @@ extern "C"
 
   //----------------------------------------------------------------------------
   //! Add new inodeuser to fd mapping used when doing stat through the file obj.
-  //! 
+  //!
   //! @param inode inode number
   //! @param uid user uid
   //! @param fd file descriptor
@@ -503,7 +504,7 @@ extern "C"
   //----------------------------------------------------------------------------
   int xrd_truncate (int fildes, off_t offset);
 
-  
+
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
@@ -581,9 +582,9 @@ extern "C"
   //----------------------------------------------------------------------------
   int
   xrd_set_utimes_close(unsigned long long ino,
-		       struct timespec* tvp,
-		       uid_t uid
-		       );
+                       struct timespec* tvp,
+                       uid_t uid
+                       );
 
   //----------------------------------------------------------------------------
   //!
@@ -618,6 +619,16 @@ extern "C"
   //! Return the CGI of an URL
   //----------------------------------------------------------------------------
   const char* get_cgi (const char* url);
+
+  //----------------------------------------------------------------------------
+  //! Check if rm command was issued on one of the top level directories
+  //!
+  //! @param pid process id
+  //! @param local_dir local mount point directory
+  //!
+  //! @return 0 if false, otherwise 1
+  //----------------------------------------------------------------------------
+  int is_toplevel_rm(pid_t pid, char* local_dir);
 
   //----------------------------------------------------------------------------
   //! Initialisation function

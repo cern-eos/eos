@@ -72,6 +72,9 @@ char mounthostport[1024];
 //! Mount prefix
 char mountprefix[1024];
 
+//! Local mount point
+char local_mount_dir[1024];
+
 //! We need to track the access time of/to use autofs
 static time_t eosatime;
 
@@ -145,7 +148,7 @@ eosdfs_fgetattr (const char* path,
   strcat (rootpath, path);
   struct fd_user_info* info = (fd_user_info*) fi->fh;
   int res = xrd_stat(rootpath, stbuf, uid, gid, info->ino);
-  
+
   if (res == 0)
   {
     if (S_ISREG (stbuf->st_mode))
@@ -260,7 +263,7 @@ eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
                        O_CREAT | O_EXCL | O_RDWR,
                        mode,
                        uid, gid, 0, &return_inode);
-    
+
     if (res < 0)
       return -errno;
 
@@ -274,7 +277,7 @@ eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
     info->fd = res;
     info->uid = uid;
     info->ino = return_inode;
-    fi->fh = (uint64_t) info;  
+    fi->fh = (uint64_t) info;
   }
 
   return 0;
@@ -309,12 +312,19 @@ eosdfs_mkdir (const char* path, mode_t mode)
 static int
 eosdfs_unlink (const char* path)
 {
-  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  fprintf (stderr, "[%s] path=%s, pid=%u\n", __FUNCTION__, path, getpid());
   char rootpath[4096];
   eosatime = time (0);
   rootpath[0] = '\0';
   strcat(rootpath, mountprefix);
   strcat(rootpath, path);
+
+  // Check and prevent top level deletions
+  struct fuse_context* fuse_ctx = fuse_get_context();
+
+  if (is_toplevel_rm(fuse_ctx->pid, local_mount_dir) == 1)
+    return -EPERM;
+
   int res = xrd_unlink (rootpath, uid, gid, pid);
 
   if (res)
@@ -337,6 +347,13 @@ eosdfs_rmdir (const char* path)
   rootpath[0] = '\0';
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
+
+  // Check and prevent top level deletions
+  struct fuse_context* fuse_ctx = fuse_get_context();
+
+  if (is_toplevel_rm(fuse_ctx->pid, local_mount_dir) == 1)
+    return -EPERM;
+
   int res = xrd_rmdir (rootpath, uid, gid, pid);
 
   if (res)
@@ -348,7 +365,7 @@ eosdfs_rmdir (const char* path)
 
 
 //------------------------------------------------------------------------------
-// Rename 
+// Rename
 //------------------------------------------------------------------------------
 static int
 eosdfs_rename (const char* from, const char* to)
@@ -420,7 +437,7 @@ eosdfs_truncate (const char* path, off_t size)
                     O_WRONLY | O_TRUNC,
                     S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
                     uid, gid, pid, &rinode);
-  
+
   if (fd < 0)
     return -errno;
 
@@ -469,21 +486,21 @@ eosdfs_open (const char* path, struct fuse_file_info* fi)
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
   eosatime = time (0);
-  int res = xrd_open (path, 
-                  fi->flags, 
-                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, 
+  int res = xrd_open (path,
+                  fi->flags,
+                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
                   uid, gid, pid, &rinode);
 
   if (res == -1)
     return -errno;
- 
+
   // This memory  has to be freed once we're done with the file, usually in
   // the close/release method
   fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof(struct fd_user_info));
   info->fd = res;
   info->uid = uid;
   info->ino = rinode;
-  fi->fh = (uint64_t) info;  
+  fi->fh = (uint64_t) info;
   fprintf (stderr, "[%s] path=%s, fd=%i, inode=%lu\n", __FUNCTION__, path, res,
            (unsigned long) rinode);
   return 0;
@@ -500,7 +517,7 @@ eosdfs_read (const char* path,
              off_t offset,
              struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path=%s, offset=%llii, length=%li\n", 
+  fprintf (stderr, "[%s] path=%s, offset=%llii, length=%li\n",
            __FUNCTION__, path, offset, size);
   eosatime = time (0);
   struct fd_user_info* info = (fd_user_info*) fi->fh;
@@ -528,7 +545,7 @@ eosdfs_write (const char* path,
               off_t offset,
               struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path=%s, offset=%lli, lenght=%li\n", 
+  fprintf (stderr, "[%s] path=%s, offset=%lli, lenght=%li\n",
            __FUNCTION__, path, offset, size);
 
   // File already existed. FUSE uses eosdfs_open() and eosdfs_truncate()
@@ -608,11 +625,11 @@ eosdfs_fsync (const char* path,
 
 
 //------------------------------------------------------------------------------
-// Truncate an opened file 
+// Truncate an opened file
 //------------------------------------------------------------------------------
-static int 
-eosdfs_ftruncate(const char* path, 
-                 off_t size, 
+static int
+eosdfs_ftruncate(const char* path,
+                 off_t size,
                  struct fuse_file_info* fi)
 {
   fprintf (stderr, "[%s] path=%s, size=%lli\n", __FUNCTION__, path, size);
@@ -778,6 +795,9 @@ main (int argc, char* argv[])
     }
 #endif
 
+  // Save local mount directory to check for toplevel rm -rf
+  strcpy(local_mount_dir, argv[1]);
+
   for (i = 0; i < argc; i++)
   {
     if (!strncmp (argv[i], "root://", 7))
@@ -834,7 +854,7 @@ main (int argc, char* argv[])
   char* smountprefix = 0;
 
   setenv("EOS_RDRURL", rdrurl,1);
-  
+
   pmounthostport = strstr (rdrurl, "root://");
 
   if (!pmounthostport)
@@ -918,9 +938,6 @@ main (int argc, char* argv[])
 
   uid = getuid();
   gid = getgid();
-  pid = getpid(); 
+  pid = getpid();
   return fuse_main (margc, argv, &eosdfs_oper, NULL);
 }
-
-
-

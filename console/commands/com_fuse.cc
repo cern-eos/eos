@@ -225,11 +225,23 @@ com_fuse (char* arg1)
       env += " EOS_FUSE_DEBUG=0";
     }
 
+    if (getenv("EOS_FUSE_RMLVL_PROTECT"))
+    {
+      env += " EOS_FUSE_RMLVL_PROTECT=";
+      env += getenv("EOS_FUSE_RMLVL_PROTECT");
+    }
+    else
+    {
+      setenv("EOS_FUSE_RMLVL_PROTECT", "1", 1);
+      env += " EOS_FUSE_RMLVL_PROTECT=1";
+    }
+
     fprintf(stderr, "===> xrootd ra             : %s\n", getenv("EOS_FUSE_READAHEADSIZE"));
     fprintf(stderr, "===> xrootd cache          : %s\n", getenv("EOS_FUSE_READCACHESIZE"));
     fprintf(stderr, "===> fuse debug            : %s\n", getenv("EOS_FUSE_DEBUG"));
     fprintf(stderr, "===> fuse write-cache      : %s\n", getenv("EOS_FUSE_CACHE_WRITE"));
     fprintf(stderr, "===> fuse write-cache-size : %s\n", getenv("EOS_FUSE_CACHE_SIZE"));
+    fprintf(stderr, "===> fuse rm level protect : %s\n", getenv("EOS_FUSE_RMLVL_PROTECT"));
 
     XrdOucString mount = env;
     mount += " eosfsd ";
@@ -255,23 +267,23 @@ com_fuse (char* arg1)
       if (WEXITSTATUS(rc))
       {
         fprintf(stderr, "error: mount failed\n");
-	exit(-1);
+        exit(-1);
       }
     }
 
     bool mountok=false;
 
-    for (size_t i=0; i< 50; i++) 
+    for (size_t i=0; i< 50; i++)
     {
       if(stat(mountpoint.c_str(), &buf2) || (buf2.st_ino == buf.st_ino) )
       {
-	usleep(100000);
+        usleep(100000);
       }
       else
       {
-	mountok=true;
-	break;
-      }	
+        mountok=true;
+        break;
+      }
     }
     if (!mountok)
     {
