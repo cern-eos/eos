@@ -795,7 +795,7 @@ main (int argc, char* argv[])
     }
 #endif
 
-  // Save local mount directory to check for toplevel rm -rf
+  // Save local mount directory to check for toplevel deletions
   strcpy(local_mount_dir, argv[1]);
 
   for (i = 0; i < argc; i++)

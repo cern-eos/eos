@@ -2695,10 +2695,10 @@ xrd_user_url (uid_t uid,
 
 
 //------------------------------------------------------------------------------
-// Cache that holds just one element namely the mapping from the pid to a bool
+// Cache that holds just one element namely the mapping from a pid to a bool
 // variable which is true if this is a top level rm operation and false other-
-// wise. It is used by recursve rm command which below to the same pid to
-// decide if his operation is denied or not.
+// wise. It is used by recursive rm commands which belong to the same pid in
+// order to decide if his operation is denied or not.
 //------------------------------------------------------------------------------
 std::map<pid_t, bool> mMapPidDenyRm;
 
@@ -2768,8 +2768,8 @@ int is_toplevel_rm(int pid, char* local_dir)
   if (*scwd.rbegin() != '/')
     scwd += '/';
 
-  // First check if the command was launched for a location at the top of the
-  // hierarchy
+  // First check if the command was launched from a location at the top of the
+  // hierarchy inside the local mount point
   eos_static_debug("cwd=%s, mount_dir=%s", scwd.c_str(), mount_dir.c_str());
   std::string rel_path;
   int level;
