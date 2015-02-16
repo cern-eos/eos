@@ -2768,8 +2768,8 @@ int is_toplevel_rm(int pid, char* local_dir)
   if (*scwd.rbegin() != '/')
     scwd += '/';
 
-  // First check if the command was launched from a location at the top of the
-  // hierarchy inside the local mount point
+  // First check if the command was launched from a location inside the hierarchy
+  // of the local mount point
   eos_static_debug("cwd=%s, mount_dir=%s", scwd.c_str(), mount_dir.c_str());
   std::string rel_path;
   int level;
@@ -2787,8 +2787,9 @@ int is_toplevel_rm(int pid, char* local_dir)
     }
   }
 
-  // Now check if the cmd was launched from a different location and therefore
-  // the process command line contains the full path of the directories to rm
+  // Now check if the cmd was launched from a different location but exactly on
+  // the mount point and therefore the process command line contains the full
+  // path of the directories to delete
   for (std::set<std::string>::iterator it = rm_entries.begin();
        it != rm_entries.end(); ++it)
   {
@@ -2798,6 +2799,19 @@ int is_toplevel_rm(int pid, char* local_dir)
       level = std::count(rel_path.begin(), rel_path.end(), '/') + 1;
       eos_static_debug("rm_ext current_lvl=%i, protect_lvl=%i", level,
                       rm_level_protect);
+
+      if (level <= rm_level_protect)
+      {
+        mMapPidDenyRm[pid] = true;
+        return 1;
+      }
+    }
+
+    // Another case is when the delete command is issued on a directory higher
+    // up in the hierarchy where the mountpoint was done
+    if (mount_dir.find(*it) == 0)
+    {
+      level = 1;
 
       if (level <= rm_level_protect)
       {
@@ -2844,7 +2858,7 @@ int xrd_check_mgm()
 
   if (!st.IsOK())
   {
-    eos_static_info("Unable to contact MGM at address=%s", address.c_str());
+    eos_static_err("Unable to contact MGM at address=%s", address.c_str());
     return 0;
   }
 
