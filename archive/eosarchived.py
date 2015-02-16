@@ -113,7 +113,7 @@ class Dispatcher(object):
                     reply = "ERROR error: operation not supported"
                     raise
 
-                frontend.send_string(reply)
+                frontend.send_string(reply.encode("utf-8"))
 
     def get_orphans(self):
         """ Get orphan transfer processes from previous runs of the daemon
@@ -343,7 +343,7 @@ class Dispatcher(object):
             proc = self.procs[job_uuid]
         except KeyError as __:
             msg = "ERROR error: job not found"
-            return
+            return msg
 
         if (uid == 0 or uid == proc.uid or
             (uid != proc.uid and gid == proc.gid)):
