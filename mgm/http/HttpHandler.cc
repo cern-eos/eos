@@ -69,6 +69,7 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
     case HEAD:
       gOFS->MgmStats.Add("Http-HEAD", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
       response = Head(request);
+      response->SetBody("");
       break;
     case POST:
       gOFS->MgmStats.Add("Http-POST", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
@@ -200,50 +201,40 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
                                        response->NOT_MODIFIED);
     }
 
-    if (spath.endswith("/"))
+    // find out if it is a file or directory
+    if (S_ISDIR(buf.st_mode)) 
     {
       isfile = false;
+      if (isHEAD) 
+      {
+	// HEAD requests for dirs just act like 'exists'
+	eos_static_info("cmd=GET(HEAD) size=%llu path=%s type=dir",
+			buf.st_size,
+			url.c_str());
+	
+	response = new eos::common::PlainHttpResponse();
+	response->SetBody("");
+	response->AddHeader("ETag", etag);
+	response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
+	return response;
+      }
     }
     else
     {
-      // find out if it is a file or directory
-      if (S_ISDIR(buf.st_mode)) 
+      isfile = true;
+      if (isHEAD)
       {
-        isfile = false;
-	if (isHEAD) 
-	{
-	  // HEAD requests for dirs just act like 'exists'
-          eos_static_info("cmd=GET(HEAD) size=%llu path=%s type=dir",
-                          buf.st_size,
-                          url.c_str());
-	  
-	  response = new eos::common::PlainHttpResponse();
-	  response->SetBody("");
-	  response->AddHeader("ETag", etag);
-	  response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
-	  return response;
-	}
-      }
-      else
-      {
-        if (isHEAD)
-        {
-          std::string basename = url.substr(url.rfind("/") + 1);
-          eos_static_info("cmd=GET(HEAD) size=%llu path=%s type=file",
-                          buf.st_size,
-                          url.c_str());
-          // HEAD requests on files can return from the MGM without redirection
-          response = HttpServer::HttpHead(buf.st_size, basename);
-          response->AddHeader("ETag", etag);
-          response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
-          return response;
-        }
+	std::string basename = url.substr(url.rfind("/") + 1);
+	eos_static_info("cmd=GET(HEAD) size=%llu path=%s type=file",
+			buf.st_size,
+			url.c_str());
+	// HEAD requests on files can return from the MGM without redirection
+	response = HttpServer::HttpHead(buf.st_size, basename);
+	response->AddHeader("ETag", etag);
+	response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
+	return response;
       }
     }
-  }
-  else
-  {
-    isfile = true;
   }
 
   if (isfile)
@@ -640,6 +631,7 @@ HttpHandler::Head (eos::common::HttpRequest * request)
 {
   eos::common::HttpResponse *response = Get(request, true);
   response->mUseFileReaderCallback = false;
+  response->SetBody("");
   return response;
 }
 
